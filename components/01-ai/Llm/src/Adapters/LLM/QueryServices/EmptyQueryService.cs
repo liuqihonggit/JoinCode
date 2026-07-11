@@ -1,7 +1,7 @@
 namespace Api.LLM.QueryServices;
 
 /// <summary>
-/// 空 QueryService 实现 — 仅供 ApiRegistration.CreateEmptyKernel 测试场景使用
+/// 空 QueryService 实现 — 仅供 ServiceRegistration.CreateEmptyKernel 测试场景使用
 /// 不发起任何真实 API 请求；所有方法抛 NotSupportedException
 /// 真实场景请通过 QueryServiceFactory 创建对应派生类
 /// </summary>

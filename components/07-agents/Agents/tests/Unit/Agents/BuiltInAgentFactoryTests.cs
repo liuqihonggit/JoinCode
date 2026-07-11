@@ -9,7 +9,7 @@ public class BuiltInAgentFactoryTests
 
     public BuiltInAgentFactoryTests()
     {
-        _kernel = ApiRegistration.CreateEmptyKernel();
+        _kernel = ServiceRegistration.CreateEmptyKernel();
         _fs = new IO.FileSystem.PhysicalFileSystem();
 
         _factory = new BuiltInAgentFactory(

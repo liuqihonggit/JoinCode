@@ -11,7 +11,7 @@ public class ExploreAgentTests
 
     public ExploreAgentTests()
     {
-        _kernel = ApiRegistration.CreateEmptyKernel();
+        _kernel = ServiceRegistration.CreateEmptyKernel();
         _fs = new IO.FileSystem.PhysicalFileSystem();
 
         _referenceResolverMock = new Mock<IReferenceResolver>();

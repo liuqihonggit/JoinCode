@@ -1,4 +1,5 @@
 global using Api;
+global using JoinCode.Llm.DependencyInjection;
 global using AgentInfo = Core.Agents.Coordinator.AgentInfo;
 global using AgentMsg = JoinCode.Abstractions.Models.Agent.CoordinatorMessage;
 global using JoinCode.Transport.Bridge;

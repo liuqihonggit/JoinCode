@@ -36,7 +36,7 @@ public static partial class ServiceRegistration
         services.AddBrainPipelines();
         // IInteractiveService, IPlanModeManager, IPlanService — [Register] 自动注册
         // ICacheService, IUserInteractionService — [Register] 自动注册
-        services.AddVaultStateServices();
+        services.AddVaultServices();
         services.AddCodeIndexServices(Environment.CurrentDirectory);
         services.AddNewServices();
 

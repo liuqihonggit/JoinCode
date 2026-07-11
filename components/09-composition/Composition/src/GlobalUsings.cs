@@ -5,6 +5,7 @@ global using JoinCode.Agents.DependencyInjection;
 global using JoinCode.Eyes.DependencyInjection;
 global using JoinCode.Brain.DependencyInjection;
 global using JoinCode.Guard.DependencyInjection;
+global using JoinCode.Vault.DependencyInjection;
 global using JoinCode.Llm.DependencyInjection;
 global using JoinCode.Hands.DependencyInjection;
 global using JoinCode.Scheduling.DependencyInjection;

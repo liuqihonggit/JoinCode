@@ -113,6 +113,12 @@ public static partial class ServiceRegistration
     {
         // TelemetryConfig — [Register] 自动注册（无参构造函数从环境变量初始化）
 
+        // P1-5 推广 HttpClientFactory — 启用 IHttpClientFactory（已在 P1-3 卫星项目 aot-httpclientfactory-test 验证 NativeAOT 兼容）
+        // 决策: 主程序通过 services.AddHttpClient() 启用 IHttpClientFactory
+        // 优势: HttpMessageHandler 生命周期由 IHttpClientFactory 池化管理，避免 socket 耗尽
+        // 影响范围: DefaultHttpClientProvider（Real 路径）通过 DI 自动注入 IHttpClientFactory
+        services.AddHttpClient();
+
         // IHttpClientProvider — 根据 JCC_HTTP_MODE 环境变量决定后端
         // 默认 Real（真实网络），Mock=拦截请求返回预设响应（调试/E2E测试用）
         // 注意: [Register] 自动注册的 DefaultHttpClientProvider 已在此处被覆盖（后注册 wins）

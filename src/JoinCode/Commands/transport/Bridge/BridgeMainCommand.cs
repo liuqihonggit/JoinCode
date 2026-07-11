@@ -1,3 +1,4 @@
+using JoinCode.Abstractions.Models.Policy;
 
 namespace JoinCode.ChatCommands.Bridge;
 
@@ -8,15 +9,37 @@ namespace JoinCode.ChatCommands.Bridge;
 /// </summary>
 public sealed class BridgeMainCommand
 {
+    private const string PolicyActionAllowRemoteControl = "allow_remote_control";
+    private const string ConfigKeyRemoteDialogSeen = "remoteDialogSeen";
+    private const string TokenProviderAnthropic = "anthropic";
+    private const string EnvJccApiKey = "JCC_API_KEY";
+    private const string EnvOAuthToken = "CLAUDE_CODE_OAUTH_TOKEN";
+    private const string EnvSessionAccessToken = "CLAUDE_CODE_SESSION_ACCESS_TOKEN";
+
     private readonly IServiceProvider? _services;
     private readonly IFileSystem _fs;
     private readonly IProcessService _processService;
+    private readonly IRemotePolicyService? _policyService;
+    private readonly ITokenStorage? _tokenStorage;
+    private readonly IConfigurationService? _configService;
+    private readonly ILogger<BridgeMainCommand>? _logger;
 
-    public BridgeMainCommand(IServiceProvider? services, IFileSystem fs, IProcessService processService)
+    public BridgeMainCommand(
+        IServiceProvider? services,
+        IFileSystem fs,
+        IProcessService processService,
+        IRemotePolicyService? policyService = null,
+        ITokenStorage? tokenStorage = null,
+        IConfigurationService? configService = null,
+        ILogger<BridgeMainCommand>? logger = null)
     {
         _services = services;
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _processService = processService ?? throw new ArgumentNullException(nameof(processService));
+        _policyService = policyService;
+        _tokenStorage = tokenStorage;
+        _configService = configService;
+        _logger = logger;
     }
 
     /// <summary>
@@ -51,7 +74,7 @@ public sealed class BridgeMainCommand
         }
 
         // 3. 检查组织策略 — 对齐 TS 端: isPolicyAllowed('allow_remote_control')
-        if (!IsPolicyAllowed())
+        if (!await IsPolicyAllowedAsync(ct).ConfigureAwait(false))
         {
             TerminalHelper.WriteLine("远程控制已被组织策略禁用。");
             return 1;
@@ -121,13 +144,36 @@ public sealed class BridgeMainCommand
 
     /// <summary>
     /// 检查组织策略 — 对齐 TS 端: isPolicyAllowed('allow_remote_control')
-    /// 默认 fail-open: 无策略配置时允许
+    /// fail-open: 无策略服务或异常时允许
+    /// 决策: 服务不可达视为允许（避免阻塞合法用户）
     /// </summary>
-    private static bool IsPolicyAllowed()
+    internal async Task<bool> IsPolicyAllowedAsync(CancellationToken ct = default)
     {
-        // TODO: 集成 Guard 子系统的策略检查
-        // 当前 fail-open: 无策略配置时允许
-        return true;
+        if (_policyService is null)
+        {
+            _logger?.LogDebug("PolicyService 未注入，fail-open 允许远程控制。");
+            return true;
+        }
+
+        try
+        {
+            var result = await _policyService
+                .EvaluateAsync(PolicyActionAllowRemoteControl, context: null, ct)
+                .ConfigureAwait(false);
+            if (!result.Allowed)
+            {
+                _logger?.LogInformation(
+                    "策略 {Action} 被拒绝: {Reason}",
+                    PolicyActionAllowRemoteControl,
+                    result.Reason);
+            }
+            return result.Allowed;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "策略服务评估失败，fail-open 允许远程控制。");
+            return true;
+        }
     }
 
     /// <summary>
@@ -135,8 +181,8 @@ public sealed class BridgeMainCommand
     /// </summary>
     private BridgeMainDeps? BuildDeps(BridgeMainArgs args)
     {
-        // 获取访问令牌
-        var accessToken = GetAccessToken();
+        // 获取访问令牌（同步上下文桥接异步方法 — BridgeMainDeps 要求 Func<string?>）
+        var accessToken = GetAccessTokenAsync().GetAwaiter().GetResult();
         if (string.IsNullOrEmpty(accessToken))
         {
             return null;
@@ -156,7 +202,7 @@ public sealed class BridgeMainCommand
         {
             BaseUrl = baseUrl,
             ApiKey = accessToken,
-            GetAccessToken = () => GetAccessToken(),
+            GetAccessToken = () => GetAccessTokenAsync().GetAwaiter().GetResult(),
         });
 
         // 创建子进程生成器
@@ -177,29 +223,54 @@ public sealed class BridgeMainCommand
             FileSystem = _fs,
             PointerService = pointerService,
             WorkingDirectory = Environment.CurrentDirectory,
-            GetAccessToken = () => GetAccessToken(),
+            GetAccessToken = () => GetAccessTokenAsync().GetAwaiter().GetResult(),
             GetBaseUrl = () => baseUrl,
-            CheckRemoteDialogAccepted = CheckRemoteDialogAccepted,
+            CheckRemoteDialogAccepted = () => CheckRemoteDialogAcceptedAsync().GetAwaiter().GetResult(),
+            MarkRemoteDialogSeen = () => MarkRemoteDialogSeenAsync().GetAwaiter().GetResult(),
             PermissionMode = args.PermissionMode,
         };
     }
 
     /// <summary>
     /// 获取访问令牌 — 对齐 TS 端: getBridgeAccessToken()
-    /// 优先级: 环境变量 → OAuth token → API key
+    /// 优先级: JCC_API_KEY env → OAuth Token Storage(未过期) → CLAUDE_CODE_OAUTH_TOKEN env → CLAUDE_CODE_SESSION_ACCESS_TOKEN env
+    /// 决策: Token 过期不自动刷新，回退到环境变量（避免在命令入口触发 OAuth 流程）
     /// </summary>
-    private static string? GetAccessToken()
+    internal async Task<string?> GetAccessTokenAsync(CancellationToken ct = default)
     {
-        // 1. 环境变量
-        var envToken = Environment.GetEnvironmentVariable("JCC_API_KEY");
+        // 1. 环境变量 JCC_API_KEY
+        var envToken = Environment.GetEnvironmentVariable(EnvJccApiKey);
         if (!string.IsNullOrEmpty(envToken)) return envToken;
 
-        // 2. OAuth token (TODO: 集成 Guard 子系统)
-        var oauthToken = Environment.GetEnvironmentVariable("CLAUDE_CODE_OAUTH_TOKEN");
+        // 2. OAuth Token Storage（未过期）
+        if (_tokenStorage is not null)
+        {
+            try
+            {
+                var token = await _tokenStorage
+                    .LoadTokenAsync(TokenProviderAnthropic, ct)
+                    .ConfigureAwait(false);
+                if (token is not null)
+                {
+                    if (!token.IsExpired)
+                    {
+                        return token.AccessToken;
+                    }
+                    _logger?.LogDebug("OAuth Token 已过期，回退到环境变量。");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "加载 OAuth Token 失败，回退到环境变量。");
+            }
+        }
+
+        // 3. CLAUDE_CODE_OAUTH_TOKEN env
+        var oauthToken = Environment.GetEnvironmentVariable(EnvOAuthToken);
         if (!string.IsNullOrEmpty(oauthToken)) return oauthToken;
 
-        // 3. Session access token
-        var sessionToken = Environment.GetEnvironmentVariable("CLAUDE_CODE_SESSION_ACCESS_TOKEN");
+        // 4. CLAUDE_CODE_SESSION_ACCESS_TOKEN env
+        var sessionToken = Environment.GetEnvironmentVariable(EnvSessionAccessToken);
         if (!string.IsNullOrEmpty(sessionToken)) return sessionToken;
 
         return null;
@@ -226,11 +297,56 @@ public sealed class BridgeMainCommand
 
     /// <summary>
     /// 检查远程控制对话框是否已被接受 — 对齐 TS 端: remoteDialogSeen
+    /// 决策: 使用 IConfigurationService 本地配置服务（与 settings.json 对齐）
     /// </summary>
-    private static bool CheckRemoteDialogAccepted()
+    internal async Task<bool> CheckRemoteDialogAcceptedAsync(CancellationToken ct = default)
     {
-        // TODO: 集成配置系统检查 remoteDialogSeen
-        // 当前默认: 已接受（首次运行时由 BridgeMain.RunAsync 的确认对话框处理）
-        return true;
+        if (_configService is null)
+        {
+            _logger?.LogDebug("ConfigService 未注入，视为未接受远程对话框。");
+            return false;
+        }
+
+        try
+        {
+            var value = await _configService
+                .GetAsync(ConfigKeyRemoteDialogSeen, ct)
+                .ConfigureAwait(false);
+            return string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "读取 remoteDialogSeen 失败，视为未接受。");
+            return false;
+        }
     }
+
+    /// <summary>
+    /// 标记远程控制对话框已接受 — 对齐 TS 端: saveGlobalConfig({remoteDialogSeen: true})
+    /// 决策: 通过 IConfigurationService 持久化到 settings.json
+    /// </summary>
+    internal async Task MarkRemoteDialogSeenAsync(CancellationToken ct = default)
+    {
+        if (_configService is null)
+        {
+            _logger?.LogDebug("ConfigService 未注入，跳过标记 remoteDialogSeen。");
+            return;
+        }
+
+        try
+        {
+            await _configService
+                .SetAsync(ConfigKeyRemoteDialogSeen, "true", ct)
+                .ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "保存 remoteDialogSeen 失败。");
+        }
+    }
+
+    /// <summary>
+    /// 暴露 BuildDeps 供单元测试调用 — 仅测试用
+    /// </summary>
+    internal BridgeMainDeps? BuildDepsForTest(BridgeMainArgs args) => BuildDeps(args);
 }

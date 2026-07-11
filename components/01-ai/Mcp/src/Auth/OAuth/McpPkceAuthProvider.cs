@@ -70,7 +70,8 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(fs);
         _options = options;
-        _httpClient = httpClient ?? new HttpClient();
+        // P1-6: fallback 走 HttpClientProviderFactory（支持 JCC_HTTP_MODE=Mock 切换，对齐主程序 IHttpClientProvider 抽象）
+        _httpClient = httpClient ?? HttpClientProviderFactory.Create().GetClient();
         _logger = logger;
         _fs = fs;
         _metadataDiscovery = new McpOAuthMetadataDiscovery(_httpClient, logger as ILogger<McpOAuthMetadataDiscovery>);

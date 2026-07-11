@@ -126,7 +126,7 @@
 | 提交前验证 | `.\build.ps1 -Mode Full` → `.\build.ps1` → 全部通过才允许提交 |
 | 禁止跳过 | 即使只改了一个注释，也必须走完整个流水线 |
 | 禁止单元测试不通过 | 单元测试不通过 = 不允许提交 |
-| 禁止 push | LLM 只能 `git commit`，推送由用户手动完成 |
+| 允许 push（非 main/master） | LLM 可 `git commit` + `git push` 到功能分支；禁止 force push 到 main/master |
 | HEREDOC 禁令 | PowerShell 不支持，用多个 `-m` 参数替代 |
 | 特殊字符禁令 | commit 消息禁止 `$`、反引号、三引号 |
 | ⚠️ 源码生成器 + 增量编译 | `dotnet build` 默认增量编译，会缓存生成器输出。**新增/修改 `[Register]` 类后必须用 `--no-incremental` 全量重建**，否则生成器不会重新扫描新类型 |

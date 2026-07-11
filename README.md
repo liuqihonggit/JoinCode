@@ -215,7 +215,7 @@ var options = LoopInterventionOptionsBuilder.Create()
 
 1. 必须改为 LINQ 链式调用。
 2. 动态计算当前 CPU 负载并分级：90% 以上用 1 核心，70% 以上用一半核心，其余用全部核心。
-3. 部分模块已切换到 ZLINQ，利用 SIMD 加速。
+3. 使用标准 System.Linq，通过 Directory.Build.props 全局引用。
 
 ## 0x05 串行编译
 
@@ -577,17 +577,16 @@ tests/
 |------|------|------|
 | 根 Directory.Build.props | `Directory.Build.props` | 全局：net10.0, AOT, 版本变量, 全局 Analyzer |
 | 根 Directory.Build.targets | `Directory.Build.targets` | IsPackable/GenerateDocumentationFile 条件逻辑 |
-| components Directory.Build.props | `components/Directory.Build.props` | 组件：ZLinq, 测试框架 |
+| components Directory.Build.props | `components/Directory.Build.props` | 组件：测试框架 |
 | generators Directory.Build.props | `generators/Directory.Build.props` | 生成器：netstandard2.0 |
-| sdk Directory.Build.props | `sdk/Directory.Build.props` | SDK：ZLinq |
-| src Directory.Build.props | `src/Directory.Build.props` | 源码：ZLinq |
+| sdk Directory.Build.props | `sdk/Directory.Build.props` | SDK：全局 Using |
+| src Directory.Build.props | `src/Directory.Build.props` | 源码：全局 Using |
 | tests Directory.Build.props | `tests/Directory.Build.props` | 测试：xUnit, Moq, FluentAssertions |
 | global.json | `global.json` | .NET SDK 10.0.301 |
 | nuget.config | `nuget.config` | NuGet 源 + 本地包目录 |
 | src/GlobalUsings.cs | `src/GlobalUsings.cs` | Host 全局 Using |
 | Abstractions/GlobalUsings.cs | `sdk/Abstractions/GlobalUsings.cs` | 73 行全局 Using |
 | Infrastructure/GlobalUsings.cs | `src/Infrastructure/GlobalUsings.cs` | 73 行全局 Using |
-| components/ZLinqDropIn.cs | `components/ZLinqDropIn.cs` | ZLinq 全局替换 System.Linq |
 
 ## 构建命令速查
 

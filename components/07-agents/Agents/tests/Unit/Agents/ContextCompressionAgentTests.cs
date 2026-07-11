@@ -10,7 +10,7 @@ public class ContextCompressionAgentTests
 
     public ContextCompressionAgentTests()
     {
-        _kernel = ServiceRegistration.CreateEmptyKernel();
+        _kernel = JoinCode.Llm.DependencyInjection.ServiceRegistration.CreateEmptyKernel();
 
         _mockContextHierarchy = new Mock<IContextHierarchy>();
         _mockContextCompressor = new Mock<IContextCompressor>();

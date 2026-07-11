@@ -25,7 +25,7 @@ public partial class AgentServiceTests
     }
 
     private static IChatClient CreateKernel() =>
-        ServiceRegistration.CreateEmptyKernel();
+        JoinCode.Llm.DependencyInjection.ServiceRegistration.CreateEmptyKernel();
 
     [Fact]
     public void Constructor_WithValidParameters_ShouldNotThrow()

@@ -160,11 +160,11 @@ public sealed class ApplicationBuilder
         // TelemetryService — 依赖 TelemetryConfig（必填）、ILogger（可选）
         services.AddSingleton<ITelemetryService, Core.Telemetry.TelemetryService>();
 
-        // HttpClient — CLI 短生命周期单例可接受
-        // 决策: 避免 IHttpClientFactory 的 NativeAOT 兼容性验证成本
-        // 替代方案: services.AddHttpClient<IRemotePolicyService, RemotePolicyService>()（P1-3 待验证）
-        services.AddSingleton<HttpClient>();
-        services.AddSingleton<IRemotePolicyService, Core.Policy.RemotePolicyService>();
+        // HttpClient — 通过 IHttpClientFactory 管理（P1-3 已通过卫星项目 aot-httpclientfactory-test 验证 NativeAOT 兼容）
+        // 决策: 使用 AddHttpClient<TClient, TImplementation>() 模式，DI 自动注入 HttpClient 到 RemotePolicyService
+        // 优势: HttpMessageHandler 生命周期由 IHttpClientFactory 池化管理，避免 socket 耗尽
+        // 替代方案已否决: services.AddSingleton<HttpClient>()（无 Handler 池化，长生命周期风险）
+        services.AddHttpClient<IRemotePolicyService, Core.Policy.RemotePolicyService>();
 
         return services.BuildServiceProvider();
     }

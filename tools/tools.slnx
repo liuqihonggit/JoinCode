@@ -6,5 +6,6 @@
     <Project Path="InjectMigration/InjectMigration.csproj" />
     <Project Path="pptr-api-check/PptrApiCheck.csproj" />
     <Project Path="aot-browser-test/aot-browser-test.csproj" />
+    <Project Path="aot-httpclientfactory-test/aot-httpclientfactory-test.csproj" />
   </Folder>
 </Solution>

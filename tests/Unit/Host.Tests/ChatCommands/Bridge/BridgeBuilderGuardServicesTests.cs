@@ -4,6 +4,7 @@ using Core.Policy;
 using JoinCode.Abstractions.Interfaces;
 using JoinCode.Abstractions.Models.Telemetry;
 using JoinCode.App.Builder;
+using Microsoft.Extensions.Http;
 using Microsoft.Extensions.Options;
 using Services.OAuth;
 
@@ -38,8 +39,10 @@ public sealed class BridgeBuilderGuardServicesTests
     }
 
     /// <summary>
-    /// 验证 BuildBridgeGuardServices 解析出的服务是同一实例（单例语义）
-    /// 决策: 3 个服务都应注册为 Singleton，避免重复创建
+    /// 验证 BuildBridgeGuardServices 解析出的 TokenStorage / ConfigurationService 是同一实例（单例语义）
+    /// 决策: ITokenStorage/IConfigurationService 注册为 Singleton，避免重复创建
+    /// 注意: IRemotePolicyService 通过 AddHttpClient 注册，默认 Transient 生命周期（HttpClient 是轻量对象，
+    ///       Handler 由 IHttpClientFactory 池化），不在此验证单例语义
     /// </summary>
     [Fact]
     public void BuildBridgeGuardServices_ShouldRegisterServicesAsSingleton()
@@ -51,16 +54,53 @@ public sealed class BridgeBuilderGuardServicesTests
         using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
 
         // Assert — 单例语义: 多次解析应返回同一实例
-        var policy1 = services.GetRequiredService<IRemotePolicyService>();
-        var policy2 = services.GetRequiredService<IRemotePolicyService>();
         var token1 = services.GetRequiredService<ITokenStorage>();
         var token2 = services.GetRequiredService<ITokenStorage>();
         var config1 = services.GetRequiredService<IConfigurationService>();
         var config2 = services.GetRequiredService<IConfigurationService>();
 
-        policy1.Should().BeSameAs(policy2, "IRemotePolicyService 应为单例");
         token1.Should().BeSameAs(token2, "ITokenStorage 应为单例");
         config1.Should().BeSameAs(config2, "IConfigurationService 应为单例");
+    }
+
+    /// <summary>
+    /// 验证 BuildBridgeGuardServices 注册了 IHttpClientFactory
+    /// 这是 P1-3 的核心: HttpClient 通过 IHttpClientFactory 池化管理，避免 socket 耗尽
+    /// 决策: 卫星项目 aot-httpclientfactory-test 已验证 IHttpClientFactory 与 NativeAOT 完全兼容
+    /// </summary>
+    [Fact]
+    public void BuildBridgeGuardServices_ShouldResolveIHttpClientFactory()
+    {
+        // Arrange
+        var fs = new IO.FileSystem.PhysicalFileSystem();
+
+        // Act
+        using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
+
+        // Assert
+        var factory = services.GetService<IHttpClientFactory>();
+        factory.Should().NotBeNull("IHttpClientFactory 必须能从 DI 容器解析 — P1-3 HttpClient 通过 IHttpClientFactory 管理生命周期");
+    }
+
+    /// <summary>
+    /// 验证 IRemotePolicyService 通过 AddHttpClient 注册后仍可正常解析
+    /// 决策: AddHttpClient<TClient, TImplementation> 默认 Transient，但 HttpClient 实例轻量
+    /// </summary>
+    [Fact]
+    public void BuildBridgeGuardServices_ShouldResolveRemotePolicyServiceViaHttpClientFactory()
+    {
+        // Arrange
+        var fs = new IO.FileSystem.PhysicalFileSystem();
+
+        // Act
+        using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
+        var policy1 = services.GetRequiredService<IRemotePolicyService>();
+        var policy2 = services.GetRequiredService<IRemotePolicyService>();
+
+        // Assert — AddHttpClient 默认 Transient: 两次解析应返回不同实例
+        policy1.Should().NotBeNull("IRemotePolicyService 必须能通过 IHttpClientFactory 解析");
+        policy2.Should().NotBeNull("IRemotePolicyService 必须能通过 IHttpClientFactory 解析");
+        policy1.Should().NotBeSameAs(policy2, "IRemotePolicyService 通过 AddHttpClient 注册，默认 Transient 生命周期");
     }
 
     /// <summary>

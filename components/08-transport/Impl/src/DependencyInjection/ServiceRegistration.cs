@@ -1,21 +1,14 @@
-namespace JoinCode.Transport;
+namespace JoinCode.Transport.DependencyInjection;
 
 /// <summary>
-/// Transport 层 DI 注册扩展 — 一键切换 Stdio/SSE 传输模式
+/// Transport 层 DI 注册
 /// </summary>
-/// <example>
-/// <code>
-/// // 一行切换传输模式
-/// services.AddTransportMode(TransportMode.Stdio);
-/// services.AddTransportMode(TransportMode.Sse);
-/// </code>
-/// </example>
-public static class TransportServiceRegistration
+public static partial class ServiceRegistration
 {
     /// <summary>
     /// 根据传输模式注册 IAgentTransport 实现
     /// </summary>
-    public static IServiceCollection AddTransportMode(this IServiceCollection services, TransportMode mode)
+    public static IServiceCollection AddTransportServices(this IServiceCollection services, TransportMode mode)
     {
         return mode switch
         {
@@ -30,7 +23,7 @@ public static class TransportServiceRegistration
     /// </summary>
     public static IServiceCollection AddStdioTransport(this IServiceCollection services)
     {
-        return services.AddTransportMode(TransportMode.Stdio);
+        return services.AddTransportServices(TransportMode.Stdio);
     }
 
     /// <summary>
@@ -38,6 +31,6 @@ public static class TransportServiceRegistration
     /// </summary>
     public static IServiceCollection AddSseTransport(this IServiceCollection services)
     {
-        return services.AddTransportMode(TransportMode.Sse);
+        return services.AddTransportServices(TransportMode.Sse);
     }
 }

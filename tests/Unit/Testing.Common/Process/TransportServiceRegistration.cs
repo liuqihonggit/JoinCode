@@ -1,4 +1,3 @@
-using JoinCode.Transport;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Testing.Common.Process;
@@ -13,7 +12,7 @@ public static class TransportServiceRegistration
     /// </summary>
     public static IServiceCollection AddStdioTransport(this IServiceCollection services)
     {
-        return services.AddTransportMode(TransportMode.Stdio);
+        return services.AddTransportServices(TransportMode.Stdio);
     }
 
     /// <summary>
@@ -21,7 +20,7 @@ public static class TransportServiceRegistration
     /// </summary>
     public static IServiceCollection AddSseTransport(this IServiceCollection services)
     {
-        return services.AddTransportMode(TransportMode.Sse);
+        return services.AddTransportServices(TransportMode.Sse);
     }
 
     /// <summary>
@@ -29,6 +28,6 @@ public static class TransportServiceRegistration
     /// </summary>
     public static IServiceCollection AddAllTransports(this IServiceCollection services)
     {
-        return services.AddTransportMode(TransportMode.Stdio);
+        return services.AddTransportServices(TransportMode.Stdio);
     }
 }

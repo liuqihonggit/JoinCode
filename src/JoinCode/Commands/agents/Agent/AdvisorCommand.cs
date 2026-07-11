@@ -4,11 +4,25 @@ namespace JoinCode.ChatCommands;
 [ChatCommand(Name = ChatCommandNameConstants.Advisor, Description = "配置顾问模型", Usage = "/advisor [model|off]", Category = ChatCommandCategory.Agent)]
 public sealed class AdvisorCommand : IChatCommand
 {
-    private static readonly FrozenSet<string> SupportedAdvisorModels = FrozenSet.Create(
-        StringComparer.OrdinalIgnoreCase,
-        "claude-3-opus", "claude-3-sonnet", "claude-3.5-sonnet", "claude-3.5-haiku",
-        "gpt-4o", "gpt-4-turbo", "o1", "o1-mini", "o3", "o3-mini",
-        "deepseek-chat", "deepseek-reasoner");
+    private static readonly CanonicalModel[] SupportedAdvisorModels =
+    [
+        CanonicalModel.Claude3Opus,
+        CanonicalModel.Claude3Sonnet,
+        CanonicalModel.Claude35Sonnet,
+        CanonicalModel.Claude35Haiku,
+        CanonicalModel.Gpt4o,
+        CanonicalModel.Gpt4Turbo,
+        CanonicalModel.O1,
+        CanonicalModel.O1Mini,
+        CanonicalModel.O3,
+        CanonicalModel.O3Mini,
+        CanonicalModel.DeepSeekChat,
+        CanonicalModel.DeepSeekReasoner
+    ];
+
+    private static readonly FrozenSet<string> SupportedAdvisorModelIds = SupportedAdvisorModels
+        .Select(m => m.ToValue())
+        .ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 
     public string Name => ChatCommandNameConstants.Advisor;
     public string Description => "配置顾问模型";
@@ -51,7 +65,7 @@ public sealed class AdvisorCommand : IChatCommand
                 TerminalHelper.WriteLine(L.T(StringKey.HostAdvisorSupportedModelsLabel));
                 foreach (var model in SupportedAdvisorModels)
                 {
-                    TerminalHelper.WriteLine($"  {model}");
+                    TerminalHelper.WriteLine($"  {model.ToValue()}");
                 }
                 TerminalHelper.WriteLine(L.T(StringKey.HostAdvisorConfirmSet));
             }
@@ -66,12 +80,6 @@ public sealed class AdvisorCommand : IChatCommand
 
     private static bool IsModelSupported(string modelId)
     {
-        foreach (var supported in SupportedAdvisorModels)
-        {
-            if (modelId.Contains(supported, StringComparison.OrdinalIgnoreCase))
-                return true;
-        }
-
-        return false;
+        return SupportedAdvisorModelIds.Contains(modelId);
     }
 }

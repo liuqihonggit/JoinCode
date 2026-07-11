@@ -59,10 +59,10 @@ public sealed class AnthropicProviderDefinition : IProviderDefinition
     {
         return input.ToLowerInvariant() switch
         {
-            "sonnet" => "claude-sonnet-4-6",
-            "opus" => "claude-opus-4-6",
+            "sonnet" => CanonicalModel.ClaudeSonnet46.ToValue(),
+            "opus" => CanonicalModel.ClaudeOpus46.ToValue(),
             "haiku" => "claude-haiku-4-5-20251001",
-            "best" => "claude-opus-4-6",
+            "best" => CanonicalModel.ClaudeOpus46.ToValue(),
             _ => null
         };
     }

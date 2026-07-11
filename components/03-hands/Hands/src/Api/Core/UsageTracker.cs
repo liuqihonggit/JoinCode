@@ -207,14 +207,12 @@ public sealed partial class UsageTracker : IUsageTracker, IDisposable
     private readonly ConcurrentBag<TokenUsageRecord> _usageRecords;
     [Inject] private readonly ILogger<UsageTracker>? _logger;
     private readonly ICostTracker? _costTracker;
-    private readonly Dictionary<string, (decimal InputCostPer1K, decimal OutputCostPer1K)> _modelPricing;
 
     public UsageTracker(ILogger<UsageTracker>? logger = null, ICostTracker? costTracker = null)
     {
         _usageRecords = new ConcurrentBag<TokenUsageRecord>();
         _logger = logger;
         _costTracker = costTracker;
-        _modelPricing = InitializeModelPricing();
     }
 
     /// <inheritdoc />
@@ -344,8 +342,9 @@ public sealed partial class UsageTracker : IUsageTracker, IDisposable
     /// </summary>
     private (decimal InputCostPer1K, decimal OutputCostPer1K) GetModelPricing(string model)
     {
-        var match = _modelPricing.FirstOrDefault(kvp => model.Contains(kvp.Key, StringComparison.OrdinalIgnoreCase));
-        return match.Key != null ? match.Value : (0.01m, 0.03m);
+        var promptCost = JoinCode.Abstractions.LLM.Execution.Pricing.ModelPricingTable.GetPromptCostPer1K(model);
+        var completionCost = JoinCode.Abstractions.LLM.Execution.Pricing.ModelPricingTable.GetCompletionCostPer1K(model);
+        return (promptCost, completionCost);
     }
 
     /// <summary>
@@ -387,32 +386,6 @@ public sealed partial class UsageTracker : IUsageTracker, IDisposable
             TotalCacheCreationTokens = totalCacheCreationTokens,
             TotalCacheReadTokens = totalCacheReadTokens,
             ModelStatistics = modelStats
-        };
-    }
-
-    /// <summary>
-    /// 初始化模型定价
-    /// </summary>
-    private static Dictionary<string, (decimal, decimal)> InitializeModelPricing()
-    {
-        return new Dictionary<string, (decimal, decimal)>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["gpt-4"] = (0.03m, 0.06m),
-            ["gpt-4-turbo"] = (0.01m, 0.03m),
-            ["gpt-4-turbo-preview"] = (0.01m, 0.03m),
-            ["gpt-4-0125-preview"] = (0.01m, 0.03m),
-            ["gpt-4-1106-preview"] = (0.01m, 0.03m),
-            ["gpt-4o"] = (0.005m, 0.015m),
-            ["gpt-4o-mini"] = (0.00015m, 0.0006m),
-            ["gpt-3.5-turbo"] = (0.0005m, 0.0015m),
-            ["gpt-3.5-turbo-0125"] = (0.0005m, 0.0015m),
-            ["gpt-3.5-turbo-1106"] = (0.001m, 0.002m),
-            ["claude-3-opus"] = (0.015m, 0.075m),
-            ["claude-3-sonnet"] = (0.003m, 0.015m),
-            ["claude-3-haiku"] = (0.00025m, 0.00125m),
-            ["azure-gpt-4"] = (0.03m, 0.06m),
-            ["azure-gpt-4-turbo"] = (0.01m, 0.03m),
-            ["azure-gpt-35-turbo"] = (0.0005m, 0.0015m)
         };
     }
 

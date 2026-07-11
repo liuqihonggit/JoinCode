@@ -28,13 +28,13 @@ public abstract class OpenAICompatibleProviderDefinitionBase : IProviderDefiniti
     {
         return input.ToLowerInvariant() switch
         {
-            "4o" => "gpt-4o",
-            "4o-mini" => "gpt-4o-mini",
-            "4.1" => "gpt-4.1",
-            "4.1-mini" => "gpt-4.1-mini",
-            "4.1-nano" => "gpt-4.1-nano",
-            "o3" => "o3",
-            "o4-mini" => "o4-mini",
+            "4o" => CanonicalModel.Gpt4o.ToValue(),
+            "4o-mini" => CanonicalModel.Gpt4oMini.ToValue(),
+            "4.1" => CanonicalModel.Gpt41.ToValue(),
+            "4.1-mini" => CanonicalModel.Gpt41Mini.ToValue(),
+            "4.1-nano" => CanonicalModel.Gpt41Nano.ToValue(),
+            "o3" => CanonicalModel.O3.ToValue(),
+            "o4-mini" => CanonicalModel.O4Mini.ToValue(),
             _ => null
         };
     }

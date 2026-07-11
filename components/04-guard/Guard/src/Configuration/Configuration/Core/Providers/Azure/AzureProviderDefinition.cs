@@ -10,8 +10,8 @@ public sealed class AzureProviderDefinition : OpenAICompatibleProviderDefinition
     public override ProviderKind Kind => ProviderKind.Azure;
     public override string ProviderName => ProviderKind.Azure.ToValue();
     public override string DisplayName => "Azure OpenAI";
-    public override string DefaultModelId => "gpt-4o";
-    public override string DefaultFastModelId => "gpt-4o-mini";
+    public override string DefaultModelId => CanonicalModel.Gpt4o.ToValue();
+    public override string DefaultFastModelId => CanonicalModel.Gpt4oMini.ToValue();
     public override string? DefaultEndpoint => null;
     public override string? ApiKeyEnvironmentVariable => ProviderEnvVar.AzureOpenAiApiKey.ToValue();
     public override string? EndpointEnvironmentVariable => ProviderEnvVar.AzureOpenAiEndpoint.ToValue();

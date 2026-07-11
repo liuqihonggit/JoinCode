@@ -53,12 +53,12 @@ public sealed class ModelCatalog : IModelCatalog
 
     public string GetDefaultModelForProvider(string provider)
     {
-        return ProviderDefinitionRegistry.TryGet(provider)?.DefaultModelId ?? "gpt-4o";
+        return ProviderDefinitionRegistry.TryGet(provider)?.DefaultModelId ?? CanonicalModel.Gpt4o.ToValue();
     }
 
     public string GetDefaultFastModelForProvider(string provider)
     {
-        return ProviderDefinitionRegistry.TryGet(provider)?.DefaultFastModelId ?? "gpt-4o-mini";
+        return ProviderDefinitionRegistry.TryGet(provider)?.DefaultFastModelId ?? CanonicalModel.Gpt4oMini.ToValue();
     }
 
     public ModelEntry[] EnsureCurrentModelInList(ModelEntry[] models, string currentModelId)

@@ -1,5 +1,8 @@
 global using JoinCode.Transport;
 global using JoinCode.Transport.Bridge;
+global using JoinCode.Transport.DependencyInjection;
+global using JoinCode.Agents.DependencyInjection;
+global using JoinCode.Eyes.DependencyInjection;
 global using JoinCode.Abstractions.Transport;
 global using JoinCode.Abstractions.Localization;
 global using JoinCode.Abstractions.Attributes;

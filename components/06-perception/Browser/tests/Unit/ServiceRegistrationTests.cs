@@ -1,23 +1,23 @@
 namespace Browser.Tests;
 
-public class BrowserServiceExtensionsTests
+public class ServiceRegistrationTests
 {
     [Fact]
-    public void AddBrowserAutomation_ReturnsServiceCollection()
+    public void AddBrowserServices_ReturnsServiceCollection()
     {
         var services = new ServiceCollection();
-        var result = services.AddBrowserAutomation();
+        var result = services.AddBrowserServices();
 
         result.Should().BeSameAs(services);
     }
 
     [Fact]
-    public void AddBrowserAutomation_DoesNotAddDuplicateRegistration()
+    public void AddBrowserServices_DoesNotAddDuplicateRegistration()
     {
         var services = new ServiceCollection();
         var countBefore = services.Count(d => d.ServiceType == typeof(IBrowserAutomationService));
 
-        services.AddBrowserAutomation();
+        services.AddBrowserServices();
 
         var countAfter = services.Count(d => d.ServiceType == typeof(IBrowserAutomationService));
         countAfter.Should().Be(countBefore);

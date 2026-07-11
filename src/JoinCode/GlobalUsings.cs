@@ -1,6 +1,7 @@
 global using JoinCode.Transport;
 global using JoinCode.Abstractions.Transport;
 global using JoinCode.Transport.Bridge;
+global using JoinCode.Browser.DependencyInjection;
 global using JoinCode.Cli.Display;
 global using JoinCode.Abstractions.Configuration;
 global using JoinCode.Abstractions.Exceptions;

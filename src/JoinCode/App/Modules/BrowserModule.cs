@@ -10,7 +10,7 @@ public sealed class BrowserModule : IAppModule
 
     public void ConfigureServices(IServiceCollection services, AppModuleContext context)
     {
-        services.AddBrowserAutomation();
+        services.AddBrowserServices();
     }
 
     public Task ConfigureAsync(IServiceProvider services, CancellationToken ct)

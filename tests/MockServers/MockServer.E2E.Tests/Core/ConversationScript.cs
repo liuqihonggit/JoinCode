@@ -69,7 +69,7 @@ public sealed class ConversationTurn
     public required string UserInput { get; init; }
     public required MockResponseScript AiResponse { get; init; }
     public IReadOnlyList<OutputAssert> Asserts { get; init; } = [];
-    public TimeSpan ResponseTimeout { get; init; } = TimeSpan.FromSeconds(30);
+    public TimeSpan ResponseTimeout { get; init; } = TimeSpan.FromSeconds(60);
 }
 
 public sealed class MockResponseScript

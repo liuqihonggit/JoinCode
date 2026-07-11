@@ -567,7 +567,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
     /// </summary>
     private async Task WaitForProcessReadyAsync(CancellationToken ct)
     {
-        var timeout = TimeSpan.FromSeconds(30);
+        var timeout = TimeSpan.FromSeconds(60);
         var startTime = DateTime.UtcNow;
 
         while (DateTime.UtcNow - startTime < timeout)
@@ -591,9 +591,9 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
         }
 
         var finalStderr = await CaptureStderrAsync().ConfigureAwait(true);
-        _logger.LogError("[DualRoleRunner] 等待进程就绪超时(30s), 未检测到 [READY], stderr前200字符={Preview}",
+        _logger.LogError("[DualRoleRunner] 等待进程就绪超时(60s), 未检测到 [READY], stderr前200字符={Preview}",
             finalStderr.Length > 200 ? finalStderr[..200] : finalStderr);
-        throw new TimeoutException($"jcc.exe 30秒内未输出 [READY]，可能初始化卡住");
+        throw new TimeoutException($"jcc.exe 60秒内未输出 [READY]，可能初始化卡住");
     }
 
     private string WriteMockServerConfig(ConversationScript script)

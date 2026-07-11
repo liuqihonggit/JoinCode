@@ -1,4 +1,5 @@
 global using JoinCode.Abstractions.Attributes;
+global using JoinCode.Scheduling.DependencyInjection;
 global using JoinCode.Abstractions.Clock;
 global using JoinCode.Abstractions.Configuration;
 global using JoinCode.Abstractions.Configuration.AppData;

@@ -1,12 +1,10 @@
-﻿
-namespace Core.Scheduling;
+namespace JoinCode.Scheduling.DependencyInjection;
 
-public static class SchedulingDependencyInjectionExtensions
+public static partial class ServiceRegistration
 {
     public static IServiceCollection AddSchedulingServices(this IServiceCollection services)
     {
         services.AddCronServices();
-
         return services;
     }
 

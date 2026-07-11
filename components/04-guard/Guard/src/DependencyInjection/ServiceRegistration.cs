@@ -1,8 +1,27 @@
-﻿
-namespace Core.Permission;
+namespace JoinCode.Guard.DependencyInjection;
 
-public static class PermissionDependencyInjectionExtensions
+public static partial class ServiceRegistration
 {
+    public static IServiceCollection AddGuardServices(this IServiceCollection services)
+    {
+        services.AddPermissionServices();
+        services.AddPermissionHookServices();
+        services.AddSecurityServices();
+        services.AddConfigurationServices();
+        services.AddHookSystem();
+        return services;
+    }
+
+    public static IServiceCollection AddSecurityServices(this IServiceCollection services)
+    {
+        return services;
+    }
+
+    public static IServiceCollection AddConfigurationServices(this IServiceCollection services)
+    {
+        return services;
+    }
+
     public static IServiceCollection AddPermissionServices(this IServiceCollection services)
     {
         services.AddOptions<PermissionConfig>()
@@ -17,31 +36,60 @@ public static class PermissionDependencyInjectionExtensions
                 options.SensitivePathPatterns = defaultConfig.SensitivePathPatterns;
                 options.DangerousCommandPatterns = defaultConfig.DangerousCommandPatterns;
 
-                // 从 settings.json 加载 permissions.allow/deny/ask — 对齐 TS 版 loadPermissionsFromSettings
                 LoadPermissionsFromSettings(options, fs);
             });
-
-        // 权限检查管道 — 由 [RegisterMiddleware] + 生成器自动注册
-        // IPathPermissionChecker — [Register] 自动注册（PathPermissionChecker）
 
         return services;
     }
 
-    /// <summary>
-    /// 从 settings.json 加载 permissions.allow/deny/ask 规则到 PermissionConfig
-    /// 对齐 TS 版 loadPermissionsFromSettings — 启动时读取持久化的权限规则
-    /// 格式: "WebFetch(domain:example.com)" — 解析为 ToolPermissionRule { ToolName, RuleContent }
-    /// </summary>
+    public static IServiceCollection AddHookSystem(this IServiceCollection services)
+    {
+        services.TryAddSingleton<IHookExecutorFactory>(sp =>
+        {
+            var factory = new HookExecutorFactory(sp.GetService<ILogger<HookExecutorFactory>>());
+            foreach (var executor in sp.GetServices<IHookExecutor>())
+                factory.RegisterExecutor(executor);
+            return factory;
+        });
+
+        services.TryAddSingleton<IHookConfigurationManager>(sp =>
+        {
+            var fs = sp.GetRequiredService<IFileSystem>();
+            var manager = new HookConfigurationManager(fs, sp.GetService<ILogger<HookConfigurationManager>>());
+            var logger = sp.GetService<ILogger<JsonFileHookConfigurationProvider>>();
+
+            var appDataRoot = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            var userSettingsPath = Path.Combine(appDataRoot, AppDataConstants.AppDataFolder, AppDataConstants.SettingsFileName);
+            manager.RegisterProvider(HookSource.UserSettings,
+                new JsonFileHookConfigurationProvider(userSettingsPath, HookSource.UserSettings, fs, logger));
+
+            var projectSettingsPath = Path.Combine(fs.GetCurrentDirectory(), AppDataConstants.AppDataFolder, AppDataConstants.SettingsFileName);
+            manager.RegisterProvider(HookSource.ProjectSettings,
+                new JsonFileHookConfigurationProvider(projectSettingsPath, HookSource.ProjectSettings, fs, logger));
+
+            var localSettingsPath = Path.Combine(fs.GetCurrentDirectory(), AppDataConstants.AppDataFolder, "settings.local.json");
+            manager.RegisterProvider(HookSource.LocalSettings,
+                new JsonFileHookConfigurationProvider(localSettingsPath, HookSource.LocalSettings, fs, logger));
+
+            return manager;
+        });
+
+        return services;
+    }
+
+    public static IServiceCollection AddPermissionHookServices(this IServiceCollection services)
+    {
+        return services;
+    }
+
     private static void LoadPermissionsFromSettings(PermissionConfig options, IFileSystem fs)
     {
         try
         {
-            // 使用同步加载，避免 Configure 回调中 .GetAwaiter().GetResult() 死锁
             var settings = SettingsLoader.LoadUserSettings(fs);
             if (settings?.Permissions is null)
                 return;
 
-            // 加载 allow 规则
             if (settings.Permissions.Allow is { Count: > 0 })
             {
                 foreach (var rule in settings.Permissions.Allow)
@@ -56,7 +104,6 @@ public static class PermissionDependencyInjectionExtensions
                 }
             }
 
-            // 加载 deny 规则
             if (settings.Permissions.Deny is { Count: > 0 })
             {
                 foreach (var rule in settings.Permissions.Deny)
@@ -67,7 +114,6 @@ public static class PermissionDependencyInjectionExtensions
                 }
             }
 
-            // 加载 ask 规则
             if (settings.Permissions.Ask is { Count: > 0 })
             {
                 foreach (var rule in settings.Permissions.Ask)
@@ -80,22 +126,15 @@ public static class PermissionDependencyInjectionExtensions
         }
         catch (Exception ex)
         {
-            // settings.json 不存在或解析失败，使用默认配置
             System.Diagnostics.Trace.WriteLine($"Failed to load permission settings: {ex.Message}");
         }
     }
 
-    /// <summary>
-    /// 解析权限规则值 — 对齐 TS 版 PermissionRuleValue 格式
-    /// "WebFetch(domain:example.com)" → ToolPermissionRule { ToolName="WebFetch", RuleContent="domain:example.com" }
-    /// "Bash" → ToolPermissionRule { ToolName="Bash", RuleContent=null }
-    /// </summary>
     private static ToolPermissionRule? ParsePermissionRuleValue(string ruleValue)
     {
         if (string.IsNullOrEmpty(ruleValue))
             return null;
 
-        // 检查是否有括号包裹的 RuleContent
         var parenIndex = ruleValue.IndexOf('(');
         if (parenIndex > 0 && ruleValue.EndsWith(')'))
         {

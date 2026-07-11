@@ -18,11 +18,7 @@ public static partial class ServiceRegistration
         services.AddJoinCodeCompositionAutoRegisteredServices();
         services.AddJoinCodeCompositionAutoRegisteredOptions();
 
-        services.AddPermissionServices();
-        services.AddPermissionHookServices();
-        services.AddSecurityServices();
-        services.AddConfigurationServices();
-        services.AddHookSystem();
+        services.AddGuardServices();
         services.AddCoreServices();
         services.AddFileOperationServices();
         services.AddToolServices();

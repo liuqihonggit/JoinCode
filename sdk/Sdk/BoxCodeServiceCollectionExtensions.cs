@@ -41,7 +41,7 @@ public static class JoinCodeServiceCollectionExtensions
 
         services.AddSingleton(providerConfig);
 
-        Api.ApiRegistration.AddSKKernelAdapter(services, providerConfig);
+        JoinCode.Llm.DependencyInjection.ServiceRegistration.AddLlmServices(services, providerConfig);
 
         Infrastructure.Localization.LocalizerInitializer.Initialize(options.Language);
     }

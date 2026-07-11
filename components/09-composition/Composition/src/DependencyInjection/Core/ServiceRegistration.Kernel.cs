@@ -7,7 +7,7 @@ public static partial class ServiceRegistration
         this IServiceCollection services,
         WorkflowConfig config)
     {
-        ApiRegistration.AddKernelWithPlugins(services, config.Provider, config.PipeEndpoint);
+        JoinCode.Llm.DependencyInjection.ServiceRegistration.AddKernelWithPlugins(services, config.Provider, config.PipeEndpoint);
 
         // PluginManager — auto-registered via [Register] (both IPluginManager and self-type)
 
@@ -18,7 +18,7 @@ public static partial class ServiceRegistration
         this IServiceCollection services,
         WorkflowConfig config)
     {
-        ApiRegistration.AddKernelWithDynamicPlugins(services, config.Provider);
+        JoinCode.Llm.DependencyInjection.ServiceRegistration.AddKernelWithDynamicPlugins(services, config.Provider);
 
         // PluginManager — auto-registered via [Register] (both IPluginManager and self-type)
 

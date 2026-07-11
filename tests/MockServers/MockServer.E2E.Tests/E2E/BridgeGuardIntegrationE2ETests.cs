@@ -126,6 +126,8 @@ public sealed class BridgeGuardIntegrationE2ETests : IAsyncLifetime
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
+            StandardOutputEncoding = System.Text.Encoding.UTF8,
+            StandardErrorEncoding = System.Text.Encoding.UTF8,
             CreateNoWindow = true,
             WorkingDirectory = Path.GetTempPath(),
         };

@@ -449,18 +449,51 @@ $psi.WorkingDirectory = "{项目根目录}"
 - **合并 = rebase，禁止 merge**
 - 当用户说"合并 main"、"同步 main"、"把 main 合过来"等，一律执行 `git rebase main`，**禁止使用 `git merge`**
 - 原因: merge 会产生大量 "Merge branch 'xxx' into yyy" 合并提交，污染历史；rebase 保持线性历史，干净可读
-- 唯一例外: 首次将功能分支合入 main 时，由用户手动执行 `git merge --ff-only` 或 `git rebase`
 - **rebase 前必须确保工作区干净**：rebase 要求无未提交修改，否则会拒绝执行。处理方式：
   - 先提交：`git add -A; git commit -m "wip: 临时保存"` → `git rebase main`
   - 或暂存：`git stash` → `git rebase main` → `git stash pop`
-- **main 与开发分支冲突时**：在 main 分支执行 `git reset --hard w2`（或 w1）
-  - 原因: 开发分支上 squash 合并多个 commit 后，提交哈希变了，但 main 之前已 rebase 过旧哈希的提交，导致"同内容不同哈希"的分叉，再 rebase 必然冲突
-  - `git reset --hard` 直接将 main 指向开发分支最新提交，干净无冲突
-  - 之后 `git push --force-with-lease origin main` 推送
-- **分支工作流**：开发分支（w1/w2）→ main 单向流动
-  - 开发分支同步 main：`git rebase main`
-  - main 接收开发分支：`git reset --hard w2` + `git push --force-with-lease origin main`
-  - 禁止在 main 上直接提交或 rebase 开发分支
+
+### GitHub 分支保护规则（已生效）
+
+main 分支已启用以下保护，**禁止绕过**：
+
+| 规则 | 说明 |
+|------|------|
+| 禁止直接 push main | 必须通过 PR 合入 |
+| 禁止 force push | `git push --force` 会被拒绝 |
+| 禁止删除 main | 分支锁定 |
+| 13项CI检查必须全绿 | Build + 单元 + 集成 + E2E |
+| 至少1人审批 | PR必须有人approve |
+| 讨论必须全部解决 | PR里的评论必须resolved |
+| 线性历史 | 只允许squash merge或rebase merge |
+| 管理员也受限 | enforce_admins=true |
+
+### 合入 main 的正确流程
+
+**方式一：PR + Squash Merge（推荐，CI自动触发）**
+
+```
+1. 功能分支开发完成 → git push origin w1
+2. 创建PR：gh pr create --base main --head w1 --title "feat: xxx"
+3. 等待13项CI全绿 + 1人审批 + 讨论解决
+4. Squash Merge合入（GitHub页面或 gh pr merge --squash）
+5. 合并后自动删除分支
+```
+
+**方式二：本地 rebase 同步 main（开发分支内部操作）**
+
+```
+1. 在w1/w2分支：git rebase main
+2. 解决冲突后继续开发
+3. 最终仍需通过PR合入main
+```
+
+### 紧急修复（hotfix）
+
+如需紧急修复main，仍需走PR流程，但可以：
+1. 从main创建hotfix分支
+2. 修复后创建PR（标记为hotfix）
+3. 审批后squash merge合入
 
 ## 用户说的E2E
 

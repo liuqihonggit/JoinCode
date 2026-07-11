@@ -1,0 +1,9 @@
+{
+  "parallelizeAssembly": true,
+  "parallelizeTestCollections": true,
+  "maxParallelThreads": 2,
+  "longRunningTestSeconds": 10,
+  "stopOnFail": false,
+  "diagnosticMessages": false,
+  "methodDisplay": "classAndMethod"
+}

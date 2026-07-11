@@ -1,0 +1,87 @@
+{
+  "port": 18090,
+  "server_name": "JoinCode.Mcp.MockServer",
+  "server_version": "1.0.0",
+  "protocol_version": "2024-11-05",
+  "tools": [
+    {
+      "name": "echo",
+      "description": "Echo back the input message",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "Message to echo back"
+          }
+        },
+        "required": ["message"]
+      },
+      "response_mode": "echo_args"
+    },
+    {
+      "name": "add",
+      "description": "Add two numbers and return the sum",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "a": {
+            "type": "number",
+            "description": "First number"
+          },
+          "b": {
+            "type": "number",
+            "description": "Second number"
+          }
+        },
+        "required": ["a", "b"]
+      },
+      "response_mode": "add"
+    },
+    {
+      "name": "uppercase",
+      "description": "Convert text to uppercase",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "Text to convert"
+          }
+        },
+        "required": ["text"]
+      },
+      "response_mode": "uppercase"
+    },
+    {
+      "name": "reverse",
+      "description": "Reverse the input text",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "Text to reverse"
+          }
+        },
+        "required": ["text"]
+      },
+      "response_mode": "reverse"
+    },
+    {
+      "name": "length",
+      "description": "Return the length of the input text",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "Text to measure"
+          }
+        },
+        "required": ["text"]
+      },
+      "response_mode": "length"
+    }
+  ]
+}

@@ -1,0 +1,99 @@
+{
+  "port": 18083,
+  "default_response": "Core tools coverage test script exhausted.",
+  "scripted_turns": [
+    {
+      "text_response": "I will test core built-in tools. First, reading an existing file.",
+      "tool_calls": [
+        {
+          "tool_name": "Read",
+          "arguments": "{\"file_path\":\"D:\\\\JoinCode\\\\README.md\",\"limit\":5}",
+          "tool_call_id": "read_001"
+        }
+      ]
+    },
+    {
+      "text_response": "Read tool works. Now reading the temp file path (required before Write for existing files due to write-before-read validation).",
+      "tool_calls": [
+        {
+          "tool_name": "Read",
+          "arguments": "{\"file_path\":\"D:\\\\JoinCode\\\\.x\\\\e2e_temp_test.txt\"}",
+          "tool_call_id": "read_pre_write"
+        }
+      ]
+    },
+    {
+      "text_response": "Read done (or file not exists yet). Now writing the temp file.",
+      "tool_calls": [
+        {
+          "tool_name": "Write",
+          "arguments": "{\"file_path\":\"D:\\\\JoinCode\\\\.x\\\\e2e_temp_test.txt\",\"content\":\"line1 hello\\nline2 world\\nline3 test\\n\"}",
+          "tool_call_id": "write_002"
+        }
+      ]
+    },
+    {
+      "text_response": "Write tool works. Now reading the temp file (required before Edit due to write-before-read validation).",
+      "tool_calls": [
+        {
+          "tool_name": "Read",
+          "arguments": "{\"file_path\":\"D:\\\\JoinCode\\\\.x\\\\e2e_temp_test.txt\"}",
+          "tool_call_id": "read_003"
+        }
+      ]
+    },
+    {
+      "text_response": "Read temp file works. Now editing the temp file.",
+      "tool_calls": [
+        {
+          "tool_name": "Edit",
+          "arguments": "{\"file_path\":\"D:\\\\JoinCode\\\\.x\\\\e2e_temp_test.txt\",\"old_string\":\"line2 world\",\"new_string\":\"line2 edited\"}",
+          "tool_call_id": "edit_004"
+        }
+      ]
+    },
+    {
+      "text_response": "Edit tool works. Now running a Bash command (expected to be denied in Auto mode for security).",
+      "tool_calls": [
+        {
+          "tool_name": "Bash",
+          "arguments": "{\"command\":\"echo hello from bash\"}",
+          "tool_call_id": "bash_005"
+        }
+      ]
+    },
+    {
+      "text_response": "Bash denied as expected. Now searching file contents with Grep.",
+      "tool_calls": [
+        {
+          "tool_name": "Grep",
+          "arguments": "{\"pattern\":\"hello\",\"path\":\"D:\\\\JoinCode\\\\.x\\\\e2e_temp_test.txt\",\"output_mode\":\"content\"}",
+          "tool_call_id": "grep_006"
+        }
+      ]
+    },
+    {
+      "text_response": "Grep tool works. Now finding files with Glob.",
+      "tool_calls": [
+        {
+          "tool_name": "Glob",
+          "arguments": "{\"pattern\":\"D:\\\\JoinCode\\\\.x\\\\*.txt\"}",
+          "tool_call_id": "glob_007"
+        }
+      ]
+    },
+    {
+      "text_response": "Glob tool works. Now creating a todo list with TodoWrite.",
+      "tool_calls": [
+        {
+          "tool_name": "TodoWrite",
+          "arguments": "{\"todos\":[{\"id\":\"1\",\"content\":\"Test Read tool\",\"status\":\"completed\",\"priority\":\"high\"},{\"id\":\"2\",\"content\":\"Test Write tool\",\"status\":\"completed\",\"priority\":\"high\"},{\"id\":\"3\",\"content\":\"Test all core tools\",\"status\":\"in_progress\",\"priority\":\"high\"}]}",
+          "tool_call_id": "todo_008"
+        }
+      ]
+    },
+    {
+      "text_response": "Core tools coverage test completed. Read, Write, Edit, Grep, Glob, and TodoWrite executed successfully. Bash was denied as expected in Auto mode."
+    }
+  ]
+}

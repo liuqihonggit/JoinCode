@@ -1,0 +1,73 @@
+namespace JoinCode.Entry;
+
+/// <summary>
+/// REPL 循环中间件 — 读取用户输入并处理
+/// 生命周期标记（输出到 stderr，供 E2E 测试事件驱动等待）：
+///   [READY] — REPL 循环就绪，等待用户输入
+///   [ALIVE] — 处理用户输入期间每 2s 心跳
+///   [DONE]  — 单次用户输入处理完成
+///   [EXIT]  — 进程即将退出
+/// </summary>
+[Register]
+internal sealed class ReplLoopStep : IMiddleware<StartupContext>
+{
+    private static readonly TimeSpan AliveInterval = TimeSpan.FromSeconds(2);
+
+    public async Task InvokeAsync(StartupContext context, MiddlewareDelegate<StartupContext> next, CancellationToken ct)
+    {
+        Cli.TerminalHelper.WriteLine("JoinCode CLI - 输入消息或 /help 查看命令");
+        Cli.TerminalHelper.WriteLine();
+        Console.Error.WriteLine("[READY]");
+
+        var session = context.Session!;
+
+        while (session.IsRunning && !ct.IsCancellationRequested)
+        {
+            Cli.TerminalHelper.WriteRaw("> ");
+            var input = Cli.TerminalHelper.ReadLine();
+
+            if (string.IsNullOrWhiteSpace(input))
+            {
+                if (Cli.TerminalHelper.IsInputRedirected && !Cli.TerminalHelper.ForceInteractive) break;
+                continue;
+            }
+
+            using var aliveCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            var aliveTask = RunAliveLoopAsync(aliveCts.Token);
+            try
+            {
+                await session.ProcessUserInputAsync(input, ct);
+            }
+            catch (Exception ex)
+            {
+                Cli.TerminalHelper.WriteLine($"错误: {ex.Message}");
+            }
+            finally
+            {
+                aliveCts.Cancel();
+                try { await aliveTask.ConfigureAwait(false); } catch (OperationCanceledException) { }
+                await Console.Out.FlushAsync().ConfigureAwait(false);
+                Console.Error.WriteLine("[DONE]");
+            }
+        }
+
+        Console.Error.WriteLine("[EXIT]");
+        await next(context, ct);
+    }
+
+    /// <summary>
+    /// 心跳循环 — 每 2s 输出 [ALIVE] 到 stderr，供 E2E 测试检测进程存活
+    /// </summary>
+    private static async Task RunAliveLoopAsync(CancellationToken ct)
+    {
+        using var timer = new PeriodicTimer(AliveInterval);
+        try
+        {
+            while (await timer.WaitForNextTickAsync(ct).ConfigureAwait(false))
+            {
+                Console.Error.WriteLine("[ALIVE]");
+            }
+        }
+        catch (OperationCanceledException) { }
+    }
+}

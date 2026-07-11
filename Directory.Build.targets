@@ -1,0 +1,22 @@
+<Project>
+
+  <!-- 非测试、非生成器项目：默认不可打包，除非项目设置了 <AllowPack>true</AllowPack> -->
+  <PropertyGroup Condition="!$(MSBuildProjectName.Contains('.Tests')) AND !$(MSBuildProjectName.Contains('.Test')) AND !$(MSBuildProjectName.Contains('.Generator')) AND '$(AllowPack)' != 'true' AND '$(Configuration)' != 'Release'">
+    <IsPackable>false</IsPackable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="!$(MSBuildProjectName.Contains('.Tests')) AND !$(MSBuildProjectName.Contains('.Test')) AND !$(MSBuildProjectName.Contains('.Generator')) AND '$(AllowPack)' != 'true' AND '$(Configuration)' == 'Release'">
+    <IsPackable>false</IsPackable>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$(MSBuildProjectName.Contains('.Tests')) OR $(MSBuildProjectName.Contains('.Test'))">
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+</Project>

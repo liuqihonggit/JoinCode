@@ -1,0 +1,34 @@
+name: 'Setup Test Environment'
+description: 'Setup .NET SDK, cache NuGet, download build output, set UTF-8 encoding (requires checkout before use)'
+
+inputs:
+  build-artifact-name:
+    description: 'Name of the build artifact to download'
+    required: false
+    default: 'build-output'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup .NET SDK
+      uses: actions/setup-dotnet@v5
+      with:
+        global-json-file: 'global.json'
+
+    - name: Cache NuGet Packages
+      uses: actions/cache@v5
+      with:
+        path: ${{ github.workspace }}/.nuget/packages
+        key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Build.props') }}
+        restore-keys: |
+          nuget-${{ runner.os }}-
+
+    - name: Download Build Output
+      uses: actions/download-artifact@v5
+      with:
+        name: ${{ inputs.build-artifact-name }}
+        path: artifacts/bin/
+
+    - name: Set Console Encoding to UTF-8
+      shell: pwsh
+      run: chcp 65001

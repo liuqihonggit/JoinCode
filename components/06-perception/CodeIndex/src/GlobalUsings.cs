@@ -1,0 +1,16 @@
+global using System.Collections.Frozen;
+global using System.Diagnostics.CodeAnalysis;
+global using System.Text.RegularExpressions;
+global using CodeIndex.Ast;
+global using CodeIndex.Persistence;
+global using CodeIndex.Threading;
+global using JoinCode.Abstractions.Attributes;
+global using JoinCode.Abstractions.Clock;
+global using JoinCode.Abstractions.CodeIndex;
+global using JoinCode.Abstractions.Configuration.AppData;
+global using JoinCode.Abstractions.Interfaces;
+global using Infrastructure.Utils.IO;
+global using Infrastructure.Utils.System;
+global using TreeSitter;
+global using System.Xml.Linq;
+global using Range = System.Range;

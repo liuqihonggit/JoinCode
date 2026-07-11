@@ -1,0 +1,19 @@
+{
+  "port": 18081,
+  "default_response": "DeepSeek Mock default response.",
+  "scripted_turns": [
+    {
+      "text_response": "Hello from DeepSeek! I will read a file for you.",
+      "tool_calls": [
+        {
+          "tool_name": "read",
+          "arguments": "{\"file_path\":\"D:\\\\JoinCode\\\\README.md\"}",
+          "tool_call_id": "call_ds_001"
+        }
+      ]
+    },
+    {
+      "text_response": "I have read the file. The DeepSeek task is complete."
+    }
+  ]
+}

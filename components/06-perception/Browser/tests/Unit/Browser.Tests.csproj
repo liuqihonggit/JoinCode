@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Browser.Tests</RootNamespace>
+    <AssemblyName>JoinCode.Browser.Tests</AssemblyName>
+    <Description>JoinCode Browser 插件单元测试</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)components\06-perception\Browser\src\Browser.csproj" />
+    <ProjectReference Include="$(RepoRoot)sdk\Abstractions\Abstractions.csproj" />
+    <ProjectReference Include="$(RepoRoot)src\Infrastructure\Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)tests\Unit\Testing.Common\Testing.Common.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="$(RepoRoot)components\06-perception\Browser\tests\GlobalUsings.cs" Link="GlobalUsings.cs" />
+  </ItemGroup>
+</Project>

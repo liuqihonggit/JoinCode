@@ -1,0 +1,17 @@
+{
+  "port": 5180,
+  "default_response": "Mock response (script exhausted).",
+  "scripted_turns": [
+    {
+      "thinking_content": null,
+      "tool_calls": [
+        {
+          "tool_name": "read",
+          "arguments": "{\"file_path\":\"README.md\"}"
+        }
+      ],
+      "text_response": null,
+      "follow_up_text": "I have read the README.md file. This is a test response after tool call."
+    }
+  ]
+}

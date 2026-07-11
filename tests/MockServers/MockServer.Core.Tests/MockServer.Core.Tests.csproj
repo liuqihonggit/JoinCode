@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>MockServer.Core.Tests</RootNamespace>
+    <AssemblyName>JoinCode.MockServer.Core.Tests</AssemblyName>
+    <Description>MockServer.Core 单元测试</Description>
+    <NoWarn>$(NoWarn);JCC3007;JCC3010;JCC3011;JCC3012;NU1510</NoWarn>
+    <ExcludeJccAnalyzers>true</ExcludeJccAnalyzers>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)tests\MockServers\MockServer.Core\MockServer.Core.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <RootNamespace>MockServer.Core.Tests</RootNamespace>
+    <AssemblyName>JoinCode.MockServer.Core.Tests</AssemblyName>
+    <Description>MockServer.Core 单元测试 — 流式分片、脚本响应、配置加载等</Description>
+    <NoWarn>$(NoWarn);JCC3007;JCC3010;JCC3011;JCC3012</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)tests\MockServers\MockServer.Core\MockServer.Core.csproj" />
+    <ProjectReference Include="$(RepoRoot)tests\MockServers\OpenAI.MockServer\OpenAI.MockServer.csproj" />
+    <ProjectReference Include="$(RepoRoot)tests\MockServers\Anthropic.MockServer\Anthropic.MockServer.csproj" />
+    <ProjectReference Include="$(RepoRoot)tests\MockServers\DeepSeek.MockServer\DeepSeek.MockServer.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,78 @@
+<Solution>
+  <Folder Name="/sdk/">
+    <Project Path="../sdk/Abstractions/Abstractions.csproj" />
+  </Folder>
+  <Folder Name="/infrastructure/">
+    <Project Path="../src/Infrastructure/Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/testing/">
+    <Project Path="../tests/Unit/Testing.Common/Testing.Common.csproj" />
+  </Folder>
+  <Folder Name="/01-ai/Llm/">
+    <Project Path="01-ai/Llm/src/Llm.csproj" />
+  </Folder>
+  <Folder Name="/01-ai/Mcp/">
+    <Project Path="01-ai/Mcp/src/Mcp.csproj" />
+    <Project Path="01-ai/Mcp/tests/Unit/Mcp.Tests.csproj" />
+  </Folder>
+  <Folder Name="/01-ai/Dream/">
+    <Project Path="01-ai/Dream/src/Dream.csproj" />
+    <Project Path="01-ai/Dream/tests/Unit/Dream.Tests.csproj" />
+  </Folder>
+  <Folder Name="/02-brain/Brain/">
+    <Project Path="02-brain/Brain/src/Brain.csproj" />
+    <Project Path="02-brain/Brain/tests/Unit/Brain.Tests.csproj" />
+  </Folder>
+  <Folder Name="/03-hands/Hands/">
+    <Project Path="03-hands/Hands/src/Hands.csproj" />
+    <Project Path="03-hands/Hands/tests/Unit/Hands.Tests.csproj" />
+  </Folder>
+  <Folder Name="/03-hands/McpToolHandlers/">
+    <Project Path="03-hands/McpToolHandlers/src/McpToolHandlers.csproj" />
+    <Project Path="03-hands/McpToolHandlers/tests/Unit/McpToolHandlers.Tests.csproj" />
+  </Folder>
+  <Folder Name="/03-hands/Scheduling/">
+    <Project Path="03-hands/Scheduling/src/Scheduling.csproj" />
+    <Project Path="03-hands/Scheduling/tests/Unit/Scheduling.Tests.csproj" />
+  </Folder>
+  <Folder Name="/04-guard/Guard/">
+    <Project Path="04-guard/Guard/src/Guard.csproj" />
+    <Project Path="04-guard/Guard/tests/Unit/Guard.Tests.csproj" />
+  </Folder>
+  <Folder Name="/05-memory/Vault/">
+    <Project Path="05-memory/Vault/src/Vault.csproj" />
+    <Project Path="05-memory/Vault/tests/Unit/Vault.Tests.csproj" />
+  </Folder>
+  <Folder Name="/06-perception/Eyes/">
+    <Project Path="06-perception/Eyes/src/Eyes.csproj" />
+    <Project Path="06-perception/Eyes/tests/Unit/Eyes.Tests.csproj" />
+  </Folder>
+  <Folder Name="/06-perception/CodeIndex/">
+    <Project Path="06-perception/CodeIndex/src/CodeIndex.csproj" />
+    <Project Path="06-perception/CodeIndex/tests/Unit/CodeIndex.Tests.csproj" />
+    <Project Path="06-perception/CodeIndex/tests/E2E/CodeIndex.E2E.Tests.csproj" />
+  </Folder>
+  <Folder Name="/06-perception/Browser/">
+    <Project Path="06-perception/Browser/src/Browser.csproj" />
+  </Folder>
+  <Folder Name="/07-agents/Agents/">
+    <Project Path="07-agents/Agents/src/Agents.csproj" />
+    <Project Path="07-agents/Agents/tests/Unit/Agents.Tests.csproj" />
+  </Folder>
+  <Folder Name="/08-transport/Bridge/">
+    <Project Path="08-transport/Bridge/src/Bridge.csproj" />
+    <Project Path="08-transport/Bridge/tests/Unit/Bridge.Tests.csproj" />
+  </Folder>
+  <Folder Name="/08-transport/Transport/">
+    <Project Path="08-transport/Contracts/Transport.Contracts.csproj" />
+    <Project Path="08-transport/Impl/Transport.Impl.csproj" />
+  </Folder>
+  <Folder Name="/09-composition/Composition/">
+    <Project Path="09-composition/Composition/src/Composition.csproj" />
+    <Project Path="09-composition/Composition/tests/Unit/Composition.Tests.csproj" />
+  </Folder>
+  <Folder Name="/09-composition/Clock/">
+    <Project Path="09-composition/Clock/src/Clock.csproj" />
+    <Project Path="09-composition/Clock/tests/Unit/Clock.Tests.csproj" />
+  </Folder>
+</Solution>

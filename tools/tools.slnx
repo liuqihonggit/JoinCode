@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/tools/">
+    <Project Path="JccAuditAstCli/JccAuditCli.csproj" />
+    <Project Path="JccAuditCli.Tests/JccAuditCli.Tests.csproj" />
+    <Project Path="CrossProcessChild/CrossProcessChild.csproj" />
+    <Project Path="InjectMigration/InjectMigration.csproj" />
+    <Project Path="pptr-api-check/PptrApiCheck.csproj" />
+    <Project Path="aot-browser-test/aot-browser-test.csproj" />
+  </Folder>
+</Solution>

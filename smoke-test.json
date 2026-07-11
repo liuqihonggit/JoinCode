@@ -1,0 +1,12 @@
+{
+  "local": {
+    "awaitSeconds": 15,
+    "waitForExitMs": 30000,
+    "description": "本地快速中断测试（15s超时返回1234）"
+  },
+  "ci": {
+    "awaitSeconds": 30,
+    "waitForExitMs": 60000,
+    "description": "CI环境超时（30s超时返回1234，含MCP初始化+CodeIndex）"
+  }
+}

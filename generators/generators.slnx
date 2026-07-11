@@ -1,0 +1,24 @@
+<Solution>
+  <Folder Name="/ConstructorInjection.Generator/" />
+  <Folder Name="/ConstructorInjection.Generator/src/">
+    <Project Path="ConstructorInjection.Generator/src/ConstructorInjection.Generator.csproj" />
+  </Folder>
+  <Folder Name="/generators/">
+    <Project Path="AotSafety.Generator/src/AotSafety.Generator.csproj" />
+    <Project Path="AppModule.Generator/src/AppModule.Generator.csproj" />
+    <Project Path="JccCodeFixes/src/JccCodeFixes.csproj" />
+    <Project Path="CliOption.Generator/src/CliOption.Generator.csproj" />
+    <Project Path="EnumMetadata.Generator/src/EnumMetadata.Generator.csproj" />
+    <Project Path="McpToolHandlers.Generator/src/McpToolHandlers.Generator.csproj" />
+    <Project Path="PromptSection.Generator/src/PromptSection.Generator.csproj" />
+    <Project Path="ToolPrompt.Generator/src/ToolPrompt.Generator.csproj" />
+    <Project Path="AgentPrompt.Generator/src/AgentPrompt.Generator.csproj" />
+  </Folder>
+  <Folder Name="/PromptTemplate.Generator/" />
+  <Folder Name="/PromptTemplate.Generator/src/">
+    <Project Path="PromptTemplate.Generator/src/PromptTemplate.Generator.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="AotSafety.Generator/tests/AotSafety.Tests.csproj" />
+  </Folder>
+</Solution>

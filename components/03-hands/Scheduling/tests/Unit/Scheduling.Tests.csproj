@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>JoinCode.Scheduling.Tests</RootNamespace>
+    <AssemblyName>JoinCode.Scheduling.Tests</AssemblyName>
+    <Description>JoinCode Scheduling 子系统单元测试</Description>
+    <NoWarn>$(NoWarn);JCC3007;JCC3010;JCC3011;JCC3012</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)components\03-hands\Scheduling\src\Scheduling.csproj" />
+    <ProjectReference Include="$(RepoRoot)components\09-composition\Composition\src\Composition.csproj" />
+    <ProjectReference Include="$(RepoRoot)src\Infrastructure\Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)tests\Unit\Testing.Common\Testing.Common.csproj" />
+    <ProjectReference Include="$(RepoRoot)components\01-ai\Mcp\src\Mcp.csproj" />
+    <ProjectReference Include="$(RepoRoot)components\07-agents\Agents\src\Agents.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="$(MicrosoftExtensionsVersion)" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" Version="$(MicrosoftExtensionsTimeProviderTestingVersion)" />
+  </ItemGroup>
+
+</Project>

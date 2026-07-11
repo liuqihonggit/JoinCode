@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>JoinCode.Hands</RootNamespace>
+    <AssemblyName>JoinCode.Hands</AssemblyName>
+    <Description>JoinCode Hands 子系统 — 技能执行、工具处理器、Shell、Web、Notebook、API、缓存</Description>
+    <PackageId>JoinCode.Hands</PackageId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)sdk\Abstractions\Abstractions.csproj" />
+    <ProjectReference Include="$(RepoRoot)src\Infrastructure\Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="$(MicrosoftExtensionsVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="$(MicrosoftExtensionsVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="$(MicrosoftExtensionsVersion)" />
+    <PackageReference Include="System.IO.Hashing" Version="$(SystemIOHashingVersion)" />
+    <PackageReference Include="ReverseMarkdown.Aot" Version="4.8.0" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="$(ImageSharpVersion)" />
+    <PackageReference Include="Docnet.Core" Version="$(DocnetCoreVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="JoinCode.Core.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Core.Tests.Terminal" />
+    <InternalsVisibleTo Include="JoinCode.Core.Tests.Permission" />
+    <InternalsVisibleTo Include="JoinCode.Core.Tests.Services" />
+    <InternalsVisibleTo Include="JoinCode.Dream.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Core.Tests.Agents" />
+    <InternalsVisibleTo Include="JoinCode.Core.Tests.Context" />
+    <InternalsVisibleTo Include="JoinCode.Hands.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Composition" />
+  </ItemGroup>
+
+
+
+  
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)generators\ConstructorInjection.Generator/src/ConstructorInjection.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="$(RepoRoot)generators\PromptTemplate.Generator/src/PromptTemplate.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+</Project>

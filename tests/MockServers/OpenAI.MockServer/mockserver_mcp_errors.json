@@ -1,0 +1,69 @@
+{
+  "port": 18082,
+  "default_response": "MCP error handling test script exhausted.",
+  "scripted_turns": [
+    {
+      "text_response": "I will test MCP error handling. First, connecting to a non-existent endpoint should fail gracefully.",
+      "tool_calls": [
+        {
+          "tool_name": "mcp_connect",
+          "arguments": "{\"connection_name\":\"bad\",\"endpoint\":\"http://localhost:99999/nonexistent\",\"transport_type\":\"http\"}",
+          "tool_call_id": "mcp_connect_bad_001"
+        }
+      ]
+    },
+    {
+      "text_response": "Connection to bad endpoint handled. Now connecting to the valid MCP server.",
+      "tool_calls": [
+        {
+          "tool_name": "mcp_connect",
+          "arguments": "{\"connection_name\":\"mock\",\"endpoint\":\"http://localhost:18090/mcp\",\"transport_type\":\"http\"}",
+          "tool_call_id": "mcp_connect_ok_002"
+        }
+      ]
+    },
+    {
+      "text_response": "Connected. Now calling a non-existent tool to test error handling.",
+      "tool_calls": [
+        {
+          "tool_name": "mcp_call_tool",
+          "arguments": "{\"connection_name\":\"mock\",\"tool_name\":\"nonexistent_tool\",\"arguments_json\":\"{}\"}",
+          "tool_call_id": "mcp_call_bad_tool_003"
+        }
+      ]
+    },
+    {
+      "text_response": "Non-existent tool error handled. Now calling echo with invalid arguments (missing required field).",
+      "tool_calls": [
+        {
+          "tool_name": "mcp_call_tool",
+          "arguments": "{\"connection_name\":\"mock\",\"tool_name\":\"echo\",\"arguments_json\":\"{}\"}",
+          "tool_call_id": "mcp_call_bad_args_004"
+        }
+      ]
+    },
+    {
+      "text_response": "Invalid arguments error handled. Now disconnecting a non-existent connection.",
+      "tool_calls": [
+        {
+          "tool_name": "mcp_disconnect",
+          "arguments": "{\"connection_name\":\"nonexistent_conn\"}",
+          "tool_call_id": "mcp_disconnect_bad_005"
+        }
+      ]
+    },
+    {
+      "text_response": "Non-existent disconnect handled. Now disconnecting the valid connection.",
+      "tool_calls": [
+        {
+          "tool_name": "mcp_disconnect",
+          "arguments": "{\"connection_name\":\"mock\"}",
+          "tool_call_id": "mcp_disconnect_ok_006"
+        }
+      ]
+    },
+    {
+      "text_response": "MCP error handling test completed. All error cases handled gracefully without crashing."
+    }
+  ]
+}

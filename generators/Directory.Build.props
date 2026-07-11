@@ -1,0 +1,62 @@
+<Project>
+  <!-- generators/ 独立构建属性 — 不继承根目录的 net10.0 / NativeAOT 设置 -->
+  <!-- 阻止 MSBuild 向上查找父级 Directory.Build.props -->
+  <PropertyGroup>
+    <ImportDirectoryBuildProps>false</ImportDirectoryBuildProps>
+  </PropertyGroup>
+
+  <!-- 导入根目录版本变量（XunitVersion 等），供测试项目使用 -->
+  <Import Project="$(MSBuildThisFileDirectory)..\Directory.Build.props" />
+
+  <!-- === Generator 项目配置（默认） === -->
+  <PropertyGroup>
+    <GenerateAssemblyInfoCache>false</GenerateAssemblyInfoCache>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <IsPackable>false</IsPackable>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <IsAotCompatible>false</IsAotCompatible>
+    <EnableAotAnalyzer>false</EnableAotAnalyzer>
+    <PublishAot>false</PublishAot>
+    <!-- NuGet 包属性 (pack-generators.ps1 使用) -->
+    <PackageId Condition="'$(PackageId)' == ''">JoinCode.$(MSBuildProjectName)</PackageId>
+    <PackageVersion Condition="'$(PackageVersion)' == ''">1.0.0</PackageVersion>
+    <!-- Roslyn 分析器版本 -->
+    <MicrosoftCodeAnalysisVersion>4.13.0</MicrosoftCodeAnalysisVersion>
+    <UseArtifactsOutput>false</UseArtifactsOutput>
+    <OutputPath>$(RepoRoot)artifacts\bin\$(MSBuildProjectName)\$(Configuration)\</OutputPath>
+    <BaseIntermediateOutputPath>$(RepoRoot)artifacts\obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
+    <IntermediateOutputPath>$(BaseIntermediateOutputPath)$(Configuration)\</IntermediateOutputPath>
+  </PropertyGroup>
+
+  <!-- === Generator 项目: 移除根目录带入的 Using（netstandard2.0 不支持） === -->
+  <ItemGroup Condition="!$(MSBuildProjectName.Contains('.Tests'))">
+    <Using Remove="System.Collections.Concurrent" />
+    <Using Remove="System.Diagnostics" />
+    <Using Remove="System.Text.Json" />
+    <Using Remove="System.Text.Json.Serialization" />
+    <Using Remove="System.Text.Json.Serialization.Metadata" />
+  </ItemGroup>
+
+  <!-- === 测试项目覆盖配置 === -->
+  <PropertyGroup Condition="$(MSBuildProjectName.Contains('.Tests'))">
+    <TargetFramework>net10.0</TargetFramework>
+    <EnforceExtendedAnalyzerRules>false</EnforceExtendedAnalyzerRules>
+    <IsTestProject>true</IsTestProject>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IncludeBuildOutput>true</IncludeBuildOutput>
+    <ExcludeJccAnalyzers>true</ExcludeJccAnalyzers>
+  </PropertyGroup>
+
+  <!-- NuGet 打包: 分析器DLL放到 analyzers/dotnet/cs 路径 -->
+  <PropertyGroup Condition="'$(IsPackable)' == 'true'">
+    <NoWarn>$(NoWarn);NU5128;NU5100</NoWarn>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(IsPackable)' == 'true'">
+    <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" />
+  </ItemGroup>
+</Project>

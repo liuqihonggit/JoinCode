@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>CodeIndex.E2E.Tests</RootNamespace>
+    <AssemblyName>JoinCode.CodeIndex.E2E.Tests</AssemblyName>
+    <Description>JoinCode CodeIndex E2E 集成测试</Description>
+    <NoWarn>$(NoWarn);JCC3007</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)components\06-perception\CodeIndex\src\CodeIndex.csproj" />
+    <ProjectReference Include="$(RepoRoot)src\Infrastructure\Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

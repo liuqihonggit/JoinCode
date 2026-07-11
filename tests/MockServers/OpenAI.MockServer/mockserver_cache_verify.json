@@ -1,0 +1,19 @@
+{
+  "port": 18084,
+  "default_response": "Cache verification test script exhausted.",
+  "scripted_turns": [
+    {
+      "text_response": "I will read a file to trigger the first LLM call (cache miss).",
+      "tool_calls": [
+        {
+          "tool_name": "Read",
+          "arguments": "{\"file_path\":\"D:\\\\JoinCode\\\\README.md\",\"limit\":3}",
+          "tool_call_id": "cache_read_001"
+        }
+      ]
+    },
+    {
+      "text_response": "Cache verification test completed. The [Timing] line should show cache stats: the first LLM call was a cache miss (creation > 0, read = 0), and this second call after tool execution should be a cache hit (read > 0). This makes prefix cache savings visible to users."
+    }
+  ]
+}

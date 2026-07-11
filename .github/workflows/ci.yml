@@ -1,0 +1,813 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main, develop, 'release/**']
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+  DOTNET_NOLOGO: true
+  NUGET_XMLDOC_MODE: skip
+  NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+  Configuration: Release
+
+jobs:
+  build:
+    name: Build
+    runs-on: windows-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: 'global.json'
+
+      - name: Cache NuGet Packages
+        uses: actions/cache@v5
+        with:
+          path: ${{ github.workspace }}/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Build.props') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+
+      - name: Restore
+        run: dotnet restore JoinCode.slnx
+
+      - name: Build
+        run: dotnet build JoinCode.slnx -c Release --no-restore --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
+
+      - name: Build - Component Tests
+        run: |
+          $projects = @(
+            'components/02-brain/Brain/tests/Unit/Brain.Tests.csproj',
+            'components/04-guard/Guard/tests/Unit/Guard.Tests.csproj',
+            'components/08-transport/Bridge/tests/Unit/Bridge.Tests.csproj',
+            'components/03-hands/Hands/tests/Unit/Hands.Tests.csproj',
+            'components/01-ai/Mcp/tests/Unit/Mcp.Tests.csproj',
+            'components/05-memory/Vault/tests/Unit/Vault.Tests.csproj',
+            'components/09-composition/Composition/tests/Unit/Composition.Tests.csproj',
+            'components/07-agents/Agents/tests/Unit/Agents.Tests.csproj',
+            'components/03-hands/Scheduling/tests/Unit/Scheduling.Tests.csproj',
+            'components/03-hands/McpToolHandlers/tests/Unit/McpToolHandlers.Tests.csproj',
+            'components/09-composition/Clock/tests/Unit/Clock.Tests.csproj',
+            'components/06-perception/Eyes/tests/Unit/Eyes.Tests.csproj',
+            'components/06-perception/CodeIndex/tests/Unit/CodeIndex.Tests.csproj',
+            'components/01-ai/Dream/tests/Unit/Dream.Tests.csproj',
+            'components/06-perception/CodeIndex/tests/E2E/CodeIndex.E2E.Tests.csproj'
+          )
+          foreach ($p in $projects) {
+            Write-Host "Building $p ..."
+            dotnet build $p -c Release --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
+            if ($LASTEXITCODE -ne 0) { exit 1 }
+          }
+        shell: pwsh
+
+      - name: Upload Build Output
+        uses: actions/upload-artifact@v5
+        with:
+          name: build-output
+          path: |
+            artifacts/bin/
+            !**/runtimes/linux-arm/
+            !**/runtimes/linux-arm64/
+            !**/runtimes/linux-x64/
+            !**/runtimes/linux-x86/
+            !**/runtimes/linux-musl-x64/
+            !**/runtimes/osx-x64/
+            !**/runtimes/osx-arm64/
+            !**/runtimes/win-x86/
+            !**/runtimes/win-arm64/
+            !**/runtimes/unix/
+            !**/runtimes/linux/
+            !**/runtimes/osx/
+          retention-days: 1
+
+  unit-test-group-1:
+    name: Unit - Core (Infra/Brain/Guard/Bridge)
+    runs-on: windows-latest
+    needs: build
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - uses: ./.github/actions/setup-test-env
+      - name: Test - Infra
+        run: >
+          dotnet test tests/Unit/Infra.Tests/Infra.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "Category!=Integration&Category!=Benchmark"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=infra-tests.trx"
+      - name: Test - Brain
+        run: >
+          dotnet test components/02-brain/Brain/tests/Unit/Brain.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "Category!=Integration&Category!=Benchmark"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=brain-tests.trx"
+      - name: Test - Guard
+        run: >
+          dotnet test components/04-guard/Guard/tests/Unit/Guard.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "Category!=Integration&Category!=Benchmark"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=guard-tests.trx"
+      - name: Test - Bridge
+        run: >
+          dotnet test components/08-transport/Bridge/tests/Unit/Bridge.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "Category!=Integration&Category!=Benchmark"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=bridge-tests.trx"
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: unit-test-results-group-1
+          path: '**/*.trx'
+          retention-days: 7
+
+  unit-test-group-2:
+    name: Unit - Services (Hands/Mcp/Vault/Composition)
+    runs-on: windows-latest
+    needs: build
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - uses: ./.github/actions/setup-test-env
+      - name: Test - Hands
+        run: >
+          dotnet test components/03-hands/Hands/tests/Unit/Hands.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "Category!=Integration&Category!=Benchmark"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=hands-tests.trx"
+      - name: Test - Mcp
+        run: >
+          dotnet test components/01-ai/Mcp/tests/Unit/Mcp.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "Category!=Integration&Category!=Benchmark"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=mcp-tests.trx"
+      - name: Test - Vault
+        run: >
+          dotnet test components/05-memory/Vault/tests/Unit/Vault.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "Category!=Integration&Category!=Benchmark"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=vault-tests.trx"
+      - name: Test - Composition
+        run: >
+          dotnet test components/09-composition/Composition/tests/Unit/Composition.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "Category!=Integration&Category!=Benchmark"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=composition-tests.trx"
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: unit-test-results-group-2
+          path: '**/*.trx'
+          retention-days: 7
+
+  unit-test-group-3:
+    name: Unit - Agents & Host (Agents/Scheduling/McpToolHandlers/Host)
+    runs-on: windows-latest
+    needs: build
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - uses: ./.github/actions/setup-test-env
+      - name: Test - Agents
+        run: >
+          dotnet test components/07-agents/Agents/tests/Unit/Agents.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "Category!=Integration&Category!=Benchmark"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=agents-tests.trx"
+      - name: Test - Scheduling
+        run: >
+          dotnet test components/03-hands/Scheduling/tests/Unit/Scheduling.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "Category!=Integration&Category!=Benchmark"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=scheduling-tests.trx"
+      - name: Test - McpToolHandlers
+        run: >
+          dotnet test components/03-hands/McpToolHandlers/tests/Unit/McpToolHandlers.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "Category!=Integration&Category!=Benchmark"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=mcp-toolhandlers-tests.trx"
+      - name: Test - Host
+        run: >
+          dotnet test tests/Unit/Host.Tests/Host.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "Category!=Integration&Category!=Benchmark"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=host-tests.trx"
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: unit-test-results-group-3
+          path: '**/*.trx'
+          retention-days: 7
+
+  integration-brain-clock:
+    name: Integration - Brain + Clock
+    runs-on: windows-latest
+    needs: build
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - uses: ./.github/actions/setup-test-env
+      - name: Integration Tests - Brain + Clock
+        run: >
+          dotnet test JoinCode.slnx
+          -c Release --no-build --nologo
+          --filter "Category=Integration&(FullyQualifiedName~Brain|FullyQualifiedName~Clock)"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=integration-brain-clock.trx"
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: integration-results-brain-clock
+          path: '**/integration-brain-clock.trx'
+          retention-days: 7
+
+  integration-guard-vault:
+    name: Integration - Guard + Vault
+    runs-on: windows-latest
+    needs: build
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - uses: ./.github/actions/setup-test-env
+      - name: Integration Tests - Guard + Vault
+        run: >
+          dotnet test JoinCode.slnx
+          -c Release --no-build --nologo
+          --filter "Category=Integration&(FullyQualifiedName~Guard|FullyQualifiedName~Vault)"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=integration-guard-vault.trx"
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: integration-results-guard-vault
+          path: '**/integration-guard-vault.trx'
+          retention-days: 7
+
+  integration-hands-host-mcp:
+    name: Integration - Hands + Host + McpTools
+    runs-on: windows-latest
+    needs: build
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - uses: ./.github/actions/setup-test-env
+      - name: Integration Tests - Hands + Host + McpTools
+        run: >
+          dotnet test JoinCode.slnx
+          -c Release --no-build --nologo
+          --filter "Category=Integration&(FullyQualifiedName~Hands|FullyQualifiedName~Host|FullyQualifiedName~McpTools)"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=integration-hands-host-mcp.trx"
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: integration-results-hands-host-mcp
+          path: '**/integration-hands-host-mcp.trx'
+          retention-days: 7
+
+  integration-prefixcache:
+    name: Integration - PrefixCache
+    runs-on: windows-latest
+    needs: build
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - uses: ./.github/actions/setup-test-env
+      - name: Integration Tests - PrefixCache
+        run: >
+          dotnet test JoinCode.slnx
+          -c Release --no-build --nologo
+          --filter "Category=Integration&FullyQualifiedName~PrefixCache"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=integration-prefixcache.trx"
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: integration-results-prefixcache
+          path: '**/integration-prefixcache.trx'
+          retention-days: 7
+
+  e2e-conversation:
+    name: E2E - Conversation
+    runs-on: windows-latest
+    needs: build
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - uses: ./.github/actions/setup-test-env
+      - name: E2E Tests
+        run: >
+          dotnet test tests/MockServers/MockServer.E2E.Tests/MockServer.E2E.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "FullyQualifiedName~DualRoleConversationTests"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=e2e-conversation.trx"
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: e2e-results-conversation
+          path: '**/e2e-conversation.trx'
+          retention-days: 7
+
+  e2e-multi-provider:
+    name: E2E - MultiProvider + Concurrent
+    runs-on: windows-latest
+    needs: build
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - uses: ./.github/actions/setup-test-env
+      - name: E2E Tests
+        run: >
+          dotnet test tests/MockServers/MockServer.E2E.Tests/MockServer.E2E.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "FullyQualifiedName~MultiProviderE2ETests|FullyQualifiedName~AnthropicDeepCoverageE2ETests|FullyQualifiedName~ConcurrentRequestE2ETests"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=e2e-multi-provider.trx"
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: e2e-results-multi-provider
+          path: '**/e2e-multi-provider.trx'
+          retention-days: 7
+
+  e2e-file-tools:
+    name: E2E - File/Search/Shell/Extended
+    runs-on: windows-latest
+    needs: build
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - uses: ./.github/actions/setup-test-env
+      - name: E2E Tests
+        run: >
+          dotnet test tests/MockServers/MockServer.E2E.Tests/MockServer.E2E.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "FullyQualifiedName~FileToolCoverageTests|FullyQualifiedName~SearchToolCoverageTests|FullyQualifiedName~ShellGitToolCoverageTests|FullyQualifiedName~ExtendedToolCoverageTests"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=e2e-file-tools.trx"
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: e2e-results-file-tools
+          path: '**/e2e-file-tools.trx'
+          retention-days: 7
+
+  e2e-agent-tools:
+    name: E2E - Agent/Batch/Task/AST
+    runs-on: windows-latest
+    needs: build
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - uses: ./.github/actions/setup-test-env
+      - name: E2E Tests
+        run: >
+          dotnet test tests/MockServers/MockServer.E2E.Tests/MockServer.E2E.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "FullyQualifiedName~AgentToolCoverageTests|FullyQualifiedName~BatchToolCoverageTests|FullyQualifiedName~TaskToolCoverageTests|FullyQualifiedName~AstIntegrationTests"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=e2e-agent-tools.trx"
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: e2e-results-agent-tools
+          path: '**/e2e-agent-tools.trx'
+          retention-days: 7
+
+  e2e-chatcmd:
+    name: E2E - ChatCmd
+    runs-on: windows-latest
+    needs: build
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - uses: ./.github/actions/setup-test-env
+      - name: E2E Tests
+        run: >
+          dotnet test tests/MockServers/MockServer.E2E.Tests/MockServer.E2E.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "FullyQualifiedName~ChatCommandBasicCoverageTests|FullyQualifiedName~ChatCommandCodeCoverageTests|FullyQualifiedName~ChatCommandExtendedCoverageTests|FullyQualifiedName~ChatCommandAuthExportCoverageTests"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=e2e-chatcmd.trx"
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: e2e-results-chatcmd
+          path: '**/e2e-chatcmd.trx'
+          retention-days: 7
+
+  e2e-errors-permission:
+    name: E2E - ErrorRecovery + Permission
+    runs-on: windows-latest
+    needs: build
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - uses: ./.github/actions/setup-test-env
+      - name: E2E Tests
+        run: >
+          dotnet test tests/MockServers/MockServer.E2E.Tests/MockServer.E2E.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "FullyQualifiedName~ApiErrorRecoveryE2ETests|FullyQualifiedName~StreamInterruptionE2ETests|FullyQualifiedName~PermissionDenialE2ETests"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=e2e-errors-permission.trx"
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: e2e-results-errors-permission
+          path: '**/e2e-errors-permission.trx'
+          retention-days: 7
+
+  e2e-mcp-smoke:
+    name: E2E - MCP + Sync + CodeIndex + Smoke
+    runs-on: windows-latest
+    needs: build
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - uses: ./.github/actions/setup-test-env
+      - name: E2E - MCP Integration
+        run: >
+          dotnet test tests/MockServers/MockServer.E2E.Tests/MockServer.E2E.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "FullyQualifiedName~McpIntegrationTests|FullyQualifiedName~McpProtocolE2ETests"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=e2e-mcp.trx"
+      - name: E2E - Sync Integration
+        run: >
+          dotnet test tests/MockServers/Sync.Integration.Tests/Sync.Integration.Tests.csproj
+          -c Release --no-build --nologo
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=e2e-sync.trx"
+      - name: E2E - CodeIndex
+        run: >
+          dotnet test components/06-perception/CodeIndex/tests/E2E/CodeIndex.E2E.Tests.csproj
+          -c Release --no-build --nologo
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=e2e-codeindex.trx"
+      - name: E2E - Smoke Test (skip MCP)
+        if: always()
+        shell: pwsh
+        run: |
+          $config = (Get-Content smoke-test.json -Raw | ConvertFrom-Json).ci
+          $awaitSec = $config.awaitSeconds
+          $waitMs = $config.waitForExitMs
+          Write-Host "Smoke Test config (ci): await=${awaitSec}s, waitForExit=${waitMs}ms - $($config.description)"
+
+          $mockServerExe = Get-ChildItem -Path artifacts/bin/OpenAI.MockServer -Recurse -Filter "JoinCode.OpenAI.MockServer.exe" | Select-Object -First 1
+          $jccExe = Get-ChildItem -Path artifacts/bin/JoinCode -Recurse -Filter "jcc.exe" | Where-Object { $_.DirectoryName -notlike "*E2E*" -and $_.DirectoryName -notlike "*Tests*" } | Select-Object -First 1
+
+          if (-not $mockServerExe) { Write-Host "MockServer exe not found" -ForegroundColor Red; exit 1 }
+          if (-not $jccExe) { Write-Host "jcc.exe not found" -ForegroundColor Red; exit 1 }
+
+          $mockServerExe = $mockServerExe.FullName
+          $jccExe = $jccExe.FullName
+          Write-Host "MockServer: $mockServerExe"
+          Write-Host "jcc: $jccExe"
+
+          $mockServer = Start-Process -FilePath $mockServerExe -ArgumentList "--port 9901" -PassThru -NoNewWindow
+
+          $ready = $false
+          for ($i = 0; $i -lt 15; $i++) {
+            Start-Sleep -Seconds 1
+            try {
+              Invoke-RestMethod -Uri "http://localhost:9901/" -Method Get -TimeoutSec 2 -ErrorAction SilentlyContinue | Out-Null
+              $ready = $true
+              Write-Host "MockServer ready (waited $($i+1)s)" -ForegroundColor Green
+              break
+            } catch {}
+          }
+
+          if (-not $ready) {
+            Write-Host "MockServer failed to start within 15s" -ForegroundColor Red
+            if (-not $mockServer.HasExited) { $mockServer.Kill() }
+            exit 1
+          }
+
+          try {
+            $psi = [System.Diagnostics.ProcessStartInfo]::new()
+            $psi.FileName = Resolve-Path $jccExe
+            $psi.Arguments = "--trust -p `"hello`" --await $awaitSec"
+            $psi.EnvironmentVariables["JCC_ENDPOINT"] = "http://localhost:9901"
+            $psi.EnvironmentVariables["JCC_API_KEY"] = "sk-test-ci-key"
+            $psi.EnvironmentVariables["JCC_PROVIDER"] = "openai"
+            $psi.EnvironmentVariables["JCC_MODEL_ID"] = "gpt-4o"
+            $psi.EnvironmentVariables["JCC_SKIP_MCP_INIT"] = "1"
+            $psi.EnvironmentVariables["JCC_SKIP_PLUGIN_SKILLS"] = "1"
+            $psi.UseShellExecute = $false
+            $psi.RedirectStandardOutput = $true
+            $psi.RedirectStandardError = $true
+            $psi.StandardOutputEncoding = [System.Text.Encoding]::UTF8
+            $psi.StandardErrorEncoding = [System.Text.Encoding]::UTF8
+            $psi.WorkingDirectory = $env:GITHUB_WORKSPACE
+
+            $jcc = [System.Diagnostics.Process]::Start($psi)
+            $stdoutTask = $jcc.StandardOutput.ReadToEndAsync()
+            $stderrTask = $jcc.StandardError.ReadToEndAsync()
+            $exited = $jcc.WaitForExit($waitMs)
+
+            if (-not $exited) {
+              Write-Host "FAIL: jcc.exe timed out ($($waitMs/1000)s)" -ForegroundColor Red
+              $jcc.Kill()
+              exit 1
+            }
+
+            $stdout = $stdoutTask.Result
+            $stderr = $stderrTask.Result
+            $exitCode = $jcc.ExitCode
+
+            Write-Host "jcc.exe exit code: $exitCode"
+            Write-Host "stdout (first 2000 chars): $($stdout.Substring(0, [Math]::Min(2000, $stdout.Length)))"
+            if ($stderr) {
+              Write-Host "stderr (first 5000 chars): $($stderr.Substring(0, [Math]::Min(5000, $stderr.Length)))"
+            }
+
+            if ($exitCode -eq 1234) {
+              Write-Host "FAIL: jcc.exe await timer expired (exit 1234)" -ForegroundColor Red
+              exit 1
+            }
+            if ($exitCode -ne 0) {
+              Write-Host "FAIL: jcc.exe exited with code $exitCode" -ForegroundColor Red
+              exit 1
+            }
+
+            Write-Host "PASS: jcc.exe smoke test (skip MCP)" -ForegroundColor Green
+          }
+          finally {
+            try {
+              Invoke-RestMethod -Uri "http://localhost:9901/shutdown" -Method Get -TimeoutSec 3 -ErrorAction SilentlyContinue | Out-Null
+            } catch {}
+            Start-Sleep -Seconds 2
+            if (-not $mockServer.HasExited) { $mockServer.Kill() }
+          }
+
+      - name: E2E - Smoke Test (full)
+        if: always()
+        shell: pwsh
+        run: |
+          $config = (Get-Content smoke-test.json -Raw | ConvertFrom-Json).ci
+          $awaitSec = $config.awaitSeconds
+          $waitMs = $config.waitForExitMs
+          Write-Host "Smoke Test config (ci): await=${awaitSec}s, waitForExit=${waitMs}ms - $($config.description)"
+
+          $mockServerExe = Get-ChildItem -Path artifacts/bin/OpenAI.MockServer -Recurse -Filter "JoinCode.OpenAI.MockServer.exe" | Select-Object -First 1
+          $jccExe = Get-ChildItem -Path artifacts/bin/JoinCode -Recurse -Filter "jcc.exe" | Where-Object { $_.DirectoryName -notlike "*E2E*" -and $_.DirectoryName -notlike "*Tests*" } | Select-Object -First 1
+
+          if (-not $mockServerExe) { Write-Host "MockServer exe not found" -ForegroundColor Red; exit 1 }
+          if (-not $jccExe) { Write-Host "jcc.exe not found" -ForegroundColor Red; exit 1 }
+
+          $mockServerExe = $mockServerExe.FullName
+          $jccExe = $jccExe.FullName
+          Write-Host "MockServer: $mockServerExe"
+          Write-Host "jcc: $jccExe"
+
+          $mockServer = Start-Process -FilePath $mockServerExe -ArgumentList "--port 9902" -PassThru -NoNewWindow
+
+          $ready = $false
+          for ($i = 0; $i -lt 15; $i++) {
+            Start-Sleep -Seconds 1
+            try {
+              Invoke-RestMethod -Uri "http://localhost:9902/" -Method Get -TimeoutSec 2 -ErrorAction SilentlyContinue | Out-Null
+              $ready = $true
+              Write-Host "MockServer ready (waited $($i+1)s)" -ForegroundColor Green
+              break
+            } catch {}
+          }
+
+          if (-not $ready) {
+            Write-Host "MockServer failed to start within 15s" -ForegroundColor Red
+            if (-not $mockServer.HasExited) { $mockServer.Kill() }
+            exit 1
+          }
+
+          try {
+            $psi = [System.Diagnostics.ProcessStartInfo]::new()
+            $psi.FileName = Resolve-Path $jccExe
+            $psi.Arguments = "--trust -p `"hello`" --await $awaitSec"
+            $psi.EnvironmentVariables["JCC_ENDPOINT"] = "http://localhost:9902"
+            $psi.EnvironmentVariables["JCC_API_KEY"] = "sk-test-ci-key"
+            $psi.EnvironmentVariables["JCC_PROVIDER"] = "openai"
+            $psi.EnvironmentVariables["JCC_MODEL_ID"] = "gpt-4o"
+            $psi.UseShellExecute = $false
+            $psi.RedirectStandardOutput = $true
+            $psi.RedirectStandardError = $true
+            $psi.StandardOutputEncoding = [System.Text.Encoding]::UTF8
+            $psi.StandardErrorEncoding = [System.Text.Encoding]::UTF8
+            $psi.WorkingDirectory = $env:GITHUB_WORKSPACE
+
+            $jcc = [System.Diagnostics.Process]::Start($psi)
+            $stdoutTask = $jcc.StandardOutput.ReadToEndAsync()
+            $stderrTask = $jcc.StandardError.ReadToEndAsync()
+            $exited = $jcc.WaitForExit($waitMs)
+
+            if (-not $exited) {
+              Write-Host "FAIL: jcc.exe timed out ($($waitMs/1000)s)" -ForegroundColor Red
+              $jcc.Kill()
+              exit 1
+            }
+
+            $stdout = $stdoutTask.Result
+            $stderr = $stderrTask.Result
+            $exitCode = $jcc.ExitCode
+
+            Write-Host "jcc.exe exit code: $exitCode"
+            Write-Host "stdout (first 2000 chars): $($stdout.Substring(0, [Math]::Min(2000, $stdout.Length)))"
+            if ($stderr) {
+              Write-Host "stderr (first 5000 chars): $($stderr.Substring(0, [Math]::Min(5000, $stderr.Length)))"
+              $stderrFile = Join-Path $env:GITHUB_WORKSPACE ".xxx" "jcc_full_stderr.txt"
+              if (-not (Test-Path (Split-Path $stderrFile -Parent))) { New-Item -ItemType Directory -Path (Split-Path $stderrFile -Parent) -Force | Out-Null }
+              [System.IO.File]::WriteAllText($stderrFile, $stderr)
+              Write-Host "Full stderr written to $stderrFile ($($stderr.Length) chars)"
+            }
+
+            if ($exitCode -eq 1234) {
+              Write-Host "FAIL: jcc.exe await timer expired (exit 1234)" -ForegroundColor Red
+              exit 1
+            }
+            if ($exitCode -ne 0) {
+              Write-Host "FAIL: jcc.exe exited with code $exitCode" -ForegroundColor Red
+              exit 1
+            }
+
+            Write-Host "PASS: jcc.exe smoke test (full)" -ForegroundColor Green
+          }
+          finally {
+            try {
+              Invoke-RestMethod -Uri "http://localhost:9902/shutdown" -Method Get -TimeoutSec 3 -ErrorAction SilentlyContinue | Out-Null
+            } catch {}
+            Start-Sleep -Seconds 2
+            if (-not $mockServer.HasExited) { $mockServer.Kill() }
+          }
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: e2e-results-mcp-smoke
+          path: |
+            **/e2e-mcp.trx
+            **/e2e-sync.trx
+            **/e2e-codeindex.trx
+            .xxx/jcc_full_stderr.txt
+          retention-days: 7
+
+  publish-aot-jcc:
+    name: AOT Publish - jcc.exe
+    runs-on: windows-latest
+    needs: [unit-test-group-1, unit-test-group-2, unit-test-group-3, integration-brain-clock, integration-guard-vault, integration-hands-host-mcp, integration-prefixcache, e2e-conversation, e2e-multi-provider, e2e-file-tools, e2e-agent-tools, e2e-chatcmd, e2e-errors-permission, e2e-mcp-smoke]
+    if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/'))) || (github.event_name == 'pull_request' && github.head_ref == 'w2')
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: 'global.json'
+
+      - name: Cache NuGet Packages
+        uses: actions/cache@v5
+        with:
+          path: ${{ github.workspace }}/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Build.props') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+
+      - name: Cache AOT Native Objects
+        uses: actions/cache@v5
+        with:
+          path: artifacts/obj/
+          key: aot-obj-jcc-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            aot-obj-jcc-${{ runner.os }}-
+
+      - name: AOT Publish - jcc.exe
+        run: >
+          dotnet publish src/JoinCode/JoinCode.csproj
+          -c Release
+          -r win-x64
+          --self-contained true
+
+      - name: Verify jcc.exe
+        shell: pwsh
+        run: |
+          $jccPath = "artifacts/bin/JoinCode/Release/net10.0/win-x64/publish/jcc.exe"
+          if (-not (Test-Path $jccPath)) {
+            Write-Host "jcc.exe not found at: $jccPath" -ForegroundColor Red
+            exit 1
+          }
+          $size = [math]::Round((Get-Item $jccPath).Length / 1MB, 2)
+          Write-Host "jcc.exe: ${size}MB" -ForegroundColor Green
+
+      - name: Upload AOT Artifacts
+        uses: actions/upload-artifact@v5
+        with:
+          name: jcc-aot-win-x64
+          path: artifacts/bin/JoinCode/Release/net10.0/win-x64/publish/
+          retention-days: 30
+
+  publish-aot-dream:
+    name: AOT Compatibility - Dream
+    runs-on: windows-latest
+    needs: [unit-test-group-1, unit-test-group-2, unit-test-group-3, integration-brain-clock, integration-guard-vault, integration-hands-host-mcp, integration-prefixcache, e2e-conversation, e2e-multi-provider, e2e-file-tools, e2e-agent-tools, e2e-chatcmd, e2e-errors-permission, e2e-mcp-smoke]
+    if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/'))) || (github.event_name == 'pull_request' && github.head_ref == 'w2')
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: 'global.json'
+
+      - name: Cache NuGet Packages
+        uses: actions/cache@v5
+        with:
+          path: ${{ github.workspace }}/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Build.props') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+
+      - name: Build Dream (Release, AOT compatibility check)
+        run: >
+          dotnet build components/01-ai/Dream/src/Dream.csproj
+          -c Release
+          /p:IsAotCompatible=true
+
+      - name: Verify Dream DLL
+        shell: pwsh
+        run: |
+          $dreamPath = "artifacts/bin/Dream/Release/net10.0/JoinCode.Dream.dll"
+          if (-not (Test-Path $dreamPath)) {
+            Write-Host "JoinCode.Dream.dll not found at: $dreamPath" -ForegroundColor Red
+            exit 1
+          }
+          $size = [math]::Round((Get-Item $dreamPath).Length / 1KB, 2)
+          Write-Host "JoinCode.Dream.dll: ${size}KB" -ForegroundColor Green

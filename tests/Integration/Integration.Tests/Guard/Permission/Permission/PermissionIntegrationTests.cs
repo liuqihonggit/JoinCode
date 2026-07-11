@@ -37,6 +37,7 @@ public class PermissionIntegrationTests : IAsyncDisposable
         {
             new BypassPermissionMiddleware(),
             new Core.Permission.AgentRestrictionMiddleware(),
+            new DangerousCommandProtectionMiddleware(destructiveCommandDetector: new DestructiveCommandDetector()),
             new AutoClassifierMiddleware(),
             new ConfigGetOperationMiddleware(),
             new WebFetchPermissionMiddleware(),
@@ -45,7 +46,6 @@ public class PermissionIntegrationTests : IAsyncDisposable
             new PathPermissionMiddleware(),
             new DangerousOperationMiddleware(),
             new PlanModeMiddleware(),
-            new AutoSafetyMiddleware(),
             new DefaultResultMiddleware()
         };
         var pipeline = new MiddlewarePipeline<PermissionCheckContext>(middlewares);

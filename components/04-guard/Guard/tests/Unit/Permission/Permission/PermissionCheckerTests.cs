@@ -20,6 +20,7 @@ public class PermissionCheckerTests
         {
             new BypassPermissionMiddleware(),
             new AgentRestrictionMiddleware(),
+            new DangerousCommandProtectionMiddleware(destructiveCommandDetector: new DestructiveCommandDetector()),
             new AutoClassifierMiddleware(),
             new ConfigGetOperationMiddleware(),
             new WebFetchPermissionMiddleware(),
@@ -28,7 +29,6 @@ public class PermissionCheckerTests
             new PathPermissionMiddleware(),
             new DangerousOperationMiddleware(),
             new PlanModeMiddleware(),
-            new AutoSafetyMiddleware(),
             new DefaultResultMiddleware()
         };
         return new MiddlewarePipeline<PermissionCheckContext>(middlewares);
@@ -154,7 +154,7 @@ public class PermissionCheckerTests
     }
 
     [Fact]
-    public async Task CheckPermission_ShellOperationWithDangerousCommand_ShouldRequireConfirmation()
+    public async Task CheckPermission_ShellOperationWithDangerousCommand_ShouldBeRejectedInAutoMode()
     {
         _checker.CurrentMode = PermissionMode.Auto;
 
@@ -164,7 +164,7 @@ public class PermissionCheckerTests
         }).ConfigureAwait(true);
 
         result.IsApproved.Should().BeFalse();
-        result.ConfirmationRequired.Should().BeTrue();
+        result.ConfirmationRequired.Should().BeFalse("Auto 模式下危险命令应被拒绝而非待确认");
     }
 
     [Fact]
@@ -326,7 +326,7 @@ public class PermissionCheckerTests
 
         if (isDangerous)
         {
-            result.ConfirmationRequired.Should().BeTrue();
+            result.IsApproved.Should().BeFalse("Auto 模式下危险命令应被拒绝");
         }
     }
 
@@ -506,6 +506,7 @@ public class PermissionCheckerTests
         {
             new BypassPermissionMiddleware(),
             new AgentRestrictionMiddleware(),
+            new DangerousCommandProtectionMiddleware(destructiveCommandDetector: new DestructiveCommandDetector()),
             new AutoClassifierMiddleware(),
             new ConfigGetOperationMiddleware(),
             new WebFetchPermissionMiddleware(),
@@ -514,7 +515,6 @@ public class PermissionCheckerTests
             new PathPermissionMiddleware(pathChecker),
             new DangerousOperationMiddleware(),
             new PlanModeMiddleware(),
-            new AutoSafetyMiddleware(),
             new DefaultResultMiddleware()
         };
         var pipeline = new MiddlewarePipeline<PermissionCheckContext>(middlewares);
@@ -545,6 +545,7 @@ public class PermissionCheckerTests
         {
             new BypassPermissionMiddleware(),
             new AgentRestrictionMiddleware(),
+            new DangerousCommandProtectionMiddleware(destructiveCommandDetector: new DestructiveCommandDetector()),
             new AutoClassifierMiddleware(),
             new ConfigGetOperationMiddleware(),
             new WebFetchPermissionMiddleware(),
@@ -553,7 +554,6 @@ public class PermissionCheckerTests
             new PathPermissionMiddleware(pathChecker),
             new DangerousOperationMiddleware(),
             new PlanModeMiddleware(),
-            new AutoSafetyMiddleware(),
             new DefaultResultMiddleware()
         };
         var pipeline = new MiddlewarePipeline<PermissionCheckContext>(middlewares);

@@ -50,7 +50,23 @@ public sealed partial class DangerousCommandProtectionMiddleware : IPermissionMi
             return Task.CompletedTask;
         }
 
-        // 2. 检查 Shell 工具的危险命令
+        // 2. 检查敏感路径写入（Auto 模式下，对齐原 AutoSafetyMiddleware 逻辑）
+        if (context.CurrentMode == PermissionMode.Auto &&
+            context.IsWriteOperation(context.ToolName) &&
+            context.Arguments != null &&
+            context.Arguments.TryGetValue("path", out var pathEl) &&
+            pathEl.ValueKind == JsonValueKind.String)
+        {
+            var path = pathEl.GetString()!;
+            if (PermissionCheckContext.IsSensitivePath(path, context.Config.SensitivePathPatterns))
+            {
+                context.Result = ToolPermissionCheckResult.PendingConfirmation(
+                    $"工具 '{context.ToolName}' 尝试写入敏感路径 '{path}'，是否批准？");
+                return Task.CompletedTask;
+            }
+        }
+
+        // 3. 检查 Shell 工具的危险命令
         if (!context.IsShellOperation(context.ToolName))
             return next(context, ct);
 
@@ -138,23 +154,41 @@ public sealed partial class DangerousCommandProtectionMiddleware : IPermissionMi
     /// </summary>
     private CommandRiskContext? DetectRisks(string toolName, string command)
     {
-        if (_destructiveCommandDetector is null)
-            return null;
-
-        var shellCommand = ShellCommand.Parse(command);
-        var result = _destructiveCommandDetector.Detect(shellCommand);
-
-        if (!result.IsDestructive)
-            return null;
-
-        return new CommandRiskContext
+        if (_destructiveCommandDetector is not null)
         {
-            ToolName = toolName,
-            ShellCommand = shellCommand,
-            Risks = result.Risks,
-            Details = result.Details
-        };
+            var shellCommand = ShellCommand.Parse(command);
+            var result = _destructiveCommandDetector.Detect(shellCommand);
+
+            if (!result.IsDestructive)
+                return null;
+
+            return new CommandRiskContext
+            {
+                ToolName = toolName,
+                ShellCommand = shellCommand,
+                Risks = result.Risks,
+                Details = result.Details
+            };
+        }
+
+        // 降级检测 — 无 IDestructiveCommandDetector 时使用配置中的危险命令模式
+        if (PermissionCheckContext.IsDangerousCommand(command, _dangerousCommandPatterns))
+        {
+            return new CommandRiskContext
+            {
+                ToolName = toolName,
+                Risks = [CommandRisk.DataModification],
+                Details = "配置模式检测到危险命令"
+            };
+        }
+
+        return null;
     }
+
+    /// <summary>
+    /// 降级检测用的危险命令模式 — 从 PermissionConfig 获取
+    /// </summary>
+    private static readonly List<DangerousCommandPattern> _dangerousCommandPatterns = PermissionConfig.CreateDefault().DangerousCommandPatterns;
 
     /// <summary>
     /// 处理检测到的风险 — 使用最高优先级的风险处理器

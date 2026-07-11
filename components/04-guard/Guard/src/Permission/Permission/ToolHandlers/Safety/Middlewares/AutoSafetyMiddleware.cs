@@ -2,9 +2,10 @@
 namespace Core.Permission;
 
 /// <summary>
-/// Auto 模式安全中间件 — Auto 模式下检查敏感路径写入和危险命令
+/// Auto 模式安全中间件 — 已被 DangerousCommandProtectionMiddleware 替代
+/// 保留此类仅为向后兼容测试项目，不再注册到权限管道
 /// </summary>
-[Register(typeof(IPermissionMiddleware))]
+[Obsolete("已被 DangerousCommandProtectionMiddleware 替代，不再注册到权限管道")]
 public sealed partial class AutoSafetyMiddleware : IPermissionMiddleware
 {
     /// <inheritdoc />

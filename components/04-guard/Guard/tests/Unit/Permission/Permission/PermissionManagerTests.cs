@@ -30,6 +30,7 @@ public class PermissionManagerTests : IAsyncDisposable
         {
             new BypassPermissionMiddleware(),
             new AgentRestrictionMiddleware(),
+            new DangerousCommandProtectionMiddleware(destructiveCommandDetector: new DestructiveCommandDetector()),
             new AutoClassifierMiddleware(),
             new ConfigGetOperationMiddleware(),
             new WebFetchPermissionMiddleware(),
@@ -38,7 +39,6 @@ public class PermissionManagerTests : IAsyncDisposable
             new PathPermissionMiddleware(),
             new DangerousOperationMiddleware(),
             new PlanModeMiddleware(),
-            new AutoSafetyMiddleware(),
             new DefaultResultMiddleware()
         };
         var pipeline = new MiddlewarePipeline<PermissionCheckContext>(middlewares);
@@ -120,7 +120,7 @@ public class PermissionManagerTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task CheckPermissionAsync_AutoMode_DangerousCommand_ShouldRequireConfirmation()
+    public async Task CheckPermissionAsync_AutoMode_DangerousCommand_ShouldBeRejected()
     {
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         await _manager.SetPermissionModeAsync(PermissionMode.Auto, cts.Token).ConfigureAwait(true);
@@ -132,7 +132,7 @@ public class PermissionManagerTests : IAsyncDisposable
         var result = await _manager.CheckPermissionAsync(request, cts.Token).ConfigureAwait(true);
 
         result.IsGranted.Should().BeFalse();
-        result.RequiresConfirmation.Should().BeTrue();
+        result.RequiresConfirmation.Should().BeFalse("Auto 模式下危险命令应被拒绝而非待确认");
     }
 
     [Fact]
@@ -590,7 +590,7 @@ public class PermissionManagerTests : IAsyncDisposable
     [InlineData("command", "rm -rf /", true)]
     [InlineData("command", "echo hello", false)]
     public async Task CheckPermissionAsync_KeyParameters_ShouldAffectResult(
-        string paramName, string paramValue, bool requiresConfirmation)
+        string paramName, string paramValue, bool shouldBlock)
     {
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         await _manager.SetPermissionModeAsync(PermissionMode.Auto, cts.Token).ConfigureAwait(true);
@@ -602,9 +602,9 @@ public class PermissionManagerTests : IAsyncDisposable
 
         var result = await _manager.CheckPermissionAsync(request, cts.Token).ConfigureAwait(true);
 
-        if (requiresConfirmation)
+        if (shouldBlock)
         {
-            result.RequiresConfirmation.Should().BeTrue();
+            result.IsGranted.Should().BeFalse("Auto 模式下危险操作应被阻止");
         }
         else
         {

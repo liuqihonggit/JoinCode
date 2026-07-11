@@ -10,6 +10,8 @@ public enum ErrorCode
     [EnumValue("WF002")] WorkflowInitialization,
     [EnumValue("WF003")] WorkflowExecution,
     [EnumValue("WF004")] WorkflowCancelled,
+    [EnumValue("WF005")] WorkflowHookExecution,
+    [EnumValue("WF006")] WorkflowConditionEvaluation,
 
     // 配置相关 (CFG)
     [EnumValue("CFG001")] ConfigurationGeneral,
@@ -27,6 +29,8 @@ public enum ErrorCode
     [EnumValue("API007")] ApiResponseError,
     [EnumValue("API008")] ApiServerError,
     [EnumValue("API009")] ApiValidation,
+    [EnumValue("API010")] ApiOAuth,
+    [EnumValue("API011")] ApiRetryExhausted,
 
     // 代码执行相关 (CE)
     [EnumValue("CE001")] CodeExecutionGeneral,
@@ -52,6 +56,7 @@ public enum ErrorCode
     [EnumValue("VAL002")] ValidationRequired,
     [EnumValue("VAL003")] ValidationFormat,
     [EnumValue("VAL004")] ValidationRange,
+    [EnumValue("VAL005")] ValidationVariableResolution,
 
     // 资源相关 (RES)
     [EnumValue("RES001")] ResourceNotFound,

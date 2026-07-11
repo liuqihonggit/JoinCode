@@ -5,6 +5,8 @@ namespace Integration.Tests.Guard.Permission;
 using IToolHandler = JoinCode.Abstractions.Tools.IToolHandler;
 using ToolContent = JoinCode.Abstractions.Tools.ToolContent;
 using McpToolRegistry;
+using JoinCode.Abstractions.Security.Shell;
+using JoinCode.Abstractions.Exceptions;
 
 /// <summary>
 /// Permission 集成测试 - 使用共享静态配置（已通过分片锁保护）
@@ -180,7 +182,7 @@ public class PermissionIntegrationTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task ExecuteToolAsync_WithPermissionManager_ShellWithDangerousCommand_ShouldRequireConfirmation()
+    public async Task ExecuteToolAsync_WithPermissionManager_ShellWithDangerousCommand_ShouldBeRejected()
     {
         var mockHandler = CreateMockToolHandler(ShellToolNameConstants.ShellExecute, "Shell tool");
         await _registryWithPermission.RegisterToolAsync(mockHandler.Object).ConfigureAwait(true);
@@ -192,7 +194,7 @@ public class PermissionIntegrationTests : IAsyncDisposable
 
         var act = async () => await _permissionExecutor.ExecuteAsync(ShellToolNameConstants.ShellExecute, arguments).ConfigureAwait(true);
 
-        await act.Should().ThrowAsync<PermissionPendingConfirmationException>().ConfigureAwait(true);
+        await act.Should().ThrowAsync<PermissionDeniedException>().ConfigureAwait(true);
     }
 
     [Fact]

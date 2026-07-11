@@ -244,10 +244,13 @@ public sealed partial class HookConditionEvaluator : IHookConditionEvaluator
     }
 }
 
-public partial class ConditionEvaluationException : Exception
+public partial class ConditionEvaluationException : WorkflowException
 {
-    public ConditionEvaluationException(string message) : base(message) { }
-    public ConditionEvaluationException(string message, Exception innerException) : base(message, innerException) { }
+    public ConditionEvaluationException(string message)
+        : base(message, errorCode: global::JoinCode.Abstractions.Exceptions.ErrorCode.WorkflowConditionEvaluation.ToValue(), category: ErrorCategory.Workflow) { }
+
+    public ConditionEvaluationException(string message, Exception innerException)
+        : base(message, innerException, errorCode: global::JoinCode.Abstractions.Exceptions.ErrorCode.WorkflowConditionEvaluation.ToValue(), category: ErrorCategory.Workflow) { }
 
     public string? Condition { get; init; }
     public string? InputEvent { get; init; }

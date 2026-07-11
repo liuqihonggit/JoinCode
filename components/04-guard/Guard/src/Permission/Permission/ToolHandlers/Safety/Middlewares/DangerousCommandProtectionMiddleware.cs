@@ -200,6 +200,9 @@ public sealed partial class DangerousCommandProtectionMiddleware : IPermissionMi
         var primaryRisk = SelectPrimaryRisk(riskContext.Risks);
         var handler = primaryRisk is not null ? _riskHandlers.GetValueOrDefault(primaryRisk.Value) : null;
 
+        // PathEscape 风险（如 rm -rf /）在任何模式下都直接拒绝，防止用户手误确认
+        var hasPathEscape = riskContext.Risks.Contains(CommandRisk.PathEscape);
+
         switch (context.CurrentMode)
         {
             case PermissionMode.Auto:
@@ -211,10 +214,20 @@ public sealed partial class DangerousCommandProtectionMiddleware : IPermissionMi
                 break;
 
             case PermissionMode.Ask:
-                var confirmation = handler is not null
-                    ? handler.BuildConfirmationMessage(riskContext)
-                    : $"工具 '{context.ToolName}' 请求执行危险操作（{riskContext.Details}）。是否批准？";
-                context.Result = ToolPermissionCheckResult.PendingConfirmation(confirmation);
+                if (hasPathEscape)
+                {
+                    var pathEscapeRejection = handler is not null
+                        ? handler.BuildRejectionMessage(riskContext)
+                        : $"极度危险操作已被阻止（{riskContext.Details}）。请使用精确路径删除指定文件/目录";
+                    context.Result = ToolPermissionCheckResult.Rejected(pathEscapeRejection);
+                }
+                else
+                {
+                    var confirmation = handler is not null
+                        ? handler.BuildConfirmationMessage(riskContext)
+                        : $"工具 '{context.ToolName}' 请求执行危险操作（{riskContext.Details}）。是否批准？";
+                    context.Result = ToolPermissionCheckResult.PendingConfirmation(confirmation);
+                }
                 break;
 
             case PermissionMode.Plan:

@@ -87,10 +87,13 @@ public sealed record HookExecutionContext
 /// <summary>
 /// 钩子执行异常
 /// </summary>
-public class HookExecutionException : Exception
+public class HookExecutionException : WorkflowException
 {
-    public HookExecutionException(string message) : base(message) { }
-    public HookExecutionException(string message, Exception innerException) : base(message, innerException) { }
+    public HookExecutionException(string message)
+        : base(message, errorCode: global::JoinCode.Abstractions.Exceptions.ErrorCode.WorkflowHookExecution.ToValue(), category: ErrorCategory.Workflow) { }
+
+    public HookExecutionException(string message, Exception innerException)
+        : base(message, innerException, errorCode: global::JoinCode.Abstractions.Exceptions.ErrorCode.WorkflowHookExecution.ToValue(), category: ErrorCategory.Workflow) { }
 
     /// <summary>
     /// 钩子名称

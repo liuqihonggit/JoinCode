@@ -362,8 +362,11 @@ public sealed class VariableValidationResult
 /// <summary>
 /// 变量解析异常
 /// </summary>
-public class VariableResolutionException : Exception
+public class VariableResolutionException : WorkflowException
 {
-    public VariableResolutionException(string message) : base(message) { }
-    public VariableResolutionException(string message, Exception inner) : base(message, inner) { }
+    public VariableResolutionException(string message)
+        : base(message, errorCode: global::JoinCode.Abstractions.Exceptions.ErrorCode.ValidationVariableResolution.ToValue(), category: ErrorCategory.Validation) { }
+
+    public VariableResolutionException(string message, Exception inner)
+        : base(message, inner, errorCode: global::JoinCode.Abstractions.Exceptions.ErrorCode.ValidationVariableResolution.ToValue(), category: ErrorCategory.Validation) { }
 }

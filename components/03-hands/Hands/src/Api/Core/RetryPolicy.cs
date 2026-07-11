@@ -257,10 +257,10 @@ public sealed class RetryPolicy
 /// <summary>
 /// 重试耗尽异常
 /// </summary>
-public sealed class RetryExhaustedException : Exception
+public sealed class RetryExhaustedException : WorkflowException
 {
     public RetryExhaustedException(string message, Exception innerException)
-        : base(message, innerException)
+        : base(message, innerException, errorCode: global::JoinCode.Abstractions.Exceptions.ErrorCode.ApiRetryExhausted.ToValue(), category: ErrorCategory.Api)
     {
     }
 }

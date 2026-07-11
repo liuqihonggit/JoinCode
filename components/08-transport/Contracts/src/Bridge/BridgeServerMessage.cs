@@ -63,13 +63,32 @@ public sealed class BridgeSelectionSetData
 {
     [JsonPropertyName("success")]
     public required bool Success { get; init; }
+
+    [JsonPropertyName("error")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Error { get; init; }
 }
 
 public sealed class BridgeCommandExecutedData
 {
     [JsonPropertyName("command")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Command { get; init; }
 
     [JsonPropertyName("success")]
     public required bool Success { get; init; }
+
+    [JsonPropertyName("output")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Output { get; init; }
+
+    [JsonPropertyName("error")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Error { get; init; }
+
+    [JsonPropertyName("exitCode")]
+    public int? ExitCode { get; init; }
+
+    [JsonPropertyName("durationMs")]
+    public long? DurationMs { get; init; }
 }

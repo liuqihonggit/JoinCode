@@ -32,6 +32,8 @@ public sealed partial class BridgeServer : IDisposable
     private readonly ITrustedDeviceStore? _trustedDeviceStore;
     private readonly PeerSessionManager? _peerSessionManager;
     private readonly BridgeUIService? _bridgeUIService;
+    private readonly IShellExecutionService? _shellService;
+    private readonly IIdeIntegrationService? _ideService;
     private FlushGate<BridgeServerMessage>? _outgoingFlushGate;
     private volatile int _gateActive;
     private readonly ConcurrentDictionary<string, Func<HttpListenerContext, CancellationToken, Task>> _customRoutes = new();
@@ -42,7 +44,9 @@ public sealed partial class BridgeServer : IDisposable
         BridgeServerSession? session = null,
         int port = 3456,
         ILogger<BridgeServer>? logger = null,
-        IClockService? clock = null)
+        IClockService? clock = null,
+        IShellExecutionService? shellService = null,
+        IIdeIntegrationService? ideService = null)
     {
         _fileOperationService = fileOperationService ?? throw new ArgumentNullException(nameof(fileOperationService));
         _port = port;
@@ -53,6 +57,8 @@ public sealed partial class BridgeServer : IDisposable
         _bridgeUIService = session?.UIService;
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
+        _shellService = shellService;
+        _ideService = ideService;
         _clients = new ConcurrentDictionary<string, WebSocket>();
         _cts = new CancellationTokenSource();
         _httpListener = new HttpListener();
@@ -456,36 +462,131 @@ public sealed partial class BridgeServer : IDisposable
     }
 
     /// <summary>
-    /// 处理设置选区请求
-    /// TODO: 需要接入 IDE 集成服务（如 VS Code 扩展协议）才能真正设置编辑器选区
-    /// 当前返回 NotSupported，对齐 TS 端 bridgeMessaging.ts 的 handleServerControlRequest 逻辑
+    /// 处理设置选区请求 — 调用 IIdeIntegrationService.SetSelectionAsync 定位光标
     /// </summary>
     private async Task HandleSetSelectionAsync(string clientId, BridgeServerMessage message, CancellationToken cancellationToken)
     {
-        _logger?.LogDebug("[BridgeServer] setSelection 请求（IDE 集成未实现）");
-
-        await SendMessageAsync(clientId, new BridgeServerMessage
-        {
-            Type = "selectionSet",
-            Data = JsonSerializer.SerializeToElement(new BridgeSelectionSetData { Success = false }, BridgeJsonContext.Default.BridgeSelectionSetData)
-        }, cancellationToken).ConfigureAwait(false);
+        var response = await BuildSetSelectionResponseAsync(message, cancellationToken).ConfigureAwait(false);
+        await SendMessageAsync(clientId, response, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
-    /// 处理执行命令请求
-    /// TODO: 需要接入命令执行框架（如 ShellService）才能真正执行命令
-    /// 当前返回 NotSupported，对齐 TS 端 sessionRunner.ts 的 writeStdin 逻辑
+    /// 处理执行命令请求 — 调用 IShellExecutionService.ExecuteAsync 执行命令
     /// </summary>
     private async Task HandleExecuteCommandAsync(string clientId, BridgeServerMessage message, CancellationToken cancellationToken)
     {
-        var command = message.Data?.GetProperty("command").GetString();
-        _logger?.LogDebug("[BridgeServer] executeCommand 请求: {Command}（命令执行框架未实现）", command);
+        var response = await BuildExecuteCommandResponseAsync(message, cancellationToken).ConfigureAwait(false);
+        await SendMessageAsync(clientId, response, cancellationToken).ConfigureAwait(false);
+    }
 
-        await SendMessageAsync(clientId, new BridgeServerMessage
+    /// <summary>
+    /// 构建 setSelection 响应消息 — internal 便于单元测试
+    /// 决策：SetSelection 通过 IDE CLI --goto 实现，不引入 LSP
+    /// </summary>
+    internal async Task<BridgeServerMessage> BuildSetSelectionResponseAsync(BridgeServerMessage message, CancellationToken cancellationToken)
+    {
+        var data = message.Data;
+        var filePath = data?.GetProperty("file").GetString();
+        var startLine = data?.GetProperty("startLine").GetInt32() ?? 0;
+        var startCol = data?.GetProperty("startCol").GetInt32() ?? 1;
+        var endLine = data?.GetProperty("endLine").GetInt32() ?? startLine;
+        var endCol = data?.GetProperty("endCol").GetInt32() ?? startCol;
+
+        if (_ideService is null)
         {
-            Type = "commandExecuted",
-            Data = JsonSerializer.SerializeToElement(new BridgeCommandExecutedData { Command = command, Success = false }, BridgeJsonContext.Default.BridgeCommandExecutedData)
-        }, cancellationToken).ConfigureAwait(false);
+            _logger?.LogDebug("[BridgeServer] setSelection 请求: IDE 服务未注入");
+            return new BridgeServerMessage
+            {
+                Type = "selectionSet",
+                Data = JsonSerializer.SerializeToElement(new BridgeSelectionSetData { Success = false, Error = "IDE 服务未注入" }, BridgeJsonContext.Default.BridgeSelectionSetData)
+            };
+        }
+
+        if (string.IsNullOrWhiteSpace(filePath))
+        {
+            return new BridgeServerMessage
+            {
+                Type = "selectionSet",
+                Data = JsonSerializer.SerializeToElement(new BridgeSelectionSetData { Success = false, Error = "文件路径为空" }, BridgeJsonContext.Default.BridgeSelectionSetData)
+            };
+        }
+
+        try
+        {
+            var ok = await _ideService.SetSelectionAsync(filePath, startLine, startCol, endLine, endCol, cancellationToken).ConfigureAwait(false);
+            return new BridgeServerMessage
+            {
+                Type = "selectionSet",
+                Data = JsonSerializer.SerializeToElement(new BridgeSelectionSetData { Success = ok, Error = ok ? null : "IDE 未连接或定位失败" }, BridgeJsonContext.Default.BridgeSelectionSetData)
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "[BridgeServer] setSelection 失败");
+            return new BridgeServerMessage
+            {
+                Type = "selectionSet",
+                Data = JsonSerializer.SerializeToElement(new BridgeSelectionSetData { Success = false, Error = ex.Message }, BridgeJsonContext.Default.BridgeSelectionSetData)
+            };
+        }
+    }
+
+    /// <summary>
+    /// 构建 executeCommand 响应消息 — internal 便于单元测试
+    /// 决策：复用 IShellExecutionService（含沙箱/拦截器），避免在 BridgeServer 重复实现
+    /// </summary>
+    internal async Task<BridgeServerMessage> BuildExecuteCommandResponseAsync(BridgeServerMessage message, CancellationToken cancellationToken)
+    {
+        var command = message.Data?.GetProperty("command").GetString();
+
+        if (string.IsNullOrWhiteSpace(command))
+        {
+            return new BridgeServerMessage
+            {
+                Type = "commandExecuted",
+                Data = JsonSerializer.SerializeToElement(new BridgeCommandExecutedData { Command = command, Success = false, Error = "命令为空" }, BridgeJsonContext.Default.BridgeCommandExecutedData)
+            };
+        }
+
+        if (_shellService is null)
+        {
+            _logger?.LogDebug("[BridgeServer] executeCommand 请求: {Command} — Shell 服务未注入", command);
+            return new BridgeServerMessage
+            {
+                Type = "commandExecuted",
+                Data = JsonSerializer.SerializeToElement(new BridgeCommandExecutedData { Command = command, Success = false, Error = "Shell 服务未注入" }, BridgeJsonContext.Default.BridgeCommandExecutedData)
+            };
+        }
+
+        try
+        {
+            var sw = Stopwatch.StartNew();
+            var result = await _shellService.ExecuteAsync(command, timeout: 30000, cancellationToken: cancellationToken).ConfigureAwait(false);
+            sw.Stop();
+
+            return new BridgeServerMessage
+            {
+                Type = "commandExecuted",
+                Data = JsonSerializer.SerializeToElement(new BridgeCommandExecutedData
+                {
+                    Command = command,
+                    Success = result.Success,
+                    Output = result.Stdout,
+                    Error = string.IsNullOrEmpty(result.Stderr) ? result.ErrorMessage : result.Stderr,
+                    ExitCode = result.ExitCode,
+                    DurationMs = sw.ElapsedMilliseconds
+                }, BridgeJsonContext.Default.BridgeCommandExecutedData)
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "[BridgeServer] executeCommand 失败: {Command}", command);
+            return new BridgeServerMessage
+            {
+                Type = "commandExecuted",
+                Data = JsonSerializer.SerializeToElement(new BridgeCommandExecutedData { Command = command, Success = false, Error = ex.Message }, BridgeJsonContext.Default.BridgeCommandExecutedData)
+            };
+        }
     }
 
     /// <summary>

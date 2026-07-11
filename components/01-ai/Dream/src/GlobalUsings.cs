@@ -20,5 +20,6 @@ global using JoinCode.Dream.Commands;
 global using JoinCode.Dream.Persistence;
 global using JoinCode.Dream.Services;
 global using JoinCode.Dream;
+global using JoinCode.Dream.DependencyInjection;
 global using System.Runtime.CompilerServices;
 global using System.Text.Json.Serialization;

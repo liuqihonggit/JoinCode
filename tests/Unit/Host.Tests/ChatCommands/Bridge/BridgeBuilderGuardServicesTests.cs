@@ -1,12 +1,15 @@
 namespace Host.Tests.ChatCommands.Bridge;
 
+using Core.Policy;
 using JoinCode.Abstractions.Interfaces;
+using JoinCode.Abstractions.Models.Telemetry;
 using JoinCode.App.Builder;
+using Microsoft.Extensions.Options;
 using Services.OAuth;
 
 /// <summary>
-/// ApplicationBuilder.BuildBridgeGuardServices DI 容器构建测试 — P0-D TDD
-/// 验证独立 DI 容器能解析出 3 个 Guard 服务实例
+/// ApplicationBuilder.BuildBridgeGuardServices DI 容器构建测试 — P0-D/P1 TDD
+/// 验证独立 DI 容器能解析出 Guard 服务及其依赖
 /// 决策: 独立容器+手动注册最小服务集，避免引入完整 Host 初始化
 /// </summary>
 public sealed class BridgeBuilderGuardServicesTests
@@ -114,5 +117,151 @@ public sealed class BridgeBuilderGuardServicesTests
 
         // Cleanup
         services.Dispose();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // P1 新增测试 — RemotePolicyOptions 配置注入 + TelemetryService 接入
+    // ─────────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// 验证 BuildBridgeGuardServices 能解析出 IOptions&lt;RemotePolicyOptions&gt;
+    /// 这是 P1-1 的核心: RemotePolicyService 应能从 DI 获取 options 实例
+    /// 决策: 从环境变量读取配置，与 TelemetryConfig.FromEnvironment() 模式一致
+    /// </summary>
+    [Fact]
+    public void BuildBridgeGuardServices_ShouldResolveRemotePolicyOptions()
+    {
+        // Arrange
+        var fs = new IO.FileSystem.PhysicalFileSystem();
+
+        // Act
+        using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
+
+        // Assert
+        var options = services.GetService<IOptions<RemotePolicyOptions>>();
+        options.Should().NotBeNull("IOptions<RemotePolicyOptions> 必须能从 DI 容器解析 — P1-1 接线后 RemotePolicyService 应能获取配置");
+    }
+
+    /// <summary>
+    /// 验证环境变量 JCC_REMOTE_POLICY_ENDPOINT 能被读取到 options.ApiEndpoint
+    /// 这是 P1-1 的核心: 用户应能通过环境变量配置远程策略服务器
+    /// </summary>
+    [Fact]
+    public void BuildBridgeGuardServices_WhenEndpointEnvVarSet_ShouldReadIntoOptions()
+    {
+        // Arrange
+        const string testEndpoint = "https://test-policy.example.com/api";
+        var originalValue = Environment.GetEnvironmentVariable("JCC_REMOTE_POLICY_ENDPOINT");
+        try
+        {
+            Environment.SetEnvironmentVariable("JCC_REMOTE_POLICY_ENDPOINT", testEndpoint);
+            var fs = new IO.FileSystem.PhysicalFileSystem();
+
+            // Act
+            using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
+            var options = services.GetRequiredService<IOptions<RemotePolicyOptions>>();
+
+            // Assert
+            options.Value.ApiEndpoint.Should().Be(testEndpoint,
+                "JCC_REMOTE_POLICY_ENDPOINT 环境变量应被读取到 options.ApiEndpoint");
+        }
+        finally
+        {
+            // Cleanup — 恢复原始环境变量
+            Environment.SetEnvironmentVariable("JCC_REMOTE_POLICY_ENDPOINT", originalValue);
+        }
+    }
+
+    /// <summary>
+    /// 验证环境变量 JCC_REMOTE_POLICY_KEY 能被读取到 options.ClientKey
+    /// </summary>
+    [Fact]
+    public void BuildBridgeGuardServices_WhenClientKeyEnvVarSet_ShouldReadIntoOptions()
+    {
+        // Arrange
+        const string testKey = "test-client-key-12345";
+        var originalValue = Environment.GetEnvironmentVariable("JCC_REMOTE_POLICY_KEY");
+        try
+        {
+            Environment.SetEnvironmentVariable("JCC_REMOTE_POLICY_KEY", testKey);
+            var fs = new IO.FileSystem.PhysicalFileSystem();
+
+            // Act
+            using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
+            var options = services.GetRequiredService<IOptions<RemotePolicyOptions>>();
+
+            // Assert
+            options.Value.ClientKey.Should().Be(testKey,
+                "JCC_REMOTE_POLICY_KEY 环境变量应被读取到 options.ClientKey");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("JCC_REMOTE_POLICY_KEY", originalValue);
+        }
+    }
+
+    /// <summary>
+    /// 验证 BuildBridgeGuardServices 能解析出 ITelemetryService
+    /// 这是 P1-2 的核心: RemotePolicyService 应能从 DI 获取遥测服务
+    /// 决策: 使用 TelemetryService 实现（TelemetryConfig 自动从环境变量初始化）
+    /// </summary>
+    [Fact]
+    public void BuildBridgeGuardServices_ShouldResolveTelemetryService()
+    {
+        // Arrange
+        var fs = new IO.FileSystem.PhysicalFileSystem();
+
+        // Act
+        using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
+
+        // Assert
+        var telemetry = services.GetService<ITelemetryService>();
+        telemetry.Should().NotBeNull("ITelemetryService 必须能从 DI 容器解析 — P1-2 接线后 RemotePolicyService 应能记录遥测");
+    }
+
+    /// <summary>
+    /// 验证 BuildBridgeGuardServices 能解析出 TelemetryConfig
+    /// 这是 P1-2 的支撑: TelemetryService 依赖 TelemetryConfig
+    /// </summary>
+    [Fact]
+    public void BuildBridgeGuardServices_ShouldResolveTelemetryConfig()
+    {
+        // Arrange
+        var fs = new IO.FileSystem.PhysicalFileSystem();
+
+        // Act
+        using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
+
+        // Assert
+        var config = services.GetService<TelemetryConfig>();
+        config.Should().NotBeNull("TelemetryConfig 必须能从 DI 容器解析 — TelemetryService 构造函数必填依赖");
+    }
+
+    /// <summary>
+    /// 验证当未设置 JCC_REMOTE_POLICY_ENDPOINT 时，options.ApiEndpoint 为空字符串
+    /// 这是 fail-open 行为: 没有配置远程策略服务器时，RemotePolicyService 不刷新规则
+    /// </summary>
+    [Fact]
+    public void BuildBridgeGuardServices_WhenNoEndpointEnvVar_ShouldDefaultToEmpty()
+    {
+        // Arrange
+        var originalValue = Environment.GetEnvironmentVariable("JCC_REMOTE_POLICY_ENDPOINT");
+        try
+        {
+            Environment.SetEnvironmentVariable("JCC_REMOTE_POLICY_ENDPOINT", null);
+            var fs = new IO.FileSystem.PhysicalFileSystem();
+
+            // Act
+            using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
+            var options = services.GetRequiredService<IOptions<RemotePolicyOptions>>();
+
+            // Assert
+            options.Value.ApiEndpoint.Should().BeEmpty(
+                "未设置 JCC_REMOTE_POLICY_ENDPOINT 时，ApiEndpoint 应为空字符串（fail-open 行为）");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("JCC_REMOTE_POLICY_ENDPOINT", originalValue);
+        }
     }
 }

@@ -123,12 +123,12 @@ public sealed class ApplicationBuilder
     }
 
     /// <summary>
-    /// 构建 Bridge Guard 服务容器 — 注册 BridgeMainCommand 所需的 3 个 Guard 服务
+    /// 构建 Bridge Guard 服务容器 — 注册 BridgeMainCommand 所需的 Guard 服务及其依赖
     /// 决策: 手动注册最小服务集，避免引入完整 AddAiWorkflowServices 的初始化开销
     /// 替代方案: 调用 AddJoinCodeCompositionAutoRegisteredServices（已否决，会注册大量无关服务）
     /// </summary>
     /// <param name="fs">文件系统抽象（与 BridgeMainCommand 复用同一实例）</param>
-    /// <returns>已注册 3 个 Guard 服务的 ServiceProvider（调用方负责 Dispose）</returns>
+    /// <returns>已注册 Guard 服务及依赖的 ServiceProvider（调用方负责 Dispose）</returns>
     internal static ServiceProvider BuildBridgeGuardServices(IFileSystem fs)
     {
         var services = new ServiceCollection();
@@ -143,13 +143,41 @@ public sealed class ApplicationBuilder
         // 用于加载 OAuth Token（未过期）
         services.AddSingleton<ITokenStorage, global::Services.OAuth.TokenStorage>();
 
-        // RemotePolicyService — 依赖 HttpClient（必填），其他依赖（IOptions/ILogger/ITelemetryService/IClockService）均为可选
-        // 决策: CLI 短生命周期单例 HttpClient 可接受，避免引入 IHttpClientFactory 的复杂依赖
-        // 替代方案: services.AddHttpClient<IRemotePolicyService, RemotePolicyService>()（已否决，NativeAOT 兼容性未验证）
+        // RemotePolicyOptions — 从环境变量读取配置
+        // 决策: 与 TelemetryConfig.FromEnvironment() 模式一致（环境变量优先）
+        // 环境变量: JCC_REMOTE_POLICY_ENDPOINT / JCC_REMOTE_POLICY_KEY / JCC_REMOTE_POLICY_REFRESH_SECONDS / JCC_REMOTE_POLICY_CACHE_SECONDS
+        var policyOptions = new Core.Policy.RemotePolicyOptions
+        {
+            ApiEndpoint = Environment.GetEnvironmentVariable("JCC_REMOTE_POLICY_ENDPOINT") ?? string.Empty,
+            ClientKey = Environment.GetEnvironmentVariable("JCC_REMOTE_POLICY_KEY") ?? string.Empty,
+            RefreshInterval = ParseTimeSpanSeconds("JCC_REMOTE_POLICY_REFRESH_SECONDS", TimeSpan.FromMinutes(10)),
+            CacheExpiration = ParseTimeSpanSeconds("JCC_REMOTE_POLICY_CACHE_SECONDS", TimeSpan.FromMinutes(15)),
+        };
+        services.AddSingleton(Options.Create(policyOptions));
+
+        // TelemetryConfig — 无参构造函数自动从环境变量初始化（JCC_TELEMETRY_EXPORT/JCC_TELEMETRY_ENABLED 等）
+        services.AddSingleton<JoinCode.Abstractions.Models.Telemetry.TelemetryConfig>();
+        // TelemetryService — 依赖 TelemetryConfig（必填）、ILogger（可选）
+        services.AddSingleton<ITelemetryService, Core.Telemetry.TelemetryService>();
+
+        // HttpClient — CLI 短生命周期单例可接受
+        // 决策: 避免 IHttpClientFactory 的 NativeAOT 兼容性验证成本
+        // 替代方案: services.AddHttpClient<IRemotePolicyService, RemotePolicyService>()（P1-3 待验证）
         services.AddSingleton<HttpClient>();
         services.AddSingleton<IRemotePolicyService, Core.Policy.RemotePolicyService>();
 
         return services.BuildServiceProvider();
+    }
+
+    /// <summary>
+    /// 从环境变量解析 TimeSpan（秒数），失败返回默认值
+    /// </summary>
+    private static TimeSpan ParseTimeSpanSeconds(string envVar, TimeSpan defaultValue)
+    {
+        var value = Environment.GetEnvironmentVariable(envVar);
+        if (int.TryParse(value, out var seconds) && seconds > 0)
+            return TimeSpan.FromSeconds(seconds);
+        return defaultValue;
     }
 
     /// <summary>

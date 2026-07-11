@@ -10,6 +10,7 @@
   <ItemGroup>
     <ProjectReference Include="$(RepoRoot)sdk\Abstractions\Abstractions.csproj" />
     <ProjectReference Include="$(RepoRoot)components\01-ai\Mcp\src\Mcp.csproj" />
+    <ProjectReference Include="$(RepoRoot)src\Infrastructure\Infrastructure.csproj" />
     <ProjectReference Include="$(RepoRoot)tests\Unit\Testing.Common\Testing.Common.csproj" />
   </ItemGroup>
 

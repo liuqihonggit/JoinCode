@@ -41,6 +41,7 @@ global using IO.Configuration;
 global using IO.Services;
 global using Microsoft.Extensions.DependencyInjection.Extensions;
 global using Microsoft.Extensions.DependencyInjection;
+global using Microsoft.Extensions.Http;
 global using Microsoft.Extensions.FileSystemGlobbing;
 global using Microsoft.Extensions.FileSystemGlobbing.Abstractions;
 global using Microsoft.Extensions.Hosting;

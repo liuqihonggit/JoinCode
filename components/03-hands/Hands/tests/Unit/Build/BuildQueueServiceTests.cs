@@ -71,12 +71,18 @@ public class BuildQueueServiceTests
     [Fact]
     public async Task CancelAsync_QueuedBuild_ReturnsTrue()
     {
-        var sut = CreateSut();
+        var tcs = new TaskCompletionSource<ShellExecutionResult>();
+        var shellMock = new Mock<IShellExecutionService>();
+        shellMock.Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .Returns(tcs.Task);
+
+        var sut = CreateSut(shellExecutionService: shellMock.Object);
         var request = CreateRequest();
 
         var buildId = await sut.SubmitAsync(request, CancellationToken.None).ConfigureAwait(true);
         var cancelled = await sut.CancelAsync(buildId, CancellationToken.None).ConfigureAwait(true);
 
+        tcs.TrySetCanceled();
         cancelled.Should().BeTrue();
         var entry = sut.GetBuild(buildId);
         entry!.Status.Should().Be(BuildQueueEntryStatus.Cancelled);

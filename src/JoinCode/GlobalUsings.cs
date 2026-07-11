@@ -64,6 +64,7 @@ global using JoinCode.Abstractions.Models.Telemetry;
 global using Core.Utils;
 global using Infrastructure.Utils.IO;
 global using Infrastructure.Utils.Text;
+global using Infrastructure.Time;
 global using IO.FileSystem;
 global using Services.Api;
 global using Services.Shell;

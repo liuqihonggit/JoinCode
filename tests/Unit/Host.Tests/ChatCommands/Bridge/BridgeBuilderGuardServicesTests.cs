@@ -1,6 +1,8 @@
 namespace Host.Tests.ChatCommands.Bridge;
 
 using Core.Policy;
+using Infrastructure.Time;
+using JoinCode.Abstractions.Clock;
 using JoinCode.Abstractions.Interfaces;
 using JoinCode.Abstractions.Models.Telemetry;
 using JoinCode.App.Builder;
@@ -302,6 +304,88 @@ public sealed class BridgeBuilderGuardServicesTests
         finally
         {
             Environment.SetEnvironmentVariable("JCC_REMOTE_POLICY_ENDPOINT", originalValue);
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // P1-4 新增测试 — IClockService 注入
+    // ─────────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// 验证 BuildBridgeGuardServices 能解析出 IClockService
+    /// 这是 P1-4 的核心: RemotePolicyService 应能从 DI 获取时钟服务，而非 fallback 到 SystemClockService.Instance
+    /// 决策: 使用 ClockServiceFactory.Create() 支持环境变量 JCC_CLOCK_MODE 切换 Fake/Physical
+    /// </summary>
+    [Fact]
+    public void BuildBridgeGuardServices_ShouldResolveClockService()
+    {
+        // Arrange
+        var fs = new IO.FileSystem.PhysicalFileSystem();
+
+        // Act
+        using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
+
+        // Assert
+        var clock = services.GetService<IClockService>();
+        clock.Should().NotBeNull("IClockService 必须能从 DI 容器解析 — P1-4 让 RemotePolicyService 通过 DI 获取时钟而非 fallback 到静态实例");
+    }
+
+    /// <summary>
+    /// 验证 JCC_CLOCK_MODE=Fake 时，BuildBridgeGuardServices 解析出 FakeClockService
+    /// 这是 P1-4 的关键能力: 支持调试和 E2E 测试时手动推进时间
+    /// 决策: ClockServiceFactory.Create() 读取 JCC_CLOCK_MODE 环境变量
+    /// </summary>
+    [Fact]
+    public void BuildBridgeGuardServices_WhenClockModeFake_ShouldResolveFakeClockService()
+    {
+        // Arrange
+        var originalValue = Environment.GetEnvironmentVariable("JCC_CLOCK_MODE");
+        try
+        {
+            Environment.SetEnvironmentVariable("JCC_CLOCK_MODE", "Fake");
+            var fs = new IO.FileSystem.PhysicalFileSystem();
+
+            // Act
+            using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
+            var clock = services.GetRequiredService<IClockService>();
+
+            // Assert
+            clock.Should().BeOfType<FakeClockService>(
+                "JCC_CLOCK_MODE=Fake 时应解析为 FakeClockService — 支持手动推进时间用于调试/E2E测试");
+        }
+        finally
+        {
+            // Cleanup — 恢复原始环境变量
+            Environment.SetEnvironmentVariable("JCC_CLOCK_MODE", originalValue);
+        }
+    }
+
+    /// <summary>
+    /// 验证未设置 JCC_CLOCK_MODE 时，BuildBridgeGuardServices 解析出 PhysicalClockService
+    /// 这是 P1-4 的默认行为: 生产环境使用真实系统时间
+    /// </summary>
+    [Fact]
+    public void BuildBridgeGuardServices_WhenClockModeUnset_ShouldResolvePhysicalClockService()
+    {
+        // Arrange
+        var originalValue = Environment.GetEnvironmentVariable("JCC_CLOCK_MODE");
+        try
+        {
+            Environment.SetEnvironmentVariable("JCC_CLOCK_MODE", null);
+            var fs = new IO.FileSystem.PhysicalFileSystem();
+
+            // Act
+            using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
+            var clock = services.GetRequiredService<IClockService>();
+
+            // Assert
+            clock.Should().BeOfType<PhysicalClockService>(
+                "未设置 JCC_CLOCK_MODE 时应解析为 PhysicalClockService — 默认使用真实系统时间");
+        }
+        finally
+        {
+            // Cleanup — 恢复原始环境变量
+            Environment.SetEnvironmentVariable("JCC_CLOCK_MODE", originalValue);
         }
     }
 }

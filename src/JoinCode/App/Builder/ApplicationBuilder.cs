@@ -160,6 +160,12 @@ public sealed class ApplicationBuilder
         // TelemetryService — 依赖 TelemetryConfig（必填）、ILogger（可选）
         services.AddSingleton<ITelemetryService, Core.Telemetry.TelemetryService>();
 
+        // IClockService — 支持环境变量 JCC_CLOCK_MODE=Fake 切换到 FakeClockService（调试/E2E测试）
+        // 决策: 使用 ClockServiceFactory.Create() 而非直接注册 PhysicalClockService
+        // 原因: 与 BuildBridgeGuardServices 中其他环境变量读取模式一致（TelemetryConfig/RemotePolicyOptions）
+        // 替代方案已否决: services.AddSingleton<IClockService, PhysicalClockService>()（不支持环境变量切换）
+        services.AddSingleton(ClockServiceFactory.Create());
+
         // HttpClient — 通过 IHttpClientFactory 管理（P1-3 已通过卫星项目 aot-httpclientfactory-test 验证 NativeAOT 兼容）
         // 决策: 使用 AddHttpClient<TClient, TImplementation>() 模式，DI 自动注入 HttpClient 到 RemotePolicyService
         // 优势: HttpMessageHandler 生命周期由 IHttpClientFactory 池化管理，避免 socket 耗尽

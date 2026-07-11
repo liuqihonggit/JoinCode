@@ -104,6 +104,7 @@ public static class PipelineComposition
                 .WithShortCircuit(ctx => ctx.Result is not null)
                 .Use(sp.GetRequiredService<BypassPermissionMiddleware>())
                 .Use(sp.GetRequiredService<AgentRestrictionMiddleware>())
+                .Use(sp.GetRequiredService<DeleteProtectionMiddleware>())
                 .Use(sp.GetRequiredService<AutoClassifierMiddleware>())
                 .Use(sp.GetRequiredService<ConfigGetOperationMiddleware>())
                 .Use(sp.GetRequiredService<WebFetchPermissionMiddleware>())

@@ -1,6 +1,7 @@
 global using JoinCode.Transport;
 global using JoinCode.Abstractions.Transport;
 global using JoinCode.Transport.Bridge;
+global using JoinCode.Browser.DependencyInjection;
 global using JoinCode.Cli.Display;
 global using JoinCode.Abstractions.Configuration;
 global using JoinCode.Abstractions.Exceptions;
@@ -50,7 +51,7 @@ global using Core.Context;
 global using Core.CostTracking;
 global using Core.DependencyInjection;
 global using Core.Goal;
-global using Clock.DependencyInjection;
+global using JoinCode.Clock.DependencyInjection;
 global using Core.Hooks.Configuration;
 global using Core.Hooks.Events;
 global using Core.Hooks.Lifecycle;

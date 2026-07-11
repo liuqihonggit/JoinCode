@@ -11,6 +11,7 @@ global using JoinCode.Abstractions.Exceptions;
 global using JoinCode.Abstractions.Hooks;
 global using JoinCode.Abstractions.Interfaces;
 global using JoinCode.Abstractions.LLM;
+global using JoinCode.Abstractions.LLM.Execution;
 global using JoinCode.Abstractions.Models;
 global using JoinCode.Abstractions.Models.Interactive;
 global using JoinCode.Abstractions.Models.Plan;

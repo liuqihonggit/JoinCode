@@ -8,7 +8,7 @@ public class PlanAgentTests
 
     public PlanAgentTests()
     {
-        _kernel = ApiRegistration.CreateEmptyKernel();
+        _kernel = JoinCode.Llm.DependencyInjection.ServiceRegistration.CreateEmptyKernel();
 
         _agent = new PlanAgent(
             _kernel,

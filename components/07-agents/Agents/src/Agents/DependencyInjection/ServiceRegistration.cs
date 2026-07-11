@@ -1,9 +1,9 @@
-namespace Core.DependencyInjection;
+namespace JoinCode.Agents.DependencyInjection;
 
 /// <summary>
-/// Agents 子系统的 DI 注册扩展方法
+/// Agents 子系统的 DI 注册
 /// </summary>
-public static class AgentServiceRegistration
+public static partial class ServiceRegistration
 {
     public static IServiceCollection AddAgentServices(this IServiceCollection services)
     {

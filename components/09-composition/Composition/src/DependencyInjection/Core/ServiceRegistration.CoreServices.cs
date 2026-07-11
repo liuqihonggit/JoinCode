@@ -26,8 +26,7 @@ public static partial class ServiceRegistration
         // SystemPromptProviderOptions — [Register] 自动注册（SyncSystemPromptProviderOptions）
 
 
-        // MemdirOptions — [Register] 自动注册（DI 构造函数从 WorkflowConfig 获取 StoragePath）
-        services.AddMemdirServices();
+        // MemdirOptions — 已移至 AddVaultServices 统一注册
 
         return services;
     }

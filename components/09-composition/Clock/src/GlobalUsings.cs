@@ -18,6 +18,7 @@ global using JoinCode.Abstractions.Security;
 global using JoinCode.Abstractions.Tools;
 global using JoinCode.Abstractions.Utils;
 global using Core.Goal;
+global using JoinCode.Clock.DependencyInjection;
 global using Core.Scheduling.Cron;
 global using Core.Utils;
 global using Infrastructure.Pipeline;

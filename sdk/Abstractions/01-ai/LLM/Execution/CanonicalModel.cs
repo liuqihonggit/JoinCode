@@ -32,7 +32,17 @@ public enum CanonicalModel
     [EnumValue("gpt-4-turbo")] Gpt4Turbo,
     [EnumValue("gpt-4")] Gpt4,
     [EnumValue("gpt-3.5-turbo")] Gpt35Turbo,
+    [EnumValue("gpt-4.1-nano")] Gpt41Nano,
+    [EnumValue("gpt-4.1-mini")] Gpt41Mini,
+    [EnumValue("gpt-4.1")] Gpt41,
+    [EnumValue("o4-mini")] O4Mini,
+    [EnumValue("o3-mini")] O3Mini,
+    [EnumValue("o3")] O3,
+    [EnumValue("o1-mini")] O1Mini,
+    [EnumValue("o1")] O1,
 
     // DeepSeek
+    [EnumValue("deepseek-reasoner")] DeepSeekReasoner,
+    [EnumValue("deepseek-chat")] DeepSeekChat,
     [EnumValue("deepseek")] DeepSeek
 }

@@ -41,7 +41,7 @@ internal static class DreamEntryPoint
             if (!string.IsNullOrEmpty(envModelId)) config.ModelId = envModelId;
             if (!string.IsNullOrEmpty(envEndpoint)) config.Endpoint = envEndpoint;
 
-            services.AddSKKernelAdapter(config);
+            services.AddLlmServices(config);
             services.AddSingleton<IFileOperationService>(sp =>
             {
                 var fs = sp.GetRequiredService<IFileSystem>();

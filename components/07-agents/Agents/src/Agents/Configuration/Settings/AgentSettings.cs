@@ -29,7 +29,7 @@ public class AgentSettings
     /// <summary>
     /// 默认模型名称
     /// </summary>
-    public string DefaultModelName { get; set; } = "gpt-4o";
+    public string DefaultModelName { get; set; } = CanonicalModel.Gpt4o.ToValue();
 
     /// <summary>
     /// 最大上下文长度

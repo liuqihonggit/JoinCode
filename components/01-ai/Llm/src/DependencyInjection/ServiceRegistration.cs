@@ -1,13 +1,12 @@
-
-namespace Api;
+namespace JoinCode.Llm.DependencyInjection;
 
 using Api.LLM.QueryServices;
 
-public static class ApiRegistration
+public static partial class ServiceRegistration
 {
     private static readonly QueryServiceFactory s_factory = new();
 
-    public static IServiceCollection AddSKKernelAdapter(
+    public static IServiceCollection AddLlmServices(
         this IServiceCollection services,
         ProviderConfig providerConfig)
     {
@@ -16,7 +15,7 @@ public static class ApiRegistration
         return services;
     }
 
-    public static IServiceCollection AddSKKernelAdapterWithCustomService(
+    public static IServiceCollection AddLlmServicesWithCustomQuery(
         this IServiceCollection services,
         IQueryService customService)
     {
@@ -27,9 +26,6 @@ public static class ApiRegistration
 
     public static IChatClient CreateEmptyKernel()
     {
-        // 空 Kernel 仅用于测试场景（Agents 单元测试等）— 不发起真实 API 调用
-        // 使用 EmptyQueryService 桩实现避免 QueryServiceBase 强制要求 IProviderDefinition
-        // 真实场景请通过 AddKernelWithPlugins / AddSKKernelAdapter 注册真实 ProviderConfig
         return new ChatClient(new EmptyQueryService());
     }
 
@@ -44,8 +40,8 @@ public static class ApiRegistration
         services.AddSingleton(config);
         services.AddSingleton<IQueryService>(sp =>
         {
-            var logger = sp.GetService<ILogger<Chat.PipeQueryService>>();
-            return new Chat.PipeQueryService(config, apiKey, logger);
+            var logger = sp.GetService<ILogger<Api.Chat.PipeQueryService>>();
+            return new Api.Chat.PipeQueryService(config, apiKey, logger);
         });
 
         return services;
@@ -81,24 +77,10 @@ public static class ApiRegistration
         return services;
     }
 
-    /// <summary>
-    /// 从 DI 容器解析依赖并通过 QueryServiceFactory 创建 IQueryService — 统一工厂入口
-    /// 工厂按 ProviderKind 分派到 OpenAIQueryService / AzureQueryService / AnthropicQueryService 三个派生类
-    /// </summary>
     private static IQueryService CreateQueryService(IServiceProvider sp, ProviderConfig providerConfig)
     {
         var logger = sp.GetService<ILogger<IQueryService>>();
         var fs = sp.GetService<IFileSystem>();
         return s_factory.Create(providerConfig, logger: logger, fileSystem: fs);
-    }
-}
-
-[Register(typeof(IToolGroupFactory))]
-public sealed class ToolGroupFactory : IToolGroupFactory
-{
-    public IToolGroup CreateFromObject(object instance, string pluginName)
-    {
-        throw new NotSupportedException(
-            "CreateFromObject 不再支持反射扫描。请使用 McpToolBridge.CreatePluginAsync 或手动构建 ToolGroup。");
     }
 }

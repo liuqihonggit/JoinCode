@@ -1,4 +1,5 @@
 global using JoinCode.Abstractions.Attributes;
+global using JoinCode.Hands.DependencyInjection;
 global using JoinCode.Abstractions.Clock;
 global using JoinCode.Abstractions.Commands;
 global using JoinCode.Abstractions.Configuration;

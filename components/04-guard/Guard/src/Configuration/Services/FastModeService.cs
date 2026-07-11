@@ -32,12 +32,12 @@ public sealed partial class FastModeService : IFastModeService, IDisposable
 
     public FastModeService(
         WorkflowConfig? config = null,
-        string fastModelId = "gpt-4o-mini",
+        string? fastModelId = null,
         TimeSpan? cooldownDuration = null,
         ILogger<FastModeService>? logger = null)
     {
-        _primaryModelId = config?.Provider?.ModelId ?? "gpt-4o";
-        _fastModelId = fastModelId;
+        _primaryModelId = config?.Provider?.ModelId ?? CanonicalModel.Gpt4o.ToValue();
+        _fastModelId = fastModelId ?? CanonicalModel.Gpt4oMini.ToValue();
         _cooldownDuration = cooldownDuration ?? TimeSpan.FromMinutes(5);
         _logger = logger;
     }

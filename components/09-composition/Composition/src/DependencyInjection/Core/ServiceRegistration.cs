@@ -18,11 +18,7 @@ public static partial class ServiceRegistration
         services.AddJoinCodeCompositionAutoRegisteredServices();
         services.AddJoinCodeCompositionAutoRegisteredOptions();
 
-        services.AddPermissionServices();
-        services.AddPermissionHookServices();
-        services.AddSecurityServices();
-        services.AddConfigurationServices();
-        services.AddHookSystem();
+        services.AddGuardServices();
         services.AddCoreServices();
         services.AddFileOperationServices();
         services.AddToolServices();
@@ -40,7 +36,7 @@ public static partial class ServiceRegistration
         services.AddBrainPipelines();
         // IInteractiveService, IPlanModeManager, IPlanService — [Register] 自动注册
         // ICacheService, IUserInteractionService — [Register] 自动注册
-        services.AddVaultStateServices();
+        services.AddVaultServices();
         services.AddCodeIndexServices(Environment.CurrentDirectory);
         services.AddNewServices();
 

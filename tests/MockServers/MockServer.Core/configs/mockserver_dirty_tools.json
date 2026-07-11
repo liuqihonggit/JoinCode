@@ -1,0 +1,81 @@
+{
+  "port": 18080,
+  "default_response": "Mock server default response.",
+  "scripted_turns": [
+    {
+      "text_response": "=== 场景1: 工具名大小写（基线）===",
+      "tool_calls": [
+        { "tool_name": "read", "arguments": "{\"file_path\":\"D:\\\\JoinCode\\\\README.md\"}", "tool_call_id": "s1_lower" }
+      ]
+    },
+    {
+      "text_response": "=== 场景2: JSON语法错误 - 尾随逗号 ===",
+      "tool_calls": [
+        { "tool_name": "Read", "arguments": "{\"file_path\":\"D:\\\\JoinCode\\\\README.md\",}", "tool_call_id": "s2_trailing_comma" }
+      ]
+    },
+    {
+      "text_response": "=== 场景3: JSON语法错误 - 未引用键 ===",
+      "tool_calls": [
+        { "tool_name": "Read", "arguments": "{file_path:\"D:\\\\JoinCode\\\\README.md\"}", "tool_call_id": "s3_unquoted_key" }
+      ]
+    },
+    {
+      "text_response": "=== 场景4: JSON语法错误 - 单引号 ===",
+      "tool_calls": [
+        { "tool_name": "Read", "arguments": "{'file_path':'D:\\\\JoinCode\\\\README.md'}", "tool_call_id": "s4_single_quote" }
+      ]
+    },
+    {
+      "text_response": "=== 场景5: 参数名错误 - camelCase ===",
+      "tool_calls": [
+        { "tool_name": "Read", "arguments": "{\"filePath\":\"D:\\\\JoinCode\\\\README.md\"}", "tool_call_id": "s5_camel" }
+      ]
+    },
+    {
+      "text_response": "=== 场景6: 参数名错误 - 别名path ===",
+      "tool_calls": [
+        { "tool_name": "Read", "arguments": "{\"path\":\"D:\\\\JoinCode\\\\README.md\"}", "tool_call_id": "s6_alias_path" }
+      ]
+    },
+    {
+      "text_response": "=== 场景7: 参数名错误 - 别名file ===",
+      "tool_calls": [
+        { "tool_name": "Read", "arguments": "{\"file\":\"D:\\\\JoinCode\\\\README.md\"}", "tool_call_id": "s7_alias_file" }
+      ]
+    },
+    {
+      "text_response": "=== 场景8: 参数类型错误 - offset字符串数字 ===",
+      "tool_calls": [
+        { "tool_name": "Read", "arguments": "{\"file_path\":\"D:\\\\JoinCode\\\\README.md\",\"offset\":\"5\"}", "tool_call_id": "s8_offset_str" }
+      ]
+    },
+    {
+      "text_response": "=== 场景9: 参数类型错误 - limit字符串数字 ===",
+      "tool_calls": [
+        { "tool_name": "Read", "arguments": "{\"file_path\":\"D:\\\\JoinCode\\\\README.md\",\"limit\":\"10\"}", "tool_call_id": "s9_limit_str" }
+      ]
+    },
+    {
+      "text_response": "=== 场景10: 混合 - 小写工具名+尾随逗号+camelCase参数 ===",
+      "tool_calls": [
+        { "tool_name": "read", "arguments": "{\"filePath\":\"D:\\\\JoinCode\\\\README.md\",}", "tool_call_id": "s10_mixed_1" }
+      ]
+    },
+    {
+      "text_response": "=== 场景11: 混合 - 大写工具名+单引号+别名参数 ===",
+      "tool_calls": [
+        { "tool_name": "READ", "arguments": "{'path':'D:\\\\JoinCode\\\\README.md'}", "tool_call_id": "s11_mixed_2" }
+      ]
+    },
+    {
+      "text_response": "=== 场景12: 混合 - 混合大小写工具名+未引用键+字符串数字offset ===",
+      "tool_calls": [
+        { "tool_name": "rEaD", "arguments": "{file_path:\"D:\\\\JoinCode\\\\README.md\",offset:\"3\"}", "tool_call_id": "s12_mixed_3" }
+      ]
+    },
+    {
+      "text_response": "All dirty input scenarios have been tested. Task complete."
+    }
+  ]
+}

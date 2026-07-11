@@ -1,0 +1,38 @@
+namespace JoinCode.Abstractions.Utils;
+
+public enum SystemMessageSubtype
+{
+    None,
+    CompactBoundary,
+    MicrocompactBoundary,
+    LocalCommand,
+    ApiError,
+    Thinking,
+    MemorySaved,
+    AwaySummary,
+    AgentsKilled,
+    BridgeStatus,
+    ScheduledTaskFire,
+    PermissionRetry,
+    StopHookSummary,
+    TurnDuration,
+    ApiMetrics,
+    FileSnapshot,
+    SnipBoundary,
+    RedactedThinking,
+    HookProgress,
+    PlanApprovalRequest,
+    PlanApprovalResponse,
+    ToolRejected,
+    ToolCanceled,
+    ToolError,
+    Attachment,
+    CollapsedReadSearch,
+    AdvisorToolUse,
+    AdvisorResult,
+    AdvisorError,
+    AdvisorRedactedResult,
+    TeamMemCollapsed,
+    TeamMemSaved,
+    ToolResult
+}

@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <IsAotCompatible>false</IsAotCompatible>
+    <EnableAotAnalyzer>false</EnableAotAnalyzer>
+    <PublishAot>false</PublishAot>
+    <AssemblyName>CrossProcessChild</AssemblyName>
+    <RootNamespace>CrossProcessChild</RootNamespace>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);JCC3007;JCC3010;JCC3011;JCC3012;JCC9001;JCC3009;JCC3013</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)src\Infrastructure\Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)sdk\Abstractions\Abstractions.csproj" />
+    <ProjectReference Include="$(RepoRoot)components\09-composition\Composition\src\Composition.csproj" />
+    <ProjectReference Include="$(RepoRoot)components\04-guard\Guard\src\Guard.csproj" />
+    <ProjectReference Include="$(RepoRoot)components\05-memory\Vault\src\Vault.csproj" />
+    <ProjectReference Include="$(RepoRoot)components\03-hands\Scheduling\src\Scheduling.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="$(MicrosoftExtensionsVersion)" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Eyes.Tests</RootNamespace>
+    <AssemblyName>JoinCode.Eyes.Tests</AssemblyName>
+    <Description>JoinCode.Eyes 单元测试</Description>
+    <NoWarn>$(NoWarn);JCC3007</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)sdk\Abstractions\Abstractions.csproj" />
+    <ProjectReference Include="$(RepoRoot)components\06-perception\CodeIndex\src\CodeIndex.csproj" />
+    <ProjectReference Include="$(RepoRoot)src\Infrastructure\Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)components\06-perception\Eyes\src\Eyes.csproj" />
+    <ProjectReference Include="$(RepoRoot)tests\Unit\Testing.Common\Testing.Common.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/sdk/">
+    <Project Path="Abstractions/Abstractions.csproj" />
+    <Project Path="Sdk/Sdk.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>JoinCode.Agents.Tests</RootNamespace>
+    <AssemblyName>JoinCode.Agents.Tests</AssemblyName>
+    <Description>JoinCode Agents 子系统单元测试</Description>
+    <NoWarn>$(NoWarn);JCC3007;JCC3010;JCC3011;JCC3012</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)components\07-agents\Agents\src\Agents.csproj" />
+    <ProjectReference Include="$(RepoRoot)components\02-brain\Brain\src\Brain.csproj" />
+    <ProjectReference Include="$(RepoRoot)src\Infrastructure\Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)tests\Unit\Testing.Common\Testing.Common.csproj" />
+    <ProjectReference Include="$(RepoRoot)components\01-ai\Mcp\src\Mcp.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="$(MicrosoftExtensionsVersion)" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" Version="$(MicrosoftExtensionsTimeProviderTestingVersion)" />
+  </ItemGroup>
+
+</Project>

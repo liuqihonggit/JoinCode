@@ -1,0 +1,31 @@
+global using JoinCode.Transport;
+global using JoinCode.Transport.Bridge;
+global using JoinCode.Abstractions.Transport;
+
+// Transport 迁移类型别名
+global using BridgeNdjsonActivityType = JoinCode.Transport.Bridge.NdjsonActivityType;
+global using BridgeNdjsonActivity = JoinCode.Transport.Bridge.NdjsonActivity;
+global using BridgePermissionRequest = JoinCode.Transport.Bridge.NdjsonPermissionRequest;
+global using BridgeNdjsonParser = JoinCode.Transport.Bridge.NdjsonParser;
+global using JoinCode.Abstractions.Attributes;
+global using JoinCode.Abstractions.Configuration;
+global using JoinCode.Abstractions.Configuration.AppData;
+global using JoinCode.Abstractions.Interfaces;
+global using JoinCode.Abstractions.LLM.Chat;
+global using JoinCode.Abstractions.Models;
+global using JoinCode.Abstractions.Security;
+global using JoinCode.Abstractions.Security.Permission;
+global using JoinCode.Abstractions.State;
+global using JoinCode.Abstractions.Tools;
+global using JoinCode.Abstractions.Utils;
+global using Core.Bridge.Models;
+global using Core.Bridge;
+global using Microsoft.Extensions.DependencyInjection;
+global using Microsoft.Extensions.Logging.Abstractions;
+global using Microsoft.Extensions.Options;
+global using Microsoft.Extensions.Time.Testing;
+global using Moq;
+global using System.Runtime.CompilerServices;
+global using Testing.Common;
+global using Testing.Common.Services;
+global using Xunit.Abstractions;

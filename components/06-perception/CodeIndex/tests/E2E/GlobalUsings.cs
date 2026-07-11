@@ -1,0 +1,10 @@
+global using CodeIndex;
+global using CodeIndex.Ast;
+global using CodeIndex.Persistence;
+global using JoinCode.Abstractions.CodeIndex;
+global using JoinCode.Abstractions.Interfaces;
+global using JoinCode.Abstractions.Tools;
+global using IO.FileSystem;
+global using Infrastructure.Localization;
+global using System.Runtime.CompilerServices;
+global using Xunit;

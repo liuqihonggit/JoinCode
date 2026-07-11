@@ -1,0 +1,48 @@
+namespace JoinCode.Abstractions.Utils;
+
+/// <summary>
+/// 代码相关工具名称枚举（CodeIndex + LSP + 代码执行 + 分析 + 生成）
+/// </summary>
+public enum CodeToolName
+{
+    [EnumValue("code_index_search")] CodeIndexSearch,
+    [EnumValue("code_index_search_comprehensive")] CodeIndexSearchComprehensive,
+    [EnumValue("code_index_find_definition")] CodeIndexFindDefinition,
+    [EnumValue("code_index_find_references")] CodeIndexFindReferences,
+    [EnumValue("code_index_get_callers")] CodeIndexGetCallers,
+    [EnumValue("code_index_get_callees")] CodeIndexGetCallees,
+    [EnumValue("code_index_get_call_chain")] CodeIndexGetCallChain,
+    [EnumValue("code_index_get_impact_scope")] CodeIndexGetImpactScope,
+    [EnumValue("code_index_get_inheritors")] CodeIndexGetInheritors,
+    [EnumValue("code_index_get_dependencies")] CodeIndexGetDependencies,
+    [EnumValue("code_index_get_affected_files")] CodeIndexGetAffectedFiles,
+    [EnumValue("code_index_rebuild")] CodeIndexRebuild,
+    [EnumValue("code_index_stats")] CodeIndexStats,
+    [EnumValue("code_index_explore")] CodeIndexExplore,
+    [EnumValue("code_index_get_project_deps")] CodeIndexGetProjectDeps,
+    [EnumValue("code_index_get_project_dependents")] CodeIndexGetProjectDependents,
+    [EnumValue("code_index_get_affected_projects")] CodeIndexGetAffectedProjects,
+    [EnumValue("code_index_get_project_nugets")] CodeIndexGetProjectNuGets,
+    [EnumValue("code_index_get_nuget_projects")] CodeIndexGetNuGetProjects,
+    [EnumValue("code_index_get_all_projects")] CodeIndexGetAllProjects,
+    [EnumValue("lsp_goto_definition")] LspGotoDefinition,
+    [EnumValue("lsp_find_references")] LspFindReferences,
+    [EnumValue("lsp_hover")] LspHover,
+    [EnumValue("lsp_completion")] LspCompletion,
+    [EnumValue("lsp_document_symbols")] LspDocumentSymbols,
+    [EnumValue("lsp_workspace_symbol")] LspWorkspaceSymbol,
+    [EnumValue("lsp_goto_implementation")] LspGotoImplementation,
+    [EnumValue("lsp_prepare_call_hierarchy")] LspPrepareCallHierarchy,
+    [EnumValue("lsp_incoming_calls")] LspIncomingCalls,
+    [EnumValue("lsp_outgoing_calls")] LspOutgoingCalls,
+    [EnumValue("execute_csharp_code")] ExecuteCsharpCode,
+    [EnumValue("evaluate_expression")] EvaluateExpression,
+    [EnumValue("test_code_snippet")] TestCodeSnippet,
+    [EnumValue("analyze_csharp_code")] AnalyzeCsharpCode,
+    [EnumValue("find_bugs")] FindBugs,
+    [EnumValue("optimize_code")] OptimizeCode,
+    [EnumValue("security_audit")] SecurityAudit,
+    [EnumValue("generate_csharp_code")] GenerateCsharpCode,
+    [EnumValue("generate_unit_test")] GenerateUnitTest,
+    [EnumValue("generate_api_controller")] GenerateApiController,
+}

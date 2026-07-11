@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>JoinCode.Vault</RootNamespace>
+    <AssemblyName>JoinCode.Vault</AssemblyName>
+    <Description>JoinCode Vault 子系统 — 记忆目录、状态持久化、待办事项、通知、用户交互</Description>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <NoWarn>$(NoWarn);NU5104</NoWarn>
+    <PackageId>JoinCode.Vault</PackageId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)sdk\Abstractions\Abstractions.csproj" />
+    <ProjectReference Include="$(RepoRoot)src\Infrastructure\Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.9" />
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.3" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="JoinCode.Vault.Tests" />
+  </ItemGroup>
+
+
+
+
+  
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)generators\ConstructorInjection.Generator/src/ConstructorInjection.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+</Project>

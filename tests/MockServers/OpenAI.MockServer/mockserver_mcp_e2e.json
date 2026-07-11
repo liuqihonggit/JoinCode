@@ -1,0 +1,89 @@
+{
+  "port": 18081,
+  "default_response": "MCP E2E test script exhausted.",
+  "scripted_turns": [
+    {
+      "text_response": "I will connect to the MCP server first.",
+      "tool_calls": [
+        {
+          "tool_name": "mcp_connect",
+          "arguments": "{\"connection_name\":\"mock\",\"endpoint\":\"http://localhost:18090/mcp\",\"transport_type\":\"http\"}",
+          "tool_call_id": "mcp_connect_001"
+        }
+      ]
+    },
+    {
+      "text_response": "Connected. Now listing tools on the MCP server.",
+      "tool_calls": [
+        {
+          "tool_name": "mcp_list_tools",
+          "arguments": "{\"connection_name\":\"mock\"}",
+          "tool_call_id": "mcp_list_tools_002"
+        }
+      ]
+    },
+    {
+      "text_response": "Now calling the echo tool.",
+      "tool_calls": [
+        {
+          "tool_name": "mcp_call_tool",
+          "arguments": "{\"connection_name\":\"mock\",\"tool_name\":\"echo\",\"arguments_json\":\"{\\\"message\\\":\\\"hello mcp\\\"}\"}",
+          "tool_call_id": "mcp_call_echo_003"
+        }
+      ]
+    },
+    {
+      "text_response": "Now calling the add tool.",
+      "tool_calls": [
+        {
+          "tool_name": "mcp_call_tool",
+          "arguments": "{\"connection_name\":\"mock\",\"tool_name\":\"add\",\"arguments_json\":\"{\\\"a\\\":15,\\\"b\\\":27}\"}",
+          "tool_call_id": "mcp_call_add_004"
+        }
+      ]
+    },
+    {
+      "text_response": "Now calling the uppercase tool.",
+      "tool_calls": [
+        {
+          "tool_name": "mcp_call_tool",
+          "arguments": "{\"connection_name\":\"mock\",\"tool_name\":\"uppercase\",\"arguments_json\":\"{\\\"text\\\":\\\"mcp test\\\"}\"}",
+          "tool_call_id": "mcp_call_uppercase_005"
+        }
+      ]
+    },
+    {
+      "text_response": "Now calling the reverse tool.",
+      "tool_calls": [
+        {
+          "tool_name": "mcp_call_tool",
+          "arguments": "{\"connection_name\":\"mock\",\"tool_name\":\"reverse\",\"arguments_json\":\"{\\\"text\\\":\\\"forward\\\"}\"}",
+          "tool_call_id": "mcp_call_reverse_006"
+        }
+      ]
+    },
+    {
+      "text_response": "Now calling the length tool.",
+      "tool_calls": [
+        {
+          "tool_name": "mcp_call_tool",
+          "arguments": "{\"connection_name\":\"mock\",\"tool_name\":\"length\",\"arguments_json\":\"{\\\"text\\\":\\\"measurement\\\"}\"}",
+          "tool_call_id": "mcp_call_length_007"
+        }
+      ]
+    },
+    {
+      "text_response": "All tools called. Now disconnecting from the MCP server.",
+      "tool_calls": [
+        {
+          "tool_name": "mcp_disconnect",
+          "arguments": "{\"connection_name\":\"mock\"}",
+          "tool_call_id": "mcp_disconnect_008"
+        }
+      ]
+    },
+    {
+      "text_response": "MCP E2E test completed successfully. Connected, listed tools, called 5 tools (echo, add, uppercase, reverse, length), and disconnected."
+    }
+  ]
+}

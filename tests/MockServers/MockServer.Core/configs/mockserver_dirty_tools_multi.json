@@ -1,0 +1,108 @@
+{
+  "port": 18080,
+  "default_response": "Mock server default response.",
+  "scripted_turns": [
+    {
+      "text_response": "=== W1: Write 工具名归一化（小写）===",
+      "tool_calls": [
+        { "tool_name": "write", "arguments": "{\"file_path\":\"D:\\\\JoinCode\\\\.x\\\\test_dirty_w1.txt\",\"content\":\"hello\"}", "tool_call_id": "w1_lower" }
+      ]
+    },
+    {
+      "text_response": "=== W2: Write camelCase 参数名 ===",
+      "tool_calls": [
+        { "tool_name": "Write", "arguments": "{\"filePath\":\"D:\\\\JoinCode\\\\.x\\\\test_dirty_w2.txt\",\"content\":\"hello world\"}", "tool_call_id": "w2_camel" }
+      ]
+    },
+    {
+      "text_response": "=== W3: Write 大写工具名 + 尾随逗号 ===",
+      "tool_calls": [
+        { "tool_name": "WRITE", "arguments": "{\"file_path\":\"D:\\\\JoinCode\\\\.x\\\\test_dirty_w3.txt\",\"content\":\"hello\",}", "tool_call_id": "w3_upper_comma" }
+      ]
+    },
+    {
+      "text_response": "=== E1: Edit 工具名归一化（小写）===",
+      "tool_calls": [
+        { "tool_name": "Read", "arguments": "{\"file_path\":\"D:\\\\JoinCode\\\\.x\\\\test_dirty_w1.txt\"}", "tool_call_id": "e1_read" },
+        { "tool_name": "edit", "arguments": "{\"file_path\":\"D:\\\\JoinCode\\\\.x\\\\test_dirty_w1.txt\",\"old_string\":\"hello\",\"new_string\":\"HELLO\"}", "tool_call_id": "e1_lower" }
+      ]
+    },
+    {
+      "text_response": "=== E2: Edit camelCase 参数名 ===",
+      "tool_calls": [
+        { "tool_name": "Read", "arguments": "{\"file_path\":\"D:\\\\JoinCode\\\\.x\\\\test_dirty_w1.txt\"}", "tool_call_id": "e2_read" },
+        { "tool_name": "Edit", "arguments": "{\"filePath\":\"D:\\\\JoinCode\\\\.x\\\\test_dirty_w1.txt\",\"oldString\":\"HELLO\",\"newString\":\"hello\"}", "tool_call_id": "e2_camel" }
+      ]
+    },
+    {
+      "text_response": "=== E3: Edit 大写工具名 + 单引号 + 字符串布尔值 replace_all ===",
+      "tool_calls": [
+        { "tool_name": "Read", "arguments": "{\"file_path\":\"D:\\\\JoinCode\\\\.x\\\\test_dirty_w1.txt\"}", "tool_call_id": "e3_read" },
+        { "tool_name": "EDIT", "arguments": "{'file_path':'D:\\\\JoinCode\\\\.x\\\\test_dirty_w1.txt','old_string':'hello','new_string':'HELLO','replace_all':'true'}", "tool_call_id": "e3_upper_quote_bool" }
+      ]
+    },
+    {
+      "text_response": "=== B1: Bash 工具名归一化（小写）===",
+      "tool_calls": [
+        { "tool_name": "bash", "arguments": "{\"command\":\"echo hello\"}", "tool_call_id": "b1_lower" }
+      ]
+    },
+    {
+      "text_response": "=== B2: Bash 别名 cmd + 字符串数字 timeout ===",
+      "tool_calls": [
+        { "tool_name": "Bash", "arguments": "{\"cmd\":\"echo world\",\"timeout\":\"5000\"}", "tool_call_id": "b2_alias_str_num" }
+      ]
+    },
+    {
+      "text_response": "=== B3: Bash 大写工具名 + 未引用键 ===",
+      "tool_calls": [
+        { "tool_name": "BASH", "arguments": "{command:\"echo test\"}", "tool_call_id": "b3_upper_unquoted" }
+      ]
+    },
+    {
+      "text_response": "=== B4: Bash 别名 script + 字符串布尔值 background ===",
+      "tool_calls": [
+        { "tool_name": "Bash", "arguments": "{\"script\":\"echo mixed\",\"background\":\"false\"}", "tool_call_id": "b4_alias_str_bool" }
+      ]
+    },
+    {
+      "text_response": "=== G1: Grep 工具名归一化（小写）===",
+      "tool_calls": [
+        { "tool_name": "grep", "arguments": "{\"pattern\":\"JoinCode\",\"path\":\"D:\\\\JoinCode\\\\README.md\"}", "tool_call_id": "g1_lower" }
+      ]
+    },
+    {
+      "text_response": "=== G2: Grep PascalCase 参数名 ===",
+      "tool_calls": [
+        { "tool_name": "Grep", "arguments": "{\"Pattern\":\"JoinCode\",\"Path\":\"D:\\\\JoinCode\\\\README.md\"}", "tool_call_id": "g2_pascal" }
+      ]
+    },
+    {
+      "text_response": "=== G3: Grep 大写工具名 + 别名 search_pattern + 字符串布尔值 case_insensitive ===",
+      "tool_calls": [
+        { "tool_name": "GREP", "arguments": "{\"search_pattern\":\"JoinCode\",\"case_insensitive\":\"true\"}", "tool_call_id": "g3_upper_alias_bool" }
+      ]
+    },
+    {
+      "text_response": "=== G4: Grep 字符串数字 before + output_mode ===",
+      "tool_calls": [
+        { "tool_name": "Grep", "arguments": "{\"pattern\":\"JoinCode\",\"path\":\"D:\\\\JoinCode\\\\README.md\",\"output_mode\":\"content\",\"before\":\"3\"}", "tool_call_id": "g4_str_num" }
+      ]
+    },
+    {
+      "text_response": "=== M1: 混合 - 小写工具名 write + 未引用键 + camelCase 参数 ===",
+      "tool_calls": [
+        { "tool_name": "write", "arguments": "{filePath:\"D:\\\\JoinCode\\\\.x\\\\test_dirty_m1.txt\",content:\"mixed\"}", "tool_call_id": "m1_mixed_write" }
+      ]
+    },
+    {
+      "text_response": "=== M2: 混合 - 大写工具名 BASH + 单引号 + 字符串数字 timeout ===",
+      "tool_calls": [
+        { "tool_name": "BASH", "arguments": "{'command':'echo mixed','timeout':'3000'}", "tool_call_id": "m2_mixed_bash" }
+      ]
+    },
+    {
+      "text_response": "All multi-tool dirty input scenarios have been tested. Task complete."
+    }
+  ]
+}

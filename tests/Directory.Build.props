@@ -1,0 +1,66 @@
+<Project>
+
+  <!-- 继承根目录配置 -->
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
+  <!-- 测试项目特定配置 -->
+  <PropertyGroup>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <NoWarn>$(NoWarn);CS1591;VSTHRD002;VSTHRD101;VSTHRD103;VSTHRD110;VSTHRD200</NoWarn>
+
+    <!-- 收集代码覆盖率（可选） -->
+    <CollectCoverage Condition="'$(CollectCoverage)' == ''">false</CollectCoverage>
+    <CoverletOutputFormat Condition="'$(CoverletOutputFormat)' == ''">cobertura</CoverletOutputFormat>
+
+    <!-- 并行测试配置 - 防止文件锁定冲突 -->
+    <!-- 禁用并行程序集执行，避免多个测试项目同时编译同一依赖 -->
+    <DisableParallelization Condition="'$(DisableParallelization)' == ''">false</DisableParallelization>
+
+    <!-- MSBuild 节点复用配置 -->
+    <!-- 使用独立构建节点，避免文件句柄共享导致的锁定问题 -->
+    <BuildInParallel Condition="'$(BuildInParallel)' == ''">false</BuildInParallel>
+
+    <!-- 每个测试项目使用独立的输出目录，避免 DLL 冲突 -->
+    <AppendTargetFrameworkToOutputPath>true</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>true</AppendRuntimeIdentifierToOutputPath>
+  </PropertyGroup>
+
+  <!-- 测试框架包引用 -->
+  <ItemGroup>
+    <!-- 测试 SDK -->
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="$(MicrosoftNETTestSdkVersion)" />
+
+    <!-- xUnit -->
+    <PackageReference Include="xunit" Version="$(XunitVersion)" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="$(XunitRunnerVisualStudioVersion)">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+
+    <!-- xUnit 配置文件 -->
+    <Content Include="$(MSBuildThisFileDirectory)xunit.runner.json" CopyToOutputDirectory="PreserveNewest" Condition="Exists('$(MSBuildThisFileDirectory)xunit.runner.json')" />
+
+    <!-- Moq 模拟框架 -->
+    <PackageReference Include="Moq" Version="$(MoqVersion)" />
+
+    <!-- FluentAssertions（可选，但推荐） -->
+    <PackageReference Include="FluentAssertions" Version="$(FluentAssertionsVersion)" />
+
+    <!-- xUnit SkippableFact（用于条件跳过测试） -->
+    <PackageReference Include="Xunit.SkippableFact" Version="$(XunitSkippableFactVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="$(MicrosoftExtensionsLoggingAbstractionsVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <Using Include="Moq" />
+    <Using Include="FluentAssertions" />
+    <Using Include="Microsoft.Extensions.Logging" />
+    <Using Include="System.Linq" />
+  </ItemGroup>
+
+</Project>

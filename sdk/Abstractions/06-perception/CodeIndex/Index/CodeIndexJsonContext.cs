@@ -1,0 +1,25 @@
+
+namespace JoinCode.Abstractions.CodeIndex;
+
+[JsonSerializable(typeof(SymbolInfo))]
+[JsonSerializable(typeof(CallEdge))]
+[JsonSerializable(typeof(DependencyEdge))]
+[JsonSerializable(typeof(ProjectInfo))]
+[JsonSerializable(typeof(ProjectReferenceEdge))]
+[JsonSerializable(typeof(NuGetPackageReference))]
+[JsonSerializable(typeof(SearchResult<SymbolInfo>))]
+[JsonSerializable(typeof(SearchResult<CallEdge>))]
+[JsonSerializable(typeof(SearchResult<DependencyEdge>))]
+[JsonSerializable(typeof(IndexStats))]
+[JsonSerializable(typeof(CodeIndexOptions))]
+[JsonSerializable(typeof(List<SymbolInfo>))]
+[JsonSerializable(typeof(List<CallEdge>))]
+[JsonSerializable(typeof(List<DependencyEdge>))]
+[JsonSerializable(typeof(List<ProjectInfo>))]
+[JsonSerializable(typeof(List<ProjectReferenceEdge>))]
+[JsonSerializable(typeof(List<NuGetPackageReference>))]
+[JsonSerializable(typeof(List<string>))]
+[JsonSerializable(typeof(DisclosureResult))]
+[JsonSerializable(typeof(SourceSnippet))]
+[JsonSerializable(typeof(List<SourceSnippet>))]
+public sealed partial class CodeIndexJsonContext : JsonSerializerContext;

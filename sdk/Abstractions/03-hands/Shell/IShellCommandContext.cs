@@ -1,0 +1,98 @@
+namespace JoinCode.Abstractions.Interfaces;
+
+/// <summary>
+/// Shell 命令执行上下文接口 — 对齐 TS ShellCommand
+/// 封装正在运行的进程，支持前台转后台操作
+/// </summary>
+public interface IShellCommandContext : IDisposable
+{
+    /// <summary>
+    /// 任务 ID — 对齐 TS taskOutput.taskId
+    /// </summary>
+    string TaskId { get; }
+
+    /// <summary>
+    /// 当前状态 — 对齐 TS ShellCommand.status
+    /// </summary>
+    ShellCommandStatus Status { get; }
+
+    /// <summary>
+    /// 执行结果 Task — 对齐 TS ShellCommand.result
+    /// </summary>
+    Task<ShellExecutionResult> ResultTask { get; }
+
+    /// <summary>
+    /// 原始命令
+    /// </summary>
+    string Command { get; }
+
+    /// <summary>
+    /// 是否允许自动后台化 — 对齐 TS shouldAutoBackground
+    /// </summary>
+    bool ShouldAutoBackground { get; }
+
+    /// <summary>
+    /// 将进程转为后台运行 — 对齐 TS ShellCommand.background()
+    /// 不杀进程，只改变状态标记
+    /// </summary>
+    /// <param name="taskId">后台任务 ID</param>
+    /// <returns>是否成功转后台</returns>
+    bool Background(string taskId);
+
+    /// <summary>
+    /// 杀进程 — 对齐 TS ShellCommand.kill()
+    /// </summary>
+    void Kill();
+
+    /// <summary>
+    /// 启动 Assistant 自动后台化定时器 — 对齐 TS BashTool assistant auto-background
+    /// 在 Assistant 模式下，命令运行超过 15s 自动转后台
+    /// </summary>
+    void StartAssistantAutoBackgroundTimer();
+
+    /// <summary>
+    /// 获取当前已收集的 stdout
+    /// </summary>
+    string GetCurrentStdout();
+
+    /// <summary>
+    /// 获取当前已收集的 stderr
+    /// </summary>
+    string GetCurrentStderr();
+}
+
+/// <summary>
+/// Shell 命令后台化常量 — 对齐 TS BashTool 常量
+/// </summary>
+public static class ShellBackgroundConstants
+{
+    /// <summary>
+    /// 后台化预算 — 对齐 TS ASSISTANT_BLOCKING_BUDGET_MS (15s)
+    /// Assistant 模式下，命令运行超过此时间自动转后台
+    /// </summary>
+    public const int AssistantBlockingBudgetMs = 15_000;
+
+    /// <summary>
+    /// 前台注册阈值 — 对齐 TS PROGRESS_THRESHOLD_MS (2s)
+    /// 命令运行超过此时间才注册为前台任务
+    /// </summary>
+    public const int ProgressThresholdMs = 2_000;
+
+    /// <summary>
+    /// 判断命令是否允许自动后台化 — 对齐 TS isAutobackgroundingAllowed
+    /// </summary>
+    public static bool IsAutoBackgroundAllowed(string command)
+    {
+        var trimmed = command.TrimStart();
+        var spaceIndex = trimmed.IndexOf(' ');
+        var baseCmd = spaceIndex > 0 ? trimmed[..spaceIndex] : trimmed;
+        baseCmd = Path.GetFileNameWithoutExtension(baseCmd);
+        return !DisallowedAutoBackgroundCommands.Contains(baseCmd);
+    }
+
+    /// <summary>
+    /// 禁止自动后台化的命令 — 对齐 TS DISALLOWED_AUTO_BACKGROUND_COMMANDS
+    /// </summary>
+    internal static readonly FrozenSet<string> DisallowedAutoBackgroundCommands = new[] { "sleep" }
+        .ToFrozenSet(StringComparer.OrdinalIgnoreCase);
+}

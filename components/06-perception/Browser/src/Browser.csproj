@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Plugins.Browser</RootNamespace>
+    <AssemblyName>JoinCode.Browser</AssemblyName>
+    <PackageId>JoinCode.Browser</PackageId>
+    <Description>JoinCode Browser 插件 - 基于 PuppeteerSharp 的浏览器自动化（卫星包）</Description>
+    <AllowPack>true</AllowPack>
+    <NoWarn>$(NoWarn);IL3000;NU5100</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)sdk\Abstractions\Abstractions.csproj" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions" Version="$(JccComponentPackageVersion)" />
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)src\Infrastructure\Infrastructure.csproj" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Infrastructure" Version="$(JccComponentPackageVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="PuppeteerSharp" Version="25.1.0" />
+  </ItemGroup>
+
+
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)generators\ConstructorInjection.Generator/src/ConstructorInjection.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+</Project>

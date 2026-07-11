@@ -1,0 +1,32 @@
+<Project>
+
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
+  <PropertyGroup>
+    <EmbeddedResourceUseDependentUponConvention>true</EmbeddedResourceUseDependentUponConvention>
+    <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(OutputType)' != 'Exe' AND '$(Configuration)' != 'Release'">
+    <IsPackable>true</IsPackable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <PackageId Condition="'$(PackageId)' == ''">JoinCode.$(MSBuildProjectName)</PackageId>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(OutputType)' != 'Exe' AND '$(Configuration)' == 'Release'">
+    <IsPackable>true</IsPackable>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <PackageId Condition="'$(PackageId)' == ''">JoinCode.$(MSBuildProjectName)</PackageId>
+  </PropertyGroup>
+
+  <ItemGroup Condition="!$(MSBuildProjectName.Contains('.Tests'))">
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="$(MicrosoftExtensionsLoggingAbstractionsVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Microsoft.Extensions.Logging" />
+    <Using Include="Microsoft.Extensions.DependencyInjection" />
+    <Using Include="System.Linq" />
+  </ItemGroup>
+
+</Project>

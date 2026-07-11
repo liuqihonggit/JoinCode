@@ -1,0 +1,67 @@
+<Project>
+  <!-- 继承根目录配置（版本号统一） -->
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
+  <!-- === src 项目配置 === -->
+  <PropertyGroup Condition="!$(MSBuildProjectName.Contains('.Tests')) AND '$(Configuration)' != 'Release'">
+    <IsPackable>true</IsPackable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="!$(MSBuildProjectName.Contains('.Tests')) AND '$(Configuration)' == 'Release'">
+    <IsPackable>true</IsPackable>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <!-- NuGet 包属性 -->
+  <PropertyGroup>
+    <PackageId Condition="'$(PackageId)' == ''">JoinCode.$(MSBuildProjectName)</PackageId>
+  </PropertyGroup>
+
+  <!-- src 项目：Logging.Abstractions -->
+  <ItemGroup Condition="!$(MSBuildProjectName.Contains('.Tests'))">
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="$(MicrosoftExtensionsLoggingAbstractionsVersion)" />
+  </ItemGroup>
+
+  <!-- === tests 项目配置 === -->
+  <PropertyGroup Condition="$(MSBuildProjectName.Contains('.Tests'))">
+    <IsTestProject>true</IsTestProject>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <NoWarn>$(NoWarn);CS1591;VSTHRD002;VSTHRD101;VSTHRD103;VSTHRD110;VSTHRD200</NoWarn>
+    <IsPackable>false</IsPackable>
+    <IsAotCompatible>false</IsAotCompatible>
+    <PublishAot>false</PublishAot>
+    <TrimMode />
+    <DisableParallelization Condition="'$(DisableParallelization)' == ''">false</DisableParallelization>
+    <BuildInParallel Condition="'$(BuildInParallel)' == ''">false</BuildInParallel>
+    <AppendTargetFrameworkToOutputPath>true</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+  </PropertyGroup>
+
+  <!-- tests 项目：测试框架包引用 -->
+  <ItemGroup Condition="$(MSBuildProjectName.Contains('.Tests'))">
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="$(MicrosoftNETTestSdkVersion)" />
+    <PackageReference Include="xunit" Version="$(XunitVersion)" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="$(XunitRunnerVisualStudioVersion)">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Moq" Version="$(MoqVersion)" />
+    <PackageReference Include="FluentAssertions" Version="$(FluentAssertionsVersion)" />
+    <PackageReference Include="Xunit.SkippableFact" Version="$(XunitSkippableFactVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="$(MicrosoftExtensionsLoggingAbstractionsVersion)" />
+  </ItemGroup>
+
+  <!-- === 全局 Using === -->
+  <ItemGroup>
+    <Using Include="Microsoft.Extensions.Logging" />
+    <Using Include="System.Linq" />
+  </ItemGroup>
+
+  <ItemGroup Condition="$(MSBuildProjectName.Contains('.Tests'))">
+    <Using Include="Xunit" />
+    <Using Include="Moq" />
+    <Using Include="FluentAssertions" />
+  </ItemGroup>
+</Project>

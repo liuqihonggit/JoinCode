@@ -1,0 +1,2 @@
+
+namespace Testing.Common.Locking;

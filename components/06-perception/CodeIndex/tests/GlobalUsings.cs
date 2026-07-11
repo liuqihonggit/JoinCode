@@ -1,0 +1,12 @@
+global using CodeIndex;
+global using CodeIndex.Ast;
+global using CodeIndex.Persistence;
+global using JoinCode.Abstractions.CodeIndex;
+global using JoinCode.Abstractions.Interfaces;
+global using Infrastructure.Localization;
+global using IO.FileSystem;
+global using System.Runtime.CompilerServices;
+global using System.Text.Json;
+global using Testing.Common;
+global using TreeSitter;
+global using Xunit;

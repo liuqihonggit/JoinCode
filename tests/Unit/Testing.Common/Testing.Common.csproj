@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Testing.Common</RootNamespace>
+    <AssemblyName>JoinCode.Testing.Common</AssemblyName>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>false</IsTestProject>
+    <NoWarn>$(NoWarn);JCC3007;JCC3010;JCC3011;JCC3012</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="$(MicrosoftExtensionsVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="$(MicrosoftExtensionsVersion)" />
+    <PackageReference Include="xunit.abstractions" Version="2.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)sdk\Abstractions\Abstractions.csproj" />
+    <ProjectReference Include="$(RepoRoot)components\08-transport\Contracts\Transport.Contracts.csproj" />
+    <ProjectReference Include="$(RepoRoot)components\08-transport\Impl\Transport.Impl.csproj" />
+    <ProjectReference Include="$(RepoRoot)src\Infrastructure\Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)components\01-ai\Llm\src\Llm.csproj" />
+  </ItemGroup>
+
+  <!-- Shared 目录下的文件仅供其他测试项目链接使用，不参与本项目编译 -->
+  <ItemGroup>
+    <Compile Remove="Shared\**" />
+  </ItemGroup>
+
+</Project>

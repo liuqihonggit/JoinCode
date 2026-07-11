@@ -1,0 +1,52 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>JoinCode.Composition</RootNamespace>
+    <AssemblyName>JoinCode.Composition</AssemblyName>
+    <PackageId>JoinCode.Composition</PackageId>
+    <Description>JoinCode Composition 子系统 — 系统集成层，负责协调所有组件的依赖注入注册和桥接服务</Description>
+    <NoWarn>$(NoWarn);IL2026;IL3050;NU5104</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)sdk\Abstractions\Abstractions.csproj" />
+    <ProjectReference Include="$(RepoRoot)src\Infrastructure\Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)components\08-transport\Bridge\src\Bridge.csproj" />
+    <ProjectReference Include="$(RepoRoot)components\01-ai\Mcp\src\Mcp.csproj" />
+    <ProjectReference Include="$(RepoRoot)components\02-brain\Brain\src\Brain.csproj" />
+    <ProjectReference Include="$(RepoRoot)components\04-guard\Guard\src\Guard.csproj" />
+    <ProjectReference Include="$(RepoRoot)components\03-hands\Hands\src\Hands.csproj" />
+    <ProjectReference Include="$(RepoRoot)components\06-perception\Eyes\src\Eyes.csproj" />
+    <ProjectReference Include="$(RepoRoot)components\05-memory\Vault\src\Vault.csproj" />
+    <ProjectReference Include="$(RepoRoot)components\03-hands\Scheduling\src\Scheduling.csproj" />
+    <ProjectReference Include="$(RepoRoot)components\03-hands\McpToolHandlers\src\McpToolHandlers.csproj" />
+    <ProjectReference Include="$(RepoRoot)components\07-agents\Agents\src\Agents.csproj" />
+    <ProjectReference Include="$(RepoRoot)components\08-transport\Contracts\Transport.Contracts.csproj" />
+    <ProjectReference Include="$(RepoRoot)components\08-transport\Impl\Transport.Impl.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)generators\EnumMetadata.Generator\src\EnumMetadata.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="$(RepoRoot)generators\ConstructorInjection.Generator\src\ConstructorInjection.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="$(RepoRoot)generators\McpToolHandlers.Generator\src\McpToolHandlers.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="$(MicrosoftExtensionsVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="$(MicrosoftExtensionsVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="$(MicrosoftExtensionsVersion)" />
+    <PackageReference Include="ModelContextProtocol" Version="$(ModelContextProtocolVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="JoinCode.Core.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Core.Tests.Terminal" />
+    <InternalsVisibleTo Include="JoinCode.Core.Tests.Permission" />
+    <InternalsVisibleTo Include="JoinCode.Core.Tests.Services" />
+    <InternalsVisibleTo Include="JoinCode.Dream.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Core.Tests.Agents" />
+    <InternalsVisibleTo Include="JoinCode.Core.Tests.Context" />
+    <InternalsVisibleTo Include="JoinCode.Composition.Tests" />
+  </ItemGroup>
+
+</Project>

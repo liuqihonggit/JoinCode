@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Llm.Tests</RootNamespace>
+    <AssemblyName>JoinCode.Llm.Tests</AssemblyName>
+    <Description>JoinCode LLM 适配器单元测试</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)components\01-ai\Llm\src\Llm.csproj" />
+    <ProjectReference Include="$(RepoRoot)sdk\Abstractions\Abstractions.csproj" />
+    <ProjectReference Include="$(RepoRoot)src\Infrastructure\Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)tests\Unit\Testing.Common\Testing.Common.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="$(RepoRoot)components\01-ai\Llm\tests\GlobalUsings.cs" Link="GlobalUsings.cs" />
+  </ItemGroup>
+</Project>

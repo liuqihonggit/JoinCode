@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Eyes.Benchmarks</RootNamespace>
+    <AssemblyName>JoinCode.Eyes.Benchmarks</AssemblyName>
+    <Description>JoinCode.Eyes 评测体系 — 题库、评测引擎、性能基准</Description>
+    <NoWarn>$(NoWarn);JCC3007;JCC3010;JCC3011;JCC3012</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)components\06-perception\CodeIndex\src\CodeIndex.csproj" />
+    <ProjectReference Include="$(RepoRoot)components\06-perception\Eyes\src\Eyes.csproj" />
+    <ProjectReference Include="$(RepoRoot)tests\Unit\Testing.Common\Testing.Common.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="TestCases\**\*.json" />
+  </ItemGroup>
+
+</Project>

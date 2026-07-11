@@ -1,0 +1,12 @@
+global using System.Collections.Concurrent;
+global using System.Net;
+global using System.Net.Sockets;
+global using System.Text;
+global using System.Text.Json;
+global using System.Text.Json.Serialization;
+global using Microsoft.AspNetCore.Builder;
+global using Microsoft.AspNetCore.Hosting;
+global using Microsoft.AspNetCore.Http;
+global using Microsoft.Extensions.DependencyInjection;
+global using Microsoft.Extensions.Hosting;
+global using Microsoft.Extensions.Logging;

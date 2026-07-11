@@ -1,0 +1,476 @@
+namespace PromptSection.Generator;
+
+/// <summary>
+/// 提示词 Section 源码生成器 — 扫描 [PromptSection] 特性，自动生成：
+/// 1. UserPromptKeywordType 枚举（从 Keywords 自动收集）
+/// 2. UserPromptKeywordResult 结果类
+/// 3. UserPromptKeywordAnalyzer 检测类（正则 + AnalyzeInput + Matches 方法）
+/// 4. KeywordSectionMapper 映射代码
+/// 5. PromptSectionRegistration 注册代码
+/// </summary>
+[Generator]
+public sealed class PromptSectionGenerator : IIncrementalGenerator
+{
+    private const string PromptSectionAttributeFullName = "JoinCode.Abstractions.Attributes.PromptSectionAttribute";
+
+    public void Initialize(IncrementalGeneratorInitializationContext context)
+    {
+        var sectionInfos = context.CompilationProvider
+            .SelectMany(static (compilation, _) =>
+            {
+                var promptSectionAttr = compilation.GetTypeByMetadataName(PromptSectionAttributeFullName);
+                if (promptSectionAttr is null)
+                    return ImmutableArray<PromptSectionInfo>.Empty;
+
+                var results = new List<PromptSectionInfo>();
+                VisitNamespaces(compilation.GlobalNamespace, compilation.Assembly, promptSectionAttr, results);
+                return results.ToImmutableArray();
+            })
+            .Collect();
+
+        context.RegisterSourceOutput(sectionInfos, static (ctx, sections) =>
+        {
+            GenerateKeywordEnum(ctx, sections);
+            GenerateKeywordResult(ctx);
+            GenerateKeywordAnalyzer(ctx, sections);
+            GenerateSectionMapper(ctx, sections);
+            GenerateProviderRegistration(ctx, sections);
+        });
+    }
+
+    private static void VisitNamespaces(
+        INamespaceSymbol namespaceSymbol,
+        IAssemblySymbol currentAssembly,
+        INamedTypeSymbol promptSectionAttr,
+        List<PromptSectionInfo> results)
+    {
+        foreach (var member in namespaceSymbol.GetMembers())
+        {
+            if (member is INamespaceSymbol childNamespace)
+                VisitNamespaces(childNamespace, currentAssembly, promptSectionAttr, results);
+            else if (member is INamedTypeSymbol typeSymbol
+                     && SymbolEqualityComparer.Default.Equals(typeSymbol.ContainingAssembly, currentAssembly))
+            {
+                var attr = typeSymbol.GetAttributes()
+                    .FirstOrDefault(a => SymbolEqualityComparer.Default.Equals(a.AttributeClass, promptSectionAttr));
+
+                if (attr is not null)
+                {
+                    var info = ExtractSectionInfo(typeSymbol, attr);
+                    if (info is not null)
+                        results.Add(info);
+                }
+            }
+        }
+    }
+
+    private static PromptSectionInfo? ExtractSectionInfo(INamedTypeSymbol typeSymbol, AttributeData attr)
+    {
+        string? name = null;
+        string[] keywords = [];
+        int injectOn = 0;
+        bool isDynamic = false;
+        int order = 100;
+
+        foreach (var kvp in attr.NamedArguments)
+        {
+            switch (kvp.Key)
+            {
+                case "Name":
+                    name = kvp.Value.Value as string;
+                    break;
+                case "Keywords":
+                    keywords = kvp.Value.Values
+                        .Select(v => v.Value as string ?? "")
+                        .Where(k => !string.IsNullOrEmpty(k))
+                        .ToArray();
+                    break;
+                case "InjectOn":
+                    injectOn = kvp.Value.Value is int i ? i : 0;
+                    break;
+                case "IsDynamic":
+                    isDynamic = kvp.Value.Value is bool b && b;
+                    break;
+                case "Order":
+                    order = kvp.Value.Value is int o ? o : 100;
+                    break;
+            }
+        }
+
+        if (string.IsNullOrEmpty(name))
+            return null;
+
+        var hasGetContent = typeSymbol.GetMembers("GetContent")
+            .OfType<IMethodSymbol>()
+            .Any(m => m.IsStatic && m.Parameters.Length == 0 && m.ReturnType.SpecialType != SpecialType.System_Void);
+
+        var hasCreate = typeSymbol.GetMembers("Create")
+            .OfType<IMethodSymbol>()
+            .Any(m => m.IsStatic && m.Parameters.Length == 0 && m.ReturnType.SpecialType != SpecialType.System_Void);
+
+        if (!hasGetContent && !hasCreate)
+            return null;
+
+        return new PromptSectionInfo(
+            typeSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+            typeSymbol.Name,
+            typeSymbol.ContainingNamespace.ToDisplayString(),
+            name!,
+            keywords.ToImmutableArray(),
+            injectOn,
+            isDynamic,
+            order,
+            hasGetContent);
+    }
+
+    private static void GenerateKeywordEnum(SourceProductionContext context, ImmutableArray<PromptSectionInfo> sections)
+    {
+        var keywordSections = sections
+            .Where(s => s.Keywords.Length > 0)
+            .OrderBy(s => s.Order)
+            .ToList();
+
+        if (keywordSections.Count == 0)
+            return;
+
+        var sb = new StringBuilder();
+        sb.AppendLine("// <auto-generated/>");
+        sb.AppendLine("#nullable enable");
+        sb.AppendLine("using JoinCode.Abstractions.Attributes;");
+        sb.AppendLine();
+        sb.AppendLine("namespace Core.Prompts.Utils;");
+        sb.AppendLine();
+        sb.AppendLine("public enum UserPromptKeywordType");
+        sb.AppendLine("{");
+        sb.AppendLine("    [EnumValue(\"none\")] None,");
+        sb.AppendLine("    [EnumValue(\"negative\")] Negative,");
+        sb.AppendLine("    [EnumValue(\"keepGoing\")] KeepGoing,");
+
+        for (var i = 0; i < keywordSections.Count; i++)
+        {
+            var s = keywordSections[i];
+            var enumValue = ToCamelCase(s.SectionName);
+            var enumName = ToPascalCase(s.SectionName);
+            var comma = i < keywordSections.Count - 1 ? "," : "";
+            sb.AppendLine($"    [EnumValue(\"{enumValue}\")]{enumName}{comma}");
+        }
+
+        sb.AppendLine("}");
+
+        context.AddSource("UserPromptKeywordType.g.cs", SourceText.From(sb.ToString(), Encoding.UTF8));
+    }
+
+    private static void GenerateKeywordResult(SourceProductionContext context)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("// <auto-generated/>");
+        sb.AppendLine("#nullable enable");
+        sb.AppendLine();
+        sb.AppendLine("namespace Core.Prompts.Utils;");
+        sb.AppendLine();
+        sb.AppendLine("public sealed class UserPromptKeywordResult");
+        sb.AppendLine("{");
+        sb.AppendLine("    public UserPromptKeywordType Type { get; init; }");
+        sb.AppendLine("    public string MatchedKeyword { get; init; } = \"\";");
+        sb.AppendLine("    public string SuggestedPrompt { get; init; } = \"\";");
+        sb.AppendLine("    public bool HasPromptInjection => Type != UserPromptKeywordType.None;");
+        sb.AppendLine("}");
+
+        context.AddSource("UserPromptKeywordResult.g.cs", SourceText.From(sb.ToString(), Encoding.UTF8));
+    }
+
+    private static void GenerateKeywordAnalyzer(SourceProductionContext context, ImmutableArray<PromptSectionInfo> sections)
+    {
+        var keywordSections = sections
+            .Where(s => s.Keywords.Length > 0)
+            .OrderBy(s => s.Order)
+            .ToList();
+
+        if (keywordSections.Count == 0)
+            return;
+
+        var sb = new StringBuilder();
+        sb.AppendLine("// <auto-generated/>");
+        sb.AppendLine("#nullable enable");
+        sb.AppendLine("using System.Text.RegularExpressions;");
+        sb.AppendLine();
+        sb.AppendLine("namespace Core.Prompts.Utils;");
+        sb.AppendLine();
+        sb.AppendLine("public static partial class UserPromptKeywordAnalyzer");
+        sb.AppendLine("{");
+
+        // 正则字段
+        sb.AppendLine("    private static readonly Regex NegativePattern = new(");
+        sb.AppendLine("        @\"\\b(wtf|wth|ffs|omfg|shit(ty|tiest)?|dumbass|horrible|awful|piss(ed|ing)? off|piece of (shit|crap|junk)|what the (fuck|hell)|fucking? (broken|useless|terrible|awful|horrible)|fuck you|screw (this|you)|so frustrating|this sucks|damn it)\\b\",");
+        sb.AppendLine("        RegexOptions.IgnoreCase | RegexOptions.Compiled);");
+        sb.AppendLine();
+        sb.AppendLine("    private static readonly Regex KeepGoingPattern = new(");
+        sb.AppendLine("        @\"\\b(keep going|go on|please continue|continue please)\\b\",");
+        sb.AppendLine("        RegexOptions.IgnoreCase | RegexOptions.Compiled);");
+        sb.AppendLine();
+
+        foreach (var s in keywordSections)
+        {
+            var patternStr = string.Join("|", s.Keywords.Select(EscapeRegex));
+            var fieldName = $"{ToPascalCase(s.SectionName)}Pattern";
+            sb.AppendLine($"    private static readonly Regex {fieldName} = new(");
+            sb.AppendLine($"        @\"({patternStr})\",");
+            sb.AppendLine($"        RegexOptions.IgnoreCase | RegexOptions.Compiled);");
+            sb.AppendLine();
+        }
+
+        // AnalyzeInput
+        sb.AppendLine("    public static UserPromptKeywordResult AnalyzeInput(string input)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        if (string.IsNullOrWhiteSpace(input))");
+        sb.AppendLine("            return new UserPromptKeywordResult { Type = UserPromptKeywordType.None };");
+        sb.AppendLine();
+
+        sb.AppendLine("        var negativeMatch = NegativePattern.Match(input);");
+        sb.AppendLine("        if (negativeMatch.Success)");
+        sb.AppendLine("            return new UserPromptKeywordResult { Type = UserPromptKeywordType.Negative, MatchedKeyword = negativeMatch.Value, SuggestedPrompt = NegativeKeywordPrompt };");
+        sb.AppendLine();
+
+        sb.AppendLine("        if (MatchesKeepGoingKeyword(input))");
+        sb.AppendLine("        {");
+        sb.AppendLine("            var lowerInput = input.ToLowerInvariant().Trim();");
+        sb.AppendLine("            string matchedKeyword = lowerInput == \"continue\" ? \"continue\" : KeepGoingPattern.Match(input).Value;");
+        sb.AppendLine("            return new UserPromptKeywordResult { Type = UserPromptKeywordType.KeepGoing, MatchedKeyword = matchedKeyword, SuggestedPrompt = KeepGoingPrompt };");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+
+        foreach (var s in keywordSections)
+        {
+            var fieldName = $"{ToPascalCase(s.SectionName)}Pattern";
+            var enumName = $"UserPromptKeywordType.{ToPascalCase(s.SectionName)}";
+            var promptConst = $"{ToPascalCase(s.SectionName)}KeywordPrompt";
+            var matchVar = $"{ToCamelCase(s.SectionName)}Match";
+
+            sb.AppendLine($"        var {matchVar} = {fieldName}.Match(input);");
+            sb.AppendLine($"        if ({matchVar}.Success)");
+            sb.AppendLine($"            return new UserPromptKeywordResult {{ Type = {enumName}, MatchedKeyword = {matchVar}.Value, SuggestedPrompt = {promptConst} }};");
+            sb.AppendLine();
+        }
+
+        sb.AppendLine("        return new UserPromptKeywordResult { Type = UserPromptKeywordType.None };");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+
+        sb.AppendLine("    private static bool MatchesKeepGoingKeyword(string input)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        var lowerInput = input.ToLowerInvariant().Trim();");
+        sb.AppendLine("        if (lowerInput == \"continue\") return true;");
+        sb.AppendLine("        return KeepGoingPattern.IsMatch(input);");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+
+        foreach (var s in keywordSections)
+        {
+            var methodName = $"Matches{ToPascalCase(s.SectionName)}Keyword";
+            var fieldName = $"{ToPascalCase(s.SectionName)}Pattern";
+            sb.AppendLine($"    public static bool {methodName}(string input) =>");
+            sb.AppendLine($"        !string.IsNullOrWhiteSpace(input) && {fieldName}.IsMatch(input);");
+            sb.AppendLine();
+        }
+
+        // 提示词常量
+        sb.AppendLine("    private const string NegativeKeywordPrompt = \"\"\"");
+        sb.AppendLine("        The user seems frustrated or dissatisfied with the previous response.");
+        sb.AppendLine("        Please:");
+        sb.AppendLine("        1. Acknowledge their frustration with empathy");
+        sb.AppendLine("        2. Apologize for any shortcomings");
+        sb.AppendLine("        3. Offer to help in a different way or clarify your previous response");
+        sb.AppendLine("        4. Be more careful and thorough in your next response");
+        sb.AppendLine("        \"\"\";");
+        sb.AppendLine();
+
+        sb.AppendLine("    private const string KeepGoingPrompt = \"\"\"");
+        sb.AppendLine("        The user wants you to continue from where you left off.");
+        sb.AppendLine("        Please:");
+        sb.AppendLine("        1. Review the previous conversation context");
+        sb.AppendLine("        2. Continue the task or explanation without repeating what was already said");
+        sb.AppendLine("        3. Pick up exactly where you stopped");
+        sb.AppendLine("        4. Maintain the same context and goal as before");
+        sb.AppendLine("        \"\"\";");
+        sb.AppendLine();
+
+        foreach (var s in keywordSections)
+        {
+            var constName = $"{ToPascalCase(s.SectionName)}KeywordPrompt";
+            sb.AppendLine($"    private static readonly string {constName} = global::Core.Prompts.Sections.{s.TypeName}.GetContent();");
+            sb.AppendLine();
+        }
+
+        sb.AppendLine("}");
+
+        context.AddSource("UserPromptKeywordAnalyzer.g.cs", SourceText.From(sb.ToString(), Encoding.UTF8));
+    }
+
+    private static void GenerateSectionMapper(SourceProductionContext context, ImmutableArray<PromptSectionInfo> sections)
+    {
+        var keywordSections = sections
+            .Where(s => s.Keywords.Length > 0)
+            .OrderBy(s => s.Order)
+            .ToList();
+
+        var sb = new StringBuilder();
+        sb.AppendLine("// <auto-generated/>");
+        sb.AppendLine("#nullable enable");
+        sb.AppendLine();
+        sb.AppendLine("namespace Core.Prompts.Utils;");
+        sb.AppendLine();
+        sb.AppendLine("public static class KeywordSectionMapper");
+        sb.AppendLine("{");
+        sb.AppendLine("    public static string? GetSectionContentForKeywordType(UserPromptKeywordType type) => type switch");
+        sb.AppendLine("    {");
+
+        foreach (var s in keywordSections)
+        {
+            var enumName = $"UserPromptKeywordType.{ToPascalCase(s.SectionName)}";
+            sb.AppendLine($"        {enumName} => global::Core.Prompts.Sections.{s.TypeName}.GetContent(),");
+        }
+
+        sb.AppendLine("        _ => null");
+        sb.AppendLine("    };");
+        sb.AppendLine("}");
+
+        context.AddSource("KeywordSectionMapper.g.cs", SourceText.From(sb.ToString(), Encoding.UTF8));
+    }
+
+    private static void GenerateProviderRegistration(SourceProductionContext context, ImmutableArray<PromptSectionInfo> sections)
+    {
+        var orderedSections = sections.OrderBy(s => s.Order).ToList();
+
+        var alwaysSections = orderedSections.Where(s => s.InjectOn == 0 && s.Keywords.Length == 0).ToList();
+        var agentModeSections = orderedSections.Where(s => (s.InjectOn & 2) != 0).ToList();
+        var coordinatorModeSections = orderedSections.Where(s => (s.InjectOn & 4) != 0).ToList();
+
+        var sb = new StringBuilder();
+        sb.AppendLine("// <auto-generated/>");
+        sb.AppendLine("#nullable enable");
+        sb.AppendLine("using JoinCode.Abstractions.Prompts;");
+        sb.AppendLine();
+        sb.AppendLine("namespace Core.Prompts;");
+        sb.AppendLine();
+        sb.AppendLine("public static partial class PromptSectionRegistration");
+        sb.AppendLine("{");
+
+        if (alwaysSections.Count > 0)
+        {
+            sb.AppendLine("    public static IEnumerable<SystemPromptSection> GetAlwaysSections()");
+            sb.AppendLine("    {");
+            foreach (var s in alwaysSections)
+            {
+                if (s.IsDynamic && s.HasGetContent)
+                    sb.AppendLine($"        yield return SystemPromptSection.Dynamic(\"{s.SectionName}\", () => global::Core.Prompts.Sections.{s.TypeName}.GetContent());");
+                else
+                    sb.AppendLine($"        yield return global::Core.Prompts.Sections.{s.TypeName}.Create();");
+            }
+            sb.AppendLine("    }");
+            sb.AppendLine();
+        }
+
+        if (agentModeSections.Count > 0)
+        {
+            sb.AppendLine("    public static IEnumerable<SystemPromptSection> GetAgentModeSections()");
+            sb.AppendLine("    {");
+            foreach (var s in agentModeSections)
+            {
+                if (s.IsDynamic && s.HasGetContent)
+                    sb.AppendLine($"        yield return SystemPromptSection.Dynamic(\"{s.SectionName}\", () => global::Core.Prompts.Sections.{s.TypeName}.GetContent());");
+                else
+                    sb.AppendLine($"        yield return global::Core.Prompts.Sections.{s.TypeName}.Create();");
+            }
+            sb.AppendLine("    }");
+            sb.AppendLine();
+        }
+
+        if (coordinatorModeSections.Count > 0)
+        {
+            sb.AppendLine("    public static IEnumerable<SystemPromptSection> GetCoordinatorModeSections()");
+            sb.AppendLine("    {");
+            foreach (var s in coordinatorModeSections)
+            {
+                if (s.IsDynamic && s.HasGetContent)
+                    sb.AppendLine($"        yield return SystemPromptSection.Dynamic(\"{s.SectionName}\", () => global::Core.Prompts.Sections.{s.TypeName}.GetContent());");
+                else
+                    sb.AppendLine($"        yield return global::Core.Prompts.Sections.{s.TypeName}.Create();");
+            }
+            sb.AppendLine("    }");
+            sb.AppendLine();
+        }
+
+        sb.AppendLine("}");
+
+        context.AddSource("PromptSectionRegistration.g.cs", SourceText.From(sb.ToString(), Encoding.UTF8));
+    }
+
+    private static string EscapeRegex(string s)
+    {
+        var sb = new StringBuilder(s.Length);
+        foreach (var c in s)
+        {
+            if (".+*?[](){}^$|\\".Contains(c))
+                sb.Append('\\');
+            sb.Append(c);
+        }
+        return sb.ToString();
+    }
+
+    private static string ToCamelCase(string s)
+    {
+        if (string.IsNullOrEmpty(s)) return s;
+        var pascal = ToPascalCase(s);
+        if (pascal.Length == 1) return pascal.ToLowerInvariant();
+        return char.ToLowerInvariant(pascal[0]) + pascal.Substring(1);
+    }
+
+    private static string ToPascalCase(string s)
+    {
+        if (string.IsNullOrEmpty(s)) return s;
+        var parts = s.Split('_');
+        var sb = new StringBuilder();
+        foreach (var part in parts)
+        {
+            if (string.IsNullOrEmpty(part)) continue;
+            sb.Append(char.ToUpperInvariant(part[0]));
+            sb.Append(part.Substring(1));
+        }
+        return sb.ToString();
+    }
+
+    private sealed class PromptSectionInfo
+    {
+        public string FullyQualifiedName { get; }
+        public string TypeName { get; }
+        public string Namespace { get; }
+        public string SectionName { get; }
+        public ImmutableArray<string> Keywords { get; }
+        public int InjectOn { get; }
+        public bool IsDynamic { get; }
+        public int Order { get; }
+        public bool HasGetContent { get; }
+
+        public PromptSectionInfo(
+            string fullyQualifiedName,
+            string typeName,
+            string ns,
+            string sectionName,
+            ImmutableArray<string> keywords,
+            int injectOn,
+            bool isDynamic,
+            int order,
+            bool hasGetContent)
+        {
+            FullyQualifiedName = fullyQualifiedName;
+            TypeName = typeName;
+            Namespace = ns;
+            SectionName = sectionName;
+            Keywords = keywords;
+            InjectOn = injectOn;
+            IsDynamic = isDynamic;
+            Order = order;
+            HasGetContent = hasGetContent;
+        }
+    }
+}

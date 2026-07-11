@@ -1,0 +1,113 @@
+<Project>
+
+  <PropertyGroup>
+    <RepoRoot>$(MSBuildThisFileDirectory)</RepoRoot>
+    <GenerateAssemblyInfoCache>false</GenerateAssemblyInfoCache>
+    <TargetFramework>net10.0</TargetFramework>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-x64</RuntimeIdentifier>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <WarningsAsErrors />
+    <NoWarn>$(NoWarn);CS1591;VSTHRD002;VSTHRD100;VSTHRD101;VSTHRD103;VSTHRD105;VSTHRD110;VSTHRD200;JCC1004;JCC10004;JCC1005;JCC1006;JCC3008;JCC1010;JCC6010;JCC10001;JCC10002;JCC10005;JCC10006;JCC10007</NoWarn>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <SatelliteResourceLanguages>zh-CN</SatelliteResourceLanguages>
+    <!-- 分析器开关：/p:JccAnalyzers=false 禁用自定义分析器(AotSafety+JccCodeFixes)，加速迭代编译 -->
+    <JccAnalyzers Condition="'$(JccAnalyzers)' == ''">true</JccAnalyzers>
+    <!-- NET分析器开关：/p:EnableNETAnalyzers=false 禁用内置Roslyn分析器，节省~10s -->
+    <EnableNETAnalyzers Condition="'$(EnableNETAnalyzers)' == ''">true</EnableNETAnalyzers>
+    <AnalysisLevel Condition="'$(AnalysisLevel)' == ''">latest</AnalysisLevel>
+    <!-- 生成文件输出开关：/p:EmitCompilerGeneratedFiles=false 禁用生成文件写磁盘，节省IO -->
+    <EmitCompilerGeneratedFiles Condition="'$(EmitCompilerGeneratedFiles)' == ''">true</EmitCompilerGeneratedFiles>
+    <Company>JoinCode</Company>
+    <Product>JoinCode</Product>
+    <Copyright>Copyright © JoinCode 2025</Copyright>
+    <VersionPrefix>1.0.0</VersionPrefix>
+    <VersionSuffix Condition="'$(CI_BUILD)' == 'true'">ci-$(BUILD_NUMBER)</VersionSuffix>
+    <OutputPath>$(MSBuildThisFileDirectory)artifacts\bin\$(MSBuildProjectName)\$(Configuration)\</OutputPath>
+    <BaseIntermediateOutputPath>$(MSBuildThisFileDirectory)artifacts\obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
+    <IntermediateOutputPath>$(BaseIntermediateOutputPath)$(Configuration)\</IntermediateOutputPath>
+    <UseSharedCompilation>true</UseSharedCompilation>
+    <UseArtifactsOutput>false</UseArtifactsOutput>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <DocumentationFile />
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+    <AllowedReferenceRelatedFileExtensions>.dll</AllowedReferenceRelatedFileExtensions>
+  </PropertyGroup>
+
+  <!-- === AOT / 裁剪 统一配置 === -->
+  <!-- 源码项目（非 Tests、非 Generator）：启用 AOT 兼容性分析 -->
+  <PropertyGroup Condition="!$(MSBuildProjectName.Contains('.Tests')) AND '$(EnforceExtendedAnalyzerRules)' != 'true' AND '$(ExcludeJccAnalyzers)' != 'true'">
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <!-- 源码项目 Release：启用裁剪分析 + AOT 发布 -->
+  <PropertyGroup Condition="!$(MSBuildProjectName.Contains('.Tests')) AND '$(EnforceExtendedAnalyzerRules)' != 'true' AND '$(Configuration)' == 'Release'">
+    <PublishAot>true</PublishAot>
+    <TrimMode>full</TrimMode>
+  </PropertyGroup>
+
+  <!-- Exe 项目 Release：高性能优化 -->
+  <PropertyGroup Condition="'$(OutputType)' == 'Exe' AND '$(Configuration)' == 'Release'">
+    <StackTraceSupport>false</StackTraceSupport>
+    <UseWindowsThreadPool>true</UseWindowsThreadPool>
+    <MetricsSupport>false</MetricsSupport>
+  </PropertyGroup>
+
+  <!-- Exe 项目 Release：全球化不变模式 -->
+  <ItemGroup Condition="'$(OutputType)' == 'Exe' AND '$(Configuration)' == 'Release'">
+    <RuntimeHostConfigurationOption Include="System.Globalization.Invariant" Value="true" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <MicrosoftExtensionsVersion>10.0.9</MicrosoftExtensionsVersion>
+    <MicrosoftExtensionsDependencyInjectionVersion>10.0.9</MicrosoftExtensionsDependencyInjectionVersion>
+    <MicrosoftExtensionsLoggingAbstractionsVersion>10.0.9</MicrosoftExtensionsLoggingAbstractionsVersion>
+    <SemanticKernelVersion>1.77.0</SemanticKernelVersion>
+    <MicrosoftNETTestSdkVersion>18.7.0</MicrosoftNETTestSdkVersion>
+    <XunitVersion>2.9.3</XunitVersion>
+    <XunitRunnerVisualStudioVersion>3.1.5</XunitRunnerVisualStudioVersion>
+    <MoqVersion>4.20.72</MoqVersion>
+    <FluentAssertionsVersion>8.10.0</FluentAssertionsVersion>
+    <XunitSkippableFactVersion>1.5.61</XunitSkippableFactVersion>
+    <SystemCommandLineVersion>2.0.9</SystemCommandLineVersion>
+    <YamlDotNetVersion>18.1.0</YamlDotNetVersion>
+    <SharpZipLibVersion>1.4.2</SharpZipLibVersion>
+    <SystemIOHashingVersion>10.0.9</SystemIOHashingVersion>
+    <DockerDotNetVersion>3.125.15</DockerDotNetVersion>
+    <LiteDBVersion>5.0.21</LiteDBVersion>
+    <MicrosoftCodeAnalysisVersion>5.6.0</MicrosoftCodeAnalysisVersion>
+    <ModelContextProtocolVersion>1.4.0</ModelContextProtocolVersion>
+    <BenchmarkDotNetVersion>0.15.8</BenchmarkDotNetVersion>
+    <ImageSharpVersion>3.1.12</ImageSharpVersion>
+    <DocnetCoreVersion>2.6.0</DocnetCoreVersion>
+    <QRCoderVersion>1.8.0</QRCoderVersion>
+    <JccComponentPackageVersion>1.0.0</JccComponentPackageVersion>
+    <MicrosoftExtensionsTimeProviderTestingVersion>10.1.0</MicrosoftExtensionsTimeProviderTestingVersion>
+  </PropertyGroup>
+
+
+
+  <ItemGroup>
+    <Using Include="System.Collections.Concurrent" />
+    <Using Include="System.Diagnostics" />
+    <Using Include="System.Text.Json" />
+    <Using Include="System.Text.Json.Serialization" />
+    <Using Include="System.Text.Json.Serialization.Metadata" />
+  </ItemGroup>
+
+  <!-- 全局 Analyzer 引用：所有 net10.0 项目自动获得 JCC 诊断和代码修复 -->
+  <!-- 排除: 分析器自身项目(EnforceExtendedAnalyzerRules)、测试辅助项目(ExcludeJccAnalyzers) -->
+  <!-- 开关: /p:JccAnalyzers=false 禁用自定义分析器，加速迭代编译 -->
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0' and '$(EnforceExtendedAnalyzerRules)' != 'true' and '$(ExcludeJccAnalyzers)' != 'true' and '$(JccAnalyzers)' == 'true'">
+    <ProjectReference Include="$(MSBuildThisFileDirectory)generators\AotSafety.Generator\src\AotSafety.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)generators\JccCodeFixes\src\JccCodeFixes.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+</Project>

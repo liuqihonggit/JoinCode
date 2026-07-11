@@ -96,10 +96,20 @@ public sealed class ApplicationBuilder
         {
             var bridgeFs = IO.FileSystem.FileSystemFactory.Create();
             var bridgeProcessService = new IO.ProcessService.PhysicalProcessService();
+
+            // 构建 Bridge Guard 服务容器 — 让生产环境真正启用 Guard 检查
+            // 决策: 独立 DI 容器+手动注册最小服务集，避免引入完整 Host 初始化开销
+            // 替代方案: 调用 AddJoinCodeCompositionAutoRegisteredServices（已否决，会注册大量无关服务）
+            using var bridgeServices = BuildBridgeGuardServices(bridgeFs);
+
             var command = new ChatCommands.Bridge.BridgeMainCommand(
-                services: null!,
+                services: bridgeServices,
                 fs: bridgeFs,
-                processService: bridgeProcessService);
+                processService: bridgeProcessService,
+                policyService: bridgeServices.GetService<IRemotePolicyService>(),
+                tokenStorage: bridgeServices.GetService<ITokenStorage>(),
+                configService: bridgeServices.GetService<IConfigurationService>(),
+                logger: bridgeServices.GetService<ILogger<ChatCommands.Bridge.BridgeMainCommand>>());
             var bridgeArgs = args.Length > 1 ? args[1..] : [];
             return await command.ExecuteAsync(bridgeArgs);
         }
@@ -110,6 +120,36 @@ public sealed class ApplicationBuilder
         rootCommand.Add(new AgentCommand(cliFs));
         rootCommand.Add(new CodeCommand(cliFs));
         return await rootCommand.Parse(args).InvokeAsync();
+    }
+
+    /// <summary>
+    /// 构建 Bridge Guard 服务容器 — 注册 BridgeMainCommand 所需的 3 个 Guard 服务
+    /// 决策: 手动注册最小服务集，避免引入完整 AddAiWorkflowServices 的初始化开销
+    /// 替代方案: 调用 AddJoinCodeCompositionAutoRegisteredServices（已否决，会注册大量无关服务）
+    /// </summary>
+    /// <param name="fs">文件系统抽象（与 BridgeMainCommand 复用同一实例）</param>
+    /// <returns>已注册 3 个 Guard 服务的 ServiceProvider（调用方负责 Dispose）</returns>
+    internal static ServiceProvider BuildBridgeGuardServices(IFileSystem fs)
+    {
+        var services = new ServiceCollection();
+        services.AddLogging(b => b.AddConsole());
+        services.AddSingleton(fs);
+
+        // ConfigurationService — 依赖 IFileSystem（已注册）
+        // 用于读取/写入 remoteDialogSeen 配置
+        services.AddSingleton<IConfigurationService, Core.Configuration.ConfigurationService>();
+
+        // TokenStorage — 依赖 IFileSystem（已注册）
+        // 用于加载 OAuth Token（未过期）
+        services.AddSingleton<ITokenStorage, global::Services.OAuth.TokenStorage>();
+
+        // RemotePolicyService — 依赖 HttpClient（必填），其他依赖（IOptions/ILogger/ITelemetryService/IClockService）均为可选
+        // 决策: CLI 短生命周期单例 HttpClient 可接受，避免引入 IHttpClientFactory 的复杂依赖
+        // 替代方案: services.AddHttpClient<IRemotePolicyService, RemotePolicyService>()（已否决，NativeAOT 兼容性未验证）
+        services.AddSingleton<HttpClient>();
+        services.AddSingleton<IRemotePolicyService, Core.Policy.RemotePolicyService>();
+
+        return services.BuildServiceProvider();
     }
 
     /// <summary>

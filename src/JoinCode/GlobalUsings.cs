@@ -51,7 +51,7 @@ global using Core.Context;
 global using Core.CostTracking;
 global using Core.DependencyInjection;
 global using Core.Goal;
-global using Clock.DependencyInjection;
+global using JoinCode.Clock.DependencyInjection;
 global using Core.Hooks.Configuration;
 global using Core.Hooks.Events;
 global using Core.Hooks.Lifecycle;

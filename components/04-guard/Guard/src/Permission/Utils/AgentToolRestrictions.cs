@@ -72,12 +72,14 @@ public sealed partial class AgentToolRestrictions : IAgentToolRestrictions
     private static readonly FrozenSet<string> AutoDeniedTools = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
         ShellToolNameConstants.ShellExecute, ShellToolNameConstants.Powershell,
+        FileToolNameConstants.FileDelete,
         GitToolNameConstants.GitCommit, GitToolNameConstants.GitPush
     }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 
     private static readonly FrozenSet<string> PlanDeniedTools = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
         FileToolNameConstants.FileWrite, FileToolNameConstants.FileEdit,
+        FileToolNameConstants.FileDelete,
         ShellToolNameConstants.ShellExecute, ShellToolNameConstants.Powershell,
         GitToolNameConstants.GitCommit, GitToolNameConstants.GitPush
     }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);

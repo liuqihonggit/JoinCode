@@ -29,6 +29,7 @@ global using JoinCode.Abstractions.Tools;
 global using JoinCode.Abstractions.Utils;
 global using JoinCode.Abstractions.Utils.Text;
 global using Infrastructure.Utils.IO;
+global using Infrastructure.Http;
 global using McpErrorMessages = Core.Utils.ErrorMessages;
 global using JoinCode.Abstractions.Mcp.Protocol;
 global using JoinCode.Abstractions.Mcp.Registry;

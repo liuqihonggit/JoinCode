@@ -61,15 +61,19 @@ public sealed class UltraplanCommand : IChatCommand
 
         try
         {
-            var prompt = $"Create a detailed step-by-step plan (maximum {steps} steps) to accomplish the following goal. For each step, specify: 1) What to do, 2) Why it's needed, 3) How to verify it succeeded.\n\nGoal: {goal}";
-
-            var result = await context.Services!.ChatService.SendMessageAsync(prompt, context.CancellationToken).ConfigureAwait(false);
-            TerminalHelper.WriteLine(result);
-
             if (autoExecute)
             {
-                TerminalHelper.NewLine();
-                TerminalHelper.WriteLine($"{TerminalColors.Warning}自动执行模式尚未实现，请手动执行计划步骤{AnsiStyleConstants.Reset}");
+                // --execute: 复用 PlanService.ExecutePlanWithResultAsync（已配置 ToolChoice.AutoInvoke）
+                // LLM 会自动调用工具执行步骤，无需在命令层重复实现执行器
+                await ExecutePlanViaPlanServiceAsync(context, goal).ConfigureAwait(false);
+            }
+            else
+            {
+                // 默认: 仅生成并展示计划文本
+                var prompt = $"Create a detailed step-by-step plan (maximum {steps} steps) to accomplish the following goal. For each step, specify: 1) What to do, 2) Why it's needed, 3) How to verify it succeeded.\n\nGoal: {goal}";
+
+                var result = await context.Services!.ChatService.SendMessageAsync(prompt, context.CancellationToken).ConfigureAwait(false);
+                TerminalHelper.WriteLine(result);
             }
         }
         catch (OperationCanceledException)
@@ -82,6 +86,31 @@ public sealed class UltraplanCommand : IChatCommand
         }
 
         return ChatCommandResult.Continue();
+    }
+
+    private static async Task ExecutePlanViaPlanServiceAsync(ChatCommandContext context, string goal)
+    {
+        var planService = context.Services!.PlanService;
+        var executionResult = await planService.ExecutePlanWithResultAsync(goal, context.CancellationToken).ConfigureAwait(false);
+
+        TerminalHelper.NewLine();
+        if (executionResult.Success)
+        {
+            TerminalHelper.WriteLine($"{TerminalColors.Success}=== 计划执行完成 ==={AnsiStyleConstants.Reset}");
+            if (!string.IsNullOrEmpty(executionResult.Result))
+            {
+                TerminalHelper.WriteLine(executionResult.Result);
+            }
+            TerminalHelper.WriteLine($"{TerminalColors.Secondary}耗时: {executionResult.ExecutionTimeMs}ms{AnsiStyleConstants.Reset}");
+        }
+        else
+        {
+            TerminalHelper.WriteLine($"{TerminalColors.Error}=== 计划执行失败 ==={AnsiStyleConstants.Reset}");
+            if (!string.IsNullOrEmpty(executionResult.Error))
+            {
+                TerminalHelper.WriteLine($"{TerminalColors.Error}{executionResult.Error}{AnsiStyleConstants.Reset}");
+            }
+        }
     }
 
     private static void ShowHelp()

@@ -18,7 +18,8 @@ public sealed partial class McpOAuthMetadataDiscovery
 
     public McpOAuthMetadataDiscovery(HttpClient? httpClient = null, ILogger<McpOAuthMetadataDiscovery>? logger = null)
     {
-        _httpClient = httpClient ?? new HttpClient();
+        // P1-6: fallback 走 HttpClientProviderFactory（支持 JCC_HTTP_MODE=Mock 切换，对齐主程序 IHttpClientProvider 抽象）
+        _httpClient = httpClient ?? HttpClientProviderFactory.Create().GetClient();
         _logger = logger;
     }
 

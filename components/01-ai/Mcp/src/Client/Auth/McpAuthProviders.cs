@@ -197,7 +197,8 @@ public sealed class OAuth2AuthProvider : IMcpAuthProvider, IAsyncDisposable
     {
         ArgumentNullException.ThrowIfNull(options);
         _options = options;
-        _httpClient = options.HttpClient ?? new HttpClient();
+        // P1-6: fallback 走 HttpClientProviderFactory（支持 JCC_HTTP_MODE=Mock 切换，对齐主程序 IHttpClientProvider 抽象）
+        _httpClient = options.HttpClient ?? HttpClientProviderFactory.Create().GetClient();
         _logger = options.Logger;
         _clock = clock ?? SystemClockService.Instance;
         _scopes = options.Scopes?.ToList() ?? new List<string>();

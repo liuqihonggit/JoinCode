@@ -96,10 +96,20 @@ public sealed class ApplicationBuilder
         {
             var bridgeFs = IO.FileSystem.FileSystemFactory.Create();
             var bridgeProcessService = new IO.ProcessService.PhysicalProcessService();
+
+            // 构建 Bridge Guard 服务容器 — 让生产环境真正启用 Guard 检查
+            // 决策: 独立 DI 容器+手动注册最小服务集，避免引入完整 Host 初始化开销
+            // 替代方案: 调用 AddJoinCodeCompositionAutoRegisteredServices（已否决，会注册大量无关服务）
+            using var bridgeServices = BuildBridgeGuardServices(bridgeFs);
+
             var command = new ChatCommands.Bridge.BridgeMainCommand(
-                services: null!,
+                services: bridgeServices,
                 fs: bridgeFs,
-                processService: bridgeProcessService);
+                processService: bridgeProcessService,
+                policyService: bridgeServices.GetService<IRemotePolicyService>(),
+                tokenStorage: bridgeServices.GetService<ITokenStorage>(),
+                configService: bridgeServices.GetService<IConfigurationService>(),
+                logger: bridgeServices.GetService<ILogger<ChatCommands.Bridge.BridgeMainCommand>>());
             var bridgeArgs = args.Length > 1 ? args[1..] : [];
             return await command.ExecuteAsync(bridgeArgs);
         }
@@ -110,6 +120,70 @@ public sealed class ApplicationBuilder
         rootCommand.Add(new AgentCommand(cliFs));
         rootCommand.Add(new CodeCommand(cliFs));
         return await rootCommand.Parse(args).InvokeAsync();
+    }
+
+    /// <summary>
+    /// 构建 Bridge Guard 服务容器 — 注册 BridgeMainCommand 所需的 Guard 服务及其依赖
+    /// 决策: 手动注册最小服务集，避免引入完整 AddAiWorkflowServices 的初始化开销
+    /// 替代方案: 调用 AddJoinCodeCompositionAutoRegisteredServices（已否决，会注册大量无关服务）
+    /// </summary>
+    /// <param name="fs">文件系统抽象（与 BridgeMainCommand 复用同一实例）</param>
+    /// <returns>已注册 Guard 服务及依赖的 ServiceProvider（调用方负责 Dispose）</returns>
+    internal static ServiceProvider BuildBridgeGuardServices(IFileSystem fs)
+    {
+        var services = new ServiceCollection();
+        services.AddLogging(b => b.AddConsole());
+        services.AddSingleton(fs);
+
+        // ConfigurationService — 依赖 IFileSystem（已注册）
+        // 用于读取/写入 remoteDialogSeen 配置
+        services.AddSingleton<IConfigurationService, Core.Configuration.ConfigurationService>();
+
+        // TokenStorage — 依赖 IFileSystem（已注册）
+        // 用于加载 OAuth Token（未过期）
+        services.AddSingleton<ITokenStorage, global::Services.OAuth.TokenStorage>();
+
+        // RemotePolicyOptions — 从环境变量读取配置
+        // 决策: 与 TelemetryConfig.FromEnvironment() 模式一致（环境变量优先）
+        // 环境变量: JCC_REMOTE_POLICY_ENDPOINT / JCC_REMOTE_POLICY_KEY / JCC_REMOTE_POLICY_REFRESH_SECONDS / JCC_REMOTE_POLICY_CACHE_SECONDS
+        var policyOptions = new Core.Policy.RemotePolicyOptions
+        {
+            ApiEndpoint = Environment.GetEnvironmentVariable("JCC_REMOTE_POLICY_ENDPOINT") ?? string.Empty,
+            ClientKey = Environment.GetEnvironmentVariable("JCC_REMOTE_POLICY_KEY") ?? string.Empty,
+            RefreshInterval = ParseTimeSpanSeconds("JCC_REMOTE_POLICY_REFRESH_SECONDS", TimeSpan.FromMinutes(10)),
+            CacheExpiration = ParseTimeSpanSeconds("JCC_REMOTE_POLICY_CACHE_SECONDS", TimeSpan.FromMinutes(15)),
+        };
+        services.AddSingleton(Options.Create(policyOptions));
+
+        // TelemetryConfig — 无参构造函数自动从环境变量初始化（JCC_TELEMETRY_EXPORT/JCC_TELEMETRY_ENABLED 等）
+        services.AddSingleton<JoinCode.Abstractions.Models.Telemetry.TelemetryConfig>();
+        // TelemetryService — 依赖 TelemetryConfig（必填）、ILogger（可选）
+        services.AddSingleton<ITelemetryService, Core.Telemetry.TelemetryService>();
+
+        // IClockService — 支持环境变量 JCC_CLOCK_MODE=Fake 切换到 FakeClockService（调试/E2E测试）
+        // 决策: 使用 ClockServiceFactory.Create() 而非直接注册 PhysicalClockService
+        // 原因: 与 BuildBridgeGuardServices 中其他环境变量读取模式一致（TelemetryConfig/RemotePolicyOptions）
+        // 替代方案已否决: services.AddSingleton<IClockService, PhysicalClockService>()（不支持环境变量切换）
+        services.AddSingleton(ClockServiceFactory.Create());
+
+        // HttpClient — 通过 IHttpClientFactory 管理（P1-3 已通过卫星项目 aot-httpclientfactory-test 验证 NativeAOT 兼容）
+        // 决策: 使用 AddHttpClient<TClient, TImplementation>() 模式，DI 自动注入 HttpClient 到 RemotePolicyService
+        // 优势: HttpMessageHandler 生命周期由 IHttpClientFactory 池化管理，避免 socket 耗尽
+        // 替代方案已否决: services.AddSingleton<HttpClient>()（无 Handler 池化，长生命周期风险）
+        services.AddHttpClient<IRemotePolicyService, Core.Policy.RemotePolicyService>();
+
+        return services.BuildServiceProvider();
+    }
+
+    /// <summary>
+    /// 从环境变量解析 TimeSpan（秒数），失败返回默认值
+    /// </summary>
+    private static TimeSpan ParseTimeSpanSeconds(string envVar, TimeSpan defaultValue)
+    {
+        var value = Environment.GetEnvironmentVariable(envVar);
+        if (int.TryParse(value, out var seconds) && seconds > 0)
+            return TimeSpan.FromSeconds(seconds);
+        return defaultValue;
     }
 
     /// <summary>

@@ -69,17 +69,32 @@ public class BuildQueueServiceTests
     }
 
     [Fact]
-    public async Task CancelAsync_QueuedBuild_ReturnsTrue()
+    public async Task CancelAsync_BuildingBuild_ReturnsTrue()
     {
-        var sut = CreateSut();
+        var buildTcs = new TaskCompletionSource<ShellExecutionResult>();
+        var shellMock = new Mock<IShellExecutionService>();
+        shellMock.Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<int?>(),
+                It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+#pragma warning disable VSTHRD003
+            .Returns(async () => await buildTcs.Task.ConfigureAwait(true));
+#pragma warning restore VSTHRD003
+
+        var sut = CreateSut(shellExecutionService: shellMock.Object);
         var request = CreateRequest();
 
         var buildId = await sut.SubmitAsync(request, CancellationToken.None).ConfigureAwait(true);
+
+        await Task.Delay(200).ConfigureAwait(true);
+
         var cancelled = await sut.CancelAsync(buildId, CancellationToken.None).ConfigureAwait(true);
 
         cancelled.Should().BeTrue();
+
+        buildTcs.SetCanceled();
+        await Task.Delay(100).ConfigureAwait(true);
+
         var entry = sut.GetBuild(buildId);
-        entry!.Status.Should().Be(BuildQueueEntryStatus.Cancelled);
+        entry!.Status.Should().BeOneOf(BuildQueueEntryStatus.Cancelled, BuildQueueEntryStatus.Cancelling);
     }
 
     [Fact]

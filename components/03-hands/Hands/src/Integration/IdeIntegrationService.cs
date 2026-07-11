@@ -153,6 +153,66 @@ public sealed partial class IdeIntegrationService : IIdeIntegrationService
         }
     }
 
+    /// <summary>
+    /// 在 IDE 中设置选区 — 对齐 TS bridgeMessaging.ts setSelection
+    /// 实现：通过 IDE CLI --goto 定位光标到起始行（列信息部分 IDE 不支持，仅传行号）
+    /// 限制：CLI 方式只能定位光标，无法精确选中范围（endLine/endCol 当前忽略）
+    /// </summary>
+    public async Task<bool> SetSelectionAsync(string filePath, int startLine, int startCol, int endLine, int endCol, CancellationToken ct = default)
+    {
+        if (_currentConnection == null)
+        {
+            _logger?.LogWarning("无法设置选区：未连接 IDE");
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(filePath))
+        {
+            _logger?.LogWarning("无法设置选区：文件路径为空");
+            return false;
+        }
+
+        if (startLine < 1)
+        {
+            _logger?.LogWarning("无法设置选区：起始行号无效 {StartLine}", startLine);
+            return false;
+        }
+
+        try
+        {
+            var command = GetIdeCommand(_currentConnection.Type);
+            if (command == null)
+            {
+                _logger?.LogWarning("不支持的 IDE 类型: {Type}", _currentConnection.Type);
+                return false;
+            }
+
+            // VSCode/Cursor/Windsurf 支持 --goto file:line:col
+            // JetBrains 仅支持 --line N（不支持列）
+            var args = _currentConnection.Type == IdeType.JetBrains
+                ? $"--line {startLine} \"{filePath}\""
+                : $"--goto \"{filePath}:{startLine}:{startCol}\"";
+
+            await _processService.ExecuteAsync(new ProcessOptions
+            {
+                FileName = command,
+                Arguments = args,
+                TimeoutMs = 5000,
+                RedirectStandardOutput = false,
+                RedirectStandardError = false
+            }, ct).ConfigureAwait(false);
+
+            _currentFilePath = filePath;
+            _logger?.LogInformation("已在 IDE 中设置选区: {FilePath} (行: {Line}, 列: {Col})", filePath, startLine, startCol);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "设置选区失败: {FilePath}", filePath);
+            return false;
+        }
+    }
+
     private static string? GetIdeCommand(IdeType type)
     {
         return type switch

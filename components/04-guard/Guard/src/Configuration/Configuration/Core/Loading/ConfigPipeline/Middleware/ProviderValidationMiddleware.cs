@@ -6,12 +6,19 @@ namespace Core.Configuration.ConfigPipeline;
 [Register(typeof(IConfigLoadMiddleware))]
 public sealed partial class ProviderValidationMiddleware : IConfigLoadMiddleware
 {
+    private readonly IProviderDefinitionRegistry _registry;
+
+    public ProviderValidationMiddleware(IProviderDefinitionRegistry registry)
+    {
+        _registry = registry;
+    }
+
     public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     public Task InvokeAsync(ConfigLoadContext context, MiddlewareDelegate<ConfigLoadContext> next, CancellationToken ct)
     {
         var config = context.Config;
-        var definition = ProviderDefinitionRegistry.TryGetStatic(config.Provider.Provider);
+        var definition = _registry.TryGet(config.Provider.Provider);
         if (definition is not null && !definition.IsValid(config.Provider))
         {
             throw new ConfigurationException(

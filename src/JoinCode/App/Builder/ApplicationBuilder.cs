@@ -248,14 +248,14 @@ public sealed class ApplicationBuilder
 
         try
         {
-            config = await ConfigLoader.LoadConfigAsync(fs);
+            config = await new Core.Configuration.ConfigLoader().LoadConfigAsync(fs);
         }
         catch (ConfigurationException ex) when (ex.Message.Contains("API Key"))
         {
             if (dotEnv is not null)
             {
                 await dotEnv.ApplyToConfigAsync(fs);
-                config = await ConfigLoader.LoadConfigAsync(fs);
+                config = await new Core.Configuration.ConfigLoader().LoadConfigAsync(fs);
             }
             else
             {
@@ -268,7 +268,7 @@ public sealed class ApplicationBuilder
             dotEnv.ApplyToMemory(config);
 
             // 环境变量优先级最高 — ApplyToMemory 可能覆盖了 env var 设置的值，重新应用
-            Core.Configuration.SettingsMapper.ApplyEnvOverrides(config);
+            new Core.Configuration.SettingsMapper(new Core.Configuration.Providers.ProviderDefinitionRegistry()).ApplyEnvOverrides(config);
         }
 
         if (!string.IsNullOrWhiteSpace(options.Model))

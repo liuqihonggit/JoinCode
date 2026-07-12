@@ -2,9 +2,13 @@ namespace Core.Configuration;
 
 public class ConfigLoader {
     private readonly MiddlewarePipeline<ConfigLoadContext>? _pipeline;
+    private readonly IProviderDefinitionRegistry _registry;
+    private readonly SettingsMapper _settingsMapper;
 
-    public ConfigLoader(IEnumerable<IConfigLoadMiddleware>? middlewares = null)
+    public ConfigLoader(IEnumerable<IConfigLoadMiddleware>? middlewares = null, IProviderDefinitionRegistry? registry = null, SettingsMapper? settingsMapper = null)
     {
+        _registry = registry ?? new ProviderDefinitionRegistry();
+        _settingsMapper = settingsMapper ?? new SettingsMapper(_registry);
         if (middlewares is not null)
         {
             _pipeline = new MiddlewarePipeline<ConfigLoadContext>(middlewares);
@@ -50,10 +54,10 @@ public class ConfigLoader {
     }
 
     /// <summary>
-    /// 静态加载配置（向后兼容）
+    /// 加载配置（向后兼容）
     /// 配置优先级（从低到高）: UserSettings → ProjectSettings → LocalSettings → FlagSettings → PolicySettings → 环境变量 → Provider 定义环境变量
     /// </summary>
-    public static async Task<WorkflowConfig> LoadConfigAsync(IFileSystem fs, CancellationToken cancellationToken = default) {
+    public async Task<WorkflowConfig> LoadConfigAsync(IFileSystem fs, CancellationToken cancellationToken = default) {
         try {
             // Step 1: 并行加载多源配置 + 规则文件
             var projectDir = fs.GetCurrentDirectory();
@@ -74,10 +78,10 @@ public class ConfigLoader {
             SettingsMapper.InjectEnvFromSettings(settings);
 
             // Step 3: SettingsJson → WorkflowConfig（JSON 反序列化映射）
-            var config = SettingsMapper.ToWorkflowConfig(settings);
+            var config = _settingsMapper.ToWorkflowConfig(settings);
 
             // Step 4: 环境变量覆盖（Provider/Model/Endpoint 等，不含 API Key）
-            SettingsMapper.ApplyEnvOverrides(config);
+            _settingsMapper.ApplyEnvOverrides(config);
 
             // Step 5: 统一 API Key 解析（auth.json → JCC_API_KEY → Provider 专属变量）
             config.Provider.ApiKey = await ResolveApiKeyAsync(
@@ -88,7 +92,7 @@ public class ConfigLoader {
             config.ExternalRules = await externalRulesTask.ConfigureAwait(false);
 
             // Step 7: 验证 Provider 配置 — Provider 必须有 API Key
-            var definition = ProviderDefinitionRegistry.TryGetStatic(config.Provider.Provider);
+            var definition = _registry.TryGet(config.Provider.Provider);
             if (definition is not null && !definition.IsValid(config.Provider))
             {
                 throw new ConfigurationException(
@@ -148,7 +152,7 @@ public class ConfigLoader {
     /// 统一 API Key 解析 — 按优先级从低到高: auth.json → JCC_API_KEY → Provider 专属环境变量
     /// 对齐 TS 版: 环境变量 > auth.json > apiKeyHelper
     /// </summary>
-    public static async Task<string> ResolveApiKeyAsync(string provider, IProviderDefinition? definition, IFileSystem fs, CancellationToken cancellationToken = default)
+    public async Task<string> ResolveApiKeyAsync(string provider, IProviderDefinition? definition, IFileSystem fs, CancellationToken cancellationToken = default)
     {
         // 优先级 1 (最低): auth.json
         var apiKey = await LoadApiKeyFromJccAsync(provider, fs, cancellationToken).ConfigureAwait(false);
@@ -172,7 +176,7 @@ public class ConfigLoader {
     /// <summary>
     /// 从 ~/.jcc/auth.json 加载指定 provider 的 API Key
     /// </summary>
-    public static async Task<string> LoadApiKeyFromJccAsync(string provider, IFileSystem fs, CancellationToken cancellationToken = default)
+    public async Task<string> LoadApiKeyFromJccAsync(string provider, IFileSystem fs, CancellationToken cancellationToken = default)
     {
         var authPath = WorkflowConstants.Paths.AuthFilePath;
 
@@ -188,7 +192,7 @@ public class ConfigLoader {
                 return string.Empty;
 
             // Azure 等复合格式：auth.json 中存储的是 JSON 对象而非纯 API Key
-            var definition = ProviderDefinitionRegistry.TryGetStatic(provider);
+            var definition = _registry.TryGet(provider);
             if (definition is not null && definition.IsCompoundAuthFormat(apiKey))
             {
                 var compoundData = JsonSerializer.Deserialize(apiKey, ConfigJsonContext.Default.DictionaryStringString);

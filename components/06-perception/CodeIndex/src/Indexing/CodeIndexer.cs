@@ -45,20 +45,13 @@ public sealed partial class CodeIndexer : ICodeIndexer, IDisposable
         var totalSw = Stopwatch.StartNew();
 
         // Phase A: 索引项目依赖(.slnx/.sln/.csproj)
-        var phaseSw = Stopwatch.StartNew();
         await IndexProjectsAsync(options.WorkspaceRoot, ct).ConfigureAwait(false);
-        phaseSw.Stop();
-        Console.Error.WriteLine($"[CodeIndexer] Phase A IndexProjects: {phaseSw.ElapsedMilliseconds}ms");
 
         // Phase B: 扫描 .cs 文件(跳过 bin/obj)
-        phaseSw.Restart();
         var csFiles = CollectCsFiles(options.WorkspaceRoot, options.ExcludePatterns);
         var trackedFiles = GetTrackedFilesInWorkspace(options.WorkspaceRoot);
-        phaseSw.Stop();
-        Console.Error.WriteLine($"[CodeIndexer] Phase B CollectCsFiles: {phaseSw.ElapsedMilliseconds}ms (files={csFiles.Count})");
 
         // Phase C: 并行读文件+哈希(Task.WhenAll,对齐 IncrementalUpdater 模式)
-        phaseSw.Restart();
         var storedHashes = BatchGetStoredHashes(csFiles);
 
         var updatedCount = 0;
@@ -94,17 +87,11 @@ public sealed partial class CodeIndexer : ICodeIndexer, IDisposable
         }
 
         progress?.Report(new IndexProgress { Current = total, Total = total });
-        phaseSw.Stop();
-        Console.Error.WriteLine($"[CodeIndexer] Phase C ReadFiles+Hash: {phaseSw.ElapsedMilliseconds}ms (toIndex={filesToIndex.Count}, skipped={skippedCount})");
 
         // Phase D: 并行提取符号(已并行,4度)
-        phaseSw.Restart();
         var extractionResults = ParallelExtractAll(filesToIndex, ct);
-        phaseSw.Stop();
-        Console.Error.WriteLine($"[CodeIndexer] Phase D ParallelExtract: {phaseSw.ElapsedMilliseconds}ms");
 
         // Phase E: 批量索引写入(单写锁 + 单次 CorrectInheritsToImplements,替代每文件锁+每文件全量扫描)
-        phaseSw.Restart();
         var batch = new List<(string FilePath, string SourceCode, string Hash, ExtractionResult Extraction)>(filesToIndex.Count);
         for (var i = 0; i < filesToIndex.Count; i++)
         {
@@ -113,11 +100,8 @@ public sealed partial class CodeIndexer : ICodeIndexer, IDisposable
         }
         await _symbolIndex.IndexFilesBatchAsync(batch, ct).ConfigureAwait(false);
         updatedCount = batch.Count;
-        phaseSw.Stop();
-        Console.Error.WriteLine($"[CodeIndexer] Phase E IndexWrite: {phaseSw.ElapsedMilliseconds}ms");
 
         // Phase F: 删除已移除文件
-        phaseSw.Restart();
         foreach (var trackedFile in trackedFiles)
         {
             if (!existingFiles.Contains(trackedFile))
@@ -126,17 +110,11 @@ public sealed partial class CodeIndexer : ICodeIndexer, IDisposable
                 deletedCount++;
             }
         }
-        phaseSw.Stop();
-        Console.Error.WriteLine($"[CodeIndexer] Phase F RemoveDeleted: {phaseSw.ElapsedMilliseconds}ms (deleted={deletedCount})");
 
         // Phase G: 失效图缓存
-        phaseSw.Restart();
         InvalidateGraphCaches();
-        phaseSw.Stop();
-        Console.Error.WriteLine($"[CodeIndexer] Phase G InvalidateCaches: {phaseSw.ElapsedMilliseconds}ms");
 
         totalSw.Stop();
-        Console.Error.WriteLine($"[CodeIndexer] BuildIndex total: {totalSw.ElapsedMilliseconds}ms (updated={updatedCount}, skipped={skippedCount}, deleted={deletedCount})");
 
         return new BuildIndexResult
         {
@@ -430,10 +408,7 @@ public sealed partial class CodeIndexer : ICodeIndexer, IDisposable
                 result.Add(file);
             }
         }
-        catch (UnauthorizedAccessException ex)
-        {
-            Console.Error.WriteLine($"CodeIndexer: Access denied scanning directory: {ex.Message}");
-        }
+        catch (UnauthorizedAccessException ex) { System.Diagnostics.Trace.WriteLine($"CodeIndexer: Access denied scanning directory: {ex.Message}"); }
     }
 
     private List<string> CollectFiles(string workspaceRoot, string pattern)
@@ -446,10 +421,7 @@ public sealed partial class CodeIndexer : ICodeIndexer, IDisposable
                 result.Add(file);
             }
         }
-        catch (UnauthorizedAccessException ex)
-        {
-            Console.Error.WriteLine($"CodeIndexer: Access denied collecting files with pattern {pattern}: {ex.Message}");
-        }
+        catch (UnauthorizedAccessException ex) { System.Diagnostics.Trace.WriteLine($"CodeIndexer: Access denied collecting files with pattern {pattern}: {ex.Message}"); }
         return result;
     }
 

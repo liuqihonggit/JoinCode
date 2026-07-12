@@ -8,7 +8,6 @@ class Program
     static async Task<int> Main(string[] args)
     {
         Cli.TerminalHelper.Init();
-        Console.Error.WriteLine("[MAIN] entry");
         try
         {
             // 1. 本地化
@@ -27,11 +26,9 @@ class Program
             // 3.5 --await N: 启动超时计时器，N秒后强制退出返回1234（用于诊断卡死）
             using var awaitTimer = StartAwaitTimer(options);
 
-            Console.Error.WriteLine("[MAIN] step4 loadConfig");
             var fs = IO.FileSystem.FileSystemFactory.Create();
             var config = await App.Builder.ApplicationBuilder.LoadConfigAsync(options, fs);
 
-            Console.Error.WriteLine("[MAIN] step5 buildHost");
             var builder = new App.Builder.ApplicationBuilder()
                 .UseModule<App.Modules.CoreModule>()
                 .UseModule<App.Modules.ClockModule>()
@@ -41,13 +38,9 @@ class Program
                 .UseModule<App.Modules.McpInitModule>();
 
             var host = builder.BuildHost(config, options);
-            Console.Error.WriteLine("[MAIN] step5 host built");
 
-            Console.Error.WriteLine("[MAIN] step6 configureModules");
             await builder.ConfigureModulesAsync(host.Services);
-            Console.Error.WriteLine("[MAIN] step6 done");
 
-            Console.Error.WriteLine("[MAIN] step7 runMode");
             if (options.IsNonInteractiveMode)
                 return await Entry.NonInteractiveModeRunner.RunAsync(config, options, host);
 

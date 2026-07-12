@@ -39,6 +39,7 @@ public static partial class ServiceRegistration
         services.AddVaultServices();
         services.AddCodeIndexServices(Environment.CurrentDirectory);
         services.AddNewServices();
+        services.AddReasoning();
 
         services.AddLogging();
 

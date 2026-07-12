@@ -103,6 +103,10 @@ global using RewindResult = JoinCode.Abstractions.LLM.Chat.RewindResult;
 global using JoinCode.Dream;
 global using Plugins.Browser;
 
+global using JoinCode.Reasoning.Engine;
+global using JoinCode.Reasoning.Evidence;
+global using JoinCode.Reasoning.State;
+
 // ApplicationBuilder 模块化
 global using JoinCode.App.Builder;
 global using JoinCode.Pipe;

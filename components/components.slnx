@@ -75,4 +75,8 @@
     <Project Path="09-composition/Clock/src/Clock.csproj" />
     <Project Path="09-composition/Clock/tests/Unit/Clock.Tests.csproj" />
   </Folder>
+  <Folder Name="/10-reasoning/Reasoning/">
+    <Project Path="10-reasoning/Reasoning/src/Reasoning.csproj" />
+    <Project Path="10-reasoning/Reasoning/tests/Unit/Reasoning.Tests.csproj" />
+  </Folder>
 </Solution>

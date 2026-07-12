@@ -18,5 +18,6 @@ public enum ChatCommandCategory
     [EnumValue("连接")] Bridge,
     [EnumValue("平台")] Platform,
     [EnumValue("社交")] Social,
+    [EnumValue("法律")] Law,
     [EnumValue("其他")] Other,
 }

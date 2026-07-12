@@ -123,6 +123,9 @@ public enum ChatCommandName
     [EnumValue("voice")] Voice,
     [EnumValue("stickers")] Stickers,
 
+    // 法律
+    [EnumValue("falv")] Falv,
+
     // 其他
     [EnumValue("simple")] Simple,
 }

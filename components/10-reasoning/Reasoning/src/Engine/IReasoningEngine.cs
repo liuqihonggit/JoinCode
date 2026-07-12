@@ -1,0 +1,57 @@
+namespace JoinCode.Reasoning.Engine;
+
+/// <summary>
+/// 推理引擎接口 — 基于 DAG 的结构化推理
+/// </summary>
+public interface IReasoningEngine
+{
+    /// <summary>
+    /// 添加假定
+    /// </summary>
+    Task AddAssumptionsAsync(IReadOnlyList<DataItem> assumptions, CancellationToken ct);
+
+    /// <summary>
+    /// 获取所有数据项
+    /// </summary>
+    IReadOnlyList<DataItem> GetAllItems();
+
+    /// <summary>
+    /// 获取所有证据
+    /// </summary>
+    IReadOnlyList<EvidenceRecord> GetAllEvidence();
+
+    /// <summary>
+    /// 获取已确认的事实
+    /// </summary>
+    IReadOnlyList<DataItem> GetFacts();
+
+    /// <summary>
+    /// 添加证据
+    /// </summary>
+    void AddEvidence(EvidenceRecord evidence, string claimId);
+
+    /// <summary>
+    /// 添加反驳证据
+    /// </summary>
+    void AddCounterEvidence(EvidenceRecord evidence, string claimId);
+
+    /// <summary>
+    /// 执行三权分立对抗流程
+    /// </summary>
+    Task RunAdversarialProcessAsync(CancellationToken ct);
+
+    /// <summary>
+    /// 获取引擎状态摘要
+    /// </summary>
+    ReasoningSummary GetSummary();
+
+    /// <summary>
+    /// 证据失效传播 — 降级指定节点，沿 DAG 反向传播到下游
+    /// </summary>
+    void PropagateEvidenceFailure(string evidenceId);
+
+    /// <summary>
+    /// 增量重算 — 只重算受影响的子图
+    /// </summary>
+    IReadOnlyList<ReasoningPayload> IncrementalRecompute(string changedNodeId);
+}

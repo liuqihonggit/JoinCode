@@ -29,7 +29,7 @@ global using Core.Scheduling.Runtime;
 global using Core.Scheduling.Tasks;
 global using AsyncFileLock;
 global using Infrastructure.Pipeline;
-global using Infrastructure.Dag;
+global using Structura.Dag;
 global using Infrastructure.Utils.IO;
 global using Infrastructure.Utils.Text;
 global using Infrastructure.Utils.System;

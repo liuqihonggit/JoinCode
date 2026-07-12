@@ -4,7 +4,7 @@
   </Folder>
   <Folder Name="/infrastructure/">
     <Project Path="../src/Infrastructure/Infrastructure.csproj" />
-    <Project Path="../src/Infrastructure.Dag/Infrastructure.Dag.csproj" />
+    <Project Path="../src/Structura/Structura.csproj" />
   </Folder>
   <Folder Name="/testing/">
     <Project Path="../tests/Unit/Testing.Common/Testing.Common.csproj" />

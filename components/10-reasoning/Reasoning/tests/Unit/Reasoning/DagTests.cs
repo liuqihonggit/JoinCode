@@ -1,6 +1,6 @@
 namespace JoinCode.Reasoning.Tests;
 
-using Infrastructure.Dag;
+using Structura.Dag;
 
 public sealed class DagTests
 {

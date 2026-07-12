@@ -264,7 +264,7 @@ public sealed class ProviderDefinitionPolymorphismTests
         var def = new Core.Configuration.Providers.AnthropicProviderDefinition();
         def.ResolveAlias("sonnet").Should().Be("claude-sonnet-4-6");
         def.ResolveAlias("opus").Should().Be("claude-opus-4-6");
-        def.ResolveAlias("haiku").Should().Be("claude-haiku-4-5-20251001");
+        def.ResolveAlias("haiku").Should().Be("claude-haiku-4-5");
         def.ResolveAlias("best").Should().Be("claude-opus-4-6");
         def.ResolveAlias("unknown").Should().BeNull();
     }

@@ -22,7 +22,7 @@ public abstract class OpenAICompatibleProviderDefinitionBase : IProviderDefiniti
     public abstract string? ResolveApiKeyFromEnv();
     public abstract bool IsValid(ProviderConfig config);
 
-    public virtual IReadOnlyList<ModelEntry> AvailableModels => SharedOpenAiModels;
+    public virtual IReadOnlyList<ModelEntry> AvailableModels => CanonicalModelModelEntries.OpenaiModels;
 
     public virtual string? ResolveAlias(string input)
     {
@@ -71,14 +71,4 @@ public abstract class OpenAICompatibleProviderDefinitionBase : IProviderDefiniti
     public virtual string? EndpointPromptText => null;
     public virtual string? EndpointRequiredMessage => null;
 
-    private static readonly ModelEntry[] SharedOpenAiModels =
-    [
-        new("gpt-4o", "GPT-4o", 128_000, "旗舰多模态模型"),
-        new("gpt-4o-mini", "GPT-4o Mini", 128_000, "快速低成本模型"),
-        new("gpt-4.1", "GPT-4.1", 1_047_576, "最新旗舰，1M 上下文"),
-        new("gpt-4.1-mini", "GPT-4.1 Mini", 1_047_576, "高效平衡，1M 上下文"),
-        new("gpt-4.1-nano", "GPT-4.1 Nano", 1_047_576, "最快最便宜，1M 上下文"),
-        new("o3", "O3", 200_000, "深度推理模型"),
-        new("o4-mini", "O4 Mini", 200_000, "高效推理模型"),
-    ];
 }

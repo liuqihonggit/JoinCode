@@ -44,7 +44,7 @@ public class ApiKeySaveLoadTests
             config.Provider.Provider = provider;
             config.Provider.ApiKey = apiKey;
             
-            var definition = ProviderDefinitionRegistry.TryGet(provider);
+            var definition = ProviderDefinitionRegistry.TryGetStatic(provider);
             if (definition is not null)
             {
                 config.Provider.Definition = definition;
@@ -182,7 +182,7 @@ public class ApiKeySaveLoadTests
             config.Provider.Provider = provider;
             config.Provider.ApiKey = apiKey;
             
-            var definition = ProviderDefinitionRegistry.TryGet(provider);
+            var definition = ProviderDefinitionRegistry.TryGetStatic(provider);
             if (definition is not null)
             {
                 config.Provider.Definition = definition;

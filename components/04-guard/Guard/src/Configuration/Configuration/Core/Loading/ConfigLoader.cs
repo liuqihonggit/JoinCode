@@ -88,7 +88,7 @@ public class ConfigLoader {
             config.ExternalRules = await externalRulesTask.ConfigureAwait(false);
 
             // Step 7: 验证 Provider 配置 — Provider 必须有 API Key
-            var definition = ProviderDefinitionRegistry.TryGet(config.Provider.Provider);
+            var definition = ProviderDefinitionRegistry.TryGetStatic(config.Provider.Provider);
             if (definition is not null && !definition.IsValid(config.Provider))
             {
                 throw new ConfigurationException(
@@ -188,7 +188,7 @@ public class ConfigLoader {
                 return string.Empty;
 
             // Azure 等复合格式：auth.json 中存储的是 JSON 对象而非纯 API Key
-            var definition = ProviderDefinitionRegistry.TryGet(provider);
+            var definition = ProviderDefinitionRegistry.TryGetStatic(provider);
             if (definition is not null && definition.IsCompoundAuthFormat(apiKey))
             {
                 var compoundData = JsonSerializer.Deserialize(apiKey, ConfigJsonContext.Default.DictionaryStringString);

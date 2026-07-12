@@ -203,7 +203,7 @@ public sealed class ProviderDefinitionPolymorphismTests
     [Fact]
     public void Registry_AllProviders_ShouldBeRegistered()
     {
-        var providers = Core.Configuration.Providers.ProviderDefinitionRegistry.RegisteredProviders;
+        var providers = Core.Configuration.Providers.ProviderDefinitionRegistry.RegisteredProvidersStatic;
         providers.Should().Contain("openai");
         providers.Should().Contain("azure");
         providers.Should().Contain("anthropic");
@@ -213,19 +213,19 @@ public sealed class ProviderDefinitionPolymorphismTests
     [Fact]
     public void Registry_TryGet_ShouldReturnCorrectDefinition()
     {
-        var openai = Core.Configuration.Providers.ProviderDefinitionRegistry.TryGet("openai");
+        var openai = Core.Configuration.Providers.ProviderDefinitionRegistry.TryGetStatic("openai");
         openai.Should().NotBeNull();
         openai!.Kind.Should().Be(ProviderKind.OpenAI);
 
-        var azure = Core.Configuration.Providers.ProviderDefinitionRegistry.TryGet("azure");
+        var azure = Core.Configuration.Providers.ProviderDefinitionRegistry.TryGetStatic("azure");
         azure.Should().NotBeNull();
         azure!.Kind.Should().Be(ProviderKind.Azure);
 
-        var anthropic = Core.Configuration.Providers.ProviderDefinitionRegistry.TryGet("anthropic");
+        var anthropic = Core.Configuration.Providers.ProviderDefinitionRegistry.TryGetStatic("anthropic");
         anthropic.Should().NotBeNull();
         anthropic!.Kind.Should().Be(ProviderKind.Anthropic);
 
-        var agnes = Core.Configuration.Providers.ProviderDefinitionRegistry.TryGet("agnes");
+        var agnes = Core.Configuration.Providers.ProviderDefinitionRegistry.TryGetStatic("agnes");
         agnes.Should().NotBeNull();
         agnes!.Kind.Should().Be(ProviderKind.Agnes);
     }
@@ -233,7 +233,7 @@ public sealed class ProviderDefinitionPolymorphismTests
     [Fact]
     public void Registry_TryGet_UnknownProvider_ShouldReturnNull()
     {
-        var result = Core.Configuration.Providers.ProviderDefinitionRegistry.TryGet("unknown");
+        var result = Core.Configuration.Providers.ProviderDefinitionRegistry.TryGetStatic("unknown");
         result.Should().BeNull();
     }
 

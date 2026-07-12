@@ -178,7 +178,7 @@ public sealed class DoctorCommand : IChatCommand
         var endpoint = Environment.GetEnvironmentVariable(JccEnvVarConstants.Endpoint)
             ?? await configService.GetAsync(ConfigKeyConstants.Endpoint, context.CancellationToken).ConfigureAwait(false);
 
-        var apiKey = ProviderDefinitionRegistry.TryGet(provider)?.ResolveApiKeyFromEnv()
+        var apiKey = ProviderDefinitionRegistry.TryGetStatic(provider)?.ResolveApiKeyFromEnv()
             ?? Environment.GetEnvironmentVariable(JccEnvVarConstants.ApiKey);
 
         if (string.IsNullOrEmpty(apiKey))

@@ -34,7 +34,7 @@ public sealed class StatusCommandTests
     public async Task ExecuteAsync_Should_Return_Continue()
     {
         var cmd = new StatusCommand();
-        var catalog = new ModelCatalog();
+        var catalog = new ModelCatalog(new Core.Configuration.Providers.ProviderDefinitionRegistry());
         var mockProvider = new Mock<IServiceProvider>();
         mockProvider.Setup(p => p.GetService(typeof(IModelCatalog))).Returns(catalog);
 

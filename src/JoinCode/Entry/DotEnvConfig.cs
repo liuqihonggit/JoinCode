@@ -31,9 +31,9 @@ internal sealed class DotEnvConfig
 
             // 多态：遍历 ProviderDefinitionRegistry 注册表匹配环境变量，替代 if-else 链硬编码
             // 新增供应商时无需修改此文件，只需在 ProviderDefinitionRegistry 注册即可
-            foreach (var providerName in Core.Configuration.Providers.ProviderDefinitionRegistry.RegisteredProviders)
+            foreach (var providerName in Core.Configuration.Providers.ProviderDefinitionRegistry.RegisteredProvidersStatic)
             {
-                var def = Core.Configuration.Providers.ProviderDefinitionRegistry.TryGet(providerName);
+                var def = Core.Configuration.Providers.ProviderDefinitionRegistry.TryGetStatic(providerName);
                 if (def?.ApiKeyEnvironmentVariable is not null && envObj.TryGetProperty(def.ApiKeyEnvironmentVariable, out var keyVal) && keyVal.ValueKind == System.Text.Json.JsonValueKind.String)
                 {
                     config.Provider = providerName;
@@ -68,7 +68,7 @@ internal sealed class DotEnvConfig
             // 各 Provider 的 Endpoint 环境变量匹配
             if (rawEndpoint is null && config.Provider is not null)
             {
-                var def = Core.Configuration.Providers.ProviderDefinitionRegistry.TryGet(config.Provider);
+                var def = Core.Configuration.Providers.ProviderDefinitionRegistry.TryGetStatic(config.Provider);
                 if (def?.EndpointEnvironmentVariable is not null && envObj.TryGetProperty(def.EndpointEnvironmentVariable, out var epVal) && epVal.ValueKind == System.Text.Json.JsonValueKind.String)
                 {
                     rawEndpoint = epVal.GetString();
@@ -162,7 +162,7 @@ internal sealed class DotEnvConfig
 
         if (Provider is not null)
         {
-            var definition = ProviderDefinitionRegistry.TryGet(Provider);
+            var definition = ProviderDefinitionRegistry.TryGetStatic(Provider);
             if (definition is not null)
             {
                 config.Provider.Definition = definition;

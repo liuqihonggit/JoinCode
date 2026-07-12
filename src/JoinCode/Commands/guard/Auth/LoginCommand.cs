@@ -25,11 +25,11 @@ public sealed class LoginCommand : IChatCommand
         var providerName = args.Length > 0 ? args[0].ToLowerInvariant() : ProviderKind.OpenAI.ToValue();
         var useOAuth = args.Contains("--oauth") || args.Contains("-o");
 
-        var definition = ProviderDefinitionRegistry.TryGet(providerName);
+        var definition = ProviderDefinitionRegistry.TryGetStatic(providerName);
         if (definition is null)
         {
             TerminalHelper.WriteLine($"{TerminalColors.Error}不支持的提供商: {providerName}{AnsiStyleConstants.Reset}");
-            TerminalHelper.WriteLine($"支持的提供商: {string.Join(", ", ProviderDefinitionRegistry.RegisteredProviders)}");
+            TerminalHelper.WriteLine($"支持的提供商: {string.Join(", ", ProviderDefinitionRegistry.RegisteredProvidersStatic)}");
             return ChatCommandResult.Continue();
         }
 

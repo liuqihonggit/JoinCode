@@ -380,8 +380,8 @@ public sealed class ProviderPicker
         }
         TerminalHelper.NewLine();
 
-        var providers = ProviderDefinitionRegistry.RegisteredProviders
-            .Select(p => ProviderDefinitionRegistry.TryGet(p))
+        var providers = ProviderDefinitionRegistry.RegisteredProvidersStatic
+            .Select(p => ProviderDefinitionRegistry.TryGetStatic(p))
             .Where(p => p is not null)
             .Select(p => p!)
             .ToList();

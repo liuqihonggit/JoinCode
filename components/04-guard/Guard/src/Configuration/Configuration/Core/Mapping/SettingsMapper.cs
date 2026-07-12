@@ -43,9 +43,9 @@ public static class SettingsMapper
             config.Provider.Provider = envProvider;
 
             // Provider 变更时，重新应用 Provider 定义的默认值
-            var newDefinition = ProviderDefinitionRegistry.TryGet(envProvider)
+            var newDefinition = ProviderDefinitionRegistry.TryGetStatic(envProvider)
                 ?? throw new ConfigurationException(
-                    $"未知的 Provider '{envProvider}'，可用值: {string.Join(", ", ProviderDefinitionRegistry.RegisteredProviders)}。");
+                    $"未知的 Provider '{envProvider}'，可用值: {string.Join(", ", ProviderDefinitionRegistry.RegisteredProvidersStatic)}。");
 
             config.Provider.Endpoint ??= newDefinition.DefaultEndpoint;
             config.Provider.Definition = newDefinition;
@@ -137,7 +137,7 @@ public static class SettingsMapper
         }
 
         // Provider 定义自动配置默认值
-        var definition = ProviderDefinitionRegistry.TryGet(config.Provider.Provider);
+        var definition = ProviderDefinitionRegistry.TryGetStatic(config.Provider.Provider);
         if (definition is not null)
         {
             config.Provider.Endpoint ??= definition.DefaultEndpoint;
@@ -158,7 +158,7 @@ public static class SettingsMapper
         else
         {
             throw new ConfigurationException(
-                $"未知的 Provider '{config.Provider.Provider}'，可用值: {string.Join(", ", ProviderDefinitionRegistry.RegisteredProviders)}。" +
+                $"未知的 Provider '{config.Provider.Provider}'，可用值: {string.Join(", ", ProviderDefinitionRegistry.RegisteredProvidersStatic)}。" +
                 $"请通过 {JccEnvVar.Provider.ToValue()} 环境变量指定正确的 Provider。");
         }
 

@@ -53,13 +53,13 @@ public class DeepSeekProviderDefinitionTests
     #region ProviderDefinitionRegistry 注册验证
 
     private static IProviderDefinition? GetDeepSeekDefinition()
-        => Core.Configuration.Providers.ProviderDefinitionRegistry.TryGet("deepseek");
+        => Core.Configuration.Providers.ProviderDefinitionRegistry.TryGetStatic("deepseek");
 
     [Fact]
     public void ProviderDefinitionRegistry_TryGet_DeepSeek_ShouldReturnNonNullOrchestrator()
     {
         // Act
-        var definition = Core.Configuration.Providers.ProviderDefinitionRegistry.TryGet("deepseek");
+        var definition = Core.Configuration.Providers.ProviderDefinitionRegistry.TryGetStatic("deepseek");
 
         // Then
         definition.Should().NotBeNull("JCC_PROVIDER=deepseek 时应能从注册表解析到 DeepSeekProviderDefinition");
@@ -69,7 +69,7 @@ public class DeepSeekProviderDefinitionTests
     public void ProviderDefinitionRegistry_RegisteredProviders_ShouldIncludeDeepSeek()
     {
         // Act
-        var providers = Core.Configuration.Providers.ProviderDefinitionRegistry.RegisteredProviders;
+        var providers = Core.Configuration.Providers.ProviderDefinitionRegistry.RegisteredProvidersStatic;
 
         // Then
         providers.Should().Contain("deepseek",

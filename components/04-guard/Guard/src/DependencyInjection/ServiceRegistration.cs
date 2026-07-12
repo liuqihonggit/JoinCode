@@ -19,6 +19,7 @@ public static partial class ServiceRegistration
 
     public static IServiceCollection AddConfigurationServices(this IServiceCollection services)
     {
+        services.TryAddSingleton<IProviderDefinitionRegistry, Core.Configuration.Providers.ProviderDefinitionRegistry>();
         return services;
     }
 

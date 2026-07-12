@@ -111,7 +111,7 @@ internal static class StartupWorkflow
             return (false, null);
         }
 
-        var definition = ProviderDefinitionRegistry.TryGet(provider);
+        var definition = ProviderDefinitionRegistry.TryGetStatic(provider);
         var displayName = definition?.DisplayName ?? provider;
         var envVarHint = definition?.ApiKeyEnvironmentVariable is not null
             ? $"（也可通过环境变量 {definition.ApiKeyEnvironmentVariable} 设置）"

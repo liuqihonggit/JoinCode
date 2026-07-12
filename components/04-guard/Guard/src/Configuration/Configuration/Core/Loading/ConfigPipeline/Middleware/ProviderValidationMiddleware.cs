@@ -11,7 +11,7 @@ public sealed partial class ProviderValidationMiddleware : IConfigLoadMiddleware
     public Task InvokeAsync(ConfigLoadContext context, MiddlewareDelegate<ConfigLoadContext> next, CancellationToken ct)
     {
         var config = context.Config;
-        var definition = ProviderDefinitionRegistry.TryGet(config.Provider.Provider);
+        var definition = ProviderDefinitionRegistry.TryGetStatic(config.Provider.Provider);
         if (definition is not null && !definition.IsValid(config.Provider))
         {
             throw new ConfigurationException(

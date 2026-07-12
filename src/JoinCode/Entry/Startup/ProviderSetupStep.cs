@@ -34,8 +34,8 @@ internal sealed class ProviderSetupStep : IMiddleware<StartupContext>
             Cli.TerminalHelper.WriteLine("  未检测到 API Key，请选择供应商配置:");
             Cli.TerminalHelper.NewLine();
 
-            var providers = ProviderDefinitionRegistry.RegisteredProviders
-                .Select(p => ProviderDefinitionRegistry.TryGet(p))
+            var providers = ProviderDefinitionRegistry.RegisteredProvidersStatic
+                .Select(p => ProviderDefinitionRegistry.TryGetStatic(p))
                 .Where(p => p is not null)
                 .Select(p => p!)
                 .ToList();
@@ -74,7 +74,7 @@ internal sealed class ProviderSetupStep : IMiddleware<StartupContext>
 
     private static async Task ConfigureProviderAsync(WorkflowConfig config, IFileSystem fs, string provider)
     {
-        var definition = ProviderDefinitionRegistry.TryGet(provider);
+        var definition = ProviderDefinitionRegistry.TryGetStatic(provider);
         var displayName = definition?.DisplayName ?? provider;
         var envVarHint = definition?.ApiKeyEnvironmentVariable is not null
             ? $"（也可通过环境变量 {definition.ApiKeyEnvironmentVariable} 设置）"

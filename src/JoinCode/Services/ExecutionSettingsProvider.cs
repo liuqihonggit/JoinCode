@@ -39,6 +39,6 @@ public sealed class ExecutionSettingsProvider : IExecutionSettingsProvider
         }
     }
     public bool FastMode => _config.FastMode;
-    public string? FastModelId => ProviderDefinitionRegistry.TryGet(_config.Provider?.Provider ?? string.Empty)?.DefaultFastModelId;
+    public string? FastModelId => ProviderDefinitionRegistry.TryGetStatic(_config.Provider?.Provider ?? string.Empty)?.DefaultFastModelId;
 
 }

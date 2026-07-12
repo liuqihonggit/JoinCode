@@ -9,9 +9,8 @@ namespace Core.Scheduling;
 public sealed partial class TaskService : ITaskService, IDisposable
 {
     private readonly ConcurrentDictionary<string, TaskItem> _tasks = new();
-    private readonly ConcurrentDictionary<string, List<TaskDependency>> _taskDependencies = new();
     private readonly ConcurrentDictionary<string, TaskStateMachine> _taskStateMachines = new();
-    private readonly ConcurrentDictionary<string, SemaphoreSlim> _dependencyLocks = new();
+    private readonly ConcurrentDag<string> _dag = new();
     [Inject] private readonly ITelemetryService? _telemetryService;
     private int _taskCounter;
 
@@ -134,9 +133,15 @@ public sealed partial class TaskService : ITaskService, IDisposable
 
     public Task<IReadOnlyList<TaskDependency>> GetTaskDependenciesAsync(string taskId, CancellationToken cancellationToken = default)
     {
-        var dependencies = _taskDependencies.TryGetValue(taskId, out var deps)
-            ? deps
-            : new List<TaskDependency>();
+        var dependencies = _dag.Edges.Values
+            .Where(e => e.ToId == taskId)
+            .Select(e => new TaskDependency
+            {
+                TaskId = taskId,
+                DependsOnTaskId = e.FromId,
+                DependencyType = ParseDependencyType(e.Label)
+            })
+            .ToList();
         return Task.FromResult<IReadOnlyList<TaskDependency>>(dependencies);
     }
 
@@ -156,33 +161,29 @@ public sealed partial class TaskService : ITaskService, IDisposable
             return new TaskOperationResult(false, null, L.T(StringKey.DepTaskNotExist, dependsOnTaskId));
         }
 
-        if (WouldCreateCircularDependency(taskId, dependsOnTaskId))
+        if (await _dag.WouldCreateCycleAsync(dependsOnTaskId, taskId, cancellationToken).ConfigureAwait(false))
         {
             return new TaskOperationResult(false, null, L.T(StringKey.CircularDependencyRejected));
         }
 
-        var dependency = new TaskDependency
-        {
-            TaskId = taskId,
-            DependsOnTaskId = dependsOnTaskId,
-            DependencyType = dependencyType
-        };
+        if (!_dag.Nodes.ContainsKey(taskId))
+            await _dag.AddNodeAsync(new DagNode<string> { Id = taskId, Payload = taskId }, cancellationToken).ConfigureAwait(false);
+        if (!_dag.Nodes.ContainsKey(dependsOnTaskId))
+            await _dag.AddNodeAsync(new DagNode<string> { Id = dependsOnTaskId, Payload = dependsOnTaskId }, cancellationToken).ConfigureAwait(false);
 
-        var dependencies = _taskDependencies.GetOrAdd(taskId, _ => new List<TaskDependency>());
-        var depLock = _dependencyLocks.GetOrAdd(taskId, _ => new SemaphoreSlim(1, 1));
-        await depLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        var existingEdge = _dag.Edges.Values
+            .FirstOrDefault(e => e.FromId == dependsOnTaskId && e.ToId == taskId);
+        if (existingEdge is not null)
         {
-            if (dependencies.Any(d => d.DependsOnTaskId == dependsOnTaskId))
-            {
-                return new TaskOperationResult(false, null, L.T(StringKey.DependencyAlreadyExists));
-            }
-
-            dependencies.Add(dependency);
+            return new TaskOperationResult(false, null, L.T(StringKey.DependencyAlreadyExists));
         }
-        finally
+
+        var edgeResult = await _dag.AddEdgeAsync(
+            new DagEdge { FromId = dependsOnTaskId, ToId = taskId, Label = dependencyType.ToValue() },
+            cancellationToken).ConfigureAwait(false);
+        if (!edgeResult.Success)
         {
-            depLock.Release();
+            return new TaskOperationResult(false, null, edgeResult.ErrorMessage ?? "Failed to add dependency");
         }
 
         if (_taskStateMachines.TryGetValue(taskId, out var stateMachine))
@@ -200,26 +201,17 @@ public sealed partial class TaskService : ITaskService, IDisposable
         string dependsOnTaskId,
         CancellationToken cancellationToken = default)
     {
-        if (!_taskDependencies.TryGetValue(taskId, out var dependencies))
+        var edgeToRemove = _dag.Edges.Values
+            .FirstOrDefault(e => e.FromId == dependsOnTaskId && e.ToId == taskId);
+        if (edgeToRemove is null)
         {
-            return new TaskOperationResult(false, null, L.T(StringKey.TaskNoDependencies, taskId));
+            return new TaskOperationResult(false, null, L.T(StringKey.DepNotExist, dependsOnTaskId));
         }
 
-        var depLock = _dependencyLocks.GetOrAdd(taskId, _ => new SemaphoreSlim(1, 1));
-        await depLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        var result = await _dag.RemoveEdgeAsync(edgeToRemove.Id, cancellationToken).ConfigureAwait(false);
+        if (!result.Success)
         {
-            var dependency = dependencies.FirstOrDefault(d => d.DependsOnTaskId == dependsOnTaskId);
-            if (dependency == null)
-            {
-                return new TaskOperationResult(false, null, L.T(StringKey.DepNotExist, dependsOnTaskId));
-            }
-
-            dependencies.Remove(dependency);
-        }
-        finally
-        {
-            depLock.Release();
+            return new TaskOperationResult(false, null, result.ErrorMessage ?? "Failed to remove dependency");
         }
 
         CheckAndUpdateTaskState(taskId);
@@ -240,52 +232,21 @@ public sealed partial class TaskService : ITaskService, IDisposable
             return Task.FromResult(false);
         }
 
-        if (_taskDependencies.TryGetValue(taskId, out var dependencies))
+        var blockingDeps = _dag.Edges.Values
+            .Where(e => e.ToId == taskId && e.Label == TaskDependencyType.Blocks.ToValue());
+
+        foreach (var dep in blockingDeps)
         {
-            foreach (var dependency in dependencies.Where(d => d.DependencyType == TaskDependencyType.Blocks))
+            if (_tasks.TryGetValue(dep.FromId, out var dependsOnTask))
             {
-                if (_tasks.TryGetValue(dependency.DependsOnTaskId, out var dependsOnTask))
+                if (dependsOnTask.Status != TaskStatusConstants.Completed)
                 {
-                    if (dependsOnTask.Status != TaskStatusConstants.Completed)
-                    {
-                        return Task.FromResult(false);
-                    }
+                    return Task.FromResult(false);
                 }
             }
         }
 
         return Task.FromResult(true);
-    }
-
-    private bool WouldCreateCircularDependency(string taskId, string dependsOnTaskId)
-    {
-        return HasDependencyPath(dependsOnTaskId, taskId, new HashSet<string>());
-    }
-
-    private bool HasDependencyPath(string fromTaskId, string toTaskId, HashSet<string> visited)
-    {
-        if (fromTaskId == toTaskId)
-        {
-            return true;
-        }
-
-        if (!visited.Add(fromTaskId))
-        {
-            return false;
-        }
-
-        if (_taskDependencies.TryGetValue(fromTaskId, out var dependencies))
-        {
-            foreach (var dependency in dependencies)
-            {
-                if (HasDependencyPath(dependency.DependsOnTaskId, toTaskId, visited))
-                {
-                    return true;
-                }
-            }
-        }
-
-        return false;
     }
 
     private void CheckAndUpdateTaskState(string taskId)
@@ -295,13 +256,9 @@ public sealed partial class TaskService : ITaskService, IDisposable
             return;
         }
 
-        var hasBlockingDependencies = false;
-        if (_taskDependencies.TryGetValue(taskId, out var dependencies))
-        {
-            hasBlockingDependencies = dependencies
-                .Where(d => d.DependencyType == TaskDependencyType.Blocks)
-                .Any(d => _tasks.TryGetValue(d.DependsOnTaskId, out var t) && t.Status != TaskStatusConstants.Completed);
-        }
+        var hasBlockingDependencies = _dag.Edges.Values
+            .Where(e => e.ToId == taskId && e.Label == TaskDependencyType.Blocks.ToValue())
+            .Any(e => _tasks.TryGetValue(e.FromId, out var t) && t.Status != TaskStatusConstants.Completed);
 
         if (!hasBlockingDependencies && stateMachine.CurrentState == TaskState.WaitingForDependencies)
         {
@@ -370,10 +327,13 @@ public sealed partial class TaskService : ITaskService, IDisposable
         _telemetryService?.RecordCount("task.operation.count", tags, "count", "Task operation count");
     }
 
+    private static TaskDependencyType ParseDependencyType(string label)
+    {
+        return TaskDependencyTypeExtensions.FromValue(label) ?? TaskDependencyType.Blocks;
+    }
+
     public void Dispose()
     {
-        foreach (var kvp in _dependencyLocks)
-            kvp.Value.Dispose();
-        _dependencyLocks.Clear();
+        _dag.Dispose();
     }
 }

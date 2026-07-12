@@ -45,13 +45,58 @@ public sealed class Dag<T>
         if (WouldCreateCycle(edge.FromId, edge.ToId))
             return DagResult.Cycle(FindCyclePath(edge.FromId, edge.ToId));
 
-        _edges[edge.Id] = edge;
-        _nodes[edge.FromId].OutEdgeIds.Add(edge.Id);
-        _nodes[edge.ToId].InEdgeIds.Add(edge.Id);
-        _adjacency[edge.FromId].Add(edge.ToId);
-        _reverseAdjacency[edge.ToId].Add(edge.FromId);
-        _version++;
+        AddEdgeInternal(edge);
         return DagResult.Ok();
+    }
+
+    /// <summary>
+    /// 添加边 — 允许产生环（用于环检测场景，如 DI 审计）
+    /// </summary>
+    public DagResult TryAddEdge(DagEdge edge)
+    {
+        if (!_nodes.ContainsKey(edge.FromId))
+            return DagResult.Fail($"Source node not found: {edge.FromId}");
+        if (!_nodes.ContainsKey(edge.ToId))
+            return DagResult.Fail($"Target node not found: {edge.ToId}");
+
+        AddEdgeInternal(edge);
+        return DagResult.Ok();
+    }
+
+    /// <summary>
+    /// 判断添加 from→to 边是否会产生环
+    /// </summary>
+    public bool WouldCreateCycle(string fromId, string toId)
+    {
+        if (fromId == toId) return true;
+        return GetDescendants(toId).Any(d => d.Id == fromId);
+    }
+
+    /// <summary>
+    /// 静态工具：判断在给定邻接表中添加 from→to 是否会产生环（无需构建 Dag 实例）
+    /// </summary>
+    public static bool WouldCreateCycle(IReadOnlyDictionary<string, IReadOnlyList<string>> adjacency, string fromId, string toId)
+    {
+        if (fromId == toId) return true;
+
+        var visited = new HashSet<string>(StringComparer.Ordinal);
+        var queue = new Queue<string>();
+        queue.Enqueue(toId);
+
+        while (queue.Count > 0)
+        {
+            var current = queue.Dequeue();
+            if (current == fromId) return true;
+            if (!visited.Add(current)) continue;
+
+            if (adjacency.TryGetValue(current, out var targets))
+            {
+                foreach (var target in targets)
+                    queue.Enqueue(target);
+            }
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -82,9 +127,31 @@ public sealed class Dag<T>
     }
 
     /// <summary>
+    /// 移除边 — 保留节点
+    /// </summary>
+    public DagResult RemoveEdge(string edgeId)
+    {
+        if (!_edges.ContainsKey(edgeId))
+            return DagResult.Fail($"Edge not found: {edgeId}");
+
+        RemoveEdgeInternal(edgeId);
+        _version++;
+        return DagResult.Ok();
+    }
+
+    /// <summary>
     /// 拓扑排序 — Kahn 算法
     /// </summary>
     public IReadOnlyList<DagNode<T>> TopologicalSort()
+    {
+        var levels = TopologicalSortByLevels();
+        return levels.SelectMany(level => level).ToList();
+    }
+
+    /// <summary>
+    /// 拓扑排序（分层）— 返回按层级分组的节点列表，同层可并行执行
+    /// </summary>
+    public IReadOnlyList<IReadOnlyList<DagNode<T>>> TopologicalSortByLevels()
     {
         var inDegree = _nodes.Keys.ToDictionary(id => id, _ => 0, StringComparer.Ordinal);
         foreach (var edge in _edges.Values)
@@ -92,26 +159,32 @@ public sealed class Dag<T>
             inDegree[edge.ToId]++;
         }
 
-        var queue = new Queue<string>();
+        var currentLevel = new List<string>();
         foreach (var kvp in inDegree)
         {
             if (kvp.Value == 0)
-                queue.Enqueue(kvp.Key);
+                currentLevel.Add(kvp.Key);
         }
 
-        var result = new List<DagNode<T>>(_nodes.Count);
-        while (queue.Count > 0)
+        var result = new List<IReadOnlyList<DagNode<T>>>();
+        while (currentLevel.Count > 0)
         {
-            var id = queue.Dequeue();
-            result.Add(_nodes[id]);
+            var levelNodes = currentLevel.Select(id => _nodes[id]).ToList();
+            result.Add(levelNodes);
 
-            if (!_adjacency.TryGetValue(id, out var targets)) continue;
-            foreach (var targetId in targets)
+            var nextLevel = new List<string>();
+            foreach (var id in currentLevel)
             {
-                inDegree[targetId]--;
-                if (inDegree[targetId] == 0)
-                    queue.Enqueue(targetId);
+                if (!_adjacency.TryGetValue(id, out var targets)) continue;
+                foreach (var targetId in targets)
+                {
+                    inDegree[targetId]--;
+                    if (inDegree[targetId] == 0)
+                        nextLevel.Add(targetId);
+                }
             }
+
+            currentLevel = nextLevel;
         }
 
         return result;
@@ -254,15 +327,6 @@ public sealed class Dag<T>
     }
 
     /// <summary>
-    /// 判断添加 from→to 边是否会产生环
-    /// </summary>
-    private bool WouldCreateCycle(string fromId, string toId)
-    {
-        if (fromId == toId) return true;
-        return GetDescendants(toId).Any(d => d.Id == fromId);
-    }
-
-    /// <summary>
     /// 查找 from→to 产生的环路径
     /// </summary>
     private IReadOnlyList<string> FindCyclePath(string fromId, string toId)
@@ -331,5 +395,15 @@ public sealed class Dag<T>
         _adjacency[edge.FromId].Remove(edge.ToId);
         _reverseAdjacency[edge.ToId].Remove(edge.FromId);
         _edges.Remove(edgeId);
+    }
+
+    private void AddEdgeInternal(DagEdge edge)
+    {
+        _edges[edge.Id] = edge;
+        _nodes[edge.FromId].OutEdgeIds.Add(edge.Id);
+        _nodes[edge.ToId].InEdgeIds.Add(edge.Id);
+        _adjacency[edge.FromId].Add(edge.ToId);
+        _reverseAdjacency[edge.ToId].Add(edge.FromId);
+        _version++;
     }
 }

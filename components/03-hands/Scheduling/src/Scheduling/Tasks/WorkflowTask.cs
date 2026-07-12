@@ -214,36 +214,35 @@ public sealed partial class WorkflowTaskExecutor : IWorkflowTaskExecutor
     {
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, runState.Cts.Token);
 
-        var completed = new HashSet<string>();
-        var remaining = new List<WorkflowStep>(runState.Definition.Steps);
-        var maxIterations = remaining.Count * 2;
-        var iteration = 0;
-
-        while (remaining.Count > 0 && iteration < maxIterations)
+        var dag = BuildWorkflowDag(runState);
+        if (dag.HasCycle())
         {
-            iteration++;
+            return BuildResult(runState, TaskExecutionStatus.Failed, "Circular dependency detected");
+        }
+
+        var levels = dag.TopologicalSortByLevels();
+        var completed = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var level in levels)
+        {
             linkedCts.Token.ThrowIfCancellationRequested();
 
-            var ready = remaining
-                .Where(s => s.DependsOn is null || s.DependsOn.All(d => completed.Contains(d)))
+            var ready = level
+                .Where(n => n.Payload.DependsOn is null || n.Payload.DependsOn.All(d => completed.Contains(d)))
+                .Select(n => n.Payload)
                 .ToList();
 
             if (ready.Count == 0)
             {
-                var failedDeps = remaining
-                    .Where(s => s.DependsOn is not null && s.DependsOn.Any(d => runState.StepStatuses.TryGetValue(d, out var st) && st.State == StepState.Failed))
+                var failedDeps = level
+                    .Where(n => n.Payload.DependsOn is not null && n.Payload.DependsOn.Any(d => runState.StepStatuses.TryGetValue(d, out var st) && st.State == StepState.Failed))
+                    .Select(n => n.Payload)
                     .ToList();
 
                 foreach (var fd in failedDeps)
                 {
                     runState.StepStatuses[fd.StepId] = new StepStatus { StepId = fd.StepId, State = StepState.Skipped, Error = "Dependency failed" };
                     completed.Add(fd.StepId);
-                    remaining.Remove(fd);
-                }
-
-                if (failedDeps.Count == 0 && remaining.Count > 0)
-                {
-                    return BuildResult(runState, TaskExecutionStatus.Failed, "Circular dependency detected");
                 }
 
                 continue;
@@ -263,12 +262,32 @@ public sealed partial class WorkflowTaskExecutor : IWorkflowTaskExecutor
             foreach (var step in ready)
             {
                 completed.Add(step.StepId);
-                remaining.Remove(step);
             }
         }
 
         var hasFailure = runState.StepStatuses.Values.Any(s => s.State == StepState.Failed);
         return BuildResult(runState, hasFailure ? TaskExecutionStatus.Failed : TaskExecutionStatus.Completed);
+    }
+
+    private static Dag<WorkflowStep> BuildWorkflowDag(WorkflowRunState runState)
+    {
+        var dag = new Dag<WorkflowStep>();
+
+        foreach (var step in runState.Definition.Steps)
+        {
+            dag.AddNode(new DagNode<WorkflowStep> { Id = step.StepId, Payload = step });
+        }
+
+        foreach (var step in runState.Definition.Steps)
+        {
+            if (step.DependsOn is null) continue;
+            foreach (var depId in step.DependsOn)
+            {
+                dag.AddEdge(new DagEdge { FromId = depId, ToId = step.StepId, Label = "DEPENDS_ON" });
+            }
+        }
+
+        return dag;
     }
 
     private async Task<StepStatus> ExecuteStepWithFailureHandlingAsync(WorkflowStep step, WorkflowRunState runState, CancellationToken ct)

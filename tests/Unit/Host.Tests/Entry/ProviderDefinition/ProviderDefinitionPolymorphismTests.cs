@@ -262,10 +262,10 @@ public sealed class ProviderDefinitionPolymorphismTests
     public void Anthropic_ResolveAlias_ShouldMapShortNames()
     {
         var def = new Core.Configuration.Providers.AnthropicProviderDefinition();
-        def.ResolveAlias("sonnet").Should().Be("claude-sonnet-4-6");
-        def.ResolveAlias("opus").Should().Be("claude-opus-4-6");
-        def.ResolveAlias("haiku").Should().Be("claude-haiku-4-5");
-        def.ResolveAlias("best").Should().Be("claude-opus-4-6");
+        def.ResolveAlias("sonnet").Should().Be("claude-sonnet-4-6-20250514");
+        def.ResolveAlias("opus").Should().Be("claude-opus-4-6-20250514");
+        def.ResolveAlias("haiku").Should().Be("claude-haiku-4-5-20251001");
+        def.ResolveAlias("best").Should().Be("claude-opus-4-6-20250514");
         def.ResolveAlias("unknown").Should().BeNull();
     }
 
@@ -275,6 +275,8 @@ public sealed class ProviderDefinitionPolymorphismTests
         var def = new Core.Configuration.Providers.AgnesProviderDefinition();
         def.ResolveAlias("flash").Should().Be("agnes-1.5-flash");
         def.ResolveAlias("flash2").Should().Be("agnes-2.0-flash");
+        def.ResolveAlias("image").Should().Be("agnes-image-2.0-flash");
+        def.ResolveAlias("video").Should().Be("agnes-video-v2.0");
         def.ResolveAlias("unknown").Should().BeNull();
     }
 }

@@ -20,7 +20,7 @@ public class ProviderConfig
     /// <summary>
     /// 模型 ID
     /// </summary>
-    public string ModelId { get; set; } = CanonicalModel.Gpt4o.ToValue();
+    public string ModelId { get; set; } = ModelConfigLoader.GetDefaultModelId("openai");
 
     /// <summary>
     /// API 端点（Azure 需要）

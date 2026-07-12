@@ -23,10 +23,4 @@ public sealed class ProviderDefinitionRegistry : IProviderDefinitionRegistry
     }
 
     public IReadOnlyCollection<string> RegisteredProviders => _definitions.Keys;
-
-    private static readonly ProviderDefinitionRegistry _instance = new();
-
-    public static IProviderDefinition? TryGetStatic(string providerName) => _instance.TryGet(providerName);
-
-    public static IReadOnlyCollection<string> RegisteredProvidersStatic => _instance.RegisteredProviders;
 }

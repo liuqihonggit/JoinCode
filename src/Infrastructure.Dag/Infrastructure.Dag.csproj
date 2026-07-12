@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AllowPack>true</AllowPack>
+    <RootNamespace>Infrastructure.Dag</RootNamespace>
+  </PropertyGroup>
+
+</Project>

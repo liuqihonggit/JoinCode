@@ -53,6 +53,7 @@
   <Folder Name="/src/">
     <Project Path="src/JoinCode/JoinCode.csproj" />
     <Project Path="src/Infrastructure/Infrastructure.csproj" />
+    <Project Path="src/Infrastructure.Dag/Infrastructure.Dag.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Unit/Host.Tests/Host.Tests.csproj" />

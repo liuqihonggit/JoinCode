@@ -6,8 +6,7 @@ using JoinCode.Abstractions.Attributes;
 public sealed partial class TaskRuntime : ITaskRuntime, IDisposable
 {
     private readonly ConcurrentDictionary<string, RuntimeTask> _tasks = new();
-    private readonly ConcurrentDictionary<string, List<string>> _dependencies = new();
-    private readonly ConcurrentDictionary<string, SemaphoreSlim> _depLocks = new();
+    private readonly ConcurrentDag<string> _dag = new();
     [Inject] private readonly ILogger<TaskRuntime>? _logger;
     private readonly IClockService _clock;
     private readonly TaskRuntimeDeps _deps;
@@ -50,7 +49,17 @@ public sealed partial class TaskRuntime : ITaskRuntime, IDisposable
 
         if (input.Dependencies is { Count: > 0 })
         {
-            _dependencies[taskId] = new List<string>(input.Dependencies);
+            _dag.AddNode(new DagNode<string> { Id = taskId, Payload = taskId });
+            foreach (var depId in input.Dependencies)
+            {
+                if (!_dag.Nodes.ContainsKey(depId))
+                    _dag.AddNode(new DagNode<string> { Id = depId, Payload = depId });
+                _dag.AddEdge(new DagEdge { FromId = depId, ToId = taskId, Label = "DEPENDS_ON" });
+            }
+        }
+        else
+        {
+            _dag.AddNode(new DagNode<string> { Id = taskId, Payload = taskId });
         }
 
         _tasks[taskId] = task;
@@ -157,27 +166,20 @@ public sealed partial class TaskRuntime : ITaskRuntime, IDisposable
             return RuntimeTaskResult.Fail(L.T(StringKey.DepTaskNotExist, dependsOnTaskId));
         }
 
-        if (WouldCreateCircularDependency(taskId, dependsOnTaskId))
+        if (await _dag.WouldCreateCycleAsync(dependsOnTaskId, taskId, cancellationToken).ConfigureAwait(false))
         {
             return RuntimeTaskResult.Fail(L.T(StringKey.CircularDependencyRejected));
         }
 
-        var deps = _dependencies.GetOrAdd(taskId, _ => new List<string>());
-        var depLock = _depLocks.GetOrAdd(taskId, _ => new SemaphoreSlim(1, 1));
+        if (!_dag.Nodes.ContainsKey(taskId))
+            await _dag.AddNodeAsync(new DagNode<string> { Id = taskId, Payload = taskId }, cancellationToken).ConfigureAwait(false);
+        if (!_dag.Nodes.ContainsKey(dependsOnTaskId))
+            await _dag.AddNodeAsync(new DagNode<string> { Id = dependsOnTaskId, Payload = dependsOnTaskId }, cancellationToken).ConfigureAwait(false);
 
-        await depLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        var edgeResult = await _dag.AddEdgeAsync(new DagEdge { FromId = dependsOnTaskId, ToId = taskId, Label = "DEPENDS_ON" }, cancellationToken).ConfigureAwait(false);
+        if (!edgeResult.Success)
         {
-            if (deps.Contains(dependsOnTaskId))
-            {
-                return RuntimeTaskResult.Fail(L.T(StringKey.DependencyAlreadyExists));
-            }
-
-            deps.Add(dependsOnTaskId);
-        }
-        finally
-        {
-            depLock.Release();
+            return RuntimeTaskResult.Fail(L.T(StringKey.DependencyAlreadyExists));
         }
 
         if (_tasks.TryGetValue(taskId, out var task))
@@ -192,24 +194,17 @@ public sealed partial class TaskRuntime : ITaskRuntime, IDisposable
 
     public async Task<RuntimeTaskResult> RemoveDependencyAsync(string taskId, string dependsOnTaskId, CancellationToken cancellationToken = default)
     {
-        if (!_dependencies.TryGetValue(taskId, out var deps))
+        var edgeToRemove = _dag.Edges.Values
+            .FirstOrDefault(e => e.FromId == dependsOnTaskId && e.ToId == taskId);
+        if (edgeToRemove is null)
         {
-            return RuntimeTaskResult.Fail(L.T(StringKey.TaskNoDependencies, taskId));
+            return RuntimeTaskResult.Fail(L.T(StringKey.DepNotExist, dependsOnTaskId));
         }
 
-        var depLock = _depLocks.GetOrAdd(taskId, _ => new SemaphoreSlim(1, 1));
-
-        await depLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        var result = await _dag.RemoveEdgeAsync(edgeToRemove.Id, cancellationToken).ConfigureAwait(false);
+        if (!result.Success)
         {
-            if (!deps.Remove(dependsOnTaskId))
-            {
-                return RuntimeTaskResult.Fail(L.T(StringKey.DepNotExist, dependsOnTaskId));
-            }
-        }
-        finally
-        {
-            depLock.Release();
+            return RuntimeTaskResult.Fail(result.ErrorMessage ?? "Failed to remove edge");
         }
 
         if (_tasks.TryGetValue(taskId, out var task))
@@ -232,12 +227,12 @@ public sealed partial class TaskRuntime : ITaskRuntime, IDisposable
             return Task.FromResult(false);
         }
 
-        if (!_dependencies.TryGetValue(taskId, out var deps))
+        if (task.Dependencies is not { Count: > 0 })
         {
             return Task.FromResult(true);
         }
 
-        foreach (var depId in deps)
+        foreach (var depId in task.Dependencies)
         {
             if (_tasks.TryGetValue(depId, out var depTask))
             {
@@ -361,7 +356,17 @@ public sealed partial class TaskRuntime : ITaskRuntime, IDisposable
 
                 if (task.Dependencies is { Count: > 0 })
                 {
-                    _dependencies[task.Id] = new List<string>(task.Dependencies);
+                    _dag.AddNode(new DagNode<string> { Id = task.Id, Payload = task.Id });
+                    foreach (var depId in task.Dependencies)
+                    {
+                        if (!_dag.Nodes.ContainsKey(depId))
+                            _dag.AddNode(new DagNode<string> { Id = depId, Payload = depId });
+                        _dag.TryAddEdge(new DagEdge { FromId = depId, ToId = task.Id, Label = "DEPENDS_ON" });
+                    }
+                }
+                else
+                {
+                    _dag.AddNode(new DagNode<string> { Id = task.Id, Payload = task.Id });
                 }
 
                 recovered.Add(task);
@@ -379,7 +384,7 @@ public sealed partial class TaskRuntime : ITaskRuntime, IDisposable
     public void Clear()
     {
         _tasks.Clear();
-        _dependencies.Clear();
+        _dag.Clear();
         Volatile.Write(ref _taskCounter, 0);
     }
 
@@ -426,42 +431,9 @@ public sealed partial class TaskRuntime : ITaskRuntime, IDisposable
         return $"rtask_{counter:D4}";
     }
 
-    private bool WouldCreateCircularDependency(string taskId, string dependsOnTaskId)
-    {
-        return HasDependencyPath(dependsOnTaskId, taskId, new HashSet<string>());
-    }
-
-    private bool HasDependencyPath(string fromTaskId, string toTaskId, HashSet<string> visited)
-    {
-        if (fromTaskId == toTaskId)
-        {
-            return true;
-        }
-
-        if (!visited.Add(fromTaskId))
-        {
-            return false;
-        }
-
-        if (_dependencies.TryGetValue(fromTaskId, out var deps))
-        {
-            foreach (var depId in deps)
-            {
-                if (HasDependencyPath(depId, toTaskId, visited))
-                {
-                    return true;
-                }
-            }
-        }
-
-        return false;
-    }
-
     public void Dispose()
     {
-        foreach (var kvp in _depLocks)
-            kvp.Value.Dispose();
-        _depLocks.Clear();
+        _dag.Dispose();
         _persistLock.Dispose();
     }
 }

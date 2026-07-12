@@ -9,6 +9,7 @@ global using JoinCode.Vault.DependencyInjection;
 global using JoinCode.Llm.DependencyInjection;
 global using JoinCode.Hands.DependencyInjection;
 global using JoinCode.Scheduling.DependencyInjection;
+global using JoinCode.Reasoning.DependencyInjection;
 global using JoinCode.Abstractions.Transport;
 global using JoinCode.Abstractions.Localization;
 global using JoinCode.Abstractions.Attributes;

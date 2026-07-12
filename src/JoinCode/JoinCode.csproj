@@ -21,6 +21,7 @@
     <ProjectReference Include="$(RepoRoot)components\06-perception\Browser\src\Browser.csproj" />
     <ProjectReference Include="$(RepoRoot)components\08-transport\Contracts\Transport.Contracts.csproj" />
     <ProjectReference Include="$(RepoRoot)components\08-transport\Impl\Transport.Impl.csproj" />
+    <ProjectReference Include="$(RepoRoot)components\10-reasoning\Reasoning\src\Reasoning.csproj" />
   </ItemGroup>
 
   <ItemGroup>

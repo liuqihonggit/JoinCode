@@ -16,7 +16,6 @@ public sealed class McpInitModule : IAppModule
     {
         var logger = services.GetService<ILogger<McpInitModule>>();
 
-        Console.Error.WriteLine("[MCP] WireMcpToolSyncBridge start");
         var remoteClientManager = services.GetRequiredService<RemoteClientManager>();
         var syncBridge = services.GetRequiredService<McpToolSyncBridge>();
 
@@ -34,47 +33,36 @@ public sealed class McpInitModule : IAppModule
         {
             await syncBridge.OnPromptsListChangedAsync(args.ClientId, args.SyncResult).ConfigureAwait(false);
         };
-        Console.Error.WriteLine("[MCP] WireMcpToolSyncBridge done");
 
-        Console.Error.WriteLine("[MCP] WirePluginSkillBridge start");
         services.WirePluginSkillBridge();
-        Console.Error.WriteLine("[MCP] WirePluginSkillBridge done");
 
-        Console.Error.WriteLine("[MCP] LoadDreamPlugin start");
         try
         {
             var pluginManager = services.GetRequiredService<Core.Plugins.IPluginManager>();
             await pluginManager.LoadWorkflowPluginAsync<JoinCode.Dream.DreamPlugin>(ct).ConfigureAwait(false);
-            Console.Error.WriteLine("[MCP] LoadDreamPlugin done");
         }
         catch (Exception ex)
         {
             logger?.LogError(ex, "[MCP] LoadDreamPlugin failed");
-            Console.Error.WriteLine($"[MCP] LoadDreamPlugin error: {ex.Message}");
         }
 
-        Console.Error.WriteLine("[MCP] InitializeAsync start");
         try
         {
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            cts.CancelAfter(TimeSpan.FromSeconds(30));
+            cts.CancelAfter(TimeSpan.FromSeconds(5));
             var mcpService = services.GetRequiredService<IMcpService>();
             await mcpService.InitializeAsync(services, cts.Token).ConfigureAwait(false);
-            Console.Error.WriteLine("[MCP] InitializeAsync done");
 
             var toolsBridge = services.GetRequiredService<Core.DependencyInjection.McpToolSyncBridge>();
             await toolsBridge.OnToolsListChangedAsync(ct).ConfigureAwait(false);
-            Console.Error.WriteLine("[MCP] OnToolsListChanged done");
         }
         catch (OperationCanceledException)
         {
-            logger?.LogWarning("[MCP] InitializeAsync timed out after 30s");
-            Console.Error.WriteLine("[MCP] timeout");
+            logger?.LogWarning("[MCP] InitializeAsync timed out after 5s");
         }
         catch (Exception ex)
         {
             logger?.LogError(ex, "[MCP] InitializeAsync failed");
-            Console.Error.WriteLine($"[MCP] error: {ex.Message}");
         }
     }
 }

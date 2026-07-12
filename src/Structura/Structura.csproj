@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AllowPack>true</AllowPack>
+    <RootNamespace>Structura</RootNamespace>
+    <AssemblyName>Structura</AssemblyName>
+  </PropertyGroup>
+
+</Project>

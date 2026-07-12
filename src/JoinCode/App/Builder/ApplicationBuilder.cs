@@ -249,7 +249,6 @@ public sealed class ApplicationBuilder
         try
         {
             config = await ConfigLoader.LoadConfigAsync(fs);
-            Console.Error.WriteLine($"[CFG] After LoadConfigAsync: Provider={config.Provider.Provider}, Endpoint={config.Provider.Endpoint}, ModelId={config.Provider.ModelId}");
         }
         catch (ConfigurationException ex) when (ex.Message.Contains("API Key"))
         {
@@ -257,7 +256,6 @@ public sealed class ApplicationBuilder
             {
                 await dotEnv.ApplyToConfigAsync(fs);
                 config = await ConfigLoader.LoadConfigAsync(fs);
-                Console.Error.WriteLine($"[CFG] After reload (DotEnv applied to config): Provider={config.Provider.Provider}, Endpoint={config.Provider.Endpoint}");
             }
             else
             {
@@ -267,13 +265,10 @@ public sealed class ApplicationBuilder
 
         if (dotEnv is not null)
         {
-            Console.Error.WriteLine($"[CFG] Before ApplyToMemory: Endpoint={config.Provider.Endpoint}");
             dotEnv.ApplyToMemory(config);
-            Console.Error.WriteLine($"[CFG] After ApplyToMemory: Provider={config.Provider.Provider}, Endpoint={config.Provider.Endpoint}, ModelId={config.Provider.ModelId}");
 
             // 环境变量优先级最高 — ApplyToMemory 可能覆盖了 env var 设置的值，重新应用
             Core.Configuration.SettingsMapper.ApplyEnvOverrides(config);
-            Console.Error.WriteLine($"[CFG] After re-ApplyEnvOverrides: Provider={config.Provider.Provider}, Endpoint={config.Provider.Endpoint}, ModelId={config.Provider.ModelId}");
         }
 
         if (!string.IsNullOrWhiteSpace(options.Model))

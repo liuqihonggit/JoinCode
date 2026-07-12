@@ -1,7 +1,9 @@
 namespace JccAuditCli;
 
+using Structura.Dag;
+
 /// <summary>
-/// DI 循环依赖检测器：构建全局有向图，DFS 检测循环
+/// DI 循环依赖检测器：构建全局有向图，检测循环
 /// </summary>
 public static class DiCycleDetector
 {
@@ -13,28 +15,25 @@ public static class DiCycleDetector
         IReadOnlyList<ConstructorDependency> constructorDeps,
         Dictionary<string, string> serviceToImplMapping)
     {
-        // 构建邻接表
-        var graph = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+        var dag = new Dag<string>();
 
         foreach (var reg in registrations)
         {
-            AddNode(graph, reg.ServiceType);
-            AddNode(graph, reg.ImplementationType);
-            AddEdge(graph, reg.ServiceType, reg.ImplementationType);
+            EnsureNode(dag, reg.ServiceType);
+            EnsureNode(dag, reg.ImplementationType);
+            dag.TryAddEdge(new DagEdge { FromId = reg.ServiceType, ToId = reg.ImplementationType, Label = "REGISTER" });
         }
 
-        // 构造函数依赖边
         foreach (var dep in constructorDeps)
         {
             if (dep.IsOptional)
-                continue; // 可选依赖不加入硬边
+                continue;
 
-            AddNode(graph, dep.ClassName);
-            AddNode(graph, dep.DependencyType);
-            AddEdge(graph, dep.ClassName, dep.DependencyType);
+            EnsureNode(dag, dep.ClassName);
+            EnsureNode(dag, dep.DependencyType);
+            dag.TryAddEdge(new DagEdge { FromId = dep.ClassName, ToId = dep.DependencyType, Label = "INJECT" });
         }
 
-        // 展开接口别名
         foreach (var reg in registrations)
         {
             if (!string.IsNullOrEmpty(reg.ServiceType) &&
@@ -46,126 +45,58 @@ public static class DiCycleDetector
             }
         }
 
-        // 替换所有边：接口 -> 实现
-        var edgeReplacements = new List<(string From, string To, string NewTo)>();
-        foreach (var (node, neighbors) in graph)
+        var edgeReplacements = new List<(string EdgeId, string NewTo)>();
+        foreach (var edge in dag.Edges.Values)
         {
-            foreach (var neighbor in neighbors)
+            if (serviceToImplMapping.TryGetValue(edge.ToId, out var impl) && impl != edge.ToId)
             {
-                if (serviceToImplMapping.TryGetValue(neighbor, out var impl) && impl != neighbor)
-                {
-                    edgeReplacements.Add((node, neighbor, impl));
-                }
+                edgeReplacements.Add((edge.Id, impl));
             }
         }
-        foreach (var (from, oldTo, newTo) in edgeReplacements)
+        foreach (var (edgeId, newTo) in edgeReplacements)
         {
-            if (graph.TryGetValue(from, out var neighborSet))
-            {
-                neighborSet.Remove(oldTo);
-                neighborSet.Add(newTo);
-            }
+            var oldEdge = dag.Edges[edgeId];
+            dag.RemoveEdge(edgeId);
+            EnsureNode(dag, newTo);
+            dag.TryAddEdge(new DagEdge { FromId = oldEdge.FromId, ToId = newTo, Label = oldEdge.Label });
         }
 
-        // DFS 检测所有循环
-        var cycles = FindAllCycles(graph);
+        var rawCycles = dag.FindAllCycles();
 
-        // 转换为 DiCycleInfo
-        var results = new List<DiCycleInfo>(cycles.Count);
-        foreach (var cycle in cycles)
+        var dedup = new HashSet<string>();
+        var uniqueCycles = new List<string[]>();
+        foreach (var cycle in rawCycles)
+        {
+            var closed = cycle.ToList();
+            closed.Add(cycle[0]);
+            var normalized = NormalizeCycle(closed.ToArray());
+            var key = string.Join("->", normalized);
+            if (dedup.Add(key))
+                uniqueCycles.Add(normalized);
+        }
+
+        var results = new List<DiCycleInfo>(uniqueCycles.Count);
+        foreach (var cycle in uniqueCycles)
         {
             var edges = BuildCycleEdges(cycle, constructorDeps);
             results.Add(new DiCycleInfo(
                 cycle,
                 edges,
-                3 // Error
+                3
             ));
         }
 
         return results;
     }
 
-    private static void AddNode(Dictionary<string, HashSet<string>> graph, string node)
+    private static void EnsureNode(Dag<string> dag, string nodeId)
     {
-        if (!graph.ContainsKey(node))
-            graph[node] = new HashSet<string>(StringComparer.Ordinal);
-    }
-
-    private static void AddEdge(Dictionary<string, HashSet<string>> graph, string from, string to)
-    {
-        AddNode(graph, from);
-        graph[from].Add(to);
-    }
-
-    /// <summary>
-    /// Johnson's 算法简化版：DFS 检测所有基本循环
-    /// </summary>
-    private static List<string[]> FindAllCycles(Dictionary<string, HashSet<string>> graph)
-    {
-        var cycles = new List<string[]>();
-        var visited = new HashSet<string>();
-        var recStack = new HashSet<string>();
-        var path = new List<string>();
-
-        var sortedNodes = graph.Keys.OrderBy(n => n, StringComparer.Ordinal).ToList();
-
-        foreach (var node in sortedNodes)
-        {
-            if (visited.Contains(node))
-                continue;
-            Dfs(node);
-        }
-
-        void Dfs(string currentNode)
-        {
-            if (recStack.Contains(currentNode))
-            {
-                var cycleIdx = path.IndexOf(currentNode);
-                if (cycleIdx >= 0)
-                {
-                    var cycle = path.Skip(cycleIdx).ToList();
-                    cycle.Add(currentNode); // 闭合
-                    cycles.Add(cycle.ToArray());
-                }
-                return;
-            }
-
-            if (visited.Contains(currentNode))
-                return;
-
-            visited.Add(currentNode);
-            recStack.Add(currentNode);
-            path.Add(currentNode);
-
-            if (graph.TryGetValue(currentNode, out var neighbors))
-            {
-                foreach (var neighbor in neighbors.OrderBy(n => n, StringComparer.Ordinal))
-                {
-                    Dfs(neighbor);
-                }
-            }
-
-            path.RemoveAt(path.Count - 1);
-            recStack.Remove(currentNode);
-        }
-
-        // 规范化去重
-        var dedup = new HashSet<string>();
-        var uniqueCycles = new List<string[]>();
-        foreach (var cycle in cycles)
-        {
-            var normalized = NormalizeCycle(cycle);
-            var key = string.Join("->", normalized);
-            if (dedup.Add(key))
-                uniqueCycles.Add(normalized);
-        }
-
-        return uniqueCycles;
+        if (!dag.Nodes.ContainsKey(nodeId))
+            dag.AddNode(new DagNode<string> { Id = nodeId, Payload = nodeId });
     }
 
     private static string[] NormalizeCycle(string[] cycle)
     {
-        // ["A", "B", "C", "A"] → 去掉最后一个
         var core = cycle.Length > 1 ? cycle.Take(cycle.Length - 1).ToArray() : cycle;
         if (core.Length == 0)
             return cycle;
@@ -197,7 +128,6 @@ public static class DiCycleDetector
             edges[i] = (cycle[i], cycle[i + 1], null, null);
         }
 
-        // 从 constructorDeps 补充位置信息
         for (var i = 0; i < edges.Length; i++)
         {
             var from = edges[i].From;

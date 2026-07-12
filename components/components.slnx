@@ -4,6 +4,7 @@
   </Folder>
   <Folder Name="/infrastructure/">
     <Project Path="../src/Infrastructure/Infrastructure.csproj" />
+    <Project Path="../src/Structura/Structura.csproj" />
   </Folder>
   <Folder Name="/testing/">
     <Project Path="../tests/Unit/Testing.Common/Testing.Common.csproj" />
@@ -74,5 +75,9 @@
   <Folder Name="/09-composition/Clock/">
     <Project Path="09-composition/Clock/src/Clock.csproj" />
     <Project Path="09-composition/Clock/tests/Unit/Clock.Tests.csproj" />
+  </Folder>
+  <Folder Name="/10-reasoning/Reasoning/">
+    <Project Path="10-reasoning/Reasoning/src/Reasoning.csproj" />
+    <Project Path="10-reasoning/Reasoning/tests/Unit/Reasoning.Tests.csproj" />
   </Folder>
 </Solution>

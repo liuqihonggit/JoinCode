@@ -153,7 +153,7 @@ public class TaskServiceEnhancedTests
 
         // Assert
         result.Success.Should().BeFalse();
-        result.ErrorMessage.Should().Contain("没有依赖关系");
+        result.ErrorMessage.Should().Contain("不存在");
     }
 
     [Fact]

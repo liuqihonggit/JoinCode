@@ -42,6 +42,24 @@
 失败熔断： [如果遇到特定障碍无法推进，请停止并报告已尝试的路径和原因]
 ```
 
+#### /falv 命令
+
+结构化推理引擎 — 假定→验证→事实 三权分立，基于 DAG 证据链：
+
+- **三权分立**：控方（收集证据）→ 辩方（质疑反驳）→ 法官（裁决）
+- **双预算控制**：轮次预算 + Token 预算，谁先触底谁停止
+- **续费续命**：`/falv --continue [rounds|tokens|both|default]` 续费并继续推理
+- **三级证明标准**：Murder（杀人罪，排除合理怀疑）/ Panda（吃熊猫罪，视情节浮动）/ Divorce（离婚官司，高度盖然性）
+
+```
+/falv <假定内容>                          添加假定
+/falv --status                           查看推理状态+预算
+/falv --judge                            触发三权裁决
+/falv --evidence                         查看证据链
+/falv --continue [rounds|tokens|both|default]  续费并继续
+/falv --budget                           查看预算状态
+```
+
 #### 待实现
 
 - 对标 MoA（Mixture of Agents）功能——三个臭皮匠胜过诸葛亮。
@@ -351,6 +369,7 @@ JoinCode/
 
 ```
 L0 叶子（零组件间依赖）:
+  Structura            → （零外部依赖）
   Transport.Contracts  → Abstractions
   Transport.Impl       → Transport.Contracts, Abstractions
   Llm                  → Abstractions, Infrastructure, Transport.Contracts
@@ -375,11 +394,12 @@ L4:
 
 L5:
   McpToolHandlers      → Abstractions, Infrastructure
-  Scheduling           → Abstractions, Infrastructure
+  Scheduling           → Abstractions, Infrastructure, Structura
   Agents               → Abstractions, Infrastructure
+  Reasoning            → Abstractions, Infrastructure, Structura
 
 L6 组合根:
-  Composition          → Bridge, Mcp, Brain, Guard, Hands, Eyes, Vault, Scheduling, McpToolHandlers, Agents, Transport.Contracts, Transport.Impl
+  Composition          → Bridge, Mcp, Brain, Guard, Hands, Eyes, Vault, Scheduling, McpToolHandlers, Agents, Reasoning, Transport.Contracts, Transport.Impl
 
 L7:
   Clock                → Composition, Vault, Scheduling
@@ -396,6 +416,7 @@ Host:
 |------|------|----|------|-----------|-----------|
 | Transport.Contracts | `08-transport/Contracts/` | L0 | 传输协议契约 | — | Enum, CI |
 | Transport.Impl | `08-transport/Impl/` | L0 | 传输实现 | — | CI |
+| Structura | `src/Structura/` | L0 | 通用DAG数据结构（拓扑排序/环检测/增量重算/线程安全） | — | — |
 | Llm | `01-ai/Llm/` | L0 | LLM 适配器（OpenAI/Anthropic/Azure/Pipe） | Microsoft.Extensions.DI, Options | Enum, CI |
 | CodeIndex | `06-perception/CodeIndex/` | L0 | 代码索引引擎（TreeSitter） | TreeSitter.DotNet | CI |
 | Browser | `06-perception/Browser/` | L0 | 浏览器自动化（卫星包） | PuppeteerSharp | CI |
@@ -410,6 +431,7 @@ Host:
 | McpToolHandlers | `03-hands/McpToolHandlers/` | L5 | MCP 工具处理器 | ModelContextProtocol | McpTool, Enum, CI |
 | Scheduling | `03-hands/Scheduling/` | L5 | 任务调度/Cron/持久化 | Microsoft.Extensions.DI | Enum, CI |
 | Agents | `07-agents/Agents/` | L5 | Agent 协调/生命周期/Fork/Team | Microsoft.Extensions.Caching.Memory | McpTool, Enum, CI |
+| Reasoning | `10-reasoning/Reasoning/` | L5 | 结构化推理/三权分立/双预算 | Microsoft.Extensions.Logging | Enum, CI |
 | Composition | `09-composition/Composition/` | L6 | 依赖注入集成层（组合根） | ModelContextProtocol | Enum, CI, McpTool |
 | Clock | `09-composition/Clock/` | L7 | 目标引擎/工作流宿主 | Microsoft.Extensions.Logging | CI |
 
@@ -490,6 +512,15 @@ Workflow/       工作流
 ```
 Adapters/       LLM 适配器（OpenAI/Anthropic/Azure/Pipe）
 Registration/   注册服务
+```
+
+### Reasoning (`10-reasoning/Reasoning/src/`)
+```
+Agents/         三权Agent（控方/辩方/法官）
+Engine/         推理引擎+配置+预算状态+摘要
+Evidence/       数据项+证据+裁决
+State/          枚举（角色/状态/信任度/预设/续费方式）
+DependencyInjection/ DI注册
 ```
 
 ## 源码生成器
@@ -629,3 +660,5 @@ dotnet test "components/01-ai/Mcp/tests/Unit/Mcp.Tests.csproj" -c Debug --filter
 | Transport.Impl | `components/08-transport/Impl/` |
 | Composition | `components/09-composition/Composition/` |
 | Clock | `components/09-composition/Clock/` |
+| Reasoning | `components/10-reasoning/Reasoning/` |
+| Structura | `src/Structura/` |

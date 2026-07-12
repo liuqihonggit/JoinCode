@@ -163,7 +163,40 @@ public static class ModelConfigLoader
         using var reader = new StreamReader(stream, System.Text.Encoding.UTF8);
         var json = reader.ReadToEnd();
 
-        return System.Text.Json.JsonSerializer.Deserialize(json, ModelConfigJsonContext.Default.ModelConfigRoot)
+        var config = System.Text.Json.JsonSerializer.Deserialize(json, ModelConfigJsonContext.Default.ModelConfigRoot)
             ?? new ModelConfigRoot();
+
+        ApplyUserOverride(config);
+
+        return config;
     }
+
+#pragma warning disable JCC9001
+    private static void ApplyUserOverride(ModelConfigRoot config)
+    {
+        var userConfigPath = System.IO.Path.Combine(
+            System.Environment.GetFolderPath(System.Environment.SpecialFolder.UserProfile),
+            ".jcc", "models.json");
+
+        if (!System.IO.File.Exists(userConfigPath))
+            return;
+
+        try
+        {
+            var userJson = System.IO.File.ReadAllText(userConfigPath);
+            var userConfig = System.Text.Json.JsonSerializer.Deserialize(userJson, ModelConfigJsonContext.Default.ModelConfigRoot);
+            if (userConfig is null)
+                return;
+
+            foreach (var kvp in userConfig.Providers)
+            {
+                config.Providers[kvp.Key] = kvp.Value;
+            }
+        }
+        catch (System.Exception ex) when (ex is System.IO.IOException or System.Text.Json.JsonException)
+        {
+            System.Diagnostics.Debug.WriteLine($"ModelConfigLoader: 用户覆盖文件加载失败: {ex.Message}");
+        }
+    }
+#pragma warning restore JCC9001
 }

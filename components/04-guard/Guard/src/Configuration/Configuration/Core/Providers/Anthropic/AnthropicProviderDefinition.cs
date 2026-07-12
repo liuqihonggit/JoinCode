@@ -8,8 +8,8 @@ public sealed class AnthropicProviderDefinition : IProviderDefinition
 {
     public string ProviderName => ProviderKind.Anthropic.ToValue();
     public string DisplayName => "Anthropic";
-    public string DefaultModelId => "claude-3-5-sonnet-20241022";
-    public string DefaultFastModelId => "claude-haiku-4-5-20251001";
+    public string DefaultModelId => CanonicalModelModelEntries.AnthropicDefaultModelId;
+    public string DefaultFastModelId => CanonicalModelModelEntries.AnthropicDefaultFastModelId;
     public string? DefaultEndpoint => null;
     public string? ApiKeyEnvironmentVariable => ProviderEnvVar.AnthropicApiKey.ToValue();
     public string? EndpointEnvironmentVariable => null;
@@ -43,7 +43,7 @@ public sealed class AnthropicProviderDefinition : IProviderDefinition
         }
     }
 
-    public IReadOnlyList<ModelEntry> AvailableModels => AnthropicModels;
+    public IReadOnlyList<ModelEntry> AvailableModels => CanonicalModelModelEntries.AnthropicModels;
 
     public string? ResolveApiKeyFromEnv()
     {
@@ -61,7 +61,7 @@ public sealed class AnthropicProviderDefinition : IProviderDefinition
         {
             "sonnet" => CanonicalModel.ClaudeSonnet46.ToValue(),
             "opus" => CanonicalModel.ClaudeOpus46.ToValue(),
-            "haiku" => "claude-haiku-4-5-20251001",
+            "haiku" => CanonicalModel.ClaudeHaiku45.ToValue(),
             "best" => CanonicalModel.ClaudeOpus46.ToValue(),
             _ => null
         };
@@ -99,14 +99,4 @@ public sealed class AnthropicProviderDefinition : IProviderDefinition
     /// </summary>
     public bool SupportsWebSearch => true;
 
-    private static readonly ModelEntry[] AnthropicModels =
-    [
-        new("claude-sonnet-4-6", "Claude Sonnet 4.6", 200_000, "最新 Sonnet，平衡性能与速度"),
-        new("claude-opus-4-6", "Claude Opus 4.6", 200_000, "最新 Opus，最强推理能力"),
-        new("claude-sonnet-4-5-20250929", "Claude Sonnet 4.5", 200_000, "上一代 Sonnet"),
-        new("claude-opus-4-5-20251101", "Claude Opus 4.5", 200_000, "上一代 Opus"),
-        new("claude-haiku-4-5-20251001", "Claude Haiku 4.5", 200_000, "快速低成本模型"),
-        new("claude-3-5-sonnet-20241022", "Claude 3.5 Sonnet v2", 200_000, "经典 Sonnet v2"),
-        new("claude-3-5-haiku-20241022", "Claude 3.5 Haiku", 200_000, "经典 Haiku"),
-    ];
 }

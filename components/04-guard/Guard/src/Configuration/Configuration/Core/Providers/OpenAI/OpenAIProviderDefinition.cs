@@ -9,8 +9,8 @@ public sealed class OpenAIProviderDefinition : OpenAICompatibleProviderDefinitio
     public override ProviderKind Kind => ProviderKind.OpenAI;
     public override string ProviderName => ProviderKind.OpenAI.ToValue();
     public override string DisplayName => "OpenAI";
-    public override string DefaultModelId => CanonicalModel.Gpt4o.ToValue();
-    public override string DefaultFastModelId => CanonicalModel.Gpt4oMini.ToValue();
+    public override string DefaultModelId => CanonicalModelModelEntries.OpenaiDefaultModelId;
+    public override string DefaultFastModelId => CanonicalModelModelEntries.OpenaiDefaultFastModelId;
     public override string? DefaultEndpoint => null;
     public override string? ApiKeyEnvironmentVariable => ProviderEnvVar.OpenAiApiKey.ToValue();
     public override string? EndpointEnvironmentVariable => null;

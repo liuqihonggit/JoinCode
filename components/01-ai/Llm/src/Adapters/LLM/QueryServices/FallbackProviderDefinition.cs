@@ -18,8 +18,18 @@ internal sealed class FallbackProviderDefinition : IProviderDefinition
     public ProviderKind Kind => _kind;
     public string ProviderName => _kind.ToValue();
     public string DisplayName => _kind.ToValue();
-    public string DefaultModelId => "gpt-4o";
-    public string DefaultFastModelId => "gpt-4o-mini";
+    public string DefaultModelId => _kind switch
+    {
+        ProviderKind.Anthropic => CanonicalModelModelEntries.AnthropicDefaultModelId,
+        ProviderKind.DeepSeek => CanonicalModelModelEntries.DeepseekDefaultModelId,
+        _ => CanonicalModelModelEntries.OpenaiDefaultModelId
+    };
+    public string DefaultFastModelId => _kind switch
+    {
+        ProviderKind.Anthropic => CanonicalModelModelEntries.AnthropicDefaultFastModelId,
+        ProviderKind.DeepSeek => CanonicalModelModelEntries.DeepseekDefaultFastModelId,
+        _ => CanonicalModelModelEntries.OpenaiDefaultFastModelId
+    };
     public string? DefaultEndpoint => null;
     public string? ApiKeyEnvironmentVariable => null;
     public string? EndpointEnvironmentVariable => null;

@@ -18,6 +18,7 @@ public sealed class JudgeAgent : IReasoningAgent
     public Task<AgentAction> ReasonAsync(ReasoningContext context, CancellationToken ct)
     {
         var action = new AgentAction { AgentRole = Role, ActionType = "裁决" };
+        var opts = context.Options;
 
         var pending = context.AllItems
             .Where(x => x.State is DataState.Verified or DataState.Assumption)
@@ -39,7 +40,7 @@ public sealed class JudgeAgent : IReasoningAgent
             var prosWeight = prosEvidence.Sum(e => e.Weight * (int)e.TrustLevel / 100.0);
             var defWeight = defEvidence.Sum(e => e.Weight * (int)e.TrustLevel / 100.0);
 
-            if (prosWeight >= 3.0 && prosWeight > defWeight * 1.5)
+            if (prosWeight >= opts.AcceptThreshold && prosWeight > defWeight * opts.AcceptMultiplier)
             {
                 action.Verdicts.Add(new Verdict
                 {
@@ -49,7 +50,7 @@ public sealed class JudgeAgent : IReasoningAgent
                     Confidence = Math.Min(100, 70 + (int)(prosWeight * 10)),
                 });
             }
-            else if (defWeight > prosWeight * 1.2)
+            else if (defWeight > prosWeight * opts.RejectMultiplier)
             {
                 action.Verdicts.Add(new Verdict
                 {
@@ -59,7 +60,7 @@ public sealed class JudgeAgent : IReasoningAgent
                     Confidence = Math.Min(100, 60 + (int)(defWeight * 10)),
                 });
             }
-            else if (prosWeight > 0 && defWeight > 0 && Math.Abs(prosWeight - defWeight) < 0.5)
+            else if (prosWeight > 0 && defWeight > 0 && Math.Abs(prosWeight - defWeight) < opts.PendingWeightDelta)
             {
                 action.Verdicts.Add(new Verdict
                 {

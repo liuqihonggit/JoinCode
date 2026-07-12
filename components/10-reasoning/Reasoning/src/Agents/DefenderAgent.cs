@@ -18,6 +18,7 @@ public sealed class DefenderAgent : IReasoningAgent
     public Task<AgentAction> ReasonAsync(ReasoningContext context, CancellationToken ct)
     {
         var action = new AgentAction { AgentRole = Role, ActionType = "质疑证据" };
+        var doubtThreshold = context.Options.DefenderDoubtThreshold;
 
         var verified = context.AllItems
             .Where(x => x.State == DataState.Verified)
@@ -32,7 +33,7 @@ public sealed class DefenderAgent : IReasoningAgent
             var supportingEvidence = context.AllEvidence
                 .Count(e => e.SubmittedBy == AgentRole.Prosecutor && itemEvidenceIds.Contains(e.Id));
 
-            if (supportingEvidence < 2)
+            if (supportingEvidence < doubtThreshold)
             {
                 action.Doubts.Add($"证据链不完整: {item.Content}");
                 action.ActionType = "质疑";

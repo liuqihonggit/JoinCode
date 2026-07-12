@@ -8,4 +8,5 @@ public sealed class ReasoningContext
     public required IReadOnlyList<DataItem> AllItems { get; init; }
     public required IReadOnlyList<EvidenceRecord> AllEvidence { get; init; }
     public required Dag<ReasoningPayload> Dag { get; init; }
+    public required ReasoningOptions Options { get; init; }
 }

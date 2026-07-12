@@ -7,12 +7,25 @@ using Microsoft.Extensions.DependencyInjection;
 /// </summary>
 public static class ReasoningServiceExtensions
 {
-    public static IServiceCollection AddReasoning(this IServiceCollection services)
+    /// <summary>
+    /// 注册推理引擎（吃熊猫罪预设）
+    /// </summary>
+    public static IServiceCollection AddReasoning(this IServiceCollection services, ReasoningOptions? options = null)
     {
+        var opts = options ?? ReasoningOptions.Panda;
+        services.AddSingleton(opts);
         services.AddSingleton<IReasoningEngine, ReasoningEngine>();
         services.AddSingleton<IReasoningAgent, ProsecutorAgent>();
         services.AddSingleton<IReasoningAgent, DefenderAgent>();
         services.AddSingleton<IReasoningAgent, JudgeAgent>();
         return services;
+    }
+
+    /// <summary>
+    /// 注册推理引擎（指定预设）
+    /// </summary>
+    public static IServiceCollection AddReasoning(this IServiceCollection services, ReasoningPreset preset)
+    {
+        return services.AddReasoning(ReasoningOptions.FromPreset(preset));
     }
 }

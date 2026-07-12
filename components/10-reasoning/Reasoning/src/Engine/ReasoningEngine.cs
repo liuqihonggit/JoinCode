@@ -8,14 +8,24 @@ public sealed class ReasoningEngine : IReasoningEngine
     private readonly Dag<ReasoningPayload> _dag = new();
     private readonly Dictionary<AgentRole, IReasoningAgent> _agents;
     private readonly ILogger<ReasoningEngine> _logger;
+    private readonly ReasoningOptions _options;
     private DateTime? _lastRunAt;
+
+    private int _adversarialRoundCount;
+    private int _tokensUsed;
+    private int _roundsBudget;
+    private int _tokensBudget;
 
     public ReasoningEngine(
         IEnumerable<IReasoningAgent> agents,
-        ILogger<ReasoningEngine> logger)
+        ILogger<ReasoningEngine> logger,
+        ReasoningOptions? options = null)
     {
         _logger = logger;
+        _options = options ?? ReasoningOptions.Panda;
         _agents = agents.ToDictionary(a => a.Role, a => a);
+        _roundsBudget = _options.MaxAdversarialRounds;
+        _tokensBudget = _options.MaxTokens;
     }
 
     /// <summary>
@@ -29,6 +39,9 @@ public sealed class ReasoningEngine : IReasoningEngine
         {
             if (item.State != DataState.Assumption)
                 throw new InvalidOperationException($"数据项必须以Assumption状态进入，当前: {item.State}");
+
+            if (_options.IsNodeLimitReached(_dag.Nodes.Count))
+                throw new InvalidOperationException($"已达到节点数上限 ({_options.MaxNodes})，无法添加更多假定");
 
             if (_dag.Nodes.Values.Any(n => n.Payload.Content == item.Content && n.Payload.State != DataState.Rejected))
                 throw new InvalidOperationException($"内容已存在: {item.Content}");
@@ -79,6 +92,27 @@ public sealed class ReasoningEngine : IReasoningEngine
 
     public void AddEvidence(EvidenceRecord evidence, string claimId)
     {
+        if (_options.IsNodeLimitReached(_dag.Nodes.Count))
+        {
+            _logger.LogWarning("已达到节点数上限 ({MaxNodes})，无法添加更多证据", _options.MaxNodes);
+            return;
+        }
+
+        if (!_dag.Nodes.ContainsKey(claimId))
+        {
+            _logger.LogWarning("目标假定不存在: {ClaimId}", claimId);
+            return;
+        }
+
+        var existingEvidenceCount = _dag.Edges.Values
+            .Count(e => e.ToId == claimId && (e.Label == "SUPPORTS" || e.Label == "REFUTES"));
+        if (_options.IsEvidenceLimitReached(existingEvidenceCount))
+        {
+            _logger.LogWarning("假定 {ClaimId} 已达到证据数上限 ({MaxEvidence})，无法添加更多证据",
+                claimId, _options.MaxEvidencePerClaim);
+            return;
+        }
+
         var payload = new ReasoningPayload
         {
             Id = evidence.Id,
@@ -118,6 +152,7 @@ public sealed class ReasoningEngine : IReasoningEngine
             return;
         }
 
+        RecordTokenUsage((int)(evidence.Content.Length * 1.5));
         _logger.LogInformation("[{Role}] 提交证据: {Content} (信任度:{Trust})", evidence.SubmittedBy, evidence.Content, evidence.TrustLevel);
     }
 
@@ -128,11 +163,23 @@ public sealed class ReasoningEngine : IReasoningEngine
 
     public async Task RunAdversarialProcessAsync(CancellationToken ct)
     {
+        if (IsBudgetExhausted())
+        {
+            var budget = GetBudgetStatus();
+            _logger.LogWarning("预算已耗尽 — 轮次:{RoundsUsed}/{RoundsBudget} token:{TokensUsed}/{TokensBudget}，请使用 ContinueAsync 续费",
+                budget.RoundsUsed, budget.RoundsBudget, budget.TokensUsed, budget.TokensBudget);
+            return;
+        }
+
+        _adversarialRoundCount++;
+        RecordTokenUsage(500);
+
         var context = new ReasoningContext
         {
             AllItems = GetAllItems(),
             AllEvidence = GetAllEvidence(),
             Dag = _dag,
+            Options = _options,
         };
 
         if (_agents.TryGetValue(AgentRole.Prosecutor, out var prosecutor))
@@ -146,6 +193,7 @@ public sealed class ReasoningEngine : IReasoningEngine
             AllItems = GetAllItems(),
             AllEvidence = GetAllEvidence(),
             Dag = _dag,
+            Options = _options,
         };
 
         if (_agents.TryGetValue(AgentRole.Defender, out var defender))
@@ -159,6 +207,7 @@ public sealed class ReasoningEngine : IReasoningEngine
             AllItems = GetAllItems(),
             AllEvidence = GetAllEvidence(),
             Dag = _dag,
+            Options = _options,
         };
 
         if (_agents.TryGetValue(AgentRole.Judge, out var judge))
@@ -170,6 +219,46 @@ public sealed class ReasoningEngine : IReasoningEngine
         _lastRunAt = DateTime.UtcNow;
     }
 
+    public async Task ContinueAsync(BudgetRefillMode? refillMode = null, int? extraRounds = null, int? extraTokens = null, CancellationToken ct = default)
+    {
+        var mode = refillMode ?? _options.DefaultRefillMode;
+        var rounds = extraRounds ?? _options.DefaultRefillRounds;
+        var tokens = extraTokens ?? _options.DefaultRefillTokens;
+
+        switch (mode)
+        {
+            case BudgetRefillMode.RoundsOnly:
+                _roundsBudget += rounds;
+                _logger.LogInformation("[续费] 轮次预算 +{Rounds} → {Total}", rounds, _roundsBudget);
+                break;
+            case BudgetRefillMode.TokensOnly:
+                _tokensBudget += tokens;
+                _logger.LogInformation("[续费] Token预算 +{Tokens} → {Total}", tokens, _tokensBudget);
+                break;
+            case BudgetRefillMode.Both:
+                _roundsBudget += rounds;
+                _tokensBudget += tokens;
+                _logger.LogInformation("[续费] 轮次 +{Rounds} → {TotalRounds}, Token +{Tokens} → {TotalTokens}",
+                    rounds, _roundsBudget, tokens, _tokensBudget);
+                break;
+            case BudgetRefillMode.Default:
+                var budget = GetBudgetStatus();
+                if (budget.IsRoundsExhausted)
+                {
+                    _roundsBudget += rounds;
+                    _logger.LogInformation("[续费] 轮次预算 +{Rounds} → {Total}", rounds, _roundsBudget);
+                }
+                if (budget.IsTokensExhausted)
+                {
+                    _tokensBudget += tokens;
+                    _logger.LogInformation("[续费] Token预算 +{Tokens} → {Total}", tokens, _tokensBudget);
+                }
+                break;
+        }
+
+        await RunAdversarialProcessAsync(ct).ConfigureAwait(false);
+    }
+
     public ReasoningSummary GetSummary() => new()
     {
         TotalAssumptions = _dag.Nodes.Values.Count(n => n.Payload.State == DataState.Assumption),
@@ -179,6 +268,15 @@ public sealed class ReasoningEngine : IReasoningEngine
         TotalPendingEvidence = _dag.Nodes.Values.Count(n => n.Payload.State == DataState.PendingEvidence),
         TotalEvidence = _dag.Nodes.Values.Count(n => n.Payload.Type == ReasoningNodeType.Evidence),
         LastRunAt = _lastRunAt,
+        Budget = GetBudgetStatus(),
+    };
+
+    public BudgetStatus GetBudgetStatus() => new()
+    {
+        RoundsUsed = _adversarialRoundCount,
+        RoundsBudget = _roundsBudget,
+        TokensUsed = _tokensUsed,
+        TokensBudget = _tokensBudget,
     };
 
     /// <summary>
@@ -213,6 +311,16 @@ public sealed class ReasoningEngine : IReasoningEngine
     {
         var affected = _dag.GetAffectedSubgraph(changedNodeId);
         return affected.Select(n => n.Payload).ToList();
+    }
+
+    private bool IsBudgetExhausted()
+    {
+        return _adversarialRoundCount >= _roundsBudget || _tokensUsed >= _tokensBudget;
+    }
+
+    private void RecordTokenUsage(int tokens)
+    {
+        _tokensUsed += tokens;
     }
 
     private void ApplyAgentAction(AgentAction action)

@@ -41,9 +41,19 @@ public interface IReasoningEngine
     Task RunAdversarialProcessAsync(CancellationToken ct);
 
     /// <summary>
+    /// 继续推理 — 预算耗尽后续费并继续执行对抗流程
+    /// </summary>
+    Task ContinueAsync(BudgetRefillMode? refillMode = null, int? extraRounds = null, int? extraTokens = null, CancellationToken ct = default);
+
+    /// <summary>
     /// 获取引擎状态摘要
     /// </summary>
     ReasoningSummary GetSummary();
+
+    /// <summary>
+    /// 获取当前预算状态
+    /// </summary>
+    BudgetStatus GetBudgetStatus();
 
     /// <summary>
     /// 证据失效传播 — 降级指定节点，沿 DAG 反向传播到下游

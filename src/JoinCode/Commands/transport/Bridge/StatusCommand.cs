@@ -39,7 +39,7 @@ public sealed class StatusCommand : IChatCommand
 
         // 多态：通过 IProviderDefinition.ResolveApiKeyFromEnv 消除 ProviderKind switch
         // 优先级：JccEnvVar.ApiKey 全局 > Provider 专属 env var（由各 ProviderDefinition 自己决定）
-        var providerDefinition = ProviderDefinitionRegistry.TryGetStatic(provider);
+        var providerDefinition = ResolveProviderDefinition(context, provider);
         var apiKey = Environment.GetEnvironmentVariable(JccEnvVar.ApiKey.ToValue())
             ?? providerDefinition?.ResolveApiKeyFromEnv();
 
@@ -145,6 +145,12 @@ public sealed class StatusCommand : IChatCommand
         sb.AppendLine();
         sb.AppendLine(tokenInfo);
         return sb.ToString();
+    }
+
+    private static IProviderDefinition? ResolveProviderDefinition(ChatCommandContext context, string provider)
+    {
+        var registry = ChatCommandBase.GetService<IProviderDefinitionRegistry>(context, typeof(IProviderDefinitionRegistry));
+        return registry?.TryGet(provider);
     }
 
     private static IModelCatalog ResolveModelCatalog(ChatCommandContext context)

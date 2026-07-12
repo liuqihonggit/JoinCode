@@ -162,6 +162,12 @@ public sealed class DoctorCommand : IChatCommand
         }
     }
 
+    private static IProviderDefinition? ResolveProviderDefinition(ChatCommandContext context, string provider)
+    {
+        var registry = ChatCommandBase.GetService<IProviderDefinitionRegistry>(context, typeof(IProviderDefinitionRegistry));
+        return registry?.TryGet(provider);
+    }
+
     private static async Task AppendApiConnectionAsync(StringBuilder sb, ChatCommandContext context)
     {
         var configService = ChatCommandBase.GetService<IConfigurationService>(context, typeof(IConfigurationService));
@@ -178,7 +184,7 @@ public sealed class DoctorCommand : IChatCommand
         var endpoint = Environment.GetEnvironmentVariable(JccEnvVarConstants.Endpoint)
             ?? await configService.GetAsync(ConfigKeyConstants.Endpoint, context.CancellationToken).ConfigureAwait(false);
 
-        var apiKey = ProviderDefinitionRegistry.TryGetStatic(provider)?.ResolveApiKeyFromEnv()
+        var apiKey = ResolveProviderDefinition(context, provider)?.ResolveApiKeyFromEnv()
             ?? Environment.GetEnvironmentVariable(JccEnvVarConstants.ApiKey);
 
         if (string.IsNullOrEmpty(apiKey))

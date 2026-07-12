@@ -370,7 +370,7 @@ public sealed class Step
 /// </summary>
 public sealed class ProviderPicker
 {
-    public static string? Show(string defaultProvider, string title, string hint)
+    public static string? Show(string defaultProvider, string title, string hint, IProviderDefinitionRegistry registry)
     {
         TerminalHelper.WriteLine();
         TerminalHelper.WriteLine($"{AnsiStyleConstants.Bold}{title}{AnsiStyleConstants.Reset}");
@@ -380,8 +380,8 @@ public sealed class ProviderPicker
         }
         TerminalHelper.NewLine();
 
-        var providers = ProviderDefinitionRegistry.RegisteredProvidersStatic
-            .Select(p => ProviderDefinitionRegistry.TryGetStatic(p))
+        var providers = registry.RegisteredProviders
+            .Select(p => registry.TryGet(p))
             .Where(p => p is not null)
             .Select(p => p!)
             .ToList();

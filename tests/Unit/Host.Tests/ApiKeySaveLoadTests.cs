@@ -7,6 +7,7 @@ using JoinCode.Abstractions.Exceptions;
 public class ApiKeySaveLoadTests
 {
     private static ConfigLoader Loader => new();
+    private static readonly Core.Configuration.Providers.ProviderDefinitionRegistry Registry = new();
 
     [Fact]
     public async Task SaveApiKey_AndLoad_ShouldUpdateProviderConfig()
@@ -46,7 +47,7 @@ public class ApiKeySaveLoadTests
             config.Provider.Provider = provider;
             config.Provider.ApiKey = apiKey;
             
-            var definition = ProviderDefinitionRegistry.TryGetStatic(provider);
+            var definition = Registry.TryGet(provider);
             if (definition is not null)
             {
                 config.Provider.Definition = definition;
@@ -184,7 +185,7 @@ public class ApiKeySaveLoadTests
             config.Provider.Provider = provider;
             config.Provider.ApiKey = apiKey;
             
-            var definition = ProviderDefinitionRegistry.TryGetStatic(provider);
+            var definition = Registry.TryGet(provider);
             if (definition is not null)
             {
                 config.Provider.Definition = definition;

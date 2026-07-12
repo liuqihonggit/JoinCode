@@ -265,7 +265,7 @@ public sealed class ApplicationBuilder
 
         if (dotEnv is not null)
         {
-            dotEnv.ApplyToMemory(config);
+            dotEnv.ApplyToMemory(config, new Core.Configuration.Providers.ProviderDefinitionRegistry());
 
             // 环境变量优先级最高 — ApplyToMemory 可能覆盖了 env var 设置的值，重新应用
             new Core.Configuration.SettingsMapper(new Core.Configuration.Providers.ProviderDefinitionRegistry()).ApplyEnvOverrides(config);

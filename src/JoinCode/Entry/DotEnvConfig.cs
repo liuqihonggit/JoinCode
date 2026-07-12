@@ -28,12 +28,13 @@ internal sealed class DotEnvConfig
                 return null;
 
             var config = new DotEnvConfig();
+            var registry = new Core.Configuration.Providers.ProviderDefinitionRegistry();
 
             // 多态：遍历 ProviderDefinitionRegistry 注册表匹配环境变量，替代 if-else 链硬编码
             // 新增供应商时无需修改此文件，只需在 ProviderDefinitionRegistry 注册即可
-            foreach (var providerName in Core.Configuration.Providers.ProviderDefinitionRegistry.RegisteredProvidersStatic)
+            foreach (var providerName in registry.RegisteredProviders)
             {
-                var def = Core.Configuration.Providers.ProviderDefinitionRegistry.TryGetStatic(providerName);
+                var def = registry.TryGet(providerName);
                 if (def?.ApiKeyEnvironmentVariable is not null && envObj.TryGetProperty(def.ApiKeyEnvironmentVariable, out var keyVal) && keyVal.ValueKind == System.Text.Json.JsonValueKind.String)
                 {
                     config.Provider = providerName;
@@ -68,7 +69,7 @@ internal sealed class DotEnvConfig
             // 各 Provider 的 Endpoint 环境变量匹配
             if (rawEndpoint is null && config.Provider is not null)
             {
-                var def = Core.Configuration.Providers.ProviderDefinitionRegistry.TryGetStatic(config.Provider);
+                var def = registry.TryGet(config.Provider);
                 if (def?.EndpointEnvironmentVariable is not null && envObj.TryGetProperty(def.EndpointEnvironmentVariable, out var epVal) && epVal.ValueKind == System.Text.Json.JsonValueKind.String)
                 {
                     rawEndpoint = epVal.GetString();
@@ -148,6 +149,11 @@ internal sealed class DotEnvConfig
     /// </summary>
     public void ApplyToMemory(WorkflowConfig config)
     {
+        ApplyToMemory(config, new Core.Configuration.Providers.ProviderDefinitionRegistry());
+    }
+
+    public void ApplyToMemory(WorkflowConfig config, IProviderDefinitionRegistry registry)
+    {
         if (ApiKey is not null)
             config.Provider.ApiKey = ApiKey;
 
@@ -162,7 +168,7 @@ internal sealed class DotEnvConfig
 
         if (Provider is not null)
         {
-            var definition = ProviderDefinitionRegistry.TryGetStatic(Provider);
+            var definition = registry.TryGet(Provider);
             if (definition is not null)
             {
                 config.Provider.Definition = definition;

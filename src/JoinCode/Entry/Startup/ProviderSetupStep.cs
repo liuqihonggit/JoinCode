@@ -6,6 +6,13 @@ namespace JoinCode.Entry;
 [Register]
 internal sealed class ProviderSetupStep : IMiddleware<StartupContext>
 {
+    private readonly IProviderDefinitionRegistry _registry;
+
+    public ProviderSetupStep(IProviderDefinitionRegistry registry)
+    {
+        _registry = registry;
+    }
+
     public async Task InvokeAsync(StartupContext context, MiddlewareDelegate<StartupContext> next, CancellationToken ct)
     {
         context.HasApiKey = !string.IsNullOrEmpty(context.Config.Provider.ApiKey);
@@ -22,7 +29,7 @@ internal sealed class ProviderSetupStep : IMiddleware<StartupContext>
         await next(context, ct);
     }
 
-    private static async Task<bool> ShowProviderMenuAsync(WorkflowConfig config, IFileSystem fs, CancellationToken ct)
+    private async Task<bool> ShowProviderMenuAsync(WorkflowConfig config, IFileSystem fs, CancellationToken ct)
     {
         while (true)
         {
@@ -34,8 +41,8 @@ internal sealed class ProviderSetupStep : IMiddleware<StartupContext>
             Cli.TerminalHelper.WriteLine("  未检测到 API Key，请选择供应商配置:");
             Cli.TerminalHelper.NewLine();
 
-            var providers = ProviderDefinitionRegistry.RegisteredProvidersStatic
-                .Select(p => ProviderDefinitionRegistry.TryGetStatic(p))
+            var providers = _registry.RegisteredProviders
+                .Select(p => _registry.TryGet(p))
                 .Where(p => p is not null)
                 .Select(p => p!)
                 .ToList();
@@ -72,9 +79,9 @@ internal sealed class ProviderSetupStep : IMiddleware<StartupContext>
         }
     }
 
-    private static async Task ConfigureProviderAsync(WorkflowConfig config, IFileSystem fs, string provider)
+    private async Task ConfigureProviderAsync(WorkflowConfig config, IFileSystem fs, string provider)
     {
-        var definition = ProviderDefinitionRegistry.TryGetStatic(provider);
+        var definition = _registry.TryGet(provider);
         var displayName = definition?.DisplayName ?? provider;
         var envVarHint = definition?.ApiKeyEnvironmentVariable is not null
             ? $"（也可通过环境变量 {definition.ApiKeyEnvironmentVariable} 设置）"

@@ -25,11 +25,12 @@ public sealed class LoginCommand : IChatCommand
         var providerName = args.Length > 0 ? args[0].ToLowerInvariant() : ProviderKind.OpenAI.ToValue();
         var useOAuth = args.Contains("--oauth") || args.Contains("-o");
 
-        var definition = ProviderDefinitionRegistry.TryGetStatic(providerName);
+        var definition = ResolveProviderDefinition(context, providerName);
         if (definition is null)
         {
+            var registry = ChatCommandBase.GetService<IProviderDefinitionRegistry>(context, typeof(IProviderDefinitionRegistry));
             TerminalHelper.WriteLine($"{TerminalColors.Error}不支持的提供商: {providerName}{AnsiStyleConstants.Reset}");
-            TerminalHelper.WriteLine($"支持的提供商: {string.Join(", ", ProviderDefinitionRegistry.RegisteredProvidersStatic)}");
+            TerminalHelper.WriteLine($"支持的提供商: {string.Join(", ", registry?.RegisteredProviders ?? [])}");
             return ChatCommandResult.Continue();
         }
 
@@ -84,6 +85,12 @@ public sealed class LoginCommand : IChatCommand
         TerminalHelper.WriteLine($"{TerminalColors.Muted}  已重置成本和速率限制数据{AnsiStyleConstants.Reset}");
 
         return Task.CompletedTask;
+    }
+
+    private static IProviderDefinition? ResolveProviderDefinition(ChatCommandContext context, string providerName)
+    {
+        var registry = ChatCommandBase.GetService<IProviderDefinitionRegistry>(context, typeof(IProviderDefinitionRegistry));
+        return registry?.TryGet(providerName);
     }
 
     private async Task<bool> LoginWithApiKeyAsync(ChatCommandContext context, IProviderDefinition definition)

@@ -17,6 +17,7 @@ public class ConfigLoaderTests : IDisposable {
     private readonly string? _originalCodeExecutionMaxMemory;
     private readonly string _tempAppDataDir;
     private readonly IFileSystem _fs = TestFileSystem.Current;
+    private readonly ConfigLoader _loader = new();
 
     public ConfigLoaderTests() {
         _originalAppDataFolder = Environment.GetEnvironmentVariable(JccEnvVarConstants.AppDataFolder);
@@ -65,7 +66,7 @@ public class ConfigLoaderTests : IDisposable {
         Environment.SetEnvironmentVariable(ProviderEnvVarConstants.OpenAiApiKey, realKey);
         Environment.SetEnvironmentVariable(JccEnvVarConstants.ApiKey, null);
 
-        var config = await ConfigLoader.LoadConfigAsync(_fs).ConfigureAwait(true);
+        var config = await _loader.LoadConfigAsync(_fs).ConfigureAwait(true);
 
         Assert.False(string.IsNullOrWhiteSpace(config.Provider.ApiKey),
             $"API Key 应从环境变量加载，但为空。Provider={config.Provider.Provider}");
@@ -78,7 +79,7 @@ public class ConfigLoaderTests : IDisposable {
         Environment.SetEnvironmentVariable(ProviderEnvVarConstants.OpenAiApiKey, realKey);
         Environment.SetEnvironmentVariable(JccEnvVarConstants.ApiKey, null);
 
-        var config = await ConfigLoader.LoadConfigAsync(_fs).ConfigureAwait(true);
+        var config = await _loader.LoadConfigAsync(_fs).ConfigureAwait(true);
 
         Assert.False(string.IsNullOrWhiteSpace(config.Provider.Provider));
         Assert.False(string.IsNullOrWhiteSpace(config.Provider.ModelId));
@@ -90,7 +91,7 @@ public class ConfigLoaderTests : IDisposable {
         Environment.SetEnvironmentVariable(ProviderEnvVarConstants.OpenAiApiKey, realKey);
         Environment.SetEnvironmentVariable(JccEnvVarConstants.ApiKey, null);
 
-        var config = await ConfigLoader.LoadConfigAsync(_fs).ConfigureAwait(true);
+        var config = await _loader.LoadConfigAsync(_fs).ConfigureAwait(true);
 
         Assert.Equal("gpt-4o", config.Provider.ModelId);
         Assert.Equal("workflow_state.json", config.StateFilePath);
@@ -103,7 +104,7 @@ public class ConfigLoaderTests : IDisposable {
         Environment.SetEnvironmentVariable(ProviderEnvVarConstants.OpenAiApiKey, realKey);
         Environment.SetEnvironmentVariable(JccEnvVarConstants.ApiKey, null);
 
-        var config = await ConfigLoader.LoadConfigAsync(_fs).ConfigureAwait(true);
+        var config = await _loader.LoadConfigAsync(_fs).ConfigureAwait(true);
 
         Assert.NotNull(config.CodeExecution);
         Assert.Equal(10, config.CodeExecution.ExecutionTimeoutSeconds);
@@ -118,7 +119,7 @@ public class ConfigLoaderTests : IDisposable {
         Environment.SetEnvironmentVariable(ProviderEnvVarConstants.OpenAiApiKey, realKey);
         Environment.SetEnvironmentVariable(JccEnvVarConstants.ApiKey, null);
 
-        var config = await ConfigLoader.LoadConfigAsync(_fs).ConfigureAwait(true);
+        var config = await _loader.LoadConfigAsync(_fs).ConfigureAwait(true);
 
         Assert.NotNull(config.Bridge);
     }
@@ -136,7 +137,7 @@ public class ConfigLoaderTests : IDisposable {
         var realKey = TestConfiguration.GetRealApiKey();
         Environment.SetEnvironmentVariable(JccEnvVarConstants.ApiKey, realKey);
 
-        var config = await ConfigLoader.LoadConfigAsync(_fs).ConfigureAwait(true);
+        var config = await _loader.LoadConfigAsync(_fs).ConfigureAwait(true);
 
         Assert.Equal("anthropic", config.Provider.Provider);
         Assert.Equal("claude-3-opus", config.Provider.ModelId);
@@ -152,7 +153,7 @@ public class ConfigLoaderTests : IDisposable {
         Environment.SetEnvironmentVariable(ProviderEnvVarConstants.OpenAiApiKey, realKey);
         Environment.SetEnvironmentVariable(JccEnvVarConstants.ApiKey, null);
 
-        var config = await ConfigLoader.LoadConfigAsync(_fs).ConfigureAwait(true);
+        var config = await _loader.LoadConfigAsync(_fs).ConfigureAwait(true);
 
         Assert.Equal(60, config.CodeExecution.ExecutionTimeoutSeconds);
         Assert.Equal(512, config.CodeExecution.MaxMemoryMB);
@@ -166,7 +167,7 @@ public class ConfigLoaderTests : IDisposable {
         Environment.SetEnvironmentVariable(JccEnvVarConstants.ApiKey, "jcc-key-should-be-overridden");
         Environment.SetEnvironmentVariable(ProviderEnvVarConstants.OpenAiApiKey, realKey);
 
-        var config = await ConfigLoader.LoadConfigAsync(_fs).ConfigureAwait(true);
+        var config = await _loader.LoadConfigAsync(_fs).ConfigureAwait(true);
 
         // Provider 专属环境变量应覆盖 JCC_API_KEY
         Assert.Equal(realKey, config.Provider.ApiKey);

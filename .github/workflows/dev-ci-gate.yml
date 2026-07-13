@@ -1,0 +1,61 @@
+name: Dev CI Gate
+
+on:
+  workflow_run:
+    workflows: ["CI/CD"]
+    types: [completed]
+    branches: [dev]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  on-success:
+    name: Dev CI Passed - Create PR to main
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: dev
+          fetch-depth: 0
+
+      - name: Create PR dev -> main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUMBER=$(gh pr list --repo ${{ github.repository }} --state open --head dev --base main --json number --jq '.[0].number')
+          if [ -n "$PR_NUMBER" ]; then
+            echo "PR already exists: #$PR_NUMBER"
+            gh pr merge "$PR_NUMBER" --auto --squash --repo ${{ github.repository }}
+          else
+            gh pr create --repo ${{ github.repository }} \
+              --head dev --base main \
+              --title "dev -> main: $(git log -1 --format='%s')" \
+              --body "Auto-generated PR from dev branch after CI passed." \
+              --auto --squash
+          fi
+
+  on-failure:
+    name: Dev CI Failed - Revert
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'failure'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: dev
+          fetch-depth: 0
+
+      - name: Revert last commit on dev
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          LAST_COMMIT=$(git log -1 --format='%H')
+          LAST_MSG=$(git log -1 --format='%s')
+          echo "Reverting commit: $LAST_COMMIT ($LAST_MSG)"
+          git revert --no-edit $LAST_COMMIT
+          git push origin dev
+          echo "Reverted and pushed to dev"

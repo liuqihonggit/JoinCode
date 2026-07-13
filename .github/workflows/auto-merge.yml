@@ -4,7 +4,7 @@ on:
   workflow_run:
     workflows: ["CI/CD"]
     types: [completed]
-    branches: [main]
+    branches: [dev]
 
 permissions:
   contents: write
@@ -20,7 +20,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          PR_NUMBER=$(gh pr list --repo ${{ github.repository }} --state open --head ${{ github.event.workflow_run.head_branch }} --json number --jq '.[0].number')
+          PR_NUMBER=$(gh pr list --repo ${{ github.repository }} --state open --head ${{ github.event.workflow_run.head_branch }} --base dev --json number --jq '.[0].number')
           if [ -n "$PR_NUMBER" ]; then
             gh pr merge "$PR_NUMBER" --auto --squash --repo ${{ github.repository }}
           fi

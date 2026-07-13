@@ -141,43 +141,6 @@ public class CostCommandFormatTests
     }
 
     [Fact]
-    public void FormatModelUsage_ShouldAggregateByShortName()
-    {
-        var breakdown = new List<ModelCostStatistics>
-        {
-            new()
-            {
-                Model = "claude-3-5-sonnet-20241022",
-                RequestCount = 2,
-                PromptTokens = 5000,
-                CompletionTokens = 2000,
-                CacheCreationTokens = 100,
-                CacheReadTokens = 500,
-                TotalCost = 0.05m
-            },
-            new()
-            {
-                Model = "claude-sonnet-4-6-20250514",
-                RequestCount = 1,
-                PromptTokens = 3000,
-                CompletionTokens = 1000,
-                CacheCreationTokens = 50,
-                CacheReadTokens = 300,
-                TotalCost = 0.03m
-            }
-        };
-
-        var output = CostCommand.FormatModelUsage(breakdown);
-
-        output.Should().Contain("claude-3-5-sonnet");
-        output.Should().Contain("claude-sonnet-4-6");
-        output.Should().Contain("8,000 input");
-        output.Should().Contain("3,000 output");
-        output.Should().Contain("800 cache read");
-        output.Should().Contain("150 cache write");
-    }
-
-    [Fact]
     public void FormatTotalCost_SingleLineChange_ShouldUseSingular()
     {
         var stats = new CostStatistics

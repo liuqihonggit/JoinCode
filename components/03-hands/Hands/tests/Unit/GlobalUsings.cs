@@ -57,6 +57,7 @@ global using Infrastructure.Localization;
 global using IO;
 global using IO.FileSystem;
 global using IO.Services;
+global using Infrastructure.IO.Services.FileOps;
 global using Microsoft.Extensions.DependencyInjection;
 global using Microsoft.Extensions.Logging.Abstractions;
 global using Microsoft.Extensions.Options;

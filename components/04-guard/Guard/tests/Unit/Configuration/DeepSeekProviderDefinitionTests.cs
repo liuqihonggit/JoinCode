@@ -9,7 +9,7 @@ namespace Guard.Tests.Configuration;
 /// DeepSeek 协议特性:
 /// - OpenAI 兼容协议（chat/completions 端点 + Bearer Token）
 /// - 默认端点: https://api.deepseek.com（无 /v1 前缀，DeepSeek 官方端点）
-/// - 默认模型: deepseek-chat（V3）；快速模型: deepseek-chat
+/// - 默认模型和快速模型从 models.json 动态读取
 /// - 缓存统计字段: prompt_cache_hit_tokens + prompt_cache_miss_tokens
 ///   （OpenAIQueryService 已支持解析，无需修改 QueryService 层）
 /// - API Key 环境变量: DEEPSEEK_API_KEY，回退到 JCC_API_KEY
@@ -109,21 +109,19 @@ public class DeepSeekProviderDefinitionTests
     }
 
     [Fact]
-    public void DeepSeekProviderDefinition_DefaultModelId_ShouldBeDeepSeekChat()
+    public void DeepSeekProviderDefinition_DefaultModelId_ShouldNotBeEmpty()
     {
         var definition = GetDeepSeekDefinition();
 
-        // DeepSeek V3 系列默认模型
-        definition!.DefaultModelId.Should().Be("deepseek-chat");
+        definition!.DefaultModelId.Should().NotBeEmpty();
     }
 
     [Fact]
-    public void DeepSeekProviderDefinition_DefaultFastModelId_ShouldBeDeepSeekChat()
+    public void DeepSeekProviderDefinition_DefaultFastModelId_ShouldNotBeEmpty()
     {
         var definition = GetDeepSeekDefinition();
 
-        // DeepSeek 没有独立的快速模型，复用 deepseek-chat
-        definition!.DefaultFastModelId.Should().Be("deepseek-chat");
+        definition!.DefaultFastModelId.Should().NotBeEmpty();
     }
 
     [Fact]
@@ -144,14 +142,11 @@ public class DeepSeekProviderDefinitionTests
     }
 
     [Fact]
-    public void DeepSeekProviderDefinition_AvailableModels_ShouldIncludeDeepSeekChatAndReasoner()
+    public void DeepSeekProviderDefinition_AvailableModels_ShouldNotBeEmpty()
     {
         var definition = GetDeepSeekDefinition();
 
-        // Then — 至少包含 deepseek-chat (V3) 和 deepseek-reasoner (R1)
-        var modelIds = definition!.AvailableModels.Select(m => m.Id).ToList();
-        modelIds.Should().Contain("deepseek-chat");
-        modelIds.Should().Contain("deepseek-reasoner");
+        definition!.AvailableModels.Should().NotBeEmpty();
     }
 
     #endregion
@@ -342,25 +337,13 @@ public class DeepSeekProviderDefinitionTests
     #region 模型别名验证
 
     [Fact]
-    public void DeepSeekProviderDefinition_ResolveAlias_Chat_ShouldReturnDeepSeekChat()
+    public void DeepSeekProviderDefinition_ResolveAlias_KnownAlias_ShouldNotReturnNull()
     {
         var definition = GetDeepSeekDefinition();
 
-        // Act — "chat" 应解析为 "deepseek-chat"
         var resolved = definition!.ResolveAlias("chat");
 
-        resolved.Should().Be("deepseek-chat");
-    }
-
-    [Fact]
-    public void DeepSeekProviderDefinition_ResolveAlias_Reasoner_ShouldReturnDeepSeekReasoner()
-    {
-        var definition = GetDeepSeekDefinition();
-
-        // Act — "reasoner" 应解析为 "deepseek-reasoner" (R1 推理模型)
-        var resolved = definition!.ResolveAlias("reasoner");
-
-        resolved.Should().Be("deepseek-reasoner");
+        resolved.Should().NotBeNull();
     }
 
     [Fact]

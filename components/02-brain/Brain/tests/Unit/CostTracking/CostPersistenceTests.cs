@@ -30,8 +30,8 @@ public class CostPersistenceTests : IDisposable
 
         // Act - 创建第一个tracker并记录用量
         var tracker1 = new CostTracker(_fileOperationService, storagePath: storagePath, NullLogger<CostTracker>.Instance);
-        tracker1.RecordUsage("gpt-4", 1000, 500, "session-1");
-        tracker1.RecordUsage("gpt-3.5-turbo", 2000, 1000, "session-1");
+        tracker1.RecordUsage("model-a", 1000, 500, "session-1");
+        tracker1.RecordUsage("model-b", 2000, 1000, "session-1");
 
         // Assert - 直接验证内存中的记录，无需等待文件保存
         var stats1 = tracker1.GetTotalStatistics();
@@ -51,7 +51,7 @@ public class CostPersistenceTests : IDisposable
 
         // Act
         var tracker = new CostTracker(_fileOperationService, storagePath: storagePath, NullLogger<CostTracker>.Instance);
-        tracker.RecordUsage("gpt-4", 1000, 500, sessionId);
+        tracker.RecordUsage("model-a", 1000, 500, sessionId);
 
         // Assert - 直接验证内存中的会话统计
         var sessionStats = tracker.GetSessionStatistics(sessionId);
@@ -86,8 +86,8 @@ public class CostPersistenceTests : IDisposable
 
         // Act - 在同一个 tracker 中记录多条
         var tracker = new CostTracker(_fileOperationService, storagePath: storagePath, NullLogger<CostTracker>.Instance);
-        tracker.RecordUsage("gpt-4", 1000, 500);
-        tracker.RecordUsage("gpt-4", 2000, 1000);
+        tracker.RecordUsage("model-a", 1000, 500);
+        tracker.RecordUsage("model-a", 2000, 1000);
 
         // Assert - 验证累计统计
         var stats = tracker.GetTotalStatistics();
@@ -140,7 +140,7 @@ public class CostPersistenceTests : IDisposable
 
         // Act
         var tracker = new CostTracker(_fileOperationService, storagePath: storagePath, NullLogger<CostTracker>.Instance);
-        tracker.RecordUsage("gpt-4", 1000, 500);
+        tracker.RecordUsage("model-a", 1000, 500);
 
         // 等待异步保存完成 - 使用 SpinWait 替代 Task.Delay 反模式
         SpinWait.SpinUntil(() => _fileOperationService.DirectoryExists(nestedDir), TimeSpan.FromSeconds(5));
@@ -158,7 +158,7 @@ public class CostPersistenceTests : IDisposable
         var record = new TokenUsageRecord
         {
             Timestamp = DateTime.UtcNow,
-            Model = "gpt-4",
+            Model = "model-a",
             PromptTokens = 1000,
             CompletionTokens = 500,
             CostUsd = 0.05m,
@@ -187,7 +187,7 @@ public class CostPersistenceTests : IDisposable
 
         // Act - 并发记录
         var tasks = Enumerable.Range(0, 10)
-            .Select(_ => Task.Run(() => tracker.RecordUsage("gpt-4", 100, 50)))
+            .Select(_ => Task.Run(() => tracker.RecordUsage("model-a", 100, 50)))
             .ToList();
 
         await Task.WhenAll(tasks).ConfigureAwait(true);
@@ -258,7 +258,7 @@ public class CostPersistenceTests : IDisposable
 
         // Act
         var tracker = new CostTracker(_fileOperationService, storagePath: storagePath, NullLogger<CostTracker>.Instance);
-        tracker.RecordUsage("gpt-4", 1000, 500);
+        tracker.RecordUsage("model-a", 1000, 500);
         var afterTime = DateTime.UtcNow;
 
         // Assert - 直接验证内存中的记录

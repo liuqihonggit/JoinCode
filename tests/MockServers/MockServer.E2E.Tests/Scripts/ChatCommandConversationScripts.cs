@@ -207,7 +207,7 @@ public static partial class ChatCommandConversationScripts
                 AiResponse = new MockResponseScript
                 {
                     Type = MockResponseType.TextOnly,
-                    TextResponse = "当前模型: gpt-4o\n可用模型: gpt-4o, claude-sonnet-4, deepseek-chat"
+                    TextResponse = "当前模型: gpt-4o\n可用模型: gpt-4o, claude-sonnet-4, deepseek-v4-flash"
                 },
                 Asserts =
                 [

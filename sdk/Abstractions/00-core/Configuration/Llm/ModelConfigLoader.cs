@@ -98,6 +98,12 @@ public static class ModelConfigLoader
         return model?.Capabilities.MaxEffort ?? false;
     }
 
+    public static bool SupportsThinkingMode(string providerName, string modelId)
+    {
+        var model = FindModel(providerName, modelId);
+        return model?.Capabilities.ThinkingMode ?? false;
+    }
+
     public static string GetCanonicalName(string fullModelName)
     {
         var name = fullModelName.ToLowerInvariant();
@@ -108,13 +114,6 @@ public static class ModelConfigLoader
             {
                 return !string.IsNullOrEmpty(model.CanonicalId) ? model.CanonicalId : model.Id;
             }
-        }
-
-        var claudeMatch = System.Text.RegularExpressions.Regex.Match(
-            name, @"claude-(\d+-\d+-)?\w+");
-        if (claudeMatch.Success)
-        {
-            return claudeMatch.Value;
         }
 
         return fullModelName;
@@ -148,6 +147,20 @@ public static class ModelConfigLoader
             {
                 if (string.Equals(model.Id, modelId, StringComparison.OrdinalIgnoreCase))
                     return provider.Key;
+            }
+        }
+        return null;
+    }
+
+    public static ModelItemConfig? FindModelByModelId(string modelId)
+    {
+        var lower = modelId.ToLowerInvariant();
+        foreach (var provider in Config.Providers)
+        {
+            foreach (var model in provider.Value.Models)
+            {
+                if (lower.Contains(model.Id.ToLowerInvariant(), StringComparison.Ordinal))
+                    return model;
             }
         }
         return null;

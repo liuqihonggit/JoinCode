@@ -4,6 +4,8 @@ using ValidationResult = System.ComponentModel.DataAnnotations.ValidationResult;
 namespace Core.Tests.Configuration;
 
 public class WorkflowConfigTests {
+    private static readonly string DefaultOpenAiModelId = ModelConfigLoader.GetDefaultModelId("openai");
+
     [Fact]
     public void WorkflowConfig_DefaultValues_ShouldBeSet() {
         // Act
@@ -14,7 +16,7 @@ public class WorkflowConfigTests {
         };
 
         // Assert
-        Assert.Equal("gpt-4o", config.Provider.ModelId);
+        Assert.Equal(DefaultOpenAiModelId, config.Provider.ModelId);
         Assert.Equal("workflow_state.json", config.StateFilePath);
         Assert.NotNull(config.Bridge);
     }

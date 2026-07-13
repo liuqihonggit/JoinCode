@@ -12,4 +12,5 @@ public sealed class AgentAction
     public List<string> AffectedClaimIds { get; init; } = [];
     public List<string> Doubts { get; init; } = [];
     public List<Verdict> Verdicts { get; init; } = [];
+    public int TokensUsed { get; set; }
 }

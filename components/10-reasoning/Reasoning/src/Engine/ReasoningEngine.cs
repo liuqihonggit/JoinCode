@@ -152,7 +152,6 @@ public sealed class ReasoningEngine : IReasoningEngine
             return;
         }
 
-        RecordTokenUsage((int)(evidence.Content.Length * 1.5));
         _logger.LogInformation("[{Role}] 提交证据: {Content} (信任度:{Trust})", evidence.SubmittedBy, evidence.Content, evidence.TrustLevel);
     }
 
@@ -172,7 +171,7 @@ public sealed class ReasoningEngine : IReasoningEngine
         }
 
         _adversarialRoundCount++;
-        RecordTokenUsage(500);
+        RecordTokenUsage(_options.RoundOverheadTokens);
 
         var context = new ReasoningContext
         {
@@ -297,7 +296,7 @@ public sealed class ReasoningEngine : IReasoningEngine
             if (affectedNode.Payload.Type == ReasoningNodeType.Verdict)
             {
                 affectedNode.Payload.State = DataState.PendingEvidence;
-                affectedNode.Payload.Confidence = 50;
+                affectedNode.Payload.Confidence = _options.DowngradedConfidence;
                 affectedNode.Version++;
                 _logger.LogInformation("[传播] 裁决降级: {Content}", affectedNode.Payload.Content);
             }
@@ -325,14 +324,25 @@ public sealed class ReasoningEngine : IReasoningEngine
 
     private void ApplyAgentAction(AgentAction action)
     {
+        if (action.TokensUsed > 0)
+        {
+            RecordTokenUsage(action.TokensUsed);
+        }
+
         foreach (var evidence in action.Evidence)
         {
-            AddEvidence(evidence, action.AffectedClaimIds.FirstOrDefault() ?? string.Empty);
+            foreach (var claimId in action.AffectedClaimIds)
+            {
+                AddEvidence(evidence, claimId);
+            }
         }
 
         foreach (var counter in action.CounterEvidence)
         {
-            AddCounterEvidence(counter, action.AffectedClaimIds.FirstOrDefault() ?? string.Empty);
+            foreach (var claimId in action.AffectedClaimIds)
+            {
+                AddCounterEvidence(counter, claimId);
+            }
         }
 
         foreach (var doubt in action.Doubts)
@@ -365,7 +375,7 @@ public sealed class ReasoningEngine : IReasoningEngine
                 FromId = verdict.ClaimId,
                 ToId = verdictPayload.Id,
                 Label = "DECIDES",
-                Weight = 1.0,
+                Weight = _options.VerdictEdgeWeight,
             };
             _dag.AddEdge(edge);
 
@@ -381,7 +391,7 @@ public sealed class ReasoningEngine : IReasoningEngine
                     break;
                 case VerdictDecision.Reject:
                     claimNode.Payload.State = DataState.Rejected;
-                    claimNode.Payload.Confidence = 10;
+                    claimNode.Payload.Confidence = _options.RejectedConfidence;
                     claimNode.Version++;
                     _logger.LogInformation("[法官] 驳回: {Content}", claimNode.Payload.Content);
                     break;
@@ -418,4 +428,21 @@ public sealed class ReasoningEngine : IReasoningEngine
         SourceUrl = p.SourceUrl,
         Weight = p.Weight,
     };
+
+    public void Reset()
+    {
+        var nodeIds = _dag.Nodes.Keys.ToList();
+        foreach (var id in nodeIds)
+        {
+            _dag.RemoveNode(id);
+        }
+
+        _adversarialRoundCount = 0;
+        _tokensUsed = 0;
+        _roundsBudget = _options.MaxAdversarialRounds;
+        _tokensBudget = _options.MaxTokens;
+        _lastRunAt = null;
+
+        _logger.LogInformation("[重置] 推理引擎已重置 — DAG清空，预算恢复");
+    }
 }

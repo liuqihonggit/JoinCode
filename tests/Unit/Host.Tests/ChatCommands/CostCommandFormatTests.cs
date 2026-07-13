@@ -157,7 +157,7 @@ public class CostCommandFormatTests
             },
             new()
             {
-                Model = "claude-3-5-sonnet-20240620",
+                Model = "claude-sonnet-4-6-20250514",
                 RequestCount = 1,
                 PromptTokens = 3000,
                 CompletionTokens = 1000,
@@ -170,6 +170,7 @@ public class CostCommandFormatTests
         var output = CostCommand.FormatModelUsage(breakdown);
 
         output.Should().Contain("claude-3-5-sonnet");
+        output.Should().Contain("claude-sonnet-4-6");
         output.Should().Contain("8,000 input");
         output.Should().Contain("3,000 output");
         output.Should().Contain("800 cache read");

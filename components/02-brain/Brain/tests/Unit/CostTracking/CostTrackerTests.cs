@@ -174,9 +174,7 @@ public class CostTrackerTests : IDisposable, IAsyncLifetime
 
         // Assert
         allCosts.Should().NotBeEmpty();
-        allCosts.Should().ContainKey("gpt-4");
-        allCosts.Should().ContainKey("gpt-3.5-turbo");
-        allCosts.Should().ContainKey("claude-3-opus");
+        allCosts.Should().ContainKey(JoinCode.Abstractions.Configuration.Llm.ModelConfigLoader.GetDefaultModelId("openai"));
     }
 
     [Fact]
@@ -214,26 +212,24 @@ public class CostTrackerTests : IDisposable, IAsyncLifetime
     }
 
     [Theory]
-    [InlineData("gpt-4-turbo")]
-    [InlineData("gpt-4-turbo-preview")]
-    [InlineData("gpt-4-0125-preview")]
-    [InlineData("gpt-4-1106-preview")]
-    public void RecordUsage_Gpt4TurboVariants_ShouldUseCorrectPricing(string modelVariant)
+    [InlineData("gpt-4o", 0.005, 0.015)]
+    [InlineData("gpt-4.1", 0.002, 0.008)]
+    [InlineData("gpt-4o-mini", 0.00015, 0.0006)]
+    public void RecordUsage_OpenAIModels_ShouldUseCorrectPricing(string model, double promptCost, double completionCost)
     {
         // Act
-        _costTracker.RecordUsage(modelVariant, 1000, 1000);
+        _costTracker.RecordUsage(model, 1000, 1000);
 
         // Assert
         var stats = _costTracker.GetTotalStatistics();
-        // gpt-4-turbo: $0.01/1K prompt, $0.03/1K completion
-        var expectedCost = 0.01m + 0.03m;
+        var expectedCost = (decimal)promptCost + (decimal)completionCost;
         stats.TotalCostUsd.Should().BeApproximately(expectedCost, 0.0001m);
     }
 
     [Theory]
-    [InlineData("claude-3-opus", 0.015, 0.075)]
-    [InlineData("claude-3-sonnet", 0.003, 0.015)]
-    [InlineData("claude-3-haiku", 0.00025, 0.00125)]
+    [InlineData("claude-opus-4-7-20250701", 0.005, 0.025)]
+    [InlineData("claude-sonnet-4-6-20250514", 0.003, 0.015)]
+    [InlineData("claude-haiku-4-5-20251001", 0.001, 0.005)]
     public void RecordUsage_ClaudeModels_ShouldUseCorrectPricing(string model, double promptCost, double completionCost)
     {
         // Act

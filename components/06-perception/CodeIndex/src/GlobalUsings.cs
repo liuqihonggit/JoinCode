@@ -1,9 +1,9 @@
 global using System.Collections.Frozen;
 global using System.Diagnostics.CodeAnalysis;
 global using System.Text.RegularExpressions;
-global using CodeIndex.Ast;
-global using CodeIndex.Persistence;
-global using CodeIndex.Threading;
+global using JoinCode.CodeIndex.Ast;
+global using JoinCode.CodeIndex.Persistence;
+global using JoinCode.CodeIndex.Threading;
 global using JoinCode.Abstractions.Attributes;
 global using JoinCode.Abstractions.Clock;
 global using JoinCode.Abstractions.CodeIndex;

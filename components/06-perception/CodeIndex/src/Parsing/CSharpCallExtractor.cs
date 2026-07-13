@@ -1,4 +1,4 @@
-namespace CodeIndex.Ast;
+namespace JoinCode.CodeIndex.Ast;
 
 /// <summary>
 /// CollectCalls 方法的参数封装

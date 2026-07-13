@@ -1,4 +1,4 @@
-namespace CodeIndex;
+namespace JoinCode.CodeIndex;
 
 internal static class HashUtility
 {

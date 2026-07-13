@@ -1,4 +1,4 @@
-namespace CodeIndex.Threading;
+namespace JoinCode.CodeIndex.Threading;
 
 /// <summary>
 /// Singleton pool that reuses <see cref="TreeSitterParser"/> instances to avoid concurrent <c>new()</c> calls.

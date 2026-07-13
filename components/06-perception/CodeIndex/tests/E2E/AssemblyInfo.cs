@@ -1,4 +1,4 @@
-namespace CodeIndex.E2E.Tests;
+namespace JoinCode.CodeIndex.E2E.Tests;
 
 /// <summary>
 /// 确保本地化系统在测试程序集加载时自动初始化为中文

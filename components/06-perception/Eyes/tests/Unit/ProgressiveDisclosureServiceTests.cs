@@ -1,4 +1,4 @@
-namespace CodeIndex.Tests;
+namespace JoinCode.CodeIndex.Tests;
 
 public sealed class ProgressiveDisclosureServiceTests
 {

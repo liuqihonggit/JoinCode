@@ -1,4 +1,4 @@
-namespace CodeIndex.Threading;
+namespace JoinCode.CodeIndex.Threading;
 
 internal sealed class TimeoutLock : IDisposable
 {

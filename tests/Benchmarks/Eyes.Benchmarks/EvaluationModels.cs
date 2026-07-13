@@ -1,4 +1,4 @@
-namespace CodeIndex.Benchmarks;
+namespace JoinCode.CodeIndex.Benchmarks;
 
 public sealed record TestCase
 {

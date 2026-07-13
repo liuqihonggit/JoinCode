@@ -1,6 +1,6 @@
-using CodeIndex.Ast;
+using JoinCode.CodeIndex.Ast;
 
-namespace CodeIndex.Tests;
+namespace JoinCode.CodeIndex.Tests;
 
 public class BashAstParserTests
 {

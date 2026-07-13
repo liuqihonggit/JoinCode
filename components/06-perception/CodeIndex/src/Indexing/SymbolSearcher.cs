@@ -1,4 +1,4 @@
-namespace CodeIndex;
+namespace JoinCode.CodeIndex;
 
 /// <summary>
 /// 符号搜索器 — 重写为基于 InMemoryIndexStore 的内存查询

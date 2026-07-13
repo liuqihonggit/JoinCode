@@ -1,5 +1,5 @@
-global using CodeIndex;
-global using CodeIndex.Persistence;
+global using JoinCode.CodeIndex;
+global using JoinCode.CodeIndex.Persistence;
 global using JoinCode.Abstractions.CodeIndex;
 global using JoinCode.Abstractions.Interfaces;
 global using IO.FileSystem;

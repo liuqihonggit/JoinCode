@@ -64,4 +64,9 @@ public interface IReasoningEngine
     /// 增量重算 — 只重算受影响的子图
     /// </summary>
     IReadOnlyList<ReasoningPayload> IncrementalRecompute(string changedNodeId);
+
+    /// <summary>
+    /// 重置推理引擎 — 清空 DAG 和预算
+    /// </summary>
+    void Reset();
 }

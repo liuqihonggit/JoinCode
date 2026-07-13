@@ -54,7 +54,8 @@ public sealed class FalvCommand : IChatCommand
                 ShowBudget(engine);
                 break;
             case "--reset":
-                TerminalHelper.WriteLine("推理引擎已重置（请重新创建引擎实例）");
+                engine.Reset();
+                TerminalHelper.WriteLine("推理引擎已重置 — DAG清空，预算恢复");
                 break;
             default:
                 await AddAssumptionAsync(engine, args, context.CancellationToken).ConfigureAwait(false);

@@ -1,8 +1,10 @@
 name: Auto Enable Merge
 
 on:
-  pull_request:
-    types: [opened, reopened, synchronize]
+  workflow_run:
+    workflows: ["CI/CD"]
+    types: [completed]
+    branches: [main]
 
 permissions:
   contents: write
@@ -12,10 +14,13 @@ jobs:
   auto-merge:
     name: Enable Auto-Merge
     runs-on: ubuntu-latest
-    if: github.event.pull_request.base.ref == 'main'
+    if: github.event.workflow_run.conclusion == 'success'
     steps:
       - name: Enable auto-merge for PR
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh pr merge ${{ github.event.pull_request.number }} --auto --squash --repo ${{ github.repository }}
+          PR_NUMBER=$(gh pr list --repo ${{ github.repository }} --state open --head ${{ github.event.workflow_run.head_branch }} --json number --jq '.[0].number')
+          if [ -n "$PR_NUMBER" ]; then
+            gh pr merge "$PR_NUMBER" --auto --squash --repo ${{ github.repository }}
+          fi

@@ -16,6 +16,11 @@ public interface IReasoningAgent
     string Name { get; }
 
     /// <summary>
+    /// 人格提示词 — 定义Agent的行为准则和推理策略
+    /// </summary>
+    string SystemPrompt { get; }
+
+    /// <summary>
     /// 执行推理 — 接收完整上下文，不持有引擎引用
     /// </summary>
     Task<AgentAction> ReasonAsync(ReasoningContext context, CancellationToken ct);

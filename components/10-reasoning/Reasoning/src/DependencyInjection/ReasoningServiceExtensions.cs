@@ -18,6 +18,7 @@ public static class ReasoningServiceExtensions
         services.AddSingleton<IReasoningAgent, ProsecutorAgent>();
         services.AddSingleton<IReasoningAgent, DefenderAgent>();
         services.AddSingleton<IReasoningAgent, JudgeAgent>();
+
         return services;
     }
 

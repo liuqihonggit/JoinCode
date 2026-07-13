@@ -76,6 +76,46 @@ public sealed class ReasoningOptions
     public double DefaultEvidenceWeight { get; init; } = 1.0;
 
     /// <summary>
+    /// 控方LLM调用温度
+    /// </summary>
+    public float ProsecutorTemperature { get; init; } = 0.3f;
+
+    /// <summary>
+    /// 辩方LLM调用温度
+    /// </summary>
+    public float DefenderTemperature { get; init; } = 0.4f;
+
+    /// <summary>
+    /// 法官LLM调用温度
+    /// </summary>
+    public float JudgeTemperature { get; init; } = 0.2f;
+
+    /// <summary>
+    /// Agent单次LLM调用最大token数
+    /// </summary>
+    public int DefaultLlmMaxTokens { get; init; } = 2000;
+
+    /// <summary>
+    /// 每轮对抗流程固定token开销（不含LLM调用）
+    /// </summary>
+    public int RoundOverheadTokens { get; init; } = 100;
+
+    /// <summary>
+    /// 降级/待补充时默认置信度
+    /// </summary>
+    public int DowngradedConfidence { get; init; } = 50;
+
+    /// <summary>
+    /// 驳回时默认置信度
+    /// </summary>
+    public int RejectedConfidence { get; init; } = 10;
+
+    /// <summary>
+    /// 裁决边权重
+    /// </summary>
+    public double VerdictEdgeWeight { get; init; } = 1.0;
+
+    /// <summary>
     /// 杀人罪 — 证据阈值最高，闭环锁死，排除合理怀疑
     /// </summary>
     public static readonly ReasoningOptions Murder = new()

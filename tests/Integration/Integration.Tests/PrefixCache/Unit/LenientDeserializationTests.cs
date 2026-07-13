@@ -10,13 +10,13 @@ public sealed class LenientDeserializationTests
     [Fact]
     public void NativeJson_TrailingCommaInResponse_Deserializes()
     {
-        var json = """{"id":"chatcmpl-123","object":"chat.completion","created":1234567890,"model":"deepseek-chat","choices":[{"index":0,"message":{"role":"assistant","content":"Hello"},"finish_reason":"stop"}],}""";
+        var json = """{"id":"chatcmpl-123","object":"chat.completion","created":1234567890,"model":"deepseek-v4-flash","choices":[{"index":0,"message":{"role":"assistant","content":"Hello"},"finish_reason":"stop"}],}""";
 
         var result = JsonSerializer.Deserialize(json, NativeJsonContext.Default.OpenAIChatResponse);
 
         result.Should().NotBeNull();
         result!.Id.Should().Be("chatcmpl-123");
-        result.Model.Should().Be("deepseek-chat");
+        result.Model.Should().Be("deepseek-v4-flash");
         result.Choices.Should().HaveCount(1);
         result.Choices[0].Message.Content.Should().Be("Hello");
     }
@@ -24,7 +24,7 @@ public sealed class LenientDeserializationTests
     [Fact]
     public void NativeJson_TrailingCommaInToolCall_Deserializes()
     {
-        var json = """{"id":"chatcmpl-123","object":"chat.completion","created":1234567890,"model":"deepseek-chat","choices":[{"index":0,"message":{"role":"assistant","content":null,"tool_calls":[{"id":"call_123","type":"function","function":{"name":"Bash","arguments":"{\"command\":\"ls\"}"}}]},"finish_reason":"tool_calls"}]}""";
+        var json = """{"id":"chatcmpl-123","object":"chat.completion","created":1234567890,"model":"deepseek-v4-flash","choices":[{"index":0,"message":{"role":"assistant","content":null,"tool_calls":[{"id":"call_123","type":"function","function":{"name":"Bash","arguments":"{\"command\":\"ls\"}"}}]},"finish_reason":"tool_calls"}]}""";
 
         var result = JsonSerializer.Deserialize(json, NativeJsonContext.Default.OpenAIChatResponse);
 
@@ -39,7 +39,7 @@ public sealed class LenientDeserializationTests
     [Fact]
     public void NativeJson_CaseInsensitiveProperty_Deserializes()
     {
-        var json = """{"Id":"chatcmpl-123","Object":"chat.completion","Created":1234567890,"Model":"deepseek-chat","Choices":[{"Index":0,"Message":{"Role":"assistant","Content":"Hello"},"FinishReason":"stop"}]}""";
+        var json = """{"Id":"chatcmpl-123","Object":"chat.completion","Created":1234567890,"Model":"deepseek-v4-flash","Choices":[{"Index":0,"Message":{"Role":"assistant","Content":"Hello"},"FinishReason":"stop"}]}""";
 
         var result = JsonSerializer.Deserialize(json, NativeJsonContext.Default.OpenAIChatResponse);
 
@@ -56,7 +56,7 @@ public sealed class LenientDeserializationTests
             "id": "chatcmpl-123",
             "object": "chat.completion",
             "created": 1234567890,
-            "model": "deepseek-chat",
+            "model": "deepseek-v4-flash",
             "choices": [{
                 "index": 0,
                 "message": {"role": "assistant", "content": "Hello"},

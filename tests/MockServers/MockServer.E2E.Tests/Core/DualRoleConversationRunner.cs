@@ -68,7 +68,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
         {
             ProviderKind.OpenAI => "gpt-4o",
             ProviderKind.Anthropic => "claude-sonnet-4-20250514",
-            ProviderKind.DeepSeek => "deepseek-chat",
+            ProviderKind.DeepSeek => "deepseek-v4-flash",
             _ => "gpt-4o"
         };
         var apiKeyEnvVar = _activeProvider switch

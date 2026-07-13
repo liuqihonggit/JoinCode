@@ -9,7 +9,6 @@ namespace Core.Hooks.Execution;
 public sealed class AgentHookExecutor : HookExecutorBase<AgentHook>
 {
     private readonly IAgentService? _agentService;
-    private const string DefaultModel = "claude-sonnet-4-6";
 
     public AgentHookExecutor(
         IAgentService? agentService = null,
@@ -73,7 +72,7 @@ public sealed class AgentHookExecutor : HookExecutorBase<AgentHook>
         var fullPrompt = BuildAgentPrompt(prompt, input);
 
         // 使用小型快速模型（如果未指定）
-        var model = hook.Model ?? DefaultModel;
+        var model = hook.Model ?? JoinCode.Abstractions.Configuration.Llm.ModelConfigLoader.GetDefaultModelId("anthropic");
 
         // 调用代理服务 — 未注册时返回非阻塞错误（不阻断 DI 链路）
         if (_agentService is null)

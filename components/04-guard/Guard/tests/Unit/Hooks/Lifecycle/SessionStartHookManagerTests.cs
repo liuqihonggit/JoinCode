@@ -2,6 +2,8 @@ namespace Guard.Tests.Hooks.Lifecycle;
 
 public sealed class SessionStartHookManagerTests
 {
+    private static readonly string DefaultOpenAiModelId = ModelConfigLoader.GetDefaultModelId("openai");
+
     private readonly Mock<IHookOrchestrator> _orchestratorMock;
     private readonly SessionStartHookManager _sut;
 
@@ -219,7 +221,7 @@ public sealed class SessionStartHookManagerTests
         {
             SessionId = "session-42",
             Source = "api",
-            Configuration = new Dictionary<string, JsonElement> { ["model"] = JsonElementHelper.FromString("gpt-4o") }
+            Configuration = new Dictionary<string, JsonElement> { ["model"] = JsonElementHelper.FromString(DefaultOpenAiModelId) }
         };
 
         await _sut.OnSessionStartAsync(context).ConfigureAwait(true);

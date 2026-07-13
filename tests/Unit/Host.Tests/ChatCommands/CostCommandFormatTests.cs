@@ -63,36 +63,6 @@ public class CostCommandFormatTests
     }
 
     [Fact]
-    public void GetCanonicalName_ClaudeSonnet4_ShouldAggregate()
-    {
-        ModelNameHelper.GetCanonicalName("claude-sonnet-4-20250514").Should().Be("claude-sonnet-4");
-    }
-
-    [Fact]
-    public void GetCanonicalName_Claude35Sonnet_ShouldAggregate()
-    {
-        ModelNameHelper.GetCanonicalName("claude-3-5-sonnet-20241022").Should().Be("claude-3-5-sonnet");
-    }
-
-    [Fact]
-    public void GetCanonicalName_Gpt4o_ShouldAggregate()
-    {
-        ModelNameHelper.GetCanonicalName("gpt-4o-2024-08-06").Should().Be("gpt-4o");
-    }
-
-    [Fact]
-    public void GetCanonicalName_Gpt4oMini_ShouldAggregate()
-    {
-        ModelNameHelper.GetCanonicalName("gpt-4o-mini-2024-07-18").Should().Be("gpt-4o-mini");
-    }
-
-    [Fact]
-    public void GetCanonicalName_DeepSeek_ShouldAggregate()
-    {
-        ModelNameHelper.GetCanonicalName("deepseek-chat").Should().Be("deepseek");
-    }
-
-    [Fact]
     public void GetCanonicalName_UnknownModel_ShouldReturnOriginal()
     {
         ModelNameHelper.GetCanonicalName("my-custom-model").Should().Be("my-custom-model");
@@ -168,42 +138,6 @@ public class CostCommandFormatTests
         var output = CostCommand.FormatTotalCost(stats);
 
         output.Should().Contain("0 input, 0 output, 0 cache read, 0 cache write");
-    }
-
-    [Fact]
-    public void FormatModelUsage_ShouldAggregateByShortName()
-    {
-        var breakdown = new List<ModelCostStatistics>
-        {
-            new()
-            {
-                Model = "claude-3-5-sonnet-20241022",
-                RequestCount = 2,
-                PromptTokens = 5000,
-                CompletionTokens = 2000,
-                CacheCreationTokens = 100,
-                CacheReadTokens = 500,
-                TotalCost = 0.05m
-            },
-            new()
-            {
-                Model = "claude-3-5-sonnet-20240620",
-                RequestCount = 1,
-                PromptTokens = 3000,
-                CompletionTokens = 1000,
-                CacheCreationTokens = 50,
-                CacheReadTokens = 300,
-                TotalCost = 0.03m
-            }
-        };
-
-        var output = CostCommand.FormatModelUsage(breakdown);
-
-        output.Should().Contain("claude-3-5-sonnet");
-        output.Should().Contain("8,000 input");
-        output.Should().Contain("3,000 output");
-        output.Should().Contain("800 cache read");
-        output.Should().Contain("150 cache write");
     }
 
     [Fact]

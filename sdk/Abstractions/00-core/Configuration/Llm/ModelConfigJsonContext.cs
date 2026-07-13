@@ -6,4 +6,5 @@ namespace JoinCode.Abstractions.Configuration.Llm;
 [JsonSerializable(typeof(ModelProviderConfig))]
 [JsonSerializable(typeof(ModelItemConfig))]
 [JsonSerializable(typeof(ModelCapabilitiesConfig))]
+[JsonSerializable(typeof(ModelPricingConfig))]
 public partial class ModelConfigJsonContext : JsonSerializerContext;

@@ -10,4 +10,18 @@ public sealed class ReasoningContext
     public required IReadOnlyList<EvidenceRecord> AllEvidence { get; init; }
     public required Dag<ReasoningPayload> Dag { get; init; }
     public required ReasoningOptions Options { get; init; }
+
+    /// <summary>
+    /// 视锥调度器 — 管理多角色的有限视锥
+    /// </summary>
+    public ConeOrchestrator? ConeOrchestrator { get; init; }
+
+    /// <summary>
+    /// 获取当前角色的视锥上下文（LLM友好输入）
+    /// </summary>
+    public string GetConeContextForRole(AgentRole role)
+    {
+        var cone = ConeOrchestrator?.GetRole(role);
+        return cone?.GetConeContext() ?? string.Empty;
+    }
 }

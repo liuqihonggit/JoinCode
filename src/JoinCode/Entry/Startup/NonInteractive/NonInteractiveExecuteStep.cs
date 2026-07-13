@@ -7,7 +7,7 @@ internal sealed class NonInteractiveExecuteStep : IMiddleware<StartupContext>
 
     public async Task InvokeAsync(StartupContext context, MiddlewareDelegate<StartupContext> next, CancellationToken ct)
     {
-        Console.Error.WriteLine("[STEP] ExecuteStep start");
+        Diag.WriteLine("[STEP] ExecuteStep start");
         var session = context.Session;
         if (session is null)
         {
@@ -15,11 +15,11 @@ internal sealed class NonInteractiveExecuteStep : IMiddleware<StartupContext>
             context.ExitCode = 1;
             return;
         }
-        Console.Error.WriteLine($"[STEP] ExecuteStep session={session.GetType().Name}");
+        Diag.WriteLine($"[STEP] ExecuteStep session={session.GetType().Name}");
 
         try
         {
-        Console.Error.WriteLine("[STEP] ExecuteStep calling ProcessUserInputAsync...");
+        Diag.WriteLine("[STEP] ExecuteStep calling ProcessUserInputAsync...");
         Console.Error.WriteLine("[READY]");
         var prompt = context.NonInteractivePrompt;
             if (string.IsNullOrEmpty(prompt))
@@ -31,7 +31,7 @@ internal sealed class NonInteractiveExecuteStep : IMiddleware<StartupContext>
             await session.ProcessUserInputAsync(prompt, ct);
             await Console.Out.FlushAsync().ConfigureAwait(false);
             Console.Error.WriteLine("[DONE]");
-            Console.Error.WriteLine("[STEP] ExecuteStep ProcessUserInputAsync returned");
+            Diag.WriteLine("[STEP] ExecuteStep ProcessUserInputAsync returned");
         }
         catch (Exception ex)
         {
@@ -41,7 +41,7 @@ internal sealed class NonInteractiveExecuteStep : IMiddleware<StartupContext>
             return;
         }
 
-        Console.Error.WriteLine("[STEP] ExecuteStep done, calling next");
+        Diag.WriteLine("[STEP] ExecuteStep done, calling next");
         Console.Error.WriteLine("[EXIT]");
         await next(context, ct);
     }

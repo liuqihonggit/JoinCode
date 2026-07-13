@@ -1,4 +1,4 @@
-﻿
+
 namespace Core.Skills.Plugin;
 
 [Register]
@@ -15,12 +15,12 @@ public sealed partial class PluginSkillBridge : IPluginSkillBridge
         ISkillService skillService,
         ILogger<PluginSkillBridge>? logger = null)
     {
-        Console.Error.WriteLine("[BRIDGE-CTOR] start");
+        Diag.WriteLine("[BRIDGE-CTOR] start");
         _pluginManager = pluginManager;
         _skillService = skillService;
         _logger = logger;
         _pluginSkillMap = new ConcurrentDictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
-        Console.Error.WriteLine("[BRIDGE-CTOR] done");
+        Diag.WriteLine("[BRIDGE-CTOR] done");
     }
 
     public async Task RegisterPluginSkillsAsync(string pluginName, CancellationToken cancellationToken = default)

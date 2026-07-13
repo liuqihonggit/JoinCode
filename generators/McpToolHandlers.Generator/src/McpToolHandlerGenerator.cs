@@ -423,6 +423,7 @@ public sealed class McpToolHandlerGenerator : IIncrementalGenerator
         sb.AppendLine("using Microsoft.Extensions.Logging;");
         sb.AppendLine("using JoinCode.Abstractions.Mcp.Registry;");
         sb.AppendLine("using JoinCode.Abstractions.Tools;");
+        sb.AppendLine("using JoinCode.Abstractions.Utils.Diagnostics;");
         sb.AppendLine();
         sb.AppendLine("namespace McpToolHandlers;");
         sb.AppendLine();
@@ -485,9 +486,9 @@ public sealed class McpToolHandlerGenerator : IIncrementalGenerator
         {
             handlerIndex++;
             var optionalArg = handler.Optional ? "true" : "false";
-            sb.AppendLine($"        Console.WriteLine(\"[{handlerIndex}/{handlers.Count}] Registering {handler.DisplayName}...\");");
+            sb.AppendLine($"        Diag.WriteLine(\"[{handlerIndex}/{handlers.Count}] Registering {handler.DisplayName}...\");");
             sb.AppendLine($"        await Register{handler.TypeName}ToolsAsync(registry, serviceProvider, logger, cancellationToken, {optionalArg});");
-            sb.AppendLine($"        Console.WriteLine(\"[{handlerIndex}/{handlers.Count}] {handler.DisplayName} done\");");
+            sb.AppendLine($"        Diag.WriteLine(\"[{handlerIndex}/{handlers.Count}] {handler.DisplayName} done\");");
         }
 
         sb.AppendLine();

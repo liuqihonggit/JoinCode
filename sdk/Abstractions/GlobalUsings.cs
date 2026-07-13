@@ -59,6 +59,7 @@ global using JoinCode.Abstractions.UI;
 global using JoinCode.Abstractions.Onboarding;
 global using JoinCode.Abstractions.Utils;
 global using JoinCode.Abstractions.Utils.Text;
+global using JoinCode.Abstractions.Utils.Diagnostics;
 global using Microsoft.Extensions.DependencyInjection;
 global using System.Collections.Frozen;
 global using System.Collections.Immutable;

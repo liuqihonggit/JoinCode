@@ -41,6 +41,7 @@ global using JoinCode.Abstractions.State;
 global using JoinCode.Abstractions.Tools;
 global using JoinCode.Abstractions.Utils;
 global using JoinCode.Abstractions.Utils.Text;
+global using JoinCode.Abstractions.Utils.Diagnostics;
 global using JoinCode.Abstractions.Utils.Web;
 global using Infrastructure.Utils.IO;
 global using Infrastructure.Utils.Text;

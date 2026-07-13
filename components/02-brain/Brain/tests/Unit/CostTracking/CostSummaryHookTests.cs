@@ -19,7 +19,7 @@ public class CostSummaryHookTests
         var tracker = CreateCostTracker();
         await using (tracker)
         {
-            tracker.RecordUsage("gpt-4o", 100, 50);
+            tracker.RecordUsage("model-a", 100, 50);
 
             var hook = new CostSummaryHook(tracker, NullLogger<CostSummaryHook>.Instance);
 
@@ -35,7 +35,7 @@ public class CostSummaryHookTests
         var tracker = CreateCostTracker();
         await using (tracker)
         {
-            tracker.RecordUsage("gpt-4o", 1000, 500);
+            tracker.RecordUsage("model-a", 1000, 500);
 
             var hook = new CostSummaryHook(tracker, NullLogger<CostSummaryHook>.Instance);
 
@@ -43,7 +43,7 @@ public class CostSummaryHookTests
 
             summary.Should().Contain("成本摘要");
             summary.Should().Contain("请求次数: 1");
-            summary.Should().Contain("gpt-4o");
+            summary.Should().Contain("model-a");
         }
     }
 
@@ -68,15 +68,15 @@ public class CostSummaryHookTests
         var tracker = CreateCostTracker();
         await using (tracker)
         {
-            tracker.RecordUsage("gpt-4o", 100, 50);
-            tracker.RecordUsage("claude-3-sonnet", 200, 100);
+            tracker.RecordUsage("model-a", 100, 50);
+            tracker.RecordUsage("model-b", 200, 100);
 
             var hook = new CostSummaryHook(tracker, NullLogger<CostSummaryHook>.Instance);
 
             var summary = await hook.GenerateSummaryAsync().ConfigureAwait(true);
 
-            summary.Should().Contain("gpt-4o");
-            summary.Should().Contain("claude-3-sonnet");
+            summary.Should().Contain("model-a");
+            summary.Should().Contain("model-b");
             summary.Should().Contain("按模型分类");
         }
     }
@@ -87,7 +87,7 @@ public class CostSummaryHookTests
         var tracker = CreateCostTracker();
         await using (tracker)
         {
-            tracker.RecordUsage("gpt-4o", 100, 50, 500, 200);
+            tracker.RecordUsage("model-a", 100, 50, 500, 200);
 
             var hook = new CostSummaryHook(tracker, NullLogger<CostSummaryHook>.Instance);
 

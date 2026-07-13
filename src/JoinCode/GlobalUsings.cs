@@ -42,6 +42,7 @@ global using JoinCode.Abstractions.State;
 global using JoinCode.Abstractions.Tools;
 global using JoinCode.Abstractions.Utils;
 global using JoinCode.Abstractions.Utils.Text;
+global using JoinCode.Abstractions.Utils.Diagnostics;
 global using ChatStreamEvent = JoinCode.Abstractions.LLM.Chat.ChatStreamEvent;
 global using ChatStreamEventType = JoinCode.Abstractions.LLM.Chat.ChatStreamEventType;
 global using Core.Bridge;

@@ -3,13 +3,16 @@ namespace Core.Configuration.Tests;
 
 public sealed class FastModeServiceTests : IDisposable
 {
+    private static readonly string DefaultModelId = ModelConfigLoader.GetDefaultModelId("openai");
+    private static readonly string DefaultFastModelId = ModelConfigLoader.GetDefaultFastModelId("openai");
+
     private readonly FastModeService _service;
 
     public FastModeServiceTests()
     {
         _service = new FastModeService(
             config: null,
-            fastModelId: "gpt-4o-mini",
+            fastModelId: DefaultFastModelId,
             cooldownDuration: TimeSpan.FromMilliseconds(200));
     }
 
@@ -22,13 +25,13 @@ public sealed class FastModeServiceTests : IDisposable
     [Fact]
     public void Initial_PrimaryModel_Should_Be_Set()
     {
-        Assert.Equal("gpt-4o", _service.PrimaryModelId);
+        Assert.Equal(DefaultModelId, _service.PrimaryModelId);
     }
 
     [Fact]
     public void Initial_FastModel_Should_Be_Set()
     {
-        Assert.Equal("gpt-4o-mini", _service.FastModelId);
+        Assert.Equal(DefaultFastModelId, _service.FastModelId);
     }
 
     [Fact]
@@ -49,8 +52,8 @@ public sealed class FastModeServiceTests : IDisposable
 
         Assert.NotNull(eventArgs);
         Assert.True(eventArgs.IsFastModeActive);
-        Assert.Equal("gpt-4o-mini", eventArgs.ActiveModelId);
-        Assert.Equal("gpt-4o", eventArgs.InactiveModelId);
+        Assert.Equal(DefaultFastModelId, eventArgs.ActiveModelId);
+        Assert.Equal(DefaultModelId, eventArgs.InactiveModelId);
     }
 
     [Fact]
@@ -73,8 +76,8 @@ public sealed class FastModeServiceTests : IDisposable
 
         Assert.NotNull(eventArgs);
         Assert.False(eventArgs.IsFastModeActive);
-        Assert.Equal("gpt-4o", eventArgs.ActiveModelId);
-        Assert.Equal("gpt-4o-mini", eventArgs.InactiveModelId);
+        Assert.Equal(DefaultModelId, eventArgs.ActiveModelId);
+        Assert.Equal(DefaultFastModelId, eventArgs.InactiveModelId);
     }
 
     [Fact]
@@ -120,7 +123,7 @@ public sealed class FastModeServiceTests : IDisposable
     [Fact]
     public void GetCurrentModelId_Should_Return_Primary_When_Inactive()
     {
-        Assert.Equal("gpt-4o", _service.GetCurrentModelId());
+        Assert.Equal(DefaultModelId, _service.GetCurrentModelId());
     }
 
     [Fact]
@@ -128,7 +131,7 @@ public sealed class FastModeServiceTests : IDisposable
     {
         _service.Activate();
 
-        Assert.Equal("gpt-4o-mini", _service.GetCurrentModelId());
+        Assert.Equal(DefaultFastModelId, _service.GetCurrentModelId());
     }
 
     [Fact]

@@ -19,7 +19,7 @@ public sealed class DeepSeekResponseStrategy : ScriptedResponseStrategyBase
             "id": "chatcmpl-{{Guid.NewGuid():N}}",
             "object": "chat.completion",
             "created": {{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}},
-            "model": "deepseek-chat",
+            "model": "deepseek-v4-flash",
             "choices": [{
                 "index": 0,
                 "message": {"role": "assistant", "content": "{{EscapeJsonString(turn.TextResponse ?? DefaultResponse)}}"},
@@ -71,7 +71,7 @@ public sealed class DeepSeekResponseStrategy : ScriptedResponseStrategyBase
             "id": "chatcmpl-{{Guid.NewGuid():N}}",
             "object": "chat.completion",
             "created": {{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}},
-            "model": "deepseek-chat",
+            "model": "deepseek-v4-flash",
             "choices": [{
                 "index": 0,
                 "message": {"role": "assistant", "content": null, "tool_calls": [{{toolCallsJson}}]},

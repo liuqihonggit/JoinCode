@@ -31,6 +31,7 @@ public sealed class ModelCapabilitiesConfig
     public bool FastMode { get; set; } = true;
     public bool Effort { get; set; }
     public bool MaxEffort { get; set; }
+    public bool ThinkingMode { get; set; }
 }
 
 public sealed class ModelPricingConfig

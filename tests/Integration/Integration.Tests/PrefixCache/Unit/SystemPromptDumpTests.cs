@@ -9,8 +9,8 @@ public sealed class SystemPromptDumpTests
         var options = new SystemPromptProviderOptions
         {
             EnabledTools = ["Bash", "Read", "Write", "Edit", "Glob", "Grep", "Task"],
-            ModelId = "deepseek-chat",
-            ModelName = "DeepSeek Chat",
+            ModelId = "deepseek-v4-flash",
+            ModelName = "DeepSeek V4 Flash",
             Version = "1.0.0-test",
             BuildTime = "2026-06-24",
             LanguagePreference = "简体中文"

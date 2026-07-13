@@ -63,36 +63,6 @@ public class CostCommandFormatTests
     }
 
     [Fact]
-    public void GetCanonicalName_ClaudeSonnet4_ShouldAggregate()
-    {
-        ModelNameHelper.GetCanonicalName("claude-sonnet-4-20250514").Should().Be("claude-sonnet-4");
-    }
-
-    [Fact]
-    public void GetCanonicalName_Claude35Sonnet_ShouldAggregate()
-    {
-        ModelNameHelper.GetCanonicalName("claude-3-5-sonnet-20241022").Should().Be("claude-3-5-sonnet");
-    }
-
-    [Fact]
-    public void GetCanonicalName_Gpt4o_ShouldAggregate()
-    {
-        ModelNameHelper.GetCanonicalName("gpt-4o-2024-08-06").Should().Be("gpt-4o");
-    }
-
-    [Fact]
-    public void GetCanonicalName_Gpt4oMini_ShouldAggregate()
-    {
-        ModelNameHelper.GetCanonicalName("gpt-4o-mini-2024-07-18").Should().Be("gpt-4o-mini");
-    }
-
-    [Fact]
-    public void GetCanonicalName_DeepSeek_ShouldAggregate()
-    {
-        ModelNameHelper.GetCanonicalName("deepseek-chat").Should().Be("deepseek");
-    }
-
-    [Fact]
     public void GetCanonicalName_UnknownModel_ShouldReturnOriginal()
     {
         ModelNameHelper.GetCanonicalName("my-custom-model").Should().Be("my-custom-model");

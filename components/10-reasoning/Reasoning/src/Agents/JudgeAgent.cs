@@ -1,7 +1,7 @@
 namespace JoinCode.Reasoning.Agents;
 
 /// <summary>
-/// 法官Agent — 最终裁决，基于 DAG 证据链
+/// 法官Agent — 最终裁决，基于 DAG 证据链 + 5维客观权重 + 链式传播
 /// </summary>
 public sealed class JudgeAgent : ReasoningAgentBase
 {
@@ -10,8 +10,10 @@ public sealed class JudgeAgent : ReasoningAgentBase
 
     public override string SystemPrompt =>
         "你是一个公正的法官。你的职责是基于控辩双方的证据链做出裁决。" +
-        "对每个假定，根据证据权重和信任度，做出接受(Accept)、驳回(Reject)或待补充(Pending)的裁决。" +
-        "输出JSON格式：{\"verdicts\":[{\"claimContent\":\"...\",\"decision\":\"Accept|Reject|Pending\",\"reason\":\"...\",\"confidence\":80}]}";
+        "对每个假定，根据证据权重和信任度，做出接受(Accept)、驳回(Reject)、部分接受(PartiallyAccept)或待补充(Pending)的裁决。" +
+        "输出JSON格式：{\"verdicts\":[{\"claimContent\":\"...\",\"decision\":\"Accept|Reject|PartiallyAccept|Pending\",\"reason\":\"...\",\"confidence\":80}]}";
+
+    private readonly WeightedDecisionSystem _decisionSystem = new();
 
     public JudgeAgent(ILogger<JudgeAgent> logger, IChatClient? chatClient = null, IAgentMessageBroker? messageBroker = null)
         : base(logger, chatClient, messageBroker) { }
@@ -45,38 +47,10 @@ public sealed class JudgeAgent : ReasoningAgentBase
                 .Where(e => e.SubmittedBy == AgentRole.Defender && refutingEdgeIds.Contains(e.Id))
                 .ToList();
 
-            var prosWeight = prosEvidence.Sum(e => e.Weight * (int)e.TrustLevel / 100.0);
-            var defWeight = defEvidence.Sum(e => e.Weight * (int)e.TrustLevel / 100.0);
-
-            if (prosWeight >= opts.AcceptThreshold && prosWeight > defWeight * opts.AcceptMultiplier)
+            var verdict = DecideWithWeightedSystem(item, prosEvidence, defEvidence, opts);
+            if (verdict is not null)
             {
-                action.Verdicts.Add(new Verdict
-                {
-                    ClaimId = item.Id,
-                    Decision = VerdictDecision.Accept,
-                    Reason = $"控方证据充分 (权重: {prosWeight:F2} vs {defWeight:F2})",
-                    Confidence = Math.Min(100, 70 + (int)(prosWeight * 10)),
-                });
-            }
-            else if (defWeight > prosWeight * opts.RejectMultiplier)
-            {
-                action.Verdicts.Add(new Verdict
-                {
-                    ClaimId = item.Id,
-                    Decision = VerdictDecision.Reject,
-                    Reason = $"辩方证据更有力 (权重: {defWeight:F2} vs {prosWeight:F2})",
-                    Confidence = Math.Min(100, 60 + (int)(defWeight * 10)),
-                });
-            }
-            else if (prosWeight > 0 && defWeight > 0 && Math.Abs(prosWeight - defWeight) < opts.PendingWeightDelta)
-            {
-                action.Verdicts.Add(new Verdict
-                {
-                    ClaimId = item.Id,
-                    Decision = VerdictDecision.Pending,
-                    Reason = $"控辩双方证据相当 (权重: {prosWeight:F2} vs {defWeight:F2})，需要补充证据",
-                    Confidence = 50,
-                });
+                action.Verdicts.Add(verdict);
             }
         }
 
@@ -112,6 +86,69 @@ public sealed class JudgeAgent : ReasoningAgentBase
         }
 
         return action;
+    }
+
+    /// <summary>
+    /// 使用加权决策系统裁决 — 5维客观权重 + 链式传播
+    /// </summary>
+    private Verdict? DecideWithWeightedSystem(
+        DataItem item,
+        IReadOnlyList<EvidenceRecord> prosEvidence,
+        IReadOnlyList<EvidenceRecord> defEvidence,
+        ReasoningOptions opts)
+    {
+        if (prosEvidence.Count == 0 && defEvidence.Count == 0) return null;
+
+        var result = _decisionSystem.MakeWeightedDecision(prosEvidence, defEvidence);
+
+        var prosWeight = result.ProsecutionWeight;
+        var defWeight = result.DefenseWeight;
+
+        if (prosWeight >= opts.AcceptThreshold && prosWeight > defWeight * opts.AcceptMultiplier)
+        {
+            return new Verdict
+            {
+                ClaimId = item.Id,
+                Decision = VerdictDecision.Accept,
+                Reason = $"控方证据充分 (加权:{prosWeight:F2} vs {defWeight:F2}, 拓扑:{result.TopologyImpact:F2}, 信念一致性:{result.BeliefConsistency:F2})",
+                Confidence = Math.Min(100, 70 + (int)(result.FinalConfidence * 30)),
+            };
+        }
+
+        if (defWeight > prosWeight * opts.RejectMultiplier)
+        {
+            return new Verdict
+            {
+                ClaimId = item.Id,
+                Decision = VerdictDecision.Reject,
+                Reason = $"辩方证据更有力 (加权:{defWeight:F2} vs {prosWeight:F2})",
+                Confidence = Math.Min(100, 60 + (int)(result.FinalConfidence * 30)),
+            };
+        }
+
+        if (prosWeight > 0 && defWeight > 0 && Math.Abs(prosWeight - defWeight) < opts.PendingWeightDelta)
+        {
+            return new Verdict
+            {
+                ClaimId = item.Id,
+                Decision = VerdictDecision.Pending,
+                Reason = $"控辩双方证据相当 (加权:{prosWeight:F2} vs {defWeight:F2})，需要补充证据",
+                Confidence = 50,
+            };
+        }
+
+        if (prosWeight > 0 && defWeight > 0 && prosWeight > defWeight && prosWeight < defWeight * opts.AcceptMultiplier)
+        {
+            return new Verdict
+            {
+                ClaimId = item.Id,
+                Decision = VerdictDecision.PartiallyAccept,
+                Reason = $"控方证据占优但不足以完全确认 (加权:{prosWeight:F2} vs {defWeight:F2})",
+                Confidence = Math.Min(100, 50 + (int)(result.FinalConfidence * 20)),
+            };
+        }
+
+        return null;
     }
 
     private List<Verdict> ParseVerdictsFromLlmResponse(string content, IReadOnlyList<DataItem> pending)
@@ -153,6 +190,7 @@ public sealed class JudgeAgent : ReasoningAgentBase
     {
         "Accept" => VerdictDecision.Accept,
         "Reject" => VerdictDecision.Reject,
+        "PartiallyAccept" => VerdictDecision.PartiallyAccept,
         _ => VerdictDecision.Pending,
     };
 }

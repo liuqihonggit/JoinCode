@@ -66,6 +66,21 @@ public interface IReasoningEngine
     IReadOnlyList<ReasoningPayload> IncrementalRecompute(string changedNodeId);
 
     /// <summary>
+    /// 获取视锥冲突检测结果
+    /// </summary>
+    ConeConflictResult DetectConeConflict(AgentRole roleA, AgentRole roleB);
+
+    /// <summary>
+    /// 展开指定角色的指定片段（渐进式披露）
+    /// </summary>
+    ObservationFragment? ExpandFragment(AgentRole role, string fragmentId, string triggerCondition);
+
+    /// <summary>
+    /// 设置证据URL验证器
+    /// </summary>
+    void SetUrlVerifier(EvidenceUrlVerifier verifier);
+
+    /// <summary>
     /// 重置推理引擎 — 清空 DAG 和预算
     /// </summary>
     void Reset();

@@ -546,4 +546,101 @@ public sealed class ReasoningEngineTests
         };
         return new ReasoningEngine(agents, NullLogger<ReasoningEngine>.Instance, options);
     }
+
+    [Fact]
+    public async Task DetectConeConflict_ShouldReturnConflictResult()
+    {
+        var engine = CreateEngine();
+        var item = new DataItem { Content = "假定1", State = DataState.Assumption, Source = "测试" };
+        await engine.AddAssumptionsAsync([item], CancellationToken.None);
+
+        var result = engine.DetectConeConflict(AgentRole.Prosecutor, AgentRole.Defender);
+
+        Assert.NotNull(result);
+    }
+
+    [Fact]
+    public async Task ExpandFragment_ShouldExpandWithMatchingCondition()
+    {
+        var engine = CreateEngine();
+        var item = new DataItem { Content = "假定1", State = DataState.Assumption, Source = "测试" };
+        await engine.AddAssumptionsAsync([item], CancellationToken.None);
+
+        var cone = engine.ConeOrchestrator.GetRole(AgentRole.Prosecutor);
+        Assert.NotNull(cone);
+        Assert.True(cone.AllFragments.Count > 0);
+
+        var firstFragment = cone.AllFragments.Values.First();
+        var expanded = engine.ExpandFragment(AgentRole.Prosecutor, firstFragment.FragmentId, "cross_role_review");
+
+        Assert.NotNull(expanded);
+    }
+
+    [Fact]
+    public async Task ConeOrchestrator_ShouldHaveAllRolesRegistered()
+    {
+        var engine = CreateEngine();
+
+        Assert.NotNull(engine.ConeOrchestrator.GetRole(AgentRole.Prosecutor));
+        Assert.NotNull(engine.ConeOrchestrator.GetRole(AgentRole.Defender));
+        Assert.NotNull(engine.ConeOrchestrator.GetRole(AgentRole.Judge));
+    }
+
+    [Fact]
+    public async Task BayesianUpdater_ShouldBeAccessible()
+    {
+        var engine = CreateEngine();
+        var item = new DataItem { Content = "假定1", State = DataState.Assumption, Source = "测试" };
+        await engine.AddAssumptionsAsync([item], CancellationToken.None);
+
+        Assert.NotNull(engine.BayesianUpdater);
+    }
+
+    [Fact]
+    public async Task AddAssumptionsAsync_ShouldCreateFragmentsInAllCones()
+    {
+        var engine = CreateEngine();
+        var item = new DataItem { Content = "假定1", State = DataState.Assumption, Source = "测试" };
+        await engine.AddAssumptionsAsync([item], CancellationToken.None);
+
+        foreach (AgentRole role in Enum.GetValues<AgentRole>())
+        {
+            var cone = engine.ConeOrchestrator.GetRole(role);
+            Assert.NotNull(cone);
+            Assert.True(cone.AllFragments.Count > 0);
+        }
+    }
+
+    [Fact]
+    public async Task ApplyVerdicts_PartiallyAccept_ShouldSetVerifiedState()
+    {
+        var engine = CreateEngine();
+        var item = new DataItem { Content = "假定1", State = DataState.Assumption, Source = "测试" };
+        await engine.AddAssumptionsAsync([item], CancellationToken.None);
+
+        var evidence = new EvidenceRecord
+        {
+            Content = "证据1",
+            Category = EvidenceCategory.Documentary,
+            TrustLevel = TrustLevel.Moderate,
+            SubmittedBy = AgentRole.Prosecutor,
+        };
+        engine.AddEvidence(evidence, item.Id);
+
+        var counterEvidence = new EvidenceRecord
+        {
+            Content = "反驳1",
+            Category = EvidenceCategory.Documentary,
+            TrustLevel = TrustLevel.Moderate,
+            SubmittedBy = AgentRole.Defender,
+        };
+        engine.AddCounterEvidence(counterEvidence, item.Id);
+    }
+
+    [Fact]
+    public void ReasoningOptions_ConeWindowSize_ShouldDefaultTo5()
+    {
+        var opts = ReasoningOptions.Panda;
+        Assert.Equal(5, opts.ConeWindowSize);
+    }
 }

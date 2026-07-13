@@ -21,6 +21,11 @@ public sealed class ReasoningOptions
     public int MaxDepth { get; init; } = 10;
 
     /// <summary>
+    /// 有限视锥窗口大小 — 每个角色同时可见的最大片段数
+    /// </summary>
+    public int ConeWindowSize { get; init; } = 5;
+
+    /// <summary>
     /// 对抗流程最大轮次预算，谁先触底谁停止
     /// </summary>
     public int MaxAdversarialRounds { get; init; } = 5;

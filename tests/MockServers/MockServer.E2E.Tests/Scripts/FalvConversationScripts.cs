@@ -231,7 +231,65 @@ public static class FalvConversationScripts
                     new OutputAssert { Type = AssertType.ContainsText, Expected = "--judge", Description = "应列出--judge" },
                     new OutputAssert { Type = AssertType.ContainsText, Expected = "--continue", Description = "应列出--continue" },
                     new OutputAssert { Type = AssertType.ContainsText, Expected = "--budget", Description = "应列出--budget" },
+                    new OutputAssert { Type = AssertType.ContainsText, Expected = "--cone", Description = "应列出--cone" },
+                    new OutputAssert { Type = AssertType.ContainsText, Expected = "--conflict", Description = "应列出--conflict" },
                     new OutputAssert { Type = AssertType.ContainsText, Expected = "杀人罪", Description = "应列出证明标准预设" },
+                    new OutputAssert { Type = AssertType.NoErrors, Expected = "", Description = "不应有错误" },
+                ]
+            }
+        ]
+    };
+
+    /// <summary>
+    /// /falv --cone 查看有限视锥
+    /// </summary>
+    public static ConversationScript FalvCone => new()
+    {
+        Name = "/falv --cone 有限视锥",
+        Mode = ConversationMode.Interactive,
+        Turns =
+        [
+            new ConversationTurn
+            {
+                UserInput = "/falv cone-test-assumption",
+                AiResponse = new MockResponseScript { Type = MockResponseType.TextOnly, TextResponse = "" },
+                Asserts = [new OutputAssert { Type = AssertType.ContainsText, Expected = "假定", Description = "应添加假定" }]
+            },
+            new ConversationTurn
+            {
+                UserInput = "/falv --cone",
+                AiResponse = new MockResponseScript { Type = MockResponseType.TextOnly, TextResponse = "" },
+                Asserts =
+                [
+                    new OutputAssert { Type = AssertType.ContainsText, Expected = "有限视锥", Description = "应显示视锥标题" },
+                    new OutputAssert { Type = AssertType.NoErrors, Expected = "", Description = "不应有错误" },
+                ]
+            }
+        ]
+    };
+
+    /// <summary>
+    /// /falv --conflict 检测视锥冲突
+    /// </summary>
+    public static ConversationScript FalvConflict => new()
+    {
+        Name = "/falv --conflict 视锥冲突",
+        Mode = ConversationMode.Interactive,
+        Turns =
+        [
+            new ConversationTurn
+            {
+                UserInput = "/falv conflict-test-assumption",
+                AiResponse = new MockResponseScript { Type = MockResponseType.TextOnly, TextResponse = "" },
+                Asserts = [new OutputAssert { Type = AssertType.ContainsText, Expected = "假定", Description = "应添加假定" }]
+            },
+            new ConversationTurn
+            {
+                UserInput = "/falv --conflict",
+                AiResponse = new MockResponseScript { Type = MockResponseType.TextOnly, TextResponse = "" },
+                Asserts =
+                [
+                    new OutputAssert { Type = AssertType.ContainsText, Expected = "视锥冲突检测", Description = "应显示冲突检测标题" },
                     new OutputAssert { Type = AssertType.NoErrors, Expected = "", Description = "不应有错误" },
                 ]
             }

@@ -153,6 +153,20 @@ public static class ModelConfigLoader
         return null;
     }
 
+    public static ModelItemConfig? FindModelByModelId(string modelId)
+    {
+        var lower = modelId.ToLowerInvariant();
+        foreach (var provider in Config.Providers)
+        {
+            foreach (var model in provider.Value.Models)
+            {
+                if (lower.Contains(model.Id.ToLowerInvariant(), StringComparison.Ordinal))
+                    return model;
+            }
+        }
+        return null;
+    }
+
     private static ModelConfigRoot LoadCore()
     {
         var assembly = typeof(ModelConfigLoader).Assembly;

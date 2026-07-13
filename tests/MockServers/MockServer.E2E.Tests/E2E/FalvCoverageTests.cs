@@ -42,4 +42,16 @@ public sealed class FalvCoverageTests : CoverageTestBase
     {
         await RunScriptAsync(FalvConversationScripts.FalvHelp).ConfigureAwait(true);
     }
+
+    [Fact]
+    public async Task FalvCone_ShouldShowConeStatus()
+    {
+        await RunScriptAsync(FalvConversationScripts.FalvCone).ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task FalvConflict_ShouldShowConflictDetection()
+    {
+        await RunScriptAsync(FalvConversationScripts.FalvConflict).ConfigureAwait(true);
+    }
 }

@@ -2,6 +2,7 @@ namespace JoinCode.Reasoning.Engine;
 
 /// <summary>
 /// 推理引擎 — 基于 DAG 的三权分立结构化推理核心
+/// 集成有限视锥、5维客观权重、链式传播、贝叶斯更新、证据URL验证
 /// </summary>
 public sealed class ReasoningEngine : IReasoningEngine
 {
@@ -16,6 +17,10 @@ public sealed class ReasoningEngine : IReasoningEngine
     private int _roundsBudget;
     private int _tokensBudget;
 
+    private readonly ConeOrchestrator _coneOrchestrator = new();
+    private readonly BayesianEvidenceUpdater _bayesianUpdater = new();
+    private EvidenceUrlVerifier? _urlVerifier;
+
     public ReasoningEngine(
         IEnumerable<IReasoningAgent> agents,
         ILogger<ReasoningEngine> logger,
@@ -26,12 +31,34 @@ public sealed class ReasoningEngine : IReasoningEngine
         _agents = agents.ToDictionary(a => a.Role, a => a);
         _roundsBudget = _options.MaxAdversarialRounds;
         _tokensBudget = _options.MaxTokens;
+
+        _coneOrchestrator.RegisterRole(AgentRole.Prosecutor, _options.ConeWindowSize);
+        _coneOrchestrator.RegisterRole(AgentRole.Defender, _options.ConeWindowSize);
+        _coneOrchestrator.RegisterRole(AgentRole.Judge, _options.ConeWindowSize + 1);
     }
 
     /// <summary>
     /// 暴露内部 DAG 供 Agent 只读访问
     /// </summary>
     public Dag<ReasoningPayload> Dag => _dag;
+
+    /// <summary>
+    /// 视锥调度器
+    /// </summary>
+    public ConeOrchestrator ConeOrchestrator => _coneOrchestrator;
+
+    /// <summary>
+    /// 贝叶斯证据更新器
+    /// </summary>
+    public BayesianEvidenceUpdater BayesianUpdater => _bayesianUpdater;
+
+    /// <summary>
+    /// 设置URL验证器（需要HttpClient，延迟注入）
+    /// </summary>
+    public void SetUrlVerifier(EvidenceUrlVerifier verifier)
+    {
+        _urlVerifier = verifier;
+    }
 
     public async Task AddAssumptionsAsync(IReadOnlyList<DataItem> assumptions, CancellationToken ct)
     {
@@ -62,6 +89,16 @@ public sealed class ReasoningEngine : IReasoningEngine
                 throw new InvalidOperationException(result.ErrorMessage ?? "添加节点失败");
 
             _logger.LogInformation("[假定] {Content} (ID:{Id})", item.Content, item.Id);
+
+            foreach (AgentRole role in Enum.GetValues<AgentRole>())
+            {
+                var cone = _coneOrchestrator.GetRole(role);
+                if (cone is not null)
+                {
+                    var fragment = _coneOrchestrator.CreateFragmentFromItem(role, item);
+                    cone.AddFragment(fragment);
+                }
+            }
         }
 
         await RunAdversarialProcessAsync(ct).ConfigureAwait(false);
@@ -153,6 +190,15 @@ public sealed class ReasoningEngine : IReasoningEngine
         }
 
         _logger.LogInformation("[{Role}] 提交证据: {Content} (信任度:{Trust})", evidence.SubmittedBy, evidence.Content, evidence.TrustLevel);
+
+        var cone = _coneOrchestrator.GetRole(evidence.SubmittedBy);
+        if (cone is not null)
+        {
+            var fragment = _coneOrchestrator.CreateFragmentFromEvidence(evidence.SubmittedBy, evidence);
+            cone.AddFragment(fragment);
+        }
+
+        _bayesianUpdater.UpdateFromEvidence(evidence);
     }
 
     public void AddCounterEvidence(EvidenceRecord evidence, string claimId)
@@ -179,6 +225,7 @@ public sealed class ReasoningEngine : IReasoningEngine
             AllEvidence = GetAllEvidence(),
             Dag = _dag,
             Options = _options,
+            ConeOrchestrator = _coneOrchestrator,
         };
 
         if (_agents.TryGetValue(AgentRole.Prosecutor, out var prosecutor))
@@ -187,18 +234,14 @@ public sealed class ReasoningEngine : IReasoningEngine
             ApplyAgentAction(prosAction);
         }
 
-        context = new ReasoningContext
+        if (_coneOrchestrator.GetRole(AgentRole.Defender) is { } defCone &&
+            _coneOrchestrator.GetRole(AgentRole.Prosecutor) is { } prosCone)
         {
-            AllItems = GetAllItems(),
-            AllEvidence = GetAllEvidence(),
-            Dag = _dag,
-            Options = _options,
-        };
-
-        if (_agents.TryGetValue(AgentRole.Defender, out var defender))
-        {
-            var defAction = await defender.ReasonAsync(context, ct).ConfigureAwait(false);
-            ApplyAgentAction(defAction);
+            var latestProsFragments = prosCone.ActiveFragmentIds.Take(3).ToList();
+            foreach (var fragId in latestProsFragments)
+            {
+                _coneOrchestrator.TransferFragment(AgentRole.Prosecutor, AgentRole.Defender, fragId);
+            }
         }
 
         context = new ReasoningContext
@@ -207,12 +250,43 @@ public sealed class ReasoningEngine : IReasoningEngine
             AllEvidence = GetAllEvidence(),
             Dag = _dag,
             Options = _options,
+            ConeOrchestrator = _coneOrchestrator,
+        };
+
+        if (_agents.TryGetValue(AgentRole.Defender, out var defender))
+        {
+            var defAction = await defender.ReasonAsync(context, ct).ConfigureAwait(false);
+            ApplyAgentAction(defAction);
+        }
+
+        if (_coneOrchestrator.GetRole(AgentRole.Judge) is { } judgeCone &&
+            _coneOrchestrator.GetRole(AgentRole.Defender) is { } defCone2)
+        {
+            var latestDefFragments = defCone2.ActiveFragmentIds.Take(3).ToList();
+            foreach (var fragId in latestDefFragments)
+            {
+                _coneOrchestrator.TransferFragment(AgentRole.Defender, AgentRole.Judge, fragId);
+            }
+        }
+
+        context = new ReasoningContext
+        {
+            AllItems = GetAllItems(),
+            AllEvidence = GetAllEvidence(),
+            Dag = _dag,
+            Options = _options,
+            ConeOrchestrator = _coneOrchestrator,
         };
 
         if (_agents.TryGetValue(AgentRole.Judge, out var judge))
         {
             var judgeAction = await judge.ReasonAsync(context, ct).ConfigureAwait(false);
             ApplyVerdicts(judgeAction.Verdicts);
+        }
+
+        if (_urlVerifier is not null)
+        {
+            await VerifyAllEvidenceLinksAsync().ConfigureAwait(false);
         }
 
         _lastRunAt = DateTime.UtcNow;
@@ -301,6 +375,8 @@ public sealed class ReasoningEngine : IReasoningEngine
                 _logger.LogInformation("[传播] 裁决降级: {Content}", affectedNode.Payload.Content);
             }
         }
+
+        _bayesianUpdater.UpdateBelief(evidenceId, 0.1, 0.05);
     }
 
     /// <summary>
@@ -310,6 +386,23 @@ public sealed class ReasoningEngine : IReasoningEngine
     {
         var affected = _dag.GetAffectedSubgraph(changedNodeId);
         return affected.Select(n => n.Payload).ToList();
+    }
+
+    /// <summary>
+    /// 获取视锥冲突检测结果
+    /// </summary>
+    public ConeConflictResult DetectConeConflict(AgentRole roleA, AgentRole roleB)
+    {
+        return _coneOrchestrator.DetectConeConflict(roleA, roleB);
+    }
+
+    /// <summary>
+    /// 展开指定角色的指定片段
+    /// </summary>
+    public ObservationFragment? ExpandFragment(AgentRole role, string fragmentId, string triggerCondition)
+    {
+        var cone = _coneOrchestrator.GetRole(role);
+        return cone?.ExpandFragment(fragmentId, triggerCondition);
     }
 
     private bool IsBudgetExhausted()
@@ -400,6 +493,42 @@ public sealed class ReasoningEngine : IReasoningEngine
                     claimNode.Version++;
                     _logger.LogInformation("[法官] 等待更多证据: {Content}", claimNode.Payload.Content);
                     break;
+                case VerdictDecision.PartiallyAccept:
+                    claimNode.Payload.State = DataState.Verified;
+                    claimNode.Payload.Confidence = verdict.Confidence;
+                    claimNode.Payload.VerifiedAt = DateTime.UtcNow;
+                    claimNode.Payload.VerifiedBy = "法官部分接受";
+                    claimNode.Version++;
+                    _logger.LogInformation("[法官] 部分接受: {Content} (置信度:{Confidence}%)", claimNode.Payload.Content, claimNode.Payload.Confidence);
+                    break;
+            }
+        }
+    }
+
+    private async Task VerifyAllEvidenceLinksAsync()
+    {
+        if (_urlVerifier is null) return;
+
+        var evidences = GetAllEvidence()
+            .Where(e => !string.IsNullOrEmpty(e.SourceUrl) && !e.IsUrlVerified)
+            .ToList();
+
+        if (evidences.Count == 0) return;
+
+        var results = await _urlVerifier.VerifyAllAsync(evidences).ConfigureAwait(false);
+
+        foreach (var result in results)
+        {
+            if (!result.IsValid)
+            {
+                var evidenceNode = _dag.Nodes.Values
+                    .FirstOrDefault(n => n.Payload.SourceUrl == result.Url);
+                if (evidenceNode is not null)
+                {
+                    evidenceNode.Payload.TrustLevel = TrustLevel.Unreliable;
+                    evidenceNode.Version++;
+                    _logger.LogWarning("[验证] 证据降级: {Url} - {Error}", result.Url, result.Error);
+                }
             }
         }
     }
@@ -443,6 +572,11 @@ public sealed class ReasoningEngine : IReasoningEngine
         _tokensBudget = _options.MaxTokens;
         _lastRunAt = null;
 
-        _logger.LogInformation("[重置] 推理引擎已重置 — DAG清空，预算恢复");
+        foreach (AgentRole role in Enum.GetValues<AgentRole>())
+        {
+            _coneOrchestrator.RegisterRole(role, _options.ConeWindowSize);
+        }
+
+        _logger.LogInformation("[重置] 推理引擎已重置 — DAG清空，预算恢复，视锥重置");
     }
 }

@@ -1,16 +1,16 @@
 namespace JoinCode.ChatCommands;
 
 /// <summary>
-/// /falv 命令 — 结构化推理（三权分立）
+/// /falv 命令 — 结构化推理（三权分立 + 有限视锥 + 5维客观权重）
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Falv, Description = "结构化推理引擎（假定→验证→事实）", Usage = "/falv <假定内容> | /falv --status | /falv --judge | /falv --evidence | /falv --continue [rounds|tokens|both|default] | /falv --budget | /falv --reset", Category = ChatCommandCategory.Law)]
+[ChatCommand(Name = ChatCommandNameConstants.Falv, Description = "结构化推理引擎（假定→验证→事实）", Usage = "/falv <假定内容> | /falv --status | /falv --judge | /falv --evidence | /falv --continue [rounds|tokens|both|default] | /falv --budget | /falv --cone | /falv --conflict | /falv --reset", Category = ChatCommandCategory.Law)]
 public sealed class FalvCommand : IChatCommand
 {
     public string Name => ChatCommandNameConstants.Falv;
     public string Description => "结构化推理引擎（假定→验证→事实）";
-    public string Usage => "/falv <假定内容> | /falv --status | /falv --judge | /falv --evidence | /falv --continue [rounds|tokens|both|default] | /falv --budget | /falv --reset";
+    public string Usage => "/falv <假定内容> | /falv --status | /falv --judge | /falv --evidence | /falv --continue [rounds|tokens|both|default] | /falv --budget | /falv --cone | /falv --conflict | /falv --reset";
     public string[] Aliases => [];
-    public string ArgumentHint => "<假定内容|--status|--judge|--evidence|--continue|--budget|--reset>";
+    public string ArgumentHint => "<假定内容|--status|--judge|--evidence|--continue|--budget|--cone|--conflict|--reset>";
     public bool IsHidden => false;
 
     public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
@@ -53,9 +53,15 @@ public sealed class FalvCommand : IChatCommand
             case "--budget":
                 ShowBudget(engine);
                 break;
+            case "--cone":
+                ShowCone(engine);
+                break;
+            case "--conflict":
+                ShowConflict(engine);
+                break;
             case "--reset":
                 engine.Reset();
-                TerminalHelper.WriteLine("推理引擎已重置 — DAG清空，预算恢复");
+                TerminalHelper.WriteLine("推理引擎已重置 — DAG清空，预算恢复，视锥重置");
                 break;
             default:
                 await AddAssumptionAsync(engine, args, context.CancellationToken).ConfigureAwait(false);
@@ -165,10 +171,10 @@ public sealed class FalvCommand : IChatCommand
             var stateLabel = item.State switch
             {
                 DataState.Fact => $"{TerminalColors.Primary}事实{AnsiStyleConstants.Reset}",
-                DataState.Verified => $"已验证",
+                DataState.Verified => "已验证",
                 DataState.Rejected => $"{TerminalColors.Error}被驳斥{AnsiStyleConstants.Reset}",
                 DataState.PendingEvidence => $"{TerminalColors.Warning}待补充{AnsiStyleConstants.Reset}",
-                _ => $"假定",
+                _ => "假定",
             };
             TerminalHelper.WriteLine($"  [{stateLabel}] {item.Content} (置信度:{item.Confidence}%)");
         }
@@ -198,6 +204,53 @@ public sealed class FalvCommand : IChatCommand
         }
     }
 
+    private static void ShowCone(IReasoningEngine engine)
+    {
+        TerminalHelper.WriteLine("=== 有限视锥 ===");
+
+        foreach (AgentRole role in Enum.GetValues<AgentRole>())
+        {
+            var expanded = engine.ExpandFragment(role, "", "*");
+            var coneContext = engine switch
+            {
+                ReasoningEngine re => re.ConeOrchestrator.GetRole(role)?.GetConeContext() ?? "无数据",
+                _ => "不可用"
+            };
+
+            TerminalHelper.WriteLine($"  [{role}] 活跃片段:");
+            if (coneContext == "无数据" || string.IsNullOrEmpty(coneContext))
+            {
+                TerminalHelper.WriteLine("    暂无数据");
+            }
+            else
+            {
+                foreach (var line in coneContext.Split('\n').Take(10))
+                {
+                    TerminalHelper.WriteLine($"    {line}");
+                }
+            }
+
+            TerminalHelper.WriteLine();
+        }
+    }
+
+    private static void ShowConflict(IReasoningEngine engine)
+    {
+        TerminalHelper.WriteLine("=== 视锥冲突检测 ===");
+
+        var result = engine.DetectConeConflict(AgentRole.Prosecutor, AgentRole.Defender);
+        TerminalHelper.WriteLine($"  控方结论: {string.Join(" -> ", result.RoleAConclusions)}");
+        TerminalHelper.WriteLine($"  辩方结论: {string.Join(" -> ", result.RoleBConclusions)}");
+        TerminalHelper.WriteLine($"  冲突状态: {(result.HasConflict ? $"{TerminalColors.Warning}存在冲突{AnsiStyleConstants.Reset}" : "无冲突")}");
+
+        TerminalHelper.WriteLine();
+        var judgeResult = engine.DetectConeConflict(AgentRole.Prosecutor, AgentRole.Judge);
+        TerminalHelper.WriteLine($"  控方-法官冲突: {(judgeResult.HasConflict ? $"{TerminalColors.Warning}存在{AnsiStyleConstants.Reset}" : "无")}");
+
+        var defJudgeResult = engine.DetectConeConflict(AgentRole.Defender, AgentRole.Judge);
+        TerminalHelper.WriteLine($"  辩方-法官冲突: {(defJudgeResult.HasConflict ? $"{TerminalColors.Warning}存在{AnsiStyleConstants.Reset}" : "无")}");
+    }
+
     private static void ShowVerdicts(IReasoningEngine engine)
     {
         TerminalHelper.WriteLine("=== 裁决结果 ===");
@@ -217,6 +270,12 @@ public sealed class FalvCommand : IChatCommand
         {
             TerminalHelper.WriteLine($"  {TerminalColors.Warning}待补充{AnsiStyleConstants.Reset}: {item.Content}");
         }
+
+        var verified = engine.GetAllItems().Where(x => x.State == DataState.Verified);
+        foreach (var item in verified)
+        {
+            TerminalHelper.WriteLine($"  已验证(部分接受): {item.Content} (置信度:{item.Confidence}%)");
+        }
     }
 
     private static void ShowEvidence(IReasoningEngine engine)
@@ -224,7 +283,8 @@ public sealed class FalvCommand : IChatCommand
         TerminalHelper.WriteLine("=== 证据链 ===");
         foreach (var ev in engine.GetAllEvidence())
         {
-            TerminalHelper.WriteLine($"  [{ev.Category}] {ev.Content} (信任度:{ev.TrustLevel}, 提交方:{ev.SubmittedBy})");
+            var verifiedLabel = ev.IsUrlVerified ? "✓" : "?";
+            TerminalHelper.WriteLine($"  [{ev.Category}] {ev.Content} (信任度:{ev.TrustLevel}, 提交方:{ev.SubmittedBy}, URL验证:{verifiedLabel})");
         }
 
         if (engine.GetAllEvidence().Count == 0)
@@ -235,7 +295,7 @@ public sealed class FalvCommand : IChatCommand
 
     private static void ShowHelp()
     {
-        TerminalHelper.WriteLine("用法: /falv <假定内容> | /falv --status | /falv --judge | /falv --evidence | /falv --continue [rounds|tokens|both|default] | /falv --budget | /falv --reset");
+        TerminalHelper.WriteLine("用法: /falv <假定内容> | /falv --status | /falv --judge | /falv --evidence | /falv --continue [rounds|tokens|both|default] | /falv --budget | /falv --cone | /falv --conflict | /falv --reset");
         TerminalHelper.NewLine();
         TerminalHelper.WriteLine("结构化推理引擎 — 假定→验证→事实 三态跃迁");
         TerminalHelper.NewLine();
@@ -245,6 +305,8 @@ public sealed class FalvCommand : IChatCommand
         TerminalHelper.WriteLine("  --evidence                      查看证据链");
         TerminalHelper.WriteLine("  --continue [rounds|tokens|both|default]  续费并继续推理");
         TerminalHelper.WriteLine("  --budget                        查看预算状态");
+        TerminalHelper.WriteLine("  --cone                          查看有限视锥状态");
+        TerminalHelper.WriteLine("  --conflict                      检测视锥冲突");
         TerminalHelper.WriteLine("  --reset                         重置推理引擎");
         TerminalHelper.NewLine();
         TerminalHelper.WriteLine("续费方式:");
@@ -257,5 +319,11 @@ public sealed class FalvCommand : IChatCommand
         TerminalHelper.WriteLine("  Murder   杀人罪 — 证据阈值最高，闭环锁死，排除合理怀疑");
         TerminalHelper.WriteLine("  Panda    吃熊猫罪 — 证据阈值动态，视情节浮动（默认）");
         TerminalHelper.WriteLine("  Divorce  离婚官司 — 证据阈值最低，高度盖然性即可");
+        TerminalHelper.NewLine();
+        TerminalHelper.WriteLine("核心机制:");
+        TerminalHelper.WriteLine("  有限视锥  每个角色有独立的观察窗口，自动折叠/展开");
+        TerminalHelper.WriteLine("  5维权重   来源(30%)+类型(25%)+验证(20%)+佐证(15%)+时效(10%)");
+        TerminalHelper.WriteLine("  链式传播  PageRank风格衰减，双向传播证据链权重");
+        TerminalHelper.WriteLine("  贝叶斯    高斯共轭后验更新，信念可收敛");
     }
 }

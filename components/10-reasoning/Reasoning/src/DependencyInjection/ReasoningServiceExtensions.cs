@@ -18,6 +18,14 @@ public static class ReasoningServiceExtensions
         services.AddSingleton<IReasoningAgent, ProsecutorAgent>();
         services.AddSingleton<IReasoningAgent, DefenderAgent>();
         services.AddSingleton<IReasoningAgent, JudgeAgent>();
+        services.AddSingleton<EvidenceWeightCalculator>();
+        services.AddSingleton<ChainWeightPropagator>();
+        services.AddSingleton<BayesianEvidenceUpdater>();
+        services.AddSingleton<EvidenceGraph>();
+        services.AddSingleton<TopologicalEvidenceAnalyzer>();
+        services.AddSingleton<WeightedDecisionSystem>();
+        services.AddSingleton<ConeOrchestrator>();
+        services.AddSingleton<EvidenceUrlVerifier>();
 
         return services;
     }

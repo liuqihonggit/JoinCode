@@ -52,20 +52,12 @@ public sealed class ModelCatalog(IProviderDefinitionRegistry registry) : IModelC
 
     public string GetDefaultModelForProvider(string provider)
     {
-<<<<<<< HEAD
         return _registry.TryGet(provider)?.DefaultModelId ?? ModelConfigLoader.GetDefaultModelId("openai");
-=======
-        return ProviderDefinitionRegistry.TryGet(provider)?.DefaultModelId ?? ModelConfigLoader.GetDefaultModelId("openai");
->>>>>>> eeddbea517aa17c98538a671b1f8458ffb4d7014
     }
 
     public string GetDefaultFastModelForProvider(string provider)
     {
-<<<<<<< HEAD
         return _registry.TryGet(provider)?.DefaultFastModelId ?? ModelConfigLoader.GetDefaultFastModelId("openai");
-=======
-        return ProviderDefinitionRegistry.TryGet(provider)?.DefaultFastModelId ?? ModelConfigLoader.GetDefaultFastModelId("openai");
->>>>>>> eeddbea517aa17c98538a671b1f8458ffb4d7014
     }
 
     public ModelEntry[] EnsureCurrentModelInList(ModelEntry[] models, string currentModelId)

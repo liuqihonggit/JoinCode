@@ -5,6 +5,9 @@ using ChatMessageRole = JoinCode.Abstractions.LLM.Chat.MessageRole;
 
 public sealed class WebServiceTests
 {
+    private static readonly string DefaultAnthropicModelId = ModelConfigLoader.GetDefaultModelId("anthropic");
+    private static readonly string DefaultAnthropicFastModelId = ModelConfigLoader.GetDefaultFastModelId("anthropic");
+
     private readonly Mock<IApiClient> _apiClientMock = new();
     private readonly Mock<IQueryService> _queryServiceMock = new();
 
@@ -12,11 +15,11 @@ public sealed class WebServiceTests
     {
         var definitionMock = new Mock<IProviderDefinition>();
         definitionMock.SetupGet(d => d.SupportsWebSearch).Returns(supportsWebSearch);
-        definitionMock.SetupGet(d => d.DefaultFastModelId).Returns("claude-3-5-haiku-latest");
+        definitionMock.SetupGet(d => d.DefaultFastModelId).Returns(DefaultAnthropicFastModelId);
         definitionMock.SetupGet(d => d.Kind).Returns(ProviderKind.Anthropic);
         definitionMock.SetupGet(d => d.ProviderName).Returns("anthropic");
         definitionMock.SetupGet(d => d.DisplayName).Returns("Anthropic");
-        definitionMock.SetupGet(d => d.DefaultModelId).Returns("claude-sonnet-4-6");
+        definitionMock.SetupGet(d => d.DefaultModelId).Returns(DefaultAnthropicModelId);
         definitionMock.Setup(d => d.IsValid(It.IsAny<ProviderConfig>())).Returns(true);
         definitionMock.Setup(d => d.GetBaseUrl(It.IsAny<ProviderConfig>())).Returns("https://api.anthropic.com");
         definitionMock.Setup(d => d.GetChatEndpoint(It.IsAny<ProviderConfig>())).Returns("v1/messages");

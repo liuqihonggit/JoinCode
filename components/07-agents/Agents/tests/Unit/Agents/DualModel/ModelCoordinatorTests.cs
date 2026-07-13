@@ -2,12 +2,15 @@ namespace Sync.Tests.Unit.Agents.DualModel;
 
 public sealed class ModelCoordinatorTests
 {
+    private static readonly string DefaultFastModelId = ModelConfigLoader.GetDefaultFastModelId("openai");
+    private static readonly string DefaultModelId = ModelConfigLoader.GetDefaultModelId("openai");
+
     [Fact]
     public async Task PlanAsync_Success_ReturnsPlanResult()
     {
         var queryEngine = CreateMockQueryEngine("1. Read the file\n2. Fix the bug\n3. Add tests");
         var coordinator = new ModelCoordinator(
-            queryEngine, "gpt-4o-mini", "gpt-4o");
+            queryEngine, DefaultFastModelId, DefaultModelId);
 
         var result = await coordinator.PlanAsync("Fix the login bug", CancellationToken.None).ConfigureAwait(true);
 
@@ -21,7 +24,7 @@ public sealed class ModelCoordinatorTests
     {
         var queryEngine = CreateMockQueryEngine("no changes needed, already implemented");
         var coordinator = new ModelCoordinator(
-            queryEngine, "gpt-4o-mini", "gpt-4o");
+            queryEngine, DefaultFastModelId, DefaultModelId);
 
         var result = await coordinator.PlanAsync("Check if login works", CancellationToken.None).ConfigureAwait(true);
 
@@ -34,7 +37,7 @@ public sealed class ModelCoordinatorTests
     {
         var queryEngine = CreateMockQueryEngine("Bug fixed and tests added");
         var coordinator = new ModelCoordinator(
-            queryEngine, "gpt-4o-mini", "gpt-4o");
+            queryEngine, DefaultFastModelId, DefaultModelId);
 
         var result = await coordinator.ExecuteAsync("Fix the login bug", "1. Fix the bug\n2. Add tests", CancellationToken.None).ConfigureAwait(true);
 
@@ -53,7 +56,7 @@ public sealed class ModelCoordinatorTests
         });
 
         var coordinator = new ModelCoordinator(
-            queryEngine, "gpt-4o-mini", "gpt-4o");
+            queryEngine, DefaultFastModelId, DefaultModelId);
 
         var result = await coordinator.PlanAndExecuteAsync("Fix the login bug", CancellationToken.None).ConfigureAwait(true);
 
@@ -68,7 +71,7 @@ public sealed class ModelCoordinatorTests
     {
         var queryEngine = CreateMockQueryEngine("no changes needed");
         var coordinator = new ModelCoordinator(
-            queryEngine, "gpt-4o-mini", "gpt-4o");
+            queryEngine, DefaultFastModelId, DefaultModelId);
 
         var result = await coordinator.PlanAndExecuteAsync("Check if login works", CancellationToken.None).ConfigureAwait(true);
 
@@ -102,7 +105,7 @@ public sealed class ModelCoordinatorTests
     {
         var queryEngine = CreateMockQueryEngine("plan");
         var coordinator = new ModelCoordinator(
-            queryEngine, "gpt-4o-mini", "gpt-4o");
+            queryEngine, DefaultFastModelId, DefaultModelId);
 
         coordinator.ResetPlannerSession();
     }

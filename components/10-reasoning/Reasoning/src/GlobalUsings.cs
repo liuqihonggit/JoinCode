@@ -24,3 +24,5 @@ global using JoinCode.Reasoning.Weight.Bayesian;
 global using JoinCode.Reasoning.Weight.Graph;
 global using JoinCode.Reasoning.Weight.Topology;
 global using JoinCode.Reasoning.Verification;
+global using JoinCode.Reasoning.Compression;
+global using JoinCode.Abstractions.Interfaces.Context;

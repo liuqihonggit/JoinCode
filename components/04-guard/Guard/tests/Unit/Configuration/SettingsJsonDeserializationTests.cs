@@ -7,15 +7,18 @@ namespace Guard.Tests.Configuration;
 /// </summary>
 public class SettingsJsonDeserializationTests
 {
+    private static readonly string DefaultAnthropicModelId = ModelConfigLoader.GetDefaultModelId("anthropic");
+    private static readonly string DefaultOpenAiModelId = ModelConfigLoader.GetDefaultModelId("openai");
+
     #region 场景1: 完整 settings.json 反序列化
 
     [Fact]
     public void Given_完整SettingsJson_When_反序列化_Then_所有字段正确映射()
     {
         // Given: 完整的 settings.json 内容
-        var json = """
+        var json = $$"""
             {
-              "model": "claude-sonnet-4-20250514",
+              "model": "{{DefaultAnthropicModelId}}",
               "effortLevel": "high",
               "defaultShell": "powershell",
               "fastMode": true,
@@ -62,7 +65,7 @@ public class SettingsJsonDeserializationTests
 
         // Then: 所有字段正确映射
         settings.Should().NotBeNull();
-        settings!.Model.Should().Be("claude-sonnet-4-20250514");
+        settings!.Model.Should().Be(DefaultAnthropicModelId);
         settings.EffortLevel.Should().Be("high");
         settings.DefaultShell.Should().Be("powershell");
         settings.FastMode.Should().BeTrue();
@@ -113,14 +116,14 @@ public class SettingsJsonDeserializationTests
     public void Given_仅包含model字段的SettingsJson_When_反序列化_Then_其余字段为null()
     {
         // Given
-        var json = """{ "model": "gpt-4o" }""";
+        var json = $$"""{ "model": "{{DefaultOpenAiModelId}}" }""";
 
         // When
         var settings = JsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson);
 
         // Then
         settings.Should().NotBeNull();
-        settings!.Model.Should().Be("gpt-4o");
+        settings!.Model.Should().Be(DefaultOpenAiModelId);
         settings.EffortLevel.Should().BeNull();
         settings.DefaultShell.Should().BeNull();
         settings.FastMode.Should().BeNull();
@@ -176,7 +179,7 @@ public class SettingsJsonDeserializationTests
         // Given
         var original = new SettingsJson
         {
-            Model = "gpt-4o",
+            Model = DefaultOpenAiModelId,
             FastMode = true,
             Env = new Dictionary<string, string> { ["KEY"] = "value" },
             Permissions = new PermissionsSettings
@@ -192,7 +195,7 @@ public class SettingsJsonDeserializationTests
 
         // Then
         deserialized.Should().NotBeNull();
-        deserialized!.Model.Should().Be("gpt-4o");
+        deserialized!.Model.Should().Be(DefaultOpenAiModelId);
         deserialized.FastMode.Should().BeTrue();
         deserialized.Env!["KEY"].Should().Be("value");
         deserialized.Permissions!.Allow.Should().ContainSingle("Bash(npm test)");

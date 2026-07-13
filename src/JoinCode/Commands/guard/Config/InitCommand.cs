@@ -85,7 +85,8 @@ public sealed class InitCommand : IChatCommand
 
         if (!fs.FileExists(settingsFile))
         {
-            await fs.WriteAllTextAsync(settingsFile, "{\n  \"provider\": \"openai\",\n  \"model\": \"gpt-4o\"\n}\n", context.CancellationToken).ConfigureAwait(false);
+            var defaultModel = JoinCode.Abstractions.Configuration.Llm.ModelConfigLoader.GetDefaultModelId("openai");
+            await fs.WriteAllTextAsync(settingsFile, $"{{\n  \"provider\": \"openai\",\n  \"model\": \"{defaultModel}\"\n}}\n", context.CancellationToken).ConfigureAwait(false);
             TerminalHelper.WriteLine("  ✓ 创建 settings.json");
         }
         else

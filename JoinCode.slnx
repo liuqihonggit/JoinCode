@@ -74,5 +74,7 @@
     <Project Path="tests/MockServers/DeepSeek.MockServer/DeepSeek.MockServer.csproj" />
     <Project Path="tests/MockServers/Mcp.MockServer/Mcp.MockServer.csproj" />
   </Folder>
-  <Folder Name="/tests/Unit/" />
+  <Folder Name="/tests/Unit/">
+    <Project Path="tests/Unit/Reasoning.Tests/Reasoning.Tests.csproj" />
+  </Folder>
 </Solution>

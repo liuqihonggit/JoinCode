@@ -9,6 +9,9 @@ namespace Guard.Tests.Configuration;
 [Collection("AppDataConstantsCollection")]
 public class SettingsLoaderTests : IDisposable
 {
+    private static readonly string DefaultOpenAiModelId = ModelConfigLoader.GetDefaultModelId("openai");
+    private static readonly string DefaultAnthropicModelId = ModelConfigLoader.GetDefaultModelId("anthropic");
+
     private readonly string _tempDir;
     private readonly string _projectAppDataDir;
     private readonly string _userAppDataDir;
@@ -56,8 +59,8 @@ public class SettingsLoaderTests : IDisposable
     public async Task Given_用户设置和项目设置_When_加载全部_Then_项目设置覆盖用户设置()
     {
         // Given: 用户设置 model=gpt-4o, 项目设置 model=claude-sonnet
-        var userSettings = new SettingsJson { Model = "gpt-4o" };
-        var projectSettings = new SettingsJson { Model = "claude-sonnet-4-20250514" };
+        var userSettings = new SettingsJson { Model = DefaultOpenAiModelId };
+        var projectSettings = new SettingsJson { Model = DefaultAnthropicModelId };
 
         await WriteSettingsAsync(GetUserSettingsPath(), userSettings).ConfigureAwait(true);
         await WriteProjectSettingsAsync(projectSettings).ConfigureAwait(true);
@@ -66,7 +69,7 @@ public class SettingsLoaderTests : IDisposable
         var result = await SettingsLoader.LoadAllSourcesAsync(_fs, projectDir: _tempDir).ConfigureAwait(true);
 
         // Then: 项目设置覆盖用户设置
-        result.Model.Should().Be("claude-sonnet-4-20250514");
+        result.Model.Should().Be(DefaultAnthropicModelId);
     }
 
     [Fact]
@@ -135,14 +138,14 @@ public class SettingsLoaderTests : IDisposable
         var dir = Path.GetDirectoryName(userPath);
         if (!string.IsNullOrEmpty(dir)) _fs.CreateDirectory(dir);
         await _fs.WriteAllTextAsync(userPath, "{ invalid json }").ConfigureAwait(true);
-        var projectSettings = new SettingsJson { Model = "claude-sonnet-4-20250514" };
+        var projectSettings = new SettingsJson { Model = DefaultAnthropicModelId };
         await WriteProjectSettingsAsync(projectSettings).ConfigureAwait(true);
 
         // When
         var result = await SettingsLoader.LoadAllSourcesAsync(_fs, projectDir: _tempDir).ConfigureAwait(true);
 
         // Then: 项目设置仍可用
-        result.Model.Should().Be("claude-sonnet-4-20250514");
+        result.Model.Should().Be(DefaultAnthropicModelId);
     }
 
     #endregion
@@ -153,7 +156,7 @@ public class SettingsLoaderTests : IDisposable
     public async Task Given_保存到UserSettings_When_重新加载_Then_数据一致()
     {
         // Given
-        var settings = new SettingsJson { Model = "gpt-4o", FastMode = true };
+        var settings = new SettingsJson { Model = DefaultOpenAiModelId, FastMode = true };
 
         // When: 保存到用户设置
         await SettingsLoader.SaveSettingsAsync(_fs, SettingSource.UserSettings, settings, cancellationToken: CancellationToken.None).ConfigureAwait(true);
@@ -161,7 +164,7 @@ public class SettingsLoaderTests : IDisposable
         // Then: 重新加载能读到
         var loaded = await SettingsLoader.LoadUserSettingsAsync(_fs).ConfigureAwait(true);
         loaded.Should().NotBeNull();
-        loaded!.Model.Should().Be("gpt-4o");
+        loaded!.Model.Should().Be(DefaultOpenAiModelId);
         loaded.FastMode.Should().BeTrue();
     }
 

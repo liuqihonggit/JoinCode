@@ -8,18 +8,6 @@ public sealed class ThinkingModeStampResult
 
 public static class ThinkingModeStamp
 {
-    private static readonly string[] ThinkingModeModels =
-    [
-        "deepseek-reasoner",
-        "deepseek-r1",
-        "o1",
-        "o1-mini",
-        "o1-pro",
-        "o3",
-        "o3-mini",
-        "o4-mini"
-    ];
-
     public static ThinkingModeStampResult Stamp(IReadOnlyList<ApiMessage> messages, bool isThinkingMode)
     {
         ArgumentNullException.ThrowIfNull(messages);
@@ -74,13 +62,7 @@ public static class ThinkingModeStamp
     {
         if (string.IsNullOrWhiteSpace(modelId)) return false;
 
-        var lower = modelId.ToLowerInvariant();
-        foreach (var thinkingModel in ThinkingModeModels)
-        {
-            if (lower.Contains(thinkingModel.ToLowerInvariant()))
-                return true;
-        }
-
-        return false;
+        var model = Configuration.Llm.ModelConfigLoader.FindModelByModelId(modelId);
+        return model?.Capabilities.ThinkingMode ?? false;
     }
 }

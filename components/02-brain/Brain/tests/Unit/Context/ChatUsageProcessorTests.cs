@@ -23,7 +23,7 @@ public sealed class ChatUsageProcessorTests
             DynamicContentHash = "jkl"
         };
 
-        await sut.ProcessUsageAsync(usage, "gpt-4o", snapshot, CancellationToken.None).ConfigureAwait(true);
+        await sut.ProcessUsageAsync(usage, "test-model", snapshot, CancellationToken.None).ConfigureAwait(true);
 
         stats.ToolSpecsCacheBreaks.Should().Be(1);
         stats.TurnCount.Should().Be(1);
@@ -50,7 +50,7 @@ public sealed class ChatUsageProcessorTests
             DynamicContentHash = "jkl"
         };
 
-        await sut.ProcessUsageAsync(usage, "gpt-4o", snapshot, CancellationToken.None).ConfigureAwait(true);
+        await sut.ProcessUsageAsync(usage, "test-model", snapshot, CancellationToken.None).ConfigureAwait(true);
 
         stats.SystemPromptCacheBreaks.Should().Be(0);
         stats.ToolSpecsCacheBreaks.Should().Be(0);
@@ -80,7 +80,7 @@ public sealed class ChatUsageProcessorTests
             DynamicContentHash = "jkl"
         };
 
-        await sut.ProcessUsageAsync(usage, "gpt-4o", snapshot, CancellationToken.None).ConfigureAwait(true);
+        await sut.ProcessUsageAsync(usage, "test-model", snapshot, CancellationToken.None).ConfigureAwait(true);
 
         stats.SystemPromptCacheBreaks.Should().Be(1);
         stats.ToolSpecsCacheBreaks.Should().Be(0);
@@ -107,7 +107,7 @@ public sealed class ChatUsageProcessorTests
             DynamicContentHash = "jkl"
         };
 
-        await sut.ProcessUsageAsync(usage, "gpt-4o", snapshot, CancellationToken.None).ConfigureAwait(true);
+        await sut.ProcessUsageAsync(usage, "test-model", snapshot, CancellationToken.None).ConfigureAwait(true);
 
         stats.CacheEvictionBreaks.Should().Be(1);
     }

@@ -30,16 +30,6 @@ public static class ModelInfoSection {
         SystemPromptSection.Dynamic("model_info", GetContent);
 
     private static string? GetKnowledgeCutoff(string modelId) {
-        // 根据模型ID返回知识截止日期
-        var canonical = modelId.ToLowerInvariant();
-
-        return canonical switch {
-            var s when s.Contains("gpt-4") => "2024年4月",
-            var s when s.Contains("gpt-3.5") => "2021年9月",
-            var s when s.Contains("claude-3-opus") => "2024年2月",
-            var s when s.Contains("claude-3-sonnet") => "2024年2月",
-            var s when s.Contains("claude-3-haiku") => "2023年8月",
-            _ => null
-        };
+        return JoinCode.Abstractions.Configuration.Llm.ModelConfigLoader.FindModelByModelId(modelId)?.KnowledgeCutoff;
     }
 }

@@ -7,6 +7,8 @@ namespace Core.Tests.Configuration;
 /// </summary>
 [Collection("AppDataConstantsCollection")]
 public class ConfigLoaderTests : IDisposable {
+    private static readonly string DefaultOpenAiModelId = ModelConfigLoader.GetDefaultModelId("openai");
+
     private readonly string? _originalAppDataFolder;
     private readonly string? _originalProvider;
     private readonly string? _originalModelId;
@@ -93,7 +95,7 @@ public class ConfigLoaderTests : IDisposable {
 
         var config = await _loader.LoadConfigAsync(_fs).ConfigureAwait(true);
 
-        Assert.Equal("gpt-4o", config.Provider.ModelId);
+        Assert.Equal(DefaultOpenAiModelId, config.Provider.ModelId);
         Assert.Equal("workflow_state.json", config.StateFilePath);
         Assert.NotNull(config.Bridge);
     }

@@ -1,11 +1,6 @@
 
 namespace Api.LLM.QueryServices;
 
-/// <summary>
-/// 最小化 Provider 定义兜底 — 当 ProviderConfig.Definition 为 null 时使用
-/// 仅实现协议层（QueryServiceBase）必需的3个方法：GetBaseUrl / GetChatEndpoint / ConfigureHttpClient
-/// 其余属性使用接口默认值（null / false / 空列表）
-/// </summary>
 internal sealed class FallbackProviderDefinition : IProviderDefinition
 {
     private readonly ProviderKind _kind;
@@ -18,8 +13,20 @@ internal sealed class FallbackProviderDefinition : IProviderDefinition
     public ProviderKind Kind => _kind;
     public string ProviderName => _kind.ToValue();
     public string DisplayName => _kind.ToValue();
-    public string DefaultModelId => "gpt-4o";
-    public string DefaultFastModelId => "gpt-4o-mini";
+    public string DefaultModelId => _kind switch
+    {
+        ProviderKind.Anthropic => ModelConfigLoader.GetDefaultModelId("anthropic"),
+        ProviderKind.DeepSeek => ModelConfigLoader.GetDefaultModelId("deepseek"),
+        ProviderKind.Agnes => ModelConfigLoader.GetDefaultModelId("agnes"),
+        _ => ModelConfigLoader.GetDefaultModelId("openai")
+    };
+    public string DefaultFastModelId => _kind switch
+    {
+        ProviderKind.Anthropic => ModelConfigLoader.GetDefaultFastModelId("anthropic"),
+        ProviderKind.DeepSeek => ModelConfigLoader.GetDefaultFastModelId("deepseek"),
+        ProviderKind.Agnes => ModelConfigLoader.GetDefaultFastModelId("agnes"),
+        _ => ModelConfigLoader.GetDefaultFastModelId("openai")
+    };
     public string? DefaultEndpoint => null;
     public string? ApiKeyEnvironmentVariable => null;
     public string? EndpointEnvironmentVariable => null;

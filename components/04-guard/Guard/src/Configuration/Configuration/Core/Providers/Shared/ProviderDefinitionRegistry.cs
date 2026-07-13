@@ -1,13 +1,13 @@
 
 namespace Core.Configuration.Providers;
 
-/// <summary>
-/// Provider 定义注册表 — 通过字典查找替代 if-else 链
-/// </summary>
-public static class ProviderDefinitionRegistry
+public sealed class ProviderDefinitionRegistry : IProviderDefinitionRegistry
 {
-    private static readonly FrozenDictionary<string, IProviderDefinition> Definitions =
-        new IProviderDefinition[]
+    private readonly FrozenDictionary<string, IProviderDefinition> _definitions;
+
+    public ProviderDefinitionRegistry()
+    {
+        _definitions = new IProviderDefinition[]
         {
             new OpenAIProviderDefinition(),
             new AzureProviderDefinition(),
@@ -15,17 +15,12 @@ public static class ProviderDefinitionRegistry
             new AgnesProviderDefinition(),
             new DeepSeekProviderDefinition(),
         }.ToFrozenDictionary(d => d.ProviderName, StringComparer.OrdinalIgnoreCase);
-
-    /// <summary>
-    /// 获取指定 Provider 的定义，找不到返回 null
-    /// </summary>
-    public static IProviderDefinition? TryGet(string providerName)
-    {
-        return Definitions.GetValueOrDefault(providerName);
     }
 
-    /// <summary>
-    /// 获取所有已注册的 Provider 名称
-    /// </summary>
-    public static IReadOnlyCollection<string> RegisteredProviders => Definitions.Keys;
+    public IProviderDefinition? TryGet(string providerName)
+    {
+        return _definitions.GetValueOrDefault(providerName);
+    }
+
+    public IReadOnlyCollection<string> RegisteredProviders => _definitions.Keys;
 }

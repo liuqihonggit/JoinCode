@@ -6,6 +6,9 @@ using JoinCode.Abstractions.Exceptions;
 
 public class ApiKeySaveLoadTests
 {
+    private static ConfigLoader Loader => new();
+    private static readonly Core.Configuration.Providers.ProviderDefinitionRegistry Registry = new();
+
     [Fact]
     public async Task SaveApiKey_AndLoad_ShouldUpdateProviderConfig()
     {
@@ -28,13 +31,13 @@ public class ApiKeySaveLoadTests
             var authPath = WorkflowConstants.Paths.AuthFilePath;
             fs.FileExists(authPath).Should().BeTrue($"auth.json should exist at {authPath}");
             
-            var loadedKey = await ConfigLoader.LoadApiKeyFromJccAsync(provider, fs).ConfigureAwait(true);
+            var loadedKey = await Loader.LoadApiKeyFromJccAsync(provider, fs).ConfigureAwait(true);
             loadedKey.Should().Be(apiKey, "Loaded API key should match saved key");
             
             WorkflowConfig config;
             try
             {
-                config = await ConfigLoader.LoadConfigAsync(fs).ConfigureAwait(true);
+                config = await Loader.LoadConfigAsync(fs).ConfigureAwait(true);
             }
             catch (ConfigurationException)
             {
@@ -44,7 +47,7 @@ public class ApiKeySaveLoadTests
             config.Provider.Provider = provider;
             config.Provider.ApiKey = apiKey;
             
-            var definition = ProviderDefinitionRegistry.TryGet(provider);
+            var definition = Registry.TryGet(provider);
             if (definition is not null)
             {
                 config.Provider.Definition = definition;
@@ -82,8 +85,8 @@ public class ApiKeySaveLoadTests
             await ConfigLoader.SaveApiKeyToJccAsync("openai", "openai-key", fs).ConfigureAwait(true);
             await ConfigLoader.SaveApiKeyToJccAsync("anthropic", "anthropic-key", fs).ConfigureAwait(true);
             
-            var openaiKey = await ConfigLoader.LoadApiKeyFromJccAsync("openai", fs).ConfigureAwait(true);
-            var anthropicKey = await ConfigLoader.LoadApiKeyFromJccAsync("anthropic", fs).ConfigureAwait(true);
+            var openaiKey = await Loader.LoadApiKeyFromJccAsync("openai", fs).ConfigureAwait(true);
+            var anthropicKey = await Loader.LoadApiKeyFromJccAsync("anthropic", fs).ConfigureAwait(true);
             
             openaiKey.Should().Be("openai-key");
             anthropicKey.Should().Be("anthropic-key");
@@ -126,7 +129,7 @@ public class ApiKeySaveLoadTests
             json2.Should().Contain("new-key-123");
             json2.Should().NotContain("old-key");
             
-            var loadedKey = await ConfigLoader.LoadApiKeyFromJccAsync(provider, fs).ConfigureAwait(true);
+            var loadedKey = await Loader.LoadApiKeyFromJccAsync(provider, fs).ConfigureAwait(true);
             loadedKey.Should().Be("new-key-123", "Should load the new key after overwrite");
         }
         finally
@@ -166,13 +169,13 @@ public class ApiKeySaveLoadTests
             json.Should().Contain(provider);
             json.Should().Contain(apiKey);
             
-            var loadedKey = await ConfigLoader.LoadApiKeyFromJccAsync(provider, fs).ConfigureAwait(true);
+            var loadedKey = await Loader.LoadApiKeyFromJccAsync(provider, fs).ConfigureAwait(true);
             loadedKey.Should().Be(apiKey, $"Loaded key for {provider} should match");
             
             WorkflowConfig config;
             try
             {
-                config = await ConfigLoader.LoadConfigAsync(fs).ConfigureAwait(true);
+                config = await Loader.LoadConfigAsync(fs).ConfigureAwait(true);
             }
             catch (ConfigurationException)
             {
@@ -182,7 +185,7 @@ public class ApiKeySaveLoadTests
             config.Provider.Provider = provider;
             config.Provider.ApiKey = apiKey;
             
-            var definition = ProviderDefinitionRegistry.TryGet(provider);
+            var definition = Registry.TryGet(provider);
             if (definition is not null)
             {
                 config.Provider.Definition = definition;

@@ -1,14 +1,14 @@
-﻿namespace JoinCode.ChatCommands;
 
-/// <summary>
-/// 模型目录 — 委托给 IProviderDefinition 多态实现，消除 switch
-/// </summary>
+namespace JoinCode.ChatCommands;
+
 [Register]
-public sealed class ModelCatalog : IModelCatalog
+public sealed class ModelCatalog(IProviderDefinitionRegistry registry) : IModelCatalog
 {
+    private readonly IProviderDefinitionRegistry _registry = registry;
+
     public ModelEntry[] GetModelsForProvider(string provider)
     {
-        var definition = ProviderDefinitionRegistry.TryGet(provider);
+        var definition = _registry.TryGet(provider);
         if (definition is not null)
         {
             var baseModels = definition.AvailableModels;
@@ -37,28 +37,27 @@ public sealed class ModelCatalog : IModelCatalog
             return result;
         }
 
-        // 未知 Provider：返回空列表
         return [];
     }
 
     public string? ResolveAlias(string input, string provider)
     {
-        return ProviderDefinitionRegistry.TryGet(provider)?.ResolveAlias(input);
+        return _registry.TryGet(provider)?.ResolveAlias(input);
     }
 
     public string GetProviderDisplayName(string provider)
     {
-        return ProviderDefinitionRegistry.TryGet(provider)?.DisplayName ?? provider;
+        return _registry.TryGet(provider)?.DisplayName ?? provider;
     }
 
     public string GetDefaultModelForProvider(string provider)
     {
-        return ProviderDefinitionRegistry.TryGet(provider)?.DefaultModelId ?? CanonicalModel.Gpt4o.ToValue();
+        return _registry.TryGet(provider)?.DefaultModelId ?? ModelConfigLoader.GetDefaultModelId("openai");
     }
 
     public string GetDefaultFastModelForProvider(string provider)
     {
-        return ProviderDefinitionRegistry.TryGet(provider)?.DefaultFastModelId ?? CanonicalModel.Gpt4oMini.ToValue();
+        return _registry.TryGet(provider)?.DefaultFastModelId ?? ModelConfigLoader.GetDefaultFastModelId("openai");
     }
 
     public ModelEntry[] EnsureCurrentModelInList(ModelEntry[] models, string currentModelId)
@@ -80,17 +79,16 @@ public sealed class ModelCatalog : IModelCatalog
 
     public bool SupportsFastMode(string modelId, string provider)
     {
-        return ProviderDefinitionRegistry.TryGet(provider)?.SupportsFastMode(modelId) ?? false;
+        return _registry.TryGet(provider)?.SupportsFastMode(modelId) ?? false;
     }
 
     public bool SupportsEffort(string modelId, string provider)
     {
-        return ProviderDefinitionRegistry.TryGet(provider)?.SupportsEffort(modelId) ?? false;
+        return _registry.TryGet(provider)?.SupportsEffort(modelId) ?? false;
     }
 
     public bool SupportsMaxEffort(string modelId, string provider)
     {
-        return ProviderDefinitionRegistry.TryGet(provider)?.SupportsMaxEffort(modelId) ?? false;
+        return _registry.TryGet(provider)?.SupportsMaxEffort(modelId) ?? false;
     }
-
 }

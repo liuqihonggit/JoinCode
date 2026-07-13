@@ -4,26 +4,6 @@ namespace JoinCode.ChatCommands;
 [ChatCommand(Name = ChatCommandNameConstants.Advisor, Description = "配置顾问模型", Usage = "/advisor [model|off]", Category = ChatCommandCategory.Agent)]
 public sealed class AdvisorCommand : IChatCommand
 {
-    private static readonly CanonicalModel[] SupportedAdvisorModels =
-    [
-        CanonicalModel.Claude3Opus,
-        CanonicalModel.Claude3Sonnet,
-        CanonicalModel.Claude35Sonnet,
-        CanonicalModel.Claude35Haiku,
-        CanonicalModel.Gpt4o,
-        CanonicalModel.Gpt4Turbo,
-        CanonicalModel.O1,
-        CanonicalModel.O1Mini,
-        CanonicalModel.O3,
-        CanonicalModel.O3Mini,
-        CanonicalModel.DeepSeekChat,
-        CanonicalModel.DeepSeekReasoner
-    ];
-
-    private static readonly FrozenSet<string> SupportedAdvisorModelIds = SupportedAdvisorModels
-        .Select(m => m.ToValue())
-        .ToFrozenSet(StringComparer.OrdinalIgnoreCase);
-
     public string Name => ChatCommandNameConstants.Advisor;
     public string Description => "配置顾问模型";
     public string Usage => "/advisor [model|off]";
@@ -59,13 +39,14 @@ public sealed class AdvisorCommand : IChatCommand
         }
         else
         {
-            if (!IsModelSupported(args))
+            var allModelIds = ModelConfigLoader.GetAllModelIds();
+            if (!allModelIds.Any(m => string.Equals(m, args, StringComparison.OrdinalIgnoreCase)))
             {
                 TerminalHelper.WriteLine($"{TerminalColors.Warning}{L.T(StringKey.HostAdvisorModelNotSupported, args)}{AnsiStyleConstants.Reset}");
                 TerminalHelper.WriteLine(L.T(StringKey.HostAdvisorSupportedModelsLabel));
-                foreach (var model in SupportedAdvisorModels)
+                foreach (var model in allModelIds)
                 {
-                    TerminalHelper.WriteLine($"  {model.ToValue()}");
+                    TerminalHelper.WriteLine($"  {model}");
                 }
                 TerminalHelper.WriteLine(L.T(StringKey.HostAdvisorConfirmSet));
             }
@@ -76,10 +57,5 @@ public sealed class AdvisorCommand : IChatCommand
         }
 
         return Task.FromResult(ChatCommandResult.Continue());
-    }
-
-    private static bool IsModelSupported(string modelId)
-    {
-        return SupportedAdvisorModelIds.Contains(modelId);
     }
 }

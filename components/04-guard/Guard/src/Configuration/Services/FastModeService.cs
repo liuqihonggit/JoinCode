@@ -36,8 +36,8 @@ public sealed partial class FastModeService : IFastModeService, IDisposable
         TimeSpan? cooldownDuration = null,
         ILogger<FastModeService>? logger = null)
     {
-        _primaryModelId = config?.Provider?.ModelId ?? CanonicalModel.Gpt4o.ToValue();
-        _fastModelId = fastModelId ?? CanonicalModel.Gpt4oMini.ToValue();
+        _primaryModelId = config?.Provider?.ModelId ?? ModelConfigLoader.GetDefaultModelId("openai");
+        _fastModelId = fastModelId ?? ModelConfigLoader.GetDefaultFastModelId("openai");
         _cooldownDuration = cooldownDuration ?? TimeSpan.FromMinutes(5);
         _logger = logger;
     }

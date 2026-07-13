@@ -6,13 +6,15 @@ public sealed class ExecutionSettingsProvider : IExecutionSettingsProvider
     private readonly WorkflowConfig _config;
     private readonly ITelemetryService? _telemetryService;
     private readonly IFileSystem _fs;
+    private readonly IProviderDefinitionRegistry _registry;
     private readonly Lazy<EffortLevel> _effortLevelLazy;
 
-    public ExecutionSettingsProvider(WorkflowConfig config, IFileSystem fs, ITelemetryService? telemetryService = null)
+    public ExecutionSettingsProvider(WorkflowConfig config, IFileSystem fs, IProviderDefinitionRegistry registry, ITelemetryService? telemetryService = null)
     {
         _config = config;
         _telemetryService = telemetryService;
         _fs = fs;
+        _registry = registry;
         // 延迟加载 effortLevel — 避免构造函数中阻塞调用 async 方法
         _effortLevelLazy = new Lazy<EffortLevel>(LoadPersistedEffort, LazyThreadSafetyMode.ExecutionAndPublication);
     }
@@ -39,6 +41,6 @@ public sealed class ExecutionSettingsProvider : IExecutionSettingsProvider
         }
     }
     public bool FastMode => _config.FastMode;
-    public string? FastModelId => ProviderDefinitionRegistry.TryGet(_config.Provider?.Provider ?? string.Empty)?.DefaultFastModelId;
+    public string? FastModelId => _registry.TryGet(_config.Provider?.Provider ?? string.Empty)?.DefaultFastModelId;
 
 }

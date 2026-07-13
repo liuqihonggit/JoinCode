@@ -2,7 +2,7 @@ namespace JoinCode.Entry;
 
 internal static class StartupWorkflow
 {
-    internal static async Task RunOnboardingIfNeededAsync(IOnboardingService onboardingService, CommandLineOptions options, IFileSystem fs, bool hasApiKey, WorkflowConfig? config = null)
+    internal static async Task RunOnboardingIfNeededAsync(IOnboardingService onboardingService, CommandLineOptions options, IFileSystem fs, bool hasApiKey, IProviderDefinitionRegistry registry, WorkflowConfig? config = null)
     {
         await onboardingService.InitializeAsync();
 
@@ -31,7 +31,7 @@ internal static class StartupWorkflow
 
             if (state.CurrentStep == OnboardingStep.ApiKey)
             {
-                var (success, errorMessage) = await PromptAndSaveProviderConfigAsync(config, fs);
+                var (success, errorMessage) = await PromptAndSaveProviderConfigAsync(config, fs, registry);
                 if (!success && !string.IsNullOrEmpty(errorMessage))
                 {
                     Cli.TerminalHelper.WriteLine();
@@ -102,16 +102,16 @@ internal static class StartupWorkflow
     /// <summary>
     /// 统一的 Provider 配置提示和保存逻辑
     /// </summary>
-    internal static async Task<(bool Success, string? ErrorMessage)> PromptAndSaveProviderConfigAsync(WorkflowConfig? config, IFileSystem fs)
+    internal static async Task<(bool Success, string? ErrorMessage)> PromptAndSaveProviderConfigAsync(WorkflowConfig? config, IFileSystem fs, IProviderDefinitionRegistry registry)
     {
         var hint = $"首次使用需要配置 API Key，输入后将保存到 ~/{AppDataConstants.AppDataFolder}/{AppDataConstants.AuthFileName}";
-        var provider = ProviderPicker.Show("openai", "未检测到 API Key。", hint);
+        var provider = ProviderPicker.Show("openai", "未检测到 API Key。", hint, registry);
         if (string.IsNullOrEmpty(provider))
         {
             return (false, null);
         }
 
-        var definition = ProviderDefinitionRegistry.TryGet(provider);
+        var definition = registry.TryGet(provider);
         var displayName = definition?.DisplayName ?? provider;
         var envVarHint = definition?.ApiKeyEnvironmentVariable is not null
             ? $"（也可通过环境变量 {definition.ApiKeyEnvironmentVariable} 设置）"

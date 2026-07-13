@@ -5,12 +5,20 @@ namespace Core.Configuration;
 /// 将 SettingsJson + 环境变量覆盖映射到 WorkflowConfig
 /// 优先级: 环境变量 > SettingsJson 字段 > Provider 定义默认值 > 内置默认值
 /// </summary>
-public static class SettingsMapper
+[Register]
+public sealed class SettingsMapper
 {
+    private readonly IProviderDefinitionRegistry _registry;
+
+    public SettingsMapper(IProviderDefinitionRegistry registry)
+    {
+        _registry = registry;
+    }
+
     /// <summary>
     /// 将 SettingsJson 映射到 WorkflowConfig，并应用环境变量覆盖
     /// </summary>
-    public static WorkflowConfig ToWorkflowConfig(SettingsJson? settings)
+    public WorkflowConfig ToWorkflowConfig(SettingsJson? settings)
     {
         var config = new WorkflowConfig();
 
@@ -34,7 +42,7 @@ public static class SettingsMapper
     /// 环境变量优先级最高，覆盖所有文件配置
     /// 注意: API Key 不在此处理，由 ConfigLoader.ResolveApiKeyAsync 统一解析
     /// </summary>
-    public static void ApplyEnvOverrides(WorkflowConfig config)
+    public void ApplyEnvOverrides(WorkflowConfig config)
     {
         // Provider 环境变量覆盖
         var envProvider = Environment.GetEnvironmentVariable(JccEnvVar.Provider.ToValue());
@@ -43,9 +51,9 @@ public static class SettingsMapper
             config.Provider.Provider = envProvider;
 
             // Provider 变更时，重新应用 Provider 定义的默认值
-            var newDefinition = ProviderDefinitionRegistry.TryGet(envProvider)
+            var newDefinition = _registry.TryGet(envProvider)
                 ?? throw new ConfigurationException(
-                    $"未知的 Provider '{envProvider}'，可用值: {string.Join(", ", ProviderDefinitionRegistry.RegisteredProviders)}。");
+                    $"未知的 Provider '{envProvider}'，可用值: {string.Join(", ", _registry.RegisteredProviders)}。");
 
             config.Provider.Endpoint ??= newDefinition.DefaultEndpoint;
             config.Provider.Definition = newDefinition;
@@ -122,7 +130,7 @@ public static class SettingsMapper
 
     #region 内部方法
 
-    private static void ApplyProviderSettings(WorkflowConfig config, SettingsJson? settings)
+    private void ApplyProviderSettings(WorkflowConfig config, SettingsJson? settings)
     {
         // Provider 优先级: settings.provider > 默认值
         if (!string.IsNullOrEmpty(settings?.Provider))
@@ -137,7 +145,7 @@ public static class SettingsMapper
         }
 
         // Provider 定义自动配置默认值
-        var definition = ProviderDefinitionRegistry.TryGet(config.Provider.Provider);
+        var definition = _registry.TryGet(config.Provider.Provider);
         if (definition is not null)
         {
             config.Provider.Endpoint ??= definition.DefaultEndpoint;
@@ -158,7 +166,7 @@ public static class SettingsMapper
         else
         {
             throw new ConfigurationException(
-                $"未知的 Provider '{config.Provider.Provider}'，可用值: {string.Join(", ", ProviderDefinitionRegistry.RegisteredProviders)}。" +
+                $"未知的 Provider '{config.Provider.Provider}'，可用值: {string.Join(", ", _registry.RegisteredProviders)}。" +
                 $"请通过 {JccEnvVar.Provider.ToValue()} 环境变量指定正确的 Provider。");
         }
 

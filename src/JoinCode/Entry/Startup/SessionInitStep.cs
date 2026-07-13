@@ -15,7 +15,7 @@ internal sealed class SessionInitStep : IMiddleware<StartupContext>
         host.Services.GetRequiredService<IPlanModeManager>().CleanupOldPlanFiles();
 
         var onboardingService = host.Services.GetRequiredService<IOnboardingService>();
-        await StartupWorkflow.RunOnboardingIfNeededAsync(onboardingService, context.Options, host.Services.GetRequiredService<IFileSystem>(), context.HasApiKey, context.Config);
+        await StartupWorkflow.RunOnboardingIfNeededAsync(onboardingService, context.Options, host.Services.GetRequiredService<IFileSystem>(), context.HasApiKey, host.Services.GetRequiredService<IProviderDefinitionRegistry>(), context.Config);
 
         var ctxMgr = host.Services.GetRequiredService<IChatContextManager>();
         var smp = host.Services.GetRequiredService<StreamMiddlewarePipeline<ChatMiddlewareContext, ChatStreamEvent>>();

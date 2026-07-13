@@ -7,6 +7,8 @@ namespace Guard.Tests.Configuration;
 /// </summary>
 public class SettingsMapperTests
 {
+    private readonly SettingsMapper _mapper = new(new ProviderDefinitionRegistry());
+
     #region 场景1: SettingsJson 映射到 WorkflowConfig
 
     [Fact]
@@ -16,7 +18,7 @@ public class SettingsMapperTests
         var settings = new SettingsJson { Model = "claude-sonnet-4-20250514" };
 
         // When
-        var config = SettingsMapper.ToWorkflowConfig(settings);
+        var config = _mapper.ToWorkflowConfig(settings);
 
         // Then
         config.Provider.ModelId.Should().Be("claude-sonnet-4-20250514");
@@ -29,7 +31,7 @@ public class SettingsMapperTests
         SettingsJson? settings = null;
 
         // When
-        var config = SettingsMapper.ToWorkflowConfig(settings);
+        var config = _mapper.ToWorkflowConfig(settings);
 
         // Then
         config.Should().NotBeNull();
@@ -44,7 +46,7 @@ public class SettingsMapperTests
         var settings = new SettingsJson { FastMode = true };
 
         // When
-        var config = SettingsMapper.ToWorkflowConfig(settings);
+        var config = _mapper.ToWorkflowConfig(settings);
 
         // Then
         config.FastMode.Should().BeTrue();
@@ -57,7 +59,7 @@ public class SettingsMapperTests
         var settings = new SettingsJson { FastMode = null };
 
         // When
-        var config = SettingsMapper.ToWorkflowConfig(settings);
+        var config = _mapper.ToWorkflowConfig(settings);
 
         // Then
         config.FastMode.Should().BeFalse();
@@ -77,7 +79,7 @@ public class SettingsMapperTests
         };
 
         // When
-        var config = SettingsMapper.ToWorkflowConfig(settings);
+        var config = _mapper.ToWorkflowConfig(settings);
 
         // Then
         config.Worktree.SymlinkDirectories.Should().Equal("node_modules", ".venv");
@@ -98,7 +100,7 @@ public class SettingsMapperTests
         try
         {
             // When
-            SettingsMapper.ApplyEnvOverrides(config);
+            _mapper.ApplyEnvOverrides(config);
 
             // Then
             config.Provider.Provider.Should().Be("anthropic");
@@ -119,7 +121,7 @@ public class SettingsMapperTests
         try
         {
             // When
-            SettingsMapper.ApplyEnvOverrides(config);
+            _mapper.ApplyEnvOverrides(config);
 
             // Then: ApplyEnvOverrides 不再覆盖 API Key
             config.Provider.ApiKey.Should().Be("original-key");
@@ -140,7 +142,7 @@ public class SettingsMapperTests
         try
         {
             // When
-            SettingsMapper.ApplyEnvOverrides(config);
+            _mapper.ApplyEnvOverrides(config);
 
             // Then
             config.Provider.ModelId.Should().Be("gpt-4o-mini");
@@ -165,7 +167,7 @@ public class SettingsMapperTests
         Environment.SetEnvironmentVariable(JccEnvVar.Endpoint.ToValue(), null);
 
         // When
-        SettingsMapper.ApplyEnvOverrides(config);
+        _mapper.ApplyEnvOverrides(config);
 
         // Then
         config.Provider.Provider.Should().Be(ProviderKind.OpenAI.ToValue());
@@ -338,8 +340,8 @@ public class SettingsMapperTests
         try
         {
             // When: 先映射 SettingsJson，再应用环境变量覆盖
-            var config = SettingsMapper.ToWorkflowConfig(settings);
-            SettingsMapper.ApplyEnvOverrides(config);
+            var config = _mapper.ToWorkflowConfig(settings);
+            _mapper.ApplyEnvOverrides(config);
 
             // Then: 环境变量优先
             config.Provider.ModelId.Should().Be("gpt-4o-mini");

@@ -20,6 +20,7 @@ global using JoinCode.Abstractions.Tools;
 global using JoinCode.Abstractions.ChatCommands;
 global using JoinCode.Abstractions.Utils;
 global using Core.Configuration;
+global using Core.Configuration.Providers;
 global using Core.Configuration.Remote;
 global using Core.Hooks.Configuration;
 global using Core.Hooks.Events;

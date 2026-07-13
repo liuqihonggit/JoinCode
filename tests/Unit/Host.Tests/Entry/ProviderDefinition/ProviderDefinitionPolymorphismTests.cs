@@ -2,6 +2,7 @@ namespace JoinCode.Entry.Tests;
 
 public sealed class ProviderDefinitionPolymorphismTests
 {
+    private static readonly Core.Configuration.Providers.ProviderDefinitionRegistry Registry = new();
     [Fact]
     public void OpenAI_RequiresInteractiveEndpoint_ShouldBeFalse()
     {
@@ -203,7 +204,7 @@ public sealed class ProviderDefinitionPolymorphismTests
     [Fact]
     public void Registry_AllProviders_ShouldBeRegistered()
     {
-        var providers = Core.Configuration.Providers.ProviderDefinitionRegistry.RegisteredProviders;
+        var providers = Registry.RegisteredProviders;
         providers.Should().Contain("openai");
         providers.Should().Contain("azure");
         providers.Should().Contain("anthropic");
@@ -213,19 +214,19 @@ public sealed class ProviderDefinitionPolymorphismTests
     [Fact]
     public void Registry_TryGet_ShouldReturnCorrectDefinition()
     {
-        var openai = Core.Configuration.Providers.ProviderDefinitionRegistry.TryGet("openai");
+        var openai = Registry.TryGet("openai");
         openai.Should().NotBeNull();
         openai!.Kind.Should().Be(ProviderKind.OpenAI);
 
-        var azure = Core.Configuration.Providers.ProviderDefinitionRegistry.TryGet("azure");
+        var azure = Registry.TryGet("azure");
         azure.Should().NotBeNull();
         azure!.Kind.Should().Be(ProviderKind.Azure);
 
-        var anthropic = Core.Configuration.Providers.ProviderDefinitionRegistry.TryGet("anthropic");
+        var anthropic = Registry.TryGet("anthropic");
         anthropic.Should().NotBeNull();
         anthropic!.Kind.Should().Be(ProviderKind.Anthropic);
 
-        var agnes = Core.Configuration.Providers.ProviderDefinitionRegistry.TryGet("agnes");
+        var agnes = Registry.TryGet("agnes");
         agnes.Should().NotBeNull();
         agnes!.Kind.Should().Be(ProviderKind.Agnes);
     }
@@ -233,7 +234,7 @@ public sealed class ProviderDefinitionPolymorphismTests
     [Fact]
     public void Registry_TryGet_UnknownProvider_ShouldReturnNull()
     {
-        var result = Core.Configuration.Providers.ProviderDefinitionRegistry.TryGet("unknown");
+        var result = Registry.TryGet("unknown");
         result.Should().BeNull();
     }
 
@@ -262,10 +263,10 @@ public sealed class ProviderDefinitionPolymorphismTests
     public void Anthropic_ResolveAlias_ShouldMapShortNames()
     {
         var def = new Core.Configuration.Providers.AnthropicProviderDefinition();
-        def.ResolveAlias("sonnet").Should().Be("claude-sonnet-4-6");
-        def.ResolveAlias("opus").Should().Be("claude-opus-4-6");
+        def.ResolveAlias("sonnet").Should().Be("claude-sonnet-4-6-20250514");
+        def.ResolveAlias("opus").Should().Be("claude-opus-4-6-20250514");
         def.ResolveAlias("haiku").Should().Be("claude-haiku-4-5-20251001");
-        def.ResolveAlias("best").Should().Be("claude-opus-4-6");
+        def.ResolveAlias("best").Should().Be("claude-opus-4-6-20250514");
         def.ResolveAlias("unknown").Should().BeNull();
     }
 
@@ -275,6 +276,8 @@ public sealed class ProviderDefinitionPolymorphismTests
         var def = new Core.Configuration.Providers.AgnesProviderDefinition();
         def.ResolveAlias("flash").Should().Be("agnes-1.5-flash");
         def.ResolveAlias("flash2").Should().Be("agnes-2.0-flash");
+        def.ResolveAlias("image").Should().Be("agnes-image-2.0-flash");
+        def.ResolveAlias("video").Should().Be("agnes-video-v2.0");
         def.ResolveAlias("unknown").Should().BeNull();
     }
 }

@@ -11,16 +11,15 @@ namespace Core.Configuration.Providers;
 public sealed class ContextWindowResolver : IContextWindowResolver
 {
     private readonly IFastModeService _fastModeService;
+    private readonly IProviderDefinitionRegistry _registry;
     private readonly WorkflowConfig? _config;
 
-    /// <summary>
-    /// 默认上下文窗口大小 — 对齐 TS MODEL_CONTEXT_WINDOW_DEFAULT
-    /// </summary>
     private const int DefaultContextWindow = 200_000;
 
-    public ContextWindowResolver(IFastModeService fastModeService, WorkflowConfig? config = null)
+    public ContextWindowResolver(IFastModeService fastModeService, IProviderDefinitionRegistry registry, WorkflowConfig? config = null)
     {
         _fastModeService = fastModeService;
+        _registry = registry;
         _config = config;
     }
 
@@ -42,7 +41,7 @@ public sealed class ContextWindowResolver : IContextWindowResolver
         var currentModel = ResolveCurrentModelId();
         var provider = ResolveCurrentProvider();
 
-        var definition = ProviderDefinitionRegistry.TryGet(provider);
+        var definition = _registry.TryGet(provider);
         if (definition is not null)
         {
             var match = definition.AvailableModels

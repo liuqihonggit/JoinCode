@@ -142,6 +142,3 @@ public sealed partial class GitHubService : IGitHubService
     }
 }
 
-[JsonSerializable(typeof(List<PRSubscription>))]
-[JsonSourceGenerationOptions(PropertyNameCaseInsensitive = true)]
-internal sealed partial class GitHubSubscriptionContext : JsonSerializerContext;

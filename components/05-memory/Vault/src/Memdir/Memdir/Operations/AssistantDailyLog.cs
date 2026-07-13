@@ -378,11 +378,3 @@ public sealed partial class AssistantDailyLogService : IAssistantDailyLogService
     public void Dispose() => _writeLock.Dispose();
 }
 
-/// <summary>
-/// 日志 JSON 序列化上下文（AOT 兼容）
-/// </summary>
-[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = true)]
-[JsonSerializable(typeof(DailyLogFile))]
-[JsonSerializable(typeof(DailyLogEntry))]
-[JsonSerializable(typeof(List<DailyLogEntry>))]
-public partial class DailyLogJsonContext : JsonSerializerContext;

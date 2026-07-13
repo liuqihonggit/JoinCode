@@ -1,5 +1,5 @@
 #pragma warning disable JCC9001, JCC9002
-namespace CodeIndex.Tests;
+namespace JoinCode.CodeIndex.Tests;
 
 public sealed class CallGraphTests : IDisposable
 {

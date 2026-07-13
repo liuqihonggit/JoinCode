@@ -63,9 +63,9 @@ global using Integration.Tests.Capture;
 global using Testing.Common;
 global using Testing.Common.Services;
 
-global using CodeIndex;
-global using CodeIndex.Ast;
-global using CodeIndex.Persistence;
+global using JoinCode.CodeIndex;
+global using JoinCode.CodeIndex.Ast;
+global using JoinCode.CodeIndex.Persistence;
 global using JoinCode.Abstractions.CodeIndex;
 global using Services.CodeIndex;
 global using Microsoft.Data.Sqlite;

@@ -11,7 +11,7 @@ public static partial class ServiceRegistration
     public static IServiceCollection AddBrowserServices(this IServiceCollection services)
     {
         var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(IBrowserAutomationService)
-            && d.ImplementationType != typeof(global::Plugins.Browser.PuppeteerBrowserAutomationService));
+            && d.ImplementationType != typeof(global::JoinCode.Browser.PuppeteerBrowserAutomationService));
         if (descriptor is not null)
         {
             services.Remove(descriptor);

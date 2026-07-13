@@ -1,4 +1,4 @@
-namespace CodeIndex.Ast;
+namespace JoinCode.CodeIndex.Ast;
 
 /// <summary>
 /// Bash AST 解析器 — 使用 TreeSitter.DotNet 解析 bash 命令

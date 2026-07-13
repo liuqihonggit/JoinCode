@@ -269,7 +269,7 @@ jobs:
     name: Integration - Guard + Vault
     runs-on: windows-latest
     needs: build
-    if: github.event_name == \'push\'
+    if: github.event_name == 'push'
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -295,7 +295,7 @@ jobs:
     name: Integration - Hands + Host + McpTools
     runs-on: windows-latest
     needs: build
-    if: github.event_name == \'push\'
+    if: github.event_name == 'push'
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -321,7 +321,7 @@ jobs:
     name: Integration - PrefixCache
     runs-on: windows-latest
     needs: build
-    if: github.event_name == \'push\'
+    if: github.event_name == 'push'
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -347,7 +347,7 @@ jobs:
     name: E2E - Conversation
     runs-on: windows-latest
     needs: build
-    if: github.event_name == \'push\'
+    if: github.event_name == 'push'
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -373,7 +373,7 @@ jobs:
     name: E2E - MultiProvider + Concurrent
     runs-on: windows-latest
     needs: build
-    if: github.event_name == \'push\'
+    if: github.event_name == 'push'
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -399,7 +399,7 @@ jobs:
     name: E2E - File/Search/Shell/Extended
     runs-on: windows-latest
     needs: build
-    if: github.event_name == \'push\'
+    if: github.event_name == 'push'
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -425,7 +425,7 @@ jobs:
     name: E2E - Agent/Batch/Task/AST
     runs-on: windows-latest
     needs: build
-    if: github.event_name == \'push\'
+    if: github.event_name == 'push'
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -451,7 +451,7 @@ jobs:
     name: E2E - ChatCmd
     runs-on: windows-latest
     needs: build
-    if: github.event_name == \'push\'
+    if: github.event_name == 'push'
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -477,7 +477,7 @@ jobs:
     name: E2E - ErrorRecovery + Permission
     runs-on: windows-latest
     needs: build
-    if: github.event_name == \'push\'
+    if: github.event_name == 'push'
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -503,7 +503,7 @@ jobs:
     name: E2E - MCP + Sync + CodeIndex + Smoke
     runs-on: windows-latest
     needs: build
-    if: github.event_name == \'push\'
+    if: github.event_name == 'push'
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -739,8 +739,7 @@ jobs:
     name: AOT Publish - jcc.exe
     runs-on: windows-latest
     needs: [unit-test-group-1, unit-test-group-2, unit-test-group-3, integration-brain-clock, integration-guard-vault, integration-hands-host-mcp, integration-prefixcache, e2e-conversation, e2e-multi-provider, e2e-file-tools, e2e-agent-tools, e2e-chatcmd, e2e-errors-permission, e2e-mcp-smoke]
-    if: github.event_name == \'push\'
-    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    if: github.event_name == 'push'
     timeout-minutes: 30
 
     steps:
@@ -797,8 +796,7 @@ jobs:
     name: AOT Compatibility - Dream
     runs-on: windows-latest
     needs: [unit-test-group-1, unit-test-group-2, unit-test-group-3, integration-brain-clock, integration-guard-vault, integration-hands-host-mcp, integration-prefixcache, e2e-conversation, e2e-multi-provider, e2e-file-tools, e2e-agent-tools, e2e-chatcmd, e2e-errors-permission, e2e-mcp-smoke]
-    if: github.event_name == \'push\'
-    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    if: github.event_name == 'push'
     timeout-minutes: 10
 
     steps:

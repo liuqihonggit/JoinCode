@@ -297,6 +297,9 @@ public sealed class ApplicationBuilder
         Cli.TerminalHelper.WriteLine("  --trust                 自动信任当前工作目录");
         Cli.TerminalHelper.WriteLine("  --non-interactive       强制非交互模式");
         Cli.TerminalHelper.WriteLine("  --pipe <管道名>         命名管道通信模式");
+        Cli.TerminalHelper.WriteLine("  --brief                 启动时激活简要模式");
+        Cli.TerminalHelper.WriteLine("  --force-interactive     强制交互模式（即使 stdin 重定向也启用 REPL，用于 E2E 测试）");
+        Cli.TerminalHelper.WriteLine("  --await <秒数>         超时自动关闭（超时返回 1234，用于诊断卡死，正常完成不受影响）");
         Cli.TerminalHelper.NewLine();
         Cli.TerminalHelper.WriteLine("子命令:");
         Cli.TerminalHelper.WriteLine("  tool                    MCP 工具管理");

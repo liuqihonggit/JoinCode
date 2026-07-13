@@ -11,7 +11,7 @@ internal sealed class NonInteractiveExecuteStep : IMiddleware<StartupContext>
         var session = context.Session;
         if (session is null)
         {
-            Console.Error.WriteLine("[STEP] ExecuteStep ERROR: context.Session is null!");
+            Diag.WriteLine("[STEP] ExecuteStep ERROR: context.Session is null!");
             context.ExitCode = 1;
             return;
         }
@@ -20,29 +20,29 @@ internal sealed class NonInteractiveExecuteStep : IMiddleware<StartupContext>
         try
         {
         Diag.WriteLine("[STEP] ExecuteStep calling ProcessUserInputAsync...");
-        Console.Error.WriteLine("[READY]");
+        Diag.WriteLine("[READY]");
         var prompt = context.NonInteractivePrompt;
             if (string.IsNullOrEmpty(prompt))
             {
-                Console.Error.WriteLine("[STEP] ExecuteStep ERROR: NonInteractivePrompt is null/empty!");
+                Diag.WriteLine("[STEP] ExecuteStep ERROR: NonInteractivePrompt is null/empty!");
                 context.ExitCode = 1;
                 return;
             }
             await session.ProcessUserInputAsync(prompt, ct);
             await Console.Out.FlushAsync().ConfigureAwait(false);
-            Console.Error.WriteLine("[DONE]");
+            Diag.WriteLine("[DONE]");
             Diag.WriteLine("[STEP] ExecuteStep ProcessUserInputAsync returned");
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"[STEP] ExecuteStep exception: {ex.GetType().Name}: {ex.Message}");
+            Diag.WriteLine($"[STEP] ExecuteStep exception: {ex.GetType().Name}: {ex.Message}");
             Cli.TerminalHelper.WriteLine($"错误: {ex.Message}");
             context.ExitCode = 1;
             return;
         }
 
         Diag.WriteLine("[STEP] ExecuteStep done, calling next");
-        Console.Error.WriteLine("[EXIT]");
+        Diag.WriteLine("[EXIT]");
         await next(context, ct);
     }
 }

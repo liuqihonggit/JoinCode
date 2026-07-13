@@ -2,7 +2,7 @@ namespace JoinCode.Entry;
 
 /// <summary>
 /// REPL 循环中间件 — 读取用户输入并处理
-/// 生命周期标记（输出到 stderr，供 E2E 测试事件驱动等待）：
+/// 生命周期标记（通过 Diag.WriteLine 输出，JCC_VERBOSE=1 时显示，供 E2E 测试事件驱动等待）：
 ///   [READY] — REPL 循环就绪，等待用户输入
 ///   [ALIVE] — 处理用户输入期间每 2s 心跳
 ///   [DONE]  — 单次用户输入处理完成
@@ -17,7 +17,7 @@ internal sealed class ReplLoopStep : IMiddleware<StartupContext>
     {
         Cli.TerminalHelper.WriteLine("JoinCode CLI - 输入消息或 /help 查看命令");
         Cli.TerminalHelper.WriteLine();
-        Console.Error.WriteLine("[READY]");
+        Diag.WriteLine("[READY]");
 
         var session = context.Session!;
 
@@ -47,16 +47,16 @@ internal sealed class ReplLoopStep : IMiddleware<StartupContext>
                 aliveCts.Cancel();
                 try { await aliveTask.ConfigureAwait(false); } catch (OperationCanceledException) { }
                 await Console.Out.FlushAsync().ConfigureAwait(false);
-                Console.Error.WriteLine("[DONE]");
+                Diag.WriteLine("[DONE]");
             }
         }
 
-        Console.Error.WriteLine("[EXIT]");
+        Diag.WriteLine("[EXIT]");
         await next(context, ct);
     }
 
     /// <summary>
-    /// 心跳循环 — 每 2s 输出 [ALIVE] 到 stderr，供 E2E 测试检测进程存活
+    /// 心跳循环 — 每 2s 输出 [ALIVE]，通过 Diag.WriteLine 受 JCC_VERBOSE 控制，供 E2E 测试检测进程存活
     /// </summary>
     private static async Task RunAliveLoopAsync(CancellationToken ct)
     {
@@ -65,7 +65,7 @@ internal sealed class ReplLoopStep : IMiddleware<StartupContext>
         {
             while (await timer.WaitForNextTickAsync(ct).ConfigureAwait(false))
             {
-                Console.Error.WriteLine("[ALIVE]");
+                Diag.WriteLine("[ALIVE]");
             }
         }
         catch (OperationCanceledException) { }

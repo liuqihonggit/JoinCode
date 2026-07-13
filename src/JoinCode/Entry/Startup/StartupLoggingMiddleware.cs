@@ -32,10 +32,7 @@ internal sealed class StartupLoggingMiddleware : IMiddleware<StartupContext>
 
         sw.Stop();
 
-        // 仅在 JCC_VERBOSE 环境变量设置时输出耗时
-        if (Environment.GetEnvironmentVariable("JCC_VERBOSE") is not null)
-        {
-            Cli.TerminalHelper.WriteLine($"[启动完成] 总耗时 {sw.ElapsedMilliseconds}ms");
-        }
+        // 诊断日志 — 受 JCC_VERBOSE 控制
+        Diag.WriteLine($"[启动完成] 总耗时 {sw.ElapsedMilliseconds}ms");
     }
 }

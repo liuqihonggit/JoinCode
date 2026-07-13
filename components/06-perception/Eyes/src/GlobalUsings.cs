@@ -1,6 +1,6 @@
-global using CodeIndex;
-global using CodeIndex.Ast;
-global using CodeIndex.Persistence;
+global using JoinCode.CodeIndex;
+global using JoinCode.CodeIndex.Ast;
+global using JoinCode.CodeIndex.Persistence;
 global using JoinCode.Abstractions.Attributes;
 global using JoinCode.Abstractions.Clock;
 global using JoinCode.Abstractions.Localization;

@@ -125,7 +125,7 @@ public class ToolContent
 /// <summary>
 /// 工具调用结果
 /// </summary>
-public class ToolResult
+public sealed record ToolResult
 {
     [JsonPropertyName("content")]
     public List<ToolContent> Content { get; init; } = new();

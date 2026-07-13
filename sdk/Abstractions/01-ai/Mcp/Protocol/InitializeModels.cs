@@ -1,6 +1,6 @@
 namespace JoinCode.Abstractions.Mcp.Protocol;
 
-public class InitializeRequestParams
+public sealed record InitializeRequestParams
 {
     [JsonPropertyName("protocolVersion")]
     public string ProtocolVersion { get; set; } = "2024-11-05";
@@ -12,7 +12,7 @@ public class InitializeRequestParams
     public Implementation ClientInfo { get; set; } = new();
 }
 
-public class InitializeResult
+public sealed record InitializeResult
 {
     [JsonPropertyName("protocolVersion")]
     public string ProtocolVersion { get; set; } = "2024-11-05";
@@ -27,7 +27,7 @@ public class InitializeResult
     public string? Instructions { get; set; }
 }
 
-public class ClientCapabilities
+public sealed record ClientCapabilities
 {
     [JsonPropertyName("sampling")]
     public JsonElement? Sampling { get; set; }
@@ -40,7 +40,7 @@ public class ClientCapabilities
     public JsonElement? Elicitation { get; set; }
 }
 
-public class ServerCapabilities
+public sealed record ServerCapabilities
 {
     [JsonPropertyName("tools")]
     public ToolsCapability? Tools { get; set; }
@@ -55,13 +55,13 @@ public class ServerCapabilities
     public LoggingCapability? Logging { get; set; }
 }
 
-public class ToolsCapability
+public sealed record ToolsCapability
 {
     [JsonPropertyName("listChanged")]
     public bool ListChanged { get; set; }
 }
 
-public class ResourcesCapability
+public sealed record ResourcesCapability
 {
     [JsonPropertyName("subscribe")]
     public bool Subscribe { get; set; }
@@ -70,19 +70,19 @@ public class ResourcesCapability
     public bool ListChanged { get; set; }
 }
 
-public class PromptsCapability
+public sealed record PromptsCapability
 {
     [JsonPropertyName("listChanged")]
     public bool ListChanged { get; set; }
 }
 
-public class LoggingCapability
+public sealed record LoggingCapability
 {
     [JsonPropertyName("level")]
     public string? Level { get; set; }
 }
 
-public class Implementation
+public sealed record Implementation
 {
     [JsonPropertyName("name")]
     public string Name { get; set; } = string.Empty;

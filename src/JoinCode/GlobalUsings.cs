@@ -101,7 +101,7 @@ global using TranscriptEntry = JoinCode.Abstractions.LLM.Chat.TranscriptEntry;
 global using RewindResult = JoinCode.Abstractions.LLM.Chat.RewindResult;
 
 global using JoinCode.Dream;
-global using Plugins.Browser;
+global using JoinCode.Browser;
 
 global using JoinCode.Reasoning.Engine;
 global using JoinCode.Reasoning.Evidence;

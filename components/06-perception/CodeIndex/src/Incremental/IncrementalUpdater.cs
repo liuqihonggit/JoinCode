@@ -1,4 +1,4 @@
-namespace CodeIndex;
+namespace JoinCode.CodeIndex;
 
 /// <summary>
 /// 增量更新器 — 重写为基于 InMemoryIndexStore 的内存操作

@@ -1,4 +1,4 @@
-namespace CodeIndex.Ast;
+namespace JoinCode.CodeIndex.Ast;
 
 public sealed class CSharpDependencyExtractor
 {

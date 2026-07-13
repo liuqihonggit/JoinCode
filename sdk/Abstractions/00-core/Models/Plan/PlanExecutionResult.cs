@@ -1,7 +1,7 @@
 
 namespace JoinCode.Abstractions.Models;
 
-public class PlanExecutionResult {
+public sealed record PlanExecutionResult {
     [JsonPropertyName("success")]
     public bool Success { get; set; }
 
@@ -27,7 +27,7 @@ public class PlanExecutionResult {
     public DateTime Timestamp { get; set; } = DateTime.UtcNow;
 }
 
-public class FunctionCallInfo {
+public sealed record FunctionCallInfo {
     [JsonPropertyName("pluginName")]
     public string PluginName { get; set; } = string.Empty;
 

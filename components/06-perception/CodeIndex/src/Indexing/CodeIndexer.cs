@@ -1,4 +1,4 @@
-namespace CodeIndex;
+namespace JoinCode.CodeIndex;
 
 [Register]
 public sealed partial class CodeIndexer : ICodeIndexer, IDisposable

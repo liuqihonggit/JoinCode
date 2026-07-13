@@ -1,4 +1,4 @@
-﻿namespace Plugins.Browser;
+﻿namespace JoinCode.Browser;
 
 /// <summary>
 /// 基于 PuppeteerSharp 的浏览器自动化服务 — 卫星包实现

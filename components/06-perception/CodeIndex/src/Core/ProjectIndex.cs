@@ -1,4 +1,4 @@
-namespace CodeIndex;
+namespace JoinCode.CodeIndex;
 
 /// <summary>
 /// 项目索引器 — 重写为基于 InMemoryIndexStore 的内存字典操作

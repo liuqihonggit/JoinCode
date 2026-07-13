@@ -1,6 +1,6 @@
 using JoinCode.Abstractions.Attributes;
 
-namespace CodeIndex;
+namespace JoinCode.CodeIndex;
 
 [Register]
 public sealed class FileWatcherIntegration : IAsyncDisposable, IDisposable

@@ -1,4 +1,4 @@
-namespace CodeIndex;
+namespace JoinCode.CodeIndex;
 
 /// <summary>
 /// 依赖图 — 重写为基于 InMemoryIndexStore 的实时查询

@@ -1,4 +1,4 @@
-namespace CodeIndex.Benchmarks;
+namespace JoinCode.CodeIndex.Benchmarks;
 
 [Trait("Category", "Benchmark")]
 public sealed class PerformanceBenchmarkTests : IDisposable

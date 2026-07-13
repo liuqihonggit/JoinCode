@@ -13,7 +13,7 @@ public sealed class AppEventBus : IAppEventBus
     public AppEventBus(ServiceMessageBus messageBus)
     {
         _messageBus = messageBus;
-        _messageBus.MessageReceived += OnMessageReceived;
+        _messageBus.MessageReceived += OnMessageReceivedAsync;
     }
 
     /// <summary>
@@ -67,7 +67,7 @@ public sealed class AppEventBus : IAppEventBus
         return SubscribeAsync((ServiceMessageType)(-1), handler, ct);
     }
 
-    private Task OnMessageReceived(ServiceMessage message)
+    private Task OnMessageReceivedAsync(ServiceMessage message)
     {
         if (message.Payload is AppEventPayload payload)
         {

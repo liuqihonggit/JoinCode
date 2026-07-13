@@ -1,6 +1,6 @@
 namespace JoinCode.Abstractions.Models;
 
-public sealed class OperationResult<T>
+public sealed record OperationResult<T>
 {
     public bool Success { get; init; }
     public T? Data { get; init; }
@@ -27,7 +27,7 @@ public sealed class OperationResult<T>
     }
 }
 
-public sealed class OperationResult
+public sealed record OperationResult
 {
     public bool Success { get; init; }
     public string? ErrorMessage { get; init; }

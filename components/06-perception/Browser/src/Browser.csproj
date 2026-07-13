@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <RootNamespace>Plugins.Browser</RootNamespace>
+    <RootNamespace>JoinCode.Browser</RootNamespace>
     <AssemblyName>JoinCode.Browser</AssemblyName>
     <PackageId>JoinCode.Browser</PackageId>
     <Description>JoinCode Browser 插件 - 基于 PuppeteerSharp 的浏览器自动化（卫星包）</Description>

@@ -26,6 +26,8 @@ public static class ReasoningServiceExtensions
         services.AddSingleton<WeightedDecisionSystem>();
         services.AddSingleton<ConeOrchestrator>();
         services.AddSingleton<EvidenceUrlVerifier>();
+        services.AddSingleton<DagNodeSummarizer>();
+        services.AddSingleton<IReasoningContextCompressor, ReasoningContextCompressor>();
 
         return services;
     }

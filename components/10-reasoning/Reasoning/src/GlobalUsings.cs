@@ -12,6 +12,7 @@ global using Microsoft.Extensions.DependencyInjection;
 global using System.Collections.Frozen;
 global using System.Text.Json;
 global using System.Text.Json.Serialization;
+global using System.Text;
 global using JoinCode.Reasoning.State;
 global using JoinCode.Reasoning.Evidence;
 global using JoinCode.Reasoning.Agents;

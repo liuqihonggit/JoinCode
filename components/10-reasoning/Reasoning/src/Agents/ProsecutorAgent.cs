@@ -21,7 +21,7 @@ public sealed class ProsecutorAgent : ReasoningAgentBase
     {
         var action = new AgentAction { AgentRole = Role, ActionType = "提出证据" };
 
-        var unverified = context.AllItems
+        var unverified = context.GetVisibleItemsForRole(Role)
             .Where(x => x.State == DataState.Assumption)
             .ToList();
 
@@ -35,7 +35,9 @@ public sealed class ProsecutorAgent : ReasoningAgentBase
             var claimsText = string.Join("\n", unverified.Select((x, i) => $"{i + 1}. {x.Content}"));
             var userPrompt = $"请为以下假定各提出至少一条支持证据：\n{claimsText}";
 
-            var (llmResponse, usage) = await CallLlmAsync(userPrompt, temperature: context.Options.ProsecutorTemperature, maxTokens: context.Options.DefaultLlmMaxTokens, ct: ct).ConfigureAwait(false);
+            userPrompt = await CompressPromptIfNeededAsync(context, Role, userPrompt, ct);
+
+            var (llmResponse, usage, promptTokens) = await CallLlmAsync(userPrompt, temperature: context.Options.ProsecutorTemperature, maxTokens: context.Options.DefaultLlmMaxTokens, ct: ct).ConfigureAwait(false);
             if (llmResponse is not null)
             {
                 foreach (var e in ParseEvidenceFromLlmResponse(llmResponse))
@@ -46,7 +48,11 @@ public sealed class ProsecutorAgent : ReasoningAgentBase
 
             if (usage is not null)
             {
-                action.TokensUsed = usage.TotalTokens;
+                action.TokensUsed = usage.TotalTokens + promptTokens;
+            }
+            else
+            {
+                action.TokensUsed = promptTokens;
             }
 
             await SendMessageAsync(AgentRole.Defender.ToValue(), "evidence_submitted",

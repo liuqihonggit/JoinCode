@@ -5,4 +5,5 @@ global using JoinCode.Reasoning.Cone;
 global using JoinCode.Reasoning.Evidence;
 global using JoinCode.Reasoning.State;
 global using JoinCode.Reasoning.Weight;
+global using JoinCode.Abstractions.Interfaces.Context;
 global using Structura.Dag;

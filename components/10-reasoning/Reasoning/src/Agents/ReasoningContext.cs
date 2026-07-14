@@ -17,6 +17,11 @@ public sealed class ReasoningContext
     public ConeOrchestrator? ConeOrchestrator { get; init; }
 
     /// <summary>
+    /// 推理上下文压缩器 — 可选，为空时不压缩
+    /// </summary>
+    public IReasoningContextCompressor? ContextCompressor { get; init; }
+
+    /// <summary>
     /// 获取当前角色的视锥上下文（LLM友好输入）
     /// </summary>
     public string GetConeContextForRole(AgentRole role)

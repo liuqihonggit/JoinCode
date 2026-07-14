@@ -467,11 +467,16 @@ $psi.WorkingDirectory = "{项目根目录}"
   - 先提交：`git add -A; git commit -m "wip: 临时保存"` → `git rebase main`
   - 或暂存：`git stash` → `git rebase main` → `git stash pop`
   
-- **main 与开发分支冲突时**：在 main 分支执行 `git reset --hard w2`（或 w1）
-  
-  - 原因: 开发分支上 squash 合并多个 commit 后，提交哈希变了，但 main 之前已 rebase 过旧哈希的提交，导致"同内容不同哈希"的分叉，再 rebase 必然冲突
-  - `git reset --hard` 直接将 main 指向开发分支最新提交，干净无冲突
-  - 之后 `git push --force-with-lease origin main` 推送
+- **⚠️ `reset --hard` vs `rebase` 的生死线**：
+
+  | 场景 | 命令 | 原因 |
+  |------|------|------|
+  | 分支有**未合入 main** 的新 commit | `git rebase main` | rebase 会把独有 commit 变基到 main 之上，**不丢失** |
+  | PR 已合入 main，分支同步 | `git reset --hard main` | 分支 commit 已在 main 中，reset 只是快进指针，**不丢失** |
+  | main 与开发分支哈希冲突 | `git reset --hard w2`（在 main 上执行） | squash 合并后哈希不同，reset 直接指向，**不丢失** |
+
+  - **⛔ 绝对禁止**：分支有未合入 main 的独有 commit 时执行 `git reset --hard main` — 这会**永久丢失**这些 commit
+  - **判断方法**：`git log --oneline w3 --not main` — 有输出说明有独有 commit，只能 rebase；无输出说明已全部合入，可以 reset
   
 - **分支工作流**：任务分支（w1/w2/w3...）→ main 两阶段流水线
 

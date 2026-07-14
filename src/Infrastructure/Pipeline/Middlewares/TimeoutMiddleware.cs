@@ -12,8 +12,7 @@ public sealed class TimeoutMiddleware<TContext> : IMiddleware<TContext>
 
     public async Task InvokeAsync(TContext context, MiddlewareDelegate<TContext> next, CancellationToken ct)
     {
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        cts.CancelAfter(context.Timeout);
+        using var cts = TimeoutHelper.CreateLinkedTimeout(ct, context.Timeout);
 
         try
         {
@@ -36,8 +35,7 @@ public sealed class FixedTimeoutMiddleware<TContext>(TimeSpan _timeout) : IMiddl
 
     public async Task InvokeAsync(TContext context, MiddlewareDelegate<TContext> next, CancellationToken ct)
     {
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        cts.CancelAfter(_timeout);
+        using var cts = TimeoutHelper.CreateLinkedTimeout(ct, _timeout);
 
         try
         {

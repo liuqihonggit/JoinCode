@@ -195,7 +195,7 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
                 return false;
             }
 
-            var tokenResponse = JsonSerializer.Deserialize(responseBody, McpOAuthJsonContext.Default.PkceTokenResponse);
+            var tokenResponse = JsonSerializer.Deserialize(responseBody, McpOAuthJsonContext.Default.OAuth2TokenResponse);
             if (tokenResponse == null || string.IsNullOrEmpty(tokenResponse.AccessToken))
             {
                 _logger?.LogError("无法解析令牌响应");
@@ -321,7 +321,7 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
                 return false;
             }
 
-            var tokenResponse = JsonSerializer.Deserialize(responseBody, McpOAuthJsonContext.Default.PkceTokenResponse);
+            var tokenResponse = JsonSerializer.Deserialize(responseBody, McpOAuthJsonContext.Default.OAuth2TokenResponse);
             if (tokenResponse == null || string.IsNullOrEmpty(tokenResponse.AccessToken))
             {
                 _logger?.LogError("无法解析刷新令牌响应");
@@ -372,7 +372,7 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
             .Replace('/', '_');
     }
 
-    private void UpdateAuthContext(PkceTokenResponse tokenResponse)
+    private void UpdateAuthContext(global::JoinCode.Abstractions.Models.OAuth.OAuth2TokenResponse tokenResponse)
     {
         _authContext = new McpAuthContext
         {
@@ -466,24 +466,6 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
         _httpClient.Dispose();
         _refreshLock.Dispose();
     }
-}
-
-public sealed partial class PkceTokenResponse
-{
-    [JsonPropertyName("access_token")]
-    public string AccessToken { get; set; } = string.Empty;
-
-    [JsonPropertyName("token_type")]
-    public string TokenType { get; set; } = "Bearer";
-
-    [JsonPropertyName("expires_in")]
-    public int ExpiresIn { get; set; }
-
-    [JsonPropertyName("refresh_token")]
-    public string? RefreshToken { get; set; }
-
-    [JsonPropertyName("scope")]
-    public string? Scope { get; set; }
 }
 
 public sealed partial class PkceTokenStorage

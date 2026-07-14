@@ -56,7 +56,7 @@ public sealed partial class PluginManager : IPluginManager
 
     public async Task<WorkflowPluginHost> LoadWorkflowPluginAsync<TPlugin>(CancellationToken cancellationToken = default) where TPlugin : class, IWorkflowPlugin, new()
     {
-        ObjectDisposedException.ThrowIf(_isDisposed, this);
+        DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
 
         var plugin = new TPlugin();
         var pluginName = plugin.Name;
@@ -119,13 +119,13 @@ public sealed partial class PluginManager : IPluginManager
 
     public WorkflowPluginHost? GetWorkflowPlugin(string pluginName)
     {
-        ObjectDisposedException.ThrowIf(_isDisposed, this);
+        DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
         return _workflowPlugins.TryGetValue(pluginName, out var host) ? host : null;
     }
 
     public T? GetWorkflowPlugin<T>(string pluginName) where T : class, IWorkflowPlugin
     {
-        ObjectDisposedException.ThrowIf(_isDisposed, this);
+        DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
         return _workflowPlugins.TryGetValue(pluginName, out var host) ? host.Plugin as T : null;
     }
 
@@ -138,7 +138,7 @@ public sealed partial class PluginManager : IPluginManager
         string pluginName,
         CancellationToken cancellationToken = default)
     {
-        ObjectDisposedException.ThrowIf(_isDisposed, this);
+        DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
 
         var span = _telemetryService?.StartSpan("plugin.load.external", TelemetrySpanKind.Server);
         span?.SetTag("plugin", pluginName);
@@ -211,7 +211,7 @@ public sealed partial class PluginManager : IPluginManager
 
     public ExternalPluginHost? GetExternalPlugin(string pluginName)
     {
-        ObjectDisposedException.ThrowIf(_isDisposed, this);
+        DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
         return _externalPlugins.TryGetValue(pluginName, out var host) ? host : null;
     }
 
@@ -228,7 +228,7 @@ public sealed partial class PluginManager : IPluginManager
 
     public async Task<PluginUnloadResult> UnloadPluginAsync(string pluginName, CancellationToken cancellationToken)
     {
-        ObjectDisposedException.ThrowIf(_isDisposed, this);
+        DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
 
         if (_externalPlugins.TryRemove(pluginName, out var externalHost))
         {
@@ -252,7 +252,7 @@ public sealed partial class PluginManager : IPluginManager
 
     public async Task<IReadOnlyList<PluginUnloadResult>> UnloadAllPluginsAsync(PluginUnloadOptions? options = null, CancellationToken cancellationToken = default)
     {
-        ObjectDisposedException.ThrowIf(_isDisposed, this);
+        DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
 
         var results = new List<PluginUnloadResult>();
 
@@ -335,7 +335,7 @@ public sealed partial class PluginManager : IPluginManager
 
     public bool IsPluginLoaded(string pluginName)
     {
-        ObjectDisposedException.ThrowIf(_isDisposed, this);
+        DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
         return _workflowPlugins.ContainsKey(pluginName) || _externalPlugins.ContainsKey(pluginName);
     }
 
@@ -349,47 +349,44 @@ public sealed partial class PluginManager : IPluginManager
 
     public void Dispose()
     {
-        if (!_isDisposed)
+        if (!DisposableHelper.TryMarkDisposed(ref _isDisposed)) return;
+
+        var externalPluginNames = _externalPlugins.Keys.ToList();
+        foreach (var pluginName in externalPluginNames)
         {
-            _isDisposed = true;
-
-            var externalPluginNames = _externalPlugins.Keys.ToList();
-            foreach (var pluginName in externalPluginNames)
+            if (_externalPlugins.TryRemove(pluginName, out var host))
             {
-                if (_externalPlugins.TryRemove(pluginName, out var host))
+                try
                 {
-                    try
-                    {
-                        host.Unload();
-                        host.Dispose();
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger?.LogError(ex, "释放外部插件时出错: {PluginName}", pluginName);
-                    }
+                    host.Unload();
+                    host.Dispose();
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogError(ex, "释放外部插件时出错: {PluginName}", pluginName);
                 }
             }
-
-            _externalPlugins.Clear();
-
-            var workflowPluginNames = _workflowPlugins.Keys.ToList();
-            foreach (var pluginName in workflowPluginNames)
-            {
-                if (_workflowPlugins.TryRemove(pluginName, out var host))
-                {
-                    try
-                    {
-                        host.Unload();
-                        host.Dispose();
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger?.LogError(ex, "释放工作流插件时出错: {PluginName}", pluginName);
-                    }
-                }
-            }
-
-            _workflowPlugins.Clear();
         }
+
+        _externalPlugins.Clear();
+
+        var workflowPluginNames = _workflowPlugins.Keys.ToList();
+        foreach (var pluginName in workflowPluginNames)
+        {
+            if (_workflowPlugins.TryRemove(pluginName, out var host))
+            {
+                try
+                {
+                    host.Unload();
+                    host.Dispose();
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogError(ex, "释放工作流插件时出错: {PluginName}", pluginName);
+                }
+            }
+        }
+
+        _workflowPlugins.Clear();
     }
 }

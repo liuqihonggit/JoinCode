@@ -3,7 +3,7 @@ namespace Core.Bridge.Gate;
 using JoinCode.Abstractions.Pipeline;
 using Core.Bridge.Init;
 
-public sealed class BridgeInitGateContext : IPipelineContext
+public sealed class BridgeInitGateContext : PipelineContextBase
 {
     public required BridgeInitOptions Options { get; init; }
     public required bool BridgeEnabled { get; init; }
@@ -24,8 +24,4 @@ public sealed class BridgeInitGateContext : IPipelineContext
     public string? Title { get; set; }
     public string? BaseUrl { get; set; }
     public IReplBridgeHandle? Handle { get; set; }
-
-    public bool Failed { get; set; }
-    public string? ErrorMessage { get; set; }
-    public void Fail(string message) { Failed = true; ErrorMessage = message; }
 }

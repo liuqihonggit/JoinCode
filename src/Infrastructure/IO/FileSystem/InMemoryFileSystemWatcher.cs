@@ -135,8 +135,7 @@ public sealed class InMemoryFileSystemWatcher : IFileSystemWatcher
 
     public void Dispose()
     {
-        if (_disposed) return;
-        _disposed = true;
+        if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
 
         _debounce.Dispose();
         _fs.UnregisterWatcher(this);

@@ -18,7 +18,7 @@ public enum GoalOperation
 /// <summary>
 /// 目标生命周期管道共享上下文 — 在中间件各阶段间传递状态
 /// </summary>
-public sealed class GoalLifecycleContext : IPipelineContext
+public sealed class GoalLifecycleContext : PipelineContextBase
 {
     // === 输入 ===
 
@@ -84,10 +84,4 @@ public sealed class GoalLifecycleContext : IPipelineContext
 
     /// <summary>最终目标状态</summary>
     public GoalState? Result { get; set; }
-
-    // === IPipelineContext ===
-
-    public bool Failed { get; set; }
-    public string? ErrorMessage { get; set; }
-    public void Fail(string message) { Failed = true; ErrorMessage = message; }
 }

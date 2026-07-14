@@ -29,7 +29,7 @@ public sealed class ConsoleTelemetryExporter : IDisposable
 
     private void OnActivityStopped(Activity activity)
     {
-        if (_isDisposed != 0) return;
+        if (DisposableHelper.IsDisposed(ref _isDisposed)) return;
 
         var status = activity.Status switch
         {
@@ -83,7 +83,7 @@ public sealed class ConsoleTelemetryExporter : IDisposable
 
     public void Dispose()
     {
-        if (Interlocked.Exchange(ref _isDisposed, 1) != 0) return;
+        if (!DisposableHelper.TryMarkDisposed(ref _isDisposed)) return;
         _listener.Dispose();
     }
 }

@@ -57,8 +57,7 @@ public static class StructuredPatchGenerator
             return [];
 
         // 对齐 TS: DIFF_TIMEOUT_MS = 5000 — 使用 CancellationToken 实现超时
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        cts.CancelAfter(DiffTimeoutMs);
+        using var cts = TimeoutHelper.CreateLinkedTimeout(cancellationToken, TimeSpan.FromMilliseconds(DiffTimeoutMs));
         var linkedToken = cts.Token;
 
         // 计算编辑脚本（Myers diff），带超时检查

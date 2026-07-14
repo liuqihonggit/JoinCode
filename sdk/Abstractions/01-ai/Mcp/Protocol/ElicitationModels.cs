@@ -31,18 +31,11 @@ public class ElicitSchema
     public List<string>? Required { get; set; }
 }
 
-public class ElicitSchemaProperty
+public class ElicitSchemaProperty : SchemaProperty
 {
-    [JsonPropertyName("type")]
-    public string Type { get; set; } = "string";
-
     [JsonPropertyName("title")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Title { get; set; }
-
-    [JsonPropertyName("description")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? Description { get; set; }
 
     [JsonPropertyName("format")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]

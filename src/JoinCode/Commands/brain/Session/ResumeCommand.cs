@@ -569,9 +569,6 @@ public sealed class SessionLiteData
     public string FilePath { get; set; } = string.Empty;
 }
 
-public sealed class SessionMessage
+public sealed class SessionMessage : ChatMessage
 {
-    public string Role { get; set; } = string.Empty;
-    public string Content { get; set; } = string.Empty;
-    public DateTime Timestamp { get; set; }
 }

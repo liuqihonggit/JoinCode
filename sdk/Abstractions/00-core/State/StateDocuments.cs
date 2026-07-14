@@ -71,11 +71,8 @@ public sealed class SessionStateDocument
 /// <summary>
 /// 聊天消息文档
 /// </summary>
-public sealed class ApiMessageDocument
+public sealed class ApiMessageDocument : ChatMessage
 {
-    public string Role { get; set; } = string.Empty;
-    public string Content { get; set; } = string.Empty;
-    public DateTime Timestamp { get; set; }
     public Dictionary<string, string>? Metadata { get; set; }
 }
 

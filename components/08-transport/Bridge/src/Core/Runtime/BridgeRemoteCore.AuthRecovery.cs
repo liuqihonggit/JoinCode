@@ -112,7 +112,7 @@ public static partial class BridgeRemoteCore
         {
             // 对齐 TS 端: 保存序列号 + 关闭旧传输
             var seq = oldTransport.GetLastSequenceNum();
-            oldTransport.Close();
+            await oldTransport.CloseAsync(ct).ConfigureAwait(false);
 
             // 对齐 TS 端: 创建新传输
             var sdkUrl = BridgeWorkSecretDecoder.BuildCCRv2SdkUrl(fresh.ApiBaseUrl, sessionId);
@@ -120,7 +120,7 @@ public static partial class BridgeRemoteCore
 
             if (state.TornDown)
             {
-                newTransport.Close();
+                await newTransport.CloseAsync(ct).ConfigureAwait(false);
                 return;
             }
 

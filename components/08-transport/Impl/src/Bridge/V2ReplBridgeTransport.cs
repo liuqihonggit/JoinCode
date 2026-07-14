@@ -126,6 +126,15 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
         _sseClient.Dispose();
     }
 
+    /// <summary>
+    /// 异步关闭传输 — P1-4: V2 的关闭全为同步操作，直接委托 Close
+    /// </summary>
+    public Task CloseAsync(CancellationToken ct = default)
+    {
+        Close();
+        return Task.CompletedTask;
+    }
+
     public bool IsConnectedStatus()
     {
         // 写就绪状态，非读就绪 — 对齐 TS 端 ccrInitialized

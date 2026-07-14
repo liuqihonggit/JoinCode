@@ -117,8 +117,17 @@ internal sealed class V1WorkPollSetupMiddleware : IMiddleware<V1BridgeInitContex
                 {
                     state.LastTransportSequenceNum = oldSeq;
                 }
-                try { oldTransport.Close(); } catch (Exception ex2) { System.Diagnostics.Trace.WriteLine($"[BridgeRemoteCore] Close old transport failed: {ex2.Message}"); }
-                _ = oldTransport.DisposeAsync();
+                try
+                {
+                    // P1-4: 改用异步关闭+释放，消除事件处理程序中的 sync-over-async 阻塞
+                    _ = Task.Run(async () =>
+                    {
+                        try { await oldTransport.CloseAsync(ct).ConfigureAwait(false); }
+                        catch (Exception ex2) { System.Diagnostics.Trace.WriteLine($"[BridgeRemoteCore] Close old transport failed: {ex2.Message}"); }
+                        await oldTransport.DisposeAsync().ConfigureAwait(false);
+                    });
+                }
+                catch (Exception ex2) { System.Diagnostics.Trace.WriteLine($"[BridgeRemoteCore] Close old transport failed: {ex2.Message}"); }
             }
 
             state.FlushGate.Deactivate();
@@ -252,8 +261,17 @@ internal sealed class V1WorkPollSetupMiddleware : IMiddleware<V1BridgeInitContex
                 {
                     state.LastTransportSequenceNum = seq;
                 }
-                try { currentTransport.Close(); } catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"[BridgeRemoteCore] Close transport during teardown failed: {ex.Message}"); }
-                _ = currentTransport.DisposeAsync();
+                try
+                {
+                    // P1-4: 改用异步关闭+释放，消除事件处理程序中的 sync-over-async 阻塞
+                    _ = Task.Run(async () =>
+                    {
+                        try { await currentTransport.CloseAsync(ct).ConfigureAwait(false); }
+                        catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"[BridgeRemoteCore] Close transport during teardown failed: {ex.Message}"); }
+                        await currentTransport.DisposeAsync().ConfigureAwait(false);
+                    });
+                }
+                catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"[BridgeRemoteCore] Close transport during teardown failed: {ex.Message}"); }
                 currentTransport = null;
             }
 

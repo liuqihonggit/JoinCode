@@ -254,7 +254,7 @@ internal sealed class EnvLessBridgeHandle : IReplBridgeHandle
             ct).ConfigureAwait(false);
 
         // 关闭传输
-        _transport.Close();
+        await _transport.CloseAsync(ct).ConfigureAwait(false);
         _disposeCts.Cancel();
 
         _bridgeState = BridgeState.Disconnected;

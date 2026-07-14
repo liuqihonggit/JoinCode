@@ -5,9 +5,9 @@ public static partial class ServiceRegistration
 {
     public static void WirePluginSkillBridge(this IServiceProvider serviceProvider)
     {
-        Console.Error.WriteLine("[WIRE] resolving IPluginManager...");
+        Diag.WriteLine("[WIRE] resolving IPluginManager...");
         var pluginManager = serviceProvider.GetRequiredService<IPluginManager>();
-        Console.Error.WriteLine("[WIRE] IPluginManager OK, resolving IPluginSkillBridge...");
+        Diag.WriteLine("[WIRE] IPluginManager OK, resolving IPluginSkillBridge...");
 
         // 细粒度诊断 — 逐步解析 PluginSkillBridge 的依赖项以定位卡死点
         // 依赖链: IPluginSkillBridge → PluginSkillBridge → (IPluginManager, ISkillService, ILogger)
@@ -15,12 +15,12 @@ public static partial class ServiceRegistration
         //   MiddlewarePipeline<SkillContext> → IEnumerable<IMiddleware<SkillContext>> → SkillExecutionMiddleware → (IQueryEngine, IToolRegistry)
         //   IQueryEngine → QueryEngine → (IChatClient, IToolRegistry, IOptions<QueryEngineConfig>, IEnumerable<IQueryMiddleware>)
         //   IChatClient → ChatClient → IQueryService → QueryService
-        Console.Error.WriteLine("[WIRE] resolving ISkillService (deep dependency chain)...");
+        Diag.WriteLine("[WIRE] resolving ISkillService (deep dependency chain)...");
         var sw = System.Diagnostics.Stopwatch.StartNew();
         try
         {
             var skillService = serviceProvider.GetRequiredService<JoinCode.Abstractions.Interfaces.ISkillService>();
-            Console.Error.WriteLine($"[WIRE] ISkillService OK ({sw.ElapsedMilliseconds}ms)");
+            Diag.WriteLine($"[WIRE] ISkillService OK ({sw.ElapsedMilliseconds}ms)");
         }
         catch (Exception ex)
         {
@@ -29,7 +29,7 @@ public static partial class ServiceRegistration
         }
 
         var skillBridge = serviceProvider.GetRequiredService<Core.Skills.Plugin.IPluginSkillBridge>();
-        Console.Error.WriteLine("[WIRE] IPluginSkillBridge OK");
+        Diag.WriteLine("[WIRE] IPluginSkillBridge OK");
 
         if (pluginManager is Core.Plugins.PluginManager pm)
         {

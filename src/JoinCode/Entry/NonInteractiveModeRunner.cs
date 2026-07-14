@@ -7,7 +7,7 @@ internal static class NonInteractiveModeRunner
     internal static async Task<int> RunAsync(WorkflowConfig config, CommandLineOptions options, IHost host)
     {
         Cli.TerminalHelper.Init();
-        Console.Error.WriteLine("[RUN] NonInteractiveModeRunner entry");
+        Diag.WriteLine("[RUN] NonInteractiveModeRunner entry");
         var context = new StartupContext
         {
             Config = config,
@@ -26,15 +26,15 @@ internal static class NonInteractiveModeRunner
             .Use(sp.GetRequiredService<NonInteractiveExitCleanupStep>())
             .OnError((ctx, ex) =>
             {
-                Console.Error.WriteLine($"[RUN] OnError: {ex.GetType().Name}: {ex.Message}");
+                Diag.WriteLine($"[RUN] OnError: {ex.GetType().Name}: {ex.Message}");
                 Cli.TerminalHelper.WriteLine($"错误: {ex.Message}");
                 ctx.ExitCode = 1;
             })
             .Build();
 
-        Console.Error.WriteLine("[RUN] pipeline built, executing...");
+        Diag.WriteLine("[RUN] pipeline built, executing...");
         await pipeline.ExecuteAsync(context, CancellationToken.None);
-        Console.Error.WriteLine($"[RUN] pipeline done, exitCode={context.ExitCode}");
+        Diag.WriteLine($"[RUN] pipeline done, exitCode={context.ExitCode}");
         return context.ExitCode;
     }
 }

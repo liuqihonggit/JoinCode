@@ -10,6 +10,67 @@
 
 我发现构建 3313 个文件的 AST 解析仅需约 2.7 秒，增量 AST 在修改期间速度更快，这样无需持久化，检索时大幅节省 token。
 
+## 快速上手
+
+### 环境要求
+
+- .NET 10 SDK
+- Windows / Linux / macOS（NativeAOT 编译）
+
+### 编译
+
+```powershell
+# 克隆仓库
+git clone <repo-url>
+cd JoinCode
+
+# 编译（Release 模式，自动启用 NativeAOT）
+dotnet build JoinCode.slnx -c Release
+
+# 或使用构建脚本
+.\build.ps1 -Mode Fast -SkipTests -Configuration Release
+```
+
+编译产物位于 `artifacts/bin/JoinCode/Release/net10.0/jcc.exe`。
+
+### 配置
+
+通过环境变量配置 LLM Provider：
+
+| 环境变量 | 必填 | 说明 | 示例 |
+|----------|------|------|------|
+| `JCC_API_KEY` | 是 | API 密钥 | `sk-xxxxxxxx` |
+| `JCC_PROVIDER` | 否 | Provider 名称（默认 openai） | `openai` / `anthropic` / `azure` / `deepseek` |
+| `JCC_MODEL_ID` | 否 | 模型 ID（默认 gpt-4o） | `gpt-4o` / `claude-3-5-sonnet-20241022` |
+| `JCC_ENDPOINT` | 否 | API 端点（默认使用 Provider 内置地址） | `http://localhost:9901` |
+
+### 运行
+
+```powershell
+# 非交互模式（单次对话）
+jcc --trust -p "你好"
+
+# 交互模式（REPL）
+jcc --trust
+
+# 查看帮助
+jcc --help
+
+# 诊断模式（输出详细日志）
+$env:JCC_VERBOSE = "1"
+jcc -p "你好"
+```
+
+### 常用斜杠命令
+
+| 命令 | 说明 |
+|------|------|
+| `/help` | 查看所有命令 |
+| `/model <name>` | 切换模型 |
+| `/brief` | 简要模式 |
+| `/clear` | 清空上下文 |
+| `/exit` | 退出 |
+
 ## 架构和方法论
 
 本工程主要对齐 Claude Code 和 DeepSeek-Reasonix。

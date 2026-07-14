@@ -81,7 +81,7 @@ public sealed class BridgeMainCommand
         }
 
         // 4. 构建 BridgeMainDeps
-        var deps = BuildDeps(parsed);
+        var deps = await BuildDepsAsync(parsed).ConfigureAwait(false);
         if (deps is null)
         {
             TerminalHelper.WriteLine("无法初始化 Bridge 依赖。请确认已登录。");
@@ -179,10 +179,9 @@ public sealed class BridgeMainCommand
     /// <summary>
     /// 构建 BridgeMainDeps — 从 DI 容器和配置中获取依赖
     /// </summary>
-    private BridgeMainDeps? BuildDeps(BridgeMainArgs args)
+    private async Task<BridgeMainDeps?> BuildDepsAsync(BridgeMainArgs args)
     {
-        // 获取访问令牌（同步上下文桥接异步方法 — BridgeMainDeps 要求 Func<string?>）
-        var accessToken = GetAccessTokenAsync().GetAwaiter().GetResult();
+        var accessToken = await GetAccessTokenAsync().ConfigureAwait(false);
         if (string.IsNullOrEmpty(accessToken))
         {
             return null;
@@ -198,6 +197,9 @@ public sealed class BridgeMainCommand
         };
 
         // 创建 API 客户端
+        // 注意: GetAccessToken/CheckRemoteDialogAccepted/MarkRemoteDialogSeen 委托类型为同步(Func<string?>/Func<bool>/Action)
+        // 因 BridgeMainDeps 类型限制,内部仍需 GetAwaiter().GetResult() — CLI 环境无 SynchronizationContext,不会死锁
+        // 后续重构可将委托类型改为异步以彻底消除同步阻塞
         var apiClient = new BridgeApiClient(httpClient, new BridgeApiOptions
         {
             BaseUrl = baseUrl,
@@ -346,7 +348,7 @@ public sealed class BridgeMainCommand
     }
 
     /// <summary>
-    /// 暴露 BuildDeps 供单元测试调用 — 仅测试用
+    /// 暴露 BuildDepsAsync 供单元测试调用 — 仅测试用
     /// </summary>
-    internal BridgeMainDeps? BuildDepsForTest(BridgeMainArgs args) => BuildDeps(args);
+    internal Task<BridgeMainDeps?> BuildDepsForTestAsync(BridgeMainArgs args) => BuildDepsAsync(args);
 }

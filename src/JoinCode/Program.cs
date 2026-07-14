@@ -80,7 +80,7 @@ class Program
         if (options.AwaitTimeoutSeconds is not { } seconds || seconds <= 0)
             return null;
 
-        Console.Error.WriteLine($"[MAIN] --await {seconds}s 计时器已启动（超时返回1234）");
+        Diag.WriteLine($"[MAIN] --await {seconds}s 计时器已启动（超时返回1234）");
 
         return new System.Threading.Timer(
             callback: _ =>

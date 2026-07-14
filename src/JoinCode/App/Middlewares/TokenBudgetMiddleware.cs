@@ -37,17 +37,17 @@ internal sealed partial class TokenBudgetMiddleware : Core.Context.IChatMiddlewa
         }
 
         var remaining = await _budgetManager.GetRemainingBudgetAsync(ct).ConfigureAwait(false);
-        Console.Error.WriteLine($"[TokenBudget] remaining={remaining}, IsDryRun={context.IsDryRun}");
+        Diag.WriteLine($"[TokenBudget] remaining={remaining}, IsDryRun={context.IsDryRun}");
 
         if (remaining <= 0)
         {
             _logger.LogWarning("[TokenBudget] 预算已耗尽，短路返回");
-            Console.Error.WriteLine("[TokenBudget] SHORT-CIRCUIT: 预算已耗尽");
+            Diag.WriteLine("[TokenBudget] SHORT-CIRCUIT: 预算已耗尽");
             yield return JoinCode.Abstractions.LLM.Chat.ChatStreamEvent.Text("[Token 预算已耗尽] 本轮对话已跳过，请重置预算后重试。");
             yield break;
         }
 
-        Console.Error.WriteLine("[TokenBudget] calling next...");
+        Diag.WriteLine("[TokenBudget] calling next...");
         await foreach (var evt in next(context, ct).ConfigureAwait(false))
         {
             yield return evt;

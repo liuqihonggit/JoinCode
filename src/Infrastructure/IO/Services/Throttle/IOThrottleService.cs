@@ -31,6 +31,12 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable
         _telemetryService = telemetryService;
         _clock = clock ?? SystemClockService.Instance;
 
+        var validationError = _options.Validate();
+        if (validationError != null)
+        {
+            throw new InvalidOperationException($"IOThrottleOptions 验证失败: {validationError}");
+        }
+
         _readSemaphore = new SemaphoreSlim(_options.MaxConcurrentReads);
         _writeSemaphore = new SemaphoreSlim(_options.MaxConcurrentWrites);
         _deleteSemaphore = new SemaphoreSlim(_options.MaxConcurrentDeletes);

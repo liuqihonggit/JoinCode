@@ -42,9 +42,9 @@ public sealed partial class BashAstParser : IDisposable
     /// 从 AST 中提取简单命令的 argv 列表。
     /// 对齐 TS ast.ts 的 parseForSecurity 逻辑。
     /// </summary>
-    public static List<BashSimpleCommand> ExtractSimpleCommands(Node root)
+    public static List<BashSimpleCommandInfo> ExtractSimpleCommands(Node root)
     {
-        var commands = new List<BashSimpleCommand>();
+        var commands = new List<BashSimpleCommandInfo>();
         WalkForCommands(root, commands);
         return commands;
     }
@@ -74,7 +74,7 @@ public sealed partial class BashAstParser : IDisposable
     /// 语义安全检查 — 对齐 TS ast.ts checkSemantics
     /// 对提取的命令列表进行完整安全规则检查
     /// </summary>
-    public static BashSemanticCheckResult CheckSemantics(BashSimpleCommand[] commands)
+    public static BashSemanticCheckResult CheckSemantics(BashSimpleCommandInfo[] commands)
     {
         foreach (var cmd in commands)
         {
@@ -650,7 +650,7 @@ public sealed partial class BashAstParser : IDisposable
     /// 换行+井号检测 — 对齐 TS NEWLINE_HASH_RE
     /// 引号内的换行+井号可对路径验证隐藏参数
     /// </summary>
-    private static BashSemanticCheckResult CheckNewlineHash(BashSimpleCommand cmd)
+    private static BashSemanticCheckResult CheckNewlineHash(BashSimpleCommandInfo cmd)
     {
         // 检查 argv
         foreach (var arg in cmd.Argv)
@@ -693,7 +693,7 @@ public sealed partial class BashAstParser : IDisposable
     /// <summary>
     /// /proc/*/environ 访问检测 — 对齐 TS
     /// </summary>
-    private static BashSemanticCheckResult CheckProcEnvironAccess(BashSimpleCommand cmd)
+    private static BashSemanticCheckResult CheckProcEnvironAccess(BashSimpleCommandInfo cmd)
     {
         foreach (var arg in cmd.Argv)
         {
@@ -755,7 +755,7 @@ public sealed partial class BashAstParser : IDisposable
     [GeneratedRegex(@"\bsystem\s*\(")]
     private static partial Regex JqSystemRegex();
 
-    private static void WalkForCommands(Node node, List<BashSimpleCommand> commands)
+    private static void WalkForCommands(Node node, List<BashSimpleCommandInfo> commands)
     {
         switch (node.Type)
         {
@@ -792,10 +792,10 @@ public sealed partial class BashAstParser : IDisposable
     /// 处理 redirected_statement — 将同级 file_redirect 关联到 command
     /// AST 结构: redirected_statement → [command, file_redirect, ...]
     /// </summary>
-    private static void ExtractRedirectedStatement(Node node, List<BashSimpleCommand> commands)
+    private static void ExtractRedirectedStatement(Node node, List<BashSimpleCommandInfo> commands)
     {
-        BashSimpleCommand? baseCmd = null;
-        var redirects = new List<BashRedirect>();
+        BashSimpleCommandInfo? baseCmd = null;
+        var redirects = new List<BashRedirectInfo>();
 
         foreach (var child in node.Children)
         {
@@ -829,11 +829,11 @@ public sealed partial class BashAstParser : IDisposable
         if (baseCmd is not null) commands.Add(baseCmd);
     }
 
-    private static BashSimpleCommand? ExtractCommand(Node commandNode)
+    private static BashSimpleCommandInfo? ExtractCommand(Node commandNode)
     {
         var argv = new List<string>();
-        var envVars = new List<BashEnvVar>();
-        var redirects = new List<BashRedirect>();
+        var envVars = new List<BashEnvVarInfo>();
+        var redirects = new List<BashRedirectInfo>();
 
         foreach (var child in commandNode.Children)
         {
@@ -843,7 +843,7 @@ public sealed partial class BashAstParser : IDisposable
                     var eqIdx = child.Text.IndexOf('=');
                     if (eqIdx > 0)
                     {
-                        envVars.Add(new BashEnvVar(
+                        envVars.Add(new BashEnvVarInfo(
                             child.Text[..eqIdx],
                             eqIdx + 1 < child.Text.Length ? child.Text[(eqIdx + 1)..] : ""));
                     }
@@ -876,14 +876,14 @@ public sealed partial class BashAstParser : IDisposable
 
         if (argv.Count == 0) return null;
 
-        return new BashSimpleCommand(
+        return new BashSimpleCommandInfo(
             [.. argv],
             [.. envVars],
             [.. redirects],
             commandNode.Text);
     }
 
-    private static BashRedirect? ExtractRedirect(Node redirectNode)
+    private static BashRedirectInfo? ExtractRedirect(Node redirectNode)
     {
         // file_redirect 结构: [fd?] operator target
         var children = redirectNode.Children;
@@ -920,7 +920,7 @@ public sealed partial class BashAstParser : IDisposable
 
         if (string.IsNullOrEmpty(op)) return null;
 
-        return new BashRedirect(op, target, fd >= 0 ? fd : null);
+        return new BashRedirectInfo(op, target, fd >= 0 ? fd : null);
     }
 
     private static string StripQuotes(string text)
@@ -953,75 +953,4 @@ public sealed partial class BashAstParser : IDisposable
         _parser.Dispose();
         _language.Dispose();
     }
-}
-
-/// <summary>简单命令 — 对齐 TS ast.ts SimpleCommand</summary>
-public sealed record BashSimpleCommand(
-    string[] Argv,
-    BashEnvVar[] EnvVars,
-    BashRedirect[] Redirects,
-    string Text);
-
-/// <summary>环境变量赋值</summary>
-public sealed record BashEnvVar(string Name, string Value);
-
-/// <summary>重定向</summary>
-public sealed record BashRedirect(string Op, string Target, int? Fd);
-
-/// <summary>
-/// 安全分析结果 — 对齐 TS ast.ts ParseForSecurityResult
-/// 三态: Simple(可静态分析) / TooComplex(过于复杂) / ParseUnavailable(解析不可用)
-/// </summary>
-public abstract record BashAstSecurityResult
-{
-    /// <summary>命令可静态分析，提取的命令列表安全</summary>
-    public sealed record Simple(BashSimpleCommand[] Commands) : BashAstSecurityResult;
-
-    /// <summary>命令过于复杂，无法静态分析</summary>
-    public sealed record TooComplex(string Reason) : BashAstSecurityResult;
-
-    /// <summary>解析不可用（tree-sitter 未安装等）</summary>
-    public sealed record ParseUnavailable(string Reason) : BashAstSecurityResult;
-}
-
-/// <summary>
-/// 语义检查结果 — 对齐 TS ast.ts SemanticCheckResult
-/// </summary>
-public sealed record BashSemanticCheckResult(
-    bool IsOk,
-    string? Reason = null,
-    BashSecurityCheckId? CheckId = null);
-
-/// <summary>
-/// 安全检查ID — 对齐 TS BASH_SECURITY_CHECK_IDS
-/// </summary>
-public enum BashSecurityCheckId
-{
-    /// <summary>eval类内置命令(eval/source/exec/command等)</summary>
-    [EnumValue("evalLikeBuiltins")]
-    EvalLikeBuiltins = 1,
-    /// <summary>Zsh危险命令(zmodload/emulate等)</summary>
-    [EnumValue("zshDangerousBuiltins")]
-    ZshDangerousBuiltins = 2,
-    /// <summary>危险下标标志(test -v/printf -v等)</summary>
-    [EnumValue("subscriptEvalFlags")]
-    SubscriptEvalFlags = 3,
-    /// <summary>Shell关键字(if/while/for等)</summary>
-    [EnumValue("shellKeywords")]
-    ShellKeywords = 4,
-    /// <summary>/proc/*/environ访问</summary>
-    [EnumValue("procEnvironAccess")]
-    ProcEnvironAccess = 5,
-    /// <summary>jq system()函数</summary>
-    [EnumValue("jqSystemFunction")]
-    JqSystemFunction = 6,
-    /// <summary>词中井号(潜在注释注入)</summary>
-    [EnumValue("midWordHash")]
-    MidWordHash = 7,
-    /// <summary>空命令名</summary>
-    [EnumValue("emptyCommandName")]
-    EmptyCommandName = 8,
-    /// <summary>不完整片段(argv[0]以-开头)</summary>
-    [EnumValue("incompleteFragment")]
-    IncompleteFragment = 9,
 }

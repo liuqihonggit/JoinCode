@@ -61,7 +61,7 @@ public sealed partial class FileBasedTaskService : ITaskService, IDisposable
     }
 
     /// <inheritdoc />
-    public async Task<TaskOperationResult> CreateTaskAsync(
+    public async Task<OperationResult<TaskItem?>> CreateTaskAsync(
         string title,
         string? description,
         string? assignee,
@@ -97,12 +97,12 @@ public sealed partial class FileBasedTaskService : ITaskService, IDisposable
 
             _logger?.LogInformation(L.T(StringKey.CreateTaskLog), taskId, title);
 
-            return new TaskOperationResult(true, task);
+            return OperationResult<TaskItem?>.Ok(task);
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, L.T(StringKey.CreateTaskFailedLog));
-            return new TaskOperationResult(false, null, ex.Message);
+            return OperationResult<TaskItem?>.Fail(ex.Message);
         }
     }
 
@@ -172,7 +172,7 @@ public sealed partial class FileBasedTaskService : ITaskService, IDisposable
     }
 
     /// <inheritdoc />
-    public async Task<TaskOperationResult> UpdateTaskAsync(
+    public async Task<OperationResult<TaskItem?>> UpdateTaskAsync(
         UpdateTaskRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -184,7 +184,7 @@ public sealed partial class FileBasedTaskService : ITaskService, IDisposable
         var existing = await _taskFileReader.ReadAsync(filePath, cancellationToken).ConfigureAwait(false);
         if (existing == null)
         {
-            return new TaskOperationResult(false, null, L.T(StringKey.TaskNotExist, request.TaskId));
+            return OperationResult<TaskItem?>.Fail(L.T(StringKey.TaskNotExist, request.TaskId));
         }
 
         try
@@ -193,13 +193,13 @@ public sealed partial class FileBasedTaskService : ITaskService, IDisposable
             var readResult = await _fileOperationService.ReadFileAsync(filePath, cancellationToken: cancellationToken).ConfigureAwait(false);
             if (!readResult.Success)
             {
-                return new TaskOperationResult(false, null, L.T(StringKey.TaskNotExist, request.TaskId));
+                return OperationResult<TaskItem?>.Fail(L.T(StringKey.TaskNotExist, request.TaskId));
             }
 
             var latest = FileTaskMetadata.FromJson(readResult.Content);
             if (latest == null)
             {
-                return new TaskOperationResult(false, null, L.T(StringKey.TaskNotExist, request.TaskId));
+                return OperationResult<TaskItem?>.Fail(L.T(StringKey.TaskNotExist, request.TaskId));
             }
 
             var updated = latest with
@@ -217,17 +217,17 @@ public sealed partial class FileBasedTaskService : ITaskService, IDisposable
 
             _logger?.LogInformation(L.T(StringKey.UpdateTaskLog), request.TaskId);
 
-            return new TaskOperationResult(true, updated.ToTaskItem());
+            return OperationResult<TaskItem?>.Ok(updated.ToTaskItem());
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, L.T(StringKey.UpdateTaskFailedLog), request.TaskId);
-            return new TaskOperationResult(false, null, ex.Message);
+            return OperationResult<TaskItem?>.Fail(ex.Message);
         }
     }
 
     /// <inheritdoc />
-    public async Task<TaskOperationResult> StopTaskAsync(
+    public async Task<OperationResult<TaskItem?>> StopTaskAsync(
         string taskId,
         string? reason,
         CancellationToken cancellationToken = default)
@@ -263,7 +263,7 @@ public sealed partial class FileBasedTaskService : ITaskService, IDisposable
     }
 
     /// <inheritdoc />
-    public async Task<TaskOperationResult> SetTaskDependencyAsync(
+    public async Task<OperationResult<TaskItem?>> SetTaskDependencyAsync(
         string taskId,
         string dependsOnTaskId,
         TaskDependencyType dependencyType = TaskDependencyType.Blocks,
@@ -276,7 +276,7 @@ public sealed partial class FileBasedTaskService : ITaskService, IDisposable
         var existing = await _taskFileReader.ReadAsync(filePath, cancellationToken).ConfigureAwait(false);
         if (existing == null)
         {
-            return new TaskOperationResult(false, null, L.T(StringKey.TaskNotExist, taskId));
+            return OperationResult<TaskItem?>.Fail(L.T(StringKey.TaskNotExist, taskId));
         }
 
         try
@@ -284,13 +284,13 @@ public sealed partial class FileBasedTaskService : ITaskService, IDisposable
             var readResult = await _fileOperationService.ReadFileAsync(filePath, cancellationToken: cancellationToken).ConfigureAwait(false);
             if (!readResult.Success)
             {
-                return new TaskOperationResult(false, null, L.T(StringKey.TaskNotExist, taskId));
+                return OperationResult<TaskItem?>.Fail(L.T(StringKey.TaskNotExist, taskId));
             }
 
             var latest = FileTaskMetadata.FromJson(readResult.Content);
             if (latest == null)
             {
-                return new TaskOperationResult(false, null, L.T(StringKey.TaskNotExist, taskId));
+                return OperationResult<TaskItem?>.Fail(L.T(StringKey.TaskNotExist, taskId));
             }
 
             var updated = latest with
@@ -305,17 +305,17 @@ public sealed partial class FileBasedTaskService : ITaskService, IDisposable
 
             await _fileOperationService.WriteFileAsync(filePath, updated.ToJson(), cancellationToken).ConfigureAwait(false);
 
-            return new TaskOperationResult(true, updated.ToTaskItem());
+            return OperationResult<TaskItem?>.Ok(updated.ToTaskItem());
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, L.T(StringKey.SetTaskDepFailedLog), taskId);
-            return new TaskOperationResult(false, null, ex.Message);
+            return OperationResult<TaskItem?>.Fail(ex.Message);
         }
     }
 
     /// <inheritdoc />
-    public async Task<TaskOperationResult> RemoveTaskDependencyAsync(
+    public async Task<OperationResult<TaskItem?>> RemoveTaskDependencyAsync(
         string taskId,
         string dependsOnTaskId,
         CancellationToken cancellationToken = default)
@@ -327,7 +327,7 @@ public sealed partial class FileBasedTaskService : ITaskService, IDisposable
         var existing = await _taskFileReader.ReadAsync(filePath, cancellationToken).ConfigureAwait(false);
         if (existing == null)
         {
-            return new TaskOperationResult(false, null, L.T(StringKey.TaskNotExist, taskId));
+            return OperationResult<TaskItem?>.Fail(L.T(StringKey.TaskNotExist, taskId));
         }
 
         try
@@ -335,13 +335,13 @@ public sealed partial class FileBasedTaskService : ITaskService, IDisposable
             var readResult = await _fileOperationService.ReadFileAsync(filePath, cancellationToken: cancellationToken).ConfigureAwait(false);
             if (!readResult.Success)
             {
-                return new TaskOperationResult(false, null, L.T(StringKey.TaskNotExist, taskId));
+                return OperationResult<TaskItem?>.Fail(L.T(StringKey.TaskNotExist, taskId));
             }
 
             var latest = FileTaskMetadata.FromJson(readResult.Content);
             if (latest == null)
             {
-                return new TaskOperationResult(false, null, L.T(StringKey.TaskNotExist, taskId));
+                return OperationResult<TaskItem?>.Fail(L.T(StringKey.TaskNotExist, taskId));
             }
 
             var updated = latest with
@@ -352,12 +352,12 @@ public sealed partial class FileBasedTaskService : ITaskService, IDisposable
 
             await _fileOperationService.WriteFileAsync(filePath, updated.ToJson(), cancellationToken).ConfigureAwait(false);
 
-            return new TaskOperationResult(true, updated.ToTaskItem());
+            return OperationResult<TaskItem?>.Ok(updated.ToTaskItem());
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, L.T(StringKey.RemoveTaskDepFailedLog), taskId);
-            return new TaskOperationResult(false, null, ex.Message);
+            return OperationResult<TaskItem?>.Fail(ex.Message);
         }
     }
 

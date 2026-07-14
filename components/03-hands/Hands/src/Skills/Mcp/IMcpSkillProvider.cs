@@ -8,7 +8,7 @@ public interface IMcpSkillProvider : IAsyncDisposable
     Task<SkillResult> ExecuteMcpSkillAsync(
         string skillName,
         Dictionary<string, JsonElement>? parameters,
-        SkillExecutionContext ctx,
+        ExecutionContext ctx,
         CancellationToken cancellationToken = default);
 
     Task RefreshAsync(CancellationToken cancellationToken = default);

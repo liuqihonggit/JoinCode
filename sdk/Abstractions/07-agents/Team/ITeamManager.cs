@@ -29,7 +29,7 @@ public interface ITeamManager : IDisposable
     /// <summary>
     /// 创建团队
     /// </summary>
-    Task<TeamOperationResult> CreateTeamAsync(
+    Task<OperationResult<TeamInfo?>> CreateTeamAsync(
         string teamName,
         string? description = null,
         List<string>? initialMembers = null,
@@ -38,7 +38,7 @@ public interface ITeamManager : IDisposable
     /// <summary>
     /// 删除团队
     /// </summary>
-    Task<TeamOperationResult> DeleteTeamAsync(
+    Task<OperationResult<TeamInfo?>> DeleteTeamAsync(
         string teamId,
         CancellationToken cancellationToken = default);
 
@@ -58,7 +58,7 @@ public interface ITeamManager : IDisposable
     /// <summary>
     /// 添加团队成员
     /// </summary>
-    Task<TeamOperationResult> AddTeamMemberAsync(
+    Task<OperationResult<TeamInfo?>> AddTeamMemberAsync(
         string teamId,
         string agentId,
         CancellationToken cancellationToken = default);
@@ -66,7 +66,7 @@ public interface ITeamManager : IDisposable
     /// <summary>
     /// 移除团队成员
     /// </summary>
-    Task<TeamOperationResult> RemoveTeamMemberAsync(
+    Task<OperationResult<TeamInfo?>> RemoveTeamMemberAsync(
         string teamId,
         string agentId,
         CancellationToken cancellationToken = default);
@@ -81,7 +81,7 @@ public interface ITeamManager : IDisposable
     /// <summary>
     /// 发送消息给团队成员
     /// </summary>
-    Task<TeamOperationResult> SendMessageAsync(
+    Task<OperationResult<TeamInfo?>> SendMessageAsync(
         string teamId,
         string senderId,
         string content,
@@ -91,7 +91,7 @@ public interface ITeamManager : IDisposable
     /// <summary>
     /// 发送消息给指定代理
     /// </summary>
-    Task<TeamOperationResult> SendMessageToAgentAsync(
+    Task<OperationResult<TeamInfo?>> SendMessageToAgentAsync(
         string targetAgentId,
         string senderId,
         string content,
@@ -109,7 +109,7 @@ public interface ITeamManager : IDisposable
     /// <summary>
     /// 广播消息给所有团队成员
     /// </summary>
-    Task<TeamOperationResult> BroadcastMessageAsync(
+    Task<OperationResult<TeamInfo?>> BroadcastMessageAsync(
         string teamId,
         string senderId,
         string content,
@@ -119,7 +119,7 @@ public interface ITeamManager : IDisposable
     /// <summary>
     /// 设置成员活跃状态
     /// </summary>
-    Task<TeamOperationResult> SetMemberActiveAsync(
+    Task<OperationResult<TeamInfo?>> SetMemberActiveAsync(
         string teamId,
         string agentId,
         bool isActive,
@@ -135,7 +135,7 @@ public interface ITeamManager : IDisposable
     /// <summary>
     /// 添加团队允许路径
     /// </summary>
-    Task<TeamOperationResult> AddTeamAllowedPathAsync(
+    Task<OperationResult<TeamInfo?>> AddTeamAllowedPathAsync(
         string teamId,
         string path,
         AccessLevel accessLevel = AccessLevel.Read,

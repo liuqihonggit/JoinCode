@@ -46,7 +46,7 @@ public class TeamToolHandlers
             return McpResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.TeamCreateFailed)).Build();
         }
 
-        var response = FormatTeamResponse(result.Team!, L.T(StringKey.TeamCreated));
+        var response = FormatTeamResponse(result.Data!, L.T(StringKey.TeamCreated));
         RecordTeamMetrics("create", "ok");
         return McpResultBuilder.Success().WithText(response).Build();
     }

@@ -25,12 +25,12 @@ public sealed partial class PuppeteerBrowserAutomationService : IBrowserAutomati
     /// </summary>
     public bool IsAvailable => _initialized && _browser is not null;
 
-    public async Task<BrowserScreenshotResult> ScreenshotAsync(string url, int waitMs = 3000, CancellationToken cancellationToken = default)
+    public async Task<OperationResult<byte[]?>> ScreenshotAsync(string url, int waitMs = 3000, CancellationToken cancellationToken = default)
     {
         await EnsureInitializedAsync().ConfigureAwait(false);
         if (_browser is null)
         {
-            return new BrowserScreenshotResult(Success: false, ErrorMessage: "Browser not available");
+            return OperationResult<byte[]?>.Fail("Browser not available");
         }
 
         await using var page = await _browser.NewPageAsync().ConfigureAwait(false);
@@ -45,7 +45,7 @@ public sealed partial class PuppeteerBrowserAutomationService : IBrowserAutomati
             if (response is null || !response.Ok)
             {
                 var status = response?.Status ?? 0;
-                return new BrowserScreenshotResult(Success: false, ErrorMessage: $"Navigation failed with status {status}");
+                return OperationResult<byte[]?>.Fail($"Navigation failed with status {status}");
             }
 
             var screenshotData = await page.ScreenshotDataAsync(new ScreenshotOptions
@@ -54,22 +54,22 @@ public sealed partial class PuppeteerBrowserAutomationService : IBrowserAutomati
                 FullPage = false
             }).ConfigureAwait(false);
 
-            return new BrowserScreenshotResult(Success: true, PngData: screenshotData);
+            return OperationResult<byte[]?>.Ok(screenshotData);
         }
         catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Screenshot failed for {Url}", url);
-            return new BrowserScreenshotResult(Success: false, ErrorMessage: ex.Message);
+            return OperationResult<byte[]?>.Fail(ex.Message);
         }
     }
 
-    public async Task<BrowserEvaluateResult> EvaluateAsync(string url, string script, int waitMs = 3000, CancellationToken cancellationToken = default)
+    public async Task<OperationResult<string?>> EvaluateAsync(string url, string script, int waitMs = 3000, CancellationToken cancellationToken = default)
     {
         await EnsureInitializedAsync().ConfigureAwait(false);
         if (_browser is null)
         {
-            return new BrowserEvaluateResult(Success: false, ErrorMessage: "Browser not available");
+            return OperationResult<string?>.Fail("Browser not available");
         }
 
         await using var page = await _browser.NewPageAsync().ConfigureAwait(false);
@@ -86,7 +86,7 @@ public sealed partial class PuppeteerBrowserAutomationService : IBrowserAutomati
                 if (response is null || !response.Ok)
                 {
                     var status = response?.Status ?? 0;
-                    return new BrowserEvaluateResult(Success: false, ErrorMessage: $"Navigation failed with status {status}");
+                    return OperationResult<string?>.Fail($"Navigation failed with status {status}");
                 }
             }
 
@@ -94,13 +94,13 @@ public sealed partial class PuppeteerBrowserAutomationService : IBrowserAutomati
             var result = await page.EvaluateExpressionAsync<string>(script).ConfigureAwait(false);
             var resultStr = result ?? "undefined";
 
-            return new BrowserEvaluateResult(Success: true, Result: resultStr);
+            return OperationResult<string?>.Ok(resultStr);
         }
         catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             _logger.LogError(ex, "JavaScript evaluation failed on {Url}", url);
-            return new BrowserEvaluateResult(Success: false, ErrorMessage: ex.Message);
+            return OperationResult<string?>.Fail(ex.Message);
         }
     }
 

@@ -18,7 +18,7 @@ public interface IMcpClient : IAsyncDisposable
 
     Task DisconnectAsync(CancellationToken cancellationToken = default);
 
-    Task<McpListToolsResult> ListToolsAsync(CancellationToken cancellationToken = default);
+    Task<OperationResult<IReadOnlyList<ToolInfo>>> ListToolsAsync(CancellationToken cancellationToken = default);
 
     Task<ToolResult> CallToolAsync(
         string toolName,
@@ -26,15 +26,15 @@ public interface IMcpClient : IAsyncDisposable
         CancellationToken cancellationToken = default,
         McpProgressCallback? onProgress = null);
 
-    Task<McpListResourcesResult> ListResourcesAsync(CancellationToken cancellationToken = default);
+    Task<OperationResult<IReadOnlyList<McpResource>>> ListResourcesAsync(CancellationToken cancellationToken = default);
 
-    Task<McpReadResourceResult> ReadResourceAsync(
+    Task<OperationResult<McpResourceContent?>> ReadResourceAsync(
         string uri,
         CancellationToken cancellationToken = default);
 
-    Task<McpListPromptsResult> ListPromptsAsync(CancellationToken cancellationToken = default);
+    Task<OperationResult<IReadOnlyList<McpPrompt>>> ListPromptsAsync(CancellationToken cancellationToken = default);
 
-    Task<McpGetPromptResult> GetPromptAsync(
+    Task<OperationResult<McpPromptMessage?>> GetPromptAsync(
         string name,
         Dictionary<string, JsonElement>? arguments = null,
         CancellationToken cancellationToken = default);
@@ -60,28 +60,3 @@ public sealed class McpElicitationRequestEventArgs : EventArgs
     public required ElicitRequestParams Params { get; init; }
     public required ElicitResult Result { get; init; }
 }
-
-public sealed record McpListToolsResult(
-    bool Success,
-    IReadOnlyList<ToolInfo> Tools,
-    string? ErrorMessage = null);
-
-public sealed record McpListResourcesResult(
-    bool Success,
-    IReadOnlyList<McpResource> Resources,
-    string? ErrorMessage = null);
-
-public sealed record McpReadResourceResult(
-    bool Success,
-    McpResourceContent? Content,
-    string? ErrorMessage = null);
-
-public sealed record McpListPromptsResult(
-    bool Success,
-    IReadOnlyList<McpPrompt> Prompts,
-    string? ErrorMessage = null);
-
-public sealed record McpGetPromptResult(
-    bool Success,
-    McpPromptMessage? Message,
-    string? ErrorMessage = null);

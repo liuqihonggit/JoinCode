@@ -55,12 +55,12 @@ public sealed class FileBasedTaskServiceTests : IDisposable
 
         // Assert
         Assert.True(result.Success, $"创建任务失败: {result.ErrorMessage}");
-        Assert.NotNull(result.Task);
-        Assert.Equal("测试任务", result.Task.Title);
-        Assert.Equal("pending", result.Task.Status);
-        Assert.StartsWith("task-", result.Task.Id);
+        Assert.NotNull(result.Data);
+        Assert.Equal("测试任务", result.Data.Title);
+        Assert.Equal("pending", result.Data.Status);
+        Assert.StartsWith("task-", result.Data.Id);
 
-        _output.WriteLine($"创建任务成功: {result.Task.Id}");
+        _output.WriteLine($"创建任务成功: {result.Data.Id}");
     }
 
     [Fact]
@@ -249,7 +249,7 @@ public sealed class FileBasedTaskServiceTests : IDisposable
         {
             var result = await _service.CreateTaskAsync($"任务{i}", null, null, null, "medium", null).ConfigureAwait(true);
             Assert.True(result.Success, $"创建任务{i}失败: {result.ErrorMessage}");
-            tasks.Add(result.Task!);
+            tasks.Add(result.Data!);
         }
 
         // Assert - 所有ID应该是唯一的

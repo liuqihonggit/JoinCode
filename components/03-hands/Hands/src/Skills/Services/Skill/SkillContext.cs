@@ -38,7 +38,7 @@ public sealed class SkillContext : IMetricsContext
     /// <summary>
     /// 技能执行上下文
     /// </summary>
-    public required SkillExecutionContext ExecutionContext { get; init; }
+    public required ExecutionContext ExecutionContext { get; init; }
 
     /// <summary>
     /// 取消令牌

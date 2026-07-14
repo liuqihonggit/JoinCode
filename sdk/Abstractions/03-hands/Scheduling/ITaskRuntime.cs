@@ -2,17 +2,17 @@ namespace JoinCode.Abstractions.Interfaces;
 
 public interface ITaskRuntime
 {
-    Task<RuntimeTaskResult> CreateTaskAsync(RuntimeTaskInput input, CancellationToken cancellationToken = default);
+    Task<OperationResult<RuntimeTask?>> CreateTaskAsync(RuntimeTaskInput input, CancellationToken cancellationToken = default);
 
-    Task<RuntimeTaskResult> UpdateTaskAsync(string taskId, RuntimeTaskUpdate update, CancellationToken cancellationToken = default);
+    Task<OperationResult<RuntimeTask?>> UpdateTaskAsync(string taskId, RuntimeTaskUpdate update, CancellationToken cancellationToken = default);
 
     Task<RuntimeTaskListResult> ListTasksAsync(RuntimeTaskQuery query, CancellationToken cancellationToken = default);
 
-    Task<RuntimeTaskResult> GetTaskAsync(string taskId, CancellationToken cancellationToken = default);
+    Task<OperationResult<RuntimeTask?>> GetTaskAsync(string taskId, CancellationToken cancellationToken = default);
 
-    Task<RuntimeTaskResult> SetDependencyAsync(string taskId, string dependsOnTaskId, CancellationToken cancellationToken = default);
+    Task<OperationResult<RuntimeTask?>> SetDependencyAsync(string taskId, string dependsOnTaskId, CancellationToken cancellationToken = default);
 
-    Task<RuntimeTaskResult> RemoveDependencyAsync(string taskId, string dependsOnTaskId, CancellationToken cancellationToken = default);
+    Task<OperationResult<RuntimeTask?>> RemoveDependencyAsync(string taskId, string dependsOnTaskId, CancellationToken cancellationToken = default);
 
     Task<bool> CanExecuteTaskAsync(string taskId, CancellationToken cancellationToken = default);
 

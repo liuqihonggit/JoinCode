@@ -398,7 +398,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
             await _remoteClientsLock.WaitAsync(cancellationToken);
             try
             {
-                var newSpecs = ctx.ToolsResult?.Tools
+                var newSpecs = ctx.ToolsResult?.Data!
                     .Select(t => new ToolSpec(
                         McpNameNormalizer.BuildMcpToolName(clientId, t.Name),
                         t.Description,
@@ -453,7 +453,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
                 return new RemoteToolsSyncResult(false, Array.Empty<string>(), toolsResult.ErrorMessage);
             }
 
-            var newSpecs = toolsResult.Tools
+            var newSpecs = toolsResult.Data!
                 .Select(t => new ToolSpec(
                     McpNameNormalizer.BuildMcpToolName(clientId, t.Name),
                     t.Description,
@@ -489,7 +489,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
                 }
             }
 
-            var toolItems = toolsResult.Tools
+            var toolItems = toolsResult.Data!
                 .Select(tool =>
                 {
                     var remoteToolHandler = new RemoteMcpToolHandler(clientId, client, tool);
@@ -527,7 +527,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
     /// <summary>
     /// 从远程客户端同步资源（异步）
     /// </summary>
-    public async Task<RemoteResourcesSyncResult> SyncResourcesAsync(
+    public async Task<OperationResult<IReadOnlyList<string>>> SyncResourcesAsync(
         string clientId,
         CancellationToken cancellationToken = default)
     {
@@ -541,7 +541,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
         return await SyncResourcesDirectAsync(clientId, cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task<RemoteResourcesSyncResult> SyncResourcesViaPipelineAsync(string clientId, CancellationToken cancellationToken)
+    private async Task<OperationResult<IReadOnlyList<string>>> SyncResourcesViaPipelineAsync(string clientId, CancellationToken cancellationToken)
     {
         IMcpClient? client;
         await _remoteClientsLock.WaitAsync(cancellationToken);
@@ -568,10 +568,12 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
             await pipeline.ExecuteAsync(ctx, cancellationToken).ConfigureAwait(false);
         }
 
-        return new RemoteResourcesSyncResult(ctx.Success, ctx.SyncedNames, ctx.ErrorMessage);
+        return ctx.Success
+            ? OperationResult<IReadOnlyList<string>>.Ok(ctx.SyncedNames)
+            : OperationResult<IReadOnlyList<string>>.Fail(ctx.ErrorMessage ?? "Unknown error");
     }
 
-    private async Task<RemoteResourcesSyncResult> SyncResourcesDirectAsync(
+    private async Task<OperationResult<IReadOnlyList<string>>> SyncResourcesDirectAsync(
         string clientId, CancellationToken cancellationToken)
     {
         IMcpClient? client;
@@ -587,7 +589,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
 
         if (client == null)
         {
-            return new RemoteResourcesSyncResult(false, Array.Empty<string>(), $"客户端 '{clientId}' 未找到");
+            return OperationResult<IReadOnlyList<string>>.Fail($"客户端 '{clientId}' 未找到");
         }
 
         try
@@ -596,10 +598,10 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
 
             if (!resourcesResult.Success)
             {
-                return new RemoteResourcesSyncResult(false, Array.Empty<string>(), resourcesResult.ErrorMessage);
+                return OperationResult<IReadOnlyList<string>>.Fail(resourcesResult.ErrorMessage ?? "Unknown error");
             }
 
-            var resourceUris = resourcesResult.Resources
+            var resourceUris = resourcesResult.Data!
                 .Select(r => r.Uri)
                 .ToList();
 
@@ -608,19 +610,19 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
                 clientId,
                 resourceUris.Count);
 
-            return new RemoteResourcesSyncResult(true, resourceUris);
+            return OperationResult<IReadOnlyList<string>>.Ok(resourceUris);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "从远程客户端 {ClientId} 同步资源失败", clientId);
-            return new RemoteResourcesSyncResult(false, Array.Empty<string>(), ex.Message);
+            return OperationResult<IReadOnlyList<string>>.Fail(ex.Message);
         }
     }
 
     /// <summary>
     /// 从远程客户端同步提示模板（异步）
     /// </summary>
-    public async Task<RemotePromptsSyncResult> SyncPromptsAsync(
+    public async Task<OperationResult<IReadOnlyList<string>>> SyncPromptsAsync(
         string clientId,
         CancellationToken cancellationToken = default)
     {
@@ -634,7 +636,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
         return await SyncPromptsDirectAsync(clientId, cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task<RemotePromptsSyncResult> SyncPromptsViaPipelineAsync(string clientId, CancellationToken cancellationToken)
+    private async Task<OperationResult<IReadOnlyList<string>>> SyncPromptsViaPipelineAsync(string clientId, CancellationToken cancellationToken)
     {
         IMcpClient? client;
         await _remoteClientsLock.WaitAsync(cancellationToken);
@@ -661,10 +663,12 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
             await pipeline.ExecuteAsync(ctx, cancellationToken).ConfigureAwait(false);
         }
 
-        return new RemotePromptsSyncResult(ctx.Success, ctx.SyncedNames, ctx.ErrorMessage);
+        return ctx.Success
+            ? OperationResult<IReadOnlyList<string>>.Ok(ctx.SyncedNames)
+            : OperationResult<IReadOnlyList<string>>.Fail(ctx.ErrorMessage ?? "Unknown error");
     }
 
-    private async Task<RemotePromptsSyncResult> SyncPromptsDirectAsync(
+    private async Task<OperationResult<IReadOnlyList<string>>> SyncPromptsDirectAsync(
         string clientId, CancellationToken cancellationToken)
     {
         IMcpClient? client;
@@ -680,7 +684,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
 
         if (client == null)
         {
-            return new RemotePromptsSyncResult(false, Array.Empty<string>(), $"客户端 '{clientId}' 未找到");
+            return OperationResult<IReadOnlyList<string>>.Fail($"客户端 '{clientId}' 未找到");
         }
 
         try
@@ -689,10 +693,10 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
 
             if (!promptsResult.Success)
             {
-                return new RemotePromptsSyncResult(false, Array.Empty<string>(), promptsResult.ErrorMessage);
+                return OperationResult<IReadOnlyList<string>>.Fail(promptsResult.ErrorMessage ?? "Unknown error");
             }
 
-            var promptNames = promptsResult.Prompts
+            var promptNames = promptsResult.Data!
                 .Select(p => p.Name)
                 .ToList();
 
@@ -701,12 +705,12 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
                 clientId,
                 promptNames.Count);
 
-            return new RemotePromptsSyncResult(true, promptNames);
+            return OperationResult<IReadOnlyList<string>>.Ok(promptNames);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "从远程客户端 {ClientId} 同步提示模板失败", clientId);
-            return new RemotePromptsSyncResult(false, Array.Empty<string>(), ex.Message);
+            return OperationResult<IReadOnlyList<string>>.Fail(ex.Message);
         }
     }
 

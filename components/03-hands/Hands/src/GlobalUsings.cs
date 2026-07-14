@@ -9,6 +9,8 @@ global using JoinCode.Abstractions.Configuration.Execution;
 global using JoinCode.Abstractions.Configuration.Llm;
 global using JoinCode.Abstractions.Configuration.Settings;
 global using JoinCode.Abstractions.Exceptions;
+global using JoinCode.Abstractions.Execution;
+global using ExecutionContext = JoinCode.Abstractions.Execution.ExecutionContext;
 global using JoinCode.Abstractions.Http;
 global using JoinCode.Abstractions.Interfaces;
 global using JoinCode.Abstractions.Interfaces.Lsp;

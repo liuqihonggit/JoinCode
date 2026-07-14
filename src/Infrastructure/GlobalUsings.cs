@@ -26,6 +26,7 @@ global using JoinCode.Abstractions.Pipeline;
 global using JoinCode.Abstractions.Utils;
 global using JoinCode.Abstractions.Utils.Text;
 global using Core.Utils;
+global using ExecutionContext = JoinCode.Abstractions.Execution.ExecutionContext;
 global using ErrorMessages = Core.Utils.ErrorMessages;
 global using Core.Ssh;
 global using Core.Telemetry;

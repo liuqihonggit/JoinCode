@@ -9,17 +9,13 @@ public sealed class NoOpBrowserAutomationService : IBrowserAutomationService
 {
     public bool IsAvailable => false;
 
-    public Task<BrowserScreenshotResult> ScreenshotAsync(string url, int waitMs = 3000, CancellationToken cancellationToken = default)
+    public Task<OperationResult<byte[]?>> ScreenshotAsync(string url, int waitMs = 3000, CancellationToken cancellationToken = default)
     {
-        return Task.FromResult(new BrowserScreenshotResult(
-            Success: false,
-            ErrorMessage: L.T(StringKey.BrowserScreenshotNotSupported)));
+        return Task.FromResult(OperationResult<byte[]?>.Fail(L.T(StringKey.BrowserScreenshotNotSupported)));
     }
 
-    public Task<BrowserEvaluateResult> EvaluateAsync(string url, string script, int waitMs = 3000, CancellationToken cancellationToken = default)
+    public Task<OperationResult<string?>> EvaluateAsync(string url, string script, int waitMs = 3000, CancellationToken cancellationToken = default)
     {
-        return Task.FromResult(new BrowserEvaluateResult(
-            Success: false,
-            ErrorMessage: L.T(StringKey.BrowserJsNotSupported)));
+        return Task.FromResult(OperationResult<string?>.Fail(L.T(StringKey.BrowserJsNotSupported)));
     }
 }

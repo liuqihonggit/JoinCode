@@ -13,6 +13,7 @@ global using JoinCode.Abstractions.Configuration.Llm;
 global using JoinCode.Abstractions.Configuration.Providers;
 global using JoinCode.Abstractions.Configuration.Settings;
 global using JoinCode.Abstractions.Exceptions;
+global using ExecutionContext = JoinCode.Abstractions.Execution.ExecutionContext;
 global using JoinCode.Abstractions.Hooks;
 global using JoinCode.Abstractions.Interfaces;
 global using JoinCode.Abstractions.Interfaces.Context;

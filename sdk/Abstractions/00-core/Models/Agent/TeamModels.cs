@@ -107,30 +107,4 @@ public sealed record TeamMessage
     public bool IsRead { get; set; }
 }
 
-/// <summary>
-/// 团队操作结果
-/// </summary>
-public sealed record TeamOperationResult
-{
-    /// <summary>
-    /// 是否成功
-    /// </summary>
-    public bool Success { get; init; }
 
-    /// <summary>
-    /// 团队信息
-    /// </summary>
-    public TeamInfo? Team { get; init; }
-
-    /// <summary>
-    /// 错误信息
-    /// </summary>
-    public string? ErrorMessage { get; init; }
-
-    public TeamOperationResult(bool success, TeamInfo? team = null, string? errorMessage = null)
-    {
-        Success = success;
-        Team = team;
-        ErrorMessage = errorMessage;
-    }
-}

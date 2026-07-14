@@ -12,7 +12,7 @@ public interface ISkillService : IDisposable
     Task<SkillResult> ExecuteAsync(
         string skillName,
         Dictionary<string, JsonElement>? parameters,
-        SkillExecutionContext ctx,
+        ExecutionContext ctx,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -33,7 +33,7 @@ public interface ISkillService : IDisposable
     /// <summary>
     /// 重新加载技能
     /// </summary>
-    Task<bool> ReloadAsync(string? skillName, SkillExecutionContext ctx, CancellationToken cancellationToken = default);
+    Task<bool> ReloadAsync(string? skillName, ExecutionContext ctx, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 注册技能
@@ -46,10 +46,3 @@ public interface ISkillService : IDisposable
     bool UnregisterSkill(string skillName);
 }
 
-/// <summary>
-/// 技能执行上下文
-/// </summary>
-public sealed record SkillExecutionContext(
-    CancellationToken CancellationToken = default,
-    ILogger? Logger = null
-);

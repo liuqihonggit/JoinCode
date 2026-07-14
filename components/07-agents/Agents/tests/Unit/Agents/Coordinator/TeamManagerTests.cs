@@ -23,10 +23,10 @@ public class TeamManagerTests
 
         // Assert
         result.Success.Should().BeTrue();
-        result.Team.Should().NotBeNull();
-        result.Team!.TeamName.Should().Be(teamName);
-        result.Team.Description.Should().Be(description);
-        result.Team.Members.Should().BeEmpty();
+        result.Data.Should().NotBeNull();
+        result.Data!.TeamName.Should().Be(teamName);
+        result.Data.Description.Should().Be(description);
+        result.Data.Members.Should().BeEmpty();
     }
 
     [Fact]
@@ -55,10 +55,10 @@ public class TeamManagerTests
 
         // Assert
         result.Success.Should().BeTrue();
-        result.Team!.Members.Should().HaveCount(3);
-        result.Team.Members.Should().Contain("agent1");
-        result.Team.Members.Should().Contain("agent2");
-        result.Team.Members.Should().Contain("agent3");
+        result.Data!.Members.Should().HaveCount(3);
+        result.Data.Members.Should().Contain("agent1");
+        result.Data.Members.Should().Contain("agent2");
+        result.Data.Members.Should().Contain("agent3");
     }
 
     [Fact]
@@ -309,10 +309,10 @@ public class TeamManagerTests
         var after = DateTime.UtcNow.AddSeconds(1);
 
         // Assert
-        result.Team!.CreatedAt.Should().BeOnOrAfter(before);
-        result.Team.CreatedAt.Should().BeOnOrBefore(after);
-        result.Team.LastActivityAt.Should().BeOnOrAfter(before);
-        result.Team.LastActivityAt.Should().BeOnOrBefore(after);
+        result.Data!.CreatedAt.Should().BeOnOrAfter(before);
+        result.Data.CreatedAt.Should().BeOnOrBefore(after);
+        result.Data.LastActivityAt.Should().BeOnOrAfter(before);
+        result.Data.LastActivityAt.Should().BeOnOrBefore(after);
     }
 
     [Fact]

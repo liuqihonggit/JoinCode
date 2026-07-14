@@ -24,6 +24,7 @@ global using JoinCode.Abstractions.Tools;
 global using JoinCode.Abstractions.Utils;
 global using JoinCode.Abstractions.Utils.Diagnostics;
 global using JoinCode.Abstractions.Utils.Text;
+global using Core.Utils;
 global using Core.Scheduling;
 global using Core.Scheduling.Cron;
 global using Core.Scheduling.Runtime;

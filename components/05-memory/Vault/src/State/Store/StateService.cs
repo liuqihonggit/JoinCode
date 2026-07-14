@@ -350,29 +350,6 @@ public sealed partial class StateService : IStateService, IStorePersistence<AppS
     /// <summary>
     /// Retries a SQLite command with exponential backoff on SQLITE_BUSY / SqliteException.
     /// </summary>
-    private static void ExecuteWithSqliteRetry(Action action)
-    {
-        for (var attempt = 0; attempt <= MaxSqliteRetries; attempt++)
-        {
-            try
-            {
-                action();
-                return;
-            }
-            catch (Microsoft.Data.Sqlite.SqliteException ex) when (IsSqliteBusy(ex))
-            {
-                if (attempt == MaxSqliteRetries)
-                {
-                    throw;
-                }
-
-                var delay = SqliteRetryBaseMs * (1 << attempt);
-                delay = Math.Min(delay, SqliteRetryMaxMs);
-                Task.Delay(delay).Wait();
-            }
-        }
-    }
-
     private static Task ExecuteWithSqliteRetryAsync(Func<Task> action, CancellationToken ct)
     {
         // Delegate to the async retry helper - run on thread pool

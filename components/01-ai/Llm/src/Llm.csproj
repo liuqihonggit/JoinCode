@@ -27,6 +27,7 @@
     <InternalsVisibleTo Include="JoinCode.Integration.Tests" />
     <InternalsVisibleTo Include="JoinCode.Dream.Tests" />
     <InternalsVisibleTo Include="JoinCode.Llm.Tests" />
+    <InternalsVisibleTo Include="JoinCode.MockServer.E2E.Tests" />
   </ItemGroup>
 
   <ItemGroup>

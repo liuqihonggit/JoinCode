@@ -28,6 +28,7 @@ global using JoinCode.Abstractions.LLM.Execution;
 global using MessageRole = JoinCode.Abstractions.LLM.Chat.MessageRole;
 global using MessageRoleConstants = JoinCode.Abstractions.LLM.Chat.MessageRoleConstants;
 global using JoinCode.Abstractions.Models;
+global using JoinCode.Abstractions.Models.Chat;
 global using JoinCode.Abstractions.Models.Agent;
 global using JoinCode.Abstractions.Models.Diff;
 global using JoinCode.Abstractions.Models.Git;

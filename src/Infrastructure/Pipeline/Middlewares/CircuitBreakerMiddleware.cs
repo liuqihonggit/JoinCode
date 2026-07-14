@@ -1,38 +1,30 @@
 namespace Infrastructure.Pipeline.Middlewares;
 
 public sealed class FixedCircuitBreakerMiddleware<TContext>(
-    int _failureThreshold,
-    TimeSpan _openDuration) : IMiddleware<TContext>
+    int failureThreshold,
+    TimeSpan openDuration) : IMiddleware<TContext>
 {
-    private int _consecutiveFailures;
-    private DateTime _lastFailureTime = DateTime.MinValue;
+    private readonly CircuitBreakerState _state = new(failureThreshold, openDuration);
 
     public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     public async Task InvokeAsync(TContext context, MiddlewareDelegate<TContext> next, CancellationToken ct)
     {
-        if (_consecutiveFailures >= _failureThreshold)
+        if (_state.ShouldTrip())
         {
-            var timeSinceLastFailure = DateTime.UtcNow - _lastFailureTime;
-            if (timeSinceLastFailure < _openDuration)
-            {
-                throw new CircuitBreakerOpenException(
-                    $"断路器开启: 连续{_consecutiveFailures}次失败，{_openDuration.TotalSeconds}s 后重试");
-            }
-
-            _consecutiveFailures = 0;
+            throw new CircuitBreakerOpenException(
+                $"断路器开启: 连续{_state.ConsecutiveFailures}次失败，{openDuration.TotalSeconds}s 后重试");
         }
 
         try
         {
             await next(context, ct).ConfigureAwait(false);
-            _consecutiveFailures = 0;
+            _state.RecordSuccess();
         }
         catch (OperationCanceledException) { throw; }
         catch
         {
-            _consecutiveFailures++;
-            _lastFailureTime = DateTime.UtcNow;
+            _state.RecordFailure();
             throw;
         }
     }

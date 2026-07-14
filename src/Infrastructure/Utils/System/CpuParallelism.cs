@@ -3,9 +3,7 @@ namespace Infrastructure.Utils.System;
 public static class CpuParallelism
 {
     private static readonly int _coreCount = Environment.ProcessorCount;
-    private static double _cachedLoad;
-    private static long _lastMeasureTicks;
-    private static readonly long _cacheIntervalTicks = Stopwatch.Frequency;
+    private static readonly ExpiringValue<double> _loadCache = new(MeasureCpuLoad, TimeSpan.FromSeconds(1));
 
     // Windows: previous raw values
     private static long _prevIdle;
@@ -20,7 +18,7 @@ public static class CpuParallelism
 
     public static int GetDegree()
     {
-        var load = GetSystemCpuLoad();
+        var load = _loadCache.GetOrRefresh();
         return load > 0.90 ? 1
              : load > 0.70 ? Math.Max(1, _coreCount / 2)
              : _coreCount;
@@ -31,17 +29,8 @@ public static class CpuParallelism
         return Math.Min(GetDegree(), maxDegree);
     }
 
-    private static double GetSystemCpuLoad()
-    {
-        var now = Stopwatch.GetTimestamp();
-        if (now - _lastMeasureTicks < _cacheIntervalTicks)
-            return _cachedLoad;
-
-        var load = MeasureCpuLoad();
-        _cachedLoad = load;
-        _lastMeasureTicks = now;
-        return load;
-    }
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool GetSystemTimes(out long idleTime, out long kernelTime, out long userTime);
 
     private static double MeasureCpuLoad()
     {
@@ -49,9 +38,6 @@ public static class CpuParallelism
             return MeasureWindowsCpuLoad();
         return MeasureFallbackCpuLoad();
     }
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern bool GetSystemTimes(out long idleTime, out long kernelTime, out long userTime);
 
     private static double MeasureWindowsCpuLoad()
     {

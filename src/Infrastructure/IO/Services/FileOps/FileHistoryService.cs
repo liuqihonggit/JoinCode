@@ -14,8 +14,7 @@ public sealed partial class FileHistoryService : IFileHistoryService
     private readonly IFileSystem _fs;
     private readonly string _baseDir;
     private readonly string _sessionId;
-    private readonly Dictionary<string, int> _versionTracker = new(StringComparer.OrdinalIgnoreCase);
-    private readonly SemaphoreSlim _lock = new(1, 1);
+    private readonly AsyncLockedDictionary<string, int> _versionTracker = new(StringComparer.OrdinalIgnoreCase);
 
     public FileHistoryService(IFileSystem fs, ILogger<FileHistoryService>? logger = null)
     {
@@ -40,20 +39,11 @@ public sealed partial class FileHistoryService : IFileHistoryService
         int version;
         string backupPath;
 
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            if (!_versionTracker.TryGetValue(normalizedPath, out version))
-                version = 0;
-
-            version++;
-            _versionTracker[normalizedPath] = version;
-            backupPath = GetBackupFilePath(normalizedPath, version);
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        version = await _versionTracker.AddOrUpdateAsync(
+            normalizedPath,
+            (_, existing) => existing + 1,
+            cancellationToken).ConfigureAwait(false);
+        backupPath = GetBackupFilePath(normalizedPath, version);
 
         try
         {

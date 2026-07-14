@@ -57,15 +57,14 @@ class Program
         {
             // P2-7: 配置问题 — 友好提示，不写入 error.log（非程序 bug，用户可自行修复）
             // 退出码 2 = 配置错误专用，便于 CI/脚本区分配置问题与运行时错误
+            // 视角2 #27: 使用 ErrorConsole.Warning 渲染（黄色警告 + 图标）
             Cli.TerminalHelper.Init();
-            Cli.TerminalHelper.WriteLine();
-            Cli.TerminalHelper.WriteLine($"配置错误: {ex.Message}");
+            App.ErrorConsole.Warning(ex.Message);
             if (!string.IsNullOrEmpty(ex.ConfigurationKey))
-                Cli.TerminalHelper.WriteLine($"配置项: {ex.ConfigurationKey}");
+                Cli.TerminalHelper.WriteError($"  配置项: {ex.ConfigurationKey}");
             if (!string.IsNullOrEmpty(ex.ConfigurationFilePath))
-                Cli.TerminalHelper.WriteLine($"配置文件: {ex.ConfigurationFilePath}");
-            Cli.TerminalHelper.WriteLine();
-            Cli.TerminalHelper.WriteLine("请检查配置文件或环境变量后重试。");
+                Cli.TerminalHelper.WriteError($"  配置文件: {ex.ConfigurationFilePath}");
+            Cli.TerminalHelper.WriteError("  请检查配置文件或环境变量后重试。");
             return 2;
         }
         catch (Exception ex) when (ex is OutOfMemoryException or TypeInitializationException)
@@ -77,13 +76,12 @@ class Program
         catch (Exception ex)
         {
             // 通用异常 — 记录日志并友好提示
+            // 视角2 #27: 使用 ErrorConsole.Fatal 渲染（红色致命错误 + 图标）
             var errorLog = WriteErrorLog(ex);
 
             Cli.TerminalHelper.Init();
-            Cli.TerminalHelper.WriteLine();
-            Cli.TerminalHelper.WriteLine($"发生错误: {ex.Message}");
-            Cli.TerminalHelper.WriteLine();
-            Cli.TerminalHelper.WriteLine($"详细日志: {errorLog}");
+            App.ErrorConsole.Fatal(ex.Message);
+            Cli.TerminalHelper.WriteError($"  详细日志: {errorLog}");
 
             return 1;
         }

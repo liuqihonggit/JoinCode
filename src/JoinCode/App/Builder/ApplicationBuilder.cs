@@ -316,9 +316,17 @@ public sealed class ApplicationBuilder
         Cli.TerminalHelper.WriteLine("  JCC_MODEL_ID           模型 ID");
         Cli.TerminalHelper.WriteLine("  JCC_API_KEY            API Key");
         Cli.TerminalHelper.WriteLine("  JCC_ENDPOINT           API 端点");
+        Cli.TerminalHelper.NewLine();
         Cli.TerminalHelper.WriteLine("  OPENAI_API_KEY          OpenAI API Key");
         Cli.TerminalHelper.WriteLine("  ANTHROPIC_API_KEY       Anthropic API Key");
         Cli.TerminalHelper.WriteLine("  AZURE_OPENAI_API_KEY    Azure OpenAI API Key");
+        Cli.TerminalHelper.NewLine();
+        Cli.TerminalHelper.WriteLine("  JCC_VERBOSE            启用诊断输出 (1/true/yes)");
+        Cli.TerminalHelper.WriteLine("  JCC_LOG_LEVEL          日志级别 (Trace/Debug/Information/Warning/Error)");
+        Cli.TerminalHelper.WriteLine("  JCC_LANGUAGE           界面语言 (zh/en)");
+        Cli.TerminalHelper.WriteLine("  JCC_CONFIG_PATH        自定义配置文件路径");
+        Cli.TerminalHelper.WriteLine("  JCC_PERMISSION_MODE    权限模式 (auto/plan/ask/deny/bypassPermissions)");
+        Cli.TerminalHelper.WriteLine("  JCC_CLOCK_MODE         时钟模式 (Physical/Fake，调试用)");
     }
 
     /// <summary>

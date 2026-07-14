@@ -120,7 +120,7 @@ public sealed class FileWatcherIntegration : IAsyncDisposable, IDisposable
             return;
         }
 
-        ProcessFileChange(e.FullPath);
+        _ = ProcessFileChangeAsync(e.FullPath);
     }
 
     private void OnFileDeleted(object? sender, FileChangedEventArgs e)
@@ -130,37 +130,47 @@ public sealed class FileWatcherIntegration : IAsyncDisposable, IDisposable
             return;
         }
 
-        ProcessFileChange(e.FullPath);
+        _ = ProcessFileChangeAsync(e.FullPath);
     }
 
     private void OnFileRenamed(object? sender, FileRenamedEventArgs e)
     {
         if (IsCsFile(e.OldFullPath) && !IsInExcludedDirectory(e.OldFullPath))
         {
-            ProcessFileChange(e.OldFullPath);
+            _ = ProcessFileChangeAsync(e.OldFullPath);
         }
 
         if (IsCsFile(e.FullPath) && !IsInExcludedDirectory(e.FullPath))
         {
-            ProcessFileChange(e.FullPath);
+            _ = ProcessFileChangeAsync(e.FullPath);
         }
     }
 
-    private async void ProcessFileChange(string filePath)
+    /// <summary>
+    /// 处理文件变更 — 异步更新索引，异常在内部捕获，不会终止进程
+    /// </summary>
+    private async Task ProcessFileChangeAsync(string filePath)
     {
-        var ct = _updateCts?.Token ?? CancellationToken.None;
-        var task = SafeUpdateAsync(filePath, ct);
-        await _pendingLock.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            _pendingUpdates.Add(task);
-        }
-        finally
-        {
-            _pendingLock.Release();
-        }
+            var ct = _updateCts?.Token ?? CancellationToken.None;
+            var task = SafeUpdateAsync(filePath, ct);
+            await _pendingLock.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                _pendingUpdates.Add(task);
+            }
+            finally
+            {
+                _pendingLock.Release();
+            }
 
-        _ = WatchTaskAsync(task);
+            _ = WatchTaskAsync(task);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Trace.WriteLine($"FileWatcherIntegration: Error in ProcessFileChangeAsync: {ex.Message}");
+        }
     }
 
     private async Task WatchTaskAsync(Task task)

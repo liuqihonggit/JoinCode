@@ -34,4 +34,7 @@ public enum CliArg
 
     [CliOption("--await", "", "超时自动关闭秒数（超时返回1234，用于测试诊断卡死）", AcceptsValue = true)]
     Await,
+
+    [CliOption("--verbose", "", "启用诊断输出（[WIRE] [STEP] [READY] 等，等效于 JCC_VERBOSE=1）")]
+    Verbose,
 }

@@ -21,6 +21,7 @@ public sealed class CommandLineOptionsTests
         options.Brief.Should().BeFalse();
         options.ForceInteractive.Should().BeFalse();
         options.AwaitTimeoutSeconds.Should().BeNull();
+        options.Verbose.Should().BeFalse();
     }
 
     [Fact]
@@ -158,6 +159,15 @@ public sealed class CommandLineOptionsTests
         var result = CliArgParser.Parse(new[] { "--await", "10" });
 
         result.Await.Should().Be("10");
+        result.HasError.Should().BeFalse();
+    }
+
+    [Fact]
+    public void CliArgParser_ParseVerbose_ShouldSetVerbose()
+    {
+        var result = CliArgParser.Parse(new[] { "--verbose" });
+
+        result.Verbose.Should().BeTrue();
         result.HasError.Should().BeFalse();
     }
 

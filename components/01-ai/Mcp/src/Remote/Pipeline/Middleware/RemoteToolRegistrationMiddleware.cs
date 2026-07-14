@@ -23,7 +23,7 @@ public sealed partial class RemoteToolRegistrationMiddleware : IRemoteSyncMiddle
 
         try
         {
-            var toolItems = ctx.ToolsResult.Tools
+            var toolItems = ctx.ToolsResult.Data!
                 .Select(tool =>
                 {
                     var remoteToolHandler = new RemoteMcpToolHandler(ctx.ClientId, ctx.Client, tool);
@@ -34,7 +34,7 @@ public sealed partial class RemoteToolRegistrationMiddleware : IRemoteSyncMiddle
 
             await Task.WhenAll(toolItems.Select(item => _toolRegistry.RegisterToolAsync(item.Handler, ct))).ConfigureAwait(false);
 
-            var newSpecs = ctx.ToolsResult.Tools
+            var newSpecs = ctx.ToolsResult.Data!
                 .Select(t => new ToolSpec(
                     McpNameNormalizer.BuildMcpToolName(ctx.ClientId, t.Name),
                     t.Description,

@@ -114,11 +114,11 @@ public sealed partial class ReadOnlyCommandDetector : IReadOnlyCommandDetector
     /// <summary>
     /// 检查原始命令字符串是否只读 — 对齐 TS checkReadOnlyConstraints
     /// </summary>
-    public ReadOnlyCheckResult CheckReadOnlyConstraints(string command, bool compoundCommandHasCd = false)
+    public ShellPermissionCheckResult CheckReadOnlyConstraints(string command, bool compoundCommandHasCd = false)
     {
         if (string.IsNullOrWhiteSpace(command))
         {
-            return new ReadOnlyCheckResult(PermissionBehavior.Passthrough);
+            return new ShellPermissionCheckResult(PermissionBehavior.Passthrough);
         }
 
         var trimmed = command.Trim();
@@ -132,19 +132,19 @@ public sealed partial class ReadOnlyCommandDetector : IReadOnlyCommandDetector
         // 2. 检查 Windows UNC 路径
         if (trimmed.StartsWith(@"\\", StringComparison.Ordinal))
         {
-            return new ReadOnlyCheckResult(PermissionBehavior.Ask, "UNC path detected");
+            return new ShellPermissionCheckResult(PermissionBehavior.Ask, "UNC path detected");
         }
 
         // 3. 检查未引用的变量扩展
         if (ContainsUnquotedExpansion(trimmed))
         {
-            return new ReadOnlyCheckResult(PermissionBehavior.Passthrough);
+            return new ShellPermissionCheckResult(PermissionBehavior.Passthrough);
         }
 
         // 4. 白名单标志验证
         if (IsCommandSafeViaFlagParsing(trimmed))
         {
-            return new ReadOnlyCheckResult(PermissionBehavior.Allow);
+            return new ShellPermissionCheckResult(PermissionBehavior.Allow);
         }
 
         // 5. 正则验证
@@ -153,13 +153,13 @@ public sealed partial class ReadOnlyCommandDetector : IReadOnlyCommandDetector
             // 额外检查 git 命令的危险标志
             if (ContainsGitDangerousFlags(trimmed))
             {
-                return new ReadOnlyCheckResult(PermissionBehavior.Passthrough);
+                return new ShellPermissionCheckResult(PermissionBehavior.Passthrough);
             }
 
-            return new ReadOnlyCheckResult(PermissionBehavior.Allow);
+            return new ShellPermissionCheckResult(PermissionBehavior.Allow);
         }
 
-        return new ReadOnlyCheckResult(PermissionBehavior.Passthrough);
+        return new ShellPermissionCheckResult(PermissionBehavior.Passthrough);
     }
 
     /// <summary>

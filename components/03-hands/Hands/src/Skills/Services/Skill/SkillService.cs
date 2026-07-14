@@ -57,7 +57,7 @@ public sealed class SkillService : ISkillService, IDisposable
     public async Task<SkillResult> ExecuteAsync(
         string skillName,
         Dictionary<string, JsonElement>? parameters,
-        SkillExecutionContext ctx,
+        ExecutionContext ctx,
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(skillName);
@@ -135,7 +135,7 @@ public sealed class SkillService : ISkillService, IDisposable
         return _mcpSkillProvider is not null && _mcpSkillProvider.IsSkillAvailable(skillName);
     }
 
-    public async Task<bool> ReloadAsync(string? skillName, SkillExecutionContext ctx, CancellationToken cancellationToken = default)
+    public async Task<bool> ReloadAsync(string? skillName, ExecutionContext ctx, CancellationToken cancellationToken = default)
     {
         await _reloadLock.WaitAsync(ctx.CancellationToken).ConfigureAwait(false);
         try
@@ -190,7 +190,7 @@ public sealed class SkillService : ISkillService, IDisposable
     private async Task<SkillResult> ExecuteMcpSkillAsync(
         string skillName,
         Dictionary<string, JsonElement>? parameters,
-        SkillExecutionContext ctx,
+        ExecutionContext ctx,
         CancellationToken cancellationToken)
     {
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
@@ -277,7 +277,7 @@ public sealed class SkillService : ISkillService, IDisposable
         }
     }
 
-    private async Task<SkillDefinition?> LoadSkillFromFileAsync(string skillName, SkillExecutionContext ctx)
+    private async Task<SkillDefinition?> LoadSkillFromFileAsync(string skillName, ExecutionContext ctx)
     {
         var jsonPath = System.IO.Path.Combine(_options.SkillsDirectory, $"{skillName}.json");
         if (_files.FileExists(jsonPath))

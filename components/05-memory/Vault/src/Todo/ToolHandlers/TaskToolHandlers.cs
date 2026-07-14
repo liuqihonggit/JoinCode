@@ -48,7 +48,7 @@ public class TaskToolHandlers
             return McpResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.VaultCreateTaskFailed)).Build();
         }
 
-        var response = FormatTaskResponse(result.Task!, L.T(StringKey.VaultTaskCreated));
+        var response = FormatTaskResponse(result.Data!, L.T(StringKey.VaultTaskCreated));
         return McpResultBuilder.Success().WithText(response).Build();
     }
 
@@ -126,7 +126,7 @@ public class TaskToolHandlers
             return McpResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.VaultUpdateTaskFailed)).Build();
         }
 
-        var response = FormatTaskResponse(result.Task!, L.T(StringKey.VaultTaskUpdated));
+        var response = FormatTaskResponse(result.Data!, L.T(StringKey.VaultTaskUpdated));
         return McpResultBuilder.Success().WithText(response).Build();
     }
 

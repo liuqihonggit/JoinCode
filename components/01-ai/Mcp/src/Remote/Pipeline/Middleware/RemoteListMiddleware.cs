@@ -35,13 +35,13 @@ public sealed partial class RemoteListMiddleware : IRemoteSyncMiddleware
                     }
 
                     ctx.ToolsResult = toolsResult;
-                    ctx.SyncedNames = toolsResult.Tools
+                    ctx.SyncedNames = toolsResult.Data!
                         .Select(t => McpNameNormalizer.BuildMcpToolName(ctx.ClientId, t.Name))
                         .ToList();
 
                     _logger.LogInformation(
                         "从远程客户端 {ClientId} 列出了 {Count} 个工具",
-                        ctx.ClientId, toolsResult.Tools.Count);
+                        ctx.ClientId, toolsResult.Data!.Count);
                     break;
 
                 case RemoteSyncOperation.Resources:
@@ -54,13 +54,13 @@ public sealed partial class RemoteListMiddleware : IRemoteSyncMiddleware
                         return;
                     }
 
-                    ctx.SyncedNames = resourcesResult.Resources
+                    ctx.SyncedNames = resourcesResult.Data!
                         .Select(r => r.Uri)
                         .ToList();
 
                     _logger.LogInformation(
                         "从远程客户端 {ClientId} 列出了 {Count} 个资源",
-                        ctx.ClientId, resourcesResult.Resources.Count);
+                        ctx.ClientId, resourcesResult.Data!.Count);
                     break;
 
                 case RemoteSyncOperation.Prompts:
@@ -73,13 +73,13 @@ public sealed partial class RemoteListMiddleware : IRemoteSyncMiddleware
                         return;
                     }
 
-                    ctx.SyncedNames = promptsResult.Prompts
+                    ctx.SyncedNames = promptsResult.Data!
                         .Select(p => p.Name)
                         .ToList();
 
                     _logger.LogInformation(
                         "从远程客户端 {ClientId} 列出了 {Count} 个提示模板",
-                        ctx.ClientId, promptsResult.Prompts.Count);
+                        ctx.ClientId, promptsResult.Data!.Count);
                     break;
             }
 

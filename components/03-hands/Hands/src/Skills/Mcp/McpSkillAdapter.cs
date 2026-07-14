@@ -62,7 +62,7 @@ public sealed partial class McpSkillAdapter
     public async Task<SkillResult> ExecuteToolAsync(
         string toolName,
         Dictionary<string, JsonElement>? arguments,
-        SkillExecutionContext ctx,
+        ExecutionContext ctx,
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(toolName);

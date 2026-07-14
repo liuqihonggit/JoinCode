@@ -149,7 +149,7 @@ public sealed class SkillServiceAlignmentTests : IDisposable
     public async Task ExecuteAsync_NonExistingSkill_ShouldReturnFailure()
     {
         var service = CreateService();
-        var ctx = new SkillExecutionContext();
+        var ctx = new ExecutionContext();
 
         var result = await service.ExecuteAsync("nonexistent_skill", null, ctx);
 

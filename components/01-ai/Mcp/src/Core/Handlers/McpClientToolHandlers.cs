@@ -294,12 +294,12 @@ public partial class McpClientToolHandlers : IAsyncDisposable
             }
 
             var response = new System.Text.StringBuilder();
-            response.AppendLine(L.T(StringKey.McpServerToolsList, result.Tools.Count));
+            response.AppendLine(L.T(StringKey.McpServerToolsList, result.Data!.Count));
             response.AppendLine();
 
-            for (int i = 0; i < result.Tools.Count; i++)
+            for (int i = 0; i < result.Data!.Count; i++)
             {
-                var tool = result.Tools[i];
+                var tool = result.Data![i];
                 response.AppendLine($"{i + 1}. {tool.Name}");
                 if (!string.IsNullOrEmpty(tool.Description))
                 {
@@ -424,12 +424,12 @@ public partial class McpClientToolHandlers : IAsyncDisposable
             }
 
             var response = new System.Text.StringBuilder();
-            response.AppendLine(L.T(StringKey.McpServerResourcesList, result.Resources.Count));
+            response.AppendLine(L.T(StringKey.McpServerResourcesList, result.Data!.Count));
             response.AppendLine();
 
-            for (int i = 0; i < result.Resources.Count; i++)
+            for (int i = 0; i < result.Data!.Count; i++)
             {
-                var resource = result.Resources[i];
+                var resource = result.Data![i];
                 response.AppendLine($"{i + 1}. {resource.Name}");
                 response.AppendLine($"   {L.T(StringKey.LabelUri, resource.Uri)}");
                 if (!string.IsNullOrEmpty(resource.Description))
@@ -486,41 +486,41 @@ public partial class McpClientToolHandlers : IAsyncDisposable
                 return McpResultBuilder.Error().WithText(L.T(StringKey.ReadResourceFailed, result.ErrorMessage)).Build();
             }
 
-            if (result.Content == null)
+            if (result.Data == null)
             {
                 return McpResultBuilder.Error().WithText(L.T(StringKey.ResourceContentEmpty)).Build();
             }
 
             var response = new System.Text.StringBuilder();
-            response.AppendLine(L.T(StringKey.LabelResource, result.Content.Uri));
-            if (!string.IsNullOrEmpty(result.Content.MimeType))
+            response.AppendLine(L.T(StringKey.LabelResource, result.Data.Uri));
+            if (!string.IsNullOrEmpty(result.Data.MimeType))
             {
-                response.AppendLine(L.T(StringKey.LabelMimeType, result.Content.MimeType));
+                response.AppendLine(L.T(StringKey.LabelMimeType, result.Data.MimeType));
             }
             response.AppendLine();
             response.AppendLine("---");
             response.AppendLine();
 
-            if (!string.IsNullOrEmpty(result.Content.Text))
+            if (!string.IsNullOrEmpty(result.Data.Text))
             {
-                response.AppendLine(result.Content.Text);
+                response.AppendLine(result.Data.Text);
             }
-            else if (!string.IsNullOrEmpty(result.Content.Blob))
+            else if (!string.IsNullOrEmpty(result.Data.Blob))
             {
                 // 对齐 TS persistBlobToTextBlock — 解码 base64 + 写盘持久化
-                var mimeType = result.Content.MimeType;
+                var mimeType = result.Data.MimeType;
                 if (McpBinaryHelper.IsImageMimeType(mimeType))
                 {
                     // 图片走 base64 内联路径 + 降采样
                     var builder = McpResultBuilder.Success();
                     builder.WithText(response.ToString());
-                    var imageData = await MaybeResizeImageAsync(result.Content.Blob!, mimeType ?? "image/png").ConfigureAwait(false);
+                    var imageData = await MaybeResizeImageAsync(result.Data.Blob!, mimeType ?? "image/png").ConfigureAwait(false);
                     builder.WithImage(imageData.base64, imageData.mediaType);
                     return builder.Build();
                 }
                 else
                 {
-                    var binaryText = await PersistBlobToTextBlockAsync(result.Content.Blob!, mimeType, connection_name).ConfigureAwait(false);
+                    var binaryText = await PersistBlobToTextBlockAsync(result.Data.Blob!, mimeType, connection_name).ConfigureAwait(false);
                     response.AppendLine(binaryText);
                 }
             }
@@ -563,12 +563,12 @@ public partial class McpClientToolHandlers : IAsyncDisposable
             }
 
             var response = new System.Text.StringBuilder();
-            response.AppendLine(L.T(StringKey.McpServerPromptsList, result.Prompts.Count));
+            response.AppendLine(L.T(StringKey.McpServerPromptsList, result.Data!.Count));
             response.AppendLine();
 
-            for (int i = 0; i < result.Prompts.Count; i++)
+            for (int i = 0; i < result.Data!.Count; i++)
             {
-                var prompt = result.Prompts[i];
+                var prompt = result.Data![i];
                 response.AppendLine($"{i + 1}. {prompt.Name}");
                 if (!string.IsNullOrEmpty(prompt.Description))
                 {

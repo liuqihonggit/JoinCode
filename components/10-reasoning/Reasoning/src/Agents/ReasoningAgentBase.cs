@@ -28,9 +28,11 @@ public abstract class ReasoningAgentBase : IReasoningAgent
     /// <summary>
     /// 调用LLM获取结构化响应
     /// </summary>
-    protected async Task<(string? Content, TokenUsage? Usage)> CallLlmAsync(string userPrompt, float temperature = 0.3f, int maxTokens = 2000, CancellationToken ct = default)
+    protected async Task<(string? Content, TokenUsage? Usage, int EstimatedPromptTokens)> CallLlmAsync(string userPrompt, float temperature = 0.3f, int maxTokens = 2000, CancellationToken ct = default)
     {
-        if (_chatClient is null) return (null, null);
+        if (_chatClient is null) return (null, null, 0);
+
+        var estimatedPromptTokens = PromptBudgetEstimator.Estimate(SystemPrompt, userPrompt);
 
         var chatService = _chatClient.GetChatCompletionService();
         var chatHistory = new MessageList
@@ -45,12 +47,12 @@ public abstract class ReasoningAgentBase : IReasoningAgent
         {
             var results = await chatService.GetApiMessageContentsAsync(chatHistory, options, _chatClient, ct).ConfigureAwait(false);
             var result = results.FirstOrDefault();
-            return (result?.Content, result?.TokenUsage);
+            return (result?.Content, result?.TokenUsage, estimatedPromptTokens);
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "[{AgentName}] LLM调用失败", Name);
-            return (null, null);
+            return (null, null, estimatedPromptTokens);
         }
     }
 
@@ -100,6 +102,22 @@ public abstract class ReasoningAgentBase : IReasoningAgent
         var start = content.IndexOf('{');
         var end = content.LastIndexOf('}');
         return start >= 0 && end > start ? content[start..(end + 1)] : null;
+    }
+
+    /// <summary>
+    /// 如果 ReasoningContext 中有 IReasoningContextCompressor，则压缩 prompt
+    /// </summary>
+    protected static async Task<string> CompressPromptIfNeededAsync(ReasoningContext context, AgentRole role, string userPrompt, CancellationToken ct)
+    {
+        if (context.ContextCompressor is null) return userPrompt;
+
+        var estimatedTokens = PromptBudgetEstimator.Estimate(userPrompt);
+        if (estimatedTokens <= context.Options.MaxPromptTokens) return userPrompt;
+
+        var compressed = await context.ContextCompressor.CompressForRoleAsync(
+            context, role, context.Options.MaxPromptTokens, ct).ConfigureAwait(false);
+
+        return compressed.UserPrompt;
     }
 
     /// <summary>

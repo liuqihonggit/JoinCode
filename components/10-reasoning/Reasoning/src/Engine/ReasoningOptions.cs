@@ -101,6 +101,16 @@ public sealed class ReasoningOptions
     public int DefaultLlmMaxTokens { get; init; } = 2000;
 
     /// <summary>
+    /// Agent Prompt 最大 token 估算值（超过此值触发压缩）
+    /// </summary>
+    public int MaxPromptTokens { get; init; } = 4000;
+
+    /// <summary>
+    /// DAG 节点摘要触发阈值（节点数超过此值时触发摘要）
+    /// </summary>
+    public int DagSummarizationThreshold { get; init; } = 30;
+
+    /// <summary>
     /// 每轮对抗流程固定token开销（不含LLM调用）
     /// </summary>
     public int RoundOverheadTokens { get; init; } = 100;

@@ -28,19 +28,7 @@ public sealed class ServerControlRequestHandlers
     /// 设置权限模式回调 — 返回裁决结果
     /// 对齐 TS 端: { ok: true } | { ok: false; error: string }
     /// </summary>
-    public Func<string, PermissionModeResult>? OnSetPermissionMode { get; init; }
-}
-
-/// <summary>
-/// 权限模式设置结果 — 对齐 TS 端 { ok: true } | { ok: false; error: string }
-/// </summary>
-public sealed class PermissionModeResult
-{
-    public bool Ok { get; init; }
-    public string? Error { get; init; }
-
-    public static PermissionModeResult Success() => new() { Ok = true };
-    public static PermissionModeResult Failed(string error) => new() { Ok = false, Error = error };
+    public Func<string, OperationResult>? OnSetPermissionMode { get; init; }
 }
 
 // IngressMessageAction 已迁移到 JoinCode.Transport.Bridge 命名空间 (Transport.Contracts)
@@ -246,13 +234,13 @@ public static class BridgeMessaging
                     if (handlers.OnSetPermissionMode is not null && mode is not null)
                     {
                         var result = handlers.OnSetPermissionMode(mode);
-                        if (result.Ok)
+                        if (result.Success)
                         {
                             await SendControlResponseAsync(handlers.Transport, requestId, handlers.SessionId, success: true, ct: ct).ConfigureAwait(false);
                         }
                         else
                         {
-                            await SendControlResponseAsync(handlers.Transport, requestId, handlers.SessionId, success: false, error: result.Error ?? "Permission mode change denied", ct: ct).ConfigureAwait(false);
+                            await SendControlResponseAsync(handlers.Transport, requestId, handlers.SessionId, success: false, error: result.ErrorMessage ?? "Permission mode change denied", ct: ct).ConfigureAwait(false);
                         }
                     }
                     else

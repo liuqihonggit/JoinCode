@@ -2,7 +2,7 @@
 namespace McpClient;
 
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = false, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
-[JsonSerializable(typeof(PkceTokenResponse))]
+[JsonSerializable(typeof(global::JoinCode.Abstractions.Models.OAuth.OAuth2TokenResponse))]
 [JsonSerializable(typeof(PkceTokenStorage))]
 [JsonSerializable(typeof(Dictionary<string, string>))]
 [JsonSerializable(typeof(string))]

@@ -107,7 +107,7 @@ public sealed partial class PermissionCheckingInterceptor : IPermissionCheckingI
     /// </summary>
     public Task OnAfterToolInvokeAsync(
         ToolInvokeContext context,
-        ToolInvokeResult invokeResult,
+        OperationResult<object?> invokeResult,
         CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -162,44 +162,6 @@ public sealed partial class PermissionCheckingInterceptor : IPermissionCheckingI
         _disposed = true;
         GC.SuppressFinalize(this);
     }
-}
-
-/// <summary>
-/// 工具调用结果
-/// </summary>
-public sealed partial class ToolInvokeResult
-{
-    /// <summary>
-    /// 是否成功
-    /// </summary>
-    public bool Success { get; }
-
-    /// <summary>
-    /// 错误信息
-    /// </summary>
-    public string? ErrorMessage { get; }
-
-    /// <summary>
-    /// 返回数据
-    /// </summary>
-    public object? Data { get; }
-
-    private ToolInvokeResult(bool success, string? errorMessage, object? data)
-    {
-        Success = success;
-        ErrorMessage = errorMessage;
-        Data = data;
-    }
-
-    /// <summary>
-    /// 创建成功结果
-    /// </summary>
-    public static ToolInvokeResult SuccessResult(object? data = null) => new(true, null, data);
-
-    /// <summary>
-    /// 创建失败结果
-    /// </summary>
-    public static ToolInvokeResult FailureResult(string errorMessage) => new(false, errorMessage, null);
 }
 
 /// <summary>

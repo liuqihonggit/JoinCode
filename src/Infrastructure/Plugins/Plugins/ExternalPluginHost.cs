@@ -30,7 +30,7 @@ public sealed class ExternalPluginHost : IDisposable
     /// </summary>
     public async Task SendMessageAsync(string message, CancellationToken cancellationToken = default)
     {
-        ObjectDisposedException.ThrowIf(_isDisposed, this);
+        DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
 
         if (_process.HasExited)
         {
@@ -54,7 +54,7 @@ public sealed class ExternalPluginHost : IDisposable
     /// </summary>
     public async Task<string?> ReadMessageAsync(CancellationToken cancellationToken = default)
     {
-        ObjectDisposedException.ThrowIf(_isDisposed, this);
+        DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
 
         if (_process.HasExited)
         {
@@ -82,7 +82,7 @@ public sealed class ExternalPluginHost : IDisposable
     /// </summary>
     public PluginUnloadResult Unload()
     {
-        ObjectDisposedException.ThrowIf(_isDisposed, this);
+        DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
 
         if (_isUnloaded)
         {
@@ -116,24 +116,20 @@ public sealed class ExternalPluginHost : IDisposable
 
     public void Dispose()
     {
-        if (!_isDisposed)
+        if (!DisposableHelper.TryMarkDisposed(ref _isDisposed)) return;
+
+        if (!_isUnloaded)
         {
-            _isDisposed = true;
+            Unload();
+        }
 
-            if (!_isUnloaded)
-            {
-                Unload();
-            }
-
-            try
-            {
-                _process.Close();
-            }
-            catch (Exception ex)
-            {
-                // 进程可能已退出
-                System.Diagnostics.Trace.WriteLine($"ExternalPluginHost: failed to close process: {ex.Message}");
-            }
+        try
+        {
+            _process.Close();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Trace.WriteLine($"ExternalPluginHost: failed to close process: {ex.Message}");
         }
     }
 }

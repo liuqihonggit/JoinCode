@@ -24,14 +24,8 @@ public enum CodeOperation
 /// <summary>
 /// 代码服务中间件上下文
 /// </summary>
-public sealed class CodeContext : IMetricsContext
+public sealed class CodeContext : PipelineContextBase, IMetricsContext
 {
-    // === IPipelineContext ===
-
-    public bool Failed { get; set; }
-    public string? ErrorMessage { get; set; }
-    public void Fail(string message) { Failed = true; ErrorMessage = message; }
-
     // === IMetricsContext ===
 
     public string MetricsPrefix => "code.operation";

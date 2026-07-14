@@ -48,8 +48,7 @@ public sealed class McpInitModule : IAppModule
 
         try
         {
-            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            cts.CancelAfter(TimeSpan.FromSeconds(5));
+            using var cts = TimeoutHelper.CreateLinkedTimeout(ct, TimeSpan.FromSeconds(5));
             var mcpService = services.GetRequiredService<IMcpService>();
             await mcpService.InitializeAsync(services, cts.Token).ConfigureAwait(false);
 

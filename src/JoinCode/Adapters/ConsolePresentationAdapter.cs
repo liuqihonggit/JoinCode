@@ -115,9 +115,8 @@ public sealed class ConsolePresentationAdapter : IPresentationAdapter, IStreamin
 
     public void Dispose()
     {
-        if (_isDisposed) return;
+        if (!DisposableHelper.TryMarkDisposed(ref _isDisposed)) return;
         Stop();
-        _isDisposed = true;
     }
 }
 

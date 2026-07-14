@@ -3,7 +3,7 @@ namespace Core.Configuration.ConfigPipeline;
 /// <summary>
 /// 配置加载管道共享上下文 — 在中间件各阶段间传递状态
 /// </summary>
-public sealed class ConfigLoadContext : IPipelineContext
+public sealed class ConfigLoadContext : PipelineContextBase
 {
     // === 输入 ===
 
@@ -41,10 +41,4 @@ public sealed class ConfigLoadContext : IPipelineContext
 
     /// <summary>最终配置结果</summary>
     public WorkflowConfig? Result { get; set; }
-
-    // === IPipelineContext ===
-
-    public bool Failed { get; set; }
-    public string? ErrorMessage { get; set; }
-    public void Fail(string message) { Failed = true; ErrorMessage = message; }
 }

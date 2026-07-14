@@ -24,53 +24,17 @@ public interface IWorkflowPlugin
     /// <summary>
     /// 加载插件 - 注册服务
     /// </summary>
-    PluginLoadResult Load(IServiceCollection services);
+    OperationResult Load(IServiceCollection services);
 
     /// <summary>
     /// 初始化插件 - 获取服务依赖
     /// </summary>
-    Task<PluginInitResult> InitializeAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken = default);
+    Task<OperationResult> InitializeAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 卸载插件 - 释放资源
     /// </summary>
     PluginUnloadResult Unload();
-}
-
-/// <summary>
-/// 插件加载结果
-/// </summary>
-public sealed class PluginLoadResult
-{
-    public bool IsSuccess { get; }
-    public string? ErrorMessage { get; }
-
-    private PluginLoadResult(bool isSuccess, string? errorMessage = null)
-    {
-        IsSuccess = isSuccess;
-        ErrorMessage = errorMessage;
-    }
-
-    public static PluginLoadResult Success() => new(true);
-    public static PluginLoadResult Failure(string errorMessage) => new(false, errorMessage);
-}
-
-/// <summary>
-/// 插件初始化结果
-/// </summary>
-public sealed class PluginInitResult
-{
-    public bool IsSuccess { get; }
-    public string? ErrorMessage { get; }
-
-    private PluginInitResult(bool isSuccess, string? errorMessage = null)
-    {
-        IsSuccess = isSuccess;
-        ErrorMessage = errorMessage;
-    }
-
-    public static PluginInitResult Success() => new(true);
-    public static PluginInitResult Failure(string errorMessage) => new(false, errorMessage);
 }
 
 /// <summary>

@@ -207,29 +207,15 @@ internal sealed class OpenAIFunctionDefinition
     public OpenAIFunctionParameters? Parameters { get; set; }
 }
 
-internal sealed class OpenAIFunctionParameters
+internal sealed class OpenAIFunctionParameters : InputSchemaBase
 {
-    [JsonPropertyName("type")]
-    public string Type { get; set; } = "object";
-
     [JsonPropertyName("properties")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public Dictionary<string, OpenAIParameterProperty>? Properties { get; set; }
-
-    [JsonPropertyName("required")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public List<string>? Required { get; set; }
 }
 
-internal sealed class OpenAIParameterProperty
+internal sealed class OpenAIParameterProperty : SchemaProperty
 {
-    [JsonPropertyName("type")]
-    public string Type { get; set; } = "string";
-
-    [JsonPropertyName("description")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? Description { get; set; }
-
     [JsonPropertyName("enum")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public List<string>? Enum { get; set; }

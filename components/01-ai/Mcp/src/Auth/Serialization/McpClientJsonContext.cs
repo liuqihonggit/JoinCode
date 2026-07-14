@@ -2,7 +2,7 @@
 namespace McpClient;
 
 [JsonSerializable(typeof(McpToolsListResponse))]
-[JsonSerializable(typeof(OAuth2TokenResponse))]
+[JsonSerializable(typeof(global::JoinCode.Abstractions.Models.OAuth.OAuth2TokenResponse))]
 [JsonSerializable(typeof(ToolResult))]
 [JsonSerializable(typeof(Dictionary<string, JsonElement>))]
 [JsonSerializable(typeof(Dictionary<string, string>))]

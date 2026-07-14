@@ -21,7 +21,7 @@ public class HttpResponseConfig
 /// <summary>
 /// HTTP 响应构建器
 /// </summary>
-public static class HttpResponseBuilder
+internal static class HttpResponseBuilder
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {

@@ -22,7 +22,7 @@ public abstract class BuiltInAgentBase : IBuiltInAgent, IAsyncDisposable
     /// <summary>
     /// 上下文压缩配置
     /// </summary>
-    protected ContextCompressionConfig CompressionConfig { get; private set; } = ContextCompressionConfig.Default;
+    protected ContextHierarchyOptions CompressionConfig { get; private set; } = ContextHierarchyOptions.Default;
 
     public abstract string Name { get; }
     public abstract string Description { get; }
@@ -57,12 +57,12 @@ public abstract class BuiltInAgentBase : IBuiltInAgent, IAsyncDisposable
     /// </summary>
     /// <param name="config">压缩配置</param>
     /// <param name="factory">上下文层级工厂（可选）</param>
-    protected void ConfigureContextCompression(ContextCompressionConfig config, IContextHierarchyFactory? factory = null)
+    protected void ConfigureContextCompression(ContextHierarchyOptions config, IContextHierarchyFactory? factory = null)
     {
-        CompressionConfig = config ?? ContextCompressionConfig.Default;
+        CompressionConfig = config ?? ContextHierarchyOptions.Default;
         _contextHierarchyFactory = factory;
 
-        if (CompressionConfig.EnableAutoCompression)
+        if (CompressionConfig.AutoCompressionEnabled)
         {
             InitializeContextHierarchy();
         }
@@ -79,7 +79,7 @@ public abstract class BuiltInAgentBase : IBuiltInAgent, IAsyncDisposable
             return;
         }
 
-        var options = CompressionConfig.ToHierarchyOptions();
+        var options = CompressionConfig;
         ContextHierarchy = _contextHierarchyFactory.Create(options);
         Context.ContextHierarchy = ContextHierarchy;
 
@@ -367,7 +367,7 @@ public abstract class BuiltInAgentBase : IBuiltInAgent, IAsyncDisposable
     /// <param name="cancellationToken">取消令牌</param>
     protected virtual async Task CheckAndCompressContextAsync(CancellationToken cancellationToken = default)
     {
-        if (ContextHierarchy == null || !CompressionConfig.EnableAutoCompression)
+        if (ContextHierarchy == null || !CompressionConfig.AutoCompressionEnabled)
         {
             return;
         }

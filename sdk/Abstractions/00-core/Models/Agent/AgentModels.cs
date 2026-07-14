@@ -28,10 +28,8 @@ public class ToolDefinition
     public Dictionary<string, ToolParameter> Parameters { get; set; } = new();
 }
 
-public class ToolParameter
+public class ToolParameter : SchemaProperty
 {
-    public string Type { get; set; } = "string";
-    public string Description { get; set; } = string.Empty;
     public bool Required { get; set; } = true;
 }
 
@@ -48,10 +46,7 @@ public class AgentContext
     public object? ContextHierarchy { get; set; }
 }
 
-public class AgentMessage
+public class AgentMessage : ChatMessage
 {
-    public string Role { get; set; } = string.Empty;
-    public string Content { get; set; } = string.Empty;
     public List<ToolCall>? ToolCalls { get; set; }
-    public DateTime Timestamp { get; set; } = DateTime.UtcNow;
 }

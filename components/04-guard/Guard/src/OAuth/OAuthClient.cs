@@ -212,7 +212,7 @@ public sealed partial class OAuthClient : IOAuthClient
             throw new OAuthException($"Token request failed: {response.StatusCode}", response.StatusCode, responseBody);
         }
 
-        var tokenResponse = JsonSerializer.Deserialize(responseBody, TokenResponseJsonContext.Default.TokenResponse);
+        var tokenResponse = JsonSerializer.Deserialize(responseBody, TokenResponseJsonContext.Default.OAuth2TokenResponse);
 
         if (tokenResponse == null || string.IsNullOrEmpty(tokenResponse.AccessToken))
         {
@@ -225,7 +225,7 @@ public sealed partial class OAuthClient : IOAuthClient
         {
             AccessToken = tokenResponse.AccessToken,
             RefreshToken = tokenResponse.RefreshToken,
-            TokenType = tokenResponse.TokenType ?? "Bearer",
+            TokenType = tokenResponse.TokenType,
             ExpiresAt = expiresAt,
             Scope = tokenResponse.Scope?.Split(' ').ToList() ?? new List<string>()
         };
@@ -234,27 +234,6 @@ public sealed partial class OAuthClient : IOAuthClient
 
         return token;
     }
-}
-
-/// <summary>
-/// Token 响应模型
-/// </summary>
-internal sealed class TokenResponse
-{
-    [System.Text.Json.Serialization.JsonPropertyName("access_token")]
-    public string AccessToken { get; set; } = string.Empty;
-
-    [System.Text.Json.Serialization.JsonPropertyName("token_type")]
-    public string? TokenType { get; set; }
-
-    [System.Text.Json.Serialization.JsonPropertyName("expires_in")]
-    public int ExpiresIn { get; set; }
-
-    [System.Text.Json.Serialization.JsonPropertyName("refresh_token")]
-    public string? RefreshToken { get; set; }
-
-    [System.Text.Json.Serialization.JsonPropertyName("scope")]
-    public string? Scope { get; set; }
 }
 
 /// <summary>

@@ -15,13 +15,13 @@ public sealed partial class DreamPlugin : IWorkflowPlugin, ICommandRegistrationH
     public string Version => "1.0.0";
     public string Description => "JoinCode 记忆整合插件";
 
-    public PluginLoadResult Load(IServiceCollection services)
+    public OperationResult Load(IServiceCollection services)
     {
         services.AddDreamPluginServices();
-        return PluginLoadResult.Success();
+        return OperationResult.Ok();
     }
 
-    public async Task<PluginInitResult> InitializeAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken = default)
+    public async Task<OperationResult> InitializeAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken = default)
     {
         var registry = serviceProvider.GetService<IDreamTaskRegistry>();
         if (registry is Persistence.PersistentDreamTaskRegistry persistentRegistry)
@@ -29,7 +29,7 @@ public sealed partial class DreamPlugin : IWorkflowPlugin, ICommandRegistrationH
             await persistentRegistry.LoadActiveTasksAsync(cancellationToken).ConfigureAwait(false);
         }
 
-        return PluginInitResult.Success();
+        return OperationResult.Ok();
     }
 
     public PluginUnloadResult Unload()

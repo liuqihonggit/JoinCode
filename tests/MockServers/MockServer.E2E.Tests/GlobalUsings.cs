@@ -1,3 +1,5 @@
+global using ChatCompletionResponse = Api.LLM.OpenAIChatResponse;
+global using ChatCompletionChunk = Api.LLM.OpenAIChatChunk;
 global using ChatCompletionRequest = Testing.Common.MockServer.ChatCompletionRequest;
 global using ChatMsg = Testing.Common.MockServer.ApiMessage;
 global using ChatRequest = Testing.Common.MockServer.ChatCompletionRequest;

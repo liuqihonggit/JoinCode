@@ -142,12 +142,12 @@ public class PermissionConfig
 /// 工具权限规则
 /// 对齐 TS 版 PermissionRuleValue — 支持 ToolName 级和 RuleContent 级（如 domain:xxx.com）匹配
 /// </summary>
-public class ToolPermissionRule
+public class ToolPermissionRule : DescribedRule
 {
-    [Required]
-    public string ToolName { get; set; } = string.Empty;
-
-    public string Description { get; set; } = string.Empty;
+    /// <summary>
+    /// 工具名称（兼容旧配置，委托到 Value）
+    /// </summary>
+    public string ToolName { get => Value; set => Value = value; }
 
     /// <summary>
     /// 规则内容 — 用于细粒度匹配，格式为 "domain:hostname"
@@ -160,38 +160,38 @@ public class ToolPermissionRule
 /// <summary>
 /// 操作模式定义
 /// </summary>
-public class OperationPattern
+public class OperationPattern : DescribedRule
 {
-    [Required]
-    public string Pattern { get; set; } = string.Empty;
+    /// <summary>
+    /// 匹配模式（兼容旧配置，委托到 Value）
+    /// </summary>
+    public string Pattern { get => Value; set => Value = value; }
 
     public PatternType PatternType { get; set; } = PatternType.Contains;
-
-    public string Description { get; set; } = string.Empty;
 }
 
 /// <summary>
 /// 敏感路径模式
 /// </summary>
-public class SensitivePathPattern
+public class SensitivePathPattern : DescribedRule
 {
-    [Required]
-    public string Path { get; set; } = string.Empty;
+    /// <summary>
+    /// 路径（兼容旧配置，委托到 Value）
+    /// </summary>
+    public string Path { get => Value; set => Value = value; }
 
     public PathType PathType { get; set; } = PathType.Contains;
-
-    public string Description { get; set; } = string.Empty;
 }
 
 /// <summary>
 /// 危险命令模式
 /// </summary>
-public class DangerousCommandPattern
+public class DangerousCommandPattern : DescribedRule
 {
-    [Required]
-    public string Pattern { get; set; } = string.Empty;
-
-    public string Description { get; set; } = string.Empty;
+    /// <summary>
+    /// 匹配模式（兼容旧配置，委托到 Value）
+    /// </summary>
+    public string Pattern { get => Value; set => Value = value; }
 }
 
 /// <summary>

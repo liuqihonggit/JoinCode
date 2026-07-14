@@ -13,6 +13,19 @@ public class ContextHierarchyOptions
 
     [Range(0.01, 0.99)]
     public double DefaultCompressionRatio { get; set; } = 0.5;
+
+    /// <summary>
+    /// 默认配置
+    /// </summary>
+    public static ContextHierarchyOptions Default => new();
+
+    /// <summary>
+    /// 禁用压缩的配置
+    /// </summary>
+    public static ContextHierarchyOptions Disabled => new()
+    {
+        AutoCompressionEnabled = false
+    };
 }
 
 public sealed class ContextHierarchyOptionsBuilder
@@ -27,6 +40,11 @@ public sealed class ContextHierarchyOptionsBuilder
     }
 
     public static ContextHierarchyOptionsBuilder Create() => new();
+
+    public static ContextHierarchyOptionsBuilder CreateFromDefault() => Create();
+
+    public static ContextHierarchyOptionsBuilder CreateDisabled() => Create()
+        .DisableAutoCompression();
 
     public ContextHierarchyOptionsBuilder WithTokenThreshold(int threshold)
     {
@@ -85,6 +103,14 @@ public sealed class ContextHierarchyOptionsBuilder
         _tokenThreshold = 8000;
         _maxLayers = 5;
         _defaultCompressionRatio = 0.3;
+        return this;
+    }
+
+    public ContextHierarchyOptionsBuilder UseConservativeMode()
+    {
+        _tokenThreshold = WorkflowConstants.ContextCompression.DefaultTokenThreshold;
+        _defaultCompressionRatio = 0.8;
+        _maxLayers = 2;
         return this;
     }
 

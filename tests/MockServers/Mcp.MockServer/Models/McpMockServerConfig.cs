@@ -3,11 +3,8 @@ namespace Mcp.MockServer.Models;
 /// <summary>
 /// MCP MockServer 配置模型 — 定义监听端口、服务器元数据和工具列表
 /// </summary>
-public sealed class McpMockServerConfig
+public sealed class McpMockServerConfig : MockServerConfigBase<McpMockServerConfig>
 {
-    /// <summary>监听端口（0 表示自动分配）</summary>
-    public int Port { get; set; } = 0;
-
     /// <summary>服务器名称（返回给客户端的 serverInfo.name）</summary>
     public string ServerName { get; set; } = "JoinCode.Mcp.MockServer";
 
@@ -20,44 +17,17 @@ public sealed class McpMockServerConfig
     /// <summary>Mock 工具列表</summary>
     public List<McpToolDefinition> Tools { get; set; } = [];
 
+    protected override JsonTypeInfo<McpMockServerConfig> JsonTypeInfo => McpMockServerJsonContext.Default.McpMockServerConfig;
+    protected override string LogPrefix => "[Mcp.MockServer]";
+    protected override string ConfigNotFoundMessage => "MCP MockServer 配置文件不存在: {0}";
+
     /// <summary>从 JSON 文件加载配置</summary>
     public static McpMockServerConfig LoadFromFile(string path)
-    {
-        ArgumentException.ThrowIfNullOrEmpty(path);
-        if (!File.Exists(path))
-            throw new FileNotFoundException($"MCP MockServer 配置文件不存在: {path}", path);
-
-        var json = File.ReadAllText(path);
-        var config = JsonSerializer.Deserialize(json, McpMockServerJsonContext.Default.McpMockServerConfig)
-            ?? throw new InvalidOperationException($"配置文件反序列化失败: {path}");
-        return config;
-    }
+        => LoadFromFile(path, McpMockServerJsonContext.Default.McpMockServerConfig, "MCP MockServer 配置文件不存在: {0}");
 
     /// <summary>从 JSON 文件加载配置 — 文件不存在时返回默认配置</summary>
     public static McpMockServerConfig LoadFromFileOrDefault(string path)
-    {
-        var actualPath = ResolveConfigPath(path);
-        if (actualPath is null)
-            return new McpMockServerConfig();
-        try
-        {
-            return LoadFromFile(actualPath);
-        }
-        catch (Exception ex)
-        {
-            Console.Error.WriteLine($"[Mcp.MockServer] 加载配置文件失败，使用默认配置: {ex.Message}");
-            return new McpMockServerConfig();
-        }
-    }
-
-    private static string? ResolveConfigPath(string path)
-    {
-        if (File.Exists(path))
-            return path;
-        var fileName = Path.GetFileName(path);
-        var fallbackPath = Path.Combine(AppContext.BaseDirectory, fileName);
-        return File.Exists(fallbackPath) ? fallbackPath : null;
-    }
+        => LoadFromFileOrDefault(path, McpMockServerJsonContext.Default.McpMockServerConfig, "[Mcp.MockServer]", "MCP MockServer 配置文件不存在: {0}");
 }
 
 /// <summary>

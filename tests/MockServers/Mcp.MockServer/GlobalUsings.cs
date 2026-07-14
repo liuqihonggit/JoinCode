@@ -9,3 +9,4 @@ global using Microsoft.AspNetCore.Hosting;
 global using Microsoft.AspNetCore.Http;
 global using Microsoft.Extensions.Logging;
 global using Mcp.MockServer.Models;
+global using MockServer.Core;

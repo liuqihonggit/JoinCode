@@ -510,6 +510,8 @@ $psi.WorkingDirectory = "{项目根目录}"
 - **CI 触发**：
   - PR 到 main 时触发全量 CI
   - CI 必须通过才允许合并
+  - **⛔ dirty PR 不触发 CI**：`mergeable_state=dirty`（分支与 main 有冲突）时 GitHub 不会运行 CI。必须先在分支上 `git merge origin/main` 解决冲突并推送，CI 才会触发
+  - **CI 重试**：`gh run rerun <run-id> --failed` 只重试失败的 job（不加 `--failed` 也是默认只重试失败项）
 
 ## 用户说的E2E
 

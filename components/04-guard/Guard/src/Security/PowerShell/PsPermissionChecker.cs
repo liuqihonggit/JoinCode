@@ -3,7 +3,7 @@ namespace JoinCode.Guard.Security.PowerShell;
 [Register(JoinCode.Abstractions.Attributes.ServiceLifetime.Singleton)]
 public sealed class PsPermissionChecker : IPsPermissionChecker
 {
-    AbstractionsPsSecurityResult IPsPermissionChecker.CheckPermission(
+    PsSecurityResult IPsPermissionChecker.CheckPermission(
         string command,
         string workingDirectory,
         IReadOnlyList<string> denyRules,
@@ -13,7 +13,6 @@ public sealed class PsPermissionChecker : IPsPermissionChecker
         IReadOnlyList<string> denyDirectories,
         bool acceptEdits)
     {
-        var result = PsPermissions.CheckPermission(command, workingDirectory, denyRules, askRules, allowRules, allowedDirectories, denyDirectories, acceptEdits);
-        return result.ToAbstractionsResult();
+        return PsPermissions.CheckPermission(command, workingDirectory, denyRules, askRules, allowRules, allowedDirectories, denyDirectories, acceptEdits);
     }
 }

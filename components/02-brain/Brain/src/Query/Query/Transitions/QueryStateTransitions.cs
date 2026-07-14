@@ -35,89 +35,36 @@ public sealed class QueryStateTransitions : IQueryStateTransitions
 {
     private static readonly FrozenDictionary<QueryState, FrozenSet<QueryState>> TransitionTable = CreateTransitionTable();
 
-    private QueryState _currentState = QueryState.Idle;
-    private readonly object _stateLock = new();
+    private readonly StateMachine<QueryState> _stateMachine;
     private readonly ITelemetryService? _telemetryService;
-    private readonly IClockService _clock;
 
     public QueryStateTransitions(ITelemetryService? telemetryService = null, IClockService? clock = null)
     {
         _telemetryService = telemetryService;
-        _clock = clock ?? SystemClockService.Instance;
+        _stateMachine = new StateMachine<QueryState>(TransitionTable, QueryState.Idle, clock);
+        _stateMachine.StateChanged += OnStateChanged;
     }
 
-    public QueryState CurrentState
-    {
-        get
-        {
-            lock (_stateLock)
-            {
-                return _currentState;
-            }
-        }
-    }
+    public QueryState CurrentState => _stateMachine.CurrentState;
 
     public event EventHandler<QueryStateChangedEventArgs>? StateChanged;
 
-    public bool CanTransitionTo(QueryState from, QueryState to)
+    public bool CanTransitionTo(QueryState from, QueryState to) => _stateMachine.CanTransitionTo(from, to);
+
+    public void TransitionTo(QueryState target) => _stateMachine.TransitionTo(target);
+
+    public void Reset() => _stateMachine.Reset(QueryState.Idle);
+
+    private void OnStateChanged(object? sender, StateChangedEventArgs<QueryState> e)
     {
-        if (from == to)
-        {
-            return true;
-        }
-
-        return TransitionTable.TryGetValue(from, out var targets) && targets.Contains(to);
-    }
-
-    public void TransitionTo(QueryState target)
-    {
-        QueryState oldState;
-        QueryState newState;
-
-        lock (_stateLock)
-        {
-            if (!CanTransitionTo(_currentState, target))
-            {
-                throw new InvalidOperationException(
-                    $"Invalid state transition from {_currentState} to {target}");
-            }
-
-            oldState = _currentState;
-            _currentState = target;
-            newState = target;
-        }
-
         StateChanged?.Invoke(this, new QueryStateChangedEventArgs
         {
-            OldState = oldState,
-            NewState = newState,
-            Timestamp = _clock.GetUtcNow()
+            OldState = e.OldState,
+            NewState = e.NewState,
+            Timestamp = e.Timestamp
         });
 
-        RecordTransitionMetrics(oldState, newState);
-    }
-
-    public void Reset()
-    {
-        QueryState oldState;
-
-        lock (_stateLock)
-        {
-            oldState = _currentState;
-            _currentState = QueryState.Idle;
-        }
-
-        if (oldState != QueryState.Idle)
-        {
-            StateChanged?.Invoke(this, new QueryStateChangedEventArgs
-            {
-                OldState = oldState,
-                NewState = QueryState.Idle,
-                Timestamp = _clock.GetUtcNow()
-            });
-
-            RecordTransitionMetrics(oldState, QueryState.Idle);
-        }
+        RecordTransitionMetrics(e.OldState, e.NewState);
     }
 
     private void RecordTransitionMetrics(QueryState from, QueryState to)

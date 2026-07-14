@@ -51,19 +51,19 @@ public sealed partial class FileStateCache : IFileStateCache
     public long? GetReadTimestampMs(string filePath)
     {
         var normalizedPath = NormalizePath(filePath);
-        return _cache.TryGet(normalizedPath, out var state) ? state.TimestampMs : null;
+        return _cache.TryGetValue(normalizedPath, out var state) ? state.TimestampMs : null;
     }
 
     public string? GetReadContent(string filePath)
     {
         var normalizedPath = NormalizePath(filePath);
-        return _cache.TryGet(normalizedPath, out var state) ? state.Content : null;
+        return _cache.TryGetValue(normalizedPath, out var state) ? state.Content : null;
     }
 
     public FileReadState? GetReadState(string filePath)
     {
         var normalizedPath = NormalizePath(filePath);
-        return _cache.TryGet(normalizedPath, out var state) ? state : null;
+        return _cache.TryGetValue(normalizedPath, out var state) ? state : null;
     }
 
     public void Invalidate(string filePath)

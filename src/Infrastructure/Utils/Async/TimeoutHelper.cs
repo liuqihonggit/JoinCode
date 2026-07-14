@@ -12,7 +12,7 @@ public static class TimeoutHelper
     public static async Task WithTimeoutAsync(
         Func<CancellationToken, Task> operation,
         TimeSpan timeout,
-        CancellationToken ct)
+        CancellationToken ct = default)
     {
         using var cts = CreateLinkedTimeout(ct, timeout);
         try
@@ -28,7 +28,7 @@ public static class TimeoutHelper
     public static async Task<T> WithTimeoutAsync<T>(
         Func<CancellationToken, Task<T>> operation,
         TimeSpan timeout,
-        CancellationToken ct)
+        CancellationToken ct = default)
     {
         using var cts = CreateLinkedTimeout(ct, timeout);
         try

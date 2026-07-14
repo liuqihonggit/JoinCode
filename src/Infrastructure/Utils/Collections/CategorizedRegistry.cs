@@ -46,15 +46,18 @@ public sealed class CategorizedRegistry<TKey, TValue, TCategory> where TKey : no
         return removed;
     }
 
-    public TValue? GetValue(TKey key)
+    public bool TryGetValue(TKey key, [MaybeNullWhen(false)] out TValue value)
     {
-        if (!_registry.TryGetValue(key, out var value))
-            return default;
+        if (!_registry.TryGetValue(key, out value))
+            return false;
 
         if (_isEnabled is not null && !_isEnabled(value))
-            return default;
+        {
+            value = default;
+            return false;
+        }
 
-        return value;
+        return true;
     }
 
     public bool ContainsKey(TKey key)

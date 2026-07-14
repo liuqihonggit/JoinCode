@@ -213,6 +213,8 @@ public sealed class ApplicationBuilder
             Brief = result.Brief,
             ForceInteractive = result.ForceInteractive,
             Verbose = result.Verbose,
+            ContinueSession = result.Continue,
+            ResumeSessionId = result.Resume,
         };
 
         // --await N: 超时自动关闭秒数
@@ -305,6 +307,8 @@ public sealed class ApplicationBuilder
         Cli.TerminalHelper.WriteLine("  --force-interactive     强制交互模式（即使 stdin 重定向也启用 REPL，用于 E2E 测试）");
         Cli.TerminalHelper.WriteLine("  --await <秒数>         超时自动关闭（超时返回 1234，用于诊断卡死，正常完成不受影响）");
         Cli.TerminalHelper.WriteLine("  --verbose              启用诊断输出（[WIRE] [STEP] [READY] 等，等效于 JCC_VERBOSE=1）");
+        Cli.TerminalHelper.WriteLine("  -c, --continue          继续最近的会话（自动恢复上次会话）");
+        Cli.TerminalHelper.WriteLine("  -r, --resume <会话ID>   恢复指定会话（按 session-id 或标题关键字模糊匹配）");
         Cli.TerminalHelper.NewLine();
         Cli.TerminalHelper.WriteLine("子命令:");
         Cli.TerminalHelper.WriteLine("  tool                    MCP 工具管理");

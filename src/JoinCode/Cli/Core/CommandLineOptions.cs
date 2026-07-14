@@ -70,6 +70,19 @@ public class CommandLineOptions {
     public bool Verbose { get; set; }
 
     /// <summary>
+    /// 继续最近的会话（--continue / -c 参数）— 自动选择最近一次会话恢复
+    /// 对齐 TS: claude --continue（自动选择 last conversation）
+    /// </summary>
+    public bool ContinueSession { get; set; }
+
+    /// <summary>
+    /// 恢复指定会话（--resume &lt;session-id&gt; / -r &lt;session-id&gt; 参数）
+    /// 支持完整 sessionId 或自定义标题关键字模糊匹配
+    /// 对齐 TS: claude --resume &lt;session-id&gt;
+    /// </summary>
+    public string? ResumeSessionId { get; set; }
+
+    /// <summary>
     /// 是否为非交互模式（用户请求 / 无头环境 / CI 环境 / -p 参数）
     /// </summary>
     public bool IsNonInteractiveMode =>

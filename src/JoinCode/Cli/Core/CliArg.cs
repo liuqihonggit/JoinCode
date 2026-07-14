@@ -37,4 +37,10 @@ public enum CliArg
 
     [CliOption("--verbose", "", "启用诊断输出（[WIRE] [STEP] [READY] 等，等效于 JCC_VERBOSE=1）")]
     Verbose,
+
+    [CliOption("--continue", "-c", "继续最近的会话（自动选择上次会话）")]
+    Continue,
+
+    [CliOption("--resume", "-r", "恢复指定会话（按 session-id 或标题关键字）", AcceptsValue = true)]
+    Resume,
 }

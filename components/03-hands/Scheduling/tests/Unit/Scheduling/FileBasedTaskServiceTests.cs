@@ -103,7 +103,7 @@ public sealed class FileBasedTaskServiceTests : IDisposable
         // Assert
         Assert.True(result.Success);
         Assert.Equal(3, result.TotalCount);
-        Assert.Equal(3, result.Datas.Count);
+        Assert.Equal(3, result.Tasks.Count);
     }
 
     [Fact]
@@ -120,8 +120,8 @@ public sealed class FileBasedTaskServiceTests : IDisposable
 
         // Assert
         Assert.True(result.Success);
-        Assert.Single(result.Datas);
-        Assert.Equal("待处理任务", result.Datas[0].Title);
+        Assert.Single(result.Tasks);
+        Assert.Equal("待处理任务", result.Tasks[0].Title);
     }
 
     [Fact]

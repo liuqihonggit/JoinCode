@@ -55,12 +55,12 @@ public sealed class FileBasedTaskServiceTests : IDisposable
 
         // Assert
         Assert.True(result.Success, $"创建任务失败: {result.ErrorMessage}");
-        Assert.NotNull(result.Task);
-        Assert.Equal("测试任务", result.Task.Title);
-        Assert.Equal("pending", result.Task.Status);
-        Assert.StartsWith("task-", result.Task.Id);
+        Assert.NotNull(result.Data);
+        Assert.Equal("测试任务", result.Data.Title);
+        Assert.Equal("pending", result.Data.Status);
+        Assert.StartsWith("task-", result.Data.Id);
 
-        _output.WriteLine($"创建任务成功: {result.Task.Id}");
+        _output.WriteLine($"创建任务成功: {result.Data.Id}");
     }
 
     [Fact]
@@ -68,7 +68,7 @@ public sealed class FileBasedTaskServiceTests : IDisposable
     {
         // Arrange
         var createResult = await _service.CreateTaskAsync("获取测试", null, null, null, "medium", null).ConfigureAwait(true);
-        var taskId = createResult.Task!.Id;
+        var taskId = createResult.Data!.Id;
 
         // Act
         var task = await _service.GetTaskAsync(taskId).ConfigureAwait(true);
@@ -111,7 +111,7 @@ public sealed class FileBasedTaskServiceTests : IDisposable
     {
         // Arrange
         var createResult = await _service.CreateTaskAsync("待处理任务", null, null, null, "medium", null).ConfigureAwait(true);
-        await _service.UpdateTaskAsync(new UpdateTaskRequest { TaskId = createResult.Task!.Id, Status = "completed" }).ConfigureAwait(true);
+        await _service.UpdateTaskAsync(new UpdateTaskRequest { TaskId = createResult.Data!.Id, Status = "completed" }).ConfigureAwait(true);
 
         await _service.CreateTaskAsync("另一个待处理", null, null, null, "medium", null).ConfigureAwait(true);
 
@@ -129,7 +129,7 @@ public sealed class FileBasedTaskServiceTests : IDisposable
     {
         // Arrange
         var createResult = await _service.CreateTaskAsync("原标题", "原描述", null, null, "low", null).ConfigureAwait(true);
-        var taskId = createResult.Task!.Id;
+        var taskId = createResult.Data!.Id;
 
         // Act
         var updateResult = await _service.UpdateTaskAsync(
@@ -143,9 +143,9 @@ public sealed class FileBasedTaskServiceTests : IDisposable
 
         // Assert
         Assert.True(updateResult.Success);
-        Assert.Equal("新标题", updateResult.Task!.Title);
-        Assert.Equal("新描述", updateResult.Task.Description);
-        Assert.Equal("in_progress", updateResult.Task.Status);
+        Assert.Equal("新标题", updateResult.Data!.Title);
+        Assert.Equal("新描述", updateResult.Data.Description);
+        Assert.Equal("in_progress", updateResult.Data.Status);
 
         // 验证持久化
         var task = await _service.GetTaskAsync(taskId).ConfigureAwait(true);
@@ -168,14 +168,14 @@ public sealed class FileBasedTaskServiceTests : IDisposable
     {
         // Arrange
         var createResult = await _service.CreateTaskAsync("运行中任务", null, null, null, "medium", null).ConfigureAwait(true);
-        await _service.UpdateTaskAsync(new UpdateTaskRequest { TaskId = createResult.Task!.Id, Status = "in_progress" }).ConfigureAwait(true);
+        await _service.UpdateTaskAsync(new UpdateTaskRequest { TaskId = createResult.Data!.Id, Status = "in_progress" }).ConfigureAwait(true);
 
         // Act
-        var stopResult = await _service.StopTaskAsync(createResult.Task.Id, "测试停止", CancellationToken.None).ConfigureAwait(true);
+        var stopResult = await _service.StopTaskAsync(createResult.Data.Id, "测试停止", CancellationToken.None).ConfigureAwait(true);
 
         // Assert
         Assert.True(stopResult.Success);
-        Assert.Equal("stopped", stopResult.Task!.Status);
+        Assert.Equal("stopped", stopResult.Data!.Status);
     }
 
     [Fact]
@@ -183,7 +183,7 @@ public sealed class FileBasedTaskServiceTests : IDisposable
     {
         // Arrange
         var createResult = await _service.CreateTaskAsync("待删除任务", null, null, null, "medium", null).ConfigureAwait(true);
-        var taskId = createResult.Task!.Id;
+        var taskId = createResult.Data!.Id;
 
         // Act
         var deleted = await _service.DeleteTaskAsync(taskId).ConfigureAwait(true);
@@ -203,19 +203,19 @@ public sealed class FileBasedTaskServiceTests : IDisposable
 
         // Act
         var result = await _service.SetTaskDependencyAsync(
-            task2.Task!.Id,
-            task1.Task!.Id,
+            task2.Data!.Id,
+            task1.Data!.Id,
             TaskDependencyType.Blocks).ConfigureAwait(true);
 
         // Assert
         Assert.True(result.Success);
 
-        var canExecute = await _service.CanExecuteTaskAsync(task2.Task.Id).ConfigureAwait(true);
+        var canExecute = await _service.CanExecuteTaskAsync(task2.Data.Id).ConfigureAwait(true);
         Assert.False(canExecute); // 依赖未完成
 
         // 完成依赖任务
-        await _service.UpdateTaskAsync(new UpdateTaskRequest { TaskId = task1.Task.Id, Status = "completed" }).ConfigureAwait(true);
-        canExecute = await _service.CanExecuteTaskAsync(task2.Task.Id).ConfigureAwait(true);
+        await _service.UpdateTaskAsync(new UpdateTaskRequest { TaskId = task1.Data.Id, Status = "completed" }).ConfigureAwait(true);
+        canExecute = await _service.CanExecuteTaskAsync(task2.Data.Id).ConfigureAwait(true);
         Assert.True(canExecute);
     }
 
@@ -235,7 +235,7 @@ public sealed class FileBasedTaskServiceTests : IDisposable
 
         // 创建新任务，ID 应该继续递增
         var newTask = await _service.CreateTaskAsync("新任务", null, null, null, "medium", null).ConfigureAwait(true);
-        Assert.True(int.Parse(newTask.Task!.Id.Replace("task-", "")) > 2);
+        Assert.True(int.Parse(newTask.Data!.Id.Replace("task-", "")) > 2);
     }
 
     [Fact]
@@ -249,7 +249,7 @@ public sealed class FileBasedTaskServiceTests : IDisposable
         {
             var result = await _service.CreateTaskAsync($"任务{i}", null, null, null, "medium", null).ConfigureAwait(true);
             Assert.True(result.Success, $"创建任务{i}失败: {result.ErrorMessage}");
-            tasks.Add(result.Task!);
+            tasks.Add(result.Data!);
         }
 
         // Assert - 所有ID应该是唯一的
@@ -271,7 +271,7 @@ public sealed class FileBasedTaskServiceTests : IDisposable
     {
         // Arrange - 使用第一个服务实例创建任务
         var createResult = await _service.CreateTaskAsync("持久化测试", "测试描述", null, null, "high", null).ConfigureAwait(true);
-        var taskId = createResult.Task!.Id;
+        var taskId = createResult.Data!.Id;
 
         // Act - 创建新的服务实例（模拟进程重启）
         var taskFileWriter = new TaskFileWriter(_fileOperationService);

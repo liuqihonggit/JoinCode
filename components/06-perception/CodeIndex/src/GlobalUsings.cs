@@ -9,6 +9,7 @@ global using JoinCode.Abstractions.Clock;
 global using JoinCode.Abstractions.CodeIndex;
 global using JoinCode.Abstractions.Configuration.AppData;
 global using JoinCode.Abstractions.Interfaces;
+global using JoinCode.Abstractions.Security.Shell;
 global using Infrastructure.Utils.IO;
 global using Infrastructure.Utils.System;
 global using TreeSitter;

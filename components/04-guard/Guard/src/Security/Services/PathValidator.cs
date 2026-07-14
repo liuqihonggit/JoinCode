@@ -48,11 +48,11 @@ public sealed class PathValidator : IPathValidator
         "/dev/"
     }.ToFrozenSet();
 
-    public PathValidationResult ValidatePaths(ShellCommand command, string workingDirectory)
+    public ValidationResult ValidatePaths(ShellCommand command, string workingDirectory)
     {
         if (string.IsNullOrWhiteSpace(workingDirectory))
         {
-            return new PathValidationResult(false, "Working directory is not specified");
+            return ValidationResult.Invalid("Working directory is not specified");
         }
 
         var normalizedWorkingDir = NormalizePath(workingDirectory);
@@ -64,8 +64,7 @@ public sealed class PathValidator : IPathValidator
             {
                 if (path.Contains(pattern.Key, StringComparison.OrdinalIgnoreCase))
                 {
-                    return new PathValidationResult(
-                        false,
+                    return ValidationResult.Invalid(
                         $"Path '{path}' contains escape pattern: {pattern.Value}");
                 }
             }
@@ -73,21 +72,19 @@ public sealed class PathValidator : IPathValidator
             // 检查是否为危险绝对路径
             if (IsDangerousAbsolutePath(path))
             {
-                return new PathValidationResult(
-                    false,
+                return ValidationResult.Invalid(
                     $"Path '{path}' references a dangerous system location");
             }
 
             // 检查是否在工作区内
             if (!IsPathWithinWorkspace(path, normalizedWorkingDir))
             {
-                return new PathValidationResult(
-                    false,
+                return ValidationResult.Invalid(
                     $"Path '{path}' is outside the working directory '{workingDirectory}'");
             }
         }
 
-        return new PathValidationResult(true);
+        return ValidationResult.Valid();
     }
 
     public bool IsPathWithinWorkspace(string path, string workingDirectory)

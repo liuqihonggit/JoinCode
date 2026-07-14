@@ -1,5 +1,6 @@
 namespace Host.Tests.ChatCommands;
 
+using JoinCode.Abstractions.Models;
 using JoinCode.Abstractions.Models.Task;
 using JoinCode.Abstractions.Models.Todo;
 
@@ -210,12 +211,12 @@ public sealed class TasksCommandTests
             It.IsAny<string>(),
             It.IsAny<List<string>?>(),
             It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new TaskOperationResult(true));
+            .ReturnsAsync(OperationResult<TaskItem?>.Ok(null));
 
         mock.Setup(s => s.UpdateTaskAsync(
             It.IsAny<UpdateTaskRequest>(),
             It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new TaskOperationResult(true));
+            .ReturnsAsync(OperationResult<TaskItem?>.Ok(null));
 
         mock.Setup(s => s.GetTaskAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((TaskItem?)null);
@@ -223,7 +224,7 @@ public sealed class TasksCommandTests
         // StopTaskAsync 有两个重载: (string, string?, CancellationToken) 和 (string, bool, CancellationToken)
         // TasksCommand 调用第一个(string reason 版本)
         mock.Setup(s => s.StopTaskAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new TaskOperationResult(false));
+            .ReturnsAsync(OperationResult<TaskItem?>.Fail(""));
 
         mock.Setup(s => s.StopTaskAsync(It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);

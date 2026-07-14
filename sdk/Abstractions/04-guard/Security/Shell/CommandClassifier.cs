@@ -12,11 +12,6 @@ public interface ICommandClassifier
 }
 
 /// <summary>
-/// 路径验证结果
-/// </summary>
-public sealed record PathValidationResult(bool IsValid, string? Message = null);
-
-/// <summary>
 /// 破坏性命令检测结果
 /// </summary>
 public sealed record DestructiveCommandResult(

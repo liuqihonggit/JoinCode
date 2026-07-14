@@ -28,7 +28,7 @@ public sealed partial class TaskRuntime : ITaskRuntime, IDisposable
         _persistLock = new SemaphoreSlim(1, 1);
     }
 
-    public Task<RuntimeTaskResult> CreateTaskAsync(RuntimeTaskInput input, CancellationToken cancellationToken = default)
+    public Task<OperationResult<RuntimeTask?>> CreateTaskAsync(RuntimeTaskInput input, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(input);
 
@@ -66,16 +66,16 @@ public sealed partial class TaskRuntime : ITaskRuntime, IDisposable
 
         _logger?.LogInformation(L.T(StringKey.RuntimeCreateTaskLog), taskId, input.Description);
 
-        return Task.FromResult(RuntimeTaskResult.Ok(task));
+        return Task.FromResult(OperationResult<RuntimeTask?>.Ok(task));
     }
 
-    public Task<RuntimeTaskResult> UpdateTaskAsync(string taskId, RuntimeTaskUpdate update, CancellationToken cancellationToken = default)
+    public Task<OperationResult<RuntimeTask?>> UpdateTaskAsync(string taskId, RuntimeTaskUpdate update, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(update);
 
         if (!_tasks.TryGetValue(taskId, out var task))
         {
-            return Task.FromResult(RuntimeTaskResult.Fail(L.T(StringKey.RuntimeTaskNotExist, taskId)));
+            return Task.FromResult(OperationResult<RuntimeTask?>.Fail(L.T(StringKey.RuntimeTaskNotExist, taskId)));
         }
 
         if (update.Description is not null) task.Description = update.Description;
@@ -99,7 +99,7 @@ public sealed partial class TaskRuntime : ITaskRuntime, IDisposable
 
         _logger?.LogDebug(L.T(StringKey.RuntimeUpdateTaskLog), taskId, task.Status);
 
-        return Task.FromResult(RuntimeTaskResult.Ok(task));
+        return Task.FromResult(OperationResult<RuntimeTask?>.Ok(task));
     }
 
     public Task<RuntimeTaskListResult> ListTasksAsync(RuntimeTaskQuery query, CancellationToken cancellationToken = default)
@@ -144,31 +144,31 @@ public sealed partial class TaskRuntime : ITaskRuntime, IDisposable
         return Task.FromResult(RuntimeTaskListResult.Ok(tasks, totalCount));
     }
 
-    public Task<RuntimeTaskResult> GetTaskAsync(string taskId, CancellationToken cancellationToken = default)
+    public Task<OperationResult<RuntimeTask?>> GetTaskAsync(string taskId, CancellationToken cancellationToken = default)
     {
         if (!_tasks.TryGetValue(taskId, out var task))
         {
-            return Task.FromResult(RuntimeTaskResult.Fail(L.T(StringKey.RuntimeTaskNotExist, taskId)));
+            return Task.FromResult(OperationResult<RuntimeTask?>.Fail(L.T(StringKey.RuntimeTaskNotExist, taskId)));
         }
 
-        return Task.FromResult(RuntimeTaskResult.Ok(task));
+        return Task.FromResult(OperationResult<RuntimeTask?>.Ok(task));
     }
 
-    public async Task<RuntimeTaskResult> SetDependencyAsync(string taskId, string dependsOnTaskId, CancellationToken cancellationToken = default)
+    public async Task<OperationResult<RuntimeTask?>> SetDependencyAsync(string taskId, string dependsOnTaskId, CancellationToken cancellationToken = default)
     {
         if (!_tasks.ContainsKey(taskId))
         {
-            return RuntimeTaskResult.Fail(L.T(StringKey.RuntimeTaskNotExist, taskId));
+            return OperationResult<RuntimeTask?>.Fail(L.T(StringKey.RuntimeTaskNotExist, taskId));
         }
 
         if (!_tasks.ContainsKey(dependsOnTaskId))
         {
-            return RuntimeTaskResult.Fail(L.T(StringKey.DepTaskNotExist, dependsOnTaskId));
+            return OperationResult<RuntimeTask?>.Fail(L.T(StringKey.DepTaskNotExist, dependsOnTaskId));
         }
 
         if (await _dag.WouldCreateCycleAsync(dependsOnTaskId, taskId, cancellationToken).ConfigureAwait(false))
         {
-            return RuntimeTaskResult.Fail(L.T(StringKey.CircularDependencyRejected));
+            return OperationResult<RuntimeTask?>.Fail(L.T(StringKey.CircularDependencyRejected));
         }
 
         if (!_dag.Nodes.ContainsKey(taskId))
@@ -179,7 +179,7 @@ public sealed partial class TaskRuntime : ITaskRuntime, IDisposable
         var edgeResult = await _dag.AddEdgeAsync(new DagEdge { FromId = dependsOnTaskId, ToId = taskId, Label = "DEPENDS_ON" }, cancellationToken).ConfigureAwait(false);
         if (!edgeResult.Success)
         {
-            return RuntimeTaskResult.Fail(L.T(StringKey.DependencyAlreadyExists));
+            return OperationResult<RuntimeTask?>.Fail(L.T(StringKey.DependencyAlreadyExists));
         }
 
         if (_tasks.TryGetValue(taskId, out var task))
@@ -189,22 +189,22 @@ public sealed partial class TaskRuntime : ITaskRuntime, IDisposable
 
         _logger?.LogDebug(L.T(StringKey.RuntimeSetDepLog), taskId, dependsOnTaskId);
 
-        return RuntimeTaskResult.Ok(task!);
+        return OperationResult<RuntimeTask?>.Ok(task!);
     }
 
-    public async Task<RuntimeTaskResult> RemoveDependencyAsync(string taskId, string dependsOnTaskId, CancellationToken cancellationToken = default)
+    public async Task<OperationResult<RuntimeTask?>> RemoveDependencyAsync(string taskId, string dependsOnTaskId, CancellationToken cancellationToken = default)
     {
         var edgeToRemove = _dag.Edges.Values
             .FirstOrDefault(e => e.FromId == dependsOnTaskId && e.ToId == taskId);
         if (edgeToRemove is null)
         {
-            return RuntimeTaskResult.Fail(L.T(StringKey.DepNotExist, dependsOnTaskId));
+            return OperationResult<RuntimeTask?>.Fail(L.T(StringKey.DepNotExist, dependsOnTaskId));
         }
 
         var result = await _dag.RemoveEdgeAsync(edgeToRemove.Id, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
         {
-            return RuntimeTaskResult.Fail(result.ErrorMessage ?? "Failed to remove edge");
+            return OperationResult<RuntimeTask?>.Fail(result.ErrorMessage ?? "Failed to remove edge");
         }
 
         if (_tasks.TryGetValue(taskId, out var task))
@@ -212,7 +212,7 @@ public sealed partial class TaskRuntime : ITaskRuntime, IDisposable
             task.Dependencies.Remove(dependsOnTaskId);
         }
 
-        return RuntimeTaskResult.Ok(task!);
+        return OperationResult<RuntimeTask?>.Ok(task!);
     }
 
     public Task<bool> CanExecuteTaskAsync(string taskId, CancellationToken cancellationToken = default)

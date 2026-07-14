@@ -18,7 +18,7 @@ public interface IBrowserAutomationService
     /// <param name="waitMs">等待页面加载的毫秒数（默认3000）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>截图结果（PNG字节数据）</returns>
-    Task<BrowserScreenshotResult> ScreenshotAsync(string url, int waitMs = 3000, CancellationToken cancellationToken = default);
+    Task<OperationResult<byte[]?>> ScreenshotAsync(string url, int waitMs = 3000, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 在指定URL的页面上下文中执行JavaScript
@@ -28,21 +28,6 @@ public interface IBrowserAutomationService
     /// <param name="waitMs">等待页面加载的毫秒数（默认3000）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>JavaScript 执行结果</returns>
-    Task<BrowserEvaluateResult> EvaluateAsync(string url, string script, int waitMs = 3000, CancellationToken cancellationToken = default);
+    Task<OperationResult<string?>> EvaluateAsync(string url, string script, int waitMs = 3000, CancellationToken cancellationToken = default);
 }
 
-/// <summary>
-/// 浏览器截图结果
-/// </summary>
-public sealed record BrowserScreenshotResult(
-    bool Success,
-    byte[]? PngData = null,
-    string? ErrorMessage = null);
-
-/// <summary>
-/// 浏览器 JavaScript 执行结果
-/// </summary>
-public sealed record BrowserEvaluateResult(
-    bool Success,
-    string? Result = null,
-    string? ErrorMessage = null);

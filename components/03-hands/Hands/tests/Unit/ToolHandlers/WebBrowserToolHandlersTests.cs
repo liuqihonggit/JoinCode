@@ -58,7 +58,7 @@ public class WebBrowserToolHandlersTests
         var pngData = new byte[] { 0x89, 0x50, 0x4E, 0x47 }; // PNG header
         _browserService.Setup(x => x.IsAvailable).Returns(true);
         _browserService.Setup(x => x.ScreenshotAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new BrowserScreenshotResult(Success: true, PngData: pngData));
+            .ReturnsAsync(OperationResult<byte[]?>.Ok(pngData));
 
         var handler = new WebBrowserToolHandlers(_webService.Object, _browserService.Object, NullLogger<WebBrowserToolHandlers>.Instance);
         var result = await handler.WebBrowserActionAsync("https://example.com", "screenshot", cancellationToken: CancellationToken.None).ConfigureAwait(true);
@@ -72,7 +72,7 @@ public class WebBrowserToolHandlersTests
     {
         _browserService.Setup(x => x.IsAvailable).Returns(true);
         _browserService.Setup(x => x.EvaluateAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new BrowserEvaluateResult(Success: true, Result: "Hello World"));
+            .ReturnsAsync(OperationResult<string?>.Ok("Hello World"));
 
         var handler = new WebBrowserToolHandlers(_webService.Object, _browserService.Object, NullLogger<WebBrowserToolHandlers>.Instance);
         var result = await handler.WebBrowserActionAsync("document.title", "evaluate", url: "https://example.com", cancellationToken: CancellationToken.None).ConfigureAwait(true);

@@ -223,7 +223,7 @@ public abstract class McpClientBase : IMcpClient
         throw new McpProtocolException($"请求在 {_options.MaxRetries} 次尝试后失败", lastException!);
     }
 
-    public async Task<McpListToolsResult> ListToolsAsync(CancellationToken cancellationToken = default)
+    public async Task<OperationResult<IReadOnlyList<ToolInfo>>> ListToolsAsync(CancellationToken cancellationToken = default)
     {
         EnsureConnected();
 
@@ -239,17 +239,17 @@ public abstract class McpClientBase : IMcpClient
 
             if (response.Error != null)
             {
-                return new McpListToolsResult(false, Array.Empty<ToolInfo>(), response.Error.Message);
+                return OperationResult<IReadOnlyList<ToolInfo>>.Fail(response.Error.Message);
             }
 
             var result = response.DeserializeResult(McpClientJsonContext.Default.McpToolsListResponse);
 
-            return new McpListToolsResult(true, result?.Tools ?? new List<ToolInfo>());
+            return OperationResult<IReadOnlyList<ToolInfo>>.Ok(result?.Tools ?? new List<ToolInfo>());
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, "列出工具失败");
-            return new McpListToolsResult(false, Array.Empty<ToolInfo>(), ex.Message);
+            return OperationResult<IReadOnlyList<ToolInfo>>.Fail(ex.Message);
         }
     }
 
@@ -390,13 +390,13 @@ public abstract class McpClientBase : IMcpClient
         }
     }
 
-    public async Task<McpListResourcesResult> ListResourcesAsync(CancellationToken cancellationToken = default)
+    public async Task<OperationResult<IReadOnlyList<McpResource>>> ListResourcesAsync(CancellationToken cancellationToken = default)
     {
         EnsureConnected();
 
         if (ServerCapabilities?.Resources == null)
         {
-            return new McpListResourcesResult(false, Array.Empty<McpResource>(), "服务器不支持资源功能");
+            return OperationResult<IReadOnlyList<McpResource>>.Fail("服务器不支持资源功能");
         }
 
         var request = new JsonRpcRequest
@@ -411,21 +411,21 @@ public abstract class McpClientBase : IMcpClient
 
             if (response.Error != null)
             {
-                return new McpListResourcesResult(false, Array.Empty<McpResource>(), response.Error.Message);
+                return OperationResult<IReadOnlyList<McpResource>>.Fail(response.Error.Message);
             }
 
             var result = response.DeserializeResult(McpJsonContext.Default.McpResourcesListResponse);
 
-            return new McpListResourcesResult(true, result?.Resources ?? new List<McpResource>());
+            return OperationResult<IReadOnlyList<McpResource>>.Ok(result?.Resources ?? new List<McpResource>());
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, "列出资源失败");
-            return new McpListResourcesResult(false, Array.Empty<McpResource>(), ex.Message);
+            return OperationResult<IReadOnlyList<McpResource>>.Fail(ex.Message);
         }
     }
 
-    public async Task<McpReadResourceResult> ReadResourceAsync(
+    public async Task<OperationResult<McpResourceContent?>> ReadResourceAsync(
         string uri,
         CancellationToken cancellationToken = default)
     {
@@ -434,7 +434,7 @@ public abstract class McpClientBase : IMcpClient
 
         if (ServerCapabilities?.Resources == null)
         {
-            return new McpReadResourceResult(false, null, "服务器不支持资源功能");
+            return OperationResult<McpResourceContent?>.Fail("服务器不支持资源功能");
         }
 
         var request = new JsonRpcRequest
@@ -452,28 +452,28 @@ public abstract class McpClientBase : IMcpClient
 
             if (response.Error != null)
             {
-                return new McpReadResourceResult(false, null, response.Error.Message);
+                return OperationResult<McpResourceContent?>.Fail(response.Error.Message);
             }
 
             var result = response.DeserializeResult(McpJsonContext.Default.McpResourceReadResponse);
 
             var content = result?.Contents.FirstOrDefault();
-            return new McpReadResourceResult(true, content);
+            return OperationResult<McpResourceContent?>.Ok(content);
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, "读取资源 {Uri} 失败", uri);
-            return new McpReadResourceResult(false, null, ex.Message);
+            return OperationResult<McpResourceContent?>.Fail(ex.Message);
         }
     }
 
-    public async Task<McpListPromptsResult> ListPromptsAsync(CancellationToken cancellationToken = default)
+    public async Task<OperationResult<IReadOnlyList<McpPrompt>>> ListPromptsAsync(CancellationToken cancellationToken = default)
     {
         EnsureConnected();
 
         if (ServerCapabilities?.Prompts == null)
         {
-            return new McpListPromptsResult(false, Array.Empty<McpPrompt>(), "服务器不支持提示模板功能");
+            return OperationResult<IReadOnlyList<McpPrompt>>.Fail("服务器不支持提示模板功能");
         }
 
         var request = new JsonRpcRequest
@@ -488,21 +488,21 @@ public abstract class McpClientBase : IMcpClient
 
             if (response.Error != null)
             {
-                return new McpListPromptsResult(false, Array.Empty<McpPrompt>(), response.Error.Message);
+                return OperationResult<IReadOnlyList<McpPrompt>>.Fail(response.Error.Message);
             }
 
             var result = response.DeserializeResult(McpJsonContext.Default.McpPromptsListResponse);
 
-            return new McpListPromptsResult(true, result?.Prompts ?? new List<McpPrompt>());
+            return OperationResult<IReadOnlyList<McpPrompt>>.Ok(result?.Prompts ?? new List<McpPrompt>());
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, "列出提示模板失败");
-            return new McpListPromptsResult(false, Array.Empty<McpPrompt>(), ex.Message);
+            return OperationResult<IReadOnlyList<McpPrompt>>.Fail(ex.Message);
         }
     }
 
-    public async Task<McpGetPromptResult> GetPromptAsync(
+    public async Task<OperationResult<McpPromptMessage?>> GetPromptAsync(
         string name,
         Dictionary<string, JsonElement>? arguments = null,
         CancellationToken cancellationToken = default)
@@ -512,7 +512,7 @@ public abstract class McpClientBase : IMcpClient
 
         if (ServerCapabilities?.Prompts == null)
         {
-            return new McpGetPromptResult(false, null, "服务器不支持提示模板功能");
+            return OperationResult<McpPromptMessage?>.Fail("服务器不支持提示模板功能");
         }
 
         var request = new JsonRpcRequest
@@ -536,7 +536,7 @@ public abstract class McpClientBase : IMcpClient
 
             if (response.Error != null)
             {
-                return new McpGetPromptResult(false, null, response.Error.Message);
+                return OperationResult<McpPromptMessage?>.Fail(response.Error.Message);
             }
 
             var result = response.DeserializeResult(McpJsonContext.Default.McpPromptGetResponse);
@@ -547,12 +547,12 @@ public abstract class McpClientBase : IMcpClient
                 Messages = result.Messages
             };
 
-            return new McpGetPromptResult(true, message);
+            return OperationResult<McpPromptMessage?>.Ok(message);
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, "获取提示模板 {Name} 失败", name);
-            return new McpGetPromptResult(false, null, ex.Message);
+            return OperationResult<McpPromptMessage?>.Fail(ex.Message);
         }
     }
 

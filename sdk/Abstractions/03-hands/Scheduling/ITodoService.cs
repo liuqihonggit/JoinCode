@@ -19,7 +19,7 @@ public interface ITodoService
     /// <summary>
     /// 更新单个待办事项
     /// </summary>
-    Task<TodoItemResult> UpdateTodoAsync(string todoId, string? content = null, string? status = null, string? priority = null, CancellationToken cancellationToken = default);
+    Task<OperationResult<TodoItem?>> UpdateTodoAsync(string todoId, string? content = null, string? status = null, string? priority = null, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 清除所有待办事项（all-done→clear 行为）

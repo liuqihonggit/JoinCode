@@ -14,7 +14,7 @@ public sealed partial class TaskService : ITaskService, IDisposable
     [Inject] private readonly ITelemetryService? _telemetryService;
     private int _taskCounter;
 
-    public Task<TaskOperationResult> CreateTaskAsync(
+    public Task<OperationResult<TaskItem?>> CreateTaskAsync(
         string title,
         string? description,
         string? assignee,
@@ -38,7 +38,7 @@ public sealed partial class TaskService : ITaskService, IDisposable
 
         _tasks[taskId] = task;
         RecordTaskMetrics("created", task.Priority);
-        return Task.FromResult(new TaskOperationResult(true, task));
+        return Task.FromResult(OperationResult<TaskItem?>.Ok(task));
     }
 
     public Task<TaskListResult> ListTasksAsync(
@@ -80,13 +80,13 @@ public sealed partial class TaskService : ITaskService, IDisposable
         return Task.FromResult(new TaskListResult(true, tasks, totalCount));
     }
 
-    public Task<TaskOperationResult> UpdateTaskAsync(
+    public Task<OperationResult<TaskItem?>> UpdateTaskAsync(
         UpdateTaskRequest request,
         CancellationToken cancellationToken = default)
     {
         if (!_tasks.TryGetValue(request.TaskId, out var task))
         {
-            return Task.FromResult(new TaskOperationResult(false, null, L.T(StringKey.TaskNotFound, request.TaskId)));
+            return Task.FromResult(OperationResult<TaskItem?>.Fail(L.T(StringKey.TaskNotFound, request.TaskId)));
         }
 
         var updatedTask = task with
@@ -102,17 +102,17 @@ public sealed partial class TaskService : ITaskService, IDisposable
 
         _tasks[request.TaskId] = updatedTask;
         RecordTaskMetrics("updated", updatedTask.Priority);
-        return Task.FromResult(new TaskOperationResult(true, updatedTask));
+        return Task.FromResult(OperationResult<TaskItem?>.Ok(updatedTask));
     }
 
-    public Task<TaskOperationResult> StopTaskAsync(
+    public Task<OperationResult<TaskItem?>> StopTaskAsync(
         string taskId,
         string? reason,
         CancellationToken cancellationToken = default)
     {
         if (!_tasks.TryGetValue(taskId, out var task))
         {
-            return Task.FromResult(new TaskOperationResult(false, null, L.T(StringKey.TaskNotFound, taskId)));
+            return Task.FromResult(OperationResult<TaskItem?>.Fail(L.T(StringKey.TaskNotFound, taskId)));
         }
 
         var updatedTask = task with
@@ -122,7 +122,7 @@ public sealed partial class TaskService : ITaskService, IDisposable
 
         _tasks[taskId] = updatedTask;
         RecordTaskMetrics("stopped", updatedTask.Priority);
-        return Task.FromResult(new TaskOperationResult(true, updatedTask));
+        return Task.FromResult(OperationResult<TaskItem?>.Ok(updatedTask));
     }
 
     public Task<TaskItem?> GetTaskAsync(string taskId, CancellationToken cancellationToken = default)
@@ -145,7 +145,7 @@ public sealed partial class TaskService : ITaskService, IDisposable
         return Task.FromResult<IReadOnlyList<TaskDependency>>(dependencies);
     }
 
-    public async Task<TaskOperationResult> SetTaskDependencyAsync(
+    public async Task<OperationResult<TaskItem?>> SetTaskDependencyAsync(
         string taskId,
         string dependsOnTaskId,
         TaskDependencyType dependencyType = TaskDependencyType.Blocks,
@@ -153,17 +153,17 @@ public sealed partial class TaskService : ITaskService, IDisposable
     {
         if (!_tasks.ContainsKey(taskId))
         {
-            return new TaskOperationResult(false, null, L.T(StringKey.TaskNotFound, taskId));
+            return OperationResult<TaskItem?>.Fail(L.T(StringKey.TaskNotFound, taskId));
         }
 
         if (!_tasks.ContainsKey(dependsOnTaskId))
         {
-            return new TaskOperationResult(false, null, L.T(StringKey.DepTaskNotExist, dependsOnTaskId));
+            return OperationResult<TaskItem?>.Fail(L.T(StringKey.DepTaskNotExist, dependsOnTaskId));
         }
 
         if (await _dag.WouldCreateCycleAsync(dependsOnTaskId, taskId, cancellationToken).ConfigureAwait(false))
         {
-            return new TaskOperationResult(false, null, L.T(StringKey.CircularDependencyRejected));
+            return OperationResult<TaskItem?>.Fail(L.T(StringKey.CircularDependencyRejected));
         }
 
         if (!_dag.Nodes.ContainsKey(taskId))
@@ -175,7 +175,7 @@ public sealed partial class TaskService : ITaskService, IDisposable
             .FirstOrDefault(e => e.FromId == dependsOnTaskId && e.ToId == taskId);
         if (existingEdge is not null)
         {
-            return new TaskOperationResult(false, null, L.T(StringKey.DependencyAlreadyExists));
+            return OperationResult<TaskItem?>.Fail(L.T(StringKey.DependencyAlreadyExists));
         }
 
         var edgeResult = await _dag.AddEdgeAsync(
@@ -183,7 +183,7 @@ public sealed partial class TaskService : ITaskService, IDisposable
             cancellationToken).ConfigureAwait(false);
         if (!edgeResult.Success)
         {
-            return new TaskOperationResult(false, null, edgeResult.ErrorMessage ?? "Failed to add dependency");
+            return OperationResult<TaskItem?>.Fail(edgeResult.ErrorMessage ?? "Failed to add dependency");
         }
 
         if (_taskStateMachines.TryGetValue(taskId, out var stateMachine))
@@ -193,10 +193,10 @@ public sealed partial class TaskService : ITaskService, IDisposable
         }
 
         _tasks.TryGetValue(taskId, out var task);
-        return new TaskOperationResult(true, task);
+        return OperationResult<TaskItem?>.Ok(task);
     }
 
-    public async Task<TaskOperationResult> RemoveTaskDependencyAsync(
+    public async Task<OperationResult<TaskItem?>> RemoveTaskDependencyAsync(
         string taskId,
         string dependsOnTaskId,
         CancellationToken cancellationToken = default)
@@ -205,19 +205,19 @@ public sealed partial class TaskService : ITaskService, IDisposable
             .FirstOrDefault(e => e.FromId == dependsOnTaskId && e.ToId == taskId);
         if (edgeToRemove is null)
         {
-            return new TaskOperationResult(false, null, L.T(StringKey.DepNotExist, dependsOnTaskId));
+            return OperationResult<TaskItem?>.Fail(L.T(StringKey.DepNotExist, dependsOnTaskId));
         }
 
         var result = await _dag.RemoveEdgeAsync(edgeToRemove.Id, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
         {
-            return new TaskOperationResult(false, null, result.ErrorMessage ?? "Failed to remove dependency");
+            return OperationResult<TaskItem?>.Fail(result.ErrorMessage ?? "Failed to remove dependency");
         }
 
         CheckAndUpdateTaskState(taskId);
 
         _tasks.TryGetValue(taskId, out var task);
-        return new TaskOperationResult(true, task);
+        return OperationResult<TaskItem?>.Ok(task);
     }
 
     public Task<bool> CanExecuteTaskAsync(string taskId, CancellationToken cancellationToken = default)

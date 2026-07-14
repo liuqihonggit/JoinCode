@@ -36,24 +36,14 @@ public sealed class ToolsListChangedEventArgs : EventArgs
     public required RemoteToolsSyncResult SyncResult { get; init; }
 }
 
-public sealed record RemoteResourcesSyncResult(
-    bool Success,
-    IReadOnlyList<string> ResourceUris,
-    string? ErrorMessage = null);
-
 public sealed class ResourcesListChangedEventArgs : EventArgs
 {
     public required string ClientId { get; init; }
-    public required RemoteResourcesSyncResult SyncResult { get; init; }
+    public required OperationResult<IReadOnlyList<string>> SyncResult { get; init; }
 }
-
-public sealed record RemotePromptsSyncResult(
-    bool Success,
-    IReadOnlyList<string> PromptNames,
-    string? ErrorMessage = null);
 
 public sealed class PromptsListChangedEventArgs : EventArgs
 {
     public required string ClientId { get; init; }
-    public required RemotePromptsSyncResult SyncResult { get; init; }
+    public required OperationResult<IReadOnlyList<string>> SyncResult { get; init; }
 }

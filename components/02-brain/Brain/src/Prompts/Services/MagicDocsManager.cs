@@ -15,6 +15,8 @@ public sealed class MagicDocsManager : IFileReadListener, IPostSamplingCallback
     private readonly SemaphoreSlim _semaphore = new(1, 1);
     private readonly Dictionary<string, MagicDocEntry> _trackedDocs = new(StringComparer.OrdinalIgnoreCase);
     private IDisposable? _fileReadSubscription;
+    // P1-8: 信号量等待超时 — 防止持有方异常未释放导致永久阻塞
+    private static readonly TimeSpan SemaphoreWaitTimeout = TimeSpan.FromSeconds(5);
 
     public MagicDocsManager(
         IFileSystem fileSystem,
@@ -46,7 +48,12 @@ public sealed class MagicDocsManager : IFileReadListener, IPostSamplingCallback
         var detection = MagicDocDetector.Detect(e.Content);
         if (detection is null) return;
 
-        _semaphore.Wait();
+        // P1-8: 添加超时，防止永久阻塞
+        if (!_semaphore.Wait(SemaphoreWaitTimeout))
+        {
+            _logger?.LogWarning("MagicDocsManager.OnFileRead 信号量等待超时，跳过注册: {FilePath}", e.FilePath);
+            return;
+        }
         try
         {
             _trackedDocs[e.FilePath] = new MagicDocEntry
@@ -156,7 +163,12 @@ public sealed class MagicDocsManager : IFileReadListener, IPostSamplingCallback
     {
         get
         {
-            _semaphore.Wait();
+            // P1-8: 添加超时，防止永久阻塞；超时返回当前未加锁计数（best-effort）
+            if (!_semaphore.Wait(SemaphoreWaitTimeout))
+            {
+                _logger?.LogWarning("MagicDocsManager.TrackedCount 信号量等待超时，返回未加锁计数");
+                return _trackedDocs.Count;
+            }
             try { return _trackedDocs.Count; }
             finally { _semaphore.Release(); }
         }
@@ -167,7 +179,12 @@ public sealed class MagicDocsManager : IFileReadListener, IPostSamplingCallback
     /// </summary>
     public void Clear()
     {
-        _semaphore.Wait();
+        // P1-8: 添加超时，防止永久阻塞
+        if (!_semaphore.Wait(SemaphoreWaitTimeout))
+        {
+            _logger?.LogWarning("MagicDocsManager.Clear 信号量等待超时，跳过清除");
+            return;
+        }
         try { _trackedDocs.Clear(); }
         finally { _semaphore.Release(); }
     }

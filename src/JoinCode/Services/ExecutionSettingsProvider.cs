@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Services;
+namespace JoinCode.Services;
 
 [Register]
 public sealed class ExecutionSettingsProvider : IExecutionSettingsProvider
@@ -22,8 +22,8 @@ public sealed class ExecutionSettingsProvider : IExecutionSettingsProvider
     private EffortLevel LoadPersistedEffort()
     {
         // 从 settings.json 读取持久化的 effortLevel — 对齐 TS getUserSpecifiedModelSetting
-        var persistedEffort = ConfigLoader.LoadSettingFromSettingsJsonAsync("effortLevel", _fs)
-            .GetAwaiter().GetResult();
+        // P1-3: 改用同步 API，避免 Lazy<T> 中 sync-over-async 阻塞
+        var persistedEffort = ConfigLoader.LoadSettingFromSettingsJson("effortLevel", _fs);
         return EffortLevelHelper.ParseEffortLevel(persistedEffort) ?? EffortLevel.Auto;
     }
 

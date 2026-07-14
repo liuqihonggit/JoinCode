@@ -220,7 +220,7 @@ public sealed class BridgeWorkPollLoop : IAsyncDisposable
             try
             {
                 await _currentTransport.FlushAsync(ct).ConfigureAwait(false);
-                _currentTransport.Close();
+                await _currentTransport.CloseAsync(ct).ConfigureAwait(false);
                 await _currentTransport.DisposeAsync().ConfigureAwait(false);
                 _currentTransport = null;
             }
@@ -266,8 +266,13 @@ public sealed class BridgeWorkPollLoop : IAsyncDisposable
         {
             try
             {
-                oldTransport.Close();
-                _ = oldTransport.DisposeAsync();
+                // P1-4: 改用异步关闭+释放，消除 sync 方法中的 sync-over-async 阻塞
+                _ = Task.Run(async () =>
+                {
+                    try { await oldTransport.CloseAsync().ConfigureAwait(false); }
+                    catch (Exception closeEx) { System.Diagnostics.Trace.WriteLine($"[BridgeWorkPollLoop] CloseAsync old transport failed: {closeEx.Message}"); }
+                    await oldTransport.DisposeAsync().ConfigureAwait(false);
+                });
             }
             catch (Exception ex)
             {

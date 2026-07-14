@@ -256,6 +256,7 @@ public sealed class BridgeRemoteCoreTests
         }
 
         public void Close() { }
+        public Task CloseAsync(CancellationToken ct = default) => Task.CompletedTask;
         public bool IsConnectedStatus() => true;
         public string GetStateLabel() => "mock";
         public void SetOnData(Action<string> callback) { }

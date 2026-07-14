@@ -16,11 +16,9 @@ public static partial class ServiceRegistration
         {
             services.AddSingleton<IStateService>(sp =>
             {
-                if (System.Environment.GetEnvironmentVariable("JCC_DI_TRACE") == "1")
-                    System.Console.Error.WriteLine("[DI] + IStateService (InMemory)");
+                Diag.WriteDiTrace("[DI] + IStateService (InMemory)");
                 var svc = new InMemoryStateService(sp.GetRequiredService<IClockService>());
-                if (System.Environment.GetEnvironmentVariable("JCC_DI_TRACE") == "1")
-                    System.Console.Error.WriteLine("[DI] - IStateService (InMemory)");
+                Diag.WriteDiTrace("[DI] - IStateService (InMemory)");
                 return svc;
             });
         }

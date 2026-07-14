@@ -138,7 +138,11 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport
         await _uploader.FlushAsync(ct).ConfigureAwait(false);
     }
 
-    public void Close()
+    /// <summary>
+    /// 异步关闭传输 — P1-4: 消除 Close() 内 sync-over-async 阻塞
+    /// 调用方在 async 上下文应优先 await 此方法
+    /// </summary>
+    public async Task CloseAsync(CancellationToken ct = default)
     {
         if (Interlocked.Exchange(ref _isClosed, 1) == 1) return;
 
@@ -175,10 +179,10 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport
             }
         });
 
-        // 关闭 WS
+        // 关闭 WS — P1-4: 改为 await，消除 .GetAwaiter().GetResult() 同步阻塞
         try
         {
-            _wsTransport.StopAsync(_disposeCts.Token).ConfigureAwait(false).GetAwaiter().GetResult();
+            await _wsTransport.StopAsync(ct).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -188,6 +192,12 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport
 
         _httpClient.Dispose();
     }
+
+    /// <summary>
+    /// 关闭传输（同步兼容版）— 已弃用，调用方应改为 await CloseAsync
+    /// </summary>
+    public void Close()
+        => CloseAsync(_disposeCts.Token).GetAwaiter().GetResult();
 
     public bool IsConnectedStatus() => _isConnected != 0;
 

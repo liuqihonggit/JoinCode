@@ -3,51 +3,39 @@ namespace JoinCode.ChatCommands;
 
 public sealed partial class ChatCommandRegistry : JoinCode.Abstractions.Interfaces.ICommandRegistry
 {
-    private readonly Dictionary<string, IChatCommand> _commands;
-    private readonly HashSet<string> _canonicalNames;
-    private readonly Dictionary<string, ChatCommandCategory> _categories;
+    private readonly CategorizedRegistry<string, IChatCommand, ChatCommandCategory> _registry;
     [Inject] private readonly ILogger<ChatCommandRegistry>? _logger;
-    private IReadOnlyDictionary<string, IChatCommand>? _cachedAllCommands;
     private IReadOnlyList<ChatCommandInfo>? _cachedCommandInfos;
 
     public ChatCommandRegistry(ILogger<ChatCommandRegistry>? logger = null)
     {
-        _commands = new Dictionary<string, IChatCommand>(StringComparer.OrdinalIgnoreCase);
-        _canonicalNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        _categories = new Dictionary<string, ChatCommandCategory>(StringComparer.OrdinalIgnoreCase);
+        _registry = new CategorizedRegistry<string, IChatCommand, ChatCommandCategory>(
+            defaultCategory: ChatCommandCategory.Other,
+            isEnabled: cmd => cmd.IsEnabled,
+            comparer: StringComparer.OrdinalIgnoreCase);
         _logger = logger;
     }
 
     public void Register(IChatCommand command)
     {
-        if (_commands.ContainsKey(command.Name))
+        if (_registry.ContainsKey(command.Name))
         {
             _logger?.LogWarning("[ChatCommandRegistry] 命令 '{CommandName}' 已存在，将被覆盖", command.Name);
         }
 
-        _commands[command.Name] = command;
-        _canonicalNames.Add(command.Name);
+        _registry.Register(command.Name, command, isCanonical: true);
 
         foreach (var alias in command.Aliases)
-        {
-            if (!_commands.ContainsKey(alias))
-            {
-                _commands[alias] = command;
-            }
-        }
+            _registry.RegisterAlias(alias, command);
 
-        InvalidateCache();
+        _cachedCommandInfos = null;
         _logger?.LogDebug("[ChatCommandRegistry] 已注册命令: {CommandName}", command.Name);
     }
 
     /// <summary>
     /// 注册命令分类 — 由源码生成器自动调用，特性解耦无需中央映射表
     /// </summary>
-    public void SetCategory(string commandName, ChatCommandCategory category)
-    {
-        _categories[commandName] = category;
-        InvalidateCache();
-    }
+    public void SetCategory(string commandName, ChatCommandCategory category) => _registry.SetCategory(commandName, category);
 
     void JoinCode.Abstractions.Interfaces.ICommandRegistry.Register(JoinCode.Abstractions.Interfaces.ICommand command)
     {
@@ -57,61 +45,45 @@ public sealed partial class ChatCommandRegistry : JoinCode.Abstractions.Interfac
 
     bool JoinCode.Abstractions.Interfaces.ICommandRegistry.UnregisterCommand(string commandName)
     {
-        var removed = _commands.Remove(commandName);
-        if (removed) InvalidateCache();
+        var removed = _registry.Unregister(commandName);
+        if (removed) _cachedCommandInfos = null;
         return removed;
     }
 
     public void RegisterRange(IEnumerable<IChatCommand> commands)
     {
         foreach (var command in commands)
-        {
             Register(command);
-        }
     }
 
     public IChatCommand? GetCommand(string commandName)
     {
-        if (_commands.TryGetValue(commandName, out var command))
-        {
-            // 对齐 TS isCommandEnabled(): 不可用命令视为不存在
-            return command.IsEnabled ? command : null;
-        }
+        var cmd = _registry.GetValue(commandName);
+        if (cmd is not null)
+            return cmd;
 
-        foreach (var kvp in _commands)
+        foreach (var entry in _registry.GetCategorizedEntries())
         {
-            if (kvp.Value.Aliases.Contains(commandName, StringComparer.OrdinalIgnoreCase))
-            {
-                return kvp.Value.IsEnabled ? kvp.Value : null;
-            }
+            if (entry.Value.Aliases.Contains(commandName, StringComparer.OrdinalIgnoreCase))
+                return entry.IsEnabled ? entry.Value : null;
         }
         return null;
     }
 
     public bool HasCommand(string commandName)
     {
-        if (_commands.TryGetValue(commandName, out var command))
-        {
-            return command.IsEnabled;
-        }
+        if (_registry.ContainsKey(commandName))
+            return true;
 
-        foreach (var kvp in _commands)
+        foreach (var entry in _registry.GetCategorizedEntries())
         {
-            if (kvp.Value.Aliases.Contains(commandName, StringComparer.OrdinalIgnoreCase))
-            {
-                return kvp.Value.IsEnabled;
-            }
+            if (entry.Value.Aliases.Contains(commandName, StringComparer.OrdinalIgnoreCase))
+                return entry.IsEnabled;
         }
         return false;
     }
 
-
-    public IReadOnlyDictionary<string, IChatCommand> GetAllCommands()
-    {
-        return _cachedAllCommands ??= _canonicalNames
-            .ToDictionary(n => n, n => _commands[n])
-            .ToFrozenDictionary();
-    }
+    public IReadOnlyDictionary<string, IChatCommand> GetAllCommands() => _registry.GetAllCanonical();
 
     public ChatCommandParseResult Parse(string input)
     {
@@ -146,18 +118,16 @@ public sealed partial class ChatCommandRegistry : JoinCode.Abstractions.Interfac
 
     public IReadOnlyList<ChatCommandInfo> GetCommandInfos()
     {
-        return _cachedCommandInfos ??= _canonicalNames
-            .Select(n => _commands[n])
-            .Select(c => new ChatCommandInfo(c.Name, c.Description, c.Usage, c.Aliases, c.ArgumentHint,
-                c.IsHidden || !c.IsEnabled, // 对齐 TS: 不可用命令等同于隐藏
-                _categories.GetValueOrDefault(c.Name, ChatCommandCategory.Other)))
+        return _cachedCommandInfos ??= _registry.GetCategorizedEntries()
+            .Select(e => new ChatCommandInfo(
+                e.Value.Name,
+                e.Value.Description,
+                e.Value.Usage,
+                e.Value.Aliases,
+                e.Value.ArgumentHint,
+                e.Value.IsHidden || !e.IsEnabled,
+                e.Category))
             .ToArray();
-    }
-
-    private void InvalidateCache()
-    {
-        _cachedAllCommands = null;
-        _cachedCommandInfos = null;
     }
 }
 

@@ -152,6 +152,3 @@ internal sealed class SessionTagData
     public Dictionary<string, List<string>> Entries { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 }
 
-[JsonSerializable(typeof(SessionTagData))]
-[JsonSerializable(typeof(Dictionary<string, List<string>>))]
-internal sealed partial class SessionTagJsonContext : JsonSerializerContext;

@@ -1,5 +1,5 @@
 ﻿
-namespace IO;
+namespace Infrastructure.IO.Services.FileOps;
 
 /// <summary>
 /// Search service implementation - provides Glob and Grep search capabilities

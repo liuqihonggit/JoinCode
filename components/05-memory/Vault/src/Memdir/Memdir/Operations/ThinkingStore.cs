@@ -157,8 +157,3 @@ internal sealed class ThinkingStoreData
     public Dictionary<string, List<ThinkingEntry>> Entries { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 }
 
-[JsonSerializable(typeof(ThinkingStoreData))]
-[JsonSerializable(typeof(ThinkingEntry))]
-[JsonSerializable(typeof(List<ThinkingEntry>))]
-[JsonSerializable(typeof(Dictionary<string, List<ThinkingEntry>>))]
-internal sealed partial class ThinkingStoreJsonContext : JsonSerializerContext;

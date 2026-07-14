@@ -7,9 +7,17 @@ public sealed class StateChangedEventArgs<TState> : EventArgs where TState : str
     public DateTime Timestamp { get; init; }
 }
 
+public sealed class TransitionFailedEventArgs<TState> : EventArgs where TState : struct, Enum
+{
+    public required TState FromState { get; init; }
+    public required TState ToState { get; init; }
+    public DateTime Timestamp { get; init; }
+}
+
 public sealed class StateMachine<TState> where TState : struct, Enum
 {
     private readonly FrozenDictionary<TState, FrozenSet<TState>> _transitions;
+    private readonly FrozenSet<TState>? _terminalStates;
     private readonly object _lock = new();
     private readonly IClockService? _clock;
     private TState _currentState;
@@ -21,6 +29,18 @@ public sealed class StateMachine<TState> where TState : struct, Enum
     {
         _transitions = transitions;
         _currentState = initialState;
+        _clock = clock;
+    }
+
+    public StateMachine(
+        FrozenDictionary<TState, FrozenSet<TState>> transitions,
+        TState initialState,
+        FrozenSet<TState> terminalStates,
+        IClockService? clock = null)
+    {
+        _transitions = transitions;
+        _currentState = initialState;
+        _terminalStates = terminalStates;
         _clock = clock;
     }
 
@@ -62,6 +82,7 @@ public sealed class StateMachine<TState> where TState : struct, Enum
         {
             if (!CanTransitionTo(_currentState, target))
             {
+                OnTransitionFailed(_currentState, target);
                 throw new InvalidOperationException(
                     $"Invalid state transition from {_currentState} to {target}");
             }
@@ -136,6 +157,24 @@ public sealed class StateMachine<TState> where TState : struct, Enum
         }
     }
 
+    public bool IsTerminalState()
+    {
+        if (_terminalStates is null)
+        {
+            lock (_lock)
+            {
+                return _transitions.TryGetValue(_currentState, out var targets) && targets.Count == 0;
+            }
+        }
+
+        lock (_lock)
+        {
+            return _terminalStates.Contains(_currentState);
+        }
+    }
+
+    public event EventHandler<TransitionFailedEventArgs<TState>>? TransitionFailed;
+
     private void OnStateChanged(TState oldState, TState newState)
     {
         var args = new StateChangedEventArgs<TState>
@@ -145,5 +184,16 @@ public sealed class StateMachine<TState> where TState : struct, Enum
             Timestamp = _clock?.GetUtcNow() ?? DateTime.UtcNow
         };
         StateChanged?.Invoke(this, args);
+    }
+
+    private void OnTransitionFailed(TState fromState, TState toState)
+    {
+        var args = new TransitionFailedEventArgs<TState>
+        {
+            FromState = fromState,
+            ToState = toState,
+            Timestamp = _clock?.GetUtcNow() ?? DateTime.UtcNow
+        };
+        TransitionFailed?.Invoke(this, args);
     }
 }

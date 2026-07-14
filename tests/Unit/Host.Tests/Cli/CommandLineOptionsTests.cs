@@ -301,4 +301,31 @@ public sealed class CommandLineOptionsTests
         options.DisallowedTools.Should().NotBeNull();
         options.DisallowedTools.Should().BeEmpty();
     }
+
+    [Fact]
+    public void CliArgParser_ParseSystemPrompt_ShouldSetSystemPrompt()
+    {
+        var result = CliArgParser.Parse(new[] { "--system-prompt", "你是一个测试助手" });
+
+        result.SystemPrompt.Should().Be("你是一个测试助手");
+        result.HasError.Should().BeFalse();
+    }
+
+    [Fact]
+    public void CliArgParser_ParseAppendSystemPrompt_ShouldSetAppendSystemPrompt()
+    {
+        var result = CliArgParser.Parse(new[] { "--append-system-prompt", "使用简洁回复" });
+
+        result.AppendSystemPrompt.Should().Be("使用简洁回复");
+        result.HasError.Should().BeFalse();
+    }
+
+    [Fact]
+    public void CommandLineOptions_DefaultSystemPrompt_ShouldBeNull()
+    {
+        var options = new CommandLineOptions();
+
+        options.SystemPrompt.Should().BeNull();
+        options.AppendSystemPrompt.Should().BeNull();
+    }
 }

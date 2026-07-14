@@ -55,4 +55,10 @@ public enum CliArg
 
     [CliOption("--disallowed-tools", "", "工具黑名单（逗号分隔），这些工具被禁用", AcceptsValue = true)]
     DisallowedTools,
+
+    [CliOption("--system-prompt", "", "替换系统提示词（完全覆盖默认系统提示词）", AcceptsValue = true)]
+    SystemPrompt,
+
+    [CliOption("--append-system-prompt", "", "追加系统提示词（在默认/已加载系统提示词后附加，不覆盖）", AcceptsValue = true)]
+    AppendSystemPrompt,
 }

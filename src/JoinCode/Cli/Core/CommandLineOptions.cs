@@ -115,6 +115,22 @@ public class CommandLineOptions {
     public List<string> DisallowedTools { get; set; } = new();
 
     /// <summary>
+    /// 替换系统提示词（--system-prompt &lt;文本&gt; 参数）
+    /// 完全覆盖默认系统提示词（由 ISystemPromptProvider 构建的内容）
+    /// 对齐 TS: claude --system-prompt "..."
+    /// 在 SystemPromptApplyStep 中通过 IChatService.SetSystemPromptAsync 应用
+    /// </summary>
+    public string? SystemPrompt { get; set; }
+
+    /// <summary>
+    /// 追加系统提示词（--append-system-prompt &lt;文本&gt; 参数）
+    /// 在默认/已加载系统提示词之后追加，不覆盖原有内容
+    /// 对齐 TS: claude --append-system-prompt "..."
+    /// 在 SystemPromptApplyStep 中通过 IChatContextManager.AddDynamicSystemMessageAsync 应用
+    /// </summary>
+    public string? AppendSystemPrompt { get; set; }
+
+    /// <summary>
     /// 是否为非交互模式（用户请求 / 无头环境 / CI 环境 / -p 参数）
     /// </summary>
     public bool IsNonInteractiveMode =>

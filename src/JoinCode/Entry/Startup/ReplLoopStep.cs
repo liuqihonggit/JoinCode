@@ -32,11 +32,28 @@ internal sealed class ReplLoopStep : IMiddleware<StartupContext>
                 continue;
             }
 
+            using var stepCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             using var aliveCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+
+            // Ctrl+C 中断当前 LLM 调用而非终止进程
+            // 仅在处理期间注册，提示符状态下 Ctrl+C 保持默认退出行为
+            void OnCancelKeyPress(object? sender, ConsoleCancelEventArgs e)
+            {
+                e.Cancel = true; // 阻止默认进程终止
+                stepCts.Cancel(); // 中断当前处理
+            }
+            Console.CancelKeyPress += OnCancelKeyPress;
+
             var aliveTask = RunAliveLoopAsync(aliveCts.Token);
             try
             {
-                await session.ProcessUserInputAsync(input, ct);
+                await session.ProcessUserInputAsync(input, stepCts.Token);
+            }
+            catch (OperationCanceledException) when (stepCts.IsCancellationRequested && !ct.IsCancellationRequested)
+            {
+                // Ctrl+C 中断 — 返回提示符继续 REPL 循环
+                Cli.TerminalHelper.WriteLine();
+                Cli.TerminalHelper.WriteLine("(已中断)");
             }
             catch (Exception ex)
             {
@@ -44,6 +61,7 @@ internal sealed class ReplLoopStep : IMiddleware<StartupContext>
             }
             finally
             {
+                Console.CancelKeyPress -= OnCancelKeyPress;
                 aliveCts.Cancel();
                 try { await aliveTask.ConfigureAwait(false); } catch (OperationCanceledException) { }
                 await Console.Out.FlushAsync().ConfigureAwait(false);

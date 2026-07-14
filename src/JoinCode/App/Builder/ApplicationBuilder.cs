@@ -35,11 +35,44 @@ public sealed class ApplicationBuilder
             .ConfigureServices((_, services) =>
             {
                 services.AddSingleton(config);
+                // 视角1 #3: 注册 CommandLineOptions 为单例，供 PermissionConfig 后配置读取
+                services.AddSingleton(options);
 
                 foreach (var module in ordered)
                 {
                     module.ConfigureServices(services, context);
                 }
+
+                // 视角1 #3: 后配置 PermissionConfig，合并 --allowed-tools / --disallowed-tools CLI 参数
+                // 决策: 使用 IOptions 后配置模式，在 Guard 模块的默认配置之后追加，不破坏封装
+                // 替代方案已否决: 修改 Guard 模块接口（破坏组件边界）
+                services.AddOptions<PermissionConfig>()
+                    .Configure<CommandLineOptions>((permConfig, cliOptions) =>
+                    {
+                        if (cliOptions.AllowedTools is { Count: > 0 })
+                        {
+                            foreach (var tool in cliOptions.AllowedTools)
+                            {
+                                if (!permConfig.AutoApprovedTools.Any(r => string.Equals(r.ToolName, tool, StringComparison.OrdinalIgnoreCase)))
+                                {
+                                    permConfig.AutoApprovedTools.Add(new ToolPermissionRule { ToolName = tool, Description = "From CLI --allowed-tools" });
+                                }
+                            }
+                            Diag.WriteLine($"[MAIN] --allowed-tools 合并 {cliOptions.AllowedTools.Count} 个工具到 PermissionConfig.AutoApprovedTools");
+                        }
+
+                        if (cliOptions.DisallowedTools is { Count: > 0 })
+                        {
+                            foreach (var tool in cliOptions.DisallowedTools)
+                            {
+                                if (!permConfig.AutoRejectedTools.Any(r => string.Equals(r.ToolName, tool, StringComparison.OrdinalIgnoreCase)))
+                                {
+                                    permConfig.AutoRejectedTools.Add(new ToolPermissionRule { ToolName = tool, Description = "From CLI --disallowed-tools" });
+                                }
+                            }
+                            Diag.WriteLine($"[MAIN] --disallowed-tools 合并 {cliOptions.DisallowedTools.Count} 个工具到 PermissionConfig.AutoRejectedTools");
+                        }
+                    });
             })
             .ConfigureLogging(logging =>
             {
@@ -217,6 +250,8 @@ public sealed class ApplicationBuilder
             ResumeSessionId = result.Resume,
             PermissionMode = result.PermissionMode,
             DangerouslySkipPermissions = result.DangerouslySkipPermissions,
+            AllowedTools = ParseToolList(result.AllowedTools),
+            DisallowedTools = ParseToolList(result.DisallowedTools),
         };
 
         // --await N: 超时自动关闭秒数
@@ -257,6 +292,23 @@ public sealed class ApplicationBuilder
         }
 
         return options;
+    }
+
+    /// <summary>
+    /// 解析工具列表（逗号或空格分隔）— 用于 --allowed-tools / --disallowed-tools
+    /// 支持 "Read,Edit,Bash(git:*)" 和 "Read Edit Bash(git:*)" 两种格式
+    /// </summary>
+    private static List<string> ParseToolList(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            return new List<string>();
+
+        // 逗号分隔优先，再尝试空格分隔
+        var parts = raw.Contains(',')
+            ? raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            : raw.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        return parts.Where(p => !string.IsNullOrWhiteSpace(p)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
     }
 
     /// <summary>
@@ -326,6 +378,8 @@ public sealed class ApplicationBuilder
         Cli.TerminalHelper.WriteLine("  -r, --resume <会话ID>   恢复指定会话（按 session-id 或标题关键字模糊匹配）");
         Cli.TerminalHelper.WriteLine("  --permission-mode <模式>  设置权限模式 (default/plan/auto/ask/deny/acceptEdits/bypassPermissions)");
         Cli.TerminalHelper.WriteLine("  --dangerously-skip-permissions  跳过所有权限检查（等价于 --permission-mode bypassPermissions）");
+        Cli.TerminalHelper.WriteLine("  --allowed-tools <工具列表>    工具白名单（逗号分隔，如 'Read,Edit,Bash(git:*)'）");
+        Cli.TerminalHelper.WriteLine("  --disallowed-tools <工具列表> 工具黑名单（逗号分隔，这些工具被禁用）");
         Cli.TerminalHelper.NewLine();
         Cli.TerminalHelper.WriteLine("子命令:");
         Cli.TerminalHelper.WriteLine("  tool                    MCP 工具管理");

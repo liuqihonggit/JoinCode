@@ -272,4 +272,33 @@ public sealed class CommandLineOptionsTests
         options.ContinueSession.Should().BeFalse();
         options.ResumeSessionId.Should().BeNull();
     }
+
+    [Fact]
+    public void CliArgParser_ParseAllowedTools_ShouldSetAllowedTools()
+    {
+        var result = CliArgParser.Parse(new[] { "--allowed-tools", "Read,Edit,Bash(git:*)" });
+
+        result.AllowedTools.Should().Be("Read,Edit,Bash(git:*)");
+        result.HasError.Should().BeFalse();
+    }
+
+    [Fact]
+    public void CliArgParser_ParseDisallowedTools_ShouldSetDisallowedTools()
+    {
+        var result = CliArgParser.Parse(new[] { "--disallowed-tools", "WebFetch Write" });
+
+        result.DisallowedTools.Should().Be("WebFetch Write");
+        result.HasError.Should().BeFalse();
+    }
+
+    [Fact]
+    public void CommandLineOptions_DefaultAllowedTools_ShouldBeEmpty()
+    {
+        var options = new CommandLineOptions();
+
+        options.AllowedTools.Should().NotBeNull();
+        options.AllowedTools.Should().BeEmpty();
+        options.DisallowedTools.Should().NotBeNull();
+        options.DisallowedTools.Should().BeEmpty();
+    }
 }

@@ -99,6 +99,22 @@ public class CommandLineOptions {
     public bool DangerouslySkipPermissions { get; set; }
 
     /// <summary>
+    /// 工具白名单（--allowed-tools 参数，逗号分隔）
+    /// 解析后为工具名列表，仅这些工具允许调用；为空表示不限制
+    /// 对齐 TS: claude --allowed-tools "Bash(git:*) Edit"
+    /// 在 BuildHost 中合并到 PermissionConfig.AutoApprovedTools
+    /// </summary>
+    public List<string> AllowedTools { get; set; } = new();
+
+    /// <summary>
+    /// 工具黑名单（--disallowed-tools 参数，逗号分隔）
+    /// 解析后为工具名列表，这些工具被禁用
+    /// 对齐 TS: claude --disallowed-tools "WebFetch Write"
+    /// 在 BuildHost 中合并到 PermissionConfig.AutoRejectedTools
+    /// </summary>
+    public List<string> DisallowedTools { get; set; } = new();
+
+    /// <summary>
     /// 是否为非交互模式（用户请求 / 无头环境 / CI 环境 / -p 参数）
     /// </summary>
     public bool IsNonInteractiveMode =>

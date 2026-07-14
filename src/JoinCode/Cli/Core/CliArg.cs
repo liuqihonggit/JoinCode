@@ -43,4 +43,10 @@ public enum CliArg
 
     [CliOption("--resume", "-r", "恢复指定会话（按 session-id 或标题关键字）", AcceptsValue = true)]
     Resume,
+
+    [CliOption("--permission-mode", "", "设置权限模式 (default/plan/auto/ask/deny/acceptEdits/bypassPermissions)", AcceptsValue = true)]
+    PermissionMode,
+
+    [CliOption("--dangerously-skip-permissions", "", "跳过所有权限检查（等价于 --permission-mode bypassPermissions，仅在受信任环境使用）")]
+    DangerouslySkipPermissions,
 }

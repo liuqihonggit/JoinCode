@@ -83,6 +83,22 @@ public class CommandLineOptions {
     public string? ResumeSessionId { get; set; }
 
     /// <summary>
+    /// 权限模式字符串（--permission-mode &lt;mode&gt; 参数）
+    /// 值为 default/plan/auto/ask/deny/acceptEdits/bypassPermissions
+    /// 在 ParseArgs 中映射到 JCC_PERMISSION_MODE 环境变量（供 PermissionChecker 读取）
+    /// 对齐 TS: claude --permission-mode &lt;mode&gt;
+    /// </summary>
+    public string? PermissionMode { get; set; }
+
+    /// <summary>
+    /// 跳过所有权限检查（--dangerously-skip-permissions 参数）
+    /// 等价于 --permission-mode bypassPermissions 的快捷方式
+    /// 在 ParseArgs 中映射到 JCC_PERMISSION_MODE=bypassPermissions 环境变量
+    /// 对齐 TS: claude --dangerously-skip-permissions
+    /// </summary>
+    public bool DangerouslySkipPermissions { get; set; }
+
+    /// <summary>
     /// 是否为非交互模式（用户请求 / 无头环境 / CI 环境 / -p 参数）
     /// </summary>
     public bool IsNonInteractiveMode =>

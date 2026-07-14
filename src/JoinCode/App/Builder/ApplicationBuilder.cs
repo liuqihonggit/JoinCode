@@ -215,12 +215,27 @@ public sealed class ApplicationBuilder
             Verbose = result.Verbose,
             ContinueSession = result.Continue,
             ResumeSessionId = result.Resume,
+            PermissionMode = result.PermissionMode,
+            DangerouslySkipPermissions = result.DangerouslySkipPermissions,
         };
 
         // --await N: 超时自动关闭秒数
         if (!string.IsNullOrWhiteSpace(result.Await) && int.TryParse(result.Await, out var awaitSeconds) && awaitSeconds > 0)
         {
             options.AwaitTimeoutSeconds = awaitSeconds;
+        }
+
+        // 视角1 #6 + #9: CLI 参数 → JCC_PERMISSION_MODE 环境变量
+        // 决策: 复用 PermissionChecker.TryGetPermissionModeFromEnv 现有逻辑，不修改 PermissionChecker 构造函数
+        // --dangerously-skip-permissions 等价于 --permission-mode bypassPermissions
+        // 两者同时存在时 --permission-mode 优先（更具体）
+        var permissionModeFromCli = !string.IsNullOrEmpty(options.PermissionMode)
+            ? options.PermissionMode
+            : options.DangerouslySkipPermissions ? "bypassPermissions" : null;
+        if (!string.IsNullOrEmpty(permissionModeFromCli))
+        {
+            Environment.SetEnvironmentVariable(JccEnvVar.PermissionMode.ToValue(), permissionModeFromCli);
+            Diag.WriteLine($"[MAIN] CLI permission-mode={permissionModeFromCli} → JCC_PERMISSION_MODE 环境变量已设置");
         }
 
         if (Cli.TerminalHelper.IsHeadless)
@@ -309,6 +324,8 @@ public sealed class ApplicationBuilder
         Cli.TerminalHelper.WriteLine("  --verbose              启用诊断输出（[WIRE] [STEP] [READY] 等，等效于 JCC_VERBOSE=1）");
         Cli.TerminalHelper.WriteLine("  -c, --continue          继续最近的会话（自动恢复上次会话）");
         Cli.TerminalHelper.WriteLine("  -r, --resume <会话ID>   恢复指定会话（按 session-id 或标题关键字模糊匹配）");
+        Cli.TerminalHelper.WriteLine("  --permission-mode <模式>  设置权限模式 (default/plan/auto/ask/deny/acceptEdits/bypassPermissions)");
+        Cli.TerminalHelper.WriteLine("  --dangerously-skip-permissions  跳过所有权限检查（等价于 --permission-mode bypassPermissions）");
         Cli.TerminalHelper.NewLine();
         Cli.TerminalHelper.WriteLine("子命令:");
         Cli.TerminalHelper.WriteLine("  tool                    MCP 工具管理");

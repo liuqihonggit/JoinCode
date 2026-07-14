@@ -200,4 +200,76 @@ public sealed class CommandLineOptionsTests
         result.Help.Should().BeFalse();
         result.Version.Should().BeFalse();
     }
+
+    [Fact]
+    public void CliArgParser_ParseContinue_ShouldSetContinue()
+    {
+        var result = CliArgParser.Parse(new[] { "--continue" });
+
+        result.Continue.Should().BeTrue();
+        result.HasError.Should().BeFalse();
+    }
+
+    [Fact]
+    public void CliArgParser_ParseShortContinue_ShouldSetContinue()
+    {
+        var result = CliArgParser.Parse(new[] { "-c" });
+
+        result.Continue.Should().BeTrue();
+        result.HasError.Should().BeFalse();
+    }
+
+    [Fact]
+    public void CliArgParser_ParseResume_ShouldSetResume()
+    {
+        var result = CliArgParser.Parse(new[] { "--resume", "session-abc" });
+
+        result.Resume.Should().Be("session-abc");
+        result.HasError.Should().BeFalse();
+    }
+
+    [Fact]
+    public void CliArgParser_ParseShortResume_ShouldSetResume()
+    {
+        var result = CliArgParser.Parse(new[] { "-r", "abc-123" });
+
+        result.Resume.Should().Be("abc-123");
+        result.HasError.Should().BeFalse();
+    }
+
+    [Fact]
+    public void CliArgParser_ParsePermissionMode_ShouldSetPermissionMode()
+    {
+        var result = CliArgParser.Parse(new[] { "--permission-mode", "plan" });
+
+        result.PermissionMode.Should().Be("plan");
+        result.HasError.Should().BeFalse();
+    }
+
+    [Fact]
+    public void CliArgParser_ParseDangerouslySkipPermissions_ShouldSetFlag()
+    {
+        var result = CliArgParser.Parse(new[] { "--dangerously-skip-permissions" });
+
+        result.DangerouslySkipPermissions.Should().BeTrue();
+        result.HasError.Should().BeFalse();
+    }
+
+    [Fact]
+    public void CommandLineOptions_DefaultPermissionMode_ShouldBeNull()
+    {
+        var options = new CommandLineOptions();
+
+        options.PermissionMode.Should().BeNull();
+        options.DangerouslySkipPermissions.Should().BeFalse();
+    }
+
+    [Fact]
+    public void CommandLineOptions_DefaultContinueSession_ShouldBeFalse()
+    {
+        var options = new CommandLineOptions();
+
+        options.ContinueSession.Should().BeFalse();
+        options.ResumeSessionId.Should().BeNull();
+    }
 }

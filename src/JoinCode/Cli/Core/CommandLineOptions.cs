@@ -70,6 +70,67 @@ public class CommandLineOptions {
     public bool Verbose { get; set; }
 
     /// <summary>
+    /// 继续最近的会话（--continue / -c 参数）— 自动选择最近一次会话恢复
+    /// 对齐 TS: claude --continue（自动选择 last conversation）
+    /// </summary>
+    public bool ContinueSession { get; set; }
+
+    /// <summary>
+    /// 恢复指定会话（--resume &lt;session-id&gt; / -r &lt;session-id&gt; 参数）
+    /// 支持完整 sessionId 或自定义标题关键字模糊匹配
+    /// 对齐 TS: claude --resume &lt;session-id&gt;
+    /// </summary>
+    public string? ResumeSessionId { get; set; }
+
+    /// <summary>
+    /// 权限模式字符串（--permission-mode &lt;mode&gt; 参数）
+    /// 值为 default/plan/auto/ask/deny/acceptEdits/bypassPermissions
+    /// 在 ParseArgs 中映射到 JCC_PERMISSION_MODE 环境变量（供 PermissionChecker 读取）
+    /// 对齐 TS: claude --permission-mode &lt;mode&gt;
+    /// </summary>
+    public string? PermissionMode { get; set; }
+
+    /// <summary>
+    /// 跳过所有权限检查（--dangerously-skip-permissions 参数）
+    /// 等价于 --permission-mode bypassPermissions 的快捷方式
+    /// 在 ParseArgs 中映射到 JCC_PERMISSION_MODE=bypassPermissions 环境变量
+    /// 对齐 TS: claude --dangerously-skip-permissions
+    /// </summary>
+    public bool DangerouslySkipPermissions { get; set; }
+
+    /// <summary>
+    /// 工具白名单（--allowed-tools 参数，逗号分隔）
+    /// 解析后为工具名列表，仅这些工具允许调用；为空表示不限制
+    /// 对齐 TS: claude --allowed-tools "Bash(git:*) Edit"
+    /// 在 BuildHost 中合并到 PermissionConfig.AutoApprovedTools
+    /// </summary>
+    public List<string> AllowedTools { get; set; } = new();
+
+    /// <summary>
+    /// 工具黑名单（--disallowed-tools 参数，逗号分隔）
+    /// 解析后为工具名列表，这些工具被禁用
+    /// 对齐 TS: claude --disallowed-tools "WebFetch Write"
+    /// 在 BuildHost 中合并到 PermissionConfig.AutoRejectedTools
+    /// </summary>
+    public List<string> DisallowedTools { get; set; } = new();
+
+    /// <summary>
+    /// 替换系统提示词（--system-prompt &lt;文本&gt; 参数）
+    /// 完全覆盖默认系统提示词（由 ISystemPromptProvider 构建的内容）
+    /// 对齐 TS: claude --system-prompt "..."
+    /// 在 SystemPromptApplyStep 中通过 IChatService.SetSystemPromptAsync 应用
+    /// </summary>
+    public string? SystemPrompt { get; set; }
+
+    /// <summary>
+    /// 追加系统提示词（--append-system-prompt &lt;文本&gt; 参数）
+    /// 在默认/已加载系统提示词之后追加，不覆盖原有内容
+    /// 对齐 TS: claude --append-system-prompt "..."
+    /// 在 SystemPromptApplyStep 中通过 IChatContextManager.AddDynamicSystemMessageAsync 应用
+    /// </summary>
+    public string? AppendSystemPrompt { get; set; }
+
+    /// <summary>
     /// 是否为非交互模式（用户请求 / 无头环境 / CI 环境 / -p 参数）
     /// </summary>
     public bool IsNonInteractiveMode =>

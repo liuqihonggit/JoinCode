@@ -8,8 +8,7 @@ using JoinCode.Abstractions.Pipeline;
 public sealed class RetryMiddleware<TContext> : IMiddleware<TContext>
     where TContext : IRetryContext
 {
-    private static readonly TimeSpan BaseDelay = TimeSpan.FromMilliseconds(200);
-    private static readonly TimeSpan MaxDelay = TimeSpan.FromSeconds(30);
+    private static readonly ExponentialBackoff Backoff = ExponentialBackoff.Default;
 
     public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
@@ -28,16 +27,10 @@ public sealed class RetryMiddleware<TContext> : IMiddleware<TContext>
             {
                 context.RetryCount++;
                 context.LastError = ex;
-                var delay = CalculateDelay(context.RetryCount);
+                var delay = Backoff.CalculateDelay(context.RetryCount);
                 await Task.Delay(delay, ct).ConfigureAwait(false);
             }
         }
-    }
-
-    private static TimeSpan CalculateDelay(int retryCount)
-    {
-        var ms = Math.Min(BaseDelay.TotalMilliseconds * (1 << retryCount), MaxDelay.TotalMilliseconds);
-        return TimeSpan.FromMilliseconds(ms);
     }
 }
 
@@ -48,8 +41,7 @@ public sealed class FixedRetryMiddleware<TContext>(
     int _maxRetries,
     Func<Exception, bool>? _isRetryable = null) : IMiddleware<TContext>
 {
-    private static readonly TimeSpan BaseDelay = TimeSpan.FromMilliseconds(200);
-    private static readonly TimeSpan MaxDelay = TimeSpan.FromSeconds(30);
+    private static readonly ExponentialBackoff Backoff = ExponentialBackoff.Default;
 
     public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
@@ -67,17 +59,11 @@ public sealed class FixedRetryMiddleware<TContext>(
             catch (Exception ex) when (IsRetryable(ex) && retryCount < _maxRetries)
             {
                 retryCount++;
-                var delay = CalculateDelay(retryCount);
+                var delay = Backoff.CalculateDelay(retryCount);
                 await Task.Delay(delay, ct).ConfigureAwait(false);
             }
         }
     }
 
     private bool IsRetryable(Exception ex) => _isRetryable?.Invoke(ex) ?? true;
-
-    private static TimeSpan CalculateDelay(int retryCount)
-    {
-        var ms = Math.Min(BaseDelay.TotalMilliseconds * (1 << retryCount), MaxDelay.TotalMilliseconds);
-        return TimeSpan.FromMilliseconds(ms);
-    }
 }

@@ -291,9 +291,10 @@ public sealed class SshSession : ISshSession
         while (_reconnectAttempts < Config.MaxReconnectAttempts && !ct.IsCancellationRequested)
         {
             _reconnectAttempts++;
-            var delay = Math.Min(
-                Config.ReconnectDelayMs * (1 << Math.Min(_reconnectAttempts - 1, 5)),
-                Config.MaxReconnectDelayMs);
+            var backoff = new ExponentialBackoff(
+                TimeSpan.FromMilliseconds(Config.ReconnectDelayMs),
+                TimeSpan.FromMilliseconds(Config.MaxReconnectDelayMs));
+            var delay = (int)backoff.CalculateDelay(_reconnectAttempts - 1).TotalMilliseconds;
 
             _logger?.LogWarning("SSH 自动重连尝试 {Attempt}/{Max}，等待 {Delay}ms",
                 _reconnectAttempts, Config.MaxReconnectAttempts, delay);

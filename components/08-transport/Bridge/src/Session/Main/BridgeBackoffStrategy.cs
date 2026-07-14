@@ -34,7 +34,7 @@ public sealed class BridgeBackoffStrategy
     /// 处理轮询错误 — 对齐 TS 端指数退避 + 抖动 + 双轨退避
     /// 返回 true 表示可继续重试，false 表示应放弃
     /// </summary>
-    public bool HandleError(Exception ex, Action? onFatalExit = null)
+    public async Task<bool> HandleErrorAsync(Exception ex, Action? onFatalExit = null, CancellationToken ct = default)
     {
         var now = _clock.GetUtcNow();
         var isConnError = IsConnectionError(ex);
@@ -98,7 +98,8 @@ public sealed class BridgeBackoffStrategy
         _logger?.LogWarning(ex, "BridgeBackoff: error #{Count} ({Type}), backing off {BackoffMs}ms",
             errorCount, isConnError ? "conn" : "general", backoffMs);
 
-        Task.Delay(backoffMs).GetAwaiter().GetResult();
+        // P1-5: 改用 Task.Delay 异步等待，消除同步阻塞
+        await Task.Delay(backoffMs, ct).ConfigureAwait(false);
         return true;
     }
 

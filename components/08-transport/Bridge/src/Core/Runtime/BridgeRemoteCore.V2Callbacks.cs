@@ -210,7 +210,7 @@ public static partial class BridgeRemoteCore
             {
                 state.LastTransportSequenceNum = seq;
             }
-            try { pollLoop.CurrentTransport.Close(); } catch (Exception ex) { /* 忽略 */ System.Diagnostics.Trace.WriteLine($"[BridgeRemoteCore] Close transport during reconnect failed: {ex.Message}"); }
+            try { await pollLoop.CurrentTransport.CloseAsync().ConfigureAwait(false); } catch (Exception ex) { /* 忽略 */ System.Diagnostics.Trace.WriteLine($"[BridgeRemoteCore] Close transport during reconnect failed: {ex.Message}"); }
             _ = pollLoop.CurrentTransport.DisposeAsync();
             pollLoop.ClearTransport();
         }

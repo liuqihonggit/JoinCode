@@ -92,8 +92,11 @@ public sealed partial class PipeQueryService : IQueryService
 
     private HttpClient CreatePipeHttpClient(PipeTransportConfig config, string? apiKey)
     {
+        // P1-13: 添加 PooledConnectionLifetime 解决 DNS 不刷新（保留自定义 ConnectCallback 用于管道协议）
+        // 决策: 管道通信必须自定义 ConnectCallback（NamedPipeClientStream），不能用 IHttpClientProvider 替代
         var handler = new SocketsHttpHandler
         {
+            PooledConnectionLifetime = TimeSpan.FromMinutes(1),
             ConnectCallback = async (context, cancellationToken) =>
             {
                 var pipeClient = new NamedPipeClientStream(

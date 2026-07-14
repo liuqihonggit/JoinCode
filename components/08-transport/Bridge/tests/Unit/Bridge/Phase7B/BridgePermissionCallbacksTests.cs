@@ -122,6 +122,7 @@ public sealed class BridgePermissionCallbacksTests
         }
 
         public void Close() { }
+        public Task CloseAsync(CancellationToken ct = default) => Task.CompletedTask;
         public string GetStateLabel() => "mock";
         public bool IsConnectedStatus() => true;
         public void SetOnData(Action<string> callback) { }

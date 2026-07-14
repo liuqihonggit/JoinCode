@@ -41,11 +41,9 @@ public static partial class ServiceRegistration
         {
             services.AddSingleton<IFileSystem>(sp =>
             {
-                if (System.Environment.GetEnvironmentVariable("JCC_DI_TRACE") == "1")
-                    System.Console.Error.WriteLine("[DI] + IFileSystem (InMemory)");
+                Diag.WriteDiTrace("[DI] + IFileSystem (InMemory)");
                 var svc = new InMemoryFileSystem();
-                if (System.Environment.GetEnvironmentVariable("JCC_DI_TRACE") == "1")
-                    System.Console.Error.WriteLine("[DI] - IFileSystem (InMemory)");
+                Diag.WriteDiTrace("[DI] - IFileSystem (InMemory)");
                 return svc;
             });
         }
@@ -54,11 +52,9 @@ public static partial class ServiceRegistration
             // 默认 Physical — 覆盖 [Register] 自动注册的转发，直接解析 PhysicalFileSystem
             services.AddSingleton<IFileSystem>(sp =>
             {
-                if (System.Environment.GetEnvironmentVariable("JCC_DI_TRACE") == "1")
-                    System.Console.Error.WriteLine("[DI] + IFileSystem (Physical)");
+                Diag.WriteDiTrace("[DI] + IFileSystem (Physical)");
                 var svc = sp.GetRequiredService<PhysicalFileSystem>();
-                if (System.Environment.GetEnvironmentVariable("JCC_DI_TRACE") == "1")
-                    System.Console.Error.WriteLine("[DI] - IFileSystem (Physical)");
+                Diag.WriteDiTrace("[DI] - IFileSystem (Physical)");
                 return svc;
             });
         }
@@ -127,11 +123,9 @@ public static partial class ServiceRegistration
         {
             services.AddSingleton<IHttpClientProvider>(sp =>
             {
-                if (System.Environment.GetEnvironmentVariable("JCC_DI_TRACE") == "1")
-                    System.Console.Error.WriteLine("[DI] + IHttpClientProvider (Mock)");
+                Diag.WriteDiTrace("[DI] + IHttpClientProvider (Mock)");
                 var svc = new Infrastructure.Http.MockHttpClientProvider();
-                if (System.Environment.GetEnvironmentVariable("JCC_DI_TRACE") == "1")
-                    System.Console.Error.WriteLine("[DI] - IHttpClientProvider (Mock)");
+                Diag.WriteDiTrace("[DI] - IHttpClientProvider (Mock)");
                 return svc;
             });
         }
@@ -140,11 +134,9 @@ public static partial class ServiceRegistration
             // 默认 Real — 覆盖 [Register] 自动注册，直接创建 DefaultHttpClientProvider
             services.AddSingleton<IHttpClientProvider>(sp =>
             {
-                if (System.Environment.GetEnvironmentVariable("JCC_DI_TRACE") == "1")
-                    System.Console.Error.WriteLine("[DI] + IHttpClientProvider (Real)");
+                Diag.WriteDiTrace("[DI] + IHttpClientProvider (Real)");
                 var svc = sp.GetRequiredService<Infrastructure.Http.DefaultHttpClientProvider>();
-                if (System.Environment.GetEnvironmentVariable("JCC_DI_TRACE") == "1")
-                    System.Console.Error.WriteLine("[DI] - IHttpClientProvider (Real)");
+                Diag.WriteDiTrace("[DI] - IHttpClientProvider (Real)");
                 return svc;
             });
         }
@@ -156,11 +148,9 @@ public static partial class ServiceRegistration
         {
             services.AddSingleton<INotificationService>(sp =>
             {
-                if (System.Environment.GetEnvironmentVariable("JCC_DI_TRACE") == "1")
-                    System.Console.Error.WriteLine("[DI] + INotificationService (Console)");
+                Diag.WriteDiTrace("[DI] + INotificationService (Console)");
                 var svc = new ConsoleNotificationService();
-                if (System.Environment.GetEnvironmentVariable("JCC_DI_TRACE") == "1")
-                    System.Console.Error.WriteLine("[DI] - INotificationService (Console)");
+                Diag.WriteDiTrace("[DI] - INotificationService (Console)");
                 return svc;
             });
         }
@@ -173,11 +163,9 @@ public static partial class ServiceRegistration
             // NoOp — 覆盖 [Register] 自动注册的 Puppeteer 实现
             services.AddSingleton<IBrowserAutomationService>(sp =>
             {
-                if (System.Environment.GetEnvironmentVariable("JCC_DI_TRACE") == "1")
-                    System.Console.Error.WriteLine("[DI] + IBrowserAutomationService (NoOp)");
+                Diag.WriteDiTrace("[DI] + IBrowserAutomationService (NoOp)");
                 var svc = new NoOpBrowserAutomationService();
-                if (System.Environment.GetEnvironmentVariable("JCC_DI_TRACE") == "1")
-                    System.Console.Error.WriteLine("[DI] - IBrowserAutomationService (NoOp)");
+                Diag.WriteDiTrace("[DI] - IBrowserAutomationService (NoOp)");
                 return svc;
             });
         }
@@ -189,11 +177,9 @@ public static partial class ServiceRegistration
         {
             services.AddSingleton<ITaskService>(sp =>
             {
-                if (System.Environment.GetEnvironmentVariable("JCC_DI_TRACE") == "1")
-                    System.Console.Error.WriteLine("[DI] + ITaskService (Memory)");
+                Diag.WriteDiTrace("[DI] + ITaskService (Memory)");
                 var svc = sp.GetRequiredService<TaskService>();
-                if (System.Environment.GetEnvironmentVariable("JCC_DI_TRACE") == "1")
-                    System.Console.Error.WriteLine("[DI] - ITaskService (Memory)");
+                Diag.WriteDiTrace("[DI] - ITaskService (Memory)");
                 return svc;
             });
         }
@@ -206,11 +192,9 @@ public static partial class ServiceRegistration
         {
             services.AddSingleton<IClockService>(sp =>
             {
-                if (System.Environment.GetEnvironmentVariable("JCC_DI_TRACE") == "1")
-                    System.Console.Error.WriteLine("[DI] + IClockService (Fake)");
+                Diag.WriteDiTrace("[DI] + IClockService (Fake)");
                 var svc = new Infrastructure.Time.FakeClockService();
-                if (System.Environment.GetEnvironmentVariable("JCC_DI_TRACE") == "1")
-                    System.Console.Error.WriteLine("[DI] - IClockService (Fake)");
+                Diag.WriteDiTrace("[DI] - IClockService (Fake)");
                 return svc;
             });
         }
@@ -218,11 +202,9 @@ public static partial class ServiceRegistration
         {
             services.AddSingleton<IClockService>(sp =>
             {
-                if (System.Environment.GetEnvironmentVariable("JCC_DI_TRACE") == "1")
-                    System.Console.Error.WriteLine("[DI] + IClockService (Physical)");
+                Diag.WriteDiTrace("[DI] + IClockService (Physical)");
                 var svc = sp.GetRequiredService<Infrastructure.Time.PhysicalClockService>();
-                if (System.Environment.GetEnvironmentVariable("JCC_DI_TRACE") == "1")
-                    System.Console.Error.WriteLine("[DI] - IClockService (Physical)");
+                Diag.WriteDiTrace("[DI] - IClockService (Physical)");
                 return svc;
             });
         }
@@ -234,11 +216,9 @@ public static partial class ServiceRegistration
         {
             services.AddSingleton<IProcessService>(sp =>
             {
-                if (System.Environment.GetEnvironmentVariable("JCC_DI_TRACE") == "1")
-                    System.Console.Error.WriteLine("[DI] + IProcessService (NoOp)");
+                Diag.WriteDiTrace("[DI] + IProcessService (NoOp)");
                 var svc = new IO.ProcessService.NoOpProcessService();
-                if (System.Environment.GetEnvironmentVariable("JCC_DI_TRACE") == "1")
-                    System.Console.Error.WriteLine("[DI] - IProcessService (NoOp)");
+                Diag.WriteDiTrace("[DI] - IProcessService (NoOp)");
                 return svc;
             });
         }
@@ -246,12 +226,10 @@ public static partial class ServiceRegistration
         {
             services.AddSingleton<IProcessService>(sp =>
             {
-                if (System.Environment.GetEnvironmentVariable("JCC_DI_TRACE") == "1")
-                    System.Console.Error.WriteLine("[DI] + IProcessService (Physical)");
+                Diag.WriteDiTrace("[DI] + IProcessService (Physical)");
                 var logger = sp.GetService<ILogger<IO.ProcessService.PhysicalProcessService>>();
                 var svc = new IO.ProcessService.PhysicalProcessService(logger);
-                if (System.Environment.GetEnvironmentVariable("JCC_DI_TRACE") == "1")
-                    System.Console.Error.WriteLine("[DI] - IProcessService (Physical)");
+                Diag.WriteDiTrace("[DI] - IProcessService (Physical)");
                 return svc;
             });
         }
@@ -264,11 +242,9 @@ public static partial class ServiceRegistration
         {
             services.AddSingleton<IConsoleOutput>(sp =>
             {
-                if (System.Environment.GetEnvironmentVariable("JCC_DI_TRACE") == "1")
-                    System.Console.Error.WriteLine("[DI] + IConsoleOutput (NoOp)");
+                Diag.WriteDiTrace("[DI] + IConsoleOutput (NoOp)");
                 var svc = new Infrastructure.IO.NoOpConsoleOutput();
-                if (System.Environment.GetEnvironmentVariable("JCC_DI_TRACE") == "1")
-                    System.Console.Error.WriteLine("[DI] - IConsoleOutput (NoOp)");
+                Diag.WriteDiTrace("[DI] - IConsoleOutput (NoOp)");
                 return svc;
             });
         }
@@ -276,11 +252,9 @@ public static partial class ServiceRegistration
         {
             services.AddSingleton<IConsoleOutput>(sp =>
             {
-                if (System.Environment.GetEnvironmentVariable("JCC_DI_TRACE") == "1")
-                    System.Console.Error.WriteLine("[DI] + IConsoleOutput (Physical)");
+                Diag.WriteDiTrace("[DI] + IConsoleOutput (Physical)");
                 var svc = sp.GetRequiredService<Infrastructure.IO.PhysicalConsoleOutput>();
-                if (System.Environment.GetEnvironmentVariable("JCC_DI_TRACE") == "1")
-                    System.Console.Error.WriteLine("[DI] - IConsoleOutput (Physical)");
+                Diag.WriteDiTrace("[DI] - IConsoleOutput (Physical)");
                 return svc;
             });
         }

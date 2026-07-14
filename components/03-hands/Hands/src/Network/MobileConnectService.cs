@@ -3,7 +3,7 @@ using JoinCode.Abstractions.Attributes;
 namespace IO.Services;
 
 [Register]
-public sealed partial class MobileConnectService : IMobileConnectService
+public sealed partial class MobileConnectService : IMobileConnectService, IDisposable
 {
     private System.Net.Sockets.TcpListener? _tcpListener;
     [Inject] private readonly ILogger<MobileConnectService>? _logger;
@@ -88,6 +88,12 @@ public sealed partial class MobileConnectService : IMobileConnectService
             {
                 break;
             }
+            // P1-10: 兜底捕获所有未预期异常，避免 fire-and-forget 触发 UnobservedTaskException
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "移动端连接服务 AcceptLoop 未预期异常");
+                break;
+            }
         }
     }
 
@@ -121,5 +127,14 @@ public sealed partial class MobileConnectService : IMobileConnectService
         var port = ((System.Net.IPEndPoint)listener.LocalEndpoint).Port;
         listener.Stop();
         return port;
+    }
+
+    /// <summary>释放移动端连接服务资源 — P1-10: 补全 IDisposable 避免资源累积</summary>
+    public void Dispose()
+    {
+        StopConnectServer();
+        _cts?.Dispose();
+        _cts = null;
+        _tcpListener = null;
     }
 }

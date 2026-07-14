@@ -1091,7 +1091,9 @@ public sealed partial class BridgeMain : IAsyncDisposable
             catch (Exception ex)
             {
                 // 连接错误: 指数退避 — 对齐 TS 端
-                var shouldContinue = _backoff.HandleError(ex, onFatalExit: () => _fatalExit = true);
+                // P1-5: 改用异步等待，消除同步阻塞
+                var shouldContinue = await _backoff.HandleErrorAsync(
+                    ex, onFatalExit: () => _fatalExit = true, ct).ConfigureAwait(false);
                 if (!shouldContinue)
                 {
                     _logger?.LogError(ex, "BridgeMain: giving up after too many errors");

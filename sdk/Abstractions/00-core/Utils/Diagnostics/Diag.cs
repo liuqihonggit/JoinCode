@@ -14,6 +14,12 @@ public static class Diag
     private static readonly bool _envEnabled = IsTruthy(Environment.GetEnvironmentVariable(JccEnvVar.Verbose.ToValue()));
 
     /// <summary>
+    /// DI 注册跟踪标志 — 从 JCC_DI_TRACE 读取一次（不可变）
+    /// 独立于 IsVerbose，专门控制 [DI] +xxx/-xxx 注册日志（避免 verbose 模式被 DI 日志淹没）
+    /// </summary>
+    private static readonly bool _diTraceEnabled = Environment.GetEnvironmentVariable(JccEnvVar.DiTrace.ToValue()) == "1";
+
+    /// <summary>
     /// 运行时 verbose 覆盖标志 — 由 --verbose CLI 参数通过 EnableVerbose() 设置
     /// 决策: 使用可空 bool? 区分"未设置"与"显式禁用"，当前仅支持启用（true）
     /// </summary>
@@ -61,6 +67,17 @@ public static class Diag
     public static void WriteLine(FormattableString message)
     {
         if (!IsVerbose) return;
+        Console.Error.WriteLine(message);
+    }
+
+    /// <summary>
+    /// 输出 DI 注册跟踪日志 — 仅在 JCC_DI_TRACE=1 时输出
+    /// 独立于 IsVerbose，专门用于 [DI] +xxx/-xxx 注册日志
+    /// 用法: Diag.WriteDiTrace("[DI] + IFileSystem (Physical)");
+    /// </summary>
+    public static void WriteDiTrace(string message)
+    {
+        if (!_diTraceEnabled) return;
         Console.Error.WriteLine(message);
     }
 

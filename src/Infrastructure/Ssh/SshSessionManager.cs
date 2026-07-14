@@ -17,7 +17,7 @@ public sealed partial class SshSessionManager : ISshSessionManager
         SshSessionConfig config,
         CancellationToken ct = default)
     {
-        ObjectDisposedException.ThrowIf(_isDisposed != 0, this);
+        DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
 
         ArgumentNullException.ThrowIfNull(config);
 
@@ -56,7 +56,7 @@ public sealed partial class SshSessionManager : ISshSessionManager
         string sessionId,
         CancellationToken ct = default)
     {
-        ObjectDisposedException.ThrowIf(_isDisposed != 0, this);
+        DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
 
         await _stateLock.WaitAsync(ct).ConfigureAwait(false);
         try
@@ -91,7 +91,7 @@ public sealed partial class SshSessionManager : ISshSessionManager
 
     public async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _isDisposed, 1) != 0)
+        if (!DisposableHelper.TryMarkDisposed(ref _isDisposed))
         {
             return;
         }

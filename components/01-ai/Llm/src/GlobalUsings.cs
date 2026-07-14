@@ -14,6 +14,7 @@ global using JoinCode.Abstractions.LLM.Chat;
 global using JoinCode.Abstractions.LLM.Execution;
 global using JoinCode.Abstractions.Models;
 global using JoinCode.Abstractions.Pipeline;
+global using JoinCode.Abstractions.Schema;
 global using JoinCode.Abstractions.Prompts.ToolPrompts;
 global using JoinCode.Abstractions.Tools;
 global using JoinCode.Abstractions.Utils;

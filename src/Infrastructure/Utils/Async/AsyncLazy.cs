@@ -21,7 +21,7 @@ public sealed class AsyncLazy<T> : IAsyncLazy<T>
 
     public async ValueTask<T> GetValueAsync(CancellationToken ct = default)
     {
-        ObjectDisposedException.ThrowIf(_isDisposed == 1, typeof(AsyncLazy<T>));
+        DisposableHelper.ThrowIfDisposed(ref _isDisposed, typeof(AsyncLazy<T>));
 
         var task = Volatile.Read(ref _task);
         if (task is not null)
@@ -52,7 +52,7 @@ public sealed class AsyncLazy<T> : IAsyncLazy<T>
 
     public async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _isDisposed, 1) == 1)
+        if (!DisposableHelper.TryMarkDisposed(ref _isDisposed))
         {
             return;
         }

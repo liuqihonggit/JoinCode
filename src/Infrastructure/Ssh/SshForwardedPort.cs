@@ -34,7 +34,7 @@ public sealed class SshForwardedPort : ISshForwardedPort
 
     public Task StartAsync(CancellationToken ct = default)
     {
-        ObjectDisposedException.ThrowIf(_isDisposed != 0, this);
+        DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
 
         var forwardArg = ForwardType switch
         {
@@ -85,7 +85,7 @@ public sealed class SshForwardedPort : ISshForwardedPort
 
     public Task StopAsync(CancellationToken ct = default)
     {
-        ObjectDisposedException.ThrowIf(_isDisposed != 0, this);
+        DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
 
         if (_forwardProcess != null && !_forwardProcess.HasExited)
         {
@@ -103,7 +103,7 @@ public sealed class SshForwardedPort : ISshForwardedPort
 
     public async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _isDisposed, 1) != 0)
+        if (!DisposableHelper.TryMarkDisposed(ref _isDisposed))
         {
             return;
         }

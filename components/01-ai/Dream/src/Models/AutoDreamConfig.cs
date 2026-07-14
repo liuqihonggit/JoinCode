@@ -44,6 +44,10 @@ public sealed class AutoDreamConfig
 /// <summary>
 /// 门控检查结果
 /// </summary>
+/// <summary>
+/// 门控检查结果 — 使用通用 ValidationResult
+/// </summary>
+[Obsolete("Use ValidationResult instead")]
 public readonly record struct GateCheckResult(bool Passed, string Reason);
 
 /// <summary>

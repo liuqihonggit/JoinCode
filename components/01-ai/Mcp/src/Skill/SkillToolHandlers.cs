@@ -49,7 +49,7 @@ public class SkillToolHandlers
         var validation = ValidateSkillInvocation(skillName, skillDef);
         if (!validation.IsValid)
         {
-            return McpResultBuilder.Error().WithText(validation.ErrorMessage!).Build();
+            return McpResultBuilder.Error().WithText(validation.Message!).Build();
         }
 
         // fork 模式 — 对齐 TS SkillTool.executeForkedSkill
@@ -447,38 +447,19 @@ public class SkillToolHandlers
     /// 验证技能调用权限 — 对齐 TS SkillTool.validateInput + checkPermissions
     /// 检查顺序: disableModelInvocation → 安全属性白名单
     /// </summary>
-    private static SkillValidationResult ValidateSkillInvocation(string skillName, SkillDefinition? skillDef)
+    private static ValidationResult ValidateSkillInvocation(string skillName, SkillDefinition? skillDef)
     {
-        // 技能定义不存在 — 允许继续（后续 SkillExists 已检查）
         if (skillDef is null)
         {
-            return SkillValidationResult.Valid();
+            return ValidationResult.Valid();
         }
 
-        // 对齐 TS SkillTool.validateInput: disableModelInvocation 检查
-        // 标记为 true 的技能禁止模型自动调用
         if (skillDef.DisableModelInvocation)
         {
-            return SkillValidationResult.Invalid(
+            return ValidationResult.Invalid(
                 $"Skill '{skillName}' cannot be used with the skill tool due to disable-model-invocation flag");
         }
 
-        // 安全属性检查 — 对齐 TS skillHasOnlySafeProperties
-        // 仅含安全属性的技能可自动放行，含危险属性的需要额外权限
-        // 当前实现：AllowedTools/Permissions/Dependencies 非空时标记为需权限审查
-        // 实际权限拦截由 Guard 子系统的 PermissionHook 处理
-        return SkillValidationResult.Valid();
+        return ValidationResult.Valid();
     }
-}
-
-/// <summary>
-/// 技能验证结果
-/// </summary>
-internal sealed class SkillValidationResult
-{
-    public bool IsValid { get; init; }
-    public string? ErrorMessage { get; init; }
-
-    public static SkillValidationResult Valid() => new() { IsValid = true };
-    public static SkillValidationResult Invalid(string errorMessage) => new() { IsValid = false, ErrorMessage = errorMessage };
 }

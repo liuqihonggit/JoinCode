@@ -1,6 +1,6 @@
 namespace Core.Agents.Coordinator;
 
-public sealed class AgentSpawnCoordContext : IPipelineContext
+public sealed class AgentSpawnCoordContext : PipelineContextBase
 {
     public required string Task { get; init; }
     public SubAgentOptions? Options { get; init; }
@@ -16,8 +16,4 @@ public sealed class AgentSpawnCoordContext : IPipelineContext
     public bool PermissionRoutingEnsured { get; set; }
     public bool PlanApprovalRoutingStarted { get; set; }
     public bool TeammatePaneCreated { get; set; }
-
-    public bool Failed { get; set; }
-    public string? ErrorMessage { get; set; }
-    public void Fail(string message) { Failed = true; ErrorMessage = message; }
 }

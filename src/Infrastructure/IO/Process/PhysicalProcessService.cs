@@ -53,8 +53,7 @@ public sealed class PhysicalProcessService : IProcessService
 
         if (options.TimeoutMs is > 0)
         {
-            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            cts.CancelAfter(options.TimeoutMs.Value);
+            using var cts = TimeoutHelper.CreateLinkedTimeout(ct, TimeSpan.FromMilliseconds(options.TimeoutMs.Value));
             try
             {
                 await process.WaitForExitAsync(cts.Token).ConfigureAwait(false);

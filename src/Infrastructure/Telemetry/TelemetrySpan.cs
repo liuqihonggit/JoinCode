@@ -18,7 +18,7 @@ public sealed class TelemetrySpan : ITelemetrySpan, IDisposable
     public TelemetrySpanKind Kind => _kind;
     public TelemetryStatusCode Status { get; private set; } = TelemetryStatusCode.Unset;
     public string? StatusDescription { get; private set; }
-    public bool IsRecording => _isDisposed == 0 && _activity.IsAllDataRequested;
+    public bool IsRecording => !DisposableHelper.IsDisposed(ref _isDisposed) && _activity.IsAllDataRequested;
 
     internal TelemetrySpan(Activity activity, TelemetrySpanKind kind, TelemetryService service)
     {
@@ -108,7 +108,7 @@ public sealed class TelemetrySpan : ITelemetrySpan, IDisposable
 
     public void Dispose()
     {
-        if (Interlocked.Exchange(ref _isDisposed, 1) != 0)
+        if (!DisposableHelper.TryMarkDisposed(ref _isDisposed))
         {
             return;
         }
@@ -119,7 +119,7 @@ public sealed class TelemetrySpan : ITelemetrySpan, IDisposable
 
     public async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _isDisposed, 1) != 0)
+        if (!DisposableHelper.TryMarkDisposed(ref _isDisposed))
         {
             return;
         }

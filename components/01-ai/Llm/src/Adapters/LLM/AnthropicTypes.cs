@@ -178,29 +178,15 @@ internal sealed class AnthropicToolDefinition
     public List<string>? BlockedDomains { get; set; }
 }
 
-internal sealed class AnthropicInputSchema
+internal sealed class AnthropicInputSchema : InputSchemaBase
 {
-    [JsonPropertyName("type")]
-    public string Type { get; set; } = "object";
-
     [JsonPropertyName("properties")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public Dictionary<string, AnthropicSchemaProperty>? Properties { get; set; }
-
-    [JsonPropertyName("required")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public List<string>? Required { get; set; }
 }
 
-internal sealed class AnthropicSchemaProperty
+internal sealed class AnthropicSchemaProperty : SchemaProperty
 {
-    [JsonPropertyName("type")]
-    public string Type { get; set; } = "string";
-
-    [JsonPropertyName("description")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? Description { get; set; }
-
     [JsonPropertyName("enum")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public List<string>? Enum { get; set; }

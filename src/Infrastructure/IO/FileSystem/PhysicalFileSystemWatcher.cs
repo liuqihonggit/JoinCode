@@ -121,8 +121,7 @@ public sealed class PhysicalFileSystemWatcher : IFileSystemWatcher
 
     public void Dispose()
     {
-        if (_disposed) return;
-        _disposed = true;
+        if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
 
         _inner.Changed -= OnChanged;
         _inner.Created -= OnCreated;

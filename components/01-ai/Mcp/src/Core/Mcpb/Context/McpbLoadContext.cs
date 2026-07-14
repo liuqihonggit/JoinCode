@@ -3,7 +3,7 @@ namespace McpClient.Mcpb;
 /// <summary>
 /// MCPB 加载管道共享上下文 — 在中间件各阶段间传递状态
 /// </summary>
-public sealed class McpbLoadContext : IPipelineContext
+public sealed class McpbLoadContext : PipelineContextBase
 {
     // === 输入 ===
 
@@ -52,10 +52,4 @@ public sealed class McpbLoadContext : IPipelineContext
 
     /// <summary>最终加载结果</summary>
     public McpbLoadResult? Result { get; set; }
-
-    // === IPipelineContext ===
-
-    public bool Failed { get; set; }
-    public string? ErrorMessage { get; set; }
-    public void Fail(string message) { Failed = true; ErrorMessage = message; }
 }

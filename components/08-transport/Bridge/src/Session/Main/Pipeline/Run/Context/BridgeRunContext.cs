@@ -1,6 +1,6 @@
 namespace Core.Bridge;
 
-public sealed class BridgeRunContext : IPipelineContext
+public sealed class BridgeRunContext : PipelineContextBase
 {
     public required BridgeMainArgs Args { get; init; }
     public CancellationToken CancellationToken { get; init; }
@@ -17,8 +17,4 @@ public sealed class BridgeRunContext : IPipelineContext
     public BridgeConfig? Config { get; set; }
     public string? InitialSessionId { get; set; }
     public BridgeTokenRefreshScheduler? TokenRefreshScheduler { get; set; }
-
-    public bool Failed { get; set; }
-    public string? ErrorMessage { get; set; }
-    public void Fail(string message) { Failed = true; ErrorMessage = message; }
 }

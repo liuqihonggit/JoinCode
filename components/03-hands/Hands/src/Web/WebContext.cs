@@ -3,14 +3,8 @@ namespace Services.Web;
 /// <summary>
 /// Web获取中间件共享上下文 — 在管道各阶段间传递状态
 /// </summary>
-public sealed class WebContext : IMetricsContext
+public sealed class WebContext : PipelineContextBase, IMetricsContext
 {
-    // === IPipelineContext ===
-
-    public bool Failed { get; set; }
-    public string? ErrorMessage { get; set; }
-    public void Fail(string message) { Failed = true; ErrorMessage = message; }
-
     // === IMetricsContext ===
 
     public string MetricsPrefix => "web.operation";

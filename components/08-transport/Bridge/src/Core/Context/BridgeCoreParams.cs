@@ -80,7 +80,7 @@ public sealed class BridgeCoreParams
     public Action<int?>? OnSetMaxThinkingTokens { get; init; }
 
     /// <summary>设置权限模式回调</summary>
-    public Func<string, PermissionModeResult>? OnSetPermissionMode { get; init; }
+    public Func<string, OperationResult>? OnSetPermissionMode { get; init; }
 
     /// <summary>状态变更回调</summary>
     public Action<BridgeState, string?>? OnStateChange { get; init; }
@@ -152,7 +152,7 @@ public sealed class BridgeEnvLessParams
     public Action<int?>? OnSetMaxThinkingTokens { get; init; }
 
     /// <summary>设置权限模式回调</summary>
-    public Func<string, PermissionModeResult>? OnSetPermissionMode { get; init; }
+    public Func<string, OperationResult>? OnSetPermissionMode { get; init; }
 
     /// <summary>状态变更回调 — 对齐 TS 端 onStateChange(state, detail?)</summary>
     public Action<BridgeState, string?>? OnStateChange { get; init; }

@@ -215,6 +215,11 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
                     return exitOutput;
                 }
                 var exitError = await CaptureStderrAsync().ConfigureAwait(true);
+                if (exitError.Contains("[DONE]", StringComparison.Ordinal))
+                {
+                    _logger.LogInformation("[DualRoleRunner] jcc.exe 进程已退出，stderr含[DONE]，视为成功");
+                    return string.Empty;
+                }
                 _logger.LogError("[DualRoleRunner] jcc.exe 进程已退出且无输出，stderr={Stderr}", exitError);
                 throw new InvalidOperationException($"jcc.exe 进程已退出且无输出, stderr={exitError}");
             }
@@ -258,6 +263,11 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
                 return exitOutput;
             }
             var exitError = await CaptureStderrAsync().ConfigureAwait(true);
+            if (exitError.Contains("[DONE]", StringComparison.Ordinal))
+            {
+                _logger.LogInformation("[DualRoleRunner] jcc.exe 进程已退出（超时后），stderr含[DONE]，视为成功");
+                return string.Empty;
+            }
             throw new InvalidOperationException($"jcc.exe 进程已退出且无输出, stderr={exitError}");
         }
 

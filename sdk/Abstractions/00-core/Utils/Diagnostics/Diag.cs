@@ -38,6 +38,7 @@ public static class Diag
     public static void WriteLifecycle(string message)
     {
         Console.Error.WriteLine(message);
+        Console.Error.Flush();
     }
 
     /// <summary>

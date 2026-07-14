@@ -1,6 +1,4 @@
 
-using ValidationResult = System.ComponentModel.DataAnnotations.ValidationResult;
-
 namespace Core.Tests.Configuration;
 
 public class WorkflowConfigTests {

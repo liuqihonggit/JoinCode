@@ -23,9 +23,11 @@ public sealed class JudgeAgent : ReasoningAgentBase
         var action = new AgentAction { AgentRole = Role, ActionType = "裁决" };
         var opts = context.Options;
 
-        var pending = context.AllItems
+        var pending = context.GetVisibleItemsForRole(Role)
             .Where(x => x.State is DataState.Verified or DataState.Assumption)
             .ToList();
+
+        var visibleEvidence = context.GetVisibleEvidenceForRole(Role);
 
         foreach (var item in pending)
         {
@@ -39,11 +41,11 @@ public sealed class JudgeAgent : ReasoningAgentBase
                 .Select(e => e.FromId)
                 .ToHashSet();
 
-            var prosEvidence = context.AllEvidence
+            var prosEvidence = visibleEvidence
                 .Where(e => e.SubmittedBy == AgentRole.Prosecutor && supportingEdgeIds.Contains(e.Id))
                 .ToList();
 
-            var defEvidence = context.AllEvidence
+            var defEvidence = visibleEvidence
                 .Where(e => e.SubmittedBy == AgentRole.Defender && refutingEdgeIds.Contains(e.Id))
                 .ToList();
 
@@ -59,11 +61,13 @@ public sealed class JudgeAgent : ReasoningAgentBase
             var itemsText = string.Join("\n", pending.Select((x, i) =>
                 $"{i + 1}. [{x.State}] {x.Content} (置信度:{x.Confidence}%)"));
 
-            var prosCount = context.AllEvidence.Count(e => e.SubmittedBy == AgentRole.Prosecutor);
-            var defCount = context.AllEvidence.Count(e => e.SubmittedBy == AgentRole.Defender);
+            var prosCount = visibleEvidence.Count(e => e.SubmittedBy == AgentRole.Prosecutor);
+            var defCount = visibleEvidence.Count(e => e.SubmittedBy == AgentRole.Defender);
             var userPrompt = $"请对以下假定做出裁决：\n{itemsText}\n\n当前证据概况：控方{prosCount}条，辩方{defCount}条";
 
-            var (llmResponse, usage) = await CallLlmAsync(userPrompt, temperature: context.Options.JudgeTemperature, maxTokens: context.Options.DefaultLlmMaxTokens, ct: ct).ConfigureAwait(false);
+            userPrompt = await CompressPromptIfNeededAsync(context, Role, userPrompt, ct);
+
+            var (llmResponse, usage, promptTokens) = await CallLlmAsync(userPrompt, temperature: context.Options.JudgeTemperature, maxTokens: context.Options.DefaultLlmMaxTokens, ct: ct).ConfigureAwait(false);
             if (llmResponse is not null)
             {
                 foreach (var v in ParseVerdictsFromLlmResponse(llmResponse, pending))
@@ -78,7 +82,11 @@ public sealed class JudgeAgent : ReasoningAgentBase
 
             if (usage is not null)
             {
-                action.TokensUsed = usage.TotalTokens;
+                action.TokensUsed = usage.TotalTokens + promptTokens;
+            }
+            else
+            {
+                action.TokensUsed = promptTokens;
             }
 
             await BroadcastAsync("verdict_issued",

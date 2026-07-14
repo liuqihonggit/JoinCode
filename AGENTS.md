@@ -130,7 +130,7 @@
 | HEREDOC 禁令 | PowerShell 不支持，用多个 `-m` 参数替代 |
 | 特殊字符禁令 | commit 消息禁止 `$`、反引号、三引号 |
 | ⚠️ 源码生成器 + 增量编译 | `dotnet build` 默认增量编译，会缓存生成器输出。**新增/修改 `[Register]` 类后必须用 `--no-incremental` 全量重建**，否则生成器不会重新扫描新类型 |
-| PR 两段式验证 | PR 通过 CI 后自动合并到 main → main 自动触发自身 CI 实现二次验证。创建 PR 时必须启用 auto-merge（squash 方式） |
+| PR 两段式验证 | PR 通过 CI 后自动合并到 main → main 自动触发自身 CI 实现二次验证。创建 PR 时必须启用 auto-merge（squash 方式）。PR 目标分支统一为 main，无 dev 中间层 |
 | gh 工具优先 | 操作 PR/Issue/Release 等 GitHub 资源时，优先使用 `gh` CLI，而非 PowerShell 脚本或手动操作 |
 
 **Git commit 消息格式**：
@@ -473,39 +473,38 @@ $psi.WorkingDirectory = "{项目根目录}"
   - `git reset --hard` 直接将 main 指向开发分支最新提交，干净无冲突
   - 之后 `git push --force-with-lease origin main` 推送
   
-- **分支工作流**：开发分支（w1/w2/w3...）→ dev → main 三阶段流水线
+- **分支工作流**：任务分支（w1/w2/w3...）→ main 两阶段流水线
 
-  - 开发分支同步 main：`git rebase main`
-  - 禁止在 main 上直接提交或 rebase 开发分支
+  - 任务分支同步 main：`git rebase main`
+  - 禁止在 main 上直接提交或 rebase 任务分支
 
-- **三阶段流水线（强制）**：
+- **两阶段流水线（强制）**：
 
-  1. **开发分支 → dev**：PR 只要求编译+单元测试通过（快，2-3分钟），auto-merge 合并到 dev
-  2. **dev → main**：dev 分支有 GitHub Actions 监听 push，跑全量 CI（E2E/集成/AOT），失败时自动 `git revert` 回滚
-  3. **dev CI 通过后**：自动创建 PR 从 dev 到 main，auto-merge 合并（main 不需要再跑 CI）
+  1. **任务分支 → main**：PR 触发 CI（编译+单元测试+集成测试+E2E+AOT），CI 通过后 auto-merge（squash）合并到 main
+  2. **main 合并后**：开发分支 `git reset --hard main` 同步
+
+- **PR 创建前必须先合并最新 main（强制）**：
+
+  1. `git fetch origin main` — 拉取最新 main
+  2. `git merge origin/main` — 合并到当前任务分支（用 merge，不是 rebase，因为要保留完整历史供 CI 验证）
+  3. 如有冲突，解决冲突后编译验证
+  4. 编译通过后再创建 PR
 
 - **PR 合并后同步流程（强制）**：
 
   1. main 分支：`git pull --rebase origin main`（拉取 squash 合并后的新提交）
-  2. 开发分支：`git reset --hard main`（覆盖为 main 最新状态，避免哈希分叉）
-  - 原因: squash 合并后 main 的提交哈希与开发分支不同，不 reset 会导致分支分叉
+  2. 任务分支：`git reset --hard main`（覆盖为 main 最新状态，避免哈希分叉）
+  - 原因: squash 合并后 main 的提交哈希与任务分支不同，不 reset 会导致分支分叉
 
 - **PR 创建规则**：
 
-  - 开发分支 → dev：`gh pr create --base dev --head w3 --auto --squash`
-  - dev → main：由 `dev-ci-gate.yml` 自动创建，禁止手动创建
+  - 任务分支 → main：`gh pr create --base main --head w3 --title "feat: xxx"`
+  - 创建后启用 auto-merge：`gh pr merge <number> --auto --squash`
   - 禁止手动合并 PR（除非 auto-merge 不可用）
 
-- **分支保护 strict 模式（已启用）**：
-  - main 分支已关闭 strict（dev 已做全量验证），dev 分支仅要求编译+单元测试
-  - dev CI 失败自动 revert，确保 dev 永远是可用的
-  
-- 三阶段流水线：
-  开发分支 → 局部编译+单元测试 → dev分支 → 全量CI → main分支（不再跑CI）
-
-  1. 开发分支 → dev：PR 只要求编译+单元测试通过（快，2-3分钟），auto-merge 合并到 dev
-  2. dev → main：dev 分支有 GitHub Actions 监听 push，跑全量 CI（E2E/集成/AOT），失败时自动 git revert 回滚
-  3. dev CI 通过后：自动创建 PR 从 dev 到 main，auto-merge 合并（main 不需要再跑 CI）
+- **CI 触发**：
+  - PR 到 main 时触发全量 CI
+  - CI 必须通过才允许合并
 
 ## 用户说的E2E
 

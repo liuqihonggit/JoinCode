@@ -21,9 +21,11 @@ public sealed class DefenderAgent : ReasoningAgentBase
         var action = new AgentAction { AgentRole = Role, ActionType = "质疑证据" };
         var doubtThreshold = context.Options.DefenderDoubtThreshold;
 
-        var targets = context.AllItems
+        var targets = context.GetVisibleItemsForRole(Role)
             .Where(x => x.State == DataState.Verified || x.State == DataState.Assumption)
             .ToList();
+
+        var visibleEvidence = context.GetVisibleEvidenceForRole(Role);
 
         foreach (var item in targets)
         {
@@ -34,7 +36,7 @@ public sealed class DefenderAgent : ReasoningAgentBase
                 .Select(e => e.FromId)
                 .ToHashSet();
 
-            var supportingEvidence = context.AllEvidence
+            var supportingEvidence = visibleEvidence
                 .Count(e => e.SubmittedBy == AgentRole.Prosecutor && supportingEdgeIds.Contains(e.Id));
 
             if (supportingEvidence < doubtThreshold)
@@ -49,7 +51,9 @@ public sealed class DefenderAgent : ReasoningAgentBase
             var itemsText = string.Join("\n", targets.Select((x, i) => $"{i + 1}. [{x.State}] {x.Content}"));
             var userPrompt = $"请审查以下项目，提出反驳证据和质疑：\n{itemsText}";
 
-            var (llmResponse, usage) = await CallLlmAsync(userPrompt, temperature: context.Options.DefenderTemperature, maxTokens: context.Options.DefaultLlmMaxTokens, ct: ct).ConfigureAwait(false);
+            userPrompt = await CompressPromptIfNeededAsync(context, Role, userPrompt, ct);
+
+            var (llmResponse, usage, promptTokens) = await CallLlmAsync(userPrompt, temperature: context.Options.DefenderTemperature, maxTokens: context.Options.DefaultLlmMaxTokens, ct: ct).ConfigureAwait(false);
             if (llmResponse is not null)
             {
                 var (counterEvidence, doubts) = ParseCounterEvidenceFromLlmResponse(llmResponse);
@@ -65,7 +69,11 @@ public sealed class DefenderAgent : ReasoningAgentBase
 
             if (usage is not null)
             {
-                action.TokensUsed = usage.TotalTokens;
+                action.TokensUsed = usage.TotalTokens + promptTokens;
+            }
+            else
+            {
+                action.TokensUsed = promptTokens;
             }
 
             await SendMessageAsync(AgentRole.Judge.ToValue(), "counter_evidence_submitted",

@@ -7,7 +7,11 @@ public sealed class ReasoningPayload
 {
     public required string Id { get; init; }
     public required ReasoningNodeType Type { get; init; }
-    public required string Content { get; init; }
+    public required string Content { get; set; }
+    /// <summary>
+    /// 原始内容（压缩前的完整文本，仅在压缩后非空）
+    /// </summary>
+    public string? OriginalContent { get; set; }
     public DataState State { get; set; } = DataState.Assumption;
     public int Confidence { get; set; } = 50;
     public EvidenceCategory? Category { get; init; }

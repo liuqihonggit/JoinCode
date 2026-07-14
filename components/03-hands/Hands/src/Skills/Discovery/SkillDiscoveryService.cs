@@ -191,15 +191,13 @@ public sealed partial class SkillDiscoveryService : ISkillDiscoveryService
 
     public void StopWatching()
     {
+        // P1-11: 移除死代码 — 之前 _watcher?.Dispose() 和 _watcher = null 在 if 块后永不执行有效操作
         if (_watcher != null)
         {
             _watcher.EnableRaisingEvents = false;
             _watcher.Dispose();
             _watcher = null;
         }
-
-        _watcher?.Dispose();
-        _watcher = null;
 
         _logger?.LogInformation("[SkillDiscovery] 停止监视技能目录");
     }
@@ -382,7 +380,10 @@ public sealed partial class SkillDiscoveryService : ISkillDiscoveryService
             return;
         }
 
-        _ = ProcessFileChangeAsync(e.FullPath);
+        // P1-11: 添加异常观察，避免 fire-and-forget 触发 UnobservedTaskException
+        _ = ProcessFileChangeAsync(e.FullPath).ContinueWith(
+            t => _logger?.LogError(t.Exception, "[SkillDiscovery] OnFileChanged 未观察异常: {Path}", e.FullPath),
+            TaskContinuationOptions.OnlyOnFaulted);
     }
 
     private async Task ProcessFileChangeAsync(string filePath)

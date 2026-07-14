@@ -30,7 +30,7 @@ public sealed class SshSession : ISshSession
 
     public async Task ConnectAsync(CancellationToken ct = default)
     {
-        ObjectDisposedException.ThrowIf(_isDisposed != 0, this);
+        DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
 
         await _stateLock.WaitAsync(ct).ConfigureAwait(false);
         try
@@ -84,7 +84,7 @@ public sealed class SshSession : ISshSession
 
     public async Task DisconnectAsync(CancellationToken ct = default)
     {
-        ObjectDisposedException.ThrowIf(_isDisposed != 0, this);
+        DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
 
         await _stateLock.WaitAsync(ct).ConfigureAwait(false);
         try
@@ -111,7 +111,7 @@ public sealed class SshSession : ISshSession
 
     public async Task ReconnectAsync(CancellationToken ct = default)
     {
-        ObjectDisposedException.ThrowIf(_isDisposed != 0, this);
+        DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
 
         await DisconnectAsync(ct).ConfigureAwait(false);
         _reconnectAttempts = 0;
@@ -138,7 +138,7 @@ public sealed class SshSession : ISshSession
         string command,
         CancellationToken ct = default)
     {
-        ObjectDisposedException.ThrowIf(_isDisposed != 0, this);
+        DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
         ArgumentException.ThrowIfNullOrEmpty(command);
 
         if (_connectionState != SshConnectionState.Connected)
@@ -189,7 +189,7 @@ public sealed class SshSession : ISshSession
         int remotePort,
         CancellationToken ct = default)
     {
-        ObjectDisposedException.ThrowIf(_isDisposed != 0, this);
+        DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
 
         if (_connectionState != SshConnectionState.Connected)
         {
@@ -206,7 +206,7 @@ public sealed class SshSession : ISshSession
         int localPort,
         CancellationToken ct = default)
     {
-        ObjectDisposedException.ThrowIf(_isDisposed != 0, this);
+        DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
 
         if (_connectionState != SshConnectionState.Connected)
         {
@@ -224,7 +224,7 @@ public sealed class SshSession : ISshSession
 
     public async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _isDisposed, 1) != 0)
+        if (!DisposableHelper.TryMarkDisposed(ref _isDisposed))
         {
             return;
         }

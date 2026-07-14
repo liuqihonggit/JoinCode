@@ -703,14 +703,10 @@ public sealed class InMemoryFileSystem : IFileSystem
 
         protected override void Dispose(bool disposing)
         {
-            if (!_disposed)
-            {
-                _disposed = true;
-                // 写回内存文件系统
-                var data = _inner.ToArray();
-                _fs.WriteAllBytes(_path.Replace('/', '\\'), data);
-                _inner.Dispose();
-            }
+            if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
+            var data = _inner.ToArray();
+            _fs.WriteAllBytes(_path.Replace('/', '\\'), data);
+            _inner.Dispose();
             base.Dispose(disposing);
         }
     }

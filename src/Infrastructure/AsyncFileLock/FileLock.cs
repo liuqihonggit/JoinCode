@@ -47,12 +47,7 @@ internal sealed class FileLock : System.IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        if (_disposed)
-        {
-            return;
-        }
-
-        _disposed = true;
+        if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
 
         if (_releaser.HasValue)
         {
@@ -65,12 +60,7 @@ internal sealed class FileLock : System.IAsyncDisposable
 
     internal void Release()
     {
-        if (_disposed)
-        {
-            return;
-        }
-
-        _disposed = true;
+        if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
 
         if (_releaser.HasValue)
         {

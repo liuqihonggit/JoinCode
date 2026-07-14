@@ -44,7 +44,7 @@ public sealed class WorkflowPluginHost : IDisposable
     /// </summary>
     public PluginLoadResult Load()
     {
-        ObjectDisposedException.ThrowIf(_isDisposed, this);
+        DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
 
         try
         {
@@ -76,7 +76,7 @@ public sealed class WorkflowPluginHost : IDisposable
     /// </summary>
     public async Task<PluginInitResult> InitializeAsync(CancellationToken cancellationToken = default)
     {
-        ObjectDisposedException.ThrowIf(_isDisposed, this);
+        DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
 
         if (_pluginServiceProvider == null)
         {
@@ -121,7 +121,7 @@ public sealed class WorkflowPluginHost : IDisposable
     /// </summary>
     public PluginUnloadResult Unload()
     {
-        ObjectDisposedException.ThrowIf(_isDisposed, this);
+        DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
 
         try
         {
@@ -167,19 +167,16 @@ public sealed class WorkflowPluginHost : IDisposable
 
     public void Dispose()
     {
-        if (!_isDisposed)
+        if (!DisposableHelper.TryMarkDisposed(ref _isDisposed)) return;
+
+        if (_plugin is IDisposable disposable)
         {
-            _isDisposed = true;
+            disposable.Dispose();
+        }
 
-            if (_plugin is IDisposable disposable)
-            {
-                disposable.Dispose();
-            }
-
-            if (_pluginServiceProvider is IDisposable spDisposable)
-            {
-                spDisposable.Dispose();
-            }
+        if (_pluginServiceProvider is IDisposable spDisposable)
+        {
+            spDisposable.Dispose();
         }
     }
 }

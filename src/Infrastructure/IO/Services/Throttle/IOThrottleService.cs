@@ -183,10 +183,7 @@ internal sealed class IOExecutionLease : IIOExecutionLease
 
     public void Dispose()
     {
-        if (!_disposed)
-        {
-            _service.Release(OperationType);
-            _disposed = true;
-        }
+        if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
+        _service.Release(OperationType);
     }
 }

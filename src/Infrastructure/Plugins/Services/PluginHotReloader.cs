@@ -118,45 +118,38 @@ public sealed partial class PluginHotReloader : IPluginHotReloader
 
     private async Task ReloadPluginAsync(string pluginName, string filePath, ReloadReason reason)
     {
-        await _reloadLock.WaitAsync().ConfigureAwait(false);
-        try
+        using var guard = await AsyncLockGuard.AcquireAsync(_reloadLock).ConfigureAwait(false);
+        var args = new PluginReloadEventArgs
         {
-            var args = new PluginReloadEventArgs
-            {
-                PluginName = pluginName,
-                PluginPath = filePath,
-                Reason = reason
-            };
+            PluginName = pluginName,
+            PluginPath = filePath,
+            Reason = reason
+        };
 
-            PluginReloading?.Invoke(this, args);
+        PluginReloading?.Invoke(this, args);
 
-            _logger?.LogInformation("[PluginHotReloader] 重载插件: {Plugin}, 原因: {Reason}", pluginName, reason);
+        _logger?.LogInformation("[PluginHotReloader] 重载插件: {Plugin}, 原因: {Reason}", pluginName, reason);
 
-            if (_pluginManager.IsPluginLoaded(pluginName))
-            {
-                await _pluginManager.UnloadPluginAsync(pluginName, CancellationToken.None).ConfigureAwait(false);
-            }
-
-            if (reason != ReloadReason.FileDeleted && _fs.FileExists(filePath))
-            {
-                try
-                {
-                    await _pluginManager.LoadExternalPluginAsync(filePath, pluginName, CancellationToken.None).ConfigureAwait(false);
-                }
-                catch (Exception ex)
-                {
-                    _logger?.LogError(ex, "[PluginHotReloader] 重载插件 '{Plugin}' 失败", pluginName);
-                }
-            }
-
-            PluginReloaded?.Invoke(this, args);
-
-            _telemetryService?.RecordCount("plugin.hotreload.count", new Dictionary<string, string> { ["reason"] = reason.ToString(), ["success"] = true.ToString() }, "count", "Plugin hot reload count");
-        }
-        finally
+        if (_pluginManager.IsPluginLoaded(pluginName))
         {
-            _reloadLock.Release();
+            await _pluginManager.UnloadPluginAsync(pluginName, CancellationToken.None).ConfigureAwait(false);
         }
+
+        if (reason != ReloadReason.FileDeleted && _fs.FileExists(filePath))
+        {
+            try
+            {
+                await _pluginManager.LoadExternalPluginAsync(filePath, pluginName, CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "[PluginHotReloader] 重载插件 '{Plugin}' 失败", pluginName);
+            }
+        }
+
+        PluginReloaded?.Invoke(this, args);
+
+        _telemetryService?.RecordCount("plugin.hotreload.count", new Dictionary<string, string> { ["reason"] = reason.ToString(), ["success"] = true.ToString() }, "count", "Plugin hot reload count");
     }
 
     public async ValueTask DisposeAsync()

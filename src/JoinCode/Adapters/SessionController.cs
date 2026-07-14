@@ -58,8 +58,7 @@ public sealed class SessionController
         var requestTimestamp = _clock.GetUtcNow();
 
         const int ApiTimeoutMs = 10_000;
-        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeoutCts.CancelAfter(ApiTimeoutMs);
+        using var timeoutCts = TimeoutHelper.CreateLinkedTimeout(cancellationToken, TimeSpan.FromMilliseconds(ApiTimeoutMs));
         var timeoutToken = timeoutCts.Token;
         var hasReceivedEvent = false;
 

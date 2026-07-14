@@ -13,7 +13,8 @@ public sealed partial class FileContextTracker
 
     public void UpdateFilePaths(string[] paths)
     {
-        _currentFilePaths = paths ?? [];
+        // P2-3: 防御性复制 — 避免调用方修改传入数组导致竞态
+        _currentFilePaths = paths is null ? [] : (string[])paths.Clone();
     }
 
     public void UpdateUserMessage(string message)

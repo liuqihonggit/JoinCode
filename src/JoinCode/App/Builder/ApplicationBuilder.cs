@@ -198,6 +198,12 @@ public sealed class ApplicationBuilder
             Cli.TerminalHelper.WriteLine("使用 --help 查看可用选项。");
             Environment.Exit(1);
         }
+
+        // --verbose: 尽早启用诊断输出，确保后续所有 Diag.WriteLine 都能输出
+        // 决策: 在构造 CommandLineOptions 之前调用，保证最早可能的诊断时机
+        if (result.Verbose)
+            Abstractions.Utils.Diagnostics.Diag.EnableVerbose();
+
         var options = new CommandLineOptions
         {
             ShowHelp = result.Help,
@@ -209,6 +215,7 @@ public sealed class ApplicationBuilder
             TrustWorkspace = result.Trust,
             Brief = result.Brief,
             ForceInteractive = result.ForceInteractive,
+            Verbose = result.Verbose,
         };
 
         // --await N: 超时自动关闭秒数
@@ -297,6 +304,10 @@ public sealed class ApplicationBuilder
         Cli.TerminalHelper.WriteLine("  --trust                 自动信任当前工作目录");
         Cli.TerminalHelper.WriteLine("  --non-interactive       强制非交互模式");
         Cli.TerminalHelper.WriteLine("  --pipe <管道名>         命名管道通信模式");
+        Cli.TerminalHelper.WriteLine("  --brief                 启动时激活简要模式");
+        Cli.TerminalHelper.WriteLine("  --force-interactive     强制交互模式（即使 stdin 重定向也启用 REPL，用于 E2E 测试）");
+        Cli.TerminalHelper.WriteLine("  --await <秒数>         超时自动关闭（超时返回 1234，用于诊断卡死，正常完成不受影响）");
+        Cli.TerminalHelper.WriteLine("  --verbose              启用诊断输出（[WIRE] [STEP] [READY] 等，等效于 JCC_VERBOSE=1）");
         Cli.TerminalHelper.NewLine();
         Cli.TerminalHelper.WriteLine("子命令:");
         Cli.TerminalHelper.WriteLine("  tool                    MCP 工具管理");
@@ -343,9 +354,20 @@ public sealed class ApplicationBuilder
 
     private static string? FindDotEnvPath()
     {
+        // 1. JCC_CONFIG_PATH 环境变量 — 用户自定义配置路径
+        var customPath = Environment.GetEnvironmentVariable("JCC_CONFIG_PATH");
+        if (!string.IsNullOrEmpty(customPath) && System.IO.File.Exists(customPath))
+            return customPath;
+
+        // 2. 当前工作目录 — 用户从任意目录运行 jcc 时查找
+        var cwdPath = System.IO.Path.Combine(Environment.CurrentDirectory, ".env", "api.json");
+        if (System.IO.File.Exists(cwdPath)) return cwdPath;
+
+        // 3. 可执行文件目录 — Release 部署场景
         var envPath = System.IO.Path.Combine(AppContext.BaseDirectory, ".env", "api.json");
         if (System.IO.File.Exists(envPath)) return envPath;
 
+        // 4. 开发环境回退 — 从 bin/Release/net10.0 向上 5 级到项目根
         var projectRoot = System.IO.Path.GetFullPath(
             System.IO.Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", ".env", "api.json"));
         if (System.IO.File.Exists(projectRoot)) return projectRoot;

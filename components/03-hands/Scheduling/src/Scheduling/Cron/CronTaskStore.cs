@@ -27,7 +27,7 @@ public sealed class FileCronTaskStore : ICronTaskStore, IDisposable
         string? directory = null,
         IClockService? clock = null)
     {
-        System.Console.Error.WriteLine("[DI] FileCronTaskStore.ctor start");
+        Diag.WriteLine("[DI] FileCronTaskStore.ctor start");
         var dir = directory ?? Path.Combine(AppContext.BaseDirectory, "cron-tasks");
         if (string.IsNullOrWhiteSpace(dir))
             throw new ArgumentException("Directory cannot be null or empty", nameof(directory));
@@ -37,9 +37,9 @@ public sealed class FileCronTaskStore : ICronTaskStore, IDisposable
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _clock = clock ?? SystemClockService.Instance;
         _semaphore = new SemaphoreSlim(1, 1);
-        System.Console.Error.WriteLine("[DI] FileCronTaskStore.ctor calling InitializeWatcher...");
+        Diag.WriteLine("[DI] FileCronTaskStore.ctor calling InitializeWatcher...");
         InitializeWatcher();
-        System.Console.Error.WriteLine("[DI] FileCronTaskStore.ctor done");
+        Diag.WriteLine("[DI] FileCronTaskStore.ctor done");
     }
 
     private void InitializeWatcher()

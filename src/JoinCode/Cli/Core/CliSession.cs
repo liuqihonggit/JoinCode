@@ -259,7 +259,7 @@ public sealed class CliSession
 
     private async Task StreamResponseAsync(string input, CancellationToken cancellationToken)
     {
-        Console.Error.WriteLine($"[CliSession] StreamResponseAsync entry: input='{input}'");
+        Diag.WriteLine($"[CliSession] StreamResponseAsync entry: input='{input}'");
         var result = await _controller.StreamResponseAsync(input, cancellationToken).ConfigureAwait(false);
 
         if (result.Succeeded)
@@ -270,7 +270,7 @@ public sealed class CliSession
         }
         else if (result.TimedOut)
         {
-            Console.Error.WriteLine("[CliSession] API timeout (10s no response)");
+            Diag.WriteLine("[CliSession] API timeout (10s no response)");
             TerminalHelper.WriteLine();
             TerminalHelper.WriteLine("API 请求超时（10秒无响应）。请检查：");
             TerminalHelper.WriteLine("  1. 是否已配置 API Key");
@@ -279,7 +279,7 @@ public sealed class CliSession
         }
         else if (result.WasCancelled)
         {
-            Console.Error.WriteLine("[CliSession] OperationCanceledException (cancelled)");
+            Diag.WriteLine("[CliSession] OperationCanceledException (cancelled)");
             LastResponse = result.Response;
             if (!string.IsNullOrEmpty(LastResponse))
             {
@@ -288,7 +288,7 @@ public sealed class CliSession
         }
         else
         {
-            Console.Error.WriteLine($"[CliSession] Exception: {result.ErrorMessage}");
+            Diag.WriteLine($"[CliSession] Exception: {result.ErrorMessage}");
             if (!string.IsNullOrEmpty(result.ErrorCode))
             {
                 TerminalHelper.WriteLine();
@@ -303,7 +303,7 @@ public sealed class CliSession
             }
             LastResponse = result.Response;
         }
-        Console.Error.WriteLine($"[CliSession] StreamResponseAsync done: succeeded={result.Succeeded}, responseLen={result.Response.Length}");
+        Diag.WriteLine($"[CliSession] StreamResponseAsync done: succeeded={result.Succeeded}, responseLen={result.Response.Length}");
     }
 
     private async Task AppendTranscriptEntriesAsync(string userInput, string assistantResponse, DateTime timestamp, CancellationToken cancellationToken)

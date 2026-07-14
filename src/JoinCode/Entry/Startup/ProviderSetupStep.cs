@@ -7,10 +7,12 @@ namespace JoinCode.Entry;
 internal sealed class ProviderSetupStep : IMiddleware<StartupContext>
 {
     private readonly IProviderDefinitionRegistry _registry;
+    private readonly IConsoleOutput _console;
 
-    public ProviderSetupStep(IProviderDefinitionRegistry registry)
+    public ProviderSetupStep(IProviderDefinitionRegistry registry, IConsoleOutput console)
     {
         _registry = registry;
+        _console = console;
     }
 
     public async Task InvokeAsync(StartupContext context, MiddlewareDelegate<StartupContext> next, CancellationToken ct)
@@ -88,11 +90,15 @@ internal sealed class ProviderSetupStep : IMiddleware<StartupContext>
             : "";
 
         Cli.TerminalHelper.NewLine();
-        Cli.TerminalHelper.WriteLine($"请粘贴 {displayName} 的 API Key{envVarHint}（直接回车退出）: ");
+        // 使用 WriteRaw（不换行）以便 ReadPassword 的掩码 * 显示在同一行
+        Cli.TerminalHelper.WriteRaw($"请粘贴 {displayName} 的 API Key{envVarHint}（直接回车退出）: ");
 
         if (Core.Utils.TestEnvironmentDetector.IsNonInteractive) return;
 
-        var apiKey = Cli.TerminalHelper.ReadLine();
+        // 使用掩码输入隐藏 API Key 明文 — 复用 IConsoleOutput.ReadPassword 基础设施
+        // 决策: 注入 IConsoleOutput 而非直接 Console.ReadKey，保持可测试性（NoOp/Mock 模式可替换）
+        // 替代方案已否决: 直接调用 System.Console.ReadKey（不可测试，与 PhysicalConsoleOutput 重复实现）
+        var apiKey = _console.ReadPassword(string.Empty);
         if (string.IsNullOrWhiteSpace(apiKey)) return;
 
         apiKey = apiKey.Trim();

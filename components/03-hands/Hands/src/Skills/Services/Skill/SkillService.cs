@@ -40,7 +40,7 @@ public sealed class SkillService : ISkillService, IDisposable
         Core.Skills.Mcp.IMcpSkillProvider? mcpSkillProvider = null
         )
     {
-        Console.Error.WriteLine("[SKILL-CTOR] 1 assign fields");
+        Diag.WriteLine("[SKILL-CTOR] 1 assign fields");
         _options = options;
         _files = files;
         _pipeline = pipeline;
@@ -49,9 +49,9 @@ public sealed class SkillService : ISkillService, IDisposable
         _reloadLock = new SemaphoreSlim(1, 1);
         _skills = new ConcurrentDictionary<string, SkillDefinition>(StringComparer.OrdinalIgnoreCase);
 
-        Console.Error.WriteLine("[SKILL-CTOR] 2 LoadBuiltInSkills");
+        Diag.WriteLine("[SKILL-CTOR] 2 LoadBuiltInSkills");
         LoadBuiltInSkills();
-        Console.Error.WriteLine("[SKILL-CTOR] 3 done");
+        Diag.WriteLine("[SKILL-CTOR] 3 done");
     }
 
     public async Task<SkillResult> ExecuteAsync(

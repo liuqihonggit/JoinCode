@@ -64,6 +64,12 @@ public class CommandLineOptions {
     public int? AwaitTimeoutSeconds { get; set; }
 
     /// <summary>
+    /// 启用诊断输出（--verbose 参数）— 等效于 JCC_VERBOSE=1 环境变量
+    /// 激活 [WIRE] [STEP] [READY] [MAIN] 等诊断日志输出到 stderr
+    /// </summary>
+    public bool Verbose { get; set; }
+
+    /// <summary>
     /// 是否为非交互模式（用户请求 / 无头环境 / CI 环境 / -p 参数）
     /// </summary>
     public bool IsNonInteractiveMode =>

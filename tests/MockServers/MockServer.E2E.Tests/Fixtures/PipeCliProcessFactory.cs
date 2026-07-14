@@ -150,7 +150,8 @@ public sealed class PipeJoinCodeProcessFactory
         {
             [nameof(pipeName).ToUpperInvariant()] = pipeName,
             [ProviderEnvVarConstants.OpenAiApiKey] = effectiveApiKey,
-            ["OPENAI_BASE_URL"] = baseUrl
+            ["OPENAI_BASE_URL"] = baseUrl,
+            ["JCC_VERBOSE"] = "1"
         };
     }
 }

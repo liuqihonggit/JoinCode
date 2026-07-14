@@ -65,15 +65,12 @@ public sealed class ApplicationBuilder
     public async Task ConfigureModulesAsync(IServiceProvider services)
     {
         var ordered = _modules.OrderBy(m => m.Order).ToList();
-        // 仅在 JCC_DEBUG_MODULES=1/true 时打印模块启停日志(链路排查用),默认关闭减少噪音
-        var debugModules = Environment.GetEnvironmentVariable("JCC_DEBUG_MODULES") is "1" or "true";
         foreach (var module in ordered)
         {
-            if (debugModules)
-                Console.Error.WriteLine($"[MODULE] {module.GetType().Name} start");
+            // P2-5: 迁移到 Diag.WriteLine，统一受 JCC_VERBOSE 控制
+            Diag.WriteLine($"[MODULE] {module.GetType().Name} start");
             await module.ConfigureAsync(services, CancellationToken.None).ConfigureAwait(false);
-            if (debugModules)
-                Console.Error.WriteLine($"[MODULE] {module.GetType().Name} done");
+            Diag.WriteLine($"[MODULE] {module.GetType().Name} done");
         }
     }
 

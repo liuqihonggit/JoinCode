@@ -47,11 +47,37 @@ class Program
             await Entry.InteractiveModeRunner.RunAsync(config, options, host);
             return 0;
         }
+        catch (OperationCanceledException)
+        {
+            // P2-7: 用户取消（Ctrl+C）或网络请求取消 — 静默退出，不写 error.log（非程序 bug）
+            // 退出码 130 = POSIX 标准（128 + SIGINT=2），便于 shell 脚本区分中断与正常错误
+            return 130;
+        }
+        catch (ConfigurationException ex)
+        {
+            // P2-7: 配置问题 — 友好提示，不写入 error.log（非程序 bug，用户可自行修复）
+            // 退出码 2 = 配置错误专用，便于 CI/脚本区分配置问题与运行时错误
+            Cli.TerminalHelper.Init();
+            Cli.TerminalHelper.WriteLine();
+            Cli.TerminalHelper.WriteLine($"配置错误: {ex.Message}");
+            if (!string.IsNullOrEmpty(ex.ConfigurationKey))
+                Cli.TerminalHelper.WriteLine($"配置项: {ex.ConfigurationKey}");
+            if (!string.IsNullOrEmpty(ex.ConfigurationFilePath))
+                Cli.TerminalHelper.WriteLine($"配置文件: {ex.ConfigurationFilePath}");
+            Cli.TerminalHelper.WriteLine();
+            Cli.TerminalHelper.WriteLine("请检查配置文件或环境变量后重试。");
+            return 2;
+        }
+        catch (Exception ex) when (ex is OutOfMemoryException or TypeInitializationException)
+        {
+            // P2-7: 不可恢复异常 — 记录日志后 rethrow 让进程崩溃（继续运行可能损坏数据）
+            WriteErrorLog(ex, fatal: true);
+            throw;
+        }
         catch (Exception ex)
         {
-            var errorLog = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "jcc_error.log");
-            var errorContent = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}";
-            System.IO.File.WriteAllText(errorLog, errorContent);
+            // 通用异常 — 记录日志并友好提示
+            var errorLog = WriteErrorLog(ex);
 
             Cli.TerminalHelper.Init();
             Cli.TerminalHelper.WriteLine();
@@ -61,6 +87,29 @@ class Program
 
             return 1;
         }
+    }
+
+    /// <summary>
+    /// 写入错误日志到临时目录的 jcc_error.log。
+    /// </summary>
+    /// <param name="ex">异常对象</param>
+    /// <param name="fatal">是否为致命异常（标记 [FATAL] 前缀）</param>
+    /// <returns>错误日志文件路径</returns>
+    private static string WriteErrorLog(Exception ex, bool fatal = false)
+    {
+        var errorLog = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "jcc_error.log");
+        var prefix = fatal ? "[FATAL] " : string.Empty;
+        var errorContent = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {prefix}{ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}";
+        try
+        {
+            System.IO.File.WriteAllText(errorLog, errorContent);
+        }
+        catch (Exception logEx)
+        {
+            // 写入日志失败不应影响主流程 — 记录到跟踪监听器
+            System.Diagnostics.Trace.WriteLine($"写入错误日志失败: {logEx.Message}");
+        }
+        return errorLog;
     }
 
     /// <summary>

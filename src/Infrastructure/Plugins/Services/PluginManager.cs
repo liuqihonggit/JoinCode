@@ -76,7 +76,7 @@ public sealed partial class PluginManager : IPluginManager
             var host = new WorkflowPluginHost(plugin, _kernel, _loggerFactory, _fileOperationService, _commandRegistry, _logger);
 
             var loadResult = host.Load();
-            if (!loadResult.IsSuccess)
+            if (!loadResult.Success)
             {
                 host.Dispose();
                 RecordPluginMetrics("workflow", "load", false);
@@ -84,7 +84,7 @@ public sealed partial class PluginManager : IPluginManager
             }
 
             var initResult = await host.InitializeAsync(cancellationToken).ConfigureAwait(false);
-            if (!initResult.IsSuccess)
+            if (!initResult.Success)
             {
                 host.Unload();
                 host.Dispose();

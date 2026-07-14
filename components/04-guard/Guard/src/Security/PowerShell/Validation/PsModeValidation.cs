@@ -67,22 +67,6 @@ public static class PsModeValidation
     ], StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
-    /// 权限模式验证结果
-    /// </summary>
-    public sealed record ModeValidationResult
-    {
-        /// <summary>
-        /// 行为: Allow=自动允许, Passthrough=交给主权限流程
-        /// </summary>
-        public required PermissionBehavior Behavior { get; init; }
-
-        /// <summary>
-        /// 说明消息
-        /// </summary>
-        public string? Message { get; init; }
-    }
-
-    /// <summary>
     /// 解析 cmdlet 别名为规范名
     /// </summary>
     public static string ResolveToCanonical(string name)
@@ -159,28 +143,25 @@ public static class PsModeValidation
     /// <param name="command">PS 命令文本</param>
     /// <param name="mode">当前权限模式</param>
     /// <returns>验证结果</returns>
-    public static ModeValidationResult CheckPermissionMode(string command, string mode)
+    public static ShellPermissionCheckResult CheckPermissionMode(string command, string mode)
     {
-        // 跳过 bypass 和 dontAsk 模式
         if (mode is "bypassPermissions" or "dontAsk")
         {
-            return new ModeValidationResult { Behavior = PermissionBehavior.Passthrough, Message = "Mode is handled in main permission flow" };
+            return new ShellPermissionCheckResult(PermissionBehavior.Passthrough, "Mode is handled in main permission flow");
         }
 
         if (mode != PermissionModeConstants.AcceptEdits)
         {
-            return new ModeValidationResult { Behavior = PermissionBehavior.Passthrough, Message = "No mode-specific validation required" };
+            return new ShellPermissionCheckResult(PermissionBehavior.Passthrough, "No mode-specific validation required");
         }
 
         if (string.IsNullOrWhiteSpace(command))
         {
-            return new ModeValidationResult { Behavior = PermissionBehavior.Passthrough, Message = "Empty command" };
+            return new ShellPermissionCheckResult(PermissionBehavior.Passthrough, "Empty command");
         }
 
-        // 简化实现: 对复合命令（含 ; 或 |）做基本安全检查
         var segments = command.Split(';', '|', StringSplitOptions.RemoveEmptyEntries);
 
-        // 安全检查: 复合命令中的 cd + 写入 拒绝
         var hasCdCommand = false;
         var hasSymlinkCreate = false;
         var hasWriteCommand = false;
@@ -200,23 +181,18 @@ public static class PsModeValidation
 
         if (hasCdCommand && hasWriteCommand)
         {
-            return new ModeValidationResult
-            {
-                Behavior = PermissionBehavior.Passthrough,
-                Message = "Compound command contains a directory-changing command with a write operation — cannot auto-allow because path validation uses stale cwd"
-            };
+            return new ShellPermissionCheckResult(
+                PermissionBehavior.Passthrough,
+                "Compound command contains a directory-changing command with a write operation — cannot auto-allow because path validation uses stale cwd");
         }
 
         if (hasSymlinkCreate)
         {
-            return new ModeValidationResult
-            {
-                Behavior = PermissionBehavior.Passthrough,
-                Message = "Compound command creates a filesystem link — cannot auto-allow because path validation cannot follow just-created links"
-            };
+            return new ShellPermissionCheckResult(
+                PermissionBehavior.Passthrough,
+                "Compound command creates a filesystem link — cannot auto-allow because path validation cannot follow just-created links");
         }
 
-        // 检查每个段中的命令是否都是允许的
         foreach (var segment in segments)
         {
             var trimmed = segment.Trim();
@@ -225,7 +201,6 @@ public static class PsModeValidation
 
             var cmdName = StripCallOperators(tokens[0]).ToLowerInvariant();
 
-            // 安全输出 cmdlet 可跳过
             if (SafeOutputCmdlets.Contains(cmdName) || SafeOutputCmdlets.Contains(ResolveToCanonical(cmdName)))
             {
                 continue;
@@ -233,16 +208,13 @@ public static class PsModeValidation
 
             if (!IsAcceptEditsAllowedCmdlet(cmdName))
             {
-                return new ModeValidationResult
-                {
-                    Behavior = PermissionBehavior.Passthrough,
-                    Message = $"No mode-specific handling for '{cmdName}' in acceptEdits mode"
-                };
+                return new ShellPermissionCheckResult(
+                    PermissionBehavior.Passthrough,
+                    $"No mode-specific handling for '{cmdName}' in acceptEdits mode");
             }
         }
 
-        // 所有命令都是文件系统修改 cmdlet — 自动允许
-        return new ModeValidationResult { Behavior = PermissionBehavior.Allow, Message = "Auto-allowed in acceptEdits mode" };
+        return new ShellPermissionCheckResult(PermissionBehavior.Allow, "Auto-allowed in acceptEdits mode");
     }
 
     /// <summary>

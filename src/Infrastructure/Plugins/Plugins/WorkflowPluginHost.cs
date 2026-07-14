@@ -42,7 +42,7 @@ public sealed class WorkflowPluginHost : IDisposable
     /// <summary>
     /// 加载插件 - 调用插件的 Load 方法注册服务
     /// </summary>
-    public PluginLoadResult Load()
+    public OperationResult Load()
     {
         ObjectDisposedException.ThrowIf(_isDisposed, this);
 
@@ -52,7 +52,7 @@ public sealed class WorkflowPluginHost : IDisposable
 
             var result = _plugin.Load(_pluginServices);
 
-            if (!result.IsSuccess)
+            if (!result.Success)
             {
                 _logger?.LogError("插件 {PluginName} Load 失败: {Error}", _plugin.Name, result.ErrorMessage);
                 return result;
@@ -62,25 +62,25 @@ public sealed class WorkflowPluginHost : IDisposable
             _pluginServiceProvider = _pluginServices.BuildServiceProvider();
 
             _logger?.LogInformation("工作流插件 {PluginName} 服务注册完成", _plugin.Name);
-            return PluginLoadResult.Success();
+            return OperationResult.Ok();
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, "加载工作流插件 {PluginName} 时发生异常", _plugin.Name);
-            return PluginLoadResult.Failure($"加载异常: {ex.Message}");
+            return OperationResult.Fail($"加载异常: {ex.Message}");
         }
     }
 
     /// <summary>
     /// 初始化插件 - 调用插件的 InitializeAsync 方法
     /// </summary>
-    public async Task<PluginInitResult> InitializeAsync(CancellationToken cancellationToken = default)
+    public async Task<OperationResult> InitializeAsync(CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_isDisposed, this);
 
         if (_pluginServiceProvider == null)
         {
-            return PluginInitResult.Failure("插件服务容器未构建，请先调用 Load()");
+            return OperationResult.Fail("插件服务容器未构建，请先调用 Load()");
         }
 
         try
@@ -89,7 +89,7 @@ public sealed class WorkflowPluginHost : IDisposable
 
             var result = await _plugin.InitializeAsync(_pluginServiceProvider, cancellationToken).ConfigureAwait(false);
 
-            if (!result.IsSuccess)
+            if (!result.Success)
             {
                 _logger?.LogError("插件 {PluginName} Initialize 失败: {Error}", _plugin.Name, result.ErrorMessage);
                 return result;
@@ -107,12 +107,12 @@ public sealed class WorkflowPluginHost : IDisposable
             }
 
             _logger?.LogInformation("工作流插件 {PluginName} 初始化完成", _plugin.Name);
-            return PluginInitResult.Success();
+            return OperationResult.Ok();
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, "初始化工作流插件 {PluginName} 时发生异常", _plugin.Name);
-            return PluginInitResult.Failure($"初始化异常: {ex.Message}");
+            return OperationResult.Fail($"初始化异常: {ex.Message}");
         }
     }
 

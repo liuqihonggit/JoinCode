@@ -184,7 +184,7 @@ public class PermissionCheckingInterceptorTests : IDisposable
     public async Task OnAfterToolInvokeAsync_SuccessfulExecution_ShouldLogDebug()
     {
         var context = new ToolInvokeContext("test_tool");
-        var result = ToolInvokeResult.SuccessResult(new { data = "test" });
+        var result = OperationResult<object?>.Ok(new { data = "test" });
 
         var act = async () => await _interceptor.OnAfterToolInvokeAsync(context, result).ConfigureAwait(true);
 
@@ -195,7 +195,7 @@ public class PermissionCheckingInterceptorTests : IDisposable
     public async Task OnAfterToolInvokeAsync_FailedExecution_ShouldLogWarning()
     {
         var context = new ToolInvokeContext("failing_tool");
-        var result = ToolInvokeResult.FailureResult("Something went wrong");
+        var result = OperationResult<object?>.Fail("Something went wrong");
 
         var act = async () => await _interceptor.OnAfterToolInvokeAsync(context, result).ConfigureAwait(true);
 
@@ -206,7 +206,7 @@ public class PermissionCheckingInterceptorTests : IDisposable
     public async Task OnAfterToolInvokeAsync_NullData_ShouldNotThrow()
     {
         var context = new ToolInvokeContext("test_tool");
-        var result = ToolInvokeResult.SuccessResult(null);
+        var result = OperationResult<object?>.Ok(null);
 
         var act = async () => await _interceptor.OnAfterToolInvokeAsync(context, result).ConfigureAwait(true);
 
@@ -332,40 +332,6 @@ public class PermissionCheckingInterceptorTests : IDisposable
 
     #endregion
 
-    #region ToolInvokeResult Tests
-
-    [Fact]
-    public void ToolInvokeResult_SuccessResult_ShouldBeSuccessful()
-    {
-        var data = new { result = "success" };
-        var result = ToolInvokeResult.SuccessResult(data);
-
-        result.Success.Should().BeTrue();
-        result.ErrorMessage.Should().BeNull();
-        result.Data.Should().Be(data);
-    }
-
-    [Fact]
-    public void ToolInvokeResult_SuccessResult_NullData_ShouldBeSuccessful()
-    {
-        var result = ToolInvokeResult.SuccessResult();
-
-        result.Success.Should().BeTrue();
-        result.Data.Should().BeNull();
-    }
-
-    [Fact]
-    public void ToolInvokeResult_FailureResult_ShouldNotBeSuccessful()
-    {
-        var result = ToolInvokeResult.FailureResult("Error occurred");
-
-        result.Success.Should().BeFalse();
-        result.ErrorMessage.Should().Be("Error occurred");
-        result.Data.Should().BeNull();
-    }
-
-    #endregion
-
     #region PermissionInterceptResult Tests
 
     [Fact]
@@ -481,7 +447,7 @@ public class PermissionCheckingInterceptorTests : IDisposable
         _interceptor.Dispose();
 
         var context = new ToolInvokeContext("test_tool");
-        var result = ToolInvokeResult.SuccessResult();
+        var result = OperationResult<object?>.Ok(null);
         var act = async () => await _interceptor.OnAfterToolInvokeAsync(context, result).ConfigureAwait(true);
 
         await act.Should().ThrowAsync<ObjectDisposedException>().ConfigureAwait(true);

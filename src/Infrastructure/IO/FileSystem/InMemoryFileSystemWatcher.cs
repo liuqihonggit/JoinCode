@@ -6,8 +6,7 @@ namespace IO.FileSystem;
 public sealed class InMemoryFileSystemWatcher : IFileSystemWatcher
 {
     private readonly InMemoryFileSystem _fs;
-    private readonly ConcurrentDictionary<string, Timer> _debounceTimers = new(StringComparer.OrdinalIgnoreCase);
-    private readonly ConcurrentDictionary<string, long> _internalWriteTimestamps = new(StringComparer.OrdinalIgnoreCase);
+    private readonly DebounceTracker _debounce = new();
     private bool _disposed;
 
     public InMemoryFileSystemWatcher(InMemoryFileSystem fs, string path, string filter = "*.*")
@@ -23,8 +22,17 @@ public sealed class InMemoryFileSystemWatcher : IFileSystemWatcher
     public bool IncludeSubdirectories { get; set; }
     public NotifyFilters NotifyFilter { get; set; } = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.Size;
     public bool EnableRaisingEvents { get; set; }
-    public TimeSpan DebounceInterval { get; set; } = TimeSpan.FromMilliseconds(500);
-    public int InternalWriteWindowMs { get; set; } = 5000;
+    public TimeSpan DebounceInterval
+    {
+        get => _debounce.DebounceInterval;
+        set => _debounce.DebounceInterval = value;
+    }
+
+    public int InternalWriteWindowMs
+    {
+        get => _debounce.InternalWriteWindowMs;
+        set => _debounce.InternalWriteWindowMs = value;
+    }
 
     public event EventHandler<FileChangedEventArgs>? Changed;
     public event EventHandler<FileChangedEventArgs>? Created;
@@ -36,28 +44,13 @@ public sealed class InMemoryFileSystemWatcher : IFileSystemWatcher
     public event EventHandler<FileChangedEventArgs>? DebouncedDeleted;
     public event EventHandler<FileRenamedEventArgs>? DebouncedRenamed;
 
-    public void MarkInternalWrite(string filePath)
-    {
-        var normalizedPath = System.IO.Path.GetFullPath(filePath);
-        _internalWriteTimestamps[normalizedPath] = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-    }
-
-    private bool ConsumeInternalWrite(string filePath)
-    {
-        var normalizedPath = System.IO.Path.GetFullPath(filePath);
-        if (_internalWriteTimestamps.TryRemove(normalizedPath, out var timestamp))
-        {
-            var elapsed = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - timestamp;
-            return elapsed < InternalWriteWindowMs;
-        }
-        return false;
-    }
+    public void MarkInternalWrite(string filePath) => _debounce.MarkInternalWrite(filePath);
 
     internal void OnFileChanged(string fullPath, WatcherChangeTypes changeType)
     {
         if (!EnableRaisingEvents || _disposed) return;
         if (!MatchesWatch(fullPath)) return;
-        if (ConsumeInternalWrite(fullPath)) return;
+        if (_debounce.ConsumeInternalWrite(fullPath)) return;
 
         var name = System.IO.Path.GetFileName(fullPath);
         var args = new FileChangedEventArgs { ChangeType = changeType, FullPath = fullPath, Name = name };
@@ -66,15 +59,15 @@ public sealed class InMemoryFileSystemWatcher : IFileSystemWatcher
         {
             case WatcherChangeTypes.Changed:
                 Changed?.Invoke(this, args);
-                ScheduleDebounce(fullPath, () => DebouncedChanged?.Invoke(this, args));
+                _debounce.ScheduleDebounce(fullPath, () => DebouncedChanged?.Invoke(this, args));
                 break;
             case WatcherChangeTypes.Created:
                 Created?.Invoke(this, args);
-                ScheduleDebounce(fullPath, () => DebouncedCreated?.Invoke(this, args));
+                _debounce.ScheduleDebounce(fullPath, () => DebouncedCreated?.Invoke(this, args));
                 break;
             case WatcherChangeTypes.Deleted:
                 Deleted?.Invoke(this, args);
-                ScheduleDebounce(fullPath, () => DebouncedDeleted?.Invoke(this, args));
+                _debounce.ScheduleDebounce(fullPath, () => DebouncedDeleted?.Invoke(this, args));
                 break;
         }
     }
@@ -83,7 +76,7 @@ public sealed class InMemoryFileSystemWatcher : IFileSystemWatcher
     {
         if (!EnableRaisingEvents || _disposed) return;
         if (!MatchesWatch(newFullPath)) return;
-        if (ConsumeInternalWrite(newFullPath)) return;
+        if (_debounce.ConsumeInternalWrite(newFullPath)) return;
 
         var args = new FileRenamedEventArgs
         {
@@ -95,27 +88,7 @@ public sealed class InMemoryFileSystemWatcher : IFileSystemWatcher
         };
 
         Renamed?.Invoke(this, args);
-        ScheduleDebounce(newFullPath, () => DebouncedRenamed?.Invoke(this, args));
-    }
-
-    private void ScheduleDebounce(string filePath, Action fireAction)
-    {
-        var interval = DebounceInterval;
-        if (interval <= TimeSpan.Zero)
-        {
-            fireAction();
-            return;
-        }
-
-        if (_debounceTimers.TryRemove(filePath, out var existingTimer))
-            existingTimer.Dispose();
-
-        _debounceTimers[filePath] = new Timer(_ =>
-        {
-            _debounceTimers.TryRemove(filePath, out var timer);
-            timer?.Dispose();
-            if (!_disposed) fireAction();
-        }, null, interval, Timeout.InfiniteTimeSpan);
+        _debounce.ScheduleDebounce(newFullPath, () => DebouncedRenamed?.Invoke(this, args));
     }
 
     private bool MatchesWatch(string fullPath)
@@ -165,11 +138,7 @@ public sealed class InMemoryFileSystemWatcher : IFileSystemWatcher
         if (_disposed) return;
         _disposed = true;
 
-        foreach (var kvp in _debounceTimers)
-            kvp.Value.Dispose();
-        _debounceTimers.Clear();
-        _internalWriteTimestamps.Clear();
-
+        _debounce.Dispose();
         _fs.UnregisterWatcher(this);
     }
 }

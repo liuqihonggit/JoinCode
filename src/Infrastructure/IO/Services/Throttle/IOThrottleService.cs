@@ -12,17 +12,12 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable
     private readonly ITelemetryService? _telemetryService;
     private readonly IClockService _clock;
 
-    // 并发限制 - 按操作类型分别控制
     private readonly SemaphoreSlim _readSemaphore;
     private readonly SemaphoreSlim _writeSemaphore;
     private readonly SemaphoreSlim _deleteSemaphore;
 
-    // 速率限制 - Token Bucket
-    private readonly SemaphoreSlim _tokenSemaphore = new(1, 1);
-    private double _tokens;
-    private DateTime _lastRefillTime;
+    private readonly TokenBucket _tokenBucket;
 
-    // 统计
     private int _currentConcurrentOperations;
 
     public IOThrottleService(
@@ -36,14 +31,11 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable
         _telemetryService = telemetryService;
         _clock = clock ?? SystemClockService.Instance;
 
-        // 初始化信号量
         _readSemaphore = new SemaphoreSlim(_options.MaxConcurrentReads);
         _writeSemaphore = new SemaphoreSlim(_options.MaxConcurrentWrites);
         _deleteSemaphore = new SemaphoreSlim(_options.MaxConcurrentDeletes);
 
-        // 初始化令牌桶
-        _tokens = _options.TokenBucketCapacity;
-        _lastRefillTime = _clock.GetUtcNow();
+        _tokenBucket = new TokenBucket(_options.TokenBucketCapacity, _options.TokenRefillRatePerSecond, () => _clock.GetUtcNow());
 
         _logger?.LogInformation(
             "IOThrottleService initialized: MaxConcurrentReads={MaxReads}, MaxConcurrentWrites={MaxWrites}, " +
@@ -56,26 +48,7 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable
 
     public int CurrentConcurrentOperations => Interlocked.CompareExchange(ref _currentConcurrentOperations, 0, 0);
 
-    public double CurrentTokens
-    {
-        get
-        {
-            if (!_tokenSemaphore.Wait(0))
-            {
-                return _tokens;
-            }
-
-            try
-            {
-                RefillTokens();
-                return _tokens;
-            }
-            finally
-            {
-                _tokenSemaphore.Release();
-            }
-        }
-    }
+    public double CurrentTokens => _tokenBucket.CurrentTokens;
 
     public async Task<IIOExecutionLease> AcquireAsync(
         IOOperationType operationType = IOOperationType.Read,
@@ -90,13 +63,11 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable
 
         var stopwatch = Stopwatch.StartNew();
 
-        // 1. 等待并发许可
         await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
 
         try
         {
-            // 2. 等待速率限制许可
-            await WaitForTokensAsync(tokenCost, cancellationToken).ConfigureAwait(false);
+            await _tokenBucket.WaitForTokensAsync(tokenCost, cancellationToken).ConfigureAwait(false);
 
             Interlocked.Increment(ref _currentConcurrentOperations);
 
@@ -114,7 +85,6 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable
         catch
         {
             RecordAcquireMetrics(operationType, stopwatch.ElapsedMilliseconds, false);
-            // 如果速率限制失败，释放并发许可
             semaphore.Release();
             throw;
         }
@@ -127,7 +97,6 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable
         var semaphore = GetSemaphore(operationType);
         var tokenCost = _options.GetTokenCost(operationType);
 
-        // 1. 尝试获取并发许可
         if (!semaphore.Wait(0))
         {
             RecordAcquireMetrics(operationType, 0, false);
@@ -137,8 +106,7 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable
 
         try
         {
-            // 2. 尝试获取速率限制许可
-            if (!TryConsumeTokens(tokenCost))
+            if (!_tokenBucket.TryConsume(tokenCost))
             {
                 semaphore.Release();
                 RecordAcquireMetrics(operationType, 0, false);
@@ -179,68 +147,6 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable
         _ => throw new ArgumentOutOfRangeException(nameof(operationType))
     };
 
-    private async Task WaitForTokensAsync(double requiredTokens, CancellationToken cancellationToken)
-    {
-        while (true)
-        {
-            await _tokenSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
-            {
-                RefillTokens();
-
-                if (_tokens >= requiredTokens)
-                {
-                    _tokens -= requiredTokens;
-                    return;
-                }
-            }
-            finally
-            {
-                _tokenSemaphore.Release();
-            }
-
-            await Task.Delay(10, cancellationToken).ConfigureAwait(false);
-        }
-    }
-
-    private bool TryConsumeTokens(double requiredTokens)
-    {
-        if (!_tokenSemaphore.Wait(0))
-        {
-            return false;
-        }
-
-        try
-        {
-            RefillTokens();
-
-            if (_tokens >= requiredTokens)
-            {
-                _tokens -= requiredTokens;
-                return true;
-            }
-
-            return false;
-        }
-        finally
-        {
-            _tokenSemaphore.Release();
-        }
-    }
-
-    private void RefillTokens()
-    {
-        var now = _clock.GetUtcNow();
-        var elapsedSeconds = (now - _lastRefillTime).TotalSeconds;
-
-        if (elapsedSeconds > 0)
-        {
-            var tokensToAdd = elapsedSeconds * _options.TokenRefillRatePerSecond;
-            _tokens = Math.Min(_options.TokenBucketCapacity, _tokens + tokensToAdd);
-            _lastRefillTime = now;
-        }
-    }
-
     private void RecordAcquireMetrics(IOOperationType operationType, long elapsedMs, bool isSuccess)
     {
         _telemetryService?.RecordCount("io.throttle.acquire.count", new Dictionary<string, string> { ["operation"] = operationType.ToString(), ["success"] = isSuccess.ToString() }, "count", "IO throttle acquire count");
@@ -253,7 +159,7 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable
         _readSemaphore.Dispose();
         _writeSemaphore.Dispose();
         _deleteSemaphore.Dispose();
-        _tokenSemaphore.Dispose();
+        _tokenBucket.Dispose();
     }
 }
 

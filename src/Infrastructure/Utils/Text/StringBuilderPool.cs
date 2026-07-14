@@ -6,9 +6,11 @@ namespace Core.Utils;
 /// </summary>
 public sealed class PooledStringBuilder : IDisposable
 {
-    private static readonly ConcurrentBag<StringBuilder> Pool = new();
-    private const int MaxPoolSize = 32;
-    private const int MaxStringBuilderCapacity = 4096;
+    private static readonly BoundedObjectPool<StringBuilder> Pool = new(
+        factory: () => new StringBuilder(256),
+        maxPoolSize: 32,
+        reset: sb => sb.Clear(),
+        returnValidator: sb => sb.Length <= 4096);
 
     /// <summary>
     /// StringBuilder 实例
@@ -23,28 +25,12 @@ public sealed class PooledStringBuilder : IDisposable
     /// <summary>
     /// 从池中租用 StringBuilder
     /// </summary>
-    public static PooledStringBuilder Rent()
-    {
-        if (Pool.TryTake(out var builder))
-        {
-            builder.Clear();
-            return new PooledStringBuilder(builder);
-        }
-
-        return new PooledStringBuilder(new StringBuilder(256));
-    }
+    public static PooledStringBuilder Rent() => new(Pool.Rent());
 
     /// <summary>
     /// 将 StringBuilder 返回到池中
     /// </summary>
-    public void Dispose()
-    {
-        if (Builder.Length <= MaxStringBuilderCapacity && Pool.Count < MaxPoolSize)
-        {
-            Builder.Clear();
-            Pool.Add(Builder);
-        }
-    }
+    public void Dispose() => Pool.Return(Builder);
 
     /// <summary>
     /// 获取当前内容并释放
@@ -59,7 +45,7 @@ public sealed class PooledStringBuilder : IDisposable
     /// <summary>
     /// 获取池统计信息
     /// </summary>
-    public static (int Count, int MaxSize) GetStats() => (Pool.Count, MaxPoolSize);
+    public static (int Count, int MaxSize) GetStats() => Pool.GetStats();
 }
 
 /// <summary>

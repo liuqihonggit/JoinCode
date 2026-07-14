@@ -1,4 +1,4 @@
-namespace JoinCode.Abstractions.LLM.Chat;
+namespace McpToolRegistry;
 
 public static class McpReconnectPolicy
 {

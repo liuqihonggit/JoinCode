@@ -369,9 +369,3 @@ public sealed class BridgeJwtRefreshResult
     public string? Error { get; init; }
 }
 
-/// <summary>
-/// Bridge JWT AOT 兼容序列化上下文
-/// </summary>
-[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, WriteIndented = false)]
-[JsonSerializable(typeof(BridgeJwtPayload))]
-internal partial class BridgeJwtJsonContext : JsonSerializerContext;

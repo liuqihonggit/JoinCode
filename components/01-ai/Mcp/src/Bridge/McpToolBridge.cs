@@ -1,5 +1,5 @@
 
-namespace Api.Mcp;
+namespace McpBridge;
 
 public sealed class McpToolBridge
 {

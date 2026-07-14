@@ -46,6 +46,7 @@ global using JoinCode.Abstractions.Utils.Web;
 global using Infrastructure.Utils.IO;
 global using Infrastructure.Utils.Text;
 global using Infrastructure.IO.Services.FileOps;
+global using IO;
 global using ICostTracker = JoinCode.Abstractions.Interfaces.ICostTracker;
 global using Core.Configuration;
 global using Core.Plugins;

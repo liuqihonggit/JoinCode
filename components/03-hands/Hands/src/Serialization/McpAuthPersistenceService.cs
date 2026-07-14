@@ -124,6 +124,3 @@ public sealed partial class McpAuthPersistenceService : IMcpAuthPersistenceServi
     }
 }
 
-[JsonSerializable(typeof(List<AuthConfigEntry>))]
-[JsonSourceGenerationOptions(PropertyNameCaseInsensitive = true)]
-internal sealed partial class AuthEntryContext : JsonSerializerContext;

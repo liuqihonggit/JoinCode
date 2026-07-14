@@ -70,7 +70,7 @@ public sealed partial class McpSkillProvider : IMcpSkillProvider
     public async Task<SkillResult> ExecuteMcpSkillAsync(
         string skillName,
         Dictionary<string, JsonElement>? parameters,
-        SkillExecutionContext ctx,
+        ExecutionContext ctx,
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(skillName);
@@ -119,7 +119,7 @@ public sealed partial class McpSkillProvider : IMcpSkillProvider
                         continue;
                     }
 
-                    foreach (var tool in toolsResult.Tools)
+                    foreach (var tool in toolsResult.Data!)
                     {
                         var skill = await adapter.AdaptToolAsync(tool, cancellationToken).ConfigureAwait(false);
                         if (skill != null)
@@ -130,7 +130,7 @@ public sealed partial class McpSkillProvider : IMcpSkillProvider
                     }
 
                     _logger?.LogInformation("[McpSkillProvider] 从 MCP 服务器 {Server} 加载 {Count} 个技能",
-                        serverName, toolsResult.Tools.Count);
+                        serverName, toolsResult.Data.Count);
                 }
                 catch (Exception ex)
                 {

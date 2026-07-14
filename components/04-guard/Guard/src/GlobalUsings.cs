@@ -78,3 +78,4 @@ global using System.Text.Json.Serialization;
 global using System.Text.RegularExpressions;
 global using System.Threading;
 global using Timer = System.Threading.Timer;
+global using ValidationResult = Structura.Primitives.ValidationResult;

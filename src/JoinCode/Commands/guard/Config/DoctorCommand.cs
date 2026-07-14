@@ -309,7 +309,7 @@ public sealed class DoctorCommand : IChatCommand
                     {
                         var toolsResult = await client.ListToolsAsync(context.CancellationToken).ConfigureAwait(false);
                         if (toolsResult.Success)
-                            sb.AppendLine($"      工具: {toolsResult.Tools.Count} 个");
+                            sb.AppendLine($"      工具: {toolsResult.Data!.Count} 个");
                     }
                     catch
                     {

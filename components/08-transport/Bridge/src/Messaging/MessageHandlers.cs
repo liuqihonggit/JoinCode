@@ -294,7 +294,7 @@ public sealed class SkillExecuteHandler : IMessageHandler
             }
 
             var parameters = request.Parameters ?? new Dictionary<string, JsonElement>();
-            var ctx = new SkillExecutionContext(cancellationToken);
+            var ctx = new ExecutionContext(cancellationToken);
             var result = await context.SkillService.ExecuteAsync(request.SkillName, parameters, ctx).ConfigureAwait(false);
 
             return new SkillExecuteResponse
@@ -425,7 +425,7 @@ public sealed class ControlRequestHandler : IMessageHandler
         // 接入 ISkillService 重新加载技能
         if (context.SkillService != null)
         {
-            var ctx = new SkillExecutionContext(cancellationToken);
+            var ctx = new ExecutionContext(cancellationToken);
             var reloaded = await context.SkillService.ReloadAsync(skillName: null, ctx, cancellationToken).ConfigureAwait(false);
             context.Logger?.LogInformation("[ControlRequestHandler] 技能重新加载: {Result}", reloaded ? "成功" : "失败");
         }

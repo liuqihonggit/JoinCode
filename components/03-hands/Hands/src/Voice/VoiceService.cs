@@ -206,7 +206,9 @@ public sealed partial class VoiceService : IVoiceService, JoinCode.Abstractions.
         }
 
         await Task.CompletedTask.ConfigureAwait(false);
-        throw new NotImplementedException(L.T(StringKey.VoiceLocalSttNotImplemented));
+        // P2-4: LocalModel STT 未实现，返回空字符串并记录警告，避免抛出 NotImplementedException 导致进程崩溃
+        _logger?.LogWarning(L.T(StringKey.VoiceLocalSttNotImplemented));
+        return string.Empty;
     }
 
     private async Task RecordLoopAsync(CancellationToken cancellationToken)

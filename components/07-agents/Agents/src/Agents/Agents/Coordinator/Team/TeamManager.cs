@@ -41,7 +41,7 @@ public sealed class TeamManager : ITeamManager, IDisposable
         _subAgentContextAccessor = subAgentContextAccessor ?? new SubAgentContextAccessor();
     }
 
-    public Task<TeamOperationResult> CreateTeamAsync(
+    public Task<OperationResult<TeamInfo?>> CreateTeamAsync(
         string teamName,
         string? description = null,
         List<string>? initialMembers = null,
@@ -49,7 +49,7 @@ public sealed class TeamManager : ITeamManager, IDisposable
     {
         if (string.IsNullOrWhiteSpace(teamName))
         {
-            return Task.FromResult(new TeamOperationResult(false, null, "团队名称不能为空"));
+            return Task.FromResult(OperationResult<TeamInfo?>.Fail("团队名称不能为空"));
         }
 
         // 单团队限制：当前会话已存在团队时不允许再创建（对齐 TS TeamCreateTool）
@@ -59,7 +59,7 @@ public sealed class TeamManager : ITeamManager, IDisposable
             var existingTeamForSession = _teamSessions.FirstOrDefault(kvp => kvp.Value == sessionId);
             if (existingTeamForSession.Key is not null)
             {
-                return Task.FromResult(new TeamOperationResult(false, null, "已在团队中，请先使用 TeamDelete 删除当前团队"));
+                return Task.FromResult(OperationResult<TeamInfo?>.Fail("已在团队中，请先使用 TeamDelete 删除当前团队"));
             }
         }
 
@@ -67,7 +67,7 @@ public sealed class TeamManager : ITeamManager, IDisposable
         var nameConflict = _teams.Values.FirstOrDefault(t => string.Equals(t.TeamName, teamName, StringComparison.OrdinalIgnoreCase));
         if (nameConflict is not null)
         {
-            return Task.FromResult(new TeamOperationResult(false, null, $"团队名称 '{teamName}' 已存在，请使用其他名称"));
+            return Task.FromResult(OperationResult<TeamInfo?>.Fail($"团队名称 '{teamName}' 已存在，请使用其他名称"));
         }
 
         var teamId = GenerateTeamId();
@@ -109,17 +109,17 @@ public sealed class TeamManager : ITeamManager, IDisposable
             }
         }
 
-        return Task.FromResult(new TeamOperationResult(true, team));
+        return Task.FromResult(OperationResult<TeamInfo?>.Ok(team));
     }
 
-    public Task<TeamOperationResult> DeleteTeamAsync(
+    public Task<OperationResult<TeamInfo?>> DeleteTeamAsync(
         string teamId,
         CancellationToken cancellationToken = default)
     {
         if (!_teams.TryGetValue(teamId, out var team))
         {
             RecordTeamMetrics("delete", false);
-            return Task.FromResult(new TeamOperationResult(false, null, $"团队 {teamId} 不存在"));
+            return Task.FromResult(OperationResult<TeamInfo?>.Fail($"团队 {teamId} 不存在"));
         }
 
         // Active member 安全检查（对齐 TS TeamDeleteTool）
@@ -129,7 +129,7 @@ public sealed class TeamManager : ITeamManager, IDisposable
             if (activeMembers.Count > 0)
             {
                 var activeNames = string.Join(", ", activeMembers.Select(m => m.AgentId));
-                return Task.FromResult(new TeamOperationResult(false, null, $"团队仍有活跃成员: {activeNames}，请先优雅关闭所有队友再删除团队"));
+                return Task.FromResult(OperationResult<TeamInfo?>.Fail($"团队仍有活跃成员: {activeNames}，请先优雅关闭所有队友再删除团队"));
             }
         }
 
@@ -146,7 +146,7 @@ public sealed class TeamManager : ITeamManager, IDisposable
         _teamMessages.TryRemove(teamId, out _);
 
         RecordTeamMetrics("delete", true);
-        return Task.FromResult(new TeamOperationResult(true, team));
+        return Task.FromResult(OperationResult<TeamInfo?>.Ok(team));
     }
 
     public Task<TeamInfo?> GetTeamAsync(
@@ -164,14 +164,14 @@ public sealed class TeamManager : ITeamManager, IDisposable
         return Task.FromResult<IReadOnlyList<TeamInfo>>(teams);
     }
 
-    public async Task<TeamOperationResult> AddTeamMemberAsync(
+    public async Task<OperationResult<TeamInfo?>> AddTeamMemberAsync(
         string teamId,
         string agentId,
         CancellationToken cancellationToken = default)
     {
         if (!_teams.TryGetValue(teamId, out var team))
         {
-            return new TeamOperationResult(false, null, $"团队 {teamId} 不存在");
+            return OperationResult<TeamInfo?>.Fail($"团队 {teamId} 不存在");
         }
 
         var members = _teamMembers.GetOrAdd(teamId, _ => new HashSet<string>());
@@ -182,7 +182,7 @@ public sealed class TeamManager : ITeamManager, IDisposable
         {
             if (members.Contains(agentId))
             {
-                return new TeamOperationResult(false, null, $"代理 {agentId} 已经是团队成员");
+                return OperationResult<TeamInfo?>.Fail($"代理 {agentId} 已经是团队成员");
             }
 
             members.Add(agentId);
@@ -202,22 +202,22 @@ public sealed class TeamManager : ITeamManager, IDisposable
 
         _agentToTeam[agentId] = teamId;
 
-        return new TeamOperationResult(true, _teams[teamId]);
+        return OperationResult<TeamInfo?>.Ok(_teams[teamId]);
     }
 
-    public async Task<TeamOperationResult> RemoveTeamMemberAsync(
+    public async Task<OperationResult<TeamInfo?>> RemoveTeamMemberAsync(
         string teamId,
         string agentId,
         CancellationToken cancellationToken = default)
     {
         if (!_teams.TryGetValue(teamId, out var team))
         {
-            return new TeamOperationResult(false, null, $"团队 {teamId} 不存在");
+            return OperationResult<TeamInfo?>.Fail($"团队 {teamId} 不存在");
         }
 
         if (!_teamMembers.TryGetValue(teamId, out var members))
         {
-            return new TeamOperationResult(false, null, $"团队 {teamId} 没有成员列表");
+            return OperationResult<TeamInfo?>.Fail($"团队 {teamId} 没有成员列表");
         }
 
         var memberDetails = _teamMemberDetails.GetOrAdd(teamId, _ => new Dictionary<string, TeamMemberInfo>());
@@ -227,7 +227,7 @@ public sealed class TeamManager : ITeamManager, IDisposable
         {
             if (!members.Remove(agentId))
             {
-                return new TeamOperationResult(false, null, $"代理 {agentId} 不是团队成员");
+                return OperationResult<TeamInfo?>.Fail($"代理 {agentId} 不是团队成员");
             }
 
             memberDetails.Remove(agentId);
@@ -246,7 +246,7 @@ public sealed class TeamManager : ITeamManager, IDisposable
             LastActivityAt = _clock.GetUtcNow()
         };
 
-        return new TeamOperationResult(true, _teams[teamId]);
+        return OperationResult<TeamInfo?>.Ok(_teams[teamId]);
     }
 
     public Task<IReadOnlyList<string>> GetTeamMembersAsync(
@@ -261,7 +261,7 @@ public sealed class TeamManager : ITeamManager, IDisposable
         return Task.FromResult<IReadOnlyList<string>>(members.ToList());
     }
 
-    public async Task<TeamOperationResult> SendMessageAsync(
+    public async Task<OperationResult<TeamInfo?>> SendMessageAsync(
         string teamId,
         string senderId,
         string content,
@@ -270,7 +270,7 @@ public sealed class TeamManager : ITeamManager, IDisposable
     {
         if (!_teams.TryGetValue(teamId, out var team))
         {
-            return new TeamOperationResult(false, null, $"团队 {teamId} 不存在");
+            return OperationResult<TeamInfo?>.Fail($"团队 {teamId} 不存在");
         }
 
         var message = new TeamMessage
@@ -290,7 +290,7 @@ public sealed class TeamManager : ITeamManager, IDisposable
         {
             if (!_teamMembers.TryGetValue(teamId, out var members) || !members.Contains(senderId))
             {
-                return new TeamOperationResult(false, null, $"发送者 {senderId} 不是团队成员");
+                return OperationResult<TeamInfo?>.Fail($"发送者 {senderId} 不是团队成员");
             }
 
             messages.Add(message);
@@ -304,10 +304,10 @@ public sealed class TeamManager : ITeamManager, IDisposable
 
         await PersistTeamMessageToMailboxAsync(teamId, message, cancellationToken).ConfigureAwait(false);
 
-        return new TeamOperationResult(true, _teams[teamId]);
+        return OperationResult<TeamInfo?>.Ok(_teams[teamId]);
     }
 
-    public async Task<TeamOperationResult> SendMessageToAgentAsync(
+    public async Task<OperationResult<TeamInfo?>> SendMessageToAgentAsync(
         string targetAgentId,
         string senderId,
         string content,
@@ -316,12 +316,12 @@ public sealed class TeamManager : ITeamManager, IDisposable
     {
         if (!_agentToTeam.TryGetValue(targetAgentId, out var teamId))
         {
-            return new TeamOperationResult(false, null, $"代理 {targetAgentId} 不属于任何团队");
+            return OperationResult<TeamInfo?>.Fail($"代理 {targetAgentId} 不属于任何团队");
         }
 
         if (!_teams.TryGetValue(teamId, out var team))
         {
-            return new TeamOperationResult(false, null, $"团队 {teamId} 不存在");
+            return OperationResult<TeamInfo?>.Fail($"团队 {teamId} 不存在");
         }
 
         var message = new TeamMessage
@@ -341,7 +341,7 @@ public sealed class TeamManager : ITeamManager, IDisposable
         {
             if (!_teamMembers.TryGetValue(teamId, out var members) || !members.Contains(senderId))
             {
-                return new TeamOperationResult(false, null, $"发送者 {senderId} 不是团队成员");
+                return OperationResult<TeamInfo?>.Fail($"发送者 {senderId} 不是团队成员");
             }
 
             messages.Add(message);
@@ -353,7 +353,7 @@ public sealed class TeamManager : ITeamManager, IDisposable
 
         await PersistDirectMessageToMailboxAsync(targetAgentId, senderId, content, messageType ?? "direct", teamId, cancellationToken).ConfigureAwait(false);
 
-        return new TeamOperationResult(true, team);
+        return OperationResult<TeamInfo?>.Ok(team);
     }
 
     public async Task<IReadOnlyList<TeamMessage>> GetTeamMessagesAsync(
@@ -380,7 +380,7 @@ public sealed class TeamManager : ITeamManager, IDisposable
         }
     }
 
-    public async Task<TeamOperationResult> BroadcastMessageAsync(
+    public async Task<OperationResult<TeamInfo?>> BroadcastMessageAsync(
         string teamId,
         string senderId,
         string content,
@@ -389,7 +389,7 @@ public sealed class TeamManager : ITeamManager, IDisposable
     {
         if (!_teams.TryGetValue(teamId, out var team))
         {
-            return new TeamOperationResult(false, null, $"团队 {teamId} 不存在");
+            return OperationResult<TeamInfo?>.Fail($"团队 {teamId} 不存在");
         }
 
         var message = new TeamMessage
@@ -409,7 +409,7 @@ public sealed class TeamManager : ITeamManager, IDisposable
         {
             if (!_teamMembers.TryGetValue(teamId, out var members) || !members.Contains(senderId))
             {
-                return new TeamOperationResult(false, null, $"发送者 {senderId} 不是团队成员");
+                return OperationResult<TeamInfo?>.Fail($"发送者 {senderId} 不是团队成员");
             }
 
             messages.Add(message);
@@ -423,7 +423,7 @@ public sealed class TeamManager : ITeamManager, IDisposable
 
         await PersistTeamMessageToMailboxAsync(teamId, message, cancellationToken).ConfigureAwait(false);
 
-        return new TeamOperationResult(true, _teams[teamId]);
+        return OperationResult<TeamInfo?>.Ok(_teams[teamId]);
     }
 
     private string GenerateTeamId()
@@ -492,7 +492,7 @@ public sealed class TeamManager : ITeamManager, IDisposable
         }
     }
 
-    public async Task<TeamOperationResult> SetMemberActiveAsync(
+    public async Task<OperationResult<TeamInfo?>> SetMemberActiveAsync(
         string teamId,
         string agentId,
         bool isActive,
@@ -500,7 +500,7 @@ public sealed class TeamManager : ITeamManager, IDisposable
     {
         if (!_teams.TryGetValue(teamId, out var team))
         {
-            return new TeamOperationResult(false, null, $"团队 {teamId} 不存在");
+            return OperationResult<TeamInfo?>.Fail($"团队 {teamId} 不存在");
         }
 
         var memberDetails = _teamMemberDetails.GetOrAdd(teamId, _ => new Dictionary<string, TeamMemberInfo>());
@@ -510,7 +510,7 @@ public sealed class TeamManager : ITeamManager, IDisposable
         {
             if (!memberDetails.TryGetValue(agentId, out var existing))
             {
-                return new TeamOperationResult(false, null, $"代理 {agentId} 不是团队成员");
+                return OperationResult<TeamInfo?>.Fail($"代理 {agentId} 不是团队成员");
             }
 
             memberDetails[agentId] = existing with { IsActive = isActive };
@@ -526,7 +526,7 @@ public sealed class TeamManager : ITeamManager, IDisposable
             LastActivityAt = _clock.GetUtcNow()
         };
 
-        return new TeamOperationResult(true, _teams[teamId]);
+        return OperationResult<TeamInfo?>.Ok(_teams[teamId]);
     }
 
     public Task<IReadOnlyList<TeamAllowedPath>> GetTeamAllowedPathsAsync(
@@ -541,7 +541,7 @@ public sealed class TeamManager : ITeamManager, IDisposable
         return Task.FromResult<IReadOnlyList<TeamAllowedPath>>(paths.ToList());
     }
 
-    public async Task<TeamOperationResult> AddTeamAllowedPathAsync(
+    public async Task<OperationResult<TeamInfo?>> AddTeamAllowedPathAsync(
         string teamId,
         string path,
         AccessLevel accessLevel = AccessLevel.Read,
@@ -549,12 +549,12 @@ public sealed class TeamManager : ITeamManager, IDisposable
     {
         if (!_teams.TryGetValue(teamId, out var team))
         {
-            return new TeamOperationResult(false, null, $"团队 {teamId} 不存在");
+            return OperationResult<TeamInfo?>.Fail($"团队 {teamId} 不存在");
         }
 
         if (string.IsNullOrWhiteSpace(path))
         {
-            return new TeamOperationResult(false, null, "路径不能为空");
+            return OperationResult<TeamInfo?>.Fail("路径不能为空");
         }
 
         var paths = _teamAllowedPaths.GetOrAdd(teamId, _ => new List<TeamAllowedPath>());
@@ -584,7 +584,7 @@ public sealed class TeamManager : ITeamManager, IDisposable
             LastActivityAt = _clock.GetUtcNow()
         };
 
-        return new TeamOperationResult(true, _teams[teamId]);
+        return OperationResult<TeamInfo?>.Ok(_teams[teamId]);
     }
 
     public async Task<IReadOnlyList<TeammateStatus>> GetTeammateStatusesAsync(

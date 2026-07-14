@@ -39,6 +39,12 @@ public interface IReplBridgeTransport : IAsyncDisposable
     /// <summary>关闭传输</summary>
     void Close();
 
+    /// <summary>
+    /// 异步关闭传输 — P1-4: 消除 Close() 内 sync-over-async 阻塞
+    /// 调用方在 async 上下文中应优先使用此方法
+    /// </summary>
+    Task CloseAsync(CancellationToken ct = default);
+
     /// <summary>写路径是否就绪（v1: WS 已连接; v2: CCRClient 已初始化）</summary>
     bool IsConnectedStatus();
 

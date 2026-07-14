@@ -76,11 +76,11 @@ public partial class WebBrowserToolHandlers
                     }
 
                     var screenshotResult = await _browserService.ScreenshotAsync(target, waitMs, cancellationToken).ConfigureAwait(false);
-                    if (screenshotResult.Success && screenshotResult.PngData is { Length: > 0 })
+                    if (screenshotResult.Success && screenshotResult.Data is { Length: > 0 })
                     {
                         response.AppendLine(L.T(StringKey.BrowserFetched, target));
-                        response.AppendLine(L.T(StringKey.BrowserContentSize, screenshotResult.PngData.Length));
-                        var base64Png = Convert.ToBase64String(screenshotResult.PngData);
+                        response.AppendLine(L.T(StringKey.BrowserContentSize, screenshotResult.Data.Length));
+                        var base64Png = Convert.ToBase64String(screenshotResult.Data);
                         return McpResultBuilder.Success()
                             .WithText(response.ToString())
                             .WithImage(base64Png, "image/png")
@@ -105,10 +105,10 @@ public partial class WebBrowserToolHandlers
                     if (evaluateResult.Success)
                     {
                         response.AppendLine($"JavaScript evaluation result on {pageUrl}:");
-                        if (!string.IsNullOrEmpty(evaluateResult.Result))
+                        if (!string.IsNullOrEmpty(evaluateResult.Data))
                         {
                             response.AppendLine();
-                            response.AppendLine(evaluateResult.Result);
+                            response.AppendLine(evaluateResult.Data);
                         }
                     }
                     else

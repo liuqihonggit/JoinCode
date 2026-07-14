@@ -120,12 +120,12 @@ public sealed partial class TodoService : ITodoService
         return Task.FromResult(new TodoListResult(true, result));
     }
 
-    public async Task<TodoItemResult> UpdateTodoAsync(string todoId, string? content = null, string? status = null, string? priority = null, CancellationToken cancellationToken = default)
+    public async Task<OperationResult<TodoItem?>> UpdateTodoAsync(string todoId, string? content = null, string? status = null, string? priority = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(todoId);
         if (!_todos.TryGetValue(todoId, out var existingTodo))
         {
-            return new TodoItemResult(false, null, L.T(StringKey.VaultTodoNotFound));
+            return OperationResult<TodoItem?>.Fail(L.T(StringKey.VaultTodoNotFound));
         }
 
         var updatedTodo = existingTodo with
@@ -149,7 +149,7 @@ public sealed partial class TodoService : ITodoService
             await _taskRuntime.UpdateTaskAsync(todoId, update, cancellationToken).ConfigureAwait(false);
         }
 
-        return new TodoItemResult(true, updatedTodo);
+        return OperationResult<TodoItem?>.Ok(updatedTodo);
     }
 
     public Task ClearTodosAsync(CancellationToken cancellationToken = default)

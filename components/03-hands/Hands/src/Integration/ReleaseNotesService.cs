@@ -1,7 +1,7 @@
-﻿namespace IO.Services;
+namespace IO.Services;
 
 [Register]
-public sealed partial class ReleaseNotesService : IReleaseNotesService
+public sealed partial class ReleaseNotesService : IReleaseNotesService, IDisposable
 {
     private readonly HttpClient _httpClient;
     private readonly string _repoOwner;
@@ -101,6 +101,12 @@ public sealed partial class ReleaseNotesService : IReleaseNotesService
 
             return [];
         }
+    }
+
+    /// <summary>释放资源 — P2-2: 补全 IDisposable 释放 SemaphoreSlim 避免资源累积</summary>
+    public void Dispose()
+    {
+        _cacheLock.Dispose();
     }
 
 }

@@ -46,10 +46,18 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
         _writeLock = new SemaphoreSlim(1, 1);
         _heartbeatCts = new CancellationTokenSource();
 
-        _writeClient = writeClient ?? new HttpClient();
+        // P1-12: 兜底 HttpClient 添加 SocketsHttpHandler 配置解决 DNS 不刷新
+        // 决策: 保留 ?? 兜底模式（测试场景可注入自定义 client），仅修改兜底 handler 配置
+        _writeClient = writeClient ?? new HttpClient(new SocketsHttpHandler
+        {
+            PooledConnectionLifetime = TimeSpan.FromMinutes(1),
+        });
         SetAuthHeaders(_writeClient, options.IngressToken);
 
-        _sseClient = sseClient ?? new HttpClient();
+        _sseClient = sseClient ?? new HttpClient(new SocketsHttpHandler
+        {
+            PooledConnectionLifetime = TimeSpan.FromMinutes(1),
+        });
 
         // 事件上传器（100ms 延迟缓冲，最大批次 100）
         _eventUploader = new SerialBatchEventUploader(
@@ -116,6 +124,15 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
         _deliveryUploader.Dispose();
         _writeClient.Dispose();
         _sseClient.Dispose();
+    }
+
+    /// <summary>
+    /// 异步关闭传输 — P1-4: V2 的关闭全为同步操作，直接委托 Close
+    /// </summary>
+    public Task CloseAsync(CancellationToken ct = default)
+    {
+        Close();
+        return Task.CompletedTask;
     }
 
     public bool IsConnectedStatus()

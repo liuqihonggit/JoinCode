@@ -51,13 +51,13 @@ public class McpResourceToolHandlers
                 {
                     response.AppendLine($"   {StatusSymbol.Cross.ToValue()} Failed to list resources: {result.ErrorMessage}");
                 }
-                else if (result.Resources.Count == 0)
+                else if (result.Data!.Count == 0)
                 {
                     response.AppendLine("   No resources available");
                 }
                 else
                 {
-                    foreach (var resource in result.Resources)
+                    foreach (var resource in result.Data!)
                     {
                         response.AppendLine($"   {ObjectSymbol.File.ToValue()} {resource.Name}");
                         response.AppendLine($"      URI: {resource.Uri}");
@@ -173,13 +173,13 @@ public class McpResourceToolHandlers
                 {
                     response.AppendLine($"   {StatusSymbol.Cross.ToValue()} Failed to list prompts: {result.ErrorMessage}");
                 }
-                else if (result.Prompts.Count == 0)
+                else if (result.Data!.Count == 0)
                 {
                     response.AppendLine("   No prompt templates available");
                 }
                 else
                 {
-                    foreach (var prompt in result.Prompts)
+                    foreach (var prompt in result.Data!)
                     {
                         response.AppendLine($"   {ObjectSymbol.Pencil.ToValue()} {prompt.Name}");
 
@@ -334,7 +334,7 @@ public class McpResourceToolHandlers
                 return McpResultBuilder.Error().WithText($"Failed to read resource: {result.ErrorMessage}").Build();
             }
 
-            if (result.Content == null)
+            if (result.Data == null)
             {
                 return McpResultBuilder.Error().WithText($"Resource content is empty: {uri}").Build();
             }
@@ -343,22 +343,22 @@ public class McpResourceToolHandlers
             response.AppendLine($"{ObjectSymbol.File.ToValue()} Resource content: {uri}");
             response.AppendLine($"Source client: {clientId}");
 
-            if (!string.IsNullOrEmpty(result.Content.MimeType))
+            if (!string.IsNullOrEmpty(result.Data.MimeType))
             {
-                response.AppendLine($"MIME Type: {result.Content.MimeType}");
+                response.AppendLine($"MIME Type: {result.Data.MimeType}");
             }
 
             response.AppendLine();
             response.AppendLine("---");
             response.AppendLine();
 
-            if (!string.IsNullOrEmpty(result.Content.Text))
+            if (!string.IsNullOrEmpty(result.Data.Text))
             {
-                response.AppendLine(result.Content.Text);
+                response.AppendLine(result.Data.Text);
             }
-            else if (!string.IsNullOrEmpty(result.Content.Blob))
+            else if (!string.IsNullOrEmpty(result.Data.Blob))
             {
-                response.AppendLine($"[Binary data: {result.Content.Blob.Length} characters]");
+                response.AppendLine($"[Binary data: {result.Data.Blob.Length} characters]");
             }
 
             response.AppendLine();
@@ -387,7 +387,7 @@ public class McpResourceToolHandlers
                 return McpResultBuilder.Error().WithText($"Failed to get prompt: {result.ErrorMessage}").Build();
             }
 
-            if (result.Message == null)
+            if (result.Data == null)
             {
                 return McpResultBuilder.Error().WithText($"Prompt content is empty: {promptName}").Build();
             }
@@ -396,16 +396,16 @@ public class McpResourceToolHandlers
             response.AppendLine($"{ObjectSymbol.Pencil.ToValue()} Prompt: {promptName}");
             response.AppendLine($"Source client: {clientId}");
 
-            if (!string.IsNullOrEmpty(result.Message.Description))
+            if (!string.IsNullOrEmpty(result.Data.Description))
             {
-                response.AppendLine($"Description: {result.Message.Description}");
+                response.AppendLine($"Description: {result.Data.Description}");
             }
 
             response.AppendLine();
             response.AppendLine("Messages:");
             response.AppendLine();
 
-            foreach (var message in result.Message.Messages)
+            foreach (var message in result.Data.Messages)
             {
                 var roleIcon = message.Role switch
                 {

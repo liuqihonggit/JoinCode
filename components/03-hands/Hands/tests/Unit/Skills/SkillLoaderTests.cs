@@ -146,7 +146,7 @@ public class SkillServiceTests : IDisposable
     public async Task ExecuteAsync_NonExistingSkill_ShouldReturnFailure()
     {
         var service = CreateService();
-        var ctx = new SkillExecutionContext();
+        var ctx = new ExecutionContext();
 
         var result = await service.ExecuteAsync("nonexistent", null, ctx).ConfigureAwait(true);
 
@@ -158,7 +158,7 @@ public class SkillServiceTests : IDisposable
     public async Task ExecuteAsync_WithNullSkillName_ShouldThrow()
     {
         var service = CreateService();
-        var ctx = new SkillExecutionContext();
+        var ctx = new ExecutionContext();
 
         await Assert.ThrowsAsync<ArgumentNullException>(() => service.ExecuteAsync(null!, null, ctx)).ConfigureAwait(true);
     }
@@ -177,7 +177,7 @@ public class SkillServiceTests : IDisposable
     public async Task ReloadAsync_WithNullSkillName_ShouldReloadAll()
     {
         var service = CreateService();
-        var ctx = new SkillExecutionContext();
+        var ctx = new ExecutionContext();
 
         var result = await service.ReloadAsync(null, ctx).ConfigureAwait(true);
 
@@ -188,7 +188,7 @@ public class SkillServiceTests : IDisposable
     public async Task ReloadAsync_WithNonExistingSkill_ShouldReturnFalse()
     {
         var service = CreateService();
-        var ctx = new SkillExecutionContext();
+        var ctx = new ExecutionContext();
 
         var result = await service.ReloadAsync("nonexistent", ctx).ConfigureAwait(true);
 

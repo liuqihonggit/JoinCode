@@ -4,6 +4,7 @@ global using System.Threading.Tasks;
 global using JoinCode.Abstractions.Attributes;
 global using JoinCode.Abstractions.Interfaces;
 global using JoinCode.Abstractions.Localization;
+global using JoinCode.Abstractions.Models;
 global using Microsoft.Extensions.DependencyInjection;
 global using Microsoft.Extensions.Logging;
 global using PuppeteerSharp;

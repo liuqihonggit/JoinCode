@@ -258,25 +258,63 @@ public class ConfigLoader {
         try
         {
             var json = await fs.ReadAllTextAsync(settingsPath, cancellationToken).ConfigureAwait(false);
-
-            // 优先尝试强类型反序列化
-            var settings = JsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson);
-            if (settings is not null)
-            {
-                var value = GetSettingByKey(settings, key);
-                if (value is not null) return value;
-            }
-
-            // 回退到扁平 KV 格式（兼容旧版）
-            var data = JsonSerializer.Deserialize(json, ConfigJsonContext.Default.DictionaryStringString);
-            if (data is not null && data.TryGetValue(key, out var flatValue))
-                return flatValue;
+            return TryGetSettingFromJson(json, key);
         }
         catch (Exception ex)
         {
             // 文件损坏或格式错误，忽略
             System.Diagnostics.Trace.WriteLine($"Failed to load setting '{key}' from settings.json: {ex.Message}");
         }
+
+        return null;
+    }
+
+    /// <summary>
+    /// 从 ~/.jcc/settings.json 同步读取指定键的值（兼容旧版扁平 KV 格式）
+    /// P1-3: 为 Lazy&lt;T&gt; 加载场景提供同步入口，避免 sync-over-async 阻塞
+    /// </summary>
+    public static string? LoadSettingFromSettingsJson(string key, IFileSystem fs)
+    {
+        var settingsPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            AppDataConstants.AppDataFolder,
+            AppDataConstants.SettingsFileName);
+
+        if (!fs.FileExists(settingsPath))
+            return null;
+
+        try
+        {
+            var json = fs.ReadAllText(settingsPath);
+            return TryGetSettingFromJson(json, key);
+        }
+        catch (Exception ex)
+        {
+            // 文件损坏或格式错误，忽略
+            System.Diagnostics.Trace.WriteLine($"Failed to load setting '{key}' from settings.json: {ex.Message}");
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// 从 settings.json 文本中按键名获取值（兼容旧版扁平 KV 格式）
+    /// 优先尝试强类型反序列化，回退到扁平 KV 格式
+    /// </summary>
+    private static string? TryGetSettingFromJson(string json, string key)
+    {
+        // 优先尝试强类型反序列化
+        var settings = JsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson);
+        if (settings is not null)
+        {
+            var value = GetSettingByKey(settings, key);
+            if (value is not null) return value;
+        }
+
+        // 回退到扁平 KV 格式（兼容旧版）
+        var data = JsonSerializer.Deserialize(json, ConfigJsonContext.Default.DictionaryStringString);
+        if (data is not null && data.TryGetValue(key, out var flatValue))
+            return flatValue;
 
         return null;
     }

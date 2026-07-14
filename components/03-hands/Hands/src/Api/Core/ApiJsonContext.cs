@@ -21,6 +21,10 @@ public sealed class TokenUsageResponse
     public TokenUsageDetail? Usage { get; init; }
 }
 
+/// <summary>
+/// Token 用量 API 响应详情 — 兼容 OpenAI (prompt_tokens/completion_tokens) 和 Anthropic (input_tokens/output_tokens) 命名
+/// 统一映射到 <see cref="JoinCode.Abstractions.LLM.Chat.TokenUsage"/>
+/// </summary>
 public sealed class TokenUsageDetail
 {
     [JsonPropertyName("prompt_tokens")]

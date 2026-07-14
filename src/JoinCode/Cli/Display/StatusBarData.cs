@@ -2,6 +2,8 @@ namespace JoinCode.Cli;
 
 /// <summary>
 /// 状态栏数据 — 对齐 TS StatusBar 组件数据模型
+/// 与 <see cref="JoinCode.Abstractions.LLM.Chat.TokenUsage"/> 的关系：
+/// InputTokens ← PromptTokens, OutputTokens ← CompletionTokens
 /// </summary>
 public sealed class StatusBarData
 {

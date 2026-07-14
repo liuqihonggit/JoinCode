@@ -72,3 +72,4 @@ global using System.Globalization;
 global using System.Runtime.CompilerServices;
 global using System.Diagnostics.CodeAnalysis;
 global using System.Text.Json.Serialization;
+global using ValidationResult = Structura.Primitives.ValidationResult;

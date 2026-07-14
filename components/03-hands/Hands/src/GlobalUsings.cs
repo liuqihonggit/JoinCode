@@ -103,3 +103,4 @@ global using Tools;
 global using JoinCode.Abstractions.Pipeline;
 global using Infrastructure.Pipeline;
 global using ValidationHelper = Core.Utils.ValidationHelper;
+global using ValidationResult = Structura.Primitives.ValidationResult;

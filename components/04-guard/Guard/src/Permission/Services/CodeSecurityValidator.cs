@@ -58,11 +58,11 @@ public sealed class CodeSecurityValidator : ICodeSecurityValidator
         _workingDirectory = workingDirectory ?? _fs.GetCurrentDirectory();
     }
 
-    public CodeSecurityValidationResult Validate(string code, bool allowExternalLibs)
+    public ValidationResult Validate(string code, bool allowExternalLibs)
     {
         if (string.IsNullOrWhiteSpace(code))
         {
-            return new CodeSecurityValidationResult(false, "代码不能为空");
+            return ValidationResult.Invalid("代码不能为空");
         }
 
         if (IsShellCommand(code))
@@ -124,7 +124,7 @@ public sealed class CodeSecurityValidator : ICodeSecurityValidator
         return false;
     }
 
-    private CodeSecurityValidationResult ValidateShellCommand(string command)
+    private ValidationResult ValidateShellCommand(string command)
     {
         try
         {
@@ -134,41 +134,37 @@ public sealed class CodeSecurityValidator : ICodeSecurityValidator
             return classification.Category switch
             {
                 CommandCategory.ReadOnly =>
-                    new CodeSecurityValidationResult(true, string.Empty),
+                    ValidationResult.Valid(),
 
                 CommandCategory.Destructive =>
-                    new CodeSecurityValidationResult(
-                        false,
+                    ValidationResult.Invalid(
                         $"破坏性命令检测: {classification.Details ?? "命令包含破坏性操作"}"),
 
                 CommandCategory.PathViolation =>
-                    new CodeSecurityValidationResult(
-                        false,
+                    ValidationResult.Invalid(
                         $"路径违规: {classification.Details ?? "命令操作超出工作区范围"}"),
 
                 CommandCategory.Unknown =>
-                    new CodeSecurityValidationResult(
-                        false,
+                    ValidationResult.Invalid(
                         $"未知命令类型，需要确认: {command}"),
 
-                _ => new CodeSecurityValidationResult(false, $"无法分类的命令: {command}")
+                _ => ValidationResult.Invalid($"无法分类的命令: {command}")
             };
         }
         catch (Exception ex)
         {
-            return new CodeSecurityValidationResult(
-                false,
+            return ValidationResult.Invalid(
                 $"命令解析失败: {ex.Message}");
         }
     }
 
-    private static CodeSecurityValidationResult ValidateCodeContent(string code, bool allowExternalLibs)
+    private static ValidationResult ValidateCodeContent(string code, bool allowExternalLibs)
     {
         foreach (var pattern in DangerousPatterns)
         {
             if (code.Contains(pattern, StringComparison.OrdinalIgnoreCase))
             {
-                return new CodeSecurityValidationResult(false, $"代码包含危险操作: {pattern}");
+                return ValidationResult.Invalid($"代码包含危险操作: {pattern}");
             }
         }
 
@@ -180,11 +176,11 @@ public sealed class CodeSecurityValidator : ICodeSecurityValidator
                 var ns = match.Groups[1].Value;
                 if (!AllowedExternalLibs.Any(allowed => ns.StartsWith(allowed, StringComparison.OrdinalIgnoreCase)))
                 {
-                    return new CodeSecurityValidationResult(false, $"不允许使用外部库命名空间: {ns}");
+                    return ValidationResult.Invalid($"不允许使用外部库命名空间: {ns}");
                 }
             }
         }
 
-        return new CodeSecurityValidationResult(true, string.Empty);
+        return ValidationResult.Valid();
     }
 }

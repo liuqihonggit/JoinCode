@@ -20,7 +20,7 @@ internal sealed class NonInteractiveExecuteStep : IMiddleware<StartupContext>
         try
         {
         Diag.WriteLine("[STEP] ExecuteStep calling ProcessUserInputAsync...");
-        Diag.WriteLine("[READY]");
+        Diag.WriteLifecycle("[READY]");
         var prompt = context.NonInteractivePrompt;
             if (string.IsNullOrEmpty(prompt))
             {
@@ -30,7 +30,7 @@ internal sealed class NonInteractiveExecuteStep : IMiddleware<StartupContext>
             }
             await session.ProcessUserInputAsync(prompt, ct);
             await Console.Out.FlushAsync().ConfigureAwait(false);
-            Diag.WriteLine("[DONE]");
+            Diag.WriteLifecycle("[DONE]");
             Diag.WriteLine("[STEP] ExecuteStep ProcessUserInputAsync returned");
         }
         catch (Exception ex)
@@ -42,7 +42,7 @@ internal sealed class NonInteractiveExecuteStep : IMiddleware<StartupContext>
         }
 
         Diag.WriteLine("[STEP] ExecuteStep done, calling next");
-        Diag.WriteLine("[EXIT]");
+        Diag.WriteLifecycle("[EXIT]");
         await next(context, ct);
     }
 }

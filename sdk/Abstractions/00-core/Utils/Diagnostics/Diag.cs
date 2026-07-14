@@ -32,6 +32,15 @@ public static class Diag
     public static void EnableVerbose() => _runtimeEnabled = true;
 
     /// <summary>
+    /// 输出生命周期标记到 stderr — 始终输出，不受 verbose 控制
+    /// 用于 [READY]/[DONE]/[ALIVE]/[EXIT] 等 E2E 测试依赖的进程状态标记
+    /// </summary>
+    public static void WriteLifecycle(string message)
+    {
+        Console.Error.WriteLine(message);
+    }
+
+    /// <summary>
     /// 输出诊断行到 stderr — 仅在 IsVerbose=true 时输出
     /// 用法: Diag.WriteLine("[STEP] ApiKeyCheck start");
     /// </summary>

@@ -15,7 +15,7 @@ internal sealed partial class ChatTimingMiddleware : Core.Context.IChatMiddlewar
 
     public ChatTimingMiddleware()
     {
-        _verbose = Environment.GetEnvironmentVariable("JCC_VERBOSE") is not null;
+        _verbose = Diag.IsVerbose;
     }
 
     public async IAsyncEnumerable<JoinCode.Abstractions.LLM.Chat.ChatStreamEvent> InvokeAsync(

@@ -3,7 +3,7 @@ namespace Core.Agents.Worktree;
 /// <summary>
 /// Worktree 创建管道共享上下文 — 在中间件各阶段间传递状态
 /// </summary>
-public sealed class WorktreeCreateContext : IPipelineContext
+public sealed class WorktreeCreateContext : PipelineContextBase
 {
     // === 输入 ===
 
@@ -38,10 +38,4 @@ public sealed class WorktreeCreateContext : IPipelineContext
 
     public AgentWorktreeSession? Session { get; set; }
     public WorktreeCreateResult? Result { get; set; }
-
-    // === IPipelineContext ===
-
-    public bool Failed { get; set; }
-    public string? ErrorMessage { get; set; }
-    public void Fail(string message) { Failed = true; ErrorMessage = message; }
 }

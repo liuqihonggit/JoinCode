@@ -5,7 +5,7 @@ using JoinCode.Abstractions.Pipeline;
 /// <summary>
 /// 同步启动管道共享上下文 — 在中间件各阶段间传递状态
 /// </summary>
-public sealed class SyncStartContext : INullCheckContext, IMetricsContext
+public sealed class SyncStartContext : PipelineContextBase, INullCheckContext, IMetricsContext
 {
     // === 输入 ===
 
@@ -73,10 +73,4 @@ public sealed class SyncStartContext : INullCheckContext, IMetricsContext
         ["operation"] = "start",
         ["success"] = IsMetricsSuccess.ToString()
     };
-
-    // === IPipelineContext ===
-
-    public bool Failed { get; set; }
-    public string? ErrorMessage { get; set; }
-    public void Fail(string message) { Failed = true; ErrorMessage = message; }
 }

@@ -2,7 +2,7 @@ namespace JoinCode.Dream.Pipeline;
 
 using JoinCode.Abstractions.Pipeline;
 
-public sealed class DreamContext : IPipelineContext
+public sealed class DreamContext : PipelineContextBase
 {
     public required DreamRequest Request { get; init; }
     public CancellationToken CancellationToken { get; init; }
@@ -21,8 +21,4 @@ public sealed class DreamContext : IPipelineContext
     public bool LlmCompleted { get; set; }
     public bool TurnRecorded { get; set; }
     public bool TaskCompleted { get; set; }
-
-    public bool Failed { get; set; }
-    public string? ErrorMessage { get; set; }
-    public void Fail(string message) { Failed = true; ErrorMessage = message; }
 }

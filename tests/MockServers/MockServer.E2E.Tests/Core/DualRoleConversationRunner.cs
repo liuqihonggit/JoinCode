@@ -243,7 +243,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
             var currentOutput = await _processManager!.GetOutputAsync().ConfigureAwait(true);
 
             var elapsed = DateTime.UtcNow - startTime;
-            if (elapsed >= TimeSpan.FromSeconds(3)
+            if (elapsed >= TimeSpan.FromSeconds(10)
                 && currentOutput.Length > 5
                 && !HasUnfinishedToolCall(currentOutput)
                 && !seenAlive)

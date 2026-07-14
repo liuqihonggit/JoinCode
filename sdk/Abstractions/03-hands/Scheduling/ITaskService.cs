@@ -9,7 +9,7 @@ public interface ITaskService : IDisposable
     /// <summary>
     /// 创建任务
     /// </summary>
-    Task<TaskOperationResult> CreateTaskAsync(
+    Task<OperationResult<TaskItem?>> CreateTaskAsync(
         string title,
         string? description,
         string? assignee,
@@ -32,14 +32,14 @@ public interface ITaskService : IDisposable
     /// <summary>
     /// 更新任务
     /// </summary>
-    Task<TaskOperationResult> UpdateTaskAsync(
+    Task<OperationResult<TaskItem?>> UpdateTaskAsync(
         UpdateTaskRequest request,
         CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 停止任务
     /// </summary>
-    Task<TaskOperationResult> StopTaskAsync(
+    Task<OperationResult<TaskItem?>> StopTaskAsync(
         string taskId,
         string? reason,
         CancellationToken cancellationToken = default);
@@ -57,7 +57,7 @@ public interface ITaskService : IDisposable
     /// <summary>
     /// 设置任务依赖关系
     /// </summary>
-    Task<TaskOperationResult> SetTaskDependencyAsync(
+    Task<OperationResult<TaskItem?>> SetTaskDependencyAsync(
         string taskId,
         string dependsOnTaskId,
         TaskDependencyType dependencyType = TaskDependencyType.Blocks,
@@ -66,7 +66,7 @@ public interface ITaskService : IDisposable
     /// <summary>
     /// 移除任务依赖关系
     /// </summary>
-    Task<TaskOperationResult> RemoveTaskDependencyAsync(
+    Task<OperationResult<TaskItem?>> RemoveTaskDependencyAsync(
         string taskId,
         string dependsOnTaskId,
         CancellationToken cancellationToken = default);

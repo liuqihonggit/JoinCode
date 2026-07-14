@@ -172,10 +172,10 @@ public class TodoToolHandlers
 
         var response = new StringBuilder();
         response.Append("Todo item updated successfully");
-        if (result.Todo != null)
+        if (result.Data != null)
         {
             response.AppendLine();
-            response.Append(FormatTodoSummary(result.Todo));
+            response.Append(FormatTodoSummary(result.Data));
         }
 
         return McpResultBuilder.Success().WithText(response.ToString()).Build();

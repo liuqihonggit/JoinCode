@@ -16,9 +16,9 @@ public interface IRemoteClientManager : IAsyncDisposable
 
     Task<RemoteToolsSyncResult> SyncToolsAsync(string clientId, CancellationToken cancellationToken = default);
 
-    Task<RemoteResourcesSyncResult> SyncResourcesAsync(string clientId, CancellationToken cancellationToken = default);
+    Task<OperationResult<IReadOnlyList<string>>> SyncResourcesAsync(string clientId, CancellationToken cancellationToken = default);
 
-    Task<RemotePromptsSyncResult> SyncPromptsAsync(string clientId, CancellationToken cancellationToken = default);
+    Task<OperationResult<IReadOnlyList<string>>> SyncPromptsAsync(string clientId, CancellationToken cancellationToken = default);
 
     Task<int> GetClientCountAsync(CancellationToken cancellationToken = default);
 

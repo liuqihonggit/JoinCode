@@ -85,7 +85,7 @@ public class SkillToolHandlers
             }
         }
 
-        var ctx = new SkillExecutionContext(cancellationToken);
+        var ctx = new ExecutionContext(cancellationToken);
         var result = await _skillService.ExecuteAsync(skillName, parameters, ctx).ConfigureAwait(false);
 
         var response = new StringBuilder(256);
@@ -167,7 +167,7 @@ public class SkillToolHandlers
             return McpResultBuilder.Error().WithText(L.T(StringKey.SkillNotFound, skill_name)).Build();
         }
 
-        var ctx = new SkillExecutionContext(cancellationToken);
+        var ctx = new ExecutionContext(cancellationToken);
         var result = await _skillService.ExecuteAsync(skill_name, parameters, ctx);
 
         var response = new StringBuilder(256);

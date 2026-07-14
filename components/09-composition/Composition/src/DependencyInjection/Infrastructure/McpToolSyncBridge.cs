@@ -41,19 +41,19 @@ public sealed partial class McpToolSyncBridge
         }
     }
 
-    public async Task OnResourcesListChangedAsync(string clientId, RemoteResourcesSyncResult syncResult, CancellationToken cancellationToken = default)
+    public async Task OnResourcesListChangedAsync(string clientId, OperationResult<IReadOnlyList<string>> syncResult, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(syncResult);
 
         try
         {
-            if (syncResult.Success && syncResult.ResourceUris.Count > 0)
+            if (syncResult.Success && syncResult.Data!.Count > 0)
             {
-                var uris = string.Join(", ", syncResult.ResourceUris);
+                var uris = string.Join(", ", syncResult.Data);
                 var message = $"MCP 服务器 {clientId} 的资源列表已变更，当前资源: {uris}，请按需重新读取";
                 await _contextManager.AddDynamicSystemMessageAsync(message, cancellationToken).ConfigureAwait(false);
 
-                _logger?.LogInformation("MCP 资源同步联动: 已通知 {ClientId} 的 {Count} 个资源变更", clientId, syncResult.ResourceUris.Count);
+                _logger?.LogInformation("MCP 资源同步联动: 已通知 {ClientId} 的 {Count} 个资源变更", clientId, syncResult.Data.Count);
             }
         }
         catch (Exception ex)
@@ -62,19 +62,19 @@ public sealed partial class McpToolSyncBridge
         }
     }
 
-    public async Task OnPromptsListChangedAsync(string clientId, RemotePromptsSyncResult syncResult, CancellationToken cancellationToken = default)
+    public async Task OnPromptsListChangedAsync(string clientId, OperationResult<IReadOnlyList<string>> syncResult, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(syncResult);
 
         try
         {
-            if (syncResult.Success && syncResult.PromptNames.Count > 0)
+            if (syncResult.Success && syncResult.Data!.Count > 0)
             {
-                var names = string.Join(", ", syncResult.PromptNames);
+                var names = string.Join(", ", syncResult.Data);
                 var message = L.T(StringKey.McpPromptSyncMessage, clientId, names);
                 await _contextManager.AddDynamicSystemMessageAsync(message, cancellationToken).ConfigureAwait(false);
 
-                _logger?.LogInformation(L.T(StringKey.McpPromptSyncUpdatedLog, clientId, syncResult.PromptNames.Count));
+                _logger?.LogInformation(L.T(StringKey.McpPromptSyncUpdatedLog, clientId, syncResult.Data.Count));
             }
         }
         catch (Exception ex)

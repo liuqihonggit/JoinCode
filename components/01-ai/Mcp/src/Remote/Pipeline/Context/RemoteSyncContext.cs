@@ -45,7 +45,7 @@ public sealed class RemoteSyncContext : IPipelineContext
     public List<string> SyncedNames { get; set; } = [];
 
     /// <summary>工具列表原始结果（仅 Tools 操作）</summary>
-    public McpListToolsResult? ToolsResult { get; set; }
+    public OperationResult<IReadOnlyList<ToolInfo>>? ToolsResult { get; set; }
 
     // === Step 3: DriftDetectionMiddleware 填充（仅 Tools 操作） ===
 

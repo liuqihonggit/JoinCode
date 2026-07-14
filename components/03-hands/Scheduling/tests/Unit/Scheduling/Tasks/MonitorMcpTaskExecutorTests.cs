@@ -30,10 +30,10 @@ public class MonitorMcpTaskExecutorTests : IAsyncDisposable
         mcpClientMock.SetupGet(x => x.IsConnected).Returns(true);
         mcpClientMock
             .Setup(x => x.ListToolsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new McpListToolsResult(true, Array.Empty<JoinCode.Abstractions.Tools.ToolInfo>()));
+            .ReturnsAsync(OperationResult<IReadOnlyList<JoinCode.Abstractions.Tools.ToolInfo>>.Ok(Array.Empty<JoinCode.Abstractions.Tools.ToolInfo>()));
         mcpClientMock
             .Setup(x => x.ListResourcesAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new McpListResourcesResult(true, Array.Empty<McpResource>()));
+            .ReturnsAsync(OperationResult<IReadOnlyList<McpResource>>.Ok(Array.Empty<McpResource>()));
 
         var clients = new Dictionary<string, IMcpClient>
         {
@@ -82,10 +82,10 @@ public class MonitorMcpTaskExecutorTests : IAsyncDisposable
         mcpClientMock.SetupGet(x => x.IsConnected).Returns(true);
         mcpClientMock
             .Setup(x => x.ListToolsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new McpListToolsResult(true, Array.Empty<JoinCode.Abstractions.Tools.ToolInfo>()));
+            .ReturnsAsync(OperationResult<IReadOnlyList<JoinCode.Abstractions.Tools.ToolInfo>>.Ok(Array.Empty<JoinCode.Abstractions.Tools.ToolInfo>()));
         mcpClientMock
             .Setup(x => x.ListResourcesAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new McpListResourcesResult(true, Array.Empty<McpResource>()));
+            .ReturnsAsync(OperationResult<IReadOnlyList<McpResource>>.Ok(Array.Empty<McpResource>()));
 
         var clients = new Dictionary<string, IMcpClient>
         {
@@ -117,10 +117,10 @@ public class MonitorMcpTaskExecutorTests : IAsyncDisposable
         mcpClientMock.SetupGet(x => x.IsConnected).Returns(true);
         mcpClientMock
             .Setup(x => x.ListToolsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new McpListToolsResult(true, Array.Empty<JoinCode.Abstractions.Tools.ToolInfo>()));
+            .ReturnsAsync(OperationResult<IReadOnlyList<JoinCode.Abstractions.Tools.ToolInfo>>.Ok(Array.Empty<JoinCode.Abstractions.Tools.ToolInfo>()));
         mcpClientMock
             .Setup(x => x.ListResourcesAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new McpListResourcesResult(true, Array.Empty<McpResource>()));
+            .ReturnsAsync(OperationResult<IReadOnlyList<McpResource>>.Ok(Array.Empty<McpResource>()));
 
         var clients = new Dictionary<string, IMcpClient>
         {
@@ -153,13 +153,13 @@ public class MonitorMcpTaskExecutorTests : IAsyncDisposable
         mcpClientMock.SetupGet(x => x.IsConnected).Returns(true);
         mcpClientMock
             .Setup(x => x.ListToolsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new McpListToolsResult(true, new List<JoinCode.Abstractions.Tools.ToolInfo>
+            .ReturnsAsync(OperationResult<IReadOnlyList<JoinCode.Abstractions.Tools.ToolInfo>>.Ok(new List<JoinCode.Abstractions.Tools.ToolInfo>
             {
                 new() { Name = "tool-1", Description = "Test tool" }
             }));
         mcpClientMock
             .Setup(x => x.ListResourcesAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new McpListResourcesResult(true, Array.Empty<McpResource>()));
+            .ReturnsAsync(OperationResult<IReadOnlyList<McpResource>>.Ok(Array.Empty<McpResource>()));
 
         var clients = new Dictionary<string, IMcpClient>
         {

@@ -15,7 +15,7 @@ public class TaskServiceEnhancedTests
     private async Task<TaskItem> CreateTestTask(string title, string description = "")
     {
         var result = await _taskService.CreateTaskAsync(title, description, null, null, "medium", null).ConfigureAwait(true);
-        return result.Task!;
+        return result.Data!;
     }
 
     [Fact]
@@ -33,7 +33,7 @@ public class TaskServiceEnhancedTests
 
         // Assert
         result.Success.Should().BeTrue();
-        result.Task.Should().NotBeNull();
+        result.Data.Should().NotBeNull();
     }
 
     [Fact]

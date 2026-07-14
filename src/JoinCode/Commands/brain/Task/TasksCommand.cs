@@ -266,8 +266,8 @@ public sealed class TasksCommand : IChatCommand
         if (result.Success)
         {
             TerminalHelper.WriteLine($"{TerminalColors.Success}创建任务成功{AnsiStyleConstants.Reset}");
-            TerminalHelper.WriteLine($"  ID: {result.Task?.Id}");
-            TerminalHelper.WriteLine($"  标题: {result.Task?.Title}");
+            TerminalHelper.WriteLine($"  ID: {result.Data?.Id}");
+            TerminalHelper.WriteLine($"  标题: {result.Data?.Title}");
             TerminalHelper.WriteLine($"  优先级: {priority}");
         }
         else

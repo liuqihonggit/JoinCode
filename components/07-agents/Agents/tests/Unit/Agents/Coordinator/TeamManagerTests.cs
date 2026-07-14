@@ -23,10 +23,10 @@ public class TeamManagerTests
 
         // Assert
         result.Success.Should().BeTrue();
-        result.Team.Should().NotBeNull();
-        result.Team!.TeamName.Should().Be(teamName);
-        result.Team.Description.Should().Be(description);
-        result.Team.Members.Should().BeEmpty();
+        result.Data.Should().NotBeNull();
+        result.Data!.TeamName.Should().Be(teamName);
+        result.Data.Description.Should().Be(description);
+        result.Data.Members.Should().BeEmpty();
     }
 
     [Fact]
@@ -55,10 +55,10 @@ public class TeamManagerTests
 
         // Assert
         result.Success.Should().BeTrue();
-        result.Team!.Members.Should().HaveCount(3);
-        result.Team.Members.Should().Contain("agent1");
-        result.Team.Members.Should().Contain("agent2");
-        result.Team.Members.Should().Contain("agent3");
+        result.Data!.Members.Should().HaveCount(3);
+        result.Data.Members.Should().Contain("agent1");
+        result.Data.Members.Should().Contain("agent2");
+        result.Data.Members.Should().Contain("agent3");
     }
 
     [Fact]
@@ -66,7 +66,7 @@ public class TeamManagerTests
     {
         // Arrange
         var createResult = await _teamManager.CreateTeamAsync("Test Team").ConfigureAwait(true);
-        var teamId = createResult.Team!.TeamId;
+        var teamId = createResult.Data!.TeamId;
 
         // Act
         var deleteResult = await _teamManager.DeleteTeamAsync(teamId).ConfigureAwait(true);
@@ -94,7 +94,7 @@ public class TeamManagerTests
     {
         // Arrange
         var createResult = await _teamManager.CreateTeamAsync("Test Team").ConfigureAwait(true);
-        var teamId = createResult.Team!.TeamId;
+        var teamId = createResult.Data!.TeamId;
 
         // Act
         var team = await _teamManager.GetTeamAsync(teamId).ConfigureAwait(true);
@@ -135,7 +135,7 @@ public class TeamManagerTests
     {
         // Arrange
         var createResult = await _teamManager.CreateTeamAsync("Test Team").ConfigureAwait(true);
-        var teamId = createResult.Team!.TeamId;
+        var teamId = createResult.Data!.TeamId;
 
         // Act
         var result = await _teamManager.AddTeamMemberAsync(teamId, "agent1").ConfigureAwait(true);
@@ -163,7 +163,7 @@ public class TeamManagerTests
     {
         // Arrange
         var createResult = await _teamManager.CreateTeamAsync("Test Team").ConfigureAwait(true);
-        var teamId = createResult.Team!.TeamId;
+        var teamId = createResult.Data!.TeamId;
         await _teamManager.AddTeamMemberAsync(teamId, "agent1").ConfigureAwait(true);
 
         // Act
@@ -179,7 +179,7 @@ public class TeamManagerTests
     {
         // Arrange
         var createResult = await _teamManager.CreateTeamAsync("Test Team").ConfigureAwait(true);
-        var teamId = createResult.Team!.TeamId;
+        var teamId = createResult.Data!.TeamId;
         await _teamManager.AddTeamMemberAsync(teamId, "agent1").ConfigureAwait(true);
 
         // Act
@@ -197,7 +197,7 @@ public class TeamManagerTests
     {
         // Arrange
         var createResult = await _teamManager.CreateTeamAsync("Test Team").ConfigureAwait(true);
-        var teamId = createResult.Team!.TeamId;
+        var teamId = createResult.Data!.TeamId;
 
         // Act
         var result = await _teamManager.RemoveTeamMemberAsync(teamId, "non-existent-agent").ConfigureAwait(true);
@@ -212,7 +212,7 @@ public class TeamManagerTests
     {
         // Arrange
         var createResult = await _teamManager.CreateTeamAsync("Test Team", initialMembers: new List<string> { "sender1" }).ConfigureAwait(true);
-        var teamId = createResult.Team!.TeamId;
+        var teamId = createResult.Data!.TeamId;
 
         // Act
         var result = await _teamManager.SendMessageAsync(teamId, "sender1", "Hello Team!").ConfigureAwait(true);
@@ -231,7 +231,7 @@ public class TeamManagerTests
     {
         // Arrange
         var createResult = await _teamManager.CreateTeamAsync("Test Team").ConfigureAwait(true);
-        var teamId = createResult.Team!.TeamId;
+        var teamId = createResult.Data!.TeamId;
 
         // Act
         var result = await _teamManager.SendMessageAsync(teamId, "non-member", "Hello!").ConfigureAwait(true);
@@ -246,7 +246,7 @@ public class TeamManagerTests
     {
         // Arrange
         var createResult = await _teamManager.CreateTeamAsync("Test Team", initialMembers: new List<string> { "agent1", "agent2" }).ConfigureAwait(true);
-        var teamId = createResult.Team!.TeamId;
+        var teamId = createResult.Data!.TeamId;
 
         // Act
         var result = await _teamManager.SendMessageToAgentAsync("agent2", "agent1", "Private message").ConfigureAwait(true);
@@ -265,7 +265,7 @@ public class TeamManagerTests
     {
         // Arrange
         var createResult = await _teamManager.CreateTeamAsync("Test Team", initialMembers: new List<string> { "sender1" }).ConfigureAwait(true);
-        var teamId = createResult.Team!.TeamId;
+        var teamId = createResult.Data!.TeamId;
 
         // Act
         var result = await _teamManager.BroadcastMessageAsync(teamId, "sender1", "Broadcast message").ConfigureAwait(true);
@@ -283,7 +283,7 @@ public class TeamManagerTests
     {
         // Arrange
         var createResult = await _teamManager.CreateTeamAsync("Test Team", initialMembers: new List<string> { "agent1" }).ConfigureAwait(true);
-        var teamId = createResult.Team!.TeamId;
+        var teamId = createResult.Data!.TeamId;
 
         await _teamManager.SendMessageAsync(teamId, "agent1", "Message 1").ConfigureAwait(true);
         SpinWait.SpinUntil(() => true, TimeSpan.FromMilliseconds(15)); // 确保时间戳不同
@@ -309,10 +309,10 @@ public class TeamManagerTests
         var after = DateTime.UtcNow.AddSeconds(1);
 
         // Assert
-        result.Team!.CreatedAt.Should().BeOnOrAfter(before);
-        result.Team.CreatedAt.Should().BeOnOrBefore(after);
-        result.Team.LastActivityAt.Should().BeOnOrAfter(before);
-        result.Team.LastActivityAt.Should().BeOnOrBefore(after);
+        result.Data!.CreatedAt.Should().BeOnOrAfter(before);
+        result.Data.CreatedAt.Should().BeOnOrBefore(after);
+        result.Data.LastActivityAt.Should().BeOnOrAfter(before);
+        result.Data.LastActivityAt.Should().BeOnOrBefore(after);
     }
 
     [Fact]
@@ -321,7 +321,7 @@ public class TeamManagerTests
         // Arrange
         var beforeCreate = DateTime.UtcNow.AddMilliseconds(-100);
         var createResult = await _teamManager.CreateTeamAsync("Test Team", initialMembers: new List<string> { "agent1" }).ConfigureAwait(true);
-        var teamId = createResult.Team!.TeamId;
+        var teamId = createResult.Data!.TeamId;
 
         SpinWait.SpinUntil(() => true, TimeSpan.FromMilliseconds(60)); // 等待一段时间确保时间戳不同
 
@@ -331,7 +331,7 @@ public class TeamManagerTests
         // Assert
         var team = await _teamManager.GetTeamAsync(teamId).ConfigureAwait(true);
         team!.LastActivityAt.Should().BeOnOrAfter(beforeCreate);
-        team.LastActivityAt.Should().BeAfter(createResult.Team.CreatedAt.AddMilliseconds(-1));
+        team.LastActivityAt.Should().BeAfter(createResult.Data.CreatedAt.AddMilliseconds(-1));
     }
 
     [Fact]
@@ -339,7 +339,7 @@ public class TeamManagerTests
     {
         // Arrange
         var createResult = await _teamManager.CreateTeamAsync("Test Team", initialMembers: new List<string> { "agent1" }).ConfigureAwait(true);
-        var teamId = createResult.Team!.TeamId;
+        var teamId = createResult.Data!.TeamId;
 
         // Act
         await _teamManager.SendMessageAsync(teamId, "agent1", "Test content", "custom-type").ConfigureAwait(true);
@@ -361,7 +361,7 @@ public class TeamManagerTests
         // Arrange & Act - 创建团队
         var teamResult = await _teamManager.CreateTeamAsync("Development Team", "Team for development tasks").ConfigureAwait(true);
         teamResult.Success.Should().BeTrue();
-        var teamId = teamResult.Team!.TeamId;
+        var teamId = teamResult.Data!.TeamId;
 
         // 添加成员
         await _teamManager.AddTeamMemberAsync(teamId, "lead").ConfigureAwait(true);

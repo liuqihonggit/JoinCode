@@ -24,7 +24,7 @@ public sealed partial class RemoteDriftDetectionMiddleware : IRemoteSyncMiddlewa
             return next(ctx, ct);
         }
 
-        var newSpecs = ctx.ToolsResult.Tools
+        var newSpecs = ctx.ToolsResult.Data!
             .Select(t => new ToolSpec(
                 McpNameNormalizer.BuildMcpToolName(ctx.ClientId, t.Name),
                 t.Description,

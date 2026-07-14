@@ -105,9 +105,9 @@ public sealed class McpCommand : IChatCommand
                     try
                     {
                         var tools = await client.ListToolsAsync(context.CancellationToken).ConfigureAwait(false);
-                        if (tools.Success && tools.Tools.Count > 0)
+                        if (tools.Success && tools.Data!.Count > 0)
                         {
-                            connectedContent.AppendLine($"    工具数: {tools.Tools.Count}");
+                            connectedContent.AppendLine($"    工具数: {tools.Data!.Count}");
                         }
                     }
                     catch

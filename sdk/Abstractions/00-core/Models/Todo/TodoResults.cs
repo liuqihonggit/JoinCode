@@ -24,10 +24,3 @@ public sealed record TodoListResult(
     public int CompletedCount => Todos?.Count(t => t.Status.Equals(TodoStatusConstants.Completed, StringComparison.OrdinalIgnoreCase)) ?? 0;
 }
 
-/// <summary>
-/// 单个待办结果
-/// </summary>
-public sealed record TodoItemResult(
-    bool Success,
-    TodoItem? Todo = null,
-    string? ErrorMessage = null);

@@ -400,7 +400,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
             await _remoteClientsLock.WaitAsync(cancellationToken);
             try
             {
-                var newSpecs = ctx.ToolsResult?.Data!
+                var newSpecs = ctx.ToolsResult?.GetData()
                     .Select(t => new ToolSpec(
                         McpNameNormalizer.BuildMcpToolName(clientId, t.Name),
                         t.Description,
@@ -455,7 +455,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
                 return new RemoteToolsSyncResult(false, Array.Empty<string>(), toolsResult.ErrorMessage);
             }
 
-            var newSpecs = toolsResult.Data!
+            var newSpecs = toolsResult.GetData()
                 .Select(t => new ToolSpec(
                     McpNameNormalizer.BuildMcpToolName(clientId, t.Name),
                     t.Description,
@@ -491,7 +491,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
                 }
             }
 
-            var toolItems = toolsResult.Data!
+            var toolItems = toolsResult.GetData()
                 .Select(tool =>
                 {
                     var remoteToolHandler = new RemoteMcpToolHandler(clientId, client, tool);
@@ -603,7 +603,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
                 return OperationResult<IReadOnlyList<string>>.Fail(resourcesResult.ErrorMessage ?? "Unknown error");
             }
 
-            var resourceUris = resourcesResult.Data!
+            var resourceUris = resourcesResult.GetData()
                 .Select(r => r.Uri)
                 .ToList();
 
@@ -698,7 +698,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
                 return OperationResult<IReadOnlyList<string>>.Fail(promptsResult.ErrorMessage ?? "Unknown error");
             }
 
-            var promptNames = promptsResult.Data!
+            var promptNames = promptsResult.GetData()
                 .Select(p => p.Name)
                 .ToList();
 

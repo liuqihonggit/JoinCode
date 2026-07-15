@@ -40,10 +40,11 @@ public sealed partial class ShellOutputMiddleware : IShellMiddleware
             var parsed = ShellImageOutputDetector.ParseDataUri(result.Stdout);
             if (parsed is { } img)
             {
+                var (resizedMediaType, resizedBase64Data) = ShellImageOutputDetector.ResizeIfOversized(img.MediaType, img.Base64Data) ?? img;
                 RecordShellMetrics(shellType, "execute", "ok");
                 context.Result = new ToolResult
                 {
-                    Content = [new ToolContent { Type = ToolContentType.Image, Data = img.Base64Data, MimeType = img.MediaType }],
+                    Content = [new ToolContent { Type = ToolContentType.Image, Data = resizedBase64Data, MimeType = resizedMediaType }],
                     IsImage = true,
                 };
                 return Task.CompletedTask;

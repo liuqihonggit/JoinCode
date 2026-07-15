@@ -392,6 +392,43 @@ nuget包: 拒绝全部微软的AI包，因为大部分不支持NativeAOT。
 
 ## 编译
 
+### 三层解决方案架构（强制编译顺序）
+
+项目采用三层 slnx 隔离架构，**必须按顺序编译**，上层依赖下层的构建产物：
+
+| 编译顺序 | 解决方案 | 职责 | 项目数 | 关键内容 |
+|----------|----------|------|--------|----------|
+| ① 先编译 | `Sdk.slnx` | 基础层 | 16 | 全部 generators + Abstractions + Structura + Infrastructure |
+| ② 后编译 | `components.slnx` | 组件开发 | 39 | 全部10个组件 + 组件测试 |
+| ③ 最后 | `JoinCode.slnx` | 主工程 | 12 | JoinCode.exe + 集成测试 + MockServers |
+
+**依赖链**：`Sdk.slnx` → `components.slnx` → `JoinCode.slnx`
+
+**为什么必须按顺序？**
+- `Sdk.slnx` 包含源码生成器（EnumMetadata.Generator、ConstructorInjection.Generator 等），它们生成 `XxxConstants` 静态类
+- `components.slnx` 中的组件依赖 Abstractions，而 Abstractions 需要生成器才能编译出枚举常量
+- 如果先编译 components.slnx 而生成器 DLL 不存在，编译会失败
+
+**编译命令**：
+```powershell
+# 1. 基础层（必须先编译）
+dotnet build Sdk.slnx -c Release --no-incremental
+# 2. 组件层
+dotnet build components/components.slnx -c Release --no-incremental
+# 3. 主工程
+dotnet build JoinCode.slnx -c Release --no-incremental
+```
+
+**修改不同层时的编译策略**：
+| 修改内容 | 需要重新编译的层 |
+|----------|------------------|
+| 枚举/Abstractions/generators | ①②③ 全部 |
+| 组件源码 | ②③ |
+| 主工程源码（src/JoinCode） | ③ |
+| 仅测试代码 | 对应的 slnx |
+
+### 编译注意事项
+
 1. 当遇到编译锁定,编译时候打不开,编译不了,表示有`其他CLI项目`编译中,当前电脑内存紧迫,你只能用 wait 30s 之后再尝试执行编译.
 2. 你有 wait 工具吗? 没有的话尝试 powershell 里面的.
 3. 一直尝试就好,不要放弃,你肯定可以某个时机交错编译得出来的.

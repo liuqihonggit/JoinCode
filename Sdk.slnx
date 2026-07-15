@@ -1,0 +1,24 @@
+<Solution>
+  <Folder Name="/generators/">
+    <Project Path="generators/AgentPrompt.Generator/src/AgentPrompt.Generator.csproj" />
+    <Project Path="generators/AotSafety.Generator/src/AotSafety.Generator.csproj" />
+    <Project Path="generators/AotSafety.Generator/tests/AotSafety.Tests.csproj" />
+    <Project Path="generators/AppModule.Generator/src/AppModule.Generator.csproj" />
+    <Project Path="generators/CliOption.Generator/src/CliOption.Generator.csproj" />
+    <Project Path="generators/ConstructorInjection.Generator/src/ConstructorInjection.Generator.csproj" />
+    <Project Path="generators/EnumMetadata.Generator/src/EnumMetadata.Generator.csproj" />
+    <Project Path="generators/JccCodeFixes/src/JccCodeFixes.csproj" />
+    <Project Path="generators/McpToolHandlers.Generator/src/McpToolHandlers.Generator.csproj" />
+    <Project Path="generators/PromptSection.Generator/src/PromptSection.Generator.csproj" />
+    <Project Path="generators/PromptTemplate.Generator/src/PromptTemplate.Generator.csproj" />
+    <Project Path="generators/ToolPrompt.Generator/src/ToolPrompt.Generator.csproj" />
+  </Folder>
+  <Folder Name="/sdk/">
+    <Project Path="sdk/Abstractions/Abstractions.csproj" />
+    <Project Path="sdk/Sdk/Sdk.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/Structura/Structura.csproj" />
+    <Project Path="src/Infrastructure/Infrastructure.csproj" />
+  </Folder>
+</Solution>

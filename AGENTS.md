@@ -286,8 +286,14 @@
 
 ### 脚本语言优先级
 
-- **Python 脚本优先**：本机有 Python 环境，批量操作/文本处理/脚本检测优先使用 `.py` 脚本，而非 PowerShell
-- **gh CLI 优先**：操作 PR/Issue/Release 等 GitHub 资源时，优先使用 `gh` CLI，而非 PowerShell 脚本或手动操作
+1. **C# AST CLI 优先**：涉及 C# 源码的批量分析/重构/检测，优先使用 `tools/JccAuditAstCli`（基于 Roslyn 的 AST 分析工具），而非正则或文本替换
+   - 构建命令：`dotnet build tools/JccAuditAstCli/JccAuditCli.csproj -c Release`
+   - 输出路径：`artifacts/bin/JccAuditCli/Release/net10.0/jcc-audit.exe`
+   - 适用场景：Nullable 抑制检测、using 组织分析、命名规范检查、DI 注册验证等需要语义理解的场景
+2. **Python 脚本次之**：本机 Python 3.12.10，批量文本处理/脚本检测优先使用 `.py` 脚本，而非 PowerShell
+   - 适用场景：文件搜索统计、简单文本替换、报告生成等不需要语义理解的场景
+3. **PowerShell 最后**：PowerShell 5.1.19041.6456，仅用于系统操作和 dotnet/gh 命令编排
+4. **gh CLI 优先**：操作 PR/Issue/Release 等 GitHub 资源时，优先使用 `gh` CLI，而非 PowerShell 脚本或手动操作
 
 ### UTF-8 编码配置
 

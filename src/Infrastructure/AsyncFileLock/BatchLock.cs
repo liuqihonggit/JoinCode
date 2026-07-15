@@ -77,6 +77,14 @@ public sealed class BatchLockResult
     {
         return new BatchLockResult(false, null, $"Timeout acquiring lock for '{filePath}' after {elapsed.TotalSeconds}s", elapsed);
     }
+
+    /// <summary>
+    /// 获取锁对象（仅当 Success 为 true 时调用）
+    /// </summary>
+    public BatchLock GetLock()
+    {
+        return Lock ?? throw new InvalidOperationException("Lock is not available when Success is false");
+    }
 }
 
 /// <summary>

@@ -205,7 +205,7 @@ public sealed class FileWriter
         if (!result.Success)
             throw new TimeoutException($"获取锁超时: {path}");
 
-        await using (result.Lock!)
+        await using (result.GetLock())
         {
             if (!_fs.FileExists(path))
                 return (string.Empty, Encoding.UTF8);
@@ -227,7 +227,7 @@ public sealed class FileWriter
         if (!result.Success)
             throw new TimeoutException($"获取锁超时: {path}");
 
-        await using (result.Lock!)
+        await using (result.GetLock())
         {
             var effectiveEncoding = encoding ?? Encoding.UTF8;
             var tempPath = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
@@ -251,7 +251,7 @@ public sealed class FileWriter
         if (!result.Success)
             throw new TimeoutException($"获取锁超时: {path}");
 
-        await using (result.Lock!)
+        await using (result.GetLock())
         {
             _fs.DeleteFile(path);
         }
@@ -264,7 +264,7 @@ public sealed class FileWriter
         if (!result.Success)
             throw new TimeoutException($"获取锁超时");
 
-        await using (result.Lock!)
+        await using (result.GetLock())
         {
             _fs.CopyFile(source, dest, overwrite: true);
         }
@@ -277,7 +277,7 @@ public sealed class FileWriter
         if (!result.Success)
             throw new TimeoutException($"获取锁超时");
 
-        await using (result.Lock!)
+        await using (result.GetLock())
         {
             _fs.MoveFile(source, dest, overwrite: true);
         }

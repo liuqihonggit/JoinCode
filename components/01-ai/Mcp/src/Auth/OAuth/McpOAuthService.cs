@@ -45,8 +45,7 @@ public sealed partial class McpOAuthService
 
             _logger?.LogInformation("请在浏览器中打开以下 URL 完成授权: {AuthUrl}", authUrl);
 
-            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            cts.CancelAfter(_options.AuthorizationTimeout);
+            using var cts = TimeoutHelper.CreateLinkedTimeout(cancellationToken, _options.AuthorizationTimeout);
 
             var context = await _callbackListener.GetContextAsync().ConfigureAwait(false);
             var code = context.Request.QueryString["code"];

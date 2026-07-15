@@ -88,8 +88,7 @@ public sealed partial class ServiceHost : IAsyncDisposable
         _logger?.LogInformation(L.T(StringKey.ServiceHostStopping));
         await _hostCts.CancelAsync().ConfigureAwait(false);
 
-        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        linkedCts.CancelAfter(TimeSpan.FromSeconds(30)); // 30秒超时
+        using var linkedCts = TimeoutHelper.CreateLinkedTimeout(cancellationToken, TimeSpan.FromSeconds(30)); // 30秒超时
 
         // 反向停止服务（按注册顺序的逆序）
         var services = _services.Values.Reverse().ToList();

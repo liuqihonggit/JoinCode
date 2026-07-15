@@ -198,8 +198,7 @@ public abstract class McpClientBase : IMcpClient
         {
             try
             {
-                using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                cts.CancelAfter(TimeSpan.FromSeconds(_options.RequestTimeoutSeconds));
+                using var cts = TimeoutHelper.CreateLinkedTimeout(cancellationToken, TimeSpan.FromSeconds(_options.RequestTimeoutSeconds));
 
                 return await SendRequestAsync(request, cts.Token).ConfigureAwait(false);
             }

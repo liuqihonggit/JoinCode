@@ -371,8 +371,7 @@ public sealed class McpStdioClient : McpClientBase
                 _requestLock.Release();
             }
 
-            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            cts.CancelAfter(TimeSpan.FromSeconds(_options.RequestTimeoutSeconds));
+            using var cts = TimeoutHelper.CreateLinkedTimeout(cancellationToken, TimeSpan.FromSeconds(_options.RequestTimeoutSeconds));
 
             var response = await tcs.Task.WaitAsync(cts.Token);
 

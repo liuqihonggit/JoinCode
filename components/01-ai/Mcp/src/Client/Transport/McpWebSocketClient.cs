@@ -99,8 +99,7 @@ public sealed partial class McpWebSocketClient : McpClientBase
         {
             await _transport.SendMessageAsync(request, cancellationToken).ConfigureAwait(false);
 
-            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            cts.CancelAfter(TimeSpan.FromSeconds(_options.RequestTimeoutSeconds));
+            using var cts = TimeoutHelper.CreateLinkedTimeout(cancellationToken, TimeSpan.FromSeconds(_options.RequestTimeoutSeconds));
 
             return await tcs.Task.WaitAsync(cts.Token).ConfigureAwait(false);
         }

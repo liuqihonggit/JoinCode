@@ -47,8 +47,7 @@ public static class BridgeOAuthRetry
 
         var request = createRequest(accessToken);
 
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        cts.CancelAfter(TimeSpan.FromMilliseconds(timeoutMs));
+        using var cts = TimeoutHelper.CreateLinkedTimeout(ct, TimeSpan.FromMilliseconds(timeoutMs));
 
         HttpResponseMessage? response;
         try
@@ -86,8 +85,7 @@ public static class BridgeOAuthRetry
             }
 
             var retryRequest = createRequest(newToken);
-            using var retryCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            retryCts.CancelAfter(TimeSpan.FromMilliseconds(timeoutMs));
+            using var retryCts = TimeoutHelper.CreateLinkedTimeout(ct, TimeSpan.FromMilliseconds(timeoutMs));
 
             try
             {

@@ -161,8 +161,7 @@ public sealed partial class McpChannelNotificationHandler
 
         try
         {
-            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            cts.CancelAfter(timeout);
+            using var cts = TimeoutHelper.CreateLinkedTimeout(cancellationToken, timeout);
             return await tcs.Task.WaitAsync(cts.Token).ConfigureAwait(false);
         }
         catch

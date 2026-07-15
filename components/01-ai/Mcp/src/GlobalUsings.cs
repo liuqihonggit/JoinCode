@@ -1,3 +1,4 @@
+global using Core.Utils;
 global using Api.LLM;
 global using JoinCode.Transport;
 global using JoinCode.Abstractions.Attributes;

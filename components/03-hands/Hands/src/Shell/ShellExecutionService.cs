@@ -86,14 +86,14 @@ public sealed partial class ShellExecutionService : IShellExecutionService
 
         if (_preventSleepService is not null) await _preventSleepService.PreventSleepAsync(SleepPreventionType.Continuous).ConfigureAwait(false);
 
-        var context = ShellCommandContext.Start(
+        var context = await ShellCommandContext.StartAsync(
             command,
             cwd,
             _fs,
             provider,
             timeout,
             shouldAutoBackground,
-            _logger);
+            _logger).ConfigureAwait(false);
 
         _ = context.ResultTask.ContinueWith(async _ =>
         {
@@ -133,11 +133,14 @@ public sealed partial class ShellExecutionService : IShellExecutionService
         {
             var spawnArgs = provider.GetSpawnArgs(command);
 
+            var envOverrides = await provider.GetEnvironmentOverridesAsync(command, cancellationToken).ConfigureAwait(false);
+
             var options = new ProcessOptions
             {
                 FileName = provider.ShellPath,
                 Arguments = string.Join(' ', spawnArgs),
                 WorkingDirectory = cwd,
+                EnvironmentVariables = envOverrides.Count > 0 ? envOverrides : null,
                 StandardOutputEncoding = Encoding.UTF8,
                 StandardErrorEncoding = Encoding.UTF8,
                 TimeoutMs = timeout

@@ -84,8 +84,8 @@ public sealed partial class ShellExecutionMiddleware : IShellMiddleware
                 var elapsedMs = Environment.TickCount64 - startTime;
                 var currentOutput = context.GetCurrentStdout();
                 var totalLines = currentOutput.Count(c => c == '\n') + 1;
+                var totalBytes = Encoding.UTF8.GetByteCount(currentOutput);
 
-                // 对齐 TS bash_progress: output=最近5行, fullOutput=最近100行
                 var lastLines = GetLastNLines(currentOutput, 5);
                 var fullOutput = GetLastNLines(currentOutput, 100);
 
@@ -100,6 +100,7 @@ public sealed partial class ShellExecutionMiddleware : IShellMiddleware
                         ["output"] = JsonSerializer.SerializeToElement(lastLines, ToolsJsonContext.Default.String),
                         ["fullOutput"] = JsonSerializer.SerializeToElement(fullOutput, ToolsJsonContext.Default.String),
                         ["totalLines"] = JsonSerializer.SerializeToElement(totalLines, ToolsJsonContext.Default.Int32),
+                        ["totalBytes"] = JsonSerializer.SerializeToElement(totalBytes, ToolsJsonContext.Default.Int64),
                         ["taskId"] = JsonSerializer.SerializeToElement(context.TaskId, ToolsJsonContext.Default.String),
                     }
                 });

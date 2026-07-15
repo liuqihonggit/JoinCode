@@ -165,7 +165,7 @@ public sealed partial class RetryPolicy
 
         throw new RetryExhaustedException(
             $"操作在 {_options.MaxRetryCount} 次重试后仍然失败",
-            lastException!);
+            lastException ?? throw new InvalidOperationException("No exception after retries."));
     }
 
     /// <summary>

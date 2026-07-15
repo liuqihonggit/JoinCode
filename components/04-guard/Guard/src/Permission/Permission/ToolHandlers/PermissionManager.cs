@@ -314,9 +314,9 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
         return keyParams.Contains(paramName);
     }
 
-    private bool TryGetCachedResult(string cacheKey, out PermissionResult result)
+    private bool TryGetCachedResult(string cacheKey, [NotNullWhen(true)] out PermissionResult? result)
     {
-        result = null!;
+        result = null;
 
         if (!_permissionCache.TryGetValue(cacheKey, out var cached))
         {

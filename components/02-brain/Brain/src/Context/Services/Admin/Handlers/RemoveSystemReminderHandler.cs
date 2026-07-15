@@ -19,6 +19,6 @@ public sealed partial class RemoveSystemReminderHandler : IChatAdminOperationHan
 
     public async Task ExecuteAsync(ChatAdminContext context, CancellationToken ct)
     {
-        await _promptManager.RemoveReminderAsync(context.ReminderId!, ct).ConfigureAwait(false);
+        await _promptManager.RemoveReminderAsync(context.ReminderId ?? throw new InvalidOperationException("ReminderId is required."), ct).ConfigureAwait(false);
     }
 }

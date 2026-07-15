@@ -28,9 +28,10 @@ public sealed partial class DiminishingReturnsMiddleware : IQueryMiddleware
 
     private Task CheckDiminishingReturnsAsync(QueryMiddlewareContext context, CancellationToken ct)
     {
+        var detector = _detector ?? throw new InvalidOperationException("DiminishingReturnsDetector not available.");
         if (context.RecentConsumptions.Count >= 3)
         {
-            var result = _detector!.CheckDiminishingReturns(context.RecentConsumptions);
+            var result = detector.CheckDiminishingReturns(context.RecentConsumptions);
             if (result.IsDiminishing)
             {
                 context.Logger?.LogWarning("[QueryEngine] 检测到递减回报: {Recommendation}", result.Recommendation);

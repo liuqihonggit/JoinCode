@@ -47,16 +47,17 @@ public class WorktreeToolHandlers
             return McpResultBuilder.Error().WithText(L.T(StringKey.WorktreeCreateFailed, result.ErrorMessage)).Build();
         }
 
+        var session = result.Session ?? throw new InvalidOperationException("Session is required.");
         var response = new System.Text.StringBuilder();
         response.AppendLine($"{StatusSymbol.Tick.ToValue()} {L.T(StringKey.WorktreeCreateSuccess)}");
         response.AppendLine();
         response.AppendLine(L.T(StringKey.WorktreeLabelAgentId, agent_id));
-        response.AppendLine(L.T(StringKey.WorktreeLabelPath, result.Session!.WorktreePath));
-        response.AppendLine(L.T(StringKey.WorktreeLabelBranch, result.Session.BranchName));
+        response.AppendLine(L.T(StringKey.WorktreeLabelPath, session.WorktreePath));
+        response.AppendLine(L.T(StringKey.WorktreeLabelBranch, session.BranchName));
 
-        if (!string.IsNullOrEmpty(result.Session.BaseCommitSha))
+        if (!string.IsNullOrEmpty(session.BaseCommitSha))
         {
-            response.AppendLine(L.T(StringKey.WorktreeLabelBaseCommit, result.Session.BaseCommitSha[..Math.Min(8, result.Session.BaseCommitSha.Length)]));
+            response.AppendLine(L.T(StringKey.WorktreeLabelBaseCommit, session.BaseCommitSha[..Math.Min(8, session.BaseCommitSha.Length)]));
         }
 
         response.AppendLine();

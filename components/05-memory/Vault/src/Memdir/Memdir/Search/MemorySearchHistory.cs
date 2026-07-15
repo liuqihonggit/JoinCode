@@ -393,7 +393,8 @@ internal sealed class ConcurrentDeque<T>
                 return false;
             }
 
-            item = _list.Last!.Value;
+            var last = _list.Last ?? throw new InvalidOperationException("LinkedList last node is null despite non-zero count.");
+            item = last.Value;
             _list.RemoveLast();
             return true;
         }

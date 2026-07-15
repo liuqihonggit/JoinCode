@@ -131,7 +131,7 @@ public sealed partial class FileCronTaskStore : ICronTaskStore, IDisposable
                 _semaphore.Release();
             }
 
-            await WriteJsonAsync(jsonToWrite!, cancellationToken).ConfigureAwait(false);
+            await WriteJsonAsync(jsonToWrite ?? throw new InvalidOperationException("Failed to serialize task list."), cancellationToken).ConfigureAwait(false);
         }
 
         return task;

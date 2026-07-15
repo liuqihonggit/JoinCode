@@ -10,6 +10,6 @@ public sealed partial class RewindToMessageIndexHandler : IChatAdminOperationHan
 
     public async Task ExecuteAsync(ChatAdminContext context, CancellationToken ct)
     {
-        context.RewindResult = await context.ContextManager.RewindToMessageIndexAsync(context.MessageIndex!.Value, ct).ConfigureAwait(false);
+        context.RewindResult = await context.ContextManager.RewindToMessageIndexAsync(context.MessageIndex ?? throw new InvalidOperationException("MessageIndex is required."), ct).ConfigureAwait(false);
     }
 }

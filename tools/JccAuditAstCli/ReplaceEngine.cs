@@ -60,7 +60,7 @@ public sealed class ReplaceEngine
         // 应用更改到磁盘
         if (!dryRun && result.HasChanges)
         {
-            var success = workspace.TryApplyChanges(result.ModifiedSolution!);
+            var success = workspace.TryApplyChanges(result.ModifiedSolution ?? throw new InvalidOperationException("ModifiedSolution is null despite HasChanges being true."));
             if (!success)
             {
                 Console.Error.WriteLine("工作区应用更改失败。");
@@ -142,7 +142,7 @@ public sealed class ReplaceEngine
 
         if (!dryRun && result.HasChanges)
         {
-            var success = workspace.TryApplyChanges(result.ModifiedSolution!);
+            var success = workspace.TryApplyChanges(result.ModifiedSolution ?? throw new InvalidOperationException("ModifiedSolution is null despite HasChanges being true."));
             result.ApplySuccess = success;
         }
 

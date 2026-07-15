@@ -128,7 +128,7 @@ public sealed partial class SwarmWorkerHandler
     private async Task<PermissionDecision> ForwardToLeaderAsync(SwarmWorkerPermissionParams @params)
     {
         var ctx = @params.Context;
-        var callbacks = @params.SwarmCallbacks!;
+        var callbacks = @params.SwarmCallbacks ?? throw new InvalidOperationException("SwarmCallbacks is not available.");
 
         var tcs = new TaskCompletionSource<PermissionDecision>();
         var resolveOnce = new ResolveOnce<PermissionDecision>(decision => tcs.TrySetResult(decision));

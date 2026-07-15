@@ -28,6 +28,8 @@ public sealed partial class AgentForkMiddleware : IAgentToolMiddleware
             return;
         }
 
+        var forkManager = _forkManager ?? throw new InvalidOperationException("ForkManager not available.");
+
         // 执行 fork 路径
         var sessionId = _subAgentContextAccessor.Current?.SessionId ?? "default";
         var parentCacheSafeParams = _subAgentContextAccessor.Current?.CacheSafeParams;
@@ -45,7 +47,7 @@ public sealed partial class AgentForkMiddleware : IAgentToolMiddleware
             CacheSafeParams = parentCacheSafeParams
         };
 
-        var result = await _forkManager!.ForkAsync(forkOptions, ct).ConfigureAwait(false);
+        var result = await forkManager.ForkAsync(forkOptions, ct).ConfigureAwait(false);
 
         var response = new StringBuilder();
         response.AppendLine("Fork sub-agent launched");

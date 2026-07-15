@@ -93,7 +93,7 @@ public sealed partial class ShellExecutionService : IShellExecutionService
         if (_preventSleepService is not null) await _preventSleepService.PreventSleepAsync(SleepPreventionType.Continuous).ConfigureAwait(false);
 
         var useSandbox = !disableSandbox && _sandboxModeService is not null && _sandboxModeService.IsInSandbox;
-        var sandboxTmpDir = useSandbox ? _sandboxModeService!.CurrentSandbox?.RootPath : null;
+        var sandboxTmpDir = useSandbox ? (_sandboxModeService ?? throw new InvalidOperationException("SandboxModeService not available.")).CurrentSandbox?.RootPath : null;
 
         var context = await ShellCommandContext.StartAsync(
             command,
@@ -148,7 +148,7 @@ public sealed partial class ShellExecutionService : IShellExecutionService
         try
         {
             var useSandbox = !disableSandbox && _sandboxModeService is not null && _sandboxModeService.IsInSandbox;
-            var sandboxTmpDir = useSandbox ? _sandboxModeService!.CurrentSandbox?.RootPath : null;
+            var sandboxTmpDir = useSandbox ? (_sandboxModeService ?? throw new InvalidOperationException("SandboxModeService not available.")).CurrentSandbox?.RootPath : null;
 
             var sessionId = Guid.NewGuid().ToString("N")[..8];
             var execOptions = new ShellExecOptions

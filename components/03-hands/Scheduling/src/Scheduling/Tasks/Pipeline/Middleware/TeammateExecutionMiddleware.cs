@@ -21,7 +21,7 @@ public sealed partial class TeammateExecutionMiddleware : ITeammateExecutionMidd
 
         try
         {
-            var result = await _agentLifecycleManager.ExecuteAsync(ctx.Agent!, ct).ConfigureAwait(false);
+            var result = await _agentLifecycleManager.ExecuteAsync(ctx.Agent ?? throw new InvalidOperationException("Teammate agent is not available."), ct).ConfigureAwait(false);
             var elapsed = (long)(_clock.GetUtcNow() - ctx.StartTime).TotalMilliseconds;
 
             if (ctx.CleanupAsync is not null && ctx.State is not null)

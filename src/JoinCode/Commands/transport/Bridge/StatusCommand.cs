@@ -46,13 +46,14 @@ public sealed class StatusCommand : IChatCommand
         var executionSettings = context.Services.ExecutionSettingsProvider;
         var effortLevel = executionSettings?.EffortLevel.ToValue() ?? "";
 
-        var hasMcpTools = context.Services?.ToolRegistry is not null;
+        var services = context.Services ?? throw new InvalidOperationException("Services not available.");
+        var hasMcpTools = services.ToolRegistry is not null;
 
         // 获取消息历史
         string messageInfo;
         try
         {
-            var history = await context.Services!.ChatService.GetMessageListAsync(context.CancellationToken).ConfigureAwait(false);
+            var history = await services.ChatService.GetMessageListAsync(context.CancellationToken).ConfigureAwait(false);
             var userCount = history.Count(m =>
                 string.Equals(m.Role, MessageRoleConstants.User, StringComparison.OrdinalIgnoreCase));
             var assistantCount = history.Count(m =>
@@ -70,9 +71,9 @@ public sealed class StatusCommand : IChatCommand
 
         // 获取 Token 用量
         string tokenInfo;
-        if (context.Services!.UsageTracker is not null)
+        if (services.UsageTracker is not null)
         {
-            var stats = context.Services.UsageTracker.GetSessionStatistics(context.SessionId);
+            var stats = services.UsageTracker.GetSessionStatistics(context.SessionId);
             if (stats.TotalInputTokens > 0 || stats.TotalOutputTokens > 0)
             {
                 tokenInfo = $"  输入: {stats.TotalInputTokens:N0}\n  输出: {stats.TotalOutputTokens:N0}\n  总计: {stats.TotalInputTokens + stats.TotalOutputTokens:N0}";

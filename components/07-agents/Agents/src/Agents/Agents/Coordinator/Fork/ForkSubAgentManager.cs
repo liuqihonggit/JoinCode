@@ -465,13 +465,16 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
         await _lock.WaitAsync().ConfigureAwait(false);
         try
         {
-            var ctsEntries = _entries.Values.Where(e => e.Cts is not null).ToList();
+            var ctsEntries = _entries.Values
+                .Select(e => e.Cts)
+                .OfType<CancellationTokenSource>()
+                .ToList();
             if (ctsEntries.Count > 0)
             {
-                await Task.WhenAll(ctsEntries.Select(e => e.Cts!.CancelAsync())).ConfigureAwait(false);
-                foreach (var entry in ctsEntries)
+                await Task.WhenAll(ctsEntries.Select(c => c.CancelAsync())).ConfigureAwait(false);
+                foreach (var cts in ctsEntries)
                 {
-                    entry.Cts!.Dispose();
+                    cts.Dispose();
                 }
             }
             _entries.Clear();

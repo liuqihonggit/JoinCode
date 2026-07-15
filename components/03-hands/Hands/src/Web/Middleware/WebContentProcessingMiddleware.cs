@@ -31,7 +31,7 @@ public sealed partial class WebContentProcessingMiddleware : IWebMiddleware
     /// <inheritdoc />
     public async Task InvokeAsync(WebContext context, MiddlewareDelegate<WebContext> next, CancellationToken ct)
     {
-        var fetchResult = context.FetchResult!;
+        var fetchResult = context.FetchResult ?? throw new InvalidOperationException("FetchResult is not available in WebContext.");
         var html = fetchResult.Content ?? string.Empty;
         var contentType = context.ContentType ?? "text/html";
         var rawBytes = fetchResult.RawBytes;

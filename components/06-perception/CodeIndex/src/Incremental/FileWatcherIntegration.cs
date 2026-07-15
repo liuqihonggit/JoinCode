@@ -6,7 +6,7 @@ namespace JoinCode.CodeIndex;
 public sealed partial class FileWatcherIntegration : IAsyncDisposable, IDisposable
 {
     private readonly ICodeIndexer _indexer;
-    private readonly IFileSystem _fs;
+    private readonly IFileSystem? _fs;
     private readonly string _workspaceRoot;
     private readonly HashSet<string> _excludedDirs;
     private readonly TimeSpan _debounceInterval;
@@ -25,16 +25,16 @@ public sealed partial class FileWatcherIntegration : IAsyncDisposable, IDisposab
     }
 
     public FileWatcherIntegration(ICodeIndexer indexer, string workspaceRoot, TimeSpan? debounceInterval = null)
-        : this(indexer, workspaceRoot, null!, null, debounceInterval)
+        : this(indexer, workspaceRoot, null, null, debounceInterval)
     {
     }
 
     public FileWatcherIntegration(ICodeIndexer indexer, string workspaceRoot, Action<Exception>? onError, TimeSpan? debounceInterval = null)
-        : this(indexer, workspaceRoot, null!, onError, debounceInterval)
+        : this(indexer, workspaceRoot, null, onError, debounceInterval)
     {
     }
 
-    public FileWatcherIntegration(ICodeIndexer indexer, string workspaceRoot, IFileSystem fs, Action<Exception>? onError, TimeSpan? debounceInterval = null)
+    public FileWatcherIntegration(ICodeIndexer indexer, string workspaceRoot, IFileSystem? fs, Action<Exception>? onError, TimeSpan? debounceInterval = null)
     {
         ArgumentNullException.ThrowIfNull(indexer);
         ArgumentNullException.ThrowIfNull(workspaceRoot);

@@ -63,7 +63,7 @@ public sealed class AgentExecutionRecord
 
         var successfulOutputs = AgentResults
             .Where(r => r.IsSuccess && !string.IsNullOrEmpty(r.Output))
-            .Select(r => r.Output!)
+            .Select(r => r.Output ?? string.Empty)
             .ToList();
 
         return string.Join("\n\n", successfulOutputs);

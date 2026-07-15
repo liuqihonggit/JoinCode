@@ -306,7 +306,7 @@ public sealed partial class QueryEngine : IQueryEngine
         // 对齐 Reasonix Coordinator: 双模型分离 — 按请求指定模型
         if (!string.IsNullOrEmpty(_currentOptions?.ModelId))
         {
-            var modelId = _currentOptions.ModelId!;
+            var modelId = _currentOptions.ModelId ?? string.Empty;
             executionSettings = new JoinCode.Abstractions.LLM.ChatOptions
             {
                 Temperature = executionSettings.Temperature,

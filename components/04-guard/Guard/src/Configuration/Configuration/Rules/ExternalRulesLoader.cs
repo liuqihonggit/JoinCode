@@ -166,7 +166,7 @@ public sealed partial class ExternalRulesLoader
             var content = await _fs.ReadAllTextAsync(filePath, cancellationToken).ConfigureAwait(false);
             if (string.IsNullOrWhiteSpace(content)) return null;
 
-            var (body, alwaysApply, globs, description) = RuleFrontmatterParser.Parse(content!);
+            var (body, alwaysApply, globs, description) = RuleFrontmatterParser.Parse(content ?? string.Empty);
             var relativePath = filePath.Length > baseDirPath.Length + 1
                 ? filePath[(baseDirPath.Length + 1)..]
                 : Path.GetFileName(filePath);

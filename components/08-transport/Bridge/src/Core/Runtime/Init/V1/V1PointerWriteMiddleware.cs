@@ -17,8 +17,8 @@ internal sealed partial class V1PointerWriteMiddleware : IMiddleware<V1BridgeIni
         var pointerService = new BridgePointerService(ctx.FileSystem, ctx.Logger);
         await pointerService.WriteAsync(ctx.Parameters.Dir, new BridgePointer
         {
-            SessionId = ctx.SessionId!,
-            EnvironmentId = ctx.EnvironmentId!,
+            SessionId = ctx.SessionId ?? throw new InvalidOperationException("SessionId not set."),
+            EnvironmentId = ctx.EnvironmentId ?? throw new InvalidOperationException("EnvironmentId not set."),
             Source = BridgePointerSource.Repl.ToValue(),
         }, ct).ConfigureAwait(false);
 

@@ -106,7 +106,7 @@ public sealed class InMemoryIndexStore : IDisposable
 
     public void Dispose()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
         _lock.Dispose();
     }
 
@@ -117,7 +117,7 @@ public sealed class InMemoryIndexStore : IDisposable
         public WriteLockScope(ReaderWriterLockSlim l) { _lock = l; _lock.EnterWriteLock(); }
         public void Dispose()
         {
-            if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+            if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
             _lock.ExitWriteLock();
         }
     }
@@ -129,7 +129,7 @@ public sealed class InMemoryIndexStore : IDisposable
         public ReadLockScope(ReaderWriterLockSlim l) { _lock = l; _lock.EnterReadLock(); }
         public void Dispose()
         {
-            if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+            if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
             _lock.ExitReadLock();
         }
     }
@@ -141,7 +141,7 @@ public sealed class InMemoryIndexStore : IDisposable
         public UpgradeableReadLockScope(ReaderWriterLockSlim l) { _lock = l; _lock.EnterUpgradeableReadLock(); }
         public void Dispose()
         {
-            if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+            if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
             _lock.ExitUpgradeableReadLock();
         }
     }

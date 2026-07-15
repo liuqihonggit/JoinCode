@@ -22,7 +22,7 @@ public sealed partial class FeatureFlagService : IFeatureFlagService, IDisposabl
     private readonly CancellationTokenSource _disposeCts = new();
     private readonly IClockService _clock;
     private DateTime _lastFetchTime = DateTime.MinValue;
-    private volatile int _disposed;
+    private int _disposed;
 
     private static readonly FeatureFlagJsonContext JsonContext = FeatureFlagJsonContext.Default;
 
@@ -229,7 +229,7 @@ public sealed partial class FeatureFlagService : IFeatureFlagService, IDisposabl
 
     public void Dispose()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
         _disposeCts.Cancel();
         _refreshTimer.Dispose();
         _refreshLock.Dispose();

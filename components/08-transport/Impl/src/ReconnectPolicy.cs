@@ -27,8 +27,11 @@ public sealed class ReconnectPolicy
     {
         if (attempt > MaxAttempts) return false;
 
-        var backoffMs = Math.Min(InitialBackoffMs * (1 << (attempt - 1)), MaxBackoffMs);
-        await Task.Delay(backoffMs, ct).ConfigureAwait(false);
+        var backoff = new ExponentialBackoff(
+            TimeSpan.FromMilliseconds(InitialBackoffMs),
+            TimeSpan.FromMilliseconds(MaxBackoffMs));
+        var delay = backoff.CalculateDelay(attempt - 1);
+        await Task.Delay(delay, ct).ConfigureAwait(false);
         return true;
     }
 }

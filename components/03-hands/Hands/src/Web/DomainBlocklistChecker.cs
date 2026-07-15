@@ -51,8 +51,7 @@ public sealed partial class DomainBlocklistChecker : IDomainBlocklistChecker
 
         try
         {
-            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            cts.CancelAfter(CheckTimeout);
+            using var cts = TimeoutHelper.CreateLinkedTimeout(cancellationToken, CheckTimeout);
 
             var response = await _apiClient.SendAsync(
                 ApiRequest.Get($"{BlocklistApiUrl}{Uri.EscapeDataString(domain)}"),

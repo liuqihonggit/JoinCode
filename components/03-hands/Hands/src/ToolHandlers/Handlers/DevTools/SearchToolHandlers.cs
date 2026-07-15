@@ -183,8 +183,7 @@ public class SearchToolHandlers
         // 获取 Read deny 排除模式 — 对齐 TS getFileReadIgnorePatterns
         var denyPatterns = GetReadDenyPatterns();
 
-        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeoutCts.CancelAfter(TimeSpan.FromSeconds(WorkflowConstants.Limits.SearchTimeoutSeconds));
+        using var timeoutCts = TimeoutHelper.CreateLinkedTimeout(cancellationToken, TimeSpan.FromSeconds(WorkflowConstants.Limits.SearchTimeoutSeconds));
         var timeoutToken = timeoutCts.Token;
 
         GlobSearchResult result;
@@ -301,8 +300,7 @@ public class SearchToolHandlers
             DenyPatterns = denyPatterns
         };
 
-        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeoutCts.CancelAfter(TimeSpan.FromSeconds(WorkflowConstants.Limits.SearchTimeoutSeconds));
+        using var timeoutCts = TimeoutHelper.CreateLinkedTimeout(cancellationToken, TimeSpan.FromSeconds(WorkflowConstants.Limits.SearchTimeoutSeconds));
         var timeoutToken = timeoutCts.Token;
 
         GrepSearchResult result;

@@ -81,8 +81,7 @@ public sealed partial class WebSocketTransport : TransportBase, IMcpTransport
         {
             try
             {
-                using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                cts.CancelAfter(TimeSpan.FromSeconds(5));
+                using var cts = TimeoutHelper.CreateLinkedTimeout(ct, TimeSpan.FromSeconds(5));
                 await _ws.CloseAsync(System.Net.WebSockets.WebSocketCloseStatus.NormalClosure, "Client disconnecting", cts.Token).ConfigureAwait(false);
             }
             catch (Exception ex)

@@ -113,8 +113,7 @@ public abstract class HookExecutorBase<THook> : IHookExecutor<THook> where THook
             return await operation(cancellationToken).ConfigureAwait(false);
         }
 
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        cts.CancelAfter(timeout.Value);
+        using var cts = TimeoutHelper.CreateLinkedTimeout(cancellationToken, timeout.Value);
 
         try
         {

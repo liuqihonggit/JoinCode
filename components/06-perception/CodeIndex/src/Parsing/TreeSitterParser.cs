@@ -33,7 +33,7 @@ public sealed class TreeSitterParser : IDisposable
 
     public void Dispose()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0)
+        if (!DisposableHelper.TryMarkDisposed(ref _disposed))
         {
             return;
         }

@@ -249,4 +249,68 @@ public class StateMachineTests
         capturedArgs.Should().NotBeNull();
         capturedArgs!.Timestamp.Should().Be(fakeTime);
     }
+
+    [Fact]
+    public void IsTerminalState_WithTerminalStates_ShouldReturnTrue()
+    {
+        var transitions = new Dictionary<TestState, FrozenSet<TestState>>
+        {
+            [TestState.Idle] = new HashSet<TestState> { TestState.Running }.ToFrozenSet(),
+            [TestState.Running] = new HashSet<TestState> { TestState.Completed, TestState.Failed }.ToFrozenSet(),
+            [TestState.Completed] = new HashSet<TestState>().ToFrozenSet(),
+            [TestState.Failed] = new HashSet<TestState>().ToFrozenSet()
+        }.ToFrozenDictionary();
+
+        var terminalStates = new HashSet<TestState> { TestState.Completed, TestState.Failed }.ToFrozenSet();
+        var sm = new StateMachine<TestState>(transitions, TestState.Idle, terminalStates);
+
+        sm.IsTerminalState().Should().BeFalse();
+        sm.TransitionTo(TestState.Running);
+        sm.IsTerminalState().Should().BeFalse();
+        sm.TransitionTo(TestState.Completed);
+        sm.IsTerminalState().Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsTerminalState_WithoutTerminalStates_ShouldInferFromEmptyTransitions()
+    {
+        var transitions = new Dictionary<TestState, FrozenSet<TestState>>
+        {
+            [TestState.Idle] = new HashSet<TestState> { TestState.Running }.ToFrozenSet(),
+            [TestState.Running] = new HashSet<TestState> { TestState.Failed }.ToFrozenSet(),
+            [TestState.Failed] = new HashSet<TestState>().ToFrozenSet()
+        }.ToFrozenDictionary();
+
+        var sm = new StateMachine<TestState>(transitions, TestState.Idle);
+        sm.IsTerminalState().Should().BeFalse();
+        sm.TransitionTo(TestState.Running);
+        sm.TransitionTo(TestState.Failed);
+        sm.IsTerminalState().Should().BeTrue();
+    }
+
+    [Fact]
+    public void TransitionFailed_ShouldFireOnInvalidTransition()
+    {
+        var sm = CreateStateMachine();
+        TransitionFailedEventArgs<TestState>? failedArgs = null;
+        sm.TransitionFailed += (_, args) => failedArgs = args;
+
+        var act = () => sm.TransitionTo(TestState.Completed);
+        act.Should().Throw<InvalidOperationException>();
+
+        failedArgs.Should().NotBeNull();
+        failedArgs!.FromState.Should().Be(TestState.Idle);
+        failedArgs.ToState.Should().Be(TestState.Completed);
+    }
+
+    [Fact]
+    public void TransitionFailed_ShouldNotFireOnValidTransition()
+    {
+        var sm = CreateStateMachine();
+        var failedFired = false;
+        sm.TransitionFailed += (_, _) => failedFired = true;
+
+        sm.TransitionTo(TestState.Running);
+        failedFired.Should().BeFalse();
+    }
 }

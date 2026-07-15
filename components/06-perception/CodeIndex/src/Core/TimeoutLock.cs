@@ -60,7 +60,7 @@ internal sealed class TimeoutLock : IDisposable
 
     public void Dispose()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
         _semaphore.Dispose();
     }
 
@@ -80,7 +80,7 @@ internal sealed class TimeoutLock : IDisposable
 
         public void Dispose()
         {
-            if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+            if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
             _sem.Release();
             _log?.Invoke($"[TimeoutLock:{_name}] Released");
         }

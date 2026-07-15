@@ -77,7 +77,7 @@ public sealed partial class SettingsChangeApplier : ISettingsChangeApplier, IDis
 
     public void Dispose()
     {
-        if (Interlocked.Exchange(ref _isDisposed, 1) != 0) return;
+        if (!DisposableHelper.TryMarkDisposed(ref _isDisposed)) return;
 
         _configChangeNotifier.ConfigChanged -= OnConfigChanged;
         _disposeCts.Cancel();

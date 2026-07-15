@@ -242,7 +242,7 @@ public sealed class FileWatcherIntegration : IAsyncDisposable, IDisposable
 
     public async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0)
+        if (!DisposableHelper.TryMarkDisposed(ref _disposed))
         {
             return;
         }
@@ -255,7 +255,7 @@ public sealed class FileWatcherIntegration : IAsyncDisposable, IDisposable
 
     public void Dispose()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0)
+        if (!DisposableHelper.TryMarkDisposed(ref _disposed))
         {
             return;
         }

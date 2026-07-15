@@ -57,8 +57,7 @@ public static class McpHeadersHelper
                 using var process = new Process { StartInfo = startInfo };
                 process.Start();
 
-                using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                cts.CancelAfter(Timeout);
+                using var cts = TimeoutHelper.CreateLinkedTimeout(cancellationToken, Timeout);
 
                 var outputTask = process.StandardOutput.ReadToEndAsync(cts.Token);
                 var errorTask = process.StandardError.ReadToEndAsync(cts.Token);

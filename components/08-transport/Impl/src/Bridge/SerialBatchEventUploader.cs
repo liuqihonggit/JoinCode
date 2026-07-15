@@ -81,8 +81,7 @@ public sealed class SerialBatchEventUploader : IDisposable
             var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             _backpressureResolvers.Add(() => tcs.TrySetResult());
 
-            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            linkedCts.CancelAfter(5000);
+            using var linkedCts = TimeoutHelper.CreateLinkedTimeout(ct, TimeSpan.FromMilliseconds(5000));
             try
             {
                 await tcs.Task.WaitAsync(linkedCts.Token).ConfigureAwait(false);

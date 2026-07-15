@@ -169,7 +169,7 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable
 
     public void Dispose()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
 
         _treeCache.Dispose();
         _dedicatedParser?.Dispose();

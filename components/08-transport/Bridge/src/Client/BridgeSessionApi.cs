@@ -79,8 +79,7 @@ public static class BridgeSessionApi
         request.Headers.Add("anthropic-beta", BetaHeader);
         request.Headers.Add("x-organization-uuid", orgUUID);
 
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        cts.CancelAfter(TimeSpan.FromMilliseconds(DefaultTimeoutMs));
+        using var cts = TimeoutHelper.CreateLinkedTimeout(ct, TimeSpan.FromMilliseconds(DefaultTimeoutMs));
 
         try
         {
@@ -201,8 +200,7 @@ public static class BridgeSessionApi
         request.Headers.Add("anthropic-beta", BetaHeader);
         request.Headers.Add("x-organization-uuid", orgUUID);
 
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        cts.CancelAfter(TimeSpan.FromMilliseconds(DefaultTimeoutMs));
+        using var cts = TimeoutHelper.CreateLinkedTimeout(ct, TimeSpan.FromMilliseconds(DefaultTimeoutMs));
 
         try
         {
@@ -257,8 +255,7 @@ public static class BridgeSessionApi
         request.Headers.Add("anthropic-beta", BetaHeader);
         request.Headers.Add("x-organization-uuid", orgUUID);
 
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        cts.CancelAfter(TimeSpan.FromMilliseconds(DefaultTimeoutMs));
+        using var cts = TimeoutHelper.CreateLinkedTimeout(ct, TimeSpan.FromMilliseconds(DefaultTimeoutMs));
 
         try
         {
@@ -306,8 +303,7 @@ public static class BridgeSessionApi
         request.Headers.Add("anthropic-beta", BetaHeader);
         request.Headers.Add("x-organization-uuid", orgUUID);
 
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        cts.CancelAfter(TimeSpan.FromMilliseconds(timeoutMs));
+        using var cts = TimeoutHelper.CreateLinkedTimeout(ct, TimeSpan.FromMilliseconds(timeoutMs));
 
         try
         {
@@ -370,8 +366,7 @@ public static class BridgeSessionApi
         request.Headers.Add("anthropic-beta", BetaHeader);
         request.Headers.Add("x-organization-uuid", orgUUID);
 
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        cts.CancelAfter(TimeSpan.FromMilliseconds(DefaultTimeoutMs));
+        using var cts = TimeoutHelper.CreateLinkedTimeout(ct, TimeSpan.FromMilliseconds(DefaultTimeoutMs));
 
         try
         {
@@ -417,8 +412,7 @@ public static class BridgeSessionApi
             Content = new StringContent(body.ToString(), Encoding.UTF8, "application/json"),
         };
 
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        cts.CancelAfter(TimeSpan.FromMilliseconds(DefaultTimeoutMs));
+        using var cts = TimeoutHelper.CreateLinkedTimeout(ct, TimeSpan.FromMilliseconds(DefaultTimeoutMs));
 
         try
         {

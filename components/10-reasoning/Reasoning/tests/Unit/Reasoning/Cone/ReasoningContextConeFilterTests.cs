@@ -1,4 +1,4 @@
-namespace JoinCode.Reasoning.Tests.Agents;
+namespace JoinCode.Reasoning.Tests.Cone;
 
 public sealed class ReasoningContextConeFilterTests
 {

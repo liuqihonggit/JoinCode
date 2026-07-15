@@ -19,7 +19,7 @@ public sealed class ShellCommandContext : IShellCommandContext, IShellLifecycle
     private readonly ILogger? _logger;
     private readonly IFileSystem _fs;
     private readonly string? _cwdFilePath;
-    private readonly IShellProvider _provider;
+    private readonly bool _detached;
 
     private int _isDisposed;
     private ShellCommandStatus _status = ShellCommandStatus.Running;
@@ -76,7 +76,7 @@ public sealed class ShellCommandContext : IShellCommandContext, IShellLifecycle
         ILogger? logger,
         IFileSystem fs,
         string? cwdFilePath,
-        IShellProvider provider)
+        bool detached)
     {
         _process = process;
         _command = command;
@@ -85,7 +85,7 @@ public sealed class ShellCommandContext : IShellCommandContext, IShellLifecycle
         _logger = logger;
         _fs = fs;
         _cwdFilePath = cwdFilePath;
-        _provider = provider;
+        _detached = detached;
         _processCts = new CancellationTokenSource();
 
         ShouldAutoBackground = shouldAutoBackground;
@@ -158,9 +158,17 @@ public sealed class ShellCommandContext : IShellCommandContext, IShellLifecycle
             RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true,
-            StandardOutputEncoding = Encoding.UTF8,
-            StandardErrorEncoding = Encoding.UTF8
+            StandardOutputEncoding = provider is ShellProviderBase spb ? spb.OutputEncoding : Encoding.UTF8,
+            StandardErrorEncoding = provider is ShellProviderBase spb2 ? spb2.ErrorEncoding : Encoding.UTF8
         };
+
+        // 对齐 TS Shell.ts: detached 进程组隔离
+        // Bash: detached=true → 新进程组，tree-kill 可精确杀整棵进程树
+        // PowerShell: detached=false → 共享父进程控制台
+        if (provider.Detached && OperatingSystem.IsWindows())
+        {
+            psi.WindowStyle = ProcessWindowStyle.Hidden;
+        }
 
         // 对齐 TS Shell.ts: 先清理环境变量（CI 场景移除敏感信息），再叠加 envOverrides
         var cleanedEnv = SubprocessEnvCleaner.CleanEnvironment();
@@ -177,7 +185,7 @@ public sealed class ShellCommandContext : IShellCommandContext, IShellLifecycle
 
         return new ShellCommandContext(
             process, command, workingDirectory, timeoutMs,
-            shouldAutoBackground, logger, fs, execResult.CwdFilePath, provider);
+            shouldAutoBackground, logger, fs, execResult.CwdFilePath, provider.Detached);
     }
 
     /// <inheritdoc />
@@ -282,6 +290,23 @@ public sealed class ShellCommandContext : IShellCommandContext, IShellLifecycle
         catch (Exception ex) { _logger?.LogWarning(ex, "杀进程树失败"); }
 
         _status = ShellCommandStatus.Killed;
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// 对齐 TS ShellCommand.#abortHandler: reason==='interrupt' 时不杀进程
+    /// 用户提交新消息触发 interrupt，进程继续运行并转为后台任务
+    /// 与 Kill() 的区别：interrupt 保留进程让模型可看到部分输出
+    /// </remarks>
+    public bool Interrupt()
+    {
+        if (_status != ShellCommandStatus.Running) return false;
+
+        var taskId = TaskIdGenerator.GenerateTaskId(TaskType.LocalBash);
+        if (!Background(taskId)) return false;
+
+        _logger?.LogInformation("Shell 命令被 interrupt 转后台: {TaskId}, 命令: {Command}", taskId, _command);
+        return true;
     }
 
     private static void KillProcessTree(Process process)

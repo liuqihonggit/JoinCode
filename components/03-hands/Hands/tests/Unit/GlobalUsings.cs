@@ -21,7 +21,6 @@ global using JoinCode.Abstractions.Models.Skill;
 global using JoinCode.Abstractions.Models.SkillSearch;
 global using JoinCode.Abstractions.Models.Search;
 global using JoinCode.Abstractions.Models.Shell;
-global using SkillSearchQuery = Core.Skills.Search.SkillSearchQuery;
 global using JoinCode.Abstractions.Models.Ssh;
 global using JoinCode.Abstractions.Models.Task;
 global using JoinCode.Abstractions.Models.Telemetry;

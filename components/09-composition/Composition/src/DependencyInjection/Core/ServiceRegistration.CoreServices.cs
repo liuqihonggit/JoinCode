@@ -102,6 +102,9 @@ public static partial class ServiceRegistration
             return options.Value;
         });
 
+        // IShellProvider — BashShellProvider / PowerShellShellProvider 由 [Register] 自动注册
+        // ShellExecutionService 构造函数直接取具体类型（非 IShellProvider 接口），避免多实现歧义
+
         return services;
     }
 

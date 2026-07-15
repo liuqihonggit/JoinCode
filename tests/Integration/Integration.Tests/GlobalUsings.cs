@@ -56,6 +56,7 @@ global using Core.Security.Constants;
 global using IO.FileSystem;
 global using IO.Services;
 global using Services.Shell;
+global using Services.Shell.Providers;
 
 global using JoinCode.ChatCommands;
 

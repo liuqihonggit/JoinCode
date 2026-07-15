@@ -1,3 +1,5 @@
+using Services.Shell.Providers;
+
 namespace Services.Shell;
 
 /// <summary>
@@ -88,24 +90,26 @@ public sealed class ShellCommandContext : IShellCommandContext
 
     /// <summary>
     /// 创建并启动 Shell 执行上下文 — 对齐 TS ShellCommand.exec
+    /// 使用 IShellProvider 构建 ProcessStartInfo，替代硬编码的 cmd.exe/powershell.exe
     /// </summary>
     public static ShellCommandContext Start(
         string command,
         string workingDirectory,
         IFileSystem fs,
+        IShellProvider provider,
         int? timeoutMs = null,
-        bool isPowerShell = false,
         bool shouldAutoBackground = true,
         ILogger? logger = null)
     {
         var effectiveFs = fs;
 
+        var commandString = command;
+        var spawnArgs = provider.GetSpawnArgs(commandString);
+
         var psi = new ProcessStartInfo
         {
-            FileName = isPowerShell ? "powershell.exe" : "cmd.exe",
-            Arguments = isPowerShell
-                ? $"-NoProfile -ExecutionPolicy Bypass -Command \"{command.Replace("\"", "\"\"")}\""
-                : $"/c {command}",
+            FileName = provider.ShellPath,
+            Arguments = string.Join(' ', spawnArgs),
             WorkingDirectory = workingDirectory,
             RedirectStandardOutput = true,
             RedirectStandardError = true,

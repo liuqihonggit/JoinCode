@@ -10,10 +10,10 @@ namespace JoinCode.Abstractions.Configuration.Execution;
 public sealed class ShellExecutionConfig
 {
     /// <summary>
-    /// 最大输出字节数（默认 16KB）
+    /// 最大输出字节数（默认 30KB）— 对齐 TS BASH_MAX_OUTPUT_DEFAULT (30000)
     /// </summary>
     [Range(1024, 1024 * 1024, ErrorMessage = "MaxOutputBytes 必须在 1KB 到 1MB 之间")]
-    public int MaxOutputBytes { get; set; } = 16 * 1024;
+    public int MaxOutputBytes { get; set; } = 30_000;
 
     /// <summary>
     /// 默认超时时间（秒，默认 30）

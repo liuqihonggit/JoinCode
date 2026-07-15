@@ -1,8 +1,10 @@
 
+using Services.Shell.Providers;
+
 namespace Services.Shell;
 
 /// <summary>
-/// Shell 执行服务实现
+/// Shell 执行服务实现 — 使用 IShellProvider 替代硬编码的 cmd.exe/powershell.exe
 /// </summary>
 [Register]
 public sealed partial class ShellExecutionService : IShellExecutionService
@@ -13,13 +15,24 @@ public sealed partial class ShellExecutionService : IShellExecutionService
     private readonly IFileSystem _fs;
     private readonly ISandboxModeService? _sandboxModeService;
     private readonly IPreventSleepService? _preventSleepService;
+    private readonly IShellProvider _bashProvider;
+    private readonly IShellProvider _powerShellProvider;
 
-    public ShellExecutionService(ShellExecutionConfig config, IFileSystem fs, IProcessService processService, ILogger<ShellExecutionService>? logger = null,
-        ISandboxModeService? sandboxModeService = null, IPreventSleepService? preventSleepService = null)
+    public ShellExecutionService(
+        ShellExecutionConfig config,
+        IFileSystem fs,
+        IProcessService processService,
+        BashShellProvider bashProvider,
+        PowerShellShellProvider powerShellProvider,
+        ILogger<ShellExecutionService>? logger = null,
+        ISandboxModeService? sandboxModeService = null,
+        IPreventSleepService? preventSleepService = null)
     {
         _config = config ?? throw new ArgumentNullException(nameof(config));
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _processService = processService ?? throw new ArgumentNullException(nameof(processService));
+        _bashProvider = bashProvider ?? throw new ArgumentNullException(nameof(bashProvider));
+        _powerShellProvider = powerShellProvider ?? throw new ArgumentNullException(nameof(powerShellProvider));
         _logger = logger;
         _sandboxModeService = sandboxModeService;
         _preventSleepService = preventSleepService;
@@ -32,18 +45,8 @@ public sealed partial class ShellExecutionService : IShellExecutionService
         string? workingDirectory = null,
         bool disableSandbox = false,
         CancellationToken cancellationToken = default)
-        => ExecuteCoreAsync(command, timeout, workingDirectory, disableSandbox, "cmd",
-            (cmd, cwd, t) => new ProcessOptions
-            {
-                FileName = "cmd.exe",
-                Arguments = $"/c {cmd}",
-                WorkingDirectory = cwd,
-                StandardOutputEncoding = Encoding.UTF8,
-                StandardErrorEncoding = Encoding.UTF8,
-                TimeoutMs = t
-            },
-            "Command",
-            cancellationToken);
+        => ExecuteCoreAsync(command, timeout, workingDirectory, disableSandbox, _bashProvider,
+            "Bash", cancellationToken);
 
     /// <inheritdoc />
     public Task<ShellExecutionResult> ExecutePowerShellAsync(
@@ -52,18 +55,8 @@ public sealed partial class ShellExecutionService : IShellExecutionService
         string? workingDirectory = null,
         bool disableSandbox = false,
         CancellationToken cancellationToken = default)
-        => ExecuteCoreAsync(command, timeout, workingDirectory, disableSandbox, "PowerShell",
-            (cmd, cwd, t) => new ProcessOptions
-            {
-                FileName = "powershell.exe",
-                Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"{cmd.Replace("\"", "\"\"")}\"",
-                WorkingDirectory = cwd,
-                StandardOutputEncoding = Encoding.UTF8,
-                StandardErrorEncoding = Encoding.UTF8,
-                TimeoutMs = t
-            },
-            "PowerShell command",
-            cancellationToken);
+        => ExecuteCoreAsync(command, timeout, workingDirectory, disableSandbox, _powerShellProvider,
+            "PowerShell", cancellationToken);
 
     /// <inheritdoc />
     public async Task<IShellCommandContext> StartWithBackgroundSupportAsync(
@@ -87,7 +80,9 @@ public sealed partial class ShellExecutionService : IShellExecutionService
             throw new DirectoryNotFoundException($"Working directory does not exist: {cwd}");
         }
 
-        _logger?.LogInformation("Starting backgroundable command: {Command}", command);
+        var provider = isPowerShell ? _powerShellProvider : _bashProvider;
+
+        _logger?.LogInformation("Starting backgroundable command with {ProviderType}: {Command}", provider.Type, command);
 
         if (_preventSleepService is not null) await _preventSleepService.PreventSleepAsync(SleepPreventionType.Continuous).ConfigureAwait(false);
 
@@ -95,8 +90,8 @@ public sealed partial class ShellExecutionService : IShellExecutionService
             command,
             cwd,
             _fs,
+            provider,
             timeout,
-            isPowerShell,
             shouldAutoBackground,
             _logger);
 
@@ -115,9 +110,8 @@ public sealed partial class ShellExecutionService : IShellExecutionService
         int? timeout,
         string? workingDirectory,
         bool disableSandbox,
+        IShellProvider provider,
         string shellLabel,
-        Func<string, string, int?, ProcessOptions> buildOptions,
-        string logLabel,
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(command))
@@ -137,7 +131,17 @@ public sealed partial class ShellExecutionService : IShellExecutionService
         if (_preventSleepService is not null) await _preventSleepService.PreventSleepAsync(SleepPreventionType.Continuous).ConfigureAwait(false);
         try
         {
-            var options = buildOptions(command, cwd, timeout);
+            var spawnArgs = provider.GetSpawnArgs(command);
+
+            var options = new ProcessOptions
+            {
+                FileName = provider.ShellPath,
+                Arguments = string.Join(' ', spawnArgs),
+                WorkingDirectory = cwd,
+                StandardOutputEncoding = Encoding.UTF8,
+                StandardErrorEncoding = Encoding.UTF8,
+                TimeoutMs = timeout
+            };
 
             var result = await _processService.ExecuteAsync(options, cancellationToken).ConfigureAwait(false);
 
@@ -146,23 +150,27 @@ public sealed partial class ShellExecutionService : IShellExecutionService
                 return ShellExecutionResult.TimeoutResult(timeout.Value);
             }
 
-            var stdout = TruncateOutput(result.StandardOutput);
-            var stderr = TruncateOutput(result.StandardError);
+            var rawStdout = result.StandardOutput;
+            var rawStderr = result.StandardError;
 
             string? persistedPath = null;
             long? persistedSize = null;
-            if (stdout.Length > ShellExecutionResult.MaxInlineOutputChars)
+
+            if (rawStdout.Length > ShellExecutionResult.MaxInlineOutputChars)
             {
                 (persistedPath, persistedSize) = await PersistLargeOutputAsync(
-                    stdout, command, cancellationToken).ConfigureAwait(false);
-                stdout = stdout[..Math.Min(stdout.Length, ShellExecutionResult.PreviewSizeBytes)];
+                    rawStdout, command, cancellationToken).ConfigureAwait(false);
+                rawStdout = rawStdout[..Math.Min(rawStdout.Length, ShellExecutionResult.PreviewSizeBytes)];
             }
+
+            var stdout = rawStdout;
+            var stderr = rawStderr;
 
             var cwdWasReset = ResetCwdIfOutsideProject(cwd);
 
             _logger?.LogInformation(
                 "{LogLabel} completed: ExitCode={ExitCode}, StdoutLength={StdoutLength}, StderrLength={StderrLength}",
-                logLabel,
+                shellLabel,
                 result.ExitCode,
                 stdout.Length,
                 stderr.Length);
@@ -181,7 +189,7 @@ public sealed partial class ShellExecutionService : IShellExecutionService
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "{LogLabel} execution failed: {Command}", logLabel, command);
+            _logger?.LogError(ex, "{LogLabel} execution failed: {Command}", shellLabel, command);
             return ShellExecutionResult.FailureResult(ex.Message);
         }
         finally
@@ -264,33 +272,6 @@ public sealed partial class ShellExecutionService : IShellExecutionService
         {
             return false;
         }
-    }
-
-    private string TruncateOutput(string output)
-    {
-        if (output.Length <= _config.MaxOutputBytes)
-        {
-            return output;
-        }
-
-        var end = _config.MaxOutputBytes;
-        while (end > 0 && !IsCharBoundary(output, end))
-        {
-            end--;
-        }
-
-        return output[..end] + $"\n\n[Output truncated — exceeded {_config.MaxOutputBytes} bytes]";
-    }
-
-    private static bool IsCharBoundary(string s, int index)
-    {
-        if (index <= 0 || index >= s.Length)
-        {
-            return true;
-        }
-
-        var c = s[index];
-        return !char.IsHighSurrogate(s[index - 1]) || !char.IsLowSurrogate(c);
     }
 
     #endregion

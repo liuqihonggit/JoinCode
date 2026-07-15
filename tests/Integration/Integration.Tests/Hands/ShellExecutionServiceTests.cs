@@ -1,4 +1,3 @@
-
 namespace Core.Tests.Services;
 
 /// <summary>
@@ -14,7 +13,10 @@ public class ShellExecutionServiceTests
     public ShellExecutionServiceTests()
     {
         var config = new ShellExecutionConfig();
-        _service = new ShellExecutionService(config, new IO.FileSystem.PhysicalFileSystem(), new IO.ProcessService.PhysicalProcessService());
+        var fs = new IO.FileSystem.PhysicalFileSystem();
+        var bashProvider = new BashShellProvider(fs);
+        var psProvider = new PowerShellShellProvider(fs);
+        _service = new ShellExecutionService(config, fs, new IO.ProcessService.PhysicalProcessService(), bashProvider, psProvider);
     }
 
     [Fact]
@@ -173,10 +175,10 @@ public class ShellExecutionServiceTests
     [Fact]
     public async Task ExecuteAsync_LongOutput_Truncated()
     {
-        // Act - 生成超过 16KB 的输出（MaxOutputBytes 默认 16384）
-        var result = await _service.ExecuteAsync("powershell -Command \"Write-Output ('x' * 20000)\"").ConfigureAwait(true);
+        // Act - 生成超过 30KB 的输出（MaxOutputBytes 默认 30000）
+        var result = await _service.ExecuteAsync("powershell -Command \"Write-Output ('x' * 40000)\"").ConfigureAwait(true);
 
-        // Assert - TruncateOutput 返回 "[Output truncated — exceeded 16384 bytes]"
+        // Assert - TruncateOutput 返回 "[Output truncated — exceeded 30000 bytes]"
         Assert.True(result.Success);
         Assert.True(
             result.Stdout.Contains("truncated", StringComparison.OrdinalIgnoreCase) ||

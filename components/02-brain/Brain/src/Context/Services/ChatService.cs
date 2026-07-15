@@ -200,7 +200,7 @@ public partial class ChatService : IChatService {
             ContextManager = _contextManager,
         };
         await _adminPipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false);
-        return context.MessageList!;
+        return context.MessageList ?? throw new InvalidOperationException("MessageList is not set after pipeline execution.");
     }
 
     /// <summary>
@@ -233,7 +233,7 @@ public partial class ChatService : IChatService {
         await _adminPipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false);
         if (context.Error is not null)
             throw new WorkflowException("撤回对话失败", context.Error);
-        return context.RewindResult!;
+        return context.RewindResult ?? throw new InvalidOperationException("RewindResult is not set after pipeline execution.");
     }
 
     /// <summary>
@@ -251,7 +251,7 @@ public partial class ChatService : IChatService {
         await _adminPipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false);
         if (context.Error is not null)
             throw new WorkflowException("撤回对话失败", context.Error);
-        return context.RewindResult!;
+        return context.RewindResult ?? throw new InvalidOperationException("RewindResult is not set after pipeline execution.");
     }
 
     /// <summary>
@@ -268,7 +268,7 @@ public partial class ChatService : IChatService {
         await _adminPipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false);
         if (context.Error is not null)
             throw new WorkflowException("撤回对话失败", context.Error);
-        return context.RewindResult!;
+        return context.RewindResult ?? throw new InvalidOperationException("RewindResult is not set after pipeline execution.");
     }
 
     /// <summary>

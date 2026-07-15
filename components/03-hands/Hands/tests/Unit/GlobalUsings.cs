@@ -67,6 +67,7 @@ global using Services.Api;
 global using Services.Api.Vcr;
 global using Services.Cache;
 global using Services.Shell;
+global using Services.Shell.Providers;
 global using Services.SystemPower;
 global using Services.Build;
 global using Services.Voice;

@@ -91,8 +91,9 @@ public sealed class ShellCommandContext : IShellCommandContext
     /// <summary>
     /// 创建并启动 Shell 执行上下文 — 对齐 TS ShellCommand.exec
     /// 使用 IShellProvider 构建 ProcessStartInfo，替代硬编码的 cmd.exe/powershell.exe
+    /// 注入环境变量（CLAUDECODE=1, GIT_EDITOR=true, SHELL 等）到子进程
     /// </summary>
-    public static ShellCommandContext Start(
+    public static async Task<ShellCommandContext> StartAsync(
         string command,
         string workingDirectory,
         IFileSystem fs,
@@ -106,6 +107,8 @@ public sealed class ShellCommandContext : IShellCommandContext
         var commandString = command;
         var spawnArgs = provider.GetSpawnArgs(commandString);
 
+        var envOverrides = await provider.GetEnvironmentOverridesAsync(command).ConfigureAwait(false);
+
         var psi = new ProcessStartInfo
         {
             FileName = provider.ShellPath,
@@ -118,6 +121,12 @@ public sealed class ShellCommandContext : IShellCommandContext
             StandardOutputEncoding = Encoding.UTF8,
             StandardErrorEncoding = Encoding.UTF8
         };
+
+        if (envOverrides.Count > 0)
+        {
+            foreach (var (key, value) in envOverrides)
+                psi.EnvironmentVariables[key] = value;
+        }
 
         var process = new Process { StartInfo = psi };
         process.Start();

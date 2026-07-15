@@ -77,7 +77,11 @@ public sealed class PowerShellShellProvider : IShellProvider
         string command,
         CancellationToken cancellationToken = default)
     {
-        var env = new Dictionary<string, string>(StringComparer.Ordinal);
+        var env = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["CLAUDECODE"] = "1",
+            ["GIT_EDITOR"] = "true"
+        };
 
         if (_currentSandboxTmpDir is not null)
         {

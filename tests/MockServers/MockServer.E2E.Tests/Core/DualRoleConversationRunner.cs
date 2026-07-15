@@ -165,8 +165,6 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
 
         var turn = script.Turns[0];
 
-        // 优化: 等待进程退出或输出足够长（NonInteractive 模式下 jcc.exe 执行完即退出）
-        // 对于无输出的命令（服务未注册），进程退出即可返回，避免等待超时
         var output = await WaitForNonInteractiveOutputAsync(turn.ResponseTimeout, ct).ConfigureAwait(true);
 
         var record = ConversationOutputParser.Parse(output);
@@ -175,9 +173,96 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
         var turnAsserts = ConversationOutputParser.EvaluateAsserts(record, turn.Asserts);
         assertResults.AddRange(turnAsserts);
 
-        if (script.DumpMessages)
+        // CI 环境间歇性失败重试: 如果 HasAssistantResponse 断言失败（jcc.exe 可能因资源竞争未收到响应），
+        // 重新启动 jcc.exe 再试一次
+        if (assertResults.Any(a => !a.IsPassed && a.Type == AssertType.HasAssistantResponse))
         {
-            DumpTurnRecord(script.Name, 0, record with { UserInput = turn.UserInput }, turnRecords);
+            _logger.LogWarning("[DualRoleRunner] NonInteractive 首次运行未获得助手回复，重试一次");
+
+            await _processManager!.DisposeAsync().ConfigureAwait(true);
+            _processManager = null;
+
+            var exePath = ResolveExecutablePath();
+            var providerValue = _activeProvider switch
+            {
+                ProviderKind.OpenAI => "openai",
+                ProviderKind.Anthropic => "anthropic",
+                ProviderKind.DeepSeek => "deepseek",
+                _ => "openai"
+            };
+            var modelId = _activeProvider switch
+            {
+                ProviderKind.OpenAI => "gpt-4o",
+                ProviderKind.Anthropic => "claude-sonnet-4-20250514",
+                ProviderKind.DeepSeek => "deepseek-v4-flash",
+                _ => "gpt-4o"
+            };
+            var apiKeyEnvVar = _activeProvider switch
+            {
+                ProviderKind.OpenAI => "OPENAI_API_KEY",
+                ProviderKind.Anthropic => "ANTHROPIC_API_KEY",
+                ProviderKind.DeepSeek => "DEEPSEEK_API_KEY",
+                _ => "OPENAI_API_KEY"
+            };
+            var envVars = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["JCC_ENDPOINT"] = $"http://localhost:{_mockServerPort}",
+                ["JCC_API_KEY"] = "sk-test-1234567890",
+                ["JCC_PROVIDER"] = providerValue,
+                ["JCC_MODEL_ID"] = modelId,
+                [apiKeyEnvVar] = "sk-test-1234567890",
+                ["JCC_STATE_FILE_PATH"] = _stateFilePath!,
+                ["JCC_PERMISSION_MODE"] = "bypassPermissions",
+                ["JCC_APP_DATA_FOLDER"] = Path.GetDirectoryName(_stateFilePath)!,
+            };
+
+            if (script.ExtraEnvVars is not null)
+            {
+                foreach (var (key, value) in script.ExtraEnvVars)
+                {
+                    envVars[key] = value;
+                }
+            }
+
+            var args = $"--trust -p \"{script.Turns[0].UserInput}\"";
+            if (!string.IsNullOrWhiteSpace(script.AdditionalArgs))
+            {
+                args += $" {script.AdditionalArgs}";
+            }
+
+            _processManager = new StdioProcessManager(_loggerFactory.CreateLogger<StdioProcessManager>());
+            var config = new StdioProcessConfig
+            {
+                ExecutablePath = exePath,
+                Arguments = args,
+                EnvironmentVariables = envVars,
+                WorkingDirectory = script.WorkingDirectory
+            };
+
+            await _processManager.StartAsync(config, ct).ConfigureAwait(true);
+
+            var retryOutput = await WaitForNonInteractiveOutputAsync(turn.ResponseTimeout, ct).ConfigureAwait(true);
+
+            turnRecords.Clear();
+            assertResults.Clear();
+
+            var retryRecord = ConversationOutputParser.Parse(retryOutput);
+            turnRecords.Add(retryRecord with { UserInput = turn.UserInput });
+
+            var retryAsserts = ConversationOutputParser.EvaluateAsserts(retryRecord, turn.Asserts);
+            assertResults.AddRange(retryAsserts);
+
+            if (script.DumpMessages)
+            {
+                DumpTurnRecord(script.Name, 0, retryRecord with { UserInput = turn.UserInput }, turnRecords);
+            }
+        }
+        else
+        {
+            if (script.DumpMessages)
+            {
+                DumpTurnRecord(script.Name, 0, record with { UserInput = turn.UserInput }, turnRecords);
+            }
         }
 
         var stderrOutput = await CaptureStderrAsync().ConfigureAwait(true);

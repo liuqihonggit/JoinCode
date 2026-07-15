@@ -397,7 +397,7 @@ public sealed partial class AgentCoordinator : IAgentCoordinator, ISubAgentCoord
             return false;
         }
 
-        if (agent.State == TaskExecutionStatus.Completed || agent.State == TaskExecutionStatus.Failed)
+        if (agent.State.IsTerminal())
         {
             _logger?.LogWarning("[AgentCoordinator] Agent {AgentId} 已结束，无法接收消息", agentId);
             return false;
@@ -409,7 +409,7 @@ public sealed partial class AgentCoordinator : IAgentCoordinator, ISubAgentCoord
     public async Task BroadcastAsync(CoordinatorAgentMessage message, CancellationToken cancellationToken = default)
     {
         var allAgents = await _lifecycleManager.GetAllAgentsAsync(cancellationToken).ConfigureAwait(false);
-        var activeAgentCount = allAgents?.Count(a => a.State != TaskExecutionStatus.Completed && a.State != TaskExecutionStatus.Failed) ?? 0;
+        var activeAgentCount = allAgents?.Count(a => !a.State.IsTerminal()) ?? 0;
 
         _logger?.LogInformation("[AgentCoordinator] 广播消息给 {Count} 个活跃Agent", activeAgentCount);
 

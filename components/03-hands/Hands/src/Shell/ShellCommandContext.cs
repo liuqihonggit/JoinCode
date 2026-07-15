@@ -186,7 +186,7 @@ public sealed class ShellCommandContext : IShellCommandContext, IShellLifecycle
     {
         _sizeWatchdogTimer = new Timer(static state =>
         {
-            var ctx = (ShellCommandContext)state!;
+            var ctx = (ShellCommandContext)(state ?? throw new InvalidOperationException("Timer state is null."));
             if (ctx._status != ShellCommandStatus.Backgrounded) return;
 
             var currentSize = ctx._stdoutBuilder.Length;

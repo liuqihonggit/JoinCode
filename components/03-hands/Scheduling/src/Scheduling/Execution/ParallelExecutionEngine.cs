@@ -209,7 +209,7 @@ public sealed partial class ParallelExecutionEngine : IAsyncDisposable
         var startTimes = tasks.Select(t => t.CreatedAt).ToList();
         var endTimes = tasks
             .Where(t => t.CompletedAt.HasValue)
-            .Select(t => t.CompletedAt!.Value)
+            .Select(t => t.CompletedAt.GetValueOrDefault())
             .ToList();
 
         if (startTimes.Count == 0 || endTimes.Count == 0)

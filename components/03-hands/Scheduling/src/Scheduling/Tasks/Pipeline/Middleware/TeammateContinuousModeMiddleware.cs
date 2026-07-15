@@ -19,7 +19,7 @@ public sealed partial class TeammateContinuousModeMiddleware : ITeammateExecutio
 
         if (ctx.RunLoopAsync is not null && ctx.LifecycleCts is not null)
         {
-            _ = ctx.RunLoopAsync(ctx.Definition, ctx.State!, ctx.LifecycleCts.Token);
+            _ = ctx.RunLoopAsync(ctx.Definition, ctx.State ?? throw new InvalidOperationException("Teammate state is not available."), ctx.LifecycleCts.Token);
         }
 
         var elapsed = (long)(_clock.GetUtcNow() - ctx.StartTime).TotalMilliseconds;

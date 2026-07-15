@@ -369,7 +369,7 @@ public sealed partial class RemotePolicyService : JoinCode.Abstractions.Interfac
         var allowedHours = hoursStr.Split(',')
             .Select(s => int.TryParse(s.Trim(), out var h) ? (int?)h : null)
             .Where(h => h.HasValue)
-            .Select(h => h!.Value)
+            .Select(h => h.GetValueOrDefault())
             .ToHashSet();
 
         if (allowedHours.Count > 0 && !allowedHours.Contains(currentHour))

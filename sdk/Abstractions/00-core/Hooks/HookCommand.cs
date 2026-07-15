@@ -212,7 +212,7 @@ public sealed record FunctionHook : HookCommand
     /// 回调函数
     /// </summary>
     [JsonIgnore]
-    public required Func<HookInput, CancellationToken, Task<HookResult>> Callback { get; init; }
+    public Func<HookInput, CancellationToken, Task<HookResult>> Callback { get; init; } = null!;
 
     /// <summary>
     /// 错误消息（回调返回 false 时显示）
@@ -242,7 +242,7 @@ public sealed record CallbackHook : HookCommand
     /// 回调函数
     /// </summary>
     [JsonIgnore]
-    public required Func<HookInput, CancellationToken, Task<HookResult>> Callback { get; init; }
+    public Func<HookInput, CancellationToken, Task<HookResult>> Callback { get; init; } = null!;
 
     /// <summary>
     /// 是否为内部钩子（排除在指标外）

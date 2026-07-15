@@ -84,7 +84,7 @@ public sealed partial class ShellBuildInterceptMiddleware : IShellMiddleware
 
     private static void SetResultFromEntry(ShellContext context, BuildQueueEntry entry)
     {
-        var r = entry.Result!;
+        var r = entry.Result ?? throw new InvalidOperationException("Build queue entry has no result.");
         SetResultFromBuildResult(context, r);
     }
 

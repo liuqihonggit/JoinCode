@@ -202,7 +202,7 @@ internal static class JsonElementConverter
         double d => JsonSerializer.SerializeToElement(d, SchedulingJsonContext.Default.Double),
         bool b => JsonSerializer.SerializeToElement(b, SchedulingJsonContext.Default.Boolean),
         JsonElement je => je,
-        _ => JsonSerializer.SerializeToElement(value!.ToString(), SchedulingJsonContext.Default.String)
+        _ => JsonSerializer.SerializeToElement(value?.ToString() ?? string.Empty, SchedulingJsonContext.Default.String)
     };
 
     public static JsonElement ToJsonElement(object value) => value switch

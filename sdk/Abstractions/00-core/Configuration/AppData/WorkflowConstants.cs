@@ -185,6 +185,11 @@ public static class WorkflowConstants
         public static string TokensDirectory => Path.Combine(JccDirectory, "tokens");
 
         /// <summary>
+        /// 获取 sessions 目录的完整路径 — 存储 /resume 和 --resume/--continue 恢复的会话文件
+        /// </summary>
+        public static string SessionsDirectory => Path.Combine(JccDirectory, "sessions");
+
+        /// <summary>
         /// 项目级配置目录名（如 .jcc）
         /// </summary>
         public static string ProjectConfigFolderName => AppDataConstants.AppDataFolder;

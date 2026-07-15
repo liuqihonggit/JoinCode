@@ -35,11 +35,44 @@ public sealed class ApplicationBuilder
             .ConfigureServices((_, services) =>
             {
                 services.AddSingleton(config);
+                // 视角1 #3: 注册 CommandLineOptions 为单例，供 PermissionConfig 后配置读取
+                services.AddSingleton(options);
 
                 foreach (var module in ordered)
                 {
                     module.ConfigureServices(services, context);
                 }
+
+                // 视角1 #3: 后配置 PermissionConfig，合并 --allowed-tools / --disallowed-tools CLI 参数
+                // 决策: 使用 IOptions 后配置模式，在 Guard 模块的默认配置之后追加，不破坏封装
+                // 替代方案已否决: 修改 Guard 模块接口（破坏组件边界）
+                services.AddOptions<PermissionConfig>()
+                    .Configure<CommandLineOptions>((permConfig, cliOptions) =>
+                    {
+                        if (cliOptions.AllowedTools is { Count: > 0 })
+                        {
+                            foreach (var tool in cliOptions.AllowedTools)
+                            {
+                                if (!permConfig.AutoApprovedTools.Any(r => string.Equals(r.ToolName, tool, StringComparison.OrdinalIgnoreCase)))
+                                {
+                                    permConfig.AutoApprovedTools.Add(new ToolPermissionRule { ToolName = tool, Description = "From CLI --allowed-tools" });
+                                }
+                            }
+                            Diag.WriteLine($"[MAIN] --allowed-tools 合并 {cliOptions.AllowedTools.Count} 个工具到 PermissionConfig.AutoApprovedTools");
+                        }
+
+                        if (cliOptions.DisallowedTools is { Count: > 0 })
+                        {
+                            foreach (var tool in cliOptions.DisallowedTools)
+                            {
+                                if (!permConfig.AutoRejectedTools.Any(r => string.Equals(r.ToolName, tool, StringComparison.OrdinalIgnoreCase)))
+                                {
+                                    permConfig.AutoRejectedTools.Add(new ToolPermissionRule { ToolName = tool, Description = "From CLI --disallowed-tools" });
+                                }
+                            }
+                            Diag.WriteLine($"[MAIN] --disallowed-tools 合并 {cliOptions.DisallowedTools.Count} 个工具到 PermissionConfig.AutoRejectedTools");
+                        }
+                    });
             })
             .ConfigureLogging(logging =>
             {
@@ -65,15 +98,12 @@ public sealed class ApplicationBuilder
     public async Task ConfigureModulesAsync(IServiceProvider services)
     {
         var ordered = _modules.OrderBy(m => m.Order).ToList();
-        // 仅在 JCC_DEBUG_MODULES=1/true 时打印模块启停日志(链路排查用),默认关闭减少噪音
-        var debugModules = Environment.GetEnvironmentVariable("JCC_DEBUG_MODULES") is "1" or "true";
         foreach (var module in ordered)
         {
-            if (debugModules)
-                Console.Error.WriteLine($"[MODULE] {module.GetType().Name} start");
+            // P2-5: 迁移到 Diag.WriteLine，统一受 JCC_VERBOSE 控制
+            Diag.WriteLine($"[MODULE] {module.GetType().Name} start");
             await module.ConfigureAsync(services, CancellationToken.None).ConfigureAwait(false);
-            if (debugModules)
-                Console.Error.WriteLine($"[MODULE] {module.GetType().Name} done");
+            Diag.WriteLine($"[MODULE] {module.GetType().Name} done");
         }
     }
 
@@ -216,12 +246,33 @@ public sealed class ApplicationBuilder
             Brief = result.Brief,
             ForceInteractive = result.ForceInteractive,
             Verbose = result.Verbose,
+            ContinueSession = result.Continue,
+            ResumeSessionId = result.Resume,
+            PermissionMode = result.PermissionMode,
+            DangerouslySkipPermissions = result.DangerouslySkipPermissions,
+            AllowedTools = ParseToolList(result.AllowedTools),
+            DisallowedTools = ParseToolList(result.DisallowedTools),
+            SystemPrompt = result.SystemPrompt,
+            AppendSystemPrompt = result.AppendSystemPrompt,
         };
 
         // --await N: 超时自动关闭秒数
         if (!string.IsNullOrWhiteSpace(result.Await) && int.TryParse(result.Await, out var awaitSeconds) && awaitSeconds > 0)
         {
             options.AwaitTimeoutSeconds = awaitSeconds;
+        }
+
+        // 视角1 #6 + #9: CLI 参数 → JCC_PERMISSION_MODE 环境变量
+        // 决策: 复用 PermissionChecker.TryGetPermissionModeFromEnv 现有逻辑，不修改 PermissionChecker 构造函数
+        // --dangerously-skip-permissions 等价于 --permission-mode bypassPermissions
+        // 两者同时存在时 --permission-mode 优先（更具体）
+        var permissionModeFromCli = !string.IsNullOrEmpty(options.PermissionMode)
+            ? options.PermissionMode
+            : options.DangerouslySkipPermissions ? "bypassPermissions" : null;
+        if (!string.IsNullOrEmpty(permissionModeFromCli))
+        {
+            Environment.SetEnvironmentVariable(JccEnvVar.PermissionMode.ToValue(), permissionModeFromCli);
+            Diag.WriteLine($"[MAIN] CLI permission-mode={permissionModeFromCli} → JCC_PERMISSION_MODE 环境变量已设置");
         }
 
         if (Cli.TerminalHelper.IsHeadless)
@@ -243,6 +294,23 @@ public sealed class ApplicationBuilder
         }
 
         return options;
+    }
+
+    /// <summary>
+    /// 解析工具列表（逗号或空格分隔）— 用于 --allowed-tools / --disallowed-tools
+    /// 支持 "Read,Edit,Bash(git:*)" 和 "Read Edit Bash(git:*)" 两种格式
+    /// </summary>
+    private static List<string> ParseToolList(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            return new List<string>();
+
+        // 逗号分隔优先，再尝试空格分隔
+        var parts = raw.Contains(',')
+            ? raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            : raw.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        return parts.Where(p => !string.IsNullOrWhiteSpace(p)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
     }
 
     /// <summary>
@@ -308,6 +376,14 @@ public sealed class ApplicationBuilder
         Cli.TerminalHelper.WriteLine("  --force-interactive     强制交互模式（即使 stdin 重定向也启用 REPL，用于 E2E 测试）");
         Cli.TerminalHelper.WriteLine("  --await <秒数>         超时自动关闭（超时返回 1234，用于诊断卡死，正常完成不受影响）");
         Cli.TerminalHelper.WriteLine("  --verbose              启用诊断输出（[WIRE] [STEP] [READY] 等，等效于 JCC_VERBOSE=1）");
+        Cli.TerminalHelper.WriteLine("  -c, --continue          继续最近的会话（自动恢复上次会话）");
+        Cli.TerminalHelper.WriteLine("  -r, --resume <会话ID>   恢复指定会话（按 session-id 或标题关键字模糊匹配）");
+        Cli.TerminalHelper.WriteLine("  --permission-mode <模式>  设置权限模式 (default/plan/auto/ask/deny/acceptEdits/bypassPermissions)");
+        Cli.TerminalHelper.WriteLine("  --dangerously-skip-permissions  跳过所有权限检查（等价于 --permission-mode bypassPermissions）");
+        Cli.TerminalHelper.WriteLine("  --allowed-tools <工具列表>    工具白名单（逗号分隔，如 'Read,Edit,Bash(git:*)'）");
+        Cli.TerminalHelper.WriteLine("  --disallowed-tools <工具列表> 工具黑名单（逗号分隔，这些工具被禁用）");
+        Cli.TerminalHelper.WriteLine("  --system-prompt <文本>       替换系统提示词（完全覆盖默认系统提示词）");
+        Cli.TerminalHelper.WriteLine("  --append-system-prompt <文本> 追加系统提示词（在默认/已加载系统提示词后附加，不覆盖）");
         Cli.TerminalHelper.NewLine();
         Cli.TerminalHelper.WriteLine("子命令:");
         Cli.TerminalHelper.WriteLine("  tool                    MCP 工具管理");
@@ -319,9 +395,17 @@ public sealed class ApplicationBuilder
         Cli.TerminalHelper.WriteLine("  JCC_MODEL_ID           模型 ID");
         Cli.TerminalHelper.WriteLine("  JCC_API_KEY            API Key");
         Cli.TerminalHelper.WriteLine("  JCC_ENDPOINT           API 端点");
+        Cli.TerminalHelper.NewLine();
         Cli.TerminalHelper.WriteLine("  OPENAI_API_KEY          OpenAI API Key");
         Cli.TerminalHelper.WriteLine("  ANTHROPIC_API_KEY       Anthropic API Key");
         Cli.TerminalHelper.WriteLine("  AZURE_OPENAI_API_KEY    Azure OpenAI API Key");
+        Cli.TerminalHelper.NewLine();
+        Cli.TerminalHelper.WriteLine("  JCC_VERBOSE            启用诊断输出 (1/true/yes)");
+        Cli.TerminalHelper.WriteLine("  JCC_LOG_LEVEL          日志级别 (Trace/Debug/Information/Warning/Error)");
+        Cli.TerminalHelper.WriteLine("  JCC_LANGUAGE           界面语言 (zh/en)");
+        Cli.TerminalHelper.WriteLine("  JCC_CONFIG_PATH        自定义配置文件路径");
+        Cli.TerminalHelper.WriteLine("  JCC_PERMISSION_MODE    权限模式 (auto/plan/ask/deny/bypassPermissions)");
+        Cli.TerminalHelper.WriteLine("  JCC_CLOCK_MODE         时钟模式 (Physical/Fake，调试用)");
     }
 
     /// <summary>

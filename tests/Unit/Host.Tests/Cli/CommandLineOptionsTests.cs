@@ -200,4 +200,132 @@ public sealed class CommandLineOptionsTests
         result.Help.Should().BeFalse();
         result.Version.Should().BeFalse();
     }
+
+    [Fact]
+    public void CliArgParser_ParseContinue_ShouldSetContinue()
+    {
+        var result = CliArgParser.Parse(new[] { "--continue" });
+
+        result.Continue.Should().BeTrue();
+        result.HasError.Should().BeFalse();
+    }
+
+    [Fact]
+    public void CliArgParser_ParseShortContinue_ShouldSetContinue()
+    {
+        var result = CliArgParser.Parse(new[] { "-c" });
+
+        result.Continue.Should().BeTrue();
+        result.HasError.Should().BeFalse();
+    }
+
+    [Fact]
+    public void CliArgParser_ParseResume_ShouldSetResume()
+    {
+        var result = CliArgParser.Parse(new[] { "--resume", "session-abc" });
+
+        result.Resume.Should().Be("session-abc");
+        result.HasError.Should().BeFalse();
+    }
+
+    [Fact]
+    public void CliArgParser_ParseShortResume_ShouldSetResume()
+    {
+        var result = CliArgParser.Parse(new[] { "-r", "abc-123" });
+
+        result.Resume.Should().Be("abc-123");
+        result.HasError.Should().BeFalse();
+    }
+
+    [Fact]
+    public void CliArgParser_ParsePermissionMode_ShouldSetPermissionMode()
+    {
+        var result = CliArgParser.Parse(new[] { "--permission-mode", "plan" });
+
+        result.PermissionMode.Should().Be("plan");
+        result.HasError.Should().BeFalse();
+    }
+
+    [Fact]
+    public void CliArgParser_ParseDangerouslySkipPermissions_ShouldSetFlag()
+    {
+        var result = CliArgParser.Parse(new[] { "--dangerously-skip-permissions" });
+
+        result.DangerouslySkipPermissions.Should().BeTrue();
+        result.HasError.Should().BeFalse();
+    }
+
+    [Fact]
+    public void CommandLineOptions_DefaultPermissionMode_ShouldBeNull()
+    {
+        var options = new CommandLineOptions();
+
+        options.PermissionMode.Should().BeNull();
+        options.DangerouslySkipPermissions.Should().BeFalse();
+    }
+
+    [Fact]
+    public void CommandLineOptions_DefaultContinueSession_ShouldBeFalse()
+    {
+        var options = new CommandLineOptions();
+
+        options.ContinueSession.Should().BeFalse();
+        options.ResumeSessionId.Should().BeNull();
+    }
+
+    [Fact]
+    public void CliArgParser_ParseAllowedTools_ShouldSetAllowedTools()
+    {
+        var result = CliArgParser.Parse(new[] { "--allowed-tools", "Read,Edit,Bash(git:*)" });
+
+        result.AllowedTools.Should().Be("Read,Edit,Bash(git:*)");
+        result.HasError.Should().BeFalse();
+    }
+
+    [Fact]
+    public void CliArgParser_ParseDisallowedTools_ShouldSetDisallowedTools()
+    {
+        var result = CliArgParser.Parse(new[] { "--disallowed-tools", "WebFetch Write" });
+
+        result.DisallowedTools.Should().Be("WebFetch Write");
+        result.HasError.Should().BeFalse();
+    }
+
+    [Fact]
+    public void CommandLineOptions_DefaultAllowedTools_ShouldBeEmpty()
+    {
+        var options = new CommandLineOptions();
+
+        options.AllowedTools.Should().NotBeNull();
+        options.AllowedTools.Should().BeEmpty();
+        options.DisallowedTools.Should().NotBeNull();
+        options.DisallowedTools.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void CliArgParser_ParseSystemPrompt_ShouldSetSystemPrompt()
+    {
+        var result = CliArgParser.Parse(new[] { "--system-prompt", "你是一个测试助手" });
+
+        result.SystemPrompt.Should().Be("你是一个测试助手");
+        result.HasError.Should().BeFalse();
+    }
+
+    [Fact]
+    public void CliArgParser_ParseAppendSystemPrompt_ShouldSetAppendSystemPrompt()
+    {
+        var result = CliArgParser.Parse(new[] { "--append-system-prompt", "使用简洁回复" });
+
+        result.AppendSystemPrompt.Should().Be("使用简洁回复");
+        result.HasError.Should().BeFalse();
+    }
+
+    [Fact]
+    public void CommandLineOptions_DefaultSystemPrompt_ShouldBeNull()
+    {
+        var options = new CommandLineOptions();
+
+        options.SystemPrompt.Should().BeNull();
+        options.AppendSystemPrompt.Should().BeNull();
+    }
 }

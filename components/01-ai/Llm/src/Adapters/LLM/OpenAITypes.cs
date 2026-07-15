@@ -111,6 +111,11 @@ internal sealed class OpenAIChatResponse
     public OpenAIUsage? Usage { get; set; }
 }
 
+/// <summary>
+/// OpenAI API Usage 响应模型 — 映射到 <see cref="JoinCode.Abstractions.LLM.Chat.TokenUsage"/> 时：
+/// PromptTokens → PromptTokens, CompletionTokens → CompletionTokens,
+/// PromptCacheHitTokens + PromptCacheMissTokens → CacheCreationInputTokens/CacheReadInputTokens
+/// </summary>
 internal sealed class OpenAIUsage
 {
     [JsonPropertyName("prompt_tokens")]

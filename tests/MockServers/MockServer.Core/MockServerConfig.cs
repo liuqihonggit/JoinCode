@@ -3,13 +3,8 @@ namespace MockServer.Core;
 /// <summary>
 /// MockServer 配置文件模型 — 通过 JSON 文件配置端口和预设响应脚本
 /// </summary>
-public sealed class MockServerConfig
+public sealed class MockServerConfig : MockServerConfigBase<MockServerConfig>
 {
-    /// <summary>
-    /// 监听端口（0 表示自动分配）
-    /// </summary>
-    public int Port { get; set; } = 0;
-
     /// <summary>
     /// 预设响应脚本序列 — 按请求顺序返回，支持工具调用
     /// </summary>
@@ -20,55 +15,17 @@ public sealed class MockServerConfig
     /// </summary>
     public string DefaultResponse { get; set; } = "Mock response (script exhausted).";
 
-    /// <summary>
-    /// 从 JSON 文件加载配置
-    /// </summary>
+    protected override JsonTypeInfo<MockServerConfig> JsonTypeInfo => MockServerJsonContext.Default.MockServerConfig;
+    protected override string LogPrefix => "[MockServer]";
+    protected override string ConfigNotFoundMessage => "MockServer 配置文件不存在: {0}";
+
+    /// <summary>从 JSON 文件加载配置</summary>
     public static MockServerConfig LoadFromFile(string path)
-    {
-        ArgumentException.ThrowIfNullOrEmpty(path);
-        if (!File.Exists(path))
-            throw new FileNotFoundException($"MockServer 配置文件不存在: {path}", path);
+        => LoadFromFile(path, MockServerJsonContext.Default.MockServerConfig, "MockServer 配置文件不存在: {0}");
 
-        var json = File.ReadAllText(path);
-        var config = JsonSerializer.Deserialize(json, MockServerJsonContext.Default.MockServerConfig)
-            ?? throw new InvalidOperationException($"配置文件反序列化失败: {path}");
-        return config;
-    }
-
-    /// <summary>
-    /// 从 JSON 文件加载配置 — 文件不存在时返回默认配置
-    /// </summary>
-    /// <remarks>
-    /// 查找顺序：1) 指定路径 2) exe 所在目录下的同名文件（应对工作目录不在 exe 目录的场景）
-    /// </remarks>
+    /// <summary>从 JSON 文件加载配置 — 文件不存在时返回默认配置</summary>
     public static MockServerConfig LoadFromFileOrDefault(string path)
-    {
-        var actualPath = ResolveConfigPath(path);
-        if (actualPath is null)
-            return new MockServerConfig();
-        try
-        {
-            return LoadFromFile(actualPath);
-        }
-        catch (Exception ex)
-        {
-            Console.Error.WriteLine($"[MockServer] 加载配置文件失败，使用默认配置: {ex.Message}");
-            return new MockServerConfig();
-        }
-    }
-
-    /// <summary>
-    /// 解析配置文件路径 — 指定路径存在则返回；否则在 exe 所在目录查找同名文件
-    /// </summary>
-    private static string? ResolveConfigPath(string path)
-    {
-        if (File.Exists(path))
-            return path;
-        // 回退：在 exe 所在目录查找同名文件（应对工作目录不在 exe 目录的场景）
-        var fileName = Path.GetFileName(path);
-        var fallbackPath = Path.Combine(AppContext.BaseDirectory, fileName);
-        return File.Exists(fallbackPath) ? fallbackPath : null;
-    }
+        => LoadFromFileOrDefault(path, MockServerJsonContext.Default.MockServerConfig, "[MockServer]", "MockServer 配置文件不存在: {0}");
 }
 
 /// <summary>

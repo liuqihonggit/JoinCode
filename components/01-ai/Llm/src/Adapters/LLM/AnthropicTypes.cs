@@ -250,6 +250,11 @@ internal sealed class AnthropicResponseContentBlock
     public object? Content { get; set; }
 }
 
+/// <summary>
+/// Anthropic API Usage 响应模型 — 映射到 <see cref="JoinCode.Abstractions.LLM.Chat.TokenUsage"/> 时：
+/// InputTokens → PromptTokens, OutputTokens → CompletionTokens,
+/// CacheCreationInputTokens → CacheCreationInputTokens, CacheReadInputTokens → CacheReadInputTokens
+/// </summary>
 internal sealed class AnthropicUsage
 {
     [JsonPropertyName("input_tokens")]

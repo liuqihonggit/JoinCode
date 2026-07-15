@@ -21,6 +21,8 @@ internal static class NonInteractiveModeRunner
             .Use(sp.GetRequiredService<StartupLoggingMiddleware>())
             .Use(sp.GetRequiredService<NonInteractiveApiKeyCheckStep>())
             .Use(sp.GetRequiredService<SessionInitStep>())
+            .Use(sp.GetRequiredService<SessionResumeStep>())
+            .Use(sp.GetRequiredService<SystemPromptApplyStep>())
             .Use(sp.GetRequiredService<NonInteractivePromptStep>())
             .Use(sp.GetRequiredService<NonInteractiveExecuteStep>())
             .Use(sp.GetRequiredService<NonInteractiveExitCleanupStep>())

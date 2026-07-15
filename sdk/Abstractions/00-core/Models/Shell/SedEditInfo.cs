@@ -35,29 +35,20 @@ public sealed record SedEditInfo
 /// <summary>
 /// sed 验证结果 — 对齐 TS sedValidation
 /// </summary>
-public sealed record SedValidationResult
+public sealed record SedValidationResult : ShellPermissionCheckResult
 {
-    public required SedValidationBehavior Behavior { get; init; }
-    public string? Message { get; init; }
+    public SedValidationResult() : base(PermissionBehavior.Passthrough) { }
+
+    public SedValidationResult(PermissionBehavior behavior, string? message = null) : base(behavior, message) { }
 }
 
 /// <summary>
-/// sed 验证行为
+/// sed 验证行为 — 已废弃，使用 PermissionBehavior 替代
 /// </summary>
+[Obsolete("Use PermissionBehavior instead")]
 public enum SedValidationBehavior
 {
-    /// <summary>
-    /// 允许通过
-    /// </summary>
     Passthrough,
-
-    /// <summary>
-    /// 需要用户确认
-    /// </summary>
     Ask,
-
-    /// <summary>
-    /// 拒绝执行
-    /// </summary>
     Deny
 }

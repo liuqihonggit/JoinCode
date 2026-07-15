@@ -21,4 +21,5 @@ public sealed record BashPermissionResult(
     PermissionBehavior Behavior,
     string? Message = null,
     string? SuggestedRule = null,
-    IReadOnlyList<string>? DeniedRules = null);
+    IReadOnlyList<string>? DeniedRules = null)
+    : ShellPermissionCheckResult(Behavior, Message);

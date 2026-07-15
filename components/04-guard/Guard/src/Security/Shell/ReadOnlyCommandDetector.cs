@@ -16,11 +16,3 @@ public interface IReadOnlyCommandDetector
     /// </summary>
     ShellPermissionCheckResult CheckReadOnlyConstraints(string command, bool compoundCommandHasCd = false);
 }
-
-/// <summary>
-/// Shell 权限检查基础结果 — 统一 ReadOnlyCheckResult / BashPermissionResult / PathConstraintResult 的公共模式
-/// 对齐 TS PermissionResult
-/// </summary>
-public sealed record ShellPermissionCheckResult(
-    PermissionBehavior Behavior,
-    string? Message = null);

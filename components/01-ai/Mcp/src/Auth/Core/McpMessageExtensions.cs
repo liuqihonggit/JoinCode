@@ -40,14 +40,14 @@ internal static class McpMessageExtensions
     public static int GetIdAsInt(this JsonRpcResponse response)
     {
         if (response.Id.IsNumber)
-            return (int)response.Id.AsNumber!.Value;
+            return (int)(response.Id.AsNumber ?? 0);
         return 0;
     }
 
     public static int GetIdAsInt(this JsonRpcRequest request)
     {
         if (request.Id.IsNumber)
-            return (int)request.Id.AsNumber!.Value;
+            return (int)(request.Id.AsNumber ?? 0);
         return 0;
     }
 

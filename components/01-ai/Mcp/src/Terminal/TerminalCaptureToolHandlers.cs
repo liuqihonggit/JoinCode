@@ -46,7 +46,8 @@ public partial class TerminalCaptureToolHandlers
 
         if (captureType == CaptureType.Buffer)
         {
-            var snapshot = _captureService!.CaptureBuffer(maxLines);
+            var captureService = _captureService ?? throw new InvalidOperationException("CaptureService is not available");
+            var snapshot = captureService.CaptureBuffer(maxLines);
             if (snapshot == null)
             {
                 response.AppendLine(L.T(StringKey.TerminalBufferCapture));
@@ -64,7 +65,8 @@ public partial class TerminalCaptureToolHandlers
         }
         else
         {
-            var snapshot = _captureService!.CaptureScreen();
+            var captureService = _captureService ?? throw new InvalidOperationException("CaptureService is not available");
+            var snapshot = captureService.CaptureScreen();
             response.AppendLine(L.T(StringKey.TerminalScreenCapture));
             response.AppendLine(L.T(StringKey.TerminalLabelSize, snapshot.Width, snapshot.Height));
             response.AppendLine(L.T(StringKey.TerminalLabelCaptureTime, snapshot.CapturedAt.ToString("yyyy-MM-dd HH:mm:ss")));

@@ -26,9 +26,9 @@ public sealed class TeammateExecutionContext : IPipelineContext
 
     public Func<string, TeammateState, Task>? CleanupAsync { get; set; }
 
-    public ConcurrentDictionary<string, TeammateState>? ActiveTeammates { get; set; }
+    public ConcurrentDictionary<string, TeammateState> ActiveTeammates { get; set; } = new();
 
-    public ConcurrentDictionary<string, Channel<CoordinatorMessage>>? PendingMessages { get; set; }
+    public ConcurrentDictionary<string, Channel<CoordinatorMessage>> PendingMessages { get; set; } = new();
 
     public SemaphoreSlim? TeammateLock { get; set; }
 

@@ -37,7 +37,7 @@ public sealed partial class TeammateRegistrationMiddleware : ITeammateExecutionM
 
         var state = new TeammateState
         {
-            Agent = ctx.Agent!,
+            Agent = ctx.Agent ?? throw new InvalidOperationException("Agent is not set."),
             LifecycleCts = lifecycleCts,
             Context = teammateContext,
             IsIdle = false
@@ -48,7 +48,7 @@ public sealed partial class TeammateRegistrationMiddleware : ITeammateExecutionM
             await ctx.TeammateLock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                ctx.ActiveTeammates![definition.TeammateId] = state;
+                ctx.ActiveTeammates[definition.TeammateId] = state;
             }
             finally
             {
@@ -56,7 +56,7 @@ public sealed partial class TeammateRegistrationMiddleware : ITeammateExecutionM
             }
         }
 
-        ctx.PendingMessages![definition.TeammateId] = Channel.CreateUnbounded<CoordinatorMessage>();
+        ctx.PendingMessages[definition.TeammateId] = Channel.CreateUnbounded<CoordinatorMessage>();
 
         ctx.State = state;
         ctx.LifecycleCts = lifecycleCts;

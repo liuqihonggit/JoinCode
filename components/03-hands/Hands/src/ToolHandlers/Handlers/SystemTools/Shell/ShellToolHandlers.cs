@@ -22,7 +22,7 @@ public partial class ShellToolHandlers
     /// 执行 CMD 命令
     /// 与 TS BashTool 对齐：超时自动后台化、assistant 自动后台化、description 参数
     /// </summary>
-    [McpTool(ShellToolNameConstants.ShellExecute, "Execute a Windows CMD command. The description parameter briefly describes the command purpose", "execution")]
+    [McpTool(ShellToolNameConstants.Bash, "Execute a Windows CMD command. The description parameter briefly describes the command purpose", "execution")]
     public async Task<ToolResult> ShellExecuteAsync(
         [McpToolParameter("CMD command to execute")] string command,
         [McpToolParameter("Brief description of the command purpose", Required = false)] string? description = null,

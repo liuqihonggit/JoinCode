@@ -184,7 +184,7 @@ public class PermissionIntegrationTests : IAsyncDisposable
     [Fact]
     public async Task ExecuteToolAsync_WithPermissionManager_ShellWithDangerousCommand_ShouldBeRejected()
     {
-        var mockHandler = CreateMockToolHandler(ShellToolNameConstants.ShellExecute, "Shell tool");
+        var mockHandler = CreateMockToolHandler(ShellToolNameConstants.Bash, "Shell tool");
         await _registryWithPermission.RegisterToolAsync(mockHandler.Object).ConfigureAwait(true);
 
         var arguments = new Dictionary<string, JsonElement>
@@ -192,7 +192,7 @@ public class PermissionIntegrationTests : IAsyncDisposable
             ["command"] = JsonDocument.Parse("\"rm -rf /\"").RootElement
         };
 
-        var act = async () => await _permissionExecutor.ExecuteAsync(ShellToolNameConstants.ShellExecute, arguments).ConfigureAwait(true);
+        var act = async () => await _permissionExecutor.ExecuteAsync(ShellToolNameConstants.Bash, arguments).ConfigureAwait(true);
 
         await act.Should().ThrowAsync<PermissionDeniedException>().ConfigureAwait(true);
     }

@@ -59,7 +59,7 @@ public class HookOrchestratorTests
         var input = new HookInput
         {
             Event = HookEvent.PreToolUse,
-            ToolName = ShellToolNameConstants.ShellExecute,
+            ToolName = ShellToolNameConstants.Bash,
             Payload = new Dictionary<string, JsonElement>()
         };
 
@@ -89,7 +89,7 @@ public class HookOrchestratorTests
         var input = new HookInput
         {
             Event = HookEvent.PreToolUse,
-            ToolName = ShellToolNameConstants.ShellExecute,
+            ToolName = ShellToolNameConstants.Bash,
             SessionId = "test-session",
             Payload = new Dictionary<string, JsonElement>()
         };
@@ -134,7 +134,7 @@ public class HookOrchestratorTests
         var input = new HookInput
         {
             Event = HookEvent.PreToolUse,
-            ToolName = ShellToolNameConstants.ShellExecute,
+            ToolName = ShellToolNameConstants.Bash,
             SessionId = "test-session",
             Payload = new Dictionary<string, JsonElement>()
         };
@@ -173,7 +173,7 @@ public class HookOrchestratorTests
         var input = new HookInput
         {
             Event = HookEvent.PreToolUse,
-            ToolName = ShellToolNameConstants.ShellExecute,
+            ToolName = ShellToolNameConstants.Bash,
             SessionId = "test-session",
             Payload = new Dictionary<string, JsonElement>()
         };
@@ -210,7 +210,7 @@ public class HookOrchestratorTests
         var input = new HookInput
         {
             Event = HookEvent.PreToolUse,
-            ToolName = ShellToolNameConstants.ShellExecute,
+            ToolName = ShellToolNameConstants.Bash,
             SessionId = "test-session",
             Payload = new Dictionary<string, JsonElement>()
         };
@@ -233,12 +233,12 @@ public class HookOrchestratorTests
         var results = await _orchestrator.ExecuteHooksAsync(
             HookEvent.PreToolUse,
             new Dictionary<string, JsonElement> { ["test"] = JsonElementHelper.FromString("value") },
-            ShellToolNameConstants.ShellExecute,
+            ShellToolNameConstants.Bash,
             "session-1").ToListAsync().ConfigureAwait(true);
 
         results.Should().BeEmpty();
         _configManagerMock.Verify(
-            m => m.GetHooksForEventAsync(HookEvent.PreToolUse, ShellToolNameConstants.ShellExecute, It.IsAny<CancellationToken>()),
+            m => m.GetHooksForEventAsync(HookEvent.PreToolUse, ShellToolNameConstants.Bash, It.IsAny<CancellationToken>()),
             Times.Once);
     }
 }

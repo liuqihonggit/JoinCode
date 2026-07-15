@@ -5,7 +5,7 @@ namespace JoinCode.Abstractions.Utils;
 /// </summary>
 public enum ShellToolName
 {
-    [EnumValue("Bash")] ShellExecute,
+    [EnumValue("Bash")] Bash,
     [EnumValue("shell_check")] ShellCheck,
     [EnumValue("PowerShell")] Powershell,
     [EnumValue("shell_background_get")] ShellBackgroundGet,

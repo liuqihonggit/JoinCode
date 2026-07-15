@@ -23,11 +23,11 @@ public sealed class ToolPermissionFilterTests
         _sut.AddDenyRule(new ToolDenyRule
         {
             RuleName = "deny-shell",
-            ToolPattern = ShellToolNameConstants.ShellExecute,
+            ToolPattern = ShellToolNameConstants.Bash,
             IsRegex = false
         });
 
-        var result = _sut.IsToolDenied(ShellToolNameConstants.ShellExecute);
+        var result = _sut.IsToolDenied(ShellToolNameConstants.Bash);
 
         result.Should().BeTrue();
     }
@@ -38,7 +38,7 @@ public sealed class ToolPermissionFilterTests
         _sut.AddDenyRule(new ToolDenyRule
         {
             RuleName = "deny-shell",
-            ToolPattern = ShellToolNameConstants.ShellExecute,
+            ToolPattern = ShellToolNameConstants.Bash,
             IsRegex = false
         });
 
@@ -57,7 +57,7 @@ public sealed class ToolPermissionFilterTests
             IsRegex = false
         });
 
-        _sut.IsToolDenied(ShellToolNameConstants.ShellExecute).Should().BeTrue();
+        _sut.IsToolDenied(ShellToolNameConstants.Bash).Should().BeTrue();
         _sut.IsToolDenied("shell_bash").Should().BeTrue();
         _sut.IsToolDenied(FileToolNameConstants.FileRead).Should().BeFalse();
     }
@@ -72,7 +72,7 @@ public sealed class ToolPermissionFilterTests
             IsRegex = true
         });
 
-        _sut.IsToolDenied(ShellToolNameConstants.ShellExecute).Should().BeTrue();
+        _sut.IsToolDenied(ShellToolNameConstants.Bash).Should().BeTrue();
         _sut.IsToolDenied(ShellToolNameConstants.Powershell).Should().BeTrue();
         _sut.IsToolDenied("powershell_run").Should().BeTrue();
         _sut.IsToolDenied(FileToolNameConstants.FileRead).Should().BeFalse();
@@ -115,12 +115,12 @@ public sealed class ToolPermissionFilterTests
         _sut.AddDenyRule(new ToolDenyRule
         {
             RuleName = "deny-shell",
-            ToolPattern = ShellToolNameConstants.ShellExecute,
+            ToolPattern = ShellToolNameConstants.Bash,
             IsRegex = false
         });
 
-        _sut.IsToolDenied(ShellToolNameConstants.ShellExecute).Should().BeTrue();
-        _sut.IsToolDenied(ShellToolNameConstants.ShellExecute).Should().BeTrue();
+        _sut.IsToolDenied(ShellToolNameConstants.Bash).Should().BeTrue();
+        _sut.IsToolDenied(ShellToolNameConstants.Bash).Should().BeTrue();
     }
 
     [Fact]
@@ -129,14 +129,14 @@ public sealed class ToolPermissionFilterTests
         _sut.AddDenyRule(new ToolDenyRule
         {
             RuleName = "deny-shell",
-            ToolPattern = ShellToolNameConstants.ShellExecute,
+            ToolPattern = ShellToolNameConstants.Bash,
             IsRegex = false
         });
 
-        var tools = new List<string> { FileToolNameConstants.FileRead, ShellToolNameConstants.ShellExecute, FileToolNameConstants.FileWrite, SearchToolNameConstants.Grep };
+        var tools = new List<string> { FileToolNameConstants.FileRead, ShellToolNameConstants.Bash, FileToolNameConstants.FileWrite, SearchToolNameConstants.Grep };
         var result = _sut.FilterToolsByDenyRules(tools);
 
-        result.Should().NotContain(ShellToolNameConstants.ShellExecute);
+        result.Should().NotContain(ShellToolNameConstants.Bash);
         result.Should().Contain(FileToolNameConstants.FileRead);
         result.Should().Contain(FileToolNameConstants.FileWrite);
         result.Should().Contain(SearchToolNameConstants.Grep);
@@ -145,7 +145,7 @@ public sealed class ToolPermissionFilterTests
     [Fact]
     public void FilterToolsByDenyRules_NoRules_ShouldReturnAllTools()
     {
-        var tools = new List<string> { FileToolNameConstants.FileRead, ShellToolNameConstants.ShellExecute, FileToolNameConstants.FileWrite };
+        var tools = new List<string> { FileToolNameConstants.FileRead, ShellToolNameConstants.Bash, FileToolNameConstants.FileWrite };
         var result = _sut.FilterToolsByDenyRules(tools);
 
         result.Should().BeEquivalentTo(tools);
@@ -165,15 +165,15 @@ public sealed class ToolPermissionFilterTests
         _sut.AddDenyRule(new ToolDenyRule
         {
             RuleName = "deny-shell",
-            ToolPattern = ShellToolNameConstants.ShellExecute,
+            ToolPattern = ShellToolNameConstants.Bash,
             IsRegex = false
         });
 
-        _sut.IsToolDenied(ShellToolNameConstants.ShellExecute).Should().BeTrue();
+        _sut.IsToolDenied(ShellToolNameConstants.Bash).Should().BeTrue();
 
         _sut.RemoveDenyRule("deny-shell");
 
-        _sut.IsToolDenied(ShellToolNameConstants.ShellExecute).Should().BeFalse();
+        _sut.IsToolDenied(ShellToolNameConstants.Bash).Should().BeFalse();
     }
 
     [Fact]
@@ -209,19 +209,19 @@ public sealed class ToolPermissionFilterTests
         _sut.AddDenyRule(new ToolDenyRule
         {
             RuleName = "deny-shell-global",
-            ToolPattern = ShellToolNameConstants.ShellExecute,
+            ToolPattern = ShellToolNameConstants.Bash,
             IsRegex = false
         });
 
-        var tools = new List<string> { FileToolNameConstants.FileRead, FileToolNameConstants.FileWrite, ShellToolNameConstants.ShellExecute };
+        var tools = new List<string> { FileToolNameConstants.FileRead, FileToolNameConstants.FileWrite, ShellToolNameConstants.Bash };
 
         var planResult = _sut.FilterToolsByDenyRules(tools, "plan");
         planResult.Should().NotContain(FileToolNameConstants.FileWrite);
-        planResult.Should().NotContain(ShellToolNameConstants.ShellExecute);
+        planResult.Should().NotContain(ShellToolNameConstants.Bash);
         planResult.Should().Contain(FileToolNameConstants.FileRead);
 
         var autoResult = _sut.FilterToolsByDenyRules(tools, "auto");
         autoResult.Should().Contain(FileToolNameConstants.FileWrite);
-        autoResult.Should().NotContain(ShellToolNameConstants.ShellExecute);
+        autoResult.Should().NotContain(ShellToolNameConstants.Bash);
     }
 }

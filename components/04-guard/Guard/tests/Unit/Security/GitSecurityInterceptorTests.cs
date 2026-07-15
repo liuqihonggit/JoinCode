@@ -107,7 +107,7 @@ public sealed class GitSecurityInterceptorTests
     [Fact]
     public void ShouldScanTool_ReturnsFalse_ForOtherTools()
     {
-        GitSecurityInterceptor.ShouldScanTool(ShellToolNameConstants.ShellExecute).Should().BeFalse();
+        GitSecurityInterceptor.ShouldScanTool(ShellToolNameConstants.Bash).Should().BeFalse();
         GitSecurityInterceptor.ShouldScanTool("git_status").Should().BeFalse();
         GitSecurityInterceptor.ShouldScanTool("git_log").Should().BeFalse();
     }

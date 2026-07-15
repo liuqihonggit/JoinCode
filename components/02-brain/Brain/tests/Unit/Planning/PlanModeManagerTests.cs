@@ -393,9 +393,9 @@ public class PlanModeManagerTests
         result.Success.Should().BeTrue();
 
         // 添加步骤
-        await _planModeManager.AddStepAsync("Setup environment", ShellToolName.ShellExecute.ToValue()).ConfigureAwait(true);
+        await _planModeManager.AddStepAsync("Setup environment", ShellToolName.Bash.ToValue()).ConfigureAwait(true);
         await _planModeManager.AddStepAsync("Write code", FileToolName.FileWrite.ToValue()).ConfigureAwait(true);
-        await _planModeManager.AddStepAsync("Run tests", ShellToolName.ShellExecute.ToValue()).ConfigureAwait(true);
+        await _planModeManager.AddStepAsync("Run tests", ShellToolName.Bash.ToValue()).ConfigureAwait(true);
 
         // 批准所有步骤
         await _planModeManager.ApproveStepAsync(0).ConfigureAwait(true);

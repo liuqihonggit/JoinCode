@@ -53,7 +53,7 @@ public sealed class AgentToolRestrictionsTests
     {
         var allowed = _sut.GetAllowedTools(PermissionMode.Auto);
 
-        allowed.Should().NotContain(ShellToolNameConstants.ShellExecute);
+        allowed.Should().NotContain(ShellToolNameConstants.Bash);
         allowed.Should().NotContain(ShellToolNameConstants.Powershell);
     }
 
@@ -75,7 +75,7 @@ public sealed class AgentToolRestrictionsTests
 
         allowed.Should().NotContain(FileToolNameConstants.FileWrite);
         allowed.Should().NotContain(FileToolNameConstants.FileEdit);
-        allowed.Should().NotContain(ShellToolNameConstants.ShellExecute);
+        allowed.Should().NotContain(ShellToolNameConstants.Bash);
     }
 
     [Fact]
@@ -86,7 +86,7 @@ public sealed class AgentToolRestrictionsTests
         allowed.Should().Contain(FileToolNameConstants.FileRead);
         allowed.Should().Contain(FileToolNameConstants.FileWrite);
         allowed.Should().Contain(FileToolNameConstants.FileEdit);
-        allowed.Should().Contain(ShellToolNameConstants.ShellExecute);
+        allowed.Should().Contain(ShellToolNameConstants.Bash);
         allowed.Should().Contain(ShellToolNameConstants.Powershell);
     }
 
@@ -103,7 +103,7 @@ public sealed class AgentToolRestrictionsTests
     {
         var denied = _sut.GetDeniedTools(PermissionMode.Auto);
 
-        denied.Should().Contain(ShellToolNameConstants.ShellExecute);
+        denied.Should().Contain(ShellToolNameConstants.Bash);
         denied.Should().Contain(ShellToolNameConstants.Powershell);
         denied.Should().Contain(FileToolNameConstants.FileDelete);
         denied.Should().Contain(GitToolNameConstants.GitCommit);
@@ -118,7 +118,7 @@ public sealed class AgentToolRestrictionsTests
         denied.Should().Contain(FileToolNameConstants.FileWrite);
         denied.Should().Contain(FileToolNameConstants.FileEdit);
         denied.Should().Contain(FileToolNameConstants.FileDelete);
-        denied.Should().Contain(ShellToolNameConstants.ShellExecute);
+        denied.Should().Contain(ShellToolNameConstants.Bash);
         denied.Should().Contain(GitToolNameConstants.GitPush);
     }
 
@@ -143,14 +143,14 @@ public sealed class AgentToolRestrictionsTests
     [InlineData(FileToolNameConstants.FileWrite, PermissionMode.Auto, true)]
     [InlineData(TodoToolNameConstants.TodoWrite, PermissionMode.Auto, true)]
     [InlineData(TodoToolNameConstants.TodoList, PermissionMode.Auto, true)]
-    [InlineData(ShellToolNameConstants.ShellExecute, PermissionMode.Auto, false)]
+    [InlineData(ShellToolNameConstants.Bash, PermissionMode.Auto, false)]
     [InlineData(FileToolNameConstants.FileDelete, PermissionMode.Auto, false)]
     [InlineData(FileToolNameConstants.FileRead, PermissionMode.Plan, true)]
     [InlineData(TodoToolNameConstants.TodoWrite, PermissionMode.Plan, true)]
     [InlineData(FileToolNameConstants.FileWrite, PermissionMode.Plan, false)]
-    [InlineData(ShellToolNameConstants.ShellExecute, PermissionMode.Plan, false)]
+    [InlineData(ShellToolNameConstants.Bash, PermissionMode.Plan, false)]
     [InlineData(FileToolNameConstants.FileRead, PermissionMode.Ask, true)]
-    [InlineData(ShellToolNameConstants.ShellExecute, PermissionMode.Ask, true)]
+    [InlineData(ShellToolNameConstants.Bash, PermissionMode.Ask, true)]
     [InlineData(FileToolNameConstants.FileWrite, PermissionMode.Ask, true)]
     public void IsToolAllowedForMode_ShouldReturnExpectedResult(
         string toolName, PermissionMode mode, bool expected)
@@ -205,7 +205,7 @@ public sealed class AgentToolRestrictionsTests
     public void IsToolAllowedForMode_ExactCaseMatch_ShouldWork()
     {
         _sut.IsToolAllowedForMode(FileToolNameConstants.FileRead, PermissionMode.Auto).Should().BeTrue();
-        _sut.IsToolAllowedForMode(ShellToolNameConstants.ShellExecute, PermissionMode.Auto).Should().BeFalse();
+        _sut.IsToolAllowedForMode(ShellToolNameConstants.Bash, PermissionMode.Auto).Should().BeFalse();
     }
 
     [Theory]

@@ -30,7 +30,7 @@ public static class ContentReplacementConstants
     private static readonly FrozenDictionary<string, int> ToolMaxResultSizeChars = new Dictionary<string, int>(StringComparer.Ordinal)
     {
         [FileToolNameConstants.FileRead] = -1,           // TS: Infinity — 永不持久化
-        [ShellToolNameConstants.ShellExecute] = 30000,   // TS: 30_000
+        [ShellToolNameConstants.Bash] = 30000,   // TS: 30_000
         [SearchToolNameConstants.Grep] = 20000,          // TS: 20_000
         [SearchToolNameConstants.Glob] = 100000,         // TS: 100_000
         [FileToolNameConstants.FileWrite] = 100000,      // TS: 100_000

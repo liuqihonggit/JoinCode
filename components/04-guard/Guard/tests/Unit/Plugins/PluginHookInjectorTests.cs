@@ -25,7 +25,7 @@ public sealed class PluginHookInjectorTests
 
         var hooks = new List<PluginHookDefinition>
         {
-            new() { HookName = "hook1", TargetEvent = "PreCompact", HookType = ShellToolNameConstants.ShellExecute }
+            new() { HookName = "hook1", TargetEvent = "PreCompact", HookType = ShellToolNameConstants.Bash }
         };
 
         var act = async () => await _injector.InjectHooksAsync("test", hooks).ConfigureAwait(true);
@@ -39,7 +39,7 @@ public sealed class PluginHookInjectorTests
 
         var hooks = new List<PluginHookDefinition>
         {
-            new() { HookName = "hook1", TargetEvent = "PreCompact", HookType = ShellToolNameConstants.ShellExecute },
+            new() { HookName = "hook1", TargetEvent = "PreCompact", HookType = ShellToolNameConstants.Bash },
             new() { HookName = "hook2", TargetEvent = "PostCompact", HookType = "function" }
         };
 
@@ -58,7 +58,7 @@ public sealed class PluginHookInjectorTests
 
         var hooks = new List<PluginHookDefinition>
         {
-            new() { HookName = "hook1", TargetEvent = "PreCompact", HookType = ShellToolNameConstants.ShellExecute }
+            new() { HookName = "hook1", TargetEvent = "PreCompact", HookType = ShellToolNameConstants.Bash }
         };
 
         await _injector.InjectHooksAsync("test", hooks).ConfigureAwait(true);
@@ -103,7 +103,7 @@ public sealed class PluginHookInjectorTests
 
         var hooks1 = new List<PluginHookDefinition>
         {
-            new() { HookName = "hook1", TargetEvent = "PreCompact", HookType = ShellToolNameConstants.ShellExecute }
+            new() { HookName = "hook1", TargetEvent = "PreCompact", HookType = ShellToolNameConstants.Bash }
         };
         var hooks2 = new List<PluginHookDefinition>
         {

@@ -56,8 +56,8 @@ public class HookCommandTests
     public void BashCommandHook_IsEqualTo_SameCommand_ShouldReturnTrue()
     {
         // Arrange
-        var hook1 = new BashCommandHook { Command = "git status", Shell = ShellToolNameConstants.ShellExecute };
-        var hook2 = new BashCommandHook { Command = "git status", Shell = ShellToolNameConstants.ShellExecute };
+        var hook1 = new BashCommandHook { Command = "git status", Shell = ShellToolNameConstants.Bash };
+        var hook2 = new BashCommandHook { Command = "git status", Shell = ShellToolNameConstants.Bash };
 
         // Act
         var result = hook1.IsEqualTo(hook2);

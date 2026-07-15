@@ -14,7 +14,7 @@ public sealed partial class ReplService : IReplService
     private static readonly string[] s_hiddenTools =
     [
         FileToolNameConstants.FileRead, FileToolNameConstants.FileWrite, FileToolNameConstants.FileEdit,
-        SearchToolNameConstants.Glob, SearchToolNameConstants.Grep, ShellToolNameConstants.ShellExecute,
+        SearchToolNameConstants.Glob, SearchToolNameConstants.Grep, ShellToolNameConstants.Bash,
         "notebook_edit", "agent"
     ];
 

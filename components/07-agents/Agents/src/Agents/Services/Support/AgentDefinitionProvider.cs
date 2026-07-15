@@ -100,7 +100,7 @@ public sealed partial class AgentDefinitionProvider : JoinCode.Abstractions.Inte
                 AgentType = AgentTypeDefinition.Code.ToValue(),
                 WhenToUse = "Code reading, writing, editing and refactoring",
                 Description = "Code agent focused on code reading, writing and editing",
-                Tools = [FileToolNameConstants.FileRead, FileToolNameConstants.FileWrite, FileToolNameConstants.FileEdit, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep, ShellToolNameConstants.ShellExecute, SearchToolNameConstants.SearchCodebase],
+                Tools = [FileToolNameConstants.FileRead, FileToolNameConstants.FileWrite, FileToolNameConstants.FileEdit, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep, ShellToolNameConstants.Bash, SearchToolNameConstants.SearchCodebase],
                 DisallowedTools = subAgentDisallowedTools
             },
             new()
@@ -109,14 +109,14 @@ public sealed partial class AgentDefinitionProvider : JoinCode.Abstractions.Inte
                 WhenToUse = "Code search, navigation and exploration",
                 Description = "Search agent focused on code search and navigation",
                 Tools = [FileToolNameConstants.FileRead, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep, SearchToolNameConstants.SearchCodebase],
-                DisallowedTools = [FileToolNameConstants.FileWrite, FileToolNameConstants.FileEdit, ShellToolNameConstants.ShellExecute]
+                DisallowedTools = [FileToolNameConstants.FileWrite, FileToolNameConstants.FileEdit, ShellToolNameConstants.Bash]
             },
             new()
             {
                 AgentType = AgentTypeDefinition.Explore.ToValue(),
                 WhenToUse = "Quick codebase exploration agent for file pattern search, keyword search, and codebase Q&A. Supports thoroughness levels: quick/medium/very thorough",
                 Description = "Explore agent — strictly read-only, for searching and understanding code",
-                Tools = [FileToolNameConstants.FileRead, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep, SearchToolNameConstants.SearchCodebase, ShellToolNameConstants.ShellExecute],
+                Tools = [FileToolNameConstants.FileRead, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep, SearchToolNameConstants.SearchCodebase, ShellToolNameConstants.Bash],
                 DisallowedTools = readOnlyDisallowedTools,
                 IsBackground = false,
                 OmitClaudeMd = true,
@@ -127,7 +127,7 @@ public sealed partial class AgentDefinitionProvider : JoinCode.Abstractions.Inte
                 AgentType = AgentTypeDefinition.Plan.ToValue(),
                 WhenToUse = "Software architect agent that designs implementation plans, returns step-by-step plans, key files, and architectural trade-offs",
                 Description = "Plan agent — strictly read-only, for designing implementation plans",
-                Tools = [FileToolNameConstants.FileRead, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep, SearchToolNameConstants.SearchCodebase, ShellToolNameConstants.ShellExecute],
+                Tools = [FileToolNameConstants.FileRead, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep, SearchToolNameConstants.SearchCodebase, ShellToolNameConstants.Bash],
                 DisallowedTools = readOnlyDisallowedTools,
                 IsBackground = false,
                 OmitClaudeMd = true,

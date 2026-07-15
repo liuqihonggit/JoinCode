@@ -90,9 +90,7 @@ public sealed partial class TaskRuntime : ITaskRuntime, IDisposable
             task.StartedAt = _clock.GetUtcNow();
         }
 
-        if ((update.Status == TaskExecutionStatus.Completed ||
-             update.Status == TaskExecutionStatus.Failed ||
-             update.Status == TaskExecutionStatus.Cancelled) && task.CompletedAt is null)
+        if (update.Status.GetValueOrDefault().IsTerminal() && task.CompletedAt is null)
         {
             task.CompletedAt = _clock.GetUtcNow();
         }

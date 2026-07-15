@@ -387,7 +387,7 @@ internal sealed class AnthropicClearThinkingStrategy : AnthropicContextEditStrat
     public required object Keep { get; set; }
 }
 
-internal sealed class AnthropicContextTrigger
+internal class AnthropicContextPolicyValue
 {
     [JsonPropertyName("type")]
     public required string Type { get; set; }
@@ -395,18 +395,6 @@ internal sealed class AnthropicContextTrigger
     public required int Value { get; set; }
 }
 
-internal sealed class AnthropicContextKeep
-{
-    [JsonPropertyName("type")]
-    public required string Type { get; set; }
-    [JsonPropertyName("value")]
-    public required int Value { get; set; }
-}
-
-internal sealed class AnthropicContextTokenThreshold
-{
-    [JsonPropertyName("type")]
-    public required string Type { get; set; }
-    [JsonPropertyName("value")]
-    public required int Value { get; set; }
-}
+internal sealed class AnthropicContextTrigger : AnthropicContextPolicyValue;
+internal sealed class AnthropicContextKeep : AnthropicContextPolicyValue;
+internal sealed class AnthropicContextTokenThreshold : AnthropicContextPolicyValue;

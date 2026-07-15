@@ -38,19 +38,10 @@ public sealed class InitializeResult
     public string ProtocolVersion { get; set; } = "";
 
     [JsonPropertyName("serverInfo")]
-    public ServerInfo ServerInfo { get; set; } = new();
+    public Implementation ServerInfo { get; set; } = new();
 
     [JsonPropertyName("capabilities")]
     public ServerCapabilities Capabilities { get; set; } = new();
-}
-
-public sealed class ServerInfo
-{
-    [JsonPropertyName("name")]
-    public string Name { get; set; } = "";
-
-    [JsonPropertyName("version")]
-    public string Version { get; set; } = "";
 }
 
 public sealed class ServerCapabilities
@@ -84,27 +75,6 @@ public sealed class ToolInfo
 
     [JsonPropertyName("inputSchema")]
     public JsonElement InputSchema { get; set; }
-}
-
-/// <summary>
-/// tools/call 响应结果
-/// </summary>
-public sealed class ToolsCallResult
-{
-    [JsonPropertyName("content")]
-    public List<ToolContent> Content { get; set; } = [];
-
-    [JsonPropertyName("isError")]
-    public bool IsError { get; set; }
-}
-
-public sealed class ToolContent
-{
-    [JsonPropertyName("type")]
-    public string Type { get; set; } = "text";
-
-    [JsonPropertyName("text")]
-    public string Text { get; set; } = "";
 }
 
 /// <summary>

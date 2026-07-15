@@ -168,7 +168,7 @@ public class PermissionContextTests
         var updatedInput = new Dictionary<string, JsonElement> { ["key"] = JsonElementHelper.FromString("value") };
         var permissionUpdates = new List<PermissionUpdate>();
 
-        var result = await ctx.HandleUserAllow(updatedInput, permissionUpdates).ConfigureAwait(true);
+        var result = await ctx.HandleUserAllowAsync(updatedInput, permissionUpdates).ConfigureAwait(true);
 
         result.Should().BeOfType<PermissionAllowDecision>();
     }
@@ -181,7 +181,7 @@ public class PermissionContextTests
         var permissionUpdates = new List<PermissionUpdate>();
         var feedback = "User feedback";
 
-        var result = await ctx.HandleUserAllow(updatedInput, permissionUpdates, feedback).ConfigureAwait(true);
+        var result = await ctx.HandleUserAllowAsync(updatedInput, permissionUpdates, feedback).ConfigureAwait(true);
 
         result.AcceptFeedback.Should().Be(feedback);
     }
@@ -193,7 +193,7 @@ public class PermissionContextTests
         var updatedInput = new Dictionary<string, JsonElement> { ["key"] = JsonElementHelper.FromString("value") };
         var permissionUpdates = new List<PermissionUpdate>();
 
-        var result = await ctx.HandleHookAllow(updatedInput, permissionUpdates).ConfigureAwait(true);
+        var result = await ctx.HandleHookAllowAsync(updatedInput, permissionUpdates).ConfigureAwait(true);
 
         result.Should().BeOfType<PermissionAllowDecision>();
         result.DecisionReason.Should().BeOfType<HookDecisionReason>();

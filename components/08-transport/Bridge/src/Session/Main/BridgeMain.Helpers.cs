@@ -290,7 +290,7 @@ public sealed partial class BridgeMain
     /// 键盘输入处理器 — 对齐 TS 端 onStdinData
     /// Space(0x20)=切换QR, w(0x77)=切换spawnMode, Ctrl+C(0x03)/Ctrl+D(0x04)=优雅关闭
     /// </summary>
-    private async Task OnKeyboardInput(byte key)
+    private async Task OnKeyboardInputAsync(byte key)
     {
         switch (key)
         {

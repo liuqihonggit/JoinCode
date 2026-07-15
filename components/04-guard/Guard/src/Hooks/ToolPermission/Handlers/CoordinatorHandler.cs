@@ -121,7 +121,7 @@ public sealed partial class CoordinatorHandler
                 if (result.Behavior == PermissionBehavior.Allow)
                 {
                     var finalInput = result.UpdatedInput ?? @params.UpdatedInput ?? ctx.Input;
-                    return await ctx.HandleHookAllow(
+                    return await ctx.HandleHookAllowAsync(
                         finalInput,
                         result.UpdatedPermissions ?? new List<PermissionUpdate>()).ConfigureAwait(false);
                 }

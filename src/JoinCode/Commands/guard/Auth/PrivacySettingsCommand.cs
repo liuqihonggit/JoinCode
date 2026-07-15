@@ -29,15 +29,15 @@ public sealed class PrivacySettingsCommand : IChatCommand
         }
         else if (args.StartsWith("telemetry"))
         {
-            await SetPrivacySetting(configService, "privacy.telemetry", args["telemetry".Length..].Trim(), context.CancellationToken).ConfigureAwait(false);
+            await SetPrivacySettingAsync(configService, "privacy.telemetry", args["telemetry".Length..].Trim(), context.CancellationToken).ConfigureAwait(false);
         }
         else if (args.StartsWith("analytics"))
         {
-            await SetPrivacySetting(configService, "privacy.analytics", args["analytics".Length..].Trim(), context.CancellationToken).ConfigureAwait(false);
+            await SetPrivacySettingAsync(configService, "privacy.analytics", args["analytics".Length..].Trim(), context.CancellationToken).ConfigureAwait(false);
         }
         else if (args.StartsWith("crash-reports"))
         {
-            await SetPrivacySetting(configService, "privacy.crashReports", args["crash-reports".Length..].Trim(), context.CancellationToken).ConfigureAwait(false);
+            await SetPrivacySettingAsync(configService, "privacy.crashReports", args["crash-reports".Length..].Trim(), context.CancellationToken).ConfigureAwait(false);
         }
         else
         {
@@ -55,7 +55,7 @@ public sealed class PrivacySettingsCommand : IChatCommand
         return value ?? defaultValue;
     }
 
-    private static async Task SetPrivacySetting(IConfigurationService? configService, string key, string subArgs, CancellationToken ct)
+    private static async Task SetPrivacySettingAsync(IConfigurationService? configService, string key, string subArgs, CancellationToken ct)
     {
         if (subArgs is "on")
         {

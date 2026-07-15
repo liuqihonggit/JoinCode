@@ -18,7 +18,7 @@ public sealed class TagCommand : IChatCommand
 
         if (string.IsNullOrEmpty(args) || args.Equals("list", StringComparison.OrdinalIgnoreCase))
         {
-            return ListTags(context, tagService);
+            return ListTagsAsync(context, tagService);
         }
 
         if (tagService is null)
@@ -77,7 +77,7 @@ public sealed class TagCommand : IChatCommand
         return Task.FromResult(ChatCommandResult.Continue());
     }
 
-    private static Task<ChatCommandResult> ListTags(ChatCommandContext context, ISessionTagService? tagService)
+    private static Task<ChatCommandResult> ListTagsAsync(ChatCommandContext context, ISessionTagService? tagService)
     {
         TerminalHelper.WriteLine("会话标签:");
 

@@ -264,7 +264,7 @@ public sealed partial class BridgeMain : IAsyncDisposable
 
         if (_deps.RegisterKeyboardListener is not null)
         {
-            _deps.RegisterKeyboardListener(OnKeyboardInput);
+            _deps.RegisterKeyboardListener(OnKeyboardInputAsync);
         }
 
         if (_deps.GetAccessToken is not null)
@@ -605,7 +605,7 @@ public sealed partial class BridgeMain : IAsyncDisposable
         // 10. 注册键盘监听 — 对齐 TS 端: process.stdin.setRawMode(true) + on('data', onStdinData)
         if (_deps.RegisterKeyboardListener is not null)
         {
-            _deps.RegisterKeyboardListener(OnKeyboardInput);
+            _deps.RegisterKeyboardListener(OnKeyboardInputAsync);
         }
 
         // 10.5 创建 Token 刷新调度器 — 对齐 TS 端 createTokenRefreshScheduler + v1/v2 分支

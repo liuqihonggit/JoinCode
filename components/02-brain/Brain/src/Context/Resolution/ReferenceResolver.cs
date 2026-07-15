@@ -322,9 +322,11 @@ public sealed partial class ReferenceResolver : IReferenceResolver
         ReferenceResolutionOptions opts,
         CancellationToken cancellationToken)
     {
+        var codeIndexer = _codeIndexer;
+        if (codeIndexer is null) return null;
         try
         {
-            var searchResult = await _codeIndexer!.Searcher.SearchAsync(reference, cancellationToken).ConfigureAwait(false);
+            var searchResult = await codeIndexer.Searcher.SearchAsync(reference, cancellationToken).ConfigureAwait(false);
             if (searchResult.Items.Count == 0)
             {
                 return null;
@@ -360,9 +362,11 @@ public sealed partial class ReferenceResolver : IReferenceResolver
         ReferenceResolutionOptions opts,
         CancellationToken cancellationToken)
     {
+        var codeIndexer = _codeIndexer;
+        if (codeIndexer is null) return [];
         try
         {
-            var searchResult = await _codeIndexer!.Searcher.SearchAsync(description, cancellationToken).ConfigureAwait(false);
+            var searchResult = await codeIndexer.Searcher.SearchAsync(description, cancellationToken).ConfigureAwait(false);
             if (searchResult.Items.Count == 0)
             {
                 return [];

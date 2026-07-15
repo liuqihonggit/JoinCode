@@ -416,12 +416,14 @@ public sealed partial class TeamMemorySyncService : ITeamMemorySyncService
                 return;
             }
 
-            if (localEntry!.ContentHash == remoteEntry!.ContentHash)
+            if (localEntry is not null && remoteEntry is not null && localEntry.ContentHash == remoteEntry.ContentHash)
             {
                 return;
             }
 
-            var timeDiff = Math.Abs((localEntry.LastModified - remoteEntry.LastModified).TotalSeconds);
+            var local = localEntry ?? throw new InvalidOperationException($"Local entry is null for {filePath}.");
+            var remote = remoteEntry ?? throw new InvalidOperationException($"Remote entry is null for {filePath}.");
+            var timeDiff = Math.Abs((local.LastModified - remote.LastModified).TotalSeconds);
             if (timeDiff < _options.ConflictDetectionWindow.TotalSeconds)
             {
                 var syncEvent = new MemorySyncEvent

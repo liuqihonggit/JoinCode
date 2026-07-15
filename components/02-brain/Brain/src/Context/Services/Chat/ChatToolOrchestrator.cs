@@ -110,7 +110,8 @@ public sealed partial class ChatToolOrchestrator : IChatToolOrchestrator
             // Hook: PreToolUse — 工具执行前触发 Hook 编排
             await ExecutePreHooksAsync(toolCallName, arguments, ct).ConfigureAwait(false);
 
-            var toolResult = await _toolRegistry!.ExecuteToolAsync(toolCallName, arguments!, ct).ConfigureAwait(false);
+            var toolRegistry = _toolRegistry ?? throw new InvalidOperationException("Tool registry not available.");
+            var toolResult = await toolRegistry.ExecuteToolAsync(toolCallName, arguments ?? new Dictionary<string, JsonElement>(), ct).ConfigureAwait(false);
 
             // 构建结果文本
             string resultText;

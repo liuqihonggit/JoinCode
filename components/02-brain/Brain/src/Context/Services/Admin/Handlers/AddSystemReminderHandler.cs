@@ -20,6 +20,8 @@ public sealed partial class AddSystemReminderHandler : IChatAdminOperationHandle
     public async Task ExecuteAsync(ChatAdminContext context, CancellationToken ct)
     {
         await _promptManager.AddReminderAsync(
-            context.ReminderId!, context.ReminderContent!, context.ReminderPriority ?? 0, ct).ConfigureAwait(false);
+            context.ReminderId ?? throw new InvalidOperationException("ReminderId is required."),
+            context.ReminderContent ?? throw new InvalidOperationException("ReminderContent is required."),
+            context.ReminderPriority ?? 0, ct).ConfigureAwait(false);
     }
 }

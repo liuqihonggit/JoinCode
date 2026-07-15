@@ -105,10 +105,10 @@ public static class MessageHealer
         var ids = new List<string>();
         var seen = new HashSet<string>();
 
-        if (msg.Metadata != null && msg.Metadata.TryGetValue("ToolCallId", out var idObj) && idObj.TryGetString(out var id))
+        if (msg.Metadata != null && msg.Metadata.TryGetValue("ToolCallId", out var idObj) && idObj.TryGetString(out var id) && id is not null)
         {
-            if (seen.Add(id!))
-                ids.Add(id!);
+            if (seen.Add(id))
+                ids.Add(id);
         }
 
         if (msg.Metadata != null && msg.Metadata.TryGetValue("ToolCalls", out var toolCallsObj))

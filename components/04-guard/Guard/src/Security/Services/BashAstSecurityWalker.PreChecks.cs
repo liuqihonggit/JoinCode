@@ -92,7 +92,7 @@ public sealed partial class BashAstSecurityWalker
     private static BashAstSecurityResult TooComplex(Node node)
         => new BashAstSecurityResult.TooComplex($"无法静态分析: {node.Type}", node.Type);
 
-    private static BashAstSecurityResult? TooComplexNode(Node node)
+    private static BashAstSecurityResult TooComplexNode(Node node)
         => new BashAstSecurityResult.TooComplex($"无法静态分析: {node.Type}", node.Type);
 
     private static string StripRawString(string text)
@@ -141,6 +141,9 @@ public sealed partial class BashAstSecurityWalker
 
         public StringOrTooComplex(string value) { Value = value; TooComplex = null; }
         public StringOrTooComplex(BashAstSecurityResult tooComplex) { Value = ""; TooComplex = tooComplex; }
+
+        public BashAstSecurityResult GetTooComplex() =>
+            TooComplex ?? throw new InvalidOperationException("TooComplex is null when IsTooComplex is false.");
     }
 
     private sealed record VarAssignmentResult(string Name, string Value, bool IsAppend);
@@ -153,6 +156,9 @@ public sealed partial class BashAstSecurityWalker
 
         public VarAssignmentOrTooComplex(VarAssignmentResult result) { Result = result; TooComplex = null; }
         public VarAssignmentOrTooComplex(BashAstSecurityResult tooComplex) { Result = null; TooComplex = tooComplex; }
+
+        public VarAssignmentResult GetResult() =>
+            Result ?? throw new InvalidOperationException("Result is null when IsTooComplex is true.");
     }
 
     private sealed record RedirectResult(string Op, string Target);
@@ -165,5 +171,8 @@ public sealed partial class BashAstSecurityWalker
 
         public RedirectOrTooComplex(RedirectResult result) { Result = result; TooComplex = null; }
         public RedirectOrTooComplex(BashAstSecurityResult tooComplex) { Result = null; TooComplex = tooComplex; }
+
+        public RedirectResult GetResult() =>
+            Result ?? throw new InvalidOperationException("Result is null when IsTooComplex is true.");
     }
 }

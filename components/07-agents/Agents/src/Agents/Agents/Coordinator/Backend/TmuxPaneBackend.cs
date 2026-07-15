@@ -86,9 +86,9 @@ public sealed partial class TmuxPaneBackend : JoinCode.Abstractions.Interfaces.I
 
     public async Task RebalancePanesAsync(CancellationToken cancellationToken = default)
     {
-        if (_insideTmux && _leaderPaneId is not null)
+        if (_insideTmux && _leaderPaneId is not null && _windowTarget is not null)
         {
-            await RunTmuxAsync(GetTmuxArgs("select-layout", "-t", _windowTarget!, "main-vertical"), cancellationToken).ConfigureAwait(false);
+            await RunTmuxAsync(GetTmuxArgs("select-layout", "-t", _windowTarget, "main-vertical"), cancellationToken).ConfigureAwait(false);
             await RunTmuxAsync(GetTmuxArgs("resize-pane", "-t", _leaderPaneId, "-x", "30%"), cancellationToken).ConfigureAwait(false);
         }
         else if (_windowTarget is not null)
@@ -106,9 +106,11 @@ public sealed partial class TmuxPaneBackend : JoinCode.Abstractions.Interfaces.I
             _windowTarget = _leaderPaneId;
         }
 
+        var leaderPaneId = _leaderPaneId ?? throw new InvalidOperationException("Leader pane ID not set.");
+
         if (_managedPanes.Count == 0)
         {
-            var result = await RunTmuxAsync(["split-window", "-t", _leaderPaneId!, "-h", "-l", "70%", "-P", "-F", "#{pane_id}"], cancellationToken).ConfigureAwait(false);
+            var result = await RunTmuxAsync(["split-window", "-t", leaderPaneId, "-h", "-l", "70%", "-P", "-F", "#{pane_id}"], cancellationToken).ConfigureAwait(false);
             var paneId = result.Output.Trim();
 
             _managedPanes.Add(paneId);
@@ -177,7 +179,7 @@ public sealed partial class TmuxPaneBackend : JoinCode.Abstractions.Interfaces.I
     {
         var result = new string[2 + args.Length];
         result[0] = "-L";
-        result[1] = _swarmSocket!;
+        result[1] = _swarmSocket ?? throw new InvalidOperationException("Swarm socket not set.");
         Array.Copy(args, 0, result, 2, args.Length);
         return result;
     }

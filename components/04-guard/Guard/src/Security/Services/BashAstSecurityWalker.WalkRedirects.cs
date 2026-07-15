@@ -112,7 +112,7 @@ public sealed partial class BashAstSecurityWalker
                 {
                     var result = WalkString(child, innerCommands, varScope);
                     if (result.IsTooComplex)
-                        return new RedirectOrTooComplex(result.TooComplex!);
+                        return new RedirectOrTooComplex(result.GetTooComplex());
                     target = result.Value;
                     break;
                 }
@@ -120,7 +120,7 @@ public sealed partial class BashAstSecurityWalker
                 {
                     var v = ResolveSimpleExpansion(child, varScope, insideString: false);
                     if (v.IsTooComplex)
-                        return new RedirectOrTooComplex(v.TooComplex!);
+                        return new RedirectOrTooComplex(v.GetTooComplex());
                     target = v.Value;
                     break;
                 }
@@ -128,7 +128,7 @@ public sealed partial class BashAstSecurityWalker
                     return new RedirectOrTooComplex(new BashAstSecurityResult.TooComplex(
                         "重定向目标包含命令替换", "CMDSUB_REDIRECT"));
                 default:
-                    return new RedirectOrTooComplex(TooComplexNode(child)!);
+                    return new RedirectOrTooComplex(TooComplexNode(child));
             }
         }
 

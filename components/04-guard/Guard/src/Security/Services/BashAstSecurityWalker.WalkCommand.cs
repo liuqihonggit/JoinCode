@@ -26,7 +26,8 @@ public sealed partial class BashAstSecurityWalker
                 {
                     var ev = WalkVariableAssignment(child, innerCommands, varScope);
                     if (ev.IsTooComplex) return ev.TooComplex;
-                    envVars.Add(new BashEnvVarInfo(ev.Result!.Name, ev.Result.Value));
+                    var evResult = ev.GetResult();
+                    envVars.Add(new BashEnvVarInfo(evResult.Name, evResult.Value));
                     break;
                 }
                 case "command_name":
@@ -60,7 +61,8 @@ public sealed partial class BashAstSecurityWalker
                 {
                     var r = WalkFileRedirect(child, innerCommands, varScope);
                     if (r.IsTooComplex) return r.TooComplex;
-                    redirects.Add(new BashRedirectInfo(r.Result!.Op, r.Result.Target));
+                    var rr = r.GetResult();
+                    redirects.Add(new BashRedirectInfo(rr.Op, rr.Target));
                     break;
                 }
                 case "heredoc_redirect":
@@ -107,7 +109,8 @@ public sealed partial class BashAstSecurityWalker
             {
                 var r = WalkFileRedirect(child, commands, varScope);
                 if (r.IsTooComplex) return r.TooComplex;
-                redirects.Add(new BashRedirectInfo(r.Result!.Op, r.Result.Target));
+                var rr2 = r.GetResult();
+                redirects.Add(new BashRedirectInfo(rr2.Op, rr2.Target));
             }
             else if (child.Type == "heredoc_redirect")
             {

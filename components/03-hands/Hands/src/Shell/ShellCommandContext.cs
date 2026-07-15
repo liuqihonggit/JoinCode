@@ -78,7 +78,7 @@ public sealed class ShellCommandContext : IShellCommandContext
         if (timeoutMs.HasValue && timeoutMs.Value > 0)
         {
             _timeoutTimer = new Timer(
-                static state => HandleTimeout(state!),
+                static state => HandleTimeout(state ?? throw new InvalidOperationException("Timer state is null.")),
                 this,
                 timeoutMs.Value,
                 Timeout.Infinite);
@@ -184,7 +184,7 @@ public sealed class ShellCommandContext : IShellCommandContext
         _assistantTimer = new Timer(
             static state =>
             {
-                var ctx = (ShellCommandContext)state!;
+                var ctx = (ShellCommandContext)(state ?? throw new InvalidOperationException("Timer state is null."));
                 if (ctx._status == ShellCommandStatus.Running && ctx._backgroundTaskId is null)
                 {
                     var taskId = TaskIdGenerator.GenerateTaskId(TaskType.LocalBash);

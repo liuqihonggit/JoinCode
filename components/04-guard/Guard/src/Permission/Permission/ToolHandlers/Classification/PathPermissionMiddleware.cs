@@ -65,17 +65,18 @@ public sealed partial class PathPermissionMiddleware : IPermissionMiddleware
     /// </summary>
     private ToolPermissionCheckResult? CheckPathPermission(string toolName, string path)
     {
+        var checker = _pathPermissionChecker ?? throw new InvalidOperationException("Path permission checker not available.");
         // 读取工具: 调用 CheckReadPermission
         if (PermissionCheckContext.IsFileReadTool(toolName))
         {
-            var result = _pathPermissionChecker!.CheckReadPermission(path);
+            var result = checker.CheckReadPermission(path);
             return PermissionCheckContext.MapPathResult(result);
         }
 
         // 写入/编辑工具: 调用 CheckWritePermission
         if (PermissionCheckContext.IsFileWriteTool(toolName))
         {
-            var result = _pathPermissionChecker!.CheckWritePermission(path);
+            var result = checker.CheckWritePermission(path);
             return PermissionCheckContext.MapPathResult(result);
         }
 

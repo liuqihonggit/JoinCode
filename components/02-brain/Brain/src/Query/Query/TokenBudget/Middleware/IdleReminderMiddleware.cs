@@ -29,13 +29,13 @@ public sealed partial class IdleReminderMiddleware : IQueryMiddleware
 
     private Task RecordToolCallTurnAsync(QueryMiddlewareContext context, CancellationToken ct)
     {
-        _toolIdleReminder!.RecordAssistantTurn(context.ToolName);
+        (_toolIdleReminder ?? throw new InvalidOperationException("Tool idle reminder not available.")).RecordAssistantTurn(context.ToolName);
         return Task.CompletedTask;
     }
 
     private Task RecordCompletionTurnAsync(QueryMiddlewareContext context, CancellationToken ct)
     {
-        _toolIdleReminder!.RecordAssistantTurn();
+        (_toolIdleReminder ?? throw new InvalidOperationException("Tool idle reminder not available.")).RecordAssistantTurn();
         return Task.CompletedTask;
     }
 }

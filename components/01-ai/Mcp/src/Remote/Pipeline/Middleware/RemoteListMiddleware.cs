@@ -54,7 +54,7 @@ public sealed partial class RemoteListMiddleware : IRemoteSyncMiddleware
                         return;
                     }
 
-                    ctx.SyncedNames = resourcesResult.Data!
+                    ctx.SyncedNames = resourcesResult.GetData()
                         .Select(r => r.Uri)
                         .ToList();
 
@@ -73,7 +73,7 @@ public sealed partial class RemoteListMiddleware : IRemoteSyncMiddleware
                         return;
                     }
 
-                    ctx.SyncedNames = promptsResult.Data!
+                    ctx.SyncedNames = promptsResult.GetData()
                         .Select(p => p.Name)
                         .ToList();
 

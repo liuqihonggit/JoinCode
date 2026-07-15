@@ -272,7 +272,7 @@ public sealed partial class BuildQueueService : IBuildQueueService
         };
         _entries[buildId] = entry;
         _waitHandles[buildId] = new TaskCompletionSource<BuildQueueResult>();
-        _waitHandles[buildId].TrySetResult(entry.Result!);
+        _waitHandles[buildId].TrySetResult(entry.Result ?? throw new InvalidOperationException("Build result not set."));
         return buildId;
     }
 
@@ -332,7 +332,7 @@ public sealed partial class BuildQueueService : IBuildQueueService
         long maxTicks = 0;
         try
         {
-            var dir = new DirectoryInfo(workingDirectory!);
+            var dir = new DirectoryInfo(workingDirectory ?? string.Empty);
             if (!dir.Exists) return 0;
 
             foreach (var file in dir.EnumerateFiles("*.cs", SearchOption.AllDirectories))

@@ -95,9 +95,10 @@ public sealed partial class McpAuthPersistenceService : IMcpAuthPersistenceServi
 
     private async Task<List<AuthConfigEntry>> LoadEntriesAsync(CancellationToken ct)
     {
+        var configService = _configService ?? throw new InvalidOperationException("Config service not available.");
         try
         {
-            var json = await _configService!.GetAsync("mcp.auth_entries", ct).ConfigureAwait(false);
+            var json = await configService.GetAsync("mcp.auth_entries", ct).ConfigureAwait(false);
             if (string.IsNullOrEmpty(json)) return [];
 
             var entries = JsonSerializer.Deserialize(json, AuthEntryContext.Default.ListAuthConfigEntry);
@@ -112,10 +113,11 @@ public sealed partial class McpAuthPersistenceService : IMcpAuthPersistenceServi
 
     private async Task SaveEntriesAsync(List<AuthConfigEntry> entries, CancellationToken ct)
     {
+        var configService = _configService ?? throw new InvalidOperationException("Config service not available.");
         try
         {
             var json = JsonSerializer.Serialize(entries, AuthEntryContext.Default.ListAuthConfigEntry);
-            await _configService!.SetAsync("mcp.auth_entries", json, ct).ConfigureAwait(false);
+            await configService.SetAsync("mcp.auth_entries", json, ct).ConfigureAwait(false);
         }
         catch (Exception ex)
         {

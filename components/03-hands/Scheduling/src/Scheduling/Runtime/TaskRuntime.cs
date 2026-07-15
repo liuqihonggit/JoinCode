@@ -187,7 +187,7 @@ public sealed partial class TaskRuntime : ITaskRuntime, IDisposable
 
         _logger?.LogDebug(L.T(StringKey.RuntimeSetDepLog), taskId, dependsOnTaskId);
 
-        return OperationResult<RuntimeTask?>.Ok(task!);
+        return OperationResult<RuntimeTask?>.Ok(task ?? throw new InvalidOperationException($"Task {taskId} not found after TryGetValue succeeded."));
     }
 
     public async Task<OperationResult<RuntimeTask?>> RemoveDependencyAsync(string taskId, string dependsOnTaskId, CancellationToken cancellationToken = default)
@@ -210,7 +210,7 @@ public sealed partial class TaskRuntime : ITaskRuntime, IDisposable
             task.Dependencies.Remove(dependsOnTaskId);
         }
 
-        return OperationResult<RuntimeTask?>.Ok(task!);
+        return OperationResult<RuntimeTask?>.Ok(task ?? throw new InvalidOperationException($"Task {taskId} not found after TryGetValue succeeded."));
     }
 
     public Task<bool> CanExecuteTaskAsync(string taskId, CancellationToken cancellationToken = default)

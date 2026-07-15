@@ -52,7 +52,7 @@ public sealed partial class PromptSuggestionCallback : IPostSamplingCallback
     {
         var forkOptions = new ForkOptions
         {
-            ParentSessionId = context.SessionId!,
+            ParentSessionId = context.SessionId ?? string.Empty,
             TaskDescription = "prompt_suggestion",
             AllowedTools = [],
             UseExactTools = true,
@@ -63,7 +63,8 @@ public sealed partial class PromptSuggestionCallback : IPostSamplingCallback
             SystemPrompt = PromptSuggestionFilter.SuggestionPrompt
         };
 
-        var result = await _forkManager!.ForkAsync(forkOptions, context.CancellationToken).ConfigureAwait(false);
+        var forkManager = _forkManager ?? throw new InvalidOperationException("Fork manager not available.");
+        var result = await forkManager.ForkAsync(forkOptions, context.CancellationToken).ConfigureAwait(false);
 
         return result.State == ForkState.Completed
             ? result.Result?.Trim()

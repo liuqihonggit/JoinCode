@@ -106,7 +106,7 @@ public sealed partial class ChatStreamChunkProcessor : IChatStreamChunkProcessor
 
             // 解析全部工具调用列表（支持单响应多工具调用）
             // AllToolCalls 格式: [{"Id":"...","Name":"...","Arguments":"..."},...]
-            if (chunk.Metadata!.TryGetValue("AllToolCalls", out var allEl) && allEl.ValueKind == JsonValueKind.Array)
+            if (chunk.Metadata is not null && chunk.Metadata.TryGetValue("AllToolCalls", out var allEl) && allEl.ValueKind == JsonValueKind.Array)
             {
                 ParseAllToolCalls(allEl, state);
             }
@@ -116,7 +116,7 @@ public sealed partial class ChatStreamChunkProcessor : IChatStreamChunkProcessor
                 state.ToolCalls.Add(new ToolCallEntry
                 {
                     Id = state.ToolCallId,
-                    Name = state.ToolCallName!,
+                    Name = state.ToolCallName ?? string.Empty,
                     Arguments = state.ToolCallArguments is not null
                         ? JsonSerializer.Serialize(state.ToolCallArguments, ChatServiceJsonContext.Default.DictionaryStringJsonElement)
                         : "{}"

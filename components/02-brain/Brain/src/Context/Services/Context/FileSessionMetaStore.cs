@@ -3,7 +3,7 @@ using JoinCode.Abstractions.Attributes;
 namespace Core.Context;
 
 [Register]
-public sealed class FileSessionMetaStore : ISessionMetaStore
+public sealed partial class FileSessionMetaStore : ISessionMetaStore
 {
     private readonly string _directoryPath;
     private readonly IFileSystem _fs;

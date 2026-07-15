@@ -6,7 +6,7 @@ namespace JoinCode.Entry;
 /// 对齐 TS: claude --system-prompt / claude --append-system-prompt
 /// </summary>
 [Register]
-internal sealed class SystemPromptApplyStep : IMiddleware<StartupContext>
+internal sealed partial class SystemPromptApplyStep : IMiddleware<StartupContext>
 {
     public ErrorBehavior OnError => ErrorBehavior.Propagate;
 

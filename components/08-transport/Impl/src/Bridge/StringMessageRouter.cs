@@ -7,7 +7,7 @@ namespace JoinCode.Transport.Bridge;
 /// 不依赖任何业务消息类型（如 BridgeMessage），可独立于 Bridge 使用
 /// </summary>
 [Register]
-public sealed class StringMessageRouter : IMessageRouter
+public sealed partial class StringMessageRouter : IMessageRouter
 {
     private readonly ILogger? _logger;
     private readonly BoundedUUIDSet _processedMessageIds;

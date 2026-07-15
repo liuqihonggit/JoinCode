@@ -8,7 +8,7 @@ using JoinCode.Abstractions.Pipeline;
 /// best-effort: 验证失败不阻塞主流程
 /// </summary>
 [Register]
-internal sealed class V1PerpetualSessionValidationMiddleware : IMiddleware<V1BridgeInitContext>
+internal sealed partial class V1PerpetualSessionValidationMiddleware : IMiddleware<V1BridgeInitContext>
 {
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 

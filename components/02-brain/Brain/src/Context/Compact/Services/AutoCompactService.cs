@@ -7,7 +7,7 @@ namespace Core.Context.Compact;
 /// 遥测统一在管道 Post 回调中执行
 /// </summary>
 [Register]
-public sealed class AutoCompactService : ICompactService
+public sealed partial class AutoCompactService : ICompactService
 {
     private readonly MiddlewarePipeline<CompactContext> _compactPipeline;
     private readonly CompactThresholds _thresholds;

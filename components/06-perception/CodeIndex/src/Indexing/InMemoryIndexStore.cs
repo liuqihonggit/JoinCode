@@ -8,7 +8,7 @@ namespace JoinCode.CodeIndex.Persistence;
 /// 数据结构: 符号索引(按 fqn/name/file/kind 多维检索) + 调用图 + 依赖图 + 项目依赖 + 文件追踪
 /// </summary>
 [Register]
-public sealed class InMemoryIndexStore : IDisposable
+public sealed partial class InMemoryIndexStore : IDisposable
 {
     private readonly ReaderWriterLockSlim _lock = new();
     private int _disposed;

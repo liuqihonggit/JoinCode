@@ -2,7 +2,7 @@
 namespace Core.Context.Compact;
 
 [RegisterOptions]
-public sealed class CompactThresholds
+public sealed partial class CompactThresholds
 {
     public int AutoCompactBufferTokens { get; init; } = 13_000;
     public int WarningBufferTokens { get; init; } = 20_000;

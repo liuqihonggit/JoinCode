@@ -5,7 +5,7 @@ namespace Core.Skills;
 /// 变量解析器 - 支持嵌套变量、默认值和表达式
 /// </summary>
 [Register]
-public sealed class VariableResolver : IVariableResolver
+public sealed partial class VariableResolver : IVariableResolver
 {
     private readonly ConcurrentDictionary<string, ParsedVariable> _parseCache = new();
     private readonly ExpressionEvaluator _expressionEvaluator;

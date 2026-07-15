@@ -2,7 +2,7 @@
 namespace McpClient;
 
 [Register]
-public sealed class McpClientFactory : IMcpClientFactory
+public sealed partial class McpClientFactory : IMcpClientFactory
 {
     public IMcpClient CreateClient(McpServerConnectionConfig config, ILogger? logger = null)
     {

@@ -4,7 +4,7 @@ namespace Infrastructure.Cache;
 /// 仓库检测缓存实现 — 对齐 TS: clearRepositoryCaches
 /// </summary>
 [Register(typeof(JoinCode.Abstractions.Interfaces.Cache.IRepositoryCache))]
-public sealed class RepositoryCache : JoinCode.Abstractions.Interfaces.Cache.IRepositoryCache
+public sealed partial class RepositoryCache : JoinCode.Abstractions.Interfaces.Cache.IRepositoryCache
 {
     private readonly Dictionary<string, bool> _cache = new(StringComparer.OrdinalIgnoreCase);
 

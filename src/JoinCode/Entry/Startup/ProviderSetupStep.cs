@@ -4,7 +4,7 @@ namespace JoinCode.Entry;
 /// 供应商配置中间件 — 配置无效时展示供应商菜单
 /// </summary>
 [Register]
-internal sealed class ProviderSetupStep : IMiddleware<StartupContext>
+internal sealed partial class ProviderSetupStep : IMiddleware<StartupContext>
 {
     private readonly IProviderDefinitionRegistry _registry;
     private readonly IConsoleOutput _console;

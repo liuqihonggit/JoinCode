@@ -67,7 +67,7 @@ public sealed class BridgeSession
 /// Bridge 会话配置
 /// </summary>
 [Register]
-public sealed class BridgeSessionConfiguration
+public sealed partial class BridgeSessionConfiguration
 {
     /// <summary>会话超时时间（默认 30 分钟）</summary>
     public TimeSpan SessionTimeout { get; init; } = TimeSpan.FromMinutes(30);
@@ -128,7 +128,7 @@ public sealed partial class BridgeSessionFactory
 /// 对标 Claude Code 的 sessionRunner.ts 和 createSession.ts
 /// </summary>
 [Register]
-public sealed class BridgeSessionRunner : IAsyncDisposable
+public sealed partial class BridgeSessionRunner : IAsyncDisposable
 {
     private readonly ConcurrentDictionary<string, BridgeSession> _sessions;
     private readonly BridgeSessionFactory _sessionFactory;

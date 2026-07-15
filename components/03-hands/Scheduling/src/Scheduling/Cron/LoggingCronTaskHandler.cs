@@ -4,7 +4,7 @@
 /// 默认 Cron 任务触发处理器 — 记录日志
 /// </summary>
 [Register]
-public sealed class LoggingCronTaskHandler : ICronTaskHandler
+public sealed partial class LoggingCronTaskHandler : ICronTaskHandler
 {
     private readonly ILogger<CronScheduler> _logger;
 

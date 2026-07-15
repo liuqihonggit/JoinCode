@@ -7,7 +7,7 @@ namespace JoinCode.App.Middlewares;
 /// Fork 管道 Post Hook — 遥测记录执行计数
 /// </summary>
 [Register(typeof(IPipelinePostHook<ForkContext>))]
-internal sealed class ForkTelemetryHook : IPipelinePostHook<ForkContext>
+internal sealed partial class ForkTelemetryHook : IPipelinePostHook<ForkContext>
 {
     private readonly ITelemetryService? _telemetryService;
 

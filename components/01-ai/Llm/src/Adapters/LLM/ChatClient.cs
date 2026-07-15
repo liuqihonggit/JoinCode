@@ -2,7 +2,7 @@
 namespace Api.LLM;
 
 [Register]
-public sealed class ChatClient : IChatClient
+public sealed partial class ChatClient : IChatClient
 {
     private readonly IQueryService _chatCompletionService;
     private readonly ToolCollection _plugins;

@@ -7,7 +7,7 @@ using JoinCode.Abstractions.Pipeline;
 /// V2 建立传输 — 对齐 TS 端: createV2Transport
 /// </summary>
 [Register]
-internal sealed class V2TransportSetupMiddleware : IMiddleware<V2BridgeInitContext>
+internal sealed partial class V2TransportSetupMiddleware : IMiddleware<V2BridgeInitContext>
 {
     public ErrorBehavior OnError => ErrorBehavior.Propagate;
 

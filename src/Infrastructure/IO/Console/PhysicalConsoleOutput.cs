@@ -4,7 +4,7 @@ namespace Infrastructure.IO;
 /// 物理控制台输出 — 直接使用 System.Console
 /// </summary>
 [Register(typeof(IConsoleOutput))]
-public sealed class PhysicalConsoleOutput : IConsoleOutput
+public sealed partial class PhysicalConsoleOutput : IConsoleOutput
 {
     public void WriteLine(string message) => System.Console.WriteLine(message);
 

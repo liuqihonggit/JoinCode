@@ -1,7 +1,7 @@
 namespace Core.Agents.Coordinator;
 
 [Register]
-public sealed class InProcessPaneBackend : JoinCode.Abstractions.Interfaces.IPaneBackend
+public sealed partial class InProcessPaneBackend : JoinCode.Abstractions.Interfaces.IPaneBackend
 {
     public JoinCode.Abstractions.Interfaces.BackendType BackendType => JoinCode.Abstractions.Interfaces.BackendType.InProcess;
 

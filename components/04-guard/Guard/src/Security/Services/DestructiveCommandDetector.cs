@@ -6,7 +6,7 @@ namespace JoinCode.Abstractions.Security.Shell;
 /// 破坏性命令检测器实现
 /// </summary>
 [Register]
-public sealed class DestructiveCommandDetector : IDestructiveCommandDetector
+public sealed partial class DestructiveCommandDetector : IDestructiveCommandDetector
 {
     // 破坏性命令字典 - 命令名 -> 风险类型
     private static readonly Dictionary<string, CommandRisk> DestructiveCommands = new(StringComparer.OrdinalIgnoreCase)

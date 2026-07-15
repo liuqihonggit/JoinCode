@@ -26,7 +26,7 @@ public interface IBuiltInAgentFactory
 /// 内置 Agent 工厂实现
 /// </summary>
 [Register]
-public sealed class BuiltInAgentFactory : IBuiltInAgentFactory
+public sealed partial class BuiltInAgentFactory : IBuiltInAgentFactory
 {
     private readonly IChatClient _kernel;
     private readonly IFileSystem _fs;

@@ -6,7 +6,7 @@ namespace Core.Hooks.Execution;
 /// 使用 LLM 验证工具调用
 /// </summary>
 [Register(typeof(IHookExecutor))]
-public sealed class PromptHookExecutor : HookExecutorBase<PromptHook>
+public sealed partial class PromptHookExecutor : HookExecutorBase<PromptHook>
 {
     private readonly ILLMService? _llmService;
 

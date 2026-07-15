@@ -4,7 +4,7 @@ namespace JoinCode.Entry;
 /// 会话初始化中间件 — 创建 CliSession 并初始化
 /// </summary>
 [Register]
-internal sealed class SessionInitStep : IMiddleware<StartupContext>
+internal sealed partial class SessionInitStep : IMiddleware<StartupContext>
 {
     public ErrorBehavior OnError => ErrorBehavior.Propagate;
 

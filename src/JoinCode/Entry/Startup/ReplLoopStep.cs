@@ -9,7 +9,7 @@ namespace JoinCode.Entry;
 ///   [EXIT]  — 进程即将退出
 /// </summary>
 [Register]
-internal sealed class ReplLoopStep : IMiddleware<StartupContext>
+internal sealed partial class ReplLoopStep : IMiddleware<StartupContext>
 {
     private static readonly TimeSpan AliveInterval = TimeSpan.FromSeconds(2);
 

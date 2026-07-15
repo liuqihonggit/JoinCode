@@ -7,7 +7,7 @@ namespace JoinCode.App.Middlewares;
 /// ChatAdmin 管道 Post Hook — 遥测记录管理操作计数
 /// </summary>
 [Register(typeof(IPipelinePostHook<Core.Context.ChatAdminContext>))]
-internal sealed class ChatAdminTelemetryHook : IPipelinePostHook<Core.Context.ChatAdminContext>
+internal sealed partial class ChatAdminTelemetryHook : IPipelinePostHook<Core.Context.ChatAdminContext>
 {
     private readonly ITelemetryService? _telemetryService;
 

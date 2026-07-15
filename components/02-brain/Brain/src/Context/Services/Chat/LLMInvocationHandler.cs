@@ -27,7 +27,7 @@ public interface ILLMInvocationHandler
 /// LLM 调用处理器 — 封装LLM流式调用、块处理、首token延迟追踪、对话转储
 /// </summary>
 [Register(typeof(ILLMInvocationHandler))]
-public sealed class LLMInvocationHandler : ILLMInvocationHandler
+public sealed partial class LLMInvocationHandler : ILLMInvocationHandler
 {
     private readonly IChatClient _kernel;
     private readonly IChatStreamChunkProcessor _chunkProcessor;

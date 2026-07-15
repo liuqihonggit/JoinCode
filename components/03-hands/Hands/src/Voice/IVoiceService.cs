@@ -12,12 +12,3 @@ public interface IVoiceService
     event EventHandler<VoiceRecordingState>? StateChanged;
 }
 
-public sealed class VoiceRecordingResult
-{
-    public required bool Success { get; init; }
-    public required byte[] AudioData { get; init; }
-    public required TimeSpan Duration { get; init; }
-    public string? Transcription { get; init; }
-    public string? ErrorMessage { get; init; }
-    public string? AudioFilePath { get; init; }
-}

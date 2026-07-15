@@ -332,43 +332,4 @@ public sealed partial class SkillSearchService : ISkillSearchService, JoinCode.A
             .ToList();
     }
 
-    async Task<IReadOnlyList<JoinCode.Abstractions.Models.SkillSearch.SkillSearchResult>> JoinCode.Abstractions.Interfaces.ISkillSearchService.SearchAsync(
-        JoinCode.Abstractions.Models.SkillSearch.SkillSearchQuery query, CancellationToken cancellationToken)
-    {
-        var coreQuery = new SkillSearchQuery
-        {
-            Keyword = query.Keyword,
-            Tags = query.Tags,
-            Category = query.Category,
-            FuzzyMatch = query.FuzzyMatch,
-            Page = query.Page,
-            PageSize = query.PageSize,
-            ContextHint = query.ContextHint
-        };
-
-        var results = await SearchAsync(coreQuery, cancellationToken).ConfigureAwait(false);
-        return results.Select(MapToContractResult).ToList();
-    }
-
-    async Task<IReadOnlyList<JoinCode.Abstractions.Models.SkillSearch.SkillSearchResult>> JoinCode.Abstractions.Interfaces.ISkillSearchService.RecommendAsync(
-        string context, int maxResults, CancellationToken cancellationToken)
-    {
-        var results = await RecommendAsync(context, maxResults, cancellationToken).ConfigureAwait(false);
-        return results.Select(MapToContractResult).ToList();
-    }
-
-    private static JoinCode.Abstractions.Models.SkillSearch.SkillSearchResult MapToContractResult(SkillSearchResult result)
-    {
-        return new JoinCode.Abstractions.Models.SkillSearch.SkillSearchResult
-        {
-            SkillName = result.SkillName,
-            Description = result.Description,
-            RelevanceScore = result.RelevanceScore,
-            MatchType = (JoinCode.Abstractions.Models.SkillSearch.SkillMatchType)result.MatchType,
-            Tags = result.Tags,
-            Category = result.Category,
-            MatchedField = result.MatchedField,
-            Highlight = result.Highlight
-        };
-    }
 }

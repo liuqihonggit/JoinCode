@@ -12,7 +12,6 @@ global using JoinCode.Abstractions.Models;
 global using JoinCode.Abstractions.Models.Policy;
 global using JoinCode.Abstractions.Pipeline;
 global using JoinCode.Abstractions.Prompts;
-global using PolicyRule = Core.Policy.PolicyRule;
 global using JoinCode.Abstractions.Security;
 global using JoinCode.Abstractions.Security.Scanning;
 global using JoinCode.Abstractions.Security.Shell;

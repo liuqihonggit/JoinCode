@@ -272,24 +272,6 @@ public sealed partial class VoiceService : IVoiceService, JoinCode.Abstractions.
         _httpClient.Dispose();
     }
 
-    async Task<JoinCode.Abstractions.Models.Voice.VoiceRecordingResult> JoinCode.Abstractions.Interfaces.IVoiceService.StopRecordingAsync(CancellationToken cancellationToken)
-    {
-        var r = await StopRecordingAsync(cancellationToken).ConfigureAwait(false);
-        return new JoinCode.Abstractions.Models.Voice.VoiceRecordingResult
-        {
-            Success = r.Success,
-            AudioData = r.AudioData,
-            Duration = r.Duration,
-            Transcription = r.Transcription,
-            ErrorMessage = r.ErrorMessage,
-            AudioFilePath = r.AudioFilePath
-        };
-    }
-
-    bool JoinCode.Abstractions.Interfaces.IVoiceService.IsRecording => IsRecording;
-
-    JoinCode.Abstractions.Models.Voice.VoiceRecordingState JoinCode.Abstractions.Interfaces.IVoiceService.State =>
-        (JoinCode.Abstractions.Models.Voice.VoiceRecordingState)State;
 }
 
 public sealed partial class WhisperTranscriptionResponse

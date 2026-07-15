@@ -35,7 +35,7 @@ public sealed partial class RemoteListMiddleware : IRemoteSyncMiddleware
                     }
 
                     ctx.ToolsResult = toolsResult;
-                    ctx.SyncedNames = toolsResult.Data!
+                    ctx.SyncedNames = toolsResult.GetData()
                         .Select(t => McpNameNormalizer.BuildMcpToolName(ctx.ClientId, t.Name))
                         .ToList();
 

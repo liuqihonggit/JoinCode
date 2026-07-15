@@ -202,7 +202,7 @@ public sealed partial class ApiClient : IApiClient, IDisposable
                 responseContent: response.RawContent);
         }
 
-        return response.Data!;
+        return response.Data ?? throw new InvalidOperationException("Response data is null.");
     }
 
     public Task<ApiResponse<T>> GetAsync<T>(string path, JsonTypeInfo<T> jsonTypeInfo, Dictionary<string, string>? queryParams = null, CancellationToken cancellationToken = default)
@@ -246,7 +246,7 @@ public sealed partial class ApiClient : IApiClient, IDisposable
 
     private HttpRequestMessage BuildHttpRequestMessage(ApiRequest request)
     {
-        var uriBuilder = new UriBuilder(new Uri(_httpClient.BaseAddress!, request.Path));
+        var uriBuilder = new UriBuilder(new Uri(_httpClient.BaseAddress ?? throw new InvalidOperationException("HttpClient.BaseAddress is not set."), request.Path));
 
         if (request.QueryParams?.Count > 0)
         {
@@ -297,7 +297,7 @@ public sealed partial class ApiClient : IApiClient, IDisposable
                 }
             }
 
-            return ApiResponse<T>.SuccessResult(data!, (int)response.StatusCode, headers, rawContent);
+            return ApiResponse<T>.SuccessResult(data ?? throw new InvalidOperationException("Deserialized data is null."), (int)response.StatusCode, headers, rawContent);
         }
 
         var exception = ClassifyError(response, endpoint, rawContent);

@@ -33,7 +33,7 @@ public sealed class SnipResult
 }
 
 [Register]
-public sealed class HistorySnipService : IHistorySnipService
+public sealed partial class HistorySnipService : IHistorySnipService
 {
     private const int EstimatedCharsPerToken = 4;
     private readonly ITelemetryService? _telemetryService;

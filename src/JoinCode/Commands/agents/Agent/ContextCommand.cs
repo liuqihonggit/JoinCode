@@ -14,7 +14,7 @@ public sealed class ContextCommand : IChatCommand
 
     public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
-        var history = await context.Services!.ChatService.GetMessageListAsync(context.CancellationToken);
+        var history = await context.Services.ChatService.GetMessageListAsync(context.CancellationToken);
         var sessionDuration = _clock.GetUtcNow() - context.SessionStartedAt;
 
         TerminalHelper.NewLine();
@@ -27,7 +27,7 @@ public sealed class ContextCommand : IChatCommand
             currentModel = fastModeService.FastModelId;
         }
 
-        var provider = context.Services!.WorkflowConfig?.Provider?.Provider
+        var provider = context.Services.WorkflowConfig?.Provider?.Provider
             ?? Environment.GetEnvironmentVariable(JccEnvVar.Provider.ToValue())
             ?? ProviderKind.OpenAI.ToValue();
         var maxTokens = ResolveModelCatalog(context).GetModelsForProvider(provider)

@@ -7,7 +7,7 @@ namespace JoinCode.App.Middlewares;
 /// AgentSpawnCoord 管道 Post Hook — 遥测记录执行计数
 /// </summary>
 [Register(typeof(IPipelinePostHook<AgentSpawnCoordContext>))]
-internal sealed class AgentSpawnCoordTelemetryHook : IPipelinePostHook<AgentSpawnCoordContext>
+internal sealed partial class AgentSpawnCoordTelemetryHook : IPipelinePostHook<AgentSpawnCoordContext>
 {
     private readonly ITelemetryService? _telemetryService;
 

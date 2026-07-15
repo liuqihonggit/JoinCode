@@ -19,7 +19,7 @@ public sealed class PluginCommand : IChatCommand
 
     public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
-        var pluginManager = context.Services!.PluginManager;
+        var pluginManager = context.Services.PluginManager;
         var args = ChatCommandBase.GetNormalizedArgs(context);
 
         if (string.IsNullOrEmpty(args) || args.Equals("list", StringComparison.OrdinalIgnoreCase))
@@ -137,7 +137,7 @@ public sealed class PluginCommand : IChatCommand
             return ChatCommandResult.Continue();
         }
 
-        if (!context.Services!.FileSystem.FileExists(exePath))
+        if (!context.Services.FileSystem.FileExists(exePath))
         {
             TerminalHelper.WriteLine($"{TerminalColors.Error}插件路径不存在: {exePath}{AnsiStyleConstants.Reset}");
             return ChatCommandResult.Continue();

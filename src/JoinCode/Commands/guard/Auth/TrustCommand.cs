@@ -16,7 +16,7 @@ public sealed class TrustCommand : IChatCommand
         if (manager is null)
             return Task.FromResult(ChatCommandResult.Continue());
 
-        var workspacePath = context.Services!.FileSystem.GetCurrentDirectory();
+        var workspacePath = context.Services.FileSystem.GetCurrentDirectory();
         var args = ChatCommandBase.GetNormalizedArgs(context);
 
         if (string.IsNullOrEmpty(args) || args.Equals("status", StringComparison.OrdinalIgnoreCase))
@@ -35,7 +35,7 @@ public sealed class TrustCommand : IChatCommand
         }
         else if (args.Equals("list", StringComparison.OrdinalIgnoreCase))
         {
-            ListAll(manager, context.Services!.FileSystem);
+            ListAll(manager, context.Services.FileSystem);
         }
         else if (args.Equals("clear", StringComparison.OrdinalIgnoreCase))
         {

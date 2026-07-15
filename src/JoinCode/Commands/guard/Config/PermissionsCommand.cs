@@ -50,7 +50,7 @@ public sealed class PermissionsCommand : IChatCommand
 
     private static async Task ListRulesAsync(ChatCommandContext context)
     {
-        var manager = context.Services!.PermissionManager;
+        var manager = context.Services.PermissionManager;
         if (manager is null)
         {
             TerminalHelper.WriteLine($"{TerminalColors.Warning}{L.T(StringKey.PermissionsManagerUnavailable)}{AnsiStyleConstants.Reset}");
@@ -123,10 +123,10 @@ public sealed class PermissionsCommand : IChatCommand
     {
         var sb = new StringBuilder();
 
-        var cwd = context.Services!.FileSystem.GetCurrentDirectory();
+        var cwd = context.Services.FileSystem.GetCurrentDirectory();
         sb.AppendLine($"  {cwd}{L.T(StringKey.PermissionsWorkspaceCurrentDir)}");
 
-        var workspaceService = context.Services!.WorkspaceService;
+        var workspaceService = context.Services.WorkspaceService;
         if (workspaceService is not null)
         {
             var dirs = workspaceService.GetAdditionalDirectories();
@@ -135,7 +135,7 @@ public sealed class PermissionsCommand : IChatCommand
                 sb.AppendLine();
                 foreach (var dir in dirs)
                 {
-                    var exists = context.Services!.FileSystem.DirectoryExists(dir);
+                    var exists = context.Services.FileSystem.DirectoryExists(dir);
                     var marker = exists ? "" : L.T(StringKey.PermissionsDirectoryNotFoundSuffix);
                     sb.AppendLine($"  {dir}{marker}");
                 }
@@ -214,7 +214,7 @@ public sealed class PermissionsCommand : IChatCommand
             return;
         }
 
-        var manager = context.Services!.PermissionManager;
+        var manager = context.Services.PermissionManager;
         if (manager is null)
         {
             TerminalHelper.WriteLine($"{TerminalColors.Warning}{L.T(StringKey.PermissionsManagerUnavailable)}{AnsiStyleConstants.Reset}");
@@ -258,7 +258,7 @@ public sealed class PermissionsCommand : IChatCommand
             return;
         }
 
-        var manager = context.Services!.PermissionManager;
+        var manager = context.Services.PermissionManager;
         if (manager is null)
         {
             TerminalHelper.WriteLine($"{TerminalColors.Warning}{L.T(StringKey.PermissionsManagerUnavailable)}{AnsiStyleConstants.Reset}");
@@ -280,7 +280,7 @@ public sealed class PermissionsCommand : IChatCommand
 
     private static async Task ClearRulesAsync(ChatCommandContext context)
     {
-        var manager = context.Services!.PermissionManager;
+        var manager = context.Services.PermissionManager;
         if (manager is null)
         {
             TerminalHelper.WriteLine($"{TerminalColors.Warning}{L.T(StringKey.PermissionsManagerUnavailable)}{AnsiStyleConstants.Reset}");
@@ -341,7 +341,7 @@ public sealed class PermissionsCommand : IChatCommand
         }
 
         var path = args[2];
-        if (!context.Services!.FileSystem.DirectoryExists(path))
+        if (!context.Services.FileSystem.DirectoryExists(path))
         {
             TerminalHelper.WriteLine($"{TerminalColors.Error}{string.Format(L.T(StringKey.PermissionsDirNotFound), path)}{AnsiStyleConstants.Reset}");
             return Task.CompletedTask;
@@ -349,7 +349,7 @@ public sealed class PermissionsCommand : IChatCommand
 
         var fullPath = Path.GetFullPath(path);
 
-        var workspaceService = context.Services!.WorkspaceService;
+        var workspaceService = context.Services.WorkspaceService;
         if (workspaceService is null)
         {
             TerminalHelper.WriteLine(L.T(StringKey.PermissionsWorkspaceServiceUnavailable));
@@ -382,7 +382,7 @@ public sealed class PermissionsCommand : IChatCommand
 
         var path = Path.GetFullPath(args[2]);
 
-        var workspaceService = context.Services!.WorkspaceService;
+        var workspaceService = context.Services.WorkspaceService;
         if (workspaceService is null)
         {
             TerminalHelper.WriteLine(L.T(StringKey.PermissionsWorkspaceServiceUnavailable));
@@ -404,7 +404,7 @@ public sealed class PermissionsCommand : IChatCommand
 
     private static Task ClearWorkspaceDirectoriesAsync(ChatCommandContext context)
     {
-        var workspaceService = context.Services!.WorkspaceService;
+        var workspaceService = context.Services.WorkspaceService;
         if (workspaceService is null)
         {
             TerminalHelper.WriteLine(L.T(StringKey.PermissionsWorkspaceServiceUnavailable));

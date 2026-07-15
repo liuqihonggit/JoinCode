@@ -72,7 +72,7 @@ public sealed class UltraplanCommand : IChatCommand
                 // 默认: 仅生成并展示计划文本
                 var prompt = $"Create a detailed step-by-step plan (maximum {steps} steps) to accomplish the following goal. For each step, specify: 1) What to do, 2) Why it's needed, 3) How to verify it succeeded.\n\nGoal: {goal}";
 
-                var result = await context.Services!.ChatService.SendMessageAsync(prompt, context.CancellationToken).ConfigureAwait(false);
+                var result = await context.Services.ChatService.SendMessageAsync(prompt, context.CancellationToken).ConfigureAwait(false);
                 TerminalHelper.WriteLine(result);
             }
         }
@@ -90,7 +90,7 @@ public sealed class UltraplanCommand : IChatCommand
 
     private static async Task ExecutePlanViaPlanServiceAsync(ChatCommandContext context, string goal)
     {
-        var planService = context.Services!.PlanService;
+        var planService = context.Services.PlanService;
         var executionResult = await planService.ExecutePlanWithResultAsync(goal, context.CancellationToken).ConfigureAwait(false);
 
         TerminalHelper.NewLine();

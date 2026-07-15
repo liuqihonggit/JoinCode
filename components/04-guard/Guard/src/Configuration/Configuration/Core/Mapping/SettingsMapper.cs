@@ -6,7 +6,7 @@ namespace Core.Configuration;
 /// 优先级: 环境变量 > SettingsJson 字段 > Provider 定义默认值 > 内置默认值
 /// </summary>
 [Register]
-public sealed class SettingsMapper
+public sealed partial class SettingsMapper
 {
     private readonly IProviderDefinitionRegistry _registry;
 

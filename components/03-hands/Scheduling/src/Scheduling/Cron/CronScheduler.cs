@@ -69,7 +69,7 @@ public sealed record CronSchedulerOptions
 /// </summary>
 [Register(typeof(ICronScheduler))]
 [Register(typeof(ICronSchedulerRef))]
-public sealed class CronScheduler : ICronScheduler, ICronSchedulerRef, IAsyncDisposable
+public sealed partial class CronScheduler : ICronScheduler, ICronSchedulerRef, IAsyncDisposable
 {
     private readonly CronSchedulerOptions _options;
     private readonly ICronTaskStore _taskStore;

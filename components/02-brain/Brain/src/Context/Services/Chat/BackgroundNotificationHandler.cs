@@ -16,7 +16,7 @@ public interface IBackgroundNotificationHandler
 /// 后台通知处理器 — 从通知队列获取后台代理完成的通知并注入对话历史
 /// </summary>
 [Register(typeof(IBackgroundNotificationHandler))]
-public sealed class BackgroundNotificationHandler : IBackgroundNotificationHandler
+public sealed partial class BackgroundNotificationHandler : IBackgroundNotificationHandler
 {
     private readonly IAgentNotificationQueue? _notificationQueue;
     private readonly IChatContextManager _contextManager;

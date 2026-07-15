@@ -55,7 +55,7 @@ public sealed partial class ChromeIntegrationService : IChromeIntegrationService
         try
         {
             if (_initialized) return;
-            try { _isDefaultEnabled = ReadDefaultEnabled().GetAwaiter().GetResult(); }
+            try { _isDefaultEnabled = ReadDefaultEnabledAsync().GetAwaiter().GetResult(); }
             catch { _isDefaultEnabled = false; }
             _initialized = true;
         }
@@ -116,7 +116,7 @@ public sealed partial class ChromeIntegrationService : IChromeIntegrationService
         return _isDefaultEnabled;
     }
 
-    private async Task<bool> ReadDefaultEnabled()
+    private async Task<bool> ReadDefaultEnabledAsync()
     {
         if (_configService == null) return false;
         var value = await _configService.GetAsync("chrome.defaultEnabled").ConfigureAwait(false);

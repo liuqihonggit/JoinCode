@@ -363,8 +363,8 @@ public sealed partial class MemoryManagementService : IMemoryManagementService, 
             {
                 // 使用 IMemoryScanner 获取记忆
                 IReadOnlyList<MemoryEntry> scanResults = memoryType.HasValue
-                    ? await _optional!.MemoryScanner!.ScanByTypeAsync(memoryType.Value, ct).ConfigureAwait(false)
-                    : await _optional!.MemoryScanner!.ScanAllAsync(ct).ConfigureAwait(false);
+                    ? await _optional.MemoryScanner.ScanByTypeAsync(memoryType.Value, ct).ConfigureAwait(false)
+                    : await _optional.MemoryScanner.ScanAllAsync(ct).ConfigureAwait(false);
                 results = scanResults.ToList();
             }
             else
@@ -376,7 +376,7 @@ public sealed partial class MemoryManagementService : IMemoryManagementService, 
             if (_optional?.RelevanceSelector != null)
             {
                 // 使用 IMemoryRelevanceSelector 进行相关性选择
-                var selectedMemories = await _optional!.RelevanceSelector!.SelectRelevantMemoriesAsync(
+                var selectedMemories = await _optional.RelevanceSelector.SelectRelevantMemoriesAsync(
                     results, query, limit, ct).ConfigureAwait(false);
                 scoredMemories = selectedMemories
                     .Select(sm => new DetailedScoredMemory
@@ -408,7 +408,7 @@ public sealed partial class MemoryManagementService : IMemoryManagementService, 
                     {
                         Memory = sm.Memory with
                         {
-                            Content = _optional!.MemoryTruncator!.SmartTruncate(sm.Memory.Content, query)
+                            Content = _optional.MemoryTruncator.SmartTruncate(sm.Memory.Content, query)
                         }
                     })
                     .ToList();
@@ -431,7 +431,7 @@ public sealed partial class MemoryManagementService : IMemoryManagementService, 
                         .Select(m => m.Memory.Id)
                         .ToImmutableList();
 
-                    await _optional!.SearchHistoryService!.RecordSearchAsync(
+                    await _optional.SearchHistoryService.RecordSearchAsync(
                         query, scanResult.TotalMemories, topIds, ct).ConfigureAwait(false);
                 }
                 catch (Exception ex)
@@ -632,7 +632,7 @@ public sealed partial class MemoryManagementService : IMemoryManagementService, 
             if (_optional?.RelevanceSelector != null)
             {
                 // 使用 IMemoryRelevanceSelector 进行相关性选择
-                var selectedMemories = await _optional!.RelevanceSelector!.SelectRelevantMemoriesAsync(
+                var selectedMemories = await _optional.RelevanceSelector.SelectRelevantMemoriesAsync(
                     filteredMemories, query, limit, ct).ConfigureAwait(false);
                 results = selectedMemories
                     .Select(sm => new DetailedScoredMemory
@@ -665,7 +665,7 @@ public sealed partial class MemoryManagementService : IMemoryManagementService, 
                     {
                         Memory = sm.Memory with
                         {
-                            Content = _optional!.MemoryTruncator!.SmartTruncate(sm.Memory.Content, query)
+                            Content = _optional.MemoryTruncator.SmartTruncate(sm.Memory.Content, query)
                         }
                     })
                     .ToList();
@@ -724,7 +724,7 @@ public sealed partial class MemoryManagementService : IMemoryManagementService, 
             {
                 // 使用 IMemoryAgeCalculator 判断是否应该归档
                 var memory = _memoryStore.GetMemory(ageInfo.MemoryId);
-                if (memory != null && _optional!.AgeCalculator!.ShouldArchive(memory))
+                if (memory != null && _optional.AgeCalculator.ShouldArchive(memory))
                 {
                     await ArchiveMemoryAsync(ageInfo.MemoryId, ct).ConfigureAwait(false);
                     result.ArchivedCount++;
@@ -782,7 +782,7 @@ public sealed partial class MemoryManagementService : IMemoryManagementService, 
             return Task.FromResult<IReadOnlyList<MemoryEntry>>(Array.Empty<MemoryEntry>());
         }
 
-        return _optional!.SearchHistoryService!.SearchPastConversationsAsync(query, maxResults, ct);
+        return _optional.SearchHistoryService.SearchPastConversationsAsync(query, maxResults, ct);
     }
 
     /// <inheritdoc />
@@ -799,7 +799,7 @@ public sealed partial class MemoryManagementService : IMemoryManagementService, 
             });
         }
 
-        return _optional!.SearchHistoryService!.BuildSearchingPastContextSectionAsync(currentQuery, maxMemories, ct);
+        return _optional.SearchHistoryService.BuildSearchingPastContextSectionAsync(currentQuery, maxMemories, ct);
     }
 
     /// <inheritdoc />
@@ -820,7 +820,7 @@ public sealed partial class MemoryManagementService : IMemoryManagementService, 
             });
         }
 
-        return _optional!.DailyLogService!.AppendEntryAsync(content, category, relatedMemoryId, ct);
+        return _optional.DailyLogService.AppendEntryAsync(content, category, relatedMemoryId, ct);
     }
 
     /// <inheritdoc />
@@ -832,7 +832,7 @@ public sealed partial class MemoryManagementService : IMemoryManagementService, 
             return Task.FromResult(string.Empty);
         }
 
-        return _optional!.DailyLogService!.BuildDailyLogPromptAsync(maxEntries, ct);
+        return _optional.DailyLogService.BuildDailyLogPromptAsync(maxEntries, ct);
     }
 
     /// <inheritdoc />
@@ -849,7 +849,7 @@ public sealed partial class MemoryManagementService : IMemoryManagementService, 
             });
         }
 
-        return _optional!.TeamMemorySyncService!.SyncTeamMemoryAsync(teamId, ct);
+        return _optional.TeamMemorySyncService.SyncTeamMemoryAsync(teamId, ct);
     }
 
     /// <inheritdoc />

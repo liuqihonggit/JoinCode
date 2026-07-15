@@ -21,7 +21,7 @@ public sealed class ResumeCommand : ChatCommandBase
 
     public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
-        var fs = context.Services!.FileSystem;
+        var fs = context.Services.FileSystem;
         if (!fs.DirectoryExists(SessionsPath))
         {
             DirectoryHelper.EnsureDirectoryExists(fs, SessionsPath);
@@ -49,7 +49,7 @@ public sealed class ResumeCommand : ChatCommandBase
     {
         // L3.1: 先尝试 UUID 精确匹配
         var sessionPath = Path.Combine(SessionsPath, $"{searchTerm}.json");
-        var fs = context.Services!.FileSystem;
+        var fs = context.Services.FileSystem;
         if (fs.FileExists(sessionPath))
         {
             await ResumeSessionAsync(searchTerm, context, ResumeEntrypoint.SlashCommandSessionId);
@@ -58,7 +58,7 @@ public sealed class ResumeCommand : ChatCommandBase
 
         // L3.1: 尝试自定义标题搜索
         // 对齐 TS: searchSessionsByCustomTitle — 大小写不敏感匹配
-        var titleMatches = await SearchByCustomTitleAsync(searchTerm, context.CancellationToken, context.Services!.FileSystem).ConfigureAwait(false);
+        var titleMatches = await SearchByCustomTitleAsync(searchTerm, context.CancellationToken, context.Services.FileSystem).ConfigureAwait(false);
 
         if (titleMatches.Count == 0)
         {
@@ -159,7 +159,7 @@ public sealed class ResumeCommand : ChatCommandBase
         var currentSessionId = context.SessionId;
 
         // L3.3: Lite 日志加载 — 只读取文件 stat 信息，不读内容
-        var liteEntries = LoadLiteSessions(showAllProjects, context.Services!.FileSystem);
+        var liteEntries = LoadLiteSessions(showAllProjects, context.Services.FileSystem);
 
         // 过滤可恢复会话：排除当前会话
         // 对齐 TS: filterResumableSessions — 排除 sidechain + 当前会话
@@ -343,7 +343,7 @@ public sealed class ResumeCommand : ChatCommandBase
     {
         var sessionPath = Path.Combine(SessionsPath, $"{sessionId}.json");
 
-        var fs = context.Services!.FileSystem;
+        var fs = context.Services.FileSystem;
         if (!fs.FileExists(sessionPath))
         {
             // 对齐 TS: ResumeResult.sessionNotFound

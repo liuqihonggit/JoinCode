@@ -5,7 +5,7 @@ namespace Core.Agents.Coordinator;
 /// <para>桥接 [Register] 自动注册与运行时条件选择逻辑</para>
 /// </summary>
 [Register(typeof(JoinCode.Abstractions.Interfaces.IPaneBackend))]
-public sealed class PaneBackendSelector : JoinCode.Abstractions.Interfaces.IPaneBackend
+public sealed partial class PaneBackendSelector : JoinCode.Abstractions.Interfaces.IPaneBackend
 {
     private readonly JoinCode.Abstractions.Interfaces.IPaneBackend _backend;
 

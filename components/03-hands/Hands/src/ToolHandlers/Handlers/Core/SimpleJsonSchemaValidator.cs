@@ -6,7 +6,7 @@ namespace Tools;
 /// minLength, maxLength, minimum, maximum, minItems, maxItems, items, enum
 /// </summary>
 [Register]
-public sealed class SimpleJsonSchemaValidator : IJsonSchemaValidator
+public sealed partial class SimpleJsonSchemaValidator : IJsonSchemaValidator
 {
     /// <summary>
     /// 验证JSON Schema本身是否合法 — 对齐 TS ajv.validateSchema()

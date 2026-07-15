@@ -30,7 +30,7 @@ public sealed class PlanCommand : IChatCommand
                 await ShowPlanStatusAsync(context);
                 break;
                 case PlanSubCommandConstants.Open:
-                await OpenPlanFile(context, context.Services!.FileSystem).ConfigureAwait(false);
+                await OpenPlanFileAsync(context, context.Services.FileSystem).ConfigureAwait(false);
                 break;
             case PlanSubCommandConstants.Toggle:
             default:
@@ -155,7 +155,7 @@ public sealed class PlanCommand : IChatCommand
         }
     }
 
-    private static async Task OpenPlanFile(ChatCommandContext context, IFileSystem fs)
+    private static async Task OpenPlanFileAsync(ChatCommandContext context, IFileSystem fs)
     {
         var planFilePath = GetPlanFilePath();
         if (planFilePath is null || !fs.FileExists(planFilePath))
@@ -201,7 +201,7 @@ public sealed class PlanCommand : IChatCommand
 
     private static async Task FallbackExecutePlanAsync(ChatCommandContext context, string description)
     {
-        if (context.Services!.PlanService is null)
+        if (context.Services.PlanService is null)
         {
             TerminalHelper.WriteLine("PlanService 不可用");
             return;
@@ -213,7 +213,7 @@ public sealed class PlanCommand : IChatCommand
             return;
         }
 
-        var result = await context.Services!.PlanService.ExecutePlanAsync(description, context.CancellationToken).ConfigureAwait(false);
+        var result = await context.Services.PlanService.ExecutePlanAsync(description, context.CancellationToken).ConfigureAwait(false);
         TerminalHelper.WriteLine(result);
     }
 

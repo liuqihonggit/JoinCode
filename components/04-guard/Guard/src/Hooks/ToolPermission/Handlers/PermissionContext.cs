@@ -220,7 +220,7 @@ public sealed class PermissionContext
         };
     }
 
-    public async Task<PermissionAllowDecision> HandleUserAllow(
+    public async Task<PermissionAllowDecision> HandleUserAllowAsync(
         Dictionary<string, JsonElement> updatedInput,
         List<PermissionUpdate> permissionUpdates,
         string? feedback = null,
@@ -250,7 +250,7 @@ public sealed class PermissionContext
         };
     }
 
-    public async Task<PermissionAllowDecision> HandleHookAllow(
+    public async Task<PermissionAllowDecision> HandleHookAllowAsync(
         Dictionary<string, JsonElement> finalInput,
         List<PermissionUpdate> permissionUpdates,
         int? permissionPromptStartTimeMs = null)

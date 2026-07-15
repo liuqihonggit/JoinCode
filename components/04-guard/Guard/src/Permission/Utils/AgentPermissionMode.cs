@@ -7,7 +7,7 @@ namespace Core.Utils;
 /// Agent权限管理器实现
 /// </summary>
 [Register]
-public sealed class AgentPermissionManager : IAgentPermissionManager, IAsyncDisposable
+public sealed partial class AgentPermissionManager : IAgentPermissionManager, IAsyncDisposable
 {
     private readonly List<AgentPermissionRule> _rules = new();
     private readonly SemaphoreSlim _lock;

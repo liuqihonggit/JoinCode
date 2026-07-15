@@ -16,7 +16,7 @@ public sealed class WorkflowsCommand : IChatCommand
 
         if (string.IsNullOrEmpty(args) || args.Equals("list", StringComparison.OrdinalIgnoreCase))
         {
-            return ListWorkflows(context.Services!.PluginManager);
+            return ListWorkflows(context.Services.PluginManager);
         }
 
         if (args.StartsWith("run", StringComparison.OrdinalIgnoreCase))
@@ -79,14 +79,14 @@ public sealed class WorkflowsCommand : IChatCommand
 
     private static async Task<ChatCommandResult> RunWorkflowAsync(ChatCommandContext context, string name)
     {
-        var executor = context.Services!.WorkflowTaskExecutor;
+        var executor = context.Services.WorkflowTaskExecutor;
         if (executor is null)
         {
             TerminalHelper.WriteLine(L.T(StringKey.HostWorkflowsExecutorNotInitialized));
             return ChatCommandResult.Continue();
         }
 
-        var pluginManager = context.Services!.PluginManager;
+        var pluginManager = context.Services.PluginManager;
         if (pluginManager is null)
         {
             TerminalHelper.WriteLine(L.T(StringKey.HostWorkflowsPluginManagerNull));
@@ -153,7 +153,7 @@ public sealed class WorkflowsCommand : IChatCommand
 
     private static async Task<ChatCommandResult> GetWorkflowStatusAsync(ChatCommandContext context, string workflowId)
     {
-        var executor = context.Services!.WorkflowTaskExecutor;
+        var executor = context.Services.WorkflowTaskExecutor;
         if (executor is null)
         {
             TerminalHelper.WriteLine(L.T(StringKey.HostWorkflowsExecutorNotInitialized));

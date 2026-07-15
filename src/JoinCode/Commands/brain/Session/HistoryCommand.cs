@@ -16,7 +16,7 @@ public sealed class HistoryCommand : IChatCommand
 
     public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
-        await DisplayMessageListAsync(context.Services!.ChatService).ConfigureAwait(false);
+        await DisplayMessageListAsync(context.Services.ChatService).ConfigureAwait(false);
         return ChatCommandResult.Continue();
     }
 

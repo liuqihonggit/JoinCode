@@ -5,7 +5,7 @@ namespace Core.Agents.Coordinator;
 /// 对齐 TS: worktree isolation — 创建/清理时触发 WorktreeCreate/WorktreeRemove hook
 /// </summary>
 [Register]
-public sealed class AgentWorktreeManager : IAgentWorktreeManager
+public sealed partial class AgentWorktreeManager : IAgentWorktreeManager
 {
     private readonly IAgentWorktreeService? _worktreeService;
     private readonly IHookOrchestrator? _hookOrchestrator;

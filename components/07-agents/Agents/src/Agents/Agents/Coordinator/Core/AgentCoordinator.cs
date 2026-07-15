@@ -56,14 +56,14 @@ public sealed partial class AgentCoordinator : IAgentCoordinator, ISubAgentCoord
         _executionContexts = new ConcurrentDictionary<string, AgentExecutionContext>();
         _agentStartTimes = new ConcurrentDictionary<string, DateTime>();
 
-        core.StateMachine.OnStateChanged = (agentId, oldState, newState) =>
+        core.StateMachine.StateChanged += (_, e) =>
         {
-            TaskStatusChanged?.Invoke(this, new AgentTaskStatusChangedEventArgs(agentId, oldState, newState));
+            TaskStatusChanged?.Invoke(this, new AgentTaskStatusChangedEventArgs(e.AgentId, e.OldState, e.NewState));
             TeammateChanged?.Invoke(this, new TeammateChangedEventArgs
             {
-                AgentId = agentId,
-                OldState = oldState.ToAgentStatus(),
-                NewState = newState.ToAgentStatus(),
+                AgentId = e.AgentId,
+                OldState = e.OldState.ToAgentStatus(),
+                NewState = e.NewState.ToAgentStatus(),
             });
         };
     }

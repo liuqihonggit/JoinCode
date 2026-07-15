@@ -31,7 +31,7 @@ public sealed class CustomChatCommand : IChatCommand
 
         try
         {
-            var result = await context.Services!.ChatService.SendMessageAsync(prompt).ConfigureAwait(false);
+            var result = await context.Services.ChatService.SendMessageAsync(prompt).ConfigureAwait(false);
             TerminalHelper.WriteLine(result);
         }
         catch (Exception ex)

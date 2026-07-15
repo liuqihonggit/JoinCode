@@ -5,7 +5,7 @@ namespace Core.Query;
 /// Token预算管理器实现
 /// </summary>
 [Register]
-public class TokenBudgetManager : ITokenBudgetManager, IAsyncDisposable
+public partial class TokenBudgetManager : ITokenBudgetManager, IAsyncDisposable
 {
     private readonly SemaphoreSlim _lock;
     private readonly ITelemetryService? _telemetryService;

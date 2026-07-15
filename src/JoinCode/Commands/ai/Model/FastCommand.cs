@@ -14,7 +14,7 @@ public sealed class FastCommand : IChatCommand
     {
         var args = ChatCommandBase.GetNormalizedArgs(context).ToLowerInvariant();
         var fastModeService = ChatCommandBase.GetService<IFastModeService>(context, typeof(IFastModeService));
-        var config = context.Services!.WorkflowConfig;
+        var config = context.Services.WorkflowConfig;
 
         // ToggleAction 枚举标准映射 (on/off/toggle/status),enable/disable/1/0 走别名映射
         var toggle = args switch

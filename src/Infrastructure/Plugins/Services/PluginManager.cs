@@ -232,7 +232,7 @@ public sealed partial class PluginManager : IPluginManager
 
         if (_externalPlugins.TryRemove(pluginName, out var externalHost))
         {
-            await CleanupPluginServices(pluginName, cancellationToken).ConfigureAwait(false);
+            await CleanupPluginServicesAsync(pluginName, cancellationToken).ConfigureAwait(false);
             var result = externalHost.Unload();
             externalHost.Dispose();
             RecordPluginMetrics("external", "unload", result.IsSuccess);
@@ -241,7 +241,7 @@ public sealed partial class PluginManager : IPluginManager
 
         if (_workflowPlugins.TryRemove(pluginName, out var workflowHost))
         {
-            await CleanupPluginServices(pluginName, cancellationToken).ConfigureAwait(false);
+            await CleanupPluginServicesAsync(pluginName, cancellationToken).ConfigureAwait(false);
             var result = UnloadWorkflowPlugin(workflowHost);
             RecordPluginMetrics("workflow", "unload", result.IsSuccess);
             return result;
@@ -305,7 +305,7 @@ public sealed partial class PluginManager : IPluginManager
 
     #region Plugin Services Cleanup
 
-    private async Task CleanupPluginServices(string pluginName, CancellationToken ct)
+    private async Task CleanupPluginServicesAsync(string pluginName, CancellationToken ct)
     {
         PluginUnloading?.Invoke(this, pluginName);
 

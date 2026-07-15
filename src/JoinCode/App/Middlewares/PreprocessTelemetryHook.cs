@@ -7,7 +7,7 @@ namespace JoinCode.App.Middlewares;
 /// Preprocess 管道 Post Hook — 遥测记录执行计数
 /// </summary>
 [Register(typeof(IPipelinePostHook<PreprocessContext>))]
-internal sealed class PreprocessTelemetryHook : IPipelinePostHook<PreprocessContext>
+internal sealed partial class PreprocessTelemetryHook : IPipelinePostHook<PreprocessContext>
 {
     private readonly ITelemetryService? _telemetryService;
 

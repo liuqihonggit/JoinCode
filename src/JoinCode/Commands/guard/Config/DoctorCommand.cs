@@ -236,7 +236,7 @@ public sealed class DoctorCommand : IChatCommand
             return;
         }
 
-        var cwd = context.Services!.FileSystem.GetCurrentDirectory();
+        var cwd = context.Services.FileSystem.GetCurrentDirectory();
         if (trustManager.IsTrusted(cwd))
         {
             sb.AppendLine($"  工作目录: {TerminalColors.Success}已信任 ({cwd}){AnsiStyleConstants.Reset}");
@@ -247,7 +247,7 @@ public sealed class DoctorCommand : IChatCommand
             sb.AppendLine("    使用 /trust add 添加信任");
         }
 
-        var workspaceService = context.Services!.WorkspaceService;
+        var workspaceService = context.Services.WorkspaceService;
         if (workspaceService is not null)
         {
             var dirs = workspaceService.GetAdditionalDirectories();
@@ -309,7 +309,7 @@ public sealed class DoctorCommand : IChatCommand
                     {
                         var toolsResult = await client.ListToolsAsync(context.CancellationToken).ConfigureAwait(false);
                         if (toolsResult.Success)
-                            sb.AppendLine($"      工具: {toolsResult.Data!.Count} 个");
+                            sb.AppendLine($"      工具: {toolsResult.GetData().Count} 个");
                     }
                     catch
                     {

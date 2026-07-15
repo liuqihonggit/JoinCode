@@ -8,7 +8,7 @@ namespace JoinCode.Transport.Bridge;
 /// 连接管理器 - 管理传输连接生命周期和重连逻辑
 /// </summary>
 [Register]
-public sealed class ConnectionManager : IConnectionManager
+public sealed partial class ConnectionManager : IConnectionManager
 {
     private readonly ILogger? _logger;
     private readonly TransportConfiguration _config;

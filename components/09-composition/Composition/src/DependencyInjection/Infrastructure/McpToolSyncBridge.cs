@@ -47,13 +47,14 @@ public sealed partial class McpToolSyncBridge
 
         try
         {
-            if (syncResult.Success && syncResult.Data!.Count > 0)
+            if (syncResult.Success && syncResult.GetData().Count > 0)
             {
-                var uris = string.Join(", ", syncResult.Data);
+                var data = syncResult.GetData();
+                var uris = string.Join(", ", data);
                 var message = $"MCP 服务器 {clientId} 的资源列表已变更，当前资源: {uris}，请按需重新读取";
                 await _contextManager.AddDynamicSystemMessageAsync(message, cancellationToken).ConfigureAwait(false);
 
-                _logger?.LogInformation("MCP 资源同步联动: 已通知 {ClientId} 的 {Count} 个资源变更", clientId, syncResult.Data.Count);
+                _logger?.LogInformation("MCP 资源同步联动: 已通知 {ClientId} 的 {Count} 个资源变更", clientId, data.Count);
             }
         }
         catch (Exception ex)
@@ -68,13 +69,14 @@ public sealed partial class McpToolSyncBridge
 
         try
         {
-            if (syncResult.Success && syncResult.Data!.Count > 0)
+            if (syncResult.Success && syncResult.GetData().Count > 0)
             {
-                var names = string.Join(", ", syncResult.Data);
+                var data = syncResult.GetData();
+                var names = string.Join(", ", data);
                 var message = L.T(StringKey.McpPromptSyncMessage, clientId, names);
                 await _contextManager.AddDynamicSystemMessageAsync(message, cancellationToken).ConfigureAwait(false);
 
-                _logger?.LogInformation(L.T(StringKey.McpPromptSyncUpdatedLog, clientId, syncResult.Data.Count));
+                _logger?.LogInformation(L.T(StringKey.McpPromptSyncUpdatedLog, clientId, data.Count));
             }
         }
         catch (Exception ex)

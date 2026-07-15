@@ -294,12 +294,12 @@ public partial class McpClientToolHandlers : IAsyncDisposable
             }
 
             var response = new System.Text.StringBuilder();
-            response.AppendLine(L.T(StringKey.McpServerToolsList, result.Data!.Count));
+            response.AppendLine(L.T(StringKey.McpServerToolsList, result.GetData().Count));
             response.AppendLine();
 
-            for (int i = 0; i < result.Data!.Count; i++)
+            for (int i = 0; i < result.GetData().Count; i++)
             {
-                var tool = result.Data![i];
+                var tool = result.GetData()[i];
                 response.AppendLine($"{i + 1}. {tool.Name}");
                 if (!string.IsNullOrEmpty(tool.Description))
                 {
@@ -424,12 +424,12 @@ public partial class McpClientToolHandlers : IAsyncDisposable
             }
 
             var response = new System.Text.StringBuilder();
-            response.AppendLine(L.T(StringKey.McpServerResourcesList, result.Data!.Count));
+            response.AppendLine(L.T(StringKey.McpServerResourcesList, result.GetData().Count));
             response.AppendLine();
 
-            for (int i = 0; i < result.Data!.Count; i++)
+            for (int i = 0; i < result.GetData().Count; i++)
             {
-                var resource = result.Data![i];
+                var resource = result.GetData()[i];
                 response.AppendLine($"{i + 1}. {resource.Name}");
                 response.AppendLine($"   {L.T(StringKey.LabelUri, resource.Uri)}");
                 if (!string.IsNullOrEmpty(resource.Description))
@@ -563,12 +563,12 @@ public partial class McpClientToolHandlers : IAsyncDisposable
             }
 
             var response = new System.Text.StringBuilder();
-            response.AppendLine(L.T(StringKey.McpServerPromptsList, result.Data!.Count));
+            response.AppendLine(L.T(StringKey.McpServerPromptsList, result.GetData().Count));
             response.AppendLine();
 
-            for (int i = 0; i < result.Data!.Count; i++)
+            for (int i = 0; i < result.GetData().Count; i++)
             {
-                var prompt = result.Data![i];
+                var prompt = result.GetData()[i];
                 response.AppendLine($"{i + 1}. {prompt.Name}");
                 if (!string.IsNullOrEmpty(prompt.Description))
                 {

@@ -5,7 +5,7 @@ namespace Core.Hooks.Lifecycle;
 /// Post-sampling 回调管理器实现 — 管理和触发 IPostSamplingCallback 集合
 /// </summary>
 [Register]
-public sealed class PostSamplingCallbackManager : IPostSamplingCallbackManager
+public sealed partial class PostSamplingCallbackManager : IPostSamplingCallbackManager
 {
     private readonly List<IPostSamplingCallback> _callbacks = [];
     private readonly ILogger<PostSamplingCallbackManager>? _logger;

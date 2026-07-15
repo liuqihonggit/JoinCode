@@ -118,7 +118,7 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
             if (!lockResult.Success)
                 throw new TimeoutException($"获取锁超时: {normalizedPath}");
 
-            await using (lockResult.Lock!)
+            await using (lockResult.GetLock())
             {
                 var tempPath = normalizedPath + "." + Guid.NewGuid().ToString("N") + ".tmp";
                 try

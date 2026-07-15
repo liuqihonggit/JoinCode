@@ -15,7 +15,7 @@ public sealed class DiminishingReturnsResult
 }
 
 [Register]
-public sealed class DiminishingReturnsDetector : IDiminishingReturnsDetector
+public sealed partial class DiminishingReturnsDetector : IDiminishingReturnsDetector
 {
     private const double LowValueThreshold = 0.1;
     private const int ConsecutiveThreshold = 3;

@@ -1,7 +1,7 @@
 namespace JoinCode.Services;
 
 [Register]
-public sealed class ExecutionSettingsProvider : IExecutionSettingsProvider
+public sealed partial class ExecutionSettingsProvider : IExecutionSettingsProvider
 {
     private readonly WorkflowConfig _config;
     private readonly ITelemetryService? _telemetryService;

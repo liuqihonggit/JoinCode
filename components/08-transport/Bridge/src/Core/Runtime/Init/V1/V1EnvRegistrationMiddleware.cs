@@ -7,7 +7,7 @@ using JoinCode.Abstractions.Pipeline;
 /// V1 注册 Bridge 环境 — 对齐 TS 端: registerBridgeEnvironment
 /// </summary>
 [Register]
-internal sealed class V1EnvRegistrationMiddleware : IMiddleware<V1BridgeInitContext>
+internal sealed partial class V1EnvRegistrationMiddleware : IMiddleware<V1BridgeInitContext>
 {
     public ErrorBehavior OnError => ErrorBehavior.Propagate;
 

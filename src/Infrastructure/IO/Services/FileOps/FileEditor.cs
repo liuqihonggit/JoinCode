@@ -347,7 +347,7 @@ public sealed class FileEditor
         if (!result.Success)
             throw new TimeoutException($"Lock acquisition timed out: {path}");
 
-        await using (result.Lock!)
+        await using (result.GetLock())
         {
             if (!_fs.FileExists(path))
                 return (string.Empty, false, Encoding.UTF8);
@@ -370,7 +370,7 @@ public sealed class FileEditor
         if (!result.Success)
             throw new TimeoutException($"Lock acquisition timed out: {path}");
 
-        await using (result.Lock!)
+        await using (result.GetLock())
         {
             if (!_fs.FileExists(path))
                 return (string.Empty, Encoding.UTF8);
@@ -392,7 +392,7 @@ public sealed class FileEditor
         if (!result.Success)
             throw new TimeoutException($"Lock acquisition timed out: {path}");
 
-        await using (result.Lock!)
+        await using (result.GetLock())
         {
             var effectiveEncoding = encoding ?? Encoding.UTF8;
             var tempPath = path + "." + Guid.NewGuid().ToString("N") + ".tmp";

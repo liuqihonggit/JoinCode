@@ -4,34 +4,13 @@ namespace Core.Bridge;
 // BridgeSessionActivity 枚举已迁移到 JoinCode.Transport.Bridge 命名空间 (Transport.Contracts)
 
 /// <summary>
-/// Bridge 日志接口 — 对齐 TS 端 BridgeLogger (20+ 方法)
-/// 用于 Bridge 模式下的状态显示和日志记录
+/// Bridge 显示接口 — 对齐 TS 端 BridgeLogger 的 TUI 渲染方法
+/// 日志方法已迁移到 ILogger，此接口仅保留 UI 控制方法
 /// </summary>
 public interface IBridgeLogger
 {
     /// <summary>打印启动横幅</summary>
     void PrintBanner(BridgeConfig config, string environmentId);
-
-    /// <summary>记录会话开始</summary>
-    void LogSessionStart(string sessionId, string prompt);
-
-    /// <summary>记录会话完成</summary>
-    void LogSessionComplete(string sessionId, long durationMs);
-
-    /// <summary>记录会话失败</summary>
-    void LogSessionFailed(string sessionId, string error);
-
-    /// <summary>记录状态消息</summary>
-    void LogStatus(string message);
-
-    /// <summary>记录详细日志</summary>
-    void LogVerbose(string message);
-
-    /// <summary>记录错误</summary>
-    void LogError(string message);
-
-    /// <summary>记录重连成功</summary>
-    void LogReconnected(long disconnectedMs);
 
     /// <summary>更新空闲状态</summary>
     void UpdateIdleStatus();
@@ -88,13 +67,6 @@ public interface IBridgeLogger
 public sealed class NullBridgeLogger : IBridgeLogger
 {
     public void PrintBanner(BridgeConfig config, string environmentId) { }
-    public void LogSessionStart(string sessionId, string prompt) { }
-    public void LogSessionComplete(string sessionId, long durationMs) { }
-    public void LogSessionFailed(string sessionId, string error) { }
-    public void LogStatus(string message) { }
-    public void LogVerbose(string message) { }
-    public void LogError(string message) { }
-    public void LogReconnected(long disconnectedMs) { }
     public void UpdateIdleStatus() { }
     public void UpdateReconnectingStatus(string delayStr, string elapsedStr) { }
     public void UpdateSessionStatus(string sessionId, string elapsed, BridgeSessionActivity activity, IReadOnlyList<string> trail) { }
@@ -114,52 +86,25 @@ public sealed class NullBridgeLogger : IBridgeLogger
 }
 
 /// <summary>
-/// Headless 模式日志适配器 — 对齐 TS 端 createHeadlessBridgeLogger
-/// 业务事件路由到 log 回调，TUI 渲染方法全部 noop
+/// Headless 模式显示适配器 — 对齐 TS 端 createHeadlessBridgeLogger
+/// TUI 渲染方法全部 noop，日志已迁移到 ILogger
 /// </summary>
 public sealed class HeadlessBridgeLogger : IBridgeLogger
 {
     private readonly Action<string> _log;
 
-    /// <summary>初始化 Headless 日志适配器</summary>
-    /// <param name="log">日志输出回调 — 对齐 TS 端 opts.log</param>
+    /// <summary>初始化 Headless 显示适配器</summary>
+    /// <param name="log">输出回调 — 对齐 TS 端 opts.log</param>
     public HeadlessBridgeLogger(Action<string> log)
     {
         _log = log ?? throw new ArgumentNullException(nameof(log));
     }
 
-    // ===== 业务事件 — 路由到 log 回调 =====
-
-    /// <summary>打印启动横幅 — 对齐 TS 端 printBanner</summary>
+    /// <summary>打印启动横幅</summary>
     public void PrintBanner(BridgeConfig config, string environmentId)
         => _log($"registered environmentId={environmentId} dir={config.Dir} spawnMode={config.SpawnMode.ToValue()} capacity={config.MaxSessions}");
 
-    /// <summary>记录会话开始</summary>
-    public void LogSessionStart(string sessionId, string prompt)
-        => _log($"session start {sessionId}");
-
-    /// <summary>记录会话完成</summary>
-    public void LogSessionComplete(string sessionId, long durationMs)
-        => _log($"session complete {sessionId} ({durationMs}ms)");
-
-    /// <summary>记录会话失败</summary>
-    public void LogSessionFailed(string sessionId, string error)
-        => _log($"session failed {sessionId}: {error}");
-
-    /// <summary>记录状态消息</summary>
-    public void LogStatus(string message) => _log(message);
-
-    /// <summary>记录详细日志</summary>
-    public void LogVerbose(string message) => _log(message);
-
-    /// <summary>记录错误 — 对齐 TS 端 logError 带 error: 前缀</summary>
-    public void LogError(string message) => _log($"error: {message}");
-
-    /// <summary>记录重连成功</summary>
-    public void LogReconnected(long disconnectedMs)
-        => _log($"reconnected after {disconnectedMs}ms");
-
-    /// <summary>添加会话 — 对齐 TS 端 addSession（忽略 url）</summary>
+    /// <summary>添加会话</summary>
     public void AddSession(string sessionId, string url)
         => _log($"session attached {sessionId}");
 

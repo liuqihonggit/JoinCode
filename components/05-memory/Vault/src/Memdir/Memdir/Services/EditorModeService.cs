@@ -1,7 +1,7 @@
 ﻿namespace Core.Memdir;
 
 [Register]
-public sealed class EditorModeService : IEditorModeService, IDisposable
+public sealed partial class EditorModeService : IEditorModeService, IDisposable
 {
     private volatile EditorMode _currentMode = EditorMode.Normal;
     private readonly IConfigurationService? _configService;

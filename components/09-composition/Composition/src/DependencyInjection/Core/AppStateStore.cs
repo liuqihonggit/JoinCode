@@ -6,7 +6,7 @@ namespace Core.DependencyInjection;
 /// <para>通过此非泛型子类，DI 容器可自动解析 IStore&lt;AppState&gt;。</para>
 /// </summary>
 [Register(typeof(IStore<AppState>))]
-public sealed class AppStateStore : Store<AppState>
+public sealed partial class AppStateStore : Store<AppState>
 {
     /// <summary>
     /// DI 构造函数 — 使用 AppState.Default 作为初始状态

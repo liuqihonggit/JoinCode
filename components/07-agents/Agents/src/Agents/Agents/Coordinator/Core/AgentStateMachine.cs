@@ -116,7 +116,7 @@ public sealed partial class AgentStateMachine
     public bool IsInFinalState(string agentId)
     {
         var state = GetState(agentId);
-        return state is TaskExecutionStatus.Completed or TaskExecutionStatus.Failed or TaskExecutionStatus.Cancelled;
+        return state.HasValue && state.Value.IsTerminal();
     }
 
     /// <summary>
@@ -202,7 +202,7 @@ public sealed partial class AgentStateMachine
 
     private static bool IsFinalState(TaskExecutionStatus state)
     {
-        return state is TaskExecutionStatus.Completed or TaskExecutionStatus.Failed or TaskExecutionStatus.Cancelled;
+        return state.IsTerminal();
     }
 }
 

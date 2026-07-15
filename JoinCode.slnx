@@ -26,6 +26,7 @@
   </Folder>
   <Folder Name="/sdk/">
     <Project Path="sdk/Abstractions/Abstractions.csproj" />
+    <Project Path="sdk/Sdk/Sdk.csproj" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/JoinCode/JoinCode.csproj" />

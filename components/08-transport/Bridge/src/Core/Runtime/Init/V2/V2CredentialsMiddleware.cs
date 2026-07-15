@@ -7,7 +7,7 @@ using JoinCode.Abstractions.Pipeline;
 /// V2 获取 bridge 凭证 — 对齐 TS 端: fetchRemoteCredentials
 /// </summary>
 [Register]
-internal sealed class V2CredentialsMiddleware : IMiddleware<V2BridgeInitContext>
+internal sealed partial class V2CredentialsMiddleware : IMiddleware<V2BridgeInitContext>
 {
     public ErrorBehavior OnError => ErrorBehavior.Propagate;
 

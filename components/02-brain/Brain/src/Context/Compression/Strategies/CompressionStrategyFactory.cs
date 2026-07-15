@@ -5,7 +5,7 @@ namespace Core.Context.Compression;
 /// 压缩策略工厂实现
 /// </summary>
 [Register]
-public class CompressionStrategyFactory : ICompressionStrategyFactory
+public partial class CompressionStrategyFactory : ICompressionStrategyFactory
 {
     private readonly Dictionary<string, ICompressionStrategy> _strategies;
     private readonly Dictionary<ContentType, List<ICompressionStrategy>> _strategiesByType;

@@ -8,7 +8,7 @@ using JoinCode.Abstractions.Pipeline;
 /// best-effort: 读取失败不阻塞主流程
 /// </summary>
 [Register]
-internal sealed class V1PerpetualPointerMiddleware : IMiddleware<V1BridgeInitContext>
+internal sealed partial class V1PerpetualPointerMiddleware : IMiddleware<V1BridgeInitContext>
 {
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 

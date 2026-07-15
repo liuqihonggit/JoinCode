@@ -6,7 +6,7 @@ namespace Core.Agents.Coordinator;
 /// 使用单一锁保护成员和消息操作，消除多锁排序风险
 /// </summary>
 [Register]
-public sealed class TeamManager : ITeamManager, IDisposable
+public sealed partial class TeamManager : ITeamManager, IDisposable
 {
     private readonly ConcurrentDictionary<string, TeamInfo> _teams = new();
     private readonly ConcurrentDictionary<string, HashSet<string>> _teamMembers = new();

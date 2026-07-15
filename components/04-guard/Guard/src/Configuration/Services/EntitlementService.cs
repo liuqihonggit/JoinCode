@@ -7,7 +7,7 @@ namespace Core.Configuration;
 /// 开源项目默认允许所有功能，通过 JCC_BRIEF 环境变量控制
 /// </summary>
 [Register]
-public sealed class EntitlementService : IEntitlementService
+public sealed partial class EntitlementService : IEntitlementService
 {
     private readonly IBriefModeService _briefModeService;
 

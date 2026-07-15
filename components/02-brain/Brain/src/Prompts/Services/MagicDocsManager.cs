@@ -7,7 +7,7 @@ namespace Core.Prompts.Services;
 /// 核心消费点：MagicDocsPromptTemplate.BuildMagicDocsUpdatePrompt()
 /// </summary>
 [Register]
-public sealed class MagicDocsManager : IFileReadListener, IPostSamplingCallback
+public sealed partial class MagicDocsManager : IFileReadListener, IPostSamplingCallback
 {
     private readonly IFileSystem _fileSystem;
     private readonly IForkSubAgentManager? _forkManager;

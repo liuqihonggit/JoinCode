@@ -6,7 +6,7 @@ namespace Core.Hooks.Execution;
 /// 发送 HTTP POST 请求到外部服务
 /// </summary>
 [Register(typeof(IHookExecutor))]
-public sealed class HttpHookExecutor : HookExecutorBase<HttpHook>
+public sealed partial class HttpHookExecutor : HookExecutorBase<HttpHook>
 {
     private readonly IHttpClientFactory? _httpClientFactory;
     [Inject] private readonly IClockService _clock;

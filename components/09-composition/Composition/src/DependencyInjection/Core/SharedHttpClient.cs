@@ -5,4 +5,4 @@ namespace Core.DependencyInjection;
 /// <para>多个服务（RemoteAgentTaskExecutor 等）依赖 HttpClient</para>
 /// </summary>
 [Register(typeof(System.Net.Http.HttpClient))]
-public sealed class SharedHttpClient : System.Net.Http.HttpClient;
+public sealed partial class SharedHttpClient : System.Net.Http.HttpClient;

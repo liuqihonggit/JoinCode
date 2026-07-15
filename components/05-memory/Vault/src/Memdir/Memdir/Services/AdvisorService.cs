@@ -1,7 +1,7 @@
 ﻿namespace Core.Memdir;
 
 [Register]
-public sealed class AdvisorService : IAdvisorService, IDisposable
+public sealed partial class AdvisorService : IAdvisorService, IDisposable
 {
     private string? _advisorModel;
     private readonly IConfigurationService? _configService;

@@ -7,7 +7,7 @@ namespace JoinCode.App.Middlewares;
 /// PermissionCheck 管道 Post Hook — 遥测记录执行计数
 /// </summary>
 [Register(typeof(IPipelinePostHook<PermissionCheckContext>))]
-internal sealed class PermissionCheckTelemetryHook : IPipelinePostHook<PermissionCheckContext>
+internal sealed partial class PermissionCheckTelemetryHook : IPipelinePostHook<PermissionCheckContext>
 {
     private readonly ITelemetryService? _telemetryService;
 

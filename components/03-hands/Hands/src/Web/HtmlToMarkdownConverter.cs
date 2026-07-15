@@ -5,7 +5,7 @@ namespace Services.Web;
 /// 对齐 TS 版 turndown 库的 DOM 遍历转换方式
 /// </summary>
 [Register]
-public sealed class HtmlToMarkdownConverter : IHtmlToMarkdownConverter
+public sealed partial class HtmlToMarkdownConverter : IHtmlToMarkdownConverter
 {
     private readonly Converter _converter;
 

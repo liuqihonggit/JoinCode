@@ -21,7 +21,7 @@ public sealed record SkillOptions
 }
 
 [Register]
-public sealed class SkillService : ISkillService, IDisposable
+public sealed partial class SkillService : ISkillService, IDisposable
 {
     private readonly SkillOptions _options;
     private readonly IFileOperationService _files;

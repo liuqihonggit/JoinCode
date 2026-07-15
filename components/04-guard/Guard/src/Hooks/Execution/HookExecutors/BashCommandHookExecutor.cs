@@ -5,7 +5,7 @@ namespace Core.Hooks.Execution;
 /// Bash 命令钩子执行器
 /// </summary>
 [Register(typeof(IHookExecutor))]
-public sealed class BashCommandHookExecutor : HookExecutorBase<BashCommandHook>
+public sealed partial class BashCommandHookExecutor : HookExecutorBase<BashCommandHook>
 {
     private const string DefaultShell = "bash";
 

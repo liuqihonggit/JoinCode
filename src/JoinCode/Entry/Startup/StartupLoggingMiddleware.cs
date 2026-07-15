@@ -5,7 +5,7 @@ namespace JoinCode.Entry;
 /// 横切关注点示例：通过 Order = int.MinValue 排在最外层，包裹所有后续中间件
 /// </summary>
 [Register]
-internal sealed class StartupLoggingMiddleware : IMiddleware<StartupContext>
+internal sealed partial class StartupLoggingMiddleware : IMiddleware<StartupContext>
 {
     public ErrorBehavior OnError => ErrorBehavior.Propagate;
 

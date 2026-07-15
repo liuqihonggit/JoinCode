@@ -6,7 +6,7 @@ namespace JoinCode.Entry;
 /// 对齐 TS: claude --continue / claude --resume
 /// </summary>
 [Register]
-internal sealed class SessionResumeStep : IMiddleware<StartupContext>
+internal sealed partial class SessionResumeStep : IMiddleware<StartupContext>
 {
     public ErrorBehavior OnError => ErrorBehavior.Propagate;
 

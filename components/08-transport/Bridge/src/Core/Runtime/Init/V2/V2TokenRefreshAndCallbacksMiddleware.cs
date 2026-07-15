@@ -7,7 +7,7 @@ using JoinCode.Abstractions.Pipeline;
 /// V2 JWT 刷新调度器 + 传输回调 + 连接 — 对齐 TS 端 §5-§8
 /// </summary>
 [Register]
-internal sealed class V2TokenRefreshAndCallbacksMiddleware : IMiddleware<V2BridgeInitContext>
+internal sealed partial class V2TokenRefreshAndCallbacksMiddleware : IMiddleware<V2BridgeInitContext>
 {
     public ErrorBehavior OnError => ErrorBehavior.Propagate;
 

@@ -3,7 +3,7 @@ using JoinCode.Abstractions.Attributes;
 namespace Core.Skills.Discovery;
 
 [Register]
-public sealed class SkillDiscoveryOptions
+public sealed partial class SkillDiscoveryOptions
 {
     public string SkillsDirectory { get; init; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),

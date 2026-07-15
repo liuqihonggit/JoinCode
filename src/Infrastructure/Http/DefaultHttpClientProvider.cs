@@ -7,7 +7,7 @@ namespace Infrastructure.Http;
 /// <para>DI 容器构建前的场景（HttpClientProviderFactory.Create()）使用无参构造函数 fallback</para>
 /// </summary>
 [Register(typeof(IHttpClientProvider))]
-public sealed class DefaultHttpClientProvider : IHttpClientProvider
+public sealed partial class DefaultHttpClientProvider : IHttpClientProvider
 {
     private readonly IHttpClientFactory? _factory;
     private readonly HttpClient? _sharedClient;

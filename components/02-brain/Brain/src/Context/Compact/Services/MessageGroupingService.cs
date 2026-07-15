@@ -2,7 +2,7 @@
 namespace Core.Context.Compact;
 
 [Register]
-public sealed class MessageGroupingService : IMessageGroupingService
+public sealed partial class MessageGroupingService : IMessageGroupingService
 {
     public IReadOnlyList<IReadOnlyList<ApiMessage>> GroupMessagesByApiRound(IReadOnlyList<ApiMessage> messages)
     {

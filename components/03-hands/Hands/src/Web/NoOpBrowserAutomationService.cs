@@ -5,7 +5,7 @@
 /// 所有操作返回"不支持"，对齐TS版 WebBrowserTool 未启用时的行为
 /// </summary>
 [Register]
-public sealed class NoOpBrowserAutomationService : IBrowserAutomationService
+public sealed partial class NoOpBrowserAutomationService : IBrowserAutomationService
 {
     public bool IsAvailable => false;
 

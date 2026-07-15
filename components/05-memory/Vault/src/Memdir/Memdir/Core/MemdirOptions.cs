@@ -6,7 +6,7 @@ namespace Core.Memdir;
 /// Memdir 组件配置选项
 /// </summary>
 [Register]
-public sealed class MemdirOptions
+public sealed partial class MemdirOptions
 {
     /// <summary>
     /// 存储根路径

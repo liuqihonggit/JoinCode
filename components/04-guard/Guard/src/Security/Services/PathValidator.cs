@@ -6,7 +6,7 @@ namespace JoinCode.Abstractions.Security.Shell;
 /// 路径验证器实现
 /// </summary>
 [Register]
-public sealed class PathValidator : IPathValidator
+public sealed partial class PathValidator : IPathValidator
 {
     // 路径逃逸模式字典
     private static readonly FrozenDictionary<string, string> PathEscapePatterns = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)

@@ -7,7 +7,7 @@ namespace JoinCode.App.Middlewares;
 /// Compact 管道 Post Hook — 遥测记录执行计数
 /// </summary>
 [Register(typeof(IPipelinePostHook<CompactContext>))]
-internal sealed class CompactTelemetryHook : IPipelinePostHook<CompactContext>
+internal sealed partial class CompactTelemetryHook : IPipelinePostHook<CompactContext>
 {
     private readonly ITelemetryService? _telemetryService;
 

@@ -5,7 +5,7 @@ namespace Core.DependencyInjection;
 /// <para>从 WorkflowConfig + 可选 DI 服务推导所有提示词配置属性</para>
 /// </summary>
 [Register]
-public sealed class SyncSystemPromptProviderOptions : Core.Prompts.SystemPromptProviderOptions
+public sealed partial class SyncSystemPromptProviderOptions : Core.Prompts.SystemPromptProviderOptions
 {
     /// <summary>
     /// DI 构造函数 — 从 WorkflowConfig 和可选服务推导所有属性

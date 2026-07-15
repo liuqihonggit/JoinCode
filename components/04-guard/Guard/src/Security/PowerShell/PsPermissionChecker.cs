@@ -1,7 +1,7 @@
 namespace JoinCode.Guard.Security.PowerShell;
 
 [Register(JoinCode.Abstractions.Attributes.ServiceLifetime.Singleton)]
-public sealed class PsPermissionChecker : IPsPermissionChecker
+public sealed partial class PsPermissionChecker : IPsPermissionChecker
 {
     PsSecurityResult IPsPermissionChecker.CheckPermission(
         string command,

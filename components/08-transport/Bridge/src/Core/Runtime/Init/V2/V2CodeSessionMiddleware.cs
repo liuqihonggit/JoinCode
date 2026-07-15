@@ -13,10 +13,11 @@ internal sealed partial class V2CodeSessionMiddleware : IMiddleware<V2BridgeInit
 
     public async Task InvokeAsync(V2BridgeInitContext ctx, MiddlewareDelegate<V2BridgeInitContext> next, CancellationToken ct)
     {
+        var accessToken = ctx.AccessToken ?? throw new InvalidOperationException("AccessToken not set.");
         var sessionId = await BridgeRemoteCore.WithRetryAsync(
             () => BridgeCodeSessionApi.CreateCodeSessionAsync(
                 ctx.Parameters.BaseUrl,
-                ctx.AccessToken!,
+                accessToken,
                 ctx.Parameters.Title,
                 ctx.Config.HttpTimeoutMs,
                 ctx.HttpClient,
@@ -41,7 +42,7 @@ internal sealed partial class V2CodeSessionMiddleware : IMiddleware<V2BridgeInit
         _ = BridgeSessionApi.UpdateTitleAsync(
             sessionId, ctx.Parameters.Title,
             ctx.Parameters.BaseUrl,
-            ctx.AccessToken!,
+            ctx.AccessToken ?? throw new InvalidOperationException("AccessToken not set."),
             ctx.Parameters.OrgUUID,
             ctx.HttpClient,
             ct).ConfigureAwait(false);

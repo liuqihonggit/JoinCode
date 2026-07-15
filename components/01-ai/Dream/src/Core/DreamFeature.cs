@@ -46,12 +46,13 @@ public sealed partial class DreamFeature : IDreamFeature
     private async Task<DreamResult> ExecuteViaPipelineAsync(DreamRequest request, CancellationToken cancellationToken)
     {
         var stopwatch = Stopwatch.StartNew();
+        var pipeline = _pipeline ?? throw new InvalidOperationException("Pipeline not available.");
         _logger?.LogInformation("[DreamFeature] 开始梦境整合(管道)");
 
         try
         {
             var ctx = new DreamContext { Request = request, CancellationToken = cancellationToken };
-            await _pipeline!.ExecuteAsync(ctx, cancellationToken).ConfigureAwait(false);
+            await pipeline.ExecuteAsync(ctx, cancellationToken).ConfigureAwait(false);
 
             stopwatch.Stop();
             if (ctx.Result is not null)

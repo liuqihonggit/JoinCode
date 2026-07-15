@@ -400,8 +400,8 @@ public sealed class AnthropicQueryService : QueryServiceBase
     {
         return kernel.Plugins.PluginNames
             .Select(name => kernel.Plugins.GetPlugin(name))
-            .Where(p => p is not null)
-            .SelectMany(p => p!.Functions)
+            .OfType<IToolGroup>()
+            .SelectMany(p => p.Functions)
             .Select(function => new AnthropicToolDefinition
             {
                 Name = function.Name,

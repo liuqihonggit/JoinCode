@@ -66,7 +66,7 @@ public sealed partial class ToolExecutionHandler : IToolExecutionHandler
         var fallbackArgsJson = iterState.ToolCallArguments is not null
             ? JsonSerializer.Serialize(iterState.ToolCallArguments, ChatServiceJsonContext.Default.DictionaryStringJsonElement)
             : "{}";
-        return [new() { Id = iterState.ToolCallId, Name = iterState.ToolCallName!, Arguments = fallbackArgsJson }];
+        return [new() { Id = iterState.ToolCallId, Name = iterState.ToolCallName ?? string.Empty, Arguments = fallbackArgsJson }];
     }
 
     /// <inheritdoc/>

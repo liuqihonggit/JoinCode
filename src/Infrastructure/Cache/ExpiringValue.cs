@@ -19,12 +19,12 @@ public sealed class ExpiringValue<T>
     public T GetOrRefresh()
     {
         var now = Stopwatch.GetTimestamp();
-        if (now - _lastRefreshTicks < _intervalTicks)
-            return _value!;
-
-        _value = _refresh();
-        _lastRefreshTicks = now;
-        return _value;
+        if (now - _lastRefreshTicks >= _intervalTicks)
+        {
+            _value = _refresh();
+            _lastRefreshTicks = now;
+        }
+        return _value!;
     }
 
     public void Invalidate() => _lastRefreshTicks = 0;

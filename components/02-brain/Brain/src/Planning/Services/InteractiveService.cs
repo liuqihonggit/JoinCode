@@ -91,7 +91,7 @@ public sealed partial class InteractiveService : IInteractiveService
         _logger?.LogInformation("[计划模式] 已进入计划模式，目标: {Goal}", goal ?? "未指定");
 
         RecordInteractiveMetrics("enter_plan", true);
-        return Task.FromResult(PlanModeResult.SuccessResult(_currentPlanId!, "已进入计划模式"));
+        return Task.FromResult(PlanModeResult.SuccessResult(_currentPlanId ?? throw new InvalidOperationException("Plan ID is not available."), "已进入计划模式"));
     }
 
     public Task<PlanModeResult> ExitPlanModeAsync(bool confirm = true, string? summary = null, CancellationToken cancellationToken = default)

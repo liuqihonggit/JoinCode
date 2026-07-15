@@ -219,7 +219,7 @@ public abstract class McpClientBase : IMcpClient
             }
         }
 
-        throw new McpProtocolException($"请求在 {_options.MaxRetries} 次尝试后失败", lastException!);
+        throw new McpProtocolException($"请求在 {_options.MaxRetries} 次尝试后失败", lastException ?? throw new InvalidOperationException("No exception after retries."));
     }
 
     public async Task<OperationResult<IReadOnlyList<ToolInfo>>> ListToolsAsync(CancellationToken cancellationToken = default)

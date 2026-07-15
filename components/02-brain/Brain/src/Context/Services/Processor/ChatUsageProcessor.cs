@@ -63,6 +63,7 @@ public sealed partial class ChatUsageProcessor : IChatUsageProcessor
     public void TryExtractRateLimitData(IReadOnlyDictionary<string, JsonElement> metadata)
     {
         var snapshot = new RateLimitSnapshot();
+        var rateLimitTracker = _rateLimitTracker ?? throw new InvalidOperationException("RateLimitTracker not available.");
 
         if (metadata.TryGetValue("ratelimit_x-ratelimit-limit-requests", out var limitReqEl) && limitReqEl.ValueKind == JsonValueKind.String && int.TryParse(limitReqEl.GetString(), out var limitReq))
             snapshot = snapshot with { RequestLimit = limitReq };
@@ -84,7 +85,7 @@ public sealed partial class ChatUsageProcessor : IChatUsageProcessor
 
         if (snapshot.RequestLimit.HasValue || snapshot.TokenLimit.HasValue)
         {
-            _rateLimitTracker!.Update(snapshot);
+            rateLimitTracker.Update(snapshot);
         }
     }
 

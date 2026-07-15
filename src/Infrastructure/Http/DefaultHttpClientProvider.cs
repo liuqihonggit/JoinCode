@@ -41,16 +41,11 @@ public sealed partial class DefaultHttpClientProvider : IHttpClientProvider
     {
         if (_factory is not null)
         {
-            // P1-5: 通过 IHttpClientFactory.CreateClient() 获取 HttpClient
-            // HttpClient 实例是轻量对象（每次新建），底层 HttpMessageHandler 由 IHttpClientFactory 池化管理
             return _factory.CreateClient(string.Empty);
         }
-        return _sharedClient!;
+        return _sharedClient ?? throw new InvalidOperationException("Shared client not initialized.");
     }
 
-    /// <summary>
-    /// 获取命名 HttpClient — 通过 IHttpClientFactory.CreateClient(name) 创建（支持不同配置的命名客户端）
-    /// </summary>
     public HttpClient GetClient(string name)
     {
         ArgumentException.ThrowIfNullOrEmpty(name);
@@ -59,7 +54,6 @@ public sealed partial class DefaultHttpClientProvider : IHttpClientProvider
         {
             return _factory.CreateClient(name);
         }
-        // fallback: 共享实例忽略 name
-        return _sharedClient!;
+        return _sharedClient ?? throw new InvalidOperationException("Shared client not initialized.");
     }
 }

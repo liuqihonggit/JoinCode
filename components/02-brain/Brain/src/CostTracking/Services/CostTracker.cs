@@ -242,9 +242,10 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
             return;
         }
 
+        var budgetConfig = _budgetConfig ?? throw new InvalidOperationException("BudgetConfig not available.");
         var percentageUsed = (double)(currentCost / budgetLimit);
 
-        foreach (var threshold in _budgetConfig!.AlertThresholds)
+        foreach (var threshold in budgetConfig.AlertThresholds)
         {
             if (percentageUsed >= threshold && !_triggeredThresholds.Contains(threshold))
             {

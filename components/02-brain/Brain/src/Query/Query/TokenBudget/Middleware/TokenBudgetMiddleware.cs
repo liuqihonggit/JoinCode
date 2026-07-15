@@ -28,10 +28,11 @@ public sealed partial class TokenBudgetMiddleware : IQueryMiddleware
 
     private async Task ConsumeTokensAsync(QueryMiddlewareContext context, CancellationToken ct)
     {
+        var tokenBudgetManager = _tokenBudgetManager ?? throw new InvalidOperationException("TokenBudgetManager not available.");
         var totalTokens = context.InputTokens + context.OutputTokens;
         if (totalTokens > 0)
         {
-            await _tokenBudgetManager!.ConsumeTokensAsync(totalTokens, "LLM调用", context.ToolName, ct).ConfigureAwait(false);
+            await tokenBudgetManager.ConsumeTokensAsync(totalTokens, "LLM调用", context.ToolName, ct).ConfigureAwait(false);
         }
     }
 }

@@ -153,7 +153,8 @@ internal sealed class TaskExecutor
     {
         var description = BuildAgentTaskDescription(task, agentIndex, task.RequiredAgents);
         var subAgentOptions = BuildSubAgentOptions(task, taskContext, options, agentIndex);
-        return await _agentCoordinator!.SpawnSubAgentAsync(description, subAgentOptions, _cts.Token).ConfigureAwait(false);
+        var coordinator = _agentCoordinator ?? throw new InvalidOperationException("Agent coordinator not available.");
+        return await coordinator.SpawnSubAgentAsync(description, subAgentOptions, _cts.Token).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -358,7 +359,7 @@ internal sealed class TaskExecutor
 
         var successfulOutputs = results
             .Where(r => r.IsSuccess && !string.IsNullOrEmpty(r.Output))
-            .Select(r => r.Output!)
+            .Select(r => r.Output ?? string.Empty)
             .ToList();
 
         if (successfulOutputs.Count == 0)

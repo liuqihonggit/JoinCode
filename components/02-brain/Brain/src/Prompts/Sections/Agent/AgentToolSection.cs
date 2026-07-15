@@ -36,18 +36,15 @@ Subagent对于并行化独立查询或保护主上下文窗口免受过多结果
     /// </summary>
     internal static string GetToolsDescription(JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition agent)
     {
-        var hasAllowlist = agent.Tools != null && agent.Tools.Count > 0;
-        var hasDenylist = agent.DisallowedTools != null && agent.DisallowedTools.Count > 0;
-
-        if (hasAllowlist && hasDenylist)
+        if (agent.Tools is { Count: > 0 } tools && agent.DisallowedTools is { Count: > 0 } disallowedTools)
         {
-            var denySet = new HashSet<string>(agent.DisallowedTools!);
-            var effectiveTools = agent.Tools!.Where(t => !denySet.Contains(t)).ToList();
+            var denySet = new HashSet<string>(disallowedTools);
+            var effectiveTools = tools.Where(t => !denySet.Contains(t)).ToList();
             return effectiveTools.Count == 0 ? "无" : string.Join(", ", effectiveTools);
         }
 
-        if (hasAllowlist) return string.Join(", ", agent.Tools!);
-        if (hasDenylist) return $"除 {string.Join(", ", agent.DisallowedTools!)} 外的所有工具";
+        if (agent.Tools is { Count: > 0 } toolsOnly) return string.Join(", ", toolsOnly);
+        if (agent.DisallowedTools is { Count: > 0 } disallowedOnly) return $"除 {string.Join(", ", disallowedOnly)} 外的所有工具";
 
         return "所有工具";
     }

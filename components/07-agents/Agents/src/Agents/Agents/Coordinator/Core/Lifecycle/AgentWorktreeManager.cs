@@ -95,6 +95,7 @@ public sealed partial class AgentWorktreeManager : IAgentWorktreeManager
 
     private async Task<string?> TryCreateWorktreeViaHookAsync(string agentId, CancellationToken cancellationToken)
     {
+        var hookOrchestrator = _hookOrchestrator ?? throw new InvalidOperationException("Hook orchestrator not available.");
         try
         {
             var payload = new Dictionary<string, System.Text.Json.JsonElement>
@@ -103,7 +104,7 @@ public sealed partial class AgentWorktreeManager : IAgentWorktreeManager
                 ["action"] = System.Text.Json.JsonSerializer.SerializeToElement("create", AgentsJsonContext.Default.String)
             };
 
-            await foreach (var result in _hookOrchestrator!.ExecuteHooksAsync(
+            await foreach (var result in hookOrchestrator.ExecuteHooksAsync(
                 HookEvent.WorktreeCreate, payload, cancellationToken: cancellationToken).ConfigureAwait(false))
             {
                 if (result.Outcome == HookOutcome.Success && result.Message is not null)
@@ -213,9 +214,10 @@ public sealed partial class AgentWorktreeManager : IAgentWorktreeManager
     /// </summary>
     private async Task<bool> HasWorktreeChangesAsync(AgentWorktreeSession session, CancellationToken cancellationToken)
     {
+        var worktreeService = _worktreeService ?? throw new InvalidOperationException("Worktree service not available.");
         if (!string.IsNullOrEmpty(session.BaseCommitSha))
         {
-            var hasUnpushed = await _worktreeService!.HasUnpushedCommitsAsync(
+            var hasUnpushed = await worktreeService.HasUnpushedCommitsAsync(
                 session.WorktreePath, session.BaseCommitSha, cancellationToken).ConfigureAwait(false);
             if (hasUnpushed)
             {
@@ -223,7 +225,7 @@ public sealed partial class AgentWorktreeManager : IAgentWorktreeManager
             }
         }
 
-        var hasUncommitted = await _worktreeService!.HasUncommittedChangesAsync(
+        var hasUncommitted = await worktreeService.HasUncommittedChangesAsync(
             session.WorktreePath, cancellationToken).ConfigureAwait(false);
         return hasUncommitted;
     }

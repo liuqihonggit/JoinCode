@@ -29,11 +29,13 @@ public sealed partial class HistorySnipMiddleware : IQueryMiddleware
 
     private async Task CheckAndSnipAsync(QueryMiddlewareContext context, CancellationToken ct)
     {
-        var remaining = await _tokenBudgetManager!.GetRemainingBudgetAsync(ct).ConfigureAwait(false);
+        var budgetManager = _tokenBudgetManager ?? throw new InvalidOperationException("Token budget manager not available.");
+        var snipService = _historySnipService ?? throw new InvalidOperationException("History snip service not available.");
+        var remaining = await budgetManager.GetRemainingBudgetAsync(ct).ConfigureAwait(false);
         if (remaining < context.Config.MaxTokens * 0.1)
         {
             var snipTarget = (int)(context.Config.MaxTokens * 0.7);
-            var snipResult = await _historySnipService!.SnipByTokenLimitAsync(context.ChatHistory, snipTarget, ct).ConfigureAwait(false);
+            var snipResult = await snipService.SnipByTokenLimitAsync(context.ChatHistory, snipTarget, ct).ConfigureAwait(false);
             context.Logger?.LogInformation("[QueryEngine] 历史裁剪完成: 移除 {Removed} 条消息", snipResult.MessagesRemoved);
         }
     }

@@ -111,18 +111,15 @@ public sealed partial class AgentPromptBuilder : JoinCode.Abstractions.Interface
     {
         if (definition is null) return null;
 
-        var hasAllowlist = definition.Tools is not null && definition.Tools.Count > 0;
-        var hasDenylist = definition.DisallowedTools is not null && definition.DisallowedTools.Count > 0;
-
-        if (hasAllowlist && hasDenylist)
+        if (definition.Tools is { Count: > 0 } tools && definition.DisallowedTools is { Count: > 0 } disallowedTools)
         {
-            var denySet = new HashSet<string>(definition.DisallowedTools!);
-            var effectiveTools = definition.Tools!.Where(t => !denySet.Contains(t)).ToList();
+            var denySet = new HashSet<string>(disallowedTools);
+            var effectiveTools = tools.Where(t => !denySet.Contains(t)).ToList();
             return effectiveTools.Count == 0 ? "无" : string.Join(", ", effectiveTools);
         }
 
-        if (hasAllowlist) return string.Join(", ", definition.Tools!);
-        if (hasDenylist) return $"除 {string.Join(", ", definition.DisallowedTools!)} 外的所有工具";
+        if (definition.Tools is { Count: > 0 } toolsOnly) return string.Join(", ", toolsOnly);
+        if (definition.DisallowedTools is { Count: > 0 } disallowedOnly) return $"除 {string.Join(", ", disallowedOnly)} 外的所有工具";
 
         return null;
     }

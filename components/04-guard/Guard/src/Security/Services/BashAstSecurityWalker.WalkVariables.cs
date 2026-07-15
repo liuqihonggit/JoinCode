@@ -42,7 +42,7 @@ public sealed partial class BashAstSecurityWalker
                 {
                     var v = ResolveSimpleExpansion(child, varScope, insideString: true);
                     if (v.IsTooComplex)
-                        return new VarAssignmentOrTooComplex(v.TooComplex!);
+                        return new VarAssignmentOrTooComplex(v.GetTooComplex());
                     value = v.Value;
                     break;
                 }
@@ -51,7 +51,7 @@ public sealed partial class BashAstSecurityWalker
                 {
                     var arg = WalkArgument(child, innerCommands, varScope);
                     if (arg.IsTooComplex)
-                        return new VarAssignmentOrTooComplex(arg.TooComplex!);
+                        return new VarAssignmentOrTooComplex(arg.GetTooComplex());
                     value = arg.Value;
                     break;
                 }
@@ -111,7 +111,7 @@ public sealed partial class BashAstSecurityWalker
         var ev = WalkVariableAssignment(node, innerCommands, varScope);
         if (ev.IsTooComplex) return ev.TooComplex;
 
-        ApplyVarToScope(varScope, ev.Result!);
+        ApplyVarToScope(varScope, ev.GetResult());
         return null;
     }
 
@@ -145,23 +145,23 @@ public sealed partial class BashAstSecurityWalker
         }
 
         if (varName is null)
-            return new StringOrTooComplex(TooComplexNode(node)!);
+            return new StringOrTooComplex(TooComplexNode(node));
 
         if (varScope.TryGetValue(varName, out var trackedValue))
         {
             if (ContainsAnyPlaceholder(trackedValue))
             {
                 if (!insideString)
-                    return new StringOrTooComplex(TooComplexNode(node)!);
+                    return new StringOrTooComplex(TooComplexNode(node));
                 return new StringOrTooComplex(VarPlaceholder);
             }
 
             if (!insideString)
             {
                 if (trackedValue.Length == 0)
-                    return new StringOrTooComplex(TooComplexNode(node)!);
+                    return new StringOrTooComplex(TooComplexNode(node));
                 if (BareVarUnsafeRegex().IsMatch(trackedValue))
-                    return new StringOrTooComplex(TooComplexNode(node)!);
+                    return new StringOrTooComplex(TooComplexNode(node));
             }
             return new StringOrTooComplex(trackedValue);
         }
@@ -198,7 +198,7 @@ public sealed partial class BashAstSecurityWalker
             {
                 var ev = WalkVariableAssignment(child, commands, varScope);
                 if (ev.IsTooComplex) return ev.TooComplex;
-                ApplyVarToScope(varScope, ev.Result!);
+                ApplyVarToScope(varScope, ev.GetResult());
             }
         }
 

@@ -22,7 +22,7 @@ public sealed class InstallGitHubAppCommand : IChatCommand
         var checkResult = await CheckGitHubCliAsync(ct).ConfigureAwait(false);
         if (!checkResult.Success)
         {
-            ShowError(checkResult.ErrorMessage!, checkResult.FixHint);
+            ShowError(checkResult.ErrorMessage ?? "Unknown error", checkResult.FixHint);
             return ChatCommandResult.Continue();
         }
 
@@ -82,7 +82,7 @@ public sealed class InstallGitHubAppCommand : IChatCommand
         }
         else
         {
-            ShowError(createResult.ErrorMessage!, createResult.FixHint);
+            ShowError(createResult.ErrorMessage ?? "Unknown error", createResult.FixHint);
         }
 
         return ChatCommandResult.Continue();
@@ -300,7 +300,7 @@ public sealed class InstallGitHubAppCommand : IChatCommand
         }
 
         // 使用已有 Key
-        return (choice.SecretName, existingKey!, choice.AuthType);
+        return (choice.SecretName, existingKey ?? "", choice.AuthType);
     }
 
     /// <summary>

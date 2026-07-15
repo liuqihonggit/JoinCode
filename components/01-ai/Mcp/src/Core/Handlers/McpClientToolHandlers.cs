@@ -514,13 +514,13 @@ public partial class McpClientToolHandlers : IAsyncDisposable
                     // 图片走 base64 内联路径 + 降采样
                     var builder = McpResultBuilder.Success();
                     builder.WithText(response.ToString());
-                    var imageData = await MaybeResizeImageAsync(result.Data.Blob!, mimeType ?? "image/png").ConfigureAwait(false);
+                    var imageData = await MaybeResizeImageAsync(result.Data.Blob ?? string.Empty, mimeType ?? "image/png").ConfigureAwait(false);
                     builder.WithImage(imageData.base64, imageData.mediaType);
                     return builder.Build();
                 }
                 else
                 {
-                    var binaryText = await PersistBlobToTextBlockAsync(result.Data.Blob!, mimeType, connection_name).ConfigureAwait(false);
+                    var binaryText = await PersistBlobToTextBlockAsync(result.Data.Blob ?? string.Empty, mimeType, connection_name).ConfigureAwait(false);
                     response.AppendLine(binaryText);
                 }
             }

@@ -157,7 +157,9 @@ public sealed partial class SkillDiscoveryService : ISkillDiscoveryService
 
         return errors.Count > 0
             ? SkillValidationResult.Failure(filePath, errors, warnings)
-            : SkillValidationResult.Success(filePath, definition!, warnings);
+            : definition is not null
+                ? SkillValidationResult.Success(filePath, definition, warnings)
+                : SkillValidationResult.Failure(filePath, [L.T(StringKey.SkillDiscoveryUnsupportedExtension, extension)], warnings);
     }
 
     public Task StartWatchingAsync(CancellationToken cancellationToken = default)
@@ -241,7 +243,7 @@ public sealed partial class SkillDiscoveryService : ISkillDiscoveryService
         }
 
         var lastModified = _files.GetFileLastWriteTime(filePath);
-        var definition = validationResult.SkillDefinition!;
+        var definition = validationResult.SkillDefinition ?? throw new InvalidOperationException("Skill definition is null for valid result.");
 
         return new DiscoveredSkill
         {

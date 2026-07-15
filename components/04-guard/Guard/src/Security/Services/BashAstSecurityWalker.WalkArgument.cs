@@ -15,7 +15,7 @@ public sealed partial class BashAstSecurityWalker
             case "word":
             {
                 if (BraceExpansionRegex.IsMatch(node.Text))
-                    return new StringOrTooComplex(TooComplexNode(node)!);
+                    return new StringOrTooComplex(TooComplexNode(node));
                 var text = BackslashUnescapeRegex().Replace(node.Text, "$1");
                 return new StringOrTooComplex(text);
             }
@@ -23,7 +23,7 @@ public sealed partial class BashAstSecurityWalker
             case "number":
             {
                 if (node.Children.Count > 0)
-                    return new StringOrTooComplex(TooComplexNode(node)!);
+                    return new StringOrTooComplex(TooComplexNode(node));
                 return new StringOrTooComplex(node.Text);
             }
 
@@ -36,7 +36,7 @@ public sealed partial class BashAstSecurityWalker
             case "concatenation":
             {
                 if (BraceExpansionRegex.IsMatch(node.Text))
-                    return new StringOrTooComplex(TooComplexNode(node)!);
+                    return new StringOrTooComplex(TooComplexNode(node));
                 var result = new StringBuilder();
                 foreach (var child in node.Children)
                 {
@@ -59,7 +59,7 @@ public sealed partial class BashAstSecurityWalker
                 return ResolveSimpleExpansion(node, varScope, insideString: false);
 
             default:
-                return new StringOrTooComplex(TooComplexNode(node)!);
+                return new StringOrTooComplex(TooComplexNode(node));
         }
     }
 
@@ -114,7 +114,7 @@ public sealed partial class BashAstSecurityWalker
                 }
 
                 default:
-                    return new StringOrTooComplex(TooComplexNode(child)!);
+                    return new StringOrTooComplex(TooComplexNode(child));
             }
         }
 

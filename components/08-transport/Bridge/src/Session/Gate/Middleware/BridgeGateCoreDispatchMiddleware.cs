@@ -10,12 +10,14 @@ public sealed class BridgeGateCoreDispatchMiddleware : IBridgeInitGateMiddleware
         var baseUrl = ctx.GetBaseUrl();
         ctx.BaseUrl = baseUrl;
 
-        if (ctx.HttpClient is null || ctx.TransportFactory is null)
+        if (ctx.HttpClient is not { } httpClient || ctx.TransportFactory is not { } transportFactory)
         {
             ctx.Logger?.LogError("Bridge: httpClient or transportFactory not provided");
             ctx.Fail("httpClient or transportFactory not provided");
             return;
         }
+
+        var orgUUID = ctx.OrgUUID ?? throw new InvalidOperationException("OrgUUID is not set. Ensure OrgUUIDFetchMiddleware runs first.");
 
         var useCcrV2 = BridgeRuntimeGate.IsCcrV2Enabled();
 
@@ -24,7 +26,7 @@ public sealed class BridgeGateCoreDispatchMiddleware : IBridgeInitGateMiddleware
             var envLessParams = new BridgeEnvLessParams
             {
                 BaseUrl = baseUrl,
-                OrgUUID = ctx.OrgUUID!,
+                OrgUUID = orgUUID,
                 Title = title,
                 GetAccessToken = ctx.GetAccessToken,
                 OnInboundMessage = ctx.Options.OnInboundMessage,
@@ -43,7 +45,7 @@ public sealed class BridgeGateCoreDispatchMiddleware : IBridgeInitGateMiddleware
             };
 
             ctx.Handle = await BridgeRemoteCore.InitEnvLessBridgeCoreAsync(
-                envLessParams, ctx.HttpClient, ctx.TransportFactory, ctx.V2Pipeline!, ctx.Logger, ct).ConfigureAwait(false);
+                envLessParams, httpClient, transportFactory, ctx.V2Pipeline ?? throw new InvalidOperationException("V2Pipeline is not set."), ctx.Logger, ct).ConfigureAwait(false);
         }
         else
         {
@@ -58,10 +60,10 @@ public sealed class BridgeGateCoreDispatchMiddleware : IBridgeInitGateMiddleware
                 WorkerType = "tengu",
                 GetAccessToken = ctx.GetAccessToken,
                 CreateSession = (envId, sessionTitle, gitRepoUrl, token, cts) =>
-                    BridgeInit.CreateSessionViaApiAsync(baseUrl, token, envId, sessionTitle, ctx.HttpClient!, cts),
+                    BridgeInit.CreateSessionViaApiAsync(baseUrl, token, envId, sessionTitle, httpClient, cts),
                 ArchiveSession = (sid, cts) =>
-                    BridgeSessionApi.ArchiveAsync(sid, baseUrl, ctx.GetAccessToken()!,
-                        ctx.OrgUUID!, 30000, ctx.HttpClient!, cts),
+                    BridgeSessionApi.ArchiveAsync(sid, baseUrl, ctx.GetAccessToken() ?? throw new InvalidOperationException("AccessToken is not available."),
+                        orgUUID, 30000, httpClient, cts),
                 OnInboundMessage = ctx.Options.OnInboundMessage,
                 OnUserMessage = BridgeInit.CreateOnUserMessage(ctx.Options, baseUrl, ctx.GetAccessToken),
                 OnPermissionResponse = ctx.Options.OnPermissionResponse,
@@ -79,7 +81,7 @@ public sealed class BridgeGateCoreDispatchMiddleware : IBridgeInitGateMiddleware
             };
 
             ctx.Handle = await BridgeRemoteCore.InitBridgeCoreAsync(
-                coreParams, ctx.HttpClient, ctx.FileSystem, ctx.TransportFactory!, ctx.V1Pipeline!, ctx.Logger, ct).ConfigureAwait(false);
+                coreParams, httpClient, ctx.FileSystem, transportFactory, ctx.V1Pipeline ?? throw new InvalidOperationException("V1Pipeline is not set."), ctx.Logger, ct).ConfigureAwait(false);
         }
 
         await next(ctx, ct).ConfigureAwait(false);

@@ -48,6 +48,10 @@ public sealed class PdfExtractResult
     /// <summary>错误消息（失败时）</summary>
     public string? ErrorMessage { get; init; }
 
+    /// <summary>获取 Pages，操作失败时抛出异常</summary>
+    public IReadOnlyList<PdfPageImage> GetPages() =>
+        Pages ?? throw new InvalidOperationException("Pages is not available. Check Success before calling this method.");
+
     public static PdfExtractResult Ok(IReadOnlyList<PdfPageImage> pages, int? totalCount, long originalSize) =>
         new() { Success = true, Pages = pages, TotalPageCount = totalCount, OriginalSize = originalSize };
 

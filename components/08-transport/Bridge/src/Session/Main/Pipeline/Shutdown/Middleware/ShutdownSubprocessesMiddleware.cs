@@ -11,8 +11,8 @@ public sealed partial class ShutdownSubprocessesMiddleware : IShutdownMiddleware
 
     public async Task InvokeAsync(ShutdownContext ctx, MiddlewareDelegate<ShutdownContext> next, CancellationToken ct)
     {
-        var handles = ctx.ActiveSessions?.Values.ToList();
-        if (handles is not null && handles.Count > 0)
+        var handles = ctx.ActiveSessions.Values.ToList();
+        if (handles.Count > 0)
         {
             await ctx.Spawner!.ShutdownAllAsync(handles).ConfigureAwait(false);
         }

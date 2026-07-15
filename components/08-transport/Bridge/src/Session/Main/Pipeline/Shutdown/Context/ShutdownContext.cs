@@ -10,8 +10,8 @@ public sealed class ShutdownContext : IPipelineContext
     public BridgeSpawnMode SpawnMode { get; init; }
     public string? ResumePointerDir { get; init; }
 
-    internal Dictionary<string, BridgeSubprocessHandle>? ActiveSessions { get; set; }
-    internal Dictionary<string, string>? SessionCompatIds { get; set; }
+    internal Dictionary<string, BridgeSubprocessHandle> ActiveSessions { get; set; } = new();
+    internal Dictionary<string, string> SessionCompatIds { get; set; } = new();
     internal BridgeSubprocessSpawner? Spawner { get; set; }
     internal BridgeApiClient? ApiClient { get; set; }
     internal BridgePointerService? PointerService { get; set; }

@@ -28,7 +28,7 @@ public sealed partial class WorkWorktreeMiddleware : IHandleWorkMiddleware
             if (worktreeResult.Success && worktreeResult.Session?.WorktreePath is not null)
             {
                 ctx.CreatedWorktreePath = worktreeResult.Session.WorktreePath;
-                ctx.SessionWorktrees![ctx.Work.SessionId] = worktreeResult.Session.WorktreePath;
+                ctx.SessionWorktrees[ctx.Work.SessionId] = worktreeResult.Session.WorktreePath;
                 _logger?.LogInformation("BridgeMain: created worktree for session {SessionId} at {Path}",
                     ctx.Work.SessionId, worktreeResult.Session.WorktreePath);
             }
@@ -36,7 +36,7 @@ public sealed partial class WorkWorktreeMiddleware : IHandleWorkMiddleware
             {
                 _logger?.LogError("BridgeMain: worktree creation failed for session {SessionId}, stopping work",
                     ctx.Work.SessionId);
-                ctx.CompletedWorkIds!.Add(ctx.Work.WorkId);
+                ctx.CompletedWorkIds.Add(ctx.Work.WorkId);
                 await SafeStopWorkAsync(ctx, ct).ConfigureAwait(false);
                 ctx.ShortCircuited = true;
                 return;
@@ -46,7 +46,7 @@ public sealed partial class WorkWorktreeMiddleware : IHandleWorkMiddleware
         {
             _logger?.LogError(ex, "BridgeMain: worktree creation error for session {SessionId}, stopping work",
                 ctx.Work.SessionId);
-            ctx.CompletedWorkIds!.Add(ctx.Work.WorkId);
+            ctx.CompletedWorkIds.Add(ctx.Work.WorkId);
             await SafeStopWorkAsync(ctx, ct).ConfigureAwait(false);
             ctx.ShortCircuited = true;
             return;

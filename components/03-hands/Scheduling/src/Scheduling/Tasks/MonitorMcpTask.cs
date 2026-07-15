@@ -236,8 +236,8 @@ public sealed partial class MonitorMcpTaskExecutor : IMonitorMcpTaskExecutor, IA
         {
             OnMonitorEvent(session, "tools_update", new Dictionary<string, JsonElement>
             {
-                ["toolCount"] = JsonElementHelper.FromInt32(toolsResult.Data!.Count),
-                ["tools"] = JsonElementHelper.FromObject(toolsResult.Data!.Select(t => t.Name).ToList(), SchedulingJsonContext.Default.ListString)
+                ["toolCount"] = JsonElementHelper.FromInt32(toolsResult.GetData().Count),
+                ["tools"] = JsonElementHelper.FromObject(toolsResult.GetData().Select(t => t.Name).ToList(), SchedulingJsonContext.Default.ListString)
             });
         }
 
@@ -247,7 +247,7 @@ public sealed partial class MonitorMcpTaskExecutor : IMonitorMcpTaskExecutor, IA
         {
             OnMonitorEvent(session, "resources_update", new Dictionary<string, JsonElement>
             {
-                ["resourceCount"] = JsonElementHelper.FromInt32(resourcesResult.Data!.Count)
+                ["resourceCount"] = JsonElementHelper.FromInt32(resourcesResult.GetData().Count)
             });
         }
     }

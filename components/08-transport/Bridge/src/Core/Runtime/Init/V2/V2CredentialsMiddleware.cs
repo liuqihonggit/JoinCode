@@ -13,9 +13,12 @@ internal sealed partial class V2CredentialsMiddleware : IMiddleware<V2BridgeInit
 
     public async Task InvokeAsync(V2BridgeInitContext ctx, MiddlewareDelegate<V2BridgeInitContext> next, CancellationToken ct)
     {
+        var sessionId = ctx.SessionId ?? throw new InvalidOperationException("SessionId is not set.");
+        var accessToken = ctx.AccessToken ?? throw new InvalidOperationException("AccessToken is not set.");
+
         var credentials = await BridgeRemoteCore.WithRetryAsync(
             () => BridgeRemoteCore.FetchCredentialsWithDeviceTokenAsync(
-                ctx.SessionId!, ctx.Parameters, ctx.Config.HttpTimeoutMs, ctx.HttpClient, ctx.AccessToken!, ct),
+                sessionId, ctx.Parameters, ctx.Config.HttpTimeoutMs, ctx.HttpClient, accessToken, ct),
             "fetchRemoteCredentials",
             ctx.Config.InitRetryMaxAttempts,
             ctx.Config.InitRetryBaseDelayMs,
@@ -28,7 +31,7 @@ internal sealed partial class V2CredentialsMiddleware : IMiddleware<V2BridgeInit
             ctx.Fail("Remote credentials fetch failed — see debug log");
             // 对齐 TS 端: 凭证获取失败时归档会话
             _ = BridgeSessionApi.ArchiveAsync(
-                ctx.SessionId!, ctx.Parameters.BaseUrl, ctx.AccessToken!,
+                sessionId, ctx.Parameters.BaseUrl, accessToken,
                 ctx.Parameters.OrgUUID, ctx.Config.HttpTimeoutMs, ctx.HttpClient, ct);
             return;
         }

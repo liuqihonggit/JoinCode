@@ -49,7 +49,7 @@ public class SkillToolHandlers
         var validation = ValidateSkillInvocation(skillName, skillDef);
         if (!validation.IsValid)
         {
-            return McpResultBuilder.Error().WithText(validation.Message!).Build();
+            return McpResultBuilder.Error().WithText(validation.Message ?? "Validation failed").Build();
         }
 
         // fork 模式 — 对齐 TS SkillTool.executeForkedSkill
@@ -287,7 +287,7 @@ public class SkillToolHandlers
             bool hasError = false;
             string? errorMessage = null;
 
-            await foreach (var chunk in _agentService!.RunAgentStreamAsync(spawnOptions, cancellationToken).ConfigureAwait(false))
+            await foreach (var chunk in (_agentService ?? throw new InvalidOperationException("AgentService is not available")).RunAgentStreamAsync(spawnOptions, cancellationToken).ConfigureAwait(false))
             {
                 agentId ??= chunk.AgentId;
 

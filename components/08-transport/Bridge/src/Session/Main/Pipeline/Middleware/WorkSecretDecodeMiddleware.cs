@@ -23,8 +23,11 @@ public sealed partial class WorkSecretDecodeMiddleware : IHandleWorkMiddleware
             {
                 _logger?.LogError(ex, "BridgeMain: failed to decode work secret for WorkId={WorkId}", ctx.Work.WorkId);
                 ctx.TelemetryCount?.Invoke("tengu_bridge_work_secret_failed", null);
-                ctx.CompletedWorkIds!.Add(ctx.Work.WorkId);
-                ctx.TrackCleanup!(ctx.StopWorkAsync!(ctx.Work.WorkId, ct));
+                ctx.CompletedWorkIds.Add(ctx.Work.WorkId);
+                if (ctx.TrackCleanup is not null && ctx.StopWorkAsync is not null)
+                {
+                    ctx.TrackCleanup(ctx.StopWorkAsync(ctx.Work.WorkId, ct));
+                }
                 ctx.CapacityWake?.Invoke();
                 ctx.ShortCircuited = true;
                 return;

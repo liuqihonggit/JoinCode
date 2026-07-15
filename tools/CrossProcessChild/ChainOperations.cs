@@ -34,7 +34,7 @@ public static class ChainOperations
                 throw new TimeoutException($"Process {processId} failed to acquire lock for write {i}");
             }
 
-            var lockObj = result.Lock!;
+            var lockObj = result.GetLock();
             await using (lockObj.ConfigureAwait(false))
             {
                 var existing = Fs.FileExists(filePath)
@@ -120,7 +120,7 @@ public static class ChainOperations
                 throw new TimeoutException($"Process {processId} failed to acquire lock for config write {i}");
             }
 
-            var lockObj = result.Lock!;
+            var lockObj = result.GetLock();
             await using (lockObj.ConfigureAwait(false))
             {
                 var json = await ReadFileWithRetryAsync(authPath).ConfigureAwait(false);
@@ -186,7 +186,7 @@ public static class ChainOperations
                 throw new TimeoutException($"Process {processId} failed to acquire lock for JSONL append {i}");
             }
 
-            var lockObj = result.Lock!;
+            var lockObj = result.GetLock();
             await using (lockObj.ConfigureAwait(false))
             {
                 var entry = new TranscriptEntry

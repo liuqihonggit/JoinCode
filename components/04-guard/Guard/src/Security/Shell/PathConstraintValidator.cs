@@ -41,4 +41,5 @@ public sealed record PathConstraintResult(
     string? Message = null,
     string? BlockedPath = null,
     FileOperationType? OperationType = null,
-    PathCommand? Command = null);
+    PathCommand? Command = null)
+    : ShellPermissionCheckResult(Behavior, Message);

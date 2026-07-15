@@ -25,7 +25,7 @@ global using JoinCode.Abstractions.Security.Permission;
 global using JoinCode.Abstractions.Security.Scanning;
 global using AgentPermissionCheckResult = JoinCode.Abstractions.Security.Permission.PermissionCheckResult;
 global using JoinCode.Abstractions.Security.Shell;
-global using AbstractionsPsSecurityResult = JoinCode.Abstractions.Security.Shell.PowerShell.PsSecurityResult;
+global using PsSecurityResult = JoinCode.Abstractions.Security.Shell.PowerShell.PsSecurityResult;
 global using IPsPermissionChecker = JoinCode.Abstractions.Security.Shell.PowerShell.IPsPermissionChecker;
 global using IPsDestructiveCommandChecker = JoinCode.Abstractions.Security.Shell.PowerShell.IPsDestructiveCommandChecker;
 global using JoinCode.Abstractions.Tools;

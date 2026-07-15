@@ -11,35 +11,28 @@ public static partial class SedValidator
     /// </summary>
     public static SedValidationResult CheckSedConstraints(string command, bool allowFileWrites = false)
     {
-        if (string.IsNullOrWhiteSpace(command)) return new() { Behavior = SedValidationBehavior.Passthrough };
+        if (string.IsNullOrWhiteSpace(command)) return new(PermissionBehavior.Passthrough);
 
         var trimmed = command.TrimStart();
         if (!trimmed.StartsWith("sed ", StringComparison.OrdinalIgnoreCase))
         {
-            return new() { Behavior = SedValidationBehavior.Passthrough };
+            return new(PermissionBehavior.Passthrough);
         }
 
-        // 检查是否为行打印命令
         if (IsLinePrintingCommand(trimmed))
         {
-            return new() { Behavior = SedValidationBehavior.Passthrough };
+            return new(PermissionBehavior.Passthrough);
         }
 
-        // 检查是否为替换命令
         var substResult = IsSubstitutionCommand(trimmed, allowFileWrites);
-        if (substResult.Behavior == SedValidationBehavior.Passthrough)
+        if (substResult.Behavior == PermissionBehavior.Passthrough)
         {
-            // 额外检查危险操作
             var expressions = ExtractSedExpressions(trimmed);
             foreach (var expr in expressions)
             {
                 if (ContainsDangerousOperations(expr))
                 {
-                    return new()
-                    {
-                        Behavior = SedValidationBehavior.Deny,
-                        Message = $"sed 表达式包含危险操作: {expr}"
-                    };
+                    return new(PermissionBehavior.Deny, $"sed 表达式包含危险操作: {expr}");
                 }
             }
         }
@@ -107,7 +100,7 @@ public static partial class SedValidator
     private static SedValidationResult IsSubstitutionCommand(string command, bool allowFileWrites)
     {
         var tokens = SedEditParser.TryParseShellTokens(command[4..]);
-        if (tokens is null) return new() { Behavior = SedValidationBehavior.Deny, Message = "无法解析 sed 命令" };
+        if (tokens is null) return new(PermissionBehavior.Deny, "无法解析 sed 命令");
 
         var hasInPlaceFlag = false;
         var expressionCount = 0;
@@ -156,7 +149,7 @@ public static partial class SedValidator
             }
             else if (token.StartsWith("-"))
             {
-                return new() { Behavior = SedValidationBehavior.Deny, Message = $"不支持的 sed 标志: {token}" };
+                return new(PermissionBehavior.Deny, $"不支持的 sed 标志: {token}");
             }
             else
             {
@@ -176,19 +169,19 @@ public static partial class SedValidator
         // 必须恰好 1 个表达式
         if (expressionCount != 1 || expression is null)
         {
-            return new() { Behavior = SedValidationBehavior.Deny, Message = "sed 替换命令必须恰好 1 个表达式" };
+            return new(PermissionBehavior.Deny, "sed 替换命令必须恰好 1 个表达式");
         }
 
         // 表达式必须以 s 开头
         if (!expression.StartsWith("s", StringComparison.Ordinal))
         {
-            return new() { Behavior = SedValidationBehavior.Deny, Message = "sed 表达式必须以 s 开头" };
+            return new(PermissionBehavior.Deny, "sed 表达式必须以 s 开头");
         }
 
         // 分隔符必须是 /
         if (expression.Length < 2 || expression[1] != '/')
         {
-            return new() { Behavior = SedValidationBehavior.Deny, Message = "sed 替换命令必须使用 / 作为分隔符" };
+            return new(PermissionBehavior.Deny, "sed 替换命令必须使用 / 作为分隔符");
         }
 
         // 检查未转义的 / 数量
@@ -203,7 +196,7 @@ public static partial class SedValidator
 
         if (unescapedSlashCount != 2)
         {
-            return new() { Behavior = SedValidationBehavior.Deny, Message = "sed 替换命令必须恰好 2 个未转义的 / 分隔符" };
+            return new(PermissionBehavior.Deny, "sed 替换命令必须恰好 2 个未转义的 / 分隔符");
         }
 
         // 提取并验证标志
@@ -214,20 +207,16 @@ public static partial class SedValidator
 
         if (!SubstitutionFlagsRegex().IsMatch(flags))
         {
-            return new() { Behavior = SedValidationBehavior.Deny, Message = $"不支持的 sed 替换标志: {flags}" };
+            return new(PermissionBehavior.Deny, $"不支持的 sed 替换标志: {flags}");
         }
 
         // -i 标志检查
         if (hasInPlaceFlag && !allowFileWrites)
         {
-            return new()
-            {
-                Behavior = SedValidationBehavior.Ask,
-                Message = "sed -i 命令将修改文件，需要确认"
-            };
+            return new(PermissionBehavior.Ask, "sed -i 命令将修改文件，需要确认");
         }
 
-        return new() { Behavior = SedValidationBehavior.Passthrough };
+        return new(PermissionBehavior.Passthrough);
     }
 
     /// <summary>

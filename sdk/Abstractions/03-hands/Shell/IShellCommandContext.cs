@@ -41,8 +41,17 @@ public interface IShellCommandContext : IDisposable
 
     /// <summary>
     /// 杀进程 — 对齐 TS ShellCommand.kill()
+    /// 使用 tree-kill(SIGKILL) 强制终止整个进程树
     /// </summary>
     void Kill();
+
+    /// <summary>
+    /// 中断进程 — 对齐 TS ShellCommand.#abortHandler reason==='interrupt'
+    /// 用户提交新消息时触发，不杀进程，而是将运行中的命令转为后台任务
+    /// 与 Kill() 的区别：interrupt 保留进程继续运行，让模型可以看到部分输出
+    /// </summary>
+    /// <returns>是否成功转后台（仅 Running 状态可转）</returns>
+    bool Interrupt();
 
     /// <summary>
     /// 启动 Assistant 自动后台化定时器 — 对齐 TS BashTool assistant auto-background

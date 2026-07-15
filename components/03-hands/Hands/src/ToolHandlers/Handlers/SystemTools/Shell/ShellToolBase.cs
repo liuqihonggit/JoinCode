@@ -36,9 +36,10 @@ public abstract class ShellToolBase
     public virtual bool IsCompactable => true;
 
     /// <summary>
-    /// 检查 PowerShell 门控 — PowerShell 工具在非 Windows 或环境变量禁用时返回错误
+    /// 检查 PowerShell 门控 — 对齐 TS isPowerShellToolEnabled + isWindowsSandboxPolicyViolation
+    /// 1. 非 Windows 或环境变量禁用时不可用
+    /// 2. Windows 上沙箱策略启用但沙箱不可用时拒绝执行
     /// </summary>
-    /// <param name="isPowerShellCall">当前调用是否为 PowerShell 命令</param>
     protected ToolResult? CheckGate(bool isPowerShellCall = false)
     {
         if (isPowerShellCall && _gateService is not null && !_gateService.IsPowerShellToolEnabled())
@@ -48,7 +49,30 @@ public abstract class ShellToolBase
                 .Build();
         }
 
+        // 对齐 TS isWindowsSandboxPolicyViolation: Windows 上沙箱必需但不可用时拒绝 PS
+        if (isPowerShellCall && IsWindowsSandboxPolicyViolation())
+        {
+            return ResultBuilder.Error()
+                .WithText("Enterprise policy requires sandboxing, but sandboxing is not available on native Windows. PowerShell commands cannot be executed in this configuration.")
+                .Build();
+        }
+
         return null;
+    }
+
+    /// <summary>
+    /// 检查 Windows 沙箱策略冲突 — 对齐 TS isWindowsSandboxPolicyViolation
+    /// 当 Windows 平台上沙箱策略启用且不允许非沙箱命令时返回 true
+    /// </summary>
+    private static bool IsWindowsSandboxPolicyViolation()
+    {
+        if (!OperatingSystem.IsWindows()) return false;
+
+        var sandboxEnabled = Environment.GetEnvironmentVariable("JCC_SANDBOX_ENABLED");
+        var unsandboxedAllowed = Environment.GetEnvironmentVariable("JCC_ALLOW_UNSANDBOXED");
+
+        return sandboxEnabled?.Equals("true", StringComparison.OrdinalIgnoreCase) == true
+            && unsandboxedAllowed?.Equals("true", StringComparison.OrdinalIgnoreCase) != true;
     }
 
     /// <summary>

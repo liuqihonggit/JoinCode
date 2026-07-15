@@ -44,7 +44,9 @@ public sealed partial class SyncSystemPromptProviderOptions : Core.Prompts.Syste
             : null;
         AwaySummary = null;
         BashVersion = bashProvider?.Version;
+        BashPath = bashProvider?.ShellPath;
         PowerShellVersion = psProvider?.Version;
+        PowerShellPath = psProvider?.ShellPath;
         PowerShellEdition = psProvider is not null
             ? (psProvider.IsCore ? "core" : "desktop")
             : null;

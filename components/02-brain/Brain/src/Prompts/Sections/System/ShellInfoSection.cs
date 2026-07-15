@@ -20,7 +20,10 @@ public static class ShellInfoSection
 
             if (!string.IsNullOrEmpty(bashVer) && bashVer != "cmd-fallback")
             {
-                lines.Add($"Bash: {bashVer}");
+                var bashPath = config.BashPath;
+                lines.Add(string.IsNullOrEmpty(bashPath)
+                    ? $"Bash: {bashVer}"
+                    : $"Bash: {bashVer} ({bashPath})");
             }
             else if (bashVer == "cmd-fallback")
             {
@@ -35,7 +38,10 @@ public static class ShellInfoSection
                     "desktop" => "Windows PowerShell 5.1",
                     _ => "PowerShell"
                 };
-                lines.Add($"{editionLabel}: {psVer}");
+                var psPath = config.PowerShellPath;
+                lines.Add(string.IsNullOrEmpty(psPath)
+                    ? $"{editionLabel}: {psVer}"
+                    : $"{editionLabel}: {psVer} ({psPath})");
             }
 
             if (lines.Count == 0)

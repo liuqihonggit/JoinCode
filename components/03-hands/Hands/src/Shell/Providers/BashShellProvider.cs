@@ -6,16 +6,12 @@ namespace Services.Shell.Providers;
 /// 支持 CWD 追踪、环境变量注入、extglob 禁用
 /// </summary>
 [Register]
-public sealed class BashShellProvider : IShellProvider
+public sealed class BashShellProvider : ShellProviderBase
 {
-    private readonly ILogger? _logger;
-    private readonly IFileSystem _fs;
     private string? _snapshotFilePath;
 
-    public ShellProviderType Type => ShellProviderType.Bash;
-    public string ShellPath { get; }
-    public bool Detached => true;
-    public string Version { get; }
+    public override ShellProviderType Type => ShellProviderType.Bash;
+    public override bool Detached => true;
 
     /// <summary>
     /// 环境变量名 — 对齐 TS CLAUDE_CODE_GIT_BASH_PATH
@@ -45,16 +41,55 @@ public sealed class BashShellProvider : IShellProvider
     }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 
     public BashShellProvider(IFileSystem fs, string? shellPath = null, ILogger? logger = null)
+        : base(fs, shellPath, logger)
     {
-        _fs = fs ?? throw new ArgumentNullException(nameof(fs));
-        _logger = logger;
-        ShellPath = shellPath ?? FindGitBashPath();
-        Version = DetectBashVersion();
         _snapshotFilePath = TryCreateSnapshot();
     }
 
     /// <inheritdoc />
-    public Task<ShellExecCommandResult> BuildExecCommandAsync(
+    protected override string ResolveShellPath()
+    {
+        var envPath = ResolveFromEnvVar(GitBashPathEnvVar);
+        if (envPath is not null) return envPath;
+
+        var gitPath = FindExecutable("git.exe", excludeCurrentDir: true);
+        if (gitPath is not null)
+        {
+            var bashFromGit = Path.Combine(
+                Path.GetDirectoryName(Path.GetDirectoryName(gitPath))!,
+                "bin", "bash.exe");
+            if (Fs.FileExists(bashFromGit))
+            {
+                return bashFromGit;
+            }
+        }
+
+        var commonPath = FindInCommonPaths(
+            @"C:\Program Files\Git\bin\bash.exe",
+            @"C:\Program Files (x86)\Git\bin\bash.exe");
+        if (commonPath is not null) return commonPath;
+
+        Logger?.LogWarning("Git Bash not found, falling back to cmd.exe. Set {EnvVar} to specify bash path.", GitBashPathEnvVar);
+        return "cmd.exe";
+    }
+
+    /// <inheritdoc />
+    protected override string DetectVersion()
+    {
+        if (ShellPath.Equals("cmd.exe", StringComparison.OrdinalIgnoreCase))
+        {
+            return "cmd-fallback";
+        }
+
+        var output = ExecuteShellCommand(ShellPath, "--version");
+        if (output is null) return "unknown";
+
+        var match = Regex.Match(output, @"version\s+(\S+)", RegexOptions.IgnoreCase);
+        return match.Success ? match.Groups[1].Value : "unknown";
+    }
+
+    /// <inheritdoc />
+    public override Task<ShellExecCommandResult> BuildExecCommandAsync(
         string command,
         ShellExecOptions options,
         CancellationToken cancellationToken = default)
@@ -74,7 +109,7 @@ public sealed class BashShellProvider : IShellProvider
 
         var commandParts = new List<string>(5);
 
-        if (_snapshotFilePath is not null && _fs.FileExists(_snapshotFilePath))
+        if (_snapshotFilePath is not null && Fs.FileExists(_snapshotFilePath))
         {
             var posixSnapshotPath = WindowsPathToPosixPath(_snapshotFilePath);
             commandParts.Add($"source {ShellQuote(posixSnapshotPath)} 2>/dev/null || true");
@@ -97,7 +132,7 @@ public sealed class BashShellProvider : IShellProvider
             commandString = $"{shellPrefix} {ShellQuote(commandString)}";
         }
 
-        _logger?.LogDebug("BashShellProvider: built command for session {SessionId}", options.SessionId);
+        Logger?.LogDebug("BashShellProvider: built command for session {SessionId}", options.SessionId);
 
         return Task.FromResult(new ShellExecCommandResult
         {
@@ -110,115 +145,16 @@ public sealed class BashShellProvider : IShellProvider
     /// <remarks>
     /// 有快照时跳过 -l（login shell），因为快照已包含用户环境 — 对齐 TS BashProvider
     /// </remarks>
-    public string[] GetSpawnArgs(string commandString)
+    public override string[] GetSpawnArgs(string commandString)
         => _snapshotFilePath is not null ? ["-c", commandString] : ["-c", "-l", commandString];
 
     /// <inheritdoc />
-    public Task<IReadOnlyDictionary<string, string>> GetEnvironmentOverridesAsync(
-        string command,
-        CancellationToken cancellationToken = default)
+    protected override void AppendExtraEnvironmentVariables(
+        Dictionary<string, string> env, string command)
     {
-        var env = new Dictionary<string, string>(StringComparer.Ordinal)
-        {
-            ["CLAUDECODE"] = "1",
-            ["GIT_EDITOR"] = "true"
-        };
-
         if (Environment.GetEnvironmentVariable("SHELL") is null)
         {
             env["SHELL"] = ShellPath;
-        }
-
-        _logger?.LogDebug("BashShellProvider: injected {Count} environment overrides", env.Count);
-        return Task.FromResult<IReadOnlyDictionary<string, string>>(env);
-    }
-
-    /// <summary>
-    /// 查找 Git Bash 路径 — 对齐 TS findGitBashPath
-    /// 1. JCC_GIT_BASH_PATH 环境变量
-    /// 2. 从 git.exe 推导 bash.exe 路径
-    /// 3. 常见安装路径
-    /// 4. 回退到 cmd.exe
-    /// </summary>
-    private string FindGitBashPath()
-    {
-        var envPath = Environment.GetEnvironmentVariable(GitBashPathEnvVar);
-        if (!string.IsNullOrEmpty(envPath) && _fs.FileExists(envPath))
-        {
-            return envPath;
-        }
-
-        var gitPath = FindExecutable("git.exe");
-        if (gitPath is not null)
-        {
-            var bashFromGit = Path.Combine(
-                Path.GetDirectoryName(Path.GetDirectoryName(gitPath))!,
-                "bin", "bash.exe");
-            if (_fs.FileExists(bashFromGit))
-            {
-                return bashFromGit;
-            }
-        }
-
-        var commonPaths = new[]
-        {
-            @"C:\Program Files\Git\bin\bash.exe",
-            @"C:\Program Files (x86)\Git\bin\bash.exe",
-        };
-
-        foreach (var p in commonPaths)
-        {
-            if (_fs.FileExists(p)) return p;
-        }
-
-        _logger?.LogWarning("Git Bash not found, falling back to cmd.exe. Set {EnvVar} to specify bash path.", GitBashPathEnvVar);
-        return "cmd.exe";
-    }
-
-    /// <summary>
-    /// 查找可执行文件 — 对齐 TS findExecutable (where.exe)
-    /// </summary>
-    private string? FindExecutable(string executable)
-    {
-        try
-        {
-            var psi = new ProcessStartInfo
-            {
-                FileName = "where.exe",
-                Arguments = executable,
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                StandardOutputEncoding = Encoding.UTF8
-            };
-
-            using var process = Process.Start(psi);
-            if (process is null) return null;
-
-            var output = process.StandardOutput.ReadToEnd();
-            process.WaitForExit(5000);
-
-            if (process.ExitCode != 0) return null;
-
-            var paths = output.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
-            var cwd = _fs.GetCurrentDirectory().ToLowerInvariant();
-
-            foreach (var candidate in paths)
-            {
-                var normalized = Path.GetFullPath(candidate.Trim()).ToLowerInvariant();
-                var dir = Path.GetDirectoryName(normalized)!;
-                if (!dir.Equals(cwd, StringComparison.OrdinalIgnoreCase) &&
-                    !normalized.StartsWith(cwd + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
-                {
-                    return candidate.Trim();
-                }
-            }
-
-            return null;
-        }
-        catch
-        {
-            return null;
         }
     }
 
@@ -282,43 +218,6 @@ public sealed class BashShellProvider : IShellProvider
     }
 
     /// <summary>
-    /// 检测 Bash 版本 — 对齐 TS bash --version
-    /// </summary>
-    private string DetectBashVersion()
-    {
-        if (ShellPath.Equals("cmd.exe", StringComparison.OrdinalIgnoreCase))
-        {
-            return "cmd-fallback";
-        }
-
-        try
-        {
-            var psi = new ProcessStartInfo
-            {
-                FileName = ShellPath,
-                Arguments = "--version",
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                StandardOutputEncoding = Encoding.UTF8
-            };
-
-            using var process = Process.Start(psi);
-            if (process is null) return "unknown";
-
-            var output = process.StandardOutput.ReadToEnd();
-            process.WaitForExit(5000);
-
-            var match = Regex.Match(output, @"version\s+(\S+)", RegexOptions.IgnoreCase);
-            return match.Success ? match.Groups[1].Value : "unknown";
-        }
-        catch
-        {
-            return "unknown";
-        }
-    }
-
-    /// <summary>
     /// 尝试创建 Bash 环境快照 — 对齐 TS ShellSnapshot.createAndSaveSnapshot
     /// 捕获别名、shell 选项、PATH 等用户环境，供后续命令 source
     /// 失败时静默降级（不影响主流程）
@@ -329,40 +228,25 @@ public sealed class BashShellProvider : IShellProvider
 
         try
         {
-            if (!_fs.DirectoryExists(SnapshotDir))
+            if (!Fs.DirectoryExists(SnapshotDir))
             {
-                _fs.CreateDirectory(SnapshotDir);
+                Fs.CreateDirectory(SnapshotDir);
             }
 
             var snapshotScript = "declare -f 2>/dev/null; shopt -p 2>/dev/null; set -o 2>/dev/null; alias 2>/dev/null; echo \"PATH=$PATH\"";
 
-            var psi = new ProcessStartInfo
-            {
-                FileName = ShellPath,
-                Arguments = $"-c -l {ShellQuote(snapshotScript)}",
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                StandardOutputEncoding = Encoding.UTF8
-            };
-
-            using var process = Process.Start(psi);
-            if (process is null) return null;
-
-            var output = process.StandardOutput.ReadToEnd();
-            process.WaitForExit(10_000);
-
-            if (process.ExitCode != 0 || string.IsNullOrWhiteSpace(output)) return null;
+            var output = ExecuteShellCommand(ShellPath, $"-c -l {ShellQuote(snapshotScript)}", 10_000);
+            if (output is null || string.IsNullOrWhiteSpace(output)) return null;
 
             var snapshotPath = Path.Combine(SnapshotDir, $"snapshot-bash-{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}.sh");
-            _fs.WriteAllText(snapshotPath, output);
+            Fs.WriteAllText(snapshotPath, output);
 
-            _logger?.LogDebug("Bash 环境快照已创建: {Path}, Size={Size}", snapshotPath, output.Length);
+            Logger?.LogDebug("Bash 环境快照已创建: {Path}, Size={Size}", snapshotPath, output.Length);
             return snapshotPath;
         }
         catch (Exception ex)
         {
-            _logger?.LogDebug(ex, "创建 Bash 环境快照失败，将使用 login shell 降级");
+            Logger?.LogDebug(ex, "创建 Bash 环境快照失败，将使用 login shell 降级");
             return null;
         }
     }

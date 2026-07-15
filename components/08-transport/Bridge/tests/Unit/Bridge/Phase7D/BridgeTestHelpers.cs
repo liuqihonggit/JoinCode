@@ -9,13 +9,6 @@ internal sealed class TestBridgeLogger : IBridgeLogger
     public Action<string, string>? OnSetSessionTitle { get; init; }
 
     public void PrintBanner(BridgeConfig config, string environmentId) { }
-    public void LogSessionStart(string sessionId, string prompt) { }
-    public void LogSessionComplete(string sessionId, long durationMs) { }
-    public void LogSessionFailed(string sessionId, string error) { }
-    public void LogStatus(string message) { }
-    public void LogVerbose(string message) { }
-    public void LogError(string message) { }
-    public void LogReconnected(long disconnectedMs) { }
     public void UpdateIdleStatus() { }
     public void UpdateReconnectingStatus(string delayStr, string elapsedStr) { }
     public void UpdateSessionStatus(string sessionId, string elapsed, BridgeSessionActivity activity, IReadOnlyList<string> trail) { }

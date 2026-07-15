@@ -335,7 +335,6 @@ public sealed partial class BridgeMain
         _deps.SaveSpawnModePreference?.Invoke(newMode);
 
         _deps.BridgeLogger?.SetSpawnModeDisplay(newMode);
-        _deps.BridgeLogger?.LogStatus($"Spawn mode: {newMode.ToValue()}");
 
         _logger?.LogInformation("BridgeMain: spawn mode toggled to {Mode}", newMode.ToValue());
     }

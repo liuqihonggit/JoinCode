@@ -214,7 +214,7 @@ public sealed partial class BridgeMain : IAsyncDisposable
             });
             if (BridgeApiClient.IsExpiredErrorType(ex.ErrorType))
             {
-                _deps.BridgeLogger?.LogStatus(ex.Message);
+                _logger?.LogWarning("BridgeMain: registration expired: {Message}", ex.Message);
             }
             else if (BridgeApiClient.IsSuppressible403(ex))
             {
@@ -222,7 +222,6 @@ public sealed partial class BridgeMain : IAsyncDisposable
             }
             else
             {
-                _deps.BridgeLogger?.LogError(ex.Message);
                 _logger?.LogError(ex, "BridgeMain: environment registration failed (fatal)");
             }
             return new BridgeMainResult { Error = $"Registration failed: {ex.Message}" };
@@ -545,7 +544,7 @@ public sealed partial class BridgeMain : IAsyncDisposable
             // 对齐 TS 端: 分层判断 — 过期/可抑制403 vs 真正致命
             if (BridgeApiClient.IsExpiredErrorType(ex.ErrorType))
             {
-                _deps.BridgeLogger?.LogStatus(ex.Message);
+                _logger?.LogWarning("BridgeMain: registration expired: {Message}", ex.Message);
             }
             else if (BridgeApiClient.IsSuppressible403(ex))
             {
@@ -553,7 +552,6 @@ public sealed partial class BridgeMain : IAsyncDisposable
             }
             else
             {
-                _deps.BridgeLogger?.LogError(ex.Message);
                 _logger?.LogError(ex, "BridgeMain: environment registration failed (fatal)");
             }
             return new BridgeMainResult { Error = $"Registration failed: {ex.Message}" };
@@ -962,7 +960,7 @@ public sealed partial class BridgeMain : IAsyncDisposable
         }
         else if (_isResuming && !_fatalExit)
         {
-            _deps.BridgeLogger?.LogStatus("Resume this session by running `claude remote-control --continue`");
+            _logger?.LogInformation("Resume this session by running `claude remote-control --continue`");
             _logger?.LogDebug("BridgeMain: skipping archive+deregister to allow resume");
         }
 
@@ -1044,7 +1042,7 @@ public sealed partial class BridgeMain : IAsyncDisposable
                     EnvironmentId!, ct, reclaimMs).ConfigureAwait(false);
 
                 // 重置退避状态（成功通信）
-                _backoff.Reset(onReconnected: ms => _deps.BridgeLogger?.LogReconnected(ms));
+                _backoff.Reset(onReconnected: ms => _logger?.LogInformation("BridgeMain: reconnected after {Ms}ms", ms));
 
                 if (work is null)
                 {
@@ -1069,7 +1067,7 @@ public sealed partial class BridgeMain : IAsyncDisposable
                 if (BridgeApiClient.IsExpiredErrorType(ex.ErrorType))
                 {
                     // 过期类错误 → 信息性状态消息（非错误样式）
-                    _deps.BridgeLogger?.LogStatus(ex.Message);
+                _logger?.LogWarning("BridgeMain: registration expired: {Message}", ex.Message);
                 }
                 else if (BridgeApiClient.IsSuppressible403(ex))
                 {
@@ -1079,7 +1077,6 @@ public sealed partial class BridgeMain : IAsyncDisposable
                 else
                 {
                     // 其他致命错误 → 错误日志
-                    _deps.BridgeLogger?.LogError(ex.Message);
                     _logger?.LogError(ex, "BridgeMain: fatal error, exiting loop");
                 }
                 throw;
@@ -1663,7 +1660,7 @@ public sealed partial class BridgeMain : IAsyncDisposable
         switch (status)
         {
             case BridgeSubprocessStatus.Completed:
-                _deps.BridgeLogger?.LogSessionComplete(compatId, durationMs);
+                _logger?.LogInformation("BridgeMain: session {SessionId} completed ({DurationMs}ms)", compatId, durationMs);
                 break;
             case BridgeSubprocessStatus.Failed:
                 // 超时杀掉的会话已由 onSessionTimeout 记录过日志，关机中断也跳过
@@ -1673,11 +1670,11 @@ public sealed partial class BridgeMain : IAsyncDisposable
                         ? string.Join("\n", handle.StderrLines)
                         : null;
                     var failureMessage = stderrSummary ?? "Process exited with error";
-                    _deps.BridgeLogger?.LogSessionFailed(compatId, failureMessage);
+                    _logger?.LogError("BridgeMain: session {SessionId} failed: {Error}", compatId, failureMessage);
                 }
                 break;
             case BridgeSubprocessStatus.Interrupted:
-                _deps.BridgeLogger?.LogVerbose($"Session {compatId} interrupted");
+                _logger?.LogDebug("BridgeMain: session {SessionId} interrupted", compatId);
                 break;
         }
 
@@ -1761,7 +1758,6 @@ public sealed partial class BridgeMain : IAsyncDisposable
             _tracker.MarkTimedOut(work.SessionId);
             var compatId = GetCompatId(work.SessionId);
             var timeoutMsg = $"Session timed out after {timeoutMs}ms";
-            _deps.BridgeLogger?.LogSessionFailed(compatId, timeoutMsg);
             _logger?.LogWarning("BridgeMain: session {SessionId} timed out after {TimeoutMs}ms",
                 work.SessionId, timeoutMs);
             // 对齐 TS 端: logEvent("tengu_bridge_session_timeout", {timeout_ms})

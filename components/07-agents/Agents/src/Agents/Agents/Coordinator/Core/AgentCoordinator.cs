@@ -682,7 +682,7 @@ public sealed partial class AgentCoordinator : IAgentCoordinator, ISubAgentCoord
         }
 
         var totalMs = completedContexts
-            .Sum(c => (c.LastExecutionEnd!.Value - c.LastExecutionStart!.Value).TotalMilliseconds);
+            .Sum(c => (c.LastExecutionEnd.GetValueOrDefault() - c.LastExecutionStart.GetValueOrDefault()).TotalMilliseconds);
 
         return (long)(totalMs / completedContexts.Count);
     }

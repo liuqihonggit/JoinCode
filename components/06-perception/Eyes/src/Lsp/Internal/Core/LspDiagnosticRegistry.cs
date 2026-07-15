@@ -274,7 +274,8 @@ public sealed partial class LspDiagnosticRegistry : ILspDiagnosticRegistry, Join
 
                 while (_delivered.Count > MaxDeliveredFiles)
                 {
-                    var oldest = _deliveredLru.First!.Value;
+                    var first = _deliveredLru.First ?? throw new InvalidOperationException("LRU first node is null despite exceeding max count.");
+                    var oldest = first.Value;
                     _deliveredLru.RemoveFirst();
                     _delivered.Remove(oldest);
                 }

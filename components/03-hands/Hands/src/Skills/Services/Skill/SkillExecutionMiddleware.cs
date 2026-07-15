@@ -28,7 +28,7 @@ public sealed partial class SkillExecutionMiddleware : ISkillMiddleware
     /// <inheritdoc />
     public async Task InvokeAsync(SkillContext context, MiddlewareDelegate<SkillContext> next, CancellationToken ct)
     {
-        var skill = context.Skill!;
+        var skill = context.Skill ?? throw new InvalidOperationException("Skill is required.");
         var parameters = context.Parameters ?? new Dictionary<string, JsonElement>();
         var result = await ExecuteSkillStepsAsync(skill, parameters, context).ConfigureAwait(false);
         context.Result = result;

@@ -186,7 +186,7 @@ public sealed partial class RemoteManagedSettingsService : IRemoteSettingsServic
         foreach (var kvp in _settings)
         {
             var hasPrevious = previousSettings.TryGetValue(kvp.Key, out var previous);
-            if (!hasPrevious || previous!.Value != kvp.Value.Value)
+            if (!hasPrevious || previous?.Value != kvp.Value.Value)
             {
                 SettingChanged?.Invoke(this, new SettingChangedEventArgs
                 {

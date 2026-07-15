@@ -116,7 +116,7 @@ public static class ToolCallRepairService
         if (nameRepairs.Modified)
         {
             repaired = nameRepairs.Arguments;
-            hints.Add(nameRepairs.Hint!);
+            hints.Add(nameRepairs.Hint ?? "Parameter names repaired");
             modified = true;
         }
 
@@ -124,7 +124,7 @@ public static class ToolCallRepairService
         if (typeRepairs.Modified)
         {
             repaired = typeRepairs.Arguments;
-            hints.Add(typeRepairs.Hint!);
+            hints.Add(typeRepairs.Hint ?? "Argument types repaired");
             modified = true;
         }
 

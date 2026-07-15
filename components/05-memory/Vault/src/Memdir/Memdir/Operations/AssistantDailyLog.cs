@@ -279,7 +279,7 @@ public sealed partial class AssistantDailyLogService : IAssistantDailyLogService
         // 补充关联记忆的上下文
         var relatedMemoryIds = logFile.Entries
             .Where(e => !string.IsNullOrEmpty(e.RelatedMemoryId))
-            .Select(e => e.RelatedMemoryId!)
+            .Select(e => e.RelatedMemoryId ?? string.Empty)
             .Distinct()
             .Take(5)
             .ToList();

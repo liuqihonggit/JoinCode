@@ -14,6 +14,6 @@ public sealed partial class SetSystemPromptHandler : IChatAdminOperationHandler
 
     public async Task ExecuteAsync(ChatAdminContext context, CancellationToken ct)
     {
-        await context.ContextManager.UpdateSystemPromptAsync(context.SystemPrompt!, ct).ConfigureAwait(false);
+        await context.ContextManager.UpdateSystemPromptAsync(context.SystemPrompt ?? throw new InvalidOperationException("SystemPrompt is required."), ct).ConfigureAwait(false);
     }
 }

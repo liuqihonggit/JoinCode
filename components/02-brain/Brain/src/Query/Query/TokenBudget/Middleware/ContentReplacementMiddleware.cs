@@ -29,6 +29,7 @@ public sealed partial class ContentReplacementMiddleware : IQueryMiddleware
 
     private async Task ApplyToolResultBudgetAsync(QueryMiddlewareContext context, CancellationToken ct)
     {
+        var contentReplacementService = _contentReplacementService ?? throw new InvalidOperationException("ContentReplacementService not available.");
         var state = context.Options?.ContentReplacementState;
         if (state is null)
             return;
@@ -36,7 +37,7 @@ public sealed partial class ContentReplacementMiddleware : IQueryMiddleware
         var sessionId = context.Options?.SessionId ?? "default";
         var neverPersistTools = context.Options?.NeverPersistTools;
 
-        var (budgeted, newlyReplaced) = await _contentReplacementService!.ApplyToolResultBudgetAsync(
+        var (budgeted, newlyReplaced) = await contentReplacementService.ApplyToolResultBudgetAsync(
             context.ChatHistory.ToList(), state, sessionId, neverPersistTools, ct).ConfigureAwait(false);
 
         if (newlyReplaced.Count > 0)

@@ -18,7 +18,7 @@ public sealed partial class LoadSessionMessagesHandler : IChatAdminOperationHand
         {
             await context.ContextManager.ClearMessagesAsync(ct).ConfigureAwait(false);
 
-            foreach (var msg in context.Messages!)
+            foreach (var msg in context.Messages ?? throw new InvalidOperationException("Messages is required."))
             {
                 if (msg.Role.Equals("user", StringComparison.OrdinalIgnoreCase))
                 {

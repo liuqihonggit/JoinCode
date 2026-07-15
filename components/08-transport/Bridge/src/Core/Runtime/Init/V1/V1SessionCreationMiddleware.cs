@@ -14,7 +14,9 @@ internal sealed partial class V1SessionCreationMiddleware : IMiddleware<V1Bridge
     public async Task InvokeAsync(V1BridgeInitContext ctx, MiddlewareDelegate<V1BridgeInitContext> next, CancellationToken ct)
     {
         var sessionId = await ctx.Parameters.CreateSession(
-            ctx.EnvironmentId!, ctx.Parameters.Title, ctx.Parameters.GitRepoUrl, ctx.AccessToken!, ct).ConfigureAwait(false);
+            ctx.EnvironmentId ?? throw new InvalidOperationException("EnvironmentId not set."),
+            ctx.Parameters.Title, ctx.Parameters.GitRepoUrl,
+            ctx.AccessToken ?? throw new InvalidOperationException("AccessToken not set."), ct).ConfigureAwait(false);
 
         if (string.IsNullOrEmpty(sessionId))
         {

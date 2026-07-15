@@ -28,7 +28,8 @@ public sealed partial class UsdBudgetMiddleware : IQueryMiddleware
 
     private async Task CheckBudgetAsync(QueryMiddlewareContext context, CancellationToken ct)
     {
-        if (await _usdBudgetManager!.IsBudgetExceededAsync(ct).ConfigureAwait(false))
+        var usdBudgetManager = _usdBudgetManager ?? throw new InvalidOperationException("UsdBudgetManager not available.");
+        if (await usdBudgetManager.IsBudgetExceededAsync(ct).ConfigureAwait(false))
         {
             context.Logger?.LogWarning("[QueryEngine] USD 预算已超限");
             context.OutputChunks.Add(new QueryStreamChunk { Type = AgentStreamChunkType.Error, Content = "USD 预算已超限" });

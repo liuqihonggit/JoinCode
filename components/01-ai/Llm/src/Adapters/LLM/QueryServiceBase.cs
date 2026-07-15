@@ -77,7 +77,8 @@ public abstract partial class QueryServiceBase : IQueryService
 
         // IProviderDefinition 多态配置认证 Header — 完全消除 switch/if
         // Definition 由 ctor 强制非空，此处无需再校验
-        config.Definition!.ConfigureHttpClient(client, config);
+        var definition = config.Definition ?? throw new InvalidOperationException("Provider definition is required.");
+        definition.ConfigureHttpClient(client, config);
 
         return client;
     }

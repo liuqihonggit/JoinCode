@@ -17,7 +17,7 @@ public sealed partial class WebCacheWriteMiddleware : IWebMiddleware
     /// <inheritdoc />
     public Task InvokeAsync(WebContext context, MiddlewareDelegate<WebContext> next, CancellationToken ct)
     {
-        var fetchResult = context.FetchResult!;
+        var fetchResult = context.FetchResult ?? throw new InvalidOperationException("FetchResult is not available in WebContext.");
 
         // 写入缓存 — 对齐 TS 版: size 使用 Markdown 转换后的字节长度
         var markdownBytes = Encoding.UTF8.GetByteCount(context.ProcessedContent ?? string.Empty);

@@ -14,6 +14,6 @@ public sealed partial class InitializeHandler : IChatAdminOperationHandler
 
     public async Task ExecuteAsync(ChatAdminContext context, CancellationToken ct)
     {
-        await _initializer.InitializeAsync(context.ToolUseContext!).ConfigureAwait(false);
+        await _initializer.InitializeAsync(context.ToolUseContext ?? throw new InvalidOperationException("ToolUseContext is required.")).ConfigureAwait(false);
     }
 }

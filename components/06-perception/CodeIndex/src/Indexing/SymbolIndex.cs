@@ -310,12 +310,13 @@ public sealed class SymbolIndex : ISymbolIndex, IDisposable
             }
             tgtList.Add(dep);
 
-            if (!string.IsNullOrEmpty(dep.SourceFilePath))
+            if (dep.SourceFilePath is not null and not "")
             {
-                if (!_store.DepsByFile.TryGetValue(dep.SourceFilePath!, out var fileList))
+                var sourceFile = dep.SourceFilePath;
+                if (!_store.DepsByFile.TryGetValue(sourceFile, out var fileList))
                 {
                     fileList = new List<DependencyEdge>();
-                    _store.DepsByFile[dep.SourceFilePath!] = fileList;
+                    _store.DepsByFile[sourceFile] = fileList;
                 }
                 fileList.Add(dep);
             }

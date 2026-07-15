@@ -259,8 +259,8 @@ public class OpenAIQueryService : QueryServiceBase
     {
         return kernel.Plugins.PluginNames
             .Select(name => kernel.Plugins.GetPlugin(name))
-            .Where(p => p is not null)
-            .SelectMany(p => p!.Functions)
+            .OfType<IToolGroup>()
+            .SelectMany(p => p.Functions)
             .Select(function => new OpenAITool
             {
                 Function = new OpenAIFunctionDefinition

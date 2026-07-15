@@ -120,7 +120,7 @@ public sealed partial class LspPassiveFeedback : ILspPassiveFeedback
 
             diagnostics.Add(new LspDiagnosticItem
             {
-                Message = message!,
+                Message = message ?? string.Empty,
                 Severity = severity,
                 Range = range,
                 Source = source,

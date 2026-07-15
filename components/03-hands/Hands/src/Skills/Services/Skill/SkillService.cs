@@ -194,11 +194,12 @@ public sealed partial class SkillService : ISkillService, IDisposable
         CancellationToken cancellationToken)
     {
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        var mcpSkillProvider = _mcpSkillProvider ?? throw new InvalidOperationException("McpSkillProvider not available.");
         ctx.Logger?.LogInformation("执行 MCP 远程技能: {SkillName}", skillName);
 
         try
         {
-            var result = await _mcpSkillProvider!.ExecuteMcpSkillAsync(skillName, parameters, ctx, cancellationToken).ConfigureAwait(false);
+            var result = await mcpSkillProvider.ExecuteMcpSkillAsync(skillName, parameters, ctx, cancellationToken).ConfigureAwait(false);
             stopwatch.Stop();
             ctx.Logger?.LogInformation("MCP 远程技能 {SkillName} 执行完成，耗时 {Ms}ms", skillName, stopwatch.ElapsedMilliseconds);
             return result with { DurationMs = stopwatch.ElapsedMilliseconds };

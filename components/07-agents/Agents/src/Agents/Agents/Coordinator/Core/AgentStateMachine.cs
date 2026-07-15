@@ -11,7 +11,7 @@ public sealed partial class AgentStateMachine
     private readonly ConcurrentDictionary<string, AgentStateContext> _states;
     [Inject] private readonly IClockService _clock;
 
-    internal Action<string, TaskExecutionStatus, TaskExecutionStatus>? OnStateChanged { get; set; }
+    internal event EventHandler<AgentStateChangedEventArgs>? StateChanged;
 
     public AgentStateMachine(ILogger? logger = null, IClockService? clock = null)
     {
@@ -74,7 +74,7 @@ public sealed partial class AgentStateMachine
             _logger?.LogInformation("[AgentStateMachine] Agent {AgentId} 状态转换: {OldState} -> {NewState}",
                 agentId, oldState, newState);
 
-            OnStateChanged?.Invoke(agentId, oldState, newState);
+            StateChanged?.Invoke(this, new AgentStateChangedEventArgs(agentId, oldState, newState));
 
             return true;
         }
@@ -248,4 +248,11 @@ public sealed record StateTransition(
     TaskExecutionStatus ToState,
     DateTime Timestamp,
     string? Reason);
+
+public sealed class AgentStateChangedEventArgs(string agentId, TaskExecutionStatus oldState, TaskExecutionStatus newState) : EventArgs
+{
+    public string AgentId { get; } = agentId;
+    public TaskExecutionStatus OldState { get; } = oldState;
+    public TaskExecutionStatus NewState { get; } = newState;
+}
 

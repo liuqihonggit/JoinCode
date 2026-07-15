@@ -86,6 +86,9 @@ public sealed partial class ShellExecutionService : IShellExecutionService
 
         if (_preventSleepService is not null) await _preventSleepService.PreventSleepAsync(SleepPreventionType.Continuous).ConfigureAwait(false);
 
+        var useSandbox = !disableSandbox && _sandboxModeService is not null && _sandboxModeService.IsInSandbox;
+        var sandboxTmpDir = useSandbox ? _sandboxModeService!.CurrentSandbox?.RootPath : null;
+
         var context = await ShellCommandContext.StartAsync(
             command,
             cwd,
@@ -93,6 +96,8 @@ public sealed partial class ShellExecutionService : IShellExecutionService
             provider,
             timeout,
             shouldAutoBackground,
+            useSandbox,
+            sandboxTmpDir,
             _logger).ConfigureAwait(false);
 
         _ = context.ResultTask.ContinueWith(async _ =>
@@ -131,9 +136,21 @@ public sealed partial class ShellExecutionService : IShellExecutionService
         if (_preventSleepService is not null) await _preventSleepService.PreventSleepAsync(SleepPreventionType.Continuous).ConfigureAwait(false);
         try
         {
-            var spawnArgs = provider.GetSpawnArgs(command);
+            var useSandbox = !disableSandbox && _sandboxModeService is not null && _sandboxModeService.IsInSandbox;
+            var sandboxTmpDir = useSandbox ? _sandboxModeService!.CurrentSandbox?.RootPath : null;
 
+            var sessionId = Guid.NewGuid().ToString("N")[..8];
+            var execOptions = new ShellExecOptions
+            {
+                SessionId = sessionId,
+                UseSandbox = useSandbox,
+                SandboxTmpDir = sandboxTmpDir,
+            };
+
+            var execResult = await provider.BuildExecCommandAsync(command, execOptions, cancellationToken).ConfigureAwait(false);
             var envOverrides = await provider.GetEnvironmentOverridesAsync(command, cancellationToken).ConfigureAwait(false);
+
+            var spawnArgs = provider.GetSpawnArgs(execResult.CommandString);
 
             var options = new ProcessOptions
             {

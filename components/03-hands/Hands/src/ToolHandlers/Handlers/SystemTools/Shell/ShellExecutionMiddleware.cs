@@ -110,7 +110,7 @@ public sealed partial class ShellExecutionMiddleware : IShellMiddleware
                 // 进度报告失败不影响命令执行
                 System.Diagnostics.Trace.WriteLine($"进度报告发送失败: {ex.Message}");
             }
-        }, null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
+        }, null, TimeSpan.FromMilliseconds(ShellBackgroundConstants.ProgressThresholdMs), TimeSpan.FromSeconds(1));
     }
 
     /// <summary>

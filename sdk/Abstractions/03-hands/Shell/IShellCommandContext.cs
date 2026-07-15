@@ -92,7 +92,8 @@ public static class ShellBackgroundConstants
 
     /// <summary>
     /// 禁止自动后台化的命令 — 对齐 TS DISALLOWED_AUTO_BACKGROUND_COMMANDS
+    /// Bash: sleep; PowerShell: start-sleep, sleep
     /// </summary>
-    internal static readonly FrozenSet<string> DisallowedAutoBackgroundCommands = new[] { "sleep" }
+    internal static readonly FrozenSet<string> DisallowedAutoBackgroundCommands = new[] { "sleep", "start-sleep" }
         .ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 }

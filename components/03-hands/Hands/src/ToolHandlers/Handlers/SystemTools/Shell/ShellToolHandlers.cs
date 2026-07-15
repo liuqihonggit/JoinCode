@@ -251,6 +251,25 @@ public partial class ShellToolHandlers : ShellToolBase
         return ResultBuilder.Success().WithText($"Task {task_id} cancelled").Build();
     }
 
+    /// <summary>
+    /// 强制杀死所有运行中的后台任务 — 对齐 TS 用户强行消灭全部后台进程
+    /// </summary>
+    [McpTool(ShellToolNameConstants.ShellBackgroundKillAll, "Force kill ALL running background shell tasks and reclaim memory", "execution")]
+    public async Task<ToolResult> ShellBackgroundKillAllAsync(
+        CancellationToken cancellationToken = default)
+    {
+        if (_backgroundTaskService == null)
+        {
+            return ResultBuilder.Error().WithText("Background task service is not available").Build();
+        }
+
+        var killedCount = await _backgroundTaskService.KillAllRunningAsync(cancellationToken).ConfigureAwait(false);
+
+        return ResultBuilder.Success().WithText(killedCount > 0
+            ? $"Killed {killedCount} running background task(s)"
+            : "No running background tasks to kill").Build();
+    }
+
     #region Private Methods
 
     private static string FormatStatus(TaskExecutionStatus status)

@@ -274,6 +274,46 @@ public sealed partial class ShellBackgroundTaskService : IShellBackgroundTaskSer
         };
     }
 
+    public Task<int> KillAllRunningAsync(CancellationToken cancellationToken = default)
+    {
+        var runningTasks = _tasks.Values
+            .Where(t => t.Status is TaskExecutionStatus.Pending or TaskExecutionStatus.Running)
+            .ToList();
+
+        var killedCount = 0;
+        foreach (var entry in runningTasks)
+        {
+            if (_cancellationTokens.TryRemove(entry.TaskId, out var cts))
+            {
+                cts.Cancel();
+                cts.Dispose();
+            }
+
+            if (entry.Process is not null)
+            {
+                try
+                {
+                    if (!entry.Process.HasExited) entry.Process.Kill();
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogDebug(ex, "杀死后台任务进程失败: {TaskId}", entry.TaskId);
+                }
+            }
+
+            entry.Status = TaskExecutionStatus.Cancelled;
+            entry.CompletedAt = DateTime.UtcNow;
+            killedCount++;
+        }
+
+        if (killedCount > 0)
+        {
+            _logger?.LogInformation("强制杀死全部运行中后台任务: {Count} 个", killedCount);
+        }
+
+        return Task.FromResult(killedCount);
+    }
+
     public void Dispose()
     {
         foreach (var cts in _cancellationTokens.Values)
@@ -300,5 +340,6 @@ public sealed partial class ShellBackgroundTaskService : IShellBackgroundTaskSer
         public string? Stderr { get; set; }
         public int? ExitCode { get; set; }
         public string? ErrorMessage { get; set; }
+        public Process? Process { get; set; }
     }
 }

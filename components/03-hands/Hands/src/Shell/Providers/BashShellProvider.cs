@@ -10,6 +10,7 @@ public sealed class BashShellProvider : IShellProvider
 {
     private readonly ILogger? _logger;
     private readonly IFileSystem _fs;
+    private string? _snapshotFilePath;
 
     public ShellProviderType Type => ShellProviderType.Bash;
     public string ShellPath { get; }
@@ -27,6 +28,13 @@ public sealed class BashShellProvider : IShellProvider
     public const string ShellPrefixEnvVar = "JCC_SHELL_PREFIX";
 
     /// <summary>
+    /// 快照目录 — 对齐 TS ~/.claude/shell-snapshots
+    /// </summary>
+    private static readonly string SnapshotDir = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+        ".jcc", "shell-snapshots");
+
+    /// <summary>
     /// 安全环境变量白名单 — 对齐 TS BashProvider SafeEnvVars
     /// </summary>
     internal static readonly FrozenSet<string> SafeEnvVars = new[]
@@ -42,6 +50,7 @@ public sealed class BashShellProvider : IShellProvider
         _logger = logger;
         ShellPath = shellPath ?? FindGitBashPath();
         Version = DetectBashVersion();
+        _snapshotFilePath = TryCreateSnapshot();
     }
 
     /// <inheritdoc />
@@ -63,7 +72,13 @@ public sealed class BashShellProvider : IShellProvider
 
         var normalizedCommand = RewriteWindowsNullRedirect(command);
 
-        var commandParts = new List<string>(4);
+        var commandParts = new List<string>(5);
+
+        if (_snapshotFilePath is not null && _fs.FileExists(_snapshotFilePath))
+        {
+            var posixSnapshotPath = WindowsPathToPosixPath(_snapshotFilePath);
+            commandParts.Add($"source {ShellQuote(posixSnapshotPath)} 2>/dev/null || true");
+        }
 
         var disableExtglobCmd = GetDisableExtglobCommand();
         if (disableExtglobCmd is not null)
@@ -92,7 +107,11 @@ public sealed class BashShellProvider : IShellProvider
     }
 
     /// <inheritdoc />
-    public string[] GetSpawnArgs(string commandString) => ["-c", commandString];
+    /// <remarks>
+    /// 有快照时跳过 -l（login shell），因为快照已包含用户环境 — 对齐 TS BashProvider
+    /// </remarks>
+    public string[] GetSpawnArgs(string commandString)
+        => _snapshotFilePath is not null ? ["-c", commandString] : ["-c", "-l", commandString];
 
     /// <inheritdoc />
     public Task<IReadOnlyDictionary<string, string>> GetEnvironmentOverridesAsync(
@@ -296,6 +315,55 @@ public sealed class BashShellProvider : IShellProvider
         catch
         {
             return "unknown";
+        }
+    }
+
+    /// <summary>
+    /// 尝试创建 Bash 环境快照 — 对齐 TS ShellSnapshot.createAndSaveSnapshot
+    /// 捕获别名、shell 选项、PATH 等用户环境，供后续命令 source
+    /// 失败时静默降级（不影响主流程）
+    /// </summary>
+    private string? TryCreateSnapshot()
+    {
+        if (ShellPath.Equals("cmd.exe", StringComparison.OrdinalIgnoreCase)) return null;
+
+        try
+        {
+            if (!_fs.DirectoryExists(SnapshotDir))
+            {
+                _fs.CreateDirectory(SnapshotDir);
+            }
+
+            var snapshotScript = "declare -f 2>/dev/null; shopt -p 2>/dev/null; set -o 2>/dev/null; alias 2>/dev/null; echo \"PATH=$PATH\"";
+
+            var psi = new ProcessStartInfo
+            {
+                FileName = ShellPath,
+                Arguments = $"-c -l {ShellQuote(snapshotScript)}",
+                RedirectStandardOutput = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                StandardOutputEncoding = Encoding.UTF8
+            };
+
+            using var process = Process.Start(psi);
+            if (process is null) return null;
+
+            var output = process.StandardOutput.ReadToEnd();
+            process.WaitForExit(10_000);
+
+            if (process.ExitCode != 0 || string.IsNullOrWhiteSpace(output)) return null;
+
+            var snapshotPath = Path.Combine(SnapshotDir, $"snapshot-bash-{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}.sh");
+            _fs.WriteAllText(snapshotPath, output);
+
+            _logger?.LogDebug("Bash 环境快照已创建: {Path}, Size={Size}", snapshotPath, output.Length);
+            return snapshotPath;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogDebug(ex, "创建 Bash 环境快照失败，将使用 login shell 降级");
+            return null;
         }
     }
 }

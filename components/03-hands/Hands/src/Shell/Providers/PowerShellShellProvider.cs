@@ -114,7 +114,7 @@ public sealed class PowerShellShellProvider : IShellProvider
 
     /// <summary>
     /// 解析 PowerShell 路径和版本 — 对齐 TS powershellDetection
-    /// 优先级: JCC_POWERSHELL_PATH → pwsh.exe (Core 7+) → powershell.exe (Desktop 5.1)
+    /// 优先级: JCC_POWERSHELL_PATH → PATH 查找 pwsh → 常见安装路径 → powershell.exe (Desktop 5.1)
     /// 同时检测版本号，用于提示词注入和命令语法路由
     /// </summary>
     private (string Path, string Version, bool IsCore) ResolvePowerShell(string? shellPath)
@@ -126,6 +126,13 @@ public sealed class PowerShellShellProvider : IShellProvider
             return (envPath, ver, isCore);
         }
 
+        var pwshFromPath = FindExecutable("pwsh.exe");
+        if (pwshFromPath is not null)
+        {
+            var (ver, _) = DetectVersion(pwshFromPath);
+            return (pwshFromPath, ver, true);
+        }
+
         var pwshPath = @"C:\Program Files\PowerShell\7\pwsh.exe";
         if (_fs.FileExists(pwshPath))
         {
@@ -135,6 +142,40 @@ public sealed class PowerShellShellProvider : IShellProvider
 
         var desktopVer = DetectVersion("powershell.exe");
         return ("powershell.exe", desktopVer.Version, desktopVer.IsCore);
+    }
+
+    /// <summary>
+    /// 查找可执行文件 — 对齐 TS findExecutable (where.exe)
+    /// </summary>
+    private string? FindExecutable(string executable)
+    {
+        try
+        {
+            var psi = new ProcessStartInfo
+            {
+                FileName = "where.exe",
+                Arguments = executable,
+                RedirectStandardOutput = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                StandardOutputEncoding = Encoding.UTF8
+            };
+
+            using var process = Process.Start(psi);
+            if (process is null) return null;
+
+            var output = process.StandardOutput.ReadToEnd();
+            process.WaitForExit(5000);
+
+            if (process.ExitCode != 0) return null;
+
+            var paths = output.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
+            return paths.Length > 0 ? paths[0].Trim() : null;
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     /// <summary>
@@ -169,7 +210,7 @@ public sealed class PowerShellShellProvider : IShellProvider
 
             return (version, isCore);
         }
-        catch
+        catch (Exception)
         {
             return ("unknown", false);
         }

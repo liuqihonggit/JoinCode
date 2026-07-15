@@ -76,7 +76,7 @@ public sealed class SshPortForwardManager : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _isDisposed, 1) != 0)
+        if (!DisposableHelper.TryMarkDisposed(ref _isDisposed))
         {
             return;
         }

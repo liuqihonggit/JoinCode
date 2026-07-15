@@ -41,8 +41,7 @@ public sealed partial class RemoteTriggerService : IRemoteTriggerService
 
         try
         {
-            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            cts.CancelAfter(TimeSpan.FromSeconds(20));
+            using var cts = TimeoutHelper.CreateLinkedTimeout(ct, TimeSpan.FromSeconds(20));
 
             var response = await _httpClient.SendAsync(request, cts.Token).ConfigureAwait(false);
             var responseBody = await response.Content.ReadAsStringAsync(cts.Token).ConfigureAwait(false);

@@ -24,7 +24,7 @@ public sealed partial class AwaySummaryService : IAwaySummaryService, IDisposabl
     private readonly SemaphoreSlim _eventLock = new(1, 1);
     private readonly ConcurrentQueue<AwayEvent> _events = new();
     private readonly CancellationTokenSource _disposeCts = new();
-    private volatile int _disposed;
+    private int _disposed;
 
     private DateTime? _awaySince;
     private Timer? _autoSaveTimer;
@@ -256,7 +256,7 @@ public sealed partial class AwaySummaryService : IAwaySummaryService, IDisposabl
 
     public void Dispose()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
         _disposeCts.Cancel();
         _autoSaveTimer?.Dispose();
         _eventLock.Dispose();

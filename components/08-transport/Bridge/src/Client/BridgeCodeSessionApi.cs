@@ -113,8 +113,7 @@ public static class BridgeCodeSessionApi
         request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
         request.Headers.Add("anthropic-version", "2023-06-01");
 
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        cts.CancelAfter(TimeSpan.FromMilliseconds(timeoutMs));
+        using var cts = TimeoutHelper.CreateLinkedTimeout(ct, TimeSpan.FromMilliseconds(timeoutMs));
 
         try
         {
@@ -181,8 +180,7 @@ public static class BridgeCodeSessionApi
             request.Headers.Add("x-trusted-device-token", trustedDeviceToken);
         }
 
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        cts.CancelAfter(TimeSpan.FromMilliseconds(timeoutMs));
+        using var cts = TimeoutHelper.CreateLinkedTimeout(ct, TimeSpan.FromMilliseconds(timeoutMs));
 
         try
         {

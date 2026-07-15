@@ -38,8 +38,7 @@ public sealed partial class ReleaseNotesService : IReleaseNotesService, IDisposa
             _cacheLock.Release();
         }
 
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        cts.CancelAfter(_requestTimeout);
+        using var cts = TimeoutHelper.CreateLinkedTimeout(ct, _requestTimeout);
 
         try
         {

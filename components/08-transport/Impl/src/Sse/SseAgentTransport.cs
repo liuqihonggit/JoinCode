@@ -316,8 +316,10 @@ public sealed partial class SseAgentTransport : IAgentTransport
                     break;
                 }
 
-                var backoff = (int)Math.Pow(2, _reconnectAttempts - 1) * _config.ReconnectBackoffBaseMs;
-                await Task.Delay(backoff, ct).ConfigureAwait(false);
+                var backoff = new ExponentialBackoff(
+                    TimeSpan.FromMilliseconds(_config.ReconnectBackoffBaseMs),
+                    TimeSpan.FromMilliseconds(_config.ReconnectBackoffBaseMs * 30));
+                await Task.Delay(backoff.CalculateDelay(_reconnectAttempts - 1), ct).ConfigureAwait(false);
             }
         }
     }

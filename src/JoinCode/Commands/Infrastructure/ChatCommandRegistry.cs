@@ -58,8 +58,7 @@ public sealed partial class ChatCommandRegistry : JoinCode.Abstractions.Interfac
 
     public IChatCommand? GetCommand(string commandName)
     {
-        var cmd = _registry.GetValue(commandName);
-        if (cmd is not null)
+        if (_registry.TryGetValue(commandName, out var cmd))
             return cmd;
 
         foreach (var entry in _registry.GetCategorizedEntries())

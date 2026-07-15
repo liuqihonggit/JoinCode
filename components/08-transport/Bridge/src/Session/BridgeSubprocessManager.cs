@@ -793,8 +793,7 @@ public sealed class BridgeSubprocessSpawner
 
         // 2. 等待优雅退出
         var graceTimeout = TimeSpan.FromMilliseconds(ShutdownGraceMs);
-        using var graceCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        graceCts.CancelAfter(graceTimeout);
+        using var graceCts = TimeoutHelper.CreateLinkedTimeout(ct, graceTimeout);
 
         try
         {

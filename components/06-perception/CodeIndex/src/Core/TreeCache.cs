@@ -127,7 +127,7 @@ public sealed class TreeCache : IDisposable
 
     public void Dispose()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
 
         {
             using var scope = _lock.Acquire();

@@ -185,8 +185,10 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
                         return;
                     }
 
-                    var backoffMs = Math.Min(InitialBackoffMs * (1 << (attempt - 1)), MaxBackoffMs);
-                    await Task.Delay(backoffMs, reconnectCts.Token).ConfigureAwait(false);
+                    var backoff = new ExponentialBackoff(
+                        TimeSpan.FromMilliseconds(InitialBackoffMs),
+                        TimeSpan.FromMilliseconds(MaxBackoffMs));
+                    await Task.Delay(backoff.CalculateDelay(attempt - 1), reconnectCts.Token).ConfigureAwait(false);
                 }
             }
         }

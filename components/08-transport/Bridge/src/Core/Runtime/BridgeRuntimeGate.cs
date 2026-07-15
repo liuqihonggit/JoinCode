@@ -53,8 +53,7 @@ public static class BridgeRuntimeGate
     {
         if (_initialized) return _bridgeEnabled;
 
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        cts.CancelAfter(TimeSpan.FromSeconds(10));
+        using var cts = TimeoutHelper.CreateLinkedTimeout(ct, TimeSpan.FromSeconds(10));
 
         try
         {

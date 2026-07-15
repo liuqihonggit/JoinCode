@@ -10,6 +10,7 @@
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Transport.Contracts" Version="$(JccComponentPackageVersion)" />
     <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)sdk\Abstractions\Abstractions.csproj" />
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions" Version="$(JccComponentPackageVersion)" />
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)src\Infrastructure\Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>

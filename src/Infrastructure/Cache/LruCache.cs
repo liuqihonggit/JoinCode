@@ -51,7 +51,7 @@ public sealed class LruCache<TKey, TValue> where TKey : notnull
         PromoteInLru(key);
     }
 
-    public bool TryGet(TKey key, [MaybeNullWhen(false)] out TValue value)
+    public bool TryGetValue(TKey key, [MaybeNullWhen(false)] out TValue value)
     {
         if (_cache.TryGetValue(key, out value))
         {

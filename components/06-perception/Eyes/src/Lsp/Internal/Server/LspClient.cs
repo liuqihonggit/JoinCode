@@ -553,8 +553,7 @@ public sealed partial class LspClient : ILspClient
         var json = JsonSerializer.Serialize(request, LspJsonContext.Default.LspJsonRpcRequest);
         await SendMessageAsync(json).ConfigureAwait(false);
 
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        cts.CancelAfter(TimeSpan.FromSeconds(WorkflowConstants.Timeouts.DefaultTimeoutSeconds));
+        using var cts = TimeoutHelper.CreateLinkedTimeout(cancellationToken, TimeSpan.FromSeconds(WorkflowConstants.Timeouts.DefaultTimeoutSeconds));
 
         try
         {

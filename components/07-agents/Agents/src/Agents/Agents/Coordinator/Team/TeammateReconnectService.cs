@@ -100,11 +100,14 @@ public sealed partial class TeammateReconnectService : JoinCode.Abstractions.Int
 
         try
         {
-            var backoffMs = Math.Min(InitialBackoffMs * (int)Math.Pow(2, attempt - 1), MaxBackoffMs);
+            var backoff = new ExponentialBackoff(
+                TimeSpan.FromMilliseconds(InitialBackoffMs),
+                TimeSpan.FromMilliseconds(MaxBackoffMs));
+            var delay = backoff.CalculateDelay(attempt - 1);
             _logger?.LogInformation("Reconnect attempt {Attempt}/{Max} for agent {AgentId}, backoff {BackoffMs}ms",
-                attempt, MaxReconnectAttempts, agentId, backoffMs);
+                attempt, MaxReconnectAttempts, agentId, delay.TotalMilliseconds);
 
-            await Task.Delay(backoffMs, cancellationToken).ConfigureAwait(false);
+            await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
 
             var team = await _teamManager.GetTeamAsync(teamId, cancellationToken).ConfigureAwait(false);
             if (team is null)

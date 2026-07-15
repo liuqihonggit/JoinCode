@@ -1,4 +1,5 @@
 // Contracts 命名空间
+global using Core.Utils;
 global using JoinCode.Abstractions.Attributes;
 global using JoinCode.Abstractions.Clock;
 global using JoinCode.Abstractions.Configuration.AppData;

@@ -33,14 +33,8 @@ public sealed class McpMockServerConfig : MockServerConfigBase<McpMockServerConf
 /// <summary>
 /// Mock 工具定义 — 描述工具的元数据和响应行为
 /// </summary>
-public sealed class McpToolDefinition
+public sealed class McpToolDefinition : NamedItem
 {
-    /// <summary>工具名称</summary>
-    public string Name { get; set; } = "";
-
-    /// <summary>工具描述</summary>
-    public string Description { get; set; } = "";
-
     /// <summary>工具的输入参数 schema（JSON 字符串，作为 JsonElement 返回给客户端）</summary>
     public JsonElement InputSchema { get; set; }
 

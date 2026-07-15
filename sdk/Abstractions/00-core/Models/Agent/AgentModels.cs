@@ -21,10 +21,8 @@ public class ToolCall
     public string? Result { get; set; }
 }
 
-public class ToolDefinition
+public class ToolDefinition : NamedItem
 {
-    public string Name { get; set; } = string.Empty;
-    public string Description { get; set; } = string.Empty;
     public Dictionary<string, ToolParameter> Parameters { get; set; } = new();
 }
 

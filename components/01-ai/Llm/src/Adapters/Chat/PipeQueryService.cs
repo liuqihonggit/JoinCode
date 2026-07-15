@@ -145,7 +145,7 @@ public sealed partial class PipeQueryService : IQueryService
         };
     }
 
-    private async Task<ChatCompletionResponse> SendRequestAsync(ChatRequest request, CancellationToken cancellationToken)
+    private async Task<OpenAIChatResponse> SendRequestAsync(ChatRequest request, CancellationToken cancellationToken)
     {
         var json = JsonSerializer.Serialize(request, PipeJsonContext.Default.ChatRequest);
         var content = new StringContent(json, Encoding.UTF8, "application/json");
@@ -156,7 +156,7 @@ public sealed partial class PipeQueryService : IQueryService
         response.EnsureSuccessStatusCode();
 
         var responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
-        var result = JsonSerializer.Deserialize(responseJson, PipeJsonContext.Default.ChatCompletionResponse);
+        var result = JsonSerializer.Deserialize(responseJson, PipeJsonContext.Default.OpenAIChatResponse);
 
         if (result == null)
         {
@@ -166,7 +166,7 @@ public sealed partial class PipeQueryService : IQueryService
         return result;
     }
 
-    private async IAsyncEnumerable<ChatCompletionChunk> SendStreamingRequestAsync(
+    private async IAsyncEnumerable<OpenAIChatChunk> SendStreamingRequestAsync(
         ChatRequest request,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
@@ -191,7 +191,7 @@ public sealed partial class PipeQueryService : IQueryService
             var data = line[6..];
             if (data == "[DONE]") yield break;
 
-            var chunk = JsonSerializer.Deserialize(data, PipeJsonContext.Default.ChatCompletionChunk);
+            var chunk = JsonSerializer.Deserialize(data, PipeJsonContext.Default.OpenAIChatChunk);
             if (chunk != null)
             {
                 yield return chunk;
@@ -199,7 +199,7 @@ public sealed partial class PipeQueryService : IQueryService
         }
     }
 
-    private static ApiMessage ConvertToApiMessage(Choice choice)
+    private static ApiMessage ConvertToApiMessage(OpenAIChoice choice)
     {
         var message = choice.Message;
         var role = ConvertRole(message.Role);
@@ -228,9 +228,9 @@ public sealed partial class PipeQueryService : IQueryService
         return parsed ?? MessageRole.Assistant;
     }
 
-    private static Message ConvertToMessage(ApiMessage content)
+    private static OpenAIApiMessage ConvertToMessage(ApiMessage content)
     {
-        var msg = new Message
+        var msg = new OpenAIApiMessage
         {
             Role = ConvertRoleToString(content.Role),
             Content = content.Content
@@ -249,14 +249,14 @@ public sealed partial class PipeQueryService : IQueryService
         if (content.Role == MessageRole.Assistant && content.Metadata != null &&
             content.Metadata.TryGetValue("ToolCalls", out var tcEl) && tcEl.ValueKind == JsonValueKind.Array)
         {
-            var toolCalls = new List<ToolCall>();
+            var toolCalls = new List<OpenAIToolCall>();
             foreach (var tcItem in tcEl.EnumerateArray())
             {
-                var tc = new ToolCall();
+                var tc = new OpenAIToolCall();
                 if (tcItem.TryGetProperty("Id", out var idEl) && idEl.ValueKind == JsonValueKind.String)
                     tc.Id = idEl.GetString();
                 if (tcItem.TryGetProperty("Name", out var nameEl) && nameEl.ValueKind == JsonValueKind.String)
-                    tc.Function = new ToolCallFunction
+                    tc.Function = new OpenAIToolCallFunction
                     {
                         Name = nameEl.GetString(),
                         Arguments = tcItem.TryGetProperty("Arguments", out var argsEl) && argsEl.ValueKind == JsonValueKind.String
@@ -288,7 +288,7 @@ public sealed partial class PipeQueryService : IQueryService
         public string Model { get; set; } = string.Empty;
 
         [JsonPropertyName("messages")]
-        public List<Message> Messages { get; set; } = new();
+        public List<OpenAIApiMessage> Messages { get; set; } = new();
 
         [JsonPropertyName("stream")]
         public bool Stream { get; set; }
@@ -300,108 +300,5 @@ public sealed partial class PipeQueryService : IQueryService
         [JsonPropertyName("max_tokens")]
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public int? MaxTokens { get; set; }
-    }
-
-    internal sealed class Message
-    {
-        [JsonPropertyName("role")]
-        public string Role { get; set; } = string.Empty;
-
-        [JsonPropertyName("content")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-        public string? Content { get; set; }
-
-        [JsonPropertyName("tool_calls")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-        public List<ToolCall>? ToolCalls { get; set; }
-
-        [JsonPropertyName("tool_call_id")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-        public string? ToolCallId { get; set; }
-
-        [JsonPropertyName("name")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-        public string? Name { get; set; }
-    }
-
-    internal sealed class ToolCall
-    {
-        [JsonPropertyName("id")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-        public string? Id { get; set; }
-
-        [JsonPropertyName("type")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-        public string? Type { get; set; }
-
-        [JsonPropertyName("function")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-        public ToolCallFunction? Function { get; set; }
-
-        [JsonPropertyName("index")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-        public int? Index { get; set; }
-    }
-
-    internal sealed class ToolCallFunction
-    {
-        [JsonPropertyName("name")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-        public string? Name { get; set; }
-
-        [JsonPropertyName("arguments")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-        public string? Arguments { get; set; }
-    }
-
-    internal sealed class ChatCompletionResponse
-    {
-        [JsonPropertyName("id")]
-        public string Id { get; set; } = string.Empty;
-
-        [JsonPropertyName("object")]
-        public string Object { get; set; } = string.Empty;
-
-        [JsonPropertyName("created")]
-        public long Created { get; set; }
-
-        [JsonPropertyName("model")]
-        public string Model { get; set; } = string.Empty;
-
-        [JsonPropertyName("choices")]
-        public List<Choice> Choices { get; set; } = new();
-    }
-
-    internal sealed class Choice
-    {
-        [JsonPropertyName("index")]
-        public int Index { get; set; }
-
-        [JsonPropertyName("message")]
-        public Message Message { get; set; } = new();
-
-        [JsonPropertyName("delta")]
-        public Message? Delta { get; set; }
-
-        [JsonPropertyName("finish_reason")]
-        public string? FinishReason { get; set; }
-    }
-
-    internal sealed class ChatCompletionChunk
-    {
-        [JsonPropertyName("id")]
-        public string Id { get; set; } = string.Empty;
-
-        [JsonPropertyName("object")]
-        public string Object { get; set; } = string.Empty;
-
-        [JsonPropertyName("created")]
-        public long Created { get; set; }
-
-        [JsonPropertyName("model")]
-        public string Model { get; set; } = string.Empty;
-
-        [JsonPropertyName("choices")]
-        public List<Choice> Choices { get; set; } = new();
     }
 }

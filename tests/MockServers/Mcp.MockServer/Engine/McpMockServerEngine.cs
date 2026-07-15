@@ -117,7 +117,7 @@ public sealed class McpMockServerEngine
         var result = new InitializeResult
         {
             ProtocolVersion = _config.ProtocolVersion,
-            ServerInfo = new ServerInfo
+            ServerInfo = new Implementation
             {
                 Name = _config.ServerName,
                 Version = _config.ServerVersion
@@ -166,13 +166,13 @@ public sealed class McpMockServerEngine
 
         var responseText = ExecuteTool(tool, arguments);
 
-        var result = new ToolsCallResult
+        var result = new CallToolResult
         {
-            Content = [new ToolContent { Type = "text", Text = responseText }],
+            Content = [new McpToolContent { Type = "text", Text = responseText }],
             IsError = false
         };
 
-        return BuildResult(id, result, McpMockServerJsonContext.Default.ToolsCallResult);
+        return BuildResult(id, result, McpMockServerJsonContext.Default.CallToolResult);
     }
 
     private string HandleResourcesList(JsonElement id)

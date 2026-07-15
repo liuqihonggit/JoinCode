@@ -12,7 +12,7 @@ public sealed partial class AnalyticsService : IAnalyticsService, IDisposable
     private readonly ITelemetryService? _telemetryService;
     private readonly IClockService _clock;
     private readonly CancellationTokenSource _disposeCts = new();
-    private volatile int _disposed;
+    private int _disposed;
 
     public AnalyticsService(
         IFileOperationService? fileOperationService = null,
@@ -361,7 +361,7 @@ public sealed partial class AnalyticsService : IAnalyticsService, IDisposable
 
     public void Dispose()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
         _disposeCts.Cancel();
         _disposeCts.Dispose();
     }

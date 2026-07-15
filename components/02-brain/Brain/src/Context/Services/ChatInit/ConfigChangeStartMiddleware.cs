@@ -15,7 +15,7 @@ public sealed partial class ConfigChangeStartMiddleware : IChatInitMiddleware, I
     [Inject] private readonly ISettingsChangeApplier? _settingsChangeApplier;
     [Inject] private readonly ILogger<ConfigChangeStartMiddleware>? _logger;
     private readonly CancellationTokenSource _disposeCts = new();
-    private volatile int _disposed;
+    private int _disposed;
 
     /// <summary>配置监控在成本恢复之后</summary>
 
@@ -66,7 +66,7 @@ public sealed partial class ConfigChangeStartMiddleware : IChatInitMiddleware, I
     /// </summary>
     public async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
 
         if (_configChangeNotifier is not null)
         {

@@ -108,7 +108,7 @@ public sealed partial class BashAstSecurityWalker : IBashAstSecurityWalker, IDis
 
     public void Dispose()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
         _parser.Dispose();
         _language.Dispose();
     }

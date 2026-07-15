@@ -1,3 +1,4 @@
+global using Core.Utils;
 global using JoinCode.CodeIndex;
 global using JoinCode.CodeIndex.Ast;
 global using JoinCode.CodeIndex.Persistence;

@@ -113,7 +113,7 @@ public sealed partial class LspIntegration : IDisposable
 
     public void Dispose()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
 
         _updateCts.Cancel();
         _updateCts.Dispose();

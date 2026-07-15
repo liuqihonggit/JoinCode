@@ -38,11 +38,11 @@ public sealed class ChromeCommand : IChatCommand
                 break;
             case PlatformActionConstants.Install:
             case "i":
-                await HandleInstall(chromeService).ConfigureAwait(false);
+                await HandleInstallAsync(chromeService).ConfigureAwait(false);
                 break;
             case PlatformActionConstants.Toggle:
             case "t":
-                await HandleToggle(chromeService).ConfigureAwait(false);
+                await HandleToggleAsync(chromeService).ConfigureAwait(false);
                 break;
             case PlatformActionConstants.Status:
             case "s":
@@ -79,14 +79,14 @@ public sealed class ChromeCommand : IChatCommand
         }
     }
 
-    private static async Task HandleInstall(IChromeIntegrationService chromeService)
+    private static async Task HandleInstallAsync(IChromeIntegrationService chromeService)
     {
         TerminalHelper.WriteLine("正在打开 Chrome 扩展安装页面...");
         await chromeService.OpenExtensionPageAsync().ConfigureAwait(false);
         TerminalHelper.WriteLine("安装完成后，使用 /chrome connect 连接");
     }
 
-    private static async Task HandleToggle(IChromeIntegrationService chromeService)
+    private static async Task HandleToggleAsync(IChromeIntegrationService chromeService)
     {
         var enabled = await chromeService.ToggleDefaultEnabledAsync().ConfigureAwait(false);
         TerminalHelper.WriteLine($"Chrome 默认启用: {(enabled ? "是" : "否")}");

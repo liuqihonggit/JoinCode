@@ -152,7 +152,7 @@ public sealed partial class SwarmWorkerHandler
                     ? allowedInput
                     : ctx.Input;
 
-                var decision = await ctx.HandleUserAllow(
+                var decision = await ctx.HandleUserAllowAsync(
                     finalInput,
                     permissionUpdates ?? new List<PermissionUpdate>(),
                     feedback).ConfigureAwait(false);

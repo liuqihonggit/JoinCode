@@ -24,7 +24,7 @@ public sealed class MobileCommand : IChatCommand
         {
             case PlatformActionConstants.Start:
             case "s":
-                await HandleStart(mobileService).ConfigureAwait(false);
+                await HandleStartAsync(mobileService).ConfigureAwait(false);
                 break;
             case PlatformActionConstants.Stop:
             case "d":
@@ -47,7 +47,7 @@ public sealed class MobileCommand : IChatCommand
         return ChatCommandResult.Continue();
     }
 
-    private static async Task HandleStart(IMobileConnectService mobileService)
+    private static async Task HandleStartAsync(IMobileConnectService mobileService)
     {
         if (mobileService.IsServerRunning)
         {

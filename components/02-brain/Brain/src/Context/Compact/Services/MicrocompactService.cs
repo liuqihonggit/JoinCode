@@ -19,22 +19,40 @@ public sealed partial class MicrocompactService : IMicrocompactService {
     private const int ImageMaxTokenSize = 2000;
 
     /// <summary>
-    /// 可压缩的工具名集合 — 对齐 TS COMPACTABLE_TOOLS
-    /// 只有这些工具的输出结果才会被微压缩清除（因为它们通常产生大段文本输出）
-    /// 不在此集合中的工具（如计算器、简单查询）结果不会被清除
+    /// 可压缩的工具名集合 — 按分类自动收集，新增工具只需加枚举值即可
+    /// 
+    /// 分类逻辑：
+    ///   - ShellExecution: ShellToolName 全部枚举值（Bash, PowerShell, shell_check 等）
+    ///   - FileRead: FileToolName 部分枚举值（Read, Write, Edit 等）
+    ///   - SearchRead: SearchToolName 部分枚举值（Grep, Glob 等）
+    ///   - WebRead: WebToolName 部分枚举值（WebSearch, WebFetch 等）
     /// </summary>
-    private static readonly HashSet<string> CompactableTools =
-    [
-        FileToolNameConstants.FileRead,       // "Read" — 读取文件内容，输出通常很长
-        ShellToolNameConstants.Bash,  // "Bash" — 命令执行结果
-        ShellToolNameConstants.Powershell,    // "PowerShell" — PowerShell执行结果
-        SearchToolNameConstants.Grep,         // "Grep" — 搜索匹配结果
-        SearchToolNameConstants.Glob,         // "Glob" — 文件列表
-        WebToolNameConstants.WebSearch,       // "WebSearch" — 网页搜索结果
-        WebToolNameConstants.WebFetch,        // "WebFetch" — 网页抓取内容
-        FileToolNameConstants.FileEdit,       // "Edit" — 编辑操作确认信息
-        FileToolNameConstants.FileWrite,      // "Write" — 写入操作确认信息
-    ];
+    private static readonly HashSet<string> CompactableTools = BuildCompactableTools();
+
+    private static HashSet<string> BuildCompactableTools()
+    {
+        var tools = new HashSet<string>(StringComparer.Ordinal);
+
+        // ShellExecution — 所有 Shell 工具结果都可压缩（ShellToolBase.IsCompactable）
+        // 新增 Shell 枚举值时自动纳入，无需手动添加
+        foreach (ShellToolName value in Enum.GetValues<ShellToolName>())
+            tools.Add(value.ToValue());
+
+        // FileRead — 文件读写编辑工具
+        tools.Add(FileToolNameConstants.FileRead);
+        tools.Add(FileToolNameConstants.FileWrite);
+        tools.Add(FileToolNameConstants.FileEdit);
+
+        // SearchRead — 搜索工具
+        tools.Add(SearchToolNameConstants.Grep);
+        tools.Add(SearchToolNameConstants.Glob);
+
+        // WebRead — 网页工具
+        tools.Add(WebToolNameConstants.WebSearch);
+        tools.Add(WebToolNameConstants.WebFetch);
+
+        return tools;
+    }
 
     /// <summary>
     /// 普通微压缩 — 清除旧工具结果内容，保留最近 N 个

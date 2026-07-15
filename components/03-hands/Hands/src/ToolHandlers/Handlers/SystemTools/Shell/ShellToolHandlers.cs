@@ -3,16 +3,22 @@ namespace Tools.Handlers;
 /// <summary>
 /// Shell 执行工具处理器 - 提供 CMD 和 PowerShell 命令执行功能
 /// 通过中间件管道处理验证、分类、sed拦截、后台判断、执行、输出格式化
+/// 继承 ShellToolBase 获得 PowerShell 门控、进程看护、压缩标记
 /// </summary>
 [McpToolHandler(ToolCategory.Shell)]
-public partial class ShellToolHandlers
+public partial class ShellToolHandlers : ShellToolBase
 {
     private readonly MiddlewarePipeline<ShellContext> _pipeline;
     private readonly IShellBackgroundTaskService? _backgroundTaskService;
 
+    public override string ToolName => ShellToolNameConstants.Bash;
+
     public ShellToolHandlers(
         MiddlewarePipeline<ShellContext> pipeline,
+        IShellToolGateService? gateService = null,
+        IShellProcessWatchdog? watchdog = null,
         IShellBackgroundTaskService? backgroundTaskService = null)
+        : base(gateService, watchdog)
     {
         _pipeline = pipeline ?? throw new ArgumentNullException(nameof(pipeline));
         _backgroundTaskService = backgroundTaskService;
@@ -69,6 +75,8 @@ public partial class ShellToolHandlers
         CancellationToken cancellationToken = default,
         ToolProgressCallback? onProgress = null)
     {
+        var gateResult = CheckGate(isPowerShellCall: true);
+        if (gateResult is not null) return gateResult;
         var context = new ShellContext
         {
             Command = command,

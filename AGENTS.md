@@ -337,7 +337,6 @@ chcp 65001
 1. **✅ 非交互模式测试** — `jcc --trust -p "提示词"` 或 `echo "提示词" | jcc --trust --non-interactive`
 2. **✅ 交互式 REPL 测试** — 用 `Register-ObjectEvent` + `BeginOutputReadLine` 异步捕获 stdout，通过 `StandardInput.WriteLine` 发送命令
 3. **⚠️ Mock 测试** — 使用 MockServer 进程提供模拟 AI 响应，通过 `JCC_ENDPOINT` 环境变量指向 MockServer
-4. **⚠️ 进程锁定** — 运行 jcc.exe 后必须先杀进程再编译，否则 DLL 被锁定导致 MSB3027 错误
 
 ### .NET FileMode.Append 陷阱
 

@@ -18,6 +18,7 @@ global using JoinCode.Abstractions.Models.Notebook;
 global using JoinCode.Abstractions.Models.Search;
 global using JoinCode.Abstractions.Models.Ssh;
 global using JoinCode.Abstractions.Models.Telemetry;
+global using JoinCode.Abstractions.Shell;
 global using JoinCode.Abstractions.Security;
 global using JoinCode.Abstractions.Security.Shell;
 global using JoinCode.Abstractions.Tools;

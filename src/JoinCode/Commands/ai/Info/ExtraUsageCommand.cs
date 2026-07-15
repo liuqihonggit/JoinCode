@@ -13,7 +13,7 @@ public sealed class ExtraUsageCommand : IChatCommand
 
     public Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
-        var usageTracker = context.Services!.UsageTracker;
+        var usageTracker = context.Services.UsageTracker;
 
         TerminalHelper.WriteLine("额外用量:");
         TerminalHelper.NewLine();

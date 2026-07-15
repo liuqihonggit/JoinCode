@@ -13,7 +13,7 @@ public sealed class PeersCommand : IChatCommand
 
     public Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
-        var sp = context.Services!.ServiceProvider;
+        var sp = context.Services.ServiceProvider;
         var peerService = sp?.GetService<JoinCode.Abstractions.Interfaces.IPeerDiscoveryService>();
 
         if (peerService is null)

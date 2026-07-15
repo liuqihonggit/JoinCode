@@ -52,7 +52,7 @@ public sealed class InstallCommand : IChatCommand
 
         try
         {
-            var result = await context.Services!.ChatService.SendMessageAsync(prompt, context.CancellationToken).ConfigureAwait(false);
+            var result = await context.Services.ChatService.SendMessageAsync(prompt, context.CancellationToken).ConfigureAwait(false);
             TerminalHelper.WriteLine(result);
         }
         catch (OperationCanceledException)

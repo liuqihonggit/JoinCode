@@ -27,7 +27,7 @@ public sealed class MemoryCommand : IChatCommand
                 await EditMemoryFileAsync(args, context).ConfigureAwait(false);
                 break;
             case MemorySubCommandConstants.Open:
-                await OpenMemoryDirectoryAsync(context.Services!.FileSystem, ChatCommandBase.GetService<IProcessService>(context)!).ConfigureAwait(false);
+                await OpenMemoryDirectoryAsync(context.Services.FileSystem, ChatCommandBase.GetService<IProcessService>(context)!).ConfigureAwait(false);
                 break;
             case MemorySubCommandConstants.Add:
                 await AddMemoryAsync(context, args).ConfigureAwait(false);
@@ -62,7 +62,7 @@ public sealed class MemoryCommand : IChatCommand
     /// </summary>
     private static async Task ListMemoryFilesAsync(ChatCommandContext context)
     {
-        var files = GetMemoryFilePaths(context.Services!.FileSystem);
+        var files = GetMemoryFilePaths(context.Services.FileSystem);
 
         // 交互模式：使用 Selector 组件
         // 对齐 TS: MemoryFileSelector — 上下键选择记忆文件+Enter编辑+Esc取消
@@ -84,7 +84,7 @@ public sealed class MemoryCommand : IChatCommand
             }
 
             // 选择后打开编辑器
-            EnsureFileExists(result.Selected.Path, context.Services!.FileSystem);
+            EnsureFileExists(result.Selected.Path, context.Services.FileSystem);
             await OpenInEditorAsync(result.Selected.Path, ChatCommandBase.GetService<IProcessService>(context)).ConfigureAwait(false);
             return;
         }
@@ -113,13 +113,13 @@ public sealed class MemoryCommand : IChatCommand
     /// </summary>
     private static async Task EditMemoryFileAsync(string[] args, ChatCommandContext context)
     {
-        var files = GetMemoryFilePaths(context.Services!.FileSystem);
+        var files = GetMemoryFilePaths(context.Services.FileSystem);
 
         // 有明确参数时直接打开
         if (args.Length >= 2 && int.TryParse(args[1], out var index) && index >= 1 && index <= files.Count)
         {
             var file = files[index - 1];
-            EnsureFileExists(file.Path, context.Services!.FileSystem);
+            EnsureFileExists(file.Path, context.Services.FileSystem);
             await OpenInEditorAsync(file.Path, ChatCommandBase.GetService<IProcessService>(context)).ConfigureAwait(false);
             return;
         }
@@ -131,7 +131,7 @@ public sealed class MemoryCommand : IChatCommand
             var path = args[1];
             if (!Path.IsPathRooted(path))
                 path = Path.Combine(cwd, path);
-            EnsureFileExists(path, context.Services!.FileSystem);
+            EnsureFileExists(path, context.Services.FileSystem);
             await OpenInEditorAsync(path, ChatCommandBase.GetService<IProcessService>(context)).ConfigureAwait(false);
             return;
         }
@@ -154,14 +154,14 @@ public sealed class MemoryCommand : IChatCommand
                 return;
             }
 
-            EnsureFileExists(result.Selected.Path, context.Services!.FileSystem);
+            EnsureFileExists(result.Selected.Path, context.Services.FileSystem);
             await OpenInEditorAsync(result.Selected.Path, ChatCommandBase.GetService<IProcessService>(context)).ConfigureAwait(false);
             return;
         }
 
         // 非交互模式回退：打开第一个
         var userPath = files[0].Path;
-        EnsureFileExists(userPath, context.Services!.FileSystem);
+        EnsureFileExists(userPath, context.Services.FileSystem);
         await OpenInEditorAsync(userPath, ChatCommandBase.GetService<IProcessService>(context)).ConfigureAwait(false);
     }
 
@@ -265,7 +265,7 @@ public sealed class MemoryCommand : IChatCommand
             return;
         }
 
-        var memService = context.Services!.MemoryManagementService;
+        var memService = context.Services.MemoryManagementService;
         if (memService is null)
         {
             TerminalHelper.WriteLine($"{TerminalColors.Warning}{L.T(StringKey.HostMemoryServiceUnavailable)}{AnsiStyleConstants.Reset}");
@@ -333,7 +333,7 @@ public sealed class MemoryCommand : IChatCommand
             return;
         }
 
-        var memService = context.Services!.MemoryManagementService;
+        var memService = context.Services.MemoryManagementService;
         if (memService is null)
         {
             TerminalHelper.WriteLine($"{TerminalColors.Warning}{L.T(StringKey.HostMemoryServiceUnavailable)}{AnsiStyleConstants.Reset}");
@@ -370,7 +370,7 @@ public sealed class MemoryCommand : IChatCommand
 
     private static async Task ListMemoriesAsync(ChatCommandContext context, string[] args)
     {
-        var memService = context.Services!.MemoryManagementService;
+        var memService = context.Services.MemoryManagementService;
         if (memService is null)
         {
             TerminalHelper.WriteLine($"{TerminalColors.Warning}{L.T(StringKey.HostMemoryServiceUnavailable)}{AnsiStyleConstants.Reset}");
@@ -404,7 +404,7 @@ public sealed class MemoryCommand : IChatCommand
 
     private static async Task ShowStatsAsync(ChatCommandContext context)
     {
-        var memService = context.Services!.MemoryManagementService;
+        var memService = context.Services.MemoryManagementService;
         if (memService is null)
         {
             TerminalHelper.WriteLine($"{TerminalColors.Warning}{L.T(StringKey.HostMemoryServiceUnavailable)}{AnsiStyleConstants.Reset}");
@@ -434,7 +434,7 @@ public sealed class MemoryCommand : IChatCommand
 
     private static async Task ShowHealthAsync(ChatCommandContext context)
     {
-        var memService = context.Services!.MemoryManagementService;
+        var memService = context.Services.MemoryManagementService;
         if (memService is null)
         {
             TerminalHelper.WriteLine($"{TerminalColors.Warning}{L.T(StringKey.HostMemoryServiceUnavailable)}{AnsiStyleConstants.Reset}");
@@ -477,7 +477,7 @@ public sealed class MemoryCommand : IChatCommand
 
     private static async Task CleanupAsync(ChatCommandContext context, string[] args)
     {
-        var memService = context.Services!.MemoryManagementService;
+        var memService = context.Services.MemoryManagementService;
         if (memService is null)
         {
             TerminalHelper.WriteLine($"{TerminalColors.Warning}{L.T(StringKey.HostMemoryServiceUnavailable)}{AnsiStyleConstants.Reset}");

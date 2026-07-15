@@ -30,18 +30,18 @@ public sealed class LogoutCommand : IChatCommand
             if (confirmed)
             {
                 // 删除 API Key 文件 — 对齐 TS removeApiKey
-                if (context.Services!.FileSystem.FileExists(AuthPath))
+                if (context.Services.FileSystem.FileExists(AuthPath))
                 {
-                    context.Services!.FileSystem.DeleteFile(AuthPath);
+                    context.Services.FileSystem.DeleteFile(AuthPath);
                 }
 
                 // 清除 OAuth Token 存储 — 对齐 TS secureStorage.delete
-                if (context.Services!.TokenStorage is not null)
+                if (context.Services.TokenStorage is not null)
                 {
-                    var providers = await context.Services!.TokenStorage.GetStoredProvidersAsync(context.CancellationToken).ConfigureAwait(false);
+                    var providers = await context.Services.TokenStorage.GetStoredProvidersAsync(context.CancellationToken).ConfigureAwait(false);
                     foreach (var p in providers)
                     {
-                        await context.Services!.TokenStorage.DeleteTokenAsync(p, context.CancellationToken).ConfigureAwait(false);
+                        await context.Services.TokenStorage.DeleteTokenAsync(p, context.CancellationToken).ConfigureAwait(false);
                     }
                 }
 
@@ -58,9 +58,9 @@ public sealed class LogoutCommand : IChatCommand
         else
         {
             // 清除指定 Provider 的 OAuth Token
-            if (context.Services!.TokenStorage is not null && await context.Services!.TokenStorage.HasTokenAsync(provider, context.CancellationToken).ConfigureAwait(false))
+            if (context.Services.TokenStorage is not null && await context.Services.TokenStorage.HasTokenAsync(provider, context.CancellationToken).ConfigureAwait(false))
             {
-                await context.Services!.TokenStorage.DeleteTokenAsync(provider, context.CancellationToken).ConfigureAwait(false);
+                await context.Services.TokenStorage.DeleteTokenAsync(provider, context.CancellationToken).ConfigureAwait(false);
                 TerminalHelper.WriteLine($"{TerminalColors.Success}已登出 {provider} (OAuth){AnsiStyleConstants.Reset}");
 
                 await PostLogoutRefreshAsync(context).ConfigureAwait(false);
@@ -68,13 +68,13 @@ public sealed class LogoutCommand : IChatCommand
             }
 
             // 清除指定 Provider 的 API Key
-            if (context.Services!.FileSystem.FileExists(AuthPath))
+            if (context.Services.FileSystem.FileExists(AuthPath))
             {
-                var authData = await LoadAuthAsync(context.Services!.FileSystem).ConfigureAwait(false);
+                var authData = await LoadAuthAsync(context.Services.FileSystem).ConfigureAwait(false);
                 if (authData.Remove(provider))
                 {
                     var json = JsonSerializer.Serialize(authData, CliIndentedJsonContext.Default.DictionaryStringString);
-                    await context.Services!.FileSystem.WriteAllTextAsync(AuthPath, json, context.CancellationToken).ConfigureAwait(false);
+                    await context.Services.FileSystem.WriteAllTextAsync(AuthPath, json, context.CancellationToken).ConfigureAwait(false);
                     TerminalHelper.WriteLine($"{TerminalColors.Success}已登出 {provider}{AnsiStyleConstants.Reset}");
 
                     await PostLogoutRefreshAsync(context).ConfigureAwait(false);
@@ -97,7 +97,7 @@ public sealed class LogoutCommand : IChatCommand
     private static Task PostLogoutRefreshAsync(ChatCommandContext context)
     {
         // 重置成本追踪 — 对齐 TS clearAuthRelatedCaches 中的成本相关缓存
-        var costTracker = context.Services!.CostTracker;
+        var costTracker = context.Services.CostTracker;
         if (costTracker is not null)
         {
             try
@@ -112,7 +112,7 @@ public sealed class LogoutCommand : IChatCommand
         }
 
         // 清除速率限制缓存 — 对齐 TS clearPolicyLimitsCache
-        var rateLimitTracker = context.Services!.RateLimitTracker;
+        var rateLimitTracker = context.Services.RateLimitTracker;
         rateLimitTracker?.Clear();
 
         TerminalHelper.WriteLine($"{TerminalColors.Muted}  已清除认证相关缓存{AnsiStyleConstants.Reset}");

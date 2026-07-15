@@ -15,7 +15,7 @@ public sealed class SimpleCommand : IChatCommand
 
     public Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
-        var simpleModeService = context.Services!.SimpleModeService;
+        var simpleModeService = context.Services.SimpleModeService;
 
         if (simpleModeService is null)
         {

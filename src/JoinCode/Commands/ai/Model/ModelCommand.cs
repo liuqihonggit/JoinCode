@@ -41,7 +41,7 @@ public sealed class ModelCommand : IChatCommand
         var models = catalog.GetModelsForProvider(provider);
         models = catalog.EnsureCurrentModelInList(models, currentModelId);
         var providerName = catalog.GetProviderDisplayName(provider);
-        var effortLevel = context.Services!.ExecutionSettingsProvider?.EffortLevel ?? EffortLevel.Auto;
+        var effortLevel = context.Services.ExecutionSettingsProvider?.EffortLevel ?? EffortLevel.Auto;
         var isFastModeActive = fastModeService?.IsFastModeActive ?? false;
 
         // 非交互模式或测试环境回退到文本列表模式
@@ -109,14 +109,14 @@ public sealed class ModelCommand : IChatCommand
                     case ConsoleKey.LeftArrow:
                         // ← 切换 effort 等级 — 对齐 TS effort cycling
                         effortLevel = ModelPicker.CycleEffort(effortLevel == EffortLevel.Auto ? EffortLevel.Medium : effortLevel, forward: false);
-                        if (context.Services!.ExecutionSettingsProvider is not null)
-                            context.Services!.ExecutionSettingsProvider.EffortLevel = effortLevel;
+                        if (context.Services.ExecutionSettingsProvider is not null)
+                            context.Services.ExecutionSettingsProvider.EffortLevel = effortLevel;
                         break;
                     case ConsoleKey.RightArrow:
                         // → 切换 effort 等级 — 对齐 TS effort cycling
                         effortLevel = ModelPicker.CycleEffort(effortLevel == EffortLevel.Auto ? EffortLevel.Medium : effortLevel, forward: true);
-                        if (context.Services!.ExecutionSettingsProvider is not null)
-                            context.Services!.ExecutionSettingsProvider.EffortLevel = effortLevel;
+                        if (context.Services.ExecutionSettingsProvider is not null)
+                            context.Services.ExecutionSettingsProvider.EffortLevel = effortLevel;
                         break;
                     case ConsoleKey.Enter:
                         await ApplyModelSwitchAsync(context, models[selectedIndex].Id).ConfigureAwait(false);
@@ -143,7 +143,7 @@ public sealed class ModelCommand : IChatCommand
     private Task<ChatCommandResult> ShowModelInfoAsync(ChatCommandContext context)
     {
         var fastModeService = ChatCommandBase.GetService<IFastModeService>(context, typeof(IFastModeService));
-        var executionSettings = context.Services!.ExecutionSettingsProvider;
+        var executionSettings = context.Services.ExecutionSettingsProvider;
         var provider = GetCurrentProvider(context);
         var catalog = ResolveModelCatalog(context);
         var providerName = catalog.GetProviderDisplayName(provider);
@@ -199,7 +199,7 @@ public sealed class ModelCommand : IChatCommand
 
     private static string GetCurrentProvider(ChatCommandContext context)
     {
-        return context.Services!.WorkflowConfig?.Provider?.Provider
+        return context.Services.WorkflowConfig?.Provider?.Provider
             ?? Environment.GetEnvironmentVariable(JccEnvVar.Provider.ToValue())
             ?? ProviderKind.OpenAI.ToValue();
     }
@@ -237,7 +237,7 @@ public sealed class ModelCommand : IChatCommand
         }
 
         // 4. Effort 自动降级检查 — 对齐 TS effortAutoDowngrade
-        var settingsProvider = context.Services!.ExecutionSettingsProvider;
+        var settingsProvider = context.Services.ExecutionSettingsProvider;
         if (settingsProvider is not null)
         {
             var currentEffort = settingsProvider.EffortLevel;

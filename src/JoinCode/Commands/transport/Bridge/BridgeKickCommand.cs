@@ -21,7 +21,7 @@ public sealed class BridgeKickCommand : IChatCommand
             return ChatCommandResult.Continue();
         }
 
-        var bridgeClient = context.Services!.BridgeClient;
+        var bridgeClient = context.Services.BridgeClient;
         if (bridgeClient is null)
         {
             TerminalHelper.WriteLine($"{TerminalColors.Warning}Bridge客户端未初始化{AnsiStyleConstants.Reset}");

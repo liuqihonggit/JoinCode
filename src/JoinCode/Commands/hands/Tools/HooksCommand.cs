@@ -13,7 +13,7 @@ public sealed class HooksCommand : IChatCommand
 
     public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
-        var hookManager = context.Services!.HookConfigurationManager;
+        var hookManager = context.Services.HookConfigurationManager;
         var args = ChatCommandBase.GetNormalizedArgs(context);
 
         if (string.IsNullOrEmpty(args) || args.Equals("list", StringComparison.OrdinalIgnoreCase))

@@ -64,7 +64,7 @@ public sealed class LoginCommand : IChatCommand
     private static Task PostLoginRefreshAsync(ChatCommandContext context)
     {
         // 重置成本追踪 — 对齐 TS resetCostState
-        var costTracker = context.Services!.CostTracker;
+        var costTracker = context.Services.CostTracker;
         if (costTracker is not null)
         {
             try
@@ -79,7 +79,7 @@ public sealed class LoginCommand : IChatCommand
         }
 
         // 清除速率限制缓存 — 对齐 TS refreshPolicyLimits
-        var rateLimitTracker = context.Services!.RateLimitTracker;
+        var rateLimitTracker = context.Services.RateLimitTracker;
         rateLimitTracker?.Clear();
 
         TerminalHelper.WriteLine($"{TerminalColors.Muted}  已重置成本和速率限制数据{AnsiStyleConstants.Reset}");
@@ -95,7 +95,7 @@ public sealed class LoginCommand : IChatCommand
 
     private async Task<bool> LoginWithApiKeyAsync(ChatCommandContext context, IProviderDefinition definition)
     {
-        var fs = context.Services!.FileSystem;
+        var fs = context.Services.FileSystem;
         var apiKey = context.ReadPassword?.Invoke($"请输入 {definition.DisplayName} API Key:");
 
         if (string.IsNullOrWhiteSpace(apiKey))
@@ -126,13 +126,13 @@ public sealed class LoginCommand : IChatCommand
 
     private async Task<bool> LoginWithOAuthAsync(ChatCommandContext context, IProviderDefinition definition)
     {
-        if (context.Services!.PkceGenerator is null)
+        if (context.Services.PkceGenerator is null)
         {
             TerminalHelper.WriteLine($"{TerminalColors.Error}PKCE 生成器未初始化，无法使用 OAuth 登录{AnsiStyleConstants.Reset}");
             return false;
         }
 
-        if (context.Services!.TokenStorage is null)
+        if (context.Services.TokenStorage is null)
         {
             TerminalHelper.WriteLine($"{TerminalColors.Error}Token 存储未初始化{AnsiStyleConstants.Reset}");
             return false;
@@ -147,7 +147,7 @@ public sealed class LoginCommand : IChatCommand
                 return false;
             }
 
-            var pkce = context.Services!.PkceGenerator.Generate();
+            var pkce = context.Services.PkceGenerator.Generate();
             var state = Guid.NewGuid().ToString("N");
 
             using var httpClient = Infrastructure.Http.HttpClientProviderFactory.Create().GetClient();
@@ -170,7 +170,7 @@ public sealed class LoginCommand : IChatCommand
             TerminalHelper.WriteLine("正在获取访问令牌...");
             var token = await oauthClient.ExchangeCodeAsync(config, code, pkce, context.CancellationToken).ConfigureAwait(false);
 
-            await context.Services!.TokenStorage.SaveTokenAsync(definition.ProviderName, token, context.CancellationToken).ConfigureAwait(false);
+            await context.Services.TokenStorage.SaveTokenAsync(definition.ProviderName, token, context.CancellationToken).ConfigureAwait(false);
 
             TerminalHelper.WriteLine($"{TerminalColors.Success}{definition.DisplayName} OAuth 登录成功！{AnsiStyleConstants.Reset}");
             TerminalHelper.WriteLine($"令牌过期时间: {token.ExpiresAt:yyyy-MM-dd HH:mm:ss}");

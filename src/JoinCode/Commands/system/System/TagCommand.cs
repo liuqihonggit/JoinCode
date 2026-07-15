@@ -14,7 +14,7 @@ public sealed class TagCommand : IChatCommand
     public Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetNormalizedArgs(context);
-        var tagService = context.Services!.SessionTagService;
+        var tagService = context.Services.SessionTagService;
 
         if (string.IsNullOrEmpty(args) || args.Equals("list", StringComparison.OrdinalIgnoreCase))
         {

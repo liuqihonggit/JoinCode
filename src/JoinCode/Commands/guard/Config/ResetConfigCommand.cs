@@ -14,7 +14,7 @@ public sealed class ResetConfigCommand : IChatCommand
     public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetNormalizedArgs(context).ToLowerInvariant();
-        var fs = context.Services!.FileSystem;
+        var fs = context.Services.FileSystem;
         var appDataRoot = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
         var jccDir = Path.Combine(appDataRoot, AppDataConstants.AppDataFolder);
 

@@ -87,7 +87,7 @@ public sealed class InsightsCommand : IChatCommand
     private void ShowCurrentSessionStats(ChatCommandContext context)
     {
         var sessionDuration = _clock.GetUtcNow() - context.SessionStartedAt;
-        var costTracker = context.Services!.CostTracker;
+        var costTracker = context.Services.CostTracker;
 
         TerminalHelper.WriteLine("当前会话统计:");
         TerminalHelper.NewLine();
@@ -162,7 +162,7 @@ public sealed class InsightsCommand : IChatCommand
         TerminalHelper.WriteLine("正在生成会话洞察...");
         TerminalHelper.NewLine();
 
-        await context.Services!.ChatService.SendMessageAsync(dataContext, context.CancellationToken).ConfigureAwait(false);
+        await context.Services.ChatService.SendMessageAsync(dataContext, context.CancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -216,7 +216,7 @@ public sealed class InsightsCommand : IChatCommand
             TerminalHelper.NewLine();
 
             var deepPrompt = BuildDeepInsightPrompt(dataContext, aggregated, facetSummary, multiClauding);
-            await context.Services!.ChatService.SendMessageAsync(deepPrompt, context.CancellationToken).ConfigureAwait(false);
+            await context.Services.ChatService.SendMessageAsync(deepPrompt, context.CancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -274,7 +274,7 @@ public sealed class InsightsCommand : IChatCommand
             TerminalHelper.WriteLine("正在生成洞察文本...");
             var dataContext = InsightPrompts.BuildInsightDataContext(aggregated, facetSummary, multiClauding);
             var deepPrompt = BuildDeepInsightPrompt(dataContext, aggregated, facetSummary, multiClauding);
-            var insightsText = await context.Services!.ChatService.SendMessageAsync(deepPrompt, context.CancellationToken).ConfigureAwait(false);
+            var insightsText = await context.Services.ChatService.SendMessageAsync(deepPrompt, context.CancellationToken).ConfigureAwait(false);
 
             // Step 6: 生成 HTML 报告
             TerminalHelper.WriteLine("正在生成 HTML 报告...");
@@ -284,7 +284,7 @@ public sealed class InsightsCommand : IChatCommand
             var reportDir = Path.Combine(
                 WorkflowConstants.Paths.JccDirectory,
                 "usage-data");
-            var fs = context.Services!.FileSystem;
+            var fs = context.Services.FileSystem;
             DirectoryHelper.EnsureDirectoryExists(fs, reportDir);
 
             var reportPath = Path.Combine(reportDir, "report.html");
@@ -317,7 +317,7 @@ public sealed class InsightsCommand : IChatCommand
         ChatCommandContext context)
     {
         var facets = new List<SessionFacets>();
-        var chatService = context.Services!.ChatService;
+        var chatService = context.Services.ChatService;
 
         foreach (var session in sessions)
         {
@@ -639,7 +639,7 @@ public sealed class InsightsCommand : IChatCommand
 
     private static string GetTokenInfo(ChatCommandContext context)
     {
-        var costTracker = context.Services!.CostTracker;
+        var costTracker = context.Services.CostTracker;
         if (costTracker is null) return "- Token data: unavailable";
 
         try

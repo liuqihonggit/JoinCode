@@ -14,7 +14,7 @@ public sealed class RateLimitCommand : IChatCommand
     public Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetNormalizedArgs(context);
-        var tracker = context.Services!.RateLimitTracker;
+        var tracker = context.Services.RateLimitTracker;
 
         if (string.IsNullOrEmpty(args) || args.Equals("show", StringComparison.OrdinalIgnoreCase))
         {

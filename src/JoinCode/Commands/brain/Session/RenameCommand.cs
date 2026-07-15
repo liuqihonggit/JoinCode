@@ -57,7 +57,7 @@ public sealed class RenameCommand : IChatCommand
             "sessions");
 
         var sessionFile = Path.Combine(sessionsDir, $"{context.SessionId}.json");
-        var fs = context.Services!.FileSystem;
+        var fs = context.Services.FileSystem;
 
         if (!fs.FileExists(sessionFile))
         {

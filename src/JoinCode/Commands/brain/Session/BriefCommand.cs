@@ -33,7 +33,7 @@ public sealed class BriefCommand : IChatCommand
 
     public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
-        var briefModeService = context.Services!.BriefModeService;
+        var briefModeService = context.Services.BriefModeService;
 
         if (briefModeService is null)
         {

@@ -40,7 +40,7 @@ Question: {question}
         try
         {
             TerminalHelper.WriteLine($"{TerminalColors.Muted}── 侧边问题 ──{AnsiStyleConstants.Reset}");
-            var result = await context.Services!.ChatService.SendMessageAsync(prompt, context.CancellationToken).ConfigureAwait(false);
+            var result = await context.Services.ChatService.SendMessageAsync(prompt, context.CancellationToken).ConfigureAwait(false);
             TerminalHelper.WriteLine(result);
             TerminalHelper.WriteLine($"{TerminalColors.Muted}── 侧边回答结束 ──{AnsiStyleConstants.Reset}");
         }

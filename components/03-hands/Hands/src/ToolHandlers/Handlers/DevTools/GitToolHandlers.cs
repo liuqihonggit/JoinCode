@@ -147,10 +147,10 @@ public partial class GitToolHandlers
         [McpToolParameter("Force push", Required = false)] bool? force = false,
         CancellationToken cancellationToken = default)
     {
-        var parts = new List<string> { GitSubCommand.Push.ToValue(), remote! };
+        var parts = new List<string> { GitSubCommand.Push.ToValue(), remote ?? "origin" };
         if (!string.IsNullOrEmpty(branch))
         {
-            parts.Add(branch!);
+            parts.Add(branch);
         }
         if (force == true)
         {
@@ -178,10 +178,10 @@ public partial class GitToolHandlers
         [McpToolParameter("Working directory path (optional)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
     {
-        var parts = new List<string> { GitSubCommand.Pull.ToValue(), remote! };
+        var parts = new List<string> { GitSubCommand.Pull.ToValue(), remote ?? "origin" };
         if (!string.IsNullOrEmpty(branch))
         {
-            parts.Add(branch!);
+            parts.Add(branch);
         }
         var args = string.Join(' ', parts);
 

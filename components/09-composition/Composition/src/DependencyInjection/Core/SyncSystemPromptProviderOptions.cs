@@ -15,7 +15,9 @@ public sealed partial class SyncSystemPromptProviderOptions : Core.Prompts.Syste
         Core.Prompts.FileContextTracker fileContext,
         IAssistantDailyLogService? dailyLogService = null,
         IMemorySearchHistoryService? searchHistoryService = null,
-        IBriefModeService? briefModeService = null)
+        IBriefModeService? briefModeService = null,
+        BashShellProvider? bashProvider = null,
+        PowerShellShellProvider? psProvider = null)
     {
         ProjectRules = config.ProjectRules;
         ExternalRules = config.ExternalRules.Count > 0
@@ -41,5 +43,10 @@ public sealed partial class SyncSystemPromptProviderOptions : Core.Prompts.Syste
             ? async (query) => (await searchHistoryService.BuildSearchingPastContextSectionAsync(query).ConfigureAwait(false))?.PromptText ?? string.Empty
             : null;
         AwaySummary = null;
+        BashVersion = bashProvider?.Version;
+        PowerShellVersion = psProvider?.Version;
+        PowerShellEdition = psProvider is not null
+            ? (psProvider.IsCore ? "core" : "desktop")
+            : null;
     }
 }

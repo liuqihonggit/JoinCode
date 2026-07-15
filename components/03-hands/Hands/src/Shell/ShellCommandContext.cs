@@ -1,10 +1,12 @@
+using Services.Shell.Providers;
+
 namespace Services.Shell;
 
 /// <summary>
 /// Shell 命令执行上下文实现 — 对齐 TS ShellCommand
 /// 封装正在运行的进程，支持前台转后台操作
 /// </summary>
-public sealed class ShellCommandContext : IShellCommandContext
+public sealed class ShellCommandContext : IShellCommandContext, IShellLifecycle
 {
     private readonly Process _process;
     private readonly StringBuilder _stdoutBuilder = new();
@@ -16,12 +18,19 @@ public sealed class ShellCommandContext : IShellCommandContext
     private readonly int? _timeoutMs;
     private readonly ILogger? _logger;
     private readonly IFileSystem _fs;
+    private readonly string? _cwdFilePath;
 
     private int _isDisposed;
     private ShellCommandStatus _status = ShellCommandStatus.Running;
     private string? _backgroundTaskId;
     private Timer? _timeoutTimer;
     private Timer? _assistantTimer;
+    private Timer? _sizeWatchdogTimer;
+
+    /// <summary>
+    /// 后台任务大小看门狗间隔 — 对齐 TS SIZE_WATCHDOG_INTERVAL_MS (5s)
+    /// </summary>
+    private const int SizeWatchdogIntervalMs = 5_000;
 
     /// <inheritdoc />
     public string TaskId { get; } = TaskIdGenerator.GenerateTaskId(TaskType.LocalBash);
@@ -50,7 +59,8 @@ public sealed class ShellCommandContext : IShellCommandContext
         int? timeoutMs,
         bool shouldAutoBackground,
         ILogger? logger,
-        IFileSystem fs)
+        IFileSystem fs,
+        string? cwdFilePath = null)
     {
         _process = process;
         _command = command;
@@ -58,6 +68,7 @@ public sealed class ShellCommandContext : IShellCommandContext
         _timeoutMs = timeoutMs;
         _logger = logger;
         _fs = fs;
+        _cwdFilePath = cwdFilePath;
         _processCts = new CancellationTokenSource();
 
         ShouldAutoBackground = shouldAutoBackground;
@@ -88,24 +99,37 @@ public sealed class ShellCommandContext : IShellCommandContext
 
     /// <summary>
     /// 创建并启动 Shell 执行上下文 — 对齐 TS ShellCommand.exec
+    /// 使用 IShellProvider.BuildExecCommandAsync 构建完整命令（含 CWD 追踪、extglob 禁用等）
+    /// 使用 IShellProvider.GetEnvironmentOverridesAsync 注入环境变量到子进程
     /// </summary>
-    public static ShellCommandContext Start(
+    public static async Task<ShellCommandContext> StartAsync(
         string command,
         string workingDirectory,
         IFileSystem fs,
+        IShellProvider provider,
         int? timeoutMs = null,
-        bool isPowerShell = false,
         bool shouldAutoBackground = true,
+        bool useSandbox = false,
+        string? sandboxTmpDir = null,
         ILogger? logger = null)
     {
-        var effectiveFs = fs;
+        var sessionId = Guid.NewGuid().ToString("N")[..8];
+        var options = new ShellExecOptions
+        {
+            SessionId = sessionId,
+            UseSandbox = useSandbox,
+            SandboxTmpDir = sandboxTmpDir,
+        };
+
+        var execResult = await provider.BuildExecCommandAsync(command, options).ConfigureAwait(false);
+        var envOverrides = await provider.GetEnvironmentOverridesAsync(command).ConfigureAwait(false);
+
+        var spawnArgs = provider.GetSpawnArgs(execResult.CommandString);
 
         var psi = new ProcessStartInfo
         {
-            FileName = isPowerShell ? "powershell.exe" : "cmd.exe",
-            Arguments = isPowerShell
-                ? $"-NoProfile -ExecutionPolicy Bypass -Command \"{command.Replace("\"", "\"\"")}\""
-                : $"/c {command}",
+            FileName = provider.ShellPath,
+            Arguments = string.Join(' ', spawnArgs),
             WorkingDirectory = workingDirectory,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
@@ -115,6 +139,12 @@ public sealed class ShellCommandContext : IShellCommandContext
             StandardErrorEncoding = Encoding.UTF8
         };
 
+        if (envOverrides.Count > 0)
+        {
+            foreach (var (key, value) in envOverrides)
+                psi.EnvironmentVariables[key] = value;
+        }
+
         var process = new Process { StartInfo = psi };
         process.Start();
         process.BeginOutputReadLine();
@@ -122,7 +152,7 @@ public sealed class ShellCommandContext : IShellCommandContext
 
         return new ShellCommandContext(
             process, command, workingDirectory, timeoutMs,
-            shouldAutoBackground, logger, effectiveFs);
+            shouldAutoBackground, logger, fs, execResult.CwdFilePath);
     }
 
     /// <inheritdoc />
@@ -143,7 +173,29 @@ public sealed class ShellCommandContext : IShellCommandContext
 
         Backgrounded?.Invoke(this, taskId);
 
+        StartSizeWatchdog();
+
         return true;
+    }
+
+    /// <summary>
+    /// 启动后台任务大小看门狗 — 对齐 TS ShellCommand.#startSizeWatchdog
+    /// 每 5s 检查输出大小，超过硬上限则杀进程防止磁盘填满
+    /// </summary>
+    private void StartSizeWatchdog()
+    {
+        _sizeWatchdogTimer = new Timer(static state =>
+        {
+            var ctx = (ShellCommandContext)state!;
+            if (ctx._status != ShellCommandStatus.Backgrounded) return;
+
+            var currentSize = ctx._stdoutBuilder.Length;
+            if (currentSize > ShellExecutionResult.MaxPersistedSizeBytes)
+            {
+                ctx._logger?.LogWarning("后台任务输出超过硬上限，强制杀死: {TaskId}, Size={Size}", ctx._backgroundTaskId, currentSize);
+                ctx.Kill();
+            }
+        }, this, TimeSpan.FromMilliseconds(SizeWatchdogIntervalMs), TimeSpan.FromMilliseconds(SizeWatchdogIntervalMs));
     }
 
     /// <inheritdoc />
@@ -153,14 +205,50 @@ public sealed class ShellCommandContext : IShellCommandContext
 
         try
         {
-            _process.Kill();
+            KillProcessTree(_process);
         }
         catch (Exception ex)
         {
-            _logger?.LogWarning(ex, "杀进程失败");
+            _logger?.LogWarning(ex, "杀进程树失败");
         }
 
         _status = ShellCommandStatus.Killed;
+    }
+
+    /// <summary>
+    /// 杀死进程树 — 对齐 TS treeKill(pid, 'SIGKILL')
+    /// Windows: taskkill /T /F /PID; 非Windows: process.Kill() 杀整个进程组
+    /// </summary>
+    private static void KillProcessTree(Process process)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            try
+            {
+                using var killer = new Process
+                {
+                    StartInfo = new ProcessStartInfo
+                    {
+                        FileName = "taskkill.exe",
+                        Arguments = $"/T /F /PID {process.Id}",
+                        UseShellExecute = false,
+                        CreateNoWindow = true,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                    }
+                };
+                killer.Start();
+                killer.WaitForExit(5000);
+            }
+            catch (Exception)
+            {
+                process.Kill();
+            }
+        }
+        else
+        {
+            process.Kill();
+        }
     }
 
     /// <inheritdoc />
@@ -191,6 +279,40 @@ public sealed class ShellCommandContext : IShellCommandContext
 
     /// <inheritdoc />
     public string GetCurrentStderr() => _stderrBuilder.ToString();
+
+    /// <inheritdoc />
+    public ShellLifecycleState LifecycleState => _status switch
+    {
+        ShellCommandStatus.Running => ShellLifecycleState.Active,
+        ShellCommandStatus.Backgrounded => ShellLifecycleState.Backgrounded,
+        ShellCommandStatus.Killed => ShellLifecycleState.Terminated,
+        ShellCommandStatus.Completed => ShellLifecycleState.Completed,
+        _ => ShellLifecycleState.Active,
+    };
+
+    /// <inheritdoc />
+    public Task CompactAsync(CancellationToken cancellationToken = default)
+    {
+        if (_status == ShellCommandStatus.Running)
+        {
+            var taskId = TaskIdGenerator.GenerateTaskId(TaskType.LocalBash);
+            Background(taskId);
+        }
+
+        if (_status is ShellCommandStatus.Backgrounded && _stdoutBuilder.Length > ShellExecutionResult.PreviewSizeBytes)
+        {
+            _stdoutBuilder.Remove(ShellExecutionResult.PreviewSizeBytes, _stdoutBuilder.Length - ShellExecutionResult.PreviewSizeBytes);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    /// <inheritdoc />
+    public Task TerminateAsync(CancellationToken cancellationToken = default)
+    {
+        Kill();
+        return Task.CompletedTask;
+    }
 
     /// <summary>
     /// 超时处理 — 对齐 TS ShellCommand.#handleTimeout
@@ -254,9 +376,56 @@ public sealed class ShellCommandContext : IShellCommandContext
             PersistedOutputPath = persistedPath,
             PersistedOutputSize = persistedSize,
             BackgroundTaskId = _backgroundTaskId,
+            CwdWasReset = TryUpdateCwdFromTrackingFile(),
         };
 
         _resultTcs.TrySetResult(result);
+    }
+
+    /// <summary>
+    /// 从 CWD 追踪文件读取命令执行后的工作目录变化 — 对齐 TS Shell.ts readCwdFile
+    /// </summary>
+    private bool TryUpdateCwdFromTrackingFile()
+    {
+        if (string.IsNullOrEmpty(_cwdFilePath)) return false;
+
+        try
+        {
+            if (!_fs.FileExists(_cwdFilePath)) return false;
+
+            var newCwd = _fs.ReadAllText(_cwdFilePath).Trim();
+            if (string.IsNullOrEmpty(newCwd)) return false;
+
+            try
+            {
+                _fs.DeleteFile(_cwdFilePath);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogDebug(ex, "清理 CWD 追踪文件失败: {Path}", _cwdFilePath);
+            }
+
+            if (!string.Equals(newCwd, _workingDirectory, StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    _fs.SetCurrentDirectory(newCwd);
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogDebug(ex, "设置工作目录失败: {Cwd}", newCwd);
+                    return false;
+                }
+            }
+
+            return false;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogDebug(ex, "读取 CWD 追踪文件失败: {Path}", _cwdFilePath);
+            return false;
+        }
     }
 
     /// <summary>
@@ -282,8 +451,9 @@ public sealed class ShellCommandContext : IShellCommandContext
 
             return (filePath, fileSize);
         }
-        catch
+        catch (Exception ex)
         {
+            _logger?.LogDebug(ex, "大输出持久化失败");
             return (null, null);
         }
     }
@@ -294,19 +464,26 @@ public sealed class ShellCommandContext : IShellCommandContext
 
         _timeoutTimer?.Dispose();
         _assistantTimer?.Dispose();
+        _sizeWatchdogTimer?.Dispose();
         _processCts.Cancel();
         _processCts.Dispose();
 
         try
         {
-            if (!_process.HasExited) _process.Kill();
+            if (!_process.HasExited) KillProcessTree(_process);
         }
         catch (Exception ex)
         {
-            // 忽略进程终止异常
-            System.Diagnostics.Trace.WriteLine($"终止进程时发生异常: {ex.Message}");
+            _logger?.LogDebug(ex, "Dispose 时终止进程失败");
         }
 
         _process.Dispose();
+    }
+
+    /// <inheritdoc />
+    public ValueTask DisposeAsync()
+    {
+        Dispose();
+        return ValueTask.CompletedTask;
     }
 }

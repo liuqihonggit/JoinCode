@@ -48,7 +48,7 @@ public class McpToolRegistrationTests
         var toolRegistry = serviceProvider.GetRequiredService<IMcpToolRegistry>();
         var allTools = await toolRegistry.GetAllToolsAsync().ConfigureAwait(true);
 
-        var requiredTools = new[] { FileToolNameConstants.FileRead, ShellToolNameConstants.ShellExecute, SearchToolNameConstants.Glob, "config_get" };
+        var requiredTools = new[] { FileToolNameConstants.FileRead, ShellToolNameConstants.Bash, SearchToolNameConstants.Glob, "config_get" };
         var missingTools = requiredTools.Where(t => !allTools.ContainsKey(t)).ToList();
 
         Assert.Empty(missingTools);

@@ -124,7 +124,7 @@ public class PermissionManagerTests : IAsyncDisposable
     {
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         await _manager.SetPermissionModeAsync(PermissionMode.Auto, cts.Token).ConfigureAwait(true);
-        var request = new PermissionRequest(ShellToolNameConstants.ShellExecute, new Dictionary<string, JsonElement>
+        var request = new PermissionRequest(ShellToolNameConstants.Bash, new Dictionary<string, JsonElement>
         {
             ["command"] = JsonSerializer.SerializeToElement("rm -rf /")
         });
@@ -594,7 +594,7 @@ public class PermissionManagerTests : IAsyncDisposable
     {
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         await _manager.SetPermissionModeAsync(PermissionMode.Auto, cts.Token).ConfigureAwait(true);
-        var toolName = paramName == "command" ? ShellToolNameConstants.ShellExecute : FileToolNameConstants.FileWrite;
+        var toolName = paramName == "command" ? ShellToolNameConstants.Bash : FileToolNameConstants.FileWrite;
         var request = new PermissionRequest(toolName, new Dictionary<string, JsonElement>
         {
             [paramName] = JsonSerializer.SerializeToElement(paramValue)

@@ -71,6 +71,21 @@ public partial class SystemPromptProviderOptions
     public IBriefModeService? BriefModeService { get; init; }
     public IFileSystem? FileSystem { get; init; }
 
+    /// <summary>
+    /// Bash Shell 版本信息 — 由 BashShellProvider.Version 检测后注入
+    /// </summary>
+    public string? BashVersion { get; init; }
+
+    /// <summary>
+    /// PowerShell 版本信息 — 由 PowerShellShellProvider.Version 检测后注入
+    /// </summary>
+    public string? PowerShellVersion { get; init; }
+
+    /// <summary>
+    /// PowerShell 版本类别 — "desktop"(5.1) / "core"(7+) / null
+    /// </summary>
+    public string? PowerShellEdition { get; init; }
+
     #endregion
 
     #region 自定义

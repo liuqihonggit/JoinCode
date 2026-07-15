@@ -158,7 +158,7 @@ public class PermissionCheckerTests
     {
         _checker.CurrentMode = PermissionMode.Auto;
 
-        var result = await _checker.CheckPermissionAsync(ShellToolNameConstants.ShellExecute, new Dictionary<string, JsonElement>
+        var result = await _checker.CheckPermissionAsync(ShellToolNameConstants.Bash, new Dictionary<string, JsonElement>
         {
             ["command"] = JsonSerializer.SerializeToElement("rm -rf /")
         }).ConfigureAwait(true);
@@ -239,7 +239,7 @@ public class PermissionCheckerTests
     }
 
     [Theory]
-    [InlineData(ShellToolNameConstants.ShellExecute, true)]
+    [InlineData(ShellToolNameConstants.Bash, true)]
     [InlineData("shell", true)]
     [InlineData(FileToolNameConstants.FileWrite, false)]
     [InlineData(FileToolNameConstants.FileEdit, false)]
@@ -319,7 +319,7 @@ public class PermissionCheckerTests
     {
         _checker.CurrentMode = PermissionMode.Auto;
 
-        var result = await _checker.CheckPermissionAsync(ShellToolNameConstants.ShellExecute, new Dictionary<string, JsonElement>
+        var result = await _checker.CheckPermissionAsync(ShellToolNameConstants.Bash, new Dictionary<string, JsonElement>
         {
             ["command"] = JsonSerializer.SerializeToElement(command)
         }).ConfigureAwait(true);
@@ -336,7 +336,7 @@ public class PermissionCheckerTests
         _checker.CurrentMode = PermissionMode.Auto;
         var longCommand = new string('a', 10000);
 
-        var act = async () => await _checker.CheckPermissionAsync(ShellToolNameConstants.ShellExecute, new Dictionary<string, JsonElement>
+        var act = async () => await _checker.CheckPermissionAsync(ShellToolNameConstants.Bash, new Dictionary<string, JsonElement>
         {
             ["command"] = JsonSerializer.SerializeToElement(longCommand)
         }).ConfigureAwait(true);

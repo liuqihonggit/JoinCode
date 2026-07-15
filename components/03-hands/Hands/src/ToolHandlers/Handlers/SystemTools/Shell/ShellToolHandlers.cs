@@ -3,16 +3,22 @@ namespace Tools.Handlers;
 /// <summary>
 /// Shell 执行工具处理器 - 提供 CMD 和 PowerShell 命令执行功能
 /// 通过中间件管道处理验证、分类、sed拦截、后台判断、执行、输出格式化
+/// 继承 ShellToolBase 获得 PowerShell 门控、进程看护、压缩标记
 /// </summary>
 [McpToolHandler(ToolCategory.Shell)]
-public partial class ShellToolHandlers
+public partial class ShellToolHandlers : ShellToolBase
 {
     private readonly MiddlewarePipeline<ShellContext> _pipeline;
     private readonly IShellBackgroundTaskService? _backgroundTaskService;
 
+    public override string ToolName => ShellToolNameConstants.Bash;
+
     public ShellToolHandlers(
         MiddlewarePipeline<ShellContext> pipeline,
+        IShellToolGateService? gateService = null,
+        IShellProcessWatchdog? watchdog = null,
         IShellBackgroundTaskService? backgroundTaskService = null)
+        : base(gateService, watchdog)
     {
         _pipeline = pipeline ?? throw new ArgumentNullException(nameof(pipeline));
         _backgroundTaskService = backgroundTaskService;
@@ -22,7 +28,7 @@ public partial class ShellToolHandlers
     /// 执行 CMD 命令
     /// 与 TS BashTool 对齐：超时自动后台化、assistant 自动后台化、description 参数
     /// </summary>
-    [McpTool(ShellToolNameConstants.ShellExecute, "Execute a Windows CMD command. The description parameter briefly describes the command purpose", "execution")]
+    [McpTool(ShellToolNameConstants.Bash, "Execute a Windows CMD command. The description parameter briefly describes the command purpose", "execution")]
     public async Task<ToolResult> ShellExecuteAsync(
         [McpToolParameter("CMD command to execute")] string command,
         [McpToolParameter("Brief description of the command purpose", Required = false)] string? description = null,
@@ -69,6 +75,8 @@ public partial class ShellToolHandlers
         CancellationToken cancellationToken = default,
         ToolProgressCallback? onProgress = null)
     {
+        var gateResult = CheckGate(isPowerShellCall: true);
+        if (gateResult is not null) return gateResult;
         var context = new ShellContext
         {
             Command = command,
@@ -241,6 +249,25 @@ public partial class ShellToolHandlers
         }
 
         return ResultBuilder.Success().WithText($"Task {task_id} cancelled").Build();
+    }
+
+    /// <summary>
+    /// 强制杀死所有运行中的后台任务 — 对齐 TS 用户强行消灭全部后台进程
+    /// </summary>
+    [McpTool(ShellToolNameConstants.ShellBackgroundKillAll, "Force kill ALL running background shell tasks and reclaim memory", "execution")]
+    public async Task<ToolResult> ShellBackgroundKillAllAsync(
+        CancellationToken cancellationToken = default)
+    {
+        if (_backgroundTaskService == null)
+        {
+            return ResultBuilder.Error().WithText("Background task service is not available").Build();
+        }
+
+        var killedCount = await _backgroundTaskService.KillAllRunningAsync(cancellationToken).ConfigureAwait(false);
+
+        return ResultBuilder.Success().WithText(killedCount > 0
+            ? $"Killed {killedCount} running background task(s)"
+            : "No running background tasks to kill").Build();
     }
 
     #region Private Methods

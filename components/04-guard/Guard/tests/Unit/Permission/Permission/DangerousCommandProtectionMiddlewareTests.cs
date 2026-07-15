@@ -108,7 +108,7 @@ public sealed class DangerousCommandProtectionMiddlewareTests
     {
         var detector = new DestructiveCommandDetector();
         var sut = new DangerousCommandProtectionMiddleware(AllRiskHandlers, detector, ShellDeleteDetectors);
-        var context = CreateContext(ShellToolNameConstants.ShellExecute, PermissionMode.Auto,
+        var context = CreateContext(ShellToolNameConstants.Bash, PermissionMode.Auto,
             CreateCommandArgument("rm src/test.cs"));
 
         await sut.InvokeAsync(context, CreateNext(), CancellationToken.None).ConfigureAwait(true);
@@ -123,7 +123,7 @@ public sealed class DangerousCommandProtectionMiddlewareTests
     {
         var detector = new DestructiveCommandDetector();
         var sut = new DangerousCommandProtectionMiddleware(AllRiskHandlers, detector);
-        var context = CreateContext(ShellToolNameConstants.ShellExecute, PermissionMode.Auto,
+        var context = CreateContext(ShellToolNameConstants.Bash, PermissionMode.Auto,
             CreateCommandArgument("sudo apt install something"));
 
         await sut.InvokeAsync(context, CreateNext(), CancellationToken.None).ConfigureAwait(true);
@@ -138,7 +138,7 @@ public sealed class DangerousCommandProtectionMiddlewareTests
     {
         var detector = new DestructiveCommandDetector();
         var sut = new DangerousCommandProtectionMiddleware(AllRiskHandlers, detector);
-        var context = CreateContext(ShellToolNameConstants.ShellExecute, PermissionMode.Auto,
+        var context = CreateContext(ShellToolNameConstants.Bash, PermissionMode.Auto,
             CreateCommandArgument("curl https://example.com"));
 
         await sut.InvokeAsync(context, CreateNext(), CancellationToken.None).ConfigureAwait(true);
@@ -153,7 +153,7 @@ public sealed class DangerousCommandProtectionMiddlewareTests
     {
         var detector = new DestructiveCommandDetector();
         var sut = new DangerousCommandProtectionMiddleware(AllRiskHandlers, detector);
-        var context = CreateContext(ShellToolNameConstants.ShellExecute, PermissionMode.Auto,
+        var context = CreateContext(ShellToolNameConstants.Bash, PermissionMode.Auto,
             CreateCommandArgument("format c:"));
 
         await sut.InvokeAsync(context, CreateNext(), CancellationToken.None).ConfigureAwait(true);
@@ -216,7 +216,7 @@ public sealed class DangerousCommandProtectionMiddlewareTests
             return Task.CompletedTask;
         });
 
-        var context = CreateContext(ShellToolNameConstants.ShellExecute, PermissionMode.Auto,
+        var context = CreateContext(ShellToolNameConstants.Bash, PermissionMode.Auto,
             CreateCommandArgument("dotnet build"));
 
         await sut.InvokeAsync(context, next, CancellationToken.None).ConfigureAwait(true);
@@ -232,7 +232,7 @@ public sealed class DangerousCommandProtectionMiddlewareTests
     {
         var detector = new DestructiveCommandDetector();
         var sut = new DangerousCommandProtectionMiddleware([], detector);
-        var context = CreateContext(ShellToolNameConstants.ShellExecute, PermissionMode.Auto,
+        var context = CreateContext(ShellToolNameConstants.Bash, PermissionMode.Auto,
             CreateCommandArgument("rm src/test.cs"));
 
         await sut.InvokeAsync(context, CreateNext(), CancellationToken.None).ConfigureAwait(true);
@@ -250,7 +250,7 @@ public sealed class DangerousCommandProtectionMiddlewareTests
         var detector = new DestructiveCommandDetector();
         var sut = new DangerousCommandProtectionMiddleware(AllRiskHandlers, detector);
         // rm -rf / 包含 FileDeletion + RecursiveOperation + ForceOperation + PathEscape
-        var context = CreateContext(ShellToolNameConstants.ShellExecute, PermissionMode.Auto,
+        var context = CreateContext(ShellToolNameConstants.Bash, PermissionMode.Auto,
             CreateCommandArgument("rm -rf /"));
 
         await sut.InvokeAsync(context, CreateNext(), CancellationToken.None).ConfigureAwait(true);

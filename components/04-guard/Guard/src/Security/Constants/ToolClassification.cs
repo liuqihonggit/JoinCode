@@ -38,7 +38,7 @@ public static class ToolClassification
     /// </summary>
     public static readonly FrozenSet<string> SensitiveTools = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
-        ShellToolNameConstants.ShellExecute, ShellToolNameConstants.Powershell,
+        ShellToolNameConstants.Bash, ShellToolNameConstants.Powershell,
         FileToolNameConstants.FileDelete, GitToolNameConstants.GitReset, GitToolNameConstants.GitClean, GitToolNameConstants.GitPush
     }.ToFrozenSet();
 
@@ -49,7 +49,7 @@ public static class ToolClassification
     public static readonly FrozenSet<string> AgentDestructiveTools = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
         FileToolNameConstants.FileDelete, FileToolNameConstants.FileMove, FileToolNameConstants.FileWrite,
-        ShellToolNameConstants.ShellExecute, ShellToolNameConstants.Powershell,
+        ShellToolNameConstants.Bash, ShellToolNameConstants.Powershell,
         GitToolNameConstants.GitReset, GitToolNameConstants.GitClean
     }.ToFrozenSet();
 }

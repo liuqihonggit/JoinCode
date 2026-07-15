@@ -56,7 +56,7 @@ public sealed partial class AgentToolRestrictions : IAgentToolRestrictions
         SystemToolNameConstants.TaskOutput,
         TodoToolNameConstants.TodoList,
         FileToolNameConstants.FileWrite, FileToolNameConstants.FileEdit,
-        ShellToolNameConstants.ShellExecute, ShellToolNameConstants.Powershell,
+        ShellToolNameConstants.Bash, ShellToolNameConstants.Powershell,
         CodeToolNameConstants.CodeIndexSearch, CodeToolNameConstants.CodeIndexSearchComprehensive,
         CodeToolNameConstants.CodeIndexFindDefinition,
         // Ask 模式允许所有 MCP 工具（最宽松）
@@ -71,7 +71,7 @@ public sealed partial class AgentToolRestrictions : IAgentToolRestrictions
 
     private static readonly FrozenSet<string> AutoDeniedTools = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
-        ShellToolNameConstants.ShellExecute, ShellToolNameConstants.Powershell,
+        ShellToolNameConstants.Bash, ShellToolNameConstants.Powershell,
         FileToolNameConstants.FileDelete,
         GitToolNameConstants.GitCommit, GitToolNameConstants.GitPush
     }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
@@ -80,7 +80,7 @@ public sealed partial class AgentToolRestrictions : IAgentToolRestrictions
     {
         FileToolNameConstants.FileWrite, FileToolNameConstants.FileEdit,
         FileToolNameConstants.FileDelete,
-        ShellToolNameConstants.ShellExecute, ShellToolNameConstants.Powershell,
+        ShellToolNameConstants.Bash, ShellToolNameConstants.Powershell,
         GitToolNameConstants.GitCommit, GitToolNameConstants.GitPush
     }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 

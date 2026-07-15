@@ -138,6 +138,12 @@ public static class PowerShellToolPrompt {
     }
 
     /// <summary>
+    /// 无参版本 — 供 ToolPromptGenerator 源码生成器识别并注册
+    /// 默认使用 unknown edition（保守兼容语法），运行时通过 ShellInfoSection 注入版本信息
+    /// </summary>
+    public static string GetDescription() => GetPrompt(edition: null);
+
+    /// <summary>
     /// 获取工具提示词
     /// </summary>
     public static string GetPrompt(

@@ -43,6 +43,7 @@ global using Core.Configuration;
 global using Core.Context;
 global using Core.Context.Collapse;
 global using Core.Context.Compact;
+global using Core.Context.Compact.Guard;
 global using Core.Context.Compression;
 global using Core.Context.Resolution;
 global using JoinCode.Abstractions.LLM.Execution;

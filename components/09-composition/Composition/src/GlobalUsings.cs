@@ -106,6 +106,7 @@ global using Microsoft.Extensions.Options;
 global using Services.CodeIndex;
 global using Services.Notification;
 global using Services.Web;
+global using Services.Shell.Providers;
 global using Memdir.Sync;
 global using State;
 global using Api;

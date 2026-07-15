@@ -25,11 +25,11 @@ public sealed class AgentRestrictionMiddlewareTests
 
         var context = new PermissionCheckContext
         {
-            ToolName = ShellToolNameConstants.ShellExecute, // "Bash"
+            ToolName = ShellToolNameConstants.Bash, // "Bash"
             Arguments = null,
             CurrentMode = PermissionMode.Default,
             Config = PermissionConfig.CreateDefault(),
-            AutoApprovedTools = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ShellToolNameConstants.ShellExecute },
+            AutoApprovedTools = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ShellToolNameConstants.Bash },
             AutoRejectedTools = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         };
 
@@ -57,7 +57,7 @@ public sealed class AgentRestrictionMiddlewareTests
 
         var context = new PermissionCheckContext
         {
-            ToolName = ShellToolNameConstants.ShellExecute, // "Bash"
+            ToolName = ShellToolNameConstants.Bash, // "Bash"
             Arguments = null,
             CurrentMode = PermissionMode.Default,
             Config = PermissionConfig.CreateDefault(),

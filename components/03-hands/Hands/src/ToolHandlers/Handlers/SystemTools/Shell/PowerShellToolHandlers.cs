@@ -35,9 +35,10 @@ public sealed record PowerShellOptions
 
 /// <summary>
 /// PowerShell专用工具处理器 - 提供针对PowerShell优化的功能
+/// 继承 ShellToolBase 获得 PowerShell 门控、进程看护、压缩标记
 /// </summary>
 [McpToolHandler(ToolCategory.PowerShell)]
-public class PowerShellToolHandlers
+public class PowerShellToolHandlers : ShellToolBase
 {
     private readonly IShellExecutionService _shellExecutionService;
     private readonly IFileOperationService _fileOperationService;
@@ -47,14 +48,20 @@ public class PowerShellToolHandlers
     private readonly IPsPermissionChecker? _psPermissionChecker;
     private readonly IPsDestructiveCommandChecker? _psDestructiveCommandChecker;
 
+    public override string ToolName => ShellToolNameConstants.Powershell;
+    public override bool IsPowerShell => true;
+
     public PowerShellToolHandlers(
         IShellExecutionService shellExecutionService,
         IFileOperationService fileOperationService,
         IFileSystem fs,
+        IShellToolGateService? gateService = null,
+        IShellProcessWatchdog? watchdog = null,
         IShellBackgroundTaskService? backgroundTaskService = null,
         ITelemetryService? telemetryService = null,
         IPsPermissionChecker? psPermissionChecker = null,
         IPsDestructiveCommandChecker? psDestructiveCommandChecker = null)
+        : base(gateService, watchdog)
     {
         _shellExecutionService = shellExecutionService ?? throw new ArgumentNullException(nameof(shellExecutionService));
         _fileOperationService = fileOperationService ?? throw new ArgumentNullException(nameof(fileOperationService));
@@ -73,6 +80,9 @@ public class PowerShellToolHandlers
         [McpToolOptions] PowerShellOptions options,
         CancellationToken cancellationToken = default)
     {
+        var gateResult = CheckGate(isPowerShellCall: true);
+        if (gateResult is not null) return gateResult;
+
         var command = options.Command;
         var no_profile = options.NoProfile;
         var execution_policy = options.ExecutionPolicy;
@@ -228,6 +238,9 @@ public class PowerShellToolHandlers
         [McpToolParameter("Working directory", Required = false)] string? working_directory = null,
         CancellationToken cancellationToken = default)
     {
+        var gateResult = CheckGate(isPowerShellCall: true);
+        if (gateResult is not null) return gateResult;
+
         if (string.IsNullOrWhiteSpace(script_path))
         {
             return ResultBuilder.Error().WithText("script_path cannot be empty").Build();
@@ -298,6 +311,9 @@ public class PowerShellToolHandlers
     public async Task<ToolResult> PowerShellVersionAsync(
         CancellationToken cancellationToken = default)
     {
+        var gateResult = CheckGate(isPowerShellCall: true);
+        if (gateResult is not null) return gateResult;
+
         var command = "$PSVersionTable | ConvertTo-Json";
         var fullCommand = $"powershell.exe -NoProfile -Command \"{command}\"";
 
@@ -355,6 +371,9 @@ public class PowerShellToolHandlers
         [McpToolParameter("Scope (e.g. Process, CurrentUser, LocalMachine)", Required = false)] string? scope = null,
         CancellationToken cancellationToken = default)
     {
+        var gateResult = CheckGate(isPowerShellCall: true);
+        if (gateResult is not null) return gateResult;
+
         var command = string.IsNullOrEmpty(scope)
             ? "Get-ExecutionPolicy -List | Format-Table -AutoSize"
             : $"Get-ExecutionPolicy -Scope {scope}";
@@ -406,6 +425,9 @@ public class PowerShellToolHandlers
         [McpToolParameter("Force setting without confirmation prompt", Required = false, DefaultValue = "true")] bool? force = null,
         CancellationToken cancellationToken = default)
     {
+        var gateResult = CheckGate(isPowerShellCall: true);
+        if (gateResult is not null) return gateResult;
+
         if (string.IsNullOrWhiteSpace(policy))
         {
             return ResultBuilder.Error().WithText("policy cannot be empty").Build();

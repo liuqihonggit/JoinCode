@@ -10,7 +10,7 @@ public sealed partial class ShellDeleteDetector : IDeleteOperationDetector
 {
     private static readonly FrozenSet<string> DeleteToolNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
-        ShellToolNameConstants.ShellExecute,
+        ShellToolNameConstants.Bash,
         ShellToolNameConstants.Powershell
     }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 

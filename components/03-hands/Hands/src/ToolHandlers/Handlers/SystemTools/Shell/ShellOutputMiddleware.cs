@@ -40,10 +40,11 @@ public sealed partial class ShellOutputMiddleware : IShellMiddleware
             var parsed = ShellImageOutputDetector.ParseDataUri(result.Stdout);
             if (parsed is { } img)
             {
+                var (resizedMediaType, resizedBase64Data) = ShellImageOutputDetector.ResizeIfOversized(img.MediaType, img.Base64Data) ?? img;
                 RecordShellMetrics(shellType, "execute", "ok");
                 context.Result = new ToolResult
                 {
-                    Content = [new ToolContent { Type = ToolContentType.Image, Data = img.Base64Data, MimeType = img.MediaType }],
+                    Content = [new ToolContent { Type = ToolContentType.Image, Data = resizedBase64Data, MimeType = resizedMediaType }],
                     IsImage = true,
                 };
                 return Task.CompletedTask;
@@ -51,6 +52,14 @@ public sealed partial class ShellOutputMiddleware : IShellMiddleware
         }
 
         var output = BuildOutputResponse(result, context.Command);
+
+        // 对齐 TS claudeCodeHints: 扫描并剥离 <claude-code-hint /> 标签
+        var hintResult = ClaudeCodeHintExtractor.Extract(output, context.Command);
+        if (hintResult.Hints.Count > 0)
+        {
+            _telemetryService?.RecordCount("shell.hints.detected", new Dictionary<string, string> { ["type"] = string.Join(",", hintResult.Hints.Select(h => h.Type)) }, description: "Claude Code hints detected");
+        }
+        output = hintResult.StrippedOutput;
 
         // 对齐 TS commandSemantics: 使用语义判断是否为错误（如 grep exit 1 不是错误）
         var interpretation = InterpretCommandResult(context.Command, result.ExitCode ?? 0, result.Stdout ?? string.Empty, result.Stderr ?? string.Empty);

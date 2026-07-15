@@ -44,7 +44,7 @@ public sealed class AutoModeClassifierTests
     }
 
     [Theory]
-    [InlineData(ShellToolNameConstants.ShellExecute)]
+    [InlineData(ShellToolNameConstants.Bash)]
     [InlineData(ShellToolNameConstants.Powershell)]
     [InlineData("file_delete")]
     [InlineData("git_reset")]
@@ -121,7 +121,7 @@ public sealed class AutoModeClassifierTests
     {
         var request = new ClassificationRequest
         {
-            ToolName = ShellToolNameConstants.ShellExecute,
+            ToolName = ShellToolNameConstants.Bash,
             Parameters = new Dictionary<string, JsonElement> { ["command"] = JsonElementHelper.FromString("rm -rf /") },
             OperationType = OperationType.Execute
         };
@@ -142,7 +142,7 @@ public sealed class AutoModeClassifierTests
     {
         var request = new ClassificationRequest
         {
-            ToolName = ShellToolNameConstants.ShellExecute,
+            ToolName = ShellToolNameConstants.Bash,
             Parameters = new Dictionary<string, JsonElement> { ["command"] = JsonElementHelper.FromString(command) },
             OperationType = OperationType.Execute
         };
@@ -212,7 +212,7 @@ public sealed class AutoModeClassifierTests
     {
         var request = new ClassificationRequest
         {
-            ToolName = ShellToolNameConstants.ShellExecute,
+            ToolName = ShellToolNameConstants.Bash,
             Parameters = new Dictionary<string, JsonElement> { ["command"] = JsonElementHelper.FromInt32(12345) },
             OperationType = OperationType.Execute
         };
@@ -228,7 +228,7 @@ public sealed class AutoModeClassifierTests
     {
         var request = new ClassificationRequest
         {
-            ToolName = ShellToolNameConstants.ShellExecute,
+            ToolName = ShellToolNameConstants.Bash,
             Parameters = new Dictionary<string, JsonElement> { ["command"] = JsonElementHelper.FromString("echo hello") },
             OperationType = OperationType.Execute
         };

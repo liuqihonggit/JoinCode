@@ -152,7 +152,7 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
         // 对齐 TS allowedPrompts: 将语义级Bash权限注册为临时批准
         // prompt 是语义描述（如"run tests"），映射到 Bash 工具的临时批准
         // 当前实现：将 prompt 作为 Bash 工具的临时批准，有效期 30 分钟
-        ApproveToolTemporarily(ShellToolNameConstants.ShellExecute, TimeSpan.FromMinutes(30));
+        ApproveToolTemporarily(ShellToolNameConstants.Bash, TimeSpan.FromMinutes(30));
 
         _logger?.LogInformation("已添加语义级Bash权限: Prompt={Prompt}", prompt);
         return Task.CompletedTask;
@@ -228,7 +228,7 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
         // 从 AutoApprovedTools 中移除危险工具（Bash, FileEdit, FileWrite, NotebookEdit 等）
         var dangerousToolNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            ShellToolNameConstants.ShellExecute, FileToolNameConstants.FileEdit, FileToolNameConstants.FileWrite, NotebookToolNameConstants.NotebookEdit
+            ShellToolNameConstants.Bash, FileToolNameConstants.FileEdit, FileToolNameConstants.FileWrite, NotebookToolNameConstants.NotebookEdit
         };
 
         var strippedRules = _config.AutoApprovedTools

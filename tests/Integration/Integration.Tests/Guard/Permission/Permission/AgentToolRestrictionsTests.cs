@@ -33,7 +33,7 @@ public sealed class AgentToolRestrictionsTests
     }
 
     [Theory]
-    [InlineData(ShellToolNameConstants.ShellExecute, PermissionMode.Auto)]
+    [InlineData(ShellToolNameConstants.Bash, PermissionMode.Auto)]
     [InlineData(ShellToolNameConstants.Powershell, PermissionMode.Auto)]
     public void IsToolAllowedForMode_DangerousTools_ShouldBeDeniedInAuto(string toolName, PermissionMode mode)
     {

@@ -36,7 +36,7 @@ public sealed class PluginLifecycleE2ETests : IAsyncDisposable
 
         var hooks = new List<PluginHookDefinition>
         {
-            new() { HookName = "pre-compact", TargetEvent = "PreCompact", HookType = ShellToolNameConstants.ShellExecute, Command = "echo pre" },
+            new() { HookName = "pre-compact", TargetEvent = "PreCompact", HookType = ShellToolNameConstants.Bash, Command = "echo pre" },
             new() { HookName = "post-compact", TargetEvent = "PostCompact", HookType = "function" }
         };
 
@@ -63,7 +63,7 @@ public sealed class PluginLifecycleE2ETests : IAsyncDisposable
         await _commandRegistry.RegisterCommandAsync(cmd).ConfigureAwait(true);
         await _hookInjector.InjectHooksAsync("cleanup-plugin",
         [
-            new() { HookName = "hook1", TargetEvent = "PreCompact", HookType = ShellToolNameConstants.ShellExecute }
+            new() { HookName = "hook1", TargetEvent = "PreCompact", HookType = ShellToolNameConstants.Bash }
         ]).ConfigureAwait(true);
 
         await _commandRegistry.UnregisterCommandAsync("cleanup-cmd").ConfigureAwait(true);
@@ -97,7 +97,7 @@ public sealed class PluginLifecycleE2ETests : IAsyncDisposable
 
         await _hookInjector.InjectHooksAsync("plugin-a",
         [
-            new() { HookName = "hook-a", TargetEvent = "PreCompact", HookType = ShellToolNameConstants.ShellExecute }
+            new() { HookName = "hook-a", TargetEvent = "PreCompact", HookType = ShellToolNameConstants.Bash }
         ]).ConfigureAwait(true);
 
         await _hookInjector.InjectHooksAsync("plugin-b",

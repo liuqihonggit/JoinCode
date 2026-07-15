@@ -18,7 +18,7 @@ public sealed partial class ApiContextManagementService : IApiContextManagementS
     /// </summary>
     private static readonly string[] ToolsClearableResults =
     [
-        ShellToolNameConstants.ShellExecute,  // "Bash"
+        ShellToolNameConstants.Bash,  // "Bash"
         ShellToolNameConstants.Powershell,    // "PowerShell"
         SearchToolNameConstants.Glob,         // "Glob"
         SearchToolNameConstants.Grep,         // "Grep"

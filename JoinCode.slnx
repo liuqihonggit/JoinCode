@@ -1,68 +1,17 @@
 <Solution>
-  <Folder Name="/components/" />
-  <Folder Name="/components/01-ai/" />
-  <Folder Name="/components/01-ai/Llm/" />
-  <Folder Name="/components/01-ai/Llm/src/">
-    <Project Path="components/01-ai/Llm/src/Llm.csproj" />
-  </Folder>
-  <Folder Name="/components/01-ai/Llm/tests/" />
-  <Folder Name="/components/01-ai/Llm/tests/Unit/">
-    <Project Path="components/01-ai/Llm/tests/Unit/Llm.Tests.csproj" />
-  </Folder>
-  <Folder Name="/components/06-perception/" />
-  <Folder Name="/components/06-perception/Browser/" />
-  <Folder Name="/components/06-perception/Browser/src/">
-    <Project Path="components/06-perception/Browser/src/Browser.csproj" />
-  </Folder>
-  <Folder Name="/components/06-perception/Browser/tests/" />
-  <Folder Name="/components/06-perception/Browser/tests/Unit/">
-    <Project Path="components/06-perception/Browser/tests/Unit/Browser.Tests.csproj" />
-  </Folder>
-  <Folder Name="/components/08-transport/" />
-  <Folder Name="/components/08-transport/Contracts/">
-    <Project Path="components/08-transport/Contracts/Transport.Contracts.csproj" />
-  </Folder>
-  <Folder Name="/generators/" />
-  <Folder Name="/generators/AotSafety.Generator/" />
-  <Folder Name="/generators/AotSafety.Generator/src/">
-    <Project Path="generators/AotSafety.Generator/src/AotSafety.Generator.csproj" />
-  </Folder>
-  <Folder Name="/generators/JccCodeFixes/" />
-  <Folder Name="/generators/JccCodeFixes/src/">
-    <Project Path="generators/JccCodeFixes/src/JccCodeFixes.csproj" />
-  </Folder>
-  <Folder Name="/generators/ConstructorInjection.Generator/" />
-  <Folder Name="/generators/ConstructorInjection.Generator/src/">
-    <Project Path="generators/ConstructorInjection.Generator/src/ConstructorInjection.Generator.csproj" />
-  </Folder>
-  <Folder Name="/generators/EnumMetadata.Generator/" />
-  <Folder Name="/generators/EnumMetadata.Generator/src/">
-    <Project Path="generators/EnumMetadata.Generator/src/EnumMetadata.Generator.csproj" />
-  </Folder>
-  <Folder Name="/generators/PromptTemplate.Generator/" />
-  <Folder Name="/generators/PromptTemplate.Generator/src/">
-    <Project Path="generators/PromptTemplate.Generator/src/PromptTemplate.Generator.csproj" />
-  </Folder>
-  <Folder Name="/generators/ToolPrompt.Generator/" />
-  <Folder Name="/generators/ToolPrompt.Generator/src/">
-    <Project Path="generators/ToolPrompt.Generator/src/ToolPrompt.Generator.csproj" />
-  </Folder>
   <Folder Name="/sdk/">
-    <Project Path="sdk/Abstractions/Abstractions.csproj" />
+    <Project Path="sdk/Sdk/Sdk.csproj" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/JoinCode/JoinCode.csproj" />
-    <Project Path="src/Infrastructure/Infrastructure.csproj" />
-    <Project Path="src/Structura/Structura.csproj" />
   </Folder>
-  <Folder Name="/tests/">
+  <Folder Name="/tests/Unit/">
     <Project Path="tests/Unit/Host.Tests/Host.Tests.csproj" />
     <Project Path="tests/Unit/Infra.Tests/Infra.Tests.csproj" />
     <Project Path="tests/Unit/Testing.Common/Testing.Common.csproj" />
-    <Project Path="tests/Integration/Integration.Tests/Integration.Tests.csproj" />
   </Folder>
-  <Folder Name="/tests/Benchmarks/">
-    <Project Path="tests/Benchmarks/Eyes.Benchmarks/Eyes.Benchmarks.csproj" />
+  <Folder Name="/tests/Integration/">
+    <Project Path="tests/Integration/Integration.Tests/Integration.Tests.csproj" />
   </Folder>
   <Folder Name="/tests/MockServers/">
     <Project Path="tests/MockServers/MockServer.Core/MockServer.Core.csproj" />
@@ -73,8 +22,5 @@
     <Project Path="tests/MockServers/Anthropic.MockServer/Anthropic.MockServer.csproj" />
     <Project Path="tests/MockServers/DeepSeek.MockServer/DeepSeek.MockServer.csproj" />
     <Project Path="tests/MockServers/Mcp.MockServer/Mcp.MockServer.csproj" />
-  </Folder>
-  <Folder Name="/tests/Unit/">
-    <Project Path="tests/Unit/Reasoning.Tests/Reasoning.Tests.csproj" />
   </Folder>
 </Solution>

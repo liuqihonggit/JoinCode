@@ -31,14 +31,14 @@ public sealed class HandleWorkContext : IPipelineContext
     internal BridgeSubprocessSpawner? Spawner { get; set; }
     internal BridgeMainPollConfig? PollConfig { get; set; }
 
-    internal Dictionary<string, BridgeSubprocessHandle>? ActiveSessions { get; set; }
-    internal Dictionary<string, DateTime>? SessionStartTimes { get; set; }
-    internal Dictionary<string, string>? SessionWorkIds { get; set; }
-    internal Dictionary<string, string>? SessionIngressTokens { get; set; }
-    internal Dictionary<string, string>? SessionWorktrees { get; set; }
-    internal HashSet<string>? CompletedWorkIds { get; set; }
-    internal HashSet<string>? V2Sessions { get; set; }
-    internal Dictionary<string, string>? SessionCompatIds { get; set; }
+    internal Dictionary<string, BridgeSubprocessHandle> ActiveSessions { get; set; } = new();
+    internal Dictionary<string, DateTime> SessionStartTimes { get; set; } = new();
+    internal Dictionary<string, string> SessionWorkIds { get; set; } = new();
+    internal Dictionary<string, string> SessionIngressTokens { get; set; } = new();
+    internal Dictionary<string, string> SessionWorktrees { get; set; } = new();
+    internal HashSet<string> CompletedWorkIds { get; set; } = new();
+    internal HashSet<string> V2Sessions { get; set; } = new();
+    internal Dictionary<string, string> SessionCompatIds { get; set; } = new();
 
     internal Func<string, CancellationToken, Task>? StopWorkAsync { get; set; }
     internal Action<Task>? TrackCleanup { get; set; }    internal Action? CapacityWake { get; set; }

@@ -117,7 +117,7 @@ public class NotebookToolHandlers
             var deleteResult = _notebookService.DeleteCell(notebook, cellIndex);
             if (!deleteResult.Success)
                 return McpResultBuilder.Error().WithText(deleteResult.ErrorMessage ?? "Failed to delete cell").Build();
-            notebook = deleteResult.Notebook!;
+            notebook = deleteResult.GetNotebook();
         }
         else if (mode == NotebookEditMode.Insert)
         {
@@ -125,7 +125,7 @@ public class NotebookToolHandlers
             var addResult = _notebookService.AddCell(notebook, ct, new_source, cellIndex);
             if (!addResult.Success)
                 return McpResultBuilder.Error().WithText(addResult.ErrorMessage ?? "Failed to insert cell").Build();
-            notebook = addResult.Notebook!;
+            notebook = addResult.GetNotebook();
         }
         else
         {
@@ -133,7 +133,7 @@ public class NotebookToolHandlers
             var editResult = _notebookService.EditCell(notebook, cellIndex, new_source, cell_type);
             if (!editResult.Success)
                 return McpResultBuilder.Error().WithText(editResult.ErrorMessage ?? "Failed to edit cell").Build();
-            notebook = editResult.Notebook!;
+            notebook = editResult.GetNotebook();
         }
 
         var saved = await _notebookService.SaveAsync(notebook_path, notebook, cancellationToken).ConfigureAwait(false);
@@ -341,7 +341,7 @@ public class NotebookToolHandlers
             return McpResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.NotebookAddCellFailed)).Build();
         }
 
-        var saved = await _notebookService.SaveAsync(file_path, result.Notebook!, cancellationToken).ConfigureAwait(false);
+        var saved = await _notebookService.SaveAsync(file_path, result.GetNotebook(), cancellationToken).ConfigureAwait(false);
 
         if (!saved)
         {
@@ -387,7 +387,7 @@ public class NotebookToolHandlers
             return McpResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.NotebookDeleteCellFailed)).Build();
         }
 
-        var saved = await _notebookService.SaveAsync(file_path, result.Notebook!, cancellationToken).ConfigureAwait(false);
+        var saved = await _notebookService.SaveAsync(file_path, result.GetNotebook(), cancellationToken).ConfigureAwait(false);
 
         if (!saved)
         {
@@ -434,7 +434,7 @@ public class NotebookToolHandlers
             return McpResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.NotebookEditCellFailed)).Build();
         }
 
-        var saved = await _notebookService.SaveAsync(file_path, result.Notebook!, cancellationToken).ConfigureAwait(false);
+        var saved = await _notebookService.SaveAsync(file_path, result.GetNotebook(), cancellationToken).ConfigureAwait(false);
 
         if (!saved)
         {
@@ -481,7 +481,7 @@ public class NotebookToolHandlers
             return McpResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.NotebookMoveCellFailed)).Build();
         }
 
-        var saved = await _notebookService.SaveAsync(file_path, result.Notebook!, cancellationToken).ConfigureAwait(false);
+        var saved = await _notebookService.SaveAsync(file_path, result.GetNotebook(), cancellationToken).ConfigureAwait(false);
 
         if (!saved)
         {
@@ -534,7 +534,7 @@ public class NotebookToolHandlers
             return McpResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.NotebookChangeCellTypeFailed)).Build();
         }
 
-        var saved = await _notebookService.SaveAsync(file_path, result.Notebook!, cancellationToken).ConfigureAwait(false);
+        var saved = await _notebookService.SaveAsync(file_path, result.GetNotebook(), cancellationToken).ConfigureAwait(false);
 
         if (!saved)
         {
@@ -579,7 +579,7 @@ public class NotebookToolHandlers
             return McpResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.NotebookClearOutputsFailed)).Build();
         }
 
-        var saved = await _notebookService.SaveAsync(file_path, result.Notebook!, cancellationToken).ConfigureAwait(false);
+        var saved = await _notebookService.SaveAsync(file_path, result.GetNotebook(), cancellationToken).ConfigureAwait(false);
 
         if (!saved)
         {
@@ -646,7 +646,7 @@ public class NotebookToolHandlers
             response.AppendLine(L.T(StringKey.NotebookOutputLabel));
 
             response.Append(string.Join(Environment.NewLine,
-                cell.Outputs.Where(o => o.Text != null).Select(o => string.Join("", o.Text!))));
+                cell.Outputs.Where(o => o.Text != null).Select(o => string.Join("", o.Text ?? []))));
             response.AppendLine();
         }
 

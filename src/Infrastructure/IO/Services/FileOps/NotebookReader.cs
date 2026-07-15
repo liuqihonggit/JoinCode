@@ -28,6 +28,10 @@ public sealed record NotebookReadResult
     /// </summary>
     public string? ErrorMessage { get; init; }
 
+    /// <summary>获取 Text，操作失败时抛出异常</summary>
+    public string GetText() =>
+        Text ?? throw new InvalidOperationException("Text is not available. Check Success before calling this method.");
+
     public static NotebookReadResult Ok(string text, List<NotebookImage> images) =>
         new() { Success = true, Text = text, Images = images };
 

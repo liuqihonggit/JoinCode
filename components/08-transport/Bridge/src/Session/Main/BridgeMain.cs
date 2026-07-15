@@ -51,6 +51,10 @@ public sealed partial class BridgeMain : IAsyncDisposable
     /// <summary>环境 ID</summary>
     public string? EnvironmentId { get; private set; }
 
+    /// <summary>获取环境 ID，未注册时抛出异常</summary>
+    private string GetEnvironmentId() =>
+        EnvironmentId ?? throw new InvalidOperationException("Environment not registered yet. Call RegisterEnvironmentAsync first.");
+
     /// <summary>环境密钥</summary>
     public string? EnvironmentSecret { get; private set; }
 
@@ -146,7 +150,7 @@ public sealed partial class BridgeMain : IAsyncDisposable
         {
             var createRequest = new BridgeCreateSessionRequest
             {
-                EnvironmentId = EnvironmentId!,
+                EnvironmentId = GetEnvironmentId(),
                 Title = name,
                 GitRepoUrl = config.GitRepoUrl,
                 Branch = config.Branch,
@@ -200,7 +204,7 @@ public sealed partial class BridgeMain : IAsyncDisposable
         _isResuming = ctx.IsResuming;
         _resumePointerDir = ctx.ResumePointerDir;
 
-        var config = BuildConfig(ctx.Args, ctx.BaseUrl!, ctx.ReuseEnvironmentId, ctx.EffectiveSpawnMode, ctx.IsResuming, ctx.SpawnModeSource);
+        var config = BuildConfig(ctx.Args, ctx.BaseUrl ?? throw new InvalidOperationException("BaseUrl is required"), ctx.ReuseEnvironmentId, ctx.EffectiveSpawnMode, ctx.IsResuming, ctx.SpawnModeSource);
 
         try
         {
@@ -329,7 +333,7 @@ public sealed partial class BridgeMain : IAsyncDisposable
             _tokenRefresh = _deps.TokenRefreshScheduler;
         }
 
-        _deps.BridgeLogger?.PrintBanner(config, EnvironmentId!);
+        _deps.BridgeLogger?.PrintBanner(config, GetEnvironmentId());
         _deps.BridgeLogger?.UpdateSessionCount(0, config.MaxSessions, config.SpawnMode);
         if (initialSessionId is not null)
         {
@@ -676,7 +680,7 @@ public sealed partial class BridgeMain : IAsyncDisposable
         }
 
         // 10.8 Logger 初始化调用 — 对齐 TS 端 printBanner/setRepoInfo/setAttached
-        _deps.BridgeLogger?.PrintBanner(config, EnvironmentId!);
+        _deps.BridgeLogger?.PrintBanner(config, GetEnvironmentId());
         _deps.BridgeLogger?.UpdateSessionCount(0, config.MaxSessions, config.SpawnMode);
         if (initialSessionId is not null)
         {
@@ -814,7 +818,7 @@ public sealed partial class BridgeMain : IAsyncDisposable
         }
 
         // Headless logger 初始化 — 对齐 TS 端: logger.printBanner(config, environmentId)
-        _deps.BridgeLogger?.PrintBanner(config, EnvironmentId!);
+        _deps.BridgeLogger?.PrintBanner(config, GetEnvironmentId());
 
         // ===== 进入 runBridgeLoop — 共享同一个轮询循环 =====
         _loopCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -1039,7 +1043,7 @@ public sealed partial class BridgeMain : IAsyncDisposable
                 // 轮询工作 — 对齐 TS 端: api.pollForWork(envId, envSecret, signal, pollConfig.reclaim_older_than_ms)
                 var reclaimMs = _deps.PollConfig?.ReclaimOlderThanMs ?? 5000;
                 var work = await _deps.ApiClient.PollForWorkAsync(
-                    EnvironmentId!, ct, reclaimMs).ConfigureAwait(false);
+                    GetEnvironmentId(), ct, reclaimMs).ConfigureAwait(false);
 
                 // 重置退避状态（成功通信）
                 _backoff.Reset(onReconnected: ms => _logger?.LogInformation("BridgeMain: reconnected after {Ms}ms", ms));
@@ -1168,7 +1172,7 @@ public sealed partial class BridgeMain : IAsyncDisposable
                     try
                     {
                         await _deps.ApiClient.HeartbeatWorkAsync(
-                            EnvironmentId!, workId, ingressToken, ct).ConfigureAwait(false);
+                            GetEnvironmentId(), workId, ingressToken, ct).ConfigureAwait(false);
                     }
                     catch (BridgeFatalError ex) when (ex.StatusCode == 401 || ex.StatusCode == 403)
                     {
@@ -1178,7 +1182,7 @@ public sealed partial class BridgeMain : IAsyncDisposable
                         try
                         {
                             await _deps.ApiClient.ReconnectSessionAsync(
-                                EnvironmentId!, sessionId, ct).ConfigureAwait(false);
+                                GetEnvironmentId(), sessionId, ct).ConfigureAwait(false);
                         }
                         catch (Exception reconnectEx)
                         {
@@ -1328,7 +1332,7 @@ public sealed partial class BridgeMain : IAsyncDisposable
             {
                 var pollConfig = _deps.PollConfig;
                 var delayMs = pollConfig?.NonExclusiveHeartbeatIntervalMs > 0
-                    ? pollConfig!.NonExclusiveHeartbeatIntervalMs
+                    ? pollConfig.NonExclusiveHeartbeatIntervalMs
                     : pollConfig?.HeartbeatIntervalMs ?? 30000;
                 try
                 {
@@ -1410,7 +1414,7 @@ public sealed partial class BridgeMain : IAsyncDisposable
             try
             {
                 await _deps.ApiClient.AcknowledgeWorkAsync(
-                    EnvironmentId!, work.WorkId, ct: ct).ConfigureAwait(false);
+                    GetEnvironmentId(), work.WorkId, ct: ct).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -1426,7 +1430,7 @@ public sealed partial class BridgeMain : IAsyncDisposable
         string sdkUrl;
 
         var forceCcrV2 = Environment.GetEnvironmentVariable("CLAUDE_BRIDGE_USE_CCR_V2") is "1" or "true";
-        if ((secret?.UseCodeSessions == true || forceCcrV2) && secretApiBaseUrl is not null)
+        if ((secret?.UseCodeSessions == true || forceCcrV2) && secretApiBaseUrl is not null && sessionIngressToken is not null)
         {
             // CCR v2: buildCCRv2SdkUrl + registerWorker（最多2次重试）
             sdkUrl = BridgeWorkSecretDecoder.BuildCCRv2SdkUrl(secretApiBaseUrl, work.SessionId);
@@ -1436,7 +1440,7 @@ public sealed partial class BridgeMain : IAsyncDisposable
                 try
                 {
                     workerEpoch = (int)await BridgeWorkSecretDecoder.RegisterWorkerAsync(
-                        sdkUrl, sessionIngressToken!, _deps.ApiClient.HttpClient, ct).ConfigureAwait(false);
+                        sdkUrl, sessionIngressToken, _deps.ApiClient.HttpClient, ct).ConfigureAwait(false);
                     useCcrV2 = true;
                     _logger?.LogInformation(
                         "BridgeMain: CCR v2 registered worker, SessionId={SessionId}, epoch={Epoch}, attempt={Attempt}",
@@ -1728,11 +1732,11 @@ public sealed partial class BridgeMain : IAsyncDisposable
         _deps.CapacityWake?.WakeUp();
 
         // 单会话模式: 非 interrupted 状态且非关机时退出循环 — 对齐 TS 端
-        if (status != BridgeSubprocessStatus.Interrupted && _loopCts?.IsCancellationRequested != true
+        if (status != BridgeSubprocessStatus.Interrupted && _loopCts is { IsCancellationRequested: false }
             && config.SpawnMode == BridgeSpawnMode.SingleSession)
         {
             _logger?.LogInformation("BridgeMain: single-session mode, session done — exiting loop");
-            await _loopCts!.CancelAsync().ConfigureAwait(false);
+            await _loopCts.CancelAsync().ConfigureAwait(false);
         }
     }
 

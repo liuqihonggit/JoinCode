@@ -230,12 +230,12 @@ public sealed class ExploreAgent : BuiltInAgentBase
             _ => DisclosureLevel.Source
         };
 
-        var disclosureResult = await _progressiveDisclosure!.DiscloseAsync(
+        var disclosureResult = await (_progressiveDisclosure ?? throw new InvalidOperationException("ProgressiveDisclosure is not available")).DiscloseAsync(
             request.ReferencePath, disclosureLevel, cancellationToken).ConfigureAwait(false);
 
         if (disclosureResult.Symbols.Count == 0)
         {
-            var resolvedRef = await _referenceResolver!.ResolveCodeReferenceAsync(
+            var resolvedRef = await (_referenceResolver ?? throw new InvalidOperationException("ReferenceResolver is not available")).ResolveCodeReferenceAsync(
                 request.ReferencePath,
                 new ReferenceResolutionOptions { MaxResults = request.MaxFiles, EnableFuzzyMatching = true },
                 cancellationToken).ConfigureAwait(false);
@@ -350,7 +350,7 @@ public sealed class ExploreAgent : BuiltInAgentBase
         var stopwatch = Stopwatch.StartNew();
 
         // 1. 尝试解析主题作为引用
-        var resolvedReference = await _referenceResolver!.ResolveCodeReferenceAsync(
+        var resolvedReference = await (_referenceResolver ?? throw new InvalidOperationException("ReferenceResolver is not available")).ResolveCodeReferenceAsync(
             topic,
             new ReferenceResolutionOptions { MaxResults = 10 },
             cancellationToken).ConfigureAwait(false);
@@ -434,7 +434,7 @@ public sealed class ExploreAgent : BuiltInAgentBase
         }).ToArray();
 
         var results = await Task.WhenAll(readTasks).ConfigureAwait(false);
-        return results.Where(r => r is not null).ToList()!;
+        return results.OfType<ExploredFile>().ToList();
     }
 
     private static string BuildReferencePrompt(
@@ -487,9 +487,9 @@ public sealed class ExploreAgent : BuiltInAgentBase
             prompt.AppendLine($"### {file.RelativePath ?? file.FilePath}");
             prompt.AppendLine($"```{file.FileType}");
             // 限制内容长度
-            var content = file.Content!.Length > WorkflowConstants.Limits.FileContentTruncateLength
-                ? file.Content[..WorkflowConstants.Limits.FileContentTruncateLength] + "\n... (内容已截断)"
-                : file.Content;
+            var content = (file.Content ?? string.Empty).Length > WorkflowConstants.Limits.FileContentTruncateLength
+                ? (file.Content ?? string.Empty)[..WorkflowConstants.Limits.FileContentTruncateLength] + "\n... (内容已截断)"
+                : file.Content ?? string.Empty;
             prompt.AppendLine(content);
             prompt.AppendLine("```");
         }
@@ -551,7 +551,7 @@ public sealed class ExploreAgent : BuiltInAgentBase
 
         foreach (var file in exploredFiles.Where(f => !string.IsNullOrEmpty(f.Content)))
         {
-            var lines = file.Content!.Split('\n');
+            var lines = (file.Content ?? string.Empty).Split('\n');
             var fileType = file.FileType?.ToLowerInvariant() ?? "text";
 
             // 简单提取：查找包含关键词的行及其上下文

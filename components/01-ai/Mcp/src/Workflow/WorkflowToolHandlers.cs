@@ -59,7 +59,7 @@ public class WorkflowToolHandlers
             (cmd, ct) => Task.FromResult(PromptTemplates.WorkflowExecute(cmd.Task)),
             async (cmd, ct) =>
             {
-                var result = await _planService!.ExecutePlanAsync(cmd.Task, ct);
+                var result = await (_planService ?? throw new InvalidOperationException("PlanService is not available")).ExecutePlanAsync(cmd.Task, ct);
                 return McpResultBuilder.Success().WithText(result).Build();
             },
             cancellationToken);
@@ -76,7 +76,7 @@ public class WorkflowToolHandlers
             (cmd, ct) => Task.FromResult(PromptTemplates.PlanCreateAndExecute(cmd.Prompt)),
             async (cmd, ct) =>
             {
-                var result = await _planService!.ExecutePlanAsync(cmd.Prompt, ct);
+                var result = await (_planService ?? throw new InvalidOperationException("PlanService is not available")).ExecutePlanAsync(cmd.Prompt, ct);
                 return McpResultBuilder.Success().WithText(result).Build();
             },
             cancellationToken);
@@ -93,7 +93,7 @@ public class WorkflowToolHandlers
             (cmd, ct) => Task.FromResult(PromptTemplates.GenerateCode(cmd.Requirement)),
             async (cmd, ct) =>
             {
-                var result = await _codeService!.GenerateCodeAsync(cmd.Requirement, ct);
+                var result = await (_codeService ?? throw new InvalidOperationException("CodeService is not available")).GenerateCodeAsync(cmd.Requirement, ct);
                 return McpResultBuilder.Success().WithText(result).Build();
             },
             cancellationToken);
@@ -116,7 +116,7 @@ public class WorkflowToolHandlers
             },
             async (cmd, ct) =>
             {
-                var result = await _codeService!.AnalyzeCodeAsync(cmd.Code, ct);
+                var result = await (_codeService ?? throw new InvalidOperationException("CodeService is not available")).AnalyzeCodeAsync(cmd.Code, ct);
                 return McpResultBuilder.Success().WithText(result).Build();
             },
             cancellationToken);
@@ -141,7 +141,7 @@ public class WorkflowToolHandlers
             },
             async (cmd, ct) =>
             {
-                var result = await _chatService!.SendMessageAsync(cmd.Message);
+                var result = await (_chatService ?? throw new InvalidOperationException("ChatService is not available")).SendMessageAsync(cmd.Message);
                 return McpResultBuilder.Success().WithText(result).Build();
             },
             cancellationToken);

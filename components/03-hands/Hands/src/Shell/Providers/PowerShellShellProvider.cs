@@ -6,16 +6,12 @@ namespace Services.Shell.Providers;
 /// 自动检测 PowerShell 版本（Desktop 5.1 vs Core 7+）并路由到最佳路径
 /// </summary>
 [Register]
-public sealed class PowerShellShellProvider : IShellProvider
+public sealed class PowerShellShellProvider : ShellProviderBase
 {
-    private readonly ILogger? _logger;
-    private readonly IFileSystem _fs;
     private string? _currentSandboxTmpDir;
 
-    public ShellProviderType Type => ShellProviderType.PowerShell;
-    public string ShellPath { get; }
-    public bool Detached => false;
-    public string Version { get; }
+    public override ShellProviderType Type => ShellProviderType.PowerShell;
+    public override bool Detached => false;
 
     /// <summary>
     /// 是否为 PowerShell Core (7+) — 对齐 TS powershellDetection isPwsh
@@ -28,14 +24,53 @@ public sealed class PowerShellShellProvider : IShellProvider
     public const string PowerShellPathEnvVar = "JCC_POWERSHELL_PATH";
 
     public PowerShellShellProvider(IFileSystem fs, string? shellPath = null, ILogger? logger = null)
+        : base(fs, shellPath, logger)
     {
-        _fs = fs ?? throw new ArgumentNullException(nameof(fs));
-        _logger = logger;
-        (ShellPath, Version, IsCore) = ResolvePowerShell(shellPath);
+        IsCore = DetectIsCore();
     }
 
     /// <inheritdoc />
-    public Task<ShellExecCommandResult> BuildExecCommandAsync(
+    protected override string ResolveShellPath()
+    {
+        var envPath = ResolveFromEnvVar(PowerShellPathEnvVar);
+        if (envPath is not null) return envPath;
+
+        var pwshFromPath = FindExecutable("pwsh.exe", excludeCurrentDir: false);
+        if (pwshFromPath is not null) return pwshFromPath;
+
+        var commonPath = FindInCommonPaths(@"C:\Program Files\PowerShell\7\pwsh.exe");
+        if (commonPath is not null) return commonPath;
+
+        return "powershell.exe";
+    }
+
+    /// <inheritdoc />
+    protected override string DetectVersion()
+    {
+        var output = ExecuteShellCommand(
+            ShellPath,
+            "-NoProfile -NonInteractive -Command \"$PSVersionTable.PSVersion.ToString()\"");
+
+        var version = output?.Trim();
+        return string.IsNullOrEmpty(version) ? "unknown" : version;
+    }
+
+    /// <summary>
+    /// 检测是否为 PowerShell Core — 基于 ShellPath 或版本号判断
+    /// </summary>
+    private bool DetectIsCore()
+    {
+        if (ShellPath.Contains("pwsh", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (Version.StartsWith('7') || Version.StartsWith('6'))
+            return true;
+
+        return false;
+    }
+
+    /// <inheritdoc />
+    public override Task<ShellExecCommandResult> BuildExecCommandAsync(
         string command,
         ShellExecOptions options,
         CancellationToken cancellationToken = default)
@@ -58,7 +93,7 @@ public sealed class PowerShellShellProvider : IShellProvider
             ? BuildSandboxEncodedCommand(psCommand)
             : psCommand;
 
-        _logger?.LogDebug("PowerShellShellProvider: built command for session {SessionId}, sandbox={UseSandbox}",
+        Logger?.LogDebug("PowerShellShellProvider: built command for session {SessionId}, sandbox={UseSandbox}",
             options.SessionId, options.UseSandbox);
 
         return Task.FromResult(new ShellExecCommandResult
@@ -69,27 +104,18 @@ public sealed class PowerShellShellProvider : IShellProvider
     }
 
     /// <inheritdoc />
-    public string[] GetSpawnArgs(string commandString)
+    public override string[] GetSpawnArgs(string commandString)
         => ["-NoProfile", "-NonInteractive", "-Command", commandString];
 
     /// <inheritdoc />
-    public Task<IReadOnlyDictionary<string, string>> GetEnvironmentOverridesAsync(
-        string command,
-        CancellationToken cancellationToken = default)
+    protected override void AppendExtraEnvironmentVariables(
+        Dictionary<string, string> env, string command)
     {
-        var env = new Dictionary<string, string>(StringComparer.Ordinal)
-        {
-            ["CLAUDECODE"] = "1",
-            ["GIT_EDITOR"] = "true"
-        };
-
         if (_currentSandboxTmpDir is not null)
         {
             env["TMPDIR"] = _currentSandboxTmpDir;
             env["JCC_TMPDIR"] = _currentSandboxTmpDir;
         }
-
-        return Task.FromResult<IReadOnlyDictionary<string, string>>(env);
     }
 
     /// <summary>
@@ -110,109 +136,5 @@ public sealed class PowerShellShellProvider : IShellProvider
     {
         var utf16LeBytes = Encoding.Unicode.GetBytes(psCommand);
         return Convert.ToBase64String(utf16LeBytes);
-    }
-
-    /// <summary>
-    /// 解析 PowerShell 路径和版本 — 对齐 TS powershellDetection
-    /// 优先级: JCC_POWERSHELL_PATH → PATH 查找 pwsh → 常见安装路径 → powershell.exe (Desktop 5.1)
-    /// 同时检测版本号，用于提示词注入和命令语法路由
-    /// </summary>
-    private (string Path, string Version, bool IsCore) ResolvePowerShell(string? shellPath)
-    {
-        var envPath = Environment.GetEnvironmentVariable(PowerShellPathEnvVar);
-        if (!string.IsNullOrEmpty(envPath) && _fs.FileExists(envPath))
-        {
-            var (ver, isCore) = DetectVersion(envPath);
-            return (envPath, ver, isCore);
-        }
-
-        var pwshFromPath = FindExecutable("pwsh.exe");
-        if (pwshFromPath is not null)
-        {
-            var (ver, _) = DetectVersion(pwshFromPath);
-            return (pwshFromPath, ver, true);
-        }
-
-        var pwshPath = @"C:\Program Files\PowerShell\7\pwsh.exe";
-        if (_fs.FileExists(pwshPath))
-        {
-            var (ver, _) = DetectVersion(pwshPath);
-            return (pwshPath, ver, true);
-        }
-
-        var desktopVer = DetectVersion("powershell.exe");
-        return ("powershell.exe", desktopVer.Version, desktopVer.IsCore);
-    }
-
-    /// <summary>
-    /// 查找可执行文件 — 对齐 TS findExecutable (where.exe)
-    /// </summary>
-    private string? FindExecutable(string executable)
-    {
-        try
-        {
-            var psi = new ProcessStartInfo
-            {
-                FileName = "where.exe",
-                Arguments = executable,
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                StandardOutputEncoding = Encoding.UTF8
-            };
-
-            using var process = Process.Start(psi);
-            if (process is null) return null;
-
-            var output = process.StandardOutput.ReadToEnd();
-            process.WaitForExit(5000);
-
-            if (process.ExitCode != 0) return null;
-
-            var paths = output.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
-            return paths.Length > 0 ? paths[0].Trim() : null;
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
-    /// <summary>
-    /// 检测 PowerShell 版本 — 对齐 TS powershellDetection
-    /// 通过 `$PSVersionTable.PSVersion` 获取精确版本号
-    /// </summary>
-    private static (string Version, bool IsCore) DetectVersion(string shellPath)
-    {
-        try
-        {
-            var psi = new ProcessStartInfo
-            {
-                FileName = shellPath,
-                Arguments = "-NoProfile -NonInteractive -Command \"$PSVersionTable.PSVersion.ToString()\"",
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                StandardOutputEncoding = Encoding.UTF8
-            };
-
-            using var process = Process.Start(psi);
-            if (process is null) return ("unknown", false);
-
-            var output = process.StandardOutput.ReadToEnd();
-            process.WaitForExit(5000);
-
-            var version = output.Trim();
-            if (string.IsNullOrEmpty(version)) return ("unknown", false);
-
-            var isCore = shellPath.Contains("pwsh", StringComparison.OrdinalIgnoreCase)
-                || version.StartsWith('7') || version.StartsWith('6');
-
-            return (version, isCore);
-        }
-        catch (Exception)
-        {
-            return ("unknown", false);
-        }
     }
 }

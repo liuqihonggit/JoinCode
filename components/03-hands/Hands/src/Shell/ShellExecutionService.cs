@@ -75,9 +75,15 @@ public sealed partial class ShellExecutionService : IShellExecutionService
 
         var cwd = ResolveWorkingDirectory(workingDirectory, disableSandbox);
 
+        // 对齐 TS Shell.ts: CWD 不存在时回退到项目根目录而非抛异常
         if (!_fs.DirectoryExists(cwd))
         {
-            throw new DirectoryNotFoundException($"Working directory does not exist: {cwd}");
+            _logger?.LogWarning("工作目录不存在: {Cwd}，回退到项目根目录", cwd);
+            cwd = _fs.GetCurrentDirectory();
+            if (!_fs.DirectoryExists(cwd))
+            {
+                throw new DirectoryNotFoundException($"Working directory does not exist: {cwd}");
+            }
         }
 
         var provider = isPowerShell ? _powerShellProvider : _bashProvider;
@@ -128,7 +134,12 @@ public sealed partial class ShellExecutionService : IShellExecutionService
 
         if (!_fs.DirectoryExists(cwd))
         {
-            return ShellExecutionResult.FailureResult($"Working directory does not exist: {cwd}");
+            _logger?.LogWarning("工作目录不存在: {Cwd}，回退到项目根目录", cwd);
+            cwd = _fs.GetCurrentDirectory();
+            if (!_fs.DirectoryExists(cwd))
+            {
+                return ShellExecutionResult.FailureResult($"Working directory does not exist: {cwd}");
+            }
         }
 
         _logger?.LogInformation("Executing {Shell} command: {Command}", shellLabel, command);

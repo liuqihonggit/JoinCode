@@ -86,6 +86,16 @@ public partial class SystemPromptProviderOptions
     /// </summary>
     public string? PowerShellEdition { get; init; }
 
+    /// <summary>
+    /// Bash 可执行文件路径 — 让 LLM 知道具体使用哪个 shell
+    /// </summary>
+    public string? BashPath { get; init; }
+
+    /// <summary>
+    /// PowerShell 可执行文件路径 — 让 LLM 知道具体使用哪个 shell
+    /// </summary>
+    public string? PowerShellPath { get; init; }
+
     #endregion
 
     #region 自定义

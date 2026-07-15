@@ -6,7 +6,7 @@ namespace Core.Bridge;
 /// Bridge JWT 认证服务 - HMAC-SHA256 签名，NativeAOT 兼容
 /// </summary>
 [Register]
-public sealed class BridgeJwtService
+public sealed partial class BridgeJwtService
 {
     private readonly byte[] _secretKey;
     private readonly ILogger? _logger;

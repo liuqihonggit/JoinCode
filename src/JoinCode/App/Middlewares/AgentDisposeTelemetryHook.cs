@@ -7,7 +7,7 @@ namespace JoinCode.App.Middlewares;
 /// AgentDispose 管道 Post Hook — 遥测记录执行计数
 /// </summary>
 [Register(typeof(IPipelinePostHook<AgentDisposeContext>))]
-internal sealed class AgentDisposeTelemetryHook : IPipelinePostHook<AgentDisposeContext>
+internal sealed partial class AgentDisposeTelemetryHook : IPipelinePostHook<AgentDisposeContext>
 {
     private readonly ITelemetryService? _telemetryService;
 

@@ -1,7 +1,7 @@
 namespace Api;
 
 [Register(typeof(IToolGroupFactory))]
-public sealed class ToolGroupFactory : IToolGroupFactory
+public sealed partial class ToolGroupFactory : IToolGroupFactory
 {
     public IToolGroup CreateFromObject(object instance, string pluginName)
     {

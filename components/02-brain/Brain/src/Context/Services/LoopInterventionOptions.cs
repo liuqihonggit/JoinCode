@@ -4,7 +4,7 @@ namespace Core.Context;
 /// 循环干预选项 — 配置漏斗各级别的触发阈值和干预参数
 /// </summary>
 [RegisterOptions]
-public sealed class LoopInterventionOptions
+public sealed partial class LoopInterventionOptions
 {
     public int HardTruncateThreshold { get; set; } = 3;
     public int CompactThreshold { get; set; } = 5;

@@ -20,7 +20,7 @@ public sealed class CommitCommand : IChatCommand
     {
         TerminalHelper.WriteLine($"{TerminalColors.Muted}正在创建提交...{AnsiStyleConstants.Reset}");
 
-        var fs = context.Services!.FileSystem;
+        var fs = context.Services.FileSystem;
         var processService = ChatCommandBase.GetService<IProcessService>(context)!;
         var status = await RunGitCommandAsync("status --porcelain", context.CancellationToken, fs, processService).ConfigureAwait(false);
         if (string.IsNullOrWhiteSpace(status))

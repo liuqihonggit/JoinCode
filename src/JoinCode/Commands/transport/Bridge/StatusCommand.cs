@@ -21,7 +21,7 @@ public sealed class StatusCommand : IChatCommand
     {
         // 预收集数据
         var version = GetType().Assembly.GetName().Version?.ToString() ?? "unknown";
-        var cwd = context.Services!.FileSystem.GetCurrentDirectory();
+        var cwd = context.Services.FileSystem.GetCurrentDirectory();
         var duration = _clock.GetUtcNow() - context.SessionStartedAt;
 
         var fastModeService = ChatCommandBase.GetService<IFastModeService>(context, typeof(IFastModeService));
@@ -32,7 +32,7 @@ public sealed class StatusCommand : IChatCommand
             currentModel = fastModeService.FastModelId;
         }
 
-        var provider = context.Services!.WorkflowConfig?.Provider?.Provider
+        var provider = context.Services.WorkflowConfig?.Provider?.Provider
             ?? Environment.GetEnvironmentVariable(JccEnvVar.Provider.ToValue())
             ?? ProviderKind.OpenAI.ToValue();
         var providerName = ResolveModelCatalog(context).GetProviderDisplayName(provider);
@@ -43,7 +43,7 @@ public sealed class StatusCommand : IChatCommand
         var apiKey = Environment.GetEnvironmentVariable(JccEnvVar.ApiKey.ToValue())
             ?? providerDefinition?.ResolveApiKeyFromEnv();
 
-        var executionSettings = context.Services!.ExecutionSettingsProvider;
+        var executionSettings = context.Services.ExecutionSettingsProvider;
         var effortLevel = executionSettings?.EffortLevel.ToValue() ?? "";
 
         var hasMcpTools = context.Services?.ToolRegistry is not null;
@@ -72,7 +72,7 @@ public sealed class StatusCommand : IChatCommand
         string tokenInfo;
         if (context.Services!.UsageTracker is not null)
         {
-            var stats = context.Services!.UsageTracker.GetSessionStatistics(context.SessionId);
+            var stats = context.Services.UsageTracker.GetSessionStatistics(context.SessionId);
             if (stats.TotalInputTokens > 0 || stats.TotalOutputTokens > 0)
             {
                 tokenInfo = $"  输入: {stats.TotalInputTokens:N0}\n  输出: {stats.TotalOutputTokens:N0}\n  总计: {stats.TotalInputTokens + stats.TotalOutputTokens:N0}";
@@ -88,9 +88,9 @@ public sealed class StatusCommand : IChatCommand
         }
 
         // 获取费用
-        if (context.Services!.CostTracker is not null)
+        if (context.Services.CostTracker is not null)
         {
-            var costStats = context.Services!.CostTracker.GetTotalStatistics();
+            var costStats = context.Services.CostTracker.GetTotalStatistics();
             if (costStats.TotalCostUsd > 0)
             {
                 tokenInfo += $"\n  费用: ${costStats.TotalCostUsd:F4} USD";

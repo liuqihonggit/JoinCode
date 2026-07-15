@@ -16,13 +16,13 @@ public sealed class ToolsCommand : IChatCommand
 
     public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
-        if (context.Services!.ToolRegistry is null)
+        if (context.Services.ToolRegistry is null)
         {
             TerminalHelper.WriteLine("工具注册表不可用。");
             return ChatCommandResult.Continue();
         }
 
-        var tools = await context.Services!.ToolRegistry.GetAllToolInfosAsync(context.CancellationToken);
+        var tools = await context.Services.ToolRegistry.GetAllToolInfosAsync(context.CancellationToken);
 
         if (tools.Count == 0)
         {

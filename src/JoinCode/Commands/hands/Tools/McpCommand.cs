@@ -105,9 +105,9 @@ public sealed class McpCommand : IChatCommand
                     try
                     {
                         var tools = await client.ListToolsAsync(context.CancellationToken).ConfigureAwait(false);
-                        if (tools.Success && tools.Data!.Count > 0)
+                        if (tools.Success && tools.GetData().Count > 0)
                         {
-                            connectedContent.AppendLine($"    工具数: {tools.Data!.Count}");
+                            connectedContent.AppendLine($"    工具数: {tools.GetData().Count}");
                         }
                     }
                     catch
@@ -148,10 +148,10 @@ public sealed class McpCommand : IChatCommand
     {
         TerminalHelper.WriteLine("=== MCP 状态 ===\n");
 
-        if (context.Services!.ToolRegistry is not null)
+        if (context.Services.ToolRegistry is not null)
         {
             TerminalHelper.WriteLine("已注册工具:");
-            var tools = await context.Services!.ToolRegistry.GetAllToolsAsync(context.CancellationToken).ConfigureAwait(false);
+            var tools = await context.Services.ToolRegistry.GetAllToolsAsync(context.CancellationToken).ConfigureAwait(false);
             foreach (var tool in tools.Take(20))
             {
                 TerminalHelper.WriteLine($"  - {tool.Key}");
@@ -428,7 +428,7 @@ public sealed class McpCommand : IChatCommand
 
     private static IMcpToolRegistry? ResolveMcpRegistry(ChatCommandContext context)
     {
-        if (context.Services!.ToolRegistry is IMcpToolRegistry mcpRegistry)
+        if (context.Services.ToolRegistry is IMcpToolRegistry mcpRegistry)
         {
             return mcpRegistry;
         }

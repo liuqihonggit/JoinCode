@@ -7,7 +7,7 @@ namespace JoinCode.App.Middlewares;
 /// ChatInit 管道 Post Hook — 遥测记录初始化计数
 /// </summary>
 [Register(typeof(IPipelinePostHook<Core.Context.ChatInitContext>))]
-internal sealed class ChatInitTelemetryHook : IPipelinePostHook<Core.Context.ChatInitContext>
+internal sealed partial class ChatInitTelemetryHook : IPipelinePostHook<Core.Context.ChatInitContext>
 {
     private readonly ITelemetryService? _telemetryService;
 

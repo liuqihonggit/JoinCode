@@ -4,7 +4,7 @@
 /// Agent 参数验证中间件 — 检查 description 和 prompt 的有效性
 /// </summary>
 [Register]
-public sealed class AgentValidationMiddleware : IAgentToolMiddleware
+public sealed partial class AgentValidationMiddleware : IAgentToolMiddleware
 {
     /// <inheritdoc />
     public int Order => 100;

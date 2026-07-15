@@ -7,7 +7,7 @@ using JoinCode.Abstractions.Pipeline;
 /// V1 创建会话 — 对齐 TS 端: createSession
 /// </summary>
 [Register]
-internal sealed class V1SessionCreationMiddleware : IMiddleware<V1BridgeInitContext>
+internal sealed partial class V1SessionCreationMiddleware : IMiddleware<V1BridgeInitContext>
 {
     public ErrorBehavior OnError => ErrorBehavior.Propagate;
 

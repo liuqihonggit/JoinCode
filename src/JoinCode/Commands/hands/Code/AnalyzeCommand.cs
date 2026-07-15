@@ -30,7 +30,7 @@ public sealed partial class AnalyzeCommand : IChatCommand
         }
 
         TerminalHelper.WriteLine("正在分析代码...");
-        var result = await context.Services!.CodeService.AnalyzeCodeAsync(context.Arguments, context.CancellationToken).ConfigureAwait(false);
+        var result = await context.Services.CodeService.AnalyzeCodeAsync(context.Arguments, context.CancellationToken).ConfigureAwait(false);
 
         TerminalHelper.WriteLine($"分析结果:\n{result}");
 

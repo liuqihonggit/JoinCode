@@ -232,22 +232,22 @@ public sealed partial class MonitorMcpTaskExecutor : IMonitorMcpTaskExecutor, IA
 
         var toolsResult = await client.ListToolsAsync(ct).ConfigureAwait(false);
 
-        if (toolsResult.Success && toolsResult.Data!.Count > 0)
+        if (toolsResult.Success && toolsResult.GetData().Count > 0)
         {
             OnMonitorEvent(session, "tools_update", new Dictionary<string, JsonElement>
             {
-                ["toolCount"] = JsonElementHelper.FromInt32(toolsResult.Data.Count),
-                ["tools"] = JsonElementHelper.FromObject(toolsResult.Data.Select(t => t.Name).ToList(), SchedulingJsonContext.Default.ListString)
+                ["toolCount"] = JsonElementHelper.FromInt32(toolsResult.Data!.Count),
+                ["tools"] = JsonElementHelper.FromObject(toolsResult.Data!.Select(t => t.Name).ToList(), SchedulingJsonContext.Default.ListString)
             });
         }
 
         var resourcesResult = await client.ListResourcesAsync(ct).ConfigureAwait(false);
 
-        if (resourcesResult.Success && resourcesResult.Data!.Count > 0)
+        if (resourcesResult.Success && resourcesResult.GetData().Count > 0)
         {
             OnMonitorEvent(session, "resources_update", new Dictionary<string, JsonElement>
             {
-                ["resourceCount"] = JsonElementHelper.FromInt32(resourcesResult.Data.Count)
+                ["resourceCount"] = JsonElementHelper.FromInt32(resourcesResult.Data!.Count)
             });
         }
     }

@@ -71,7 +71,7 @@ public sealed class HighWaterMarkManager
         if (!result.Success)
             throw new TimeoutException(L.T(StringKey.LockAcquireTimeout, _highWaterMarkPath));
 
-        await using (result.Lock!)
+        await using (result.GetLock())
         {
             // 在同一个锁内完成读-改-写，保证原子性
             var content = string.Empty;
@@ -131,7 +131,7 @@ public sealed class HighWaterMarkManager
         if (!result.Success)
             return string.Empty;
 
-        await using (result.Lock!)
+        await using (result.GetLock())
         {
             if (!_fs.FileExists(path))
                 return string.Empty;
@@ -147,7 +147,7 @@ public sealed class HighWaterMarkManager
         if (!result.Success)
             throw new TimeoutException(L.T(StringKey.LockAcquireTimeout, path));
 
-        await using (result.Lock!)
+        await using (result.GetLock())
         {
             var tempPath = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
             try

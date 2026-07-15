@@ -23,7 +23,7 @@ public sealed class ShareCommand : IChatCommand
 
         try
         {
-            var history = await context.Services!.ChatService.GetMessageListAsync(context.CancellationToken);
+            var history = await context.Services.ChatService.GetMessageListAsync(context.CancellationToken);
 
             if (history.Count == 0)
             {
@@ -65,7 +65,7 @@ public sealed class ShareCommand : IChatCommand
                     $"share-{DateTime.Now:yyyyMMdd-HHmmss}.md");
 
                 var dir = Path.GetDirectoryName(sharePath);
-                var fs = context.Services!.FileSystem;
+                var fs = context.Services.FileSystem;
                 if (!string.IsNullOrEmpty(dir) && !fs.DirectoryExists(dir))
                     DirectoryHelper.EnsureDirectoryExists(fs, dir);
 

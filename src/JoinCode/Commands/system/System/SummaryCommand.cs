@@ -18,7 +18,7 @@ public sealed class SummaryCommand : IChatCommand
 
         try
         {
-            var history = await context.Services!.ChatService.GetMessageListAsync(context.CancellationToken);
+            var history = await context.Services.ChatService.GetMessageListAsync(context.CancellationToken);
 
             if (history.Count == 0)
             {

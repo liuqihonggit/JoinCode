@@ -79,7 +79,7 @@ public sealed partial class InteractiveHandler
             {
                 if (!resolveOnce.Claim()) return;
 
-                var decision = await ctx.HandleUserAllow(
+                var decision = await ctx.HandleUserAllowAsync(
                     updatedInput ?? displayInput,
                     permissionUpdates ?? new List<PermissionUpdate>(),
                     feedback,
@@ -252,7 +252,7 @@ public sealed partial class InteractiveHandler
                     if (result.Behavior == PermissionBehavior.Allow)
                     {
                         var finalInput = result.UpdatedInput ?? @params.Result.UpdatedInput ?? ctx.Input;
-                        var decision = await ctx.HandleHookAllow(
+                        var decision = await ctx.HandleHookAllowAsync(
                             finalInput,
                             result.UpdatedPermissions ?? new List<PermissionUpdate>(),
                             permissionPromptStartTimeMs).ConfigureAwait(false);
@@ -358,7 +358,7 @@ public sealed partial class InteractiveHandler
                     item.ClassifierMatchedRule = matchedRule;
                 });
 
-                var decision = await ctx.HandleUserAllow(
+                var decision = await ctx.HandleUserAllowAsync(
                     @params.Result.UpdatedInput ?? ctx.Input,
                     new List<PermissionUpdate>(),
                     permissionPromptStartTimeMs: permissionPromptStartTimeMs,

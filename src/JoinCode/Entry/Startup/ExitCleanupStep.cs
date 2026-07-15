@@ -4,7 +4,7 @@ namespace JoinCode.Entry;
 /// 退出清理中间件 — 打印成本摘要、触发停止 Hook
 /// </summary>
 [Register]
-internal sealed class ExitCleanupStep : IMiddleware<StartupContext>
+internal sealed partial class ExitCleanupStep : IMiddleware<StartupContext>
 {
     public async Task InvokeAsync(StartupContext context, MiddlewareDelegate<StartupContext> next, CancellationToken ct)
     {

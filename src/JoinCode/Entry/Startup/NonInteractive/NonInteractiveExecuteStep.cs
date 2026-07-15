@@ -1,7 +1,7 @@
 namespace JoinCode.Entry;
 
 [Register]
-internal sealed class NonInteractiveExecuteStep : IMiddleware<StartupContext>
+internal sealed partial class NonInteractiveExecuteStep : IMiddleware<StartupContext>
 {
     public ErrorBehavior OnError => ErrorBehavior.Propagate;
 

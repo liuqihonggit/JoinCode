@@ -20,7 +20,7 @@ public sealed partial class GoalCommand : IChatCommand
 
     public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
-        var goalEngine = context.Services!.GoalEngine;
+        var goalEngine = context.Services.GoalEngine;
         if (goalEngine is null)
         {
             TerminalHelper.WriteLine($"{TerminalColors.Error}错误: 目标引擎未注册{AnsiStyleConstants.Reset}");
@@ -116,7 +116,7 @@ public sealed partial class GoalCommand : IChatCommand
             return;
         }
 
-        var cronTaskStore = context.Services!.CronTaskStore;
+        var cronTaskStore = context.Services.CronTaskStore;
         if (cronTaskStore is null)
         {
             TerminalHelper.WriteLine($"{TerminalColors.Error}错误: Cron 任务存储未注册{AnsiStyleConstants.Reset}");

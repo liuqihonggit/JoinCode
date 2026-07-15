@@ -51,13 +51,13 @@ public class McpResourceToolHandlers
                 {
                     response.AppendLine($"   {StatusSymbol.Cross.ToValue()} Failed to list resources: {result.ErrorMessage}");
                 }
-                else if (result.Data!.Count == 0)
+                else if (result.GetData().Count == 0)
                 {
                     response.AppendLine("   No resources available");
                 }
                 else
                 {
-                    foreach (var resource in result.Data!)
+                    foreach (var resource in result.GetData())
                     {
                         response.AppendLine($"   {ObjectSymbol.File.ToValue()} {resource.Name}");
                         response.AppendLine($"      URI: {resource.Uri}");
@@ -173,13 +173,13 @@ public class McpResourceToolHandlers
                 {
                     response.AppendLine($"   {StatusSymbol.Cross.ToValue()} Failed to list prompts: {result.ErrorMessage}");
                 }
-                else if (result.Data!.Count == 0)
+                else if (result.GetData().Count == 0)
                 {
                     response.AppendLine("   No prompt templates available");
                 }
                 else
                 {
-                    foreach (var prompt in result.Data!)
+                    foreach (var prompt in result.GetData())
                     {
                         response.AppendLine($"   {ObjectSymbol.Pencil.ToValue()} {prompt.Name}");
 

@@ -136,7 +136,7 @@ public sealed class SkillsCommand : IChatCommand
     private static List<CustomCommand> GetCustomCommands(ChatCommandContext context)
     {
         var commands = new List<CustomCommand>();
-        var registry = context.Services!.CommandRegistry;
+        var registry = context.Services.CommandRegistry;
         if (registry is null) return commands;
 
         foreach (var (_, cmd) in registry.GetAllCommands())

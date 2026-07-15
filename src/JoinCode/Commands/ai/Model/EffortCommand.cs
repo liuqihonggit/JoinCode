@@ -16,8 +16,8 @@ public sealed class EffortCommand : IChatCommand
     public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetNormalizedArgs(context).ToLowerInvariant();
-        var statusBar = context.Services!.StatusBarData;
-        var settingsProvider = context.Services!.ExecutionSettingsProvider;
+        var statusBar = context.Services.StatusBarData;
+        var settingsProvider = context.Services.ExecutionSettingsProvider;
         var fastModeService = ChatCommandBase.GetService<IFastModeService>(context, typeof(IFastModeService));
 
         // 对齐 TS: help/-h/--help 显示详细帮助
@@ -62,7 +62,7 @@ public sealed class EffortCommand : IChatCommand
             var currentModel = fastModeService?.PrimaryModelId
                 ?? Environment.GetEnvironmentVariable(JccEnvVar.ModelId.ToValue())
                 ?? "unknown";
-            var provider = context.Services!.WorkflowConfig?.Provider?.Provider
+            var provider = context.Services.WorkflowConfig?.Provider?.Provider
                 ?? Environment.GetEnvironmentVariable(JccEnvVar.Provider.ToValue())
                 ?? ProviderKind.OpenAI.ToValue();
 

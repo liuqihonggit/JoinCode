@@ -43,7 +43,7 @@ public sealed class IdeCommand : IChatCommand
                 break;
             case PlatformActionConstants.Open:
             case "o":
-                await HandleOpen(ideService, parts.Length > 1 ? parts[1] : "");
+                await HandleOpenAsync(ideService, parts.Length > 1 ? parts[1] : "");
                 break;
             case PlatformActionConstants.Status:
             case "s":
@@ -145,7 +145,7 @@ public sealed class IdeCommand : IChatCommand
         }
     }
 
-    private static async Task HandleOpen(IIdeIntegrationService ideService, string args)
+    private static async Task HandleOpenAsync(IIdeIntegrationService ideService, string args)
     {
         if (ideService.CurrentConnection is null)
         {

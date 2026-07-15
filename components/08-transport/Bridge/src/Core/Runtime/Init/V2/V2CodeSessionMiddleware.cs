@@ -7,7 +7,7 @@ using JoinCode.Abstractions.Pipeline;
 /// V2 创建 code session — 对齐 TS 端: createCodeSession
 /// </summary>
 [Register]
-internal sealed class V2CodeSessionMiddleware : IMiddleware<V2BridgeInitContext>
+internal sealed partial class V2CodeSessionMiddleware : IMiddleware<V2BridgeInitContext>
 {
     public ErrorBehavior OnError => ErrorBehavior.Propagate;
 

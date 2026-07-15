@@ -7,7 +7,7 @@
 /// 后续实现 --channels 命令行参数和 MCP channel 注册时扩展
 /// </summary>
 [Register]
-public sealed class ChannelStateService : IChannelStateService
+public sealed partial class ChannelStateService : IChannelStateService
 {
     private volatile IReadOnlyList<ChannelEntry> _allowedChannels = Array.Empty<ChannelEntry>();
 

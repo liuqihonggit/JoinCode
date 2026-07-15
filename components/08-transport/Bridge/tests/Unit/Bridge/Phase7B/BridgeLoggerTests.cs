@@ -10,13 +10,6 @@ public sealed class NullBridgeLoggerTests
 
         // 所有方法调用不应抛异常
         logger.PrintBanner(new BridgeConfig(), "env1");
-        logger.LogSessionStart("session1", "hello");
-        logger.LogSessionComplete("session1", 1000);
-        logger.LogSessionFailed("session1", "error");
-        logger.LogStatus("status message");
-        logger.LogVerbose("verbose message");
-        logger.LogError("error message");
-        logger.LogReconnected(5000);
         logger.UpdateIdleStatus();
         logger.UpdateReconnectingStatus("5s", "10s");
         logger.UpdateSessionStatus("session1", "1m", BridgeSessionActivity.Thinking, []);

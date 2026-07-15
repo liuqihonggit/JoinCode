@@ -28,7 +28,7 @@ public interface IMemoryAgeCalculator
 /// 使用指数衰减模型
 /// </summary>
 [Register]
-public sealed class MemoryAgeCalculator : IMemoryAgeCalculator
+public sealed partial class MemoryAgeCalculator : IMemoryAgeCalculator
 {
     private readonly MemoryAgeOptions _options;
 

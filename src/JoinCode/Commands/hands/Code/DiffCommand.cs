@@ -25,14 +25,14 @@ public sealed class DiffCommand : IChatCommand
             switch (subCommand)
             {
                 case DiffModeConstants.Files:
-                    await ShowChangedFilesAsync(context.CancellationToken, context.Services!.FileSystem, processService).ConfigureAwait(false);
+                    await ShowChangedFilesAsync(context.CancellationToken, context.Services.FileSystem, processService).ConfigureAwait(false);
                     break;
                 case DiffModeConstants.Cached:
                 case DiffModeConstants.Staged:
-                    await ShowStagedDiffAsync(context.CancellationToken, context.Services!.FileSystem, processService).ConfigureAwait(false);
+                    await ShowStagedDiffAsync(context.CancellationToken, context.Services.FileSystem, processService).ConfigureAwait(false);
                     break;
                 default:
-                    await ShowInteractiveDiffAsync(context.Services!.TurnDiffProvider, context.CancellationToken, context.Services!.FileSystem, processService).ConfigureAwait(false);
+                    await ShowInteractiveDiffAsync(context.Services.TurnDiffProvider, context.CancellationToken, context.Services.FileSystem, processService).ConfigureAwait(false);
                     break;
             }
         }

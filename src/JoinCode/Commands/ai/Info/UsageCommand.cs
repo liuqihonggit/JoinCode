@@ -22,9 +22,9 @@ public sealed class UsageCommand : IChatCommand
         // 预收集 Rate Limits 数据
         string rateLimitsContent;
 
-        if (context.Services!.RateLimitTracker is not null)
+        if (context.Services.RateLimitTracker is not null)
         {
-            var snapshot = context.Services!.RateLimitTracker.GetLatestSnapshot();
+            var snapshot = context.Services.RateLimitTracker.GetLatestSnapshot();
             if (snapshot is not null)
             {
                 var sb = new StringBuilder();
@@ -59,9 +59,9 @@ public sealed class UsageCommand : IChatCommand
 
         // 预收集 Token Usage 数据
         string tokenUsageContent;
-        if (context.Services!.UsageTracker is not null)
+        if (context.Services.UsageTracker is not null)
         {
-            var stats = context.Services!.UsageTracker.GetTodayStatistics();
+            var stats = context.Services.UsageTracker.GetTodayStatistics();
             if (stats.TotalTokens > 0)
             {
                 var sb = new StringBuilder();

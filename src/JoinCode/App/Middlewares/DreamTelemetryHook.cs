@@ -7,7 +7,7 @@ namespace JoinCode.App.Middlewares;
 /// Dream 管道 Post Hook — 遥测记录执行计数
 /// </summary>
 [Register(typeof(IPipelinePostHook<JoinCode.Dream.Pipeline.DreamContext>))]
-internal sealed class DreamTelemetryHook : IPipelinePostHook<JoinCode.Dream.Pipeline.DreamContext>
+internal sealed partial class DreamTelemetryHook : IPipelinePostHook<JoinCode.Dream.Pipeline.DreamContext>
 {
     private readonly ITelemetryService? _telemetryService;
 

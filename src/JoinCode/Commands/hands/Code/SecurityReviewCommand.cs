@@ -12,7 +12,7 @@ public sealed class SecurityReviewCommand : IChatCommand
 
     public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
-        var fs = context.Services!.FileSystem;
+        var fs = context.Services.FileSystem;
         var gitStatus = await RunGitCommandAsync($"{GitSubCommand.Status.ToValue()} --porcelain", context.CancellationToken, fs).ConfigureAwait(false);
         var gitDiffNames = await RunGitCommandAsync($"{GitSubCommand.Diff.ToValue()} --name-only", context.CancellationToken, fs).ConfigureAwait(false);
         var gitLog = await RunGitCommandAsync($"{GitSubCommand.Log.ToValue()} --oneline -10", context.CancellationToken, fs).ConfigureAwait(false);
@@ -34,7 +34,7 @@ public sealed class SecurityReviewCommand : IChatCommand
         try
         {
             TerminalHelper.WriteLine($"{TerminalColors.Primary}正在执行安全审查...{AnsiStyleConstants.Reset}");
-            var result = await context.Services!.ChatService.SendMessageAsync(prompt, context.CancellationToken).ConfigureAwait(false);
+            var result = await context.Services.ChatService.SendMessageAsync(prompt, context.CancellationToken).ConfigureAwait(false);
             TerminalHelper.WriteLine(result);
         }
         catch (Exception ex)

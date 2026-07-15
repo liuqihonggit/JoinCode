@@ -4,7 +4,7 @@ namespace JoinCode.Entry;
 /// 工作目录信任检查中间件
 /// </summary>
 [Register]
-internal sealed class WorkspaceTrustStep : IMiddleware<StartupContext>
+internal sealed partial class WorkspaceTrustStep : IMiddleware<StartupContext>
 {
     public async Task InvokeAsync(StartupContext context, MiddlewareDelegate<StartupContext> next, CancellationToken ct)
     {

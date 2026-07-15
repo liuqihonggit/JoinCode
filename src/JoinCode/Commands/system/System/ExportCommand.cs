@@ -13,7 +13,7 @@ public sealed class ExportCommand : IChatCommand
 
     public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
-        var history = await context.Services!.ChatService.GetMessageListAsync(context.CancellationToken).ConfigureAwait(false);
+        var history = await context.Services.ChatService.GetMessageListAsync(context.CancellationToken).ConfigureAwait(false);
         var content = BuildExportContent(history);
         var args = ChatCommandBase.GetNormalizedArgs(context);
 
@@ -37,7 +37,7 @@ public sealed class ExportCommand : IChatCommand
         // 有文件名参数时直接写文件
         if (!string.IsNullOrEmpty(args) && !args.StartsWith("-"))
         {
-            await WriteToFileAsync(args, content, context.CancellationToken, context.Services!.FileSystem).ConfigureAwait(false);
+            await WriteToFileAsync(args, content, context.CancellationToken, context.Services.FileSystem).ConfigureAwait(false);
             return ChatCommandResult.Continue();
         }
 
@@ -71,13 +71,13 @@ public sealed class ExportCommand : IChatCommand
 
             // 保存到文件
             var defaultFilename = ExtractSmartFilename(history);
-            await WriteToFileAsync(defaultFilename, content, context.CancellationToken, context.Services!.FileSystem).ConfigureAwait(false);
+            await WriteToFileAsync(defaultFilename, content, context.CancellationToken, context.Services.FileSystem).ConfigureAwait(false);
             return ChatCommandResult.Continue();
         }
 
         // 非交互模式回退：自动保存到文件
         var fallbackFilename = ExtractSmartFilename(history);
-        await WriteToFileAsync(fallbackFilename, content, context.CancellationToken, context.Services!.FileSystem).ConfigureAwait(false);
+        await WriteToFileAsync(fallbackFilename, content, context.CancellationToken, context.Services.FileSystem).ConfigureAwait(false);
         return ChatCommandResult.Continue();
     }
 

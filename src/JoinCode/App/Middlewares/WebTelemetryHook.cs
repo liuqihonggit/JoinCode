@@ -7,7 +7,7 @@ namespace JoinCode.App.Middlewares;
 /// Web 管道 Post Hook — 遥测记录执行计数
 /// </summary>
 [Register(typeof(IPipelinePostHook<WebContext>))]
-internal sealed class WebTelemetryHook : IPipelinePostHook<WebContext>
+internal sealed partial class WebTelemetryHook : IPipelinePostHook<WebContext>
 {
     private readonly ITelemetryService? _telemetryService;
 

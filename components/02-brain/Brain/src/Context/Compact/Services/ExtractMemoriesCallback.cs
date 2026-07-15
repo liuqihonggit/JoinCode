@@ -7,7 +7,7 @@ namespace Core.Context.Compact;
 /// 核心消费链路：ExtractMemoriesSection.BuildExtractAutoOnlyPrompt/BuildExtractCombinedPrompt() → IForkSubAgentManager.ForkAsync()
 /// </summary>
 [Register]
-public sealed class ExtractMemoriesCallback : IPostSamplingCallback
+public sealed partial class ExtractMemoriesCallback : IPostSamplingCallback
 {
     private const string EditToolName = "Edit";
     private const string ReadToolName = "Read";

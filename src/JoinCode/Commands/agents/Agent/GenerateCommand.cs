@@ -32,7 +32,7 @@ public sealed partial class GenerateCommand : IChatCommand
 
         _logger?.LogInformation("正在生成代码...");
         TerminalHelper.WriteLine("正在生成代码...");
-        var result = await context.Services!.CodeService.GenerateCodeAsync(context.Arguments, context.CancellationToken);
+        var result = await context.Services.CodeService.GenerateCodeAsync(context.Arguments, context.CancellationToken);
 
         _logger?.LogInformation("生成的代码:\n==============\n{Result}", result);
         TerminalHelper.WriteLine($"生成的代码:\n==============\n{result}");

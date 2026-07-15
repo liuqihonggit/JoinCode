@@ -36,7 +36,7 @@ public interface IToolExecutionHandler
 /// 工具执行处理器 — 封装工具调用执行、ContextModifier应用、消息注入、结果持久化
 /// </summary>
 [Register(typeof(IToolExecutionHandler))]
-public sealed class ToolExecutionHandler : IToolExecutionHandler
+public sealed partial class ToolExecutionHandler : IToolExecutionHandler
 {
     private readonly IChatToolOrchestrator _toolOrchestrator;
     private readonly IChatContextManager _contextManager;

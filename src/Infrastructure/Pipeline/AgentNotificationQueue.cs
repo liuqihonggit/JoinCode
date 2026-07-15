@@ -1,7 +1,7 @@
 namespace Infrastructure.Pipeline;
 
 [Register(typeof(JoinCode.Abstractions.Interfaces.IAgentNotificationQueue))]
-public sealed class AgentNotificationQueue : JoinCode.Abstractions.Interfaces.IAgentNotificationQueue
+public sealed partial class AgentNotificationQueue : JoinCode.Abstractions.Interfaces.IAgentNotificationQueue
 {
     private readonly ConcurrentQueue<JoinCode.Abstractions.Interfaces.QueuedNotification> _queue = new();
     private readonly ILogger<AgentNotificationQueue>? _logger;

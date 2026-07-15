@@ -4,7 +4,7 @@
 /// 物理文件系统实现 — 直接委托给 System.IO.File / System.IO.Directory
 /// </summary>
 [Register]
-public sealed class PhysicalFileSystem : IFileSystem
+public sealed partial class PhysicalFileSystem : IFileSystem
 {
     // === File 写操作 ===
 

@@ -144,7 +144,7 @@ public sealed class SandboxToggleCommand : IChatCommand
         }
 
         var pathToAdd = string.Join(' ', parts[1..]);
-        if (!context.Services!.FileSystem.DirectoryExists(pathToAdd) && !context.Services!.FileSystem.FileExists(pathToAdd))
+        if (!context.Services.FileSystem.DirectoryExists(pathToAdd) && !context.Services.FileSystem.FileExists(pathToAdd))
         {
             TerminalHelper.WriteLine(string.Format(L.T(StringKey.HostSandboxPathNotFound), pathToAdd));
             return;

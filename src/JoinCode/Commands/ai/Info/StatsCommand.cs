@@ -29,7 +29,7 @@ public sealed class StatsCommand : IChatCommand
         }
 
         // 回退到 UsageTracker 模式
-        var usageTracker = context.Services!.UsageTracker;
+        var usageTracker = context.Services.UsageTracker;
 
         if (usageTracker is null)
         {

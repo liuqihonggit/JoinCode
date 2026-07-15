@@ -13,7 +13,7 @@ public sealed class FilesCommand : IChatCommand
 
     public Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
-        var tracker = context.Services!.FileOperationTracker;
+        var tracker = context.Services.FileOperationTracker;
 
         if (tracker is null)
         {
@@ -29,7 +29,7 @@ public sealed class FilesCommand : IChatCommand
         }
 
         var filePaths = tracker.GetOperatedFilePaths();
-        var cwd = context.Services!.FileSystem.GetCurrentDirectory();
+        var cwd = context.Services.FileSystem.GetCurrentDirectory();
 
         TerminalHelper.WriteLine($"上下文中的文件 ({filePaths.Count} 个):");
         TerminalHelper.NewLine();

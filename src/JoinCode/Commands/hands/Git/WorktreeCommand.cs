@@ -58,7 +58,7 @@ public sealed class WorktreeCommand : IChatCommand
         TerminalHelper.WriteLine("=== Worktree 列表 ===\n");
 
         var worktrees = await context.Services.WorktreeService!.ListWorktreesAsync(null, context.CancellationToken);
-        var sessions = await context.Services.WorktreeService.GetAllSessionsAsync(context.CancellationToken);
+        var sessions = await context.Services.WorktreeService!.GetAllSessionsAsync(context.CancellationToken);
 
         if (worktrees.Count == 0)
         {
@@ -89,7 +89,7 @@ public sealed class WorktreeCommand : IChatCommand
 
             if (context.Services.FileSystem.DirectoryExists(worktreePath))
             {
-                var hasChanges = await context.Services.WorktreeService.HasUncommittedChangesAsync(worktreePath, context.CancellationToken);
+                var hasChanges = await context.Services.WorktreeService!.HasUncommittedChangesAsync(worktreePath, context.CancellationToken);
                 if (hasChanges)
                 {
                     TerminalHelper.WriteLine($"{TerminalColors.Warning}    [有未提交更改]{AnsiStyleConstants.Reset}");
@@ -158,7 +158,7 @@ public sealed class WorktreeCommand : IChatCommand
         }
 
         var options = new WorktreeOptions { StaleTimeout = TimeSpan.FromDays(7) };
-        var cleanedCount = await context.Services.WorktreeService.CleanupStaleWorktreesAsync(options, context.CancellationToken);
+        var cleanedCount = await context.Services.WorktreeService!.CleanupStaleWorktreesAsync(options, context.CancellationToken);
 
         TerminalHelper.WriteLine($"{TerminalColors.Success}\n成功清理 {cleanedCount} 个过期 worktree{AnsiStyleConstants.Reset}");
     }
@@ -182,7 +182,7 @@ public sealed class WorktreeCommand : IChatCommand
         var session = await context.Services.WorktreeService!.GetSessionAsync(agentId);
         if (session is null)
         {
-            var gitRoot = await context.Services.WorktreeService.FindGitRootAsync(context.Services.FileSystem.GetCurrentDirectory());
+            var gitRoot = await context.Services.WorktreeService!.FindGitRootAsync(context.Services.FileSystem.GetCurrentDirectory());
             if (!string.IsNullOrEmpty(gitRoot))
             {
                 var worktreePath = AgentWorktreeSession.GenerateWorktreePath(gitRoot, agentId);
@@ -204,7 +204,7 @@ public sealed class WorktreeCommand : IChatCommand
 
         if (!force)
         {
-            var hasChanges = await context.Services.WorktreeService.HasUncommittedChangesAsync(session.WorktreePath, context.CancellationToken);
+            var hasChanges = await context.Services.WorktreeService!.HasUncommittedChangesAsync(session.WorktreePath, context.CancellationToken);
             if (hasChanges)
             {
                 TerminalHelper.WriteLine($"{TerminalColors.Warning}该 worktree 有未提交的更改{AnsiStyleConstants.Reset}");
@@ -217,7 +217,7 @@ public sealed class WorktreeCommand : IChatCommand
             }
         }
 
-        var result = await context.Services.WorktreeService.RemoveAgentWorktreeAsync(agentId, force, context.CancellationToken);
+        var result = await context.Services.WorktreeService!.RemoveAgentWorktreeAsync(agentId, force, context.CancellationToken);
 
         if (result.Success)
         {
@@ -323,7 +323,7 @@ public sealed class WorktreeCommand : IChatCommand
             var hasChanges = await context.Services.WorktreeService!.HasUncommittedChangesAsync(session.WorktreePath, context.CancellationToken);
             TerminalHelper.WriteLine($"  未提交更改: {(hasChanges ? "是" : "否")}");
 
-            var hasUnpushed = await context.Services.WorktreeService.HasUnpushedCommitsAsync(session.WorktreePath, session.BaseCommitSha, context.CancellationToken);
+            var hasUnpushed = await context.Services.WorktreeService!.HasUnpushedCommitsAsync(session.WorktreePath, session.BaseCommitSha, context.CancellationToken);
             TerminalHelper.WriteLine($"  未推送提交: {(hasUnpushed ? "是" : "否")}");
         }
         else

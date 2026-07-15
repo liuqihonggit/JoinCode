@@ -7,6 +7,11 @@ public sealed record OperationResult<T>
     public string? ErrorMessage { get; init; }
     public string? ErrorType { get; init; }
 
+    /// <summary>
+    /// 获取数据（仅当 Success 为 true 时调用）
+    /// </summary>
+    public T GetData() => Data ?? throw new InvalidOperationException($"Cannot get data from failed result: {ErrorMessage}");
+
     public static OperationResult<T> Ok(T data)
     {
         return new OperationResult<T>

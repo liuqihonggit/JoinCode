@@ -41,7 +41,7 @@ public sealed partial class RemoteListMiddleware : IRemoteSyncMiddleware
 
                     _logger.LogInformation(
                         "从远程客户端 {ClientId} 列出了 {Count} 个工具",
-                        ctx.ClientId, toolsResult.Data!.Count);
+                        ctx.ClientId, toolsResult.GetData().Count);
                     break;
 
                 case RemoteSyncOperation.Resources:
@@ -60,7 +60,7 @@ public sealed partial class RemoteListMiddleware : IRemoteSyncMiddleware
 
                     _logger.LogInformation(
                         "从远程客户端 {ClientId} 列出了 {Count} 个资源",
-                        ctx.ClientId, resourcesResult.Data!.Count);
+                        ctx.ClientId, resourcesResult.GetData().Count);
                     break;
 
                 case RemoteSyncOperation.Prompts:
@@ -79,7 +79,7 @@ public sealed partial class RemoteListMiddleware : IRemoteSyncMiddleware
 
                     _logger.LogInformation(
                         "从远程客户端 {ClientId} 列出了 {Count} 个提示模板",
-                        ctx.ClientId, promptsResult.Data!.Count);
+                        ctx.ClientId, promptsResult.GetData().Count);
                     break;
             }
 

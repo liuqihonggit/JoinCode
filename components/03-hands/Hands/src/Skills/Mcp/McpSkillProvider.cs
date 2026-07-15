@@ -119,7 +119,7 @@ public sealed partial class McpSkillProvider : IMcpSkillProvider
                         continue;
                     }
 
-                    foreach (var tool in toolsResult.Data!)
+                    foreach (var tool in toolsResult.GetData())
                     {
                         var skill = await adapter.AdaptToolAsync(tool, cancellationToken).ConfigureAwait(false);
                         if (skill != null)
@@ -130,7 +130,7 @@ public sealed partial class McpSkillProvider : IMcpSkillProvider
                     }
 
                     _logger?.LogInformation("[McpSkillProvider] 从 MCP 服务器 {Server} 加载 {Count} 个技能",
-                        serverName, toolsResult.Data.Count);
+                        serverName, toolsResult.Data!.Count);
                 }
                 catch (Exception ex)
                 {

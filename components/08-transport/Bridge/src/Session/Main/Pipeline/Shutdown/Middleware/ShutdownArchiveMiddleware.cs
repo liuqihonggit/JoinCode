@@ -13,8 +13,8 @@ public sealed partial class ShutdownArchiveMiddleware : IShutdownMiddleware
     {
         if (!ctx.IsResuming && ctx.ArchiveSession is not null)
         {
-            var sessionsToArchive = ctx.SessionCompatIds?.ToList();
-            if (sessionsToArchive is not null && sessionsToArchive.Count > 0)
+            var sessionsToArchive = ctx.SessionCompatIds.ToList();
+            if (sessionsToArchive.Count > 0)
             {
                 _logger?.LogInformation("BridgeMain: archiving {Count} session(s)", sessionsToArchive.Count);
                 foreach (var kvp in sessionsToArchive)

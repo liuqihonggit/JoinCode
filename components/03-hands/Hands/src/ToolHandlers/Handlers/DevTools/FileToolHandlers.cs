@@ -1361,10 +1361,10 @@ public class FileToolHandlers : IDisposable
         RecordFileMetrics(FileOperationType.Read, FileOperationResult.Ok);
 
         var pageCountInfo = result.PageCount is not null ? $", {result.PageCount} pages" : string.Empty;
-        var summaryText = $"Read PDF: {filePath} ({ContentReplacementConstants.FormatFileSize(result.OriginalSize!.Value)}{pageCountInfo})";
+        var summaryText = $"Read PDF: {filePath} ({ContentReplacementConstants.FormatFileSize(result.GetOriginalSize())}{pageCountInfo})";
 
         return ResultBuilder.Success()
-            .WithPdf(result.Base64!, result.OriginalSize!.Value)
+            .WithPdf(result.GetBase64(), result.GetOriginalSize())
             .WithText(summaryText)
             .Build();
     }
@@ -1390,8 +1390,8 @@ public class FileToolHandlers : IDisposable
             RecordFileMetrics(FileOperationType.Read, FileOperationResult.Ok);
             var fallbackInfo = fallbackResult.PageCount is not null ? $", {fallbackResult.PageCount} pages" : string.Empty;
             return ResultBuilder.Success()
-                .WithPdf(fallbackResult.Base64!, fallbackResult.OriginalSize!.Value)
-                .WithText($"Read PDF (rendering unavailable, sent as document): {filePath} ({ContentReplacementConstants.FormatFileSize(fallbackResult.OriginalSize!.Value)}{fallbackInfo})")
+                .WithPdf(fallbackResult.GetBase64(), fallbackResult.GetOriginalSize())
+                .WithText($"Read PDF (rendering unavailable, sent as document): {filePath} ({ContentReplacementConstants.FormatFileSize(fallbackResult.GetOriginalSize())}{fallbackInfo})")
                 .Build();
         }
 
@@ -1410,7 +1410,7 @@ public class FileToolHandlers : IDisposable
         // 记录读取状态
         _fileStateCache?.RecordRead(
             filePath,
-            $"[pdf-extract:{extractResult.Pages!.Count}pages]",
+            $"[pdf-extract:{extractResult.GetPages().Count}pages]",
             DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
 
         RecordPdfReadTelemetry(filePath, extractResult.OriginalSize ?? 0, success: true);
@@ -1420,7 +1420,7 @@ public class FileToolHandlers : IDisposable
         var builder = ResultBuilder.Success();
         var pageDescriptions = new List<string>();
 
-        foreach (var page in extractResult.Pages!)
+        foreach (var page in extractResult.GetPages())
         {
             // 对齐 TS: maybeResizeAndDownsampleImageBuffer — 缩放/压缩每页图片
             ImageResizeResult resizeResult;
@@ -1470,7 +1470,7 @@ public class FileToolHandlers : IDisposable
 
         var rangeText = range is not null ? $" pages {range.FirstPage}-{(range.LastPage == int.MaxValue ? "end" : range.LastPage.ToString())}" : string.Empty;
         var totalInfo = extractResult.TotalPageCount is not null ? $", {extractResult.TotalPageCount} total pages" : string.Empty;
-        var summaryText = $"Read PDF: {filePath}{rangeText} — extracted {extractResult.Pages.Count} page(s){totalInfo}\n{string.Join("\n", pageDescriptions)}";
+        var summaryText = $"Read PDF: {filePath}{rangeText} — extracted {extractResult.GetPages().Count} page(s){totalInfo}\n{string.Join("\n", pageDescriptions)}";
 
         builder.WithText(summaryText);
 
@@ -1530,7 +1530,7 @@ public class FileToolHandlers : IDisposable
         RecordFileMetrics(FileOperationType.Read, FileOperationResult.Ok);
 
         // 对齐 TS: mapNotebookCellsToToolResult — 文本 + 图像块
-        var builder = ResultBuilder.Success().WithText(result.Text!);
+        var builder = ResultBuilder.Success().WithText(result.GetText());
 
         // 对齐 TS: cellOutputToToolResult — 将 cell 输出中的图像作为 ImageBlock 发送
         if (result.Images is { Count: > 0 })

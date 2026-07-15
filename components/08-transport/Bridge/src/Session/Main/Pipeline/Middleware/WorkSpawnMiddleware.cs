@@ -18,7 +18,7 @@ public sealed partial class WorkSpawnMiddleware : IHandleWorkMiddleware
         var spawnOptions = new BridgeSubprocessOptions
         {
             SessionId = ctx.Work.SessionId,
-            SdkUrl = ctx.SdkUrl!,
+            SdkUrl = ctx.SdkUrl ?? throw new InvalidOperationException("SdkUrl is not set. Ensure CcrV2RegisterMiddleware runs before SpawnMiddleware."),
             AccessToken = accessTokenForSpawn,
             Dir = spawnDir,
             Verbose = ctx.Config.Verbose,
@@ -34,7 +34,7 @@ public sealed partial class WorkSpawnMiddleware : IHandleWorkMiddleware
 
         try
         {
-            ctx.Handle = await ctx.Spawner!.SpawnAsync(spawnOptions, ct).ConfigureAwait(false);
+            ctx.Handle = await (ctx.Spawner ?? throw new InvalidOperationException("Spawner is not set.")).SpawnAsync(spawnOptions, ct).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -46,7 +46,7 @@ public sealed partial class WorkSpawnMiddleware : IHandleWorkMiddleware
                 {
                     await _worktreeService.RemoveAgentWorktreeAsync(
                         ctx.Work.SessionId, force: true, cancellationToken: ct).ConfigureAwait(false);
-                    ctx.SessionWorktrees!.Remove(ctx.Work.SessionId);
+                    ctx.SessionWorktrees.Remove(ctx.Work.SessionId);
                 }
                 catch (Exception cleanupEx)
                 {
@@ -54,7 +54,7 @@ public sealed partial class WorkSpawnMiddleware : IHandleWorkMiddleware
                 }
             }
 
-            ctx.CompletedWorkIds!.Add(ctx.Work.WorkId);
+            ctx.CompletedWorkIds.Add(ctx.Work.WorkId);
             if (ctx.StopWorkAsync is not null)
             {
                 await ctx.StopWorkAsync(ctx.Work.WorkId, ct).ConfigureAwait(false);

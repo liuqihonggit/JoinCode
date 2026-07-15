@@ -211,4 +211,8 @@ public sealed record NotebookEditResult
     public string? ErrorMessage { get; init; }
     public NotebookDocument? Notebook { get; init; }
     public int? AffectedCellIndex { get; init; }
+
+    /// <summary>获取 Notebook，操作失败时抛出异常</summary>
+    public NotebookDocument GetNotebook() =>
+        Notebook ?? throw new InvalidOperationException("Notebook is not available. Check Success before calling this method.");
 }

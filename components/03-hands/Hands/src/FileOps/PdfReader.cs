@@ -38,6 +38,14 @@ public sealed record PdfReadResult
     /// </summary>
     public string? ErrorMessage { get; init; }
 
+    /// <summary>获取 Base64，操作失败时抛出异常</summary>
+    public string GetBase64() =>
+        Base64 ?? throw new InvalidOperationException("Base64 is not available. Check Success before calling this method.");
+
+    /// <summary>获取 OriginalSize，操作失败时抛出异常</summary>
+    public long GetOriginalSize() =>
+        OriginalSize ?? throw new InvalidOperationException("OriginalSize is not available. Check Success before calling this method.");
+
     public static PdfReadResult Ok(string base64, long originalSize, int? pageCount = null) =>
         new() { Success = true, Base64 = base64, OriginalSize = originalSize, PageCount = pageCount };
 

@@ -131,9 +131,9 @@ public sealed class ChatStreamEvent
         {
             ChatStreamEventType.Content => onText(Content ?? string.Empty),
             ChatStreamEventType.Thinking => onThinking(ThinkingContent ?? string.Empty),
-            ChatStreamEventType.ToolCallStart => onToolStart(ToolName!, ToolCallId, ToolArguments),
-            ChatStreamEventType.ToolCallEnd => onToolEnd(ToolName!, ToolResultText, ToolCallId, IsToolError, StructuredPatch),
-            ChatStreamEventType.ToolProgress => onToolProgress(ToolName!, ProgressType ?? "", ProgressMessage ?? ""),
+            ChatStreamEventType.ToolCallStart => onToolStart(ToolName ?? string.Empty, ToolCallId, ToolArguments),
+            ChatStreamEventType.ToolCallEnd => onToolEnd(ToolName ?? string.Empty, ToolResultText, ToolCallId, IsToolError, StructuredPatch),
+            ChatStreamEventType.ToolProgress => onToolProgress(ToolName ?? string.Empty, ProgressType ?? "", ProgressMessage ?? ""),
             ChatStreamEventType.LoopDetected => onLoopDetected(LoopTriggerCount, LoopStartIndex, Content),
             ChatStreamEventType.TimingSummary => onTimingSummary(Content ?? ""),
             ChatStreamEventType.Complete => onDone(Usage, ModelId),
@@ -160,13 +160,13 @@ public sealed class ChatStreamEvent
                 onThinking(ThinkingContent ?? string.Empty);
                 break;
             case ChatStreamEventType.ToolCallStart:
-                onToolStart(ToolName!, ToolCallId, ToolArguments);
+                onToolStart(ToolName ?? string.Empty, ToolCallId, ToolArguments);
                 break;
             case ChatStreamEventType.ToolCallEnd:
-                onToolEnd(ToolName!, ToolResultText, ToolCallId, IsToolError, StructuredPatch);
+                onToolEnd(ToolName ?? string.Empty, ToolResultText, ToolCallId, IsToolError, StructuredPatch);
                 break;
             case ChatStreamEventType.ToolProgress:
-                onToolProgress(ToolName!, ProgressType ?? "", ProgressMessage ?? "");
+                onToolProgress(ToolName ?? string.Empty, ProgressType ?? "", ProgressMessage ?? "");
                 break;
             case ChatStreamEventType.LoopDetected:
                 onLoopDetected(LoopTriggerCount, LoopStartIndex, Content);

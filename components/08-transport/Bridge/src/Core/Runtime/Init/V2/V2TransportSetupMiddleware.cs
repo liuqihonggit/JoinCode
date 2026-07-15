@@ -13,18 +13,22 @@ internal sealed partial class V2TransportSetupMiddleware : IMiddleware<V2BridgeI
 
     public async Task InvokeAsync(V2BridgeInitContext ctx, MiddlewareDelegate<V2BridgeInitContext> next, CancellationToken ct)
     {
-        var sdkUrl = BridgeWorkSecretDecoder.BuildCCRv2SdkUrl(ctx.Credentials!.ApiBaseUrl, ctx.SessionId!);
+        var credentials = ctx.Credentials ?? throw new InvalidOperationException("Credentials is not set. Ensure V2CredentialsMiddleware runs first.");
+        var sessionId = ctx.SessionId ?? throw new InvalidOperationException("SessionId is not set. Ensure TokenValidationMiddleware runs first.");
+        var accessToken = ctx.AccessToken ?? throw new InvalidOperationException("AccessToken is not set.");
+
+        var sdkUrl = BridgeWorkSecretDecoder.BuildCCRv2SdkUrl(credentials.ApiBaseUrl, sessionId);
         IReplBridgeTransport transport;
         try
         {
-            transport = ctx.TransportFactory.CreateV2Transport(sdkUrl, ctx.SessionId!, ctx.Credentials.WorkerJwt, ctx.Config.ConnectTimeoutMs);
+            transport = ctx.TransportFactory.CreateV2Transport(sdkUrl, sessionId, credentials.WorkerJwt, ctx.Config.ConnectTimeoutMs);
         }
         catch (Exception ex)
         {
             ctx.Logger?.LogError("Bridge: v2 transport setup failed: {Message}", ex.Message);
             ctx.Fail($"Transport setup failed: {ex.Message}");
             _ = BridgeSessionApi.ArchiveAsync(
-                ctx.SessionId!, ctx.Parameters.BaseUrl, ctx.AccessToken!,
+                sessionId, ctx.Parameters.BaseUrl, accessToken,
                 ctx.Parameters.OrgUUID, ctx.Config.HttpTimeoutMs, ctx.HttpClient, ct);
             return;
         }

@@ -171,7 +171,7 @@ public static class SelectorComposition
 
         return state =>
         {
-            if (initialized && comparer.Equals(lastState!, state))
+            if (initialized && lastState is not null && comparer.Equals(lastState, state))
             {
                 return lastResult!;
             }

@@ -301,7 +301,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
         if (ctx.ShouldStartEngineLoop)
         {
             var continuationPrompt = ContinuationPromptBuilder.BuildContinuationPrompt(
-                _state!.Objective,
+                _state?.Objective ?? throw new InvalidOperationException("GoalState is not initialized."),
                 _state.Constraints,
                 _state.TokensUsed,
                 _state.TokenBudget,
@@ -335,7 +335,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
         }
 
         var continuationPrompt = ContinuationPromptBuilder.BuildContinuationPrompt(
-            _state!.Objective,
+            _state?.Objective ?? throw new InvalidOperationException("GoalState is not initialized."),
             _state.Constraints,
             _state.TokensUsed,
             _state.TokenBudget,
@@ -628,7 +628,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
                     _stateLock.Release();
                 }
 
-                if (_state!.TokenBudget.HasValue && _state.TokensUsed >= _state.TokenBudget.Value)
+                if (_state is { TokenBudget: { } budget } && _state.TokensUsed >= budget)
                 {
                     await _stateLock.WaitAsync(ct).ConfigureAwait(false);
                     try
@@ -740,8 +740,8 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
                 ct).ConfigureAwait(false);
 
             var content = results.Count > 0 ? results[0].Content ?? string.Empty : string.Empty;
-            var tokensUsed = results.Count > 0 && results[0].TokenUsage != null
-                ? results[0].TokenUsage!.TotalTokens
+            var tokensUsed = results.Count > 0 && results[0].TokenUsage is { TotalTokens: var tt }
+                ? tt
                 : 0;
 
             if (!string.IsNullOrEmpty(content))

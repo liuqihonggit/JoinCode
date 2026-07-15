@@ -262,9 +262,9 @@ public sealed partial class SearchService : ISearchService
 
             var searchResults = await Task.WhenAll(searchTasks).ConfigureAwait(false);
 
-            foreach (var result in searchResults.Where(r => r != null))
+            foreach (var result in searchResults.OfType<FileSearchResult>())
             {
-                filenames.Add(result!.FilePath);
+                filenames.Add(result.FilePath);
                 totalMatches += result.MatchCount;
                 contentLines.AddRange(result.ContentLines ?? []);
             }
@@ -549,9 +549,9 @@ public sealed partial class SearchService : ISearchService
         // Matcher 的多个 AddInclude 是 OR 逻辑，但 ripgrep 的 --glob + --type 是 AND 逻辑
         var needsAndFilter = !string.IsNullOrEmpty(fileType) && !string.IsNullOrEmpty(globFilter);
         var typeExtensions = needsAndFilter
-            ? (FileTypeExtensions.TryGetValue(fileType!, out var exts)
+            ? (FileTypeExtensions.TryGetValue(fileType ?? "", out var exts)
                 ? exts.Select(e => e.Replace("*", "").TrimStart('.').ToString()).ToHashSet(StringComparer.OrdinalIgnoreCase)
-                : [fileType!])
+                : [fileType ?? ""])
             : null;
 
         // 预计算规范化基路径（循环外，避免重复计算）

@@ -7,10 +7,10 @@ namespace Core.Bridge;
 /// </summary>
 public sealed class BridgeInitState
 {
-    public BridgeFlushGate<string> FlushGate { get; init; } = null!;
-    public BoundedUUIDSet RecentPostedUUIDs { get; init; } = null!;
-    public BoundedUUIDSet RecentInboundUUIDs { get; init; } = null!;
-    public CancellationTokenSource InitCts { get; init; } = null!;
+    public required BridgeFlushGate<string> FlushGate { get; init; }
+    public required BoundedUUIDSet RecentPostedUUIDs { get; init; }
+    public required BoundedUUIDSet RecentInboundUUIDs { get; init; }
+    public required CancellationTokenSource InitCts { get; init; }
 
     /// <summary>初始历史刷新是否已完成</summary>
     public bool InitialFlushDone;

@@ -142,9 +142,9 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
         var queryParams = new Dictionary<string, string>
         {
             ["response_type"] = "code",
-            ["client_id"] = _resolvedClientId!,
+            ["client_id"] = _resolvedClientId ?? _options.ClientId ?? throw new InvalidOperationException("ClientId is not set."),
             ["redirect_uri"] = _options.RedirectUrl,
-            ["code_challenge"] = _codeChallenge!,
+            ["code_challenge"] = _codeChallenge ?? throw new InvalidOperationException("CodeChallenge is not set. Call GeneratePkceChallenge first."),
             ["code_challenge_method"] = "S256"
         };
 
@@ -176,7 +176,7 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
                 ["grant_type"] = "authorization_code",
                 ["code"] = authorizationCode,
                 ["redirect_uri"] = _options.RedirectUrl,
-                ["client_id"] = _resolvedClientId!,
+                ["client_id"] = _resolvedClientId ?? _options.ClientId ?? throw new InvalidOperationException("ClientId is not set."),
                 ["code_verifier"] = _codeVerifier ?? string.Empty
             };
 
@@ -301,7 +301,7 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
             var parameters = new Dictionary<string, string>
             {
                 ["grant_type"] = "refresh_token",
-                ["refresh_token"] = _authContext.RefreshToken!,
+                ["refresh_token"] = _authContext.RefreshToken ?? throw new InvalidOperationException("RefreshToken is not set."),
                 ["client_id"] = _resolvedClientId ?? _options.ClientId
             };
 

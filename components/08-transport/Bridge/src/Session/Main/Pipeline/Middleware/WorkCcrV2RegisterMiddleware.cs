@@ -14,7 +14,7 @@ public sealed partial class WorkCcrV2RegisterMiddleware : IHandleWorkMiddleware
     {
         var forceCcrV2 = Environment.GetEnvironmentVariable("CLAUDE_BRIDGE_USE_CCR_V2") is "1" or "true";
 
-        if ((ctx.Secret?.UseCodeSessions == true || forceCcrV2) && ctx.SecretApiBaseUrl is not null)
+        if ((ctx.Secret?.UseCodeSessions == true || forceCcrV2) && ctx.SecretApiBaseUrl is not null && ctx.SessionIngressToken is not null)
         {
             ctx.SdkUrl = BridgeWorkSecretDecoder.BuildCCRv2SdkUrl(ctx.SecretApiBaseUrl, ctx.Work.SessionId);
 
@@ -23,7 +23,7 @@ public sealed partial class WorkCcrV2RegisterMiddleware : IHandleWorkMiddleware
                 try
                 {
                     ctx.WorkerEpoch = (int)await BridgeWorkSecretDecoder.RegisterWorkerAsync(
-                        ctx.SdkUrl, ctx.SessionIngressToken!, _apiClient.HttpClient, ct).ConfigureAwait(false);
+                        ctx.SdkUrl, ctx.SessionIngressToken, _apiClient.HttpClient, ct).ConfigureAwait(false);
                     ctx.UseCcrV2 = true;
                     _logger?.LogInformation(
                         "BridgeMain: CCR v2 registered worker, SessionId={SessionId}, epoch={Epoch}, attempt={Attempt}",
@@ -42,8 +42,11 @@ public sealed partial class WorkCcrV2RegisterMiddleware : IHandleWorkMiddleware
 
                     _logger?.LogError(ex,
                         "BridgeMain: CCR v2 worker registration failed for session {SessionId}", ctx.Work.SessionId);
-                    ctx.CompletedWorkIds!.Add(ctx.Work.WorkId);
-                    ctx.TrackCleanup!(ctx.StopWorkAsync!(ctx.Work.WorkId, ct));
+                    ctx.CompletedWorkIds.Add(ctx.Work.WorkId);
+                    if (ctx.TrackCleanup is not null && ctx.StopWorkAsync is not null)
+                    {
+                        ctx.TrackCleanup(ctx.StopWorkAsync(ctx.Work.WorkId, ct));
+                    }
                     ctx.CapacityWake?.Invoke();
                     ctx.ShortCircuited = true;
                     return;

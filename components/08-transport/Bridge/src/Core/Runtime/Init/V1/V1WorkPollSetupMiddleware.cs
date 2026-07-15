@@ -17,7 +17,11 @@ internal sealed partial class V1WorkPollSetupMiddleware : IMiddleware<V1BridgeIn
         var parameters = ctx.Parameters;
         var fs = ctx.FileSystem;
         var logger = ctx.Logger;
-        var apiClient = ctx.ApiClient!;
+        var apiClient = ctx.ApiClient ?? throw new InvalidOperationException("ApiClient is not set. Ensure ApiClientMiddleware runs first.");
+        var sessionId = ctx.SessionId ?? throw new InvalidOperationException("SessionId is not set. Ensure SessionCreateMiddleware runs first.");
+        var environmentId = ctx.EnvironmentId ?? throw new InvalidOperationException("EnvironmentId is not set. Ensure EnvironmentRegisterMiddleware runs first.");
+        var environmentSecret = ctx.EnvironmentSecret ?? throw new InvalidOperationException("EnvironmentSecret is not set. Ensure EnvironmentRegisterMiddleware runs first.");
+        var sessionIngressUrl = ctx.SessionIngressUrl ?? throw new InvalidOperationException("SessionIngressUrl is not set. Ensure SessionCreateMiddleware runs first.");
 
         // 初始化去重集合和状态
         var recentPostedUUIDs = new BoundedUUIDSet(2000);
@@ -64,10 +68,6 @@ internal sealed partial class V1WorkPollSetupMiddleware : IMiddleware<V1BridgeIn
         IReplBridgeTransport? currentTransport = null;
         var getOAuthToken = parameters.GetAccessToken;
         int v2Generation = 0;
-        var sessionId = ctx.SessionId!;
-        var environmentId = ctx.EnvironmentId!;
-        var environmentSecret = ctx.EnvironmentSecret!;
-        var sessionIngressUrl = ctx.SessionIngressUrl!;
         var transportFactory = ctx.TransportFactory;
 
         pollLoop.WorkReceived += (_, e) =>

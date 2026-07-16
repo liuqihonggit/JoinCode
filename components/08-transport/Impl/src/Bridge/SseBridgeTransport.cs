@@ -85,30 +85,17 @@ public sealed class SseBridgeTransport : IBridgeTransport
                 response.EnsureSuccessStatusCode();
 
                 await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-                using var reader = new StreamReader(stream, Encoding.UTF8);
 
-                while (!cancellationToken.IsCancellationRequested)
+                await foreach (var sseEvent in SseStreamParser.ParseAsync(stream, cancellationToken).ConfigureAwait(false))
                 {
-                    var line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
-                    if (line is null)
-                        break;
-
-                    if (string.IsNullOrEmpty(line))
-                        continue;
-
-                    if (line.StartsWith("event: endpoint"))
+                    if (sseEvent.EventType == "endpoint")
                     {
-                        var dataLine = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
-                        if (dataLine?.StartsWith("data: ") == true)
-                        {
-                            _messageEndpoint = dataLine[6..];
-                            _logger?.LogDebug("[SseBridgeTransport] 消息端点: {Endpoint}", _messageEndpoint);
-                        }
+                        _messageEndpoint = sseEvent.Data;
+                        _logger?.LogDebug("[SseBridgeTransport] 消息端点: {Endpoint}", _messageEndpoint);
                     }
-                    else if (line.StartsWith("data: "))
+                    else
                     {
-                        var data = line[6..];
-                        MessageReceived?.Invoke(this, new TransportMessageReceivedEventArgs(data));
+                        MessageReceived?.Invoke(this, new TransportMessageReceivedEventArgs(sseEvent.Data));
                     }
                 }
             }

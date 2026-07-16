@@ -1,53 +1,52 @@
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Proactive, Description = "主动执行模式", Usage = "/proactive [on|off|pause|resume|status]", Category = ChatCommandCategory.Task)]
-public sealed class ProactiveCommand : IChatCommand
+public sealed class ProactiveCommand : ToggleCommandBase
 {
-    public string Name => ChatCommandNameConstants.Proactive;
-    public string Description => "主动执行模式";
-    public string Usage => "/proactive [on|off|pause|resume|status]";
-    public string[] Aliases => [];
-    public string ArgumentHint => "[on|off|pause|resume|status]";
-    public bool IsHidden => true;
+    public override string Name => ChatCommandNameConstants.Proactive;
+    public override string Description => "主动执行模式";
+    public override string Usage => "/proactive [on|off|pause|resume|status]";
+    public override bool IsHidden => true;
+    protected override string ArgumentHintText => "[on|off|pause|resume|status]";
 
-    public Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    protected override ToggleAction? ResolveToggleAction(string args)
     {
-        var proactiveService = ChatCommandBase.GetService<IProactiveStateService>(context);
-
-        if (proactiveService is null)
-            return Task.FromResult(ChatCommandResult.Continue());
-
-        var arg = context.Arguments?.Trim().ToLowerInvariant();
-
-        // 主开关动作: 使用 ToggleAction 枚举(含别名 activate/1, deactivate/0, s)
-        ToggleAction? toggle = arg switch
+        var lower = args.ToLowerInvariant();
+        return lower switch
         {
             "on" or "activate" or "1" => ToggleAction.On,
             "off" or "deactivate" or "0" => ToggleAction.Off,
-            "status" or "s" or null or "" => ToggleAction.Status,
-            _ => null
+            "status" or "s" or "" => ToggleAction.Status,
+            null => ToggleAction.Status,
+            _ => null,
         };
+    }
 
-        if (toggle is not null)
-        {
-            switch (toggle.Value)
-            {
-                case ToggleAction.On:
-                    proactiveService.Activate("user-command");
-                    TerminalHelper.WriteLine("主动模式已激活");
-                    return Task.FromResult(ChatCommandResult.Continue());
-                case ToggleAction.Off:
-                    proactiveService.Deactivate();
-                    TerminalHelper.WriteLine("主动模式已停用");
-                    return Task.FromResult(ChatCommandResult.Continue());
-                case ToggleAction.Status:
-                    HandleStatus(proactiveService);
-                    return Task.FromResult(ChatCommandResult.Continue());
-            }
-        }
+    protected override ToggleNullAction NullAction => ToggleNullAction.Status;
 
-        // 额外动作 (pause/resume) — 不属于 ToggleAction 范围,使用 ResumeLifecycle 枚举
-        switch (arg)
+    protected override Task OnEnabledAsync(ChatCommandContext context)
+    {
+        var proactiveService = GetService<IProactiveStateService>(context);
+        proactiveService?.Activate("user-command");
+        TerminalHelper.WriteLine("主动模式已激活");
+        return Task.CompletedTask;
+    }
+
+    protected override Task OnDisabledAsync(ChatCommandContext context)
+    {
+        var proactiveService = GetService<IProactiveStateService>(context);
+        proactiveService?.Deactivate();
+        TerminalHelper.WriteLine("主动模式已停用");
+        return Task.CompletedTask;
+    }
+
+    protected override async Task OnDefaultAsync(ChatCommandContext context, string args)
+    {
+        var proactiveService = GetService<IProactiveStateService>(context);
+        if (proactiveService is null) return;
+
+        var lower = args.ToLowerInvariant();
+        switch (lower)
         {
             case ResumeLifecycleConstants.Pause:
             case "p":
@@ -65,14 +64,19 @@ public sealed class ProactiveCommand : IChatCommand
                 break;
         }
 
-        return Task.FromResult(ChatCommandResult.Continue());
+        await Task.CompletedTask.ConfigureAwait(false);
     }
 
-    private static void HandleStatus(IProactiveStateService proactiveService)
+    protected override Task PrintStatusAsync(ChatCommandContext context)
     {
+        var proactiveService = GetService<IProactiveStateService>(context);
+        if (proactiveService is null) return Task.CompletedTask;
+
         TerminalHelper.WriteLine("主动执行模式:");
         TerminalHelper.WriteLine($"  激活: {(proactiveService.IsActive ? "是" : "否")}");
         TerminalHelper.WriteLine($"  暂停: {(proactiveService.IsPaused ? "是" : "否")}");
         TerminalHelper.WriteLine($"  上下文阻塞: {(proactiveService.IsContextBlocked ? "是" : "否")}");
+
+        return Task.CompletedTask;
     }
 }

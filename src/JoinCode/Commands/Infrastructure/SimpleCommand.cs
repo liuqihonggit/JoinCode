@@ -8,28 +8,28 @@ public sealed class SimpleCommand : ToggleCommandBase
     public override string Usage => "/simple";
     public override string[] Aliases => ["bare"];
 
-    protected override void OnEnabled(ChatCommandContext context)
+    protected override Task OnEnabledAsync(ChatCommandContext context)
     {
-        var service = context.Services.SimpleModeService;
-        service?.Enable();
+        context.Services.SimpleModeService?.Enable();
+        return Task.CompletedTask;
     }
 
-    protected override void OnDisabled(ChatCommandContext context)
+    protected override Task OnDisabledAsync(ChatCommandContext context)
     {
-        var service = context.Services.SimpleModeService;
-        service?.Disable();
+        context.Services.SimpleModeService?.Disable();
+        return Task.CompletedTask;
     }
 
-    protected override void OnToggle(ChatCommandContext context)
+    protected override Task OnToggleAsync(ChatCommandContext context)
     {
-        var service = context.Services.SimpleModeService;
-        service?.Toggle();
+        context.Services.SimpleModeService?.Toggle();
+        return Task.CompletedTask;
     }
 
-    protected override void PrintStatus(ChatCommandContext context)
+    protected override Task PrintStatusAsync(ChatCommandContext context)
     {
         var service = context.Services.SimpleModeService;
-        if (service is null) return;
+        if (service is null) return Task.CompletedTask;
 
         if (service.IsSimpleMode)
         {
@@ -44,5 +44,7 @@ public sealed class SimpleCommand : ToggleCommandBase
         {
             TerminalHelper.WriteLine($"{TerminalColors.Muted}精简模式已禁用 - 使用完整模式{AnsiStyleConstants.Reset}");
         }
+
+        return Task.CompletedTask;
     }
 }

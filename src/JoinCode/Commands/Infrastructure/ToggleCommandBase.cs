@@ -11,7 +11,7 @@ public abstract class ToggleCommandBase : ChatCommandBase
 
     protected virtual ToggleNullAction NullAction => ToggleNullAction.Toggle;
 
-    public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = GetNormalizedArgs(context);
         var action = ResolveToggleAction(args);
@@ -19,36 +19,38 @@ public abstract class ToggleCommandBase : ChatCommandBase
         switch (action)
         {
             case ToggleAction.On:
-                OnEnabled(context);
+                await OnEnabledAsync(context).ConfigureAwait(false);
                 break;
             case ToggleAction.Off:
-                OnDisabled(context);
+                await OnDisabledAsync(context).ConfigureAwait(false);
                 break;
             default:
-                OnDefault(context, args);
+                await OnDefaultAsync(context, args).ConfigureAwait(false);
                 break;
         }
 
-        PrintStatus(context);
+        await PrintStatusAsync(context).ConfigureAwait(false);
 
-        return Task.FromResult(ChatCommandResult.Continue());
+        return ChatCommandResult.Continue();
     }
 
-    protected abstract void OnEnabled(ChatCommandContext context);
+    protected abstract Task OnEnabledAsync(ChatCommandContext context);
 
-    protected abstract void OnDisabled(ChatCommandContext context);
+    protected abstract Task OnDisabledAsync(ChatCommandContext context);
 
-    protected virtual void OnDefault(ChatCommandContext context, string args)
+    protected virtual Task OnDefaultAsync(ChatCommandContext context, string args)
     {
         if (NullAction == ToggleNullAction.Toggle)
         {
-            OnToggle(context);
+            return OnToggleAsync(context);
         }
+
+        return Task.CompletedTask;
     }
 
-    protected virtual void OnToggle(ChatCommandContext context) { }
+    protected virtual Task OnToggleAsync(ChatCommandContext context) => Task.CompletedTask;
 
-    protected abstract void PrintStatus(ChatCommandContext context);
+    protected virtual Task PrintStatusAsync(ChatCommandContext context) => Task.CompletedTask;
 }
 
 public enum ToggleNullAction

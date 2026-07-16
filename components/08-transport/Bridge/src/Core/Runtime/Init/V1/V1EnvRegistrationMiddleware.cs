@@ -16,7 +16,7 @@ internal sealed partial class V1EnvRegistrationMiddleware : IMiddleware<V1Bridge
         var apiClient = new BridgeApiClient(ctx.HttpClient, new BridgeApiOptions
         {
             BaseUrl = ctx.Parameters.BaseUrl,
-            ApiKey = ctx.AccessToken!,
+            ApiKey = ctx.AccessToken ?? throw new InvalidOperationException("AccessToken not set"),
             GetAccessToken = ctx.Parameters.GetAccessToken,
             OnAuth401 = ctx.Parameters.OnAuth401,
             GetTrustedDeviceToken = ctx.Parameters.GetTrustedDeviceToken is not null

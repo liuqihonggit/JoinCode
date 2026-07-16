@@ -18,7 +18,7 @@ public sealed partial class ShutdownClearPointerMiddleware : IShutdownMiddleware
                 var pointerDir = ctx.ResumePointerDir ?? ctx.WorkingDirectory;
                 if (pointerDir is not null)
                 {
-                    await ctx.PointerService!.ClearAsync(pointerDir).ConfigureAwait(false);
+                    await (ctx.PointerService ?? throw new InvalidOperationException("PointerService not available")).ClearAsync(pointerDir).ConfigureAwait(false);
                 }
             }
             catch (Exception ex)

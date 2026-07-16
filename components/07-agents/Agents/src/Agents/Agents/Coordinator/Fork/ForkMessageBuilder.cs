@@ -125,7 +125,7 @@ Output format (plain text labels, not markdown headers):
         else if (assistantMessage.Metadata.TryGetValue("ToolCall", out var singleCall) && singleCall.TryGetString(out var toolName))
         {
             var toolCallId = assistantMessage.Metadata.TryGetValue("ToolCallId", out var idObj) ? idObj.GetString() ?? Guid.NewGuid().ToString("N") : Guid.NewGuid().ToString("N");
-            toolCalls.Add((toolCallId, toolName!));
+            toolCalls.Add((toolCallId, toolName ?? Guid.NewGuid().ToString("N")));
         }
 
         return toolCalls;

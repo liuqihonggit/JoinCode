@@ -28,7 +28,7 @@ public sealed partial class MetadataMiddleware : IAgentSpawnMiddleware
     {
         try
         {
-            await _transcriptService!.SaveMetadataAsync("default", new JoinCode.Abstractions.Interfaces.AgentMetadata
+            await (_transcriptService ?? throw new InvalidOperationException("TranscriptService not available")).SaveMetadataAsync("default", new JoinCode.Abstractions.Interfaces.AgentMetadata
             {
                 AgentId = subAgent.Id,
                 AgentType = subAgent.Options.AgentType,

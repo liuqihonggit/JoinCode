@@ -39,7 +39,7 @@ public sealed partial class PromptBuildingMiddleware : IAgentSpawnMiddleware
                 if (snapshotCheck.Action == AgentMemorySnapshotAction.Initialize)
                 {
                     await _agentMemoryService.InitializeFromSnapshotAsync(
-                        context.Options.AgentType, memoryScope.Value, snapshotCheck.SnapshotTimestamp!, ct).ConfigureAwait(false);
+                        context.Options.AgentType, memoryScope.Value, snapshotCheck.SnapshotTimestamp ?? throw new InvalidOperationException("SnapshotTimestamp is null"), ct).ConfigureAwait(false);
                 }
             }
             catch (Exception ex)

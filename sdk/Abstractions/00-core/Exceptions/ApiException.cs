@@ -68,7 +68,7 @@ public class ApiException : WorkflowException
     {
         return new ApiException(
             $"无法连接到 API 端点: {endpoint}",
-            innerException!,
+            innerException ?? throw new ArgumentNullException(nameof(innerException)),
             endpoint: endpoint,
             errorCode: global::JoinCode.Abstractions.Exceptions.ErrorCode.ApiConnection.ToValue());
     }

@@ -255,7 +255,7 @@ public static class BridgeInit
         // 优先级 1: 显式名称 — 对齐 TS 端: if (initialName)
         if (!string.IsNullOrEmpty(options.InitialName))
         {
-            return options.InitialName!;
+            return options.InitialName ?? throw new InvalidOperationException("InitialName should not be null after null check");
         }
 
         // 优先级 2: 从初始消息推导 — 对齐 TS 端: if (initialMessages && initialMessages.length > 0)

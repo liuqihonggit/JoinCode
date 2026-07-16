@@ -126,7 +126,7 @@ public sealed class CliSession
         var parseResult = _commandRegistry.Parse(input);
         if (!parseResult.IsSuccess) return;
 
-        var command = _commandRegistry.GetCommand(parseResult.CommandName!);
+        var command = _commandRegistry.GetCommand(parseResult.CommandName ?? throw new InvalidOperationException("CommandName should not be null after successful parse"));
         if (command == null)
         {
             ShowUnknownCommandHelp();

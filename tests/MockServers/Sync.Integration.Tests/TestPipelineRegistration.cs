@@ -165,8 +165,8 @@ public static class TestPipelineRegistration
                 .Build());
 
         // Shell 命令管道
-        services.AddSingleton<MiddlewarePipeline<ShellContext>>(sp =>
-            new PipelineBuilder<ShellContext>()
+        services.AddSingleton<MiddlewarePipeline<ShellPipelineContext>>(sp =>
+            new PipelineBuilder<ShellPipelineContext>()
                 .Use(sp.GetRequiredService<ShellValidationMiddleware>())
                 .Use(sp.GetRequiredService<ShellClassificationMiddleware>())
                 .Use(sp.GetRequiredService<ShellSedInterceptMiddleware>())

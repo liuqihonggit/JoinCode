@@ -16,7 +16,7 @@ public class ShellExecutionServiceTests
         var fs = new IO.FileSystem.PhysicalFileSystem();
         var bashProvider = new BashShellProvider(fs);
         var psProvider = new PowerShellShellProvider(fs);
-        _service = new ShellExecutionService(config, fs, new IO.ProcessService.PhysicalProcessService(), bashProvider, psProvider);
+        _service = new ShellExecutionService(config, fs, bashProvider, psProvider);
     }
 
     [Fact]

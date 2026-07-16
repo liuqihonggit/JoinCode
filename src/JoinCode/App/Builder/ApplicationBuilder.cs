@@ -130,7 +130,7 @@ public sealed class ApplicationBuilder
             // 构建 Bridge Guard 服务容器 — 让生产环境真正启用 Guard 检查
             // 决策: 独立 DI 容器+手动注册最小服务集，避免引入完整 Host 初始化开销
             // 替代方案: 调用 AddJoinCodeCompositionAutoRegisteredServices（已否决，会注册大量无关服务）
-            using var bridgeServices = BuildBridgeGuardServices(bridgeFs);
+            await using var bridgeServices = BuildBridgeGuardServices(bridgeFs);
 
             var command = new ChatCommands.Bridge.BridgeMainCommand(
                 services: bridgeServices,

@@ -2,7 +2,7 @@
 namespace Tools;
 
 [Register]
-public sealed partial class LocalToolRegistry : IToolRegistry, IAsyncDisposable
+public sealed partial class LocalToolRegistry : IToolRegistry
 {
     private readonly Dictionary<string, IToolHandler> _tools = new();
     private readonly SemaphoreSlim _lock;
@@ -234,14 +234,10 @@ public sealed partial class LocalToolRegistry : IToolRegistry, IAsyncDisposable
         }
     }
 
-    public void Dispose()
+    public ValueTask DisposeAsync()
     {
         _lock.Dispose();
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        _lock.Dispose();
+        return ValueTask.CompletedTask;
     }
 
     private void OnToolRegistered(string toolName, string description)

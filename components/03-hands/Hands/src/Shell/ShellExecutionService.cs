@@ -10,7 +10,6 @@ namespace Services.Shell;
 public sealed partial class ShellExecutionService : IShellExecutionService
 {
     [Inject] private readonly ILogger<ShellExecutionService>? _logger;
-    [Inject] private readonly IProcessService _processService;
     private readonly ShellExecutionConfig _config;
     private readonly IFileSystem _fs;
     private readonly ISandboxModeService? _sandboxModeService;
@@ -21,7 +20,6 @@ public sealed partial class ShellExecutionService : IShellExecutionService
     public ShellExecutionService(
         ShellExecutionConfig config,
         IFileSystem fs,
-        IProcessService processService,
         BashShellProvider bashProvider,
         PowerShellShellProvider powerShellProvider,
         ILogger<ShellExecutionService>? logger = null,
@@ -30,7 +28,6 @@ public sealed partial class ShellExecutionService : IShellExecutionService
     {
         _config = config ?? throw new ArgumentNullException(nameof(config));
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
-        _processService = processService ?? throw new ArgumentNullException(nameof(processService));
         _bashProvider = bashProvider ?? throw new ArgumentNullException(nameof(bashProvider));
         _powerShellProvider = powerShellProvider ?? throw new ArgumentNullException(nameof(powerShellProvider));
         _logger = logger;
@@ -116,6 +113,10 @@ public sealed partial class ShellExecutionService : IShellExecutionService
 
     #region Core Execution
 
+    /// <summary>
+    /// 统一执行核心 — 对齐 TS Shell.ts，所有路径走 ShellCommandContext
+    /// 消除双路径（IProcessService vs ShellCommandContext），统一环境变量清理、大输出持久化、CWD 追踪
+    /// </summary>
     private async Task<ShellExecutionResult> ExecuteCoreAsync(
         string command,
         int? timeout,
@@ -150,69 +151,17 @@ public sealed partial class ShellExecutionService : IShellExecutionService
             var useSandbox = !disableSandbox && _sandboxModeService is not null && _sandboxModeService.IsInSandbox;
             var sandboxTmpDir = useSandbox ? (_sandboxModeService ?? throw new InvalidOperationException("SandboxModeService not available.")).CurrentSandbox?.RootPath : null;
 
-            var sessionId = Guid.NewGuid().ToString("N")[..8];
-            var execOptions = new ShellExecOptions
-            {
-                SessionId = sessionId,
-                UseSandbox = useSandbox,
-                SandboxTmpDir = sandboxTmpDir,
-            };
+            await using var context = await ShellCommandContext.StartAsync(
+                command, cwd, _fs, provider, timeout,
+                shouldAutoBackground: false, useSandbox, sandboxTmpDir, _logger).ConfigureAwait(false);
 
-            var execResult = await provider.BuildExecCommandAsync(command, execOptions, cancellationToken).ConfigureAwait(false);
-            var envOverrides = await provider.GetEnvironmentOverridesAsync(command, cancellationToken).ConfigureAwait(false);
-
-            var spawnArgs = provider.GetSpawnArgs(execResult.CommandString);
-
-            var options = new ProcessOptions
-            {
-                FileName = provider.ShellPath,
-                Arguments = string.Join(' ', spawnArgs),
-                WorkingDirectory = cwd,
-                EnvironmentVariables = envOverrides.Count > 0 ? envOverrides : null,
-                StandardOutputEncoding = Encoding.UTF8,
-                StandardErrorEncoding = Encoding.UTF8,
-                TimeoutMs = timeout
-            };
-
-            var result = await _processService.ExecuteAsync(options, cancellationToken).ConfigureAwait(false);
-
-            if (result.ExitCode == -1 && timeout.HasValue)
-            {
-                return ShellExecutionResult.TimeoutResult(timeout.Value);
-            }
-
-            var rawStdout = result.StandardOutput;
-            var rawStderr = result.StandardError;
-
-            string? persistedPath = null;
-            long? persistedSize = null;
-
-            if (rawStdout.Length > ShellExecutionResult.MaxInlineOutputChars)
-            {
-                (persistedPath, persistedSize) = await PersistLargeOutputAsync(
-                    rawStdout, command, cancellationToken).ConfigureAwait(false);
-                rawStdout = rawStdout[..Math.Min(rawStdout.Length, ShellExecutionResult.PreviewSizeBytes)];
-            }
-
-            var stdout = rawStdout;
-            var stderr = rawStderr;
-
-            var cwdWasReset = ResetCwdIfOutsideProject(cwd);
+            var result = await context.ResultTask.ConfigureAwait(false);
 
             _logger?.LogInformation(
                 "{LogLabel} completed: ExitCode={ExitCode}, StdoutLength={StdoutLength}, StderrLength={StderrLength}",
-                shellLabel,
-                result.ExitCode,
-                stdout.Length,
-                stderr.Length);
+                shellLabel, result.ExitCode, result.Stdout?.Length ?? 0, result.Stderr?.Length ?? 0);
 
-            return ShellExecutionResult.SuccessResult(stdout, stderr, result.ExitCode)
-                with
-            {
-                PersistedOutputPath = persistedPath,
-                PersistedOutputSize = persistedSize,
-                CwdWasReset = cwdWasReset,
-            };
+            return result;
         }
         catch (OperationCanceledException)
         {
@@ -241,68 +190,6 @@ public sealed partial class ShellExecutionService : IShellExecutionService
         }
 
         return cwd;
-    }
-
-    #endregion
-
-    #region Private Methods
-
-    /// <summary>
-    /// 大输出持久化到磁盘 — 对齐 TS BashTool 大输出磁盘持久化
-    /// 输出超过 30K 字符时保存到临时文件，返回文件路径和大小
-    /// </summary>
-    private async Task<(string? Path, long? Size)> PersistLargeOutputAsync(
-        string output, string command, CancellationToken cancellationToken)
-    {
-        try
-        {
-            var tempDir = Path.Combine(Path.GetTempPath(), "jcc-tool-results");
-            DirectoryHelper.EnsureDirectoryExists(_fs, tempDir);
-
-            var taskId = Guid.NewGuid().ToString("N")[..12];
-            var filePath = Path.Combine(tempDir, $"{taskId}.txt");
-
-            await _fs.WriteAllTextAsync(filePath, output, cancellationToken).ConfigureAwait(false);
-
-            var fileSize = _fs.GetFileLength(filePath);
-
-            // 超过硬上限则截断 — 对齐 TS MAX_PERSISTED_SIZE (64MB)
-            if (fileSize > ShellExecutionResult.MaxPersistedSizeBytes)
-            {
-                var truncated = output[..(int)ShellExecutionResult.MaxPersistedSizeBytes];
-                await _fs.WriteAllTextAsync(filePath, truncated, cancellationToken).ConfigureAwait(false);
-                fileSize = ShellExecutionResult.MaxPersistedSizeBytes;
-            }
-
-            return (filePath, fileSize);
-        }
-        catch (Exception)
-        {
-            return (null, null);
-        }
-    }
-
-    /// <summary>
-    /// CWD 越界自动重置 — 对齐 TS resetCwdIfOutsideProject
-    /// 如果当前工作目录离开了项目根目录，自动重置回项目根目录
-    /// </summary>
-    private bool ResetCwdIfOutsideProject(string projectCwd)
-    {
-        try
-        {
-            var currentCwd = _fs.GetCurrentDirectory();
-            if (string.Equals(currentCwd, projectCwd, StringComparison.OrdinalIgnoreCase))
-            {
-                return false;
-            }
-
-            _fs.SetCurrentDirectory(projectCwd);
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
     }
 
     #endregion

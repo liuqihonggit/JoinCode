@@ -3,7 +3,7 @@ using JoinCode.Abstractions.Attributes;
 namespace JoinCode.CodeIndex;
 
 [Register]
-public sealed partial class FileWatcherIntegration : IAsyncDisposable, IDisposable
+public sealed partial class FileWatcherIntegration : IAsyncDisposable
 {
     private readonly ICodeIndexer _indexer;
     private readonly IFileSystem? _fs;
@@ -247,19 +247,6 @@ public sealed partial class FileWatcherIntegration : IAsyncDisposable, IDisposab
             return;
         }
 
-        await StopAsync(CancellationToken.None).ConfigureAwait(false);
-        _updateCts?.Dispose();
-        _updateCts = null;
-        _pendingLock.Dispose();
-    }
-
-    public void Dispose()
-    {
-        if (!DisposableHelper.TryMarkDisposed(ref _disposed))
-        {
-            return;
-        }
-
         if (_watcher is not null)
         {
             _watcher.EnableRaisingEvents = false;
@@ -267,6 +254,7 @@ public sealed partial class FileWatcherIntegration : IAsyncDisposable, IDisposab
             _watcher = null;
         }
 
+        await StopAsync(CancellationToken.None).ConfigureAwait(false);
         _updateCts?.Cancel();
         _updateCts?.Dispose();
         _updateCts = null;

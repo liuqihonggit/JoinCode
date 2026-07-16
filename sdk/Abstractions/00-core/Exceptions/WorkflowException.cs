@@ -47,7 +47,7 @@ public class WorkflowException : Exception
     /// </summary>
     public WorkflowException(
         string message,
-        Exception innerException,
+        Exception? innerException,
         string? errorCode = null,
         ErrorCategory category = ErrorCategory.Workflow,
         ExceptionContext? context = null)

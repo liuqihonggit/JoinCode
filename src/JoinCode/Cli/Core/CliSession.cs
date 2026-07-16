@@ -115,10 +115,6 @@ public sealed class CliSession
             span?.SetTag("error.message", ex.Message);
             throw;
         }
-        finally
-        {
-            span?.Dispose();
-        }
     }
 
     private async Task HandleCommandAsync(string input, CancellationToken cancellationToken)

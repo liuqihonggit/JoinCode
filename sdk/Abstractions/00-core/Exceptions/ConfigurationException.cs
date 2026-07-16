@@ -87,7 +87,7 @@ public sealed class ConfigurationException : WorkflowException
     {
         var ex = new ConfigurationException(
             $"无法解析配置文件 '{filePath}': {reason}",
-            innerException!,
+            innerException ?? throw new ArgumentNullException(nameof(innerException)),
             configurationFilePath: filePath,
             errorCode: global::JoinCode.Abstractions.Exceptions.ErrorCode.ConfigurationParseError.ToValue());
         return ex;

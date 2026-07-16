@@ -18,10 +18,10 @@ public sealed partial class SearchService : ISearchService
         string? path = null,
         CancellationToken cancellationToken = default)
     {
-        return await Task.Run(() =>
+        return await Task.Run(async () =>
         {
             var stopwatch = Stopwatch.StartNew();
-            var span = _telemetryService?.StartSpan("search.glob", TelemetrySpanKind.Server);
+            await using var span = _telemetryService?.StartSpan("search.glob", TelemetrySpanKind.Server);
             span?.SetTag("pattern", pattern);
 
             try
@@ -128,10 +128,6 @@ public sealed partial class SearchService : ISearchService
                 RecordSearchMetrics("glob", stopwatch.ElapsedMilliseconds, false);
                 return GlobSearchResult.FailureResult(ex.Message);
             }
-            finally
-            {
-                span?.Dispose();
-            }
         }, cancellationToken);
     }
 
@@ -140,7 +136,7 @@ public sealed partial class SearchService : ISearchService
         GrepSearchInput input,
         CancellationToken cancellationToken = default)
     {
-        var span = _telemetryService?.StartSpan("search.grep", TelemetrySpanKind.Server);
+        await using var span = _telemetryService?.StartSpan("search.grep", TelemetrySpanKind.Server);
         span?.SetTag("pattern", input.Pattern);
         try
         {
@@ -319,10 +315,6 @@ public sealed partial class SearchService : ISearchService
                 _logger?.LogError(ex, "Grep search failed: {Pattern}", input.Pattern);
                 RecordSearchMetrics("grep", 0, false);
                 return GrepSearchResult.FailureResult(ex.Message);
-            }
-            finally
-            {
-                span?.Dispose();
             }
     }
 

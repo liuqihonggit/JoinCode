@@ -30,16 +30,6 @@ public sealed class BashShellProvider : ShellProviderBase
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
         ".jcc", "shell-snapshots");
 
-    /// <summary>
-    /// 安全环境变量白名单 — 对齐 TS BashProvider SafeEnvVars
-    /// </summary>
-    internal static readonly FrozenSet<string> SafeEnvVars = new[]
-    {
-        "NODE_ENV", "PYTHONUNBUFFERED", "PYTHONIOENCODING", "LANG",
-        "LC_ALL", "LC_CTYPE", "TERM", "COLORTERM", "NO_COLOR",
-        "FORCE_COLOR", "CLICOLOR", "CLICOLOR_FORCE"
-    }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
-
     public BashShellProvider(IFileSystem fs, string? shellPath = null, ILogger? logger = null)
         : base(fs, shellPath, logger)
     {

@@ -293,9 +293,9 @@ public class ShellBuildInterceptMiddlewareTests
             clock: SystemClockService.Instance);
     }
 
-    private static ShellContext CreateContext(string command, string? workingDirectory = null)
+    private static ShellPipelineContext CreateContext(string command, string? workingDirectory = null)
     {
-        return new ShellContext
+        return new ShellPipelineContext
         {
             Command = command,
             IsPowerShell = false,
@@ -309,5 +309,5 @@ public class ShellBuildInterceptMiddlewareTests
         AgentId = "test-agent",
     };
 
-    private static Task Next(ShellContext ctx, CancellationToken ct) => Task.CompletedTask;
+    private static Task Next(ShellPipelineContext ctx, CancellationToken ct) => Task.CompletedTask;
 }

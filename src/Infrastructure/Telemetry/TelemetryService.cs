@@ -2,7 +2,7 @@
 namespace Core.Telemetry;
 
 [Register]
-public sealed partial class TelemetryService : ITelemetryService, IDisposable
+public sealed partial class TelemetryService : ITelemetryService
 {
     private readonly TelemetryConfig _config;
     private readonly ActivitySource _activitySource;
@@ -136,24 +136,6 @@ public sealed partial class TelemetryService : ITelemetryService, IDisposable
     internal void RemoveActiveSpan(string spanId)
     {
         _activeSpans.TryRemove(spanId, out _);
-    }
-
-    public void Dispose()
-    {
-        if (!DisposableHelper.TryMarkDisposed(ref _isDisposed))
-        {
-            return;
-        }
-
-        foreach (var span in _activeSpans.Values.ToList())
-        {
-            span.Dispose();
-        }
-
-        _consoleExporter?.Dispose();
-        _listener.Dispose();
-        _activitySource.Dispose();
-        _meter.Dispose();
     }
 
     public async ValueTask DisposeAsync()

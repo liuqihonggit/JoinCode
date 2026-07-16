@@ -1,7 +1,7 @@
 
 namespace JoinCode.Abstractions.Interfaces;
 
-public interface ITelemetryService : IAsyncDisposable, IDisposable
+public interface ITelemetryService : IAsyncDisposable
 {
     TelemetryConfig Config { get; }
 
@@ -25,7 +25,7 @@ public interface ITelemetryService : IAsyncDisposable, IDisposable
     IReadOnlyList<string> GetRegisteredMetrics();
 }
 
-public interface ITelemetrySpan : IAsyncDisposable, IDisposable
+public interface ITelemetrySpan : IAsyncDisposable
 {
     string SpanId { get; }
 

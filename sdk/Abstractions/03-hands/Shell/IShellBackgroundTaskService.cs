@@ -2,8 +2,12 @@ namespace JoinCode.Abstractions.Interfaces;
 
 public interface IShellBackgroundTaskService
 {
-    Task<ShellBackgroundTaskInfo> CreateTaskAsync(
-        string command,
+    /// <summary>
+    /// 注册已后台化的 ShellCommandContext — 对齐 TS spawnShellTask
+    /// 后台命令统一走 ShellCommandContext 路径，不再独立启动新进程
+    /// </summary>
+    Task<ShellBackgroundTaskInfo> RegisterContextAsync(
+        IShellCommandContext context,
         string? workingDirectory = null,
         CancellationToken cancellationToken = default);
 

@@ -76,7 +76,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     /// </summary>
     public async Task LoadContextAsync(CancellationToken cancellationToken = default)
     {
-        var span = _telemetryService?.StartSpan("context.load", TelemetrySpanKind.Server);
+        await using var span = _telemetryService?.StartSpan("context.load", TelemetrySpanKind.Server);
         try
         {
             var (systemPrompt, chatHistory) = await _stateService.LoadStateAsync(cancellationToken).ConfigureAwait(false);
@@ -115,7 +115,6 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
 
             span?.SetTag("context.message_count", _conversationLog.Count);
             span?.SetStatus(TelemetryStatusCode.Ok);
-            span?.Dispose();
 
             if (_metaStore is not null && _sessionStats is not null)
             {
@@ -133,7 +132,6 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
             _logger.LogError(ex, "加载聊天上下文时出错");
             span?.SetStatus(TelemetryStatusCode.Error, ex.Message);
             span?.RecordException(ex);
-            span?.Dispose();
             throw;
         }
     }
@@ -361,7 +359,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     /// </summary>
     public async Task SaveContextAsync(CancellationToken cancellationToken = default)
     {
-        var span = _telemetryService?.StartSpan("context.save", TelemetrySpanKind.Server);
+        await using var span = _telemetryService?.StartSpan("context.save", TelemetrySpanKind.Server);
         try
         {
             string staticPrefix;
@@ -389,14 +387,12 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
             _logger.LogDebug("聊天上下文已保存");
 
             span?.SetStatus(TelemetryStatusCode.Ok);
-            span?.Dispose();
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "保存聊天上下文时出错");
             span?.SetStatus(TelemetryStatusCode.Error, ex.Message);
             span?.RecordException(ex);
-            span?.Dispose();
             throw;
         }
     }
@@ -433,7 +429,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
             };
         }
 
-        var foldSpan = _telemetryService?.StartSpan("context.fold", TelemetrySpanKind.Server);
+        await using var foldSpan = _telemetryService?.StartSpan("context.fold", TelemetrySpanKind.Server);
         foldSpan?.SetTag("context.fold_decision", decision.ToString());
 
         await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -451,7 +447,6 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         {
             _lock.Release();
             foldSpan?.SetStatus(TelemetryStatusCode.Ok);
-            foldSpan?.Dispose();
             _telemetryService?.RecordCount("context.fold.count", new() { ["decision"] = decision.ToString() }, "count", "Context fold count");
         }
     }

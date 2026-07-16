@@ -48,7 +48,7 @@ public class ApiException : WorkflowException
     /// </summary>
     public ApiException(
         string message,
-        Exception innerException,
+        Exception? innerException,
         int? statusCode = null,
         string? endpoint = null,
         string? responseContent = null,

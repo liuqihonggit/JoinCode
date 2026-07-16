@@ -59,7 +59,7 @@ public sealed partial class BashAstSecurityWalker
                 return TooComplexNode(node);
         }
 
-        if (StructuralTypes.Contains(node.Type))
+        if (BashSecurityConstants.StructuralTypes.Contains(node.Type))
         {
             return WalkStructuralNode(node, commands, varScope);
         }
@@ -92,7 +92,7 @@ public sealed partial class BashAstSecurityWalker
         {
             if (child is null) continue;
 
-            if (SeparatorTypes.Contains(child.Type))
+            if (BashSecurityConstants.SeparatorTypes.Contains(child.Type))
             {
                 if (child.Type is "||" or "|" or "|&" or "&")
                 {

@@ -106,32 +106,14 @@ public sealed partial class BashAstSecurityWalker
         => value.Contains(CmdsubPlaceholder, StringComparison.Ordinal) ||
            value.Contains(VarPlaceholder, StringComparison.Ordinal);
 
-    [GeneratedRegex(@"^[A-Za-z_][A-Za-z0-9_]*$")]
-    private static partial Regex ValidVarNameRegex();
-
     private static bool IsValidVarName(string name)
-        => ValidVarNameRegex().IsMatch(name);
+        => BashSecurityRegex.ValidVarNameRegex().IsMatch(name);
 
     private static bool IsPs4ValueSafe(string value)
     {
-        var stripped = Ps4VarRefRegex().Replace(value, "");
-        return Ps4SafeCharsetRegex().IsMatch(stripped);
+        var stripped = BashSecurityRegex.Ps4VarRefRegex().Replace(value, "");
+        return BashSecurityRegex.Ps4SafeCharsetRegex().IsMatch(stripped);
     }
-
-    [GeneratedRegex(@"\$\{[A-Za-z_][A-Za-z0-9_]*\}")]
-    private static partial Regex Ps4VarRefRegex();
-
-    [GeneratedRegex(@"^[A-Za-z0-9 _+:.=/\[\]-]*$")]
-    private static partial Regex Ps4SafeCharsetRegex();
-
-    [GeneratedRegex(@"[\s*$?[\]{}<>~`'""\\|&;()#!]")]
-    private static partial Regex BareVarUnsafeRegex();
-
-    [GeneratedRegex(@"\\(.)")]
-    private static partial Regex BackslashUnescapeRegex();
-
-    [GeneratedRegex(@"^[0-9]+$")]
-    private static partial Regex DigitsOnlyRegex();
 
     private sealed class StringOrTooComplex
     {

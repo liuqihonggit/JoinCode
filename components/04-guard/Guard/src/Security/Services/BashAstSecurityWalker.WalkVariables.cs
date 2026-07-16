@@ -160,7 +160,7 @@ public sealed partial class BashAstSecurityWalker
             {
                 if (trackedValue.Length == 0)
                     return new StringOrTooComplex(TooComplexNode(node));
-                if (BareVarUnsafeRegex().IsMatch(trackedValue))
+                if (BashSecurityRegex.BareVarUnsafeRegex().IsMatch(trackedValue))
                     return new StringOrTooComplex(TooComplexNode(node));
             }
             return new StringOrTooComplex(trackedValue);
@@ -168,9 +168,9 @@ public sealed partial class BashAstSecurityWalker
 
         if (insideString)
         {
-            if (SafeEnvVars.Contains(varName))
+            if (BashSecurityConstants.SafeEnvVars.Contains(varName))
                 return new StringOrTooComplex(VarPlaceholder);
-            if (isSpecial && (SpecialVarNames.Contains(varName) || DigitsOnlyRegex().IsMatch(varName)))
+            if (isSpecial && (BashSecurityConstants.SpecialVarNames.Contains(varName) || BashSecurityRegex.DigitsOnlyRegex().IsMatch(varName)))
                 return new StringOrTooComplex(VarPlaceholder);
         }
 

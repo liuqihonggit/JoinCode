@@ -11,7 +11,7 @@ public abstract class ShellProviderBase : IShellProvider
     private readonly ILogger? _logger;
 
     /// <inheritdoc />
-    public abstract ShellProviderType Type { get; }
+    public abstract ShellType Type { get; }
 
     /// <inheritdoc />
     public string ShellPath { get; }

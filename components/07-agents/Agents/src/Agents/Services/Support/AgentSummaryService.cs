@@ -183,7 +183,7 @@ public sealed partial class AgentSummaryService : IAgentSummaryService
 
         var totalDuration = executions
             .Where(e => e.Metrics.Duration.HasValue)
-            .Sum(e => e.Metrics.Duration!.Value.TotalMilliseconds);
+            .Sum(e => e.Metrics.Duration.GetValueOrDefault().TotalMilliseconds);
 
         var avgDuration = executions.Count > 0
             ? TimeSpan.FromMilliseconds(totalDuration / executions.Count)

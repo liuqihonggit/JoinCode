@@ -19,7 +19,7 @@ internal sealed partial class V1PerpetualSessionValidationMiddleware : IMiddlewa
             var (envId, title) = await BridgeSessionApi.GetAsync(
                 ctx.PriorPointer.SessionId,
                 ctx.Parameters.BaseUrl,
-                ctx.AccessToken!,
+                ctx.AccessToken ?? throw new InvalidOperationException("AccessToken not set"),
                 orgUUID: "",
                 ctx.HttpClient,
                 ct).ConfigureAwait(false);

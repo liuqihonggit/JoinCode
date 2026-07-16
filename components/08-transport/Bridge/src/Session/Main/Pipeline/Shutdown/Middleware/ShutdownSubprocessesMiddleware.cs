@@ -14,7 +14,7 @@ public sealed partial class ShutdownSubprocessesMiddleware : IShutdownMiddleware
         var handles = ctx.ActiveSessions.Values.ToList();
         if (handles.Count > 0)
         {
-            await ctx.Spawner!.ShutdownAllAsync(handles).ConfigureAwait(false);
+            await (ctx.Spawner ?? throw new InvalidOperationException("Spawner not available")).ShutdownAllAsync(handles).ConfigureAwait(false);
         }
 
         await next(ctx, ct).ConfigureAwait(false);

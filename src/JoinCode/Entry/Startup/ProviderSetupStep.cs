@@ -45,8 +45,7 @@ internal sealed partial class ProviderSetupStep : IMiddleware<StartupContext>
 
             var providers = _registry.RegisteredProviders
                 .Select(p => _registry.TryGet(p))
-                .Where(p => p is not null)
-                .Select(p => p!)
+                .OfType<IProviderDefinition>()
                 .ToList();
 
             for (var i = 0; i < providers.Count; i++)

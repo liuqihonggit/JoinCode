@@ -350,7 +350,7 @@ public sealed class ApplicationBuilder
             config.Provider.ModelId = options.Model;
 
         if (options.IsPipeMode)
-            config.PipeEndpoint = new PipeTransportConfig { PipeName = options.PipeName! };
+            config.PipeEndpoint = new PipeTransportConfig { PipeName = options.PipeName ?? throw new InvalidOperationException("PipeName required in pipe mode") };
 
         return config;
     }

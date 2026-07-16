@@ -15,7 +15,7 @@ public sealed partial class ShutdownDeregisterMiddleware : IShutdownMiddleware
         {
             try
             {
-                await ctx.ApiClient!.DeregisterEnvironmentAsync(
+                await (ctx.ApiClient ?? throw new InvalidOperationException("ApiClient not available")).DeregisterEnvironmentAsync(
                     ctx.EnvironmentId, CancellationToken.None).ConfigureAwait(false);
                 _logger?.LogInformation("BridgeMain: environment deregistered");
             }

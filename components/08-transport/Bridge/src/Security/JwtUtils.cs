@@ -161,7 +161,7 @@ public sealed partial class BridgeJwtService
             };
         }
 
-        var payload = validationResult.Payload!;
+        var payload = validationResult.Payload ?? throw new InvalidOperationException("Valid token should have payload");
         var now = _timeProvider.GetUtcNow().ToUnixTimeSeconds();
         var remainingSeconds = payload.Exp - now;
 

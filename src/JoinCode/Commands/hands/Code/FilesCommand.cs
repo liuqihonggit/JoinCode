@@ -45,7 +45,7 @@ public sealed class FilesCommand : IChatCommand
                 .Select(g => $"{g.Key}({g.Count()})"));
 
             var lastOp = fileEntries.MaxBy(e => e.Timestamp);
-            var timeAgo = FormatTimeAgo(lastOp!.Timestamp);
+            var timeAgo = FormatTimeAgo(lastOp?.Timestamp ?? DateTime.MinValue);
 
             TerminalHelper.WriteLine($"  {relativePath}");
             TerminalHelper.WriteLine($"    操作: {operations}  最后: {timeAgo}");

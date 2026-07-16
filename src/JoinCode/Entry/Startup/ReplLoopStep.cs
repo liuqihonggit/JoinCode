@@ -19,7 +19,7 @@ internal sealed partial class ReplLoopStep : IMiddleware<StartupContext>
         Cli.TerminalHelper.WriteLine();
         Diag.WriteLifecycle("[READY]");
 
-        var session = context.Session!;
+        var session = context.Session ?? throw new InvalidOperationException("Session not initialized");
 
         while (session.IsRunning && !ct.IsCancellationRequested)
         {

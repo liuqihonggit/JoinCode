@@ -31,4 +31,10 @@ public interface IForegroundTaskRegistry
     /// 获取所有前台任务
     /// </summary>
     IReadOnlyList<IShellCommandContext> GetForegroundTasks();
+
+    /// <summary>
+    /// 压缩所有注册的前台/后台任务 — 对齐 TS 上下文压缩时的 Shell 资源回收
+    /// Running→后台化; Backgrounded→截断输出; Completed→释放
+    /// </summary>
+    Task CompactAllAsync(CancellationToken cancellationToken = default);
 }

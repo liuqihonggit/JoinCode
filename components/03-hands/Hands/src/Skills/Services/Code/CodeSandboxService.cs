@@ -19,7 +19,7 @@ public sealed partial class CodeSandboxService : ICodeSandboxService
 
     public async Task<string> ExecuteAsync(string code, int timeoutMs, CancellationToken cancellationToken = default)
     {
-        var span = _telemetryService?.StartSpan("sandbox.execute", TelemetrySpanKind.Server);
+        await using var span = _telemetryService?.StartSpan("sandbox.execute", TelemetrySpanKind.Server);
         span?.SetTag("sandbox.code_length", code.Length);
         span?.SetTag("sandbox.timeout_ms", timeoutMs);
 
@@ -55,7 +55,6 @@ public sealed partial class CodeSandboxService : ICodeSandboxService
                 var buildError = string.IsNullOrWhiteSpace(buildResult.StandardError) ? buildResult.StandardOutput : buildResult.StandardError;
 
                 span?.SetStatus(TelemetryStatusCode.Error, "Build failed");
-                span?.Dispose();
                 RecordSandboxMetrics(isSuccess: false, isTimeout: false);
 
                 throw new InvalidOperationException(string.Format(CoreErrorMessages.CompilationFailed, buildError));
@@ -81,7 +80,6 @@ public sealed partial class CodeSandboxService : ICodeSandboxService
             catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
                 span?.SetStatus(TelemetryStatusCode.Error, "Execution timeout");
-                span?.Dispose();
                 RecordSandboxMetrics(isSuccess: false, isTimeout: true);
 
                 throw new TimeoutException();
@@ -104,7 +102,6 @@ public sealed partial class CodeSandboxService : ICodeSandboxService
             }
 
             span?.SetStatus(TelemetryStatusCode.Ok);
-            span?.Dispose();
             RecordSandboxMetrics(isSuccess: runResult.Success, isTimeout: false);
 
             return resultBuilder.ToString().Trim();

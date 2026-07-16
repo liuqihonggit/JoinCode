@@ -60,7 +60,7 @@ public sealed partial class QueryLoopMiddleware : IChatMiddleware
 
             // 2. 获取历史快照 + 遥测
             var historySnapshot = await _contextManager.GetMessageListAsync(ct).ConfigureAwait(false);
-            _telemetryRecorder.RecordTurnTelemetry(historySnapshot, totalToolCalls);
+            await _telemetryRecorder.RecordTurnTelemetryAsync(historySnapshot, totalToolCalls).ConfigureAwait(false);
 
             // 3. 调用 LLM（调用方创建迭代状态，处理器在流式过程中填充）
             var iterState = new IterationState();

@@ -31,6 +31,17 @@ public interface IShellProvider
     string Version { get; }
 
     /// <summary>
+    /// 标准输出编码 — 对齐 TS Shell.ts stdoutEncoding
+    /// 默认 UTF-8，子类可覆盖以指定特定编码
+    /// </summary>
+    Encoding OutputEncoding { get; }
+
+    /// <summary>
+    /// 标准错误编码 — 默认与 OutputEncoding 相同
+    /// </summary>
+    Encoding ErrorEncoding { get; }
+
+    /// <summary>
     /// 构建执行命令 — 对齐 TS ShellProvider.buildExecCommand()
     /// 返回完整的命令字符串（含 shell 初始化、CWD 追踪等）和 CWD 追踪文件路径
     /// </summary>

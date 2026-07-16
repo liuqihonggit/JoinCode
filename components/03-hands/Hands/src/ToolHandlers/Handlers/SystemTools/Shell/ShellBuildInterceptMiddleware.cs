@@ -18,7 +18,7 @@ public sealed partial class ShellBuildInterceptMiddleware : IShellMiddleware
     public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     /// <inheritdoc />
-    public async Task InvokeAsync(ShellContext context, MiddlewareDelegate<ShellContext> next, CancellationToken ct)
+    public async Task InvokeAsync(ShellPipelineContext context, MiddlewareDelegate<ShellPipelineContext> next, CancellationToken ct)
     {
         if (IsBuildCommand(context.Command))
         {
@@ -82,13 +82,13 @@ public sealed partial class ShellBuildInterceptMiddleware : IShellMiddleware
         await next(context, ct).ConfigureAwait(false);
     }
 
-    private static void SetResultFromEntry(ShellContext context, BuildQueueEntry entry)
+    private static void SetResultFromEntry(ShellPipelineContext context, BuildQueueEntry entry)
     {
         var r = entry.Result ?? throw new InvalidOperationException("Build queue entry has no result.");
         SetResultFromBuildResult(context, r);
     }
 
-    private static void SetResultFromBuildResult(ShellContext context, BuildQueueResult r)
+    private static void SetResultFromBuildResult(ShellPipelineContext context, BuildQueueResult r)
     {
         var fullOutput = r.ExitCode == 0 ? r.Output : $"{r.ErrorOutput}\n{r.Output}";
         var displayOutput = TruncateOutput(fullOutput, r.BuildId);

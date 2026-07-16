@@ -46,12 +46,26 @@ public static class ShellInfoSection
 
             if (lines.Count == 0)
             {
-                var shell = Environment.GetEnvironmentVariable("SHELL") ?? "unknown";
-                var shellName = shell.Contains("zsh") ? "zsh" :
-                                shell.Contains("bash") ? "bash" :
-                                shell.Contains("powershell") ? "powershell" :
-                                shell.Contains("cmd") ? "cmd" : shell;
-                lines.Add($"Shell: {shellName}");
+                var shell = Environment.GetEnvironmentVariable("SHELL");
+                if (!string.IsNullOrEmpty(shell))
+                {
+                    var shellName = shell.Contains("zsh") ? "zsh" :
+                                    shell.Contains("bash") ? "bash" :
+                                    shell.Contains("powershell") ? "powershell" :
+                                    shell.Contains("cmd") ? "cmd" : shell;
+                    lines.Add($"Shell: {shellName}");
+                }
+                else if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                {
+                    var comspec = Environment.GetEnvironmentVariable("COMSPEC");
+                    lines.Add(string.IsNullOrEmpty(comspec)
+                        ? "Shell: cmd.exe (Windows 默认)"
+                        : $"Shell: {Path.GetFileName(comspec)} (Windows 默认)");
+                }
+                else
+                {
+                    lines.Add("Shell: unknown");
+                }
             }
 
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))

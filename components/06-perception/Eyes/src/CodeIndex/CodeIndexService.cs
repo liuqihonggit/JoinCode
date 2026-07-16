@@ -3,7 +3,7 @@ using JoinCode.Abstractions.Attributes;
 namespace Services.CodeIndex;
 
 [Register(typeof(IHostedService))]
-public sealed partial class CodeIndexService : IHostedService, IDisposable
+public sealed partial class CodeIndexService : IHostedService, IAsyncDisposable
 {
     private readonly ICodeIndexer _indexer;
     private readonly FileWatcherIntegration? _watcher;
@@ -69,14 +69,17 @@ public sealed partial class CodeIndexService : IHostedService, IDisposable
         }
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
         if (!DisposableHelper.TryMarkDisposed(ref _disposed))
         {
             return;
         }
 
-        _watcher?.Dispose();
+        if (_watcher is not null)
+        {
+            await _watcher.DisposeAsync().ConfigureAwait(false);
+        }
         _lspIntegration?.Dispose();
         (_indexer as IDisposable)?.Dispose();
     }

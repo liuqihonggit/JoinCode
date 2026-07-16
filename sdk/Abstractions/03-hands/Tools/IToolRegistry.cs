@@ -1,6 +1,6 @@
 namespace JoinCode.Abstractions.Tools;
 
-public interface IToolRegistry : IDisposable
+public interface IToolRegistry : IAsyncDisposable
 {
     Task RegisterToolAsync(IToolHandler handler, CancellationToken cancellationToken = default);
 

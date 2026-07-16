@@ -118,8 +118,11 @@ public sealed class McpStdioClient : McpClientBase
             _logger?.LogError(ex, "连接 MCP 服务器失败");
             _connectionSpan?.SetStatus(TelemetryStatusCode.Error, ex.Message);
             _connectionSpan?.RecordException(ex);
-            _connectionSpan?.Dispose();
-            _connectionSpan = null;
+            if (_connectionSpan is not null)
+            {
+                await _connectionSpan.DisposeAsync().ConfigureAwait(false);
+                _connectionSpan = null;
+            }
 
             if (_telemetryService != null)
             {
@@ -145,8 +148,11 @@ public sealed class McpStdioClient : McpClientBase
         IsConnected = false;
 
         _connectionSpan?.SetStatus(TelemetryStatusCode.Ok);
-        _connectionSpan?.Dispose();
-        _connectionSpan = null;
+        if (_connectionSpan is not null)
+        {
+            await _connectionSpan.DisposeAsync().ConfigureAwait(false);
+            _connectionSpan = null;
+        }
 
         _logger?.LogInformation("MCP 客户端已断开连接");
     }
@@ -300,7 +306,7 @@ public sealed class McpStdioClient : McpClientBase
             throw new InvalidOperationException(McpErrorMessages.NotConnectedToServer);
         }
 
-        var requestSpan = _telemetryService?.StartSpan($"mcp.request.{request.Method}", TelemetrySpanKind.Client, _connectionSpan);
+        await using var requestSpan = _telemetryService?.StartSpan($"mcp.request.{request.Method}", TelemetrySpanKind.Client, _connectionSpan);
         requestSpan?.SetTag("mcp.request.method", request.Method);
         requestSpan?.SetTag("mcp.request.id", request.Id.ToString());
         var requestStart = _clock.GetUtcNowOffset();
@@ -338,7 +344,6 @@ public sealed class McpStdioClient : McpClientBase
             var response = await tcs.Task.WaitAsync(cts.Token);
 
             requestSpan?.SetStatus(response.Error != null ? TelemetryStatusCode.Error : TelemetryStatusCode.Ok);
-            requestSpan?.Dispose();
             RecordRequestMetrics(request.Method, requestStart);
 
             return response;
@@ -357,7 +362,6 @@ public sealed class McpStdioClient : McpClientBase
 
             requestSpan?.SetStatus(TelemetryStatusCode.Error, ex.Message);
             requestSpan?.RecordException(ex);
-            requestSpan?.Dispose();
             RecordRequestMetrics(request.Method, requestStart, isError: true);
 
             throw;
@@ -396,8 +400,11 @@ public sealed class McpStdioClient : McpClientBase
     public override async ValueTask DisposeAsync()
     {
         await DisconnectAsync();
-        _connectionSpan?.Dispose();
-        _connectionSpan = null;
+        if (_connectionSpan is not null)
+        {
+            await _connectionSpan.DisposeAsync().ConfigureAwait(false);
+            _connectionSpan = null;
+        }
         _requestLock.Dispose();
     }
 }

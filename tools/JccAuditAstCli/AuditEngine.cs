@@ -171,6 +171,20 @@ public sealed class AuditEngine
         var fatCtorResults = BuildFatCtorAuditResults(fatCtors);
         projectResults = [.. fatCtorResults, .. projectResults];
 
+        // 阶段5：IDisposable/IAsyncDisposable 一致性检测
+        var disposableIssues = await DetectDisposableConsistencyAsync(projects, ct);
+        if (disposableIssues.Count > 0)
+        {
+            Console.WriteLine($"  发现 {disposableIssues.Count} 个 IDisposable 一致性问题:");
+            foreach (var di in disposableIssues)
+            {
+                Console.WriteLine($"    [{di.RuleId}] {di.TypeName}: {di.Message}");
+            }
+        }
+
+        var disposableResults = BuildDisposableAuditResults(disposableIssues);
+        projectResults = [.. disposableResults, .. projectResults];
+
         totalSw.Stop();
         Console.WriteLine($"审计完成，耗时: {totalSw.Elapsed.TotalSeconds:F1}s");
 
@@ -655,6 +669,67 @@ public sealed class AuditEngine
         return [new ProjectAuditResult
         {
             ProjectName = "Fat Constructors",
+            ProjectPath = string.Empty,
+            TotalDiagnostics = diagnostics.Count,
+            ErrorCount = errorCount,
+            WarningCount = warningCount,
+            InfoCount = 0,
+            Diagnostics = diagnostics,
+        }];
+    }
+
+    private async Task<List<DisposableConsistencyInfo>> DetectDisposableConsistencyAsync(
+        IReadOnlyList<Project> projects, CancellationToken ct)
+    {
+        var allIssues = new List<DisposableConsistencyInfo>();
+
+        var extractTasks = projects.Select(async project =>
+        {
+            using var projectCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            projectCts.CancelAfter(TimeSpan.FromSeconds(120));
+
+            var compilation = await project.GetCompilationAsync(projectCts.Token).ConfigureAwait(false);
+            if (compilation is null)
+                return Enumerable.Empty<DisposableConsistencyInfo>();
+
+            return DisposableConsistencyChecker.Extract(compilation);
+        });
+
+        var extractResults = await Task.WhenAll(extractTasks).ConfigureAwait(false);
+        foreach (var issues in extractResults)
+        {
+            allIssues.AddRange(issues);
+        }
+
+        return allIssues;
+    }
+
+    private static ProjectAuditResult[] BuildDisposableAuditResults(List<DisposableConsistencyInfo> issues)
+    {
+        if (issues.Count == 0)
+            return [];
+
+        var diagnostics = new List<AuditDiagnostic>(issues.Count);
+        foreach (var issue in issues)
+        {
+            diagnostics.Add(new AuditDiagnostic
+            {
+                RuleId = issue.RuleId,
+                Severity = issue.Severity,
+                Message = issue.Message,
+                FilePath = issue.FilePath,
+                Line = issue.Line,
+                Column = 1,
+                Category = "DisposableConsistency",
+            });
+        }
+
+        var errorCount = diagnostics.Count(d => d.Severity == "Error");
+        var warningCount = diagnostics.Count(d => d.Severity == "Warning");
+
+        return [new ProjectAuditResult
+        {
+            ProjectName = "Disposable Consistency",
             ProjectPath = string.Empty,
             TotalDiagnostics = diagnostics.Count,
             ErrorCount = errorCount,

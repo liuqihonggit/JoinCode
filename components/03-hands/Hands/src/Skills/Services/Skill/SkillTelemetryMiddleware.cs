@@ -18,7 +18,7 @@ public sealed partial class SkillTelemetryMiddleware : ISkillMiddleware
     {
         var skillName = context.SkillName;
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-        var span = _telemetryService?.StartSpan($"skill.{skillName}", TelemetrySpanKind.Server);
+        await using var span = _telemetryService?.StartSpan($"skill.{skillName}", TelemetrySpanKind.Server);
         span?.SetTag("skill.name", skillName);
 
         context.Stopwatch = stopwatch;
@@ -43,24 +43,20 @@ public sealed partial class SkillTelemetryMiddleware : ISkillMiddleware
             span?.RecordException(ex);
             context.Result = SkillResult.FailureResult(skillName, ex.Message);
         }
-        finally
+
+        stopwatch.Stop();
+        span?.SetTag("skill.duration_ms", stopwatch.ElapsedMilliseconds);
+
+        var result = context.Result;
+        span?.SetStatus(result?.Success == true ? TelemetryStatusCode.Ok : TelemetryStatusCode.Error);
+
+        context.ExecutionContext.Logger?.LogInformation(
+            L.T(StringKey.SkillServiceExecutionComplete),
+            skillName, stopwatch.ElapsedMilliseconds);
+
+        if (result != null)
         {
-            stopwatch.Stop();
-            span?.SetTag("skill.duration_ms", stopwatch.ElapsedMilliseconds);
-
-            var result = context.Result;
-            span?.SetStatus(result?.Success == true ? TelemetryStatusCode.Ok : TelemetryStatusCode.Error);
-            span?.Dispose();
-
-            context.ExecutionContext.Logger?.LogInformation(
-                L.T(StringKey.SkillServiceExecutionComplete),
-                skillName, stopwatch.ElapsedMilliseconds);
-
-            // 将 DurationMs 写入 Result
-            if (result != null)
-            {
-                context.Result = result with { DurationMs = stopwatch.ElapsedMilliseconds };
-            }
+            context.Result = result with { DurationMs = stopwatch.ElapsedMilliseconds };
         }
     }
 }

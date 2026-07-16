@@ -125,7 +125,7 @@ public sealed partial class AnalyticsService : IAnalyticsService, IDisposable
         }
     }
 
-    public void TrackAgentComplete(string agentName, bool success, double durationMs, string? sessionId = null)
+    public async Task TrackAgentCompleteAsync(string agentName, bool success, double durationMs, string? sessionId = null)
     {
         TrackEvent(
             AnalyticsEventType.AgentComplete,
@@ -145,7 +145,7 @@ public sealed partial class AnalyticsService : IAnalyticsService, IDisposable
             {
                 span.SetStatus(success ? TelemetryStatusCode.Ok : TelemetryStatusCode.Error);
                 span.SetTag("agent.duration_ms", durationMs);
-                span.Dispose();
+                await span.DisposeAsync().ConfigureAwait(false);
             }
 
             var agentDuration = _telemetryService.GetHistogram("analytics.agent.duration", "ms", "Agent execution duration");

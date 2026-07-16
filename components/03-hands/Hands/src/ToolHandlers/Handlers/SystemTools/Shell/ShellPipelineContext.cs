@@ -1,9 +1,10 @@
 namespace Tools.Shell;
 
 /// <summary>
-/// Shell 执行中间件共享上下文 — 在管道各阶段间传递状态
+/// Shell 中间件管道上下文 — 在管道各阶段间传递状态
+/// 与 ShellCommandContext（进程执行上下文）区分：本类是纯 DTO，仅携带参数和中间件间状态
 /// </summary>
-public sealed class ShellContext
+public sealed class ShellPipelineContext
 {
     // === 输入 ===
 

@@ -1,7 +1,7 @@
 
 namespace Core.Telemetry;
 
-public sealed class TelemetrySpan : ITelemetrySpan, IDisposable
+public sealed class TelemetrySpan : ITelemetrySpan
 {
     private readonly Activity _activity;
     private readonly TelemetrySpanKind _kind;
@@ -106,27 +106,16 @@ public sealed class TelemetrySpan : ITelemetrySpan, IDisposable
         };
     }
 
-    public void Dispose()
+    public ValueTask DisposeAsync()
     {
         if (!DisposableHelper.TryMarkDisposed(ref _isDisposed))
         {
-            return;
+            return ValueTask.CompletedTask;
         }
 
         _activity.Dispose();
         _service.RemoveActiveSpan(SpanId);
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        if (!DisposableHelper.TryMarkDisposed(ref _isDisposed))
-        {
-            return;
-        }
-
-        _activity.Dispose();
-        _service.RemoveActiveSpan(SpanId);
-        await ValueTask.CompletedTask.ConfigureAwait(false);
+        return ValueTask.CompletedTask;
     }
 
     private static ActivityStatusCode MapActivityStatus(TelemetryStatusCode statusCode) => statusCode switch

@@ -113,7 +113,7 @@ public sealed partial class PluginManager : IPluginManager
         }
         finally
         {
-            span?.Dispose();
+            if (span is not null) await span.DisposeAsync().ConfigureAwait(false);
         }
     }
 
@@ -205,7 +205,7 @@ public sealed partial class PluginManager : IPluginManager
         }
         finally
         {
-            span?.Dispose();
+            if (span is not null) await span.DisposeAsync().ConfigureAwait(false);
         }
     }
 

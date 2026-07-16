@@ -63,4 +63,31 @@ public sealed partial class ForegroundTaskRegistry : IForegroundTaskRegistry
             .Where(t => t.Status == ShellCommandStatus.Running)
             .ToList();
     }
+
+    /// <inheritdoc />
+    public async Task CompactAllAsync(CancellationToken cancellationToken = default)
+    {
+        var tasks = _tasks.Values.ToList();
+        if (tasks.Count == 0) return;
+
+        _logger?.LogInformation("压缩 {Count} 个 Shell 任务", tasks.Count);
+
+        foreach (var task in tasks)
+        {
+            try
+            {
+                await task.CompactAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogDebug(ex, "压缩 Shell 任务失败: {TaskId}", task.TaskId);
+            }
+        }
+
+        var completed = tasks.Where(t => t.LifecycleState == ShellLifecycleState.Completed).ToList();
+        foreach (var task in completed)
+        {
+            _tasks.TryRemove(task.TaskId, out _);
+        }
+    }
 }

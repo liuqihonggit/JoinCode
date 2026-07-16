@@ -22,13 +22,13 @@ public sealed class BridgeBuilderGuardServicesTests
     /// 这是 P0-D 的核心: 接线后服务必须可解析（非 null）
     /// </summary>
     [Fact]
-    public void BuildBridgeGuardServices_ShouldResolveAllThreeGuardServices()
+    public async Task BuildBridgeGuardServices_ShouldResolveAllThreeGuardServices()
     {
         // Arrange
         var fs = new IO.FileSystem.PhysicalFileSystem();
 
         // Act
-        using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
+        await using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
 
         // Assert — 3 个服务必须全部解析成功
         var policyService = services.GetService<IRemotePolicyService>();
@@ -47,13 +47,13 @@ public sealed class BridgeBuilderGuardServicesTests
     ///       Handler 由 IHttpClientFactory 池化），不在此验证单例语义
     /// </summary>
     [Fact]
-    public void BuildBridgeGuardServices_ShouldRegisterServicesAsSingleton()
+    public async Task BuildBridgeGuardServices_ShouldRegisterServicesAsSingleton()
     {
         // Arrange
         var fs = new IO.FileSystem.PhysicalFileSystem();
 
         // Act
-        using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
+        await using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
 
         // Assert — 单例语义: 多次解析应返回同一实例
         var token1 = services.GetRequiredService<ITokenStorage>();
@@ -71,13 +71,13 @@ public sealed class BridgeBuilderGuardServicesTests
     /// 决策: 卫星项目 aot-httpclientfactory-test 已验证 IHttpClientFactory 与 NativeAOT 完全兼容
     /// </summary>
     [Fact]
-    public void BuildBridgeGuardServices_ShouldResolveIHttpClientFactory()
+    public async Task BuildBridgeGuardServices_ShouldResolveIHttpClientFactory()
     {
         // Arrange
         var fs = new IO.FileSystem.PhysicalFileSystem();
 
         // Act
-        using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
+        await using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
 
         // Assert
         var factory = services.GetService<IHttpClientFactory>();
@@ -89,13 +89,13 @@ public sealed class BridgeBuilderGuardServicesTests
     /// 决策: AddHttpClient<TClient, TImplementation> 默认 Transient，但 HttpClient 实例轻量
     /// </summary>
     [Fact]
-    public void BuildBridgeGuardServices_ShouldResolveRemotePolicyServiceViaHttpClientFactory()
+    public async Task BuildBridgeGuardServices_ShouldResolveRemotePolicyServiceViaHttpClientFactory()
     {
         // Arrange
         var fs = new IO.FileSystem.PhysicalFileSystem();
 
         // Act
-        using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
+        await using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
         var policy1 = services.GetRequiredService<IRemotePolicyService>();
         var policy2 = services.GetRequiredService<IRemotePolicyService>();
 
@@ -110,13 +110,13 @@ public sealed class BridgeBuilderGuardServicesTests
     /// 这是 BridgeMainCommand 的可选依赖，但接线后应该可用
     /// </summary>
     [Fact]
-    public void BuildBridgeGuardServices_ShouldResolveLoggerForBridgeMainCommand()
+    public async Task BuildBridgeGuardServices_ShouldResolveLoggerForBridgeMainCommand()
     {
         // Arrange
         var fs = new IO.FileSystem.PhysicalFileSystem();
 
         // Act
-        using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
+        await using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
 
         // Assert
         var logger = services.GetService<ILogger<JoinCode.ChatCommands.Bridge.BridgeMainCommand>>();
@@ -128,13 +128,13 @@ public sealed class BridgeBuilderGuardServicesTests
     /// 决策: 确保传入的 IFileSystem 被复用，而不是新创建一个
     /// </summary>
     [Fact]
-    public void BuildBridgeGuardServices_ShouldReuseInjectedFileSystem()
+    public async Task BuildBridgeGuardServices_ShouldReuseInjectedFileSystem()
     {
         // Arrange
         var fs = new IO.FileSystem.PhysicalFileSystem();
 
         // Act
-        using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
+        await using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
         var resolvedFs = services.GetRequiredService<IFileSystem>();
 
         // Assert
@@ -146,7 +146,7 @@ public sealed class BridgeBuilderGuardServicesTests
     /// 确保调用方可以使用 using 语句管理 DI 容器生命周期
     /// </summary>
     [Fact]
-    public void BuildBridgeGuardServices_ShouldReturnDisposableServiceProvider()
+    public async Task BuildBridgeGuardServices_ShouldReturnDisposableServiceProvider()
     {
         // Arrange
         var fs = new IO.FileSystem.PhysicalFileSystem();
@@ -171,13 +171,13 @@ public sealed class BridgeBuilderGuardServicesTests
     /// 决策: 从环境变量读取配置，与 TelemetryConfig.FromEnvironment() 模式一致
     /// </summary>
     [Fact]
-    public void BuildBridgeGuardServices_ShouldResolveRemotePolicyOptions()
+    public async Task BuildBridgeGuardServices_ShouldResolveRemotePolicyOptions()
     {
         // Arrange
         var fs = new IO.FileSystem.PhysicalFileSystem();
 
         // Act
-        using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
+        await using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
 
         // Assert
         var options = services.GetService<IOptions<RemotePolicyOptions>>();
@@ -189,7 +189,7 @@ public sealed class BridgeBuilderGuardServicesTests
     /// 这是 P1-1 的核心: 用户应能通过环境变量配置远程策略服务器
     /// </summary>
     [Fact]
-    public void BuildBridgeGuardServices_WhenEndpointEnvVarSet_ShouldReadIntoOptions()
+    public async Task BuildBridgeGuardServices_WhenEndpointEnvVarSet_ShouldReadIntoOptions()
     {
         // Arrange
         const string testEndpoint = "https://test-policy.example.com/api";
@@ -200,7 +200,7 @@ public sealed class BridgeBuilderGuardServicesTests
             var fs = new IO.FileSystem.PhysicalFileSystem();
 
             // Act
-            using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
+            await using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
             var options = services.GetRequiredService<IOptions<RemotePolicyOptions>>();
 
             // Assert
@@ -218,7 +218,7 @@ public sealed class BridgeBuilderGuardServicesTests
     /// 验证环境变量 JCC_REMOTE_POLICY_KEY 能被读取到 options.ClientKey
     /// </summary>
     [Fact]
-    public void BuildBridgeGuardServices_WhenClientKeyEnvVarSet_ShouldReadIntoOptions()
+    public async Task BuildBridgeGuardServices_WhenClientKeyEnvVarSet_ShouldReadIntoOptions()
     {
         // Arrange
         const string testKey = "test-client-key-12345";
@@ -229,7 +229,7 @@ public sealed class BridgeBuilderGuardServicesTests
             var fs = new IO.FileSystem.PhysicalFileSystem();
 
             // Act
-            using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
+            await using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
             var options = services.GetRequiredService<IOptions<RemotePolicyOptions>>();
 
             // Assert
@@ -248,13 +248,13 @@ public sealed class BridgeBuilderGuardServicesTests
     /// 决策: 使用 TelemetryService 实现（TelemetryConfig 自动从环境变量初始化）
     /// </summary>
     [Fact]
-    public void BuildBridgeGuardServices_ShouldResolveTelemetryService()
+    public async Task BuildBridgeGuardServices_ShouldResolveTelemetryService()
     {
         // Arrange
         var fs = new IO.FileSystem.PhysicalFileSystem();
 
         // Act
-        using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
+        await using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
 
         // Assert
         var telemetry = services.GetService<ITelemetryService>();
@@ -266,13 +266,13 @@ public sealed class BridgeBuilderGuardServicesTests
     /// 这是 P1-2 的支撑: TelemetryService 依赖 TelemetryConfig
     /// </summary>
     [Fact]
-    public void BuildBridgeGuardServices_ShouldResolveTelemetryConfig()
+    public async Task BuildBridgeGuardServices_ShouldResolveTelemetryConfig()
     {
         // Arrange
         var fs = new IO.FileSystem.PhysicalFileSystem();
 
         // Act
-        using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
+        await using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
 
         // Assert
         var config = services.GetService<TelemetryConfig>();
@@ -284,7 +284,7 @@ public sealed class BridgeBuilderGuardServicesTests
     /// 这是 fail-open 行为: 没有配置远程策略服务器时，RemotePolicyService 不刷新规则
     /// </summary>
     [Fact]
-    public void BuildBridgeGuardServices_WhenNoEndpointEnvVar_ShouldDefaultToEmpty()
+    public async Task BuildBridgeGuardServices_WhenNoEndpointEnvVar_ShouldDefaultToEmpty()
     {
         // Arrange
         var originalValue = Environment.GetEnvironmentVariable("JCC_REMOTE_POLICY_ENDPOINT");
@@ -294,7 +294,7 @@ public sealed class BridgeBuilderGuardServicesTests
             var fs = new IO.FileSystem.PhysicalFileSystem();
 
             // Act
-            using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
+            await using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
             var options = services.GetRequiredService<IOptions<RemotePolicyOptions>>();
 
             // Assert
@@ -317,13 +317,13 @@ public sealed class BridgeBuilderGuardServicesTests
     /// 决策: 使用 ClockServiceFactory.Create() 支持环境变量 JCC_CLOCK_MODE 切换 Fake/Physical
     /// </summary>
     [Fact]
-    public void BuildBridgeGuardServices_ShouldResolveClockService()
+    public async Task BuildBridgeGuardServices_ShouldResolveClockService()
     {
         // Arrange
         var fs = new IO.FileSystem.PhysicalFileSystem();
 
         // Act
-        using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
+        await using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
 
         // Assert
         var clock = services.GetService<IClockService>();
@@ -336,7 +336,7 @@ public sealed class BridgeBuilderGuardServicesTests
     /// 决策: ClockServiceFactory.Create() 读取 JCC_CLOCK_MODE 环境变量
     /// </summary>
     [Fact]
-    public void BuildBridgeGuardServices_WhenClockModeFake_ShouldResolveFakeClockService()
+    public async Task BuildBridgeGuardServices_WhenClockModeFake_ShouldResolveFakeClockService()
     {
         // Arrange
         var originalValue = Environment.GetEnvironmentVariable("JCC_CLOCK_MODE");
@@ -346,7 +346,7 @@ public sealed class BridgeBuilderGuardServicesTests
             var fs = new IO.FileSystem.PhysicalFileSystem();
 
             // Act
-            using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
+            await using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
             var clock = services.GetRequiredService<IClockService>();
 
             // Assert
@@ -365,7 +365,7 @@ public sealed class BridgeBuilderGuardServicesTests
     /// 这是 P1-4 的默认行为: 生产环境使用真实系统时间
     /// </summary>
     [Fact]
-    public void BuildBridgeGuardServices_WhenClockModeUnset_ShouldResolvePhysicalClockService()
+    public async Task BuildBridgeGuardServices_WhenClockModeUnset_ShouldResolvePhysicalClockService()
     {
         // Arrange
         var originalValue = Environment.GetEnvironmentVariable("JCC_CLOCK_MODE");
@@ -375,7 +375,7 @@ public sealed class BridgeBuilderGuardServicesTests
             var fs = new IO.FileSystem.PhysicalFileSystem();
 
             // Act
-            using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
+            await using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
             var clock = services.GetRequiredService<IClockService>();
 
             // Assert

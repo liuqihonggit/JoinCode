@@ -83,8 +83,8 @@ public sealed class TelemetrySpanTests
     public async Task StartChildSpan_CreatesChildSpan()
     {
         await using var service = new TelemetryService(_config);
-        using var parent = service.StartSpan("parent");
-        using var child = parent.StartChildSpan("child", TelemetrySpanKind.Client);
+        await using var parent = service.StartSpan("parent");
+        await using var child = parent.StartChildSpan("child", TelemetrySpanKind.Client);
 
         Assert.Equal("child", child.Name);
         Assert.Equal(parent.SpanId, child.ParentSpanId);

@@ -50,8 +50,17 @@ public sealed partial class ShellBackgroundTaskService : IShellBackgroundTaskSer
 
         _tasks[taskId] = entry;
 
-        // 启动后台执行
-        _ = ExecuteTaskAsync(entry, cts.Token).WaitAsync(TimeSpan.FromSeconds(10), cts.Token).ConfigureAwait(false);
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await ExecuteTaskAsync(entry, cts.Token).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "后台任务执行异常: {TaskId}", entry.TaskId);
+            }
+        }, CancellationToken.None);
 
         _logger?.LogInformation(L.T(StringKey.ShellBgTaskCreated), taskId, command);
 

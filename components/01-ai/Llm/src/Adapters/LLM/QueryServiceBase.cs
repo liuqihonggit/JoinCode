@@ -194,7 +194,7 @@ public abstract partial class QueryServiceBase : IQueryService
         };
     }
 
-    protected static List<OpenAIToolCall>? ConvertToOpenAIToolCalls(object? toolCallsObj)
+    internal static List<OpenAIToolCall>? ConvertToOpenAIToolCalls(object? toolCallsObj)
     {
         return toolCallsObj switch
         {

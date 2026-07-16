@@ -158,9 +158,9 @@ public sealed partial class ToolRegistryAdapter : IMcpToolRegistry
         await _remoteClientManager.ClearAllClientsAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    public void Dispose()
+    public ValueTask DisposeAsync()
     {
-        _toolRegistry.Dispose();
+        return _toolRegistry.DisposeAsync();
     }
 
     #endregion

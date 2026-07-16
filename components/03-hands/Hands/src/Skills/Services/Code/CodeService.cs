@@ -27,7 +27,7 @@ public sealed partial class CodeService : ICodeService
     /// <inheritdoc />
     public async Task<string> GenerateCodeAsync(string prompt, CancellationToken cancellationToken = default)
     {
-        var span = _telemetryService?.StartSpan("code.generate", TelemetrySpanKind.Server);
+        await using var span = _telemetryService?.StartSpan("code.generate", TelemetrySpanKind.Server);
         try
         {
             _logger?.LogInformation(L.T(StringKey.CodeServiceGeneratingCode));
@@ -41,13 +41,12 @@ public sealed partial class CodeService : ICodeService
             _logger?.LogError(ex, L.T(StringKey.CodeServiceGenerateError));
             throw new ApiException(L.T(StringKey.CodeServiceGenerateException), ex);
         }
-        finally { span?.Dispose(); }
     }
 
     /// <inheritdoc />
     public async Task<string> AnalyzeCodeAsync(string code, CancellationToken cancellationToken = default)
     {
-        var span = _telemetryService?.StartSpan("code.analyze", TelemetrySpanKind.Server);
+        await using var span = _telemetryService?.StartSpan("code.analyze", TelemetrySpanKind.Server);
         try
         {
             _logger?.LogInformation(L.T(StringKey.CodeServiceAnalyzingCode));
@@ -61,13 +60,12 @@ public sealed partial class CodeService : ICodeService
             _logger?.LogError(ex, L.T(StringKey.CodeServiceAnalyzeError));
             throw new ApiException(L.T(StringKey.CodeServiceAnalyzeException), ex);
         }
-        finally { span?.Dispose(); }
     }
 
     /// <inheritdoc />
     public async Task<string> ExecuteCodeAsync(string code, CancellationToken cancellationToken = default)
     {
-        var span = _telemetryService?.StartSpan("code.execute", TelemetrySpanKind.Server);
+        await using var span = _telemetryService?.StartSpan("code.execute", TelemetrySpanKind.Server);
         try
         {
             _logger?.LogInformation(L.T(StringKey.CodeServiceExecutingInSandbox));
@@ -81,7 +79,6 @@ public sealed partial class CodeService : ICodeService
             _logger?.LogError(ex, L.T(StringKey.CodeServiceExecuteFailed));
             throw new CodeExecutionException(L.T(StringKey.CodeServiceExecuteException), ex);
         }
-        finally { span?.Dispose(); }
     }
 }
 

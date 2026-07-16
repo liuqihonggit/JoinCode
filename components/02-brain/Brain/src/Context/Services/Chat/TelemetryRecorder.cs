@@ -8,7 +8,7 @@ public interface ITelemetryRecorder
     /// <summary>
     /// 记录每轮对话的遥测快照
     /// </summary>
-    void RecordTurnTelemetry(MessageList historySnapshot, int turnIndex);
+    Task RecordTurnTelemetryAsync(MessageList historySnapshot, int turnIndex);
 }
 
 /// <summary>
@@ -25,9 +25,9 @@ public sealed partial class TelemetryRecorder : ITelemetryRecorder
     }
 
     /// <inheritdoc/>
-    public void RecordTurnTelemetry(MessageList historySnapshot, int turnIndex)
+    public async Task RecordTurnTelemetryAsync(MessageList historySnapshot, int turnIndex)
     {
-        var chatSpan = _telemetryService?.StartSpan($"chat.turn.{turnIndex}", TelemetrySpanKind.Server);
+        await using var chatSpan = _telemetryService?.StartSpan($"chat.turn.{turnIndex}", TelemetrySpanKind.Server);
         if (chatSpan == null) return;
 
         chatSpan.SetTag("turn.message_count", historySnapshot.Count);
@@ -43,6 +43,5 @@ public sealed partial class TelemetryRecorder : ITelemetryRecorder
             chatSpan.SetTag($"turn.msg[{mi}].preview", contentPreview);
         }
         chatSpan.SetStatus(TelemetryStatusCode.Ok);
-        chatSpan.Dispose();
     }
 }

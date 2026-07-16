@@ -6,8 +6,8 @@ namespace JoinCode.App.Middlewares;
 /// <summary>
 /// Shell 管道 Post Hook — 遥测记录执行计数
 /// </summary>
-[Register(typeof(IPipelinePostHook<ShellContext>))]
-internal sealed partial class ShellTelemetryHook : IPipelinePostHook<ShellContext>
+[Register(typeof(IPipelinePostHook<ShellPipelineContext>))]
+internal sealed partial class ShellTelemetryHook : IPipelinePostHook<ShellPipelineContext>
 {
     private readonly ITelemetryService? _telemetryService;
 
@@ -16,7 +16,7 @@ internal sealed partial class ShellTelemetryHook : IPipelinePostHook<ShellContex
         _telemetryService = telemetryService;
     }
 
-    public async Task InvokeAsync(ShellContext context, CancellationToken ct)
+    public async Task InvokeAsync(ShellPipelineContext context, CancellationToken ct)
     {
         if (_telemetryService is not null)
         {

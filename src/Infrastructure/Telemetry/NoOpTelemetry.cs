@@ -1,7 +1,7 @@
 
 namespace Core.Telemetry;
 
-internal sealed class NoOpTelemetrySpan : ITelemetrySpan, IDisposable
+internal sealed class NoOpTelemetrySpan : ITelemetrySpan
 {
     public string SpanId => string.Empty;
     public string TraceId => string.Empty;
@@ -33,7 +33,6 @@ internal sealed class NoOpTelemetrySpan : ITelemetrySpan, IDisposable
     };
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
-    public void Dispose() { }
 }
 
 internal sealed class NoOpTelemetryCounter : ITelemetryCounter

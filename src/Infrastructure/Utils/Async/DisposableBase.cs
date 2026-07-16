@@ -19,7 +19,7 @@ public abstract class DisposableBase : IDisposable
     protected virtual void DisposeCore(bool disposing) { }
 }
 
-public abstract class AsyncDisposableBase : IAsyncDisposable, IDisposable
+public abstract class AsyncDisposableBase : IAsyncDisposable
 {
     private int _isDisposed;
 
@@ -27,13 +27,6 @@ public abstract class AsyncDisposableBase : IAsyncDisposable, IDisposable
 
     protected void ThrowIfDisposed()
         => ObjectDisposedException.ThrowIf(Volatile.Read(ref _isDisposed) != 0, this);
-
-    public void Dispose()
-    {
-        if (Interlocked.Exchange(ref _isDisposed, 1) != 0) return;
-        DisposeCore(true);
-        GC.SuppressFinalize(this);
-    }
 
     public ValueTask DisposeAsync()
     {

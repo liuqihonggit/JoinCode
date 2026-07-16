@@ -104,6 +104,31 @@ public abstract class ShellProviderBase : IShellProvider
     #region 通用工具方法
 
     /// <summary>
+    /// 三步路径解析模板 — 对齐 TS Shell.ts resolveShellPath
+    /// 环境变量 → PATH 查找 → 常见安装路径 → 回退
+    /// 子类调用此方法替代重复的三步 if-else 链
+    /// </summary>
+    protected string ResolveShellPathFromCandidates(
+        string envVarName,
+        string pathExecutable,
+        string[] commonPaths,
+        string fallback,
+        bool excludeCurrentDir = true)
+    {
+        var envPath = ResolveFromEnvVar(envVarName);
+        if (envPath is not null) return envPath;
+
+        var fromPath = FindExecutable(pathExecutable, excludeCurrentDir);
+        if (fromPath is not null) return fromPath;
+
+        var commonPath = FindInCommonPaths(commonPaths);
+        if (commonPath is not null) return commonPath;
+
+        Logger?.LogWarning("Shell not found via {EnvVar}, PATH, or common paths. Falling back to {Fallback}.", envVarName, fallback);
+        return fallback;
+    }
+
+    /// <summary>
     /// 查找可执行文件 — 对齐 TS findExecutable (where.exe)
     /// </summary>
     /// <param name="executable">可执行文件名</param>

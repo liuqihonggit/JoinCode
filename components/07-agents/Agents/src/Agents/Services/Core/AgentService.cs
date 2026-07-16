@@ -33,7 +33,7 @@ public partial class AgentService : IAgent
     {
         var stopwatch = Stopwatch.StartNew();
         var response = new AgentResponse();
-        var span = _telemetryService?.StartSpan("agent.process", TelemetrySpanKind.Server);
+        await using var span = _telemetryService?.StartSpan("agent.process", TelemetrySpanKind.Server);
         span?.SetTag("agent.use_tools", useTools);
 
         try
@@ -78,7 +78,6 @@ public partial class AgentService : IAgent
 
             span?.SetStatus(TelemetryStatusCode.Ok);
             span?.SetTag("agent.duration_ms", stopwatch.ElapsedMilliseconds);
-            span?.Dispose();
             RecordAgentMetrics(stopwatch.ElapsedMilliseconds, isSuccess: true);
 
             _logger?.LogInformation("Agent 响应生成完成，耗时 {ElapsedMs}ms", response.ExecutionTimeMs);
@@ -89,7 +88,6 @@ public partial class AgentService : IAgent
         {
             _logger?.LogWarning("Agent 处理已取消");
             span?.SetStatus(TelemetryStatusCode.Error, "Cancelled");
-            span?.Dispose();
             throw;
         }
         catch (Exception ex)
@@ -98,7 +96,6 @@ public partial class AgentService : IAgent
             response.Content = $"处理时出错: {ex.Message}";
             span?.SetStatus(TelemetryStatusCode.Error, ex.Message);
             span?.RecordException(ex);
-            span?.Dispose();
             RecordAgentMetrics(stopwatch.ElapsedMilliseconds, isSuccess: false);
             return response;
         }

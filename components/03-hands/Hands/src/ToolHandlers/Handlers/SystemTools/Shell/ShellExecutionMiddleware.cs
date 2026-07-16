@@ -17,7 +17,7 @@ public sealed partial class ShellExecutionMiddleware : IShellMiddleware
     public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     /// <inheritdoc />
-    public async Task InvokeAsync(ShellContext context, MiddlewareDelegate<ShellContext> next, CancellationToken ct)
+    public async Task InvokeAsync(ShellPipelineContext context, MiddlewareDelegate<ShellPipelineContext> next, CancellationToken ct)
     {
         // 判断是否允许自动后台化 — 对齐 TS isAutobackgroundingAllowed
         var shouldAutoBackground = context.AutoBackground != false

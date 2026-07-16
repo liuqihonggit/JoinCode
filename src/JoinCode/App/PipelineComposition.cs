@@ -192,9 +192,9 @@ public static class PipelineComposition
                 .Build());
 
         // Shell 命令管道 — 超时120s
-        services.AddSingleton<MiddlewarePipeline<ShellContext>>(sp =>
-            new PipelineBuilder<ShellContext>()
-                .Use(new FixedTimeoutMiddleware<ShellContext>(TimeSpan.FromSeconds(120)))
+        services.AddSingleton<MiddlewarePipeline<ShellPipelineContext>>(sp =>
+            new PipelineBuilder<ShellPipelineContext>()
+                .Use(new FixedTimeoutMiddleware<ShellPipelineContext>(TimeSpan.FromSeconds(120)))
                 .Use(sp.GetRequiredService<ShellValidationMiddleware>())
                 .Use(sp.GetRequiredService<ShellClassificationMiddleware>())
                 .Use(sp.GetRequiredService<ShellSedInterceptMiddleware>())

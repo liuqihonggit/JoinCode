@@ -30,7 +30,7 @@ public partial class PlanService : IPlanService {
             Prompt = userPrompt,
             Timestamp = _clock.GetUtcNow()
         };
-        var span = _telemetryService?.StartSpan("plan.execute", TelemetrySpanKind.Server);
+        await using var span = _telemetryService?.StartSpan("plan.execute", TelemetrySpanKind.Server);
         span?.SetTag("plan.prompt_length", userPrompt.Length);
 
         try {
@@ -70,7 +70,6 @@ public partial class PlanService : IPlanService {
 
             span?.SetStatus(TelemetryStatusCode.Ok);
             span?.SetTag("plan.duration_ms", stopwatch.ElapsedMilliseconds);
-            span?.Dispose();
             RecordPlanMetrics(stopwatch.ElapsedMilliseconds, isSuccess: true);
 
             _logger?.LogInformation("计划在 {ElapsedMs}ms 内成功执行", executionResult.ExecutionTimeMs);
@@ -83,7 +82,6 @@ public partial class PlanService : IPlanService {
             executionResult.Error = "计划执行已取消";
             _logger?.LogWarning("计划执行已取消");
             span?.SetStatus(TelemetryStatusCode.Error, "Cancelled");
-            span?.Dispose();
             RecordPlanMetrics(stopwatch.ElapsedMilliseconds, isSuccess: false);
             throw;
         } catch (Exception ex) {
@@ -94,7 +92,6 @@ public partial class PlanService : IPlanService {
             _logger?.LogError(ex, "执行计划时出错");
             span?.SetStatus(TelemetryStatusCode.Error, ex.Message);
             span?.RecordException(ex);
-            span?.Dispose();
             RecordPlanMetrics(stopwatch.ElapsedMilliseconds, isSuccess: false);
             throw new WorkflowException("执行计划失败", ex);
         }

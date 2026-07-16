@@ -31,18 +31,12 @@ public sealed class PowerShellShellProvider : ShellProviderBase
 
     /// <inheritdoc />
     protected override string ResolveShellPath()
-    {
-        var envPath = ResolveFromEnvVar(PowerShellPathEnvVar);
-        if (envPath is not null) return envPath;
-
-        var pwshFromPath = FindExecutable("pwsh.exe", excludeCurrentDir: false);
-        if (pwshFromPath is not null) return pwshFromPath;
-
-        var commonPath = FindInCommonPaths(@"C:\Program Files\PowerShell\7\pwsh.exe");
-        if (commonPath is not null) return commonPath;
-
-        return "powershell.exe";
-    }
+        => ResolveShellPathFromCandidates(
+            PowerShellPathEnvVar,
+            "pwsh.exe",
+            [@"C:\Program Files\PowerShell\7\pwsh.exe"],
+            "powershell.exe",
+            excludeCurrentDir: false);
 
     /// <inheritdoc />
     protected override string DetectVersion()

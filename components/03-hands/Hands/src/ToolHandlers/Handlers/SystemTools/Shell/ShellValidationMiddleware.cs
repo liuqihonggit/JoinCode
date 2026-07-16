@@ -17,7 +17,7 @@ public sealed partial class ShellValidationMiddleware : IShellMiddleware
     public ShellValidationMiddleware() { }
 
     /// <inheritdoc />
-    public Task InvokeAsync(ShellContext context, MiddlewareDelegate<ShellContext> next, CancellationToken ct)
+    public Task InvokeAsync(ShellPipelineContext context, MiddlewareDelegate<ShellPipelineContext> next, CancellationToken ct)
     {
         var validationError = ValidationHelper.CombineErrors(
             ValidationHelper.ValidateRequired(context.Command, "command"),

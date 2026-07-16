@@ -7,7 +7,7 @@ public interface IAnalyticsService
     void TrackToolCall(string toolName, bool success, double durationMs, Dictionary<string, JsonElement>? data = null, string? agentName = null);
     void TrackToolError(string toolName, string errorMessage, Dictionary<string, JsonElement>? data = null, string? agentName = null);
     void TrackAgentStart(string agentName, string? sessionId = null);
-    void TrackAgentComplete(string agentName, bool success, double durationMs, string? sessionId = null);
+    Task TrackAgentCompleteAsync(string agentName, bool success, double durationMs, string? sessionId = null);
     List<ToolUsageStatistics> GetToolUsageStatistics(int? days = null);
     UsageStatisticsReport GetUsageReport(int? days = null);
     List<AnalyticsEvent> GetEventHistory(AnalyticsEventType? type = null, int limit = WorkflowConstants.Analytics.DefaultEventHistoryLimit);

@@ -6,7 +6,7 @@ namespace Services.Shell;
 /// Shell 命令执行上下文实现 — 对齐 TS ShellCommand
 /// 封装正在运行的进程，支持前台转后台操作、输出溢出到磁盘、环境变量清理
 /// </summary>
-public sealed class ShellCommandContext : IShellCommandContext, IShellLifecycle
+public sealed class ShellCommandContext : IShellCommandContext, IShellLifecycle, IAsyncDisposable
 {
     private readonly Process _process;
     private readonly StringBuilder _stdoutBuilder = new();
@@ -562,9 +562,9 @@ public sealed class ShellCommandContext : IShellCommandContext, IShellLifecycle
         catch (Exception ex) { _logger?.LogDebug(ex, "大输出持久化失败"); return (null, null); }
     }
 
-    public void Dispose()
+    public ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _isDisposed, 1) == 1) return;
+        if (Interlocked.Exchange(ref _isDisposed, 1) == 1) return ValueTask.CompletedTask;
 
         _timeoutTimer?.Dispose();
         _assistantTimer?.Dispose();
@@ -576,22 +576,16 @@ public sealed class ShellCommandContext : IShellCommandContext, IShellLifecycle
         {
             if (!_process.HasExited) KillProcessTree(_process);
         }
-        catch (Exception ex) { _logger?.LogDebug(ex, "Dispose 时终止进程失败"); }
+        catch (Exception ex) { _logger?.LogDebug(ex, "DisposeAsync 时终止进程失败"); }
 
         _process.Dispose();
 
-        // 清理溢出文件
         if (_spillFilePath is not null)
         {
             try { if (_fs.FileExists(_spillFilePath)) _fs.DeleteFile(_spillFilePath); }
             catch (Exception ex) { _logger?.LogDebug(ex, "清理溢出文件失败: {Path}", _spillFilePath); }
         }
-    }
 
-    /// <inheritdoc />
-    public ValueTask DisposeAsync()
-    {
-        Dispose();
         return ValueTask.CompletedTask;
     }
 }

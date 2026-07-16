@@ -8,7 +8,7 @@ namespace Tools.Handlers;
 [McpToolHandler(ToolCategory.PowerShell)]
 public class PowerShellToolHandlers : ShellToolBase
 {
-    private readonly MiddlewarePipeline<ShellContext> _pipeline;
+    private readonly MiddlewarePipeline<ShellPipelineContext> _pipeline;
     private readonly IShellExecutionService _shellExecutionService;
     private readonly IFileOperationService _fileOperationService;
     private readonly IFileSystem _fs;
@@ -20,7 +20,7 @@ public class PowerShellToolHandlers : ShellToolBase
     public override bool IsPowerShell => true;
 
     public PowerShellToolHandlers(
-        MiddlewarePipeline<ShellContext> pipeline,
+        MiddlewarePipeline<ShellPipelineContext> pipeline,
         IShellExecutionService shellExecutionService,
         IFileOperationService fileOperationService,
         IFileSystem fs,
@@ -100,7 +100,7 @@ public class PowerShellToolHandlers : ShellToolBase
             }
         }
 
-        var context = new ShellContext
+        var context = new ShellPipelineContext
         {
             Command = command,
             IsPowerShell = true,
@@ -369,11 +369,7 @@ public class PowerShellToolHandlers : ShellToolBase
     #region Private Methods
 
     private void RecordPsmetrics(string operation, string result)
-    {
-        if (_telemetryService == null) return;
-        var counter = _telemetryService.GetCounter("powershell.handler.count", "count", "PowerShell handler count");
-        counter.Add(1, new Dictionary<string, string> { ["operation"] = operation, ["result"] = result });
-    }
+        => _telemetryService?.RecordCount("powershell.handler.count", new Dictionary<string, string> { ["operation"] = operation, ["result"] = result }, description: "PowerShell handler count");
 
     private async Task<ConstrainedLanguageModeCheck> CheckConstrainedLanguageModeAsync(CancellationToken cancellationToken)
     {

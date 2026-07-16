@@ -27,7 +27,7 @@ public sealed partial class ShellSedInterceptMiddleware : IShellMiddleware
     public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     /// <inheritdoc />
-    public async Task InvokeAsync(ShellContext context, MiddlewareDelegate<ShellContext> next, CancellationToken ct)
+    public async Task InvokeAsync(ShellPipelineContext context, MiddlewareDelegate<ShellPipelineContext> next, CancellationToken ct)
     {
         var sedEditInfo = SedEditParser.ParseSedEditCommand(context.Command);
         if (sedEditInfo is not null)

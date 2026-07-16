@@ -16,7 +16,7 @@ public sealed partial class ShellBackgroundMiddleware : IShellMiddleware
     public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     /// <inheritdoc />
-    public async Task InvokeAsync(ShellContext context, MiddlewareDelegate<ShellContext> next, CancellationToken ct)
+    public async Task InvokeAsync(ShellPipelineContext context, MiddlewareDelegate<ShellPipelineContext> next, CancellationToken ct)
     {
         if (context.Background != true || _backgroundTaskService == null)
         {

@@ -9,13 +9,13 @@ namespace Tools.Handlers;
 [McpToolHandler(ToolCategory.Shell)]
 public partial class ShellToolHandlers : ShellToolBase
 {
-    private readonly MiddlewarePipeline<ShellContext> _pipeline;
+    private readonly MiddlewarePipeline<ShellPipelineContext> _pipeline;
     private readonly IShellBackgroundTaskService? _backgroundTaskService;
 
     public override string ToolName => ShellToolNameConstants.Bash;
 
     public ShellToolHandlers(
-        MiddlewarePipeline<ShellContext> pipeline,
+        MiddlewarePipeline<ShellPipelineContext> pipeline,
         IShellToolGateService? gateService = null,
         IShellProcessWatchdog? watchdog = null,
         IShellBackgroundTaskService? backgroundTaskService = null)
@@ -41,7 +41,7 @@ public partial class ShellToolHandlers : ShellToolBase
         CancellationToken cancellationToken = default,
         ToolProgressCallback? onProgress = null)
     {
-        var context = new ShellContext
+        var context = new ShellPipelineContext
         {
             Command = command,
             IsPowerShell = false,

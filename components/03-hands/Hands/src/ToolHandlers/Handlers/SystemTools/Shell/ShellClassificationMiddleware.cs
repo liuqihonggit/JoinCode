@@ -15,7 +15,7 @@ public sealed partial class ShellClassificationMiddleware : IShellMiddleware
     public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     /// <inheritdoc />
-    public Task InvokeAsync(ShellContext context, MiddlewareDelegate<ShellContext> next, CancellationToken ct)
+    public Task InvokeAsync(ShellPipelineContext context, MiddlewareDelegate<ShellPipelineContext> next, CancellationToken ct)
     {
         var dangerError = ClassifyCommand(context.Command, context.WorkingDirectory);
         if (dangerError != null)

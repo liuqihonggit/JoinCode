@@ -53,10 +53,9 @@ public sealed partial class PermissionAwareToolExecutor
             return CreateErrorResult($"Tool '{toolName}' not found.");
         }
 
-        ITelemetrySpan? span = null;
-        if (_telemetryService is not null)
+        await using var span = _telemetryService?.StartSpan($"tool.{toolName}", TelemetrySpanKind.Client);
+        if (span is not null)
         {
-            span = _telemetryService.StartSpan($"tool.{toolName}", TelemetrySpanKind.Client);
             span.SetTag("tool.name", toolName);
         }
 
@@ -67,6 +66,7 @@ public sealed partial class PermissionAwareToolExecutor
             Handler = handler,
             OnProgress = onProgress,
             AgentMode = _currentAgentMode,
+
             Span = span,
         };
 
@@ -106,10 +106,6 @@ public sealed partial class PermissionAwareToolExecutor
             _logger.LogError(ex, L.T(StringKey.ToolExecFailedLog, toolName));
             span?.RecordException(ex);
             return CreateErrorResult($"Error executing tool '{toolName}': {ex.Message}");
-        }
-        finally
-        {
-            span?.Dispose();
         }
     }
 

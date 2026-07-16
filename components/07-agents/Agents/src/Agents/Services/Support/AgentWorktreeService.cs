@@ -50,7 +50,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
                 CancellationToken = cancellationToken
             };
 
-            var span = _telemetryService?.StartSpan("worktree.create", TelemetrySpanKind.Server);
+            await using var span = _telemetryService?.StartSpan("worktree.create", TelemetrySpanKind.Server);
             span?.SetTag("worktree.agent_id", agentId);
 
             try
@@ -60,14 +60,12 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
                 if (context.Failed)
                 {
                     span?.SetStatus(TelemetryStatusCode.Error, context.ErrorMessage);
-                    span?.Dispose();
                     RecordWorktreeMetrics("create", isSuccess: false);
                     return WorktreeCreateResult.FailureResult(context.ErrorMessage ?? "未知错误");
                 }
 
                 span?.SetStatus(TelemetryStatusCode.Ok);
                 span?.SetTag("worktree.duration_ms", context.CreationDurationMs ?? 0);
-                span?.Dispose();
                 RecordWorktreeMetrics("create", isSuccess: true);
 
                 return context.Result ?? WorktreeCreateResult.FailureResult("未知错误");
@@ -77,7 +75,6 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
                 _logger?.LogError(ex, "创建 worktree 时出错: {AgentId}", agentId);
                 span?.SetStatus(TelemetryStatusCode.Error, ex.Message);
                 span?.RecordException(ex);
-                span?.Dispose();
                 RecordWorktreeMetrics("create", isSuccess: false);
                 return WorktreeCreateResult.FailureResult($"创建 worktree 时出错: {ex.Message}");
             }
@@ -95,7 +92,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
             return WorktreeCleanupResult.FailureResult($"未找到 Agent {agentId} 的 worktree 会话");
         }
 
-        var span = _telemetryService?.StartSpan("worktree.remove", TelemetrySpanKind.Server);
+        await using var span = _telemetryService?.StartSpan("worktree.remove", TelemetrySpanKind.Server);
         span?.SetTag("worktree.agent_id", agentId);
         span?.SetTag("worktree.force", force);
 
@@ -131,7 +128,6 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
                 session.WorktreePath, agentId, force);
 
             span?.SetStatus(TelemetryStatusCode.Ok);
-            span?.Dispose();
             RecordWorktreeMetrics("remove", isSuccess: true);
 
             return WorktreeCleanupResult.SuccessResult(force);
@@ -140,7 +136,6 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
 
             span?.SetStatus(TelemetryStatusCode.Error, ex.Message);
             span?.RecordException(ex);
-            span?.Dispose();
             RecordWorktreeMetrics("remove", isSuccess: false);
 
             return WorktreeCleanupResult.FailureResult($"移除 worktree 时出错: {ex.Message}");

@@ -15,7 +15,7 @@ public sealed partial class ShellOutputMiddleware : IShellMiddleware
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
     /// <inheritdoc />
-    public Task InvokeAsync(ShellContext context, MiddlewareDelegate<ShellContext> next, CancellationToken ct)
+    public Task InvokeAsync(ShellPipelineContext context, MiddlewareDelegate<ShellPipelineContext> next, CancellationToken ct)
     {
         var result = context.ExecutionResult;
         if (result is null)

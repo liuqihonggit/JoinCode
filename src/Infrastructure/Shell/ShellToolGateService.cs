@@ -19,7 +19,7 @@ public sealed class ShellToolGateService : IShellToolGateService
 
     /// <summary>
     /// 计算 PowerShell 工具是否启用 — 对齐 TS isPowerShellToolEnabled()
-    /// 非 Windows → 禁用; ant 用户默认启用; external 用户默认禁用
+    /// 非 Windows → 禁用; ant 用户默认启用(opt-out); external 用户默认禁用(opt-in)
     /// </summary>
     private static bool ComputeIsPowerShellToolEnabled()
     {
@@ -27,14 +27,20 @@ public sealed class ShellToolGateService : IShellToolGateService
             return false;
 
         var env = Environment.GetEnvironmentVariable("JCC_USE_POWERSHELL_TOOL");
-        if (env is not null)
+        var isAntUser = Environment.GetEnvironmentVariable("JCC_USER_TYPE")
+            ?.Equals("ant", StringComparison.OrdinalIgnoreCase) == true;
+
+        if (isAntUser)
         {
-            return !env.Equals("0", StringComparison.OrdinalIgnoreCase)
-                && !env.Equals("false", StringComparison.OrdinalIgnoreCase);
+            // ant 用户: 默认启用，JCC_USE_POWERSHELL_TOOL=0/false 关闭
+            return env is null
+                || (!env.Equals("0", StringComparison.OrdinalIgnoreCase)
+                    && !env.Equals("false", StringComparison.OrdinalIgnoreCase));
         }
 
-        // 对齐 TS: ant 用户默认 true，external 用户默认 false
-        var userType = Environment.GetEnvironmentVariable("JCC_USER_TYPE");
-        return userType?.Equals("ant", StringComparison.OrdinalIgnoreCase) == true;
+        // external 用户: 默认禁用，JCC_USE_POWERSHELL_TOOL=1/true 启用
+        return env is not null
+            && (env.Equals("1", StringComparison.OrdinalIgnoreCase)
+                || env.Equals("true", StringComparison.OrdinalIgnoreCase));
     }
 }

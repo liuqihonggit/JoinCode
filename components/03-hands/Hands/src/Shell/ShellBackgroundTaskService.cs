@@ -6,10 +6,11 @@ namespace Services.Shell;
 /// 统一走 ShellCommandContext 路径：后台命令先启动进程再立即转后台，复用溢出文件机制
 /// </summary>
 [Register]
-public sealed partial class ShellBackgroundTaskService : IShellBackgroundTaskService, IDisposable
+public sealed partial class ShellBackgroundTaskService : IShellBackgroundTaskService, IAsyncDisposable
 {
     [Inject] private readonly ILogger<ShellBackgroundTaskService>? _logger;
     [Inject] private readonly ITelemetryService? _telemetryService;
+    [Inject] private readonly IAgentNotificationQueue? _notificationQueue;
     private readonly ConcurrentDictionary<string, ShellBackgroundTaskEntry> _tasks = new();
 
     /// <inheritdoc />
@@ -57,6 +58,8 @@ public sealed partial class ShellBackgroundTaskService : IShellBackgroundTaskSer
                     entry.TaskId, entry.Status, entry.ExitCode);
 
                 RecordBackgroundTaskMetrics(entry.Status.ToString(), result.ExitCode == 0);
+
+                EnqueueTaskNotification(entry, context);
             }
             catch (AggregateException ae) when (ae.InnerException is OperationCanceledException)
             {
@@ -64,6 +67,8 @@ public sealed partial class ShellBackgroundTaskService : IShellBackgroundTaskSer
                 entry.CompletedAt = DateTime.UtcNow;
                 RecordBackgroundTaskMetrics("cancelled", false);
                 _logger?.LogInformation("Shell后台任务被取消: {TaskId}", entry.TaskId);
+
+                EnqueueTaskNotification(entry, context, "killed");
             }
             catch (Exception ex)
             {
@@ -72,6 +77,8 @@ public sealed partial class ShellBackgroundTaskService : IShellBackgroundTaskSer
                 entry.CompletedAt = DateTime.UtcNow;
                 RecordBackgroundTaskMetrics("error", false);
                 _logger?.LogError(ex, "Shell后台任务执行异常: {TaskId}", entry.TaskId);
+
+                EnqueueTaskNotification(entry, context, "failed");
             }
         }, TaskScheduler.Default);
 
@@ -246,18 +253,19 @@ public sealed partial class ShellBackgroundTaskService : IShellBackgroundTaskSer
         return Task.FromResult(killedCount);
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
         foreach (var entry in _tasks.Values)
         {
             if (entry.Context is not null && entry.Status is TaskExecutionStatus.Pending or TaskExecutionStatus.Running)
             {
                 try { entry.Context.Kill(); }
-                catch (Exception ex) { _logger?.LogDebug(ex, "Dispose 时终止后台任务进程失败"); }
+                catch (Exception ex) { _logger?.LogDebug(ex, "DisposeAsync 时终止后台任务进程失败"); }
             }
         }
 
         _tasks.Clear();
+        await ValueTask.CompletedTask.ConfigureAwait(false);
     }
 
     private void RecordBackgroundTaskMetrics(string status, bool isSuccess)
@@ -296,11 +304,33 @@ public sealed partial class ShellBackgroundTaskService : IShellBackgroundTaskSer
         public string? Stderr { get; set; }
         public int? ExitCode { get; set; }
         public string? ErrorMessage { get; set; }
+        public int Notified;
 
-        /// <summary>
-        /// 关联的 ShellCommandContext — 对齐 TS ShellCommand
-        /// 后台命令统一走 ShellCommandContext 路径，输出通过 GetCurrentStdout() 获取（支持溢出文件）
-        /// </summary>
         public IShellCommandContext? Context { get; set; }
+    }
+
+    private void EnqueueTaskNotification(ShellBackgroundTaskEntry entry, IShellCommandContext context, string? forcedStatus = null)
+    {
+        if (_notificationQueue is null) return;
+        if (Interlocked.CompareExchange(ref entry.Notified, 1, 0) != 0) return;
+
+        var status = forcedStatus ?? (entry.ExitCode == 0 ? "completed" : "failed");
+        var description = entry.Command.Length > 80 ? string.Concat(entry.Command.AsSpan(0, 77), "...") : entry.Command;
+        var summary = status == "killed"
+            ? $"Background command \"{description}\" was killed"
+            : $"Background command \"{description}\" {status} (exit code {entry.ExitCode})";
+
+        var xml = $"""
+            <task-notification>
+            <task-id>{entry.TaskId}</task-id>
+            <output-file>{context.OutputFilePath ?? ""}</output-file>
+            <status>{status}</status>
+            <summary>{summary}</summary>
+            </task-notification>
+            """;
+
+        _notificationQueue.Enqueue(entry.AgentId, xml);
+
+        _logger?.LogDebug("Shell后台任务通知已入队: {TaskId}, 状态: {Status}", entry.TaskId, status);
     }
 }

@@ -30,28 +30,6 @@ public sealed partial class BashAstSecurityWalker : IBashAstSecurityWalker, IDis
     private static readonly Regex BraceExpansionRegex = new(
         @"\{[^{}\s]*(,|\.\.)[^{}\s]*\}", RegexOptions.Compiled);
 
-    private static readonly FrozenSet<string> SafeEnvVars = FrozenSet.Create(
-        StringComparer.OrdinalIgnoreCase,
-        "HOME", "PWD", "OLDPWD", "USER", "LOGNAME", "SHELL", "PATH",
-        "HOSTNAME", "UID", "EUID", "PPID", "RANDOM", "SECONDS", "LINENO",
-        "TMPDIR", "BASH_VERSION", "BASHPID", "SHLVL", "HISTFILE", "IFS");
-
-    private static readonly FrozenSet<string> SpecialVarNames = FrozenSet.Create(
-        StringComparer.Ordinal,
-        "?", "!", "#", "$", "0", "-", "@", "*");
-
-    private static readonly FrozenSet<string> StructuralTypes = FrozenSet.Create(
-        StringComparer.Ordinal,
-        "program", "list", "pipeline", "redirected_statement");
-
-    private static readonly FrozenSet<string> SeparatorTypes = FrozenSet.Create(
-        StringComparer.Ordinal,
-        "&&", "||", "|", "|&", "&", ";;", ";", ";;&", ";&", "\n");
-
-    private static readonly FrozenSet<string> DeclarationCommands = FrozenSet.Create(
-        StringComparer.OrdinalIgnoreCase,
-        "export", "local", "readonly", "declare", "typeset", "nameref");
-
     private readonly TreeSitter.Language _language;
     private readonly TreeSitter.Parser _parser;
     private int _disposed;

@@ -49,9 +49,9 @@ public sealed partial class BashAstSecurityWalker
             {
                 if (name.Equals("command", StringComparison.OrdinalIgnoreCase) && a.Length > 1 && (a[1] is "-v" or "-V"))
                 { /* 安全 */ }
-                else if (name.Equals("fc", StringComparison.OrdinalIgnoreCase) && !HasExecFlag(a))
+                else if (name.Equals("fc", StringComparison.OrdinalIgnoreCase) && !BashSecurityConstants.HasExecFlag(a))
                 { /* fc -l 安全 */ }
-                else if (name.Equals("compgen", StringComparison.OrdinalIgnoreCase) && !HasCompgenDangerFlag(a))
+                else if (name.Equals("compgen", StringComparison.OrdinalIgnoreCase) && !BashSecurityConstants.HasCompgenDangerFlag(a))
                 { /* compgen -c 安全 */ }
                 else if (name.Equals("builtin", StringComparison.OrdinalIgnoreCase))
                 {
@@ -77,35 +77,5 @@ public sealed partial class BashAstSecurityWalker
         }
 
         return new BashSemanticCheckResult(true);
-    }
-
-    private static bool HasExecFlag(string[] a)
-    {
-        for (var i = 1; i < a.Length; i++)
-        {
-            if (a[i].StartsWith('-') && a[i].Length > 1)
-            {
-                for (var j = 1; j < a[i].Length; j++)
-                {
-                    if (a[i][j] is 'e' or 's') return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    private static bool HasCompgenDangerFlag(string[] a)
-    {
-        for (var i = 1; i < a.Length; i++)
-        {
-            if (a[i].StartsWith('-') && a[i].Length > 1 && a[i][1] != '-')
-            {
-                for (var j = 1; j < a[i].Length; j++)
-                {
-                    if (a[i][j] is 'C' or 'F' or 'W') return true;
-                }
-            }
-        }
-        return false;
     }
 }

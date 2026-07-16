@@ -65,13 +65,13 @@ public static class BashSemanticChecker
 
         if (name.Equals("fc", StringComparison.OrdinalIgnoreCase))
         {
-            if (!HasExecFlag(a))
+            if (!BashSecurityConstants.HasExecFlag(a))
                 return new BashSemanticCheckResult(true);
         }
 
         if (name.Equals("compgen", StringComparison.OrdinalIgnoreCase))
         {
-            if (!HasCompgenDangerFlag(a))
+            if (!BashSecurityConstants.HasCompgenDangerFlag(a))
                 return new BashSemanticCheckResult(true);
         }
 
@@ -87,36 +87,6 @@ public static class BashSemanticChecker
         return new BashSemanticCheckResult(false,
             $"'{name}' 可将参数作为Shell代码执行",
             BashSecurityCheckId.EvalLikeBuiltins);
-    }
-
-    private static bool HasExecFlag(string[] a)
-    {
-        for (var i = 1; i < a.Length; i++)
-        {
-            if (a[i].StartsWith('-') && a[i].Length > 1)
-            {
-                for (var j = 1; j < a[i].Length; j++)
-                {
-                    if (a[i][j] is 'e' or 's') return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    private static bool HasCompgenDangerFlag(string[] a)
-    {
-        for (var i = 1; i < a.Length; i++)
-        {
-            if (a[i].StartsWith('-') && a[i].Length > 1 && a[i][1] != '-')
-            {
-                for (var j = 1; j < a[i].Length; j++)
-                {
-                    if (a[i][j] is 'C' or 'F' or 'W') return true;
-                }
-            }
-        }
-        return false;
     }
 
     private static BashSemanticCheckResult CheckZshDangerousBuiltins(string name)

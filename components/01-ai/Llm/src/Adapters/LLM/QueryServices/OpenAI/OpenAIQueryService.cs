@@ -46,16 +46,7 @@ public class OpenAIQueryService : QueryServiceBase
             {
                 if (chunk.Usage is null) continue;
 
-                var tokenUsage = new TokenUsage(chunk.Usage.PromptTokens, chunk.Usage.CompletionTokens)
-                {
-                    CacheReadInputTokens = chunk.Usage.PromptTokensDetails?.CachedTokens ?? 0
-                };
-
-                if (chunk.Usage.PromptCacheHitTokens.HasValue || chunk.Usage.PromptCacheMissTokens.HasValue)
-                {
-                    tokenUsage.CacheCreationInputTokens = chunk.Usage.PromptCacheMissTokens ?? 0;
-                    tokenUsage.CacheReadInputTokens = chunk.Usage.PromptCacheHitTokens ?? 0;
-                }
+                var tokenUsage = BuildTokenUsage(chunk.Usage);
 
                 var usageMetadata = new Dictionary<string, JsonElement>
                 {
@@ -100,16 +91,7 @@ public class OpenAIQueryService : QueryServiceBase
             // 部分供应商(如 DeepSeek)可能在中间 chunk 也带 usage — 合并到 metadata
             if (chunk.Usage is not null)
             {
-                var tokenUsage = new TokenUsage(chunk.Usage.PromptTokens, chunk.Usage.CompletionTokens)
-                {
-                    CacheReadInputTokens = chunk.Usage.PromptTokensDetails?.CachedTokens ?? 0
-                };
-
-                if (chunk.Usage.PromptCacheHitTokens.HasValue || chunk.Usage.PromptCacheMissTokens.HasValue)
-                {
-                    tokenUsage.CacheCreationInputTokens = chunk.Usage.PromptCacheMissTokens ?? 0;
-                    tokenUsage.CacheReadInputTokens = chunk.Usage.PromptCacheHitTokens ?? 0;
-                }
+                var tokenUsage = BuildTokenUsage(chunk.Usage);
 
                 metadata["Usage"] = JsonElementHelper.FromObject(tokenUsage, NativeJsonContext.Default.TokenUsage);
             }
@@ -236,25 +218,6 @@ public class OpenAIQueryService : QueryServiceBase
         return msg;
     }
 
-    private static List<OpenAIToolCall>? ConvertToOpenAIToolCalls(object? toolCallsObj)
-    {
-        return toolCallsObj switch
-        {
-            List<OpenAIToolCall> direct => direct,
-            JsonElement je when je.ValueKind == JsonValueKind.Array => je.EnumerateArray().Select(item => new OpenAIToolCall
-            {
-                Id = item.TryGetProperty("Id", out var idProp) ? idProp.GetString() : null,
-                Type = "function",
-                Function = new OpenAIToolCallFunction
-                {
-                    Name = item.TryGetProperty("Name", out var nameProp) ? nameProp.GetString() : null,
-                    Arguments = item.TryGetProperty("Arguments", out var argsProp) ? argsProp.GetString() : null
-                }
-            }).ToList(),
-            _ => null
-        };
-    }
-
     private static List<OpenAITool> BuildToolsFromKernel(IChatClient kernel)
     {
         return kernel.Plugins.PluginNames
@@ -294,18 +257,6 @@ public class OpenAIQueryService : QueryServiceBase
         {
             Properties = props,
             Required = required.Count > 0 ? required : null
-        };
-    }
-
-    private static string MapClrTypeToJsonSchemaType(Type? type)
-    {
-        if (type == null) return "string";
-        return Type.GetTypeCode(type) switch
-        {
-            TypeCode.Int32 or TypeCode.Int64 => "integer",
-            TypeCode.Single or TypeCode.Double or TypeCode.Decimal => "number",
-            TypeCode.Boolean => "boolean",
-            _ => "string"
         };
     }
 
@@ -396,16 +347,7 @@ public class OpenAIQueryService : QueryServiceBase
 
         if (usage != null)
         {
-            var tokenUsage = new TokenUsage(usage.PromptTokens, usage.CompletionTokens)
-            {
-                CacheReadInputTokens = usage.PromptTokensDetails?.CachedTokens ?? 0
-            };
-
-            if (usage.PromptCacheHitTokens.HasValue || usage.PromptCacheMissTokens.HasValue)
-            {
-                tokenUsage.CacheCreationInputTokens = usage.PromptCacheMissTokens ?? 0;
-                tokenUsage.CacheReadInputTokens = usage.PromptCacheHitTokens ?? 0;
-            }
+            var tokenUsage = BuildTokenUsage(usage);
 
             metadata["Usage"] = JsonElementHelper.FromObject(tokenUsage, NativeJsonContext.Default.TokenUsage);
         }
@@ -431,4 +373,20 @@ public class OpenAIQueryService : QueryServiceBase
     }
 
     #endregion
+
+    private static TokenUsage BuildTokenUsage(OpenAIUsage usage)
+    {
+        var tokenUsage = new TokenUsage(usage.PromptTokens, usage.CompletionTokens)
+        {
+            CacheReadInputTokens = usage.PromptTokensDetails?.CachedTokens ?? 0
+        };
+
+        if (usage.PromptCacheHitTokens.HasValue || usage.PromptCacheMissTokens.HasValue)
+        {
+            tokenUsage.CacheCreationInputTokens = usage.PromptCacheMissTokens ?? 0;
+            tokenUsage.CacheReadInputTokens = usage.PromptCacheHitTokens ?? 0;
+        }
+
+        return tokenUsage;
+    }
 }

@@ -179,4 +179,39 @@ public abstract partial class QueryServiceBase : IQueryService
     }
 
     #endregion
+
+    #region 工具转换共享助手
+
+    protected static string MapClrTypeToJsonSchemaType(Type? type)
+    {
+        if (type == null) return "string";
+        return Type.GetTypeCode(type) switch
+        {
+            TypeCode.Int32 or TypeCode.Int64 => "integer",
+            TypeCode.Single or TypeCode.Double or TypeCode.Decimal => "number",
+            TypeCode.Boolean => "boolean",
+            _ => "string"
+        };
+    }
+
+    internal static List<OpenAIToolCall>? ConvertToOpenAIToolCalls(object? toolCallsObj)
+    {
+        return toolCallsObj switch
+        {
+            List<OpenAIToolCall> direct => direct,
+            JsonElement je when je.ValueKind == JsonValueKind.Array => je.EnumerateArray().Select(item => new OpenAIToolCall
+            {
+                Id = item.TryGetProperty("Id", out var idProp) ? idProp.GetString() : null,
+                Type = "function",
+                Function = new OpenAIToolCallFunction
+                {
+                    Name = item.TryGetProperty("Name", out var nameProp) ? nameProp.GetString() : null,
+                    Arguments = item.TryGetProperty("Arguments", out var argsProp) ? argsProp.GetString() : null
+                }
+            }).ToList(),
+            _ => null
+        };
+    }
+
+    #endregion
 }

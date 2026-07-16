@@ -475,37 +475,6 @@ public sealed class AnthropicQueryService : QueryServiceBase
         };
     }
 
-    private static string MapClrTypeToJsonSchemaType(Type? type)
-    {
-        if (type == null) return "string";
-        return Type.GetTypeCode(type) switch
-        {
-            TypeCode.Int32 or TypeCode.Int64 => "integer",
-            TypeCode.Single or TypeCode.Double or TypeCode.Decimal => "number",
-            TypeCode.Boolean => "boolean",
-            _ => "string"
-        };
-    }
-
-    private static List<OpenAIToolCall>? ConvertToOpenAIToolCalls(object? toolCallsObj)
-    {
-        return toolCallsObj switch
-        {
-            List<OpenAIToolCall> direct => direct,
-            JsonElement je when je.ValueKind == JsonValueKind.Array => je.EnumerateArray().Select(item => new OpenAIToolCall
-            {
-                Id = item.TryGetProperty("Id", out var idProp) ? idProp.GetString() : null,
-                Type = "function",
-                Function = new OpenAIToolCallFunction
-                {
-                    Name = item.TryGetProperty("Name", out var nameProp) ? nameProp.GetString() : null,
-                    Arguments = item.TryGetProperty("Arguments", out var argsProp) ? argsProp.GetString() : null
-                }
-            }).ToList(),
-            _ => null
-        };
-    }
-
     #endregion
 
     #region 请求发送
@@ -616,16 +585,7 @@ public sealed class AnthropicQueryService : QueryServiceBase
 
         if (response.Usage != null)
         {
-            var tokenUsage = new TokenUsage(response.Usage.InputTokens, response.Usage.OutputTokens)
-            {
-                CacheCreationInputTokens = response.Usage.CacheCreationInputTokens ?? 0,
-                CacheReadInputTokens = response.Usage.CacheReadInputTokens ?? 0
-            };
-
-            if (response.Usage.OutputTokensDetails is { ReasoningTokens: > 0 })
-            {
-                tokenUsage.ReasoningTokens = response.Usage.OutputTokensDetails.ReasoningTokens;
-            }
+            var tokenUsage = BuildTokenUsage(response.Usage);
 
             metadata["Usage"] = JsonElementHelper.FromObject(tokenUsage, NativeJsonContext.Default.TokenUsage);
         }
@@ -858,16 +818,7 @@ public sealed class AnthropicQueryService : QueryServiceBase
 
                         if (evt.Usage != null)
                         {
-                            var tokenUsage = new TokenUsage(evt.Usage.InputTokens, evt.Usage.OutputTokens)
-                            {
-                                CacheCreationInputTokens = evt.Usage.CacheCreationInputTokens ?? 0,
-                                CacheReadInputTokens = evt.Usage.CacheReadInputTokens ?? 0
-                            };
-
-                            if (evt.Usage.OutputTokensDetails is { ReasoningTokens: > 0 })
-                            {
-                                tokenUsage.ReasoningTokens = evt.Usage.OutputTokensDetails.ReasoningTokens;
-                            }
+                            var tokenUsage = BuildTokenUsage(evt.Usage);
 
                             metadata["Usage"] = JsonElementHelper.FromObject(tokenUsage, NativeJsonContext.Default.TokenUsage);
                         }
@@ -897,4 +848,20 @@ public sealed class AnthropicQueryService : QueryServiceBase
     }
 
     #endregion
+
+    private static TokenUsage BuildTokenUsage(AnthropicUsage usage)
+    {
+        var tokenUsage = new TokenUsage(usage.InputTokens, usage.OutputTokens)
+        {
+            CacheCreationInputTokens = usage.CacheCreationInputTokens ?? 0,
+            CacheReadInputTokens = usage.CacheReadInputTokens ?? 0
+        };
+
+        if (usage.OutputTokensDetails is { ReasoningTokens: > 0 })
+        {
+            tokenUsage.ReasoningTokens = usage.OutputTokensDetails.ReasoningTokens;
+        }
+
+        return tokenUsage;
+    }
 }

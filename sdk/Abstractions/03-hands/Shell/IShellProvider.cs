@@ -9,7 +9,7 @@ public interface IShellProvider
     /// <summary>
     /// Shell 类型 — 对齐 TS ShellType
     /// </summary>
-    ShellProviderType Type { get; }
+    ShellType Type { get; }
 
     /// <summary>
     /// Shell 可执行文件路径 — 对齐 TS ShellProvider.shellPath
@@ -65,21 +65,7 @@ public interface IShellProvider
         CancellationToken cancellationToken = default);
 }
 
-/// <summary>
-/// Shell 提供者类型 — 对齐 TS ShellType
-/// </summary>
-public enum ShellProviderType
-{
-    /// <summary>
-    /// Bash (Git Bash on Windows) — 对齐 TS 'bash'
-    /// </summary>
-    Bash,
 
-    /// <summary>
-    /// PowerShell — 对齐 TS 'powershell'
-    /// </summary>
-    PowerShell
-}
 
 /// <summary>
 /// Shell 执行命令构建选项 — 对齐 TS buildExecCommand opts 参数

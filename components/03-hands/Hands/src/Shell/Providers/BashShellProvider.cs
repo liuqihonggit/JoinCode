@@ -10,7 +10,7 @@ public sealed class BashShellProvider : ShellProviderBase
 {
     private string? _snapshotFilePath;
 
-    public override ShellProviderType Type => ShellProviderType.Bash;
+    public override ShellType Type => ShellType.Bash;
     public override bool Detached => true;
 
     /// <summary>

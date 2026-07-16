@@ -23,12 +23,7 @@ public sealed partial class BashSecurityValidator : IBashSecurityValidator
         (new Regex(@"\$\[", RegexOptions.Compiled), "$[] 旧式算术展开"),
     ];
 
-    // Zsh危险命令（对齐 TS ZSH_DANGEROUS_COMMANDS）
-    private static readonly FrozenSet<string> ZshDangerousCommands = FrozenSet.Create(
-        StringComparer.OrdinalIgnoreCase,
-        "zmodload", "emulate", "sysopen", "sysread", "syswrite", "sysseek",
-        "zpty", "ztcp", "zsocket", "mapfile",
-        "zf_rm", "zf_mv", "zf_ln", "zf_chmod", "zf_chown", "zf_mkdir", "zf_rmdir", "zf_chgrp");
+    // Zsh危险命令 — 委托给 BashSecurityConstants
 
     // 控制字符正则（对齐 TS CONTROL_CHAR_RE）
     private static readonly Regex ControlCharRegex = new(
@@ -237,7 +232,7 @@ public sealed partial class BashSecurityValidator : IBashSecurityValidator
             break;
         }
 
-        if (ZshDangerousCommands.Contains(baseCmd))
+        if (BashSecurityConstants.ZshDangerousBuiltins.Contains(baseCmd))
         {
             return new BashSecurityResult(false, BashSecurityCheckId.ZshDangerousCommands,
                 $"命令使用Zsh特有命令 '{baseCmd}'，可能绕过安全检查", true);

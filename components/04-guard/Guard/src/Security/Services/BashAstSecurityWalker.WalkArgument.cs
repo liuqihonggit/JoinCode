@@ -16,7 +16,7 @@ public sealed partial class BashAstSecurityWalker
             {
                 if (BraceExpansionRegex.IsMatch(node.Text))
                     return new StringOrTooComplex(TooComplexNode(node));
-                var text = BackslashUnescapeRegex().Replace(node.Text, "$1");
+                var text = BashSecurityRegex.BackslashUnescapeRegex().Replace(node.Text, "$1");
                 return new StringOrTooComplex(text);
             }
 

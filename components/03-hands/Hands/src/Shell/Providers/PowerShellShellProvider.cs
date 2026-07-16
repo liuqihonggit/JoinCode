@@ -10,7 +10,7 @@ public sealed class PowerShellShellProvider : ShellProviderBase
 {
     private string? _currentSandboxTmpDir;
 
-    public override ShellProviderType Type => ShellProviderType.PowerShell;
+    public override ShellType Type => ShellType.PowerShell;
     public override bool Detached => false;
 
     /// <summary>

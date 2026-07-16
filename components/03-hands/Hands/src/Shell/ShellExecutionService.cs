@@ -170,8 +170,8 @@ public sealed partial class ShellExecutionService : IShellExecutionService
             foreach (var (key, value) in envOverrides)
                 mergedEnv[key] = value;
 
-            var outputEncoding = provider is ShellProviderBase spb ? spb.OutputEncoding : Encoding.UTF8;
-            var errorEncoding = provider is ShellProviderBase spb2 ? spb2.ErrorEncoding : Encoding.UTF8;
+            var outputEncoding = provider.OutputEncoding;
+            var errorEncoding = provider.ErrorEncoding;
 
             var options = new ProcessOptions
             {

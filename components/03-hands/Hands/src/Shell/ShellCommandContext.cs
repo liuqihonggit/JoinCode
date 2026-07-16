@@ -158,8 +158,8 @@ public sealed class ShellCommandContext : IShellCommandContext, IShellLifecycle
             RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true,
-            StandardOutputEncoding = provider is ShellProviderBase spb ? spb.OutputEncoding : Encoding.UTF8,
-            StandardErrorEncoding = provider is ShellProviderBase spb2 ? spb2.ErrorEncoding : Encoding.UTF8
+            StandardOutputEncoding = provider.OutputEncoding,
+            StandardErrorEncoding = provider.ErrorEncoding
         };
 
         // 对齐 TS Shell.ts: detached 进程组隔离
@@ -383,7 +383,11 @@ public sealed class ShellCommandContext : IShellCommandContext, IShellLifecycle
         if (_status is ShellCommandStatus.Backgrounded && _spillFilePath is null
             && _stdoutBuilder.Length > ShellExecutionResult.PreviewSizeBytes)
         {
-            _stdoutBuilder.Remove(ShellExecutionResult.PreviewSizeBytes, _stdoutBuilder.Length - ShellExecutionResult.PreviewSizeBytes);
+            SpillToDisk();
+            if (_spillFilePath is null)
+            {
+                _stdoutBuilder.Remove(ShellExecutionResult.PreviewSizeBytes, _stdoutBuilder.Length - ShellExecutionResult.PreviewSizeBytes);
+            }
         }
 
         return Task.CompletedTask;

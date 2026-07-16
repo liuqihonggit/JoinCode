@@ -24,7 +24,7 @@ public sealed partial class ShellExecutionMiddleware : IShellMiddleware
             && ShellBackgroundConstants.IsAutoBackgroundAllowed(context.Command);
 
         // 使用可后台化的执行上下文 — 对齐 TS ShellCommand.exec
-        using var cmdContext = await _shellExecutionService.StartWithBackgroundSupportAsync(
+        await using var cmdContext = await _shellExecutionService.StartWithBackgroundSupportAsync(
             context.Command,
             context.Timeout,
             context.WorkingDirectory,

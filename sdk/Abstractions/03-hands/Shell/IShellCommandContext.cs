@@ -4,7 +4,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// Shell 命令执行上下文接口 — 对齐 TS ShellCommand
 /// 封装正在运行的进程，支持前台转后台操作
 /// </summary>
-public interface IShellCommandContext : IDisposable
+public interface IShellCommandContext : IShellLifecycle
 {
     /// <summary>
     /// 任务 ID — 对齐 TS taskOutput.taskId

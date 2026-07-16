@@ -3,13 +3,13 @@ using System.Collections.Immutable;
 using System.Linq;
 using Microsoft.CodeAnalysis;
 
-public abstract class AttributeRegistrationGeneratorBase<TInfo> : IIncrementalGenerator
+internal abstract class AttributeRegistrationGeneratorBase<TInfo> : IIncrementalGenerator
 {
-    protected abstract string AttributeFullName { get; }
+    internal abstract string AttributeFullName { get; }
 
-    protected abstract TInfo? ExtractInfo(INamedTypeSymbol typeSymbol, AttributeData attr, Compilation compilation);
+    internal abstract TInfo? ExtractInfo(INamedTypeSymbol typeSymbol, AttributeData attr, Compilation compilation);
 
-    protected abstract void GenerateRegistration(SourceProductionContext context, ImmutableArray<TInfo> infos);
+    internal abstract void GenerateRegistration(SourceProductionContext context, ImmutableArray<TInfo> infos);
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
@@ -35,7 +35,7 @@ public abstract class AttributeRegistrationGeneratorBase<TInfo> : IIncrementalGe
             })
             .Collect();
 
-        context.RegisterSourceOutput(infos, static (ctx, infos) =>
+        context.RegisterSourceOutput(infos, (ctx, infos) =>
         {
             GenerateRegistration(ctx, infos);
         });

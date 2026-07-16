@@ -1,11 +1,11 @@
 namespace PromptTemplate.Generator;
 
 [Generator]
-public sealed class PromptTemplateGenerator : AttributeRegistrationGeneratorBase<PromptTemplateGenerator.PromptTemplateInfo>
+internal sealed class PromptTemplateGenerator : AttributeRegistrationGeneratorBase<PromptTemplateGenerator.PromptTemplateInfo>
 {
-    protected override string AttributeFullName => "JoinCode.Abstractions.Attributes.PromptTemplateAttribute";
+    internal override string AttributeFullName => "JoinCode.Abstractions.Attributes.PromptTemplateAttribute";
 
-    protected override PromptTemplateInfo? ExtractInfo(INamedTypeSymbol typeSymbol, AttributeData attr, Compilation compilation)
+    internal override PromptTemplateInfo? ExtractInfo(INamedTypeSymbol typeSymbol, AttributeData attr, Compilation compilation)
     {
         var name = AttributeScanner.GetStringNamedArg(attr, "Name");
         var category = AttributeScanner.GetIntNamedArg(attr, "Category");
@@ -72,7 +72,7 @@ public sealed class PromptTemplateGenerator : AttributeRegistrationGeneratorBase
             hasParameters);
     }
 
-    protected override void GenerateRegistration(SourceProductionContext context, ImmutableArray<PromptTemplateInfo> infos)
+    internal override void GenerateRegistration(SourceProductionContext context, ImmutableArray<PromptTemplateInfo> infos)
     {
         var orderedInfos = infos.OrderBy(i => i.Category).ThenBy(i => i.Name).ToList();
 

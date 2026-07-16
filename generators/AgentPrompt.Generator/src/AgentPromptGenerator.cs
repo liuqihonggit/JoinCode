@@ -1,11 +1,11 @@
 namespace AgentPrompt.Generator;
 
 [Generator]
-public sealed class AgentPromptGenerator : AttributeRegistrationGeneratorBase<AgentPromptGenerator.AgentPromptInfo>
+internal sealed class AgentPromptGenerator : AttributeRegistrationGeneratorBase<AgentPromptGenerator.AgentPromptInfo>
 {
-    protected override string AttributeFullName => "JoinCode.Abstractions.Attributes.AgentPromptAttribute";
+    internal override string AttributeFullName => "JoinCode.Abstractions.Attributes.AgentPromptAttribute";
 
-    protected override AgentPromptInfo? ExtractInfo(INamedTypeSymbol typeSymbol, AttributeData attr, Compilation compilation)
+    internal override AgentPromptInfo? ExtractInfo(INamedTypeSymbol typeSymbol, AttributeData attr, Compilation compilation)
     {
         var agentType = AttributeScanner.GetStringNamedArg(attr, "AgentType");
         var displayName = AttributeScanner.GetStringNamedArg(attr, "DisplayName") ?? "";
@@ -35,7 +35,7 @@ public sealed class AgentPromptGenerator : AttributeRegistrationGeneratorBase<Ag
             hasPromptField);
     }
 
-    protected override void GenerateRegistration(SourceProductionContext context, ImmutableArray<AgentPromptInfo> infos)
+    internal override void GenerateRegistration(SourceProductionContext context, ImmutableArray<AgentPromptInfo> infos)
     {
         var orderedInfos = infos.OrderBy(i => i.AgentType).ToList();
 

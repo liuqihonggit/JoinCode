@@ -1,11 +1,11 @@
 namespace ToolPrompt.Generator;
 
 [Generator]
-public sealed class ToolPromptGenerator : AttributeRegistrationGeneratorBase<ToolPromptGenerator.ToolPromptInfo>
+internal sealed class ToolPromptGenerator : AttributeRegistrationGeneratorBase<ToolPromptGenerator.ToolPromptInfo>
 {
-    protected override string AttributeFullName => "JoinCode.Abstractions.Attributes.ToolPromptAttribute";
+    internal override string AttributeFullName => "JoinCode.Abstractions.Attributes.ToolPromptAttribute";
 
-    protected override ToolPromptInfo? ExtractInfo(INamedTypeSymbol typeSymbol, AttributeData attr, Compilation compilation)
+    internal override ToolPromptInfo? ExtractInfo(INamedTypeSymbol typeSymbol, AttributeData attr, Compilation compilation)
     {
         var toolName = AttributeScanner.GetStringNamedArg(attr, "ToolName");
         var category = AttributeScanner.GetIntNamedArg(attr, "Category");
@@ -46,7 +46,7 @@ public sealed class ToolPromptGenerator : AttributeRegistrationGeneratorBase<Too
             hasGetPrompt);
     }
 
-    protected override void GenerateRegistration(SourceProductionContext context, ImmutableArray<ToolPromptInfo> infos)
+    internal override void GenerateRegistration(SourceProductionContext context, ImmutableArray<ToolPromptInfo> infos)
     {
         var orderedInfos = infos.OrderBy(i => i.ToolName).ToList();
 

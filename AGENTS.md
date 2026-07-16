@@ -426,6 +426,34 @@ dotnet build JoinCode.slnx -c Release --no-incremental
 | 主工程源码（src/JoinCode） | ③ |
 | 仅测试代码 | 对应的 slnx |
 
+### 智能编译策略（减少无效编译）
+
+**核心原则**：开发阶段按需编译最少层级，git 提交前才全量编译验证。
+
+**开发阶段（改代码时）**：
+1. **只编译受影响的最低层** — 例如只改了组件源码，只编译 `components.slnx`，不编译 JoinCode.slnx
+2. **连续修改多个文件时，改完所有文件后再编译一次** — 禁止改一个文件就编译三层
+3. **编译命令去掉 `--no-incremental`** — 开发阶段利用增量编译加速，只有新增/修改 `[Register]` 类时才需要 `--no-incremental`
+
+**提交前（git commit 前）**：
+1. 按依赖顺序全量编译 ①②③（带 `--no-incremental`）
+2. 全量编译通过后才允许提交
+
+**快速编译命令（开发阶段）**：
+```powershell
+# 只改了组件源码 → 只编译组件层（增量）
+dotnet build components/components.slnx -c Release
+# 只改了主工程 → 只编译主工程（增量）
+dotnet build JoinCode.slnx -c Release
+# 改了 Abstractions → 必须从基础层开始
+dotnet build Sdk.slnx -c Release; dotnet build components/components.slnx -c Release; dotnet build JoinCode.slnx -c Release
+```
+
+**全量编译命令（提交前）**：
+```powershell
+dotnet build Sdk.slnx -c Release --no-incremental; dotnet build components/components.slnx -c Release --no-incremental; dotnet build JoinCode.slnx -c Release --no-incremental
+```
+
 ### 编译注意事项
 
 1. 当遇到编译锁定,编译时候打不开,编译不了,表示有`其他CLI项目`编译中,当前电脑内存紧迫,你只能用 wait 30s 之后再尝试执行编译.

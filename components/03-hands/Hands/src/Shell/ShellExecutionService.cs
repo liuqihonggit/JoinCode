@@ -163,14 +163,24 @@ public sealed partial class ShellExecutionService : IShellExecutionService
 
             var spawnArgs = provider.GetSpawnArgs(execResult.CommandString);
 
+            var cleanedEnv = SubprocessEnvCleaner.CleanEnvironment();
+            var mergedEnv = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (var (key, value) in cleanedEnv)
+                mergedEnv[key] = value;
+            foreach (var (key, value) in envOverrides)
+                mergedEnv[key] = value;
+
+            var outputEncoding = provider is ShellProviderBase spb ? spb.OutputEncoding : Encoding.UTF8;
+            var errorEncoding = provider is ShellProviderBase spb2 ? spb2.ErrorEncoding : Encoding.UTF8;
+
             var options = new ProcessOptions
             {
                 FileName = provider.ShellPath,
                 Arguments = string.Join(' ', spawnArgs),
                 WorkingDirectory = cwd,
-                EnvironmentVariables = envOverrides.Count > 0 ? envOverrides : null,
-                StandardOutputEncoding = Encoding.UTF8,
-                StandardErrorEncoding = Encoding.UTF8,
+                EnvironmentVariables = mergedEnv.Count > 0 ? mergedEnv : null,
+                StandardOutputEncoding = outputEncoding,
+                StandardErrorEncoding = errorEncoding,
                 TimeoutMs = timeout
             };
 

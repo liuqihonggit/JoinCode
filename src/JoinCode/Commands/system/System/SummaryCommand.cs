@@ -1,17 +1,10 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Summary, Description = "显示当前会话摘要", Usage = "/summary", Category = ChatCommandCategory.System)]
-public sealed class SummaryCommand : IChatCommand
+public sealed class SummaryCommand : ChatCommandBase
 {
     private readonly IClockService _clock = SystemClockService.Instance;
-    public string Name => ChatCommandNameConstants.Summary;
-    public string Description => "显示当前会话摘要";
-    public string Usage => "/summary";
-    public string[] Aliases => [];
-    public string ArgumentHint => string.Empty;
-    public bool IsHidden => false;
-
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         TerminalHelper.WriteLine($"{TerminalColors.Primary}会话摘要{AnsiStyleConstants.Reset}");
         TerminalHelper.NewLine();

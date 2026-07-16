@@ -51,4 +51,18 @@ public sealed class HandleWorkContext : IPipelineContext
         ((IPipelineContext)this).Failed = true;
         ((IPipelineContext)this).ErrorMessage = message;
     }
+
+    /// <summary>
+    /// 标记 Work 失败：记录完成、停止工作、唤醒容量、短路管道
+    /// </summary>
+    internal void FailWork(CancellationToken ct = default)
+    {
+        CompletedWorkIds.Add(Work.WorkId);
+        if (TrackCleanup is not null && StopWorkAsync is not null)
+        {
+            TrackCleanup(StopWorkAsync(Work.WorkId, ct));
+        }
+        CapacityWake?.Invoke();
+        ShortCircuited = true;
+    }
 }

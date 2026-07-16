@@ -1,16 +1,9 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
-[ChatCommand(Name = ChatCommandNameConstants.Model, Description = "切换或查看模型", Usage = "/model [model-id|default|info]", Category = ChatCommandCategory.Model)]
-public sealed class ModelCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.Model, Description = "切换或查看模型", Usage = "/model [model-id|default|info]", Category = ChatCommandCategory.Model, ArgumentHint = "[model-id|default|info]")]
+public sealed class ModelCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Model;
-    public string Description => "切换或查看模型";
-    public string Usage => "/model [model-id|default|info]";
-    public string[] Aliases => [];
-    public string ArgumentHint => "[model-id|default|info]";
-    public bool IsHidden => false;
-
-    public Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetNormalizedArgs(context);
 

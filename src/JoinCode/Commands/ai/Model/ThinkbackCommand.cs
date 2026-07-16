@@ -1,17 +1,10 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
-[ChatCommand(Name = ChatCommandNameConstants.Thinkback, Description = "回放 AI 的思考过程", Usage = "/thinkback [count]", Category = ChatCommandCategory.Model)]
-public sealed class ThinkbackCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.Thinkback, Description = "回放 AI 的思考过程", Usage = "/thinkback [count]", Category = ChatCommandCategory.Model, ArgumentHint = "[count]")]
+public sealed class ThinkbackCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Thinkback;
-    public string Description => "回放 AI 的思考过程";
-    public string Usage => "/thinkback [count]";
-    public string[] Aliases => [];
-    public string ArgumentHint => "[count]";
-    public bool IsHidden => false;
-
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         if (context.Services.ThinkingStore is null)
         {

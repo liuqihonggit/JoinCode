@@ -1,20 +1,13 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /tools 命令 - 显示可用工具列表及参数
 /// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Tools, Description = "显示可用工具列表", Usage = "/tools", Category = ChatCommandCategory.Tools)]
-public sealed class ToolsCommand : IChatCommand
+public sealed class ToolsCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Tools;
-    public string Description => "显示可用工具列表";
-    public string Usage => "/tools";
-    public string[] Aliases => [];
-    public string ArgumentHint => string.Empty;
-    public bool IsHidden => false;
-
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         if (context.Services.ToolRegistry is null)
         {

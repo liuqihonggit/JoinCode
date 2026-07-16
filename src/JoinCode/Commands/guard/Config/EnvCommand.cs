@@ -1,4 +1,4 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /env 命令 — 对齐 TS env/index.js
@@ -6,17 +6,10 @@ namespace JoinCode.ChatCommands;
 /// 对齐内容：环境变量列表+过滤
 /// 架构差异：TS 未实现，C# 扩展实现了过滤和格式化
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Env, Description = "显示环境变量", Usage = "/env [filter]", Category = ChatCommandCategory.Config)]
-public sealed class EnvCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.Env, Description = "显示环境变量", Usage = "/env [filter]", Category = ChatCommandCategory.Config, ArgumentHint = "[filter]")]
+public sealed class EnvCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Env;
-    public string Description => "显示环境变量";
-    public string Usage => "/env [filter]";
-    public string[] Aliases => [];
-    public string ArgumentHint => "[filter]";
-    public bool IsHidden => false;
-
-    public Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var filter = ChatCommandBase.GetNormalizedArgs(context);
         var allVars = Environment.GetEnvironmentVariables();

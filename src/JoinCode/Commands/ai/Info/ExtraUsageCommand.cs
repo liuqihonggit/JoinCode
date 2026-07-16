@@ -1,17 +1,10 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
-[ChatCommand(Name = ChatCommandNameConstants.ExtraUsage, Description = "查看额外用量信息", Usage = "/extra-usage", Category = ChatCommandCategory.Model)]
-public sealed class ExtraUsageCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.ExtraUsage, Description = "查看额外用量信息", Usage = "/extra-usage", Category = ChatCommandCategory.Model, IsHidden = true)]
+public sealed class ExtraUsageCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.ExtraUsage;
-    public string Description => "查看额外用量信息";
-    public string Usage => "/extra-usage";
-    public string[] Aliases => [];
-    public string ArgumentHint => string.Empty;
-    public bool IsHidden => true;
-
-    public Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var usageTracker = context.Services.UsageTracker;
 

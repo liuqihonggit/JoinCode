@@ -1,16 +1,9 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
-[ChatCommand(Name = ChatCommandNameConstants.Fork, Description = "创建当前对话的分支", Usage = "/fork [name]", Category = ChatCommandCategory.Session)]
-public sealed class ForkCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.Fork, Description = "创建当前对话的分支", Usage = "/fork [name]", Category = ChatCommandCategory.Session, Aliases = ["branch"], ArgumentHint = "[name]")]
+public sealed class ForkCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Fork;
-    public string Description => "创建当前对话的分支";
-    public string Usage => "/fork [name]";
-    public string[] Aliases => ["branch"];
-    public string ArgumentHint => "[name]";
-    public bool IsHidden => false;
-
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var transcriptService = ChatCommandBase.GetService<JoinCode.Abstractions.Interfaces.ITranscriptService>(context, typeof(JoinCode.Abstractions.Interfaces.ITranscriptService));
 

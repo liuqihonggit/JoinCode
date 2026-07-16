@@ -1,17 +1,10 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Files, Description = "列出当前上下文中的文件", Usage = "/files", Category = ChatCommandCategory.Code)]
-public sealed class FilesCommand : IChatCommand
+public sealed class FilesCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Files;
-    public string Description => "列出当前上下文中的文件";
-    public string Usage => "/files";
-    public string[] Aliases => [];
-    public string ArgumentHint => string.Empty;
-    public bool IsHidden => false;
-
-    public Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var tracker = context.Services.FileOperationTracker;
 

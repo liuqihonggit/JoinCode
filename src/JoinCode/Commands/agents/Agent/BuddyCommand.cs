@@ -1,17 +1,10 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
-[ChatCommand(Name = ChatCommandNameConstants.Buddy, Description = "查看你的伙伴精灵", Usage = "/buddy", Category = ChatCommandCategory.Agent)]
-public sealed class BuddyCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.Buddy, Description = "查看你的伙伴精灵", Usage = "/buddy", Category = ChatCommandCategory.Agent, IsHidden = true)]
+public sealed class BuddyCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Buddy;
-    public string Description => "查看你的伙伴精灵";
-    public string Usage => "/buddy";
-    public string[] Aliases => [];
-    public string ArgumentHint => string.Empty;
-    public bool IsHidden => true;
-
-    public Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var buddyService = ChatCommandBase.GetService<IBuddyService>(context);
 

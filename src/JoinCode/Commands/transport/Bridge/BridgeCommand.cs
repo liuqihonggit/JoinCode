@@ -1,4 +1,4 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
@@ -7,17 +7,10 @@ namespace JoinCode.ChatCommands;
 /// 对齐内容：qr+sessions+status+connect+disconnect 核心操作
 /// 架构差异：TS 有 React QR 码渲染，C# 使用终端 ASCII QR
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Bridge, Description = "Bridge 远程控制管理", Usage = "/bridge [qr|sessions|status|connect|disconnect]", Category = ChatCommandCategory.Bridge)]
-public sealed class BridgeCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.Bridge, Description = "Bridge 远程控制管理", Usage = "/bridge [qr|sessions|status|connect|disconnect]", Category = ChatCommandCategory.Bridge, Aliases = ["rc"])]
+public sealed class BridgeCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Bridge;
-    public string Description => "Bridge 远程控制管理";
-    public string Usage => "/bridge [qr|sessions|status|connect|disconnect]";
-    public string[] Aliases => ["rc"];
-    public string ArgumentHint => string.Empty;
-    public bool IsHidden => false;
-
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetSplitArgs(context);
         var action = args.Length > 0 ? args[0].ToLowerInvariant() : "status";

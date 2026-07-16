@@ -1,27 +1,19 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /generate 命令 - 生成代码
 /// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Generate, Description = "生成代码", Usage = "/generate <描述>", Category = ChatCommandCategory.Agent)]
-public sealed partial class GenerateCommand : IChatCommand
+public sealed partial class GenerateCommand : ChatCommandBase
 {
     [Inject] private readonly ILogger<GenerateCommand>? _logger;
-
-    public string Name => ChatCommandNameConstants.Generate;
-    public string Description => "生成代码";
-    public string Usage => "/generate <描述>";
-    public string[] Aliases => [];
-    public string ArgumentHint => string.Empty;
-    public bool IsHidden => false;
-
     public GenerateCommand(ILogger<GenerateCommand>? logger = null)
     {
         _logger = logger;
     }
 
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         if (string.IsNullOrWhiteSpace(context.Arguments))
         {

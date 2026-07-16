@@ -1,4 +1,4 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
@@ -7,17 +7,10 @@ namespace JoinCode.ChatCommands;
 /// 对齐内容：check+force 版本检查
 /// 架构差异：TS 有自动下载安装，C# 为手动下载（NativeAOT 单文件发布）
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Upgrade, Description = "检查并执行自升级", Usage = "/upgrade [check|force]", Category = ChatCommandCategory.System)]
-public sealed class UpgradeCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.Upgrade, Description = "检查并执行自升级", Usage = "/upgrade [check|force]", Category = ChatCommandCategory.System, ArgumentHint = "[check|force]")]
+public sealed class UpgradeCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Upgrade;
-    public string Description => "检查并执行自升级";
-    public string Usage => "/upgrade [check|force]";
-    public string[] Aliases => [];
-    public string ArgumentHint => "[check|force]";
-    public bool IsHidden => false;
-
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var upgradeService = context.Services.ServiceProvider?.GetService<IUpgradeService>();
         var args = ChatCommandBase.GetNormalizedArgs(context).ToLowerInvariant();

@@ -1,17 +1,10 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
-[ChatCommand(Name = ChatCommandNameConstants.SandboxToggle, Description = "切换沙箱模式", Usage = "/sandbox-toggle [on|off|status|exclude]", Category = ChatCommandCategory.Config)]
-public sealed class SandboxToggleCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.SandboxToggle, Description = "切换沙箱模式", Usage = "/sandbox-toggle [on|off|status|exclude]", Category = ChatCommandCategory.Config, Aliases = ["sandbox"], ArgumentHint = "[on|off|status|exclude]", IsHidden = true)]
+public sealed class SandboxToggleCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.SandboxToggle;
-    public string Description => "切换沙箱模式";
-    public string Usage => "/sandbox-toggle [on|off|status|exclude]";
-    public string[] Aliases => ["sandbox"];
-    public string ArgumentHint => "[on|off|status|exclude]";
-    public bool IsHidden => true;
-
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var sandboxService = ChatCommandBase.GetService<ISandboxModeService>(context);
         var args = ChatCommandBase.GetNormalizedArgs(context).ToLowerInvariant();

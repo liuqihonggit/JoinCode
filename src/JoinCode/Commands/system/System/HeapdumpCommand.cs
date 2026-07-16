@@ -1,17 +1,10 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
-[ChatCommand(Name = ChatCommandNameConstants.Heapdump, Description = "生成堆转储用于诊断", Usage = "/heapdump", Category = ChatCommandCategory.System)]
-public sealed class HeapdumpCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.Heapdump, Description = "生成堆转储用于诊断", Usage = "/heapdump", Category = ChatCommandCategory.System, IsHidden = true)]
+public sealed class HeapdumpCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Heapdump;
-    public string Description => "生成堆转储用于诊断";
-    public string Usage => "/heapdump";
-    public string[] Aliases => [];
-    public string ArgumentHint => string.Empty;
-    public bool IsHidden => true;
-
-    public Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         TerminalHelper.WriteLine("堆转储 / 运行时诊断:");
         TerminalHelper.NewLine();

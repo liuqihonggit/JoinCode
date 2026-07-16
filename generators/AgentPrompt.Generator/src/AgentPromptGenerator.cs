@@ -1,41 +1,11 @@
 namespace AgentPrompt.Generator;
 
 [Generator]
-public sealed class AgentPromptGenerator : IIncrementalGenerator
+internal sealed class AgentPromptGenerator : AttributeRegistrationGeneratorBase<AgentPromptGenerator.AgentPromptInfo>
 {
-    private const string AttributeFullName = "JoinCode.Abstractions.Attributes.AgentPromptAttribute";
+    internal override string AttributeFullName => "JoinCode.Abstractions.Attributes.AgentPromptAttribute";
 
-    public void Initialize(IncrementalGeneratorInitializationContext context)
-    {
-        var agentPromptInfos = context.CompilationProvider
-            .SelectMany((compilation, _) =>
-            {
-                var types = AttributeScanner.ScanTypesWithAttribute(compilation, AttributeFullName);
-                var attrSymbol = compilation.GetTypeByMetadataName(AttributeFullName);
-                if (attrSymbol is null)
-                    return ImmutableArray<AgentPromptInfo>.Empty;
-
-                var results = new List<AgentPromptInfo>();
-                foreach (var typeSymbol in types)
-                {
-                    var attr = AttributeScanner.GetAttribute(typeSymbol, attrSymbol);
-                    if (attr is null) continue;
-
-                    var info = ExtractAgentPromptInfo(typeSymbol, attr);
-                    if (info is not null)
-                        results.Add(info);
-                }
-                return results.ToImmutableArray();
-            })
-            .Collect();
-
-        context.RegisterSourceOutput(agentPromptInfos, static (ctx, infos) =>
-        {
-            GenerateRegistration(ctx, infos);
-        });
-    }
-
-    private static AgentPromptInfo? ExtractAgentPromptInfo(INamedTypeSymbol typeSymbol, AttributeData attr)
+    internal override AgentPromptInfo? ExtractInfo(INamedTypeSymbol typeSymbol, AttributeData attr, Compilation compilation)
     {
         var agentType = AttributeScanner.GetStringNamedArg(attr, "AgentType");
         var displayName = AttributeScanner.GetStringNamedArg(attr, "DisplayName") ?? "";
@@ -65,7 +35,7 @@ public sealed class AgentPromptGenerator : IIncrementalGenerator
             hasPromptField);
     }
 
-    private static void GenerateRegistration(SourceProductionContext context, ImmutableArray<AgentPromptInfo> infos)
+    internal override void GenerateRegistration(SourceProductionContext context, ImmutableArray<AgentPromptInfo> infos)
     {
         var orderedInfos = infos.OrderBy(i => i.AgentType).ToList();
 
@@ -162,7 +132,7 @@ public sealed class AgentPromptGenerator : IIncrementalGenerator
         context.AddSource("AgentPromptRegistration.g.cs", SourceText.From(sb.ToString(), Encoding.UTF8));
     }
 
-    private sealed class AgentPromptInfo
+    internal sealed class AgentPromptInfo
     {
         public string FullyQualifiedName { get; }
         public string TypeName { get; }

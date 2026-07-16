@@ -1,27 +1,19 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /execute 命令 - 执行代码
 /// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Execute, Description = "执行代码", Usage = "/execute <代码>", Category = ChatCommandCategory.Code)]
-public sealed partial class ExecuteCommand : IChatCommand
+public sealed partial class ExecuteCommand : ChatCommandBase
 {
     [Inject] private readonly ILogger<ExecuteCommand>? _logger;
-
-    public string Name => ChatCommandNameConstants.Execute;
-    public string Description => "执行代码";
-    public string Usage => "/execute <代码>";
-    public string[] Aliases => [];
-    public string ArgumentHint => string.Empty;
-    public bool IsHidden => false;
-
     public ExecuteCommand(ILogger<ExecuteCommand>? logger = null)
     {
         _logger = logger;
     }
 
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         if (string.IsNullOrWhiteSpace(context.Arguments))
         {

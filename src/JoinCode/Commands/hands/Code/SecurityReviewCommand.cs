@@ -1,16 +1,9 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.SecurityReview, Description = "对当前分支变更进行安全审查", Usage = "/security-review", Category = ChatCommandCategory.Code)]
-public sealed class SecurityReviewCommand : IChatCommand
+public sealed class SecurityReviewCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.SecurityReview;
-    public string Description => "对当前分支变更进行安全审查";
-    public string Usage => "/security-review";
-    public string[] Aliases => [];
-    public string ArgumentHint => string.Empty;
-    public bool IsHidden => false;
-
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var fs = context.Services.FileSystem;
         var gitStatus = await RunGitCommandAsync($"{GitSubCommand.Status.ToValue()} --porcelain", context.CancellationToken, fs).ConfigureAwait(false);

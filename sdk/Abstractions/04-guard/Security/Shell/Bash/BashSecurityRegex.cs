@@ -49,4 +49,22 @@ public static partial class BashSecurityRegex
 
     [GeneratedRegex(@"^[0-9]+$")]
     public static partial Regex DigitsOnlyRegex();
+
+    [GeneratedRegex(@"[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]")]
+    public static partial Regex ControlCharRegex();
+
+    [GeneratedRegex(@"[\u00A0\u1680\u2000-\u200B\u2028\u2029\u202F\u205F\u3000\uFEFF]")]
+    public static partial Regex UnicodeWhitespaceRegex();
+
+    [GeneratedRegex(@"\\[ \t]|[^ \t\n\\]\\\n")]
+    public static partial Regex BackslashWhitespaceRegex();
+
+    [GeneratedRegex(@"~\[")]
+    public static partial Regex ZshTildeBracketRegex();
+
+    [GeneratedRegex(@"(?:^|[\s;&|])=[a-zA-Z_]")]
+    public static partial Regex ZshEqualsExpansionRegex();
+
+    [GeneratedRegex(@"\{[^}]*['""]")]
+    public static partial Regex BraceWithQuoteRegex();
 }

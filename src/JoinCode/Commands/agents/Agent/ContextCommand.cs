@@ -1,18 +1,11 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Context, Description = "显示当前会话上下文统计", Usage = "/context", Category = ChatCommandCategory.Info)]
-public sealed class ContextCommand : IChatCommand
+public sealed class ContextCommand : ChatCommandBase
 {
     private readonly IClockService _clock = SystemClockService.Instance;
-    public string Name => ChatCommandNameConstants.Context;
-    public string Description => "显示当前会话上下文统计";
-    public string Usage => "/context";
-    public string[] Aliases => [];
-    public string ArgumentHint => string.Empty;
-    public bool IsHidden => false;
-
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var history = await context.Services.ChatService.GetMessageListAsync(context.CancellationToken);
         var sessionDuration = _clock.GetUtcNow() - context.SessionStartedAt;

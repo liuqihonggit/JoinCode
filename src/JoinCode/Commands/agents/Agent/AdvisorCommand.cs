@@ -1,17 +1,10 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
-[ChatCommand(Name = ChatCommandNameConstants.Advisor, Description = "配置顾问模型", Usage = "/advisor [model|off]", Category = ChatCommandCategory.Agent)]
-public sealed class AdvisorCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.Advisor, Description = "配置顾问模型", Usage = "/advisor [model|off]", Category = ChatCommandCategory.Agent, ArgumentHint = "[model|off]")]
+public sealed class AdvisorCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Advisor;
-    public string Description => "配置顾问模型";
-    public string Usage => "/advisor [model|off]";
-    public string[] Aliases => [];
-    public string ArgumentHint => "[model|off]";
-    public bool IsHidden => false;
-
-    public Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var advisorService = ChatCommandBase.GetService<IAdvisorService>(context);
         var args = ChatCommandBase.GetNormalizedArgs(context);

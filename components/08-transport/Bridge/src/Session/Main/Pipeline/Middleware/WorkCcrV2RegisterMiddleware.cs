@@ -42,13 +42,7 @@ public sealed partial class WorkCcrV2RegisterMiddleware : IHandleWorkMiddleware
 
                     _logger?.LogError(ex,
                         "BridgeMain: CCR v2 worker registration failed for session {SessionId}", ctx.Work.SessionId);
-                    ctx.CompletedWorkIds.Add(ctx.Work.WorkId);
-                    if (ctx.TrackCleanup is not null && ctx.StopWorkAsync is not null)
-                    {
-                        ctx.TrackCleanup(ctx.StopWorkAsync(ctx.Work.WorkId, ct));
-                    }
-                    ctx.CapacityWake?.Invoke();
-                    ctx.ShortCircuited = true;
+                    ctx.FailWork(ct);
                     return;
                 }
             }

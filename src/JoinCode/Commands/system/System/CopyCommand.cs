@@ -1,17 +1,10 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
-[ChatCommand(Name = ChatCommandNameConstants.Copy, Description = "复制最近的 AI 回复到剪贴板（/copy N 复制第N条）", Usage = "/copy [N|code]", Category = ChatCommandCategory.System)]
-public sealed class CopyCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.Copy, Description = "复制最近的 AI 回复到剪贴板（/copy N 复制第N条）", Usage = "/copy [N|code]", Category = ChatCommandCategory.System, ArgumentHint = "[N|code]")]
+public sealed class CopyCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Copy;
-    public string Description => "复制最近的 AI 回复到剪贴板（/copy N 复制第N条）";
-    public string Usage => "/copy [N|code]";
-    public string[] Aliases => [];
-    public string ArgumentHint => "[N|code]";
-    public bool IsHidden => false;
-
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var clipboardService = context.Services.ClipboardService;
         if (clipboardService is null)

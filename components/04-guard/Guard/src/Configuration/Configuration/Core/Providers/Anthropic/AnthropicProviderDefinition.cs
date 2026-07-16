@@ -1,31 +1,26 @@
 
 namespace Core.Configuration.Providers;
 
-public sealed class AnthropicProviderDefinition : IProviderDefinition
+public sealed class AnthropicProviderDefinition : OpenAICompatibleProviderDefinitionBase
 {
-    private const string ProviderKey = "anthropic";
+    protected override string ProviderConfigKey => "anthropic";
+    protected override string DefaultBaseUrl => "https://api.anthropic.com/";
+    protected override string ChatCompletionsPath => "v1/messages";
+    protected override string AuthHeaderName => "x-api-key";
+    protected override string AuthHeaderValuePrefix => "";
 
-    public string ProviderName => ProviderKind.Anthropic.ToValue();
-    public string DisplayName => "Anthropic";
-    public string DefaultModelId => ModelConfigLoader.GetDefaultModelId(ProviderKey);
-    public string DefaultFastModelId => ModelConfigLoader.GetDefaultFastModelId(ProviderKey);
-    public string? DefaultEndpoint => null;
-    public string? ApiKeyEnvironmentVariable => ProviderEnvVar.AnthropicApiKey.ToValue();
-    public string? EndpointEnvironmentVariable => null;
+    public override ProviderKind Kind => ProviderKind.Anthropic;
+    public override string ProviderName => ProviderKind.Anthropic.ToValue();
+    public override string DisplayName => "Anthropic";
+    public override string DefaultModelId => ModelConfigLoader.GetDefaultModelId("anthropic");
+    public override string DefaultFastModelId => ModelConfigLoader.GetDefaultFastModelId("anthropic");
+    public override string? DefaultEndpoint => null;
+    public override string? ApiKeyEnvironmentVariable => ProviderEnvVar.AnthropicApiKey.ToValue();
+    public override string? EndpointEnvironmentVariable => null;
 
-    public ProviderKind Kind => ProviderKind.Anthropic;
+    public override string GetChatEndpoint(ProviderConfig config) => "v1/messages";
 
-    public string GetBaseUrl(ProviderConfig config)
-    {
-        return !string.IsNullOrEmpty(config.Endpoint) ? config.Endpoint.TrimEnd('/') + "/" : "https://api.anthropic.com/";
-    }
-
-    public string GetChatEndpoint(ProviderConfig config)
-    {
-        return "v1/messages";
-    }
-
-    public void ConfigureHttpClient(HttpClient client, ProviderConfig config)
+    public override void ConfigureHttpClient(HttpClient client, ProviderConfig config)
     {
         if (!string.IsNullOrEmpty(config.ApiKey))
         {
@@ -35,37 +30,15 @@ public sealed class AnthropicProviderDefinition : IProviderDefinition
         }
     }
 
-    public IReadOnlyList<ModelEntry> AvailableModels => ModelConfigLoader.GetModels(ProviderKey);
-
-    public string? ResolveApiKeyFromEnv()
+    public override string? ResolveApiKeyFromEnv()
     {
         return Environment.GetEnvironmentVariable(ProviderEnvVar.AnthropicApiKey.ToValue());
     }
 
-    public bool IsValid(ProviderConfig config)
+    public override bool IsValid(ProviderConfig config)
     {
         return !string.IsNullOrWhiteSpace(config.ApiKey) || config.EnableOAuthTokenSupport;
     }
 
-    public string? ResolveAlias(string input)
-    {
-        return ModelConfigLoader.ResolveAlias(ProviderKey, input);
-    }
-
-    public bool SupportsFastMode(string modelId)
-    {
-        return ModelConfigLoader.SupportsFastMode(ProviderKey, modelId);
-    }
-
-    public bool SupportsEffort(string modelId)
-    {
-        return ModelConfigLoader.SupportsEffort(ProviderKey, modelId);
-    }
-
-    public bool SupportsMaxEffort(string modelId)
-    {
-        return ModelConfigLoader.SupportsMaxEffort(ProviderKey, modelId);
-    }
-
-    public bool SupportsWebSearch => true;
+    public override bool SupportsWebSearch => true;
 }

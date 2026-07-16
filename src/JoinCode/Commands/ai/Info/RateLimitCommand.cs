@@ -1,17 +1,10 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
-[ChatCommand(Name = ChatCommandNameConstants.RateLimitOptions, Description = "配置速率限制选项", Usage = "/rate-limit-options [show]", Category = ChatCommandCategory.Model)]
-public sealed class RateLimitCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.RateLimitOptions, Description = "配置速率限制选项", Usage = "/rate-limit-options [show]", Category = ChatCommandCategory.Model, Aliases = ["rate-limit"], ArgumentHint = "[show]", IsHidden = true)]
+public sealed class RateLimitCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.RateLimitOptions;
-    public string Description => "配置速率限制选项";
-    public string Usage => "/rate-limit-options [show]";
-    public string[] Aliases => ["rate-limit"];
-    public string ArgumentHint => "[show]";
-    public bool IsHidden => true;
-
-    public Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetNormalizedArgs(context);
         var tracker = context.Services.RateLimitTracker;

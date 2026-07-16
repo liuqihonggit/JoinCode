@@ -1,27 +1,15 @@
 
 namespace McpClient;
 
-/// <summary>
-/// API 密钥认证提供者
-/// </summary>
-public sealed class ApiKeyAuthProvider : IMcpAuthProvider
+public sealed class ApiKeyAuthProvider : StaticAuthProviderBase
 {
     private readonly string _apiKey;
     private readonly string _headerName;
 
-    public McpAuthType AuthType => McpAuthType.ApiKey;
-    public bool IsAuthenticated => !string.IsNullOrEmpty(_apiKey);
-    public string? StepUpPendingScope => null;
-    public bool NeedsStepUp => false;
+    public override McpAuthType AuthType => McpAuthType.ApiKey;
+    public override bool IsAuthenticated => !string.IsNullOrEmpty(_apiKey);
 
-    /// <summary>
-    /// API Key 值（用于序列化到 McpAuthConfig）
-    /// </summary>
     public string ApiKey => _apiKey;
-
-    /// <summary>
-    /// 请求头名称
-    /// </summary>
     public string HeaderName => _headerName;
 
     public ApiKeyAuthProvider(string apiKey, string headerName = "X-API-Key")
@@ -30,7 +18,7 @@ public sealed class ApiKeyAuthProvider : IMcpAuthProvider
         _headerName = headerName ?? throw new ArgumentNullException(nameof(headerName));
     }
 
-    public Task<Dictionary<string, string>> GetAuthHeadersAsync(CancellationToken cancellationToken = default)
+    public override Task<Dictionary<string, string>> GetAuthHeadersAsync(CancellationToken cancellationToken = default)
     {
         return Task.FromResult(new Dictionary<string, string>
         {
@@ -38,35 +26,19 @@ public sealed class ApiKeyAuthProvider : IMcpAuthProvider
         });
     }
 
-    public Task<string?> GetAccessTokenAsync(CancellationToken cancellationToken = default)
+    public override Task<string?> GetAccessTokenAsync(CancellationToken cancellationToken = default)
     {
         return Task.FromResult<string?>(_apiKey);
     }
-
-    public Task<bool> RefreshAsync(CancellationToken cancellationToken = default)
-    {
-        return Task.FromResult(true);
-    }
-
-    public void MarkStepUpPending(string scope) { /* API Key 不支持 Step-Up */ }
-    public void ClearStepUpPending() { /* API Key 不支持 Step-Up */ }
 }
 
-/// <summary>
-/// Bearer Token 认证提供者
-/// </summary>
-public sealed class BearerAuthProvider : IMcpAuthProvider
+public sealed class BearerAuthProvider : StaticAuthProviderBase
 {
     private readonly string _token;
 
-    public McpAuthType AuthType => McpAuthType.Bearer;
-    public bool IsAuthenticated => !string.IsNullOrEmpty(_token);
-    public string? StepUpPendingScope => null;
-    public bool NeedsStepUp => false;
+    public override McpAuthType AuthType => McpAuthType.Bearer;
+    public override bool IsAuthenticated => !string.IsNullOrEmpty(_token);
 
-    /// <summary>
-    /// Bearer Token 值（用于序列化到 McpAuthConfig）
-    /// </summary>
     public string Token => _token;
 
     public BearerAuthProvider(string token)
@@ -74,7 +46,7 @@ public sealed class BearerAuthProvider : IMcpAuthProvider
         _token = token ?? throw new ArgumentNullException(nameof(token));
     }
 
-    public Task<Dictionary<string, string>> GetAuthHeadersAsync(CancellationToken cancellationToken = default)
+    public override Task<Dictionary<string, string>> GetAuthHeadersAsync(CancellationToken cancellationToken = default)
     {
         return Task.FromResult(new Dictionary<string, string>
         {
@@ -82,41 +54,21 @@ public sealed class BearerAuthProvider : IMcpAuthProvider
         });
     }
 
-    public Task<string?> GetAccessTokenAsync(CancellationToken cancellationToken = default)
+    public override Task<string?> GetAccessTokenAsync(CancellationToken cancellationToken = default)
     {
         return Task.FromResult<string?>(_token);
     }
-
-    public Task<bool> RefreshAsync(CancellationToken cancellationToken = default)
-    {
-        return Task.FromResult(true);
-    }
-
-    public void MarkStepUpPending(string scope) { /* Bearer 不支持 Step-Up */ }
-    public void ClearStepUpPending() { /* Bearer 不支持 Step-Up */ }
 }
 
-/// <summary>
-/// Basic 认证提供者
-/// </summary>
-public sealed class BasicAuthProvider : IMcpAuthProvider
+public sealed class BasicAuthProvider : StaticAuthProviderBase
 {
     private readonly string _username;
     private readonly string _password;
 
-    public McpAuthType AuthType => McpAuthType.Basic;
-    public bool IsAuthenticated => !string.IsNullOrEmpty(_username) && !string.IsNullOrEmpty(_password);
-    public string? StepUpPendingScope => null;
-    public bool NeedsStepUp => false;
+    public override McpAuthType AuthType => McpAuthType.Basic;
+    public override bool IsAuthenticated => !string.IsNullOrEmpty(_username) && !string.IsNullOrEmpty(_password);
 
-    /// <summary>
-    /// 用户名（用于序列化到 McpAuthConfig）
-    /// </summary>
     public string Username => _username;
-
-    /// <summary>
-    /// 密码（用于序列化到 McpAuthConfig）
-    /// </summary>
     public string Password => _password;
 
     public BasicAuthProvider(string username, string password)
@@ -125,7 +77,7 @@ public sealed class BasicAuthProvider : IMcpAuthProvider
         _password = password ?? throw new ArgumentNullException(nameof(password));
     }
 
-    public Task<Dictionary<string, string>> GetAuthHeadersAsync(CancellationToken cancellationToken = default)
+    public override Task<Dictionary<string, string>> GetAuthHeadersAsync(CancellationToken cancellationToken = default)
     {
         var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{_username}:{_password}"));
         return Task.FromResult(new Dictionary<string, string>
@@ -134,24 +86,13 @@ public sealed class BasicAuthProvider : IMcpAuthProvider
         });
     }
 
-    public Task<string?> GetAccessTokenAsync(CancellationToken cancellationToken = default)
+    public override Task<string?> GetAccessTokenAsync(CancellationToken cancellationToken = default)
     {
         var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{_username}:{_password}"));
         return Task.FromResult<string?>(credentials);
     }
-
-    public Task<bool> RefreshAsync(CancellationToken cancellationToken = default)
-    {
-        return Task.FromResult(true);
-    }
-
-    public void MarkStepUpPending(string scope) { /* Basic 不支持 Step-Up */ }
-    public void ClearStepUpPending() { /* Basic 不支持 Step-Up */ }
 }
 
-/// <summary>
-/// OAuth2 认证配置选项
-/// </summary>
 public sealed record OAuth2ProviderOptions
 {
     public required string ClientId { get; init; }
@@ -162,9 +103,6 @@ public sealed record OAuth2ProviderOptions
     public ILogger? Logger { get; init; }
 }
 
-/// <summary>
-/// OAuth2 认证提供者
-/// </summary>
 public sealed class OAuth2AuthProvider : IMcpAuthProvider, IAsyncDisposable
 {
     private readonly OAuth2ProviderOptions _options;
@@ -197,7 +135,6 @@ public sealed class OAuth2AuthProvider : IMcpAuthProvider, IAsyncDisposable
     {
         ArgumentNullException.ThrowIfNull(options);
         _options = options;
-        // P1-6: fallback 走 HttpClientProviderFactory（支持 JCC_HTTP_MODE=Mock 切换，对齐主程序 IHttpClientProvider 抽象）
         _httpClient = options.HttpClient ?? HttpClientProviderFactory.Create().GetClient();
         _logger = options.Logger;
         _clock = clock ?? SystemClockService.Instance;
@@ -206,7 +143,6 @@ public sealed class OAuth2AuthProvider : IMcpAuthProvider, IAsyncDisposable
 
     public async Task<Dictionary<string, string>> GetAuthHeadersAsync(CancellationToken cancellationToken = default)
     {
-        // 对齐 TS ClaudeAuthProvider.tokens(): Step-Up 时省略 refresh_token 触发重新授权
         if (NeedsStepUp)
         {
             _logger?.LogWarning("Step-Up 认证待处理，需要提升 scope: {Scope}", _pendingStepUpScope);
@@ -334,11 +270,6 @@ public sealed class OAuth2AuthProvider : IMcpAuthProvider, IAsyncDisposable
     }
 }
 
-
-
-/// <summary>
-/// 认证提供者工厂
-/// </summary>
 public static class McpAuthProviderFactory
 {
     public static IMcpAuthProvider Create(McpAuthConfig config, ILogger? logger = null, IHttpClientProvider? httpClientProvider = null)

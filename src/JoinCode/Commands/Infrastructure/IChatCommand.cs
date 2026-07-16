@@ -1,4 +1,4 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
@@ -112,18 +112,25 @@ public interface IChatCommand
 
 public abstract class ChatCommandBase : IChatCommand
 {
-    public abstract string Name { get; }
-    public abstract string Description { get; }
-    public abstract string Usage { get; }
-    public virtual string[] Aliases => [];
-    public virtual string ArgumentHint => string.Empty;
-    public virtual bool IsHidden => false;
+    private readonly ChatCommandAttribute? _attr;
+
+    protected ChatCommandBase()
+    {
+        _attr = GetType().GetCustomAttributes(typeof(ChatCommandAttribute), false).Cast<ChatCommandAttribute>().FirstOrDefault();
+    }
+
+    public virtual string Name => _attr?.Name ?? string.Empty;
+    public virtual string Description => _attr?.Description ?? string.Empty;
+    public virtual string Usage => _attr?.Usage ?? string.Empty;
+    public virtual string[] Aliases => _attr?.Aliases ?? [];
+    public virtual string ArgumentHint => _attr?.ArgumentHint ?? string.Empty;
+    public virtual bool IsHidden => _attr?.IsHidden ?? false;
 
     /// <summary>
     /// 命令是否当前可用 — 对齐 TS CommandBase.isEnabled()
-    /// 默认 true（始终可用），子类可 override 实现动态门控
+    /// 默认从特性读取，子类可 override 实现动态门控
     /// </summary>
-    public virtual bool IsEnabled => true;
+    public virtual bool IsEnabled => _attr?.IsEnabled ?? true;
 
     public abstract Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context);
 

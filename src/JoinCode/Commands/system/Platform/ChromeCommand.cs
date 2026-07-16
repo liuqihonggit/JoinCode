@@ -1,4 +1,4 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
@@ -7,17 +7,10 @@ namespace JoinCode.ChatCommands;
 /// 对齐内容：connect+disconnect+install+toggle+status
 /// 架构差异：TS 有 React 交互式浏览器控制面板，C# 为命令行操作
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Chrome, Description = "Chrome 浏览器集成", Usage = "/chrome [connect|disconnect|install|toggle|status]", Category = ChatCommandCategory.Platform)]
-public sealed class ChromeCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.Chrome, Description = "Chrome 浏览器集成", Usage = "/chrome [connect|disconnect|install|toggle|status]", Category = ChatCommandCategory.Platform, ArgumentHint = "connect|disconnect|install|toggle|status", IsHidden = true)]
+public sealed class ChromeCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Chrome;
-    public string Description => "Chrome 浏览器集成";
-    public string Usage => "/chrome [connect|disconnect|install|toggle|status]";
-    public string[] Aliases => [];
-    public string ArgumentHint => "connect|disconnect|install|toggle|status";
-    public bool IsHidden => true;
-
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var chromeService = ChatCommandBase.GetService<IChromeIntegrationService>(context);
 

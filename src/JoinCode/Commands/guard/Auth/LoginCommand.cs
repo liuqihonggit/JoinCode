@@ -1,4 +1,4 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
@@ -8,18 +8,11 @@ namespace JoinCode.ChatCommands;
 /// 架构差异：TS 有 trustedDevice/growthbook/policyLimits 等 Anthropic 专有刷新，C# 为多 Provider 架构
 /// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Login, Description = "登录到 AI 服务", Usage = "/login [provider] [--oauth]", Category = ChatCommandCategory.Auth)]
-public sealed class LoginCommand : IChatCommand
+public sealed class LoginCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Login;
-    public string Description => "登录到 AI 服务";
-    public string Usage => "/login [provider] [--oauth]";
-    public string[] Aliases => [];
-    public string ArgumentHint => string.Empty;
-    public bool IsHidden => false;
-
     private static readonly string AuthPath = WorkflowConstants.Paths.AuthFilePath;
 
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetSplitArgs(context);
         var providerName = args.Length > 0 ? args[0].ToLowerInvariant() : ProviderKind.OpenAI.ToValue();

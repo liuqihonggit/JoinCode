@@ -1,4 +1,4 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>RenderOverview 渲染上下文 — 封装 12 个参数，消除 JCC1006 违规</summary>
 internal record class RenderOverviewContext(
@@ -7,17 +7,10 @@ internal record class RenderOverviewContext(
     string ApiStatus, string McpStatus, string MessageInfo);
 
 [ChatCommand(Name = ChatCommandNameConstants.Status, Description = "显示版本、模型、账户、API连接和工具状态", Usage = "/status", Category = ChatCommandCategory.Info)]
-public sealed class StatusCommand : IChatCommand
+public sealed class StatusCommand : ChatCommandBase
 {
     private readonly IClockService _clock = SystemClockService.Instance;
-    public string Name => ChatCommandNameConstants.Status;
-    public string Description => "显示版本、模型、账户、API连接和工具状态";
-    public string Usage => "/status";
-    public string[] Aliases => [];
-    public string ArgumentHint => string.Empty;
-    public bool IsHidden => false;
-
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         // 预收集数据
         var version = GetType().Assembly.GetName().Version?.ToString() ?? "unknown";

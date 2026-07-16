@@ -1,20 +1,13 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /cost 命令 - 显示成本统计
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Cost, Description = "显示使用成本统计", Usage = "/cost [today|session|total]", Category = ChatCommandCategory.Model)]
-public sealed class CostCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.Cost, Description = "显示使用成本统计", Usage = "/cost [today|session|total]", Category = ChatCommandCategory.Model, ArgumentHint = "[today|session|total]")]
+public sealed class CostCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Cost;
-    public string Description => "显示使用成本统计";
-    public string Usage => "/cost [today|session|total]";
-    public string[] Aliases => [];
-    public string ArgumentHint => "[today|session|total]";
-    public bool IsHidden => false;
-
-    public Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         if (context.Services.CostTracker is null)
         {

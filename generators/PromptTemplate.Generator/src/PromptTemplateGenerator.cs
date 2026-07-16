@@ -1,41 +1,11 @@
 namespace PromptTemplate.Generator;
 
 [Generator]
-public sealed class PromptTemplateGenerator : IIncrementalGenerator
+public sealed class PromptTemplateGenerator : AttributeRegistrationGeneratorBase<PromptTemplateGenerator.PromptTemplateInfo>
 {
-    private const string AttributeFullName = "JoinCode.Abstractions.Attributes.PromptTemplateAttribute";
+    protected override string AttributeFullName => "JoinCode.Abstractions.Attributes.PromptTemplateAttribute";
 
-    public void Initialize(IncrementalGeneratorInitializationContext context)
-    {
-        var templateInfos = context.CompilationProvider
-            .SelectMany((compilation, _) =>
-            {
-                var types = AttributeScanner.ScanTypesWithAttribute(compilation, AttributeFullName);
-                var attrSymbol = compilation.GetTypeByMetadataName(AttributeFullName);
-                if (attrSymbol is null)
-                    return ImmutableArray<PromptTemplateInfo>.Empty;
-
-                var results = new List<PromptTemplateInfo>();
-                foreach (var typeSymbol in types)
-                {
-                    var attr = AttributeScanner.GetAttribute(typeSymbol, attrSymbol);
-                    if (attr is null) continue;
-
-                    var info = ExtractTemplateInfo(typeSymbol, attr);
-                    if (info is not null)
-                        results.Add(info);
-                }
-                return results.ToImmutableArray();
-            })
-            .Collect();
-
-        context.RegisterSourceOutput(templateInfos, static (ctx, infos) =>
-        {
-            GenerateRegistration(ctx, infos);
-        });
-    }
-
-    private static PromptTemplateInfo? ExtractTemplateInfo(INamedTypeSymbol typeSymbol, AttributeData attr)
+    protected override PromptTemplateInfo? ExtractInfo(INamedTypeSymbol typeSymbol, AttributeData attr, Compilation compilation)
     {
         var name = AttributeScanner.GetStringNamedArg(attr, "Name");
         var category = AttributeScanner.GetIntNamedArg(attr, "Category");
@@ -102,7 +72,7 @@ public sealed class PromptTemplateGenerator : IIncrementalGenerator
             hasParameters);
     }
 
-    private static void GenerateRegistration(SourceProductionContext context, ImmutableArray<PromptTemplateInfo> infos)
+    protected override void GenerateRegistration(SourceProductionContext context, ImmutableArray<PromptTemplateInfo> infos)
     {
         var orderedInfos = infos.OrderBy(i => i.Category).ThenBy(i => i.Name).ToList();
 
@@ -206,7 +176,7 @@ public sealed class PromptTemplateGenerator : IIncrementalGenerator
         Goal = 7
     }
 
-    private sealed class PromptTemplateInfo
+    internal sealed class PromptTemplateInfo
     {
         public string FullyQualifiedName { get; }
         public string TypeName { get; }

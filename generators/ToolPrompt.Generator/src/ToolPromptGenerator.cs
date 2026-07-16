@@ -1,41 +1,11 @@
 namespace ToolPrompt.Generator;
 
 [Generator]
-public sealed class ToolPromptGenerator : IIncrementalGenerator
+public sealed class ToolPromptGenerator : AttributeRegistrationGeneratorBase<ToolPromptGenerator.ToolPromptInfo>
 {
-    private const string AttributeFullName = "JoinCode.Abstractions.Attributes.ToolPromptAttribute";
+    protected override string AttributeFullName => "JoinCode.Abstractions.Attributes.ToolPromptAttribute";
 
-    public void Initialize(IncrementalGeneratorInitializationContext context)
-    {
-        var toolPromptInfos = context.CompilationProvider
-            .SelectMany((compilation, _) =>
-            {
-                var types = AttributeScanner.ScanTypesWithAttribute(compilation, AttributeFullName);
-                var attrSymbol = compilation.GetTypeByMetadataName(AttributeFullName);
-                if (attrSymbol is null)
-                    return ImmutableArray<ToolPromptInfo>.Empty;
-
-                var results = new List<ToolPromptInfo>();
-                foreach (var typeSymbol in types)
-                {
-                    var attr = AttributeScanner.GetAttribute(typeSymbol, attrSymbol);
-                    if (attr is null) continue;
-
-                    var info = ExtractToolPromptInfo(typeSymbol, attr);
-                    if (info is not null)
-                        results.Add(info);
-                }
-                return results.ToImmutableArray();
-            })
-            .Collect();
-
-        context.RegisterSourceOutput(toolPromptInfos, static (ctx, infos) =>
-        {
-            GenerateRegistration(ctx, infos);
-        });
-    }
-
-    private static ToolPromptInfo? ExtractToolPromptInfo(INamedTypeSymbol typeSymbol, AttributeData attr)
+    protected override ToolPromptInfo? ExtractInfo(INamedTypeSymbol typeSymbol, AttributeData attr, Compilation compilation)
     {
         var toolName = AttributeScanner.GetStringNamedArg(attr, "ToolName");
         var category = AttributeScanner.GetIntNamedArg(attr, "Category");
@@ -76,7 +46,7 @@ public sealed class ToolPromptGenerator : IIncrementalGenerator
             hasGetPrompt);
     }
 
-    private static void GenerateRegistration(SourceProductionContext context, ImmutableArray<ToolPromptInfo> infos)
+    protected override void GenerateRegistration(SourceProductionContext context, ImmutableArray<ToolPromptInfo> infos)
     {
         var orderedInfos = infos.OrderBy(i => i.ToolName).ToList();
 
@@ -172,7 +142,7 @@ public sealed class ToolPromptGenerator : IIncrementalGenerator
         System = 5
     }
 
-    private sealed class ToolPromptInfo
+    internal sealed class ToolPromptInfo
     {
         public string FullyQualifiedName { get; }
         public string TypeName { get; }

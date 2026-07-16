@@ -3,6 +3,12 @@ namespace JoinCode.Abstractions.Security.Shell;
 public static class BashSemanticChecker
 {
     public static BashSemanticCheckResult CheckSemantics(BashSimpleCommandInfo[] commands)
+        => CheckSemantics(commands, BashSemanticCheckIdMap.Default, null);
+
+    public static BashSemanticCheckResult CheckSemantics(
+        BashSimpleCommandInfo[] commands,
+        BashSemanticCheckIdMap checkIds,
+        Func<string, BashSemanticCheckResult?>? preCheck)
     {
         foreach (var cmd in commands)
         {
@@ -13,11 +19,17 @@ public static class BashSemanticChecker
 
             if (string.IsNullOrEmpty(name)) continue;
 
+            if (preCheck is not null)
+            {
+                var preResult = preCheck(name);
+                if (preResult is not null) return preResult;
+            }
+
             if (name.Length == 0)
-                return new BashSemanticCheckResult(false, "空命令名", BashSecurityCheckId.EmptyCommandName);
+                return new BashSemanticCheckResult(false, "空命令名", checkIds.EmptyCommandName);
 
             if (name.StartsWith('-') || name.StartsWith('|') || name.StartsWith('&'))
-                return new BashSemanticCheckResult(false, $"命令 '{name}' 似乎是不完整片段", BashSecurityCheckId.IncompleteFragment);
+                return new BashSemanticCheckResult(false, $"命令 '{name}' 似乎是不完整片段", checkIds.IncompleteFragment);
 
             var subscriptResult = CheckSubscriptEvalFlags(name, a);
             if (!subscriptResult.IsOk) return subscriptResult;
@@ -28,7 +40,7 @@ public static class BashSemanticChecker
             var bareSubscriptResult = CheckBareSubscriptNameBuiltins(name, a);
             if (!bareSubscriptResult.IsOk) return bareSubscriptResult;
 
-            var keywordResult = CheckShellKeywords(name);
+            var keywordResult = CheckShellKeywords(name, checkIds);
             if (!keywordResult.IsOk) return keywordResult;
 
             var hashResult = CheckNewlineHash(cmd);
@@ -37,10 +49,10 @@ public static class BashSemanticChecker
             var jqResult = CheckJqSecurity(name, a);
             if (!jqResult.IsOk) return jqResult;
 
-            var zshResult = CheckZshDangerousBuiltins(name);
+            var zshResult = CheckZshDangerousBuiltins(name, checkIds);
             if (!zshResult.IsOk) return zshResult;
 
-            var evalResult = CheckEvalLikeBuiltins(name, a);
+            var evalResult = CheckEvalLikeBuiltins(name, a, checkIds);
             if (!evalResult.IsOk) return evalResult;
 
             var procResult = CheckProcEnvironAccess(cmd);
@@ -50,7 +62,7 @@ public static class BashSemanticChecker
         return new BashSemanticCheckResult(true);
     }
 
-    private static BashSemanticCheckResult CheckEvalLikeBuiltins(string name, string[] a)
+    private static BashSemanticCheckResult CheckEvalLikeBuiltins(string name, string[] a, BashSemanticCheckIdMap checkIds)
     {
         if (!BashSecurityConstants.EvalLikeBuiltins.Contains(name)) return new BashSemanticCheckResult(true);
 
@@ -60,7 +72,7 @@ public static class BashSemanticChecker
                 return new BashSemanticCheckResult(true);
             return new BashSemanticCheckResult(false,
                 $"'{name}' 可绕过函数/别名查找执行命令",
-                BashSecurityCheckId.EvalLikeBuiltins);
+                checkIds.EvalLikeBuiltins);
         }
 
         if (name.Equals("fc", StringComparison.OrdinalIgnoreCase))
@@ -80,31 +92,31 @@ public static class BashSemanticChecker
             if (a.Length > 1 && BashSecurityConstants.EvalLikeBuiltins.Contains(a[1]))
                 return new BashSemanticCheckResult(false,
                     $"builtin {a[1]} 可绕过函数定义执行内置命令",
-                    BashSecurityCheckId.EvalLikeBuiltins);
+                    checkIds.EvalLikeBuiltins);
             return new BashSemanticCheckResult(true);
         }
 
         return new BashSemanticCheckResult(false,
             $"'{name}' 可将参数作为Shell代码执行",
-            BashSecurityCheckId.EvalLikeBuiltins);
+            checkIds.EvalLikeBuiltins);
     }
 
-    private static BashSemanticCheckResult CheckZshDangerousBuiltins(string name)
+    private static BashSemanticCheckResult CheckZshDangerousBuiltins(string name, BashSemanticCheckIdMap checkIds)
     {
         if (BashSecurityConstants.ZshDangerousBuiltins.Contains(name))
             return new BashSemanticCheckResult(false,
                 $"Zsh内置命令 '{name}' 可绕过安全检查",
-                BashSecurityCheckId.ZshDangerousBuiltins);
+                checkIds.ZshDangerousBuiltins);
 
         return new BashSemanticCheckResult(true);
     }
 
-    private static BashSemanticCheckResult CheckShellKeywords(string name)
+    private static BashSemanticCheckResult CheckShellKeywords(string name, BashSemanticCheckIdMap checkIds)
     {
         if (BashSecurityConstants.ShellKeywords.Contains(name))
             return new BashSemanticCheckResult(false,
                 $"Shell关键字 '{name}' 作为命令名 — 可能是 tree-sitter 误解析",
-                BashSecurityCheckId.ShellKeywords);
+                checkIds.ShellKeywords);
 
         return new BashSemanticCheckResult(true);
     }

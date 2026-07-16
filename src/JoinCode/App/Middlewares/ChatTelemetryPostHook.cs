@@ -28,7 +28,7 @@ internal sealed partial class ChatTelemetryPostHook : IPipelinePostHook<Core.Con
         context.Span?.SetTag("chat.cache_creation_tokens", context.FinalUsage?.CacheCreationInputTokens ?? 0);
         context.Span?.SetTag("chat.model", context.FinalModelId ?? "unknown");
         context.Span?.SetStatus(TelemetryStatusCode.Ok);
-        context.Span?.Dispose();
+        if (context.Span is not null) await context.Span.DisposeAsync().ConfigureAwait(false);
 
         _telemetryService.RecordCount("chat.send.count", new() { ["mode"] = "events" }, "count", "Chat message send count");
         if (context.FinalUsage is not null)

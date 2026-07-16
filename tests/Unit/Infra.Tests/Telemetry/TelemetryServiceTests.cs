@@ -6,9 +6,9 @@ public sealed class TelemetryServiceTests
     private readonly TelemetryConfig _config = new();
 
     [Fact]
-    public void Constructor_SetsConfig()
+    public async Task Constructor_SetsConfig()
     {
-        using var service = new TelemetryService(_config);
+        await using var service = new TelemetryService(_config);
 
         Assert.Same(_config, service.Config);
     }
@@ -20,28 +20,28 @@ public sealed class TelemetryServiceTests
     }
 
     [Fact]
-    public void IsTracingEnabled_ReflectsConfig()
+    public async Task IsTracingEnabled_ReflectsConfig()
     {
         var tracingOff = new TelemetryConfig { TracingEnabled = false };
-        using var service = new TelemetryService(tracingOff);
+        await using var service = new TelemetryService(tracingOff);
 
         Assert.False(service.IsTracingEnabled);
     }
 
     [Fact]
-    public void IsMetricsEnabled_ReflectsConfig()
+    public async Task IsMetricsEnabled_ReflectsConfig()
     {
         var metricsOff = new TelemetryConfig { MetricsEnabled = false };
-        using var service = new TelemetryService(metricsOff);
+        await using var service = new TelemetryService(metricsOff);
 
         Assert.False(service.IsMetricsEnabled);
     }
 
     [Fact]
-    public void StartSpan_ReturnsSpan()
+    public async Task StartSpan_ReturnsSpan()
     {
-        using var service = new TelemetryService(_config);
-        using var span = service.StartSpan("test-operation");
+        await using var service = new TelemetryService(_config);
+        await using var span = service.StartSpan("test-operation");
 
         Assert.NotNull(span);
         Assert.Equal("test-operation", span.Name);
@@ -51,40 +51,40 @@ public sealed class TelemetryServiceTests
     }
 
     [Fact]
-    public void StartSpan_WithKind_SetsKind()
+    public async Task StartSpan_WithKind_SetsKind()
     {
-        using var service = new TelemetryService(_config);
-        using var span = service.StartSpan("client-call", TelemetrySpanKind.Client);
+        await using var service = new TelemetryService(_config);
+        await using var span = service.StartSpan("client-call", TelemetrySpanKind.Client);
 
         Assert.Equal(TelemetrySpanKind.Client, span.Kind);
     }
 
     [Fact]
-    public void StartSpan_WithParent_SetsParentSpanId()
+    public async Task StartSpan_WithParent_SetsParentSpanId()
     {
-        using var service = new TelemetryService(_config);
-        using var parent = service.StartSpan("parent");
-        using var child = service.StartSpan("child", TelemetrySpanKind.Internal, parent);
+        await using var service = new TelemetryService(_config);
+        await using var parent = service.StartSpan("parent");
+        await using var child = service.StartSpan("child", TelemetrySpanKind.Internal, parent);
 
         Assert.Equal(parent.SpanId, child.ParentSpanId);
         Assert.Equal(parent.TraceId, child.TraceId);
     }
 
     [Fact]
-    public void StartSpan_TracingDisabled_ReturnsNoOpSpan()
+    public async Task StartSpan_TracingDisabled_ReturnsNoOpSpan()
     {
         var noTracing = new TelemetryConfig { TracingEnabled = false };
-        using var service = new TelemetryService(noTracing);
-        using var span = service.StartSpan("no-op");
+        await using var service = new TelemetryService(noTracing);
+        await using var span = service.StartSpan("no-op");
 
         Assert.NotNull(span);
         Assert.False(span.IsRecording);
     }
 
     [Fact]
-    public void GetCounter_ReturnsCounter()
+    public async Task GetCounter_ReturnsCounter()
     {
-        using var service = new TelemetryService(_config);
+        await using var service = new TelemetryService(_config);
         var counter = service.GetCounter("request-count", "requests", "Total requests");
 
         Assert.NotNull(counter);
@@ -92,9 +92,9 @@ public sealed class TelemetryServiceTests
     }
 
     [Fact]
-    public void GetCounter_SameName_ReturnsSameInstance()
+    public async Task GetCounter_SameName_ReturnsSameInstance()
     {
-        using var service = new TelemetryService(_config);
+        await using var service = new TelemetryService(_config);
         var counter1 = service.GetCounter("request-count");
         var counter2 = service.GetCounter("request-count");
 
@@ -102,9 +102,9 @@ public sealed class TelemetryServiceTests
     }
 
     [Fact]
-    public void GetHistogram_ReturnsHistogram()
+    public async Task GetHistogram_ReturnsHistogram()
     {
-        using var service = new TelemetryService(_config);
+        await using var service = new TelemetryService(_config);
         var histogram = service.GetHistogram("request-duration", "ms", "Request duration");
 
         Assert.NotNull(histogram);
@@ -112,9 +112,9 @@ public sealed class TelemetryServiceTests
     }
 
     [Fact]
-    public void GetHistogram_SameName_ReturnsSameInstance()
+    public async Task GetHistogram_SameName_ReturnsSameInstance()
     {
-        using var service = new TelemetryService(_config);
+        await using var service = new TelemetryService(_config);
         var hist1 = service.GetHistogram("duration");
         var hist2 = service.GetHistogram("duration");
 
@@ -122,9 +122,9 @@ public sealed class TelemetryServiceTests
     }
 
     [Fact]
-    public void GetGauge_ReturnsGauge()
+    public async Task GetGauge_ReturnsGauge()
     {
-        using var service = new TelemetryService(_config);
+        await using var service = new TelemetryService(_config);
         var gauge = service.GetGauge("active-sessions", "sessions", "Active sessions");
 
         Assert.NotNull(gauge);
@@ -132,23 +132,23 @@ public sealed class TelemetryServiceTests
     }
 
     [Fact]
-    public void GetActiveSpans_ReturnsActiveSpans()
+    public async Task GetActiveSpans_ReturnsActiveSpans()
     {
-        using var service = new TelemetryService(_config);
+        await using var service = new TelemetryService(_config);
         var span1 = service.StartSpan("op1");
         var span2 = service.StartSpan("op2");
 
         var active = service.GetActiveSpans();
         Assert.True(active.Count >= 2);
 
-        span1.Dispose();
-        span2.Dispose();
+        await span1.DisposeAsync();
+        await span2.DisposeAsync();
     }
 
     [Fact]
-    public void GetRegisteredMetrics_ReturnsMetricNames()
+    public async Task GetRegisteredMetrics_ReturnsMetricNames()
     {
-        using var service = new TelemetryService(_config);
+        await using var service = new TelemetryService(_config);
         service.GetCounter("c1");
         service.GetHistogram("h1");
 

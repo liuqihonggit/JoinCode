@@ -80,8 +80,9 @@ public sealed partial class ShellOutputMiddleware : IShellMiddleware
 
     /// <summary>
     /// 构建输出响应 — 对齐 TS mapToolResultToToolResultBlockParam
+    /// 供 PowerShellToolHandlers 等非管道路径复用，避免重复实现输出格式化
     /// </summary>
-    private static string BuildOutputResponse(ShellExecutionResult result, string? command = null)
+    internal static string BuildOutputResponse(ShellExecutionResult result, string? command = null)
     {
         // 对齐 TS mapToolResultToToolResultBlockParam: stdout 处理
         var processedStdout = result.Stdout ?? string.Empty;
@@ -151,9 +152,9 @@ public sealed partial class ShellOutputMiddleware : IShellMiddleware
 
     /// <summary>
     /// 退出码语义解释 — 对齐 TS commandSemantics.ts interpretCommandResult
-    /// 返回 (IsError, Message) 元组，某些命令的非零退出码不代表错误
+    /// 供 PowerShellToolHandlers 等非管道路径复用
     /// </summary>
-    private static (bool IsError, string? Message) InterpretCommandResult(string? command, int exitCode, string stdout, string stderr)
+    internal static (bool IsError, string? Message) InterpretCommandResult(string? command, int exitCode, string stdout, string stderr)
     {
         if (string.IsNullOrEmpty(command)) return (exitCode != 0, exitCode != 0 ? $"Command failed with exit code {exitCode}" : null);
         var baseCmd = GetBaseCommand(command);

@@ -33,16 +33,14 @@ public sealed partial class ShellExecutionMiddleware : IShellMiddleware
             disableSandbox: context.DangerouslyDisableSandbox == true,
             cancellationToken: ct).ConfigureAwait(false);
 
-        // 注册后台化事件 — 将后台化的命令注册到后台任务服务
+        // 注册后台化事件 — 对齐 TS spawnShellTask: 将后台化的命令注册到后台任务服务
+        // 统一走 ShellCommandContext 路径，输出通过 GetCurrentStdout() 获取（支持溢出文件）
         if (_backgroundTaskService != null && cmdContext is ShellCommandContext shellCtx)
         {
             shellCtx.Backgrounded += (ctx, taskId) =>
             {
-                // 超时/assistant 自动后台化时，将进程注册到后台任务服务
-                _ = _backgroundTaskService.CreateTaskAsync(
-                    ctx.Command,
-                    context.WorkingDirectory,
-                    cancellationToken: default);
+                _ = _backgroundTaskService.RegisterContextAsync(
+                    ctx, context.WorkingDirectory, cancellationToken: default);
             };
         }
 

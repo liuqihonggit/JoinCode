@@ -1,49 +1,17 @@
-
-
-
 namespace Tools.Handlers;
 
 /// <summary>
-/// PowerShell 增强命令选项
-/// </summary>
-public sealed record PowerShellOptions
-{
-    [McpToolParameter("PowerShell command or script to execute")]
-    public required string Command { get; init; }
-
-    [McpToolParameter("Do not load PowerShell profile", Required = false, DefaultValue = "false")]
-    public bool? NoProfile { get; init; }
-
-    [McpToolParameter("Execution policy (e.g. Bypass, RemoteSigned, AllSigned)", Required = false)]
-    public string? ExecutionPolicy { get; init; }
-
-    [McpToolParameter("Command mode (-Command or -File)", Required = false, DefaultValue = "Command")]
-    public string? CommandMode { get; init; }
-
-    [McpToolParameter("Run as administrator", Required = false, DefaultValue = "false")]
-    public bool? RunAsAdmin { get; init; }
-
-    [McpToolParameter("Timeout in milliseconds, defaults to 60000", Required = false, DefaultValue = "60000")]
-    public int? Timeout { get; init; }
-
-    [McpToolParameter("Working directory, defaults to current directory", Required = false)]
-    public string? WorkingDirectory { get; init; }
-
-    [McpToolParameter("Run in background", Required = false, DefaultValue = "false")]
-    public bool? Background { get; init; }
-}
-
-/// <summary>
-/// PowerShell专用工具处理器 - 提供针对PowerShell优化的功能
+/// PowerShell 专用工具处理器 — 对齐 TS PowerShellTool
+/// 统一走中间件管道，与 ShellToolHandlers 共享验证、后台化、输出格式化逻辑
 /// 继承 ShellToolBase 获得 PowerShell 门控、进程看护、压缩标记
 /// </summary>
 [McpToolHandler(ToolCategory.PowerShell)]
 public class PowerShellToolHandlers : ShellToolBase
 {
+    private readonly MiddlewarePipeline<ShellContext> _pipeline;
     private readonly IShellExecutionService _shellExecutionService;
     private readonly IFileOperationService _fileOperationService;
     private readonly IFileSystem _fs;
-    private readonly IShellBackgroundTaskService? _backgroundTaskService;
     private readonly ITelemetryService? _telemetryService;
     private readonly IPsPermissionChecker? _psPermissionChecker;
     private readonly IPsDestructiveCommandChecker? _psDestructiveCommandChecker;
@@ -52,45 +20,44 @@ public class PowerShellToolHandlers : ShellToolBase
     public override bool IsPowerShell => true;
 
     public PowerShellToolHandlers(
+        MiddlewarePipeline<ShellContext> pipeline,
         IShellExecutionService shellExecutionService,
         IFileOperationService fileOperationService,
         IFileSystem fs,
         IShellToolGateService? gateService = null,
         IShellProcessWatchdog? watchdog = null,
-        IShellBackgroundTaskService? backgroundTaskService = null,
         ITelemetryService? telemetryService = null,
         IPsPermissionChecker? psPermissionChecker = null,
         IPsDestructiveCommandChecker? psDestructiveCommandChecker = null)
         : base(gateService, watchdog)
     {
+        _pipeline = pipeline ?? throw new ArgumentNullException(nameof(pipeline));
         _shellExecutionService = shellExecutionService ?? throw new ArgumentNullException(nameof(shellExecutionService));
         _fileOperationService = fileOperationService ?? throw new ArgumentNullException(nameof(fileOperationService));
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
-        _backgroundTaskService = backgroundTaskService;
         _telemetryService = telemetryService;
         _psPermissionChecker = psPermissionChecker;
         _psDestructiveCommandChecker = psDestructiveCommandChecker;
     }
 
     /// <summary>
-    /// 执行PowerShell命令（增强版）
+    /// 执行 PowerShell 命令 — 对齐 TS PowerShellTool
+    /// 统一走中间件管道：验证 → PS权限检查 → 后台判断 → 执行 → 输出格式化
     /// </summary>
-    [McpTool(ShellToolNameConstants.Powershell, "Execute PowerShell command (enhanced, supports more parameters)", "execution")]
+    [McpTool(ShellToolNameConstants.Powershell, "Execute a PowerShell command. The description parameter briefly describes the command purpose", "execution")]
     public async Task<ToolResult> PowerShellAsync(
-        [McpToolOptions] PowerShellOptions options,
-        CancellationToken cancellationToken = default)
+        [McpToolParameter("PowerShell command to execute")] string command,
+        [McpToolParameter("Brief description of the command purpose", Required = false)] string? description = null,
+        [McpToolParameter("Timeout in milliseconds, default 120000ms", Required = false, DefaultValue = "120000")] int? timeout = null,
+        [McpToolParameter("Working directory, defaults to current directory", Required = false)] string? working_directory = null,
+        [McpToolParameter("Run in background (do not wait for completion)", Required = false, DefaultValue = "false")] bool? background = null,
+        [McpToolParameter("Enable auto-backgrounding on timeout", Required = false, DefaultValue = "true")] bool? auto_background = null,
+        [McpToolParameter("Override sandbox mode for this command", Required = false, DefaultValue = "false")] bool? dangerously_disable_sandbox = null,
+        CancellationToken cancellationToken = default,
+        ToolProgressCallback? onProgress = null)
     {
         var gateResult = CheckGate(isPowerShellCall: true);
         if (gateResult is not null) return gateResult;
-
-        var command = options.Command;
-        var no_profile = options.NoProfile;
-        var execution_policy = options.ExecutionPolicy;
-        var command_mode = options.CommandMode;
-        var run_as_admin = options.RunAsAdmin;
-        var timeout = options.Timeout;
-        var working_directory = options.WorkingDirectory;
-        var background = options.Background;
 
         if (string.IsNullOrWhiteSpace(command))
         {
@@ -108,15 +75,8 @@ public class PowerShellToolHandlers : ShellToolBase
                 var permWarning = new StringBuilder();
                 permWarning.AppendLine($"{StatusSymbol.Warning.ToValue()} {(permResult.Behavior == PermissionBehavior.Deny ? "Operation denied" : "User approval required")}");
                 permWarning.AppendLine();
-                if (!string.IsNullOrEmpty(permResult.Message))
-                {
-                    permWarning.AppendLine(permResult.Message);
-                }
-                if (!string.IsNullOrEmpty(permResult.Suggestions))
-                {
-                    permWarning.AppendLine();
-                    permWarning.AppendLine(permResult.Suggestions);
-                }
+                if (!string.IsNullOrEmpty(permResult.Message)) permWarning.AppendLine(permResult.Message);
+                if (!string.IsNullOrEmpty(permResult.Suggestions)) { permWarning.AppendLine(); permWarning.AppendLine(permResult.Suggestions); }
 
                 RecordPsmetrics("ps_enhanced", permResult.Behavior == PermissionBehavior.Deny ? "denied" : "ask");
                 return ResultBuilder.Error().WithText(permWarning.ToString()).Build();
@@ -140,89 +100,23 @@ public class PowerShellToolHandlers : ShellToolBase
             }
         }
 
-        // 构建PowerShell参数
-        var psArgs = new StringBuilder();
-
-        if (no_profile == true)
+        var context = new ShellContext
         {
-            psArgs.Append("-NoProfile ");
-        }
+            Command = command,
+            IsPowerShell = true,
+            Description = description,
+            Timeout = timeout,
+            WorkingDirectory = working_directory,
+            Background = background,
+            AutoBackground = auto_background,
+            DangerouslyDisableSandbox = dangerously_disable_sandbox,
+            CancellationToken = cancellationToken,
+            OnProgress = onProgress,
+        };
 
-        if (!string.IsNullOrEmpty(execution_policy))
-        {
-            psArgs.Append($"-ExecutionPolicy {execution_policy} ");
-        }
+        await _pipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false);
 
-        var mode = command_mode?.ToLowerInvariant() == "file" ? "-File" : "-Command";
-        psArgs.Append($"{mode} \"{command.Replace("\"", "`\"")}\"");
-
-        var fullCommand = $"powershell.exe {psArgs}";
-
-        // 后台任务模式
-        if (background == true && _backgroundTaskService != null)
-        {
-            var taskInfo = await _backgroundTaskService.CreateTaskAsync(
-                fullCommand,
-                working_directory,
-                cancellationToken).ConfigureAwait(false);
-
-            var response = new StringBuilder();
-            response.AppendLine($"{StatusSymbol.Play.ToValue()} PowerShell background task created");
-            response.AppendLine($"Task ID: {taskInfo.TaskId}");
-            response.AppendLine($"Command: {command[..Math.Min(50, command.Length)]}...");
-            response.AppendLine();
-            response.AppendLine("Use the following command to check task status:");
-            response.AppendLine($"  - shell_background_get task_id=\"{taskInfo.TaskId}\"");
-
-            return ResultBuilder.Success().WithText(response.ToString()).Build();
-        }
-
-        var result = await _shellExecutionService.ExecuteAsync(
-            fullCommand,
-            timeout ?? 60000,
-            working_directory,
-            cancellationToken: cancellationToken).ConfigureAwait(false);
-
-        if (result.Interrupted)
-        {
-            RecordPsmetrics("ps_enhanced", "interrupted");
-            return ResultBuilder.Error().WithText(result.Stderr).Build();
-        }
-
-        var output = BuildOutputResponse(result);
-
-        // 使用 PS 命令语义解释退出码（区分 PS 原生 cmdlet 和外部可执行文件）
-        if (result.ExitCode.HasValue && result.ExitCode.Value != 0)
-        {
-            var semantic = JoinCode.Hands.Shell.PsCommandSemantics.InterpretCommandResult(
-                command, result.ExitCode.Value, result.Stdout ?? string.Empty, result.Stderr ?? string.Empty);
-
-            if (!semantic.IsError)
-            {
-                // 退出码非零但语义上不是错误（如 grep 无匹配、robocopy 成功复制）
-                RecordPsmetrics("ps_enhanced", "ok");
-                if (semantic.Message != null)
-                {
-                    output = $"{output}\n[{semantic.Message}]";
-                }
-                return ResultBuilder.Success().WithText(output).Build();
-            }
-        }
-
-        if (!result.Success)
-        {
-            RecordPsmetrics("ps_enhanced", "failed");
-            if (result.Stderr?.Contains("Cannot invoke method") == true ||
-                result.Stderr?.Contains("constrained language") == true)
-            {
-                output = $"{output}\n\n{StatusSymbol.Warning.ToValue()} Note: Constrained Language Mode (CLM) detected. Some PowerShell features may be unavailable.";
-            }
-
-            return ResultBuilder.Error().WithText(output).Build();
-        }
-
-        RecordPsmetrics("ps_enhanced", "ok");
-        return ResultBuilder.Success().WithText(output).Build();
+        return context.Result ?? ResultBuilder.Error().WithText("Pipeline did not produce a result").Build();
     }
 
     /// <summary>
@@ -292,7 +186,7 @@ public class PowerShellToolHandlers : ShellToolBase
             return ResultBuilder.Error().WithText(result.Stderr).Build();
         }
 
-        var output = BuildOutputResponse(result);
+        var output = ShellOutputMiddleware.BuildOutputResponse(result);
 
         if (!result.Success)
         {
@@ -479,36 +373,6 @@ public class PowerShellToolHandlers : ShellToolBase
         if (_telemetryService == null) return;
         var counter = _telemetryService.GetCounter("powershell.handler.count", "count", "PowerShell handler count");
         counter.Add(1, new Dictionary<string, string> { ["operation"] = operation, ["result"] = result });
-    }
-
-    private static string BuildOutputResponse(ShellExecutionResult result)
-    {
-        var response = new StringBuilder();
-
-        if (!string.IsNullOrEmpty(result.Stdout))
-        {
-            response.AppendLine("[stdout]");
-            response.AppendLine(result.Stdout);
-        }
-
-        if (!string.IsNullOrEmpty(result.Stderr))
-        {
-            response.AppendLine("[stderr]");
-            response.AppendLine(result.Stderr);
-        }
-
-        if (result.ExitCode.HasValue && result.ExitCode.Value != 0)
-        {
-            response.AppendLine($"[exit code] {result.ExitCode}");
-        }
-
-        var output = response.ToString().Trim();
-        if (string.IsNullOrEmpty(output))
-        {
-            output = "Command completed (no output)";
-        }
-
-        return output;
     }
 
     private async Task<ConstrainedLanguageModeCheck> CheckConstrainedLanguageModeAsync(CancellationToken cancellationToken)

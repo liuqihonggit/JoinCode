@@ -1,9 +1,10 @@
 namespace Tools.Handlers;
 
 /// <summary>
-/// Shell 执行工具处理器 - 提供 CMD 和 PowerShell 命令执行功能
+/// Shell 执行工具处理器 — 提供 Bash 命令执行 + 后台任务管理
 /// 通过中间件管道处理验证、分类、sed拦截、后台判断、执行、输出格式化
 /// 继承 ShellToolBase 获得 PowerShell 门控、进程看护、压缩标记
+/// PowerShell 命令由 PowerShellToolHandlers 独立处理
 /// </summary>
 [McpToolHandler(ToolCategory.Shell)]
 public partial class ShellToolHandlers : ShellToolBase
@@ -25,10 +26,10 @@ public partial class ShellToolHandlers : ShellToolBase
     }
 
     /// <summary>
-    /// 执行 CMD 命令
-    /// 与 TS BashTool 对齐：超时自动后台化、assistant 自动后台化、description 参数
+    /// 执行 Bash 命令 — 对齐 TS BashTool
+    /// 超时自动后台化、assistant 自动后台化、description 参数
     /// </summary>
-    [McpTool(ShellToolNameConstants.Bash, "Execute a Windows CMD command. The description parameter briefly describes the command purpose", "execution")]
+    [McpTool(ShellToolNameConstants.Bash, "Execute a Bash/CMD command. The description parameter briefly describes the command purpose", "execution")]
     public async Task<ToolResult> ShellExecuteAsync(
         [McpToolParameter("CMD command to execute")] string command,
         [McpToolParameter("Brief description of the command purpose", Required = false)] string? description = null,
@@ -44,43 +45,6 @@ public partial class ShellToolHandlers : ShellToolBase
         {
             Command = command,
             IsPowerShell = false,
-            Description = description,
-            Timeout = timeout,
-            WorkingDirectory = working_directory,
-            Background = background,
-            AutoBackground = auto_background,
-            DangerouslyDisableSandbox = dangerously_disable_sandbox,
-            CancellationToken = cancellationToken,
-            OnProgress = onProgress,
-        };
-
-        await _pipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false);
-
-        return context.Result ?? ResultBuilder.Error().WithText("Pipeline did not produce a result").Build();
-    }
-
-    /// <summary>
-    /// 执行 PowerShell 命令
-    /// 与 TS BashTool 对齐：添加 description 参数和退出码语义解释
-    /// </summary>
-    [McpTool(ShellToolNameConstants.Powershell, "Execute a PowerShell command. The description parameter briefly describes the command purpose", "execution")]
-    public async Task<ToolResult> PowerShellExecuteAsync(
-        [McpToolParameter("PowerShell command to execute")] string command,
-        [McpToolParameter("Brief description of the command purpose", Required = false)] string? description = null,
-        [McpToolParameter("Timeout in milliseconds, default 120000ms", Required = false, DefaultValue = "120000")] int? timeout = null,
-        [McpToolParameter("Working directory, defaults to current directory", Required = false)] string? working_directory = null,
-        [McpToolParameter("Run in background (do not wait for completion)", Required = false, DefaultValue = "false")] bool? background = null,
-        [McpToolParameter("Enable auto-backgrounding on timeout — 对齐 TS shouldAutoBackground", Required = false, DefaultValue = "true")] bool? auto_background = null,
-        [McpToolParameter("Override sandbox mode for this command — 对齐 TS dangerouslyDisableSandbox", Required = false, DefaultValue = "false")] bool? dangerously_disable_sandbox = null,
-        CancellationToken cancellationToken = default,
-        ToolProgressCallback? onProgress = null)
-    {
-        var gateResult = CheckGate(isPowerShellCall: true);
-        if (gateResult is not null) return gateResult;
-        var context = new ShellContext
-        {
-            Command = command,
-            IsPowerShell = true,
             Description = description,
             Timeout = timeout,
             WorkingDirectory = working_directory,

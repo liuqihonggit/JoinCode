@@ -1,68 +1,81 @@
-﻿
+
 namespace Services.Shell;
 
 /// <summary>
-/// Shell后台任务服务实现 - 支持后台执行长时间运行的命令
+/// Shell后台任务服务实现 — 对齐 TS LocalShellTask/spawnShellTask
+/// 统一走 ShellCommandContext 路径：后台命令先启动进程再立即转后台，复用溢出文件机制
 /// </summary>
 [Register]
 public sealed partial class ShellBackgroundTaskService : IShellBackgroundTaskService, IDisposable
 {
-    [Inject] private readonly IShellExecutionService _shellExecutionService;
     [Inject] private readonly ILogger<ShellBackgroundTaskService>? _logger;
     [Inject] private readonly ITelemetryService? _telemetryService;
     private readonly ConcurrentDictionary<string, ShellBackgroundTaskEntry> _tasks = new();
-    private readonly ConcurrentDictionary<string, CancellationTokenSource> _cancellationTokens = new();
 
     /// <inheritdoc />
-    public Task<ShellBackgroundTaskInfo> CreateTaskAsync(
-        string command,
+    public Task<ShellBackgroundTaskInfo> RegisterContextAsync(
+        IShellCommandContext context,
         string? workingDirectory = null,
         CancellationToken cancellationToken = default)
     {
-        return CreateTaskAsync(command, workingDirectory, agentId: null, cancellationToken);
-    }
-
-    public Task<ShellBackgroundTaskInfo> CreateTaskAsync(
-        string command,
-        string? workingDirectory = null,
-        string? agentId = null,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(command))
-        {
-            throw new ArgumentException(L.T(StringKey.ShellBgCommandCannotBeEmpty), nameof(command));
-        }
-
-        // 使用现有的TaskIdGenerator生成任务ID
-        var taskId = TaskIdGenerator.GenerateTaskId(TaskType.LocalBash);
-        var cts = new CancellationTokenSource();
-        _cancellationTokens[taskId] = cts;
-
         var entry = new ShellBackgroundTaskEntry
         {
-            TaskId = taskId,
-            Command = command,
+            TaskId = context.TaskId,
+            Command = context.Command,
             WorkingDirectory = workingDirectory,
-            AgentId = agentId,
-            Status = TaskExecutionStatus.Pending,
-            CreatedAt = DateTime.UtcNow
+            Status = TaskExecutionStatus.Running,
+            CreatedAt = DateTime.UtcNow,
+            StartedAt = DateTime.UtcNow,
+            Context = context,
         };
 
-        _tasks[taskId] = entry;
+        _tasks[context.TaskId] = entry;
 
-        _ = Task.Run(async () =>
+        _ = context.ResultTask.ContinueWith(t =>
         {
             try
             {
-                await ExecuteTaskAsync(entry, cts.Token).ConfigureAwait(false);
+                var result = t.Result;
+
+                entry.ExitCode = result.ExitCode;
+                entry.CompletedAt = DateTime.UtcNow;
+
+                if (result.ExitCode == 0)
+                {
+                    entry.Status = TaskExecutionStatus.Completed;
+                }
+                else
+                {
+                    entry.Status = TaskExecutionStatus.Failed;
+                    entry.ErrorMessage = result.ExitCode != 0
+                        ? $"Process exited with code {result.ExitCode}"
+                        : null;
+                }
+
+                _logger?.LogInformation(
+                    "Shell后台任务 {TaskId} 完成，状态: {Status}, 退出码: {ExitCode}",
+                    entry.TaskId, entry.Status, entry.ExitCode);
+
+                RecordBackgroundTaskMetrics(entry.Status.ToString(), result.ExitCode == 0);
+            }
+            catch (AggregateException ae) when (ae.InnerException is OperationCanceledException)
+            {
+                entry.Status = TaskExecutionStatus.Cancelled;
+                entry.CompletedAt = DateTime.UtcNow;
+                RecordBackgroundTaskMetrics("cancelled", false);
+                _logger?.LogInformation("Shell后台任务被取消: {TaskId}", entry.TaskId);
             }
             catch (Exception ex)
             {
-                _logger?.LogError(ex, "后台任务执行异常: {TaskId}", entry.TaskId);
+                entry.Status = TaskExecutionStatus.Failed;
+                entry.ErrorMessage = ex.Message;
+                entry.CompletedAt = DateTime.UtcNow;
+                RecordBackgroundTaskMetrics("error", false);
+                _logger?.LogError(ex, "Shell后台任务执行异常: {TaskId}", entry.TaskId);
             }
-        }, CancellationToken.None);
+        }, TaskScheduler.Default);
 
-        _logger?.LogInformation(L.T(StringKey.ShellBgTaskCreated), taskId, command);
+        _logger?.LogInformation("Shell后台任务已注册: {TaskId}, 命令: {Command}", context.TaskId, context.Command);
 
         return Task.FromResult(ToInfo(entry));
     }
@@ -92,22 +105,19 @@ public sealed partial class ShellBackgroundTaskService : IShellBackgroundTaskSer
     /// <inheritdoc />
     public Task<bool> CancelTaskAsync(string taskId, CancellationToken cancellationToken = default)
     {
-        if (_cancellationTokens.TryRemove(taskId, out var cts))
+        if (!_tasks.TryGetValue(taskId, out var entry)) return Task.FromResult(false);
+
+        if (entry.Context is not null && entry.Status is TaskExecutionStatus.Pending or TaskExecutionStatus.Running)
         {
-            cts.Cancel();
-            cts.Dispose();
-
-            if (_tasks.TryGetValue(taskId, out var entry))
-            {
-                entry.Status = TaskExecutionStatus.Cancelled;
-                entry.CompletedAt = DateTime.UtcNow;
-            }
-
-            _logger?.LogInformation(L.T(StringKey.ShellBgTaskCancelled), taskId);
-            return Task.FromResult(true);
+            try { entry.Context.Kill(); }
+            catch (Exception ex) { _logger?.LogDebug(ex, "杀死后台任务进程失败: {TaskId}", taskId); }
         }
 
-        return Task.FromResult(false);
+        entry.Status = TaskExecutionStatus.Cancelled;
+        entry.CompletedAt = DateTime.UtcNow;
+
+        _logger?.LogInformation("Shell后台任务已取消: {TaskId}", taskId);
+        return Task.FromResult(true);
     }
 
     /// <inheritdoc />
@@ -115,10 +125,9 @@ public sealed partial class ShellBackgroundTaskService : IShellBackgroundTaskSer
     {
         if (!_tasks.TryGetValue(taskId, out var entry))
         {
-            throw new InvalidOperationException(L.T(StringKey.ShellBgTaskNotExist, taskId));
+            throw new InvalidOperationException($"Background task not found: {taskId}");
         }
 
-        // 等待任务完成
         while (entry.Status is TaskExecutionStatus.Pending or TaskExecutionStatus.Running)
         {
             await Task.Delay(100, cancellationToken).ConfigureAwait(false);
@@ -128,22 +137,40 @@ public sealed partial class ShellBackgroundTaskService : IShellBackgroundTaskSer
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// 对齐 TS TaskOutputTool: 从 ShellCommandContext.GetCurrentStdout() 获取输出
+    /// 支持溢出文件 — 后台任务输出不驻留内存
+    /// </remarks>
     public Task<string> GetTaskOutputAsync(string taskId, CancellationToken cancellationToken = default)
     {
         if (_tasks.TryGetValue(taskId, out var entry))
         {
             var output = new System.Text.StringBuilder();
 
-            if (!string.IsNullOrEmpty(entry.Stdout))
+            if (entry.Context is not null)
             {
-                output.AppendLine(L.T(StringKey.ShellBgStdoutLabel));
-                output.AppendLine(entry.Stdout);
-            }
+                var stdout = entry.Context.GetCurrentStdout();
+                var stderr = entry.Context.GetCurrentStderr();
 
-            if (!string.IsNullOrEmpty(entry.Stderr))
+                if (!string.IsNullOrEmpty(stdout))
+                {
+                    output.AppendLine(stdout);
+                }
+
+                if (!string.IsNullOrEmpty(stderr))
+                {
+                    output.AppendLine("[stderr]");
+                    output.AppendLine(stderr);
+                }
+            }
+            else if (!string.IsNullOrEmpty(entry.Stdout))
             {
-                output.AppendLine(L.T(StringKey.ShellBgStderrLabel));
-                output.AppendLine(entry.Stderr);
+                output.AppendLine(entry.Stdout);
+                if (!string.IsNullOrEmpty(entry.Stderr))
+                {
+                    output.AppendLine("[stderr]");
+                    output.AppendLine(entry.Stderr);
+                }
             }
 
             return Task.FromResult(output.ToString());
@@ -177,88 +204,60 @@ public sealed partial class ShellBackgroundTaskService : IShellBackgroundTaskSer
         var cancelledCount = 0;
         foreach (var taskId in agentTaskIds)
         {
-            if (_cancellationTokens.TryRemove(taskId, out var cts))
+            if (CancelTaskAsync(taskId, cancellationToken).GetAwaiter().GetResult())
             {
-                cts.Cancel();
-                cts.Dispose();
                 cancelledCount++;
-            }
-
-            if (_tasks.TryGetValue(taskId, out var entry))
-            {
-                entry.Status = TaskExecutionStatus.Cancelled;
-                entry.CompletedAt = DateTime.UtcNow;
             }
         }
 
         if (cancelledCount > 0)
         {
-            _logger?.LogInformation(L.T(StringKey.ShellBgCancelAgentTasks), agentId, cancelledCount);
+            _logger?.LogInformation("取消 Agent {AgentId} 的后台任务: {Count} 个", agentId, cancelledCount);
         }
 
         return Task.FromResult(cancelledCount);
     }
 
-    private async Task ExecuteTaskAsync(ShellBackgroundTaskEntry entry, CancellationToken cancellationToken)
+    public Task<int> KillAllRunningAsync(CancellationToken cancellationToken = default)
     {
-        try
+        var runningTasks = _tasks.Values
+            .Where(t => t.Status is TaskExecutionStatus.Pending or TaskExecutionStatus.Running)
+            .ToList();
+
+        var killedCount = 0;
+        foreach (var entry in runningTasks)
         {
-            entry.Status = TaskExecutionStatus.Running;
-            entry.StartedAt = DateTime.UtcNow;
-
-            _logger?.LogInformation(L.T(StringKey.ShellBgStartExecution), entry.TaskId);
-
-            var result = await _shellExecutionService.ExecuteAsync(
-                entry.Command,
-                workingDirectory: entry.WorkingDirectory,
-                cancellationToken: cancellationToken).ConfigureAwait(false);
-
-            entry.Stdout = result.Stdout;
-            entry.Stderr = result.Stderr;
-            entry.ExitCode = result.ExitCode;
-            entry.CompletedAt = DateTime.UtcNow;
-
-            if (cancellationToken.IsCancellationRequested)
+            if (entry.Context is not null)
             {
-                entry.Status = TaskExecutionStatus.Cancelled;
-            }
-            else if (result.Success)
-            {
-                entry.Status = TaskExecutionStatus.Completed;
-            }
-            else
-            {
-                entry.Status = TaskExecutionStatus.Failed;
-                entry.ErrorMessage = result.ErrorMessage ?? L.T(StringKey.ShellBgExecutionFailed);
+                try { entry.Context.Kill(); }
+                catch (Exception ex) { _logger?.LogDebug(ex, "杀死后台任务进程失败: {TaskId}", entry.TaskId); }
             }
 
-            _logger?.LogInformation(
-                "Shell后台任务 {TaskId} 完成，状态: {Status}, 退出码: {ExitCode}",
-                entry.TaskId,
-                entry.Status,
-                entry.ExitCode);
-
-            RecordBackgroundTaskMetrics(entry.Status.ToString(), entry.ExitCode == 0);
-        }
-        catch (OperationCanceledException)
-        {
             entry.Status = TaskExecutionStatus.Cancelled;
             entry.CompletedAt = DateTime.UtcNow;
-            RecordBackgroundTaskMetrics("cancelled", false);
-            _logger?.LogInformation(L.T(StringKey.ShellBgTaskCancelledByException), entry.TaskId);
+            killedCount++;
         }
-        catch (Exception ex)
+
+        if (killedCount > 0)
         {
-            entry.Status = TaskExecutionStatus.Failed;
-            entry.ErrorMessage = ex.Message;
-            entry.CompletedAt = DateTime.UtcNow;
-            RecordBackgroundTaskMetrics("error", false);
-            _logger?.LogError(ex, L.T(StringKey.ShellBgTaskExecutionFailed), entry.TaskId);
+            _logger?.LogInformation("强制杀死全部运行中后台任务: {Count} 个", killedCount);
         }
-        finally
+
+        return Task.FromResult(killedCount);
+    }
+
+    public void Dispose()
+    {
+        foreach (var entry in _tasks.Values)
         {
-            _cancellationTokens.TryRemove(entry.TaskId, out _);
+            if (entry.Context is not null && entry.Status is TaskExecutionStatus.Pending or TaskExecutionStatus.Running)
+            {
+                try { entry.Context.Kill(); }
+                catch (Exception ex) { _logger?.LogDebug(ex, "Dispose 时终止后台任务进程失败"); }
+            }
         }
+
+        _tasks.Clear();
     }
 
     private void RecordBackgroundTaskMetrics(string status, bool isSuccess)
@@ -283,58 +282,6 @@ public sealed partial class ShellBackgroundTaskService : IShellBackgroundTaskSer
         };
     }
 
-    public Task<int> KillAllRunningAsync(CancellationToken cancellationToken = default)
-    {
-        var runningTasks = _tasks.Values
-            .Where(t => t.Status is TaskExecutionStatus.Pending or TaskExecutionStatus.Running)
-            .ToList();
-
-        var killedCount = 0;
-        foreach (var entry in runningTasks)
-        {
-            if (_cancellationTokens.TryRemove(entry.TaskId, out var cts))
-            {
-                cts.Cancel();
-                cts.Dispose();
-            }
-
-            if (entry.Process is not null)
-            {
-                try
-                {
-                    if (!entry.Process.HasExited) entry.Process.Kill();
-                }
-                catch (Exception ex)
-                {
-                    _logger?.LogDebug(ex, "杀死后台任务进程失败: {TaskId}", entry.TaskId);
-                }
-            }
-
-            entry.Status = TaskExecutionStatus.Cancelled;
-            entry.CompletedAt = DateTime.UtcNow;
-            killedCount++;
-        }
-
-        if (killedCount > 0)
-        {
-            _logger?.LogInformation("强制杀死全部运行中后台任务: {Count} 个", killedCount);
-        }
-
-        return Task.FromResult(killedCount);
-    }
-
-    public void Dispose()
-    {
-        foreach (var cts in _cancellationTokens.Values)
-        {
-            cts.Cancel();
-            cts.Dispose();
-        }
-
-        _cancellationTokens.Clear();
-        _tasks.Clear();
-    }
-
     private class ShellBackgroundTaskEntry
     {
         public required string TaskId { get; init; }
@@ -349,6 +296,11 @@ public sealed partial class ShellBackgroundTaskService : IShellBackgroundTaskSer
         public string? Stderr { get; set; }
         public int? ExitCode { get; set; }
         public string? ErrorMessage { get; set; }
-        public Process? Process { get; set; }
+
+        /// <summary>
+        /// 关联的 ShellCommandContext — 对齐 TS ShellCommand
+        /// 后台命令统一走 ShellCommandContext 路径，输出通过 GetCurrentStdout() 获取（支持溢出文件）
+        /// </summary>
+        public IShellCommandContext? Context { get; set; }
     }
 }

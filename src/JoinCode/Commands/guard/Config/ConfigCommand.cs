@@ -1,15 +1,8 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
-[ChatCommand(Name = ChatCommandNameConstants.Config, Description = "管理配置设置", Usage = "/config [get|set|list|remove] [key] [value]", Category = ChatCommandCategory.Config)]
-public sealed class ConfigCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.Config, Description = "管理配置设置", Usage = "/config [get|set|list|remove] [key] [value]", Category = ChatCommandCategory.Config, ArgumentHint = "[get|set|list|remove]")]
+public sealed class ConfigCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Config;
-    public string Description => "管理配置设置";
-    public string Usage => "/config [get|set|list|remove] [key] [value]";
-    public string[] Aliases => [];
-    public string ArgumentHint => "[get|set|list|remove]";
-    public bool IsHidden => false;
-
     /// <summary>
     /// 已知配置项元数据 — 单一数据源来自 ConfigKey 枚举
     /// 字典键为 ConfigKey 枚举,值为 UI 描述(仅展示用)
@@ -32,7 +25,7 @@ public sealed class ConfigCommand : IChatCommand
         [ConfigKey.OutputStyle]              = "输出风格 (concise/verbose/normal)",
     }.ToFrozenDictionary();
 
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetSplitArgs(context);
         var action = args.Length > 0 ? args[0].ToLowerInvariant() : "list";

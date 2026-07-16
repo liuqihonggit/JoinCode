@@ -1,17 +1,10 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
-[ChatCommand(Name = ChatCommandNameConstants.Tag, Description = "为当前会话添加或管理标签", Usage = "/tag [add|remove|list] [tag_name]", Category = ChatCommandCategory.System)]
-public sealed class TagCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.Tag, Description = "为当前会话添加或管理标签", Usage = "/tag [add|remove|list] [tag_name]", Category = ChatCommandCategory.System, ArgumentHint = "[add|remove|list] [tag]")]
+public sealed class TagCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Tag;
-    public string Description => "为当前会话添加或管理标签";
-    public string Usage => "/tag [add|remove|list] [tag_name]";
-    public string[] Aliases => [];
-    public string ArgumentHint => "[add|remove|list] [tag]";
-    public bool IsHidden => false;
-
-    public Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetNormalizedArgs(context);
         var tagService = context.Services.SessionTagService;

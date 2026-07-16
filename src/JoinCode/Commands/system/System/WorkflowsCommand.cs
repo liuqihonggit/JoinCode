@@ -1,16 +1,9 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
-[ChatCommand(Name = ChatCommandNameConstants.Workflows, Description = "管理工作流", Usage = "/workflows [list|run|status] [name]", Category = ChatCommandCategory.System)]
-public sealed class WorkflowsCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.Workflows, Description = "管理工作流", Usage = "/workflows [list|run|status] [name]", Category = ChatCommandCategory.System, ArgumentHint = "[list|run|status]")]
+public sealed class WorkflowsCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Workflows;
-    public string Description => "管理工作流";
-    public string Usage => "/workflows [list|run|status] [name]";
-    public string[] Aliases => [];
-    public string ArgumentHint => "[list|run|status]";
-    public bool IsHidden => false;
-
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetNormalizedArgs(context);
 

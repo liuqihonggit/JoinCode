@@ -1,4 +1,4 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
@@ -7,17 +7,10 @@ namespace JoinCode.ChatCommands;
 /// 对齐内容：list+install+uninstall+enable+disable 核心操作
 /// 架构差异：TS 有 discover/marketplace/validate/trust-warning 交互式 UI，C# 为命令行操作
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Plugin, Description = "管理插件", Usage = "/plugin [list|install|uninstall|enable|disable] [name]", Category = ChatCommandCategory.Tools)]
-public sealed class PluginCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.Plugin, Description = "管理插件", Usage = "/plugin [list|install|uninstall|enable|disable] [name]", Category = ChatCommandCategory.Tools, Aliases = ["plugins", "marketplace"], ArgumentHint = "[list|install|uninstall|enable|disable]")]
+public sealed class PluginCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Plugin;
-    public string Description => "管理插件";
-    public string Usage => "/plugin [list|install|uninstall|enable|disable] [name]";
-    public string[] Aliases => ["plugins", "marketplace"];
-    public string ArgumentHint => "[list|install|uninstall|enable|disable]";
-    public bool IsHidden => false;
-
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var pluginManager = context.Services.PluginManager;
         var args = ChatCommandBase.GetNormalizedArgs(context);

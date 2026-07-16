@@ -1,16 +1,9 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
-[ChatCommand(Name = ChatCommandNameConstants.Permissions, Description = "管理权限规则和工作区目录", Usage = "/permissions [list|add|remove|clear|workspace] [args]", Category = ChatCommandCategory.Config)]
-public sealed class PermissionsCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.Permissions, Description = "管理权限规则和工作区目录", Usage = "/permissions [list|add|remove|clear|workspace] [args]", Category = ChatCommandCategory.Config, Aliases = ["perm"], ArgumentHint = "[list|add|remove|clear|workspace]")]
+public sealed class PermissionsCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Permissions;
-    public string Description => "管理权限规则和工作区目录";
-    public string Usage => "/permissions [list|add|remove|clear|workspace] [args]";
-    public string[] Aliases => ["perm"];
-    public string ArgumentHint => "[list|add|remove|clear|workspace]";
-    public bool IsHidden => false;
-
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetSplitArgs(context);
         var action = args.Length > 0 ? args[0].ToLowerInvariant() : CrudActionConstants.List;

@@ -1,17 +1,10 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
-[ChatCommand(Name = ChatCommandNameConstants.Hooks, Description = "管理 Hook 配置", Usage = "/hooks [list|add|remove|test] [args]", Category = ChatCommandCategory.Tools)]
-public sealed class HooksCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.Hooks, Description = "管理 Hook 配置", Usage = "/hooks [list|add|remove|test] [args]", Category = ChatCommandCategory.Tools, ArgumentHint = "[list|add|remove|test]")]
+public sealed class HooksCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Hooks;
-    public string Description => "管理 Hook 配置";
-    public string Usage => "/hooks [list|add|remove|test] [args]";
-    public string[] Aliases => [];
-    public string ArgumentHint => "[list|add|remove|test]";
-    public bool IsHidden => false;
-
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var hookManager = context.Services.HookConfigurationManager;
         var args = ChatCommandBase.GetNormalizedArgs(context);

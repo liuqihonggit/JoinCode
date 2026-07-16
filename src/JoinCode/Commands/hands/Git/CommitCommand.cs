@@ -1,22 +1,15 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /commit 命令 - 创建 Git 提交
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Commit, Description = "创建 Git 提交", Usage = "/commit [message]", Category = ChatCommandCategory.Code)]
-public sealed class CommitCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.Commit, Description = "创建 Git 提交", Usage = "/commit [message]", Category = ChatCommandCategory.Code, ArgumentHint = "[message]")]
+public sealed class CommitCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Commit;
-    public string Description => "创建 Git 提交";
-    public string Usage => "/commit [message]";
-    public string[] Aliases => [];
-    public string ArgumentHint => "[message]";
-    public bool IsHidden => false;
-
     // 对齐 TS: Git Safety Protocol — 禁止提交的文件模式
     private static readonly string[] SecretFilePatterns = [".env", "credentials", "secret", "password", "apikey", "token"];
 
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         TerminalHelper.WriteLine($"{TerminalColors.Muted}正在创建提交...{AnsiStyleConstants.Reset}");
 

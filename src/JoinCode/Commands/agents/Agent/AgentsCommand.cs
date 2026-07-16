@@ -1,16 +1,9 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
-[ChatCommand(Name = ChatCommandNameConstants.Agents, Description = "查看和管理代理", Usage = "/agents [list|info <name>]", Category = ChatCommandCategory.Agent)]
-public sealed class AgentsCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.Agents, Description = "查看和管理代理", Usage = "/agents [list|info <name>]", Category = ChatCommandCategory.Agent, ArgumentHint = "[list|info <name>]")]
+public sealed class AgentsCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Agents;
-    public string Description => "查看和管理代理";
-    public string Usage => "/agents [list|info <name>]";
-    public string[] Aliases => [];
-    public string ArgumentHint => "[list|info <name>]";
-    public bool IsHidden => false;
-
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetSplitArgs(context);
         var action = args.Length > 0 ? args[0].ToLowerInvariant() : "list";

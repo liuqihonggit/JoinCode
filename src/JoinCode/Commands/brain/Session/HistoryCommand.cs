@@ -1,20 +1,13 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /history 命令 - 查看聊天历史
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.History, Description = "查看聊天历史", Usage = "/history", Category = ChatCommandCategory.Session)]
-public sealed class HistoryCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.History, Description = "查看聊天历史", Usage = "/history", Category = ChatCommandCategory.Session, Aliases = ["hist"])]
+public sealed class HistoryCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.History;
-    public string Description => "查看聊天历史";
-    public string Usage => "/history";
-    public string[] Aliases => ["hist"];
-    public string ArgumentHint => string.Empty;
-    public bool IsHidden => false;
-
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         await DisplayMessageListAsync(context.Services.ChatService).ConfigureAwait(false);
         return ChatCommandResult.Continue();

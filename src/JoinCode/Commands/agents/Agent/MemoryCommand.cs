@@ -1,16 +1,9 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
-[ChatCommand(Name = ChatCommandNameConstants.Memory, Description = "编辑记忆文件", Usage = "/memory [edit|open|add|search|db|stats|health|cleanup]", Category = ChatCommandCategory.Agent)]
-public sealed class MemoryCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.Memory, Description = "编辑记忆文件", Usage = "/memory [edit|open|add|search|db|stats|health|cleanup]", Category = ChatCommandCategory.Agent, Aliases = ["mem"])]
+public sealed class MemoryCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Memory;
-    public string Description => "编辑记忆文件";
-    public string Usage => "/memory [edit|open|add|search|db|stats|health|cleanup]";
-    public string[] Aliases => ["mem"];
-    public string ArgumentHint => string.Empty;
-    public bool IsHidden => false;
-
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetSplitArgs(context);
         var action = args.Length > 0 ? args[0].ToLowerInvariant() : null;

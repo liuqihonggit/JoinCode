@@ -1,4 +1,4 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /branch 命令 — 对齐 TS branch/
@@ -7,17 +7,10 @@ namespace JoinCode.ChatCommands;
 /// 架构差异：TS 有 React 交互式分支树，C# 为命令行操作
 /// 待办：需要 BranchManager 服务实现分支存储和切换
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Branch, Description = "管理对话分支", Usage = "/branch [list|create|switch|delete] [name]", Category = ChatCommandCategory.Session)]
-public sealed class BranchCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.Branch, Description = "管理对话分支", Usage = "/branch [list|create|switch|delete] [name]", Category = ChatCommandCategory.Session, Aliases = ["branches"], ArgumentHint = "[list|create|switch|delete]")]
+public sealed class BranchCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Branch;
-    public string Description => "管理对话分支";
-    public string Usage => "/branch [list|create|switch|delete] [name]";
-    public string[] Aliases => ["branches"];
-    public string ArgumentHint => "[list|create|switch|delete]";
-    public bool IsHidden => false;
-
-    public Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetSplitArgs(context);
         var action = args.Length > 0 ? args[0].ToLowerInvariant() : "list";

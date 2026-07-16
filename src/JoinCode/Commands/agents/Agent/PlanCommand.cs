@@ -1,16 +1,9 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
-[ChatCommand(Name = ChatCommandNameConstants.Plan, Description = "计划模式管理", Usage = "/plan [on|off|status|open] [描述]", Category = ChatCommandCategory.Agent)]
-public sealed class PlanCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.Plan, Description = "计划模式管理", Usage = "/plan [on|off|status|open] [描述]", Category = ChatCommandCategory.Agent, ArgumentHint = "[on|off|status|open]")]
+public sealed class PlanCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Plan;
-    public string Description => "计划模式管理";
-    public string Usage => "/plan [on|off|status|open] [描述]";
-    public string[] Aliases => [];
-    public string ArgumentHint => "[on|off|status|open]";
-    public bool IsHidden => false;
-
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetNormalizedArgs(context);
         var parts = ChatCommandBase.GetSplitArgs(context);

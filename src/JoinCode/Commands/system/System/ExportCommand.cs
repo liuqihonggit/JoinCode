@@ -1,17 +1,10 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
-[ChatCommand(Name = ChatCommandNameConstants.Export, Description = "导出对话到文件或剪贴板", Usage = "/export [filename|--clipboard]", Category = ChatCommandCategory.System)]
-public sealed class ExportCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.Export, Description = "导出对话到文件或剪贴板", Usage = "/export [filename|--clipboard]", Category = ChatCommandCategory.System, ArgumentHint = "[filename|--clipboard]")]
+public sealed class ExportCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Export;
-    public string Description => "导出对话到文件或剪贴板";
-    public string Usage => "/export [filename|--clipboard]";
-    public string[] Aliases => [];
-    public string ArgumentHint => "[filename|--clipboard]";
-    public bool IsHidden => false;
-
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var history = await context.Services.ChatService.GetMessageListAsync(context.CancellationToken).ConfigureAwait(false);
         var content = BuildExportContent(history);

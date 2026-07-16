@@ -1,19 +1,12 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /diff 命令 - 交互式 diff 浏览器 — 对齐 TS DiffDialog
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Diff, Description = "View uncommitted changes and per-turn diffs", Usage = "/diff [files|cached]", Category = ChatCommandCategory.Code)]
-public sealed class DiffCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.Diff, Description = "View uncommitted changes and per-turn diffs", Usage = "/diff [files|cached]", Category = ChatCommandCategory.Code, ArgumentHint = "[files|cached]")]
+public sealed class DiffCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Diff;
-    public string Description => "View uncommitted changes and per-turn diffs";
-    public string Usage => "/diff [files|cached]";
-    public string[] Aliases => [];
-    public string ArgumentHint => "[files|cached]";
-    public bool IsHidden => false;
-
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         try
         {

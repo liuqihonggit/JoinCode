@@ -1,16 +1,9 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
-[ChatCommand(Name = ChatCommandNameConstants.Feedback, Description = "提交反馈", Usage = "/feedback [反馈内容]", Category = ChatCommandCategory.Social)]
-public sealed class FeedbackCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.Feedback, Description = "提交反馈", Usage = "/feedback [反馈内容]", Category = ChatCommandCategory.Social, Aliases = ["bug"], ArgumentHint = "[反馈内容]", IsHidden = true)]
+public sealed class FeedbackCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Feedback;
-    public string Description => "提交反馈";
-    public string Usage => "/feedback [反馈内容]";
-    public string[] Aliases => ["bug"];
-    public string ArgumentHint => "[反馈内容]";
-    public bool IsHidden => true;
-
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var feedbackText = ChatCommandBase.GetNormalizedArgs(context);
 

@@ -1,17 +1,10 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Worktree, Description = "管理智能体 Git Worktree", Usage = "/worktree [list|cleanup|remove|create|status] [options]", Category = ChatCommandCategory.Code)]
-public sealed class WorktreeCommand : IChatCommand
+public sealed class WorktreeCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Worktree;
-    public string Description => "管理智能体 Git Worktree";
-    public string Usage => "/worktree [list|cleanup|remove|create|status] [options]";
-    public string[] Aliases => [];
-    public string ArgumentHint => string.Empty;
-    public bool IsHidden => false;
-
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         if (context.Services.WorktreeService is not { } worktreeService)
         {

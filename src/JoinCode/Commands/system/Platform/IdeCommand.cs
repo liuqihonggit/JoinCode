@@ -1,4 +1,4 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
@@ -7,17 +7,10 @@ namespace JoinCode.ChatCommands;
 /// 对齐内容：detect+connect+disconnect+status+open 核心操作
 /// 架构差异：TS 有 React 交互式 IDE 选择器，C# 为命令行交互
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Ide, Description = "IDE 集成管理", Usage = "/ide [detect|connect|disconnect|status|open]", Category = ChatCommandCategory.Platform)]
-public sealed class IdeCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.Ide, Description = "IDE 集成管理", Usage = "/ide [detect|connect|disconnect|status|open]", Category = ChatCommandCategory.Platform, ArgumentHint = "detect|connect|disconnect|status|open", IsHidden = true)]
+public sealed class IdeCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Ide;
-    public string Description => "IDE 集成管理";
-    public string Usage => "/ide [detect|connect|disconnect|status|open]";
-    public string[] Aliases => [];
-    public string ArgumentHint => "detect|connect|disconnect|status|open";
-    public bool IsHidden => true;
-
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var ideService = ChatCommandBase.GetService<IIdeIntegrationService>(context);
 

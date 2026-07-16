@@ -1,17 +1,10 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
-[ChatCommand(Name = ChatCommandNameConstants.AddDir, Description = "添加额外的工作目录", Usage = "/add-dir <path> [--remember]", Category = ChatCommandCategory.Code)]
-public sealed class AddDirCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.AddDir, Description = "添加额外的工作目录", Usage = "/add-dir <path> [--remember]", Category = ChatCommandCategory.Code, ArgumentHint = "<path> [--remember]")]
+public sealed class AddDirCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.AddDir;
-    public string Description => "添加额外的工作目录";
-    public string Usage => "/add-dir <path> [--remember]";
-    public string[] Aliases => [];
-    public string ArgumentHint => "<path> [--remember]";
-    public bool IsHidden => false;
-
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetNormalizedArgs(context);
 

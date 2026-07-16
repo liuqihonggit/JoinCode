@@ -1,19 +1,12 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /falv 命令 — 结构化推理（三权分立 + 有限视锥 + 5维客观权重）
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Falv, Description = "结构化推理引擎（假定→验证→事实）", Usage = "/falv <假定内容> | /falv --status | /falv --judge | /falv --evidence | /falv --continue [rounds|tokens|both|default] | /falv --budget | /falv --cone | /falv --conflict | /falv --reset", Category = ChatCommandCategory.Law)]
-public sealed class FalvCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.Falv, Description = "结构化推理引擎（假定→验证→事实）", Usage = "/falv <假定内容> | /falv --status | /falv --judge | /falv --evidence | /falv --continue [rounds|tokens|both|default] | /falv --budget | /falv --cone | /falv --conflict | /falv --reset", Category = ChatCommandCategory.Law, ArgumentHint = "<假定内容|--status|--judge|--evidence|--continue|--budget|--cone|--conflict|--reset>")]
+public sealed class FalvCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Falv;
-    public string Description => "结构化推理引擎（假定→验证→事实）";
-    public string Usage => "/falv <假定内容> | /falv --status | /falv --judge | /falv --evidence | /falv --continue [rounds|tokens|both|default] | /falv --budget | /falv --cone | /falv --conflict | /falv --reset";
-    public string[] Aliases => [];
-    public string ArgumentHint => "<假定内容|--status|--judge|--evidence|--continue|--budget|--cone|--conflict|--reset>";
-    public bool IsHidden => false;
-
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetNormalizedArgs(context);
 

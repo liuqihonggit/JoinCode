@@ -1,17 +1,10 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
-[ChatCommand(Name = ChatCommandNameConstants.Mobile, Description = "移动端连接", Usage = "/mobile [start|stop|url]", Category = ChatCommandCategory.Platform)]
-public sealed class MobileCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.Mobile, Description = "移动端连接", Usage = "/mobile [start|stop|url]", Category = ChatCommandCategory.Platform, Aliases = ["ios", "android"], ArgumentHint = "start|stop|url", IsHidden = true)]
+public sealed class MobileCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Mobile;
-    public string Description => "移动端连接";
-    public string Usage => "/mobile [start|stop|url]";
-    public string[] Aliases => ["ios", "android"];
-    public string ArgumentHint => "start|stop|url";
-    public bool IsHidden => true;
-
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var mobileService = ChatCommandBase.GetService<IMobileConnectService>(context);
 

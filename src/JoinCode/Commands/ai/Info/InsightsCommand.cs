@@ -1,17 +1,10 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
-[ChatCommand(Name = ChatCommandNameConstants.Insights, Description = "AI生成会话洞察分析", Usage = "/insights [stats|deep|report]", Category = ChatCommandCategory.Info)]
-public sealed class InsightsCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.Insights, Description = "AI生成会话洞察分析", Usage = "/insights [stats|deep|report]", Category = ChatCommandCategory.Info, ArgumentHint = "[stats|deep|report]")]
+public sealed class InsightsCommand : ChatCommandBase
 {
     private readonly IClockService _clock = SystemClockService.Instance;
-    public string Name => ChatCommandNameConstants.Insights;
-    public string Description => "AI生成会话洞察分析";
-    public string Usage => "/insights [stats|deep|report]";
-    public string[] Aliases => [];
-    public string ArgumentHint => "[stats|deep|report]";
-    public bool IsHidden => false;
-
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetNormalizedArgs(context).ToLowerInvariant();
 

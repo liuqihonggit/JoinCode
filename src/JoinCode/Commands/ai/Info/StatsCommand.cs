@@ -1,22 +1,15 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /stats 命令 — 对齐 TS stats.tsx OverviewTab
 /// TS 是全屏交互式 TUI（React），C# 是终端文本输出
 /// 对齐内容：活动热力图、Streaks、PeakActivity、FunFactoid、FavoriteModel、日期范围
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Stats, Description = "查看会话统计", Usage = "/stats [--today|--total|--7d|--30d|--all|--session]", Category = ChatCommandCategory.Info)]
-public sealed class StatsCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.Stats, Description = "查看会话统计", Usage = "/stats [--today|--total|--7d|--30d|--all|--session]", Category = ChatCommandCategory.Info, Aliases = ["stat"])]
+public sealed class StatsCommand : ChatCommandBase
 {
     private readonly IClockService _clock = SystemClockService.Instance;
-    public string Name => ChatCommandNameConstants.Stats;
-    public string Description => "查看会话统计";
-    public string Usage => "/stats [--today|--total|--7d|--30d|--all|--session]";
-    public string[] Aliases => ["stat"];
-    public string ArgumentHint => string.Empty;
-    public bool IsHidden => false;
-
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetSplitArgs(context);
         var scope = args.Length > 0 ? args[0].ToLowerInvariant().TrimStart('-') : "today";

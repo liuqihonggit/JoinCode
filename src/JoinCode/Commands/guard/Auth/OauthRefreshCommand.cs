@@ -1,17 +1,10 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
-[ChatCommand(Name = ChatCommandNameConstants.OauthRefresh, Description = "刷新 OAuth Token", Usage = "/oauth-refresh [provider]", Category = ChatCommandCategory.Auth)]
-public sealed class OauthRefreshCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.OauthRefresh, Description = "刷新 OAuth Token", Usage = "/oauth-refresh [provider]", Category = ChatCommandCategory.Auth, ArgumentHint = "[provider]", IsHidden = true)]
+public sealed class OauthRefreshCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.OauthRefresh;
-    public string Description => "刷新 OAuth Token";
-    public string Usage => "/oauth-refresh [provider]";
-    public string[] Aliases => [];
-    public string ArgumentHint => "[provider]";
-    public bool IsHidden => true;
-
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         if (context.Services.TokenStorage is null)
         {

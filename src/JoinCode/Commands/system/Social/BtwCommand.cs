@@ -1,4 +1,4 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /btw 命令 — 对齐 TS btw.ts
@@ -6,17 +6,10 @@ namespace JoinCode.ChatCommands;
 /// 对齐内容：侧边提问不影响主对话上下文
 /// 架构差异：TS 有 React 侧边栏渲染，C# 为终端文本输出
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Btw, Description = "快速向 AI 提一个侧边问题", Usage = "/btw <question>", Category = ChatCommandCategory.Social)]
-public sealed class BtwCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.Btw, Description = "快速向 AI 提一个侧边问题", Usage = "/btw <question>", Category = ChatCommandCategory.Social, ArgumentHint = "<question>")]
+public sealed class BtwCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Btw;
-    public string Description => "快速向 AI 提一个侧边问题";
-    public string Usage => "/btw <question>";
-    public string[] Aliases => [];
-    public string ArgumentHint => "<question>";
-    public bool IsHidden => false;
-
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var question = ChatCommandBase.GetNormalizedArgs(context);
 

@@ -1,17 +1,10 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Stickers, Description = "获取贴纸", Usage = "/stickers", Category = ChatCommandCategory.Social)]
-public sealed class StickersCommand : IChatCommand
+public sealed class StickersCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Stickers;
-    public string Description => "获取贴纸";
-    public string Usage => "/stickers";
-    public string[] Aliases => [];
-    public string ArgumentHint => string.Empty;
-    public bool IsHidden => false;
-
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var stickerService = ChatCommandBase.GetService<IStickerService>(context);
 

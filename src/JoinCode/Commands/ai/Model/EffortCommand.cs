@@ -1,19 +1,12 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
-[ChatCommand(Name = ChatCommandNameConstants.Effort, Description = "调整推理力度", Usage = "/effort [low|medium|high|max|auto|unset]", Category = ChatCommandCategory.Model)]
-public sealed class EffortCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.Effort, Description = "调整推理力度", Usage = "/effort [low|medium|high|max|auto|unset]", Category = ChatCommandCategory.Model, ArgumentHint = "[low|medium|high|max|auto|unset]")]
+public sealed class EffortCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Effort;
-    public string Description => "调整推理力度";
-    public string Usage => "/effort [low|medium|high|max|auto|unset]";
-    public string[] Aliases => [];
-    public string ArgumentHint => "[low|medium|high|max|auto|unset]";
-    public bool IsHidden => false;
-
     // 对齐 TS: COMMON_HELP_ARGS
     // 对齐 TS: current/status 关键字
 
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetNormalizedArgs(context).ToLowerInvariant();
         var statusBar = context.Services.StatusBarData;

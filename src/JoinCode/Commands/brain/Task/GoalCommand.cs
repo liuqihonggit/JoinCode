@@ -1,24 +1,16 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
-[ChatCommand(Name = ChatCommandNameConstants.Goal, Description = "目标自主循环引擎（持续工作直到条件满足）", Usage = "/goal <目标描述> [--constraint '约束'] [--budget <token数>] | /goal | /goal pause | /goal resume | /goal clear | /goal --cron <表达式> <描述>", Category = ChatCommandCategory.Task)]
-public sealed partial class GoalCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.Goal, Description = "目标自主循环引擎（持续工作直到条件满足）", Usage = "/goal <目标描述> [--constraint '约束'] [--budget <token数>] | /goal | /goal pause | /goal resume | /goal clear | /goal --cron <表达式> <描述>", Category = ChatCommandCategory.Task, ArgumentHint = "<目标描述|子命令>")]
+public sealed partial class GoalCommand : ChatCommandBase
 {
     [Inject] private readonly ILogger<GoalCommand>? _logger;
-
-    public string Name => ChatCommandNameConstants.Goal;
-    public string Description => "目标自主循环引擎（持续工作直到条件满足）";
-    public string Usage => "/goal <目标描述> [--constraint '约束'] [--budget <token数>] | /goal | /goal pause | /goal resume | /goal clear | /goal --cron <表达式> <描述>";
-    public string[] Aliases => [];
-    public string ArgumentHint => "<目标描述|子命令>";
-    public bool IsHidden => false;
-
     public GoalCommand(ILogger<GoalCommand>? logger = null)
     {
         _logger = logger;
     }
 
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var goalEngine = context.Services.GoalEngine;
         if (goalEngine is null)

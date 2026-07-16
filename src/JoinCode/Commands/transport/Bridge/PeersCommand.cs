@@ -1,17 +1,10 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
-[ChatCommand(Name = ChatCommandNameConstants.Peers, Description = "列出对等节点", Usage = "/peers", Category = ChatCommandCategory.Bridge)]
-public sealed class PeersCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.Peers, Description = "列出对等节点", Usage = "/peers", Category = ChatCommandCategory.Bridge, Aliases = ["remote"], IsHidden = true)]
+public sealed class PeersCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Peers;
-    public string Description => "列出对等节点";
-    public string Usage => "/peers";
-    public string[] Aliases => ["remote"];
-    public string ArgumentHint => string.Empty;
-    public bool IsHidden => true;
-
-    public Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var sp = context.Services.ServiceProvider;
         var peerService = sp?.GetService<JoinCode.Abstractions.Interfaces.IPeerDiscoveryService>();

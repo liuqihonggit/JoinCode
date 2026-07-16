@@ -585,16 +585,7 @@ public sealed class AnthropicQueryService : QueryServiceBase
 
         if (response.Usage != null)
         {
-            var tokenUsage = new TokenUsage(response.Usage.InputTokens, response.Usage.OutputTokens)
-            {
-                CacheCreationInputTokens = response.Usage.CacheCreationInputTokens ?? 0,
-                CacheReadInputTokens = response.Usage.CacheReadInputTokens ?? 0
-            };
-
-            if (response.Usage.OutputTokensDetails is { ReasoningTokens: > 0 })
-            {
-                tokenUsage.ReasoningTokens = response.Usage.OutputTokensDetails.ReasoningTokens;
-            }
+            var tokenUsage = BuildTokenUsage(response.Usage);
 
             metadata["Usage"] = JsonElementHelper.FromObject(tokenUsage, NativeJsonContext.Default.TokenUsage);
         }
@@ -827,16 +818,7 @@ public sealed class AnthropicQueryService : QueryServiceBase
 
                         if (evt.Usage != null)
                         {
-                            var tokenUsage = new TokenUsage(evt.Usage.InputTokens, evt.Usage.OutputTokens)
-                            {
-                                CacheCreationInputTokens = evt.Usage.CacheCreationInputTokens ?? 0,
-                                CacheReadInputTokens = evt.Usage.CacheReadInputTokens ?? 0
-                            };
-
-                            if (evt.Usage.OutputTokensDetails is { ReasoningTokens: > 0 })
-                            {
-                                tokenUsage.ReasoningTokens = evt.Usage.OutputTokensDetails.ReasoningTokens;
-                            }
+                            var tokenUsage = BuildTokenUsage(evt.Usage);
 
                             metadata["Usage"] = JsonElementHelper.FromObject(tokenUsage, NativeJsonContext.Default.TokenUsage);
                         }
@@ -866,4 +848,20 @@ public sealed class AnthropicQueryService : QueryServiceBase
     }
 
     #endregion
+
+    private static TokenUsage BuildTokenUsage(AnthropicUsage usage)
+    {
+        var tokenUsage = new TokenUsage(usage.InputTokens, usage.OutputTokens)
+        {
+            CacheCreationInputTokens = usage.CacheCreationInputTokens ?? 0,
+            CacheReadInputTokens = usage.CacheReadInputTokens ?? 0
+        };
+
+        if (usage.OutputTokensDetails is { ReasoningTokens: > 0 })
+        {
+            tokenUsage.ReasoningTokens = usage.OutputTokensDetails.ReasoningTokens;
+        }
+
+        return tokenUsage;
+    }
 }

@@ -10,6 +10,9 @@ public abstract class McpClientBase : IMcpClient
     private Implementation? _serverInfo;
     private ServerCapabilities? _serverCapabilities;
 
+    protected readonly SemaphoreSlim _requestLock = new(1, 1);
+    protected readonly Dictionary<int, TaskCompletionSource<JsonRpcResponse>> _pendingRequests = new();
+
     /// <summary>
     /// Elicitation 请求处理器 — 对齐 TS client.setRequestHandler(ElicitRequestSchema, ...)
     /// 默认返回 cancel，连接成功后由上层替换为真实 handler
@@ -126,6 +129,44 @@ public abstract class McpClientBase : IMcpClient
     protected abstract Task<JsonRpcResponse> SendRequestAsync(JsonRpcRequest request, CancellationToken cancellationToken);
 
     protected int GetNextRequestId() => Interlocked.Increment(ref _requestIdCounter);
+
+    protected async Task ProcessResponseAsync(JsonRpcResponse response, CancellationToken cancellationToken = default)
+    {
+        if (response.Id == null) return;
+
+        int requestId = response.GetIdAsInt();
+
+        await _requestLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            if (_pendingRequests.TryGetValue(requestId, out var tcs))
+            {
+                tcs.TrySetResult(response);
+                _pendingRequests.Remove(requestId);
+            }
+        }
+        finally
+        {
+            _requestLock.Release();
+        }
+    }
+
+    protected async Task CancelPendingRequestsAsync(CancellationToken cancellationToken = default)
+    {
+        await _requestLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            foreach (var tcs in _pendingRequests.Values)
+            {
+                tcs.TrySetCanceled(cancellationToken);
+            }
+            _pendingRequests.Clear();
+        }
+        finally
+        {
+            _requestLock.Release();
+        }
+    }
 
     protected async Task PerformHandshakeAsync(CancellationToken cancellationToken)
     {

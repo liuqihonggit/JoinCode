@@ -3,28 +3,11 @@ using JoinCode.Abstractions.Pipeline;
 
 namespace JoinCode.App.Middlewares;
 
-/// <summary>
-/// ChatAdmin 管道 Post Hook — 遥测记录管理操作计数
-/// </summary>
 [Register(typeof(IPipelinePostHook<Core.Context.ChatAdminContext>))]
-internal sealed partial class ChatAdminTelemetryHook : IPipelinePostHook<Core.Context.ChatAdminContext>
+internal sealed partial class ChatAdminTelemetryHook : TelemetryPostHook<Core.Context.ChatAdminContext>
 {
-    private readonly ITelemetryService? _telemetryService;
-
     public ChatAdminTelemetryHook(ITelemetryService? telemetryService)
-    {
-        _telemetryService = telemetryService;
-    }
-
-    public async Task InvokeAsync(Core.Context.ChatAdminContext context, CancellationToken ct)
-    {
-        if (_telemetryService is not null && context.Error is null)
-        {
-            _telemetryService.RecordCount("admin.operation.count",
-                new() { ["operation"] = context.Operation.ToString() },
-                "count", "Admin operation count");
-        }
-
-        await Task.CompletedTask.ConfigureAwait(false);
-    }
+        : base(telemetryService, "admin.operation.count", "Admin operation count",
+            tagFactory: ctx => new() { ["operation"] = ctx.Operation.ToString() },
+            condition: ctx => ctx.Error is null) { }
 }

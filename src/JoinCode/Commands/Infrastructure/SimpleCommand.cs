@@ -1,52 +1,36 @@
 namespace JoinCode.ChatCommands;
 
-/// <summary>
-/// /simple 命令 - 切换精简模式
-/// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Simple, Description = "切换精简模式", Usage = "/simple", Category = ChatCommandCategory.Other)]
-public sealed class SimpleCommand : IChatCommand
+public sealed class SimpleCommand : ToggleCommandBase
 {
-    public string Name => ChatCommandNameConstants.Simple;
-    public string Description => "切换精简模式";
-    public string Usage => "/simple";
-    public string[] Aliases => ["bare"];
-    public string ArgumentHint => "[on|off]";
-    public bool IsHidden => false;
+    public override string Name => ChatCommandNameConstants.Simple;
+    public override string Description => "切换精简模式";
+    public override string Usage => "/simple";
+    public override string[] Aliases => ["bare"];
 
-    public Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    protected override Task OnEnabledAsync(ChatCommandContext context)
     {
-        var simpleModeService = context.Services.SimpleModeService;
-
-        if (simpleModeService is null)
-        {
-            TerminalHelper.WriteLine($"{TerminalColors.Muted}精简模式服务不可用{AnsiStyleConstants.Reset}");
-            return Task.FromResult(ChatCommandResult.Continue());
-        }
-
-        var args = ChatCommandBase.GetNormalizedArgs(context);
-
-        // 使用 ToggleAction 枚举处理 on/off/toggle (无参时 = toggle)
-        // Status 保留为 null 分支(无 Status 显示需求, 默认 toggle)
-        switch (ToggleActionExtensions.FromValue(args))
-        {
-            case ToggleAction.On:
-                simpleModeService.Enable();
-                break;
-            case ToggleAction.Off:
-                simpleModeService.Disable();
-                break;
-            case null:
-                simpleModeService.Toggle();
-                break;
-        }
-
-        PrintStatus(simpleModeService);
-
-        return Task.FromResult(ChatCommandResult.Continue());
+        context.Services.SimpleModeService?.Enable();
+        return Task.CompletedTask;
     }
 
-    private static void PrintStatus(ISimpleModeService service)
+    protected override Task OnDisabledAsync(ChatCommandContext context)
     {
+        context.Services.SimpleModeService?.Disable();
+        return Task.CompletedTask;
+    }
+
+    protected override Task OnToggleAsync(ChatCommandContext context)
+    {
+        context.Services.SimpleModeService?.Toggle();
+        return Task.CompletedTask;
+    }
+
+    protected override Task PrintStatusAsync(ChatCommandContext context)
+    {
+        var service = context.Services.SimpleModeService;
+        if (service is null) return Task.CompletedTask;
+
         if (service.IsSimpleMode)
         {
             var config = service.GetCurrentConfig();
@@ -60,5 +44,7 @@ public sealed class SimpleCommand : IChatCommand
         {
             TerminalHelper.WriteLine($"{TerminalColors.Muted}精简模式已禁用 - 使用完整模式{AnsiStyleConstants.Reset}");
         }
+
+        return Task.CompletedTask;
     }
 }

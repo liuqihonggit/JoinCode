@@ -14,8 +14,6 @@ public sealed class McpStdioClient : McpClientBase
     private Process? _process;
     private StreamWriter? _stdinWriter;
     private StreamReader? _stdoutReader;
-    private readonly SemaphoreSlim _requestLock = new(1, 1);
-    private readonly Dictionary<int, TaskCompletionSource<JsonRpcResponse>> _pendingRequests = new();
     private CancellationTokenSource? _readCts;
     private Task? _readTask;
     private ITelemetrySpan? _connectionSpan;
@@ -204,19 +202,7 @@ public sealed class McpStdioClient : McpClientBase
 
         _readCts?.Dispose();
 
-        await _requestLock.WaitAsync(cancellationToken);
-        try
-        {
-            foreach (var tcs in _pendingRequests.Values)
-            {
-                tcs.TrySetCanceled();
-            }
-            _pendingRequests.Clear();
-        }
-        finally
-        {
-            _requestLock.Release();
-        }
+        await CancelPendingRequestsAsync(cancellationToken);
     }
 
     private void OnInteractiveErrorDataReceived(object? sender, string data)
@@ -299,30 +285,6 @@ public sealed class McpStdioClient : McpClientBase
             case JsonRpcRequest request:
                 await HandleServerRequestAsync(request, cancellationToken);
                 break;
-        }
-    }
-
-    private async Task ProcessResponseAsync(JsonRpcResponse response, CancellationToken cancellationToken)
-    {
-        if (response.Id == null)
-        {
-            return;
-        }
-
-        int requestId = response.GetIdAsInt();
-
-        await _requestLock.WaitAsync(cancellationToken);
-        try
-        {
-            if (_pendingRequests.TryGetValue(requestId, out var tcs))
-            {
-                tcs.TrySetResult(response);
-                _pendingRequests.Remove(requestId);
-            }
-        }
-        finally
-        {
-            _requestLock.Release();
         }
     }
 

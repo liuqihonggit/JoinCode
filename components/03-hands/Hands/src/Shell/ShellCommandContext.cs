@@ -60,6 +60,9 @@ public sealed class ShellCommandContext : IShellCommandContext, IShellLifecycle,
     public string Command => _command;
 
     /// <inheritdoc />
+    public string? OutputFilePath => _spillFilePath;
+
+    /// <inheritdoc />
     public bool ShouldAutoBackground { get; }
 
     /// <summary>

@@ -44,7 +44,10 @@ public sealed partial class BackgroundNotificationHandler : IBackgroundNotificat
 
         foreach (var notification in pendingNotifications)
         {
-            var wrappedContent = $"A background agent completed a task:\n{notification.Xml}";
+            var isShellNotification = notification.Xml.Contains("<task-notification>", StringComparison.OrdinalIgnoreCase);
+            var wrappedContent = isShellNotification
+                ? notification.Xml
+                : $"A background agent completed a task:\n{notification.Xml}";
             await _contextManager.AddUserMessageAsync(wrappedContent, ct).ConfigureAwait(false);
         }
 

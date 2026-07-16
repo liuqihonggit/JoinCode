@@ -68,6 +68,12 @@ public interface IShellCommandContext : IShellLifecycle
     /// 获取当前已收集的 stderr
     /// </summary>
     string GetCurrentStderr();
+
+    /// <summary>
+    /// 输出文件路径 — 对齐 TS TaskOutput.outputFile
+    /// 后台模式下输出溢出到磁盘时的文件路径，模型可通过此路径读取命令输出
+    /// </summary>
+    string? OutputFilePath { get; }
 }
 
 /// <summary>

@@ -107,7 +107,7 @@ public sealed partial class BridgeMain
         try
         {
             await _deps.ApiClient.AcknowledgeWorkAsync(
-                EnvironmentId!, workId, sessionToken, ct).ConfigureAwait(false);
+                EnvironmentId ?? throw new InvalidOperationException("EnvironmentId not set"), workId, sessionToken, ct).ConfigureAwait(false);
         }
         catch (Exception ex)
         {

@@ -35,7 +35,7 @@ public sealed partial class WorkSessionTrackMiddleware : IHandleWorkMiddleware
         _logger?.LogInformation("BridgeMain: session {SessionId} started, active={Active}/{Max}, ccrV2={CcrV2}",
             work.SessionId, ctx.ActiveSessions.Count, ctx.Config.MaxSessions, ctx.UseCcrV2);
 
-        ctx.TelemetryCount!("tengu_bridge_session_started", new Dictionary<string, string>
+        ctx.TelemetryCount?.Invoke("tengu_bridge_session_started", new Dictionary<string, string>
         {
             ["active_sessions"] = ctx.ActiveSessions.Count.ToString(),
             ["spawn_mode"] = ctx.Config.SpawnMode.ToValue(),

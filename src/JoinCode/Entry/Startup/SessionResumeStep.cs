@@ -36,7 +36,7 @@ internal sealed partial class SessionResumeStep : IMiddleware<StartupContext>
         // 加载目标 SessionData
         var sessionData = options.ContinueSession
             ? await LoadMostRecentSessionAsync(sessionsDir, fs, ct).ConfigureAwait(false)
-            : await LoadSessionByIdOrTitleAsync(sessionsDir, options.ResumeSessionId!, fs, ct).ConfigureAwait(false);
+            : await LoadSessionByIdOrTitleAsync(sessionsDir, options.ResumeSessionId ?? throw new InvalidOperationException("ResumeSessionId required"), fs, ct).ConfigureAwait(false);
 
         if (sessionData is null)
         {

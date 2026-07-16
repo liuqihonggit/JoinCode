@@ -104,7 +104,7 @@ public sealed class CopyCommand : IChatCommand
 
     private static async Task CopyCodeBlockAsync(ChatCommandContext context, List<ApiMessageRecord> assistantMessages)
     {
-        var clipboardService = context.Services.ClipboardService!;
+        var clipboardService = context.Services.ClipboardService ?? throw new InvalidOperationException("ClipboardService not available");
 
         foreach (var message in assistantMessages.AsEnumerable().Reverse())
         {

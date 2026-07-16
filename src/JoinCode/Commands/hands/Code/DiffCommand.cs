@@ -105,7 +105,7 @@ public sealed class DiffCommand : IChatCommand
             var currentSource = state.Sources.Count > 0 ? state.Sources[state.SourceIndex] : null;
             var currentTurn = currentSource as DiffSource.Turn;
             var currentDiffData = currentTurn is not null && turnDiffLookup.TryGetValue(currentTurn.TurnIndex, out var td)
-                ? turnDiffService!.TurnDiffToDiffData(td)
+                ? (turnDiffService ?? throw new InvalidOperationException("TurnDiffService required for turn diff")).TurnDiffToDiffData(td)
                 : diffData;
 
             state = state with { DiffData = currentDiffData };

@@ -30,7 +30,7 @@ public sealed partial class TranscriptMiddleware : IAgentSpawnMiddleware
     {
         try
         {
-            await _transcriptService!.AppendEntryAsync("default", agentId, new TranscriptEntry
+            await (_transcriptService ?? throw new InvalidOperationException("TranscriptService not available")).AppendEntryAsync("default", agentId, new TranscriptEntry
             {
                 SessionId = "default",
                 Role = role,

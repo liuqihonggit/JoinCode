@@ -72,7 +72,7 @@ public sealed class JsonRpcIdConverter : JsonConverter<JsonRpcId>
 
         if (value.IsNumber)
         {
-            writer.WriteNumberValue(value.AsNumber!.Value);
+            writer.WriteNumberValue(value.AsNumber.GetValueOrDefault());
             return;
         }
 

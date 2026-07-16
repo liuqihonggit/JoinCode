@@ -472,11 +472,11 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
     }
 
     private async Task CopyConfigFilesAsync(string gitRoot, string worktreePath, WorktreeOptions options) {
-        if (options.ConfigFilesToCopy?.Count == 0) {
+        if (options.ConfigFilesToCopy is not { Count: > 0 }) {
             return;
         }
 
-        foreach (var relativePath in options.ConfigFilesToCopy!) {
+        foreach (var relativePath in options.ConfigFilesToCopy) {
             try {
                 var sourcePath = _fileOperationService.CombinePath(gitRoot, relativePath);
                 var destPath = _fileOperationService.CombinePath(worktreePath, relativePath);

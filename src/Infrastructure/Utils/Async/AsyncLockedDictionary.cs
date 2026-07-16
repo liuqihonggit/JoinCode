@@ -61,12 +61,12 @@ public sealed class AsyncLockedDictionary<TKey, TValue> where TKey : notnull
         return new ReadOnlyDictionary<TKey, TValue>(new Dictionary<TKey, TValue>(_dict));
     }
 
-    public async ValueTask<TValue> AddOrUpdateAsync(TKey key, Func<TKey, TValue, TValue> updateFactory, CancellationToken ct = default)
+    public async ValueTask<TValue> AddOrUpdateAsync(TKey key, Func<TKey, TValue?, TValue> updateFactory, CancellationToken ct = default)
     {
         using var guard = await AsyncLockGuard.AcquireAsync(_lock, ct).ConfigureAwait(false);
 
         _dict.TryGetValue(key, out var existing);
-        var updated = updateFactory(key, existing!);
+        var updated = updateFactory(key, existing); // existing may be default(TValue) for new keys
         _dict[key] = updated;
         return updated;
     }

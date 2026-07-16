@@ -31,7 +31,7 @@ public sealed partial class McpSetupMiddleware : IAgentSpawnMiddleware
 
         try
         {
-            var result = await _mcpServerManager!.InitializeAgentMcpServersAsync(definition, null, cancellationToken).ConfigureAwait(false);
+            var result = await (_mcpServerManager ?? throw new InvalidOperationException("McpServerManager not available")).InitializeAgentMcpServersAsync(definition, null, cancellationToken).ConfigureAwait(false);
 
             if (result.ConnectedServers.Count > 0)
             {

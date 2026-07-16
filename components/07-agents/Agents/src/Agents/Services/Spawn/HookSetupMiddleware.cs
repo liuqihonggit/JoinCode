@@ -53,7 +53,7 @@ public sealed partial class HookSetupMiddleware : IAgentSpawnMiddleware
                         var hookCommand = ConvertToHookCommand(hookCmd);
                         if (hookCommand is null) continue;
 
-                        hookTasks.Add(_sessionHookManager!.AddSessionHookAsync(
+                        hookTasks.Add((_sessionHookManager ?? throw new InvalidOperationException("SessionHookManager not available")).AddSessionHookAsync(
                             sessionId, evt, matcher.Matcher, hookCommand, cancellationToken));
                     }
                 }

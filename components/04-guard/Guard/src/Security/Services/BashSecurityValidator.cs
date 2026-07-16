@@ -13,7 +13,6 @@ namespace JoinCode.Abstractions.Security.Shell;
 public sealed partial class BashSecurityValidator : IBashSecurityValidator
 {
     [Inject] private readonly IBashAstSecurityWalker _astWalker;
-    // 命令替换模式（对齐 TS COMMAND_SUBSTITUTION_PATTERNS）
     private static readonly (Regex Pattern, string Message)[] CommandSubstitutionPatterns =
     [
         (new Regex(@"<\(", RegexOptions.Compiled), "进程替换 <()"),
@@ -23,17 +22,6 @@ public sealed partial class BashSecurityValidator : IBashSecurityValidator
         (new Regex(@"\$\[", RegexOptions.Compiled), "$[] 旧式算术展开"),
     ];
 
-    // Zsh危险命令 — 委托给 BashSecurityConstants
-
-    // 控制字符正则（对齐 TS CONTROL_CHAR_RE）
-    private static readonly Regex ControlCharRegex = new(
-        @"[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]", RegexOptions.Compiled);
-
-    // Unicode空白字符（对齐 TS UNICODE_WS_RE）
-    private static readonly Regex UnicodeWhitespaceRegex = new(
-        @"[\u00A0\u1680\u2000-\u200A\u2028\u2029\u202F\u205F\u3000\uFEFF]", RegexOptions.Compiled);
-
-    // Shell操作符（对齐 TS SHELL_OPERATORS）
     private static readonly FrozenSet<char> ShellOperators = FrozenSet.Create(';', '|', '&', '<', '>');
 
     public BashSecurityResult Validate(string command)
@@ -124,7 +112,7 @@ public sealed partial class BashSecurityValidator : IBashSecurityValidator
     /// </summary>
     private static BashSecurityResult ValidateControlCharacters(string command)
     {
-        if (ControlCharRegex.IsMatch(command))
+        if (BashSecurityRegex.ControlCharRegex().IsMatch(command))
         {
             return new BashSecurityResult(false, BashSecurityCheckId.ControlCharacters,
                 "命令包含非打印控制字符，可能用于绕过安全检查", true);
@@ -280,7 +268,7 @@ public sealed partial class BashSecurityValidator : IBashSecurityValidator
     /// </summary>
     private static BashSecurityResult ValidateUnicodeWhitespace(string command)
     {
-        if (UnicodeWhitespaceRegex.IsMatch(command))
+        if (BashSecurityRegex.UnicodeWhitespaceRegex().IsMatch(command))
         {
             return new BashSecurityResult(false, BashSecurityCheckId.UnicodeWhitespace,
                 "命令包含Unicode空白字符，可能导致解析不一致", true);

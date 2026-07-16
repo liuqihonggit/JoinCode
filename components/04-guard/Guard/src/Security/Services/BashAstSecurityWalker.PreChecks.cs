@@ -6,23 +6,14 @@ public sealed partial class BashAstSecurityWalker
 {
     private static BashAstSecurityResult? RunPreChecks(string command)
     {
-        if (ControlCharRegex.IsMatch(command))
-            return new BashAstSecurityResult.TooComplex("命令包含控制字符", "CONTROL_CHAR");
-
-        if (UnicodeWhitespaceRegex.IsMatch(command))
-            return new BashAstSecurityResult.TooComplex("命令包含Unicode空白字符", "UNICODE_WS");
-
-        if (BackslashWhitespaceRegex.IsMatch(command))
-            return new BashAstSecurityResult.TooComplex("命令包含反斜杠转义空白", "BACKSLASH_WS");
-
-        if (ZshTildeBracketRegex.IsMatch(command))
-            return new BashAstSecurityResult.TooComplex("命令包含Zsh动态目录语法 ~[", "ZSH_TILDE_BRACKET");
-
-        if (ZshEqualsExpansionRegex.IsMatch(command))
-            return new BashAstSecurityResult.TooComplex("命令包含Zsh等号展开 =cmd", "ZSH_EQUALS_EXPANSION");
+        foreach (var item in BashPreCheckRegistry.All)
+        {
+            if (item.IsMatch(command))
+                return new BashAstSecurityResult.TooComplex(item.Message, item.NodeType);
+        }
 
         var masked = MaskBracesInQuotedContexts(command);
-        if (BraceWithQuoteRegex.IsMatch(masked))
+        if (BashSecurityRegex.BraceWithQuoteRegex().IsMatch(masked))
             return new BashAstSecurityResult.TooComplex("命令包含花括号+引号混淆", "BRACE_WITH_QUOTE");
 
         return null;

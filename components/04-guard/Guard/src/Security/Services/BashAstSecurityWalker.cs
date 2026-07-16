@@ -9,24 +9,6 @@ public sealed partial class BashAstSecurityWalker : IBashAstSecurityWalker, IDis
     private const string CmdsubPlaceholder = "__CMDSUB_OUTPUT__";
     private const string VarPlaceholder = "__TRACKED_VAR__";
 
-    private static readonly Regex ControlCharRegex = new(
-        @"[\x00-\x08\x0B-\x1F\x7F]", RegexOptions.Compiled);
-
-    private static readonly Regex UnicodeWhitespaceRegex = new(
-        @"[\u00A0\u1680\u2000-\u200B\u2028\u2029\u202F\u205F\u3000\uFEFF]",
-        RegexOptions.Compiled);
-
-    private static readonly Regex BackslashWhitespaceRegex = new(
-        @"\\[ \t]|[^ \t\n\\]\\\n", RegexOptions.Compiled);
-
-    private static readonly Regex ZshTildeBracketRegex = new(@"~\[", RegexOptions.Compiled);
-
-    private static readonly Regex ZshEqualsExpansionRegex = new(
-        @"(?:^|[\s;&|])=[a-zA-Z_]", RegexOptions.Compiled);
-
-    private static readonly Regex BraceWithQuoteRegex = new(
-        @"\{[^}]*['""]", RegexOptions.Compiled);
-
     private static readonly Regex BraceExpansionRegex = new(
         @"\{[^{}\s]*(,|\.\.)[^{}\s]*\}", RegexOptions.Compiled);
 

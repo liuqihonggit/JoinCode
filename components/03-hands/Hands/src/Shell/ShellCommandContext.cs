@@ -102,6 +102,13 @@ public sealed class ShellCommandContext : IShellCommandContext, IShellLifecycle
                 else
                 {
                     _stdoutBuilder.AppendLine(e.Data);
+
+                    // 对齐 TS TaskOutput.#writeBuffered: 前台命令输出超过内存阈值时自动溢出到磁盘
+                    // 防止长时间运行的前台命令导致 OOM
+                    if (_stdoutBuilder.Length > SpillThresholdChars)
+                    {
+                        SpillToDisk();
+                    }
                 }
             }
         };
@@ -120,6 +127,9 @@ public sealed class ShellCommandContext : IShellCommandContext, IShellLifecycle
         }
 
         _ = MonitorProcessExitAsync().WaitAsync(TimeSpan.FromSeconds(10), _processCts.Token).ConfigureAwait(false);
+
+        // 对齐 TS TaskOutput: 启动大小看护，前台和后台都需要防止输出无限增长
+        StartSizeWatchdog();
     }
 
     /// <summary>
@@ -165,15 +175,19 @@ public sealed class ShellCommandContext : IShellCommandContext, IShellLifecycle
         // 对齐 TS Shell.ts: detached 进程组隔离
         // Bash: detached=true → 新进程组，tree-kill 可精确杀整棵进程树
         // PowerShell: detached=false → 共享父进程控制台
-        if (provider.Detached && OperatingSystem.IsWindows())
+        // Windows: CreateNoWindow=true 已足够，WindowStyle.Hidden 作为额外保障
+        // Unix: TODO 需要通过 process group ID 创建新进程组 (setsid)
+        if (provider.Detached)
         {
-            psi.WindowStyle = ProcessWindowStyle.Hidden;
+            if (OperatingSystem.IsWindows())
+            {
+                psi.WindowStyle = ProcessWindowStyle.Hidden;
+            }
         }
 
         // 对齐 TS Shell.ts: 先清理环境变量（CI 场景移除敏感信息），再叠加 envOverrides
-        var cleanedEnv = SubprocessEnvCleaner.CleanEnvironment();
-        foreach (var (key, value) in cleanedEnv)
-            psi.EnvironmentVariables[key] = value;
+        // psi.EnvironmentVariables 默认继承当前进程环境，只需删除敏感项
+        SubprocessEnvCleaner.ScrubProcessEnvironment(psi);
 
         foreach (var (key, value) in envOverrides)
             psi.EnvironmentVariables[key] = value;
@@ -206,23 +220,26 @@ public sealed class ShellCommandContext : IShellCommandContext, IShellLifecycle
         // 后台化时将内存中的输出溢出到磁盘，释放内存
         SpillToDisk();
 
+        // 对齐 TS Shell.ts: 后台化后不再需要 CWD 追踪，立即清理文件
+        CleanupCwdTrackingFile();
+
         _logger?.LogInformation("Shell 命令已转后台: {TaskId}, 命令: {Command}", taskId, _command);
 
         Backgrounded?.Invoke(this, taskId);
-
-        StartSizeWatchdog();
 
         return true;
     }
 
     /// <summary>
-    /// 将内存中的输出溢出到磁盘 — 对齐 TS TaskOutput.spillToDisk()
-    /// 后台化时调用，将 StringBuilder 内容写入临时文件并清空
+    /// 将内存中的输出溢出到磁盘 — 对齐 TS TaskOutput.#spillToDisk()
+    /// 调用场景：
+    ///   1. 前台命令输出超过 SpillThresholdChars 时自动触发（防止OOM）
+    ///   2. Background() 转后台时调用（释放内存）
     /// 后续 stdout 接收直接追加到文件，不再驻留内存
     /// </summary>
     private void SpillToDisk()
     {
-        if (_stdoutBuilder.Length <= SpillThresholdChars) return;
+        if (_spillFilePath is not null) return;
 
         try
         {
@@ -230,10 +247,14 @@ public sealed class ShellCommandContext : IShellCommandContext, IShellLifecycle
             DirectoryHelper.EnsureDirectoryExists(_fs, tempDir);
 
             _spillFilePath = Path.Combine(tempDir, $"spill-{TaskId}.txt");
-            _fs.WriteAllText(_spillFilePath, _stdoutBuilder.ToString());
-            _stdoutBuilder.Clear();
 
-            _logger?.LogDebug("后台任务输出已溢出到磁盘: {Path}", _spillFilePath);
+            if (_stdoutBuilder.Length > 0)
+            {
+                _fs.WriteAllText(_spillFilePath, _stdoutBuilder.ToString());
+                _stdoutBuilder.Clear();
+            }
+
+            _logger?.LogDebug("任务输出已溢出到磁盘: {Path}", _spillFilePath);
         }
         catch (Exception ex)
         {
@@ -262,20 +283,20 @@ public sealed class ShellCommandContext : IShellCommandContext, IShellLifecycle
         _sizeWatchdogTimer = new Timer(static state =>
         {
             var ctx = (ShellCommandContext)(state ?? throw new InvalidOperationException("Timer state is null."));
-            if (ctx._status != ShellCommandStatus.Backgrounded) return;
+            if (ctx._status is not (ShellCommandStatus.Running or ShellCommandStatus.Backgrounded)) return;
 
             if (ctx._spillFilePath is not null && ctx._fs.FileExists(ctx._spillFilePath))
             {
                 var fileSize = ctx._fs.GetFileLength(ctx._spillFilePath);
                 if (fileSize > ShellExecutionResult.MaxPersistedSizeBytes)
                 {
-                    ctx._logger?.LogWarning("后台任务输出文件超过硬上限，强制杀死: {TaskId}, Size={Size}", ctx._backgroundTaskId, fileSize);
+                    ctx._logger?.LogWarning("任务输出文件超过硬上限，强制杀死: {TaskId}, Size={Size}", ctx._backgroundTaskId ?? ctx.TaskId, fileSize);
                     ctx.Kill();
                 }
             }
             else if (ctx._stdoutBuilder.Length > ShellExecutionResult.MaxPersistedSizeBytes)
             {
-                ctx._logger?.LogWarning("后台任务输出超过硬上限，强制杀死: {TaskId}, Size={Size}", ctx._backgroundTaskId, ctx._stdoutBuilder.Length);
+                ctx._logger?.LogWarning("任务输出超过硬上限，强制杀死: {TaskId}, Size={Size}", ctx._backgroundTaskId ?? ctx.TaskId, ctx._stdoutBuilder.Length);
                 ctx.Kill();
             }
         }, this, TimeSpan.FromMilliseconds(SizeWatchdogIntervalMs), TimeSpan.FromMilliseconds(SizeWatchdogIntervalMs));
@@ -479,8 +500,19 @@ public sealed class ShellCommandContext : IShellCommandContext, IShellLifecycle
 
             if (!string.Equals(newCwd, _workingDirectory, StringComparison.OrdinalIgnoreCase))
             {
-                try { _fs.SetCurrentDirectory(newCwd); return true; }
-                catch (Exception ex) { _logger?.LogDebug(ex, "设置工作目录失败: {Cwd}", newCwd); return false; }
+                try
+                {
+                    _fs.SetCurrentDirectory(newCwd);
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogDebug(ex, "设置工作目录失败: {Cwd}，回退到原始目录", newCwd);
+                    // 对齐 TS Shell.ts: CWD 不存在时回退到项目根目录
+                    try { _fs.SetCurrentDirectory(_workingDirectory); }
+                    catch (Exception innerEx) { _logger?.LogDebug(innerEx, "回退到原始目录也失败: {Cwd}", _workingDirectory); }
+                    return false;
+                }
             }
 
             return false;

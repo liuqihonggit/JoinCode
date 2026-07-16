@@ -163,10 +163,17 @@ public sealed partial class ShellExecutionService : IShellExecutionService
 
             var spawnArgs = provider.GetSpawnArgs(execResult.CommandString);
 
-            var cleanedEnv = SubprocessEnvCleaner.CleanEnvironment();
+            // 对齐 TS Shell.ts: 从当前进程环境复制，清理敏感变量，再叠加 envOverrides
             var mergedEnv = new Dictionary<string, string>(StringComparer.Ordinal);
-            foreach (var (key, value) in cleanedEnv)
-                mergedEnv[key] = value;
+            foreach (var key in Environment.GetEnvironmentVariables().Keys)
+            {
+                if (key is string k)
+                {
+                    var v = Environment.GetEnvironmentVariable(k);
+                    if (v is not null) mergedEnv[k] = v;
+                }
+            }
+            mergedEnv = SubprocessEnvCleaner.ScrubDictionaryEnv(mergedEnv);
             foreach (var (key, value) in envOverrides)
                 mergedEnv[key] = value;
 

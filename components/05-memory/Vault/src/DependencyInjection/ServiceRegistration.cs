@@ -11,17 +11,9 @@ public static partial class ServiceRegistration
 
     public static IServiceCollection AddVaultStateServices(this IServiceCollection services)
     {
-        var stateMode = System.Environment.GetEnvironmentVariable(JccEnvVar.StateMode.ToValue());
-        if (string.Equals(stateMode, "InMemory", StringComparison.OrdinalIgnoreCase))
-        {
-            services.AddSingleton<IStateService>(sp =>
-            {
-                Diag.WriteDiTrace("[DI] + IStateService (InMemory)");
-                var svc = new InMemoryStateService(sp.GetRequiredService<IClockService>());
-                Diag.WriteDiTrace("[DI] - IStateService (InMemory)");
-                return svc;
-            });
-        }
+        services.AddEnvSwitch<IStateService>(
+            JccEnvVar.StateMode, "InMemory",
+            sp => new InMemoryStateService(sp.GetRequiredService<IClockService>()));
 
         return services;
     }

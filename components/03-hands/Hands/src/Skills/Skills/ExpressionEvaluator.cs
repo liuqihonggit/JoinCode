@@ -361,32 +361,12 @@ public sealed class ExpressionEvaluator
             {
                 return false;
             }
-            value = ObjectToJsonElement(propertyValue);
+            value = JsonElementHelper.FromPrimitives(propertyValue);
         }
 
         return true;
     }
 
-    /// <summary>
-    /// 将 object 转换为 JsonElement
-    /// </summary>
-    private static JsonElement ObjectToJsonElement(object obj)
-    {
-        return obj switch
-        {
-            JsonElement je => je,
-            string s => JsonSerializer.SerializeToElement(s, SkillsJsonContext.Default.String),
-            int i => JsonSerializer.SerializeToElement(i, SkillsJsonContext.Default.Int32),
-            long l => JsonSerializer.SerializeToElement(l, SkillsJsonContext.Default.Int64),
-            double d => JsonSerializer.SerializeToElement(d, SkillsJsonContext.Default.Double),
-            bool b => JsonSerializer.SerializeToElement(b, SkillsJsonContext.Default.Boolean),
-            _ => JsonSerializer.SerializeToElement(obj.ToString(), SkillsJsonContext.Default.String)
-        };
-    }
-
-    /// <summary>
-    /// 尝试解析字面量
-    /// </summary>
     private static bool TryParseLiteral(string value, out object result)
     {
         result = value;

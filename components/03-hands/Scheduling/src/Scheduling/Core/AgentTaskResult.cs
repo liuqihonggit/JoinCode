@@ -131,7 +131,7 @@ public sealed class AgentTaskResult : IAgentTaskResult
     /// <returns>当前结果实例（用于链式调用）</returns>
     public AgentTaskResult WithMetadata<T>(string key, T value)
     {
-        _metadata[key] = JsonElementConverter.ToJsonElement(value);
+        _metadata[key] = JsonElementHelper.FromPrimitives(value);
         return this;
     }
 
@@ -189,32 +189,6 @@ public sealed class AgentTaskResult : IAgentTaskResult
     }
 }
 
-/// <summary>
-/// JsonElement 转换工具 — 消除 AgentTaskResult 和 Builder 中的重复
-/// </summary>
-internal static class JsonElementConverter
-{
-    public static JsonElement ToJsonElement<T>(T value) => value switch
-    {
-        string s => JsonSerializer.SerializeToElement(s, SchedulingJsonContext.Default.String),
-        int i => JsonSerializer.SerializeToElement(i, SchedulingJsonContext.Default.Int32),
-        long l => JsonSerializer.SerializeToElement(l, SchedulingJsonContext.Default.Int64),
-        double d => JsonSerializer.SerializeToElement(d, SchedulingJsonContext.Default.Double),
-        bool b => JsonSerializer.SerializeToElement(b, SchedulingJsonContext.Default.Boolean),
-        JsonElement je => je,
-        _ => JsonSerializer.SerializeToElement(value?.ToString() ?? string.Empty, SchedulingJsonContext.Default.String)
-    };
 
-    public static JsonElement ToJsonElement(object value) => value switch
-    {
-        string s => JsonSerializer.SerializeToElement(s, SchedulingJsonContext.Default.String),
-        int i => JsonSerializer.SerializeToElement(i, SchedulingJsonContext.Default.Int32),
-        long l => JsonSerializer.SerializeToElement(l, SchedulingJsonContext.Default.Int64),
-        double d => JsonSerializer.SerializeToElement(d, SchedulingJsonContext.Default.Double),
-        bool b => JsonSerializer.SerializeToElement(b, SchedulingJsonContext.Default.Boolean),
-        JsonElement je => je,
-        _ => JsonSerializer.SerializeToElement(value.ToString() ?? string.Empty, SchedulingJsonContext.Default.String)
-    };
-}
 
 

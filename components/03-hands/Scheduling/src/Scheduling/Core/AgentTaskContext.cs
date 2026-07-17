@@ -170,7 +170,7 @@ public sealed class AgentTaskContext : IAgentTaskContext
 
     public void SetMetadataValue<T>(string key, T value)
     {
-        _metadata[key] = ToJsonElement(value);
+        _metadata[key] = JsonElementHelper.FromPrimitives(value);
     }
 
     public bool IsCancellationRequested => CancellationToken.IsCancellationRequested;
@@ -197,20 +197,6 @@ public sealed class AgentTaskContext : IAgentTaskContext
             return additionalToken;
         }
         return CancellationTokenSource.Token.CombineWith(additionalToken).Token;
-    }
-
-    private static JsonElement ToJsonElement<T>(T value)
-    {
-        return value switch
-        {
-            string s => JsonSerializer.SerializeToElement(s, SchedulingJsonContext.Default.String),
-            int i => JsonSerializer.SerializeToElement(i, SchedulingJsonContext.Default.Int32),
-            long l => JsonSerializer.SerializeToElement(l, SchedulingJsonContext.Default.Int64),
-            double d => JsonSerializer.SerializeToElement(d, SchedulingJsonContext.Default.Double),
-            bool b => JsonSerializer.SerializeToElement(b, SchedulingJsonContext.Default.Boolean),
-            JsonElement je => je,
-            _ => JsonSerializer.SerializeToElement(value?.ToString() ?? string.Empty, SchedulingJsonContext.Default.String)
-        };
     }
 
     private static object? DeserializeToObject(JsonElement element)

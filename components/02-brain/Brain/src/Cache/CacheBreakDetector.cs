@@ -4,7 +4,7 @@ public class CacheBreakDetector
 {
     private bool _hasPreviousCacheHit;
 
-    public PromptStateSnapshot RecordPromptState(ImmutablePrefix prefix, string dynamicContent)
+    public PromptStateSnapshot RecordPromptState(ImmutablePrefix prefix, string dynamicContent, string? modelId = null, bool? fastMode = null)
     {
         ArgumentNullException.ThrowIfNull(prefix);
         ArgumentNullException.ThrowIfNull(dynamicContent);
@@ -16,7 +16,9 @@ public class CacheBreakDetector
             ToolCount = prefix.ToolSpecs.Count,
             ToolNamesHash = ContentHash.ComputeToolNames(prefix.ToolSpecs),
             DynamicContentHash = ContentHash.Compute(dynamicContent),
-            ToolSpecs = prefix.ToolSpecs.ToList()
+            ToolSpecs = prefix.ToolSpecs.ToList(),
+            ModelId = modelId,
+            FastMode = fastMode
         };
     }
 
@@ -24,7 +26,9 @@ public class CacheBreakDetector
         PromptStateSnapshot snapshot,
         ImmutablePrefix currentPrefix,
         string currentDynamicContent,
-        TokenUsage usage)
+        TokenUsage usage,
+        string? currentModelId = null,
+        bool? currentFastMode = null)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
         ArgumentNullException.ThrowIfNull(currentPrefix);
@@ -33,6 +37,18 @@ public class CacheBreakDetector
         if (usage.CacheReadInputTokens > 0)
         {
             _hasPreviousCacheHit = true;
+        }
+
+        if (IsModelChanged(snapshot, currentModelId))
+        {
+            return CacheBreakResult.Break(CacheBreakKind.ModelChanged,
+                $"Model changed: {snapshot.ModelId ?? "(null)"} → {currentModelId ?? "(null)"}");
+        }
+
+        if (IsFastModeChanged(snapshot, currentFastMode))
+        {
+            return CacheBreakResult.Break(CacheBreakKind.FastModeChanged,
+                $"Fast mode changed: {snapshot.FastMode?.ToString() ?? "(null)"} → {currentFastMode?.ToString() ?? "(null)"}");
         }
 
         var currentSystemHash = ContentHash.Compute(currentPrefix.System);
@@ -86,5 +102,19 @@ public class CacheBreakDetector
     {
         if (!_hasPreviousCacheHit) return false;
         return allHashesMatch && usage.CacheReadInputTokens == 0 && usage.CacheCreationInputTokens > 0;
+    }
+
+    private static bool IsModelChanged(PromptStateSnapshot snapshot, string? currentModelId)
+    {
+        if (snapshot.ModelId is null && currentModelId is null) return false;
+        if (snapshot.ModelId is null || currentModelId is null) return true;
+        return !string.Equals(snapshot.ModelId, currentModelId, StringComparison.Ordinal);
+    }
+
+    private static bool IsFastModeChanged(PromptStateSnapshot snapshot, bool? currentFastMode)
+    {
+        if (snapshot.FastMode is null && currentFastMode is null) return false;
+        if (snapshot.FastMode is null || currentFastMode is null) return false;
+        return snapshot.FastMode != currentFastMode;
     }
 }

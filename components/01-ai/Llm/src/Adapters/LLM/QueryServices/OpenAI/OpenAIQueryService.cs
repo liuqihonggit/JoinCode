@@ -224,10 +224,7 @@ public class OpenAIQueryService : QueryServiceBase
 
     private static List<OpenAITool> BuildToolsFromKernel(IChatClient kernel)
     {
-        return kernel.Plugins.PluginNames
-            .Select(name => kernel.Plugins.GetPlugin(name))
-            .OfType<IToolGroup>()
-            .SelectMany(p => p.Functions)
+        return EnumerateToolFunctions(kernel)
             .Select(function => new OpenAITool
             {
                 Function = new OpenAIFunctionDefinition

@@ -688,10 +688,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         {
             if (dynamicChanged)
             {
-                messages.Add(new ApiMessage(MessageRole.System, dynamicMsg, new Dictionary<string, JsonElement>
-                {
-                    ["CacheBreak"] = JsonElementHelper.FromBoolean(true)
-                }));
+                messages.Add(new ApiMessage(MessageRole.System, dynamicMsg, CacheBreakMarker.Create()));
             }
             else
             {

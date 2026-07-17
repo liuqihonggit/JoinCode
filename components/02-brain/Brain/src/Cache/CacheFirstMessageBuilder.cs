@@ -25,10 +25,7 @@ public static class CacheFirstMessageBuilder
         {
             if (dynamicContextChanged)
             {
-                messages.Add(new ApiMessage(MessageRole.System, dynamicContext, new Dictionary<string, JsonElement>
-                {
-                    ["CacheBreak"] = JsonElementHelper.FromBoolean(true)
-                }));
+                messages.Add(new ApiMessage(MessageRole.System, dynamicContext, CacheBreakMarker.Create()));
             }
             else
             {

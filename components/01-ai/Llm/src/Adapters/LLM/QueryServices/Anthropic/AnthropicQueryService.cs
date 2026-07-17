@@ -402,10 +402,7 @@ public sealed class AnthropicQueryService : QueryServiceBase
 
     private static List<AnthropicToolDefinition> BuildAnthropicToolsFromKernel(IChatClient kernel)
     {
-        return kernel.Plugins.PluginNames
-            .Select(name => kernel.Plugins.GetPlugin(name))
-            .OfType<IToolGroup>()
-            .SelectMany(p => p.Functions)
+        return EnumerateToolFunctions(kernel)
             .Select(function => new AnthropicToolDefinition
             {
                 Name = function.Name,

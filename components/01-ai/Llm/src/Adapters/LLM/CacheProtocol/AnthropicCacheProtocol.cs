@@ -20,6 +20,49 @@ internal sealed class AnthropicCacheProtocol : CacheProtocol
             cb.ValueKind != JsonValueKind.True;
     }
 
+    public void PlaceCacheControlOnSystemBlocks(List<AnthropicSystemContentBlock> blocks, bool hasMcpTools)
+    {
+        if (blocks.Count == 0) return;
+
+        var cacheControl = CreateCacheControl(hasMcpTools);
+        var staticIndex = FindLastStaticBlock(blocks);
+        if (staticIndex >= 0)
+            blocks[staticIndex].CacheControl = cacheControl;
+        else
+            blocks[^1].CacheControl = cacheControl;
+    }
+
+    public void PlaceCacheControlOnTools(List<AnthropicToolDefinition> tools, bool hasMcpTools)
+    {
+        if (tools.Count == 0) return;
+        tools[^1].CacheControl = CreateCacheControl(hasMcpTools);
+    }
+
+    public void PlaceCacheControlOnToolResults(List<AnthropicToolResultBlock> results, bool hasMcpTools)
+    {
+        if (results.Count == 0) return;
+        results[^1].CacheControl = CreateCacheControl(hasMcpTools);
+    }
+
+    public void PlaceCacheControlOnToolResults(List<AnthropicMessage> messages, bool hasMcpTools)
+    {
+        AnthropicToolResultBlock? lastResult = null;
+        foreach (var msg in messages)
+        {
+            if (msg.Content is List<AnthropicContentBlock> blocks)
+            {
+                foreach (var block in blocks)
+                {
+                    if (block is AnthropicToolResultBlock result)
+                        lastResult = result;
+                }
+            }
+        }
+
+        if (lastResult is not null)
+            lastResult.CacheControl = CreateCacheControl(hasMcpTools);
+    }
+
     public TokenUsage MapUsage(AnthropicUsage usage)
     {
         return CreateTokenUsage(
@@ -27,5 +70,14 @@ internal sealed class AnthropicCacheProtocol : CacheProtocol
             usage.CacheCreationInputTokens ?? 0,
             usage.CacheReadInputTokens ?? 0,
             usage.OutputTokensDetails?.ReasoningTokens ?? 0);
+    }
+
+    private static int FindLastStaticBlock(List<AnthropicSystemContentBlock> blocks)
+    {
+        for (var i = blocks.Count - 1; i >= 0; i--)
+        {
+            if (blocks[i].IsStatic) return i;
+        }
+        return -1;
     }
 }

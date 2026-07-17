@@ -130,14 +130,12 @@ public sealed class AnthropicQueryService : QueryServiceBase
                         filteredTools.Add(BuildToolSearchToolDefinition());
                     }
 
-                    var hasMcpTools = filteredTools.Any(t => t.Name.Contains('.'));
-                    filteredTools[^1].CacheControl = CacheProtocol.CreateCacheControl(hasMcpTools);
+                    CacheProtocol.PlaceCacheControlOnTools(filteredTools, filteredTools.Any(t => t.Name.Contains('.')));
                     request.Tools = filteredTools;
                 }
                 else
                 {
-                    var hasMcpTools = allTools.Any(t => t.Name.Contains('.'));
-                    allTools[^1].CacheControl = CacheProtocol.CreateCacheControl(hasMcpTools);
+                    CacheProtocol.PlaceCacheControlOnTools(allTools, allTools.Any(t => t.Name.Contains('.')));
                     request.Tools = allTools;
                 }
 
@@ -156,20 +154,14 @@ public sealed class AnthropicQueryService : QueryServiceBase
             }
         }
 
+        var hasMcpTools = request.Tools is { Count: > 0 } && request.Tools.Any(t => t.Name.Contains('.'));
+
         if (request.System is { Count: > 0 })
         {
-            var hasMcpTools = request.Tools is { Count: > 0 } && request.Tools.Any(t => t.Name.Contains('.'));
-            var cacheControl = CacheProtocol.CreateCacheControl(hasMcpTools);
-            var staticBlockIndex = FindLastStaticSystemBlock(systemBlocks);
-            if (staticBlockIndex >= 0)
-            {
-                systemBlocks[staticBlockIndex].CacheControl = cacheControl;
-            }
-            else
-            {
-                request.System[^1].CacheControl = cacheControl;
-            }
+            CacheProtocol.PlaceCacheControlOnSystemBlocks(systemBlocks, hasMcpTools);
         }
+
+        CacheProtocol.PlaceCacheControlOnToolResults(anthropicMessages, hasMcpTools);
 
         if (settings?.ContextManagement is not null)
         {
@@ -177,15 +169,6 @@ public sealed class AnthropicQueryService : QueryServiceBase
         }
 
         return request;
-    }
-
-    private static int FindLastStaticSystemBlock(List<AnthropicSystemContentBlock> blocks)
-    {
-        for (var i = blocks.Count - 1; i >= 0; i--)
-        {
-            if (blocks[i].IsStatic) return i;
-        }
-        return -1;
     }
 
     private static AnthropicContextManagement ConvertContextManagement(ContextManagementConfig config)
@@ -318,12 +301,9 @@ public sealed class AnthropicQueryService : QueryServiceBase
 
     private static void FlushToolResultsAsUserMessage(
         List<AnthropicToolResultBlock> pendingToolResults,
-        List<AnthropicMessage> messages,
-        bool hasMcpTools = false)
+        List<AnthropicMessage> messages)
     {
         if (pendingToolResults.Count == 0) return;
-
-        pendingToolResults[^1].CacheControl = CacheProtocol.CreateCacheControl(hasMcpTools);
 
         messages.Add(new AnthropicMessage
         {

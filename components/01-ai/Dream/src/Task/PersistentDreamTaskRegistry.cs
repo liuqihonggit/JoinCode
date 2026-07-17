@@ -9,7 +9,7 @@ public sealed partial class PersistentDreamTaskRegistry : IDreamTaskRegistry, IA
 {
     private readonly IDreamTaskPersistence _persistence;
     [Inject] private readonly ILogger<PersistentDreamTaskRegistry>? _logger;
-    private readonly SemaphoreSlim _lock;
+    private readonly AsyncLock _lock = new();
 
     // 内存缓存（活跃任务）
     private readonly Dictionary<string, DreamTaskState> _activeTasks = new();
@@ -21,7 +21,6 @@ public sealed partial class PersistentDreamTaskRegistry : IDreamTaskRegistry, IA
     {
         _persistence = persistence;
         _logger = logger;
-        _lock = new SemaphoreSlim(1, 1);
     }
 
     /// <inheritdoc />
@@ -41,14 +40,9 @@ public sealed partial class PersistentDreamTaskRegistry : IDreamTaskRegistry, IA
             Phase = DreamPhase.Starting
         };
 
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
+                using (await _lock.LockAsync(ct).ConfigureAwait(false))
         {
             _activeTasks[taskId] = task;
-        }
-        finally
-        {
-            _lock.Release();
         }
 
         // 异步保存
@@ -62,8 +56,7 @@ public sealed partial class PersistentDreamTaskRegistry : IDreamTaskRegistry, IA
     public async Task AddDreamTurnAsync(string taskId, DreamTurn turn, IReadOnlyList<string> touchedPaths, CancellationToken ct = default)
     {
         DreamTaskState? task;
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
+                using (await _lock.LockAsync(ct).ConfigureAwait(false))
         {
             if (!_activeTasks.TryGetValue(taskId, out task))
             {
@@ -71,10 +64,6 @@ public sealed partial class PersistentDreamTaskRegistry : IDreamTaskRegistry, IA
             }
 
             task.AddTurn(turn, touchedPaths);
-        }
-        finally
-        {
-            _lock.Release();
         }
 
         // 异步保存（在锁外）
@@ -88,8 +77,7 @@ public sealed partial class PersistentDreamTaskRegistry : IDreamTaskRegistry, IA
     public async Task CompleteDreamTaskAsync(string taskId, CancellationToken ct = default)
     {
         DreamTaskState? task;
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
+                using (await _lock.LockAsync(ct).ConfigureAwait(false))
         {
             if (!_activeTasks.TryGetValue(taskId, out task))
             {
@@ -100,10 +88,6 @@ public sealed partial class PersistentDreamTaskRegistry : IDreamTaskRegistry, IA
 
             // 从活跃缓存移除
             _activeTasks.Remove(taskId);
-        }
-        finally
-        {
-            _lock.Release();
         }
 
         // 异步保存（在锁外）
@@ -119,8 +103,7 @@ public sealed partial class PersistentDreamTaskRegistry : IDreamTaskRegistry, IA
     public async Task FailDreamTaskAsync(string taskId, CancellationToken ct = default)
     {
         DreamTaskState? task;
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
+                using (await _lock.LockAsync(ct).ConfigureAwait(false))
         {
             if (!_activeTasks.TryGetValue(taskId, out task))
             {
@@ -131,10 +114,6 @@ public sealed partial class PersistentDreamTaskRegistry : IDreamTaskRegistry, IA
 
             // 从活跃缓存移除
             _activeTasks.Remove(taskId);
-        }
-        finally
-        {
-            _lock.Release();
         }
 
         // 异步保存（在锁外）
@@ -151,14 +130,9 @@ public sealed partial class PersistentDreamTaskRegistry : IDreamTaskRegistry, IA
     {
         DreamTaskState? task;
 
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
+                using (await _lock.LockAsync(ct).ConfigureAwait(false))
         {
             _activeTasks.TryGetValue(taskId, out task);
-        }
-        finally
-        {
-            _lock.Release();
         }
 
         if (task == null || task.IsTerminal)
@@ -168,14 +142,9 @@ public sealed partial class PersistentDreamTaskRegistry : IDreamTaskRegistry, IA
 
         task.Kill();
 
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
+                using (await _lock.LockAsync(ct).ConfigureAwait(false))
         {
             _activeTasks.Remove(taskId);
-        }
-        finally
-        {
-            _lock.Release();
         }
 
         await _persistence.SaveAsync(task, ct).ConfigureAwait(false);
@@ -187,17 +156,12 @@ public sealed partial class PersistentDreamTaskRegistry : IDreamTaskRegistry, IA
     public async Task<DreamTaskState?> GetTaskStateAsync(string taskId, CancellationToken ct = default)
     {
         // 先从内存缓存查找
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
+                using (await _lock.LockAsync(ct).ConfigureAwait(false))
         {
             if (_activeTasks.TryGetValue(taskId, out var activeTask))
             {
                 return activeTask;
             }
-        }
-        finally
-        {
-            _lock.Release();
         }
 
         // 从持久化加载
@@ -210,17 +174,12 @@ public sealed partial class PersistentDreamTaskRegistry : IDreamTaskRegistry, IA
         var result = new Dictionary<string, DreamTaskState>();
 
         // 添加活跃任务
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
+                using (await _lock.LockAsync(ct).ConfigureAwait(false))
         {
             foreach (var (id, task) in _activeTasks)
             {
                 result[id] = task;
             }
-        }
-        finally
-        {
-            _lock.Release();
         }
 
         // 添加历史任务（从持久化加载）
@@ -244,17 +203,12 @@ public sealed partial class PersistentDreamTaskRegistry : IDreamTaskRegistry, IA
         var allTasks = await _persistence.LoadAllAsync(ct).ConfigureAwait(false);
         var activeTasks = allTasks.Where(t => !t.IsTerminal).ToList();
 
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
+                using (await _lock.LockAsync(ct).ConfigureAwait(false))
         {
             foreach (var task in activeTasks)
             {
                 _activeTasks[task.Id] = task;
             }
-        }
-        finally
-        {
-            _lock.Release();
         }
 
         _logger?.LogInformation(

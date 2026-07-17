@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Scheduling;
 
 /// <summary>
@@ -8,7 +8,7 @@ internal sealed class ExecutionContext : IAsyncDisposable
 {
     private readonly ConcurrentDictionary<string, byte> _completedTaskIds;
     private readonly List<Task> _runningTasks;
-    private readonly SemaphoreSlim _runningTasksLock;
+    private readonly AsyncLock _runningTasksLock = new();
     private int _isDisposed;
 
     public ExecutionContext(ExecutionOptions options,  CancellationToken cancellationToken)
@@ -18,7 +18,6 @@ internal sealed class ExecutionContext : IAsyncDisposable
         ConcurrencyLock = new SemaphoreSlim(options.MaxConcurrentTasks, options.MaxConcurrentTasks);
         _runningTasks = new List<Task>();
         _completedTaskIds = new ConcurrentDictionary<string, byte>();
-        _runningTasksLock = new SemaphoreSlim(1, 1);
     }
 
     public ExecutionOptions Options { get; }
@@ -30,14 +29,9 @@ internal sealed class ExecutionContext : IAsyncDisposable
     /// </summary>
     public async Task AddRunningTaskAsync(Task task)
     {
-        await _runningTasksLock.WaitAsync(CancellationToken).ConfigureAwait(false);
-        try
+                using (await _runningTasksLock.LockAsync(CancellationToken).ConfigureAwait(false))
         {
             _runningTasks.Add(task);
-        }
-        finally
-        {
-            _runningTasksLock.Release();
         }
     }
 
@@ -46,14 +40,9 @@ internal sealed class ExecutionContext : IAsyncDisposable
     /// </summary>
     public async Task<List<Task>> GetRunningTasksSnapshotAsync()
     {
-        await _runningTasksLock.WaitAsync(CancellationToken).ConfigureAwait(false);
-        try
+                using (await _runningTasksLock.LockAsync(CancellationToken).ConfigureAwait(false))
         {
             return _runningTasks.ToList();
-        }
-        finally
-        {
-            _runningTasksLock.Release();
         }
     }
 
@@ -62,14 +51,9 @@ internal sealed class ExecutionContext : IAsyncDisposable
     /// </summary>
     public async Task CleanupCompletedTasksAsync(CancellationToken cancellationToken = default)
     {
-        await _runningTasksLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+                using (await _runningTasksLock.LockAsync(cancellationToken).ConfigureAwait(false))
         {
             _runningTasks.RemoveAll(t => t.IsCompleted);
-        }
-        finally
-        {
-            _runningTasksLock.Release();
         }
     }
 
@@ -78,14 +62,9 @@ internal sealed class ExecutionContext : IAsyncDisposable
     /// </summary>
     public async Task<int> GetRunningTaskCountAsync(CancellationToken cancellationToken = default)
     {
-        await _runningTasksLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+                using (await _runningTasksLock.LockAsync(cancellationToken).ConfigureAwait(false))
         {
             return _runningTasks.Count;
-        }
-        finally
-        {
-            _runningTasksLock.Release();
         }
     }
 

@@ -57,11 +57,10 @@ public sealed record DreamTaskRegistrationRequest(
 public sealed partial class InMemoryDreamTaskRegistry : IDreamTaskRegistry, IAsyncDisposable
 {
     private readonly Dictionary<string, DreamTaskState> _tasks = new();
-    private readonly SemaphoreSlim _lock;
+    private readonly AsyncLock _lock = new();
 
     public InMemoryDreamTaskRegistry()
     {
-        _lock = new SemaphoreSlim(1, 1);
     }
 
     /// <inheritdoc />
@@ -81,14 +80,9 @@ public sealed partial class InMemoryDreamTaskRegistry : IDreamTaskRegistry, IAsy
             Phase = DreamPhase.Starting
         };
 
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
+                using (await _lock.LockAsync(ct).ConfigureAwait(false))
         {
             _tasks[taskId] = task;
-        }
-        finally
-        {
-            _lock.Release();
         }
 
         return taskId;
@@ -97,51 +91,36 @@ public sealed partial class InMemoryDreamTaskRegistry : IDreamTaskRegistry, IAsy
     /// <inheritdoc />
     public async Task AddDreamTurnAsync(string taskId, DreamTurn turn, IReadOnlyList<string> touchedPaths, CancellationToken ct = default)
     {
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
+                using (await _lock.LockAsync(ct).ConfigureAwait(false))
         {
             if (_tasks.TryGetValue(taskId, out var task))
             {
                 task.AddTurn(turn, touchedPaths);
             }
         }
-        finally
-        {
-            _lock.Release();
-        }
     }
 
     /// <inheritdoc />
     public async Task CompleteDreamTaskAsync(string taskId, CancellationToken ct = default)
     {
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
+                using (await _lock.LockAsync(ct).ConfigureAwait(false))
         {
             if (_tasks.TryGetValue(taskId, out var task))
             {
                 task.Complete();
             }
         }
-        finally
-        {
-            _lock.Release();
-        }
     }
 
     /// <inheritdoc />
     public async Task FailDreamTaskAsync(string taskId, CancellationToken ct = default)
     {
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
+                using (await _lock.LockAsync(ct).ConfigureAwait(false))
         {
             if (_tasks.TryGetValue(taskId, out var task))
             {
                 task.Fail();
             }
-        }
-        finally
-        {
-            _lock.Release();
         }
     }
 
@@ -149,14 +128,9 @@ public sealed partial class InMemoryDreamTaskRegistry : IDreamTaskRegistry, IAsy
     public async Task KillDreamTaskAsync(string taskId, CancellationToken ct = default)
     {
         DreamTaskState? task;
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
+                using (await _lock.LockAsync(ct).ConfigureAwait(false))
         {
             _tasks.TryGetValue(taskId, out task);
-        }
-        finally
-        {
-            _lock.Release();
         }
 
         if (task == null || task.IsTerminal)
@@ -179,29 +153,19 @@ public sealed partial class InMemoryDreamTaskRegistry : IDreamTaskRegistry, IAsy
     /// <inheritdoc />
     public async Task<DreamTaskState?> GetTaskStateAsync(string taskId, CancellationToken ct = default)
     {
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
+                using (await _lock.LockAsync(ct).ConfigureAwait(false))
         {
             _tasks.TryGetValue(taskId, out var task);
             return task;
-        }
-        finally
-        {
-            _lock.Release();
         }
     }
 
     /// <inheritdoc />
     public async Task<IReadOnlyDictionary<string, DreamTaskState>> GetAllTasksAsync(CancellationToken ct = default)
     {
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
+                using (await _lock.LockAsync(ct).ConfigureAwait(false))
         {
             return new Dictionary<string, DreamTaskState>(_tasks);
-        }
-        finally
-        {
-            _lock.Release();
         }
     }
 

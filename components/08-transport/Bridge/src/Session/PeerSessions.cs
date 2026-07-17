@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Bridge;
 
 /// <summary>
@@ -43,7 +43,7 @@ public sealed partial class PeerSessionManager : IAsyncDisposable
 {
     [Inject] private readonly ILogger<PeerSessionManager>? _logger;
     private readonly ConcurrentDictionary<string, PeerSession> _sessions;
-    private readonly SemaphoreSlim _stateLock;
+    private readonly AsyncLock _stateLock = new();
     private int _isDisposed;
 
     public event EventHandler<PeerSessionEventArgs>? PeerSessionConnected;
@@ -54,7 +54,6 @@ public sealed partial class PeerSessionManager : IAsyncDisposable
     {
         _logger = logger;
         _sessions = new ConcurrentDictionary<string, PeerSession>();
-        _stateLock = new SemaphoreSlim(1, 1);
     }
 
     /// <summary>
@@ -72,8 +71,7 @@ public sealed partial class PeerSessionManager : IAsyncDisposable
         ArgumentNullException.ThrowIfNull(localPeerId);
         ArgumentNullException.ThrowIfNull(remotePeerId);
 
-        await _stateLock.WaitAsync(ct).ConfigureAwait(false);
-        try
+                using (await _stateLock.LockAsync(ct).ConfigureAwait(false))
         {
             ObjectDisposedException.ThrowIf(_isDisposed != 0, this);
 
@@ -94,10 +92,6 @@ public sealed partial class PeerSessionManager : IAsyncDisposable
 
             return session;
         }
-        finally
-        {
-            _stateLock.Release();
-        }
     }
 
     /// <summary>
@@ -109,8 +103,7 @@ public sealed partial class PeerSessionManager : IAsyncDisposable
     {
         ArgumentNullException.ThrowIfNull(sessionId);
 
-        await _stateLock.WaitAsync(ct).ConfigureAwait(false);
-        try
+                using (await _stateLock.LockAsync(ct).ConfigureAwait(false))
         {
             if (_sessions.TryRemove(sessionId, out var session))
             {
@@ -121,10 +114,6 @@ public sealed partial class PeerSessionManager : IAsyncDisposable
 
                 PeerSessionDisconnected?.Invoke(this, new PeerSessionEventArgs(session));
             }
-        }
-        finally
-        {
-            _stateLock.Release();
         }
     }
 
@@ -157,8 +146,7 @@ public sealed partial class PeerSessionManager : IAsyncDisposable
     /// <param name="ct">取消令牌</param>
     public async Task MarkConnectedAsync(string sessionId, CancellationToken ct = default)
     {
-        await _stateLock.WaitAsync(ct).ConfigureAwait(false);
-        try
+                using (await _stateLock.LockAsync(ct).ConfigureAwait(false))
         {
             if (_sessions.TryGetValue(sessionId, out var session))
             {
@@ -169,10 +157,6 @@ public sealed partial class PeerSessionManager : IAsyncDisposable
 
                 PeerSessionConnected?.Invoke(this, new PeerSessionEventArgs(session));
             }
-        }
-        finally
-        {
-            _stateLock.Release();
         }
     }
 

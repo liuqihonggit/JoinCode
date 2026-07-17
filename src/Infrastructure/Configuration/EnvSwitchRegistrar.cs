@@ -47,9 +47,9 @@ public static class EnvSwitchRegistrar
         string mode,
         IServiceProvider sp) where TService : class
     {
-        Diag.WriteDiTrace($"[DI] + {serviceName} ({mode})");
+        JoinCode.Abstractions.Utils.Diagnostics.Diag.WriteDiTrace($"[DI] + {serviceName} ({mode})");
         var svc = factory(sp);
-        Diag.WriteDiTrace($"[DI] - {serviceName} ({mode})");
+        JoinCode.Abstractions.Utils.Diagnostics.Diag.WriteDiTrace($"[DI] - {serviceName} ({mode})");
         return svc;
     }
 }

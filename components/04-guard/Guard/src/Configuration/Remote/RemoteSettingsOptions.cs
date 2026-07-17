@@ -1,7 +1,7 @@
 
 namespace Core.Configuration.Remote;
 
-public sealed class RemoteSettingsOptions
+public sealed class RemoteSettingsOptions : IRemoteRefreshOptions
 {
     public const string SectionName = "RemoteSettings";
 

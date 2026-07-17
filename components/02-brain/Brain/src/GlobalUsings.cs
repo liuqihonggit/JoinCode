@@ -1,4 +1,5 @@
 global using JoinCode.Abstractions.Attributes;
+global using JoinCode.Abstractions.Services;
 global using JoinCode.Abstractions.Brain.Context.Hierarchy;
 global using JoinCode.Abstractions.Brain.Context.Compression;
 global using JoinCode.Abstractions.Brain.Context.Resolution;

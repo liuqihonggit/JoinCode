@@ -1,4 +1,5 @@
 global using JoinCode.Abstractions.Attributes;
+global using JoinCode.Abstractions.Services;
 global using JoinCode.Abstractions.Clock;
 global using JoinCode.Abstractions.Commands;
 global using JoinCode.Abstractions.Configuration;

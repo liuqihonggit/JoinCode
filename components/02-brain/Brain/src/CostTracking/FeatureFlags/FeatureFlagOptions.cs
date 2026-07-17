@@ -1,7 +1,7 @@
 
 namespace Core.CostTracking.FeatureFlags;
 
-public sealed class FeatureFlagOptions
+public sealed class FeatureFlagOptions : IRemoteRefreshOptions
 {
     public const string SectionName = "FeatureFlags";
 

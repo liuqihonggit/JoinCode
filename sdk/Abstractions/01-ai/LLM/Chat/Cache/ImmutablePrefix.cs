@@ -70,10 +70,8 @@ public sealed class ImmutablePrefix
 
     private string ComputeFingerprint()
     {
-        var sortedSpecs = _toolSpecs.OrderBy(t => t.Name, StringComparer.Ordinal).ThenBy(t => t.Description, StringComparer.Ordinal).ThenBy(t => t.InputSchemaJson, StringComparer.Ordinal).ToArray();
+        var toolSpecsHash = ContentHash.ComputeToolSpecs(_toolSpecs);
         var fewShotsBlob = string.Join("|", _fewShots.Select(s => $"{s.Role}:{s.Content}").ToArray());
-        var blob = $"{System}|{string.Join(",", sortedSpecs.Select(t => $"{t.Name}:{t.Description}:{t.InputSchemaJson}").ToArray())}|{fewShotsBlob}";
-        var hash = global::System.Security.Cryptography.SHA256.HashData(global::System.Text.Encoding.UTF8.GetBytes(blob));
-        return Convert.ToHexString(hash)[..16];
+        return ContentHash.Compute($"{System}|{toolSpecsHash}|{fewShotsBlob}");
     }
 }

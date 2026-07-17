@@ -1,7 +1,9 @@
 namespace JoinCode.Abstractions.LLM.Chat;
 
-public sealed class CacheBreakDetector
+public class CacheBreakDetector
 {
+    private bool _hasPreviousCacheHit;
+
     public PromptStateSnapshot RecordPromptState(ImmutablePrefix prefix, string dynamicContent)
     {
         ArgumentNullException.ThrowIfNull(prefix);
@@ -9,11 +11,11 @@ public sealed class CacheBreakDetector
 
         return new PromptStateSnapshot
         {
-            SystemPromptHash = ComputeContentHash(prefix.System),
-            ToolSpecsHash = ComputeToolSpecsHash(prefix),
+            SystemPromptHash = ContentHash.Compute(prefix.System),
+            ToolSpecsHash = ContentHash.ComputeToolSpecs(prefix.ToolSpecs),
             ToolCount = prefix.ToolSpecs.Count,
-            ToolNamesHash = ComputeToolNamesHash(prefix),
-            DynamicContentHash = ComputeContentHash(dynamicContent),
+            ToolNamesHash = ContentHash.ComputeToolNames(prefix.ToolSpecs),
+            DynamicContentHash = ContentHash.Compute(dynamicContent),
             ToolSpecs = prefix.ToolSpecs.ToList()
         };
     }
@@ -28,20 +30,25 @@ public sealed class CacheBreakDetector
         ArgumentNullException.ThrowIfNull(currentPrefix);
         ArgumentNullException.ThrowIfNull(usage);
 
-        var currentSystemHash = ComputeContentHash(currentPrefix.System);
+        if (usage.CacheReadInputTokens > 0)
+        {
+            _hasPreviousCacheHit = true;
+        }
+
+        var currentSystemHash = ContentHash.Compute(currentPrefix.System);
         if (snapshot.SystemPromptHash != currentSystemHash)
         {
             return CacheBreakResult.Break(CacheBreakKind.SystemPromptChanged,
                 $"System prompt changed: hash {snapshot.SystemPromptHash} → {currentSystemHash}");
         }
 
-        var currentToolSpecsHash = ComputeToolSpecsHash(currentPrefix);
+        var currentToolSpecsHash = ContentHash.ComputeToolSpecs(currentPrefix.ToolSpecs);
         ToolDriftReport? toolDrift = null;
         if (snapshot.ToolSpecsHash != currentToolSpecsHash || snapshot.ToolCount != currentPrefix.ToolSpecs.Count)
         {
             toolDrift = ToolListDriftClassifier.Classify(snapshot.ToolSpecs, currentPrefix.ToolSpecs);
 
-            if (!toolDrift.IsCacheSafe || usage.CacheReadInputTokens == 0)
+            if (ShouldReportToolSpecsBreak(toolDrift, usage))
             {
                 return CacheBreakResult.Break(CacheBreakKind.ToolSpecsChanged,
                     $"Tool specs changed: {toolDrift.Kind} — {toolDrift.Summary}, cache hit={usage.CacheReadInputTokens}",
@@ -49,17 +56,17 @@ public sealed class CacheBreakDetector
             }
         }
 
-        var currentDynamicHash = ComputeContentHash(currentDynamicContent);
+        var currentDynamicHash = ContentHash.Compute(currentDynamicContent);
         if (snapshot.DynamicContentHash != currentDynamicHash)
         {
             return CacheBreakResult.Break(CacheBreakKind.DynamicContentChanged,
                 "Dynamic system content changed");
         }
 
-        if (usage.CacheReadInputTokens == 0 && usage.CacheCreationInputTokens > 0
-            && snapshot.SystemPromptHash == currentSystemHash
+        var allHashesMatch = snapshot.SystemPromptHash == currentSystemHash
             && snapshot.ToolSpecsHash == currentToolSpecsHash
-            && snapshot.DynamicContentHash == currentDynamicHash)
+            && snapshot.DynamicContentHash == currentDynamicHash;
+        if (ShouldReportCacheEviction(usage, allHashesMatch))
         {
             return CacheBreakResult.Break(CacheBreakKind.CacheEviction,
                 "Cache miss despite identical prefix — likely TTL eviction");
@@ -68,23 +75,16 @@ public sealed class CacheBreakDetector
         return new CacheBreakResult { BreakDetected = false, Kind = CacheBreakKind.None, ToolDrift = toolDrift };
     }
 
-    private static string ComputeToolNamesHash(ImmutablePrefix prefix)
+    protected virtual bool ShouldReportToolSpecsBreak(ToolDriftReport drift, TokenUsage usage)
     {
-        var blob = string.Join(",", prefix.ToolSpecs.Select(t => t.Name).OrderBy(n => n, StringComparer.Ordinal));
-        return ComputeContentHash(blob);
+        if (!drift.IsCacheSafe) return true;
+        if (!_hasPreviousCacheHit) return false;
+        return usage.CacheReadInputTokens == 0;
     }
 
-    private static string ComputeToolSpecsHash(ImmutablePrefix prefix)
+    protected virtual bool ShouldReportCacheEviction(TokenUsage usage, bool allHashesMatch)
     {
-        var sortedSpecs = prefix.ToolSpecs.OrderBy(t => t.Name, StringComparer.Ordinal).ThenBy(t => t.Description, StringComparer.Ordinal);
-        var blob = string.Join("|", sortedSpecs.Select(t => $"{t.Name}:{t.Description}"));
-        return ComputeContentHash(blob);
-    }
-
-    private static string ComputeContentHash(string content)
-    {
-        var hash = global::System.Security.Cryptography.SHA256.HashData(
-            global::System.Text.Encoding.UTF8.GetBytes(content));
-        return Convert.ToHexString(hash)[..16];
+        if (!_hasPreviousCacheHit) return false;
+        return allHashesMatch && usage.CacheReadInputTokens == 0 && usage.CacheCreationInputTokens > 0;
     }
 }

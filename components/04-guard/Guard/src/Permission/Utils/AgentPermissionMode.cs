@@ -1,4 +1,4 @@
-
+﻿
 using PermissionCheckResult = JoinCode.Abstractions.Security.Permission.PermissionCheckResult;
 
 namespace Core.Utils;
@@ -10,45 +10,34 @@ namespace Core.Utils;
 public sealed partial class AgentPermissionManager : IAgentPermissionManager, IAsyncDisposable
 {
     private readonly List<AgentPermissionRule> _rules = new();
-    private readonly SemaphoreSlim _lock;
+    private readonly AsyncLock _lock = new();
     private readonly ITelemetryService? _telemetryService;
 
     public AgentPermissionManager(ITelemetryService? telemetryService = null)
     {
-        _lock = new SemaphoreSlim(1, 1);
         _telemetryService = telemetryService;
     }
 
     /// <inheritdoc />
     public async Task AddRuleAsync(AgentPermissionRule rule, CancellationToken ct = default)
     {
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
+                using (await _lock.LockAsync(ct).ConfigureAwait(false))
         {
             _rules.RemoveAll(r => r.AgentPattern == rule.AgentPattern);
             _rules.Add(rule);
             _rules.Sort((a, b) => b.Priority.CompareTo(a.Priority));
             RecordPermissionManagerMetrics("add_rule");
         }
-        finally
-        {
-            _lock.Release();
-        }
     }
 
     /// <inheritdoc />
     public async Task<bool> RemoveRuleAsync(string agentPattern, CancellationToken ct = default)
     {
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
+                using (await _lock.LockAsync(ct).ConfigureAwait(false))
         {
             var removed = _rules.RemoveAll(r => r.AgentPattern == agentPattern) > 0;
             if (removed) RecordPermissionManagerMetrics("remove_rule");
             return removed;
-        }
-        finally
-        {
-            _lock.Release();
         }
     }
 
@@ -173,28 +162,18 @@ public sealed partial class AgentPermissionManager : IAgentPermissionManager, IA
     /// <inheritdoc />
     public async Task<IReadOnlyList<AgentPermissionRule>> ListRulesAsync(CancellationToken ct = default)
     {
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
+                using (await _lock.LockAsync(ct).ConfigureAwait(false))
         {
             return _rules.ToList();
-        }
-        finally
-        {
-            _lock.Release();
         }
     }
 
     /// <inheritdoc />
     public async Task ClearRulesAsync(CancellationToken ct = default)
     {
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
+                using (await _lock.LockAsync(ct).ConfigureAwait(false))
         {
             _rules.Clear();
-        }
-        finally
-        {
-            _lock.Release();
         }
     }
 
@@ -202,8 +181,7 @@ public sealed partial class AgentPermissionManager : IAgentPermissionManager, IA
 
     private async Task<AgentPermissionRule?> GetMatchingRuleAsync(string agentName, CancellationToken ct)
     {
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
+                using (await _lock.LockAsync(ct).ConfigureAwait(false))
         {
             // 首先尝试精确匹配
             var exactMatch = _rules.FirstOrDefault(r => r.AgentPattern == agentName);
@@ -220,10 +198,6 @@ public sealed partial class AgentPermissionManager : IAgentPermissionManager, IA
 
             // 尝试默认规则 (*)
             return _rules.FirstOrDefault(r => r.AgentPattern == "*");
-        }
-        finally
-        {
-            _lock.Release();
         }
     }
 

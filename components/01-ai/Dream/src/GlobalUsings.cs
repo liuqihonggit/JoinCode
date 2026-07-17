@@ -15,6 +15,7 @@ global using JoinCode.Abstractions.Models;
 global using JoinCode.Abstractions.Pipeline;
 global using JoinCode.Abstractions.Utils;
 global using Infrastructure.Pipeline;
+global using Core.Utils;
 global using Microsoft.Extensions.DependencyInjection;
 global using Microsoft.Extensions.Hosting;
 global using JoinCode.Dream.Commands;

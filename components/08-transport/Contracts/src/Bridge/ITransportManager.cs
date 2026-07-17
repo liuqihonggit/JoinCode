@@ -1,4 +1,4 @@
-namespace JoinCode.Transport.Bridge;
+﻿namespace JoinCode.Transport.Bridge;
 
 /// <summary>
 /// 传输管理器接口 — 协调连接管理和消息路由
@@ -12,7 +12,7 @@ public interface ITransportManager : IAsyncDisposable
     int ReconnectAttemptCount { get; }
 
     event EventHandler<BridgeMessageReceivedEventArgs>? MessageReceived;
-    event EventHandler<TransportStateChangedEventArgs>? ConnectionStateChanged;
+    event EventHandler<StateChangedEventArgs<TransportConnectionState>>? ConnectionStateChanged;
     event EventHandler<TransportErrorEventArgs>? ErrorOccurred;
     event EventHandler? Reconnecting;
     event EventHandler? Reconnected;

@@ -1,4 +1,4 @@
-namespace JoinCode.Transport.Bridge;
+﻿namespace JoinCode.Transport.Bridge;
 
 /// <summary>
 /// v2 传输适配器 — 对齐 TS 端 createV2ReplTransport
@@ -20,7 +20,7 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
     private readonly ILogger? _logger;
     private readonly HttpClient _writeClient;
     private readonly HttpClient _sseClient;
-    private readonly SemaphoreSlim _writeLock;
+    private readonly AsyncLock _writeLock = new();
     private readonly SerialBatchEventUploader _eventUploader;
     private readonly SerialBatchEventUploader _deliveryUploader;
     private readonly CancellationTokenSource _heartbeatCts;
@@ -43,7 +43,6 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
         _logger = logger;
         _lastSequenceNum = options.InitialSequenceNum;
         _epoch = options.Epoch ?? 0;
-        _writeLock = new SemaphoreSlim(1, 1);
         _heartbeatCts = new CancellationTokenSource();
 
         // P1-12: 兜底 HttpClient 添加 SocketsHttpHandler 配置解决 DNS 不刷新

@@ -141,8 +141,11 @@ public partial class CacheBreakMonitorTests
 
         var snapshot = await sut.RecordPromptStateAsync().ConfigureAwait(true);
 
-        var usage = new TokenUsage(100, 50) { CacheReadInputTokens = 0, CacheCreationInputTokens = 100 };
-        var result = await sut.CheckCacheBreakAsync(snapshot, usage).ConfigureAwait(true);
+        var usageWithHit = new TokenUsage(100, 50) { CacheReadInputTokens = 80, CacheCreationInputTokens = 0 };
+        await sut.CheckCacheBreakAsync(snapshot, usageWithHit).ConfigureAwait(true);
+
+        var usageWithMiss = new TokenUsage(100, 50) { CacheReadInputTokens = 0, CacheCreationInputTokens = 100 };
+        var result = await sut.CheckCacheBreakAsync(snapshot, usageWithMiss).ConfigureAwait(true);
 
         result.BreakDetected.Should().BeTrue();
         result.Kind.Should().Be(CacheBreakKind.CacheEviction);
@@ -216,7 +219,7 @@ public partial class CacheBreakMonitorTests
         var snapshot1 = await sut.RecordPromptStateAsync().ConfigureAwait(true);
         var usage1 = new TokenUsage(100, 50) { CacheReadInputTokens = 0, CacheCreationInputTokens = 100 };
         var result1 = await sut.CheckCacheBreakAsync(snapshot1, usage1).ConfigureAwait(true);
-        result1.Kind.Should().Be(CacheBreakKind.CacheEviction);
+        result1.Kind.Should().Be(CacheBreakKind.None, "first request with no prior cache hit should not be CacheEviction");
 
         var snapshot2 = await sut.RecordPromptStateAsync().ConfigureAwait(true);
         var usage2 = new TokenUsage(100, 50) { CacheReadInputTokens = 80, CacheCreationInputTokens = 0 };

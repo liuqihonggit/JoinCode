@@ -1,5 +1,7 @@
 namespace Api.LLM.QueryServices.OpenAI;
 
+using Api.LLM.CacheProtocol;
+
 /// <summary>
 /// OpenAI 协议 QueryService 实现 — 覆盖 OpenAI 兼容协议（chat/completions 端点 + Bearer Token）
 /// Azure / Agnes 等 OpenAI 兼容供应商可继承本类，覆写 URL/端点/认证差异部分
@@ -7,6 +9,8 @@ namespace Api.LLM.QueryServices.OpenAI;
 /// </summary>
 public class OpenAIQueryService : QueryServiceBase
 {
+    private static readonly OpenAICacheProtocol CacheProtocol = new();
+
     public OpenAIQueryService(ProviderConfig config, HttpClient? httpClient = null, ILogger? logger = null, IFileSystem? fs = null)
         : base(config, httpClient, logger, fs)
     {
@@ -220,10 +224,7 @@ public class OpenAIQueryService : QueryServiceBase
 
     private static List<OpenAITool> BuildToolsFromKernel(IChatClient kernel)
     {
-        return kernel.Plugins.PluginNames
-            .Select(name => kernel.Plugins.GetPlugin(name))
-            .OfType<IToolGroup>()
-            .SelectMany(p => p.Functions)
+        return EnumerateToolFunctions(kernel)
             .Select(function => new OpenAITool
             {
                 Function = new OpenAIFunctionDefinition
@@ -376,17 +377,6 @@ public class OpenAIQueryService : QueryServiceBase
 
     private static TokenUsage BuildTokenUsage(OpenAIUsage usage)
     {
-        var tokenUsage = new TokenUsage(usage.PromptTokens, usage.CompletionTokens)
-        {
-            CacheReadInputTokens = usage.PromptTokensDetails?.CachedTokens ?? 0
-        };
-
-        if (usage.PromptCacheHitTokens.HasValue || usage.PromptCacheMissTokens.HasValue)
-        {
-            tokenUsage.CacheCreationInputTokens = usage.PromptCacheMissTokens ?? 0;
-            tokenUsage.CacheReadInputTokens = usage.PromptCacheHitTokens ?? 0;
-        }
-
-        return tokenUsage;
+        return CacheProtocol.MapUsage(usage);
     }
 }

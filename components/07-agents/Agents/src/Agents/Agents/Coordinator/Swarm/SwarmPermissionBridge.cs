@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Agents.Coordinator;
 
 public interface ISwarmPermissionBridge : IDisposable
@@ -49,7 +49,7 @@ public sealed partial class SwarmPermissionBridge : ISwarmPermissionBridge, IDis
     [Inject] private readonly IClockService _clock;
     private readonly ITelemetryService? _telemetryService;
     private readonly ConcurrentDictionary<string, PermissionSyncState> _permissionStates;
-    private readonly SemaphoreSlim _lock;
+    private readonly AsyncLock _lock = new();
 
     public event EventHandler<PermissionSyncEventArgs>? PermissionChanged;
 
@@ -66,13 +66,11 @@ public sealed partial class SwarmPermissionBridge : ISwarmPermissionBridge, IDis
         _clock = clock ?? SystemClockService.Instance;
         _telemetryService = telemetryService;
         _permissionStates = new ConcurrentDictionary<string, PermissionSyncState>();
-        _lock = new SemaphoreSlim(1, 1);
     }
 
     public async Task SyncPermissionsAsync(string agentId, PermissionSyncRequest request, CancellationToken ct = default)
     {
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
+                using (await _lock.LockAsync(ct).ConfigureAwait(false))
         {
             var rule = new AgentPermissionRule
             {
@@ -125,16 +123,11 @@ public sealed partial class SwarmPermissionBridge : ISwarmPermissionBridge, IDis
 
             RecordPermissionBridgeMetrics("sync", true);
         }
-        finally
-        {
-            _lock.Release();
-        }
     }
 
     public async Task<PermissionSyncState> GetPermissionStateAsync(string agentId, CancellationToken ct = default)
     {
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
+                using (await _lock.LockAsync(ct).ConfigureAwait(false))
         {
             if (_permissionStates.TryGetValue(agentId, out var state))
             {
@@ -152,16 +145,11 @@ public sealed partial class SwarmPermissionBridge : ISwarmPermissionBridge, IDis
                 DeniedTools = rule?.DeniedTools?.ToArray() ?? Array.Empty<string>()
             };
         }
-        finally
-        {
-            _lock.Release();
-        }
     }
 
     public async Task RevokePermissionsAsync(string agentId, CancellationToken ct = default)
     {
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
+                using (await _lock.LockAsync(ct).ConfigureAwait(false))
         {
             await _permissionManager.RemoveRuleAsync(agentId, ct).ConfigureAwait(false);
 
@@ -183,10 +171,6 @@ public sealed partial class SwarmPermissionBridge : ISwarmPermissionBridge, IDis
             _logger?.LogInformation("Revoked permissions for agent {AgentId}", agentId);
 
             RecordPermissionBridgeMetrics("revoke", true);
-        }
-        finally
-        {
-            _lock.Release();
         }
     }
 

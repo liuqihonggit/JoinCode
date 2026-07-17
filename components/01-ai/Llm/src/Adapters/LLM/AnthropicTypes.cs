@@ -138,6 +138,10 @@ internal sealed class AnthropicCacheControl
     [JsonPropertyName("scope")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Scope { get; set; }
+
+    [JsonPropertyName("ttl")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Ttl { get; set; }
 }
 
 internal sealed class AnthropicToolDefinition

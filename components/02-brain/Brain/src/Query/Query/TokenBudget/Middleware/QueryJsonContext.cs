@@ -12,6 +12,6 @@ namespace Core.Query;
 [JsonSerializable(typeof(UsdBudget.UsdBudgetAlertEventArgs))]
 [JsonSerializable(typeof(Snip.SnipOptions))]
 [JsonSerializable(typeof(Snip.SnipResult))]
-[JsonSerializable(typeof(Transitions.QueryStateChangedEventArgs))]
+[JsonSerializable(typeof(StateChangedEventArgs<Transitions.QueryState>))]
 [JsonSerializable(typeof(List<Dictionary<string, JsonElement>>))]
 internal partial class QueryJsonContext : JsonSerializerContext;

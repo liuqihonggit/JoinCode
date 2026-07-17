@@ -1,11 +1,15 @@
 namespace Api.LLM.QueryServices.Anthropic;
 
+using Api.LLM.CacheProtocol;
+
 /// <summary>
 /// Anthropic 协议 QueryService 实现 — 完全独立的协议（v1/messages 端点 + x-api-key Header + content blocks）
 /// 不复用 OpenAI 协议路径，仅继承基类的协议无关基础设施（HttpClient / 速率限制 / 角色转换）
 /// </summary>
 public sealed class AnthropicQueryService : QueryServiceBase
 {
+    private static readonly AnthropicCacheProtocol CacheProtocol = new();
+
     public AnthropicQueryService(ProviderConfig config, HttpClient? httpClient = null, ILogger? logger = null, IFileSystem? fs = null)
         : base(config, httpClient, logger, fs)
     {
@@ -126,20 +130,10 @@ public sealed class AnthropicQueryService : QueryServiceBase
                         filteredTools.Add(BuildToolSearchToolDefinition());
                     }
 
-                    var hasMcpTools = filteredTools.Any(t => t.Name.Contains('.'));
-                    filteredTools[^1].CacheControl = new AnthropicCacheControl
-                    {
-                        Scope = hasMcpTools ? "org" : null
-                    };
                     request.Tools = filteredTools;
                 }
                 else
                 {
-                    var hasMcpTools = allTools.Any(t => t.Name.Contains('.'));
-                    allTools[^1].CacheControl = new AnthropicCacheControl
-                    {
-                        Scope = hasMcpTools ? "org" : null
-                    };
                     request.Tools = allTools;
                 }
 
@@ -158,23 +152,9 @@ public sealed class AnthropicQueryService : QueryServiceBase
             }
         }
 
-        if (request.System is { Count: > 0 })
-        {
-            var hasMcpTools = request.Tools is { Count: > 0 } && request.Tools.Any(t => t.Name.Contains('.'));
-            var cacheControl = new AnthropicCacheControl
-            {
-                Scope = hasMcpTools ? "org" : null
-            };
-            var staticBlockIndex = FindLastStaticSystemBlock(systemBlocks);
-            if (staticBlockIndex >= 0)
-            {
-                systemBlocks[staticBlockIndex].CacheControl = cacheControl;
-            }
-            else
-            {
-                request.System[^1].CacheControl = cacheControl;
-            }
-        }
+        var hasMcpTools = request.Tools is { Count: > 0 } && request.Tools.Any(t => t.Name.Contains('.'));
+
+        CacheProtocol.AddCacheBreakpoints(systemBlocks, request.Tools ?? [], anthropicMessages, hasMcpTools);
 
         if (settings?.ContextManagement is not null)
         {
@@ -182,15 +162,6 @@ public sealed class AnthropicQueryService : QueryServiceBase
         }
 
         return request;
-    }
-
-    private static int FindLastStaticSystemBlock(List<AnthropicSystemContentBlock> blocks)
-    {
-        for (var i = blocks.Count - 1; i >= 0; i--)
-        {
-            if (blocks[i].IsStatic) return i;
-        }
-        return -1;
     }
 
     private static AnthropicContextManagement ConvertContextManagement(ContextManagementConfig config)
@@ -242,9 +213,7 @@ public sealed class AnthropicQueryService : QueryServiceBase
             switch (msg.Role)
             {
                 case MessageRole.System:
-                    var isStatic = msg.Metadata == null ||
-                        !msg.Metadata.TryGetValue("CacheBreak", out var cb) ||
-                        cb.ValueKind != JsonValueKind.True;
+                    var isStatic = CacheProtocol.IsStaticSystemBlock(msg);
                     systemBlocks.Add(new AnthropicSystemContentBlock
                     {
                         Text = msg.Content ?? string.Empty,
@@ -325,15 +294,9 @@ public sealed class AnthropicQueryService : QueryServiceBase
 
     private static void FlushToolResultsAsUserMessage(
         List<AnthropicToolResultBlock> pendingToolResults,
-        List<AnthropicMessage> messages,
-        bool hasMcpTools = false)
+        List<AnthropicMessage> messages)
     {
         if (pendingToolResults.Count == 0) return;
-
-        pendingToolResults[^1].CacheControl = new AnthropicCacheControl
-        {
-            Scope = hasMcpTools ? "org" : null
-        };
 
         messages.Add(new AnthropicMessage
         {
@@ -398,10 +361,7 @@ public sealed class AnthropicQueryService : QueryServiceBase
 
     private static List<AnthropicToolDefinition> BuildAnthropicToolsFromKernel(IChatClient kernel)
     {
-        return kernel.Plugins.PluginNames
-            .Select(name => kernel.Plugins.GetPlugin(name))
-            .OfType<IToolGroup>()
-            .SelectMany(p => p.Functions)
+        return EnumerateToolFunctions(kernel)
             .Select(function => new AnthropicToolDefinition
             {
                 Name = function.Name,
@@ -851,17 +811,6 @@ public sealed class AnthropicQueryService : QueryServiceBase
 
     private static TokenUsage BuildTokenUsage(AnthropicUsage usage)
     {
-        var tokenUsage = new TokenUsage(usage.InputTokens, usage.OutputTokens)
-        {
-            CacheCreationInputTokens = usage.CacheCreationInputTokens ?? 0,
-            CacheReadInputTokens = usage.CacheReadInputTokens ?? 0
-        };
-
-        if (usage.OutputTokensDetails is { ReasoningTokens: > 0 })
-        {
-            tokenUsage.ReasoningTokens = usage.OutputTokensDetails.ReasoningTokens;
-        }
-
-        return tokenUsage;
+        return CacheProtocol.MapUsage(usage);
     }
 }

@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Permission;
 
 /// <summary>
@@ -11,7 +11,7 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
     [Inject] private readonly ILogger<PermissionManager>? _logger;
     private readonly ConcurrentDictionary<string, CachedPermissionResult> _permissionCache;
     private readonly ConcurrentDictionary<string, DateTimeOffset> _approvedTools;
-    private readonly SemaphoreSlim _modeLock;
+    private readonly AsyncLock _modeLock = new();
     private readonly PermissionConfig _config;
     private readonly TimeProvider _timeProvider;
     private PermissionMode _currentMode;
@@ -39,7 +39,6 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
         _timeProvider = timeProvider ?? TimeProvider.System;
         _permissionCache = new ConcurrentDictionary<string, CachedPermissionResult>();
         _approvedTools = new ConcurrentDictionary<string, DateTimeOffset>();
-        _modeLock = new SemaphoreSlim(1, 1);
         _currentMode = PermissionChecker.TryGetPermissionModeFromEnv(fs) ?? PermissionMode.Default;
     }
 
@@ -63,14 +62,9 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
         }
 
         PermissionMode currentMode;
-        await _modeLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+                using (await _modeLock.LockAsync(cancellationToken).ConfigureAwait(false))
         {
             currentMode = _currentMode;
-        }
-        finally
-        {
-            _modeLock.Release();
         }
 
         if (IsToolTemporarilyApproved(request.ToolName))
@@ -112,15 +106,10 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        await _modeLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+                using (await _modeLock.LockAsync(cancellationToken).ConfigureAwait(false))
         {
             _currentMode = mode;
             _permissionChecker.CurrentMode = mode;
-        }
-        finally
-        {
-            _modeLock.Release();
         }
 
         ClearCache();
@@ -133,14 +122,9 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        await _modeLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+                using (await _modeLock.LockAsync(cancellationToken).ConfigureAwait(false))
         {
             return _currentMode;
-        }
-        finally
-        {
-            _modeLock.Release();
         }
     }
 

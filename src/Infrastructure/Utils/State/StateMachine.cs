@@ -1,12 +1,5 @@
 namespace Core.Utils;
 
-public sealed class StateChangedEventArgs<TState> : EventArgs where TState : struct, Enum
-{
-    public required TState OldState { get; init; }
-    public required TState NewState { get; init; }
-    public DateTime Timestamp { get; init; }
-}
-
 public sealed class TransitionFailedEventArgs<TState> : EventArgs where TState : struct, Enum
 {
     public required TState FromState { get; init; }
@@ -177,12 +170,8 @@ public sealed class StateMachine<TState> where TState : struct, Enum
 
     private void OnStateChanged(TState oldState, TState newState)
     {
-        var args = new StateChangedEventArgs<TState>
-        {
-            OldState = oldState,
-            NewState = newState,
-            Timestamp = _clock?.GetUtcNow() ?? DateTime.UtcNow
-        };
+        var timestamp = _clock?.GetUtcNow() ?? DateTime.UtcNow;
+        var args = new StateChangedEventArgs<TState>(oldState, newState, timestamp);
         StateChanged?.Invoke(this, args);
     }
 

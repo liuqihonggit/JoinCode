@@ -8,6 +8,8 @@ public sealed class PromptStateSnapshot
     public required string ToolNamesHash { get; init; }
     public required string DynamicContentHash { get; init; }
     public IReadOnlyList<ToolSpec> ToolSpecs { get; init; } = [];
+    public string? ModelId { get; init; }
+    public bool? FastMode { get; init; }
 }
 
 public enum CacheBreakKind
@@ -16,7 +18,9 @@ public enum CacheBreakKind
     SystemPromptChanged,
     ToolSpecsChanged,
     DynamicContentChanged,
-    CacheEviction
+    CacheEviction,
+    ModelChanged,
+    FastModeChanged
 }
 
 public sealed class CacheBreakResult

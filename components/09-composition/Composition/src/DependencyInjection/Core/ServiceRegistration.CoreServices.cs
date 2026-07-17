@@ -36,28 +36,10 @@ public static partial class ServiceRegistration
         // IFileSystem — 根据 JCC_FILE_SYSTEM_MODE 环境变量决定后端
         // 默认 Physical（真实磁盘），InMemory=纯内存0磁盘IO（调试/E2E测试用）
         // 注意: [Register] 自动注册的 IFileSystem 转发已在此处被覆盖（后注册 wins）
-        var fsMode = EnvHelper.Get(JccEnvVar.FileSystemMode);
-        if (string.Equals(fsMode, "InMemory", StringComparison.OrdinalIgnoreCase))
-        {
-            services.AddSingleton<IFileSystem>(sp =>
-            {
-                Diag.WriteDiTrace("[DI] + IFileSystem (InMemory)");
-                var svc = new InMemoryFileSystem();
-                Diag.WriteDiTrace("[DI] - IFileSystem (InMemory)");
-                return svc;
-            });
-        }
-        else
-        {
-            // 默认 Physical — 覆盖 [Register] 自动注册的转发，直接解析 PhysicalFileSystem
-            services.AddSingleton<IFileSystem>(sp =>
-            {
-                Diag.WriteDiTrace("[DI] + IFileSystem (Physical)");
-                var svc = sp.GetRequiredService<PhysicalFileSystem>();
-                Diag.WriteDiTrace("[DI] - IFileSystem (Physical)");
-                return svc;
-            });
-        }
+        services.AddEnvSwitch<IFileSystem>(
+            JccEnvVar.FileSystemMode, "InMemory",
+            _ => new InMemoryFileSystem(),
+            sp => sp.GetRequiredService<PhysicalFileSystem>());
 
         services.AddOptions<FileOperationConfig>()
             .BindConfiguration("Workflow:FileOperation")
@@ -121,146 +103,54 @@ public static partial class ServiceRegistration
         // IHttpClientProvider — 根据 JCC_HTTP_MODE 环境变量决定后端
         // 默认 Real（真实网络），Mock=拦截请求返回预设响应（调试/E2E测试用）
         // 注意: [Register] 自动注册的 DefaultHttpClientProvider 已在此处被覆盖（后注册 wins）
-        var httpMode = EnvHelper.Get(JccEnvVar.HttpMode);
-        if (string.Equals(httpMode, "Mock", StringComparison.OrdinalIgnoreCase))
-        {
-            services.AddSingleton<IHttpClientProvider>(sp =>
-            {
-                Diag.WriteDiTrace("[DI] + IHttpClientProvider (Mock)");
-                var svc = new Infrastructure.Http.MockHttpClientProvider();
-                Diag.WriteDiTrace("[DI] - IHttpClientProvider (Mock)");
-                return svc;
-            });
-        }
-        else
-        {
-            // 默认 Real — 覆盖 [Register] 自动注册，直接创建 DefaultHttpClientProvider
-            services.AddSingleton<IHttpClientProvider>(sp =>
-            {
-                Diag.WriteDiTrace("[DI] + IHttpClientProvider (Real)");
-                var svc = sp.GetRequiredService<Infrastructure.Http.DefaultHttpClientProvider>();
-                Diag.WriteDiTrace("[DI] - IHttpClientProvider (Real)");
-                return svc;
-            });
-        }
+        services.AddEnvSwitch<IHttpClientProvider>(
+            JccEnvVar.HttpMode, "Mock",
+            _ => new Infrastructure.Http.MockHttpClientProvider(),
+            sp => sp.GetRequiredService<Infrastructure.Http.DefaultHttpClientProvider>());
 
         // INotificationService — 根据 JCC_NOTIFICATION_MODE 环境变量决定后端
         // 默认 Windows（气泡通知），Console=纯日志输出（调试用）
-        var notificationMode = EnvHelper.Get(JccEnvVar.NotificationMode);
-        if (string.Equals(notificationMode, "Console", StringComparison.OrdinalIgnoreCase))
-        {
-            services.AddSingleton<INotificationService>(sp =>
-            {
-                Diag.WriteDiTrace("[DI] + INotificationService (Console)");
-                var svc = new ConsoleNotificationService();
-                Diag.WriteDiTrace("[DI] - INotificationService (Console)");
-                return svc;
-            });
-        }
+        services.AddEnvSwitch<INotificationService>(
+            JccEnvVar.NotificationMode, "Console",
+            _ => new ConsoleNotificationService());
 
         // IBrowserAutomationService — 根据 JCC_BROWSER_AUTOMATION 环境变量决定后端
         // 默认 None（NoOp），Puppeteer=启用浏览器自动化
         var browserMode = EnvHelper.Get(JccEnvVar.BrowserAutomation);
         if (!string.Equals(browserMode, "Puppeteer", StringComparison.OrdinalIgnoreCase))
         {
-            // NoOp — 覆盖 [Register] 自动注册的 Puppeteer 实现
             services.AddSingleton<IBrowserAutomationService>(sp =>
-            {
-                Diag.WriteDiTrace("[DI] + IBrowserAutomationService (NoOp)");
-                var svc = new NoOpBrowserAutomationService();
-                Diag.WriteDiTrace("[DI] - IBrowserAutomationService (NoOp)");
-                return svc;
-            });
+                EnvSwitchRegistrar.TraceFactory(_ => new NoOpBrowserAutomationService(), "IBrowserAutomationService", "NoOp", sp));
         }
 
         // ITaskService — 根据 JCC_TASK_SERVICE_MODE 环境变量决定后端
         // 默认 File（文件持久化），Memory=纯内存（调试/E2E测试用）
-        var taskMode = EnvHelper.Get(JccEnvVar.TaskServiceMode);
-        if (string.Equals(taskMode, "Memory", StringComparison.OrdinalIgnoreCase))
-        {
-            services.AddSingleton<ITaskService>(sp =>
-            {
-                Diag.WriteDiTrace("[DI] + ITaskService (Memory)");
-                var svc = sp.GetRequiredService<TaskService>();
-                Diag.WriteDiTrace("[DI] - ITaskService (Memory)");
-                return svc;
-            });
-        }
+        services.AddEnvSwitch<ITaskService>(
+            JccEnvVar.TaskServiceMode, "Memory",
+            sp => sp.GetRequiredService<TaskService>());
 
         // IClockService — 根据 JCC_CLOCK_MODE 环境变量决定后端
         // 默认 Physical（真实系统时间），Fake=可控时间（调试/E2E测试用）
         // 注意: [Register] 自动注册的 PhysicalClockService 已在此处被覆盖（后注册 wins）
-        var clockMode = EnvHelper.Get(JccEnvVar.ClockMode);
-        if (string.Equals(clockMode, "Fake", StringComparison.OrdinalIgnoreCase))
-        {
-            services.AddSingleton<IClockService>(sp =>
-            {
-                Diag.WriteDiTrace("[DI] + IClockService (Fake)");
-                var svc = new Infrastructure.Time.FakeClockService();
-                Diag.WriteDiTrace("[DI] - IClockService (Fake)");
-                return svc;
-            });
-        }
-        else
-        {
-            services.AddSingleton<IClockService>(sp =>
-            {
-                Diag.WriteDiTrace("[DI] + IClockService (Physical)");
-                var svc = sp.GetRequiredService<Infrastructure.Time.PhysicalClockService>();
-                Diag.WriteDiTrace("[DI] - IClockService (Physical)");
-                return svc;
-            });
-        }
+        services.AddEnvSwitch<IClockService>(
+            JccEnvVar.ClockMode, "Fake",
+            _ => new Infrastructure.Time.FakeClockService(),
+            sp => sp.GetRequiredService<Infrastructure.Time.PhysicalClockService>());
 
         // IProcessService — 根据 JCC_PROCESS_MODE 环境变量决定后端
         // 默认 Physical（真实进程），NoOp=禁止所有进程操作（调试/E2E测试用）
-        var processMode = EnvHelper.Get(JccEnvVar.ProcessMode);
-        if (string.Equals(processMode, "NoOp", StringComparison.OrdinalIgnoreCase))
-        {
-            services.AddSingleton<IProcessService>(sp =>
-            {
-                Diag.WriteDiTrace("[DI] + IProcessService (NoOp)");
-                var svc = new IO.ProcessService.NoOpProcessService();
-                Diag.WriteDiTrace("[DI] - IProcessService (NoOp)");
-                return svc;
-            });
-        }
-        else
-        {
-            services.AddSingleton<IProcessService>(sp =>
-            {
-                Diag.WriteDiTrace("[DI] + IProcessService (Physical)");
-                var logger = sp.GetService<ILogger<IO.ProcessService.PhysicalProcessService>>();
-                var svc = new IO.ProcessService.PhysicalProcessService(logger);
-                Diag.WriteDiTrace("[DI] - IProcessService (Physical)");
-                return svc;
-            });
-        }
+        services.AddEnvSwitch<IProcessService>(
+            JccEnvVar.ProcessMode, "NoOp",
+            _ => new IO.ProcessService.NoOpProcessService(),
+            sp => new IO.ProcessService.PhysicalProcessService(sp.GetService<ILogger<IO.ProcessService.PhysicalProcessService>>()));
 
         // IConsoleOutput — 根据 JCC_CONSOLE_MODE 环境变量决定后端
         // 默认 Physical（真实控制台），NoOp=静默所有输出（E2E测试/CI用）
         // 注意: [Register] 自动注册的 PhysicalConsoleOutput 已在此处被覆盖（后注册 wins）
-        var consoleMode = EnvHelper.Get(JccEnvVar.ConsoleMode);
-        if (string.Equals(consoleMode, "NoOp", StringComparison.OrdinalIgnoreCase))
-        {
-            services.AddSingleton<IConsoleOutput>(sp =>
-            {
-                Diag.WriteDiTrace("[DI] + IConsoleOutput (NoOp)");
-                var svc = new Infrastructure.IO.NoOpConsoleOutput();
-                Diag.WriteDiTrace("[DI] - IConsoleOutput (NoOp)");
-                return svc;
-            });
-        }
-        else
-        {
-            services.AddSingleton<IConsoleOutput>(sp =>
-            {
-                Diag.WriteDiTrace("[DI] + IConsoleOutput (Physical)");
-                var svc = sp.GetRequiredService<Infrastructure.IO.PhysicalConsoleOutput>();
-                Diag.WriteDiTrace("[DI] - IConsoleOutput (Physical)");
-                return svc;
-            });
-        }
+        services.AddEnvSwitch<IConsoleOutput>(
+            JccEnvVar.ConsoleMode, "NoOp",
+            _ => new Infrastructure.IO.NoOpConsoleOutput(),
+            sp => sp.GetRequiredService<Infrastructure.IO.PhysicalConsoleOutput>());
 
         return services;
     }

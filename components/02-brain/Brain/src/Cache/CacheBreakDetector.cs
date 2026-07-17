@@ -1,20 +1,24 @@
 namespace JoinCode.Abstractions.LLM.Chat;
 
-public sealed class CacheBreakDetector
+public class CacheBreakDetector
 {
-    public PromptStateSnapshot RecordPromptState(ImmutablePrefix prefix, string dynamicContent)
+    private bool _hasPreviousCacheHit;
+
+    public PromptStateSnapshot RecordPromptState(ImmutablePrefix prefix, string dynamicContent, string? modelId = null, bool? fastMode = null)
     {
         ArgumentNullException.ThrowIfNull(prefix);
         ArgumentNullException.ThrowIfNull(dynamicContent);
 
         return new PromptStateSnapshot
         {
-            SystemPromptHash = ComputeContentHash(prefix.System),
-            ToolSpecsHash = ComputeToolSpecsHash(prefix),
+            SystemPromptHash = ContentHash.Compute(prefix.System),
+            ToolSpecsHash = ContentHash.ComputeToolSpecs(prefix.ToolSpecs),
             ToolCount = prefix.ToolSpecs.Count,
-            ToolNamesHash = ComputeToolNamesHash(prefix),
-            DynamicContentHash = ComputeContentHash(dynamicContent),
-            ToolSpecs = prefix.ToolSpecs.ToList()
+            ToolNamesHash = ContentHash.ComputeToolNames(prefix.ToolSpecs),
+            DynamicContentHash = ContentHash.Compute(dynamicContent),
+            ToolSpecs = prefix.ToolSpecs.ToList(),
+            ModelId = modelId,
+            FastMode = fastMode
         };
     }
 
@@ -22,26 +26,45 @@ public sealed class CacheBreakDetector
         PromptStateSnapshot snapshot,
         ImmutablePrefix currentPrefix,
         string currentDynamicContent,
-        TokenUsage usage)
+        TokenUsage usage,
+        string? currentModelId = null,
+        bool? currentFastMode = null)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
         ArgumentNullException.ThrowIfNull(currentPrefix);
         ArgumentNullException.ThrowIfNull(usage);
 
-        var currentSystemHash = ComputeContentHash(currentPrefix.System);
+        if (usage.CacheReadInputTokens > 0)
+        {
+            _hasPreviousCacheHit = true;
+        }
+
+        if (IsModelChanged(snapshot, currentModelId))
+        {
+            return CacheBreakResult.Break(CacheBreakKind.ModelChanged,
+                $"Model changed: {snapshot.ModelId ?? "(null)"} → {currentModelId ?? "(null)"}");
+        }
+
+        if (IsFastModeChanged(snapshot, currentFastMode))
+        {
+            return CacheBreakResult.Break(CacheBreakKind.FastModeChanged,
+                $"Fast mode changed: {snapshot.FastMode?.ToString() ?? "(null)"} → {currentFastMode?.ToString() ?? "(null)"}");
+        }
+
+        var currentSystemHash = ContentHash.Compute(currentPrefix.System);
         if (snapshot.SystemPromptHash != currentSystemHash)
         {
             return CacheBreakResult.Break(CacheBreakKind.SystemPromptChanged,
                 $"System prompt changed: hash {snapshot.SystemPromptHash} → {currentSystemHash}");
         }
 
-        var currentToolSpecsHash = ComputeToolSpecsHash(currentPrefix);
+        var currentToolSpecsHash = ContentHash.ComputeToolSpecs(currentPrefix.ToolSpecs);
         ToolDriftReport? toolDrift = null;
         if (snapshot.ToolSpecsHash != currentToolSpecsHash || snapshot.ToolCount != currentPrefix.ToolSpecs.Count)
         {
             toolDrift = ToolListDriftClassifier.Classify(snapshot.ToolSpecs, currentPrefix.ToolSpecs);
 
-            if (!toolDrift.IsCacheSafe || usage.CacheReadInputTokens == 0)
+            if (ShouldReportToolSpecsBreak(toolDrift, usage))
             {
                 return CacheBreakResult.Break(CacheBreakKind.ToolSpecsChanged,
                     $"Tool specs changed: {toolDrift.Kind} — {toolDrift.Summary}, cache hit={usage.CacheReadInputTokens}",
@@ -49,17 +72,17 @@ public sealed class CacheBreakDetector
             }
         }
 
-        var currentDynamicHash = ComputeContentHash(currentDynamicContent);
+        var currentDynamicHash = ContentHash.Compute(currentDynamicContent);
         if (snapshot.DynamicContentHash != currentDynamicHash)
         {
             return CacheBreakResult.Break(CacheBreakKind.DynamicContentChanged,
                 "Dynamic system content changed");
         }
 
-        if (usage.CacheReadInputTokens == 0 && usage.CacheCreationInputTokens > 0
-            && snapshot.SystemPromptHash == currentSystemHash
+        var allHashesMatch = snapshot.SystemPromptHash == currentSystemHash
             && snapshot.ToolSpecsHash == currentToolSpecsHash
-            && snapshot.DynamicContentHash == currentDynamicHash)
+            && snapshot.DynamicContentHash == currentDynamicHash;
+        if (ShouldReportCacheEviction(usage, allHashesMatch))
         {
             return CacheBreakResult.Break(CacheBreakKind.CacheEviction,
                 "Cache miss despite identical prefix — likely TTL eviction");
@@ -68,23 +91,30 @@ public sealed class CacheBreakDetector
         return new CacheBreakResult { BreakDetected = false, Kind = CacheBreakKind.None, ToolDrift = toolDrift };
     }
 
-    private static string ComputeToolNamesHash(ImmutablePrefix prefix)
+    protected virtual bool ShouldReportToolSpecsBreak(ToolDriftReport drift, TokenUsage usage)
     {
-        var blob = string.Join(",", prefix.ToolSpecs.Select(t => t.Name).OrderBy(n => n, StringComparer.Ordinal));
-        return ComputeContentHash(blob);
+        if (!drift.IsCacheSafe) return true;
+        if (!_hasPreviousCacheHit) return false;
+        return usage.CacheReadInputTokens == 0;
     }
 
-    private static string ComputeToolSpecsHash(ImmutablePrefix prefix)
+    protected virtual bool ShouldReportCacheEviction(TokenUsage usage, bool allHashesMatch)
     {
-        var sortedSpecs = prefix.ToolSpecs.OrderBy(t => t.Name, StringComparer.Ordinal).ThenBy(t => t.Description, StringComparer.Ordinal);
-        var blob = string.Join("|", sortedSpecs.Select(t => $"{t.Name}:{t.Description}"));
-        return ComputeContentHash(blob);
+        if (!_hasPreviousCacheHit) return false;
+        return allHashesMatch && usage.CacheReadInputTokens == 0 && usage.CacheCreationInputTokens > 0;
     }
 
-    private static string ComputeContentHash(string content)
+    private static bool IsModelChanged(PromptStateSnapshot snapshot, string? currentModelId)
     {
-        var hash = global::System.Security.Cryptography.SHA256.HashData(
-            global::System.Text.Encoding.UTF8.GetBytes(content));
-        return Convert.ToHexString(hash)[..16];
+        if (snapshot.ModelId is null && currentModelId is null) return false;
+        if (snapshot.ModelId is null || currentModelId is null) return true;
+        return !string.Equals(snapshot.ModelId, currentModelId, StringComparison.Ordinal);
+    }
+
+    private static bool IsFastModeChanged(PromptStateSnapshot snapshot, bool? currentFastMode)
+    {
+        if (snapshot.FastMode is null && currentFastMode is null) return false;
+        if (snapshot.FastMode is null || currentFastMode is null) return false;
+        return snapshot.FastMode != currentFastMode;
     }
 }

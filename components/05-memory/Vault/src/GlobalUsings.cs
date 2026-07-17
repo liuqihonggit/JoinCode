@@ -30,6 +30,7 @@ global using JoinCode.Abstractions.Utils.Text;
 global using JoinCode.Vault.DependencyInjection;
 global using Core.Utils;
 global using Core.Memdir;
+global using Infrastructure.Configuration;
 global using Infrastructure.Pipeline;
 global using Infrastructure.Utils.IO;
 global using IO;

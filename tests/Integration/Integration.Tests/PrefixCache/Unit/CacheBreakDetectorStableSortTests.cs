@@ -109,11 +109,14 @@ public sealed class CacheBreakDetectorStableSortTests
         var prefixAfter = new ImmutablePrefix("System", toolsAfter, []);
 
         var snapshot = _detector.RecordPromptState(prefixBefore, "dynamic");
-        var usage = new TokenUsage(100, 50) { CacheReadInputTokens = 0, CacheCreationInputTokens = 100 };
 
-        var result = _detector.CheckCacheBreak(snapshot, prefixAfter, "dynamic", usage);
+        var usageWithHit = new TokenUsage(100, 50) { CacheReadInputTokens = 80, CacheCreationInputTokens = 0 };
+        _detector.CheckCacheBreak(snapshot, prefixBefore, "dynamic", usageWithHit);
 
-        result.BreakDetected.Should().BeTrue("append-only but cache miss should report break");
+        var usageWithMiss = new TokenUsage(100, 50) { CacheReadInputTokens = 0, CacheCreationInputTokens = 100 };
+        var result = _detector.CheckCacheBreak(snapshot, prefixAfter, "dynamic", usageWithMiss);
+
+        result.BreakDetected.Should().BeTrue("append-only but cache miss after previous hit should report break");
         result.Kind.Should().Be(CacheBreakKind.ToolSpecsChanged);
     }
 

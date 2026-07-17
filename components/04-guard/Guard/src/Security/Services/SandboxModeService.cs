@@ -7,7 +7,7 @@ public sealed partial class SandboxModeService : ISandboxModeService, IDisposabl
     [Inject] private readonly ILogger<SandboxModeService>? _logger;
     [Inject] private readonly IClockService _clock;
     private readonly ITelemetryService? _telemetryService;
-    private readonly SemaphoreSlim _lock;
+    private readonly AsyncLock _lock = new();
     private volatile SecuritySandboxInfo? _currentSandbox;
 
     public SandboxModeService(IFileSystem fs, ILogger<SandboxModeService>? logger = null, ITelemetryService? telemetryService = null, IClockService? clock = null)
@@ -16,7 +16,6 @@ public sealed partial class SandboxModeService : ISandboxModeService, IDisposabl
         _logger = logger;
         _telemetryService = telemetryService;
         _clock = clock ?? SystemClockService.Instance;
-        _lock = new SemaphoreSlim(1, 1);
     }
 
     public bool IsInSandbox => _currentSandbox is not null;
@@ -27,8 +26,7 @@ public sealed partial class SandboxModeService : ISandboxModeService, IDisposabl
     {
         ArgumentNullException.ThrowIfNull(options);
 
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
+        using (await _lock.LockAsync(ct).ConfigureAwait(false))
         {
             if (_currentSandbox is not null)
             {
@@ -62,16 +60,11 @@ public sealed partial class SandboxModeService : ISandboxModeService, IDisposabl
 
             return info;
         }
-        finally
-        {
-            _lock.Release();
-        }
     }
 
     public async Task ExitSandboxAsync(CancellationToken ct = default)
     {
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
+        using (await _lock.LockAsync(ct).ConfigureAwait(false))
         {
             if (_currentSandbox is null)
             {
@@ -86,10 +79,6 @@ public sealed partial class SandboxModeService : ISandboxModeService, IDisposabl
                 sandbox.Type, sandbox.RootPath);
 
             RecordSandboxMetrics("exit", sandbox.Type.ToString());
-        }
-        finally
-        {
-            _lock.Release();
         }
     }
 

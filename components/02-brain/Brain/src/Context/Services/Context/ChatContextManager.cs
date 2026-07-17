@@ -677,10 +677,10 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
             messages.Add(new ApiMessage(MessageRole.System, _staticSystemPrompt));
         }
 
-        var dynamicContent = string.Join("\n\n", _dynamicSystemMessages);
+        var dynamicContent = string.Join("\n", _dynamicSystemMessages);
         var currentDynamicHash = string.IsNullOrEmpty(dynamicContent)
             ? string.Empty
-            : ComputeContentHash(dynamicContent);
+            : ContentHash.Compute(dynamicContent);
         var dynamicChanged = currentDynamicHash != _previousDynamicHash;
         _previousDynamicHash = currentDynamicHash;
 
@@ -688,10 +688,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         {
             if (dynamicChanged)
             {
-                messages.Add(new ApiMessage(MessageRole.System, dynamicMsg, new Dictionary<string, JsonElement>
-                {
-                    ["CacheBreak"] = JsonElementHelper.FromBoolean(true)
-                }));
+                messages.Add(new ApiMessage(MessageRole.System, dynamicMsg, CacheBreakMarker.Create()));
             }
             else
             {
@@ -705,12 +702,5 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         }
 
         return messages;
-    }
-
-    private static string ComputeContentHash(string content)
-    {
-        var hash = System.Security.Cryptography.SHA256.HashData(
-            System.Text.Encoding.UTF8.GetBytes(content));
-        return Convert.ToHexString(hash)[..16];
     }
 }

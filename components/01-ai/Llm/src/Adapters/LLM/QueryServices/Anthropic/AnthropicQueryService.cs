@@ -131,19 +131,13 @@ public sealed class AnthropicQueryService : QueryServiceBase
                     }
 
                     var hasMcpTools = filteredTools.Any(t => t.Name.Contains('.'));
-                    filteredTools[^1].CacheControl = new AnthropicCacheControl
-                    {
-                        Scope = CacheProtocol.ResolveScope(hasMcpTools)
-                    };
+                    filteredTools[^1].CacheControl = CacheProtocol.CreateCacheControl(hasMcpTools);
                     request.Tools = filteredTools;
                 }
                 else
                 {
                     var hasMcpTools = allTools.Any(t => t.Name.Contains('.'));
-                    allTools[^1].CacheControl = new AnthropicCacheControl
-                    {
-                        Scope = CacheProtocol.ResolveScope(hasMcpTools)
-                    };
+                    allTools[^1].CacheControl = CacheProtocol.CreateCacheControl(hasMcpTools);
                     request.Tools = allTools;
                 }
 
@@ -165,10 +159,7 @@ public sealed class AnthropicQueryService : QueryServiceBase
         if (request.System is { Count: > 0 })
         {
             var hasMcpTools = request.Tools is { Count: > 0 } && request.Tools.Any(t => t.Name.Contains('.'));
-            var cacheControl = new AnthropicCacheControl
-            {
-                Scope = CacheProtocol.ResolveScope(hasMcpTools)
-            };
+            var cacheControl = CacheProtocol.CreateCacheControl(hasMcpTools);
             var staticBlockIndex = FindLastStaticSystemBlock(systemBlocks);
             if (staticBlockIndex >= 0)
             {
@@ -246,9 +237,7 @@ public sealed class AnthropicQueryService : QueryServiceBase
             switch (msg.Role)
             {
                 case MessageRole.System:
-                    var isStatic = msg.Metadata == null ||
-                        !msg.Metadata.TryGetValue("CacheBreak", out var cb) ||
-                        cb.ValueKind != JsonValueKind.True;
+                    var isStatic = CacheProtocol.IsStaticSystemBlock(msg);
                     systemBlocks.Add(new AnthropicSystemContentBlock
                     {
                         Text = msg.Content ?? string.Empty,
@@ -334,10 +323,7 @@ public sealed class AnthropicQueryService : QueryServiceBase
     {
         if (pendingToolResults.Count == 0) return;
 
-        pendingToolResults[^1].CacheControl = new AnthropicCacheControl
-        {
-            Scope = CacheProtocol.ResolveScope(hasMcpTools)
-        };
+        pendingToolResults[^1].CacheControl = CacheProtocol.CreateCacheControl(hasMcpTools);
 
         messages.Add(new AnthropicMessage
         {

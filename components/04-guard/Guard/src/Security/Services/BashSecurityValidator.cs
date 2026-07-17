@@ -31,6 +31,12 @@ public sealed partial class BashSecurityValidator : IBashSecurityValidator
 
         foreach (var item in BashRegexCheckRegistry.All)
         {
+            if (item.CheckId == BashSecurityCheckId.CommandSubstitution &&
+                BashRegexCheckRegistry.IsSafeHeredoc(command))
+            {
+                continue;
+            }
+
             var result = item.Validate(command);
             if (!result.IsSafe) return result;
         }

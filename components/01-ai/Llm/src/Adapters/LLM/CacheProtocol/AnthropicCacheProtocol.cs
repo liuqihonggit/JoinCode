@@ -79,6 +79,17 @@ internal sealed class AnthropicCacheProtocol : CacheProtocol
             lastResult.CacheControl = CreateCacheControl(hasMcpTools);
     }
 
+    public void AddCacheBreakpoints(
+        List<AnthropicSystemContentBlock> systemBlocks,
+        List<AnthropicToolDefinition> tools,
+        List<AnthropicMessage> messages,
+        bool hasMcpTools)
+    {
+        PlaceCacheControlOnSystemBlocks(systemBlocks, hasMcpTools);
+        PlaceCacheControlOnTools(tools, hasMcpTools);
+        PlaceCacheControlOnToolResults(messages, hasMcpTools);
+    }
+
     public TokenUsage MapUsage(AnthropicUsage usage)
     {
         return CreateTokenUsage(

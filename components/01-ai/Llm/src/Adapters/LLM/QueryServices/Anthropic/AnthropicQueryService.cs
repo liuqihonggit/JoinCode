@@ -130,12 +130,10 @@ public sealed class AnthropicQueryService : QueryServiceBase
                         filteredTools.Add(BuildToolSearchToolDefinition());
                     }
 
-                    CacheProtocol.PlaceCacheControlOnTools(filteredTools, filteredTools.Any(t => t.Name.Contains('.')));
                     request.Tools = filteredTools;
                 }
                 else
                 {
-                    CacheProtocol.PlaceCacheControlOnTools(allTools, allTools.Any(t => t.Name.Contains('.')));
                     request.Tools = allTools;
                 }
 
@@ -156,12 +154,7 @@ public sealed class AnthropicQueryService : QueryServiceBase
 
         var hasMcpTools = request.Tools is { Count: > 0 } && request.Tools.Any(t => t.Name.Contains('.'));
 
-        if (request.System is { Count: > 0 })
-        {
-            CacheProtocol.PlaceCacheControlOnSystemBlocks(systemBlocks, hasMcpTools);
-        }
-
-        CacheProtocol.PlaceCacheControlOnToolResults(anthropicMessages, hasMcpTools);
+        CacheProtocol.AddCacheBreakpoints(systemBlocks, request.Tools ?? [], anthropicMessages, hasMcpTools);
 
         if (settings?.ContextManagement is not null)
         {

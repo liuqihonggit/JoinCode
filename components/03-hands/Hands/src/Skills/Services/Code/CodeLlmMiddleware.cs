@@ -1,4 +1,4 @@
-namespace Core.Skills;
+﻿namespace Core.Skills;
 
 /// <summary>
 /// 代码 LLM 中间件 — Generate/Analyze 操作的 LLM 调用
@@ -11,7 +11,6 @@ public sealed partial class CodeLlmMiddleware : ICodeMiddleware
     /// <inheritdoc />
 
     /// <inheritdoc />
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     /// <summary>
     /// 创建 CodeLlmMiddleware

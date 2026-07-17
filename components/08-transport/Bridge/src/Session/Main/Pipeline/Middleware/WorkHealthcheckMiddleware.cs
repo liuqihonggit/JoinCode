@@ -1,4 +1,4 @@
-namespace Core.Bridge;
+﻿namespace Core.Bridge;
 
 using JoinCode.Abstractions.Pipeline;
 
@@ -8,7 +8,6 @@ public sealed partial class WorkHealthcheckMiddleware : IHandleWorkMiddleware
     [Inject] private readonly ILogger<WorkHealthcheckMiddleware>? _logger;
     [Inject] private readonly BridgeApiClient _apiClient;
 
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     public async Task InvokeAsync(HandleWorkContext ctx, MiddlewareDelegate<HandleWorkContext> next, CancellationToken ct)
     {

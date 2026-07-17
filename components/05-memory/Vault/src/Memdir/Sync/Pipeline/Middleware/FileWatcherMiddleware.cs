@@ -1,4 +1,4 @@
-namespace Memdir.Sync;
+﻿namespace Memdir.Sync;
 
 using JoinCode.Abstractions.Pipeline;
 
@@ -8,7 +8,6 @@ using JoinCode.Abstractions.Pipeline;
 [Register(typeof(ISyncStartMiddleware))]
 public sealed partial class FileWatcherMiddleware : ISyncStartMiddleware
 {
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     public Task InvokeAsync(SyncStartContext ctx, MiddlewareDelegate<SyncStartContext> next, CancellationToken ct)
     {

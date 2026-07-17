@@ -1,4 +1,4 @@
-namespace JoinCode.Entry;
+﻿namespace JoinCode.Entry;
 
 /// <summary>
 /// 会话恢复中间件 — 处理 --continue 和 --resume CLI 参数
@@ -8,7 +8,6 @@ namespace JoinCode.Entry;
 [Register]
 internal sealed partial class SessionResumeStep : IMiddleware<StartupContext>
 {
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     public async Task InvokeAsync(StartupContext context, MiddlewareDelegate<StartupContext> next, CancellationToken ct)
     {

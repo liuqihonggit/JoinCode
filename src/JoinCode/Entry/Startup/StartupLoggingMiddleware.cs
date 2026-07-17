@@ -1,4 +1,4 @@
-namespace JoinCode.Entry;
+﻿namespace JoinCode.Entry;
 
 /// <summary>
 /// 启动日志中间件 — 记录每个启动步骤的耗时，统一捕获异常
@@ -7,7 +7,6 @@ namespace JoinCode.Entry;
 [Register]
 internal sealed partial class StartupLoggingMiddleware : IMiddleware<StartupContext>
 {
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     public async Task InvokeAsync(StartupContext context, MiddlewareDelegate<StartupContext> next, CancellationToken ct)
     {

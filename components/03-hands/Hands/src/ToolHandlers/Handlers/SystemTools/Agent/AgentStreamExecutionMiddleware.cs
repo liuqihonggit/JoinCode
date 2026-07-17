@@ -15,7 +15,6 @@ public sealed partial class AgentStreamExecutionMiddleware : IAgentToolMiddlewar
     public int Order => 400;
 
     /// <inheritdoc />
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     /// <inheritdoc />
     public async Task InvokeAsync(AgentToolContext context, MiddlewareDelegate<AgentToolContext> next, CancellationToken ct)

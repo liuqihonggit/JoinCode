@@ -1,4 +1,4 @@
-namespace Core.Scheduling.Tasks;
+﻿namespace Core.Scheduling.Tasks;
 
 using JoinCode.Abstractions.Pipeline;
 
@@ -8,7 +8,6 @@ public sealed partial class TeammateSpawnMiddleware : ITeammateExecutionMiddlewa
     [Inject] private readonly IAgentLifecycleManager _agentLifecycleManager;
     [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
 
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     public async Task InvokeAsync(TeammateExecutionContext ctx, MiddlewareDelegate<TeammateExecutionContext> next, CancellationToken ct)
     {

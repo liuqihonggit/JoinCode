@@ -9,7 +9,6 @@ public sealed partial class SkillValidationMiddleware : ISkillMiddleware
     /// <inheritdoc />
 
     /// <inheritdoc />
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     /// <summary>
     /// 创建 SkillValidationMiddleware

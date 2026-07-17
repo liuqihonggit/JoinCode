@@ -1,4 +1,4 @@
-namespace Core.Agents.Coordinator;
+﻿namespace Core.Agents.Coordinator;
 
 /// <summary>
 /// Fork Spawn 中间件 — 构建子智能体选项、Spawn、注册消息代理、Worktree、邮箱轮询
@@ -38,7 +38,6 @@ public sealed partial class ForkSpawnMiddleware : IForkMiddleware
     /// <summary>Spawn 在缓存初始化之后</summary>
 
     /// <summary>Spawn 失败应中断管道</summary>
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     public async Task InvokeAsync(ForkContext context, MiddlewareDelegate<ForkContext> next, CancellationToken ct)
     {

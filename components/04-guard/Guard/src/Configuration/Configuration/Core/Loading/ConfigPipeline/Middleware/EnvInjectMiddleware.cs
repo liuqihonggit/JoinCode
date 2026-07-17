@@ -1,4 +1,4 @@
-namespace Core.Configuration.ConfigPipeline;
+﻿namespace Core.Configuration.ConfigPipeline;
 
 /// <summary>
 /// Step 2: 注入 settings.env 到环境变量
@@ -6,7 +6,6 @@ namespace Core.Configuration.ConfigPipeline;
 [Register(typeof(IConfigLoadMiddleware))]
 public sealed partial class EnvInjectMiddleware : IConfigLoadMiddleware
 {
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     public Task InvokeAsync(ConfigLoadContext context, MiddlewareDelegate<ConfigLoadContext> next, CancellationToken ct)
     {

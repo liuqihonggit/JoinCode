@@ -1,4 +1,4 @@
-namespace Infrastructure.Pipeline.Middlewares;
+﻿namespace Infrastructure.Pipeline.Middlewares;
 
 public sealed class FixedCircuitBreakerMiddleware<TContext>(
     int failureThreshold,
@@ -6,7 +6,6 @@ public sealed class FixedCircuitBreakerMiddleware<TContext>(
 {
     private readonly CircuitBreakerState _state = new(failureThreshold, openDuration);
 
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     public async Task InvokeAsync(TContext context, MiddlewareDelegate<TContext> next, CancellationToken ct)
     {

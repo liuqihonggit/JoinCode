@@ -1,4 +1,4 @@
-namespace Core.Bridge;
+﻿namespace Core.Bridge;
 
 using JoinCode.Abstractions.Pipeline;
 
@@ -7,7 +7,6 @@ public sealed partial class ShutdownCancelLoopMiddleware : IShutdownMiddleware
 {
     [Inject] private readonly ILogger<ShutdownCancelLoopMiddleware>? _logger;
 
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     public async Task InvokeAsync(ShutdownContext ctx, MiddlewareDelegate<ShutdownContext> next, CancellationToken ct)
     {

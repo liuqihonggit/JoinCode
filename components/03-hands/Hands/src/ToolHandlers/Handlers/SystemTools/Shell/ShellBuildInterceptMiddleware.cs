@@ -1,4 +1,4 @@
-namespace Tools.Shell;
+﻿namespace Tools.Shell;
 
 /// <summary>
 /// Shell 编译拦截中间件 — 拦截 dotnet build/test/publish/msbuild 命令
@@ -15,7 +15,6 @@ public sealed partial class ShellBuildInterceptMiddleware : IShellMiddleware
     [Inject] private readonly IClockService _clock;
 
     /// <inheritdoc />
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     /// <inheritdoc />
     public async Task InvokeAsync(ShellPipelineContext context, MiddlewareDelegate<ShellPipelineContext> next, CancellationToken ct)

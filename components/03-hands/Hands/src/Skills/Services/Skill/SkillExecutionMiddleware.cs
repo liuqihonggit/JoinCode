@@ -1,4 +1,4 @@
-namespace Core.Skills;
+﻿namespace Core.Skills;
 
 /// <summary>
 /// 技能步骤执行中间件 — 执行技能步骤（Tool/Prompt/Loop）
@@ -13,7 +13,6 @@ public sealed partial class SkillExecutionMiddleware : ISkillMiddleware
     /// <inheritdoc />
 
     /// <inheritdoc />
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     /// <summary>
     /// 创建 SkillExecutionMiddleware

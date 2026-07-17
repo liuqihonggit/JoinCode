@@ -1,4 +1,4 @@
-namespace Core.Goal;
+﻿namespace Core.Goal;
 
 using JoinCode.Abstractions.Pipeline;
 
@@ -8,7 +8,6 @@ using JoinCode.Abstractions.Pipeline;
 [Register(typeof(IGoalLifecycleMiddleware))]
 public sealed partial class GoalHeartbeatControlMiddleware : IGoalLifecycleMiddleware
 {
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     public Task InvokeAsync(GoalLifecycleContext ctx, MiddlewareDelegate<GoalLifecycleContext> next, CancellationToken ct)
     {

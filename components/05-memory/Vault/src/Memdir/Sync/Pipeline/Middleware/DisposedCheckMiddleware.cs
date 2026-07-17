@@ -1,4 +1,4 @@
-namespace Memdir.Sync;
+﻿namespace Memdir.Sync;
 
 using JoinCode.Abstractions.Pipeline;
 
@@ -10,7 +10,6 @@ public sealed partial class DisposedCheckMiddleware : ISyncStartMiddleware
 {
     [Inject] private readonly ILogger<DisposedCheckMiddleware>? _logger;
 
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     public Task InvokeAsync(SyncStartContext ctx, MiddlewareDelegate<SyncStartContext> next, CancellationToken ct)
     {

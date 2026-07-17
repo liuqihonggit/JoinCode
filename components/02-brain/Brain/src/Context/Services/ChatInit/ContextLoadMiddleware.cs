@@ -1,4 +1,4 @@
-using JoinCode.Abstractions.Attributes;
+﻿using JoinCode.Abstractions.Attributes;
 
 namespace Core.Context;
 
@@ -15,7 +15,6 @@ public sealed partial class ContextLoadMiddleware : IChatInitMiddleware
     /// <summary>上下文加载最先执行</summary>
 
     /// <summary>上下文加载失败应中断管道</summary>
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     /// <summary>
     /// 加载聊天上下文并初始化内容替换状态

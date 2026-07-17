@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Configuration.ConfigPipeline;
 
 [Register(typeof(IConfigLoadMiddleware))]
@@ -13,7 +13,6 @@ public sealed partial class ApiKeyResolveMiddleware : IConfigLoadMiddleware
         _loader = loader;
     }
 
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     public async Task InvokeAsync(ConfigLoadContext context, MiddlewareDelegate<ConfigLoadContext> next, CancellationToken ct)
     {

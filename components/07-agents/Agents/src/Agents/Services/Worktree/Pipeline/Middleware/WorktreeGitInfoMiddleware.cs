@@ -1,4 +1,4 @@
-namespace Core.Agents.Worktree;
+﻿namespace Core.Agents.Worktree;
 
 /// <summary>
 /// Worktree Git 信息获取中间件 — 获取当前分支和 HEAD commit SHA
@@ -8,7 +8,6 @@ public sealed partial class WorktreeGitInfoMiddleware : IWorktreeCreateMiddlewar
 {
     [Inject] private readonly Lazy<IWorktreePipelineOperations> _worktreeService;
 
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     public async Task InvokeAsync(WorktreeCreateContext context, MiddlewareDelegate<WorktreeCreateContext> next, CancellationToken ct)
     {

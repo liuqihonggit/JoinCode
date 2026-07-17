@@ -1,4 +1,4 @@
-namespace Core.Configuration.ConfigPipeline;
+﻿namespace Core.Configuration.ConfigPipeline;
 
 /// <summary>
 /// Step 1: 并行加载多源配置 + 规则文件
@@ -8,7 +8,6 @@ public sealed partial class SettingsLoadMiddleware : IConfigLoadMiddleware
 {
     [Inject] private readonly IFileSystem _fs;
 
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     public async Task InvokeAsync(ConfigLoadContext context, MiddlewareDelegate<ConfigLoadContext> next, CancellationToken ct)
     {

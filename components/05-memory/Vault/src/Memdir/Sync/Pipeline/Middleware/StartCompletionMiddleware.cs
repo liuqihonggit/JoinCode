@@ -1,4 +1,4 @@
-namespace Memdir.Sync;
+﻿namespace Memdir.Sync;
 
 using JoinCode.Abstractions.Pipeline;
 
@@ -11,7 +11,6 @@ public sealed partial class StartCompletionMiddleware : ISyncStartMiddleware
     [Inject] private readonly ILogger<StartCompletionMiddleware>? _logger;
     [Inject] private readonly ITelemetryService? _telemetryService;
 
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     public Task InvokeAsync(SyncStartContext ctx, MiddlewareDelegate<SyncStartContext> next, CancellationToken ct)
     {

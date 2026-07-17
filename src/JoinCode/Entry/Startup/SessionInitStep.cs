@@ -1,4 +1,4 @@
-namespace JoinCode.Entry;
+﻿namespace JoinCode.Entry;
 
 /// <summary>
 /// 会话初始化中间件 — 创建 CliSession 并初始化
@@ -6,7 +6,6 @@ namespace JoinCode.Entry;
 [Register]
 internal sealed partial class SessionInitStep : IMiddleware<StartupContext>
 {
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     public async Task InvokeAsync(StartupContext context, MiddlewareDelegate<StartupContext> next, CancellationToken ct)
     {

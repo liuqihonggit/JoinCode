@@ -1,4 +1,4 @@
-namespace McpClient.Mcpb;
+﻿namespace McpClient.Mcpb;
 
 /// <summary>
 /// MCPB 参数验证中间件 — 检查源路径有效性，URL 源时下载到临时文件
@@ -9,7 +9,6 @@ public sealed partial class McpbValidationMiddleware : IMcpbMiddleware
     [Inject] private readonly IFileSystem _fs;
     [Inject] private readonly ILogger<McpbValidationMiddleware>? _logger;
 
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     public async Task InvokeAsync(McpbLoadContext context, MiddlewareDelegate<McpbLoadContext> next, CancellationToken ct)
     {

@@ -1,4 +1,4 @@
-
+﻿
 namespace McpToolRegistry;
 
 /// <summary>
@@ -7,7 +7,6 @@ namespace McpToolRegistry;
 [Register]
 public sealed partial class RemotePolicyMiddleware : IToolExecutionMiddleware
 {
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     private readonly IRemotePolicyService? _remotePolicyService;
     [Inject] private readonly ILogger<RemotePolicyMiddleware> _logger;

@@ -1,4 +1,4 @@
-namespace McpToolRegistry;
+﻿namespace McpToolRegistry;
 
 using JoinCode.Abstractions.Pipeline;
 
@@ -10,7 +10,6 @@ public sealed partial class RemoteDriftDetectionMiddleware : IRemoteSyncMiddlewa
 {
     [Inject] private readonly ILogger<RemoteDriftDetectionMiddleware> _logger;
 
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     public Task InvokeAsync(RemoteSyncContext ctx, MiddlewareDelegate<RemoteSyncContext> next, CancellationToken ct)
     {

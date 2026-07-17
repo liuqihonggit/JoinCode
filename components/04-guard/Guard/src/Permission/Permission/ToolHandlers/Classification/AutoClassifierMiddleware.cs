@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Permission;
 
 /// <summary>
@@ -14,7 +14,6 @@ public sealed partial class AutoClassifierMiddleware : IPermissionMiddleware
     /// <inheritdoc />
 
     /// <inheritdoc />
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     /// <summary>
     /// 创建 AutoClassifierMiddleware

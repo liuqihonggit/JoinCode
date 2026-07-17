@@ -16,7 +16,6 @@ public sealed partial class WebContentProcessingMiddleware : IWebMiddleware
     /// <inheritdoc />
 
     /// <inheritdoc />
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     /// <summary>
     /// 创建 WebContentProcessingMiddleware

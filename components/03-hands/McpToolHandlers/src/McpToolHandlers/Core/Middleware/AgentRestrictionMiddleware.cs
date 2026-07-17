@@ -1,4 +1,4 @@
-
+﻿
 namespace McpToolRegistry;
 
 /// <summary>
@@ -7,7 +7,6 @@ namespace McpToolRegistry;
 [Register]
 public sealed partial class AgentRestrictionMiddleware : IToolExecutionMiddleware
 {
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     private readonly IAgentToolRestrictions? _agentToolRestrictions;
     [Inject] private readonly ILogger<AgentRestrictionMiddleware> _logger;

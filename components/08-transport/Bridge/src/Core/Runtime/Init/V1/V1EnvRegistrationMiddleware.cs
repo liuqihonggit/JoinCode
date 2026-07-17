@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Bridge.Init.V1;
 
 using JoinCode.Abstractions.Pipeline;
@@ -9,7 +9,6 @@ using JoinCode.Abstractions.Pipeline;
 [Register]
 internal sealed partial class V1EnvRegistrationMiddleware : IMiddleware<V1BridgeInitContext>
 {
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     public async Task InvokeAsync(V1BridgeInitContext ctx, MiddlewareDelegate<V1BridgeInitContext> next, CancellationToken ct)
     {

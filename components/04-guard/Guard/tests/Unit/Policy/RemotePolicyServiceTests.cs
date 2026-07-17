@@ -23,7 +23,7 @@ public sealed class RemotePolicyServiceTests : IDisposable
 
     private static global::System.Collections.Concurrent.ConcurrentDictionary<string, PolicyRule> GetRules(RemotePolicyService service)
     {
-        var rulesField = typeof(RemotePolicyService).GetField("_rules", global::System.Reflection.BindingFlags.NonPublic | global::System.Reflection.BindingFlags.Instance);
+        var rulesField = typeof(RemotePolicyService).BaseType!.GetField("_cache", global::System.Reflection.BindingFlags.NonPublic | global::System.Reflection.BindingFlags.Instance);
         return (global::System.Collections.Concurrent.ConcurrentDictionary<string, PolicyRule>)rulesField!.GetValue(service)!;
     }
 

@@ -23,7 +23,7 @@ public sealed class RemoteManagedSettingsServiceTests : IDisposable
 
     private static global::System.Collections.Concurrent.ConcurrentDictionary<string, ManagedSetting> GetSettings(RemoteManagedSettingsService service)
     {
-        var settingsField = typeof(RemoteManagedSettingsService).GetField("_settings", global::System.Reflection.BindingFlags.NonPublic | global::System.Reflection.BindingFlags.Instance);
+        var settingsField = typeof(RemoteManagedSettingsService).BaseType!.GetField("_cache", global::System.Reflection.BindingFlags.NonPublic | global::System.Reflection.BindingFlags.Instance);
         return (global::System.Collections.Concurrent.ConcurrentDictionary<string, ManagedSetting>)settingsField!.GetValue(service)!;
     }
 

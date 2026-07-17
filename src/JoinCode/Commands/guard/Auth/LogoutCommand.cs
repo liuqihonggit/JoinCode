@@ -1,4 +1,4 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /logout 命令 — 对齐 TS logout.tsx
@@ -7,18 +7,11 @@ namespace JoinCode.ChatCommands;
 /// 架构差异：TS 有 trustedDevice/growthbook/policyLimits 等 Anthropic 专有缓存，C# 为多 Provider 架构
 /// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Logout, Description = "登出 AI 服务", Usage = "/logout [provider]", Category = ChatCommandCategory.Auth)]
-public sealed class LogoutCommand : IChatCommand
+public sealed class LogoutCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Logout;
-    public string Description => "登出 AI 服务";
-    public string Usage => "/logout [provider]";
-    public string[] Aliases => [];
-    public string ArgumentHint => string.Empty;
-    public bool IsHidden => false;
-
     private static readonly string AuthPath = WorkflowConstants.Paths.AuthFilePath;
 
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetSplitArgs(context);
         var provider = args.Length > 0 ? args[0].ToLowerInvariant() : "all";

@@ -1,16 +1,9 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
-[ChatCommand(Name = ChatCommandNameConstants.Tasks, Description = "列出和管理后台任务", Usage = "/tasks [kill|detail|create|update|complete|todo]", Category = ChatCommandCategory.Task)]
-public sealed class TasksCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.Tasks, Description = "列出和管理后台任务", Usage = "/tasks [kill|detail|create|update|complete|todo]", Category = ChatCommandCategory.Task, Aliases = ["task", "bashes"])]
+public sealed class TasksCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Tasks;
-    public string Description => "列出和管理后台任务";
-    public string Usage => "/tasks [kill|detail|create|update|complete|todo]";
-    public string[] Aliases => ["task", "bashes"];
-    public string ArgumentHint => string.Empty;
-    public bool IsHidden => false;
-
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetSplitArgs(context);
         var action = args.Length > 0 ? args[0].ToLowerInvariant() : null;

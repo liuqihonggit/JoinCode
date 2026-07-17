@@ -1,16 +1,9 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
-[ChatCommand(Name = ChatCommandNameConstants.BridgeKick, Description = "断开指定Bridge连接", Usage = "/bridge-kick [session-id]", Category = ChatCommandCategory.Bridge)]
-public sealed class BridgeKickCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.BridgeKick, Description = "断开指定Bridge连接", Usage = "/bridge-kick [session-id]", Category = ChatCommandCategory.Bridge, ArgumentHint = "[session-id]")]
+public sealed class BridgeKickCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.BridgeKick;
-    public string Description => "断开指定Bridge连接";
-    public string Usage => "/bridge-kick [session-id]";
-    public string[] Aliases => [];
-    public string ArgumentHint => "[session-id]";
-    public bool IsHidden => false;
-
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var sessionId = ChatCommandBase.GetNormalizedArgs(context);
 

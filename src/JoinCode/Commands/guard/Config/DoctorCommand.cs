@@ -1,4 +1,4 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /doctor 命令 — 对齐 TS doctor.tsx + doctorDiagnostic.ts
@@ -6,17 +6,10 @@ namespace JoinCode.ChatCommands;
 /// 对齐内容：运行时版本+安装路径+工具检查+环境变量+API连接+权限+MCP+搜索工具状态
 /// 架构差异：TS 有 npm/native/package-manager 安装类型检测，C# 为 NativeAOT 单文件发布
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Doctor, Description = "诊断环境配置和依赖", Usage = "/doctor", Category = ChatCommandCategory.Config)]
-public sealed class DoctorCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.Doctor, Description = "诊断环境配置和依赖", Usage = "/doctor", Category = ChatCommandCategory.Config, Aliases = ["dr"])]
+public sealed class DoctorCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Doctor;
-    public string Description => "诊断环境配置和依赖";
-    public string Usage => "/doctor";
-    public string[] Aliases => ["dr"];
-    public string ArgumentHint => string.Empty;
-    public bool IsHidden => false;
-
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var sb = new StringBuilder();
 

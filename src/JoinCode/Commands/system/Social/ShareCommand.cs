@@ -1,4 +1,4 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /share 命令 — 对齐 TS share/
@@ -7,16 +7,9 @@ namespace JoinCode.ChatCommands;
 /// 架构差异：TS 有 React 分享面板+URL分享，C# 为文件导出
 /// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Share, Description = "生成可分享的对话内容", Usage = "/share", Category = ChatCommandCategory.Social)]
-public sealed class ShareCommand : IChatCommand
+public sealed class ShareCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Share;
-    public string Description => "生成可分享的对话内容";
-    public string Usage => "/share";
-    public string[] Aliases => [];
-    public string ArgumentHint => string.Empty;
-    public bool IsHidden => false;
-
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         TerminalHelper.WriteLine($"{TerminalColors.Primary}生成分享内容...{AnsiStyleConstants.Reset}");
         TerminalHelper.NewLine();

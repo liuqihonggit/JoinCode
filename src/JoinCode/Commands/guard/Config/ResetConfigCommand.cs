@@ -1,17 +1,10 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
-[ChatCommand(Name = ChatCommandNameConstants.ResetConfig, Description = "重置配置文件到默认状态", Usage = "/reset-config [all|auth|settings|trust|onboarding]", Category = ChatCommandCategory.Config)]
-public sealed class ResetConfigCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.ResetConfig, Description = "重置配置文件到默认状态", Usage = "/reset-config [all|auth|settings|trust|onboarding]", Category = ChatCommandCategory.Config, ArgumentHint = "[all|auth|settings|trust|onboarding]")]
+public sealed class ResetConfigCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.ResetConfig;
-    public string Description => "重置配置文件到默认状态";
-    public string Usage => "/reset-config [all|auth|settings|trust|onboarding]";
-    public string[] Aliases => [];
-    public string ArgumentHint => "[all|auth|settings|trust|onboarding]";
-    public bool IsHidden => false;
-
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetNormalizedArgs(context).ToLowerInvariant();
         var fs = context.Services.FileSystem;

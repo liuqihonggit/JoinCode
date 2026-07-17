@@ -1,16 +1,9 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
-[ChatCommand(Name = ChatCommandNameConstants.Passes, Description = "已废弃: 请使用 /permissions 管理权限规则", Usage = "/passes", Category = ChatCommandCategory.Model)]
-public sealed class PassesCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.Passes, Description = "已废弃: 请使用 /permissions 管理权限规则", Usage = "/passes", Category = ChatCommandCategory.Model, IsHidden = true)]
+public sealed class PassesCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Passes;
-    public string Description => "已废弃: 请使用 /permissions 管理权限规则";
-    public string Usage => "/passes";
-    public string[] Aliases => [];
-    public string ArgumentHint => "";
-    public bool IsHidden => true;
-
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         // 对齐 TS: /passes 直接重定向到 /permissions 执行
         var registry = context.Services.CommandRegistry;

@@ -1,16 +1,9 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
-[ChatCommand(Name = ChatCommandNameConstants.Rename, Description = "重命名当前会话", Usage = "/rename <new-name>", Category = ChatCommandCategory.Session)]
-public sealed class RenameCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.Rename, Description = "重命名当前会话", Usage = "/rename <new-name>", Category = ChatCommandCategory.Session, ArgumentHint = "<new-name>")]
+public sealed class RenameCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Rename;
-    public string Description => "重命名当前会话";
-    public string Usage => "/rename <new-name>";
-    public string[] Aliases => [];
-    public string ArgumentHint => "<new-name>";
-    public bool IsHidden => false;
-
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var newName = ChatCommandBase.GetNormalizedArgs(context);
 

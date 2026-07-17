@@ -1,4 +1,4 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /ultraplan 命令 — 对齐 TS ultraplan.tsx
@@ -7,17 +7,10 @@ namespace JoinCode.ChatCommands;
 /// 架构差异：TS 有 React 交互式计划面板，C# 为命令行操作
 /// 待办：需要 PlanService 扩展支持多步骤执行器
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Ultraplan, Description = "超级计划模式：深度规划+执行", Usage = "/ultraplan [goal] [--steps N] [--execute]", Category = ChatCommandCategory.Agent)]
-public sealed class UltraplanCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.Ultraplan, Description = "超级计划模式：深度规划+执行", Usage = "/ultraplan [goal] [--steps N] [--execute]", Category = ChatCommandCategory.Agent, Aliases = ["up"], ArgumentHint = "[goal]")]
+public sealed class UltraplanCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Ultraplan;
-    public string Description => "超级计划模式：深度规划+执行";
-    public string Usage => "/ultraplan [goal] [--steps N] [--execute]";
-    public string[] Aliases => ["up"];
-    public string ArgumentHint => "[goal]";
-    public bool IsHidden => false;
-
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetSplitArgs(context);
 

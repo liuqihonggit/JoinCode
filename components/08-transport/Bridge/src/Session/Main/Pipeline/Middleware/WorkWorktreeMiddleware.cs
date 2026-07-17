@@ -36,9 +36,7 @@ public sealed partial class WorkWorktreeMiddleware : IHandleWorkMiddleware
             {
                 _logger?.LogError("BridgeMain: worktree creation failed for session {SessionId}, stopping work",
                     ctx.Work.SessionId);
-                ctx.CompletedWorkIds.Add(ctx.Work.WorkId);
-                await SafeStopWorkAsync(ctx, ct).ConfigureAwait(false);
-                ctx.ShortCircuited = true;
+                ctx.FailWork(ct);
                 return;
             }
         }
@@ -46,20 +44,10 @@ public sealed partial class WorkWorktreeMiddleware : IHandleWorkMiddleware
         {
             _logger?.LogError(ex, "BridgeMain: worktree creation error for session {SessionId}, stopping work",
                 ctx.Work.SessionId);
-            ctx.CompletedWorkIds.Add(ctx.Work.WorkId);
-            await SafeStopWorkAsync(ctx, ct).ConfigureAwait(false);
-            ctx.ShortCircuited = true;
+            ctx.FailWork(ct);
             return;
         }
 
         await next(ctx, ct).ConfigureAwait(false);
-    }
-
-    private static async Task SafeStopWorkAsync(HandleWorkContext ctx, CancellationToken ct)
-    {
-        if (ctx.StopWorkAsync is not null)
-        {
-            await ctx.StopWorkAsync(ctx.Work.WorkId, ct).ConfigureAwait(false);
-        }
     }
 }

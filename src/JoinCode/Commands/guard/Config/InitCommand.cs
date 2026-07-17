@@ -1,17 +1,10 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
-[ChatCommand(Name = ChatCommandNameConstants.Init, Description = "AI驱动初始化项目配置文件", Usage = "/init [quick]", Category = ChatCommandCategory.Config)]
-public sealed class InitCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.Init, Description = "AI驱动初始化项目配置文件", Usage = "/init [quick]", Category = ChatCommandCategory.Config, ArgumentHint = "[quick]")]
+public sealed class InitCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Init;
-    public string Description => "AI驱动初始化项目配置文件";
-    public string Usage => "/init [quick]";
-    public string[] Aliases => [];
-    public string ArgumentHint => "[quick]";
-    public bool IsHidden => false;
-
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetNormalizedArgs(context).ToLowerInvariant();
         var isQuick = args is "quick" or "q";

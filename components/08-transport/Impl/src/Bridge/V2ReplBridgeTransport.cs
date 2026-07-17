@@ -328,53 +328,16 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
                 response.EnsureSuccessStatusCode();
 
                 await using var stream = await response.Content.ReadAsStreamAsync(_heartbeatCts.Token).ConfigureAwait(false);
-                using var reader = new StreamReader(stream, Encoding.UTF8);
 
-                var currentEventType = string.Empty;
-                var currentData = new StringBuilder();
-
-                while (!_heartbeatCts.IsCancellationRequested && _isClosed == 0)
+                await foreach (var sseEvent in SseStreamParser.ParseAsync(stream, _heartbeatCts.Token).ConfigureAwait(false))
                 {
-                    var line = await reader.ReadLineAsync(_heartbeatCts.Token).ConfigureAwait(false);
-                    if (line is null) break;
-
-                    if (string.IsNullOrEmpty(line))
+                    if (sseEvent.Id is not null && int.TryParse(sseEvent.Id, out var seqNum))
                     {
-                        // 空行 = 事件结束
-                        if (currentData.Length > 0)
-                        {
-                            var data = currentData.ToString();
-                            _onDataCallback?.Invoke(data);
-
-                            // 同时上报 received + processed — 对齐 TS 端 v2 适配器的 ACK 策略
-                            _ = ReportDeliveryFromEventAsync(data);
-                        }
-
-                        currentData.Clear();
-                        currentEventType = string.Empty;
-                        continue;
+                        _lastSequenceNum = seqNum;
                     }
 
-                    if (line.StartsWith("id: "))
-                    {
-                        // SSE 事件 ID（序列号）
-                        if (int.TryParse(line[4..], out var seqNum))
-                        {
-                            _lastSequenceNum = seqNum;
-                        }
-                    }
-                    else if (line.StartsWith("event: "))
-                    {
-                        currentEventType = line[7..];
-                    }
-                    else if (line.StartsWith("data: "))
-                    {
-                        currentData.AppendLine(line[6..]);
-                    }
-                    else if (line.StartsWith("data:"))
-                    {
-                        currentData.AppendLine(line[5..]);
-                    }
+                    _onDataCallback?.Invoke(sseEvent.Data);
+                    _ = ReportDeliveryFromEventAsync(sseEvent.Data);
                 }
             }
             catch (OperationCanceledException)

@@ -14,11 +14,35 @@ public abstract class OpenAICompatibleProviderDefinitionBase : IProviderDefiniti
     public abstract string? ApiKeyEnvironmentVariable { get; }
     public abstract string? EndpointEnvironmentVariable { get; }
 
-    public abstract string GetBaseUrl(ProviderConfig config);
-    public abstract string GetChatEndpoint(ProviderConfig config);
-    public abstract void ConfigureHttpClient(HttpClient client, ProviderConfig config);
+    protected virtual string DefaultBaseUrl => "https://api.openai.com/v1/";
+    protected virtual string ChatCompletionsPath => "chat/completions";
+    protected virtual string AuthHeaderName => "Authorization";
+    protected virtual string AuthHeaderValuePrefix => "Bearer ";
+
+    public virtual string GetBaseUrl(ProviderConfig config)
+    {
+        return !string.IsNullOrEmpty(config.Endpoint) ? config.Endpoint.TrimEnd('/') + "/" : DefaultBaseUrl;
+    }
+
+    public virtual string GetChatEndpoint(ProviderConfig config)
+    {
+        if (!string.IsNullOrEmpty(config.Endpoint) && config.Endpoint.TrimEnd('/').EndsWith(ChatCompletionsPath, StringComparison.OrdinalIgnoreCase))
+            return string.Empty;
+        return ChatCompletionsPath;
+    }
+
+    public virtual void ConfigureHttpClient(HttpClient client, ProviderConfig config)
+    {
+        if (!string.IsNullOrEmpty(config.ApiKey))
+            client.DefaultRequestHeaders.Add(AuthHeaderName, $"{AuthHeaderValuePrefix}{config.ApiKey}");
+    }
+
     public abstract string? ResolveApiKeyFromEnv();
-    public abstract bool IsValid(ProviderConfig config);
+
+    public virtual bool IsValid(ProviderConfig config)
+    {
+        return !string.IsNullOrWhiteSpace(config.ApiKey);
+    }
 
     public virtual IReadOnlyList<ModelEntry> AvailableModels => ModelConfigLoader.GetModels(ProviderConfigKey);
 

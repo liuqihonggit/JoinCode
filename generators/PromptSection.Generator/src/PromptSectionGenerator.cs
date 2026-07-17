@@ -18,12 +18,21 @@ public sealed class PromptSectionGenerator : IIncrementalGenerator
         var sectionInfos = context.CompilationProvider
             .SelectMany(static (compilation, _) =>
             {
-                var promptSectionAttr = compilation.GetTypeByMetadataName(PromptSectionAttributeFullName);
-                if (promptSectionAttr is null)
+                var types = AttributeScanner.ScanTypesWithAttribute(compilation, PromptSectionAttributeFullName);
+                var attrSymbol = compilation.GetTypeByMetadataName(PromptSectionAttributeFullName);
+                if (attrSymbol is null)
                     return ImmutableArray<PromptSectionInfo>.Empty;
 
                 var results = new List<PromptSectionInfo>();
-                VisitNamespaces(compilation.GlobalNamespace, compilation.Assembly, promptSectionAttr, results);
+                foreach (var typeSymbol in types)
+                {
+                    var attr = AttributeScanner.GetAttribute(typeSymbol, attrSymbol);
+                    if (attr is null) continue;
+
+                    var info = ExtractSectionInfo(typeSymbol, attr);
+                    if (info is not null)
+                        results.Add(info);
+                }
                 return results.ToImmutableArray();
             })
             .Collect();
@@ -38,75 +47,19 @@ public sealed class PromptSectionGenerator : IIncrementalGenerator
         });
     }
 
-    private static void VisitNamespaces(
-        INamespaceSymbol namespaceSymbol,
-        IAssemblySymbol currentAssembly,
-        INamedTypeSymbol promptSectionAttr,
-        List<PromptSectionInfo> results)
-    {
-        foreach (var member in namespaceSymbol.GetMembers())
-        {
-            if (member is INamespaceSymbol childNamespace)
-                VisitNamespaces(childNamespace, currentAssembly, promptSectionAttr, results);
-            else if (member is INamedTypeSymbol typeSymbol
-                     && SymbolEqualityComparer.Default.Equals(typeSymbol.ContainingAssembly, currentAssembly))
-            {
-                var attr = typeSymbol.GetAttributes()
-                    .FirstOrDefault(a => SymbolEqualityComparer.Default.Equals(a.AttributeClass, promptSectionAttr));
-
-                if (attr is not null)
-                {
-                    var info = ExtractSectionInfo(typeSymbol, attr);
-                    if (info is not null)
-                        results.Add(info);
-                }
-            }
-        }
-    }
-
     private static PromptSectionInfo? ExtractSectionInfo(INamedTypeSymbol typeSymbol, AttributeData attr)
     {
-        string? name = null;
-        string[] keywords = [];
-        int injectOn = 0;
-        bool isDynamic = false;
-        int order = 100;
-
-        foreach (var kvp in attr.NamedArguments)
-        {
-            switch (kvp.Key)
-            {
-                case "Name":
-                    name = kvp.Value.Value as string;
-                    break;
-                case "Keywords":
-                    keywords = kvp.Value.Values
-                        .Select(v => v.Value as string ?? "")
-                        .Where(k => !string.IsNullOrEmpty(k))
-                        .ToArray();
-                    break;
-                case "InjectOn":
-                    injectOn = kvp.Value.Value is int i ? i : 0;
-                    break;
-                case "IsDynamic":
-                    isDynamic = kvp.Value.Value is bool b && b;
-                    break;
-                case "Order":
-                    order = kvp.Value.Value is int o ? o : 100;
-                    break;
-            }
-        }
+        var name = AttributeScanner.GetStringNamedArg(attr, "Name");
+        var keywords = AttributeScanner.GetStringArrayNamedArg(attr, "Keywords");
+        var injectOn = AttributeScanner.GetIntNamedArg(attr, "InjectOn");
+        var isDynamic = AttributeScanner.GetBoolNamedArg(attr, "IsDynamic");
+        var order = AttributeScanner.GetIntNamedArg(attr, "Order", 100);
 
         if (string.IsNullOrEmpty(name))
             return null;
 
-        var hasGetContent = typeSymbol.GetMembers("GetContent")
-            .OfType<IMethodSymbol>()
-            .Any(m => m.IsStatic && m.Parameters.Length == 0 && m.ReturnType.SpecialType != SpecialType.System_Void);
-
-        var hasCreate = typeSymbol.GetMembers("Create")
-            .OfType<IMethodSymbol>()
-            .Any(m => m.IsStatic && m.Parameters.Length == 0 && m.ReturnType.SpecialType != SpecialType.System_Void);
+        var hasGetContent = AttributeScanner.HasParameterlessStaticMethod(typeSymbol, "GetContent");
+        var hasCreate = AttributeScanner.HasParameterlessStaticMethod(typeSymbol, "Create");
 
         if (!hasGetContent && !hasCreate)
             return null;

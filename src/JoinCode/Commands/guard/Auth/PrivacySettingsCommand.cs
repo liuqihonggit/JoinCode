@@ -1,17 +1,10 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
-[ChatCommand(Name = ChatCommandNameConstants.PrivacySettings, Description = "管理隐私设置", Usage = "/privacy-settings [show|telemetry on|off|analytics on|off|crash-reports on|off]", Category = ChatCommandCategory.Auth)]
-public sealed class PrivacySettingsCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.PrivacySettings, Description = "管理隐私设置", Usage = "/privacy-settings [show|telemetry on|off|analytics on|off|crash-reports on|off]", Category = ChatCommandCategory.Auth, ArgumentHint = "[show|telemetry|analytics|crash-reports]")]
+public sealed class PrivacySettingsCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.PrivacySettings;
-    public string Description => "管理隐私设置";
-    public string Usage => "/privacy-settings [show|telemetry on|off|analytics on|off|crash-reports on|off]";
-    public string[] Aliases => [];
-    public string ArgumentHint => "[show|telemetry|analytics|crash-reports]";
-    public bool IsHidden => false;
-
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var configService = ChatCommandBase.GetService<IConfigurationService>(context);
         var args = ChatCommandBase.GetNormalizedArgs(context).ToLowerInvariant();

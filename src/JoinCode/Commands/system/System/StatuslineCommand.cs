@@ -1,4 +1,4 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
@@ -7,17 +7,10 @@ namespace JoinCode.ChatCommands;
 /// 对齐内容：on+off+format 状态栏控制
 /// 架构差异：TS 有 React 实时渲染，C# 为配置驱动
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Statusline, Description = "切换状态栏显示", Usage = "/statusline [on|off|format]", Category = ChatCommandCategory.System)]
-public sealed class StatuslineCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.Statusline, Description = "切换状态栏显示", Usage = "/statusline [on|off|format]", Category = ChatCommandCategory.System, ArgumentHint = "[on|off|format]")]
+public sealed class StatuslineCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Statusline;
-    public string Description => "切换状态栏显示";
-    public string Usage => "/statusline [on|off|format <template>]";
-    public string[] Aliases => [];
-    public string ArgumentHint => "[on|off|format]";
-    public bool IsHidden => false;
-
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var configService = ChatCommandBase.GetService<IConfigurationService>(context);
         var args = ChatCommandBase.GetNormalizedArgs(context).ToLowerInvariant();

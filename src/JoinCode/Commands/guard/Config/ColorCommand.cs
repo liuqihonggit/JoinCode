@@ -1,4 +1,4 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /color 命令 — 对齐 TS color/color.ts
@@ -6,17 +6,10 @@ namespace JoinCode.ChatCommands;
 /// 对齐内容：颜色设置+重置+列表
 /// 架构差异：TS 有多智能体颜色管理（AgentColorManager），C# 为终端颜色主题设置
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Color, Description = "设置终端颜色主题或测试颜色支持", Usage = "/color [theme|test|reset]", Category = ChatCommandCategory.Config)]
-public sealed class ColorCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.Color, Description = "设置终端颜色主题或测试颜色支持", Usage = "/color [theme|test|reset]", Category = ChatCommandCategory.Config, ArgumentHint = "[theme|test|reset]")]
+public sealed class ColorCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Color;
-    public string Description => "设置终端颜色主题或测试颜色支持";
-    public string Usage => "/color [theme|test|reset]";
-    public string[] Aliases => [];
-    public string ArgumentHint => "[theme|test|reset]";
-    public bool IsHidden => false;
-
-    public Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetNormalizedArgs(context).ToLowerInvariant();
 

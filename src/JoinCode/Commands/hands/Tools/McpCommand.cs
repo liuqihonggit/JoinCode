@@ -1,16 +1,9 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
-[ChatCommand(Name = ChatCommandNameConstants.Mcp, Description = "管理 MCP 服务器", Usage = "/mcp [list|status|add|remove|reconnect|enable|disable] [args]", Category = ChatCommandCategory.Tools)]
-public sealed class McpCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.Mcp, Description = "管理 MCP 服务器", Usage = "/mcp [list|status|add|remove|reconnect|enable|disable] [args]", Category = ChatCommandCategory.Tools, ArgumentHint = "[list|status|add|remove|reconnect|enable|disable]")]
+public sealed class McpCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Mcp;
-    public string Description => "管理 MCP 服务器";
-    public string Usage => "/mcp [list|status|add|remove|reconnect|enable|disable] [args]";
-    public string[] Aliases => [];
-    public string ArgumentHint => "[list|status|add|remove|reconnect|enable|disable]";
-    public bool IsHidden => false;
-
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetSplitArgs(context);
         var actionStr = args.Length > 0 ? args[0].ToLowerInvariant() : "list";

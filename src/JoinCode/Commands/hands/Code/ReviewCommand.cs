@@ -1,16 +1,9 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
-[ChatCommand(Name = ChatCommandNameConstants.Review, Description = "审查 Pull Request 或代码变更", Usage = "/review [pr-number]", Category = ChatCommandCategory.Code)]
-public sealed class ReviewCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.Review, Description = "审查 Pull Request 或代码变更", Usage = "/review [pr-number]", Category = ChatCommandCategory.Code, ArgumentHint = "[pr-number]")]
+public sealed class ReviewCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Review;
-    public string Description => "审查 Pull Request 或代码变更";
-    public string Usage => "/review [pr-number]";
-    public string[] Aliases => [];
-    public string ArgumentHint => "[pr-number]";
-    public bool IsHidden => false;
-
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetNormalizedArgs(context);
 

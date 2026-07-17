@@ -1,4 +1,4 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /session 命令 — 对齐 TS session/
@@ -7,17 +7,10 @@ namespace JoinCode.ChatCommands;
 /// 架构差异：TS 有 React 交互式会话选择器，C# 为命令行操作
 /// 待办：需要 SessionStore 服务实现会话持久化和恢复
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Session, Description = "管理历史会话", Usage = "/session [list|resume|delete] [id]", Category = ChatCommandCategory.Session)]
-public sealed class SessionCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.Session, Description = "管理历史会话", Usage = "/session [list|resume|delete] [id]", Category = ChatCommandCategory.Session, Aliases = ["sessions"], ArgumentHint = "[list|resume|delete]")]
+public sealed class SessionCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Session;
-    public string Description => "管理历史会话";
-    public string Usage => "/session [list|resume|delete] [id]";
-    public string[] Aliases => ["sessions"];
-    public string ArgumentHint => "[list|resume|delete]";
-    public bool IsHidden => false;
-
-    public Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetSplitArgs(context);
         var action = args.Length > 0 ? args[0].ToLowerInvariant() : "list";

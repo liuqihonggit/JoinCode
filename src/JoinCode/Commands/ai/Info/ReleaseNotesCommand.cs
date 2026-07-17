@@ -1,17 +1,10 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
-[ChatCommand(Name = ChatCommandNameConstants.ReleaseNotes, Description = "查看版本发布说明", Usage = "/release-notes [version]", Category = ChatCommandCategory.Info)]
-public sealed class ReleaseNotesCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.ReleaseNotes, Description = "查看版本发布说明", Usage = "/release-notes [version]", Category = ChatCommandCategory.Info, ArgumentHint = "[version]", IsHidden = true)]
+public sealed class ReleaseNotesCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.ReleaseNotes;
-    public string Description => "查看版本发布说明";
-    public string Usage => "/release-notes [version]";
-    public string[] Aliases => [];
-    public string ArgumentHint => "[version]";
-    public bool IsHidden => true;
-
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var releaseNotesService = ChatCommandBase.GetService<IReleaseNotesService>(context);
         var version = ChatCommandBase.GetNormalizedArgs(context);

@@ -296,9 +296,8 @@ public sealed partial class SseAgentTransport : IAgentTransport
                 _reconnectAttempts = 0;
 
                 using var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
-                using var reader = new StreamReader(stream, Encoding.UTF8);
 
-                await ParseSseStreamAsync(reader, ct).ConfigureAwait(false);
+                await ParseSseStreamAsync(stream, ct).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -324,60 +323,24 @@ public sealed partial class SseAgentTransport : IAgentTransport
         }
     }
 
-    private async Task ParseSseStreamAsync(StreamReader reader, CancellationToken ct)
+    private async Task ParseSseStreamAsync(Stream stream, CancellationToken ct)
     {
-        var currentEvent = string.Empty;
-        var currentData = new StringBuilder();
-
-        while (!ct.IsCancellationRequested)
+        await foreach (var sseEvent in SseStreamParser.ParseAsync(stream, ct).ConfigureAwait(false))
         {
-            var line = await reader.ReadLineAsync(ct).ConfigureAwait(false);
-            if (line == null) break;
+            var data = sseEvent.Data;
+            var channel = sseEvent.EventType == "error" ? TransportChannel.Error : TransportChannel.Output;
+            var buffer = channel == TransportChannel.Error ? _errorBuffer : _outputBuffer;
+            var @lock = channel == TransportChannel.Error ? _errorLock : _outputLock;
 
-            if (string.IsNullOrEmpty(line))
+            await @lock.WaitAsync(ct).ConfigureAwait(false);
+            try { buffer.Add(data); }
+            finally { @lock.Release(); }
+
+            OnMessage?.Invoke(this, new TransportMessageEventArgs
             {
-                if (currentData.Length > 0)
-                {
-                    var data = currentData.ToString();
-                    if (currentEvent == "error")
-                    {
-                        await _errorLock.WaitAsync(ct).ConfigureAwait(false);
-                        try { _errorBuffer.Add(data); }
-                        finally { _errorLock.Release(); }
-
-                        OnMessage?.Invoke(this, new TransportMessageEventArgs
-                        {
-                            Message = data,
-                            Channel = TransportChannel.Error
-                        });
-                    }
-                    else
-                    {
-                        await _outputLock.WaitAsync(ct).ConfigureAwait(false);
-                        try { _outputBuffer.Add(data); }
-                        finally { _outputLock.Release(); }
-
-                        OnMessage?.Invoke(this, new TransportMessageEventArgs
-                        {
-                            Message = data,
-                            Channel = TransportChannel.Output
-                        });
-                    }
-
-                    currentEvent = string.Empty;
-                    currentData.Clear();
-                }
-                continue;
-            }
-
-            if (line.StartsWith("event:", StringComparison.OrdinalIgnoreCase))
-            {
-                currentEvent = line["event:".Length..].Trim();
-            }
-            else if (line.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
-            {
-                currentData.AppendLine(line["data:".Length..].Trim());
-            }
+                Message = data,
+                Channel = channel
+            });
         }
     }
 }

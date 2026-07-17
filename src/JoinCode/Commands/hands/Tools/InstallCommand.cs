@@ -1,4 +1,4 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /install 命令 — 对齐 TS install.tsx
@@ -6,17 +6,10 @@ namespace JoinCode.ChatCommands;
 /// 对齐内容：将安装任务描述发送给 ChatService
 /// 架构差异：TS 有 React 交互式确认，C# 为直接发送
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Install, Description = "让 AI 执行安装任务", Usage = "/install <package-or-command>", Category = ChatCommandCategory.Tools)]
-public sealed class InstallCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.Install, Description = "让 AI 执行安装任务", Usage = "/install <package-or-command>", Category = ChatCommandCategory.Tools, ArgumentHint = "<package-or-command>")]
+public sealed class InstallCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Install;
-    public string Description => "让 AI 执行安装任务";
-    public string Usage => "/install <package-or-command>";
-    public string[] Aliases => [];
-    public string ArgumentHint => "<package-or-command>";
-    public bool IsHidden => false;
-
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var target = ChatCommandBase.GetNormalizedArgs(context);
 

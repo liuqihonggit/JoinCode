@@ -37,11 +37,16 @@ public static class BashRegexCheckRegistry
             {
                 if (HasUnescapedChar(cmd, '`'))
                     return Fail(BashSecurityCheckId.CommandSubstitution, "命令包含反引号（`）用于命令替换", true);
-                foreach (var (pattern, message) in CommandSubstitutionPatterns)
-                {
-                    if (pattern.IsMatch(cmd))
-                        return Fail(BashSecurityCheckId.CommandSubstitution, $"命令包含 {message}", true);
-                }
+                if (Regex.IsMatch(cmd, @"<\("))
+                    return Fail(BashSecurityCheckId.CommandSubstitution, "命令包含 进程替换 <()", true);
+                if (Regex.IsMatch(cmd, @">\("))
+                    return Fail(BashSecurityCheckId.CommandSubstitution, "命令包含 进程替换 >()", true);
+                if (Regex.IsMatch(cmd, @"\$\("))
+                    return Fail(BashSecurityCheckId.CommandSubstitution, "命令包含 $() 命令替换", true);
+                if (Regex.IsMatch(cmd, @"\$\{"))
+                    return Fail(BashSecurityCheckId.CommandSubstitution, "命令包含 ${} 参数替换", true);
+                if (Regex.IsMatch(cmd, @"\$\["))
+                    return Fail(BashSecurityCheckId.CommandSubstitution, "命令包含 $[] 旧式算术展开", true);
                 return Safe();
             }),
 
@@ -123,15 +128,6 @@ public static class BashRegexCheckRegistry
         new(BashSecurityCheckId.InputRedirection,
             "命令包含重定向，可能读写任意文件",
             cmd => CheckRedirections(cmd)),
-    ];
-
-    private static readonly (Regex Pattern, string Message)[] CommandSubstitutionPatterns =
-    [
-        (new Regex(@"<\(", RegexOptions.Compiled), "进程替换 <()"),
-        (new Regex(@">\(", RegexOptions.Compiled), "进程替换 >()"),
-        (new Regex(@"\$\(", RegexOptions.Compiled), "$() 命令替换"),
-        (new Regex(@"\$\{", RegexOptions.Compiled), "${} 参数替换"),
-        (new Regex(@"\$\[", RegexOptions.Compiled), "$[] 旧式算术展开"),
     ];
 
     private static readonly FrozenSet<char> ShellOperators = FrozenSet.Create(';', '|', '&', '<', '>');

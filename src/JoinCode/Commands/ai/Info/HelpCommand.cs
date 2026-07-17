@@ -1,19 +1,12 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /help 命令 - 显示所有可用命令帮助
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Help, Description = "显示可用命令帮助", Usage = "/help", Category = ChatCommandCategory.Info)]
-public sealed class HelpCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.Help, Description = "显示可用命令帮助", Usage = "/help", Category = ChatCommandCategory.Info, Aliases = ["?"])]
+public sealed class HelpCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Help;
-    public string Description => "显示可用命令帮助";
-    public string Usage => "/help";
-    public string[] Aliases => ["?"];
-    public string ArgumentHint => string.Empty;
-    public bool IsHidden => false;
-
-    public Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         if (context.Services.CommandRegistry is null)
         {

@@ -1,4 +1,4 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /theme 命令 — 对齐 TS ThemePicker.tsx
@@ -7,15 +7,8 @@ namespace JoinCode.ChatCommands;
 /// 架构差异：TS 有实时预览+语法高亮切换，C# 是直接切换
 /// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Theme, Description = "切换控制台主题", Usage = "/theme [dark|light|auto|dark-daltonized|light-daltonized|dark-ansi|light-ansi]", Category = ChatCommandCategory.Config)]
-public sealed class ThemeCommand : IChatCommand
+public sealed class ThemeCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Theme;
-    public string Description => "切换控制台主题";
-    public string Usage => "/theme [dark|light|auto|dark-daltonized|light-daltonized|dark-ansi|light-ansi]";
-    public string[] Aliases => [];
-    public string ArgumentHint => string.Empty;
-    public bool IsHidden => false;
-
     /// <summary>
     /// 主题显示标签映射 — 仅 UI 显示字符串,不参与序列化
     /// </summary>
@@ -50,7 +43,7 @@ public sealed class ThemeCommand : IChatCommand
             .ToArray();
     }
 
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetSplitArgs(context);
         var theme = args.Length > 0 ? args[0].ToLowerInvariant() : "show";

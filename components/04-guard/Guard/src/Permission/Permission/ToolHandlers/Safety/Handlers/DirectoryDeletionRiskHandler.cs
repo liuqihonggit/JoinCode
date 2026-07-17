@@ -7,38 +7,19 @@ namespace Core.Permission;
 /// Ask 模式: 提示确认 + 建议移动到 .xxx/ 目录
 /// </summary>
 [Register(typeof(ICommandRiskHandler))]
-public sealed partial class DirectoryDeletionRiskHandler : ICommandRiskHandler
+public sealed partial class DirectoryDeletionRiskHandler : DeletionRiskHandlerBase
 {
-    private const string TrashDir = ".xxx";
+    /// <inheritdoc />
+    public override CommandRisk RiskType => CommandRisk.DirectoryDeletion;
 
     /// <inheritdoc />
-    public CommandRisk RiskType => CommandRisk.DirectoryDeletion;
+    protected override string OperationName => "目录删除操作";
 
     /// <inheritdoc />
-    public string BuildRejectionMessage(CommandRiskContext context)
+    protected override string BuildTrashPath(string originalPath)
     {
-        var targetPath = context.ReferencedPaths.FirstOrDefault();
-
-        if (targetPath is not null)
-        {
-            var timestamp = DateTimeOffset.UtcNow.ToString("yyyyMMddHHmmss");
-            var trashPath = $"{TrashDir}/{Path.GetFileName(targetPath)}.{timestamp}.del";
-            return $"目录删除操作已被阻止（{context.Details}）。请使用 Shell 工具将目录移动到 {TrashDir}/ 目录: Move-Item '{targetPath}' '{trashPath}'";
-        }
-
-        return $"目录删除操作已被阻止（{context.Details}）。请使用 Shell 工具将目录移动到 {TrashDir}/ 目录";
-    }
-
-    /// <inheritdoc />
-    public string BuildConfirmationMessage(CommandRiskContext context)
-    {
-        var targetPath = context.ReferencedPaths.FirstOrDefault();
-
-        if (targetPath is not null)
-        {
-            return $"工具 '{context.ToolName}' 请求删除目录 '{targetPath}'（{context.Details}）。建议移动到 {TrashDir}/ 目录而非直接删除。是否允许删除？";
-        }
-
-        return $"工具 '{context.ToolName}' 请求删除目录（{context.Details}）。建议移动到 {TrashDir}/ 目录而非直接删除。是否允许删除？";
+        var fileName = Path.GetFileName(originalPath);
+        var timestamp = DateTimeOffset.UtcNow.ToString("yyyyMMddHHmmss");
+        return $".xxx/{fileName}.{timestamp}.del";
     }
 }

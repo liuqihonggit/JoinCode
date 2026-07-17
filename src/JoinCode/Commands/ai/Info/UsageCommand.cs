@@ -1,4 +1,4 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /usage 命令 — 对齐 TS Usage.tsx
@@ -6,18 +6,11 @@ namespace JoinCode.ChatCommands;
 /// 对齐内容：Current session/Current week 限制条+重置时间+Sonnet-only占位+ExtraUsage占位
 /// 架构差异：TS 从 Anthropic API 获取 utilization，C# 从本地 RateLimitTracker 获取
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Usage, Description = "查看速率限制用量", Usage = "/usage", Category = ChatCommandCategory.Info)]
-public sealed class UsageCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.Usage, Description = "查看速率限制用量", Usage = "/usage", Category = ChatCommandCategory.Info, Aliases = ["rate-limit"])]
+public sealed class UsageCommand : ChatCommandBase
 {
     private readonly IClockService _clock = SystemClockService.Instance;
-    public string Name => ChatCommandNameConstants.Usage;
-    public string Description => "查看速率限制用量";
-    public string Usage => "/usage";
-    public string[] Aliases => ["rate-limit"];
-    public string ArgumentHint => string.Empty;
-    public bool IsHidden => false;
-
-    public Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         // 预收集 Rate Limits 数据
         string rateLimitsContent;

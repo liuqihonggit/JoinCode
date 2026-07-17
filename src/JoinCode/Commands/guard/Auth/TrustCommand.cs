@@ -1,16 +1,9 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
-[ChatCommand(Name = ChatCommandNameConstants.Trust, Description = "管理工作区信任目录", Usage = "/trust [add|remove|list|clear]", Category = ChatCommandCategory.Auth)]
-public sealed class TrustCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.Trust, Description = "管理工作区信任目录", Usage = "/trust [add|remove|list|clear]", Category = ChatCommandCategory.Auth, ArgumentHint = "[add|remove|list|clear]")]
+public sealed class TrustCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Trust;
-    public string Description => "管理工作区信任目录";
-    public string Usage => "/trust [add|remove|list|clear]";
-    public string[] Aliases => [];
-    public string ArgumentHint => "[add|remove|list|clear]";
-    public bool IsHidden => false;
-
-    public Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var manager = ChatCommandBase.GetService<ITrustFolderManager>(context, typeof(ITrustFolderManager));
         if (manager is null)

@@ -12,22 +12,9 @@ public sealed class OpenAIProviderDefinition : OpenAICompatibleProviderDefinitio
     public override string? ApiKeyEnvironmentVariable => ProviderEnvVar.OpenAiApiKey.ToValue();
     public override string? EndpointEnvironmentVariable => null;
 
-    public override string GetBaseUrl(ProviderConfig config)
-    {
-        return !string.IsNullOrEmpty(config.Endpoint) ? config.Endpoint.TrimEnd('/') + "/" : "https://api.openai.com/v1/";
-    }
-
-    public override string GetChatEndpoint(ProviderConfig config)
-    {
-        if (!string.IsNullOrEmpty(config.Endpoint) && config.Endpoint.TrimEnd('/').EndsWith("chat/completions", StringComparison.OrdinalIgnoreCase))
-            return string.Empty;
-        return "chat/completions";
-    }
-
     public override void ConfigureHttpClient(HttpClient client, ProviderConfig config)
     {
-        if (!string.IsNullOrEmpty(config.ApiKey))
-            client.DefaultRequestHeaders.Add("Authorization", $"Bearer {config.ApiKey}");
+        base.ConfigureHttpClient(client, config);
         if (!string.IsNullOrEmpty(config.OrganizationId))
             client.DefaultRequestHeaders.Add("OpenAI-Organization", config.OrganizationId);
     }

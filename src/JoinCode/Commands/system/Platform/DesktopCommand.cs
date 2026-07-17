@@ -1,17 +1,10 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
-[ChatCommand(Name = ChatCommandNameConstants.Desktop, Description = "将会话转移到桌面应用", Usage = "/desktop", Category = ChatCommandCategory.Platform)]
-public sealed class DesktopCommand : IChatCommand
+[ChatCommand(Name = ChatCommandNameConstants.Desktop, Description = "将会话转移到桌面应用", Usage = "/desktop", Category = ChatCommandCategory.Platform, Aliases = ["app"], IsHidden = true)]
+public sealed class DesktopCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.Desktop;
-    public string Description => "将会话转移到桌面应用";
-    public string Usage => "/desktop";
-    public string[] Aliases => ["app"];
-    public string ArgumentHint => string.Empty;
-    public bool IsHidden => true;
-
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var handoffService = ChatCommandBase.GetService<IDesktopHandoffService>(context);
 

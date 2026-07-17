@@ -1,20 +1,13 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /install-github-app 命令 — 对齐 TS install-github-app.tsx
 /// 设置 Claude GitHub Actions 工作流，包含多步分支交互
 /// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.InstallGitHubApp, Description = "设置 Claude GitHub Actions 工作流", Usage = "/install-github-app", Category = ChatCommandCategory.Tools)]
-public sealed class InstallGitHubAppCommand : IChatCommand
+public sealed class InstallGitHubAppCommand : ChatCommandBase
 {
-    public string Name => ChatCommandNameConstants.InstallGitHubApp;
-    public string Description => "设置 Claude GitHub Actions 工作流";
-    public string Usage => "/install-github-app";
-    public string[] Aliases => [];
-    public string ArgumentHint => string.Empty;
-    public bool IsHidden => false;
-
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var ct = context.CancellationToken;
 

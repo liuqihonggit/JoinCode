@@ -23,6 +23,10 @@ class Program
             if (options.ShowHelp) { App.Builder.ApplicationBuilder.ShowHelp(); return 0; }
             if (options.ShowVersion) { App.Builder.ApplicationBuilder.ShowVersion(); return 0; }
 
+            // 3.1 --doctor: 医生模式 — spawn jcc.exe 子进程作为病人，监控运行状态并自动修复问题
+            if (options.DoctorMode)
+                return await Entry.DoctorModeRunner.RunAsync(options);
+
             // 3.5 --await N: 启动超时计时器，N秒后强制退出返回1234（用于诊断卡死）
             using var awaitTimer = StartAwaitTimer(options);
 

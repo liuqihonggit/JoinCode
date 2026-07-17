@@ -131,6 +131,12 @@ public class CommandLineOptions {
     public string? AppendSystemPrompt { get; set; }
 
     /// <summary>
+    /// 医生模式（--doctor 参数）— spawn jcc.exe 子进程作为病人，监控运行状态并自动修复问题
+    /// 医生复用 jcc 全部工具（Read/Edit/Bash/Grep）和护栏（权限/安全/配置）
+    /// </summary>
+    public bool DoctorMode { get; set; }
+
+    /// <summary>
     /// 是否为非交互模式（用户请求 / 无头环境 / CI 环境 / -p 参数）
     /// </summary>
     public bool IsNonInteractiveMode =>

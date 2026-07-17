@@ -61,4 +61,7 @@ public enum CliArg
 
     [CliOption("--append-system-prompt", "", "追加系统提示词（在默认/已加载系统提示词后附加，不覆盖）", AcceptsValue = true)]
     AppendSystemPrompt,
+
+    [CliOption("--doctor", "", "医生模式：spawn jcc.exe 子进程作为病人，监控运行状态并自动修复问题")]
+    Doctor,
 }

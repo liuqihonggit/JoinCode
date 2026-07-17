@@ -123,7 +123,7 @@
 |------|------|
 | 环境准备 | 开始任务前先备份一次 |
 | 无分页模式 | `git --no-pager log/diff/status`，`git merge --no-edit` |
-| 提交前验证 | `.\build.ps1 -Mode Full` → `.\build.ps1` → 全部通过才允许提交 |
+| 提交前验证 | 改动的 csproj 在 Debug 模式下编译通过即可提交，Release 全量编译由 CI 执行 |
 | 禁止跳过 | 即使只改了一个注释，也必须走完整个流水线 |
 | 禁止单元测试不通过 | 单元测试不通过 = 不允许提交 |
 | 允许 push（非 main/master） | LLM 可 `git commit` + `git push` 到功能分支；禁止 force push 到 main/master |
@@ -408,7 +408,7 @@ nuget包: 拒绝全部微软的AI包，因为大部分不支持NativeAOT。
 - `components.slnx` 中的组件依赖 Abstractions，而 Abstractions 需要生成器才能编译出枚举常量
 - 如果先编译 components.slnx 而生成器 DLL 不存在，编译会失败
 
-**编译命令**：
+**CI 编译命令（Release + 全量）**：
 ```powershell
 # 1. 基础层（必须先编译）
 dotnet build Sdk.slnx -c Release --no-incremental
@@ -426,30 +426,31 @@ dotnet build JoinCode.slnx -c Release --no-incremental
 | 主工程源码（src/JoinCode） | ③ |
 | 仅测试代码 | 对应的 slnx |
 
-### 智能编译策略（减少无效编译）
+### 开发编译策略（Debug + 增量 + 单 csproj）
 
-**核心原则**：开发阶段按需编译最少层级，git 提交前才全量编译验证。
+**核心原则**：编码期间用 Debug 模式增量编译单个 csproj，Release 全量编译交给 CI。
 
 **开发阶段（改代码时）**：
-1. **只编译受影响的最低层** — 例如只改了组件源码，只编译 `components.slnx`，不编译 JoinCode.slnx
-2. **连续修改多个文件时，改完所有文件后再编译一次** — 禁止改一个文件就编译三层
-3. **编译命令去掉 `--no-incremental`** — 开发阶段利用增量编译加速，只有新增/修改 `[Register]` 类时才需要 `--no-incremental`
+1. **只编译改动的那个 `.csproj`** — 例如改了 `Tui.csproj` 就只编译 `dotnet build components/11-tui/Tui/src/Tui.csproj -c Debug`，不编译整个 slnx
+2. **使用 Debug 模式** — Debug 编译更快，无需 AOT/Trim 等优化开销
+3. **连续修改多个文件时，改完所有文件后再编译一次** — 禁止改一个文件就编译
+4. **只有影响面很大时才编译 slnx** — 例如改了 Abstractions 接口导致大量项目受影响，才用 `dotnet build Sdk.slnx -c Debug`
 
 **提交前（git commit 前）**：
-1. 按依赖顺序全量编译 ①②③（带 `--no-incremental`）
-2. 全量编译通过后才允许提交
+1. 不需要本地 Release 全量编译 — CI 会做
+2. 只需确保改动的 csproj 在 Debug 模式下编译通过即可提交
 
-**快速编译命令（开发阶段）**：
+**开发编译命令示例**：
 ```powershell
-# 只改了组件源码 → 只编译组件层（增量）
-dotnet build components/components.slnx -c Release
-# 只改了主工程 → 只编译主工程（增量）
-dotnet build JoinCode.slnx -c Release
-# 改了 Abstractions → 必须从基础层开始
-dotnet build Sdk.slnx -c Release; dotnet build components/components.slnx -c Release; dotnet build JoinCode.slnx -c Release
+# 改了 TUI 组件 → 只编译那个 csproj
+dotnet build components/11-tui/Tui/src/Tui.csproj -c Debug
+# 改了主工程 CliSession → 只编译主工程
+dotnet build src/JoinCode/JoinCode.csproj -c Debug
+# 改了 Abstractions → 影响面大，编译基础层 slnx
+dotnet build Sdk.slnx -c Debug
 ```
 
-**全量编译命令（提交前）**：
+**CI 全量编译命令（Release + --no-incremental）**：
 ```powershell
 dotnet build Sdk.slnx -c Release --no-incremental; dotnet build components/components.slnx -c Release --no-incremental; dotnet build JoinCode.slnx -c Release --no-incremental
 ```

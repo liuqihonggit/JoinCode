@@ -38,15 +38,29 @@ public static class BashRegexCheckRegistry
                 if (HasUnescapedChar(cmd, '`'))
                     return Fail(BashSecurityCheckId.CommandSubstitution, "命令包含反引号（`）用于命令替换", true);
                 if (Regex.IsMatch(cmd, @"<\("))
-                    return Fail(BashSecurityCheckId.CommandSubstitution, "命令包含 进程替换 <()", true);
+                    return Fail(BashSecurityCheckId.CommandSubstitution, "命令包含进程替换 <()", true);
                 if (Regex.IsMatch(cmd, @">\("))
-                    return Fail(BashSecurityCheckId.CommandSubstitution, "命令包含 进程替换 >()", true);
+                    return Fail(BashSecurityCheckId.CommandSubstitution, "命令包含进程替换 >()", true);
+                if (Regex.IsMatch(cmd, @"=\("))
+                    return Fail(BashSecurityCheckId.CommandSubstitution, "命令包含Zsh进程替换 =()", true);
+                if (Regex.IsMatch(cmd, @"(?:^|[\s;&|])=[a-zA-Z_]"))
+                    return Fail(BashSecurityCheckId.CommandSubstitution, "命令包含Zsh equals展开(=cmd)", true);
                 if (Regex.IsMatch(cmd, @"\$\("))
-                    return Fail(BashSecurityCheckId.CommandSubstitution, "命令包含 $() 命令替换", true);
+                    return Fail(BashSecurityCheckId.CommandSubstitution, "命令包含$() 命令替换", true);
                 if (Regex.IsMatch(cmd, @"\$\{"))
-                    return Fail(BashSecurityCheckId.CommandSubstitution, "命令包含 ${} 参数替换", true);
+                    return Fail(BashSecurityCheckId.CommandSubstitution, "命令包含${} 参数替换", true);
                 if (Regex.IsMatch(cmd, @"\$\["))
-                    return Fail(BashSecurityCheckId.CommandSubstitution, "命令包含 $[] 旧式算术展开", true);
+                    return Fail(BashSecurityCheckId.CommandSubstitution, "命令包含$[] 旧式算术展开", true);
+                if (Regex.IsMatch(cmd, @"~\["))
+                    return Fail(BashSecurityCheckId.CommandSubstitution, "命令包含Zsh参数展开 ~[", true);
+                if (Regex.IsMatch(cmd, @"\(e:"))
+                    return Fail(BashSecurityCheckId.CommandSubstitution, "命令包含Zsh glob限定符 (e:", true);
+                if (Regex.IsMatch(cmd, @"\(\+"))
+                    return Fail(BashSecurityCheckId.CommandSubstitution, "命令包含Zsh glob限定符 (+", true);
+                if (Regex.IsMatch(cmd, @"\}\s*always\s*\{"))
+                    return Fail(BashSecurityCheckId.CommandSubstitution, "命令包含Zsh always块", true);
+                if (Regex.IsMatch(cmd, @"<#"))
+                    return Fail(BashSecurityCheckId.CommandSubstitution, "命令包含PowerShell注释语法", true);
                 return Safe();
             }),
 
@@ -120,7 +134,7 @@ public static class BashRegexCheckRegistry
                 if (!cmd.Contains('\n') && !cmd.Contains('\r')) return Safe();
                 if (Regex.IsMatch(cmd, @"[\n\r]\s*\S"))
                     return Fail(BashSecurityCheckId.Newlines, "命令包含换行符，可能分隔多个命令");
-                if (cmd.Contains('\r'))
+                if (cmd.Contains('\r') && HasUnquotedCarriageReturn(cmd))
                     return Fail(BashSecurityCheckId.Newlines, "命令包含回车符（\\r），shell解析器可能产生不同结果", true);
                 return Safe();
             }),
@@ -128,6 +142,14 @@ public static class BashRegexCheckRegistry
         new(BashSecurityCheckId.InputRedirection,
             "命令包含重定向，可能读写任意文件",
             cmd => CheckRedirections(cmd)),
+
+        new(BashSecurityCheckId.CommentQuoteDesync,
+            "命令包含注释中引号，可能导致引号追踪失同步",
+            cmd => CheckCommentQuoteDesync(cmd)),
+
+        new(BashSecurityCheckId.QuotedNewline,
+            "命令包含引号内换行+井号，可能隐藏参数",
+            cmd => CheckQuotedNewline(cmd)),
     ];
 
     private static readonly FrozenSet<char> ShellOperators = FrozenSet.Create(';', '|', '&', '<', '>');
@@ -253,5 +275,92 @@ public static class BashRegexCheckRegistry
             i--;
         }
         return backslashCount % 2 == 1;
+    }
+
+    private static BashSecurityResult CheckCommentQuoteDesync(string command)
+    {
+        var inSingleQuote = false;
+        var inDoubleQuote = false;
+        var escaped = false;
+
+        for (var i = 0; i < command.Length; i++)
+        {
+            var c = command[i];
+
+            if (escaped) { escaped = false; continue; }
+            if (c == '\\' && !inSingleQuote) { escaped = true; continue; }
+            if (c == '\'' && !inDoubleQuote) { inSingleQuote = !inSingleQuote; continue; }
+            if (c == '"' && !inSingleQuote) { inDoubleQuote = !inDoubleQuote; continue; }
+
+            if (c == '#' && !inSingleQuote && !inDoubleQuote)
+            {
+                var lineEnd = command.IndexOf('\n', i);
+                var commentText = lineEnd == -1
+                    ? command.Substring(i + 1)
+                    : command.Substring(i + 1, lineEnd - i - 1);
+                if (commentText.Contains('\'') || commentText.Contains('"'))
+                    return Fail(BashSecurityCheckId.CommentQuoteDesync,
+                        "命令包含注释中引号字符，可能导致引号追踪失同步", true);
+                if (lineEnd == -1) break;
+                i = lineEnd;
+            }
+        }
+
+        return Safe();
+    }
+
+    private static BashSecurityResult CheckQuotedNewline(string command)
+    {
+        if (!command.Contains('\n') || !command.Contains('#'))
+            return Safe();
+
+        var inSingleQuote = false;
+        var inDoubleQuote = false;
+        var escaped = false;
+
+        for (var i = 0; i < command.Length; i++)
+        {
+            var c = command[i];
+
+            if (escaped) { escaped = false; continue; }
+            if (c == '\\' && !inSingleQuote) { escaped = true; continue; }
+            if (c == '\'' && !inDoubleQuote) { inSingleQuote = !inSingleQuote; continue; }
+            if (c == '"' && !inSingleQuote) { inDoubleQuote = !inDoubleQuote; continue; }
+
+            if (c == '\n' && (inSingleQuote || inDoubleQuote))
+            {
+                var lineStart = i + 1;
+                var nextNewline = command.IndexOf('\n', lineStart);
+                var lineEnd = nextNewline == -1 ? command.Length : nextNewline;
+                var nextLine = command.Substring(lineStart, lineEnd - lineStart);
+                if (nextLine.TrimStart().StartsWith('#'))
+                    return Fail(BashSecurityCheckId.QuotedNewline,
+                        "命令包含引号内换行后跟井号行，可能从基于行的权限检查中隐藏参数", true);
+            }
+        }
+
+        return Safe();
+    }
+
+    private static bool HasUnquotedCarriageReturn(string command)
+    {
+        var inSingleQuote = false;
+        var inDoubleQuote = false;
+        var escaped = false;
+
+        for (var i = 0; i < command.Length; i++)
+        {
+            var c = command[i];
+
+            if (escaped) { escaped = false; continue; }
+            if (c == '\\' && !inSingleQuote) { escaped = true; continue; }
+            if (c == '\'' && !inDoubleQuote) { inSingleQuote = !inSingleQuote; continue; }
+            if (c == '"' && !inSingleQuote) { inDoubleQuote = !inDoubleQuote; continue; }
+
+            if (c == '\r' && !inDoubleQuote)
+                return true;
+        }
+
+        return false;
     }
 }

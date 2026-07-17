@@ -33,8 +33,7 @@ public sealed partial class McpbCacheCheckMiddleware : IMcpbMiddleware
 
         try
         {
-            var json = await _fs.ReadAllTextAsync(metadataPath, ct).ConfigureAwait(false);
-            var metadata = JsonSerializer.Deserialize(json, McpClientJsonContext.Default.McpbCacheMetadata);
+            var metadata = await _fs.ReadAndDeserializeAsync(metadataPath, McpClientJsonContext.Default.McpbCacheMetadata, ct).ConfigureAwait(false);
             if (metadata == null) return true;
 
             var lastWrite = _fs.GetLastWriteTimeUtc(mcpbPath);

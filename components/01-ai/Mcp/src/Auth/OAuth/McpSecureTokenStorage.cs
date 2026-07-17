@@ -82,8 +82,7 @@ public sealed partial class McpSecureTokenStorage
 
         try
         {
-            var json = await _fs.ReadAllTextAsync(_storagePath, cancellationToken).ConfigureAwait(false);
-            return JsonSerializer.Deserialize(json, McpClientJsonContext.Default.DictionaryStringString)
+            return await _fs.ReadAndDeserializeAsync(_storagePath, McpClientJsonContext.Default.DictionaryStringString, cancellationToken).ConfigureAwait(false)
                 ?? new Dictionary<string, string>();
         }
         catch

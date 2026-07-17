@@ -96,8 +96,7 @@ public sealed partial class TokenStorage : ITokenStorage
 
         try
         {
-            var json = await _fs.ReadAllTextAsync(filePath, cancellationToken).ConfigureAwait(false);
-            return JsonSerializer.Deserialize(json, OAuthTokenJsonContext.Default.OAuthToken);
+            return await _fs.ReadAndDeserializeAsync(filePath, OAuthTokenJsonContext.Default.OAuthToken, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {

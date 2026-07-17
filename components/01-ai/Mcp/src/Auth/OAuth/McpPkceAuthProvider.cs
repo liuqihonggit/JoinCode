@@ -1,4 +1,4 @@
-
+﻿
 namespace McpClient;
 
 public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDisposable
@@ -416,8 +416,7 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
                 return false;
             }
 
-            var json = await _fs.ReadAllTextAsync(_options.TokenStoragePath, cancellationToken).ConfigureAwait(false);
-            var storage = JsonSerializer.Deserialize(json, McpOAuthJsonContext.Default.PkceTokenStorage);
+            var storage = await _fs.ReadAndDeserializeAsync(_options.TokenStoragePath, McpOAuthJsonContext.Default.PkceTokenStorage, cancellationToken).ConfigureAwait(false);
             if (storage == null)
             {
                 return false;

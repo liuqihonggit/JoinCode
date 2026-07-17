@@ -1,4 +1,4 @@
-namespace State;
+﻿namespace State;
 
 [Register(typeof(JoinCode.Abstractions.Interfaces.IAgentTranscriptService))]
 public sealed partial class AgentTranscriptService : JoinCode.Abstractions.Interfaces.IAgentTranscriptService, IDisposable
@@ -90,8 +90,7 @@ public sealed partial class AgentTranscriptService : JoinCode.Abstractions.Inter
 
         try
         {
-            var json = await _fs.ReadAllTextAsync(filePath, cancellationToken).ConfigureAwait(false);
-            return JsonSerializer.Deserialize(json, AgentMetadataJsonContext.Default.AgentMetadata);
+            return await _fs.ReadAndDeserializeAsync(filePath, AgentMetadataJsonContext.Default.AgentMetadata, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -119,8 +118,7 @@ public sealed partial class AgentTranscriptService : JoinCode.Abstractions.Inter
             {
                 try
                 {
-                    var json = await _fs.ReadAllTextAsync(filePath, cancellationToken).ConfigureAwait(false);
-                    var metadata = JsonSerializer.Deserialize(json, AgentMetadataJsonContext.Default.AgentMetadata);
+                    var metadata = await _fs.ReadAndDeserializeAsync(filePath, AgentMetadataJsonContext.Default.AgentMetadata, cancellationToken).ConfigureAwait(false);
                     if (metadata is not null)
                     {
                         results.Add(metadata);

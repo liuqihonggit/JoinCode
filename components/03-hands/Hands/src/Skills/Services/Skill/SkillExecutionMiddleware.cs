@@ -124,11 +124,11 @@ public sealed partial class SkillExecutionMiddleware : ISkillMiddleware
 
         if (result.IsError)
         {
-            var errorContent = result.Content?.FirstOrDefault(c => !string.IsNullOrEmpty(c.Text))?.Text ?? L.T(StringKey.SkillServiceUnknownError);
+            var errorContent = result.GetFirstText() ?? L.T(StringKey.SkillServiceUnknownError);
             throw new InvalidOperationException(L.T(StringKey.SkillServiceToolExecutionFailed, step.Tool, errorContent));
         }
 
-        return result.Content?.FirstOrDefault(c => !string.IsNullOrEmpty(c.Text))?.Text ?? "";
+        return result.GetFirstText() ?? "";
     }
 
     private async Task<string?> ExecutePromptStepAsync(

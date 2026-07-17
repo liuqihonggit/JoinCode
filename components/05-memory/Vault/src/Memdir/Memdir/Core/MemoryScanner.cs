@@ -119,8 +119,7 @@ public sealed partial class MemoryScanner : IMemoryScanner
     /// </summary>
     private async Task<MemoryEntry?> LoadMemoryAsync(string filePath, CancellationToken cancellationToken)
     {
-        var json = await _fs.ReadAllTextAsync(filePath, cancellationToken).ConfigureAwait(false);
-        var memory = JsonSerializer.Deserialize(json, MemdirJsonContext.Default.MemoryEntry);
+        var memory = await _fs.ReadAndDeserializeAsync(filePath, MemdirJsonContext.Default.MemoryEntry, cancellationToken).ConfigureAwait(false);
 
         if (memory == null)
         {

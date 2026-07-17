@@ -134,8 +134,7 @@ public sealed partial class LspConfigLoader : ILspConfigLoader
         try
         {
             _logger?.LogDebug("Loading LSP configs from: {Path}", path);
-            var json = await _fs.ReadAllTextAsync(path, cancellationToken).ConfigureAwait(false);
-            var configs = JsonSerializer.Deserialize(json, LspJsonContext.Default.ListLspServerConfigEntry);
+            var configs = await _fs.ReadAndDeserializeAsync(path, LspJsonContext.Default.ListLspServerConfigEntry, cancellationToken).ConfigureAwait(false);
 
             if (configs == null || configs.Count == 0)
             {

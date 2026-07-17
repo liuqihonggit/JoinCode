@@ -33,8 +33,7 @@ public sealed partial class FacetCacheService : IFacetCacheService
 
         try
         {
-            var json = await _fs.ReadAllTextAsync(filePath, cancellationToken).ConfigureAwait(false);
-            var facets = JsonSerializer.Deserialize(json, SessionFacetsJsonContext.Default.SessionFacets);
+            var facets = await _fs.ReadAndDeserializeAsync(filePath, SessionFacetsJsonContext.Default.SessionFacets, cancellationToken).ConfigureAwait(false);
 
             if (facets is not null && IsValidFacets(facets))
             {

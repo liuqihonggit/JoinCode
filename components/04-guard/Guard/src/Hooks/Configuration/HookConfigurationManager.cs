@@ -428,8 +428,7 @@ public partial class JsonFileHookConfigurationProvider : IHookConfigurationProvi
             return new HookSettingsFile { Hooks = new Dictionary<string, List<HookMatcher>>() };
         }
 
-        var json = await _fs.ReadAllTextAsync(_filePath).ConfigureAwait(false);
-        return JsonSerializer.Deserialize(json, HooksJsonContext.Default.HookSettingsFile)
+        return await _fs.ReadAndDeserializeAsync(_filePath, HooksJsonContext.Default.HookSettingsFile).ConfigureAwait(false)
             ?? new HookSettingsFile { Hooks = new Dictionary<string, List<HookMatcher>>() };
     }
 

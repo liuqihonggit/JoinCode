@@ -19,8 +19,7 @@ public sealed partial class McpbManifestMiddleware : IMcpbMiddleware
             throw new InvalidOperationException("MCPB 缺少 manifest.json");
         }
 
-        var json = await _fs.ReadAllTextAsync(manifestPath, ct).ConfigureAwait(false);
-        var manifest = JsonSerializer.Deserialize(json, McpClientJsonContext.Default.McpbManifest);
+        var manifest = await _fs.ReadAndDeserializeAsync(manifestPath, McpClientJsonContext.Default.McpbManifest, ct).ConfigureAwait(false);
 
         if (manifest == null)
         {

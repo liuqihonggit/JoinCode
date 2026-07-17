@@ -27,6 +27,8 @@ public sealed class AnthropicCacheProtocolTests
         control.Type.Should().Be("ephemeral");
         control.Scope.Should().BeNull(
             "without MCP tools, Anthropic cache_control should not specify scope");
+        control.Ttl.Should().BeNull(
+            "default cache_control should not specify TTL");
     }
 
     [Fact]
@@ -37,6 +39,33 @@ public sealed class AnthropicCacheProtocolTests
         control.Type.Should().Be("ephemeral");
         control.Scope.Should().Be("org",
             "with MCP tools, Anthropic cache_control should use org scope for cross-session caching");
+    }
+
+    [Fact]
+    public void CreateCacheControl_With1hTtl_TtlShouldBe1h()
+    {
+        var control = _protocol.CreateCacheControl(hasMcpTools: false, ttl: "1h");
+
+        control.Ttl.Should().Be("1h",
+            "1h TTL extends cache lifetime from default 5min to 1 hour");
+    }
+
+    [Fact]
+    public void CreateCacheControl_With5mTtl_TtlShouldBe5m()
+    {
+        var control = _protocol.CreateCacheControl(hasMcpTools: false, ttl: "5m");
+
+        control.Ttl.Should().Be("5m",
+            "5m TTL is the explicit short cache lifetime");
+    }
+
+    [Fact]
+    public void CreateCacheControl_WithGlobalScope_ScopeShouldBeGlobal()
+    {
+        var control = _protocol.CreateCacheControl(hasMcpTools: false, scope: CacheScope.Global);
+
+        control.Scope.Should().Be("global",
+            "global scope enables cross-user cache sharing (1P only)");
     }
 
     [Fact]

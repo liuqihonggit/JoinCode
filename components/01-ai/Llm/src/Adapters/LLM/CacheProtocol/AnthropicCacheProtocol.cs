@@ -1,5 +1,12 @@
 namespace Api.LLM.CacheProtocol;
 
+internal enum CacheScope
+{
+    None,
+    Org,
+    Global
+}
+
 internal sealed class AnthropicCacheProtocol : CacheProtocol
 {
     public override bool RequiresExplicitCacheMarkers => true;
@@ -8,9 +15,18 @@ internal sealed class AnthropicCacheProtocol : CacheProtocol
 
     public string? ResolveScope(bool hasMcpTools) => hasMcpTools ? "org" : null;
 
-    public AnthropicCacheControl CreateCacheControl(bool hasMcpTools)
+    public AnthropicCacheControl CreateCacheControl(bool hasMcpTools, string? ttl = null, CacheScope scope = CacheScope.None)
     {
-        return new AnthropicCacheControl { Scope = ResolveScope(hasMcpTools) };
+        return new AnthropicCacheControl
+        {
+            Scope = scope switch
+            {
+                CacheScope.Global => "global",
+                CacheScope.Org => "org",
+                _ => ResolveScope(hasMcpTools)
+            },
+            Ttl = ttl
+        };
     }
 
     public bool IsStaticSystemBlock(ApiMessage msg)

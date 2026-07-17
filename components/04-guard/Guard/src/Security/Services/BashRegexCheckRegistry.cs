@@ -156,6 +156,10 @@ public static class BashRegexCheckRegistry
         new(BashSecurityCheckId.QuotedNewline,
             "命令包含引号内换行+井号，可能隐藏参数",
             cmd => CheckQuotedNewline(cmd)),
+
+        new(BashSecurityCheckId.MalformedTokenInjection,
+            "命令包含畸形Token+命令分隔符，可能被误解析",
+            cmd => CheckMalformedTokenInjection(cmd)),
     ];
 
     private static readonly FrozenSet<char> ShellOperators = FrozenSet.Create(';', '|', '&', '<', '>');
@@ -854,5 +858,231 @@ public static class BashRegexCheckRegistry
             if (!inSQ && !inDQ) result.Append(c);
         }
         return result.ToString();
+    }
+
+    public static bool IsSafeHeredoc(string command)
+    {
+        if (!command.Contains("$(", StringComparison.Ordinal) || !command.Contains("<<", StringComparison.Ordinal))
+            return false;
+
+        var heredocPattern = new Regex(
+            @"\$\(cat[ \t]*<<(-?)[ \t]*(?:'+([A-Za-z_]\w*)'+|\\([A-Za-z_]\w*))",
+            RegexOptions.Compiled);
+
+        var safeHeredocs = new List<(int Start, int OperatorEnd, string Delimiter, bool IsDash)>();
+
+        foreach (Match match in heredocPattern.Matches(command))
+        {
+            var delimiter = match.Groups[2].Value;
+            if (string.IsNullOrEmpty(delimiter))
+                delimiter = match.Groups[3].Value;
+            if (string.IsNullOrEmpty(delimiter)) continue;
+
+            safeHeredocs.Add((match.Index, match.Index + match.Length, delimiter, match.Groups[1].Value == "-"));
+        }
+
+        if (safeHeredocs.Count == 0) return false;
+
+        var verified = new List<(int Start, int End)>();
+
+        foreach (var (start, operatorEnd, delimiter, isDash) in safeHeredocs)
+        {
+            var afterOperator = command[operatorEnd..];
+            var openLineEnd = afterOperator.IndexOf('\n');
+            if (openLineEnd == -1) return false;
+
+            var openLineTail = afterOperator[..openLineEnd];
+            if (!Regex.IsMatch(openLineTail, @"^[ \t]*$")) return false;
+
+            var bodyStart = operatorEnd + openLineEnd + 1;
+            var body = command[bodyStart..];
+            var bodyLines = body.Split('\n');
+
+            var closingLineIdx = -1;
+            var closeParenLineIdx = -1;
+            var closeParenColIdx = -1;
+
+            for (var i = 0; i < bodyLines.Length; i++)
+            {
+                var rawLine = bodyLines[i];
+                var line = isDash ? Regex.Replace(rawLine, @"^\t*", "") : rawLine;
+
+                if (line == delimiter)
+                {
+                    closingLineIdx = i;
+                    if (i + 1 >= bodyLines.Length) return false;
+                    var parenMatch = Regex.Match(bodyLines[i + 1], @"^([ \t]*)\)");
+                    if (!parenMatch.Success) return false;
+                    closeParenLineIdx = i + 1;
+                    closeParenColIdx = parenMatch.Groups[1].Value.Length;
+                    break;
+                }
+
+                if (line.StartsWith(delimiter, StringComparison.Ordinal))
+                {
+                    var afterDelim = line[delimiter.Length..];
+                    var parenMatch2 = Regex.Match(afterDelim, @"^([ \t]*)\)");
+                    if (parenMatch2.Success)
+                    {
+                        closingLineIdx = i;
+                        closeParenLineIdx = i;
+                        var tabPrefix = isDash ? (Regex.Match(rawLine, @"^\t*").Value) : "";
+                        closeParenColIdx = tabPrefix.Length + delimiter.Length + parenMatch2.Groups[1].Value.Length;
+                        break;
+                    }
+                    if (Regex.IsMatch(afterDelim, @"^[)}`|&;(<>]"))
+                        return false;
+                }
+            }
+
+            if (closingLineIdx == -1) return false;
+
+            var endPos = bodyStart;
+            for (var i = 0; i < closeParenLineIdx; i++)
+                endPos += bodyLines[i].Length + 1;
+            endPos += closeParenColIdx + 1;
+
+            verified.Add((start, endPos));
+        }
+
+        for (var i = 0; i < verified.Count; i++)
+        {
+            for (var j = 0; j < verified.Count; j++)
+            {
+                if (i == j) continue;
+                if (verified[j].Start > verified[i].Start && verified[j].Start < verified[i].End)
+                    return false;
+            }
+        }
+
+        var remaining = command;
+        foreach (var (s, e) in verified.OrderByDescending(v => v.Start))
+            remaining = remaining[..s] + remaining[e..];
+
+        var trimmedRemaining = remaining.Trim();
+        if (trimmedRemaining.Length > 0)
+        {
+            var firstHeredocStart = verified.Min(v => v.Start);
+            var prefix = command[..firstHeredocStart];
+            if (prefix.Trim().Length == 0)
+                return false;
+        }
+
+        if (!Regex.IsMatch(remaining, @"^[a-zA-Z0-9 \t""'.\-/_@=,:+~]*$"))
+            return false;
+
+        return true;
+    }
+
+    private static BashSecurityResult CheckMalformedTokenInjection(string command)
+    {
+        if (!HasCommandSeparator(command))
+            return Safe();
+
+        if (HasMalformedTokens(command))
+            return Fail(BashSecurityCheckId.MalformedTokenInjection,
+                "命令包含畸形语法+命令分隔符，可能被误解析", true);
+
+        return Safe();
+    }
+
+    private static bool HasCommandSeparator(string command)
+    {
+        var inSingleQuote = false;
+        var inDoubleQuote = false;
+        var escaped = false;
+
+        for (var i = 0; i < command.Length; i++)
+        {
+            var c = command[i];
+            if (escaped) { escaped = false; continue; }
+            if (c == '\\' && !inSingleQuote) { escaped = true; continue; }
+            if (c == '\'' && !inDoubleQuote) { inSingleQuote = !inSingleQuote; continue; }
+            if (c == '"' && !inSingleQuote) { inDoubleQuote = !inDoubleQuote; continue; }
+
+            if (!inSingleQuote && !inDoubleQuote)
+            {
+                if (c == ';') return true;
+                if (c == '&' && i + 1 < command.Length && command[i + 1] == '&') return true;
+                if (c == '|' && i + 1 < command.Length && command[i + 1] == '|') return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool HasMalformedTokens(string command)
+    {
+        var inSingle = false;
+        var inDouble = false;
+        var doubleCount = 0;
+        var singleCount = 0;
+
+        for (var i = 0; i < command.Length; i++)
+        {
+            var c = command[i];
+            if (c == '\\' && !inSingle && i + 1 < command.Length) { i++; continue; }
+            if (c == '"' && !inSingle) { doubleCount++; inDouble = !inDouble; }
+            else if (c == '\'' && !inDouble) { singleCount++; inSingle = !inSingle; }
+        }
+
+        if (doubleCount % 2 != 0 || singleCount % 2 != 0) return true;
+
+        var unquotedTokens = ExtractUnquotedTokens(command);
+        foreach (var token in unquotedTokens)
+        {
+            var openBraces = 0; var closeBraces = 0;
+            var openParens = 0; var closeParens = 0;
+            var openBrackets = 0; var closeBrackets = 0;
+
+            foreach (var ch in token)
+            {
+                switch (ch)
+                {
+                    case '{': openBraces++; break;
+                    case '}': closeBraces++; break;
+                    case '(': openParens++; break;
+                    case ')': closeParens++; break;
+                    case '[': openBrackets++; break;
+                    case ']': closeBrackets++; break;
+                }
+            }
+
+            if (openBraces != closeBraces || openParens != closeParens || openBrackets != closeBrackets)
+                return true;
+        }
+
+        return false;
+    }
+
+    private static List<string> ExtractUnquotedTokens(string command)
+    {
+        var tokens = new List<string>();
+        var current = new StringBuilder();
+        var inSingleQuote = false;
+        var inDoubleQuote = false;
+        var escaped = false;
+
+        for (var i = 0; i < command.Length; i++)
+        {
+            var c = command[i];
+            if (escaped) { escaped = false; if (!inSingleQuote) current.Append(c); continue; }
+            if (c == '\\' && !inSingleQuote) { escaped = true; continue; }
+            if (c == '\'' && !inDoubleQuote) { inSingleQuote = !inSingleQuote; continue; }
+            if (c == '"' && !inSingleQuote) { inDoubleQuote = !inDoubleQuote; continue; }
+
+            if (!inSingleQuote && !inDoubleQuote)
+            {
+                if (char.IsWhiteSpace(c) || c is ';' or '|' or '&')
+                {
+                    if (current.Length > 0) { tokens.Add(current.ToString()); current.Clear(); }
+                    continue;
+                }
+                current.Append(c);
+            }
+        }
+
+        if (current.Length > 0) tokens.Add(current.ToString());
+        return tokens;
     }
 }

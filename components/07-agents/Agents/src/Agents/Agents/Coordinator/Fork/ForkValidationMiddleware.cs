@@ -11,7 +11,6 @@ public sealed partial class ForkValidationMiddleware : IForkMiddleware
     /// <summary>验证最先执行</summary>
 
     /// <summary>验证失败应中断管道</summary>
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     public Task InvokeAsync(ForkContext context, MiddlewareDelegate<ForkContext> next, CancellationToken ct)
     {

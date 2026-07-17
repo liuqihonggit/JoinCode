@@ -23,7 +23,7 @@ public sealed class FeatureFlagServiceTests : IDisposable
 
     private static global::System.Collections.Concurrent.ConcurrentDictionary<string, FeatureFlag> GetCache(FeatureFlagService service)
     {
-        var cacheField = typeof(FeatureFlagService).GetField("_cache", global::System.Reflection.BindingFlags.NonPublic | global::System.Reflection.BindingFlags.Instance);
+        var cacheField = typeof(FeatureFlagService).BaseType!.GetField("_cache", global::System.Reflection.BindingFlags.NonPublic | global::System.Reflection.BindingFlags.Instance);
         return (global::System.Collections.Concurrent.ConcurrentDictionary<string, FeatureFlag>)cacheField!.GetValue(service)!;
     }
 

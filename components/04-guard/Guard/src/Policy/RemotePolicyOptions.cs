@@ -1,7 +1,7 @@
 
 namespace Core.Policy;
 
-public sealed class RemotePolicyOptions
+public sealed class RemotePolicyOptions : IRemoteRefreshOptions
 {
     public const string SectionName = "RemotePolicy";
 

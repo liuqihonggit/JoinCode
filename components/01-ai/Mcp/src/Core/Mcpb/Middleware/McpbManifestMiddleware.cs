@@ -1,4 +1,4 @@
-namespace McpClient.Mcpb;
+﻿namespace McpClient.Mcpb;
 
 /// <summary>
 /// MCPB 清单解析中间件 — 解析 manifest.json 并构建最终结果
@@ -8,7 +8,6 @@ public sealed partial class McpbManifestMiddleware : IMcpbMiddleware
 {
     [Inject] private readonly IFileSystem _fs;
 
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     public async Task InvokeAsync(McpbLoadContext context, MiddlewareDelegate<McpbLoadContext> next, CancellationToken ct)
     {
@@ -20,8 +19,7 @@ public sealed partial class McpbManifestMiddleware : IMcpbMiddleware
             throw new InvalidOperationException("MCPB 缺少 manifest.json");
         }
 
-        var json = await _fs.ReadAllTextAsync(manifestPath, ct).ConfigureAwait(false);
-        var manifest = JsonSerializer.Deserialize(json, McpClientJsonContext.Default.McpbManifest);
+        var manifest = await _fs.ReadAndDeserializeAsync(manifestPath, McpClientJsonContext.Default.McpbManifest, ct).ConfigureAwait(false);
 
         if (manifest == null)
         {

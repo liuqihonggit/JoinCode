@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Bridge.Init.V2;
 
 using JoinCode.Abstractions.Pipeline;
@@ -9,7 +9,6 @@ using JoinCode.Abstractions.Pipeline;
 [Register]
 internal sealed partial class V2CredentialsMiddleware : IMiddleware<V2BridgeInitContext>
 {
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     public async Task InvokeAsync(V2BridgeInitContext ctx, MiddlewareDelegate<V2BridgeInitContext> next, CancellationToken ct)
     {

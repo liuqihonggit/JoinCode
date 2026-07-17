@@ -155,6 +155,8 @@ public sealed record ToolResult
     [JsonIgnore]
     public Action<ToolUseContext>? ContextModifier { get; set; }
 
+    public string? GetFirstText() => Content.FirstOrDefault(c => !string.IsNullOrEmpty(c.Text))?.Text;
+
     /// <summary>
     /// 注入消息 — 对齐 TS SkillTool newMessages
     /// inline 技能返回技能 prompt 作为 user message，LLM 自行执行

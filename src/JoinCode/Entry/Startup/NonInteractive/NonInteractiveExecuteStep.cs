@@ -1,9 +1,8 @@
-namespace JoinCode.Entry;
+﻿namespace JoinCode.Entry;
 
 [Register]
 internal sealed partial class NonInteractiveExecuteStep : IMiddleware<StartupContext>
 {
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     public async Task InvokeAsync(StartupContext context, MiddlewareDelegate<StartupContext> next, CancellationToken ct)
     {

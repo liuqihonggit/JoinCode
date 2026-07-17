@@ -1,4 +1,4 @@
-
+﻿
 namespace McpToolRegistry;
 
 /// <summary>
@@ -7,7 +7,6 @@ namespace McpToolRegistry;
 [Register]
 public sealed partial class FeatureFlagMiddleware : IToolExecutionMiddleware
 {
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     private readonly IFeatureFlagService? _featureFlagService;
     [Inject] private readonly ILogger<FeatureFlagMiddleware> _logger;

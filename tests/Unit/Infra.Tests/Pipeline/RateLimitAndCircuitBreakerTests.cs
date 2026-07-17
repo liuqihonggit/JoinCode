@@ -1,4 +1,4 @@
-namespace Infrastructure.Pipeline.Tests;
+﻿namespace Infrastructure.Pipeline.Tests;
 
 using JoinCode.Abstractions.Pipeline;
 using Infrastructure.Pipeline.Middlewares;
@@ -186,7 +186,6 @@ public sealed class RateLimitAndCircuitBreakerTests
 
     private sealed class SimpleAlwaysFailMiddleware : IMiddleware<SimpleContext>
     {
-        public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
         public Task InvokeAsync(SimpleContext context, MiddlewareDelegate<SimpleContext> next, CancellationToken ct)
             => throw new InvalidOperationException("always fail");
@@ -195,7 +194,6 @@ public sealed class RateLimitAndCircuitBreakerTests
     private sealed class SimpleFailThenSucceedMiddleware(int failCount, Action onAttempt) : IMiddleware<SimpleContext>
     {
         private int _attempts;
-        public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
         public async Task InvokeAsync(SimpleContext context, MiddlewareDelegate<SimpleContext> next, CancellationToken ct)
         {
@@ -211,7 +209,6 @@ public sealed class RateLimitAndCircuitBreakerTests
 
     private sealed class SimpleCancelMiddleware : IMiddleware<SimpleContext>
     {
-        public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
         public Task InvokeAsync(SimpleContext context, MiddlewareDelegate<SimpleContext> next, CancellationToken ct)
             => Task.FromCanceled(ct);

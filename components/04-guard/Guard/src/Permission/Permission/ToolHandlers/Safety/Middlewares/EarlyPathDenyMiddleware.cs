@@ -13,7 +13,6 @@ public sealed partial class EarlyPathDenyMiddleware : IPermissionMiddleware
     /// <inheritdoc />
 
     /// <inheritdoc />
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     /// <summary>
     /// 创建 EarlyPathDenyMiddleware

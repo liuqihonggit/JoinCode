@@ -1,4 +1,4 @@
-namespace Infrastructure.Pipeline.Middlewares;
+﻿namespace Infrastructure.Pipeline.Middlewares;
 
 public sealed class FixedRateLimitMiddleware<TContext>(
     int maxRequests,
@@ -6,7 +6,6 @@ public sealed class FixedRateLimitMiddleware<TContext>(
 {
     private readonly FixedWindowRateLimiter _limiter = new(maxRequests, window);
 
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     public async Task InvokeAsync(TContext context, MiddlewareDelegate<TContext> next, CancellationToken ct)
     {

@@ -1,4 +1,4 @@
-namespace Core.Bridge;
+﻿namespace Core.Bridge;
 
 using JoinCode.Abstractions.Pipeline;
 
@@ -7,7 +7,6 @@ public sealed partial class WorkCapacityCheckMiddleware : IHandleWorkMiddleware
 {
     [Inject] private readonly ILogger<WorkCapacityCheckMiddleware>? _logger;
 
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     public async Task InvokeAsync(HandleWorkContext ctx, MiddlewareDelegate<HandleWorkContext> next, CancellationToken ct)
     {

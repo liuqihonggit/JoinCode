@@ -15,7 +15,6 @@ public sealed partial class ForkExecutionMiddleware : IForkMiddleware
     /// <summary>执行在权限同步之后</summary>
 
     /// <summary>执行失败应传播异常</summary>
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     public async Task InvokeAsync(ForkContext context, MiddlewareDelegate<ForkContext> next, CancellationToken ct)
     {

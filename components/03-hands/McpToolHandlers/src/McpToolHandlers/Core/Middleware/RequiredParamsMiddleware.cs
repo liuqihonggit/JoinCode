@@ -1,4 +1,4 @@
-
+﻿
 namespace McpToolRegistry;
 
 /// <summary>
@@ -7,7 +7,6 @@ namespace McpToolRegistry;
 [Register]
 public sealed partial class RequiredParamsMiddleware : IToolExecutionMiddleware
 {
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     [Inject] private readonly ILogger<RequiredParamsMiddleware> _logger;
 

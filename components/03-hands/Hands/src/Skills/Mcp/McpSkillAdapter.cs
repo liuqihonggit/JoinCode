@@ -75,11 +75,11 @@ public sealed partial class McpSkillAdapter
 
             if (result.IsError)
             {
-                var errorContent = result.Content?.FirstOrDefault(c => !string.IsNullOrEmpty(c.Text))?.Text ?? "未知错误";
+                var errorContent = result.GetFirstText() ?? "未知错误";
                 return SkillResult.FailureResult(toolName, $"MCP 工具 '{actualToolName}' 执行失败: {errorContent}");
             }
 
-            var output = result.Content?.FirstOrDefault(c => !string.IsNullOrEmpty(c.Text))?.Text ?? string.Empty;
+            var output = result.GetFirstText() ?? string.Empty;
             return SkillResult.SuccessResult(toolName, output);
         }
         catch (Exception ex)

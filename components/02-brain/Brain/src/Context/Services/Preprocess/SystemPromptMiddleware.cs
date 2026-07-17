@@ -1,4 +1,4 @@
-using JoinCode.Abstractions.Attributes;
+﻿using JoinCode.Abstractions.Attributes;
 
 namespace Core.Context;
 
@@ -11,7 +11,6 @@ public sealed partial class SystemPromptMiddleware : IPreparePreprocessMiddlewar
     [Inject] private readonly SystemPromptBuilder _systemPromptBuilder;
     [Inject] private readonly IChatContextManager _contextManager;
 
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     /// <inheritdoc/>
     public async Task InvokeAsync(PreprocessContext context, MiddlewareDelegate<PreprocessContext> next, CancellationToken ct)

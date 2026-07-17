@@ -1,4 +1,4 @@
-namespace Infrastructure.Pipeline.Tests;
+﻿namespace Infrastructure.Pipeline.Tests;
 
 /// <summary>
 /// MiddlewarePipeline 单元测试 — 验证管道构建、注册顺序执行、异常捕获、短路
@@ -179,7 +179,6 @@ public sealed class MiddlewarePipelineTests
 
     private sealed class ShortCircuitMiddleware : IMiddleware<TestContext>
     {
-        public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
         public Task InvokeAsync(TestContext context, MiddlewareDelegate<TestContext> next, CancellationToken ct)
         {

@@ -1,4 +1,4 @@
-namespace Core.Scheduling.Tasks;
+﻿namespace Core.Scheduling.Tasks;
 
 using JoinCode.Abstractions.Pipeline;
 
@@ -8,7 +8,6 @@ public sealed partial class TeammateContinuousModeMiddleware : ITeammateExecutio
     [Inject] private readonly ILogger<TeammateContinuousModeMiddleware>? _logger;
     [Inject] private readonly IClockService _clock;
 
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     public Task InvokeAsync(TeammateExecutionContext ctx, MiddlewareDelegate<TeammateExecutionContext> next, CancellationToken ct)
     {

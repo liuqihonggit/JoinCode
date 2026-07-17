@@ -1,4 +1,4 @@
-
+﻿
 namespace McpToolRegistry;
 
 /// <summary>
@@ -7,7 +7,6 @@ namespace McpToolRegistry;
 [Register]
 public sealed partial class SchemaValidationMiddleware : IToolExecutionMiddleware
 {
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     private readonly IJsonSchemaValidator? _schemaValidator;
     [Inject] private readonly ILogger<SchemaValidationMiddleware> _logger;

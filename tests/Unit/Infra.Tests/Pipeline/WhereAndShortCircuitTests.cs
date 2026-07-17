@@ -1,4 +1,4 @@
-namespace Infrastructure.Pipeline.Tests;
+﻿namespace Infrastructure.Pipeline.Tests;
 
 /// <summary>
 /// Where 条件修饰 + ShortCircuit 短路标记 单元测试
@@ -292,7 +292,6 @@ public sealed class WhereAndShortCircuitTests
 
     private sealed class ShortCircuitWithLogMiddleware(string label) : IMiddleware<TestContext>
     {
-        public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
         public Task InvokeAsync(TestContext context, MiddlewareDelegate<TestContext> next, CancellationToken ct)
         {
@@ -303,7 +302,6 @@ public sealed class WhereAndShortCircuitTests
 
     private sealed class ShortCircuitTriggerMiddleware : IMiddleware<ShortCircuitTestContext>
     {
-        public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
         public Task InvokeAsync(ShortCircuitTestContext context, MiddlewareDelegate<ShortCircuitTestContext> next, CancellationToken ct)
         {

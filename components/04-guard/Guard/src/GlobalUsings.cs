@@ -1,4 +1,5 @@
 global using JoinCode.Abstractions.Attributes;
+global using JoinCode.Abstractions.Services;
 global using JoinCode.Abstractions.Clock;
 global using JoinCode.Abstractions.Commands;
 global using JoinCode.Abstractions.Configuration;
@@ -15,6 +16,7 @@ global using JoinCode.Abstractions.LLM;
 global using JoinCode.Abstractions.LLM.Execution;
 global using JoinCode.Abstractions.Models;
 global using JoinCode.Abstractions.Models.Interactive;
+global using JoinCode.Abstractions.Models.OAuth;
 global using JoinCode.Abstractions.Models.Plan;
 global using JoinCode.Abstractions.Models.Policy;
 global using JoinCode.Abstractions.Models.Runtime;

@@ -14,7 +14,6 @@ public sealed partial class AgentBackgroundSpawnMiddleware : IAgentToolMiddlewar
     public int Order => 300;
 
     /// <inheritdoc />
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     /// <inheritdoc />
     public async Task InvokeAsync(AgentToolContext context, MiddlewareDelegate<AgentToolContext> next, CancellationToken ct)

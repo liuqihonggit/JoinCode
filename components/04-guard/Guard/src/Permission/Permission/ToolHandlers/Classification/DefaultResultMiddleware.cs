@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Permission;
 
 /// <summary>
@@ -11,7 +11,6 @@ public sealed partial class DefaultResultMiddleware : IPermissionMiddleware
     /// <inheritdoc />
 
     /// <inheritdoc />
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     /// <inheritdoc />
     public Task InvokeAsync(PermissionCheckContext context, MiddlewareDelegate<PermissionCheckContext> next, CancellationToken ct)

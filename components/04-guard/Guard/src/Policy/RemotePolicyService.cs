@@ -3,23 +3,15 @@ namespace Core.Policy;
 
 [Register]
 [Register(typeof(JoinCode.Abstractions.Interfaces.IRemotePolicyService))]
-public sealed partial class RemotePolicyService : JoinCode.Abstractions.Interfaces.IRemotePolicyService, IDisposable
+public sealed partial class RemotePolicyService : RemoteCacheRefreshServiceBase<PolicyRule>, JoinCode.Abstractions.Interfaces.IRemotePolicyService
 {
-    private readonly HttpClient _httpClient;
-    [Inject] private readonly ILogger<RemotePolicyService>? _logger;
-    [Inject] private readonly IClockService _clock;
-    private readonly ITelemetryService? _telemetryService;
-    private readonly RemotePolicyOptions _options;
-    private readonly SemaphoreSlim _refreshLock = new(1, 1);
-    private readonly Timer _refreshTimer;
-    private readonly ConcurrentDictionary<string, PolicyRule> _rules = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly PolicyJsonContext JsonContext = PolicyJsonContext.Default;
+
     private readonly ConcurrentDictionary<string, int> _usageCounters = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, DateTime> _windowStartTimes = new(StringComparer.OrdinalIgnoreCase);
-    private readonly CancellationTokenSource _disposeCts = new();
-    private DateTime _lastFetchTime = DateTime.MinValue;
-    private bool _disposed;
 
-    private static readonly PolicyJsonContext JsonContext = PolicyJsonContext.Default;
+    protected override string MetricsPrefix => "policy.remote";
+    protected override string RefreshLogLabel => "远程策略";
 
     public event EventHandler<PolicyEvaluationResult>? PolicyViolated;
 
@@ -29,25 +21,22 @@ public sealed partial class RemotePolicyService : JoinCode.Abstractions.Interfac
         ILogger<RemotePolicyService>? logger = null,
         ITelemetryService? telemetryService = null,
         IClockService? clock = null)
+        : base(httpClient, options?.Value ?? new RemotePolicyOptions(), logger, telemetryService, clock)
     {
-        _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
-        _logger = logger;
-        _telemetryService = telemetryService;
-        _clock = clock ?? SystemClockService.Instance;
-        _options = options?.Value ?? new RemotePolicyOptions();
+    }
 
-        if (!string.IsNullOrEmpty(_options.ApiEndpoint))
+    protected override async Task<RemoteRefreshResult<PolicyRule>> FetchAndDeserializeAsync(string requestUrl, CancellationToken cancellationToken)
+    {
+        var response = await Http.GetAsync(requestUrl, cancellationToken).ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
+
+        var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        var policyResponse = JsonSerializer.Deserialize(json, JsonContext.PolicyFetchResponse);
+
+        return new RemoteRefreshResult<PolicyRule>
         {
-            _refreshTimer = new Timer(
-                _ => _ = RefreshAsync(_disposeCts.Token).WaitAsync(TimeSpan.FromSeconds(10), _disposeCts.Token).ConfigureAwait(false),
-                null,
-                _options.RefreshInterval,
-                _options.RefreshInterval);
-        }
-        else
-        {
-            _refreshTimer = new Timer(_ => { }, null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
-        }
+            Items = policyResponse?.Rules?.ToDictionary(r => r.RuleId, r => r, StringComparer.OrdinalIgnoreCase)
+        };
     }
 
     public async Task<PolicyEvaluationResult> EvaluateAsync(string action, Dictionary<string, string>? context = null, CancellationToken cancellationToken = default)
@@ -56,7 +45,7 @@ public sealed partial class RemotePolicyService : JoinCode.Abstractions.Interfac
 
         await EnsureCacheAsync(cancellationToken).ConfigureAwait(false);
 
-        var applicableRules = _rules.Values
+        var applicableRules = Cache.Values
             .Where(r => r.Enabled)
             .Where(r => MatchesAction(r, action))
             .OrderByDescending(r => r.Priority)
@@ -67,7 +56,8 @@ public sealed partial class RemotePolicyService : JoinCode.Abstractions.Interfac
             var result = EvaluateRule(rule, action, context);
             if (result.Action == PolicyAction.Deny)
             {
-                if (_options.EnableNotifications)
+                var options = RefreshOptions as RemotePolicyOptions;
+                if (options?.EnableNotifications == true)
                 {
                     PolicyViolated?.Invoke(this, result);
                 }
@@ -77,7 +67,7 @@ public sealed partial class RemotePolicyService : JoinCode.Abstractions.Interfac
 
             if (result.Action == PolicyAction.Warn)
             {
-                _logger?.LogWarning("策略警告: {RuleName} - {Reason}", rule.Name, result.Reason);
+                Logger?.LogWarning("策略警告: {RuleName} - {Reason}", rule.Name, result.Reason);
             }
         }
 
@@ -93,57 +83,7 @@ public sealed partial class RemotePolicyService : JoinCode.Abstractions.Interfac
     public async Task<IReadOnlyList<PolicyRule>> GetActiveRulesAsync(CancellationToken cancellationToken = default)
     {
         await EnsureCacheAsync(cancellationToken).ConfigureAwait(false);
-        return _rules.Values.Where(r => r.Enabled).OrderByDescending(r => r.Priority).ToList();
-    }
-
-    public async Task RefreshAsync(CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrEmpty(_options.ApiEndpoint))
-        {
-            _logger?.LogDebug("未配置远程策略 API 端点，跳过刷新");
-            return;
-        }
-
-        await _refreshLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            _logger?.LogDebug("正在刷新远程策略配置");
-
-            var requestUrl = _options.ApiEndpoint;
-            if (!string.IsNullOrEmpty(_options.ClientKey))
-            {
-                var separator = requestUrl.Contains('?') ? "&" : "?";
-                requestUrl = $"{requestUrl}{separator}clientKey={Uri.EscapeDataString(_options.ClientKey)}";
-            }
-
-            var response = await _httpClient.GetAsync(requestUrl, cancellationToken).ConfigureAwait(false);
-            response.EnsureSuccessStatusCode();
-
-            var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            var policyResponse = JsonSerializer.Deserialize(json, JsonContext.PolicyFetchResponse);
-
-            if (policyResponse?.Rules != null)
-            {
-                _rules.Clear();
-                foreach (var rule in policyResponse.Rules)
-                {
-                    _rules[rule.RuleId] = rule;
-                }
-
-                _lastFetchTime = _clock.GetUtcNow();
-                _logger?.LogInformation("已刷新 {Count} 条远程策略规则", policyResponse.Rules.Count);
-                RecordPolicyMetrics("refresh", true);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "刷新远程策略失败");
-            RecordPolicyMetrics("refresh", false);
-        }
-        finally
-        {
-            _refreshLock.Release();
-        }
+        return Cache.Values.Where(r => r.Enabled).OrderByDescending(r => r.Priority).ToList();
     }
 
     public async Task<IReadOnlyList<PolicyEvaluationResult>> EvaluateAllAsync(string action, Dictionary<string, string>? context = null, CancellationToken cancellationToken = default)
@@ -152,7 +92,7 @@ public sealed partial class RemotePolicyService : JoinCode.Abstractions.Interfac
 
         await EnsureCacheAsync(cancellationToken).ConfigureAwait(false);
 
-        var applicableRules = _rules.Values
+        var applicableRules = Cache.Values
             .Where(r => r.Enabled)
             .Where(r => MatchesAction(r, action))
             .OrderByDescending(r => r.Priority)
@@ -275,7 +215,7 @@ public sealed partial class RemotePolicyService : JoinCode.Abstractions.Interfac
 
         var windowKey = $"{rule.RuleId}:{action}:window";
         var counterKey = $"{rule.RuleId}:{action}:rate";
-        var now = _clock.GetUtcNow();
+        var now = Clock.GetUtcNow();
 
         if (!_windowStartTimes.TryGetValue(windowKey, out var windowStart) ||
             now - windowStart >= rule.Window.Value)
@@ -365,7 +305,7 @@ public sealed partial class RemotePolicyService : JoinCode.Abstractions.Interfac
             };
         }
 
-        var currentHour = _clock.GetUtcNow().Hour;
+        var currentHour = Clock.GetUtcNow().Hour;
         var allowedHours = hoursStr.Split(',')
             .Select(s => int.TryParse(s.Trim(), out var h) ? (int?)h : null)
             .Where(h => h.HasValue)
@@ -405,15 +345,8 @@ public sealed partial class RemotePolicyService : JoinCode.Abstractions.Interfac
 
     private static bool MatchesConditions(PolicyRule rule, Dictionary<string, string>? context)
     {
-        if (rule.Conditions == null || rule.Conditions.Count == 0)
-        {
-            return true;
-        }
-
-        if (context == null || context.Count == 0)
-        {
-            return rule.Conditions.Count == 0;
-        }
+        if (rule.Conditions == null || rule.Conditions.Count == 0) return true;
+        if (context == null || context.Count == 0) return rule.Conditions.Count == 0;
 
         foreach (var condition in rule.Conditions)
         {
@@ -428,26 +361,4 @@ public sealed partial class RemotePolicyService : JoinCode.Abstractions.Interfac
 
         return true;
     }
-
-    private void RecordPolicyMetrics(string operation, bool isSuccess)
-        => _telemetryService?.RecordCount("policy.remote.count", new() { ["operation"] = operation, ["success"] = isSuccess.ToString() }, description: "Remote policy operation count");
-
-    private async Task EnsureCacheAsync(CancellationToken cancellationToken)
-    {
-        if (_rules.IsEmpty || (_options.EnableCache && _clock.GetUtcNow() - _lastFetchTime > _options.CacheExpiration))
-        {
-            await RefreshAsync(cancellationToken).ConfigureAwait(false);
-        }
-    }
-
-    public void Dispose()
-    {
-        if (_disposed) return;
-        _disposeCts.Cancel();
-        _refreshTimer.Dispose();
-        _refreshLock.Dispose();
-        _disposeCts.Dispose();
-        _disposed = true;
-    }
-
 }

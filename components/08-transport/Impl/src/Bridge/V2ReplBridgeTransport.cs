@@ -48,16 +48,10 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
 
         // P1-12: 兜底 HttpClient 添加 SocketsHttpHandler 配置解决 DNS 不刷新
         // 决策: 保留 ?? 兜底模式（测试场景可注入自定义 client），仅修改兜底 handler 配置
-        _writeClient = writeClient ?? new HttpClient(new SocketsHttpHandler
-        {
-            PooledConnectionLifetime = TimeSpan.FromMinutes(1),
-        });
+        _writeClient = writeClient ?? new HttpClient(SocketsHttpHandlerFactory.CreateWithDnsRefresh());
         SetAuthHeaders(_writeClient, options.IngressToken);
 
-        _sseClient = sseClient ?? new HttpClient(new SocketsHttpHandler
-        {
-            PooledConnectionLifetime = TimeSpan.FromMinutes(1),
-        });
+        _sseClient = sseClient ?? new HttpClient(SocketsHttpHandlerFactory.CreateWithDnsRefresh());
 
         // 事件上传器（100ms 延迟缓冲，最大批次 100）
         _eventUploader = new SerialBatchEventUploader(

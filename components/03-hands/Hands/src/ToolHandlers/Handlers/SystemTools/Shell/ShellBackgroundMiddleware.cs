@@ -1,4 +1,4 @@
-namespace Tools.Shell;
+﻿namespace Tools.Shell;
 
 /// <summary>
 /// Shell 后台任务中间件 — 对齐 TS spawnShellTask/LocalShellTask
@@ -13,7 +13,6 @@ public sealed partial class ShellBackgroundMiddleware : IShellMiddleware
     [Inject] private readonly ITelemetryService? _telemetryService;
 
     /// <inheritdoc />
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     /// <inheritdoc />
     public async Task InvokeAsync(ShellPipelineContext context, MiddlewareDelegate<ShellPipelineContext> next, CancellationToken ct)

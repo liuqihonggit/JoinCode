@@ -1,4 +1,4 @@
-namespace Infrastructure.Pipeline.Tests;
+﻿namespace Infrastructure.Pipeline.Tests;
 
 using JoinCode.Abstractions.Pipeline;
 using Infrastructure.Pipeline.Middlewares;
@@ -165,7 +165,6 @@ public sealed class StreamRateLimitAndCircuitBreakerTests
 
     private sealed class StreamAlwaysFailMiddleware : IStreamMiddleware<StreamTestContext, string>
     {
-        public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
         public IAsyncEnumerable<string> InvokeAsync(
             StreamTestContext context,

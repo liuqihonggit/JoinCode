@@ -12,7 +12,7 @@ public interface IMiddleware<TContext>
     /// Continue: 捕获异常，调用 onError，继续下一个中间件
     /// Propagate: 传播异常，中断管道
     /// </summary>
-    ErrorBehavior OnError => ErrorBehavior.Continue;
+    ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     /// <summary>
     /// 处理请求，可在此前后注入自定义逻辑

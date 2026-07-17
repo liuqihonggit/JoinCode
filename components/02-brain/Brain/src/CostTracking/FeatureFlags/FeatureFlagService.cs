@@ -1,7 +1,5 @@
-using JoinCode.Abstractions.Attributes;
 
 namespace Core.CostTracking.FeatureFlags;
-
 
 public sealed partial class FeatureFlagResponse
 {
@@ -10,21 +8,12 @@ public sealed partial class FeatureFlagResponse
 }
 
 [Register]
-public sealed partial class FeatureFlagService : IFeatureFlagService, IDisposable
+public sealed partial class FeatureFlagService : RemoteCacheRefreshServiceBase<FeatureFlag>, IFeatureFlagService
 {
-    private readonly HttpClient _httpClient;
-    [Inject] private readonly ILogger<FeatureFlagService>? _logger;
-    private readonly ITelemetryService? _telemetryService;
-    private readonly FeatureFlagOptions _options;
-    private readonly SemaphoreSlim _refreshLock = new(1, 1);
-    private readonly Timer _refreshTimer;
-    private readonly ConcurrentDictionary<string, FeatureFlag> _cache = new(StringComparer.OrdinalIgnoreCase);
-    private readonly CancellationTokenSource _disposeCts = new();
-    private readonly IClockService _clock;
-    private DateTime _lastFetchTime = DateTime.MinValue;
-    private int _disposed;
-
     private static readonly FeatureFlagJsonContext JsonContext = FeatureFlagJsonContext.Default;
+
+    protected override string MetricsPrefix => "featureflag.operation";
+    protected override string RefreshLogLabel => "特性标志";
 
     public FeatureFlagService(
         HttpClient httpClient,
@@ -32,25 +21,22 @@ public sealed partial class FeatureFlagService : IFeatureFlagService, IDisposabl
         ILogger<FeatureFlagService>? logger = null,
         ITelemetryService? telemetryService = null,
         IClockService? clock = null)
+        : base(httpClient, options?.Value ?? new FeatureFlagOptions(), logger, telemetryService, clock)
     {
-        _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
-        _logger = logger;
-        _telemetryService = telemetryService;
-        _options = options?.Value ?? new FeatureFlagOptions();
-        _clock = clock ?? SystemClockService.Instance;
+    }
 
-        if (!string.IsNullOrEmpty(_options.ApiEndpoint))
+    protected override async Task<RemoteRefreshResult<FeatureFlag>> FetchAndDeserializeAsync(string requestUrl, CancellationToken cancellationToken)
+    {
+        var response = await Http.GetAsync(requestUrl, cancellationToken).ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
+
+        var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        var flagResponse = JsonSerializer.Deserialize(json, JsonContext.FeatureFlagResponse);
+
+        return new RemoteRefreshResult<FeatureFlag>
         {
-            _refreshTimer = new Timer(
-                _ => { if (_disposed == 0) _ = RefreshAsync(_disposeCts.Token).WaitAsync(TimeSpan.FromSeconds(10), _disposeCts.Token).ConfigureAwait(false); },
-                null,
-                _options.RefreshInterval,
-                _options.RefreshInterval);
-        }
-        else
-        {
-            _refreshTimer = new Timer(_ => { }, null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
-        }
+            Items = flagResponse?.Features
+        };
     }
 
     public async Task<bool> IsEnabledAsync(string featureKey, Dictionary<string, string>? attributes = null, CancellationToken cancellationToken = default)
@@ -58,30 +44,10 @@ public sealed partial class FeatureFlagService : IFeatureFlagService, IDisposabl
         ArgumentNullException.ThrowIfNull(featureKey);
 
         var flag = await GetFlagAsync(featureKey, cancellationToken).ConfigureAwait(false);
-        if (flag == null)
-        {
-            return false;
-        }
-
-        if (!flag.Enabled)
-        {
-            return false;
-        }
-
-        if (!MatchesTargetingRules(flag, attributes))
-        {
-            return false;
-        }
-
-        if (flag.RolloutPercentage >= 100.0)
-        {
-            return true;
-        }
-
-        if (flag.RolloutPercentage <= 0.0)
-        {
-            return false;
-        }
+        if (flag == null || !flag.Enabled) return false;
+        if (!MatchesTargetingRules(flag, attributes)) return false;
+        if (flag.RolloutPercentage >= 100.0) return true;
+        if (flag.RolloutPercentage <= 0.0) return false;
 
         var hash = ComputeHash(featureKey, attributes);
         return (hash % 100) < flag.RolloutPercentage;
@@ -92,114 +58,34 @@ public sealed partial class FeatureFlagService : IFeatureFlagService, IDisposabl
         ArgumentNullException.ThrowIfNull(featureKey);
 
         var flag = await GetFlagAsync(featureKey, cancellationToken).ConfigureAwait(false);
-        if (flag == null || !flag.Enabled)
-        {
-            return defaultValue;
-        }
-
-        if (!MatchesTargetingRules(flag, attributes))
-        {
-            return defaultValue;
-        }
-
-        if (flag.DefaultValue is T typedValue)
-        {
-            return typedValue;
-        }
+        if (flag == null || !flag.Enabled) return defaultValue;
+        if (!MatchesTargetingRules(flag, attributes)) return defaultValue;
+        if (flag.DefaultValue is T typedValue) return typedValue;
 
         return defaultValue;
-    }
-
-    public async Task RefreshAsync(CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrEmpty(_options.ApiEndpoint))
-        {
-            _logger?.LogDebug("未配置特性标志 API 端点，跳过刷新");
-            return;
-        }
-
-        await _refreshLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            _logger?.LogDebug("正在刷新特性标志配置");
-
-            var requestUrl = _options.ApiEndpoint;
-            if (!string.IsNullOrEmpty(_options.ClientKey))
-            {
-                var separator = requestUrl.Contains('?') ? "&" : "?";
-                requestUrl = $"{requestUrl}{separator}clientKey={Uri.EscapeDataString(_options.ClientKey)}";
-            }
-
-            var response = await _httpClient.GetAsync(requestUrl, cancellationToken).ConfigureAwait(false);
-            response.EnsureSuccessStatusCode();
-
-            var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            var flagResponse = JsonSerializer.Deserialize(json, JsonContext.FeatureFlagResponse);
-
-            if (flagResponse?.Features != null)
-            {
-                foreach (var kvp in flagResponse.Features)
-                {
-                    _cache[kvp.Key] = kvp.Value;
-                }
-
-                _lastFetchTime = _clock.GetUtcNow();
-                _logger?.LogInformation("已刷新 {Count} 个特性标志", flagResponse.Features.Count);
-                RecordFeatureFlagMetrics("refresh", true);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "刷新特性标志失败");
-            RecordFeatureFlagMetrics("refresh", false);
-        }
-        finally
-        {
-            _refreshLock.Release();
-        }
     }
 
     public async Task<IReadOnlyDictionary<string, FeatureFlag>> GetAllFlagsAsync(CancellationToken cancellationToken = default)
     {
         await EnsureCacheAsync(cancellationToken).ConfigureAwait(false);
-        return _cache.ToFrozenDictionary();
+        return Cache.ToFrozenDictionary();
     }
-
-    private void RecordFeatureFlagMetrics(string operation, bool isSuccess)
-        => _telemetryService?.RecordCount("featureflag.operation.count", new() { ["operation"] = operation, ["success"] = isSuccess.ToString() }, "count", "Feature flag operation count");
 
     private async Task<FeatureFlag?> GetFlagAsync(string featureKey, CancellationToken cancellationToken)
     {
         await EnsureCacheAsync(cancellationToken).ConfigureAwait(false);
-        return _cache.TryGetValue(featureKey, out var flag) ? flag : null;
-    }
-
-    private async Task EnsureCacheAsync(CancellationToken cancellationToken)
-    {
-        if (_cache.IsEmpty || (_options.EnableCache && _clock.GetUtcNow() - _lastFetchTime > _options.CacheExpiration))
-        {
-            await RefreshAsync(cancellationToken).ConfigureAwait(false);
-        }
+        return Cache.TryGetValue(featureKey, out var flag) ? flag : null;
     }
 
     private static bool MatchesTargetingRules(FeatureFlag flag, Dictionary<string, string>? attributes)
     {
-        if (flag.TargetingRules == null || flag.TargetingRules.Count == 0)
-        {
-            return true;
-        }
-
-        if (attributes == null || attributes.Count == 0)
-        {
-            return false;
-        }
+        if (flag.TargetingRules == null || flag.TargetingRules.Count == 0) return true;
+        if (attributes == null || attributes.Count == 0) return false;
 
         foreach (var rule in flag.TargetingRules)
         {
             if (!attributes.TryGetValue(rule.Key, out var value) || !string.Equals(value, rule.Value, StringComparison.OrdinalIgnoreCase))
-            {
                 return false;
-            }
         }
 
         return true;
@@ -225,14 +111,5 @@ public sealed partial class FeatureFlagService : IFeatureFlagService, IDisposabl
         }
 
         return hash % 100;
-    }
-
-    public void Dispose()
-    {
-        if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
-        _disposeCts.Cancel();
-        _refreshTimer.Dispose();
-        _refreshLock.Dispose();
-        _disposeCts.Dispose();
     }
 }

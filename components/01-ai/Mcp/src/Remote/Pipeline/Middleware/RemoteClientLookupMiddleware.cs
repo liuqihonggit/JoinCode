@@ -1,4 +1,4 @@
-namespace McpToolRegistry;
+﻿namespace McpToolRegistry;
 
 using JoinCode.Abstractions.Pipeline;
 
@@ -8,7 +8,6 @@ using JoinCode.Abstractions.Pipeline;
 [Register(typeof(IRemoteSyncMiddleware))]
 public sealed partial class RemoteClientLookupMiddleware : IRemoteSyncMiddleware
 {
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     public Task InvokeAsync(RemoteSyncContext ctx, MiddlewareDelegate<RemoteSyncContext> next, CancellationToken ct)
     {

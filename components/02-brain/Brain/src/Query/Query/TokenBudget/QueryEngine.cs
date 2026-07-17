@@ -1,4 +1,4 @@
-
+﻿
 using JoinCode.Abstractions.Attributes;
 
 namespace Core.Query;
@@ -592,7 +592,6 @@ public sealed partial class QueryEngine : IQueryEngine
     {
         private readonly QueryEngine _engine;
 
-        public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
         public QueryCoreMiddleware(QueryEngine engine) => _engine = engine;
 

@@ -13,7 +13,6 @@ public sealed partial class WebSsrfGuardMiddleware : IWebMiddleware
     /// <inheritdoc />
 
     /// <inheritdoc />
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     /// <inheritdoc />
     public Task InvokeAsync(WebContext context, MiddlewareDelegate<WebContext> next, CancellationToken ct)

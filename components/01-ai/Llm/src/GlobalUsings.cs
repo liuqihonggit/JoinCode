@@ -8,6 +8,7 @@ global using JoinCode.Abstractions.Configuration;
 global using JoinCode.Abstractions.Configuration.Providers;
 global using JoinCode.Abstractions.Configuration.Llm;
 global using JoinCode.Abstractions.Exceptions;
+global using JoinCode.Abstractions.Http;
 global using JoinCode.Abstractions.Interfaces;
 global using JoinCode.Abstractions.LLM;
 global using JoinCode.Abstractions.LLM.Chat;

@@ -1,4 +1,4 @@
-
+﻿
 namespace McpClient;
 
 public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDisposable
@@ -185,28 +185,20 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
                 parameters["client_secret"] = _options.ClientSecret;
             }
 
-            var content = new FormUrlEncodedContent(parameters);
-            var response = await _httpClient.PostAsync(_resolvedTokenUrl, content, cancellationToken).ConfigureAwait(false);
-            var responseBody = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-
-            if (!response.IsSuccessStatusCode)
-            {
-                _logger?.LogError("授权码交换失败: {StatusCode} - {Body}", response.StatusCode, responseBody);
-                return false;
-            }
-
-            var tokenResponse = JsonSerializer.Deserialize(responseBody, McpOAuthJsonContext.Default.OAuth2TokenResponse);
-            if (tokenResponse == null || string.IsNullOrEmpty(tokenResponse.AccessToken))
-            {
-                _logger?.LogError("无法解析令牌响应");
-                return false;
-            }
+            var tokenResponse = await OAuth2TokenExchange.ExchangeTokenAsync(
+                _httpClient, _resolvedTokenUrl!, parameters,
+                McpOAuthJsonContext.Default.OAuth2TokenResponse, _logger, cancellationToken).ConfigureAwait(false);
 
             UpdateAuthContext(tokenResponse);
             await PersistTokenAsync(cancellationToken).ConfigureAwait(false);
 
             _logger?.LogInformation("PKCE 授权码交换成功");
             return true;
+        }
+        catch (OAuthException ex)
+        {
+            _logger?.LogError(ex, "授权码交换失败");
+            return false;
         }
         catch (Exception ex)
         {
@@ -310,29 +302,21 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
                 parameters["client_secret"] = _options.ClientSecret;
             }
 
-            var content = new FormUrlEncodedContent(parameters);
-            var response = await _httpClient.PostAsync(_resolvedTokenUrl ?? _options.TokenUrl, content, cancellationToken).ConfigureAwait(false);
-            var responseBody = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-
-            if (!response.IsSuccessStatusCode)
-            {
-                _logger?.LogWarning("令牌刷新失败: {StatusCode} - {Body}", response.StatusCode, responseBody);
-                _authContext.RefreshToken = null;
-                return false;
-            }
-
-            var tokenResponse = JsonSerializer.Deserialize(responseBody, McpOAuthJsonContext.Default.OAuth2TokenResponse);
-            if (tokenResponse == null || string.IsNullOrEmpty(tokenResponse.AccessToken))
-            {
-                _logger?.LogError("无法解析刷新令牌响应");
-                return false;
-            }
+            var tokenResponse = await OAuth2TokenExchange.ExchangeTokenAsync(
+                _httpClient, _resolvedTokenUrl ?? _options.TokenUrl, parameters,
+                McpOAuthJsonContext.Default.OAuth2TokenResponse, _logger, cancellationToken).ConfigureAwait(false);
 
             UpdateAuthContext(tokenResponse);
             await PersistTokenAsync(cancellationToken).ConfigureAwait(false);
 
             _logger?.LogInformation("令牌刷新成功");
             return true;
+        }
+        catch (OAuthException ex)
+        {
+            _logger?.LogWarning(ex, "令牌刷新失败");
+            _authContext.RefreshToken = null;
+            return false;
         }
         catch (Exception ex)
         {
@@ -432,8 +416,7 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
                 return false;
             }
 
-            var json = await _fs.ReadAllTextAsync(_options.TokenStoragePath, cancellationToken).ConfigureAwait(false);
-            var storage = JsonSerializer.Deserialize(json, McpOAuthJsonContext.Default.PkceTokenStorage);
+            var storage = await _fs.ReadAndDeserializeAsync(_options.TokenStoragePath, McpOAuthJsonContext.Default.PkceTokenStorage, cancellationToken).ConfigureAwait(false);
             if (storage == null)
             {
                 return false;

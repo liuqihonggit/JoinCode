@@ -9,7 +9,6 @@ public sealed partial class SettingsReloadMiddleware : ISettingsMiddleware
     /// <inheritdoc />
 
     /// <inheritdoc />
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     /// <inheritdoc />
     public async Task InvokeAsync(SettingsContext context, MiddlewareDelegate<SettingsContext> next, CancellationToken ct)

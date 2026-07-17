@@ -10,7 +10,6 @@ public sealed partial class AgentValidationMiddleware : IAgentToolMiddleware
     public int Order => 100;
 
     /// <inheritdoc />
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     /// <summary>
     /// 创建 AgentValidationMiddleware

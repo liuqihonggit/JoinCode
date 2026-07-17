@@ -1,4 +1,4 @@
-namespace Core.Agents.Worktree;
+﻿namespace Core.Agents.Worktree;
 
 /// <summary>
 /// Worktree 创建中间件 — git worktree add + 可选稀疏检出（失败回滚）
@@ -11,7 +11,6 @@ public sealed partial class WorktreeCreateMiddleware : IWorktreeCreateMiddleware
     [Inject] private readonly ILogger<WorktreeCreateMiddleware>? _logger;
     [Inject] private readonly IClockService _clock;
 
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     public async Task InvokeAsync(WorktreeCreateContext context, MiddlewareDelegate<WorktreeCreateContext> next, CancellationToken ct)
     {

@@ -1,4 +1,4 @@
-namespace Core.Skills;
+﻿namespace Core.Skills;
 
 /// <summary>
 /// 技能步骤执行中间件 — 执行技能步骤（Tool/Prompt/Loop）
@@ -13,7 +13,6 @@ public sealed partial class SkillExecutionMiddleware : ISkillMiddleware
     /// <inheritdoc />
 
     /// <inheritdoc />
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     /// <summary>
     /// 创建 SkillExecutionMiddleware
@@ -125,11 +124,11 @@ public sealed partial class SkillExecutionMiddleware : ISkillMiddleware
 
         if (result.IsError)
         {
-            var errorContent = result.Content?.FirstOrDefault(c => !string.IsNullOrEmpty(c.Text))?.Text ?? L.T(StringKey.SkillServiceUnknownError);
+            var errorContent = result.GetFirstText() ?? L.T(StringKey.SkillServiceUnknownError);
             throw new InvalidOperationException(L.T(StringKey.SkillServiceToolExecutionFailed, step.Tool, errorContent));
         }
 
-        return result.Content?.FirstOrDefault(c => !string.IsNullOrEmpty(c.Text))?.Text ?? "";
+        return result.GetFirstText() ?? "";
     }
 
     private async Task<string?> ExecutePromptStepAsync(

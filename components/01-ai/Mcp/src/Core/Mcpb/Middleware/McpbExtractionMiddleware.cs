@@ -1,4 +1,4 @@
-namespace McpClient.Mcpb;
+﻿namespace McpClient.Mcpb;
 
 /// <summary>
 /// MCPB 解压中间件 — 安全解压 MCPB 包（含路径遍历检测、文件大小限制）
@@ -13,7 +13,6 @@ public sealed partial class McpbExtractionMiddleware : IMcpbMiddleware
     private const int MaxFileSizeBytes = 512 * 1024 * 1024;
     private const int MaxTotalSizeBytes = 1024 * 1024 * 1024;
 
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     public async Task InvokeAsync(McpbLoadContext context, MiddlewareDelegate<McpbLoadContext> next, CancellationToken ct)
     {

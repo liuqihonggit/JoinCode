@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Configuration.ConfigPipeline;
 
 [Register(typeof(IConfigLoadMiddleware))]
@@ -11,7 +11,6 @@ public sealed partial class ConfigMapMiddleware : IConfigLoadMiddleware
         _mapper = mapper;
     }
 
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     public Task InvokeAsync(ConfigLoadContext context, MiddlewareDelegate<ConfigLoadContext> next, CancellationToken ct)
     {

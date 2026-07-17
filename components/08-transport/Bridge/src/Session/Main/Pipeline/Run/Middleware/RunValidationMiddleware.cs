@@ -1,4 +1,4 @@
-namespace Core.Bridge;
+﻿namespace Core.Bridge;
 
 [Register(typeof(IBridgeRunMiddleware))]
 public sealed partial class RunValidationMiddleware : IBridgeRunMiddleware
@@ -6,7 +6,6 @@ public sealed partial class RunValidationMiddleware : IBridgeRunMiddleware
     [Inject] private readonly BridgeMainDeps _deps;
     [Inject] private readonly ILogger<RunValidationMiddleware> _logger;
 
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     public async Task InvokeAsync(BridgeRunContext ctx, MiddlewareDelegate<BridgeRunContext> next, CancellationToken ct)
     {

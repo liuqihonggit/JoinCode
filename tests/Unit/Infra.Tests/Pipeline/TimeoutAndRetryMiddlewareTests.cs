@@ -1,4 +1,4 @@
-namespace Infrastructure.Pipeline.Tests;
+﻿namespace Infrastructure.Pipeline.Tests;
 
 using JoinCode.Abstractions.Pipeline;
 using Infrastructure.Pipeline.Middlewares;
@@ -239,7 +239,6 @@ public sealed class TimeoutAndRetryMiddlewareTests
 
     private sealed class SlowMiddleware(TimeSpan delay) : IMiddleware<TestTimeoutContext>
     {
-        public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
         public async Task InvokeAsync(TestTimeoutContext context, MiddlewareDelegate<TestTimeoutContext> next, CancellationToken ct)
         {
@@ -251,7 +250,6 @@ public sealed class TimeoutAndRetryMiddlewareTests
     private sealed class FailThenSucceedMiddleware(int failCount, Action onAttempt) : IMiddleware<TestRetryContext>
     {
         private int _attempts;
-        public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
         public async Task InvokeAsync(TestRetryContext context, MiddlewareDelegate<TestRetryContext> next, CancellationToken ct)
         {
@@ -267,7 +265,6 @@ public sealed class TimeoutAndRetryMiddlewareTests
 
     private sealed class AlwaysFailMiddleware : IMiddleware<TestRetryContext>
     {
-        public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
         public Task InvokeAsync(TestRetryContext context, MiddlewareDelegate<TestRetryContext> next, CancellationToken ct)
             => throw new InvalidOperationException("always fail");
@@ -293,7 +290,6 @@ public sealed class TimeoutAndRetryMiddlewareTests
 
     private sealed class SimpleSlowMiddleware(TimeSpan delay) : IMiddleware<SimpleContext>
     {
-        public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
         public async Task InvokeAsync(SimpleContext context, MiddlewareDelegate<SimpleContext> next, CancellationToken ct)
         {
@@ -305,7 +301,6 @@ public sealed class TimeoutAndRetryMiddlewareTests
     private sealed class SimpleFailThenSucceedMiddleware(int failCount, Action onAttempt) : IMiddleware<SimpleContext>
     {
         private int _attempts;
-        public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
         public async Task InvokeAsync(SimpleContext context, MiddlewareDelegate<SimpleContext> next, CancellationToken ct)
         {
@@ -321,7 +316,6 @@ public sealed class TimeoutAndRetryMiddlewareTests
 
     private sealed class SimpleAlwaysFailMiddleware : IMiddleware<SimpleContext>
     {
-        public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
         public Task InvokeAsync(SimpleContext context, MiddlewareDelegate<SimpleContext> next, CancellationToken ct)
             => throw new InvalidOperationException("always fail");

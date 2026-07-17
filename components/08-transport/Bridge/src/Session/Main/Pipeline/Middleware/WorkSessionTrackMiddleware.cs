@@ -1,4 +1,4 @@
-namespace Core.Bridge;
+﻿namespace Core.Bridge;
 
 using JoinCode.Abstractions.Pipeline;
 
@@ -8,7 +8,6 @@ public sealed partial class WorkSessionTrackMiddleware : IHandleWorkMiddleware
     [Inject] private readonly ILogger<WorkSessionTrackMiddleware>? _logger;
     [Inject] private readonly IClockService _clock;
 
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     public Task InvokeAsync(HandleWorkContext ctx, MiddlewareDelegate<HandleWorkContext> next, CancellationToken ct)
     {

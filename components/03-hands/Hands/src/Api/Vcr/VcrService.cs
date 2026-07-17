@@ -1,4 +1,4 @@
-
+﻿
 namespace Services.Api.Vcr;
 
 [Register(typeof(IVcrService))]
@@ -46,8 +46,7 @@ public sealed partial class VcrService : IVcrService, JoinCode.Abstractions.Inte
                 return cassette;
             }
 
-            var json = await _fs.ReadAllTextAsync(filePath, cancellationToken).ConfigureAwait(false);
-            var loaded = JsonSerializer.Deserialize(json, VcrJsonContext.Default.VcrCassette);
+            var loaded = await _fs.ReadAndDeserializeAsync(filePath, VcrJsonContext.Default.VcrCassette, cancellationToken).ConfigureAwait(false);
             if (loaded == null)
             {
                 loaded = new VcrCassette { Name = name };

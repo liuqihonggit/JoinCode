@@ -28,8 +28,7 @@ public sealed partial class McpServerStateManager
                 return;
             }
 
-            var json = await _fs.ReadAllTextAsync(_stateFilePath, cancellationToken).ConfigureAwait(false);
-            var state = JsonSerializer.Deserialize(json, McpClientJsonContext.Default.McpServerDisabledState);
+            var state = await _fs.ReadAndDeserializeAsync(_stateFilePath, McpClientJsonContext.Default.McpServerDisabledState, cancellationToken).ConfigureAwait(false);
             if (state?.DisabledServers != null)
             {
                 _disabledServers = new HashSet<string>(state.DisabledServers, StringComparer.OrdinalIgnoreCase);

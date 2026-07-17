@@ -1,4 +1,4 @@
-namespace Core.Agents.Coordinator;
+﻿namespace Core.Agents.Coordinator;
 
 [Register(typeof(IAgentSpawnCoordMiddleware))]
 public sealed partial class SpawnCoordWorktreeMiddleware : IAgentSpawnCoordMiddleware
@@ -7,7 +7,6 @@ public sealed partial class SpawnCoordWorktreeMiddleware : IAgentSpawnCoordMiddl
     [Inject] private readonly IAgentLifecycleManager _lifecycleManager;
     [Inject] private readonly ILogger<SpawnCoordWorktreeMiddleware> _logger;
 
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     public async Task InvokeAsync(AgentSpawnCoordContext ctx, MiddlewareDelegate<AgentSpawnCoordContext> next, CancellationToken ct)
     {

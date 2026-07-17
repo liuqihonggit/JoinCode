@@ -1,4 +1,4 @@
-namespace Infrastructure.Pipeline.Middlewares;
+﻿namespace Infrastructure.Pipeline.Middlewares;
 
 using JoinCode.Abstractions.Pipeline;
 
@@ -9,7 +9,6 @@ using JoinCode.Abstractions.Pipeline;
 public sealed class TokenValidationMiddleware<TContext> : IMiddleware<TContext>
     where TContext : ITokenValidationContext
 {
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     public Task InvokeAsync(TContext ctx, MiddlewareDelegate<TContext> next, CancellationToken ct)
     {

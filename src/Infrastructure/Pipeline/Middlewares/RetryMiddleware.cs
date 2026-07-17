@@ -1,4 +1,4 @@
-namespace Infrastructure.Pipeline.Middlewares;
+﻿namespace Infrastructure.Pipeline.Middlewares;
 
 using JoinCode.Abstractions.Pipeline;
 
@@ -10,7 +10,6 @@ public sealed class RetryMiddleware<TContext> : IMiddleware<TContext>
 {
     private static readonly ExponentialBackoff Backoff = ExponentialBackoff.Default;
 
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     public async Task InvokeAsync(TContext context, MiddlewareDelegate<TContext> next, CancellationToken ct)
     {
@@ -43,7 +42,6 @@ public sealed class FixedRetryMiddleware<TContext>(
 {
     private static readonly ExponentialBackoff Backoff = ExponentialBackoff.Default;
 
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     public async Task InvokeAsync(TContext context, MiddlewareDelegate<TContext> next, CancellationToken ct)
     {

@@ -65,10 +65,7 @@ public abstract partial class QueryServiceBase : IQueryService
         // P1-11: 设置 PooledConnectionLifetime 解决 DNS 不刷新问题
         // 决策: SocketsHttpHandler 默认 PooledConnectionLifetime=Infinity，DNS 变更不刷新
         // 替代方案已否决: 改用 IHttpClientFactory（需重构 QueryServiceFactory + 所有派生类，风险大且 QueryService 是长生命周期单例，Socket 耗尽风险低）
-        var handler = new SocketsHttpHandler
-        {
-            PooledConnectionLifetime = TimeSpan.FromMinutes(1),
-        };
+        var handler = SocketsHttpHandlerFactory.CreateWithDnsRefresh();
         var client = new HttpClient(handler) { Timeout = TimeSpan.FromMinutes(5) };
 
         var baseUrl = GetBaseUrl(config);

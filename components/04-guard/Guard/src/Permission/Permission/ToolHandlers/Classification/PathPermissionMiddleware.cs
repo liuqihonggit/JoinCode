@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Permission;
 
 /// <summary>
@@ -13,7 +13,6 @@ public sealed partial class PathPermissionMiddleware : IPermissionMiddleware
     /// <inheritdoc />
 
     /// <inheritdoc />
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     /// <summary>
     /// 创建 PathPermissionMiddleware

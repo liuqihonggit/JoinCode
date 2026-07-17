@@ -1,4 +1,4 @@
-namespace Infrastructure.Pipeline.Middlewares;
+﻿namespace Infrastructure.Pipeline.Middlewares;
 
 public sealed class FixedStreamRateLimitMiddleware<TContext, TEvent>(
     int maxRequests,
@@ -6,7 +6,6 @@ public sealed class FixedStreamRateLimitMiddleware<TContext, TEvent>(
 {
     private readonly FixedWindowRateLimiter _limiter = new(maxRequests, window);
 
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     public async IAsyncEnumerable<TEvent> InvokeAsync(
         TContext context,
@@ -31,7 +30,6 @@ public sealed class FixedStreamCircuitBreakerMiddleware<TContext, TEvent>(
 {
     private readonly CircuitBreakerState _state = new(failureThreshold, openDuration);
 
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     public async IAsyncEnumerable<TEvent> InvokeAsync(
         TContext context,

@@ -1,4 +1,4 @@
-namespace Core.Configuration.ConfigPipeline;
+﻿namespace Core.Configuration.ConfigPipeline;
 
 /// <summary>
 /// Step 7: 验证 Provider 配置 — Provider 必须有 API Key
@@ -13,7 +13,6 @@ public sealed partial class ProviderValidationMiddleware : IConfigLoadMiddleware
         _registry = registry;
     }
 
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     public Task InvokeAsync(ConfigLoadContext context, MiddlewareDelegate<ConfigLoadContext> next, CancellationToken ct)
     {

@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Bridge;
 
 #region BridgePointerSource 枚举

@@ -1,4 +1,4 @@
-namespace Core.Goal;
+﻿namespace Core.Goal;
 
 using JoinCode.Abstractions.Pipeline;
 
@@ -10,7 +10,6 @@ public sealed partial class GoalStateTransitionMiddleware : IGoalLifecycleMiddle
 {
     [Inject] private readonly IClockService _clock;
 
-    public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
     public Task InvokeAsync(GoalLifecycleContext ctx, MiddlewareDelegate<GoalLifecycleContext> next, CancellationToken ct)
     {

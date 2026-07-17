@@ -1,5 +1,9 @@
 namespace Core.Agents.Doctor;
 
+/// <summary>
+/// 修复引擎 — 根据 DiagnosticReport 执行修复流程
+/// 支持 1:N 多病人：所有操作通过 patientId 指定目标病人
+/// </summary>
 public sealed class HotFixEngine
 {
     private readonly SourceCodePatcher _patcher;
@@ -53,19 +57,19 @@ public sealed class HotFixEngine
         var action = ChooseAction(report);
         var sw = System.Diagnostics.Stopwatch.StartNew();
 
-        _logger?.LogInformation("[Doctor] 执行修复: {ActionType} - {Description}", action.ActionType, action.Description);
+        _logger?.LogInformation("[Doctor] 执行修复: {ActionType} - {Description} (病人: {PatientId})", action.ActionType, action.Description, report.PatientId);
 
         var result = action.ActionType switch
         {
-            HotFixActionType.SourceCodePatch => await ExecuteSourceCodePatchAsync(action, workingDirectory, cancellationToken).ConfigureAwait(false),
+            HotFixActionType.SourceCodePatch => await ExecuteSourceCodePatchAsync(report.PatientId, action, workingDirectory, cancellationToken).ConfigureAwait(false),
             HotFixActionType.ConfigChange => await ExecuteConfigChangeAsync(action, workingDirectory, cancellationToken).ConfigureAwait(false),
-            HotFixActionType.CompactContext => await ExecuteCompactContextAsync(action, cancellationToken).ConfigureAwait(false),
-            HotFixActionType.RestartProcess => await ExecuteRestartProcessAsync(action, workingDirectory, cancellationToken).ConfigureAwait(false),
-            _ => CreateNoOpResult(action, sw.Elapsed)
+            HotFixActionType.CompactContext => await ExecuteCompactContextAsync(report.PatientId, action, cancellationToken).ConfigureAwait(false),
+            HotFixActionType.RestartProcess => await ExecuteRestartProcessAsync(report.PatientId, action, workingDirectory, cancellationToken).ConfigureAwait(false),
+            _ => CreateNoOpResult(action, report.PatientId, sw.Elapsed)
         };
 
         sw.Stop();
-        result = result with { Duration = sw.Elapsed };
+        result = result with { Duration = sw.Elapsed, PatientId = report.PatientId };
 
         await _resultLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try { _results.Add(result); }
@@ -73,12 +77,12 @@ public sealed class HotFixEngine
 
         if (result.Success)
         {
-            _logger?.LogInformation("[Doctor] 修复成功: {ActionType}", action.ActionType);
+            _logger?.LogInformation("[Doctor] 修复成功: {ActionType} (病人: {PatientId})", action.ActionType, report.PatientId);
             FixApplied?.Invoke(this, result);
         }
         else
         {
-            _logger?.LogWarning("[Doctor] 修复失败: {ActionType} - {Description}", action.ActionType, result.Description);
+            _logger?.LogWarning("[Doctor] 修复失败: {ActionType} - {Description} (病人: {PatientId})", action.ActionType, result.Description, report.PatientId);
             if (result.WasRolledBack)
             {
                 FixRolledBack?.Invoke(this, result);
@@ -124,28 +128,19 @@ public sealed class HotFixEngine
     }
 
     private async Task<HotFixResult> ExecuteSourceCodePatchAsync(
+        string patientId,
         HotFixAction action,
         string? workingDirectory,
         CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(action.TargetFilePath))
         {
-            return new HotFixResult
-            {
-                Success = false,
-                Action = action,
-                Description = "未指定目标文件路径"
-            };
+            return new HotFixResult { Success = false, PatientId = patientId, Action = action, Description = "未指定目标文件路径" };
         }
 
         if (string.IsNullOrWhiteSpace(action.PatchedContent))
         {
-            return new HotFixResult
-            {
-                Success = false,
-                Action = action,
-                Description = "未指定补丁内容，源码修复需要人工介入"
-            };
+            return new HotFixResult { Success = false, PatientId = patientId, Action = action, Description = "未指定补丁内容，源码修复需要人工介入" };
         }
 
         var patchResult = await _patcher.ApplyPatchAsync(
@@ -156,12 +151,7 @@ public sealed class HotFixEngine
 
         if (!patchResult.Success)
         {
-            return new HotFixResult
-            {
-                Success = false,
-                Action = action,
-                Description = patchResult.Description
-            };
+            return new HotFixResult { Success = false, PatientId = patientId, Action = action, Description = patchResult.Description };
         }
 
         var buildResult = await _builder.BuildProjectAsync(
@@ -182,6 +172,7 @@ public sealed class HotFixEngine
             return new HotFixResult
             {
                 Success = false,
+                PatientId = patientId,
                 Action = action,
                 Description = $"编译失败（退出码 {buildResult.ExitCode}），已{(rollbackResult.Success ? "回滚成功" : "回滚失败")}",
                 WasRolledBack = rollbackResult.Success,
@@ -189,38 +180,36 @@ public sealed class HotFixEngine
             };
         }
 
-        _patientManager.Kill();
+        await _patientManager.KillAsync(patientId).ConfigureAwait(false);
 
         try
         {
             using var waitCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            await _patientManager.WaitForExitAsync(waitCts.Token).ConfigureAwait(false);
+            await _patientManager.WaitForExitAsync(patientId, waitCts.Token).ConfigureAwait(false);
         }
         catch (OperationCanceledException) { }
 
-        if (_patientManager.Info?.Arguments is not null)
+        var patientInfo = _patientManager.GetPatientInfo(patientId);
+        if (patientInfo?.Arguments is not null)
         {
             try
             {
                 await _patientManager.SpawnAsync(
-                    _patientManager.Info.Arguments,
+                    patientId,
+                    patientInfo.Arguments,
                     workingDirectory,
                     cancellationToken: ct).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                return new HotFixResult
-                {
-                    Success = false,
-                    Action = action,
-                    Description = $"重启病人进程失败: {ex.Message}"
-                };
+                return new HotFixResult { Success = false, PatientId = patientId, Action = action, Description = $"重启病人进程失败: {ex.Message}" };
             }
         }
 
         return new HotFixResult
         {
             Success = true,
+            PatientId = patientId,
             Action = action,
             Description = "源码修改成功，编译通过，病人已重启",
             BuildOutput = buildResult.StandardOutput
@@ -234,22 +223,12 @@ public sealed class HotFixEngine
     {
         if (string.IsNullOrWhiteSpace(action.TargetFilePath))
         {
-            return new HotFixResult
-            {
-                Success = false,
-                Action = action,
-                Description = "未指定配置文件路径，配置修复需要人工介入"
-            };
+            return new HotFixResult { Success = false, Action = action, Description = "未指定配置文件路径，配置修复需要人工介入" };
         }
 
         if (string.IsNullOrWhiteSpace(action.PatchedContent))
         {
-            return new HotFixResult
-            {
-                Success = false,
-                Action = action,
-                Description = "未指定配置内容，配置修复需要人工介入"
-            };
+            return new HotFixResult { Success = false, Action = action, Description = "未指定配置内容，配置修复需要人工介入" };
         }
 
         var patchResult = await _patcher.ApplyPatchAsync(
@@ -260,12 +239,7 @@ public sealed class HotFixEngine
 
         if (!patchResult.Success)
         {
-            return new HotFixResult
-            {
-                Success = false,
-                Action = action,
-                Description = patchResult.Description
-            };
+            return new HotFixResult { Success = false, Action = action, Description = patchResult.Description };
         }
 
         _logger?.LogInformation("[Doctor] 配置文件已修改，等待热更新生效: {FilePath}", action.TargetFilePath);
@@ -281,6 +255,7 @@ public sealed class HotFixEngine
     }
 
     private async Task<HotFixResult> ExecuteCompactContextAsync(
+        string patientId,
         HotFixAction action,
         CancellationToken ct)
     {
@@ -288,17 +263,18 @@ public sealed class HotFixEngine
 
         try
         {
-            await _transport.SendCommandAsync(command + Environment.NewLine, ct).ConfigureAwait(false);
+            await _transport.SendCommandAsync(patientId, command + Environment.NewLine, ct).ConfigureAwait(false);
 
-            _logger?.LogInformation("[Doctor] 已发送压缩指令: {Command}", command);
+            _logger?.LogInformation("[Doctor] 已发送压缩指令到病人 {PatientId}: {Command}", patientId, command);
 
             await Task.Delay(2000, ct).ConfigureAwait(false);
 
             return new HotFixResult
             {
                 Success = true,
+                PatientId = patientId,
                 Action = action,
-                Description = $"已发送 {command} 指令给病人进程"
+                Description = $"已发送 {command} 指令给病人 {patientId}"
             };
         }
         catch (Exception ex)
@@ -306,6 +282,7 @@ public sealed class HotFixEngine
             return new HotFixResult
             {
                 Success = false,
+                PatientId = patientId,
                 Action = action,
                 Description = $"发送压缩指令失败: {ex.Message}"
             };
@@ -313,40 +290,38 @@ public sealed class HotFixEngine
     }
 
     private async Task<HotFixResult> ExecuteRestartProcessAsync(
+        string patientId,
         HotFixAction action,
         string? workingDirectory,
         CancellationToken ct)
     {
-        var originalArgs = _patientManager.Info?.Arguments;
+        var patientInfo = _patientManager.GetPatientInfo(patientId);
+        var originalArgs = patientInfo?.Arguments;
 
-        _patientManager.Kill();
+        await _patientManager.KillAsync(patientId).ConfigureAwait(false);
 
         try
         {
             using var waitCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            await _patientManager.WaitForExitAsync(waitCts.Token).ConfigureAwait(false);
+            await _patientManager.WaitForExitAsync(patientId, waitCts.Token).ConfigureAwait(false);
         }
         catch (OperationCanceledException) { }
 
         if (string.IsNullOrWhiteSpace(originalArgs))
         {
-            return new HotFixResult
-            {
-                Success = false,
-                Action = action,
-                Description = "无法重启：缺少病人进程参数"
-            };
+            return new HotFixResult { Success = false, PatientId = patientId, Action = action, Description = "无法重启：缺少病人进程参数" };
         }
 
         try
         {
-            await _patientManager.SpawnAsync(originalArgs, workingDirectory, cancellationToken: ct).ConfigureAwait(false);
+            await _patientManager.SpawnAsync(patientId, originalArgs, workingDirectory, cancellationToken: ct).ConfigureAwait(false);
 
             return new HotFixResult
             {
                 Success = true,
+                PatientId = patientId,
                 Action = action,
-                Description = "病人进程已重启"
+                Description = $"病人 {patientId} 进程已重启"
             };
         }
         catch (Exception ex)
@@ -354,17 +329,19 @@ public sealed class HotFixEngine
             return new HotFixResult
             {
                 Success = false,
+                PatientId = patientId,
                 Action = action,
                 Description = $"重启病人进程失败: {ex.Message}"
             };
         }
     }
 
-    private static HotFixResult CreateNoOpResult(HotFixAction action, TimeSpan duration)
+    private static HotFixResult CreateNoOpResult(HotFixAction action, string patientId, TimeSpan duration)
     {
         return new HotFixResult
         {
             Success = true,
+            PatientId = patientId,
             Action = action,
             Description = "无需修复",
             Duration = duration

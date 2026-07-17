@@ -1,12 +1,16 @@
 namespace Core.Agents.Doctor;
 
+/// <summary>
+/// 诊断引擎 — 从遥测事件流中检测问题模式
+/// 支持 1:N 多病人：所有内部计数器按 PatientId 隔离
+/// </summary>
 public sealed class DiagnosticEngine
 {
     private readonly ILogger? _logger;
-    private readonly Dictionary<string, int> _loopCountBySession = new();
-    private readonly Dictionary<string, int> _permissionDeniedByTool = new();
-    private readonly List<DiagnosticEvent> _recentApiErrors = new();
-    private double _lastTokenUsageRatio;
+    private readonly Dictionary<(string PatientId, string SessionId), int> _loopCountBySession = new();
+    private readonly Dictionary<(string PatientId, string ToolName), int> _permissionDeniedByTool = new();
+    private readonly Dictionary<string, List<DiagnosticEvent>> _recentApiErrorsByPatient = new();
+    private readonly Dictionary<string, double> _lastTokenUsageRatioByPatient = new();
     private readonly List<DiagnosticReport> _reports = [];
     private readonly object _lock = new();
 
@@ -41,7 +45,7 @@ public sealed class DiagnosticEngine
         if (report is not null)
         {
             lock (_lock) _reports.Add(report);
-            _logger?.LogWarning("[Doctor] 诊断报告生成: {RuleId} - {Description}", report.RuleId, report.Description);
+            _logger?.LogWarning("[Doctor] 诊断报告生成: {RuleId} - {Description} (病人: {PatientId})", report.RuleId, report.Description, report.PatientId);
             DiagnosticReportGenerated?.Invoke(this, report);
         }
 
@@ -57,6 +61,7 @@ public sealed class DiagnosticEngine
         var report = new DiagnosticReport
         {
             RuleId = DiagnosticRuleId.ProcessHung,
+            PatientId = patientInfo.PatientId,
             Severity = DiagnosticSeverity.Critical,
             Description = $"病人进程卡死（退出码 1234），PID={patientInfo.ProcessId}",
             SuggestedFixType = HotFixActionType.RestartProcess,
@@ -64,7 +69,7 @@ public sealed class DiagnosticEngine
         };
 
         lock (_lock) _reports.Add(report);
-        _logger?.LogWarning("[Doctor] 诊断报告生成: {RuleId} - {Description}", report.RuleId, report.Description);
+        _logger?.LogWarning("[Doctor] 诊断报告生成: {RuleId} - {Description} (病人: {PatientId})", report.RuleId, report.Description, report.PatientId);
         DiagnosticReportGenerated?.Invoke(this, report);
         return report;
     }
@@ -75,25 +80,42 @@ public sealed class DiagnosticEngine
         {
             _loopCountBySession.Clear();
             _permissionDeniedByTool.Clear();
-            _recentApiErrors.Clear();
-            _lastTokenUsageRatio = 0;
+            _recentApiErrorsByPatient.Clear();
+            _lastTokenUsageRatioByPatient.Clear();
             _reports.Clear();
+        }
+    }
+
+    public void ResetPatient(string patientId)
+    {
+        lock (_lock)
+        {
+            var sessionKeysToRemove = _loopCountBySession.Keys.Where(k => k.PatientId == patientId).ToList();
+            foreach (var key in sessionKeysToRemove) _loopCountBySession.Remove(key);
+
+            var toolKeysToRemove = _permissionDeniedByTool.Keys.Where(k => k.PatientId == patientId).ToList();
+            foreach (var key in toolKeysToRemove) _permissionDeniedByTool.Remove(key);
+
+            _recentApiErrorsByPatient.Remove(patientId);
+            _lastTokenUsageRatioByPatient.Remove(patientId);
         }
     }
 
     private DiagnosticReport? EvaluateLoopDetected(DiagnosticEvent evt)
     {
         var sessionId = evt.SessionId ?? "default";
-        var count = _loopCountBySession.GetValueOrDefault(sessionId) + 1;
-        _loopCountBySession[sessionId] = count;
+        var key = (evt.PatientId, sessionId);
+        var count = _loopCountBySession.GetValueOrDefault(key) + 1;
+        _loopCountBySession[key] = count;
 
         if (count < 3) return null;
 
         return new DiagnosticReport
         {
             RuleId = DiagnosticRuleId.LoopDetected,
+            PatientId = evt.PatientId,
             Severity = DiagnosticSeverity.Warning,
-            Description = $"会话 {sessionId} 检测到循环 {count} 次，可能存在工具调用死循环",
+            Description = $"病人 {evt.PatientId} 会话 {sessionId} 检测到循环 {count} 次，可能存在工具调用死循环",
             TriggeringEvents = [evt],
             SuggestedFixType = HotFixActionType.SourceCodePatch,
             SuggestedFixDescription = "检查 LoopInterventionMiddleware 阈值配置或工具调用逻辑"
@@ -103,16 +125,18 @@ public sealed class DiagnosticEngine
     private DiagnosticReport? EvaluatePermissionDenied(DiagnosticEvent evt)
     {
         var toolName = evt.Properties.GetValueOrDefault("tool") ?? evt.Properties.GetValueOrDefault("tool_name") ?? "unknown";
-        var count = _permissionDeniedByTool.GetValueOrDefault(toolName) + 1;
-        _permissionDeniedByTool[toolName] = count;
+        var key = (evt.PatientId, toolName);
+        var count = _permissionDeniedByTool.GetValueOrDefault(key) + 1;
+        _permissionDeniedByTool[key] = count;
 
         if (count < 2) return null;
 
         return new DiagnosticReport
         {
             RuleId = DiagnosticRuleId.ToolPermissionDenied,
+            PatientId = evt.PatientId,
             Severity = DiagnosticSeverity.Error,
-            Description = $"工具 {toolName} 权限被拒绝 {count} 次，可能需要更新权限配置",
+            Description = $"病人 {evt.PatientId} 工具 {toolName} 权限被拒绝 {count} 次，可能需要更新权限配置",
             TriggeringEvents = [evt],
             SuggestedFixType = HotFixActionType.ConfigChange,
             SuggestedFixDescription = $"在 settings.json 中为工具 {toolName} 添加允许权限"
@@ -126,7 +150,7 @@ public sealed class DiagnosticEngine
             ?? "0";
 
         if (!double.TryParse(usageStr, out var ratio)) ratio = 0;
-        _lastTokenUsageRatio = ratio;
+        _lastTokenUsageRatioByPatient[evt.PatientId] = ratio;
 
         if (ratio <= 0.8) return null;
 
@@ -135,8 +159,9 @@ public sealed class DiagnosticEngine
         return new DiagnosticReport
         {
             RuleId = DiagnosticRuleId.ContextOverflow,
+            PatientId = evt.PatientId,
             Severity = severity,
-            Description = $"上下文 token 使用率达 {ratio:P1}，接近或超出窗口限制",
+            Description = $"病人 {evt.PatientId} 上下文 token 使用率达 {ratio:P1}，接近或超出窗口限制",
             TriggeringEvents = [evt],
             SuggestedFixType = HotFixActionType.CompactContext,
             SuggestedFixDescription = "执行 /compact 压缩上下文，或减少对话历史长度"
@@ -145,14 +170,20 @@ public sealed class DiagnosticEngine
 
     private DiagnosticReport? EvaluateApiError(DiagnosticEvent evt)
     {
-        _recentApiErrors.Add(evt);
+        if (!_recentApiErrorsByPatient.TryGetValue(evt.PatientId, out var errors))
+        {
+            errors = [];
+            _recentApiErrorsByPatient[evt.PatientId] = errors;
+        }
 
-        if (_recentApiErrors.Count > 10)
-            _recentApiErrors.RemoveAt(0);
+        errors.Add(evt);
 
-        if (_recentApiErrors.Count < 3) return null;
+        if (errors.Count > 10)
+            errors.RemoveAt(0);
 
-        var recentWindow = _recentApiErrors.TakeLast(3).ToList();
+        if (errors.Count < 3) return null;
+
+        var recentWindow = errors.TakeLast(3).ToList();
         var allRecent = recentWindow.All(e =>
             e.EventType is "api_error" or "api_timeout");
 
@@ -163,8 +194,9 @@ public sealed class DiagnosticEngine
         return new DiagnosticReport
         {
             RuleId = DiagnosticRuleId.ApiError,
+            PatientId = evt.PatientId,
             Severity = DiagnosticSeverity.Error,
-            Description = $"API 连续失败 3 次（{errorTypes}），可能存在网络或服务端问题",
+            Description = $"病人 {evt.PatientId} API 连续失败 3 次（{errorTypes}），可能存在网络或服务端问题",
             TriggeringEvents = recentWindow,
             SuggestedFixType = HotFixActionType.ConfigChange,
             SuggestedFixDescription = "检查 API 端点配置、网络连接、API Key 有效性"

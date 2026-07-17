@@ -137,6 +137,17 @@ public class CommandLineOptions {
     public bool DoctorMode { get; set; }
 
     /// <summary>
+    /// 医生 SSE 端点 URL（--doctor-endpoint 参数）— 病人端使用，连接到医生的 SSE 服务器
+    /// 例如 http://localhost:9902，病人通过此端点发送遥测事件和接收医生指令
+    /// </summary>
+    public string? DoctorEndpoint { get; set; }
+
+    /// <summary>
+    /// 医生 SSE 服务器端口（--doctor-port 参数）— 医生端使用，默认 9902
+    /// </summary>
+    public int? DoctorPort { get; set; }
+
+    /// <summary>
     /// 是否为非交互模式（用户请求 / 无头环境 / CI 环境 / -p 参数）
     /// </summary>
     public bool IsNonInteractiveMode =>

@@ -69,14 +69,14 @@ public class HotFixEngineTests
         var report = CreateReport(DiagnosticRuleId.ContextOverflow, HotFixActionType.CompactContext);
 
         transportMock
-            .Setup(t => t.SendCommandAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(t => t.SendCommandAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         var result = await engine.ExecuteFixAsync(report);
 
         Assert.True(result.Success);
         Assert.Equal(HotFixActionType.CompactContext, result.Action.ActionType);
-        transportMock.Verify(t => t.SendCommandAsync(It.Is<string>(s => s.Contains("/compact")), It.IsAny<CancellationToken>()), Times.Once);
+        transportMock.Verify(t => t.SendCommandAsync(It.IsAny<string>(), It.Is<string>(s => s.Contains("/compact")), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -86,7 +86,7 @@ public class HotFixEngineTests
         var report = CreateReport(DiagnosticRuleId.ContextOverflow, HotFixActionType.CompactContext);
 
         transportMock
-            .Setup(t => t.SendCommandAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(t => t.SendCommandAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("stdin closed"));
 
         var result = await engine.ExecuteFixAsync(report);
@@ -160,7 +160,7 @@ public class HotFixEngineTests
     {
         var engine = CreateEngine(out var transportMock);
         transportMock
-            .Setup(t => t.SendCommandAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(t => t.SendCommandAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         var report1 = CreateReport(DiagnosticRuleId.ContextOverflow, HotFixActionType.CompactContext);
@@ -177,7 +177,7 @@ public class HotFixEngineTests
     {
         var engine = CreateEngine(out var transportMock);
         transportMock
-            .Setup(t => t.SendCommandAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(t => t.SendCommandAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         HotFixResult? captured = null;
@@ -220,7 +220,7 @@ public class HotFixEngineTests
         var fs = new InMemoryFileSystem();
         var engine = CreateEngine(fs, out var transportMock);
         transportMock
-            .Setup(t => t.SendCommandAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(t => t.SendCommandAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         fs.WriteAllText("settings.json", "{\"old\": true}");
@@ -259,6 +259,7 @@ public class HotFixEngineTests
         var builder = new BuildOrchestrator(processService.Object, logger);
         transportMock = new Mock<IDoctorTransport>();
         transportMock.Setup(t => t.IsConnected).Returns(true);
+        transportMock.Setup(t => t.ConnectedPatientIds).Returns(new List<string> { "test-patient" });
 
         var engine = new HotFixEngine(
             patcher,

@@ -53,6 +53,9 @@ public sealed record HotFixResult
     /// <summary>是否成功</summary>
     public required bool Success { get; init; }
 
+    /// <summary>病人 ID — 标识修复的目标病人</summary>
+    public string PatientId { get; init; } = string.Empty;
+
     /// <summary>修复动作</summary>
     public required HotFixAction Action { get; init; }
 
@@ -77,8 +80,11 @@ public sealed record DoctorReport
     /// <summary>报告 ID</summary>
     public string ReportId { get; init; } = Guid.NewGuid().ToString("N")[..8];
 
-    /// <summary>病人信息</summary>
-    public PatientInfo? Patient { get; init; }
+    /// <summary>病人信息字典（PatientId → PatientInfo）</summary>
+    public IReadOnlyDictionary<string, PatientInfo> Patients { get; init; } = new Dictionary<string, PatientInfo>();
+
+    /// <summary>病人信息（单病人兼容，取第一个）</summary>
+    public PatientInfo? Patient => Patients.Values.FirstOrDefault();
 
     /// <summary>诊断报告列表</summary>
     public IReadOnlyList<DiagnosticReport> Diagnostics { get; init; } = [];

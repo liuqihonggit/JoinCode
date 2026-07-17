@@ -64,4 +64,10 @@ public enum CliArg
 
     [CliOption("--doctor", "", "医生模式：spawn jcc.exe 子进程作为病人，监控运行状态并自动修复问题")]
     Doctor,
+
+    [CliOption("--doctor-endpoint", "", "医生 SSE 端点 URL（病人端使用，连接到医生的 SSE 服务器，如 http://localhost:9902）", AcceptsValue = true)]
+    DoctorEndpoint,
+
+    [CliOption("--doctor-port", "", "医生 SSE 服务器端口（医生端使用，默认 9902）", AcceptsValue = true)]
+    DoctorPort,
 }

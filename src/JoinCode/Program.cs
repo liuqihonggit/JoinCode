@@ -27,6 +27,12 @@ class Program
             if (options.DoctorMode)
                 return await Entry.DoctorModeRunner.RunAsync(options);
 
+            // 3.2 --doctor-endpoint: 病人模式 — 连接到医生的 SSE 服务器，发送遥测事件
+            // 病人正常运行，但额外启动 DoctorSseClient 把诊断输出推送给医生
+            var doctorClient = options.DoctorEndpoint is not null
+                ? new Core.Agents.Doctor.DoctorSseClient(options.DoctorEndpoint)
+                : null;
+
             // 3.5 --await N: 启动超时计时器，N秒后强制退出返回1234（用于诊断卡死）
             using var awaitTimer = StartAwaitTimer(options);
 

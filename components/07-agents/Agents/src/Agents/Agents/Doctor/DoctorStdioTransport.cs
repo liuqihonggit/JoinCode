@@ -1,25 +1,47 @@
 namespace Core.Agents.Doctor;
 
+using System.Text;
+using System.Text.Json;
+
 /// <summary>
-/// 医生 IPC 客户端 — 从病人 stdout 读取 NDJSON 遥测事件，解析为 DiagnosticEvent
+/// 医生 stdio 传输 — 从病人 stdout 读取 NDJSON 遥测事件，通过 stdin 发送指令
 /// 复用 BridgeSubprocessHandle 的 NDJSON 解析模式
+/// 仅支持单病人（1:1 父子进程模式），多病人场景使用 DoctorSseServer
 /// </summary>
-public sealed class DoctorIpcClient : IDoctorTransport
+public sealed class DoctorStdioTransport : IDoctorTransport
 {
     private readonly PatientProcessManager _patientManager;
+    private readonly string _patientId;
     private readonly ILogger? _logger;
     private readonly Channel<DiagnosticEvent> _eventChannel;
     private int _isDisposed;
 
-    /// <summary>是否已连接</summary>
+    /// <inheritdoc/>
     public bool IsConnected { get; private set; }
 
-    /// <summary>诊断事件接收事件</summary>
+    /// <inheritdoc/>
+    public IReadOnlyList<string> ConnectedPatientIds
+    {
+        get
+        {
+            var info = _patientManager.GetPatientInfo(_patientId);
+            return info is not null ? [_patientId] : [];
+        }
+    }
+
+    /// <inheritdoc/>
     public event EventHandler<DiagnosticEvent>? EventReceived;
 
-    public DoctorIpcClient(PatientProcessManager patientManager, ILogger? logger = null)
+    /// <inheritdoc/>
+    public event EventHandler<string>? PatientConnected;
+
+    /// <inheritdoc/>
+    public event EventHandler<string>? PatientDisconnected;
+
+    public DoctorStdioTransport(PatientProcessManager patientManager, string patientId, ILogger? logger = null)
     {
         _patientManager = patientManager ?? throw new ArgumentNullException(nameof(patientManager));
+        _patientId = patientId ?? throw new ArgumentNullException(nameof(patientId));
         _logger = logger;
         _eventChannel = Channel.CreateBounded<DiagnosticEvent>(new BoundedChannelOptions(256)
         {
@@ -31,19 +53,16 @@ public sealed class DoctorIpcClient : IDoctorTransport
         _patientManager.OutputLineReceived += OnOutputLineReceived;
     }
 
-    /// <summary>
-    /// 连接到病人进程 — 订阅 stdout 事件流
-    /// </summary>
+    /// <inheritdoc/>
     public Task ConnectAsync(CancellationToken cancellationToken = default)
     {
         IsConnected = true;
-        _logger?.LogInformation("[Doctor] IPC 客户端已连接，开始监听病人 stdout");
+        _logger?.LogInformation("[Doctor-stdio] IPC 客户端已连接，病人 {PatientId}", _patientId);
+        PatientConnected?.Invoke(this, _patientId);
         return Task.CompletedTask;
     }
 
-    /// <summary>
-    /// 读取下一条诊断事件
-    /// </summary>
+    /// <inheritdoc/>
     public async Task<DiagnosticEvent?> ReadEventAsync(CancellationToken cancellationToken = default)
     {
         if (!IsConnected) return null;
@@ -58,33 +77,41 @@ public sealed class DoctorIpcClient : IDoctorTransport
         }
     }
 
-    /// <summary>
-    /// 向病人进程发送指令（通过 stdin）
-    /// </summary>
-    public async Task SendCommandAsync(string command, CancellationToken cancellationToken = default)
+    /// <inheritdoc/>
+    public async Task SendCommandAsync(string patientId, string command, CancellationToken cancellationToken = default)
     {
-        var stdin = _patientManager.StandardInput;
+        if (patientId != _patientId)
+        {
+            _logger?.LogWarning("[Doctor-stdio] 病人 {PatientId} 不匹配，期望 {ExpectedId}", patientId, _patientId);
+            return;
+        }
+
+        var stdin = _patientManager.GetStandardInput(_patientId);
         if (stdin is null || !stdin.BaseStream.CanWrite)
         {
-            _logger?.LogWarning("[Doctor] 病人 stdin 不可写，无法发送指令");
+            _logger?.LogWarning("[Doctor-stdio] 病人 {PatientId} stdin 不可写，无法发送指令", _patientId);
             return;
         }
 
         await stdin.WriteAsync(command.AsMemory(), cancellationToken).ConfigureAwait(false);
         await stdin.FlushAsync(cancellationToken).ConfigureAwait(false);
-        _logger?.LogDebug("[Doctor] 已发送指令: {Command}", command);
+        _logger?.LogDebug("[Doctor-stdio] 已发送指令到病人 {PatientId}: {Command}", _patientId, command[..Math.Min(command.Length, 100)]);
     }
 
-    /// <summary>
-    /// 处理病人 stdout 行 — 解析 NDJSON 为 DiagnosticEvent
-    /// </summary>
-    private void OnOutputLineReceived(object? sender, string line)
+    /// <inheritdoc/>
+    public Task BroadcastCommandAsync(string command, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(line)) return;
+        return SendCommandAsync(_patientId, command, cancellationToken);
+    }
+
+    private void OnOutputLineReceived(object? sender, (string PatientId, string Line) e)
+    {
+        if (e.PatientId != _patientId) return;
+        if (string.IsNullOrWhiteSpace(e.Line)) return;
 
         try
         {
-            var evt = ParseDiagnosticEvent(line);
+            var evt = ParseDiagnosticEvent(e.Line, _patientId);
             if (evt is not null)
             {
                 _eventChannel.Writer.TryWrite(evt);
@@ -93,15 +120,11 @@ public sealed class DoctorIpcClient : IDoctorTransport
         }
         catch (Exception ex)
         {
-            _logger?.LogDebug(ex, "[Doctor] 解析病人 stdout 行失败: {Line}", line[..Math.Min(line.Length, 200)]);
+            _logger?.LogDebug(ex, "[Doctor-stdio] 解析病人 {PatientId} stdout 行失败: {Line}", _patientId, e.Line[..Math.Min(e.Line.Length, 200)]);
         }
     }
 
-    /// <summary>
-    /// 从 NDJSON 行解析 DiagnosticEvent
-    /// 识别 [WIRE] [STEP] [READY] [MAIN] 等诊断标记
-    /// </summary>
-    internal static DiagnosticEvent? ParseDiagnosticEvent(string line)
+    internal static DiagnosticEvent? ParseDiagnosticEvent(string line, string patientId)
     {
         if (string.IsNullOrWhiteSpace(line)) return null;
 
@@ -111,14 +134,12 @@ public sealed class DoctorIpcClient : IDoctorTransport
         return new DiagnosticEvent
         {
             EventType = eventType,
+            PatientId = patientId,
             RawData = line,
             Timestamp = DateTimeOffset.UtcNow
         };
     }
 
-    /// <summary>
-    /// 检测事件类型 — 从行内容推断
-    /// </summary>
     private static string? DetectEventType(string line)
     {
         if (line.Contains("[WIRE]")) return "wire_trace";
@@ -135,13 +156,13 @@ public sealed class DoctorIpcClient : IDoctorTransport
         {
             try
             {
-                var json = JsonSerializer.Deserialize(line, DoctorJsonContext.Default.DictionaryStringJsonElement);
+                var json = JsonSerializer.Deserialize(line, DoctorStdioJsonContext.Default.DictionaryStringJsonElement);
                 if (json is not null && json.TryGetValue("type", out var typeEl) && typeEl.ValueKind == JsonValueKind.String)
                 {
                     return typeEl.GetString();
                 }
             }
-            catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"[Doctor] NDJSON 解析失败: {ex.Message}"); }
+            catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"[Doctor-stdio] NDJSON 解析失败: {ex.Message}"); }
         }
 
         return null;
@@ -155,13 +176,12 @@ public sealed class DoctorIpcClient : IDoctorTransport
         _eventChannel.Writer.TryComplete();
         IsConnected = false;
 
+        PatientDisconnected?.Invoke(this, _patientId);
+
         await Task.CompletedTask.ConfigureAwait(false);
     }
 }
 
-/// <summary>
-/// Doctor IPC JSON 序列化上下文 — AOT 兼容
-/// </summary>
 [JsonSerializable(typeof(Dictionary<string, JsonElement>))]
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
-internal sealed partial class DoctorJsonContext : JsonSerializerContext;
+internal sealed partial class DoctorStdioJsonContext : JsonSerializerContext;

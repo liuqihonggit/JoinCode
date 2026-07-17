@@ -40,6 +40,9 @@ public sealed record DiagnosticEvent
     /// <summary>事件类型标识（如 "loop_detected", "permission_denied", "api_error"）</summary>
     public required string EventType { get; init; }
 
+    /// <summary>病人 ID — 标识事件来源的病人进程</summary>
+    public string PatientId { get; init; } = string.Empty;
+
     /// <summary>事件时间戳</summary>
     public DateTimeOffset Timestamp { get; init; } = DateTimeOffset.UtcNow;
 
@@ -60,6 +63,9 @@ public sealed record DiagnosticReport
 {
     /// <summary>规则 ID</summary>
     public required DiagnosticRuleId RuleId { get; init; }
+
+    /// <summary>病人 ID — 标识触发诊断的病人进程</summary>
+    public string PatientId { get; init; } = string.Empty;
 
     /// <summary>严重度</summary>
     public required DiagnosticSeverity Severity { get; init; }
@@ -109,6 +115,9 @@ public enum PatientState
 /// </summary>
 public sealed record PatientInfo
 {
+    /// <summary>病人 ID — 唯一标识一个病人进程</summary>
+    public string PatientId { get; init; } = Guid.NewGuid().ToString("N")[..8];
+
     /// <summary>进程 ID</summary>
     public int ProcessId { get; init; }
 

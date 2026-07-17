@@ -16,18 +16,34 @@ internal static class DoctorModeRunner
         var fs = IO.FileSystem.FileSystemFactory.Create();
         var processService = new IO.ProcessService.PhysicalProcessService();
 
-        await using var doctor = new DoctorAgent(fs, processService);
+        var port = options.DoctorPort ?? 9902;
+        var transport = new DoctorSseServer(port, logger: null);
+
+        await using var doctor = new DoctorAgent(fs, processService, transport);
+
+        if (!string.IsNullOrWhiteSpace(options.DoctorEndpoint))
+        {
+            Diag.WriteLine($"[DOCTOR] SSE 服务器模式，端口: {port}");
+            var report = await doctor.RunServerAsync(port).ConfigureAwait(false);
+            PrintReport(report);
+            return report.Status switch
+            {
+                DoctorReportStatus.Completed => 0,
+                DoctorReportStatus.PartiallyFixed => 1,
+                _ => 2
+            };
+        }
 
         var patientArgs = BuildPatientArguments(options);
         var workingDir = fs.GetCurrentDirectory();
 
         Diag.WriteLine($"[DOCTOR] 病人参数: {patientArgs}");
 
-        var report = await doctor.RunAsync(patientArgs, workingDir, cancellationToken: default).ConfigureAwait(false);
+        var runReport = await doctor.RunAsync("patient-main", patientArgs, workingDir, cancellationToken: default).ConfigureAwait(false);
 
-        PrintReport(report);
+        PrintReport(runReport);
 
-        return report.Status switch
+        return runReport.Status switch
         {
             DoctorReportStatus.Completed => 0,
             DoctorReportStatus.PartiallyFixed => 1,
@@ -83,12 +99,22 @@ internal static class DoctorModeRunner
 
         if (report.Patient is not null)
         {
+            Cli.TerminalHelper.WriteLine($"  病人 ID:     {report.Patient.PatientId}");
             Cli.TerminalHelper.WriteLine($"  病人 PID:    {report.Patient.ProcessId}");
             Cli.TerminalHelper.WriteLine($"  病人状态:    {report.Patient.State}");
             Cli.TerminalHelper.WriteLine($"  退出码:      {report.Patient.ExitCode}");
             Cli.TerminalHelper.WriteLine($"  启动时间:    {report.Patient.StartedAt:HH:mm:ss}");
             if (report.Patient.ExitedAt.HasValue)
                 Cli.TerminalHelper.WriteLine($"  退出时间:    {report.Patient.ExitedAt.Value:HH:mm:ss}");
+        }
+
+        if (report.Patients.Count > 1)
+        {
+            Cli.TerminalHelper.WriteLine($"  病人总数:    {report.Patients.Count}");
+            foreach (var kv in report.Patients)
+            {
+                Cli.TerminalHelper.WriteLine($"    {kv.Key}: PID={kv.Value.ProcessId}, 状态={kv.Value.State}");
+            }
         }
 
         Cli.TerminalHelper.WriteLine($"  诊断数量:    {report.Diagnostics.Count}");
@@ -102,7 +128,7 @@ internal static class DoctorModeRunner
             Cli.TerminalHelper.WriteLine("  ── 诊断详情 ──");
             foreach (var diag in report.Diagnostics)
             {
-                Cli.TerminalHelper.WriteLine($"  [{diag.Severity}] {diag.RuleId}: {diag.Description}");
+                Cli.TerminalHelper.WriteLine($"  [{diag.Severity}] {diag.RuleId} (病人: {diag.PatientId}): {diag.Description}");
             }
         }
 

@@ -9,10 +9,14 @@ public sealed class DoctorAgent : IAsyncDisposable
     private readonly PatientProcessManager _patientManager;
     private readonly DoctorIpcClient _ipcClient;
     private readonly DiagnosticEngine _diagnosticEngine;
+    private readonly HotFixEngine _hotFixEngine;
+    private readonly SourceCodePatcher _patcher;
+    private readonly BuildOrchestrator _builder;
     private readonly IFileSystem _fs;
     private readonly IProcessService _processService;
     private readonly ILogger? _logger;
     private readonly List<HotFixResult> _fixResults = [];
+    private readonly SemaphoreSlim _fixLock = new(1, 1);
     private int _isDisposed;
 
     /// <summary>Agent 名称</summary>
@@ -20,6 +24,9 @@ public sealed class DoctorAgent : IAsyncDisposable
 
     /// <summary>Agent 描述</summary>
     public string Description => "监控 jcc.exe 子进程运行状态，自动诊断和修复问题";
+
+    /// <summary>是否启用自动修复</summary>
+    public bool AutoFixEnabled { get; set; } = true;
 
     /// <summary>累计诊断报告</summary>
     public IReadOnlyList<DiagnosticReport> Diagnostics => _diagnosticEngine.Reports;
@@ -39,10 +46,15 @@ public sealed class DoctorAgent : IAsyncDisposable
         _patientManager = new PatientProcessManager(processService, logger);
         _ipcClient = new DoctorIpcClient(_patientManager, logger);
         _diagnosticEngine = new DiagnosticEngine(logger);
+        _patcher = new SourceCodePatcher(fs, logger);
+        _builder = new BuildOrchestrator(processService, logger);
+        _hotFixEngine = new HotFixEngine(_patcher, _builder, _patientManager, _ipcClient, fs, logger);
 
         _patientManager.ProcessExited += OnProcessExited;
         _ipcClient.EventReceived += OnDiagnosticEventReceived;
         _diagnosticEngine.DiagnosticReportGenerated += OnDiagnosticReportGenerated;
+        _hotFixEngine.FixApplied += OnFixApplied;
+        _hotFixEngine.FixRolledBack += OnFixRolledBack;
     }
 
     /// <summary>
@@ -188,6 +200,40 @@ public sealed class DoctorAgent : IAsyncDisposable
     private void OnDiagnosticReportGenerated(object? sender, DiagnosticReport report)
     {
         _logger?.LogWarning("[Doctor] 诊断报告: {RuleId} - {Description}", report.RuleId, report.Description);
+
+        if (!AutoFixEnabled) return;
+
+        _ = Task.Run(async () =>
+        {
+            if (!await _fixLock.WaitAsync(0).ConfigureAwait(false)) return;
+
+            try
+            {
+                var result = await _hotFixEngine.ExecuteFixAsync(report).ConfigureAwait(false);
+
+                await _fixLock.WaitAsync().ConfigureAwait(false);
+                try { _fixResults.Add(result); }
+                finally { _fixLock.Release(); }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "[Doctor] 自动修复异常: {RuleId}", report.RuleId);
+            }
+            finally
+            {
+                _fixLock.Release();
+            }
+        });
+    }
+
+    private void OnFixApplied(object? sender, HotFixResult result)
+    {
+        _logger?.LogInformation("[Doctor] 修复已应用: {ActionType} - {Description}", result.Action.ActionType, result.Description);
+    }
+
+    private void OnFixRolledBack(object? sender, HotFixResult result)
+    {
+        _logger?.LogWarning("[Doctor] 修复已回滚: {ActionType} - {Description}", result.Action.ActionType, result.Description);
     }
 
     private DoctorReport BuildReport(
@@ -199,7 +245,7 @@ public sealed class DoctorAgent : IAsyncDisposable
         {
             Patient = patientInfo,
             Diagnostics = _diagnosticEngine.Reports,
-            FixResults = _fixResults,
+            FixResults = [.. _fixResults, .. _hotFixEngine.Results],
             StartedAt = startedAt,
             CompletedAt = DateTimeOffset.UtcNow,
             Status = status
@@ -213,8 +259,11 @@ public sealed class DoctorAgent : IAsyncDisposable
         _patientManager.ProcessExited -= OnProcessExited;
         _ipcClient.EventReceived -= OnDiagnosticEventReceived;
         _diagnosticEngine.DiagnosticReportGenerated -= OnDiagnosticReportGenerated;
+        _hotFixEngine.FixApplied -= OnFixApplied;
+        _hotFixEngine.FixRolledBack -= OnFixRolledBack;
 
         await _ipcClient.DisposeAsync().ConfigureAwait(false);
         await _patientManager.DisposeAsync().ConfigureAwait(false);
+        _fixLock.Dispose();
     }
 }

@@ -106,7 +106,7 @@ public class QueryStateTransitionsTests
     [Fact]
     public void StateChanged_ValidTransition_ShouldFireEvent()
     {
-        QueryStateChangedEventArgs? capturedArgs = null;
+        StateChangedEventArgs<QueryState>? capturedArgs = null;
         _transitions.StateChanged += (_, args) => capturedArgs = args;
 
         _transitions.TransitionTo(QueryState.Initializing);
@@ -122,7 +122,7 @@ public class QueryStateTransitionsTests
     {
         _transitions.TransitionTo(QueryState.Initializing);
 
-        QueryStateChangedEventArgs? capturedArgs = null;
+        StateChangedEventArgs<QueryState>? capturedArgs = null;
         _transitions.StateChanged += (_, args) => capturedArgs = args;
 
         _transitions.Reset();

@@ -1,4 +1,4 @@
-using JoinCode.Abstractions.Attributes;
+﻿using JoinCode.Abstractions.Attributes;
 
 namespace JoinCode.Transport.Bridge;
 
@@ -48,7 +48,7 @@ public sealed partial class ConnectionManager : IConnectionManager
             if (oldState != value)
             {
                 _logger?.LogDebug("[ConnectionManager] 连接状态变更: {OldState} -> {NewState}", oldState, value);
-                ConnectionStateChanged?.Invoke(this, new TransportStateChangedEventArgs(oldState, value));
+                ConnectionStateChanged?.Invoke(this, new StateChangedEventArgs<TransportConnectionState>(oldState, value));
             }
         }
         finally
@@ -61,7 +61,7 @@ public sealed partial class ConnectionManager : IConnectionManager
     public bool IsConnected => _connectionState == TransportConnectionState.Connected;
     public int ReconnectAttemptCount => _reconnectAttemptCount;
 
-    public event EventHandler<TransportStateChangedEventArgs>? ConnectionStateChanged;
+    public event EventHandler<StateChangedEventArgs<TransportConnectionState>>? ConnectionStateChanged;
     public event EventHandler? Reconnecting;
     public event EventHandler? Reconnected;
     public event EventHandler<TransportErrorEventArgs>? ErrorOccurred;

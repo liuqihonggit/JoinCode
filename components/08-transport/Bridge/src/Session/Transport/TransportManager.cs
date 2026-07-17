@@ -1,4 +1,4 @@
-using JoinCode.Abstractions.Attributes;
+﻿using JoinCode.Abstractions.Attributes;
 
 namespace Core.Bridge;
 
@@ -19,7 +19,7 @@ public sealed partial class TransportManager : ITransportManager
     public int ReconnectAttemptCount => _connectionManager.ReconnectAttemptCount;
 
     public event EventHandler<BridgeMessageReceivedEventArgs>? MessageReceived;
-    public event EventHandler<TransportStateChangedEventArgs>? ConnectionStateChanged
+    public event EventHandler<StateChangedEventArgs<TransportConnectionState>>? ConnectionStateChanged
     {
         add => _connectionManager.ConnectionStateChanged += value;
         remove => _connectionManager.ConnectionStateChanged -= value;

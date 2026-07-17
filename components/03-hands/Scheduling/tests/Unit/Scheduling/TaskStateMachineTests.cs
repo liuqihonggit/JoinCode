@@ -103,7 +103,7 @@ public class TaskStateMachineTests
     {
         // Arrange
         var stateMachine = new TaskStateMachine(TaskState.Pending);
-        TaskStateChangedEventArgs? capturedArgs = null;
+        StateChangedEventArgs<TaskState>? capturedArgs = null;
         stateMachine.StateChanged += (sender, args) => capturedArgs = args;
 
         // Act
@@ -111,7 +111,7 @@ public class TaskStateMachineTests
 
         // Assert
         capturedArgs.Should().NotBeNull();
-        capturedArgs!.PreviousState.Should().Be(TaskState.Pending);
+        capturedArgs!.OldState.Should().Be(TaskState.Pending);
         capturedArgs.NewState.Should().Be(TaskState.InProgress);
     }
 
@@ -319,13 +319,13 @@ public class TaskStateMachineTests
         var beforeTime = DateTime.UtcNow.AddMilliseconds(-10);
 
         // Act
-        var args = new TaskStateChangedEventArgs(previousState, newState);
+        var args = new StateChangedEventArgs<TaskState>(previousState, newState);
         var afterTime = DateTime.UtcNow.AddMilliseconds(10);
 
         // Assert
-        args.PreviousState.Should().Be(previousState);
+        args.OldState.Should().Be(previousState);
         args.NewState.Should().Be(newState);
-        args.ChangedAt.Should().BeOnOrAfter(beforeTime);
-        args.ChangedAt.Should().BeOnOrBefore(afterTime);
+        args.Timestamp.Should().BeOnOrAfter(beforeTime);
+        args.Timestamp.Should().BeOnOrBefore(afterTime);
     }
 }

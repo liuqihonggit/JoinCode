@@ -14,7 +14,7 @@ public sealed class TaskStateMachine
 
     public TaskState CurrentState => _stateMachine.CurrentState;
 
-    public event EventHandler<TaskStateChangedEventArgs>? StateChanged;
+    public event EventHandler<StateChangedEventArgs<TaskState>>? StateChanged;
 
     public bool TryTransitionTo(TaskState targetState) => _stateMachine.TryTransitionTo(targetState);
 
@@ -39,7 +39,7 @@ public sealed class TaskStateMachine
 
     private void OnStateChanged(object? sender, StateChangedEventArgs<TaskState> e)
     {
-        StateChanged?.Invoke(this, new TaskStateChangedEventArgs(e.OldState, e.NewState));
+        StateChanged?.Invoke(this, e);
     }
 
     private static FrozenDictionary<TaskState, FrozenSet<TaskState>> CreateTransitionTable()
@@ -78,19 +78,5 @@ public sealed class TaskStateMachine
             [TaskState.Cancelled] = new HashSet<TaskState>().ToFrozenSet(),
             [TaskState.Stopped] = new HashSet<TaskState>().ToFrozenSet()
         }.ToFrozenDictionary();
-    }
-}
-
-public sealed class TaskStateChangedEventArgs : EventArgs
-{
-    public TaskState PreviousState { get; }
-    public TaskState NewState { get; }
-    public DateTime ChangedAt { get; }
-
-    public TaskStateChangedEventArgs(TaskState previousState, TaskState newState)
-    {
-        PreviousState = previousState;
-        NewState = newState;
-        ChangedAt = DateTime.UtcNow;
     }
 }

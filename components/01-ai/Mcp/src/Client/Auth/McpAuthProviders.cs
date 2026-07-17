@@ -182,30 +182,17 @@ public sealed class OAuth2AuthProvider : IMcpAuthProvider, IAsyncDisposable
         {
             _logger?.LogInformation("正在刷新 OAuth2 令牌...");
 
-            var requestContent = new FormUrlEncodedContent(new Dictionary<string, string>
+            var parameters = new Dictionary<string, string>
             {
                 ["grant_type"] = "client_credentials",
                 ["client_id"] = _options.ClientId,
                 ["client_secret"] = _options.ClientSecret,
                 ["scope"] = string.Join(" ", _scopes)
-            });
+            };
 
-            var response = await _httpClient.PostAsync(_options.TokenUrl, requestContent, cancellationToken).ConfigureAwait(false);
-            var responseContent = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-
-            if (!response.IsSuccessStatusCode)
-            {
-                _logger?.LogError("刷新令牌失败: {StatusCode} - {Content}",
-                    response.StatusCode, responseContent);
-                return false;
-            }
-
-            var tokenResponse = JsonSerializer.Deserialize(responseContent, McpClientJsonContext.Default.OAuth2TokenResponse);
-            if (tokenResponse == null || string.IsNullOrEmpty(tokenResponse.AccessToken))
-            {
-                _logger?.LogError("无法解析令牌响应");
-                return false;
-            }
+            var tokenResponse = await OAuth2TokenExchange.ExchangeTokenAsync(
+                _httpClient, _options.TokenUrl, parameters,
+                McpClientJsonContext.Default.OAuth2TokenResponse, _logger, cancellationToken).ConfigureAwait(false);
 
             _authContext.AccessToken = tokenResponse.AccessToken;
             _authContext.RefreshToken = tokenResponse.RefreshToken;
@@ -223,6 +210,11 @@ public sealed class OAuth2AuthProvider : IMcpAuthProvider, IAsyncDisposable
 
             _logger?.LogInformation("OAuth2 令牌刷新成功");
             return true;
+        }
+        catch (OAuthException ex)
+        {
+            _logger?.LogError(ex, "刷新令牌失败");
+            return false;
         }
         catch (Exception ex)
         {

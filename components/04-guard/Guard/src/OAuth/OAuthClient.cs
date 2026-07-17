@@ -115,19 +115,21 @@ public sealed partial class OAuthClient : IOAuthClient
             ["redirect_uri"] = config.RedirectUri
         };
 
-        // 添加客户端密钥（如果存在）
         if (!string.IsNullOrEmpty(config.ClientSecret))
         {
             requestBody["client_secret"] = config.ClientSecret;
         }
 
-        // 添加 PKCE verifier
         if (config.UsePkce)
         {
             requestBody["code_verifier"] = pkce.CodeVerifier;
         }
 
-        return await RequestTokenAsync(config.TokenEndpoint, requestBody, cancellationToken).ConfigureAwait(false);
+        var tokenResponse = await OAuth2TokenExchange.ExchangeTokenAsync(
+            _httpClient, config.TokenEndpoint, requestBody,
+            TokenResponseJsonContext.Default.OAuth2TokenResponse, _logger, cancellationToken).ConfigureAwait(false);
+
+        return MapToOAuthToken(tokenResponse);
     }
 
     /// <inheritdoc />
@@ -148,7 +150,11 @@ public sealed partial class OAuthClient : IOAuthClient
             requestBody["client_secret"] = config.ClientSecret;
         }
 
-        return await RequestTokenAsync(config.TokenEndpoint, requestBody, cancellationToken).ConfigureAwait(false);
+        var tokenResponse = await OAuth2TokenExchange.ExchangeTokenAsync(
+            _httpClient, config.TokenEndpoint, requestBody,
+            TokenResponseJsonContext.Default.OAuth2TokenResponse, _logger, cancellationToken).ConfigureAwait(false);
+
+        return MapToOAuthToken(tokenResponse);
     }
 
     /// <inheritdoc />
@@ -193,35 +199,11 @@ public sealed partial class OAuthClient : IOAuthClient
         }
     }
 
-    /// <summary>
-    /// 请求 Token
-    /// </summary>
-    private async Task<OAuthToken> RequestTokenAsync(string tokenEndpoint, Dictionary<string, string> requestBody, CancellationToken cancellationToken)
+    private OAuthToken MapToOAuthToken(OAuth2TokenResponse tokenResponse)
     {
-        var content = new FormUrlEncodedContent(requestBody);
-        content.Headers.ContentType = new MediaTypeHeaderValue("application/x-www-form-urlencoded");
-
-        _logger?.LogDebug("Requesting token from {Endpoint}", tokenEndpoint);
-
-        var response = await _httpClient.PostAsync(tokenEndpoint, content, cancellationToken).ConfigureAwait(false);
-        var responseBody = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-
-        if (!response.IsSuccessStatusCode)
-        {
-            _logger?.LogError("Token request failed: {StatusCode} - {Body}", response.StatusCode, responseBody);
-            throw new OAuthException($"Token request failed: {response.StatusCode}", response.StatusCode, responseBody);
-        }
-
-        var tokenResponse = JsonSerializer.Deserialize(responseBody, TokenResponseJsonContext.Default.OAuth2TokenResponse);
-
-        if (tokenResponse == null || string.IsNullOrEmpty(tokenResponse.AccessToken))
-        {
-            throw new OAuthException("Invalid token response");
-        }
-
         var expiresAt = _clock.GetUtcNowOffset().AddSeconds(tokenResponse.ExpiresIn);
 
-        var token = new OAuthToken
+        return new OAuthToken
         {
             AccessToken = tokenResponse.AccessToken,
             RefreshToken = tokenResponse.RefreshToken,
@@ -229,35 +211,5 @@ public sealed partial class OAuthClient : IOAuthClient
             ExpiresAt = expiresAt,
             Scope = tokenResponse.Scope?.Split(' ').ToList() ?? new List<string>()
         };
-
-        _logger?.LogInformation("Token obtained successfully, expires at {ExpiresAt}", expiresAt);
-
-        return token;
-    }
-}
-
-/// <summary>
-/// OAuth 异常
-/// </summary>
-public partial class OAuthException : WorkflowException
-{
-    public System.Net.HttpStatusCode StatusCode { get; }
-    public string? ResponseBody { get; }
-
-    public OAuthException(string message)
-        : base(message, errorCode: global::JoinCode.Abstractions.Exceptions.ErrorCode.ApiOAuth.ToValue(), category: ErrorCategory.Api)
-    {
-    }
-
-    public OAuthException(string message, System.Net.HttpStatusCode statusCode, string? responseBody)
-        : base(message, errorCode: global::JoinCode.Abstractions.Exceptions.ErrorCode.ApiOAuth.ToValue(), category: ErrorCategory.Api)
-    {
-        StatusCode = statusCode;
-        ResponseBody = responseBody;
-    }
-
-    public OAuthException(string message, Exception innerException)
-        : base(message, innerException, errorCode: global::JoinCode.Abstractions.Exceptions.ErrorCode.ApiOAuth.ToValue(), category: ErrorCategory.Api)
-    {
     }
 }

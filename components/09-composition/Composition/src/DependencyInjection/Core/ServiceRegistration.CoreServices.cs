@@ -119,14 +119,8 @@ public static partial class ServiceRegistration
         var browserMode = EnvHelper.Get(JccEnvVar.BrowserAutomation);
         if (!string.Equals(browserMode, "Puppeteer", StringComparison.OrdinalIgnoreCase))
         {
-            // NoOp — 覆盖 [Register] 自动注册的 Puppeteer 实现
             services.AddSingleton<IBrowserAutomationService>(sp =>
-            {
-                Diag.WriteDiTrace("[DI] + IBrowserAutomationService (NoOp)");
-                var svc = new NoOpBrowserAutomationService();
-                Diag.WriteDiTrace("[DI] - IBrowserAutomationService (NoOp)");
-                return svc;
-            });
+                EnvSwitchRegistrar.TraceFactory(_ => new NoOpBrowserAutomationService(), "IBrowserAutomationService", "NoOp", sp));
         }
 
         // ITaskService — 根据 JCC_TASK_SERVICE_MODE 环境变量决定后端

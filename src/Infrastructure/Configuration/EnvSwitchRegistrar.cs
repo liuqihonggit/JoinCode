@@ -41,7 +41,7 @@ public static class EnvSwitchRegistrar
         return services;
     }
 
-    private static TService TraceFactory<TService>(
+    public static TService TraceFactory<TService>(
         Func<IServiceProvider, TService> factory,
         string serviceName,
         string mode,

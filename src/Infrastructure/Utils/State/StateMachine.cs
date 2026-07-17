@@ -170,7 +170,8 @@ public sealed class StateMachine<TState> where TState : struct, Enum
 
     private void OnStateChanged(TState oldState, TState newState)
     {
-        var args = new StateChangedEventArgs<TState>(oldState, newState);
+        var timestamp = _clock?.GetUtcNow() ?? DateTime.UtcNow;
+        var args = new StateChangedEventArgs<TState>(oldState, newState, timestamp);
         StateChanged?.Invoke(this, args);
     }
 

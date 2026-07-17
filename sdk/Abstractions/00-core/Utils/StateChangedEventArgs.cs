@@ -12,4 +12,11 @@ public sealed class StateChangedEventArgs<T> : EventArgs
         NewState = newState;
         Timestamp = DateTime.UtcNow;
     }
+
+    public StateChangedEventArgs(T oldState, T newState, DateTime timestamp)
+    {
+        OldState = oldState;
+        NewState = newState;
+        Timestamp = timestamp;
+    }
 }

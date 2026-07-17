@@ -14,20 +14,13 @@ public enum QueryState
     [EnumValue("cancelled")] Cancelled
 }
 
-public sealed class QueryStateChangedEventArgs : EventArgs
-{
-    public required QueryState OldState { get; init; }
-    public required QueryState NewState { get; init; }
-    public required DateTime Timestamp { get; init; }
-}
-
 public interface IQueryStateTransitions
 {
     QueryState CurrentState { get; }
     bool CanTransitionTo(QueryState from, QueryState to);
     void TransitionTo(QueryState target);
     void Reset();
-    event EventHandler<QueryStateChangedEventArgs>? StateChanged;
+    event EventHandler<StateChangedEventArgs<QueryState>>? StateChanged;
 }
 
 [Register(typeof(IQueryStateTransitions))]
@@ -47,7 +40,7 @@ public sealed partial class QueryStateTransitions : IQueryStateTransitions
 
     public QueryState CurrentState => _stateMachine.CurrentState;
 
-    public event EventHandler<QueryStateChangedEventArgs>? StateChanged;
+    public event EventHandler<StateChangedEventArgs<QueryState>>? StateChanged;
 
     public bool CanTransitionTo(QueryState from, QueryState to) => _stateMachine.CanTransitionTo(from, to);
 
@@ -57,12 +50,7 @@ public sealed partial class QueryStateTransitions : IQueryStateTransitions
 
     private void OnStateChanged(object? sender, StateChangedEventArgs<QueryState> e)
     {
-        StateChanged?.Invoke(this, new QueryStateChangedEventArgs
-        {
-            OldState = e.OldState,
-            NewState = e.NewState,
-            Timestamp = e.Timestamp
-        });
+        StateChanged?.Invoke(this, e);
 
         RecordTransitionMetrics(e.OldState, e.NewState);
     }

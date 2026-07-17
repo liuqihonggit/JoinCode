@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Bridge;
 
 using JoinCode.Abstractions.Attributes;
@@ -64,7 +64,7 @@ public sealed partial class BridgeClient : IAsyncDisposable
     public event EventHandler<BridgeMessageReceivedEventArgs>? MessageReceived;
     public event EventHandler<BridgeMessageProcessedEventArgs>? MessageProcessed;
     public event EventHandler<BridgeClientErrorEventArgs>? ErrorOccurred;
-    public event EventHandler<TransportStateChangedEventArgs>? ConnectionStateChanged;
+    public event EventHandler<StateChangedEventArgs<TransportConnectionState>>? ConnectionStateChanged;
     public event EventHandler? Started;
     public event EventHandler? Stopped;
 
@@ -487,7 +487,7 @@ public sealed partial class BridgeClient : IAsyncDisposable
 
     #region 事件处理
 
-    private void OnConnectionStateChanged(object? sender, TransportStateChangedEventArgs e)
+    private void OnConnectionStateChanged(object? sender, StateChangedEventArgs<TransportConnectionState> e)
     {
         _logger?.LogInformation("[BridgeClient] 连接状态变更: {OldState} -> {NewState}", e.OldState, e.NewState);
         ConnectionStateChanged?.Invoke(this, e);

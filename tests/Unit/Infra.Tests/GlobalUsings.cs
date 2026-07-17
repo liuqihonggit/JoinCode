@@ -10,6 +10,7 @@ global using JoinCode.Abstractions.Interfaces;
 global using JoinCode.Abstractions.Models.Telemetry;
 global using Core.Telemetry;
 global using Core.Utils;
+global using JoinCode.Abstractions.Utils;
 global using Core.Services;
 global using JoinCode.Abstractions.Models;
 global using FluentAssertions;

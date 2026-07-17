@@ -1,4 +1,4 @@
-namespace JoinCode.Transport.Bridge;
+﻿namespace JoinCode.Transport.Bridge;
 
 /// <summary>
 /// 连接管理器接口 — 管理传输连接生命周期和重连逻辑
@@ -18,7 +18,7 @@ public interface IConnectionManager : IAsyncDisposable
     int ReconnectAttemptCount { get; }
 
     /// <summary>连接状态变更事件</summary>
-    event EventHandler<TransportStateChangedEventArgs>? ConnectionStateChanged;
+    event EventHandler<StateChangedEventArgs<TransportConnectionState>>? ConnectionStateChanged;
 
     /// <summary>正在重连事件</summary>
     event EventHandler? Reconnecting;

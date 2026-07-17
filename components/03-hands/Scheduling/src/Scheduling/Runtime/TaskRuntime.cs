@@ -1,4 +1,4 @@
-namespace Core.Scheduling.Runtime;
+﻿namespace Core.Scheduling.Runtime;
 
 using JoinCode.Abstractions.Attributes;
 
@@ -10,7 +10,7 @@ public sealed partial class TaskRuntime : ITaskRuntime, IDisposable
     [Inject] private readonly ILogger<TaskRuntime>? _logger;
     private readonly IClockService _clock;
     private readonly TaskRuntimeDeps _deps;
-    private readonly SemaphoreSlim _persistLock;
+    private readonly AsyncLock _persistLock = new();
     private int _taskCounter;
 
     public TaskRuntime(
@@ -25,7 +25,6 @@ public sealed partial class TaskRuntime : ITaskRuntime, IDisposable
         }
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
-        _persistLock = new SemaphoreSlim(1, 1);
     }
 
     public Task<OperationResult<RuntimeTask?>> CreateTaskAsync(RuntimeTaskInput input, CancellationToken cancellationToken = default)
@@ -287,8 +286,7 @@ public sealed partial class TaskRuntime : ITaskRuntime, IDisposable
             return;
         }
 
-        await _persistLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+                using (await _persistLock.LockAsync(cancellationToken).ConfigureAwait(false))
         {
             if (!_deps.FileOperationService.DirectoryExists(_deps.PersistenceDirectory))
             {
@@ -302,10 +300,6 @@ public sealed partial class TaskRuntime : ITaskRuntime, IDisposable
 
             _logger?.LogDebug(L.T(StringKey.PersistTasksLog), durableTasks.Count);
         }
-        finally
-        {
-            _persistLock.Release();
-        }
     }
 
     public async Task<IReadOnlyList<RuntimeTask>> RecoverTasksAsync(string? goalId = null, CancellationToken cancellationToken = default)
@@ -315,8 +309,7 @@ public sealed partial class TaskRuntime : ITaskRuntime, IDisposable
             return Array.Empty<RuntimeTask>();
         }
 
-        await _persistLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+                using (await _persistLock.LockAsync(cancellationToken).ConfigureAwait(false))
         {
             var filePath = Path.Combine(_deps.PersistenceDirectory, "runtime-tasks.json");
             if (!_deps.FileOperationService.FileExists(filePath))
@@ -372,10 +365,6 @@ public sealed partial class TaskRuntime : ITaskRuntime, IDisposable
 
             _logger?.LogInformation(L.T(StringKey.RecoverTasksLog), recovered.Count);
             return recovered;
-        }
-        finally
-        {
-            _persistLock.Release();
         }
     }
 

@@ -1,4 +1,4 @@
-namespace Core.Query.UsdBudget;
+﻿namespace Core.Query.UsdBudget;
 
 public interface IUsdBudgetManager
 {
@@ -28,7 +28,7 @@ public sealed partial class UsdBudgetAlertEventArgs : EventArgs
 [Register(typeof(IUsdBudgetManager))]
 public sealed partial class UsdBudgetManager : IUsdBudgetManager, IAsyncDisposable
 {
-    private readonly SemaphoreSlim _lock;
+    private readonly AsyncLock _lock = new();
     private readonly ICostTracker _costTracker;
     private readonly QueryEngineConfig _config;
     [Inject] private readonly ILogger<UsdBudgetManager>? _logger;
@@ -48,7 +48,6 @@ public sealed partial class UsdBudgetManager : IUsdBudgetManager, IAsyncDisposab
         _config = configOptions?.Value ?? new QueryEngineConfig();
         _logger = logger;
         _telemetryService = telemetryService;
-        _lock = new SemaphoreSlim(1, 1);
         _totalUsed = 0m;
         _alertTriggered = false;
     }
@@ -60,21 +59,15 @@ public sealed partial class UsdBudgetManager : IUsdBudgetManager, IAsyncDisposab
             return false;
         }
 
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
+                using (await _lock.LockAsync(ct).ConfigureAwait(false))
         {
             return _totalUsed >= maxBudget;
-        }
-        finally
-        {
-            _lock.Release();
         }
     }
 
     public async Task<UsdBudgetStatus> GetBudgetStatusAsync(CancellationToken ct = default)
     {
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
+                using (await _lock.LockAsync(ct).ConfigureAwait(false))
         {
             var maxBudget = _config.MaxUsdBudget ?? 0m;
             var remaining = maxBudget > 0 ? Math.Max(0m, maxBudget - _totalUsed) : decimal.MaxValue;
@@ -89,10 +82,6 @@ public sealed partial class UsdBudgetManager : IUsdBudgetManager, IAsyncDisposab
                 IsExceeded = maxBudget > 0 && _totalUsed >= maxBudget
             };
         }
-        finally
-        {
-            _lock.Release();
-        }
     }
 
     public async Task RecordCostAsync(decimal costUsd, string reason, CancellationToken ct = default)
@@ -104,8 +93,7 @@ public sealed partial class UsdBudgetManager : IUsdBudgetManager, IAsyncDisposab
             return;
         }
 
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
+                using (await _lock.LockAsync(ct).ConfigureAwait(false))
         {
             _totalUsed += costUsd;
             _logger?.LogInformation("[UsdBudgetManager] Recorded cost: ${Cost:F6} for '{Reason}', total: ${Total:F6} / ${Max:F2}", costUsd, reason, _totalUsed, maxBudget);
@@ -128,10 +116,6 @@ public sealed partial class UsdBudgetManager : IUsdBudgetManager, IAsyncDisposab
                     Message = message
                 });
             }
-        }
-        finally
-        {
-            _lock.Release();
         }
     }
 

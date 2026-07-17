@@ -86,6 +86,18 @@ public static class JsonElementHelper
         return false;
     }
 
+    public static JsonElement FromPrimitives(object? value) => value switch
+    {
+        string s => FromString(s),
+        int i => FromInt32(i),
+        long l => FromInt64(l),
+        double d => FromDouble(d),
+        bool b => FromBoolean(b),
+        JsonElement je => je,
+        null => NullElement(),
+        _ => FromString(value.ToString())
+    };
+
     public static Dictionary<string, JsonElement> Dict(params (string Key, JsonElement Value)[] pairs)
     {
         var dict = new Dictionary<string, JsonElement>(pairs.Length);

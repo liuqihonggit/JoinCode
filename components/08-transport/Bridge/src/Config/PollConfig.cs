@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Bridge;
 
 /// <summary>
@@ -49,7 +49,7 @@ public sealed partial class PollConfig
 public sealed partial class PollConfigManager : IDisposable
 {
     [Inject] private readonly ILogger<PollConfigManager>? _logger;
-    private readonly SemaphoreSlim _configLock;
+    private readonly AsyncLock _configLock = new();
     private PollConfig _currentConfig;
     private int _consecutiveErrors;
 
@@ -58,7 +58,6 @@ public sealed partial class PollConfigManager : IDisposable
         ILogger<PollConfigManager>? logger = null)
     {
         _logger = logger;
-        _configLock = new SemaphoreSlim(1, 1);
         _currentConfig = initialConfig ?? new PollConfig();
         _consecutiveErrors = 0;
     }
@@ -70,8 +69,7 @@ public sealed partial class PollConfigManager : IDisposable
     /// <returns>当前配置快照</returns>
     public async Task<PollConfig> GetCurrentConfigAsync(CancellationToken ct = default)
     {
-        await _configLock.WaitAsync(ct).ConfigureAwait(false);
-        try
+                using (await _configLock.LockAsync(ct).ConfigureAwait(false))
         {
             return new PollConfig
             {
@@ -81,10 +79,6 @@ public sealed partial class PollConfigManager : IDisposable
                 JitterPercent = _currentConfig.JitterPercent,
                 TimeoutMs = _currentConfig.TimeoutMs
             };
-        }
-        finally
-        {
-            _configLock.Release();
         }
     }
 
@@ -97,8 +91,7 @@ public sealed partial class PollConfigManager : IDisposable
     {
         ArgumentNullException.ThrowIfNull(newConfig);
 
-        await _configLock.WaitAsync(ct).ConfigureAwait(false);
-        try
+                using (await _configLock.LockAsync(ct).ConfigureAwait(false))
         {
             _currentConfig = new PollConfig
             {
@@ -113,10 +106,6 @@ public sealed partial class PollConfigManager : IDisposable
                 "[PollConfigManager] 轮询配置已更新，间隔: {IntervalMs}ms，最大间隔: {MaxIntervalMs}ms",
                 _currentConfig.IntervalMs, _currentConfig.MaxIntervalMs);
         }
-        finally
-        {
-            _configLock.Release();
-        }
     }
 
     /// <summary>
@@ -127,8 +116,7 @@ public sealed partial class PollConfigManager : IDisposable
     /// <returns>下一次轮询间隔（毫秒）</returns>
     public async Task<int> CalculateNextIntervalAsync(bool hasError, CancellationToken ct = default)
     {
-        await _configLock.WaitAsync(ct).ConfigureAwait(false);
-        try
+                using (await _configLock.LockAsync(ct).ConfigureAwait(false))
         {
             if (hasError)
             {
@@ -160,10 +148,6 @@ public sealed partial class PollConfigManager : IDisposable
 
             return result;
         }
-        finally
-        {
-            _configLock.Release();
-        }
     }
 
     /// <summary>
@@ -172,17 +156,12 @@ public sealed partial class PollConfigManager : IDisposable
     /// <param name="ct">取消令牌</param>
     public async Task ResetToDefaultAsync(CancellationToken ct = default)
     {
-        await _configLock.WaitAsync(ct).ConfigureAwait(false);
-        try
+                using (await _configLock.LockAsync(ct).ConfigureAwait(false))
         {
             _currentConfig = new PollConfig();
             _consecutiveErrors = 0;
 
             _logger?.LogInformation("[PollConfigManager] 已重置为默认配置");
-        }
-        finally
-        {
-            _configLock.Release();
         }
     }
 

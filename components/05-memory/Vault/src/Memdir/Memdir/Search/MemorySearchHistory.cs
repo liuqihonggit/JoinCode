@@ -128,7 +128,7 @@ public sealed partial class MemorySearchHistoryService : IMemorySearchHistorySer
     private readonly MemoryStore _memoryStore;
     [Inject] private readonly ILogger<MemorySearchHistoryService>? _logger;
     private readonly IClockService _clock;
-    private readonly SemaphoreSlim _historyLock;
+    private readonly AsyncLock _historyLock = new();
 
     /// <summary>
     /// 搜索历史记录（按时间倒序）
@@ -143,7 +143,6 @@ public sealed partial class MemorySearchHistoryService : IMemorySearchHistorySer
         _memoryStore = memoryStore ?? throw new ArgumentNullException(nameof(memoryStore));
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
-        _historyLock = new SemaphoreSlim(1, 1);
         _searchHistory = new ConcurrentDeque<SearchHistoryEntry>();
     }
 
@@ -157,8 +156,7 @@ public sealed partial class MemorySearchHistoryService : IMemorySearchHistorySer
         ArgumentNullException.ThrowIfNull(query);
 
         cancellationToken.ThrowIfCancellationRequested();
-        await _historyLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+                using (await _historyLock.LockAsync(cancellationToken).ConfigureAwait(false))
         {
             var entry = new SearchHistoryEntry
             {
@@ -182,10 +180,6 @@ public sealed partial class MemorySearchHistoryService : IMemorySearchHistorySer
                 resultCount);
 
             return entry;
-        }
-        finally
-        {
-            _historyLock.Release();
         }
     }
 

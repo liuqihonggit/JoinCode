@@ -8,10 +8,10 @@ public sealed class DoctorAgent : IAsyncDisposable
 {
     private readonly PatientProcessManager _patientManager;
     private readonly DoctorIpcClient _ipcClient;
+    private readonly DiagnosticEngine _diagnosticEngine;
     private readonly IFileSystem _fs;
     private readonly IProcessService _processService;
     private readonly ILogger? _logger;
-    private readonly List<DiagnosticReport> _diagnostics = [];
     private readonly List<HotFixResult> _fixResults = [];
     private int _isDisposed;
 
@@ -22,7 +22,7 @@ public sealed class DoctorAgent : IAsyncDisposable
     public string Description => "监控 jcc.exe 子进程运行状态，自动诊断和修复问题";
 
     /// <summary>累计诊断报告</summary>
-    public IReadOnlyList<DiagnosticReport> Diagnostics => _diagnostics;
+    public IReadOnlyList<DiagnosticReport> Diagnostics => _diagnosticEngine.Reports;
 
     /// <summary>累计修复结果</summary>
     public IReadOnlyList<HotFixResult> FixResults => _fixResults;
@@ -38,9 +38,11 @@ public sealed class DoctorAgent : IAsyncDisposable
 
         _patientManager = new PatientProcessManager(processService, logger);
         _ipcClient = new DoctorIpcClient(_patientManager, logger);
+        _diagnosticEngine = new DiagnosticEngine(logger);
 
         _patientManager.ProcessExited += OnProcessExited;
         _ipcClient.EventReceived += OnDiagnosticEventReceived;
+        _diagnosticEngine.DiagnosticReportGenerated += OnDiagnosticReportGenerated;
     }
 
     /// <summary>
@@ -149,7 +151,7 @@ public sealed class DoctorAgent : IAsyncDisposable
         return new DoctorReport
         {
             Patient = _patientManager.Info,
-            Diagnostics = _diagnostics,
+            Diagnostics = _diagnosticEngine.Reports,
             FixResults = _fixResults,
             TestResults = testResults,
             StartedAt = startedAt,
@@ -174,22 +176,18 @@ public sealed class DoctorAgent : IAsyncDisposable
     {
         _logger?.LogInformation("[Doctor] 病人进程退出事件: PID={ProcessId}, 状态={State}", info.ProcessId, info.State);
 
-        if (info.State == PatientState.Hung)
-        {
-            _diagnostics.Add(new DiagnosticReport
-            {
-                RuleId = DiagnosticRuleId.ProcessHung,
-                Severity = DiagnosticSeverity.Critical,
-                Description = $"病人进程卡死（退出码 1234），PID={info.ProcessId}",
-                SuggestedFixType = HotFixActionType.RestartProcess,
-                SuggestedFixDescription = "重启病人进程"
-            });
-        }
+        _diagnosticEngine.EvaluateProcessHung(info);
     }
 
     private void OnDiagnosticEventReceived(object? sender, DiagnosticEvent evt)
     {
         _logger?.LogDebug("[Doctor] 收到诊断事件: {EventType}", evt.EventType);
+        _diagnosticEngine.Evaluate(evt);
+    }
+
+    private void OnDiagnosticReportGenerated(object? sender, DiagnosticReport report)
+    {
+        _logger?.LogWarning("[Doctor] 诊断报告: {RuleId} - {Description}", report.RuleId, report.Description);
     }
 
     private DoctorReport BuildReport(
@@ -200,7 +198,7 @@ public sealed class DoctorAgent : IAsyncDisposable
         return new DoctorReport
         {
             Patient = patientInfo,
-            Diagnostics = _diagnostics,
+            Diagnostics = _diagnosticEngine.Reports,
             FixResults = _fixResults,
             StartedAt = startedAt,
             CompletedAt = DateTimeOffset.UtcNow,
@@ -214,6 +212,7 @@ public sealed class DoctorAgent : IAsyncDisposable
 
         _patientManager.ProcessExited -= OnProcessExited;
         _ipcClient.EventReceived -= OnDiagnosticEventReceived;
+        _diagnosticEngine.DiagnosticReportGenerated -= OnDiagnosticReportGenerated;
 
         await _ipcClient.DisposeAsync().ConfigureAwait(false);
         await _patientManager.DisposeAsync().ConfigureAwait(false);

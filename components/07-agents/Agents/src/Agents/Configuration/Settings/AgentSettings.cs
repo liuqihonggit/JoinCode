@@ -29,7 +29,7 @@ public class AgentSettings
     /// <summary>
     /// 默认模型名称
     /// </summary>
-    public string DefaultModelName { get; set; } = ModelConfigLoader.GetDefaultModelId("openai");
+    public string DefaultModelName { get; set; } = ModelConfigLoader.GetDefaultModelId("deepseek");
 
     /// <summary>
     /// 最大上下文长度

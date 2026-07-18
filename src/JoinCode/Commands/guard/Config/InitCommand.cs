@@ -78,8 +78,8 @@ public sealed class InitCommand : ChatCommandBase
 
         if (!fs.FileExists(settingsFile))
         {
-            var defaultModel = JoinCode.Abstractions.Configuration.Llm.ModelConfigLoader.GetDefaultModelId("openai");
-            await fs.WriteAllTextAsync(settingsFile, $"{{\n  \"provider\": \"openai\",\n  \"model\": \"{defaultModel}\"\n}}\n", context.CancellationToken).ConfigureAwait(false);
+            var defaultModel = JoinCode.Abstractions.Configuration.Llm.ModelConfigLoader.GetDefaultModelId("deepseek");
+            await fs.WriteAllTextAsync(settingsFile, $"{{\n  \"provider\": \"deepseek\",\n  \"model\": \"{defaultModel}\"\n}}\n", context.CancellationToken).ConfigureAwait(false);
             TerminalHelper.WriteLine("  ✓ 创建 settings.json");
         }
         else

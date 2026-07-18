@@ -7,10 +7,10 @@ namespace JoinCode.Abstractions.Configuration.Providers;
 public class ProviderConfig
 {
     /// <summary>
-    /// Provider 类型: openai, azure, anthropic, agnes
+    /// Provider 类型: deepseek, openai, azure, anthropic, agnes
     /// </summary>
     [Required]
-    public string Provider { get; set; } = ProviderKind.OpenAI.ToValue();
+    public string Provider { get; set; } = ProviderKind.DeepSeek.ToValue();
 
     /// <summary>
     /// API Key
@@ -20,7 +20,7 @@ public class ProviderConfig
     /// <summary>
     /// 模型 ID
     /// </summary>
-    public string ModelId { get; set; } = ModelConfigLoader.GetDefaultModelId("openai");
+    public string ModelId { get; set; } = ModelConfigLoader.GetDefaultModelId("deepseek");
 
     /// <summary>
     /// API 端点（Azure 需要）
@@ -45,7 +45,7 @@ public class ProviderConfig
     /// <summary>
     /// 从 Provider 字符串推导的 ProviderKind 枚举 — 替代字符串比较，编译时类型安全
     /// </summary>
-    public ProviderKind Kind => ProviderKindExtensions.FromValue(Provider) ?? ProviderKind.OpenAI;
+    public ProviderKind Kind => ProviderKindExtensions.FromValue(Provider) ?? ProviderKind.DeepSeek;
 
     /// <summary>
     /// Provider 完整定义 — 由 ConfigLoader 在加载时注入，QueryService 等消费者通过此属性访问 Provider 知识

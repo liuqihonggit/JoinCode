@@ -270,15 +270,12 @@ public sealed class DoctorAgent : IAsyncDisposable
 
         _ = Task.Run(async () =>
         {
-            if (!await _fixLock.WaitAsync(0).ConfigureAwait(false)) return;
+            if (!await _fixLock.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false)) return;
 
             try
             {
                 var result = await _hotFixEngine.ExecuteFixAsync(report).ConfigureAwait(false);
-
-                await _fixLock.WaitAsync().ConfigureAwait(false);
-                try { _fixResults.Add(result); }
-                finally { _fixLock.Release(); }
+                _fixResults.Add(result);
             }
             catch (Exception ex)
             {

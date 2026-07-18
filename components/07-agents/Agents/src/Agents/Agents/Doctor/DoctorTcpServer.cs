@@ -307,9 +307,27 @@ public sealed class DoctorTcpServer : IDoctorTransport
                 var headerText = Encoding.ASCII.GetString(buffer, 0, headerEnd);
                 var bodyStart = headerEnd + 4;
                 var bodyLength = totalRead - bodyStart;
-                var body = bodyLength > 0 ? Encoding.UTF8.GetString(buffer, bodyStart, bodyLength) : string.Empty;
 
-                return ParseHttpRequest(headerText, body);
+                var request = ParseHttpRequest(headerText, bodyLength > 0 ? Encoding.UTF8.GetString(buffer, bodyStart, bodyLength) : string.Empty);
+
+                if (request is not null && request.ContentLength > bodyLength)
+                {
+                    var remaining = request.ContentLength - bodyLength;
+                    if (totalRead + remaining <= buffer.Length)
+                    {
+                        while (bodyLength < request.ContentLength)
+                        {
+                            var extraRead = await stream.ReadAsync(buffer.AsMemory(totalRead), ct).ConfigureAwait(false);
+                            if (extraRead == 0) break;
+                            totalRead += extraRead;
+                            bodyLength = totalRead - bodyStart;
+                        }
+
+                        request = ParseHttpRequest(headerText, bodyLength > 0 ? Encoding.UTF8.GetString(buffer, bodyStart, bodyLength) : string.Empty);
+                    }
+                }
+
+                return request;
             }
         }
 

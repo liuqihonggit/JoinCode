@@ -122,6 +122,7 @@ public sealed class DoctorSseClient : IAsyncDisposable
                 using var stream = await _httpClient.GetStreamAsync(url, ct).ConfigureAwait(false);
 
                 DoctorDiag.Write($"[DoctorSSE-Client] SSE 连接已建立: {url}");
+                retryDelay = TimeSpan.FromSeconds(1);
 
                 await foreach (var sseEvent in ParseSseStreamAsync(stream, ct).ConfigureAwait(false))
                 {

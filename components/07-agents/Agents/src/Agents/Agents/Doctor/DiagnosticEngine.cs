@@ -29,7 +29,14 @@ public sealed class DiagnosticEngine
     {
         ArgumentNullException.ThrowIfNull(evt);
 
-        var report = evt.EventType switch
+        var effectiveEventType = evt.EventType;
+        if (effectiveEventType == "diag_output")
+        {
+            effectiveEventType = ClassifyDiagOutput(evt.RawData);
+            if (effectiveEventType is null) return null;
+        }
+
+        var report = effectiveEventType switch
         {
             "loop_detected" => EvaluateLoopDetected(evt),
             "permission_denied" => EvaluatePermissionDenied(evt),
@@ -46,6 +53,35 @@ public sealed class DiagnosticEngine
         }
 
         return report;
+    }
+
+    /// <summary>
+    /// 从 diag_output 的原始文本中分类出实际事件类型
+    /// 匹配 jcc 诊断日志前缀 [WIRE]/[STEP]/[MAIN] 中的关键字
+    /// </summary>
+    internal static string? ClassifyDiagOutput(string? rawData)
+    {
+        if (string.IsNullOrWhiteSpace(rawData)) return null;
+
+        if (rawData.Contains("LoopDetected", StringComparison.OrdinalIgnoreCase)
+            || rawData.Contains("循环检测", StringComparison.OrdinalIgnoreCase))
+            return "loop_detected";
+
+        if (rawData.Contains("PermissionDenied", StringComparison.OrdinalIgnoreCase)
+            || rawData.Contains("权限被拒绝", StringComparison.OrdinalIgnoreCase))
+            return "permission_denied";
+
+        if (rawData.Contains("ContextOverflow", StringComparison.OrdinalIgnoreCase)
+            || rawData.Contains("上下文溢出", StringComparison.OrdinalIgnoreCase)
+            || rawData.Contains("token_usage_ratio", StringComparison.OrdinalIgnoreCase))
+            return "context_overflow";
+
+        if (rawData.Contains("ApiError", StringComparison.OrdinalIgnoreCase)
+            || rawData.Contains("api_timeout", StringComparison.OrdinalIgnoreCase)
+            || rawData.Contains("API错误", StringComparison.OrdinalIgnoreCase))
+            return "api_error";
+
+        return null;
     }
 
     public DiagnosticReport? EvaluateProcessHung(PatientInfo patientInfo)

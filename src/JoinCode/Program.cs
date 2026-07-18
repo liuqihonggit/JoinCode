@@ -45,6 +45,11 @@ class Program
                     catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"[Doctor] 发送遥测失败: {ex.Message}"); }
                 };
 
+                doctorClient.CommandReceived += (_, command) =>
+                {
+                    Diag.WriteLifecycle($"[Doctor] 收到医生指令: {command}");
+                };
+
                 Diag.WriteLine($"[MAIN] Doctor SSE 客户端已连接: {options.DoctorEndpoint}");
             }
 

@@ -28,7 +28,7 @@ public sealed class BashShellProvider : ShellProviderBase
     /// </summary>
     private static readonly string SnapshotDir = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-        ".jcc", "shell-snapshots");
+        AppDataConstants.AppDataFolder, "shell-snapshots");
 
     public BashShellProvider(IFileSystem fs, string? shellPath = null, ILogger? logger = null)
         : base(fs, shellPath, logger)

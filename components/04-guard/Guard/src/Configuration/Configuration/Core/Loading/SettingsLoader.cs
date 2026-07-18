@@ -155,11 +155,10 @@ public static class SettingsLoader
 
     /// <summary>
     /// 获取项目共享设置路径: {projectDir}/.jcc/settings.json
-    /// 项目设置始终使用 .jcc 相对目录名，不受 AppDataFolder 绝对路径覆盖影响
+    /// 项目级目录始终使用相对目录名，当 AppDataFolder 为绝对路径（测试隔离）时回退到 .jcc
     /// </summary>
     public static string GetProjectSettingsPath(string projectDir)
     {
-        // 项目设置固定使用 .jcc 目录名，不跟随 AppDataFolder 覆盖
         var folderName = Path.IsPathRooted(AppDataConstants.AppDataFolder) ? ".jcc" : AppDataConstants.AppDataFolder;
         return Path.Combine(projectDir, folderName, "settings.json");
     }
@@ -182,7 +181,7 @@ public static class SettingsLoader
     {
         return Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
-            "jcc",
+            AppDataConstants.AppDataFolder,
             "managed-settings.json");
     }
 

@@ -26,7 +26,7 @@ public class SettingsLoaderTests : IDisposable
         _fs.CreateDirectory(_tempDir);
 
         // 项目设置目录: _tempDir/.jcc/
-        _projectAppDataDir = Path.Combine(_tempDir, ".jcc");
+        _projectAppDataDir = Path.Combine(_tempDir, AppDataConstants.AppDataFolder);
         _fs.CreateDirectory(_projectAppDataDir);
 
         // 用户设置隔离目录（绝对路径）

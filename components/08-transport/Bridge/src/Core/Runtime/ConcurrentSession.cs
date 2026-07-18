@@ -112,7 +112,7 @@ public sealed class ConcurrentSessionService
     public static string GetSessionsDir()
     {
         var appData = Environment.GetEnvironmentVariable("JCC_APP_DATA_FOLDER")
-                   ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "jcc");
+                   ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppDataConstants.AppDataFolder);
         return Path.Combine(appData, "sessions");
     }
 

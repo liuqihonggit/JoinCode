@@ -550,7 +550,7 @@ public sealed class BridgeSubprocessSpawner
         else if (options.Verbose || IsAntBuild())
         {
             var tempDir = Path.GetTempPath();
-            debugFile = Path.Combine(tempDir, "jcc", $"bridge-session-{safeId}.log");
+            debugFile = Path.Combine(tempDir, AppDataConstants.AppDataFolder, $"bridge-session-{safeId}.log");
         }
 
         // 构建带 transcript 的路径

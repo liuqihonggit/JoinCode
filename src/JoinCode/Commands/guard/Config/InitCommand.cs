@@ -79,7 +79,15 @@ public sealed class InitCommand : ChatCommandBase
         if (!fs.FileExists(settingsFile))
         {
             var defaultModel = JoinCode.Abstractions.Configuration.Llm.ModelConfigLoader.GetDefaultModelId("deepseek");
-            await fs.WriteAllTextAsync(settingsFile, $"{{\n  \"provider\": \"deepseek\",\n  \"model\": \"{defaultModel}\"\n}}\n", context.CancellationToken).ConfigureAwait(false);
+            var sb = new StringBuilder();
+            sb.AppendLine("{");
+            sb.AppendLine("  // 项目级 Provider（覆盖全局配置）");
+            sb.AppendLine("  \"provider\": \"deepseek\",");
+            sb.AppendLine();
+            sb.AppendLine("  // 项目级模型 ID");
+            sb.AppendLine($"  \"model\": \"{defaultModel}\"");
+            sb.Append('}');
+            await fs.WriteAllTextAsync(settingsFile, sb.ToString(), context.CancellationToken).ConfigureAwait(false);
             TerminalHelper.WriteLine("  ✓ 创建 settings.json");
         }
         else

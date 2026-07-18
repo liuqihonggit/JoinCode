@@ -70,7 +70,7 @@ public static class BridgeInboundAttachments
 
         var uploadDir = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "jcc", "uploads", sessionId);
+            AppDataConstants.AppDataFolder, "uploads", sessionId);
 
         fs.CreateDirectory(uploadDir);
 

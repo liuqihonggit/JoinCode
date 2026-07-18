@@ -72,7 +72,7 @@ public sealed class BridgePointerService
     {
         ArgumentNullException.ThrowIfNull(dir);
         var appData = Environment.GetEnvironmentVariable("JCC_APP_DATA_FOLDER")
-                   ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "jcc");
+                   ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppDataConstants.AppDataFolder);
         var safeDir = dir.Replace(Path.DirectorySeparatorChar, '_').Replace(Path.AltDirectorySeparatorChar, '_');
         var projectsDir = Path.Combine(appData, "projects", safeDir);
         return Path.Combine(projectsDir, "bridge-pointer.json");

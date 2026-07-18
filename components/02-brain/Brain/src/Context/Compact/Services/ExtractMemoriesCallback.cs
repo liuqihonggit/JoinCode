@@ -93,7 +93,7 @@ public sealed partial class ExtractMemoriesCallback : IPostSamplingCallback
     private string GetMemoryDirectory()
     {
         var cwd = _fileSystem.GetCurrentDirectory();
-        return Path.Combine(cwd, ".jcc", "memory");
+        return Path.Combine(cwd, AppDataConstants.AppDataFolder, "memory");
     }
 
     private string FormatMemoryManifest(string memoryDir)

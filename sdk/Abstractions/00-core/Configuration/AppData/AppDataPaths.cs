@@ -39,7 +39,7 @@ public sealed record AppDataPaths(
     public static AppDataPaths FromEnvironment()
     {
         return new AppDataPaths(
-            AppDataFolder: ResolveEnv(JccEnvVar.AppDataFolder, "jcc"),
+            AppDataFolder: ResolveEnv(JccEnvVar.AppDataFolder, ".jcc"),
             CredentialsFileName: ResolveEnv(JccEnvVar.CredentialsFileName, "credentials.json"),
             AuthFileName: ResolveEnv(JccEnvVar.AuthFileName, "auth.json"),
             SettingsFileName: ResolveEnv(JccEnvVar.SettingsFileName, "settings.json"),

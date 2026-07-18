@@ -4,7 +4,7 @@ namespace Core.Context.Compact;
 [Register]
 public sealed partial class SessionMemoryCompactService : ISessionMemoryCompactService
 {
-    private const string SessionMemorySubdir = ".jcc";
+    private static readonly string SessionMemorySubdir = AppDataConstants.AppDataFolder;
     private const string SessionMemoryFileName = "session-memory.md";
 
     private readonly SessionMemoryCompactConfig _config;

@@ -58,7 +58,7 @@ public sealed class SshForwardedPort : ISshForwardedPort
         {
             var keyFile = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                "jcc", "ssh", $"key_{_sessionId}");
+                AppDataConstants.AppDataFolder, "ssh", $"key_{_sessionId}");
             args.Append($" -i \"{keyFile}\"");
         }
 

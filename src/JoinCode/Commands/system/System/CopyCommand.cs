@@ -82,7 +82,7 @@ public sealed class CopyCommand : ChatCommandBase
         // 对齐 TS: 同时写入临时文件作为回退（OSC52需要终端支持）
         try
         {
-            var tempDir = Path.Combine(Path.GetTempPath(), "jcc");
+            var tempDir = Path.Combine(Path.GetTempPath(), AppDataConstants.AppDataFolder);
             DirectoryHelper.EnsureDirectoryExists(fs, tempDir);
             var filePath = Path.Combine(tempDir, filename);
             await fs.WriteAllTextAsync(filePath, text, ct).ConfigureAwait(false);

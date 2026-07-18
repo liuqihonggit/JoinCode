@@ -75,7 +75,7 @@ public sealed partial class SessionMemoryExtractionService : ISessionMemoryExtra
     public string GetMemoryFilePath()
     {
         var cwd = _fileSystem.GetCurrentDirectory();
-        return Path.Combine(cwd, ".jcc", "session-memory.md");
+        return Path.Combine(cwd, AppDataConstants.AppDataFolder, "session-memory.md");
     }
 
     /// <inheritdoc />

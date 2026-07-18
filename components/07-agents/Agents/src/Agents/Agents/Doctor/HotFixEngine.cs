@@ -381,6 +381,7 @@ public sealed class HotFixEngine
         return null;
     }
 
+<<<<<<< HEAD
     private static HotFixAction BuildConfigChangeAction(DiagnosticReport report)
     {
         var targetFilePath = InferConfigFilePath(report);

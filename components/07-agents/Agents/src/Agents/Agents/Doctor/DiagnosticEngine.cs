@@ -83,6 +83,7 @@ public sealed class DiagnosticEngine
             || rawData.Contains("API错误", StringComparison.OrdinalIgnoreCase))
             return "api_error";
 
+<<<<<<< HEAD
         if (rawData.Contains("ToolError", StringComparison.OrdinalIgnoreCase)
             || rawData.Contains("tool_error", StringComparison.OrdinalIgnoreCase)
             || rawData.Contains("工具执行失败", StringComparison.OrdinalIgnoreCase)

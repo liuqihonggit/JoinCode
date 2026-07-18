@@ -307,15 +307,77 @@ public class DiagnosticEngineTests
         Assert.Equal(DiagnosticRuleId.ContextOverflow, report.RuleId);
     }
 
+    [Fact]
+    public void Evaluate_ToolError_LessThan3Times_ReturnsNull()
+    {
+        var evt1 = CreateEvent("tool_error", properties: new Dictionary<string, string> { ["tool"] = "Bash" });
+        var evt2 = CreateEvent("tool_error", properties: new Dictionary<string, string> { ["tool"] = "Bash" });
+
+        Assert.Null(_engine.Evaluate(evt1));
+        Assert.Null(_engine.Evaluate(evt2));
+    }
+
+    [Fact]
+    public void Evaluate_ToolError_3Times_ReturnsD006Report()
+    {
+        var evt1 = CreateEvent("tool_error", properties: new Dictionary<string, string> { ["tool"] = "Bash" });
+        var evt2 = CreateEvent("tool_error", properties: new Dictionary<string, string> { ["tool"] = "Bash" });
+        var evt3 = CreateEvent("tool_error", properties: new Dictionary<string, string> { ["tool"] = "Bash" });
+
+        _engine.Evaluate(evt1);
+        _engine.Evaluate(evt2);
+        var report = _engine.Evaluate(evt3);
+
+        Assert.NotNull(report);
+        Assert.Equal(DiagnosticRuleId.ToolExecutionError, report.RuleId);
+        Assert.Equal(DiagnosticSeverity.Error, report.Severity);
+        Assert.Equal(HotFixActionType.ConfigChange, report.SuggestedFixType);
+        Assert.Contains("Bash", report.Description);
+    }
+
+    [Fact]
+    public void Evaluate_ToolError_DifferentTools_CountedSeparately()
+    {
+        var evt1 = CreateEvent("tool_error", properties: new Dictionary<string, string> { ["tool"] = "Bash" });
+        var evt2 = CreateEvent("tool_error", properties: new Dictionary<string, string> { ["tool"] = "Read" });
+        var evt3 = CreateEvent("tool_error", properties: new Dictionary<string, string> { ["tool"] = "Bash" });
+
+        Assert.Null(_engine.Evaluate(evt1));
+        Assert.Null(_engine.Evaluate(evt2));
+        Assert.Null(_engine.Evaluate(evt3));
+    }
+
+    [Fact]
+    public void Evaluate_ToolError_PatientIsolation()
+    {
+        var evt1 = CreateEvent("tool_error", patientId: "p1", properties: new Dictionary<string, string> { ["tool"] = "Bash" });
+        var evt2 = CreateEvent("tool_error", patientId: "p2", properties: new Dictionary<string, string> { ["tool"] = "Bash" });
+        var evt3 = CreateEvent("tool_error", patientId: "p1", properties: new Dictionary<string, string> { ["tool"] = "Bash" });
+
+        Assert.Null(_engine.Evaluate(evt1));
+        Assert.Null(_engine.Evaluate(evt2));
+        Assert.Null(_engine.Evaluate(evt3));
+    }
+
+    [Fact]
+    public void ClassifyDiagOutput_ToolErrorKeywords()
+    {
+        Assert.Equal("tool_error", DiagnosticEngine.ClassifyDiagOutput("ToolError: something failed"));
+        Assert.Equal("tool_error", DiagnosticEngine.ClassifyDiagOutput("Error executing tool 'Bash'"));
+        Assert.Equal("tool_error", DiagnosticEngine.ClassifyDiagOutput("工具执行失败"));
+    }
+
     private static DiagnosticEvent CreateEvent(
         string eventType,
         string? sessionId = null,
+        string? patientId = null,
         Dictionary<string, string>? properties = null)
     {
         return new DiagnosticEvent
         {
             EventType = eventType,
             SessionId = sessionId,
+            PatientId = patientId ?? string.Empty,
             Properties = properties ?? new Dictionary<string, string>()
         };
     }

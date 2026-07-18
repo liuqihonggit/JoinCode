@@ -9,6 +9,7 @@ public sealed class DiagnosticEngine
     private readonly Dictionary<(string PatientId, string SessionId), int> _loopCountBySession = new();
     private readonly Dictionary<(string PatientId, string ToolName), int> _permissionDeniedByTool = new();
     private readonly Dictionary<string, List<DiagnosticEvent>> _recentApiErrorsByPatient = new();
+    private readonly Dictionary<(string PatientId, string ToolName), int> _toolErrorsByPatientAndTool = new();
     private readonly Dictionary<string, double> _lastTokenUsageRatioByPatient = new();
     private readonly List<DiagnosticReport> _reports = [];
     private readonly object _lock = new();
@@ -42,6 +43,7 @@ public sealed class DiagnosticEngine
             "permission_denied" => EvaluatePermissionDenied(evt),
             "context_overflow" => EvaluateContextOverflow(evt),
             "api_error" or "api_timeout" => EvaluateApiError(evt),
+            "tool_error" => EvaluateToolError(evt),
             _ => null
         };
 
@@ -81,6 +83,12 @@ public sealed class DiagnosticEngine
             || rawData.Contains("API错误", StringComparison.OrdinalIgnoreCase))
             return "api_error";
 
+        if (rawData.Contains("ToolError", StringComparison.OrdinalIgnoreCase)
+            || rawData.Contains("tool_error", StringComparison.OrdinalIgnoreCase)
+            || rawData.Contains("工具执行失败", StringComparison.OrdinalIgnoreCase)
+            || rawData.Contains("Error executing tool", StringComparison.OrdinalIgnoreCase))
+            return "tool_error";
+
         return null;
     }
 
@@ -113,6 +121,7 @@ public sealed class DiagnosticEngine
             _loopCountBySession.Clear();
             _permissionDeniedByTool.Clear();
             _recentApiErrorsByPatient.Clear();
+            _toolErrorsByPatientAndTool.Clear();
             _lastTokenUsageRatioByPatient.Clear();
             _reports.Clear();
         }
@@ -127,6 +136,9 @@ public sealed class DiagnosticEngine
 
             var toolKeysToRemove = _permissionDeniedByTool.Keys.Where(k => k.PatientId == patientId).ToList();
             foreach (var key in toolKeysToRemove) _permissionDeniedByTool.Remove(key);
+
+            var toolErrorKeysToRemove = _toolErrorsByPatientAndTool.Keys.Where(k => k.PatientId == patientId).ToList();
+            foreach (var key in toolErrorKeysToRemove) _toolErrorsByPatientAndTool.Remove(key);
 
             _recentApiErrorsByPatient.Remove(patientId);
             _lastTokenUsageRatioByPatient.Remove(patientId);
@@ -232,6 +244,31 @@ public sealed class DiagnosticEngine
             TriggeringEvents = recentWindow,
             SuggestedFixType = HotFixActionType.ConfigChange,
             SuggestedFixDescription = "检查 API 端点配置、网络连接、API Key 有效性"
+        };
+    }
+
+    private DiagnosticReport? EvaluateToolError(DiagnosticEvent evt)
+    {
+        var toolName = evt.Properties.GetValueOrDefault("tool") ?? evt.Properties.GetValueOrDefault("tool_name") ?? "unknown";
+        var key = (evt.PatientId, toolName);
+        var count = _toolErrorsByPatientAndTool.GetValueOrDefault(key) + 1;
+        _toolErrorsByPatientAndTool[key] = count;
+
+        if (count < 3) return null;
+
+        var errorMessage = evt.Properties.GetValueOrDefault("error") ?? evt.RawData;
+
+        return new DiagnosticReport
+        {
+            RuleId = DiagnosticRuleId.ToolExecutionError,
+            PatientId = evt.PatientId,
+            Severity = DiagnosticSeverity.Error,
+            Description = $"病人 {evt.PatientId} 工具 {toolName} 连续执行失败 {count} 次，可能存在配置或环境问题",
+            TriggeringEvents = [evt],
+            SuggestedFixType = HotFixActionType.ConfigChange,
+            SuggestedFixDescription = string.IsNullOrWhiteSpace(errorMessage)
+                ? $"检查工具 {toolName} 的配置和依赖"
+                : $"检查工具 {toolName} 的配置和依赖，错误: {errorMessage}"
         };
     }
 }

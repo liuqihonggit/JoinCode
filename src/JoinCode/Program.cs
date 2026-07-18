@@ -71,6 +71,25 @@ class Program
 
             await builder.ConfigureModulesAsync(host.Services);
 
+            // 3.3 工具执行遥测：订阅 PermissionAwareToolExecutor.ToolExecutionCompleted，转发给医生
+            if (doctorClient is not null)
+            {
+                var toolExecutor = host.Services.GetService<McpToolRegistry.PermissionAwareToolExecutor>();
+                if (toolExecutor is not null)
+                {
+                    toolExecutor.ToolExecutionCompleted += async (_, e) =>
+                    {
+                        try
+                        {
+                            var eventType = e.IsError ? "tool_error" : "tool_success";
+                            var data = $"{{\"tool\":\"{e.ToolName}\",\"isError\":{e.IsError.ToString().ToLowerInvariant()}}}";
+                            await doctorClient.SendTextEventAsync(eventType, data).ConfigureAwait(false);
+                        }
+                        catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"[Doctor] 发送工具遥测失败: {ex.Message}"); }
+                    };
+                }
+            }
+
             int exitCode;
             if (options.IsNonInteractiveMode)
                 exitCode = await Entry.NonInteractiveModeRunner.RunAsync(config, options, host);

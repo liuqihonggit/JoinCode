@@ -95,6 +95,47 @@ public class HotFixEngineTests
     }
 
     [Fact]
+    public void ChooseAction_ConfigChange_ToolPermissionDenied_AutoGeneratesPatchedContent()
+    {
+        var engine = CreateEngine();
+        var report = CreateReport(DiagnosticRuleId.ToolPermissionDenied, HotFixActionType.ConfigChange,
+            triggeringEvents:
+            [
+                new DiagnosticEvent
+                {
+                    EventType = "permission_denied",
+                    Properties = new Dictionary<string, string> { ["tool"] = "Bash" }
+                }
+            ]);
+
+        var action = engine.ChooseAction(report);
+
+        Assert.Equal(HotFixActionType.ConfigChange, action.ActionType);
+        Assert.NotNull(action.PatchedContent);
+        Assert.Contains("Bash", action.PatchedContent);
+    }
+
+    [Fact]
+    public void ChooseAction_ConfigChange_ToolExecutionError_NoAutoPatchedContent()
+    {
+        var engine = CreateEngine();
+        var report = CreateReport(DiagnosticRuleId.ToolExecutionError, HotFixActionType.ConfigChange,
+            triggeringEvents:
+            [
+                new DiagnosticEvent
+                {
+                    EventType = "tool_error",
+                    Properties = new Dictionary<string, string> { ["tool"] = "Read" }
+                }
+            ]);
+
+        var action = engine.ChooseAction(report);
+
+        Assert.Equal(HotFixActionType.ConfigChange, action.ActionType);
+        Assert.Null(action.PatchedContent);
+    }
+
+    [Fact]
     public void ChooseAction_CompactContext_SetsCompactCommand()
     {
         var engine = CreateEngine();

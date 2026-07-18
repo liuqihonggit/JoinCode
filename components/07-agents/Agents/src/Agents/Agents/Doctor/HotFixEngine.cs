@@ -99,12 +99,7 @@ public sealed class HotFixEngine
                 Description = report.SuggestedFixDescription ?? "修改源码并重编译",
                 TargetFilePath = InferTargetFilePath(report)
             },
-            HotFixActionType.ConfigChange => new HotFixAction
-            {
-                ActionType = HotFixActionType.ConfigChange,
-                Description = report.SuggestedFixDescription ?? "修改配置文件",
-                TargetFilePath = InferConfigFilePath(report)
-            },
+            HotFixActionType.ConfigChange => BuildConfigChangeAction(report),
             HotFixActionType.CompactContext => new HotFixAction
             {
                 ActionType = HotFixActionType.CompactContext,
@@ -137,7 +132,8 @@ public sealed class HotFixEngine
 
         if (string.IsNullOrWhiteSpace(action.PatchedContent))
         {
-            return new HotFixResult { Success = false, PatientId = patientId, Action = action, Description = "未指定补丁内容，源码修复需要人工介入" };
+            DoctorDiag.Write($"[Doctor] 源码修复需要人工介入: {action.TargetFilePath} (病人: {patientId})");
+            return new HotFixResult { Success = false, PatientId = patientId, Action = action, Description = $"源码修复需要人工介入，目标文件: {action.TargetFilePath ?? "未知"}" };
         }
 
         var patchResult = await _patcher.ApplyPatchAsync(
@@ -383,6 +379,47 @@ public sealed class HotFixEngine
         }
 
         return null;
+    }
+
+    private static HotFixAction BuildConfigChangeAction(DiagnosticReport report)
+    {
+        var targetFilePath = InferConfigFilePath(report);
+
+        if (report.RuleId == DiagnosticRuleId.ToolPermissionDenied)
+        {
+            var toolName = report.TriggeringEvents
+                .Select(e => e.Properties.GetValueOrDefault("tool") ?? e.Properties.GetValueOrDefault("tool_name"))
+                .FirstOrDefault(t => !string.IsNullOrWhiteSpace(t)) ?? "unknown";
+
+            return new HotFixAction
+            {
+                ActionType = HotFixActionType.ConfigChange,
+                Description = report.SuggestedFixDescription ?? $"为工具 {toolName} 添加允许权限",
+                TargetFilePath = targetFilePath,
+                PatchedContent = $"{{\"permissions\": {{\"allowedTools\": [\"{toolName}\"]}}}}"
+            };
+        }
+
+        if (report.RuleId == DiagnosticRuleId.ToolExecutionError)
+        {
+            var toolName = report.TriggeringEvents
+                .Select(e => e.Properties.GetValueOrDefault("tool") ?? e.Properties.GetValueOrDefault("tool_name"))
+                .FirstOrDefault(t => !string.IsNullOrWhiteSpace(t)) ?? "unknown";
+
+            return new HotFixAction
+            {
+                ActionType = HotFixActionType.ConfigChange,
+                Description = report.SuggestedFixDescription ?? $"检查工具 {toolName} 的配置和依赖",
+                TargetFilePath = targetFilePath
+            };
+        }
+
+        return new HotFixAction
+        {
+            ActionType = HotFixActionType.ConfigChange,
+            Description = report.SuggestedFixDescription ?? "修改配置文件",
+            TargetFilePath = targetFilePath
+        };
     }
 
     private async Task<bool> VerifyConfigChangeAsync(string filePath, CancellationToken ct)

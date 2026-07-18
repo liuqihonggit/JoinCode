@@ -29,7 +29,10 @@ public enum DiagnosticRuleId
     [EnumValue("D004")] ProcessHung,
 
     /// <summary>API 错误：API 调用连续失败 ≥ 3次</summary>
-    [EnumValue("D005")] ApiError
+    [EnumValue("D005")] ApiError,
+
+    /// <summary>工具执行错误：同一工具连续失败 ≥ 3次</summary>
+    [EnumValue("D006")] ToolExecutionError
 }
 
 /// <summary>

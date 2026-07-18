@@ -17,7 +17,7 @@ internal static class DoctorModeRunner
         var processService = new IO.ProcessService.PhysicalProcessService();
 
         var port = options.DoctorPort ?? 9902;
-        var transport = new DoctorSseServer(port);
+        var transport = new DoctorTcpServer(port);
 
         await using var doctor = new DoctorAgent(fs, processService, transport);
 
@@ -82,7 +82,7 @@ internal static class DoctorModeRunner
             Diag.WriteLine($"[DOCTOR] 执行测试: {testCase.TestCaseId} - {testCase.TestName}");
 
             var testPort = port + results.Count;
-            var transport = new DoctorSseServer(testPort);
+            var transport = new DoctorTcpServer(testPort);
             await using var doctor = new DoctorAgent(fs, processService, transport);
 
             var patientArgs = DoctorTestSuite.BuildPatientArguments(testCase) + $" --doctor-endpoint http://localhost:{testPort}";

@@ -177,23 +177,19 @@ public sealed class HotFixEngine
             };
         }
 
-        await _patientManager.KillAsync(patientId).ConfigureAwait(false);
-
-        try
-        {
-            using var waitCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            await _patientManager.WaitForExitAsync(patientId, waitCts.Token).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) { }
-
         var patientInfo = _patientManager.GetPatientInfo(patientId);
-        if (patientInfo?.Arguments is not null)
+        var originalArgs = patientInfo?.Arguments;
+
+        await _patientManager.KillAsync(patientId).ConfigureAwait(false);
+        await _patientManager.RemovePatientAsync(patientId).ConfigureAwait(false);
+
+        if (originalArgs is not null)
         {
             try
             {
                 await _patientManager.SpawnAsync(
                     patientId,
-                    patientInfo.Arguments,
+                    originalArgs,
                     workingDirectory,
                     cancellationToken: ct).ConfigureAwait(false);
             }
@@ -296,13 +292,7 @@ public sealed class HotFixEngine
         var originalArgs = patientInfo?.Arguments;
 
         await _patientManager.KillAsync(patientId).ConfigureAwait(false);
-
-        try
-        {
-            using var waitCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            await _patientManager.WaitForExitAsync(patientId, waitCts.Token).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) { }
+        await _patientManager.RemovePatientAsync(patientId).ConfigureAwait(false);
 
         if (string.IsNullOrWhiteSpace(originalArgs))
         {

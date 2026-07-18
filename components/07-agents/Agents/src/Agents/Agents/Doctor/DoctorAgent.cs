@@ -49,13 +49,15 @@ public sealed class DoctorAgent : IAsyncDisposable
         _processService = processService ?? throw new ArgumentNullException(nameof(processService));
 
         _patientManager = new PatientProcessManager(processService);
-        _transport = transport ?? new DoctorSseServer(9902);
+        _transport = transport ?? new DoctorTcpServer(9902);
         _diagnosticEngine = new DiagnosticEngine();
         _patcher = new SourceCodePatcher(fs);
         _builder = new BuildOrchestrator(processService);
         _hotFixEngine = new HotFixEngine(_patcher, _builder, _patientManager, _transport, fs);
 
         _patientManager.ProcessExited += OnProcessExited;
+        _patientManager.OutputLineReceived += OnOutputLineReceived;
+        _patientManager.ErrorLineReceived += OnErrorLineReceived;
         _transport.EventReceived += OnDiagnosticEventReceived;
         _transport.PatientConnected += OnPatientConnected;
         _transport.PatientDisconnected += OnPatientDisconnected;
@@ -234,6 +236,16 @@ public sealed class DoctorAgent : IAsyncDisposable
         _diagnosticEngine.EvaluateProcessHung(info);
     }
 
+    private void OnOutputLineReceived(object? sender, (string PatientId, string Line) e)
+    {
+        System.Diagnostics.Trace.WriteLine($"[Doctor] 病人 {e.PatientId} stdout: {e.Line}");
+    }
+
+    private void OnErrorLineReceived(object? sender, (string PatientId, string Line) e)
+    {
+        System.Diagnostics.Trace.WriteLine($"[Doctor] 病人 {e.PatientId} stderr: {e.Line}");
+    }
+
     private void OnDiagnosticEventReceived(object? sender, DiagnosticEvent evt)
     {
         DoctorDiag.Write($"[Doctor] 收到诊断事件: {evt.EventType} (病人: {evt.PatientId})");
@@ -314,6 +326,8 @@ public sealed class DoctorAgent : IAsyncDisposable
         if (Interlocked.Exchange(ref _isDisposed, 1) == 1) return;
 
         _patientManager.ProcessExited -= OnProcessExited;
+        _patientManager.OutputLineReceived -= OnOutputLineReceived;
+        _patientManager.ErrorLineReceived -= OnErrorLineReceived;
         _transport.EventReceived -= OnDiagnosticEventReceived;
         _transport.PatientConnected -= OnPatientConnected;
         _transport.PatientDisconnected -= OnPatientDisconnected;

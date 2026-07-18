@@ -235,15 +235,17 @@ public sealed class HotFixEngine
             return new HotFixResult { Success = false, Action = action, Description = patchResult.Description };
         }
 
-        DoctorDiag.Write($"[Doctor] 配置文件已修改，等待热更新生效: {action.TargetFilePath}");
+        DoctorDiag.Write($"[Doctor] 配置文件已修改，验证热更新: {action.TargetFilePath}");
 
-        await Task.Delay(1000, ct).ConfigureAwait(false);
+        var verified = await VerifyConfigChangeAsync(action.TargetFilePath, ct).ConfigureAwait(false);
 
         return new HotFixResult
         {
             Success = true,
             Action = action,
-            Description = $"配置文件已修改: {action.TargetFilePath}，热更新已触发"
+            Description = verified
+                ? $"配置文件已修改并验证: {action.TargetFilePath}"
+                : $"配置文件已修改: {action.TargetFilePath}，热更新验证超时（可能需要重启）"
         };
     }
 
@@ -337,11 +339,81 @@ public sealed class HotFixEngine
 
     private static string? InferTargetFilePath(DiagnosticReport report)
     {
+        if (report.TriggeringEvents.Count == 0)
+            return null;
+
+        foreach (var evt in report.TriggeringEvents)
+        {
+            if (evt.Properties.TryGetValue("source_file", out var file) && !string.IsNullOrWhiteSpace(file))
+                return file;
+
+            if (evt.Properties.TryGetValue("file_path", out var path) && !string.IsNullOrWhiteSpace(path))
+                return path;
+
+            if (evt.Properties.TryGetValue("source", out var source) && !string.IsNullOrWhiteSpace(source))
+                return source;
+        }
+
         if (report.RuleId == DiagnosticRuleId.LoopDetected)
         {
-            return null;
+            return InferLoopTargetFile(report);
         }
+
         return null;
+    }
+
+    private static string? InferLoopTargetFile(DiagnosticReport report)
+    {
+        foreach (var evt in report.TriggeringEvents)
+        {
+            if (evt.Properties.TryGetValue("tool", out var tool) && !string.IsNullOrWhiteSpace(tool))
+            {
+                var fileName = tool switch
+                {
+                    "Read" or "read_file" => "FileReadMiddleware.cs",
+                    "Edit" or "write_file" or "file_edit" => "FileEditMiddleware.cs",
+                    "Bash" or "shell_exec" => "ShellExecMiddleware.cs",
+                    "Grep" or "search_code" => "CodeSearchMiddleware.cs",
+                    _ => null
+                };
+
+                if (fileName is not null)
+                    return fileName;
+            }
+        }
+
+        return null;
+    }
+
+    private async Task<bool> VerifyConfigChangeAsync(string filePath, CancellationToken ct)
+    {
+        const int maxRetries = 5;
+        const int retryDelayMs = 500;
+
+        for (var i = 0; i < maxRetries; i++)
+        {
+            await Task.Delay(retryDelayMs, ct).ConfigureAwait(false);
+
+            if (!_fs.FileExists(filePath))
+                continue;
+
+            try
+            {
+                var content = await _fs.ReadAllTextAsync(filePath, ct).ConfigureAwait(false);
+                if (!string.IsNullOrWhiteSpace(content))
+                {
+                    DoctorDiag.Write($"[Doctor] 配置热更新验证成功: {filePath} (第{i + 1}次检查)");
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                DoctorDiag.WriteError($"[Doctor] 配置热更新验证读取失败: {filePath}: {ex.Message}");
+            }
+        }
+
+        DoctorDiag.WriteError($"[Doctor] 配置热更新验证超时: {filePath}");
+        return false;
     }
 
     private static string? InferConfigFilePath(DiagnosticReport report)

@@ -15,6 +15,74 @@ public class HotFixEngineTests
     }
 
     [Fact]
+    public void ChooseAction_SourceCodePatch_InfersFilePathFromEventProperties()
+    {
+        var engine = CreateEngine();
+        var report = CreateReport(DiagnosticRuleId.LoopDetected, HotFixActionType.SourceCodePatch,
+            triggeringEvents:
+            [
+                new DiagnosticEvent
+                {
+                    EventType = "loop_detected",
+                    Properties = new Dictionary<string, string> { ["source_file"] = "src/Middleware.cs" }
+                }
+            ]);
+
+        var action = engine.ChooseAction(report);
+
+        Assert.Equal("src/Middleware.cs", action.TargetFilePath);
+    }
+
+    [Fact]
+    public void ChooseAction_SourceCodePatch_InfersFilePathFromFilePathProperty()
+    {
+        var engine = CreateEngine();
+        var report = CreateReport(DiagnosticRuleId.LoopDetected, HotFixActionType.SourceCodePatch,
+            triggeringEvents:
+            [
+                new DiagnosticEvent
+                {
+                    EventType = "loop_detected",
+                    Properties = new Dictionary<string, string> { ["file_path"] = "src/Handler.cs" }
+                }
+            ]);
+
+        var action = engine.ChooseAction(report);
+
+        Assert.Equal("src/Handler.cs", action.TargetFilePath);
+    }
+
+    [Fact]
+    public void ChooseAction_LoopDetected_InfersMiddlewareFileFromTool()
+    {
+        var engine = CreateEngine();
+        var report = CreateReport(DiagnosticRuleId.LoopDetected, HotFixActionType.SourceCodePatch,
+            triggeringEvents:
+            [
+                new DiagnosticEvent
+                {
+                    EventType = "loop_detected",
+                    Properties = new Dictionary<string, string> { ["tool"] = "Read" }
+                }
+            ]);
+
+        var action = engine.ChooseAction(report);
+
+        Assert.Equal("FileReadMiddleware.cs", action.TargetFilePath);
+    }
+
+    [Fact]
+    public void ChooseAction_LoopDetected_NoEventProperties_ReturnsNullFilePath()
+    {
+        var engine = CreateEngine();
+        var report = CreateReport(DiagnosticRuleId.LoopDetected, HotFixActionType.SourceCodePatch);
+
+        var action = engine.ChooseAction(report);
+
+        Assert.Null(action.TargetFilePath);
+    }
+
+    [Fact]
     public void ChooseAction_ConfigChange_SetsSettingsJsonPath()
     {
         var engine = CreateEngine();
@@ -239,6 +307,25 @@ public class HotFixEngineTests
         Assert.False(result.Success);
     }
 
+    [Fact]
+    public void ChooseAction_LoopDetected_SourcePropertyInfersFile()
+    {
+        var engine = CreateEngine();
+        var report = CreateReport(DiagnosticRuleId.LoopDetected, HotFixActionType.SourceCodePatch,
+            triggeringEvents:
+            [
+                new DiagnosticEvent
+                {
+                    EventType = "loop_detected",
+                    Properties = new Dictionary<string, string> { ["source"] = "src/LoopHandler.cs" }
+                }
+            ]);
+
+        var action = engine.ChooseAction(report);
+
+        Assert.Equal("src/LoopHandler.cs", action.TargetFilePath);
+    }
+
     private static HotFixEngine CreateEngine()
     {
         return CreateEngine(new InMemoryFileSystem(), out _);
@@ -270,7 +357,8 @@ public class HotFixEngineTests
         return engine;
     }
 
-    private static DiagnosticReport CreateReport(DiagnosticRuleId ruleId, HotFixActionType fixType)
+    private static DiagnosticReport CreateReport(DiagnosticRuleId ruleId, HotFixActionType fixType,
+        IReadOnlyList<DiagnosticEvent>? triggeringEvents = null)
     {
         return new DiagnosticReport
         {
@@ -278,7 +366,8 @@ public class HotFixEngineTests
             Severity = DiagnosticSeverity.Warning,
             Description = $"测试诊断: {ruleId}",
             SuggestedFixType = fixType,
-            SuggestedFixDescription = $"建议修复: {fixType}"
+            SuggestedFixDescription = $"建议修复: {fixType}",
+            TriggeringEvents = triggeringEvents ?? []
         };
     }
 }

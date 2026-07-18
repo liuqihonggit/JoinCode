@@ -51,7 +51,7 @@ public sealed class DoctorTestSuite
         {
             TestCaseId = "T002",
             TestName = "FileEdit",
-            Prompt = "在test.txt写入hello world",
+            Prompt = "读取当前目录的目录结构",
             TimeoutSeconds = 30,
             Category = "tool"
         },

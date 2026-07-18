@@ -137,6 +137,12 @@ public class CommandLineOptions {
     public bool DoctorMode { get; set; }
 
     /// <summary>
+    /// 医生服务器模式（--doctor-server 参数）— 监听病人 SSE 连接，支持 1:N 多病人监控
+    /// 需配合 --doctor 使用，单独使用无效
+    /// </summary>
+    public bool DoctorServerMode { get; set; }
+
+    /// <summary>
     /// 医生 SSE 端点 URL（--doctor-endpoint 参数）— 病人端使用，连接到医生的 SSE 服务器
     /// 例如 http://localhost:9902，病人通过此端点发送遥测事件和接收医生指令
     /// </summary>

@@ -21,7 +21,7 @@ internal static class DoctorModeRunner
 
         await using var doctor = new DoctorAgent(fs, processService, transport);
 
-        if (!string.IsNullOrWhiteSpace(options.DoctorEndpoint))
+        if (options.DoctorServerMode)
         {
             Diag.WriteLifecycle($"[DOCTOR] SSE 服务器模式，端口: {port}");
             var report = await doctor.RunServerAsync(port).ConfigureAwait(false);
@@ -93,8 +93,6 @@ internal static class DoctorModeRunner
                 ["JCC_TEST_CASE_ID"] = testCase.TestCaseId
             };
 
-            if (!string.IsNullOrWhiteSpace(options.DoctorEndpoint))
-                envVars["JCC_ENDPOINT"] = options.DoctorEndpoint;
             if (!string.IsNullOrWhiteSpace(options.Model))
                 envVars["JCC_MODEL_ID"] = options.Model;
 

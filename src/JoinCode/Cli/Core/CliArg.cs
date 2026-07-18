@@ -70,4 +70,7 @@ public enum CliArg
 
     [CliOption("--doctor-port", "", "医生 SSE 服务器端口（医生端使用，默认 9902）", AcceptsValue = true)]
     DoctorPort,
+
+    [CliOption("--doctor-test-suite", "", "医生测试套件模式：执行内置功能测试用例（T001-T006），验证 jcc.exe 各项能力")]
+    DoctorTestSuite,
 }

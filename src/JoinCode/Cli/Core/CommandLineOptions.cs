@@ -148,6 +148,11 @@ public class CommandLineOptions {
     public int? DoctorPort { get; set; }
 
     /// <summary>
+    /// 医生测试套件模式（--doctor-test-suite 参数）— 执行内置功能测试用例（T001-T006）
+    /// </summary>
+    public bool DoctorTestSuiteMode { get; set; }
+
+    /// <summary>
     /// 是否为非交互模式（用户请求 / 无头环境 / CI 环境 / -p 参数）
     /// </summary>
     public bool IsNonInteractiveMode =>

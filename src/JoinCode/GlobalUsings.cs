@@ -16,6 +16,7 @@ global using JoinCode.Abstractions.Attributes;
 global using JoinCode.Abstractions.Clock;
 global using JoinCode.Abstractions.ChatCommands;
 global using JoinCode.Abstractions.Interfaces;
+global using JoinCode.Abstractions.Interfaces.Doctor;
 global using JoinCode.Abstractions.Interfaces.Scheduling;
 global using JoinCode.Abstractions.Interfaces.Security;
 global using JoinCode.Abstractions.Insights;
@@ -124,6 +125,7 @@ global using TerminalHelper = JoinCode.Cli.TerminalHelper;
 // PipelineComposition 需要的命名空间
 global using Core.Agents;
 global using Core.Agents.Coordinator;
+global using Core.Agents.Doctor;
 global using Core.Context.Compact;
 global using Core.Permission;
 global using Core.Query;

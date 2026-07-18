@@ -7,74 +7,49 @@ namespace JoinCode.Abstractions.Utils.Diagnostics;
 /// </summary>
 public static class Diag
 {
-    /// <summary>
-    /// 环境变量初始化的 verbose 标志 — 从 JCC_VERBOSE 读取一次（不可变）
-    /// 接受真值: "1", "true", "yes"（大小写不敏感）
-    /// </summary>
     private static readonly bool _envEnabled = IsTruthy(Environment.GetEnvironmentVariable(JccEnvVar.Verbose.ToValue()));
 
-    /// <summary>
-    /// DI 注册跟踪标志 — 从 JCC_DI_TRACE 读取一次（不可变）
-    /// 独立于 IsVerbose，专门控制 [DI] +xxx/-xxx 注册日志（避免 verbose 模式被 DI 日志淹没）
-    /// </summary>
     private static readonly bool _diTraceEnabled = Environment.GetEnvironmentVariable(JccEnvVar.DiTrace.ToValue()) == "1";
 
-    /// <summary>
-    /// 运行时 verbose 覆盖标志 — 由 --verbose CLI 参数通过 EnableVerbose() 设置
-    /// 决策: 使用可空 bool? 区分"未设置"与"显式禁用"，当前仅支持启用（true）
-    /// </summary>
     private static bool _runtimeEnabled;
 
     /// <summary>
-    /// 是否启用诊断输出 — 环境变量 JCC_VERBOSE 或 --verbose CLI 参数任一为真即激活
+    /// 诊断行输出事件 — 每次 WriteLine/WriteLifecycle 输出时触发
+    /// 用于外部订阅者（如 DoctorSseClient）捕获诊断行并转发
     /// </summary>
+    public static event EventHandler<string>? DiagnosticLineWritten;
+
     public static bool IsVerbose => _envEnabled || _runtimeEnabled;
 
-    /// <summary>
-    /// 运行时启用诊断输出 — 供 --verbose CLI 参数调用
-    /// 调用后 IsVerbose 永久为 true，等效于 JCC_VERBOSE=1
-    /// 必须在任何 Diag.WriteLine 调用前调用（通常在 ParseArgs 中）
-    /// </summary>
     public static void EnableVerbose() => _runtimeEnabled = true;
 
-    /// <summary>
-    /// 输出生命周期标记到 stderr — 始终输出，不受 verbose 控制
-    /// 用于 [READY]/[DONE]/[ALIVE]/[EXIT] 等 E2E 测试依赖的进程状态标记
-    /// </summary>
     public static void WriteLifecycle(string message)
     {
         Console.Error.WriteLine(message);
         Console.Error.Flush();
+        DiagnosticLineWritten?.Invoke(null, message);
     }
 
-    /// <summary>
-    /// 输出诊断行到 stderr — 仅在 IsVerbose=true 时输出
-    /// 用法: Diag.WriteLine("[STEP] ApiKeyCheck start");
-    /// </summary>
     public static void WriteLine(string? message = null)
     {
         if (!IsVerbose) return;
         if (message is null)
             Console.Error.WriteLine();
         else
+        {
             Console.Error.WriteLine(message);
+            DiagnosticLineWritten?.Invoke(null, message);
+        }
     }
 
-    /// <summary>
-    /// 输出带格式的诊断行 — 仅在 IsVerbose=true 时输出
-    /// 用法: Diag.WriteLine($"[WIRE] ISkillService OK ({elapsed}ms)");
-    /// </summary>
     public static void WriteLine(FormattableString message)
     {
         if (!IsVerbose) return;
-        Console.Error.WriteLine(message);
+        var formatted = message.ToString();
+        Console.Error.WriteLine(formatted);
+        DiagnosticLineWritten?.Invoke(null, formatted);
     }
 
-    /// <summary>
-    /// 输出 DI 注册跟踪日志 — 仅在 JCC_DI_TRACE=1 时输出
-    /// 独立于 IsVerbose，专门用于 [DI] +xxx/-xxx 注册日志
-    /// 用法: Diag.WriteDiTrace("[DI] + IFileSystem (Physical)");
-    /// </summary>
     public static void WriteDiTrace(string message)
     {
         if (!_diTraceEnabled) return;

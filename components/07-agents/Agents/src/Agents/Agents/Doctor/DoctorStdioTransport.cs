@@ -6,7 +6,7 @@ using System.Text.Json;
 /// <summary>
 /// 医生 stdio 传输 — 从病人 stdout 读取 NDJSON 遥测事件，通过 stdin 发送指令
 /// 复用 BridgeSubprocessHandle 的 NDJSON 解析模式
-/// 仅支持单病人（1:1 父子进程模式），多病人场景使用 DoctorSseServer
+/// 仅支持单病人（1:1 父子进程模式），多病人场景使用 DoctorTcpServer
 /// </summary>
 public sealed class DoctorStdioTransport : IDoctorTransport
 {

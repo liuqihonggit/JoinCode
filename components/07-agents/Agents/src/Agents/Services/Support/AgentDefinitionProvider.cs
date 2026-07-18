@@ -140,7 +140,7 @@ public sealed partial class AgentDefinitionProvider : JoinCode.Abstractions.Inte
         CancellationToken cancellationToken)
     {
         var definitions = new List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition>();
-        var appDataRoot = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        var appDataRoot = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         var agentsPath = Path.Combine(appDataRoot, AppDataConstants.AppDataFolder, AppDataConstants.AgentsFolderName);
 
         if (_fs.DirectoryExists(agentsPath))

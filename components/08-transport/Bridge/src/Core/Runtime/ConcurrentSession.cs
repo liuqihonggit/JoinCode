@@ -1,4 +1,4 @@
-﻿
+
 namespace Core.Bridge;
 
 #region SessionKind 枚举
@@ -112,7 +112,7 @@ public sealed class ConcurrentSessionService
     public static string GetSessionsDir()
     {
         var appData = Environment.GetEnvironmentVariable("JCC_APP_DATA_FOLDER")
-                   ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppDataConstants.AppDataFolder);
+                   ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), AppDataConstants.AppDataFolder);
         return Path.Combine(appData, "sessions");
     }
 

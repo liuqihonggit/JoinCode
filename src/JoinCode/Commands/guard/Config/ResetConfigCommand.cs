@@ -1,4 +1,4 @@
-﻿
+
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.ResetConfig, Description = "重置配置文件到默认状态", Usage = "/reset-config [all|auth|settings|trust|onboarding]", Category = ChatCommandCategory.Config, ArgumentHint = "[all|auth|settings|trust|onboarding]")]
@@ -8,7 +8,7 @@ public sealed class ResetConfigCommand : ChatCommandBase
     {
         var args = ChatCommandBase.GetNormalizedArgs(context).ToLowerInvariant();
         var fs = context.Services.FileSystem;
-        var appDataRoot = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        var appDataRoot = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         var jccDir = Path.Combine(appDataRoot, AppDataConstants.AppDataFolder);
 
         if (args == "all" || string.IsNullOrEmpty(args))

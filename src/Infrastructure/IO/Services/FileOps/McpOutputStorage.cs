@@ -18,7 +18,7 @@ public sealed partial class McpOutputStorage : JoinCode.Abstractions.LLM.Chat.IM
         _fs = fs;
         _logger = logger;
         _baseDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             AppDataConstants.AppDataFolder,
             "mcp-output");
     }

@@ -57,7 +57,7 @@ public sealed class SshForwardedPort : ISshForwardedPort
         if (_config.AuthMethod == SshAuthMethod.PrivateKey && _config.PrivateKey != null)
         {
             var keyFile = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
                 AppDataConstants.AppDataFolder, "ssh", $"key_{_sessionId}");
             args.Append($" -i \"{keyFile}\"");
         }

@@ -148,7 +148,7 @@ public static class SettingsLoader
             return Path.Combine(appDataFolder, settingsFileName);
 
         return Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             appDataFolder,
             settingsFileName);
     }

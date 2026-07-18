@@ -33,7 +33,7 @@ public sealed class BridgeDeviceTokenService
         _logger = logger;
         _authFilePath = authFilePath
             ?? Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
                     AppDataConstants.AppDataFolder, "auth.json");
     }
 

@@ -15,7 +15,7 @@ public sealed partial class OnboardingStatePersistence
         _fs = fs;
         _clock = clock ?? SystemClockService.Instance;
         var appDataPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             AppDataConstants.AppDataFolder);
         _filePath = Path.Combine(appDataPath, "onboarding_complete.json");
     }

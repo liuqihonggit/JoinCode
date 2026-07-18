@@ -299,6 +299,25 @@ public sealed class PatientProcessManager : IAsyncDisposable
         public async Task<PatientInfo> WaitForExitAsync(CancellationToken cancellationToken = default)
         {
             await _process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+
+            var exitCode = _process.ExitCode;
+            var state = exitCode switch
+            {
+                0 => PatientState.Completed,
+                1234 => PatientState.Hung,
+                _ => PatientState.Failed
+            };
+
+            if (Info.State == PatientState.Running)
+            {
+                Info = Info with
+                {
+                    State = state,
+                    ExitCode = exitCode,
+                    ExitedAt = DateTimeOffset.UtcNow
+                };
+            }
+
             return Info;
         }
 

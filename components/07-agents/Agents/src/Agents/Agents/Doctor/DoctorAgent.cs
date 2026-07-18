@@ -95,10 +95,10 @@ public sealed class DoctorAgent : IAsyncDisposable
 
         try
         {
+            await _transport.ConnectAsync(cancellationToken).ConfigureAwait(false);
+
             var patientInfo = await _patientManager.SpawnAsync(
                 patientId, patientArguments, workingDirectory, environmentVariables, cancellationToken).ConfigureAwait(false);
-
-            await _transport.ConnectAsync(cancellationToken).ConfigureAwait(false);
 
             _logger?.LogInformation("[Doctor] 病人进程已启动: {PatientId} (PID={ProcessId})，开始监控", patientId, patientInfo.ProcessId);
 
@@ -107,7 +107,15 @@ public sealed class DoctorAgent : IAsyncDisposable
             _logger?.LogInformation("[Doctor] 病人进程已退出: {PatientId}, 状态={State}, 退出码={ExitCode}",
                 patientId, exitInfo.State, exitInfo.ExitCode);
 
-            return BuildReport(startedAt, exitInfo);
+            var reportStatus = exitInfo.State switch
+            {
+                PatientState.Completed => DoctorReportStatus.Completed,
+                PatientState.Hung => DoctorReportStatus.Failed,
+                PatientState.Failed => DoctorReportStatus.PartiallyFixed,
+                _ => DoctorReportStatus.Failed
+            };
+
+            return BuildReport(startedAt, exitInfo, reportStatus);
         }
         catch (OperationCanceledException)
         {

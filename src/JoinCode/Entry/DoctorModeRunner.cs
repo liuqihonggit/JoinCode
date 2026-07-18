@@ -11,7 +11,7 @@ internal static class DoctorModeRunner
     internal static async Task<int> RunAsync(CommandLineOptions options)
     {
         Cli.TerminalHelper.Init();
-        Diag.WriteLine("[DOCTOR] 医生模式启动");
+        Diag.WriteLifecycle("[DOCTOR] 医生模式启动");
 
         var fs = IO.FileSystem.FileSystemFactory.Create();
         var processService = new IO.ProcessService.PhysicalProcessService();
@@ -34,10 +34,10 @@ internal static class DoctorModeRunner
             };
         }
 
-        var patientArgs = BuildPatientArguments(options);
+        var patientArgs = BuildPatientArguments(options, port);
         var workingDir = fs.GetCurrentDirectory();
 
-        Diag.WriteLine($"[DOCTOR] 病人参数: {patientArgs}");
+        Diag.WriteLifecycle($"[DOCTOR] 病人参数: {patientArgs}");
 
         var runReport = await doctor.RunAsync("patient-main", patientArgs, workingDir, cancellationToken: default).ConfigureAwait(false);
 
@@ -71,10 +71,11 @@ internal static class DoctorModeRunner
         {
             Diag.WriteLine($"[DOCTOR] 执行测试: {testCase.TestCaseId} - {testCase.TestName}");
 
-            var transport = new DoctorSseServer(port + results.Count, logger: null);
+            var testPort = port + results.Count;
+            var transport = new DoctorSseServer(testPort, logger: null);
             await using var doctor = new DoctorAgent(fs, processService, transport);
 
-            var patientArgs = DoctorTestSuite.BuildPatientArguments(testCase);
+            var patientArgs = DoctorTestSuite.BuildPatientArguments(testCase) + $" --doctor-endpoint http://localhost:{testPort}";
             var workingDir = fs.GetCurrentDirectory();
 
             var envVars = new Dictionary<string, string>
@@ -151,11 +152,14 @@ internal static class DoctorModeRunner
     /// <summary>
     /// 构建病人进程参数 — 从医生的 CLI 参数推导
     /// </summary>
-    private static string BuildPatientArguments(CommandLineOptions options)
+    private static string BuildPatientArguments(CommandLineOptions options, int? doctorPort = null)
     {
         var sb = new System.Text.StringBuilder();
 
         sb.Append("--trust");
+
+        if (doctorPort.HasValue)
+            sb.Append($" --doctor-endpoint http://localhost:{doctorPort.Value}");
 
         if (options.Verbose)
             sb.Append(" --verbose");

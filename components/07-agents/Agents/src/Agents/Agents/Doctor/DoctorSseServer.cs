@@ -69,7 +69,17 @@ public sealed class DoctorSseServer : IDoctorTransport
 
         _listener = new HttpListener();
         _listener.Prefixes.Add($"http://{_host}:{_port}/");
-        _listener.Start();
+        try
+        {
+            _listener.Start();
+        }
+        catch (HttpListenerException)
+        {
+            _listener.Close();
+            _listener = new HttpListener();
+            _listener.Prefixes.Add($"http://127.0.0.1:{_port}/");
+            _listener.Start();
+        }
 
         _listenCts = new CancellationTokenSource();
         _listenTask = RunAcceptLoopAsync(_listenCts.Token);
@@ -312,8 +322,8 @@ public sealed class DoctorSseServer : IDoctorTransport
         }
         finally { _patientsLock.Release(); }
 
-        _listener?.Stop();
-        _listener?.Close();
+        try { _listener?.Stop(); } catch (ObjectDisposedException) { System.Diagnostics.Trace.WriteLine("[DoctorSSE] HttpListener.Stop 时已释放"); }
+        try { _listener?.Close(); } catch (ObjectDisposedException) { System.Diagnostics.Trace.WriteLine("[DoctorSSE] HttpListener.Close 时已释放"); }
         _listener = null;
 
         _eventChannel.Writer.TryComplete();

@@ -2,6 +2,32 @@ namespace JoinCode.Entry;
 
 internal static class StartupWorkflow
 {
+    /// <summary>
+    /// 确保全局配置文件存在 — 首次启动时自动创建带注释的模板，不覆盖已有文件
+    /// 必须在 LoadConfigAsync 之前调用，确保配置文件可供加载
+    /// </summary>
+    internal static async Task EnsureConfigFilesExistAsync(IFileSystem fs)
+    {
+        var appDataPath = WorkflowConstants.Paths.JccDirectory;
+        var settingsPath = Path.Combine(appDataPath, AppDataConstants.SettingsFileName);
+        var authPath = Path.Combine(appDataPath, AppDataConstants.AuthFileName);
+
+        if (!fs.DirectoryExists(appDataPath))
+        {
+            DirectoryHelper.EnsureDirectoryExists(fs, appDataPath);
+        }
+
+        if (!fs.FileExists(settingsPath))
+        {
+            await fs.WriteAllTextAsync(settingsPath, BuildDefaultSettingsTemplate()).ConfigureAwait(false);
+        }
+
+        if (!fs.FileExists(authPath))
+        {
+            await fs.WriteAllTextAsync(authPath, BuildDefaultAuthTemplate()).ConfigureAwait(false);
+        }
+    }
+
     internal static async Task RunOnboardingIfNeededAsync(IOnboardingService onboardingService, CommandLineOptions options, IFileSystem fs, bool hasApiKey, IProviderDefinitionRegistry registry, WorkflowConfig? config = null)
     {
         await onboardingService.InitializeAsync();
@@ -83,25 +109,6 @@ internal static class StartupWorkflow
                         break;
                 }
             }
-        }
-
-        var appDataPath = WorkflowConstants.Paths.JccDirectory;
-        var settingsPath = Path.Combine(appDataPath, AppDataConstants.SettingsFileName);
-        var authPath = Path.Combine(appDataPath, AppDataConstants.AuthFileName);
-
-        if (!fs.DirectoryExists(appDataPath))
-        {
-            DirectoryHelper.EnsureDirectoryExists(fs, appDataPath);
-        }
-
-        if (!fs.FileExists(settingsPath))
-        {
-            await fs.WriteAllTextAsync(settingsPath, BuildDefaultSettingsTemplate()).ConfigureAwait(false);
-        }
-
-        if (!fs.FileExists(authPath))
-        {
-            await fs.WriteAllTextAsync(authPath, BuildDefaultAuthTemplate()).ConfigureAwait(false);
         }
     }
 

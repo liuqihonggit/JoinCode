@@ -15,6 +15,7 @@ public sealed class DoctorSseClient : IAsyncDisposable
     private readonly string _patientId;
     private readonly HttpClient _httpClient;
     private readonly CancellationTokenSource _cts;
+    private readonly TaskCompletionSource _connectedTcs = new();
     private Task? _sseListenTask;
     private int _isDisposed;
 
@@ -36,7 +37,7 @@ public sealed class DoctorSseClient : IAsyncDisposable
     }
 
     /// <summary>
-    /// 连接到医生 SSE 服务器 — 启动 SSE 监听循环
+    /// 连接到医生 SSE 服务器 — 启动 SSE 监听循环，等待首次连接成功
     /// </summary>
     public async Task ConnectAsync(CancellationToken cancellationToken = default)
     {
@@ -46,7 +47,15 @@ public sealed class DoctorSseClient : IAsyncDisposable
 
         _sseListenTask = ListenSseAsync(_cts.Token);
 
-        IsConnected = true;
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _cts.Token);
+        try
+        {
+            await _connectedTcs.Task.WaitAsync(linkedCts.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (_cts.IsCancellationRequested)
+        {
+            DoctorDiag.WriteError("[DoctorSSE-Client] 连接被取消");
+        }
     }
 
     /// <summary>
@@ -56,27 +65,23 @@ public sealed class DoctorSseClient : IAsyncDisposable
     {
         if (!IsConnected) return;
 
-        var sb = new StringBuilder();
-        sb.Append("{\"type\":\"").Append(JsonEscape(evt.EventType)).Append("\"");
-        sb.Append(",\"patientId\":\"").Append(JsonEscape(_patientId)).Append("\"");
-        sb.Append(",\"timestamp\":\"").Append(evt.Timestamp.ToString("o")).Append("\"");
-        if (evt.SessionId is not null)
-            sb.Append(",\"sessionId\":\"").Append(JsonEscape(evt.SessionId)).Append("\"");
+        var payload = new Dictionary<string, string?>
+        {
+            ["type"] = evt.EventType,
+            ["patientId"] = _patientId,
+            ["timestamp"] = evt.Timestamp.ToString("o"),
+            ["sessionId"] = evt.SessionId,
+            ["rawData"] = evt.RawData
+        };
+
         if (evt.Properties.Count > 0)
         {
-            sb.Append(",\"properties\":{");
-            var first = true;
             foreach (var kv in evt.Properties)
-            {
-                if (!first) sb.Append(',');
-                sb.Append('"').Append(JsonEscape(kv.Key)).Append("\":\"").Append(JsonEscape(kv.Value)).Append('"');
-                first = false;
-            }
-            sb.Append('}');
+                payload[$"prop_{kv.Key}"] = kv.Value;
         }
-        sb.Append('}');
 
-        var content = new StringContent(sb.ToString(), Encoding.UTF8, "application/json");
+        var json = JsonSerializer.Serialize(payload, DoctorSseClientJsonContext.Default.DictionaryStringString);
+        var content = new StringContent(json, Encoding.UTF8, "application/json");
         var url = $"{_endpoint}/events?patientId={_patientId}";
 
         try
@@ -123,6 +128,8 @@ public sealed class DoctorSseClient : IAsyncDisposable
 
                 DoctorDiag.Write($"[DoctorSSE-Client] SSE 连接已建立: {url}");
                 retryDelay = TimeSpan.FromSeconds(1);
+                IsConnected = true;
+                _connectedTcs.TrySetResult();
 
                 await foreach (var sseEvent in ParseSseStreamAsync(stream, ct).ConfigureAwait(false))
                 {
@@ -202,11 +209,6 @@ public sealed class DoctorSseClient : IAsyncDisposable
         }
     }
 
-    private static string JsonEscape(string value)
-    {
-        return value.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r").Replace("\t", "\\t");
-    }
-
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _isDisposed, 1) == 1) return;
@@ -223,3 +225,7 @@ public sealed class DoctorSseClient : IAsyncDisposable
         _httpClient.Dispose();
     }
 }
+
+[JsonSerializable(typeof(Dictionary<string, string?>))]
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
+internal sealed partial class DoctorSseClientJsonContext : JsonSerializerContext;

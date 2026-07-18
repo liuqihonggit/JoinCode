@@ -173,7 +173,7 @@ public sealed class DoctorTcpServer : IDoctorTransport
 
             if (path == "/sse")
             {
-                await HandleSseConnectionAsync(stream, patientId, ct).ConfigureAwait(false);
+                await HandleSseConnectionAsync(tcpClient, stream, patientId, ct).ConfigureAwait(false);
             }
             else if (path == "/events" && request.Method == "POST")
             {
@@ -200,7 +200,7 @@ public sealed class DoctorTcpServer : IDoctorTransport
         }
     }
 
-    private async Task HandleSseConnectionAsync(NetworkStream stream, string patientId, CancellationToken ct)
+    private async Task HandleSseConnectionAsync(TcpClient tcpClient, NetworkStream stream, string patientId, CancellationToken ct)
     {
         var responseHeader = "HTTP/1.1 200 OK\r\n" +
                              "Content-Type: text/event-stream\r\n" +
@@ -225,7 +225,10 @@ public sealed class DoctorTcpServer : IDoctorTransport
 
         try
         {
-            await Task.Delay(Timeout.Infinite, ct).ConfigureAwait(false);
+            while (!ct.IsCancellationRequested && tcpClient.Connected)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(10), ct).ConfigureAwait(false);
+            }
         }
         catch (OperationCanceledException) { }
         finally

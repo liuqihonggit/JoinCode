@@ -140,15 +140,21 @@ public sealed class DoctorStdioTransport : IDoctorTransport
 
     private static string? DetectEventType(string line)
     {
+        var isDiagLine = line.Contains("[WIRE]") || line.Contains("[STEP]") || line.Contains("[MAIN]") || line.Contains("[ERROR]");
+
         if (line.Contains("[WIRE]")) return "wire_trace";
         if (line.Contains("[STEP]")) return "step_trace";
         if (line.Contains("[READY]")) return "ready";
         if (line.Contains("[MAIN]")) return "main_trace";
-        if (line.Contains("LoopDetected", StringComparison.OrdinalIgnoreCase)) return "loop_detected";
-        if (line.Contains("PermissionDenied", StringComparison.OrdinalIgnoreCase)) return "permission_denied";
-        if (line.Contains("ApiError", StringComparison.OrdinalIgnoreCase)) return "api_error";
-        if (line.Contains("ApiTimeout", StringComparison.OrdinalIgnoreCase)) return "api_timeout";
-        if (line.Contains("ContextOverflow", StringComparison.OrdinalIgnoreCase)) return "context_overflow";
+
+        if (isDiagLine)
+        {
+            if (line.Contains("LoopDetected", StringComparison.OrdinalIgnoreCase)) return "loop_detected";
+            if (line.Contains("PermissionDenied", StringComparison.OrdinalIgnoreCase)) return "permission_denied";
+            if (line.Contains("ApiError", StringComparison.OrdinalIgnoreCase)) return "api_error";
+            if (line.Contains("ApiTimeout", StringComparison.OrdinalIgnoreCase)) return "api_timeout";
+            if (line.Contains("ContextOverflow", StringComparison.OrdinalIgnoreCase)) return "context_overflow";
+        }
 
         if (line.StartsWith('{'))
         {

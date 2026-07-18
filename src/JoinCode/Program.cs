@@ -27,6 +27,10 @@ class Program
             if (options.DoctorMode)
                 return await Entry.DoctorModeRunner.RunAsync(options);
 
+            // 3.1b --doctor-test-suite: 医生测试套件模式 — 执行内置功能测试用例（T001-T006）
+            if (options.DoctorTestSuiteMode)
+                return await Entry.DoctorModeRunner.RunTestSuiteAsync(options);
+
             // 3.2 --doctor-endpoint: 病人模式 — 连接到医生的 SSE 服务器，发送遥测事件
             // 病人正常运行，但额外启动 DoctorSseClient 把诊断输出推送给医生
             Core.Agents.Doctor.DoctorSseClient? doctorClient = null;
@@ -39,6 +43,11 @@ class Program
                 {
                     try { await doctorClient.SendTextEventAsync("diag_output", line).ConfigureAwait(false); }
                     catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"[Doctor] 发送遥测失败: {ex.Message}"); }
+                };
+
+                doctorClient.CommandReceived += (_, command) =>
+                {
+                    Diag.WriteLifecycle($"[Doctor] 收到医生指令: {command}");
                 };
 
                 Diag.WriteLine($"[MAIN] Doctor SSE 客户端已连接: {options.DoctorEndpoint}");

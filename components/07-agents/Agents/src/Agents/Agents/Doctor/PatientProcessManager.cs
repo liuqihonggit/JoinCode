@@ -7,7 +7,6 @@ namespace Core.Agents.Doctor;
 public sealed class PatientProcessManager : IAsyncDisposable
 {
     private readonly IProcessService _processService;
-    private readonly ILogger? _logger;
     private readonly Dictionary<string, PatientHandle> _patients = new();
     private readonly SemaphoreSlim _patientsLock = new(1, 1);
     private int _isDisposed;
@@ -37,10 +36,9 @@ public sealed class PatientProcessManager : IAsyncDisposable
         }
     }
 
-    public PatientProcessManager(IProcessService processService, ILogger? logger = null)
+    public PatientProcessManager(IProcessService processService)
     {
         _processService = processService ?? throw new ArgumentNullException(nameof(processService));
-        _logger = logger;
     }
 
     /// <summary>
@@ -63,7 +61,7 @@ public sealed class PatientProcessManager : IAsyncDisposable
 
         var execPath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName ?? "jcc";
 
-        _logger?.LogInformation("[Doctor] 启动病人进程: {PatientId}, {ExecPath} {Args}", patientId, execPath, arguments);
+        DoctorDiag.Write($"[Doctor] 启动病人进程: {patientId}, {execPath} {arguments}");
 
         var options = new InteractiveProcessOptions
         {
@@ -88,7 +86,7 @@ public sealed class PatientProcessManager : IAsyncDisposable
             Arguments = arguments
         };
 
-        var handle = new PatientHandle(patientId, info, process, _logger);
+        var handle = new PatientHandle(patientId, info, process);
 
         handle.OutputLineReceived += OnOutputLineReceived;
         handle.ErrorLineReceived += OnErrorLineReceived;
@@ -98,7 +96,7 @@ public sealed class PatientProcessManager : IAsyncDisposable
         try { _patients[patientId] = handle; }
         finally { _patientsLock.Release(); }
 
-        _logger?.LogInformation("[Doctor] 病人进程已启动: {PatientId}, PID={ProcessId}", patientId, process.Id);
+        DoctorDiag.Write($"[Doctor] 病人进程已启动: {patientId}, PID={process.Id}");
 
         return info;
     }
@@ -116,6 +114,17 @@ public sealed class PatientProcessManager : IAsyncDisposable
         if (handle is null) return;
 
         handle.Kill();
+    }
+
+    /// <summary>
+    /// 从管理器中移除已退出的病人记录，允许重新 Spawn 同 ID 的病人
+    /// 注意：不 Dispose handle，由 DoctorAgent.DisposeAsync 统一处理
+    /// </summary>
+    public async Task RemovePatientAsync(string patientId)
+    {
+        await _patientsLock.WaitAsync().ConfigureAwait(false);
+        try { _patients.Remove(patientId); }
+        finally { _patientsLock.Release(); }
     }
 
     /// <summary>
@@ -241,7 +250,6 @@ public sealed class PatientProcessManager : IAsyncDisposable
     {
         private readonly string _patientId;
         private readonly IInteractiveProcess _process;
-        private readonly ILogger? _logger;
         private readonly Queue<string> _stderrQueue;
         private readonly CancellationTokenSource _readCts;
         private Task? _stdoutReadTask;
@@ -267,12 +275,11 @@ public sealed class PatientProcessManager : IAsyncDisposable
         public event EventHandler<(string PatientId, string Line)>? ErrorLineReceived;
         public event EventHandler<PatientInfo>? ProcessExited;
 
-        public PatientHandle(string patientId, PatientInfo info, IInteractiveProcess process, ILogger? logger)
+        public PatientHandle(string patientId, PatientInfo info, IInteractiveProcess process)
         {
             _patientId = patientId;
             Info = info;
             _process = process;
-            _logger = logger;
             _stderrQueue = new Queue<string>(MaxStderrLines);
             _readCts = new CancellationTokenSource();
 
@@ -288,17 +295,36 @@ public sealed class PatientProcessManager : IAsyncDisposable
             try
             {
                 _process.Kill();
-                _logger?.LogInformation("[Doctor] 病人进程已终止: {PatientId}, PID={ProcessId}", _patientId, _process.Id);
+                DoctorDiag.Write($"[Doctor] 病人进程已终止: {_patientId}, PID={_process.Id}");
             }
             catch (Exception ex)
             {
-                _logger?.LogWarning(ex, "[Doctor] 终止病人进程失败: {PatientId}", _patientId);
+                DoctorDiag.WriteError($"[Doctor] 终止病人进程失败: {_patientId}: {ex.Message}");
             }
         }
 
         public async Task<PatientInfo> WaitForExitAsync(CancellationToken cancellationToken = default)
         {
             await _process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+
+            var exitCode = _process.ExitCode;
+            var state = exitCode switch
+            {
+                0 => PatientState.Completed,
+                1234 => PatientState.Hung,
+                _ => PatientState.Failed
+            };
+
+            if (Info.State == PatientState.Running)
+            {
+                Info = Info with
+                {
+                    State = state,
+                    ExitCode = exitCode,
+                    ExitedAt = DateTimeOffset.UtcNow
+                };
+            }
+
             return Info;
         }
 
@@ -317,7 +343,7 @@ public sealed class PatientProcessManager : IAsyncDisposable
             catch (OperationCanceledException) { }
             catch (Exception ex)
             {
-                _logger?.LogDebug(ex, "[Doctor] 病人 {PatientId} stdout 读取结束", _patientId);
+                DoctorDiag.Write($"[Doctor] 病人 {_patientId} stdout 读取结束: {ex.Message}");
             }
         }
 
@@ -351,15 +377,14 @@ public sealed class PatientProcessManager : IAsyncDisposable
                     ExitedAt = DateTimeOffset.UtcNow
                 };
 
-                _logger?.LogInformation("[Doctor] 病人进程退出: {PatientId}, PID={ProcessId}, 退出码={ExitCode}, 状态={State}",
-                    _patientId, Info.ProcessId, exitCode, state);
+                DoctorDiag.Write($"[Doctor] 病人进程退出: {_patientId}, PID={Info.ProcessId}, 退出码={exitCode}, 状态={state}");
 
                 ProcessExited?.Invoke(this, Info);
             }
             catch (OperationCanceledException) { }
             catch (Exception ex)
             {
-                _logger?.LogWarning(ex, "[Doctor] 监控病人进程退出异常: {PatientId}", _patientId);
+                DoctorDiag.WriteError($"[Doctor] 监控病人进程退出异常: {_patientId}: {ex.Message}");
 
                 Info = Info with { State = PatientState.Failed, ExitedAt = DateTimeOffset.UtcNow };
                 ProcessExited?.Invoke(this, Info);
@@ -385,7 +410,7 @@ public sealed class PatientProcessManager : IAsyncDisposable
             }
             catch (Exception ex)
             {
-                _logger?.LogDebug(ex, "[Doctor] Dispose 时等待进程退出失败: {PatientId}", _patientId);
+                DoctorDiag.Write($"[Doctor] Dispose 时等待进程退出失败: {_patientId}: {ex.Message}");
             }
 
             var tasks = new List<Task>();
@@ -394,7 +419,7 @@ public sealed class PatientProcessManager : IAsyncDisposable
             if (tasks.Count > 0)
             {
                 try { await Task.WhenAll(tasks).ConfigureAwait(false); }
-                catch (Exception ex) { _logger?.LogDebug(ex, "[Doctor] Dispose 时等待任务完成失败: {PatientId}", _patientId); }
+                catch (Exception ex) { DoctorDiag.Write($"[Doctor] Dispose 时等待任务完成失败: {_patientId}: {ex.Message}"); }
             }
 
             _readCts.Dispose();

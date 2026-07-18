@@ -6,13 +6,12 @@ using System.Text.Json;
 /// <summary>
 /// 医生 stdio 传输 — 从病人 stdout 读取 NDJSON 遥测事件，通过 stdin 发送指令
 /// 复用 BridgeSubprocessHandle 的 NDJSON 解析模式
-/// 仅支持单病人（1:1 父子进程模式），多病人场景使用 DoctorSseServer
+/// 仅支持单病人（1:1 父子进程模式），多病人场景使用 DoctorTcpServer
 /// </summary>
 public sealed class DoctorStdioTransport : IDoctorTransport
 {
     private readonly PatientProcessManager _patientManager;
     private readonly string _patientId;
-    private readonly ILogger? _logger;
     private readonly Channel<DiagnosticEvent> _eventChannel;
     private int _isDisposed;
 
@@ -38,11 +37,10 @@ public sealed class DoctorStdioTransport : IDoctorTransport
     /// <inheritdoc/>
     public event EventHandler<string>? PatientDisconnected;
 
-    public DoctorStdioTransport(PatientProcessManager patientManager, string patientId, ILogger? logger = null)
+    public DoctorStdioTransport(PatientProcessManager patientManager, string patientId)
     {
         _patientManager = patientManager ?? throw new ArgumentNullException(nameof(patientManager));
         _patientId = patientId ?? throw new ArgumentNullException(nameof(patientId));
-        _logger = logger;
         _eventChannel = Channel.CreateBounded<DiagnosticEvent>(new BoundedChannelOptions(256)
         {
             FullMode = BoundedChannelFullMode.DropOldest,
@@ -57,7 +55,7 @@ public sealed class DoctorStdioTransport : IDoctorTransport
     public Task ConnectAsync(CancellationToken cancellationToken = default)
     {
         IsConnected = true;
-        _logger?.LogInformation("[Doctor-stdio] IPC 客户端已连接，病人 {PatientId}", _patientId);
+        DoctorDiag.Write($"[Doctor-stdio] IPC 客户端已连接，病人 {_patientId}");
         PatientConnected?.Invoke(this, _patientId);
         return Task.CompletedTask;
     }
@@ -82,20 +80,20 @@ public sealed class DoctorStdioTransport : IDoctorTransport
     {
         if (patientId != _patientId)
         {
-            _logger?.LogWarning("[Doctor-stdio] 病人 {PatientId} 不匹配，期望 {ExpectedId}", patientId, _patientId);
+            DoctorDiag.WriteError($"[Doctor-stdio] 病人 {patientId} 不匹配，期望 {_patientId}");
             return;
         }
 
         var stdin = _patientManager.GetStandardInput(_patientId);
         if (stdin is null || !stdin.BaseStream.CanWrite)
         {
-            _logger?.LogWarning("[Doctor-stdio] 病人 {PatientId} stdin 不可写，无法发送指令", _patientId);
+            DoctorDiag.WriteError($"[Doctor-stdio] 病人 {_patientId} stdin 不可写，无法发送指令");
             return;
         }
 
         await stdin.WriteAsync(command.AsMemory(), cancellationToken).ConfigureAwait(false);
         await stdin.FlushAsync(cancellationToken).ConfigureAwait(false);
-        _logger?.LogDebug("[Doctor-stdio] 已发送指令到病人 {PatientId}: {Command}", _patientId, command[..Math.Min(command.Length, 100)]);
+        DoctorDiag.Write($"[Doctor-stdio] 已发送指令到病人 {_patientId}: {command[..Math.Min(command.Length, 100)]}");
     }
 
     /// <inheritdoc/>
@@ -120,7 +118,7 @@ public sealed class DoctorStdioTransport : IDoctorTransport
         }
         catch (Exception ex)
         {
-            _logger?.LogDebug(ex, "[Doctor-stdio] 解析病人 {PatientId} stdout 行失败: {Line}", _patientId, e.Line[..Math.Min(e.Line.Length, 200)]);
+            DoctorDiag.Write($"[Doctor-stdio] 解析病人 {_patientId} stdout 行失败: {ex.Message}");
         }
     }
 
@@ -142,15 +140,21 @@ public sealed class DoctorStdioTransport : IDoctorTransport
 
     private static string? DetectEventType(string line)
     {
+        var isDiagLine = line.Contains("[WIRE]") || line.Contains("[STEP]") || line.Contains("[MAIN]") || line.Contains("[ERROR]");
+
         if (line.Contains("[WIRE]")) return "wire_trace";
         if (line.Contains("[STEP]")) return "step_trace";
         if (line.Contains("[READY]")) return "ready";
         if (line.Contains("[MAIN]")) return "main_trace";
-        if (line.Contains("LoopDetected", StringComparison.OrdinalIgnoreCase)) return "loop_detected";
-        if (line.Contains("PermissionDenied", StringComparison.OrdinalIgnoreCase)) return "permission_denied";
-        if (line.Contains("ApiError", StringComparison.OrdinalIgnoreCase)) return "api_error";
-        if (line.Contains("ApiTimeout", StringComparison.OrdinalIgnoreCase)) return "api_timeout";
-        if (line.Contains("ContextOverflow", StringComparison.OrdinalIgnoreCase)) return "context_overflow";
+
+        if (isDiagLine)
+        {
+            if (line.Contains("LoopDetected", StringComparison.OrdinalIgnoreCase)) return "loop_detected";
+            if (line.Contains("PermissionDenied", StringComparison.OrdinalIgnoreCase)) return "permission_denied";
+            if (line.Contains("ApiError", StringComparison.OrdinalIgnoreCase)) return "api_error";
+            if (line.Contains("ApiTimeout", StringComparison.OrdinalIgnoreCase)) return "api_timeout";
+            if (line.Contains("ContextOverflow", StringComparison.OrdinalIgnoreCase)) return "context_overflow";
+        }
 
         if (line.StartsWith('{'))
         {

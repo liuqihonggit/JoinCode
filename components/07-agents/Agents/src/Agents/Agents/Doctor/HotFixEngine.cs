@@ -11,7 +11,6 @@ public sealed class HotFixEngine
     private readonly PatientProcessManager _patientManager;
     private readonly IDoctorTransport _transport;
     private readonly IFileSystem _fs;
-    private readonly ILogger? _logger;
     private readonly List<HotFixResult> _results = [];
     private readonly SemaphoreSlim _resultLock = new(1, 1);
 
@@ -36,15 +35,13 @@ public sealed class HotFixEngine
         BuildOrchestrator builder,
         PatientProcessManager patientManager,
         IDoctorTransport transport,
-        IFileSystem fs,
-        ILogger? logger = null)
+        IFileSystem fs)
     {
         _patcher = patcher ?? throw new ArgumentNullException(nameof(patcher));
         _builder = builder ?? throw new ArgumentNullException(nameof(builder));
         _patientManager = patientManager ?? throw new ArgumentNullException(nameof(patientManager));
         _transport = transport ?? throw new ArgumentNullException(nameof(transport));
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
-        _logger = logger;
     }
 
     public async Task<HotFixResult> ExecuteFixAsync(
@@ -57,7 +54,7 @@ public sealed class HotFixEngine
         var action = ChooseAction(report);
         var sw = System.Diagnostics.Stopwatch.StartNew();
 
-        _logger?.LogInformation("[Doctor] 执行修复: {ActionType} - {Description} (病人: {PatientId})", action.ActionType, action.Description, report.PatientId);
+        DoctorDiag.Write($"[Doctor] 执行修复: {action.ActionType} - {action.Description} (病人: {report.PatientId})");
 
         var result = action.ActionType switch
         {
@@ -77,12 +74,12 @@ public sealed class HotFixEngine
 
         if (result.Success)
         {
-            _logger?.LogInformation("[Doctor] 修复成功: {ActionType} (病人: {PatientId})", action.ActionType, report.PatientId);
+            DoctorDiag.Write($"[Doctor] 修复成功: {action.ActionType} (病人: {report.PatientId})");
             FixApplied?.Invoke(this, result);
         }
         else
         {
-            _logger?.LogWarning("[Doctor] 修复失败: {ActionType} - {Description} (病人: {PatientId})", action.ActionType, result.Description, report.PatientId);
+            DoctorDiag.WriteError($"[Doctor] 修复失败: {action.ActionType} - {result.Description} (病人: {report.PatientId})");
             if (result.WasRolledBack)
             {
                 FixRolledBack?.Invoke(this, result);
@@ -162,7 +159,7 @@ public sealed class HotFixEngine
 
         if (!buildResult.Success)
         {
-            _logger?.LogWarning("[Doctor] 编译失败，回滚源码修改: {FilePath}", action.TargetFilePath);
+            DoctorDiag.WriteError($"[Doctor] 编译失败，回滚源码修改: {action.TargetFilePath}");
 
             var rollbackResult = await _patcher.RollbackAsync(
                 action.TargetFilePath,
@@ -180,23 +177,19 @@ public sealed class HotFixEngine
             };
         }
 
-        await _patientManager.KillAsync(patientId).ConfigureAwait(false);
-
-        try
-        {
-            using var waitCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            await _patientManager.WaitForExitAsync(patientId, waitCts.Token).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) { }
-
         var patientInfo = _patientManager.GetPatientInfo(patientId);
-        if (patientInfo?.Arguments is not null)
+        var originalArgs = patientInfo?.Arguments;
+
+        await _patientManager.KillAsync(patientId).ConfigureAwait(false);
+        await _patientManager.RemovePatientAsync(patientId).ConfigureAwait(false);
+
+        if (originalArgs is not null)
         {
             try
             {
                 await _patientManager.SpawnAsync(
                     patientId,
-                    patientInfo.Arguments,
+                    originalArgs,
                     workingDirectory,
                     cancellationToken: ct).ConfigureAwait(false);
             }
@@ -242,15 +235,17 @@ public sealed class HotFixEngine
             return new HotFixResult { Success = false, Action = action, Description = patchResult.Description };
         }
 
-        _logger?.LogInformation("[Doctor] 配置文件已修改，等待热更新生效: {FilePath}", action.TargetFilePath);
+        DoctorDiag.Write($"[Doctor] 配置文件已修改，验证热更新: {action.TargetFilePath}");
 
-        await Task.Delay(1000, ct).ConfigureAwait(false);
+        var verified = await VerifyConfigChangeAsync(action.TargetFilePath, ct).ConfigureAwait(false);
 
         return new HotFixResult
         {
             Success = true,
             Action = action,
-            Description = $"配置文件已修改: {action.TargetFilePath}，热更新已触发"
+            Description = verified
+                ? $"配置文件已修改并验证: {action.TargetFilePath}"
+                : $"配置文件已修改: {action.TargetFilePath}，热更新验证超时（可能需要重启）"
         };
     }
 
@@ -265,7 +260,7 @@ public sealed class HotFixEngine
         {
             await _transport.SendCommandAsync(patientId, command + Environment.NewLine, ct).ConfigureAwait(false);
 
-            _logger?.LogInformation("[Doctor] 已发送压缩指令到病人 {PatientId}: {Command}", patientId, command);
+            DoctorDiag.Write($"[Doctor] 已发送压缩指令到病人 {patientId}: {command}");
 
             await Task.Delay(2000, ct).ConfigureAwait(false);
 
@@ -299,13 +294,7 @@ public sealed class HotFixEngine
         var originalArgs = patientInfo?.Arguments;
 
         await _patientManager.KillAsync(patientId).ConfigureAwait(false);
-
-        try
-        {
-            using var waitCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            await _patientManager.WaitForExitAsync(patientId, waitCts.Token).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) { }
+        await _patientManager.RemovePatientAsync(patientId).ConfigureAwait(false);
 
         if (string.IsNullOrWhiteSpace(originalArgs))
         {
@@ -350,11 +339,81 @@ public sealed class HotFixEngine
 
     private static string? InferTargetFilePath(DiagnosticReport report)
     {
+        if (report.TriggeringEvents.Count == 0)
+            return null;
+
+        foreach (var evt in report.TriggeringEvents)
+        {
+            if (evt.Properties.TryGetValue("source_file", out var file) && !string.IsNullOrWhiteSpace(file))
+                return file;
+
+            if (evt.Properties.TryGetValue("file_path", out var path) && !string.IsNullOrWhiteSpace(path))
+                return path;
+
+            if (evt.Properties.TryGetValue("source", out var source) && !string.IsNullOrWhiteSpace(source))
+                return source;
+        }
+
         if (report.RuleId == DiagnosticRuleId.LoopDetected)
         {
-            return null;
+            return InferLoopTargetFile(report);
         }
+
         return null;
+    }
+
+    private static string? InferLoopTargetFile(DiagnosticReport report)
+    {
+        foreach (var evt in report.TriggeringEvents)
+        {
+            if (evt.Properties.TryGetValue("tool", out var tool) && !string.IsNullOrWhiteSpace(tool))
+            {
+                var fileName = tool switch
+                {
+                    "Read" or "read_file" => "FileReadMiddleware.cs",
+                    "Edit" or "write_file" or "file_edit" => "FileEditMiddleware.cs",
+                    "Bash" or "shell_exec" => "ShellExecMiddleware.cs",
+                    "Grep" or "search_code" => "CodeSearchMiddleware.cs",
+                    _ => null
+                };
+
+                if (fileName is not null)
+                    return fileName;
+            }
+        }
+
+        return null;
+    }
+
+    private async Task<bool> VerifyConfigChangeAsync(string filePath, CancellationToken ct)
+    {
+        const int maxRetries = 5;
+        const int retryDelayMs = 500;
+
+        for (var i = 0; i < maxRetries; i++)
+        {
+            await Task.Delay(retryDelayMs, ct).ConfigureAwait(false);
+
+            if (!_fs.FileExists(filePath))
+                continue;
+
+            try
+            {
+                var content = await _fs.ReadAllTextAsync(filePath, ct).ConfigureAwait(false);
+                if (!string.IsNullOrWhiteSpace(content))
+                {
+                    DoctorDiag.Write($"[Doctor] 配置热更新验证成功: {filePath} (第{i + 1}次检查)");
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                DoctorDiag.WriteError($"[Doctor] 配置热更新验证读取失败: {filePath}: {ex.Message}");
+            }
+        }
+
+        DoctorDiag.WriteError($"[Doctor] 配置热更新验证超时: {filePath}");
+        return false;
     }
 
     private static string? InferConfigFilePath(DiagnosticReport report)

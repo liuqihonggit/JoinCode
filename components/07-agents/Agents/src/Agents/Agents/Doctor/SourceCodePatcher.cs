@@ -3,12 +3,10 @@ namespace Core.Agents.Doctor;
 public sealed class SourceCodePatcher
 {
     private readonly IFileSystem _fs;
-    private readonly ILogger? _logger;
 
-    public SourceCodePatcher(IFileSystem fs, ILogger? logger = null)
+    public SourceCodePatcher(IFileSystem fs)
     {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
-        _logger = logger;
     }
 
     public async Task<SourceCodePatchResult> ApplyPatchAsync(
@@ -25,7 +23,7 @@ public sealed class SourceCodePatcher
         {
             if (!_fs.FileExists(filePath))
             {
-                _logger?.LogWarning("[Doctor] 源码文件不存在: {FilePath}", filePath);
+                DoctorDiag.WriteError($"[Doctor] 源码文件不存在: {filePath}");
                 return new SourceCodePatchResult
                 {
                     Success = false,
@@ -39,7 +37,7 @@ public sealed class SourceCodePatcher
 
             if (originalContent is not null && currentContent != originalContent)
             {
-                _logger?.LogWarning("[Doctor] 文件内容已变更，无法安全应用补丁: {FilePath}", filePath);
+                DoctorDiag.WriteError($"[Doctor] 文件内容已变更，无法安全应用补丁: {filePath}");
                 return new SourceCodePatchResult
                 {
                     Success = false,
@@ -52,7 +50,7 @@ public sealed class SourceCodePatcher
             await _fs.WriteAllTextAsync(filePath, patchedContent, cancellationToken).ConfigureAwait(false);
 
             sw.Stop();
-            _logger?.LogInformation("[Doctor] 源码补丁已应用: {FilePath}", filePath);
+            DoctorDiag.Write($"[Doctor] 源码补丁已应用: {filePath}");
 
             return new SourceCodePatchResult
             {
@@ -67,7 +65,7 @@ public sealed class SourceCodePatcher
         catch (Exception ex)
         {
             sw.Stop();
-            _logger?.LogError(ex, "[Doctor] 应用源码补丁失败: {FilePath}", filePath);
+            DoctorDiag.WriteError($"[Doctor] 应用源码补丁失败: {filePath}: {ex.Message}");
             return new SourceCodePatchResult
             {
                 Success = false,
@@ -92,7 +90,7 @@ public sealed class SourceCodePatcher
             await _fs.WriteAllTextAsync(filePath, originalContent, cancellationToken).ConfigureAwait(false);
 
             sw.Stop();
-            _logger?.LogInformation("[Doctor] 源码补丁已回滚: {FilePath}", filePath);
+            DoctorDiag.Write($"[Doctor] 源码补丁已回滚: {filePath}");
 
             return new SourceCodePatchResult
             {
@@ -106,7 +104,7 @@ public sealed class SourceCodePatcher
         catch (Exception ex)
         {
             sw.Stop();
-            _logger?.LogError(ex, "[Doctor] 回滚源码补丁失败: {FilePath}", filePath);
+            DoctorDiag.WriteError($"[Doctor] 回滚源码补丁失败: {filePath}: {ex.Message}");
             return new SourceCodePatchResult
             {
                 Success = false,

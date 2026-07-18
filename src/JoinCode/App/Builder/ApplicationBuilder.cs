@@ -255,7 +255,9 @@ public sealed class ApplicationBuilder
             SystemPrompt = result.SystemPrompt,
             AppendSystemPrompt = result.AppendSystemPrompt,
             DoctorMode = result.Doctor,
+            DoctorServerMode = result.DoctorServer,
             DoctorEndpoint = result.DoctorEndpoint,
+            DoctorTestSuiteMode = result.DoctorTestSuite,
         };
 
         // --await N: 超时自动关闭秒数
@@ -393,8 +395,10 @@ public sealed class ApplicationBuilder
         Cli.TerminalHelper.WriteLine("  --system-prompt <文本>       替换系统提示词（完全覆盖默认系统提示词）");
         Cli.TerminalHelper.WriteLine("  --append-system-prompt <文本> 追加系统提示词（在默认/已加载系统提示词后附加，不覆盖）");
         Cli.TerminalHelper.WriteLine("  --doctor                    医生模式：spawn jcc.exe 子进程作为病人，监控运行状态并自动修复问题");
+        Cli.TerminalHelper.WriteLine("  --doctor-server             医生服务器模式（监听病人连接，需配合 --doctor）");
         Cli.TerminalHelper.WriteLine("  --doctor-endpoint <URL>     医生 SSE 端点（病人端使用，连接到医生，如 http://localhost:9902）");
         Cli.TerminalHelper.WriteLine("  --doctor-port <端口>        医生 SSE 服务器端口（医生端使用，默认 9902）");
+        Cli.TerminalHelper.WriteLine("  --doctor-test-suite         医生测试套件：执行内置功能测试用例（T001-T006）");
         Cli.TerminalHelper.NewLine();
         Cli.TerminalHelper.WriteLine("子命令:");
         Cli.TerminalHelper.WriteLine("  tool                    MCP 工具管理");

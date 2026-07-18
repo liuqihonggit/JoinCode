@@ -6,7 +6,6 @@ namespace Core.Agents.Doctor;
 /// </summary>
 public sealed class DiagnosticEngine
 {
-    private readonly ILogger? _logger;
     private readonly Dictionary<(string PatientId, string SessionId), int> _loopCountBySession = new();
     private readonly Dictionary<(string PatientId, string ToolName), int> _permissionDeniedByTool = new();
     private readonly Dictionary<string, List<DiagnosticEvent>> _recentApiErrorsByPatient = new();
@@ -24,16 +23,20 @@ public sealed class DiagnosticEngine
 
     public event EventHandler<DiagnosticReport>? DiagnosticReportGenerated;
 
-    public DiagnosticEngine(ILogger? logger = null)
-    {
-        _logger = logger;
-    }
+    public DiagnosticEngine() { }
 
     public DiagnosticReport? Evaluate(DiagnosticEvent evt)
     {
         ArgumentNullException.ThrowIfNull(evt);
 
-        var report = evt.EventType switch
+        var effectiveEventType = evt.EventType;
+        if (effectiveEventType == "diag_output")
+        {
+            effectiveEventType = ClassifyDiagOutput(evt.RawData);
+            if (effectiveEventType is null) return null;
+        }
+
+        var report = effectiveEventType switch
         {
             "loop_detected" => EvaluateLoopDetected(evt),
             "permission_denied" => EvaluatePermissionDenied(evt),
@@ -45,11 +48,40 @@ public sealed class DiagnosticEngine
         if (report is not null)
         {
             lock (_lock) _reports.Add(report);
-            _logger?.LogWarning("[Doctor] 诊断报告生成: {RuleId} - {Description} (病人: {PatientId})", report.RuleId, report.Description, report.PatientId);
+            DoctorDiag.WriteError($"[Doctor] 诊断报告生成: {report.RuleId} - {report.Description} (病人: {report.PatientId})");
             DiagnosticReportGenerated?.Invoke(this, report);
         }
 
         return report;
+    }
+
+    /// <summary>
+    /// 从 diag_output 的原始文本中分类出实际事件类型
+    /// 匹配 jcc 诊断日志前缀 [WIRE]/[STEP]/[MAIN] 中的关键字
+    /// </summary>
+    internal static string? ClassifyDiagOutput(string? rawData)
+    {
+        if (string.IsNullOrWhiteSpace(rawData)) return null;
+
+        if (rawData.Contains("LoopDetected", StringComparison.OrdinalIgnoreCase)
+            || rawData.Contains("循环检测", StringComparison.OrdinalIgnoreCase))
+            return "loop_detected";
+
+        if (rawData.Contains("PermissionDenied", StringComparison.OrdinalIgnoreCase)
+            || rawData.Contains("权限被拒绝", StringComparison.OrdinalIgnoreCase))
+            return "permission_denied";
+
+        if (rawData.Contains("ContextOverflow", StringComparison.OrdinalIgnoreCase)
+            || rawData.Contains("上下文溢出", StringComparison.OrdinalIgnoreCase)
+            || rawData.Contains("token_usage_ratio", StringComparison.OrdinalIgnoreCase))
+            return "context_overflow";
+
+        if (rawData.Contains("ApiError", StringComparison.OrdinalIgnoreCase)
+            || rawData.Contains("api_timeout", StringComparison.OrdinalIgnoreCase)
+            || rawData.Contains("API错误", StringComparison.OrdinalIgnoreCase))
+            return "api_error";
+
+        return null;
     }
 
     public DiagnosticReport? EvaluateProcessHung(PatientInfo patientInfo)
@@ -69,7 +101,7 @@ public sealed class DiagnosticEngine
         };
 
         lock (_lock) _reports.Add(report);
-        _logger?.LogWarning("[Doctor] 诊断报告生成: {RuleId} - {Description} (病人: {PatientId})", report.RuleId, report.Description, report.PatientId);
+        DoctorDiag.WriteError($"[Doctor] 诊断报告生成: {report.RuleId} - {report.Description} (病人: {report.PatientId})");
         DiagnosticReportGenerated?.Invoke(this, report);
         return report;
     }

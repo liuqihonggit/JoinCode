@@ -3,12 +3,10 @@ namespace Core.Agents.Doctor;
 public sealed class BuildOrchestrator
 {
     private readonly IProcessService _processService;
-    private readonly ILogger? _logger;
 
-    public BuildOrchestrator(IProcessService processService, ILogger? logger = null)
+    public BuildOrchestrator(IProcessService processService)
     {
         _processService = processService ?? throw new ArgumentNullException(nameof(processService));
-        _logger = logger;
     }
 
     public async Task<BuildResult> BuildProjectAsync(
@@ -25,7 +23,7 @@ public sealed class BuildOrchestrator
         {
             var arguments = $"build \"{projectPath}\" -c {configuration} --no-incremental";
 
-            _logger?.LogInformation("[Doctor] 开始编译: dotnet {Args}", arguments);
+            DoctorDiag.Write($"[Doctor] 开始编译: dotnet {arguments}");
 
             var options = new ProcessOptions
             {
@@ -43,8 +41,7 @@ public sealed class BuildOrchestrator
 
             var success = result.ExitCode == 0;
 
-            _logger?.LogInformation("[Doctor] 编译完成: 成功={Success}, 退出码={ExitCode}, 耗时={Duration}ms",
-                success, result.ExitCode, sw.ElapsedMilliseconds);
+            DoctorDiag.Write($"[Doctor] 编译完成: 成功={success}, 退出码={result.ExitCode}, 耗时={sw.ElapsedMilliseconds}ms");
 
             return new BuildResult
             {
@@ -60,7 +57,7 @@ public sealed class BuildOrchestrator
         catch (Exception ex)
         {
             sw.Stop();
-            _logger?.LogError(ex, "[Doctor] 编译异常: {ProjectPath}", projectPath);
+            DoctorDiag.WriteError($"[Doctor] 编译异常: {projectPath}: {ex.Message}");
             return new BuildResult
             {
                 Success = false,

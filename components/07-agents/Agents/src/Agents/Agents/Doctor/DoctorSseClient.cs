@@ -13,9 +13,9 @@ public sealed class DoctorSseClient : IAsyncDisposable
 {
     private readonly string _endpoint;
     private readonly string _patientId;
-    private readonly ILogger? _logger;
     private readonly HttpClient _httpClient;
     private readonly CancellationTokenSource _cts;
+    private readonly TaskCompletionSource _connectedTcs = new();
     private Task? _sseListenTask;
     private int _isDisposed;
 
@@ -28,27 +28,34 @@ public sealed class DoctorSseClient : IAsyncDisposable
     /// <summary>收到医生指令事件</summary>
     public event EventHandler<string>? CommandReceived;
 
-    public DoctorSseClient(string endpoint, string? patientId = null, ILogger? logger = null)
+    public DoctorSseClient(string endpoint, string? patientId = null)
     {
         _endpoint = endpoint.TrimEnd('/');
         _patientId = patientId ?? Guid.NewGuid().ToString("N")[..8];
-        _logger = logger;
         _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
         _cts = new CancellationTokenSource();
     }
 
     /// <summary>
-    /// 连接到医生 SSE 服务器 — 启动 SSE 监听循环
+    /// 连接到医生 SSE 服务器 — 启动 SSE 监听循环，等待首次连接成功
     /// </summary>
     public async Task ConnectAsync(CancellationToken cancellationToken = default)
     {
         if (IsConnected) return;
 
-        _logger?.LogInformation("[DoctorSSE-Client] 连接医生: {Endpoint}, 病人ID: {PatientId}", _endpoint, _patientId);
+        DoctorDiag.Write($"[DoctorSSE-Client] 连接医生: {_endpoint}, 病人ID: {_patientId}");
 
         _sseListenTask = ListenSseAsync(_cts.Token);
 
-        IsConnected = true;
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _cts.Token);
+        try
+        {
+            await _connectedTcs.Task.WaitAsync(linkedCts.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (_cts.IsCancellationRequested)
+        {
+            DoctorDiag.WriteError("[DoctorSSE-Client] 连接被取消");
+        }
     }
 
     /// <summary>
@@ -58,27 +65,23 @@ public sealed class DoctorSseClient : IAsyncDisposable
     {
         if (!IsConnected) return;
 
-        var sb = new StringBuilder();
-        sb.Append("{\"type\":\"").Append(JsonEscape(evt.EventType)).Append("\"");
-        sb.Append(",\"patientId\":\"").Append(JsonEscape(_patientId)).Append("\"");
-        sb.Append(",\"timestamp\":\"").Append(evt.Timestamp.ToString("o")).Append("\"");
-        if (evt.SessionId is not null)
-            sb.Append(",\"sessionId\":\"").Append(JsonEscape(evt.SessionId)).Append("\"");
+        var payload = new Dictionary<string, string?>
+        {
+            ["type"] = evt.EventType,
+            ["patientId"] = _patientId,
+            ["timestamp"] = evt.Timestamp.ToString("o"),
+            ["sessionId"] = evt.SessionId,
+            ["rawData"] = evt.RawData
+        };
+
         if (evt.Properties.Count > 0)
         {
-            sb.Append(",\"properties\":{");
-            var first = true;
             foreach (var kv in evt.Properties)
-            {
-                if (!first) sb.Append(',');
-                sb.Append('"').Append(JsonEscape(kv.Key)).Append("\":\"").Append(JsonEscape(kv.Value)).Append('"');
-                first = false;
-            }
-            sb.Append('}');
+                payload[$"prop_{kv.Key}"] = kv.Value;
         }
-        sb.Append('}');
 
-        var content = new StringContent(sb.ToString(), Encoding.UTF8, "application/json");
+        var json = JsonSerializer.Serialize(payload, DoctorSseClientJsonContext.Default.DictionaryStringString);
+        var content = new StringContent(json, Encoding.UTF8, "application/json");
         var url = $"{_endpoint}/events?patientId={_patientId}";
 
         try
@@ -86,12 +89,12 @@ public sealed class DoctorSseClient : IAsyncDisposable
             var response = await _httpClient.PostAsync(url, content, cancellationToken).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
             {
-                _logger?.LogWarning("[DoctorSSE-Client] 发送事件失败: {StatusCode}", response.StatusCode);
+                DoctorDiag.WriteError($"[DoctorSSE-Client] 发送事件失败: {response.StatusCode}");
             }
         }
         catch (HttpRequestException ex)
         {
-            _logger?.LogDebug(ex, "[DoctorSSE-Client] 发送事件网络异常");
+            DoctorDiag.WriteError($"[DoctorSSE-Client] 发送事件网络异常: {ex.Message}");
         }
     }
 
@@ -123,31 +126,34 @@ public sealed class DoctorSseClient : IAsyncDisposable
                 var url = $"{_endpoint}/sse?patientId={_patientId}";
                 using var stream = await _httpClient.GetStreamAsync(url, ct).ConfigureAwait(false);
 
-                _logger?.LogInformation("[DoctorSSE-Client] SSE 连接已建立: {Url}", url);
+                DoctorDiag.Write($"[DoctorSSE-Client] SSE 连接已建立: {url}");
+                retryDelay = TimeSpan.FromSeconds(1);
+                IsConnected = true;
+                _connectedTcs.TrySetResult();
 
                 await foreach (var sseEvent in ParseSseStreamAsync(stream, ct).ConfigureAwait(false))
                 {
                     if (sseEvent.EventType == "command")
                     {
-                        _logger?.LogDebug("[DoctorSSE-Client] 收到医生指令: {Data}", sseEvent.Data);
+                        DoctorDiag.Write($"[DoctorSSE-Client] 收到医生指令: {sseEvent.Data}");
                         CommandReceived?.Invoke(this, sseEvent.Data);
                     }
                     else if (sseEvent.EventType == "endpoint")
                     {
-                        _logger?.LogDebug("[DoctorSSE-Client] 收到端点信息: {Data}", sseEvent.Data);
+                        DoctorDiag.Write($"[DoctorSSE-Client] 收到端点信息: {sseEvent.Data}");
                     }
                 }
 
-                _logger?.LogWarning("[DoctorSSE-Client] SSE 流结束，将重连");
+                DoctorDiag.WriteError("[DoctorSSE-Client] SSE 流结束，将重连");
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested) { break; }
             catch (HttpRequestException ex)
             {
-                _logger?.LogDebug(ex, "[DoctorSSE-Client] SSE 连接失败，{Delay}ms 后重连", retryDelay.TotalMilliseconds);
+                DoctorDiag.WriteError($"[DoctorSSE-Client] SSE 连接失败，{retryDelay.TotalMilliseconds}ms 后重连: {ex.Message}");
             }
             catch (Exception ex)
             {
-                _logger?.LogDebug(ex, "[DoctorSSE-Client] SSE 监听异常，{Delay}ms 后重连", retryDelay.TotalMilliseconds);
+                DoctorDiag.WriteError($"[DoctorSSE-Client] SSE 监听异常，{retryDelay.TotalMilliseconds}ms 后重连: {ex.Message}");
             }
 
             try { await Task.Delay(retryDelay, ct).ConfigureAwait(false); }
@@ -203,11 +209,6 @@ public sealed class DoctorSseClient : IAsyncDisposable
         }
     }
 
-    private static string JsonEscape(string value)
-    {
-        return value.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r").Replace("\t", "\\t");
-    }
-
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _isDisposed, 1) == 1) return;
@@ -224,3 +225,7 @@ public sealed class DoctorSseClient : IAsyncDisposable
         _httpClient.Dispose();
     }
 }
+
+[JsonSerializable(typeof(Dictionary<string, string?>))]
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
+internal sealed partial class DoctorSseClientJsonContext : JsonSerializerContext;

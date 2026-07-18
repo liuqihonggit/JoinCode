@@ -252,11 +252,10 @@ public class HotFixEngineTests
     private static HotFixEngine CreateEngine(InMemoryFileSystem fs, out Mock<IDoctorTransport> transportMock)
     {
         var processService = new Mock<IProcessService>();
-        var logger = NullLogger.Instance;
 
-        var patientManager = new PatientProcessManager(processService.Object, logger);
-        var patcher = new SourceCodePatcher(fs, logger);
-        var builder = new BuildOrchestrator(processService.Object, logger);
+        var patientManager = new PatientProcessManager(processService.Object);
+        var patcher = new SourceCodePatcher(fs);
+        var builder = new BuildOrchestrator(processService.Object);
         transportMock = new Mock<IDoctorTransport>();
         transportMock.Setup(t => t.IsConnected).Returns(true);
         transportMock.Setup(t => t.ConnectedPatientIds).Returns(new List<string> { "test-patient" });
@@ -266,8 +265,7 @@ public class HotFixEngineTests
             builder,
             patientManager,
             transportMock.Object,
-            fs,
-            logger);
+            fs);
 
         return engine;
     }

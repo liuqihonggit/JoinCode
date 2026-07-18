@@ -344,7 +344,7 @@ public class DoctorTestSuiteTests
         transport.Setup(t => t.IsConnected).Returns(false);
         transport.Setup(t => t.ConnectedPatientIds).Returns(new List<string>());
 
-        return new DoctorAgent(fs, processService.Object, transport.Object, NullLogger.Instance);
+        return new DoctorAgent(fs, processService.Object, transport.Object);
     }
 
     private static DoctorReport CreateReport(PatientState state, int? exitCode)

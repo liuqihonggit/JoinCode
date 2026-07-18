@@ -15,7 +15,6 @@ public sealed class DoctorAgent : IAsyncDisposable
     private readonly BuildOrchestrator _builder;
     private readonly IFileSystem _fs;
     private readonly IProcessService _processService;
-    private readonly ILogger? _logger;
     private readonly List<HotFixResult> _fixResults = [];
     private readonly SemaphoreSlim _fixLock = new(1, 1);
     private int _isDisposed;
@@ -44,19 +43,17 @@ public sealed class DoctorAgent : IAsyncDisposable
     public DoctorAgent(
         IFileSystem fs,
         IProcessService processService,
-        IDoctorTransport? transport = null,
-        ILogger? logger = null)
+        IDoctorTransport? transport = null)
     {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _processService = processService ?? throw new ArgumentNullException(nameof(processService));
-        _logger = logger;
 
-        _patientManager = new PatientProcessManager(processService, logger);
-        _transport = transport ?? new DoctorSseServer(9902, logger: logger);
-        _diagnosticEngine = new DiagnosticEngine(logger);
-        _patcher = new SourceCodePatcher(fs, logger);
-        _builder = new BuildOrchestrator(processService, logger);
-        _hotFixEngine = new HotFixEngine(_patcher, _builder, _patientManager, _transport, fs, logger);
+        _patientManager = new PatientProcessManager(processService);
+        _transport = transport ?? new DoctorSseServer(9902);
+        _diagnosticEngine = new DiagnosticEngine();
+        _patcher = new SourceCodePatcher(fs);
+        _builder = new BuildOrchestrator(processService);
+        _hotFixEngine = new HotFixEngine(_patcher, _builder, _patientManager, _transport, fs);
 
         _patientManager.ProcessExited += OnProcessExited;
         _transport.EventReceived += OnDiagnosticEventReceived;
@@ -91,21 +88,24 @@ public sealed class DoctorAgent : IAsyncDisposable
         CancellationToken cancellationToken = default)
     {
         var startedAt = DateTimeOffset.UtcNow;
-        _logger?.LogInformation("[Doctor] 医生模式启动，病人: {PatientId}, 参数: {Args}", patientId, patientArguments);
+        DoctorDiag.Write($"[Doctor] 医生模式启动，病人: {patientId}, 参数: {patientArguments}");
 
         try
         {
+            DoctorDiag.Write("[Doctor] 正在启动 SSE 服务器...");
             await _transport.ConnectAsync(cancellationToken).ConfigureAwait(false);
+            DoctorDiag.Write("[Doctor] SSE 服务器已启动");
 
+            DoctorDiag.Write($"[Doctor] 正在启动病人进程: {patientId}");
             var patientInfo = await _patientManager.SpawnAsync(
                 patientId, patientArguments, workingDirectory, environmentVariables, cancellationToken).ConfigureAwait(false);
 
-            _logger?.LogInformation("[Doctor] 病人进程已启动: {PatientId} (PID={ProcessId})，开始监控", patientId, patientInfo.ProcessId);
+            DoctorDiag.Write($"[Doctor] 病人进程已启动: {patientId} (PID={patientInfo.ProcessId})，开始监控");
 
+            DoctorDiag.Write($"[Doctor] 等待病人进程退出: {patientId}");
             var exitInfo = await _patientManager.WaitForExitAsync(patientId, cancellationToken).ConfigureAwait(false);
 
-            _logger?.LogInformation("[Doctor] 病人进程已退出: {PatientId}, 状态={State}, 退出码={ExitCode}",
-                patientId, exitInfo.State, exitInfo.ExitCode);
+            DoctorDiag.Write($"[Doctor] 病人进程已退出: {patientId}, 状态={exitInfo.State}, 退出码={exitInfo.ExitCode}");
 
             var reportStatus = exitInfo.State switch
             {
@@ -119,13 +119,13 @@ public sealed class DoctorAgent : IAsyncDisposable
         }
         catch (OperationCanceledException)
         {
-            _logger?.LogWarning("[Doctor] 医生模式被取消");
+            DoctorDiag.Write("[Doctor] 医生模式被取消");
             await _patientManager.KillAllAsync().ConfigureAwait(false);
             return BuildReport(startedAt, _patientManager.GetPatientInfo(patientId), DoctorReportStatus.Failed);
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "[Doctor] 医生模式运行异常");
+            DoctorDiag.WriteError($"[Doctor] 医生模式运行异常: {ex.GetType().Name}: {ex.Message}");
             await _patientManager.KillAllAsync().ConfigureAwait(false);
             return BuildReport(startedAt, _patientManager.GetPatientInfo(patientId), DoctorReportStatus.Failed);
         }
@@ -139,19 +139,19 @@ public sealed class DoctorAgent : IAsyncDisposable
         CancellationToken cancellationToken = default)
     {
         var startedAt = DateTimeOffset.UtcNow;
-        _logger?.LogInformation("[Doctor] 医生 SSE 服务器模式启动，端口: {Port}", port);
+        DoctorDiag.Write($"[Doctor] 医生 SSE 服务器模式启动，端口: {port}");
 
         try
         {
             await _transport.ConnectAsync(cancellationToken).ConfigureAwait(false);
 
-            _logger?.LogInformation("[Doctor] SSE 服务器已启动，等待病人连接...");
+            DoctorDiag.Write("[Doctor] SSE 服务器已启动，等待病人连接...");
 
             await Task.Delay(Timeout.Infinite, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
-            _logger?.LogInformation("[Doctor] 医生 SSE 服务器被停止");
+            DoctorDiag.Write("[Doctor] 医生 SSE 服务器被停止");
         }
 
         return BuildReport(startedAt, null);
@@ -169,13 +169,13 @@ public sealed class DoctorAgent : IAsyncDisposable
         var startedAt = DateTimeOffset.UtcNow;
         var testResults = new List<DoctorTestCaseResult>();
 
-        _logger?.LogInformation("[Doctor] 测试套件启动，共 {Count} 个用例", testCases.Count());
+        DoctorDiag.Write($"[Doctor] 测试套件启动，共 {testCases.Count()} 个用例");
 
         foreach (var (testCaseId, testName, arguments) in testCases)
         {
             if (cancellationToken.IsCancellationRequested) break;
 
-            _logger?.LogInformation("[Doctor] 执行测试: {TestId} - {TestName}", testCaseId, testName);
+            DoctorDiag.Write($"[Doctor] 执行测试: {testCaseId} - {testName}");
 
             var sw = System.Diagnostics.Stopwatch.StartNew();
             try
@@ -230,30 +230,29 @@ public sealed class DoctorAgent : IAsyncDisposable
 
     private void OnProcessExited(object? sender, PatientInfo info)
     {
-        _logger?.LogInformation("[Doctor] 病人进程退出事件: {PatientId}, PID={ProcessId}, 状态={State}", info.PatientId, info.ProcessId, info.State);
-
+        DoctorDiag.Write($"[Doctor] 病人进程退出事件: {info.PatientId}, PID={info.ProcessId}, 状态={info.State}");
         _diagnosticEngine.EvaluateProcessHung(info);
     }
 
     private void OnDiagnosticEventReceived(object? sender, DiagnosticEvent evt)
     {
-        _logger?.LogDebug("[Doctor] 收到诊断事件: {EventType} (病人: {PatientId})", evt.EventType, evt.PatientId);
+        DoctorDiag.Write($"[Doctor] 收到诊断事件: {evt.EventType} (病人: {evt.PatientId})");
         _diagnosticEngine.Evaluate(evt);
     }
 
     private void OnPatientConnected(object? sender, string patientId)
     {
-        _logger?.LogInformation("[Doctor] 病人已连接: {PatientId}", patientId);
+        DoctorDiag.Write($"[Doctor] 病人已连接: {patientId}");
     }
 
     private void OnPatientDisconnected(object? sender, string patientId)
     {
-        _logger?.LogInformation("[Doctor] 病人已断开: {PatientId}", patientId);
+        DoctorDiag.Write($"[Doctor] 病人已断开: {patientId}");
     }
 
     private void OnDiagnosticReportGenerated(object? sender, DiagnosticReport report)
     {
-        _logger?.LogWarning("[Doctor] 诊断报告: {RuleId} - {Description} (病人: {PatientId})", report.RuleId, report.Description, report.PatientId);
+        DoctorDiag.WriteError($"[Doctor] 诊断报告: {report.RuleId} - {report.Description} (病人: {report.PatientId})");
 
         if (!AutoFixEnabled) return;
 
@@ -271,7 +270,7 @@ public sealed class DoctorAgent : IAsyncDisposable
             }
             catch (Exception ex)
             {
-                _logger?.LogError(ex, "[Doctor] 自动修复异常: {RuleId} (病人: {PatientId})", report.RuleId, report.PatientId);
+                DoctorDiag.WriteError($"[Doctor] 自动修复异常: {report.RuleId} (病人: {report.PatientId}): {ex.Message}");
             }
             finally
             {
@@ -282,12 +281,12 @@ public sealed class DoctorAgent : IAsyncDisposable
 
     private void OnFixApplied(object? sender, HotFixResult result)
     {
-        _logger?.LogInformation("[Doctor] 修复已应用: {ActionType} (病人: {PatientId})", result.Action.ActionType, result.PatientId);
+        DoctorDiag.Write($"[Doctor] 修复已应用: {result.Action.ActionType} (病人: {result.PatientId})");
     }
 
     private void OnFixRolledBack(object? sender, HotFixResult result)
     {
-        _logger?.LogWarning("[Doctor] 修复已回滚: {ActionType} (病人: {PatientId})", result.Action.ActionType, result.PatientId);
+        DoctorDiag.WriteError($"[Doctor] 修复已回滚: {result.Action.ActionType} (病人: {result.PatientId})");
     }
 
     private DoctorReport BuildReport(

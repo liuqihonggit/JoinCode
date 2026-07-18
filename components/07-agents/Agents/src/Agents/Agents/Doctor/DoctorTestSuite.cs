@@ -30,8 +30,6 @@ public sealed record DoctorTestCase
 /// </summary>
 public sealed class DoctorTestSuite
 {
-    private readonly ILogger? _logger;
-
     /// <summary>测试用例执行完成事件</summary>
     public event EventHandler<DoctorTestCaseResult>? TestCaseCompleted;
 
@@ -91,10 +89,7 @@ public sealed class DoctorTestSuite
         }
     ];
 
-    public DoctorTestSuite(ILogger? logger = null)
-    {
-        _logger = logger;
-    }
+    public DoctorTestSuite() { }
 
     /// <summary>
     /// 执行全部内置测试用例
@@ -124,7 +119,7 @@ public sealed class DoctorTestSuite
         var startedAt = DateTimeOffset.UtcNow;
         var results = new List<DoctorTestCaseResult>();
 
-        _logger?.LogInformation("[DoctorTestSuite] 开始执行 {Count} 个测试用例", caseList.Count);
+        DoctorDiag.Write($"[DoctorTestSuite] 开始执行 {caseList.Count} 个测试用例");
 
         foreach (var testCase in caseList)
         {
@@ -161,7 +156,7 @@ public sealed class DoctorTestSuite
 
         SuiteCompleted?.Invoke(this, report);
 
-        _logger?.LogInformation("[DoctorTestSuite] 执行完成: {Pass}/{Total} 通过", report.PassCount, report.TotalCount);
+        DoctorDiag.Write($"[DoctorTestSuite] 执行完成: {report.PassCount}/{report.TotalCount} 通过");
 
         return report;
     }
@@ -176,7 +171,7 @@ public sealed class DoctorTestSuite
         IReadOnlyDictionary<string, string>? environmentVariables,
         CancellationToken cancellationToken)
     {
-        _logger?.LogInformation("[DoctorTestSuite] 执行测试: {TestId} - {TestName}", testCase.TestCaseId, testCase.TestName);
+        DoctorDiag.Write($"[DoctorTestSuite] 执行测试: {testCase.TestCaseId} - {testCase.TestName}");
 
         var patientArgs = BuildPatientArguments(testCase);
         var patientId = $"test-{testCase.TestCaseId}";
@@ -206,7 +201,7 @@ public sealed class DoctorTestSuite
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
             sw.Stop();
-            _logger?.LogWarning("[DoctorTestSuite] 测试超时: {TestId} ({Timeout}s)", testCase.TestCaseId, testCase.TimeoutSeconds);
+            DoctorDiag.WriteError($"[DoctorTestSuite] 测试超时: {testCase.TestCaseId} ({testCase.TimeoutSeconds}s)");
             return new DoctorTestCaseResult
             {
                 TestCaseId = testCase.TestCaseId,
@@ -231,7 +226,7 @@ public sealed class DoctorTestSuite
         catch (Exception ex)
         {
             sw.Stop();
-            _logger?.LogError(ex, "[DoctorTestSuite] 测试异常: {TestId}", testCase.TestCaseId);
+            DoctorDiag.WriteError($"[DoctorTestSuite] 测试异常: {testCase.TestCaseId}: {ex.Message}");
             return new DoctorTestCaseResult
             {
                 TestCaseId = testCase.TestCaseId,

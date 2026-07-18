@@ -17,13 +17,13 @@ internal static class DoctorModeRunner
         var processService = new IO.ProcessService.PhysicalProcessService();
 
         var port = options.DoctorPort ?? 9902;
-        var transport = new DoctorSseServer(port, logger: null);
+        var transport = new DoctorSseServer(port);
 
         await using var doctor = new DoctorAgent(fs, processService, transport);
 
         if (!string.IsNullOrWhiteSpace(options.DoctorEndpoint))
         {
-            Diag.WriteLine($"[DOCTOR] SSE 服务器模式，端口: {port}");
+            Diag.WriteLifecycle($"[DOCTOR] SSE 服务器模式，端口: {port}");
             var report = await doctor.RunServerAsync(port).ConfigureAwait(false);
             PrintReport(report);
             return report.Status switch
@@ -39,16 +39,26 @@ internal static class DoctorModeRunner
 
         Diag.WriteLifecycle($"[DOCTOR] 病人参数: {patientArgs}");
 
-        var runReport = await doctor.RunAsync("patient-main", patientArgs, workingDir, cancellationToken: default).ConfigureAwait(false);
-
-        PrintReport(runReport);
-
-        return runReport.Status switch
+        try
         {
-            DoctorReportStatus.Completed => 0,
-            DoctorReportStatus.PartiallyFixed => 1,
-            _ => 2
-        };
+            var runReport = await doctor.RunAsync("patient-main", patientArgs, workingDir, cancellationToken: default).ConfigureAwait(false);
+
+            PrintReport(runReport);
+
+            return runReport.Status switch
+            {
+                DoctorReportStatus.Completed => 0,
+                DoctorReportStatus.PartiallyFixed => 1,
+                _ => 2
+            };
+        }
+        catch (Exception ex)
+        {
+            Diag.WriteLifecycle($"[DOCTOR] 运行异常: {ex.GetType().Name}: {ex.Message}");
+            if (ex.InnerException is not null)
+                Diag.WriteLifecycle($"[DOCTOR] 内部异常: {ex.InnerException.GetType().Name}: {ex.InnerException.Message}");
+            return 2;
+        }
     }
 
     /// <summary>
@@ -72,7 +82,7 @@ internal static class DoctorModeRunner
             Diag.WriteLine($"[DOCTOR] 执行测试: {testCase.TestCaseId} - {testCase.TestName}");
 
             var testPort = port + results.Count;
-            var transport = new DoctorSseServer(testPort, logger: null);
+            var transport = new DoctorSseServer(testPort);
             await using var doctor = new DoctorAgent(fs, processService, transport);
 
             var patientArgs = DoctorTestSuite.BuildPatientArguments(testCase) + $" --doctor-endpoint http://localhost:{testPort}";

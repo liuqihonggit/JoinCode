@@ -13,7 +13,6 @@ public sealed class DoctorSseClient : IAsyncDisposable
 {
     private readonly string _endpoint;
     private readonly string _patientId;
-    private readonly ILogger? _logger;
     private readonly HttpClient _httpClient;
     private readonly CancellationTokenSource _cts;
     private Task? _sseListenTask;
@@ -28,11 +27,10 @@ public sealed class DoctorSseClient : IAsyncDisposable
     /// <summary>收到医生指令事件</summary>
     public event EventHandler<string>? CommandReceived;
 
-    public DoctorSseClient(string endpoint, string? patientId = null, ILogger? logger = null)
+    public DoctorSseClient(string endpoint, string? patientId = null)
     {
         _endpoint = endpoint.TrimEnd('/');
         _patientId = patientId ?? Guid.NewGuid().ToString("N")[..8];
-        _logger = logger;
         _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
         _cts = new CancellationTokenSource();
     }
@@ -44,7 +42,7 @@ public sealed class DoctorSseClient : IAsyncDisposable
     {
         if (IsConnected) return;
 
-        _logger?.LogInformation("[DoctorSSE-Client] 连接医生: {Endpoint}, 病人ID: {PatientId}", _endpoint, _patientId);
+        DoctorDiag.Write($"[DoctorSSE-Client] 连接医生: {_endpoint}, 病人ID: {_patientId}");
 
         _sseListenTask = ListenSseAsync(_cts.Token);
 
@@ -86,12 +84,12 @@ public sealed class DoctorSseClient : IAsyncDisposable
             var response = await _httpClient.PostAsync(url, content, cancellationToken).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
             {
-                _logger?.LogWarning("[DoctorSSE-Client] 发送事件失败: {StatusCode}", response.StatusCode);
+                DoctorDiag.WriteError($"[DoctorSSE-Client] 发送事件失败: {response.StatusCode}");
             }
         }
         catch (HttpRequestException ex)
         {
-            _logger?.LogDebug(ex, "[DoctorSSE-Client] 发送事件网络异常");
+            DoctorDiag.WriteError($"[DoctorSSE-Client] 发送事件网络异常: {ex.Message}");
         }
     }
 
@@ -123,31 +121,31 @@ public sealed class DoctorSseClient : IAsyncDisposable
                 var url = $"{_endpoint}/sse?patientId={_patientId}";
                 using var stream = await _httpClient.GetStreamAsync(url, ct).ConfigureAwait(false);
 
-                _logger?.LogInformation("[DoctorSSE-Client] SSE 连接已建立: {Url}", url);
+                DoctorDiag.Write($"[DoctorSSE-Client] SSE 连接已建立: {url}");
 
                 await foreach (var sseEvent in ParseSseStreamAsync(stream, ct).ConfigureAwait(false))
                 {
                     if (sseEvent.EventType == "command")
                     {
-                        _logger?.LogDebug("[DoctorSSE-Client] 收到医生指令: {Data}", sseEvent.Data);
+                        DoctorDiag.Write($"[DoctorSSE-Client] 收到医生指令: {sseEvent.Data}");
                         CommandReceived?.Invoke(this, sseEvent.Data);
                     }
                     else if (sseEvent.EventType == "endpoint")
                     {
-                        _logger?.LogDebug("[DoctorSSE-Client] 收到端点信息: {Data}", sseEvent.Data);
+                        DoctorDiag.Write($"[DoctorSSE-Client] 收到端点信息: {sseEvent.Data}");
                     }
                 }
 
-                _logger?.LogWarning("[DoctorSSE-Client] SSE 流结束，将重连");
+                DoctorDiag.WriteError("[DoctorSSE-Client] SSE 流结束，将重连");
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested) { break; }
             catch (HttpRequestException ex)
             {
-                _logger?.LogDebug(ex, "[DoctorSSE-Client] SSE 连接失败，{Delay}ms 后重连", retryDelay.TotalMilliseconds);
+                DoctorDiag.WriteError($"[DoctorSSE-Client] SSE 连接失败，{retryDelay.TotalMilliseconds}ms 后重连: {ex.Message}");
             }
             catch (Exception ex)
             {
-                _logger?.LogDebug(ex, "[DoctorSSE-Client] SSE 监听异常，{Delay}ms 后重连", retryDelay.TotalMilliseconds);
+                DoctorDiag.WriteError($"[DoctorSSE-Client] SSE 监听异常，{retryDelay.TotalMilliseconds}ms 后重连: {ex.Message}");
             }
 
             try { await Task.Delay(retryDelay, ct).ConfigureAwait(false); }

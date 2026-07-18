@@ -17,7 +17,6 @@ public sealed class DoctorSseServer : IDoctorTransport
 {
     private readonly int _port;
     private readonly string _host;
-    private readonly ILogger? _logger;
     private HttpListener? _listener;
     private readonly Dictionary<string, DoctorSsePatient> _patients = new();
     private readonly SemaphoreSlim _patientsLock = new(1, 1);
@@ -49,11 +48,10 @@ public sealed class DoctorSseServer : IDoctorTransport
     /// <inheritdoc/>
     public event EventHandler<string>? PatientDisconnected;
 
-    public DoctorSseServer(int port, string host = "localhost", ILogger? logger = null)
+    public DoctorSseServer(int port, string host = "localhost")
     {
         _port = port;
         _host = host;
-        _logger = logger;
         _eventChannel = Channel.CreateBounded<DiagnosticEvent>(new BoundedChannelOptions(512)
         {
             FullMode = BoundedChannelFullMode.DropOldest,
@@ -85,7 +83,7 @@ public sealed class DoctorSseServer : IDoctorTransport
         _listenTask = RunAcceptLoopAsync(_listenCts.Token);
 
         IsConnected = true;
-        _logger?.LogInformation("[DoctorSSE] 服务器已启动: http://{Host}:{Port}/", _host, _port);
+        DoctorDiag.Write($"[DoctorSSE] 服务器已启动: http://{_host}:{_port}/");
 
         return Task.CompletedTask;
     }
@@ -115,14 +113,14 @@ public sealed class DoctorSseServer : IDoctorTransport
 
         if (patient is null)
         {
-            _logger?.LogWarning("[DoctorSSE] 病人 {PatientId} 未连接，无法发送指令", patientId);
+            DoctorDiag.WriteError($"[DoctorSSE] 病人 {patientId} 未连接，无法发送指令");
             return;
         }
 
         var sseData = $"event: command\ndata: {EscapeSseData(command)}\n\n";
         var bytes = Encoding.UTF8.GetBytes(sseData);
         await patient.SendAsync(bytes, cancellationToken).ConfigureAwait(false);
-        _logger?.LogDebug("[DoctorSSE] 已发送指令到病人 {PatientId}: {Command}", patientId, command[..Math.Min(command.Length, 100)]);
+        DoctorDiag.Write($"[DoctorSSE] 已发送指令到病人 {patientId}: {command[..Math.Min(command.Length, 100)]}");
     }
 
     /// <inheritdoc/>
@@ -141,11 +139,11 @@ public sealed class DoctorSseServer : IDoctorTransport
             try { await patient.SendAsync(bytes, cancellationToken).ConfigureAwait(false); }
             catch (Exception ex)
             {
-                _logger?.LogDebug(ex, "[DoctorSSE] 广播指令到病人 {PatientId} 失败", patient.PatientId);
+                DoctorDiag.WriteError($"[DoctorSSE] 广播指令到病人 {patient.PatientId} 失败: {ex.Message}");
             }
         }
 
-        _logger?.LogDebug("[DoctorSSE] 已广播指令到 {Count} 个病人", patients.Count);
+        DoctorDiag.Write($"[DoctorSSE] 已广播指令到 {patients.Count} 个病人");
     }
 
     private async Task RunAcceptLoopAsync(CancellationToken ct)
@@ -161,7 +159,7 @@ public sealed class DoctorSseServer : IDoctorTransport
             catch (OperationCanceledException) { break; }
             catch (Exception ex)
             {
-                _logger?.LogError(ex, "[DoctorSSE] 接受连接异常");
+                DoctorDiag.WriteError($"[DoctorSSE] 接受连接异常: {ex.Message}");
             }
         }
     }
@@ -197,7 +195,7 @@ public sealed class DoctorSseServer : IDoctorTransport
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "[DoctorSSE] 处理请求异常: {Path}", path);
+            DoctorDiag.WriteError($"[DoctorSSE] 处理请求异常: {path}: {ex.Message}");
             try { context.Response.StatusCode = 500; context.Response.Close(); }
             catch (Exception closeEx) { System.Diagnostics.Trace.WriteLine($"[DoctorSSE] 关闭响应失败: {closeEx.Message}"); }
         }
@@ -220,7 +218,7 @@ public sealed class DoctorSseServer : IDoctorTransport
         var endpointMsg = $"event: endpoint\ndata: /events?patientId={patientId}\n\n";
         await patient.SendAsync(Encoding.UTF8.GetBytes(endpointMsg), ct).ConfigureAwait(false);
 
-        _logger?.LogInformation("[DoctorSSE] 病人 {PatientId} 已连接 SSE", patientId);
+        DoctorDiag.Write($"[DoctorSSE] 病人 {patientId} 已连接 SSE");
         PatientConnected?.Invoke(this, patientId);
 
         try
@@ -234,7 +232,7 @@ public sealed class DoctorSseServer : IDoctorTransport
             try { _patients.Remove(patientId); }
             finally { _patientsLock.Release(); }
 
-            _logger?.LogInformation("[DoctorSSE] 病人 {PatientId} SSE 连接断开", patientId);
+            DoctorDiag.Write($"[DoctorSSE] 病人 {patientId} SSE 连接断开");
             PatientDisconnected?.Invoke(this, patientId);
 
             await patient.DisposeAsync().ConfigureAwait(false);

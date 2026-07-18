@@ -11,7 +11,6 @@ public sealed class HotFixEngine
     private readonly PatientProcessManager _patientManager;
     private readonly IDoctorTransport _transport;
     private readonly IFileSystem _fs;
-    private readonly ILogger? _logger;
     private readonly List<HotFixResult> _results = [];
     private readonly SemaphoreSlim _resultLock = new(1, 1);
 
@@ -36,15 +35,13 @@ public sealed class HotFixEngine
         BuildOrchestrator builder,
         PatientProcessManager patientManager,
         IDoctorTransport transport,
-        IFileSystem fs,
-        ILogger? logger = null)
+        IFileSystem fs)
     {
         _patcher = patcher ?? throw new ArgumentNullException(nameof(patcher));
         _builder = builder ?? throw new ArgumentNullException(nameof(builder));
         _patientManager = patientManager ?? throw new ArgumentNullException(nameof(patientManager));
         _transport = transport ?? throw new ArgumentNullException(nameof(transport));
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
-        _logger = logger;
     }
 
     public async Task<HotFixResult> ExecuteFixAsync(
@@ -57,7 +54,7 @@ public sealed class HotFixEngine
         var action = ChooseAction(report);
         var sw = System.Diagnostics.Stopwatch.StartNew();
 
-        _logger?.LogInformation("[Doctor] 执行修复: {ActionType} - {Description} (病人: {PatientId})", action.ActionType, action.Description, report.PatientId);
+        DoctorDiag.Write($"[Doctor] 执行修复: {action.ActionType} - {action.Description} (病人: {report.PatientId})");
 
         var result = action.ActionType switch
         {
@@ -77,12 +74,12 @@ public sealed class HotFixEngine
 
         if (result.Success)
         {
-            _logger?.LogInformation("[Doctor] 修复成功: {ActionType} (病人: {PatientId})", action.ActionType, report.PatientId);
+            DoctorDiag.Write($"[Doctor] 修复成功: {action.ActionType} (病人: {report.PatientId})");
             FixApplied?.Invoke(this, result);
         }
         else
         {
-            _logger?.LogWarning("[Doctor] 修复失败: {ActionType} - {Description} (病人: {PatientId})", action.ActionType, result.Description, report.PatientId);
+            DoctorDiag.WriteError($"[Doctor] 修复失败: {action.ActionType} - {result.Description} (病人: {report.PatientId})");
             if (result.WasRolledBack)
             {
                 FixRolledBack?.Invoke(this, result);
@@ -162,7 +159,7 @@ public sealed class HotFixEngine
 
         if (!buildResult.Success)
         {
-            _logger?.LogWarning("[Doctor] 编译失败，回滚源码修改: {FilePath}", action.TargetFilePath);
+            DoctorDiag.WriteError($"[Doctor] 编译失败，回滚源码修改: {action.TargetFilePath}");
 
             var rollbackResult = await _patcher.RollbackAsync(
                 action.TargetFilePath,
@@ -242,7 +239,7 @@ public sealed class HotFixEngine
             return new HotFixResult { Success = false, Action = action, Description = patchResult.Description };
         }
 
-        _logger?.LogInformation("[Doctor] 配置文件已修改，等待热更新生效: {FilePath}", action.TargetFilePath);
+        DoctorDiag.Write($"[Doctor] 配置文件已修改，等待热更新生效: {action.TargetFilePath}");
 
         await Task.Delay(1000, ct).ConfigureAwait(false);
 
@@ -265,7 +262,7 @@ public sealed class HotFixEngine
         {
             await _transport.SendCommandAsync(patientId, command + Environment.NewLine, ct).ConfigureAwait(false);
 
-            _logger?.LogInformation("[Doctor] 已发送压缩指令到病人 {PatientId}: {Command}", patientId, command);
+            DoctorDiag.Write($"[Doctor] 已发送压缩指令到病人 {patientId}: {command}");
 
             await Task.Delay(2000, ct).ConfigureAwait(false);
 

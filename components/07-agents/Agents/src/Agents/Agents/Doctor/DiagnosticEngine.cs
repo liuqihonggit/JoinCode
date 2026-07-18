@@ -6,7 +6,6 @@ namespace Core.Agents.Doctor;
 /// </summary>
 public sealed class DiagnosticEngine
 {
-    private readonly ILogger? _logger;
     private readonly Dictionary<(string PatientId, string SessionId), int> _loopCountBySession = new();
     private readonly Dictionary<(string PatientId, string ToolName), int> _permissionDeniedByTool = new();
     private readonly Dictionary<string, List<DiagnosticEvent>> _recentApiErrorsByPatient = new();
@@ -24,10 +23,7 @@ public sealed class DiagnosticEngine
 
     public event EventHandler<DiagnosticReport>? DiagnosticReportGenerated;
 
-    public DiagnosticEngine(ILogger? logger = null)
-    {
-        _logger = logger;
-    }
+    public DiagnosticEngine() { }
 
     public DiagnosticReport? Evaluate(DiagnosticEvent evt)
     {
@@ -45,7 +41,7 @@ public sealed class DiagnosticEngine
         if (report is not null)
         {
             lock (_lock) _reports.Add(report);
-            _logger?.LogWarning("[Doctor] 诊断报告生成: {RuleId} - {Description} (病人: {PatientId})", report.RuleId, report.Description, report.PatientId);
+            DoctorDiag.WriteError($"[Doctor] 诊断报告生成: {report.RuleId} - {report.Description} (病人: {report.PatientId})");
             DiagnosticReportGenerated?.Invoke(this, report);
         }
 
@@ -69,7 +65,7 @@ public sealed class DiagnosticEngine
         };
 
         lock (_lock) _reports.Add(report);
-        _logger?.LogWarning("[Doctor] 诊断报告生成: {RuleId} - {Description} (病人: {PatientId})", report.RuleId, report.Description, report.PatientId);
+        DoctorDiag.WriteError($"[Doctor] 诊断报告生成: {report.RuleId} - {report.Description} (病人: {report.PatientId})");
         DiagnosticReportGenerated?.Invoke(this, report);
         return report;
     }

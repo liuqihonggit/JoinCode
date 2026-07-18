@@ -87,6 +87,7 @@ global using JoinCode.Abstractions.Prompts.ToolPrompts;
 global using IToolRegistry = JoinCode.Abstractions.Tools.IToolRegistry;
 global using Microsoft.Extensions.DependencyInjection;
 global using Microsoft.Extensions.Hosting;
+global using Microsoft.Extensions.Logging;
 global using Microsoft.Extensions.Options;
 global using Services.OAuth;
 global using System.Collections.Frozen;

@@ -29,9 +29,20 @@ class Program
 
             // 3.2 --doctor-endpoint: 病人模式 — 连接到医生的 SSE 服务器，发送遥测事件
             // 病人正常运行，但额外启动 DoctorSseClient 把诊断输出推送给医生
-            var doctorClient = options.DoctorEndpoint is not null
-                ? new Core.Agents.Doctor.DoctorSseClient(options.DoctorEndpoint)
-                : null;
+            Core.Agents.Doctor.DoctorSseClient? doctorClient = null;
+            if (options.DoctorEndpoint is not null)
+            {
+                doctorClient = new Core.Agents.Doctor.DoctorSseClient(options.DoctorEndpoint);
+                await doctorClient.ConnectAsync();
+
+                Diag.DiagnosticLineWritten += async (_, line) =>
+                {
+                    try { await doctorClient.SendTextEventAsync("diag_output", line).ConfigureAwait(false); }
+                    catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"[Doctor] 发送遥测失败: {ex.Message}"); }
+                };
+
+                Diag.WriteLine($"[MAIN] Doctor SSE 客户端已连接: {options.DoctorEndpoint}");
+            }
 
             // 3.5 --await N: 启动超时计时器，N秒后强制退出返回1234（用于诊断卡死）
             using var awaitTimer = StartAwaitTimer(options);
@@ -51,11 +62,19 @@ class Program
 
             await builder.ConfigureModulesAsync(host.Services);
 
+            int exitCode;
             if (options.IsNonInteractiveMode)
-                return await Entry.NonInteractiveModeRunner.RunAsync(config, options, host);
+                exitCode = await Entry.NonInteractiveModeRunner.RunAsync(config, options, host);
+            else
+            {
+                await Entry.InteractiveModeRunner.RunAsync(config, options, host);
+                exitCode = 0;
+            }
 
-            await Entry.InteractiveModeRunner.RunAsync(config, options, host);
-            return 0;
+            if (doctorClient is not null)
+                await doctorClient.DisposeAsync().ConfigureAwait(false);
+
+            return exitCode;
         }
         catch (OperationCanceledException)
         {

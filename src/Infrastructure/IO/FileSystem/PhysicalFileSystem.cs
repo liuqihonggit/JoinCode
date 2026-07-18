@@ -187,6 +187,10 @@ public sealed partial class PhysicalFileSystem : IFileSystem
         => Directory.GetLastWriteTimeUtc(path);
 
     /// <inheritdoc />
+    public void SetDirectoryLastWriteTimeUtc(string path, DateTime utcTime)
+        => Directory.SetLastWriteTimeUtc(path, utcTime);
+
+    /// <inheritdoc />
     public string? GetParentPath(string path)
     {
         var dir = Directory.GetParent(path);

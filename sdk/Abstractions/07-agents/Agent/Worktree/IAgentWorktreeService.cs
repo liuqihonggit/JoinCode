@@ -105,4 +105,12 @@ public interface IAgentWorktreeService
     Task<IReadOnlyList<string>> ListWorktreesAsync(
         string? gitRootPath = null,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 保留 Worktree 但清除会话 — 对齐 TS keepWorktree
+    /// Worktree 目录和分支保留，但会话从内存和持久化中移除
+    /// </summary>
+    /// <param name="agentId">智能体 ID</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    Task KeepWorktreeAsync(string agentId, CancellationToken cancellationToken = default);
 }

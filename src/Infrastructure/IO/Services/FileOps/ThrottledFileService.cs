@@ -486,6 +486,12 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
     }
 
     /// <inheritdoc />
+    public void SetDirectoryLastWriteTimeUtc(string directoryPath, DateTime utcTime)
+    {
+        _fs.SetDirectoryLastWriteTimeUtc(NormalizePath(directoryPath), utcTime);
+    }
+
+    /// <inheritdoc />
     public DateTime GetFileLastWriteTime(string filePath)
     {
         return _fs.GetLastWriteTime(NormalizePath(filePath));

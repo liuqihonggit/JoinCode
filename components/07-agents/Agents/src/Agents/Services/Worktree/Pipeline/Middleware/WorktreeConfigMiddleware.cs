@@ -94,17 +94,59 @@ public sealed partial class WorktreeConfigMiddleware : IWorktreeCreateMiddleware
             if (!lsResult.Success || string.IsNullOrWhiteSpace(lsResult.Output)) return;
 
             var entries = lsResult.Output.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+            var collapsedDirs = new List<string>();
+            var files = new List<string>();
 
             foreach (var entry in entries)
             {
                 var trimmed = entry.Trim();
-                if (trimmed.EndsWith('/')) continue;
+                if (trimmed.EndsWith('/'))
+                {
+                    collapsedDirs.Add(trimmed);
+                    continue;
+                }
 
-                var matches = patterns.Any(p => MatchesWorktreeIncludePattern(trimmed, p.TrimStart('/')));
-                if (!matches) continue;
+                if (patterns.Any(p => MatchesWorktreeIncludePattern(trimmed, p.TrimStart('/'))))
+                {
+                    files.Add(trimmed);
+                }
+            }
 
-                var srcPath = _fs.CombinePath(gitRoot, trimmed);
-                var destPath = _fs.CombinePath(worktreePath, trimmed);
+            if (collapsedDirs.Count > 0)
+            {
+                var dirsToExpand = collapsedDirs.Where(dir =>
+                {
+                    var dirNoSlash = dir[..^1];
+                    if (patterns.Any(p => PatternTargetsCollapsedDir(p, dir))) return true;
+                    if (patterns.Any(p => MatchesWorktreeIncludePattern(dirNoSlash, p.TrimStart('/')))) return true;
+                    return false;
+                }).ToList();
+
+                if (dirsToExpand.Count > 0)
+                {
+                    var expandArgs = "ls-files --others --ignored --exclude-standard -- " +
+                                     string.Join(" ", dirsToExpand.Select(d => $"\"{d}\""));
+                    var expandedResult = await _worktreeService.Value.ExecuteGitCommandAsync(
+                        gitRoot, expandArgs, ct).ConfigureAwait(false);
+
+                    if (expandedResult.Success && !string.IsNullOrWhiteSpace(expandedResult.Output))
+                    {
+                        foreach (var f in expandedResult.Output.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+                        {
+                            var trimmed = f.Trim();
+                            if (patterns.Any(p => MatchesWorktreeIncludePattern(trimmed, p.TrimStart('/'))))
+                            {
+                                files.Add(trimmed);
+                            }
+                        }
+                    }
+                }
+            }
+
+            foreach (var relativePath in files)
+            {
+                var srcPath = _fs.CombinePath(gitRoot, relativePath);
+                var destPath = _fs.CombinePath(worktreePath, relativePath);
 
                 if (!_fs.FileExists(srcPath)) continue;
 
@@ -119,8 +161,13 @@ public sealed partial class WorktreeConfigMiddleware : IWorktreeCreateMiddleware
                 }
                 catch (Exception ex)
                 {
-                    _logger?.LogWarning(ex, "复制 .worktreeinclude 文件失败: {File}", trimmed);
+                    _logger?.LogWarning(ex, "复制 .worktreeinclude 文件失败: {File}", relativePath);
                 }
+            }
+
+            if (files.Count > 0)
+            {
+                _logger?.LogInformation("从 .worktreeinclude 复制了 {Count} 个文件: {Files}", files.Count, string.Join(", ", files));
             }
         }
         catch (Exception ex)
@@ -129,29 +176,52 @@ public sealed partial class WorktreeConfigMiddleware : IWorktreeCreateMiddleware
         }
     }
 
+    private static bool PatternTargetsCollapsedDir(string pattern, string collapsedDir)
+    {
+        var normalized = pattern.StartsWith('/') ? pattern[1..] : pattern;
+        if (normalized.StartsWith(collapsedDir)) return true;
+        var globIdx = normalized.IndexOfAny(['*', '?', '[']);
+        if (globIdx > 0)
+        {
+            var literalPrefix = normalized[..globIdx];
+            if (collapsedDir.StartsWith(literalPrefix, StringComparison.OrdinalIgnoreCase)) return true;
+        }
+        return false;
+    }
+
     private async Task ConfigureWorktreeHooksPathAsync(string gitRoot, string worktreePath, CancellationToken ct)
     {
         try
         {
-            var hooksResult = await _worktreeService.Value.ExecuteGitCommandAsync(
-                gitRoot, "config --get core.hooksPath", ct).ConfigureAwait(false);
+            string? hooksPath = null;
 
-            if (hooksResult.Success && !string.IsNullOrWhiteSpace(hooksResult.Output))
+            var huskyPath = _fs.CombinePath(gitRoot, ".husky");
+            if (_fs.DirectoryExists(huskyPath))
             {
-                var hooksPath = hooksResult.Output.Trim();
-                var absHooksPath = Path.IsPathRooted(hooksPath)
-                    ? hooksPath
-                    : _fs.CombinePath(gitRoot, hooksPath);
-
-                if (_fs.DirectoryExists(absHooksPath))
+                hooksPath = huskyPath;
+            }
+            else
+            {
+                var gitHooksPath = _fs.CombinePath(gitRoot, ".git", "hooks");
+                if (_fs.DirectoryExists(gitHooksPath))
                 {
-                    await _worktreeService.Value.ExecuteGitCommandAsync(
-                        worktreePath,
-                        $"config core.hooksPath \"{absHooksPath}\"",
-                        ct).ConfigureAwait(false);
-                    _logger?.LogDebug("配置 worktree hooks 路径: {Path}", absHooksPath);
+                    hooksPath = gitHooksPath;
                 }
             }
+
+            if (hooksPath is null) return;
+
+            var existingHooksResult = await _worktreeService.Value.ExecuteGitCommandAsync(
+                gitRoot, "config --get core.hooksPath", ct).ConfigureAwait(false);
+
+            var existingHooksPath = existingHooksResult.Success ? existingHooksResult.Output.Trim() : null;
+            if (string.Equals(existingHooksPath, hooksPath, StringComparison.OrdinalIgnoreCase)) return;
+
+            await _worktreeService.Value.ExecuteGitCommandAsync(
+                worktreePath,
+                $"config core.hooksPath \"{hooksPath}\"",
+                ct).ConfigureAwait(false);
+            _logger?.LogDebug("配置 worktree hooks 路径: {Path}", hooksPath);
         }
         catch (Exception ex)
         {

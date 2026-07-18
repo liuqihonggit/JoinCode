@@ -26,6 +26,7 @@ public sealed class WorktreeCreateContext : PipelineContextBase
 
     public string? OriginalBranch { get; set; }
     public string? BaseCommitSha { get; set; }
+    public string? BaseBranch { get; set; }
 
     // === WorktreeCreateMiddleware 填充 ===
 

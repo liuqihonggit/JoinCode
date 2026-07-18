@@ -23,9 +23,14 @@ public sealed partial class WorktreeCreateMiddleware : IWorktreeCreateMiddleware
         _logger?.LogInformation("创建新 worktree: {WorktreePath}, Agent: {AgentId}", worktreePath, context.AgentId);
 
         var hasLocalRef = await _worktreeService.Value.HasLocalBranchAsync(gitRoot, branchName, ct).ConfigureAwait(false);
+        var hasSparsePaths = opts.SparsePaths?.Count > 0;
+        var baseRef = context.BaseBranch ?? "HEAD";
+
         var worktreeAddArgs = hasLocalRef
             ? $"worktree add \"{worktreePath}\" -B {branchName}"
-            : $"worktree add -B {branchName} \"{worktreePath}\"";
+            : hasSparsePaths
+                ? $"worktree add --no-checkout -B {branchName} \"{worktreePath}\" {baseRef}"
+                : $"worktree add -B {branchName} \"{worktreePath}\" {baseRef}";
 
         var createResult = await _worktreeService.Value.ExecuteGitCommandAsync(gitRoot, worktreeAddArgs, ct).ConfigureAwait(false);
 
@@ -35,15 +40,25 @@ public sealed partial class WorktreeCreateMiddleware : IWorktreeCreateMiddleware
             return;
         }
 
-        if (opts.SparsePaths?.Count > 0)
+        if (hasSparsePaths)
         {
-            var sparseResult = await _worktreeService.Value.ApplySparseCheckoutAsync(worktreePath, opts.SparsePaths, ct).ConfigureAwait(false);
+            var sparseResult = await _worktreeService.Value.ApplySparseCheckoutAsync(worktreePath, opts.SparsePaths!, ct).ConfigureAwait(false);
             if (!sparseResult)
             {
                 _logger?.LogWarning("应用稀疏检出失败，回滚 worktree: {WorktreePath}", worktreePath);
                 await _worktreeService.Value.ExecuteGitCommandAsync(gitRoot, $"worktree remove --force \"{worktreePath}\"", ct).ConfigureAwait(false);
                 await _worktreeService.Value.ExecuteGitCommandAsync(gitRoot, $"branch -D {branchName}", ct).ConfigureAwait(false);
                 context.Fail("稀疏检出失败，已回滚 worktree");
+                return;
+            }
+
+            var checkoutResult = await _worktreeService.Value.ExecuteGitCommandAsync(worktreePath, "checkout HEAD", ct).ConfigureAwait(false);
+            if (!checkoutResult.Success)
+            {
+                _logger?.LogWarning("稀疏检出 checkout HEAD 失败，回滚 worktree: {WorktreePath}", worktreePath);
+                await _worktreeService.Value.ExecuteGitCommandAsync(gitRoot, $"worktree remove --force \"{worktreePath}\"", ct).ConfigureAwait(false);
+                await _worktreeService.Value.ExecuteGitCommandAsync(gitRoot, $"branch -D {branchName}", ct).ConfigureAwait(false);
+                context.Fail($"稀疏检出 checkout HEAD 失败: {checkoutResult.Error}，已回滚 worktree");
                 return;
             }
         }

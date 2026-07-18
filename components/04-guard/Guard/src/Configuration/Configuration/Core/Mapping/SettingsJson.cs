@@ -222,6 +222,13 @@ public sealed partial class SettingsJson
     public WorktreeSettings? Worktree { get; init; }
 
     /// <summary>
+    /// 活跃 Worktree 会话 — 对齐 TS 版 activeWorktreeSession，持久化到 settings.local.json
+    /// </summary>
+    [JsonPropertyName("activeWorktreeSession")]
+    [SettingsProperty(SettingsMergeStrategy.Override, SkipKeyAccess = true)]
+    public ActiveWorktreeSessionJson? ActiveWorktreeSession { get; init; }
+
+    /// <summary>
     /// 状态栏配置 — 对齐 TS 版 statusLine
     /// </summary>
     [JsonPropertyName("statusLine")]
@@ -405,6 +412,42 @@ public sealed class WorktreeSettings
 
     [JsonPropertyName("sparsePaths")]
     public List<string>? SparsePaths { get; init; }
+}
+
+/// <summary>
+/// 活跃 Worktree 会话 — 对齐 TS 版 activeWorktreeSession，持久化到 settings.local.json
+/// </summary>
+public sealed class ActiveWorktreeSessionJson
+{
+    [JsonPropertyName("originalCwd")]
+    public string? OriginalCwd { get; init; }
+
+    [JsonPropertyName("worktreePath")]
+    public string? WorktreePath { get; init; }
+
+    [JsonPropertyName("worktreeName")]
+    public string? WorktreeName { get; init; }
+
+    [JsonPropertyName("worktreeBranch")]
+    public string? WorktreeBranch { get; init; }
+
+    [JsonPropertyName("originalBranch")]
+    public string? OriginalBranch { get; init; }
+
+    [JsonPropertyName("originalHeadCommit")]
+    public string? OriginalHeadCommit { get; init; }
+
+    [JsonPropertyName("sessionId")]
+    public string? SessionId { get; init; }
+
+    [JsonPropertyName("hookBased")]
+    public bool? HookBased { get; init; }
+
+    [JsonPropertyName("creationDurationMs")]
+    public long? CreationDurationMs { get; init; }
+
+    [JsonPropertyName("usedSparsePaths")]
+    public bool? UsedSparsePaths { get; init; }
 }
 
 /// <summary>

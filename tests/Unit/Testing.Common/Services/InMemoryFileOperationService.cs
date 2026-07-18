@@ -336,6 +336,8 @@ public sealed class InMemoryFileOperationService : IFileOperationService, IDispo
         return DateTime.UtcNow;
     }
 
+    public void SetDirectoryLastWriteTimeUtc(string directoryPath, DateTime utcTime) { }
+
     public DateTime GetFileLastWriteTime(string filePath)
     {
         return _fileSystem.GetLastWriteTime(filePath);

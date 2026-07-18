@@ -169,6 +169,13 @@ public sealed partial class FileOperationService : IFileOperationService
     }
 
     /// <inheritdoc />
+    public void SetDirectoryLastWriteTimeUtc(string directoryPath, DateTime utcTime)
+    {
+        var normalizedPath = NormalizePath(directoryPath);
+        _fs.SetDirectoryLastWriteTimeUtc(normalizedPath, utcTime);
+    }
+
+    /// <inheritdoc />
     public DateTime GetFileLastWriteTime(string filePath)
     {
         var normalizedPath = NormalizePath(filePath);

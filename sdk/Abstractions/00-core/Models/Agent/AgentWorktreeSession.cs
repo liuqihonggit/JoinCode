@@ -70,8 +70,7 @@ public sealed record AgentWorktreeSession {
     /// </summary>
     public static string GenerateBranchName(string agentId) {
         var safeId = agentId.Replace("/", "+").Replace("\\", "+");
-        var shortId = safeId.Length > 8 ? safeId[..8] : safeId;
-        return $"worktree-agent-{shortId}";
+        return $"worktree-{safeId}";
     }
 
     /// <summary>
@@ -80,6 +79,26 @@ public sealed record AgentWorktreeSession {
     public static string GenerateWorktreePath(string gitRoot, string agentId) {
         var safeId = agentId.Replace("/", "+").Replace("\\", "+");
         return WorkflowConstants.Paths.GetProjectWorktreePath(gitRoot, agentId);
+    }
+
+    /// <summary>
+    /// 解析 PR 引用 — 对齐 TS parsePRReference
+    /// 支持 #N 格式和 GitHub PR URL（如 https://github.com/owner/repo/pull/123）
+    /// </summary>
+    public static int? ParsePRReference(string input) {
+        var urlMatch = Regex.Match(input, @"^https?://[^/]+/[^/]+/[^/]+/pull/(\d+)/?(?:[?#].*)?$", RegexOptions.IgnoreCase);
+        if (urlMatch.Success && int.TryParse(urlMatch.Groups[1].Value, out var urlPrNum))
+        {
+            return urlPrNum;
+        }
+
+        var hashMatch = Regex.Match(input, @"^#(\d+)$");
+        if (hashMatch.Success && int.TryParse(hashMatch.Groups[1].Value, out var hashPrNum))
+        {
+            return hashPrNum;
+        }
+
+        return null;
     }
 }
 
@@ -91,6 +110,11 @@ public sealed record WorktreeOptions {
     /// 基础分支或提交（可选）
     /// </summary>
     public string? BaseBranch { get; init; }
+
+    /// <summary>
+    /// PR 编号（可选）— 对齐 TS parsePRReference，支持 #N 和 GitHub PR URL
+    /// </summary>
+    public int? PrNumber { get; init; }
 
     /// <summary>
     /// 稀疏检出路径列表（可选）
@@ -135,12 +159,15 @@ public sealed record WorktreeOptions {
 
     /// <summary>
     /// 临时 worktree 名称模式（用于自动清理）
+    /// 对齐 TS EPHEMERAL_WORKTREE_PATTERNS：精确正则匹配，避免误删用户命名的 worktree
     /// </summary>
     public IReadOnlyList<string> EphemeralPatterns { get; init; } =
     [
-        "agent-*",
-        "wf-*",
-        "bridge-*"
+        "^agent-[a-z0-9]{1,8}$",
+        "^wf_[0-9a-f]{8}-[0-9a-f]{3}-\\d+$",
+        "^wf-\\d+$",
+        "^bridge-[A-Za-z0-9_]+(-[A-Za-z0-9_]+)*$",
+        "^job-[a-zA-Z0-9._-]{1,55}-[0-9a-f]{8}$"
     ];
 }
 

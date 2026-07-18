@@ -152,7 +152,7 @@ public static class WorkflowConstants
         public const int DefaultBridgePort = 3456;
 
         /// <summary>
-        /// 获取 .jcc 目录的完整路径
+        /// 获取 .jcc 目录的完整路径 — 统一使用 UserProfile（~/.jcc/）
         /// 优先使用 JCC_APP_DATA_FOLDER 环境变量覆盖（测试隔离场景）
         /// 其次检查 AppDataConstants.AppDataFolder 是否为绝对路径（backing field 覆盖场景）
         /// </summary>
@@ -169,7 +169,7 @@ public static class WorkflowConstants
                     return appDataFolder;
 
                 return Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
                     appDataFolder);
             }
         }

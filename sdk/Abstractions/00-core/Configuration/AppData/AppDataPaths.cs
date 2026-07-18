@@ -81,7 +81,7 @@ public sealed record AppDataPaths(
     }
 
     /// <summary>
-    /// 获取 .jcc 目录的完整路径
+    /// 获取 .jcc 目录的完整路径 — 统一使用 UserProfile（~/.jcc/）
     /// </summary>
     public string JccDirectory
     {
@@ -91,7 +91,7 @@ public sealed record AppDataPaths(
                 return AppDataFolder;
 
             return Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
                 AppDataFolder);
         }
     }

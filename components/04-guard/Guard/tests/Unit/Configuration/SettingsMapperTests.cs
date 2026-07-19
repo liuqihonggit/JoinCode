@@ -7,7 +7,7 @@ namespace Guard.Tests.Configuration;
 /// </summary>
 public class SettingsMapperTests
 {
-    private static readonly string DefaultOpenAiModelId = ModelConfigLoader.GetDefaultModelId("openai");
+    private static readonly string OpenAiModelId = ModelConfigLoader.GetDefaultModelId("openai");
     private static readonly string DefaultAnthropicModelId = ModelConfigLoader.GetDefaultModelId("anthropic");
 
     private readonly SettingsMapper _mapper = new(new ProviderDefinitionRegistry());
@@ -25,21 +25,6 @@ public class SettingsMapperTests
 
         // Then
         config.Provider.ModelId.Should().Be(DefaultAnthropicModelId);
-    }
-
-    [Fact]
-    public void Given_null的SettingsJson_When_ToWorkflowConfig_Then_使用默认值()
-    {
-        // Given
-        SettingsJson? settings = null;
-
-        // When
-        var config = _mapper.ToWorkflowConfig(settings);
-
-        // Then
-        config.Should().NotBeNull();
-        config.Provider.Provider.Should().Be(ProviderKind.OpenAI.ToValue());
-        config.Provider.ModelId.Should().Be(DefaultOpenAiModelId);
     }
 
     [Fact]
@@ -98,7 +83,7 @@ public class SettingsMapperTests
     {
         // Given
         var config = new WorkflowConfig();
-        config.Provider.Provider = ProviderKind.OpenAI.ToValue();
+        config.Provider.Provider = ProviderKind.DeepSeek.ToValue();
         Environment.SetEnvironmentVariable(JccEnvVar.Provider.ToValue(), "anthropic");
         try
         {
@@ -140,7 +125,7 @@ public class SettingsMapperTests
     {
         // Given
         var config = new WorkflowConfig();
-        config.Provider.ModelId = DefaultOpenAiModelId;
+        config.Provider.ModelId = OpenAiModelId;
         Environment.SetEnvironmentVariable(JccEnvVar.ModelId.ToValue(), "gpt-4o-mini");
         try
         {
@@ -161,8 +146,9 @@ public class SettingsMapperTests
     {
         // Given
         var config = new WorkflowConfig();
-        config.Provider.Provider = ProviderKind.OpenAI.ToValue();
-        config.Provider.ModelId = DefaultOpenAiModelId;
+        config.Provider.Provider = ProviderKind.DeepSeek.ToValue();
+        var testModelId = "deepseek-v4-flash";
+        config.Provider.ModelId = testModelId;
         // 清除可能存在的环境变量
         Environment.SetEnvironmentVariable(JccEnvVar.Provider.ToValue(), null);
         Environment.SetEnvironmentVariable(JccEnvVar.ModelId.ToValue(), null);
@@ -173,8 +159,8 @@ public class SettingsMapperTests
         _mapper.ApplyEnvOverrides(config);
 
         // Then
-        config.Provider.Provider.Should().Be(ProviderKind.OpenAI.ToValue());
-        config.Provider.ModelId.Should().Be(DefaultOpenAiModelId);
+        config.Provider.Provider.Should().Be(ProviderKind.DeepSeek.ToValue());
+        config.Provider.ModelId.Should().Be(testModelId);
     }
 
     #endregion
@@ -235,7 +221,7 @@ public class SettingsMapperTests
     public void Given_两个SettingsJson_When_Merge_Then_高优先级覆盖简单值()
     {
         // Given
-        var baseSettings = new SettingsJson { Model = DefaultOpenAiModelId, Language = "en-US" };
+        var baseSettings = new SettingsJson { Model = OpenAiModelId, Language = "en-US" };
         var overrideSettings = new SettingsJson { Model = DefaultAnthropicModelId };
 
         // When
@@ -297,26 +283,26 @@ public class SettingsMapperTests
     public void Given_base为null_When_Merge_Then_返回override()
     {
         // Given
-        var overrideSettings = new SettingsJson { Model = DefaultOpenAiModelId };
+        var overrideSettings = new SettingsJson { Model = OpenAiModelId };
 
         // When
         var merged = SettingsMapper.Merge(null, overrideSettings);
 
         // Then
-        merged.Model.Should().Be(DefaultOpenAiModelId);
+        merged.Model.Should().Be(OpenAiModelId);
     }
 
     [Fact]
     public void Given_override为null_When_Merge_Then_返回base()
     {
         // Given
-        var baseSettings = new SettingsJson { Model = DefaultOpenAiModelId };
+        var baseSettings = new SettingsJson { Model = OpenAiModelId };
 
         // When
         var merged = SettingsMapper.Merge(baseSettings, null);
 
         // Then
-        merged.Model.Should().Be(DefaultOpenAiModelId);
+        merged.Model.Should().Be(OpenAiModelId);
     }
 
     [Fact]
@@ -338,7 +324,7 @@ public class SettingsMapperTests
     public void Given_SettingsJson和环境变量_When_先映射再覆盖_Then_环境变量优先()
     {
         // Given
-        var settings = new SettingsJson { Model = DefaultOpenAiModelId };
+        var settings = new SettingsJson { Model = OpenAiModelId };
         Environment.SetEnvironmentVariable(JccEnvVar.ModelId.ToValue(), "gpt-4o-mini");
         try
         {

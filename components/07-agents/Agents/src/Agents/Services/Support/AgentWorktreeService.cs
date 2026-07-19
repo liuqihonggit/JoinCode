@@ -330,6 +330,17 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
         }
     }
 
+    public async Task KeepWorktreeAsync(string agentId, CancellationToken cancellationToken = default) {
+        var session = await GetSessionAsync(agentId, cancellationToken).ConfigureAwait(false);
+        if (session is null) return;
+
+        _logger?.LogInformation(
+            "保留 worktree: {WorktreePath}, Agent: {AgentId}, 可通过 cd {WorktreePath} 继续工作",
+            session.WorktreePath, agentId, session.WorktreePath);
+
+        await RemoveSessionAsync(agentId).ConfigureAwait(false);
+    }
+
     public async Task<IReadOnlyList<string>> ListWorktreesAsync(
         string? gitRootPath = null,
         CancellationToken cancellationToken = default) {
@@ -379,6 +390,8 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
         } finally {
             _sessionLock.Release();
         }
+
+        await PersistActiveWorktreeSessionAsync(session).ConfigureAwait(false);
     }
 
     internal async Task RemoveSessionAsync(string agentId) {
@@ -387,6 +400,77 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
             _sessions.Remove(agentId);
         } finally {
             _sessionLock.Release();
+        }
+
+        await ClearActiveWorktreeSessionAsync().ConfigureAwait(false);
+    }
+
+    private async Task PersistActiveWorktreeSessionAsync(AgentWorktreeSession session) {
+        try {
+            var gitRoot = session.GitRootPath;
+            var localSettingsPath = _fileOperationService.CombinePath(gitRoot, WorkflowConstants.Paths.LocalSettingsRelativePath);
+
+            var readResult = await _fileOperationService.ReadFileAsync(localSettingsPath).ConfigureAwait(false);
+            var jsonStr = readResult.Success ? readResult.Content : "{}";
+
+            var root = jsonStr.Length > 0 ? JsonNode.Parse(jsonStr) as JsonObject : new JsonObject();
+
+            root ??= new JsonObject();
+            root["activeWorktreeSession"] = new JsonObject
+            {
+                ["originalCwd"] = session.OriginalCwd,
+                ["worktreePath"] = session.WorktreePath,
+                ["worktreeName"] = session.AgentId,
+                ["worktreeBranch"] = session.BranchName,
+                ["originalBranch"] = session.OriginalBranch,
+                ["originalHeadCommit"] = session.BaseCommitSha,
+                ["sessionId"] = session.AgentId,
+                ["hookBased"] = session.HookBased,
+                ["creationDurationMs"] = session.CreationDurationMs,
+                ["usedSparsePaths"] = session.SparsePaths?.Count > 0
+            };
+
+            var updatedJson = root.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
+
+            var dir = Path.GetDirectoryName(localSettingsPath);
+            if (!string.IsNullOrEmpty(dir) && !_fileOperationService.DirectoryExists(dir))
+            {
+                _fileOperationService.CreateDirectory(dir);
+            }
+
+            await _fileOperationService.WriteFileAsync(localSettingsPath, updatedJson).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogDebug(ex, "持久化 worktree 会话失败");
+        }
+    }
+
+    private async Task ClearActiveWorktreeSessionAsync() {
+        try {
+            if (_sessions.Count > 0) return;
+
+            var cwd = _fileOperationService.GetCurrentDirectory();
+            var gitRoot = await FindGitRootAsync(cwd).ConfigureAwait(false);
+            if (string.IsNullOrEmpty(gitRoot)) return;
+
+            var localSettingsPath = _fileOperationService.CombinePath(gitRoot, WorkflowConstants.Paths.LocalSettingsRelativePath);
+            if (!_fileOperationService.FileExists(localSettingsPath)) return;
+
+            var readResult = await _fileOperationService.ReadFileAsync(localSettingsPath).ConfigureAwait(false);
+            if (!readResult.Success) return;
+
+            var root = JsonNode.Parse(readResult.Content) as JsonObject;
+            if (root is null) return;
+
+            root.Remove("activeWorktreeSession");
+
+            var updatedJson = root.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
+            await _fileOperationService.WriteFileAsync(localSettingsPath, updatedJson).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogDebug(ex, "清除 worktree 会话持久化失败");
         }
     }
 
@@ -438,6 +522,25 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
         return result.Success ? result.Output.Trim() : null;
     }
 
+    public async Task<string?> GetDefaultBranchAsync(string gitRoot) {
+        var result = await ExecuteGitCommandAsync(gitRoot, "symbolic-ref refs/remotes/origin/HEAD --short").ConfigureAwait(false);
+        if (result.Success && !string.IsNullOrWhiteSpace(result.Output)) {
+            var branch = result.Output.Trim();
+            return branch.StartsWith("origin/") ? branch[7..] : branch;
+        }
+
+        var mainResult = await ExecuteGitCommandAsync(gitRoot, $"{GitSubCommand.RevParse.ToValue()} --verify refs/heads/main").ConfigureAwait(false);
+        if (mainResult.Success) return "main";
+
+        var masterResult = await ExecuteGitCommandAsync(gitRoot, $"{GitSubCommand.RevParse.ToValue()} --verify refs/heads/master").ConfigureAwait(false);
+        return masterResult.Success ? "master" : null;
+    }
+
+    public async Task<string?> ResolveRefAsync(string gitRoot, string refName) {
+        var result = await ExecuteGitCommandAsync(gitRoot, $"{GitSubCommand.RevParse.ToValue()} {refName}").ConfigureAwait(false);
+        return result.Success ? result.Output.Trim() : null;
+    }
+
     public async Task<bool> HasLocalBranchAsync(string gitRoot, string branchName, CancellationToken cancellationToken) {
         var result = await ExecuteGitCommandAsync(
             gitRoot, $"{GitSubCommand.RevParse.ToValue()} --verify refs/heads/{branchName}", cancellationToken).ConfigureAwait(false);
@@ -460,7 +563,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
         var paths = string.Join(" ", sparsePaths.Select(p => $"\"{p}\""));
         var setResult = await ExecuteGitCommandAsync(
             worktreePath,
-            $"{GitSubCommand.SparseCheckout.ToValue()} set {paths}",
+            $"sparse-checkout set --cone -- {paths}",
             cancellationToken).ConfigureAwait(false);
 
         return setResult.Success;
@@ -614,10 +717,12 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
 
     private static bool IsEphemeralWorktree(string dirName, IReadOnlyList<string> patterns) {
         return patterns.Any(pattern => {
-            var regex = new Regex(
-                "^" + Regex.Escape(pattern).Replace("\\*", ".*") + "$",
-                RegexOptions.IgnoreCase);
-            return regex.IsMatch(dirName);
+            try {
+                return Regex.IsMatch(dirName, pattern, RegexOptions.IgnoreCase);
+            }
+            catch {
+                return false;
+            }
         });
     }
 

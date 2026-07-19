@@ -91,7 +91,7 @@ public sealed partial class ProjectRulesLoader {
             currentDirPath = _fs.GetParentPath(currentDirPath);
         }
 
-        var appDataRoot = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        var appDataRoot = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
         // 并行读取用户规则文件
         var userReadTasks = new List<Task<(string Path, string? Content)?>>();
@@ -227,7 +227,7 @@ public sealed partial class ProjectRulesLoader {
             currentDirPath = _fs.GetParentPath(currentDirPath);
         }
 
-        var appDataRoot = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        var appDataRoot = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         foreach (var relativePath in UserRulesFilePaths) {
             var fullPath = Path.Combine(appDataRoot, relativePath);
             if (_fs.FileExists(fullPath)) {
@@ -270,7 +270,7 @@ public sealed partial class ProjectRulesLoader {
             currentDirPath = _fs.GetParentPath(currentDirPath);
         }
 
-        var appDataRoot = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        var appDataRoot = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         foreach (var relativePath in UserRulesFilePaths) {
             var fullPath = Path.Combine(appDataRoot, relativePath);
             if (_fs.FileExists(fullPath)) {

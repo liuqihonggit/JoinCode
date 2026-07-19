@@ -133,6 +133,9 @@ public interface IFileSystem
     /// <summary>获取目录最后写入时间(UTC) — 对齐 Directory.GetLastWriteTimeUtc</summary>
     DateTime GetDirectoryLastWriteTimeUtc(string path);
 
+    /// <summary>设置目录最后写入时间(UTC) — 对齐 Directory.SetLastWriteTimeUtc</summary>
+    void SetDirectoryLastWriteTimeUtc(string path, DateTime utcTime);
+
     /// <summary>获取父目录路径 — 对齐 DirectoryInfo.Parent.FullName，根目录返回 null</summary>
     string? GetParentPath(string path);
 

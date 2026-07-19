@@ -113,7 +113,7 @@ public class ConfigLoader {
     public static async Task<SettingsJson?> LoadSettingsJsonAsync(IFileSystem fs, CancellationToken cancellationToken = default)
     {
         var settingsPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             AppDataConstants.AppDataFolder,
             AppDataConstants.SettingsFileName);
 
@@ -137,7 +137,7 @@ public class ConfigLoader {
     public static async Task SaveSettingsJsonAsync(SettingsJson settings, IFileSystem fs, CancellationToken cancellationToken = default)
     {
         var settingsPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             AppDataConstants.AppDataFolder,
             AppDataConstants.SettingsFileName);
 
@@ -248,7 +248,7 @@ public class ConfigLoader {
     public static async Task<string?> LoadSettingFromSettingsJsonAsync(string key, IFileSystem fs, CancellationToken cancellationToken = default)
     {
         var settingsPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             AppDataConstants.AppDataFolder,
             AppDataConstants.SettingsFileName);
 
@@ -276,7 +276,7 @@ public class ConfigLoader {
     public static string? LoadSettingFromSettingsJson(string key, IFileSystem fs)
     {
         var settingsPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             AppDataConstants.AppDataFolder,
             AppDataConstants.SettingsFileName);
 
@@ -325,7 +325,7 @@ public class ConfigLoader {
     public static async Task SaveSettingToSettingsJsonAsync(string key, string? value, IFileSystem fs, CancellationToken cancellationToken = default)
     {
         var settingsPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             AppDataConstants.AppDataFolder,
             AppDataConstants.SettingsFileName);
 
@@ -379,7 +379,7 @@ public class ConfigLoader {
     public static async Task<string?> LoadSettingFromGlobalConfigAsync(string key, IFileSystem fs, CancellationToken cancellationToken = default)
     {
         var globalPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             AppDataConstants.AppDataFolder,
             AppDataConstants.GlobalConfigFileName);
 
@@ -417,7 +417,7 @@ public class ConfigLoader {
     public static async Task SaveSettingToGlobalConfigAsync(string key, string? value, IFileSystem fs, CancellationToken cancellationToken = default)
     {
         var globalPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             AppDataConstants.AppDataFolder,
             AppDataConstants.GlobalConfigFileName);
 

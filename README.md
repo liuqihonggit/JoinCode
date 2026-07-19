@@ -40,9 +40,82 @@ dotnet build JoinCode.slnx -c Release
 | 环境变量 | 必填 | 说明 | 示例 |
 |----------|------|------|------|
 | `JCC_API_KEY` | 是 | API 密钥 | `sk-xxxxxxxx` |
-| `JCC_PROVIDER` | 否 | Provider 名称（默认 openai） | `openai` / `anthropic` / `azure` / `deepseek` |
-| `JCC_MODEL_ID` | 否 | 模型 ID（默认 gpt-4o） | `gpt-4o` / `claude-3-5-sonnet-20241022` |
+| `JCC_PROVIDER` | 否 | Provider 名称（默认 deepseek） | `deepseek` / `openai` / `anthropic` / `azure` |
+| `JCC_MODEL_ID` | 否 | 模型 ID（默认 deepseek-v4-flash） | `deepseek-v4-flash` / `gpt-4o` / `claude-3-5-sonnet-20241022` |
 | `JCC_ENDPOINT` | 否 | API 端点（默认使用 Provider 内置地址） | `http://localhost:9901` |
+
+### 使用 DeepSeek
+
+DeepSeek 是默认 Provider，兼容 OpenAI API 协议，开箱即用。只需设置 API Key 即可启动。
+
+#### 方式一：环境变量（推荐）
+
+```powershell
+# 设置 API Key（优先使用 DeepSeek 专属变量）
+$env:DEEPSEEK_API_KEY = "sk-your-deepseek-api-key"
+
+# 设置 Provider 为 DeepSeek
+$env:JCC_PROVIDER = "deepseek"
+
+# 可选：指定模型（默认 deepseek-v4-flash）
+$env:JCC_MODEL_ID = "deepseek-v4-pro"
+
+# 启动
+jcc --trust
+```
+
+> **回退机制**：如果未设置 `DEEPSEEK_API_KEY`，会自动回退读取 `OPENAI_API_KEY`。
+
+#### 方式二：配置文件
+
+将 API Key 存储到 `~/.jcc/auth.json`，避免每次设置环境变量：
+
+```json
+{
+  "deepseek": "sk-your-deepseek-api-key"
+}
+```
+
+将 Provider 设置写入 `~/.jcc/settings.json`：
+
+```json
+{
+  "provider": "deepseek",
+  "modelId": "deepseek-v4-flash"
+}
+```
+
+#### 方式三：项目级配置
+
+在项目根目录创建 `.env/api.json`（适合团队共享默认配置）：
+
+```json
+{
+  "env": {
+    "DEEPSEEK_API_KEY": "sk-your-deepseek-api-key",
+    "JCC_PROVIDER": "deepseek",
+    "JCC_MODEL_ID": "deepseek-v4-flash"
+  }
+}
+```
+
+#### 可用模型
+
+| 模型 ID | 别名 | 上下文 | 说明 |
+|---------|------|--------|------|
+| `deepseek-v4-flash` | `flash`、`v4`、`chat` | 1M | 快速模型，支持思考模式（默认） |
+| `deepseek-v4-pro` | `pro` | 1M | 旗舰模型，支持思考模式 |
+
+交互模式下可通过 `/model flash` 或 `/model pro` 快速切换模型。
+
+#### API Key 优先级
+
+从低到高：
+
+1. `~/.jcc/auth.json` 中的 `"deepseek"` 字段
+2. `JCC_API_KEY` 环境变量
+3. `DEEPSEEK_API_KEY` 环境变量（最高优先级）
+4. 回退：`OPENAI_API_KEY` 环境变量
 
 ### 运行
 

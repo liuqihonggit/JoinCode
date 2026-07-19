@@ -22,7 +22,7 @@ public sealed partial class FileHistoryService : IFileHistoryService
         _logger = logger;
         _sessionId = Environment.ProcessId.ToString();
 
-        var homeDir = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        var homeDir = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         _baseDir = Path.Combine(homeDir, AppDataConstants.AppDataFolder, AppDataConstants.FileHistoryFolderName);
     }
 

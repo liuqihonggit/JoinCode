@@ -100,6 +100,11 @@ public interface IFileOperationService
     DateTime GetDirectoryLastWriteTimeUtc(string directoryPath);
 
     /// <summary>
+    /// 设置目录最后写入时间（UTC）— 对齐 TS utimes，防止过期清理误删恢复的 worktree
+    /// </summary>
+    void SetDirectoryLastWriteTimeUtc(string directoryPath, DateTime utcTime);
+
+    /// <summary>
     /// 获取文件最后写入时间
     /// </summary>
     DateTime GetFileLastWriteTime(string filePath);

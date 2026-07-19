@@ -121,7 +121,7 @@ public sealed class DatabasePathResolverTests : IDisposable
 
         // Assert — 应该在 %APPDATA%/TestJcc 下
         var expectedBase = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             "TestJcc");
         Assert.Equal(Path.Combine(expectedBase, "workflow_state.db"), result);
         Assert.DoesNotContain(AppContext.BaseDirectory, result);

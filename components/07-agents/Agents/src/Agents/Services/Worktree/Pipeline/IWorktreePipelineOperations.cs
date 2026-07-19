@@ -9,6 +9,8 @@ public interface IWorktreePipelineOperations
     Task SaveSessionAsync(AgentWorktreeSession session);
     Task<string?> GetCurrentBranchAsync(string gitRoot);
     Task<string?> GetHeadCommitShaAsync(string gitRoot);
+    Task<string?> GetDefaultBranchAsync(string gitRoot);
+    Task<string?> ResolveRefAsync(string gitRoot, string refName);
     Task<bool> IsValidWorktreeAsync(string worktreePath, string gitRoot);
     Task<GitCommandResult> ExecuteGitCommandAsync(string workingDirectory, string arguments, CancellationToken cancellationToken = default);
     Task<bool> HasLocalBranchAsync(string gitRoot, string branchName, CancellationToken cancellationToken);

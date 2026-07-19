@@ -69,8 +69,8 @@ public static class BridgeInboundAttachments
         if (attachments.Count == 0) return string.Empty;
 
         var uploadDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "jcc", "uploads", sessionId);
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            AppDataConstants.AppDataFolder, "uploads", sessionId);
 
         fs.CreateDirectory(uploadDir);
 

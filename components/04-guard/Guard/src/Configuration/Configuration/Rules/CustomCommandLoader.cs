@@ -48,7 +48,7 @@ public sealed partial class CustomCommandLoader
 
     public async Task<List<CustomCommand>> LoadUserCommandsAsync(CancellationToken cancellationToken = default)
     {
-        var appDataRoot = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        var appDataRoot = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
         // 并行扫描所有用户命令目录

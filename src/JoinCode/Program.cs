@@ -57,6 +57,10 @@ class Program
             using var awaitTimer = StartAwaitTimer(options);
 
             var fs = IO.FileSystem.FileSystemFactory.Create();
+
+            // 首次启动时确保全局配置文件存在（带注释模板）
+            await Entry.StartupWorkflow.EnsureConfigFilesExistAsync(fs);
+
             var config = await App.Builder.ApplicationBuilder.LoadConfigAsync(options, fs);
 
             var builder = new App.Builder.ApplicationBuilder()

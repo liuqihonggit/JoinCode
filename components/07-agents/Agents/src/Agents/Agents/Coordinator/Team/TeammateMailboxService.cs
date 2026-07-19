@@ -1,4 +1,4 @@
-﻿namespace Core.Agents.Coordinator;
+namespace Core.Agents.Coordinator;
 
 [Register]
 public sealed partial class TeammateMailboxService : ITeammateMailboxService, IDisposable
@@ -21,7 +21,7 @@ public sealed partial class TeammateMailboxService : ITeammateMailboxService, ID
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _mailboxRoot = mailboxRoot
             ?? Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
                 AppDataConstants.AppDataFolder,
                 AppDataConstants.MailboxFolderName);
         _logger = logger;

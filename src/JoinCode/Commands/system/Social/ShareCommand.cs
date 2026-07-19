@@ -1,4 +1,4 @@
-﻿namespace JoinCode.ChatCommands;
+namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /share 命令 — 对齐 TS share/
@@ -53,7 +53,7 @@ public sealed class ShareCommand : ChatCommandBase
             try
             {
                 var sharePath = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
                     AppDataConstants.AppDataFolder, "shares",
                     $"share-{DateTime.Now:yyyyMMdd-HHmmss}.md");
 

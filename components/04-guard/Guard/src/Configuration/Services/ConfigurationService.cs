@@ -87,8 +87,8 @@ public sealed partial class ConfigurationService : IConfigurationService
         {
             // 对齐 TS markInternalWrite — 写入前标记内部写，防止 FileSystemWatcher 回声
             var targetPath = source == SettingSource.GlobalConfig
-                ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppDataConstants.AppDataFolder, AppDataConstants.GlobalConfigFileName)
-                : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppDataConstants.AppDataFolder, AppDataConstants.SettingsFileName);
+                ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), AppDataConstants.AppDataFolder, AppDataConstants.GlobalConfigFileName)
+                : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), AppDataConstants.AppDataFolder, AppDataConstants.SettingsFileName);
             _configChangeNotifier?.MarkInternalWrite(targetPath);
 
             if (source == SettingSource.GlobalConfig)
@@ -120,7 +120,7 @@ public sealed partial class ConfigurationService : IConfigurationService
         try
         {
             // 对齐 TS markInternalWrite — 写入前标记内部写
-            var targetPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppDataConstants.AppDataFolder, AppDataConstants.SettingsFileName);
+            var targetPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), AppDataConstants.AppDataFolder, AppDataConstants.SettingsFileName);
             _configChangeNotifier?.MarkInternalWrite(targetPath);
 
             await ConfigLoader.SaveSettingToSettingsJsonAsync(key, null, _fs, cancellationToken).ConfigureAwait(false);

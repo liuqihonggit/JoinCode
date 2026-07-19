@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Cli;
+namespace JoinCode.Cli;
 
 /// <summary>
 /// 信任目录管理器 — CLI 简化版，实现 ITrustFolderManager
@@ -13,7 +13,7 @@ public sealed partial class TrustFolderManager : ITrustFolderManager
     {
         _fs = fs;
         var appDataPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             AppDataConstants.AppDataFolder);
         _trustedFoldersPath = Path.Combine(appDataPath, AppDataConstants.TrustedFoldersFileName);
     }

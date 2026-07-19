@@ -5,7 +5,7 @@ namespace Core.Skills;
 [Register]
 public sealed record SkillOptions
 {
-    public string SkillsDirectory { get; init; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppDataConstants.AppDataFolder, "skills");
+    public string SkillsDirectory { get; init; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), AppDataConstants.AppDataFolder, "skills");
     public TimeSpan CacheExpiration { get; init; } = TimeSpan.FromMinutes(5);
 
     public SkillOptions() { }
@@ -14,7 +14,7 @@ public sealed record SkillOptions
     {
         SkillsDirectory = config is not null && !string.IsNullOrEmpty(config.SkillsDirectory)
             ? config.SkillsDirectory
-            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppDataConstants.AppDataFolder, "skills");
+            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), AppDataConstants.AppDataFolder, "skills");
     }
 
     public static SkillOptions FromConfig(WorkflowConfig? config) => new(config);

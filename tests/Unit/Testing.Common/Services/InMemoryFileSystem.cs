@@ -519,6 +519,9 @@ public sealed class InMemoryFileSystem : IFileSystem
         => DateTime.UtcNow;
 
     /// <inheritdoc />
+    public void SetDirectoryLastWriteTimeUtc(string path, DateTime utcTime) { }
+
+    /// <inheritdoc />
     public string? GetParentPath(string path)
     {
         var normalizedPath = NormalizePath(path);

@@ -1,4 +1,4 @@
-﻿
+
 namespace Core.Memdir;
 
 /// <summary>
@@ -101,7 +101,7 @@ public sealed partial class MemoryPaths : IMemoryPaths
     private static string GetDefaultBaseDirectory()
     {
         return Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             AppDataConstants.AppDataFolder,
             "memories");
     }
@@ -165,7 +165,7 @@ public sealed partial class TeamMemoryPaths : ITeamMemoryPaths
     private static string GetDefaultTeamBaseDirectory()
     {
         return Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             AppDataConstants.AppDataFolder,
             "team-memories");
     }

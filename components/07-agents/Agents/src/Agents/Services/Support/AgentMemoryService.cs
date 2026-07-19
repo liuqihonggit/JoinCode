@@ -1,4 +1,4 @@
-﻿
+
 namespace Core.Agents;
 
 /// <summary>
@@ -35,7 +35,7 @@ public sealed partial class AgentMemoryService : IAgentMemoryService
         _logger = logger;
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _memoryBase = memoryBase ?? Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             AppDataConstants.AppDataFolder);
         _cwd = cwd ?? fs.GetCurrentDirectory();
     }

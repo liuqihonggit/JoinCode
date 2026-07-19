@@ -6,7 +6,7 @@ namespace Core.Skills.Discovery;
 public sealed partial class SkillDiscoveryOptions
 {
     public string SkillsDirectory { get; init; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
         AppDataConstants.AppDataFolder,
         "skills");
 

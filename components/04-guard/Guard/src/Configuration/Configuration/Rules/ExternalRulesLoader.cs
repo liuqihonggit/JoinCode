@@ -48,7 +48,7 @@ public sealed partial class ExternalRulesLoader
             currentDirPath = _fs.GetParentPath(currentDirPath);
         }
 
-        var appDataRoot = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        var appDataRoot = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         // 并行扫描所有用户规则目录
         var userDirTasks = new List<Task<List<RuleFile>>>();
         foreach (var rulesDir in UserRulesDirs)

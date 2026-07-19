@@ -39,7 +39,7 @@ public sealed record AppDataPaths(
     public static AppDataPaths FromEnvironment()
     {
         return new AppDataPaths(
-            AppDataFolder: ResolveEnv(JccEnvVar.AppDataFolder, "jcc"),
+            AppDataFolder: ResolveEnv(JccEnvVar.AppDataFolder, ".jcc"),
             CredentialsFileName: ResolveEnv(JccEnvVar.CredentialsFileName, "credentials.json"),
             AuthFileName: ResolveEnv(JccEnvVar.AuthFileName, "auth.json"),
             SettingsFileName: ResolveEnv(JccEnvVar.SettingsFileName, "settings.json"),
@@ -81,7 +81,7 @@ public sealed record AppDataPaths(
     }
 
     /// <summary>
-    /// 获取 .jcc 目录的完整路径
+    /// 获取 .jcc 目录的完整路径 — 统一使用 UserProfile（~/.jcc/）
     /// </summary>
     public string JccDirectory
     {
@@ -91,7 +91,7 @@ public sealed record AppDataPaths(
                 return AppDataFolder;
 
             return Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
                 AppDataFolder);
         }
     }

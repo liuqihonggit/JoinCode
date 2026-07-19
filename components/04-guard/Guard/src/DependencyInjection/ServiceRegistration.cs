@@ -59,7 +59,7 @@ public static partial class ServiceRegistration
             var manager = new HookConfigurationManager(fs, sp.GetService<ILogger<HookConfigurationManager>>());
             var logger = sp.GetService<ILogger<JsonFileHookConfigurationProvider>>();
 
-            var appDataRoot = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            var appDataRoot = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
             var userSettingsPath = Path.Combine(appDataRoot, AppDataConstants.AppDataFolder, AppDataConstants.SettingsFileName);
             manager.RegisterProvider(HookSource.UserSettings,
                 new JsonFileHookConfigurationProvider(userSettingsPath, HookSource.UserSettings, fs, logger));

@@ -389,8 +389,8 @@ public sealed class SshSession : ISshSession
         {
             case SshAuthMethod.PrivateKey when Config.PrivateKey != null:
                 var keyFile = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                    "jcc", "ssh", $"key_{SessionId}");
+                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                    AppDataConstants.AppDataFolder, "ssh", $"key_{SessionId}");
 
                 _fs.CreateDirectory(Path.GetDirectoryName(keyFile)!);
                 _fs.WriteAllText(keyFile, Config.PrivateKey);

@@ -3,7 +3,7 @@ namespace Tests;
 [Trait("Category", "Integration")]
 public class ServiceRegistrationIntegrationTests
 {
-    private static readonly string DefaultOpenAiModelId = ModelConfigLoader.GetDefaultModelId("openai");
+    private static readonly string DefaultModelId = ModelConfigLoader.GetDefaultModelId("deepseek");
 
     [Fact]
     public void AddWorkflowServices_ShouldRegisterITranscriptService()
@@ -42,7 +42,7 @@ public class ServiceRegistrationIntegrationTests
         var sp = services.BuildServiceProvider();
 
         var fastModeService = sp.GetRequiredService<IFastModeService>();
-        Assert.Equal(DefaultOpenAiModelId, fastModeService.PrimaryModelId);
+        Assert.Equal(DefaultModelId, fastModeService.PrimaryModelId);
     }
 
     [Fact]

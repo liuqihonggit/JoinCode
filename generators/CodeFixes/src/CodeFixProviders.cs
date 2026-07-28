@@ -1,4 +1,4 @@
-namespace JccCodeFixes;
+namespace CodeFixes;
 
 /// <summary>
 /// JCC1001/JCC1002 CodeFix: Dictionary&lt;string, object&gt; → Dictionary&lt;string, JsonElement&gt;

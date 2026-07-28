@@ -42,11 +42,14 @@ jobs:
           restore-keys: |
             nuget-${{ runner.os }}-
 
-      - name: Restore
-        run: dotnet restore JoinCode.slnx
+      - name: Build - SDK Layer (generators + Abstractions + Infrastructure)
+        run: dotnet build Sdk.slnx -c Release --no-incremental --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
 
-      - name: Build
-        run: dotnet build JoinCode.slnx -c Release --no-restore --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
+      - name: Build - Components Layer
+        run: dotnet build Components.slnx -c Release --no-incremental --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
+
+      - name: Build - Main Project + Tests
+        run: dotnet build JoinCode.slnx -c Release --no-incremental --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
 
       - name: Build - Component Tests
         run: |

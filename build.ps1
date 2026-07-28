@@ -22,7 +22,7 @@
   仅编译生成器项目 (generators/generators.slnx)
 
 .PARAMETER ComponentsOnly
-  仅编译组件项目 (components/components.slnx)
+  仅编译组件项目 (Components.slnx)
 
 .PARAMETER Component
   仅编译指定组件 (如 Dream, Mcp, CodeIndex, FlexLayout, Browser)
@@ -76,7 +76,7 @@ if ($CI -and -not $PSBoundParameters.ContainsKey('Configuration')) {
 $ErrorActionPreference = 'Stop'
 $rootDir = $PSScriptRoot
 $slnx = "$rootDir\JoinCode.slnx"
-$compSlnx = "$rootDir\components\components.slnx"
+$compSlnx = "$rootDir\Components.slnx"
 $genSlnx = "$rootDir\generators\generators.slnx"
 
 # ── 模式 → MSBuild 属性 ──

@@ -484,9 +484,9 @@ JoinCode/
 ├── tools/               ★ 辅助工具（AST审计/跨进程/注入迁移）
 ├── build.ps1            主构建脚本
 ├── JoinCode.slnx         主解决方案（Host + tests + MockServers）
-├── components.slnx      组件解决方案（全部组件源码 + 组件测试）
+├── Components.slnx      组件解决方案（全部组件源码 + 组件测试）
 ├── generators.slnx      生成器解决方案
-├── sdk.slnx             SDK 解决方案
+├── Sdk.slnx             基础层解决方案（generators + Abstractions + Sdk + Structura + Infrastructure）
 └── tools.slnx           工具解决方案
 ```
 

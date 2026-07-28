@@ -398,22 +398,22 @@ nuget包: 拒绝全部微软的AI包，因为大部分不支持NativeAOT。
 | 编译顺序 | 解决方案 | 职责 | 项目数 | 关键内容 |
 |----------|----------|------|--------|----------|
 | ① 先编译 | `Sdk.slnx` | 基础层 | 16 | 全部 generators + Abstractions + Structura + Infrastructure |
-| ② 后编译 | `components.slnx` | 组件开发 | 39 | 全部10个组件 + 组件测试 |
+| ② 后编译 | `Components.slnx` | 组件开发 | 39 | 全部10个组件 + 组件测试 |
 | ③ 最后 | `JoinCode.slnx` | 主工程 | 12 | JoinCode.exe + 集成测试 + MockServers |
 
-**依赖链**：`Sdk.slnx` → `components.slnx` → `JoinCode.slnx`
+**依赖链**：`Sdk.slnx` → `Components.slnx` → `JoinCode.slnx`
 
 **为什么必须按顺序？**
 - `Sdk.slnx` 包含源码生成器（EnumMetadata.Generator、ConstructorInjection.Generator 等），它们生成 `XxxConstants` 静态类
-- `components.slnx` 中的组件依赖 Abstractions，而 Abstractions 需要生成器才能编译出枚举常量
-- 如果先编译 components.slnx 而生成器 DLL 不存在，编译会失败
+- `Components.slnx` 中的组件依赖 Abstractions，而 Abstractions 需要生成器才能编译出枚举常量
+- 如果先编译 Components.slnx 而生成器 DLL 不存在，编译会失败
 
 **CI 编译命令（Release + 全量）**：
 ```powershell
 # 1. 基础层（必须先编译）
 dotnet build Sdk.slnx -c Release --no-incremental
 # 2. 组件层
-dotnet build components/components.slnx -c Release --no-incremental
+dotnet build Components.slnx -c Release --no-incremental
 # 3. 主工程
 dotnet build JoinCode.slnx -c Release --no-incremental
 ```
@@ -452,7 +452,7 @@ dotnet build Sdk.slnx -c Debug
 
 **CI 全量编译命令（Release + --no-incremental）**：
 ```powershell
-dotnet build Sdk.slnx -c Release --no-incremental; dotnet build components/components.slnx -c Release --no-incremental; dotnet build JoinCode.slnx -c Release --no-incremental
+dotnet build Sdk.slnx -c Release --no-incremental; dotnet build Components.slnx -c Release --no-incremental; dotnet build JoinCode.slnx -c Release --no-incremental
 ```
 
 ### 编译注意事项

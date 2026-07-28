@@ -1,8 +1,8 @@
 
 
-namespace McpToolHandlers;
+namespace McpToolDispatch;
 
-[McpToolHandler(ToolCategory.PrSubscription, Optional = true)]
+[McpToolDispatch(ToolCategory.PrSubscription, Optional = true)]
 public partial class SubscribePRToolHandlers
 {
     [Inject] private readonly ILogger<SubscribePRToolHandlers>? _logger;

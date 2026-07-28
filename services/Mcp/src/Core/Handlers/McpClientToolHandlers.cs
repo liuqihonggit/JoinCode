@@ -1,11 +1,11 @@
 
 
-namespace McpToolHandlers;
+namespace McpToolDispatch;
 
 /// <summary>
 /// MCP 客户端工具处理器 - 提供与远程 MCP 服务器交互的能力
 /// </summary>
-[McpToolHandler(ToolCategory.McpClient)]
+[McpToolDispatch(ToolCategory.McpClient)]
 public partial class McpClientToolHandlers : IAsyncDisposable
 {
     private readonly Dictionary<string, IMcpClient> _clients = new();
@@ -348,7 +348,7 @@ public partial class McpClientToolHandlers : IAsyncDisposable
             Dictionary<string, JsonElement>? arguments = null;
             if (!string.IsNullOrEmpty(arguments_json))
             {
-                arguments = JsonSerializer.Deserialize(arguments_json, McpToolHandlersJsonContext.Default.DictionaryStringJsonElement);
+                arguments = JsonSerializer.Deserialize(arguments_json, McpToolDispatchJsonContext.Default.DictionaryStringJsonElement);
             }
 
             var result = await client.CallToolAsync(tool_name, arguments, cancellationToken);

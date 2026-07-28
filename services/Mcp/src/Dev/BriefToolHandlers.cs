@@ -1,6 +1,6 @@
-namespace McpToolHandlers;
+namespace McpToolDispatch;
 
-[McpToolHandler(ToolCategory.Brief)]
+[McpToolDispatch(ToolCategory.Brief)]
 public class BriefToolHandlers
 {
     private readonly IBriefModeService _briefModeService;

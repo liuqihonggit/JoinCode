@@ -1,8 +1,8 @@
 
 
-namespace McpToolHandlers;
+namespace McpToolDispatch;
 
-[McpToolHandler(ToolCategory.Task, Optional = true)]
+[McpToolDispatch(ToolCategory.Task, Optional = true)]
 public partial class TaskOutputToolHandlers
 {
     private readonly ITaskService _taskService;

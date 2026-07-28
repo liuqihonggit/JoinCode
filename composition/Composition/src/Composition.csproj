@@ -19,7 +19,7 @@
     <ProjectReference Include="$(RepoRoot)services\Eyes\src\Eyes.csproj" />
     <ProjectReference Include="$(RepoRoot)core\safety\Vault\src\Vault.csproj" />
     <ProjectReference Include="$(RepoRoot)core\execution\Scheduling\src\Scheduling.csproj" />
-    <ProjectReference Include="$(RepoRoot)core\execution\McpToolHandlers\src\McpToolHandlers.csproj" />
+    <ProjectReference Include="$(RepoRoot)core\execution\McpToolDispatch\src\McpToolDispatch.csproj" />
     <ProjectReference Include="$(RepoRoot)core\ai\Agents\src\Agents.csproj" />
     <ProjectReference Include="$(RepoRoot)foundation\Transport.Contracts\Transport.Contracts.csproj" />
     <ProjectReference Include="$(RepoRoot)infrastructure\Transport.Impl\Transport.Impl.csproj" />
@@ -29,7 +29,7 @@
   <ItemGroup>
     <ProjectReference Include="$(RepoRoot)generators\EnumMetadata.Generator\src\EnumMetadata.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     <ProjectReference Include="$(RepoRoot)generators\ConstructorInjection.Generator\src\ConstructorInjection.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
-    <ProjectReference Include="$(RepoRoot)generators\McpToolHandlers.Generator\src\McpToolHandlers.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="$(RepoRoot)generators\McpToolDispatch.Generator\src\McpToolDispatch.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,8 +1,8 @@
 
 
-namespace McpToolHandlers;
+namespace McpToolDispatch;
 
-[McpToolHandler(ToolCategory.Terminal, Optional = true)]
+[McpToolDispatch(ToolCategory.Terminal, Optional = true)]
 public partial class TerminalCaptureToolHandlers
 {
     [Inject] private readonly ILogger<TerminalCaptureToolHandlers>? _logger;

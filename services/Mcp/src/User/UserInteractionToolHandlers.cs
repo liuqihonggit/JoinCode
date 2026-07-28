@@ -1,9 +1,9 @@
 
 
 
-namespace McpToolHandlers;
+namespace McpToolDispatch;
 
-[McpToolHandler(ToolCategory.Interaction)]
+[McpToolDispatch(ToolCategory.Interaction)]
 public class UserInteractionToolHandlers
 {
     private readonly IInteractiveService _interactiveService;

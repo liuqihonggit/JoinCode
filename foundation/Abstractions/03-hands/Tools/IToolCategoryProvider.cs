@@ -1,7 +1,7 @@
 namespace JoinCode.Abstractions.Tools;
 
 /// <summary>
-/// 工具分类提供者接口，用于解耦 PromptConfig 对 McpToolHandlers 的直接依赖
+    /// 工具分类提供者接口，用于解耦 PromptConfig 对 McpToolDispatch 的直接依赖
 /// </summary>
 public interface IToolCategoryProvider
 {

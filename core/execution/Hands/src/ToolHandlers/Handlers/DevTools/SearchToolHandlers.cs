@@ -121,7 +121,7 @@ public sealed record SymbolSearchOptions
 /// Search tool handlers - provides Glob and Grep search capabilities
 /// Aligned with Claude Code's GlobTool and GrepTool
 /// </summary>
-[McpToolHandler(ToolCategory.Search)]
+[McpToolDispatch(ToolCategory.Search)]
 public class SearchToolHandlers
 {
     private readonly ISearchService _searchService;

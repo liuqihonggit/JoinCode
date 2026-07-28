@@ -4,7 +4,7 @@ namespace Services.Todo.ToolHandlers;
 /// <summary>
 /// 任务工具处理器 - 提供任务管理功能
 /// </summary>
-[McpToolHandler(ToolCategory.Task)]
+[McpToolDispatch(ToolCategory.Task)]
 public class TaskToolHandlers
 {
     private readonly ITaskService _taskService;

@@ -1,7 +1,7 @@
 
 namespace Services.Todo.ToolHandlers;
 
-[McpToolHandler(ToolCategory.Todo)]
+[McpToolDispatch(ToolCategory.Todo)]
 public class TodoToolHandlers
 {
     private readonly ITodoService _todoService;

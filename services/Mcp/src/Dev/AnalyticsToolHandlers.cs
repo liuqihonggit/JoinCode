@@ -1,11 +1,11 @@
 
 
-namespace McpToolHandlers;
+namespace McpToolDispatch;
 
 /// <summary>
 /// 分析工具处理器 - 提供使用统计和分析功能
 /// </summary>
-[McpToolHandler(ToolCategory.Analytics, Optional = true)]
+[McpToolDispatch(ToolCategory.Analytics, Optional = true)]
 public class AnalyticsToolHandlers
 {
     private readonly IAnalyticsService _analyticsService;

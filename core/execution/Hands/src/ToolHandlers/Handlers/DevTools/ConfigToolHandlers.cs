@@ -4,7 +4,7 @@ namespace Tools.Handlers;
 /// Config 工具处理器 — LLM 通过此工具读写配置设置。
 /// 对齐 TS: ConfigTool.ts — 统一入口（省略 value = GET，提供 value = SET）
 /// </summary>
-[McpToolHandler(ToolCategory.Config)]
+[McpToolDispatch(ToolCategory.Config)]
 public sealed partial class ConfigToolHandlers
 {
     private readonly IConfigurationService _configService;

@@ -4,7 +4,7 @@ namespace Core.Permission.ToolHandlers;
 /// <summary>
 /// 权限管理工具处理器
 /// </summary>
-[McpToolHandler(ToolCategory.Permission, Optional = true)]
+[McpToolDispatch(ToolCategory.Permission, Optional = true)]
 public class PermissionToolHandlers
 {
     private readonly IAgentPermissionManager _permissionManager;

@@ -1,8 +1,8 @@
 
 
-namespace McpToolHandlers;
+namespace McpToolDispatch;
 
-[McpToolHandler(ToolCategory.Voice, Optional = true)]
+[McpToolDispatch(ToolCategory.Voice, Optional = true)]
 public sealed partial class VoiceToolHandlers
 {
     private readonly IVoiceService _voiceService;

@@ -1,8 +1,8 @@
 
 
-namespace McpToolHandlers;
+namespace McpToolDispatch;
 
-[McpToolHandler(ToolCategory.Vcr, Optional = true)]
+[McpToolDispatch(ToolCategory.Vcr, Optional = true)]
 public sealed partial class VcrToolHandlers
 {
     private readonly IVcrService _vcrService;

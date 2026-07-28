@@ -1,8 +1,8 @@
 
 
-namespace McpToolHandlers;
+namespace McpToolDispatch;
 
-[McpToolHandler(SystemToolNameConstants.ToolSearch, Optional = true)]
+[McpToolDispatch(SystemToolNameConstants.ToolSearch, Optional = true)]
 public partial class ToolSearchToolHandlers
 {
     private readonly IMcpToolRegistry _toolRegistry;

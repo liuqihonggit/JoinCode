@@ -4,7 +4,7 @@ namespace Core.Planning.ToolHandlers;
 /// <summary>
 /// 计划模式工具处理器 - 提供计划模式管理功能
 /// </summary>
-[McpToolHandler(ToolCategory.Plan)]
+[McpToolDispatch(ToolCategory.Plan)]
 public class PlanModeToolHandlers
 {
     private readonly IPlanModeManager _planModeManager;

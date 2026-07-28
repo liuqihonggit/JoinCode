@@ -5,7 +5,7 @@ namespace Core.Agents.ToolHandlers;
 /// <summary>
 /// 团队工具处理器 - 提供团队管理功能
 /// </summary>
-[McpToolHandler(ToolCategory.Team)]
+[McpToolDispatch(ToolCategory.Team)]
 public class TeamToolHandlers
 {
     private readonly ITeamManager _teamManager;

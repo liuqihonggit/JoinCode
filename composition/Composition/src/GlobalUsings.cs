@@ -88,7 +88,7 @@ global using IO.FileSystem;
 global using Infrastructure.Utils.Text;
 global using IMcpClient = JoinCode.Abstractions.Mcp.Client.IMcpClient;
 global using McpClient;
-global using McpToolHandlers;
+global using McpToolDispatch;
 global using Tools.Handlers;
 global using JoinCode.Abstractions.Mcp.Registry;
 global using RemoteClientManager = McpToolRegistry.RemoteClientManager;

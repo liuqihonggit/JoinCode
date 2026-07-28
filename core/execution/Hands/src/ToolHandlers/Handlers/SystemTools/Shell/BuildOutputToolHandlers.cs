@@ -3,7 +3,7 @@ namespace Tools.Shell;
 /// <summary>
 /// 编译输出工具处理器 - AI 渐进式阅读编译结果
 /// </summary>
-[McpToolHandler(ToolCategory.Build, Optional = true)]
+[McpToolDispatch(ToolCategory.Build, Optional = true)]
 public partial class BuildOutputToolHandlers
 {
     [Inject] private readonly IBuildQueueService? _buildQueueService;

@@ -6,7 +6,7 @@ namespace Tools.Handlers;
 /// 继承 ShellToolBase 获得 PowerShell 门控、进程看护、压缩标记
 /// PowerShell 命令由 PowerShellToolHandlers 独立处理
 /// </summary>
-[McpToolHandler(ToolCategory.Shell)]
+[McpToolDispatch(ToolCategory.Shell)]
 public partial class ShellToolHandlers : ShellToolBase
 {
     private readonly MiddlewarePipeline<ShellPipelineContext> _pipeline;

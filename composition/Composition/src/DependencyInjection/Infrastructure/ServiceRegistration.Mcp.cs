@@ -12,13 +12,13 @@ public static partial class ServiceRegistration
         // LocalToolRegistry, RemoteClientManager, ToolCacheManager, McpToolSyncBridge,
         // PermissionAwareToolExecutor, IMcpToolRegistry (ToolRegistryAdapter),
         // IElicitationHandler (InteractiveElicitationHandler) — [Register] 自动注册
-        // 直接调用本程序集生成的 AddMcpToolHandlerSingletons()（包含所有组件的 ToolHandler），
-        // 而非 McpToolHandlers 程序集的 AddMcpToolHandlers()（仅含 McpToolHandlers 项目的 7 个 Handler）。
-        GeneratedToolHandlerRegistration_JoinCode_Composition.AddMcpToolHandlerSingletons(services);
+        // 直接调用本程序集生成的 AddMcpToolDispatchSingletons()（包含所有组件的 ToolHandler），
+        // 而非 McpToolDispatch 程序集的 AddMcpToolDispatch()（仅含 McpToolDispatch 项目的 7 个 Handler）。
+        GeneratedToolHandlerRegistration_JoinCode_Composition.AddMcpToolDispatchSingletons(services);
 
         // 注册 Composition 级别的工具注册委托，让 McpService 使用包含所有组件 Handler 的注册方法
         services.AddSingleton<Func<IMcpToolRegistry, IServiceProvider, CancellationToken, Task<IMcpToolRegistry>>>(
-            (registry, sp, ct) => GeneratedToolHandlerRegistration_JoinCode_Composition.RegisterAllMcpToolHandlersAsync(registry, sp, ct));
+            (registry, sp, ct) => GeneratedToolHandlerRegistration_JoinCode_Composition.RegisterAllMcpToolDispatchAsync(registry, sp, ct));
 
         services.AddSingleton<MiddlewarePipeline<AgentToolContext>>(sp =>
         {

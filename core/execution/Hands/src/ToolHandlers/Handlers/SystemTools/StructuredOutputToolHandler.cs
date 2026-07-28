@@ -4,7 +4,7 @@ namespace Tools.Handlers;
 /// 结构化输出工具处理器 - 提供JSON Schema注册与验证功能
 /// 允许LLM请求输出符合JSON Schema的结构化数据
 /// </summary>
-[McpToolHandler(ToolCategory.StructuredOutput)]
+[McpToolDispatch(ToolCategory.StructuredOutput)]
 public sealed class StructuredOutputToolHandler
 {
     private readonly SimpleJsonSchemaValidator _validator;

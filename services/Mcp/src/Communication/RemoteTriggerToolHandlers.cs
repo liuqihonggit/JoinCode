@@ -1,8 +1,8 @@
 
 
-namespace McpToolHandlers;
+namespace McpToolDispatch;
 
-[McpToolHandler(ToolCategory.RemoteTrigger, Optional = true)]
+[McpToolDispatch(ToolCategory.RemoteTrigger, Optional = true)]
 public partial class RemoteTriggerToolHandlers
 {
     [Inject] private readonly ILogger<RemoteTriggerToolHandlers>? _logger;

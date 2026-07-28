@@ -494,7 +494,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
             var toolItems = toolsResult.GetData()
                 .Select(tool =>
                 {
-                    var remoteToolHandler = new RemoteMcpToolHandler(clientId, client, tool);
+                    var remoteToolHandler = new RemoteMcpToolDispatch(clientId, client, tool);
                     var fullToolName = McpNameNormalizer.BuildMcpToolName(clientId, tool.Name);
                     return (FullToolName: fullToolName, Handler: remoteToolHandler);
                 })

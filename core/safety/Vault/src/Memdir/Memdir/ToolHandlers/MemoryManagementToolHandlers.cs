@@ -4,7 +4,7 @@ namespace Core.Memdir.ToolHandlers;
 /// <summary>
 /// 内存管理工具处理器 - 提供内存扫描、年龄管理和团队内存功能
 /// </summary>
-[McpToolHandler(ToolCategory.Memory, Optional = true)]
+[McpToolDispatch(ToolCategory.Memory, Optional = true)]
 public class MemoryManagementToolHandlers
 {
     private readonly IMemoryManagementService _memoryManagementService;

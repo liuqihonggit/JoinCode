@@ -1,9 +1,9 @@
 
 
 
-namespace McpToolHandlers;
+namespace McpToolDispatch;
 
-[McpToolHandler(ToolCategory.McpResource)]
+[McpToolDispatch(ToolCategory.McpResource)]
 public class McpResourceToolHandlers
 {
     private readonly IMcpToolRegistry _toolRegistry;
@@ -243,7 +243,7 @@ public class McpResourceToolHandlers
         {
             try
             {
-                args = JsonSerializer.Deserialize(arguments, McpToolHandlersJsonContext.Default.DictionaryStringJsonElement);
+                args = JsonSerializer.Deserialize(arguments, McpToolDispatchJsonContext.Default.DictionaryStringJsonElement);
             }
             catch
             {

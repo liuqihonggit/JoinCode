@@ -1,8 +1,8 @@
 
 
-namespace McpToolHandlers;
+namespace McpToolDispatch;
 
-[McpToolHandler(ToolCategory.Plan, Optional = true)]
+[McpToolDispatch(ToolCategory.Plan, Optional = true)]
 public partial class VerifyPlanExecutionToolHandlers
 {
     private readonly IPlanService _planService;

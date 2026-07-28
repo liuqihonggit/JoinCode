@@ -1,11 +1,11 @@
 
 
-namespace McpToolHandlers;
+namespace McpToolDispatch;
 
 /// <summary>
 /// MCP 认证工具处理器 - 提供 MCP 服务器认证功能
 /// </summary>
-[McpToolHandler(ToolCategory.McpAuth)]
+[McpToolDispatch(ToolCategory.McpAuth)]
 public class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConfigProvider
 {
     private readonly Dictionary<string, IMcpAuthProvider> _authProviders = new();

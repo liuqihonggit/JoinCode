@@ -14,8 +14,8 @@
     <Project Path="core/execution/Hands/tests/Unit/Hands.Tests.csproj" />
     <Project Path="core/execution/Scheduling/src/Scheduling.csproj" />
     <Project Path="core/execution/Scheduling/tests/Unit/Scheduling.Tests.csproj" />
-    <Project Path="core/execution/McpToolHandlers/src/McpToolHandlers.csproj" />
-    <Project Path="core/execution/McpToolHandlers/tests/Unit/McpToolHandlers.Tests.csproj" />
+    <Project Path="core/execution/McpToolDispatch/src/McpToolDispatch.csproj" />
+    <Project Path="core/execution/McpToolDispatch/tests/Unit/McpToolDispatch.Tests.csproj" />
   </Folder>
   <Folder Name="/core/safety/">
     <Project Path="core/safety/Guard/src/Guard.csproj" />

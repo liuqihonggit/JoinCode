@@ -3,7 +3,7 @@
 
 namespace Tools.Handlers;
 
-[McpToolHandler(ToolCategory.Git)]
+[McpToolDispatch(ToolCategory.Git)]
 public partial class GitToolHandlers
 {
     [Inject] private readonly ILogger<GitToolHandlers>? _logger;

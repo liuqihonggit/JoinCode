@@ -1,11 +1,11 @@
 
 
-namespace McpToolHandlers;
+namespace McpToolDispatch;
 
 /// <summary>
 /// Sleep 工具处理器 - 延迟执行
 /// </summary>
-[McpToolHandler(ToolCategory.Sleep)]
+[McpToolDispatch(ToolCategory.Sleep)]
 public partial class SleepToolHandlers
 {
     [Inject] private readonly ILogger<SleepToolHandlers>? _logger;

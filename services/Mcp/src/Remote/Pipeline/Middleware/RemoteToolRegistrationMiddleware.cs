@@ -26,7 +26,7 @@ public sealed partial class RemoteToolRegistrationMiddleware : IRemoteSyncMiddle
             var toolItems = ctx.ToolsResult.GetData()
                 .Select(tool =>
                 {
-                    var remoteToolHandler = new RemoteMcpToolHandler(ctx.ClientId, ctx.Client, tool);
+                    var remoteToolHandler = new RemoteMcpToolDispatch(ctx.ClientId, ctx.Client, tool);
                     var fullToolName = McpNameNormalizer.BuildMcpToolName(ctx.ClientId, tool.Name);
                     return (FullToolName: fullToolName, Handler: remoteToolHandler);
                 })

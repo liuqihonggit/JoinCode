@@ -400,7 +400,7 @@ nuget包: 拒绝全部微软的AI包，因为大部分不支持NativeAOT。
 | ① | `Generators.slnx` | 源码生成器 | `generators/` | 11 个 Generator + 测试 |
 | ② | `Foundation.slnx` | 基础抽象 | `foundation/` | Abstractions + Structura + Transport.Contracts |
 | ③ | `Infrastructure.slnx` | 基础设施 | `infrastructure/` | Infrastructure + Transport.Impl |
-| ④ | `Core.slnx` | 核心组件 | `core/` | ai/(Llm,Agents,Reasoning) + execution/(Brain,Hands,Scheduling,McpToolHandlers) + safety/(Guard,Vault) + search/(CodeIndex,Browser) |
+| ④ | `Core.slnx` | 核心组件 | `core/` | ai/(Llm,Agents,Reasoning) + execution/(Brain,Hands,Scheduling,McpToolDispatch) + safety/(Guard,Vault) + search/(CodeIndex,Browser) |
 | ⑤ | `Services.slnx` | 服务组件 | `services/` | Mcp + Dream + Eyes + Bridge |
 | ⑥ | `Composition.slnx` | 组合层 | `composition/` | Composition + Clock |
 | ⑦ | `App.slnx` | 主工程 | `app/` | JoinCode.exe + Sdk + 集成测试 + MockServers |

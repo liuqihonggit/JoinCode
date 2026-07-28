@@ -1,8 +1,8 @@
 
 
-namespace McpToolHandlers;
+namespace McpToolDispatch;
 
-[McpToolHandler(ToolCategory.Policy, Optional = true)]
+[McpToolDispatch(ToolCategory.Policy, Optional = true)]
 public sealed partial class PolicyToolHandlers
 {
     private readonly IRemotePolicyService _policyService;

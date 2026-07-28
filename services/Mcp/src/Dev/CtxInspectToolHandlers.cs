@@ -1,8 +1,8 @@
 
 
-namespace McpToolHandlers;
+namespace McpToolDispatch;
 
-[McpToolHandler(ToolCategory.Context, Optional = true)]
+[McpToolDispatch(ToolCategory.Context, Optional = true)]
 public partial class CtxInspectToolHandlers
 {
     private readonly IChatContextManager _contextManager;

@@ -6,7 +6,7 @@ namespace Tools.Handlers;
 /// <summary>
 /// 代码执行工具处理器 - 提供安全的 C# 代码执行、表达式计算、代码片段测试等功能
 /// </summary>
-[McpToolHandler(ToolCategory.CodeExecution)]
+[McpToolDispatch(ToolCategory.CodeExecution)]
 public class CodeExecutionToolHandlers
 {
     private readonly ICodeSandboxService _codeSandboxService;

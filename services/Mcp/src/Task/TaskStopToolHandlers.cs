@@ -1,9 +1,9 @@
 
 
 
-namespace McpToolHandlers;
+namespace McpToolDispatch;
 
-[McpToolHandler(ToolCategory.Task, Optional = true)]
+[McpToolDispatch(ToolCategory.Task, Optional = true)]
 public partial class TaskStopToolHandlers
 {
     private readonly ITaskService _taskService;

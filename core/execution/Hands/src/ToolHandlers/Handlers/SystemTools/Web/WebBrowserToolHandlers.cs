@@ -4,7 +4,7 @@ namespace JoinCode.Hands.ToolHandlers.Handlers.SystemTools;
 /// WebBrowser工具处理器 — 对齐TS版 WebBrowserTool 的 open/screenshot/evaluate 三种操作
 /// screenshot/evaluate 通过 IBrowserAutomationService 解耦，默认 NoOp，安装 PuppeteerSharp 卫星包后启用
 /// </summary>
-[McpToolHandler(ToolCategory.Browser, Optional = true)]
+[McpToolDispatch(ToolCategory.Browser, Optional = true)]
 public partial class WebBrowserToolHandlers
 {
     private readonly IWebService _webService;

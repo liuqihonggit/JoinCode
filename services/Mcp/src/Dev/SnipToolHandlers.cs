@@ -1,8 +1,8 @@
 
 
-namespace McpToolHandlers;
+namespace McpToolDispatch;
 
-[McpToolHandler(ToolCategory.Snip, Optional = true)]
+[McpToolDispatch(ToolCategory.Snip, Optional = true)]
 public partial class SnipToolHandlers
 {
     private readonly IChatContextManager _contextManager;

@@ -1,8 +1,8 @@
 
 
-namespace McpToolHandlers;
+namespace McpToolDispatch;
 
-[McpToolHandler(ToolCategory.Repl, Optional = true)]
+[McpToolDispatch(ToolCategory.Repl, Optional = true)]
 public partial class ReplToolHandlers
 {
     [Inject] private readonly ILogger<ReplToolHandlers>? _logger;

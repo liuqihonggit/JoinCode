@@ -1,8 +1,8 @@
 
 
-namespace McpToolHandlers;
+namespace McpToolDispatch;
 
-[McpToolHandler(ToolCategory.Skill, Optional = true)]
+[McpToolDispatch(ToolCategory.Skill, Optional = true)]
 public sealed partial class SkillSearchToolHandlers
 {
     private readonly JoinCode.Abstractions.Interfaces.ISkillSearchService _searchService;

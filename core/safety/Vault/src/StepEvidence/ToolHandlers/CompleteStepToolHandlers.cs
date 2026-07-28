@@ -5,7 +5,7 @@ namespace Services.StepEvidence.ToolHandlers;
 /// 强制模型在标记步骤完成时必须提供证据，无证据的完成被拒绝。
 /// 与 TodoWrite 互补：TodoWrite 管理任务列表状态，complete_step 是步骤的正式签收。
 /// </summary>
-[McpToolHandler(ToolCategory.StepEvidence)]
+[McpToolDispatch(ToolCategory.StepEvidence)]
 public class CompleteStepToolHandlers
 {
     private static readonly FrozenSet<string> ValidKinds = FrozenSet.ToFrozenSet(

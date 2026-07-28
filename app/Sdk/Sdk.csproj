@@ -39,8 +39,8 @@
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.CodeIndex" Version="$(JccComponentPackageVersion)" />
     <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)core\execution\Scheduling\src\Scheduling.csproj" />
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Scheduling" Version="$(JccComponentPackageVersion)" />
-    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)core\execution\McpToolHandlers\src\McpToolHandlers.csproj" />
-    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.McpToolHandlers" Version="$(JccComponentPackageVersion)" />
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)core\execution\McpToolDispatch\src\McpToolDispatch.csproj" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.McpToolDispatch" Version="$(JccComponentPackageVersion)" />
   </ItemGroup>
 
   <ItemGroup>

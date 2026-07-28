@@ -1,13 +1,13 @@
 
 
 
-namespace McpToolHandlers;
+namespace McpToolDispatch;
 
 /// <summary>
 /// 技能执行工具处理器 - 提供技能执行和列表功能
 /// 参考Claude Code的SkillTool实现：单工具统一入口，skill名称+可选args
 /// </summary>
-[McpToolHandler(ToolCategory.Skill)]
+[McpToolDispatch(ToolCategory.Skill)]
 public class SkillToolHandlers
 {
     private readonly ISkillService _skillService;
@@ -73,11 +73,11 @@ public class SkillToolHandlers
         {
             try
             {
-                parameters = JsonSerializer.Deserialize(args, McpToolHandlersJsonContext.Default.DictionaryStringJsonElement);
+                parameters = JsonSerializer.Deserialize(args, McpToolDispatchJsonContext.Default.DictionaryStringJsonElement);
             }
             catch (JsonException)
             {
-                using var doc = JsonDocument.Parse($"{{\"args\":{JsonSerializer.Serialize(args, McpToolHandlersJsonContext.Default.String)}}}");
+                using var doc = JsonDocument.Parse($"{{\"args\":{JsonSerializer.Serialize(args, McpToolDispatchJsonContext.Default.String)}}}");
                 parameters = new Dictionary<string, JsonElement>
                 {
                     ["args"] = doc.RootElement.GetProperty("args").Clone()

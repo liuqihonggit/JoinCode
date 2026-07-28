@@ -1,6 +1,6 @@
 namespace Services.Notebook.ToolHandlers;
 
-[McpToolHandler(ToolCategory.Notebook, Optional = true)]
+[McpToolDispatch(ToolCategory.Notebook, Optional = true)]
 public class NotebookToolHandlers
 {
     private readonly INotebookService _notebookService;

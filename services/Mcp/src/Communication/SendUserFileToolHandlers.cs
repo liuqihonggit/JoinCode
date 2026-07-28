@@ -1,8 +1,8 @@
 
 
-namespace McpToolHandlers;
+namespace McpToolDispatch;
 
-[McpToolHandler(ToolCategory.FileTransfer, Optional = true)]
+[McpToolDispatch(ToolCategory.FileTransfer, Optional = true)]
 public partial class SendUserFileToolHandlers
 {
     [Inject] private readonly ILogger<SendUserFileToolHandlers>? _logger;

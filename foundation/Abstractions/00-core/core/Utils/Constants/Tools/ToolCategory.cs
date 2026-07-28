@@ -1,7 +1,7 @@
 namespace JoinCode.Abstractions.Utils;
 
 /// <summary>
-/// 工具分类枚举 — 对齐 [McpToolHandler("category")] 的字符串值为编译时安全枚举
+/// 工具分类枚举 — 对齐 [McpToolDispatch("category")] 的字符串值为编译时安全枚举
 /// </summary>
 public enum ToolCategory
 {

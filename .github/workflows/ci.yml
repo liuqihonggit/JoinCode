@@ -75,7 +75,7 @@ jobs:
             'composition/Composition/tests/Unit/Composition.Tests.csproj',
             'core/ai/Agents/tests/Unit/Agents.Tests.csproj',
             'core/execution/Scheduling/tests/Unit/Scheduling.Tests.csproj',
-            'core/execution/McpToolHandlers/tests/Unit/McpToolHandlers.Tests.csproj',
+            'core/execution/McpToolDispatch/tests/Unit/McpToolDispatch.Tests.csproj',
             'composition/Clock/tests/Unit/Clock.Tests.csproj',
             'services/Eyes/tests/Unit/Eyes.Tests.csproj',
             'core/search/CodeIndex/tests/Unit/CodeIndex.Tests.csproj',
@@ -202,7 +202,7 @@ jobs:
           retention-days: 7
 
   unit-test-group-3:
-    name: Unit - Agents & Host (Agents/Scheduling/McpToolHandlers/Host)
+    name: Unit - Agents & Host (Agents/Scheduling/McpToolDispatch/Host)
     runs-on: windows-latest
     needs: build
     timeout-minutes: 10
@@ -225,13 +225,13 @@ jobs:
           --filter "Category!=Integration&Category!=Benchmark"
           --logger "console;verbosity=detailed"
           --logger "trx;LogFileName=scheduling-tests.trx"
-      - name: Test - McpToolHandlers
+      - name: Test - McpToolDispatch
         run: >
-          dotnet test core/execution/McpToolHandlers/tests/Unit/McpToolHandlers.Tests.csproj
+          dotnet test core/execution/McpToolDispatch/tests/Unit/McpToolDispatch.Tests.csproj
           -c Release --no-build --nologo
           --filter "Category!=Integration&Category!=Benchmark"
           --logger "console;verbosity=detailed"
-          --logger "trx;LogFileName=mcp-toolhandlers-tests.trx"
+          --logger "trx;LogFileName=mcp-tooldispatch-tests.trx"
       - name: Test - Host
         run: >
           dotnet test tests/Unit/Host.Tests/Host.Tests.csproj

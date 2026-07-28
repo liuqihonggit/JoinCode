@@ -1,0 +1,35 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>JoinCode.McpToolDispatch</RootNamespace>
+    <AssemblyName>JoinCode.McpToolDispatch</AssemblyName>
+    <PackageId>JoinCode.McpToolDispatch</PackageId>
+    <Description>JoinCode McpToolDispatch 子系统 — MCP 工具调度、执行管道、权限检查</Description>
+    <NoWarn>$(NoWarn);IL2026;IL3050;NU5104</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)foundation\Abstractions\Abstractions.csproj" />
+    <ProjectReference Include="$(RepoRoot)infrastructure\Infrastructure\Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- McpToolDispatch.Generator 是必需的（工具调度注册源码生成器） -->
+    <ProjectReference Include="$(RepoRoot)generators\McpToolDispatch.Generator\src\McpToolDispatch.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="$(RepoRoot)generators\EnumMetadata.Generator\src\EnumMetadata.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="$(RepoRoot)generators\ConstructorInjection.Generator\src\ConstructorInjection.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="$(MicrosoftExtensionsVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="$(MicrosoftExtensionsVersion)" />
+    <PackageReference Include="ModelContextProtocol" Version="$(ModelContextProtocolVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="JoinCode.McpToolDispatch.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Composition" />
+    <InternalsVisibleTo Include="JoinCode.Composition.Tests" />
+  </ItemGroup>
+
+</Project>

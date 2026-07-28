@@ -1,6 +1,6 @@
 using JoinCode.Abstractions.Attributes;
 
-namespace McpToolHandlers;
+namespace McpToolDispatch;
 
 /// <summary>
 /// McpClientToolHandlers 可选依赖聚合

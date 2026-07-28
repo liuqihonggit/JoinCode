@@ -4,7 +4,7 @@ namespace Core.Memdir.ToolHandlers;
 /// <summary>
 /// 记忆扩展工具处理器 - 提供助手日志、搜索历史和团队记忆同步功能
 /// </summary>
-[McpToolHandler(ToolCategory.Memory, Optional = true)]
+[McpToolDispatch(ToolCategory.Memory, Optional = true)]
 public class MemoryExtensionToolHandlers
 {
     private readonly IMemoryManagementService _memoryManagementService;

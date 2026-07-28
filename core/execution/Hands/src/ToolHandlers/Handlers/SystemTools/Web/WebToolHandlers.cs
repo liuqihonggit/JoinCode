@@ -3,7 +3,7 @@
 
 namespace Tools.Handlers;
 
-[McpToolHandler(ToolCategory.Web)]
+[McpToolDispatch(ToolCategory.Web)]
 public class WebToolHandlers
 {
     private readonly IWebService _webService;

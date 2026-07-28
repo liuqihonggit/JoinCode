@@ -1,9 +1,9 @@
 
 
 
-namespace McpToolHandlers;
+namespace McpToolDispatch;
 
-[McpToolHandler(ToolCategory.Workflow)]
+[McpToolDispatch(ToolCategory.Workflow)]
 public class WorkflowToolHandlers
 {
     private readonly IPlanService? _planService;

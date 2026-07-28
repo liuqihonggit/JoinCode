@@ -2,7 +2,7 @@
 
 namespace Tools.Handlers;
 
-[McpToolHandler(ToolCategory.File)]
+[McpToolDispatch(ToolCategory.File)]
 public class FileToolHandlers : IDisposable
 {
     private static readonly FrozenSet<string> BinaryExtensions = CreateBinaryExtensionSet();

@@ -4,7 +4,7 @@ namespace Tools.Handlers;
 /// <summary>
 /// 内置技能工具处理器 - 提供常用代码操作技能
 /// </summary>
-[McpToolHandler(ToolCategory.Skill)]
+[McpToolDispatch(ToolCategory.Skill)]
 public partial class BundledSkillToolHandlers
 {
     private readonly IShellExecutionService _shellExecutionService;

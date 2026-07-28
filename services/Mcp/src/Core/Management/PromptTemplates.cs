@@ -1,6 +1,6 @@
 
 
-namespace McpToolHandlers;
+namespace McpToolDispatch;
 
 /// <summary>
 /// MCP 工作流提示词模板集合 — 工作流操作的本地化提示词构建

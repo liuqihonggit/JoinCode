@@ -1,8 +1,8 @@
 
 
-namespace McpToolHandlers;
+namespace McpToolDispatch;
 
-[McpToolHandler(ToolCategory.Notification, Optional = true)]
+[McpToolDispatch(ToolCategory.Notification, Optional = true)]
 public partial class PushNotificationToolHandlers
 {
     private readonly INotificationService? _notificationService;

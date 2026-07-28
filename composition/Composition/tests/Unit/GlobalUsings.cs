@@ -65,7 +65,7 @@ global using IO;
 global using Microsoft.Extensions.Caching.Memory;
 global using Microsoft.Extensions.DependencyInjection;
 global using Microsoft.Extensions.Logging.Abstractions;
-global using McpToolHandlers;
+global using McpToolDispatch;
 global using JoinCode.Abstractions.Mcp.Registry;
 global using IMcpClient = JoinCode.Abstractions.Mcp.Client.IMcpClient;
 global using McpClient;

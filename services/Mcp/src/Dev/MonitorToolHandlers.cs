@@ -1,8 +1,8 @@
 
 
-namespace McpToolHandlers;
+namespace McpToolDispatch;
 
-[McpToolHandler(ToolCategory.Monitor, Optional = true)]
+[McpToolDispatch(ToolCategory.Monitor, Optional = true)]
 public partial class MonitorToolHandlers
 {
     private readonly IMcpToolRegistry _toolRegistry;

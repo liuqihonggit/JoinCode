@@ -1,12 +1,12 @@
 
 
 
-namespace McpToolHandlers;
+namespace McpToolDispatch;
 
 /// <summary>
 /// Worktree工具处理器 - 提供Git Worktree隔离管理功能
 /// </summary>
-[McpToolHandler(ToolCategory.Worktree)]
+[McpToolDispatch(ToolCategory.Worktree)]
 public class WorktreeToolHandlers
 {
     private readonly IAgentWorktreeService _worktreeService;

@@ -6,7 +6,7 @@ namespace Core.Agents.ToolHandlers;
 /// <summary>
 /// 内置 Agent 工具处理器 - 提供通过 MCP 调用内置 Agent 的功能
 /// </summary>
-[McpToolHandler(ToolCategory.Agent, Optional = true)]
+[McpToolDispatch(ToolCategory.Agent, Optional = true)]
 [Register]
 public partial class BuiltInAgentToolHandlers
 {

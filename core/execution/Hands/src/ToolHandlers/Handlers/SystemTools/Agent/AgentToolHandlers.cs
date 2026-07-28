@@ -37,7 +37,7 @@ public sealed record AgentCreateOptions
 /// Agent 工具处理器 - 创建和管理子代理
 /// 通过中间件管道处理验证、fork判断、spawn、流式执行、handoff审查
 /// </summary>
-[McpToolHandler(ToolCategory.Agent, Optional = true)]
+[McpToolDispatch(ToolCategory.Agent, Optional = true)]
 public partial class AgentToolHandlers
 {
     private readonly MiddlewarePipeline<AgentToolContext> _pipeline;

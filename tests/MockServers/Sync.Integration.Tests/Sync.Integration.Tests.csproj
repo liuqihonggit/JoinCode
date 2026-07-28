@@ -8,8 +8,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)components\09-composition\Composition\src\Composition.csproj" />
-    <ProjectReference Include="$(RepoRoot)components\01-ai\Dream\src\Dream.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules\Composition\src\Composition.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules\Dream\src\Dream.csproj" />
     <ProjectReference Include="$(RepoRoot)tests\Unit\Testing.Common\Testing.Common.csproj" />
   </ItemGroup>
 

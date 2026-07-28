@@ -8,8 +8,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)components\06-perception\CodeIndex\src\CodeIndex.csproj" />
-    <ProjectReference Include="$(RepoRoot)components\06-perception\Eyes\src\Eyes.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules\CodeIndex\src\CodeIndex.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules\Eyes\src\Eyes.csproj" />
     <ProjectReference Include="$(RepoRoot)tests\Unit\Testing.Common\Testing.Common.csproj" />
   </ItemGroup>
 

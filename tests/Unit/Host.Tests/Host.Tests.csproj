@@ -8,20 +8,20 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)src\JoinCode\JoinCode.csproj" />
+    <ProjectReference Include="$(RepoRoot)app\JoinCode\JoinCode.csproj" />
 
   </ItemGroup>
 
   <!-- Core.Tests.Terminal 依赖（去重：JoinCode 已在上面） -->
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)components\09-composition\Composition\src\Composition.csproj" />
-    <ProjectReference Include="$(RepoRoot)components\09-composition\Clock\src\Clock.csproj" />
-    <ProjectReference Include="$(RepoRoot)components\02-brain\Brain\src\Brain.csproj" />
-    <ProjectReference Include="$(RepoRoot)components\04-guard\Guard\src\Guard.csproj" />
-    <ProjectReference Include="$(RepoRoot)components\05-memory\Vault\src\Vault.csproj" />
-    <ProjectReference Include="$(RepoRoot)components\03-hands\Hands\src\Hands.csproj" />
-    <ProjectReference Include="$(RepoRoot)src\Infrastructure\Infrastructure.csproj" />
-    <ProjectReference Include="$(RepoRoot)components\01-ai\Dream\src\Dream.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules\Composition\src\Composition.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules\Clock\src\Clock.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules\Brain\src\Brain.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules\Guard\src\Guard.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules\Vault\src\Vault.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules\Hands\src\Hands.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules\Infrastructure\Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules\Dream\src\Dream.csproj" />
     <ProjectReference Include="$(RepoRoot)tests\Unit\Testing.Common\Testing.Common.csproj" />
   </ItemGroup>
 

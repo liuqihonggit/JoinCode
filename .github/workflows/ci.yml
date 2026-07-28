@@ -42,33 +42,45 @@ jobs:
           restore-keys: |
             nuget-${{ runner.os }}-
 
-      - name: Build - SDK Layer (generators + Abstractions + Infrastructure)
-        run: dotnet build Sdk.slnx -c Release --no-incremental --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
+      - name: Build - ① Generators
+        run: dotnet build Generators.slnx -c Release --no-incremental --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
 
-      - name: Build - Components Layer
-        run: dotnet build Components.slnx -c Release --no-incremental --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
+      - name: Build - ② Foundation
+        run: dotnet build Foundation.slnx -c Release --no-incremental --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
 
-      - name: Build - Main Project + Tests
-        run: dotnet build JoinCode.slnx -c Release --no-incremental --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
+      - name: Build - ③ Infrastructure
+        run: dotnet build Infrastructure.slnx -c Release --no-incremental --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
+
+      - name: Build - ④ Core
+        run: dotnet build Core.slnx -c Release --no-incremental --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
+
+      - name: Build - ⑤ Services
+        run: dotnet build Services.slnx -c Release --no-incremental --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
+
+      - name: Build - ⑥ Composition
+        run: dotnet build Composition.slnx -c Release --no-incremental --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
+
+      - name: Build - ⑦ App
+        run: dotnet build App.slnx -c Release --no-incremental --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
 
       - name: Build - Component Tests
         run: |
           $projects = @(
-            'components/02-brain/Brain/tests/Unit/Brain.Tests.csproj',
-            'components/04-guard/Guard/tests/Unit/Guard.Tests.csproj',
-            'components/08-transport/Bridge/tests/Unit/Bridge.Tests.csproj',
-            'components/03-hands/Hands/tests/Unit/Hands.Tests.csproj',
-            'components/01-ai/Mcp/tests/Unit/Mcp.Tests.csproj',
-            'components/05-memory/Vault/tests/Unit/Vault.Tests.csproj',
-            'components/09-composition/Composition/tests/Unit/Composition.Tests.csproj',
-            'components/07-agents/Agents/tests/Unit/Agents.Tests.csproj',
-            'components/03-hands/Scheduling/tests/Unit/Scheduling.Tests.csproj',
-            'components/03-hands/McpToolHandlers/tests/Unit/McpToolHandlers.Tests.csproj',
-            'components/09-composition/Clock/tests/Unit/Clock.Tests.csproj',
-            'components/06-perception/Eyes/tests/Unit/Eyes.Tests.csproj',
-            'components/06-perception/CodeIndex/tests/Unit/CodeIndex.Tests.csproj',
-            'components/01-ai/Dream/tests/Unit/Dream.Tests.csproj',
-            'components/06-perception/CodeIndex/tests/E2E/CodeIndex.E2E.Tests.csproj'
+            'modules/Brain/tests/Unit/Brain.Tests.csproj',
+            'modules/Guard/tests/Unit/Guard.Tests.csproj',
+            'modules/Bridge/tests/Unit/Bridge.Tests.csproj',
+            'modules/Hands/tests/Unit/Hands.Tests.csproj',
+            'modules/Mcp/tests/Unit/Mcp.Tests.csproj',
+            'modules/Vault/tests/Unit/Vault.Tests.csproj',
+            'modules/Composition/tests/Unit/Composition.Tests.csproj',
+            'modules/Agents/tests/Unit/Agents.Tests.csproj',
+            'modules/Scheduling/tests/Unit/Scheduling.Tests.csproj',
+            'modules/McpToolHandlers/tests/Unit/McpToolHandlers.Tests.csproj',
+            'modules/Clock/tests/Unit/Clock.Tests.csproj',
+            'modules/Eyes/tests/Unit/Eyes.Tests.csproj',
+            'modules/CodeIndex/tests/Unit/CodeIndex.Tests.csproj',
+            'modules/Dream/tests/Unit/Dream.Tests.csproj',
+            'modules/CodeIndex/tests/E2E/CodeIndex.E2E.Tests.csproj'
           )
           foreach ($p in $projects) {
             Write-Host "Building $p ..."
@@ -116,21 +128,21 @@ jobs:
           --logger "trx;LogFileName=infra-tests.trx"
       - name: Test - Brain
         run: >
-          dotnet test components/02-brain/Brain/tests/Unit/Brain.Tests.csproj
+          dotnet test modules/Brain/tests/Unit/Brain.Tests.csproj
           -c Release --no-build --nologo
           --filter "Category!=Integration&Category!=Benchmark"
           --logger "console;verbosity=detailed"
           --logger "trx;LogFileName=brain-tests.trx"
       - name: Test - Guard
         run: >
-          dotnet test components/04-guard/Guard/tests/Unit/Guard.Tests.csproj
+          dotnet test modules/Guard/tests/Unit/Guard.Tests.csproj
           -c Release --no-build --nologo
           --filter "Category!=Integration&Category!=Benchmark"
           --logger "console;verbosity=detailed"
           --logger "trx;LogFileName=guard-tests.trx"
       - name: Test - Bridge
         run: >
-          dotnet test components/08-transport/Bridge/tests/Unit/Bridge.Tests.csproj
+          dotnet test modules/Bridge/tests/Unit/Bridge.Tests.csproj
           -c Release --no-build --nologo
           --filter "Category!=Integration&Category!=Benchmark"
           --logger "console;verbosity=detailed"
@@ -155,28 +167,28 @@ jobs:
       - uses: ./.github/actions/setup-test-env
       - name: Test - Hands
         run: >
-          dotnet test components/03-hands/Hands/tests/Unit/Hands.Tests.csproj
+          dotnet test modules/Hands/tests/Unit/Hands.Tests.csproj
           -c Release --no-build --nologo
           --filter "Category!=Integration&Category!=Benchmark"
           --logger "console;verbosity=detailed"
           --logger "trx;LogFileName=hands-tests.trx"
       - name: Test - Mcp
         run: >
-          dotnet test components/01-ai/Mcp/tests/Unit/Mcp.Tests.csproj
+          dotnet test modules/Mcp/tests/Unit/Mcp.Tests.csproj
           -c Release --no-build --nologo
           --filter "Category!=Integration&Category!=Benchmark"
           --logger "console;verbosity=detailed"
           --logger "trx;LogFileName=mcp-tests.trx"
       - name: Test - Vault
         run: >
-          dotnet test components/05-memory/Vault/tests/Unit/Vault.Tests.csproj
+          dotnet test modules/Vault/tests/Unit/Vault.Tests.csproj
           -c Release --no-build --nologo
           --filter "Category!=Integration&Category!=Benchmark"
           --logger "console;verbosity=detailed"
           --logger "trx;LogFileName=vault-tests.trx"
       - name: Test - Composition
         run: >
-          dotnet test components/09-composition/Composition/tests/Unit/Composition.Tests.csproj
+          dotnet test modules/Composition/tests/Unit/Composition.Tests.csproj
           -c Release --no-build --nologo
           --filter "Category!=Integration&Category!=Benchmark"
           --logger "console;verbosity=detailed"
@@ -201,21 +213,21 @@ jobs:
       - uses: ./.github/actions/setup-test-env
       - name: Test - Agents
         run: >
-          dotnet test components/07-agents/Agents/tests/Unit/Agents.Tests.csproj
+          dotnet test modules/Agents/tests/Unit/Agents.Tests.csproj
           -c Release --no-build --nologo
           --filter "Category!=Integration&Category!=Benchmark"
           --logger "console;verbosity=detailed"
           --logger "trx;LogFileName=agents-tests.trx"
       - name: Test - Scheduling
         run: >
-          dotnet test components/03-hands/Scheduling/tests/Unit/Scheduling.Tests.csproj
+          dotnet test modules/Scheduling/tests/Unit/Scheduling.Tests.csproj
           -c Release --no-build --nologo
           --filter "Category!=Integration&Category!=Benchmark"
           --logger "console;verbosity=detailed"
           --logger "trx;LogFileName=scheduling-tests.trx"
       - name: Test - McpToolHandlers
         run: >
-          dotnet test components/03-hands/McpToolHandlers/tests/Unit/McpToolHandlers.Tests.csproj
+          dotnet test modules/McpToolHandlers/tests/Unit/McpToolHandlers.Tests.csproj
           -c Release --no-build --nologo
           --filter "Category!=Integration&Category!=Benchmark"
           --logger "console;verbosity=detailed"
@@ -248,7 +260,7 @@ jobs:
       - uses: ./.github/actions/setup-test-env
       - name: Integration Tests - Brain + Clock
         run: >
-          dotnet test JoinCode.slnx
+          dotnet test App.slnx
           -c Release --no-build --nologo
           --filter "Category=Integration&(FullyQualifiedName~Brain|FullyQualifiedName~Clock)"
           --logger "console;verbosity=detailed"
@@ -274,7 +286,7 @@ jobs:
       - uses: ./.github/actions/setup-test-env
       - name: Integration Tests - Guard + Vault
         run: >
-          dotnet test JoinCode.slnx
+          dotnet test App.slnx
           -c Release --no-build --nologo
           --filter "Category=Integration&(FullyQualifiedName~Guard|FullyQualifiedName~Vault)"
           --logger "console;verbosity=detailed"
@@ -300,7 +312,7 @@ jobs:
       - uses: ./.github/actions/setup-test-env
       - name: Integration Tests - Hands + Host + McpTools
         run: >
-          dotnet test JoinCode.slnx
+          dotnet test App.slnx
           -c Release --no-build --nologo
           --filter "Category=Integration&(FullyQualifiedName~Hands|FullyQualifiedName~Host|FullyQualifiedName~McpTools)"
           --logger "console;verbosity=detailed"
@@ -326,7 +338,7 @@ jobs:
       - uses: ./.github/actions/setup-test-env
       - name: Integration Tests - PrefixCache
         run: >
-          dotnet test JoinCode.slnx
+          dotnet test App.slnx
           -c Release --no-build --nologo
           --filter "Category=Integration&FullyQualifiedName~PrefixCache"
           --logger "console;verbosity=detailed"
@@ -521,7 +533,7 @@ jobs:
           --logger "trx;LogFileName=e2e-sync.trx"
       - name: E2E - CodeIndex
         run: >
-          dotnet test components/06-perception/CodeIndex/tests/E2E/CodeIndex.E2E.Tests.csproj
+          dotnet test modules/CodeIndex/tests/E2E/CodeIndex.E2E.Tests.csproj
           -c Release --no-build --nologo
           --logger "console;verbosity=detailed"
           --logger "trx;LogFileName=e2e-codeindex.trx"

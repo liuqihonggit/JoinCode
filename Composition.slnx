@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/modules/Composition/">
+    <Project Path="modules/Composition/src/Composition.csproj" />
+    <Project Path="modules/Composition/tests/Unit/Composition.Tests.csproj" />
+  </Folder>
+  <Folder Name="/modules/Clock/">
+    <Project Path="modules/Clock/src/Clock.csproj" />
+    <Project Path="modules/Clock/tests/Unit/Clock.Tests.csproj" />
+  </Folder>
+</Solution>

@@ -14,7 +14,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)sdk\Abstractions\Abstractions.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules\Abstractions\Abstractions.csproj" />
     <ProjectReference Include="$(RepoRoot)tests\MockServers\MockServer.Core\MockServer.Core.csproj" />
   </ItemGroup>
 

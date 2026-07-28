@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <RootNamespace>Host.Tests</RootNamespace>
@@ -14,14 +14,14 @@
 
   <!-- Core.Tests.Terminal 依赖（去重：JoinCode 已在上面） -->
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)modules\Composition\src\Composition.csproj" />
-    <ProjectReference Include="$(RepoRoot)modules\Clock\src\Clock.csproj" />
-    <ProjectReference Include="$(RepoRoot)modules\Brain\src\Brain.csproj" />
-    <ProjectReference Include="$(RepoRoot)modules\Guard\src\Guard.csproj" />
-    <ProjectReference Include="$(RepoRoot)modules\Vault\src\Vault.csproj" />
-    <ProjectReference Include="$(RepoRoot)modules\Hands\src\Hands.csproj" />
-    <ProjectReference Include="$(RepoRoot)modules\Infrastructure\Infrastructure.csproj" />
-    <ProjectReference Include="$(RepoRoot)modules\Dream\src\Dream.csproj" />
+    <ProjectReference Include="$(RepoRoot)composition\Composition\src\Composition.csproj" />
+    <ProjectReference Include="$(RepoRoot)composition\Clock\src\Clock.csproj" />
+    <ProjectReference Include="$(RepoRoot)core\execution\Brain\src\Brain.csproj" />
+    <ProjectReference Include="$(RepoRoot)core\safety\Guard\src\Guard.csproj" />
+    <ProjectReference Include="$(RepoRoot)core\safety\Vault\src\Vault.csproj" />
+    <ProjectReference Include="$(RepoRoot)core\execution\Hands\src\Hands.csproj" />
+    <ProjectReference Include="$(RepoRoot)infrastructure\Infrastructure\Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)services\Dream\src\Dream.csproj" />
     <ProjectReference Include="$(RepoRoot)tests\Unit\Testing.Common\Testing.Common.csproj" />
   </ItemGroup>
 

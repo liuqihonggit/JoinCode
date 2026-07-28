@@ -66,21 +66,21 @@ jobs:
       - name: Build - Component Tests
         run: |
           $projects = @(
-            'modules/Brain/tests/Unit/Brain.Tests.csproj',
-            'modules/Guard/tests/Unit/Guard.Tests.csproj',
-            'modules/Bridge/tests/Unit/Bridge.Tests.csproj',
-            'modules/Hands/tests/Unit/Hands.Tests.csproj',
-            'modules/Mcp/tests/Unit/Mcp.Tests.csproj',
-            'modules/Vault/tests/Unit/Vault.Tests.csproj',
-            'modules/Composition/tests/Unit/Composition.Tests.csproj',
-            'modules/Agents/tests/Unit/Agents.Tests.csproj',
-            'modules/Scheduling/tests/Unit/Scheduling.Tests.csproj',
-            'modules/McpToolHandlers/tests/Unit/McpToolHandlers.Tests.csproj',
-            'modules/Clock/tests/Unit/Clock.Tests.csproj',
-            'modules/Eyes/tests/Unit/Eyes.Tests.csproj',
-            'modules/CodeIndex/tests/Unit/CodeIndex.Tests.csproj',
-            'modules/Dream/tests/Unit/Dream.Tests.csproj',
-            'modules/CodeIndex/tests/E2E/CodeIndex.E2E.Tests.csproj'
+            'core/execution/Brain/tests/Unit/Brain.Tests.csproj',
+            'core/safety/Guard/tests/Unit/Guard.Tests.csproj',
+            'services/Bridge/tests/Unit/Bridge.Tests.csproj',
+            'core/execution/Hands/tests/Unit/Hands.Tests.csproj',
+            'services/Mcp/tests/Unit/Mcp.Tests.csproj',
+            'core/safety/Vault/tests/Unit/Vault.Tests.csproj',
+            'composition/Composition/tests/Unit/Composition.Tests.csproj',
+            'core/ai/Agents/tests/Unit/Agents.Tests.csproj',
+            'core/execution/Scheduling/tests/Unit/Scheduling.Tests.csproj',
+            'core/execution/McpToolHandlers/tests/Unit/McpToolHandlers.Tests.csproj',
+            'composition/Clock/tests/Unit/Clock.Tests.csproj',
+            'services/Eyes/tests/Unit/Eyes.Tests.csproj',
+            'core/search/CodeIndex/tests/Unit/CodeIndex.Tests.csproj',
+            'services/Dream/tests/Unit/Dream.Tests.csproj',
+            'core/search/CodeIndex/tests/E2E/CodeIndex.E2E.Tests.csproj'
           )
           foreach ($p in $projects) {
             Write-Host "Building $p ..."
@@ -128,21 +128,21 @@ jobs:
           --logger "trx;LogFileName=infra-tests.trx"
       - name: Test - Brain
         run: >
-          dotnet test modules/Brain/tests/Unit/Brain.Tests.csproj
+          dotnet test core/execution/Brain/tests/Unit/Brain.Tests.csproj
           -c Release --no-build --nologo
           --filter "Category!=Integration&Category!=Benchmark"
           --logger "console;verbosity=detailed"
           --logger "trx;LogFileName=brain-tests.trx"
       - name: Test - Guard
         run: >
-          dotnet test modules/Guard/tests/Unit/Guard.Tests.csproj
+          dotnet test core/safety/Guard/tests/Unit/Guard.Tests.csproj
           -c Release --no-build --nologo
           --filter "Category!=Integration&Category!=Benchmark"
           --logger "console;verbosity=detailed"
           --logger "trx;LogFileName=guard-tests.trx"
       - name: Test - Bridge
         run: >
-          dotnet test modules/Bridge/tests/Unit/Bridge.Tests.csproj
+          dotnet test services/Bridge/tests/Unit/Bridge.Tests.csproj
           -c Release --no-build --nologo
           --filter "Category!=Integration&Category!=Benchmark"
           --logger "console;verbosity=detailed"
@@ -167,28 +167,28 @@ jobs:
       - uses: ./.github/actions/setup-test-env
       - name: Test - Hands
         run: >
-          dotnet test modules/Hands/tests/Unit/Hands.Tests.csproj
+          dotnet test core/execution/Hands/tests/Unit/Hands.Tests.csproj
           -c Release --no-build --nologo
           --filter "Category!=Integration&Category!=Benchmark"
           --logger "console;verbosity=detailed"
           --logger "trx;LogFileName=hands-tests.trx"
       - name: Test - Mcp
         run: >
-          dotnet test modules/Mcp/tests/Unit/Mcp.Tests.csproj
+          dotnet test services/Mcp/tests/Unit/Mcp.Tests.csproj
           -c Release --no-build --nologo
           --filter "Category!=Integration&Category!=Benchmark"
           --logger "console;verbosity=detailed"
           --logger "trx;LogFileName=mcp-tests.trx"
       - name: Test - Vault
         run: >
-          dotnet test modules/Vault/tests/Unit/Vault.Tests.csproj
+          dotnet test core/safety/Vault/tests/Unit/Vault.Tests.csproj
           -c Release --no-build --nologo
           --filter "Category!=Integration&Category!=Benchmark"
           --logger "console;verbosity=detailed"
           --logger "trx;LogFileName=vault-tests.trx"
       - name: Test - Composition
         run: >
-          dotnet test modules/Composition/tests/Unit/Composition.Tests.csproj
+          dotnet test composition/Composition/tests/Unit/Composition.Tests.csproj
           -c Release --no-build --nologo
           --filter "Category!=Integration&Category!=Benchmark"
           --logger "console;verbosity=detailed"
@@ -213,21 +213,21 @@ jobs:
       - uses: ./.github/actions/setup-test-env
       - name: Test - Agents
         run: >
-          dotnet test modules/Agents/tests/Unit/Agents.Tests.csproj
+          dotnet test core/ai/Agents/tests/Unit/Agents.Tests.csproj
           -c Release --no-build --nologo
           --filter "Category!=Integration&Category!=Benchmark"
           --logger "console;verbosity=detailed"
           --logger "trx;LogFileName=agents-tests.trx"
       - name: Test - Scheduling
         run: >
-          dotnet test modules/Scheduling/tests/Unit/Scheduling.Tests.csproj
+          dotnet test core/execution/Scheduling/tests/Unit/Scheduling.Tests.csproj
           -c Release --no-build --nologo
           --filter "Category!=Integration&Category!=Benchmark"
           --logger "console;verbosity=detailed"
           --logger "trx;LogFileName=scheduling-tests.trx"
       - name: Test - McpToolHandlers
         run: >
-          dotnet test modules/McpToolHandlers/tests/Unit/McpToolHandlers.Tests.csproj
+          dotnet test core/execution/McpToolHandlers/tests/Unit/McpToolHandlers.Tests.csproj
           -c Release --no-build --nologo
           --filter "Category!=Integration&Category!=Benchmark"
           --logger "console;verbosity=detailed"
@@ -533,7 +533,7 @@ jobs:
           --logger "trx;LogFileName=e2e-sync.trx"
       - name: E2E - CodeIndex
         run: >
-          dotnet test modules/CodeIndex/tests/E2E/CodeIndex.E2E.Tests.csproj
+          dotnet test core/search/CodeIndex/tests/E2E/CodeIndex.E2E.Tests.csproj
           -c Release --no-build --nologo
           --logger "console;verbosity=detailed"
           --logger "trx;LogFileName=e2e-codeindex.trx"

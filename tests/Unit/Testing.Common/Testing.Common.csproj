@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <RootNamespace>Testing.Common</RootNamespace>
@@ -18,11 +18,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)modules\Abstractions\Abstractions.csproj" />
-    <ProjectReference Include="$(RepoRoot)modules\Transport.Contracts\Transport.Contracts.csproj" />
-    <ProjectReference Include="$(RepoRoot)modules\Transport.Impl\Transport.Impl.csproj" />
-    <ProjectReference Include="$(RepoRoot)modules\Infrastructure\Infrastructure.csproj" />
-    <ProjectReference Include="$(RepoRoot)modules\Llm\src\Llm.csproj" />
+    <ProjectReference Include="$(RepoRoot)foundation\Abstractions\Abstractions.csproj" />
+    <ProjectReference Include="$(RepoRoot)foundation\Transport.Contracts\Transport.Contracts.csproj" />
+    <ProjectReference Include="$(RepoRoot)infrastructure\Transport.Impl\Transport.Impl.csproj" />
+    <ProjectReference Include="$(RepoRoot)infrastructure\Infrastructure\Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)core\ai\Llm\src\Llm.csproj" />
   </ItemGroup>
 
   <!-- Shared 目录下的文件仅供其他测试项目链接使用，不参与本项目编译 -->

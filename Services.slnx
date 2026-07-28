@@ -1,18 +1,12 @@
 <Solution>
-  <Folder Name="/modules/Mcp/">
-    <Project Path="modules/Mcp/src/Mcp.csproj" />
-    <Project Path="modules/Mcp/tests/Unit/Mcp.Tests.csproj" />
-  </Folder>
-  <Folder Name="/modules/Dream/">
-    <Project Path="modules/Dream/src/Dream.csproj" />
-    <Project Path="modules/Dream/tests/Unit/Dream.Tests.csproj" />
-  </Folder>
-  <Folder Name="/modules/Eyes/">
-    <Project Path="modules/Eyes/src/Eyes.csproj" />
-    <Project Path="modules/Eyes/tests/Unit/Eyes.Tests.csproj" />
-  </Folder>
-  <Folder Name="/modules/Bridge/">
-    <Project Path="modules/Bridge/src/Bridge.csproj" />
-    <Project Path="modules/Bridge/tests/Unit/Bridge.Tests.csproj" />
+  <Folder Name="/services/">
+    <Project Path="services/Mcp/src/Mcp.csproj" />
+    <Project Path="services/Mcp/tests/Unit/Mcp.Tests.csproj" />
+    <Project Path="services/Dream/src/Dream.csproj" />
+    <Project Path="services/Dream/tests/Unit/Dream.Tests.csproj" />
+    <Project Path="services/Eyes/src/Eyes.csproj" />
+    <Project Path="services/Eyes/tests/Unit/Eyes.Tests.csproj" />
+    <Project Path="services/Bridge/src/Bridge.csproj" />
+    <Project Path="services/Bridge/tests/Unit/Bridge.Tests.csproj" />
   </Folder>
 </Solution>

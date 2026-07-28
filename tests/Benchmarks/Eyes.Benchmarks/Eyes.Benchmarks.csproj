@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <RootNamespace>Eyes.Benchmarks</RootNamespace>
@@ -8,8 +8,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)modules\CodeIndex\src\CodeIndex.csproj" />
-    <ProjectReference Include="$(RepoRoot)modules\Eyes\src\Eyes.csproj" />
+    <ProjectReference Include="$(RepoRoot)core\search\CodeIndex\src\CodeIndex.csproj" />
+    <ProjectReference Include="$(RepoRoot)services\Eyes\src\Eyes.csproj" />
     <ProjectReference Include="$(RepoRoot)tests\Unit\Testing.Common\Testing.Common.csproj" />
   </ItemGroup>
 

@@ -1,47 +1,33 @@
 <Solution>
-  <Folder Name="/modules/Llm/">
-    <Project Path="modules/Llm/src/Llm.csproj" />
-    <Project Path="modules/Llm/tests/Unit/Llm.Tests.csproj" />
+  <Folder Name="/core/ai/">
+    <Project Path="core/ai/Llm/src/Llm.csproj" />
+    <Project Path="core/ai/Llm/tests/Unit/Llm.Tests.csproj" />
+    <Project Path="core/ai/Agents/src/Agents.csproj" />
+    <Project Path="core/ai/Agents/tests/Unit/Agents.Tests.csproj" />
+    <Project Path="core/ai/Reasoning/src/Reasoning.csproj" />
+    <Project Path="core/ai/Reasoning/tests/Unit/Reasoning.Tests.csproj" />
   </Folder>
-  <Folder Name="/modules/Brain/">
-    <Project Path="modules/Brain/src/Brain.csproj" />
-    <Project Path="modules/Brain/tests/Unit/Brain.Tests.csproj" />
+  <Folder Name="/core/execution/">
+    <Project Path="core/execution/Brain/src/Brain.csproj" />
+    <Project Path="core/execution/Brain/tests/Unit/Brain.Tests.csproj" />
+    <Project Path="core/execution/Hands/src/Hands.csproj" />
+    <Project Path="core/execution/Hands/tests/Unit/Hands.Tests.csproj" />
+    <Project Path="core/execution/Scheduling/src/Scheduling.csproj" />
+    <Project Path="core/execution/Scheduling/tests/Unit/Scheduling.Tests.csproj" />
+    <Project Path="core/execution/McpToolHandlers/src/McpToolHandlers.csproj" />
+    <Project Path="core/execution/McpToolHandlers/tests/Unit/McpToolHandlers.Tests.csproj" />
   </Folder>
-  <Folder Name="/modules/Hands/">
-    <Project Path="modules/Hands/src/Hands.csproj" />
-    <Project Path="modules/Hands/tests/Unit/Hands.Tests.csproj" />
+  <Folder Name="/core/safety/">
+    <Project Path="core/safety/Guard/src/Guard.csproj" />
+    <Project Path="core/safety/Guard/tests/Unit/Guard.Tests.csproj" />
+    <Project Path="core/safety/Vault/src/Vault.csproj" />
+    <Project Path="core/safety/Vault/tests/Unit/Vault.Tests.csproj" />
   </Folder>
-  <Folder Name="/modules/Guard/">
-    <Project Path="modules/Guard/src/Guard.csproj" />
-    <Project Path="modules/Guard/tests/Unit/Guard.Tests.csproj" />
-  </Folder>
-  <Folder Name="/modules/Vault/">
-    <Project Path="modules/Vault/src/Vault.csproj" />
-    <Project Path="modules/Vault/tests/Unit/Vault.Tests.csproj" />
-  </Folder>
-  <Folder Name="/modules/CodeIndex/">
-    <Project Path="modules/CodeIndex/src/CodeIndex.csproj" />
-    <Project Path="modules/CodeIndex/tests/Unit/CodeIndex.Tests.csproj" />
-    <Project Path="modules/CodeIndex/tests/E2E/CodeIndex.E2E.Tests.csproj" />
-  </Folder>
-  <Folder Name="/modules/Browser/">
-    <Project Path="modules/Browser/src/Browser.csproj" />
-    <Project Path="modules/Browser/tests/Unit/Browser.Tests.csproj" />
-  </Folder>
-  <Folder Name="/modules/Agents/">
-    <Project Path="modules/Agents/src/Agents.csproj" />
-    <Project Path="modules/Agents/tests/Unit/Agents.Tests.csproj" />
-  </Folder>
-  <Folder Name="/modules/Reasoning/">
-    <Project Path="modules/Reasoning/src/Reasoning.csproj" />
-    <Project Path="modules/Reasoning/tests/Unit/Reasoning.Tests.csproj" />
-  </Folder>
-  <Folder Name="/modules/Scheduling/">
-    <Project Path="modules/Scheduling/src/Scheduling.csproj" />
-    <Project Path="modules/Scheduling/tests/Unit/Scheduling.Tests.csproj" />
-  </Folder>
-  <Folder Name="/modules/McpToolHandlers/">
-    <Project Path="modules/McpToolHandlers/src/McpToolHandlers.csproj" />
-    <Project Path="modules/McpToolHandlers/tests/Unit/McpToolHandlers.Tests.csproj" />
+  <Folder Name="/core/search/">
+    <Project Path="core/search/CodeIndex/src/CodeIndex.csproj" />
+    <Project Path="core/search/CodeIndex/tests/Unit/CodeIndex.Tests.csproj" />
+    <Project Path="core/search/CodeIndex/tests/E2E/CodeIndex.E2E.Tests.csproj" />
+    <Project Path="core/search/Browser/src/Browser.csproj" />
+    <Project Path="core/search/Browser/tests/Unit/Browser.Tests.csproj" />
   </Folder>
 </Solution>

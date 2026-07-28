@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <RootNamespace>MockServer.E2E.Tests</RootNamespace>
@@ -9,8 +9,8 @@
 
   <ItemGroup>
     <ProjectReference Include="$(RepoRoot)app\JoinCode\JoinCode.csproj" />
-    <ProjectReference Include="$(RepoRoot)modules\Llm\src\Llm.csproj" />
-    <ProjectReference Include="$(RepoRoot)modules\Composition\src\Composition.csproj" />
+    <ProjectReference Include="$(RepoRoot)core\ai\Llm\src\Llm.csproj" />
+    <ProjectReference Include="$(RepoRoot)composition\Composition\src\Composition.csproj" />
     <ProjectReference Include="$(RepoRoot)tests\Unit\Testing.Common\Testing.Common.csproj" />
   </ItemGroup>
 

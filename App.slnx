@@ -1,8 +1,6 @@
 <Solution>
-  <Folder Name="/modules/">
-    <Project Path="modules/Sdk/Sdk.csproj" />
-  </Folder>
   <Folder Name="/app/">
+    <Project Path="app/Sdk/Sdk.csproj" />
     <Project Path="app/JoinCode/JoinCode.csproj" />
   </Folder>
   <Folder Name="/tests/Unit/">

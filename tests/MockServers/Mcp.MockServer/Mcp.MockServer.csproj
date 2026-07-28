@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -14,7 +14,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)modules\Abstractions\Abstractions.csproj" />
+    <ProjectReference Include="$(RepoRoot)foundation\Abstractions\Abstractions.csproj" />
     <ProjectReference Include="$(RepoRoot)tests\MockServers\MockServer.Core\MockServer.Core.csproj" />
   </ItemGroup>
 

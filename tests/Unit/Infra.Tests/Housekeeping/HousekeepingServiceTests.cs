@@ -1,0 +1,190 @@
+namespace Infra.Tests.Housekeeping;
+
+using Infrastructure.Housekeeping;
+using Infrastructure.Time;
+using TestInMemFs = Testing.Common.Services.InMemoryFileSystem;
+
+public sealed class HousekeepingServiceTests
+{
+    private readonly TestInMemFs _fs = new();
+    private readonly FakeClockService _clock = new();
+
+    private static readonly string JccDir = WorkflowConstants.Paths.JccDirectory;
+    private static readonly string SessionsDir = Path.Combine(JccDir, AppDataConstants.SessionsFolderName);
+    private static readonly string FileHistoryDir = Path.Combine(JccDir, AppDataConstants.FileHistoryFolderName);
+    private static readonly string SessionEnvDir = Path.Combine(JccDir, "session-env");
+    private static readonly string DebugDir = Path.Combine(JccDir, "debug");
+    private static readonly string ErrorsDir = Path.Combine(JccDir, "errors");
+
+    private HousekeepingService CreateSut()
+        => new(_fs, _clock, NullLogger<HousekeepingService>.Instance);
+
+    [Fact]
+    public void CleanupOldSessionFiles_WithNoSessionsDir_ShouldReturnZero()
+    {
+        var sut = CreateSut();
+        sut.CleanupOldSessionFiles().Should().Be(0);
+    }
+
+    [Fact]
+    public void CleanupOldSessionFiles_ShouldDeleteOldJsonlFiles()
+    {
+        _fs.CreateDirectory(SessionsDir);
+        var oldFile = Path.Combine(SessionsDir, "old-session.jsonl");
+        var newFile = Path.Combine(SessionsDir, "new-session.jsonl");
+
+        _fs.WriteAllText(oldFile, "old");
+        _fs.WriteAllText(newFile, "new");
+
+        _fs.SetLastWriteTimeUtc(oldFile, _clock.GetUtcNow().AddDays(-31));
+        _fs.SetLastWriteTimeUtc(newFile, _clock.GetUtcNow().AddDays(-1));
+
+        var sut = CreateSut();
+        var result = sut.CleanupOldSessionFiles(maxAgeDays: 30);
+
+        result.Should().Be(1);
+        _fs.FileExists(oldFile).Should().BeFalse();
+        _fs.FileExists(newFile).Should().BeTrue();
+    }
+
+    [Fact]
+    public void CleanupOldSessionFiles_ShouldDeleteOldCastFiles()
+    {
+        _fs.CreateDirectory(SessionsDir);
+        var castFile = Path.Combine(SessionsDir, "old-session.cast");
+        _fs.WriteAllText(castFile, "cast-content");
+        _fs.SetLastWriteTimeUtc(castFile, _clock.GetUtcNow().AddDays(-31));
+
+        var sut = CreateSut();
+        var result = sut.CleanupOldSessionFiles(maxAgeDays: 30);
+
+        result.Should().Be(1);
+        _fs.FileExists(castFile).Should().BeFalse();
+    }
+
+    [Fact]
+    public void CleanupOldSessionFiles_WithAllRecentFiles_ShouldDeleteNothing()
+    {
+        _fs.CreateDirectory(SessionsDir);
+        var recentFile = Path.Combine(SessionsDir, "recent.jsonl");
+        _fs.WriteAllText(recentFile, "recent");
+        _fs.SetLastWriteTimeUtc(recentFile, _clock.GetUtcNow().AddDays(-5));
+
+        var sut = CreateSut();
+        sut.CleanupOldSessionFiles(maxAgeDays: 30).Should().Be(0);
+        _fs.FileExists(recentFile).Should().BeTrue();
+    }
+
+    [Fact]
+    public void CleanupOldFileHistoryBackups_ShouldDeleteOldDirectories()
+    {
+        _fs.CreateDirectory(FileHistoryDir);
+        var oldDir = Path.Combine(FileHistoryDir, "old-backup");
+        var newDir = Path.Combine(FileHistoryDir, "new-backup");
+        _fs.CreateDirectory(oldDir);
+        _fs.CreateDirectory(newDir);
+
+        _fs.SetDirectoryLastWriteTimeUtc(oldDir, _clock.GetUtcNow().AddDays(-31));
+        _fs.SetDirectoryLastWriteTimeUtc(newDir, _clock.GetUtcNow().AddDays(-1));
+
+        var sut = CreateSut();
+        var result = sut.CleanupOldFileHistoryBackups(maxAgeDays: 30);
+
+        result.Should().Be(1);
+        _fs.DirectoryExists(oldDir).Should().BeFalse();
+        _fs.DirectoryExists(newDir).Should().BeTrue();
+    }
+
+    [Fact]
+    public void CleanupOldSessionEnvDirs_ShouldDeleteOldDirectories()
+    {
+        _fs.CreateDirectory(SessionEnvDir);
+        var oldDir = Path.Combine(SessionEnvDir, "old-env");
+        _fs.CreateDirectory(oldDir);
+        _fs.SetDirectoryLastWriteTimeUtc(oldDir, _clock.GetUtcNow().AddDays(-31));
+
+        var sut = CreateSut();
+        var result = sut.CleanupOldSessionEnvDirs(maxAgeDays: 30);
+
+        result.Should().Be(1);
+        _fs.DirectoryExists(oldDir).Should().BeFalse();
+    }
+
+    [Fact]
+    public void CleanupOldDebugLogs_ShouldDeleteOldTxtFiles()
+    {
+        _fs.CreateDirectory(DebugDir);
+        var oldLog = Path.Combine(DebugDir, "old-log.txt");
+        var newLog = Path.Combine(DebugDir, "new-log.txt");
+        _fs.WriteAllText(oldLog, "old");
+        _fs.WriteAllText(newLog, "new");
+
+        _fs.SetLastWriteTimeUtc(oldLog, _clock.GetUtcNow().AddDays(-31));
+        _fs.SetLastWriteTimeUtc(newLog, _clock.GetUtcNow().AddDays(-1));
+
+        var sut = CreateSut();
+        var result = sut.CleanupOldDebugLogs(maxAgeDays: 30);
+
+        result.Should().Be(1);
+        _fs.FileExists(oldLog).Should().BeFalse();
+        _fs.FileExists(newLog).Should().BeTrue();
+    }
+
+    [Fact]
+    public void CleanupOldMessageFiles_ShouldDeleteOldErrorFiles()
+    {
+        _fs.CreateDirectory(ErrorsDir);
+        var oldError = Path.Combine(ErrorsDir, "old-error.log");
+        _fs.WriteAllText(oldError, "error");
+        _fs.SetLastWriteTimeUtc(oldError, _clock.GetUtcNow().AddDays(-31));
+
+        var sut = CreateSut();
+        var result = sut.CleanupOldMessageFiles(maxAgeDays: 30);
+
+        result.Should().Be(1);
+        _fs.FileExists(oldError).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task RunAllCleanupAsync_ShouldAggregateAllResults()
+    {
+        _fs.CreateDirectory(SessionsDir);
+        var oldFile = Path.Combine(SessionsDir, "old.jsonl");
+        _fs.WriteAllText(oldFile, "old");
+        _fs.SetLastWriteTimeUtc(oldFile, _clock.GetUtcNow().AddDays(-31));
+
+        _fs.CreateDirectory(FileHistoryDir);
+        var oldDir = Path.Combine(FileHistoryDir, "old-backup");
+        _fs.CreateDirectory(oldDir);
+        _fs.SetDirectoryLastWriteTimeUtc(oldDir, _clock.GetUtcNow().AddDays(-31));
+
+        var sut = CreateSut();
+        var result = await sut.RunAllCleanupAsync();
+
+        result.Should().BeGreaterThanOrEqualTo(2);
+    }
+
+    [Fact]
+    public void CleanupOldFileHistoryBackups_WithNoDir_ShouldReturnZero()
+    {
+        CreateSut().CleanupOldFileHistoryBackups().Should().Be(0);
+    }
+
+    [Fact]
+    public void CleanupOldSessionEnvDirs_WithNoDir_ShouldReturnZero()
+    {
+        CreateSut().CleanupOldSessionEnvDirs().Should().Be(0);
+    }
+
+    [Fact]
+    public void CleanupOldDebugLogs_WithNoDir_ShouldReturnZero()
+    {
+        CreateSut().CleanupOldDebugLogs().Should().Be(0);
+    }
+
+    [Fact]
+    public void CleanupOldMessageFiles_WithNoDir_ShouldReturnZero()
+    {
+        CreateSut().CleanupOldMessageFiles().Should().Be(0);
+    }
+}

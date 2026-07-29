@@ -12,6 +12,7 @@ global using JoinCode.Abstractions.LLM.Chat;
 global using JoinCode.Abstractions.Models.Goal;
 global using JoinCode.Abstractions.Models.Task;
 global using JoinCode.Abstractions.Security;
+global using JoinCode.Abstractions.Security.Permission;
 global using JoinCode.Abstractions.Utils;
 global using JoinCode.Abstractions.Prompts;
 global using Core.Goal;

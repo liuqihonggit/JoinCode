@@ -54,4 +54,5 @@ public enum ToolCategory
     [EnumValue("interaction")] Interaction,
     [EnumValue("brief")] Brief,
     [EnumValue("mcp_resource")] McpResource,
+    [EnumValue("graph")] Graph,
 }

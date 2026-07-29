@@ -45,4 +45,13 @@ public enum CodeToolName
     [EnumValue("generate_csharp_code")] GenerateCsharpCode,
     [EnumValue("generate_unit_test")] GenerateUnitTest,
     [EnumValue("generate_api_controller")] GenerateApiController,
+    [EnumValue("graph_detect_communities")] GraphDetectCommunities,
+    [EnumValue("graph_get_hub_nodes")] GraphGetHubNodes,
+    [EnumValue("graph_detect_dead_code")] GraphDetectDeadCode,
+    [EnumValue("graph_extract_subgraph")] GraphExtractSubgraph,
+    [EnumValue("graph_analyze_change_impact")] GraphAnalyzeChangeImpact,
+    [EnumValue("graph_save")] GraphSave,
+    [EnumValue("graph_load")] GraphLoad,
+    [EnumValue("graph_export_dot")] GraphExportDot,
+    [EnumValue("graph_export_html")] GraphExportHtml,
 }

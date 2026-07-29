@@ -182,7 +182,7 @@ public sealed partial class ClearCommand : ChatCommandBase
         memoryFilesCache?.Clear();
 
         // 20. 工具权限缓存 — 对齐 TS: IToolPermissionManager.ClearCache
-        var toolPermManager = GetService<JoinCode.Abstractions.Interfaces.IToolPermissionManager>(context);
+        var toolPermManager = GetService<JoinCode.Abstractions.Security.Permission.IToolPermissionManager>(context);
         toolPermManager?.ClearCache();
     }
 }

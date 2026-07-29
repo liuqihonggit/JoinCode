@@ -9,11 +9,13 @@ public sealed partial class HousekeepingService : IHousekeepingService
 {
     [Inject] private readonly IFileSystem _fs;
     [Inject] private readonly IClockService _clock;
+    [Inject] private readonly IPlanModeManager _planModeManager;
+    [Inject] private readonly IAgentWorktreeService _worktreeService;
     [Inject] private readonly ILogger<HousekeepingService>? _logger;
 
     private static readonly string JccDir = WorkflowConstants.Paths.JccDirectory;
 
-    public Task<int> RunAllCleanupAsync(string currentSessionId = "", CancellationToken cancellationToken = default)
+    public async Task<int> RunAllCleanupAsync(string currentSessionId = "", CancellationToken cancellationToken = default)
     {
         var total = 0;
 
@@ -24,15 +26,17 @@ public sealed partial class HousekeepingService : IHousekeepingService
         total += CleanupOldMessageFiles();
         total += CleanupOldImageCaches(currentSessionId);
         total += CleanupOldPastes();
+        total += CleanupOldPlanFiles();
         total += CleanupNpmCache();
         total += CleanupOldVersions();
+        total += await CleanupStaleWorktreesAsync(cancellationToken).ConfigureAwait(false);
 
         if (total > 0)
         {
             _logger?.LogDebug("家政清理完成: 共清理 {Total} 项", total);
         }
 
-        return Task.FromResult(total);
+        return total;
     }
 
     /// <summary>
@@ -421,6 +425,40 @@ public sealed partial class HousekeepingService : IHousekeepingService
         catch (Exception ex)
         {
             _logger?.LogDebug(ex, "清理粘贴缓存失败");
+            return 0;
+        }
+    }
+
+    /// <summary>
+    /// 清理旧计划文件 — 对齐 TS cleanupOldPlanFiles
+    /// 委托 IPlanModeManager.CleanupOldPlanFiles
+    /// </summary>
+    public int CleanupOldPlanFiles(int maxAgeDays = 30)
+    {
+        try
+        {
+            return _planModeManager.CleanupOldPlanFiles(maxAgeDays);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogDebug(ex, "清理计划文件失败");
+            return 0;
+        }
+    }
+
+    /// <summary>
+    /// 清理过期 Agent Worktree — 对齐 TS cleanupStaleAgentWorktrees
+    /// 委托 IAgentWorktreeService.CleanupStaleWorktreesAsync
+    /// </summary>
+    public async Task<int> CleanupStaleWorktreesAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await _worktreeService.CleanupStaleWorktreesAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogDebug(ex, "清理过期 Worktree 失败");
             return 0;
         }
     }

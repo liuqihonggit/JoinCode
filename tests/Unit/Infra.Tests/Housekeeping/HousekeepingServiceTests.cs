@@ -16,8 +16,11 @@ public sealed class HousekeepingServiceTests
     private static readonly string DebugDir = Path.Combine(JccDir, "debug");
     private static readonly string ErrorsDir = Path.Combine(JccDir, "errors");
 
+    private readonly Mock<IPlanModeManager> _planModeManager = new();
+    private readonly Mock<IAgentWorktreeService> _worktreeService = new();
+
     private HousekeepingService CreateSut()
-        => new(_fs, _clock, NullLogger<HousekeepingService>.Instance);
+        => new(_fs, _clock, _planModeManager.Object, _worktreeService.Object, NullLogger<HousekeepingService>.Instance);
 
     [Fact]
     public void CleanupOldSessionFiles_WithNoSessionsDir_ShouldReturnZero()
@@ -287,5 +290,54 @@ public sealed class HousekeepingServiceTests
 
         result.Should().Be(0);
         _fs.FileExists(jsonFile).Should().BeTrue();
+    }
+
+    [Fact]
+    public void CleanupOldPlanFiles_ShouldDelegateToPlanModeManager()
+    {
+        _planModeManager.Setup(p => p.CleanupOldPlanFiles(30)).Returns(3);
+
+        var sut = CreateSut();
+        var result = sut.CleanupOldPlanFiles(maxAgeDays: 30);
+
+        result.Should().Be(3);
+        _planModeManager.Verify(p => p.CleanupOldPlanFiles(30), Times.Once());
+    }
+
+    [Fact]
+    public void CleanupOldPlanFiles_WhenException_ShouldReturnZero()
+    {
+        _planModeManager.Setup(p => p.CleanupOldPlanFiles(It.IsAny<int>()))
+            .Throws(new InvalidOperationException("test"));
+
+        var sut = CreateSut();
+        var result = sut.CleanupOldPlanFiles();
+
+        result.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task CleanupStaleWorktreesAsync_ShouldDelegateToWorktreeService()
+    {
+        _worktreeService.Setup(w => w.CleanupStaleWorktreesAsync(It.IsAny<WorktreeOptions?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(2);
+
+        var sut = CreateSut();
+        var result = await sut.CleanupStaleWorktreesAsync();
+
+        result.Should().Be(2);
+        _worktreeService.Verify(w => w.CleanupStaleWorktreesAsync(null, It.IsAny<CancellationToken>()), Times.Once());
+    }
+
+    [Fact]
+    public async Task CleanupStaleWorktreesAsync_WhenException_ShouldReturnZero()
+    {
+        _worktreeService.Setup(w => w.CleanupStaleWorktreesAsync(It.IsAny<WorktreeOptions?>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("test"));
+
+        var sut = CreateSut();
+        var result = await sut.CleanupStaleWorktreesAsync();
+
+        result.Should().Be(0);
     }
 }

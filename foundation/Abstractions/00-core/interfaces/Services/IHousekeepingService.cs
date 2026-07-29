@@ -69,4 +69,16 @@ public interface IHousekeepingService
     /// 删除 paste-cache/ 中 mtime 超过指定天数的 .txt 文件
     /// </summary>
     int CleanupOldPastes(int maxAgeDays = 30);
+
+    /// <summary>
+    /// 清理旧计划文件 — 对齐 TS cleanupOldPlanFiles
+    /// 委托 IPlanModeManager.CleanupOldPlanFiles
+    /// </summary>
+    int CleanupOldPlanFiles(int maxAgeDays = 30);
+
+    /// <summary>
+    /// 清理过期 Agent Worktree — 对齐 TS cleanupStaleAgentWorktrees
+    /// 委托 IAgentWorktreeService.CleanupStaleWorktreesAsync
+    /// </summary>
+    Task<int> CleanupStaleWorktreesAsync(CancellationToken cancellationToken = default);
 }

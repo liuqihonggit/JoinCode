@@ -57,4 +57,7 @@ public enum CodeToolName
     [EnumValue("graph_query")] GraphQuery,
     [EnumValue("graph_path")] GraphPath,
     [EnumValue("graph_explain")] GraphExplain,
+    [EnumValue("graph_register")] GraphRegister,
+    [EnumValue("graph_unregister")] GraphUnregister,
+    [EnumValue("graph_repos")] GraphRepos,
 }

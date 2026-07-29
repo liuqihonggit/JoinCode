@@ -251,4 +251,143 @@ public sealed class GraphToolHandlers
             return McpResultBuilder.Error().WithText($"HTML export failed: {ex.Message}").Build();
         }
     }
+
+    [McpTool(CodeToolNameConstants.GraphQuery, "Query the code graph with natural language to find related symbols and subgraph summaries", "graph")]
+    public async Task<ToolResult> QueryAsync(
+        [McpToolParameter("Natural language query (e.g. 'how does auth work')")] string query,
+        [McpToolParameter("Maximum number of results (default 20)")] int max_results = 20,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(query))
+            return McpResultBuilder.Error().WithText("query cannot be empty.").Build();
+
+        try
+        {
+            var result = await _indexer.Analytics.QueryAsync(query, max_results, cancellationToken).ConfigureAwait(false);
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"Query: \"{result.Query}\" — {result.TotalMatches} total matches, showing {result.Matches.Count}:");
+            sb.AppendLine();
+
+            for (int i = 0; i < result.Matches.Count; i++)
+            {
+                var m = result.Matches[i];
+                sb.AppendLine($"{i + 1}. {m.SymbolName} [{m.Kind}] (score={m.RelevanceScore})");
+                sb.AppendLine($"   {m.FilePath}");
+                if (m.RelatedSymbols.Count > 0)
+                    sb.AppendLine($"   Related: {string.Join(", ", m.RelatedSymbols.Take(5))}");
+            }
+
+            return McpResultBuilder.Success().WithText(sb.ToString()).Build();
+        }
+        catch (Exception ex)
+        {
+            return McpResultBuilder.Error().WithText($"Graph query failed: {ex.Message}").Build();
+        }
+    }
+
+    [McpTool(CodeToolNameConstants.GraphPath, "Find the shortest path between two symbols in the call graph", "graph")]
+    public async Task<ToolResult> FindPathAsync(
+        [McpToolParameter("Starting symbol name")] string from_symbol,
+        [McpToolParameter("Target symbol name")] string to_symbol,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(from_symbol))
+            return McpResultBuilder.Error().WithText("from_symbol cannot be empty.").Build();
+        if (string.IsNullOrWhiteSpace(to_symbol))
+            return McpResultBuilder.Error().WithText("to_symbol cannot be empty.").Build();
+
+        try
+        {
+            var result = await _indexer.Analytics.FindPathAsync(from_symbol, to_symbol, cancellationToken).ConfigureAwait(false);
+
+            if (!result.PathFound)
+                return McpResultBuilder.Success().WithText($"No path found from '{result.FromSymbol}' to '{result.ToSymbol}'.").Build();
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"Path from '{result.FromSymbol}' to '{result.ToSymbol}' (length={result.PathLength}):");
+            sb.AppendLine();
+
+            for (int i = 0; i < result.PathNodes.Count; i++)
+            {
+                sb.AppendLine($"  {i}: {result.PathNodes[i]}");
+                if (i < result.PathEdges.Count)
+                    sb.AppendLine($"     └─[{result.PathEdges[i].CallKind}]→");
+            }
+
+            return McpResultBuilder.Success().WithText(sb.ToString()).Build();
+        }
+        catch (Exception ex)
+        {
+            return McpResultBuilder.Error().WithText($"Path search failed: {ex.Message}").Build();
+        }
+    }
+
+    [McpTool(CodeToolNameConstants.GraphExplain, "Explain a symbol's role and relationships in the codebase (callers, callees, community, same-file)", "graph")]
+    public async Task<ToolResult> ExplainAsync(
+        [McpToolParameter("Symbol name to explain")] string symbol_name,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(symbol_name))
+            return McpResultBuilder.Error().WithText("symbol_name cannot be empty.").Build();
+
+        try
+        {
+            var result = await _indexer.Analytics.ExplainAsync(symbol_name, cancellationToken).ConfigureAwait(false);
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"Symbol: {result.SymbolName}");
+            sb.AppendLine($"Kind:   {result.Kind}");
+            sb.AppendLine($"File:   {result.FilePath}");
+            if (result.Namespace is not null)
+                sb.AppendLine($"NS:     {result.Namespace}");
+            sb.AppendLine($"Degree: in={result.InDegree}, out={result.OutDegree}");
+            sb.AppendLine();
+
+            if (result.Callers.Count > 0)
+            {
+                sb.AppendLine($"Callers ({result.Callers.Count}):");
+                foreach (var c in result.Callers.Take(15))
+                    sb.AppendLine($"  ← {c}");
+                if (result.Callers.Count > 15)
+                    sb.AppendLine($"  ... and {result.Callers.Count - 15} more");
+                sb.AppendLine();
+            }
+
+            if (result.Callees.Count > 0)
+            {
+                sb.AppendLine($"Callees ({result.Callees.Count}):");
+                foreach (var c in result.Callees.Take(15))
+                    sb.AppendLine($"  → {c}");
+                if (result.Callees.Count > 15)
+                    sb.AppendLine($"  ... and {result.Callees.Count - 15} more");
+                sb.AppendLine();
+            }
+
+            if (result.SameCommunity.Count > 0)
+            {
+                sb.AppendLine($"Same community ({result.SameCommunity.Count}):");
+                foreach (var c in result.SameCommunity.Take(10))
+                    sb.AppendLine($"  ~ {c}");
+                if (result.SameCommunity.Count > 10)
+                    sb.AppendLine($"  ... and {result.SameCommunity.Count - 10} more");
+                sb.AppendLine();
+            }
+
+            if (result.SameFile.Count > 0)
+            {
+                sb.AppendLine($"Same file ({result.SameFile.Count}):");
+                foreach (var c in result.SameFile.Take(10))
+                    sb.AppendLine($"  # {c}");
+                if (result.SameFile.Count > 10)
+                    sb.AppendLine($"  ... and {result.SameFile.Count - 10} more");
+            }
+
+            return McpResultBuilder.Success().WithText(sb.ToString()).Build();
+        }
+        catch (Exception ex)
+        {
+            return McpResultBuilder.Error().WithText($"Explain failed: {ex.Message}").Build();
+        }
+    }
 }

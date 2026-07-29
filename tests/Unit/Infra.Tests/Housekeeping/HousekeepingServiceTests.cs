@@ -187,4 +187,105 @@ public sealed class HousekeepingServiceTests
     {
         CreateSut().CleanupOldMessageFiles().Should().Be(0);
     }
+
+    [Fact]
+    public void CleanupOldImageCaches_WithNoDir_ShouldReturnZero()
+    {
+        CreateSut().CleanupOldImageCaches("session-1").Should().Be(0);
+    }
+
+    [Fact]
+    public void CleanupOldImageCaches_ShouldDeleteNonCurrentSessionDirs()
+    {
+        var imageCacheDir = Path.Combine(JccDir, "image-cache");
+        _fs.CreateDirectory(imageCacheDir);
+        var oldSessionDir = Path.Combine(imageCacheDir, "old-session");
+        var currentSessionDir = Path.Combine(imageCacheDir, "current-session");
+        _fs.CreateDirectory(oldSessionDir);
+        _fs.CreateDirectory(currentSessionDir);
+        _fs.WriteAllText(Path.Combine(oldSessionDir, "image.png"), "img");
+        _fs.WriteAllText(Path.Combine(currentSessionDir, "image.png"), "img");
+
+        var sut = CreateSut();
+        var result = sut.CleanupOldImageCaches("current-session");
+
+        result.Should().Be(1);
+        _fs.DirectoryExists(oldSessionDir).Should().BeFalse();
+        _fs.DirectoryExists(currentSessionDir).Should().BeTrue();
+    }
+
+    [Fact]
+    public void CleanupOldImageCaches_WithEmptySessionId_ShouldDeleteAllDirs()
+    {
+        var imageCacheDir = Path.Combine(JccDir, "image-cache");
+        _fs.CreateDirectory(imageCacheDir);
+        var dir1 = Path.Combine(imageCacheDir, "session-1");
+        var dir2 = Path.Combine(imageCacheDir, "session-2");
+        _fs.CreateDirectory(dir1);
+        _fs.CreateDirectory(dir2);
+
+        var sut = CreateSut();
+        var result = sut.CleanupOldImageCaches("");
+
+        result.Should().Be(2);
+        _fs.DirectoryExists(dir1).Should().BeFalse();
+        _fs.DirectoryExists(dir2).Should().BeFalse();
+    }
+
+    [Fact]
+    public void CleanupOldImageCaches_ShouldRemoveEmptyBaseDir()
+    {
+        var imageCacheDir = Path.Combine(JccDir, "image-cache");
+        _fs.CreateDirectory(imageCacheDir);
+        var oldDir = Path.Combine(imageCacheDir, "old-session");
+        _fs.CreateDirectory(oldDir);
+
+        var sut = CreateSut();
+        sut.CleanupOldImageCaches("");
+
+        _fs.DirectoryExists(imageCacheDir).Should().BeFalse();
+    }
+
+    [Fact]
+    public void CleanupOldPastes_WithNoDir_ShouldReturnZero()
+    {
+        CreateSut().CleanupOldPastes().Should().Be(0);
+    }
+
+    [Fact]
+    public void CleanupOldPastes_ShouldDeleteOldTxtFiles()
+    {
+        var pasteCacheDir = Path.Combine(JccDir, "paste-cache");
+        _fs.CreateDirectory(pasteCacheDir);
+        var oldPaste = Path.Combine(pasteCacheDir, "abc123.txt");
+        var newPaste = Path.Combine(pasteCacheDir, "def456.txt");
+        _fs.WriteAllText(oldPaste, "old paste content");
+        _fs.WriteAllText(newPaste, "new paste content");
+
+        _fs.SetLastWriteTimeUtc(oldPaste, _clock.GetUtcNow().AddDays(-31));
+        _fs.SetLastWriteTimeUtc(newPaste, _clock.GetUtcNow().AddDays(-1));
+
+        var sut = CreateSut();
+        var result = sut.CleanupOldPastes(maxAgeDays: 30);
+
+        result.Should().Be(1);
+        _fs.FileExists(oldPaste).Should().BeFalse();
+        _fs.FileExists(newPaste).Should().BeTrue();
+    }
+
+    [Fact]
+    public void CleanupOldPastes_ShouldIgnoreNonTxtFiles()
+    {
+        var pasteCacheDir = Path.Combine(JccDir, "paste-cache");
+        _fs.CreateDirectory(pasteCacheDir);
+        var jsonFile = Path.Combine(pasteCacheDir, "meta.json");
+        _fs.WriteAllText(jsonFile, "{}");
+        _fs.SetLastWriteTimeUtc(jsonFile, _clock.GetUtcNow().AddDays(-100));
+
+        var sut = CreateSut();
+        var result = sut.CleanupOldPastes(maxAgeDays: 30);
+
+        result.Should().Be(0);
+        _fs.FileExists(jsonFile).Should().BeTrue();
+    }
 }

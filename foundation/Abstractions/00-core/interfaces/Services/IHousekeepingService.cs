@@ -10,9 +10,11 @@ public interface IHousekeepingService
     /// 执行全部清理操作 — 对齐 TS cleanupOldMessageFilesInBackground
     /// 依次调用: CleanupOldSessionFiles, CleanupOldFileHistoryBackups,
     /// CleanupOldSessionEnvDirs, CleanupOldDebugLogs, CleanupOldMessageFiles,
-    /// CleanupOldPlanFiles, CleanupStaleWorktrees, CleanupNpmCache, CleanupOldVersions
+    /// CleanupOldImageCaches, CleanupOldPastes, CleanupNpmCache, CleanupOldVersions
     /// </summary>
-    Task<int> RunAllCleanupAsync(CancellationToken cancellationToken = default);
+    /// <param name="currentSessionId">当前会话 ID，CleanupOldImageCaches 会跳过此会话的目录；空字符串则全部删除</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    Task<int> RunAllCleanupAsync(string currentSessionId = "", CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 清理旧会话文件 — 对齐 TS cleanupOldSessionFiles
@@ -55,4 +57,16 @@ public interface IHousekeepingService
     /// 删除 jcc.exe.old.* + 孤立 staging/versions 临时文件
     /// </summary>
     int CleanupOldVersions(int retentionCount = 2);
+
+    /// <summary>
+    /// 清理旧图片缓存目录 — 对齐 TS cleanupOldImageCaches
+    /// 删除 image-cache/ 下非当前会话的子目录，空目录也删除
+    /// </summary>
+    int CleanupOldImageCaches(string currentSessionId);
+
+    /// <summary>
+    /// 清理旧粘贴缓存 — 对齐 TS cleanupOldPastes
+    /// 删除 paste-cache/ 中 mtime 超过指定天数的 .txt 文件
+    /// </summary>
+    int CleanupOldPastes(int maxAgeDays = 30);
 }

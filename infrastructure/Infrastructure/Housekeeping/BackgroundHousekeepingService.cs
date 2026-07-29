@@ -111,7 +111,7 @@ public sealed class BackgroundHousekeepingService : IHostedService, IAsyncDispos
 
         try
         {
-            var count = await _housekeeping.RunAllCleanupAsync(cancellationToken).ConfigureAwait(false);
+            var count = await _housekeeping.RunAllCleanupAsync(currentSessionId: "", cancellationToken).ConfigureAwait(false);
             WriteMarkerFile();
 
             if (count > 0)

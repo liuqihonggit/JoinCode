@@ -10,7 +10,7 @@ public sealed class BackgroundHousekeepingServiceTests
     public async Task StartAsync_ShouldNotThrow()
     {
         var housekeeping = new Mock<IHousekeepingService>();
-        housekeeping.Setup(h => h.RunAllCleanupAsync(It.IsAny<CancellationToken>()))
+        housekeeping.Setup(h => h.RunAllCleanupAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(0);
 
         var fs = new TestInMemFs();
@@ -28,7 +28,7 @@ public sealed class BackgroundHousekeepingServiceTests
     public async Task StopAsync_ShouldCompleteWithoutHanging()
     {
         var housekeeping = new Mock<IHousekeepingService>();
-        housekeeping.Setup(h => h.RunAllCleanupAsync(It.IsAny<CancellationToken>()))
+        housekeeping.Setup(h => h.RunAllCleanupAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(0);
 
         var fs = new TestInMemFs();
@@ -57,7 +57,7 @@ public sealed class BackgroundHousekeepingServiceTests
     public async Task RunAllCleanupAsync_ShouldBeCalledDirectly()
     {
         var housekeeping = new Mock<IHousekeepingService>();
-        housekeeping.Setup(h => h.RunAllCleanupAsync(It.IsAny<CancellationToken>()))
+        housekeeping.Setup(h => h.RunAllCleanupAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(5);
 
         var fs = new TestInMemFs();
@@ -66,6 +66,6 @@ public sealed class BackgroundHousekeepingServiceTests
         var result = await housekeeping.Object.RunAllCleanupAsync();
 
         result.Should().Be(5);
-        housekeeping.Verify(h => h.RunAllCleanupAsync(It.IsAny<CancellationToken>()), Times.Once());
+        housekeeping.Verify(h => h.RunAllCleanupAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once());
     }
 }

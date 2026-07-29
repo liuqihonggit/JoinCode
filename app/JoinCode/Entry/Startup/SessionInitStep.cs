@@ -16,10 +16,8 @@ internal sealed partial class SessionInitStep : IMiddleware<StartupContext>
         var housekeeping = host.Services.GetService<IHousekeepingService>();
         housekeeping?.CleanupOldSessionFiles();
 
-        var onboardingService = host.Services.GetRequiredService<IOnboardingService>();
-        await StartupWorkflow.RunOnboardingIfNeededAsync(onboardingService, context.Options, host.Services.GetRequiredService<IFileSystem>(), context.HasApiKey, host.Services.GetRequiredService<IProviderDefinitionRegistry>(), context.Config);
-
         var ctxMgr = host.Services.GetRequiredService<IChatContextManager>();
+        housekeeping?.CleanupOldImageCaches(ctxMgr.SessionId);
         var smp = host.Services.GetRequiredService<StreamMiddlewarePipeline<ChatMiddlewareContext, ChatStreamEvent>>();
         var cpm = host.Services.GetRequiredService<ChatPromptManager>();
         var ss = host.Services.GetRequiredService<SessionStats>();

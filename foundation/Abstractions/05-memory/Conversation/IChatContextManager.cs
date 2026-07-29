@@ -3,6 +3,11 @@ namespace JoinCode.Abstractions.Interfaces;
 
 public interface IChatContextManager
 {
+    /// <summary>
+    /// 当前会话标识 — 对齐 TS getSessionId()
+    /// </summary>
+    string SessionId { get; }
+
     Task LoadContextAsync(CancellationToken cancellationToken = default);
     Task AddUserMessageAsync(string content, CancellationToken cancellationToken = default);
     Task AddCompactSummaryMessageAsync(string content, CancellationToken cancellationToken = default);

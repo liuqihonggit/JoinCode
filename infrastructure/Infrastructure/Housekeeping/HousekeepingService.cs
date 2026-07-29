@@ -13,7 +13,7 @@ public sealed partial class HousekeepingService : IHousekeepingService
 
     private static readonly string JccDir = WorkflowConstants.Paths.JccDirectory;
 
-    public Task<int> RunAllCleanupAsync(CancellationToken cancellationToken = default)
+    public Task<int> RunAllCleanupAsync(string currentSessionId = "", CancellationToken cancellationToken = default)
     {
         var total = 0;
 
@@ -22,6 +22,8 @@ public sealed partial class HousekeepingService : IHousekeepingService
         total += CleanupOldSessionEnvDirs();
         total += CleanupOldDebugLogs();
         total += CleanupOldMessageFiles();
+        total += CleanupOldImageCaches(currentSessionId);
+        total += CleanupOldPastes();
         total += CleanupNpmCache();
         total += CleanupOldVersions();
 
@@ -327,6 +329,98 @@ public sealed partial class HousekeepingService : IHousekeepingService
         catch (Exception ex)
         {
             _logger?.LogDebug(ex, "清理子目录失败: {Directory}", directory);
+            return 0;
+        }
+    }
+
+    /// <summary>
+    /// 清理旧图片缓存目录 — 对齐 TS cleanupOldImageCaches
+    /// 删除 image-cache/ 下非当前会话的子目录，空目录也删除
+    /// </summary>
+    public int CleanupOldImageCaches(string currentSessionId)
+    {
+        var imageCacheDir = Path.Combine(JccDir, "image-cache");
+
+        if (!_fs.DirectoryExists(imageCacheDir)) return 0;
+
+        try
+        {
+            var deletedCount = 0;
+
+            foreach (var sessionDir in _fs.EnumerateDirectories(imageCacheDir, "*", SearchOption.TopDirectoryOnly))
+            {
+                var dirName = Path.GetFileName(sessionDir);
+                if (dirName == currentSessionId) continue;
+
+                try
+                {
+                    _fs.DeleteDirectory(sessionDir, recursive: true);
+                    deletedCount++;
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogDebug(ex, "删除旧图片缓存目录失败: {Path}", sessionDir);
+                }
+            }
+
+            try
+            {
+                if (!_fs.EnumerateDirectories(imageCacheDir, "*", SearchOption.TopDirectoryOnly).Any()
+                    && !_fs.EnumerateFiles(imageCacheDir, "*", SearchOption.TopDirectoryOnly).Any())
+                {
+                    _fs.DeleteDirectory(imageCacheDir, recursive: false);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogDebug(ex, "删除空图片缓存根目录失败");
+            }
+
+            return deletedCount;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogDebug(ex, "清理图片缓存失败");
+            return 0;
+        }
+    }
+
+    /// <summary>
+    /// 清理旧粘贴缓存 — 对齐 TS cleanupOldPastes
+    /// 删除 paste-cache/ 中 mtime 超过指定天数的 .txt 文件
+    /// </summary>
+    public int CleanupOldPastes(int maxAgeDays = 30)
+    {
+        var pasteCacheDir = Path.Combine(JccDir, "paste-cache");
+
+        if (!_fs.DirectoryExists(pasteCacheDir)) return 0;
+
+        try
+        {
+            var cutoffDate = _clock.GetUtcNow().AddDays(-maxAgeDays);
+            var deletedCount = 0;
+
+            foreach (var file in _fs.EnumerateFiles(pasteCacheDir, "*.txt", SearchOption.TopDirectoryOnly))
+            {
+                try
+                {
+                    if (_fs.GetLastWriteTimeUtc(file) < cutoffDate)
+                    {
+                        _fs.DeleteFile(file);
+                        deletedCount++;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogDebug(ex, "删除旧粘贴缓存文件失败: {Path}", file);
+                }
+            }
+
+            return deletedCount;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogDebug(ex, "清理粘贴缓存失败");
             return 0;
         }
     }

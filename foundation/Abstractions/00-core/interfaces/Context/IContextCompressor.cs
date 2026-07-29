@@ -1,7 +1,8 @@
 namespace JoinCode.Abstractions.Interfaces.Context;
 
 /// <summary>
-/// 上下文压缩器接口
+/// 上下文压缩器接口 — 通用压缩，支持 code/dialogue/reference_index/text/log 五种内容类型
+/// 关系: IFoldSummarizer (01-ai) 是本接口在 dialogue 类型上的特化（将头部消息摘要化）
 /// </summary>
 public interface IContextCompressor
 {

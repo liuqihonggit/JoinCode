@@ -2,7 +2,8 @@
 namespace JoinCode.Abstractions.Interfaces;
 
 /// <summary>
-/// Agent 任务协调器接口 - 负责管理和协调多 Agent 任务的执行
+/// Agent 任务协调器接口 — 任务的运行时协调层（并行/批量执行、等待完成）
+/// 关系: 依赖 ITaskService (03-hands) 作为数据管理层（CRUD、依赖关系）
 /// </summary>
 public interface IAgentTaskCoordinator
 {

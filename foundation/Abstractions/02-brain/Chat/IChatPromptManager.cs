@@ -2,6 +2,7 @@ namespace JoinCode.Abstractions.Interfaces;
 
 /// <summary>
 /// 聊天提示词管理器接口 — 负责系统提示词构建、提醒管理和提示词重建
+/// 关系: 消费 ISystemPromptProvider (01-ai) 提供的部分来构建完整提示词；与 IChatContextManager (05-memory) 职责划分：本接口管系统提示词，IChatContextManager 管消息列表
 /// </summary>
 public interface IChatPromptManager
 {

@@ -32,6 +32,7 @@ global using JoinCode.Abstractions.Configuration.Llm;
 global using JoinCode.Abstractions.Configuration.Settings;
 global using JoinCode.Abstractions.Utils;
 global using JoinCode.Abstractions.Security;
+global using JoinCode.Abstractions.Security.Permission;
 global using JoinCode.Abstractions.LLM.Chat;
 global using JoinCode.Abstractions.Tools;
 global using JoinCode.Abstractions.Hooks;

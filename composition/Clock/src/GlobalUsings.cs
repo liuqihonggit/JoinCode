@@ -15,6 +15,7 @@ global using JoinCode.Abstractions.Models.Goal;
 global using JoinCode.Abstractions.Models.Runtime;
 global using JoinCode.Abstractions.Pipeline;
 global using JoinCode.Abstractions.Security;
+global using JoinCode.Abstractions.Security.Permission;
 global using JoinCode.Abstractions.Tools;
 global using JoinCode.Abstractions.Utils;
 global using Core.Goal;

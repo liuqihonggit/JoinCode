@@ -1,8 +1,8 @@
 namespace JoinCode.Abstractions.Shell;
 
 /// <summary>
-/// Shell 工具门控服务 — 对齐 TS isPowerShellToolEnabled()
-/// 非 Windows 平台禁用 PowerShell 工具，环境变量可覆盖
+/// Shell 工具门控服务 — 平台级门控（非 Windows 禁用 PowerShell）
+/// 关系: 本接口仅做平台级门控，命令级权限检查由 IPsPermissionChecker (04-guard) 负责
 /// </summary>
 public interface IShellToolGateService
 {

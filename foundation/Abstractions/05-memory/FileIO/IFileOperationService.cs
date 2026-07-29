@@ -1,12 +1,14 @@
 namespace JoinCode.Abstractions.Interfaces;
 
 /// <summary>
-/// 文件操作服务接口，提供文件读写功能
+/// 文件操作服务接口，提供高层文件读写功能（搜索替换、行号编辑、元数据读写）
+/// 关系: 本接口的底层方法（FileExists/DirectoryExists/GetCurrentDirectory 等）委托给 IFileSystem 实现
+/// 调用方对简单文件操作应优先注入 IFileSystem，仅需要编辑/元数据功能时才使用本接口
 /// </summary>
 public interface IFileOperationService
 {
     /// <summary>
-    /// 读取文件内容
+    /// 读取文件内容（含行号范围支持）
     /// </summary>
     Task<FileReadResult> ReadFileAsync(
         string filePath,
@@ -40,116 +42,6 @@ public interface IFileOperationService
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// 删除文件
-    /// </summary>
-    Task<bool> DeleteFileAsync(
-        string filePath,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// 列出目录内容
-    /// </summary>
-    Task<DirectoryListResult> ListDirectoryAsync(
-        string directoryPath,
-        bool recursive = false,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// 检查文件是否存在
-    /// </summary>
-    bool FileExists(string filePath);
-
-    /// <summary>
-    /// 异步检查文件是否存在
-    /// </summary>
-    Task<bool> FileExistsAsync(string filePath, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// 检查目录是否存在
-    /// </summary>
-    bool DirectoryExists(string directoryPath);
-
-    /// <summary>
-    /// 异步检查目录是否存在
-    /// </summary>
-    Task<bool> DirectoryExistsAsync(string directoryPath, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// 创建目录
-    /// </summary>
-    DirectoryInfo CreateDirectory(string directoryPath);
-
-    /// <summary>
-    /// 复制文件
-    /// </summary>
-    Task<bool> CopyFileAsync(string sourcePath, string destPath, bool overwrite = false, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// 移动文件
-    /// </summary>
-    Task<bool> MoveFileAsync(string sourcePath, string destPath, bool overwrite = false, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// 创建符号链接
-    /// </summary>
-    bool CreateSymbolicLink(string linkPath, string targetPath);
-
-    /// <summary>
-    /// 获取目录最后写入时间（UTC）
-    /// </summary>
-    DateTime GetDirectoryLastWriteTimeUtc(string directoryPath);
-
-    /// <summary>
-    /// 设置目录最后写入时间（UTC）— 对齐 TS utimes，防止过期清理误删恢复的 worktree
-    /// </summary>
-    void SetDirectoryLastWriteTimeUtc(string directoryPath, DateTime utcTime);
-
-    /// <summary>
-    /// 获取文件最后写入时间
-    /// </summary>
-    DateTime GetFileLastWriteTime(string filePath);
-
-    /// <summary>
-    /// 异步获取文件最后写入时间（UTC）
-    /// </summary>
-    Task<DateTime> GetLastWriteTimeUtcAsync(string filePath, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// 获取当前工作目录
-    /// </summary>
-    string GetCurrentDirectory();
-
-    /// <summary>
-    /// 获取完整路径
-    /// </summary>
-    string GetFullPath(string path);
-
-    /// <summary>
-    /// 组合路径
-    /// </summary>
-    string CombinePath(params string[] paths);
-
-    /// <summary>
-    /// 枚举文件
-    /// </summary>
-    IEnumerable<string> EnumerateFiles(string directoryPath, string searchPattern, SearchOption searchOption);
-
-    /// <summary>
-    /// 枚举目录
-    /// </summary>
-    IEnumerable<string> EnumerateDirectories(string directoryPath, string searchPattern, SearchOption searchOption);
-
-    /// <summary>
-    /// 获取目录中的文件
-    /// </summary>
-    string[] GetFiles(string directoryPath, string searchPattern, SearchOption searchOption);
-
-    /// <summary>
-    /// 获取目录中的子目录
-    /// </summary>
-    string[] GetDirectories(string directoryPath, string searchPattern, SearchOption searchOption);
-
-    /// <summary>
     /// 读取文件并返回元数据（编码 + 换行符） — 对齐 TS: readFileSyncWithMetadata
     /// </summary>
     Task<FileMetadataResult> ReadFileWithMetadataAsync(
@@ -165,6 +57,71 @@ public interface IFileOperationService
         System.Text.Encoding? encoding = null,
         string? lineEndings = null,
         CancellationToken cancellationToken = default);
+
+    // --- 以下方法委托给 IFileSystem，仅保留以兼容现有消费方 ---
+
+    /// <summary>委托 IFileSystem.FileExists — 优先直接使用 IFileSystem</summary>
+    bool FileExists(string filePath);
+
+    /// <summary>委托 IFileSystem.FileExistsAsync — 优先直接使用 IFileSystem</summary>
+    Task<bool> FileExistsAsync(string filePath, CancellationToken cancellationToken = default);
+
+    /// <summary>委托 IFileSystem.DirectoryExists — 优先直接使用 IFileSystem</summary>
+    bool DirectoryExists(string directoryPath);
+
+    /// <summary>委托 IFileSystem.DirectoryExistsAsync — 优先直接使用 IFileSystem</summary>
+    Task<bool> DirectoryExistsAsync(string directoryPath, CancellationToken cancellationToken = default);
+
+    /// <summary>委托 IFileSystem.CreateDirectory — 优先直接使用 IFileSystem</summary>
+    DirectoryInfo CreateDirectory(string directoryPath);
+
+    /// <summary>委托 IFileSystem — 优先直接使用 IFileSystem</summary>
+    Task<bool> DeleteFileAsync(string filePath, CancellationToken cancellationToken = default);
+
+    /// <summary>委托 IFileSystem — 高层封装，含 FileEntry 元数据</summary>
+    Task<DirectoryListResult> ListDirectoryAsync(string directoryPath, bool recursive = false, CancellationToken cancellationToken = default);
+
+    /// <summary>委托 IFileSystem.CopyFileAsync — 优先直接使用 IFileSystem</summary>
+    Task<bool> CopyFileAsync(string sourcePath, string destPath, bool overwrite = false, CancellationToken cancellationToken = default);
+
+    /// <summary>委托 IFileSystem.MoveFileAsync — 优先直接使用 IFileSystem</summary>
+    Task<bool> MoveFileAsync(string sourcePath, string destPath, bool overwrite = false, CancellationToken cancellationToken = default);
+
+    /// <summary>委托 IFileSystem.CreateSymbolicLink — 优先直接使用 IFileSystem</summary>
+    bool CreateSymbolicLink(string linkPath, string targetPath);
+
+    /// <summary>委托 IFileSystem — 优先直接使用 IFileSystem</summary>
+    DateTime GetDirectoryLastWriteTimeUtc(string directoryPath);
+
+    /// <summary>委托 IFileSystem — 优先直接使用 IFileSystem</summary>
+    void SetDirectoryLastWriteTimeUtc(string directoryPath, DateTime utcTime);
+
+    /// <summary>委托 IFileSystem — 优先直接使用 IFileSystem</summary>
+    DateTime GetFileLastWriteTime(string filePath);
+
+    /// <summary>委托 IFileSystem — 优先直接使用 IFileSystem</summary>
+    Task<DateTime> GetLastWriteTimeUtcAsync(string filePath, CancellationToken cancellationToken = default);
+
+    /// <summary>委托 IFileSystem.GetCurrentDirectory — 优先直接使用 IFileSystem</summary>
+    string GetCurrentDirectory();
+
+    /// <summary>委托 IFileSystem.GetFullPath — 优先直接使用 IFileSystem</summary>
+    string GetFullPath(string path);
+
+    /// <summary>委托 IFileSystem.CombinePath — 优先直接使用 IFileSystem</summary>
+    string CombinePath(params string[] paths);
+
+    /// <summary>委托 IFileSystem.EnumerateFiles — 优先直接使用 IFileSystem</summary>
+    IEnumerable<string> EnumerateFiles(string directoryPath, string searchPattern, SearchOption searchOption);
+
+    /// <summary>委托 IFileSystem.EnumerateDirectories — 优先直接使用 IFileSystem</summary>
+    IEnumerable<string> EnumerateDirectories(string directoryPath, string searchPattern, SearchOption searchOption);
+
+    /// <summary>委托 IFileSystem.GetFiles — 优先直接使用 IFileSystem</summary>
+    string[] GetFiles(string directoryPath, string searchPattern, SearchOption searchOption);
+
+    /// <summary>委托 IFileSystem.GetDirectories — 优先直接使用 IFileSystem</summary>
+    string[] GetDirectories(string directoryPath, string searchPattern, SearchOption searchOption);
 }
 
 // Result records

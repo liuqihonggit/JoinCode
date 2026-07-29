@@ -2,7 +2,8 @@
 namespace JoinCode.Abstractions.Interfaces;
 
 /// <summary>
-/// 任务服务接口
+/// 任务服务接口 — 任务的数据管理层（CRUD、依赖关系、状态查询）
+/// 关系: IAgentTaskCoordinator (07-agents) 是任务的运行时协调层（并行/批量执行），后者依赖前者
 /// </summary>
 public interface ITaskService : IDisposable
 {

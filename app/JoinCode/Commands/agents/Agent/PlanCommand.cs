@@ -36,17 +36,15 @@ public sealed class PlanCommand : ChatCommandBase
 
     private static async Task TogglePlanModeAsync(ChatCommandContext context, string args)
     {
-        var interactiveService = ResolveInteractiveService(context);
-        if (interactiveService is null)
+        var planModeManager = ResolvePlanModeManager(context);
+        if (planModeManager is null)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Warning}交互服务不可用，尝试通过 PlanService 执行{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Warning}计划模式管理器不可用，尝试通过 PlanService 执行{AnsiStyleConstants.Reset}");
             await FallbackExecutePlanAsync(context, args);
             return;
         }
 
-        var status = await interactiveService.GetPlanModeStatusAsync(context.CancellationToken).ConfigureAwait(false);
-
-        if (status.IsInPlanMode)
+        if (planModeManager.IsInPlanMode)
         {
             await ExitPlanModeAsync(context);
         }
@@ -59,16 +57,16 @@ public sealed class PlanCommand : ChatCommandBase
 
     private static async Task EnterPlanModeAsync(ChatCommandContext context, string? description)
     {
-        var interactiveService = ResolveInteractiveService(context);
-        if (interactiveService is null)
+        var planModeManager = ResolvePlanModeManager(context);
+        if (planModeManager is null)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Warning}交互服务不可用，尝试通过 PlanService 执行{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Warning}计划模式管理器不可用，尝试通过 PlanService 执行{AnsiStyleConstants.Reset}");
             await FallbackExecutePlanAsync(context, description ?? string.Empty);
             return;
         }
 
-        var result = await interactiveService.EnterPlanModeAsync(
-            goal: description,
+        var result = await planModeManager.EnterPlanModeAsync(
+            description: description,
             cancellationToken: context.CancellationToken).ConfigureAwait(false);
 
         if (result.Success)
@@ -93,15 +91,14 @@ public sealed class PlanCommand : ChatCommandBase
 
     private static async Task ExitPlanModeAsync(ChatCommandContext context)
     {
-        var interactiveService = ResolveInteractiveService(context);
-        if (interactiveService is null)
+        var planModeManager = ResolvePlanModeManager(context);
+        if (planModeManager is null)
         {
-            TerminalHelper.WriteLine("交互服务不可用");
+            TerminalHelper.WriteLine("计划模式管理器不可用");
             return;
         }
 
-        var result = await interactiveService.ExitPlanModeAsync(
-            confirm: true,
+        var result = await planModeManager.ExitPlanModeAsync(
             cancellationToken: context.CancellationToken).ConfigureAwait(false);
 
         if (result.Success)
@@ -116,32 +113,32 @@ public sealed class PlanCommand : ChatCommandBase
 
     private static async Task ShowPlanStatusAsync(ChatCommandContext context)
     {
-        var interactiveService = ResolveInteractiveService(context);
-        if (interactiveService is null)
+        var planModeManager = ResolvePlanModeManager(context);
+        if (planModeManager is null)
         {
-            TerminalHelper.WriteLine("交互服务不可用");
+            TerminalHelper.WriteLine("计划模式管理器不可用");
             return;
         }
 
-        var status = await interactiveService.GetPlanModeStatusAsync(context.CancellationToken).ConfigureAwait(false);
+        var planState = await planModeManager.GetPlanStatusAsync(context.CancellationToken).ConfigureAwait(false);
 
         TerminalHelper.WriteLine("=== 计划模式状态 ===");
-        TerminalHelper.WriteLine($"  模式: {(status.IsInPlanMode ? $"{TerminalColors.Primary}已开启{AnsiStyleConstants.Reset}" : "已关闭")}");
+        TerminalHelper.WriteLine($"  模式: {(planModeManager.IsInPlanMode ? $"{TerminalColors.Primary}已开启{AnsiStyleConstants.Reset}" : "已关闭")}");
 
-        if (status.IsInPlanMode)
+        if (planState is not null && planModeManager.IsInPlanMode)
         {
-            if (!string.IsNullOrEmpty(status.CurrentGoal))
+            if (!string.IsNullOrEmpty(planState.Description))
             {
-                TerminalHelper.WriteLine($"  目标: {status.CurrentGoal}");
+                TerminalHelper.WriteLine($"  目标: {planState.Description}");
             }
 
-            if (status.Steps?.Count > 0)
+            if (planState.Steps.Count > 0)
             {
-                TerminalHelper.WriteLine($"  步骤 ({status.Steps.Count}):");
-                for (var i = 0; i < status.Steps.Count; i++)
+                TerminalHelper.WriteLine($"  步骤 ({planState.Steps.Count}):");
+                for (var i = 0; i < planState.Steps.Count; i++)
                 {
-                    var step = status.Steps[i];
-                    var check = step.Status == TaskStatusConstants.Completed ? "✓" : "○";
+                    var step = planState.Steps[i];
+                    var check = step.IsCompleted ? "✓" : "○";
                     TerminalHelper.WriteLine($"    {check} {i + 1}. {step.Description}");
                 }
             }
@@ -210,9 +207,9 @@ public sealed class PlanCommand : ChatCommandBase
         TerminalHelper.WriteLine(result);
     }
 
-    private static IInteractiveService? ResolveInteractiveService(ChatCommandContext context)
+    private static IPlanModeManager? ResolvePlanModeManager(ChatCommandContext context)
     {
-        return ChatCommandBase.GetService<IInteractiveService>(context, typeof(IInteractiveService));
+        return ChatCommandBase.GetService<IPlanModeManager>(context, typeof(IPlanModeManager));
     }
 
     private static string? GetPlanFilePath()

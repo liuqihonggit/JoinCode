@@ -9,7 +9,7 @@ public sealed partial class TranscriptService : ITranscriptService, IDisposable
     private readonly TranscriptFileWriter _writer;
     private readonly IFileSystem _fs;
 
-    public TranscriptService(IFileSystem fs, string? sessionsDirectory = null, ILogger<TranscriptService>? logger = null, IClockService? clock = null)
+    public TranscriptService(IFileSystem fs, string? sessionsDirectory = null, ILogger<TranscriptService>? logger = null, IClockService? clock = null, IPasteStore? pasteStore = null)
     {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _sessionsDirectory = sessionsDirectory
@@ -18,7 +18,7 @@ public sealed partial class TranscriptService : ITranscriptService, IDisposable
                 AppDataConstants.SessionsFolderName);
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
-        _writer = new TranscriptFileWriter(_fs, _sessionsDirectory, logger);
+        _writer = new TranscriptFileWriter(_fs, _sessionsDirectory, logger, pasteStore);
     }
 
     public async Task AppendEntryAsync(string sessionId, TranscriptEntry entry, CancellationToken cancellationToken = default)

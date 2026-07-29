@@ -11,6 +11,7 @@ global using JoinCode.Abstractions.Configuration.Settings;
 global using JoinCode.Abstractions.Utils.Diagnostics;
 global using JoinCode.Abstractions.Exceptions;
 global using JoinCode.Abstractions.Interfaces;
+global using JoinCode.Abstractions.Interfaces.Cache;
 global using JoinCode.Abstractions.Insights;
 global using JoinCode.Abstractions.Localization;
 global using JoinCode.Abstractions.LLM.Chat;

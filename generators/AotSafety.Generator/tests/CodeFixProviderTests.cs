@@ -1,6 +1,6 @@
 namespace AotSafety.Tests;
 
-using JccCodeFixes;
+using CodeFixes;
 
 public class Jcc6005CodeFixProviderTests
 {

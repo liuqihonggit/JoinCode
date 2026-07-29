@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <RootNamespace>Sync.Integration.Tests</RootNamespace>
@@ -8,8 +8,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)components\09-composition\Composition\src\Composition.csproj" />
-    <ProjectReference Include="$(RepoRoot)components\01-ai\Dream\src\Dream.csproj" />
+    <ProjectReference Include="$(RepoRoot)composition\Composition\src\Composition.csproj" />
+    <ProjectReference Include="$(RepoRoot)services\Dream\src\Dream.csproj" />
     <ProjectReference Include="$(RepoRoot)tests\Unit\Testing.Common\Testing.Common.csproj" />
   </ItemGroup>
 

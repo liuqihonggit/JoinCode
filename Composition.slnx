@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/composition/">
+    <Project Path="composition/Composition/src/Composition.csproj" />
+    <Project Path="composition/Composition/tests/Unit/Composition.Tests.csproj" />
+    <Project Path="composition/Clock/src/Clock.csproj" />
+    <Project Path="composition/Clock/tests/Unit/Clock.Tests.csproj" />
+  </Folder>
+</Solution>

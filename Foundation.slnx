@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/foundation/">
+    <Project Path="foundation/Abstractions/Abstractions.csproj" />
+    <Project Path="foundation/Structura/Structura.csproj" />
+    <Project Path="foundation/Transport.Contracts/Transport.Contracts.csproj" />
+  </Folder>
+</Solution>

@@ -76,7 +76,7 @@ public static class AnalyzerLoader
         foreach (var dll in Directory.GetFiles(analyzerDirectory, "*.dll", SearchOption.AllDirectories))
         {
             var fileName = Path.GetFileName(dll);
-            if (!fileName.Contains("JccCodeFixes", StringComparison.Ordinal))
+            if (!fileName.Contains("CodeFixes", StringComparison.Ordinal))
                 continue;
 
             try

@@ -229,7 +229,7 @@ public static class Program
 
         if (codeFixProviders.Count == 0)
         {
-            Console.Error.WriteLine("未找到 CodeFixProvider。请确保 JccCodeFixes.dll 已构建。");
+            Console.Error.WriteLine("未找到 CodeFixProvider。请确保 CodeFixes.dll 已构建。");
             return 1;
         }
 

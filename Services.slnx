@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/services/">
+    <Project Path="services/Mcp/src/Mcp.csproj" />
+    <Project Path="services/Mcp/tests/Unit/Mcp.Tests.csproj" />
+    <Project Path="services/Dream/src/Dream.csproj" />
+    <Project Path="services/Dream/tests/Unit/Dream.Tests.csproj" />
+    <Project Path="services/Eyes/src/Eyes.csproj" />
+    <Project Path="services/Eyes/tests/Unit/Eyes.Tests.csproj" />
+    <Project Path="services/Bridge/src/Bridge.csproj" />
+    <Project Path="services/Bridge/tests/Unit/Bridge.Tests.csproj" />
+  </Folder>
+</Solution>

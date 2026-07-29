@@ -1,0 +1,24 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>JoinCode.McpToolDispatch.Tests</RootNamespace>
+    <AssemblyName>JoinCode.McpToolDispatch.Tests</AssemblyName>
+    <Description>JoinCode McpToolDispatch 子系统单元测试</Description>
+    <NoWarn>$(NoWarn);JCC3007;JCC3010;JCC3011;JCC3012</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)core\execution\McpToolDispatch\src\McpToolDispatch.csproj" />
+    <ProjectReference Include="$(RepoRoot)infrastructure\Infrastructure\Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)tests\Unit\Testing.Common\Testing.Common.csproj" />
+    <ProjectReference Include="$(RepoRoot)services\Mcp\src\Mcp.csproj" />
+    <ProjectReference Include="$(RepoRoot)core\execution\Hands\src\Hands.csproj" />
+    <ProjectReference Include="$(RepoRoot)core\safety\Guard\src\Guard.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="$(MicrosoftExtensionsVersion)" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" Version="$(MicrosoftExtensionsTimeProviderTestingVersion)" />
+  </ItemGroup>
+
+</Project>

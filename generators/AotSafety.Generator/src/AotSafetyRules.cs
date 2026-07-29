@@ -221,9 +221,9 @@ namespace AotSafety.Generator
                 filePath.Contains("/obj/", StringComparison.Ordinal)) return;
 
             if (filePath.Contains("AotSafety.Generator", StringComparison.Ordinal) ||
-                filePath.Contains("JccCodeFixes", StringComparison.Ordinal) ||
+                filePath.Contains("CodeFixes", StringComparison.Ordinal) ||
                 filePath.Contains("EnumMetadata.Generator", StringComparison.Ordinal) ||
-                filePath.Contains("McpToolHandlers.Generator", StringComparison.Ordinal)) return;
+                filePath.Contains("McpToolDispatch.Generator", StringComparison.Ordinal)) return;
 
             if (usingDirective.GlobalKeyword.IsKind(SyntaxKind.GlobalKeyword)) return;
 

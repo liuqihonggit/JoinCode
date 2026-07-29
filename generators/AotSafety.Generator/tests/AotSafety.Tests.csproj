@@ -13,7 +13,7 @@
 
   <ItemGroup>
     <ProjectReference Include="$(RepoRoot)generators\AotSafety.Generator\src\AotSafety.Generator.csproj" />
-    <ProjectReference Include="$(RepoRoot)generators\JccCodeFixes\src\JccCodeFixes.csproj" />
+    <ProjectReference Include="$(RepoRoot)generators\CodeFixes\src\CodeFixes.csproj" />
   </ItemGroup>
 
   <ItemGroup>

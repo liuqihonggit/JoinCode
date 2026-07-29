@@ -391,39 +391,47 @@ nuget包: 拒绝全部微软的AI包，因为大部分不支持NativeAOT。
 
 ## 编译
 
-### 三层解决方案架构（强制编译顺序）
+### 七层解决方案架构（强制编译顺序）
 
-项目采用三层 slnx 隔离架构，**必须按顺序编译**，上层依赖下层的构建产物：
+项目采用七层 slnx 隔离架构，**必须按顺序编译**，上层依赖下层的构建产物：
 
-| 编译顺序 | 解决方案 | 职责 | 项目数 | 关键内容 |
-|----------|----------|------|--------|----------|
-| ① 先编译 | `Sdk.slnx` | 基础层 | 16 | 全部 generators + Abstractions + Structura + Infrastructure |
-| ② 后编译 | `components.slnx` | 组件开发 | 39 | 全部10个组件 + 组件测试 |
-| ③ 最后 | `JoinCode.slnx` | 主工程 | 12 | JoinCode.exe + 集成测试 + MockServers |
+| 编译顺序 | 解决方案 | 职责 | 目录 | 关键内容 |
+|----------|----------|------|------|----------|
+| ① | `Generators.slnx` | 源码生成器 | `generators/` | 11 个 Generator + 测试 |
+| ② | `Foundation.slnx` | 基础抽象 | `foundation/` | Abstractions + Structura + Transport.Contracts |
+| ③ | `Infrastructure.slnx` | 基础设施 | `infrastructure/` | Infrastructure + Transport.Impl |
+| ④ | `Core.slnx` | 核心组件 | `core/` | ai/(Llm,Agents,Reasoning) + execution/(Brain,Hands,Scheduling,McpToolDispatch) + safety/(Guard,Vault) + search/(CodeIndex,Browser) |
+| ⑤ | `Services.slnx` | 服务组件 | `services/` | Mcp + Dream + Eyes + Bridge |
+| ⑥ | `Composition.slnx` | 组合层 | `composition/` | Composition + Clock |
+| ⑦ | `App.slnx` | 主工程 | `app/` | JoinCode.exe + Sdk + 集成测试 + MockServers |
 
-**依赖链**：`Sdk.slnx` → `components.slnx` → `JoinCode.slnx`
+**依赖链**：`Generators` → `Foundation` → `Infrastructure` → `Core` → `Services` → `Composition` → `App`
 
 **为什么必须按顺序？**
-- `Sdk.slnx` 包含源码生成器（EnumMetadata.Generator、ConstructorInjection.Generator 等），它们生成 `XxxConstants` 静态类
-- `components.slnx` 中的组件依赖 Abstractions，而 Abstractions 需要生成器才能编译出枚举常量
-- 如果先编译 components.slnx 而生成器 DLL 不存在，编译会失败
+- `Generators.slnx` 包含源码生成器（EnumMetadata.Generator、ConstructorInjection.Generator 等），它们生成 `XxxConstants` 静态类
+- `Foundation.slnx` 中的 Abstractions 需要生成器才能编译出枚举常量
+- 如果跳层编译，依赖的 DLL 不存在，编译会失败
 
 **CI 编译命令（Release + 全量）**：
 ```powershell
-# 1. 基础层（必须先编译）
-dotnet build Sdk.slnx -c Release --no-incremental
-# 2. 组件层
-dotnet build components/components.slnx -c Release --no-incremental
-# 3. 主工程
-dotnet build JoinCode.slnx -c Release --no-incremental
+dotnet build Generators.slnx -c Release --no-incremental
+dotnet build Foundation.slnx -c Release --no-incremental
+dotnet build Infrastructure.slnx -c Release --no-incremental
+dotnet build Core.slnx -c Release --no-incremental
+dotnet build Services.slnx -c Release --no-incremental
+dotnet build Composition.slnx -c Release --no-incremental
+dotnet build App.slnx -c Release --no-incremental
 ```
 
 **修改不同层时的编译策略**：
 | 修改内容 | 需要重新编译的层 |
 |----------|------------------|
-| 枚举/Abstractions/generators | ①②③ 全部 |
-| 组件源码 | ②③ |
-| 主工程源码（src/JoinCode） | ③ |
+| 枚举/Abstractions/generators | ①②③④⑤⑥⑦ 全部 |
+| Infrastructure/Transport | ③④⑤⑥⑦ |
+| 核心组件（core/） | ④⑤⑥⑦ |
+| 服务组件（services/） | ⑤⑥⑦ |
+| 组合层（composition/） | ⑥⑦ |
+| 主工程源码（app/） | ⑦ |
 | 仅测试代码 | 对应的 slnx |
 
 ### 开发编译策略（Debug + 增量 + 单 csproj）
@@ -431,10 +439,10 @@ dotnet build JoinCode.slnx -c Release --no-incremental
 **核心原则**：编码期间用 Debug 模式增量编译单个 csproj，Release 全量编译交给 CI。
 
 **开发阶段（改代码时）**：
-1. **只编译改动的那个 `.csproj`** — 例如改了 `Tui.csproj` 就只编译 `dotnet build components/11-tui/Tui/src/Tui.csproj -c Debug`，不编译整个 slnx
+1. **只编译改动的那个 `.csproj`** — 例如改了 `Llm.csproj` 就只编译 `dotnet build core/ai/Llm/src/Llm.csproj -c Debug`，不编译整个 slnx
 2. **使用 Debug 模式** — Debug 编译更快，无需 AOT/Trim 等优化开销
 3. **连续修改多个文件时，改完所有文件后再编译一次** — 禁止改一个文件就编译
-4. **只有影响面很大时才编译 slnx** — 例如改了 Abstractions 接口导致大量项目受影响，才用 `dotnet build Sdk.slnx -c Debug`
+4. **只有影响面很大时才编译 slnx** — 例如改了 Abstractions 接口导致大量项目受影响，才用 `dotnet build Foundation.slnx -c Debug`
 
 **提交前（git commit 前）**：
 1. 不需要本地 Release 全量编译 — CI 会做
@@ -442,17 +450,17 @@ dotnet build JoinCode.slnx -c Release --no-incremental
 
 **开发编译命令示例**：
 ```powershell
-# 改了 TUI 组件 → 只编译那个 csproj
-dotnet build components/11-tui/Tui/src/Tui.csproj -c Debug
+# 改了 Llm 组件 → 只编译那个 csproj
+dotnet build core/ai/Llm/src/Llm.csproj -c Debug
 # 改了主工程 CliSession → 只编译主工程
-dotnet build src/JoinCode/JoinCode.csproj -c Debug
+dotnet build app/JoinCode/JoinCode.csproj -c Debug
 # 改了 Abstractions → 影响面大，编译基础层 slnx
-dotnet build Sdk.slnx -c Debug
+dotnet build Foundation.slnx -c Debug
 ```
 
 **CI 全量编译命令（Release + --no-incremental）**：
 ```powershell
-dotnet build Sdk.slnx -c Release --no-incremental; dotnet build components/components.slnx -c Release --no-incremental; dotnet build JoinCode.slnx -c Release --no-incremental
+dotnet build Generators.slnx -c Release --no-incremental; dotnet build Foundation.slnx -c Release --no-incremental; dotnet build Infrastructure.slnx -c Release --no-incremental; dotnet build Core.slnx -c Release --no-incremental; dotnet build Services.slnx -c Release --no-incremental; dotnet build Composition.slnx -c Release --no-incremental; dotnet build App.slnx -c Release --no-incremental
 ```
 
 ### 编译注意事项

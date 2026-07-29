@@ -26,8 +26,8 @@ public sealed class McpToolRegistrationValidationTests
         var registry = provider.GetRequiredService<Tools.LocalToolRegistry>();
         var allTools = await registry.GetAllToolInfosAsync().ConfigureAwait(true);
 
-        var handlerTypes = typeof(McpToolHandlers.ToolHandlerExtensions).Assembly.GetTypes()
-            .Where(t => t.GetCustomAttributes(typeof(JoinCode.Abstractions.Attributes.McpToolHandlerAttribute), false).Length > 0)
+        var handlerTypes = typeof(McpToolDispatch.ToolHandlerExtensions).Assembly.GetTypes()
+            .Where(t => t.GetCustomAttributes(typeof(JoinCode.Abstractions.Attributes.McpToolDispatchAttribute), false).Length > 0)
             .ToList();
 
         var registrationFailures = new List<string>();

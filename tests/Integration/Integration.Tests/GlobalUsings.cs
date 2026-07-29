@@ -72,7 +72,7 @@ global using Services.CodeIndex;
 global using Microsoft.Data.Sqlite;
 global using Infrastructure.Localization;
 global using Infrastructure.Utils.Text;
-global using McpToolHandlers;
+global using McpToolDispatch;
 global using JoinCode.Abstractions.Mcp.Registry;
 global using Tools;
 global using Microsoft.Extensions.Time.Testing;

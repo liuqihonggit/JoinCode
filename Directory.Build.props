@@ -13,7 +13,7 @@
     <NoWarn>$(NoWarn);CS1591;VSTHRD002;VSTHRD100;VSTHRD101;VSTHRD103;VSTHRD105;VSTHRD110;VSTHRD200;JCC1004;JCC10004;JCC1005;JCC1006;JCC3008;JCC1010;JCC6010;JCC10001;JCC10002;JCC10005;JCC10006;JCC10007</NoWarn>
     <InvariantGlobalization>true</InvariantGlobalization>
     <SatelliteResourceLanguages>zh-CN</SatelliteResourceLanguages>
-    <!-- 分析器开关：/p:JccAnalyzers=false 禁用自定义分析器(AotSafety+JccCodeFixes)，加速迭代编译 -->
+    <!-- 分析器开关：/p:JccAnalyzers=false 禁用自定义分析器(AotSafety+CodeFixes)，加速迭代编译 -->
     <JccAnalyzers Condition="'$(JccAnalyzers)' == ''">true</JccAnalyzers>
     <!-- NET分析器开关：/p:EnableNETAnalyzers=false 禁用内置Roslyn分析器，节省~10s -->
     <EnableNETAnalyzers Condition="'$(EnableNETAnalyzers)' == ''">true</EnableNETAnalyzers>
@@ -107,7 +107,7 @@
 
   <ItemGroup Condition="'$(TargetFramework)' == 'net10.0' and '$(EnforceExtendedAnalyzerRules)' != 'true' and '$(ExcludeJccAnalyzers)' != 'true' and '$(JccAnalyzers)' == 'true'">
     <ProjectReference Include="$(MSBuildThisFileDirectory)generators\AotSafety.Generator\src\AotSafety.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
-    <ProjectReference Include="$(MSBuildThisFileDirectory)generators\JccCodeFixes\src\JccCodeFixes.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)generators\CodeFixes\src\CodeFixes.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
 </Project>

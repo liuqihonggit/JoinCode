@@ -484,9 +484,9 @@ JoinCode/
 ├── tools/               ★ 辅助工具（AST审计/跨进程/注入迁移）
 ├── build.ps1            主构建脚本
 ├── JoinCode.slnx         主解决方案（Host + tests + MockServers）
-├── components.slnx      组件解决方案（全部组件源码 + 组件测试）
+├── Components.slnx      组件解决方案（全部组件源码 + 组件测试）
 ├── generators.slnx      生成器解决方案
-├── sdk.slnx             SDK 解决方案
+├── Sdk.slnx             基础层解决方案（generators + Abstractions + Sdk + Structura + Infrastructure）
 └── tools.slnx           工具解决方案
 ```
 
@@ -527,13 +527,13 @@ L4:
   Hands                → Abstractions, Infrastructure
 
 L5:
-  McpToolHandlers      → Abstractions, Infrastructure
+  McpToolDispatch      → Abstractions, Infrastructure
   Scheduling           → Abstractions, Infrastructure, Structura
   Agents               → Abstractions, Infrastructure
   Reasoning            → Abstractions, Infrastructure, Structura
 
 L6 组合根:
-  Composition          → Bridge, Mcp, Brain, Guard, Hands, Eyes, Vault, Scheduling, McpToolHandlers, Agents, Reasoning, Transport.Contracts, Transport.Impl
+  Composition          → Bridge, Mcp, Brain, Guard, Hands, Eyes, Vault, Scheduling, McpToolDispatch, Agents, Reasoning, Transport.Contracts, Transport.Impl
 
 L7:
   Clock                → Composition, Vault, Scheduling
@@ -562,14 +562,14 @@ Host:
 | Vault | `05-memory/Vault/` | L2 | 记忆目录/状态/待办/通知 | Microsoft.Data.Sqlite, SQLitePCLRaw | CI |
 | Brain | `02-brain/Brain/` | L3 | 查询引擎/上下文/提示词/计划/成本 | Microsoft.Extensions.Options | Enum, CI, PromptSection |
 | Hands | `03-hands/Hands/` | L4 | 工具执行/Shell/Web/Notebook/API/缓存 | ImageSharp, Docnet.Core, ReverseMarkdown.Aot | CI |
-| McpToolHandlers | `03-hands/McpToolHandlers/` | L5 | MCP 工具处理器 | ModelContextProtocol | McpTool, Enum, CI |
+| McpToolDispatch | `03-hands/McpToolDispatch/` | L5 | MCP 工具处理器 | ModelContextProtocol | McpTool, Enum, CI |
 | Scheduling | `03-hands/Scheduling/` | L5 | 任务调度/Cron/持久化 | Microsoft.Extensions.DI | Enum, CI |
 | Agents | `07-agents/Agents/` | L5 | Agent 协调/生命周期/Fork/Team | Microsoft.Extensions.Caching.Memory | McpTool, Enum, CI |
 | Reasoning | `10-reasoning/Reasoning/` | L5 | 结构化推理/三权分立/双预算 | Microsoft.Extensions.Logging | Enum, CI |
 | Composition | `09-composition/Composition/` | L6 | 依赖注入集成层（组合根） | ModelContextProtocol | Enum, CI, McpTool |
 | Clock | `09-composition/Clock/` | L7 | 目标引擎/工作流宿主 | Microsoft.Extensions.Logging | CI |
 
-> **Enum** = EnumMetadata.Generator, **CI** = ConstructorInjection.Generator, **McpTool** = McpToolHandlers.Generator, **PromptSection** = PromptSection.Generator, **CliOption** = CliOption.Generator
+> **Enum** = EnumMetadata.Generator, **CI** = ConstructorInjection.Generator, **McpTool** = McpToolDispatch.Generator, **PromptSection** = PromptSection.Generator, **CliOption** = CliOption.Generator
 
 ## 组件内部结构
 
@@ -665,7 +665,7 @@ DependencyInjection/ DI注册
 | JccCodeFixes | `generators/JccCodeFixes/` | JCC 代码修复 | 全局（根 Directory.Build.props） |
 | EnumMetadata.Generator | `generators/EnumMetadata.Generator/` | 枚举元数据（[EnumValue] → XxxConstants + XxxExtensions） | 几乎所有组件 |
 | ConstructorInjection.Generator | `generators/ConstructorInjection.Generator/` | 构造函数注入（[Register] → DI 注册代码） | 几乎所有组件 |
-| McpToolHandlers.Generator | `generators/McpToolHandlers.Generator/` | MCP 工具处理器注册 | McpToolHandlers, Agents, Composition, Dream, JoinCode |
+| McpToolDispatch.Generator | `generators/McpToolDispatch.Generator/` | MCP 工具处理器注册 | McpToolDispatch, Agents, Composition, Dream, JoinCode |
 | PromptSection.Generator | `generators/PromptSection.Generator/` | 提示词段落生成 | Brain |
 | CliOption.Generator | `generators/CliOption.Generator/` | CLI 选项绑定 | Bridge, Dream, JoinCode |
 | AppModule.Generator | `generators/AppModule.Generator/` | 应用模块注册 | JoinCode |
@@ -781,7 +781,7 @@ dotnet test "components/01-ai/Mcp/tests/Unit/Mcp.Tests.csproj" -c Debug --filter
 | Dream | `components/01-ai/Dream/` |
 | Brain | `components/02-brain/Brain/` |
 | Hands | `components/03-hands/Hands/` |
-| McpToolHandlers | `components/03-hands/McpToolHandlers/` |
+| McpToolDispatch | `components/03-hands/McpToolDispatch/` |
 | Scheduling | `components/03-hands/Scheduling/` |
 | Guard | `components/04-guard/Guard/` |
 | Vault | `components/05-memory/Vault/` |

@@ -4,17 +4,7 @@ public static partial class ServiceRegistration
 {
     public static IServiceCollection AddVaultServices(this IServiceCollection services, Func<IServiceProvider, string>? storagePathFactory = null)
     {
-        services.AddVaultStateServices();
         services.AddMemdirServices(storagePathFactory);
-        return services;
-    }
-
-    public static IServiceCollection AddVaultStateServices(this IServiceCollection services)
-    {
-        services.AddEnvSwitch<IStateService>(
-            JccEnvVar.StateMode, "InMemory",
-            sp => new InMemoryStateService(sp.GetRequiredService<IClockService>()));
-
         return services;
     }
 

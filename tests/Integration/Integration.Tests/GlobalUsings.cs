@@ -70,7 +70,6 @@ global using JoinCode.CodeIndex.Ast;
 global using JoinCode.CodeIndex.Persistence;
 global using JoinCode.Abstractions.CodeIndex;
 global using Services.CodeIndex;
-global using Microsoft.Data.Sqlite;
 global using Infrastructure.Localization;
 global using Infrastructure.Utils.Text;
 global using McpToolDispatch;

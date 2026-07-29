@@ -11,16 +11,12 @@ public class ChatServiceTestsCollection { }
 public class ChatServiceTests : IAsyncLifetime
 {
     private static IFileSystem RealFs => new PhysicalFileSystem();
-    private readonly string _testStateFilePath;
-    private readonly string _testDbFilePath;
     private PipeOpenAIMockServer? _mockServer;
     private string _pipeName = string.Empty;
     private ServiceProvider? _serviceProvider;
 
     public ChatServiceTests()
     {
-        _testStateFilePath = Path.Combine(Path.GetTempPath(), $"test_chat_state_{Guid.NewGuid():N}.json");
-        _testDbFilePath = Path.ChangeExtension(_testStateFilePath, ".db");
     }
 
     public async Task InitializeAsync()
@@ -52,9 +48,6 @@ public class ChatServiceTests : IAsyncLifetime
             await _mockServer.StopAsync().ConfigureAwait(true);
             await _mockServer.DisposeAsync().ConfigureAwait(true);
         }
-
-        try { if (RealFs.FileExists(_testStateFilePath)) RealFs.DeleteFile(_testStateFilePath); } catch (IOException ex) { System.Diagnostics.Trace.WriteLine($"Cleanup skipped: {ex.Message}"); }
-        try { if (RealFs.FileExists(_testDbFilePath)) RealFs.DeleteFile(_testDbFilePath); } catch (IOException ex) { System.Diagnostics.Trace.WriteLine($"Cleanup skipped: {ex.Message}"); }
     }
 
     private async Task<ServiceProvider> CreateServiceProviderAsync()
@@ -74,7 +67,6 @@ public class ChatServiceTests : IAsyncLifetime
                 ApiKey = MockServerOptions.DefaultApiKey,
                 ModelId = MockServerOptions.DefaultModel
             },
-            StateFilePath = _testStateFilePath,
             PipeEndpoint = new PipeTransportConfig
             {
                 PipeName = _pipeName
@@ -97,41 +89,6 @@ public class ChatServiceTests : IAsyncLifetime
     {
         var serviceProvider = await CreateServiceProviderAsync().ConfigureAwait(true);
         return serviceProvider.GetRequiredService<IChatService>();
-    }
-
-    private async Task<IChatService> CreateChatServiceWithoutCleanupAsync()
-    {
-        if (_serviceProvider != null)
-        {
-            _serviceProvider.Dispose();
-            _serviceProvider = null;
-            await Task.Delay(100).ConfigureAwait(true);
-        }
-
-        var config = new WorkflowConfig
-        {
-            Provider = new ProviderConfig
-            {
-                Provider = "openai",
-                ApiKey = MockServerOptions.DefaultApiKey,
-                ModelId = MockServerOptions.DefaultModel
-            },
-            StateFilePath = _testStateFilePath,
-            PipeEndpoint = new PipeTransportConfig
-            {
-                PipeName = _pipeName
-            }
-        };
-
-        var services = new ServiceCollection();
-        services.AddSingleton<Microsoft.Extensions.Configuration.IConfiguration>(new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build());
-        services.AddLogging(builder => builder.AddConsole());
-        services.AddAiWorkflowServices(config);
-        // 注册测试用管道 — 同 CreateServiceProviderAsync
-        services.AddTestPipelines();
-
-        _serviceProvider = services.BuildServiceProvider();
-        return _serviceProvider.GetRequiredService<IChatService>();
     }
 
     [Fact]
@@ -176,37 +133,31 @@ public class ChatServiceTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task LoadState_ShouldRestorePreviousState()
+    public async Task LoadState_ShouldRestoreInMemoryState()
     {
-        var service1 = await CreateChatServiceAsync().ConfigureAwait(true);
+        var service = await CreateChatServiceAsync().ConfigureAwait(true);
         var testMessage = "Test message for persistence";
         var newSystemPrompt = "Test system prompt";
 
-        await service1.SetSystemPromptAsync(newSystemPrompt).ConfigureAwait(true);
-        await service1.SendMessageAsync(testMessage).ConfigureAwait(true);
+        await service.SetSystemPromptAsync(newSystemPrompt).ConfigureAwait(true);
+        await service.SendMessageAsync(testMessage).ConfigureAwait(true);
 
-        if (_serviceProvider != null)
-        {
-            await _serviceProvider.DisposeAsync().ConfigureAwait(true);
-            _serviceProvider = null;
-            await Task.Delay(100).ConfigureAwait(true);
-        }
-
-        var service2 = await CreateChatServiceWithoutCleanupAsync().ConfigureAwait(true);
-        var chatHistory = await service2.GetMessageListAsync().ConfigureAwait(true);
+        var chatHistory = await service.GetMessageListAsync().ConfigureAwait(true);
 
         Assert.NotNull(chatHistory);
         Assert.True(chatHistory.Count >= 2);
     }
 
     [Fact]
-    public async Task SaveState_ShouldCreateStateFile()
+    public async Task SaveState_ShouldPersistInMemory()
     {
         var service = await CreateChatServiceAsync().ConfigureAwait(true);
         var testMessage = "Test message to trigger save";
 
         await service.SendMessageAsync(testMessage).ConfigureAwait(true);
 
-        Assert.True(RealFs.FileExists(_testStateFilePath) || RealFs.FileExists(_testDbFilePath));
+        var chatHistory = await service.GetMessageListAsync().ConfigureAwait(true);
+        Assert.NotNull(chatHistory);
+        Assert.True(chatHistory.Count >= 2);
     }
 }

@@ -35,7 +35,6 @@ global using Infrastructure.Pipeline;
 global using Infrastructure.Utils.IO;
 global using IO;
 global using Memdir.Sync;
-global using Microsoft.Data.Sqlite;
 global using Microsoft.Extensions.DependencyInjection;
 global using Microsoft.Extensions.Options;
 global using State;

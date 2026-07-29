@@ -282,6 +282,23 @@ public sealed class GraphToolHandlers
         }
     }
 
+    [McpTool(CodeToolNameConstants.GraphExportWiki, "Export code architecture as Markdown wiki based on community structure", "graph")]
+    public async Task<ToolResult> ExportWikiAsync(
+        [McpToolParameter("Repository ID (default: default)")] string? repo_id = null,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var indexer = ResolveIndexer(repo_id);
+            var wiki = await indexer.Visualization.ExportWikiAsync(cancellationToken).ConfigureAwait(false);
+            return McpResultBuilder.Success().WithText(wiki).Build();
+        }
+        catch (Exception ex)
+        {
+            return McpResultBuilder.Error().WithText($"Wiki export failed: {ex.Message}").Build();
+        }
+    }
+
     [McpTool(CodeToolNameConstants.GraphQuery, "Query the code graph with natural language to find related symbols and subgraph summaries", "graph")]
     public async Task<ToolResult> QueryAsync(
         [McpToolParameter("Natural language query (e.g. 'how does auth work')")] string query,

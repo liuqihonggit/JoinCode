@@ -20,4 +20,10 @@ public interface IGraphVisualization
     /// 导出子图为 DOT 格式
     /// </summary>
     Task<string> ExportSubgraphDotAsync(string centerSymbol, int hops, CancellationToken ct);
+
+    /// <summary>
+    /// 导出代码架构为 Markdown wiki 文档
+    /// 基于社区结构生成：社区概览 + 每社区核心符号 + 社区间依赖
+    /// </summary>
+    Task<string> ExportWikiAsync(CancellationToken ct);
 }

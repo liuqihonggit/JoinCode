@@ -21,9 +21,13 @@ public sealed class GraphAnalytics : IGraphAnalytics
     public Task<IReadOnlyList<CommunityInfo>> DetectCommunitiesAsync(CancellationToken ct)
     {
         using var scope = _store.EnterReadLock();
-        var labels = LabelPropagation(_store.CallsByCaller, _store.CallsByCallee);
-        var communities = BuildCommunities(labels, _store.CallsByCaller, _store.CallsByCallee);
-        return Task.FromResult<IReadOnlyList<CommunityInfo>>(communities);
+        return Task.FromResult<IReadOnlyList<CommunityInfo>>(DetectCommunities(_store));
+    }
+
+    internal static List<CommunityInfo> DetectCommunities(InMemoryIndexStore store)
+    {
+        var labels = LabelPropagation(store.CallsByCaller, store.CallsByCallee);
+        return BuildCommunities(labels, store.CallsByCaller, store.CallsByCallee);
     }
 
     public Task<IReadOnlyList<HubNodeInfo>> GetHubNodesAsync(int topN, CancellationToken ct)
@@ -276,7 +280,7 @@ public sealed class GraphAnalytics : IGraphAnalytics
         return dag;
     }
 
-    private static Dictionary<string, int> LabelPropagation(
+    internal static Dictionary<string, int> LabelPropagation(
         Dictionary<string, List<CallEdge>> byCaller,
         Dictionary<string, List<CallEdge>> byCallee)
     {
@@ -316,7 +320,7 @@ public sealed class GraphAnalytics : IGraphAnalytics
         return labels;
     }
 
-    private static List<CommunityInfo> BuildCommunities(
+    internal static List<CommunityInfo> BuildCommunities(
         Dictionary<string, int> labels,
         Dictionary<string, List<CallEdge>> byCaller,
         Dictionary<string, List<CallEdge>> byCallee)

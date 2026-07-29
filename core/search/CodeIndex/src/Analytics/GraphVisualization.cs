@@ -59,6 +59,12 @@ public sealed class GraphVisualization : IGraphVisualization
         return Task.FromResult(BuildDot(edges, $"Subgraph_{centerSymbol}"));
     }
 
+    public Task<string> ExportWikiAsync(CancellationToken ct)
+    {
+        using var scope = _store.EnterReadLock();
+        return Task.FromResult(BuildWiki(_store));
+    }
+
     private static string BuildDot(List<CallEdge> edges, string title)
     {
         var sb = new System.Text.StringBuilder();
@@ -123,4 +129,138 @@ public sealed class GraphVisualization : IGraphVisualization
 
     private static string EscapeDot(string s) => s.Replace("\"", "\\\"");
     private static string EscapeJs(string s) => s.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("'", "\\'");
+
+    private static string BuildWiki(InMemoryIndexStore store)
+    {
+        var sb = new System.Text.StringBuilder();
+
+        var communities = GraphAnalytics.DetectCommunities(store);
+        var symbolCount = store.SymbolsByFqn.Count;
+        var edgeCount = store.CallEdges.Count;
+
+        sb.AppendLine("# Code Architecture Wiki");
+        sb.AppendLine();
+        sb.AppendLine($"- **Symbols**: {symbolCount}");
+        sb.AppendLine($"- **Call edges**: {edgeCount}");
+        sb.AppendLine($"- **Communities**: {communities.Count}");
+        sb.AppendLine();
+
+        if (communities.Count == 0)
+        {
+            sb.AppendLine("> No communities detected. Build the index first.");
+            return sb.ToString();
+        }
+
+        sb.AppendLine("---");
+        sb.AppendLine();
+        sb.AppendLine("## Community Overview");
+        sb.AppendLine();
+        sb.AppendLine("| # | Members | Internal Edges | External Edges | Cohesion |");
+        sb.AppendLine("|---|---------|---------------|---------------|----------|");
+
+        foreach (var c in communities)
+        {
+            var total = c.InternalEdges + c.ExternalEdges;
+            var cohesion = total > 0 ? (double)c.InternalEdges / total : 0;
+            sb.AppendLine($"| {c.CommunityId} | {c.MemberCount} | {c.InternalEdges} | {c.ExternalEdges} | {cohesion:P0} |");
+        }
+
+        sb.AppendLine();
+        sb.AppendLine("---");
+        sb.AppendLine();
+
+        var communityOf = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var c in communities)
+            foreach (var m in c.Members)
+                communityOf[m] = c.CommunityId;
+
+        for (var i = 0; i < communities.Count; i++)
+        {
+            var c = communities[i];
+            sb.AppendLine($"## Community {c.CommunityId} ({c.MemberCount} members)");
+            sb.AppendLine();
+
+            var typeGroups = new Dictionary<SymbolKind, List<SymbolInfo>>();
+            foreach (var fqn in c.Members)
+            {
+                if (store.SymbolsByFqn.TryGetValue(fqn, out var sym))
+                {
+                    if (!typeGroups.TryGetValue(sym.Kind, out var list))
+                    {
+                        list = [];
+                        typeGroups[sym.Kind] = list;
+                    }
+                    list.Add(sym);
+                }
+            }
+
+            if (typeGroups.Count > 0)
+            {
+                foreach (var (kind, syms) in typeGroups.OrderBy(k => k.Key.ToString()))
+                {
+                    sb.AppendLine($"### {kind}s ({syms.Count})");
+                    sb.AppendLine();
+                    foreach (var sym in syms.OrderBy(s => s.FullyQualifiedName))
+                    {
+                        var shortFile = ShortenPath(sym.FilePath);
+                        sb.AppendLine($"- `{sym.Name}` — {shortFile}:{sym.StartLine}");
+                    }
+                    sb.AppendLine();
+                }
+            }
+            else
+            {
+                sb.AppendLine("> No symbol details available for this community.");
+                sb.AppendLine();
+            }
+
+            if (c.ExternalEdges > 0)
+            {
+                var deps = new Dictionary<int, int>();
+                foreach (var m in c.Members)
+                {
+                    if (store.CallsByCaller.TryGetValue(m, out var outEdges))
+                    {
+                        foreach (var e in outEdges)
+                        {
+                            if (communityOf.TryGetValue(e.CalleeSymbol, out var targetCid) && targetCid != c.CommunityId)
+                            {
+                                deps.TryGetValue(targetCid, out var count);
+                                deps[targetCid] = count + 1;
+                            }
+                        }
+                    }
+                }
+
+                if (deps.Count > 0)
+                {
+                    sb.AppendLine("**Dependencies on other communities:**");
+                    sb.AppendLine();
+                    foreach (var (targetCid, edgeCount2) in deps.OrderByDescending(d => d.Value))
+                    {
+                        sb.AppendLine($"- Community {targetCid}: {edgeCount2} call(s)");
+                    }
+                    sb.AppendLine();
+                }
+            }
+
+            if (i < communities.Count - 1)
+            {
+                sb.AppendLine("---");
+                sb.AppendLine();
+            }
+        }
+
+        return sb.ToString();
+    }
+
+    private static string ShortenPath(string filePath)
+    {
+        var idx = filePath.LastIndexOf("src/", StringComparison.OrdinalIgnoreCase);
+        if (idx >= 0) return filePath[(idx + 4)..];
+        idx = filePath.LastIndexOf("tests/", StringComparison.OrdinalIgnoreCase);
+        if (idx >= 0) return filePath[(idx + 6)..];
+        var sep = filePath.LastIndexOfAny(['/', '\\']);
+        return sep >= 0 ? filePath[(sep + 1)..] : filePath;
+    }
 }

@@ -60,4 +60,5 @@ public enum CodeToolName
     [EnumValue("graph_register")] GraphRegister,
     [EnumValue("graph_unregister")] GraphUnregister,
     [EnumValue("graph_repos")] GraphRepos,
+    [EnumValue("graph_export_wiki")] GraphExportWiki,
 }

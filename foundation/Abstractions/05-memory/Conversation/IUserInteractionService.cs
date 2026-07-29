@@ -1,7 +1,9 @@
 namespace JoinCode.Abstractions.Interfaces;
 
 /// <summary>
-/// 用户交互服务接口
+/// 简单用户交互服务 — 用于 UI 通知、确认、简单提问
+/// 消费方: InteractiveElicitationHandler (MCP 认证交互)
+/// 关系: IInteractiveService 提供结构化多选提问（MCP 工具协议），本接口提供简单交互
 /// </summary>
 public interface IUserInteractionService
 {

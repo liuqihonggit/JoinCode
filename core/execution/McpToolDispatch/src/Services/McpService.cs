@@ -30,7 +30,7 @@ public sealed partial class McpService : IMcpService
         if (_registerAllHandlersFunc is not null)
             await _registerAllHandlersFunc(_toolRegistry, serviceProvider, cancellationToken).ConfigureAwait(false);
         else
-            await _toolRegistry.RegisterAllToolHandlersAsync(serviceProvider, cancellationToken).ConfigureAwait(false);
+            await _toolRegistry.RegisterAllToolDispatchAsync(serviceProvider, cancellationToken).ConfigureAwait(false);
 
         _isInitialized = true;
         _logger?.LogInformation(L.T(StringKey.McpServiceInitializedLog));

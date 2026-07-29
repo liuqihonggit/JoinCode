@@ -3,6 +3,7 @@ namespace JoinCode.CodeIndex;
 /// <summary>
 /// 代码索引仓库注册表实现 — 管理多个仓库的 ICodeIndexer 实例
 /// 每个仓库拥有独立的 InMemoryIndexStore + CodeIndexer
+/// 通过 RepoRegistered/RepoUnregistered 事件通知订阅方（如 FileWatcherIntegrationRegistry）
 /// </summary>
 [Register(typeof(ICodeIndexerRegistry))]
 public sealed class CodeIndexerRegistry : ICodeIndexerRegistry, IDisposable
@@ -23,10 +24,16 @@ public sealed class CodeIndexerRegistry : ICodeIndexerRegistry, IDisposable
 
     public ICodeIndexer? DefaultIndexer => _defaultIndexer;
 
+    public event EventHandler<RepoRegisteredEventArgs>? RepoRegistered;
+    public event EventHandler<RepoUnregisteredEventArgs>? RepoUnregistered;
+
     public Task<RepoRegistration> RegisterAsync(string repoId, string workspaceRoot, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(repoId);
         ArgumentNullException.ThrowIfNull(workspaceRoot);
+
+        RepoRegistration registration;
+        CodeIndexer concreteIndexer;
 
         _lock.EnterWriteLock();
         try
@@ -35,23 +42,31 @@ public sealed class CodeIndexerRegistry : ICodeIndexerRegistry, IDisposable
                 throw new InvalidOperationException($"Repository '{repoId}' is already registered.");
 
             var store = new InMemoryIndexStore();
-            var indexer = new CodeIndexer(store, _fs);
-            var registration = new RepoRegistration
+            concreteIndexer = new CodeIndexer(store, _fs);
+            registration = new RepoRegistration
             {
                 RepoId = repoId,
                 WorkspaceRoot = workspaceRoot,
                 RegisteredAt = DateTimeOffset.UtcNow,
                 IsDefault = false,
+                IsWatching = false,
             };
 
-            _repos[repoId] = new RegisteredRepo(registration, store, indexer);
-
-            return Task.FromResult(registration);
+            _repos[repoId] = new RegisteredRepo(registration, store, concreteIndexer);
         }
         finally
         {
             _lock.ExitWriteLock();
         }
+
+        RepoRegistered?.Invoke(this, new RepoRegisteredEventArgs
+        {
+            RepoId = repoId,
+            WorkspaceRoot = workspaceRoot,
+            Indexer = concreteIndexer,
+        });
+
+        return Task.FromResult(registration);
     }
 
     public Task<bool> UnregisterAsync(string repoId, CancellationToken ct)
@@ -66,13 +81,18 @@ public sealed class CodeIndexerRegistry : ICodeIndexerRegistry, IDisposable
 
             repo.Indexer.Dispose();
             repo.Store.Dispose();
-
-            return Task.FromResult(true);
         }
         finally
         {
             _lock.ExitWriteLock();
         }
+
+        RepoUnregistered?.Invoke(this, new RepoUnregisteredEventArgs
+        {
+            RepoId = repoId,
+        });
+
+        return Task.FromResult(true);
     }
 
     public Task<IReadOnlyList<RepoRegistration>> ListReposAsync(CancellationToken ct)
@@ -90,6 +110,7 @@ public sealed class CodeIndexerRegistry : ICodeIndexerRegistry, IDisposable
                     WorkspaceRoot = "",
                     RegisteredAt = DateTimeOffset.MinValue,
                     IsDefault = true,
+                    IsWatching = false,
                 });
             }
 

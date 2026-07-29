@@ -31,4 +31,32 @@ public interface ICodeIndexerRegistry
     /// 获取默认仓库的 ICodeIndexer — 不存在则返回 null
     /// </summary>
     ICodeIndexer? DefaultIndexer { get; }
+
+    /// <summary>
+    /// 仓库注册事件 — 注册成功后触发，订阅方可据此启动 watcher 等附加服务
+    /// </summary>
+    event EventHandler<RepoRegisteredEventArgs>? RepoRegistered;
+
+    /// <summary>
+    /// 仓库注销事件 — 注销成功后触发，订阅方可据此停止 watcher 等附加服务
+    /// </summary>
+    event EventHandler<RepoUnregisteredEventArgs>? RepoUnregistered;
+}
+
+/// <summary>
+/// 仓库注册事件参数
+/// </summary>
+public sealed class RepoRegisteredEventArgs : EventArgs
+{
+    public required string RepoId { get; init; }
+    public required string WorkspaceRoot { get; init; }
+    public required ICodeIndexer Indexer { get; init; }
+}
+
+/// <summary>
+/// 仓库注销事件参数
+/// </summary>
+public sealed class RepoUnregisteredEventArgs : EventArgs
+{
+    public required string RepoId { get; init; }
 }

@@ -9,4 +9,9 @@ public sealed record RepoRegistration
     public required string WorkspaceRoot { get; init; }
     public required DateTimeOffset RegisteredAt { get; init; }
     public required bool IsDefault { get; init; }
+
+    /// <summary>
+    /// 文件监听是否已启动
+    /// </summary>
+    public bool IsWatching { get; init; }
 }

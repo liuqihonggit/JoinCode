@@ -46,6 +46,7 @@ public sealed class CodeIndexerRegistryTests : IDisposable
         Assert.Equal("repo1", reg.RepoId);
         Assert.Equal("/workspace/repo1", reg.WorkspaceRoot);
         Assert.False(reg.IsDefault);
+        Assert.False(reg.IsWatching);
         Assert.True(reg.RegisteredAt <= DateTimeOffset.UtcNow);
     }
 

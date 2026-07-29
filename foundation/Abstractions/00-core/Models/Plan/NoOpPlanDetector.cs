@@ -1,5 +1,8 @@
-namespace JoinCode.Abstractions.Brain.Planning;
+namespace JoinCode.Abstractions.Models.Plan;
 
+/// <summary>
+/// 空操作计划检测器 — 检测 LLM 输出的"无需修改"类计划
+/// </summary>
 public static class NoOpPlanDetector
 {
     private static readonly string[] NoOpPhrases =

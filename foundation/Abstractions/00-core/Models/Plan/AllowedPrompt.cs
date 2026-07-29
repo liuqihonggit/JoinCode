@@ -1,4 +1,4 @@
-namespace JoinCode.Abstractions.Planning;
+namespace JoinCode.Abstractions.Models.Plan;
 
 /// <summary>
 /// 退出 PlanMode 时允许的语义级 Bash 权限

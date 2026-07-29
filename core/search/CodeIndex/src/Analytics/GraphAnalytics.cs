@@ -150,7 +150,7 @@ public sealed class GraphAnalytics : IGraphAnalytics
         using var scope = _store.EnterReadLock();
 
         var affectedSymbols = new HashSet<string>(StringComparer.Ordinal);
-        var affectedFiles = new HashSet<string>(StringComparer.Ordinal, changedFiles);
+        var affectedFiles = new HashSet<string>(changedFiles, StringComparer.Ordinal);
         var queue = new Queue<string>();
 
         foreach (var file in changedFiles)

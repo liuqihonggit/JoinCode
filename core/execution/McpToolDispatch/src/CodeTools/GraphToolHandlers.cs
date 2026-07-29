@@ -1,6 +1,6 @@
-namespace McpToolHandlers;
+namespace McpToolDispatch;
 
-[McpToolHandler(ToolCategory.Graph, Optional = true)]
+[McpToolDispatch(ToolCategory.Graph, Optional = true)]
 public sealed class GraphToolHandlers
 {
     private readonly ICodeIndexer _indexer;

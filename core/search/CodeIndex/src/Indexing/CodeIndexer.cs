@@ -34,7 +34,7 @@ public sealed partial class CodeIndexer : ICodeIndexer, IDisposable
         _projectDependencyGraph = new ProjectDependencyGraph(store);
         _projectIndex = new ProjectIndex(store, fs);
         _analytics = new GraphAnalytics(store);
-        _persistence = new GraphPersistence(store);
+        _persistence = new GraphPersistence(store, fs);
         _visualization = new GraphVisualization(store);
     }
 

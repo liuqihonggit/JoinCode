@@ -7,18 +7,21 @@ namespace JoinCode.CodeIndex.Analytics;
 public sealed class GraphPersistence : IGraphPersistence
 {
     private readonly InMemoryIndexStore _store;
+    private readonly IFileSystem _fs;
     private const int CurrentVersion = 1;
 
-    public GraphPersistence(InMemoryIndexStore store)
+    public GraphPersistence(InMemoryIndexStore store, IFileSystem fs)
     {
         ArgumentNullException.ThrowIfNull(store);
+        ArgumentNullException.ThrowIfNull(fs);
         _store = store;
+        _fs = fs;
     }
 
     public async Task SaveAsync(string directory, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(directory);
-        Directory.CreateDirectory(directory);
+        _fs.CreateDirectory(directory);
 
         using var scope = _store.EnterReadLock();
 
@@ -36,7 +39,7 @@ public sealed class GraphPersistence : IGraphPersistence
 
         var json = JsonSerializer.Serialize(data, CodeIndexJsonContext.Default.GraphPersistenceData);
         var path = Path.Combine(directory, "code-index.json");
-        await File.WriteAllTextAsync(path, json, ct).ConfigureAwait(false);
+        await _fs.WriteAllTextAsync(path, json, ct).ConfigureAwait(false);
     }
 
     public async Task<bool> LoadAsync(string directory, CancellationToken ct)
@@ -44,10 +47,10 @@ public sealed class GraphPersistence : IGraphPersistence
         ArgumentNullException.ThrowIfNull(directory);
         var path = Path.Combine(directory, "code-index.json");
 
-        if (!File.Exists(path))
+        if (!_fs.FileExists(path))
             return false;
 
-        var json = await File.ReadAllTextAsync(path, ct).ConfigureAwait(false);
+        var json = await _fs.ReadAllTextAsync(path, ct).ConfigureAwait(false);
         var data = JsonSerializer.Deserialize(json, CodeIndexJsonContext.Default.GraphPersistenceData);
 
         if (data is null || data.Version != CurrentVersion)
@@ -151,6 +154,6 @@ public sealed class GraphPersistence : IGraphPersistence
     {
         ArgumentNullException.ThrowIfNull(directory);
         var path = Path.Combine(directory, "code-index.json");
-        return Task.FromResult(File.Exists(path));
+        return Task.FromResult(_fs.FileExists(path));
     }
 }

@@ -156,20 +156,6 @@ public static partial class StringKey
     public const string VaultLogStateLoadFailed = "VaultLogStateLoadFailed";
     public const string VaultLogStateClearSuccess = "VaultLogStateClearSuccess";
     public const string VaultLogStateClearFailed = "VaultLogStateClearFailed";
-    public const string VaultLogStatePersisted = "VaultLogStatePersisted";
-    public const string VaultLogPersistFailed = "VaultLogPersistFailed";
-    public const string VaultLogNoPersistedState = "VaultLogNoPersistedState";
-    public const string VaultLogStateLoadedFromPersist = "VaultLogStateLoadedFromPersist";
-    public const string VaultLogStateLoadFromPersistFailed = "VaultLogStateLoadFromPersistFailed";
-
-    // === SqlitePersistencePlugin ===
-    public const string VaultLogSqliteInitialized = "VaultLogSqliteInitialized";
-    public const string VaultLogSqlitePersisted = "VaultLogSqlitePersisted";
-    public const string VaultLogSqlitePersistFailed = "VaultLogSqlitePersistFailed";
-    public const string VaultLogSqliteNoState = "VaultLogSqliteNoState";
-    public const string VaultLogSqliteDeserializeFailed = "VaultLogSqliteDeserializeFailed";
-    public const string VaultLogSqliteLoaded = "VaultLogSqliteLoaded";
-    public const string VaultLogSqliteLoadFailed = "VaultLogSqliteLoadFailed";
 
     // === Store ===
     public const string VaultLogStateLoadedFromPersistStore = "VaultLogStateLoadedFromPersistStore";

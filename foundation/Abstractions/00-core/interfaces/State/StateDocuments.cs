@@ -1,45 +1,6 @@
 namespace JoinCode.Abstractions.State;
 
 /// <summary>
-/// 数据库路径解析工具
-/// </summary>
-public static class DatabasePathResolver
-{
-    /// <summary>
-    /// 解析数据库路径。
-    /// 默认使用 <see cref="AppDataConstants.Paths"/>.<see cref="AppDataPaths.JccDirectory"/> 作为基础路径
-    /// （受 <c>JCC_APP_DATA_FOLDER</c> 环境变量控制），而非 <see cref="AppContext.BaseDirectory"/>。
-    /// 修复 P2-2: 避免 SQLite DB 落在 exe 同目录导致多用户/多测试共享（历史泄漏）。
-    /// </summary>
-    /// <param name="configuredPath">配置的路径（可空）。若为 .json 后缀会自动转换为 .db。</param>
-    /// <param name="defaultFileName">默认文件名，当 <paramref name="configuredPath"/> 为空时使用。</param>
-    /// <returns>解析后的数据库文件绝对路径。</returns>
-    public static string Resolve(string? configuredPath, string defaultFileName = "workflow_state.db")
-    {
-        // 优先使用 AppDataFolder（受 JCC_APP_DATA_FOLDER 控制），避免 DB 落在 exe 同目录
-        // 详见 docs/AI交互文档/MockServer测试问题清单.md P2-2
-        var basePath = AppDataConstants.Paths.JccDirectory;
-
-        if (string.IsNullOrEmpty(configuredPath))
-        {
-            return Path.Combine(basePath, defaultFileName);
-        }
-
-        if (configuredPath.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
-        {
-            configuredPath = configuredPath[..^5] + ".db";
-        }
-
-        if (Path.IsPathRooted(configuredPath))
-        {
-            return configuredPath;
-        }
-
-        return Path.Combine(basePath, configuredPath);
-    }
-}
-
-/// <summary>
 /// AppState 持久化文档类
 /// </summary>
 public sealed class AppStateDocument

@@ -291,48 +291,21 @@ public static partial class LocalizerInitializer
         zhEntries[StringKey.VaultLogWindowsNotificationException] = "发送 Windows 通知时发生异常";
 
         // === StateService ===
-        defaultEntries[StringKey.VaultLogStateServiceInitialized] = "State service initialized, database path: {0}";
+        defaultEntries[StringKey.VaultLogStateServiceInitialized] = "State service initialized (in-memory)";
         defaultEntries[StringKey.VaultLogStateSaveSuccess] = "State saved successfully";
         defaultEntries[StringKey.VaultLogStateSaveFailed] = "Failed to save state";
         defaultEntries[StringKey.VaultLogStateLoadSuccess] = "State loaded successfully";
         defaultEntries[StringKey.VaultLogStateLoadFailed] = "Failed to load state";
         defaultEntries[StringKey.VaultLogStateClearSuccess] = "State cleared successfully";
         defaultEntries[StringKey.VaultLogStateClearFailed] = "Failed to clear state";
-        defaultEntries[StringKey.VaultLogStatePersisted] = "AppState persisted";
-        defaultEntries[StringKey.VaultLogPersistFailed] = "Failed to persist AppState";
-        defaultEntries[StringKey.VaultLogNoPersistedState] = "No persisted AppState found";
-        defaultEntries[StringKey.VaultLogStateLoadedFromPersist] = "AppState loaded from persistence";
-        defaultEntries[StringKey.VaultLogStateLoadFromPersistFailed] = "Failed to load AppState from persistence";
 
-        zhEntries[StringKey.VaultLogStateServiceInitialized] = "状态服务已初始化，数据库路径: {0}";
+        zhEntries[StringKey.VaultLogStateServiceInitialized] = "状态服务已初始化（纯内存）";
         zhEntries[StringKey.VaultLogStateSaveSuccess] = "状态保存成功";
         zhEntries[StringKey.VaultLogStateSaveFailed] = "保存状态失败";
         zhEntries[StringKey.VaultLogStateLoadSuccess] = "状态加载成功";
         zhEntries[StringKey.VaultLogStateLoadFailed] = "加载状态失败";
         zhEntries[StringKey.VaultLogStateClearSuccess] = "状态清除成功";
         zhEntries[StringKey.VaultLogStateClearFailed] = "清除状态失败";
-        zhEntries[StringKey.VaultLogStatePersisted] = "AppState 已持久化";
-        zhEntries[StringKey.VaultLogPersistFailed] = "持久化 AppState 失败";
-        zhEntries[StringKey.VaultLogNoPersistedState] = "未找到持久化的 AppState";
-        zhEntries[StringKey.VaultLogStateLoadedFromPersist] = "已从持久化加载 AppState";
-        zhEntries[StringKey.VaultLogStateLoadFromPersistFailed] = "从持久化加载 AppState 失败";
-
-        // === SqlitePersistencePlugin ===
-        defaultEntries[StringKey.VaultLogSqliteInitialized] = "SQLite persistence plugin initialized, database path: {0}";
-        defaultEntries[StringKey.VaultLogSqlitePersisted] = "AppState persisted to SQLite";
-        defaultEntries[StringKey.VaultLogSqlitePersistFailed] = "Failed to persist AppState";
-        defaultEntries[StringKey.VaultLogSqliteNoState] = "No persisted AppState found";
-        defaultEntries[StringKey.VaultLogSqliteDeserializeFailed] = "Failed to deserialize AppStateDocument";
-        defaultEntries[StringKey.VaultLogSqliteLoaded] = "AppState loaded from SQLite";
-        defaultEntries[StringKey.VaultLogSqliteLoadFailed] = "Failed to load AppState from SQLite";
-
-        zhEntries[StringKey.VaultLogSqliteInitialized] = "SQLite 持久化插件已初始化，数据库路径: {0}";
-        zhEntries[StringKey.VaultLogSqlitePersisted] = "AppState 已持久化到 SQLite";
-        zhEntries[StringKey.VaultLogSqlitePersistFailed] = "持久化 AppState 失败";
-        zhEntries[StringKey.VaultLogSqliteNoState] = "未找到持久化的 AppState";
-        zhEntries[StringKey.VaultLogSqliteDeserializeFailed] = "反序列化 AppStateDocument 失败";
-        zhEntries[StringKey.VaultLogSqliteLoaded] = "已从 SQLite 加载 AppState";
-        zhEntries[StringKey.VaultLogSqliteLoadFailed] = "从 SQLite 加载 AppState 失败";
 
         // === Store ===
         defaultEntries[StringKey.VaultLogStateLoadedFromPersistStore] = "State loaded from persistence";

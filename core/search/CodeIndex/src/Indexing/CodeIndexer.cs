@@ -13,6 +13,9 @@ public sealed partial class CodeIndexer : ICodeIndexer, IDisposable
     private readonly ProjectDependencyGraph _projectDependencyGraph;
     private readonly ProjectIndex _projectIndex;
     private readonly CSharpSymbolExtractor _plugin;
+    private readonly GraphAnalytics _analytics;
+    private readonly GraphPersistence _persistence;
+    private readonly GraphVisualization _visualization;
     private int _disposed;
 
     public CodeIndexer(InMemoryIndexStore store, IFileSystem fs)
@@ -30,12 +33,18 @@ public sealed partial class CodeIndexer : ICodeIndexer, IDisposable
         _dependencyGraph = new DependencyGraph(store);
         _projectDependencyGraph = new ProjectDependencyGraph(store);
         _projectIndex = new ProjectIndex(store, fs);
+        _analytics = new GraphAnalytics(store);
+        _persistence = new GraphPersistence(store);
+        _visualization = new GraphVisualization(store);
     }
 
     public ISymbolSearcher Searcher => _searcher;
     public ICallGraph CallGraph => _callGraph;
     public IDependencyGraph DependencyGraph => _dependencyGraph;
     public IProjectDependencyGraph ProjectDependencyGraph => _projectDependencyGraph;
+    public IGraphAnalytics Analytics => _analytics;
+    public IGraphPersistence Persistence => _persistence;
+    public IGraphVisualization Visualization => _visualization;
 
     public async Task<BuildIndexResult> BuildIndexAsync(CodeIndexOptions options, CancellationToken ct, IProgress<IndexProgress>? progress = null)
     {

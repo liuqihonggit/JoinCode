@@ -10,6 +10,9 @@ public interface ICodeIndexer
     ICallGraph CallGraph { get; }
     IDependencyGraph DependencyGraph { get; }
     IProjectDependencyGraph ProjectDependencyGraph { get; }
+    IGraphAnalytics Analytics { get; }
+    IGraphPersistence Persistence { get; }
+    IGraphVisualization Visualization { get; }
 
     /// <summary>
     /// 综合检索: rg式模糊匹配符号 → 获取全部函数引用 + 调用方/被调用方,受 token 预算限制

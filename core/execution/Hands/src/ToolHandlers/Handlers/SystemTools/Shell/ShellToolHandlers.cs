@@ -63,7 +63,7 @@ public partial class ShellToolHandlers : ShellToolBase
     /// <summary>
     /// 获取后台任务状态
     /// </summary>
-    [McpTool(ShellToolNameConstants.ShellBackgroundGet, "Get background shell task status", "execution")]
+    [McpTool(ShellToolNameConstants.ShellBackgroundGet, "Get background shell task status", "execution", ConcurrencySafe = true)]
     public async Task<ToolResult> ShellBackgroundGetAsync(
         [McpToolParameter("Task ID")] string task_id,
         CancellationToken cancellationToken = default)
@@ -119,7 +119,7 @@ public partial class ShellToolHandlers : ShellToolBase
     /// <summary>
     /// 列出所有后台任务
     /// </summary>
-    [McpTool(ShellToolNameConstants.ShellBackgroundList, "List all background shell tasks", "execution")]
+    [McpTool(ShellToolNameConstants.ShellBackgroundList, "List all background shell tasks", "execution", ConcurrencySafe = true)]
     public async Task<ToolResult> ShellBackgroundListAsync(
         CancellationToken cancellationToken = default)
     {
@@ -162,7 +162,7 @@ public partial class ShellToolHandlers : ShellToolBase
     /// <summary>
     /// 获取后台任务输出
     /// </summary>
-    [McpTool(ShellToolNameConstants.ShellBackgroundOutput, "Get output of a background shell task", "execution")]
+    [McpTool(ShellToolNameConstants.ShellBackgroundOutput, "Get output of a background shell task", "execution", ConcurrencySafe = true)]
     public async Task<ToolResult> ShellBackgroundOutputAsync(
         [McpToolParameter("Task ID")] string task_id,
         CancellationToken cancellationToken = default)

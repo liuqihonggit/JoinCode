@@ -35,7 +35,7 @@ public partial class GitToolHandlers
         _currentWorkingDirectory = directory;
     }
 
-    [McpTool(GitToolNameConstants.GitStatus, "Check Git repository status", "git")]
+    [McpTool(GitToolNameConstants.GitStatus, "Check Git repository status", "git", ConcurrencySafe = true)]
     public async Task<ToolResult> GitStatusAsync(
         [McpToolParameter("Working directory path (optional, defaults to current directory)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
@@ -199,7 +199,7 @@ public partial class GitToolHandlers
             .Build();
     }
 
-    [McpTool(GitToolNameConstants.GitLog, "View commit history", "git")]
+    [McpTool(GitToolNameConstants.GitLog, "View commit history", "git", ConcurrencySafe = true)]
     public async Task<ToolResult> GitLogAsync(
         [McpToolParameter("Number of entries (optional, defaults to 10)", Required = false)] int? count = 10,
         [McpToolParameter("Working directory path (optional)", Required = false)] string? working_dir = null,
@@ -240,7 +240,7 @@ public partial class GitToolHandlers
             .Build();
     }
 
-    [McpTool(GitToolNameConstants.GitDiff, "View file differences", "git")]
+    [McpTool(GitToolNameConstants.GitDiff, "View file differences", "git", ConcurrencySafe = true)]
     public async Task<ToolResult> GitDiffAsync(
         [McpToolParameter("File path (optional, defaults to all files)", Required = false)] string? path = null,
         [McpToolParameter("Working directory path (optional)", Required = false)] string? working_dir = null,

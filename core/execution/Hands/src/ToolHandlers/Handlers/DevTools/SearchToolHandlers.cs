@@ -145,7 +145,7 @@ public class SearchToolHandlers
     /// Glob search - find files by pattern
     /// Aligned with TS GlobTool: pattern + path params, concise output, relative paths
     /// </summary>
-    [McpTool(SearchToolNameConstants.Glob, "Fast file pattern matching tool that works with any codebase size. Supports glob patterns like \"**/*.js\" or \"src/**/*.ts\". Returns matching file paths sorted by modification time. Use this tool when you need to find files by name patterns. When doing open-ended searches that may require multiple rounds of glob and grep, use the Agent tool instead.", "search")]
+    [McpTool(SearchToolNameConstants.Glob, "Fast file pattern matching tool that works with any codebase size. Supports glob patterns like \"**/*.js\" or \"src/**/*.ts\". Returns matching file paths sorted by modification time. Use this tool when you need to find files by name patterns. When doing open-ended searches that may require multiple rounds of glob and grep, use the Agent tool instead.", "search", ConcurrencySafe = true)]
     public async Task<ToolResult> GlobSearchAsync(
         [McpToolParameter("Glob pattern, e.g. **/*.cs, **/*.json")] string pattern,
         [McpToolParameter("The directory to search in. If not specified, the current working directory will be used. Do not enter \"undefined\" or \"null\", just omit it to use the default behavior", Required = false)] string? path = null,
@@ -228,7 +228,7 @@ public class SearchToolHandlers
     /// <summary>
     /// Grep search - search text in file contents
     /// </summary>
-    [McpTool(SearchToolNameConstants.Grep, "A powerful search tool built on ripgrep. Supports full regex syntax (e.g., \"log.*Error\", \"function\\s+\\w+\"). Filter files with glob parameter (e.g., \"*.js\", \"**/*.tsx\") or type parameter (e.g., \"js\", \"py\", \"rust\"). Output modes: \"content\" shows matching lines (supports -A/-B/-C context, -n line numbers, head_limit), \"files_with_matches\" shows file paths (default), \"count\" shows match counts. Use Agent tool for open-ended searches requiring multiple rounds of glob and grep.", "search")]
+    [McpTool(SearchToolNameConstants.Grep, "A powerful search tool built on ripgrep. Supports full regex syntax (e.g., \"log.*Error\", \"function\\s+\\w+\"). Filter files with glob parameter (e.g., \"*.js\", \"**/*.tsx\") or type parameter (e.g., \"js\", \"py\", \"rust\"). Output modes: \"content\" shows matching lines (supports -A/-B/-C context, -n line numbers, head_limit), \"files_with_matches\" shows file paths (default), \"count\" shows match counts. Use Agent tool for open-ended searches requiring multiple rounds of glob and grep.", "search", ConcurrencySafe = true)]
     public async Task<ToolResult> GrepSearchAsync(
         [McpToolOptions] GrepSearchOptions options,
         CancellationToken cancellationToken = default)
@@ -416,7 +416,7 @@ public class SearchToolHandlers
     /// search_code 工具 — 在代码文件中搜索指定查询
     /// 复用 Grep 搜索逻辑，默认限制为常见代码文件类型
     /// </summary>
-    [McpTool(SearchToolNameConstants.SearchCode, "Search for code patterns in source files. Supports regex queries. Defaults to common code file types (.cs, .ts, .js, .py, .go, .rs, .java). Use this when you need to find code definitions or usages.", "search")]
+    [McpTool(SearchToolNameConstants.SearchCode, "Search for code patterns in source files. Supports regex queries. Defaults to common code file types (.cs, .ts, .js, .py, .go, .rs, .java). Use this when you need to find code definitions or usages.", "search", ConcurrencySafe = true)]
     public async Task<ToolResult> SearchCodeAsync(
         [McpToolOptions] SearchCodeOptions options,
         CancellationToken cancellationToken = default)
@@ -433,7 +433,7 @@ public class SearchToolHandlers
     /// search_text 工具 — 在文件内容中搜索文本
     /// 复用 Grep 搜索逻辑，无文件类型限制
     /// </summary>
-    [McpTool(SearchToolNameConstants.SearchText, "Search for text patterns in file contents. Supports full regex syntax. Searches all file types by default.", "search")]
+    [McpTool(SearchToolNameConstants.SearchText, "Search for text patterns in file contents. Supports full regex syntax. Searches all file types by default.", "search", ConcurrencySafe = true)]
     public async Task<ToolResult> SearchTextAsync(
         [McpToolOptions] SearchTextOptions options,
         CancellationToken cancellationToken = default)
@@ -450,7 +450,7 @@ public class SearchToolHandlers
     /// search_files 工具 — 按 glob 模式查找文件
     /// 复用 Glob 搜索逻辑
     /// </summary>
-    [McpTool(SearchToolNameConstants.SearchFiles, "Find files by glob pattern. Supports patterns like **/*.cs, *.json, src/**/*.ts. Returns matching file paths sorted by modification time.", "search")]
+    [McpTool(SearchToolNameConstants.SearchFiles, "Find files by glob pattern. Supports patterns like **/*.cs, *.json, src/**/*.ts. Returns matching file paths sorted by modification time.", "search", ConcurrencySafe = true)]
     public async Task<ToolResult> SearchFilesAsync(
         [McpToolOptions] SearchFilesOptions options,
         CancellationToken cancellationToken = default)
@@ -462,7 +462,7 @@ public class SearchToolHandlers
     /// SearchCodebase 工具 — 在代码库中搜索指定查询
     /// 复用 Grep 搜索逻辑，等同于全库 Grep
     /// </summary>
-    [McpTool(SearchToolNameConstants.SearchCodebase, "Search the entire codebase for a query. Supports regex patterns. Use this for broad code searches across the whole project.", "search")]
+    [McpTool(SearchToolNameConstants.SearchCodebase, "Search the entire codebase for a query. Supports regex patterns. Use this for broad code searches across the whole project.", "search", ConcurrencySafe = true)]
     public async Task<ToolResult> SearchCodebaseAsync(
         [McpToolOptions] SearchCodebaseOptions options,
         CancellationToken cancellationToken = default)
@@ -479,7 +479,7 @@ public class SearchToolHandlers
     /// code_search 工具 — 在代码中搜索指定查询
     /// 复用 Grep 搜索逻辑，与 search_code 等价
     /// </summary>
-    [McpTool(SearchToolNameConstants.CodeSearch, "Search code for a query. Supports regex patterns. Equivalent to search_code, provided for naming convention compatibility.", "search")]
+    [McpTool(SearchToolNameConstants.CodeSearch, "Search code for a query. Supports regex patterns. Equivalent to search_code, provided for naming convention compatibility.", "search", ConcurrencySafe = true)]
     public async Task<ToolResult> CodeSearchAsync(
         [McpToolOptions] CodeSearchOptions options,
         CancellationToken cancellationToken = default)
@@ -496,7 +496,7 @@ public class SearchToolHandlers
     /// symbol_search 工具 — 搜索符号定义（class/interface/struct/enum/method 等）
     /// 将 symbol 转换为符号定义正则模式后复用 Grep 搜索
     /// </summary>
-    [McpTool(SearchToolNameConstants.SymbolSearch, "Search for symbol definitions (class, interface, struct, enum, method, property) by name. Returns files and lines where the symbol is defined.", "search")]
+    [McpTool(SearchToolNameConstants.SymbolSearch, "Search for symbol definitions (class, interface, struct, enum, method, property) by name. Returns files and lines where the symbol is defined.", "search", ConcurrencySafe = true)]
     public async Task<ToolResult> SymbolSearchAsync(
         [McpToolOptions] SymbolSearchOptions options,
         CancellationToken cancellationToken = default)

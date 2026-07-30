@@ -87,6 +87,13 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
                                 var toolDescription = toolAttribute.ConstructorArguments.ElementAtOrDefault(1).Value as string ?? method.Name;
                                 var toolCategory = toolAttribute.ConstructorArguments.ElementAtOrDefault(2).Value as string ?? "other";
 
+                                var concurrencySafe = false;
+                                foreach (var named in toolAttribute.NamedArguments)
+                                {
+                                    if (named.Key == "ConcurrencySafe" && named.Value.Value is bool cs)
+                                        concurrencySafe = cs;
+                                }
+
                                 var parameters = new List<ParamInfo>();
                                 var optionsTypeNames = new Dictionary<string, string>();
                                 var hasProgressCallback = false;
@@ -193,7 +200,7 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
                                 }
 
                                 var returnTypeName = method.ReturnType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-                                tools.Add(new ToolMethodInfo(toolName, toolDescription, toolCategory, method.Name, parameters, returnTypeName, optionsTypeNames, hasProgressCallback));
+                                tools.Add(new ToolMethodInfo(toolName, toolDescription, toolCategory, method.Name, parameters, returnTypeName, optionsTypeNames, hasProgressCallback, concurrencySafe));
                             }
                         }
                     }
@@ -437,6 +444,8 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         GeneratePerHandlerRegisterMethods(sb, validHandlers);
         sb.AppendLine();
         GenerateToolCategoriesMethod(sb, validHandlers);
+        sb.AppendLine();
+        GenerateConcurrencyCacheMethod(sb, validHandlers);
 
         sb.AppendLine("}");
 
@@ -680,6 +689,36 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         sb.AppendLine("    }");
     }
 
+    private static void GenerateConcurrencyCacheMethod(StringBuilder sb, List<HandlerInfo> handlers)
+    {
+        var safeTools = handlers
+            .SelectMany(h => h.Tools)
+            .Where(t => t.ConcurrencySafe)
+            .Select(t => t.Name)
+            .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        sb.AppendLine("    /// <summary>");
+        sb.AppendLine("    /// 并发安全工具名称集合 — 由源码生成器从 [McpTool(ConcurrencySafe = true)] 自动生成");
+        sb.AppendLine("    /// 对齐 TS StreamingToolExecutor.isConcurrencySafe: 不在此集合中的工具默认非并发安全");
+        sb.AppendLine("    /// </summary>");
+        sb.AppendLine($"    public static System.Collections.Frozen.FrozenSet<string> SafeToolNames {{ get; }} = System.Collections.Frozen.FrozenSet.Create(");
+        if (safeTools.Count > 0)
+        {
+            sb.AppendLine("        [");
+            foreach (var name in safeTools)
+            {
+                sb.AppendLine($"            \"{EscapeString(name)}\",");
+            }
+            sb.AppendLine("        ], System.StringComparer.OrdinalIgnoreCase);");
+        }
+        else
+        {
+            sb.AppendLine("        [], System.StringComparer.OrdinalIgnoreCase);");
+        }
+        sb.AppendLine("}");
+    }
+
     private sealed class HandlerInfo
     {
         public string FullyQualifiedName { get; }
@@ -714,8 +753,12 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         /// 方法签名是否包含 ToolProgressCallback? 参数 — 对齐 TS onProgress
         /// </summary>
         public bool HasProgressCallback { get; }
+        /// <summary>
+        /// 工具是否并发安全 — 对齐 TS isConcurrencySafe()
+        /// </summary>
+        public bool ConcurrencySafe { get; }
 
-        public ToolMethodInfo(string name, string description, string category, string methodName, List<ParamInfo> parameters, string returnTypeName, Dictionary<string, string> optionsTypeNames, bool hasProgressCallback)
+        public ToolMethodInfo(string name, string description, string category, string methodName, List<ParamInfo> parameters, string returnTypeName, Dictionary<string, string> optionsTypeNames, bool hasProgressCallback, bool concurrencySafe)
         {
             Name = name;
             Description = description;
@@ -725,6 +768,7 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
             ReturnTypeName = returnTypeName;
             OptionsTypeNames = optionsTypeNames;
             HasProgressCallback = hasProgressCallback;
+            ConcurrencySafe = concurrencySafe;
         }
     }
 

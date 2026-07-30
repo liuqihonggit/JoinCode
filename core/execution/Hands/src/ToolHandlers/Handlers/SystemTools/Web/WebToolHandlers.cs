@@ -23,7 +23,7 @@ public class WebToolHandlers
         _providerConfig = providerConfig;
     }
 
-    [McpTool(WebToolNameConstants.WebFetch, "Fetch web content from a URL and process with AI model", "web")]
+    [McpTool(WebToolNameConstants.WebFetch, "Fetch web content from a URL and process with AI model", "web", ConcurrencySafe = true)]
     public async Task<ToolResult> WebFetchAsync(
         [McpToolParameter("URL to fetch")] string url,
         [McpToolParameter("Prompt describing what information to extract from the page")] string prompt,
@@ -95,7 +95,7 @@ public class WebToolHandlers
         return ResultBuilder.Success().WithText(finalResult).Build();
     }
 
-    [McpTool(WebToolNameConstants.WebToMarkdown, "Fetch a URL and convert its HTML content to Markdown format", "web")]
+    [McpTool(WebToolNameConstants.WebToMarkdown, "Fetch a URL and convert its HTML content to Markdown format", "web", ConcurrencySafe = true)]
     public async Task<ToolResult> WebToMarkdownAsync(
         [McpToolParameter("URL to fetch and convert to Markdown")] string url,
         [McpToolParameter("Maximum length of the output in characters, default 100000", Required = false, DefaultValue = "100000")] int? max_length = null,
@@ -136,7 +136,7 @@ public class WebToolHandlers
         return ResultBuilder.Success().WithText(markdownContent).Build();
     }
 
-    [McpTool(WebToolNameConstants.WebSearch, "Search the web for up-to-date information (requires Anthropic provider)", "web")]
+    [McpTool(WebToolNameConstants.WebSearch, "Search the web for up-to-date information (requires Anthropic provider)", "web", ConcurrencySafe = true)]
     public async Task<ToolResult> WebSearchAsync(
         [McpToolParameter("Search query")] string query,
         [McpToolParameter("Only include results from these domains", Required = false)] string[]? allowed_domains = null,

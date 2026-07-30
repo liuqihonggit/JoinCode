@@ -18,6 +18,7 @@ global using JoinCode.Abstractions.Exceptions;
 global using JoinCode.Abstractions.Interfaces;
 global using JoinCode.Abstractions.Interfaces.Context;
 global using JoinCode.Abstractions.Security;
+global using JoinCode.Abstractions.Security.Shell;
 global using JoinCode.Abstractions.Security.Permission;
 global using JoinCode.Abstractions.Security.Scanning;
 global using JoinCode.Abstractions.LLM;

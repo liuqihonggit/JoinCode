@@ -20,7 +20,7 @@ public partial class BuildOutputToolHandlers
     /// <summary>
     /// 获取编译输出的指定行范围 — 渐进式阅读编译结果
     /// </summary>
-    [McpTool("build_output", "Get build output lines by range for incremental reading", "execution")]
+    [McpTool("build_output", "Get build output lines by range for incremental reading", "execution", ConcurrencySafe = true)]
     public Task<ToolResult> BuildOutputAsync(
         [McpToolParameter("Build ID (e.g. b-0001)")] string build_id,
         [McpToolParameter("Start line number (1-based)")] int start_line,
@@ -74,7 +74,7 @@ public partial class BuildOutputToolHandlers
     /// <summary>
     /// 查询编译队列状态
     /// </summary>
-    [McpTool("build_queue_status", "Get build queue status (pending count, current build, recent builds)", "execution")]
+    [McpTool("build_queue_status", "Get build queue status (pending count, current build, recent builds)", "execution", ConcurrencySafe = true)]
     public Task<ToolResult> BuildQueueStatusAsync(
         CancellationToken cancellationToken = default)
     {
@@ -124,7 +124,7 @@ public partial class BuildOutputToolHandlers
     /// <summary>
     /// 取消编译
     /// </summary>
-    [McpTool("build_cancel", "Cancel a build (kill process if building, remove from queue if pending)", "execution")]
+    [McpTool("build_cancel", "Cancel a build (kill process if building, remove from queue if pending)", "execution", ConcurrencySafe = true)]
     public async Task<ToolResult> BuildCancelAsync(
         [McpToolParameter("Build ID (e.g. b-0001)")] string build_id,
         CancellationToken cancellationToken = default)

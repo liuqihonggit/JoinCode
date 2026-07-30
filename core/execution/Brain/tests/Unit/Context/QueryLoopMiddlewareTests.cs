@@ -163,9 +163,9 @@ public sealed class QueryLoopMiddlewareTests
         var llmHandler = new Mock<ILLMInvocationHandler>();
         llmHandler.Setup(h => h.InvokeLLMAsync(
             It.IsAny<MessageList>(), It.IsAny<ChatOptions?>(), It.IsAny<ChatMiddlewareContext>(),
-            It.IsAny<int>(), It.IsAny<IterationState>(), It.IsAny<CancellationToken>()))
-        .Callback<MessageList, ChatOptions?, ChatMiddlewareContext, int, IterationState, CancellationToken>(
-            (_, _, _, _, state, _) =>
+            It.IsAny<int>(), It.IsAny<IterationState>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+        .Callback<MessageList, ChatOptions?, ChatMiddlewareContext, int, IterationState, bool, CancellationToken>(
+            (_, _, _, _, state, _, _) =>
             {
                 llmCallCount++;
                 if (llmCallCount <= 1)

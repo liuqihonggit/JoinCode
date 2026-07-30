@@ -13,5 +13,8 @@ public interface IChatStreamChunkProcessor
     /// <summary>
     /// 处理流式块
     /// </summary>
-    StreamChunkResult ProcessChunk(StreamEvent chunk, IterationState state);
+    /// <param name="chunk">流式事件</param>
+    /// <param name="state">迭代状态</param>
+    /// <param name="streamingToolExecution">是否启用流式工具执行模式</param>
+    StreamChunkResult ProcessChunk(StreamEvent chunk, IterationState state, bool streamingToolExecution = false);
 }

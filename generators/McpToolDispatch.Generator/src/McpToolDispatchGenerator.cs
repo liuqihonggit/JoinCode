@@ -702,21 +702,21 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         sb.AppendLine("    /// 并发安全工具名称集合 — 由源码生成器从 [McpTool(ConcurrencySafe = true)] 自动生成");
         sb.AppendLine("    /// 对齐 TS StreamingToolExecutor.isConcurrencySafe: 不在此集合中的工具默认非并发安全");
         sb.AppendLine("    /// </summary>");
-        sb.AppendLine($"    public static System.Collections.Frozen.FrozenSet<string> SafeToolNames {{ get; }} = System.Collections.Frozen.FrozenSet.Create(");
         if (safeTools.Count > 0)
         {
+            sb.AppendLine($"    public static System.Collections.Frozen.FrozenSet<string> SafeToolNames {{ get; }} = System.Collections.Frozen.FrozenSet.Create<string>(");
+            sb.AppendLine("        System.StringComparer.OrdinalIgnoreCase,");
             sb.AppendLine("        [");
             foreach (var name in safeTools)
             {
                 sb.AppendLine($"            \"{EscapeString(name)}\",");
             }
-            sb.AppendLine("        ], System.StringComparer.OrdinalIgnoreCase);");
+            sb.AppendLine("        ]);");
         }
         else
         {
-            sb.AppendLine("        [], System.StringComparer.OrdinalIgnoreCase);");
+            sb.AppendLine($"    public static System.Collections.Frozen.FrozenSet<string> SafeToolNames {{ get; }} = System.Collections.Frozen.FrozenSet<string>.Empty;");
         }
-        sb.AppendLine("}");
     }
 
     private sealed class HandlerInfo

@@ -13,6 +13,7 @@ public interface ILLMInvocationHandler
     /// <param name="context">聊天中间件上下文</param>
     /// <param name="iterationIndex">当前迭代索引</param>
     /// <param name="iterState">由调用方创建的迭代状态对象，本方法在流式处理过程中填充</param>
+    /// <param name="streamingToolExecution">是否启用流式工具执行模式</param>
     /// <param name="ct">取消令牌</param>
     IAsyncEnumerable<ChatStreamEvent> InvokeLLMAsync(
         MessageList historySnapshot,
@@ -20,7 +21,8 @@ public interface ILLMInvocationHandler
         ChatMiddlewareContext context,
         int iterationIndex,
         IterationState iterState,
-        CancellationToken ct);
+        bool streamingToolExecution = false,
+        CancellationToken ct = default);
 }
 
 /// <summary>
@@ -56,7 +58,8 @@ public sealed partial class LLMInvocationHandler : ILLMInvocationHandler
         ChatMiddlewareContext context,
         int iterationIndex,
         IterationState iterState,
-        [EnumeratorCancellation] CancellationToken ct)
+        bool streamingToolExecution = false,
+        [EnumeratorCancellation] CancellationToken ct = default)
     {
         var chatCompletionService = _kernel.GetChatCompletionService();
 
@@ -76,7 +79,7 @@ public sealed partial class LLMInvocationHandler : ILLMInvocationHandler
                 context.Timing.FirstTokenLatencyMs = context.Timing.LlmTotalMs;
             }
 
-            var result = _chunkProcessor.ProcessChunk(chunk, iterState);
+            var result = _chunkProcessor.ProcessChunk(chunk, iterState, streamingToolExecution);
 
             foreach (var evt in result.Events)
             {
@@ -85,6 +88,7 @@ public sealed partial class LLMInvocationHandler : ILLMInvocationHandler
 
             if (result.Action == ChunkAction.Break) break;
             if (result.Action == ChunkAction.Continue) continue;
+            // ChunkAction.ToolUseDetected: 继续流式，由 StreamingToolExecutor 在流式期间执行工具
         }
 
         context.Timing.StopLlmCall();

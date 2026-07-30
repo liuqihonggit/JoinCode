@@ -158,6 +158,17 @@ public abstract class CoverageTestBase : IAsyncLifetime
         {
             Output.WriteLine($"FAIL: {assert.Type} Expected=\"{assert.Expected}\" Desc=\"{assert.Description}\"");
         }
+
+        if (!string.IsNullOrWhiteSpace(result.StderrOutput))
+        {
+            var stderrLines = result.StderrOutput.Split('\n').Where(l => l.Contains("DIAG") || l.Contains("StreamingFallback") || l.Contains("Enabled")).Take(20).ToList();
+            if (stderrLines.Count > 0)
+            {
+                Output.WriteLine($"[Coverage] DIAG stderr:");
+                foreach (var line in stderrLines)
+                    Output.WriteLine($"  {line.TrimEnd('\r')}");
+            }
+        }
     }
 
     private static string FormatFailures(ConversationResult result)

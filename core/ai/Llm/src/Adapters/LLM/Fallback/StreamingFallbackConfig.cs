@@ -63,6 +63,8 @@ public sealed class StreamingFallbackConfig
         if (disableFallback is "1" or "true" or "yes")
             config.Enabled = false;
 
+        System.Diagnostics.Debug.WriteLine($"[DIAG-FromEnv] JCC_DISABLE_STREAMING_FALLBACK={disableFallback ?? "(null)"}, Enabled={config.Enabled}");
+
         var idleTimeout = Environment.GetEnvironmentVariable("JCC_STREAM_IDLE_TIMEOUT_MS");
         if (int.TryParse(idleTimeout, out var timeoutMs) && timeoutMs > 0)
             config.StreamIdleTimeoutMs = timeoutMs;

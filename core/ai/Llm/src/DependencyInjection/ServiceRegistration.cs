@@ -93,9 +93,11 @@ public static partial class ServiceRegistration
     /// </summary>
     private static IQueryService WrapWithFallback(IQueryService inner, IServiceProvider sp)
     {
-        var config = sp.GetService<IOptions<StreamingFallbackConfig>>()?.Value
-            ?? StreamingFallbackConfig.FromEnvironment();
+        var config = StreamingFallbackConfig.FromEnvironment();
         var logger = sp.GetService<ILogger<StreamingFallbackDecorator>>();
+
+        var envVal = Environment.GetEnvironmentVariable("JCC_DISABLE_STREAMING_FALLBACK");
+        logger?.LogWarning("[DIAG-WF] StreamingFallback: Enabled={Enabled}, JCC_DISABLE_STREAMING_FALLBACK={EnvVal}", config.Enabled, envVal ?? "(null)");
 
         var withFallback = new StreamingFallbackDecorator(inner, config, logger);
         var withBufferedStreaming = new BufferedStreamingDecorator(withFallback, logger);

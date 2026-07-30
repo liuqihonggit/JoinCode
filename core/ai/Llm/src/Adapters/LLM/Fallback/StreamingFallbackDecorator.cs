@@ -66,6 +66,7 @@ public sealed class StreamingFallbackDecorator : IQueryService
 
         if (!_config.Enabled)
         {
+            _logger?.LogWarning("[DIAG-BYPASS] StreamingFallback bypassed, Enabled=false");
             await foreach (var evt in _inner.GetStreamEventContentsAsync(chatHistory, executionSettings, kernel, cancellationToken).ConfigureAwait(false))
             {
                 yield return evt;

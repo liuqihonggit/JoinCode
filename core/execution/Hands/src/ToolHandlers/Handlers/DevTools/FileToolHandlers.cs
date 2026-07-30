@@ -70,7 +70,7 @@ public class FileToolHandlers : IDisposable
         _applyPatchLogic = context?.ApplyPatchLogic;
     }
 
-    [McpTool(FileToolNameConstants.FileRead, "Read a file from the local filesystem", "file")]
+    [McpTool(FileToolNameConstants.FileRead, "Read a file from the local filesystem", "file", ConcurrencySafe = true)]
     public async Task<ToolResult> FileReadAsync(
         [McpToolParameter("The absolute path to the file to read")] string file_path,
         [McpToolParameter("The line number to start reading from (1-based). Only use for large files.", Required = false)] int? offset = null,
@@ -536,7 +536,7 @@ public class FileToolHandlers : IDisposable
         return ResultBuilder.Success().WithText($"File deleted: {file_path}").Build();
     }
 
-    [McpTool(FileToolNameConstants.DirectoryList, "List directory contents including files and subdirectories", "file")]
+    [McpTool(FileToolNameConstants.DirectoryList, "List directory contents including files and subdirectories", "file", ConcurrencySafe = true)]
     public async Task<ToolResult> DirectoryListAsync(
         [McpToolParameter("Directory path, relative or absolute")] string directory_path,
         [McpToolParameter("Recursively list subdirectory contents, default false", Required = false, DefaultValue = "false")] bool recursive = false,
@@ -757,7 +757,7 @@ public class FileToolHandlers : IDisposable
         return ResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
-    [McpTool(FileToolNameConstants.FileSnipLines, "Read a range of lines from the file (snip read)", "file")]
+    [McpTool(FileToolNameConstants.FileSnipLines, "Read a range of lines from the file (snip read)", "file", ConcurrencySafe = true)]
     public async Task<ToolResult> FileSnipLinesAsync(
         [McpToolParameter("File path, relative or absolute")] string file_path,
         [McpToolParameter("Start line number (0-based)", Required = false, DefaultValue = "0")] int start_line = 0,
@@ -800,7 +800,7 @@ public class FileToolHandlers : IDisposable
         return ResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
-    [McpTool(FileToolNameConstants.FileSnipPreview, "Get file preview info (size, line count, first N lines)", "file")]
+    [McpTool(FileToolNameConstants.FileSnipPreview, "Get file preview info (size, line count, first N lines)", "file", ConcurrencySafe = true)]
     public async Task<ToolResult> FileSnipPreviewAsync(
         [McpToolParameter("File path, relative or absolute")] string file_path,
         [McpToolParameter("Max preview lines", Required = false, DefaultValue = "20")] int max_preview_lines = 20,

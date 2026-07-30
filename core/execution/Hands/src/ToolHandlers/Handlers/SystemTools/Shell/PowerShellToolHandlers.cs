@@ -201,7 +201,7 @@ public class PowerShellToolHandlers : ShellToolBase
     /// <summary>
     /// 获取PowerShell版本信息
     /// </summary>
-    [McpTool(ShellToolNameConstants.PowershellVersion, "Get PowerShell version and runtime information", "execution")]
+    [McpTool(ShellToolNameConstants.PowershellVersion, "Get PowerShell version and runtime information", "execution", ConcurrencySafe = true)]
     public async Task<ToolResult> PowerShellVersionAsync(
         CancellationToken cancellationToken = default)
     {
@@ -260,7 +260,7 @@ public class PowerShellToolHandlers : ShellToolBase
     /// <summary>
     /// 获取PowerShell执行策略
     /// </summary>
-    [McpTool(ShellToolNameConstants.PowershellExecutionPolicy, "Get current PowerShell execution policy", "execution")]
+    [McpTool(ShellToolNameConstants.PowershellExecutionPolicy, "Get current PowerShell execution policy", "execution", ConcurrencySafe = true)]
     public async Task<ToolResult> PowerShellExecutionPolicyAsync(
         [McpToolParameter("Scope (e.g. Process, CurrentUser, LocalMachine)", Required = false)] string? scope = null,
         CancellationToken cancellationToken = default)

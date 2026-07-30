@@ -7,14 +7,12 @@ public static partial class ServiceRegistration
     {
         services.AddSingleton(config);
         services.AddSingleton(Options.Create(config));
-        // ProviderConfig — 从 WorkflowConfig.Provider 提取，供 QueryService DI 构造函数自动解析
         services.AddSingleton(config.Provider);
 
-        // 注册 QueryEngineConfig 为 IOptions — 供 ContentReplacementService 等自动解析
         services.AddSingleton(Options.Create(new Configuration.QueryEngineConfig()));
 
-        // 源码生成器按程序集生成独立方法名，避免库与 Exe 之间的 CS0121 歧义
-        // Composition 程序集名 "JoinCode.Composition" → 清理为 "JoinCodeComposition"
+        services.AddSingleton(McpToolDispatch.GeneratedToolHandlerRegistration_JoinCode_Composition.SafeToolNames);
+
         services.AddJoinCodeCompositionAutoRegisteredServices();
         services.AddJoinCodeCompositionAutoRegisteredOptions();
 

@@ -10,7 +10,9 @@ public enum ChunkAction
     /// <summary>发射事件并继续</summary>
     Yield,
     /// <summary>发射事件并跳出循环（工具调用或循环输出检测）</summary>
-    Break
+    Break,
+    /// <summary>检测到工具调用但继续流式（用于 StreamingToolExecutor 模式）</summary>
+    ToolUseDetected
 }
 
 /// <summary>
@@ -89,7 +91,10 @@ public sealed partial class ChatStreamChunkProcessor : IChatStreamChunkProcessor
     /// <summary>
     /// 处理单个流式块
     /// </summary>
-    public StreamChunkResult ProcessChunk(StreamEvent chunk, IterationState state)
+    /// <param name="chunk">流式事件</param>
+    /// <param name="state">迭代状态</param>
+    /// <param name="streamingToolExecution">是否启用流式工具执行模式 — true 时检测到工具调用不 Break，继续流式</param>
+    public StreamChunkResult ProcessChunk(StreamEvent chunk, IterationState state, bool streamingToolExecution = false)
     {
         // 1. 工具调用检测
         if (chunk.Metadata?.TryGetValue("ToolCall", out var tcEl) == true && tcEl.ValueKind == JsonValueKind.String)
@@ -123,7 +128,7 @@ public sealed partial class ChatStreamChunkProcessor : IChatStreamChunkProcessor
                 });
             }
 
-            return new StreamChunkResult { Action = ChunkAction.Break, Events = [] };
+            return new StreamChunkResult { Action = streamingToolExecution ? ChunkAction.ToolUseDetected : ChunkAction.Break, Events = [] };
         }
 
         // 2. server_tool_use 进度事件

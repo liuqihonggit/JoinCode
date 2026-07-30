@@ -1,0 +1,39 @@
+{
+  "port": 18085,
+  "default_response": "Streaming concurrent tool execution test script exhausted.",
+  "scripted_turns": [
+    {
+      "text_response": "I will test concurrent tool execution. Reading a file and searching at the same time.",
+      "tool_calls": [
+        {
+          "tool_name": "Read",
+          "arguments": "{\"file_path\":\"D:\\\\JoinCode\\\\README.md\",\"limit\":5}",
+          "tool_call_id": "read_concurrent_001"
+        },
+        {
+          "tool_name": "Grep",
+          "arguments": "{\"pattern\":\"JoinCode\",\"path\":\"D:\\\\JoinCode\\\\README.md\",\"output_mode\":\"content\"}",
+          "tool_call_id": "grep_concurrent_002"
+        }
+      ]
+    },
+    {
+      "text_response": "Concurrent Read and Grep completed successfully. Now testing sequential non-safe tools: two Write operations should run one at a time.",
+      "tool_calls": [
+        {
+          "tool_name": "Write",
+          "arguments": "{\"file_path\":\"D:\\\\JoinCode\\\\.x\\\\e2e_streaming_1.txt\",\"content\":\"streaming test 1\"}",
+          "tool_call_id": "write_seq_001"
+        },
+        {
+          "tool_name": "Write",
+          "arguments": "{\"file_path\":\"D:\\\\JoinCode\\\\.x\\\\e2e_streaming_2.txt\",\"content\":\"streaming test 2\"}",
+          "tool_call_id": "write_seq_002"
+        }
+      ]
+    },
+    {
+      "text_response": "Sequential Write operations completed. Streaming concurrent tool execution E2E test passed."
+    }
+  ]
+}

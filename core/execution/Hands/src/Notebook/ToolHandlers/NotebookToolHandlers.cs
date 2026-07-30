@@ -228,7 +228,7 @@ public class NotebookToolHandlers
     /// <summary>
     /// 加载并查看Notebook
     /// </summary>
-    [McpTool(NotebookToolNameConstants.NotebookRead, "Read a Jupyter Notebook file", "notebook")]
+    [McpTool(NotebookToolNameConstants.NotebookRead, "Read a Jupyter Notebook file", "notebook", ConcurrencySafe = true)]
     public async Task<ToolResult> NotebookReadAsync(
         [McpToolParameter("File path")] string file_path,
         [McpToolParameter("Whether to show cell contents", Required = false, DefaultValue = "false")] bool? show_content = null,
@@ -594,7 +594,7 @@ public class NotebookToolHandlers
     /// <summary>
     /// 获取单元格内容
     /// </summary>
-    [McpTool(NotebookToolNameConstants.NotebookGetCell, "Get the content of a specific notebook cell", "notebook")]
+    [McpTool(NotebookToolNameConstants.NotebookGetCell, "Get the content of a specific notebook cell", "notebook", ConcurrencySafe = true)]
     public async Task<ToolResult> NotebookGetCellAsync(
         [McpToolParameter("File path")] string file_path,
         [McpToolParameter("Cell index")] int index,

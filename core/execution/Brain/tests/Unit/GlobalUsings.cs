@@ -1,4 +1,5 @@
 global using System.Runtime.CompilerServices;
+global using System.Collections.Frozen;
 global using Infrastructure.Localization;
 global using Infrastructure.Pipeline;
 global using Xunit;

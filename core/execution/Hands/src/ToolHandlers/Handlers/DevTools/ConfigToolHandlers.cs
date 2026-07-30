@@ -22,7 +22,7 @@ public sealed partial class ConfigToolHandlers
     /// 获取配置设置值。
     /// 对齐 TS: ConfigTool.call — value === undefined → GET
     /// </summary>
-    [McpTool(InteractionToolNameConstants.ConfigGet, "Get a configuration setting value", "config")]
+    [McpTool(InteractionToolNameConstants.ConfigGet, "Get a configuration setting value", "config", ConcurrencySafe = true)]
     public async Task<ToolResult> ConfigGetAsync(
         [McpToolParameter("The setting key (e.g., \"theme\", \"model\", \"permissions.defaultMode\")")] string setting,
         CancellationToken cancellationToken = default)
@@ -134,7 +134,7 @@ public sealed partial class ConfigToolHandlers
     /// 列出所有可配置设置。
     /// 对齐 TS: prompt.ts — 动态生成设置列表
     /// </summary>
-    [McpTool(InteractionToolNameConstants.ConfigList, "List all configurable settings", "config")]
+    [McpTool(InteractionToolNameConstants.ConfigList, "List all configurable settings", "config", ConcurrencySafe = true)]
     public Task<ToolResult> ConfigListAsync(CancellationToken cancellationToken = default)
     {
         var sb = new StringBuilder();

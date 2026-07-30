@@ -116,7 +116,7 @@ public sealed partial class DockerSandboxProvider : SandboxProviderBase
         await base.OnDestroyAsync(info, ct).ConfigureAwait(false);
     }
 
-    public async Task<SandboxExecutionResult> ExecuteInContainerAsync(
+    public async Task<ProviderExecutionResult> ExecuteInContainerAsync(
         string sandboxId,
         string command,
         int timeoutMs = 30000,
@@ -134,7 +134,7 @@ public sealed partial class DockerSandboxProvider : SandboxProviderBase
             TimeoutMs = timeoutMs
         }, ct).ConfigureAwait(false);
 
-        return new SandboxExecutionResult
+        return new ProviderExecutionResult
         {
             StandardOutput = result.StandardOutput,
             StandardError = result.StandardError,

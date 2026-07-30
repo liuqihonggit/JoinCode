@@ -258,6 +258,6 @@ public sealed class SandboxManagerTests
             new ProcessSandboxProvider(_fs, Mock.Of<IProcessService>(), NullLogger<ProcessSandboxProvider>.Instance)
         };
 
-        return new SandboxManager(providers, NullLogger<SandboxManager>.Instance);
+        return new SandboxManager(providers, _fs, NullLogger<SandboxManager>.Instance);
     }
 }

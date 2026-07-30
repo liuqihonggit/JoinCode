@@ -65,7 +65,7 @@ public sealed partial class ProcessSandboxProvider : SandboxProviderBase
         await base.OnDestroyAsync(info, ct).ConfigureAwait(false);
     }
 
-    public async Task<SandboxExecutionResult> ExecuteInSandboxAsync(
+    public async Task<ProviderExecutionResult> ExecuteInSandboxAsync(
         string sandboxId,
         string command,
         string? workingDirectory = null,
@@ -102,7 +102,7 @@ public sealed partial class ProcessSandboxProvider : SandboxProviderBase
             EnvironmentVariables = env
         }, ct).ConfigureAwait(false);
 
-        return new SandboxExecutionResult
+        return new ProviderExecutionResult
         {
             StandardOutput = result.StandardOutput,
             StandardError = result.StandardError,
@@ -138,7 +138,7 @@ public sealed partial class ProcessSandboxProvider : SandboxProviderBase
     }
 }
 
-public sealed partial class SandboxExecutionResult
+public sealed partial class ProviderExecutionResult
 {
     public required string StandardOutput { get; init; }
     public required string StandardError { get; init; }

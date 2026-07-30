@@ -2,6 +2,7 @@ namespace Core.Security.Sandbox;
 
 using JoinCode.Abstractions.Security.Sandbox;
 using Providers;
+using AbstractionsSandboxExecutionResult = JoinCode.Abstractions.Security.Sandbox.SandboxExecutionResult;
 
 [Register]
 public sealed partial class SandboxManager : ISandboxManager, IDisposable
@@ -9,13 +10,18 @@ public sealed partial class SandboxManager : ISandboxManager, IDisposable
     private readonly FrozenDictionary<SandboxType, ISandboxProvider> _providers;
     private readonly AsyncLock _lock = new();
     [Inject] private readonly ILogger<SandboxManager>? _logger;
+    [Inject] private readonly IFileSystem _fs;
     private volatile ISandboxProvider? _activeProvider;
     private volatile string? _activeSandboxId;
+    private volatile SandboxHealthState _healthState = SandboxHealthState.Healthy;
+    private readonly ConcurrentDictionary<string, SandboxActiveExecution> _activeExecutions = new();
 
     public SandboxManager(
         IEnumerable<ISandboxProvider> providers,
+        IFileSystem fs,
         ILogger<SandboxManager>? logger = null)
     {
+        _fs = fs;
         _logger = logger;
         _providers = providers
             .Where(p => p.IsAvailable)
@@ -34,6 +40,8 @@ public sealed partial class SandboxManager : ISandboxManager, IDisposable
 
     public string? CurrentSandboxId => _activeSandboxId;
 
+    public SandboxHealthState HealthState => _healthState;
+
     public IReadOnlyList<SandboxType> AvailableTypes => [.. _providers.Keys];
 
     public async Task<SandboxInfo> EnterSandboxAsync(SandboxOptions options, CancellationToken ct = default)
@@ -47,15 +55,25 @@ public sealed partial class SandboxManager : ISandboxManager, IDisposable
                 throw new InvalidOperationException($"已在 {_activeProvider!.SandboxType} 沙箱中，请先退出再进入新沙箱");
             }
 
-            var provider = ResolveProvider(options.Type);
-            var info = await provider.CreateSandboxAsync(options, ct).ConfigureAwait(false);
+            var (provider, fallbackUsed) = ResolveProviderWithFallback(options.Type);
 
-            _activeProvider = provider;
-            _activeSandboxId = info.SandboxId;
+            try
+            {
+                var info = await provider.CreateSandboxAsync(options, ct).ConfigureAwait(false);
 
-            _logger?.LogInformation("[SandboxManager] 沙箱已激活 - 类型: {Type}, Id: {Id}", info.Type, info.SandboxId);
+                _activeProvider = provider;
+                _activeSandboxId = info.SandboxId;
+                _healthState = SandboxHealthState.Healthy;
 
-            return info;
+                _logger?.LogInformation("[SandboxManager] 沙箱已激活 - 类型: {Type}, Id: {Id}, 降级: {Fallback}", info.Type, info.SandboxId, fallbackUsed);
+
+                return info;
+            }
+            catch (Exception) when (fallbackUsed)
+            {
+                _healthState = SandboxHealthState.Fallback;
+                throw;
+            }
         }
     }
 
@@ -72,7 +90,15 @@ public sealed partial class SandboxManager : ISandboxManager, IDisposable
             var provider = _activeProvider;
             var sandboxId = _activeSandboxId;
 
-            await provider.DestroySandboxAsync(sandboxId, ct).ConfigureAwait(false);
+            try
+            {
+                await provider.DestroySandboxAsync(sandboxId, ct).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "[SandboxManager] 销毁沙箱异常，强制清理 - Id: {Id}", sandboxId);
+                _healthState = SandboxHealthState.Degraded;
+            }
 
             _activeProvider = null;
             _activeSandboxId = null;
@@ -90,14 +116,21 @@ public sealed partial class SandboxManager : ISandboxManager, IDisposable
 
             if (_activeProvider is not null && _activeSandboxId is not null)
             {
-                await _activeProvider.DestroySandboxAsync(_activeSandboxId, ct).ConfigureAwait(false);
+                try
+                {
+                    await _activeProvider.DestroySandboxAsync(_activeSandboxId, ct).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogWarning(ex, "[SandboxManager] 切换时销毁旧沙箱异常 - Id: {Id}", _activeSandboxId);
+                }
             }
 
-            var newProvider = ResolveProvider(type);
+            var (newProvider, fallbackUsed) = ResolveProviderWithFallback(type);
 
             var newOptions = new SandboxOptions
             {
-                Type = type,
+                Type = newProvider.SandboxType,
                 RestrictNetwork = previousInfo?.RestrictNetwork ?? true,
                 RestrictFileSystem = previousInfo?.RestrictFileSystem ?? true,
                 AllowedPaths = previousInfo?.AllowedPaths,
@@ -111,10 +144,88 @@ public sealed partial class SandboxManager : ISandboxManager, IDisposable
 
             _activeProvider = newProvider;
             _activeSandboxId = newInfo.SandboxId;
+            _healthState = fallbackUsed ? SandboxHealthState.Fallback : SandboxHealthState.Healthy;
 
-            _logger?.LogInformation("[SandboxManager] 沙箱切换: {From} → {To}, 新 Id: {Id}",
-                previousType.ToValue(), type.ToValue(), newInfo.SandboxId);
+            _logger?.LogInformation("[SandboxManager] 沙箱切换: {From} → {To}, 新 Id: {Id}, 降级: {Fallback}",
+                previousType.ToValue(), newProvider.SandboxType.ToValue(), newInfo.SandboxId, fallbackUsed);
         }
+    }
+
+    public async Task<SandboxDegradationResult> TryEnterWithFallbackAsync(SandboxOptions options, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+
+        var targetType = options.Type;
+        if (targetType == SandboxType.None)
+        {
+            targetType = SandboxType.Soft;
+        }
+
+        if (_providers.TryGetValue(targetType, out var directProvider))
+        {
+            try
+            {
+                var info = await EnterSandboxAsync(options, ct).ConfigureAwait(false);
+                return new SandboxDegradationResult
+                {
+                    RequestedType = targetType,
+                    ActualType = info.Type,
+                    WasDegraded = false,
+                    Info = info,
+                    Message = null
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "[SandboxManager] 请求的沙箱类型 {Type} 创建失败，尝试降级", targetType.ToValue());
+            }
+        }
+
+        var fallbackOrder = new[] { SandboxType.Process, SandboxType.Soft };
+        foreach (var fallbackType in fallbackOrder)
+        {
+            if (fallbackType == targetType || !_providers.ContainsKey(fallbackType))
+            {
+                continue;
+            }
+
+            try
+            {
+                var fallbackOptions = new SandboxOptions
+                {
+                    Type = fallbackType,
+                    RestrictFileSystem = options.RestrictFileSystem,
+                    RestrictNetwork = options.RestrictNetwork,
+                    AllowedPaths = options.AllowedPaths,
+                    SandboxRoot = options.SandboxRoot
+                };
+
+                var info = await EnterSandboxAsync(fallbackOptions, ct).ConfigureAwait(false);
+                _healthState = SandboxHealthState.Fallback;
+
+                return new SandboxDegradationResult
+                {
+                    RequestedType = targetType,
+                    ActualType = info.Type,
+                    WasDegraded = true,
+                    Info = info,
+                    Message = $"请求的沙箱类型 '{targetType.ToValue()}' 不可用或创建失败，已自动降级到 '{info.Type.ToValue()}'。降级后隔离级别较低，请注意安全风险。"
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "[SandboxManager] 降级到 {Type} 也失败", fallbackType.ToValue());
+            }
+        }
+
+        return new SandboxDegradationResult
+        {
+            RequestedType = targetType,
+            ActualType = SandboxType.None,
+            WasDegraded = true,
+            Info = null,
+            Message = $"所有沙箱类型均不可用。请求: {targetType.ToValue()}, 可用: {string.Join(", ", AvailableTypes.Select(t => t.ToValue()))}。当前无沙箱保护，请谨慎操作。"
+        };
     }
 
     public ISandboxProvider? GetProvider(SandboxType type)
@@ -134,10 +245,10 @@ public sealed partial class SandboxManager : ISandboxManager, IDisposable
 
     public async Task<SandboxInfo> CreateSandboxAsync(SandboxType type, SandboxOptions options, CancellationToken ct = default)
     {
-        var provider = ResolveProvider(type);
+        var (provider, _) = ResolveProviderWithFallback(type);
         var effectiveOptions = new SandboxOptions
         {
-            Type = type,
+            Type = provider.SandboxType,
             SandboxRoot = options.SandboxRoot,
             RestrictNetwork = options.RestrictNetwork,
             RestrictFileSystem = options.RestrictFileSystem,
@@ -189,10 +300,11 @@ public sealed partial class SandboxManager : ISandboxManager, IDisposable
             }
         }
 
-        throw new InvalidOperationException($"沙箱 '{sandboxId}' 不存在");
+        _logger?.LogWarning("[SandboxManager] 沙箱 '{Id}' 不存在，返回原路径", sandboxId);
+        return Path.GetFullPath(path);
     }
 
-    private ISandboxProvider ResolveProvider(SandboxType type)
+    private (ISandboxProvider Provider, bool FallbackUsed) ResolveProviderWithFallback(SandboxType type)
     {
         if (type == SandboxType.None)
         {
@@ -212,13 +324,284 @@ public sealed partial class SandboxManager : ISandboxManager, IDisposable
             }
         }
 
-        if (!_providers.TryGetValue(type, out var provider))
+        if (_providers.TryGetValue(type, out var provider))
         {
-            throw new InvalidOperationException($"沙箱类型 '{type.ToValue()}' 不可用。可用类型: {string.Join(", ", _providers.Keys.Select(k => k.ToValue()))}");
+            return (provider, false);
         }
 
-        return provider;
+        _logger?.LogWarning("[SandboxManager] 请求的沙箱类型 '{Type}' 不可用，降级到 Soft", type.ToValue());
+
+        if (_providers.TryGetValue(SandboxType.Soft, out var softProvider))
+        {
+            return (softProvider, true);
+        }
+
+        if (_providers.TryGetValue(SandboxType.Process, out var processProvider))
+        {
+            return (processProvider, true);
+        }
+
+        throw new InvalidOperationException($"沙箱类型 '{type.ToValue()}' 不可用且无降级选项。可用类型: {string.Join(", ", _providers.Keys.Select(k => k.ToValue()))}");
+    }
+
+    public async Task<AbstractionsSandboxExecutionResult> ExecuteInSandboxAsync(string command, SandboxExecutionOptions options, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        ArgumentNullException.ThrowIfNull(options);
+
+        var executionId = Guid.NewGuid().ToString("N")[..16];
+        var timeoutSeconds = options.GetTimeoutSeconds();
+        var configuredTimeout = TimeSpan.FromSeconds(timeoutSeconds);
+        var stopwatch = Stopwatch.StartNew();
+
+        var processStartInfo = new ProcessStartInfo
+        {
+            FileName = OperatingSystem.IsWindows() ? "cmd.exe" : "/bin/sh",
+            Arguments = OperatingSystem.IsWindows() ? $"/c {command}" : $"-c {command}",
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true,
+            WorkingDirectory = _activeProvider is not null && _activeSandboxId is not null
+                ? _activeProvider.ResolvePath(_activeProvider.GetSandboxInfo(_activeSandboxId)?.RootPath ?? ".", _activeSandboxId)
+                : _fs.GetCurrentDirectory()
+        };
+
+        if (_activeProvider is not null && _activeSandboxId is not null)
+        {
+            var sandboxInfo = _activeProvider.GetSandboxInfo(_activeSandboxId);
+            if (sandboxInfo is not null && sandboxInfo.RestrictFileSystem)
+            {
+                processStartInfo.WorkingDirectory = _activeProvider.ResolvePath(".", _activeSandboxId);
+            }
+        }
+
+        Process process;
+        try
+        {
+            process = new Process { StartInfo = processStartInfo };
+            process.Start();
+        }
+        catch (Exception ex)
+        {
+            return new AbstractionsSandboxExecutionResult
+            {
+                State = SandboxExecutionState.Failed,
+                ExecutionId = executionId,
+                Elapsed = stopwatch.Elapsed,
+                ConfiguredTimeout = configuredTimeout,
+                ErrorMessage = $"启动进程失败: {ex.Message}"
+            };
+        }
+
+        var stdoutBuilder = new StringBuilder();
+        var stderrBuilder = new StringBuilder();
+
+        var stdoutTask = Task.Run(() =>
+        {
+            string? line;
+            while ((line = process.StandardOutput.ReadLine()) is not null)
+            {
+                stdoutBuilder.AppendLine(line);
+            }
+        }, ct);
+
+        var stderrTask = Task.Run(() =>
+        {
+            string? line;
+            while ((line = process.StandardError.ReadLine()) is not null)
+            {
+                stderrBuilder.AppendLine(line);
+            }
+        }, ct);
+
+        var execution = new SandboxActiveExecution
+        {
+            ExecutionId = executionId,
+            Process = process,
+            StdoutBuilder = stdoutBuilder,
+            StderrBuilder = stderrBuilder,
+            Stopwatch = stopwatch,
+            ConfiguredTimeout = configuredTimeout,
+            OriginalCommand = command
+        };
+        _activeExecutions[executionId] = execution;
+
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeoutCts.CancelAfter(configuredTimeout);
+
+        var processTask = Task.Run(() => process.WaitForExit(), timeoutCts.Token);
+
+        try
+        {
+            await processTask.ConfigureAwait(false);
+
+            await Task.WhenAll(stdoutTask, stderrTask).ConfigureAwait(false);
+
+            stopwatch.Stop();
+            _activeExecutions.TryRemove(executionId, out _);
+
+            return new AbstractionsSandboxExecutionResult
+            {
+                State = process.HasExited && process.ExitCode == 0
+                    ? SandboxExecutionState.Completed
+                    : SandboxExecutionState.Failed,
+                ExecutionId = executionId,
+                Stdout = stdoutBuilder.ToString(),
+                Stderr = stderrBuilder.ToString(),
+                ExitCode = process.HasExited ? process.ExitCode : null,
+                Elapsed = stopwatch.Elapsed,
+                ConfiguredTimeout = configuredTimeout
+            };
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            _logger?.LogWarning("[SandboxManager] 执行超时 - ExecutionId: {Id}, 超时: {Timeout}s, 命令仍在运行, 不中断", executionId, timeoutSeconds);
+
+            return new AbstractionsSandboxExecutionResult
+            {
+                State = SandboxExecutionState.TimedOut,
+                ExecutionId = executionId,
+                Stdout = stdoutBuilder.ToString(),
+                Stderr = stderrBuilder.ToString(),
+                Elapsed = stopwatch.Elapsed,
+                ConfiguredTimeout = configuredTimeout
+            };
+        }
+        catch (OperationCanceledException)
+        {
+            ForceStopExecution(executionId);
+            return new AbstractionsSandboxExecutionResult
+            {
+                State = SandboxExecutionState.ForceStopped,
+                ExecutionId = executionId,
+                Stdout = stdoutBuilder.ToString(),
+                Stderr = stderrBuilder.ToString(),
+                Elapsed = stopwatch.Elapsed,
+                ConfiguredTimeout = configuredTimeout,
+                ErrorMessage = "外部取消请求，执行已终止"
+            };
+        }
+    }
+
+    public async Task<AbstractionsSandboxExecutionResult> ContinueExecutionAsync(string executionId, string action, CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(executionId);
+        ArgumentException.ThrowIfNullOrEmpty(action);
+
+        if (!_activeExecutions.TryGetValue(executionId, out var execution))
+        {
+            return new AbstractionsSandboxExecutionResult
+            {
+                State = SandboxExecutionState.Failed,
+                ExecutionId = executionId,
+                Elapsed = TimeSpan.Zero,
+                ErrorMessage = $"执行 ID '{executionId}' 不存在或已完成"
+            };
+        }
+
+        if (action.Equals("stop", StringComparison.OrdinalIgnoreCase))
+        {
+            _logger?.LogInformation("[SandboxManager] LLM 决定强行停止执行 - ExecutionId: {Id}", executionId);
+            ForceStopExecution(executionId);
+
+            return new AbstractionsSandboxExecutionResult
+            {
+                State = SandboxExecutionState.ForceStopped,
+                ExecutionId = executionId,
+                Stdout = execution.StdoutBuilder.ToString(),
+                Stderr = execution.StderrBuilder.ToString(),
+                Elapsed = execution.Stopwatch.Elapsed,
+                ConfiguredTimeout = execution.ConfiguredTimeout,
+                ErrorMessage = "LLM 决定强行停止执行"
+            };
+        }
+
+        if (action.Equals("wait", StringComparison.OrdinalIgnoreCase))
+        {
+            _logger?.LogInformation("[SandboxManager] LLM 决定继续等待 - ExecutionId: {Id}", executionId);
+
+            var additionalTimeout = execution.ConfiguredTimeout;
+            using var waitCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            waitCts.CancelAfter(additionalTimeout);
+
+            try
+            {
+                await Task.Run(() => execution.Process.WaitForExit(), waitCts.Token).ConfigureAwait(false);
+
+                execution.Stopwatch.Stop();
+                _activeExecutions.TryRemove(executionId, out _);
+
+                return new AbstractionsSandboxExecutionResult
+                {
+                    State = execution.Process.HasExited && execution.Process.ExitCode == 0
+                        ? SandboxExecutionState.Completed
+                        : SandboxExecutionState.Failed,
+                    ExecutionId = executionId,
+                    Stdout = execution.StdoutBuilder.ToString(),
+                    Stderr = execution.StderrBuilder.ToString(),
+                    ExitCode = execution.Process.HasExited ? execution.Process.ExitCode : null,
+                    Elapsed = execution.Stopwatch.Elapsed,
+                    ConfiguredTimeout = execution.ConfiguredTimeout
+                };
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                _logger?.LogWarning("[SandboxManager] 继续等待再次超时 - ExecutionId: {Id}", executionId);
+
+                return new AbstractionsSandboxExecutionResult
+                {
+                    State = SandboxExecutionState.TimedOut,
+                    ExecutionId = executionId,
+                    Stdout = execution.StdoutBuilder.ToString(),
+                    Stderr = execution.StderrBuilder.ToString(),
+                    Elapsed = execution.Stopwatch.Elapsed,
+                    ConfiguredTimeout = execution.ConfiguredTimeout
+                };
+            }
+        }
+
+        return new AbstractionsSandboxExecutionResult
+        {
+            State = SandboxExecutionState.Failed,
+            ExecutionId = executionId,
+            Elapsed = TimeSpan.Zero,
+            ErrorMessage = $"未知操作: '{action}'。可用操作: wait (继续等待), stop (强行停止)"
+        };
+    }
+
+    private void ForceStopExecution(string executionId)
+    {
+        if (!_activeExecutions.TryRemove(executionId, out var execution))
+        {
+            return;
+        }
+
+        try
+        {
+            if (!execution.Process.HasExited)
+            {
+                execution.Process.Kill(entireProcessTree: true);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "[SandboxManager] 强行停止进程失败 - ExecutionId: {Id}", executionId);
+        }
+
+        execution.Stopwatch.Stop();
     }
 
     public void Dispose() => _lock.Dispose();
+}
+
+internal sealed class SandboxActiveExecution
+{
+    public required string ExecutionId { get; init; }
+    public required Process Process { get; init; }
+    public required StringBuilder StdoutBuilder { get; init; }
+    public required StringBuilder StderrBuilder { get; init; }
+    public required Stopwatch Stopwatch { get; init; }
+    public required TimeSpan ConfiguredTimeout { get; init; }
+    public required string OriginalCommand { get; init; }
 }

@@ -48,7 +48,7 @@ public sealed partial class BubblewrapSandboxProvider : SandboxProviderBase
         }
     }
 
-    public async Task<SandboxExecutionResult> ExecuteInSandboxAsync(
+    public async Task<ProviderExecutionResult> ExecuteInSandboxAsync(
         string sandboxId,
         string command,
         int timeoutMs = 30000,
@@ -103,7 +103,7 @@ public sealed partial class BubblewrapSandboxProvider : SandboxProviderBase
             TimeoutMs = timeoutMs
         }, ct).ConfigureAwait(false);
 
-        return new SandboxExecutionResult
+        return new ProviderExecutionResult
         {
             StandardOutput = result.StandardOutput,
             StandardError = result.StandardError,

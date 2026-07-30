@@ -3,6 +3,7 @@
 namespace Guard.Tests.Security.Services;
 
 using JoinCode.Abstractions.Security.Sandbox;
+using Microsoft.Extensions.Logging;
 
 public sealed class SymlinkEscapeTests
 {
@@ -41,7 +42,9 @@ public sealed class SymlinkEscapeTests
                 return;
             }
 
-            var provider = new SoftSandboxProvider(_fs, NullLogger<SoftSandboxProvider>.Instance);
+            using var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole().SetMinimumLevel(LogLevel.Debug));
+            var logger = loggerFactory.CreateLogger<SoftSandboxProvider>();
+            var provider = new SoftSandboxProvider(_fs, logger);
             var options = new SandboxOptions
             {
                 Type = SandboxType.Soft,
@@ -53,27 +56,8 @@ public sealed class SymlinkEscapeTests
 
             var pathThroughSymlink = Path.Combine(symlinkPath, "secret.txt");
 
-            var linkDirInfo = new DirectoryInfo(symlinkPath);
-            Console.WriteLine($"[DEBUG] symlinkPath: {symlinkPath}");
-            Console.WriteLine($"[DEBUG] outsideDir: {outsideDir}");
-            Console.WriteLine($"[DEBUG] outsideDir exists: {Directory.Exists(outsideDir)}");
-            Console.WriteLine($"[DEBUG] symlinkPath exists (Directory): {Directory.Exists(symlinkPath)}");
-            Console.WriteLine($"[DEBUG] linkDirInfo.Exists: {linkDirInfo.Exists}");
-            Console.WriteLine($"[DEBUG] linkDirInfo.Attributes: {linkDirInfo.Attributes}");
-            Console.WriteLine($"[DEBUG] HasFlag ReparsePoint: {linkDirInfo.Attributes.HasFlag(FileAttributes.ReparsePoint)}");
-            try
-            {
-                var linkTarget = linkDirInfo.ResolveLinkTarget(true);
-                Console.WriteLine($"[DEBUG] ResolveLinkTarget: {linkTarget?.FullName ?? "null"}");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[DEBUG] ResolveLinkTarget exception: {ex.GetType().Name}: {ex.Message}");
-            }
-
             var resolved = provider.ResolvePath(pathThroughSymlink, info.SandboxId);
 
-            Console.WriteLine($"[DEBUG] symlinkPath: {symlinkPath}");
             Console.WriteLine($"[DEBUG] pathThroughSymlink: {pathThroughSymlink}");
             Console.WriteLine($"[DEBUG] resolved: {resolved}");
 
@@ -130,7 +114,9 @@ public sealed class SymlinkEscapeTests
                 return;
             }
 
-            var provider = new SoftSandboxProvider(_fs, NullLogger<SoftSandboxProvider>.Instance);
+            using var loggerFactory2 = LoggerFactory.Create(builder => builder.AddConsole().SetMinimumLevel(LogLevel.Debug));
+            var logger2 = loggerFactory2.CreateLogger<SoftSandboxProvider>();
+            var provider = new SoftSandboxProvider(_fs, logger2);
             var options = new SandboxOptions
             {
                 Type = SandboxType.Soft,

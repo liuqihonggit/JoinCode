@@ -21,6 +21,7 @@ public sealed partial class SoftSandboxProvider : SandboxProviderBase
         if (fullPath.StartsWith(sandboxRoot, StringComparison.OrdinalIgnoreCase))
         {
             var realPath = ResolveSymlinkTarget(fullPath, Logger);
+            Logger?.LogDebug("[Sandbox:Soft] OnResolvePath: fullPath='{FullPath}', realPath='{RealPath}', sandboxRoot='{SandboxRoot}'", fullPath, realPath ?? "(null)", sandboxRoot);
             if (realPath is not null && !realPath.StartsWith(sandboxRoot, StringComparison.OrdinalIgnoreCase))
             {
                 Logger?.LogWarning("[Sandbox:Soft] 符号链接逃逸检测: '{Path}' 解析到沙箱外 '{Real}'，降级重定向", fullPath, realPath);
@@ -91,16 +92,23 @@ public sealed partial class SoftSandboxProvider : SandboxProviderBase
 
             var resolved = stack.Pop();
             var hadSymlink = false;
+            logger?.LogDebug("[Sandbox:Soft] ResolveSymlinkTarget 开始解析: '{Path}', stack.Count={Count}, first resolved='{Resolved}'", path, stack.Count, resolved);
             while (stack.Count > 0)
             {
-                var candidate = Path.Combine(resolved, stack.Pop());
+                var segment = stack.Pop();
+                var candidate = Path.Combine(resolved, segment);
+                logger?.LogDebug("[Sandbox:Soft] ResolveSymlinkTarget 迭代: segment='{Segment}', candidate='{Candidate}', current resolved='{Resolved}'", segment, candidate, resolved);
                 try
                 {
                     var dirInfo = new DirectoryInfo(candidate);
-                    if (dirInfo.Attributes.HasFlag(FileAttributes.ReparsePoint))
+                    var exists = dirInfo.Exists;
+                    var attrs = dirInfo.Attributes;
+                    var isReparse = attrs.HasFlag(FileAttributes.ReparsePoint);
+                    logger?.LogDebug("[Sandbox:Soft] DirectoryInfo: candidate='{Candidate}', Exists={Exists}, Attributes={Attrs}, IsReparsePoint={IsReparse}", candidate, exists, attrs, isReparse);
+                    if (isReparse)
                     {
                         var target = dirInfo.ResolveLinkTarget(true);
-                        logger?.LogDebug("[Sandbox:Soft] 符号链接检测(dir): '{Candidate}' -> '{Target}'", candidate, target?.FullName);
+                        logger?.LogDebug("[Sandbox:Soft] 符号链接检测(dir): '{Candidate}' -> '{Target}'", candidate, target?.FullName ?? "(null)");
                         if (target is not null)
                         {
                             resolved = target.FullName;
@@ -117,10 +125,14 @@ public sealed partial class SoftSandboxProvider : SandboxProviderBase
                 try
                 {
                     var fileInfo = new FileInfo(candidate);
-                    if (fileInfo.Attributes.HasFlag(FileAttributes.ReparsePoint))
+                    var exists = fileInfo.Exists;
+                    var attrs = fileInfo.Attributes;
+                    var isReparse = attrs.HasFlag(FileAttributes.ReparsePoint);
+                    logger?.LogDebug("[Sandbox:Soft] FileInfo: candidate='{Candidate}', Exists={Exists}, Attributes={Attrs}, IsReparsePoint={IsReparse}", candidate, exists, attrs, isReparse);
+                    if (isReparse)
                     {
                         var target = fileInfo.ResolveLinkTarget(true);
-                        logger?.LogDebug("[Sandbox:Soft] 符号链接检测(file): '{Candidate}' -> '{Target}'", candidate, target?.FullName);
+                        logger?.LogDebug("[Sandbox:Soft] 符号链接检测(file): '{Candidate}' -> '{Target}'", candidate, target?.FullName ?? "(null)");
                         if (target is not null)
                         {
                             resolved = target.FullName;
@@ -137,7 +149,9 @@ public sealed partial class SoftSandboxProvider : SandboxProviderBase
                 resolved = candidate;
             }
 
-            return hadSymlink ? Path.GetFullPath(resolved) : null;
+            var result = hadSymlink ? Path.GetFullPath(resolved) : null;
+            logger?.LogDebug("[Sandbox:Soft] ResolveSymlinkTarget 完成: path='{Path}', hadSymlink={HadSymlink}, result='{Result}'", path, hadSymlink, result ?? "(null)");
+            return result;
         }
         catch (Exception ex)
         {

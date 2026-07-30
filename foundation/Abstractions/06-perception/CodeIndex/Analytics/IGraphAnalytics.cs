@@ -48,4 +48,22 @@ public interface IGraphAnalytics
     /// 复用 Structura DAG 的 TopologicalSortByLevels 算法
     /// </summary>
     Task<IReadOnlyList<IReadOnlyList<string>>> TopologicalSortByLevelsAsync(CancellationToken ct);
+
+    /// <summary>
+    /// 图语义查询 — 基于符号名+文件路径的模糊匹配,返回相关符号及子图摘要
+    /// 对齐 graphify query 命令
+    /// </summary>
+    Task<GraphQueryResult> QueryAsync(string query, int maxResults, CancellationToken ct);
+
+    /// <summary>
+    /// 两节点间最短路径 — BFS 搜索调用图中两符号间的最短连接路径
+    /// 对齐 graphify path 命令
+    /// </summary>
+    Task<GraphPathResult> FindPathAsync(string fromSymbol, string toSymbol, CancellationToken ct);
+
+    /// <summary>
+    /// 节点解释 — 聚合某符号的所有关系(调用者/被调用者/同社区/同文件),生成结构化描述
+    /// 对齐 graphify explain 命令
+    /// </summary>
+    Task<GraphExplainResult> ExplainAsync(string symbolName, CancellationToken ct);
 }

@@ -18,4 +18,5 @@ public enum FileToolName
     [EnumValue("file_list")] FileList,
     [EnumValue("file_snip_lines")] FileSnipLines,
     [EnumValue("file_snip_preview")] FileSnipPreview,
+    [EnumValue("apply_patch")] FileApplyPatch,
 }

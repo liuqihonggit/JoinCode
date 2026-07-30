@@ -42,6 +42,7 @@ public class FileToolHandlers : IDisposable
     private readonly IFileReadListenerRegistry? _fileReadListenerRegistry;
     private readonly ILspDiagnosticProvider? _lspDiagnosticProvider;
     private readonly IFileSystem _fs;
+    private readonly ApplyPatchLogic? _applyPatchLogic;
 
     /// <summary>
     /// Default max read tokens (matches TS: DEFAULT_MAX_OUTPUT_TOKENS = 25000)
@@ -66,6 +67,7 @@ public class FileToolHandlers : IDisposable
         _teamMemSecretGuard = context?.TeamMemSecretGuard;
         _fileReadListenerRegistry = context?.FileReadListenerRegistry;
         _lspDiagnosticProvider = context?.LspDiagnosticProvider;
+        _applyPatchLogic = context?.ApplyPatchLogic;
     }
 
     [McpTool(FileToolNameConstants.FileRead, "Read a file from the local filesystem", "file")]
@@ -1542,6 +1544,36 @@ public class FileToolHandlers : IDisposable
         }
 
         return builder.Build();
+    }
+
+    [McpTool(FileToolNameConstants.FileApplyPatch, "Apply a unified diff patch to one or more files", "file")]
+    public async Task<ToolResult> FileApplyPatchAsync(
+        [McpToolParameter("The unified diff patch content")] string patch,
+        [McpToolParameter("Preview changes without writing (default: false)", Required = false)] bool dry_run = false,
+        CancellationToken cancellationToken = default)
+    {
+        if (_applyPatchLogic is null)
+            return ResultBuilder.Error().WithText("ApplyPatchLogic is not available").Build();
+
+        var validationError = ValidationHelper.ValidateRequired(patch, "patch");
+        if (validationError != null)
+            return ResultBuilder.Error().WithText(validationError).Build();
+
+        var result = await _applyPatchLogic.ApplyAsync(patch, dry_run, workingDirectory: null, cancellationToken).ConfigureAwait(false);
+
+        if (!result.Success)
+        {
+            var errorText = result.ErrorMessage ?? "Patch did not apply";
+            if (result.Details.Count > 0)
+                errorText += "\n" + string.Join("\n", result.Details);
+            return ResultBuilder.Error().WithText(errorText).Build();
+        }
+
+        var summary = result.DryRun
+            ? $"Dry run: {result.FilesWouldModify} file(s) would be modified"
+            : $"Applied patch: {result.FilesModified} file(s) modified";
+        var detailText = result.Details.Count > 0 ? "\n" + string.Join("\n", result.Details) : "";
+        return ResultBuilder.Success().WithText(summary + detailText).Build();
     }
 
     #endregion

@@ -21,9 +21,13 @@ public sealed class GraphAnalytics : IGraphAnalytics
     public Task<IReadOnlyList<CommunityInfo>> DetectCommunitiesAsync(CancellationToken ct)
     {
         using var scope = _store.EnterReadLock();
-        var labels = LabelPropagation(_store.CallsByCaller, _store.CallsByCallee);
-        var communities = BuildCommunities(labels, _store.CallsByCaller, _store.CallsByCallee);
-        return Task.FromResult<IReadOnlyList<CommunityInfo>>(communities);
+        return Task.FromResult<IReadOnlyList<CommunityInfo>>(DetectCommunities(_store));
+    }
+
+    internal static List<CommunityInfo> DetectCommunities(InMemoryIndexStore store)
+    {
+        var labels = LabelPropagation(store.CallsByCaller, store.CallsByCallee);
+        return BuildCommunities(labels, store.CallsByCaller, store.CallsByCallee);
     }
 
     public Task<IReadOnlyList<HubNodeInfo>> GetHubNodesAsync(int topN, CancellationToken ct)
@@ -276,7 +280,7 @@ public sealed class GraphAnalytics : IGraphAnalytics
         return dag;
     }
 
-    private static Dictionary<string, int> LabelPropagation(
+    internal static Dictionary<string, int> LabelPropagation(
         Dictionary<string, List<CallEdge>> byCaller,
         Dictionary<string, List<CallEdge>> byCallee)
     {
@@ -316,7 +320,7 @@ public sealed class GraphAnalytics : IGraphAnalytics
         return labels;
     }
 
-    private static List<CommunityInfo> BuildCommunities(
+    internal static List<CommunityInfo> BuildCommunities(
         Dictionary<string, int> labels,
         Dictionary<string, List<CallEdge>> byCaller,
         Dictionary<string, List<CallEdge>> byCallee)
@@ -363,6 +367,239 @@ public sealed class GraphAnalytics : IGraphAnalytics
         if (_store.SymbolsByName.TryGetValue(symbolName, out var list) && list.Count > 0)
             return list[0].FilePath;
         return null;
+    }
+
+    public Task<GraphQueryResult> QueryAsync(string query, int maxResults, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        if (maxResults < 1) maxResults = 20;
+
+        using var scope = _store.EnterReadLock();
+
+        var tokens = query.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (tokens.Length == 0)
+        {
+            return Task.FromResult(new GraphQueryResult
+            {
+                Query = query,
+                Matches = [],
+                TotalMatches = 0,
+            });
+        }
+
+        var scored = new Dictionary<string, (SymbolInfo Symbol, int Score)>(StringComparer.Ordinal);
+
+        foreach (var kvp in _store.SymbolsByFqn)
+        {
+            var symbol = kvp.Value;
+            var score = 0;
+            var fqn = symbol.FullyQualifiedName;
+            var name = symbol.Name;
+
+            foreach (var token in tokens)
+            {
+                if (name.Contains(token, StringComparison.OrdinalIgnoreCase))
+                    score += 10;
+                if (fqn.Contains(token, StringComparison.OrdinalIgnoreCase))
+                    score += 5;
+                if (symbol.FilePath.Contains(token, StringComparison.OrdinalIgnoreCase))
+                    score += 3;
+                if (symbol.Namespace is not null && symbol.Namespace.Contains(token, StringComparison.OrdinalIgnoreCase))
+                    score += 2;
+            }
+
+            if (score > 0)
+                scored[fqn] = (symbol, score);
+        }
+
+        foreach (var kvp in _store.SymbolsByName)
+        {
+            foreach (var token in tokens)
+            {
+                if (!kvp.Key.Contains(token, StringComparison.OrdinalIgnoreCase)) continue;
+                foreach (var symbol in kvp.Value)
+                {
+                    var fqn = symbol.FullyQualifiedName;
+                    if (!scored.TryGetValue(fqn, out var existing)) continue;
+                    scored[fqn] = (existing.Symbol, existing.Score + 4);
+                }
+            }
+        }
+
+        var sorted = scored.Values.ToList();
+        sorted.Sort((a, b) => b.Score.CompareTo(a.Score));
+
+        var matches = new List<GraphQueryMatch>();
+        foreach (var (symbol, score) in sorted.Take(maxResults))
+        {
+            var related = new List<string>();
+            if (_store.CallsByCaller.TryGetValue(symbol.FullyQualifiedName, out var callees))
+                related.AddRange(callees.Select(e => e.CalleeSymbol).Take(5));
+            if (_store.CallsByCallee.TryGetValue(symbol.FullyQualifiedName, out var callers))
+                related.AddRange(callers.Select(e => e.CallerSymbol).Take(5));
+
+            matches.Add(new GraphQueryMatch
+            {
+                SymbolName = symbol.FullyQualifiedName,
+                FilePath = symbol.FilePath,
+                Kind = symbol.Kind.ToString(),
+                RelevanceScore = score,
+                RelatedSymbols = related.Distinct(StringComparer.Ordinal).Take(10).ToList(),
+            });
+        }
+
+        return Task.FromResult(new GraphQueryResult
+        {
+            Query = query,
+            Matches = matches,
+            TotalMatches = sorted.Count,
+        });
+    }
+
+    public Task<GraphPathResult> FindPathAsync(string fromSymbol, string toSymbol, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(fromSymbol);
+        ArgumentNullException.ThrowIfNull(toSymbol);
+
+        using var scope = _store.EnterReadLock();
+
+        if (string.Equals(fromSymbol, toSymbol, StringComparison.Ordinal))
+        {
+            return Task.FromResult(new GraphPathResult
+            {
+                FromSymbol = fromSymbol,
+                ToSymbol = toSymbol,
+                PathFound = true,
+                PathNodes = [fromSymbol],
+                PathEdges = [],
+                PathLength = 0,
+            });
+        }
+
+        var visited = new HashSet<string>(StringComparer.Ordinal) { fromSymbol };
+        var predecessor = new Dictionary<string, (string FromSymbol, CallEdge Edge)>(StringComparer.Ordinal);
+        var queue = new Queue<string>();
+        queue.Enqueue(fromSymbol);
+
+        while (queue.Count > 0)
+        {
+            var current = queue.Dequeue();
+
+            if (_store.CallsByCaller.TryGetValue(current, out var callees))
+            {
+                foreach (var edge in callees)
+                {
+                    if (!visited.Add(edge.CalleeSymbol)) continue;
+                    predecessor[edge.CalleeSymbol] = (current, edge);
+                    if (string.Equals(edge.CalleeSymbol, toSymbol, StringComparison.Ordinal))
+                        goto PathFound;
+                    queue.Enqueue(edge.CalleeSymbol);
+                }
+            }
+
+            if (_store.CallsByCallee.TryGetValue(current, out var callers))
+            {
+                foreach (var edge in callers)
+                {
+                    if (!visited.Add(edge.CallerSymbol)) continue;
+                    predecessor[edge.CallerSymbol] = (current, edge);
+                    if (string.Equals(edge.CallerSymbol, toSymbol, StringComparison.Ordinal))
+                        goto PathFound;
+                    queue.Enqueue(edge.CallerSymbol);
+                }
+            }
+        }
+
+        return Task.FromResult(new GraphPathResult
+        {
+            FromSymbol = fromSymbol,
+            ToSymbol = toSymbol,
+            PathFound = false,
+            PathNodes = [],
+            PathEdges = [],
+            PathLength = -1,
+        });
+
+    PathFound:
+        var pathNodes = new List<string>();
+        var pathEdges = new List<CallEdge>();
+        var step = toSymbol;
+        while (!string.Equals(step, fromSymbol, StringComparison.Ordinal))
+        {
+            pathNodes.Add(step);
+            var (prev, edge) = predecessor[step];
+            pathEdges.Add(edge);
+            step = prev;
+        }
+        pathNodes.Add(fromSymbol);
+        pathNodes.Reverse();
+        pathEdges.Reverse();
+
+        return Task.FromResult(new GraphPathResult
+        {
+            FromSymbol = fromSymbol,
+            ToSymbol = toSymbol,
+            PathFound = true,
+            PathNodes = pathNodes,
+            PathEdges = pathEdges,
+            PathLength = pathEdges.Count,
+        });
+    }
+
+    public Task<GraphExplainResult> ExplainAsync(string symbolName, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(symbolName);
+
+        using var scope = _store.EnterReadLock();
+
+        SymbolInfo? symbol = null;
+        if (_store.SymbolsByFqn.TryGetValue(symbolName, out var fqnSymbol))
+            symbol = fqnSymbol;
+        else if (_store.SymbolsByName.TryGetValue(symbolName, out var nameList) && nameList.Count > 0)
+            symbol = nameList[0];
+
+        var fqn = symbol?.FullyQualifiedName ?? symbolName;
+
+        var callers = new List<string>();
+        if (_store.CallsByCallee.TryGetValue(fqn, out var callerEdges))
+            callers = callerEdges.Select(e => e.CallerSymbol).Distinct(StringComparer.Ordinal).ToList();
+
+        var callees = new List<string>();
+        if (_store.CallsByCaller.TryGetValue(fqn, out var calleeEdges))
+            callees = calleeEdges.Select(e => e.CalleeSymbol).Distinct(StringComparer.Ordinal).ToList();
+
+        var sameFile = new List<string>();
+        if (symbol is not null && _store.SymbolsByFile.TryGetValue(symbol.FilePath, out var fileSymbols))
+            sameFile = fileSymbols
+                .Where(s => s.FullyQualifiedName != fqn)
+                .Select(s => s.FullyQualifiedName)
+                .Take(20)
+                .ToList();
+
+        var sameCommunity = new List<string>();
+        var labels = LabelPropagation(_store.CallsByCaller, _store.CallsByCallee);
+        if (labels.TryGetValue(fqn, out var communityId))
+        {
+            sameCommunity = labels
+                .Where(kvp => kvp.Value == communityId && kvp.Key != fqn)
+                .Select(kvp => kvp.Key)
+                .Take(20)
+                .ToList();
+        }
+
+        return Task.FromResult(new GraphExplainResult
+        {
+            SymbolName = fqn,
+            FilePath = symbol?.FilePath ?? "",
+            Kind = symbol?.Kind.ToString() ?? "Unknown",
+            Namespace = symbol?.Namespace,
+            Callers = callers,
+            Callees = callees,
+            SameCommunity = sameCommunity,
+            SameFile = sameFile,
+            InDegree = callers.Count,
+            OutDegree = callees.Count,
+        });
     }
 
     private static bool IsEntryPoint(SymbolInfo symbol)

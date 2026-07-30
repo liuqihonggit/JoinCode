@@ -12,7 +12,7 @@ public sealed partial class ShellExecutionService : IShellExecutionService
     [Inject] private readonly ILogger<ShellExecutionService>? _logger;
     private readonly ShellExecutionConfig _config;
     private readonly IFileSystem _fs;
-    private readonly ISandboxModeService? _sandboxModeService;
+    private readonly ISandboxManager? _sandboxManager;
     private readonly IPreventSleepService? _preventSleepService;
     private readonly IShellProvider _bashProvider;
     private readonly IShellProvider _powerShellProvider;
@@ -23,7 +23,7 @@ public sealed partial class ShellExecutionService : IShellExecutionService
         BashShellProvider bashProvider,
         PowerShellShellProvider powerShellProvider,
         ILogger<ShellExecutionService>? logger = null,
-        ISandboxModeService? sandboxModeService = null,
+        ISandboxManager? sandboxManager = null,
         IPreventSleepService? preventSleepService = null)
     {
         _config = config ?? throw new ArgumentNullException(nameof(config));
@@ -31,7 +31,7 @@ public sealed partial class ShellExecutionService : IShellExecutionService
         _bashProvider = bashProvider ?? throw new ArgumentNullException(nameof(bashProvider));
         _powerShellProvider = powerShellProvider ?? throw new ArgumentNullException(nameof(powerShellProvider));
         _logger = logger;
-        _sandboxModeService = sandboxModeService;
+        _sandboxManager = sandboxManager;
         _preventSleepService = preventSleepService;
     }
 
@@ -89,8 +89,8 @@ public sealed partial class ShellExecutionService : IShellExecutionService
 
         if (_preventSleepService is not null) await _preventSleepService.PreventSleepAsync(SleepPreventionType.Continuous).ConfigureAwait(false);
 
-        var useSandbox = !disableSandbox && _sandboxModeService is not null && _sandboxModeService.IsInSandbox;
-        var sandboxTmpDir = useSandbox ? (_sandboxModeService ?? throw new InvalidOperationException("SandboxModeService not available.")).CurrentSandbox?.RootPath : null;
+        var useSandbox = !disableSandbox && _sandboxManager is not null && _sandboxManager.IsInSandbox;
+        var sandboxTmpDir = useSandbox ? (_sandboxManager ?? throw new InvalidOperationException("SandboxManager not available.")).CurrentSandbox?.RootPath : null;
 
         var context = await ShellCommandContext.StartAsync(
             command,
@@ -148,8 +148,8 @@ public sealed partial class ShellExecutionService : IShellExecutionService
         if (_preventSleepService is not null) await _preventSleepService.PreventSleepAsync(SleepPreventionType.Continuous).ConfigureAwait(false);
         try
         {
-            var useSandbox = !disableSandbox && _sandboxModeService is not null && _sandboxModeService.IsInSandbox;
-            var sandboxTmpDir = useSandbox ? (_sandboxModeService ?? throw new InvalidOperationException("SandboxModeService not available.")).CurrentSandbox?.RootPath : null;
+            var useSandbox = !disableSandbox && _sandboxManager is not null && _sandboxManager.IsInSandbox;
+            var sandboxTmpDir = useSandbox ? (_sandboxManager ?? throw new InvalidOperationException("SandboxManager not available.")).CurrentSandbox?.RootPath : null;
 
             await using var context = await ShellCommandContext.StartAsync(
                 command, cwd, _fs, provider, timeout,
@@ -184,9 +184,9 @@ public sealed partial class ShellExecutionService : IShellExecutionService
             ? _fs.GetCurrentDirectory()
             : Path.GetFullPath(workingDirectory);
 
-        if (!disableSandbox && _sandboxModeService != null && _sandboxModeService.IsInSandbox)
+        if (!disableSandbox && _sandboxManager != null && _sandboxManager.IsInSandbox)
         {
-            cwd = _sandboxModeService.ResolvePath(cwd);
+            cwd = _sandboxManager.ResolvePath(cwd);
         }
 
         return cwd;

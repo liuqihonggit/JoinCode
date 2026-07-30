@@ -1,43 +1,39 @@
 #pragma warning disable JCC3010
 namespace Hands.Tests.ToolHandlers;
 
+using JoinCode.Abstractions.Security.Sandbox;
+
 /// <summary>
 /// FileToolHandlers 沙箱路径解析测试
-/// 验证 ScratchpadSandbox 已注入但未创建沙箱时，FileReadAsync 不应崩溃
-/// 场景: 生产环境 IScratchpadSandbox 通过 DI 注入（非 null），
-/// 但未调用 CreateSandboxAsync，GetSandboxInfo 抛出 KeyNotFoundException
+/// 验证 SandboxManager 未激活沙箱时，FileReadAsync 不应崩溃
 /// </summary>
 public sealed class FileToolHandlersSandboxTests
 {
     [Fact]
-    public async Task FileReadAsync_WithScratchpadSandboxNotCreated_ShouldNotFailWithSandboxError()
+    public async Task FileReadAsync_WithSandboxManagerNotActive_ShouldNotFailWithSandboxError()
     {
-        // Arrange: ScratchpadSandbox 已注入但未创建任何沙箱（模拟生产环境）
         var fileOpMock = new Mock<IFileOperationService>();
         fileOpMock
             .Setup(x => x.ReadFileAsync(It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<int?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(FileReadResult.SuccessResult("test.txt", "hello world", 1, 0, 1));
 
-        // 创建真实的 ScratchpadSandbox（已通过 DI 注入），但不调用 CreateSandboxAsync
-        var sandbox = new Core.Permission.Services.ScratchpadSandbox(fileOpMock.Object);
+        var sandboxManagerMock = new Mock<ISandboxManager>();
+        sandboxManagerMock.SetupGet(m => m.IsInSandbox).Returns(false);
 
         var service = new FileToolHandlers(
             fileOpMock.Object,
             new IO.FileSystem.PhysicalFileSystem(),
-            new FileToolHandlersContext(ScratchpadSandbox: sandbox));
+            new FileToolHandlersContext(SandboxManager: sandboxManagerMock.Object));
 
-        // Act
         var result = await service.FileReadAsync("test.txt").ConfigureAwait(true);
 
-        // Assert: 不应返回沙箱错误（"沙箱 'ScratchpadSandbox' 不存在"）
         result.IsError.Should().BeFalse();
         result.Content.Should().NotBeEmpty();
     }
 
     [Fact]
-    public async Task FileReadAsync_WithNullScratchpadSandbox_ShouldReadSuccessfully()
+    public async Task FileReadAsync_WithNullSandboxManager_ShouldReadSuccessfully()
     {
-        // Arrange: ScratchpadSandbox 为 null（未注入）
         var fileOpMock = new Mock<IFileOperationService>();
         fileOpMock
             .Setup(x => x.ReadFileAsync(It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<int?>(), It.IsAny<CancellationToken>()))
@@ -48,10 +44,8 @@ public sealed class FileToolHandlersSandboxTests
             new IO.FileSystem.PhysicalFileSystem(),
             context: null);
 
-        // Act
         var result = await service.FileReadAsync("test.txt").ConfigureAwait(true);
 
-        // Assert: 正常读取（无沙箱时直接返回原路径）
         result.IsError.Should().BeFalse();
         result.Content.Should().NotBeEmpty();
     }

@@ -130,7 +130,7 @@ public sealed partial class DockerSandboxProvider : SandboxProviderBase
         var result = await _processService.ExecuteAsync(new ProcessOptions
         {
             FileName = "docker",
-            Arguments = $"exec {containerId} /bin/sh -c \"{command.Replace("\"", "\\\"")}\"",
+            Arguments = $"exec {containerId} /bin/sh -c {ShellCommandEscape.EscapeForSingleQuotedShell(command)}",
             TimeoutMs = timeoutMs
         }, ct).ConfigureAwait(false);
 

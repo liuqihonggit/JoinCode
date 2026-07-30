@@ -129,7 +129,9 @@ public sealed class SandboxSatelliteHost
         var psi = new ProcessStartInfo
         {
             FileName = OperatingSystem.IsWindows() ? "cmd.exe" : "/bin/sh",
-            Arguments = OperatingSystem.IsWindows() ? $"/c {execRequest.Command}" : $"-c {execRequest.Command}",
+            Arguments = OperatingSystem.IsWindows()
+                ? $"/c {execRequest.Command}"
+                : $"-c {EscapeForSingleQuotedShell(execRequest.Command)}",
             WorkingDirectory = execRequest.WorkingDirectory ?? _fs.GetCurrentDirectory(),
             RedirectStandardOutput = true,
             RedirectStandardError = true,
@@ -194,5 +196,16 @@ public sealed class SandboxSatelliteHost
         var json = JsonSerializer.Serialize(response, SandboxIpcJsonContext.Default.SandboxIpcResponse);
         await Console.Out.WriteLineAsync(json.AsMemory(), ct).ConfigureAwait(false);
         await Console.Out.FlushAsync(ct).ConfigureAwait(false);
+    }
+
+    private static string EscapeForSingleQuotedShell(string command)
+    {
+        if (command.Length == 0)
+        {
+            return "''";
+        }
+
+        var escaped = command.Replace("'", @"'\''");
+        return $"'{escaped}'";
     }
 }

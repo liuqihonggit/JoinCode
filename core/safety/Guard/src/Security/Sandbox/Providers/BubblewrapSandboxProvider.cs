@@ -94,7 +94,7 @@ public sealed partial class BubblewrapSandboxProvider : SandboxProviderBase
             }
         }
 
-        bwrapArgs.Append($" -- /bin/sh -c \"{command.Replace("\"", "\\\"")}\"");
+        bwrapArgs.Append($" -- /bin/sh -c {ShellCommandEscape.EscapeForSingleQuotedShell(command)}");
 
         var result = await _processService.ExecuteAsync(new ProcessOptions
         {

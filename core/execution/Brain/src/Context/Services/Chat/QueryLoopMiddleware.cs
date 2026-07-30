@@ -47,9 +47,10 @@ public sealed partial class QueryLoopMiddleware : IChatMiddleware
     }
 
     /// <summary>
-    /// 是否启用流式工具执行 — 需要 IToolConcurrencyClassifier 已注册
+    /// 是否启用流式工具执行 — 需要 IToolConcurrencyClassifier 已注册且配置开关已启用
     /// </summary>
-    private bool UseStreamingToolExecution => _concurrencyClassifier is not null;
+    private bool UseStreamingToolExecution =>
+        _concurrencyClassifier is not null && (_toolExecutionSettings?.UseStreamingToolExecution ?? false);
 
     /// <summary>
     /// 最大并发数 — 对齐 TS CLAUDE_CODE_MAX_TOOL_USE_CONCURRENCY
@@ -133,6 +134,9 @@ public sealed partial class QueryLoopMiddleware : IChatMiddleware
                         result.ToolName, result.ToolCallId, result.Result.ResultText,
                         result.Result.IsError, result.Result.ContentBlocks, context, ct).ConfigureAwait(false);
                 }
+
+                if (iterState.StreamUsage is not null) finalUsage = iterState.StreamUsage;
+                if (iterState.StreamModelId is not null) finalModelId = iterState.StreamModelId;
             }
             else
             {

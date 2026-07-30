@@ -10,12 +10,20 @@ internal sealed class TranscriptFileWriter
     private readonly string _sessionsDirectory;
     private readonly ILogger? _logger;
     private readonly IFileSystem _fs;
+    private readonly IPasteStore? _pasteStore;
 
-    public TranscriptFileWriter(IFileSystem fs, string sessionsDirectory, ILogger? logger = null)
+    /// <summary>
+    /// 大文本阈值 — 对齐 TS MAX_PASTED_CONTENT_LENGTH
+    /// 超过此长度的 Content 不内联存储，而是存到 paste-cache/ 目录
+    /// </summary>
+    private const int MaxPastedContentLength = 1024;
+
+    public TranscriptFileWriter(IFileSystem fs, string sessionsDirectory, ILogger? logger = null, IPasteStore? pasteStore = null)
     {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _sessionsDirectory = sessionsDirectory;
         _logger = logger;
+        _pasteStore = pasteStore;
         _writeLock = new SemaphoreSlim(1, 1);
     }
 
@@ -26,12 +34,14 @@ internal sealed class TranscriptFileWriter
     {
         ArgumentNullException.ThrowIfNull(entry);
 
+        var entryToWrite = MaybeOffloadToPasteStore(entry);
+
         await _writeLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             EnsureDirectoryExists(Path.GetDirectoryName(filePath));
             EnsureFileExists(filePath);
-            var line = JsonSerializer.Serialize(entry, TranscriptJsonContext.Default.TranscriptEntry);
+            var line = JsonSerializer.Serialize(entryToWrite, TranscriptJsonContext.Default.TranscriptEntry);
             await _fs.AppendAllTextAsync(filePath, line + '\n', cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -74,7 +84,8 @@ internal sealed class TranscriptFileWriter
 
             foreach (var entry in entries)
             {
-                var line = JsonSerializer.Serialize(entry, TranscriptJsonContext.Default.TranscriptEntry);
+                var entryToWrite = MaybeOffloadToPasteStore(entry);
+                var line = JsonSerializer.Serialize(entryToWrite, TranscriptJsonContext.Default.TranscriptEntry);
                 await writer.WriteLineAsync(line.AsMemory(), cancellationToken).ConfigureAwait(false);
             }
             await writer.FlushAsync(cancellationToken).ConfigureAwait(false);
@@ -116,7 +127,7 @@ internal sealed class TranscriptFileWriter
                     var entry = JsonSerializer.Deserialize(line, TranscriptJsonContext.Default.TranscriptEntry);
                     if (entry is not null)
                     {
-                        entries.Add(entry);
+                        entries.Add(ResolveFromPasteStore(entry));
                     }
                 }
                 catch (JsonException ex)
@@ -181,4 +192,53 @@ internal sealed class TranscriptFileWriter
     }
 
     public void Dispose() => _writeLock.Dispose();
+
+    /// <summary>
+    /// 序列化前：大文本(>1024字符)存到 paste-cache，Content 置空，设 ContentHash — 对齐 TS addToPromptHistory
+    /// </summary>
+    private TranscriptEntry MaybeOffloadToPasteStore(TranscriptEntry entry)
+    {
+        if (_pasteStore is null || string.IsNullOrEmpty(entry.Content) || entry.Content.Length <= MaxPastedContentLength)
+        {
+            return entry;
+        }
+
+        try
+        {
+            var hash = _pasteStore.HashPastedText(entry.Content);
+            _pasteStore.StorePastedText(hash, entry.Content);
+            return entry with { Content = string.Empty, ContentHash = hash };
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogDebug(ex, "粘贴内容卸载到 paste-cache 失败，将内联存储");
+            return entry;
+        }
+    }
+
+    /// <summary>
+    /// 反序列化后：如果有 ContentHash 引用，从 paste-cache 还原 Content — 对齐 TS resolveStoredPastedContent
+    /// </summary>
+    private TranscriptEntry ResolveFromPasteStore(TranscriptEntry entry)
+    {
+        if (_pasteStore is null || string.IsNullOrEmpty(entry.ContentHash))
+        {
+            return entry;
+        }
+
+        try
+        {
+            var content = _pasteStore.RetrievePastedText(entry.ContentHash);
+            if (content is not null)
+            {
+                return entry with { Content = content, ContentHash = null };
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogDebug(ex, "从 paste-cache 还原内容失败: {Hash}", entry.ContentHash);
+        }
+
+        return entry;
+    }
 }

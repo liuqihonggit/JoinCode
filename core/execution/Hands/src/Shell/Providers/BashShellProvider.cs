@@ -6,7 +6,7 @@ namespace Services.Shell.Providers;
 /// 支持 CWD 追踪、环境变量注入、extglob 禁用
 /// </summary>
 [Register]
-public sealed class BashShellProvider : ShellProviderBase
+public sealed class BashShellProvider : ShellProviderBase, IDisposable
 {
     private string? _snapshotFilePath;
 
@@ -30,10 +30,37 @@ public sealed class BashShellProvider : ShellProviderBase
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
         AppDataConstants.AppDataFolder, "shell-snapshots");
 
+    /// <summary>
+    /// 快照最大保留数量 — 超过此数量时删除最旧的快照
+    /// </summary>
+    private const int MaxSnapshotCount = 200;
+
     public BashShellProvider(IFileSystem fs, string? shellPath = null, ILogger? logger = null)
         : base(fs, shellPath, logger)
     {
         _snapshotFilePath = TryCreateSnapshot();
+    }
+
+    /// <summary>
+    /// 释放资源 — 对齐 TS registerCleanup: 正常退出时删除当前会话快照
+    /// 异常退出时快照残留，由轮转清理机制在下次启动时处理
+    /// </summary>
+    public void Dispose()
+    {
+        if (_snapshotFilePath is null) return;
+
+        try
+        {
+            if (Fs.FileExists(_snapshotFilePath))
+            {
+                Fs.DeleteFile(_snapshotFilePath);
+                Logger?.LogDebug("已清理当前会话快照: {Path}", _snapshotFilePath);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger?.LogDebug(ex, "清理当前会话快照失败: {Path}", _snapshotFilePath);
+        }
     }
 
     /// <inheritdoc />
@@ -232,12 +259,58 @@ public sealed class BashShellProvider : ShellProviderBase
             Fs.WriteAllText(snapshotPath, output);
 
             Logger?.LogDebug("Bash 环境快照已创建: {Path}, Size={Size}", snapshotPath, output.Length);
+
+            RotateSnapshots();
+
             return snapshotPath;
         }
         catch (Exception ex)
         {
             Logger?.LogDebug(ex, "创建 Bash 环境快照失败，将使用 login shell 降级");
             return null;
+        }
+    }
+
+    /// <summary>
+    /// 快照轮转清理 — 保留最近 MaxSnapshotCount 个快照，删除更旧的
+    /// 按文件名中的时间戳排序（文件名格式: snapshot-bash-{unixTimestamp}.sh）
+    /// </summary>
+    private void RotateSnapshots()
+    {
+        try
+        {
+            if (!Fs.DirectoryExists(SnapshotDir)) return;
+
+            var files = Fs.EnumerateFiles(SnapshotDir, "snapshot-bash-*.sh", SearchOption.TopDirectoryOnly)
+                .OrderByDescending(static f => f, StringComparer.Ordinal)
+                .ToList();
+
+            if (files.Count <= MaxSnapshotCount) return;
+
+            var toDelete = files.Skip(MaxSnapshotCount);
+            var deletedCount = 0;
+
+            foreach (var file in toDelete)
+            {
+                try
+                {
+                    Fs.DeleteFile(file);
+                    deletedCount++;
+                }
+                catch (Exception ex)
+                {
+                    Logger?.LogDebug(ex, "删除旧快照失败: {Path}", file);
+                }
+            }
+
+            if (deletedCount > 0)
+            {
+                Logger?.LogDebug("快照轮转: 删除了 {DeletedCount} 个旧快照，保留 {RetainedCount} 个", deletedCount, MaxSnapshotCount);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger?.LogDebug(ex, "快照轮转清理失败");
         }
     }
 }

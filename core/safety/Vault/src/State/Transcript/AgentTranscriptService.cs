@@ -9,7 +9,7 @@ public sealed partial class AgentTranscriptService : JoinCode.Abstractions.Inter
     private readonly SemaphoreSlim _metaLock;
     private readonly IFileSystem _fs;
 
-    public AgentTranscriptService(IFileSystem fs, string? sessionsDirectory = null, ILogger<AgentTranscriptService>? logger = null)
+    public AgentTranscriptService(IFileSystem fs, string? sessionsDirectory = null, ILogger<AgentTranscriptService>? logger = null, IPasteStore? pasteStore = null)
     {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _sessionsDirectory = sessionsDirectory
@@ -17,7 +17,7 @@ public sealed partial class AgentTranscriptService : JoinCode.Abstractions.Inter
                 WorkflowConstants.Paths.JccDirectory,
                 AppDataConstants.SessionsFolderName);
         _logger = logger;
-        _writer = new TranscriptFileWriter(_fs, _sessionsDirectory, logger);
+        _writer = new TranscriptFileWriter(_fs, _sessionsDirectory, logger, pasteStore);
         _metaLock = new SemaphoreSlim(1, 1);
     }
 

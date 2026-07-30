@@ -31,6 +31,13 @@ public sealed record TranscriptEntry
     public string? AgentName { get; init; }
 
     /// <summary>
+    /// 粘贴内容哈希引用 — 对齐 TS StoredPastedContent.contentHash
+    /// 大文本(>1024字符)不在 Content 中内联存储，而是存到 paste-cache/ 目录，
+    /// 此字段存储 SHA-256 前 16 位哈希作为引用。反序列化时通过 IPasteStore.RetrievePastedText 还原
+    /// </summary>
+    public string? ContentHash { get; init; }
+
+    /// <summary>
     /// 创建带有指定 SessionId 的副本
     /// </summary>
     public TranscriptEntry WithSessionId(string sessionId) => this with { SessionId = sessionId };

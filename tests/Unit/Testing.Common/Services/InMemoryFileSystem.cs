@@ -302,6 +302,26 @@ public sealed class InMemoryFileSystem : IFileSystem
     public DateTime GetLastWriteTimeUtc(string path)
         => GetLastWriteTime(path).ToUniversalTime();
 
+    /// <summary>
+    /// 设置文件最后写入时间 — 测试用，允许手动控制时间戳
+    /// </summary>
+    public void SetLastWriteTime(string path, DateTime time)
+    {
+        var normalizedPath = NormalizePath(path);
+        if (_files.TryGetValue(normalizedPath, out var file))
+        {
+            file.LastWriteTime = time;
+            return;
+        }
+        throw new FileNotFoundException($"文件未找到: {path}");
+    }
+
+    /// <summary>
+    /// 设置文件最后写入时间(UTC) — 测试用，允许手动控制时间戳
+    /// </summary>
+    public void SetLastWriteTimeUtc(string path, DateTime timeUtc)
+        => SetLastWriteTime(path, timeUtc.ToLocalTime());
+
     /// <inheritdoc />
     public DateTime GetCreationTime(string path)
     {
@@ -516,10 +536,24 @@ public sealed class InMemoryFileSystem : IFileSystem
 
     /// <inheritdoc />
     public DateTime GetDirectoryLastWriteTimeUtc(string path)
-        => DateTime.UtcNow;
+    {
+        var normalizedPath = NormalizePath(path);
+        if (_directories.TryGetValue(normalizedPath, out var dir))
+        {
+            return dir.LastWriteTime.ToUniversalTime();
+        }
+        return DateTime.UtcNow;
+    }
 
     /// <inheritdoc />
-    public void SetDirectoryLastWriteTimeUtc(string path, DateTime utcTime) { }
+    public void SetDirectoryLastWriteTimeUtc(string path, DateTime utcTime)
+    {
+        var normalizedPath = NormalizePath(path);
+        if (_directories.TryGetValue(normalizedPath, out var dir))
+        {
+            dir.LastWriteTime = utcTime.ToLocalTime();
+        }
+    }
 
     /// <inheritdoc />
     public string? GetParentPath(string path)

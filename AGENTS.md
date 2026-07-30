@@ -591,6 +591,16 @@ $psi.WorkingDirectory = "{项目根目录}"
   - CI 必须通过才允许合并
   - **⛔ dirty PR 不触发 CI**：`mergeable_state=dirty`（分支与 main 有冲突）时 GitHub 不会运行 CI。必须先在分支上 `git merge origin/main` 解决冲突并推送，CI 才会触发
   - **CI 重试**：`gh run rerun <run-id> --failed` 只重试失败的 job（不加 `--failed` 也是默认只重试失败项）
+  - **⚠️ auto-merge BLOCKED 排查清单**（2026-07-30 踩坑记录）：
+    1. **根因**：Branch protection 的 required status checks 名称与 CI workflow 实际 job 名称不匹配 → GitHub 认为该 required check 永远未完成 → PR 永远 `mergeStateStatus: BLOCKED` → auto-merge 永远不触发
+    2. **典型案例**：protection 配了 `McpToolHandlers`（旧名），CI 实际是 `McpToolDispatch`（新名），差一个词就导致所有 PR 永远无法 auto-merge
+    3. **触发场景**：重命名 CI job、删除/重建保护分支、修改 workflow 文件名后未同步更新 branch protection
+    4. **诊断命令**：
+       - `gh api repos/{owner}/{repo}/branches/main/protection --jq '.required_status_checks.contexts'` — 查看保护规则要求的 check 名称
+       - `gh pr checks {number}` — 查看 PR 实际的 check 名称
+       - 对比两者，找出不匹配的名称
+    5. **修复命令**：构造 JSON body 调用 `gh api -X PUT repos/{owner}/{repo}/branches/main/protection -H "Accept: application/vnd.github+json" --input protection_update.json`（需要 `restrictions: null` 字段，否则 422）
+    6. **预防**：每次重命名 CI job 后，必须同步更新 branch protection 的 required status checks
 
 ## 用户说的E2E
 

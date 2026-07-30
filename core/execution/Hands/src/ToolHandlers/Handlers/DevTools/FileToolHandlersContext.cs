@@ -17,7 +17,8 @@ public sealed record FileToolHandlersContext(
     FileOperationConfig? FileOperationConfig = null,
     ITeamMemSecretGuard? TeamMemSecretGuard = null,
     IFileReadListenerRegistry? FileReadListenerRegistry = null,
-    ILspDiagnosticProvider? LspDiagnosticProvider = null)
+    ILspDiagnosticProvider? LspDiagnosticProvider = null,
+    ApplyPatchLogic? ApplyPatchLogic = null)
 {
     /// <summary>
     /// 从 DI 容器解析所有可选服务
@@ -33,5 +34,6 @@ public sealed record FileToolHandlersContext(
         FileOperationConfig: sp.GetService<FileOperationConfig>(),
         TeamMemSecretGuard: sp.GetService<ITeamMemSecretGuard>(),
         FileReadListenerRegistry: sp.GetService<IFileReadListenerRegistry>(),
-        LspDiagnosticProvider: sp.GetService<ILspDiagnosticProvider>());
+        LspDiagnosticProvider: sp.GetService<ILspDiagnosticProvider>(),
+        ApplyPatchLogic: sp.GetService<ApplyPatchLogic>());
 }

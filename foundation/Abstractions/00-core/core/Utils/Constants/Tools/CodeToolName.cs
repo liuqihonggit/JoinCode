@@ -54,4 +54,11 @@ public enum CodeToolName
     [EnumValue("graph_load")] GraphLoad,
     [EnumValue("graph_export_dot")] GraphExportDot,
     [EnumValue("graph_export_html")] GraphExportHtml,
+    [EnumValue("graph_query")] GraphQuery,
+    [EnumValue("graph_path")] GraphPath,
+    [EnumValue("graph_explain")] GraphExplain,
+    [EnumValue("graph_register")] GraphRegister,
+    [EnumValue("graph_unregister")] GraphUnregister,
+    [EnumValue("graph_repos")] GraphRepos,
+    [EnumValue("graph_export_wiki")] GraphExportWiki,
 }

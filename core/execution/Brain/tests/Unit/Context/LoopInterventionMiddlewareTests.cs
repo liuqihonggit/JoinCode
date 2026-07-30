@@ -460,8 +460,8 @@ public sealed class LoopInterventionMiddlewareTests
                 return new IterationState();
             });
 
-        chunkProcessor.Setup(c => c.ProcessChunk(It.IsAny<StreamEvent>(), It.IsAny<IterationState>()))
-            .Returns((StreamEvent chunk, IterationState state) =>
+        chunkProcessor.Setup(c => c.ProcessChunk(It.IsAny<StreamEvent>(), It.IsAny<IterationState>(), It.IsAny<bool>()))
+            .Returns((StreamEvent chunk, IterationState state, bool _) =>
             {
                 state.FullResponse.Append(chunk.Content);
                 return new StreamChunkResult

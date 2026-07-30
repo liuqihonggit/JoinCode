@@ -122,8 +122,9 @@ public sealed partial class SoftSandboxProvider : SandboxProviderBase
 
             return hadSymlink ? Path.GetFullPath(resolved) : null;
         }
-        catch
+        catch (Exception ex)
         {
+            logger?.LogDebug(ex, "[Sandbox:Soft] ResolveSymlinkTarget 异常，路径: '{Path}'", path);
             return null;
         }
     }

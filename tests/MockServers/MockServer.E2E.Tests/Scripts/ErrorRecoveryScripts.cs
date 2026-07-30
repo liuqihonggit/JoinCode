@@ -80,6 +80,10 @@ public static class ApiErrorRecoveryScripts
     {
         Name = "503服务不可用后恢复",
         Mode = ConversationMode.Interactive,
+        ExtraEnvVars = new Dictionary<string, string>
+        {
+            ["JCC_DISABLE_STREAMING_FALLBACK"] = "true"
+        },
         Turns =
         [
             new ConversationTurn
@@ -693,6 +697,10 @@ public static class AnthropicDeepCoverageScripts
     {
         Name = "DeepSeek 500服务器错误后恢复",
         Mode = ConversationMode.Interactive,
+        ExtraEnvVars = new Dictionary<string, string>
+        {
+            ["JCC_DISABLE_STREAMING_FALLBACK"] = "true"
+        },
         Turns =
         [
             new ConversationTurn

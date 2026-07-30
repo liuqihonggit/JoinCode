@@ -94,29 +94,46 @@ public sealed partial class SoftSandboxProvider : SandboxProviderBase
             while (stack.Count > 0)
             {
                 var candidate = Path.Combine(resolved, stack.Pop());
-                var dirInfo = new DirectoryInfo(candidate);
-                if (dirInfo.Exists && dirInfo.Attributes.HasFlag(FileAttributes.ReparsePoint))
+                try
                 {
-                    var target = dirInfo.ResolveLinkTarget(true);
-                    logger?.LogDebug("[Sandbox:Soft] 符号链接检测: '{Candidate}' -> '{Target}'", candidate, target?.FullName);
-                    if (target is not null)
+                    var dirInfo = new DirectoryInfo(candidate);
+                    if (dirInfo.Attributes.HasFlag(FileAttributes.ReparsePoint))
                     {
-                        resolved = target.FullName;
-                        hadSymlink = true;
-                        continue;
+                        var target = dirInfo.ResolveLinkTarget(true);
+                        logger?.LogDebug("[Sandbox:Soft] 符号链接检测(dir): '{Candidate}' -> '{Target}'", candidate, target?.FullName);
+                        if (target is not null)
+                        {
+                            resolved = target.FullName;
+                            hadSymlink = true;
+                            continue;
+                        }
                     }
                 }
-                var fileInfo = new FileInfo(candidate);
-                if (fileInfo.Exists && fileInfo.Attributes.HasFlag(FileAttributes.ReparsePoint))
+                catch (Exception ex)
                 {
-                    var target = fileInfo.ResolveLinkTarget(true);
-                    if (target is not null)
+                    logger?.LogDebug(ex, "[Sandbox:Soft] DirectoryInfo 检测异常: '{Candidate}'", candidate);
+                }
+
+                try
+                {
+                    var fileInfo = new FileInfo(candidate);
+                    if (fileInfo.Attributes.HasFlag(FileAttributes.ReparsePoint))
                     {
-                        resolved = target.FullName;
-                        hadSymlink = true;
-                        continue;
+                        var target = fileInfo.ResolveLinkTarget(true);
+                        logger?.LogDebug("[Sandbox:Soft] 符号链接检测(file): '{Candidate}' -> '{Target}'", candidate, target?.FullName);
+                        if (target is not null)
+                        {
+                            resolved = target.FullName;
+                            hadSymlink = true;
+                            continue;
+                        }
                     }
                 }
+                catch (Exception ex)
+                {
+                    logger?.LogDebug(ex, "[Sandbox:Soft] FileInfo 检测异常: '{Candidate}'", candidate);
+                }
+
                 resolved = candidate;
             }
 

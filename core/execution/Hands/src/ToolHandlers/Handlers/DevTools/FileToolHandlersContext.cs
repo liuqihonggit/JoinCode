@@ -2,12 +2,9 @@ using JoinCode.Abstractions.Attributes;
 
 namespace Tools.Handlers;
 
-/// <summary>
-/// FileToolHandlers 可选服务上下文 — 聚合所有 nullable 可选依赖，减少构造函数参数数量
-/// </summary>
 [Register]
 public sealed record FileToolHandlersContext(
-    IScratchpadSandbox? ScratchpadSandbox = null,
+    ISandboxManager? SandboxManager = null,
     ITelemetryService? TelemetryService = null,
     FileEditLogic? FileEditLogic = null,
     SnipLogic? SnipLogic = null,
@@ -20,11 +17,8 @@ public sealed record FileToolHandlersContext(
     ILspDiagnosticProvider? LspDiagnosticProvider = null,
     ApplyPatchLogic? ApplyPatchLogic = null)
 {
-    /// <summary>
-    /// 从 DI 容器解析所有可选服务
-    /// </summary>
     public static FileToolHandlersContext FromServiceProvider(IServiceProvider sp) => new(
-        ScratchpadSandbox: sp.GetService<IScratchpadSandbox>(),
+        SandboxManager: sp.GetService<ISandboxManager>(),
         TelemetryService: sp.GetService<ITelemetryService>(),
         FileEditLogic: sp.GetService<FileEditLogic>(),
         SnipLogic: sp.GetService<SnipLogic>(),

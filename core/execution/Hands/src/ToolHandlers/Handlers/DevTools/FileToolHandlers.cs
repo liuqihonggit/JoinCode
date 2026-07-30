@@ -30,7 +30,7 @@ public class FileToolHandlers : IDisposable
         """;
 
     private readonly IFileOperationService _fileOperationService;
-    private readonly IScratchpadSandbox? _scratchpadSandbox;
+    private readonly ISandboxManager? _sandboxManager;
     private readonly ITelemetryService? _telemetryService;
     private readonly FileEditLogic? _fileEditLogic;
     private readonly SnipLogic? _snipLogic;
@@ -56,7 +56,7 @@ public class FileToolHandlers : IDisposable
     {
         _fileOperationService = fileOperationService ?? throw new ArgumentNullException(nameof(fileOperationService));
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
-        _scratchpadSandbox = context?.ScratchpadSandbox;
+        _sandboxManager = context?.SandboxManager;
         _telemetryService = context?.TelemetryService;
         _fileEditLogic = context?.FileEditLogic;
         _snipLogic = context?.SnipLogic;
@@ -1091,31 +1091,19 @@ public class FileToolHandlers : IDisposable
 
     private async Task<string> ResolveSandboxPathAsync(string path, CancellationToken cancellationToken)
     {
-        if (_scratchpadSandbox == null)
+        if (_sandboxManager == null || !_sandboxManager.IsInSandbox)
         {
             return path;
         }
 
-        // 沙箱未创建时 GetSandboxInfo 抛出 KeyNotFoundException
-        // 生产环境 IScratchpadSandbox 通过 DI 注入（非 null），但未必调用过 CreateSandboxAsync
-        // 此时直接返回原路径，不进行沙箱路径解析
-        SandboxInfo? sandboxInfo;
-        try
-        {
-            sandboxInfo = _scratchpadSandbox.GetSandboxInfo(_scratchpadSandbox.GetType().Name);
-        }
-        catch (KeyNotFoundException)
+        var sandboxId = _sandboxManager.CurrentSandboxId;
+        if (sandboxId is null)
         {
             return path;
         }
 
-        if (sandboxInfo == null)
-        {
-            return path;
-        }
-
-        var resolvedPath = await _scratchpadSandbox.ResolveSandboxPathAsync(path, sandboxInfo.SandboxId, cancellationToken).ConfigureAwait(false);
-        var isInSandbox = await _scratchpadSandbox.IsPathInSandboxAsync(resolvedPath, sandboxInfo.SandboxId, cancellationToken).ConfigureAwait(false);
+        var resolvedPath = _sandboxManager.ResolvePath(path, sandboxId);
+        var isInSandbox = await _sandboxManager.ActiveProvider!.IsPathInSandboxAsync(resolvedPath, sandboxId, cancellationToken).ConfigureAwait(false);
         if (!isInSandbox)
         {
             throw new UnauthorizedAccessException($"Path '{path}' is outside the sandbox scope");

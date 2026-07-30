@@ -37,6 +37,7 @@ global using JoinCode.Abstractions.Models.Build;
 global using JoinCode.Abstractions.Prompts;
 global using JoinCode.Abstractions.Prompts.ToolPrompts;
 global using JoinCode.Abstractions.Security;
+global using JoinCode.Abstractions.Security.Sandbox;
 global using JoinCode.Abstractions.Security.Permission;
 global using JoinCode.Abstractions.Security.Scanning;
 global using JoinCode.Abstractions.Security.Shell;

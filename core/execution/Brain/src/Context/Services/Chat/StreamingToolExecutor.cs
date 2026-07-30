@@ -148,7 +148,7 @@ public sealed class StreamingToolExecutor : IAsyncDisposable
     public bool IsDiscarded => _discarded;
 
     /// <summary>
-    /// 丢弃所有待处理和进行中的工具 —C 对齐 TS StreamingToolExecutor.discard()
+    /// 丢弃所有待处理和进行中的工具 — 对齐 TS StreamingToolExecutor.discard()
     /// 在流式 fallback 发生且失败尝试的结果应被放弃时调用
     /// 排队工具不会启动，进行中工具将收到合成错误
     /// </summary>

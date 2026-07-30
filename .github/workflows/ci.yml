@@ -557,13 +557,19 @@ jobs:
           Write-Host "MockServer: $mockServerExe"
           Write-Host "jcc: $jccExe"
 
-          $mockServer = Start-Process -FilePath $mockServerExe -ArgumentList "--port 9901" -PassThru -NoNewWindow
+          $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, 0)
+          $listener.Start()
+          $port = ($listener.LocalEndpoint).Port
+          $listener.Stop()
+          Write-Host "Dynamic port: $port"
+
+          $mockServer = Start-Process -FilePath $mockServerExe -ArgumentList "--port $port" -PassThru -NoNewWindow
 
           $ready = $false
           for ($i = 0; $i -lt 15; $i++) {
             Start-Sleep -Seconds 1
             try {
-              Invoke-RestMethod -Uri "http://localhost:9901/" -Method Get -TimeoutSec 2 -ErrorAction SilentlyContinue | Out-Null
+              Invoke-RestMethod -Uri "http://localhost:$port/" -Method Get -TimeoutSec 2 -ErrorAction SilentlyContinue | Out-Null
               $ready = $true
               Write-Host "MockServer ready (waited $($i+1)s)" -ForegroundColor Green
               break
@@ -580,7 +586,7 @@ jobs:
             $psi = [System.Diagnostics.ProcessStartInfo]::new()
             $psi.FileName = Resolve-Path $jccExe
             $psi.Arguments = "--trust -p `"hello`" --await $awaitSec"
-            $psi.EnvironmentVariables["JCC_ENDPOINT"] = "http://localhost:9901"
+            $psi.EnvironmentVariables["JCC_ENDPOINT"] = "http://localhost:$port"
             $psi.EnvironmentVariables["JCC_API_KEY"] = "sk-test-ci-key"
             $psi.EnvironmentVariables["JCC_PROVIDER"] = "openai"
             $psi.EnvironmentVariables["JCC_MODEL_ID"] = "gpt-4o"
@@ -653,13 +659,19 @@ jobs:
           Write-Host "MockServer: $mockServerExe"
           Write-Host "jcc: $jccExe"
 
-          $mockServer = Start-Process -FilePath $mockServerExe -ArgumentList "--port 9902" -PassThru -NoNewWindow
+          $listener2 = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, 0)
+          $listener2.Start()
+          $port = ($listener2.LocalEndpoint).Port
+          $listener2.Stop()
+          Write-Host "Dynamic port: $port"
+
+          $mockServer = Start-Process -FilePath $mockServerExe -ArgumentList "--port $port" -PassThru -NoNewWindow
 
           $ready = $false
           for ($i = 0; $i -lt 15; $i++) {
             Start-Sleep -Seconds 1
             try {
-              Invoke-RestMethod -Uri "http://localhost:9902/" -Method Get -TimeoutSec 2 -ErrorAction SilentlyContinue | Out-Null
+              Invoke-RestMethod -Uri "http://localhost:$port/" -Method Get -TimeoutSec 2 -ErrorAction SilentlyContinue | Out-Null
               $ready = $true
               Write-Host "MockServer ready (waited $($i+1)s)" -ForegroundColor Green
               break
@@ -676,7 +688,7 @@ jobs:
             $psi = [System.Diagnostics.ProcessStartInfo]::new()
             $psi.FileName = Resolve-Path $jccExe
             $psi.Arguments = "--trust -p `"hello`" --await $awaitSec"
-            $psi.EnvironmentVariables["JCC_ENDPOINT"] = "http://localhost:9902"
+            $psi.EnvironmentVariables["JCC_ENDPOINT"] = "http://localhost:$port"
             $psi.EnvironmentVariables["JCC_API_KEY"] = "sk-test-ci-key"
             $psi.EnvironmentVariables["JCC_PROVIDER"] = "openai"
             $psi.EnvironmentVariables["JCC_MODEL_ID"] = "gpt-4o"

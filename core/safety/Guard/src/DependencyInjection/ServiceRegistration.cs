@@ -14,6 +14,11 @@ public static partial class ServiceRegistration
 
     public static IServiceCollection AddSecurityServices(this IServiceCollection services)
     {
+        services.TryAddSingleton<ISandboxProvider, SoftSandboxProvider>();
+        services.TryAddSingleton<ISandboxProvider, ProcessSandboxProvider>();
+        services.TryAddSingleton<ISandboxProvider, DockerSandboxProvider>();
+        services.TryAddSingleton<ISandboxProvider, BubblewrapSandboxProvider>();
+        services.TryAddSingleton<ISandboxManager, SandboxManager>();
         return services;
     }
 

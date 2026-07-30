@@ -8,5 +8,6 @@
     <Project Path="services/Eyes/tests/Unit/Eyes.Tests.csproj" />
     <Project Path="services/Bridge/src/Bridge.csproj" />
     <Project Path="services/Bridge/tests/Unit/Bridge.Tests.csproj" />
+    <Project Path="services/SandboxSatellite/src/SandboxSatellite.csproj" />
   </Folder>
 </Solution>

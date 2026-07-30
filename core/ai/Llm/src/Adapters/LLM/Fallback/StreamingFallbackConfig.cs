@@ -47,4 +47,34 @@ public sealed class StreamingFallbackConfig
     /// 对齐 TS: 流式失败直接 fallback，不重试流式
     /// </summary>
     public int MaxStreamingRetriesBeforeFallback { get; set; } = 0;
+
+    /// <summary>
+    /// 从环境变量创建配置 — 对齐 TS 环境变量命名
+    /// JCC_DISABLE_STREAMING_FALLBACK=1 禁用 fallback
+    /// JCC_STREAM_IDLE_TIMEOUT_MS=90000 看门狗超时
+    /// JCC_ENABLE_STREAM_WATCHDOG=0 禁用看门狗
+    /// JCC_NON_STREAMING_TIMEOUT_MS=300000 非流式超时
+    /// </summary>
+    public static StreamingFallbackConfig FromEnvironment()
+    {
+        var config = new StreamingFallbackConfig();
+
+        var disableFallback = Environment.GetEnvironmentVariable("JCC_DISABLE_STREAMING_FALLBACK");
+        if (disableFallback is "1" or "true" or "yes")
+            config.Enabled = false;
+
+        var idleTimeout = Environment.GetEnvironmentVariable("JCC_STREAM_IDLE_TIMEOUT_MS");
+        if (int.TryParse(idleTimeout, out var timeoutMs) && timeoutMs > 0)
+            config.StreamIdleTimeoutMs = timeoutMs;
+
+        var enableWatchdog = Environment.GetEnvironmentVariable("JCC_ENABLE_STREAM_WATCHDOG");
+        if (enableWatchdog is "0" or "false" or "no")
+            config.StreamWatchdogEnabled = false;
+
+        var nonStreamingTimeout = Environment.GetEnvironmentVariable("JCC_NON_STREAMING_TIMEOUT_MS");
+        if (int.TryParse(nonStreamingTimeout, out var nsTimeoutMs) && nsTimeoutMs > 0)
+            config.NonStreamingTimeoutMs = nsTimeoutMs;
+
+        return config;
+    }
 }

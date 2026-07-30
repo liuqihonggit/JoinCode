@@ -9,7 +9,8 @@ public enum ChatStreamEventType
     [EnumValue("toolProgress")] ToolProgress,
     [EnumValue("loopDetected")] LoopDetected,
     [EnumValue("timingSummary")] TimingSummary,
-    [EnumValue("complete")] Complete
+    [EnumValue("complete")] Complete,
+    [EnumValue("tombstone")] Tombstone
 }
 
 public sealed class ChatStreamEvent

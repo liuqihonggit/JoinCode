@@ -93,7 +93,8 @@ public static partial class ServiceRegistration
     /// </summary>
     private static IQueryService WrapWithFallback(IQueryService inner, IServiceProvider sp)
     {
-        var config = sp.GetService<IOptions<StreamingFallbackConfig>>()?.Value ?? new StreamingFallbackConfig();
+        var config = sp.GetService<IOptions<StreamingFallbackConfig>>()?.Value
+            ?? StreamingFallbackConfig.FromEnvironment();
         var logger = sp.GetService<ILogger<StreamingFallbackDecorator>>();
 
         var withFallback = new StreamingFallbackDecorator(inner, config, logger);

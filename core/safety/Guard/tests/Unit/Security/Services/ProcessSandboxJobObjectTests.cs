@@ -18,6 +18,23 @@ public sealed class ProcessSandboxJobObjectTests
         handle.Should().NotBe(nint.Zero, because: "JobObject句柄应非零");
     }
 
+    [Fact]
+    public void WindowsJobObject_StructureSize_Correct()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+
+        var basicSize = System.Runtime.InteropServices.Marshal.SizeOf<JobObjectNative.JOBOBJECT_BASIC_LIMIT_INFORMATION>();
+        var ioSize = System.Runtime.InteropServices.Marshal.SizeOf<JobObjectNative.IO_COUNTERS>();
+        var extendedSize = System.Runtime.InteropServices.Marshal.SizeOf<JobObjectNative.JOBOBJECT_EXTENDED_LIMIT_INFORMATION>();
+
+        Console.WriteLine($"JOBOBJECT_BASIC_LIMIT_INFORMATION size: {basicSize} (expected 64 on x64)");
+        Console.WriteLine($"IO_COUNTERS size: {ioSize} (expected 48)");
+        Console.WriteLine($"JOBOBJECT_EXTENDED_LIMIT_INFORMATION size: {extendedSize} (expected 144 on x64)");
+
+        basicSize.Should().Be(64, because: "x64上JOBOBJECT_BASIC_LIMIT_INFORMATION应为64字节");
+        extendedSize.Should().Be(144, because: "x64上JOBOBJECT_EXTENDED_LIMIT_INFORMATION应为144字节");
+    }
+
     [Fact(Skip = "CI-only: JOBOBJECT_EXTENDED_LIMIT_INFORMATION结构体布局在测试环境返回ERROR_INVALID_PARAMETER(87)，需排查对齐")]
     public void WindowsJobObject_CreateWithMemoryLimit_Succeeds()
     {

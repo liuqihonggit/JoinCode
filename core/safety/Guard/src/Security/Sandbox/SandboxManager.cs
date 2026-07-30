@@ -1,6 +1,8 @@
 namespace Core.Security.Sandbox;
 
 using JoinCode.Abstractions.Security.Sandbox;
+using JoinCode.Abstractions.Security.Sandbox.Ipc;
+using Ipc;
 using Providers;
 using AbstractionsSandboxExecutionResult = JoinCode.Abstractions.Security.Sandbox.SandboxExecutionResult;
 
@@ -11,6 +13,7 @@ public sealed partial class SandboxManager : ISandboxManager, IDisposable
     private readonly AsyncLock _lock = new();
     [Inject] private readonly ILogger<SandboxManager>? _logger;
     [Inject] private readonly IFileSystem _fs;
+    [Inject] private readonly SandboxIpcClient? _ipcClient;
     private volatile ISandboxProvider? _activeProvider;
     private volatile string? _activeSandboxId;
     private volatile SandboxHealthState _healthState = SandboxHealthState.Healthy;
@@ -19,9 +22,11 @@ public sealed partial class SandboxManager : ISandboxManager, IDisposable
     public SandboxManager(
         IEnumerable<ISandboxProvider> providers,
         IFileSystem fs,
+        SandboxIpcClient? ipcClient = null,
         ILogger<SandboxManager>? logger = null)
     {
         _fs = fs;
+        _ipcClient = ipcClient;
         _logger = logger;
         _providers = providers
             .Where(p => p.IsAvailable)
@@ -345,6 +350,134 @@ public sealed partial class SandboxManager : ISandboxManager, IDisposable
     }
 
     public async Task<AbstractionsSandboxExecutionResult> ExecuteInSandboxAsync(string command, SandboxExecutionOptions options, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        ArgumentNullException.ThrowIfNull(options);
+
+        if (_ipcClient is not null && !_ipcClient.IsRunning)
+        {
+            try
+            {
+                await _ipcClient.StartAsync(ct: ct).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "[SandboxManager] 卫星进程启动失败，回退到直接执行");
+            }
+        }
+
+        if (_ipcClient is not null && _ipcClient.IsRunning)
+        {
+            return await ExecuteViaIpcAsync(command, options, ct).ConfigureAwait(false);
+        }
+
+        return await ExecuteDirectlyAsync(command, options, ct).ConfigureAwait(false);
+    }
+
+    private async Task<AbstractionsSandboxExecutionResult> ExecuteViaIpcAsync(string command, SandboxExecutionOptions options, CancellationToken ct)
+    {
+        var executionId = Guid.NewGuid().ToString("N")[..16];
+        var timeoutSeconds = options.GetTimeoutSeconds();
+        var configuredTimeout = TimeSpan.FromSeconds(timeoutSeconds);
+        var stopwatch = Stopwatch.StartNew();
+
+        var workingDir = _activeProvider is not null && _activeSandboxId is not null
+            ? _activeProvider.ResolvePath(".", _activeSandboxId)
+            : _fs.GetCurrentDirectory();
+
+        var envVars = new Dictionary<string, string>();
+        if (_activeProvider is not null && _activeSandboxId is not null)
+        {
+            var sandboxInfo = _activeProvider.GetSandboxInfo(_activeSandboxId);
+            if (sandboxInfo is not null)
+            {
+                if (sandboxInfo.RestrictFileSystem)
+                {
+                    envVars["JCC_SANDBOX_ROOT"] = sandboxInfo.RootPath;
+                }
+                if (sandboxInfo.RestrictNetwork)
+                {
+                    envVars["JCC_SANDBOX_NO_NETWORK"] = "1";
+                }
+                if (sandboxInfo.AllowedPaths is not null)
+                {
+                    envVars["JCC_SANDBOX_ALLOWED_PATHS"] = string.Join(Path.PathSeparator, sandboxInfo.AllowedPaths);
+                }
+            }
+        }
+
+        var request = new SandboxExecuteRequest
+        {
+            Command = command,
+            WorkingDirectory = workingDir,
+            TimeoutMs = 0,
+            EnvironmentVariables = envVars.Count > 0 ? envVars : null
+        };
+
+        var ipcTask = _ipcClient!.ExecuteAsync(request, ct);
+
+        try
+        {
+            var completedTask = await Task.WhenAny(ipcTask, Task.Delay(configuredTimeout, ct)).ConfigureAwait(false);
+
+            if (completedTask == ipcTask)
+            {
+                var response = await ipcTask.ConfigureAwait(false);
+                stopwatch.Stop();
+
+                return new AbstractionsSandboxExecutionResult
+                {
+                    State = response.Success ? SandboxExecutionState.Completed : SandboxExecutionState.Failed,
+                    ExecutionId = executionId,
+                    Stdout = response.StandardOutput,
+                    Stderr = response.StandardError,
+                    ExitCode = response.ExitCode,
+                    Elapsed = stopwatch.Elapsed,
+                    ConfiguredTimeout = configuredTimeout
+                };
+            }
+
+            if (ct.IsCancellationRequested)
+            {
+                return new AbstractionsSandboxExecutionResult
+                {
+                    State = SandboxExecutionState.ForceStopped,
+                    ExecutionId = executionId,
+                    Elapsed = stopwatch.Elapsed,
+                    ConfiguredTimeout = configuredTimeout,
+                    ErrorMessage = "外部取消请求，执行已终止"
+                };
+            }
+
+            _logger?.LogWarning("[SandboxManager] IPC执行超时 - ExecutionId: {Id}, 超时: {Timeout}s, 命令仍在卫星进程中, 不中断", executionId, timeoutSeconds);
+
+            return new AbstractionsSandboxExecutionResult
+            {
+                State = SandboxExecutionState.TimedOut,
+                ExecutionId = executionId,
+                Elapsed = stopwatch.Elapsed,
+                ConfiguredTimeout = configuredTimeout
+            };
+        }
+        catch (OperationCanceledException)
+        {
+            return new AbstractionsSandboxExecutionResult
+            {
+                State = SandboxExecutionState.ForceStopped,
+                ExecutionId = executionId,
+                Elapsed = stopwatch.Elapsed,
+                ConfiguredTimeout = configuredTimeout,
+                ErrorMessage = "外部取消请求，执行已终止"
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "[SandboxManager] IPC执行异常，回退到直接执行");
+            return await ExecuteDirectlyAsync(command, options, ct).ConfigureAwait(false);
+        }
+    }
+
+    private async Task<AbstractionsSandboxExecutionResult> ExecuteDirectlyAsync(string command, SandboxExecutionOptions options, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(command);
         ArgumentNullException.ThrowIfNull(options);

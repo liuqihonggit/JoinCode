@@ -64,7 +64,7 @@ public sealed class SandboxE2EVerificationTests
             new SoftSandboxProvider(_fs, NullLogger<SoftSandboxProvider>.Instance)
         };
 
-        var manager = new SandboxManager(providers, _fs, NullLogger<SandboxManager>.Instance);
+        var manager = new SandboxManager(providers, _fs, ipcClient: null, NullLogger<SandboxManager>.Instance);
 
         var result = await manager.TryEnterWithFallbackAsync(new SandboxOptions
         {
@@ -84,7 +84,7 @@ public sealed class SandboxE2EVerificationTests
     [Fact]
     public async Task SandboxManager_AllTypesUnavailable_ReturnsNone()
     {
-        var manager = new SandboxManager([], _fs, NullLogger<SandboxManager>.Instance);
+        var manager = new SandboxManager([], _fs, ipcClient: null, NullLogger<SandboxManager>.Instance);
 
         var result = await manager.TryEnterWithFallbackAsync(new SandboxOptions
         {
@@ -105,7 +105,7 @@ public sealed class SandboxE2EVerificationTests
             new SoftSandboxProvider(_fs, NullLogger<SoftSandboxProvider>.Instance)
         };
 
-        var manager = new SandboxManager(providers, _fs, NullLogger<SandboxManager>.Instance);
+        var manager = new SandboxManager(providers, _fs, ipcClient: null, NullLogger<SandboxManager>.Instance);
 
         await manager.EnterSandboxAsync(new SandboxOptions
         {
@@ -136,7 +136,7 @@ public sealed class SandboxE2EVerificationTests
             new SoftSandboxProvider(_fs, NullLogger<SoftSandboxProvider>.Instance)
         };
 
-        var manager = new SandboxManager(providers, _fs, NullLogger<SandboxManager>.Instance);
+        var manager = new SandboxManager(providers, _fs, ipcClient: null, NullLogger<SandboxManager>.Instance);
 
         await manager.EnterSandboxAsync(new SandboxOptions
         {

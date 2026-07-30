@@ -8,7 +8,7 @@ public class ShellExecutionServiceEnvTests
 
     public ShellExecutionServiceEnvTests()
     {
-        _fsMock.Setup(x => x.GetCurrentDirectory()).Returns("C:\\project");
+        _fsMock.Setup(x => x.GetCurrentDirectory()).Returns(Environment.CurrentDirectory);
         _fsMock.Setup(x => x.DirectoryExists(It.IsAny<string>())).Returns(true);
         _fsMock.Setup(x => x.FileExists(It.IsAny<string>())).Returns(true);
     }

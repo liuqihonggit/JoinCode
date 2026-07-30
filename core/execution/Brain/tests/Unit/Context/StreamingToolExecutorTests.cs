@@ -91,7 +91,8 @@ public sealed class StreamingToolExecutorTests
         await executor.AddToolAsync(new ToolCallEntry { Id = "1", Name = "Bash", Arguments = "{}" }, 0);
         await executor.AddToolAsync(new ToolCallEntry { Id = "2", Name = "Read", Arguments = "{}" }, 1);
 
-        var results = await executor.GetRemainingResultsAsync();
+        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var results = await executor.GetRemainingResultsAsync().WaitAsync(timeoutCts.Token);
         results.Should().HaveCount(2);
         results.Should().Contain(r => r.ToolName == "Bash" && r.Result.IsError);
         results.Should().Contain(r => r.ToolName == "Read" && r.Result.IsError);
@@ -291,6 +292,39 @@ public sealed class StreamingToolExecutorTests
         results.Should().HaveCount(2, "both tools must complete even after cascade cancel");
         results.Should().Contain(r => r.ToolName == "Bash" && r.Result.IsError);
         results.Should().Contain(r => r.ToolName == "Read");
+
+        await executor.DisposeAsync();
+    }
+
+    /// <summary>
+    /// P2-13: 级联取消后，队列中等待的工具应直接标记为取消完成，不调用 handler
+    /// 对齐 TS: collectResults 开头检查 getAbortReason()，发现 sibling_error 后
+    /// 直接生成 synthetic error 标记 completed，不调用 runToolUse
+    /// </summary>
+    [Fact]
+    public async Task CascadeCancel_QueuedTool_ShouldNotInvokeHandler()
+    {
+        var classifier = new ToolConcurrencyClassifier(FrozenSet<string>.Empty);
+        var readHandlerInvoked = false;
+        var toolHandler = new Mock<IToolExecutionHandler>();
+        toolHandler.Setup(h => h.ExecuteToolCallAsync("Bash", It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ToolCallResult { ResultText = "error!", IsError = true });
+        toolHandler.Setup(h => h.ExecuteToolCallAsync("Read", It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
+            .Callback(() => readHandlerInvoked = true)
+            .ReturnsAsync(new ToolCallResult { ResultText = "should-not-run", IsError = false });
+
+        var executor = new StreamingToolExecutor(toolHandler.Object, classifier, CreateContext());
+
+        await executor.AddToolAsync(new ToolCallEntry { Id = "1", Name = "Bash", Arguments = "{}" }, 0);
+        await executor.AddToolAsync(new ToolCallEntry { Id = "2", Name = "Read", Arguments = "{}" }, 1);
+
+        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var results = await executor.GetRemainingResultsAsync().WaitAsync(timeoutCts.Token);
+
+        results.Should().HaveCount(2);
+        results.Should().Contain(r => r.ToolName == "Bash" && r.Result.IsError);
+        results.Should().Contain(r => r.ToolName == "Read" && r.Result.IsError, "queued tool should get synthetic cancelled error, not handler result");
+        readHandlerInvoked.Should().BeFalse("handler should NOT be invoked for queued tool after cascade cancel — align TS collectResults getAbortReason() early check");
 
         await executor.DisposeAsync();
     }

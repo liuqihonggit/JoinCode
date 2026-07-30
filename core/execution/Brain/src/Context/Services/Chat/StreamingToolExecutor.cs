@@ -90,7 +90,6 @@ public sealed class StreamingToolExecutor : IAsyncDisposable
         {
             _semaphore.Release();
         }
-
         _ = ProcessQueueAsync();
     }
 
@@ -133,7 +132,6 @@ public sealed class StreamingToolExecutor : IAsyncDisposable
         {
             _semaphore.Release();
         }
-
         if (pendingTasks.Count > 0)
         {
             await Task.WhenAll(pendingTasks).ConfigureAwait(false);
@@ -228,28 +226,8 @@ public sealed class StreamingToolExecutor : IAsyncDisposable
     private async Task ExecuteToolAsync(QueuedTool tool)
     {
         StreamingToolResult result;
-        try
-        {
-            var args = JsonArgumentParser.Parse(tool.Entry.Arguments);
-            var toolCallResult = await _toolHandler.ExecuteToolCallAsync(
-                tool.Entry.Name, tool.Entry.Id, args, _context, _combinedCt).ConfigureAwait(false);
 
-            result = new StreamingToolResult
-            {
-                ToolName = tool.Entry.Name,
-                ToolCallId = tool.Entry.Id,
-                Result = toolCallResult,
-                OriginalIndex = tool.OriginalIndex
-            };
-
-            if (toolCallResult.IsError && IsShellTool(tool.Entry.Name))
-            {
-                _logger?.LogWarning("[StreamingToolExecutor] Shell 工具错误，级联取消兄弟工具: {ToolName}", tool.Entry.Name);
-                try { _siblingCts.Cancel(); }
-                catch (ObjectDisposedException) { _logger?.LogDebug("[StreamingToolExecutor] SiblingCts 已释放"); }
-            }
-        }
-        catch (OperationCanceledException) when (_combinedCt.IsCancellationRequested)
+        if (_siblingCts.IsCancellationRequested)
         {
             result = new StreamingToolResult
             {
@@ -259,23 +237,56 @@ public sealed class StreamingToolExecutor : IAsyncDisposable
                 OriginalIndex = tool.OriginalIndex
             };
         }
-        catch (Exception ex)
+        else
         {
-            _logger?.LogError(ex, "[StreamingToolExecutor] 工具执行失败: {ToolName}", tool.Entry.Name);
-            result = new StreamingToolResult
+            try
             {
-                ToolName = tool.Entry.Name,
-                ToolCallId = tool.Entry.Id,
-                Result = new ToolCallResult { ResultText = $"工具执行失败: {ex.Message}", IsError = true },
-                OriginalIndex = tool.OriginalIndex
-            };
+                var args = JsonArgumentParser.Parse(tool.Entry.Arguments);
+                var toolCallResult = await _toolHandler.ExecuteToolCallAsync(
+                    tool.Entry.Name, tool.Entry.Id, args, _context, _combinedCt).ConfigureAwait(false);
+
+                result = new StreamingToolResult
+                {
+                    ToolName = tool.Entry.Name,
+                    ToolCallId = tool.Entry.Id,
+                    Result = toolCallResult,
+                    OriginalIndex = tool.OriginalIndex
+                };
+
+                if (toolCallResult.IsError && IsShellTool(tool.Entry.Name))
+                {
+                    _logger?.LogWarning("[StreamingToolExecutor] Shell 工具错误，级联取消兄弟工具: {ToolName}", tool.Entry.Name);
+                    try { _siblingCts.Cancel(); }
+                    catch (ObjectDisposedException) { _logger?.LogDebug("[StreamingToolExecutor] SiblingCts 已释放"); }
+                }
+            }
+            catch (OperationCanceledException) when (_combinedCt.IsCancellationRequested)
+            {
+                result = new StreamingToolResult
+                {
+                    ToolName = tool.Entry.Name,
+                    ToolCallId = tool.Entry.Id,
+                    Result = new ToolCallResult { ResultText = "(cancelled by sibling error)", IsError = true },
+                    OriginalIndex = tool.OriginalIndex
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "[StreamingToolExecutor] 工具执行失败: {ToolName}", tool.Entry.Name);
+                result = new StreamingToolResult
+                {
+                    ToolName = tool.Entry.Name,
+                    ToolCallId = tool.Entry.Id,
+                    Result = new ToolCallResult { ResultText = $"工具执行失败: {ex.Message}", IsError = true },
+                    OriginalIndex = tool.OriginalIndex
+                };
+            }
         }
 
         await _semaphore.WaitAsync().ConfigureAwait(false);
         try
         {
             tool.Status = ToolStatus.Completed;
-            tool.CompletionSource.SetResult(result);
             _completedBuffer.Add(result);
             _executingCount--;
             if (!tool.IsConcurrencySafe)
@@ -285,6 +296,8 @@ public sealed class StreamingToolExecutor : IAsyncDisposable
         {
             _semaphore.Release();
         }
+
+        tool.CompletionSource.SetResult(result);
 
         _ = ProcessQueueAsync();
     }

@@ -35,7 +35,7 @@ public sealed class ProcessSandboxJobObjectTests
         extendedSize.Should().Be(144, because: "x64上JOBOBJECT_EXTENDED_LIMIT_INFORMATION应为144字节");
     }
 
-    [Fact(Skip = "CI-only: JOBOBJECT_EXTENDED_LIMIT_INFORMATION结构体布局在测试环境返回ERROR_INVALID_PARAMETER(87)，需排查对齐")]
+    [Fact]
     public void WindowsJobObject_CreateWithMemoryLimit_Succeeds()
     {
         if (!OperatingSystem.IsWindows()) return;

@@ -49,6 +49,21 @@ internal sealed class WindowsJobObjectSandbox : IDisposable
             ref info,
             (uint)Marshal.SizeOf<JobObjectNative.JOBOBJECT_EXTENDED_LIMIT_INFORMATION>());
 
+        if (!success && limitFlags != JobObjectNative.JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE)
+        {
+            var error = Marshal.GetLastPInvokeError();
+            _logger?.LogWarning("[WindowsJobObject] 设置限制失败(错误码: {Error})，降级为仅 KILL_ON_JOB_CLOSE", error);
+
+            info = new JobObjectNative.JOBOBJECT_EXTENDED_LIMIT_INFORMATION();
+            info.BasicLimitInformation.LimitFlags = JobObjectNative.JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+
+            success = JobObjectNative.SetInformationJobObject(
+                _jobHandle,
+                JobObjectNative.JOB_OBJECT_EXTENDED_LIMIT_INFORMATION,
+                ref info,
+                (uint)Marshal.SizeOf<JobObjectNative.JOBOBJECT_EXTENDED_LIMIT_INFORMATION>());
+        }
+
         if (!success)
         {
             var error = Marshal.GetLastPInvokeError();

@@ -52,6 +52,13 @@ public class ToolExecutionSettings
     public int MaxParallelToolExecution { get; set; } = 5;
 
     /// <summary>
+    /// 是否启用流式工具并发执行 — 对齐 TS tengu_streaming_tool_execution2 特性门控
+    /// 启用后，LLM 流式响应期间收到 tool_use block 就立即执行，而非等待流式结束
+    /// 并发安全工具可并行执行，非并发安全工具独占执行
+    /// </summary>
+    public bool UseStreamingToolExecution { get; set; } = false;
+
+    /// <summary>
     /// 是否启用工具结果验证
     /// </summary>
     public bool EnableResultValidation { get; set; } = true;

@@ -1,11 +1,13 @@
 namespace JoinCode.SandboxSatellite;
 
 using JoinCode.Abstractions.Security.Sandbox.Ipc;
+using Infrastructure.Windows.JobObject;
 
-public sealed class SandboxSatelliteHost
+public sealed class SandboxSatelliteHost : IAsyncDisposable
 {
     private readonly IFileSystem _fs;
     private readonly CancellationTokenSource _cts = new();
+    private WindowsJobObjectSandbox? _innerJobObject;
 
     public SandboxSatelliteHost(IFileSystem fs)
     {
@@ -160,6 +162,15 @@ public sealed class SandboxSatelliteHost
             return;
         }
 
+        if (OperatingSystem.IsWindows())
+        {
+            EnsureInnerJobObject();
+            if (_innerJobObject is not null && !_innerJobObject.AssignProcess(process.Id))
+            {
+                Console.Error.WriteLine($"[SandboxSatellite] 将子进程 {process.Id} 加入 JobObject 失败");
+            }
+        }
+
         var stdoutTask = process.StandardOutput.ReadToEndAsync(ct);
         var stderrTask = process.StandardError.ReadToEndAsync(ct);
 
@@ -207,5 +218,47 @@ public sealed class SandboxSatelliteHost
 
         var escaped = command.Replace("'", @"'\''");
         return $"'{escaped}'";
+    }
+
+    private void EnsureInnerJobObject()
+    {
+        if (_innerJobObject is not null)
+        {
+            return;
+        }
+
+        try
+        {
+            _innerJobObject = new WindowsJobObjectSandbox();
+            _innerJobObject.CreateJobObject();
+            Console.Error.WriteLine("[SandboxSatellite] 内部 JobObject 已创建，子进程将受 KILL_ON_JOB_CLOSE 管理");
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[SandboxSatellite] 创建内部 JobObject 失败: {ex.Message}");
+            _innerJobObject = null;
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _cts.Cancel();
+
+        if (_innerJobObject is not null)
+        {
+            try
+            {
+                _innerJobObject.TerminateAllProcesses();
+                _innerJobObject.Dispose();
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"[SandboxSatellite] 销毁内部 JobObject 异常: {ex.Message}");
+            }
+
+            _innerJobObject = null;
+        }
+
+        await Task.CompletedTask.ConfigureAwait(false);
     }
 }

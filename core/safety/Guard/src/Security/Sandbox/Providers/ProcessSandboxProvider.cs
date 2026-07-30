@@ -1,7 +1,7 @@
 namespace Core.Security.Sandbox.Providers;
 
 using JoinCode.Abstractions.Security.Sandbox;
-using Native;
+using Infrastructure.Windows.JobObject;
 
 [Register]
 public sealed partial class ProcessSandboxProvider : SandboxProviderBase
@@ -195,6 +195,15 @@ public sealed partial class ProcessSandboxProvider : SandboxProviderBase
     }
 
     internal bool HasJobObject(string sandboxId) => _jobObjects.ContainsKey(sandboxId);
+
+    public bool TryAssignProcessToJobObject(string sandboxId, int processId)
+    {
+        if (_jobObjects.TryGetValue(sandboxId, out var jobObject))
+        {
+            return jobObject.AssignProcess(processId);
+        }
+        return false;
+    }
 
     public override Task<ProviderExecutionResult?> ExecuteAsync(string sandboxId, string command, string? workingDirectory, int timeoutMs, CancellationToken ct)
     {

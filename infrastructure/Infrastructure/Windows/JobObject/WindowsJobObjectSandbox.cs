@@ -1,8 +1,6 @@
-namespace Core.Security.Sandbox.Native;
+namespace Infrastructure.Windows.JobObject;
 
-using System.Runtime.InteropServices;
-
-internal sealed class WindowsJobObjectSandbox : IDisposable
+public sealed class WindowsJobObjectSandbox : IDisposable
 {
     private nint _jobHandle;
     private readonly ILogger? _logger;

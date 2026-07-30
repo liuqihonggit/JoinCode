@@ -1,6 +1,6 @@
 namespace Guard.Tests.Security.Services;
 
-using Core.Security.Sandbox.Native;
+using Infrastructure.Windows.JobObject;
 using JoinCode.Abstractions.Security.Sandbox;
 
 public sealed class JobObjectIntegrationTests

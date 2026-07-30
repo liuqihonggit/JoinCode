@@ -361,6 +361,18 @@ public sealed partial class SandboxManager : ISandboxManager, IDisposable
             try
             {
                 await _ipcClient.StartAsync(ct: ct).ConfigureAwait(false);
+
+                if (_ipcClient.SatelliteProcessId is int satellitePid && _activeProvider is ProcessSandboxProvider psp && _activeSandboxId is not null)
+                {
+                    if (!psp.TryAssignProcessToJobObject(_activeSandboxId, satellitePid))
+                    {
+                        _logger?.LogWarning("[SandboxManager] 将卫星进程 {Pid} 加入 JobObject 失败", satellitePid);
+                    }
+                    else
+                    {
+                        _logger?.LogInformation("[SandboxManager] 卫星进程 {Pid} 已加入 JobObject", satellitePid);
+                    }
+                }
             }
             catch (Exception ex)
             {

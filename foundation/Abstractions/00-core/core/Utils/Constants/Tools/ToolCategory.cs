@@ -55,4 +55,5 @@ public enum ToolCategory
     [EnumValue("brief")] Brief,
     [EnumValue("mcp_resource")] McpResource,
     [EnumValue("graph")] Graph,
+    [EnumValue("sandbox")] Sandbox,
 }

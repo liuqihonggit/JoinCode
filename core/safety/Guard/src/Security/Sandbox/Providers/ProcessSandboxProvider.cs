@@ -1,14 +1,16 @@
 namespace Core.Security.Sandbox.Providers;
 
 using JoinCode.Abstractions.Security.Sandbox;
+using Native;
 
 [Register]
 public sealed partial class ProcessSandboxProvider : SandboxProviderBase
 {
     private readonly IProcessService _processService;
+    private readonly ConcurrentDictionary<string, WindowsJobObjectSandbox> _jobObjects = new();
 
     public override SandboxType SandboxType => SandboxType.Process;
-    public override SandboxCapabilities Capabilities => SandboxCapabilities.PathRedirection | SandboxCapabilities.FileSystemIsolation | SandboxCapabilities.ProcessIsolation | SandboxCapabilities.TimeLimit;
+    public override SandboxCapabilities Capabilities => SandboxCapabilities.PathRedirection | SandboxCapabilities.FileSystemIsolation | SandboxCapabilities.ProcessIsolation | SandboxCapabilities.TimeLimit | SandboxCapabilities.MemoryLimit;
 
     public ProcessSandboxProvider(
         IFileSystem fs,
@@ -35,6 +37,32 @@ public sealed partial class ProcessSandboxProvider : SandboxProviderBase
             }
             return false;
         }
+    }
+
+    private protected override async Task OnCreateAsync(SandboxInfo info, SandboxOptions options, CancellationToken ct)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            CreateWindowsJobObject(info, options);
+        }
+        else if (OperatingSystem.IsLinux())
+        {
+            Logger?.LogInformation("[Sandbox:Process] Linux 进程组沙箱就绪 - Id: {Id}, 路径: {Root}", info.SandboxId, info.RootPath);
+        }
+
+        await base.OnCreateAsync(info, options, ct).ConfigureAwait(false);
+    }
+
+    private protected override async Task OnDestroyAsync(SandboxInfo info, CancellationToken ct)
+    {
+        if (OperatingSystem.IsWindows() && _jobObjects.TryRemove(info.SandboxId, out var jobObject))
+        {
+            jobObject.TerminateAllProcesses();
+            jobObject.Dispose();
+            Logger?.LogInformation("[Sandbox:Process] JobObject 已销毁 - Id: {Id}", info.SandboxId);
+        }
+
+        await base.OnDestroyAsync(info, ct).ConfigureAwait(false);
     }
 
     public async Task<SandboxExecutionResult> ExecuteInSandboxAsync(
@@ -82,6 +110,19 @@ public sealed partial class ProcessSandboxProvider : SandboxProviderBase
             Success = result.Success,
             TimedOut = !result.Success && result.ExitCode == -1
         };
+    }
+
+    private void CreateWindowsJobObject(SandboxInfo info, SandboxOptions options)
+    {
+        var jobObject = new WindowsJobObjectSandbox(Logger);
+        long? memoryLimit = options.MemoryLimitMb > 0 ? options.MemoryLimitMb * 1024L * 1024L : null;
+        int? cpuLimit = options.CpuLimitPercent > 0 ? options.CpuLimitPercent : null;
+
+        jobObject.CreateJobObject(memoryLimit, cpuLimit);
+        _jobObjects[info.SandboxId] = jobObject;
+
+        Logger?.LogInformation("[Sandbox:Process] Windows JobObject 已创建 - Id: {Id}, 内存限制: {MemMb}MB, CPU限制: {CpuPct}%",
+            info.SandboxId, options.MemoryLimitMb, options.CpuLimitPercent);
     }
 
     private bool CheckLinuxSandboxSupport()

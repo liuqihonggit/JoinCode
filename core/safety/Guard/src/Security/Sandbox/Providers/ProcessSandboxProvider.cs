@@ -93,22 +93,77 @@ public sealed partial class ProcessSandboxProvider : SandboxProviderBase
             ? ResolvePath(workingDirectory, sandboxId)
             : info.RootPath;
 
-        var result = await _processService.ExecuteAsync(new ProcessOptions
+        var psi = new ProcessStartInfo
         {
             FileName = OperatingSystem.IsWindows() ? "cmd.exe" : "/bin/sh",
             Arguments = OperatingSystem.IsWindows() ? $"/c {command}" : $"-c {command}",
             WorkingDirectory = effectiveWorkingDir,
-            TimeoutMs = timeoutMs,
-            EnvironmentVariables = env
-        }, ct).ConfigureAwait(false);
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true
+        };
+
+        foreach (var (key, value) in env)
+        {
+            psi.EnvironmentVariables[key] = value;
+        }
+
+        using var process = System.Diagnostics.Process.Start(psi)
+            ?? throw new InvalidOperationException($"无法启动沙箱进程");
+
+        if (OperatingSystem.IsWindows() && _jobObjects.TryGetValue(sandboxId, out var jobObject))
+        {
+            if (!jobObject.AssignProcess(process.Id))
+            {
+                Logger?.LogWarning("[Sandbox:Process] 将进程 {Pid} 分配到 JobObject 失败 - 沙箱: {Id}", process.Id, sandboxId);
+            }
+        }
+
+        var stdoutTask = process.StandardOutput.ReadToEndAsync(ct);
+        var stderrTask = process.StandardError.ReadToEndAsync(ct);
+
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeoutCts.CancelAfter(TimeSpan.FromMilliseconds(timeoutMs));
+
+        try
+        {
+            await process.WaitForExitAsync(timeoutCts.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            try
+            {
+                process.Kill(entireProcessTree: true);
+            }
+            catch (Exception ex)
+            {
+                Logger?.LogWarning(ex, "[Sandbox:Process] 终止超时进程失败 - Pid: {Pid}", process.Id);
+            }
+
+            var stdout = await stdoutTask.ConfigureAwait(false);
+            var stderr = await stderrTask.ConfigureAwait(false);
+
+            return new ProviderExecutionResult
+            {
+                StandardOutput = stdout,
+                StandardError = stderr,
+                ExitCode = -1,
+                Success = false,
+                TimedOut = true
+            };
+        }
+
+        var standardOutput = await stdoutTask.ConfigureAwait(false);
+        var standardError = await stderrTask.ConfigureAwait(false);
 
         return new ProviderExecutionResult
         {
-            StandardOutput = result.StandardOutput,
-            StandardError = result.StandardError,
-            ExitCode = result.ExitCode,
-            Success = result.Success,
-            TimedOut = !result.Success && result.ExitCode == -1
+            StandardOutput = standardOutput,
+            StandardError = standardError,
+            ExitCode = process.ExitCode,
+            Success = process.ExitCode == 0,
+            TimedOut = false
         };
     }
 
@@ -136,13 +191,12 @@ public sealed partial class ProcessSandboxProvider : SandboxProviderBase
             return false;
         }
     }
-}
 
-public sealed partial class ProviderExecutionResult
-{
-    public required string StandardOutput { get; init; }
-    public required string StandardError { get; init; }
-    public required int ExitCode { get; init; }
-    public required bool Success { get; init; }
-    public required bool TimedOut { get; init; }
+    internal bool HasJobObject(string sandboxId) => _jobObjects.ContainsKey(sandboxId);
+
+    public override Task<ProviderExecutionResult?> ExecuteAsync(string sandboxId, string command, string? workingDirectory, int timeoutMs, CancellationToken ct)
+    {
+        return ExecuteInSandboxAsync(sandboxId, command, workingDirectory, timeoutMs, ct)
+            .ContinueWith(t => (ProviderExecutionResult?)t.Result, ct);
+    }
 }

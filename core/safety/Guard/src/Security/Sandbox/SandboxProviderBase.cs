@@ -201,4 +201,7 @@ public abstract class SandboxProviderBase : ISandboxProvider
 
     private protected void RecordMetrics(string operation, string type)
         => TelemetryService?.RecordCount("sandbox.operation.count", new Dictionary<string, string> { ["operation"] = operation, ["type"] = type }, description: "Sandbox operation count");
+
+    public virtual Task<ProviderExecutionResult?> ExecuteAsync(string sandboxId, string command, string? workingDirectory, int timeoutMs, CancellationToken ct)
+        => Task.FromResult<ProviderExecutionResult?>(null);
 }

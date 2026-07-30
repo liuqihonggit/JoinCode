@@ -487,6 +487,30 @@ public sealed partial class SandboxManager : ISandboxManager, IDisposable
         var configuredTimeout = TimeSpan.FromSeconds(timeoutSeconds);
         var stopwatch = Stopwatch.StartNew();
 
+        if (_activeProvider is not null && _activeSandboxId is not null)
+        {
+            var providerResult = await _activeProvider.ExecuteAsync(
+                _activeSandboxId, command, null, (int)configuredTimeout.TotalMilliseconds, ct).ConfigureAwait(false);
+
+            if (providerResult is not null)
+            {
+                var r = providerResult;
+                stopwatch.Stop();
+                return new AbstractionsSandboxExecutionResult
+                {
+                    State = r.Success ? SandboxExecutionState.Completed
+                        : r.TimedOut ? SandboxExecutionState.TimedOut
+                        : SandboxExecutionState.Failed,
+                    ExecutionId = executionId,
+                    Stdout = r.StandardOutput,
+                    Stderr = r.StandardError,
+                    ExitCode = r.ExitCode,
+                    Elapsed = stopwatch.Elapsed,
+                    ConfiguredTimeout = configuredTimeout
+                };
+            }
+        }
+
         var workingDir = _activeProvider is not null && _activeSandboxId is not null
             ? _activeProvider.ResolvePath(".", _activeSandboxId)
             : _fs.GetCurrentDirectory();

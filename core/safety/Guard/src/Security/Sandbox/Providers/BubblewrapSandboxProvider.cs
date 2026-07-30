@@ -32,14 +32,15 @@ public sealed partial class BubblewrapSandboxProvider : SandboxProviderBase
 
             try
             {
-                var result = _processService.ExecuteAsync(new ProcessOptions
+                var path = Environment.GetEnvironmentVariable("PATH") ?? "";
+                foreach (var dir in path.Split(':', StringSplitOptions.RemoveEmptyEntries))
                 {
-                    FileName = "bwrap",
-                    Arguments = "--version",
-                    TimeoutMs = 3000
-                }, CancellationToken.None).GetAwaiter().GetResult();
-
-                return result.Success;
+                    if (Fs.FileExists(Path.Combine(dir, "bwrap")))
+                    {
+                        return true;
+                    }
+                }
+                return false;
             }
             catch
             {

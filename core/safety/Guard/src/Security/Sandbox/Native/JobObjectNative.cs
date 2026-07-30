@@ -48,7 +48,7 @@ internal static class JobObjectNative
         internal nint MinimumWorkingSetSize;
         internal nint MaximumWorkingSetSize;
         internal uint ActiveProcessLimit;
-        internal long Affinity;
+        internal nint Affinity;
         internal uint PriorityClass;
         internal uint SchedulingClass;
     }

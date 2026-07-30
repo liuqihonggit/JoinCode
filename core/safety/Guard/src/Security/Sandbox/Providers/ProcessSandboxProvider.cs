@@ -184,7 +184,9 @@ public sealed partial class ProcessSandboxProvider : SandboxProviderBase
     {
         try
         {
-            return Fs.FileExists("/proc/self/status");
+            if (!Fs.FileExists("/proc/self/status")) return false;
+            if (!Fs.DirectoryExists("/sys/fs/cgroup")) return false;
+            return true;
         }
         catch
         {

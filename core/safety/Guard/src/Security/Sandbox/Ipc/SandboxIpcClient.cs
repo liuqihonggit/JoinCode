@@ -149,7 +149,14 @@ public sealed class SandboxIpcClient : IAsyncDisposable
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             timeoutCts.CancelAfter(TimeSpan.FromSeconds(60));
 
-            return await tcs.Task.ConfigureAwait(false);
+            try
+            {
+                return await tcs.Task.WaitAsync(timeoutCts.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                throw new TimeoutException("IPC 请求超时 (60s)，卫星进程未响应");
+            }
         }
         finally
         {

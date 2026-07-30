@@ -1,5 +1,6 @@
 namespace JoinCode.Llm.DependencyInjection;
 
+using Api.LLM.Fallback;
 using Api.LLM.QueryServices;
 
 public static partial class ServiceRegistration
@@ -41,7 +42,8 @@ public static partial class ServiceRegistration
         services.AddSingleton<IQueryService>(sp =>
         {
             var logger = sp.GetService<ILogger<Api.Chat.PipeQueryService>>();
-            return new Api.Chat.PipeQueryService(config, apiKey, logger);
+            var inner = new Api.Chat.PipeQueryService(config, apiKey, logger);
+            return WrapWithFallback(inner, sp);
         });
 
         return services;
@@ -81,6 +83,22 @@ public static partial class ServiceRegistration
     {
         var logger = sp.GetService<ILogger<IQueryService>>();
         var fs = sp.GetService<IFileSystem>();
-        return s_factory.Create(providerConfig, logger: logger, fileSystem: fs);
+        var inner = s_factory.Create(providerConfig, logger: logger, fileSystem: fs);
+        return WrapWithFallback(inner, sp);
+    }
+
+    /// <summary>
+    /// 用 StreamingFallbackDecorator + BufferedStreamingDecorator 包装内部 QueryService
+    /// 对齐 TS: queryModelWithStreaming + queryModelWithoutStreaming 双路径架构
+    /// </summary>
+    private static IQueryService WrapWithFallback(IQueryService inner, IServiceProvider sp)
+    {
+        var config = sp.GetService<IOptions<StreamingFallbackConfig>>()?.Value ?? new StreamingFallbackConfig();
+        var logger = sp.GetService<ILogger<StreamingFallbackDecorator>>();
+
+        var withFallback = new StreamingFallbackDecorator(inner, config, logger);
+        var withBufferedStreaming = new BufferedStreamingDecorator(withFallback, logger);
+
+        return withBufferedStreaming;
     }
 }

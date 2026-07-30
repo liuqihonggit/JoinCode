@@ -55,7 +55,10 @@ public sealed partial class SoftSandboxProvider : SandboxProviderBase
 
         if (!resolvedPath.StartsWith(sandboxRoot, StringComparison.OrdinalIgnoreCase))
         {
-            throw new UnauthorizedAccessException($"路径遍历攻击检测: '{path}' 尝试逃出沙箱 '{info.SandboxId}'");
+            var fileName = Path.GetFileName(fullPath);
+            var fallbackPath = Path.GetFullPath(Path.Combine(sandboxRoot, "redirected", fileName));
+            Logger?.LogWarning("[Sandbox:Soft] 路径遍历攻击检测，降级重定向: '{Path}' → '{Fallback}'", path, fallbackPath);
+            return fallbackPath;
         }
 
         return resolvedPath;

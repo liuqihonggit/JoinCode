@@ -354,6 +354,10 @@ public sealed partial class SandboxManager : ISandboxManager, IDisposable
         var configuredTimeout = TimeSpan.FromSeconds(timeoutSeconds);
         var stopwatch = Stopwatch.StartNew();
 
+        var workingDir = _activeProvider is not null && _activeSandboxId is not null
+            ? _activeProvider.ResolvePath(".", _activeSandboxId)
+            : _fs.GetCurrentDirectory();
+
         var processStartInfo = new ProcessStartInfo
         {
             FileName = OperatingSystem.IsWindows() ? "cmd.exe" : "/bin/sh",
@@ -362,25 +366,35 @@ public sealed partial class SandboxManager : ISandboxManager, IDisposable
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             CreateNoWindow = true,
-            WorkingDirectory = _activeProvider is not null && _activeSandboxId is not null
-                ? _activeProvider.ResolvePath(_activeProvider.GetSandboxInfo(_activeSandboxId)?.RootPath ?? ".", _activeSandboxId)
-                : _fs.GetCurrentDirectory()
+            WorkingDirectory = workingDir
         };
-
-        if (_activeProvider is not null && _activeSandboxId is not null)
-        {
-            var sandboxInfo = _activeProvider.GetSandboxInfo(_activeSandboxId);
-            if (sandboxInfo is not null && sandboxInfo.RestrictFileSystem)
-            {
-                processStartInfo.WorkingDirectory = _activeProvider.ResolvePath(".", _activeSandboxId);
-            }
-        }
 
         Process process;
         try
         {
             process = new Process { StartInfo = processStartInfo };
             process.Start();
+        }
+        catch (Exception ex) when (ex.Message.Contains("目录名称无效") || ex.Message.Contains("directory"))
+        {
+            _logger?.LogWarning("[SandboxManager] 工作目录无效 '{Dir}'，回退到临时目录", workingDir);
+            processStartInfo.WorkingDirectory = Path.GetFullPath(Path.GetTempPath());
+            try
+            {
+                process = new Process { StartInfo = processStartInfo };
+                process.Start();
+            }
+            catch (Exception ex2)
+            {
+                return new AbstractionsSandboxExecutionResult
+                {
+                    State = SandboxExecutionState.Failed,
+                    ExecutionId = executionId,
+                    Elapsed = stopwatch.Elapsed,
+                    ConfiguredTimeout = configuredTimeout,
+                    ErrorMessage = $"启动进程失败: {ex2.Message}"
+                };
+            }
         }
         catch (Exception ex)
         {
@@ -430,32 +444,50 @@ public sealed partial class SandboxManager : ISandboxManager, IDisposable
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeoutCts.CancelAfter(configuredTimeout);
 
-        var processTask = Task.Run(() => process.WaitForExit(), timeoutCts.Token);
+        var processTask = Task.Run(() => process.WaitForExit(), CancellationToken.None);
 
         try
         {
-            await processTask.ConfigureAwait(false);
+            var completedTask = await Task.WhenAny(processTask, Task.Delay(configuredTimeout, ct)).ConfigureAwait(false);
 
-            await Task.WhenAll(stdoutTask, stderrTask).ConfigureAwait(false);
-
-            stopwatch.Stop();
-            _activeExecutions.TryRemove(executionId, out _);
-
-            return new AbstractionsSandboxExecutionResult
+            if (completedTask == processTask)
             {
-                State = process.HasExited && process.ExitCode == 0
-                    ? SandboxExecutionState.Completed
-                    : SandboxExecutionState.Failed,
-                ExecutionId = executionId,
-                Stdout = stdoutBuilder.ToString(),
-                Stderr = stderrBuilder.ToString(),
-                ExitCode = process.HasExited ? process.ExitCode : null,
-                Elapsed = stopwatch.Elapsed,
-                ConfiguredTimeout = configuredTimeout
-            };
-        }
-        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-        {
+                await processTask.ConfigureAwait(false);
+
+                await Task.WhenAll(stdoutTask, stderrTask).ConfigureAwait(false);
+
+                stopwatch.Stop();
+                _activeExecutions.TryRemove(executionId, out _);
+
+                return new AbstractionsSandboxExecutionResult
+                {
+                    State = process.HasExited && process.ExitCode == 0
+                        ? SandboxExecutionState.Completed
+                        : SandboxExecutionState.Failed,
+                    ExecutionId = executionId,
+                    Stdout = stdoutBuilder.ToString(),
+                    Stderr = stderrBuilder.ToString(),
+                    ExitCode = process.HasExited ? process.ExitCode : null,
+                    Elapsed = stopwatch.Elapsed,
+                    ConfiguredTimeout = configuredTimeout
+                };
+            }
+
+            if (ct.IsCancellationRequested)
+            {
+                ForceStopExecution(executionId);
+                return new AbstractionsSandboxExecutionResult
+                {
+                    State = SandboxExecutionState.ForceStopped,
+                    ExecutionId = executionId,
+                    Stdout = stdoutBuilder.ToString(),
+                    Stderr = stderrBuilder.ToString(),
+                    Elapsed = stopwatch.Elapsed,
+                    ConfiguredTimeout = configuredTimeout,
+                    ErrorMessage = "外部取消请求，执行已终止"
+                };
+            }
+
             _logger?.LogWarning("[SandboxManager] 执行超时 - ExecutionId: {Id}, 超时: {Timeout}s, 命令仍在运行, 不中断", executionId, timeoutSeconds);
 
             return new AbstractionsSandboxExecutionResult

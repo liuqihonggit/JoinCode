@@ -1,5 +1,5 @@
 {
-  "port": 18081,
+  "port": 18086,
   "default_response": "DeepSeek Mock default response.",
   "scripted_turns": [
     {

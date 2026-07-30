@@ -91,7 +91,8 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
             ["JCC_PERMISSION_MODE"] = "bypassPermissions",
             // 隔离 AppData 目录，避免并发测试共享 onboarding_complete.json 导致文件锁冲突
             ["JCC_APP_DATA_FOLDER"] = stateDir,
-
+            // CI 环境 MockServer 响应可能较慢，30s 超时避免误判
+            ["JCC_API_TIMEOUT_MS"] = "30000",
         };
 
         if (script.ExtraEnvVars is not null)

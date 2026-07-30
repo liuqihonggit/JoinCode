@@ -6,6 +6,10 @@ public static class ApiErrorRecoveryScripts
     {
         Name = "429限流后恢复",
         Mode = ConversationMode.Interactive,
+        ExtraEnvVars = new Dictionary<string, string>
+        {
+            ["JCC_DISABLE_STREAMING_FALLBACK"] = "true"
+        },
         Turns =
         [
             new ConversationTurn
@@ -43,6 +47,10 @@ public static class ApiErrorRecoveryScripts
     {
         Name = "500服务器错误后恢复",
         Mode = ConversationMode.Interactive,
+        ExtraEnvVars = new Dictionary<string, string>
+        {
+            ["JCC_DISABLE_STREAMING_FALLBACK"] = "true"
+        },
         Turns =
         [
             new ConversationTurn
@@ -80,6 +88,10 @@ public static class ApiErrorRecoveryScripts
     {
         Name = "503服务不可用后恢复",
         Mode = ConversationMode.Interactive,
+        ExtraEnvVars = new Dictionary<string, string>
+        {
+            ["JCC_DISABLE_STREAMING_FALLBACK"] = "true"
+        },
         Turns =
         [
             new ConversationTurn
@@ -117,6 +129,10 @@ public static class ApiErrorRecoveryScripts
     {
         Name = "错误后工具调用恢复",
         Mode = ConversationMode.Interactive,
+        ExtraEnvVars = new Dictionary<string, string>
+        {
+            ["JCC_DISABLE_STREAMING_FALLBACK"] = "true"
+        },
         Turns =
         [
             new ConversationTurn
@@ -163,6 +179,10 @@ public static class ApiErrorRecoveryScripts
     {
         Name = "401认证错误不重试",
         Mode = ConversationMode.Interactive,
+        ExtraEnvVars = new Dictionary<string, string>
+        {
+            ["JCC_DISABLE_STREAMING_FALLBACK"] = "true"
+        },
         Turns =
         [
             new ConversationTurn
@@ -656,6 +676,10 @@ public static class AnthropicDeepCoverageScripts
     {
         Name = "Anthropic 429限流后恢复",
         Mode = ConversationMode.Interactive,
+        ExtraEnvVars = new Dictionary<string, string>
+        {
+            ["JCC_DISABLE_STREAMING_FALLBACK"] = "true"
+        },
         Turns =
         [
             new ConversationTurn
@@ -693,6 +717,10 @@ public static class AnthropicDeepCoverageScripts
     {
         Name = "DeepSeek 500服务器错误后恢复",
         Mode = ConversationMode.Interactive,
+        ExtraEnvVars = new Dictionary<string, string>
+        {
+            ["JCC_DISABLE_STREAMING_FALLBACK"] = "true"
+        },
         Turns =
         [
             new ConversationTurn

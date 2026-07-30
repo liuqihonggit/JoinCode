@@ -35,8 +35,10 @@ public sealed class StreamingToolExecutor : IAsyncDisposable
     private readonly List<StreamingToolResult> _completedBuffer = [];
     private readonly SemaphoreSlim _semaphore = new(1, 1);
     private int _executingCount;
-    private bool _hasNonSafeExecuting;
+    private int _nonSafeExecutingCount;
     private readonly CancellationTokenSource _siblingCts = new();
+    private readonly CancellationTokenSource? _linkedCts;
+    private readonly CancellationToken _combinedCt;
 
     /// <summary>
     /// 初始化流式工具执行器
@@ -46,22 +48,33 @@ public sealed class StreamingToolExecutor : IAsyncDisposable
         IToolConcurrencyClassifier concurrencyClassifier,
         ChatMiddlewareContext context,
         int maxConcurrency = 10,
-        ILogger? logger = null)
+        ILogger? logger = null,
+        CancellationToken userCancellationToken = default)
     {
         _toolHandler = toolHandler;
         _concurrencyClassifier = concurrencyClassifier;
         _context = context;
         _maxConcurrency = maxConcurrency;
         _logger = logger;
+
+        if (userCancellationToken.CanBeCanceled)
+        {
+            _linkedCts = CancellationTokenSource.CreateLinkedTokenSource(userCancellationToken, _siblingCts.Token);
+            _combinedCt = _linkedCts.Token;
+        }
+        else
+        {
+            _combinedCt = _siblingCts.Token;
+        }
     }
 
     /// <summary>
     /// 添加工具调用到队列 — 对齐 TS StreamingToolExecutor.addTool()
     /// 流式过程中每收到一个 tool_use block 就调用此方法
     /// </summary>
-    public void AddTool(ToolCallEntry entry, int originalIndex)
+    public async Task AddToolAsync(ToolCallEntry entry, int originalIndex)
     {
-        _semaphore.Wait();
+        await _semaphore.WaitAsync().ConfigureAwait(false);
         try
         {
             _queue.Add(new QueuedTool
@@ -84,9 +97,9 @@ public sealed class StreamingToolExecutor : IAsyncDisposable
     /// <summary>
     /// 获取已完成的结果（按原始顺序） — 对齐 TS StreamingToolExecutor.getCompletedResults()
     /// </summary>
-    public IReadOnlyList<StreamingToolResult> GetCompletedResults()
+    public async Task<IReadOnlyList<StreamingToolResult>> GetCompletedResultsAsync()
     {
-        _semaphore.Wait();
+        await _semaphore.WaitAsync().ConfigureAwait(false);
         try
         {
             var results = _completedBuffer
@@ -126,18 +139,19 @@ public sealed class StreamingToolExecutor : IAsyncDisposable
             await Task.WhenAll(pendingTasks).ConfigureAwait(false);
         }
 
-        return GetCompletedResults();
+        return await GetCompletedResultsAsync().ConfigureAwait(false);
     }
 #pragma warning restore VSTHRD003
 
     /// <summary>
-    /// 获取取消令牌 — Bash 错误级联取消兄弟工具时使用
+    /// 获取取消令牌 — Bash 错误级联取消兄弟工具 + 用户取消的组合令牌
     /// </summary>
-    public CancellationToken SiblingCancellationToken => _siblingCts.Token;
+    public CancellationToken CombinedCancellationToken => _combinedCt;
 
     public async ValueTask DisposeAsync()
     {
         _siblingCts.Cancel();
+        _linkedCts?.Dispose();
         _siblingCts.Dispose();
         _semaphore.Dispose();
         await ValueTask.CompletedTask.ConfigureAwait(false);
@@ -158,7 +172,7 @@ public sealed class StreamingToolExecutor : IAsyncDisposable
                 toolToExecute.Status = ToolStatus.Executing;
                 _executingCount++;
                 if (!toolToExecute.IsConcurrencySafe)
-                    _hasNonSafeExecuting = true;
+                    _nonSafeExecutingCount++;
             }
             finally
             {
@@ -179,7 +193,7 @@ public sealed class StreamingToolExecutor : IAsyncDisposable
             if (!tool.IsConcurrencySafeDetermined)
             {
                 tool.IsConcurrencySafe = await _concurrencyClassifier
-                    .IsConcurrencySafeAsync(tool.Entry.Name, JsonArgumentParser.Parse(tool.Entry.Arguments), SiblingCancellationToken)
+                    .IsConcurrencySafeAsync(tool.Entry.Name, JsonArgumentParser.Parse(tool.Entry.Arguments), CancellationToken.None)
                     .ConfigureAwait(false);
                 tool.IsConcurrencySafeDetermined = true;
             }
@@ -187,7 +201,7 @@ public sealed class StreamingToolExecutor : IAsyncDisposable
             if (CanExecute(tool.IsConcurrencySafe))
                 return tool;
 
-            break;
+            continue;
         }
 
         return null;
@@ -205,7 +219,7 @@ public sealed class StreamingToolExecutor : IAsyncDisposable
         if (_executingCount >= _maxConcurrency)
             return false;
 
-        if (isConcurrencySafe && !_hasNonSafeExecuting)
+        if (isConcurrencySafe && _nonSafeExecutingCount == 0)
             return true;
 
         return false;
@@ -218,7 +232,7 @@ public sealed class StreamingToolExecutor : IAsyncDisposable
         {
             var args = JsonArgumentParser.Parse(tool.Entry.Arguments);
             var toolCallResult = await _toolHandler.ExecuteToolCallAsync(
-                tool.Entry.Name, tool.Entry.Id, args, _context, SiblingCancellationToken).ConfigureAwait(false);
+                tool.Entry.Name, tool.Entry.Id, args, _context, _combinedCt).ConfigureAwait(false);
 
             result = new StreamingToolResult
             {
@@ -228,14 +242,14 @@ public sealed class StreamingToolExecutor : IAsyncDisposable
                 OriginalIndex = tool.OriginalIndex
             };
 
-            if (toolCallResult.IsError && IsBashTool(tool.Entry.Name))
+            if (toolCallResult.IsError && IsShellTool(tool.Entry.Name))
             {
-                _logger?.LogWarning("[StreamingToolExecutor] Bash 工具错误，级联取消兄弟工具: {ToolName}", tool.Entry.Name);
+                _logger?.LogWarning("[StreamingToolExecutor] Shell 工具错误，级联取消兄弟工具: {ToolName}", tool.Entry.Name);
                 try { _siblingCts.Cancel(); }
                 catch (ObjectDisposedException) { _logger?.LogDebug("[StreamingToolExecutor] SiblingCts 已释放"); }
             }
         }
-        catch (OperationCanceledException) when (SiblingCancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException) when (_combinedCt.IsCancellationRequested)
         {
             result = new StreamingToolResult
             {
@@ -265,9 +279,7 @@ public sealed class StreamingToolExecutor : IAsyncDisposable
             _completedBuffer.Add(result);
             _executingCount--;
             if (!tool.IsConcurrencySafe)
-            {
-                _hasNonSafeExecuting = _queue.Any(t => t.Status == ToolStatus.Executing && !t.IsConcurrencySafe);
-            }
+                _nonSafeExecutingCount--;
         }
         finally
         {
@@ -277,9 +289,11 @@ public sealed class StreamingToolExecutor : IAsyncDisposable
         _ = ProcessQueueAsync();
     }
 
-    private static bool IsBashTool(string toolName)
+    private static bool IsShellTool(string toolName)
     {
-        return string.Equals(toolName, ShellToolNameConstants.Bash, StringComparison.OrdinalIgnoreCase);
+        return string.Equals(toolName, ShellToolNameConstants.Bash, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(toolName, ShellToolNameConstants.Powershell, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(toolName, ShellToolNameConstants.PowershellScript, StringComparison.OrdinalIgnoreCase);
     }
 
     private enum ToolStatus

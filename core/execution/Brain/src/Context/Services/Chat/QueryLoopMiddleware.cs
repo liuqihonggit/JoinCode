@@ -84,7 +84,7 @@ public sealed partial class QueryLoopMiddleware : IChatMiddleware
             {
                 // 流式工具执行模式 — 对齐 TS StreamingToolExecutor
                 var streamingExecutor = new StreamingToolExecutor(
-                    _toolHandler, _concurrencyClassifier!, context, MaxConcurrency, _logger);
+                    _toolHandler, _concurrencyClassifier!, context, MaxConcurrency, _logger, ct);
 
                 await foreach (var evt in _llmHandler.InvokeLLMAsync(
                     historySnapshot, context.ExecutionSettings, context, totalToolCalls, iterState,
@@ -117,22 +117,40 @@ public sealed partial class QueryLoopMiddleware : IChatMiddleware
                     }
 
                     yield return ChatStreamEvent.ToolStart(toolCall.Name, toolCall.Id, toolCall.Arguments);
-                    streamingExecutor.AddTool(toolCall, idx);
+                    await streamingExecutor.AddToolAsync(toolCall, idx).ConfigureAwait(false);
                     totalToolCalls++;
                 }
 
                 // 等待所有工具完成并输出结果
-                var allResults = await streamingExecutor.GetRemainingResultsAsync().ConfigureAwait(false);
-                foreach (var result in allResults.OrderBy(r => r.OriginalIndex))
+                IReadOnlyList<StreamingToolResult> allResults;
+                try
+                {
+                    allResults = await streamingExecutor.GetRemainingResultsAsync().ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    await _toolHandler.WriteAbortedToolResultsAsync(toolCalls, 0, CancellationToken.None).ConfigureAwait(false);
+                    throw;
+                }
+
+                foreach (var result in allResults)
                 {
                     _logger?.LogInformation("[QueryLoopMiddleware] 工具调用: {ToolName} → {Result}",
                         result.ToolName, result.Result.IsError ? "ERROR" : "OK");
 
                     yield return result.ToToolEndEvent();
 
-                    await _toolHandler.ApplyToolResultToContextAsync(
-                        result.ToolName, result.ToolCallId, result.Result.ResultText,
-                        result.Result.IsError, result.Result.ContentBlocks, context, ct).ConfigureAwait(false);
+                    try
+                    {
+                        await _toolHandler.ApplyToolResultToContextAsync(
+                            result.ToolName, result.ToolCallId, result.Result.ResultText,
+                            result.Result.IsError, result.Result.ContentBlocks, context, ct).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                    {
+                        await _toolHandler.WriteAbortedToolResultsAsync(toolCalls, 0, CancellationToken.None).ConfigureAwait(false);
+                        throw;
+                    }
                 }
 
                 if (iterState.StreamUsage is not null) finalUsage = iterState.StreamUsage;

@@ -8,6 +8,7 @@ public sealed class SandboxSatelliteHost : IAsyncDisposable
     private readonly IFileSystem _fs;
     private readonly CancellationTokenSource _cts = new();
     private WindowsJobObjectSandbox? _innerJobObject;
+    private LinuxCgroupSandbox? _innerCgroup;
 
     public SandboxSatelliteHost(IFileSystem fs)
     {
@@ -170,6 +171,14 @@ public sealed class SandboxSatelliteHost : IAsyncDisposable
                 Console.Error.WriteLine($"[SandboxSatellite] 将子进程 {process.Id} 加入 JobObject 失败");
             }
         }
+        else if (OperatingSystem.IsLinux())
+        {
+            EnsureInnerCgroup();
+            if (_innerCgroup is not null && !_innerCgroup.AssignProcess(process.Id))
+            {
+                Console.Error.WriteLine($"[SandboxSatellite] 将子进程 {process.Id} 加入 cgroup 失败");
+            }
+        }
 
         var stdoutTask = process.StandardOutput.ReadToEndAsync(ct);
         var stderrTask = process.StandardError.ReadToEndAsync(ct);
@@ -240,6 +249,33 @@ public sealed class SandboxSatelliteHost : IAsyncDisposable
         }
     }
 
+    private void EnsureInnerCgroup()
+    {
+        if (_innerCgroup is not null)
+        {
+            return;
+        }
+
+        try
+        {
+            _innerCgroup = new LinuxCgroupSandbox();
+            if (!_innerCgroup.CreateCgroup())
+            {
+                Console.Error.WriteLine("[SandboxSatellite] 创建内部 cgroup 失败，子进程不受 cgroup 隔离");
+                _innerCgroup = null;
+            }
+            else
+            {
+                Console.Error.WriteLine("[SandboxSatellite] 内部 cgroup 已创建，子进程将受 cgroup 管理");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[SandboxSatellite] 创建内部 cgroup 异常: {ex.Message}");
+            _innerCgroup = null;
+        }
+    }
+
     public async ValueTask DisposeAsync()
     {
         _cts.Cancel();
@@ -257,6 +293,20 @@ public sealed class SandboxSatelliteHost : IAsyncDisposable
             }
 
             _innerJobObject = null;
+        }
+
+        if (_innerCgroup is not null)
+        {
+            try
+            {
+                await _innerCgroup.DisposeAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"[SandboxSatellite] 销毁内部 cgroup 异常: {ex.Message}");
+            }
+
+            _innerCgroup = null;
         }
 
         await Task.CompletedTask.ConfigureAwait(false);

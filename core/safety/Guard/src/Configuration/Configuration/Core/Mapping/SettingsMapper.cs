@@ -180,6 +180,15 @@ public sealed partial class SettingsMapper
 
         if (settings.Sandbox.Enabled.HasValue)
             config.CodeExecution.ReadOnlyFilesystem = settings.Sandbox.Enabled.Value;
+
+        if (settings.Sandbox.RestrictNetwork.HasValue)
+            config.CodeExecution.AllowNetworkAccess = !settings.Sandbox.RestrictNetwork.Value;
+
+        if (settings.Sandbox.MemoryLimitMb.HasValue && settings.Sandbox.MemoryLimitMb.Value > 0)
+            config.CodeExecution.MaxMemoryMB = settings.Sandbox.MemoryLimitMb.Value;
+
+        if (settings.Sandbox.AllowedPaths is not null && settings.Sandbox.AllowedPaths.Count > 0)
+            config.CodeExecution.AllowedDirectories = string.Join(";", settings.Sandbox.AllowedPaths);
     }
 
     private static void ApplyWorktreeSettings(WorkflowConfig config, SettingsJson? settings)

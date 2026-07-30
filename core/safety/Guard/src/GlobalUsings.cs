@@ -53,6 +53,7 @@ global using Core.Security.Constants;
 global using Core.Security.Scanners;
 global using Core.Security.Services;
 global using Core.Security.Sandbox;
+global using Core.Security.Sandbox.Ipc;
 global using Core.Security.Sandbox.Providers;
 global using JoinCode.Abstractions.Security.Sandbox;
 global using Core.Utils;

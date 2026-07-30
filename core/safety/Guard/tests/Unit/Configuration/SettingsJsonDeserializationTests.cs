@@ -203,4 +203,55 @@ public class SettingsJsonDeserializationTests
     }
 
     #endregion
+
+    #region 场景4: SandboxSettings 新字段反序列化
+
+    [Fact]
+    public void Given_SandboxSettings含新字段_When_反序列化_Then_AllowedPathsRestrictNetworkMemoryLimitMb正确映射()
+    {
+        var json = """
+            {
+                "sandbox": {
+                    "enabled": true,
+                    "mode": "process",
+                    "allowedPaths": ["/tmp", "/home"],
+                    "restrictNetwork": true,
+                    "memoryLimitMb": 512
+                }
+            }
+            """;
+
+        var settings = JsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson);
+        settings.Should().NotBeNull();
+        settings!.Sandbox.Should().NotBeNull();
+        settings.Sandbox!.Enabled.Should().BeTrue();
+        settings.Sandbox.Mode.Should().Be("process");
+        settings.Sandbox.AllowedPaths.Should().Equal("/tmp", "/home");
+        settings.Sandbox.RestrictNetwork.Should().BeTrue();
+        settings.Sandbox.MemoryLimitMb.Should().Be(512);
+    }
+
+    [Fact]
+    public void Given_SandboxSettings仅旧字段_When_反序列化_Then_新字段为null()
+    {
+        var json = """
+            {
+                "sandbox": {
+                    "enabled": false,
+                    "mode": "soft"
+                }
+            }
+            """;
+
+        var settings = JsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson);
+        settings.Should().NotBeNull();
+        settings!.Sandbox.Should().NotBeNull();
+        settings.Sandbox!.Enabled.Should().BeFalse();
+        settings.Sandbox.Mode.Should().Be("soft");
+        settings.Sandbox.AllowedPaths.Should().BeNull();
+        settings.Sandbox.RestrictNetwork.Should().BeNull();
+        settings.Sandbox.MemoryLimitMb.Should().BeNull();
+    }
+
+    #endregion
 }

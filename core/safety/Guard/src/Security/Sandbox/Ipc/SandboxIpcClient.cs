@@ -8,6 +8,7 @@ public sealed class SandboxIpcClient : IAsyncDisposable
     private readonly IFileSystem _fs;
     private readonly ILogger<SandboxIpcClient>? _logger;
     private readonly SemaphoreSlim _sendLock = new(1, 1);
+    private readonly Func<int, Task>? _onSatelliteStarted;
     private IInteractiveProcess? _process;
     private int _requestCounter;
     private readonly ConcurrentDictionary<string, TaskCompletionSource<SandboxIpcResponse>> _pendingRequests = new();
@@ -15,14 +16,17 @@ public sealed class SandboxIpcClient : IAsyncDisposable
     private Task? _readLoopTask;
     private CancellationTokenSource? _readCts;
 
-    public SandboxIpcClient(IProcessService processService, IFileSystem fs, ILogger<SandboxIpcClient>? logger = null)
+    public SandboxIpcClient(IProcessService processService, IFileSystem fs, ILogger<SandboxIpcClient>? logger = null, Func<int, Task>? onSatelliteStarted = null)
     {
         _processService = processService;
         _fs = fs;
         _logger = logger;
+        _onSatelliteStarted = onSatelliteStarted;
     }
 
     public bool IsRunning => _process is not null && !_process.HasExited;
+
+    public int? SatelliteProcessId => _process is not null && !_process.HasExited ? _process.Id : null;
 
     public async Task StartAsync(string? satelliteExePath = null, CancellationToken ct = default)
     {
@@ -47,7 +51,19 @@ public sealed class SandboxIpcClient : IAsyncDisposable
 
             _readLoopTask = ReadLoopAsync(_readCts.Token);
 
-            _logger?.LogInformation("[SandboxIpcClient] 卫星进程已启动: {ExePath}", exePath);
+            if (_onSatelliteStarted is not null)
+            {
+                try
+                {
+                    await _onSatelliteStarted(_process.Id).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogWarning(ex, "[SandboxIpcClient] 卫星进程 PID 回调执行失败, Pid: {Pid}", _process.Id);
+                }
+            }
+
+            _logger?.LogInformation("[SandboxIpcClient] 卫星进程已启动: {ExePath}, Pid: {Pid}", exePath, _process.Id);
         }
     }
 
@@ -149,7 +165,14 @@ public sealed class SandboxIpcClient : IAsyncDisposable
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             timeoutCts.CancelAfter(TimeSpan.FromSeconds(60));
 
-            return await tcs.Task.ConfigureAwait(false);
+            try
+            {
+                return await tcs.Task.WaitAsync(timeoutCts.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                throw new TimeoutException("IPC 请求超时 (60s)，卫星进程未响应");
+            }
         }
         finally
         {

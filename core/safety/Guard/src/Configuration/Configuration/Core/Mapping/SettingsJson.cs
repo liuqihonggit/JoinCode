@@ -388,6 +388,15 @@ public sealed class SandboxSettings
 
     [JsonPropertyName("image")]
     public string? Image { get; init; }
+
+    [JsonPropertyName("allowedPaths")]
+    public List<string>? AllowedPaths { get; init; }
+
+    [JsonPropertyName("restrictNetwork")]
+    public bool? RestrictNetwork { get; init; }
+
+    [JsonPropertyName("memoryLimitMb")]
+    public int? MemoryLimitMb { get; init; }
 }
 
 /// <summary>

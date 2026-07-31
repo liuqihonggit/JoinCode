@@ -342,4 +342,44 @@ public class SettingsMapperTests
     }
 
     #endregion
+
+    #region 场景6: SandboxSettings 新字段映射
+
+    [Fact]
+    public void Given_SandboxRestrictNetwork_When_ToWorkflowConfig_Then_AllowNetworkAccess取反()
+    {
+        var settings = new SettingsJson
+        {
+            Sandbox = new SandboxSettings { RestrictNetwork = true }
+        };
+
+        var config = _mapper.ToWorkflowConfig(settings);
+        config.CodeExecution.AllowNetworkAccess.Should().BeFalse("restrictNetwork=true → allowNetworkAccess=false");
+    }
+
+    [Fact]
+    public void Given_SandboxMemoryLimitMb_When_ToWorkflowConfig_Then_MaxMemoryMB映射()
+    {
+        var settings = new SettingsJson
+        {
+            Sandbox = new SandboxSettings { MemoryLimitMb = 512 }
+        };
+
+        var config = _mapper.ToWorkflowConfig(settings);
+        config.CodeExecution.MaxMemoryMB.Should().Be(512);
+    }
+
+    [Fact]
+    public void Given_SandboxAllowedPaths_When_ToWorkflowConfig_Then_AllowedDirectories分号连接()
+    {
+        var settings = new SettingsJson
+        {
+            Sandbox = new SandboxSettings { AllowedPaths = ["/tmp", "/home"] }
+        };
+
+        var config = _mapper.ToWorkflowConfig(settings);
+        config.CodeExecution.AllowedDirectories.Should().Be("/tmp;/home");
+    }
+
+    #endregion
 }

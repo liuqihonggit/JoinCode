@@ -35,7 +35,7 @@ public sealed partial class CodeSandboxService : ICodeSandboxService
             var projectContent = @"<Project Sdk=""Microsoft.NET.Sdk"">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
@@ -60,10 +60,10 @@ public sealed partial class CodeSandboxService : ICodeSandboxService
                 throw new InvalidOperationException(string.Format(CoreErrorMessages.CompilationFailed, buildError));
             }
 
-            var exePath = Path.Combine(tempDir, "bin", "Release", "net8.0", "Sandbox.exe");
+            var exePath = Path.Combine(tempDir, "bin", "Release", "net10.0", "Sandbox.exe");
             if (!_fs.FileExists(exePath))
             {
-                exePath = Path.Combine(tempDir, "bin", "Release", "net8.0", "Sandbox.dll");
+                exePath = Path.Combine(tempDir, "bin", "Release", "net10.0", "Sandbox.dll");
             }
 
             ProcessResult runResult;

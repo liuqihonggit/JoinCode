@@ -186,7 +186,9 @@ public sealed partial class SandboxManager : ISandboxManager, IDisposable
             }
         }
 
-        var fallbackOrder = new[] { SandboxType.Process, SandboxType.Soft };
+        var fallbackOrder = OperatingSystem.IsLinux()
+            ? new[] { SandboxType.Bubblewrap, SandboxType.Process, SandboxType.Soft }
+            : new[] { SandboxType.Process, SandboxType.Soft };
         foreach (var fallbackType in fallbackOrder)
         {
             if (fallbackType == targetType || !_providers.ContainsKey(fallbackType))
@@ -359,6 +361,18 @@ public sealed partial class SandboxManager : ISandboxManager, IDisposable
             try
             {
                 await _ipcClient.StartAsync(ct: ct).ConfigureAwait(false);
+
+                if (_ipcClient.SatelliteProcessId is int satellitePid && _activeProvider is ProcessSandboxProvider psp && _activeSandboxId is not null)
+                {
+                    if (!psp.TryAssignProcessToJobObject(_activeSandboxId, satellitePid))
+                    {
+                        _logger?.LogWarning("[SandboxManager] 将卫星进程 {Pid} 加入 JobObject 失败", satellitePid);
+                    }
+                    else
+                    {
+                        _logger?.LogInformation("[SandboxManager] 卫星进程 {Pid} 已加入 JobObject", satellitePid);
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -486,6 +500,37 @@ public sealed partial class SandboxManager : ISandboxManager, IDisposable
         var timeoutSeconds = options.GetTimeoutSeconds();
         var configuredTimeout = TimeSpan.FromSeconds(timeoutSeconds);
         var stopwatch = Stopwatch.StartNew();
+
+        if (_activeProvider is not null && _activeSandboxId is not null)
+        {
+            var sandboxInfo = _activeProvider.GetSandboxInfo(_activeSandboxId);
+            if (sandboxInfo is not null && sandboxInfo.RestrictNetwork
+                && !_activeProvider.Capabilities.HasFlag(SandboxCapabilities.NetworkIsolation))
+            {
+                _logger?.LogWarning("[SandboxManager] 网络隔离已请求但当前沙箱类型 {Type} 不支持内核级网络隔离，仅通过环境变量建议性限制", _activeProvider.SandboxType.ToValue());
+            }
+
+            var providerResult = await _activeProvider.ExecuteAsync(
+                _activeSandboxId, command, null, (int)configuredTimeout.TotalMilliseconds, ct).ConfigureAwait(false);
+
+            if (providerResult is not null)
+            {
+                var r = providerResult;
+                stopwatch.Stop();
+                return new AbstractionsSandboxExecutionResult
+                {
+                    State = r.Success ? SandboxExecutionState.Completed
+                        : r.TimedOut ? SandboxExecutionState.TimedOut
+                        : SandboxExecutionState.Failed,
+                    ExecutionId = executionId,
+                    Stdout = r.StandardOutput,
+                    Stderr = r.StandardError,
+                    ExitCode = r.ExitCode,
+                    Elapsed = stopwatch.Elapsed,
+                    ConfiguredTimeout = configuredTimeout
+                };
+            }
+        }
 
         var workingDir = _activeProvider is not null && _activeSandboxId is not null
             ? _activeProvider.ResolvePath(".", _activeSandboxId)

@@ -18,6 +18,10 @@ public static partial class ServiceRegistration
         services.TryAddSingleton<ISandboxProvider, ProcessSandboxProvider>();
         services.TryAddSingleton<ISandboxProvider, DockerSandboxProvider>();
         services.TryAddSingleton<ISandboxProvider, BubblewrapSandboxProvider>();
+        services.TryAddSingleton(typeof(SandboxIpcClient), sp => new SandboxIpcClient(
+            sp.GetRequiredService<IProcessService>(),
+            sp.GetRequiredService<IFileSystem>(),
+            sp.GetService<ILogger<SandboxIpcClient>>()));
         services.TryAddSingleton<ISandboxManager, SandboxManager>();
         return services;
     }

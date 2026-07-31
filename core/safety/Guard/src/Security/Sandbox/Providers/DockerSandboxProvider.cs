@@ -28,14 +28,17 @@ public sealed partial class DockerSandboxProvider : SandboxProviderBase
         {
             try
             {
-                var result = _processService.ExecuteAsync(new ProcessOptions
+                var path = Environment.GetEnvironmentVariable("PATH") ?? "";
+                var separator = OperatingSystem.IsWindows() ? ';' : ':';
+                foreach (var dir in path.Split(separator, StringSplitOptions.RemoveEmptyEntries))
                 {
-                    FileName = "docker",
-                    Arguments = "info --format '{{.ServerVersion}}'",
-                    TimeoutMs = 5000
-                }, CancellationToken.None).GetAwaiter().GetResult();
-
-                return result.Success;
+                    var exePath = Path.Combine(dir, OperatingSystem.IsWindows() ? "docker.exe" : "docker");
+                    if (Fs.FileExists(exePath))
+                    {
+                        return true;
+                    }
+                }
+                return false;
             }
             catch
             {
@@ -130,7 +133,7 @@ public sealed partial class DockerSandboxProvider : SandboxProviderBase
         var result = await _processService.ExecuteAsync(new ProcessOptions
         {
             FileName = "docker",
-            Arguments = $"exec {containerId} /bin/sh -c \"{command.Replace("\"", "\\\"")}\"",
+            Arguments = $"exec {containerId} /bin/sh -c {ShellCommandEscape.EscapeForSingleQuotedShell(command)}",
             TimeoutMs = timeoutMs
         }, ct).ConfigureAwait(false);
 

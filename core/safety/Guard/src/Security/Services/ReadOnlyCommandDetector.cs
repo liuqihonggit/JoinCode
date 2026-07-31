@@ -41,9 +41,7 @@ public sealed partial class ReadOnlyCommandDetector : IReadOnlyCommandDetector
         // 网络
         "ping", "netstat", "ifconfig", "nslookup", "traceroute",
         // 版本
-        "whoami", "pwd", "echo", "printenv", "env",
-        // Git 只读
-        "git");
+        "whoami", "pwd", "echo", "printenv", "env");
 
     /// <summary>
     /// 安全的 Git 子命令 — 宽放模式：日常工作命令无条件放行

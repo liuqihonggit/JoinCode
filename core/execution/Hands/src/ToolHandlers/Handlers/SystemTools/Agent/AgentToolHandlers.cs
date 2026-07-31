@@ -72,7 +72,7 @@ public partial class AgentToolHandlers
     /// <summary>
     /// 创建并启动子代理
     /// </summary>
-    [McpTool(AgentToolNameConstants.Agent, "Create and launch a sub-agent to handle a task", AgentToolNameConstants.Agent, ConcurrencySafe = true)]
+    [McpTool(AgentToolNameConstants.Agent, "Create and launch a sub-agent to handle a task", AgentToolNameConstants.Agent)]
     public async Task<ToolResult> CreateAgentAsync(
         [McpToolOptions] AgentCreateOptions options,
         CancellationToken cancellationToken = default)
@@ -287,7 +287,7 @@ public partial class AgentToolHandlers
     /// 向运行中的代理发送消息 — 对齐 TS SendMessageTool
     /// 支持: 按名称/ID发送、广播(to="*")、结构化消息(shutdown_request/plan_approval_response)
     /// </summary>
-    [McpTool(AgentToolNameConstants.AgentSendMessage, "Send a message to another agent", AgentToolNameConstants.Agent, ConcurrencySafe = true)]
+    [McpTool(AgentToolNameConstants.AgentSendMessage, "Send a message to another agent", AgentToolNameConstants.Agent)]
     public async Task<ToolResult> SendMessageAsync(
         [McpToolParameter("Recipient: teammate name, agent ID, or '*' for broadcast")] string to,
         [McpToolParameter("Message content (plain text or structured JSON)")] string message,

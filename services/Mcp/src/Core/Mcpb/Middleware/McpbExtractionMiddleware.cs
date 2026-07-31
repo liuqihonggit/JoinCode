@@ -71,7 +71,7 @@ public sealed partial class McpbExtractionMiddleware : IMcpbMiddleware
 
             if (totalExtractedSize > MaxTotalSizeBytes)
             {
-                throw new InvalidOperationException("解压总大小超过限制");
+                throw new InvalidOperationException("[MCP016] 解压总大小超过限制");
             }
         }
 

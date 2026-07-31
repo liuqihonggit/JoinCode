@@ -109,14 +109,22 @@ public partial class McpClientToolHandlers : IAsyncDisposable
                 };
             }
 
-            IMcpClient client = config.TransportType switch
+            IMcpClient client;
+            if (_deps.ClientFactory is not null)
             {
-                McpClientTransportType.Stdio => new McpStdioClient(config, logger: _logger),
-                McpClientTransportType.Sse => new McpSseClient(config, logger: _logger),
-                McpClientTransportType.Http => new McpHttpClient(config, logger: _logger),
-                McpClientTransportType.WebSocket => new McpWebSocketClient(config, logger: _logger),
-                _ => throw new NotSupportedException(L.T(StringKey.UnsupportedTransportType, transport_type))
-            };
+                client = _deps.ClientFactory.CreateClient(config, enableFallback: true, logger: _logger);
+            }
+            else
+            {
+                client = config.TransportType switch
+                {
+                    McpClientTransportType.Stdio => new McpStdioClient(config, logger: _logger),
+                    McpClientTransportType.Sse => new McpSseClient(config, logger: _logger),
+                    McpClientTransportType.Http => new McpHttpClient(config, logger: _logger),
+                    McpClientTransportType.WebSocket => new McpWebSocketClient(config, logger: _logger),
+                    _ => throw new NotSupportedException(L.T(StringKey.UnsupportedTransportType, transport_type))
+                };
+            }
 
             await client.ConnectAsync(cancellationToken);
             _clients[connection_name] = client;

@@ -52,7 +52,7 @@ public sealed class SshSession : ISshSession
             if (_sshProcess == null)
             {
                 _stateMachine.ForceTransitionTo(SshConnectionState.Error);
-                throw new InvalidOperationException("无法启动 SSH 进程");
+                throw new InvalidOperationException("[SSH002] 无法启动 SSH 进程");
             }
 
             await Task.Delay(1000, ct).ConfigureAwait(false);
@@ -126,7 +126,7 @@ public sealed class SshSession : ISshSession
     {
         if (_stateMachine.CurrentState != SshConnectionState.Connected)
         {
-            throw new InvalidOperationException($"SSH 会话未连接，当前状态: {_stateMachine.CurrentState}");
+            throw new InvalidOperationException($"[SSH001] SSH 会话未连接，当前状态: {_stateMachine.CurrentState}");
         }
 
         if (_sshProcess == null || _sshProcess.HasExited)
@@ -147,7 +147,7 @@ public sealed class SshSession : ISshSession
 
         if (_stateMachine.CurrentState != SshConnectionState.Connected)
         {
-            throw new InvalidOperationException($"SSH 会话未连接，当前状态: {_stateMachine.CurrentState}");
+            throw new InvalidOperationException($"[SSH001] SSH 会话未连接，当前状态: {_stateMachine.CurrentState}");
         }
 
         var startInfo = new ProcessStartInfo
@@ -166,7 +166,7 @@ public sealed class SshSession : ISshSession
         using var process = Process.Start(startInfo);
         if (process == null)
         {
-            throw new InvalidOperationException("无法启动 SSH 进程执行命令");
+            throw new InvalidOperationException("[SSH003] 无法启动 SSH 进程执行命令");
         }
 
         var stdoutTask = process.StandardOutput.ReadToEndAsync(ct);
@@ -197,7 +197,7 @@ public sealed class SshSession : ISshSession
 
         if (_stateMachine.CurrentState != SshConnectionState.Connected)
         {
-            throw new InvalidOperationException($"SSH 会话未连接，当前状态: {_stateMachine.CurrentState}");
+            throw new InvalidOperationException($"[SSH001] SSH 会话未连接，当前状态: {_stateMachine.CurrentState}");
         }
 
         return await _portForwardManager.AddLocalForwardAsync(
@@ -214,7 +214,7 @@ public sealed class SshSession : ISshSession
 
         if (_stateMachine.CurrentState != SshConnectionState.Connected)
         {
-            throw new InvalidOperationException($"SSH 会话未连接，当前状态: {_stateMachine.CurrentState}");
+            throw new InvalidOperationException($"[SSH001] SSH 会话未连接，当前状态: {_stateMachine.CurrentState}");
         }
 
         return await _portForwardManager.AddRemoteForwardAsync(

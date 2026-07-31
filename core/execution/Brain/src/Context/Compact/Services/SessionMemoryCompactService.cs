@@ -40,7 +40,7 @@ public sealed partial class SessionMemoryCompactService : ISessionMemoryCompactS
         if (_memoryFilePath is not null) return _memoryFilePath;
 
         var cwd = _fileSystem?.GetCurrentDirectory()
-            ?? throw new InvalidOperationException("IFileSystem 未注入，无法确定会话记忆文件路径");
+            ?? throw new InvalidOperationException("[BRN001] IFileSystem 未注入，无法确定会话记忆文件路径");
 
         return Path.Combine(cwd, SessionMemorySubdir, SessionMemoryFileName);
     }

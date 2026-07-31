@@ -1,4 +1,5 @@
 global using JoinCode.Abstractions.Prompts;
+global using JoinCode.Transport;
 global using McpProtocol;
 global using McpProtocol.Contracts;
 global using JoinCode.Abstractions.Mcp.Protocol;

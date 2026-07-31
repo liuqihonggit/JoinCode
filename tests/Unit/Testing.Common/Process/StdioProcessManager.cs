@@ -12,12 +12,8 @@ public sealed class StdioProcessManager : IAsyncDisposable
     private StreamReader? _stdoutReader;
     private StreamReader? _stderrReader;
     private readonly ILogger<StdioProcessManager> _logger;
-    private readonly List<string> _outputBuffer = new();
-    private readonly List<string> _errorBuffer = new();
-    private readonly SemaphoreSlim _outputLock = new(1, 1);
-    private readonly SemaphoreSlim _errorLock = new(1, 1);
-    private int _outputConsumedIndex;
-    private int _errorConsumedIndex;
+    private readonly BufferedChannel _outputChannel = new();
+    private readonly BufferedChannel _errorChannel = new();
     private CancellationTokenSource? _readCts;
     private Task? _stdoutReadTask;
     private Task? _stderrReadTask;
@@ -97,14 +93,10 @@ public sealed class StdioProcessManager : IAsyncDisposable
             if (_process?.HasExited == true) return;
 
             bool hasOutput;
-            await _outputLock.WaitAsync(ct).ConfigureAwait(true);
-            try { hasOutput = _outputBuffer.Count > 0; }
-            finally { _outputLock.Release(); }
+            hasOutput = await _outputChannel.TryPredicateAsync(s => s.Length > 0, ct).ConfigureAwait(true);
             if (hasOutput) return;
 
-            await _errorLock.WaitAsync(ct).ConfigureAwait(true);
-            try { hasOutput = _errorBuffer.Count > 0; }
-            finally { _errorLock.Release(); }
+            hasOutput = await _errorChannel.TryPredicateAsync(s => s.Length > 0, ct).ConfigureAwait(true);
             if (hasOutput) return;
 
             await WaitForOutputChangeAsync(TimeSpan.FromMilliseconds(200), ct).ConfigureAwait(true);
@@ -141,24 +133,15 @@ public sealed class StdioProcessManager : IAsyncDisposable
         {
             ct.ThrowIfCancellationRequested();
 
-            await _outputLock.WaitAsync(ct).ConfigureAwait(true);
-            try
+            if (await _outputChannel.TryPredicateAsync(predicate, ct).ConfigureAwait(true))
             {
-                var currentOutput = string.Join("\n", _outputBuffer);
-                if (predicate(currentOutput))
-                {
-                    return currentOutput;
-                }
-            }
-            finally
-            {
-                _outputLock.Release();
+                return await _outputChannel.GetAllAsync(TimeSpan.FromSeconds(5), ct).ConfigureAwait(true);
             }
 
             await WaitForOutputChangeAsync(TimeSpan.FromMilliseconds(200), ct).ConfigureAwait(true);
         }
 
-        throw new TimeoutException($"等待输出超时 (>{timeout.Value.TotalSeconds}s)");
+        throw new TimeoutException($"等待输出超时 (>{timeout.Value.TotalSeconds}s), process={_pidTag}, running={IsRunning}");
     }
 
     /// <summary>
@@ -219,93 +202,20 @@ public sealed class StdioProcessManager : IAsyncDisposable
     /// <summary>
     /// 清空输出缓冲区
     /// </summary>
-    public async Task ClearOutputAsync()
-    {
-        await _outputLock.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(true);
-        try
-        {
-            _outputBuffer.Clear();
-            _outputConsumedIndex = 0;
-        }
-        finally
-        {
-            _outputLock.Release();
-        }
-    }
+    public Task ClearOutputAsync() =>
+        _outputChannel.ClearAsync(TimeSpan.FromSeconds(5));
 
-    /// <summary>
-    /// 获取当前所有输出
-    /// </summary>
-    public async Task<string> GetOutputAsync()
-    {
-        await _outputLock.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(true);
-        try
-        {
-            return string.Join("\n", _outputBuffer);
-        }
-        finally
-        {
-            _outputLock.Release();
-        }
-    }
+    public Task<string> GetOutputAsync() =>
+        _outputChannel.GetAllAsync(TimeSpan.FromSeconds(5));
 
-    /// <summary>
-    /// 获取自上次调用以来的增量输出 — 避免全量拼接导致大日志超时
-    /// </summary>
-    public async Task<string> GetOutputIncrementalAsync()
-    {
-        await _outputLock.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(true);
-        try
-        {
-            if (_outputConsumedIndex >= _outputBuffer.Count)
-                return string.Empty;
+    public Task<string> GetOutputIncrementalAsync() =>
+        _outputChannel.GetIncrementalAsync(TimeSpan.FromSeconds(5));
 
-            var result = string.Join("\n", _outputBuffer[_outputConsumedIndex..]);
-            _outputConsumedIndex = _outputBuffer.Count;
-            return result;
-        }
-        finally
-        {
-            _outputLock.Release();
-        }
-    }
+    public Task<string> GetErrorAsync() =>
+        _errorChannel.GetAllAsync(TimeSpan.FromSeconds(5));
 
-    /// <summary>
-    /// 获取当前所有stderr输出
-    /// </summary>
-    public async Task<string> GetErrorAsync()
-    {
-        await _errorLock.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(true);
-        try
-        {
-            return string.Join("\n", _errorBuffer);
-        }
-        finally
-        {
-            _errorLock.Release();
-        }
-    }
-
-    /// <summary>
-    /// 获取自上次调用以来的增量stderr输出 — 避免全量拼接导致大日志超时
-    /// </summary>
-    public async Task<string> GetErrorIncrementalAsync()
-    {
-        await _errorLock.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(true);
-        try
-        {
-            if (_errorConsumedIndex >= _errorBuffer.Count)
-                return string.Empty;
-
-            var result = string.Join("\n", _errorBuffer[_errorConsumedIndex..]);
-            _errorConsumedIndex = _errorBuffer.Count;
-            return result;
-        }
-        finally
-        {
-            _errorLock.Release();
-        }
-    }
+    public Task<string> GetErrorIncrementalAsync() =>
+        _errorChannel.GetIncrementalAsync(TimeSpan.FromSeconds(5));
 
     /// <summary>
     /// 等待stderr输出，直到满足条件或超时
@@ -323,24 +233,15 @@ public sealed class StdioProcessManager : IAsyncDisposable
         {
             ct.ThrowIfCancellationRequested();
 
-            await _errorLock.WaitAsync(ct).ConfigureAwait(true);
-            try
+            if (await _errorChannel.TryPredicateAsync(predicate, ct).ConfigureAwait(true))
             {
-                var currentError = string.Join("\n", _errorBuffer);
-                if (predicate(currentError))
-                {
-                    return currentError;
-                }
-            }
-            finally
-            {
-                _errorLock.Release();
+                return await _errorChannel.GetAllAsync(TimeSpan.FromSeconds(5), ct).ConfigureAwait(true);
             }
 
             await WaitForErrorChangeAsync(TimeSpan.FromMilliseconds(200), ct).ConfigureAwait(true);
         }
 
-        throw new TimeoutException($"等待stderr输出超时 (>{timeout.Value.TotalSeconds}s)");
+        throw new TimeoutException($"等待stderr输出超时 (>{timeout.Value.TotalSeconds}s), process={_pidTag}, running={IsRunning}");
     }
 
     /// <summary>
@@ -387,8 +288,8 @@ public sealed class StdioProcessManager : IAsyncDisposable
 
         _process?.Dispose();
         _readCts?.Dispose();
-        _outputLock.Dispose();
-        _errorLock.Dispose();
+        _outputChannel.Dispose();
+        _errorChannel.Dispose();
 
         _logger.LogInformation("[{PidTag}StdioManager] 进程已停止", _pidTag);
     }
@@ -401,23 +302,13 @@ public sealed class StdioProcessManager : IAsyncDisposable
         {
             while (!ct.IsCancellationRequested)
             {
-                // ReadLineAsync(ct) 在命名管道上不完全响应取消，
-                // 用 WaitAsync 包装确保超时和取消传播
                 var line = await _stdoutReader.ReadLineAsync()
                     .WaitAsync(TimeSpan.FromSeconds(30), ct)
                     .ConfigureAwait(true);
                 if (line == null) break;
 
-                await _outputLock.WaitAsync(ct).ConfigureAwait(true);
-                try
-                {
-                    _outputBuffer.Add(line);
-                    _logger.LogTrace("[{PidTag}StdioManager] stdout: {Line}", _pidTag, line.Length > 200 ? line[..200] + "..." : line);
-                }
-                finally
-                {
-                    _outputLock.Release();
-                }
+                await _outputChannel.AddAsync(line, ct).ConfigureAwait(true);
+                _logger.LogTrace("[{PidTag}StdioManager] stdout: {Line}", _pidTag, line.Length > 200 ? line[..200] + "..." : line);
                 SignalOutputChanged();
             }
         }
@@ -449,16 +340,8 @@ public sealed class StdioProcessManager : IAsyncDisposable
                     .ConfigureAwait(true);
                 if (line == null) break;
 
-                await _errorLock.WaitAsync(ct).ConfigureAwait(true);
-                try
-                {
-                    _errorBuffer.Add(line);
-                    _logger.LogTrace("[{PidTag}StdioManager] stderr: {Line}", _pidTag, line);
-                }
-                finally
-                {
-                    _errorLock.Release();
-                }
+                await _errorChannel.AddAsync(line, ct).ConfigureAwait(true);
+                _logger.LogTrace("[{PidTag}StdioManager] stderr: {Line}", _pidTag, line);
                 SignalErrorChanged();
             }
         }

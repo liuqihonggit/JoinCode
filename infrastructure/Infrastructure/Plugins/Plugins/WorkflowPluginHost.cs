@@ -160,7 +160,7 @@ public sealed class WorkflowPluginHost : IDisposable
     {
         if (_pluginServiceProvider == null)
         {
-            throw new InvalidOperationException("插件服务容器未构建");
+            throw new InvalidOperationException("[PLG001] 插件服务容器未构建");
         }
         return _pluginServiceProvider.GetRequiredService<T>();
     }

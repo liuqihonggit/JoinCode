@@ -14,7 +14,7 @@ public sealed class WindowsJobObjectSandbox : IDisposable
     {
         if (!OperatingSystem.IsWindows())
         {
-            throw new PlatformNotSupportedException("Windows JobObject 仅支持 Windows 平台");
+            throw new PlatformNotSupportedException("[WIN001] Windows JobObject 仅支持 Windows 平台");
         }
 
         _jobHandle = JobObjectNative.CreateJobObjectW(nint.Zero, nint.Zero);
@@ -83,7 +83,7 @@ public sealed class WindowsJobObjectSandbox : IDisposable
 
         if (_jobHandle == nint.Zero)
         {
-            throw new InvalidOperationException("JobObject 未创建");
+            throw new InvalidOperationException("[WIN002] JobObject 未创建");
         }
 
         var processHandle = JobObjectNative.OpenProcess(

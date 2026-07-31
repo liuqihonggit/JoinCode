@@ -156,6 +156,9 @@ public enum JccEnvVar
     [EnumValue("JCC_BRIDGE_TEARDOWN_MS")] BridgeTeardownMs,
     [EnumValue("JCC_BRIDGE_TOKEN_REFRESH_MS")] BridgeTokenRefreshMs,
 
+    // 韧性
+    [EnumValue("JCC_RESILIENCE_ENABLED")] ResilienceEnabled,
+
     // 调试/诊断
     [EnumValue("JCC_VERBOSE")] Verbose,
     [EnumValue("JCC_DEBUG_MODULES")] DebugModules,

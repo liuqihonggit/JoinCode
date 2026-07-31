@@ -163,7 +163,7 @@ public sealed partial class ContextHierarchy : IContextHierarchy, IDisposable
             var current = _layers.Count > 0 ? _layers[_layers.Count - 1] : null;
             if (current == null)
             {
-                throw new InvalidOperationException("没有可用的当前层级进行提升");
+                throw new InvalidOperationException("[BRN002] 没有可用的当前层级进行提升");
             }
 
             if (current.LayerType >= targetLayer)

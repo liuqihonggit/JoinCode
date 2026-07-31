@@ -171,7 +171,7 @@ public sealed class SandboxIpcClient : IAsyncDisposable
             }
             catch (OperationCanceledException) when (!ct.IsCancellationRequested)
             {
-                throw new TimeoutException("IPC 请求超时 (60s)，卫星进程未响应");
+                throw new TimeoutException("[GRD002] IPC 请求超时 (60s)，卫星进程未响应");
             }
         }
         finally
@@ -224,7 +224,7 @@ public sealed class SandboxIpcClient : IAsyncDisposable
     {
         if (_process is null || _process.HasExited)
         {
-            throw new InvalidOperationException("卫星进程未运行，请先调用 StartAsync");
+            throw new InvalidOperationException("[GRD003] 卫星进程未运行，请先调用 StartAsync");
         }
     }
 

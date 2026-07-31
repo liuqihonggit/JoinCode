@@ -175,6 +175,6 @@ public sealed class ConfigCommand : ChatCommandBase
     private static IConfigurationService ResolveConfigService(ChatCommandContext context)
     {
         var service = context.Services?.ServiceProvider?.GetService(typeof(IConfigurationService)) as IConfigurationService;
-        return service ?? throw new InvalidOperationException("IConfigurationService 未注册，无法操作配置");
+        return service ?? throw new InvalidOperationException("[APP004] IConfigurationService 未注册，无法操作配置");
     }
 }

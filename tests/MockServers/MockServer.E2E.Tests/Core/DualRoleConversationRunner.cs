@@ -360,6 +360,44 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
         return await _processManager!.GetOutputAsync().ConfigureAwait(true);
     }
 
+    /// <summary>
+    /// 获取 jcc.exe 的 stderr 输出 — 供外部诊断超时原因
+    /// </summary>
+    public Task<string> GetStderrOutputAsync() => CaptureStderrAsync();
+
+    /// <summary>
+    /// 获取诊断快照 — 包含进程状态、MockServer 状态，供超时后诊断
+    /// </summary>
+    public async Task<string> GetDiagnosticSnapshotAsync()
+    {
+        var jccRunning = _processManager?.IsRunning ?? false;
+        var mockServerRunning = _mockServerProcess is not null && !_mockServerProcess.HasExited;
+        var mcpMockServerRunning = _mcpMockServerProcess is not null && !_mcpMockServerProcess.HasExited;
+        var mockServerPid = _mockServerProcess?.Id ?? 0;
+        var mcpMockServerPid = _mcpMockServerProcess?.Id ?? 0;
+
+        var sb = new StringBuilder();
+        sb.AppendLine($"provider={_activeProvider}");
+        sb.AppendLine($"jcc.exe: running={jccRunning}");
+        sb.AppendLine($"MockServer: running={mockServerRunning}, pid={mockServerPid}, port={_mockServerPort}");
+        sb.AppendLine($"McpMockServer: running={mcpMockServerRunning}, pid={mcpMockServerPid}, port={_mcpMockServerPort}");
+
+        if (_processManager is not null)
+        {
+            try
+            {
+                var output = await _processManager.GetOutputAsync().ConfigureAwait(true);
+                sb.AppendLine($"jcc.stdout.len={output.Length}");
+            }
+            catch
+            {
+                sb.AppendLine("jcc.stdout.len=(获取失败)");
+            }
+        }
+
+        return sb.ToString();
+    }
+
     private async Task<string> CaptureStderrAsync()
     {
         if (_processManager is null) return "";
@@ -412,7 +450,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
             await _processManager!.ClearOutputAsync().ConfigureAwait(true);
             await _processManager.SendAsync(turn.UserInput, ct).ConfigureAwait(true);
 
-            var output = await WaitForStableOutputAsync(turn.ResponseTimeout, ct).ConfigureAwait(true);
+            var output = await WaitForStableOutputAsync(turn.ResponseTimeout, ct, i + 1, script.Turns.Count).ConfigureAwait(true);
 
             var record = ConversationOutputParser.Parse(output);
             var turnRecord = record with { UserInput = turn.UserInput };
@@ -510,7 +548,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
         }
     }
 
-    private async Task<string> WaitForStableOutputAsync(TimeSpan timeout, CancellationToken ct)
+    private async Task<string> WaitForStableOutputAsync(TimeSpan timeout, CancellationToken ct, int turnIndex = 0, int totalTurns = 0)
     {
         var startTime = DateTime.UtcNow;
         var lastChangeTime = DateTime.UtcNow;
@@ -624,7 +662,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
         var finalOutput = await _processManager!.GetOutputAsync().ConfigureAwait(true);
         if (finalOutput.Length >= 2) return finalOutput;
 
-        throw new TimeoutException($"等待输出超时 (>{timeout.TotalSeconds}s)");
+        throw new TimeoutException($"等待输出超时 (>{timeout.TotalSeconds}s), provider={_activeProvider}, turn={turnIndex}/{totalTurns}, outputLen={finalOutput.Length}, jcc运行={_processManager!.IsRunning}");
     }
 
     private static int CountMarker(string text, string marker)
@@ -665,6 +703,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
     {
         var timeout = TimeSpan.FromSeconds(60);
         var startTime = DateTime.UtcNow;
+        var pollCount = 0;
 
         while (DateTime.UtcNow - startTime < timeout)
         {
@@ -683,13 +722,22 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
                 return;
             }
 
+            pollCount++;
+            if (pollCount % 100 == 0)
+            {
+                var elapsed = (DateTime.UtcNow - startTime).TotalSeconds;
+                var stderrLen = (await CaptureStderrAsync().ConfigureAwait(true)).Length;
+                _logger.LogWarning("[DualRoleRunner] 等待 jcc.exe 就绪已 {Elapsed:F0}s (轮询={Polls}, stderrLen={StderrLen}, provider={Provider})",
+                    elapsed, pollCount, stderrLen, _activeProvider);
+            }
+
             await Task.Delay(100, ct).ConfigureAwait(true);
         }
 
         var finalStderr = await CaptureStderrAsync().ConfigureAwait(true);
-        _logger.LogError("[DualRoleRunner] 等待进程就绪超时(60s), 未检测到 [READY], stderr前200字符={Preview}",
-            finalStderr.Length > 200 ? finalStderr[..200] : finalStderr);
-        throw new TimeoutException($"jcc.exe 60秒内未输出 [READY]，可能初始化卡住");
+        _logger.LogError("[DualRoleRunner] 等待进程就绪超时(60s), 未检测到 [READY], provider={Provider}, stderr前200字符={Preview}",
+            _activeProvider, finalStderr.Length > 200 ? finalStderr[..200] : finalStderr);
+        throw new TimeoutException($"jcc.exe 60秒内未输出 [READY]，provider={_activeProvider}，可能初始化卡住");
     }
 
     private string WriteMockServerConfig(ConversationScript script)
@@ -917,9 +965,15 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
             _mockServerPort = await readyTcs.Task.WaitAsync(cts.Token).ConfigureAwait(true);
             _logger.LogInformation("[DualRoleRunner] MockServer 就绪, 端口: {Port}", _mockServerPort);
         }
+        catch (OperationCanceledException) when (cts.IsCancellationRequested)
+        {
+            var stderr = _mockServerProcess.HasExited ? "(进程已退出)" : "(进程仍在运行)";
+            throw new InvalidOperationException($"等待 MockServer 就绪超时（25s），供应商={_activeProvider}，{stderr}");
+        }
         catch (TimeoutException)
         {
-            throw new InvalidOperationException("等待 MockServer 就绪超时（25s）");
+            var stderr = _mockServerProcess.HasExited ? "(进程已退出)" : "(进程仍在运行)";
+            throw new InvalidOperationException($"等待 MockServer 就绪超时（25s），供应商={_activeProvider}，{stderr}");
         }
     }
 

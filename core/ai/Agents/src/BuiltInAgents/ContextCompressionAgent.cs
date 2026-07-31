@@ -8,8 +8,7 @@ public sealed class ContextCompressionAgent : BuiltInAgentBase
 {
     private readonly IContextHierarchy _contextHierarchy;
     private readonly IContextCompressor _contextCompressor;
-    private readonly List<CompressionReport> _compressionHistory;
-    private readonly SemaphoreSlim _historyLock;
+    private readonly CompressionHistoryStore _historyStore;
 
     public override string Name => "ContextCompressionAgent";
 
@@ -27,18 +26,8 @@ public sealed class ContextCompressionAgent : BuiltInAgentBase
     /// <summary>
     /// 压缩历史记录
     /// </summary>
-    public async Task<IReadOnlyList<CompressionReport>> GetCompressionHistoryAsync(CancellationToken ct = default)
-    {
-        await _historyLock.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            return _compressionHistory;
-        }
-        finally
-        {
-            _historyLock.Release();
-        }
-    }
+    public async Task<IReadOnlyList<CompressionReport>> GetCompressionHistoryAsync(CancellationToken ct = default) =>
+        await _historyStore.GetAllAsync(ct).ConfigureAwait(false);
 
     public ContextCompressionAgent(
         IChatClient kernel,
@@ -50,8 +39,7 @@ public sealed class ContextCompressionAgent : BuiltInAgentBase
     {
         _contextHierarchy = contextHierarchy ?? throw new ArgumentNullException(nameof(contextHierarchy));
         _contextCompressor = contextCompressor ?? throw new ArgumentNullException(nameof(contextCompressor));
-        _compressionHistory = new List<CompressionReport>();
-        _historyLock = new SemaphoreSlim(1, 1);
+        _historyStore = new CompressionHistoryStore(WorkflowConstants.ContextCompression.MaxHistorySize);
     }
 
     /// <summary>
@@ -280,57 +268,16 @@ public sealed class ContextCompressionAgent : BuiltInAgentBase
     /// <param name="reportId">报告ID</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>压缩报告，如果不存在则返回 null</returns>
-    public async Task<CompressionReport?> GetCompressionReportAsync(string reportId, CancellationToken ct = default)
-    {
-        await _historyLock.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            return _compressionHistory.FirstOrDefault(r => r.ReportId == reportId);
-        }
-        finally
-        {
-            _historyLock.Release();
-        }
-    }
+    public Task<CompressionReport?> GetCompressionReportAsync(string reportId, CancellationToken ct = default) =>
+        _historyStore.FindByIdAsync(reportId, ct);
 
-    /// <summary>
-    /// 异步获取最近的压缩报告
-    /// </summary>
-    /// <param name="count">报告数量</param>
-    /// <param name="ct">取消令牌</param>
-    /// <returns>压缩报告列表</returns>
-    public async Task<IReadOnlyList<CompressionReport>> GetRecentReportsAsync(int count = 10, CancellationToken ct = default)
-    {
-        await _historyLock.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            return _compressionHistory
-                .OrderByDescending(r => r.Timestamp)
-                .Take(count)
-                .ToList();
-        }
-        finally
-        {
-            _historyLock.Release();
-        }
-    }
+    public Task<IReadOnlyList<CompressionReport>> GetRecentReportsAsync(int count = 10, CancellationToken ct = default) =>
+        _historyStore.GetRecentAsync(count, ct);
 
-    /// <summary>
-    /// 异步清除压缩历史
-    /// </summary>
-    /// <param name="ct">取消令牌</param>
     public async Task ClearHistoryAsync(CancellationToken ct = default)
     {
-        await _historyLock.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            _compressionHistory.Clear();
-            Logger?.LogInformation("[{AgentName}] 压缩历史已清除", Name);
-        }
-        finally
-        {
-            _historyLock.Release();
-        }
+        await _historyStore.ClearAsync(ct).ConfigureAwait(false);
+        Logger?.LogInformation("[{AgentName}] 压缩历史已清除", Name);
     }
 
     /// <summary>
@@ -371,63 +318,11 @@ public sealed class ContextCompressionAgent : BuiltInAgentBase
     /// </summary>
     /// <param name="ct">取消令牌</param>
     /// <returns>统计信息字典</returns>
-    public async Task<Dictionary<string, JsonElement>> GetStatisticsAsync(CancellationToken ct = default)
-    {
-        await _historyLock.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            if (_compressionHistory.Count == 0)
-            {
-                return new Dictionary<string, JsonElement>
-                {
-                    ["TotalOperations"] = JsonSerializer.SerializeToElement(0, AgentsJsonContext.Default.Int32),
-                    ["AverageCompressionRatio"] = JsonSerializer.SerializeToElement(0.0, AgentsJsonContext.Default.Double),
-                    ["TotalTokensSaved"] = JsonSerializer.SerializeToElement(0, AgentsJsonContext.Default.Int32)
-                };
-            }
+    public Task<Dictionary<string, JsonElement>> GetStatisticsAsync(CancellationToken ct = default) =>
+        _historyStore.GetStatisticsAsync(ct);
 
-            var successfulReports = _compressionHistory.Where(r => r.IsSuccess && r.CompressionRatio > 0).ToList();
-            var averageRatio = successfulReports.Any()
-                ? successfulReports.Average(r => r.CompressionRatio)
-                : 0.0;
-
-            var totalTokensSaved = successfulReports.Sum(r => r.OriginalTokenCount - r.CompressedTokenCount);
-
-            return new Dictionary<string, JsonElement>
-            {
-                ["TotalOperations"] = JsonSerializer.SerializeToElement(_compressionHistory.Count, AgentsJsonContext.Default.Int32),
-                ["SuccessfulOperations"] = JsonSerializer.SerializeToElement(successfulReports.Count, AgentsJsonContext.Default.Int32),
-                ["FailedOperations"] = JsonSerializer.SerializeToElement(_compressionHistory.Count(r => !r.IsSuccess), AgentsJsonContext.Default.Int32),
-                ["AverageCompressionRatio"] = JsonSerializer.SerializeToElement(averageRatio, AgentsJsonContext.Default.Double),
-                ["TotalTokensSaved"] = JsonSerializer.SerializeToElement(totalTokensSaved, AgentsJsonContext.Default.Int32),
-                ["LastOperationTime"] = JsonSerializer.SerializeToElement(_compressionHistory.LastOrDefault()?.Timestamp ?? DateTime.MinValue, AgentsJsonContext.Default.String)
-            };
-        }
-        finally
-        {
-            _historyLock.Release();
-        }
-    }
-
-    private async Task AddToHistoryAsync(CompressionReport report, CancellationToken ct = default)
-    {
-        await _historyLock.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            _compressionHistory.Add(report);
-
-            // 限制历史记录数量
-            const int maxHistorySize = WorkflowConstants.ContextCompression.MaxHistorySize;
-            if (_compressionHistory.Count > maxHistorySize)
-            {
-                _compressionHistory.RemoveAt(0);
-            }
-        }
-        finally
-        {
-            _historyLock.Release();
-        }
-    }
+    private Task AddToHistoryAsync(CompressionReport report, CancellationToken ct = default) =>
+        _historyStore.AddAsync(report, ct);
 
     private List<string> GenerateRecommendations(TokenUsageAnalysis analysis)
     {
@@ -523,7 +418,7 @@ public sealed class ContextCompressionAgent : BuiltInAgentBase
 
     public override async ValueTask DisposeAsync()
     {
-        _historyLock.Dispose();
+        _historyStore.Dispose();
         await base.DisposeAsync().ConfigureAwait(false);
     }
 }

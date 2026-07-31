@@ -61,7 +61,7 @@ public sealed partial class McpServerConfigStore : IMcpServerConfigStore
 
         if (config.McpServers.ContainsKey(name))
         {
-            throw new InvalidOperationException($"MCP 服务器 '{name}' 已存在于 {scope} 配置中");
+            throw new InvalidOperationException($"[MCP009] MCP 服务器 '{name}' 已存在于 {scope} 配置中");
         }
 
         config.McpServers[name] = entry;
@@ -104,7 +104,7 @@ public sealed partial class McpServerConfigStore : IMcpServerConfigStore
     private static void ValidateServerName(string name)
     {
         if (string.IsNullOrWhiteSpace(name))
-            throw new ArgumentException("服务器名称不能为空");
+            throw new ArgumentException("[APP005] 服务器名称不能为空");
 
         foreach (var c in name)
         {

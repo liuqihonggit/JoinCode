@@ -51,8 +51,8 @@ public sealed class NoOpProcessService : IProcessService
 
     private sealed class NoOpInteractiveProcess : IInteractiveProcess
     {
-        public StreamWriter StandardInput => throw new InvalidOperationException("NoOp 进程不支持标准输入");
-        public StreamReader StandardOutput => throw new InvalidOperationException("NoOp 进程不支持标准输出");
+        public StreamWriter StandardInput => throw new InvalidOperationException("[FIO001] NoOp 进程不支持标准输入");
+        public StreamReader StandardOutput => throw new InvalidOperationException("[FIO002] NoOp 进程不支持标准输出");
         public int Id => -1;
         public bool HasExited => true;
         public int ExitCode => 0;

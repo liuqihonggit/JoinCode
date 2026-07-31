@@ -2,9 +2,6 @@ using JoinCode.Abstractions.Attributes;
 
 namespace McpToolDispatch;
 
-/// <summary>
-/// McpClientToolHandlers 可选依赖聚合
-/// </summary>
 [Register]
 public sealed record McpClientToolDeps(
     McpOAuthService? OAuthService = null,
@@ -13,11 +10,9 @@ public sealed record McpClientToolDeps(
     McpAuthToolHandlers? AuthToolHandlers = null,
     IMcpToolRegistry? ToolRegistry = null,
     IElicitationHandler? ElicitationHandler = null,
-    McpServerStateManager? ServerStateManager = null)
+    McpServerStateManager? ServerStateManager = null,
+    IMcpClientFactory? ClientFactory = null)
 {
-    /// <summary>
-    /// 从 DI 服务提供者解析所有可选依赖
-    /// </summary>
     public static McpClientToolDeps FromServiceProvider(IServiceProvider sp)
     {
         return new McpClientToolDeps(
@@ -27,6 +22,7 @@ public sealed record McpClientToolDeps(
             AuthToolHandlers: sp.GetService<McpAuthToolHandlers>(),
             ToolRegistry: sp.GetService<IMcpToolRegistry>(),
             ElicitationHandler: sp.GetService<IElicitationHandler>(),
-            ServerStateManager: sp.GetService<McpServerStateManager>());
+            ServerStateManager: sp.GetService<McpServerStateManager>(),
+            ClientFactory: sp.GetService<IMcpClientFactory>());
     }
 }

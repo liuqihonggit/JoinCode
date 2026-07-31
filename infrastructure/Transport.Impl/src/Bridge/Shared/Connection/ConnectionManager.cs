@@ -165,7 +165,7 @@ public sealed partial class ConnectionManager : IConnectionManager
     {
         if (_currentTransport is null || !IsConnected)
         {
-            throw new InvalidOperationException("传输未连接");
+            throw new InvalidOperationException(Core.Utils.ErrorMessages.TransportNotConnected);
         }
 
         await _currentTransport.SendAsync(messageJson, cancellationToken).ConfigureAwait(false);

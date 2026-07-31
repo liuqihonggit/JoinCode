@@ -121,7 +121,7 @@ internal static class DoctorModeRunner
                     TestName = testCase.TestName,
                     Status = DoctorTestStatus.Hung,
                     Duration = sw.Elapsed,
-                    ErrorMessage = $"测试超时 ({testCase.TimeoutSeconds}s)"
+                    ErrorMessage = $"测试超时 ({testCase.TimeoutSeconds}s): {testCase.TestName}"
                 });
             }
             catch (Exception ex)

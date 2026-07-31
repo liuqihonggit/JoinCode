@@ -256,8 +256,8 @@ public class BuildQueueServiceTests
     [Fact]
     public void BuildBufferKey_IncludesWorkingDirectory()
     {
-        var key1 = BuildQueueService.BuildBufferKey("dotnet build", "D:\\w1");
-        var key2 = BuildQueueService.BuildBufferKey("dotnet build", "D:\\w2");
+        var key1 = BuildQueueService.BuildBufferKey("dotnet build", Path.GetTempPath());
+        var key2 = BuildQueueService.BuildBufferKey("dotnet build", Path.GetFullPath(Path.Combine(Path.GetTempPath(), "..")));
         key1.Should().NotBe(key2);
     }
 

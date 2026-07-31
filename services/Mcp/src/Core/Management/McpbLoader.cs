@@ -40,7 +40,7 @@ public sealed partial class McpbLoader
         if (context.Failed)
             throw new InvalidOperationException(context.ErrorMessage);
 
-        return context.Result ?? throw new InvalidOperationException("MCPB 加载未产生结果");
+        return context.Result ?? throw new InvalidOperationException("[MPB004] MCPB 加载未产生结果");
     }
 
     public async Task<McpbLoadResult> LoadFromUrlAsync(string url, string extractBasePath, HttpClient httpClient, CancellationToken cancellationToken = default)
@@ -59,7 +59,7 @@ public sealed partial class McpbLoader
         if (context.Failed)
             throw new InvalidOperationException(context.ErrorMessage);
 
-        return context.Result ?? throw new InvalidOperationException("MCPB 加载未产生结果");
+        return context.Result ?? throw new InvalidOperationException("[MPB004] MCPB 加载未产生结果");
     }
 
     public McpServerConnectionConfig? GenerateMcpConfig(McpbManifest manifest, string extractedPath, Dictionary<string, string>? userConfig = null)

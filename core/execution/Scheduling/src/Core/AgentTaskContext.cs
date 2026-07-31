@@ -130,7 +130,7 @@ public sealed class AgentTaskContext : IAgentTaskContext
         }
 
         if (!_structuredTasksSemaphore.Wait(TimeSpan.FromSeconds(10)))
-            throw new TimeoutException("CreateSubContext: 等待结构化任务信号量超时");
+            throw new TimeoutException("[SCH001] CreateSubContext: 等待结构化任务信号量超时");
         try
         {
             foreach (var task in _structuredTasks)

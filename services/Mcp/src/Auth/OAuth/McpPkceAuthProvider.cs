@@ -245,13 +245,13 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
         var serverUrl = _options.AuthorizationUrl;
         if (string.IsNullOrEmpty(serverUrl))
         {
-            throw new InvalidOperationException("无法执行 OAuth 元数据发现：缺少服务器 URL");
+            throw new InvalidOperationException("[MCP010] 无法执行 OAuth 元数据发现：缺少服务器 URL");
         }
 
         var metadata = await _metadataDiscovery.DiscoverAsync(serverUrl, cancellationToken: cancellationToken).ConfigureAwait(false);
         if (metadata == null)
         {
-            throw new InvalidOperationException("OAuth 元数据发现失败");
+            throw new InvalidOperationException("[MCP011] OAuth 元数据发现失败");
         }
 
         _resolvedAuthorizationUrl = metadata.AuthorizationEndpoint;
@@ -259,7 +259,7 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
 
         if (string.IsNullOrEmpty(_resolvedAuthorizationUrl) || string.IsNullOrEmpty(_resolvedTokenUrl))
         {
-            throw new InvalidOperationException("OAuth 元数据缺少 authorization_endpoint 或 token_endpoint");
+            throw new InvalidOperationException("[MCP012] OAuth 元数据缺少 authorization_endpoint 或 token_endpoint");
         }
 
         if (!string.IsNullOrEmpty(_options.ClientId))
@@ -270,7 +270,7 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
 
         if (string.IsNullOrEmpty(metadata.RegistrationEndpoint))
         {
-            throw new InvalidOperationException("OAuth 元数据缺少 registration_endpoint，且未预配置 ClientId");
+            throw new InvalidOperationException("[MCP013] OAuth 元数据缺少 registration_endpoint，且未预配置 ClientId");
         }
 
         var scope = metadata.ScopesSupported != null ? string.Join(" ", metadata.ScopesSupported) : null;
@@ -279,7 +279,7 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
         var dcrResult = await _dcr.RegisterAsync(metadata.RegistrationEndpoint, clientMetadata, cancellationToken).ConfigureAwait(false);
         if (dcrResult == null)
         {
-            throw new InvalidOperationException("动态客户端注册失败");
+            throw new InvalidOperationException("[MCP014] 动态客户端注册失败");
         }
 
         _resolvedClientId = dcrResult.ClientId;

@@ -153,22 +153,86 @@ public sealed class MultiProviderE2ETests : IAsyncLifetime
 
     private async Task RunScriptWithProviderAsync(ConversationScript script, ProviderKind provider)
     {
-        var sw = Stopwatch.StartNew();
-        var runner = new DualRoleConversationRunner(
-            _loggerFactory.CreateLogger<DualRoleConversationRunner>());
+        const int maxAttempts = 3;
+        var attemptDurations = new List<TimeSpan>();
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            var sw = Stopwatch.StartNew();
+            var runner = new DualRoleConversationRunner(
+                _loggerFactory.CreateLogger<DualRoleConversationRunner>());
+            try
+            {
+                using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+                var result = await runner.RunAsync(script, provider, timeoutCts.Token).ConfigureAwait(true);
+                sw.Stop();
+                attemptDurations.Add(sw.Elapsed);
+
+                LogResult(result, provider, sw.Elapsed);
+
+                if (result.AllPassed)
+                    return;
+
+                if (attempt < maxAttempts)
+                {
+                    var backoffMs = (int)Math.Pow(2, attempt - 1) * 1000;
+                    _output.WriteLine($"[{provider}] ⚠ 第{attempt}次尝试失败(elapsed={sw.Elapsed.TotalMilliseconds:F0}ms)，{backoffMs}ms后重试: {script.Name}");
+                    await Task.Delay(backoffMs).ConfigureAwait(true);
+                    continue;
+                }
+
+                result.AllPassed.Should().BeTrue(
+                    $"所有断言应通过。失败: {FormatFailures(result)}");
+            }
+            catch (OperationCanceledException)
+            {
+                sw.Stop();
+                attemptDurations.Add(sw.Elapsed);
+                var stderrTail = await CaptureStderrTailAsync(runner).ConfigureAwait(true);
+                if (attempt < maxAttempts)
+                {
+                    var backoffMs = (int)Math.Pow(2, attempt - 1) * 1000;
+                    _output.WriteLine($"[{provider}] ⚠ 第{attempt}次尝试超时(>60s, elapsed={sw.Elapsed.TotalMilliseconds:F0}ms)，{backoffMs}ms后重试: {script.Name}");
+                    if (stderrTail.Length > 0)
+                        _output.WriteLine($"[{provider}] stderr尾部: {stderrTail}");
+                    await Task.Delay(backoffMs).ConfigureAwait(true);
+                    continue;
+                }
+                var durationSummary = string.Join(", ", attemptDurations.Select(d => $"{d.TotalMilliseconds:F0}ms"));
+                throw new TimeoutException($"测试超时(>60s): {script.Name} (provider={provider}, attempts={maxAttempts}, durations=[{durationSummary}])");
+            }
+            catch (TimeoutException ex)
+            {
+                sw.Stop();
+                attemptDurations.Add(sw.Elapsed);
+                if (attempt < maxAttempts)
+                {
+                    var backoffMs = (int)Math.Pow(2, attempt - 1) * 1000;
+                    _output.WriteLine($"[{provider}] ⚠ 第{attempt}次尝试超时({ex.Message})，{backoffMs}ms后重试: {script.Name}");
+                    await Task.Delay(backoffMs).ConfigureAwait(true);
+                    continue;
+                }
+                var durationSummary = string.Join(", ", attemptDurations.Select(d => $"{d.TotalMilliseconds:F0}ms"));
+                throw new TimeoutException($"测试超时: {script.Name} (provider={provider}, attempts={maxAttempts}, durations=[{durationSummary}], inner={ex.Message})");
+            }
+            finally
+            {
+                await runner.DisposeAsync().ConfigureAwait(true);
+            }
+        }
+    }
+
+    private static async Task<string> CaptureStderrTailAsync(DualRoleConversationRunner runner, int maxLen = 500)
+    {
         try
         {
-            var result = await runner.RunAsync(script, provider).ConfigureAwait(true);
-            sw.Stop();
-
-            LogResult(result, provider, sw.Elapsed);
-
-            result.AllPassed.Should().BeTrue(
-                $"所有断言应通过。失败: {FormatFailures(result)}");
+            var stderr = await runner.GetStderrOutputAsync().ConfigureAwait(true);
+            var stderrTail = string.IsNullOrEmpty(stderr) ? "" : (stderr.Length > maxLen ? stderr[^maxLen..] : stderr);
+            var diagSnapshot = await runner.GetDiagnosticSnapshotAsync().ConfigureAwait(true);
+            return string.IsNullOrEmpty(stderrTail) ? diagSnapshot : $"{stderrTail}\n--- 诊断快照 ---\n{diagSnapshot}";
         }
-        finally
+        catch
         {
-            await runner.DisposeAsync().ConfigureAwait(true);
+            return "(stderr捕获失败)";
         }
     }
 

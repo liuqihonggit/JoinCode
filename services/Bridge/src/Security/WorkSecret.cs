@@ -1,4 +1,5 @@
-using JoinCode.Abstractions.Attributes;
+
+using JoinCode.Abstractions.Attributes;
 
 namespace Core.Bridge;
 
@@ -273,7 +274,7 @@ public sealed partial class WorkSecretStore : IWorkSecretStore, IDisposable
         var data = Convert.FromBase64String(encryptedBase64);
 
         if (data.Length < NonceSizeBytes + TagSizeBytes)
-            throw new FormatException("加密数据格式无效：数据过短");
+            throw new FormatException("[BRG001] 加密数据格式无效：数据过短");
 
         var nonce = new byte[NonceSizeBytes];
         Buffer.BlockCopy(data, 0, nonce, 0, NonceSizeBytes);

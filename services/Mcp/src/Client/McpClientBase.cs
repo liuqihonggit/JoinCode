@@ -206,7 +206,7 @@ public abstract class McpClientBase : IMcpClient
 
         if (result == null)
         {
-            throw new McpProtocolException("无法解析初始化响应");
+            throw new McpProtocolException("[MCP015] 无法解析初始化响应");
         }
 
         _serverInfo = result.ServerInfo;
@@ -600,7 +600,7 @@ public abstract class McpClientBase : IMcpClient
     {
         if (!IsConnected)
         {
-            throw new InvalidOperationException("MCP 客户端未连接");
+            throw new InvalidOperationException(McpErrorMessages.McpClientNotConnected);
         }
     }
 

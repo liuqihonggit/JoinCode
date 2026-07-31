@@ -260,11 +260,27 @@ public sealed partial class BridgeServer : IDisposable
                 ConnectedAt = _clock.GetUtcNowOffset().ToUnixTimeMilliseconds()
             });
 
-            // 接收消息循环
+            // 接收消息循环（带读超时保护，防对端挂死）
+            var wsReadTimeout = TimeSpan.FromSeconds(30);
+            var wsReadTimeoutMs = Environment.GetEnvironmentVariable("JCC_RESILIENCE_WS_READ_TIMEOUT_MS");
+            if (wsReadTimeoutMs is not null && int.TryParse(wsReadTimeoutMs, out var ms) && ms > 0)
+                wsReadTimeout = TimeSpan.FromMilliseconds(ms);
+
             var buffer = new byte[WorkflowConstants.Limits.BufferSizeBytes];
             while (webSocket.State == WebSocketState.Open && !cancellationToken.IsCancellationRequested)
             {
-                var result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), cancellationToken).ConfigureAwait(false);
+                using var readCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                readCts.CancelAfter(wsReadTimeout);
+                WebSocketReceiveResult result;
+                try
+                {
+                    result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), readCts.Token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+                {
+                    _logger?.LogWarning("[BridgeServer] WebSocket 读超时: {ClientId} ({Timeout}s)，断开连接", clientId, wsReadTimeout.TotalSeconds);
+                    break;
+                }
 
                 if (result.MessageType == WebSocketMessageType.Close)
                 {
@@ -607,11 +623,21 @@ public sealed partial class BridgeServer : IDisposable
         var json = JsonSerializer.Serialize(message, BridgeJsonContext.Default.BridgeServerMessage);
         var bytes = Encoding.UTF8.GetBytes(json);
 
-        await webSocket.SendAsync(
-            new ArraySegment<byte>(bytes),
-            WebSocketMessageType.Text,
-            endOfMessage: true,
-            cancellationToken).ConfigureAwait(false);
+        using var writeCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        writeCts.CancelAfter(TimeSpan.FromSeconds(10));
+        try
+        {
+            await webSocket.SendAsync(
+                new ArraySegment<byte>(bytes),
+                WebSocketMessageType.Text,
+                endOfMessage: true,
+                writeCts.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            _logger?.LogWarning("[BridgeServer] WebSocket 写超时: {ClientId}，断开连接", clientId);
+            _clients.TryRemove(clientId, out _);
+        }
     }
 
     /// <summary>

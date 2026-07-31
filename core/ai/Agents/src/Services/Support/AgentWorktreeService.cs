@@ -80,7 +80,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
             }
         }
 
-        throw new InvalidOperationException("Worktree 创建管道未初始化");
+        throw new InvalidOperationException("[AGT010] Worktree 创建管道未初始化");
     }
 
     public async Task<WorktreeCleanupResult> RemoveAgentWorktreeAsync(

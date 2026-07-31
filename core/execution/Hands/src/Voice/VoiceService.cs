@@ -6,7 +6,7 @@ namespace Services.Voice;
 public sealed partial class VoiceService : IVoiceService, JoinCode.Abstractions.Interfaces.IVoiceService, IDisposable
 {
     private readonly VoiceOptions _options;
-    private readonly HttpClient _httpClient;
+    private readonly IResilientHttpClientProvider _resilientProvider;
     [Inject] private readonly ILogger<VoiceService>? _logger;
     [Inject] private readonly IClockService _clock;
     private readonly IFileSystem _fs;
@@ -24,24 +24,18 @@ public sealed partial class VoiceService : IVoiceService, JoinCode.Abstractions.
     public VoiceService(
         VoiceOptions options,
         IFileSystem fs,
-        IHttpClientProvider httpClientProvider,
+        IResilientHttpClientProvider resilientProvider,
         ILogger<VoiceService>? logger = null,
         IClockService? clock = null)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(fs);
-        ArgumentNullException.ThrowIfNull(httpClientProvider);
+        ArgumentNullException.ThrowIfNull(resilientProvider);
         _options = options;
         _fs = fs;
-        _httpClient = httpClientProvider.GetClient();
+        _resilientProvider = resilientProvider;
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
-
-        if (!string.IsNullOrEmpty(_options.WhisperApiKey))
-        {
-            _httpClient.DefaultRequestHeaders.Authorization =
-                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _options.WhisperApiKey);
-        }
     }
 
     public async Task StartRecordingAsync(CancellationToken cancellationToken = default)
@@ -185,7 +179,14 @@ public sealed partial class VoiceService : IVoiceService, JoinCode.Abstractions.
             content.Add(new StringContent(lang), "language");
         }
 
-        var response = await _httpClient.PostAsync(_options.WhisperApiEndpoint, content, cancellationToken).ConfigureAwait(false);
+        var request = new HttpRequestMessage(HttpMethod.Post, _options.WhisperApiEndpoint) { Content = content };
+
+        if (!string.IsNullOrEmpty(_options.WhisperApiKey))
+        {
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _options.WhisperApiKey);
+        }
+
+        var response = await _resilientProvider.SendResilientAsync(request, "Voice.WhisperApi", cancellationToken).ConfigureAwait(false);
         var responseBody = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
 
         if (!response.IsSuccessStatusCode)
@@ -269,7 +270,6 @@ public sealed partial class VoiceService : IVoiceService, JoinCode.Abstractions.
         _recordingCts?.Dispose();
         _recordingStream?.Dispose();
         _stateLock.Dispose();
-        _httpClient.Dispose();
     }
 
 }

@@ -69,7 +69,7 @@ public sealed class ContextCommand : ChatCommandBase
     private static IModelCatalog ResolveModelCatalog(ChatCommandContext context)
     {
         return ChatCommandBase.GetService<IModelCatalog>(context, typeof(IModelCatalog))
-            ?? throw new InvalidOperationException("模型目录服务未初始化");
+            ?? throw new InvalidOperationException("[APP001] 模型目录服务未初始化");
     }
 
     private static int EstimateTokens(IReadOnlyList<ApiMessageRecord> history)

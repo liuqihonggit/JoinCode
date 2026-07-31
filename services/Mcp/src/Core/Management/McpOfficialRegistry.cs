@@ -4,15 +4,15 @@ namespace McpClient;
 [Register]
 public sealed partial class McpOfficialRegistry
 {
-    private readonly HttpClient _httpClient;
+    private readonly IResilientHttpClientProvider _resilientProvider;
     [Inject] private readonly ILogger<McpOfficialRegistry>? _logger;
 
     private const string DefaultRegistryUrl = "https://registry.modelcontextprotocol.io";
 
-    public McpOfficialRegistry(IHttpClientProvider httpClientProvider, ILogger<McpOfficialRegistry>? logger = null)
+    public McpOfficialRegistry(IResilientHttpClientProvider resilientProvider, ILogger<McpOfficialRegistry>? logger = null)
     {
-        ArgumentNullException.ThrowIfNull(httpClientProvider);
-        _httpClient = httpClientProvider.GetClient();
+        ArgumentNullException.ThrowIfNull(resilientProvider);
+        _resilientProvider = resilientProvider;
         _logger = logger;
     }
 
@@ -26,7 +26,8 @@ public sealed partial class McpOfficialRegistry
 
         try
         {
-            var response = await _httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+            var request = new HttpRequestMessage(HttpMethod.Get, url);
+            var response = await _resilientProvider.SendResilientAsync(request, "McpRegistry.Search", cancellationToken).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
 
             var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
@@ -51,7 +52,8 @@ public sealed partial class McpOfficialRegistry
 
         try
         {
-            var response = await _httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+            var request = new HttpRequestMessage(HttpMethod.Get, url);
+            var response = await _resilientProvider.SendResilientAsync(request, "McpRegistry.GetServerDetail", cancellationToken).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
 
             var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);

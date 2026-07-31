@@ -35,12 +35,12 @@ public abstract class CoverageTestBase : IAsyncLifetime
     /// 全局超时 60s，防止 jcc.exe 卡死导致整个测试套件挂起
     /// 偶发性失败自动重试5次（E2E测试受CI环境资源竞争影响）
     /// </summary>
-    protected async Task RunScriptAsync(ConversationScript script)
+    protected async Task RunScriptAsync(ConversationScript script, ProviderKind provider = ProviderKind.OpenAI)
     {
-        await RunScriptWithRetryAsync(script, maxAttempts: 5).ConfigureAwait(true);
+        await RunScriptWithRetryAsync(script, provider, maxAttempts: 5).ConfigureAwait(true);
     }
 
-    private async Task RunScriptWithRetryAsync(ConversationScript script, int maxAttempts)
+    private async Task RunScriptWithRetryAsync(ConversationScript script, ProviderKind provider, int maxAttempts)
     {
         for (var attempt = 1; attempt <= maxAttempts; attempt++)
         {
@@ -51,7 +51,7 @@ public abstract class CoverageTestBase : IAsyncLifetime
             using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             try
             {
-                var result = await runner.RunAsync(script, ProviderKind.OpenAI, timeoutCts.Token).ConfigureAwait(true);
+                var result = await runner.RunAsync(script, provider, timeoutCts.Token).ConfigureAwait(true);
                 sw.Stop();
 
                 LogResult(result, sw.Elapsed);
@@ -62,7 +62,7 @@ public abstract class CoverageTestBase : IAsyncLifetime
 
                 if (attempt < maxAttempts)
                 {
-                    Output.WriteLine($"[Coverage] ⚠ 第{attempt}次尝试失败，自动重试: {script.Name}");
+                    Output.WriteLine($"[Coverage] ⚠ 第{attempt}次尝试失败，自动重试: {script.Name} (provider={provider})");
                     continue;
                 }
 
@@ -74,10 +74,10 @@ public abstract class CoverageTestBase : IAsyncLifetime
                 sw.Stop();
                 if (attempt < maxAttempts)
                 {
-                    Output.WriteLine($"[Coverage] ⚠ 第{attempt}次尝试超时(>60s)，自动重试: {script.Name}");
+                    Output.WriteLine($"[Coverage] ⚠ 第{attempt}次尝试超时(>60s)，自动重试: {script.Name} (provider={provider})");
                     continue;
                 }
-                throw new TimeoutException($"测试超时(>60s): {script.Name}");
+                throw new TimeoutException($"测试超时(>60s): {script.Name} (provider={provider})");
             }
             finally
             {

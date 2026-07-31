@@ -38,12 +38,8 @@ public sealed partial class SseAgentTransport : IAgentTransport
     private readonly SseTransportConfig _config;
     private readonly HttpClient _httpClient;
     [Inject] private readonly ILogger<SseAgentTransport>? _logger;
-    private readonly List<string> _outputBuffer = new();
-    private readonly List<string> _errorBuffer = new();
-    private readonly SemaphoreSlim _outputLock = new(1, 1);
-    private readonly SemaphoreSlim _errorLock = new(1, 1);
-    private int _outputConsumedIndex;
-    private int _errorConsumedIndex;
+    private readonly BufferedChannel _outputChannel = new();
+    private readonly BufferedChannel _errorChannel = new();
     private readonly CancellationTokenSource _disposeCts = new();
     private Task? _sseListenTask;
     private TransportState _state;
@@ -112,7 +108,7 @@ public sealed partial class SseAgentTransport : IAgentTransport
     public async Task SendMessageAsync(string message, CancellationToken ct = default)
     {
         if (State != TransportState.Connected)
-            throw new InvalidOperationException($"传输未连接，当前状态: {State}");
+            throw new InvalidOperationException($"[SSE004] 传输未连接，当前状态: {State}");
 
         using var request = new HttpRequestMessage(HttpMethod.Post, _config.MessagesEndpoint);
         request.Content = new StringContent(message, Encoding.UTF8, "application/json");
@@ -140,15 +136,9 @@ public sealed partial class SseAgentTransport : IAgentTransport
         {
             ct.ThrowIfCancellationRequested();
 
-            await _outputLock.WaitAsync(ct).ConfigureAwait(false);
-            try
+            if (await _outputChannel.TryPredicateAsync(predicate, ct).ConfigureAwait(false))
             {
-                var current = string.Join("\n", _outputBuffer);
-                if (predicate(current)) return current;
-            }
-            finally
-            {
-                _outputLock.Release();
+                return await _outputChannel.GetAllAsync(TimeSpan.FromSeconds(5), ct).ConfigureAwait(false);
             }
 
             await Task.Delay(50, ct).ConfigureAwait(false);
@@ -166,15 +156,9 @@ public sealed partial class SseAgentTransport : IAgentTransport
         {
             ct.ThrowIfCancellationRequested();
 
-            await _errorLock.WaitAsync(ct).ConfigureAwait(false);
-            try
+            if (await _errorChannel.TryPredicateAsync(predicate, ct).ConfigureAwait(false))
             {
-                var current = string.Join("\n", _errorBuffer);
-                if (predicate(current)) return current;
-            }
-            finally
-            {
-                _errorLock.Release();
+                return await _errorChannel.GetAllAsync(TimeSpan.FromSeconds(5), ct).ConfigureAwait(false);
             }
 
             await Task.Delay(50, ct).ConfigureAwait(false);
@@ -183,88 +167,27 @@ public sealed partial class SseAgentTransport : IAgentTransport
         throw new TimeoutException($"等待SSE错误超时 (>{timeout.Value.TotalSeconds}s)");
     }
 
-    public async Task<string> GetOutputAsync()
-    {
-        await _outputLock.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
-        try
-        {
-            return string.Join("\n", _outputBuffer);
-        }
-        finally
-        {
-            _outputLock.Release();
-        }
-    }
+    public Task<string> GetOutputAsync() =>
+        _outputChannel.GetAllAsync(TimeSpan.FromSeconds(5));
 
-    public async Task<string> GetOutputIncrementalAsync()
-    {
-        await _outputLock.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
-        try
-        {
-            if (_outputConsumedIndex >= _outputBuffer.Count)
-                return string.Empty;
+    public Task<string> GetOutputIncrementalAsync() =>
+        _outputChannel.GetIncrementalAsync(TimeSpan.FromSeconds(5));
 
-            var result = string.Join("\n", _outputBuffer[_outputConsumedIndex..]);
-            _outputConsumedIndex = _outputBuffer.Count;
-            return result;
-        }
-        finally
-        {
-            _outputLock.Release();
-        }
-    }
+    public Task<string> GetErrorAsync() =>
+        _errorChannel.GetAllAsync(TimeSpan.FromSeconds(5));
 
-    public async Task<string> GetErrorAsync()
-    {
-        await _errorLock.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
-        try
-        {
-            return string.Join("\n", _errorBuffer);
-        }
-        finally
-        {
-            _errorLock.Release();
-        }
-    }
+    public Task<string> GetErrorIncrementalAsync() =>
+        _errorChannel.GetIncrementalAsync(TimeSpan.FromSeconds(5));
 
-    public async Task<string> GetErrorIncrementalAsync()
-    {
-        await _errorLock.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
-        try
-        {
-            if (_errorConsumedIndex >= _errorBuffer.Count)
-                return string.Empty;
-
-            var result = string.Join("\n", _errorBuffer[_errorConsumedIndex..]);
-            _errorConsumedIndex = _errorBuffer.Count;
-            return result;
-        }
-        finally
-        {
-            _errorLock.Release();
-        }
-    }
-
-    public async Task ClearOutputAsync()
-    {
-        await _outputLock.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
-        try
-        {
-            _outputBuffer.Clear();
-            _outputConsumedIndex = 0;
-        }
-        finally
-        {
-            _outputLock.Release();
-        }
-    }
+    public Task ClearOutputAsync() =>
+        _outputChannel.ClearAsync(TimeSpan.FromSeconds(5));
 
     public async ValueTask DisposeAsync()
     {
         _disposeCts.Cancel();
         _httpClient.Dispose();
-        _outputLock.Dispose();
-        _errorLock.Dispose();
+        _outputChannel.Dispose();
+        _errorChannel.Dispose();
         _disposeCts.Dispose();
         State = TransportState.Disconnected;
         await ValueTask.CompletedTask;
@@ -329,12 +252,9 @@ public sealed partial class SseAgentTransport : IAgentTransport
         {
             var data = sseEvent.Data;
             var channel = sseEvent.EventType == "error" ? TransportChannel.Error : TransportChannel.Output;
-            var buffer = channel == TransportChannel.Error ? _errorBuffer : _outputBuffer;
-            var @lock = channel == TransportChannel.Error ? _errorLock : _outputLock;
+            var buffered = channel == TransportChannel.Error ? _errorChannel : _outputChannel;
 
-            await @lock.WaitAsync(ct).ConfigureAwait(false);
-            try { buffer.Add(data); }
-            finally { @lock.Release(); }
+            await buffered.AddAsync(data, ct).ConfigureAwait(false);
 
             OnMessage?.Invoke(this, new TransportMessageEventArgs
             {

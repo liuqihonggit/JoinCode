@@ -81,7 +81,7 @@ public sealed partial class AgentServiceImpl : JoinCode.Abstractions.Interfaces.
         await _spawnPipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false);
 
         if (context.SubAgent is null)
-            throw new InvalidOperationException("中间件管道未创建 SubAgent");
+            throw new InvalidOperationException("[AGT008] 中间件管道未创建 SubAgent");
 
         StartWorkerPermissionResponseRouting(context.SubAgent.Id);
         _progressTrackers[context.SubAgent.Id] = context.ProgressTracker;
@@ -258,7 +258,7 @@ public sealed partial class AgentServiceImpl : JoinCode.Abstractions.Interfaces.
         ArgumentNullException.ThrowIfNull(options);
 
         if (_transcriptService is null)
-            throw new InvalidOperationException("IAgentTranscriptService 未注册，无法恢复代理");
+            throw new InvalidOperationException("[AGT009] IAgentTranscriptService 未注册，无法恢复代理");
 
         var sessionId = options.SessionId ?? "default";
 

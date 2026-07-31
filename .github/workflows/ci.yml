@@ -19,6 +19,7 @@ env:
   NUGET_XMLDOC_MODE: skip
   NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
   Configuration: Release
+  JCC_API_TIMEOUT_MS: 30000
 
 jobs:
   build:

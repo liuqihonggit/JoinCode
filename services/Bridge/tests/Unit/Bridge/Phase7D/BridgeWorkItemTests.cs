@@ -46,7 +46,7 @@ public sealed partial class BridgeMainTests
     {
         var item = new BridgeWorkItem
         {
-            WorkId = "w1",
+            WorkId = "work-001",
             SessionId = "s1",
         };
         Assert.Null(item.WorkType);
@@ -57,7 +57,7 @@ public sealed partial class BridgeMainTests
     {
         var item = new BridgeWorkItem
         {
-            WorkId = "w1",
+            WorkId = "work-001",
             SessionId = "s1",
             WorkType = "healthcheck",
         };
@@ -69,7 +69,7 @@ public sealed partial class BridgeMainTests
     {
         var item = new BridgeWorkItem
         {
-            WorkId = "w2",
+            WorkId = "work-002",
             SessionId = "s2",
             WorkType = "session",
         };
@@ -81,7 +81,7 @@ public sealed partial class BridgeMainTests
     {
         var item = new BridgeWorkItem
         {
-            WorkId = "w3",
+            WorkId = "work-003",
             SessionId = "s3",
             Secret = "dGVzdA",
         };

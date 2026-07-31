@@ -616,14 +616,14 @@ public sealed partial class AgentCoordinator : IAgentCoordinator, ISubAgentCoord
     public Task<ForkResult> ForkSubAgentAsync(ForkOptions options, CancellationToken ct = default)
     {
         if (_forkManager == null)
-            throw new InvalidOperationException("ForkSubAgentManager 未注册");
+            throw new InvalidOperationException("[AGT006] ForkSubAgentManager 未注册");
         return _forkManager.ForkAsync(options, ct);
     }
 
     public Task SyncAgentPermissionsAsync(string agentId, PermissionSyncRequest request, CancellationToken ct = default)
     {
         if (_permissionBridge == null)
-            throw new InvalidOperationException("SwarmPermissionBridge 未注册");
+            throw new InvalidOperationException("[AGT007] SwarmPermissionBridge 未注册");
         return _permissionBridge.SyncPermissionsAsync(agentId, request, ct);
     }
 

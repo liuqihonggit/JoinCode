@@ -10,6 +10,8 @@ global using JoinCode.Abstractions.Configuration.Llm;
 global using JoinCode.Abstractions.Exceptions;
 global using JoinCode.Abstractions.Http;
 global using JoinCode.Abstractions.Interfaces;
+global using Infrastructure.Http;
+global using Infrastructure.Utils.Resilience;
 global using JoinCode.Abstractions.LLM;
 global using JoinCode.Abstractions.LLM.Chat;
 global using JoinCode.Abstractions.LLM.Execution;

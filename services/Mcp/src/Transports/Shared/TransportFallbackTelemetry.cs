@@ -21,10 +21,8 @@ public sealed class TransportFallbackTelemetry
             var cb = _chain.CircuitBreakers[i];
             circuitStates[i] = new CircuitBreakerReport
             {
-                State = cb.State,
+                State = cb.Phase,
                 ConsecutiveFailures = cb.ConsecutiveFailures,
-                FailureThreshold = cb.FailureThreshold,
-                CoolDownPeriod = cb.CoolDownPeriod,
                 OpenedAt = cb.OpenedAt,
             };
         }
@@ -67,8 +65,7 @@ public sealed class TransportFallbackTelemetry
         {
             var cb = report.CircuitBreakers[i];
             sb.AppendLine($"  Transport[{i}]: state={cb.State}, " +
-                          $"failures={cb.ConsecutiveFailures}/{cb.FailureThreshold}, " +
-                          $"cooldown={cb.CoolDownPeriod.TotalSeconds}s" +
+                          $"failures={cb.ConsecutiveFailures}" +
                           (cb.OpenedAt.HasValue ? $", openedAt={cb.OpenedAt.Value:O}" : ""));
         }
 
@@ -96,9 +93,7 @@ public sealed class TransportFallbackReport
 
 public sealed class CircuitBreakerReport
 {
-    public required JoinCode.Transport.CircuitBreakerState State { get; init; }
+    public required CircuitBreakerPhase State { get; init; }
     public required int ConsecutiveFailures { get; init; }
-    public required int FailureThreshold { get; init; }
-    public required TimeSpan CoolDownPeriod { get; init; }
     public required DateTimeOffset? OpenedAt { get; init; }
 }

@@ -5,7 +5,7 @@ public sealed class McpTransportFallbackChain : IMcpTransport
     private readonly IMcpTransport[] _transports;
     private readonly ITransportHealthCheck[] _healthChecks;
     private readonly TransportFallbackConfig _config;
-    private readonly TransportCircuitBreaker[] _circuitBreakers;
+    private readonly UnifiedCircuitBreaker[] _circuitBreakers;
     private readonly TransportFallbackMetrics _metrics;
     private readonly ILogger? _logger;
     private IMcpTransport? _activeTransport;
@@ -22,7 +22,7 @@ public sealed class McpTransportFallbackChain : IMcpTransport
     public int ActiveTransportIndex => _activeIndex;
     public TransportFallbackConfig Config => _config;
     public TransportFallbackMetrics Metrics => _metrics;
-    public TransportCircuitBreaker[] CircuitBreakers => _circuitBreakers;
+    public UnifiedCircuitBreaker[] CircuitBreakers => _circuitBreakers;
 
     public McpTransportFallbackChain(
         IMcpTransport[] transports,
@@ -38,12 +38,13 @@ public sealed class McpTransportFallbackChain : IMcpTransport
         if (_transports.Length == 0)
             throw new ArgumentException("At least one transport is required", nameof(transports));
 
-        _circuitBreakers = new TransportCircuitBreaker[_transports.Length];
+        _circuitBreakers = new UnifiedCircuitBreaker[_transports.Length];
         for (var i = 0; i < _transports.Length; i++)
         {
-            _circuitBreakers[i] = new TransportCircuitBreaker(
+            _circuitBreakers[i] = new UnifiedCircuitBreaker(
+                $"mcp-transport-{i}",
                 _config.CircuitBreakerFailureThreshold,
-                _config.CircuitBreakerCoolDownMs);
+                TimeSpan.FromMilliseconds(_config.CircuitBreakerCoolDownMs));
         }
 
         _metrics = new TransportFallbackMetrics(_transports.Length);

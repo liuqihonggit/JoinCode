@@ -18,6 +18,11 @@ public sealed partial class McpClientFactory : IMcpClientFactory
         };
     }
 
+    public IMcpClient CreateClient(McpServerConnectionConfig config, bool enableFallback, ILogger? logger = null)
+    {
+        return enableFallback ? CreateClientWithFallback(config, logger: logger) : CreateClient(config, logger);
+    }
+
     public IMcpClient CreateClientWithFallback(
         McpServerConnectionConfig config,
         TransportFallbackConfig? fallbackConfig = null,

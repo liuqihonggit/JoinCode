@@ -5,10 +5,10 @@ public sealed class ResilientSubprocess : IAsyncDisposable
     private readonly SubprocessResiliencePolicy _policy;
     private readonly Func<CancellationToken, Task<IInteractiveProcess>> _spawnFunc;
     private readonly ILogger? _logger;
-    private readonly SemaphoreSlim _stdinLock = new(1, 1);
-    private readonly SemaphoreSlim _stdoutLock = new(1, 1);
 
     private IInteractiveProcess _process;
+    private readonly ResilientChannel _inputChannel;
+    private readonly ResilientChannel _outputChannel;
     private ProcessHealthMonitor? _healthMonitor;
     private ProcessRestartManager? _restartManager;
     private UnifiedCircuitBreaker? _circuitBreaker;
@@ -35,6 +35,14 @@ public sealed class ResilientSubprocess : IAsyncDisposable
         _policy = policy ?? throw new ArgumentNullException(nameof(policy));
         _logger = logger;
 
+        _circuitBreaker = new UnifiedCircuitBreaker(_policy.Name, _policy.CircuitBreaker);
+
+        _inputChannel = new ResilientChannel(
+            $"{_policy.Name}/stdin", _circuitBreaker, _policy.WriteTimeout, _logger);
+
+        _outputChannel = new ResilientChannel(
+            $"{_policy.Name}/stdout", _circuitBreaker, _policy.ReadTimeout, _logger);
+
         InitializeResilience();
     }
 
@@ -51,79 +59,18 @@ public sealed class ResilientSubprocess : IAsyncDisposable
             _restartManager = new ProcessRestartManager(_policy.MaxRestarts, _logger);
             _restartManager.AfterRestart += OnProcessRestarted;
         }
-
-        _circuitBreaker = new UnifiedCircuitBreaker(_policy.Name, _policy.CircuitBreaker);
     }
 
-    public async Task WriteStdinAsync(string data, CancellationToken ct = default)
-    {
-        if (_circuitBreaker is not null && !_circuitBreaker.TryProbe())
+    public Task WriteStdinAsync(string data, CancellationToken ct = default) =>
+        _inputChannel.ExecuteAsync(async token =>
         {
-            throw new CircuitBreakerOpenException($"[{_policy.Name}] 熔断器开启，停止通讯");
-        }
+            await _process.StandardInput.WriteAsync(data.AsMemory(), token).ConfigureAwait(false);
+            await _process.StandardInput.FlushAsync(token).ConfigureAwait(false);
+        }, ct);
 
-        await _stdinLock.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            timeoutCts.CancelAfter(_policy.WriteTimeout);
-
-            await _process.StandardInput.WriteAsync(data.AsMemory(), timeoutCts.Token).ConfigureAwait(false);
-            await _process.StandardInput.FlushAsync(timeoutCts.Token).ConfigureAwait(false);
-
-            _circuitBreaker?.RecordSuccess();
-        }
-        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-        {
-            _circuitBreaker?.RecordFailure();
-            throw new TimeoutException($"[{_policy.Name}] stdin 写超时 ({_policy.WriteTimeout.TotalSeconds}s)");
-        }
-        catch (Exception ex)
-        {
-            _circuitBreaker?.RecordFailure();
-            _logger?.LogWarning(ex, "[ResilientSubprocess] stdin 写入失败");
-            throw;
-        }
-        finally
-        {
-            _stdinLock.Release();
-        }
-    }
-
-    public async Task<string?> ReadStdoutLineAsync(CancellationToken ct = default)
-    {
-        if (_circuitBreaker is not null && !_circuitBreaker.TryProbe())
-        {
-            throw new CircuitBreakerOpenException($"[{_policy.Name}] 熔断器开启，停止通讯");
-        }
-
-        await _stdoutLock.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            timeoutCts.CancelAfter(_policy.ReadTimeout);
-
-            var line = await _process.StandardOutput.ReadLineAsync(timeoutCts.Token).ConfigureAwait(false);
-
-            _circuitBreaker?.RecordSuccess();
-            return line;
-        }
-        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-        {
-            _circuitBreaker?.RecordFailure();
-            throw new TimeoutException($"[{_policy.Name}] stdout 读取超时 ({_policy.ReadTimeout.TotalSeconds}s)");
-        }
-        catch (Exception ex)
-        {
-            _circuitBreaker?.RecordFailure();
-            _logger?.LogWarning(ex, "[ResilientSubprocess] stdout 读取失败");
-            throw;
-        }
-        finally
-        {
-            _stdoutLock.Release();
-        }
-    }
+    public Task<string?> ReadStdoutLineAsync(CancellationToken ct = default) =>
+        _outputChannel.ExecuteAsync(async token =>
+            await _process.StandardOutput.ReadLineAsync(token).ConfigureAwait(false), ct);
 
     public async Task RestartAsync(CancellationToken ct = default)
     {
@@ -185,8 +132,8 @@ public sealed class ResilientSubprocess : IAsyncDisposable
 
         _disposeCts.Cancel();
         _healthMonitor?.Dispose();
-        _stdinLock.Dispose();
-        _stdoutLock.Dispose();
+        _inputChannel.Dispose();
+        _outputChannel.Dispose();
 
         try
         {

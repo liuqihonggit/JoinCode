@@ -53,7 +53,7 @@ public sealed class BridgeServerHandleTests
         response.Type.Should().Be("commandExecuted");
         response.Data.Should().NotBeNull();
         return response.Data!.Value.Deserialize<BridgeCommandExecutedData>(BridgeJsonContext.Default.BridgeCommandExecutedData)
-            ?? throw new InvalidOperationException("反序列化失败");
+            ?? throw new InvalidOperationException("[UTU001] 反序列化失败");
     }
 
     private static BridgeSelectionSetData ParseSelectionSet(BridgeServerMessage response)
@@ -61,7 +61,7 @@ public sealed class BridgeServerHandleTests
         response.Type.Should().Be("selectionSet");
         response.Data.Should().NotBeNull();
         return response.Data!.Value.Deserialize<BridgeSelectionSetData>(BridgeJsonContext.Default.BridgeSelectionSetData)
-            ?? throw new InvalidOperationException("反序列化失败");
+            ?? throw new InvalidOperationException("[UTU002] 反序列化失败");
     }
 
     // ============================================================

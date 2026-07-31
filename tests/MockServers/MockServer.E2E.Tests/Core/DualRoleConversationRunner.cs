@@ -950,7 +950,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
 
         if (!_mockServerProcess.Start())
         {
-            throw new InvalidOperationException("无法启动 MockServer 进程");
+            throw new InvalidOperationException("[E2E007] 无法启动 MockServer 进程");
         }
 
         _mockServerProcess.BeginOutputReadLine();
@@ -1027,7 +1027,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
 
         if (!_mcpMockServerProcess.Start())
         {
-            throw new InvalidOperationException("无法启动 Mcp.MockServer 进程");
+            throw new InvalidOperationException("[E2E008] 无法启动 Mcp.MockServer 进程");
         }
 
         _mcpMockServerProcess.BeginOutputReadLine();
@@ -1044,7 +1044,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
         }
         catch (TimeoutException)
         {
-            throw new InvalidOperationException("等待 Mcp.MockServer 就绪超时（15s）");
+            throw new InvalidOperationException("[E2E009] 等待 Mcp.MockServer 就绪超时（15s）");
         }
     }
 

@@ -109,7 +109,7 @@ public sealed class StdioProcessManager : IAsyncDisposable
     public async Task SendAsync(string message, CancellationToken ct = default)
     {
         if (_stdinWriter == null)
-            throw new InvalidOperationException("进程未启动");
+            throw new InvalidOperationException("[TCU001] 进程未启动");
 
         _logger.LogDebug("[{PidTag}StdioManager] 发送: {Message}", _pidTag, message.Length > 100 ? message[..100] + "..." : message);
 

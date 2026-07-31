@@ -362,7 +362,7 @@ public sealed class DualRoleConversationTests : IAsyncLifetime
             }
         }
 
-        throw new InvalidOperationException("不应到达此处");
+        throw new InvalidOperationException("[E2E010] 不应到达此处");
     }
 
     private void LogResult(ConversationResult result)

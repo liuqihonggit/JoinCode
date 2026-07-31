@@ -112,7 +112,7 @@ public sealed class CompressionHistoryStore : IDisposable
                 ["FailedOperations"] = JsonSerializer.SerializeToElement(_history.Count(r => !r.IsSuccess), AgentsJsonContext.Default.Int32),
                 ["AverageCompressionRatio"] = JsonSerializer.SerializeToElement(averageRatio, AgentsJsonContext.Default.Double),
                 ["TotalTokensSaved"] = JsonSerializer.SerializeToElement(totalTokensSaved, AgentsJsonContext.Default.Int32),
-                ["LastOperationTime"] = JsonSerializer.SerializeToElement(_history.LastOrDefault()?.Timestamp ?? DateTime.MinValue, AgentsJsonContext.Default.String)
+                ["LastOperationTime"] = JsonSerializer.SerializeToElement((_history.LastOrDefault()?.Timestamp ?? DateTime.MinValue).ToString("O"), AgentsJsonContext.Default.String)
             };
         }
         finally

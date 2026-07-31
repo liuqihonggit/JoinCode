@@ -2,7 +2,7 @@ namespace Core.Bridge;
 
 public sealed class CapacityWakeSignal : IDisposable
 {
-    private readonly SemaphoreSlim _semaphore = new(0, 1);
+    private readonly SemaphoreSlim _semaphore = new(0, int.MaxValue);
     private volatile int _wakeToken;
 
     public void WakeUp()

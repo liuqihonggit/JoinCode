@@ -33,6 +33,12 @@ public sealed class TransportCircuitBreaker
     public void RecordFailure()
     {
         Interlocked.Increment(ref _consecutiveFailures);
+        if (_state == CircuitBreakerState.HalfOpen)
+        {
+            _state = CircuitBreakerState.Open;
+            _openedAt = DateTimeOffset.UtcNow;
+            return;
+        }
         if (_consecutiveFailures >= _failureThreshold && _state != CircuitBreakerState.Open)
         {
             _state = CircuitBreakerState.Open;
@@ -44,11 +50,12 @@ public sealed class TransportCircuitBreaker
     {
         var currentState = GetCurrentState();
         if (currentState == CircuitBreakerState.Closed) return true;
-        if (currentState == CircuitBreakerState.HalfOpen) return true;
-        if (currentState == CircuitBreakerState.Open &&
-            DateTimeOffset.UtcNow - _openedAt >= _coolDownPeriod)
+        if (currentState == CircuitBreakerState.HalfOpen)
         {
-            _state = CircuitBreakerState.HalfOpen;
+            if (_state == CircuitBreakerState.Open)
+            {
+                _state = CircuitBreakerState.HalfOpen;
+            }
             return true;
         }
         return false;

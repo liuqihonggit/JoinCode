@@ -39,6 +39,7 @@ public sealed class StreamingToolExecutor : IAsyncDisposable
     private readonly CancellationTokenSource _siblingCts = new();
     private readonly CancellationTokenSource? _linkedCts;
     private readonly CancellationToken _combinedCt;
+    private volatile bool _discarded;
 
     /// <summary>
     /// 初始化流式工具执行器
@@ -74,6 +75,8 @@ public sealed class StreamingToolExecutor : IAsyncDisposable
     /// </summary>
     public async Task AddToolAsync(ToolCallEntry entry, int originalIndex)
     {
+        if (_discarded) return;
+
         await _semaphore.WaitAsync().ConfigureAwait(false);
         try
         {
@@ -98,6 +101,8 @@ public sealed class StreamingToolExecutor : IAsyncDisposable
     /// </summary>
     public async Task<IReadOnlyList<StreamingToolResult>> GetCompletedResultsAsync()
     {
+        if (_discarded) return [];
+
         await _semaphore.WaitAsync().ConfigureAwait(false);
         try
         {
@@ -119,6 +124,8 @@ public sealed class StreamingToolExecutor : IAsyncDisposable
 #pragma warning disable VSTHRD003 // TaskCompletionSource 任务由各 ExecuteToolAsync 启动，此处仅等待完成
     public async Task<IReadOnlyList<StreamingToolResult>> GetRemainingResultsAsync()
     {
+        if (_discarded) return [];
+
         List<Task<StreamingToolResult>> pendingTasks;
         await _semaphore.WaitAsync().ConfigureAwait(false);
         try
@@ -145,6 +152,69 @@ public sealed class StreamingToolExecutor : IAsyncDisposable
     /// 获取取消令牌 — Bash 错误级联取消兄弟工具 + 用户取消的组合令牌
     /// </summary>
     public CancellationToken CombinedCancellationToken => _combinedCt;
+
+    /// <summary>
+    /// 是否已被丢弃 — 对齐 TS StreamingToolExecutor.discarded
+    /// </summary>
+    public bool IsDiscarded => _discarded;
+
+    /// <summary>
+    /// 丢弃所有待处理和进行中的工具 — 对齐 TS StreamingToolExecutor.d4iscard()
+    /// 在流式 fallback 发生且失败尝试的结果应被放弃时调用
+    /// 排队工具不会启动，进行中工具将收到合成错误
+    /// </summary>
+    public void Discard()
+    {
+        _discarded = true;
+
+        try
+        {
+            if (!_siblingCts.IsCancellationRequested)
+                _siblingCts.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            _logger?.LogDebug("[StreamingToolExecutor] SiblingCts already disposed during discard");
+        }
+
+        _semaphore.Wait();
+        try
+        {
+            var uncompletedTools = _queue
+                .Where(t => t.Status != ToolStatus.Completed && !t.CompletionSource.Task.IsCompleted)
+                .ToList();
+
+            foreach (var tool in _queue)
+            {
+                if (tool.Status != ToolStatus.Completed)
+                    tool.Status = ToolStatus.Completed;
+            }
+
+            _completedBuffer.Clear();
+
+            _semaphore.Release();
+
+            foreach (var tool in uncompletedTools)
+            {
+                tool.CompletionSource.SetResult(new StreamingToolResult
+                {
+                    ToolName = tool.Entry.Name,
+                    ToolCallId = tool.Entry.Id,
+                    Result = new ToolCallResult
+                    {
+                        ResultText = "(discarded by streaming fallback)",
+                        IsError = true
+                    },
+                    OriginalIndex = tool.OriginalIndex
+                });
+            }
+        }
+        catch
+        {
+            _semaphore.Release();
+            throw;
+        }
+    }
 
     public async ValueTask DisposeAsync()
     {

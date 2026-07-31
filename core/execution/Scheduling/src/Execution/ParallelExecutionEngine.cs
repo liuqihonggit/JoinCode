@@ -37,7 +37,7 @@ public sealed partial class ParallelExecutionEngine : IAsyncDisposable
     {
         if (!simulationMode)
         {
-            throw new ArgumentException("此构造函数仅用于模拟模式", nameof(simulationMode));
+            throw new ArgumentException("[SCH005] 此构造函数仅用于模拟模式", nameof(simulationMode));
         }
         _scheduler = new ToolPortingScheduler();
         _agentCoordinator = null;

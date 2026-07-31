@@ -14,7 +14,7 @@ public sealed partial class McpClientFactory : IMcpClientFactory
             McpClientTransportType.Sse => new McpSseClient(config, logger: logger),
             McpClientTransportType.Http => new McpHttpClient(config, logger: logger),
             McpClientTransportType.WebSocket => new McpWebSocketClient(config, logger: logger),
-            _ => throw new NotSupportedException($"不支持的传输类型: {config.TransportType}")
+            _ => throw new NotSupportedException($"[MCP021] 不支持的传输类型: {config.TransportType}")
         };
     }
 

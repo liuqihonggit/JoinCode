@@ -93,7 +93,7 @@ public sealed partial class BuiltInAgentFactory : IBuiltInAgentFactory
 
             BuiltInAgentType.ContextCompression => CreateContextCompressionAgent(),
 
-            _ => throw new ArgumentException($"未知的 Agent 类型: {agentType}", nameof(agentType))
+            _ => throw new ArgumentException($"[AGT012] 未知的 Agent 类型: {agentType}", nameof(agentType))
         };
     }
 

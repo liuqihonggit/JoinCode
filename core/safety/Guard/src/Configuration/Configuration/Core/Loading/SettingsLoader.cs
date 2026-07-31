@@ -121,7 +121,7 @@ public static class SettingsLoader
             SettingSource.UserSettings => GetUserSettingsPath(),
             SettingSource.ProjectSettings => GetProjectSettingsPath(projectDir ?? fs.GetCurrentDirectory()),
             SettingSource.LocalSettings => GetLocalSettingsPath(projectDir ?? fs.GetCurrentDirectory()),
-            _ => throw new ArgumentException($"不支持保存到来源: {source}"),
+            _ => throw new ArgumentException($"[GRD007] 不支持保存到来源: {source}"),
         };
 
         var directory = Path.GetDirectoryName(path);

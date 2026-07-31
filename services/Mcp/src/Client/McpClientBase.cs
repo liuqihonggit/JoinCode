@@ -199,7 +199,7 @@ public abstract class McpClientBase : IMcpClient
 
         if (response.Error != null)
         {
-            throw new McpProtocolException($"初始化失败: {response.Error.Message}");
+            throw new McpProtocolException($"[MCP017] 初始化失败: {response.Error.Message}");
         }
 
         var result = response.DeserializeResult(McpJsonContext.Default.InitializeResult);
@@ -260,7 +260,7 @@ public abstract class McpClientBase : IMcpClient
             }
         }
 
-        throw new McpProtocolException($"请求在 {_options.MaxRetries} 次尝试后失败", lastException ?? throw new InvalidOperationException("No exception after retries."));
+        throw new McpProtocolException($"[MCP018] 请求在 {_options.MaxRetries} 次尝试后失败", lastException ?? throw new InvalidOperationException("No exception after retries."));
     }
 
     public async Task<OperationResult<IReadOnlyList<ToolInfo>>> ListToolsAsync(CancellationToken cancellationToken = default)
@@ -618,7 +618,7 @@ public abstract class McpClientBase : IMcpClient
 
         if (response.Error != null)
         {
-            throw new McpProtocolException($"Ping 失败: {response.Error.Message}");
+            throw new McpProtocolException($"[MCP019] Ping 失败: {response.Error.Message}");
         }
     }
 
@@ -643,7 +643,7 @@ public abstract class McpClientBase : IMcpClient
 
         if (response.Error != null)
         {
-            throw new McpProtocolException($"设置日志级别失败: {response.Error.Message}");
+            throw new McpProtocolException($"[MCP020] 设置日志级别失败: {response.Error.Message}");
         }
     }
 

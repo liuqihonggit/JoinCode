@@ -110,7 +110,7 @@ public sealed partial class McpServerConfigStore : IMcpServerConfigStore
         {
             if (!char.IsLetterOrDigit(c) && c != '_' && c != '-')
             {
-                throw new ArgumentException($"服务器名称 '{name}' 包含非法字符 '{c}'，只允许字母、数字、下划线和连字符");
+                throw new ArgumentException($"[APP008] 服务器名称 '{name}' 包含非法字符 '{c}'，只允许字母、数字、下划线和连字符");
             }
         }
     }

@@ -163,7 +163,7 @@ public static class FrontmatterParser
     public static FrontmatterParseResult ParseFile(string filePath, IFileSystem fs)
     {
         if (!fs.FileExists(filePath))
-            throw new FileNotFoundException($"文件不存在: {filePath}");
+            throw new FileNotFoundException($"[INF045] 文件不存在: {filePath}");
 
         var content = fs.ReadAllText(filePath, Encoding.UTF8);
         return Parse(content);
@@ -179,7 +179,7 @@ public static class FrontmatterParser
     public static async Task<FrontmatterParseResult> ParseFileAsync(string filePath, IFileSystem fs, CancellationToken cancellationToken = default)
     {
         if (!fs.FileExists(filePath))
-            throw new FileNotFoundException($"文件不存在: {filePath}");
+            throw new FileNotFoundException($"[INF046] 文件不存在: {filePath}");
 
         var content = await fs.ReadAllTextAsync(filePath, Encoding.UTF8, cancellationToken).ConfigureAwait(false);
         return Parse(content);

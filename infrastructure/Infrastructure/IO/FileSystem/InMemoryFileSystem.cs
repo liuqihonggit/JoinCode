@@ -159,7 +159,7 @@ public sealed class InMemoryFileSystem : IFileSystem
             }
             return string.Empty;
         }
-        throw new FileNotFoundException($"文件未找到: {path}");
+        throw new FileNotFoundException($"[INF002] 文件未找到: {path}");
     }
 
     /// <inheritdoc />
@@ -177,7 +177,7 @@ public sealed class InMemoryFileSystem : IFileSystem
             }
             return file.TextContent ?? string.Empty;
         }
-        throw new FileNotFoundException($"文件未找到: {path}");
+        throw new FileNotFoundException($"[INF003] 文件未找到: {path}");
     }
 
     /// <inheritdoc />
@@ -218,7 +218,7 @@ public sealed class InMemoryFileSystem : IFileSystem
         {
             return file.ByteContent ?? System.Text.Encoding.UTF8.GetBytes(file.TextContent ?? string.Empty);
         }
-        throw new FileNotFoundException($"文件未找到: {path}");
+        throw new FileNotFoundException($"[INF004] 文件未找到: {path}");
     }
 
     // === File 存在/删除/移动/复制 ===
@@ -245,10 +245,10 @@ public sealed class InMemoryFileSystem : IFileSystem
         var normalizedDest = NormalizePath(destPath);
 
         if (!_files.TryGetValue(normalizedSource, out var file))
-            throw new FileNotFoundException($"源文件未找到: {sourcePath}");
+            throw new FileNotFoundException($"[INF005] 源文件未找到: {sourcePath}");
 
         if (_files.ContainsKey(normalizedDest) && !overwrite)
-            throw new IOException($"目标文件已存在: {destPath}");
+            throw new IOException($"[INF006] 目标文件已存在: {destPath}");
 
         var destDir = Path.GetDirectoryName(normalizedDest) ?? string.Empty;
         EnsureDirectoryExists(destDir);
@@ -266,10 +266,10 @@ public sealed class InMemoryFileSystem : IFileSystem
         var normalizedDest = NormalizePath(destPath);
 
         if (!_files.TryGetValue(normalizedSource, out var sourceFile))
-            throw new FileNotFoundException($"源文件未找到: {sourcePath}");
+            throw new FileNotFoundException($"[INF007] 源文件未找到: {sourcePath}");
 
         if (_files.ContainsKey(normalizedDest) && !overwrite)
-            throw new IOException($"目标文件已存在: {destPath}");
+            throw new IOException($"[INF008] 目标文件已存在: {destPath}");
 
         var destDir = Path.GetDirectoryName(normalizedDest) ?? string.Empty;
         EnsureDirectoryExists(destDir);
@@ -303,10 +303,10 @@ public sealed class InMemoryFileSystem : IFileSystem
         {
             FileMode.Create or FileMode.CreateNew or FileMode.OpenOrCreate => new InMemoryFileStream(this, normalizedPath, mode, exists),
             FileMode.Open when exists => new MemoryStream(ReadAllBytes(path), writable: true),
-            FileMode.Open => throw new FileNotFoundException($"文件未找到: {path}"),
+            FileMode.Open => throw new FileNotFoundException($"[INF009] 文件未找到: {path}"),
             FileMode.Append => new InMemoryFileStream(this, normalizedPath, mode, exists),
             FileMode.Truncate when exists => new InMemoryFileStream(this, normalizedPath, mode, exists),
-            FileMode.Truncate => throw new FileNotFoundException($"文件未找到: {path}"),
+            FileMode.Truncate => throw new FileNotFoundException($"[INF010] 文件未找到: {path}"),
             _ => throw new ArgumentOutOfRangeException(nameof(mode))
         };
     }
@@ -353,7 +353,7 @@ public sealed class InMemoryFileSystem : IFileSystem
                 return file.ByteContent.Length;
             return System.Text.Encoding.UTF8.GetByteCount(file.TextContent ?? string.Empty);
         }
-        throw new FileNotFoundException($"文件未找到: {path}");
+        throw new FileNotFoundException($"[INF011] 文件未找到: {path}");
     }
 
     /// <inheritdoc />
@@ -364,7 +364,7 @@ public sealed class InMemoryFileSystem : IFileSystem
             return FileAttributes.Normal;
         if (_directories.ContainsKey(normalizedPath))
             return FileAttributes.Directory;
-        throw new FileNotFoundException($"文件未找到: {path}");
+        throw new FileNotFoundException($"[INF012] 文件未找到: {path}");
     }
 
     // === Directory 操作 ===
@@ -449,7 +449,7 @@ public sealed class InMemoryFileSystem : IFileSystem
         var normalizedDest = NormalizePath(destDir);
 
         if (!_directories.ContainsKey(normalizedSource))
-            throw new DirectoryNotFoundException($"源目录未找到: {sourceDir}");
+            throw new DirectoryNotFoundException($"[INF013] 源目录未找到: {sourceDir}");
 
         EnsureDirectoryExists(normalizedDest);
 

@@ -68,7 +68,7 @@ public sealed partial class PluginManager : IPluginManager
             if (_workflowPlugins.ContainsKey(pluginName) || _externalPlugins.ContainsKey(pluginName))
             {
                 RecordPluginMetrics("workflow", "load", false);
-                throw new InvalidOperationException($"插件 '{pluginName}' 已经加载");
+                throw new InvalidOperationException($"[INF031] 插件 '{pluginName}' 已经加载");
             }
 
             _logger?.LogInformation("正在加载内置工作流插件: {PluginName}", pluginName);
@@ -80,7 +80,7 @@ public sealed partial class PluginManager : IPluginManager
             {
                 host.Dispose();
                 RecordPluginMetrics("workflow", "load", false);
-                throw new InvalidOperationException($"插件 '{pluginName}' Load 失败: {loadResult.ErrorMessage}");
+                throw new InvalidOperationException($"[INF032] 插件 '{pluginName}' Load 失败: {loadResult.ErrorMessage}");
             }
 
             var initResult = await host.InitializeAsync(cancellationToken).ConfigureAwait(false);
@@ -89,7 +89,7 @@ public sealed partial class PluginManager : IPluginManager
                 host.Unload();
                 host.Dispose();
                 RecordPluginMetrics("workflow", "load", false);
-                throw new InvalidOperationException($"插件 '{pluginName}' Initialize 失败: {initResult.ErrorMessage}");
+                throw new InvalidOperationException($"[INF033] 插件 '{pluginName}' Initialize 失败: {initResult.ErrorMessage}");
             }
 
             if (!_workflowPlugins.TryAdd(pluginName, host))
@@ -97,7 +97,7 @@ public sealed partial class PluginManager : IPluginManager
                 host.Unload();
                 host.Dispose();
                 RecordPluginMetrics("workflow", "load", false);
-                throw new InvalidOperationException($"插件 '{pluginName}' 已经加载");
+                throw new InvalidOperationException($"[INF034] 插件 '{pluginName}' 已经加载");
             }
 
             PluginLoaded?.Invoke(this, pluginName);
@@ -147,13 +147,13 @@ public sealed partial class PluginManager : IPluginManager
             if (_workflowPlugins.ContainsKey(pluginName) || _externalPlugins.ContainsKey(pluginName))
             {
                 RecordPluginMetrics("external", "load", false);
-                throw new InvalidOperationException($"插件 '{pluginName}' 已经加载");
+                throw new InvalidOperationException($"[INF035] 插件 '{pluginName}' 已经加载");
             }
 
             if (!_fs.FileExists(exePath))
             {
                 RecordPluginMetrics("external", "load", false);
-                throw new FileNotFoundException($"外部插件可执行文件不存在: {exePath}", exePath);
+                throw new FileNotFoundException($"[INF036] 外部插件可执行文件不存在: {exePath}", exePath);
             }
 
             _logger?.LogInformation("正在加载外部插件: {PluginName} 从 {ExePath}", pluginName, exePath);
@@ -180,7 +180,7 @@ public sealed partial class PluginManager : IPluginManager
             if (!process.Start())
             {
                 RecordPluginMetrics("external", "load", false);
-                throw new InvalidOperationException($"无法启动外部插件进程: {exePath}");
+                throw new InvalidOperationException($"[INF037] 无法启动外部插件进程: {exePath}");
             }
 
             process.BeginErrorReadLine();
@@ -191,7 +191,7 @@ public sealed partial class PluginManager : IPluginManager
             {
                 host.Dispose();
                 RecordPluginMetrics("external", "load", false);
-                throw new InvalidOperationException($"插件 '{pluginName}' 已经加载");
+                throw new InvalidOperationException($"[INF038] 插件 '{pluginName}' 已经加载");
             }
 
             _logger?.LogInformation("外部插件加载成功: {PluginName} (PID: {ProcessId})", pluginName, process.Id);

@@ -21,7 +21,7 @@ public static class TimeoutHelper
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
-            throw new TimeoutException($"操作在 {timeout.TotalMilliseconds}ms 内未完成");
+            throw new TimeoutException($"[INF042] 操作在 {timeout.TotalMilliseconds}ms 内未完成");
         }
     }
 
@@ -37,7 +37,7 @@ public static class TimeoutHelper
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
-            throw new TimeoutException($"操作在 {timeout.TotalMilliseconds}ms 内未完成");
+            throw new TimeoutException($"[INF043] 操作在 {timeout.TotalMilliseconds}ms 内未完成");
         }
     }
 }

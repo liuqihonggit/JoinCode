@@ -68,13 +68,13 @@ public sealed class ReasoningEngine : IReasoningEngine
         foreach (var item in assumptions)
         {
             if (item.State != DataState.Assumption)
-                throw new InvalidOperationException($"数据项必须以Assumption状态进入，当前: {item.State}");
+                throw new InvalidOperationException($"[RSN001] 数据项必须以Assumption状态进入，当前: {item.State}");
 
             if (_options.IsNodeLimitReached(_dag.Nodes.Count))
-                throw new InvalidOperationException($"已达到节点数上限 ({_options.MaxNodes})，无法添加更多假定");
+                throw new InvalidOperationException($"[RSN002] 已达到节点数上限 ({_options.MaxNodes})，无法添加更多假定");
 
             if (_dag.Nodes.Values.Any(n => n.Payload.Content == item.Content && n.Payload.State != DataState.Rejected))
-                throw new InvalidOperationException($"内容已存在: {item.Content}");
+                throw new InvalidOperationException($"[RSN003] 内容已存在: {item.Content}");
 
             var payload = new ReasoningPayload
             {
@@ -89,7 +89,7 @@ public sealed class ReasoningEngine : IReasoningEngine
             var node = new DagNode<ReasoningPayload> { Id = item.Id, Payload = payload };
             var result = _dag.AddNode(node);
             if (!result.Success)
-                throw new InvalidOperationException(result.ErrorMessage ?? "添加节点失败");
+                throw new InvalidOperationException(result.ErrorMessage ?? "[RSN004] 添加节点失败");
 
             _logger.LogInformation("[假定] {Content} (ID:{Id})", item.Content, item.Id);
 

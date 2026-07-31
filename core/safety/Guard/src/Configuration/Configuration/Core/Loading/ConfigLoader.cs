@@ -38,7 +38,7 @@ public class ConfigLoader {
 
             if (context.Failed)
             {
-                throw new ConfigurationException(context.ErrorMessage ?? "加载配置失败");
+                throw new ConfigurationException(context.ErrorMessage ?? "[GRD004] 加载配置失败");
             }
 
             return context.Result ?? throw new ConfigurationException("[GRD001] 配置加载未产生结果");
@@ -49,7 +49,7 @@ public class ConfigLoader {
         }
         catch (Exception ex)
         {
-            throw new ConfigurationException("加载配置失败", ex);
+            throw new ConfigurationException("[GRD005] 加载配置失败", ex);
         }
     }
 
@@ -103,7 +103,7 @@ public class ConfigLoader {
 
             return config;
         } catch (Exception ex) when (ex is not ConfigurationException) {
-            throw new ConfigurationException("加载配置失败", ex);
+            throw new ConfigurationException("[GRD006] 加载配置失败", ex);
         }
     }
 

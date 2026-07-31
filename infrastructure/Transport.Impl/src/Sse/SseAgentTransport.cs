@@ -144,7 +144,7 @@ public sealed partial class SseAgentTransport : IAgentTransport
             await Task.Delay(50, ct).ConfigureAwait(false);
         }
 
-        throw new TimeoutException($"等待SSE输出超时 (>{timeout.Value.TotalSeconds}s)");
+        throw new TimeoutException($"[TRN018] 等待SSE输出超时 (>{timeout.Value.TotalSeconds}s)");
     }
 
     public async Task<string> WaitForErrorAsync(Func<string, bool> predicate, TimeSpan? timeout = null, CancellationToken ct = default)
@@ -164,7 +164,7 @@ public sealed partial class SseAgentTransport : IAgentTransport
             await Task.Delay(50, ct).ConfigureAwait(false);
         }
 
-        throw new TimeoutException($"等待SSE错误超时 (>{timeout.Value.TotalSeconds}s)");
+        throw new TimeoutException($"[TRN019] 等待SSE错误超时 (>{timeout.Value.TotalSeconds}s)");
     }
 
     public Task<string> GetOutputAsync() =>

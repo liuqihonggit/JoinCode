@@ -216,7 +216,7 @@ public partial class ChatService : IChatService {
         };
         await _adminPipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false);
         if (context.Error is not null)
-            throw new WorkflowException("设置系统提示词失败", context.Error);
+            throw new WorkflowException("[BRN003] 设置系统提示词失败", context.Error);
     }
 
     /// <summary>
@@ -232,7 +232,7 @@ public partial class ChatService : IChatService {
         };
         await _adminPipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false);
         if (context.Error is not null)
-            throw new WorkflowException("撤回对话失败", context.Error);
+            throw new WorkflowException("[BRN004] 撤回对话失败", context.Error);
         return context.RewindResult ?? throw new InvalidOperationException("RewindResult is not set after pipeline execution.");
     }
 
@@ -250,7 +250,7 @@ public partial class ChatService : IChatService {
         };
         await _adminPipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false);
         if (context.Error is not null)
-            throw new WorkflowException("撤回对话失败", context.Error);
+            throw new WorkflowException("[BRN005] 撤回对话失败", context.Error);
         return context.RewindResult ?? throw new InvalidOperationException("RewindResult is not set after pipeline execution.");
     }
 
@@ -267,7 +267,7 @@ public partial class ChatService : IChatService {
         };
         await _adminPipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false);
         if (context.Error is not null)
-            throw new WorkflowException("撤回对话失败", context.Error);
+            throw new WorkflowException("[BRN006] 撤回对话失败", context.Error);
         return context.RewindResult ?? throw new InvalidOperationException("RewindResult is not set after pipeline execution.");
     }
 
@@ -285,7 +285,7 @@ public partial class ChatService : IChatService {
         };
         await _adminPipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false);
         if (context.Error is not null)
-            throw new WorkflowException("加载会话消息失败", context.Error);
+            throw new WorkflowException("[BRN007] 加载会话消息失败", context.Error);
     }
 
     /// <summary>
@@ -303,7 +303,7 @@ public partial class ChatService : IChatService {
         };
         await _adminPipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false);
         if (context.Error is not null)
-            throw new WorkflowException("压缩对话历史失败", context.Error);
+            throw new WorkflowException("[BRN008] 压缩对话历史失败", context.Error);
     }
 
     /// <summary>

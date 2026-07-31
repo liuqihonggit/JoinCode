@@ -95,7 +95,7 @@ public sealed class MarkdownWalker
     public IReadOnlyList<MarkdownFileInfo> Walk(string rootPath)
     {
         if (!_fs.DirectoryExists(rootPath))
-            throw new DirectoryNotFoundException($"目录不存在: {rootPath}");
+            throw new DirectoryNotFoundException($"[INF047] 目录不存在: {rootPath}");
 
         var results = new List<MarkdownFileInfo>();
         var rootFullPath = Path.GetFullPath(rootPath);

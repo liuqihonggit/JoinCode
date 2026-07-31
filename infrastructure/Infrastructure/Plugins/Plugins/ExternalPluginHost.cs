@@ -34,7 +34,7 @@ public sealed class ExternalPluginHost : IDisposable
 
         if (_process.HasExited)
         {
-            throw new InvalidOperationException($"外部插件 '{_pluginName}' 进程已退出");
+            throw new InvalidOperationException($"[INF028] 外部插件 '{_pluginName}' 进程已退出");
         }
 
         try

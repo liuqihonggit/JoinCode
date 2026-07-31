@@ -16,7 +16,7 @@ public sealed class RealApiCacheTests
     {
         var apiKey = Environment.GetEnvironmentVariable(ProviderEnvVarConstants.AnthropicApiKey);
         if (string.IsNullOrEmpty(apiKey))
-            throw new InvalidOperationException($"{ProviderEnvVarConstants.AnthropicApiKey} 环境变量未设置");
+            throw new InvalidOperationException($"[GEN045] {ProviderEnvVarConstants.AnthropicApiKey} 环境变量未设置");
 
         var client = new HttpClient
         {
@@ -32,7 +32,7 @@ public sealed class RealApiCacheTests
     {
         var apiKey = Environment.GetEnvironmentVariable(ProviderEnvVarConstants.OpenAiApiKey);
         if (string.IsNullOrEmpty(apiKey))
-            throw new InvalidOperationException($"{ProviderEnvVarConstants.OpenAiApiKey} 环境变量未设置");
+            throw new InvalidOperationException($"[GEN046] {ProviderEnvVarConstants.OpenAiApiKey} 环境变量未设置");
 
         var client = new HttpClient
         {
@@ -236,7 +236,7 @@ public sealed class RealApiCacheTests
         var body = await response.Content.ReadAsStringAsync().ConfigureAwait(true);
 
         if (!response.IsSuccessStatusCode)
-            throw new InvalidOperationException($"Anthropic API 错误: {response.StatusCode} - {body}");
+            throw new InvalidOperationException($"[GEN047] Anthropic API 错误: {response.StatusCode} - {body}");
 
         var doc = JsonDocument.Parse(body);
         var usage = doc.RootElement.GetProperty("usage");
@@ -257,7 +257,7 @@ public sealed class RealApiCacheTests
         var body = await response.Content.ReadAsStringAsync().ConfigureAwait(true);
 
         if (!response.IsSuccessStatusCode)
-            throw new InvalidOperationException($"OpenAI API 错误: {response.StatusCode} - {body}");
+            throw new InvalidOperationException($"[GEN048] OpenAI API 错误: {response.StatusCode} - {body}");
 
         var doc = JsonDocument.Parse(body);
         var usage = doc.RootElement.GetProperty("usage");

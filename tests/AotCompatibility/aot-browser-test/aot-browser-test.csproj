@@ -10,6 +10,7 @@
     <!-- Suppress IL3000: PuppeteerSharp.BrowserFetcher uses Assembly.Location, returns empty in single-file but fallback logic handles it -->
     <NoWarn>$(NoWarn);IL3000;IL2065;IL2070;IL2075</NoWarn>
     <IsAotCompatible>true</IsAotCompatible>
+    <ExcludeTestSdk>true</ExcludeTestSdk>
   </PropertyGroup>
 
   <ItemGroup>

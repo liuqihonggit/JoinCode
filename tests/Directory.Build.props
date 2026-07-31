@@ -26,8 +26,8 @@
     <AppendRuntimeIdentifierToOutputPath>true</AppendRuntimeIdentifierToOutputPath>
   </PropertyGroup>
 
-  <!-- 测试框架包引用 -->
-  <ItemGroup>
+  <!-- 测试框架包引用（ExcludeTestSdk=true 的项目跳过，如 AotCompatibility 卫星 Exe） -->
+  <ItemGroup Condition="'$(ExcludeTestSdk)' != 'true'">
     <!-- 测试 SDK -->
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="$(MicrosoftNETTestSdkVersion)" />
 
@@ -55,7 +55,7 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="$(MicrosoftExtensionsLoggingAbstractionsVersion)" />
   </ItemGroup>
 
-  <ItemGroup>
+  <ItemGroup Condition="'$(ExcludeTestSdk)' != 'true'">
     <Using Include="Xunit" />
     <Using Include="Moq" />
     <Using Include="FluentAssertions" />

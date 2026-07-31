@@ -42,7 +42,7 @@ public static class ReplBridgeTransportFactory
                 => CreateV1Transport(v1Options, logger),
             BridgeTransportVersion.V2 when v2Options is not null
                 => CreateV2Transport(v2Options, logger),
-            _ => throw new ArgumentException($"传输版本 {version} 需要对应的选项参数")
+            _ => throw new ArgumentException($"[BRG012] 传输版本 {version} 需要对应的选项参数")
         };
     }
 }

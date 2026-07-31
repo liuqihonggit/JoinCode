@@ -57,7 +57,7 @@ public sealed partial class SandboxManager : ISandboxManager, IDisposable
         {
             if (IsInSandbox)
             {
-                throw new InvalidOperationException($"已在 {_activeProvider!.SandboxType} 沙箱中，请先退出再进入新沙箱");
+                throw new InvalidOperationException($"[GRD008] 已在 {_activeProvider!.SandboxType} 沙箱中，请先退出再进入新沙箱");
             }
 
             var (provider, fallbackUsed) = ResolveProviderWithFallback(options.Type);
@@ -348,7 +348,7 @@ public sealed partial class SandboxManager : ISandboxManager, IDisposable
             return (processProvider, true);
         }
 
-        throw new InvalidOperationException($"沙箱类型 '{type.ToValue()}' 不可用且无降级选项。可用类型: {string.Join(", ", _providers.Keys.Select(k => k.ToValue()))}");
+        throw new InvalidOperationException($"[GRD009] 沙箱类型 '{type.ToValue()}' 不可用且无降级选项。可用类型: {string.Join(", ", _providers.Keys.Select(k => k.ToValue()))}");
     }
 
     public async Task<AbstractionsSandboxExecutionResult> ExecuteInSandboxAsync(string command, SandboxExecutionOptions options, CancellationToken ct = default)

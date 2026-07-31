@@ -8,7 +8,7 @@ public sealed class AnalyzeCSharpCodeCommand
     public AnalyzeCSharpCodeCommand(string code, string focus = "all")
     {
         Code = code ?? throw new ArgumentNullException(nameof(code));
-        if (code.Length < 10) throw new ArgumentException("代码至少需要 10 个字符", nameof(code));
+        if (code.Length < 10) throw new ArgumentException("[ABS001] 代码至少需要 10 个字符", nameof(code));
         Focus = focus?.ToLowerInvariant() ?? "all";
     }
 }
@@ -21,7 +21,7 @@ public sealed class FindBugsCommand
     public FindBugsCommand(string code, string severity = "all")
     {
         Code = code ?? throw new ArgumentNullException(nameof(code));
-        if (code.Length < 10) throw new ArgumentException("代码至少需要 10 个字符", nameof(code));
+        if (code.Length < 10) throw new ArgumentException("[ABS002] 代码至少需要 10 个字符", nameof(code));
         Severity = severity?.ToLowerInvariant() ?? "all";
     }
 }
@@ -34,7 +34,7 @@ public sealed class OptimizeCodeCommand
     public OptimizeCodeCommand(string code, string target = "all")
     {
         Code = code ?? throw new ArgumentNullException(nameof(code));
-        if (code.Length < 10) throw new ArgumentException("代码至少需要 10 个字符", nameof(code));
+        if (code.Length < 10) throw new ArgumentException("[ABS003] 代码至少需要 10 个字符", nameof(code));
         Target = target?.ToLowerInvariant() ?? "all";
     }
 }
@@ -47,7 +47,7 @@ public sealed class SecurityAuditCommand
     public SecurityAuditCommand(string code, string auditType = "general")
     {
         Code = code ?? throw new ArgumentNullException(nameof(code));
-        if (code.Length < 10) throw new ArgumentException("代码至少需要 10 个字符", nameof(code));
+        if (code.Length < 10) throw new ArgumentException("[ABS004] 代码至少需要 10 个字符", nameof(code));
         AuditType = auditType?.ToLowerInvariant() ?? "general";
     }
 }

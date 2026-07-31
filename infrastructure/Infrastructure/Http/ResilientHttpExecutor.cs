@@ -199,7 +199,7 @@ public sealed class ResilientHttpExecutor
             }
             catch (OperationCanceledException) when (!ct.IsCancellationRequested)
             {
-                throw new TimeoutException($"[{_policy.Name}] {operationName} 操作超时 ({_policy.OperationTimeout.Value.TotalSeconds}s)");
+                throw new TimeoutException($"[INF001] [{_policy.Name}] {operationName} 操作超时 ({_policy.OperationTimeout.Value.TotalSeconds}s)");
             }
         }
 

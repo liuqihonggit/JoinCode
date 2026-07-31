@@ -765,15 +765,24 @@ namespace AotSafety.Generator
             if (string.IsNullOrEmpty(filePath)) return;
             if (filePath[0] == '/') return;
 
-            var isLibCode = filePath.Contains("\\lib\\", StringComparison.Ordinal) ||
-                            filePath.Contains("/lib/", StringComparison.Ordinal);
-            var isSubsystemCode = filePath.Contains("\\subsystems\\", StringComparison.Ordinal) ||
-                                  filePath.Contains("/subsystems/", StringComparison.Ordinal);
+            var isLibCode = HasPathSegment(filePath, "lib");
+            var isSubsystemCode = HasPathSegment(filePath, "subsystems");
             if (!isLibCode && !isSubsystemCode) return;
 
             if (HasConfigureAwaitFalse(awaitExpr)) return;
 
             ctx.ReportDiagnostic(Diagnostic.Create(RuleConfigureAwaitFalse, awaitExpr.GetLocation()));
+        }
+
+        private static bool HasPathSegment(string filePath, string segment)
+        {
+            var parts = filePath.Split('\\', '/');
+            foreach (var part in parts)
+            {
+                if (string.Equals(part, segment, StringComparison.Ordinal))
+                    return true;
+            }
+            return false;
         }
 
         private static bool HasConfigureAwaitFalse(AwaitExpressionSyntax awaitExpr)
@@ -810,16 +819,13 @@ namespace AotSafety.Generator
             if (string.IsNullOrEmpty(filePath)) return;
             if (filePath[0] == '/') return;
 
-            var isTestCode = filePath.Contains("\\tests\\", StringComparison.Ordinal) ||
-                             filePath.Contains("/tests/", StringComparison.Ordinal);
+            var isTestCode = HasPathSegment(filePath, "tests");
             if (!isTestCode) return;
 
-            var isTestingCommon = filePath.Contains("\\Testing.Common\\", StringComparison.Ordinal) ||
-                                  filePath.Contains("/Testing.Common/", StringComparison.Ordinal);
+            var isTestingCommon = HasPathSegment(filePath, "Testing.Common");
             if (isTestingCommon) return;
 
-            var isMockServer = filePath.Contains("\\MockServers\\", StringComparison.Ordinal) ||
-                               filePath.Contains("/MockServers/", StringComparison.Ordinal);
+            var isMockServer = HasPathSegment(filePath, "MockServers");
             if (isMockServer) return;
 
             if (IsTaskYield(awaitExpr)) return;
@@ -862,12 +868,10 @@ namespace AotSafety.Generator
             if (string.IsNullOrEmpty(filePath)) return;
             if (filePath[0] == '/') return;
 
-            var isTestCode = filePath.Contains("\\tests\\", StringComparison.Ordinal) ||
-                             filePath.Contains("/tests/", StringComparison.Ordinal);
+            var isTestCode = HasPathSegment(filePath, "tests");
             if (!isTestCode) return;
 
-            var isTestingCommon = filePath.Contains("\\Testing.Common\\", StringComparison.Ordinal) ||
-                                  filePath.Contains("/Testing.Common/", StringComparison.Ordinal);
+            var isTestingCommon = HasPathSegment(filePath, "Testing.Common");
             if (isTestingCommon) return;
 
             var args = invocation.ArgumentList.Arguments;

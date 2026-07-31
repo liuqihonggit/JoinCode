@@ -44,12 +44,12 @@ public sealed partial class McpbExtractionMiddleware : IMcpbMiddleware
             var destinationPath = Path.GetFullPath(Path.Combine(extractPath, entry.FullName));
             if (!destinationPath.StartsWith(extractPath, StringComparison.OrdinalIgnoreCase))
             {
-                throw new InvalidOperationException($"路径遍历检测: {entry.FullName}");
+                throw new InvalidOperationException($"[MCP022] 路径遍历检测: {entry.FullName}");
             }
 
             if (entry.Length > MaxFileSizeBytes)
             {
-                throw new InvalidOperationException($"文件过大: {entry.FullName} ({entry.Length} bytes)");
+                throw new InvalidOperationException($"[MCP023] 文件过大: {entry.FullName} ({entry.Length} bytes)");
             }
 
             var entryDir = Path.GetDirectoryName(destinationPath);

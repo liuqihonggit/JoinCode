@@ -95,7 +95,7 @@ public sealed partial class TrustedDeviceStore : ITrustedDeviceStore
         ArgumentNullException.ThrowIfNull(entry);
 
         if (string.IsNullOrEmpty(entry.DeviceId))
-            throw new ArgumentException("DeviceId 不能为空", nameof(entry));
+            throw new ArgumentException("[BRG002] DeviceId 不能为空", nameof(entry));
 
         if (_devices.TryAdd(entry.DeviceId, entry))
         {
@@ -104,7 +104,7 @@ public sealed partial class TrustedDeviceStore : ITrustedDeviceStore
             return new ValueTask<TrustedDeviceEntry>(entry);
         }
 
-        throw new InvalidOperationException($"设备已存在: {entry.DeviceId}");
+        throw new InvalidOperationException($"[BRG003] 设备已存在: {entry.DeviceId}");
     }
 
     /// <inheritdoc />

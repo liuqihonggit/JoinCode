@@ -33,7 +33,7 @@ public sealed partial class GitHubService : IGitHubService
     public async Task<PRSubscription> SubscribeAsync(string prRef, string events = "all", CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(prRef))
-            throw new ArgumentException("PR 引用不能为空", nameof(prRef));
+            throw new ArgumentException("[HND003] PR 引用不能为空", nameof(prRef));
 
         await LoadSubscriptionsAsync(ct).ConfigureAwait(false);
 
@@ -71,7 +71,7 @@ public sealed partial class GitHubService : IGitHubService
     public async Task UnsubscribeAsync(string prRef, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(prRef))
-            throw new ArgumentException("PR 引用不能为空", nameof(prRef));
+            throw new ArgumentException("[HND004] PR 引用不能为空", nameof(prRef));
 
         await LoadSubscriptionsAsync(ct).ConfigureAwait(false);
 

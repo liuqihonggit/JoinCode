@@ -60,7 +60,7 @@ public sealed partial class PluginHotReloader : IPluginHotReloader
 
         if (!_fs.DirectoryExists(pluginDirectory))
         {
-            throw new DirectoryNotFoundException($"插件目录不存在: {pluginDirectory}");
+            throw new DirectoryNotFoundException($"[INF030] 插件目录不存在: {pluginDirectory}");
         }
 
         _watcher = _fs.Watch(pluginDirectory);

@@ -40,7 +40,7 @@ public sealed class PhysicalProcessService : IProcessService
         _logger?.LogDebug("[Process] 执行: {FileName} {Arguments}", options.FileName, options.Arguments);
 
         using var process = System.Diagnostics.Process.Start(psi)
-            ?? throw new InvalidOperationException($"无法启动进程: {options.FileName}");
+            ?? throw new InvalidOperationException($"[INF014] 无法启动进程: {options.FileName}");
 
         var sw = Stopwatch.StartNew();
 
@@ -115,7 +115,7 @@ public sealed class PhysicalProcessService : IProcessService
         _logger?.LogDebug("[Process] 启动交互式进程: {FileName} {Arguments}", options.FileName, options.Arguments);
 
         var process = System.Diagnostics.Process.Start(psi)
-            ?? throw new InvalidOperationException($"无法启动交互式进程: {options.FileName}");
+            ?? throw new InvalidOperationException($"[INF015] 无法启动交互式进程: {options.FileName}");
 
         if (options.RedirectStandardError)
             process.BeginErrorReadLine();

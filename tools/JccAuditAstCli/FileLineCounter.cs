@@ -33,7 +33,7 @@ public static class FileLineCounter
         var rootDir = Path.GetFullPath(rootPath);
         if (!Directory.Exists(rootDir))
         {
-            throw new ArgumentException($"目录不存在: {rootDir}");
+            throw new ArgumentException($"[GEN065] 目录不存在: {rootDir}");
         }
 
         var files = new List<FileInfoEntry>();

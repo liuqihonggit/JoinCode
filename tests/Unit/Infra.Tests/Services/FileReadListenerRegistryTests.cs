@@ -175,6 +175,6 @@ public sealed class FileReadListenerRegistryTests
     /// </summary>
     private sealed class ThrowingListener : IFileReadListener
     {
-        public void OnFileRead(FileReadEventArgs e) => throw new InvalidOperationException("测试异常");
+        public void OnFileRead(FileReadEventArgs e) => throw new InvalidOperationException("[GEN049] 测试异常");
     }
 }

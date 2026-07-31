@@ -245,7 +245,7 @@ public sealed class SandboxIpcClient : IAsyncDisposable
             return path;
         }
 
-        throw new FileNotFoundException($"找不到沙箱卫星程序: {exeName}");
+        throw new FileNotFoundException($"[GRD011] 找不到沙箱卫星程序: {exeName}");
     }
 
     public async ValueTask DisposeAsync()

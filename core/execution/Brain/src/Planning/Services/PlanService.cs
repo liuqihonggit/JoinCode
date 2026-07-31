@@ -93,7 +93,7 @@ public partial class PlanService : IPlanService {
             span?.SetStatus(TelemetryStatusCode.Error, ex.Message);
             span?.RecordException(ex);
             RecordPlanMetrics(stopwatch.ElapsedMilliseconds, isSuccess: false);
-            throw new WorkflowException("执行计划失败", ex);
+            throw new WorkflowException("[BRN010] 执行计划失败", ex);
         }
     }
 

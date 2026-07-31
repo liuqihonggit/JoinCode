@@ -307,7 +307,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
                     return string.Empty;
                 }
                 _logger.LogError("[DualRoleRunner] jcc.exe 进程已退出且无输出，stderr={Stderr}", exitError);
-                throw new InvalidOperationException($"jcc.exe 进程已退出且无输出, stderr={exitError}");
+                throw new InvalidOperationException($"[GEN019] jcc.exe 进程已退出且无输出, stderr={exitError}");
             }
 
             var incrementalStderr = await CaptureStderrIncrementalAsync().ConfigureAwait(true);
@@ -354,7 +354,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
                 _logger.LogInformation("[DualRoleRunner] jcc.exe 进程已退出（超时后），stderr含[DONE]，视为成功");
                 return string.Empty;
             }
-            throw new InvalidOperationException($"jcc.exe 进程已退出且无输出, stderr={exitError}");
+            throw new InvalidOperationException($"[GEN020] jcc.exe 进程已退出且无输出, stderr={exitError}");
         }
 
         return await _processManager!.GetOutputAsync().ConfigureAwait(true);
@@ -576,7 +576,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
                 }
                 var exitError = await CaptureStderrAsync().ConfigureAwait(true);
                 _logger.LogError("[DualRoleRunner] jcc.exe 进程已退出且无输出，stderr={Stderr}", exitError);
-                throw new InvalidOperationException($"jcc.exe 进程已退出且无输出, stderr={exitError}");
+                throw new InvalidOperationException($"[GEN021] jcc.exe 进程已退出且无输出, stderr={exitError}");
             }
 
             var currentOutput = await _processManager!.GetOutputAsync().ConfigureAwait(true);
@@ -656,13 +656,13 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
                 return exitOutput;
             }
             var exitError = await CaptureStderrAsync().ConfigureAwait(true);
-            throw new InvalidOperationException($"jcc.exe 进程已退出且无输出, stderr={exitError}");
+            throw new InvalidOperationException($"[GEN022] jcc.exe 进程已退出且无输出, stderr={exitError}");
         }
 
         var finalOutput = await _processManager!.GetOutputAsync().ConfigureAwait(true);
         if (finalOutput.Length >= 2) return finalOutput;
 
-        throw new TimeoutException($"等待输出超时 (>{timeout.TotalSeconds}s), provider={_activeProvider}, turn={turnIndex}/{totalTurns}, outputLen={finalOutput.Length}, jcc运行={_processManager!.IsRunning}");
+        throw new TimeoutException($"[GEN023] 等待输出超时 (>{timeout.TotalSeconds}s), provider={_activeProvider}, turn={turnIndex}/{totalTurns}, outputLen={finalOutput.Length}, jcc运行={_processManager!.IsRunning}");
     }
 
     private static int CountMarker(string text, string marker)
@@ -712,7 +712,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
             if (!_processManager!.IsRunning)
             {
                 var exitError = await CaptureStderrAsync().ConfigureAwait(true);
-                throw new InvalidOperationException($"jcc.exe 进程已退出, stderr={exitError}");
+                throw new InvalidOperationException($"[GEN024] jcc.exe 进程已退出, stderr={exitError}");
             }
 
             var incrementalStderr = await CaptureStderrIncrementalAsync().ConfigureAwait(true);
@@ -737,7 +737,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
         var finalStderr = await CaptureStderrAsync().ConfigureAwait(true);
         _logger.LogError("[DualRoleRunner] 等待进程就绪超时(60s), 未检测到 [READY], provider={Provider}, stderr前200字符={Preview}",
             _activeProvider, finalStderr.Length > 200 ? finalStderr[..200] : finalStderr);
-        throw new TimeoutException($"jcc.exe 60秒内未输出 [READY]，provider={_activeProvider}，可能初始化卡住");
+        throw new TimeoutException($"[GEN025] jcc.exe 60秒内未输出 [READY]，provider={_activeProvider}，可能初始化卡住");
     }
 
     private string WriteMockServerConfig(ConversationScript script)
@@ -950,7 +950,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
 
         if (!_mockServerProcess.Start())
         {
-            throw new InvalidOperationException("无法启动 MockServer 进程");
+            throw new InvalidOperationException("[GEN026] [E2E007] 无法启动 MockServer 进程");
         }
 
         _mockServerProcess.BeginOutputReadLine();
@@ -968,12 +968,12 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
         catch (OperationCanceledException) when (cts.IsCancellationRequested)
         {
             var stderr = _mockServerProcess.HasExited ? "(进程已退出)" : "(进程仍在运行)";
-            throw new InvalidOperationException($"等待 MockServer 就绪超时（25s），供应商={_activeProvider}，{stderr}");
+            throw new InvalidOperationException($"[GEN027] 等待 MockServer 就绪超时（25s），供应商={_activeProvider}，{stderr}");
         }
         catch (TimeoutException)
         {
             var stderr = _mockServerProcess.HasExited ? "(进程已退出)" : "(进程仍在运行)";
-            throw new InvalidOperationException($"等待 MockServer 就绪超时（25s），供应商={_activeProvider}，{stderr}");
+            throw new InvalidOperationException($"[GEN028] 等待 MockServer 就绪超时（25s），供应商={_activeProvider}，{stderr}");
         }
     }
 
@@ -1027,7 +1027,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
 
         if (!_mcpMockServerProcess.Start())
         {
-            throw new InvalidOperationException("无法启动 Mcp.MockServer 进程");
+            throw new InvalidOperationException("[GEN029] [E2E008] 无法启动 Mcp.MockServer 进程");
         }
 
         _mcpMockServerProcess.BeginOutputReadLine();
@@ -1044,7 +1044,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
         }
         catch (TimeoutException)
         {
-            throw new InvalidOperationException("等待 Mcp.MockServer 就绪超时（15s）");
+            throw new InvalidOperationException("[GEN030] [E2E009] 等待 Mcp.MockServer 就绪超时（15s）");
         }
     }
 
@@ -1079,7 +1079,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
             }
         }
 
-        throw new FileNotFoundException($"Mcp.MockServer 配置文件 mockserver.json 未找到。搜索路径: {string.Join(", ", candidates)}");
+        throw new FileNotFoundException($"[GEN031] Mcp.MockServer 配置文件 mockserver.json 未找到。搜索路径: {string.Join(", ", candidates)}");
     }
 
     /// <summary>

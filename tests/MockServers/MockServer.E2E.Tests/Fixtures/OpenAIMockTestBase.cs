@@ -137,7 +137,7 @@ public abstract class OpenAIMockTestBase : IAsyncLifetime
     {
         if (_cliProcess == null)
         {
-            throw new InvalidOperationException("JoinCode 进程未启动。请先调用 StartJoinCodeAsync。");
+            throw new InvalidOperationException("[GEN041] [E2E011] JoinCode 进程未启动。请先调用 StartJoinCodeAsync。");
         }
 
         _output.WriteLine($"[{nameof(OpenAIMockTestBase)}] 发送输入: {input}");
@@ -158,7 +158,7 @@ public abstract class OpenAIMockTestBase : IAsyncLifetime
     {
         if (_cliProcess == null)
         {
-            throw new InvalidOperationException("JoinCode 进程未启动。请先调用 StartJoinCodeAsync。");
+            throw new InvalidOperationException("[GEN042] [E2E012] JoinCode 进程未启动。请先调用 StartJoinCodeAsync。");
         }
 
         timeout ??= TimeSpan.FromSeconds(30);
@@ -241,7 +241,7 @@ public abstract class OpenAIMockTestBase : IAsyncLifetime
     {
         if (_cliProcess == null)
         {
-            throw new InvalidOperationException("JoinCode 进程未启动。请先调用 StartJoinCodeAsync。");
+            throw new InvalidOperationException("[GEN043] [E2E013] JoinCode 进程未启动。请先调用 StartJoinCodeAsync。");
         }
 
         return await _cliProcess.GetOutputAsync().ConfigureAwait(true);
@@ -254,7 +254,7 @@ public abstract class OpenAIMockTestBase : IAsyncLifetime
     {
         if (_cliProcess == null)
         {
-            throw new InvalidOperationException("JoinCode 进程未启动。请先调用 StartJoinCodeAsync。");
+            throw new InvalidOperationException("[GEN044] [E2E014] JoinCode 进程未启动。请先调用 StartJoinCodeAsync。");
         }
 
         await _cliProcess.ClearOutputAsync().ConfigureAwait(true);

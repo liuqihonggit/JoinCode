@@ -116,7 +116,7 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
             var lockResult = await FileLockService.AcquireAsync(normalizedPath, timeout, cancellationToken)
                 .ConfigureAwait(false);
             if (!lockResult.Success)
-                throw new TimeoutException($"获取锁超时: {normalizedPath}");
+                throw new TimeoutException($"[INF021] 获取锁超时: {normalizedPath}");
 
             await using (lockResult.GetLock())
             {
@@ -621,7 +621,7 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
     private static string NormalizePath(string path)
     {
         if (string.IsNullOrWhiteSpace(path))
-            throw new ArgumentException("路径不能为空", nameof(path));
+            throw new ArgumentException("[INF022] 路径不能为空", nameof(path));
 
         return Path.GetFullPath(path);
     }

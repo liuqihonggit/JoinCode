@@ -77,7 +77,7 @@ public abstract class CoverageTestBase : IAsyncLifetime
                     Output.WriteLine($"[Coverage] ⚠ 第{attempt}次尝试超时(>60s)，自动重试: {script.Name} (provider={provider})");
                     continue;
                 }
-                throw new TimeoutException($"测试超时(>60s): {script.Name} (provider={provider})");
+                throw new TimeoutException($"[GEN035] 测试超时(>60s): {script.Name} (provider={provider})");
             }
             finally
             {

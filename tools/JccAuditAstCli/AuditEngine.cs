@@ -296,7 +296,7 @@ public sealed class AuditEngine
         }
         else
         {
-            throw new ArgumentException($"不支持的文件类型: {ext}。请提供 .csproj 或 .slnx 文件。");
+            throw new ArgumentException($"[GEN064] 不支持的文件类型: {ext}。请提供 .csproj 或 .slnx 文件。");
         }
 
         Console.WriteLine($"  项目加载完成 ({projects.Count} 个)");

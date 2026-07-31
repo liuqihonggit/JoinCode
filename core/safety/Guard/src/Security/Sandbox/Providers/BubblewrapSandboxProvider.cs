@@ -56,7 +56,7 @@ public sealed partial class BubblewrapSandboxProvider : SandboxProviderBase
         CancellationToken ct = default)
     {
         var info = GetSandboxInfo(sandboxId)
-            ?? throw new InvalidOperationException($"Bubblewrap 沙箱 '{sandboxId}' 不存在");
+            ?? throw new InvalidOperationException($"[GRD012] Bubblewrap 沙箱 '{sandboxId}' 不存在");
 
         var rootPath = Path.GetFullPath(info.RootPath);
 

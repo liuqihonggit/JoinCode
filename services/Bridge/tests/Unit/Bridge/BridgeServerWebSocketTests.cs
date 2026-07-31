@@ -110,11 +110,11 @@ public sealed class BridgeServerWebSocketTests : IAsyncDisposable
             received.MessageType.Should().Be(WebSocketMessageType.Text);
             var responseJson = Encoding.UTF8.GetString(buffer, 0, received.Count);
             return JsonSerializer.Deserialize(responseJson, BridgeJsonContext.Default.BridgeServerMessage)
-                ?? throw new InvalidOperationException("反序列化失败");
+                ?? throw new InvalidOperationException("[UTU003] 反序列化失败");
         }
 
         return JsonSerializer.Deserialize(connectedJson, BridgeJsonContext.Default.BridgeServerMessage)
-            ?? throw new InvalidOperationException("反序列化失败");
+            ?? throw new InvalidOperationException("[UTU004] 反序列化失败");
     }
 
     /// <summary>

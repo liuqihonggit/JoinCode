@@ -86,7 +86,7 @@ public partial class TokenBudgetManager : ITokenBudgetManager, IAsyncDisposable
     {
         if (threshold < 0 || threshold > 1)
         {
-            throw new ArgumentOutOfRangeException(nameof(threshold), "阈值必须在0.0到1.0之间");
+            throw new ArgumentOutOfRangeException(nameof(threshold), "[BRN011] 阈值必须在0.0到1.0之间");
         }
 
                 using (await _lock.LockAsync(ct).ConfigureAwait(false))

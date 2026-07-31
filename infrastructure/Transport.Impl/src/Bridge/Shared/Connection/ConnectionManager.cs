@@ -192,7 +192,7 @@ public sealed partial class ConnectionManager : IConnectionManager
         {
             TransportProtocol.WebSocket => new WebSocketTransport(_config.WebSocketEndpoint, _logger),
             TransportProtocol.Sse => new SseBridgeTransport(_config.SseEndpoint, _logger),
-            _ => throw new NotSupportedException($"不支持的协议: {_currentProtocol}")
+            _ => throw new NotSupportedException($"[TRN011] 不支持的协议: {_currentProtocol}")
         };
 
         _currentTransport.ErrorOccurred += OnTransportError;

@@ -558,31 +558,31 @@ public sealed class HttpResilienceStatus
 | 2.4 | `SubprocessResiliencePolicy` | Infrastructure/Process/ |
 | 2.5 | 单元测试 | 对应 tests/ |
 
-### Phase 3：业务接入
+### Phase 3：业务接入 ✅
+
+| 步骤 | 内容 | 接入点 | 状态 |
+|------|------|--------|------|
+| 3.1 | LLM API 韧性接入 | `QueryServiceBase` + `ResilientHttpExecutor` | ✅ |
+| 3.2 | Bridge 子进程韧性接入 | `BridgeSubprocessHandle` 用 `ResilientSubprocess` | ✅ |
+| 3.3 | Doctor 子进程韧性接入 | `PatientProcessManager` 用 `ResilientSubprocess` | ✅ |
+| 3.4 | Sandbox 卫星进程韧性接入 | `SandboxSatelliteHost` 用 `ResilientSubprocess` | ⏳ 延后（卫星进程不重启） |
+| 3.5 | MCP OAuth/Auth 韧性接入 | `IResilientHttpClientProvider` DI 注册 | ✅ |
+| 3.6 | MCP 官方注册表韧性接入 | `McpOfficialRegistry` 用 `SendResilientAsync` | ✅ |
+| 3.7 | Voice 服务韧性接入 | `VoiceService` 用 `SendResilientAsync` | ✅ |
+
+### Phase 4：Pipe/WS 韧性 ✅
 
 | 步骤 | 内容 | 接入点 |
 |------|------|--------|
-| 3.1 | LLM API 韧性接入 | DI 注册 `ResilientHttpClientProvider` |
-| 3.2 | Bridge 子进程韧性接入 | `BridgeSubprocessHandle` 用 `ResilientSubprocess` |
-| 3.3 | Doctor 子进程韧性接入 | `PatientProcessManager` 用 `ResilientSubprocess` |
-| 3.4 | Sandbox 卫星进程韧性接入 | `SandboxSatelliteHost` 用 `ResilientSubprocess` |
-| 3.5 | MCP OAuth/Auth 韧性接入 | 已走 `IHttpClientProvider`，自动受益 |
-| 3.6 | MCP 官方注册表韧性接入 | 已走 `IHttpClientProvider`，自动受益 |
-| 3.7 | Voice 服务韧性接入 | 已走 `IHttpClientProvider`，自动受益 |
+| 4.1 | Named Pipe 韧性 | `PipeQueryService` | ✅ |
+| 4.2 | Bridge WebSocket 韧性 | `BridgeServer` | ✅ |
 
-### Phase 4：Pipe/WS 韧性
+### Phase 5：遥测+诊断 ✅
 
 | 步骤 | 内容 | 接入点 |
 |------|------|--------|
-| 4.1 | Named Pipe 韧性 | `PipeQueryService` |
-| 4.2 | Bridge WebSocket 韧性 | `BridgeServer` |
-
-### Phase 5：遥测+诊断
-
-| 步骤 | 内容 | 接入点 |
-|------|------|--------|
-| 5.1 | `ResilienceTelemetryReport` | Infrastructure/Utils/Resilience/ |
-| 5.2 | `jcc doctor --resilience` 命令 | JoinCode/Commands/ |
+| 5.1 | `ResilienceTelemetryReport` + `ResilienceTelemetryCollector` | Infrastructure/Utils/Resilience/ | ✅ |
+| 5.2 | `jcc doctor --resilience` 命令 | 待接入 |
 
 ---
 

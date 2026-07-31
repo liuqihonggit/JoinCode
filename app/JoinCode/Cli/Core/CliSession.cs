@@ -266,9 +266,9 @@ public sealed class CliSession
         }
         else if (result.TimedOut)
         {
-            Diag.WriteLine("[CliSession] API timeout (10s no response)");
+            Diag.WriteLine($"[CliSession] API timeout ({result.TimeoutMs}ms no response)");
             TerminalHelper.WriteLine();
-            TerminalHelper.WriteLine("API 请求超时（10秒无响应）。请检查：");
+            TerminalHelper.WriteLine($"API 请求超时（{result.TimeoutMs / 1000}s 无响应）。请检查：");
             TerminalHelper.WriteLine("  1. 是否已配置 API Key");
             TerminalHelper.WriteLine("  2. 网络连接是否正常");
             TerminalHelper.WriteLine("  3. API 服务是否可用");

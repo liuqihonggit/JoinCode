@@ -58,6 +58,7 @@ public sealed class SessionController
         var requestTimestamp = _clock.GetUtcNow();
 
         var apiTimeoutMs = ParseApiTimeoutMs();
+        LogApiTimeoutOnce(apiTimeoutMs);
         using var timeoutCts = TimeoutHelper.CreateLinkedTimeout(cancellationToken, TimeSpan.FromMilliseconds(apiTimeoutMs));
         var timeoutToken = timeoutCts.Token;
         var hasReceivedEvent = false;
@@ -119,7 +120,7 @@ public sealed class SessionController
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && !hasReceivedEvent)
         {
-            return SessionTurnResult.Timeout();
+            return SessionTurnResult.Timeout(apiTimeoutMs);
         }
         catch (OperationCanceledException)
         {
@@ -148,6 +149,14 @@ public sealed class SessionController
         if (int.TryParse(env, out var ms) && ms > 0)
             return ms;
         return 10_000;
+    }
+
+    private static int _apiTimeoutLogged;
+    private void LogApiTimeoutOnce(int apiTimeoutMs)
+    {
+        if (Interlocked.Exchange(ref _apiTimeoutLogged, 1) != 0) return;
+        var logger = _serviceProvider?.GetService<ILogger<SessionController>>();
+        logger?.LogDebug("[SessionController] API timeout: {Ms}ms (JCC_API_TIMEOUT_MS={Env})", apiTimeoutMs, Environment.GetEnvironmentVariable("JCC_API_TIMEOUT_MS") ?? "(未设置)");
     }
 
     private void RecordToolCallForTurnDiff(string toolName, string? resultText, StructuredPatchHunk[]? structuredPatch)
@@ -194,6 +203,7 @@ public sealed class SessionTurnResult
     public bool Succeeded { get; init; }
     public bool TimedOut { get; init; }
     public bool WasCancelled { get; init; }
+    public int TimeoutMs { get; init; }
     public string? ErrorMessage { get; init; }
     public string? ErrorCode { get; init; }
     public bool IsRetryable { get; init; }
@@ -207,9 +217,10 @@ public sealed class SessionTurnResult
         RequestTimestamp = requestTimestamp
     };
 
-    public static SessionTurnResult Timeout() => new()
+    public static SessionTurnResult Timeout(int timeoutMs) => new()
     {
-        TimedOut = true
+        TimedOut = true,
+        TimeoutMs = timeoutMs
     };
 
     public static SessionTurnResult FromCancellation(string partialResponse) => new()

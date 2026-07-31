@@ -143,7 +143,7 @@ public sealed partial class VcrService : IVcrService, JoinCode.Abstractions.Inte
 
         if (_options.StrictPlayback)
         {
-            throw new InvalidOperationException($"未找到匹配的录制交互: {request.Method} {request.Uri}");
+            throw new InvalidOperationException($"[HND002] 未找到匹配的录制交互: {request.Method} {request.Uri}");
         }
 
         _logger?.LogWarning("未找到匹配的录制交互: {Method} {Uri}", request.Method, request.Uri);

@@ -34,7 +34,7 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable
         var validationError = _options.Validate();
         if (validationError != null)
         {
-            throw new InvalidOperationException($"IOThrottleOptions 验证失败: {validationError}");
+            throw new InvalidOperationException($"[INF023] IOThrottleOptions 验证失败: {validationError}");
         }
 
         _readSemaphore = new SemaphoreSlim(_options.MaxConcurrentReads);

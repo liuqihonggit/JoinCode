@@ -27,7 +27,7 @@ public abstract class MockServerConfigBase<TSelf> where TSelf : MockServerConfig
 
         var json = File.ReadAllText(path);
         var config = JsonSerializer.Deserialize(json, jsonTypeInfo)
-            ?? throw new InvalidOperationException($"配置文件反序列化失败: {path}");
+            ?? throw new InvalidOperationException($"[GEN018] 配置文件反序列化失败: {path}");
         return config;
     }
 

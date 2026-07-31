@@ -264,11 +264,11 @@ public sealed partial class AgentServiceImpl : JoinCode.Abstractions.Interfaces.
 
         var metadata = await _transcriptService.LoadMetadataAsync(sessionId, options.AgentId, cancellationToken).ConfigureAwait(false);
         if (metadata is null)
-            throw new InvalidOperationException($"代理元数据不存在: {options.AgentId}");
+            throw new InvalidOperationException($"[AGT015] 代理元数据不存在: {options.AgentId}");
 
         var transcript = await _transcriptService.LoadTranscriptAsync(sessionId, options.AgentId, cancellationToken).ConfigureAwait(false);
         if (transcript.Count == 0)
-            throw new InvalidOperationException($"代理对话记录为空: {options.AgentId}");
+            throw new InvalidOperationException($"[AGT016] 代理对话记录为空: {options.AgentId}");
 
         var chatHistory = TranscriptConverter.ToMessageListWithNewPrompt(transcript, options.NewPrompt);
 

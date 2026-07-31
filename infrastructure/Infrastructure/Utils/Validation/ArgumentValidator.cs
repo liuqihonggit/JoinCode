@@ -35,7 +35,7 @@ public static class ArgumentValidator
     {
         if (string.IsNullOrEmpty(value))
         {
-            throw new ArgumentException($"参数 '{paramName}' 不能为 null 或空字符串。", paramName);
+            throw new ArgumentException($"[INF048] 参数 '{paramName}' 不能为 null 或空字符串。", paramName);
         }
         return value;
     }
@@ -51,7 +51,7 @@ public static class ArgumentValidator
     {
         if (string.IsNullOrWhiteSpace(value))
         {
-            throw new ArgumentException($"参数 '{paramName}' 不能为 null 或空白字符串。", paramName);
+            throw new ArgumentException($"[INF049] 参数 '{paramName}' 不能为 null 或空白字符串。", paramName);
         }
         return value;
     }
@@ -68,7 +68,7 @@ public static class ArgumentValidator
     {
         if (value is null || !value.Any())
         {
-            throw new ArgumentException($"参数 '{paramName}' 不能为 null 或空集合。", paramName);
+            throw new ArgumentException($"[INF050] 参数 '{paramName}' 不能为 null 或空集合。", paramName);
         }
         return value;
     }
@@ -84,7 +84,7 @@ public static class ArgumentValidator
     {
         if (value <= 0)
         {
-            throw new ArgumentOutOfRangeException(paramName, value, $"参数 '{paramName}' 必须大于零。");
+            throw new ArgumentOutOfRangeException(paramName, value, $"[INF051] 参数 '{paramName}' 必须大于零。");
         }
         return value;
     }
@@ -100,7 +100,7 @@ public static class ArgumentValidator
     {
         if (value < 0)
         {
-            throw new ArgumentOutOfRangeException(paramName, value, $"参数 '{paramName}' 必须大于等于零。");
+            throw new ArgumentOutOfRangeException(paramName, value, $"[INF052] 参数 '{paramName}' 必须大于等于零。");
         }
         return value;
     }
@@ -118,7 +118,7 @@ public static class ArgumentValidator
     {
         if (value < min || value > max)
         {
-            throw new ArgumentOutOfRangeException(paramName, value, $"参数 '{paramName}' 必须在 {min} 和 {max} 之间。");
+            throw new ArgumentOutOfRangeException(paramName, value, $"[INF053] 参数 '{paramName}' 必须在 {min} 和 {max} 之间。");
         }
         return value;
     }
@@ -134,14 +134,14 @@ public static class ArgumentValidator
     {
         if (string.IsNullOrWhiteSpace(path))
         {
-            throw new ArgumentException($"参数 '{paramName}' 不能为 null 或空白字符串。", paramName);
+            throw new ArgumentException($"[INF054] 参数 '{paramName}' 不能为 null 或空白字符串。", paramName);
         }
 
         // 检查路径中是否包含无效字符
         var invalidChars = Path.GetInvalidPathChars();
         if (path.IndexOfAny(invalidChars) >= 0)
         {
-            throw new ArgumentException($"参数 '{paramName}' 包含无效的路径字符。", paramName);
+            throw new ArgumentException($"[INF055] 参数 '{paramName}' 包含无效的路径字符。", paramName);
         }
 
         return path;

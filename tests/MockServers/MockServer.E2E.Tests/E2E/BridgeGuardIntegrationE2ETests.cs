@@ -174,7 +174,7 @@ public sealed class BridgeGuardIntegrationE2ETests : IAsyncLifetime
             try { process.Kill(true); }
             catch (Exception ex) { _output.WriteLine($"[BridgeE2E] Kill failed: {ex.Message}"); }
             await process.WaitForExitAsync().ConfigureAwait(true);
-            throw new TimeoutException($"jcc.exe 未在 {timeoutSeconds}s 内退出");
+            throw new TimeoutException($"[GEN032] jcc.exe 未在 {timeoutSeconds}s 内退出");
         }
 
         // 确保异步读取完成
@@ -190,7 +190,7 @@ public sealed class BridgeGuardIntegrationE2ETests : IAsyncLifetime
     {
         var baseDir = AppContext.BaseDirectory;
         var artifactsBin = FindArtifactsBinRoot(baseDir)
-            ?? throw new FileNotFoundException($"未找到 artifacts/bin 目录 (从 {baseDir})");
+            ?? throw new FileNotFoundException($"[GEN033] 未找到 artifacts/bin 目录 (从 {baseDir})");
 
         var found = SearchExeUnderDir(artifactsBin, "jcc.exe");
         if (found is not null) return found;
@@ -201,7 +201,7 @@ public sealed class BridgeGuardIntegrationE2ETests : IAsyncLifetime
         if (File.Exists(fallback)) return fallback;
 #pragma warning restore JCC9001
 
-        throw new FileNotFoundException($"未找到 jcc.exe (artifacts/bin={artifactsBin})");
+        throw new FileNotFoundException($"[GEN034] 未找到 jcc.exe (artifacts/bin={artifactsBin})");
     }
 
     private static string? FindArtifactsBinRoot(string baseDir)

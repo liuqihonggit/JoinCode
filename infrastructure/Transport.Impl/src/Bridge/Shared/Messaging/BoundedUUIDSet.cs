@@ -21,7 +21,7 @@ public sealed class BoundedUUIDSet : IAsyncDisposable
     public BoundedUUIDSet(int capacity)
     {
         if (capacity <= 0)
-            throw new ArgumentOutOfRangeException(nameof(capacity), "容量必须大于0");
+            throw new ArgumentOutOfRangeException(nameof(capacity), "[TRN012] 容量必须大于0");
 
         _capacity = capacity;
         _buffer = new string[capacity];
@@ -62,7 +62,7 @@ public sealed class BoundedUUIDSet : IAsyncDisposable
     public async Task<bool> AddAsync(string uuid, CancellationToken ct = default)
     {
         if (string.IsNullOrEmpty(uuid))
-            throw new ArgumentException("UUID不能为空", nameof(uuid));
+            throw new ArgumentException("[TRN013] UUID不能为空", nameof(uuid));
 
         await _lock.WaitAsync(ct).ConfigureAwait(false);
         try

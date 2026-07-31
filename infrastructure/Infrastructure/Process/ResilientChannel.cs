@@ -38,7 +38,7 @@ public sealed class ResilientChannel : IDisposable
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
             _circuitBreaker?.RecordFailure();
-            throw new TimeoutException($"[{_channelName}] 操作超时 ({_timeout.TotalSeconds}s)");
+            throw new TimeoutException($"[INF039] [{_channelName}] 操作超时 ({_timeout.TotalSeconds}s)");
         }
         catch (Exception ex)
         {
@@ -63,7 +63,7 @@ public sealed class ResilientChannel : IDisposable
     {
         if (_circuitBreaker is not null && !_circuitBreaker.TryProbe())
         {
-            throw new CircuitBreakerOpenException($"[{_channelName}] 熔断器开启，停止通讯");
+            throw new CircuitBreakerOpenException($"[INF040] [{_channelName}] 熔断器开启，停止通讯");
         }
     }
 

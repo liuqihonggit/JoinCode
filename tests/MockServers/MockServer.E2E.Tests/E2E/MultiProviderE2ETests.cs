@@ -198,7 +198,7 @@ public sealed class MultiProviderE2ETests : IAsyncLifetime
                     continue;
                 }
                 var durationSummary = string.Join(", ", attemptDurations.Select(d => $"{d.TotalMilliseconds:F0}ms"));
-                throw new TimeoutException($"测试超时(>60s): {script.Name} (provider={provider}, attempts={maxAttempts}, durations=[{durationSummary}])");
+                throw new TimeoutException($"[GEN039] 测试超时(>60s): {script.Name} (provider={provider}, attempts={maxAttempts}, durations=[{durationSummary}])");
             }
             catch (TimeoutException ex)
             {
@@ -212,7 +212,7 @@ public sealed class MultiProviderE2ETests : IAsyncLifetime
                     continue;
                 }
                 var durationSummary = string.Join(", ", attemptDurations.Select(d => $"{d.TotalMilliseconds:F0}ms"));
-                throw new TimeoutException($"测试超时: {script.Name} (provider={provider}, attempts={maxAttempts}, durations=[{durationSummary}], inner={ex.Message})");
+                throw new TimeoutException($"[GEN040] 测试超时: {script.Name} (provider={provider}, attempts={maxAttempts}, durations=[{durationSummary}], inner={ex.Message})");
             }
             finally
             {

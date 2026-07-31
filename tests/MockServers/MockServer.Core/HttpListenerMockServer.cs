@@ -206,7 +206,7 @@ public sealed class HttpListenerMockServer : IHttpMockServer
     public CapturedRequest GetRequest(int index)
     {
         if (!_lock.Wait(5000))
-            throw new TimeoutException("[E2E001] 获取请求超时：锁被 ListenLoop 持有");
+            throw new TimeoutException("[GEN012] [E2E001] 获取请求超时：锁被 ListenLoop 持有");
         try { return _capturedRequests[index]; }
         finally { _lock.Release(); }
     }
@@ -214,7 +214,7 @@ public sealed class HttpListenerMockServer : IHttpMockServer
     public IReadOnlyList<CapturedRequest> GetAllRequests()
     {
         if (!_lock.Wait(5000))
-            throw new TimeoutException("[E2E002] 获取请求列表超时：锁被 ListenLoop 持有");
+            throw new TimeoutException("[GEN013] [E2E002] 获取请求列表超时：锁被 ListenLoop 持有");
         try { return _capturedRequests.ToList(); }
         finally { _lock.Release(); }
     }
@@ -222,7 +222,7 @@ public sealed class HttpListenerMockServer : IHttpMockServer
     public void Clear()
     {
         if (!_lock.Wait(5000))
-            throw new TimeoutException("[E2E003] 清除请求超时：锁被 ListenLoop 持有");
+            throw new TimeoutException("[GEN014] [E2E003] 清除请求超时：锁被 ListenLoop 持有");
         try
         {
             _capturedRequests.Clear();

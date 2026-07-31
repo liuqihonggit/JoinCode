@@ -87,12 +87,12 @@ public abstract partial class QueryServiceBase : IQueryService
     /// <summary>Base URL 构建 — 委托 IProviderDefinition.GetBaseUrl，消除 switch</summary>
     protected static string GetBaseUrl(ProviderConfig config)
         => config.Definition?.GetBaseUrl(config)
-           ?? throw new InvalidOperationException($"Provider '{config.Provider}' 缺少 IProviderDefinition，无法构建 BaseUrl");
+           ?? throw new InvalidOperationException($"[LLM003] Provider '{config.Provider}' 缺少 IProviderDefinition，无法构建 BaseUrl");
 
     /// <summary>Chat 端点 — 委托 IProviderDefinition.GetChatEndpoint，消除 switch</summary>
     protected static string GetChatEndpoint(ProviderConfig config)
         => config.Definition?.GetChatEndpoint(config)
-           ?? throw new InvalidOperationException($"Provider '{config.Provider}' 缺少 IProviderDefinition，无法获取 Chat 端点");
+           ?? throw new InvalidOperationException($"[LLM004] Provider '{config.Provider}' 缺少 IProviderDefinition，无法获取 Chat 端点");
 
     /// <summary>
     /// 提取速率限制响应头（协议无关）— OpenAI / Azure / Anthropic 均使用

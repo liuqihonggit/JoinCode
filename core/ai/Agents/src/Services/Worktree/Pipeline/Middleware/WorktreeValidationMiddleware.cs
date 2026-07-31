@@ -13,18 +13,18 @@ public sealed partial class WorktreeValidationMiddleware : IWorktreeCreateMiddle
 
         if (string.IsNullOrWhiteSpace(agentId))
         {
-            throw new ArgumentException("Agent ID 不能为空", nameof(agentId));
+            throw new ArgumentException("[AGT017] Agent ID 不能为空", nameof(agentId));
         }
 
         if (agentId.Length > 64)
         {
-            throw new ArgumentException("Agent ID 长度超过 64 字符限制", nameof(agentId));
+            throw new ArgumentException("[AGT018] Agent ID 长度超过 64 字符限制", nameof(agentId));
         }
 
         if (agentId.Contains("..") || agentId.Contains('/') || agentId.Contains('\\') || agentId.Contains(':')
             || agentId.Contains('\0') || agentId.Any(char.IsControl))
         {
-            throw new ArgumentException("Agent ID 包含非法字符", nameof(agentId));
+            throw new ArgumentException("[AGT019] Agent ID 包含非法字符", nameof(agentId));
         }
 
         return next(context, ct);

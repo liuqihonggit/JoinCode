@@ -17,7 +17,7 @@ public sealed partial class FileTransferService : IFileTransferService
     public async Task<string> SendFileAsync(string filePath, string? description = null, CancellationToken ct = default)
     {
         if (!_fs.FileExists(filePath))
-            throw new FileNotFoundException($"文件不存在: {filePath}");
+            throw new FileNotFoundException($"[HND005] 文件不存在: {filePath}");
 
         var fileName = Path.GetFileName(filePath);
         var fileLength = _fs.GetFileLength(filePath);
@@ -38,7 +38,7 @@ public sealed partial class FileTransferService : IFileTransferService
     public async Task<string> GenerateDownloadLinkAsync(string filePath, CancellationToken ct = default)
     {
         if (!_fs.FileExists(filePath))
-            throw new FileNotFoundException($"文件不存在: {filePath}");
+            throw new FileNotFoundException($"[HND006] 文件不存在: {filePath}");
 
         var fileName = Path.GetFileName(filePath);
         var fileLength = _fs.GetFileLength(filePath);

@@ -88,7 +88,7 @@ public sealed class BudgetConfig
         var error = Validate();
         if (error != null)
         {
-            throw new InvalidOperationException($"预算配置无效: {error}");
+            throw new InvalidOperationException($"[BRN009] 预算配置无效: {error}");
         }
     }
 

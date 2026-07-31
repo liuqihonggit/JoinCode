@@ -19,7 +19,7 @@ public static class FileSizeFormatter
     public static string Format(long bytes)
     {
         if (bytes < 0)
-            throw new ArgumentOutOfRangeException(nameof(bytes), "字节数不能为负数");
+            throw new ArgumentOutOfRangeException(nameof(bytes), "[INF044] 字节数不能为负数");
 
         if (bytes == 0)
             return "0 B";

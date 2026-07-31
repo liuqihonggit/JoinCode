@@ -21,7 +21,7 @@ public sealed class WindowsJobObjectSandbox : IDisposable
         if (_jobHandle == nint.Zero)
         {
             var error = Marshal.GetLastPInvokeError();
-            throw new InvalidOperationException($"创建 JobObject 失败, Win32 错误码: {error}");
+            throw new InvalidOperationException($"[INF056] 创建 JobObject 失败, Win32 错误码: {error}");
         }
 
         var info = new JobObjectNative.JOBOBJECT_EXTENDED_LIMIT_INFORMATION();
@@ -66,7 +66,7 @@ public sealed class WindowsJobObjectSandbox : IDisposable
         {
             var error = Marshal.GetLastPInvokeError();
             CloseHandle();
-            throw new InvalidOperationException($"设置 JobObject 限制失败, Win32 错误码: {error}");
+            throw new InvalidOperationException($"[INF057] 设置 JobObject 限制失败, Win32 错误码: {error}");
         }
 
         _logger?.LogInformation("[WindowsJobObject] JobObject 已创建, Handle: {Handle}, 限制: {Flags}", _jobHandle, limitFlags);

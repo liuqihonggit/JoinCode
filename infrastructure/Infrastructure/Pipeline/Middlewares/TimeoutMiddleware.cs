@@ -20,7 +20,7 @@ public sealed class TimeoutMiddleware<TContext> : IMiddleware<TContext>
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
             context.IsTimedOut = true;
-            throw new TimeoutException($"操作在 {context.Timeout.TotalMilliseconds}ms 内未完成");
+            throw new TimeoutException($"[INF026] 操作在 {context.Timeout.TotalMilliseconds}ms 内未完成");
         }
     }
 }
@@ -41,7 +41,7 @@ public sealed class FixedTimeoutMiddleware<TContext>(TimeSpan _timeout) : IMiddl
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
-            throw new TimeoutException($"操作在 {_timeout.TotalMilliseconds}ms 内未完成");
+            throw new TimeoutException($"[INF027] 操作在 {_timeout.TotalMilliseconds}ms 内未完成");
         }
     }
 }

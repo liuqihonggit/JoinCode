@@ -133,7 +133,7 @@ public sealed class InMemoryFileSystem : IFileSystem
         {
             return file.Content;
         }
-        throw new FileNotFoundException($"文件未找到: {path}");
+        throw new FileNotFoundException($"[GEN052] 文件未找到: {path}");
     }
 
     /// <inheritdoc />
@@ -202,10 +202,10 @@ public sealed class InMemoryFileSystem : IFileSystem
         var normalizedDest = NormalizePath(destPath);
 
         if (!_files.TryGetValue(normalizedSource, out var file))
-            throw new FileNotFoundException($"源文件未找到: {sourcePath}");
+            throw new FileNotFoundException($"[GEN053] 源文件未找到: {sourcePath}");
 
         if (_files.ContainsKey(normalizedDest) && !overwrite)
-            throw new IOException($"目标文件已存在: {destPath}");
+            throw new IOException($"[GEN054] 目标文件已存在: {destPath}");
 
         var destDir = Path.GetDirectoryName(normalizedDest) ?? string.Empty;
         EnsureDirectoryExists(destDir);
@@ -222,10 +222,10 @@ public sealed class InMemoryFileSystem : IFileSystem
         var normalizedDest = NormalizePath(destPath);
 
         if (!_files.TryGetValue(normalizedSource, out var sourceFile))
-            throw new FileNotFoundException($"源文件未找到: {sourcePath}");
+            throw new FileNotFoundException($"[GEN055] 源文件未找到: {sourcePath}");
 
         if (_files.ContainsKey(normalizedDest) && !overwrite)
-            throw new IOException($"目标文件已存在: {destPath}");
+            throw new IOException($"[GEN056] 目标文件已存在: {destPath}");
 
         var destDir = Path.GetDirectoryName(normalizedDest) ?? string.Empty;
         EnsureDirectoryExists(destDir);
@@ -263,7 +263,7 @@ public sealed class InMemoryFileSystem : IFileSystem
         }
 
         if (mode == FileMode.Open && !exists)
-            throw new FileNotFoundException($"文件未找到: {path}");
+            throw new FileNotFoundException($"[GEN057] 文件未找到: {path}");
 
         if (mode == FileMode.Append)
         {
@@ -274,7 +274,7 @@ public sealed class InMemoryFileSystem : IFileSystem
         }
 
         if (mode == FileMode.Truncate && !exists)
-            throw new FileNotFoundException($"文件未找到: {path}");
+            throw new FileNotFoundException($"[GEN058] 文件未找到: {path}");
 
         return new MemoryStream([]);
     }
@@ -295,7 +295,7 @@ public sealed class InMemoryFileSystem : IFileSystem
         {
             return file.LastWriteTime;
         }
-        throw new FileNotFoundException($"文件未找到: {path}");
+        throw new FileNotFoundException($"[GEN059] 文件未找到: {path}");
     }
 
     /// <inheritdoc />
@@ -313,7 +313,7 @@ public sealed class InMemoryFileSystem : IFileSystem
             file.LastWriteTime = time;
             return;
         }
-        throw new FileNotFoundException($"文件未找到: {path}");
+        throw new FileNotFoundException($"[GEN060] 文件未找到: {path}");
     }
 
     /// <summary>
@@ -341,7 +341,7 @@ public sealed class InMemoryFileSystem : IFileSystem
         var normalizedPath = NormalizePath(path);
         if (_files.TryGetValue(normalizedPath, out var file))
             return file.Length;
-        throw new FileNotFoundException($"文件未找到: {path}");
+        throw new FileNotFoundException($"[GEN061] 文件未找到: {path}");
     }
 
     /// <inheritdoc />
@@ -352,7 +352,7 @@ public sealed class InMemoryFileSystem : IFileSystem
             return FileAttributes.Normal;
         if (_directories.ContainsKey(normalizedPath))
             return FileAttributes.Directory;
-        throw new FileNotFoundException($"文件未找到: {path}");
+        throw new FileNotFoundException($"[GEN062] 文件未找到: {path}");
     }
 
     // === IFileSystem: Directory 操作 ===
@@ -502,7 +502,7 @@ public sealed class InMemoryFileSystem : IFileSystem
         var normalizedDest = NormalizePath(destDir);
 
         if (!_directories.ContainsKey(normalizedSource))
-            throw new DirectoryNotFoundException($"源目录未找到: {sourceDir}");
+            throw new DirectoryNotFoundException($"[GEN063] 源目录未找到: {sourceDir}");
 
         EnsureDirectoryExists(normalizedDest);
 

@@ -88,7 +88,7 @@ public sealed partial class WorkSecretStore : IWorkSecretStore, IDisposable
             : Convert.FromBase64String(config.EncryptionKeyBase64);
 
         if (keyBytes.Length != KeySizeBytes)
-            throw new ArgumentException($"加密密钥长度必须为 {KeySizeBytes} 字节", nameof(config));
+            throw new ArgumentException($"[BRG004] 加密密钥长度必须为 {KeySizeBytes} 字节", nameof(config));
 
         _encryptionKey = keyBytes.ToArray(); // 防御性拷贝
         _secrets = new ConcurrentDictionary<string, WorkSecretEntry>(StringComparer.Ordinal);
@@ -115,7 +115,7 @@ public sealed partial class WorkSecretStore : IWorkSecretStore, IDisposable
 
         if (!_secrets.TryAdd(secretId, entry))
         {
-            throw new InvalidOperationException($"密钥 ID 冲突: {secretId}");
+            throw new InvalidOperationException($"[BRG005] 密钥 ID 冲突: {secretId}");
         }
 
         _logger?.LogInformation("[WorkSecret] 创建密钥: {Name} (ID: {SecretId})", name, secretId);
@@ -139,12 +139,12 @@ public sealed partial class WorkSecretStore : IWorkSecretStore, IDisposable
 
         if (!_secrets.TryGetValue(secretId, out var oldEntry))
         {
-            throw new InvalidOperationException($"密钥不存在: {secretId}");
+            throw new InvalidOperationException($"[BRG006] 密钥不存在: {secretId}");
         }
 
         if (oldEntry.IsRevoked)
         {
-            throw new InvalidOperationException($"密钥已撤销，无法轮换: {secretId}");
+            throw new InvalidOperationException($"[BRG007] 密钥已撤销，无法轮换: {secretId}");
         }
 
         // 创建新密钥
@@ -161,7 +161,7 @@ public sealed partial class WorkSecretStore : IWorkSecretStore, IDisposable
 
         if (!_secrets.TryAdd(newSecretId, newEntry))
         {
-            throw new InvalidOperationException($"密钥 ID 冲突: {newSecretId}");
+            throw new InvalidOperationException($"[BRG008] 密钥 ID 冲突: {newSecretId}");
         }
 
         // 标记旧密钥为已轮换

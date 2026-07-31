@@ -225,7 +225,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
 
         if (client == null)
         {
-            throw new InvalidOperationException($"客户端 '{clientId}' 未找到");
+            throw new InvalidOperationException($"[MCP024] 客户端 '{clientId}' 未找到");
         }
 
         try
@@ -259,7 +259,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
         {
             if (_remoteClients.ContainsKey(clientId))
             {
-                throw new InvalidOperationException($"远程客户端 '{clientId}' 已注册");
+                throw new InvalidOperationException($"[MCP025] 远程客户端 '{clientId}' 已注册");
             }
 
             _remoteClients[clientId] = new McpClientEntry

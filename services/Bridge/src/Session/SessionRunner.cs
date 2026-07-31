@@ -264,7 +264,7 @@ public sealed partial class BridgeSessionRunner : IAsyncDisposable
         {
             if (!_sessions.TryGetValue(sessionId, out var session))
             {
-                throw new KeyNotFoundException($"会话不存在: {sessionId}");
+                throw new KeyNotFoundException($"[BRG009] 会话不存在: {sessionId}");
             }
 
             if (session.Status == BridgeSessionStatus.Closed)
@@ -300,7 +300,7 @@ public sealed partial class BridgeSessionRunner : IAsyncDisposable
         {
             if (!_sessions.TryGetValue(sessionId, out var session))
             {
-                throw new KeyNotFoundException($"会话不存在: {sessionId}");
+                throw new KeyNotFoundException($"[BRG010] 会话不存在: {sessionId}");
             }
 
             if (session.Status != BridgeSessionStatus.Active && session.Status != BridgeSessionStatus.Idle)
@@ -336,7 +336,7 @@ public sealed partial class BridgeSessionRunner : IAsyncDisposable
         {
             if (!_sessions.TryGetValue(sessionId, out var session))
             {
-                throw new KeyNotFoundException($"会话不存在: {sessionId}");
+                throw new KeyNotFoundException($"[BRG011] 会话不存在: {sessionId}");
             }
 
             if (session.Status != BridgeSessionStatus.Suspended)

@@ -17,7 +17,7 @@ public sealed partial class SpawnCoordWorktreeMiddleware : IAgentSpawnCoordMiddl
             {
                 await _lifecycleManager.DisposeAgentAsync(ctx.AgentId, ctx.CancellationToken).ConfigureAwait(false);
                 _logger.LogError("[AgentCoordinator] 无法为Agent {AgentId} 创建Worktree", ctx.AgentId);
-                throw new InvalidOperationException($"无法为Agent {ctx.AgentId} 创建Worktree");
+                throw new InvalidOperationException($"[AGT011] 无法为Agent {ctx.AgentId} 创建Worktree");
             }
             ctx.WorktreeCreated = true;
         }

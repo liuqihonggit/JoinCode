@@ -141,7 +141,7 @@ public sealed class StdioProcessManager : IAsyncDisposable
             await WaitForOutputChangeAsync(TimeSpan.FromMilliseconds(200), ct).ConfigureAwait(true);
         }
 
-        throw new TimeoutException($"等待输出超时 (>{timeout.Value.TotalSeconds}s), process={_pidTag}, running={IsRunning}");
+        throw new TimeoutException($"[GEN050] 等待输出超时 (>{timeout.Value.TotalSeconds}s), process={_pidTag}, running={IsRunning}");
     }
 
     /// <summary>
@@ -241,7 +241,7 @@ public sealed class StdioProcessManager : IAsyncDisposable
             await WaitForErrorChangeAsync(TimeSpan.FromMilliseconds(200), ct).ConfigureAwait(true);
         }
 
-        throw new TimeoutException($"等待stderr输出超时 (>{timeout.Value.TotalSeconds}s), process={_pidTag}, running={IsRunning}");
+        throw new TimeoutException($"[GEN051] 等待stderr输出超时 (>{timeout.Value.TotalSeconds}s), process={_pidTag}, running={IsRunning}");
     }
 
     /// <summary>

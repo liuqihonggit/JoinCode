@@ -55,7 +55,7 @@ public sealed class PatientProcessManager : IAsyncDisposable
         try
         {
             if (_patients.ContainsKey(patientId))
-                throw new InvalidOperationException($"病人 {patientId} 已存在，请先 Kill 后再 Spawn");
+                throw new InvalidOperationException($"[AGT013] 病人 {patientId} 已存在，请先 Kill 后再 Spawn");
         }
         finally { _patientsLock.Release(); }
 
@@ -162,7 +162,7 @@ public sealed class PatientProcessManager : IAsyncDisposable
         finally { _patientsLock.Release(); }
 
         if (handle is null)
-            throw new InvalidOperationException($"病人 {patientId} 不存在");
+            throw new InvalidOperationException($"[AGT014] 病人 {patientId} 不存在");
 
         return await handle.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
     }

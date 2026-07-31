@@ -307,7 +307,7 @@ public sealed class DualRoleConversationTests : IAsyncLifetime
                     _output.WriteLine($"[DualRole] ⚠ 第{attempt}次尝试超时(>60s)，自动重试: {script.Name}");
                     continue;
                 }
-                throw new TimeoutException($"测试超时(>60s): {script.Name}");
+                throw new TimeoutException($"[GEN036] 测试超时(>60s): {script.Name}");
             }
             finally
             {
@@ -354,7 +354,7 @@ public sealed class DualRoleConversationTests : IAsyncLifetime
                     _output.WriteLine($"[DualRole] ⚠ 第{attempt}次尝试超时(>60s)，自动重试: {script.Name}");
                     continue;
                 }
-                throw new TimeoutException($"测试超时(>60s): {script.Name}");
+                throw new TimeoutException($"[GEN037] 测试超时(>60s): {script.Name}");
             }
             finally
             {
@@ -362,7 +362,7 @@ public sealed class DualRoleConversationTests : IAsyncLifetime
             }
         }
 
-        throw new InvalidOperationException("[E2E010] 不应到达此处");
+        throw new InvalidOperationException("[GEN038] [E2E010] 不应到达此处");
     }
 
     private void LogResult(ConversationResult result)

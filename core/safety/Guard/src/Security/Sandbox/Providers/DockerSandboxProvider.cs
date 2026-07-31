@@ -84,7 +84,7 @@ public sealed partial class DockerSandboxProvider : SandboxProviderBase
 
         if (!result.Success)
         {
-            throw new InvalidOperationException($"Docker 容器创建失败: {result.StandardError}");
+            throw new InvalidOperationException($"[GRD013] Docker 容器创建失败: {result.StandardError}");
         }
 
         var containerId = result.StandardOutput.Trim();
@@ -127,7 +127,7 @@ public sealed partial class DockerSandboxProvider : SandboxProviderBase
     {
         if (!_containerIds.TryGetValue(sandboxId, out var containerId))
         {
-            throw new InvalidOperationException($"Docker 沙箱 '{sandboxId}' 容器未运行");
+            throw new InvalidOperationException($"[GRD014] Docker 沙箱 '{sandboxId}' 容器未运行");
         }
 
         var result = await _processService.ExecuteAsync(new ProcessOptions

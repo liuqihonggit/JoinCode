@@ -43,7 +43,7 @@ public sealed class Jcc7001AnalyzerTests
         if (errors.Count > 0)
         {
             var msg = string.Join("\n", errors.Select(e => e.ToString()));
-            throw new InvalidOperationException($"测试源码有编译错误:\n{msg}");
+            throw new InvalidOperationException($"[GEN066] 测试源码有编译错误:\n{msg}");
         }
 
         return compilation;

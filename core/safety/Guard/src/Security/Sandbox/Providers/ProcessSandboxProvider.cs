@@ -73,7 +73,7 @@ public sealed partial class ProcessSandboxProvider : SandboxProviderBase
         CancellationToken ct = default)
     {
         var info = GetSandboxInfo(sandboxId)
-            ?? throw new InvalidOperationException($"沙箱 '{sandboxId}' 不存在");
+            ?? throw new InvalidOperationException($"[GRD015] 沙箱 '{sandboxId}' 不存在");
 
         var env = new Dictionary<string, string>();
         if (info.RestrictFileSystem)
@@ -110,7 +110,7 @@ public sealed partial class ProcessSandboxProvider : SandboxProviderBase
         }
 
         using var process = System.Diagnostics.Process.Start(psi)
-            ?? throw new InvalidOperationException($"无法启动沙箱进程");
+            ?? throw new InvalidOperationException($"[GRD016] 无法启动沙箱进程");
 
         if (OperatingSystem.IsWindows() && _jobObjects.TryGetValue(sandboxId, out var jobObject))
         {

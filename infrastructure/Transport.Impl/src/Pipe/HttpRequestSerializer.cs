@@ -121,7 +121,7 @@ public static class HttpRequestSerializer
         var parts = statusLine.Split(' ', 3);
         if (parts.Length < 2)
         {
-            throw new InvalidOperationException($"无效的 HTTP 状态行: {statusLine}");
+            throw new InvalidOperationException($"[TRN014] 无效的 HTTP 状态行: {statusLine}");
         }
 
         // 解析状态码
@@ -131,7 +131,7 @@ public static class HttpRequestSerializer
         }
         else
         {
-            throw new InvalidOperationException($"无效的 HTTP 状态码: {parts[1]}");
+            throw new InvalidOperationException($"[TRN015] 无效的 HTTP 状态码: {parts[1]}");
         }
 
         // 解析原因短语（可选）

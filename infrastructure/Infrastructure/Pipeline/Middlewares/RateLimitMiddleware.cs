@@ -11,7 +11,7 @@ public sealed class FixedRateLimitMiddleware<TContext>(
     {
         if (!_limiter.TryAcquire())
         {
-            throw new RateLimitExceededException($"速率限制: 每{window.TotalSeconds}s 最多{maxRequests}次请求");
+            throw new RateLimitExceededException($"[INF024] 速率限制: 每{window.TotalSeconds}s 最多{maxRequests}次请求");
         }
 
         await next(context, ct).ConfigureAwait(false);

@@ -203,7 +203,7 @@ public sealed class FileWriter
         var timeout = IsTestEnvironment() ? TimeSpan.FromSeconds(5) : TimeSpan.FromSeconds(30);
         var result = await FileLockService.AcquireAsync(path, timeout, ct);
         if (!result.Success)
-            throw new TimeoutException($"获取锁超时: {path}");
+            throw new TimeoutException($"[INF016] 获取锁超时: {path}");
 
         await using (result.GetLock())
         {
@@ -225,7 +225,7 @@ public sealed class FileWriter
         var timeout = IsTestEnvironment() ? TimeSpan.FromSeconds(5) : TimeSpan.FromSeconds(30);
         var result = await FileLockService.AcquireAsync(path, timeout, ct);
         if (!result.Success)
-            throw new TimeoutException($"获取锁超时: {path}");
+            throw new TimeoutException($"[INF017] 获取锁超时: {path}");
 
         await using (result.GetLock())
         {
@@ -249,7 +249,7 @@ public sealed class FileWriter
         var timeout = IsTestEnvironment() ? TimeSpan.FromSeconds(5) : TimeSpan.FromSeconds(30);
         var result = await FileLockService.AcquireAsync(path, timeout, ct);
         if (!result.Success)
-            throw new TimeoutException($"获取锁超时: {path}");
+            throw new TimeoutException($"[INF018] 获取锁超时: {path}");
 
         await using (result.GetLock())
         {
@@ -262,7 +262,7 @@ public sealed class FileWriter
         var timeout = IsTestEnvironment() ? TimeSpan.FromSeconds(5) : TimeSpan.FromSeconds(30);
         var result = await FileLockService.AcquireBatchAsync([source, dest], timeout, ct);
         if (!result.Success)
-            throw new TimeoutException($"获取锁超时");
+            throw new TimeoutException($"[INF019] 获取锁超时");
 
         await using (result.GetLock())
         {
@@ -275,7 +275,7 @@ public sealed class FileWriter
         var timeout = IsTestEnvironment() ? TimeSpan.FromSeconds(5) : TimeSpan.FromSeconds(30);
         var result = await FileLockService.AcquireBatchAsync([source, dest], timeout, ct);
         if (!result.Success)
-            throw new TimeoutException($"获取锁超时");
+            throw new TimeoutException($"[INF020] 获取锁超时");
 
         await using (result.GetLock())
         {

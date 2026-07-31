@@ -19,7 +19,7 @@ public sealed class TreeSitterParser : IDisposable
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
 
         var tree = _parser.Parse(sourceCode);
-        return tree ?? throw new InvalidOperationException($"TreeSitter 解析失败，语言: {_language.Name}");
+        return tree ?? throw new InvalidOperationException($"[SRH001] TreeSitter 解析失败，语言: {_language.Name}");
     }
 
     public Tree Parse(string sourceCode, Tree oldTree)
@@ -28,7 +28,7 @@ public sealed class TreeSitterParser : IDisposable
         ArgumentNullException.ThrowIfNull(oldTree);
 
         var tree = _parser.Parse(sourceCode, oldTree);
-        return tree ?? throw new InvalidOperationException($"TreeSitter 增量解析失败，语言: {_language.Name}");
+        return tree ?? throw new InvalidOperationException($"[SRH002] TreeSitter 增量解析失败，语言: {_language.Name}");
     }
 
     public void Dispose()

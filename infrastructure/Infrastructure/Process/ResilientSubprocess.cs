@@ -76,7 +76,7 @@ public sealed class ResilientSubprocess : IAsyncDisposable
     {
         if (_restartManager is null)
         {
-            throw new InvalidOperationException($"[{_policy.Name}] 未配置重启");
+            throw new InvalidOperationException($"[INF041] [{_policy.Name}] 未配置重启");
         }
 
         var oldMonitor = _healthMonitor;

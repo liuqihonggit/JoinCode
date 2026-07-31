@@ -68,12 +68,12 @@ public sealed class PipeHttpMessageHandler : HttpMessageHandler
         catch (TimeoutException ex)
         {
             _logger?.LogError(ex, "Timeout connecting to pipe: {PipeName}", _pipeName);
-            throw new HttpRequestException($"管道连接超时: {_pipeName}", ex);
+            throw new HttpRequestException($"[TRN016] 管道连接超时: {_pipeName}", ex);
         }
         catch (IOException ex)
         {
             _logger?.LogError(ex, "IO error communicating with pipe: {PipeName}", _pipeName);
-            throw new HttpRequestException($"管道通信错误: {_pipeName}", ex);
+            throw new HttpRequestException($"[TRN017] 管道通信错误: {_pipeName}", ex);
         }
     }
 

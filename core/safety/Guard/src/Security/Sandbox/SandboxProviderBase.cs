@@ -89,7 +89,7 @@ public abstract class SandboxProviderBase : ISandboxProvider
     {
         if (!_sandboxes.TryGetValue(sandboxId, out var info))
         {
-            throw new InvalidOperationException($"沙箱 '{sandboxId}' 不存在");
+            throw new InvalidOperationException($"[GRD010] 沙箱 '{sandboxId}' 不存在");
         }
 
         if (!info.IsRestricted)

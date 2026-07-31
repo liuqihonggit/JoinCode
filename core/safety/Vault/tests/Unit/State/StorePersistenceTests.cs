@@ -59,7 +59,7 @@ public sealed class StorePersistenceTests
         public Task SaveAsync(string state, CancellationToken ct)
         {
             _enteredSignal.Release();
-            throw new InvalidOperationException("模拟持久化失败");
+            throw new InvalidOperationException("[VLT001] 模拟持久化失败");
         }
 
         public Task<string?> LoadAsync(CancellationToken ct) => Task.FromResult<string?>(null);

@@ -116,7 +116,7 @@ public sealed partial class StdioProcessManager : IAsyncDisposable
             await Task.Delay(50, ct).ConfigureAwait(false);
         }
 
-        throw new TimeoutException($"等待输出超时 (>{timeout.Value.TotalSeconds}s)");
+        throw new TimeoutException($"[TRN020] 等待输出超时 (>{timeout.Value.TotalSeconds}s)");
     }
 
     public Task ClearOutputAsync() =>
@@ -155,7 +155,7 @@ public sealed partial class StdioProcessManager : IAsyncDisposable
             await Task.Delay(50, ct).ConfigureAwait(false);
         }
 
-        throw new TimeoutException($"等待stderr输出超时 (>{timeout.Value.TotalSeconds}s)");
+        throw new TimeoutException($"[TRN021] 等待stderr输出超时 (>{timeout.Value.TotalSeconds}s)");
     }
 
     /// <summary>

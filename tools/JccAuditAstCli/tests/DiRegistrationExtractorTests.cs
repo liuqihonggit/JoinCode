@@ -40,7 +40,7 @@ public sealed class DiRegistrationExtractorTests
     }
 
     [Fact]
-    public void Debug_DumpAllResults()
+    public void InvocationAndExtract_ShouldFindOneInvocationAndExtractRegistration()
     {
         var source = """
             using System;
@@ -61,31 +61,15 @@ public sealed class DiRegistrationExtractorTests
         var syntaxTree = CSharpSyntaxTree.ParseText(source);
         var root = syntaxTree.GetRoot();
 
-        // 先检查找到了多少 InvocationExpressionSyntax
         var invocations = root.DescendantNodes().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.InvocationExpressionSyntax>().ToList();
-        var msgs = new List<string> { $"Found {invocations.Count} InvocationExpressionSyntax nodes:" };
-        foreach (var inv in invocations)
-        {
-            var expr = inv.Expression;
-            msgs.Add($"  Full: {inv}");
-            msgs.Add($"  Expression type: {expr.GetType().Name}");
-            msgs.Add($"  Expression: {expr}");
-
-            if (expr is Microsoft.CodeAnalysis.CSharp.Syntax.MemberAccessExpressionSyntax mae)
-            {
-                msgs.Add($"    Name: {mae.Name}");
-                msgs.Add($"    Name type: {mae.Name.GetType().Name}");
-                if (mae.Name is Microsoft.CodeAnalysis.CSharp.Syntax.GenericNameSyntax gn)
-                {
-                    msgs.Add($"    TypeArgs: {string.Join(", ", gn.TypeArgumentList.Arguments)}");
-                }
-            }
-        }
+        Assert.Single(invocations);
 
         var (regs, deps) = ExtractFrom(source);
-        msgs.Add($"Extract result -> Regs: {regs.Count}, Deps: {deps.Count}");
-
-        throw new Exception(string.Join("\n", msgs));
+        Assert.Single(regs);
+        Assert.Equal("IFoo", regs[0].ServiceType);
+        Assert.Equal("Foo", regs[0].ImplementationType);
+        Assert.Equal("Singleton", regs[0].Lifetime);
+        Assert.Empty(deps);
     }
 
     // ==================== 模式1: AddSingleton<TInterface, TImpl>() — 双泛型无工厂 ====================
@@ -603,7 +587,6 @@ public sealed class DiRegistrationExtractorTests
         Assert.Equal("IDependencyA", deps[0].DependencyType);
         Assert.False(deps[0].IsOptional);
 
-        // 第二个依赖应该是可选的
-        // 实际上 ExtractConstructorDeps 对 IDependencyB 也会添加，但是 IsOptional=true
+        // 可选参数（带默认值）不作为依赖提取，只保留硬依赖
     }
 }

@@ -405,7 +405,7 @@ public static class DiRegistrationExtractor
         {
             foreach (var attr in attrList.Attributes)
             {
-                var attrName = attr.Name.ToString();
+                var attrName = GetAttributeShortName(attr.Name);
                 string? lifetime = attrName switch
                 {
                     "Register" => "Singleton",
@@ -430,7 +430,7 @@ public static class DiRegistrationExtractor
                 var typeArgs = args?.Where(a => a.NameColon == null || a.NameColon?.Name.Identifier.ToString() != "Lifetime").ToList();
                 if (typeArgs is { Count: >= 1 })
                 {
-                    registrations.Add(new ServiceRegistration(typeArgs[0].Expression.ToString(), className, lifetime));
+                    registrations.Add(new ServiceRegistration(UnwrapTypeOf(typeArgs[0].Expression.ToString()), className, lifetime));
                 }
                 else if (classDecl.BaseList?.Types.Count > 0)
                 {
@@ -471,6 +471,8 @@ public static class DiRegistrationExtractor
                     if (string.IsNullOrEmpty(paramType) || IsInfrastructureType(paramType))
                         continue;
                     var isOptional = param.Default is not null || param.Type is NullableTypeSyntax;
+                    if (isOptional)
+                        continue;
                     dependencies.Add(new ConstructorDependency(className, paramType, filePath, param.GetLocation().GetLineSpan().StartLinePosition.Line + 1, isOptional));
                 }
             }
@@ -499,6 +501,31 @@ public static class DiRegistrationExtractor
             GenericNameSyntax gne => gne.Identifier.Text,
             _ => null
         };
+    }
+
+    /// <summary>
+    /// 提取特性名的最后一个标识符（短名），兼容全限定名：
+    /// JoinCode.Abstractions.Attributes.Register → Register
+    /// </summary>
+    private static string GetAttributeShortName(NameSyntax name)
+    {
+        return name switch
+        {
+            QualifiedNameSyntax qualified => qualified.Right.Identifier.Text,
+            AliasQualifiedNameSyntax alias => alias.Name.Identifier.Text,
+            _ => name.ToString()
+        };
+    }
+
+    /// <summary>
+    /// 去掉 typeof(...) 包装：typeof(IRepository) → IRepository
+    /// </summary>
+    private static string UnwrapTypeOf(string expression)
+    {
+        const string prefix = "typeof(";
+        if (expression.StartsWith(prefix, StringComparison.Ordinal) && expression.EndsWith(")", StringComparison.Ordinal))
+            return expression.Substring(prefix.Length, expression.Length - prefix.Length - 1);
+        return expression;
     }
 
     private static string? ExtractMemberAccessName(InvocationExpressionSyntax invocation)

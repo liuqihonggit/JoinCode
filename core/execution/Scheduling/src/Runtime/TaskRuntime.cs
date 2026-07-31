@@ -392,14 +392,14 @@ public sealed partial class TaskRuntime : ITaskRuntime, IDisposable
     public Task<string> StartMcpMonitoringAsync(McpMonitorConfig config, CancellationToken ct = default)
     {
         if (_deps.MonitorMcpTaskExecutor == null)
-            throw new InvalidOperationException("MonitorMcpTaskExecutor 未注册");
+            throw new InvalidOperationException("[SCH002] MonitorMcpTaskExecutor 未注册");
         return _deps.MonitorMcpTaskExecutor.StartMonitoringAsync(config, ct);
     }
 
     public Task<AgentTaskResult> ExecuteLocalShellTaskAsync(LocalShellTaskDefinition definition, CancellationToken ct = default)
     {
         if (_deps.LocalShellTaskExecutor == null)
-            throw new InvalidOperationException("LocalShellTaskExecutor 未注册");
+            throw new InvalidOperationException("[SCH003] LocalShellTaskExecutor 未注册");
         return definition.UsePowerShell
             ? _deps.LocalShellTaskExecutor.ExecutePowerShellAsync(definition, ct)
             : _deps.LocalShellTaskExecutor.ExecuteShellAsync(definition, ct);
@@ -408,7 +408,7 @@ public sealed partial class TaskRuntime : ITaskRuntime, IDisposable
     public Task<AgentTaskResult> ExecuteInProcessTeammateAsync(InProcessTeammateDefinition definition, CancellationToken ct = default)
     {
         if (_deps.InProcessTeammateTaskExecutor == null)
-            throw new InvalidOperationException("InProcessTeammateTaskExecutor 未注册");
+            throw new InvalidOperationException("[SCH004] InProcessTeammateTaskExecutor 未注册");
         return _deps.InProcessTeammateTaskExecutor.ExecuteTeammateAsync(definition, ct);
     }
 

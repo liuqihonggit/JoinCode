@@ -12,12 +12,12 @@ internal sealed class EmptyQueryService : IQueryService
         ChatOptions? executionSettings = null,
         IChatClient? kernel = null,
         CancellationToken cancellationToken = default)
-        => throw new NotSupportedException("EmptyQueryService 不支持实际 API 调用。请通过 QueryServiceFactory 配置真实 Provider。");
+        => throw new NotSupportedException("[LLM001] EmptyQueryService 不支持实际 API 调用。请通过 QueryServiceFactory 配置真实 Provider。");
 
     public IAsyncEnumerable<StreamEvent> GetStreamEventContentsAsync(
         MessageList chatHistory,
         ChatOptions? executionSettings = null,
         IChatClient? kernel = null,
         CancellationToken cancellationToken = default)
-        => throw new NotSupportedException("EmptyQueryService 不支持实际 API 调用。请通过 QueryServiceFactory 配置真实 Provider。");
+        => throw new NotSupportedException("[LLM002] EmptyQueryService 不支持实际 API 调用。请通过 QueryServiceFactory 配置真实 Provider。");
 }

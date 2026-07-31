@@ -84,7 +84,7 @@ public sealed partial class StdioProcessManager : IAsyncDisposable
     public async Task SendAsync(string message, CancellationToken ct = default)
     {
         if (_stdinWriter == null)
-            throw new InvalidOperationException("进程未启动");
+            throw new InvalidOperationException("[TRN010] 进程未启动");
 
         _logger?.LogDebug("[StdioManager] 发送: {Message}", message.Length > 100 ? message[..100] + "..." : message);
 

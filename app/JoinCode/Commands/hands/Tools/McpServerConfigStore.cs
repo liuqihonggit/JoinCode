@@ -104,7 +104,7 @@ public sealed partial class McpServerConfigStore : IMcpServerConfigStore
     private static void ValidateServerName(string name)
     {
         if (string.IsNullOrWhiteSpace(name))
-            throw new ArgumentException("服务器名称不能为空");
+            throw new ArgumentException("[APP005] 服务器名称不能为空");
 
         foreach (var c in name)
         {

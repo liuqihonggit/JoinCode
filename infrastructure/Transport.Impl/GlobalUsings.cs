@@ -16,4 +16,3 @@ global using System.Threading.Tasks;
 global using JoinCode.Abstractions.Attributes;
 global using Microsoft.Extensions.DependencyInjection;
 global using Microsoft.Extensions.Logging;
-global using Core.Utils;

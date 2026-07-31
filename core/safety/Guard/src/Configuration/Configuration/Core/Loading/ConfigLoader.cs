@@ -41,7 +41,7 @@ public class ConfigLoader {
                 throw new ConfigurationException(context.ErrorMessage ?? "加载配置失败");
             }
 
-            return context.Result ?? throw new ConfigurationException("配置加载未产生结果");
+            return context.Result ?? throw new ConfigurationException("[GRD001] 配置加载未产生结果");
         }
         catch (ConfigurationException)
         {

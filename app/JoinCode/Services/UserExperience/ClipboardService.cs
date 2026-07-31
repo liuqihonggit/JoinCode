@@ -33,7 +33,7 @@ public sealed partial class ClipboardService : IClipboardService
         }
         else
         {
-            throw new PlatformNotSupportedException("剪贴板操作不支持当前平台");
+            throw new PlatformNotSupportedException("[APP007] 剪贴板操作不支持当前平台");
         }
     }
 

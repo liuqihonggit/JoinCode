@@ -174,7 +174,7 @@ public sealed class EffortCommand : ChatCommandBase
     private static IModelCatalog ResolveModelCatalog(ChatCommandContext context)
     {
         return ChatCommandBase.GetService<IModelCatalog>(context, typeof(IModelCatalog))
-            ?? throw new InvalidOperationException("模型目录服务未初始化");
+            ?? throw new InvalidOperationException("[APP002] 模型目录服务未初始化");
     }
 
     private static string GetEffortDescription(EffortLevel level) => level switch

@@ -43,7 +43,7 @@ public static class ImageResizer
         byte[] imageBuffer, long originalSize, string extension)
     {
         if (imageBuffer.Length == 0)
-            throw new InvalidOperationException("图像文件为空（0 字节）");
+            throw new InvalidOperationException("[HND001] 图像文件为空（0 字节）");
 
         try
         {

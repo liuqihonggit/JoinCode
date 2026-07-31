@@ -70,7 +70,7 @@ public sealed class PipelineBuilder<TContext> : PipelineBuilderBase<TContext, Pi
     public PipelineBuilder<TContext> Where(Func<TContext, bool> predicate)
     {
         if (_middlewares.Count == 0)
-            throw new InvalidOperationException("Where() 必须在 Use() 之后调用");
+            throw new InvalidOperationException("[PPL004] Where() 必须在 Use() 之后调用");
 
         var last = _middlewares[^1];
         _middlewares[^1] = new ConditionalMiddleware<TContext>(predicate, last);
@@ -83,7 +83,7 @@ public sealed class PipelineBuilder<TContext> : PipelineBuilderBase<TContext, Pi
     public PipelineBuilder<TContext> Where(Func<TContext, CancellationToken, ValueTask<bool>> predicate)
     {
         if (_middlewares.Count == 0)
-            throw new InvalidOperationException("Where() 必须在 Use() 之后调用");
+            throw new InvalidOperationException("[PPL005] Where() 必须在 Use() 之后调用");
 
         var last = _middlewares[^1];
         _middlewares[^1] = new AsyncConditionalMiddleware<TContext>(predicate, last);
@@ -127,7 +127,7 @@ public sealed class StreamPipelineBuilder<TContext, TEvent> : PipelineBuilderBas
     public StreamPipelineBuilder<TContext, TEvent> Where(Func<TContext, bool> predicate)
     {
         if (_middlewares.Count == 0)
-            throw new InvalidOperationException("Where() 必须在 Use() 之后调用");
+            throw new InvalidOperationException("[PPL006] Where() 必须在 Use() 之后调用");
 
         var last = _middlewares[^1];
         _middlewares[^1] = new ConditionalStreamMiddleware<TContext, TEvent>(predicate, last);

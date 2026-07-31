@@ -52,7 +52,7 @@ public sealed class SshSession : ISshSession
             if (_sshProcess == null)
             {
                 _stateMachine.ForceTransitionTo(SshConnectionState.Error);
-                throw new InvalidOperationException("无法启动 SSH 进程");
+                throw new InvalidOperationException("[SSH002] 无法启动 SSH 进程");
             }
 
             await Task.Delay(1000, ct).ConfigureAwait(false);
@@ -166,7 +166,7 @@ public sealed class SshSession : ISshSession
         using var process = Process.Start(startInfo);
         if (process == null)
         {
-            throw new InvalidOperationException("无法启动 SSH 进程执行命令");
+            throw new InvalidOperationException("[SSH003] 无法启动 SSH 进程执行命令");
         }
 
         var stdoutTask = process.StandardOutput.ReadToEndAsync(ct);

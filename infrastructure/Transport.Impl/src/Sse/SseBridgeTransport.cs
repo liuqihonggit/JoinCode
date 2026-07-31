@@ -59,7 +59,7 @@ public sealed class SseBridgeTransport : IBridgeTransport
     {
         if (_isStopped != 0 || string.IsNullOrEmpty(_messageEndpoint))
         {
-            throw new InvalidOperationException(ErrorMessages.SseTransportNotReady);
+            throw new InvalidOperationException(Core.Utils.ErrorMessages.SseTransportNotReady);
         }
 
         var content = new StringContent(message, Encoding.UTF8, "application/json");

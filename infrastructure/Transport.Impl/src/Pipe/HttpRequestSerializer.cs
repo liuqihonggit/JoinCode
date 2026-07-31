@@ -87,7 +87,7 @@ public static class HttpRequestSerializer
         var statusLine = reader.ReadLine();
         if (string.IsNullOrEmpty(statusLine))
         {
-            throw new InvalidOperationException("无效的 HTTP 响应: 空状态行");
+            throw new InvalidOperationException("[TRN009] 无效的 HTTP 响应: 空状态行");
         }
 
         ParseStatusLine(statusLine, response);

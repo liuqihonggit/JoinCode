@@ -89,7 +89,7 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
 
         if (_isInitialized == 0)
         {
-            throw new InvalidOperationException("[V2Transport] CCRClient 尚未初始化，无法写入");
+            throw new InvalidOperationException("[TRN008] [V2Transport] CCRClient 尚未初始化，无法写入");
         }
 
         await _eventUploader.EnqueueAsync(message, ct).ConfigureAwait(false);

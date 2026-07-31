@@ -87,50 +87,56 @@ public sealed class StdioHealthCheck : ITransportHealthCheck
 public sealed class HttpListenerHealthCheck : ITransportHealthCheck
 {
     private readonly string _prefix;
+    private readonly string _host;
+    private readonly int _port;
 
     public string TransportType => "http";
 
     public HttpListenerHealthCheck(string prefix)
     {
         _prefix = prefix;
+        try
+        {
+            var uri = new Uri(prefix);
+            _host = uri.Host;
+            _port = uri.Port > 0 ? uri.Port : 80;
+        }
+        catch (UriFormatException)
+        {
+            _host = "localhost";
+            _port = 0;
+        }
     }
 
-    public Task<TransportHealthResult> CheckAsync(CancellationToken ct = default)
+    /// <summary>
+    /// 通过 TCP 连接检测端口是否可达 — 端口被占用说明服务正在运行（可用），而非不可用
+    /// 旧逻辑（HttpListener.Start）在端口被占用时抛异常导致误判为 Unavailable，已修复
+    /// </summary>
+    public async Task<TransportHealthResult> CheckAsync(CancellationToken ct = default)
     {
         var sw = System.Diagnostics.Stopwatch.StartNew();
 
         try
         {
-            using var listener = new System.Net.HttpListener();
-            listener.Prefixes.Add(_prefix);
-            listener.Start();
-            listener.Stop();
-
-            return Task.FromResult(TransportHealthResult.Available(TransportType, sw.Elapsed));
+            using var client = new System.Net.Sockets.TcpClient();
+            await client.ConnectAsync(_host, _port, ct).ConfigureAwait(false);
+            client.Close();
+            return TransportHealthResult.Available(TransportType, sw.Elapsed);
         }
-        catch (System.Net.HttpListenerException ex)
+        catch (System.Net.Sockets.SocketException ex)
         {
-            var category = IsAccessDeniedError(ex)
-                ? TransportUnavailabilityCategory.SandboxBlocked
-                : TransportUnavailabilityCategory.PortConflict;
-
-            return Task.FromResult(TransportHealthResult.Unavailable(
-                TransportType, category,
-                $"HttpListener failed: {ex.Message} (ErrorCode={ex.ErrorCode})",
-                sw.Elapsed));
-        }
-        catch (Exception ex)
-        {
-            return Task.FromResult(TransportHealthResult.Unavailable(
+            return TransportHealthResult.Unavailable(
                 TransportType, TransportUnavailabilityCategory.NetworkUnreachable,
-                $"Health check failed: {ex.Message}", sw.Elapsed));
+                $"TCP connect to {_host}:{_port} failed: {ex.Message} (SocketError={ex.SocketErrorCode})",
+                sw.Elapsed);
+        }
+        catch (Exception ex) when (ex is OperationCanceledException or TaskCanceledException)
+        {
+            return TransportHealthResult.Unavailable(
+                TransportType, TransportUnavailabilityCategory.NetworkUnreachable,
+                $"Health check timed out for {_host}:{_port}", sw.Elapsed);
         }
     }
-
-    private static bool IsAccessDeniedError(System.Net.HttpListenerException ex) =>
-        ex.ErrorCode == 5 ||     // ERROR_ACCESS_DENIED (Windows)
-        ex.ErrorCode == 13 ||    // EACCES (Linux)
-        ex.ErrorCode == 10013;   // WSAEACCES (Windows socket)
 }
 
 public sealed class TcpPortHealthCheck : ITransportHealthCheck

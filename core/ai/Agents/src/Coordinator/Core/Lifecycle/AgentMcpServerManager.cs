@@ -191,7 +191,7 @@ public sealed partial class AgentMcpServerManager : JoinCode.Abstractions.Interf
         var clientId = $"agent-mcp-{name}-{Guid.NewGuid():N}";
 
         if (_mcpClientFactory is null)
-            throw new InvalidOperationException("IMcpClientFactory 未注册，无法创建 MCP 客户端");
+            throw new InvalidOperationException("[MCP007] IMcpClientFactory 未注册，无法创建 MCP 客户端");
 
         IMcpClient client = _mcpClientFactory.CreateClient(connectionConfig, enableFallback: true, logger: _logger);
 

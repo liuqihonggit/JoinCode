@@ -81,7 +81,7 @@ public sealed partial class SseClientTransport : TransportBase, IMcpTransport
 
         if (string.IsNullOrEmpty(_messageEndpoint))
         {
-            throw new InvalidOperationException("SSE 连接尚未建立消息端点");
+            throw new InvalidOperationException("[SSE003] SSE 连接尚未建立消息端点");
         }
 
         var json = Encoding.UTF8.GetString(payload.Span);

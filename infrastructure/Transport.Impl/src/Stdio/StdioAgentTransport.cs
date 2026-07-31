@@ -78,7 +78,7 @@ public sealed partial class StdioAgentTransport : IAgentTransport
     public async Task SendMessageAsync(string message, CancellationToken ct = default)
     {
         if (State != TransportState.Connected)
-            throw new InvalidOperationException($"传输未连接，当前状态: {State}");
+            throw new InvalidOperationException($"[TRN007] 传输未连接，当前状态: {State}");
 
         await _processManager.SendAsync(message, ct).ConfigureAwait(false);
         OnMessage?.Invoke(this, new TransportMessageEventArgs
@@ -91,7 +91,7 @@ public sealed partial class StdioAgentTransport : IAgentTransport
     public async Task<string> WaitForOutputAsync(Func<string, bool> predicate, TimeSpan? timeout = null, CancellationToken ct = default)
     {
         if (State != TransportState.Connected)
-            throw new InvalidOperationException($"传输未连接，当前状态: {State}");
+            throw new InvalidOperationException($"[TRN007] 传输未连接，当前状态: {State}");
 
         var result = await _processManager.WaitForOutputAsync(predicate, timeout, ct).ConfigureAwait(false);
         OnMessage?.Invoke(this, new TransportMessageEventArgs
@@ -105,7 +105,7 @@ public sealed partial class StdioAgentTransport : IAgentTransport
     public async Task<string> WaitForErrorAsync(Func<string, bool> predicate, TimeSpan? timeout = null, CancellationToken ct = default)
     {
         if (State != TransportState.Connected)
-            throw new InvalidOperationException($"传输未连接，当前状态: {State}");
+            throw new InvalidOperationException($"[TRN007] 传输未连接，当前状态: {State}");
 
         var result = await _processManager.WaitForErrorAsync(predicate, timeout, ct).ConfigureAwait(false);
         OnMessage?.Invoke(this, new TransportMessageEventArgs

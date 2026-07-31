@@ -16,19 +16,19 @@ public sealed partial class McpbManifestMiddleware : IMcpbMiddleware
 
         if (!_fs.FileExists(manifestPath))
         {
-            throw new InvalidOperationException("MCPB 缺少 manifest.json");
+            throw new InvalidOperationException("[MPB001] MCPB 缺少 manifest.json");
         }
 
         var manifest = await _fs.ReadAndDeserializeAsync(manifestPath, McpClientJsonContext.Default.McpbManifest, ct).ConfigureAwait(false);
 
         if (manifest == null)
         {
-            throw new InvalidOperationException("无法解析 MCPB manifest.json");
+            throw new InvalidOperationException("[MPB002] 无法解析 MCPB manifest.json");
         }
 
         if (manifest.Server == null)
         {
-            throw new InvalidOperationException("MCPB manifest 缺少 server 配置");
+            throw new InvalidOperationException("[MPB003] MCPB manifest 缺少 server 配置");
         }
 
         context.Manifest = manifest;

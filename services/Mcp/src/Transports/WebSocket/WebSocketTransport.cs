@@ -98,7 +98,7 @@ public sealed partial class WebSocketTransport : TransportBase, IMcpTransport
     {
         if (_ws == null || _ws.State != System.Net.WebSockets.WebSocketState.Open)
         {
-            throw new InvalidOperationException("WebSocket 未连接");
+            throw new InvalidOperationException(McpErrorMessages.WebSocketNotConnected);
         }
 
         await _ws.SendAsync(payload, System.Net.WebSockets.WebSocketMessageType.Text, true, ct).ConfigureAwait(false);

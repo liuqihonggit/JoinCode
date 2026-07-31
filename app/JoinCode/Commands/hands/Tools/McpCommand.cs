@@ -416,7 +416,7 @@ public sealed class McpCommand : ChatCommandBase
     private static IMcpServerConfigStore ResolveConfigStore(ChatCommandContext context)
     {
         return ChatCommandBase.GetService<IMcpServerConfigStore>(context, typeof(IMcpServerConfigStore))
-            ?? throw new InvalidOperationException("MCP 配置存储服务未初始化");
+            ?? throw new InvalidOperationException("[MCP008] MCP 配置存储服务未初始化");
     }
 
     private static IMcpToolRegistry? ResolveMcpRegistry(ChatCommandContext context)

@@ -65,7 +65,7 @@ public sealed class WebSocketTransport : IBridgeTransport
     {
         if (_webSocket?.State != WebSocketState.Open)
         {
-            throw new InvalidOperationException("WebSocket 未连接");
+            throw new InvalidOperationException("[WSK002] WebSocket 未连接");
         }
 
         var bytes = Encoding.UTF8.GetBytes(message);

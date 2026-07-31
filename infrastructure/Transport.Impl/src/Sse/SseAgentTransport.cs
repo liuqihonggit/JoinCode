@@ -108,7 +108,7 @@ public sealed partial class SseAgentTransport : IAgentTransport
     public async Task SendMessageAsync(string message, CancellationToken ct = default)
     {
         if (State != TransportState.Connected)
-            throw new InvalidOperationException($"传输未连接，当前状态: {State}");
+            throw new InvalidOperationException($"[SSE004] 传输未连接，当前状态: {State}");
 
         using var request = new HttpRequestMessage(HttpMethod.Post, _config.MessagesEndpoint);
         request.Content = new StringContent(message, Encoding.UTF8, "application/json");

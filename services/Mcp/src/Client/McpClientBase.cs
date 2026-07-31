@@ -600,7 +600,7 @@ public abstract class McpClientBase : IMcpClient
     {
         if (!IsConnected)
         {
-            throw new InvalidOperationException("MCP 客户端未连接");
+            throw new InvalidOperationException(McpErrorMessages.McpClientNotConnected);
         }
     }
 

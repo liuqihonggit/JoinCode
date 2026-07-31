@@ -60,6 +60,7 @@ global using JoinCode.Abstractions.Pipeline;
 global using Infrastructure.Pipeline;
 global using McpClient;
 global using McpClient.Mcpb;
+global using McpClient.Transports;
 global using McpClient.Models;
 global using McpProtocol;
 global using McpToolContent = JoinCode.Abstractions.Mcp.Protocol.McpToolContent;

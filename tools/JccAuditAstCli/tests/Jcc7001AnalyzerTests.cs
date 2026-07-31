@@ -13,7 +13,7 @@ using AotSafety.Generator;
 /// </summary>
 public sealed class Jcc7001AnalyzerTests
 {
-    private static readonly DiagnosticAnalyzer Analyzer = new AotSafetyAnalyzer();
+    private static readonly DiagnosticAnalyzer Analyzer = new DeadCodeRules();
 
     private static async Task<List<Diagnostic>> GetDiagnosticsAsync(string source)
     {

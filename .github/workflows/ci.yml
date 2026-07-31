@@ -90,6 +90,21 @@ jobs:
           }
         shell: pwsh
 
+      - name: Build - Satellite Projects
+        run: |
+          $projects = @(
+            'tests/Benchmarks/Eyes.Benchmarks/Eyes.Benchmarks.csproj',
+            'tests/AotCompatibility/aot-browser-test/aot-browser-test.csproj',
+            'tests/AotCompatibility/aot-httpclientfactory-test/aot-httpclientfactory-test.csproj',
+            'tests/AotCompatibility/pptr-api-check/PptrApiCheck.csproj'
+          )
+          foreach ($p in $projects) {
+            Write-Host "Building $p ..."
+            dotnet build $p -c Release --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
+            if ($LASTEXITCODE -ne 0) { exit 1 }
+          }
+        shell: pwsh
+
       - name: Upload Build Output
         uses: actions/upload-artifact@v5
         with:

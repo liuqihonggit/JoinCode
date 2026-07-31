@@ -10,6 +10,7 @@
     <!-- AOT 验证项目: 抑制可能与反射相关的 IL 警告 -->
     <NoWarn>$(NoWarn);IL3000;IL2065;IL2070;IL2075</NoWarn>
     <IsAotCompatible>true</IsAotCompatible>
+    <ExcludeTestSdk>true</ExcludeTestSdk>
   </PropertyGroup>
 
   <ItemGroup>

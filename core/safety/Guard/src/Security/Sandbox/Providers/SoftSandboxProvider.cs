@@ -21,7 +21,6 @@ public sealed partial class SoftSandboxProvider : SandboxProviderBase
         if (fullPath.StartsWith(sandboxRoot, StringComparison.OrdinalIgnoreCase))
         {
             var realPath = ResolveSymlinkTarget(fullPath, Logger);
-            Logger?.LogDebug("[Sandbox:Soft] OnResolvePath: fullPath='{FullPath}', realPath='{RealPath}', sandboxRoot='{SandboxRoot}'", fullPath, realPath ?? "(null)", sandboxRoot);
             if (realPath is not null && !realPath.StartsWith(sandboxRoot, StringComparison.OrdinalIgnoreCase))
             {
                 Logger?.LogWarning("[Sandbox:Soft] 符号链接逃逸检测: '{Path}' 解析到沙箱外 '{Real}'，降级重定向", fullPath, realPath);
@@ -78,85 +77,80 @@ public sealed partial class SoftSandboxProvider : SandboxProviderBase
     {
         try
         {
-            var stack = new Stack<string>();
-            var current = path;
-            while (current is not null)
-            {
-                stack.Push(Path.GetFileName(current) ?? current);
-                var parent = Path.GetDirectoryName(current);
-                if (parent is null) break;
-                current = parent;
-            }
+            var fullPath = Path.GetFullPath(path);
+            var root = Path.GetPathRoot(fullPath);
+            if (string.IsNullOrEmpty(root))
+                return null;
 
-            if (stack.Count == 0) return null;
+            var relativePart = fullPath[root.Length..];
+            var segments = relativePart.Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar], StringSplitOptions.RemoveEmptyEntries);
 
-            var resolved = stack.Pop();
+            var resolved = root;
             var hadSymlink = false;
-            logger?.LogDebug("[Sandbox:Soft] ResolveSymlinkTarget 开始解析: '{Path}', stack.Count={Count}, first resolved='{Resolved}'", path, stack.Count, resolved);
-            while (stack.Count > 0)
+            foreach (var segment in segments)
             {
-                var segment = stack.Pop();
                 var candidate = Path.Combine(resolved, segment);
-                logger?.LogDebug("[Sandbox:Soft] ResolveSymlinkTarget 迭代: segment='{Segment}', candidate='{Candidate}', current resolved='{Resolved}'", segment, candidate, resolved);
-                try
+
+                // 防御层1: candidate 必须是绝对路径，否则分解逻辑有误
+                if (!Path.IsPathRooted(candidate))
                 {
-                    var dirInfo = new DirectoryInfo(candidate);
-                    var exists = dirInfo.Exists;
-                    var attrs = dirInfo.Attributes;
-                    var isReparse = attrs.HasFlag(FileAttributes.ReparsePoint);
-                    logger?.LogDebug("[Sandbox:Soft] DirectoryInfo: candidate='{Candidate}', Exists={Exists}, Attributes={Attrs}, IsReparsePoint={IsReparse}", candidate, exists, attrs, isReparse);
-                    if (isReparse)
-                    {
-                        var target = dirInfo.ResolveLinkTarget(true);
-                        logger?.LogDebug("[Sandbox:Soft] 符号链接检测(dir): '{Candidate}' -> '{Target}'", candidate, target?.FullName ?? "(null)");
-                        if (target is not null)
-                        {
-                            resolved = target.FullName;
-                            hadSymlink = true;
-                            continue;
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    logger?.LogDebug(ex, "[Sandbox:Soft] DirectoryInfo 检测异常: '{Candidate}'", candidate);
+                    logger?.LogWarning("[Sandbox:Soft] ResolveSymlinkTarget 内部错误: candidate='{Candidate}' 不是绝对路径，中断解析", candidate);
+                    return null;
                 }
 
-                try
+                if (TryResolveSymlink(candidate, isDirectory: true, logger, out var target) ||
+                    TryResolveSymlink(candidate, isDirectory: false, logger, out target))
                 {
-                    var fileInfo = new FileInfo(candidate);
-                    var exists = fileInfo.Exists;
-                    var attrs = fileInfo.Attributes;
-                    var isReparse = attrs.HasFlag(FileAttributes.ReparsePoint);
-                    logger?.LogDebug("[Sandbox:Soft] FileInfo: candidate='{Candidate}', Exists={Exists}, Attributes={Attrs}, IsReparsePoint={IsReparse}", candidate, exists, attrs, isReparse);
-                    if (isReparse)
-                    {
-                        var target = fileInfo.ResolveLinkTarget(true);
-                        logger?.LogDebug("[Sandbox:Soft] 符号链接检测(file): '{Candidate}' -> '{Target}'", candidate, target?.FullName ?? "(null)");
-                        if (target is not null)
-                        {
-                            resolved = target.FullName;
-                            hadSymlink = true;
-                            continue;
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    logger?.LogDebug(ex, "[Sandbox:Soft] FileInfo 检测异常: '{Candidate}'", candidate);
+                    resolved = target;
+                    hadSymlink = true;
+                    continue;
                 }
 
                 resolved = candidate;
             }
 
-            var result = hadSymlink ? Path.GetFullPath(resolved) : null;
-            logger?.LogDebug("[Sandbox:Soft] ResolveSymlinkTarget 完成: path='{Path}', hadSymlink={HadSymlink}, result='{Result}'", path, hadSymlink, result ?? "(null)");
-            return result;
+            return hadSymlink ? Path.GetFullPath(resolved) : null;
         }
         catch (Exception ex)
         {
             logger?.LogDebug(ex, "[Sandbox:Soft] ResolveSymlinkTarget 异常，路径: '{Path}'", path);
             return null;
         }
+    }
+
+    private static bool TryResolveSymlink(string candidate, bool isDirectory, ILogger? logger, [NotNullWhen(true)] out string? target)
+    {
+        target = null;
+        try
+        {
+            FileSystemInfo fsInfo = isDirectory ? new DirectoryInfo(candidate) : new FileInfo(candidate);
+
+            // 防御层2: 不存在的条目跳过（Attributes=-1 时 HasFlag 误判为 true）
+            if (!fsInfo.Exists)
+                return false;
+
+            var attrs = fsInfo.Attributes;
+
+            // 防御层3: Attributes 值合理性校验（-1 表示获取失败）
+            if ((int)attrs == -1)
+                return false;
+
+            if (!attrs.HasFlag(FileAttributes.ReparsePoint))
+                return false;
+
+            var linkTarget = fsInfo.ResolveLinkTarget(true);
+            if (linkTarget is not null)
+            {
+                logger?.LogDebug("[Sandbox:Soft] 符号链接检测({Kind}): '{Candidate}' -> '{Target}'", isDirectory ? "dir" : "file", candidate, linkTarget.FullName);
+                target = linkTarget.FullName;
+                return true;
+            }
+        }
+        catch (Exception ex)
+        {
+            logger?.LogDebug(ex, "[Sandbox:Soft] 符号链接检测异常({Kind}): '{Candidate}'", isDirectory ? "dir" : "file", candidate);
+        }
+
+        return false;
     }
 }

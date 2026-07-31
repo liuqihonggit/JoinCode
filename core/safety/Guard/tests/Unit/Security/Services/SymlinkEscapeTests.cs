@@ -3,7 +3,6 @@
 namespace Guard.Tests.Security.Services;
 
 using JoinCode.Abstractions.Security.Sandbox;
-using Microsoft.Extensions.Logging;
 
 public sealed class SymlinkEscapeTests
 {
@@ -38,13 +37,16 @@ public sealed class SymlinkEscapeTests
 
             if (!Directory.Exists(symlinkPath))
             {
-                Console.WriteLine("[DEBUG] 符号链接创建失败（可能缺少权限），跳过测试");
                 return;
             }
 
-            using var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole().SetMinimumLevel(LogLevel.Debug));
-            var logger = loggerFactory.CreateLogger<SoftSandboxProvider>();
-            var provider = new SoftSandboxProvider(_fs, logger);
+            var linkDirInfo = new DirectoryInfo(symlinkPath);
+            if (!linkDirInfo.Exists || !linkDirInfo.Attributes.HasFlag(FileAttributes.ReparsePoint))
+            {
+                return;
+            }
+
+            var provider = new SoftSandboxProvider(_fs, NullLogger<SoftSandboxProvider>.Instance);
             var options = new SandboxOptions
             {
                 Type = SandboxType.Soft,
@@ -55,22 +57,9 @@ public sealed class SymlinkEscapeTests
             var info = await provider.CreateSandboxAsync(options).ConfigureAwait(true);
 
             var pathThroughSymlink = Path.Combine(symlinkPath, "secret.txt");
-
             var resolved = provider.ResolvePath(pathThroughSymlink, info.SandboxId);
 
-            Console.WriteLine($"[DEBUG] pathThroughSymlink: {pathThroughSymlink}");
-            Console.WriteLine($"[DEBUG] resolved: {resolved}");
-
             var sandboxRoot = Path.GetFullPath(tempRoot);
-
-            var linkDirInfo2 = new DirectoryInfo(symlinkPath);
-            if (!linkDirInfo2.Attributes.HasFlag(FileAttributes.ReparsePoint))
-            {
-                Console.WriteLine("[DEBUG] 符号链接属性未检测到 ReparsePoint，跳过断言");
-                await provider.DestroySandboxAsync(info.SandboxId).ConfigureAwait(true);
-                return;
-            }
-
             resolved.Should().StartWith(sandboxRoot, because: "符号链接指向沙箱外时，ResolvePath应降级重定向到沙箱内");
             resolved.Should().Contain("redirected", because: "符号链接逃逸应降级到redirected目录");
 
@@ -110,13 +99,10 @@ public sealed class SymlinkEscapeTests
 
             if (!Directory.Exists(symlinkPath))
             {
-                Console.WriteLine("[DEBUG] 符号链接创建失败（可能缺少权限），跳过测试");
                 return;
             }
 
-            using var loggerFactory2 = LoggerFactory.Create(builder => builder.AddConsole().SetMinimumLevel(LogLevel.Debug));
-            var logger2 = loggerFactory2.CreateLogger<SoftSandboxProvider>();
-            var provider = new SoftSandboxProvider(_fs, logger2);
+            var provider = new SoftSandboxProvider(_fs, NullLogger<SoftSandboxProvider>.Instance);
             var options = new SandboxOptions
             {
                 Type = SandboxType.Soft,
@@ -137,60 +123,6 @@ public sealed class SymlinkEscapeTests
         finally
         {
             try { Directory.Delete(tempRoot, true); } catch (Exception ex) { Console.WriteLine($"清理失败: {ex.Message}"); }
-        }
-    }
-
-    private static string? ResolveFinalPath(string path)
-    {
-        try
-        {
-            var stack = new Stack<string>();
-            var current = path;
-            while (current is not null)
-            {
-                stack.Push(Path.GetFileName(current) ?? current);
-                var parent = Path.GetDirectoryName(current);
-                if (parent is null) break;
-                current = parent;
-            }
-
-            if (stack.Count == 0) return path;
-
-            var resolved = stack.Pop();
-            while (stack.Count > 0)
-            {
-                var candidate = Path.Combine(resolved, stack.Pop());
-                var dirInfo = new DirectoryInfo(candidate);
-                if (dirInfo.Exists && dirInfo.Attributes.HasFlag(FileAttributes.ReparsePoint))
-                {
-                    var target = dirInfo.ResolveLinkTarget(true);
-                    if (target is not null)
-                    {
-                        resolved = target.FullName;
-                        Console.WriteLine($"[DEBUG] dir symlink resolved: {candidate} -> {resolved}");
-                        continue;
-                    }
-                }
-                var fileInfo = new FileInfo(candidate);
-                if (fileInfo.Exists && fileInfo.Attributes.HasFlag(FileAttributes.ReparsePoint))
-                {
-                    var target = fileInfo.ResolveLinkTarget(true);
-                    if (target is not null)
-                    {
-                        resolved = target.FullName;
-                        Console.WriteLine($"[DEBUG] file symlink resolved: {candidate} -> {resolved}");
-                        continue;
-                    }
-                }
-                resolved = candidate;
-            }
-
-            return Path.GetFullPath(resolved);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[DEBUG] ResolveFinalPath exception: {ex.GetType().Name}: {ex.Message}");
-            return null;
         }
     }
 }

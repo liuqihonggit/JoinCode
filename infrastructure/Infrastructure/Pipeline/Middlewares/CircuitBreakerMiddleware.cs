@@ -29,4 +29,3 @@ public sealed class FixedCircuitBreakerMiddleware<TContext>(
     }
 }
 
-public sealed class CircuitBreakerOpenException(string message) : Exception(message);

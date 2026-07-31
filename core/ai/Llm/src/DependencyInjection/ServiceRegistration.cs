@@ -83,8 +83,22 @@ public static partial class ServiceRegistration
     {
         var logger = sp.GetService<ILogger<IQueryService>>();
         var fs = sp.GetService<IFileSystem>();
-        var inner = s_factory.Create(providerConfig, logger: logger, fileSystem: fs);
+        var resilientExecutor = CreateLlmResilientExecutor(sp);
+        var inner = s_factory.Create(providerConfig, logger: logger, fileSystem: fs, resilientExecutor: resilientExecutor);
         return WrapWithFallback(inner, sp);
+    }
+
+    /// <summary>
+    /// 创建 LLM API 韧性执行器 — 超时+重试+熔断，受 JCC_RESILIENCE_ENABLED 控制
+    /// </summary>
+    private static ResilientHttpExecutor? CreateLlmResilientExecutor(IServiceProvider sp)
+    {
+        var resilienceEnabled = Environment.GetEnvironmentVariable("JCC_RESILIENCE_ENABLED") is not "0";
+        if (!resilienceEnabled) return null;
+
+        var policy = ResiliencePolicy.LlmDefault("LLM");
+        var logger = sp.GetService<ILogger<ResilientHttpExecutor>>();
+        return new ResilientHttpExecutor(policy, logger);
     }
 
     /// <summary>

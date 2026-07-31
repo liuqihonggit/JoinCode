@@ -77,6 +77,16 @@ public sealed class PatientProcessManager : IAsyncDisposable
 
         var process = await _processService.StartInteractiveAsync(options, cancellationToken).ConfigureAwait(false);
 
+        ResilientSubprocess? resilientSubprocess = null;
+        var resilienceEnabled = Environment.GetEnvironmentVariable("JCC_RESILIENCE_ENABLED") is not "0";
+        if (resilienceEnabled)
+        {
+            var policy = SubprocessResiliencePolicy.DoctorDefault;
+            Func<CancellationToken, Task<IInteractiveProcess>> spawnFunc = async spawnCt =>
+                await _processService.StartInteractiveAsync(options, spawnCt).ConfigureAwait(false);
+            resilientSubprocess = new ResilientSubprocess(process, spawnFunc, policy);
+        }
+
         var info = new PatientInfo
         {
             PatientId = patientId,
@@ -86,7 +96,7 @@ public sealed class PatientProcessManager : IAsyncDisposable
             Arguments = arguments
         };
 
-        var handle = new PatientHandle(patientId, info, process);
+        var handle = new PatientHandle(patientId, info, process, resilientSubprocess);
 
         handle.OutputLineReceived += OnOutputLineReceived;
         handle.ErrorLineReceived += OnErrorLineReceived;
@@ -250,6 +260,7 @@ public sealed class PatientProcessManager : IAsyncDisposable
     {
         private readonly string _patientId;
         private readonly IInteractiveProcess _process;
+        private readonly ResilientSubprocess? _resilientSubprocess;
         private readonly Queue<string> _stderrQueue;
         private readonly CancellationTokenSource _readCts;
         private Task? _stdoutReadTask;
@@ -275,11 +286,12 @@ public sealed class PatientProcessManager : IAsyncDisposable
         public event EventHandler<(string PatientId, string Line)>? ErrorLineReceived;
         public event EventHandler<PatientInfo>? ProcessExited;
 
-        public PatientHandle(string patientId, PatientInfo info, IInteractiveProcess process)
+        public PatientHandle(string patientId, PatientInfo info, IInteractiveProcess process, ResilientSubprocess? resilientSubprocess = null)
         {
             _patientId = patientId;
             Info = info;
             _process = process;
+            _resilientSubprocess = resilientSubprocess;
             _stderrQueue = new Queue<string>(MaxStderrLines);
             _readCts = new CancellationTokenSource();
 
@@ -334,7 +346,9 @@ public sealed class PatientProcessManager : IAsyncDisposable
             {
                 while (!ct.IsCancellationRequested)
                 {
-                    var line = await _process.StandardOutput.ReadLineAsync(ct).ConfigureAwait(false);
+                    var line = _resilientSubprocess is not null
+                        ? await _resilientSubprocess.ReadStdoutLineAsync(ct).ConfigureAwait(false)
+                        : await _process.StandardOutput.ReadLineAsync(ct).ConfigureAwait(false);
                     if (line is null) break;
 
                     OutputLineReceived?.Invoke(this, (_patientId, line));

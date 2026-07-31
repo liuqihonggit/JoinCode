@@ -108,6 +108,33 @@ public static partial class ServiceRegistration
             _ => new Infrastructure.Http.MockHttpClientProvider(),
             sp => sp.GetRequiredService<Infrastructure.Http.DefaultHttpClientProvider>());
 
+        // 韧性层 — JCC_RESILIENCE_ENABLED=1（默认）时用 ResilientHttpClientProvider 包装
+        // 所有注入 IResilientHttpClientProvider 的消费方自动获得超时+重试+熔断保护
+        // 注入 IHttpClientProvider 的消费方仍获取原始客户端（向后兼容，无韧性）
+        var resilienceEnabled = EnvHelper.Get(JccEnvVar.ResilienceEnabled) is not "0";
+        if (resilienceEnabled)
+        {
+            services.AddSingleton<IResilientHttpClientProvider>(sp =>
+            {
+                var inner = sp.GetRequiredService<IHttpClientProvider>();
+                var logger = sp.GetService<ILogger<Infrastructure.Http.ResilientHttpClientProvider>>();
+                return new Infrastructure.Http.ResilientHttpClientProvider(inner, logger: logger);
+            });
+        }
+        else
+        {
+            services.AddSingleton<IResilientHttpClientProvider>(sp =>
+            {
+                var inner = sp.GetRequiredService<IHttpClientProvider>();
+                return new Infrastructure.Http.ResilientHttpClientProvider(inner,
+                    policy: new Infrastructure.Utils.Resilience.ResiliencePolicy
+                    {
+                        Name = "disabled",
+                        Retry = new Infrastructure.Utils.Resilience.RetryConfig { MaxRetries = 0 },
+                    });
+            });
+        }
+
         // INotificationService — 根据 JCC_NOTIFICATION_MODE 环境变量决定后端
         // 默认 Windows（气泡通知），Console=纯日志输出（调试用）
         services.AddEnvSwitch<INotificationService>(

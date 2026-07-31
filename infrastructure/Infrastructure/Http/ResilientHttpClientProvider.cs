@@ -1,6 +1,6 @@
 namespace Infrastructure.Http;
 
-public sealed class ResilientHttpClientProvider : IHttpClientProvider
+public sealed class ResilientHttpClientProvider : IResilientHttpClientProvider
 {
     private readonly IHttpClientProvider _inner;
     private readonly ResiliencePolicy _policy;

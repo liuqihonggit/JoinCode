@@ -11,6 +11,7 @@ namespace Core.Bridge;
 public sealed class BridgeSubprocessHandle : IAsyncDisposable
 {
     private readonly IInteractiveProcess _process;
+    private readonly ResilientSubprocess? _resilientSubprocess;
     private readonly TaskCompletionSource<BridgeSubprocessStatus> _doneTcs;
     private readonly SemaphoreSlim _stdinLock;
     private readonly Queue<string> _stderrQueue;
@@ -80,9 +81,10 @@ public sealed class BridgeSubprocessHandle : IAsyncDisposable
     /// <summary>
     /// 私有构造 — 通过 CreateAsync 工厂方法创建
     /// </summary>
-    private BridgeSubprocessHandle(IInteractiveProcess process, BridgeSubprocessOptions options, ILogger? logger)
+    private BridgeSubprocessHandle(IInteractiveProcess process, BridgeSubprocessOptions options, ILogger? logger, ResilientSubprocess? resilientSubprocess = null)
     {
         _process = process;
+        _resilientSubprocess = resilientSubprocess;
         SessionId = options.SessionId;
         AccessToken = options.AccessToken;
         _logger = logger;
@@ -123,7 +125,18 @@ public sealed class BridgeSubprocessHandle : IAsyncDisposable
         };
 
         var process = await processService.StartInteractiveAsync(interactiveOptions, ct).ConfigureAwait(false);
-        return new BridgeSubprocessHandle(process, options, logger);
+
+        ResilientSubprocess? resilientSubprocess = null;
+        var resilienceEnabled = Environment.GetEnvironmentVariable("JCC_RESILIENCE_ENABLED") is not "0";
+        if (resilienceEnabled)
+        {
+            var policy = SubprocessResiliencePolicy.BridgeDefault;
+            Func<CancellationToken, Task<IInteractiveProcess>> spawnFunc = async spawnCt =>
+                await processService.StartInteractiveAsync(interactiveOptions, spawnCt).ConfigureAwait(false);
+            resilientSubprocess = new ResilientSubprocess(process, spawnFunc, policy, logger);
+        }
+
+        return new BridgeSubprocessHandle(process, options, logger, resilientSubprocess);
     }
 
     private void OnErrorDataReceived(object? sender, string line)
@@ -161,6 +174,19 @@ public sealed class BridgeSubprocessHandle : IAsyncDisposable
     /// </summary>
     public async Task WriteStdinAsync(string data, CancellationToken ct = default)
     {
+        if (_resilientSubprocess is not null)
+        {
+            try
+            {
+                await _resilientSubprocess.WriteStdinAsync(data, ct).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "[SubprocessHandle] 写入 stdin 失败（韧性）");
+            }
+            return;
+        }
+
         await _stdinLock.WaitAsync(ct).ConfigureAwait(false);
         try
         {
@@ -253,7 +279,9 @@ public sealed class BridgeSubprocessHandle : IAsyncDisposable
         {
             while (!ct.IsCancellationRequested)
             {
-                var line = await _process.StandardOutput.ReadLineAsync(ct).ConfigureAwait(false);
+                var line = _resilientSubprocess is not null
+                    ? await _resilientSubprocess.ReadStdoutLineAsync(ct).ConfigureAwait(false)
+                    : await _process.StandardOutput.ReadLineAsync(ct).ConfigureAwait(false);
                 if (line is null) break;
 
                 EnqueueBounded(_activityQueue, line, MaxActivities);
@@ -464,7 +492,14 @@ public sealed class BridgeSubprocessHandle : IAsyncDisposable
         }
 
         _readCts.Dispose();
-        await _process.DisposeAsync().ConfigureAwait(false);
+        if (_resilientSubprocess is not null)
+        {
+            await _resilientSubprocess.DisposeAsync().ConfigureAwait(false);
+        }
+        else
+        {
+            await _process.DisposeAsync().ConfigureAwait(false);
+        }
         _stdinLock.Dispose();
 
         // 关闭 transcript 流，避免资源泄漏

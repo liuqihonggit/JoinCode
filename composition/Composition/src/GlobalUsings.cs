@@ -82,6 +82,7 @@ global using Infrastructure.Pipeline;
 global using Infrastructure.Configuration;
 global using Infrastructure.Http;
 global using Infrastructure.IO;
+global using Infrastructure.Utils.Resilience;
 global using Infrastructure.Time;
 global using Infrastructure.Utils.IO;
 global using IO.FileSystem;

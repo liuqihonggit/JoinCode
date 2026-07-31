@@ -16,6 +16,9 @@ public abstract partial class QueryServiceBase : IQueryService
     /// <summary>共享 HttpClient（由派生类用于发送请求）</summary>
     protected readonly HttpClient HttpClient;
 
+    /// <summary>韧性执行器（可选）— 提供超时+重试+熔断保护</summary>
+    protected readonly ResilientHttpExecutor? ResilientExecutor;
+
     /// <summary>可选日志器</summary>
     protected readonly ILogger? Logger;
 
@@ -25,11 +28,12 @@ public abstract partial class QueryServiceBase : IQueryService
     /// <summary>最近一次响应的速率限制头（流式首块注入 metadata 用）</summary>
     private volatile Dictionary<string, string?>? _lastRateLimitHeaders;
 
-    protected QueryServiceBase(ProviderConfig config, HttpClient? httpClient = null, ILogger? logger = null, IFileSystem? fs = null)
+    protected QueryServiceBase(ProviderConfig config, HttpClient? httpClient = null, ILogger? logger = null, IFileSystem? fs = null, ResilientHttpExecutor? resilientExecutor = null)
     {
         Config = config ?? throw new ArgumentNullException(nameof(config));
         Logger = logger;
         FileSystem = fs;
+        ResilientExecutor = resilientExecutor;
 
         // Definition 强制非空 — ProviderConfig.Definition 由 ConfigLoader 在加载时注入
         // 若调用方未注入（null），QueryServiceFactory 会自动注入 FallbackProviderDefinition 兜底

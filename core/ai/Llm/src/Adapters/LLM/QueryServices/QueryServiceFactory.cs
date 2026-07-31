@@ -12,11 +12,15 @@ using Api.LLM.QueryServices.OpenAI;
 /// </summary>
 public sealed class QueryServiceFactory : IQueryServiceFactory
 {
+    IQueryService IQueryServiceFactory.Create(ProviderConfig config, HttpClient? httpClient, ILogger? logger, IFileSystem? fileSystem)
+        => Create(config, httpClient, logger, fileSystem, resilientExecutor: null);
+
     public IQueryService Create(
         ProviderConfig config,
         HttpClient? httpClient = null,
         ILogger? logger = null,
-        IFileSystem? fileSystem = null)
+        IFileSystem? fileSystem = null,
+        ResilientHttpExecutor? resilientExecutor = null)
     {
         ArgumentNullException.ThrowIfNull(config);
 
@@ -30,11 +34,11 @@ public sealed class QueryServiceFactory : IQueryServiceFactory
         // 单一构造分派点 — ProviderKind 由 ProviderConfig.Kind 派生，不再依赖字符串比较
         return config.Kind switch
         {
-            ProviderKind.Anthropic => new AnthropicQueryService(config, httpClient, logger, fileSystem),
-            ProviderKind.Azure => new AzureQueryService(config, httpClient, logger, fileSystem),
-            ProviderKind.Agnes => new AgnesQueryService(config, httpClient, logger, fileSystem),
+            ProviderKind.Anthropic => new AnthropicQueryService(config, httpClient, logger, fileSystem, resilientExecutor),
+            ProviderKind.Azure => new AzureQueryService(config, httpClient, logger, fileSystem, resilientExecutor),
+            ProviderKind.Agnes => new AgnesQueryService(config, httpClient, logger, fileSystem, resilientExecutor),
             // OpenAI / 未知 — 默认走 OpenAI 兼容协议
-            _ => new OpenAIQueryService(config, httpClient, logger, fileSystem)
+            _ => new OpenAIQueryService(config, httpClient, logger, fileSystem, resilientExecutor)
         };
     }
 }

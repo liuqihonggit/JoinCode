@@ -10,8 +10,8 @@ using Api.LLM.QueryServices.OpenAI;
 /// </summary>
 public sealed class AzureQueryService : OpenAIQueryService
 {
-    public AzureQueryService(ProviderConfig config, HttpClient? httpClient = null, ILogger? logger = null, IFileSystem? fs = null)
-        : base(config, httpClient, logger, fs)
+    public AzureQueryService(ProviderConfig config, HttpClient? httpClient = null, ILogger? logger = null, IFileSystem? fs = null, ResilientHttpExecutor? resilientExecutor = null)
+        : base(config, httpClient, logger, fs, resilientExecutor)
     {
         // 协议层完全继承 OpenAI 实现；URL/端点/认证差异由 AzureProviderDefinition 多态注入
     }

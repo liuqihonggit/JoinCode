@@ -10,8 +10,8 @@ public sealed class AnthropicQueryService : QueryServiceBase
 {
     private static readonly AnthropicCacheProtocol CacheProtocol = new();
 
-    public AnthropicQueryService(ProviderConfig config, HttpClient? httpClient = null, ILogger? logger = null, IFileSystem? fs = null)
-        : base(config, httpClient, logger, fs)
+    public AnthropicQueryService(ProviderConfig config, HttpClient? httpClient = null, ILogger? logger = null, IFileSystem? fs = null, ResilientHttpExecutor? resilientExecutor = null)
+        : base(config, httpClient, logger, fs, resilientExecutor)
     {
     }
 
@@ -444,10 +444,26 @@ public sealed class AnthropicQueryService : QueryServiceBase
         CancellationToken cancellationToken)
     {
         var json = JsonSerializer.Serialize(request, AnthropicJsonContext.Default.AnthropicMessagesRequest);
-        var content = new StringContent(json, Encoding.UTF8, "application/json");
-
         var endpoint = GetChatEndpoint(Config);
-        var response = await HttpClient.PostAsync(endpoint, content, cancellationToken).ConfigureAwait(false);
+
+        HttpResponseMessage response;
+        if (ResilientExecutor is not null)
+        {
+            response = await ResilientExecutor.ExecuteAsync(
+                async ct =>
+                {
+                    var content = new StringContent(json, Encoding.UTF8, "application/json");
+                    return await HttpClient.PostAsync(endpoint, content, ct).ConfigureAwait(false);
+                },
+                "LLM.Anthropic.ChatCompletion",
+                cancellationToken).ConfigureAwait(false);
+        }
+        else
+        {
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+            response = await HttpClient.PostAsync(endpoint, content, cancellationToken).ConfigureAwait(false);
+        }
+
         response.EnsureSuccessStatusCode();
 
         ExtractRateLimitHeaders(response);
@@ -580,10 +596,26 @@ public sealed class AnthropicQueryService : QueryServiceBase
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var json = JsonSerializer.Serialize(request, AnthropicJsonContext.Default.AnthropicMessagesRequest);
-        var content = new StringContent(json, Encoding.UTF8, "application/json");
-
         var endpoint = GetChatEndpoint(Config);
-        var response = await HttpClient.PostAsync(endpoint, content, cancellationToken).ConfigureAwait(false);
+
+        HttpResponseMessage response;
+        if (ResilientExecutor is not null)
+        {
+            response = await ResilientExecutor.ExecuteAsync(
+                async ct =>
+                {
+                    var content = new StringContent(json, Encoding.UTF8, "application/json");
+                    return await HttpClient.PostAsync(endpoint, content, ct).ConfigureAwait(false);
+                },
+                "LLM.Anthropic.StreamingChatCompletion",
+                cancellationToken).ConfigureAwait(false);
+        }
+        else
+        {
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+            response = await HttpClient.PostAsync(endpoint, content, cancellationToken).ConfigureAwait(false);
+        }
+
         response.EnsureSuccessStatusCode();
 
         ExtractRateLimitHeaders(response);

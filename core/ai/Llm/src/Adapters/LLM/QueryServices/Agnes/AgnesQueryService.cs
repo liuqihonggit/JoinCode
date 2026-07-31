@@ -10,6 +10,6 @@ using Api.LLM.QueryServices.OpenAI;
 /// </summary>
 public sealed class AgnesQueryService : OpenAIQueryService
 {
-    public AgnesQueryService(ProviderConfig config, HttpClient? httpClient = null, ILogger? logger = null, IFileSystem? fs = null)
-        : base(config, httpClient, logger, fs) { }
+    public AgnesQueryService(ProviderConfig config, HttpClient? httpClient = null, ILogger? logger = null, IFileSystem? fs = null, ResilientHttpExecutor? resilientExecutor = null)
+        : base(config, httpClient, logger, fs, resilientExecutor) { }
 }

@@ -11,8 +11,8 @@ public class OpenAIQueryService : QueryServiceBase
 {
     private static readonly OpenAICacheProtocol CacheProtocol = new();
 
-    public OpenAIQueryService(ProviderConfig config, HttpClient? httpClient = null, ILogger? logger = null, IFileSystem? fs = null)
-        : base(config, httpClient, logger, fs)
+    public OpenAIQueryService(ProviderConfig config, HttpClient? httpClient = null, ILogger? logger = null, IFileSystem? fs = null, ResilientHttpExecutor? resilientExecutor = null)
+        : base(config, httpClient, logger, fs, resilientExecutor)
     {
     }
 
@@ -268,10 +268,26 @@ public class OpenAIQueryService : QueryServiceBase
     private async Task<OpenAIChatResponse> SendRequestAsync(OpenAIChatRequest request, CancellationToken cancellationToken)
     {
         var json = JsonSerializer.Serialize(request, NativeJsonContext.Default.OpenAIChatRequest);
-        var content = new StringContent(json, Encoding.UTF8, "application/json");
-
         var endpoint = GetChatEndpoint(Config);
-        var response = await HttpClient.PostAsync(endpoint, content, cancellationToken).ConfigureAwait(false);
+
+        HttpResponseMessage response;
+        if (ResilientExecutor is not null)
+        {
+            response = await ResilientExecutor.ExecuteAsync(
+                async ct =>
+                {
+                    var content = new StringContent(json, Encoding.UTF8, "application/json");
+                    return await HttpClient.PostAsync(endpoint, content, ct).ConfigureAwait(false);
+                },
+                "LLM.ChatCompletion",
+                cancellationToken).ConfigureAwait(false);
+        }
+        else
+        {
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+            response = await HttpClient.PostAsync(endpoint, content, cancellationToken).ConfigureAwait(false);
+        }
+
         response.EnsureSuccessStatusCode();
 
         ExtractRateLimitHeaders(response);
@@ -300,10 +316,26 @@ public class OpenAIQueryService : QueryServiceBase
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var json = JsonSerializer.Serialize(request, NativeJsonContext.Default.OpenAIChatRequest);
-        var content = new StringContent(json, Encoding.UTF8, "application/json");
-
         var endpoint = GetChatEndpoint(Config);
-        var response = await HttpClient.PostAsync(endpoint, content, cancellationToken).ConfigureAwait(false);
+
+        HttpResponseMessage response;
+        if (ResilientExecutor is not null)
+        {
+            response = await ResilientExecutor.ExecuteAsync(
+                async ct =>
+                {
+                    var content = new StringContent(json, Encoding.UTF8, "application/json");
+                    return await HttpClient.PostAsync(endpoint, content, ct).ConfigureAwait(false);
+                },
+                "LLM.StreamingChatCompletion",
+                cancellationToken).ConfigureAwait(false);
+        }
+        else
+        {
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+            response = await HttpClient.PostAsync(endpoint, content, cancellationToken).ConfigureAwait(false);
+        }
+
         response.EnsureSuccessStatusCode();
 
         ExtractRateLimitHeaders(response);

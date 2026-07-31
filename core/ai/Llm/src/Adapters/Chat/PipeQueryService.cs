@@ -6,12 +6,14 @@ public sealed partial class PipeQueryService : IQueryService
     private readonly PipeTransportConfig _config;
     [Inject] private readonly ILogger<PipeQueryService>? _logger;
     private readonly HttpClient _httpClient;
+    private readonly ResilientHttpExecutor? _resilientExecutor;
 
-    public PipeQueryService(PipeTransportConfig config, string? apiKey = null, ILogger<PipeQueryService>? logger = null)
+    public PipeQueryService(PipeTransportConfig config, string? apiKey = null, ILogger<PipeQueryService>? logger = null, ResilientHttpExecutor? resilientExecutor = null)
     {
         _config = config ?? throw new ArgumentNullException(nameof(config));
         _logger = logger;
         _httpClient = CreatePipeHttpClient(config, apiKey);
+        _resilientExecutor = resilientExecutor;
     }
 
     public async Task<IReadOnlyList<ApiMessage>> GetApiMessageContentsAsync(
@@ -145,11 +147,27 @@ public sealed partial class PipeQueryService : IQueryService
     private async Task<OpenAIChatResponse> SendRequestAsync(ChatRequest request, CancellationToken cancellationToken)
     {
         var json = JsonSerializer.Serialize(request, PipeJsonContext.Default.ChatRequest);
-        var content = new StringContent(json, Encoding.UTF8, "application/json");
 
         _logger?.LogDebug("Sending chat request to pipe");
 
-        var response = await _httpClient.PostAsync("/v1/chat/completions", content, cancellationToken);
+        HttpResponseMessage response;
+        if (_resilientExecutor is not null)
+        {
+            response = await _resilientExecutor.ExecuteAsync(
+                async ct =>
+                {
+                    var content = new StringContent(json, Encoding.UTF8, "application/json");
+                    return await _httpClient.PostAsync("/v1/chat/completions", content, ct).ConfigureAwait(false);
+                },
+                "Pipe.ChatCompletion",
+                cancellationToken).ConfigureAwait(false);
+        }
+        else
+        {
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+            response = await _httpClient.PostAsync("/v1/chat/completions", content, cancellationToken).ConfigureAwait(false);
+        }
+
         response.EnsureSuccessStatusCode();
 
         var responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
@@ -168,11 +186,27 @@ public sealed partial class PipeQueryService : IQueryService
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var json = JsonSerializer.Serialize(request, PipeJsonContext.Default.ChatRequest);
-        var content = new StringContent(json, Encoding.UTF8, "application/json");
 
         _logger?.LogDebug("Sending streaming chat request to pipe");
 
-        var response = await _httpClient.PostAsync("/v1/chat/completions", content, cancellationToken);
+        HttpResponseMessage response;
+        if (_resilientExecutor is not null)
+        {
+            response = await _resilientExecutor.ExecuteAsync(
+                async ct =>
+                {
+                    var content = new StringContent(json, Encoding.UTF8, "application/json");
+                    return await _httpClient.PostAsync("/v1/chat/completions", content, ct).ConfigureAwait(false);
+                },
+                "Pipe.StreamingChatCompletion",
+                cancellationToken).ConfigureAwait(false);
+        }
+        else
+        {
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+            response = await _httpClient.PostAsync("/v1/chat/completions", content, cancellationToken).ConfigureAwait(false);
+        }
+
         response.EnsureSuccessStatusCode();
 
         var stream = await response.Content.ReadAsStreamAsync(cancellationToken);

@@ -20,8 +20,11 @@ public sealed class UnifiedCircuitBreaker
     private int _totalSuccesses;
     private int _halfOpenProbeCount;
     private DateTimeOffset _openedAt = DateTimeOffset.MinValue;
+    private DateTimeOffset _lastFailureTime = DateTimeOffset.MinValue;
 
     public string Name { get; }
+
+    public CircuitBreakerPhase State => Phase;
 
     public CircuitBreakerPhase Phase
     {
@@ -61,6 +64,11 @@ public sealed class UnifiedCircuitBreaker
     }
 
     public bool IsOpen => Phase == CircuitBreakerPhase.Open;
+
+    public DateTimeOffset? LastFailureTime
+    {
+        get { lock (_lock) { return _lastFailureTime == DateTimeOffset.MinValue ? null : _lastFailureTime; } }
+    }
 
     public UnifiedCircuitBreaker(string name, int failureThreshold = 5, TimeSpan? openDuration = null, int halfOpenMaxProbe = 1)
     {
@@ -122,6 +130,7 @@ public sealed class UnifiedCircuitBreaker
         {
             _consecutiveFailures++;
             _totalFailures++;
+            _lastFailureTime = DateTimeOffset.UtcNow;
 
             if (_phase == CircuitBreakerPhase.HalfOpen)
             {

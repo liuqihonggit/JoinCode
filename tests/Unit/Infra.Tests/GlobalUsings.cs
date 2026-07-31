@@ -30,6 +30,7 @@ global using JoinCode.Abstractions.LLM.Chat;
 global using JoinCode.Abstractions.Pipeline;
 global using Infrastructure.Http;
 global using Infrastructure.Pipeline;
+global using Infrastructure.Subprocess;
 global using Infrastructure.Utils.Resilience;
 global using System.Net;
 global using System.Runtime.CompilerServices;

@@ -28,6 +28,7 @@ global using IO.FileSystem;
 global using Core.Scheduling;
 global using JoinCode.Abstractions.LLM.Chat;
 global using JoinCode.Abstractions.Pipeline;
+global using JoinCode.Abstractions.Http;
 global using Infrastructure.Http;
 global using Infrastructure.Pipeline;
 global using Infrastructure.Subprocess;

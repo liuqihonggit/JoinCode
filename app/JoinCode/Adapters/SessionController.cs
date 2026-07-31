@@ -57,8 +57,8 @@ public sealed class SessionController
         var lastModelId = (string?)null;
         var requestTimestamp = _clock.GetUtcNow();
 
-        const int ApiTimeoutMs = 10_000;
-        using var timeoutCts = TimeoutHelper.CreateLinkedTimeout(cancellationToken, TimeSpan.FromMilliseconds(ApiTimeoutMs));
+        var apiTimeoutMs = ParseApiTimeoutMs();
+        using var timeoutCts = TimeoutHelper.CreateLinkedTimeout(cancellationToken, TimeSpan.FromMilliseconds(apiTimeoutMs));
         var timeoutToken = timeoutCts.Token;
         var hasReceivedEvent = false;
 
@@ -140,6 +140,14 @@ public sealed class SessionController
                 return SessionTurnResult.Error(wfEx.Message, LastResponse, wfEx.ErrorCode);
             return SessionTurnResult.Error(ex.Message, LastResponse);
         }
+    }
+
+    private static int ParseApiTimeoutMs()
+    {
+        var env = Environment.GetEnvironmentVariable("JCC_API_TIMEOUT_MS");
+        if (int.TryParse(env, out var ms) && ms > 0)
+            return ms;
+        return 10_000;
     }
 
     private void RecordToolCallForTurnDiff(string toolName, string? resultText, StructuredPatchHunk[]? structuredPatch)

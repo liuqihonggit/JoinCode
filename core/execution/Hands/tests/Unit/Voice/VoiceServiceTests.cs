@@ -12,8 +12,13 @@ public sealed class VoiceServiceTests : IDisposable
             Backend = SttBackend.WhisperApi,
             WhisperApiKey = TestConfiguration.GetRealApiKey()
         };
-        var mockProvider = new Infrastructure.Http.MockHttpClientProvider();
-        mockProvider.SetupDefaultResponse(System.Net.HttpStatusCode.OK, """{"text":"mock transcription"}""");
+        var mockInner = new Infrastructure.Http.MockHttpClientProvider();
+        mockInner.SetupDefaultResponse(System.Net.HttpStatusCode.OK, """{"text":"mock transcription"}""");
+        var mockProvider = new Infrastructure.Http.ResilientHttpClientProvider(mockInner, policy: new Infrastructure.Utils.Resilience.ResiliencePolicy
+        {
+            Name = "voice-test",
+            Retry = new Infrastructure.Utils.Resilience.RetryConfig { MaxRetries = 0 },
+        });
         _service = new VoiceService(_options, new IO.FileSystem.PhysicalFileSystem(), mockProvider);
     }
 
@@ -132,7 +137,7 @@ public sealed class VoiceServiceTests : IDisposable
     [Fact]
     public void Constructor_WithNullOptions_ThrowsArgumentNullException()
     {
-        var mockProvider = new Infrastructure.Http.MockHttpClientProvider();
+        var mockProvider = new Infrastructure.Http.ResilientHttpClientProvider(new Infrastructure.Http.MockHttpClientProvider());
         var act = () => new VoiceService(null!, new IO.FileSystem.PhysicalFileSystem(), mockProvider);
 
         act.Should().Throw<ArgumentNullException>();

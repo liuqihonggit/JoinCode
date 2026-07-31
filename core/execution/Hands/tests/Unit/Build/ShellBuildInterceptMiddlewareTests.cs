@@ -156,12 +156,13 @@ public class ShellBuildInterceptMiddlewareTests
             });
 
         var sut = CreateSut(buildQueueService: queueMock.Object);
-        var context = CreateContext(command: "dotnet build JoinCode.slnx", workingDirectory: "D:\\w1");
+        var testWorkDir = Path.GetTempPath();
+        var context = CreateContext(command: "dotnet build JoinCode.slnx", workingDirectory: testWorkDir);
 
         await sut.InvokeAsync(context, Next, CancellationToken.None).ConfigureAwait(true);
 
         queueMock.Verify(x => x.SubmitAsync(
-            It.Is<BuildRequest>(r => r.WorkingDirectory == "D:\\w1"),
+            It.Is<BuildRequest>(r => r.WorkingDirectory == testWorkDir),
             It.IsAny<CancellationToken>()), Times.Once);
     }
 

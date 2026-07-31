@@ -253,52 +253,18 @@ public sealed partial class CapacityWakeService : IAsyncDisposable
         }
     }
 
-    #region Signal Merger — 对齐 TS 端 capacityWake.ts
-
-    private readonly SemaphoreSlim _wakeSemaphore = new(0, 1);
-    private volatile int _wakeToken;
+    private readonly CapacityWakeSignal _wakeSignal = new();
 
     /// <summary>
     /// 唤醒 at-capacity 睡眠 — 对齐 TS 端 capacityWake.wake()
-    /// Abort 当前睡眠，让轮询循环立即重新检查工作
     /// </summary>
-    public void WakeUp()
-    {
-        Interlocked.Exchange(ref _wakeToken, Interlocked.Increment(ref _wakeToken));
-        _wakeSemaphore.Release();
-    }
+    public void WakeUp() => _wakeSignal.WakeUp();
 
     /// <summary>
     /// 在 at-capacity 时等待唤醒 — 对齐 TS 端 capacityWake.signal() + sleepUntilCapacityWakes()
-    /// 在给定超时时间内等待 WakeUp() 被调用，或直到达到超时
     /// </summary>
-    /// <param name="timeout">最大等待时间</param>
-    /// <param name="ct">取消令牌</param>
-    /// <returns>true 表示被唤醒，false 表示超时</returns>
-    public async Task<bool> SleepUntilCapacityWakesAsync(TimeSpan timeout, CancellationToken ct = default)
-    {
-        try
-        {
-            // 等待唤醒或超时
-            var succeeded = await _wakeSemaphore.WaitAsync(timeout, ct).ConfigureAwait(false);
-
-            // 如果成功，立即释放一个信号，保持 0→1→0 的计数
-            // 下一次 WaitAsync 应该等待下一次 WakeUp
-            if (succeeded)
-            {
-                // 释放一个信号，但下次 WaitAsync 应该重新等待
-                // 所以这里不释放，直接返回
-            }
-
-            return succeeded;
-        }
-        catch (OperationCanceledException)
-        {
-            return false;
-        }
-    }
-
-    #endregion
+    public Task<bool> SleepUntilCapacityWakesAsync(TimeSpan timeout, CancellationToken ct = default) =>
+        _wakeSignal.SleepUntilCapacityWakesAsync(timeout, ct);
 
     /// <summary>
     /// 监控循环 - 定期检查负载并自动伸缩
@@ -345,5 +311,6 @@ public sealed partial class CapacityWakeService : IAsyncDisposable
 
         await StopMonitoringAsync().ConfigureAwait(false);
         _stateLock.Dispose();
+        _wakeSignal.Dispose();
     }
 }

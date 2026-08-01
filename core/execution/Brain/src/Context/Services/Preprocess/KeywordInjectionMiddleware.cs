@@ -1,18 +1,24 @@
 using Core.Prompts.Utils;
 using JoinCode.Abstractions.Attributes;
+using JoinCode.Abstractions.Configuration.AppData;
 
 namespace Core.Context;
 
 /// <summary>
 /// 关键词注入中间件 — 检测用户输入关键词并注入对应提示词
 /// 优先级：硬编码关键词（UserPromptKeywordAnalyzer）→ 动态关键词（DynamicKeywordConfigService）
+/// 未命中时记录 miss 事件，供后台 Agent 分析优化词表
 /// </summary>
 [Register(typeof(IAnalyzePreprocessMiddleware))]
 public sealed partial class KeywordInjectionMiddleware : IAnalyzePreprocessMiddleware
 {
     [Inject] private readonly ISystemReminderManager _reminderManager;
     [Inject] private readonly IDynamicKeywordConfigService _dynamicKeywordService;
+    [Inject] private readonly IFileSystem _fs;
     [Inject] private readonly ILogger<KeywordInjectionMiddleware>? _logger;
+
+    private const string MissLogFileName = "keyword-misses.jsonl";
+    private const int MaxMissLogSize = 1024 * 1024;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
@@ -51,21 +57,25 @@ public sealed partial class KeywordInjectionMiddleware : IAnalyzePreprocessMiddl
         }
         else
         {
-            await TryInjectDynamicKeywordAsync(context, ct).ConfigureAwait(false);
+            var dynamicMatch = _dynamicKeywordService.TryMatch(context.Message);
+            if (dynamicMatch is not null)
+            {
+                await InjectDynamicKeywordAsync(context, dynamicMatch, ct).ConfigureAwait(false);
+            }
+            else
+            {
+                RecordKeywordMiss(context.Message);
+            }
         }
 
         await next(context, ct).ConfigureAwait(false);
     }
 
     /// <summary>
-    /// 动态关键词匹配 — 硬编码未命中时，检查 ~/.jcc/keyword-sections.json 中的动态词表
+    /// 动态关键词注入
     /// </summary>
-    private async Task TryInjectDynamicKeywordAsync(PreprocessContext context, CancellationToken ct)
+    private async Task InjectDynamicKeywordAsync(PreprocessContext context, DynamicKeywordMatchResult dynamicMatch, CancellationToken ct)
     {
-        var dynamicMatch = _dynamicKeywordService.TryMatch(context.Message);
-        if (dynamicMatch is null)
-            return;
-
         _logger?.LogDebug("[DynamicKeyword] 检测到动态关键词 '{Keyword}'，Section: {Section}",
             dynamicMatch.MatchedKeyword, dynamicMatch.SectionName);
 
@@ -91,4 +101,36 @@ public sealed partial class KeywordInjectionMiddleware : IAnalyzePreprocessMiddl
 
         context.KeywordPromptInjectionInfo = $"[系统提示: 检测到动态关键词 '{dynamicMatch.MatchedKeyword}'，已自动注入 {dynamicMatch.SectionName} 提示词]";
     }
+
+    /// <summary>
+    /// 记录关键词未命中事件 — 供后台 Agent 分析优化词表
+    /// </summary>
+    private void RecordKeywordMiss(string input)
+    {
+        if (string.IsNullOrWhiteSpace(input) || input.Length > 200)
+            return;
+
+        try
+        {
+            var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            var dir = Path.Combine(userProfile, AppDataConstants.AppDataFolder);
+            var filePath = Path.Combine(dir, MissLogFileName);
+
+            if (!_fs.DirectoryExists(dir))
+                _fs.CreateDirectory(dir);
+
+            if (_fs.FileExists(filePath) && _fs.GetFileLength(filePath) > MaxMissLogSize)
+                return;
+
+            var entry = $"{{\"timestamp\":\"{DateTime.UtcNow:O}\",\"input\":\"{JsonEncode(input)}\"}}\n";
+            _fs.AppendAllText(filePath, entry);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogDebug(ex, "记录关键词 miss 失败");
+        }
+    }
+
+    private static string JsonEncode(string s) =>
+        s.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r");
 }

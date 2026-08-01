@@ -1,6 +1,7 @@
 namespace Core.Tests.Agents.Doctor;
 
 using JoinCode.Abstractions.Interfaces.Doctor;
+using JoinCode.Abstractions.LLM;
 
 public class LlmCodePatchGeneratorTests
 {
@@ -45,11 +46,8 @@ public class LlmCodePatchGeneratorTests
     public async Task GeneratePatchAsync_WithHistoricalPatches_IncludesInPrompt()
     {
         var capture = new CapturedString();
-        var generator = new LlmCodePatchGenerator(prompt =>
-        {
-            capture.Value = prompt;
-            return Task.FromResult("```csharp\nclass X { }\n```\n```reasoning\nfix\n```");
-        });
+        var queryService = CreateCapturingQueryService(capture, "```csharp\nclass X { }\n```\n```reasoning\nfix\n```");
+        var generator = new LlmCodePatchGenerator(queryService);
 
         var diagnostic = CreateDiagnostic();
         var sourceContext = new SourceCodeContext
@@ -103,7 +101,24 @@ public class LlmCodePatchGeneratorTests
 
     private static LlmCodePatchGenerator CreateGenerator(string llmResponse)
     {
-        return new LlmCodePatchGenerator(_ => Task.FromResult(llmResponse));
+        var queryService = CreateStubQueryService(llmResponse);
+        return new LlmCodePatchGenerator(queryService);
+    }
+
+    private static IQueryService CreateStubQueryService(string response)
+    {
+        return new StubQueryService(_ => Task.FromResult<IReadOnlyList<ApiMessage>>(
+            [new() { Content = response }]));
+    }
+
+    private static IQueryService CreateCapturingQueryService(CapturedString capture, string response)
+    {
+        return new StubQueryService(prompt =>
+        {
+            capture.Value = prompt;
+            return Task.FromResult<IReadOnlyList<ApiMessage>>(
+                [new() { Content = response }]);
+        });
     }
 
     private static DiagnosticReport CreateDiagnostic()
@@ -119,5 +134,34 @@ public class LlmCodePatchGeneratorTests
     private sealed class CapturedString
     {
         public string Value { get; set; } = "";
+    }
+
+    private sealed class StubQueryService : IQueryService
+    {
+        private readonly Func<string, Task<IReadOnlyList<ApiMessage>>> _handler;
+
+        public StubQueryService(Func<string, Task<IReadOnlyList<ApiMessage>>> handler)
+        {
+            _handler = handler;
+        }
+
+        public Task<IReadOnlyList<ApiMessage>> GetApiMessageContentsAsync(
+            MessageList chatHistory,
+            ChatOptions? executionSettings = null,
+            IChatClient? kernel = null,
+            CancellationToken cancellationToken = default)
+        {
+            var lastUserMsg = chatHistory.LastOrDefault()?.Content ?? "";
+            return _handler(lastUserMsg);
+        }
+
+        public IAsyncEnumerable<StreamEvent> GetStreamEventContentsAsync(
+            MessageList chatHistory,
+            ChatOptions? executionSettings = null,
+            IChatClient? kernel = null,
+            CancellationToken cancellationToken = default)
+        {
+            return AsyncEnumerable.Empty<StreamEvent>();
+        }
     }
 }

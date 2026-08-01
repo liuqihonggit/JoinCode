@@ -1,17 +1,19 @@
 namespace Core.Agents.Doctor;
 
 using JoinCode.Abstractions.Interfaces.Doctor;
+using JoinCode.Abstractions.LLM;
 
 /// <summary>
 /// LLM 驱动的源码 patch 生成器 — 分析问题 → 生成源码修改
+/// 通过 IQueryService 调用真实 LLM，而非 Func 委托
 /// </summary>
 public sealed class LlmCodePatchGenerator : ICodePatchGenerator
 {
-    private readonly Func<string, Task<string>> _llmInvoker;
+    private readonly IQueryService _queryService;
 
-    public LlmCodePatchGenerator(Func<string, Task<string>> llmInvoker)
+    public LlmCodePatchGenerator(IQueryService queryService)
     {
-        _llmInvoker = llmInvoker ?? throw new ArgumentNullException(nameof(llmInvoker));
+        _queryService = queryService ?? throw new ArgumentNullException(nameof(queryService));
     }
 
     public async Task<CodePatch> GeneratePatchAsync(
@@ -26,7 +28,11 @@ public sealed class LlmCodePatchGenerator : ICodePatchGenerator
 
         var prompt = BuildPrompt(diagnostic, sourceContext, historicalPatches);
 
-        var response = await _llmInvoker(prompt).ConfigureAwait(false);
+        var messages = new MessageList();
+        messages.AddSystemMessage(prompt);
+
+        var responseList = await _queryService.GetApiMessageContentsAsync(messages, cancellationToken: ct).ConfigureAwait(false);
+        var response = responseList.FirstOrDefault()?.Content ?? "";
 
         var patchedContent = ExtractCodeBlock(response, "csharp");
         var reasoning = ExtractCodeBlock(response, "reasoning");
@@ -98,7 +104,7 @@ public sealed class LlmCodePatchGenerator : ICodePatchGenerator
         sb.AppendLine("1. 输出修改后的**完整文件内容**（不是 diff，不是 patch，是完整文件）");
         sb.AppendLine("2. 只修改与诊断相关的部分，不要重构无关代码");
         sb.AppendLine("3. 保持现有的代码风格和命名规范");
-        sb.AppendLine("=4. 不要删除或修改 using 声明（除非与修复直接相关）");
+        sb.AppendLine("4. 不要删除或修改 using 声明（除非与修复直接相关）");
         sb.AppendLine("5. 不要添加注释");
         sb.AppendLine();
         sb.AppendLine("## 输出格式");

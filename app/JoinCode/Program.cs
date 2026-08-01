@@ -24,12 +24,39 @@ class Program
             if (options.ShowVersion) { App.Builder.ApplicationBuilder.ShowVersion(); return 0; }
 
             // 3.1 --doctor: 医生模式 — spawn jcc.exe 子进程作为病人，监控运行状态并自动修复问题
-            if (options.DoctorMode)
-                return await Entry.DoctorModeRunner.RunAsync(options);
+            // 需要先构建 DI 容器以解析 IChatClient + IQueryService（LLM 服务）
+            if (options.DoctorMode || options.DoctorTestSuiteMode)
+            {
+                var doctorFs = IO.FileSystem.FileSystemFactory.Create();
+                await Entry.StartupWorkflow.EnsureConfigFilesExistAsync(doctorFs);
+                var doctorConfig = await App.Builder.ApplicationBuilder.LoadConfigAsync(options, doctorFs);
 
-            // 3.1b --doctor-test-suite: 医生测试套件模式 — 执行内置功能测试用例（T001-T006）
-            if (options.DoctorTestSuiteMode)
-                return await Entry.DoctorModeRunner.RunTestSuiteAsync(options);
+                var doctorBuilder = new App.Builder.ApplicationBuilder()
+                    .UseModule<App.Modules.CoreModule>()
+                    .UseModule<App.Modules.ClockModule>()
+                    .UseModule<App.Modules.BrowserModule>()
+                    .UseModule<App.Modules.PipeModule>()
+                    .UseModule<App.Modules.CliModule>()
+                    .UseModule<App.Modules.McpInitModule>();
+
+                var doctorHost = doctorBuilder.BuildHost(doctorConfig, options);
+                await doctorBuilder.ConfigureModulesAsync(doctorHost.Services);
+
+                try
+                {
+                    if (options.DoctorMode)
+                        return await Entry.DoctorModeRunner.RunAsync(options, doctorHost.Services);
+                    else
+                        return await Entry.DoctorModeRunner.RunTestSuiteAsync(options, doctorHost.Services);
+                }
+                finally
+                {
+                    if (doctorHost is IAsyncDisposable asyncDoc)
+                        await asyncDoc.DisposeAsync();
+                    else
+                        doctorHost.Dispose();
+                }
+            }
 
             // 3.2 --doctor-endpoint: 病人模式 — 连接到医生的 SSE 服务器，发送遥测事件
             // 病人正常运行，但额外启动 DoctorSseClient 把诊断输出推送给医生

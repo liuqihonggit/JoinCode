@@ -21,6 +21,7 @@ public sealed class BootstrapAgent : IAsyncDisposable
     private readonly DiagnosticEngine _diagnosticEngine;
     private readonly PatientProcessManager _patientManager;
     private readonly IFileSystem _fs;
+    private readonly DiagnosticLogWatcher? _logWatcher;
     private readonly List<DiagnosticReport> _pendingReports = [];
     private readonly SemaphoreSlim _reportsLock = new(1, 1);
     private readonly TimeSpan _debounceInterval = TimeSpan.FromSeconds(30);
@@ -51,7 +52,8 @@ public sealed class BootstrapAgent : IAsyncDisposable
         IFileSystem fs,
         IDoctorTransport? transport = null,
         IReflexionMemory? memory = null,
-        Func<string, string, Task<bool>>? confirmCallback = null)
+        Func<string, string, Task<bool>>? confirmCallback = null,
+        DiagnosticLogWatcher? logWatcher = null)
     {
         _chatClient = chatClient ?? throw new ArgumentNullException(nameof(chatClient));
         _sourceEngine = sourceEngine ?? throw new ArgumentNullException(nameof(sourceEngine));
@@ -64,14 +66,21 @@ public sealed class BootstrapAgent : IAsyncDisposable
         _memory = memory;
         _diagnosticEngine = new DiagnosticEngine();
         _confirmCallback = confirmCallback ?? DefaultConfirmAsync;
+        _logWatcher = logWatcher;
 
         _transport.EventReceived += OnDiagnosticEventReceived;
         _diagnosticEngine.DiagnosticReportGenerated += OnDiagnosticReportGenerated;
+
+        if (_logWatcher is not null)
+        {
+            _logWatcher.EventDetected += OnLogWatcherEventDetected;
+            _logWatcher.Start();
+        }
     }
 
     /// <summary>
     /// SSE 服务器模式 — 等待病人连接，接收遥测事件，LLM 判断后修复
-    /// 复用 DoctorAgent 的 SSE 服务器模式，但用 BootstrapLoop 替代 HotFixEngine
+    /// 复用 SSE 服务器模式，用 BootstrapLoop 实现源码工程修复闭环
     /// 韧性由 DoctorTcpServer/DoctorSseClient 的指数退避重连保证
     /// </summary>
     public async Task<DoctorReport> RunServerAsync(
@@ -429,6 +438,12 @@ public sealed class BootstrapAgent : IAsyncDisposable
         _diagnosticEngine.Evaluate(evt);
     }
 
+    private void OnLogWatcherEventDetected(object? sender, DiagnosticEvent evt)
+    {
+        _diagnosticEngine.Evaluate(evt);
+        DoctorDiag.Write($"[Bootstrap] 日志文件检测到事件: {evt.EventType}");
+    }
+
     private void OnDiagnosticReportGenerated(object? sender, DiagnosticReport report)
     {
         if (_reportsLock.Wait(0))
@@ -449,6 +464,12 @@ public sealed class BootstrapAgent : IAsyncDisposable
 
         _transport.EventReceived -= OnDiagnosticEventReceived;
         _diagnosticEngine.DiagnosticReportGenerated -= OnDiagnosticReportGenerated;
+
+        if (_logWatcher is not null)
+        {
+            _logWatcher.EventDetected -= OnLogWatcherEventDetected;
+            await _logWatcher.DisposeAsync().ConfigureAwait(false);
+        }
 
         await _transport.DisposeAsync().ConfigureAwait(false);
     }

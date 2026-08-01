@@ -2,6 +2,7 @@ namespace JoinCode.Entry;
 
 using Core.Agents.Doctor;
 using JoinCode.Abstractions.Interfaces;
+using JoinCode.Abstractions.Interfaces.Doctor;
 using JoinCode.Abstractions.LLM;
 
 /// <summary>
@@ -10,7 +11,7 @@ using JoinCode.Abstractions.LLM;
 /// </summary>
 internal static class DoctorModeRunner
 {
-    internal static async Task<int> RunAsync(CommandLineOptions options)
+    internal static async Task<int> RunAsync(CommandLineOptions options, IServiceProvider services)
     {
         Cli.TerminalHelper.Init();
         Diag.WriteLifecycle("[DOCTOR] 自举医生模式启动");
@@ -24,14 +25,17 @@ internal static class DoctorModeRunner
 
         var sourceEngine = new SourceCodeEngine(fs);
         var worktreeMgr = new BootstrapWorktreeManager(fs);
-        var patchGenerator = new LlmCodePatchGenerator(prompt => Task.FromResult(""));
         var guard = new DefaultBootstrapGuard(fs);
 
-        var chatClient = ResolveChatClient(options);
+        var (chatClient, queryService) = ResolveLlmServices(services);
+        var patchGenerator = new LlmCodePatchGenerator(queryService);
+
+        var diagnosticEngine = new DiagnosticEngine();
+        var logWatcher = new DiagnosticLogWatcher(fs, diagnosticEngine);
 
         await using var agent = new BootstrapAgent(
             chatClient, sourceEngine, worktreeMgr, patchGenerator, guard,
-            patientManager, fs, transport);
+            patientManager, fs, transport, logWatcher: logWatcher);
 
         if (options.DoctorServerMode)
         {
@@ -76,7 +80,7 @@ internal static class DoctorModeRunner
     /// <summary>
     /// 医生测试套件模式 — 执行内置功能测试用例（T001-T006）
     /// </summary>
-    internal static async Task<int> RunTestSuiteAsync(CommandLineOptions options)
+    internal static async Task<int> RunTestSuiteAsync(CommandLineOptions options, IServiceProvider services)
     {
         Cli.TerminalHelper.Init();
         Diag.WriteLine("[DOCTOR] 医生测试套件模式启动");
@@ -85,6 +89,8 @@ internal static class DoctorModeRunner
         var processService = new IO.ProcessService.PhysicalProcessService();
 
         var port = options.DoctorPort ?? 9902;
+
+        var (chatClient, queryService) = ResolveLlmServices(services);
 
         var testSuite = new DoctorTestSuite();
         var results = new List<DoctorTestCaseResult>();
@@ -95,7 +101,15 @@ internal static class DoctorModeRunner
 
             var testPort = port + results.Count;
             var transport = new DoctorTcpServer(testPort);
-            await using var doctor = new DoctorAgent(fs, processService, transport);
+            var patientManager = new PatientProcessManager(processService);
+            var sourceEngine = new SourceCodeEngine(fs);
+            var worktreeMgr = new BootstrapWorktreeManager(fs);
+            var patchGenerator = new LlmCodePatchGenerator(queryService);
+            var guard = new DefaultBootstrapGuard(fs);
+
+            await using var agent = new BootstrapAgent(
+                chatClient, sourceEngine, worktreeMgr, patchGenerator, guard,
+                patientManager, fs, transport);
 
             var patientArgs = DoctorTestSuite.BuildPatientArguments(testCase) + $" --doctor-endpoint http://localhost:{testPort}";
             var workingDir = fs.GetCurrentDirectory();
@@ -112,7 +126,8 @@ internal static class DoctorModeRunner
             try
             {
                 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(testCase.TimeoutSeconds));
-                var report = await doctor.RunAsync($"test-{testCase.TestCaseId}", patientArgs, workingDir, envVars, cts.Token).ConfigureAwait(false);
+                var report = await agent.RunWithPatientAsync(
+                    $"test-{testCase.TestCaseId}", patientArgs, workingDir, envVars, cts.Token).ConfigureAwait(false);
                 sw.Stop();
 
                 var status = DoctorTestSuite.DetermineTestStatus(report, testCase);
@@ -169,9 +184,31 @@ internal static class DoctorModeRunner
         return suiteReport.IsAllPassed ? 0 : 1;
     }
 
-    private static IChatClient ResolveChatClient(CommandLineOptions options)
+    private static (IChatClient, IQueryService) ResolveLlmServices(IServiceProvider services)
     {
-        throw new NotImplementedException("IChatClient 需要通过 DI 容器解析，此处为临时占位");
+        var queryEngine = services.GetService<IQueryEngine>();
+        if (queryEngine is not null)
+        {
+            var chatClient = queryEngine.GetKernel();
+            var queryService = queryEngine.GetChatCompletionService();
+            if (chatClient is not null && queryService is not null)
+            {
+                Diag.WriteLifecycle("[DOCTOR] 通过 IQueryEngine 解析 LLM 服务成功");
+                return (chatClient, queryService);
+            }
+        }
+
+        var chatClientFallback = services.GetService<IChatClient>();
+        var queryServiceFallback = services.GetService<IQueryService>();
+        if (chatClientFallback is not null && queryServiceFallback is not null)
+        {
+            Diag.WriteLifecycle("[DOCTOR] 通过 DI 直接解析 IChatClient + IQueryService 成功");
+            return (chatClientFallback, queryServiceFallback);
+        }
+
+        throw new InvalidOperationException(
+            "无法从 DI 容器解析 LLM 服务。请确保配置了有效的 API Key 和 Provider。" +
+            "可通过环境变量 JCC_API_KEY + JCC_PROVIDER 或 .env/api.json 配置。");
     }
 
     /// <summary>

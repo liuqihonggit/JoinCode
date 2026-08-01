@@ -128,7 +128,7 @@ public sealed class PatientProcessManager : IAsyncDisposable
 
     /// <summary>
     /// 从管理器中移除已退出的病人记录，允许重新 Spawn 同 ID 的病人
-    /// 注意：不 Dispose handle，由 DoctorAgent.DisposeAsync 统一处理
+    /// 注意：不 Dispose handle，由 BootstrapAgent.DisposeAsync 统一处理
     /// </summary>
     public async Task RemovePatientAsync(string patientId)
     {

@@ -227,7 +227,7 @@ public class DoctorTestSuiteTests
     public async Task RunAsync_EmptyTestCases_ReturnsEmptyReport()
     {
         var suite = new DoctorTestSuite();
-        var doctor = CreateDoctor();
+        var doctor = CreateBootstrapAgent();
 
         var report = await suite.RunAsync(doctor, []);
 
@@ -336,7 +336,7 @@ public class DoctorTestSuiteTests
         Assert.False(report.IsAllPassed);
     }
 
-    private static DoctorAgent CreateDoctor()
+    private static BootstrapAgent CreateBootstrapAgent()
     {
         var fs = new InMemoryFileSystem();
         var processService = new Mock<IProcessService>();
@@ -344,7 +344,20 @@ public class DoctorTestSuiteTests
         transport.Setup(t => t.IsConnected).Returns(false);
         transport.Setup(t => t.ConnectedPatientIds).Returns(new List<string>());
 
-        return new DoctorAgent(fs, processService.Object, transport.Object);
+        var chatClient = new Mock<IChatClient>();
+        var queryService = new Mock<IQueryService>();
+        chatClient.Setup(c => c.GetChatCompletionService()).Returns(queryService.Object);
+        chatClient.Setup(c => c.Plugins).Returns(new Mock<IToolCollection>().Object);
+
+        var sourceEngine = new Mock<ISourceCodeEngine>();
+        var worktreeMgr = new Mock<IBootstrapWorktreeManager>();
+        var patchGenerator = new Mock<ICodePatchGenerator>();
+        var guard = new Mock<IBootstrapGuard>();
+        var patientManager = new PatientProcessManager(processService.Object);
+
+        return new BootstrapAgent(
+            chatClient.Object, sourceEngine.Object, worktreeMgr.Object,
+            patchGenerator.Object, guard.Object, patientManager, fs, transport.Object);
     }
 
     private static DoctorReport CreateReport(PatientState state, int? exitCode)

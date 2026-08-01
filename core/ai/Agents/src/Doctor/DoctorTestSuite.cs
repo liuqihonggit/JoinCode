@@ -95,25 +95,25 @@ public sealed class DoctorTestSuite
     /// 执行全部内置测试用例
     /// </summary>
     public async Task<DoctorTestSuiteReport> RunAllAsync(
-        DoctorAgent doctor,
+        BootstrapAgent agent,
         string? workingDirectory = null,
         IReadOnlyDictionary<string, string>? environmentVariables = null,
         CancellationToken cancellationToken = default)
     {
-        return await RunAsync(doctor, BuiltInTests, workingDirectory, environmentVariables, cancellationToken).ConfigureAwait(false);
+        return await RunAsync(agent, BuiltInTests, workingDirectory, environmentVariables, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
     /// 执行指定测试用例
     /// </summary>
     public async Task<DoctorTestSuiteReport> RunAsync(
-        DoctorAgent doctor,
+        BootstrapAgent agent,
         IEnumerable<DoctorTestCase> testCases,
         string? workingDirectory = null,
         IReadOnlyDictionary<string, string>? environmentVariables = null,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(doctor);
+        ArgumentNullException.ThrowIfNull(agent);
 
         var caseList = testCases.ToList();
         var startedAt = DateTimeOffset.UtcNow;
@@ -135,7 +135,7 @@ public sealed class DoctorTestSuite
                 continue;
             }
 
-            var result = await RunSingleAsync(doctor, testCase, workingDirectory, environmentVariables, cancellationToken).ConfigureAwait(false);
+            var result = await RunSingleAsync(agent, testCase, workingDirectory, environmentVariables, cancellationToken).ConfigureAwait(false);
             results.Add(result);
             TestCaseCompleted?.Invoke(this, result);
         }
@@ -162,10 +162,10 @@ public sealed class DoctorTestSuite
     }
 
     /// <summary>
-    /// 执行单个测试用例 — 构建病人参数，启动 DoctorAgent.RunAsync，收集结果
+    /// 执行单个测试用例 — 构建病人参数，启动 BootstrapAgent.RunWithPatientAsync，收集结果
     /// </summary>
     private async Task<DoctorTestCaseResult> RunSingleAsync(
-        DoctorAgent doctor,
+        BootstrapAgent agent,
         DoctorTestCase testCase,
         string? workingDirectory,
         IReadOnlyDictionary<string, string>? environmentVariables,
@@ -184,7 +184,7 @@ public sealed class DoctorTestSuite
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             cts.CancelAfter(TimeSpan.FromSeconds(testCase.TimeoutSeconds));
 
-            var report = await doctor.RunAsync(patientId, patientArgs, workingDirectory, envVars, cts.Token).ConfigureAwait(false);
+            var report = await agent.RunWithPatientAsync(patientId, patientArgs, workingDirectory, envVars, cts.Token).ConfigureAwait(false);
             sw.Stop();
 
             var status = DetermineTestStatus(report, testCase);

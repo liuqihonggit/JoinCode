@@ -217,6 +217,12 @@ public class OpenAIQueryService : QueryServiceBase
             {
                 msg.ToolCallId = toolCallId;
             }
+
+            if (m.Metadata.TryGetValue("ToolName", out var toolNameObj) &&
+                toolNameObj.TryGetString(out var toolName))
+            {
+                msg.Name = toolName;
+            }
         }
 
         return msg;

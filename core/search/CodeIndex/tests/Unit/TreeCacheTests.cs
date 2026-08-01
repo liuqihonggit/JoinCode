@@ -158,4 +158,108 @@ public sealed class TreeCacheTests : IDisposable
         Assert.NotNull(newTree);
         Assert.False(newTree.RootNode.IsError);
     }
+
+    [Fact]
+    public void Constructor_MaxEntriesLessThanOne_Throws()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new TreeCache(0));
+    }
+
+    [Fact]
+    public void Add_NullFilePath_Throws()
+    {
+        using var tree = _parser.Parse("class A { }");
+        Assert.Throws<ArgumentNullException>(() => _cache.Add(null!, tree, "source"));
+    }
+
+    [Fact]
+    public void Add_NullTree_Throws()
+    {
+        Assert.Throws<ArgumentNullException>(() => _cache.Add("test.cs", null!, "source"));
+    }
+
+    [Fact]
+    public void Add_NullSource_Throws()
+    {
+        using var tree = _parser.Parse("class A { }");
+        Assert.Throws<ArgumentNullException>(() => _cache.Add("test.cs", tree, null!));
+    }
+
+    [Fact]
+    public void TryGet_NullFilePath_Throws()
+    {
+        Assert.Throws<ArgumentNullException>(() => _cache.TryGet(null!, out _));
+    }
+
+    [Fact]
+    public void GetSource_NullFilePath_Throws()
+    {
+        Assert.Throws<ArgumentNullException>(() => _cache.GetSource(null!));
+    }
+
+    [Fact]
+    public void Remove_NullFilePath_Throws()
+    {
+        Assert.Throws<ArgumentNullException>(() => _cache.Remove(null!));
+    }
+
+    [Fact]
+    public void TryGet_AfterDispose_ThrowsObjectDisposedException()
+    {
+        var cache = new TreeCache();
+        cache.Dispose();
+
+        Assert.Throws<ObjectDisposedException>(() => cache.TryGet("test.cs", out _));
+    }
+
+    [Fact]
+    public void Add_AfterDispose_ThrowsObjectDisposedException()
+    {
+        var cache = new TreeCache();
+        cache.Dispose();
+
+        using var tree = _parser.Parse("class A { }");
+        Assert.Throws<ObjectDisposedException>(() => cache.Add("test.cs", tree, "source"));
+    }
+
+    [Fact]
+    public void Clear_AfterDispose_ThrowsObjectDisposedException()
+    {
+        var cache = new TreeCache();
+        cache.Dispose();
+
+        Assert.Throws<ObjectDisposedException>(() => cache.Clear());
+    }
+
+    [Fact]
+    public void Add_UpdatesLruOrder()
+    {
+        var cache = new TreeCache(maxEntries: 3);
+        try
+        {
+            for (var i = 0; i < 3; i++)
+            {
+                var source = $"class Class{i} {{ }}";
+                using var tree = _parser.Parse(source);
+                cache.Add($"file{i}.cs", tree, source);
+            }
+
+            // Access file0 to make it recently used
+            Assert.True(cache.TryGet("file0.cs", out _));
+
+            // Add file3 → should evict file1 (oldest among non-accessed)
+            var source3 = "class Class3 { }";
+            using var tree3 = _parser.Parse(source3);
+            cache.Add("file3.cs", tree3, source3);
+
+            Assert.True(cache.TryGet("file0.cs", out _));
+            Assert.False(cache.TryGet("file1.cs", out _));
+            Assert.True(cache.TryGet("file2.cs", out _));
+            Assert.True(cache.TryGet("file3.cs", out _));
+        }
+        finally
+        {
+            cache.Dispose();
+        }
+    }
 }

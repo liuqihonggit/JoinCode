@@ -242,4 +242,69 @@ public sealed class ToolCallSequenceDetectorTests
         Assert.Equal(3, result.TriggerCount);
         Assert.Equal(4, result.RepeatCount);
     }
+
+    [Fact]
+    public void Record_WithMixedNullAndNonNullFingerprint_ArgsStillMatch()
+    {
+        var sut = new ToolCallSequenceDetector(minPatternLength: 2, requiredRepeats: 2);
+        sut.Record("Read", "Read(file.py)");
+        sut.Record("Grep", null);
+        sut.Record("Read", "Read(file.py)");
+        var result = sut.Record("Grep", null);
+
+        Assert.True(result.IsLoopDetected);
+        Assert.True(result.ArgsMatched);
+    }
+
+    [Fact]
+    public void Record_WindowSizeLimitsPatternLength_NoFalseDetection()
+    {
+        var sut = new ToolCallSequenceDetector(windowSize: 4, minPatternLength: 1, requiredRepeats: 3);
+        sut.Record("A");
+        sut.Record("B");
+        sut.Record("C");
+        sut.Record("A");
+        sut.Record("B");
+        sut.Record("C");
+        sut.Record("A");
+        sut.Record("B");
+        sut.Record("C");
+
+        var result = sut.Record("A");
+
+        Assert.False(result.IsLoopDetected);
+    }
+
+    [Fact]
+    public void Record_OverWindowSize_TrimKeepsRecentSequence()
+    {
+        var sut = new ToolCallSequenceDetector(windowSize: 4, minPatternLength: 2, requiredRepeats: 3);
+        for (var i = 0; i < 50; i++)
+        {
+            sut.Record($"T{i}");
+        }
+
+        sut.Record("X");
+        sut.Record("Y");
+        sut.Record("X");
+        sut.Record("Y");
+        sut.Record("X");
+        var result = sut.Record("Y");
+
+        Assert.True(result.IsLoopDetected);
+        Assert.Equal("X→Y", result.RepeatedPattern);
+    }
+
+    [Fact]
+    public void Record_SingleArgumentOverload_PassesNullFingerprint()
+    {
+        var sut = new ToolCallSequenceDetector(minPatternLength: 2, requiredRepeats: 2);
+        sut.Record("Read");
+        sut.Record("Grep");
+        sut.Record("Read");
+        var result = sut.Record("Grep");
+
+        Assert.True(result.IsLoopDetected);
+        Assert.True(result.ArgsMatched);
+    }
 }

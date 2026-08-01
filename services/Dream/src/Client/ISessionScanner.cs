@@ -1,4 +1,4 @@
-﻿
+
 namespace JoinCode.Dream.Services;
 
 /// <summary>
@@ -51,7 +51,7 @@ public sealed partial class DefaultSessionScanner : ISessionScanner
                 return Task.FromResult<IReadOnlyList<string>>(sessions);
             }
 
-            var sinceTime = new DateTime(sinceMs, DateTimeKind.Utc);
+            var sinceTime = new DateTime(sinceMs * TimeSpan.TicksPerMillisecond, DateTimeKind.Utc);
 
             foreach (var file in _fs.EnumerateFiles(sessionsDir, "*.jsonl", SearchOption.TopDirectoryOnly))
             {

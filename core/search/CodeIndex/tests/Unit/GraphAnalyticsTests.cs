@@ -246,6 +246,191 @@ public sealed class GraphAnalyticsTests : IDisposable
         AddToBucket(_store.CallsByFile, file, edge);
     }
 
+    [Fact]
+    public async Task DetectCommunitiesAsync_TwoClusters_ReturnsTwoCommunities()
+    {
+        InsertSymbol("A", "Ns.A", SymbolKind.Method, "a.cs", "Ns");
+        InsertSymbol("B", "Ns.B", SymbolKind.Method, "b.cs", "Ns");
+        InsertSymbol("C", "Ns.C", SymbolKind.Method, "c.cs", "Ns");
+        InsertSymbol("D", "Ns.D", SymbolKind.Method, "d.cs", "Ns");
+        InsertCallEdge("Ns.A", "Ns.B", "a.cs", 1, CallKind.Direct);
+        InsertCallEdge("Ns.C", "Ns.D", "c.cs", 1, CallKind.Direct);
+
+        var communities = await _analytics.DetectCommunitiesAsync(CancellationToken.None).ConfigureAwait(true);
+
+        Assert.Equal(2, communities.Count);
+    }
+
+    [Fact]
+    public async Task GetHubNodesAsync_TopTwo_ReturnsOrderedByDegree()
+    {
+        InsertCallEdge("A", "B", "a.cs", 1, CallKind.Direct);
+        InsertCallEdge("C", "B", "c.cs", 1, CallKind.Direct);
+        InsertCallEdge("B", "D", "b.cs", 1, CallKind.Direct);
+
+        var hubs = await _analytics.GetHubNodesAsync(2, CancellationToken.None).ConfigureAwait(true);
+
+        Assert.Equal(2, hubs.Count);
+        Assert.Equal("B", hubs[0].SymbolName);
+        Assert.Equal(3, hubs[0].TotalDegree);
+    }
+
+    [Fact]
+    public async Task GetHubNodesAsync_TopNZero_Throws()
+    {
+        await Assert.ThrowsAsync<ArgumentNullException>(() => _analytics.GetHubNodesAsync(0, CancellationToken.None)).ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task DetectDeadCodeAsync_PrivateMethodWithNoCaller_IsReported()
+    {
+        InsertMethod("Unused", "Ns.Unused", "file.cs", "private");
+
+        var dead = await _analytics.DetectDeadCodeAsync(CancellationToken.None).ConfigureAwait(true);
+
+        Assert.Single(dead);
+        Assert.Equal("Ns.Unused", dead[0].SymbolName);
+    }
+
+    [Fact]
+    public async Task DetectDeadCodeAsync_PublicMethod_IsNotReported()
+    {
+        InsertMethod("PublicApi", "Ns.PublicApi", "file.cs", "public");
+
+        var dead = await _analytics.DetectDeadCodeAsync(CancellationToken.None).ConfigureAwait(true);
+
+        Assert.Empty(dead);
+    }
+
+    [Fact]
+    public async Task DetectDeadCodeAsync_MethodWithCaller_IsNotReported()
+    {
+        InsertMethod("Used", "Ns.Used", "file.cs", "private");
+        InsertCallEdge("Ns.Caller", "Ns.Used", "file.cs", 1, CallKind.Direct);
+
+        var dead = await _analytics.DetectDeadCodeAsync(CancellationToken.None).ConfigureAwait(true);
+
+        Assert.Empty(dead);
+    }
+
+    [Fact]
+    public async Task ExtractSubgraphAsync_TwoHops_ReturnsExpectedNodes()
+    {
+        InsertCallEdge("A", "B", "a.cs", 1, CallKind.Direct);
+        InsertCallEdge("B", "C", "b.cs", 1, CallKind.Direct);
+
+        var result = await _analytics.ExtractSubgraphAsync("A", 2, CancellationToken.None).ConfigureAwait(true);
+
+        Assert.Contains("A", result.Nodes);
+        Assert.Contains("B", result.Nodes);
+        Assert.Contains("C", result.Nodes);
+        Assert.Equal(2, result.Edges.Count);
+    }
+
+    [Fact]
+    public async Task AnalyzeChangeImpactAsync_ChangedFile_ReachesCallers()
+    {
+        InsertMethod("Changed", "Ns.Changed", "changed.cs", "public");
+        InsertMethod("Caller", "Ns.Caller", "caller.cs", "public");
+        InsertCallEdge("Ns.Caller", "Ns.Changed", "caller.cs", 1, CallKind.Direct);
+
+        var result = await _analytics.AnalyzeChangeImpactAsync(["changed.cs"], CancellationToken.None).ConfigureAwait(true);
+
+        Assert.Contains("Ns.Changed", result.AffectedSymbols);
+        Assert.Contains("Ns.Caller", result.AffectedSymbols);
+        Assert.Contains("changed.cs", result.AffectedFiles);
+        Assert.Contains("caller.cs", result.AffectedFiles);
+    }
+
+    [Fact]
+    public async Task DetectCyclesAsync_NoCycles_ReturnsFalse()
+    {
+        InsertSymbol("A", "Ns.A", SymbolKind.Method, "a.cs", "Ns");
+        InsertSymbol("B", "Ns.B", SymbolKind.Method, "b.cs", "Ns");
+        InsertCallEdge("Ns.A", "Ns.B", "a.cs", 1, CallKind.Direct);
+
+        var result = await _analytics.DetectCyclesAsync(CancellationToken.None).ConfigureAwait(true);
+
+        Assert.False(result.HasCallCycles);
+        Assert.False(result.HasDependencyCycles);
+    }
+
+    [Fact]
+    public async Task DetectCyclesAsync_CallCycle_Detected()
+    {
+        InsertSymbol("A", "Ns.A", SymbolKind.Method, "a.cs", "Ns");
+        InsertSymbol("B", "Ns.B", SymbolKind.Method, "b.cs", "Ns");
+        InsertCallEdge("Ns.A", "Ns.B", "a.cs", 1, CallKind.Direct);
+        InsertCallEdge("Ns.B", "Ns.A", "b.cs", 1, CallKind.Direct);
+
+        var result = await _analytics.DetectCyclesAsync(CancellationToken.None).ConfigureAwait(true);
+
+        Assert.True(result.HasCallCycles);
+    }
+
+    [Fact]
+    public async Task TopologicalSortByLevelsAsync_LinearChain_ReturnsLevels()
+    {
+        InsertSymbol("A", "Ns.A", SymbolKind.Method, "a.cs", "Ns");
+        InsertSymbol("B", "Ns.B", SymbolKind.Method, "b.cs", "Ns");
+        InsertSymbol("C", "Ns.C", SymbolKind.Method, "c.cs", "Ns");
+        InsertCallEdge("Ns.A", "Ns.B", "a.cs", 1, CallKind.Direct);
+        InsertCallEdge("Ns.B", "Ns.C", "b.cs", 1, CallKind.Direct);
+
+        var levels = await _analytics.TopologicalSortByLevelsAsync(CancellationToken.None).ConfigureAwait(true);
+
+        Assert.Equal(3, levels.Count);
+    }
+
+    [Fact]
+    public async Task QueryAsync_NullQuery_Throws()
+    {
+        await Assert.ThrowsAsync<ArgumentNullException>(() => _analytics.QueryAsync(null!, 10, CancellationToken.None)).ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task FindPathAsync_NullFrom_Throws()
+    {
+        await Assert.ThrowsAsync<ArgumentNullException>(() => _analytics.FindPathAsync(null!, "B", CancellationToken.None)).ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task ExplainAsync_NullSymbolName_Throws()
+    {
+        await Assert.ThrowsAsync<ArgumentNullException>(() => _analytics.ExplainAsync(null!, CancellationToken.None)).ConfigureAwait(true);
+    }
+
+    private void InsertMethod(string name, string fqn, string file, string accessibility)
+    {
+        var symbol = new SymbolInfo
+        {
+            Name = name,
+            FullyQualifiedName = fqn,
+            Kind = SymbolKind.Method,
+            FilePath = file,
+            StartLine = 1,
+            EndLine = 1,
+            StartColumn = 1,
+            EndColumn = 1,
+            Accessibility = accessibility,
+        };
+
+        using var scope = _store.EnterWriteLock();
+        _store.SymbolsByFqn[fqn] = symbol;
+        if (!_store.SymbolsByName.TryGetValue(name, out var nameList))
+        {
+            nameList = new List<SymbolInfo>();
+            _store.SymbolsByName[name] = nameList;
+        }
+        nameList.Add(symbol);
+        if (!_store.SymbolsByFile.TryGetValue(file, out var fileList))
+        {
+            fileList = new List<SymbolInfo>();
+            _store.SymbolsByFile[file] = fileList;
+        }
+        fileList.Add(symbol);
+    }
+
     private static void AddToBucket<TKey>(Dictionary<TKey, List<CallEdge>> dict, TKey key, CallEdge edge) where TKey : notnull
     {
         if (!dict.TryGetValue(key, out var list))

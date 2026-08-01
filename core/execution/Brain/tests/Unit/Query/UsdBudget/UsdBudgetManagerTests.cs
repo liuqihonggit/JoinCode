@@ -142,6 +142,44 @@ public class UsdBudgetManagerTests : IAsyncDisposable
         result.Should().BeFalse();
     }
 
+    [Fact]
+    public async Task GetBudgetStatusAsync_ZeroBudget_ShouldReturnUnlimitedRemaining()
+    {
+        var configZero = new QueryEngineConfig { MaxUsdBudget = 0m };
+        var optionsMock = new Mock<IOptions<QueryEngineConfig>>();
+        optionsMock.SetupGet(o => o.Value).Returns(configZero);
+        await using var managerZero = new UsdBudgetManager(_costTrackerMock.Object, optionsMock.Object);
+
+        var status = await managerZero.GetBudgetStatusAsync().ConfigureAwait(true);
+
+        status.MaxBudget.Should().Be(0m);
+        status.Remaining.Should().Be(decimal.MaxValue);
+        status.UsagePercentage.Should().Be(0.0);
+        status.IsExceeded.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task IsBudgetExceededAsync_ExactlyAtBudgetLimit_ShouldReturnTrue()
+    {
+        await _manager.RecordCostAsync(10.0m, "call").ConfigureAwait(true);
+
+        var result = await _manager.IsBudgetExceededAsync().ConfigureAwait(true);
+
+        result.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task GetBudgetStatusAsync_ExactlyAtBudgetLimit_ShouldBeExceeded()
+    {
+        await _manager.RecordCostAsync(10.0m, "call").ConfigureAwait(true);
+
+        var status = await _manager.GetBudgetStatusAsync().ConfigureAwait(true);
+
+        status.TotalUsed.Should().Be(10.0m);
+        status.Remaining.Should().Be(0m);
+        status.IsExceeded.Should().BeTrue();
+    }
+
     public async ValueTask DisposeAsync()
     {
         await _manager.DisposeAsync().ConfigureAwait(true);

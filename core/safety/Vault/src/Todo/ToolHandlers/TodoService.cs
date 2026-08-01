@@ -30,12 +30,12 @@ public sealed partial class TodoService : ITodoService
                 {
                     _todos.TryRemove(todoId, out _);
                     deletedCount++;
-                }
 
-                if (_taskRuntime != null)
-                {
-                    var updateDeleted = new RuntimeTaskUpdate { Status = TaskExecutionStatus.Cancelled };
-                    pendingTasks.Add(_taskRuntime.UpdateTaskAsync(todoId, updateDeleted, cancellationToken));
+                    if (_taskRuntime != null)
+                    {
+                        var updateDeleted = new RuntimeTaskUpdate { Status = TaskExecutionStatus.Cancelled };
+                        pendingTasks.Add(_taskRuntime.UpdateTaskAsync(todoId, updateDeleted, cancellationToken));
+                    }
                 }
 
                 continue;

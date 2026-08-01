@@ -1,4 +1,5 @@
 global using JoinCode.Abstractions.Attributes;
+global using JoinCode.Abstractions.Clock;
 global using JoinCode.Abstractions.Configuration;
 global using JoinCode.Abstractions.Configuration.AppData;
 global using JoinCode.Abstractions.Configuration.Providers;
@@ -14,14 +15,18 @@ global using JoinCode.Abstractions.Models.Task;
 global using JoinCode.Abstractions.Security;
 global using JoinCode.Abstractions.Security.Permission;
 global using JoinCode.Abstractions.Utils;
+global using JoinCode.Abstractions.Pipeline;
 global using JoinCode.Abstractions.Prompts;
+global using JoinCode.Abstractions.Prompts.ToolPrompts;
 global using Core.Goal;
 global using Core.Scheduling;
 global using Core.Scheduling.Cron;
 global using Core.Scheduling.Tasks;
 global using Core.Hosting;
+global using JoinCode.Clock.DependencyInjection;
 
 global using Infrastructure.Localization;
+global using Microsoft.Extensions.DependencyInjection;
 global using Microsoft.Extensions.Logging.Abstractions;
 global using Microsoft.Extensions.Options;
 global using Moq;

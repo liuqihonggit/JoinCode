@@ -107,6 +107,7 @@ public sealed class GraphAnalytics : IGraphAnalytics
 
         var nodes = new HashSet<string>(StringComparer.Ordinal) { centerSymbol };
         var edges = new List<CallEdge>();
+        var edgeSet = new HashSet<CallEdge>();
         var frontier = new HashSet<string>(StringComparer.Ordinal) { centerSymbol };
 
         for (int i = 0; i < hops && frontier.Count > 0; i++)
@@ -119,7 +120,8 @@ public sealed class GraphAnalytics : IGraphAnalytics
                 {
                     foreach (var edge in callees)
                     {
-                        edges.Add(edge);
+                        if (edgeSet.Add(edge))
+                            edges.Add(edge);
                         if (nodes.Add(edge.CalleeSymbol))
                             nextFrontier.Add(edge.CalleeSymbol);
                     }
@@ -129,7 +131,8 @@ public sealed class GraphAnalytics : IGraphAnalytics
                 {
                     foreach (var edge in callers)
                     {
-                        edges.Add(edge);
+                        if (edgeSet.Add(edge))
+                            edges.Add(edge);
                         if (nodes.Add(edge.CallerSymbol))
                             nextFrontier.Add(edge.CallerSymbol);
                     }
@@ -239,17 +242,23 @@ public sealed class GraphAnalytics : IGraphAnalytics
             dag.AddNode(new DagNode<string> { Id = kvp.Key, Payload = kvp.Key });
         }
 
+        // Ensure nodes exist for symbols referenced only in CallEdges
         foreach (var edge in _store.CallEdges)
         {
-            if (dag.Nodes.ContainsKey(edge.CallerSymbol) && dag.Nodes.ContainsKey(edge.CalleeSymbol))
+            if (!dag.Nodes.ContainsKey(edge.CallerSymbol))
+                dag.AddNode(new DagNode<string> { Id = edge.CallerSymbol, Payload = edge.CallerSymbol });
+            if (!dag.Nodes.ContainsKey(edge.CalleeSymbol))
+                dag.AddNode(new DagNode<string> { Id = edge.CalleeSymbol, Payload = edge.CalleeSymbol });
+        }
+
+        foreach (var edge in _store.CallEdges)
+        {
+            dag.TryAddEdge(new DagEdge
             {
-                dag.TryAddEdge(new DagEdge
-                {
-                    FromId = edge.CallerSymbol,
-                    ToId = edge.CalleeSymbol,
-                    Label = edge.CallKind.ToString(),
-                });
-            }
+                FromId = edge.CallerSymbol,
+                ToId = edge.CalleeSymbol,
+                Label = edge.CallKind.ToString(),
+            });
         }
 
         return dag;
@@ -264,17 +273,23 @@ public sealed class GraphAnalytics : IGraphAnalytics
             dag.AddNode(new DagNode<string> { Id = kvp.Key, Payload = kvp.Key });
         }
 
+        // Ensure nodes exist for symbols referenced only in DepEdges
         foreach (var edge in _store.DepEdges)
         {
-            if (dag.Nodes.ContainsKey(edge.SourceSymbol) && dag.Nodes.ContainsKey(edge.TargetSymbol))
+            if (!dag.Nodes.ContainsKey(edge.SourceSymbol))
+                dag.AddNode(new DagNode<string> { Id = edge.SourceSymbol, Payload = edge.SourceSymbol });
+            if (!dag.Nodes.ContainsKey(edge.TargetSymbol))
+                dag.AddNode(new DagNode<string> { Id = edge.TargetSymbol, Payload = edge.TargetSymbol });
+        }
+
+        foreach (var edge in _store.DepEdges)
+        {
+            dag.TryAddEdge(new DagEdge
             {
-                dag.TryAddEdge(new DagEdge
-                {
-                    FromId = edge.SourceSymbol,
-                    ToId = edge.TargetSymbol,
-                    Label = edge.DependencyKind.ToString(),
-                });
-            }
+                FromId = edge.SourceSymbol,
+                ToId = edge.TargetSymbol,
+                Label = edge.DependencyKind.ToString(),
+            });
         }
 
         return dag;

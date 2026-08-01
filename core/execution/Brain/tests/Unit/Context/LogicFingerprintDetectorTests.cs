@@ -96,4 +96,31 @@ public sealed class LogicFingerprintDetectorTests
         Assert.False(LogicFingerprintResult.NoLoop.IsLoopDetected);
         Assert.Equal(0, LogicFingerprintResult.NoLoop.HitCount);
     }
+
+    [Fact]
+    public void Record_TextExactlyAtMinimumLength_Detected()
+    {
+        var sut = new LogicFingerprintDetector(fingerprintPrefixLen: 10, fingerprintSuffixLen: 10, hitThreshold: 2);
+        var text = new string('A', 20);
+
+        sut.Record(text);
+        var result = sut.Record(text);
+
+        Assert.True(result.IsLoopDetected);
+    }
+
+    [Fact]
+    public void Record_SamePrefixAndSuffix_DifferentMiddle_Detected()
+    {
+        var sut = new LogicFingerprintDetector(fingerprintPrefixLen: 10, fingerprintSuffixLen: 10, windowSize: 5, hitThreshold: 2);
+        var prefix = new string('A', 10);
+        var suffix = new string('Z', 10);
+        var text1 = prefix + new string('B', 80) + suffix;
+        var text2 = prefix + new string('C', 80) + suffix;
+
+        sut.Record(text1);
+        var result = sut.Record(text2);
+
+        Assert.True(result.IsLoopDetected);
+    }
 }

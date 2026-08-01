@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <RootNamespace>Bridge.Tests</RootNamespace>
@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="$(RepoRoot)foundation\Abstractions\Abstractions.csproj" />
+    <ProjectReference Include="$(RepoRoot)infrastructure\Infrastructure\Infrastructure.csproj" />
     <ProjectReference Include="$(RepoRoot)services\Bridge\src\Bridge.csproj" />
     <ProjectReference Include="$(RepoRoot)tests\Unit\Testing.Common\Testing.Common.csproj" />
     <ProjectReference Include="$(RepoRoot)foundation\Transport.Contracts\Transport.Contracts.csproj" />

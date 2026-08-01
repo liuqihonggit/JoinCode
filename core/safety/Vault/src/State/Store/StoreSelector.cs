@@ -4,7 +4,7 @@ namespace State;
 /// <summary>
 /// 派生状态选择器实现
 /// 仅当派生值变化时通知订阅者
-/// 使用不可变集合 + 无锁原子操作确保线程安全
+/// 使用不可变集合 + 轻量级锁确保线程安全，同时兼容值类型（含 tuple）选择结果
 /// </summary>
 public sealed class StoreSelector<TState, TSelected> : IStoreSelector<TState, TSelected>, IDisposable
     where TState : notnull
@@ -12,6 +12,7 @@ public sealed class StoreSelector<TState, TSelected> : IStoreSelector<TState, TS
     private readonly IStore<TState> _store;
     private readonly Func<TState, TSelected> _selector;
     private readonly IEqualityComparer<TSelected> _comparer;
+    private readonly object _valueLock = new();
     private ImmutableList<Action<TSelected>> _subscribers = ImmutableList<Action<TSelected>>.Empty;
 
     private TSelected _currentValue;
@@ -39,7 +40,16 @@ public sealed class StoreSelector<TState, TSelected> : IStoreSelector<TState, TS
     public Func<TState, TSelected> Selector => _selector;
 
     /// <inheritdoc />
-    public TSelected CurrentValue => Interlocked.CompareExchange(ref _currentValue, default!, default!);
+    public TSelected CurrentValue
+    {
+        get
+        {
+            lock (_valueLock)
+            {
+                return _currentValue;
+            }
+        }
+    }
 
     /// <inheritdoc />
     public IDisposable Subscribe(Action<TSelected> handler)
@@ -47,7 +57,16 @@ public sealed class StoreSelector<TState, TSelected> : IStoreSelector<TState, TS
         ThrowIfDisposed();
 
         ImmutableInterlocked.Update(ref _subscribers, s => s.Add(handler));
-        handler(Interlocked.CompareExchange(ref _currentValue, default!, default!));
+
+        try
+        {
+            handler(CurrentValue);
+        }
+        catch (Exception ex)
+        {
+            // 订阅者异常不应中断其他订阅者的通知，但需记录日志
+            System.Diagnostics.Trace.WriteLine($"StoreSelector subscriber threw: {ex.Message}");
+        }
 
         return new SelectorSubscriptionDisposable(this, handler);
     }
@@ -58,14 +77,21 @@ public sealed class StoreSelector<TState, TSelected> : IStoreSelector<TState, TS
     private void OnStoreStateChanged(StateChangedEventArgs<TState> args)
     {
         var newValue = _selector(args.NewState);
-        var oldValue = Interlocked.CompareExchange(ref _currentValue, default!, default!);
+        TSelected oldValue;
+        lock (_valueLock)
+        {
+            oldValue = _currentValue;
+        }
 
         if (_comparer.Equals(oldValue, newValue))
         {
             return;
         }
 
-        Interlocked.Exchange(ref _currentValue, newValue);
+        lock (_valueLock)
+        {
+            _currentValue = newValue;
+        }
 
         var snapshot = Volatile.Read(ref _subscribers);
         foreach (var subscriber in snapshot)

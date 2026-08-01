@@ -75,4 +75,26 @@ public sealed class MagicDocDetectorTests
         result.Should().NotBeNull();
         result!.Title.Should().Be("Spaced Title");
     }
+
+    [Fact]
+    public void Detect_WithNonItalicInstruction_CloseToHeader_IgnoresInstruction()
+    {
+        var content = "# MAGIC DOC: Title\nNot italic text";
+
+        var result = MagicDocDetector.Detect(content);
+
+        result.Should().NotBeNull();
+        result!.CustomInstructions.Should().BeNull();
+    }
+
+    [Fact]
+    public void Detect_WithItalicInstruction_AtBoundaryFive_IgnoresInstruction()
+    {
+        var content = "# MAGIC DOC: Title\n1234\n_Italic instruction_";
+
+        var result = MagicDocDetector.Detect(content);
+
+        result.Should().NotBeNull();
+        result!.CustomInstructions.Should().BeNull();
+    }
 }

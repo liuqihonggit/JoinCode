@@ -18,7 +18,7 @@ public sealed partial class GoalStateValidationMiddleware : IGoalLifecycleMiddle
             GoalOperation.Start => status != GoalStatus.Pursuing,
             GoalOperation.Pause => status == GoalStatus.Pursuing,
             GoalOperation.Resume => status == GoalStatus.Paused,
-            GoalOperation.Clear => status != GoalStatus.Unmet || ctx.State.GoalId is not null,
+            GoalOperation.Clear => status != GoalStatus.Unmet || !string.IsNullOrEmpty(ctx.State.GoalId),
             GoalOperation.MarkCompleted => status == GoalStatus.Pursuing,
             GoalOperation.MarkUnmet => status == GoalStatus.Pursuing,
             _ => true

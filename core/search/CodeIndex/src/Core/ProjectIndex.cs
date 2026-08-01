@@ -47,7 +47,7 @@ internal sealed class ProjectIndex
 
         var workspaceRoot = Path.GetDirectoryName(solutionPath) ?? string.Empty;
         var parseResult = solutionPath.EndsWith(".slnx", StringComparison.OrdinalIgnoreCase)
-            ? SolutionParser.ParseSlnx(solutionPath)
+            ? SolutionParser.ParseSlnx(solutionPath, _fs)
             : SolutionParser.ParseSln(solutionPath, _fs);
 
         foreach (var entry in parseResult.Projects)

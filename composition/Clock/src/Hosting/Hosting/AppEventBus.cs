@@ -34,6 +34,8 @@ public sealed class AppEventBus : IAppEventBus
                 SessionId = appEvent.SessionId
             });
 
+        message = message with { Timestamp = appEvent.Timestamp };
+
         await _messageBus.PublishAsync(message, ct).ConfigureAwait(false);
     }
 

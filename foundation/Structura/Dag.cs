@@ -360,7 +360,6 @@ public sealed class Dag<T>
 
     private void DfsFindCycles(string nodeId, HashSet<string> visited, HashSet<string> stack, List<string> path, List<IReadOnlyList<string>> cycles)
     {
-        if (visited.Contains(nodeId)) return;
         if (stack.Contains(nodeId))
         {
             var cycleStart = path.IndexOf(nodeId);
@@ -371,6 +370,8 @@ public sealed class Dag<T>
             }
             return;
         }
+
+        if (visited.Contains(nodeId)) return;
 
         visited.Add(nodeId);
         stack.Add(nodeId);

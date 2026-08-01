@@ -23,6 +23,8 @@ public sealed class BootstrapWorktreeManager : IBootstrapWorktreeManager
         ArgumentNullException.ThrowIfNull(gitRoot);
         ct.ThrowIfCancellationRequested();
 
+        await CleanupStaleBranchesAsync(gitRoot, ct).ConfigureAwait(false);
+
         var effectiveBaseRef = baseRef ?? "HEAD";
         var branchName = $"doctor-bootstrap-{DateTimeOffset.UtcNow:yyyyMMdd-HHmmss}";
         var worktreePath = Path.Combine(gitRoot, ".jcc", "worktrees", "doctor-bootstrap");
@@ -135,6 +137,47 @@ public sealed class BootstrapWorktreeManager : IBootstrapWorktreeManager
         }
 
         _current = null;
+    }
+
+    private static async Task CleanupStaleBranchesAsync(string gitRoot, CancellationToken ct)
+    {
+        try
+        {
+            var branchList = await ExecuteGitCommandAsync(gitRoot, "branch --list doctor-bootstrap-*", ct).ConfigureAwait(false);
+            if (string.IsNullOrWhiteSpace(branchList))
+            {
+                return;
+            }
+
+            var branches = branchList.Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                .Select(b => b.Trim().TrimStart('*').Trim())
+                .Where(b => b.StartsWith("doctor-bootstrap-", StringComparison.Ordinal))
+                .ToList();
+
+            if (branches.Count == 0)
+            {
+                return;
+            }
+
+            DoctorDiag.Write($"[Doctor] 清理 {branches.Count} 个残留的 doctor-bootstrap 分支");
+
+            foreach (var branch in branches)
+            {
+                try
+                {
+                    await ExecuteGitCommandAsync(gitRoot, $"branch -D {branch}", ct).ConfigureAwait(false);
+                    DoctorDiag.Write($"[Doctor] 已删除残留分支: {branch}");
+                }
+                catch (Exception ex)
+                {
+                    DoctorDiag.WriteError($"[Doctor] 删除残留分支失败: {branch}, {ex.Message}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            DoctorDiag.WriteError($"[Doctor] 清理残留分支时出错（非致命）: {ex.Message}");
+        }
     }
 
     private static async Task<string> ExecuteGitCommandAsync(string workingDir, string arguments, CancellationToken ct)

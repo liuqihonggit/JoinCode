@@ -8,9 +8,9 @@
       "low": 60
     },
     "reporters": [
-      "html",
-      "progress",
-      "clear-text"
+      "Html",
+      "Progress",
+      "ClearText"
     ],
     "coverage-analysis": "perTest",
     "mutate": [

@@ -1,0 +1,24 @@
+{
+  "stryker-config": {
+    "solution": "../../../../App.slnx",
+    "project": "JoinCode.csproj",
+    "thresholds": {
+      "break": 0,
+      "high": 80,
+      "low": 60
+    },
+    "reporters": [
+      "html",
+      "progress",
+      "clear-text"
+    ],
+    "coverage-analysis": "perTest",
+    "mutate": [
+      "!**/GlobalUsings.cs",
+      "!**/AssemblyInfo.cs"
+    ],
+    "concurrency": 2,
+    "additional-timeout": 5000,
+    "verbosity": "info"
+  }
+}

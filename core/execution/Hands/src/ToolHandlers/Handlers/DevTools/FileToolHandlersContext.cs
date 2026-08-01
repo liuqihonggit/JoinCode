@@ -15,7 +15,8 @@ public sealed record FileToolHandlersContext(
     ITeamMemSecretGuard? TeamMemSecretGuard = null,
     IFileReadListenerRegistry? FileReadListenerRegistry = null,
     ILspDiagnosticProvider? LspDiagnosticProvider = null,
-    ApplyPatchLogic? ApplyPatchLogic = null)
+    ApplyPatchLogic? ApplyPatchLogic = null,
+    ISubAgentContextAccessor? SubAgentContextAccessor = null)
 {
     public static FileToolHandlersContext FromServiceProvider(IServiceProvider sp) => new(
         SandboxManager: sp.GetService<ISandboxManager>(),
@@ -29,5 +30,6 @@ public sealed record FileToolHandlersContext(
         TeamMemSecretGuard: sp.GetService<ITeamMemSecretGuard>(),
         FileReadListenerRegistry: sp.GetService<IFileReadListenerRegistry>(),
         LspDiagnosticProvider: sp.GetService<ILspDiagnosticProvider>(),
-        ApplyPatchLogic: sp.GetService<ApplyPatchLogic>());
+        ApplyPatchLogic: sp.GetService<ApplyPatchLogic>(),
+        SubAgentContextAccessor: sp.GetService<ISubAgentContextAccessor>());
 }

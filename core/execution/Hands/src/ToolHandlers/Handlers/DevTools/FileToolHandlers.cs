@@ -43,6 +43,7 @@ public class FileToolHandlers : IDisposable
     private readonly ILspDiagnosticProvider? _lspDiagnosticProvider;
     private readonly IFileSystem _fs;
     private readonly ApplyPatchLogic? _applyPatchLogic;
+    private readonly ISubAgentContextAccessor? _subAgentContextAccessor;
 
     /// <summary>
     /// Default max read tokens (matches TS: DEFAULT_MAX_OUTPUT_TOKENS = 25000)
@@ -68,6 +69,7 @@ public class FileToolHandlers : IDisposable
         _fileReadListenerRegistry = context?.FileReadListenerRegistry;
         _lspDiagnosticProvider = context?.LspDiagnosticProvider;
         _applyPatchLogic = context?.ApplyPatchLogic;
+        _subAgentContextAccessor = context?.SubAgentContextAccessor;
     }
 
     [McpTool(FileToolNameConstants.FileRead, "Read a file from the local filesystem", "file", ConcurrencySafe = true)]
@@ -419,6 +421,17 @@ public class FileToolHandlers : IDisposable
             {
                 RecordFileMetrics(FileOperationType.Edit, FileOperationResult.Rejected);
                 return ResultBuilder.Error().WithText(settingsError).Build();
+            }
+        }
+
+        // 关键词维护 Agent 编辑校验 — 限制只有 keywordMaintenance Agent 能编辑 keyword-sections.json
+        if (IsKeywordSectionsPath(file_path) && _fs.FileExists(file_path))
+        {
+            var currentAgentType = _subAgentContextAccessor?.Current?.AgentType;
+            if (currentAgentType is not null && !currentAgentType.Equals("keywordMaintenance", StringComparison.OrdinalIgnoreCase))
+            {
+                RecordFileMetrics(FileOperationType.Edit, FileOperationResult.Rejected);
+                return ResultBuilder.Error().WithText("keyword-sections.json 只能由 keywordMaintenance Agent 编辑").Build();
             }
         }
 
@@ -967,6 +980,14 @@ public class FileToolHandlers : IDisposable
     {
         return filePath.StartsWith("\\\\", StringComparison.Ordinal)
                || filePath.StartsWith("//", StringComparison.Ordinal);
+    }
+
+    private static bool IsKeywordSectionsPath(string filePath)
+    {
+        if (string.IsNullOrEmpty(filePath))
+            return false;
+
+        return Path.GetFileName(filePath).Equals("keyword-sections.json", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>

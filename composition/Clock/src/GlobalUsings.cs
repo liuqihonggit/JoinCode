@@ -8,6 +8,7 @@ global using JoinCode.Abstractions.Configuration.Llm;
 global using JoinCode.Abstractions.Configuration.Settings;
 global using JoinCode.Abstractions.Interfaces;
 global using JoinCode.Abstractions.Interfaces.Scheduling;
+global using JoinCode.Abstractions.Prompts.ToolPrompts;
 global using JoinCode.Abstractions.LLM;
 global using JoinCode.Abstractions.LLM.Chat;
 global using JoinCode.Abstractions.Localization;

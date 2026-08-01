@@ -25,7 +25,7 @@ class Program
 
             // 3.1 --doctor: 医生模式 — spawn jcc.exe 子进程作为病人，监控运行状态并自动修复问题
             // 需要先构建 DI 容器以解析 IChatClient + IQueryService（LLM 服务）
-            if (options.DoctorMode || options.DoctorTestSuiteMode)
+            if (options.DoctorMode)
             {
                 var doctorFs = IO.FileSystem.FileSystemFactory.Create();
                 await Entry.StartupWorkflow.EnsureConfigFilesExistAsync(doctorFs);
@@ -44,10 +44,7 @@ class Program
 
                 try
                 {
-                    if (options.DoctorMode)
-                        return await Entry.DoctorModeRunner.RunAsync(options, doctorHost.Services);
-                    else
-                        return await Entry.DoctorModeRunner.RunTestSuiteAsync(options, doctorHost.Services);
+                    return await Entry.DoctorModeRunner.RunAsync(options, doctorHost.Services);
                 }
                 finally
                 {

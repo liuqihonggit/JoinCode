@@ -77,113 +77,6 @@ internal static class DoctorModeRunner
         }
     }
 
-    /// <summary>
-    /// 医生测试套件模式 — 执行内置功能测试用例（T001-T006）
-    /// </summary>
-    internal static async Task<int> RunTestSuiteAsync(CommandLineOptions options, IServiceProvider services)
-    {
-        Cli.TerminalHelper.Init();
-        Diag.WriteLine("[DOCTOR] 医生测试套件模式启动");
-
-        var fs = IO.FileSystem.FileSystemFactory.Create();
-        var processService = new IO.ProcessService.PhysicalProcessService();
-
-        var port = options.DoctorPort ?? 9902;
-
-        var (chatClient, queryService) = ResolveLlmServices(services);
-
-        var testSuite = new DoctorTestSuite();
-        var results = new List<DoctorTestCaseResult>();
-
-        foreach (var testCase in DoctorTestSuite.BuiltInTests)
-        {
-            Diag.WriteLine($"[DOCTOR] 执行测试: {testCase.TestCaseId} - {testCase.TestName}");
-
-            var testPort = port + results.Count;
-            var transport = new DoctorTcpServer(testPort);
-            var patientManager = new PatientProcessManager(processService);
-            var sourceEngine = new SourceCodeEngine(fs);
-            var worktreeMgr = new BootstrapWorktreeManager(fs);
-            var patchGenerator = new LlmCodePatchGenerator(queryService);
-            var guard = new DefaultBootstrapGuard(fs);
-
-            await using var agent = new BootstrapAgent(
-                chatClient, sourceEngine, worktreeMgr, patchGenerator, guard,
-                patientManager, fs, transport);
-
-            var patientArgs = DoctorTestSuite.BuildPatientArguments(testCase) + $" --doctor-endpoint http://localhost:{testPort}";
-            var workingDir = fs.GetCurrentDirectory();
-
-            var envVars = new Dictionary<string, string>
-            {
-                ["JCC_TEST_CASE_ID"] = testCase.TestCaseId
-            };
-
-            if (!string.IsNullOrWhiteSpace(options.Model))
-                envVars["JCC_MODEL_ID"] = options.Model;
-
-            var sw = System.Diagnostics.Stopwatch.StartNew();
-            try
-            {
-                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(testCase.TimeoutSeconds));
-                var report = await agent.RunWithPatientAsync(
-                    $"test-{testCase.TestCaseId}", patientArgs, workingDir, envVars, cts.Token).ConfigureAwait(false);
-                sw.Stop();
-
-                var status = DoctorTestSuite.DetermineTestStatus(report, testCase);
-                results.Add(new DoctorTestCaseResult
-                {
-                    TestCaseId = testCase.TestCaseId,
-                    TestName = testCase.TestName,
-                    Status = status,
-                    Duration = sw.Elapsed
-                });
-            }
-            catch (OperationCanceledException)
-            {
-                sw.Stop();
-                results.Add(new DoctorTestCaseResult
-                {
-                    TestCaseId = testCase.TestCaseId,
-                    TestName = testCase.TestName,
-                    Status = DoctorTestStatus.Hung,
-                    Duration = sw.Elapsed,
-                    ErrorMessage = $"测试超时 ({testCase.TimeoutSeconds}s): {testCase.TestName}"
-                });
-            }
-            catch (Exception ex)
-            {
-                sw.Stop();
-                results.Add(new DoctorTestCaseResult
-                {
-                    TestCaseId = testCase.TestCaseId,
-                    TestName = testCase.TestName,
-                    Status = DoctorTestStatus.Error,
-                    Duration = sw.Elapsed,
-                    ErrorMessage = ex.Message
-                });
-            }
-        }
-
-        var suiteReport = new DoctorTestSuiteReport
-        {
-            Results = results,
-            TotalCount = results.Count,
-            PassCount = results.Count(r => r.Status == DoctorTestStatus.Pass),
-            FailCount = results.Count(r => r.Status == DoctorTestStatus.Fail),
-            HungCount = results.Count(r => r.Status == DoctorTestStatus.Hung),
-            ErrorCount = results.Count(r => r.Status == DoctorTestStatus.Error),
-            SkippedCount = results.Count(r => r.Status == DoctorTestStatus.Skipped),
-            StartedAt = DateTimeOffset.UtcNow,
-            CompletedAt = DateTimeOffset.UtcNow,
-            IsAllPassed = results.All(r => r.Status == DoctorTestStatus.Pass)
-        };
-
-        PrintTestSuiteReport(suiteReport);
-
-        return suiteReport.IsAllPassed ? 0 : 1;
-    }
-
     private static (IChatClient, IQueryService) ResolveLlmServices(IServiceProvider services)
     {
         var queryEngine = services.GetService<IQueryEngine>();
@@ -282,7 +175,6 @@ internal static class DoctorModeRunner
 
         Cli.TerminalHelper.WriteLine($"  诊断数量:    {report.Diagnostics.Count}");
         Cli.TerminalHelper.WriteLine($"  修复数量:    {report.FixResults.Count}");
-        Cli.TerminalHelper.WriteLine($"  测试数量:    {report.TestResults.Count}");
         Cli.TerminalHelper.WriteLine($"  总体状态:    {report.Status}");
 
         if (report.Diagnostics.Count > 0)
@@ -293,62 +185,6 @@ internal static class DoctorModeRunner
             {
                 Cli.TerminalHelper.WriteLine($"  [{diag.Severity}] {diag.RuleId} (病人: {diag.PatientId}): {diag.Description}");
             }
-        }
-
-        if (report.TestResults.Count > 0)
-        {
-            Cli.TerminalHelper.NewLine();
-            Cli.TerminalHelper.WriteLine("  ── 测试结果 ──");
-            foreach (var test in report.TestResults)
-            {
-                var statusIcon = test.Status switch
-                {
-                    DoctorTestStatus.Pass => "✓",
-                    DoctorTestStatus.Fail => "✗",
-                    DoctorTestStatus.Hung => "⏱",
-                    _ => "?"
-                };
-                Cli.TerminalHelper.WriteLine($"  {statusIcon} {test.TestCaseId}: {test.TestName} ({test.Duration.TotalMilliseconds:F0}ms)");
-            }
-        }
-
-        Cli.TerminalHelper.WriteLine("═══════════════════════════════════════");
-    }
-
-    /// <summary>
-    /// 打印测试套件报告
-    /// </summary>
-    private static void PrintTestSuiteReport(DoctorTestSuiteReport report)
-    {
-        Cli.TerminalHelper.NewLine();
-        Cli.TerminalHelper.WriteLine("═══════════════════════════════════════");
-        Cli.TerminalHelper.WriteLine("  医生测试套件报告");
-        Cli.TerminalHelper.WriteLine("═══════════════════════════════════════");
-        Cli.TerminalHelper.WriteLine($"  总数:  {report.TotalCount}");
-        Cli.TerminalHelper.WriteLine($"  通过:  {report.PassCount}");
-        Cli.TerminalHelper.WriteLine($"  失败:  {report.FailCount}");
-        Cli.TerminalHelper.WriteLine($"  卡死:  {report.HungCount}");
-        Cli.TerminalHelper.WriteLine($"  错误:  {report.ErrorCount}");
-        Cli.TerminalHelper.WriteLine($"  跳过:  {report.SkippedCount}");
-        Cli.TerminalHelper.WriteLine($"  耗时:  {report.Duration.TotalSeconds:F1}s");
-        Cli.TerminalHelper.WriteLine($"  结果:  {(report.IsAllPassed ? "ALL PASSED" : "HAS FAILURES")}");
-
-        Cli.TerminalHelper.NewLine();
-        Cli.TerminalHelper.WriteLine("  ── 用例详情 ──");
-        foreach (var test in report.Results)
-        {
-            var statusIcon = test.Status switch
-            {
-                DoctorTestStatus.Pass => "PASS",
-                DoctorTestStatus.Fail => "FAIL",
-                DoctorTestStatus.Hung => "HUNG",
-                DoctorTestStatus.Error => "ERR ",
-                DoctorTestStatus.Skipped => "SKIP",
-                _ => "????"
-            };
-            Cli.TerminalHelper.WriteLine($"  [{statusIcon}] {test.TestCaseId}: {test.TestName} ({test.Duration.TotalMilliseconds:F0}ms)");
-            if (!string.IsNullOrEmpty(test.ErrorMessage))
-                Cli.TerminalHelper.WriteLine($"         {test.ErrorMessage}");
         }
 
         Cli.TerminalHelper.WriteLine("═══════════════════════════════════════");

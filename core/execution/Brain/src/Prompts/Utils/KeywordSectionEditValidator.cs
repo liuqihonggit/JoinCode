@@ -37,9 +37,12 @@ public static class KeywordSectionEditValidator
 
         var afterConfig = JsonSerializer.Deserialize(updatedContent, DynamicKeywordConfigJsonContext.Default.DynamicKeywordConfig);
 
-        var beforeConfig = JsonSerializer.Deserialize(originalContent, DynamicKeywordConfigJsonContext.Default.DynamicKeywordConfig);
-        if (beforeConfig is not null && afterConfig is not null && afterConfig.Sections.Count < beforeConfig.Sections.Count)
-            return "禁止删除已有 Section，只能追加关键词或新增 Section";
+        if (!string.IsNullOrWhiteSpace(originalContent))
+        {
+            var beforeConfig = JsonSerializer.Deserialize(originalContent, DynamicKeywordConfigJsonContext.Default.DynamicKeywordConfig);
+            if (beforeConfig is not null && afterConfig is not null && afterConfig.Sections.Count < beforeConfig.Sections.Count)
+                return "禁止删除已有 Section，只能追加关键词或新增 Section";
+        }
 
         return null;
     }

@@ -152,27 +152,43 @@ public sealed class PromptSectionGenerator : IIncrementalGenerator
         sb.AppendLine("public static partial class UserPromptKeywordAnalyzer");
         sb.AppendLine("{");
 
-        // 正则字段
         sb.AppendLine("    private static readonly Regex NegativePattern = new(");
         sb.AppendLine("        @\"\\b(wtf|wth|ffs|omfg|shit(ty|tiest)?|dumbass|horrible|awful|piss(ed|ing)? off|piece of (shit|crap|junk)|what the (fuck|hell)|fucking? (broken|useless|terrible|awful|horrible)|fuck you|screw (this|you)|so frustrating|this sucks|damn it)\\b\",");
         sb.AppendLine("        RegexOptions.IgnoreCase | RegexOptions.Compiled);");
         sb.AppendLine();
+
         sb.AppendLine("    private static readonly Regex KeepGoingPattern = new(");
         sb.AppendLine("        @\"\\b(keep going|go on|please continue|continue please)\\b\",");
         sb.AppendLine("        RegexOptions.IgnoreCase | RegexOptions.Compiled);");
         sb.AppendLine();
 
+        var allKeywords = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var s in keywordSections)
         {
-            var patternStr = string.Join("|", s.Keywords.Select(EscapeRegex));
-            var fieldName = $"{ToPascalCase(s.SectionName)}Pattern";
-            sb.AppendLine($"    private static readonly Regex {fieldName} = new(");
-            sb.AppendLine($"        @\"({patternStr})\",");
-            sb.AppendLine($"        RegexOptions.IgnoreCase | RegexOptions.Compiled);");
+            var dictFieldName = $"s_{ToCamelCase(s.SectionName)}Keywords";
+            sb.AppendLine($"    private static readonly HashSet<string> {dictFieldName} = new(StringComparer.OrdinalIgnoreCase)");
+            sb.AppendLine("    {");
+            for (var i = 0; i < s.Keywords.Length; i++)
+            {
+                var comma = i < s.Keywords.Length - 1 ? "," : "";
+                sb.AppendLine($"        \"{EscapeString(s.Keywords[i])}\"{comma}");
+                allKeywords.Add(s.Keywords[i]);
+            }
+            sb.AppendLine("    };");
             sb.AppendLine();
         }
 
-        // AnalyzeInput
+        sb.AppendLine("    private static readonly HashSet<string> s_allKeywords = new(StringComparer.OrdinalIgnoreCase)");
+        sb.AppendLine("    {");
+        var allKwList = allKeywords.ToList();
+        for (var i = 0; i < allKwList.Count; i++)
+        {
+            var comma = i < allKwList.Count - 1 ? "," : "";
+            sb.AppendLine($"        \"{EscapeString(allKwList[i])}\"{comma}");
+        }
+        sb.AppendLine("    };");
+        sb.AppendLine();
+
         sb.AppendLine("    public static UserPromptKeywordResult AnalyzeInput(string input)");
         sb.AppendLine("    {");
         sb.AppendLine("        if (string.IsNullOrWhiteSpace(input))");
@@ -192,16 +208,20 @@ public sealed class PromptSectionGenerator : IIncrementalGenerator
         sb.AppendLine("        }");
         sb.AppendLine();
 
+        sb.AppendLine("        var tokens = InputTokenizer.Tokenize(input, s_allKeywords);");
+        sb.AppendLine();
+
         foreach (var s in keywordSections)
         {
-            var fieldName = $"{ToPascalCase(s.SectionName)}Pattern";
+            var dictFieldName = $"s_{ToCamelCase(s.SectionName)}Keywords";
             var enumName = $"UserPromptKeywordType.{ToPascalCase(s.SectionName)}";
             var promptConst = $"{ToPascalCase(s.SectionName)}KeywordPrompt";
-            var matchVar = $"{ToCamelCase(s.SectionName)}Match";
 
-            sb.AppendLine($"        var {matchVar} = {fieldName}.Match(input);");
-            sb.AppendLine($"        if ({matchVar}.Success)");
-            sb.AppendLine($"            return new UserPromptKeywordResult {{ Type = {enumName}, MatchedKeyword = {matchVar}.Value, SuggestedPrompt = {promptConst} }};");
+            sb.AppendLine($"        foreach (var token in tokens)");
+            sb.AppendLine($"        {{");
+            sb.AppendLine($"            if ({dictFieldName}.Contains(token))");
+            sb.AppendLine($"                return new UserPromptKeywordResult {{ Type = {enumName}, MatchedKeyword = token, SuggestedPrompt = {promptConst} }};");
+            sb.AppendLine($"        }}");
             sb.AppendLine();
         }
 
@@ -220,13 +240,20 @@ public sealed class PromptSectionGenerator : IIncrementalGenerator
         foreach (var s in keywordSections)
         {
             var methodName = $"Matches{ToPascalCase(s.SectionName)}Keyword";
-            var fieldName = $"{ToPascalCase(s.SectionName)}Pattern";
-            sb.AppendLine($"    public static bool {methodName}(string input) =>");
-            sb.AppendLine($"        !string.IsNullOrWhiteSpace(input) && {fieldName}.IsMatch(input);");
+            var dictFieldName = $"s_{ToCamelCase(s.SectionName)}Keywords";
+            sb.AppendLine($"    public static bool {methodName}(string input)");
+            sb.AppendLine($"    {{");
+            sb.AppendLine($"        if (string.IsNullOrWhiteSpace(input)) return false;");
+            sb.AppendLine($"        var tokens = InputTokenizer.Tokenize(input, s_allKeywords);");
+            sb.AppendLine($"        foreach (var token in tokens)");
+            sb.AppendLine($"        {{");
+            sb.AppendLine($"            if ({dictFieldName}.Contains(token)) return true;");
+            sb.AppendLine($"        }}");
+            sb.AppendLine($"        return false;");
+            sb.AppendLine($"    }}");
             sb.AppendLine();
         }
 
-        // 提示词常量
         sb.AppendLine("    private const string NegativeKeywordPrompt = \"\"\"");
         sb.AppendLine("        The user seems frustrated or dissatisfied with the previous response.");
         sb.AppendLine("        Please:");
@@ -378,6 +405,18 @@ public sealed class PromptSectionGenerator : IIncrementalGenerator
             if (".+*?[](){}^$|\\".Contains(c))
                 sb.Append('\\');
             sb.Append(c);
+        }
+        return sb.ToString();
+    }
+
+    private static string EscapeString(string s)
+    {
+        var sb = new StringBuilder(s.Length);
+        foreach (var c in s)
+        {
+            if (c == '\\') sb.Append("\\\\");
+            else if (c == '"') sb.Append("\\\"");
+            else sb.Append(c);
         }
         return sb.ToString();
     }

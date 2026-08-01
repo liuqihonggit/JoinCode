@@ -66,10 +66,25 @@ public static class InputTokenizer
 
         var tokens = new List<string>(segments.Count * 2);
         var maxLen = 0;
+        var hasMultiWordKeywords = false;
         foreach (var kw in dictionary)
         {
             if (kw.Length > maxLen)
                 maxLen = kw.Length;
+            if (!hasMultiWordKeywords && ContainsSeparator(kw.AsSpan()))
+                hasMultiWordKeywords = true;
+        }
+
+        if (hasMultiWordKeywords)
+        {
+            foreach (var kw in dictionary)
+            {
+                if (!ContainsSeparator(kw.AsSpan()))
+                    continue;
+
+                if (input.Contains(kw, StringComparison.OrdinalIgnoreCase))
+                    tokens.Add(kw);
+            }
         }
 
         foreach (var seg in segments)
@@ -81,6 +96,16 @@ public static class InputTokenizer
         }
 
         return tokens.ToArray();
+    }
+
+    private static bool ContainsSeparator(ReadOnlySpan<char> s)
+    {
+        for (var i = 0; i < s.Length; i++)
+        {
+            if (SegmentSeparators.Contains(s[i]))
+                return true;
+        }
+        return false;
     }
 
     private static List<string> CoarseSplit(ReadOnlySpan<char> input)
@@ -131,8 +156,28 @@ public static class InputTokenizer
 
             if (!matched)
             {
-                tokens.Add(span.Slice(pos, 1).ToString());
-                pos++;
+                var ch = span[pos];
+                if (char.IsAsciiLetter(ch))
+                {
+                    var wordStart = pos;
+                    while (pos < span.Length && char.IsAsciiLetter(span[pos]))
+                        pos++;
+
+                    tokens.Add(span.Slice(wordStart, pos - wordStart).ToString());
+                }
+                else if (char.IsAsciiDigit(ch))
+                {
+                    var numStart = pos;
+                    while (pos < span.Length && char.IsAsciiDigit(span[pos]))
+                        pos++;
+
+                    tokens.Add(span.Slice(numStart, pos - numStart).ToString());
+                }
+                else
+                {
+                    tokens.Add(ch.ToString());
+                    pos++;
+                }
             }
         }
     }

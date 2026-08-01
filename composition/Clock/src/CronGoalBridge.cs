@@ -4,17 +4,21 @@ namespace Core.Goal;
 public sealed partial class CronGoalBridge : IAsyncDisposable
 {
     private readonly IGoalEngine _goalEngine;
+    private readonly ICronTaskStore _taskStore;
+    private readonly IAgentDefinitionProvider? _agentDefinitionProvider;
     [Inject] private readonly ILogger<CronGoalBridge>? _logger;
     private readonly CronScheduler _scheduler;
 
     public bool IsStarted { get; private set; }
 
-    public CronGoalBridge(ICronTaskStore taskStore, IGoalEngine goalEngine, ILogger<CronGoalBridge>? logger = null)
+    public CronGoalBridge(ICronTaskStore taskStore, IGoalEngine goalEngine, IAgentDefinitionProvider? agentDefinitionProvider = null, ILogger<CronGoalBridge>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(taskStore);
         ArgumentNullException.ThrowIfNull(goalEngine);
 
+        _taskStore = taskStore;
         _goalEngine = goalEngine;
+        _agentDefinitionProvider = agentDefinitionProvider;
         _logger = logger;
         _scheduler = new CronScheduler(new CronSchedulerOptions
         {
@@ -51,10 +55,62 @@ public sealed partial class CronGoalBridge : IAsyncDisposable
     {
         if (IsStarted) return;
 
+        await RegisterBackgroundAgentCronTasksAsync(ct).ConfigureAwait(false);
         await _scheduler.StartAsync(ct).ConfigureAwait(false);
         IsStarted = true;
         _logger?.LogInformation("[CronGoal] 桥接服务已启动");
     }
+
+    /// <summary>
+    /// 扫描后台 Agent 定义，为标记 is_background 的 Agent 自动注册 Cron 定时任务
+    /// </summary>
+    private async Task RegisterBackgroundAgentCronTasksAsync(CancellationToken ct)
+    {
+        if (_agentDefinitionProvider is null)
+            return;
+
+        try
+        {
+            var definitions = await _agentDefinitionProvider.GetAgentDefinitionsAsync(cancellationToken: ct).ConfigureAwait(false);
+            var backgroundAgents = definitions.Where(d => d.IsBackground).ToList();
+
+            foreach (var agent in backgroundAgents)
+            {
+                var existingTasks = await _taskStore.GetAllTasksAsync(ct).ConfigureAwait(false);
+                var alreadyRegistered = existingTasks.Any(t => t.Prompt.Contains(agent.AgentType, StringComparison.OrdinalIgnoreCase));
+
+                if (alreadyRegistered)
+                    continue;
+
+                var cronExpr = GetCronForAgent(agent.AgentType);
+                var prompt = BuildBackgroundAgentPrompt(agent);
+
+                var request = new CreateCronTaskRequest
+                {
+                    CronExpression = cronExpr,
+                    Prompt = prompt,
+                    IsRecurring = true,
+                    IsDurable = true
+                };
+
+                await _taskStore.AddTaskAsync(request, ct).ConfigureAwait(false);
+                _logger?.LogInformation("[CronGoal] 已为后台 Agent '{AgentType}' 注册 Cron 任务: {Cron}", agent.AgentType, cronExpr);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "[CronGoal] 注册后台 Agent Cron 任务失败");
+        }
+    }
+
+    private static string GetCronForAgent(string agentType) => agentType switch
+    {
+        "keywordMaintenance" => "0 */6 * * *",
+        _ => "0 */12 * * *"
+    };
+
+    private static string BuildBackgroundAgentPrompt(JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition agent) =>
+        $"使用 {agent.AgentType} Agent 执行后台维护任务：{agent.WhenToUse}";
 
     public async Task StopAsync(CancellationToken ct = default)
     {

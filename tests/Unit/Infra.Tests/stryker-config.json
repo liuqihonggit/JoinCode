@@ -1,6 +1,6 @@
 {
   "stryker-config": {
-    "solution": "../../../../App.slnx",
+    "solution": "../../../App.slnx",
     "project": "Infrastructure.csproj",
     "thresholds": {
       "break": 0,

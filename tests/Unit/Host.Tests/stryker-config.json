@@ -1,6 +1,6 @@
 {
   "stryker-config": {
-    "solution": "../../../../App.slnx",
+    "solution": "../../../App.slnx",
     "project": "JoinCode.csproj",
     "thresholds": {
       "break": 0,

@@ -36,38 +36,7 @@ public sealed partial class DynamicKeywordConfigService : IDynamicKeywordConfigS
     public DynamicKeywordConfig Config => _config;
 
     /// <inheritdoc/>
-    public DynamicKeywordMatchResult? TryMatch(string input)
-    {
-        if (string.IsNullOrWhiteSpace(input))
-            return null;
-
-        var currentConfig = _config;
-        var lowerInput = input.ToLowerInvariant();
-
-        foreach (var (sectionName, section) in currentConfig.Sections)
-        {
-            if (!section.Enabled || section.Keywords.Count == 0)
-                continue;
-
-            foreach (var keyword in section.Keywords)
-            {
-                if (string.IsNullOrEmpty(keyword))
-                    continue;
-
-                if (lowerInput.Contains(keyword.ToLowerInvariant(), StringComparison.OrdinalIgnoreCase))
-                {
-                    return new DynamicKeywordMatchResult
-                    {
-                        SectionName = sectionName,
-                        MatchedKeyword = keyword,
-                        CustomContent = section.CustomContent
-                    };
-                }
-            }
-        }
-
-        return null;
-    }
+    public DynamicKeywordMatchResult? TryMatch(string input) => DynamicKeywordMatcher.TryMatch(input, _config);
 
     /// <inheritdoc/>
     public event EventHandler? ConfigChanged;

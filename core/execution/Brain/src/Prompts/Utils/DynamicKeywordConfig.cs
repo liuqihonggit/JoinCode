@@ -31,3 +31,44 @@ public sealed record DynamicKeywordSection
     /// </summary>
     public string? CustomContent { get; init; }
 }
+
+/// <summary>
+/// 动态关键词匹配器 — 纯逻辑，可独立测试
+/// </summary>
+public static class DynamicKeywordMatcher
+{
+    /// <summary>
+    /// 在给定配置中匹配用户输入的关键词
+    /// </summary>
+    public static DynamicKeywordMatchResult? TryMatch(string input, DynamicKeywordConfig config)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+            return null;
+
+        var lowerInput = input.ToLowerInvariant();
+
+        foreach (var (sectionName, section) in config.Sections)
+        {
+            if (!section.Enabled || section.Keywords.Count == 0)
+                continue;
+
+            foreach (var keyword in section.Keywords)
+            {
+                if (string.IsNullOrEmpty(keyword))
+                    continue;
+
+                if (lowerInput.Contains(keyword.ToLowerInvariant(), StringComparison.OrdinalIgnoreCase))
+                {
+                    return new DynamicKeywordMatchResult
+                    {
+                        SectionName = sectionName,
+                        MatchedKeyword = keyword,
+                        CustomContent = section.CustomContent
+                    };
+                }
+            }
+        }
+
+        return null;
+    }
+}

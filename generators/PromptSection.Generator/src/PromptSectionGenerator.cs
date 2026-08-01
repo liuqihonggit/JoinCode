@@ -285,6 +285,18 @@ public sealed class PromptSectionGenerator : IIncrementalGenerator
 
         sb.AppendLine("        _ => null");
         sb.AppendLine("    };");
+        sb.AppendLine();
+        sb.AppendLine("    public static string? GetSectionContentForName(string name) => name.ToLowerInvariant() switch");
+        sb.AppendLine("    {");
+
+        foreach (var s in keywordSections)
+        {
+            var lowerName = s.SectionName.ToLowerInvariant();
+            sb.AppendLine($"        \"{lowerName}\" => global::Core.Prompts.Sections.{s.TypeName}.GetContent(),");
+        }
+
+        sb.AppendLine("        _ => null");
+        sb.AppendLine("    };");
         sb.AppendLine("}");
 
         context.AddSource("KeywordSectionMapper.g.cs", SourceText.From(sb.ToString(), Encoding.UTF8));

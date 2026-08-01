@@ -6,7 +6,7 @@ on:
       projects:
         description: 'Projects to test (comma-separated, e.g. Guard,Brain or ALL)'
         required: true
-        default: 'Guard'
+        default: 'ALL'
       concurrency:
         description: 'Parallel test sessions per runner'
         required: false
@@ -26,6 +26,10 @@ on:
           - '40'
           - '60'
           - '80'
+  workflow_run:
+    workflows: ['CI/CD']
+    types: [completed]
+    branches: [main]
   schedule:
     - cron: '0 3 * * 0'
 
@@ -43,26 +47,39 @@ jobs:
   prepare:
     name: Prepare
     runs-on: ubuntu-latest
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     outputs:
       matrix: ${{ steps.set.outputs.matrix }}
     steps:
       - name: Build matrix
         id: set
         run: |
-          ALL_PROJECTS='["Guard","Vault","Brain","Hands","Scheduling","McpToolDispatch","Llm","Agents","Reasoning","CodeIndex","Browser","Mcp","Eyes","Dream","Bridge","Composition","Clock","Infra","Host"]'
+          ALL_PROJECTS='["Guard","Vault","Brain-Context","Brain-Prompts","Brain-Other","Hands-ToolHandlers","Hands-Skills","Hands-Other","Scheduling","McpToolDispatch","Llm","Agents","Reasoning","CodeIndex","Browser","Mcp","Eyes","Dream","Bridge","Composition","Clock","Infra","Host"]'
           INPUT="${{ github.event.inputs.projects || 'ALL' }}"
           if [ "$INPUT" = "ALL" ]; then
             echo "matrix={\"include\":$(echo $ALL_PROJECTS | jq -c '[.[] | {project: .}]')}" >> $GITHUB_OUTPUT
           else
-            MATRIX=$(echo "$INPUT" | tr ',' '\n' | jq -R . | jq -s -c '[.[] | {project: .}]')
-            echo "matrix={\"include\":$MATRIX}" >> $GITHUB_OUTPUT
+            EXPANDED=""
+            IFS=',' read -ra PARTS <<< "$INPUT"
+            for part in "${PARTS[@]}"; do
+              trimmed=$(echo "$part" | xargs)
+              if [ "$trimmed" = "Brain" ]; then
+                EXPANDED="$EXPANDED,\"Brain-Context\",\"Brain-Prompts\",\"Brain-Other\""
+              elif [ "$trimmed" = "Hands" ]; then
+                EXPANDED="$EXPANDED,\"Hands-ToolHandlers\",\"Hands-Skills\",\"Hands-Other\""
+              else
+                EXPANDED="$EXPANDED,\"$trimmed\""
+              fi
+            done
+            EXPANDED="${EXPANDED#,}"
+            echo "matrix={\"include\":[$EXPANDED]}" >> $GITHUB_OUTPUT
           fi
 
   mutation-test:
     name: Stryker - ${{ matrix.project }}
     needs: prepare
     runs-on: windows-latest
-    timeout-minutes: 120
+    timeout-minutes: 60
     strategy:
       matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
       fail-fast: false
@@ -115,25 +132,29 @@ jobs:
           STRYKER_BREAK: ${{ github.event.inputs.break_threshold || '0' }}
         run: |
           $projectMap = @{
-            'Guard'           = @{ Dir = 'core\safety\Guard\tests\Unit';             Src = 'Guard.csproj' }
-            'Vault'           = @{ Dir = 'core\safety\Vault\tests\Unit';             Src = 'Vault.csproj' }
-            'Brain'           = @{ Dir = 'core\execution\Brain\tests\Unit';          Src = 'Brain.csproj' }
-            'Hands'           = @{ Dir = 'core\execution\Hands\tests\Unit';          Src = 'Hands.csproj' }
-            'Scheduling'      = @{ Dir = 'core\execution\Scheduling\tests\Unit';     Src = 'Scheduling.csproj' }
-            'McpToolDispatch' = @{ Dir = 'core\execution\McpToolDispatch\tests\Unit'; Src = 'McpToolDispatch.csproj' }
-            'Llm'             = @{ Dir = 'core\ai\Llm\tests\Unit';                  Src = 'Llm.csproj' }
-            'Agents'          = @{ Dir = 'core\ai\Agents\tests\Unit';               Src = 'Agents.csproj' }
-            'Reasoning'       = @{ Dir = 'core\ai\Reasoning\tests\Unit';            Src = 'Reasoning.csproj' }
-            'CodeIndex'       = @{ Dir = 'core\search\CodeIndex\tests\Unit';        Src = 'CodeIndex.csproj' }
-            'Browser'         = @{ Dir = 'core\search\Browser\tests\Unit';          Src = 'Browser.csproj' }
-            'Mcp'             = @{ Dir = 'services\Mcp\tests\Unit';                 Src = 'Mcp.csproj' }
-            'Eyes'            = @{ Dir = 'services\Eyes\tests\Unit';                Src = 'Eyes.csproj' }
-            'Dream'           = @{ Dir = 'services\Dream\tests\Unit';               Src = 'Dream.csproj' }
-            'Bridge'          = @{ Dir = 'services\Bridge\tests\Unit';              Src = 'Bridge.csproj' }
-            'Composition'     = @{ Dir = 'composition\Composition\tests\Unit';      Src = 'Composition.csproj' }
-            'Clock'           = @{ Dir = 'composition\Clock\tests\Unit';            Src = 'Clock.csproj' }
-            'Infra'           = @{ Dir = 'tests\Unit\Infra.Tests';                  Src = 'Infrastructure.csproj' }
-            'Host'            = @{ Dir = 'tests\Unit\Host.Tests';                   Src = 'JoinCode.csproj' }
+            'Guard'             = @{ Dir = 'core\safety\Guard\tests\Unit';             Src = 'Guard.csproj';           Mutate = @() }
+            'Vault'             = @{ Dir = 'core\safety\Vault\tests\Unit';             Src = 'Vault.csproj';           Mutate = @() }
+            'Brain-Context'     = @{ Dir = 'core\execution\Brain\tests\Unit';          Src = 'Brain.csproj';           Mutate = @('Context/**') }
+            'Brain-Prompts'     = @{ Dir = 'core\execution\Brain\tests\Unit';          Src = 'Brain.csproj';           Mutate = @('Prompts/**') }
+            'Brain-Other'       = @{ Dir = 'core\execution\Brain\tests\Unit';          Src = 'Brain.csproj';           Mutate = @('Cache/**','ContextFold/**','CostTracking/**','DependencyInjection/**','Planning/**','Query/**','Summary/**') }
+            'Hands-ToolHandlers'= @{ Dir = 'core\execution\Hands\tests\Unit';          Src = 'Hands.csproj';           Mutate = @('ToolHandlers/**') }
+            'Hands-Skills'      = @{ Dir = 'core\execution\Hands\tests\Unit';          Src = 'Hands.csproj';           Mutate = @('Skills/**') }
+            'Hands-Other'       = @{ Dir = 'core\execution\Hands\tests\Unit';          Src = 'Hands.csproj';           Mutate = @('Api/**','Build/**','Cache/**','DependencyInjection/**','FileOps/**','Integration/**','Network/**','Notebook/**','Serialization/**','Shell/**','System/**','Voice/**','Web/**') }
+            'Scheduling'        = @{ Dir = 'core\execution\Scheduling\tests\Unit';     Src = 'Scheduling.csproj';      Mutate = @() }
+            'McpToolDispatch'   = @{ Dir = 'core\execution\McpToolDispatch\tests\Unit'; Src = 'McpToolDispatch.csproj'; Mutate = @() }
+            'Llm'               = @{ Dir = 'core\ai\Llm\tests\Unit';                  Src = 'Llm.csproj';             Mutate = @() }
+            'Agents'            = @{ Dir = 'core\ai\Agents\tests\Unit';               Src = 'Agents.csproj';          Mutate = @() }
+            'Reasoning'         = @{ Dir = 'core\ai\Reasoning\tests\Unit';            Src = 'Reasoning.csproj';       Mutate = @() }
+            'CodeIndex'         = @{ Dir = 'core\search\CodeIndex\tests\Unit';        Src = 'CodeIndex.csproj';       Mutate = @() }
+            'Browser'           = @{ Dir = 'core\search\Browser\tests\Unit';          Src = 'Browser.csproj';         Mutate = @() }
+            'Mcp'               = @{ Dir = 'services\Mcp\tests\Unit';                 Src = 'Mcp.csproj';             Mutate = @() }
+            'Eyes'              = @{ Dir = 'services\Eyes\tests\Unit';                Src = 'Eyes.csproj';            Mutate = @() }
+            'Dream'             = @{ Dir = 'services\Dream\tests\Unit';               Src = 'Dream.csproj';           Mutate = @() }
+            'Bridge'            = @{ Dir = 'services\Bridge\tests\Unit';              Src = 'Bridge.csproj';          Mutate = @() }
+            'Composition'       = @{ Dir = 'composition\Composition\tests\Unit';      Src = 'Composition.csproj';     Mutate = @() }
+            'Clock'             = @{ Dir = 'composition\Clock\tests\Unit';            Src = 'Clock.csproj';           Mutate = @() }
+            'Infra'             = @{ Dir = 'tests\Unit\Infra.Tests';                  Src = 'Infrastructure.csproj';  Mutate = @() }
+            'Host'              = @{ Dir = 'tests\Unit\Host.Tests';                   Src = 'JoinCode.csproj';        Mutate = @() }
           }
 
           $name = $env:STRYKER_PROJECT
@@ -144,10 +165,21 @@ jobs:
           $concurrency = [int]$env:STRYKER_CONCURRENCY
           $breakThreshold = [int]$env:STRYKER_BREAK
 
-          Write-Host "Stryker: $name | Source: $($info.Src) | Dir: $testDir | Concurrency: $concurrency"
+          $strykerArgs = @("-p", $info.Src, "-c", $concurrency, "-b", $breakThreshold, "--threshold-low", "60", "--threshold-high", "80", "-r", "progress", "-r", "html", "-r", "json", "-r", "markdown")
+
+          if ($info.Mutate.Count -gt 0) {
+            $mutateList = @("!**/GlobalUsings.cs", "!**/AssemblyInfo.cs")
+            foreach ($m in $info.Mutate) {
+              $mutateList += $m
+            }
+            $mutateJson = $mutateList | ConvertTo-Json -Compress
+            $strykerArgs += @("--mutate", $mutateJson)
+          }
+
+          Write-Host "Stryker: $name | Source: $($info.Src) | Dir: $testDir | Concurrency: $concurrency | Mutate: $($info.Mutate.Count) patterns"
           Push-Location $testDir
           try {
-            dotnet-stryker -p $info.Src -c $concurrency -b $breakThreshold --threshold-low 60 --threshold-high 80 -r progress -r html -r json -r markdown
+            & dotnet-stryker @strykerArgs
           } finally {
             Pop-Location
           }

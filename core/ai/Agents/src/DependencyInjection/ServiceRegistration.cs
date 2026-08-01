@@ -1,5 +1,8 @@
 namespace JoinCode.Agents.DependencyInjection;
 
+using Core.Agents.Doctor;
+using JoinCode.Abstractions.Interfaces.Doctor;
+
 /// <summary>
 /// Agents 子系统的 DI 注册
 /// </summary>
@@ -8,6 +11,7 @@ public static partial class ServiceRegistration
     public static IServiceCollection AddAgentServices(this IServiceCollection services)
     {
         services.AddSingleton<Lazy<IWorktreePipelineOperations>>(sp => new Lazy<IWorktreePipelineOperations>(sp.GetRequiredService<IWorktreePipelineOperations>));
+        services.AddSingleton<IReflexionMemory, FileBasedReflexionMemory>();
         return services;
     }
 

@@ -1,30 +1,42 @@
 namespace JoinCode.Entry;
 
 using Core.Agents.Doctor;
+using JoinCode.Abstractions.Interfaces;
+using JoinCode.Abstractions.LLM;
 
 /// <summary>
 /// 医生模式运行器 — jcc.exe --doctor 入口
-/// spawn jcc.exe 子进程作为病人，监控运行状态并自动修复问题
+/// 启动病人进程获取遥测，LLM 判断是否需要修复 jcc 自身源码
 /// </summary>
 internal static class DoctorModeRunner
 {
     internal static async Task<int> RunAsync(CommandLineOptions options)
     {
         Cli.TerminalHelper.Init();
-        Diag.WriteLifecycle("[DOCTOR] 医生模式启动");
+        Diag.WriteLifecycle("[DOCTOR] 自举医生模式启动");
 
         var fs = IO.FileSystem.FileSystemFactory.Create();
         var processService = new IO.ProcessService.PhysicalProcessService();
 
         var port = options.DoctorPort ?? 9902;
         var transport = new DoctorTcpServer(port);
+        var patientManager = new PatientProcessManager(processService);
 
-        await using var doctor = new DoctorAgent(fs, processService, transport);
+        var sourceEngine = new SourceCodeEngine(fs);
+        var worktreeMgr = new BootstrapWorktreeManager(fs);
+        var patchGenerator = new LlmCodePatchGenerator(prompt => Task.FromResult(""));
+        var guard = new DefaultBootstrapGuard(fs);
+
+        var chatClient = ResolveChatClient(options);
+
+        await using var agent = new BootstrapAgent(
+            chatClient, sourceEngine, worktreeMgr, patchGenerator, guard,
+            patientManager, fs, transport);
 
         if (options.DoctorServerMode)
         {
             Diag.WriteLifecycle($"[DOCTOR] SSE 服务器模式，端口: {port}");
-            var report = await doctor.RunServerAsync(port).ConfigureAwait(false);
+            var report = await agent.RunServerAsync(port).ConfigureAwait(false);
             PrintReport(report);
             return report.Status switch
             {
@@ -41,7 +53,7 @@ internal static class DoctorModeRunner
 
         try
         {
-            var runReport = await doctor.RunAsync("patient-main", patientArgs, workingDir, cancellationToken: default).ConfigureAwait(false);
+            var runReport = await agent.RunWithPatientAsync("patient-main", patientArgs, workingDir).ConfigureAwait(false);
 
             PrintReport(runReport);
 
@@ -155,6 +167,11 @@ internal static class DoctorModeRunner
         PrintTestSuiteReport(suiteReport);
 
         return suiteReport.IsAllPassed ? 0 : 1;
+    }
+
+    private static IChatClient ResolveChatClient(CommandLineOptions options)
+    {
+        throw new NotImplementedException("IChatClient 需要通过 DI 容器解析，此处为临时占位");
     }
 
     /// <summary>

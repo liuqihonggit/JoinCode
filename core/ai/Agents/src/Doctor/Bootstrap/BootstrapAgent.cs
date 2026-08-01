@@ -4,9 +4,8 @@ using JoinCode.Abstractions.Interfaces;
 using JoinCode.Abstractions.Interfaces.Doctor;
 
 /// <summary>
-/// 自举后台 Agent — 独立进程，LLM 驱动，监控 jcc 运行状态并修复自身源码
-/// 启动: jcc --bootstrap
-/// 数据源: IPC 遥测 + 日志文件双源
+/// 自举后台 Agent — jcc --doctor 入口，LLM 驱动，监控病人遥测并修复 jcc 自身源码
+/// 数据源: IPC 遥测（病人进程）+ 日志文件双源
 /// 触发: LLM 判断 + 用户确认
 /// 修复: BootstrapLoop 源码工程闭环
 /// </summary>
@@ -20,6 +19,7 @@ public sealed class BootstrapAgent : IAsyncDisposable
     private readonly IReflexionMemory? _memory;
     private readonly IDoctorTransport _transport;
     private readonly DiagnosticEngine _diagnosticEngine;
+    private readonly PatientProcessManager _patientManager;
     private readonly IFileSystem _fs;
     private readonly List<DiagnosticReport> _pendingReports = [];
     private readonly SemaphoreSlim _reportsLock = new(1, 1);
@@ -47,6 +47,7 @@ public sealed class BootstrapAgent : IAsyncDisposable
         IBootstrapWorktreeManager worktreeMgr,
         ICodePatchGenerator patchGenerator,
         IBootstrapGuard guard,
+        PatientProcessManager patientManager,
         IFileSystem fs,
         IDoctorTransport? transport = null,
         IReflexionMemory? memory = null,
@@ -57,6 +58,7 @@ public sealed class BootstrapAgent : IAsyncDisposable
         _worktreeMgr = worktreeMgr ?? throw new ArgumentNullException(nameof(worktreeMgr));
         _patchGenerator = patchGenerator ?? throw new ArgumentNullException(nameof(patchGenerator));
         _guard = guard ?? throw new ArgumentNullException(nameof(guard));
+        _patientManager = patientManager ?? throw new ArgumentNullException(nameof(patientManager));
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _transport = transport ?? new DoctorTcpServer(9902);
         _memory = memory;
@@ -68,7 +70,195 @@ public sealed class BootstrapAgent : IAsyncDisposable
     }
 
     /// <summary>
-    /// 运行自举监控主循环
+    /// SSE 服务器模式 — 等待病人连接，接收遥测事件，LLM 判断后修复
+    /// 复用 DoctorAgent 的 SSE 服务器模式，但用 BootstrapLoop 替代 HotFixEngine
+    /// 韧性由 DoctorTcpServer/DoctorSseClient 的指数退避重连保证
+    /// </summary>
+    public async Task<DoctorReport> RunServerAsync(
+        int port = 9902,
+        CancellationToken ct = default)
+    {
+        var startedAt = DateTimeOffset.UtcNow;
+        DoctorDiag.Write($"[Bootstrap] SSE 服务器模式启动，端口: {port}");
+
+        var diagnostics = new List<DiagnosticReport>();
+        var fixResults = new List<HotFixResult>();
+
+        try
+        {
+            await _transport.ConnectAsync(ct).ConfigureAwait(false);
+            DoctorDiag.Write("[Bootstrap] SSE 服务器已启动，等待病人连接...");
+
+            while (!ct.IsCancellationRequested)
+            {
+                await Task.Delay(_debounceInterval, ct).ConfigureAwait(false);
+
+                List<DiagnosticReport> reportsToProcess;
+                await _reportsLock.WaitAsync(ct).ConfigureAwait(false);
+                try
+                {
+                    reportsToProcess = [.. _pendingReports];
+                    _pendingReports.Clear();
+                }
+                finally { _reportsLock.Release(); }
+
+                if (reportsToProcess.Count == 0) continue;
+
+                diagnostics.AddRange(reportsToProcess);
+                DoctorDiag.Write($"[Bootstrap] 累积 {reportsToProcess.Count} 个诊断报告，提交 LLM 判断");
+
+                var judgment = await LlmJudgeAsync(reportsToProcess, ct).ConfigureAwait(false);
+                if (!judgment.NeedsFix) continue;
+
+                var confirmed = await _confirmCallback(FormatConfirmMessage(judgment), judgment.Reasoning ?? "").ConfigureAwait(false);
+                if (!confirmed) continue;
+
+                var diagnostic = reportsToProcess[0];
+                var bootstrapLoop = new BootstrapLoop(_sourceEngine, _worktreeMgr, _patchGenerator, _guard, _fs, _memory);
+                var result = await bootstrapLoop.ExecuteAsync(diagnostic, ct: ct).ConfigureAwait(false);
+
+                if (result.Success)
+                {
+                    fixResults.Add(new HotFixResult
+                    {
+                        Success = true,
+                        PatientId = diagnostic.PatientId,
+                        Action = new HotFixAction { ActionType = HotFixActionType.SourceCodePatch, Description = result.Patch?.Description ?? "Bootstrap fix" },
+                        Description = $"修复成功: {result.Patch?.TargetFilePath}"
+                    });
+                }
+
+                ReportResult(result);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            DoctorDiag.Write("[Bootstrap] SSE 服务器被停止");
+        }
+
+        return new DoctorReport
+        {
+            Diagnostics = diagnostics,
+            FixResults = fixResults,
+            StartedAt = startedAt,
+            CompletedAt = DateTimeOffset.UtcNow,
+            Status = fixResults.Count == 0 ? DoctorReportStatus.Completed
+                : fixResults.All(r => r.Success) ? DoctorReportStatus.Completed
+                : DoctorReportStatus.PartiallyFixed
+        };
+    }
+
+    /// <summary>
+    /// 启动病人进程并运行自举监控主循环
+    /// </summary>
+    public async Task<DoctorReport> RunWithPatientAsync(
+        string patientId,
+        string patientArguments,
+        string? workingDirectory = null,
+        IReadOnlyDictionary<string, string>? environmentVariables = null,
+        CancellationToken ct = default)
+    {
+        DoctorDiag.Write($"[Bootstrap] 启动病人进程: {patientId}");
+        DoctorDiag.Write($"[Bootstrap] 病人参数: {patientArguments}");
+
+        var patient = await _patientManager.SpawnAsync(
+            patientId, patientArguments, workingDirectory, environmentVariables, ct).ConfigureAwait(false);
+
+        DoctorDiag.Write($"[Bootstrap] 病人已启动: PID={patient.ProcessId}, 等待遥测事件...");
+
+        await _transport.ConnectAsync(ct).ConfigureAwait(false);
+        DoctorDiag.Write("[Bootstrap] IPC 传输已连接");
+
+        var startedAt = DateTimeOffset.UtcNow;
+        var diagnostics = new List<DiagnosticReport>();
+        var fixResults = new List<HotFixResult>();
+
+        try
+        {
+            while (!ct.IsCancellationRequested)
+            {
+                var patientState = _patientManager.GetPatientInfo(patientId)?.State ?? PatientState.NotStarted;
+                if (patientState is PatientState.Completed or PatientState.Failed or PatientState.Killed)
+                {
+                    DoctorDiag.Write($"[Bootstrap] 病人进程已退出: {patientState}");
+                    break;
+                }
+
+                await Task.Delay(_debounceInterval, ct).ConfigureAwait(false);
+
+                List<DiagnosticReport> reportsToProcess;
+                await _reportsLock.WaitAsync(ct).ConfigureAwait(false);
+                try
+                {
+                    reportsToProcess = [.. _pendingReports];
+                    _pendingReports.Clear();
+                }
+                finally { _reportsLock.Release(); }
+
+                if (reportsToProcess.Count == 0) continue;
+
+                diagnostics.AddRange(reportsToProcess);
+                DoctorDiag.Write($"[Bootstrap] 累积 {reportsToProcess.Count} 个诊断报告，提交 LLM 判断");
+
+                var judgment = await LlmJudgeAsync(reportsToProcess, ct).ConfigureAwait(false);
+
+                if (!judgment.NeedsFix)
+                {
+                    DoctorDiag.Write($"[Bootstrap] LLM 判断: 无需源码修复 ({judgment.Reasoning})");
+                    continue;
+                }
+
+                DoctorDiag.Write($"[Bootstrap] LLM 判断: 需要修复 {judgment.TargetFile} (优先级: {judgment.Priority})");
+
+                var confirmed = await _confirmCallback(
+                    FormatConfirmMessage(judgment),
+                    judgment.Reasoning ?? "").ConfigureAwait(false);
+
+                if (!confirmed)
+                {
+                    DoctorDiag.Write("[Bootstrap] 用户拒绝修复，继续监控");
+                    continue;
+                }
+
+                var diagnostic = reportsToProcess[0];
+                var bootstrapLoop = new BootstrapLoop(
+                    _sourceEngine, _worktreeMgr, _patchGenerator, _guard, _fs, _memory);
+
+                var result = await bootstrapLoop.ExecuteAsync(diagnostic, workingDirectory, ct).ConfigureAwait(false);
+
+                if (result.Success)
+                {
+                    fixResults.Add(new HotFixResult
+                    {
+                        Success = true,
+                        PatientId = patientId,
+                        Action = new HotFixAction { ActionType = HotFixActionType.SourceCodePatch, Description = result.Patch?.Description ?? "Bootstrap fix" },
+                        Description = $"修复成功: {result.Patch?.TargetFilePath}"
+                    });
+                }
+
+                ReportResult(result);
+            }
+        }
+        catch (OperationCanceledException) { }
+
+        var finalPatient = _patientManager.GetPatientInfo(patientId);
+        var patients = new Dictionary<string, PatientInfo>();
+        if (finalPatient is not null) patients[patientId] = finalPatient;
+
+        return new DoctorReport
+        {
+            Patients = patients,
+            Diagnostics = diagnostics,
+            FixResults = fixResults,
+            StartedAt = startedAt,
+            CompletedAt = DateTimeOffset.UtcNow,
+            Status = fixResults.All(r => r.Success) ? DoctorReportStatus.Completed : DoctorReportStatus.PartiallyFixed
+        };
+    }
+
+    /// <summary>
+    /// 运行自举监控主循环（无病人进程，仅 IPC 监控）
     /// </summary>
     public async Task RunAsync(CancellationToken ct = default)
     {

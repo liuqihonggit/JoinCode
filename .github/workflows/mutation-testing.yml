@@ -1,0 +1,164 @@
+name: Mutation Testing
+
+on:
+  workflow_dispatch:
+    inputs:
+      projects:
+        description: 'Projects to test (comma-separated, e.g. Guard,Brain or ALL)'
+        required: true
+        default: 'Guard'
+      concurrency:
+        description: 'Parallel test sessions per runner'
+        required: false
+        default: '4'
+        type: choice
+        options:
+          - '2'
+          - '4'
+          - '8'
+      break_threshold:
+        description: 'Break threshold (0=never break, 60=fail if score<60%)'
+        required: false
+        default: '0'
+        type: choice
+        options:
+          - '0'
+          - '40'
+          - '60'
+          - '80'
+  schedule:
+    - cron: '0 3 * * 0'
+
+concurrency:
+  group: mutation-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+  DOTNET_NOLOGO: true
+  NUGET_XMLDOC_MODE: skip
+  NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+
+jobs:
+  prepare:
+    name: Prepare
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set.outputs.matrix }}
+    steps:
+      - name: Build matrix
+        id: set
+        run: |
+          ALL_PROJECTS='["Guard","Vault","Brain","Hands","Scheduling","McpToolDispatch","Llm","Agents","Reasoning","CodeIndex","Browser","Mcp","Eyes","Dream","Bridge","Composition","Clock","Infra","Host"]'
+          INPUT="${{ github.event.inputs.projects || 'ALL' }}"
+          if [ "$INPUT" = "ALL" ]; then
+            echo "matrix={\"include\":$(echo $ALL_PROJECTS | jq -c '[.[] | {project: .}]')}" >> $GITHUB_OUTPUT
+          else
+            MATRIX=$(echo "$INPUT" | tr ',' '\n' | jq -R . | jq -s -c '[.[] | {project: .}]')
+            echo "matrix={\"include\":$MATRIX}" >> $GITHUB_OUTPUT
+          fi
+
+  mutation-test:
+    name: Stryker - ${{ matrix.project }}
+    needs: prepare
+    runs-on: windows-latest
+    timeout-minutes: 120
+    strategy:
+      matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
+      fail-fast: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: 'global.json'
+
+      - name: Install Stryker.NET
+        run: dotnet tool install dotnet-stryker --global
+
+      - name: Cache NuGet Packages
+        uses: actions/cache@v5
+        with:
+          path: ${{ github.workspace }}/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Build.props') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+
+      - name: Build - ① Generators
+        run: dotnet build Generators.slnx -c Debug --no-incremental --nologo -m /p:SkipLocalPack=true
+
+      - name: Build - ② Foundation
+        run: dotnet build Foundation.slnx -c Debug --no-incremental --nologo -m /p:SkipLocalPack=true
+
+      - name: Build - ③ Infrastructure
+        run: dotnet build Infrastructure.slnx -c Debug --no-incremental --nologo -m /p:SkipLocalPack=true
+
+      - name: Build - ④ Core
+        run: dotnet build Core.slnx -c Debug --no-incremental --nologo -m /p:SkipLocalPack=true
+
+      - name: Build - ⑤ Services
+        run: dotnet build Services.slnx -c Debug --no-incremental --nologo -m /p:SkipLocalPack=true
+
+      - name: Build - ⑥ Composition
+        run: dotnet build Composition.slnx -c Debug --no-incremental --nologo -m /p:SkipLocalPack=true
+
+      - name: Build - ⑦ App
+        run: dotnet build App.slnx -c Debug --no-incremental --nologo -m /p:SkipLocalPack=true
+
+      - name: Run Stryker
+        shell: pwsh
+        env:
+          STRYKER_PROJECT: ${{ matrix.project }}
+          STRYKER_CONCURRENCY: ${{ github.event.inputs.concurrency || '4' }}
+          STRYKER_BREAK: ${{ github.event.inputs.break_threshold || '0' }}
+        run: |
+          $projectMap = @{
+            'Guard'           = @{ Dir = 'core\safety\Guard\tests\Unit';             Src = 'Guard.csproj' }
+            'Vault'           = @{ Dir = 'core\safety\Vault\tests\Unit';             Src = 'Vault.csproj' }
+            'Brain'           = @{ Dir = 'core\execution\Brain\tests\Unit';          Src = 'Brain.csproj' }
+            'Hands'           = @{ Dir = 'core\execution\Hands\tests\Unit';          Src = 'Hands.csproj' }
+            'Scheduling'      = @{ Dir = 'core\execution\Scheduling\tests\Unit';     Src = 'Scheduling.csproj' }
+            'McpToolDispatch' = @{ Dir = 'core\execution\McpToolDispatch\tests\Unit'; Src = 'McpToolDispatch.csproj' }
+            'Llm'             = @{ Dir = 'core\ai\Llm\tests\Unit';                  Src = 'Llm.csproj' }
+            'Agents'          = @{ Dir = 'core\ai\Agents\tests\Unit';               Src = 'Agents.csproj' }
+            'Reasoning'       = @{ Dir = 'core\ai\Reasoning\tests\Unit';            Src = 'Reasoning.csproj' }
+            'CodeIndex'       = @{ Dir = 'core\search\CodeIndex\tests\Unit';        Src = 'CodeIndex.csproj' }
+            'Browser'         = @{ Dir = 'core\search\Browser\tests\Unit';          Src = 'Browser.csproj' }
+            'Mcp'             = @{ Dir = 'services\Mcp\tests\Unit';                 Src = 'Mcp.csproj' }
+            'Eyes'            = @{ Dir = 'services\Eyes\tests\Unit';                Src = 'Eyes.csproj' }
+            'Dream'           = @{ Dir = 'services\Dream\tests\Unit';               Src = 'Dream.csproj' }
+            'Bridge'          = @{ Dir = 'services\Bridge\tests\Unit';              Src = 'Bridge.csproj' }
+            'Composition'     = @{ Dir = 'composition\Composition\tests\Unit';      Src = 'Composition.csproj' }
+            'Clock'           = @{ Dir = 'composition\Clock\tests\Unit';            Src = 'Clock.csproj' }
+            'Infra'           = @{ Dir = 'tests\Unit\Infra.Tests';                  Src = 'Infrastructure.csproj' }
+            'Host'            = @{ Dir = 'tests\Unit\Host.Tests';                   Src = 'JoinCode.csproj' }
+          }
+
+          $name = $env:STRYKER_PROJECT
+          $info = $projectMap[$name]
+          if (-not $info) { Write-Error "Unknown project: $name"; exit 1 }
+
+          $testDir = Join-Path $env:GITHUB_WORKSPACE $info.Dir
+          $concurrency = [int]$env:STRYKER_CONCURRENCY
+          $breakThreshold = [int]$env:STRYKER_BREAK
+
+          Write-Host "Stryker: $name | Source: $($info.Src) | Dir: $testDir | Concurrency: $concurrency"
+          Push-Location $testDir
+          try {
+            dotnet-stryker -p $info.Src -c $concurrency -b $breakThreshold --threshold-low 60 --threshold-high 80 -r progress -r html -r json -r markdown
+          } finally {
+            Pop-Location
+          }
+
+      - name: Upload Stryker Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stryker-report-${{ matrix.project }}
+          path: |
+            **/StrykerOutput/**/reports/mutation-report.html
+            **/StrykerOutput/**/reports/mutation-report.json
+            **/StrykerOutput/**/reports/mutation-report.md
+          retention-days: 30

@@ -67,7 +67,8 @@ internal sealed partial class SessionInitStep : IMiddleware<StartupContext>
     {
         if (goalEngine is null || cronTaskStore is null) return;
         var logger = services.GetService<ILogger<CronGoalBridge>>();
-        var bridge = new CronGoalBridge(cronTaskStore, goalEngine, logger);
+        var agentDefProvider = services.GetService<IAgentDefinitionProvider>();
+        var bridge = new CronGoalBridge(cronTaskStore, goalEngine, agentDefProvider, logger);
         await bridge.StartAsync(ct);
     }
 

@@ -4,6 +4,7 @@ namespace Core.Goal;
 public sealed partial class GoalHeartbeat : IGoalHeartbeat
 {
     private int _refcount;
+    private int _disposed;
     private readonly Dictionary<SessionActivityReason, int> _activeReasons = new();
     private PeriodicTimer? _heartbeatTimer;
     private Func<CancellationToken, ValueTask>? _heartbeatCallback;
@@ -167,6 +168,11 @@ public sealed partial class GoalHeartbeat : IGoalHeartbeat
 
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) == 1)
+        {
+            return;
+        }
+
         await _stateLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
         try
         {

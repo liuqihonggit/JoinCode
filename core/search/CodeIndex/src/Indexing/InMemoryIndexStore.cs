@@ -10,7 +10,7 @@ namespace JoinCode.CodeIndex.Persistence;
 [Register]
 public sealed partial class InMemoryIndexStore : IDisposable
 {
-    private readonly ReaderWriterLockSlim _lock = new();
+    private readonly ReaderWriterLockSlim _lock = new(LockRecursionPolicy.SupportsRecursion);
     private int _disposed;
 
     /// <summary>

@@ -17,7 +17,7 @@ internal sealed class CsprojParser
         ArgumentNullException.ThrowIfNull(filePath);
         ArgumentNullException.ThrowIfNull(fs);
 
-        var doc = XDocument.Load(filePath);
+        var doc = XDocument.Parse(fs.ReadAllText(filePath));
         var projectDir = Path.GetDirectoryName(filePath) ?? string.Empty;
         var name = Path.GetFileNameWithoutExtension(filePath);
 
@@ -159,7 +159,7 @@ internal sealed class CsprojParser
 
             try
             {
-                var doc = XDocument.Load(propsFile);
+                var doc = XDocument.Parse(fs.ReadAllText(propsFile));
                 foreach (var pg in doc.Descendants("PropertyGroup"))
                 {
                     foreach (var elem in pg.Elements())

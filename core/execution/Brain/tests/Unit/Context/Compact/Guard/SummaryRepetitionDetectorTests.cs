@@ -54,4 +54,69 @@ public class SummaryRepetitionDetectorTests
 
         result.IsRepetition.Should().BeFalse();
     }
+
+    [Fact]
+    public void Detect_ExactlyThreeParagraphs_ReturnsClean()
+    {
+        var summary = "First unique paragraph.\n" +
+                      "Second unique paragraph.\n" +
+                      "Third unique paragraph.";
+
+        var result = SummaryRepetitionDetector.Detect(summary);
+
+        result.IsRepetition.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Detect_ThreeParagraphsWithTwoSimilar_ReturnsRepetition()
+    {
+        var summary = "The system is running normally.\n" +
+                      "The system is running normally.\n" +
+                      "A completely different conclusion here.";
+
+        var result = SummaryRepetitionDetector.Detect(summary);
+
+        result.IsRepetition.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Detect_ExactlyAtSimilarityThreshold_CountsAsDuplicate()
+    {
+        var summary = "a b c d\n" +
+                      "a b c d e\n" +
+                      "x y z w\n" +
+                      "x y z w v";
+
+        var result = SummaryRepetitionDetector.Detect(summary, new SummaryRepetitionOptions { SimilarityThreshold = 0.8, RepetitionRatioThreshold = 0.4, WindowSize = 3 });
+
+        result.IsRepetition.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Detect_ExactlyAtRepetitionRatioThreshold_ReturnsClean()
+    {
+        var summary = "duplicate paragraph\n" +
+                      "duplicate paragraph\n" +
+                      "unique paragraph one\n" +
+                      "unique paragraph two\n" +
+                      "unique paragraph three";
+
+        var result = SummaryRepetitionDetector.Detect(summary);
+
+        result.IsRepetition.Should().BeFalse();
+        result.RepetitionRatio.Should().Be(0.4);
+    }
+
+    [Fact]
+    public void Detect_WithCustomOptions_UsesProvidedValues()
+    {
+        var summary = "a b c d\n" +
+                      "a b c d e\n" +
+                      "x y z w\n" +
+                      "x y z w v";
+
+        var result = SummaryRepetitionDetector.Detect(summary, new SummaryRepetitionOptions { SimilarityThreshold = 0.8, RepetitionRatioThreshold = 0.3, WindowSize = 3 });
+
+        result.IsRepetition.Should().BeTrue();
+    }
 }

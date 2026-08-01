@@ -1,7 +1,5 @@
 {
-  "stryker-config": {
-    "solution": "../../../../../Core.slnx",
-    "project": "Hands.csproj",
+  "stryker-config": {    "project": "Hands.csproj",
     "thresholds": {
       "break": 0,
       "high": 80,
@@ -10,7 +8,7 @@
     "reporters": [
       "html",
       "progress",
-      "clear-text"
+      "cleartext"
     ],
     "coverage-analysis": "perTest",
     "mutate": [

@@ -10,7 +10,7 @@
     "reporters": [
       "html",
       "progress",
-      "clear-text"
+      "cleartext"
     ],
     "coverage-analysis": "perTest",
     "mutate": [

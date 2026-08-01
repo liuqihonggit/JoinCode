@@ -128,7 +128,7 @@ public sealed class ConeOrchestrator
                 EntryStimulus = evidence.Content,
                 ProcessingPath = $"{role}证据链",
                 OutputConclusion = evidence.Content,
-                Confidence = (int)evidence.TrustLevel / 100.0,
+                Confidence = double.Parse(evidence.TrustLevel.ToValue()) / 100.0,
                 OpenQuestions = [],
             },
             FoldedSummary = $"[摘要] {evidence.Content} (信任度:{evidence.TrustLevel})",

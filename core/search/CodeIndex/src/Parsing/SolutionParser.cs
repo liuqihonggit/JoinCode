@@ -41,11 +41,12 @@ internal static class SolutionParser
         return new SolutionParseResult { Projects = projects };
     }
 
-    internal static SolutionParseResult ParseSlnx(string filePath)
+    internal static SolutionParseResult ParseSlnx(string filePath, IFileSystem fs)
     {
         ArgumentNullException.ThrowIfNull(filePath);
+        ArgumentNullException.ThrowIfNull(fs);
 
-        var doc = System.Xml.Linq.XDocument.Load(filePath);
+        var doc = XDocument.Parse(fs.ReadAllText(filePath));
         var solutionDir = Path.GetDirectoryName(filePath) ?? string.Empty;
         var projects = new List<SolutionProjectEntry>();
 

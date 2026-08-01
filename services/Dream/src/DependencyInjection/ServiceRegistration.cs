@@ -12,14 +12,9 @@ public static partial class ServiceRegistration
         this IServiceCollection services,
         Action<AutoDreamConfig>? configureOptions = null)
     {
-        if (configureOptions != null)
-        {
-            services.Configure(configureOptions);
-        }
-        else
-        {
-            services.AddSingleton(new AutoDreamConfig());
-        }
+        var config = new AutoDreamConfig();
+        configureOptions?.Invoke(config);
+        services.AddSingleton(config);
 
         return services;
     }
@@ -31,14 +26,9 @@ public static partial class ServiceRegistration
         this IServiceCollection services,
         Action<AutoDreamConfig>? configureOptions = null)
     {
-        if (configureOptions != null)
-        {
-            services.Configure(configureOptions);
-        }
-        else
-        {
-            services.AddSingleton(new AutoDreamConfig());
-        }
+        var config = new AutoDreamConfig();
+        configureOptions?.Invoke(config);
+        services.AddSingleton(config);
 
         return services;
     }

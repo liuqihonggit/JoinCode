@@ -262,8 +262,13 @@ public sealed class InMemoryFileSystem : IFileSystem
             return new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content), writable: true);
         }
 
-        if (mode == FileMode.Open && !exists)
-            throw new FileNotFoundException($"[GEN057] 文件未找到: {path}");
+        if (mode == FileMode.Open)
+        {
+            if (!exists)
+                throw new FileNotFoundException($"[GEN057] 文件未找到: {path}");
+            var bytes = ReadAllBytes(path);
+            return new MemoryStream(bytes, writable: false);
+        }
 
         if (mode == FileMode.Append)
         {

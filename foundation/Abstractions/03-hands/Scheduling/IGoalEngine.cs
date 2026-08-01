@@ -11,6 +11,7 @@ public interface IGoalEngine
         string objective,
         List<string>? constraints = null,
         int? tokenBudget = null,
+        string? systemPrompt = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>暂停目标</summary>
@@ -33,4 +34,7 @@ public interface IGoalEngine
 
     /// <summary>是否有目标正在运行</summary>
     bool IsRunning { get; }
+
+    /// <summary>等待目标引擎循环退出（完成、预算耗尽、暂停、清除等）</summary>
+    Task WaitForCompletionAsync(CancellationToken ct = default);
 }

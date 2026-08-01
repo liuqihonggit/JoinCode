@@ -62,22 +62,24 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
         string objective,
         List<string>? constraints = null,
         int? tokenBudget = null,
+        string? systemPrompt = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(objective);
 
         if (_lifecyclePipeline is not null)
         {
-            return await StartViaPipelineAsync(objective, constraints, tokenBudget, cancellationToken).ConfigureAwait(false);
+            return await StartViaPipelineAsync(objective, constraints, tokenBudget, systemPrompt, cancellationToken).ConfigureAwait(false);
         }
 
-        return await StartDirectAsync(objective, constraints, tokenBudget, cancellationToken).ConfigureAwait(false);
+        return await StartDirectAsync(objective, constraints, tokenBudget, systemPrompt, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<GoalState> StartViaPipelineAsync(
         string objective,
         List<string>? constraints,
         int? tokenBudget,
+        string? systemPrompt,
         CancellationToken cancellationToken)
     {
         await _stateLock.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -99,6 +101,8 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
             };
 
             _chatHistory.Clear();
+            if (!string.IsNullOrWhiteSpace(systemPrompt))
+                _chatHistory.AddSystemMessage(systemPrompt);
             _chatHistory.AddUserMessage(objective);
         }
         finally
@@ -147,6 +151,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
         string objective,
         List<string>? constraints,
         int? tokenBudget,
+        string? systemPrompt,
         CancellationToken cancellationToken)
     {
         await _stateLock.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -168,6 +173,8 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
             };
 
             _chatHistory.Clear();
+            if (!string.IsNullOrWhiteSpace(systemPrompt))
+                _chatHistory.AddSystemMessage(systemPrompt);
             _chatHistory.AddUserMessage(objective);
         }
         finally

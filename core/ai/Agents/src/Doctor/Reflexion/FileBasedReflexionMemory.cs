@@ -43,7 +43,7 @@ public sealed class FileBasedReflexionMemory : IReflexionMemory
             StoredAt = DateTimeOffset.UtcNow
         };
 
-        var fileName = $"{DateTimeOffset.UtcNow:yyyyMMdd-HHmmss}.json";
+        var fileName = $"{DateTimeOffset.UtcNow:yyyyMMdd-HHmmss-fff}.json";
         var filePath = Path.Combine(ruleDir, fileName);
         var json = JsonSerializer.Serialize(entry, ReflexionEntryJsonContext.Default.ReflexionEntry);
 
@@ -92,6 +92,74 @@ public sealed class FileBasedReflexionMemory : IReflexionMemory
         }
 
         return results;
+    }
+
+    public async Task<IReadOnlyList<ReflexionRuleStats>> GetStatisticsAsync(CancellationToken ct = default)
+    {
+        if (!_fs.DirectoryExists(_baseDir))
+            return [];
+
+        var stats = new List<ReflexionRuleStats>();
+
+        try
+        {
+            foreach (var ruleDir in _fs.EnumerateDirectories(_baseDir, "*", SearchOption.TopDirectoryOnly))
+            {
+                ct.ThrowIfCancellationRequested();
+
+                var ruleId = Path.GetFileName(ruleDir);
+                if (string.IsNullOrEmpty(ruleId)) continue;
+
+                var files = _fs.EnumerateFiles(ruleDir, "*.json", SearchOption.TopDirectoryOnly).ToList();
+                if (files.Count == 0) continue;
+
+                var totalAttempts = 0;
+                var successfulPatches = 0;
+                var failedPatches = 0;
+                var lastAttemptAt = DateTimeOffset.MinValue;
+
+                foreach (var file in files)
+                {
+                    ct.ThrowIfCancellationRequested();
+
+                    try
+                    {
+                        var json = await _fs.ReadAllTextAsync(file, ct).ConfigureAwait(false);
+                        var entry = JsonSerializer.Deserialize(json, ReflexionEntryJsonContext.Default.ReflexionEntry);
+                        if (entry is null) continue;
+
+                        totalAttempts++;
+                        if (entry.WasSuccessful) successfulPatches++;
+                        else failedPatches++;
+
+                        if (entry.StoredAt > lastAttemptAt)
+                            lastAttemptAt = entry.StoredAt;
+                    }
+                    catch (Exception ex)
+                    {
+                        DoctorDiag.WriteError($"[Doctor] 读取反思统计失败: {file}: {ex.Message}");
+                    }
+                }
+
+                if (totalAttempts > 0)
+                {
+                    stats.Add(new ReflexionRuleStats
+                    {
+                        RuleId = ruleId,
+                        TotalAttempts = totalAttempts,
+                        SuccessfulPatches = successfulPatches,
+                        FailedPatches = failedPatches,
+                        LastAttemptAt = lastAttemptAt
+                    });
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            DoctorDiag.WriteError($"[Doctor] 统计反思记忆失败: {ex.Message}");
+        }
+
+        return stats;
     }
 }
 

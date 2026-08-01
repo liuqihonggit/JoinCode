@@ -3,34 +3,12 @@ name: Mutation Testing
 on:
   workflow_dispatch:
     inputs:
-      project:
-        description: 'Test project to mutate (e.g. Guard, Brain, All)'
+      projects:
+        description: 'Projects to test (comma-separated, e.g. Guard,Brain or ALL)'
         required: true
         default: 'Guard'
-        type: choice
-        options:
-          - Guard
-          - Brain
-          - Hands
-          - Llm
-          - Agents
-          - Reasoning
-          - Vault
-          - Scheduling
-          - McpToolDispatch
-          - CodeIndex
-          - Browser
-          - Mcp
-          - Eyes
-          - Dream
-          - Bridge
-          - Composition
-          - Clock
-          - Infra
-          - Host
-          - All
       concurrency:
-        description: 'Parallel test sessions'
+        description: 'Parallel test sessions per runner'
         required: false
         default: '4'
         type: choice
@@ -62,10 +40,32 @@ env:
   NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
 
 jobs:
+  prepare:
+    name: Prepare
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set.outputs.matrix }}
+    steps:
+      - name: Build matrix
+        id: set
+        run: |
+          ALL_PROJECTS='["Guard","Vault","Brain","Hands","Scheduling","McpToolDispatch","Llm","Agents","Reasoning","CodeIndex","Browser","Mcp","Eyes","Dream","Bridge","Composition","Clock","Infra","Host"]'
+          INPUT="${{ github.event.inputs.projects || 'ALL' }}"
+          if [ "$INPUT" = "ALL" ]; then
+            echo "matrix={\"include\":$(echo $ALL_PROJECTS | jq -c '[.[] | {project: .}]')}" >> $GITHUB_OUTPUT
+          else
+            MATRIX=$(echo "$INPUT" | tr ',' '\n' | jq -R . | jq -s -c '[.[] | {project: .}]')
+            echo "matrix={\"include\":$MATRIX}" >> $GITHUB_OUTPUT
+          fi
+
   mutation-test:
-    name: Mutation Test - ${{ github.event.inputs.project || 'Guard' }}
+    name: Stryker - ${{ matrix.project }}
+    needs: prepare
     runs-on: windows-latest
-    timeout-minutes: 180
+    timeout-minutes: 120
+    strategy:
+      matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
+      fail-fast: false
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -110,72 +110,53 @@ jobs:
       - name: Run Stryker
         shell: pwsh
         env:
-          STRYKER_PROJECT: ${{ github.event.inputs.project || 'Guard' }}
+          STRYKER_PROJECT: ${{ matrix.project }}
           STRYKER_CONCURRENCY: ${{ github.event.inputs.concurrency || '4' }}
           STRYKER_BREAK: ${{ github.event.inputs.break_threshold || '0' }}
         run: |
           $projectMap = @{
-            'Guard'         = @{ Dir = 'core\safety\Guard\tests\Unit';           Src = 'Guard.csproj' }
-            'Vault'         = @{ Dir = 'core\safety\Vault\tests\Unit';           Src = 'Vault.csproj' }
-            'Brain'         = @{ Dir = 'core\execution\Brain\tests\Unit';        Src = 'Brain.csproj' }
-            'Hands'         = @{ Dir = 'core\execution\Hands\tests\Unit';        Src = 'Hands.csproj' }
-            'Scheduling'    = @{ Dir = 'core\execution\Scheduling\tests\Unit';   Src = 'Scheduling.csproj' }
+            'Guard'           = @{ Dir = 'core\safety\Guard\tests\Unit';             Src = 'Guard.csproj' }
+            'Vault'           = @{ Dir = 'core\safety\Vault\tests\Unit';             Src = 'Vault.csproj' }
+            'Brain'           = @{ Dir = 'core\execution\Brain\tests\Unit';          Src = 'Brain.csproj' }
+            'Hands'           = @{ Dir = 'core\execution\Hands\tests\Unit';          Src = 'Hands.csproj' }
+            'Scheduling'      = @{ Dir = 'core\execution\Scheduling\tests\Unit';     Src = 'Scheduling.csproj' }
             'McpToolDispatch' = @{ Dir = 'core\execution\McpToolDispatch\tests\Unit'; Src = 'McpToolDispatch.csproj' }
-            'Llm'           = @{ Dir = 'core\ai\Llm\tests\Unit';                Src = 'Llm.csproj' }
-            'Agents'        = @{ Dir = 'core\ai\Agents\tests\Unit';             Src = 'Agents.csproj' }
-            'Reasoning'     = @{ Dir = 'core\ai\Reasoning\tests\Unit';          Src = 'Reasoning.csproj' }
-            'CodeIndex'     = @{ Dir = 'core\search\CodeIndex\tests\Unit';      Src = 'CodeIndex.csproj' }
-            'Browser'       = @{ Dir = 'core\search\Browser\tests\Unit';        Src = 'Browser.csproj' }
-            'Mcp'           = @{ Dir = 'services\Mcp\tests\Unit';               Src = 'Mcp.csproj' }
-            'Eyes'          = @{ Dir = 'services\Eyes\tests\Unit';              Src = 'Eyes.csproj' }
-            'Dream'         = @{ Dir = 'services\Dream\tests\Unit';             Src = 'Dream.csproj' }
-            'Bridge'        = @{ Dir = 'services\Bridge\tests\Unit';            Src = 'Bridge.csproj' }
-            'Composition'   = @{ Dir = 'composition\Composition\tests\Unit';    Src = 'Composition.csproj' }
-            'Clock'         = @{ Dir = 'composition\Clock\tests\Unit';          Src = 'Clock.csproj' }
-            'Infra'         = @{ Dir = 'tests\Unit\Infra.Tests';                Src = 'Infrastructure.csproj' }
-            'Host'          = @{ Dir = 'tests\Unit\Host.Tests';                 Src = 'JoinCode.csproj' }
+            'Llm'             = @{ Dir = 'core\ai\Llm\tests\Unit';                  Src = 'Llm.csproj' }
+            'Agents'          = @{ Dir = 'core\ai\Agents\tests\Unit';               Src = 'Agents.csproj' }
+            'Reasoning'       = @{ Dir = 'core\ai\Reasoning\tests\Unit';            Src = 'Reasoning.csproj' }
+            'CodeIndex'       = @{ Dir = 'core\search\CodeIndex\tests\Unit';        Src = 'CodeIndex.csproj' }
+            'Browser'         = @{ Dir = 'core\search\Browser\tests\Unit';          Src = 'Browser.csproj' }
+            'Mcp'             = @{ Dir = 'services\Mcp\tests\Unit';                 Src = 'Mcp.csproj' }
+            'Eyes'            = @{ Dir = 'services\Eyes\tests\Unit';                Src = 'Eyes.csproj' }
+            'Dream'           = @{ Dir = 'services\Dream\tests\Unit';               Src = 'Dream.csproj' }
+            'Bridge'          = @{ Dir = 'services\Bridge\tests\Unit';              Src = 'Bridge.csproj' }
+            'Composition'     = @{ Dir = 'composition\Composition\tests\Unit';      Src = 'Composition.csproj' }
+            'Clock'           = @{ Dir = 'composition\Clock\tests\Unit';            Src = 'Clock.csproj' }
+            'Infra'           = @{ Dir = 'tests\Unit\Infra.Tests';                  Src = 'Infrastructure.csproj' }
+            'Host'            = @{ Dir = 'tests\Unit\Host.Tests';                   Src = 'JoinCode.csproj' }
           }
 
-          $projectName = $env:STRYKER_PROJECT
+          $name = $env:STRYKER_PROJECT
+          $info = $projectMap[$name]
+          if (-not $info) { Write-Error "Unknown project: $name"; exit 1 }
+
+          $testDir = Join-Path $env:GITHUB_WORKSPACE $info.Dir
           $concurrency = [int]$env:STRYKER_CONCURRENCY
           $breakThreshold = [int]$env:STRYKER_BREAK
 
-          function Run-StrykerForProject {
-            param([string]$Name, [hashtable]$Info)
-            $testDir = Join-Path $env:GITHUB_WORKSPACE $Info.Dir
-            Write-Host "::group::Stryker - $Name"
-            Write-Host "Source: $($Info.Src), Dir: $testDir"
-            Push-Location $testDir
-            try {
-              dotnet-stryker -p $Info.Src -c $concurrency -b $breakThreshold --threshold-low 60 --threshold-high 80 -r progress -r html -r json -r markdown
-              $exitCode = $LASTEXITCODE
-              if ($exitCode -ne 0) {
-                Write-Warning "[$Name] Mutation score below threshold (exit code $exitCode)"
-              }
-            } finally {
-              Pop-Location
-            }
-            Write-Host "::endgroup::"
-          }
-
-          if ($projectName -eq 'All') {
-            foreach ($name in $projectMap.Keys | Sort-Object) {
-              Run-StrykerForProject -Name $name -Info $projectMap[$name]
-            }
-          } else {
-            $info = $projectMap[$projectName]
-            if (-not $info) {
-              Write-Error "Unknown project: $projectName"
-              exit 1
-            }
-            Run-StrykerForProject -Name $projectName -Info $info
+          Write-Host "Stryker: $name | Source: $($info.Src) | Dir: $testDir | Concurrency: $concurrency"
+          Push-Location $testDir
+          try {
+            dotnet-stryker -p $info.Src -c $concurrency -b $breakThreshold --threshold-low 60 --threshold-high 80 -r progress -r html -r json -r markdown
+          } finally {
+            Pop-Location
           }
 
       - name: Upload Stryker Reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: stryker-reports-${{ github.event.inputs.project || 'Guard' }}
+          name: stryker-report-${{ matrix.project }}
           path: |
             **/StrykerOutput/**/reports/mutation-report.html
             **/StrykerOutput/**/reports/mutation-report.json

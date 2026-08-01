@@ -6,7 +6,7 @@ namespace Core.Context;
 
 /// <summary>
 /// 关键词注入中间件 — 检测用户输入关键词并注入对应提示词
-/// 优先级：硬编码关键词（UserPromptKeywordAnalyzer）→ 动态关键词（DynamicKeywordConfigService）
+/// 优先级：动态关键词（DynamicKeywordConfigService，~/.jcc/keyword-sections.json）→ 硬编码关键词（UserPromptKeywordAnalyzer，fallback）
 /// 未命中时记录 miss 事件，供后台 Agent 分析优化词表
 /// </summary>
 [Register(typeof(IAnalyzePreprocessMiddleware))]
@@ -25,42 +25,42 @@ public sealed partial class KeywordInjectionMiddleware : IAnalyzePreprocessMiddl
     /// <inheritdoc/>
     public async Task InvokeAsync(PreprocessContext context, MiddlewareDelegate<PreprocessContext> next, CancellationToken ct)
     {
-        var keywordResult = UserPromptKeywordAnalyzer.AnalyzeInput(context.Message);
-        context.KeywordResult = keywordResult;
-
-        if (keywordResult.HasPromptInjection)
+        var dynamicMatch = _dynamicKeywordService.TryMatch(context.Message);
+        if (dynamicMatch is not null)
         {
-            _logger?.LogDebug("[UserPromptInjection] 检测到关键词 '{Keyword}'，类型: {Type}",
-                keywordResult.MatchedKeyword, keywordResult.Type);
-
-            var injectionId = $"user-prompt-injection-{keywordResult.Type}";
-            await _reminderManager.AddReminderAsync(
-                injectionId,
-                keywordResult.SuggestedPrompt,
-                priority: 100,
-                ct: ct).ConfigureAwait(false);
-
-            var sectionContent = KeywordSectionMapper.GetSectionContentForKeywordType(keywordResult.Type);
-            if (sectionContent != null)
-            {
-                var sectionId = $"section-injection-{keywordResult.Type}";
-                await _reminderManager.AddReminderAsync(
-                    sectionId,
-                    sectionContent,
-                    priority: 90,
-                    ct: ct).ConfigureAwait(false);
-            }
-
-            _logger?.LogInformation("[UserPromptInjection] 已注入 {Type} 提示词", keywordResult.Type);
-
-            context.KeywordPromptInjectionInfo = $"[系统提示: 检测到 '{keywordResult.MatchedKeyword}' 关键词，已自动注入 {keywordResult.Type} 提示词]";
+            await InjectDynamicKeywordAsync(context, dynamicMatch, ct).ConfigureAwait(false);
         }
         else
         {
-            var dynamicMatch = _dynamicKeywordService.TryMatch(context.Message);
-            if (dynamicMatch is not null)
+            var keywordResult = UserPromptKeywordAnalyzer.AnalyzeInput(context.Message);
+            context.KeywordResult = keywordResult;
+
+            if (keywordResult.HasPromptInjection)
             {
-                await InjectDynamicKeywordAsync(context, dynamicMatch, ct).ConfigureAwait(false);
+                _logger?.LogDebug("[UserPromptInjection] 检测到关键词 '{Keyword}'，类型: {Type}",
+                    keywordResult.MatchedKeyword, keywordResult.Type);
+
+                var injectionId = $"user-prompt-injection-{keywordResult.Type}";
+                await _reminderManager.AddReminderAsync(
+                    injectionId,
+                    keywordResult.SuggestedPrompt,
+                    priority: 100,
+                    ct: ct).ConfigureAwait(false);
+
+                var sectionContent = KeywordSectionMapper.GetSectionContentForKeywordType(keywordResult.Type);
+                if (sectionContent != null)
+                {
+                    var sectionId = $"section-injection-{keywordResult.Type}";
+                    await _reminderManager.AddReminderAsync(
+                        sectionId,
+                        sectionContent,
+                        priority: 90,
+                        ct: ct).ConfigureAwait(false);
+                }
+
+                _logger?.LogInformation("[UserPromptInjection] 已注入 {Type} 提示词", keywordResult.Type);
+
+                context.KeywordPromptInjectionInfo = $"[系统提示: 检测到 '{keywordResult.MatchedKeyword}' 关键词，已自动注入 {keywordResult.Type} 提示词]";
             }
             else
             {

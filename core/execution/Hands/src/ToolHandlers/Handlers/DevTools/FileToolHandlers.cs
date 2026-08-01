@@ -435,6 +435,17 @@ public class FileToolHandlers : IDisposable
             }
         }
 
+        // doctor Agent 编辑校验 — 只能编辑 .jcc/diag/、.jcc/reflexion/ 和 worktree 内文件
+        var doctorAgentType = _subAgentContextAccessor?.Current?.AgentType;
+        if (doctorAgentType is not null && doctorAgentType.Equals("doctor", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!IsDoctorAllowedEditPath(file_path))
+            {
+                RecordFileMetrics(FileOperationType.Edit, FileOperationResult.Rejected);
+                return ResultBuilder.Error().WithText("doctor Agent 只能编辑 .jcc/diag/、.jcc/reflexion/ 和 worktree 内文件").Build();
+            }
+        }
+
         // Write-before-read validation for edits too
         if (_fileStateCache is not null && _fs.FileExists(file_path))
         {
@@ -988,6 +999,28 @@ public class FileToolHandlers : IDisposable
             return false;
 
         return Path.GetFileName(filePath).Equals("keyword-sections.json", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// doctor Agent 允许编辑的路径 — .jcc/diag/、.jcc/reflexion/、worktree 内文件
+    /// </summary>
+    private static bool IsDoctorAllowedEditPath(string filePath)
+    {
+        if (string.IsNullOrEmpty(filePath))
+            return false;
+
+        var normalized = filePath.Replace('\\', '/');
+
+        if (normalized.Contains("/.jcc/diag/", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (normalized.Contains("/.jcc/reflexion/", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (normalized.Contains("/worktree/", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return false;
     }
 
     /// <summary>

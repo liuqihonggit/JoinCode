@@ -106,6 +106,7 @@ public sealed partial class CronGoalBridge : IAsyncDisposable
     private static string GetCronForAgent(string agentType) => agentType switch
     {
         "keywordMaintenance" => "0 */6 * * *",
+        "doctor" => "0 */12 * * *",
         _ => "0 */12 * * *"
     };
 

@@ -92,9 +92,6 @@ public sealed record DoctorReport
     /// <summary>修复结果列表</summary>
     public IReadOnlyList<HotFixResult> FixResults { get; init; } = [];
 
-    /// <summary>测试结果列表</summary>
-    public IReadOnlyList<DoctorTestCaseResult> TestResults { get; init; } = [];
-
     /// <summary>开始时间</summary>
     public DateTimeOffset StartedAt { get; init; }
 
@@ -114,37 +111,4 @@ public enum DoctorReportStatus
     Completed,
     Failed,
     PartiallyFixed
-}
-
-/// <summary>
-/// 测试用例结果
-/// </summary>
-public sealed record DoctorTestCaseResult
-{
-    /// <summary>测试用例 ID</summary>
-    public required string TestCaseId { get; init; }
-
-    /// <summary>测试名称</summary>
-    public required string TestName { get; init; }
-
-    /// <summary>测试结果</summary>
-    public required DoctorTestStatus Status { get; init; }
-
-    /// <summary>执行耗时</summary>
-    public TimeSpan Duration { get; init; }
-
-    /// <summary>错误信息（失败时）</summary>
-    public string? ErrorMessage { get; init; }
-}
-
-/// <summary>
-/// 测试用例状态
-/// </summary>
-public enum DoctorTestStatus
-{
-    Pass,
-    Fail,
-    Hung,
-    Error,
-    Skipped
 }

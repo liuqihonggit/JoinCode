@@ -30,6 +30,11 @@ public enum AgentTypeDefinition
     /// 计划代理 — 架构设计与实施计划（只读，一次性）
     /// </summary>
     [EnumValue("Plan")] Plan,
+
+    /// <summary>
+    /// 医生代理 — 自举复盘与修复（后台运行，Cron 调度）
+    /// </summary>
+    [EnumValue("doctor")] Doctor,
 }
 
 /// <summary>

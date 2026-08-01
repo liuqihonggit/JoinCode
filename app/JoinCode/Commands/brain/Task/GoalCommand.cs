@@ -91,7 +91,7 @@ public sealed partial class GoalCommand : ChatCommandBase
                 parsed.Objective,
                 parsed.Constraints,
                 parsed.TokenBudget,
-                context.CancellationToken).ConfigureAwait(false);
+                cancellationToken: context.CancellationToken).ConfigureAwait(false);
             ShowGoalState(state);
         }
         catch (InvalidOperationException ex)

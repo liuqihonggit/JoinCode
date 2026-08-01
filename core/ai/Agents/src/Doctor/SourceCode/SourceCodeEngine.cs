@@ -234,6 +234,91 @@ public sealed class SourceCodeEngine : ISourceCodeEngine
         }
     }
 
+    public async Task<SourceCodeLocation> EnsureSourceAvailableAsync(
+        string? repoUrl = null,
+        CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        var envSourceDir = Environment.GetEnvironmentVariable("JCC_SOURCE_DIR");
+        if (!string.IsNullOrEmpty(envSourceDir) && _fs.DirectoryExists(Path.Combine(envSourceDir, ".git")))
+        {
+            DoctorDiag.Write($"[SourceCodeEngine] 策略1: JCC_SOURCE_DIR={envSourceDir}");
+            return await BuildLocationAsync(envSourceDir, ct).ConfigureAwait(false);
+        }
+
+        var exeGitRoot = SearchUpForGitRoot(AppContext.BaseDirectory);
+        if (exeGitRoot is not null)
+        {
+            DoctorDiag.Write($"[SourceCodeEngine] 策略2: exe目录搜索.git={exeGitRoot}");
+            return await BuildLocationAsync(exeGitRoot, ct).ConfigureAwait(false);
+        }
+
+        var cwdGitRoot = SearchUpForGitRoot(_fs.GetCurrentDirectory());
+        if (cwdGitRoot is not null)
+        {
+            DoctorDiag.Write($"[SourceCodeEngine] 策略2: cwd搜索.git={cwdGitRoot}");
+            return await BuildLocationAsync(cwdGitRoot, ct).ConfigureAwait(false);
+        }
+
+        if (!string.IsNullOrEmpty(repoUrl))
+        {
+            DoctorDiag.Write($"[SourceCodeEngine] 策略3: git clone {repoUrl}");
+            var cloneResult = await GitCloneAsync(repoUrl, ct).ConfigureAwait(false);
+            if (cloneResult.IsAvailable)
+                return cloneResult;
+        }
+
+        return new SourceCodeLocation
+        {
+            GitRoot = "",
+            IsAvailable = false,
+            FailureReason = "无法确保源码可用。请设置 JCC_SOURCE_DIR 环境变量、在源码目录中运行、或提供 repoUrl"
+        };
+    }
+
+    private async Task<SourceCodeLocation> GitCloneAsync(string repoUrl, CancellationToken ct)
+    {
+        var homeDir = Environment.GetEnvironmentVariable("USERPROFILE")
+            ?? Environment.GetEnvironmentVariable("HOME")
+            ?? AppContext.BaseDirectory;
+        var cloneDir = Path.Combine(homeDir, ".jcc", "source");
+
+        try
+        {
+            if (!_fs.DirectoryExists(cloneDir))
+                _fs.CreateDirectory(cloneDir);
+
+            var startInfo = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "git",
+                Arguments = $"clone \"{repoUrl}\" \"{cloneDir}\"",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            using var process = System.Diagnostics.Process.Start(startInfo);
+            if (process is null)
+                return new SourceCodeLocation { GitRoot = "", IsAvailable = false, FailureReason = "无法启动 git 进程" };
+
+            var errorTask = process.StandardError.ReadToEndAsync(ct);
+            await process.WaitForExitAsync(ct).ConfigureAwait(false);
+            var error = await errorTask.ConfigureAwait(false);
+
+            if (process.ExitCode != 0)
+                return new SourceCodeLocation { GitRoot = "", IsAvailable = false, FailureReason = $"git clone 失败: {error}" };
+
+            return await BuildLocationAsync(cloneDir, ct).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            DoctorDiag.WriteError($"[SourceCodeEngine] git clone 异常: {ex.Message}");
+            return new SourceCodeLocation { GitRoot = "", IsAvailable = false, FailureReason = ex.Message };
+        }
+    }
+
     private string? SearchUpForGitRoot(string startDir)
     {
         var dir = startDir;

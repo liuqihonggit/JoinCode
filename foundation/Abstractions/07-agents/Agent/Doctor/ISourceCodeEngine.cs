@@ -38,4 +38,11 @@ public interface ISourceCodeEngine
         string newExePath,
         string patientId,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// 确保源码可用 — 三策略: JCC_SOURCE_DIR → exe目录搜索.git → git clone
+    /// </summary>
+    Task<SourceCodeLocation> EnsureSourceAvailableAsync(
+        string? repoUrl = null,
+        CancellationToken ct = default);
 }

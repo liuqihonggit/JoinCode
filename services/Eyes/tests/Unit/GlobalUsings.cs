@@ -1,7 +1,10 @@
 global using JoinCode.CodeIndex;
 global using JoinCode.CodeIndex.Ast;
 global using JoinCode.CodeIndex.Persistence;
+global using JoinCode.Abstractions.Clock;
 global using JoinCode.Abstractions.CodeIndex;
+global using FluentAssertions;
+global using Moq;
 global using JoinCode.Abstractions.Interfaces;
 global using JoinCode.Abstractions.Interfaces.Lsp;
 global using Infrastructure.Localization;

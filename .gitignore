@@ -17,6 +17,9 @@ tests/MockServers/MockServer.Core/dumps/
 tests/MockServers/*/tests/
 boxc/
 
+# Stryker 变异测试输出
+**/StrykerOutput/
+
 # Generated scan reports
 scripts/lock-scan-report.md
 

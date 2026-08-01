@@ -3,12 +3,12 @@ namespace Sync.Tests.Agents;
 public sealed class AgentDefinitionProviderTests
 {
     [Fact]
-    public void GetBuiltInDefinitions_ReturnsFiveAgentTypes()
+    public void GetBuiltInDefinitions_ReturnsSixAgentTypes()
     {
         var definitions = AgentDefinitionProvider.GetBuiltInDefinitions();
 
-        definitions.Should().HaveCount(5);
-        definitions.Select(d => d.AgentType).Should().Contain(["default", "code", "search", "Explore", "Plan"]);
+        definitions.Should().HaveCount(6);
+        definitions.Select(d => d.AgentType).Should().Contain(["default", "code", "search", "Explore", "Plan", "doctor"]);
     }
 
     [Fact]
@@ -119,6 +119,19 @@ public sealed class AgentDefinitionProviderTests
     }
 
     [Fact]
+    public void GetBuiltInDefinitions_DoctorAgent_IsBackgroundWithDoctorPermission()
+    {
+        var definitions = AgentDefinitionProvider.GetBuiltInDefinitions();
+        var doctorAgent = definitions.First(d => d.AgentType == "doctor");
+
+        doctorAgent.IsBackground.Should().BeTrue();
+        doctorAgent.PermissionMode.Should().Be("doctor");
+        doctorAgent.Tools.Should().NotBeNull();
+        doctorAgent.Tools.Should().Contain([FileToolNameConstants.FileRead, FileToolNameConstants.FileEdit, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep, ShellToolNameConstants.Bash]);
+        doctorAgent.DisallowedTools.Should().Contain(AgentToolNameConstants.Agent);
+    }
+
+    [Fact]
     public void GetBuiltInDefinitions_AllToolNames_AreValidToolNamesConstants()
     {
         var definitions = AgentDefinitionProvider.GetBuiltInDefinitions();
@@ -198,7 +211,7 @@ public sealed class AgentDefinitionProviderTests
         var definitions = await provider.GetAgentDefinitionsAsync().ConfigureAwait(true);
 
         definitions.Should().NotBeEmpty();
-        definitions.Select(d => d.AgentType).Should().Contain(["default", "code", "search", "Explore", "Plan"]);
+        definitions.Select(d => d.AgentType).Should().Contain(["default", "code", "search", "Explore", "Plan", "doctor"]);
     }
 
     [Fact]

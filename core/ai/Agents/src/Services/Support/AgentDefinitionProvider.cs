@@ -132,6 +132,16 @@ public sealed partial class AgentDefinitionProvider : JoinCode.Abstractions.Inte
                 IsBackground = false,
                 OmitClaudeMd = true,
                 OmitGitStatus = true
+            },
+            new()
+            {
+                AgentType = AgentTypeDefinition.Doctor.ToValue(),
+                WhenToUse = "自举复盘与修复 — 分析链路日志，发现缺陷，生成修复 patch",
+                Description = "Doctor agent — 自举修复，后台运行，Cron 调度每12h复盘",
+                Tools = [FileToolNameConstants.FileRead, FileToolNameConstants.FileEdit, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep, ShellToolNameConstants.Bash],
+                DisallowedTools = [AgentToolNameConstants.Agent],
+                IsBackground = true,
+                PermissionMode = "doctor"
             }
         ];
     }

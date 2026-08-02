@@ -83,6 +83,63 @@ public class DiagnosticLogRecorderTests
     }
 
     [Fact]
+    public async Task InvokeAsync_LoopDetected_ContainsRepeatedPattern()
+    {
+        var fs = new IOFileSystem();
+        var recorder = CreateRecorder(fs);
+        var context = CreateContext();
+        var events = new List<ChatStreamEvent>
+        {
+            ChatStreamEvent.LoopDetected(3, 5, "重复的模式内容"),
+            ChatStreamEvent.Done(),
+        };
+
+        await foreach (var _ in recorder.InvokeAsync(context, (_, _) => EventsAsync(events), CancellationToken.None)) { }
+
+        var logContent = await ReadLogContentAsync(fs);
+        Assert.Contains("repeated_pattern", logContent);
+    }
+
+    [Fact]
+    public async Task InvokeAsync_EveryEntry_ContainsTraceField()
+    {
+        var fs = new IOFileSystem();
+        var recorder = CreateRecorder(fs);
+        var context = CreateContext();
+        var events = new List<ChatStreamEvent>
+        {
+            ChatStreamEvent.ToolStart("Read", "tc1"),
+            ChatStreamEvent.ToolEnd("Read", "ok", "tc1"),
+            ChatStreamEvent.LoopDetected(2, 10, "pattern"),
+            ChatStreamEvent.Done(),
+        };
+
+        await foreach (var _ in recorder.InvokeAsync(context, (_, _) => EventsAsync(events), CancellationToken.None)) { }
+
+        var logContent = await ReadLogContentAsync(fs);
+        Assert.Contains("\"trace\":", logContent);
+    }
+
+    [Fact]
+    public async Task InvokeAsync_LoopDetected_ContainsTriggerCountAndStartIndex()
+    {
+        var fs = new IOFileSystem();
+        var recorder = CreateRecorder(fs);
+        var context = CreateContext();
+        var events = new List<ChatStreamEvent>
+        {
+            ChatStreamEvent.LoopDetected(5, 20, "abc"),
+            ChatStreamEvent.Done(),
+        };
+
+        await foreach (var _ in recorder.InvokeAsync(context, (_, _) => EventsAsync(events), CancellationToken.None)) { }
+
+        var logContent = await ReadLogContentAsync(fs);
+        Assert.Contains("trigger_count", logContent);
+        Assert.Contains("loop_start_index", logContent);
+    }
+
+    [Fact]
     public async Task InvokeAsync_RecordsApiCompleteWithUsage()
     {
         var fs = new IOFileSystem();

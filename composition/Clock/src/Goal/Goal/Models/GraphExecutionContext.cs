@@ -29,6 +29,9 @@ internal sealed class GraphExecutionContext
             if (!Graph.Dag.Edges.TryGetValue(edgeId, out var edge))
                 continue;
 
+            if (edge.Label.Length > 0)
+                continue;
+
             if (!CompletedNodes.Contains(edge.FromId))
                 return false;
         }
@@ -46,6 +49,8 @@ internal sealed class GraphExecutionContext
         {
             if (!Graph.Dag.Edges.TryGetValue(edgeId, out var edge))
                 continue;
+            if (edge.Label.Length > 0)
+                continue;
             if (CompletedNodes.Contains(edge.FromId))
                 count++;
         }
@@ -57,7 +62,18 @@ internal sealed class GraphExecutionContext
     {
         if (!Graph.Dag.Nodes.TryGetValue(nodeId, out var node))
             return 0;
-        return node.InEdgeIds.Count;
+
+        var count = 0;
+        foreach (var edgeId in node.InEdgeIds)
+        {
+            if (!Graph.Dag.Edges.TryGetValue(edgeId, out var edge))
+                continue;
+            if (edge.Label.Length > 0)
+                continue;
+            count++;
+        }
+
+        return count;
     }
 
     public Dictionary<string, string?> CollectUpstreamOutputs(string nodeId)
@@ -69,6 +85,8 @@ internal sealed class GraphExecutionContext
         foreach (var edgeId in node.InEdgeIds)
         {
             if (!Graph.Dag.Edges.TryGetValue(edgeId, out var edge))
+                continue;
+            if (edge.Label.Length > 0)
                 continue;
             if (Graph.Dag.Nodes.TryGetValue(edge.FromId, out var upstream))
             {

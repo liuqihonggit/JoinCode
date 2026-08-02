@@ -557,11 +557,10 @@ public static partial class StringKey
     public const string LocalShellTaskExecutorNotRegistered = "LocalShellTaskExecutorNotRegistered";
     public const string InProcessTeammateTaskExecutorNotRegistered = "InProcessTeammateTaskExecutorNotRegistered";
 
-    // === AgentServices (AgentWorktreeService, AgentServiceImpl, AgentSummaryService, AgentService, AgentPromptBuilder) ===
+    // === AgentServices (AgentWorktreeService, AgentServiceImpl, AgentSummaryService, AgentPromptBuilder) ===
     public const string AgentWorktreeServiceDesc = "AgentWorktreeServiceDesc";
     public const string AgentServiceImplDesc = "AgentServiceImplDesc";
     public const string AgentSummaryServiceDesc = "AgentSummaryServiceDesc";
-    public const string AgentServiceDesc = "AgentServiceDesc";
     public const string AgentPromptBuilderDesc = "AgentPromptBuilderDesc";
 
     // === AgentSettings, ContextCompressionConfig ===

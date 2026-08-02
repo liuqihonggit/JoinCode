@@ -36,4 +36,5 @@ public enum SystemToolName
     [EnumValue("structured_output_validate")] StructuredOutputValidate,
     [EnumValue("goal_get")] GoalGet,
     [EnumValue("goal_update")] GoalUpdate,
+    [EnumValue("goal_graph_define")] GoalGraphDefine,
 }

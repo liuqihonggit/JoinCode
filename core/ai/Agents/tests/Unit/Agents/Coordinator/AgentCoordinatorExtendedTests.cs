@@ -60,8 +60,8 @@ public class AgentCoordinatorExtendedTests
     [Fact]
     public async Task SpawnSubAgentAsync_ShouldCreateAgentWithUniqueId()
     {
-        var agent1 = new SubAgent("agent-1", "Task 1", null, _queryEngineMock.Object, null);
-        var agent2 = new SubAgent("agent-2", "Task 2", null, _queryEngineMock.Object, null);
+        var agent1 = new Agent("agent-1", "Task 1", null, _queryEngineMock.Object, null);
+        var agent2 = new Agent("agent-2", "Task 2", null, _queryEngineMock.Object, null);
 
         _lifecycleManagerMock.SetupSequence(x => x.SpawnSubAgentAsync(It.IsAny<string>(), null, default))
             .ReturnsAsync(agent1)
@@ -81,7 +81,7 @@ public class AgentCoordinatorExtendedTests
         for (int i = 0; i < tasks.Length; i++)
         {
             var task = tasks[i];
-            var agent = new SubAgent($"agent-{i}", task, null, _queryEngineMock.Object, null);
+            var agent = new Agent($"agent-{i}", task, null, _queryEngineMock.Object, null);
             _lifecycleManagerMock.Setup(x => x.SpawnSubAgentAsync(task, null, default))
                 .ReturnsAsync(agent);
         }
@@ -212,7 +212,7 @@ public class AgentCoordinatorExtendedTests
     {
         // Arrange - 需要先创建Agent以建立执行上下文
         var agentId = "test-agent";
-        var agent = new SubAgent(agentId, "Task", null, _queryEngineMock.Object, null);
+        var agent = new Agent(agentId, "Task", null, _queryEngineMock.Object, null);
         var expectedResult = new SubAgentResult { AgentId = agentId, IsSuccess = true, Output = "Success" };
 
         _lifecycleManagerMock.Setup(x => x.SpawnSubAgentAsync(It.IsAny<string>(), null, default)).ReturnsAsync(agent);
@@ -302,7 +302,7 @@ public class AgentCoordinatorExtendedTests
     public async Task ExecuteParallelAsync_ShouldExecuteAgentsInParallel()
     {
         // Arrange
-        var agents = new List<SubAgent>();
+        var agents = new List<Agent>();
         var expectedResults = new List<SubAgentResult>();
 
         _executionEngineMock.Setup(x => x.ExecuteParallelAsync(agents, null, default))
@@ -319,7 +319,7 @@ public class AgentCoordinatorExtendedTests
     public async Task ExecuteSequentialAsync_ShouldExecuteAgentsSequentially()
     {
         // Arrange
-        var agents = new List<SubAgent>();
+        var agents = new List<Agent>();
         var expectedResults = new List<SubAgentResult>();
 
         _executionEngineMock.Setup(x => x.ExecuteSequentialAsync(agents, default))
@@ -338,7 +338,7 @@ public class AgentCoordinatorExtendedTests
         // Arrange
         var agentId = "test-agent";
         var message = new AgentMsg { FromAgentId = "sender", ToAgentId = agentId, MessageType = "text", Content = "Hello" };
-        var agent = new SubAgent(agentId, "Task", null, _queryEngineMock.Object, null);
+        var agent = new Agent(agentId, "Task", null, _queryEngineMock.Object, null);
         agent.State = TaskExecutionStatus.Running;
 
         _lifecycleManagerMock.Setup(x => x.GetAgentAsync(agentId, default)).ReturnsAsync(agent);
@@ -417,7 +417,7 @@ public class AgentCoordinatorExtendedTests
     {
         // Arrange
         var agentId = "test-agent";
-        var agent = new SubAgent(agentId, "Task", null, _queryEngineMock.Object, null);
+        var agent = new Agent(agentId, "Task", null, _queryEngineMock.Object, null);
         agent.State = TaskExecutionStatus.Running;
 
         _lifecycleManagerMock.Setup(x => x.GetAgentAsync(agentId, default)).ReturnsAsync(agent);

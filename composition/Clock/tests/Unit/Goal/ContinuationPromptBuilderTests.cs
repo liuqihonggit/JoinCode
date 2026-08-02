@@ -100,4 +100,44 @@ public sealed class ContinuationPromptBuilderTests
         Assert.Contains("budget_limited", prompt);
         Assert.Contains("Wrap up", prompt);
     }
+
+    [Fact]
+    public void BuildStagnationAlertPrompt_Should_Contain_Objective()
+    {
+        var prompt = ContinuationPromptBuilder.BuildStagnationAlertPrompt(
+            "实现用户注册", 3600, 3);
+
+        Assert.Contains("实现用户注册", prompt);
+    }
+
+    [Fact]
+    public void BuildStagnationAlertPrompt_Should_Contain_Stagnation_Alert()
+    {
+        var prompt = ContinuationPromptBuilder.BuildStagnationAlertPrompt(
+            "实现功能", 3600, 3);
+
+        Assert.Contains("STAGNATION ALERT", prompt);
+        Assert.Contains("autonomous action", prompt);
+    }
+
+    [Fact]
+    public void BuildStagnationAlertPrompt_Should_Contain_Duration_And_Turns()
+    {
+        var prompt = ContinuationPromptBuilder.BuildStagnationAlertPrompt(
+            "实现功能", 5400, 5);
+
+        Assert.Contains("1h30m", prompt);
+        Assert.Contains("5 turn", prompt);
+    }
+
+    [Fact]
+    public void BuildStagnationAlertPrompt_Should_Contain_Action_Directives()
+    {
+        var prompt = ContinuationPromptBuilder.BuildStagnationAlertPrompt(
+            "实现功能", 3600, 2);
+
+        Assert.Contains("Do NOT wait", prompt);
+        Assert.Contains("EXECUTE", prompt);
+        Assert.Contains("Prove progress through action", prompt);
+    }
 }

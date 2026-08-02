@@ -67,12 +67,20 @@ jobs:
       - name: Build - Component Tests
         run: |
           $projects = @(
-            'core/execution/Brain/tests/Unit/Brain.Tests.csproj',
-            'core/safety/Guard/tests/Unit/Guard.Tests.csproj',
+            'core/execution/Brain/tests/Prompts/Brain.Prompts.Tests.csproj',
+            'core/execution/Brain/tests/Context/Brain.Context.Tests.csproj',
+            'core/execution/Brain/tests/Other/Brain.Other.Tests.csproj',
+            'core/safety/Guard/tests/Security/Guard.Security.Tests.csproj',
+            'core/safety/Guard/tests/Hooks/Guard.Hooks.Tests.csproj',
+            'core/safety/Guard/tests/Config/Guard.Config.Tests.csproj',
             'services/Bridge/tests/Unit/Bridge.Tests.csproj',
-            'core/execution/Hands/tests/Unit/Hands.Tests.csproj',
+            'core/execution/Hands/tests/ToolHandlers/Hands.ToolHandlers.Tests.csproj',
+            'core/execution/Hands/tests/Skills/Hands.Skills.Tests.csproj',
+            'core/execution/Hands/tests/Shell/Hands.Shell.Tests.csproj',
+            'core/execution/Hands/tests/Api/Hands.Api.Tests.csproj',
             'services/Mcp/tests/Unit/Mcp.Tests.csproj',
-            'core/safety/Vault/tests/Unit/Vault.Tests.csproj',
+            'core/safety/Vault/tests/Other/Vault.Other.Tests.csproj',
+            'core/safety/Vault/tests/Memdir/Vault.Memdir.Tests.csproj',
             'composition/Composition/tests/Unit/Composition.Tests.csproj',
             'core/ai/Agents/tests/Unit/Agents.Tests.csproj',
             'core/execution/Scheduling/tests/Unit/Scheduling.Tests.csproj',
@@ -142,20 +150,48 @@ jobs:
           --filter "Category!=Integration&Category!=Benchmark"
           --logger "console;verbosity=detailed"
           --logger "trx;LogFileName=infra-tests.trx"
-      - name: Test - Brain
+      - name: Test - Brain (Prompts)
         run: >
-          dotnet test core/execution/Brain/tests/Unit/Brain.Tests.csproj
+          dotnet test core/execution/Brain/tests/Prompts/Brain.Prompts.Tests.csproj
           -c Release --no-build --nologo
           --filter "Category!=Integration&Category!=Benchmark"
           --logger "console;verbosity=detailed"
-          --logger "trx;LogFileName=brain-tests.trx"
-      - name: Test - Guard
+          --logger "trx;LogFileName=brain-prompts-tests.trx"
+      - name: Test - Brain (Context)
         run: >
-          dotnet test core/safety/Guard/tests/Unit/Guard.Tests.csproj
+          dotnet test core/execution/Brain/tests/Context/Brain.Context.Tests.csproj
           -c Release --no-build --nologo
           --filter "Category!=Integration&Category!=Benchmark"
           --logger "console;verbosity=detailed"
-          --logger "trx;LogFileName=guard-tests.trx"
+          --logger "trx;LogFileName=brain-context-tests.trx"
+      - name: Test - Brain (Other)
+        run: >
+          dotnet test core/execution/Brain/tests/Other/Brain.Other.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "Category!=Integration&Category!=Benchmark"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=brain-other-tests.trx"
+      - name: Test - Guard (Security)
+        run: >
+          dotnet test core/safety/Guard/tests/Security/Guard.Security.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "Category!=Integration&Category!=Benchmark"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=guard-security-tests.trx"
+      - name: Test - Guard (Hooks)
+        run: >
+          dotnet test core/safety/Guard/tests/Hooks/Guard.Hooks.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "Category!=Integration&Category!=Benchmark"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=guard-hooks-tests.trx"
+      - name: Test - Guard (Config)
+        run: >
+          dotnet test core/safety/Guard/tests/Config/Guard.Config.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "Category!=Integration&Category!=Benchmark"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=guard-config-tests.trx"
       - name: Test - Bridge
         run: >
           dotnet test services/Bridge/tests/Unit/Bridge.Tests.csproj
@@ -181,13 +217,34 @@ jobs:
         uses: actions/checkout@v5
 
       - uses: ./.github/actions/setup-test-env
-      - name: Test - Hands
+      - name: Test - Hands (ToolHandlers)
         run: >
-          dotnet test core/execution/Hands/tests/Unit/Hands.Tests.csproj
+          dotnet test core/execution/Hands/tests/ToolHandlers/Hands.ToolHandlers.Tests.csproj
           -c Release --no-build --nologo
           --filter "Category!=Integration&Category!=Benchmark"
           --logger "console;verbosity=detailed"
-          --logger "trx;LogFileName=hands-tests.trx"
+          --logger "trx;LogFileName=hands-tooldispatch-tests.trx"
+      - name: Test - Hands (Skills)
+        run: >
+          dotnet test core/execution/Hands/tests/Skills/Hands.Skills.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "Category!=Integration&Category!=Benchmark"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=hands-skills-tests.trx"
+      - name: Test - Hands (Shell)
+        run: >
+          dotnet test core/execution/Hands/tests/Shell/Hands.Shell.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "Category!=Integration&Category!=Benchmark"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=hands-shell-tests.trx"
+      - name: Test - Hands (Api)
+        run: >
+          dotnet test core/execution/Hands/tests/Api/Hands.Api.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "Category!=Integration&Category!=Benchmark"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=hands-api-tests.trx"
       - name: Test - Mcp
         run: >
           dotnet test services/Mcp/tests/Unit/Mcp.Tests.csproj
@@ -195,13 +252,20 @@ jobs:
           --filter "Category!=Integration&Category!=Benchmark"
           --logger "console;verbosity=detailed"
           --logger "trx;LogFileName=mcp-tests.trx"
-      - name: Test - Vault
+      - name: Test - Vault (Other)
         run: >
-          dotnet test core/safety/Vault/tests/Unit/Vault.Tests.csproj
+          dotnet test core/safety/Vault/tests/Other/Vault.Other.Tests.csproj
           -c Release --no-build --nologo
           --filter "Category!=Integration&Category!=Benchmark"
           --logger "console;verbosity=detailed"
-          --logger "trx;LogFileName=vault-tests.trx"
+          --logger "trx;LogFileName=vault-other-tests.trx"
+      - name: Test - Vault (Memdir)
+        run: >
+          dotnet test core/safety/Vault/tests/Memdir/Vault.Memdir.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "Category!=Integration&Category!=Benchmark"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=vault-memdir-tests.trx"
       - name: Test - Composition
         run: >
           dotnet test composition/Composition/tests/Unit/Composition.Tests.csproj

@@ -13,6 +13,8 @@ global using JoinCode.Abstractions.LLM;
 global using JoinCode.Abstractions.LLM.Chat;
 global using JoinCode.Abstractions.Localization;
 global using JoinCode.Abstractions.Models.Goal;
+global using JoinCode.Abstractions.Models.Agent;
+global using JoinCode.Abstractions.State;
 global using JoinCode.Abstractions.Models.Runtime;
 global using JoinCode.Abstractions.Pipeline;
 global using JoinCode.Abstractions.Security;

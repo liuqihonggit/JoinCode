@@ -12,7 +12,9 @@ public static partial class ServiceRegistration
     {
         services.AddSingleton<IGoalEvaluator, GoalEvaluator>();
         services.AddSingleton<IGoalHeartbeat, GoalHeartbeat>();
+        services.AddSingleton<IGoalGraphTemplateRegistry, GoalGraphTemplateRegistry>();
         services.AddSingleton<IGoalEngine, GoalEngine>();
+        services.AddSingleton<IGoalEnginePostConfigure, GoalEnginePostConfigure>();
         return services;
     }
 }

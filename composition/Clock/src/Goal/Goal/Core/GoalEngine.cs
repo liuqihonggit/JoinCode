@@ -1,6 +1,9 @@
 
 namespace Core.Goal;
 
+using System.Collections.Frozen;
+using Structura.Dag;
+
 // IGoalEngine 接口已移至 JoinCode.Abstractions.Interfaces.Scheduling
 
 [Register]
@@ -12,6 +15,9 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
     private readonly SemaphoreSlim _stateLock;
     [Inject] private readonly ILogger<GoalEngine>? _logger;
     [Inject] private readonly IClockService _clock;
+    [Inject] private readonly IServiceProvider _serviceProvider = null!;
+    [Inject] private readonly IGoalGraphTemplateRegistry _templateRegistry = null!;
+    [Inject] private readonly IAgentRegistry? _agentRegistry = null!;
     private readonly IToolPermissionManager? _permissionManager;
     private readonly MiddlewarePipeline<GoalLifecycleContext>? _lifecyclePipeline;
     private GoalState? _state;
@@ -21,9 +27,12 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
     private PermissionMode? _savedPermissionMode;
     private readonly MessageList _chatHistory;
     private TaskCompletionSource? _completionTcs;
+    private GoalGraph? _goalGraph;
+    private GoalGraphEngine? _graphEngine;
 
     public GoalState? CurrentState => _state;
     public bool IsRunning => _state?.Status == GoalStatus.Pursuing;
+    public bool HasGraphDefinition => _goalGraph is not null;
 
     /// <summary>
     /// 等待目标引擎循环退出（完成、预算耗尽、暂停、清除等）。
@@ -31,6 +40,97 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
     public Task WaitForCompletionAsync(CancellationToken ct = default)
     {
         return _completionTcs?.Task ?? Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// 设置 Graph 定义 — 由协调者 Agent 通过 goal_graph_define MCP 工具调用
+    /// </summary>
+    public void SetGraphDefinition(string nodesJson, string edgesJson, string startNodeId, string endNodeIds)
+    {
+        ArgumentNullException.ThrowIfNull(nodesJson);
+        ArgumentNullException.ThrowIfNull(edgesJson);
+        ArgumentException.ThrowIfNullOrWhiteSpace(startNodeId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(endNodeIds);
+
+        if (_goalGraph is not null)
+        {
+            _logger?.LogWarning("[GoalEngine] Graph 已存在，忽略重复定义");
+            return;
+        }
+
+        _graphEngine = new GoalGraphEngine(
+            _kernel,
+            _evaluator,
+            _serviceProvider,
+            logger: null,
+            heartbeat: _heartbeat,
+            clock: _clock);
+
+        var dag = new Dag<GoalNodePayload>();
+
+        var nodes = System.Text.Json.JsonSerializer.Deserialize<GraphDefineNode[]>(nodesJson, GraphDefineJsonContext.Default.GraphDefineNodeArray)
+            ?? throw new ArgumentException("Invalid nodes JSON");
+
+        foreach (var node in nodes)
+        {
+            var nodeId = node.Id ?? throw new ArgumentException("Node id is required");
+            dag.AddNode(new DagNode<GoalNodePayload>
+            {
+                Id = nodeId,
+                Payload = new GoalNodePayload
+                {
+                    Kind = node.Kind?.ToLowerInvariant() switch
+                    {
+                        "function" => GoalNodeKind.Function,
+                        "join" => GoalNodeKind.Join,
+                        _ => GoalNodeKind.Agent,
+                    },
+                    Name = node.Name ?? nodeId,
+                    IsSubAgent = true,
+                    SystemPrompt = node.SystemPrompt,
+                    Instruction = node.Instruction,
+                    FreshContext = node.FreshContext,
+                },
+            });
+        }
+
+        var edges = System.Text.Json.JsonSerializer.Deserialize<GraphDefineEdge[]>(edgesJson, GraphDefineJsonContext.Default.GraphDefineEdgeArray)
+            ?? throw new ArgumentException("Invalid edges JSON");
+
+        foreach (var edge in edges)
+        {
+            var fromId = edge.FromId ?? throw new ArgumentException("Edge fromId is required");
+            var toId = edge.ToId ?? throw new ArgumentException("Edge toId is required");
+            var edgeId = edge.Id ?? $"e-{fromId}-{toId}";
+
+            var result = dag.TryAddEdge(new DagEdge
+            {
+                Id = edgeId,
+                FromId = fromId,
+                ToId = toId,
+                Label = edge.Label ?? string.Empty,
+            });
+
+            if (!result.Success && edge.Label?.Length > 0)
+            {
+                if (dag.Nodes.TryGetValue(toId, out var targetNode))
+                {
+                    targetNode.InEdgeIds.Remove(edgeId);
+                }
+            }
+        }
+
+        var endSet = endNodeIds.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        _goalGraph = new GoalGraph
+        {
+            Name = _state?.Objective ?? "dynamic-graph",
+            Dag = dag,
+            StartNodeId = startNodeId,
+            EndNodeIds = endSet.ToFrozenSet(StringComparer.Ordinal),
+        };
+
+        _logger?.LogInformation("[GoalEngine] 协调者定义了 Graph: {NodeCount}个节点, {EdgeCount}条边, Start={Start}",
+            nodes.Length, edges.Length, startNodeId);
     }
 
     public GoalEngine(
@@ -58,6 +158,25 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// 使用 GoalGraph 启动目标 — 执行引擎将从单 Agent 循环切换为 DAG 编排
+    /// </summary>
+    public async Task<GoalState> StartAsync(
+        GoalGraph graph,
+        GoalGraphEngine graphEngine,
+        List<string>? constraints = null,
+        int? tokenBudget = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(graph);
+        ArgumentNullException.ThrowIfNull(graphEngine);
+
+        _goalGraph = graph;
+        _graphEngine = graphEngine;
+
+        return await StartAsync(graph.Name, constraints, tokenBudget, systemPrompt: null, cancellationToken).ConfigureAwait(false);
+    }
+
     public async Task<GoalState> StartAsync(
         string objective,
         List<string>? constraints = null,
@@ -67,12 +186,85 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(objective);
 
+        BuildDefaultGraphIfAbsent(objective, tokenBudget);
+
         if (_lifecyclePipeline is not null)
         {
             return await StartViaPipelineAsync(objective, constraints, tokenBudget, systemPrompt, cancellationToken).ConfigureAwait(false);
         }
 
         return await StartDirectAsync(objective, constraints, tokenBudget, systemPrompt, cancellationToken).ConfigureAwait(false);
+    }
+
+    private void BuildDefaultGraphIfAbsent(string objective, int? tokenBudget)
+    {
+        if (_goalGraph is not null && _graphEngine is not null)
+            return;
+
+        if (_serviceProvider is null)
+            return;
+
+        _graphEngine = new GoalGraphEngine(
+            _kernel,
+            _evaluator,
+            _serviceProvider,
+            logger: null,
+            heartbeat: _heartbeat,
+            clock: _clock);
+
+        var template = _templateRegistry?.FindMatch(objective);
+        if (template is not null)
+        {
+            _goalGraph = template.BuildGraph(_graphEngine, objective);
+            _logger?.LogInformation("[GoalEngine] 匹配到 Graph 模板: {TemplateName} → {GraphName}", template.Name, _goalGraph.Name);
+            return;
+        }
+
+        var dag = new Dag<GoalNodePayload>();
+
+        dag.AddNode(new DagNode<GoalNodePayload>
+        {
+            Id = "agent",
+            Payload = new GoalNodePayload
+            {
+                Kind = GoalNodeKind.Agent,
+                Name = "executor",
+                IsSubAgent = true,
+                Instruction = objective,
+                TokenBudget = tokenBudget,
+            },
+        });
+
+        dag.AddNode(new DagNode<GoalNodePayload>
+        {
+            Id = "reviewer",
+            Payload = new GoalNodePayload
+            {
+                Kind = GoalNodeKind.Agent,
+                Name = "reviewer",
+                IsSubAgent = true,
+                SystemPrompt = "You are an independent reviewer. Evaluate the following work output objectively. You must determine if the task was completed successfully. Reply with PASS if the work meets the requirements, or FAIL with specific issues if it does not. Do not assume context you were not given — judge only by what you see.",
+                Instruction = "Review the following work output and determine if it successfully completes the task. Be objective and thorough.",
+                FreshContext = true,
+                TokenBudget = tokenBudget.HasValue ? tokenBudget.Value / 4 : null,
+            },
+        });
+
+        dag.AddEdge(new DagEdge { Id = "e-agent-reviewer", FromId = "agent", ToId = "reviewer" });
+
+        const string backEdgeId = "e-reviewer-agent";
+        dag.TryAddEdge(new DagEdge { Id = backEdgeId, FromId = "reviewer", ToId = "agent", Label = "FAIL" });
+        dag.Nodes["agent"].InEdgeIds.Remove(backEdgeId);
+
+        _goalGraph = new GoalGraph
+        {
+            Name = objective,
+            Dag = dag,
+            StartNodeId = "agent",
+            EndNodeIds = FrozenSet.Create("reviewer"),
+        };
+
+        _logger?.LogInformation("[GoalEngine] 自动构建 agent→reviewer Graph: {Objective}", objective);
     }
 
     private async Task<GoalState> StartViaPipelineAsync(
@@ -134,6 +326,8 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
 
         _savedPermissionMode = ctx.SavedPermissionMode;
 
+        RegisterMainAgent(_state.GoalId, objective, tokenBudget);
+
         if (ctx.ShouldStartEngineLoop)
         {
             _logger?.LogInformation(L.T(StringKey.GoalEngineStarting),
@@ -183,6 +377,8 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
         }
 
         await SwitchToGoalPermissionModeAsync(cancellationToken).ConfigureAwait(false);
+
+        RegisterMainAgent(_state.GoalId, objective, tokenBudget);
 
         _logger?.LogInformation(L.T(StringKey.GoalEngineStarting),
             _state.GoalId, objective, tokenBudget?.ToString() ?? L.T(StringKey.GoalEngineBudgetUnlimited));
@@ -623,6 +819,14 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
     {
         try
         {
+            if (_goalGraph is not null && _graphEngine is not null && _state is not null)
+            {
+                _logger?.LogInformation("[GoalEngine] 使用 Graph 引擎执行: {GraphName}", _goalGraph.Name);
+                _state = await _graphEngine.ExecuteAsync(_goalGraph, _state, _chatHistory, ct).ConfigureAwait(false);
+                _completionTcs?.TrySetResult();
+                return;
+            }
+
             while (!ct.IsCancellationRequested)
             {
                 await _stateLock.WaitAsync(ct).ConfigureAwait(false);
@@ -774,7 +978,49 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
     {
         _logger?.LogDebug(L.T(StringKey.GoalEngineHeartbeatTriggered),
             _state?.GoalId, _state?.TurnsCompleted);
+
+        CheckStagnationAndAlert();
+
         return ValueTask.CompletedTask;
+    }
+
+    private const int StagnationElapsedThresholdSeconds = 3600;
+    private const int StagnationMaxTurnsThreshold = 10;
+    private const int StagnationCooldownSeconds = 1800;
+
+    private void CheckStagnationAndAlert()
+    {
+        if (_state is null || _state.Status != GoalStatus.Pursuing)
+            return;
+
+        var elapsedSeconds = (int)_state.Elapsed.TotalSeconds;
+        if (elapsedSeconds < StagnationElapsedThresholdSeconds)
+            return;
+
+        if (_state.TurnsCompleted >= StagnationMaxTurnsThreshold)
+            return;
+
+        if (_state.LastEvaluation is { IsCompleted: true })
+            return;
+
+        if (_state.StagnationAlertedAt.HasValue)
+        {
+            var sinceLastAlert = (_clock.GetUtcNow() - _state.StagnationAlertedAt.Value).TotalSeconds;
+            if (sinceLastAlert < StagnationCooldownSeconds)
+                return;
+        }
+
+        var alertPrompt = ContinuationPromptBuilder.BuildStagnationAlertPrompt(
+            _state.Objective,
+            elapsedSeconds,
+            _state.TurnsCompleted);
+
+        _chatHistory.AddSystemMessage(alertPrompt);
+        _state.StagnationAlertedAt = _clock.GetUtcNow();
+
+        _logger?.LogWarning(
+            "Stagnation alert injected for goal {GoalId}: elapsed={Elapsed}s, turns={Turns}",
+            _state.GoalId, elapsedSeconds, _state.TurnsCompleted);
     }
 
     public async ValueTask DisposeAsync()
@@ -840,6 +1086,24 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
         {
             _savedPermissionMode = null;
         }
+    }
+
+    private void RegisterMainAgent(string goalId, string objective, int? tokenBudget)
+    {
+        if (_agentRegistry is null) return;
+
+        var mainAgentId = AgentDescriptor.GenerateId();
+        _agentRegistry.Register(new AgentDescriptor
+        {
+            Id = mainAgentId,
+            Name = "mainAgent",
+            IsSubAgent = false,
+            Instruction = objective,
+            GoalId = goalId,
+            TokenBudget = tokenBudget,
+        });
+
+        _logger?.LogInformation("[GoalEngine] mainAgent 注册到 AgentRegistry: {AgentId}, Goal={GoalId}", mainAgentId, goalId);
     }
 }
 

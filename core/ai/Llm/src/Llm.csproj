@@ -23,6 +23,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="JoinCode.Brain.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Brain.Other.Tests" />
     <InternalsVisibleTo Include="JoinCode.Infra.Tests" />
     <InternalsVisibleTo Include="JoinCode.Integration.Tests" />
     <InternalsVisibleTo Include="JoinCode.Dream.Tests" />

@@ -10,7 +10,7 @@ public sealed partial class AgentLifecycleManager : IAgentLifecycleManager
     private readonly IQueryEngine _queryEngine;
     private readonly ILogger? _logger;
     private readonly AgentStateMachine _stateMachine;
-    private readonly ConcurrentDictionary<string, SubAgent> _subAgents;
+    private readonly ConcurrentDictionary<string, Agent> _subAgents;
     private readonly ConcurrentDictionary<string, SubAgentResult> _results;
     private int _agentCounter;
 
@@ -21,7 +21,7 @@ public sealed partial class AgentLifecycleManager : IAgentLifecycleManager
         _queryEngine = queryEngine ?? throw new ArgumentNullException(nameof(queryEngine));
         _logger = logger;
         _stateMachine = stateMachine;
-        _subAgents = new ConcurrentDictionary<string, SubAgent>();
+        _subAgents = new ConcurrentDictionary<string, Agent>();
         _results = new ConcurrentDictionary<string, SubAgentResult>();
     }
 
@@ -31,7 +31,7 @@ public sealed partial class AgentLifecycleManager : IAgentLifecycleManager
     public Task<ISubAgent> SpawnSubAgentAsync(string task, SubAgentOptions? options = null, CancellationToken cancellationToken = default)
     {
         var agentId = GenerateAgentId();
-        var agent = new SubAgent(agentId, task, options, _queryEngine, _logger);
+        var agent = new Agent(agentId, task, options, _queryEngine, _logger);
 
         _subAgents[agentId] = agent;
         _stateMachine.RegisterAgent(agentId, task, options);

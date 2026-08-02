@@ -1,5 +1,7 @@
 namespace JoinCode.App.Modules;
 
+using Core.Goal;
+
 /// <summary>
 /// 时钟模块 — 注册定时任务相关服务
 /// </summary>
@@ -14,5 +16,9 @@ public sealed class ClockModule : IAppModule
     }
 
     public Task ConfigureAsync(IServiceProvider services, CancellationToken ct)
-        => Task.CompletedTask;
+    {
+        var postConfigure = services.GetService<IGoalEnginePostConfigure>();
+        postConfigure?.Configure();
+        return Task.CompletedTask;
+    }
 }

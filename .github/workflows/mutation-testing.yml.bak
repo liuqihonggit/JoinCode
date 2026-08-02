@@ -1,0 +1,230 @@
+﻿name: Mutation Testing
+
+on:
+  workflow_dispatch:
+    inputs:
+      projects:
+        description: 'Projects to test (comma-separated, e.g. Guard,Brain or ALL)'
+        required: true
+        default: 'ALL'
+      concurrency:
+        description: 'Parallel test sessions per runner'
+        required: false
+        default: '4'
+        type: choice
+        options:
+          - '2'
+          - '4'
+          - '8'
+      break_threshold:
+        description: 'Break threshold (0=never break, 60=fail if score<60%)'
+        required: false
+        default: '0'
+        type: choice
+        options:
+          - '0'
+          - '40'
+          - '60'
+          - '80'
+  workflow_run:
+    workflows: ['CI/CD']
+    types: [completed]
+    branches: [main]
+  schedule:
+    - cron: '0 3 * * 0'
+
+concurrency:
+  group: mutation-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+  DOTNET_NOLOGO: true
+  NUGET_XMLDOC_MODE: skip
+  NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+
+jobs:
+  prepare:
+    name: Prepare
+    runs-on: ubuntu-latest
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    outputs:
+      matrix: ${{ steps.set.outputs.matrix }}
+    steps:
+      - name: Build matrix
+        id: set
+        run: |
+          ALL_PROJECTS='["Guard-Config","Guard-Security","Guard-Hooks","Vault-Memdir","Vault-Other","Brain-CtxAdmin","Brain-CtxChat","Brain-CtxOther","Brain-CtxNonServices","Brain-PromptsSections","Brain-PromptsOther","Brain-Other","Hands-SysTools","Hands-CoreHandlers","Hands-DevTools","Hands-SkillServices","Hands-SkillBuiltIn","Hands-SkillOther","Hands-Api","Hands-Shell","Scheduling","McpToolDispatch","Llm","Agents","Reasoning","CodeIndex","Browser","Mcp","Eyes","Dream","Bridge","Composition","Clock","Infra","Host-Commands","Host-Other"]'
+          INPUT="${{ github.event.inputs.projects || 'ALL' }}"
+          if [ "$INPUT" = "ALL" ]; then
+            echo "matrix={\"include\":$(echo $ALL_PROJECTS | jq -c '[.[] | {project: .}]')}" >> $GITHUB_OUTPUT
+          else
+            EXPANDED=""
+            IFS=',' read -ra PARTS <<< "$INPUT"
+            for part in "${PARTS[@]}"; do
+              trimmed=$(echo "$part" | xargs)
+              if [ "$trimmed" = "Guard" ]; then
+                EXPANDED="$EXPANDED,\"Guard-Config\",\"Guard-Security\",\"Guard-Hooks\""
+              elif [ "$trimmed" = "Vault" ]; then
+                EXPANDED="$EXPANDED,\"Vault-Memdir\",\"Vault-Other\""
+              elif [ "$trimmed" = "Brain" ]; then
+                EXPANDED="$EXPANDED,\"Brain-CtxAdmin\",\"Brain-CtxChat\",\"Brain-CtxOther\",\"Brain-CtxNonServices\",\"Brain-PromptsSections\",\"Brain-PromptsOther\",\"Brain-Other\""
+              elif [ "$trimmed" = "Hands" ]; then
+                EXPANDED="$EXPANDED,\"Hands-SysTools\",\"Hands-CoreHandlers\",\"Hands-DevTools\",\"Hands-SkillServices\",\"Hands-SkillBuiltIn\",\"Hands-SkillOther\",\"Hands-Api\",\"Hands-Shell\""
+              elif [ "$trimmed" = "Host" ]; then
+                EXPANDED="$EXPANDED,\"Host-Commands\",\"Host-Other\""
+              else
+                EXPANDED="$EXPANDED,\"$trimmed\""
+              fi
+            done
+            EXPANDED="${EXPANDED#,}"
+            echo "matrix={\"include\":[$EXPANDED]}" >> $GITHUB_OUTPUT
+          fi
+
+  mutation-test:
+    name: Stryker - ${{ matrix.project }}
+    needs: prepare
+    runs-on: windows-latest
+    timeout-minutes: 30
+    strategy:
+      matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
+      fail-fast: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: 'global.json'
+
+      - name: Install Stryker.NET
+        run: dotnet tool install dotnet-stryker --global
+
+      - name: Cache NuGet Packages
+        uses: actions/cache@v5
+        with:
+          path: ${{ github.workspace }}/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Build.props') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+
+      - name: Build - ① Generators
+        run: dotnet build Generators.slnx -c Debug --no-incremental --nologo -m /p:SkipLocalPack=true
+
+      - name: Build - ② Foundation
+        run: dotnet build Foundation.slnx -c Debug --no-incremental --nologo -m /p:SkipLocalPack=true
+
+      - name: Build - ③ Infrastructure
+        run: dotnet build Infrastructure.slnx -c Debug --no-incremental --nologo -m /p:SkipLocalPack=true
+
+      - name: Build - ④ Core
+        run: dotnet build Core.slnx -c Debug --no-incremental --nologo -m /p:SkipLocalPack=true
+
+      - name: Build - ⑤ Services
+        run: dotnet build Services.slnx -c Debug --no-incremental --nologo -m /p:SkipLocalPack=true
+
+      - name: Build - ⑥ Composition
+        run: dotnet build Composition.slnx -c Debug --no-incremental --nologo -m /p:SkipLocalPack=true
+
+      - name: Build - ⑦ App
+        run: dotnet build App.slnx -c Debug --no-incremental --nologo -m /p:SkipLocalPack=true
+
+      - name: Run Stryker
+        shell: pwsh
+        env:
+          STRYKER_PROJECT: ${{ matrix.project }}
+          STRYKER_CONCURRENCY: ${{ github.event.inputs.concurrency || '4' }}
+          STRYKER_BREAK: ${{ github.event.inputs.break_threshold || '0' }}
+        run: |
+          $projectMap = @{
+            'Guard-Config'         = @{ Dir = 'core\safety\Guard\tests\Config';   Src = 'Guard.csproj';           Mutate = @('Configuration/**','DependencyInjection/**','Policy/**','OAuth/**') }
+            'Guard-Security'       = @{ Dir = 'core\safety\Guard\tests\Security'; Src = 'Guard.csproj';           Mutate = @('Security/**') }
+            'Guard-Hooks'          = @{ Dir = 'core\safety\Guard\tests\Hooks';    Src = 'Guard.csproj';           Mutate = @('Hooks/**','Permission/**') }
+            'Vault-Memdir'         = @{ Dir = 'core\safety\Vault\tests\Unit';     Src = 'Vault.csproj';           Mutate = @('Memdir/**') }
+            'Vault-Other'          = @{ Dir = 'core\safety\Vault\tests\Unit';     Src = 'Vault.csproj';           Mutate = @('State/**','Todo/**','UserInteraction/**','StepEvidence/**','Notification/**','DependencyInjection/**') }
+            'Brain-CtxAdmin'       = @{ Dir = 'core\execution\Brain\tests\Unit';  Src = 'Brain.csproj';           Mutate = @('Context/Services/Admin/**') }
+            'Brain-CtxChat'        = @{ Dir = 'core\execution\Brain\tests\Unit';  Src = 'Brain.csproj';           Mutate = @('Context/Services/Chat/**','Context/Services/ChatInit/**') }
+            'Brain-CtxOther'       = @{ Dir = 'core\execution\Brain\tests\Unit';  Src = 'Brain.csproj';           Mutate = @('Context/Services/Preprocess/**','Context/Services/Context/**','Context/Services/Processor/**','Context/Services/Prompt/**','Context/Services/Idle/**','Context/Services/Loop/**') }
+            'Brain-CtxNonServices' = @{ Dir = 'core\execution\Brain\tests\Unit';  Src = 'Brain.csproj';           Mutate = @('Context/Compact/**','Context/Compression/**','Context/Collapse/**','Context/Core/**','Context/Resolution/**') }
+            'Brain-PromptsSections'= @{ Dir = 'core\execution\Brain\tests\Unit';  Src = 'Brain.csproj';           Mutate = @('Prompts/Sections/**') }
+            'Brain-PromptsOther'   = @{ Dir = 'core\execution\Brain\tests\Unit';  Src = 'Brain.csproj';           Mutate = @('Prompts/Services/**','Prompts/Testing/**','Prompts/Templates/**','Prompts/Utils/**','Prompts/Core/**') }
+            'Brain-Other'          = @{ Dir = 'core\execution\Brain\tests\Unit';  Src = 'Brain.csproj';           Mutate = @('Cache/**','ContextFold/**','CostTracking/**','DependencyInjection/**','Planning/**','Query/**','Summary/**') }
+            'Hands-SysTools'       = @{ Dir = 'core\execution\Hands\tests\Unit';  Src = 'Hands.csproj';           Mutate = @('ToolHandlers/Handlers/SystemTools/**') }
+            'Hands-CoreHandlers'   = @{ Dir = 'core\execution\Hands\tests\Unit';  Src = 'Hands.csproj';           Mutate = @('ToolHandlers/Handlers/Core/**') }
+            'Hands-DevTools'       = @{ Dir = 'core\execution\Hands\tests\Unit';  Src = 'Hands.csproj';           Mutate = @('ToolHandlers/Handlers/DevTools/**') }
+            'Hands-SkillServices'  = @{ Dir = 'core\execution\Hands\tests\Unit';  Src = 'Hands.csproj';           Mutate = @('Skills/Services/**','Skills/Mcp/**','Skills/Plugin/**') }
+            'Hands-SkillBuiltIn'   = @{ Dir = 'core\execution\Hands\tests\Unit';  Src = 'Hands.csproj';           Mutate = @('Skills/BuiltIn/**','Skills/Skills/**') }
+            'Hands-SkillOther'     = @{ Dir = 'core\execution\Hands\tests\Unit';  Src = 'Hands.csproj';           Mutate = @('Skills/Discovery/**','Skills/Search/**','Skills/Utils/**') }
+            'Hands-Api'            = @{ Dir = 'core\execution\Hands\tests\Unit';  Src = 'Hands.csproj';           Mutate = @('Api/**','Web/**','Network/**','Integration/**') }
+            'Hands-Shell'          = @{ Dir = 'core\execution\Hands\tests\Unit';  Src = 'Hands.csproj';           Mutate = @('Shell/**','FileOps/**','System/**','Voice/**','Notebook/**','Serialization/**','Build/**','Cache/**','DependencyInjection/**') }
+            'Scheduling'           = @{ Dir = 'core\execution\Scheduling\tests\Unit';     Src = 'Scheduling.csproj';      Mutate = @() }
+            'McpToolDispatch'      = @{ Dir = 'core\execution\McpToolDispatch\tests\Unit'; Src = 'McpToolDispatch.csproj'; Mutate = @() }
+            'Llm'                  = @{ Dir = 'core\ai\Llm\tests\Unit';                  Src = 'Llm.csproj';             Mutate = @() }
+            'Agents'               = @{ Dir = 'core\ai\Agents\tests\Unit';               Src = 'Agents.csproj';          Mutate = @() }
+            'Reasoning'            = @{ Dir = 'core\ai\Reasoning\tests\Unit';            Src = 'Reasoning.csproj';       Mutate = @() }
+            'CodeIndex'            = @{ Dir = 'core\search\CodeIndex\tests\Unit';        Src = 'CodeIndex.csproj';       Mutate = @() }
+            'Browser'              = @{ Dir = 'core\search\Browser\tests\Unit';          Src = 'Browser.csproj';         Mutate = @() }
+            'Mcp'                  = @{ Dir = 'services\Mcp\tests\Unit';                 Src = 'Mcp.csproj';             Mutate = @() }
+            'Eyes'                 = @{ Dir = 'services\Eyes\tests\Unit';                Src = 'Eyes.csproj';            Mutate = @() }
+            'Dream'                = @{ Dir = 'services\Dream\tests\Unit';               Src = 'Dream.csproj';            Mutate = @() }
+            'Bridge'               = @{ Dir = 'services\Bridge\tests\Unit';              Src = 'Bridge.csproj';           Mutate = @() }
+            'Composition'          = @{ Dir = 'composition\Composition\tests\Unit';      Src = 'Composition.csproj';     Mutate = @() }
+            'Clock'                = @{ Dir = 'composition\Clock\tests\Unit';            Src = 'Clock.csproj';           Mutate = @() }
+            'Infra'                = @{ Dir = 'tests\Unit\Infra.Tests';                  Src = 'Infrastructure.csproj';  Mutate = @() }
+            'Host-Commands'        = @{ Dir = 'tests\Unit\Host.Tests';                   Src = 'JoinCode.csproj';        Mutate = @('Commands/**') }
+            'Host-Other'           = @{ Dir = 'tests\Unit\Host.Tests';                   Src = 'JoinCode.csproj';        Mutate = @('App/**','Cli/**','Entry/**','Pipe/**','Services/**') }
+          }
+
+          $name = $env:STRYKER_PROJECT
+          $info = $projectMap[$name]
+          if (-not $info) { Write-Error "Unknown project: $name"; exit 1 }
+
+          $testDir = Join-Path $env:GITHUB_WORKSPACE $info.Dir
+          $concurrency = [int]$env:STRYKER_CONCURRENCY
+          $breakThreshold = [int]$env:STRYKER_BREAK
+
+          $slnxMap = @{
+            'Guard-Config' = 'Core.slnx'; 'Guard-Security' = 'Core.slnx'; 'Guard-Hooks' = 'Core.slnx'
+            'Vault-Memdir' = 'Core.slnx'; 'Vault-Other' = 'Core.slnx'
+            'Brain-CtxAdmin' = 'Core.slnx'; 'Brain-CtxChat' = 'Core.slnx'; 'Brain-CtxOther' = 'Core.slnx'; 'Brain-CtxNonServices' = 'Core.slnx'
+            'Brain-PromptsSections' = 'Core.slnx'; 'Brain-PromptsOther' = 'Core.slnx'; 'Brain-Other' = 'Core.slnx'
+            'Hands-SysTools' = 'Core.slnx'; 'Hands-CoreHandlers' = 'Core.slnx'; 'Hands-DevTools' = 'Core.slnx'
+            'Hands-SkillServices' = 'Core.slnx'; 'Hands-SkillBuiltIn' = 'Core.slnx'; 'Hands-SkillOther' = 'Core.slnx'
+            'Hands-Api' = 'Core.slnx'; 'Hands-Shell' = 'Core.slnx'
+            'Scheduling' = 'Core.slnx'; 'McpToolDispatch' = 'Core.slnx'; 'Llm' = 'Core.slnx'; 'Agents' = 'Core.slnx'; 'Reasoning' = 'Core.slnx'
+            'CodeIndex' = 'Core.slnx'; 'Browser' = 'Core.slnx'
+            'Mcp' = 'Services.slnx'; 'Eyes' = 'Services.slnx'; 'Dream' = 'Services.slnx'; 'Bridge' = 'Services.slnx'
+            'Composition' = 'Composition.slnx'; 'Clock' = 'Composition.slnx'
+            'Infra' = 'App.slnx'; 'Host-Commands' = 'App.slnx'; 'Host-Other' = 'App.slnx'
+          }
+          $slnx = $slnxMap[$name]
+          $slnxPath = Join-Path $env:GITHUB_WORKSPACE $slnx
+
+          $strykerArgs = @("-p", $info.Src, "-s", $slnxPath, "-c", $concurrency, "-b", $breakThreshold, "--threshold-low", "60", "--threshold-high", "80", "-r", "progress", "-r", "html", "-r", "json", "-r", "markdown")
+
+          $strykerArgs += @("--mutate", "!**/GlobalUsings.cs", "--mutate", "!**/AssemblyInfo.cs")
+          if ($info.Mutate.Count -gt 0) {
+            foreach ($m in $info.Mutate) {
+              $strykerArgs += @("--mutate", $m)
+            }
+          }
+
+          Write-Host "Stryker: $name | Source: $($info.Src) | Dir: $testDir | Slnx: $slnx | Concurrency: $concurrency | Mutate: $($info.Mutate.Count) patterns"
+          Push-Location $testDir
+          try {
+            & dotnet-stryker @strykerArgs
+          } finally {
+            Pop-Location
+          }
+
+      - name: Upload Stryker Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stryker-report-${{ matrix.project }}
+          path: |
+            **/StrykerOutput/**/reports/mutation-report.html
+            **/StrykerOutput/**/reports/mutation-report.json
+            **/StrykerOutput/**/reports/mutation-report.md
+          retention-days: 30

@@ -71,4 +71,37 @@ public static class ContinuationPromptBuilder
             summarize useful progress, identify remaining work or blockers, and leave the user with a clear next step.
             """;
     }
+
+    public static string BuildStagnationAlertPrompt(
+        string objective,
+        int elapsedSeconds,
+        int turnsCompleted)
+    {
+        var formattedDuration = FormatDuration(elapsedSeconds);
+        var avgSecondsPerTurn = turnsCompleted > 0 ? (double)elapsedSeconds / turnsCompleted : elapsedSeconds;
+
+        return $"""
+            ⚠️ STAGNATION ALERT: This goal has been running for {formattedDuration} with only {turnsCompleted} turn(s) completed (avg {avgSecondsPerTurn:F0}s/turn).
+            The previous agent may have been idle or unproductive — significant time elapsed with minimal progress.
+
+            <untrusted_objective>
+            {objective}
+            </untrusted_objective>
+
+            You MUST take autonomous action NOW:
+            - Do NOT wait for instructions or user confirmation
+            - Do NOT summarize status or explain what you plan to do
+            - Pick the most impactful concrete action and EXECUTE it immediately
+            - Prioritize writing code, running tests, making changes over investigation
+            - If the task has multiple sub-items, skip completed ones and push forward on unfinished ones
+            - Prove progress through action, not words
+            """;
+    }
+
+    private static string FormatDuration(int seconds)
+    {
+        if (seconds < 60) return $"{seconds}s";
+        if (seconds < 3600) return $"{seconds / 60}m{seconds % 60}s";
+        return $"{seconds / 3600}h{(seconds % 3600) / 60}m";
+    }
 }

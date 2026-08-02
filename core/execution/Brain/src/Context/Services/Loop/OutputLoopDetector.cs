@@ -2,7 +2,6 @@ using JoinCode.Abstractions.Attributes;
 
 namespace Core.Context;
 
-[Register]
 public sealed partial class OutputLoopDetector : IOutputLoopDetector
 {
     private readonly int _windowSize;

@@ -93,9 +93,9 @@ public class DiagnosticLogWatcherTests
 
         Assert.NotNull(evt);
         Assert.NotEqual(default, evt.Timestamp);
-        Assert.Equal(2026, evt.Timestamp.Year);
-        Assert.Equal(8, evt.Timestamp.Month);
-        Assert.Equal(1, evt.Timestamp.Day);
+        Assert.Equal(2026, evt.Timestamp.UtcDateTime.Year);
+        Assert.Equal(8, evt.Timestamp.UtcDateTime.Month);
+        Assert.Equal(1, evt.Timestamp.UtcDateTime.Day);
     }
 
     [Fact]

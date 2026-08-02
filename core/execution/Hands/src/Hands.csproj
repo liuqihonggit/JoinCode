@@ -31,6 +31,10 @@
     <InternalsVisibleTo Include="JoinCode.Core.Tests.Agents" />
     <InternalsVisibleTo Include="JoinCode.Core.Tests.Context" />
     <InternalsVisibleTo Include="JoinCode.Hands.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Hands.ToolHandlers.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Hands.Skills.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Hands.Api.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Hands.Shell.Tests" />
     <InternalsVisibleTo Include="JoinCode.Composition" />
   </ItemGroup>
 

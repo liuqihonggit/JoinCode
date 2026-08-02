@@ -108,4 +108,31 @@ public sealed class GoalToolHandlers
             .WithText($"Goal updated: {objective} → {finalStatus} ({reason})")
             .Build();
     }
+
+    /// <summary>
+    /// 定义 Goal Graph — 协调者 Agent 调研后调用此工具定义执行图结构
+    /// </summary>
+    [McpTool(SystemToolNameConstants.GoalGraphDefine, "Define a goal execution graph with nodes and edges. The coordinator agent uses this after investigating the task to create an optimal execution plan. Each node is an agent loop, edges define execution flow and conditional routing.", "goal")]
+    public Task<ToolResult> DefineGraphAsync(
+        [McpToolParameter("JSON array of nodes. Each node: {id, kind, name, systemPrompt?, instruction?, freshContext?}. kind: agent/function/join", Required = true)] string nodes,
+        [McpToolParameter("JSON array of edges. Each edge: {id?, fromId, toId, label?}. Empty label = unconditional, non-empty = conditional route key", Required = true)] string edges,
+        [McpToolParameter("Start node ID", Required = true)] string start_node_id,
+        [McpToolParameter("End node IDs, comma-separated", Required = true)] string end_node_ids,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _goalEngine.SetGraphDefinition(nodes, edges, start_node_id, end_node_ids);
+
+            return Task.FromResult(McpResultBuilder.Success()
+                .WithText($"Graph defined successfully. Start: {start_node_id}, Ends: {end_node_ids}. The graph will execute when the goal loop continues.")
+                .Build());
+        }
+        catch (Exception ex)
+        {
+            return Task.FromResult(McpResultBuilder.Error()
+                .WithText($"Failed to define graph: {ex.Message}")
+                .Build());
+        }
+    }
 }

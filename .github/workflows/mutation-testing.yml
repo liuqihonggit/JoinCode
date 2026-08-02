@@ -130,6 +130,18 @@ jobs:
       - name: Build - ⑦ App
         run: dotnet build App.slnx -c Debug --nologo -m /p:SkipLocalPack=true
 
+      - name: Diagnose ref DLLs
+        shell: pwsh
+        run: |
+          Write-Host "=== Checking ref DLLs ==="
+          $refDirs = Get-ChildItem -Path "artifacts\obj" -Directory -Recurse -Filter "ref" -ErrorAction SilentlyContinue
+          foreach ($d in $refDirs) {
+            $dlls = Get-ChildItem -Path $d.FullName -Filter "*.dll" -ErrorAction SilentlyContinue
+            Write-Host "$($d.FullName): $($dlls.Count) DLLs"
+            foreach ($dll in $dlls) { Write-Host "  $($dll.Name)" }
+          }
+          Write-Host "=== Total ref dirs: $($refDirs.Count) ==="
+
       - name: Run Stryker
         shell: pwsh
         env:

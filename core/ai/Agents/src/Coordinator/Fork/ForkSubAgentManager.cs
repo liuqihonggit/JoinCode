@@ -314,7 +314,7 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
         }
     }
 
-    private async Task RunBackgroundForkAsync(string forkId, ISubAgent agent, string taskDescription, CancellationToken cancellationToken)
+    private async Task RunBackgroundForkAsync(string forkId, IAgent agent, string taskDescription, CancellationToken cancellationToken)
     {
         try
         {

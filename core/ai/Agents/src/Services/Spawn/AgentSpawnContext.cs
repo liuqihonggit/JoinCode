@@ -38,7 +38,7 @@ public sealed class AgentSpawnContext
     /// <summary>
     /// Spawn 后的子智能体实例（SpawnMiddleware 设置）
     /// </summary>
-    public ISubAgent? SubAgent { get; set; }
+    public IAgent? SubAgent { get; set; }
 
     /// <summary>
     /// 取消令牌

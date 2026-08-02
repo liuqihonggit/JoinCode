@@ -17,7 +17,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
     [Inject] private readonly IClockService _clock;
     [Inject] private readonly IServiceProvider _serviceProvider = null!;
     [Inject] private readonly IGoalGraphTemplateRegistry _templateRegistry = null!;
-    [Inject] private readonly IAgentRegistry? _agentRegistry = null!;
+    private Core.Agents.Coordinator.AgentRegistry _agentRegistry => Core.Agents.Coordinator.Agent.Registry;
     private readonly IToolPermissionManager? _permissionManager;
     private readonly MiddlewarePipeline<GoalLifecycleContext>? _lifecyclePipeline;
     private GoalState? _state;
@@ -140,13 +140,15 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
         IToolPermissionManager? permissionManager = null,
         IEnumerable<IGoalLifecycleMiddleware>? lifecycleMiddlewares = null,
         IGoalHeartbeat? heartbeat = null,
-        IClockService? clock = null)
+        IClockService? clock = null,
+        IServiceProvider? serviceProvider = null)
     {
         _kernel = kernel;
         _evaluator = evaluator;
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
         _permissionManager = permissionManager;
+        _serviceProvider = serviceProvider ?? _serviceProvider;
         _stateLock = new SemaphoreSlim(1, 1);
         _chatHistory = new MessageList();
         _heartbeat = heartbeat ?? throw new ArgumentNullException(nameof(heartbeat));
@@ -1090,20 +1092,39 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
 
     private void RegisterMainAgent(string goalId, string objective, int? tokenBudget)
     {
-        if (_agentRegistry is null) return;
-
-        var mainAgentId = AgentDescriptor.GenerateId();
-        _agentRegistry.Register(new AgentDescriptor
+        var mainAgents = _agentRegistry.GetMainAgents();
+        if (mainAgents.Count > 0)
         {
-            Id = mainAgentId,
-            Name = "mainAgent",
-            IsSubAgent = false,
-            Instruction = objective,
-            GoalId = goalId,
-            TokenBudget = tokenBudget,
-        });
+            _logger?.LogInformation("[GoalEngine] mainAgent 已存在: {AgentId}, 跳过注册", mainAgents[0].Id);
+            return;
+        }
 
-        _logger?.LogInformation("[GoalEngine] mainAgent 注册到 AgentRegistry: {AgentId}, Goal={GoalId}", mainAgentId, goalId);
+        if (_serviceProvider is null)
+        {
+            _logger?.LogWarning("[GoalEngine] IServiceProvider 未注入，无法创建 mainAgent，Goal={GoalId}", goalId);
+            return;
+        }
+
+        var queryEngine = _serviceProvider.GetService<IQueryEngine>();
+        if (queryEngine is null)
+        {
+            _logger?.LogWarning("[GoalEngine] IQueryEngine 未注入，无法创建 mainAgent，Goal={GoalId}", goalId);
+            return;
+        }
+
+        var mainAgent = new Core.Agents.Coordinator.Agent(
+            task: objective,
+            options: new SubAgentOptions { DisplayName = "mainAgent", AgentType = "main" },
+            queryEngine: queryEngine,
+            logger: _logger,
+            clock: _clock,
+            name: "mainAgent",
+            isSubAgent: false,
+            agentType: "main",
+            goalId: goalId,
+            tokenBudget: tokenBudget);
+
+        _logger?.LogInformation("[GoalEngine] mainAgent 创建并注册到 Agent.Registry: {AgentId}, Goal={GoalId}", mainAgent.Id, goalId);
     }
 }
 

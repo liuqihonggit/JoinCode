@@ -60,8 +60,8 @@ public class AgentCoordinatorExtendedTests
     [Fact]
     public async Task SpawnSubAgentAsync_ShouldCreateAgentWithUniqueId()
     {
-        var agent1 = new Agent("agent-1", "Task 1", null, _queryEngineMock.Object, null);
-        var agent2 = new Agent("agent-2", "Task 2", null, _queryEngineMock.Object, null);
+        var agent1 = new Agent("Task 1", null, _queryEngineMock.Object, null);
+        var agent2 = new Agent("Task 2", null, _queryEngineMock.Object, null);
 
         _lifecycleManagerMock.SetupSequence(x => x.SpawnSubAgentAsync(It.IsAny<string>(), null, default))
             .ReturnsAsync(agent1)
@@ -81,7 +81,7 @@ public class AgentCoordinatorExtendedTests
         for (int i = 0; i < tasks.Length; i++)
         {
             var task = tasks[i];
-            var agent = new Agent($"agent-{i}", task, null, _queryEngineMock.Object, null);
+            var agent = new Agent(task, null, _queryEngineMock.Object, null);
             _lifecycleManagerMock.Setup(x => x.SpawnSubAgentAsync(task, null, default))
                 .ReturnsAsync(agent);
         }
@@ -211,8 +211,8 @@ public class AgentCoordinatorExtendedTests
     public async Task RetryAsync_ShouldRetryFailedAgent()
     {
         // Arrange - 需要先创建Agent以建立执行上下文
-        var agentId = "test-agent";
-        var agent = new Agent(agentId, "Task", null, _queryEngineMock.Object, null);
+        var agent = new Agent("Task", null, _queryEngineMock.Object, null);
+        var agentId = agent.Id;
         var expectedResult = new SubAgentResult { AgentId = agentId, IsSuccess = true, Output = "Success" };
 
         _lifecycleManagerMock.Setup(x => x.SpawnSubAgentAsync(It.IsAny<string>(), null, default)).ReturnsAsync(agent);
@@ -336,9 +336,9 @@ public class AgentCoordinatorExtendedTests
     public async Task SendMessageAsync_ShouldSendMessageToAgent()
     {
         // Arrange
-        var agentId = "test-agent";
+        var agent = new Agent("Task", null, _queryEngineMock.Object, null);
+        var agentId = agent.Id;
         var message = new AgentMsg { FromAgentId = "sender", ToAgentId = agentId, MessageType = "text", Content = "Hello" };
-        var agent = new Agent(agentId, "Task", null, _queryEngineMock.Object, null);
         agent.State = TaskExecutionStatus.Running;
 
         _lifecycleManagerMock.Setup(x => x.GetAgentAsync(agentId, default)).ReturnsAsync(agent);
@@ -416,8 +416,8 @@ public class AgentCoordinatorExtendedTests
     public async Task StopAgentAsync_ShouldStopRunningAgent()
     {
         // Arrange
-        var agentId = "test-agent";
-        var agent = new Agent(agentId, "Task", null, _queryEngineMock.Object, null);
+        var agent = new Agent("Task", null, _queryEngineMock.Object, null);
+        var agentId = agent.Id;
         agent.State = TaskExecutionStatus.Running;
 
         _lifecycleManagerMock.Setup(x => x.GetAgentAsync(agentId, default)).ReturnsAsync(agent);

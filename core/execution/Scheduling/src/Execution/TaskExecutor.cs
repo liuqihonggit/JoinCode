@@ -133,11 +133,11 @@ internal sealed class TaskExecutor
     /// <summary>
     /// 创建子Agent集合
     /// </summary>
-    private async Task<IReadOnlyList<ISubAgent>> CreateSubAgentsAsync(ScheduledTask task, AgentTaskContext taskContext, ExecutionOptions options)
+    private async Task<IReadOnlyList<IAgent>> CreateSubAgentsAsync(ScheduledTask task, AgentTaskContext taskContext, ExecutionOptions options)
     {
-        if (_agentCoordinator == null) return Array.Empty<ISubAgent>();
+        if (_agentCoordinator == null) return Array.Empty<IAgent>();
 
-        var subAgents = new List<ISubAgent>();
+        var subAgents = new List<IAgent>();
         for (int i = 0; i < task.RequiredAgents; i++)
         {
             var agent = await CreateSingleSubAgentAsync(task, taskContext, options, i).ConfigureAwait(false);
@@ -149,7 +149,7 @@ internal sealed class TaskExecutor
     /// <summary>
     /// 创建单个SubAgent
     /// </summary>
-    private async Task<ISubAgent> CreateSingleSubAgentAsync(ScheduledTask task, AgentTaskContext taskContext, ExecutionOptions options, int agentIndex)
+    private async Task<IAgent> CreateSingleSubAgentAsync(ScheduledTask task, AgentTaskContext taskContext, ExecutionOptions options, int agentIndex)
     {
         var description = BuildAgentTaskDescription(task, agentIndex, task.RequiredAgents);
         var subAgentOptions = BuildSubAgentOptions(task, taskContext, options, agentIndex);
@@ -175,7 +175,7 @@ internal sealed class TaskExecutor
     /// <summary>
     /// 并行执行所有Agent
     /// </summary>
-    private async Task<IReadOnlyList<SubAgentResult>> ExecuteAgentsParallelAsync(IReadOnlyList<ISubAgent> subAgents, ExecutionOptions options)
+    private async Task<IReadOnlyList<SubAgentResult>> ExecuteAgentsParallelAsync(IReadOnlyList<IAgent> subAgents, ExecutionOptions options)
     {
         if (_agentCoordinator == null) return Array.Empty<SubAgentResult>();
 
@@ -191,7 +191,7 @@ internal sealed class TaskExecutor
     /// <summary>
     /// 记录Agent创建日志
     /// </summary>
-    private void LogAgentCreation(string taskName, IReadOnlyList<ISubAgent> subAgents, int totalAgents)
+    private void LogAgentCreation(string taskName, IReadOnlyList<IAgent> subAgents, int totalAgents)
     {
         for (int i = 0; i < subAgents.Count; i++)
         {

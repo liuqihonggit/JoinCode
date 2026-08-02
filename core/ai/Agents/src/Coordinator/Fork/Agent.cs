@@ -2,25 +2,29 @@
 namespace Core.Agents.Coordinator;
 
 /// <summary>
-/// 统一 Agent — mainAgent 和 subAgent 共用此类
-/// LLM对话循环内聚，外部只通过 IAgentService 控制生命周期
-/// 合并原 SubAgent（行为）+ AgentDescriptor（描述）为单一类
+/// 统一 Agent — 派生自 Entity，共享 ObjectId/CreatedAt/惰性释放
+/// mainAgent 和 subAgent 共用此类
+/// LLM对话循环内聚，外部只通过 IAgent 控制生命周期
 /// </summary>
-public sealed class Agent : ISubAgent
+public sealed class Agent : Entity, IAgent
 {
     private readonly IQueryEngine _queryEngine;
     private readonly ILogger? _logger;
     private readonly IClockService _clock;
     private readonly List<string> _context;
     private readonly CancellationTokenSource _cts;
+#pragma warning disable JCC4005 // SemaphoreSlim 在 OnDispose() 中释放，分析器无法追踪间接调用路径
     private readonly SemaphoreSlim _pauseLock;
+#pragma warning restore JCC4005
     private JoinCode.Abstractions.LLM.Chat.CacheSafeParams? _lastCacheSafeParams;
 
-    // === 身份 ===
-    public string Id { get; }
+    // === 静态注册器 ===
+    public static AgentRegistry Registry { get; } = new();
+
+    // === 身份（ObjectId/Id/CreatedAt 继承自 Entity）===
     public string Name { get; }
     public bool IsSubAgent { get; }
-    public string? ParentAgentId { get; init; }
+    public ObjectId? ParentObjectId { get; init; }
     public string? AgentType { get; }
 
     // === 任务 ===
@@ -29,9 +33,6 @@ public sealed class Agent : ISubAgent
     public SubAgentContext? Context { get; }
     public TaskExecutionStatus Status { get; set; }
     public TaskExecutionStatus State { get; set; }
-    public DateTime CreatedAt { get; }
-    public DateTime? StartedAt { get; set; }
-    public DateTime? CompletedAt { get; private set; }
     public CancellationTokenSource? CancellationTokenSource { get; set; }
 
     // === 上下文 ===
@@ -60,7 +61,6 @@ public sealed class Agent : ISubAgent
     private int _executionCount;
 
     public Agent(
-        string id,
         string task,
         SubAgentOptions? options,
         IQueryEngine queryEngine,
@@ -68,7 +68,7 @@ public sealed class Agent : ISubAgent
         IClockService? clock = null,
         string? name = null,
         bool isSubAgent = true,
-        string? parentAgentId = null,
+        ObjectId? parentObjectId = default,
         string? agentType = null,
         string? systemPrompt = null,
         string? instruction = null,
@@ -76,12 +76,12 @@ public sealed class Agent : ISubAgent
         int? tokenBudget = null,
         string? goalId = null,
         string? graphNodeId = null)
+        : base(ObjectType.Agent)
     {
-        Id = id;
         Task = task;
-        Name = name ?? id;
+        Name = name ?? Id;
         IsSubAgent = isSubAgent;
-        ParentAgentId = parentAgentId;
+        ParentObjectId = parentObjectId;
         AgentType = agentType;
         SystemPrompt = systemPrompt;
         Instruction = instruction;
@@ -97,12 +97,11 @@ public sealed class Agent : ISubAgent
         _cts = new CancellationTokenSource();
         _pauseLock = new SemaphoreSlim(1, 1);
         Status = TaskExecutionStatus.Pending;
-        CreatedAt = _clock.GetUtcNow();
         _isPaused = false;
         _executionCount = 0;
         Context = new SubAgentContext
         {
-            AgentId = id,
+            AgentId = Id,
             AgentType = agentType ?? Options.AgentType ?? AgentTypeDefinition.Default.ToValue(),
             Task = task,
             AllowedTools = Options.AllowedTools,
@@ -112,65 +111,24 @@ public sealed class Agent : ISubAgent
             DisplayName = Options.DisplayName,
             PermissionMode = Options.PermissionMode
         };
+
+        Registry.Add(ObjectId, this);
+    }
+
+    /// <summary>
+    /// 惰性释放 — 持久化服务确认消息全部写入后才调用
+    /// </summary>
+    protected override void OnDispose()
+    {
+        Registry.Remove(ObjectId);
+        _cts.Dispose();
+        _pauseLock.Dispose();
     }
 
     /// <summary>
     /// 生成唯一 Agent Id
     /// </summary>
     public static string GenerateId() => $"agent-{Guid.NewGuid():N}"[..20];
-
-    /// <summary>
-    /// 从 AgentDescriptor 创建 Agent（兼容迁移）
-    /// </summary>
-    public static Agent FromDescriptor(AgentDescriptor descriptor, string task, IQueryEngine queryEngine, ILogger? logger = null, IClockService? clock = null)
-    {
-        return new Agent(
-            id: descriptor.Id,
-            task: task,
-            options: null,
-            queryEngine: queryEngine,
-            logger: logger,
-            clock: clock,
-            name: descriptor.Name,
-            isSubAgent: descriptor.IsSubAgent,
-            parentAgentId: descriptor.ParentAgentId,
-            agentType: descriptor.AgentType,
-            systemPrompt: descriptor.SystemPrompt,
-            instruction: descriptor.Instruction,
-            freshContext: descriptor.FreshContext,
-            tokenBudget: descriptor.TokenBudget,
-            goalId: descriptor.GoalId,
-            graphNodeId: descriptor.GraphNodeId);
-    }
-
-    /// <summary>
-    /// 转为 AgentDescriptor（兼容迁移）
-    /// </summary>
-    public AgentDescriptor ToDescriptor()
-    {
-        return new AgentDescriptor
-        {
-            Id = Id,
-            Name = Name,
-            IsSubAgent = IsSubAgent,
-            AgentType = AgentType,
-            ParentAgentId = ParentAgentId,
-            SystemPrompt = SystemPrompt,
-            Instruction = Instruction,
-            GoalId = GoalId,
-            GraphNodeId = GraphNodeId,
-            FreshContext = FreshContext,
-            TokenBudget = TokenBudget,
-            TokensUsed = TokensUsed,
-            TurnsCompleted = TurnsCompleted,
-            CreatedAt = CreatedAt,
-            StartedAt = StartedAt,
-            CompletedAt = CompletedAt,
-            Output = Output,
-            ErrorMessage = ErrorMessage,
-            Routes = Routes,
-        };
-    }
 
     /// <summary>
     /// 添加上下文信息
@@ -532,70 +490,5 @@ public sealed class Agent : ISubAgent
             EffortLevel = effortLevel,
             ModelId = Options.ModelName,
         };
-    }
-
-    public void Dispose()
-    {
-        _cts.Dispose();
-        _pauseLock.Dispose();
-    }
-
-    // === IAgent 实现 ===
-
-    /// <summary>
-    /// 对话式处理 — 将输入添加到 ChatHistory 并执行一轮 LLM 循环
-    /// </summary>
-    public async System.Threading.Tasks.Task<AgentResponse> ProcessAsync(
-        string userInput,
-        bool useTools = false,
-        CancellationToken cancellationToken = default)
-    {
-        ChatHistory.AddUserMessage(userInput);
-
-        var queryOptions = BuildChatOptions();
-        var responseBuilder = new StringBuilder();
-        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-
-        await foreach (var chunk in _queryEngine.QueryAsync(userInput, ChatHistory, queryOptions, cancellationToken))
-        {
-            if (chunk.Type == AgentStreamChunkType.Content)
-            {
-                responseBuilder.Append(chunk.Content);
-            }
-        }
-
-        stopwatch.Stop();
-        var output = responseBuilder.ToString();
-        if (!string.IsNullOrEmpty(output))
-        {
-            ChatHistory.AddAssistantMessage(output);
-        }
-
-        return new AgentResponse
-        {
-            Content = output,
-            ExecutionTimeMs = stopwatch.ElapsedMilliseconds,
-        };
-    }
-
-    /// <summary>
-    /// 清空上下文
-    /// </summary>
-    public System.Threading.Tasks.Task ClearContextAsync(CancellationToken cancellationToken = default)
-    {
-        ChatHistory.Clear();
-        if (SystemPrompt is not null)
-        {
-            ChatHistory.AddSystemMessage(SystemPrompt);
-        }
-        return System.Threading.Tasks.Task.CompletedTask;
-    }
-
-    /// <summary>
-    /// 获取上下文
-    /// </summary>
-    public System.Threading.Tasks.Task<AgentContext> GetContextAsync(CancellationToken cancellationToken = default)
-    {
-        return System.Threading.Tasks.Task.FromResult(new AgentContext());
     }
 }

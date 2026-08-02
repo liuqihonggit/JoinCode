@@ -45,13 +45,14 @@ public sealed partial class AgentWorktreeSpawnMiddleware : IAgentSpawnMiddleware
             _logger?.LogInformation("[AgentWorktreeSpawn] Agent {AgentId} Worktree 创建成功: {Path}", agentId, worktreePath);
 
             // 设置 SubAgent 的 WorktreePath，使其在 ExecuteAsync 中使用 worktree 作为 CWD
-            context.SubAgent.Options.WorktreePath = worktreePath;
-            context.SubAgent.Options.WorktreeBranch = result.Session.BranchName;
+            var agent = (Agent)context.SubAgent;
+            agent.Options.WorktreePath = worktreePath;
+            agent.Options.WorktreeBranch = result.Session.BranchName;
 
             // 同步设置 Context.WorktreePath，供下游中间件和转录使用
-            if (context.SubAgent.Context is not null)
+            if (agent.Context is not null)
             {
-                context.SubAgent.Context.WorktreePath = worktreePath;
+                agent.Context.WorktreePath = worktreePath;
             }
         }
         catch (Exception ex)

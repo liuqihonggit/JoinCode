@@ -70,7 +70,7 @@ public sealed partial class AgentCoordinator : IAgentCoordinator, ISubAgentCoord
 
     #region Agent 生命周期管理（含协调逻辑）
 
-    public async Task<ISubAgent> SpawnSubAgentAsync(string task, SubAgentOptions? options = null, CancellationToken cancellationToken = default)
+    public async Task<IAgent> SpawnSubAgentAsync(string task, SubAgentOptions? options = null, CancellationToken cancellationToken = default)
     {
         var ctx = new AgentSpawnCoordContext
         {
@@ -95,7 +95,7 @@ public sealed partial class AgentCoordinator : IAgentCoordinator, ISubAgentCoord
         return ctx.Agent ?? throw new InvalidOperationException("Spawn pipeline completed without agent");
     }
 
-    public async Task<IReadOnlyList<ISubAgent>> SpawnSubAgentsAsync(IEnumerable<string> tasks, SubAgentOptions? options = null, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<IAgent>> SpawnSubAgentsAsync(IEnumerable<string> tasks, SubAgentOptions? options = null, CancellationToken cancellationToken = default)
     {
         var taskList = tasks.ToList();
         var spawnTasks = taskList
@@ -106,7 +106,7 @@ public sealed partial class AgentCoordinator : IAgentCoordinator, ISubAgentCoord
         return agents.ToList();
     }
 
-    public async Task<SubAgentResult> ExecuteAsync(ISubAgent agent, CancellationToken cancellationToken = default)
+    public async Task<SubAgentResult> ExecuteAsync(IAgent agent, CancellationToken cancellationToken = default)
     {
         if (!_executionContexts.TryGetValue(agent.Id, out var context))
         {
@@ -286,7 +286,7 @@ public sealed partial class AgentCoordinator : IAgentCoordinator, ISubAgentCoord
     #region 执行策略（含协调逻辑）
 
     public async Task<IReadOnlyList<SubAgentResult>> ExecuteParallelAsync(
-        IEnumerable<ISubAgent> agents,
+        IEnumerable<IAgent> agents,
         ParallelOptions? options = null,
         CancellationToken cancellationToken = default)
     {
@@ -305,7 +305,7 @@ public sealed partial class AgentCoordinator : IAgentCoordinator, ISubAgentCoord
     }
 
     public async Task<IReadOnlyList<SubAgentResult>> ExecuteSequentialAsync(
-        IEnumerable<ISubAgent> agents,
+        IEnumerable<IAgent> agents,
         CancellationToken cancellationToken = default)
     {
         var agentList = agents.ToList();
@@ -326,8 +326,8 @@ public sealed partial class AgentCoordinator : IAgentCoordinator, ISubAgentCoord
     /// 执行主Agent，失败时依次尝试备用Agent
     /// </summary>
     public async Task<FallbackExecutionResult> ExecuteWithFallbackAsync(
-        ISubAgent primaryAgent,
-        IEnumerable<ISubAgent> fallbackAgents,
+        IAgent primaryAgent,
+        IEnumerable<IAgent> fallbackAgents,
         CancellationToken cancellationToken = default)
     {
         var fallbacks = fallbackAgents.ToList();
@@ -397,7 +397,7 @@ public sealed partial class AgentCoordinator : IAgentCoordinator, ISubAgentCoord
             return false;
         }
 
-        if (agent.State.IsTerminal())
+        if (((Agent)agent).State.IsTerminal())
         {
             _logger?.LogWarning("[AgentCoordinator] Agent {AgentId} 已结束，无法接收消息", agentId);
             return false;
@@ -409,7 +409,7 @@ public sealed partial class AgentCoordinator : IAgentCoordinator, ISubAgentCoord
     public async Task BroadcastAsync(CoordinatorAgentMessage message, CancellationToken cancellationToken = default)
     {
         var allAgents = await _lifecycleManager.GetAllAgentsAsync(cancellationToken).ConfigureAwait(false);
-        var activeAgentCount = allAgents?.Count(a => !a.State.IsTerminal()) ?? 0;
+        var activeAgentCount = allAgents?.Count(a => !((Agent)a).State.IsTerminal()) ?? 0;
 
         _logger?.LogInformation("[AgentCoordinator] 广播消息给 {Count} 个活跃Agent", activeAgentCount);
 
@@ -519,16 +519,16 @@ public sealed partial class AgentCoordinator : IAgentCoordinator, ISubAgentCoord
             return false;
         }
 
-        if (agent.State != TaskExecutionStatus.Running && agent.State != TaskExecutionStatus.Pending)
+        if (((Agent)agent).State != TaskExecutionStatus.Running && ((Agent)agent).State != TaskExecutionStatus.Pending)
         {
-            _logger?.LogWarning("[AgentCoordinator] Agent {AgentId} 状态为 {State}，无法停止", agentId, agent.State);
+            _logger?.LogWarning("[AgentCoordinator] Agent {AgentId} 状态为 {State}，无法停止", agentId, ((Agent)agent).State);
             return false;
         }
 
         _logger?.LogInformation("[AgentCoordinator] 停止Agent {AgentId}", agentId);
 
-        agent.CancellationTokenSource?.Cancel();
-        agent.State = TaskExecutionStatus.Cancelled;
+        ((Agent)agent).CancellationTokenSource?.Cancel();
+        ((Agent)agent).State = TaskExecutionStatus.Cancelled;
 
         if (_executionContexts.TryGetValue(agentId, out var context))
         {

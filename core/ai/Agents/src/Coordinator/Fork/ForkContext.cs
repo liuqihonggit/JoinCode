@@ -58,7 +58,7 @@ public sealed class ForkContext
     /// <summary>
     /// Spawn 后的子智能体实例（ForkSpawnMiddleware 设置）
     /// </summary>
-    public ISubAgent? Agent { get; set; }
+    public IAgent? Agent { get; set; }
 
     /// <summary>
     /// 权限是否已同步（ForkPermissionMiddleware 设置）

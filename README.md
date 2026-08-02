@@ -1,70 +1,80 @@
 # JoinCode
 
-一个看起来是专为 C# 打造的 AI 编程助手，其实是通用哒。
+[![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?style=flat-square)](https://dotnet.microsoft.com/)
+[![NativeAOT](https://img.shields.io/badge/NativeAOT-Enabled-00A4EF?style=flat-square)](https://learn.microsoft.com/dotnet/core/deploying/native-aot/)
+[![C#](https://img.shields.io/badge/C%23-13-68217A?style=flat-square)](https://docs.microsoft.com/dotnet/csharp/)
+[![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
 
-最初目标是实现无人值守的自动迁移功能，后来发现这条路走不通。
+**JoinCode** 是一个纯 C# 实现的开源 AI 编程智能体，运行在你的终端里，理解你的代码库，通过自然语言帮你编码更快——执行日常任务、解释复杂代码、处理 Git 工作流，全部一条命令搞定。
 
-其次，针对 DeepSeek 频繁出现的死循环问题，打造了一套组合拳来应对。
+它编译为原生单文件可执行 `jcc.exe`，零运行时依赖，启动即达峰值性能。
 
-最终目标是实现纯 C# 全栈 Agent——为了支持 AOT 编译，抛弃了微软的全部 SDK。
+> 💡 **为什么选 JoinCode？**
+>
+> - **🚀 原生性能** — NativeAOT 编译为单文件原生二进制，无 JIT、无 GC 暂停、无运行时依赖，冷启动毫秒级
+> - **🧠 多模型适配** — DeepSeek / OpenAI / Anthropic / Azure 开箱即用，兼容 OpenAI API 协议
+> - **🔧 丰富内置工具** — Shell 执行、文件操作、Web 请求、代码索引（TreeSitter AST）、浏览器自动化、技能系统
+> - **🔌 MCP 协议** — 完整的 Model Context Protocol 客户端实现，无限扩展自定义工具
+> - **🛡️ 生产级容错** — LLM 宽容处理（JSON 修复/参数归一化/类型转换）、三级死循环干预、前缀缓存优化
+> - **⚖️ 结构化推理** — `/falv` 三权分立推理引擎（控方→辩方→法官），DAG 证据链 + 双预算控制
+> - **📦 零微软 AI 依赖** — 拒绝所有不支持 NativeAOT 的微软 AI SDK，从协议层自建 LLM 适配
+> - **🖥️ 终端优先** — 为活在命令行里的开发者设计，交互式 REPL + 非交互式脚本双模式
 
-我发现构建 3313 个文件的 AST 解析仅需约 2.7 秒，增量 AST 在修改期间速度更快，这样无需持久化，检索时大幅节省 token。
+---
 
-## 快速上手
+## 1. 快速上手
 
-### 环境要求
+### 1.1 环境要求
 
-- .NET 10 SDK
-- Windows / Linux / macOS（NativeAOT 编译）
+- **.NET 10 SDK**（10.0.301+）
+- **Windows / Linux / macOS**（NativeAOT 全平台编译）
 
-### 编译
+### 1.2 安装
 
 ```powershell
 # 克隆仓库
 git clone <repo-url>
 cd JoinCode
 
-# 编译（Release 模式，自动启用 NativeAOT）
-dotnet build JoinCode.slnx -c Release
+# 七层顺序编译（Release 模式，自动启用 NativeAOT）
+dotnet build Generators.slnx -c Release --no-incremental
+dotnet build Foundation.slnx -c Release --no-incremental
+dotnet build Infrastructure.slnx -c Release --no-incremental
+dotnet build Core.slnx -c Release --no-incremental
+dotnet build Services.slnx -c Release --no-incremental
+dotnet build Composition.slnx -c Release --no-incremental
+dotnet build App.slnx -c Release --no-incremental
 
-# 或使用构建脚本
+# 或使用构建脚本一键编译
 .\build.ps1 -Mode Fast -SkipTests -Configuration Release
 ```
 
-编译产物位于 `artifacts/bin/JoinCode/Release/net10.0/jcc.exe`。
+编译产物位于 `artifacts/bin/JoinCode/Release/net10.0/jcc.exe`，单文件原生二进制，可直接分发。
 
-### 配置
+### 1.3 认证配置
 
 通过环境变量配置 LLM Provider：
 
 | 环境变量 | 必填 | 说明 | 示例 |
 |----------|------|------|------|
 | `JCC_API_KEY` | 是 | API 密钥 | `sk-xxxxxxxx` |
-| `JCC_PROVIDER` | 否 | Provider 名称（默认 deepseek） | `deepseek` / `openai` / `anthropic` / `azure` |
-| `JCC_MODEL_ID` | 否 | 模型 ID（默认 deepseek-v4-flash） | `deepseek-v4-flash` / `gpt-4o` / `claude-3-5-sonnet-20241022` |
+| `JCC_PROVIDER` | 否 | Provider 名称（默认 `deepseek`） | `deepseek` / `openai` / `anthropic` / `azure` |
+| `JCC_MODEL_ID` | 否 | 模型 ID（默认 `deepseek-v4-flash`） | `deepseek-v4-flash` / `gpt-4o` / `claude-3-5-sonnet-20241022` |
 | `JCC_ENDPOINT` | 否 | API 端点（默认使用 Provider 内置地址） | `http://localhost:9901` |
 
-### 使用 DeepSeek
+#### 使用 DeepSeek（推荐）
 
-DeepSeek 是默认 Provider，兼容 OpenAI API 协议，开箱即用。只需设置 API Key 即可启动。
-
-#### 方式一：环境变量（推荐）
+DeepSeek 是默认 Provider，兼容 OpenAI API 协议，开箱即用：
 
 ```powershell
-# 设置 API Key（优先使用 DeepSeek 专属变量）
+# 设置 API Key
 $env:DEEPSEEK_API_KEY = "sk-your-deepseek-api-key"
 
-# 设置 Provider 为 DeepSeek
-$env:JCC_PROVIDER = "deepseek"
-
-# 可选：指定模型（默认 deepseek-v4-flash）
-$env:JCC_MODEL_ID = "deepseek-v4-pro"
-
-# 启动
+# 启动交互式 REPL
 jcc --trust
 ```
 
-> **回退机制**：如果未设置 `DEEPSEEK_API_KEY`，会自动回退读取 `OPENAI_API_KEY`。
+> **回退机制**：未设置 `DEEPSEEK_API_KEY` 时，自动回退读取 `OPENAI_API_KEY`。
 
 #### 方式二：配置文件
 
@@ -117,14 +127,17 @@ jcc --trust
 3. `DEEPSEEK_API_KEY` 环境变量（最高优先级）
 4. 回退：`OPENAI_API_KEY` 环境变量
 
-### 运行
+### 1.4 运行
 
 ```powershell
-# 非交互模式（单次对话）
-jcc --trust -p "你好"
+# 非交互模式（单次对话，适合脚本集成）
+jcc --trust -p "解释这个代码库的架构"
 
 # 交互模式（REPL）
 jcc --trust
+
+# 指定模型
+jcc --trust -m gpt-4o
 
 # 查看帮助
 jcc --help
@@ -134,37 +147,77 @@ $env:JCC_VERBOSE = "1"
 jcc -p "你好"
 ```
 
-### 常用斜杠命令
+### 1.5 常用斜杠命令
 
 | 命令 | 说明 |
 |------|------|
 | `/help` | 查看所有命令 |
-| `/model <name>` | 切换模型 |
+| `/model <name>` | 切换模型（如 `/model flash`、`/model pro`） |
+| `/goal` | 目标设定（Outcome + Verification + Constraints） |
+| `/falv` | 结构化推理（三权分立 + 证据链 + 双预算） |
 | `/brief` | 简要模式 |
 | `/clear` | 清空上下文 |
+| `/rewind` | 撤回消息 |
 | `/exit` | 退出 |
 
-## 架构和方法论
+---
 
-本工程主要对齐 Claude Code 和 DeepSeek-Reasonix。
+## 2. 核心特性
 
-1. 项目体量巨大，曾尝试用单个 slnx 一把梭，结果每次单元测试约 8000 个，编译和测试时电脑堪比拖拉机。
-   因此必须拆分为多个组件，`components/` 内各独立文件夹相当于子模块，尽可能解耦。
-   项目规模逐渐失控，不得不将 SDK 单独抽离。
+### 2.1 代码理解与生成
 
-2. git worktree 每次编译会将包隔离到分支文件夹，这点很好，但每个文件夹就占约 2G。
+- 查询和编辑大型代码库，3313 个文件 AST 解析仅需 ~2.7 秒
+- TreeSitter 语法分析驱动的代码索引，增量 AST 无需持久化
+- 调试问题、排查故障，用自然语言描述即可
 
-3. 硬编码字符串（尤其是工具类型）推荐改为枚举，项目内部已做了少量双语全球化。
+### 2.2 自动化与集成
 
-4. 项目采用语法分析器纠正 LLM 行为。
+- 自动化运维任务——查询 PR、处理复杂 rebase、批量重构
+- MCP 服务器连接自定义能力——工具、技能、工作流无限扩展
+- 非交互模式 `jcc -p "..."` 集成到 CI/CD 脚本
 
-5. 语法分析器能完成的事情，就不要写到 CLAUDE.md。
+### 2.3 生产级容错
 
-6. 洋葱模型——按不同服务划分，嵌套中间件管道模型；为强调管道顺序，手动注册。
+- **LLM 宽容处理**：JSON 格式修复、参数名归一化、参数类型自动转换、工具名归一化
+- **死循环三级干预**：软提示 → 硬截断 + 降温重试 → 上下文压缩 + 无人值守恢复
+- **前缀缓存优化**：系统提示词分区 + 消息历史前缀保持 + DeepSeek 缓存统计
+- **智能推进折扣**：检测到任务有实际推进时降低干预级别，避免误伤
 
-### 命令
+### 2.4 结构化推理
 
-#### /goal 命令
+- `/falv` 命令启动三权分立推理引擎：控方（收集证据）→ 辩方（质疑反驳）→ 法官（裁决）
+- DAG 证据链 + 双预算控制（轮次预算 + Token 预算，谁先触底谁停止）
+- 三级证明标准：Murder（排除合理怀疑）/ Panda（视情节浮动）/ Divorce（高度盖然性）
+- `/falv --continue` 续费续命，继续推理
+
+### 2.5 安全与权限
+
+- 多层权限管道：路径权限 → 危险操作拦截 → 自动安全分类 → Agent 限制
+- OAuth 认证、Hook 系统、策略引擎
+- Doctor 模式（`--doctor`）监控病人进程，自动修复问题
+
+### 2.6 原生性能
+
+- NativeAOT 编译为单文件原生二进制，零运行时依赖
+- 11 个源码生成器消除运行时反射：枚举元数据、构造函数注入、MCP 工具分发、AOT 安全分析……
+- 七层 slnx 隔离架构，严格按依赖顺序编译，零循环依赖
+- 14 条中间件管道（Chat/Permission/Shell/Web/Skill……），洋葱模型 + 手动注册强调顺序
+
+---
+
+## 3. 架构与方法论
+
+本工程对齐 Claude Code 和 DeepSeek-Reasonix，采用七层隔离架构 + 洋葱模型中间件管道。
+
+1. **七层 slnx 隔离架构**：Generators → Foundation → Infrastructure → Core → Services → Composition → App，严格按依赖顺序编译，零循环依赖。每层独立解决方案，上层依赖下层的构建产物。
+2. **洋葱模型 + 中间件管道**：按服务划分，嵌套中间件管道模型；为强调管道顺序，手动注册。共 14 条管道（Chat/Permission/Shell/Web/Skill 等）。
+3. **源码生成器消除反射**：11 个 Generator（枚举元数据、构造函数注入、MCP 工具分发、AOT 安全分析等），编译期生成代码，运行时零反射。
+4. **语法分析器纠正 LLM 行为**：TreeSitter AST 解析驱动代码理解，语法分析器能完成的事情不写入提示词。
+5. **枚举唯一数据源**：有限集合的字符串常量必须枚举化 + `[EnumValue]`，源码生成器自动生成常量类和扩展方法，消费方零硬编码。
+
+### 3.1 命令系统
+
+#### 3.1.1 /goal 命令
 
 ```
 /goal
@@ -176,7 +229,7 @@ jcc -p "你好"
 失败熔断： [如果遇到特定障碍无法推进，请停止并报告已尝试的路径和原因]
 ```
 
-#### /falv 命令
+#### 3.1.2 /falv 命令
 
 结构化推理引擎 — 假定→验证→事实 三权分立，基于 DAG 证据链：
 
@@ -194,7 +247,7 @@ jcc -p "你好"
 /falv --budget                           查看预算状态
 ```
 
-#### 待实现
+#### 3.1.3 待实现
 
 - 对标 MoA（Mixture of Agents）功能——三个臭皮匠胜过诸葛亮。
 - `/bug` 命令：采用多个 subAgent 并行修复，防止单个 subAgent 无法命中问题。配置多个 `API KEY` 使用不同 LLM 模型或许更佳。
@@ -203,11 +256,11 @@ jcc -p "你好"
 /bug 依据文档要求,修复xx的bug,它的表现是...
 ```
 
-### 测试
+### 3.2 测试策略
 
-实际上从未用 Visual Studio 启动过项目进行测试，主要依赖单元测试 + 语法分析器 + E2E 测试，通过真实 mock 服务端进行真实启动执行。这样可以进行真实对话，验证前缀缓存是否生效。
+主要依赖单元测试 + 语法分析器 + E2E 测试，通过真实 mock 服务端进行真实启动执行。这样可以进行真实对话，验证前缀缓存是否生效。
 
-### 记忆
+### 3.3 记忆系统
 
 目前仅对齐 Claude Code 的记忆机制，因为发现了一个业界无解的级联记忆问题：
 
@@ -222,17 +275,17 @@ b. 它也不可能实时修正全部历史，因为关联历史是海量的。
 它要么回答旧信息，要么幻觉，要么"不知道"，要么调查定位之后分析。
 ```
 
-我认为 OpenAI 的多层记忆 + 半衰期方案更为合理……但实现难度太高，暂时搁置。
+OpenAI 的多层记忆 + 半衰期方案更为合理，但实现难度太高，暂时搁置。
 
+---
 
+## 4. 技术要点
 
-# 技术要点
-
-## 0x01 宽容处理
+### 4.1 宽容处理
 
 引入了 CommandCode 作者针对 DeepSeek 工具调用的容错方案，通过 `ToolCallRepairService` 实现多层容错机制，降低 LLM 工具调用出错概率：
 
-### JSON 格式修复（RepairJson）
+#### 4.1.1 JSON 格式修复（RepairJson）
 
 自动修复 LLM 返回的常见 JSON 格式问题：
 
@@ -243,7 +296,7 @@ b. 它也不可能实时修正全部历史，因为关联历史是海量的。
 | 单引号键 | 转换为双引号 | `{'key':'value'}` → `{"key":"value"}` |
 | 截断的 JSON | 自动闭合未关闭的字符串和括号 | `{"a":"test` → `{"a":"test"}` |
 
-### 参数名归一化（RepairArguments）
+#### 4.1.2 参数名归一化（RepairArguments）
 
 处理 LLM 返回的参数名与工具 Schema 不匹配的情况：
 
@@ -252,7 +305,7 @@ b. 它也不可能实时修正全部历史，因为关联历史是海量的。
 - **snake_case/camelCase 自动转换**：`fileName` → `file_name`
 - **优先级**：直接匹配 > 别名匹配 > 大小写匹配 > 格式转换
 
-### 参数类型自动转换（RepairArgumentTypes）
+#### 4.1.3 参数类型自动转换（RepairArgumentTypes）
 
 根据工具 Schema 的类型定义，自动转换参数类型：
 
@@ -262,7 +315,7 @@ b. 它也不可能实时修正全部历史，因为关联历史是海量的。
 - **字符串 → 数组**：`"[1,2,3]"` → `[1,2,3]`
 - **数组 → 字符串**：`["text"]` → `"text"`
 
-### 工具名归一化（RepairToolName）
+#### 4.1.4 工具名归一化（RepairToolName）
 
 将 LLM 返回的任意大小写工具名归一化为标准名：
 
@@ -270,11 +323,11 @@ b. 它也不可能实时修正全部历史，因为关联历史是海量的。
 - 支持所有内置工具的大小写不敏感匹配
 - 找不到匹配则返回原名（可能是 MCP 工具或自定义工具）
 
-## 0x02 前缀缓存策略
+### 4.2 前缀缓存策略
 
 对齐 DeepSeek-Reasonix 的部分亮点，通过多层机制确保前缀缓存命中，降低 token 消耗成本：
 
-### 系统提示词分区（SystemPromptBuilder）
+#### 4.2.1 系统提示词分区（SystemPromptBuilder）
 
 将系统提示词分为静态前缀和动态后缀：
 
@@ -282,7 +335,7 @@ b. 它也不可能实时修正全部历史，因为关联历史是海量的。
 - **动态后缀**：每轮可能变化的内容（如当前时间、会话状态），不影响静态前缀的缓存
 - **分区构建**：通过 `BuildPartitioned()` 方法自动分离，标记 `CacheBreak=true` 的 section 进入动态后缀
 
-### 消息历史前缀保持
+#### 4.2.2 消息历史前缀保持
 
 确保消息操作不破坏前缀缓存：
 
@@ -290,7 +343,7 @@ b. 它也不可能实时修正全部历史，因为关联历史是海量的。
 - **追加日志**（AppendOnlyLog）：所有消息变更都保证前缀特性，避免缓存失效
 - **自动压缩保护**：soft threshold（50%）和 hard threshold 之间不触发自动压缩，保护前缀缓存
 
-### DeepSeek 缓存统计
+#### 4.2.3 DeepSeek 缓存统计
 
 支持 DeepSeek 特有的缓存统计字段：
 
@@ -298,17 +351,15 @@ b. 它也不可能实时修正全部历史，因为关联历史是海量的。
 - **prompt_cache_miss_tokens**：缓存未命中 token 数
 - **时间统计显示**：在 `[Timing]` 行中显示缓存命中情况（如 `缓存=命中120/未命中30`）
 
-### 设计目标
+#### 4.2.4 设计目标
 
 1. **成本优化**：通过前缀缓存减少重复 token 消耗
 2. **会话一致性**：确保消息操作（撤回、压缩）不破坏缓存
 3. **可观测性**：提供缓存命中统计，便于成本分析
 
+### 4.3 死循环处理策略
 
-
-## 0x03 死循环处理策略
-
-### 检测机制：OutputLoopDetector
+#### 4.3.1 检测机制：OutputLoopDetector
 
 基于滑动窗口的重复模式检测器，参数可配置：
 
@@ -320,7 +371,7 @@ b. 它也不可能实时修正全部历史，因为关联历史是海量的。
 
 检测算法：从最大模式长度向最小模式长度遍历，检查文本尾部是否存在连续重复的模式。一旦检测到重复次数≥阈值，立即触发干预。
 
-### 干预机制：三级漏斗策略
+#### 4.3.2 干预机制：三级漏斗策略
 
 通过 `LoopInterventionMiddleware` 实现渐进式干预：
 
@@ -330,11 +381,11 @@ b. 它也不可能实时修正全部历史，因为关联历史是海量的。
 | **Level 2** | 第3~4次检测到循环 | 硬截断：撤回本轮对话 + 降低温度(0.6) + 重新发起LLM调用（最多2次重试） | 重试成功则继续；重试失败则升级到Level 3 |
 | **Level 3** | 第5次+或重连失败 | 上下文压缩：自动压缩对话历史，保留最近1轮用户消息作为种子，无人值守恢复 | 压缩成功则继续；失败则重置到起点 |
 
-### 智能推进折扣
+#### 4.3.3 智能推进折扣
 
 通过 `ITaskProgressTracker` 监控任务进度（如TODO完成情况），如果检测到循环期间任务有实际推进，则有效触发次数减少1（`ProgressDiscount`），降低干预级别，避免误伤正常推进的复杂任务。
 
-### 配置参数
+#### 4.3.4 配置参数
 
 ```csharp
 var options = LoopInterventionOptionsBuilder.Create()
@@ -347,7 +398,7 @@ var options = LoopInterventionOptionsBuilder.Create()
     .Build();
 ```
 
-### 设计理念
+#### 4.3.5 设计理念
 
 1. **渐进式干预**：从软提示到硬截断再到上下文压缩，逐步升级
 2. **智能恢复**：通过降温和重连尝试打破循环，而非直接放弃
@@ -355,58 +406,47 @@ var options = LoopInterventionOptionsBuilder.Create()
 4. **无人值守**：Level 3压缩后自动恢复，无需用户干预
 5. **审计追踪**：Level 2撤回时插入审计标记，便于问题排查
 
-### 模型层
+#### 4.3.6 模型层
 
 1. 模型层用切片查看逻辑循环位置，回溯起因，然后微调输出，或通过稀疏自编码器对这部分权重加衰减惩罚。难度高，属于模型厂商工作，通常仅适合高频触发场景。
-
 2. 用简单模型做检测，但部署和运行成本高。好处是拥有数据，投入下次模型训练后可更好地规避此类死循环。
 
-
-
-## 0x04 并行动态负载
+### 4.4 并行动态负载
 
 1. 必须改为 LINQ 链式调用。
 2. 动态计算当前 CPU 负载并分级：90% 以上用 1 核心，70% 以上用一半核心，其余用全部核心。
 3. 使用标准 System.Linq，通过 Directory.Build.props 全局引用。
 
-## 0x05 串行编译
+### 4.5 串行编译
 
 为防止多个 SubAgent 同时触发编译，从 bash 层拦截，统一加入 BuildQueue 队列排队执行，避免并行开发时因内存消耗导致卡死。
 
+---
 
-
-
-# 鸣谢
-
-- 字节 TraeCN
-- 华为 CodeArts
-
-
-
-# 小模型设计组合拳
+## 5. 小模型设计组合拳
 
 上线的通常是小模型，这是出于成本考量。写思维链 CoT 通常无法成功诱导模型产出更高质量的对话，因为 LLM 本身过程可变。
 
 必须打造一套组合拳，否则兜不住：
 同义词转换 + 禁令 + 导向词 + 观察输出链给出反例 + 机械化 match 关键字二检。
 
-## 1. 同义词
+### 5.1 同义词
 
 让 LLM 理解自然语言到专业术语的映射，每次可存储到 CLAUDE.md 或某个 match 表。
 
-## 2. 禁令
+### 5.2 禁令
 
 禁令必须搭配导向，否则模型会发散到禁令以外的任何方向，后果很严重。
 
-## 3. 反例书写规则
+### 5.3 反例书写规则
 
 必须先观察输出、复现问题，再写反例，再观察效果。压缩上下文时，确保整个任务单元已结束才可删除反例。若重复涉及同类型任务，通过 match 捕获后注入 rules。rules 本身应保持精简，否则每次压缩注入也会消耗上下文。
 
-## 4. match 策略
+### 5.4 match 策略
 
 尤其涉及退款订单号等场景，必须机械化二检，否则一个幻觉就糟糕了。通过正则表达式捕获关键字，强行结构化后传给工具。可以 fork 对话到临时上下文，让模型通过 JSON 结构化调用工具，保证查询的账号 + 商品订单号属于同一用户，否则给出不同错误提示；超过五次调用则判定对话熔断。
 
-### Q1：LLM 杜撰信息，不去调用工具怎么办？
+#### Q1：LLM 杜撰信息，不去调用工具怎么办？
 
 A：分层强制
 
@@ -427,7 +467,7 @@ A：分层强制
 · ≥2 次：该会话后续所有订单类问题，直接绕过模型，全程走模板流程，不再给模型调用工具的机会。
 ```
 
-### Q2：match 的关键字会非常厚
+#### Q2：match 的关键字会非常厚
 
 A：分层处理
 
@@ -445,7 +485,7 @@ A：分层处理
 · 自动提取高频词，每周围绕 TOP5 新增关键词，而非一次性全写。
 ```
 
-### Q3：熔断 LLM 对话会造成用户体验不好
+#### Q3：熔断 LLM 对话会造成用户体验不好
 
 A：惰性工程处理 LLM 失败
 
@@ -454,25 +494,11 @@ A：惰性工程处理 LLM 失败
 - 第 4 次：输出——"我们正在为您转接人工客服，预计等待1分钟..." + 后台预创建工单
 - 第 5 次：不触发熔断，仅标记对话，人工直接介入接管
 
-
-
-# 联系
-
-`tui/` 文件夹目前是坏的，并未接入 CLI，所以目前是纯 CLI 项目。而且发现 Claude 的 TUI 刷新也充满 bug，不太好模仿。免费的 AI 工具处理不了 TUI 的某些 bug……
-
-到底有什么方法论可以直接让 AI 生成 TUI 呢？貌似要搭配录制 gif/jpg，还要配合模型……
-
-因为蹭的是免费 AI，TraeCN 政策已从日限制改为周限制，所以这个工程会无限期延后……
-
-不如……用 Avalonia 做 GUI？或者像 DeepSeek-Reasonix 那样用 Web？项目太大了，已经把控不住，以至于不想干了……
-
-superhong@foxmail.com（虽然不一定回你）
-
 ---
 
-# 项目架构索引
+## 6. 项目架构索引
 
-## 顶层目录
+### 6.1 顶层目录
 
 ```
 JoinCode/
@@ -490,7 +516,7 @@ JoinCode/
 └── tools.slnx           工具解决方案
 ```
 
-## 基础层（所有组件的公共依赖）
+### 6.2 基础层（所有组件的公共依赖）
 
 | 项目 | 路径 | 职责 | 关键 NuGet |
 |------|------|------|-----------|
@@ -499,7 +525,7 @@ JoinCode/
 
 > **Abstractions** 内部按层分区：`00-core/`（Attributes, Configuration, Models, Pipeline, State...）、`01-ai/`（LLM, Mcp, Prompts）、`02-brain/`（Chat, Context, Query）、`03-hands/`（Shell, Skill, Tools）、`04-guard/`（Security）、`05-memory/`（Conversation, FileIO）、`06-perception/`（CodeIndex, Lsp, Web）、`07-agents/`（Agent, Team）、`08-transport/`（Bridge, Build）、`09-composition/`（Mode, Presentation）
 
-## 组件依赖图（无环分层）
+### 6.3 组件依赖图（无环分层）
 
 ```
 L0 叶子（零组件间依赖）:
@@ -544,7 +570,7 @@ Host:
 
 > 所有组件隐式依赖 `Abstractions` + `Infrastructure`（上表省略以突出组件间关系）
 
-## 组件详情
+### 6.4 组件详情
 
 | 组件 | 路径 | 层 | 职责 | 关键 NuGet | 源码生成器 |
 |------|------|----|------|-----------|-----------|
@@ -571,9 +597,9 @@ Host:
 
 > **Enum** = EnumMetadata.Generator, **CI** = ConstructorInjection.Generator, **McpTool** = McpToolDispatch.Generator, **PromptSection** = PromptSection.Generator, **CliOption** = CliOption.Generator
 
-## 组件内部结构
+### 6.5 组件内部结构
 
-### Brain (`02-brain/Brain/src/`)
+#### Brain (`02-brain/Brain/src/`)
 ```
 Cache/          上下文缓存
 Context/        上下文管理
@@ -585,7 +611,7 @@ Query/          查询引擎
 Summary/        摘要
 ```
 
-### Hands (`03-hands/Hands/src/`)
+#### Hands (`03-hands/Hands/src/`)
 ```
 Api/            API 调用
 Build/          构建拦截
@@ -602,7 +628,7 @@ Voice/          语音服务
 Web/            Web 请求
 ```
 
-### Guard (`04-guard/Guard/src/`)
+#### Guard (`04-guard/Guard/src/`)
 ```
 Configuration/  配置加载
 Hooks/          Hook 系统
@@ -612,7 +638,7 @@ Policy/         策略引擎
 Security/       安全护栏
 ```
 
-### Vault (`05-memory/Vault/src/`)
+#### Vault (`05-memory/Vault/src/`)
 ```
 Memdir/         记忆目录
 Notification/   通知
@@ -622,7 +648,7 @@ Todo/           待办事项
 UserInteraction/ 用户交互
 ```
 
-### Mcp (`01-ai/Mcp/src/`)
+#### Mcp (`01-ai/Mcp/src/`)
 ```
 Auth/           认证
 Client/         客户端
@@ -642,13 +668,13 @@ Utils/          工具
 Workflow/       工作流
 ```
 
-### Llm (`01-ai/Llm/src/`)
+#### Llm (`01-ai/Llm/src/`)
 ```
 Adapters/       LLM 适配器（OpenAI/Anthropic/Azure/Pipe）
 Registration/   注册服务
 ```
 
-### Reasoning (`10-reasoning/Reasoning/src/`)
+#### Reasoning (`10-reasoning/Reasoning/src/`)
 ```
 Agents/         三权Agent（控方/辩方/法官）
 Engine/         推理引擎+配置+预算状态+摘要
@@ -657,7 +683,7 @@ State/          枚举（角色/状态/信任度/预设/续费方式）
 DependencyInjection/ DI注册
 ```
 
-## 源码生成器
+### 6.6 源码生成器
 
 | 生成器 | 路径 | 用途 | 使用范围 |
 |--------|------|------|---------|
@@ -671,7 +697,7 @@ DependencyInjection/ DI注册
 | AppModule.Generator | `generators/AppModule.Generator/` | 应用模块注册 | JoinCode |
 | MiddlewareOrder.Generator | `generators/MiddlewareOrder.Generator/` | 中间件顺序验证 | — |
 
-## Host 项目 (`src/JoinCode/`)
+### 6.7 Host 项目 (`src/JoinCode/`)
 
 ```
 Adapters/       适配器
@@ -688,7 +714,7 @@ Program.cs      主入口
 
 **关键 NuGet**：Microsoft.Extensions.Hosting, System.CommandLine
 
-## 测试结构
+### 6.8 测试结构
 
 ```
 tests/
@@ -713,11 +739,11 @@ tests/
 
 **组件测试**：每个组件有 `tests/Unit/` 子目录，如 `components/01-ai/Mcp/tests/Unit/Mcp.Tests.csproj`
 
-## SDK 聚合包 (`sdk/Sdk/`)
+### 6.9 SDK 聚合包 (`sdk/Sdk/`)
 
 一行代码引用所有组件：`JoinCode.Sdk` 引用 Abstractions + Infrastructure + 全部 14 个组件
 
-## 中间件管道清单
+### 6.10 中间件管道清单
 
 | 管道 | 接口 | 子系统 | 中间件链 |
 |------|------|--------|---------|
@@ -736,7 +762,7 @@ tests/
 | Skill | `MiddlewarePipeline<SkillContext>` | Hands | Metrics→Validation→Telemetry→Execution |
 | Code | `MiddlewarePipeline<CodeContext>` | Hands | Cache→Security→Llm→Sandbox→Metrics |
 
-## 关键配置文件
+### 6.11 关键配置文件
 
 | 文件 | 路径 | 说明 |
 |------|------|------|
@@ -753,7 +779,7 @@ tests/
 | Abstractions/GlobalUsings.cs | `sdk/Abstractions/GlobalUsings.cs` | 73 行全局 Using |
 | Infrastructure/GlobalUsings.cs | `src/Infrastructure/GlobalUsings.cs` | 73 行全局 Using |
 
-## 构建命令速查
+### 6.12 构建命令速查
 
 ```powershell
 # 单组件快速编译
@@ -772,7 +798,7 @@ dotnet test "components/01-ai/Mcp/tests/Unit/Mcp.Tests.csproj" -c Debug --filter
 .\build.ps1 -Fast -SkipTests -ComponentsOnly
 ```
 
-## 组件名→路径映射
+### 6.13 组件名→路径映射
 
 | 组件名 | 路径 |
 |--------|------|
@@ -796,3 +822,10 @@ dotnet test "components/01-ai/Mcp/tests/Unit/Mcp.Tests.csproj" -c Debug --filter
 | Clock | `components/09-composition/Clock/` |
 | Reasoning | `components/10-reasoning/Reasoning/` |
 | Structura | `src/Structura/` |
+
+---
+
+## 7. 鸣谢与联系
+
+- **鸣谢**：字节 TraeCN、华为 CodeArts
+- **邮箱**：superhong@foxmail.com

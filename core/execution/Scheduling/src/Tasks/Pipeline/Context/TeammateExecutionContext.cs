@@ -10,7 +10,7 @@ public sealed class TeammateExecutionContext : IPipelineContext
 
     public DateTime StartTime { get; init; } = DateTime.UtcNow;
 
-    public ISubAgent? Agent { get; set; }
+    public IAgent? Agent { get; set; }
 
     public TeammateState? State { get; set; }
 

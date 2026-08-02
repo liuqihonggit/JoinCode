@@ -65,7 +65,7 @@ public sealed partial class AgentServiceImpl : JoinCode.Abstractions.Interfaces.
     /// <summary>
     /// 子智能体初始化结果 — SpawnAgentAsync / RunAgentStreamAsync 共享
     /// </summary>
-    private sealed record SubAgentInitResult(ISubAgent SubAgent, string SystemPrompt, JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition? Definition);
+    private sealed record SubAgentInitResult(IAgent SubAgent, string SystemPrompt, JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition? Definition);
 
     /// <summary>
     /// 共享初始化流程 — 通过中间件管道执行: Definition → Prompt → Context → Hook → Mcp → Metadata → Transcript
@@ -294,10 +294,11 @@ public sealed partial class AgentServiceImpl : JoinCode.Abstractions.Interfaces.
         var description = $"Resume: {metadata.Description}";
         var subAgent = await _lifecycleManager.SpawnSubAgentAsync(description, subOptions, cancellationToken).ConfigureAwait(false);
 
-        if (subAgent.Context is not null)
+        var concreteAgent = (Agent)subAgent;
+        if (concreteAgent.Context is not null)
         {
-            subAgent.Context.ParentAgentId = _subAgentContextAccessor.Current?.AgentId;
-            subAgent.Context.SessionId = sessionId;
+            concreteAgent.Context.ParentAgentId = _subAgentContextAccessor.Current?.AgentId;
+            concreteAgent.Context.SessionId = sessionId;
         }
 
         await AppendTranscriptEntryAsync(subAgent.Id, "system", $"[RESUME from {options.AgentId}]", cancellationToken).ConfigureAwait(false);
@@ -447,9 +448,10 @@ public sealed partial class AgentServiceImpl : JoinCode.Abstractions.Interfaces.
         }
     }
 
-    private async Task RunBackgroundAgentAsync(ISubAgent subAgent, TaskCompletionSource<JoinCode.Abstractions.Interfaces.AgentResult> tcs, CancellationToken cancellationToken)
+    private async Task RunBackgroundAgentAsync(IAgent subAgent, TaskCompletionSource<JoinCode.Abstractions.Interfaces.AgentResult> tcs, CancellationToken cancellationToken)
     {
-        using var scope = subAgent.Context?.EnterScopeWithCwd(subAgent.Options.WorktreePath);
+        var concreteAgent = (Agent)subAgent;
+        using var scope = concreteAgent.Context?.EnterScopeWithCwd(concreteAgent.Options.WorktreePath);
         try
         {
             var result = await _lifecycleManager.ExecuteAsync(subAgent, cancellationToken).ConfigureAwait(false);
@@ -492,16 +494,17 @@ public sealed partial class AgentServiceImpl : JoinCode.Abstractions.Interfaces.
         }
     }
 
-    private void FireAgentCompleted(ISubAgent subAgent, JoinCode.Abstractions.Interfaces.AgentResult result)
+    private void FireAgentCompleted(IAgent subAgent, JoinCode.Abstractions.Interfaces.AgentResult result)
     {
         try
         {
+            var concreteAgent = (Agent)subAgent;
             var status = result.Success ? AgentStatus.Completed : AgentStatus.Failed;
 
             if (_progressTrackers.TryGetValue(subAgent.Id, out var tracker))
             {
-                if (subAgent.Context is not null)
-                    tracker.RecordTokenUsage(subAgent.Context.TokenUsage.TotalTokens);
+                if (concreteAgent.Context is not null)
+                    tracker.RecordTokenUsage(concreteAgent.Context.TokenUsage.TotalTokens);
             }
 
             var durationMs = _agentStartTimes.TryRemove(subAgent.Id, out var startTime)
@@ -509,7 +512,7 @@ public sealed partial class AgentServiceImpl : JoinCode.Abstractions.Interfaces.
                 : (long?)null;
 
             var toolUseCount = _progressTrackers.TryGetValue(subAgent.Id, out var t) ? t.ToolUseCount : (int?)null;
-            var tokenCount = subAgent.Context?.TokenUsage.TotalTokens;
+            var tokenCount = concreteAgent.Context?.TokenUsage.TotalTokens;
 
             AgentCompleted?.Invoke(this, new JoinCode.Abstractions.Interfaces.AgentCompletedEventArgs
             {
@@ -519,10 +522,10 @@ public sealed partial class AgentServiceImpl : JoinCode.Abstractions.Interfaces.
                 Output = result.Output,
                 Error = result.Error,
                 ExecutionTimeMs = durationMs,
-                AgentType = subAgent.Options.AgentType,
+                AgentType = concreteAgent.Options.AgentType,
                 ToolUseId = null,
-                WorktreePath = subAgent.Options.WorktreePath,
-                WorktreeBranch = subAgent.Options.WorktreeBranch,
+                WorktreePath = concreteAgent.Options.WorktreePath,
+                WorktreeBranch = concreteAgent.Options.WorktreeBranch,
                 ToolUseCount = toolUseCount,
                 TokenCount = tokenCount
             });
@@ -536,14 +539,14 @@ public sealed partial class AgentServiceImpl : JoinCode.Abstractions.Interfaces.
                 Output = result.Success ? result.Output : null,
                 Error = result.Success ? null : result.Error,
                 ExecutionTimeMs = durationMs,
-                AgentType = subAgent.Options.AgentType,
+                AgentType = concreteAgent.Options.AgentType,
                 ToolUseCount = toolUseCount,
                 TokenCount = tokenCount,
-                WorktreePath = subAgent.Options.WorktreePath,
-                WorktreeBranch = subAgent.Options.WorktreeBranch
+                WorktreePath = concreteAgent.Options.WorktreePath,
+                WorktreeBranch = concreteAgent.Options.WorktreeBranch
             };
 
-            _notificationQueue?.Enqueue(subAgent.Context?.ParentAgentId, notification.ToXml());
+            _notificationQueue?.Enqueue(concreteAgent.Context?.ParentAgentId, notification.ToXml());
 
             _ = PersistCompletionAsync(subAgent, result, status, _disposeCts.Token).WaitAsync(TimeSpan.FromSeconds(10), _disposeCts.Token).ConfigureAwait(false);
         }
@@ -553,12 +556,13 @@ public sealed partial class AgentServiceImpl : JoinCode.Abstractions.Interfaces.
         }
     }
 
-    private async Task PersistCompletionAsync(ISubAgent subAgent, JoinCode.Abstractions.Interfaces.AgentResult result, AgentStatus status, CancellationToken cancellationToken)
+    private async Task PersistCompletionAsync(IAgent subAgent, JoinCode.Abstractions.Interfaces.AgentResult result, AgentStatus status, CancellationToken cancellationToken)
     {
         if (_transcriptService is null) return;
 
         try
         {
+            var concreteAgent = (Agent)subAgent;
             var role = result.Success ? "assistant" : "error";
             var content = result.Success ? result.Output : $"ERROR: {result.Error}";
             await AppendTranscriptEntryAsync(subAgent.Id, role, content, cancellationToken).ConfigureAwait(false);
@@ -570,10 +574,10 @@ public sealed partial class AgentServiceImpl : JoinCode.Abstractions.Interfaces.
             await _transcriptService.SaveMetadataAsync("default", new JoinCode.Abstractions.Interfaces.AgentMetadata
             {
                 AgentId = subAgent.Id,
-                AgentType = subAgent.Options.AgentType,
+                AgentType = concreteAgent.Options.AgentType,
                 Description = subAgent.Task,
-                WorktreePath = subAgent.Options.WorktreePath,
-                ModelName = subAgent.Options.ModelName,
+                WorktreePath = concreteAgent.Options.WorktreePath,
+                ModelName = concreteAgent.Options.ModelName,
                 CompletedAt = _clock.GetUtcNow(),
                 Status = status.ToString(),
                 ErrorMessage = result.Success ? null : result.Error,
@@ -623,16 +627,17 @@ public sealed partial class AgentServiceImpl : JoinCode.Abstractions.Interfaces.
         }
     }
 
-    private static JoinCode.Abstractions.Interfaces.AgentInfo MapToAgentInfo(ISubAgent subAgent, SubAgentResult? result = null)
+    private static JoinCode.Abstractions.Interfaces.AgentInfo MapToAgentInfo(IAgent subAgent, SubAgentResult? result = null)
     {
+        var concreteAgent = (Agent)subAgent;
         return new JoinCode.Abstractions.Interfaces.AgentInfo
         {
             Id = subAgent.Id,
             Description = subAgent.Task,
-            AgentType = subAgent.Options.AgentType,
-            Status = subAgent.State.ToAgentStatus(),
-            StartedAt = subAgent.StartedAt,
-            CompletedAt = subAgent.CompletedAt,
+            AgentType = concreteAgent.Options.AgentType,
+            Status = concreteAgent.State.ToAgentStatus(),
+            StartedAt = concreteAgent.StartedAt,
+            CompletedAt = concreteAgent.CompletedAt,
             Output = result?.Output
         };
     }

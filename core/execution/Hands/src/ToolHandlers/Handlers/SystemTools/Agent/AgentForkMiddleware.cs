@@ -1,4 +1,4 @@
-﻿namespace Tools.Handlers;
+namespace Tools.Handlers;
 
 /// <summary>
 /// Agent Fork 判断中间件 — 当 subagent_type 为空且 ForkManager 可用时，走 fork 路径

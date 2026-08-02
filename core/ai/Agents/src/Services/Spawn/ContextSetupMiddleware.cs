@@ -42,16 +42,21 @@ public sealed partial class ContextSetupMiddleware : IAgentSpawnMiddleware
             ReadFileState = _fileStateCache?.Clone(),
             // 对齐 TS executeForkedSkill: 传递 effort 给子智能体
             Effort = context.Options.Effort,
+            GoalId = context.Options.GoalId,
+            GraphNodeId = context.Options.GraphNodeId,
+            TokenBudget = context.Options.TokenBudget,
+            FreshContext = context.Options.FreshContext,
         };
 
         context.SubOptions = subOptions;
 
         var subAgent = await _lifecycleManager.SpawnSubAgentAsync(context.Options.Description, subOptions, ct).ConfigureAwait(false);
 
-        if (subAgent.Context is not null)
+        var concreteAgent = (Agent)subAgent;
+        if (concreteAgent.Context is not null)
         {
-            subAgent.Context.ParentAgentId = _subAgentContextAccessor.Current?.AgentId;
-            subAgent.Context.SessionId = "default";
+            concreteAgent.Context.ParentAgentId = _subAgentContextAccessor.Current?.AgentId;
+            concreteAgent.Context.SessionId = "default";
         }
 
         context.SubAgent = subAgent;

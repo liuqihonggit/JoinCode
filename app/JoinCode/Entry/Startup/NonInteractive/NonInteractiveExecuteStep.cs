@@ -30,7 +30,7 @@ internal sealed partial class NonInteractiveExecuteStep : IMiddleware<StartupCon
             await session.ProcessUserInputAsync(prompt, ct);
             await Console.Out.FlushAsync().ConfigureAwait(false);
             Diag.WriteLifecycle("[DONE]");
-            Diag.WriteLine("[STEP] ExecuteStep ProcessUserInputAsync returned");
+            Diag.WriteLine("[STEP] ExecuteStep ProcessUserInputAsync returned, stdout flushed");
         }
         catch (Exception ex)
         {

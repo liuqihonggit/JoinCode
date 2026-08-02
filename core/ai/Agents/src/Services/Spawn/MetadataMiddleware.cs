@@ -24,17 +24,18 @@ public sealed partial class MetadataMiddleware : IAgentSpawnMiddleware
         await next(context, ct).ConfigureAwait(false);
     }
 
-    private async Task SaveAgentMetadataAsync(ISubAgent subAgent, JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition? definition, CancellationToken cancellationToken)
+    private async Task SaveAgentMetadataAsync(IAgent subAgent, JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition? definition, CancellationToken cancellationToken)
     {
         try
         {
+            var agent = (Agent)subAgent;
             await (_transcriptService ?? throw new InvalidOperationException("TranscriptService not available")).SaveMetadataAsync("default", new JoinCode.Abstractions.Interfaces.AgentMetadata
             {
                 AgentId = subAgent.Id,
-                AgentType = subAgent.Options.AgentType,
+                AgentType = agent.Options.AgentType,
                 Description = subAgent.Task,
-                WorktreePath = subAgent.Options.WorktreePath,
-                ModelName = definition?.ModelName ?? subAgent.Options.ModelName,
+                WorktreePath = agent.Options.WorktreePath,
+                ModelName = definition?.ModelName ?? agent.Options.ModelName,
                 Status = AgentStatusConstants.Running
             }, cancellationToken).ConfigureAwait(false);
         }

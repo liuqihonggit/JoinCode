@@ -110,25 +110,25 @@ jobs:
             nuget-${{ runner.os }}-
 
       - name: Build - ① Generators
-        run: dotnet build Generators.slnx -c Debug --no-incremental --nologo -m /p:SkipLocalPack=true
+        run: dotnet build Generators.slnx -c Debug --nologo -m /p:SkipLocalPack=true
 
       - name: Build - ② Foundation
-        run: dotnet build Foundation.slnx -c Debug --no-incremental --nologo -m /p:SkipLocalPack=true
+        run: dotnet build Foundation.slnx -c Debug --nologo -m /p:SkipLocalPack=true
 
       - name: Build - ③ Infrastructure
-        run: dotnet build Infrastructure.slnx -c Debug --no-incremental --nologo -m /p:SkipLocalPack=true
+        run: dotnet build Infrastructure.slnx -c Debug --nologo -m /p:SkipLocalPack=true
 
       - name: Build - ④ Core
-        run: dotnet build Core.slnx -c Debug --no-incremental --nologo -m /p:SkipLocalPack=true
+        run: dotnet build Core.slnx -c Debug --nologo -m /p:SkipLocalPack=true
 
       - name: Build - ⑤ Services
-        run: dotnet build Services.slnx -c Debug --no-incremental --nologo -m /p:SkipLocalPack=true
+        run: dotnet build Services.slnx -c Debug --nologo -m /p:SkipLocalPack=true
 
       - name: Build - ⑥ Composition
-        run: dotnet build Composition.slnx -c Debug --no-incremental --nologo -m /p:SkipLocalPack=true
+        run: dotnet build Composition.slnx -c Debug --nologo -m /p:SkipLocalPack=true
 
       - name: Build - ⑦ App
-        run: dotnet build App.slnx -c Debug --no-incremental --nologo -m /p:SkipLocalPack=true
+        run: dotnet build App.slnx -c Debug --nologo -m /p:SkipLocalPack=true
 
       - name: Run Stryker
         shell: pwsh
@@ -201,7 +201,7 @@ jobs:
           $slnx = $slnxMap[$name]
           $slnxPath = Join-Path $env:GITHUB_WORKSPACE $slnx
 
-          $strykerArgs = @("-p", $info.Src, "-s", $slnxPath, "-c", $concurrency, "-b", $breakThreshold, "--threshold-low", "60", "--threshold-high", "80", "-r", "progress", "-r", "html", "-r", "json", "-r", "markdown")
+          $strykerArgs = @("-p", $info.Src, "-s", $slnxPath, "-c", $concurrency, "-b", $breakThreshold, "--configuration", "Debug", "--threshold-low", "60", "--threshold-high", "80", "-r", "progress", "-r", "html", "-r", "json", "-r", "markdown")
 
           $strykerArgs += @("--mutate", "!**/GlobalUsings.cs", "--mutate", "!**/AssemblyInfo.cs")
           if ($info.Mutate.Count -gt 0) {

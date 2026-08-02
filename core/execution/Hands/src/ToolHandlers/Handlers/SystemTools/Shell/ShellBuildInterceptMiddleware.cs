@@ -1,4 +1,4 @@
-﻿namespace Tools.Shell;
+namespace Tools.Shell;
 
 /// <summary>
 /// Shell 编译拦截中间件 — 拦截 dotnet build/test/publish/msbuild 命令

@@ -54,7 +54,13 @@ public sealed class GoalEnginePipelineTests
         Mock<IGoalEvaluator> evaluator,
         IEnumerable<IGoalLifecycleMiddleware> middlewares)
     {
-        return new GoalEngine(kernel.Object, evaluator.Object, heartbeat: CreateHeartbeatMock().Object, lifecycleMiddlewares: middlewares);
+        return new GoalEngine(kernel.Object, evaluator.Object, heartbeat: CreateHeartbeatMock().Object, lifecycleMiddlewares: middlewares, serviceProvider: EmptyServiceProvider.Instance);
+    }
+
+    private sealed class EmptyServiceProvider : IServiceProvider
+    {
+        public static readonly EmptyServiceProvider Instance = new();
+        public object? GetService(Type serviceType) => null;
     }
 
     [Fact]

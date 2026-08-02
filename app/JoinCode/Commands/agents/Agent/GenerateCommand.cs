@@ -15,10 +15,12 @@ public sealed partial class GenerateCommand : ChatCommandBase
 
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
+        Diag.WriteLine($"[GenerateCommand] ExecuteAsync entry, Arguments='{context.Arguments}'");
         if (string.IsNullOrWhiteSpace(context.Arguments))
         {
             _logger?.LogWarning("请提供代码描述，例如: /generate 创建一个Hello World程序");
             TerminalHelper.WriteLine("请提供代码描述，例如: /generate 创建一个Hello World程序");
+            Diag.WriteLine("[GenerateCommand] returning Continue (no args)");
             return ChatCommandResult.Continue();
         }
 

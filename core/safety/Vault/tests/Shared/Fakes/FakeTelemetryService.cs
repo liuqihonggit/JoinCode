@@ -4,7 +4,7 @@ namespace Core.Tests.Fakes;
 /// <summary>
 /// 测试用遥测服务 — 记录计数与直方图调用，便于验证业务指标。
 /// </summary>
-internal sealed class FakeTelemetryService : ITelemetryService
+public sealed class FakeTelemetryService : ITelemetryService
 {
     private readonly List<CounterRecord> _counters = new();
     private readonly List<HistogramRecord> _histograms = new();

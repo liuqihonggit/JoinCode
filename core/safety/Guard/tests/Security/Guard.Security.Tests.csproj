@@ -1,8 +1,8 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <RootNamespace>Guard.Tests</RootNamespace>
-    <AssemblyName>JoinCode.Guard.Tests</AssemblyName>
-    <Description>JoinCode Guard 子系统单元测试（Permission + Security + Hooks）</Description>
+    <RootNamespace>Guard.Security.Tests</RootNamespace>
+    <AssemblyName>JoinCode.Guard.Security.Tests</AssemblyName>
+    <Description>JoinCode Guard Security 子系统单元测试（Security + BashAst + Sandbox）</Description>
     <RunSettingsFilePath>$(MSBuildProjectDirectory)\.runsettings</RunSettingsFilePath>
     <NoWarn>$(NoWarn);JCC3007;JCC3010;JCC3011;JCC3012;CS0618</NoWarn>
   </PropertyGroup>

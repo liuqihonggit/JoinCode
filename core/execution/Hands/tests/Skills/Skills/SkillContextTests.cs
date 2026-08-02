@@ -42,6 +42,8 @@ public sealed class SkillContextTests
             Stopwatch = stopwatch
         };
 
+        stopwatch.Stop();
+
         context.IsMetricsSuccess.Should().BeTrue();
         context.MetricsDurationMs.Should().Be(stopwatch.ElapsedMilliseconds);
     }

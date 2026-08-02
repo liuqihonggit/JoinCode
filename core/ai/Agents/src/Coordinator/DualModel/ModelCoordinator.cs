@@ -74,7 +74,7 @@ public sealed class ModelCoordinator : IModelCoordinator
             SessionId = $"planner-{Guid.NewGuid():N}"[..24],
         };
 
-        var planner = new SubAgent(
+        var planner = new Agent(
             id: $"planner-{Guid.NewGuid():N}"[..16],
             task: objective,
             options: plannerOptions,
@@ -126,7 +126,7 @@ public sealed class ModelCoordinator : IModelCoordinator
             SessionId = $"executor-{Guid.NewGuid():N}"[..24],
         };
 
-        var executor = new SubAgent(
+        var executor = new Agent(
             id: $"executor-{Guid.NewGuid():N}"[..16],
             task: handoff,
             options: executorOptions,

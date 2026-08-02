@@ -134,7 +134,7 @@ public class WorkflowTaskExecutorTests
     [Fact]
     public async Task ExecuteWorkflowAsync_AgentTaskStep_ShouldExecuteAgent()
     {
-        var agent = new SubAgent("agent-1", "Test task", null,
+        var agent = new Agent("agent-1", "Test task", null,
             new Mock<JoinCode.Abstractions.Interfaces.IQueryEngine>().Object, null);
 
         var agentResult = new SubAgentResult

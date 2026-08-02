@@ -5,12 +5,14 @@ using JoinCode.Abstractions.Models.Agent;
 /// <summary>
 /// Agent 中央注册表实现 — 树形组织 mainAgent → subAgents[]
 /// 核心路由：SubAgentMap[mainAgent.Id] 获取该主 Agent 下的所有子 Agent
+/// 支持批量 LLM 循环控制（PauseAll/ResumeAll/CancelAll）
 /// </summary>
 [Register(typeof(IAgentRegistry))]
 public sealed class AgentRegistry : IAgentRegistry
 {
     private readonly ConcurrentDictionary<string, AgentDescriptor> _agents = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, List<AgentDescriptor>> _subAgentMap = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, ISubAgent> _liveAgents = new(StringComparer.Ordinal);
     private readonly ILogger<AgentRegistry>? _logger;
 
     public AgentRegistry(ILogger<AgentRegistry>? logger = null)
@@ -51,10 +53,30 @@ public sealed class AgentRegistry : IAgentRegistry
         return agent;
     }
 
+    /// <summary>
+    /// 注册 Agent 并关联运行时实例（用于 LLM 循环控制）
+    /// </summary>
+    public AgentDescriptor Register(AgentDescriptor descriptor, ISubAgent liveAgent)
+    {
+        var result = Register(descriptor);
+        if (liveAgent is not null)
+        {
+            _liveAgents[descriptor.Id] = liveAgent;
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// 获取运行时 Agent 实例（用于 LLM 循环控制）
+    /// </summary>
+    public ISubAgent? GetLiveAgent(string agentId) => _liveAgents.GetValueOrDefault(agentId);
+
     public bool Unregister(string agentId)
     {
         if (!_agents.TryRemove(agentId, out var agent))
             return false;
+
+        _liveAgents.TryRemove(agentId, out _);
 
         if (agent.IsSubAgent && agent.ParentAgentId is not null)
         {
@@ -73,6 +95,7 @@ public sealed class AgentRegistry : IAgentRegistry
                 foreach (var orphan in orphans)
                 {
                     _agents.TryRemove(orphan.Id, out _);
+                    _liveAgents.TryRemove(orphan.Id, out _);
                 }
             }
 
@@ -103,6 +126,79 @@ public sealed class AgentRegistry : IAgentRegistry
     {
         _agents.Clear();
         _subAgentMap.Clear();
+        _liveAgents.Clear();
         _logger?.LogDebug("[AgentRegistry] 清空所有注册");
+    }
+
+    /// <summary>
+    /// 暂停指定 mainAgent 下所有 subAgent 的 LLM 循环
+    /// </summary>
+    public void PauseAll(string mainAgentId)
+    {
+        var subAgents = GetSubAgents(mainAgentId);
+        foreach (var desc in subAgents)
+        {
+            if (_liveAgents.TryGetValue(desc.Id, out var live))
+            {
+                live.Pause();
+                _logger?.LogDebug("[AgentRegistry] 暂停 Agent: {AgentId}", desc.Id);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 恢复指定 mainAgent 下所有 subAgent 的 LLM 循环
+    /// </summary>
+    public void ResumeAll(string mainAgentId)
+    {
+        var subAgents = GetSubAgents(mainAgentId);
+        foreach (var desc in subAgents)
+        {
+            if (_liveAgents.TryGetValue(desc.Id, out var live))
+            {
+                live.Resume();
+                _logger?.LogDebug("[AgentRegistry] 恢复 Agent: {AgentId}", desc.Id);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 取消指定 mainAgent 下所有 subAgent 的 LLM 循环
+    /// </summary>
+    public void CancelAll(string mainAgentId)
+    {
+        var subAgents = GetSubAgents(mainAgentId);
+        foreach (var desc in subAgents)
+        {
+            if (_liveAgents.TryGetValue(desc.Id, out var live))
+            {
+                live.Cancel();
+                _logger?.LogDebug("[AgentRegistry] 取消 Agent: {AgentId}", desc.Id);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 暂停全局所有 Agent 的 LLM 循环
+    /// </summary>
+    public void PauseGlobal()
+    {
+        foreach (var live in _liveAgents.Values)
+        {
+            live.Pause();
+        }
+        _logger?.LogDebug("[AgentRegistry] 全局暂停所有 Agent");
+    }
+
+    /// <summary>
+    /// 恢复全局所有 Agent 的 LLM 循环
+    /// </summary>
+    public void ResumeGlobal()
+    {
+        foreach (var live in _liveAgents.Values)
+        {
+            live.Resume();
+        }
+        _logger?.LogDebug("[AgentRegistry] 全局恢复所有 Agent");
     }
 }

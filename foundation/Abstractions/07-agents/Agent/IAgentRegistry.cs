@@ -3,6 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// Agent 中央注册表 — 树形组织：mainAgent → subAgents[]
 /// 核心路由：subAgentMap[mainAgent.Id] 获取该主 Agent 下的所有子 Agent
+/// 支持批量 LLM 循环控制（PauseAll/ResumeAll/CancelAll）
 /// </summary>
 public interface IAgentRegistry
 {
@@ -56,4 +57,29 @@ public interface IAgentRegistry
     /// 清空所有注册
     /// </summary>
     void Clear();
+
+    /// <summary>
+    /// 暂停指定 mainAgent 下所有 subAgent 的 LLM 循环
+    /// </summary>
+    void PauseAll(string mainAgentId);
+
+    /// <summary>
+    /// 恢复指定 mainAgent 下所有 subAgent 的 LLM 循环
+    /// </summary>
+    void ResumeAll(string mainAgentId);
+
+    /// <summary>
+    /// 取消指定 mainAgent 下所有 subAgent 的 LLM 循环
+    /// </summary>
+    void CancelAll(string mainAgentId);
+
+    /// <summary>
+    /// 暂停全局所有 Agent 的 LLM 循环
+    /// </summary>
+    void PauseGlobal();
+
+    /// <summary>
+    /// 恢复全局所有 Agent 的 LLM 循环
+    /// </summary>
+    void ResumeGlobal();
 }

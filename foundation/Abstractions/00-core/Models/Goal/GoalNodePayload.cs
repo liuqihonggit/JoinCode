@@ -9,6 +9,14 @@ public sealed class GoalNodePayload
     public required string Name { get; init; }
     public string? AgentId { get; set; }
     public bool IsSubAgent { get; init; }
+
+    /// <summary>
+    /// Agent 类型 — 对齐 AgentDefinition.AgentType
+    /// 非空时通过 IAgentService 执行（完整基础设施）
+    /// 为空时回退到 SystemPrompt + Instruction 轻量模式（IChatClient 直接调用）
+    /// </summary>
+    public string? AgentType { get; init; }
+
     public string? SystemPrompt { get; init; }
     public string? Instruction { get; init; }
     public bool FreshContext { get; init; }

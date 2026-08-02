@@ -2,9 +2,11 @@
 namespace Core.Agents.Coordinator;
 
 /// <summary>
-/// 子Agent - 执行具体任务的工作单元
+/// 统一 Agent — mainAgent 和 subAgent 共用此类
+/// LLM对话循环内聚，外部只通过 IAgentService 控制生命周期
+/// 合并原 SubAgent（行为）+ AgentDescriptor（描述）为单一类
 /// </summary>
-public sealed class SubAgent : ISubAgent
+public sealed class Agent : ISubAgent
 {
     private readonly IQueryEngine _queryEngine;
     private readonly ILogger? _logger;
@@ -14,7 +16,14 @@ public sealed class SubAgent : ISubAgent
     private readonly SemaphoreSlim _pauseLock;
     private JoinCode.Abstractions.LLM.Chat.CacheSafeParams? _lastCacheSafeParams;
 
+    // === 身份 ===
     public string Id { get; }
+    public string Name { get; }
+    public bool IsSubAgent { get; }
+    public string? ParentAgentId { get; init; }
+    public string? AgentType { get; }
+
+    // === 任务 ===
     public string Task { get; }
     public SubAgentOptions Options { get; }
     public SubAgentContext? Context { get; }
@@ -25,14 +34,61 @@ public sealed class SubAgent : ISubAgent
     public DateTime? CompletedAt { get; private set; }
     public CancellationTokenSource? CancellationTokenSource { get; set; }
 
+    // === 上下文 ===
+    public MessageList ChatHistory { get; } = new();
+    public bool FreshContext { get; init; }
+
+    // === 配置 ===
+    public string? SystemPrompt { get; init; }
+    public string? Instruction { get; set; }
+
+    // === 预算 ===
+    public int? TokenBudget { get; init; }
+    public int TokensUsed { get; set; }
+    public int TurnsCompleted { get; set; }
+
+    // === Goal绑定 ===
+    public string? GoalId { get; init; }
+    public string? GraphNodeId { get; init; }
+
+    // === 输出 ===
+    public string? Output { get; set; }
+    public string? ErrorMessage { get; set; }
+    public string[]? Routes { get; set; }
+
     private bool _isPaused;
     private int _executionCount;
 
-    public SubAgent(string id, string task, SubAgentOptions? options, IQueryEngine queryEngine,  ILogger? logger, IClockService? clock = null)
+    public Agent(
+        string id,
+        string task,
+        SubAgentOptions? options,
+        IQueryEngine queryEngine,
+        ILogger? logger,
+        IClockService? clock = null,
+        string? name = null,
+        bool isSubAgent = true,
+        string? parentAgentId = null,
+        string? agentType = null,
+        string? systemPrompt = null,
+        string? instruction = null,
+        bool freshContext = false,
+        int? tokenBudget = null,
+        string? goalId = null,
+        string? graphNodeId = null)
     {
-
         Id = id;
         Task = task;
+        Name = name ?? id;
+        IsSubAgent = isSubAgent;
+        ParentAgentId = parentAgentId;
+        AgentType = agentType;
+        SystemPrompt = systemPrompt;
+        Instruction = instruction;
+        FreshContext = freshContext;
+        TokenBudget = tokenBudget;
+        GoalId = goalId;
+        GraphNodeId = graphNodeId;
         Options = options ?? new SubAgentOptions();
         _queryEngine = queryEngine;
         _logger = logger;
@@ -47,7 +103,7 @@ public sealed class SubAgent : ISubAgent
         Context = new SubAgentContext
         {
             AgentId = id,
-            AgentType = Options.AgentType ?? AgentTypeDefinition.Default.ToValue(),
+            AgentType = agentType ?? Options.AgentType ?? AgentTypeDefinition.Default.ToValue(),
             Task = task,
             AllowedTools = Options.AllowedTools,
             DeniedTools = Options.DeniedTools,
@@ -55,6 +111,64 @@ public sealed class SubAgent : ISubAgent
             IsBuiltIn = Options.IsBuiltIn,
             DisplayName = Options.DisplayName,
             PermissionMode = Options.PermissionMode
+        };
+    }
+
+    /// <summary>
+    /// 生成唯一 Agent Id
+    /// </summary>
+    public static string GenerateId() => $"agent-{Guid.NewGuid():N}"[..20];
+
+    /// <summary>
+    /// 从 AgentDescriptor 创建 Agent（兼容迁移）
+    /// </summary>
+    public static Agent FromDescriptor(AgentDescriptor descriptor, string task, IQueryEngine queryEngine, ILogger? logger = null, IClockService? clock = null)
+    {
+        return new Agent(
+            id: descriptor.Id,
+            task: task,
+            options: null,
+            queryEngine: queryEngine,
+            logger: logger,
+            clock: clock,
+            name: descriptor.Name,
+            isSubAgent: descriptor.IsSubAgent,
+            parentAgentId: descriptor.ParentAgentId,
+            agentType: descriptor.AgentType,
+            systemPrompt: descriptor.SystemPrompt,
+            instruction: descriptor.Instruction,
+            freshContext: descriptor.FreshContext,
+            tokenBudget: descriptor.TokenBudget,
+            goalId: descriptor.GoalId,
+            graphNodeId: descriptor.GraphNodeId);
+    }
+
+    /// <summary>
+    /// 转为 AgentDescriptor（兼容迁移）
+    /// </summary>
+    public AgentDescriptor ToDescriptor()
+    {
+        return new AgentDescriptor
+        {
+            Id = Id,
+            Name = Name,
+            IsSubAgent = IsSubAgent,
+            AgentType = AgentType,
+            ParentAgentId = ParentAgentId,
+            SystemPrompt = SystemPrompt,
+            Instruction = Instruction,
+            GoalId = GoalId,
+            GraphNodeId = GraphNodeId,
+            FreshContext = FreshContext,
+            TokenBudget = TokenBudget,
+            TokensUsed = TokensUsed,
+            TurnsCompleted = TurnsCompleted,
+            CreatedAt = CreatedAt,
+            StartedAt = StartedAt,
+            CompletedAt = CompletedAt,
+            Output = Output,
+            ErrorMessage = ErrorMessage,
+            Routes = Routes,
         };
     }
 
@@ -90,7 +204,6 @@ public sealed class SubAgent : ISubAgent
         {
             _logger?.LogInformation(AgentCoordinatorConstants.LogMessages.SubAgentStartExecute, AgentCoordinatorConstants.LogMessages.SubAgentPrefix, Id, _executionCount);
 
-            // 构建提示
             var prompt = BuildPrompt();
 
             MessageList chatHistory;
@@ -101,8 +214,8 @@ public sealed class SubAgent : ISubAgent
             else
             {
                 chatHistory = new MessageList();
-                var systemMessage = !string.IsNullOrWhiteSpace(Options.SystemPrompt)
-                    ? Options.SystemPrompt
+                var systemMessage = !string.IsNullOrWhiteSpace(SystemPrompt ?? Options.SystemPrompt)
+                    ? (SystemPrompt ?? Options.SystemPrompt!)
                     : string.Format(AgentCoordinatorConstants.SystemPrompts.SubAgentSystemMessage, Task);
                 chatHistory.AddSystemMessage(systemMessage);
             }
@@ -114,24 +227,22 @@ public sealed class SubAgent : ISubAgent
 
             await foreach (var chunk in _queryEngine.QueryAsync(prompt, chatHistory, queryOptions, linkedToken))
             {
-                // 检查暂停状态 - 使用超时保护
                 if (_isPaused)
                 {
-                    _logger?.LogInformation("[{AgentType} {AgentId}] 进入暂停等待状态", nameof(SubAgent), Id);
+                    _logger?.LogInformation("[{AgentType} {AgentId}] 进入暂停等待状态", nameof(Agent), Id);
                     var pauseStart = _clock.GetUtcNow();
 
                     try
                     {
-                        // 使用30秒超时，防止永久阻塞
                         await _pauseLock.WaitAsync(linkedToken).ConfigureAwait(false);
                         _pauseLock.Release();
 
                         var pauseDuration = _clock.GetUtcNow() - pauseStart;
-                        _logger?.LogInformation("[{AgentType} {AgentId}] 暂停结束，等待时长 {PauseDurationMs}ms", nameof(SubAgent), Id, pauseDuration.TotalMilliseconds);
+                        _logger?.LogInformation("[{AgentType} {AgentId}] 暂停结束，等待时长 {PauseDurationMs}ms", nameof(Agent), Id, pauseDuration.TotalMilliseconds);
                     }
                     catch (TimeoutException)
                     {
-                        _logger?.LogWarning("[{AgentType} {AgentId}] 暂停等待超时（30秒），自动恢复执行", nameof(SubAgent), Id);
+                        _logger?.LogWarning("[{AgentType} {AgentId}] 暂停等待超时（30秒），自动恢复执行", nameof(Agent), Id);
                         _isPaused = false;
                         Status = TaskExecutionStatus.Running;
                     }
@@ -162,8 +273,9 @@ public sealed class SubAgent : ISubAgent
             }
 
             var output = responseBuilder.ToString();
+            Output = output;
 
-            _logger?.LogInformation("[SubAgent {AgentId}] 任务执行完成，耗时{ElapsedMs}ms", Id, stopwatch.ElapsedMilliseconds);
+            _logger?.LogInformation("[Agent {AgentId}] 任务执行完成，耗时{ElapsedMs}ms", Id, stopwatch.ElapsedMilliseconds);
 
             return new SubAgentResult
             {
@@ -191,6 +303,7 @@ public sealed class SubAgent : ISubAgent
         {
             CompletedAt = _clock.GetUtcNow();
             Status = TaskExecutionStatus.Failed;
+            ErrorMessage = ex.Message;
 
             if (Context is not null)
             {
@@ -198,7 +311,7 @@ public sealed class SubAgent : ISubAgent
                 Context.Status = AgentStatus.Failed;
             }
 
-            _logger?.LogError(ex, "[SubAgent {AgentId}] 任务执行失败", Id);
+            _logger?.LogError(ex, "[Agent {AgentId}] 任务执行失败", Id);
 
             return new SubAgentResult
             {
@@ -212,7 +325,6 @@ public sealed class SubAgent : ISubAgent
 
     /// <summary>
     /// 流式执行Agent任务 — 对齐 TS runAgent AsyncGenerator
-    /// 将 _queryEngine.QueryAsync 的流式输出包装为 AgentStreamChunk 向上透传
     /// </summary>
     public async IAsyncEnumerable<AgentStreamChunk> ExecuteStreamAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
@@ -241,8 +353,8 @@ public sealed class SubAgent : ISubAgent
         else
         {
             chatHistory = new MessageList();
-            var systemMessage = !string.IsNullOrWhiteSpace(Options.SystemPrompt)
-                ? Options.SystemPrompt
+            var systemMessage = !string.IsNullOrWhiteSpace(SystemPrompt ?? Options.SystemPrompt)
+                ? (SystemPrompt ?? Options.SystemPrompt!)
                 : string.Format(AgentCoordinatorConstants.SystemPrompts.SubAgentSystemMessage, Task);
             chatHistory.AddSystemMessage(systemMessage);
         }
@@ -259,7 +371,6 @@ public sealed class SubAgent : ISubAgent
 
         await foreach (var chunk in queryStream.ConfigureAwait(false))
         {
-            // 检查暂停状态
             if (_isPaused)
             {
                 try
@@ -274,7 +385,6 @@ public sealed class SubAgent : ISubAgent
                 }
             }
 
-            // 直接使用 AgentStreamChunkType（已与 AgentStreamChunkType 合并）
             if (chunk.Type == AgentStreamChunkType.Content)
             {
                 responseBuilder.Append(chunk.Content);
@@ -314,18 +424,21 @@ public sealed class SubAgent : ISubAgent
             Context.Status = succeeded ? AgentStatus.Completed : AgentStatus.Failed;
         }
 
-        // yield 最终完成块
+        var finalOutput = succeeded ? responseBuilder.ToString() : errorMessage;
+        if (succeeded) Output = finalOutput;
+        else ErrorMessage = errorMessage;
+
         yield return new AgentStreamChunk
         {
             Type = AgentStreamChunkType.Complete,
-            Content = succeeded ? responseBuilder.ToString() : errorMessage,
+            Content = finalOutput,
             ExecutionTimeMs = stopwatch.ElapsedMilliseconds,
             AgentId = Id
         };
     }
 
     /// <summary>
-    /// 暂停任务
+    /// 暂停LLM循环
     /// </summary>
     public void Pause()
     {
@@ -333,12 +446,12 @@ public sealed class SubAgent : ISubAgent
         {
             _isPaused = true;
             Status = TaskExecutionStatus.Paused;
-            _logger?.LogInformation("[{AgentType} {AgentId}] 任务已暂停，等待恢复信号", nameof(SubAgent), Id);
+            _logger?.LogInformation("[{AgentType} {AgentId}] 任务已暂停，等待恢复信号", nameof(Agent), Id);
         }
     }
 
     /// <summary>
-    /// 恢复任务
+    /// 恢复LLM循环
     /// </summary>
     public void Resume()
     {
@@ -346,18 +459,18 @@ public sealed class SubAgent : ISubAgent
         {
             _isPaused = false;
             Status = TaskExecutionStatus.Running;
-            _logger?.LogInformation("[{AgentType} {AgentId}] 任务已恢复，释放暂停锁", nameof(SubAgent), Id);
+            _logger?.LogInformation("[{AgentType} {AgentId}] 任务已恢复，释放暂停锁", nameof(Agent), Id);
         }
     }
 
     /// <summary>
-    /// 取消任务
+    /// 取消LLM循环
     /// </summary>
     public void Cancel()
     {
         _cts.Cancel();
         Status = TaskExecutionStatus.Cancelled;
-        _logger?.LogInformation("[SubAgent {AgentId}] 任务已取消", Id);
+        _logger?.LogInformation("[Agent {AgentId}] 任务已取消", Id);
     }
 
     /// <summary>
@@ -369,7 +482,7 @@ public sealed class SubAgent : ISubAgent
         Status = TaskExecutionStatus.Pending;
         StartedAt = null;
         CompletedAt = null;
-        _logger?.LogInformation("[SubAgent {AgentId}] 状态已重置", Id);
+        _logger?.LogInformation("[Agent {AgentId}] 状态已重置", Id);
     }
 
     private string BuildPrompt()

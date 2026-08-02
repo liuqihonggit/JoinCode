@@ -17,6 +17,7 @@ public sealed partial class GoalGraphEngine
     [Inject] private readonly IClockService _clock;
     [Inject] private readonly IServiceProvider _serviceProvider;
     [Inject] private readonly IAgentRegistry? _agentRegistry = null!;
+    [Inject] private readonly IAgentService? _agentService = null!;
     private readonly Dictionary<string, Func<NodeContext, Task<NodeResult>>> _functionRegistry = new(StringComparer.Ordinal);
 
     public GoalGraphEngine(
@@ -222,6 +223,7 @@ public sealed partial class GoalGraphEngine
                 Id = agentId,
                 Name = payload.Name,
                 IsSubAgent = payload.IsSubAgent,
+                AgentType = payload.AgentType,
                 SystemPrompt = payload.SystemPrompt,
                 Instruction = payload.Instruction,
                 GoalId = context.State.GoalId,
@@ -232,6 +234,79 @@ public sealed partial class GoalGraphEngine
             });
         }
 
+        var instruction = payload.Instruction ?? payload.Name;
+        if (payload.Input is not null)
+        {
+            instruction = $"[上游输入]\n{payload.Input}\n\n[任务指令]\n{instruction}";
+        }
+
+        // === 完整模式：通过 IAgentService 执行（复用基础设施）===
+        if (_agentService is not null && payload.AgentType is not null)
+        {
+            return await ExecuteViaAgentServiceAsync(nodeId, payload, instruction, context, ct).ConfigureAwait(false);
+        }
+
+        // === 轻量回退：直接 IChatClient 调用（兼容旧模板）===
+        return await ExecuteViaChatClientAsync(nodeId, payload, instruction, context, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 通过 IAgentService 执行 Agent 节点 — 复用完整基础设施
+    /// （Transcript、MessageBroker、Worktree、Hook、MCP、Pause/Resume/Cancel）
+    /// </summary>
+    private async Task<NodeResult> ExecuteViaAgentServiceAsync(string nodeId, GoalNodePayload payload, string instruction, GraphExecutionContext context, CancellationToken ct)
+    {
+        var spawnOptions = new AgentSpawnOptions
+        {
+            Description = payload.Name,
+            Prompt = instruction,
+            AgentType = payload.AgentType,
+            RunInBackground = false,
+        };
+
+        var totalTokens = 0;
+        var totalTurns = 0;
+        var lastOutput = string.Empty;
+        var responseBuilder = new System.Text.StringBuilder();
+
+        await foreach (var chunk in _agentService!.RunAgentStreamAsync(spawnOptions, ct).ConfigureAwait(false))
+        {
+            if (chunk.Type == AgentStreamChunkType.Content)
+            {
+                responseBuilder.Append(chunk.Content);
+            }
+            else if (chunk.Type == AgentStreamChunkType.Complete)
+            {
+                totalTurns++;
+                lastOutput = chunk.Content ?? responseBuilder.ToString();
+                if (chunk.ExecutionTimeMs > 0)
+                {
+                    totalTokens += (int)chunk.ExecutionTimeMs;
+                }
+            }
+        }
+
+        payload.TokensUsed = totalTokens;
+        payload.TurnsCompleted = totalTurns;
+
+        if (!string.IsNullOrEmpty(lastOutput))
+        {
+            await context.StateLock.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                context.ChatHistory.AddAssistantMessage($"[{payload.Name}]: {lastOutput}");
+            }
+            finally { context.StateLock.Release(); }
+        }
+
+        return NodeResult.Succeeded(lastOutput, totalTokens);
+    }
+
+    /// <summary>
+    /// 轻量回退：直接 IChatClient 调用（兼容旧模板，无 AgentType）
+    /// </summary>
+    private async Task<NodeResult> ExecuteViaChatClientAsync(string nodeId, GoalNodePayload payload, string instruction, GraphExecutionContext context, CancellationToken ct)
+    {
         var chatHistory = new MessageList();
         if (!payload.FreshContext)
         {
@@ -246,11 +321,6 @@ public sealed partial class GoalGraphEngine
             chatHistory.AddSystemMessage(payload.SystemPrompt);
         }
 
-        var instruction = payload.Instruction ?? payload.Name;
-        if (payload.Input is not null)
-        {
-            instruction = $"[上游输入]\n{payload.Input}\n\n[任务指令]\n{instruction}";
-        }
         chatHistory.AddUserMessage(instruction);
 
         var chatService = _kernel.GetChatCompletionService();

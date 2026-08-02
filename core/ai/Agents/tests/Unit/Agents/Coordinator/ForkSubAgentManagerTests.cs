@@ -35,7 +35,7 @@ public class ForkSubAgentManagerTests
     public async Task ForkAsync_ShouldCreateForkedAgentWithSharedCache()
     {
         var queryEngineMock = new Mock<JoinCode.Abstractions.Interfaces.IQueryEngine>();
-        var agent = new SubAgent("fork-agent-1", "Fork task", null, queryEngineMock.Object, null);
+        var agent = new Agent("fork-agent-1", "Fork task", null, queryEngineMock.Object, null);
 
         var agentResult = new SubAgentResult
         {
@@ -71,7 +71,7 @@ public class ForkSubAgentManagerTests
     public async Task ForkAsync_ShareCacheFalse_ShouldCreateIndependentCache()
     {
         var queryEngineMock = new Mock<JoinCode.Abstractions.Interfaces.IQueryEngine>();
-        var agent = new SubAgent("fork-agent-2", "Independent fork", null, queryEngineMock.Object, null);
+        var agent = new Agent("fork-agent-2", "Independent fork", null, queryEngineMock.Object, null);
 
         var agentResult = new SubAgentResult
         {
@@ -105,7 +105,7 @@ public class ForkSubAgentManagerTests
     public async Task ForkAsync_FailedAgentExecution_ShouldReturnFailedForkResult()
     {
         var queryEngineMock = new Mock<JoinCode.Abstractions.Interfaces.IQueryEngine>();
-        var agent = new SubAgent("fork-agent-3", "Failing fork", null, queryEngineMock.Object, null);
+        var agent = new Agent("fork-agent-3", "Failing fork", null, queryEngineMock.Object, null);
 
         var agentResult = new SubAgentResult
         {
@@ -167,7 +167,7 @@ public class ForkSubAgentManagerTests
     public async Task GetActiveForksAsync_AfterFork_ShouldReturnFork()
     {
         var queryEngineMock = new Mock<JoinCode.Abstractions.Interfaces.IQueryEngine>();
-        var agent = new SubAgent("fork-agent-4", "Task", null, queryEngineMock.Object, null);
+        var agent = new Agent("fork-agent-4", "Task", null, queryEngineMock.Object, null);
 
         var agentResult = new SubAgentResult
         {
@@ -223,7 +223,7 @@ public class ForkSubAgentManagerTests
     public async Task ForkAsync_BackgroundMode_ExecuteAsyncThrows_ShouldNotThrowObjectDisposedException()
     {
         var queryEngineMock = new Mock<JoinCode.Abstractions.Interfaces.IQueryEngine>();
-        var agent = new SubAgent("fork-bg-throw", "Background task that throws", null, queryEngineMock.Object, null);
+        var agent = new Agent("fork-bg-throw", "Background task that throws", null, queryEngineMock.Object, null);
 
         _lifecycleManagerMock
             .Setup(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>()))

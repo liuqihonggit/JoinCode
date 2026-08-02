@@ -11,6 +11,8 @@ global using JoinCode.Abstractions.Interfaces.Scheduling;
 global using JoinCode.Abstractions.LLM;
 global using JoinCode.Abstractions.LLM.Chat;
 global using JoinCode.Abstractions.Models.Goal;
+global using JoinCode.Abstractions.Models.Agent;
+global using JoinCode.Abstractions.State;
 global using JoinCode.Abstractions.Models.Task;
 global using JoinCode.Abstractions.Security;
 global using JoinCode.Abstractions.Security.Permission;

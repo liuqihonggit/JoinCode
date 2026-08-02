@@ -16,6 +16,7 @@ public sealed partial class GoalGraphEngine
     [Inject] private readonly ILogger<GoalGraphEngine>? _logger;
     [Inject] private readonly IClockService _clock;
     [Inject] private readonly IServiceProvider _serviceProvider;
+    [Inject] private readonly IAgentRegistry? _agentRegistry = null!;
     private readonly Dictionary<string, Func<NodeContext, Task<NodeResult>>> _functionRegistry = new(StringComparer.Ordinal);
 
     public GoalGraphEngine(
@@ -208,6 +209,29 @@ public sealed partial class GoalGraphEngine
 
     private async Task<NodeResult> ExecuteAgentNodeAsync(string nodeId, GoalNodePayload payload, GraphExecutionContext context, CancellationToken ct)
     {
+        var agentId = payload.AgentId ?? AgentDescriptor.GenerateId();
+        payload.AgentId = agentId;
+
+        if (_agentRegistry is not null && _agentRegistry.Get(agentId) is null)
+        {
+            var mainAgents = _agentRegistry.GetMainAgents();
+            var mainAgentId = mainAgents.Count > 0 ? mainAgents[0].Id : null;
+
+            _agentRegistry.Register(new AgentDescriptor
+            {
+                Id = agentId,
+                Name = payload.Name,
+                IsSubAgent = payload.IsSubAgent,
+                SystemPrompt = payload.SystemPrompt,
+                Instruction = payload.Instruction,
+                GoalId = context.State.GoalId,
+                GraphNodeId = nodeId,
+                FreshContext = payload.FreshContext,
+                TokenBudget = payload.TokenBudget,
+                ParentAgentId = payload.IsSubAgent ? mainAgentId : null,
+            });
+        }
+
         var chatHistory = new MessageList();
         if (!payload.FreshContext)
         {

@@ -17,6 +17,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
     [Inject] private readonly IClockService _clock;
     [Inject] private readonly IServiceProvider _serviceProvider = null!;
     [Inject] private readonly IGoalGraphTemplateRegistry _templateRegistry = null!;
+    [Inject] private readonly IAgentRegistry? _agentRegistry = null!;
     private readonly IToolPermissionManager? _permissionManager;
     private readonly MiddlewarePipeline<GoalLifecycleContext>? _lifecyclePipeline;
     private GoalState? _state;
@@ -85,6 +86,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
                         _ => GoalNodeKind.Agent,
                     },
                     Name = node.Name ?? nodeId,
+                    IsSubAgent = true,
                     SystemPrompt = node.SystemPrompt,
                     Instruction = node.Instruction,
                     FreshContext = node.FreshContext,
@@ -224,6 +226,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
             {
                 Kind = GoalNodeKind.Agent,
                 Name = "executor",
+                IsSubAgent = true,
                 Instruction = objective,
                 TokenBudget = tokenBudget,
             },
@@ -236,6 +239,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
             {
                 Kind = GoalNodeKind.Agent,
                 Name = "reviewer",
+                IsSubAgent = true,
                 SystemPrompt = "You are an independent reviewer. Evaluate the following work output objectively. You must determine if the task was completed successfully. Reply with PASS if the work meets the requirements, or FAIL with specific issues if it does not. Do not assume context you were not given — judge only by what you see.",
                 Instruction = "Review the following work output and determine if it successfully completes the task. Be objective and thorough.",
                 FreshContext = true,
@@ -319,6 +323,8 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
 
         _savedPermissionMode = ctx.SavedPermissionMode;
 
+        RegisterMainAgent(_state.GoalId, objective, tokenBudget);
+
         if (ctx.ShouldStartEngineLoop)
         {
             _logger?.LogInformation(L.T(StringKey.GoalEngineStarting),
@@ -368,6 +374,8 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
         }
 
         await SwitchToGoalPermissionModeAsync(cancellationToken).ConfigureAwait(false);
+
+        RegisterMainAgent(_state.GoalId, objective, tokenBudget);
 
         _logger?.LogInformation(L.T(StringKey.GoalEngineStarting),
             _state.GoalId, objective, tokenBudget?.ToString() ?? L.T(StringKey.GoalEngineBudgetUnlimited));
@@ -1075,6 +1083,24 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
         {
             _savedPermissionMode = null;
         }
+    }
+
+    private void RegisterMainAgent(string goalId, string objective, int? tokenBudget)
+    {
+        if (_agentRegistry is null) return;
+
+        var mainAgentId = AgentDescriptor.GenerateId();
+        _agentRegistry.Register(new AgentDescriptor
+        {
+            Id = mainAgentId,
+            Name = "mainAgent",
+            IsSubAgent = false,
+            Instruction = objective,
+            GoalId = goalId,
+            TokenBudget = tokenBudget,
+        });
+
+        _logger?.LogInformation("[GoalEngine] mainAgent 注册到 AgentRegistry: {AgentId}, Goal={GoalId}", mainAgentId, goalId);
     }
 }
 

@@ -7,6 +7,8 @@ public sealed class GoalNodePayload
 {
     public required GoalNodeKind Kind { get; init; }
     public required string Name { get; init; }
+    public string? AgentId { get; set; }
+    public bool IsSubAgent { get; init; }
     public string? SystemPrompt { get; init; }
     public string? Instruction { get; init; }
     public bool FreshContext { get; init; }

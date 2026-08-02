@@ -183,7 +183,7 @@ public sealed class Agent : ISubAgent
     /// <summary>
     /// 执行Agent任务
     /// </summary>
-    public async Task<SubAgentResult> ExecuteAsync(CancellationToken cancellationToken = default)
+    public async System.Threading.Tasks.Task<SubAgentResult> ExecuteAsync(CancellationToken cancellationToken = default)
     {
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token, cancellationToken);
         var linkedToken = linkedCts.Token;
@@ -538,5 +538,64 @@ public sealed class Agent : ISubAgent
     {
         _cts.Dispose();
         _pauseLock.Dispose();
+    }
+
+    // === IAgent 实现 ===
+
+    /// <summary>
+    /// 对话式处理 — 将输入添加到 ChatHistory 并执行一轮 LLM 循环
+    /// </summary>
+    public async System.Threading.Tasks.Task<AgentResponse> ProcessAsync(
+        string userInput,
+        bool useTools = false,
+        CancellationToken cancellationToken = default)
+    {
+        ChatHistory.AddUserMessage(userInput);
+
+        var queryOptions = BuildChatOptions();
+        var responseBuilder = new StringBuilder();
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+        await foreach (var chunk in _queryEngine.QueryAsync(userInput, ChatHistory, queryOptions, cancellationToken))
+        {
+            if (chunk.Type == AgentStreamChunkType.Content)
+            {
+                responseBuilder.Append(chunk.Content);
+            }
+        }
+
+        stopwatch.Stop();
+        var output = responseBuilder.ToString();
+        if (!string.IsNullOrEmpty(output))
+        {
+            ChatHistory.AddAssistantMessage(output);
+        }
+
+        return new AgentResponse
+        {
+            Content = output,
+            ExecutionTimeMs = stopwatch.ElapsedMilliseconds,
+        };
+    }
+
+    /// <summary>
+    /// 清空上下文
+    /// </summary>
+    public System.Threading.Tasks.Task ClearContextAsync(CancellationToken cancellationToken = default)
+    {
+        ChatHistory.Clear();
+        if (SystemPrompt is not null)
+        {
+            ChatHistory.AddSystemMessage(SystemPrompt);
+        }
+        return System.Threading.Tasks.Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// 获取上下文
+    /// </summary>
+    public System.Threading.Tasks.Task<AgentContext> GetContextAsync(CancellationToken cancellationToken = default)
+    {
+        return System.Threading.Tasks.Task.FromResult(new AgentContext());
     }
 }

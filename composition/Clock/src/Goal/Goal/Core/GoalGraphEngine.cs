@@ -16,7 +16,7 @@ public sealed partial class GoalGraphEngine
     [Inject] private readonly ILogger<GoalGraphEngine>? _logger;
     [Inject] private readonly IClockService _clock;
     [Inject] private readonly IServiceProvider _serviceProvider;
-    [Inject] private readonly IAgentRegistry? _agentRegistry = null!;
+    private Core.Agents.Coordinator.AgentRegistry _agentRegistry => Core.Agents.Coordinator.Agent.Registry;
     [Inject] private readonly IAgentService? _agentService = null!;
     private readonly Dictionary<string, Func<NodeContext, Task<NodeResult>>> _functionRegistry = new(StringComparer.Ordinal);
 
@@ -210,28 +210,12 @@ public sealed partial class GoalGraphEngine
 
     private async Task<NodeResult> ExecuteAgentNodeAsync(string nodeId, GoalNodePayload payload, GraphExecutionContext context, CancellationToken ct)
     {
-        var agentId = payload.AgentId ?? AgentDescriptor.GenerateId();
+        var agentId = payload.AgentId ?? Core.Agents.Coordinator.Agent.GenerateId();
         payload.AgentId = agentId;
 
-        if (_agentRegistry is not null && _agentRegistry.Get(agentId) is null)
+        if (_agentRegistry.Get(new JoinCode.Abstractions.Entity.ObjectId(JoinCode.Abstractions.Entity.ObjectType.Agent, agentId)) is null)
         {
-            var mainAgents = _agentRegistry.GetMainAgents();
-            var mainAgentId = mainAgents.Count > 0 ? mainAgents[0].Id : null;
-
-            _agentRegistry.Register(new AgentDescriptor
-            {
-                Id = agentId,
-                Name = payload.Name,
-                IsSubAgent = payload.IsSubAgent,
-                AgentType = payload.AgentType,
-                SystemPrompt = payload.SystemPrompt,
-                Instruction = payload.Instruction,
-                GoalId = context.State.GoalId,
-                GraphNodeId = nodeId,
-                FreshContext = payload.FreshContext,
-                TokenBudget = payload.TokenBudget,
-                ParentAgentId = payload.IsSubAgent ? mainAgentId : null,
-            });
+            _logger?.LogDebug("[GoalGraph] Agent {AgentId} 未在 Agent.Registry 中，将由 IAgentService 创建时自动注册", agentId);
         }
 
         var instruction = payload.Instruction ?? payload.Name;
@@ -246,8 +230,10 @@ public sealed partial class GoalGraphEngine
             return await ExecuteViaAgentServiceAsync(nodeId, payload, instruction, context, ct).ConfigureAwait(false);
         }
 
-        // === 轻量回退：直接 IChatClient 调用（兼容旧模板）===
-        return await ExecuteViaChatClientAsync(nodeId, payload, instruction, context, ct).ConfigureAwait(false);
+        // === 无回退：所有 Agent 节点必须通过 IAgentService 执行 ===
+        var missingReason = _agentService is null ? "IAgentService 未注入" : "AgentType 未指定";
+        _logger?.LogError("[GoalGraph] {NodeId}({Name}): 无法执行 Agent 节点 — {Reason}。所有 Agent 节点必须通过 IAgentService 执行", nodeId, payload.Name, missingReason);
+        return NodeResult.Failed($"Agent 节点无法执行: {missingReason}。Goal 模板必须为每个 agent 节点指定 AgentType");
     }
 
     /// <summary>
@@ -302,106 +288,7 @@ public sealed partial class GoalGraphEngine
         return NodeResult.Succeeded(lastOutput, totalTokens);
     }
 
-    /// <summary>
-    /// 轻量回退：直接 IChatClient 调用（兼容旧模板，无 AgentType）
-    /// </summary>
-    private async Task<NodeResult> ExecuteViaChatClientAsync(string nodeId, GoalNodePayload payload, string instruction, GraphExecutionContext context, CancellationToken ct)
-    {
-        var chatHistory = new MessageList();
-        if (!payload.FreshContext)
-        {
-            foreach (var msg in context.ChatHistory)
-            {
-                chatHistory.Add(msg);
-            }
-        }
 
-        if (payload.SystemPrompt is not null)
-        {
-            chatHistory.AddSystemMessage(payload.SystemPrompt);
-        }
-
-        chatHistory.AddUserMessage(instruction);
-
-        var chatService = _kernel.GetChatCompletionService();
-        var executionSettings = new ChatOptions
-        {
-            Temperature = 0.7f,
-            MaxTokens = 8000,
-            ToolChoice = ToolChoice.AutoInvoke
-        };
-
-        var totalTokens = 0;
-        var totalTurns = 0;
-        var lastOutput = string.Empty;
-
-        while (!ct.IsCancellationRequested)
-        {
-            if (payload.TokenBudget is { } budget && totalTokens >= budget)
-            {
-                _logger?.LogWarning("[GoalGraph] {NodeId}({Name}): Token预算耗尽 ({Used}/{Budget})",
-                    nodeId, payload.Name, totalTokens, budget);
-                break;
-            }
-
-            var results = await chatService.GetApiMessageContentsAsync(
-                chatHistory,
-                executionSettings,
-                _kernel,
-                ct).ConfigureAwait(false);
-
-            var outputText = results.Count > 0 ? results[0].Content ?? string.Empty : string.Empty;
-            var tokensUsed = results.Count > 0 && results[0].TokenUsage is { TotalTokens: var tt }
-                ? tt
-                : 0;
-
-            totalTokens += tokensUsed;
-            totalTurns++;
-            lastOutput = outputText;
-            payload.TokensUsed = totalTokens;
-            payload.TurnsCompleted = totalTurns;
-
-            if (!string.IsNullOrEmpty(outputText))
-            {
-                chatHistory.AddAssistantMessage(outputText);
-            }
-
-            var evaluation = await _evaluator.EvaluateAsync(
-                instruction,
-                [],
-                outputText,
-                ct).ConfigureAwait(false);
-
-            if (evaluation.IsCompleted)
-            {
-                _logger?.LogInformation("[GoalGraph] {NodeId}({Name}): Agent循环完成 (turns={Turns}, tokens={Tokens})",
-                    nodeId, payload.Name, totalTurns, totalTokens);
-                break;
-            }
-
-            var continuationPrompt = ContinuationPromptBuilder.BuildContinuationPrompt(
-                instruction,
-                [],
-                totalTokens,
-                payload.TokenBudget,
-                evaluation.Reason);
-            chatHistory.AddSystemMessage(continuationPrompt);
-
-            _logger?.LogDebug("[GoalGraph] {NodeId}({Name}): Agent继续 (turns={Turns})", nodeId, payload.Name, totalTurns);
-        }
-
-        if (!string.IsNullOrEmpty(lastOutput))
-        {
-            await context.StateLock.WaitAsync(ct).ConfigureAwait(false);
-            try
-            {
-                context.ChatHistory.AddAssistantMessage($"[{payload.Name}]: {lastOutput}");
-            }
-            finally { context.StateLock.Release(); }
-        }
-
-        return NodeResult.Succeeded(lastOutput, totalTokens);
-    }
 
     private async Task<NodeResult> ExecuteFunctionNodeAsync(string nodeId, GoalNodePayload payload, GraphExecutionContext context, CancellationToken ct)
     {

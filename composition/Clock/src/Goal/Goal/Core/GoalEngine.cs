@@ -17,7 +17,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
     [Inject] private readonly IClockService _clock;
     [Inject] private readonly IServiceProvider _serviceProvider = null!;
     [Inject] private readonly IGoalGraphTemplateRegistry _templateRegistry = null!;
-    [Inject] private readonly IAgentRegistry? _agentRegistry = null!;
+    private Core.Agents.Coordinator.AgentRegistry _agentRegistry => Core.Agents.Coordinator.Agent.Registry;
     private readonly IToolPermissionManager? _permissionManager;
     private readonly MiddlewarePipeline<GoalLifecycleContext>? _lifecyclePipeline;
     private GoalState? _state;
@@ -1090,20 +1090,14 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
 
     private void RegisterMainAgent(string goalId, string objective, int? tokenBudget)
     {
-        if (_agentRegistry is null) return;
-
-        var mainAgentId = AgentDescriptor.GenerateId();
-        _agentRegistry.Register(new AgentDescriptor
+        var mainAgents = _agentRegistry.GetMainAgents();
+        if (mainAgents.Count > 0)
         {
-            Id = mainAgentId,
-            Name = "mainAgent",
-            IsSubAgent = false,
-            Instruction = objective,
-            GoalId = goalId,
-            TokenBudget = tokenBudget,
-        });
+            _logger?.LogInformation("[GoalEngine] mainAgent 已存在: {AgentId}, 跳过注册", mainAgents[0].Id);
+            return;
+        }
 
-        _logger?.LogInformation("[GoalEngine] mainAgent 注册到 AgentRegistry: {AgentId}, Goal={GoalId}", mainAgentId, goalId);
+        _logger?.LogInformation("[GoalEngine] mainAgent 将在 CliSession 中创建，Goal={GoalId}", goalId);
     }
 }
 

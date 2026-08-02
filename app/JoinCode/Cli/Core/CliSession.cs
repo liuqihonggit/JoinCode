@@ -13,9 +13,18 @@ public sealed class CliSession
     private readonly ChatCommandRegistry _commandRegistry;
     private readonly TurnDiffService _turnDiffService = new();
     private readonly DateTime _sessionStartedAt;
-    private readonly string _sessionId = Guid.NewGuid().ToString("N")[..16];
     private readonly SessionController _controller;
     private readonly IClockService _clock;
+
+    /// <summary>
+    /// 会话实体 — 派生自 Entity，自动注册到 Session.Registry + ObjectIdManager
+    /// </summary>
+    private readonly Session _sessionEntity;
+
+    /// <summary>
+    /// 会话 ObjectId — 全局唯一标识，跨域引用用此
+    /// </summary>
+    private readonly ObjectId _sessionObjectId;
 
     /// <summary>会话是否正在运行</summary>
     public bool IsRunning { get; private set; } = true;
@@ -47,11 +56,15 @@ public sealed class CliSession
         _optionalServices = optionalServices;
         _commandRegistry = new ChatCommandRegistry();
         GeneratedCommandRegistration.RegisterAllChatCommands(_commandRegistry);
+
+        _sessionEntity = new Session();
+        _sessionObjectId = _sessionEntity.ObjectId;
+
         _controller = new SessionController(
             chatService,
             new CliEventConsumer(),
             _turnDiffService,
-            _sessionId,
+            _sessionEntity.Id,
             optionalServices?.ServiceProvider);
     }
 
@@ -95,7 +108,7 @@ public sealed class CliSession
             input.StartsWith('/') ? $"cli.command{input.Split(' ')[0]}" : "cli.chat",
             TelemetrySpanKind.Server);
         span?.SetTag("input.length", input.Length);
-        span?.SetTag("session.id", _sessionId);
+        span?.SetTag("session.id", _sessionEntity.Id);
 
         try
         {
@@ -134,7 +147,7 @@ public sealed class CliSession
             Arguments = parseResult.Arguments,
             CancellationToken = cancellationToken,
             SessionStartedAt = _sessionStartedAt,
-            SessionId = _sessionId,
+            SessionId = _sessionEntity.Id,
             Services = new CommandServices
             {
                 ChatService = _controller.ChatService,
@@ -309,10 +322,10 @@ public sealed class CliSession
         {
             var entries = new TranscriptEntry[]
             {
-                new() { SessionId = _sessionId, Role = "user", Content = userInput, Timestamp = timestamp },
-                new() { SessionId = _sessionId, Role = "assistant", Content = assistantResponse, Timestamp = _clock.GetUtcNow() }
+                new() { SessionId = _sessionEntity.Id, Role = "user", Content = userInput, Timestamp = timestamp },
+                new() { SessionId = _sessionEntity.Id, Role = "assistant", Content = assistantResponse, Timestamp = _clock.GetUtcNow() }
             };
-            await _optionalServices.TranscriptService.AppendEntriesAsync(_sessionId, entries, cancellationToken).ConfigureAwait(false);
+            await _optionalServices.TranscriptService.AppendEntriesAsync(_sessionEntity.Id, entries, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {

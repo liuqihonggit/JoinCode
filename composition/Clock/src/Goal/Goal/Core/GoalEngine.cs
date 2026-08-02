@@ -16,6 +16,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
     [Inject] private readonly ILogger<GoalEngine>? _logger;
     [Inject] private readonly IClockService _clock;
     [Inject] private readonly IServiceProvider _serviceProvider = null!;
+    [Inject] private readonly IGoalGraphTemplateRegistry _templateRegistry = null!;
     private readonly IToolPermissionManager? _permissionManager;
     private readonly MiddlewarePipeline<GoalLifecycleContext>? _lifecyclePipeline;
     private GoalState? _state;
@@ -114,6 +115,14 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
             logger: null,
             heartbeat: _heartbeat,
             clock: _clock);
+
+        var template = _templateRegistry.FindMatch(objective);
+        if (template is not null)
+        {
+            _goalGraph = template.BuildGraph(_graphEngine, objective);
+            _logger?.LogInformation("[GoalEngine] 匹配到 Graph 模板: {TemplateName} → {GraphName}", template.Name, _goalGraph.Name);
+            return;
+        }
 
         var dag = new Dag<GoalNodePayload>();
 

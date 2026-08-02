@@ -3,7 +3,7 @@ namespace Core.Context;
 /// <summary>
 /// 查询循环中间件 — LLM 调用 + 块处理 + 工具执行循环
 /// 对应原 ChatService.StreamWithEventsAsync 中的 while 循环
-/// 职责已拆分到: BackgroundNotificationHandler / LLMInvocationHandler / ToolExecutionHandler / CompositeLoopDetectionStrategy / TelemetryRecorder
+/// 职责已拆分到: BackgroundNotificationHandler / LLMInvocationHandler / ToolExecutionHandler / InformationEntropyGuardian / TelemetryRecorder
 /// 支持流式工具执行：对齐 TS StreamingToolExecutor，流式期间收到 tool_use block 立即执行
 /// </summary>
 [Register]
@@ -43,7 +43,7 @@ public sealed partial class QueryLoopMiddleware : IChatMiddleware
         _concurrencyClassifier = concurrencyClassifier;
         _toolExecutionSettings = toolExecutionSettings;
         _logger = logger;
-        _loopDetectionStrategy = loopDetectionStrategy ?? new CompositeLoopDetectionStrategy(logger);
+        _loopDetectionStrategy = loopDetectionStrategy ?? new InformationEntropyGuardian(logger: logger);
     }
 
     /// <summary>

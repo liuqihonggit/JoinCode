@@ -233,7 +233,9 @@ public sealed class CliSession
         ChatCommandResult result;
         try
         {
+            Diag.WriteLine($"[CliSession] HandleCommandAsync: executing command '{command.Name}'");
             result = await command.ExecuteAsync(context);
+            Diag.WriteLine($"[CliSession] HandleCommandAsync: command '{command.Name}' returned ShouldContinue={result.ShouldContinue}");
         }
         finally
         {
@@ -242,6 +244,7 @@ public sealed class CliSession
         }
 
         var outputText = commandOutput.ToString();
+        Diag.WriteLine($"[CliSession] HandleCommandAsync: outputText.Length={outputText.Length}");
         if (!string.IsNullOrWhiteSpace(outputText))
         {
             TerminalHelper.WriteLine(outputText.TrimEnd());
@@ -249,6 +252,7 @@ public sealed class CliSession
 
         if (!result.ShouldContinue)
         {
+            Diag.WriteLine("[CliSession] HandleCommandAsync: ShouldContinue=false, calling Stop()");
             Stop();
         }
     }

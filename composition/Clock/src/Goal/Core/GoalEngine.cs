@@ -140,13 +140,15 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
         IToolPermissionManager? permissionManager = null,
         IEnumerable<IGoalLifecycleMiddleware>? lifecycleMiddlewares = null,
         IGoalHeartbeat? heartbeat = null,
-        IClockService? clock = null)
+        IClockService? clock = null,
+        IServiceProvider? serviceProvider = null)
     {
         _kernel = kernel;
         _evaluator = evaluator;
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
         _permissionManager = permissionManager;
+        _serviceProvider = serviceProvider ?? _serviceProvider;
         _stateLock = new SemaphoreSlim(1, 1);
         _chatHistory = new MessageList();
         _heartbeat = heartbeat ?? throw new ArgumentNullException(nameof(heartbeat));
@@ -1094,6 +1096,12 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
         if (mainAgents.Count > 0)
         {
             _logger?.LogInformation("[GoalEngine] mainAgent 已存在: {AgentId}, 跳过注册", mainAgents[0].Id);
+            return;
+        }
+
+        if (_serviceProvider is null)
+        {
+            _logger?.LogWarning("[GoalEngine] IServiceProvider 未注入，无法创建 mainAgent，Goal={GoalId}", goalId);
             return;
         }
 

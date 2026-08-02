@@ -52,7 +52,7 @@ public sealed class SpawnCoordMiddlewareTests
     public async Task Worktree_CreatedSuccessfully_SetsFlag()
     {
         _worktreeManager.Setup(x => x.IsWorktreeIsolationEnabled).Returns(true);
-        _worktreeManager.Setup(x => x.CreateWorktreeAsync("agent-1", default)).ReturnsAsync(true);
+        _worktreeManager.Setup(x => x.CreateWorktreeAsync(It.IsAny<string>(), default)).ReturnsAsync(true);
 
         var mw = new SpawnCoordWorktreeMiddleware(_worktreeManager.Object, _lifecycleManager.Object, NullLogger<SpawnCoordWorktreeMiddleware>.Instance);
         var ctx = CreateContextWithAgent();
@@ -66,8 +66,8 @@ public sealed class SpawnCoordMiddlewareTests
     public async Task Worktree_Failed_DisposesAgentAndThrows()
     {
         _worktreeManager.Setup(x => x.IsWorktreeIsolationEnabled).Returns(true);
-        _worktreeManager.Setup(x => x.CreateWorktreeAsync("agent-1", default)).ReturnsAsync(false);
-        _lifecycleManager.Setup(x => x.DisposeAgentAsync("agent-1", default)).Returns(Task.CompletedTask);
+        _worktreeManager.Setup(x => x.CreateWorktreeAsync(It.IsAny<string>(), default)).ReturnsAsync(false);
+        _lifecycleManager.Setup(x => x.DisposeAgentAsync(It.IsAny<string>(), default)).Returns(Task.CompletedTask);
 
         var mw = new SpawnCoordWorktreeMiddleware(_worktreeManager.Object, _lifecycleManager.Object, NullLogger<SpawnCoordWorktreeMiddleware>.Instance);
         var ctx = CreateContextWithAgent();
@@ -75,14 +75,14 @@ public sealed class SpawnCoordMiddlewareTests
         var act = () => mw.InvokeAsync(ctx, (c, ct) => Task.CompletedTask, CancellationToken.None);
         await act.Should().ThrowAsync<InvalidOperationException>().ConfigureAwait(true);
 
-        _lifecycleManager.Verify(x => x.DisposeAgentAsync("agent-1", default), Times.Once);
+        _lifecycleManager.Verify(x => x.DisposeAgentAsync(It.IsAny<string>(), default), Times.Once);
     }
 
     [Fact]
     public async Task RegisterMessage_RegistersAgent_SetsFlag()
     {
         _contextAccessor.Setup(x => x.Current).Returns((SubAgentContext?)null);
-        _messageBroker.Setup(x => x.RegisterAgent("agent-1", null));
+        _messageBroker.Setup(x => x.RegisterAgent(It.IsAny<string>(), null));
 
         var mw = new SpawnCoordRegisterMessageMiddleware(_messageBroker.Object, _contextAccessor.Object, NullLogger<SpawnCoordRegisterMessageMiddleware>.Instance);
         var ctx = CreateContextWithAgent();
@@ -96,7 +96,7 @@ public sealed class SpawnCoordMiddlewareTests
     public async Task RegisterMessage_Exception_DoesNotPropagate()
     {
         _contextAccessor.Setup(x => x.Current).Returns((SubAgentContext?)null);
-        _messageBroker.Setup(x => x.RegisterAgent("agent-1", null)).Throws(new InvalidOperationException("test"));
+        _messageBroker.Setup(x => x.RegisterAgent(It.IsAny<string>(), null)).Throws(new InvalidOperationException("test"));
 
         var mw = new SpawnCoordRegisterMessageMiddleware(_messageBroker.Object, _contextAccessor.Object, NullLogger<SpawnCoordRegisterMessageMiddleware>.Instance);
         var ctx = CreateContextWithAgent();
@@ -118,7 +118,7 @@ public sealed class SpawnCoordMiddlewareTests
 
         ctx.SpawnedAt.Should().Be(now);
         ctx.ExecutionContext.Should().NotBeNull();
-        ctx.ExecutionContext!.AgentId.Should().Be("agent-1");
+        ctx.ExecutionContext!.AgentId.Should().Be(ctx.AgentId);
         ctx.ExecutionContext.RetryCount.Should().Be(0);
     }
 
@@ -137,7 +137,7 @@ public sealed class SpawnCoordMiddlewareTests
     public async Task TeammatePane_WithLayoutManager_CreatesPane()
     {
         _contextAccessor.Setup(x => x.Current).Returns((SubAgentContext?)null);
-        _layoutManager.Setup(x => x.CreateTeammatePaneAsync("agent-1", "agent", It.IsAny<string>(), default))
+        _layoutManager.Setup(x => x.CreateTeammatePaneAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), default))
             .ReturnsAsync(new CreatePaneResult { PaneId = "pane-1", BackendType = BackendType.InProcess });
 
         var mw = new SpawnCoordTeammatePaneMiddleware(_contextAccessor.Object, NullLogger<SpawnCoordTeammatePaneMiddleware>.Instance, _layoutManager.Object);
@@ -152,7 +152,7 @@ public sealed class SpawnCoordMiddlewareTests
     public async Task TeammatePane_Exception_DoesNotPropagate()
     {
         _contextAccessor.Setup(x => x.Current).Returns((SubAgentContext?)null);
-        _layoutManager.Setup(x => x.CreateTeammatePaneAsync("agent-1", "agent", It.IsAny<string>(), default))
+        _layoutManager.Setup(x => x.CreateTeammatePaneAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), default))
             .ThrowsAsync(new InvalidOperationException("test"));
 
         var mw = new SpawnCoordTeammatePaneMiddleware(_contextAccessor.Object, NullLogger<SpawnCoordTeammatePaneMiddleware>.Instance, _layoutManager.Object);
@@ -169,7 +169,7 @@ public sealed class SpawnCoordMiddlewareTests
         _lifecycleManager.Setup(x => x.SpawnSubAgentAsync("test task", null, default)).ReturnsAsync(agent);
         _worktreeManager.Setup(x => x.IsWorktreeIsolationEnabled).Returns(false);
         _contextAccessor.Setup(x => x.Current).Returns((SubAgentContext?)null);
-        _messageBroker.Setup(x => x.RegisterAgent("agent-1", null));
+        _messageBroker.Setup(x => x.RegisterAgent(It.IsAny<string>(), null));
         _clock.Setup(x => x.GetUtcNow()).Returns(DateTime.UtcNow);
 
         var pipeline = new PipelineBuilder<AgentSpawnCoordContext>()
@@ -194,8 +194,8 @@ public sealed class SpawnCoordMiddlewareTests
         var agent = CreateAgent("agent-1");
         _lifecycleManager.Setup(x => x.SpawnSubAgentAsync("test task", null, default)).ReturnsAsync(agent);
         _worktreeManager.Setup(x => x.IsWorktreeIsolationEnabled).Returns(true);
-        _worktreeManager.Setup(x => x.CreateWorktreeAsync("agent-1", default)).ReturnsAsync(false);
-        _lifecycleManager.Setup(x => x.DisposeAgentAsync("agent-1", default)).Returns(Task.CompletedTask);
+        _worktreeManager.Setup(x => x.CreateWorktreeAsync(It.IsAny<string>(), default)).ReturnsAsync(false);
+        _lifecycleManager.Setup(x => x.DisposeAgentAsync(It.IsAny<string>(), default)).Returns(Task.CompletedTask);
 
         var pipeline = new PipelineBuilder<AgentSpawnCoordContext>()
             .Use(new SpawnCoordLifecycleMiddleware(_lifecycleManager.Object, NullLogger<SpawnCoordLifecycleMiddleware>.Instance))

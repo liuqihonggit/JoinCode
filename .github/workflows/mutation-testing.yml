@@ -130,48 +130,6 @@ jobs:
       - name: Build - ⑦ App
         run: dotnet build App.slnx -c Debug --nologo -m /p:SkipLocalPack=true
 
-      - name: Diagnose ref DLLs
-        shell: pwsh
-        run: |
-          Write-Host "=== All ref directories under artifacts\obj ==="
-          $refDirs = Get-ChildItem -Path "artifacts\obj" -Directory -Recurse -Filter "ref" -ErrorAction SilentlyContinue
-          foreach ($d in $refDirs) {
-            $dlls = Get-ChildItem -Path $d.FullName -Filter "*.dll" -ErrorAction SilentlyContinue
-            $parent = $d.Parent.FullName -replace [regex]::Escape($env:GITHUB_WORKSPACE), ''
-            Write-Host "  $parent\ref : $($dlls.Count) DLLs"
-            foreach ($dll in $dlls) { Write-Host "    $($dll.Name)  [$([math]::Round($dll.Length/1KB,1))KB]" }
-          }
-          Write-Host "Total ref dirs: $($refDirs.Count)"
-
-          Write-Host ""
-          Write-Host "=== Checking key projects that Stryker needs ==="
-          $keyProjects = @("Abstractions", "Infrastructure", "Structura", "Transport.Contracts", "Transport.Impl")
-          foreach ($proj in $keyProjects) {
-            $refPath = "artifacts\obj\$proj\Debug\net10.0\ref"
-            $exists = Test-Path $refPath
-            if ($exists) {
-              $dlls = Get-ChildItem -Path $refPath -Filter "*.dll" -ErrorAction SilentlyContinue
-              Write-Host "  $proj : EXISTS ($($dlls.Count) DLLs)"
-            } else {
-              Write-Host "  $proj : MISSING - no ref directory!"
-              $objPath = "artifacts\obj\$proj"
-              if (Test-Path $objPath) {
-                Write-Host "    obj dir exists, contents:"
-                Get-ChildItem -Path $objPath -Directory -Recurse -Depth 2 | ForEach-Object { Write-Host "      $($_.FullName -replace [regex]::Escape($env:GITHUB_WORKSPACE), '')" }
-              } else {
-                Write-Host "    obj dir does not exist at all!"
-              }
-              $binPath = "artifacts\bin\$proj\Debug\net10.0"
-              if (Test-Path $binPath) {
-                Write-Host "    bin DLL exists: $(Test-Path (Join-Path $binPath '$proj.dll'))"
-              }
-            }
-          }
-
-          Write-Host ""
-          Write-Host "=== Stryker will build with --configuration Debug ==="
-          Write-Host "Stryker looks for ref DLLs at: artifacts\obj\{Project}\Debug\net10.0\ref\{Project}.dll"
-
       - name: Run Stryker
         shell: pwsh
         env:

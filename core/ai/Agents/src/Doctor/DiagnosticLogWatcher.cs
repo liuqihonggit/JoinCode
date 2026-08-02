@@ -173,12 +173,18 @@ public sealed class DiagnosticLogWatcher : IAsyncDisposable
 
     private static DateTimeOffset? ExtractTimestamp(string line)
     {
-        var bracketEnd = line.IndexOf(']');
-        if (bracketEnd <= 0) return null;
+        if (line.Length < 2 || line[0] != '[') return null;
 
-        var bracketContent = line[..bracketEnd];
-        if (DateTimeOffset.TryParse(bracketContent, out var ts))
+        var bracketEnd = line.IndexOf(']', 1);
+        if (bracketEnd <= 1) return null;
+
+        var bracketContent = line[1..bracketEnd];
+
+        if (DateTimeOffset.TryParseExact(bracketContent, "yyyy-MM-dd HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AssumeUniversal, out var ts))
             return ts;
+
+        if (DateTimeOffset.TryParseExact(bracketContent, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AssumeUniversal, out var ts2))
+            return ts2;
 
         return null;
     }

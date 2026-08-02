@@ -201,6 +201,9 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
         if (_goalGraph is not null && _graphEngine is not null)
             return;
 
+        if (_serviceProvider is null)
+            return;
+
         _graphEngine = new GoalGraphEngine(
             _kernel,
             _evaluator,
@@ -209,7 +212,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
             heartbeat: _heartbeat,
             clock: _clock);
 
-        var template = _templateRegistry.FindMatch(objective);
+        var template = _templateRegistry?.FindMatch(objective);
         if (template is not null)
         {
             _goalGraph = template.BuildGraph(_graphEngine, objective);

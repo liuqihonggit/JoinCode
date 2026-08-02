@@ -43,7 +43,8 @@ public sealed class MemoryRelevanceSelectorTests
         var sut = CreateSut();
         _ageCalculatorMock.Setup(a => a.CalculateAgedRelevance(It.IsAny<MemoryEntry>(), It.IsAny<DateTime?>()))
             .Returns(0.5);
-        var memory = Make("query match", ttl: TimeSpan.FromSeconds(-1));
+        var now = _clock.GetUtcNow();
+        var memory = Make("query match") with { ExpiresAt = now.AddSeconds(-1) };
 
         var result = await sut.SelectRelevantMemoriesAsync(new[] { memory }, "query").ConfigureAwait(true);
 

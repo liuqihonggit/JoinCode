@@ -1,6 +1,9 @@
 
 namespace Core.Goal;
 
+using System.Collections.Frozen;
+using Structura.Dag;
+
 // IGoalEngine 接口已移至 JoinCode.Abstractions.Interfaces.Scheduling
 
 [Register]
@@ -12,6 +15,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
     private readonly SemaphoreSlim _stateLock;
     [Inject] private readonly ILogger<GoalEngine>? _logger;
     [Inject] private readonly IClockService _clock;
+    [Inject] private readonly IServiceProvider _serviceProvider = null!;
     private readonly IToolPermissionManager? _permissionManager;
     private readonly MiddlewarePipeline<GoalLifecycleContext>? _lifecyclePipeline;
     private GoalState? _state;
@@ -88,12 +92,51 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(objective);
 
+        BuildDefaultGraphIfAbsent(objective, tokenBudget);
+
         if (_lifecyclePipeline is not null)
         {
             return await StartViaPipelineAsync(objective, constraints, tokenBudget, systemPrompt, cancellationToken).ConfigureAwait(false);
         }
 
         return await StartDirectAsync(objective, constraints, tokenBudget, systemPrompt, cancellationToken).ConfigureAwait(false);
+    }
+
+    private void BuildDefaultGraphIfAbsent(string objective, int? tokenBudget)
+    {
+        if (_goalGraph is not null && _graphEngine is not null)
+            return;
+
+        _graphEngine = new GoalGraphEngine(
+            _kernel,
+            _evaluator,
+            _serviceProvider,
+            logger: null,
+            heartbeat: _heartbeat,
+            clock: _clock);
+
+        var dag = new Dag<GoalNodePayload>();
+        dag.AddNode(new DagNode<GoalNodePayload>
+        {
+            Id = "agent",
+            Payload = new GoalNodePayload
+            {
+                Kind = GoalNodeKind.Agent,
+                Name = objective,
+                Instruction = objective,
+                TokenBudget = tokenBudget,
+            },
+        });
+
+        _goalGraph = new GoalGraph
+        {
+            Name = objective,
+            Dag = dag,
+            StartNodeId = "agent",
+            EndNodeIds = FrozenSet.Create("agent"),
+        };
+
+        _logger?.LogInformation("[GoalEngine] 自动构建单节点 Graph: {Objective}", objective);
     }
 
     private async Task<GoalState> StartViaPipelineAsync(

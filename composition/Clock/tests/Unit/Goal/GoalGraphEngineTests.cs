@@ -919,4 +919,203 @@ public sealed class GoalGraphEngineTests
         Assert.Equal(GoalNodeStatus.Failed, nodeJ.Payload.Status);
         Assert.Contains("Join precondition not met", nodeJ.Payload.ErrorMessage);
     }
+
+    // ─────────────────────────────────────────────────────────────
+    // P8: Fan-out 并行 — A→[B,C]→J，验证 B 和 C 都执行且 J 正确汇聚
+    // ─────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task FanOutParallel_Should_ExecuteAllBranches_AndJoinCorrectly()
+    {
+        var engine = CreateEngine();
+        var executedNodes = new List<string>();
+
+        var dag = new Dag<GoalNodePayload>();
+        var nodeA = MakeFunctionNode("A", "source");
+        var nodeB = MakeFunctionNode("B", "branch-b");
+        var nodeC = MakeFunctionNode("C", "branch-c");
+        var nodeJ = MakeJoinNode("J", "join");
+
+        dag.AddNode(nodeA);
+        dag.AddNode(nodeB);
+        dag.AddNode(nodeC);
+        dag.AddNode(nodeJ);
+        dag.AddEdge(new DagEdge { Id = "e-a-b", FromId = "A", ToId = "B" });
+        dag.AddEdge(new DagEdge { Id = "e-a-c", FromId = "A", ToId = "C" });
+        dag.AddEdge(new DagEdge { Id = "e-b-j", FromId = "B", ToId = "J" });
+        dag.AddEdge(new DagEdge { Id = "e-c-j", FromId = "C", ToId = "J" });
+
+        engine.RegisterFunction("A", _ =>
+        {
+            executedNodes.Add("A");
+            return Task.FromResult(NodeResult.Succeeded("output-A", tokensUsed: 10));
+        });
+        engine.RegisterFunction("B", _ =>
+        {
+            executedNodes.Add("B");
+            return Task.FromResult(NodeResult.Succeeded("output-B", tokensUsed: 20));
+        });
+        engine.RegisterFunction("C", _ =>
+        {
+            executedNodes.Add("C");
+            return Task.FromResult(NodeResult.Succeeded("output-C", tokensUsed: 30));
+        });
+
+        var graph = new GoalGraph
+        {
+            Name = "fanout-test",
+            Dag = dag,
+            StartNodeId = "A",
+            EndNodeIds = FrozenSet.Create("J"),
+        };
+
+        var result = await engine.ExecuteAsync(graph, CreateGoalState(), new MessageList(), CancellationToken.None);
+
+        Assert.Contains("A", executedNodes);
+        Assert.Contains("B", executedNodes);
+        Assert.Contains("C", executedNodes);
+        Assert.Equal(GoalNodeStatus.Completed, nodeJ.Payload.Status);
+        Assert.Contains("output-B", nodeJ.Payload.Output);
+        Assert.Contains("output-C", nodeJ.Payload.Output);
+        Assert.Equal(GoalStatus.Achieved, result.Status);
+        Assert.Equal(60, result.TokensUsed); // 10 + 20 + 30
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // P8: 单节点图 — 只有 Start=End 一个节点
+    // ─────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task SingleNodeGraph_Should_ExecuteAndAchieve()
+    {
+        var engine = CreateEngine();
+
+        var dag = new Dag<GoalNodePayload>();
+        var nodeA = MakeFunctionNode("A", "solo");
+
+        dag.AddNode(nodeA);
+
+        engine.RegisterFunction("A", _ =>
+            Task.FromResult(NodeResult.Succeeded("solo-output", tokensUsed: 42)));
+
+        var graph = new GoalGraph
+        {
+            Name = "single-node-test",
+            Dag = dag,
+            StartNodeId = "A",
+            EndNodeIds = FrozenSet.Create("A"),
+        };
+
+        var result = await engine.ExecuteAsync(graph, CreateGoalState(), new MessageList(), CancellationToken.None);
+
+        Assert.Equal(GoalNodeStatus.Completed, nodeA.Payload.Status);
+        Assert.Equal("solo-output", nodeA.Payload.Output);
+        Assert.Equal(42, result.TokensUsed);
+        Assert.Equal(GoalStatus.Achieved, result.Status);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // P8: 上游 Output 自动传递为下游 Input
+    // ─────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task UpstreamOutput_Should_BeSetAsDownstreamInput()
+    {
+        var engine = CreateEngine();
+
+        var dag = new Dag<GoalNodePayload>();
+        var nodeA = MakeFunctionNode("A", "producer");
+        var nodeB = MakeFunctionNode("B", "consumer");
+
+        dag.AddNode(nodeA);
+        dag.AddNode(nodeB);
+        dag.AddEdge(new DagEdge { Id = "e-ab", FromId = "A", ToId = "B" });
+
+        engine.RegisterFunction("A", _ =>
+            Task.FromResult(NodeResult.Succeeded("produced-data", tokensUsed: 5)));
+
+        engine.RegisterFunction("B", _ =>
+        {
+            var upstream = nodeA.Payload.Output;
+            return Task.FromResult(NodeResult.Succeeded($"consumed: {upstream}", tokensUsed: 10));
+        });
+
+        var graph = new GoalGraph
+        {
+            Name = "input-passing-test",
+            Dag = dag,
+            StartNodeId = "A",
+            EndNodeIds = FrozenSet.Create("B"),
+        };
+
+        var result = await engine.ExecuteAsync(graph, CreateGoalState(), new MessageList(), CancellationToken.None);
+
+        Assert.Equal("produced-data", nodeA.Payload.Output);
+        Assert.Equal("consumed: produced-data", nodeB.Payload.Output);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // P8: 条件路由 + 回退完整场景 — 重构流水线
+    // ─────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task RefactorPipeline_Should_RetryOnFailAndSucceedOnSecondAttempt()
+    {
+        var engine = CreateEngine();
+        var implementCount = 0;
+        var testCount = 0;
+
+        var dag = new Dag<GoalNodePayload>();
+        var nodeExplore = MakeFunctionNode("explore", "explorer");
+        var nodeImpl = MakeFunctionNode("implement", "implementer");
+        var nodeTest = MakeFunctionNode("test", "tester");
+        var nodeCommit = MakeFunctionNode("commit", "committer");
+
+        dag.AddNode(nodeExplore);
+        dag.AddNode(nodeImpl);
+        dag.AddNode(nodeTest);
+        dag.AddNode(nodeCommit);
+        dag.AddEdge(new DagEdge { Id = "e1", FromId = "explore", ToId = "implement" });
+        dag.AddEdge(new DagEdge { Id = "e2", FromId = "implement", ToId = "test" });
+        dag.AddEdge(new DagEdge { Id = "e3", FromId = "test", ToId = "commit", Label = "PASS" });
+        const string backEdgeId = "e4";
+        dag.TryAddEdge(new DagEdge { Id = backEdgeId, FromId = "test", ToId = "implement", Label = "FAIL" });
+        nodeImpl.InEdgeIds.Remove(backEdgeId);
+
+        engine.RegisterFunction("explore", _ =>
+            Task.FromResult(NodeResult.Succeeded("explored", tokensUsed: 10)));
+
+        engine.RegisterFunction("implement", _ =>
+        {
+            implementCount++;
+            return Task.FromResult(NodeResult.Succeeded($"impl-v{implementCount}", tokensUsed: 50));
+        });
+
+        engine.RegisterFunction("test", _ =>
+        {
+            testCount++;
+            if (testCount == 1)
+                return Task.FromResult(NodeResult.Routed("test-fail", ["FAIL"], tokensUsed: 20));
+            return Task.FromResult(NodeResult.Routed("test-pass", ["PASS"], tokensUsed: 20));
+        });
+
+        engine.RegisterFunction("commit", _ =>
+            Task.FromResult(NodeResult.Succeeded("committed", tokensUsed: 5)));
+
+        var graph = new GoalGraph
+        {
+            Name = "refactor-pipeline",
+            Dag = dag,
+            StartNodeId = "explore",
+            EndNodeIds = FrozenSet.Create("commit"),
+            MaxRetriesPerNode = 3,
+        };
+
+        var result = await engine.ExecuteAsync(graph, CreateGoalState(), new MessageList(), CancellationToken.None);
+
+        Assert.Equal(2, implementCount);
+        Assert.Equal(2, testCount);
+        Assert.Equal(GoalNodeStatus.Completed, nodeCommit.Payload.Status);
+        Assert.Equal(GoalStatus.Achieved, result.Status);
+    }
 }

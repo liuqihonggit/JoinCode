@@ -110,57 +110,25 @@ jobs:
             nuget-${{ runner.os }}-
 
       - name: Build - ① Generators
-        run: dotnet build Generators.slnx -c Debug --no-incremental --nologo -m /p:SkipLocalPack=true
+        run: dotnet build Generators.slnx -c Debug --nologo -m /p:SkipLocalPack=true
 
       - name: Build - ② Foundation
-        run: dotnet build Foundation.slnx -c Debug --no-incremental --nologo -m /p:SkipLocalPack=true
+        run: dotnet build Foundation.slnx -c Debug --nologo -m /p:SkipLocalPack=true
 
       - name: Build - ③ Infrastructure
-        run: dotnet build Infrastructure.slnx -c Debug --no-incremental --nologo -m /p:SkipLocalPack=true
+        run: dotnet build Infrastructure.slnx -c Debug --nologo -m /p:SkipLocalPack=true
 
       - name: Build - ④ Core
-        run: dotnet build Core.slnx -c Debug --no-incremental --nologo -m /p:SkipLocalPack=true
+        run: dotnet build Core.slnx -c Debug --nologo -m /p:SkipLocalPack=true
 
       - name: Build - ⑤ Services
-        run: dotnet build Services.slnx -c Debug --no-incremental --nologo -m /p:SkipLocalPack=true
+        run: dotnet build Services.slnx -c Debug --nologo -m /p:SkipLocalPack=true
 
       - name: Build - ⑥ Composition
-        run: dotnet build Composition.slnx -c Debug --no-incremental --nologo -m /p:SkipLocalPack=true
+        run: dotnet build Composition.slnx -c Debug --nologo -m /p:SkipLocalPack=true
 
       - name: Build - ⑦ App
-        run: dotnet build App.slnx -c Debug --no-incremental --nologo -m /p:SkipLocalPack=true
-
-      - name: Ensure ref DLLs exist
-        shell: pwsh
-        run: |
-          $objDir = Join-Path $env:GITHUB_WORKSPACE "artifacts\obj"
-          $binDir = Join-Path $env:GITHUB_WORKSPACE "artifacts\bin"
-          $copied = 0
-          Get-ChildItem -Path $binDir -Directory -ErrorAction SilentlyContinue | ForEach-Object {
-            $projName = $_.Name
-            Get-ChildItem -Path $_.FullName -Directory -ErrorAction SilentlyContinue | ForEach-Object {
-              $configDir = $_.Name
-              if ($configDir -match "^(Debug|Release)$") {
-                Get-ChildItem -Path $_.FullName -Directory -ErrorAction SilentlyContinue | ForEach-Object {
-                  $tfmDir = $_.Name
-                  $binDlls = Get-ChildItem -Path $_.FullName -Filter "*.dll" -ErrorAction SilentlyContinue
-                  if ($binDlls.Count -gt 0) {
-                    $refDir = Join-Path $objDir "$projName\$configDir\$tfmDir\ref"
-                    if (-not (Test-Path $refDir)) { New-Item -ItemType Directory -Path $refDir -Force | Out-Null }
-                    $existingRefDlls = Get-ChildItem -Path $refDir -Filter "*.dll" -ErrorAction SilentlyContinue
-                    foreach ($dll in $binDlls) {
-                      $refPath = Join-Path $refDir $dll.Name
-                      if (-not (Test-Path $refPath)) {
-                        Copy-Item -Path $dll.FullName -Destination $refPath -Force
-                        $copied++
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-          Write-Host "Copied $copied DLLs to ref directories as fallback"
+        run: dotnet build App.slnx -c Debug --nologo -m /p:SkipLocalPack=true
 
       - name: Run Stryker
         shell: pwsh

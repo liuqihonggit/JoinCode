@@ -31,6 +31,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
 
     public GoalState? CurrentState => _state;
     public bool IsRunning => _state?.Status == GoalStatus.Pursuing;
+    public bool HasGraphDefinition => _goalGraph is not null;
 
     /// <summary>
     /// 等待目标引擎循环退出（完成、预算耗尽、暂停、清除等）。
@@ -38,6 +39,96 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
     public Task WaitForCompletionAsync(CancellationToken ct = default)
     {
         return _completionTcs?.Task ?? Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// 设置 Graph 定义 — 由协调者 Agent 通过 goal_graph_define MCP 工具调用
+    /// </summary>
+    public void SetGraphDefinition(string nodesJson, string edgesJson, string startNodeId, string endNodeIds)
+    {
+        ArgumentNullException.ThrowIfNull(nodesJson);
+        ArgumentNullException.ThrowIfNull(edgesJson);
+        ArgumentException.ThrowIfNullOrWhiteSpace(startNodeId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(endNodeIds);
+
+        if (_goalGraph is not null)
+        {
+            _logger?.LogWarning("[GoalEngine] Graph 已存在，忽略重复定义");
+            return;
+        }
+
+        _graphEngine = new GoalGraphEngine(
+            _kernel,
+            _evaluator,
+            _serviceProvider,
+            logger: null,
+            heartbeat: _heartbeat,
+            clock: _clock);
+
+        var dag = new Dag<GoalNodePayload>();
+
+        var nodes = System.Text.Json.JsonSerializer.Deserialize<GraphDefineNode[]>(nodesJson, GraphDefineJsonContext.Default.GraphDefineNodeArray)
+            ?? throw new ArgumentException("Invalid nodes JSON");
+
+        foreach (var node in nodes)
+        {
+            var nodeId = node.Id ?? throw new ArgumentException("Node id is required");
+            dag.AddNode(new DagNode<GoalNodePayload>
+            {
+                Id = nodeId,
+                Payload = new GoalNodePayload
+                {
+                    Kind = node.Kind?.ToLowerInvariant() switch
+                    {
+                        "function" => GoalNodeKind.Function,
+                        "join" => GoalNodeKind.Join,
+                        _ => GoalNodeKind.Agent,
+                    },
+                    Name = node.Name ?? nodeId,
+                    SystemPrompt = node.SystemPrompt,
+                    Instruction = node.Instruction,
+                    FreshContext = node.FreshContext,
+                },
+            });
+        }
+
+        var edges = System.Text.Json.JsonSerializer.Deserialize<GraphDefineEdge[]>(edgesJson, GraphDefineJsonContext.Default.GraphDefineEdgeArray)
+            ?? throw new ArgumentException("Invalid edges JSON");
+
+        foreach (var edge in edges)
+        {
+            var fromId = edge.FromId ?? throw new ArgumentException("Edge fromId is required");
+            var toId = edge.ToId ?? throw new ArgumentException("Edge toId is required");
+            var edgeId = edge.Id ?? $"e-{fromId}-{toId}";
+
+            var result = dag.TryAddEdge(new DagEdge
+            {
+                Id = edgeId,
+                FromId = fromId,
+                ToId = toId,
+                Label = edge.Label ?? string.Empty,
+            });
+
+            if (!result.Success && edge.Label?.Length > 0)
+            {
+                if (dag.Nodes.TryGetValue(toId, out var targetNode))
+                {
+                    targetNode.InEdgeIds.Remove(edgeId);
+                }
+            }
+        }
+
+        var endSet = endNodeIds.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        _goalGraph = new GoalGraph
+        {
+            Name = _state?.Objective ?? "dynamic-graph",
+            Dag = dag,
+            StartNodeId = startNodeId,
+            EndNodeIds = endSet.ToFrozenSet(StringComparer.Ordinal),
+        };
+
+        _logger?.LogInformation("[GoalEngine] 协调者定义了 Graph: {NodeCount}个节点, {EdgeCount}条边, Start={Start}",
+            nodes.Length, edges.Length, startNodeId);
     }
 
     public GoalEngine(

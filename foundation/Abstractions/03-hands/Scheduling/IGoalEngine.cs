@@ -37,4 +37,10 @@ public interface IGoalEngine
 
     /// <summary>等待目标引擎循环退出（完成、预算耗尽、暂停、清除等）</summary>
     Task WaitForCompletionAsync(CancellationToken ct = default);
+
+    /// <summary>设置 Graph 定义（由协调者 Agent 通过 MCP 工具调用）</summary>
+    void SetGraphDefinition(string nodesJson, string edgesJson, string startNodeId, string endNodeIds);
+
+    /// <summary>是否已有 Graph 定义</summary>
+    bool HasGraphDefinition { get; }
 }

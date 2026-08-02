@@ -67,7 +67,9 @@ jobs:
       - name: Build - Component Tests
         run: |
           $projects = @(
-            'core/execution/Brain/tests/Unit/Brain.Tests.csproj',
+            'core/execution/Brain/tests/Prompts/Brain.Prompts.Tests.csproj',
+            'core/execution/Brain/tests/Context/Brain.Context.Tests.csproj',
+            'core/execution/Brain/tests/Other/Brain.Other.Tests.csproj',
             'core/safety/Guard/tests/Unit/Guard.Tests.csproj',
             'services/Bridge/tests/Unit/Bridge.Tests.csproj',
             'core/execution/Hands/tests/Unit/Hands.Tests.csproj',
@@ -142,13 +144,27 @@ jobs:
           --filter "Category!=Integration&Category!=Benchmark"
           --logger "console;verbosity=detailed"
           --logger "trx;LogFileName=infra-tests.trx"
-      - name: Test - Brain
+      - name: Test - Brain (Prompts)
         run: >
-          dotnet test core/execution/Brain/tests/Unit/Brain.Tests.csproj
+          dotnet test core/execution/Brain/tests/Prompts/Brain.Prompts.Tests.csproj
           -c Release --no-build --nologo
           --filter "Category!=Integration&Category!=Benchmark"
           --logger "console;verbosity=detailed"
-          --logger "trx;LogFileName=brain-tests.trx"
+          --logger "trx;LogFileName=brain-prompts-tests.trx"
+      - name: Test - Brain (Context)
+        run: >
+          dotnet test core/execution/Brain/tests/Context/Brain.Context.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "Category!=Integration&Category!=Benchmark"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=brain-context-tests.trx"
+      - name: Test - Brain (Other)
+        run: >
+          dotnet test core/execution/Brain/tests/Other/Brain.Other.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "Category!=Integration&Category!=Benchmark"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=brain-other-tests.trx"
       - name: Test - Guard
         run: >
           dotnet test core/safety/Guard/tests/Unit/Guard.Tests.csproj

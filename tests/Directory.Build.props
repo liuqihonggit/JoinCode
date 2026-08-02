@@ -23,7 +23,7 @@
 
     <!-- 每个测试项目使用独立的输出目录，避免 DLL 冲突 -->
     <AppendTargetFrameworkToOutputPath>true</AppendTargetFrameworkToOutputPath>
-    <AppendRuntimeIdentifierToOutputPath>true</AppendRuntimeIdentifierToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
   </PropertyGroup>
 
   <!-- 测试框架包引用（ExcludeTestSdk=true 的项目跳过，如 AotCompatibility 卫星 Exe） -->

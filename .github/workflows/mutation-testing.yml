@@ -54,7 +54,7 @@ jobs:
       - name: Build matrix
         id: set
         run: |
-          ALL_PROJECTS='["Guard","Vault","Brain-Context","Brain-Prompts","Brain-Other","Hands-ToolHandlers","Hands-Skills","Hands-Other","Scheduling","McpToolDispatch","Llm","Agents","Reasoning","CodeIndex","Browser","Mcp","Eyes","Dream","Bridge","Composition","Clock","Infra","Host"]'
+          ALL_PROJECTS='["Guard-Config","Guard-Security","Guard-Hooks","Vault","Brain-Context","Brain-Prompts","Brain-Other","Hands-ToolHandlers","Hands-Skills","Hands-Other","Scheduling","McpToolDispatch","Llm","Agents","Reasoning","CodeIndex","Browser","Mcp","Eyes","Dream","Bridge","Composition","Clock","Infra","Host"]'
           INPUT="${{ github.event.inputs.projects || 'ALL' }}"
           if [ "$INPUT" = "ALL" ]; then
             echo "matrix={\"include\":$(echo $ALL_PROJECTS | jq -c '[.[] | {project: .}]')}" >> $GITHUB_OUTPUT
@@ -67,6 +67,8 @@ jobs:
                 EXPANDED="$EXPANDED,\"Brain-Context\",\"Brain-Prompts\",\"Brain-Other\""
               elif [ "$trimmed" = "Hands" ]; then
                 EXPANDED="$EXPANDED,\"Hands-ToolHandlers\",\"Hands-Skills\",\"Hands-Other\""
+              elif [ "$trimmed" = "Guard" ]; then
+                EXPANDED="$EXPANDED,\"Guard-Config\",\"Guard-Security\",\"Guard-Hooks\""
               else
                 EXPANDED="$EXPANDED,\"$trimmed\""
               fi
@@ -132,7 +134,9 @@ jobs:
           STRYKER_BREAK: ${{ github.event.inputs.break_threshold || '0' }}
         run: |
           $projectMap = @{
-            'Guard'             = @{ Dir = 'core\safety\Guard\tests\Unit';             Src = 'Guard.csproj';           Mutate = @() }
+            'Guard-Config'     = @{ Dir = 'core\safety\Guard\tests\Unit'; Src = 'Guard.csproj'; Mutate = @('Configuration/**','DependencyInjection/**','Policy/**','OAuth/**') }
+            'Guard-Security'   = @{ Dir = 'core\safety\Guard\tests\Unit'; Src = 'Guard.csproj'; Mutate = @('Security/**') }
+            'Guard-Hooks'      = @{ Dir = 'core\safety\Guard\tests\Unit'; Src = 'Guard.csproj'; Mutate = @('Hooks/**','Permission/**') }
             'Vault'             = @{ Dir = 'core\safety\Vault\tests\Unit';             Src = 'Vault.csproj';           Mutate = @() }
             'Brain-Context'     = @{ Dir = 'core\execution\Brain\tests\Unit';          Src = 'Brain.csproj';           Mutate = @('Context/**') }
             'Brain-Prompts'     = @{ Dir = 'core\execution\Brain\tests\Unit';          Src = 'Brain.csproj';           Mutate = @('Prompts/**') }
@@ -166,7 +170,7 @@ jobs:
           $breakThreshold = [int]$env:STRYKER_BREAK
 
           $slnxMap = @{
-            'Guard' = 'Core.slnx'; 'Vault' = 'Core.slnx'
+            'Guard-Config' = 'Core.slnx'; 'Guard-Security' = 'Core.slnx'; 'Guard-Hooks' = 'Core.slnx'; 'Vault' = 'Core.slnx'
             'Brain-Context' = 'Core.slnx'; 'Brain-Prompts' = 'Core.slnx'; 'Brain-Other' = 'Core.slnx'
             'Hands-ToolHandlers' = 'Core.slnx'; 'Hands-Skills' = 'Core.slnx'; 'Hands-Other' = 'Core.slnx'
             'Scheduling' = 'Core.slnx'; 'McpToolDispatch' = 'Core.slnx'; 'Llm' = 'Core.slnx'; 'Agents' = 'Core.slnx'; 'Reasoning' = 'Core.slnx'

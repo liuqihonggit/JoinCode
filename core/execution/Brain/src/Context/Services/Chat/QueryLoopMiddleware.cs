@@ -80,6 +80,9 @@ public sealed partial class QueryLoopMiddleware : IChatMiddleware
 
             var iterState = new IterationState();
 
+            if (_loopDetectionStrategy is InformationEntropyGuardian guardian)
+                guardian.SetContext(context.SpanName, context.ConversationTurn, totalToolCalls);
+
             if (UseStreamingToolExecution)
             {
                 // 流式工具执行模式 — 对齐 TS StreamingToolExecutor

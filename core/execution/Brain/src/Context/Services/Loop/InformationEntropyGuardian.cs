@@ -9,6 +9,7 @@ namespace Core.Context;
 ///   Layer2: LogicFingerprintDetector — 逻辑指纹循环（前缀+后缀hash，检测"换词同逻辑"）
 ///   Layer3: ToolCallSequenceDetector — 工具调用序列循环（工具名+参数指纹重复）
 ///   Layer4: ShannonEntropyDetector   — Shannon信息熵持续下降（字符分布趋于集中）
+/// 触发时通过 LoopDiagnosticJournal 记录追踪链，供医生模式回溯分析
 /// </summary>
 [Register]
 public sealed class InformationEntropyGuardian : IOutputLoopDetector, ILoopDetectionStrategy
@@ -17,20 +18,37 @@ public sealed class InformationEntropyGuardian : IOutputLoopDetector, ILoopDetec
     private readonly LogicFingerprintDetector _logicFingerprintDetector;
     private readonly ToolCallSequenceDetector _toolCallSequenceDetector;
     private readonly ShannonEntropyDetector _shannonEntropyDetector;
+    private readonly LoopDiagnosticJournal _journal;
     private readonly ILogger? _logger;
+
+    private string _sessionId = "";
+    private int _conversationTurn;
+    private int _toolCallCount;
 
     public InformationEntropyGuardian(
         OutputLoopDetector? outputLoopDetector = null,
         LogicFingerprintDetector? logicFingerprintDetector = null,
         ToolCallSequenceDetector? toolCallSequenceDetector = null,
         ShannonEntropyDetector? shannonEntropyDetector = null,
+        LoopDiagnosticJournal? journal = null,
         ILogger? logger = null)
     {
         _outputLoopDetector = outputLoopDetector ?? new OutputLoopDetector();
         _logicFingerprintDetector = logicFingerprintDetector ?? new LogicFingerprintDetector();
         _toolCallSequenceDetector = toolCallSequenceDetector ?? new ToolCallSequenceDetector();
         _shannonEntropyDetector = shannonEntropyDetector ?? new ShannonEntropyDetector();
+        _journal = journal ?? new LoopDiagnosticJournal(logger: logger);
         _logger = logger;
+    }
+
+    /// <summary>
+    /// 设置当前会话上下文 — 供 QueryLoopMiddleware 在每轮开始时调用
+    /// </summary>
+    public void SetContext(string sessionId, int conversationTurn, int toolCallCount)
+    {
+        _sessionId = sessionId;
+        _conversationTurn = conversationTurn;
+        _toolCallCount = toolCallCount;
     }
 
     /// <summary>
@@ -42,6 +60,9 @@ public sealed class InformationEntropyGuardian : IOutputLoopDetector, ILoopDetec
         if (string.IsNullOrEmpty(accumulatedText))
             return LoopDetectionResult.NoLoop;
 
+        _journal.Record("guardian_detect", _sessionId, _conversationTurn, _toolCallCount,
+            new Dictionary<string, string> { ["text_len"] = accumulatedText.Length.ToString() });
+
         var outputResult = _outputLoopDetector.Detect(accumulatedText);
         var fpResult = _logicFingerprintDetector.Record(accumulatedText);
 
@@ -49,6 +70,11 @@ public sealed class InformationEntropyGuardian : IOutputLoopDetector, ILoopDetec
         {
             _logger?.LogWarning("[InformationEntropyGuardian] OutputLoop 检测触发: 重复{Count}次, 模式长度={Len}",
                 outputResult.RepeatCount, outputResult.RepeatedPattern?.Length ?? 0);
+            _journal.OnLoopDetected(
+                "OutputLoop", _sessionId, _conversationTurn, _toolCallCount,
+                outputResult.LoopTriggerCount,
+                $"输出文本循环(重复{outputResult.RepeatCount}次)",
+                textSnippet: outputResult.RepeatedPattern);
             return outputResult;
         }
 
@@ -56,6 +82,10 @@ public sealed class InformationEntropyGuardian : IOutputLoopDetector, ILoopDetec
         {
             _logger?.LogWarning("[InformationEntropyGuardian] LogicFingerprint 检测触发: 指纹={FP}, 命中{Count}次",
                 fpResult.Fingerprint, fpResult.HitCount);
+            _journal.OnLoopDetected(
+                "LogicFingerprint", _sessionId, _conversationTurn, _toolCallCount,
+                fpResult.TriggerCount,
+                $"逻辑指纹循环(指纹={fpResult.Fingerprint},命中{fpResult.HitCount}次)");
             return new LoopDetectionResult(
                 true,
                 $"逻辑指纹循环(指纹={fpResult.Fingerprint},命中{fpResult.HitCount}次)",
@@ -75,6 +105,9 @@ public sealed class InformationEntropyGuardian : IOutputLoopDetector, ILoopDetec
         if (string.IsNullOrEmpty(text))
             return null;
 
+        _journal.Record("guardian_check_text", _sessionId, _conversationTurn, _toolCallCount,
+            new Dictionary<string, string> { ["text_len"] = text.Length.ToString() });
+
         var fpResult = _logicFingerprintDetector.Record(text);
         var outputResult = _outputLoopDetector.Detect(text);
         var entropyResult = _shannonEntropyDetector.Record(text);
@@ -83,6 +116,11 @@ public sealed class InformationEntropyGuardian : IOutputLoopDetector, ILoopDetec
         {
             _logger?.LogWarning("[InformationEntropyGuardian] CheckTextLoop: LogicFingerprint 触发: 指纹={FP}, 命中{Count}次",
                 fpResult.Fingerprint, fpResult.HitCount);
+            _journal.OnLoopDetected(
+                "LogicFingerprint", _sessionId, _conversationTurn, _toolCallCount,
+                fpResult.TriggerCount,
+                $"逻辑指纹循环(命中{fpResult.HitCount}次)",
+                textSnippet: text);
             return new LoopInterventionResult(
                 fpResult.TriggerCount,
                 0,
@@ -93,6 +131,11 @@ public sealed class InformationEntropyGuardian : IOutputLoopDetector, ILoopDetec
         {
             _logger?.LogWarning("[InformationEntropyGuardian] CheckTextLoop: OutputLoop 触发: 重复{Count}次",
                 outputResult.RepeatCount);
+            _journal.OnLoopDetected(
+                "OutputLoop", _sessionId, _conversationTurn, _toolCallCount,
+                outputResult.LoopTriggerCount,
+                $"输出文本循环(重复{outputResult.RepeatCount}次)",
+                textSnippet: outputResult.RepeatedPattern);
             return new LoopInterventionResult(
                 outputResult.LoopTriggerCount,
                 0,
@@ -103,6 +146,12 @@ public sealed class InformationEntropyGuardian : IOutputLoopDetector, ILoopDetec
         {
             _logger?.LogWarning("[InformationEntropyGuardian] CheckTextLoop: ShannonEntropy 触发: 熵={Entropy:F3}, 连续下降{Streak}轮",
                 entropyResult.CurrentEntropy, entropyResult.DeclineStreak);
+            _journal.OnLoopDetected(
+                "ShannonEntropy", _sessionId, _conversationTurn, _toolCallCount,
+                entropyResult.TriggerCount,
+                $"信息熵减循环(熵={entropyResult.CurrentEntropy:F3},连续下降{entropyResult.DeclineStreak}轮)",
+                entropy: entropyResult.CurrentEntropy,
+                textSnippet: text);
             return new LoopInterventionResult(
                 entropyResult.TriggerCount,
                 0,
@@ -117,6 +166,9 @@ public sealed class InformationEntropyGuardian : IOutputLoopDetector, ILoopDetec
     /// </summary>
     public LoopInterventionResult? CheckToolCallLoop(string toolName, Dictionary<string, JsonElement>? arguments)
     {
+        _journal.Record("guardian_check_tool", _sessionId, _conversationTurn, _toolCallCount,
+            new Dictionary<string, string> { ["tool_name"] = toolName });
+
         var argsFingerprint = BuildArgsFingerprint(toolName, arguments);
         var seqResult = _toolCallSequenceDetector.Record(toolName, argsFingerprint);
 
@@ -124,6 +176,10 @@ public sealed class InformationEntropyGuardian : IOutputLoopDetector, ILoopDetec
         {
             _logger?.LogWarning("[InformationEntropyGuardian] CheckToolCallLoop: ToolCallSequence 触发: {Pattern}, 重复{Count}次, 参数匹配={ArgsMatch}",
                 seqResult.RepeatedPattern, seqResult.RepeatCount, seqResult.ArgsMatched);
+            _journal.OnLoopDetected(
+                "ToolCallSequence", _sessionId, _conversationTurn, _toolCallCount,
+                seqResult.TriggerCount,
+                seqResult.RepeatedPattern ?? "工具调用序列循环");
             return new LoopInterventionResult(
                 seqResult.TriggerCount,
                 0,
@@ -142,12 +198,18 @@ public sealed class InformationEntropyGuardian : IOutputLoopDetector, ILoopDetec
         _logicFingerprintDetector.Reset();
         _toolCallSequenceDetector.Reset();
         _shannonEntropyDetector.Reset();
+        _journal.Reset();
     }
 
     /// <summary>
     /// 当前输出循环触发次数
     /// </summary>
     public int LoopTriggerCount => _outputLoopDetector.LoopTriggerCount;
+
+    /// <summary>
+    /// 获取诊断日志簿 — 供 DiagnosticLogRecorder 写入 loop_anomaly 条目
+    /// </summary>
+    public LoopDiagnosticJournal Journal => _journal;
 
     /// <summary>
     /// 从工具调用参数中提取指纹 — 取关键参数值拼接

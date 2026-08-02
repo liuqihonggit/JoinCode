@@ -102,6 +102,7 @@ public sealed partial class DiagnosticLogRecorder : IChatMiddleware
                 {
                     ["trigger_count"] = evt.LoopTriggerCount.ToString(),
                     ["loop_start_index"] = evt.LoopStartIndex.ToString(),
+                    ["repeated_pattern"] = evt.Content ?? "",
                 }
             },
             ChatStreamEventType.Complete => new DiagnosticLogEntry
@@ -155,6 +156,12 @@ public sealed record DiagnosticLogEntry
     public required string EventType { get; init; }
     public required DateTimeOffset Timestamp { get; init; }
     public required string SessionId { get; init; }
+
+    /// <summary>
+    /// 追踪ID — 每条日志唯一标识，用于构建追踪链
+    /// </summary>
+    public string TraceId { get; init; } = Guid.NewGuid().ToString("N")[..12];
+
     public bool IsAnomaly { get; init; }
     public Dictionary<string, string> Data { get; init; } = new();
 }
@@ -182,7 +189,7 @@ internal sealed class DiagnosticEntryWriter
         {
             var anomalyFlag = entry.IsAnomaly ? ",\"anomaly\":true" : "";
             var dataProps = string.Join(",", entry.Data.Select(kv => $"\"{kv.Key}\":\"{EscapeJsonString(kv.Value)}\""));
-            var line = $"{{\"ts\":\"{entry.Timestamp:O}\",\"event\":\"{entry.EventType}\",\"session\":\"{entry.SessionId}\"{anomalyFlag},\"data\":{{{dataProps}}}}}";
+            var line = $"{{\"ts\":\"{entry.Timestamp:O}\",\"event\":\"{entry.EventType}\",\"session\":\"{entry.SessionId}\",\"trace\":\"{entry.TraceId}\"{anomalyFlag},\"data\":{{{dataProps}}}}}";
 
             await _lock.WaitAsync(ct).ConfigureAwait(false);
             try

@@ -24,6 +24,9 @@
   <ItemGroup>
     <InternalsVisibleTo Include="JoinCode.Dream.Tests" />
     <InternalsVisibleTo Include="JoinCode.Guard.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Guard.Config.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Guard.Security.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Guard.Hooks.Tests" />
   </ItemGroup>
 
 

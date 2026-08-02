@@ -134,9 +134,9 @@ jobs:
           STRYKER_BREAK: ${{ github.event.inputs.break_threshold || '0' }}
         run: |
           $projectMap = @{
-            'Guard-Config'     = @{ Dir = 'core\safety\Guard\tests\Unit'; Src = 'Guard.csproj'; Mutate = @('Configuration/**','DependencyInjection/**','Policy/**','OAuth/**') }
-            'Guard-Security'   = @{ Dir = 'core\safety\Guard\tests\Unit'; Src = 'Guard.csproj'; Mutate = @('Security/**') }
-            'Guard-Hooks'      = @{ Dir = 'core\safety\Guard\tests\Unit'; Src = 'Guard.csproj'; Mutate = @('Hooks/**','Permission/**') }
+            'Guard-Config'     = @{ Dir = 'core\safety\Guard\tests\Config';   Src = 'Guard.csproj'; Mutate = @('Configuration/**','DependencyInjection/**','Policy/**','OAuth/**') }
+            'Guard-Security'   = @{ Dir = 'core\safety\Guard\tests\Security'; Src = 'Guard.csproj'; Mutate = @('Security/**') }
+            'Guard-Hooks'      = @{ Dir = 'core\safety\Guard\tests\Hooks';    Src = 'Guard.csproj'; Mutate = @('Hooks/**','Permission/**') }
             'Vault'             = @{ Dir = 'core\safety\Vault\tests\Unit';             Src = 'Vault.csproj';           Mutate = @() }
             'Brain-Context'     = @{ Dir = 'core\execution\Brain\tests\Unit';          Src = 'Brain.csproj';           Mutate = @('Context/**') }
             'Brain-Prompts'     = @{ Dir = 'core\execution\Brain\tests\Unit';          Src = 'Brain.csproj';           Mutate = @('Prompts/**') }

@@ -1,4 +1,5 @@
 <Solution>
+  <Folder Name="/core/" />
   <Folder Name="/core/ai/">
     <Project Path="core/ai/Llm/src/Llm.csproj" />
     <Project Path="core/ai/Llm/tests/Unit/Llm.Tests.csproj" />
@@ -19,9 +20,19 @@
   </Folder>
   <Folder Name="/core/safety/">
     <Project Path="core/safety/Guard/src/Guard.csproj" />
-    <Project Path="core/safety/Guard/tests/Unit/Guard.Tests.csproj" />
     <Project Path="core/safety/Vault/src/Vault.csproj" />
     <Project Path="core/safety/Vault/tests/Unit/Vault.Tests.csproj" />
+  </Folder>
+  <Folder Name="/core/safety/Guard/" />
+  <Folder Name="/core/safety/Guard/tests/" />
+  <Folder Name="/core/safety/Guard/tests/Config/">
+    <Project Path="core/safety/Guard/tests/Config/Guard.Config.Tests.csproj" />
+  </Folder>
+  <Folder Name="/core/safety/Guard/tests/Hooks/">
+    <Project Path="core/safety/Guard/tests/Hooks/Guard.Hooks.Tests.csproj" />
+  </Folder>
+  <Folder Name="/core/safety/Guard/tests/Security/">
+    <Project Path="core/safety/Guard/tests/Security/Guard.Security.Tests.csproj" />
   </Folder>
   <Folder Name="/core/search/">
     <Project Path="core/search/CodeIndex/src/CodeIndex.csproj" />
@@ -29,5 +40,8 @@
     <Project Path="core/search/CodeIndex/tests/E2E/CodeIndex.E2E.Tests.csproj" />
     <Project Path="core/search/Browser/src/Browser.csproj" />
     <Project Path="core/search/Browser/tests/Unit/Browser.Tests.csproj" />
+  </Folder>
+  <Folder Name="/foundation/">
+    <Project Path="foundation/Abstractions/Abstractions.csproj" />
   </Folder>
 </Solution>

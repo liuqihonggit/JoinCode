@@ -774,7 +774,49 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
     {
         _logger?.LogDebug(L.T(StringKey.GoalEngineHeartbeatTriggered),
             _state?.GoalId, _state?.TurnsCompleted);
+
+        CheckStagnationAndAlert();
+
         return ValueTask.CompletedTask;
+    }
+
+    private const int StagnationElapsedThresholdSeconds = 3600;
+    private const int StagnationMaxTurnsThreshold = 10;
+    private const int StagnationCooldownSeconds = 1800;
+
+    private void CheckStagnationAndAlert()
+    {
+        if (_state is null || _state.Status != GoalStatus.Pursuing)
+            return;
+
+        var elapsedSeconds = (int)_state.Elapsed.TotalSeconds;
+        if (elapsedSeconds < StagnationElapsedThresholdSeconds)
+            return;
+
+        if (_state.TurnsCompleted >= StagnationMaxTurnsThreshold)
+            return;
+
+        if (_state.LastEvaluation is { IsCompleted: true })
+            return;
+
+        if (_state.StagnationAlertedAt.HasValue)
+        {
+            var sinceLastAlert = (_clock.GetUtcNow() - _state.StagnationAlertedAt.Value).TotalSeconds;
+            if (sinceLastAlert < StagnationCooldownSeconds)
+                return;
+        }
+
+        var alertPrompt = ContinuationPromptBuilder.BuildStagnationAlertPrompt(
+            _state.Objective,
+            elapsedSeconds,
+            _state.TurnsCompleted);
+
+        _chatHistory.AddSystemMessage(alertPrompt);
+        _state.StagnationAlertedAt = _clock.GetUtcNow();
+
+        _logger?.LogWarning(
+            "Stagnation alert injected for goal {GoalId}: elapsed={Elapsed}s, turns={Turns}",
+            _state.GoalId, elapsedSeconds, _state.TurnsCompleted);
     }
 
     public async ValueTask DisposeAsync()

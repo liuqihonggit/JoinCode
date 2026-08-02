@@ -17,6 +17,7 @@ public sealed class GoalState
     public DateTime? PausedAt { get; set; }
     public DateTime? AchievedAt { get; set; }
     public GoalEvaluationResult? LastEvaluation { get; set; }
+    public DateTime? StagnationAlertedAt { get; set; }
 
     public TimeSpan Elapsed => AchievedAt.HasValue
         ? AchievedAt.Value - CreatedAt

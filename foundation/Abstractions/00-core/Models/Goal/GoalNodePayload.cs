@@ -16,8 +16,10 @@ public sealed class GoalNodePayload
     public RouteMatchMode RouteMatchMode { get; init; } = RouteMatchMode.ConditionalOnly;
     public string? ErrorMessage { get; set; }
     public int TimeoutSeconds { get; init; } = 300;
+    public int? TokenBudget { get; init; }
     public int MinSuccessfulInputs { get; init; }
     public DateTime? StartedAt { get; set; }
     public DateTime? CompletedAt { get; set; }
     public int TokensUsed { get; set; }
+    public int TurnsCompleted { get; set; }
 }

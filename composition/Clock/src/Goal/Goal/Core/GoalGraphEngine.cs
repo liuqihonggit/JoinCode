@@ -234,28 +234,76 @@ public sealed partial class GoalGraphEngine
             ToolChoice = ToolChoice.AutoInvoke
         };
 
-        var results = await chatService.GetApiMessageContentsAsync(
-            chatHistory,
-            executionSettings,
-            _kernel,
-            ct).ConfigureAwait(false);
+        var totalTokens = 0;
+        var totalTurns = 0;
+        var lastOutput = string.Empty;
 
-        var outputText = results.Count > 0 ? results[0].Content ?? string.Empty : string.Empty;
-        var tokensUsed = results.Count > 0 && results[0].TokenUsage is { TotalTokens: var tt }
-            ? tt
-            : 0;
+        while (!ct.IsCancellationRequested)
+        {
+            if (payload.TokenBudget is { } budget && totalTokens >= budget)
+            {
+                _logger?.LogWarning("[GoalGraph] {NodeId}({Name}): Token预算耗尽 ({Used}/{Budget})",
+                    nodeId, payload.Name, totalTokens, budget);
+                break;
+            }
 
-        if (!string.IsNullOrEmpty(outputText))
+            var results = await chatService.GetApiMessageContentsAsync(
+                chatHistory,
+                executionSettings,
+                _kernel,
+                ct).ConfigureAwait(false);
+
+            var outputText = results.Count > 0 ? results[0].Content ?? string.Empty : string.Empty;
+            var tokensUsed = results.Count > 0 && results[0].TokenUsage is { TotalTokens: var tt }
+                ? tt
+                : 0;
+
+            totalTokens += tokensUsed;
+            totalTurns++;
+            lastOutput = outputText;
+            payload.TokensUsed = totalTokens;
+            payload.TurnsCompleted = totalTurns;
+
+            if (!string.IsNullOrEmpty(outputText))
+            {
+                chatHistory.AddAssistantMessage(outputText);
+            }
+
+            var evaluation = await _evaluator.EvaluateAsync(
+                instruction,
+                [],
+                outputText,
+                ct).ConfigureAwait(false);
+
+            if (evaluation.IsCompleted)
+            {
+                _logger?.LogInformation("[GoalGraph] {NodeId}({Name}): Agent循环完成 (turns={Turns}, tokens={Tokens})",
+                    nodeId, payload.Name, totalTurns, totalTokens);
+                break;
+            }
+
+            var continuationPrompt = ContinuationPromptBuilder.BuildContinuationPrompt(
+                instruction,
+                [],
+                totalTokens,
+                payload.TokenBudget,
+                evaluation.Reason);
+            chatHistory.AddSystemMessage(continuationPrompt);
+
+            _logger?.LogDebug("[GoalGraph] {NodeId}({Name}): Agent继续 (turns={Turns})", nodeId, payload.Name, totalTurns);
+        }
+
+        if (!string.IsNullOrEmpty(lastOutput))
         {
             await context.StateLock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                context.ChatHistory.AddAssistantMessage(outputText);
+                context.ChatHistory.AddAssistantMessage($"[{payload.Name}]: {lastOutput}");
             }
             finally { context.StateLock.Release(); }
         }
 
-        return NodeResult.Succeeded(outputText, tokensUsed);
+        return NodeResult.Succeeded(lastOutput, totalTokens);
     }
 
     private async Task<NodeResult> ExecuteFunctionNodeAsync(string nodeId, GoalNodePayload payload, GraphExecutionContext context, CancellationToken ct)

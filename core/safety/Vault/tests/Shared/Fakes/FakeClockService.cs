@@ -4,7 +4,7 @@ namespace Core.Tests.Fakes;
 /// <summary>
 /// 测试用固定时钟 — 替代真实时间，便于断言 CreatedAt/UpdatedAt。
 /// </summary>
-internal sealed class FakeClockService : IClockService
+public sealed class FakeClockService : IClockService
 {
     private DateTime _utcNow;
 

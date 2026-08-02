@@ -4,7 +4,7 @@ namespace Core.Tests.Fakes;
 /// <summary>
 /// 测试用任务运行时 — 记录创建/更新调用并返回成功结果。
 /// </summary>
-internal sealed class FakeTaskRuntime : ITaskRuntime
+public sealed class FakeTaskRuntime : ITaskRuntime
 {
     private readonly List<RuntimeTaskInput> _createdInputs = new();
     private readonly List<(string TaskId, RuntimeTaskUpdate Update)> _updates = new();

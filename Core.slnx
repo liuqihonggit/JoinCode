@@ -10,18 +10,40 @@
   </Folder>
   <Folder Name="/core/execution/">
     <Project Path="core/execution/Brain/src/Brain.csproj" />
-    <Project Path="core/execution/Brain/tests/Unit/Brain.Tests.csproj" />
     <Project Path="core/execution/Hands/src/Hands.csproj" />
-    <Project Path="core/execution/Hands/tests/Unit/Hands.Tests.csproj" />
     <Project Path="core/execution/Scheduling/src/Scheduling.csproj" />
     <Project Path="core/execution/Scheduling/tests/Unit/Scheduling.Tests.csproj" />
     <Project Path="core/execution/McpToolDispatch/src/McpToolDispatch.csproj" />
     <Project Path="core/execution/McpToolDispatch/tests/Unit/McpToolDispatch.Tests.csproj" />
   </Folder>
+  <Folder Name="/core/execution/Brain/" />
+  <Folder Name="/core/execution/Brain/tests/" />
+  <Folder Name="/core/execution/Brain/tests/Context/">
+    <Project Path="core/execution/Brain/tests/Context/Brain.Context.Tests.csproj" />
+  </Folder>
+  <Folder Name="/core/execution/Brain/tests/Other/">
+    <Project Path="core/execution/Brain/tests/Other/Brain.Other.Tests.csproj" />
+  </Folder>
+  <Folder Name="/core/execution/Brain/tests/Prompts/">
+    <Project Path="core/execution/Brain/tests/Prompts/Brain.Prompts.Tests.csproj" />
+  </Folder>
+  <Folder Name="/core/execution/Hands/" />
+  <Folder Name="/core/execution/Hands/tests/" />
+  <Folder Name="/core/execution/Hands/tests/Api/">
+    <Project Path="core/execution/Hands/tests/Api/Hands.Api.Tests.csproj" />
+  </Folder>
+  <Folder Name="/core/execution/Hands/tests/Shell/">
+    <Project Path="core/execution/Hands/tests/Shell/Hands.Shell.Tests.csproj" />
+  </Folder>
+  <Folder Name="/core/execution/Hands/tests/Skills/">
+    <Project Path="core/execution/Hands/tests/Skills/Hands.Skills.Tests.csproj" />
+  </Folder>
+  <Folder Name="/core/execution/Hands/tests/ToolHandlers/">
+    <Project Path="core/execution/Hands/tests/ToolHandlers/Hands.ToolHandlers.Tests.csproj" />
+  </Folder>
   <Folder Name="/core/safety/">
     <Project Path="core/safety/Guard/src/Guard.csproj" />
     <Project Path="core/safety/Vault/src/Vault.csproj" />
-    <Project Path="core/safety/Vault/tests/Unit/Vault.Tests.csproj" />
   </Folder>
   <Folder Name="/core/safety/Guard/" />
   <Folder Name="/core/safety/Guard/tests/" />
@@ -33,6 +55,17 @@
   </Folder>
   <Folder Name="/core/safety/Guard/tests/Security/">
     <Project Path="core/safety/Guard/tests/Security/Guard.Security.Tests.csproj" />
+  </Folder>
+  <Folder Name="/core/safety/Vault/" />
+  <Folder Name="/core/safety/Vault/tests/" />
+  <Folder Name="/core/safety/Vault/tests/Memdir/">
+    <Project Path="core/safety/Vault/tests/Memdir/Vault.Memdir.Tests.csproj" />
+  </Folder>
+  <Folder Name="/core/safety/Vault/tests/Other/">
+    <Project Path="core/safety/Vault/tests/Other/Vault.Other.Tests.csproj" />
+  </Folder>
+  <Folder Name="/core/safety/Vault/tests/Shared/">
+    <Project Path="core/safety/Vault/tests/Shared/Vault.Testing.Common.csproj" />
   </Folder>
   <Folder Name="/core/search/">
     <Project Path="core/search/CodeIndex/src/CodeIndex.csproj" />

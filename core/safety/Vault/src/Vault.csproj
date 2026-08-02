@@ -18,6 +18,8 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="JoinCode.Vault.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Vault.Memdir.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Vault.Other.Tests" />
   </ItemGroup>
 
 

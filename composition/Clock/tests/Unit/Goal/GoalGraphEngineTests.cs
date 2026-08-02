@@ -811,4 +811,112 @@ public sealed class GoalGraphEngineTests
         Assert.Equal("intentional failure", nodeA.Payload.ErrorMessage);
         Assert.Equal(GoalStatus.Unmet, result.Status);
     }
+
+    // ─────────────────────────────────────────────────────────────
+    // P5: JoinNode 部分失败 — 2个上游中1个失败，MinSuccessfulInputs=1 → Join成功
+    // ─────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task JoinNode_PartialFailure_Should_SucceedWhenMinSuccessfulMet()
+    {
+        var engine = CreateEngine();
+
+        var dag = new Dag<GoalNodePayload>();
+        var nodeA = MakeFunctionNode("A", "source-a");
+        var nodeB = MakeFunctionNode("B", "source-b");
+        var nodeC = MakeFunctionNode("C", "source-c-failing");
+        var nodeJ = MakeJoinNode("J", "join", minSuccessfulInputs: 1);
+
+        dag.AddNode(nodeA);
+        dag.AddNode(nodeB);
+        dag.AddNode(nodeC);
+        dag.AddNode(nodeJ);
+        dag.AddEdge(new DagEdge { Id = "e-a-b", FromId = "A", ToId = "B" });
+        dag.AddEdge(new DagEdge { Id = "e-a-c", FromId = "A", ToId = "C" });
+        dag.AddEdge(new DagEdge { Id = "e-b-j", FromId = "B", ToId = "J" });
+        dag.AddEdge(new DagEdge { Id = "e-c-j", FromId = "C", ToId = "J" });
+
+        engine.RegisterFunction("A", _ =>
+            Task.FromResult(NodeResult.Succeeded("output-A", tokensUsed: 10)));
+        engine.RegisterFunction("B", _ =>
+            Task.FromResult(NodeResult.Succeeded("output-B", tokensUsed: 20)));
+        engine.RegisterFunction("C", _ =>
+            Task.FromResult(NodeResult.Failed("C-failed", tokensUsed: 5)));
+
+        var graph = new GoalGraph
+        {
+            Name = "join-partial-failure-test",
+            Dag = dag,
+            StartNodeId = "A",
+            EndNodeIds = FrozenSet.Create("J"),
+        };
+
+        var result = await engine.ExecuteAsync(graph, CreateGoalState(), new MessageList(), CancellationToken.None);
+
+        // C 失败，但 B 成功 → 1/2 成功 >= MinSuccessfulInputs(1) → Join 成功
+        Assert.Equal(GoalNodeStatus.Failed, nodeC.Payload.Status);
+        Assert.Equal(GoalNodeStatus.Completed, nodeJ.Payload.Status);
+        Assert.Contains("output-B", nodeJ.Payload.Output);
+        Assert.Contains("warning", nodeJ.Payload.Output); // 部分失败告警
+        Assert.Equal(GoalStatus.Achieved, result.Status);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // P5: JoinNode 全部失败 — MinSuccessfulInputs不满足 → Join失败
+    // ─────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task JoinNode_AllUpstreamsFailed_Should_Fail()
+    {
+        var engine = CreateEngine();
+
+        var dag = new Dag<GoalNodePayload>();
+        var nodeA = MakeFunctionNode("A", "source-a-failing");
+        var nodeB = MakeFunctionNode("B", "source-b-failing");
+        var nodeJ = MakeJoinNode("J", "join", minSuccessfulInputs: 1);
+
+        dag.AddNode(nodeA);
+        dag.AddNode(nodeB);
+        dag.AddNode(nodeJ);
+        dag.AddEdge(new DagEdge { Id = "e-a-j", FromId = "A", ToId = "J" });
+        dag.AddEdge(new DagEdge { Id = "e-b-j", FromId = "B", ToId = "J" });
+
+        engine.RegisterFunction("A", _ =>
+            Task.FromResult(NodeResult.Failed("A-failed")));
+        engine.RegisterFunction("B", _ =>
+            Task.FromResult(NodeResult.Failed("B-failed")));
+
+        // 需要一个 StartNode → 让 A 为 Start，A→B 也走通
+        dag = new Dag<GoalNodePayload>();
+        nodeA = MakeFunctionNode("A", "source-a-failing");
+        nodeB = MakeFunctionNode("B", "source-b-failing");
+        nodeJ = MakeJoinNode("J", "join", minSuccessfulInputs: 1);
+
+        dag.AddNode(nodeA);
+        dag.AddNode(nodeB);
+        dag.AddNode(nodeJ);
+        dag.AddEdge(new DagEdge { Id = "e-a-b", FromId = "A", ToId = "B" });
+        dag.AddEdge(new DagEdge { Id = "e-a-j", FromId = "A", ToId = "J" });
+        dag.AddEdge(new DagEdge { Id = "e-b-j", FromId = "B", ToId = "J" });
+
+        engine.RegisterFunction("A", _ =>
+            Task.FromResult(NodeResult.Failed("A-failed")));
+        engine.RegisterFunction("B", _ =>
+            Task.FromResult(NodeResult.Failed("B-failed")));
+
+        var graph = new GoalGraph
+        {
+            Name = "join-all-failed-test",
+            Dag = dag,
+            StartNodeId = "A",
+            EndNodeIds = FrozenSet.Create("J"),
+        };
+
+        var result = await engine.ExecuteAsync(graph, CreateGoalState(), new MessageList(), CancellationToken.None);
+
+        Assert.Equal(GoalNodeStatus.Failed, nodeA.Payload.Status);
+        Assert.Equal(GoalNodeStatus.Failed, nodeB.Payload.Status);
+        Assert.Equal(GoalNodeStatus.Failed, nodeJ.Payload.Status);
+        Assert.Contains("Join precondition not met", nodeJ.Payload.ErrorMessage);
+    }
 }

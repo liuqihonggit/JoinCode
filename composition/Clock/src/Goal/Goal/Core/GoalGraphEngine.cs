@@ -88,6 +88,19 @@ public sealed partial class GoalGraphEngine
             if (payload.Status == GoalNodeStatus.Failed)
             {
                 context.FailedNodes.Add(nodeId);
+
+                foreach (var edgeId in dagNode.OutEdgeIds)
+                {
+                    if (!graph.Dag.Edges.TryGetValue(edgeId, out var edge))
+                        continue;
+                    if (edge.Label.Length > 0)
+                        continue;
+                    if (!context.CompletedNodes.Contains(edge.ToId) && !context.FailedNodes.Contains(edge.ToId))
+                    {
+                        context.ReadyQueue.Enqueue(edge.ToId);
+                    }
+                }
+
                 if (graph.IsEndNode(nodeId))
                 {
                     await context.StateLock.WaitAsync(ct).ConfigureAwait(false);
@@ -270,23 +283,39 @@ public sealed partial class GoalGraphEngine
     {
         var upstreamOutputs = context.CollectUpstreamOutputs(nodeId);
         var totalUpstreams = context.CountTotalUpstreams(nodeId);
-        var completedUpstreams = context.CountCompletedUpstreams(nodeId);
+        var successfulUpstreams = context.CountSuccessfulUpstreams(nodeId);
 
         var minRequired = payload.MinSuccessfulInputs > 0
             ? payload.MinSuccessfulInputs
             : totalUpstreams;
 
-        if (completedUpstreams < minRequired)
+        if (successfulUpstreams < minRequired)
         {
             return Task.FromResult(NodeResult.Failed(
-                $"Join precondition not met: {completedUpstreams}/{minRequired} upstreams completed"));
+                $"Join precondition not met: {successfulUpstreams}/{minRequired} upstreams succeeded ({totalUpstreams} total)"));
         }
 
-        var joinedOutput = string.Join("\n", upstreamOutputs
-            .Where(kvp => kvp.Value is not null)
-            .Select(kvp => $"[{kvp.Key}]: {kvp.Value}"));
+        var failedUpstreams = totalUpstreams - successfulUpstreams;
+        var sb = new System.Text.StringBuilder();
 
-        return Task.FromResult(NodeResult.Succeeded(joinedOutput));
+        foreach (var kvp in upstreamOutputs)
+        {
+            if (kvp.Value is not null)
+            {
+                sb.AppendLine($"[{kvp.Key}]: {kvp.Value}");
+            }
+            else
+            {
+                sb.AppendLine($"[{kvp.Key}]: <failed>");
+            }
+        }
+
+        if (failedUpstreams > 0)
+        {
+            sb.AppendLine($"[warning]: {failedUpstreams} upstream(s) failed but Join proceeded (minRequired={minRequired})");
+        }
+
+        return Task.FromResult(NodeResult.Succeeded(sb.ToString().TrimEnd()));
     }
 
     private async Task HandleRetryAsync(string targetNodeId, GraphExecutionContext context, CancellationToken ct)

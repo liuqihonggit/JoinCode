@@ -32,7 +32,7 @@ internal sealed class GraphExecutionContext
             if (edge.Label.Length > 0)
                 continue;
 
-            if (!CompletedNodes.Contains(edge.FromId))
+            if (!CompletedNodes.Contains(edge.FromId) && !FailedNodes.Contains(edge.FromId))
                 return false;
         }
 
@@ -40,6 +40,25 @@ internal sealed class GraphExecutionContext
     }
 
     public int CountCompletedUpstreams(string nodeId)
+    {
+        if (!Graph.Dag.Nodes.TryGetValue(nodeId, out var node))
+            return 0;
+
+        var count = 0;
+        foreach (var edgeId in node.InEdgeIds)
+        {
+            if (!Graph.Dag.Edges.TryGetValue(edgeId, out var edge))
+                continue;
+            if (edge.Label.Length > 0)
+                continue;
+            if (CompletedNodes.Contains(edge.FromId) || FailedNodes.Contains(edge.FromId))
+                count++;
+        }
+
+        return count;
+    }
+
+    public int CountSuccessfulUpstreams(string nodeId)
     {
         if (!Graph.Dag.Nodes.TryGetValue(nodeId, out var node))
             return 0;

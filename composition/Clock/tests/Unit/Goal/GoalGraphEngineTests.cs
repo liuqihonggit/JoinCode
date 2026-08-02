@@ -2,6 +2,7 @@
 namespace Core.Goal.Tests;
 
 using System.Collections.Frozen;
+using Microsoft.Extensions.DependencyInjection;
 using Structura.Dag;
 using Infrastructure.Time;
 
@@ -33,11 +34,13 @@ public sealed class GoalGraphEngineTests
     private static GoalGraphEngine CreateEngine(
         Mock<IChatClient>? kernel = null,
         Mock<IGoalEvaluator>? evaluator = null,
-        IClockService? clock = null)
+        IClockService? clock = null,
+        IServiceProvider? serviceProvider = null)
     {
         return new GoalGraphEngine(
             (kernel ?? CreateKernelMock()).Object,
             (evaluator ?? CreateEvaluatorMock()).Object,
+            serviceProvider ?? new ServiceCollection().BuildServiceProvider(),
             heartbeat: CreateHeartbeatMock().Object,
             clock: clock);
     }
@@ -530,7 +533,7 @@ public sealed class GoalGraphEngineTests
     // ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task UnregisteredFunction_Should_HaveNullOutput()
+    public async Task UnregisteredFunction_Should_MarkNodeAsFailed()
     {
         var engine = CreateEngine();
 
@@ -551,9 +554,10 @@ public sealed class GoalGraphEngineTests
 
         var result = await engine.ExecuteAsync(graph, CreateGoalState(), new MessageList(), CancellationToken.None);
 
-        // NodeResult.Failed 不抛异常，节点仍标记 Completed，但 Output 为 null
-        Assert.Equal(GoalNodeStatus.Completed, nodeA.Payload.Status);
+        // NodeResult.Failed → 节点标记 Failed
+        Assert.Equal(GoalNodeStatus.Failed, nodeA.Payload.Status);
         Assert.Null(nodeA.Payload.Output);
+        Assert.Contains("Function not registered", nodeA.Payload.ErrorMessage);
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -561,7 +565,7 @@ public sealed class GoalGraphEngineTests
     // ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task JoinNode_WhenPreconditionNotMet_Should_HaveNullOutput()
+    public async Task JoinNode_WhenPreconditionNotMet_Should_MarkNodeAsFailed()
     {
         var engine = CreateEngine();
 
@@ -587,10 +591,10 @@ public sealed class GoalGraphEngineTests
 
         var result = await engine.ExecuteAsync(graph, CreateGoalState(), new MessageList(), CancellationToken.None);
 
-        // J 的 MinSuccessfulInputs=2 但只有 1 个上游完成 → NodeResult.Failed（软失败）
-        // 节点仍标记 Completed，但 Output 为 null
-        Assert.Equal(GoalNodeStatus.Completed, nodeJ.Payload.Status);
+        // J 的 MinSuccessfulInputs=2 但只有 1 个上游完成 → NodeResult.Failed → 节点标记 Failed
+        Assert.Equal(GoalNodeStatus.Failed, nodeJ.Payload.Status);
         Assert.Null(nodeJ.Payload.Output);
+        Assert.Contains("Join precondition not met", nodeJ.Payload.ErrorMessage);
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -734,5 +738,77 @@ public sealed class GoalGraphEngineTests
         Assert.Equal(GoalStatus.Achieved, result.Status);
         Assert.Equal(GoalNodeStatus.Completed, nodeB.Payload.Status);
         Assert.Equal(GoalNodeStatus.Completed, nodeC.Payload.Status);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // 补充：NodeContext.Services 注入 — FunctionNode 可通过 Services 获取 DI 服务
+    // ─────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task FunctionNode_Should_ReceiveServiceProvider_FromContext()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton("test-value-from-di");
+        var sp = services.BuildServiceProvider();
+
+        var engine = CreateEngine(serviceProvider: sp);
+        string? receivedValue = null;
+
+        var dag = new Dag<GoalNodePayload>();
+        var nodeA = MakeFunctionNode("A", "fn-with-di");
+
+        dag.AddNode(nodeA);
+
+        engine.RegisterFunction("A", ctx =>
+        {
+            receivedValue = ctx.Services.GetService<string>();
+            return Task.FromResult(NodeResult.Succeeded($"got: {receivedValue}"));
+        });
+
+        var graph = new GoalGraph
+        {
+            Name = "di-injection-test",
+            Dag = dag,
+            StartNodeId = "A",
+            EndNodeIds = FrozenSet.Create("A"),
+        };
+
+        var result = await engine.ExecuteAsync(graph, CreateGoalState(), new MessageList(), CancellationToken.None);
+
+        Assert.Equal("test-value-from-di", receivedValue);
+        Assert.Equal(GoalNodeStatus.Completed, nodeA.Payload.Status);
+        Assert.Equal("got: test-value-from-di", nodeA.Payload.Output);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // 补充：NodeResult.Failed → 节点标记 Failed + EndNode → GoalStatus.Unmet
+    // ─────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task FunctionNodeFailed_AsEndNode_Should_SetGoalUnmet()
+    {
+        var engine = CreateEngine();
+
+        var dag = new Dag<GoalNodePayload>();
+        var nodeA = MakeFunctionNode("A", "failing-fn");
+
+        dag.AddNode(nodeA);
+
+        engine.RegisterFunction("A", _ =>
+            Task.FromResult(NodeResult.Failed("intentional failure")));
+
+        var graph = new GoalGraph
+        {
+            Name = "failed-end-test",
+            Dag = dag,
+            StartNodeId = "A",
+            EndNodeIds = FrozenSet.Create("A"),
+        };
+
+        var result = await engine.ExecuteAsync(graph, CreateGoalState(), new MessageList(), CancellationToken.None);
+
+        Assert.Equal(GoalNodeStatus.Failed, nodeA.Payload.Status);
+        Assert.Equal("intentional failure", nodeA.Payload.ErrorMessage);
+        Assert.Equal(GoalStatus.Unmet, result.Status);
     }
 }

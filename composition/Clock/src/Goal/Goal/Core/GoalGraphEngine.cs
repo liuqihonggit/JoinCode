@@ -15,17 +15,20 @@ public sealed partial class GoalGraphEngine
     private readonly IGoalHeartbeat _heartbeat;
     [Inject] private readonly ILogger<GoalGraphEngine>? _logger;
     [Inject] private readonly IClockService _clock;
+    [Inject] private readonly IServiceProvider _serviceProvider;
     private readonly Dictionary<string, Func<NodeContext, Task<NodeResult>>> _functionRegistry = new(StringComparer.Ordinal);
 
     public GoalGraphEngine(
         IChatClient kernel,
         IGoalEvaluator evaluator,
+        IServiceProvider serviceProvider,
         ILogger<GoalGraphEngine>? logger = null,
         IGoalHeartbeat? heartbeat = null,
         IClockService? clock = null)
     {
         _kernel = kernel;
         _evaluator = evaluator;
+        _serviceProvider = serviceProvider;
         _logger = logger;
         _heartbeat = heartbeat ?? new GoalHeartbeat();
         _clock = clock ?? SystemClockService.Instance;
@@ -157,12 +160,21 @@ public sealed partial class GoalGraphEngine
             payload.Output = result.Output;
             payload.Routes = result.Routes;
             payload.TokensUsed = result.TokensUsed;
-            payload.Status = GoalNodeStatus.Completed;
             payload.CompletedAt = _clock.GetUtcNow();
 
-            if (result.Message is not null)
+            if (result.IsFailed)
             {
-                _logger?.LogInformation("[GoalGraph] {NodeId}({Name}): {Message}", nodeId, payload.Name, result.Message);
+                payload.Status = GoalNodeStatus.Failed;
+                payload.ErrorMessage = result.Message;
+                _logger?.LogWarning("[GoalGraph] {NodeId}({Name}): {Message}", nodeId, payload.Name, result.Message);
+            }
+            else
+            {
+                payload.Status = GoalNodeStatus.Completed;
+                if (result.Message is not null)
+                {
+                    _logger?.LogInformation("[GoalGraph] {NodeId}({Name}): {Message}", nodeId, payload.Name, result.Message);
+                }
             }
         }
         catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !ct.IsCancellationRequested)
@@ -247,7 +259,7 @@ public sealed partial class GoalGraphEngine
             CurrentNode = payload,
             UpstreamOutputs = upstreamOutputs,
             GlobalState = context.State,
-            Services = null!,
+            Services = _serviceProvider,
             CancellationToken = ct,
         };
 

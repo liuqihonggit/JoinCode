@@ -24,6 +24,7 @@ public sealed class NodeResult
     public string[]? Routes { get; init; }
     public string? Message { get; init; }
     public int TokensUsed { get; init; }
+    public bool IsFailed { get; init; }
 
     public static NodeResult Succeeded(string? output, int tokensUsed = 0)
         => new() { Output = output, TokensUsed = tokensUsed };
@@ -32,5 +33,5 @@ public sealed class NodeResult
         => new() { Output = output, Routes = routes, TokensUsed = tokensUsed };
 
     public static NodeResult Failed(string errorMessage, int tokensUsed = 0)
-        => new() { Output = null, TokensUsed = tokensUsed, Message = errorMessage };
+        => new() { Output = null, TokensUsed = tokensUsed, Message = errorMessage, IsFailed = true };
 }

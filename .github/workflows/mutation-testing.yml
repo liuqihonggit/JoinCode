@@ -201,7 +201,7 @@ jobs:
           $slnx = $slnxMap[$name]
           $slnxPath = Join-Path $env:GITHUB_WORKSPACE $slnx
 
-          $strykerArgs = @("-p", $info.Src, "-s", $slnxPath, "-c", $concurrency, "-b", $breakThreshold, "--threshold-low", "60", "--threshold-high", "80", "-r", "progress", "-r", "html", "-r", "json", "-r", "markdown")
+          $strykerArgs = @("-p", $info.Src, "-s", $slnxPath, "-c", $concurrency, "-b", $breakThreshold, "--configuration", "Debug", "--threshold-low", "60", "--threshold-high", "80", "-r", "progress", "-r", "html", "-r", "json", "-r", "markdown")
 
           $strykerArgs += @("--mutate", "!**/GlobalUsings.cs", "--mutate", "!**/AssemblyInfo.cs")
           if ($info.Mutate.Count -gt 0) {

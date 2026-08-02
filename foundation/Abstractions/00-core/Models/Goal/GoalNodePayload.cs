@@ -9,6 +9,7 @@ public sealed class GoalNodePayload
     public required string Name { get; init; }
     public string? SystemPrompt { get; init; }
     public string? Instruction { get; init; }
+    public bool FreshContext { get; init; }
     public GoalNodeStatus Status { get; set; } = GoalNodeStatus.Pending;
     public string? Input { get; set; }
     public string? Output { get; set; }

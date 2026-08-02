@@ -116,27 +116,48 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
             clock: _clock);
 
         var dag = new Dag<GoalNodePayload>();
+
         dag.AddNode(new DagNode<GoalNodePayload>
         {
             Id = "agent",
             Payload = new GoalNodePayload
             {
                 Kind = GoalNodeKind.Agent,
-                Name = objective,
+                Name = "executor",
                 Instruction = objective,
                 TokenBudget = tokenBudget,
             },
         });
+
+        dag.AddNode(new DagNode<GoalNodePayload>
+        {
+            Id = "reviewer",
+            Payload = new GoalNodePayload
+            {
+                Kind = GoalNodeKind.Agent,
+                Name = "reviewer",
+                SystemPrompt = "You are an independent reviewer. Evaluate the following work output objectively. You must determine if the task was completed successfully. Reply with PASS if the work meets the requirements, or FAIL with specific issues if it does not. Do not assume context you were not given — judge only by what you see.",
+                Instruction = "Review the following work output and determine if it successfully completes the task. Be objective and thorough.",
+                FreshContext = true,
+                TokenBudget = tokenBudget.HasValue ? tokenBudget.Value / 4 : null,
+            },
+        });
+
+        dag.AddEdge(new DagEdge { Id = "e-agent-reviewer", FromId = "agent", ToId = "reviewer" });
+
+        const string backEdgeId = "e-reviewer-agent";
+        dag.TryAddEdge(new DagEdge { Id = backEdgeId, FromId = "reviewer", ToId = "agent", Label = "FAIL" });
+        dag.Nodes["agent"].InEdgeIds.Remove(backEdgeId);
 
         _goalGraph = new GoalGraph
         {
             Name = objective,
             Dag = dag,
             StartNodeId = "agent",
-            EndNodeIds = FrozenSet.Create("agent"),
+            EndNodeIds = FrozenSet.Create("reviewer"),
         };
 
-        _logger?.LogInformation("[GoalEngine] 自动构建单节点 Graph: {Objective}", objective);
+        _logger?.LogInformation("[GoalEngine] 自动构建 agent→reviewer Graph: {Objective}", objective);
     }
 
     private async Task<GoalState> StartViaPipelineAsync(

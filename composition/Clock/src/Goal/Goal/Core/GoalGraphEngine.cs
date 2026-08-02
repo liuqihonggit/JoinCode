@@ -209,9 +209,12 @@ public sealed partial class GoalGraphEngine
     private async Task<NodeResult> ExecuteAgentNodeAsync(string nodeId, GoalNodePayload payload, GraphExecutionContext context, CancellationToken ct)
     {
         var chatHistory = new MessageList();
-        foreach (var msg in context.ChatHistory)
+        if (!payload.FreshContext)
         {
-            chatHistory.Add(msg);
+            foreach (var msg in context.ChatHistory)
+            {
+                chatHistory.Add(msg);
+            }
         }
 
         if (payload.SystemPrompt is not null)

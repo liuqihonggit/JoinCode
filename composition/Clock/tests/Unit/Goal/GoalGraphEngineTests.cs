@@ -1118,4 +1118,97 @@ public sealed class GoalGraphEngineTests
         Assert.Equal(GoalNodeStatus.Completed, nodeCommit.Payload.Status);
         Assert.Equal(GoalStatus.Achieved, result.Status);
     }
+
+    // ─────────────────────────────────────────────────────────────
+    // FreshContext — reviewer 节点不继承 ChatHistory
+    // ─────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task FreshContext_Should_NotInheritChatHistory()
+    {
+        var engine = CreateEngine();
+        var inheritedMessageCount = -1;
+
+        var dag = new Dag<GoalNodePayload>();
+        var nodeA = MakeFunctionNode("A", "worker");
+
+        var nodeR = new DagNode<GoalNodePayload>
+        {
+            Id = "R",
+            Payload = new GoalNodePayload
+            {
+                Kind = GoalNodeKind.Function,
+                Name = "reviewer",
+                FreshContext = true,
+            },
+        };
+
+        dag.AddNode(nodeA);
+        dag.AddNode(nodeR);
+        dag.AddEdge(new DagEdge { Id = "e-a-r", FromId = "A", ToId = "R" });
+
+        engine.RegisterFunction("A", _ =>
+            Task.FromResult(NodeResult.Succeeded("work-output", tokensUsed: 10)));
+
+        engine.RegisterFunction("R", ctx =>
+        {
+            inheritedMessageCount = ctx.UpstreamOutputs.Count;
+            return Task.FromResult(NodeResult.Succeeded("review-pass", tokensUsed: 5));
+        });
+
+        var graph = new GoalGraph
+        {
+            Name = "fresh-context-test",
+            Dag = dag,
+            StartNodeId = "A",
+            EndNodeIds = FrozenSet.Create("R"),
+        };
+
+        var chatHistory = new MessageList();
+        chatHistory.AddSystemMessage("previous-context");
+        chatHistory.AddUserMessage("old-instruction");
+
+        var result = await engine.ExecuteAsync(graph, CreateGoalState(), chatHistory, CancellationToken.None);
+
+        Assert.Equal(GoalNodeStatus.Completed, nodeR.Payload.Status);
+        Assert.Equal(GoalStatus.Achieved, result.Status);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Agent→Reviewer 默认图 — agent完成后reviewer独立评审
+    // ─────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task AgentReviewerGraph_Should_ExecuteAndReview()
+    {
+        var engine = CreateEngine();
+
+        var dag = new Dag<GoalNodePayload>();
+        var nodeAgent = MakeFunctionNode("agent", "executor");
+        var nodeReviewer = MakeFunctionNode("reviewer", "reviewer");
+
+        dag.AddNode(nodeAgent);
+        dag.AddNode(nodeReviewer);
+        dag.AddEdge(new DagEdge { Id = "e1", FromId = "agent", ToId = "reviewer" });
+
+        engine.RegisterFunction("agent", _ =>
+            Task.FromResult(NodeResult.Succeeded("task-completed-output", tokensUsed: 100)));
+
+        engine.RegisterFunction("reviewer", _ =>
+            Task.FromResult(NodeResult.Succeeded("review-pass", tokensUsed: 20)));
+
+        var graph = new GoalGraph
+        {
+            Name = "agent-reviewer-test",
+            Dag = dag,
+            StartNodeId = "agent",
+            EndNodeIds = FrozenSet.Create("reviewer"),
+        };
+
+        var result = await engine.ExecuteAsync(graph, CreateGoalState(), new MessageList(), CancellationToken.None);
+
+        Assert.Equal(GoalNodeStatus.Completed, nodeAgent.Payload.Status);
+        Assert.Equal(GoalNodeStatus.Completed, nodeReviewer.Payload.Status);
+        Assert.Equal(GoalStatus.Achieved, result.Status);
+    }
 }

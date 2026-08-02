@@ -1,4 +1,4 @@
-﻿namespace Core.Scheduling.Tasks;
+namespace Core.Scheduling.Tasks;
 
 public interface IInProcessTeammateTaskExecutor
 {
@@ -30,7 +30,7 @@ public sealed partial class InProcessTeammateDefinition
 
 public sealed class TeammateState
 {
-    public required ISubAgent Agent { get; init; }
+    public required IAgent Agent { get; init; }
     public required CancellationTokenSource LifecycleCts { get; init; }
     public required TeammateContext Context { get; init; }
     public bool IsIdle { get; set; }
@@ -141,7 +141,7 @@ public sealed partial class InProcessTeammateTaskExecutor : IInProcessTeammateTa
             {
                 foreach (var ctx in definition.InitialContext)
                 {
-                    agent.AddContext(ctx);
+                    ((Agent)agent).AddContext(ctx);
                 }
             }
 

@@ -10,7 +10,7 @@ public interface IAgentExecutionEngine
     /// 并行执行多个Agent
     /// </summary>
     Task<IReadOnlyList<SubAgentResult>> ExecuteParallelAsync(
-        IEnumerable<ISubAgent> agents,
+        IEnumerable<IAgent> agents,
         ParallelOptions? options = null,
         CancellationToken cancellationToken = default);
 
@@ -18,6 +18,6 @@ public interface IAgentExecutionEngine
     /// 串行执行多个Agent（结果传递）
     /// </summary>
     Task<IReadOnlyList<SubAgentResult>> ExecuteSequentialAsync(
-        IEnumerable<ISubAgent> agents,
+        IEnumerable<IAgent> agents,
         CancellationToken cancellationToken = default);
 }

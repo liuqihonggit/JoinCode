@@ -1,4 +1,4 @@
-﻿
+
 namespace Core.Agents.Coordinator;
 
 /// <summary>
@@ -28,23 +28,23 @@ public sealed partial class AgentLifecycleManager : IAgentLifecycleManager
     /// <summary>
     /// 生成子Agent
     /// </summary>
-    public Task<ISubAgent> SpawnSubAgentAsync(string task, SubAgentOptions? options = null, CancellationToken cancellationToken = default)
+    public Task<IAgent> SpawnSubAgentAsync(string task, SubAgentOptions? options = null, CancellationToken cancellationToken = default)
     {
-        var agentId = GenerateAgentId();
-        var agent = new Agent(agentId, task, options, _queryEngine, _logger);
+        var agent = new Agent(task, options, _queryEngine, _logger);
+        var agentId = agent.Id;
 
         _subAgents[agentId] = agent;
         _stateMachine.RegisterAgent(agentId, task, options);
 
         _logger?.LogInformation("[AgentLifecycleManager] 生成子Agent {AgentId}: {Task}", agentId, task);
 
-        return Task.FromResult<ISubAgent>(agent);
+        return Task.FromResult<IAgent>(agent);
     }
 
     /// <summary>
     /// 批量生成子Agent
     /// </summary>
-    public async Task<IReadOnlyList<ISubAgent>> SpawnSubAgentsAsync(IEnumerable<string> tasks, SubAgentOptions? options = null, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<IAgent>> SpawnSubAgentsAsync(IEnumerable<string> tasks, SubAgentOptions? options = null, CancellationToken cancellationToken = default)
     {
         var taskList = tasks.ToList();
         var spawnTasks = taskList
@@ -58,7 +58,7 @@ public sealed partial class AgentLifecycleManager : IAgentLifecycleManager
     /// <summary>
     /// 执行单个Agent
     /// </summary>
-    public async Task<SubAgentResult> ExecuteAsync(ISubAgent agent, CancellationToken cancellationToken = default)
+    public async Task<SubAgentResult> ExecuteAsync(IAgent agent, CancellationToken cancellationToken = default)
     {
         if (!await _stateMachine.TryTransitionAsync(agent.Id, TaskExecutionStatus.Running, "开始执行", cancellationToken))
         {
@@ -188,17 +188,17 @@ public sealed partial class AgentLifecycleManager : IAgentLifecycleManager
     /// <summary>
     /// 获取Agent
     /// </summary>
-    public Task<ISubAgent?> GetAgentAsync(string agentId, CancellationToken cancellationToken = default)
+    public Task<IAgent?> GetAgentAsync(string agentId, CancellationToken cancellationToken = default)
     {
-        return Task.FromResult<ISubAgent?>(_subAgents.GetValueOrDefault(agentId));
+        return Task.FromResult<IAgent?>(_subAgents.GetValueOrDefault(agentId));
     }
 
     /// <summary>
     /// 获取所有Agent
     /// </summary>
-    public Task<IReadOnlyCollection<ISubAgent>> GetAllAgentsAsync(CancellationToken cancellationToken = default)
+    public Task<IReadOnlyCollection<IAgent>> GetAllAgentsAsync(CancellationToken cancellationToken = default)
     {
-        return Task.FromResult<IReadOnlyCollection<ISubAgent>>(_subAgents.Values.ToList());
+        return Task.FromResult<IReadOnlyCollection<IAgent>>(_subAgents.Values.ToList());
     }
 
     /// <summary>

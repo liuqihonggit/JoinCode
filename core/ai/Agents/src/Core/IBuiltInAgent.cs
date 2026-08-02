@@ -3,28 +3,22 @@ namespace Core.Agents;
 
 /// <summary>
 /// 内置 Agent 接口 - 所有内置 Agent 的基础接口
+/// 独立于 IAgent，内置Agent是轻量级的对话处理器，不需要Execute/Pause/Resume/Cancel
 /// </summary>
-public interface IBuiltInAgent : IAgent
+public interface IBuiltInAgent : IAsyncDisposable
 {
-    /// <summary>
-    /// Agent 名称
-    /// </summary>
     string Name { get; }
-
-    /// <summary>
-    /// Agent 描述
-    /// </summary>
     string Description { get; }
-
-    /// <summary>
-    /// Agent 类型
-    /// </summary>
     BuiltInAgentType AgentType { get; }
-
-    /// <summary>
-    /// 系统提示词
-    /// </summary>
     string SystemPrompt { get; }
+
+    Task<AgentResponse> ProcessAsync(
+        string userInput,
+        bool useTools = false,
+        CancellationToken cancellationToken = default);
+
+    Task ClearContextAsync(CancellationToken cancellationToken = default);
+    Task<AgentContext> GetContextAsync(CancellationToken cancellationToken = default);
 }
 
 /// <summary>

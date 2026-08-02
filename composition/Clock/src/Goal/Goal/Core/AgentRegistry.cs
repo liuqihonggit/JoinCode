@@ -12,7 +12,7 @@ public sealed class AgentRegistry : IAgentRegistry
 {
     private readonly ConcurrentDictionary<string, AgentDescriptor> _agents = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, List<AgentDescriptor>> _subAgentMap = new(StringComparer.Ordinal);
-    private readonly ConcurrentDictionary<string, ISubAgent> _liveAgents = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, IAgent> _liveAgents = new(StringComparer.Ordinal);
     private readonly ILogger<AgentRegistry>? _logger;
 
     public AgentRegistry(ILogger<AgentRegistry>? logger = null)
@@ -56,7 +56,7 @@ public sealed class AgentRegistry : IAgentRegistry
     /// <summary>
     /// 注册 Agent 并关联运行时实例（用于 LLM 循环控制）
     /// </summary>
-    public AgentDescriptor Register(AgentDescriptor descriptor, ISubAgent liveAgent)
+    public AgentDescriptor Register(AgentDescriptor descriptor, IAgent liveAgent)
     {
         var result = Register(descriptor);
         if (liveAgent is not null)
@@ -69,7 +69,7 @@ public sealed class AgentRegistry : IAgentRegistry
     /// <summary>
     /// 获取运行时 Agent 实例（用于 LLM 循环控制）
     /// </summary>
-    public ISubAgent? GetLiveAgent(string agentId) => _liveAgents.GetValueOrDefault(agentId);
+    public IAgent? GetLiveAgent(string agentId) => _liveAgents.GetValueOrDefault(agentId);
 
     public bool Unregister(string agentId)
     {

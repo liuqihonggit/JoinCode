@@ -37,6 +37,7 @@ global using JoinCode.Abstractions.Security.Shell;
 global using JoinCode.Abstractions.State;
 global using JoinCode.Abstractions.Tools;
 global using JoinCode.Abstractions.Utils;
+global using JoinCode.Abstractions.Entity;
 global using JoinCode.Abstractions.Utils.Text;
 global using ContractAgentMessage = JoinCode.Abstractions.Models.Agent.AgentMessage;
 global using CoordinatorAgentMessage = JoinCode.Abstractions.Models.Agent.CoordinatorMessage;

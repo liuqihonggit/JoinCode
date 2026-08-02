@@ -1,4 +1,4 @@
-﻿namespace Core.Agents.Coordinator;
+namespace Core.Agents.Coordinator;
 
 /// <summary>
 /// Fork Spawn 中间件 — 构建子智能体选项、Spawn、注册消息代理、Worktree、邮箱轮询
@@ -102,7 +102,7 @@ public sealed partial class ForkSpawnMiddleware : IForkMiddleware
                 {
                     var parentCwd = _subAgentContextAccessor.Current?.WorktreePath ?? Environment.CurrentDirectory;
                     var notice = ForkMessageBuilder.BuildWorktreeNotice(parentCwd, session.WorktreePath);
-                    agent.AddContext(notice);
+                    ((Agent)agent).AddContext(notice);
                     context.AgentOptions.WorktreePath = session.WorktreePath;
                     context.AgentOptions.WorktreeBranch = session.BranchName;
                 }

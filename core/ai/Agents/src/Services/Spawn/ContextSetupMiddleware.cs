@@ -48,10 +48,11 @@ public sealed partial class ContextSetupMiddleware : IAgentSpawnMiddleware
 
         var subAgent = await _lifecycleManager.SpawnSubAgentAsync(context.Options.Description, subOptions, ct).ConfigureAwait(false);
 
-        if (subAgent.Context is not null)
+        var concreteAgent = (Agent)subAgent;
+        if (concreteAgent.Context is not null)
         {
-            subAgent.Context.ParentAgentId = _subAgentContextAccessor.Current?.AgentId;
-            subAgent.Context.SessionId = "default";
+            concreteAgent.Context.ParentAgentId = _subAgentContextAccessor.Current?.AgentId;
+            concreteAgent.Context.SessionId = "default";
         }
 
         context.SubAgent = subAgent;

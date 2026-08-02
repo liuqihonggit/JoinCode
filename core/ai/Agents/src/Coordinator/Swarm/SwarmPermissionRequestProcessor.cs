@@ -1,4 +1,4 @@
-﻿
+
 namespace Core.Agents.Coordinator;
 
 public interface ISwarmPermissionRequestProcessor

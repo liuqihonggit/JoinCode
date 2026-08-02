@@ -21,7 +21,7 @@ public class InProcessTeammateTaskExecutorTests
     public async Task ExecuteTeammateAsync_SuccessfulAgentExecution_ShouldReturnSuccessResult()
     {
         var queryEngineMock = new Mock<JoinCode.Abstractions.Interfaces.IQueryEngine>();
-        var agent = new Agent("agent-1", "Test task", null, queryEngineMock.Object, null);
+        var agent = new Agent("Test task", null, queryEngineMock.Object, null);
 
         var agentResult = new SubAgentResult
         {
@@ -59,7 +59,7 @@ public class InProcessTeammateTaskExecutorTests
     public async Task ExecuteTeammateAsync_FailedAgentExecution_ShouldReturnFailureResult()
     {
         var queryEngineMock = new Mock<JoinCode.Abstractions.Interfaces.IQueryEngine>();
-        var agent = new Agent("agent-2", "Failing task", null, queryEngineMock.Object, null);
+        var agent = new Agent("Failing task", null, queryEngineMock.Object, null);
 
         var agentResult = new SubAgentResult
         {
@@ -104,7 +104,7 @@ public class InProcessTeammateTaskExecutorTests
     public async Task ExecuteTeammateAsync_ShouldRegisterAndUnregisterMessageBroker()
     {
         var queryEngineMock = new Mock<JoinCode.Abstractions.Interfaces.IQueryEngine>();
-        var agent = new Agent("agent-3", "Task", null, queryEngineMock.Object, null);
+        var agent = new Agent("Task", null, queryEngineMock.Object, null);
 
         var agentResult = new SubAgentResult
         {

@@ -8,12 +8,12 @@ public interface ISubAgentCoordinator
     /// <summary>
     /// 创建子代理
     /// </summary>
-    Task<ISubAgent> SpawnSubAgentAsync(string task, SubAgentOptions? options = null, CancellationToken cancellationToken = default);
+    Task<IAgent> SpawnSubAgentAsync(string task, SubAgentOptions? options = null, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 并行执行多个子代理
     /// </summary>
-    Task<IReadOnlyList<SubAgentResult>> ExecuteParallelAsync(IEnumerable<ISubAgent> agents, ParallelOptions? options = null, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<SubAgentResult>> ExecuteParallelAsync(IEnumerable<IAgent> agents, ParallelOptions? options = null, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 释放子代理资源

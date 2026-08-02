@@ -1,4 +1,4 @@
-﻿
+
 namespace Core.Agents.Coordinator;
 
 /// <summary>
@@ -20,7 +20,7 @@ public sealed partial class AgentExecutionEngine : IAgentExecutionEngine
     /// 并行执行多个Agent
     /// </summary>
     public async Task<IReadOnlyList<SubAgentResult>> ExecuteParallelAsync(
-        IEnumerable<ISubAgent> agents,
+        IEnumerable<IAgent> agents,
         ParallelOptions? options = null,
         CancellationToken cancellationToken = default)
     {
@@ -51,7 +51,7 @@ public sealed partial class AgentExecutionEngine : IAgentExecutionEngine
     /// 串行执行多个Agent（结果传递）
     /// </summary>
     public async Task<IReadOnlyList<SubAgentResult>> ExecuteSequentialAsync(
-        IEnumerable<ISubAgent> agents,
+        IEnumerable<IAgent> agents,
         CancellationToken cancellationToken = default)
     {
         var results = new List<SubAgentResult>();
@@ -62,7 +62,7 @@ public sealed partial class AgentExecutionEngine : IAgentExecutionEngine
             // 添加上下文
             if (previousResult != null)
             {
-                agent.AddContext($"上一个任务的结果: {previousResult}");
+                ((Agent)agent).AddContext($"上一个任务的结果: {previousResult}");
             }
 
             var result = await _lifecycleManager.ExecuteAsync(agent, cancellationToken).ConfigureAwait(false);

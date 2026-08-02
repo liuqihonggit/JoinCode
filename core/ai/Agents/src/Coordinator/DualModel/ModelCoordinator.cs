@@ -75,11 +75,10 @@ public sealed class ModelCoordinator : IModelCoordinator
         };
 
         var planner = new Agent(
-            id: $"planner-{Guid.NewGuid():N}"[..16],
-            task: objective,
-            options: plannerOptions,
-            queryEngine: _queryEngine,
-            logger: _logger);
+            objective,
+            plannerOptions,
+            _queryEngine,
+            _logger);
 
         try
         {
@@ -127,11 +126,10 @@ public sealed class ModelCoordinator : IModelCoordinator
         };
 
         var executor = new Agent(
-            id: $"executor-{Guid.NewGuid():N}"[..16],
-            task: handoff,
-            options: executorOptions,
-            queryEngine: _queryEngine,
-            logger: _logger);
+            handoff,
+            executorOptions,
+            _queryEngine,
+            _logger);
 
         try
         {

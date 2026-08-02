@@ -1,4 +1,4 @@
-﻿namespace Core.Scheduling.Tasks;
+namespace Core.Scheduling.Tasks;
 
 using JoinCode.Abstractions.Pipeline;
 
@@ -28,7 +28,7 @@ public sealed partial class TeammateSpawnMiddleware : ITeammateExecutionMiddlewa
         {
             foreach (var initialCtx in definition.InitialContext)
             {
-                agent.AddContext(initialCtx);
+                ((Agent)agent).AddContext(initialCtx);
             }
         }
 

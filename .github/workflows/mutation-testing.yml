@@ -54,7 +54,7 @@ jobs:
       - name: Build matrix
         id: set
         run: |
-          ALL_PROJECTS='["Guard-Config","Guard-Security","Guard-Hooks","Vault","Brain-ContextServices","Brain-ContextOther","Brain-Prompts","Brain-Other","Hands-ToolHandlers","Hands-Skills","Hands-Api","Hands-Shell","Scheduling","McpToolDispatch","Llm","Agents","Reasoning","CodeIndex","Browser","Mcp","Eyes","Dream","Bridge","Composition","Clock","Infra","Host"]'
+          ALL_PROJECTS='["Guard-Config","Guard-Security","Guard-Hooks","Vault-Memdir","Vault-Other","Brain-CtxAdmin","Brain-CtxChat","Brain-CtxOther","Brain-CtxNonServices","Brain-PromptsSections","Brain-PromptsOther","Brain-Other","Hands-SysTools","Hands-CoreHandlers","Hands-DevTools","Hands-SkillServices","Hands-SkillBuiltIn","Hands-SkillOther","Hands-Api","Hands-Shell","Scheduling","McpToolDispatch","Llm","Agents","Reasoning","CodeIndex","Browser","Mcp","Eyes","Dream","Bridge","Composition","Clock","Infra","Host-Commands","Host-Other"]'
           INPUT="${{ github.event.inputs.projects || 'ALL' }}"
           if [ "$INPUT" = "ALL" ]; then
             echo "matrix={\"include\":$(echo $ALL_PROJECTS | jq -c '[.[] | {project: .}]')}" >> $GITHUB_OUTPUT
@@ -63,12 +63,16 @@ jobs:
             IFS=',' read -ra PARTS <<< "$INPUT"
             for part in "${PARTS[@]}"; do
               trimmed=$(echo "$part" | xargs)
-              if [ "$trimmed" = "Brain" ]; then
-                EXPANDED="$EXPANDED,\"Brain-ContextServices\",\"Brain-ContextOther\",\"Brain-Prompts\",\"Brain-Other\""
-              elif [ "$trimmed" = "Hands" ]; then
-                EXPANDED="$EXPANDED,\"Hands-ToolHandlers\",\"Hands-Skills\",\"Hands-Api\",\"Hands-Shell\""
-              elif [ "$trimmed" = "Guard" ]; then
+              if [ "$trimmed" = "Guard" ]; then
                 EXPANDED="$EXPANDED,\"Guard-Config\",\"Guard-Security\",\"Guard-Hooks\""
+              elif [ "$trimmed" = "Vault" ]; then
+                EXPANDED="$EXPANDED,\"Vault-Memdir\",\"Vault-Other\""
+              elif [ "$trimmed" = "Brain" ]; then
+                EXPANDED="$EXPANDED,\"Brain-CtxAdmin\",\"Brain-CtxChat\",\"Brain-CtxOther\",\"Brain-CtxNonServices\",\"Brain-PromptsSections\",\"Brain-PromptsOther\",\"Brain-Other\""
+              elif [ "$trimmed" = "Hands" ]; then
+                EXPANDED="$EXPANDED,\"Hands-SysTools\",\"Hands-CoreHandlers\",\"Hands-DevTools\",\"Hands-SkillServices\",\"Hands-SkillBuiltIn\",\"Hands-SkillOther\",\"Hands-Api\",\"Hands-Shell\""
+              elif [ "$trimmed" = "Host" ]; then
+                EXPANDED="$EXPANDED,\"Host-Commands\",\"Host-Other\""
               else
                 EXPANDED="$EXPANDED,\"$trimmed\""
               fi
@@ -81,7 +85,7 @@ jobs:
     name: Stryker - ${{ matrix.project }}
     needs: prepare
     runs-on: windows-latest
-    timeout-minutes: 60
+    timeout-minutes: 30
     strategy:
       matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
       fail-fast: false
@@ -134,33 +138,42 @@ jobs:
           STRYKER_BREAK: ${{ github.event.inputs.break_threshold || '0' }}
         run: |
           $projectMap = @{
-            'Guard-Config'     = @{ Dir = 'core\safety\Guard\tests\Config';   Src = 'Guard.csproj'; Mutate = @('Configuration/**','DependencyInjection/**','Policy/**','OAuth/**') }
-            'Guard-Security'   = @{ Dir = 'core\safety\Guard\tests\Security'; Src = 'Guard.csproj'; Mutate = @('Security/**') }
-            'Guard-Hooks'      = @{ Dir = 'core\safety\Guard\tests\Hooks';    Src = 'Guard.csproj'; Mutate = @('Hooks/**','Permission/**') }
-            'Vault'             = @{ Dir = 'core\safety\Vault\tests\Unit';             Src = 'Vault.csproj';           Mutate = @() }
-            'Brain-ContextServices' = @{ Dir = 'core\execution\Brain\tests\Unit'; Src = 'Brain.csproj'; Mutate = @('Context/Services/**') }
-            'Brain-ContextOther'    = @{ Dir = 'core\execution\Brain\tests\Unit'; Src = 'Brain.csproj'; Mutate = @('Context/Compact/**','Context/Compression/**','Context/Collapse/**','Context/Core/**','Context/Resolution/**') }
-            'Brain-Prompts'     = @{ Dir = 'core\execution\Brain\tests\Unit';          Src = 'Brain.csproj';           Mutate = @('Prompts/**') }
-            'Brain-Other'       = @{ Dir = 'core\execution\Brain\tests\Unit';          Src = 'Brain.csproj';           Mutate = @('Cache/**','ContextFold/**','CostTracking/**','DependencyInjection/**','Planning/**','Query/**','Summary/**') }
-            'Hands-ToolHandlers'= @{ Dir = 'core\execution\Hands\tests\Unit';          Src = 'Hands.csproj';           Mutate = @('ToolHandlers/**') }
-            'Hands-Skills'      = @{ Dir = 'core\execution\Hands\tests\Unit';          Src = 'Hands.csproj';           Mutate = @('Skills/**') }
-            'Hands-Api'         = @{ Dir = 'core\execution\Hands\tests\Unit';          Src = 'Hands.csproj';           Mutate = @('Api/**','Web/**','Network/**','Integration/**') }
-            'Hands-Shell'        = @{ Dir = 'core\execution\Hands\tests\Unit';          Src = 'Hands.csproj';           Mutate = @('Shell/**','FileOps/**','System/**','Voice/**','Notebook/**','Serialization/**','Build/**','Cache/**','DependencyInjection/**') }
-            'Scheduling'        = @{ Dir = 'core\execution\Scheduling\tests\Unit';     Src = 'Scheduling.csproj';      Mutate = @() }
-            'McpToolDispatch'   = @{ Dir = 'core\execution\McpToolDispatch\tests\Unit'; Src = 'McpToolDispatch.csproj'; Mutate = @() }
-            'Llm'               = @{ Dir = 'core\ai\Llm\tests\Unit';                  Src = 'Llm.csproj';             Mutate = @() }
-            'Agents'            = @{ Dir = 'core\ai\Agents\tests\Unit';               Src = 'Agents.csproj';          Mutate = @() }
-            'Reasoning'         = @{ Dir = 'core\ai\Reasoning\tests\Unit';            Src = 'Reasoning.csproj';       Mutate = @() }
-            'CodeIndex'         = @{ Dir = 'core\search\CodeIndex\tests\Unit';        Src = 'CodeIndex.csproj';       Mutate = @() }
-            'Browser'           = @{ Dir = 'core\search\Browser\tests\Unit';          Src = 'Browser.csproj';         Mutate = @() }
-            'Mcp'               = @{ Dir = 'services\Mcp\tests\Unit';                 Src = 'Mcp.csproj';             Mutate = @() }
-            'Eyes'              = @{ Dir = 'services\Eyes\tests\Unit';                Src = 'Eyes.csproj';            Mutate = @() }
-            'Dream'             = @{ Dir = 'services\Dream\tests\Unit';               Src = 'Dream.csproj';           Mutate = @() }
-            'Bridge'            = @{ Dir = 'services\Bridge\tests\Unit';              Src = 'Bridge.csproj';          Mutate = @() }
-            'Composition'       = @{ Dir = 'composition\Composition\tests\Unit';      Src = 'Composition.csproj';     Mutate = @() }
-            'Clock'             = @{ Dir = 'composition\Clock\tests\Unit';            Src = 'Clock.csproj';           Mutate = @() }
-            'Infra'             = @{ Dir = 'tests\Unit\Infra.Tests';                  Src = 'Infrastructure.csproj';  Mutate = @() }
-            'Host'              = @{ Dir = 'tests\Unit\Host.Tests';                   Src = 'JoinCode.csproj';        Mutate = @() }
+            'Guard-Config'         = @{ Dir = 'core\safety\Guard\tests\Config';   Src = 'Guard.csproj';           Mutate = @('Configuration/**','DependencyInjection/**','Policy/**','OAuth/**') }
+            'Guard-Security'       = @{ Dir = 'core\safety\Guard\tests\Security'; Src = 'Guard.csproj';           Mutate = @('Security/**') }
+            'Guard-Hooks'          = @{ Dir = 'core\safety\Guard\tests\Hooks';    Src = 'Guard.csproj';           Mutate = @('Hooks/**','Permission/**') }
+            'Vault-Memdir'         = @{ Dir = 'core\safety\Vault\tests\Unit';     Src = 'Vault.csproj';           Mutate = @('Memdir/**') }
+            'Vault-Other'          = @{ Dir = 'core\safety\Vault\tests\Unit';     Src = 'Vault.csproj';           Mutate = @('State/**','Todo/**','UserInteraction/**','StepEvidence/**','Notification/**','DependencyInjection/**') }
+            'Brain-CtxAdmin'       = @{ Dir = 'core\execution\Brain\tests\Unit';  Src = 'Brain.csproj';           Mutate = @('Context/Services/Admin/**') }
+            'Brain-CtxChat'        = @{ Dir = 'core\execution\Brain\tests\Unit';  Src = 'Brain.csproj';           Mutate = @('Context/Services/Chat/**','Context/Services/ChatInit/**') }
+            'Brain-CtxOther'       = @{ Dir = 'core\execution\Brain\tests\Unit';  Src = 'Brain.csproj';           Mutate = @('Context/Services/Preprocess/**','Context/Services/Context/**','Context/Services/Processor/**','Context/Services/Prompt/**','Context/Services/Idle/**','Context/Services/Loop/**') }
+            'Brain-CtxNonServices' = @{ Dir = 'core\execution\Brain\tests\Unit';  Src = 'Brain.csproj';           Mutate = @('Context/Compact/**','Context/Compression/**','Context/Collapse/**','Context/Core/**','Context/Resolution/**') }
+            'Brain-PromptsSections'= @{ Dir = 'core\execution\Brain\tests\Unit';  Src = 'Brain.csproj';           Mutate = @('Prompts/Sections/**') }
+            'Brain-PromptsOther'   = @{ Dir = 'core\execution\Brain\tests\Unit';  Src = 'Brain.csproj';           Mutate = @('Prompts/Services/**','Prompts/Testing/**','Prompts/Templates/**','Prompts/Utils/**','Prompts/Core/**') }
+            'Brain-Other'          = @{ Dir = 'core\execution\Brain\tests\Unit';  Src = 'Brain.csproj';           Mutate = @('Cache/**','ContextFold/**','CostTracking/**','DependencyInjection/**','Planning/**','Query/**','Summary/**') }
+            'Hands-SysTools'       = @{ Dir = 'core\execution\Hands\tests\Unit';  Src = 'Hands.csproj';           Mutate = @('ToolHandlers/Handlers/SystemTools/**') }
+            'Hands-CoreHandlers'   = @{ Dir = 'core\execution\Hands\tests\Unit';  Src = 'Hands.csproj';           Mutate = @('ToolHandlers/Handlers/Core/**') }
+            'Hands-DevTools'       = @{ Dir = 'core\execution\Hands\tests\Unit';  Src = 'Hands.csproj';           Mutate = @('ToolHandlers/Handlers/DevTools/**') }
+            'Hands-SkillServices'  = @{ Dir = 'core\execution\Hands\tests\Unit';  Src = 'Hands.csproj';           Mutate = @('Skills/Services/**','Skills/Mcp/**','Skills/Plugin/**') }
+            'Hands-SkillBuiltIn'   = @{ Dir = 'core\execution\Hands\tests\Unit';  Src = 'Hands.csproj';           Mutate = @('Skills/BuiltIn/**','Skills/Skills/**') }
+            'Hands-SkillOther'     = @{ Dir = 'core\execution\Hands\tests\Unit';  Src = 'Hands.csproj';           Mutate = @('Skills/Discovery/**','Skills/Search/**','Skills/Utils/**') }
+            'Hands-Api'            = @{ Dir = 'core\execution\Hands\tests\Unit';  Src = 'Hands.csproj';           Mutate = @('Api/**','Web/**','Network/**','Integration/**') }
+            'Hands-Shell'          = @{ Dir = 'core\execution\Hands\tests\Unit';  Src = 'Hands.csproj';           Mutate = @('Shell/**','FileOps/**','System/**','Voice/**','Notebook/**','Serialization/**','Build/**','Cache/**','DependencyInjection/**') }
+            'Scheduling'           = @{ Dir = 'core\execution\Scheduling\tests\Unit';     Src = 'Scheduling.csproj';      Mutate = @() }
+            'McpToolDispatch'      = @{ Dir = 'core\execution\McpToolDispatch\tests\Unit'; Src = 'McpToolDispatch.csproj'; Mutate = @() }
+            'Llm'                  = @{ Dir = 'core\ai\Llm\tests\Unit';                  Src = 'Llm.csproj';             Mutate = @() }
+            'Agents'               = @{ Dir = 'core\ai\Agents\tests\Unit';               Src = 'Agents.csproj';          Mutate = @() }
+            'Reasoning'            = @{ Dir = 'core\ai\Reasoning\tests\Unit';            Src = 'Reasoning.csproj';       Mutate = @() }
+            'CodeIndex'            = @{ Dir = 'core\search\CodeIndex\tests\Unit';        Src = 'CodeIndex.csproj';       Mutate = @() }
+            'Browser'              = @{ Dir = 'core\search\Browser\tests\Unit';          Src = 'Browser.csproj';         Mutate = @() }
+            'Mcp'                  = @{ Dir = 'services\Mcp\tests\Unit';                 Src = 'Mcp.csproj';             Mutate = @() }
+            'Eyes'                 = @{ Dir = 'services\Eyes\tests\Unit';                Src = 'Eyes.csproj';            Mutate = @() }
+            'Dream'                = @{ Dir = 'services\Dream\tests\Unit';               Src = 'Dream.csproj';            Mutate = @() }
+            'Bridge'               = @{ Dir = 'services\Bridge\tests\Unit';              Src = 'Bridge.csproj';           Mutate = @() }
+            'Composition'          = @{ Dir = 'composition\Composition\tests\Unit';      Src = 'Composition.csproj';     Mutate = @() }
+            'Clock'                = @{ Dir = 'composition\Clock\tests\Unit';            Src = 'Clock.csproj';           Mutate = @() }
+            'Infra'                = @{ Dir = 'tests\Unit\Infra.Tests';                  Src = 'Infrastructure.csproj';  Mutate = @() }
+            'Host-Commands'        = @{ Dir = 'tests\Unit\Host.Tests';                   Src = 'JoinCode.csproj';        Mutate = @('Commands/**') }
+            'Host-Other'           = @{ Dir = 'tests\Unit\Host.Tests';                   Src = 'JoinCode.csproj';        Mutate = @('App/**','Cli/**','Entry/**','Pipe/**','Services/**') }
           }
 
           $name = $env:STRYKER_PROJECT
@@ -172,14 +185,18 @@ jobs:
           $breakThreshold = [int]$env:STRYKER_BREAK
 
           $slnxMap = @{
-            'Guard-Config' = 'Core.slnx'; 'Guard-Security' = 'Core.slnx'; 'Guard-Hooks' = 'Core.slnx'; 'Vault' = 'Core.slnx'
-            'Brain-ContextServices' = 'Core.slnx'; 'Brain-ContextOther' = 'Core.slnx'; 'Brain-Prompts' = 'Core.slnx'; 'Brain-Other' = 'Core.slnx'
-            'Hands-ToolHandlers' = 'Core.slnx'; 'Hands-Skills' = 'Core.slnx'; 'Hands-Api' = 'Core.slnx'; 'Hands-Shell' = 'Core.slnx'
+            'Guard-Config' = 'Core.slnx'; 'Guard-Security' = 'Core.slnx'; 'Guard-Hooks' = 'Core.slnx'
+            'Vault-Memdir' = 'Core.slnx'; 'Vault-Other' = 'Core.slnx'
+            'Brain-CtxAdmin' = 'Core.slnx'; 'Brain-CtxChat' = 'Core.slnx'; 'Brain-CtxOther' = 'Core.slnx'; 'Brain-CtxNonServices' = 'Core.slnx'
+            'Brain-PromptsSections' = 'Core.slnx'; 'Brain-PromptsOther' = 'Core.slnx'; 'Brain-Other' = 'Core.slnx'
+            'Hands-SysTools' = 'Core.slnx'; 'Hands-CoreHandlers' = 'Core.slnx'; 'Hands-DevTools' = 'Core.slnx'
+            'Hands-SkillServices' = 'Core.slnx'; 'Hands-SkillBuiltIn' = 'Core.slnx'; 'Hands-SkillOther' = 'Core.slnx'
+            'Hands-Api' = 'Core.slnx'; 'Hands-Shell' = 'Core.slnx'
             'Scheduling' = 'Core.slnx'; 'McpToolDispatch' = 'Core.slnx'; 'Llm' = 'Core.slnx'; 'Agents' = 'Core.slnx'; 'Reasoning' = 'Core.slnx'
             'CodeIndex' = 'Core.slnx'; 'Browser' = 'Core.slnx'
             'Mcp' = 'Services.slnx'; 'Eyes' = 'Services.slnx'; 'Dream' = 'Services.slnx'; 'Bridge' = 'Services.slnx'
             'Composition' = 'Composition.slnx'; 'Clock' = 'Composition.slnx'
-            'Infra' = 'App.slnx'; 'Host' = 'App.slnx'
+            'Infra' = 'App.slnx'; 'Host-Commands' = 'App.slnx'; 'Host-Other' = 'App.slnx'
           }
           $slnx = $slnxMap[$name]
           $slnxPath = Join-Path $env:GITHUB_WORKSPACE $slnx

@@ -42,6 +42,10 @@ public sealed partial class ContextSetupMiddleware : IAgentSpawnMiddleware
             ReadFileState = _fileStateCache?.Clone(),
             // 对齐 TS executeForkedSkill: 传递 effort 给子智能体
             Effort = context.Options.Effort,
+            GoalId = context.Options.GoalId,
+            GraphNodeId = context.Options.GraphNodeId,
+            TokenBudget = context.Options.TokenBudget,
+            FreshContext = context.Options.FreshContext,
         };
 
         context.SubOptions = subOptions;

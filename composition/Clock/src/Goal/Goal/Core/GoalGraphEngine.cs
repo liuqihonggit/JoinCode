@@ -248,6 +248,11 @@ public sealed partial class GoalGraphEngine
             Prompt = instruction,
             AgentType = payload.AgentType,
             RunInBackground = false,
+            GoalId = context.State.GoalId,
+            GraphNodeId = nodeId,
+            TokenBudget = payload.TokenBudget,
+            FreshContext = payload.FreshContext,
+            SystemPrompt = payload.SystemPrompt,
         };
 
         var totalTokens = 0;

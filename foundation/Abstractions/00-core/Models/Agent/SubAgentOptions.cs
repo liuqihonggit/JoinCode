@@ -27,4 +27,8 @@ public sealed class SubAgentOptions
     public string? SessionId { get; init; }
     public JoinCode.Abstractions.Interfaces.IFileStateCache? ReadFileState { get; init; }
     public string? Effort { get; init; }
+    public string? GoalId { get; init; }
+    public string? GraphNodeId { get; init; }
+    public int? TokenBudget { get; init; }
+    public bool FreshContext { get; init; }
 }

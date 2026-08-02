@@ -30,7 +30,19 @@ public sealed partial class AgentLifecycleManager : IAgentLifecycleManager
     /// </summary>
     public Task<IAgent> SpawnSubAgentAsync(string task, SubAgentOptions? options = null, CancellationToken cancellationToken = default)
     {
-        var agent = new Agent(task, options, _queryEngine, _logger);
+        var agent = new Agent(
+            task,
+            options,
+            _queryEngine,
+            _logger,
+            name: options?.DisplayName,
+            isSubAgent: true,
+            agentType: options?.AgentType,
+            systemPrompt: options?.SystemPrompt,
+            freshContext: options?.FreshContext ?? false,
+            tokenBudget: options?.TokenBudget,
+            goalId: options?.GoalId,
+            graphNodeId: options?.GraphNodeId);
         var agentId = agent.Id;
 
         _subAgents[agentId] = agent;

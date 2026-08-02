@@ -1097,7 +1097,26 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
             return;
         }
 
-        _logger?.LogInformation("[GoalEngine] mainAgent 将在 CliSession 中创建，Goal={GoalId}", goalId);
+        var queryEngine = _serviceProvider.GetService<IQueryEngine>();
+        if (queryEngine is null)
+        {
+            _logger?.LogWarning("[GoalEngine] IQueryEngine 未注入，无法创建 mainAgent，Goal={GoalId}", goalId);
+            return;
+        }
+
+        var mainAgent = new Core.Agents.Coordinator.Agent(
+            task: objective,
+            options: new SubAgentOptions { DisplayName = "mainAgent", AgentType = "main" },
+            queryEngine: queryEngine,
+            logger: _logger,
+            clock: _clock,
+            name: "mainAgent",
+            isSubAgent: false,
+            agentType: "main",
+            goalId: goalId,
+            tokenBudget: tokenBudget);
+
+        _logger?.LogInformation("[GoalEngine] mainAgent 创建并注册到 Agent.Registry: {AgentId}, Goal={GoalId}", mainAgent.Id, goalId);
     }
 }
 

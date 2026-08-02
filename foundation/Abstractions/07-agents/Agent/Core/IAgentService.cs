@@ -232,6 +232,31 @@ public sealed record AgentSpawnOptions
     /// 技能 fork 模式下，设置子智能体的推理努力级别
     /// </summary>
     public string? Effort { get; init; }
+
+    /// <summary>
+    /// Goal 绑定标识 — 该 Agent 服务于哪个 Goal
+    /// </summary>
+    public string? GoalId { get; init; }
+
+    /// <summary>
+    /// Graph 节点绑定标识 — 该 Agent 绑定到 Goal Graph 的哪个节点
+    /// </summary>
+    public string? GraphNodeId { get; init; }
+
+    /// <summary>
+    /// Token 预算 — 限制 Agent 的 Token 消耗
+    /// </summary>
+    public int? TokenBudget { get; init; }
+
+    /// <summary>
+    /// 是否使用全新上下文 — 不继承父 Agent 的 ChatHistory
+    /// </summary>
+    public bool FreshContext { get; init; }
+
+    /// <summary>
+    /// 系统提示词覆盖
+    /// </summary>
+    public string? SystemPrompt { get; init; }
 }
 
 /// <summary>

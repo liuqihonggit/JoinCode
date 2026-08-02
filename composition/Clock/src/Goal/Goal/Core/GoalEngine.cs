@@ -21,6 +21,8 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
     private PermissionMode? _savedPermissionMode;
     private readonly MessageList _chatHistory;
     private TaskCompletionSource? _completionTcs;
+    private GoalGraph? _goalGraph;
+    private GoalGraphEngine? _graphEngine;
 
     public GoalState? CurrentState => _state;
     public bool IsRunning => _state?.Status == GoalStatus.Pursuing;
@@ -56,6 +58,25 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
         {
             _lifecyclePipeline = new MiddlewarePipeline<GoalLifecycleContext>(lifecycleMiddlewares);
         }
+    }
+
+    /// <summary>
+    /// 使用 GoalGraph 启动目标 — 执行引擎将从单 Agent 循环切换为 DAG 编排
+    /// </summary>
+    public async Task<GoalState> StartAsync(
+        GoalGraph graph,
+        GoalGraphEngine graphEngine,
+        List<string>? constraints = null,
+        int? tokenBudget = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(graph);
+        ArgumentNullException.ThrowIfNull(graphEngine);
+
+        _goalGraph = graph;
+        _graphEngine = graphEngine;
+
+        return await StartAsync(graph.Name, constraints, tokenBudget, systemPrompt: null, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<GoalState> StartAsync(
@@ -623,6 +644,14 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
     {
         try
         {
+            if (_goalGraph is not null && _graphEngine is not null && _state is not null)
+            {
+                _logger?.LogInformation("[GoalEngine] 使用 Graph 引擎执行: {GraphName}", _goalGraph.Name);
+                _state = await _graphEngine.ExecuteAsync(_goalGraph, _state, _chatHistory, ct).ConfigureAwait(false);
+                _completionTcs?.TrySetResult();
+                return;
+            }
+
             while (!ct.IsCancellationRequested)
             {
                 await _stateLock.WaitAsync(ct).ConfigureAwait(false);

@@ -165,18 +165,29 @@ jobs:
           $concurrency = [int]$env:STRYKER_CONCURRENCY
           $breakThreshold = [int]$env:STRYKER_BREAK
 
-          $strykerArgs = @("-p", $info.Src, "-c", $concurrency, "-b", $breakThreshold, "--threshold-low", "60", "--threshold-high", "80", "-r", "progress", "-r", "html", "-r", "json", "-r", "markdown")
+          $slnxMap = @{
+            'Guard' = 'Core.slnx'; 'Vault' = 'Core.slnx'
+            'Brain-Context' = 'Core.slnx'; 'Brain-Prompts' = 'Core.slnx'; 'Brain-Other' = 'Core.slnx'
+            'Hands-ToolHandlers' = 'Core.slnx'; 'Hands-Skills' = 'Core.slnx'; 'Hands-Other' = 'Core.slnx'
+            'Scheduling' = 'Core.slnx'; 'McpToolDispatch' = 'Core.slnx'; 'Llm' = 'Core.slnx'; 'Agents' = 'Core.slnx'; 'Reasoning' = 'Core.slnx'
+            'CodeIndex' = 'Core.slnx'; 'Browser' = 'Core.slnx'
+            'Mcp' = 'Services.slnx'; 'Eyes' = 'Services.slnx'; 'Dream' = 'Services.slnx'; 'Bridge' = 'Services.slnx'
+            'Composition' = 'Composition.slnx'; 'Clock' = 'Composition.slnx'
+            'Infra' = 'App.slnx'; 'Host' = 'App.slnx'
+          }
+          $slnx = $slnxMap[$name]
+          $slnxPath = Join-Path $env:GITHUB_WORKSPACE $slnx
 
+          $strykerArgs = @("-p", $info.Src, "-s", $slnxPath, "-c", $concurrency, "-b", $breakThreshold, "--threshold-low", "60", "--threshold-high", "80", "-r", "progress", "-r", "html", "-r", "json", "-r", "markdown")
+
+          $strykerArgs += @("--mutate", "!**/GlobalUsings.cs", "--mutate", "!**/AssemblyInfo.cs")
           if ($info.Mutate.Count -gt 0) {
-            $mutateList = @("!**/GlobalUsings.cs", "!**/AssemblyInfo.cs")
             foreach ($m in $info.Mutate) {
-              $mutateList += $m
+              $strykerArgs += @("--mutate", $m)
             }
-            $mutateJson = $mutateList | ConvertTo-Json -Compress
-            $strykerArgs += @("--mutate", $mutateJson)
           }
 
-          Write-Host "Stryker: $name | Source: $($info.Src) | Dir: $testDir | Concurrency: $concurrency | Mutate: $($info.Mutate.Count) patterns"
+          Write-Host "Stryker: $name | Source: $($info.Src) | Dir: $testDir | Slnx: $slnx | Concurrency: $concurrency | Mutate: $($info.Mutate.Count) patterns"
           Push-Location $testDir
           try {
             & dotnet-stryker @strykerArgs

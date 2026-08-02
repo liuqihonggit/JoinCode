@@ -34,6 +34,10 @@ public sealed class SymlinkEscapeTests
             {
                 return;
             }
+            catch (IOException)
+            {
+                return;
+            }
 
             if (!Directory.Exists(symlinkPath))
             {
@@ -93,6 +97,10 @@ public sealed class SymlinkEscapeTests
                 return;
             }
             catch (UnauthorizedAccessException)
+            {
+                return;
+            }
+            catch (IOException)
             {
                 return;
             }

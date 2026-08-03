@@ -310,7 +310,7 @@ public sealed class DreamCommandTests
     {
         public string RawInput { get; set; } = string.Empty;
         public string CommandName { get; set; } = string.Empty;
-        public string[] Arguments { get; set; } = [];
+        public string[] Arguments { get; set; } = Array.Empty<string>();
         public string SessionId { get; set; } = string.Empty;
         public ILogger Logger { get; } = NullLogger.Instance;
         public IConsoleOutput ConsoleOutput { get; } = null!;

@@ -13,13 +13,13 @@ public sealed class PsParsedCommand
     public string OriginalCommand { get; init; } = string.Empty;
 
     /// <summary>解析错误</summary>
-    public PsParseError[] Errors { get; init; } = [];
+    public PsParseError[] Errors { get; init; } = Array.Empty<PsParseError>();
 
     /// <summary>是否包含 stop-parsing token (--%)</summary>
     public bool HasStopParsing { get; init; }
 
     /// <summary>所有 .NET 类型字面量（TypeExpressionAst + TypeConstraintAst）</summary>
-    public string[] TypeLiterals { get; init; } = [];
+    public string[] TypeLiterals { get; init; } = Array.Empty<string>();
 
     /// <summary>是否包含 using 语句（using module/assembly）</summary>
     public bool HasUsingStatements { get; init; }
@@ -28,10 +28,10 @@ public sealed class PsParsedCommand
     public bool HasScriptRequirements { get; init; }
 
     /// <summary>所有语句</summary>
-    public PsStatement[] Statements { get; init; } = [];
+    public PsStatement[] Statements { get; init; } = Array.Empty<PsStatement>();
 
     /// <summary>所有变量引用</summary>
-    public PsVariable[] Variables { get; init; } = [];
+    public PsVariable[] Variables { get; init; } = Array.Empty<PsVariable>();
 
     /// <summary>安全标志（从 AST 推导）</summary>
     public PsSecurityFlags? SecurityFlags { get; init; }
@@ -55,13 +55,13 @@ public sealed class PsStatement
     public string StatementType { get; init; } = string.Empty;
 
     /// <summary>主命令列表（管道段）</summary>
-    public PsCommandElement[] Commands { get; init; } = [];
+    public PsCommandElement[] Commands { get; init; } = Array.Empty<PsCommandElement>();
 
     /// <summary>嵌套命令列表（控制流 if/foreach/while 等内部的命令）</summary>
-    public PsCommandElement[] NestedCommands { get; init; } = [];
+    public PsCommandElement[] NestedCommands { get; init; } = Array.Empty<PsCommandElement>();
 
     /// <summary>语句级重定向</summary>
-    public PsRedirection[] Redirections { get; init; } = [];
+    public PsRedirection[] Redirections { get; init; } = Array.Empty<PsRedirection>();
 
     /// <summary>完整文本</summary>
     public string Text { get; init; } = string.Empty;
@@ -93,16 +93,16 @@ public sealed class PsCommandElement
     public PsCommandNameType NameType { get; init; }
 
     /// <summary>所有参数（包含 -Flag 形式）</summary>
-    public string[] Args { get; init; } = [];
+    public string[] Args { get; init; } = Array.Empty<string>();
 
     /// <summary>每个元素的 AST 类型（Name + Args，索引 0 = Name）</summary>
-    public PsElementType[] ElementTypes { get; init; } = [];
+    public PsElementType[] ElementTypes { get; init; } = Array.Empty<PsElementType>();
 
     /// <summary>完整文本</summary>
     public string Text { get; init; } = string.Empty;
 
     /// <summary>重定向列表</summary>
-    public PsRedirection[] Redirections { get; init; } = [];
+    public PsRedirection[] Redirections { get; init; } = Array.Empty<PsRedirection>();
 }
 
 /// <summary>

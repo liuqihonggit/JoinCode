@@ -28,7 +28,7 @@ public sealed class PromptSectionAttribute : Attribute
     /// 触发关键词列表（中文/英文均可），生成器自动生成正则和枚举
     /// 留空表示无关键词触发（仅通过 InjectOn 条件注入）
     /// </summary>
-    public string[] Keywords { get; init; } = [];
+    public string[] Keywords { get; init; } = Array.Empty<string>();
 
     /// <summary>
     /// 注入条件：Keyword=关键词触发, AgentMode=Agent模式自动注入, CoordinatorMode=协调器模式自动注入

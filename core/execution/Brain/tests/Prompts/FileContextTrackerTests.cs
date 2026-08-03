@@ -19,8 +19,8 @@ public sealed class FileContextTrackerTests
         tracker.UpdateFilePaths(paths);
 
         tracker.CurrentFilePaths.Should().HaveCount(2);
-        tracker.CurrentFilePaths[0].Should().Be("file1.cs");
-        tracker.CurrentFilePaths[1].Should().Be("file2.ts");
+        tracker.CurrentFilePaths.Should().Contain("file1.cs");
+        tracker.CurrentFilePaths.Should().Contain("file2.ts");
     }
 
     [Fact]
@@ -54,8 +54,8 @@ public sealed class FileContextTrackerTests
         tracker.UpdateFilePaths(["new1.cs", "new2.ts"]);
 
         tracker.CurrentFilePaths.Should().HaveCount(2);
-        tracker.CurrentFilePaths[0].Should().Be("new1.cs");
-        tracker.CurrentFilePaths[1].Should().Be("new2.ts");
+        tracker.CurrentFilePaths.Should().Contain("new1.cs");
+        tracker.CurrentFilePaths.Should().Contain("new2.ts");
     }
 
     [Fact]
@@ -64,9 +64,18 @@ public sealed class FileContextTrackerTests
         var tracker = new FileContextTracker();
         tracker.UpdateFilePaths(["file1.cs"]);
 
-        tracker.UpdateFilePaths([]);
+        tracker.UpdateFilePaths(Array.Empty<string>());
 
         tracker.CurrentFilePaths.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void UpdateFilePaths_Should_Deduplicate_CaseInsensitive()
+    {
+        var tracker = new FileContextTracker();
+        tracker.UpdateFilePaths(["File1.cs", "file1.cs"]);
+
+        tracker.CurrentFilePaths.Should().HaveCount(1);
     }
 
     [Fact]

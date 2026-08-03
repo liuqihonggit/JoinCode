@@ -66,7 +66,7 @@ public sealed class TasksCommand : ChatCommandBase
             var agents = await agentCoordinator.GetRunningAgentsAsync(context.CancellationToken).ConfigureAwait(false);
             foreach (var a in agents)
             {
-                allTasks.Add((a.Id, "Agent", a.DisplayName ?? a.AgentType ?? "Unknown", "运行中"));
+                allTasks.Add((a.Id, "Agent", a.DisplayName ?? a.Variant?.ToValue() ?? a.Role.ToValue() ?? "Unknown", "运行中"));
             }
         }
 

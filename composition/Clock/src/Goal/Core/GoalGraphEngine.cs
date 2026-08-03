@@ -246,15 +246,14 @@ public sealed partial class GoalGraphEngine
         }
 
         // === 完整模式：通过 IAgentService 执行（复用基础设施）===
-        if (_agentService is not null && payload.AgentType is not null)
+        if (_agentService is not null && (payload.Role != default || payload.Variant.HasValue))
         {
             return await ExecuteViaAgentServiceAsync(nodeId, payload, instruction, context, ct).ConfigureAwait(false);
         }
 
-        // === 无回退：所有 Agent 节点必须通过 IAgentService 执行 ===
-        var missingReason = _agentService is null ? "IAgentService 未注入" : "AgentType 未指定";
+        var missingReason = _agentService is null ? "IAgentService 未注入" : "Role/Variant 未指定";
         _logger?.LogError("[GoalGraph] {NodeId}({Name}): 无法执行 Agent 节点 — {Reason}。所有 Agent 节点必须通过 IAgentService 执行", nodeId, payload.Name, missingReason);
-        return NodeResult.Failed($"Agent 节点无法执行: {missingReason}。Goal 模板必须为每个 agent 节点指定 AgentType");
+        return NodeResult.Failed($"Agent 节点无法执行: {missingReason}。Goal 模板必须为每个 agent 节点指定 Role/Variant");
     }
 
     /// <summary>
@@ -267,7 +266,8 @@ public sealed partial class GoalGraphEngine
         {
             Description = payload.Name,
             Prompt = instruction,
-            AgentType = payload.AgentType,
+            Role = payload.Role,
+            Variant = payload.Variant,
             RunInBackground = false,
             GoalId = context.State.GoalId,
             GraphNodeId = nodeId,

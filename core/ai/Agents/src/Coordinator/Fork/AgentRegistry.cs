@@ -20,7 +20,7 @@ public sealed class AgentRegistry
         if (!_agents.TryAdd(id, agent))
             return;
 
-        if (agent.IsSubAgent && agent.ParentObjectId is not null)
+        if (agent.Role == AgentRole.Executor && agent.ParentObjectId is not null)
         {
             _subAgentMap.AddOrUpdate(
                 agent.ParentObjectId.Value,
@@ -28,7 +28,7 @@ public sealed class AgentRegistry
                 (_, list) => { lock (list) { list.Add(id); } return list; });
         }
 
-        _logger?.LogDebug("[AgentRegistry] 注册 Agent: {AgentId} ({Name}, IsSub={IsSub})", id, agent.Name, agent.IsSubAgent);
+        _logger?.LogDebug("[AgentRegistry] 注册 Agent: {AgentId} ({Name}, Role={Role})", id, agent.Name, agent.Role);
     }
 
     internal bool Remove(ObjectId id)
@@ -36,7 +36,7 @@ public sealed class AgentRegistry
         if (!_agents.TryRemove(id, out var agent))
             return false;
 
-        if (agent.IsSubAgent && agent.ParentObjectId is not null)
+        if (agent.Role == AgentRole.Executor && agent.ParentObjectId is not null)
         {
             if (_subAgentMap.TryGetValue(agent.ParentObjectId.Value, out var siblings))
             {
@@ -46,7 +46,7 @@ public sealed class AgentRegistry
                 }
             }
         }
-        else if (!agent.IsSubAgent)
+        else if (agent.Role != AgentRole.Executor)
         {
             _subAgentMap.TryRemove(id, out _);
         }
@@ -58,7 +58,7 @@ public sealed class AgentRegistry
     public Agent? Get(ObjectId id) => _agents.GetValueOrDefault(id);
 
     public IReadOnlyList<Agent> GetMainAgents()
-        => [.. _agents.Values.Where(a => !a.IsSubAgent)];
+        => [.. _agents.Values.Where(a => a.Role == AgentRole.Coordinator)];
 
     public IReadOnlyList<Agent> GetSubAgents(ObjectId mainAgentId)
         => _subAgentMap.TryGetValue(mainAgentId, out var ids)

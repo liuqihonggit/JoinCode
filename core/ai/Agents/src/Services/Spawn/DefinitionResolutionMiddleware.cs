@@ -15,8 +15,8 @@ public sealed partial class DefinitionResolutionMiddleware : IAgentSpawnMiddlewa
 
     public async Task InvokeAsync(AgentSpawnContext context, JoinCode.Abstractions.Pipeline.MiddlewareDelegate<AgentSpawnContext> next, CancellationToken ct)
     {
-        context.Definition = !string.IsNullOrWhiteSpace(context.Options.AgentType)
-            ? await _definitionProvider.GetAgentDefinitionAsync(context.Options.AgentType, cancellationToken: ct).ConfigureAwait(false)
+        context.Definition = context.Options.Variant.HasValue || context.Options.Role != default
+            ? await _definitionProvider.GetAgentDefinitionAsync(context.Options.Role, context.Options.Variant, cancellationToken: ct).ConfigureAwait(false)
             : null;
 
         await next(context, ct).ConfigureAwait(false);

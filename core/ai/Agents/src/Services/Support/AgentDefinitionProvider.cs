@@ -54,14 +54,13 @@ public sealed partial class AgentDefinitionProvider : JoinCode.Abstractions.Inte
     }
 
     public async Task<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition?> GetAgentDefinitionAsync(
-        string agentType,
+        JoinCode.Abstractions.Models.Agent.AgentRole role,
+        JoinCode.Abstractions.Models.Agent.ExecutorVariant? variant = null,
         string? workingDirectory = null,
         CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(agentType);
-
         var definitions = await GetAgentDefinitionsAsync(workingDirectory, cancellationToken).ConfigureAwait(false);
-        return definitions.FirstOrDefault(d => string.Equals(d.AgentType, agentType, StringComparison.OrdinalIgnoreCase));
+        return definitions.FirstOrDefault(d => d.Role == role && d.Variant == variant);
     }
 
     /// <inheritdoc />
@@ -89,15 +88,16 @@ public sealed partial class AgentDefinitionProvider : JoinCode.Abstractions.Inte
         [
             new()
             {
-                AgentType = AgentTypeDefinition.Default.ToValue(),
+                Role = AgentRole.Coordinator,
                 WhenToUse = "General tasks with full toolset",
-                Description = "Default agent type with full toolset",
+                Description = "Coordinator agent — manages Goal lifecycle, full toolset",
                 Tools = null,
                 DisallowedTools = subAgentDisallowedTools
             },
             new()
             {
-                AgentType = AgentTypeDefinition.Code.ToValue(),
+                Role = AgentRole.Executor,
+                Variant = ExecutorVariant.Code,
                 WhenToUse = "Code reading, writing, editing and refactoring",
                 Description = "Code agent focused on code reading, writing and editing",
                 Tools = [FileToolNameConstants.FileRead, FileToolNameConstants.FileWrite, FileToolNameConstants.FileEdit, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep, ShellToolNameConstants.Bash, SearchToolNameConstants.SearchCodebase],
@@ -105,7 +105,8 @@ public sealed partial class AgentDefinitionProvider : JoinCode.Abstractions.Inte
             },
             new()
             {
-                AgentType = AgentTypeDefinition.Search.ToValue(),
+                Role = AgentRole.Executor,
+                Variant = ExecutorVariant.Search,
                 WhenToUse = "Code search, navigation and exploration",
                 Description = "Search agent focused on code search and navigation",
                 Tools = [FileToolNameConstants.FileRead, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep, SearchToolNameConstants.SearchCodebase],
@@ -113,7 +114,8 @@ public sealed partial class AgentDefinitionProvider : JoinCode.Abstractions.Inte
             },
             new()
             {
-                AgentType = AgentTypeDefinition.Explore.ToValue(),
+                Role = AgentRole.Executor,
+                Variant = ExecutorVariant.Explore,
                 WhenToUse = "Quick codebase exploration agent for file pattern search, keyword search, and codebase Q&A. Supports thoroughness levels: quick/medium/very thorough",
                 Description = "Explore agent — strictly read-only, for searching and understanding code",
                 Tools = [FileToolNameConstants.FileRead, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep, SearchToolNameConstants.SearchCodebase, ShellToolNameConstants.Bash],
@@ -124,7 +126,8 @@ public sealed partial class AgentDefinitionProvider : JoinCode.Abstractions.Inte
             },
             new()
             {
-                AgentType = AgentTypeDefinition.Plan.ToValue(),
+                Role = AgentRole.Executor,
+                Variant = ExecutorVariant.Plan,
                 WhenToUse = "Software architect agent that designs implementation plans, returns step-by-step plans, key files, and architectural trade-offs",
                 Description = "Plan agent — strictly read-only, for designing implementation plans",
                 Tools = [FileToolNameConstants.FileRead, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep, SearchToolNameConstants.SearchCodebase, ShellToolNameConstants.Bash],
@@ -135,7 +138,8 @@ public sealed partial class AgentDefinitionProvider : JoinCode.Abstractions.Inte
             },
             new()
             {
-                AgentType = AgentTypeDefinition.Doctor.ToValue(),
+                Role = AgentRole.Executor,
+                Variant = ExecutorVariant.Doctor,
                 WhenToUse = "自举复盘与修复 — 分析链路日志，发现缺陷，生成修复 patch",
                 Description = "Doctor agent — 自举修复，后台运行，Cron 调度每12h复盘",
                 Tools = [FileToolNameConstants.FileRead, FileToolNameConstants.FileEdit, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep, ShellToolNameConstants.Bash],
@@ -215,7 +219,7 @@ public sealed partial class AgentDefinitionProvider : JoinCode.Abstractions.Inte
                 if (definition is not null)
                 {
                     definitions.Add(definition);
-                    _logger?.LogInformation("已加载代理定义: {AgentType} ({Path})", definition.AgentType, definition.SourcePath);
+                    _logger?.LogInformation("已加载代理定义: {DisplayId} ({Path})", definition.DisplayId, definition.SourcePath);
                 }
             }
         }
@@ -251,13 +255,19 @@ public sealed partial class AgentDefinitionProvider : JoinCode.Abstractions.Inte
         var agentType = GetFileNameWithoutExtension(sourcePath);
         if (string.IsNullOrWhiteSpace(agentType)) return null;
 
+        var nameOverride = GetStringFromData(result.Data, "name", "agent_type", "type");
+        var effectiveName = !string.IsNullOrWhiteSpace(nameOverride) ? nameOverride : agentType;
+
+        var (role, variant) = ParseRoleAndVariant(effectiveName);
+
         var whenToUse = GetStringFromData(result.Data, "when_to_use", "whenToUse", "description");
         if (string.IsNullOrWhiteSpace(whenToUse))
-            whenToUse = $"自定义代理: {agentType}";
+            whenToUse = $"自定义代理: {effectiveName}";
 
         var definition = new JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition
         {
-            AgentType = agentType,
+            Role = role,
+            Variant = variant,
             WhenToUse = whenToUse,
             Description = GetStringFromData(result.Data, "description", "desc"),
             Tools = GetStringListFromData(result.Data, "tools", "allowed_tools"),
@@ -275,10 +285,6 @@ public sealed partial class AgentDefinitionProvider : JoinCode.Abstractions.Inte
             RequiredMcpServers = GetStringListFromData(result.Data, "required_mcp_servers", "requiredMcpServers"),
             Memory = ParseMemoryScopeFromData(result.Data)
         };
-
-        var nameOverride = GetStringFromData(result.Data, "name", "agent_type", "type");
-        if (!string.IsNullOrWhiteSpace(nameOverride))
-            definition.AgentType = nameOverride;
 
         return definition;
     }
@@ -584,17 +590,44 @@ public sealed partial class AgentDefinitionProvider : JoinCode.Abstractions.Inte
 
         foreach (var def in definitions)
         {
-            if (indexMap.TryAdd(def.AgentType, result.Count))
+            if (indexMap.TryAdd(def.DisplayId, result.Count))
             {
                 result.Add(def);
             }
             else if (def.SourcePath is not null)
             {
-                var existingIdx = indexMap[def.AgentType];
+                var existingIdx = indexMap[def.DisplayId];
                 result[existingIdx] = def;
             }
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// 从字符串解析角色和变体 — 支持 "coordinator"、"executor:code"、"code"（简写）等格式
+    /// </summary>
+    private static (AgentRole Role, ExecutorVariant? Variant) ParseRoleAndVariant(string name)
+    {
+        if (name.Contains(':'))
+        {
+            var parts = name.Split(':', 2);
+            var roleStr = parts[0].Trim();
+            var variantStr = parts[1].Trim();
+
+            var role = AgentRoleExtensions.FromValue(roleStr);
+            var variant = ExecutorVariantExtensions.FromValue(variantStr);
+            return (role ?? AgentRole.Executor, variant);
+        }
+
+        var existingVariant = ExecutorVariantExtensions.FromValue(name);
+        if (existingVariant.HasValue)
+            return (AgentRole.Executor, existingVariant.Value);
+
+        var existingRole = AgentRoleExtensions.FromValue(name);
+        if (existingRole.HasValue)
+            return (existingRole.Value, null);
+
+        return (AgentRole.Executor, null);
     }
 }

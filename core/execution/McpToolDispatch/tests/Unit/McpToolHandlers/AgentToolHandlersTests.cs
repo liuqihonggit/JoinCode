@@ -13,7 +13,8 @@ public class AgentToolHandlersTests
             {
                 Id = Guid.NewGuid().ToString("N")[..8],
                 Description = opt.Description,
-                AgentType = opt.AgentType,
+                Role = AgentRole.Executor,
+                Variant = opt.Variant,
                 Status = opt.RunInBackground ? AgentStatus.Running : AgentStatus.Completed,
                 IsolationMode = opt.IsolationMode,
                 StartedAt = DateTime.UtcNow
@@ -52,7 +53,8 @@ public class AgentToolHandlersTests
                 {
                     Id = "agent-1",
                     Description = "正在修复bug",
-                    AgentType = "general",
+                    Role = AgentRole.Executor,
+                    Variant = ExecutorVariant.Code,
                     StartedAt = DateTime.UtcNow,
                     State = AgentStatus.Running
                 },
@@ -60,7 +62,8 @@ public class AgentToolHandlersTests
                 {
                     Id = "agent-2",
                     Description = "正在分析代码",
-                    AgentType = "code-explorer",
+                    Role = AgentRole.Executor,
+                    Variant = ExecutorVariant.Search,
                     StartedAt = DateTime.UtcNow.AddMinutes(-5),
                     State = AgentStatus.Running
                 }

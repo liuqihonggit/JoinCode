@@ -6,6 +6,8 @@ namespace JoinCode.Abstractions.Interfaces;
 public sealed class AgentMetadata
 {
     public required string AgentId { get; init; }
+    public AgentRole Role { get; init; }
+    public ExecutorVariant? Variant { get; init; }
     public string? AgentType { get; init; }
     public string? Description { get; init; }
     public string? WorktreePath { get; init; }

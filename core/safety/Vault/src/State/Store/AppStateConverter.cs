@@ -33,7 +33,8 @@ public static class AppStateConverter
                 {
                     AgentId = kvp.Value.AgentId,
                     Name = kvp.Value.Name,
-                    AgentType = kvp.Value.AgentType,
+                    Role = kvp.Value.Role,
+                    Variant = kvp.Value.Variant,
                     Status = kvp.Value.Status,
                     WorkingDirectory = kvp.Value.WorkingDirectory,
                     CurrentTaskId = kvp.Value.CurrentTaskId,
@@ -103,7 +104,8 @@ public static class AppStateConverter
                 {
                     AgentId = kvp.Value.AgentId,
                     Name = kvp.Value.Name,
-                    AgentType = kvp.Value.AgentType,
+                    Role = kvp.Value.Role,
+                    Variant = kvp.Value.Variant,
                     Status = kvp.Value.Status,
                     WorkingDirectory = kvp.Value.WorkingDirectory,
                     CurrentTaskId = kvp.Value.CurrentTaskId,

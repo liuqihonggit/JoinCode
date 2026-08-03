@@ -1,5 +1,7 @@
 namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 
+using JoinCode.Abstractions.Models.Agent;
+
 /// <summary>
 /// AgentTool 提示词
 /// </summary>
@@ -17,12 +19,11 @@ public static class AgentToolPrompt
         List<string>? allowedAgentTypes = null,
         bool forkEnabled = false)
     {
-        // 根据允许的类型过滤代理 - 使用 HashSet 优化查找
         List<AgentDefinition> effectiveAgents;
         if (allowedAgentTypes != null && allowedAgentTypes.Count > 0)
         {
             var allowedSet = new HashSet<string>(allowedAgentTypes);
-            effectiveAgents = agentDefinitions.Where(a => allowedSet.Contains(a.AgentType)).ToList();
+            effectiveAgents = agentDefinitions.Where(a => allowedSet.Contains(a.DisplayId)).ToList();
         }
         else
         {
@@ -190,7 +191,7 @@ Agent 工具启动专门处理复杂任务的代理（子进程）。每种代�
     private static string FormatAgentLine(AgentDefinition agent)
     {
         var toolsDescription = GetToolsDescription(agent);
-        return $"- {agent.AgentType}: {agent.WhenToUse} (工具: {toolsDescription})";
+        return $"- {agent.DisplayId}: {agent.WhenToUse} (工具: {toolsDescription})";
     }
 
     /// <summary>
@@ -229,7 +230,8 @@ Agent 工具启动专门处理复杂任务的代理（子进程）。每种代�
 /// </summary>
 public class AgentDefinition
 {
-    public required string AgentType { get; set; }
+    public required AgentRole Role { get; set; }
+    public ExecutorVariant? Variant { get; set; }
     public required string WhenToUse { get; set; }
     public List<string>? Tools { get; set; }
     public List<string>? DisallowedTools { get; set; }
@@ -263,6 +265,13 @@ public class AgentDefinition
     /// 对齐 TS: resolvedSystemContext = Explore/Plan ? systemContextNoGit : baseSystemContext
     /// </summary>
     public bool OmitGitStatus { get; init; }
+
+    /// <summary>
+    /// 获取显示标识 — "coordinator" 或 "executor:code"
+    /// </summary>
+    public string DisplayId => Variant.HasValue
+        ? $"{Role.ToValue()}:{Variant.Value.ToValue()}"
+        : Role.ToValue();
 }
 
 /// <summary>

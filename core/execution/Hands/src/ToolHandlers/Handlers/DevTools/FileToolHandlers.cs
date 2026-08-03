@@ -427,7 +427,7 @@ public class FileToolHandlers : IDisposable
         // 关键词维护 Agent 编辑校验 — 限制只有 keywordMaintenance Agent 能编辑 keyword-sections.json
         if (IsKeywordSectionsPath(file_path) && _fs.FileExists(file_path))
         {
-            var currentAgentType = _subAgentContextAccessor?.Current?.AgentType;
+            var currentAgentType = _subAgentContextAccessor?.Current?.Variant?.ToValue() ?? _subAgentContextAccessor?.Current?.Role.ToValue();
             if (currentAgentType is not null && !currentAgentType.Equals("keywordMaintenance", StringComparison.OrdinalIgnoreCase))
             {
                 RecordFileMetrics(FileOperationType.Edit, FileOperationResult.Rejected);
@@ -436,7 +436,7 @@ public class FileToolHandlers : IDisposable
         }
 
         // doctor Agent 编辑校验 — 只能编辑 .jcc/diag/、.jcc/reflexion/ 和 worktree 内文件
-        var doctorAgentType = _subAgentContextAccessor?.Current?.AgentType;
+        var doctorAgentType = _subAgentContextAccessor?.Current?.Variant?.ToValue() ?? _subAgentContextAccessor?.Current?.Role.ToValue();
         if (doctorAgentType is not null && doctorAgentType.Equals("doctor", StringComparison.OrdinalIgnoreCase))
         {
             if (!IsDoctorAllowedEditPath(file_path))

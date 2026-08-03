@@ -147,9 +147,10 @@ public sealed record AgentState
     /// </summary>
     public string AgentType { get; init; } = string.Empty;
 
-    /// <summary>
-    /// 当前状态
-    /// </summary>
+    public AgentRole Role { get; init; }
+
+    public ExecutorVariant? Variant { get; init; }
+
     public AgentStatus Status { get; init; } = AgentStatus.Idle;
 
     /// <summary>

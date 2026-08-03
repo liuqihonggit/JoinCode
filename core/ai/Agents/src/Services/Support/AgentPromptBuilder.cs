@@ -24,7 +24,9 @@ public sealed partial class AgentPromptBuilder : JoinCode.Abstractions.Interface
         JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition? definition = null;
         if (!string.IsNullOrWhiteSpace(agentType))
         {
-            definition = await _definitionProvider.GetAgentDefinitionAsync(agentType, cancellationToken: cancellationToken).ConfigureAwait(false);
+            var role = AgentRole.Executor;
+            ExecutorVariant? variant = ExecutorVariantExtensions.FromValue(agentType);
+            definition = await _definitionProvider.GetAgentDefinitionAsync(role, variant, cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         var sb = new StringBuilder();
@@ -38,10 +40,10 @@ public sealed partial class AgentPromptBuilder : JoinCode.Abstractions.Interface
             sb.AppendLine(string.Format(AgentCoordinatorConstants.SystemPrompts.SubAgentSystemMessage, task));
         }
 
-        if (!string.IsNullOrWhiteSpace(definition?.AgentType))
+        if (!string.IsNullOrWhiteSpace(definition?.DisplayId))
         {
             sb.AppendLine();
-            sb.AppendLine($"你是 {definition.AgentType} 类型的代理。");
+            sb.AppendLine($"你是 {definition.DisplayId} 类型的代理。");
         }
 
         if (!string.IsNullOrWhiteSpace(definition?.Description))

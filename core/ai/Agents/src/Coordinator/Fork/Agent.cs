@@ -23,9 +23,9 @@ public sealed class Agent : Entity, IAgent
 
     // === 身份（ObjectId/UniqueId/CreatedAt 继承自 Entity）===
     public string Name { get; }
-    public bool IsSubAgent { get; }
+    public AgentRole Role { get; }
+    public ExecutorVariant? Variant { get; }
     public ObjectId? ParentObjectId { get; init; }
-    public string? AgentType { get; }
 
     // === 任务 ===
     public string Task { get; }
@@ -67,9 +67,9 @@ public sealed class Agent : Entity, IAgent
         ILogger? logger,
         IClockService? clock = null,
         string? name = null,
-        bool isSubAgent = true,
+        AgentRole role = AgentRole.Executor,
+        ExecutorVariant? variant = null,
         ObjectId? parentObjectId = default,
-        string? agentType = null,
         string? systemPrompt = null,
         string? instruction = null,
         bool freshContext = false,
@@ -80,9 +80,9 @@ public sealed class Agent : Entity, IAgent
     {
         Task = task;
         Name = name ?? UniqueId;
-        IsSubAgent = isSubAgent;
+        Role = role;
+        Variant = variant;
         ParentObjectId = parentObjectId;
-        AgentType = agentType;
         SystemPrompt = systemPrompt;
         Instruction = instruction;
         FreshContext = freshContext;
@@ -102,7 +102,8 @@ public sealed class Agent : Entity, IAgent
         Context = new SubAgentContext
         {
             AgentId = UniqueId,
-            AgentType = agentType ?? Options.AgentType ?? AgentTypeDefinition.Default.ToValue(),
+            Role = role,
+            Variant = variant,
             Task = task,
             AllowedTools = Options.AllowedTools,
             DeniedTools = Options.DeniedTools,

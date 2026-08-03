@@ -1,5 +1,7 @@
 namespace JoinCode.Abstractions.Models.Goal;
 
+using JoinCode.Abstractions.Models.Agent;
+
 /// <summary>
 /// Goal Graph 节点 Payload — 携带执行所需的所有信息
 /// </summary>
@@ -8,14 +10,14 @@ public sealed class GoalNodePayload
     public required GoalNodeKind Kind { get; init; }
     public required string Name { get; init; }
     public string? AgentId { get; set; }
-    public bool IsSubAgent { get; init; }
+    public AgentRole Role { get; init; } = AgentRole.Executor;
 
     /// <summary>
-    /// Agent 类型 — 对齐 AgentDefinition.AgentType
+    /// 执行者变体 — 仅 Executor 角色有值
     /// 非空时通过 IAgentService 执行（完整基础设施）
     /// 为空时回退到 SystemPrompt + Instruction 轻量模式（IChatClient 直接调用）
     /// </summary>
-    public string? AgentType { get; init; }
+    public ExecutorVariant? Variant { get; init; }
 
     public string? SystemPrompt { get; init; }
     public string? Instruction { get; init; }

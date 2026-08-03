@@ -252,7 +252,7 @@ public sealed partial class AgentServiceImpl : JoinCode.Abstractions.Interfaces.
         {
             Name = p.DisplayId,
             Description = p.Description ?? p.WhenToUse,
-            AvailableTools = (List<string>?)p.AllowedTools
+            AvailableTools = p.AllowedTools?.ToList()
         }).ToList();
 
         return Task.FromResult(result);
@@ -290,10 +290,10 @@ public sealed partial class AgentServiceImpl : JoinCode.Abstractions.Interfaces.
             Temperature = profile?.Temperature ?? 0.7f,
             DisplayName = metadata.Description ?? "Resumed Agent",
             SystemPrompt = null,
-            AllowedTools = (List<string>?)profile?.AllowedTools,
-            DeniedTools = (List<string>?)profile?.DisallowedTools,
+            AllowedTools = profile?.AllowedTools?.ToList(),
+            DeniedTools = profile?.DisallowedTools?.ToList(),
             InitialMessageList = chatHistory,
-            PreloadSkills = (List<string>?)profile?.Skills,
+            PreloadSkills = profile?.Skills?.ToList(),
             PermissionMode = profile?.PermissionMode,
         };
 

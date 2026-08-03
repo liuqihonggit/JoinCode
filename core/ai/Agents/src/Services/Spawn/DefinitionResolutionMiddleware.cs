@@ -26,8 +26,8 @@ public sealed partial class DefinitionResolutionMiddleware : IAgentSpawnMiddlewa
                 WhenToUse = profile.WhenToUse,
                 Description = profile.Description,
                 SystemPrompt = profile.SystemPrompt,
-                Tools = (List<string>?)profile.AllowedTools,
-                DisallowedTools = (List<string>?)profile.DisallowedTools,
+                Tools = profile.AllowedTools?.ToList(),
+                DisallowedTools = profile.DisallowedTools?.ToList(),
                 PermissionMode = profile.PermissionMode,
                 IsBackground = profile.IsBackground,
                 OmitClaudeMd = profile.OmitClaudeMd,
@@ -36,7 +36,7 @@ public sealed partial class DefinitionResolutionMiddleware : IAgentSpawnMiddlewa
                 Temperature = profile.Temperature,
                 MaxTokens = profile.MaxTokens,
                 Memory = profile.Memory,
-                Skills = (List<string>?)profile.Skills,
+                Skills = profile.Skills?.ToList(),
                 SourcePath = profile.SourcePath,
             };
         }

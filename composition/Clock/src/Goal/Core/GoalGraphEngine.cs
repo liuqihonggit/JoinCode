@@ -2,6 +2,7 @@ namespace Core.Goal;
 
 using JoinCode.Abstractions.Models.Goal;
 using JoinCode.Abstractions.LLM;
+using JoinCode.Abstractions.Interfaces;
 using Structura.Dag;
 
 /// <summary>
@@ -18,6 +19,7 @@ public sealed partial class GoalGraphEngine
     [Inject] private readonly IServiceProvider _serviceProvider;
     private Core.Agents.Coordinator.AgentRegistry _agentRegistry => Core.Agents.Coordinator.Agent.Registry;
     [Inject] private readonly IAgentService? _agentService = null!;
+    [Inject] private readonly IGoalUserInteraction? _userInteraction = null;
     private readonly Dictionary<string, Func<NodeContext, Task<NodeResult>>> _functionRegistry = new(StringComparer.Ordinal);
 
     public GoalGraphEngine(
@@ -118,6 +120,8 @@ public sealed partial class GoalGraphEngine
             }
 
             context.CompletedNodes.Add(nodeId);
+
+            await HandleUserInteractionAsync(nodeId, payload, context, ct).ConfigureAwait(false);
 
             if (ShouldTerminateLoop(nodeId, payload, context, graph))
             {
@@ -429,6 +433,42 @@ public sealed partial class GoalGraphEngine
             context.State.TurnsCompleted = totalTurns;
         }
         finally { context.StateLock.Release(); }
+    }
+
+    /// <summary>
+    /// 负向评价循环中的用户权限询问
+    /// 负评6~10条时，ask_user 询问用户是否继续
+    /// 1分钟超时后协调者自动接管（用户可能睡觉/离开）
+    /// </summary>
+    private async Task HandleUserInteractionAsync(string nodeId, GoalNodePayload payload, GraphExecutionContext context, CancellationToken ct)
+    {
+        if (_userInteraction is null)
+            return;
+
+        if (payload.NegativeReviewCount < 6 || payload.NegativeReviewCount > 10)
+            return;
+
+        var decision = await _userInteraction.AskToContinueAsync(
+            $"负向评价发现 {payload.NegativeReviewCount} 条不足，是否继续循环修复？",
+            payload.NegativeReviewCount,
+            context.GlobalLoopIteration,
+            timeoutSeconds: 60,
+            cancellationToken: ct).ConfigureAwait(false);
+
+        if (decision.CoordinatorTakenOver)
+        {
+            context.CoordinatorTerminated = true;
+            _logger?.LogWarning("[GoalGraph] 协调者接管: {Reason} (节点={NodeId}, 负评={NegCount})",
+                decision.Reason, nodeId, payload.NegativeReviewCount);
+            return;
+        }
+
+        if (!decision.ShouldContinue)
+        {
+            payload.Routes = ["NEG_STOP"];
+            _logger?.LogInformation("[GoalGraph] 用户选择停止循环 (节点={NodeId}, 负评={NegCount})",
+                nodeId, payload.NegativeReviewCount);
+        }
     }
 
     /// <summary>

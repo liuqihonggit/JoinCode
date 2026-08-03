@@ -15,7 +15,7 @@
 > - **🧠 多模型适配** — DeepSeek / OpenAI / Anthropic / Azure 开箱即用，兼容 OpenAI API 协议
 > - **🔧 丰富内置工具** — Shell 执行、文件操作、Web 请求、代码索引（TreeSitter AST）、浏览器自动化、技能系统
 > - **🔌 MCP 协议** — 完整的 Model Context Protocol 客户端实现，无限扩展自定义工具
-> - **🛡️ 生产级容错** — LLM 宽容处理（JSON 修复/参数归一化/类型转换）、三级死循环干预、前缀缓存优化
+> - **🛡️ 生产级容错** — LLM 宽容处理（LlmJsonHelper 统一门控 + JSON 修复/参数归一化/类型转换）、三级死循环干预、前缀缓存优化
 > - **⚖️ 结构化推理** — `/falv` 三权分立推理引擎（控方→辩方→法官），DAG 证据链 + 双预算控制
 > - **📦 零微软 AI 依赖** — 拒绝所有不支持 NativeAOT 的微软 AI SDK，从协议层自建 LLM 适配
 > - **🖥️ 终端优先** — 为活在命令行里的开发者设计，交互式 REPL + 非交互式脚本双模式
@@ -322,6 +322,34 @@ OpenAI 的多层记忆 + 半衰期方案更为合理，但实现难度太高，�
 - 利用各工具名枚举的 `FromValue`（OrdinalIgnoreCase）反查
 - 支持所有内置工具的大小写不敏感匹配
 - 找不到匹配则返回原名（可能是 MCP 工具或自定义工具）
+
+#### 4.1.5 LLM 结构化输出统一门控（LlmJsonHelper）
+
+所有 LLM 返回的结构化 JSON 必须通过 `LlmJsonHelper` 反序列化，确保全局宽容处理一致：
+
+**三层宽容策略**：
+
+| 层级 | 策略 | 说明 |
+|------|------|------|
+| 第1层 | `ExtractJsonBlock` | 从 ` ```json ... ``` ` 代码块提取（大小写不敏感） |
+| 第2层 | `ExtractInlineJson` / `ExtractArrayJson` | 从 `{...}` 或 `[...]` 提取内联 JSON |
+| 第3层 | `RepairJson` | 调用 `ToolCallRepairService.RepairJson` 修复格式问题 |
+
+**使用方式**：
+
+```csharp
+// 引用类型（class）
+var result = LlmJsonHelper.Deserialize(llmOutput, MyJsonContext.Default.MyType, out var repairHint);
+
+// 数组类型（如 GraphDefineNode[]）
+var nodes = LlmJsonHelper.DeserializeValue(nodesJson, GraphDefineJsonContext.Default.GraphDefineNodeArray, out _);
+```
+
+**全局 JsonContext 宽容选项**：所有 `JsonSourceGenerationOptions` 统一配置三项宽容选项：
+
+- `AllowTrailingCommas = true` — 容忍尾随逗号
+- `ReadCommentHandling = JsonCommentHandling.Skip` — 跳过 JSON 注释
+- `PropertyNameCaseInsensitive = true` — 属性名大小写不敏感
 
 ### 4.2 前缀缓存策略
 

@@ -8,18 +8,18 @@ public sealed class AgentDefinitionProviderTests
         var definitions = AgentDefinitionProvider.GetBuiltInDefinitions();
 
         definitions.Should().HaveCount(6);
-        definitions.Select(d => d.AgentType).Should().Contain(["default", "code", "search", "Explore", "Plan", "doctor"]);
+        definitions.Select(d => d.DisplayId).Should().Contain(["coordinator", "executor:code", "executor:search", "executor:explore", "executor:plan", "executor:doctor"]);
     }
 
     [Fact]
-    public void GetBuiltInDefinitions_DefaultAgent_HasSubAgentDisallowedTools()
+    public void GetBuiltInDefinitions_CoordinatorAgent_HasSubAgentDisallowedTools()
     {
         var definitions = AgentDefinitionProvider.GetBuiltInDefinitions();
-        var defaultAgent = definitions.First(d => d.AgentType == "default");
+        var coordinator = definitions.First(d => d.Role == AgentRole.Coordinator);
 
-        defaultAgent.Tools.Should().BeNull();
-        defaultAgent.DisallowedTools.Should().NotBeNull();
-        defaultAgent.DisallowedTools.Should().Contain([
+        coordinator.Tools.Should().BeNull();
+        coordinator.DisallowedTools.Should().NotBeNull();
+        coordinator.DisallowedTools.Should().Contain([
             AgentToolNameConstants.Agent, AgentToolNameConstants.AgentSpawn
         ]);
     }
@@ -28,7 +28,7 @@ public sealed class AgentDefinitionProviderTests
     public void GetBuiltInDefinitions_CodeAgent_UsesToolNamesConstants()
     {
         var definitions = AgentDefinitionProvider.GetBuiltInDefinitions();
-        var codeAgent = definitions.First(d => d.AgentType == "code");
+        var codeAgent = definitions.First(d => d.Variant == ExecutorVariant.Code);
 
         codeAgent.Tools.Should().NotBeNull();
         codeAgent.Tools.Should().Contain([
@@ -50,7 +50,7 @@ public sealed class AgentDefinitionProviderTests
     public void GetBuiltInDefinitions_SearchAgent_UsesToolNamesConstants()
     {
         var definitions = AgentDefinitionProvider.GetBuiltInDefinitions();
-        var searchAgent = definitions.First(d => d.AgentType == "search");
+        var searchAgent = definitions.First(d => d.Variant == ExecutorVariant.Search);
 
         searchAgent.Tools.Should().NotBeNull();
         searchAgent.Tools.Should().Contain([
@@ -72,7 +72,7 @@ public sealed class AgentDefinitionProviderTests
     public void GetBuiltInDefinitions_CodeAgent_DisallowedToolsContainsSubAgentTools()
     {
         var definitions = AgentDefinitionProvider.GetBuiltInDefinitions();
-        var codeAgent = definitions.First(d => d.AgentType == "code");
+        var codeAgent = definitions.First(d => d.Variant == ExecutorVariant.Code);
 
         codeAgent.DisallowedTools.Should().NotBeNull();
         codeAgent.DisallowedTools.Should().Contain([
@@ -84,7 +84,7 @@ public sealed class AgentDefinitionProviderTests
     public void GetBuiltInDefinitions_SearchAgent_DisallowedWriteTools()
     {
         var definitions = AgentDefinitionProvider.GetBuiltInDefinitions();
-        var searchAgent = definitions.First(d => d.AgentType == "search");
+        var searchAgent = definitions.First(d => d.Variant == ExecutorVariant.Search);
 
         searchAgent.DisallowedTools.Should().NotBeNullOrEmpty();
         searchAgent.DisallowedTools.Should().Contain(FileToolNameConstants.FileWrite);
@@ -96,7 +96,7 @@ public sealed class AgentDefinitionProviderTests
     public void GetBuiltInDefinitions_ExploreAgent_IsReadOnly()
     {
         var definitions = AgentDefinitionProvider.GetBuiltInDefinitions();
-        var exploreAgent = definitions.First(d => d.AgentType == "Explore");
+        var exploreAgent = definitions.First(d => d.Variant == ExecutorVariant.Explore);
 
         exploreAgent.Tools.Should().NotBeNull();
         exploreAgent.Tools.Should().Contain([FileToolNameConstants.FileRead, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep, SearchToolNameConstants.SearchCodebase, ShellToolNameConstants.Bash]);
@@ -109,7 +109,7 @@ public sealed class AgentDefinitionProviderTests
     public void GetBuiltInDefinitions_PlanAgent_IsReadOnly()
     {
         var definitions = AgentDefinitionProvider.GetBuiltInDefinitions();
-        var planAgent = definitions.First(d => d.AgentType == "Plan");
+        var planAgent = definitions.First(d => d.Variant == ExecutorVariant.Plan);
 
         planAgent.Tools.Should().NotBeNull();
         planAgent.Tools.Should().Contain([FileToolNameConstants.FileRead, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep, SearchToolNameConstants.SearchCodebase, ShellToolNameConstants.Bash]);
@@ -122,7 +122,7 @@ public sealed class AgentDefinitionProviderTests
     public void GetBuiltInDefinitions_DoctorAgent_IsBackgroundWithDoctorPermission()
     {
         var definitions = AgentDefinitionProvider.GetBuiltInDefinitions();
-        var doctorAgent = definitions.First(d => d.AgentType == "doctor");
+        var doctorAgent = definitions.First(d => d.Variant == ExecutorVariant.Doctor);
 
         doctorAgent.IsBackground.Should().BeTrue();
         doctorAgent.PermissionMode.Should().Be("doctor");
@@ -158,7 +158,7 @@ public sealed class AgentDefinitionProviderTests
     public void GetBuiltInDefinitions_ToolNamesMatchToolNamesConstants()
     {
         var definitions = AgentDefinitionProvider.GetBuiltInDefinitions();
-        var codeAgent = definitions.First(d => d.AgentType == "code");
+        var codeAgent = definitions.First(d => d.Variant == ExecutorVariant.Code);
 
         codeAgent.Tools.Should().Contain(FileToolNameConstants.FileRead, $"code agent should use FileToolNameConstants.FileRead ('{FileToolNameConstants.FileRead}')");
         codeAgent.Tools.Should().Contain(ShellToolNameConstants.Bash, $"code agent should use ShellToolNameConstants.Bash ('{ShellToolNameConstants.Bash}')");
@@ -183,7 +183,9 @@ public sealed class AgentDefinitionProviderTests
         var result = AgentDefinitionProvider.ParseDefinitionFile(content, "/agents/test.md");
 
         result.Should().NotBeNull();
-        result!.AgentType.Should().Be("test");
+        result!.Role.Should().Be(AgentRole.Executor);
+        result.Variant.Should().BeNull();
+        result.DisplayId.Should().Be("executor");
         result.WhenToUse.Should().Be("Custom agent for testing");
         result.Tools.Should().Contain(["Read", "Glob"]);
         result.DisallowedTools.Should().Contain(["Write"]);
@@ -198,7 +200,9 @@ public sealed class AgentDefinitionProviderTests
         var result = AgentDefinitionProvider.ParseDefinitionFile(content, "/agents/simple.md");
 
         result.Should().NotBeNull();
-        result!.AgentType.Should().Be("simple");
+        result!.Role.Should().Be(AgentRole.Executor);
+        result.Variant.Should().BeNull();
+        result.DisplayId.Should().Be("executor");
         result.SystemPrompt.Should().Be("You are a simple agent without frontmatter.");
         result.Tools.Should().BeNull();
     }
@@ -211,7 +215,7 @@ public sealed class AgentDefinitionProviderTests
         var definitions = await provider.GetAgentDefinitionsAsync().ConfigureAwait(true);
 
         definitions.Should().NotBeEmpty();
-        definitions.Select(d => d.AgentType).Should().Contain(["default", "code", "search", "Explore", "Plan", "doctor"]);
+        definitions.Select(d => d.DisplayId).Should().Contain(["coordinator", "executor:code", "executor:search", "executor:explore", "executor:plan", "executor:doctor"]);
     }
 
     [Fact]
@@ -219,10 +223,10 @@ public sealed class AgentDefinitionProviderTests
     {
         var provider = new AgentDefinitionProvider(new IO.FileSystem.PhysicalFileSystem());
 
-        var codeAgent = await provider.GetAgentDefinitionAsync("code").ConfigureAwait(true);
+        var codeAgent = await provider.GetAgentDefinitionAsync(AgentRole.Executor, ExecutorVariant.Code).ConfigureAwait(true);
 
         codeAgent.Should().NotBeNull();
-        codeAgent!.AgentType.Should().Be("code");
+        codeAgent!.DisplayId.Should().Be("executor:code");
         codeAgent.Tools.Should().Contain(FileToolNameConstants.FileRead);
     }
 
@@ -231,7 +235,7 @@ public sealed class AgentDefinitionProviderTests
     {
         var provider = new AgentDefinitionProvider(new IO.FileSystem.PhysicalFileSystem());
 
-        var result = await provider.GetAgentDefinitionAsync("nonexistent").ConfigureAwait(true);
+        var result = await provider.GetAgentDefinitionAsync(AgentRole.Executor, (ExecutorVariant)999).ConfigureAwait(true);
 
         result.Should().BeNull();
     }

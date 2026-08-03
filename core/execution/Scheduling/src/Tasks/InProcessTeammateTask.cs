@@ -17,6 +17,8 @@ public sealed partial class InProcessTeammateDefinition
     public required string Task { get; init; }
     public string? SystemPrompt { get; init; }
     public string? AgentType { get; init; }
+    public AgentRole Role { get; init; } = AgentRole.Executor;
+    public ExecutorVariant? Variant { get; init; }
     public string? AdditionalInstructions { get; init; }
     public int MaxIterations { get; init; } = 50;
     public List<string>? InitialContext { get; init; }
@@ -128,7 +130,8 @@ public sealed partial class InProcessTeammateTaskExecutor : IInProcessTeammateTa
 
             var options = new SubAgentOptions
             {
-                AgentType = definition.AgentType,
+                Role = definition.Role != default ? definition.Role : AgentRole.Executor,
+                Variant = definition.Variant,
                 AdditionalInstructions = definition.AdditionalInstructions,
                 MaxIterations = definition.MaxIterations,
                 ContentReplacementState = _subAgentContextAccessor.Current?.ContentReplacementState?.Clone(),
@@ -329,7 +332,8 @@ public sealed partial class InProcessTeammateTaskExecutor : IInProcessTeammateTa
         var subAgentContext = new SubAgentContext
         {
             AgentId = state.Context.AgentId,
-            AgentType = "teammate",
+            Role = AgentRole.Executor,
+            Variant = ExecutorVariant.Teammate,
             Task = definition.Task,
             ParentAgentId = _subAgentContextAccessor.Current?.AgentId,
             SessionId = definition.ParentSessionId ?? _subAgentContextAccessor.Current?.SessionId ?? "default",

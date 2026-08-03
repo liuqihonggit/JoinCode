@@ -27,7 +27,8 @@ public sealed partial class AgentHandoffMiddleware : IAgentToolMiddleware
         {
             Id = context.AgentId ?? "unknown",
             Description = context.Description,
-            AgentType = context.SubagentType
+            Role = context.SubagentRole,
+            Variant = context.SubagentVariant
         };
         var handoffResult = new JoinCode.Abstractions.Interfaces.AgentResult
         {
@@ -70,7 +71,7 @@ public sealed partial class AgentHandoffMiddleware : IAgentToolMiddleware
         }
 
         // 对齐 TS ONE_SHOT_BUILTIN_AGENT_TYPES — 一次性代理省略 agentId/SendMessage 提示
-        var isOneShot = !string.IsNullOrEmpty(context.SubagentType) && OneShotBuiltinAgentTypes.IsOneShot(context.SubagentType);
+        var isOneShot = !string.IsNullOrEmpty(context.SubagentType) && OneShotExecutorVariants.IsOneShot(context.SubagentType);
         if (!isOneShot)
         {
             responseBuilder.AppendLine();
@@ -101,7 +102,7 @@ public sealed partial class AgentHandoffMiddleware : IAgentToolMiddleware
             var request = new HandoffClassificationRequest
             {
                 AgentId = agentInfo.Id,
-                AgentType = agentInfo.AgentType,
+                AgentType = agentInfo.Variant?.ToValue() ?? agentInfo.Role.ToValue(),
                 ToolInvocations = [], // AgentResult 暂无工具调用明细
                 PermissionMode = PermissionMode.Auto, // 默认 auto 模式审查
                 TotalToolUseCount = 0

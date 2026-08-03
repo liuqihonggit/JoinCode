@@ -173,9 +173,9 @@ public partial class AgentToolHandlers
         response.AppendLine($"Agent ID: {agent.Id}");
         response.AppendLine($"Description: {agent.Description}");
 
-        if (!string.IsNullOrEmpty(agent.AgentType))
+        if (!string.IsNullOrEmpty(agent.Role.ToValue()))
         {
-            response.AppendLine($"Type: {agent.AgentType}");
+            response.AppendLine($"Type: {agent.Variant?.ToValue() ?? agent.Role.ToValue()}");
         }
 
         if (agent.StartedAt.HasValue)
@@ -260,7 +260,7 @@ public partial class AgentToolHandlers
                         ? (_clock.GetUtcNow() - agent.StartedAt.Value).ToString(@"hh\:mm\:ss")
                         : "unknown";
                     response.AppendLine($"- [{agent.Id}] {agent.Description}");
-                    response.AppendLine($"  Type: {agent.AgentType ?? "generic"}, Duration: {duration}");
+                    response.AppendLine($"  Type: {agent.Variant?.ToValue() ?? agent.Role.ToValue() ?? "generic"}, Duration: {duration}");
                 }
             }
 

@@ -34,10 +34,9 @@ public sealed partial class ToolListingService
         var agents = await _agentProvider.GetAgentDefinitionsAsync(workingDirectory, ct).ConfigureAwait(false);
         if (agents.Count == 0) return;
 
-        var currentTypes = new HashSet<string>(agents.Select(a => a.AgentType));
+        var currentTypes = new HashSet<string>(agents.Select(a => a.DisplayId));
 
-        // 计算增量：新增的 Agent
-        var added = agents.Where(a => !_announcedAgentTypes.Contains(a.AgentType)).ToList();
+        var added = agents.Where(a => !_announcedAgentTypes.Contains(a.DisplayId)).ToList();
 
         // 计算增量：移除的 Agent
         var removed = _announcedAgentTypes.Where(t => !currentTypes.Contains(t)).ToList();
@@ -62,7 +61,7 @@ public sealed partial class ToolListingService
         foreach (var agent in added)
         {
             var toolsDesc = AgentToolSection.GetToolsDescription(agent);
-            sb.AppendLine($"- {agent.AgentType}: {agent.WhenToUse} (工具: {toolsDesc})");
+            sb.AppendLine($"- {agent.DisplayId}: {agent.WhenToUse} (工具: {toolsDesc})");
         }
 
         if (removed.Count > 0 && !isInitial)

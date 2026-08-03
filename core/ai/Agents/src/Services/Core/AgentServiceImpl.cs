@@ -247,7 +247,7 @@ public sealed partial class AgentServiceImpl : JoinCode.Abstractions.Interfaces.
 
         return definitions.Select(d => new JoinCode.Abstractions.Interfaces.AgentTypeInfo
         {
-            Name = d.AgentType,
+            Name = d.DisplayId,
             Description = d.Description ?? d.WhenToUse,
             AvailableTools = d.Tools
         }).ToList();
@@ -272,13 +272,14 @@ public sealed partial class AgentServiceImpl : JoinCode.Abstractions.Interfaces.
 
         var chatHistory = TranscriptConverter.ToMessageListWithNewPrompt(transcript, options.NewPrompt);
 
-        var definition = !string.IsNullOrWhiteSpace(metadata.AgentType)
-            ? await _definitionProvider.GetAgentDefinitionAsync(metadata.AgentType, cancellationToken: cancellationToken).ConfigureAwait(false)
+        var definition = metadata.Variant.HasValue || metadata.Role != default
+            ? await _definitionProvider.GetAgentDefinitionAsync(metadata.Role, metadata.Variant, cancellationToken: cancellationToken).ConfigureAwait(false)
             : null;
 
         var subOptions = new SubAgentOptions
         {
-            AgentType = metadata.AgentType,
+            Role = metadata.Role,
+            Variant = metadata.Variant,
             AdditionalInstructions = options.NewPrompt,
             ModelName = metadata.ModelName ?? definition?.ModelName,
             Temperature = definition?.Temperature ?? 0.7f,
@@ -522,7 +523,8 @@ public sealed partial class AgentServiceImpl : JoinCode.Abstractions.Interfaces.
                 Output = result.Output,
                 Error = result.Error,
                 ExecutionTimeMs = durationMs,
-                AgentType = concreteAgent.Options.AgentType,
+                Role = concreteAgent.Options.Role,
+                Variant = concreteAgent.Options.Variant,
                 ToolUseId = null,
                 WorktreePath = concreteAgent.Options.WorktreePath,
                 WorktreeBranch = concreteAgent.Options.WorktreeBranch,
@@ -539,7 +541,8 @@ public sealed partial class AgentServiceImpl : JoinCode.Abstractions.Interfaces.
                 Output = result.Success ? result.Output : null,
                 Error = result.Success ? null : result.Error,
                 ExecutionTimeMs = durationMs,
-                AgentType = concreteAgent.Options.AgentType,
+                Role = concreteAgent.Options.Role,
+                Variant = concreteAgent.Options.Variant,
                 ToolUseCount = toolUseCount,
                 TokenCount = tokenCount,
                 WorktreePath = concreteAgent.Options.WorktreePath,
@@ -574,7 +577,7 @@ public sealed partial class AgentServiceImpl : JoinCode.Abstractions.Interfaces.
             await _transcriptService.SaveMetadataAsync("default", new JoinCode.Abstractions.Interfaces.AgentMetadata
             {
                 AgentId = subAgent.ObjectId.UniqueId,
-                AgentType = concreteAgent.Options.AgentType,
+                AgentType = concreteAgent.Options.Variant?.ToValue() ?? concreteAgent.Options.Role.ToValue(),
                 Description = subAgent.Task,
                 WorktreePath = concreteAgent.Options.WorktreePath,
                 ModelName = concreteAgent.Options.ModelName,
@@ -634,7 +637,8 @@ public sealed partial class AgentServiceImpl : JoinCode.Abstractions.Interfaces.
         {
             Id = subAgent.ObjectId.UniqueId,
             Description = subAgent.Task,
-            AgentType = concreteAgent.Options.AgentType,
+            Role = concreteAgent.Options.Role,
+            Variant = concreteAgent.Options.Variant,
             Status = concreteAgent.State.ToAgentStatus(),
             StartedAt = concreteAgent.StartedAt,
             CompletedAt = concreteAgent.CompletedAt,

@@ -26,6 +26,8 @@ public sealed partial class WorkflowStep
     public WorkflowStepType StepType { get; init; }
     public string? ToolName { get; init; }
     public string? AgentType { get; init; }
+    public AgentRole Role { get; init; } = AgentRole.Executor;
+    public ExecutorVariant? Variant { get; init; }
     public WorkflowStepOnFailure OnFailure { get; init; } = WorkflowStepOnFailure.Stop;
 }
 
@@ -365,7 +367,7 @@ public sealed partial class WorkflowTaskExecutor : IWorkflowTaskExecutor
         var description = step.Description ?? step.Name;
         var options = new SubAgentOptions
         {
-            AdditionalInstructions = step.AgentType is not null ? $"Agent type: {step.AgentType}" : null,
+            AdditionalInstructions = step.Variant.HasValue ? $"Agent type: {step.Variant.Value.ToValue()}" : (step.Role != default ? $"Agent role: {step.Role.ToValue()}" : null),
             ContentReplacementState = _subAgentContextAccessor.Current?.ContentReplacementState?.Clone(),
             SessionId = _subAgentContextAccessor.Current?.SessionId ?? "default",
         };

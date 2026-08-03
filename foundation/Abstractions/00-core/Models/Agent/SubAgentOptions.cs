@@ -2,7 +2,8 @@ namespace JoinCode.Abstractions.Models.Agent;
 
 public sealed class SubAgentOptions
 {
-    public string? AgentType { get; init; }
+    public AgentRole Role { get; init; } = AgentRole.Executor;
+    public ExecutorVariant? Variant { get; init; }
     public string? AdditionalInstructions { get; init; }
     public int MaxIterations { get; init; } = 50;
     public bool EnableThinking { get; init; } = false;

@@ -15,7 +15,8 @@ public sealed partial class TeammateSpawnMiddleware : ITeammateExecutionMiddlewa
 
         var options = new SubAgentOptions
         {
-            AgentType = definition.AgentType,
+            Role = definition.Role != default ? definition.Role : AgentRole.Executor,
+            Variant = definition.Variant,
             AdditionalInstructions = definition.AdditionalInstructions,
             MaxIterations = definition.MaxIterations,
             ContentReplacementState = _subAgentContextAccessor.Current?.ContentReplacementState?.Clone(),

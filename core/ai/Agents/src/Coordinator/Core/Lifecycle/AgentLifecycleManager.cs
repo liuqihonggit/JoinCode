@@ -36,8 +36,8 @@ public sealed partial class AgentLifecycleManager : IAgentLifecycleManager
             _queryEngine,
             _logger,
             name: options?.DisplayName,
-            isSubAgent: true,
-            agentType: options?.AgentType,
+            role: options?.Role ?? AgentRole.Executor,
+            variant: options?.Variant,
             systemPrompt: options?.SystemPrompt,
             freshContext: options?.FreshContext ?? false,
             tokenBudget: options?.TokenBudget,
@@ -257,7 +257,8 @@ public sealed partial class AgentLifecycleManager : IAgentLifecycleManager
             {
                 Id = a.ObjectId.UniqueId,
                 Description = a.Task,
-                AgentType = a.Options.AgentType,
+                Role = a.Options.Role,
+                Variant = a.Options.Variant,
                 StartedAt = a.StartedAt
             })
             .ToList();

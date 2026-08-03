@@ -1,4 +1,5 @@
 
+using JoinCode.Abstractions.Models.Agent;
 
 
 namespace McpToolDispatch;
@@ -165,7 +166,8 @@ public partial class TaskStopToolHandlers
                 foreach (var agent in agents)
                 {
                     sb.AppendLine($"- {agent.Id}: {agent.Description}");
-                    sb.AppendLine($"  Type: {agent.AgentType ?? "general"}");
+                    var typeStr = agent.Variant.HasValue ? agent.Variant.Value.ToValue() : agent.Role.ToValue();
+                    sb.AppendLine($"  Type: {typeStr ?? "general"}");
                     if (agent.StartedAt.HasValue)
                     {
                         var duration = DateTime.UtcNow - agent.StartedAt.Value;

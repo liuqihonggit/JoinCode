@@ -77,12 +77,12 @@ public sealed partial class CronGoalBridge : IAsyncDisposable
             foreach (var agent in backgroundAgents)
             {
                 var existingTasks = await _taskStore.GetAllTasksAsync(ct).ConfigureAwait(false);
-                var alreadyRegistered = existingTasks.Any(t => t.Prompt.Contains(agent.AgentType, StringComparison.OrdinalIgnoreCase));
+                var alreadyRegistered = existingTasks.Any(t => t.Prompt.Contains(agent.DisplayId, StringComparison.OrdinalIgnoreCase));
 
                 if (alreadyRegistered)
                     continue;
 
-                var cronExpr = GetCronForAgent(agent.AgentType);
+                var cronExpr = GetCronForAgent(agent.DisplayId);
                 var prompt = BuildBackgroundAgentPrompt(agent);
 
                 var request = new CreateCronTaskRequest
@@ -94,7 +94,7 @@ public sealed partial class CronGoalBridge : IAsyncDisposable
                 };
 
                 await _taskStore.AddTaskAsync(request, ct).ConfigureAwait(false);
-                _logger?.LogInformation("[CronGoal] 已为后台 Agent '{AgentType}' 注册 Cron 任务: {Cron}", agent.AgentType, cronExpr);
+                _logger?.LogInformation("[CronGoal] 已为后台 Agent '{DisplayId}' 注册 Cron 任务: {Cron}", agent.DisplayId, cronExpr);
             }
         }
         catch (Exception ex)
@@ -103,15 +103,14 @@ public sealed partial class CronGoalBridge : IAsyncDisposable
         }
     }
 
-    private static string GetCronForAgent(string agentType) => agentType switch
+    private static string GetCronForAgent(string displayId) => displayId switch
     {
-        "keywordMaintenance" => "0 */6 * * *",
-        "doctor" => "0 */12 * * *",
+        "executor:doctor" => "0 */12 * * *",
         _ => "0 */12 * * *"
     };
 
     private static string BuildBackgroundAgentPrompt(JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition agent) =>
-        $"使用 {agent.AgentType} Agent 执行后台维护任务：{agent.WhenToUse}";
+        $"使用 {agent.DisplayId} Agent 执行后台维护任务：{agent.WhenToUse}";
 
     public async Task StopAsync(CancellationToken ct = default)
     {

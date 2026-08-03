@@ -133,8 +133,8 @@ public class AgentCoordinatorExtendedTests
         // Arrange
         var runningAgents = new List<RunningAgentInfo>
         {
-            new() { Id = "agent-1", Description = "Task 1", AgentType = "Test" },
-            new() { Id = "agent-2", Description = "Task 2", AgentType = "Test" }
+            new() { Id = "agent-1", Description = "Task 1", Role = AgentRole.Executor, Variant = ExecutorVariant.Code },
+            new() { Id = "agent-2", Description = "Task 2", Role = AgentRole.Executor, Variant = ExecutorVariant.Code }
         };
 
         _lifecycleManagerMock.Setup(x => x.GetRunningAgentsAsync(default)).ReturnsAsync(runningAgents);

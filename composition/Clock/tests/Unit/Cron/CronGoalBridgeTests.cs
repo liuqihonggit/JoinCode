@@ -185,7 +185,7 @@ public sealed class CronGoalBridgeTests
         agentProvider.Setup(a => a.GetAgentDefinitionsAsync(It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<AgentDefinition>
             {
-                new() { AgentType = "keywordMaintenance", IsBackground = true, WhenToUse = "维护关键词" }
+                new() { Role = AgentRole.Executor, Variant = ExecutorVariant.Doctor, IsBackground = true, WhenToUse = "维护关键词" }
             });
         taskStore.Setup(t => t.GetAllTasksAsync(It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<CronTask>());
         taskStore.Setup(t => t.AddTaskAsync(It.IsAny<CreateCronTaskRequest>(), It.IsAny<CancellationToken>()))
@@ -204,7 +204,7 @@ public sealed class CronGoalBridgeTests
 
         await bridge.StartAsync().ConfigureAwait(true);
 
-        taskStore.Verify(t => t.AddTaskAsync(It.Is<CreateCronTaskRequest>(r => r.CronExpression == "0 */6 * * *" && r.IsRecurring && r.IsDurable), It.IsAny<CancellationToken>()), Times.Once);
+        taskStore.Verify(t => t.AddTaskAsync(It.Is<CreateCronTaskRequest>(r => r.CronExpression == "0 */12 * * *" && r.IsRecurring && r.IsDurable), It.IsAny<CancellationToken>()), Times.Once);
 
         await bridge.DisposeAsync().ConfigureAwait(true);
     }
@@ -217,11 +217,11 @@ public sealed class CronGoalBridgeTests
         agentProvider.Setup(a => a.GetAgentDefinitionsAsync(It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<AgentDefinition>
             {
-                new() { AgentType = "keywordMaintenance", IsBackground = true, WhenToUse = "维护关键词" }
+                new() { Role = AgentRole.Executor, Variant = ExecutorVariant.Doctor, IsBackground = true, WhenToUse = "维护关键词" }
             });
         taskStore.Setup(t => t.GetAllTasksAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<CronTask>
         {
-            new() { Id = "existing", CronExpression = "0 */6 * * *", Prompt = "keywordMaintenance", CreatedAt = 0 }
+            new() { Id = "existing", CronExpression = "0 */12 * * *", Prompt = "executor:doctor", CreatedAt = 0 }
         });
 
         var goalEngine = new Mock<IGoalEngine>();
@@ -257,7 +257,7 @@ public sealed class CronGoalBridgeTests
         agentProvider.Setup(a => a.GetAgentDefinitionsAsync(It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<AgentDefinition>
             {
-                new() { AgentType = "interactiveAgent", IsBackground = false, WhenToUse = "交互" }
+                new() { Role = AgentRole.Executor, Variant = ExecutorVariant.Code, IsBackground = false, WhenToUse = "代码编辑" }
             });
 
         var goalEngine = new Mock<IGoalEngine>();

@@ -32,7 +32,7 @@ public sealed partial class MetadataMiddleware : IAgentSpawnMiddleware
             await (_transcriptService ?? throw new InvalidOperationException("TranscriptService not available")).SaveMetadataAsync("default", new JoinCode.Abstractions.Interfaces.AgentMetadata
             {
                 AgentId = subAgent.ObjectId.UniqueId,
-                AgentType = agent.Options.AgentType,
+                AgentType = agent.Options.Variant?.ToValue() ?? agent.Options.Role.ToValue(),
                 Description = subAgent.Task,
                 WorktreePath = agent.Options.WorktreePath,
                 ModelName = definition?.ModelName ?? agent.Options.ModelName,

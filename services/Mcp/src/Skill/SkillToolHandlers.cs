@@ -270,7 +270,8 @@ public class SkillToolHandlers
             IsolationMode = skillDef.Isolation,
             Model = skillDef.Model,
             Name = $"skill-{skillName}",
-            AgentType = skillDef.Agent,
+            Role = AgentRole.Executor,
+            Variant = !string.IsNullOrEmpty(skillDef.Agent) ? ExecutorVariantExtensions.FromValue(skillDef.Agent) : null,
             AllowedTools = skillDef.AllowedTools.Count > 0 ? skillDef.AllowedTools : null,
             Effort = skillDef.Effort,
         };

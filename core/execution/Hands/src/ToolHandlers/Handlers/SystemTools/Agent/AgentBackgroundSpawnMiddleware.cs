@@ -22,7 +22,8 @@ public sealed partial class AgentBackgroundSpawnMiddleware : IAgentToolMiddlewar
         {
             Description = context.Description,
             Prompt = context.Prompt,
-            AgentType = context.SubagentType,
+            Role = context.SubagentRole,
+            Variant = context.SubagentVariant,
             RunInBackground = context.RunInBackground ?? false,
             IsolationMode = AgentIsolationModeExtensions.FromValue(context.Isolation) ?? AgentIsolationMode.None,
             MemoryScope = AgentMemoryScopeExtensions.FromValue(context.Memory),
@@ -47,9 +48,9 @@ public sealed partial class AgentBackgroundSpawnMiddleware : IAgentToolMiddlewar
         response.AppendLine($"Agent ID: {agent.Id}");
         response.AppendLine($"Description: {agent.Description}");
 
-        if (!string.IsNullOrEmpty(agent.AgentType))
+        if (agent.Role != default || agent.Variant.HasValue)
         {
-            response.AppendLine($"Type: {agent.AgentType}");
+            response.AppendLine($"Type: {agent.Variant?.ToValue() ?? agent.Role.ToValue()}");
         }
 
         if (agent.IsolationMode != AgentIsolationMode.None)

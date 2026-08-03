@@ -45,6 +45,8 @@ public sealed class AgentStateDocument
     public string AgentId { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     public string AgentType { get; set; } = string.Empty;
+    public AgentRole Role { get; set; }
+    public ExecutorVariant? Variant { get; set; }
     public AgentStatus Status { get; set; }
     public string? WorkingDirectory { get; set; }
     public string? CurrentTaskId { get; set; }

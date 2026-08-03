@@ -86,7 +86,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
                         _ => GoalNodeKind.Agent,
                     },
                     Name = node.Name ?? nodeId,
-                    IsSubAgent = true,
+                    Role = AgentRole.Executor,
                     SystemPrompt = node.SystemPrompt,
                     Instruction = node.Instruction,
                     FreshContext = node.FreshContext,
@@ -231,7 +231,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
             {
                 Kind = GoalNodeKind.Agent,
                 Name = "executor",
-                IsSubAgent = true,
+                Role = AgentRole.Executor,
                 Instruction = objective,
                 TokenBudget = tokenBudget,
             },
@@ -244,7 +244,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
             {
                 Kind = GoalNodeKind.Agent,
                 Name = "reviewer",
-                IsSubAgent = true,
+                Role = AgentRole.Coordinator,
                 SystemPrompt = "You are an independent reviewer. Evaluate the following work output objectively. You must determine if the task was completed successfully. Reply with PASS if the work meets the requirements, or FAIL with specific issues if it does not. Do not assume context you were not given — judge only by what you see.",
                 Instruction = "Review the following work output and determine if it successfully completes the task. Be objective and thorough.",
                 FreshContext = true,
@@ -1114,13 +1114,12 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
 
         var mainAgent = new Core.Agents.Coordinator.Agent(
             task: objective,
-            options: new SubAgentOptions { DisplayName = "mainAgent", AgentType = "main" },
+            options: new SubAgentOptions { DisplayName = "mainAgent", Role = AgentRole.Coordinator },
             queryEngine: queryEngine,
             logger: _logger,
             clock: _clock,
             name: "mainAgent",
-            isSubAgent: false,
-            agentType: "main",
+            role: AgentRole.Coordinator,
             goalId: goalId,
             tokenBudget: tokenBudget);
 

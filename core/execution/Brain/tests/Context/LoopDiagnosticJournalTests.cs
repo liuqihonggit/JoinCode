@@ -22,7 +22,7 @@ public sealed class LoopDiagnosticJournalTests
         journal.Record("tool_start", "s1", 1, 0);
         journal.Record("tool_end", "s1", 1, 1);
 
-        await Task.Delay(100);
+        await WaitForWindowCountAsync(journal, 2);
 
         Assert.Equal(2, journal.WindowCount);
     }
@@ -35,7 +35,7 @@ public sealed class LoopDiagnosticJournalTests
         for (var i = 0; i < 10; i++)
             journal.Record("event", "s1", 1, i);
 
-        await Task.Delay(200);
+        await WaitForWindowCountAsync(journal, 5);
 
         Assert.Equal(5, journal.WindowCount);
     }
@@ -73,11 +73,11 @@ public sealed class LoopDiagnosticJournalTests
         journal.Record("tool_end", "s1", 1, 1);
         journal.Record("tool_start", "s1", 2, 1);
 
-        await Task.Delay(100);
+        await WaitForWindowCountAsync(journal, 3);
 
         journal.OnLoopDetected("OutputLoop", "s1", 2, 1, 1, "输出文本循环");
 
-        await Task.Delay(100);
+        await WaitForWindowCountAsync(journal, 4);
 
         Assert.True(journal.WindowCount >= 4);
     }
@@ -141,11 +141,11 @@ public sealed class LoopDiagnosticJournalTests
 
         journal.Record("event", "s1", 1, 0);
         journal.Record("event", "s1", 2, 1);
-        await Task.Delay(100);
+        await WaitForWindowCountAsync(journal, 2);
         Assert.Equal(2, journal.WindowCount);
 
         journal.Reset();
-        await Task.Delay(100);
+        await WaitForWindowCountAsync(journal, 0);
         Assert.Equal(0, journal.WindowCount);
     }
 
@@ -157,8 +157,15 @@ public sealed class LoopDiagnosticJournalTests
         journal.Record("event", "s1", 1, 0);
         journal.OnLoopDetected("OutputLoop", "s1", 1, 0, 1, "循环");
 
-        await Task.Delay(100);
+        await WaitForWindowCountAsync(journal, 2);
 
         Assert.Equal(2, journal.WindowCount);
+    }
+
+    private static async Task WaitForWindowCountAsync(LoopDiagnosticJournal journal, int expectedCount, int timeoutMs = 2000)
+    {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        while (journal.WindowCount != expectedCount && sw.ElapsedMilliseconds < timeoutMs)
+            await Task.Delay(10);
     }
 }

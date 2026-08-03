@@ -41,8 +41,14 @@ public sealed partial class InMemoryIndexStore : IDisposable
     /// 项目依赖 — 替代 projects/project_references/nuget_references 表
     /// </summary>
     internal readonly Dictionary<string, ProjectInfo> Projects = new(StringComparer.OrdinalIgnoreCase);
-    internal readonly List<ProjectReferenceEdge> ProjectRefs = new();
-    internal readonly List<NuGetPackageReference> NuGetRefs = new();
+    internal readonly Dictionary<string, List<ProjectReferenceEdge>> ProjectRefs = new(StringComparer.OrdinalIgnoreCase);
+    internal readonly Dictionary<string, List<NuGetPackageReference>> NuGetRefs = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// 规范化路径键 — 统一路径分隔符用于字典查找
+    /// </summary>
+    internal static string NormalizeKey(string path) =>
+        path.Replace('/', Path.DirectorySeparatorChar).Replace('\\', Path.DirectorySeparatorChar);
 
     /// <summary>
     /// 文件追踪 — 替代 file_tracking 表 (用于增量更新判断)

@@ -3,17 +3,25 @@ namespace JoinCode.Abstractions.LLM.Chat;
 public sealed class ImmutablePrefix
 {
     public string System { get; }
-    private readonly List<ToolSpec> _toolSpecs;
+    private readonly Dictionary<string, ToolSpec> _toolSpecs = new(StringComparer.Ordinal);
+    private readonly List<string> _toolSpecsOrder = [];
     private readonly ApiMessage[] _fewShots;
     private string? _fingerprintCache;
 
-    public IEnumerable<ToolSpec> ToolSpecs => _toolSpecs;
+    public IEnumerable<ToolSpec> ToolSpecs => _toolSpecsOrder.Select(name => _toolSpecs[name]);
     public IEnumerable<ApiMessage> FewShots => _fewShots;
 
     public ImmutablePrefix(string system, IEnumerable<ToolSpec> toolSpecs, IEnumerable<ApiMessage> fewShots)
     {
         System = system ?? throw new ArgumentNullException(nameof(system));
-        _toolSpecs = toolSpecs != null ? [.. toolSpecs] : [];
+        if (toolSpecs != null)
+        {
+            foreach (var t in toolSpecs)
+            {
+                if (_toolSpecs.TryAdd(t.Name, t))
+                    _toolSpecsOrder.Add(t.Name);
+            }
+        }
         _fewShots = fewShots != null ? [.. fewShots] : [];
     }
 
@@ -30,16 +38,17 @@ public sealed class ImmutablePrefix
     public void AddTool(ToolSpec tool)
     {
         ArgumentNullException.ThrowIfNull(tool);
-        _toolSpecs.Add(tool);
+        if (!_toolSpecs.ContainsKey(tool.Name))
+            _toolSpecsOrder.Add(tool.Name);
+        _toolSpecs[tool.Name] = tool;
         _fingerprintCache = null;
     }
 
     public void RemoveTool(string toolName)
     {
-        var index = _toolSpecs.FindIndex(t => t.Name == toolName);
-        if (index >= 0)
+        if (_toolSpecs.Remove(toolName))
         {
-            _toolSpecs.RemoveAt(index);
+            _toolSpecsOrder.Remove(toolName);
             _fingerprintCache = null;
         }
     }
@@ -70,7 +79,7 @@ public sealed class ImmutablePrefix
 
     private string ComputeFingerprint()
     {
-        var toolSpecsHash = ContentHash.ComputeToolSpecs(_toolSpecs);
+        var toolSpecsHash = ContentHash.ComputeToolSpecs(_toolSpecsOrder.Select(name => _toolSpecs[name]).ToList());
         var fewShotsBlob = string.Join("|", _fewShots.Select(s => $"{s.Role}:{s.Content}").ToArray());
         return ContentHash.Compute($"{System}|{toolSpecsHash}|{fewShotsBlob}");
     }

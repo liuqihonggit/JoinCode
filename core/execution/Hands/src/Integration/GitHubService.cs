@@ -7,7 +7,7 @@ public sealed partial class GitHubService : IGitHubService
     private readonly IConfigurationService? _configService;
     [Inject] private readonly ILogger<GitHubService>? _logger;
     private readonly SemaphoreSlim _lock = new(1, 1);
-    private readonly List<PRSubscription> _subscriptions = [];
+    private readonly Dictionary<string, PRSubscription> _subscriptions = new(StringComparer.Ordinal);
 
     public GitHubService(HttpClient httpClient, IConfigurationService? configService = null, ILogger<GitHubService>? logger = null)
     {
@@ -22,7 +22,7 @@ public sealed partial class GitHubService : IGitHubService
         await _lock.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            return _subscriptions.ToList();
+            return _subscriptions.Values.ToList();
         }
         finally
         {
@@ -47,15 +47,7 @@ public sealed partial class GitHubService : IGitHubService
         await _lock.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            var existing = _subscriptions.FindIndex(s => s.PrRef == prRef);
-            if (existing >= 0)
-            {
-                _subscriptions[existing] = subscription;
-            }
-            else
-            {
-                _subscriptions.Add(subscription);
-            }
+            _subscriptions[prRef] = subscription;
         }
         finally
         {
@@ -78,7 +70,7 @@ public sealed partial class GitHubService : IGitHubService
         await _lock.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            _subscriptions.RemoveAll(s => s.PrRef == prRef);
+            _subscriptions.Remove(prRef);
         }
         finally
         {
@@ -107,7 +99,8 @@ public sealed partial class GitHubService : IGitHubService
                 if (loaded != null)
                 {
                     _subscriptions.Clear();
-                    _subscriptions.AddRange(loaded);
+                    foreach (var sub in loaded)
+                        _subscriptions[sub.PrRef] = sub;
                 }
             }
             catch (Exception ex)
@@ -128,7 +121,7 @@ public sealed partial class GitHubService : IGitHubService
         await _lock.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            var json = JsonSerializer.Serialize(_subscriptions, GitHubSubscriptionContext.Default.ListPRSubscription);
+            var json = JsonSerializer.Serialize(_subscriptions.Values.ToList(), GitHubSubscriptionContext.Default.ListPRSubscription);
             await _configService.SetAsync("github.pr_subscriptions", json, ct).ConfigureAwait(false);
         }
         catch (Exception ex)

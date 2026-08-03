@@ -26,9 +26,9 @@ public sealed class ProjectDependencyGraph : IProjectDependencyGraph
 
         var normalized = NormalizePath(projectPath);
         using var scope = _store.EnterReadLock();
-        var result = _store.ProjectRefs
-            .Where(e => NormalizePath(e.SourceProjectPath) == normalized)
-            .ToList();
+        var result = _store.ProjectRefs.TryGetValue(normalized, out var list)
+            ? list.ToList()
+            : new List<ProjectReferenceEdge>();
         return Task.FromResult<IReadOnlyList<ProjectReferenceEdge>>(result);
     }
 
@@ -38,7 +38,8 @@ public sealed class ProjectDependencyGraph : IProjectDependencyGraph
 
         var normalized = NormalizePath(projectPath);
         using var scope = _store.EnterReadLock();
-        var result = _store.ProjectRefs
+        var result = _store.ProjectRefs.Values
+            .SelectMany(v => v)
             .Where(e => NormalizePath(e.TargetProjectPath) == normalized)
             .ToList();
         return Task.FromResult<IReadOnlyList<ProjectReferenceEdge>>(result);
@@ -67,7 +68,8 @@ public sealed class ProjectDependencyGraph : IProjectDependencyGraph
         while (queue.Count > 0)
         {
             var current = queue.Dequeue();
-            var dependents = _store.ProjectRefs
+            var dependents = _store.ProjectRefs.Values
+                .SelectMany(v => v)
                 .Where(e => NormalizePath(e.TargetProjectPath) == current)
                 .Select(e => e.SourceProjectPath);
 
@@ -90,9 +92,9 @@ public sealed class ProjectDependencyGraph : IProjectDependencyGraph
 
         var normalized = NormalizePath(projectPath);
         using var scope = _store.EnterReadLock();
-        var result = _store.NuGetRefs
-            .Where(p => NormalizePath(p.ProjectPath) == normalized)
-            .ToList();
+        var result = _store.NuGetRefs.TryGetValue(normalized, out var list)
+            ? list.ToList()
+            : new List<NuGetPackageReference>();
         return Task.FromResult<IReadOnlyList<NuGetPackageReference>>(result);
     }
 
@@ -101,7 +103,8 @@ public sealed class ProjectDependencyGraph : IProjectDependencyGraph
         ArgumentNullException.ThrowIfNull(packageName);
 
         using var scope = _store.EnterReadLock();
-        var result = _store.NuGetRefs
+        var result = _store.NuGetRefs.Values
+            .SelectMany(v => v)
             .Where(p => string.Equals(p.PackageName, packageName, StringComparison.OrdinalIgnoreCase))
             .Select(p => p.ProjectPath)
             .Distinct(StringComparer.OrdinalIgnoreCase)

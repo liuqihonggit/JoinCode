@@ -9,7 +9,7 @@ namespace Core.Utils;
 [Register]
 public sealed partial class AgentPermissionManager : IAgentPermissionManager, IAsyncDisposable
 {
-    private readonly List<AgentPermissionRule> _rules = new();
+    private readonly Dictionary<string, AgentPermissionRule> _rules = new(StringComparer.Ordinal);
     private readonly AsyncLock _lock = new();
     private readonly ITelemetryService? _telemetryService;
 
@@ -23,9 +23,8 @@ public sealed partial class AgentPermissionManager : IAgentPermissionManager, IA
     {
                 using (await _lock.LockAsync(ct).ConfigureAwait(false))
         {
-            _rules.RemoveAll(r => r.AgentPattern == rule.AgentPattern);
-            _rules.Add(rule);
-            _rules.Sort((a, b) => b.Priority.CompareTo(a.Priority));
+            _rules.Remove(rule.AgentPattern);
+            _rules[rule.AgentPattern] = rule;
             RecordPermissionManagerMetrics("add_rule");
         }
     }
@@ -35,7 +34,7 @@ public sealed partial class AgentPermissionManager : IAgentPermissionManager, IA
     {
                 using (await _lock.LockAsync(ct).ConfigureAwait(false))
         {
-            var removed = _rules.RemoveAll(r => r.AgentPattern == agentPattern) > 0;
+            var removed = _rules.Remove(agentPattern);
             if (removed) RecordPermissionManagerMetrics("remove_rule");
             return removed;
         }
@@ -164,7 +163,7 @@ public sealed partial class AgentPermissionManager : IAgentPermissionManager, IA
     {
                 using (await _lock.LockAsync(ct).ConfigureAwait(false))
         {
-            return _rules.ToList();
+            return _rules.Values.OrderByDescending(r => r.Priority).ToList();
         }
     }
 
@@ -184,20 +183,19 @@ public sealed partial class AgentPermissionManager : IAgentPermissionManager, IA
                 using (await _lock.LockAsync(ct).ConfigureAwait(false))
         {
             // 首先尝试精确匹配
-            var exactMatch = _rules.FirstOrDefault(r => r.AgentPattern == agentName);
-            if (exactMatch != null) return exactMatch;
+            if (_rules.TryGetValue(agentName, out var exactMatch)) return exactMatch;
 
-            // 尝试通配符匹配
-            foreach (var rule in _rules)
+            // 尝试通配符匹配（按优先级降序遍历）
+            foreach (var rule in _rules.Values.OrderByDescending(r => r.Priority))
             {
-                if (IsWildcardMatch(agentName, rule.AgentPattern))
+                if (rule.AgentPattern != "*" && IsWildcardMatch(agentName, rule.AgentPattern))
                 {
                     return rule;
                 }
             }
 
             // 尝试默认规则 (*)
-            return _rules.FirstOrDefault(r => r.AgentPattern == "*");
+            return _rules.TryGetValue("*", out var defaultRule) ? defaultRule : null;
         }
     }
 

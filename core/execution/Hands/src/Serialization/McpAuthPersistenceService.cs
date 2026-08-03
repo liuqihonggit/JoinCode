@@ -23,7 +23,6 @@ public sealed partial class McpAuthPersistenceService : IMcpAuthPersistenceServi
         try
         {
             var entries = await LoadEntriesAsync(ct).ConfigureAwait(false);
-            var existing = entries.FindIndex(e => e.Name == authName);
             var entry = new AuthConfigEntry
             {
                 Name = authName,
@@ -32,10 +31,7 @@ public sealed partial class McpAuthPersistenceService : IMcpAuthPersistenceServi
                 SavedAt = DateTime.UtcNow
             };
 
-            if (existing >= 0)
-                entries[existing] = entry;
-            else
-                entries.Add(entry);
+            entries[authName] = entry;
 
             await SaveEntriesAsync(entries, ct).ConfigureAwait(false);
         }
@@ -53,7 +49,7 @@ public sealed partial class McpAuthPersistenceService : IMcpAuthPersistenceServi
         try
         {
             var entries = await LoadEntriesAsync(ct).ConfigureAwait(false);
-            return entries.Find(e => e.Name == authName);
+            return entries.TryGetValue(authName, out var entry) ? entry : null;
         }
         finally
         {
@@ -68,7 +64,7 @@ public sealed partial class McpAuthPersistenceService : IMcpAuthPersistenceServi
         await _lock.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            return await LoadEntriesAsync(ct).ConfigureAwait(false);
+            return (await LoadEntriesAsync(ct).ConfigureAwait(false)).Values.ToList();
         }
         finally
         {
@@ -84,7 +80,7 @@ public sealed partial class McpAuthPersistenceService : IMcpAuthPersistenceServi
         try
         {
             var entries = await LoadEntriesAsync(ct).ConfigureAwait(false);
-            entries.RemoveAll(e => e.Name == authName);
+            entries.Remove(authName);
             await SaveEntriesAsync(entries, ct).ConfigureAwait(false);
         }
         finally
@@ -93,30 +89,32 @@ public sealed partial class McpAuthPersistenceService : IMcpAuthPersistenceServi
         }
     }
 
-    private async Task<List<AuthConfigEntry>> LoadEntriesAsync(CancellationToken ct)
+    private async Task<Dictionary<string, AuthConfigEntry>> LoadEntriesAsync(CancellationToken ct)
     {
         var configService = _configService ?? throw new InvalidOperationException("Config service not available.");
         try
         {
             var json = await configService.GetAsync("mcp.auth_entries", ct).ConfigureAwait(false);
-            if (string.IsNullOrEmpty(json)) return [];
+            if (string.IsNullOrEmpty(json)) return new Dictionary<string, AuthConfigEntry>();
 
             var entries = JsonSerializer.Deserialize(json, AuthEntryContext.Default.ListAuthConfigEntry);
-            return entries ?? [];
+            if (entries == null) return new Dictionary<string, AuthConfigEntry>();
+            return entries.ToDictionary(e => e.Name);
         }
         catch (Exception ex)
         {
             _logger?.LogWarning(ex, "加载 MCP 认证配置失败");
-            return [];
+            return new Dictionary<string, AuthConfigEntry>();
         }
     }
 
-    private async Task SaveEntriesAsync(List<AuthConfigEntry> entries, CancellationToken ct)
+    private async Task SaveEntriesAsync(Dictionary<string, AuthConfigEntry> entries, CancellationToken ct)
     {
         var configService = _configService ?? throw new InvalidOperationException("Config service not available.");
         try
         {
-            var json = JsonSerializer.Serialize(entries, AuthEntryContext.Default.ListAuthConfigEntry);
+            var list = entries.Values.ToList();
+            var json = JsonSerializer.Serialize(list, AuthEntryContext.Default.ListAuthConfigEntry);
             await configService.SetAsync("mcp.auth_entries", json, ct).ConfigureAwait(false);
         }
         catch (Exception ex)

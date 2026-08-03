@@ -307,7 +307,7 @@ public sealed record MemoryHealthReport
 public sealed partial class MemoryManagementService : IMemoryManagementService, IDisposable
 {
     private readonly MemoryStore _memoryStore;
-    private readonly List<TeamMemoryPath> _teamMemoryPaths = new();
+    private readonly Dictionary<(string TeamId, string Path), TeamMemoryPath> _teamMemoryPaths = new();
     private readonly SemaphoreSlim _skillLock;
     [Inject] private readonly ILogger<MemoryManagementService>? _logger;
     private readonly IClockService _clock;
@@ -541,15 +541,15 @@ public sealed partial class MemoryManagementService : IMemoryManagementService, 
         try
         {
             // 移除已存在的相同路径
-            _teamMemoryPaths.RemoveAll(p => p.TeamId == teamId && p.Path == path);
+            _teamMemoryPaths.Remove((teamId, path));
 
-            _teamMemoryPaths.Add(new TeamMemoryPath
+            _teamMemoryPaths[(teamId, path)] = new TeamMemoryPath
             {
                 TeamId = teamId,
                 Path = path,
                 IsShared = isShared,
                 AllowedAgents = allowedAgents ?? new List<string>()
-            });
+            };
 
             _logger?.LogInformation(L.T(StringKey.VaultLogAddTeamPath), teamId, path);
         }
@@ -576,7 +576,7 @@ public sealed partial class MemoryManagementService : IMemoryManagementService, 
 
     private List<TeamMemoryPath> GetTeamMemoryPathsCore(string? teamId)
     {
-        var paths = _teamMemoryPaths.AsEnumerable();
+        var paths = _teamMemoryPaths.Values.AsEnumerable();
 
         if (!string.IsNullOrEmpty(teamId))
         {
@@ -593,8 +593,8 @@ public sealed partial class MemoryManagementService : IMemoryManagementService, 
         await _skillLock.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            var removed = _teamMemoryPaths.RemoveAll(p => p.TeamId == teamId && p.Path == path);
-            if (removed > 0)
+            var removed = _teamMemoryPaths.Remove((teamId, path));
+            if (removed)
             {
                 _logger?.LogInformation(L.T(StringKey.VaultLogRemoveTeamPath), teamId, path);
                 return true;

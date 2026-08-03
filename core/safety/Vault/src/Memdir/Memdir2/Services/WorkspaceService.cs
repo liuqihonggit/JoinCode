@@ -4,7 +4,7 @@ namespace Core.Memdir;
 [Register]
 public sealed partial class WorkspaceService : IWorkspaceService
 {
-    private readonly List<string> _directories = [];
+    private readonly HashSet<string> _directories = new(StringComparer.OrdinalIgnoreCase);
     [Inject] private readonly ILogger<WorkspaceService>? _logger;
 
     public WorkspaceService(ILogger<WorkspaceService>? logger = null)
@@ -18,7 +18,7 @@ public sealed partial class WorkspaceService : IWorkspaceService
 
         var fullPath = Path.GetFullPath(path);
 
-        if (_directories.Contains(fullPath, StringComparer.OrdinalIgnoreCase))
+        if (_directories.Contains(fullPath))
         {
             _logger?.LogDebug(L.T(StringKey.VaultLogDirectoryExists), fullPath);
             return false;
@@ -34,10 +34,9 @@ public sealed partial class WorkspaceService : IWorkspaceService
         ArgumentNullException.ThrowIfNull(path);
 
         var fullPath = Path.GetFullPath(path);
-        var removed = _directories.RemoveAll(d =>
-            string.Equals(d, fullPath, StringComparison.OrdinalIgnoreCase));
+        var removed = _directories.Remove(fullPath);
 
-        if (removed > 0)
+        if (removed)
         {
             _logger?.LogInformation(L.T(StringKey.VaultLogRemovedWorkspace), fullPath);
             return true;

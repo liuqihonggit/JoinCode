@@ -2,7 +2,7 @@ namespace Infrastructure.Pipeline;
 
 /// <summary>
 /// 日志 Scope 状态 — 传递给 ILogger.BeginScope() 的结构化字典
-/// 所有字段均为 nullable，缺失时输出 null 而非抛异常
+/// ObjectId.Empty 时 ObjectId/ObjectType 字段输出 null
 /// 实现 IReadOnlyList 以兼容所有 ILogger Provider
 /// </summary>
 public sealed class LogScopeState : IReadOnlyList<KeyValuePair<string, object?>>
@@ -12,12 +12,12 @@ public sealed class LogScopeState : IReadOnlyList<KeyValuePair<string, object?>>
     private readonly KeyValuePair<string, object?> _objectId;
     private readonly KeyValuePair<string, object?> _objectType;
 
-    public LogScopeState(string? traceId, string? spanId, ObjectId? objectId)
+    public LogScopeState(string? traceId, string? spanId, ObjectId objectId)
     {
         _traceId = new("TraceId", traceId);
         _spanId = new("SpanId", spanId);
-        _objectId = new("ObjectId", objectId.HasValue ? objectId.Value.ToString() : null);
-        _objectType = new("ObjectType", objectId.HasValue ? objectId.Value.Type.ToValue() : null);
+        _objectId = new("ObjectId", objectId.IsEmpty ? null : objectId.ToString());
+        _objectType = new("ObjectType", objectId.IsEmpty ? null : objectId.Type.ToValue());
     }
 
     public int Count => 4;

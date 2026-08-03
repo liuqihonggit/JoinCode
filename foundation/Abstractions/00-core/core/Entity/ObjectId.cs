@@ -5,15 +5,22 @@ namespace JoinCode.Abstractions.Entity;
 /// SequenceId: 原子自增 long，进程内快速索引，插件用此获取内部元素
 /// UniqueId: GUID 方式，跨进程/持久化场景唯一标识，格式 "{前缀}-{GUID前8位}"
 /// DisplayName: 可描述名称，人类可读，日志和UI展示用
+/// Empty: 未分配标记，等同 default(ObjectId)，Type=None, SequenceId=0
 /// </summary>
 public readonly struct ObjectId : IEquatable<ObjectId>, IComparable<ObjectId>
 {
     private static long _globalSequence;
 
+    /// <summary>未分配标记 — Type=None, SequenceId=0, UniqueId="", DisplayName=""</summary>
+    public static readonly ObjectId Empty;
+
     public ObjectType Type { get; }
     public long SequenceId { get; }
     public string UniqueId { get; }
     public string DisplayName { get; }
+
+    /// <summary>是否未分配 — Type == None 且 SequenceId == 0</summary>
+    public bool IsEmpty => Type == ObjectType.None && SequenceId == 0;
 
     /// <summary>
     /// 新建 ObjectId — 自动分配原子自增 SequenceId + 生成 GUID UniqueId
@@ -38,7 +45,7 @@ public readonly struct ObjectId : IEquatable<ObjectId>, IComparable<ObjectId>
         DisplayName = displayName ?? uniqueId;
     }
 
-    public override string ToString() => $"{Type}:{SequenceId}";
+    public override string ToString() => IsEmpty ? "None:0" : $"{Type}:{SequenceId}";
 
     public override int GetHashCode() => HashCode.Combine(Type, SequenceId);
 

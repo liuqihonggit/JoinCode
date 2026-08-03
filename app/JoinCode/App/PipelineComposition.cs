@@ -22,6 +22,7 @@ public static class PipelineComposition
         // Chat 聊天管道 (Stream) — 限流: 每60s最多30次请求
         services.AddSingleton<StreamMiddlewarePipeline<ChatMiddlewareContext, ChatStreamEvent>>(sp =>
             new StreamPipelineBuilder<ChatMiddlewareContext, ChatStreamEvent>()
+                .WithLoggingScope()
                 .Use(new FixedStreamRateLimitMiddleware<ChatMiddlewareContext, ChatStreamEvent>(30, TimeSpan.FromSeconds(60)))
                 .Use(sp.GetRequiredService<ChatTimingMiddleware>())
                 .Use(sp.GetRequiredService<ChatErrorHandlingMiddleware>())
@@ -43,6 +44,7 @@ public static class PipelineComposition
         // Preprocess 预处理管道
         services.AddSingleton<MiddlewarePipeline<PreprocessContext>>(sp =>
             new PipelineBuilder<PreprocessContext>()
+                .WithLoggingScope()
                 .Use(sp.GetRequiredService<KeywordInjectionMiddleware>())
                 .Use(sp.GetRequiredService<SynonymInjectionMiddleware>())
                 .Use(sp.GetRequiredService<SystemPromptMiddleware>())
@@ -55,6 +57,7 @@ public static class PipelineComposition
         // ChatInit 聊天初始化管道
         services.AddSingleton<MiddlewarePipeline<ChatInitContext>>(sp =>
             new PipelineBuilder<ChatInitContext>()
+                .WithLoggingScope()
                 .Use(sp.GetRequiredService<ContextLoadMiddleware>())
                 .Use(sp.GetRequiredService<CostRestoreMiddleware>())
                 .Use(sp.GetRequiredService<ConfigChangeStartMiddleware>())
@@ -65,6 +68,7 @@ public static class PipelineComposition
         // ChatAdmin 管理管道
         services.AddSingleton<MiddlewarePipeline<ChatAdminContext>>(sp =>
             new PipelineBuilder<ChatAdminContext>()
+                .WithLoggingScope()
                 .Use(sp.GetRequiredService<SessionAdminMiddleware>())
                 .Use(sp.GetRequiredService<SessionSaveMiddleware>())
                 .WithHooks(sp)
@@ -73,6 +77,7 @@ public static class PipelineComposition
         // Compact 压缩管道
         services.AddSingleton<MiddlewarePipeline<CompactContext>>(sp =>
             new PipelineBuilder<CompactContext>()
+                .WithLoggingScope()
                 .Use(sp.GetRequiredService<CompactHookMiddleware>())
                 .Use(sp.GetRequiredService<CompactTelemetryMiddleware>())
                 .Use(sp.GetRequiredService<ContextCollapseMiddleware>())
@@ -85,6 +90,7 @@ public static class PipelineComposition
         // Query 查询管道 — 限流: 每60s最多60次请求
         services.AddSingleton<MiddlewarePipeline<QueryMiddlewareContext>>(sp =>
             new PipelineBuilder<QueryMiddlewareContext>()
+                .WithLoggingScope()
                 .Use(new FixedRateLimitMiddleware<QueryMiddlewareContext>(60, TimeSpan.FromSeconds(60)))
                 .Use(sp.GetRequiredService<UsdBudgetMiddleware>())
                 .Use(sp.GetRequiredService<QueryTokenBudgetMiddleware>())
@@ -101,6 +107,7 @@ public static class PipelineComposition
         // Permission 权限管道 — 责任链模式：第一个设置 Result 的中间件短路后续
         services.AddSingleton<MiddlewarePipeline<PermissionCheckContext>>(sp =>
             new PipelineBuilder<PermissionCheckContext>()
+                .WithLoggingScope()
                 .WithShortCircuit(ctx => ctx.Result is not null)
                 .Use(sp.GetRequiredService<BypassPermissionMiddleware>())
                 .Use(sp.GetRequiredService<AgentRestrictionMiddleware>())
@@ -120,6 +127,7 @@ public static class PipelineComposition
         // Settings 设置管道
         services.AddSingleton<MiddlewarePipeline<SettingsContext>>(sp =>
             new PipelineBuilder<SettingsContext>()
+                .WithLoggingScope()
                 .Use(sp.GetRequiredService<SettingsReloadMiddleware>())
                 .Use(sp.GetRequiredService<EffortLevelMiddleware>())
                 .Use(sp.GetRequiredService<HookRefreshMiddleware>())
@@ -130,6 +138,7 @@ public static class PipelineComposition
         // AgentSpawn 智能体生成管道
         services.AddSingleton<MiddlewarePipeline<AgentSpawnContext>>(sp =>
             new PipelineBuilder<AgentSpawnContext>()
+                .WithLoggingScope(ctx => ctx.SubAgent?.ObjectId ?? ObjectId.Empty)
                 .Use(sp.GetRequiredService<DefinitionResolutionMiddleware>())
                 .Use(sp.GetRequiredService<PromptBuildingMiddleware>())
                 .Use(sp.GetRequiredService<ContextSetupMiddleware>())
@@ -144,6 +153,7 @@ public static class PipelineComposition
         // AgentSpawnCoord 协调层生成管道 — SpawnSubAgentAsync 的7步协调流程
         services.AddSingleton<MiddlewarePipeline<AgentSpawnCoordContext>>(sp =>
             new PipelineBuilder<AgentSpawnCoordContext>()
+                .WithLoggingScope(ctx => ctx.Agent?.ObjectId ?? ObjectId.Empty)
                 .Use(sp.GetRequiredService<SpawnCoordLifecycleMiddleware>())
                 .Use(sp.GetRequiredService<SpawnCoordWorktreeMiddleware>())
                 .Use(sp.GetRequiredService<SpawnCoordRegisterMessageMiddleware>())
@@ -156,6 +166,7 @@ public static class PipelineComposition
         // AgentDispose 协调层释放管道 — DisposeAgentAsync 的5步协调流程
         services.AddSingleton<MiddlewarePipeline<AgentDisposeContext>>(sp =>
             new PipelineBuilder<AgentDisposeContext>()
+                .WithLoggingScope()
                 .Use(sp.GetRequiredService<DisposeUnregisterMessageMiddleware>())
                 .Use(sp.GetRequiredService<DisposeWorktreeCleanupMiddleware>())
                 .Use(sp.GetRequiredService<DisposeShellTasksMiddleware>())
@@ -167,6 +178,7 @@ public static class PipelineComposition
         // Fork 分支管道
         services.AddSingleton<MiddlewarePipeline<ForkContext>>(sp =>
             new PipelineBuilder<ForkContext>()
+                .WithLoggingScope(ctx => ctx.Agent?.ObjectId ?? ObjectId.Empty)
                 .Use(sp.GetRequiredService<ForkValidationMiddleware>())
                 .Use(sp.GetRequiredService<ForkSpawnMiddleware>())
                 .Use(sp.GetRequiredService<ForkPermissionMiddleware>())
@@ -177,6 +189,7 @@ public static class PipelineComposition
         // Web 网页管道 — 超时30s + 失败重试2次 + 熔断(连续5次失败冷却30s)
         services.AddSingleton<MiddlewarePipeline<WebContext>>(sp =>
             new PipelineBuilder<WebContext>()
+                .WithLoggingScope()
                 .Use(new FixedTimeoutMiddleware<WebContext>(TimeSpan.FromSeconds(30)))
                 .Use(new FixedRetryMiddleware<WebContext>(2, ex => ex is HttpRequestException or TimeoutException))
                 .Use(new FixedCircuitBreakerMiddleware<WebContext>(5, TimeSpan.FromSeconds(30)))
@@ -194,6 +207,7 @@ public static class PipelineComposition
         // Shell 命令管道 — 超时120s
         services.AddSingleton<MiddlewarePipeline<ShellPipelineContext>>(sp =>
             new PipelineBuilder<ShellPipelineContext>()
+                .WithLoggingScope()
                 .Use(new FixedTimeoutMiddleware<ShellPipelineContext>(TimeSpan.FromSeconds(120)))
                 .Use(sp.GetRequiredService<ShellValidationMiddleware>())
                 .Use(sp.GetRequiredService<ShellClassificationMiddleware>())
@@ -208,6 +222,7 @@ public static class PipelineComposition
         // Skill 技能管道 — 超时60s
         services.AddSingleton<MiddlewarePipeline<SkillContext>>(sp =>
             new PipelineBuilder<SkillContext>()
+                .WithLoggingScope()
                 .Use(new FixedTimeoutMiddleware<SkillContext>(TimeSpan.FromSeconds(60)))
                 .Use(sp.GetRequiredService<MetricsMiddleware<SkillContext>>())
                 .Use(sp.GetRequiredService<SkillValidationMiddleware>())
@@ -219,6 +234,7 @@ public static class PipelineComposition
         // Code 代码管道 — 超时120s（含LLM调用+沙箱执行）
         services.AddSingleton<MiddlewarePipeline<CodeContext>>(sp =>
             new PipelineBuilder<CodeContext>()
+                .WithLoggingScope()
                 .Use(new FixedTimeoutMiddleware<CodeContext>(TimeSpan.FromSeconds(120)))
                 .Use(sp.GetRequiredService<CodeCacheMiddleware>())
                 .Use(sp.GetRequiredService<CodeSecurityMiddleware>())
@@ -231,6 +247,7 @@ public static class PipelineComposition
         // Dream 记忆整合管道 — 6步流程: 门控→扫描→注册→提示→LLM→记录
         services.AddSingleton<MiddlewarePipeline<JoinCode.Dream.Pipeline.DreamContext>>(sp =>
             new PipelineBuilder<JoinCode.Dream.Pipeline.DreamContext>()
+                .WithLoggingScope()
                 .WithShortCircuit(ctx => ctx.Result is not null)
                 .Use(sp.GetRequiredService<JoinCode.Dream.Pipeline.DreamGateCheckMiddleware>())
                 .Use(sp.GetRequiredService<JoinCode.Dream.Pipeline.DreamSessionScanMiddleware>())

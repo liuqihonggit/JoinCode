@@ -61,7 +61,25 @@ public sealed partial class GoalEvaluator : IGoalEvaluator
 
         var trimmed = content.Trim();
 
-        // 尝试 JSON 解析（使用源码生成器，AOT 兼容）
+        var jsonBlock = ExtractJsonBlock(trimmed);
+        if (jsonBlock is not null)
+        {
+            try
+            {
+                var result = JsonSerializer.Deserialize(jsonBlock, GoalJsonContext.Default.GoalEvaluationJson);
+                if (result != null)
+                {
+                    return result.Completed
+                        ? GoalEvaluationResult.Completed(result.Reason)
+                        : GoalEvaluationResult.NotCompleted(result.Reason);
+                }
+            }
+            catch (JsonException ex)
+            {
+                System.Diagnostics.Trace.WriteLine($"Goal evaluation JSON parse failed: {ex.Message}");
+            }
+        }
+
         var jsonStart = trimmed.IndexOf('{');
         if (jsonStart >= 0)
         {
@@ -81,24 +99,26 @@ public sealed partial class GoalEvaluator : IGoalEvaluator
                 }
                 catch (JsonException ex)
                 {
-                    // JSON 解析失败，尝试文本回退
-                    System.Diagnostics.Trace.WriteLine($"Goal evaluation JSON parse failed, falling back to text: {ex.Message}");
+                    System.Diagnostics.Trace.WriteLine($"Goal evaluation inline JSON parse failed: {ex.Message}");
                 }
             }
         }
 
-        // 文本回退：yes/no 前缀
-        if (trimmed.StartsWith("yes", StringComparison.OrdinalIgnoreCase))
-        {
-            return GoalEvaluationResult.Completed(trimmed);
-        }
-
-        if (trimmed.StartsWith("no", StringComparison.OrdinalIgnoreCase))
-        {
-            return GoalEvaluationResult.NotCompleted(trimmed);
-        }
-
         return GoalEvaluationResult.NotCompleted(L.T(StringKey.GoalEvaluatorFormatError, trimmed));
+    }
+
+    private static string? ExtractJsonBlock(string output)
+    {
+        var jsonStart = output.IndexOf("```json", StringComparison.OrdinalIgnoreCase);
+        if (jsonStart < 0)
+            return null;
+
+        var contentStart = jsonStart + 7;
+        var jsonEnd = output.IndexOf("```", contentStart, StringComparison.Ordinal);
+        if (jsonEnd <= contentStart)
+            return null;
+
+        return output[contentStart..jsonEnd].Trim();
     }
 
     private static string BuildEvaluatorPrompt(string objective, IReadOnlyList<string> constraints, string recentConversation)
@@ -128,7 +148,10 @@ public sealed partial class GoalEvaluator : IGoalEvaluator
             - You can only judge based on what appears in the conversation. You cannot execute tools.
 
             RESPONSE FORMAT:
+            Output a JSON block wrapped in ```json and ```:
+            ```json
             {"completed": true/false, "reason": "..."}
+            ```
             """;
     }
 }

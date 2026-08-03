@@ -64,9 +64,8 @@ public sealed partial class PermissionAwareToolExecutor
             span.SetTag("tool.name", toolName);
         }
 
-        var executionEntity = new ToolExecutionEntity(
-            toolName: toolName,
-            spanId: span?.SpanId);
+        var executionEntity = ToolExecutionEntityFactory.Create(
+            toolName, toolUseId: null, spanId: span?.SpanId, arguments: arguments);
         executionEntity.LifecycleState = EntityLifecycle.Active;
         executionEntity.StartedAt = DateTime.UtcNow;
         span?.SetTag("entity.object_id", executionEntity.UniqueId);
@@ -155,6 +154,40 @@ public sealed partial class PermissionAwareToolExecutor
         entity.ResultSummary = context.Result?
             .Content?.FirstOrDefault(c => c.Type == ToolContentType.Text)?
             .Text;
+
+        BackfillEntityMetadata(entity, context.Result?.EntityMetadata);
+    }
+
+    /// <summary>
+    /// 从 ToolResult.EntityMetadata 回填子类 Entity 特有字段
+    /// Key 约定: exit_code, process_id, http_status_code, content_length, interrupted, background_task_id
+    /// </summary>
+    private static void BackfillEntityMetadata(ToolExecutionEntity entity, List<EntityMetadataEntry>? metadata)
+    {
+        if (metadata is null || metadata.Count == 0) return;
+
+        switch (entity)
+        {
+            case BashProcessEntity bash:
+                var exitCodeEntry = metadata.Find(m => m.Key == "exit_code");
+                if (exitCodeEntry?.IntValue is int exitCode)
+                    bash.ExitCode = exitCode;
+                var interruptedEntry = metadata.Find(m => m.Key == "interrupted");
+                if (interruptedEntry?.BoolValue == true)
+                    bash.Status = BashProcessStatus.TimedOut;
+                else if (bash.ExitCode.HasValue)
+                    bash.Status = BashProcessStatus.Exited;
+                break;
+
+            case WebFetchEntity web:
+                var httpStatusEntry = metadata.Find(m => m.Key == "http_status_code");
+                if (httpStatusEntry?.IntValue is int statusCode)
+                    web.HttpStatusCode = statusCode;
+                var contentLengthEntry = metadata.Find(m => m.Key == "content_length");
+                if (contentLengthEntry?.LongValue is long contentLength)
+                    web.ContentLength = contentLength;
+                break;
+        }
     }
 
     private static ToolResult CreateErrorResult(string errorMessage)

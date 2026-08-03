@@ -181,6 +181,13 @@ public sealed record ToolResult
     public bool IsImage { get; set; }
 
     /// <summary>
+    /// 工具执行实体元数据 — Handler 可选填充，用于回填子类 Entity 特有字段
+    /// CompleteExecutionEntity 根据此列表回填 BashProcessEntity.ExitCode / WebFetchEntity.HttpStatusCode 等
+    /// </summary>
+    [JsonIgnore]
+    public List<EntityMetadataEntry>? EntityMetadata { get; set; }
+
+    /// <summary>
     /// 获取文本内容
     /// </summary>
     public string GetTextContent()
@@ -226,6 +233,7 @@ public sealed class McpResultBuilder
 {
     private readonly List<ToolContent> _content = new();
     private bool _isError;
+    private List<EntityMetadataEntry>? _entityMetadata;
 
     public static McpResultBuilder Success() => new();
 
@@ -263,12 +271,23 @@ public sealed class McpResultBuilder
         return this;
     }
 
+    /// <summary>
+    /// 附加工具执行实体元数据 — 用于回填子类 Entity 特有字段（如 ExitCode, HttpStatusCode）
+    /// </summary>
+    public McpResultBuilder WithEntityMetadata(EntityMetadataEntry entry)
+    {
+        _entityMetadata ??= new();
+        _entityMetadata.Add(entry);
+        return this;
+    }
+
     public ToolResult Build()
     {
         return new ToolResult
         {
             Content = _content,
-            IsError = _isError
+            IsError = _isError,
+            EntityMetadata = _entityMetadata
         };
     }
 }
@@ -310,4 +329,21 @@ public enum SkillProgressType
     [EnumValue("tool_call_start")] ToolCallStart,
     /// <summary>工具调用结束 — 对齐 TS tool_result</summary>
     [EnumValue("tool_call_end")] ToolCallEnd,
+}
+
+/// <summary>
+/// 工具执行实体元数据条目 — AOT 安全的 key-value 对，用于回填子类 Entity 特有字段
+/// </summary>
+public sealed record EntityMetadataEntry
+{
+    public required string Key { get; init; }
+    public int? IntValue { get; init; }
+    public long? LongValue { get; init; }
+    public string? StringValue { get; init; }
+    public bool? BoolValue { get; init; }
+
+    public static EntityMetadataEntry Int(string key, int value) => new() { Key = key, IntValue = value };
+    public static EntityMetadataEntry Long(string key, long value) => new() { Key = key, LongValue = value };
+    public static EntityMetadataEntry String(string key, string value) => new() { Key = key, StringValue = value };
+    public static EntityMetadataEntry Bool(string key, bool value) => new() { Key = key, BoolValue = value };
 }

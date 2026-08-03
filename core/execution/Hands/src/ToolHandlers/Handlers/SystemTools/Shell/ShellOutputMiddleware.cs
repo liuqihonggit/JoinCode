@@ -29,12 +29,14 @@ public sealed partial class ShellOutputMiddleware : IShellMiddleware
         if (result.Interrupted)
         {
             RecordShellMetrics(shellType, "execute", "interrupted");
-            // 对齐 TS: interrupted 时 is_error=true，输出包含 <error> 标签
-            context.Result = ResultBuilder.Error().WithText(BuildOutputResponse(result, context.Command)).Build();
+            context.Result = ResultBuilder.Error()
+                .WithText(BuildOutputResponse(result, context.Command))
+                .WithEntityMetadata(EntityMetadataEntry.Int("exit_code", result.ExitCode ?? -1))
+                .WithEntityMetadata(EntityMetadataEntry.Bool("interrupted", true))
+                .Build();
             return Task.CompletedTask;
         }
 
-        // 对齐 TS BashTool: 检测 stdout 中的 Data URI 图片输出
         if (ShellImageOutputDetector.IsImageOutput(result.Stdout))
         {
             var parsed = ShellImageOutputDetector.ParseDataUri(result.Stdout);
@@ -46,6 +48,7 @@ public sealed partial class ShellOutputMiddleware : IShellMiddleware
                 {
                     Content = [new ToolContent { Type = ToolContentType.Image, Data = resizedBase64Data, MimeType = resizedMediaType }],
                     IsImage = true,
+                    EntityMetadata = BuildShellEntityMetadata(result),
                 };
                 return Task.CompletedTask;
             }
@@ -53,7 +56,6 @@ public sealed partial class ShellOutputMiddleware : IShellMiddleware
 
         var output = BuildOutputResponse(result, context.Command);
 
-        // 对齐 TS claudeCodeHints: 扫描并剥离 <claude-code-hint /> 标签
         var hintResult = ClaudeCodeHintExtractor.Extract(output, context.Command);
         if (hintResult.Hints.Count > 0)
         {
@@ -61,18 +63,38 @@ public sealed partial class ShellOutputMiddleware : IShellMiddleware
         }
         output = hintResult.StrippedOutput;
 
-        // 对齐 TS commandSemantics: 使用语义判断是否为错误（如 grep exit 1 不是错误）
         var interpretation = InterpretCommandResult(context.Command, result.ExitCode ?? 0, result.Stdout ?? string.Empty, result.Stderr ?? string.Empty);
         if (interpretation.IsError)
         {
             RecordShellMetrics(shellType, "execute", "failed");
-            context.Result = ResultBuilder.Error().WithText(output).Build();
+            context.Result = ResultBuilder.Error()
+                .WithText(output)
+                .WithEntityMetadata(EntityMetadataEntry.Int("exit_code", result.ExitCode ?? -1))
+                .Build();
             return Task.CompletedTask;
         }
 
         RecordShellMetrics(shellType, "execute", "ok");
-        context.Result = ResultBuilder.Success().WithText(output).Build();
+        context.Result = ResultBuilder.Success()
+            .WithText(output)
+            .WithEntityMetadata(EntityMetadataEntry.Int("exit_code", result.ExitCode ?? 0))
+            .Build();
         return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// 构建 Shell 执行实体元数据 — 用于回填 BashProcessEntity 子类字段
+    /// </summary>
+    private static List<EntityMetadataEntry> BuildShellEntityMetadata(ShellExecutionResult result)
+    {
+        var metadata = new List<EntityMetadataEntry>();
+        if (result.ExitCode.HasValue)
+            metadata.Add(EntityMetadataEntry.Int("exit_code", result.ExitCode.Value));
+        if (result.Interrupted)
+            metadata.Add(EntityMetadataEntry.Bool("interrupted", true));
+        if (result.BackgroundTaskId is not null)
+            metadata.Add(EntityMetadataEntry.String("background_task_id", result.BackgroundTaskId));
+        return metadata;
     }
 
     private void RecordShellMetrics(string shellType, string operation, string result)

@@ -21,7 +21,7 @@ public sealed class SessionStateDocument
 {
     public string SessionId { get; set; } = string.Empty;
     public string SystemPrompt { get; set; } = string.Empty;
-    public IReadOnlyList<ApiMessageDocument> MessageList { get; set; } = Array.Empty<ApiMessageDocument>();
+    public IEnumerable<ApiMessageDocument> MessageList { get; set; } = Array.Empty<ApiMessageDocument>();
     public DateTime StartedAt { get; set; }
     public DateTime LastActivityAt { get; set; }
     public string? CurrentModel { get; set; }
@@ -65,7 +65,7 @@ public sealed class TaskStateDocument
     public TaskExecutionStatus Status { get; set; }
     public string? AgentId { get; set; }
     public string? ParentTaskId { get; set; }
-    public IReadOnlyList<string>? SubTaskIds { get; set; }
+    public IEnumerable<string>? SubTaskIds { get; set; }
     public int Progress { get; set; }
     public string? Result { get; set; }
     public string? Error { get; set; }

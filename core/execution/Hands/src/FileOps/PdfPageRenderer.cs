@@ -49,7 +49,7 @@ public sealed class PdfExtractResult
     public string? ErrorMessage { get; init; }
 
     /// <summary>获取 Pages，操作失败时抛出异常</summary>
-    public IReadOnlyList<PdfPageImage> GetPages() =>
+    public IEnumerable<PdfPageImage> GetPages() =>
         Pages ?? throw new InvalidOperationException("Pages is not available. Check Success before calling this method.");
 
     public static PdfExtractResult Ok(IReadOnlyList<PdfPageImage> pages, int? totalCount, long originalSize) =>

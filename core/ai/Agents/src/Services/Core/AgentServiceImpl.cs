@@ -272,10 +272,10 @@ public sealed partial class AgentServiceImpl : JoinCode.Abstractions.Interfaces.
             throw new InvalidOperationException($"[AGT015] 代理元数据不存在: {options.AgentId}");
 
         var transcript = await _transcriptService.LoadTranscriptAsync(sessionId, options.AgentId, cancellationToken).ConfigureAwait(false);
-        if (transcript.Count == 0)
+        if (!transcript.Any())
             throw new InvalidOperationException($"[AGT016] 代理对话记录为空: {options.AgentId}");
 
-        var chatHistory = TranscriptConverter.ToMessageListWithNewPrompt(transcript, options.NewPrompt);
+        var chatHistory = TranscriptConverter.ToMessageListWithNewPrompt(transcript.ToList(), options.NewPrompt);
 
         var profile = metadata.Variant.HasValue || metadata.Role != default
             ? _roleRegistry.GetProfile(metadata.Role, metadata.Variant)
@@ -403,7 +403,7 @@ public sealed partial class AgentServiceImpl : JoinCode.Abstractions.Interfaces.
         return sent;
     }
 
-    public async Task<IReadOnlyList<JoinCode.Abstractions.Interfaces.AgentMessageInfo>> GetAgentMessagesAsync(string agentId, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<JoinCode.Abstractions.Interfaces.AgentMessageInfo>> GetAgentMessagesAsync(string agentId, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
 

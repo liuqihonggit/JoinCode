@@ -40,7 +40,7 @@ public interface IProviderDefinition
     /// <summary>
     /// 可用模型列表
     /// </summary>
-    IReadOnlyList<ModelEntry> AvailableModels { get; }
+    IEnumerable<ModelEntry> AvailableModels { get; }
 
     /// <summary>
     /// 从环境变量解析 API Key（优先级最高）

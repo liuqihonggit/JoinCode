@@ -17,5 +17,5 @@ public interface IAgentLifecycleManager
     Task<IReadOnlyDictionary<string, SubAgentResult>> GetAllResultsAsync(CancellationToken cancellationToken = default);
     Task WaitAllAsync(CancellationToken cancellationToken = default);
     Task<AgentStateReport> GetStateReportAsync(CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<RunningAgentInfo>> GetRunningAgentsAsync(CancellationToken cancellationToken = default);
+    Task<IEnumerable<RunningAgentInfo>> GetRunningAgentsAsync(CancellationToken cancellationToken = default);
 }

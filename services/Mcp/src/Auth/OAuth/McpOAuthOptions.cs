@@ -8,7 +8,7 @@ public sealed class McpOAuthOptions
     public string AuthorizationUrl { get; init; } = string.Empty;
     public string TokenUrl { get; init; } = string.Empty;
     public string RedirectUrl { get; init; } = "http://localhost:8765/callback";
-    public IReadOnlyList<string> Scopes { get; init; } = Array.Empty<string>();
+    public IEnumerable<string> Scopes { get; init; } = Array.Empty<string>();
     public TimeSpan AuthorizationTimeout { get; init; } = TimeSpan.FromMinutes(5);
     public string TokenStoragePath { get; init; } = string.Empty;
 

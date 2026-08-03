@@ -376,7 +376,7 @@ public sealed partial class CodeIndexer : ICodeIndexer, IDisposable
         return Math.Max(4, chars / 4);
     }
 
-    private IReadOnlyList<string> CollectCsFiles(string workspaceRoot, IReadOnlyList<string>? excludePatterns)
+    private IReadOnlyList<string> CollectCsFiles(string workspaceRoot, IEnumerable<string>? excludePatterns)
     {
         // 默认排除 bin/obj/.git/.x — 避免扫描编译产物和临时目录
         var excludes = (excludePatterns ?? [])

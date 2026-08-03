@@ -182,10 +182,11 @@ public sealed class TurnDiffService : ITurnDiffProvider
         for (var i = 0; i < patch.Length; i++)
         {
             var p = patch[i];
-            var lines = new DiffLine[p.Lines.Length];
-            for (var j = 0; j < p.Lines.Length; j++)
+            var pLines = p.Lines.ToArray();
+            var lines = new DiffLine[pLines.Length];
+            for (var j = 0; j < pLines.Length; j++)
             {
-                var pl = p.Lines[j];
+                var pl = pLines[j];
                 lines[j] = new DiffLine(
                     pl.Type,
                     pl.Content,

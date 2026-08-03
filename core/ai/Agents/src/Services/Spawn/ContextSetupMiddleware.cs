@@ -112,9 +112,9 @@ public sealed partial class ContextSetupMiddleware : IAgentSpawnMiddleware
     /// <summary>
     /// 合并 AllowedTools — 对齐 TS executeForkedSkill: 调用方优先
     /// </summary>
-    private static List<string>? MergeAllowedTools(IReadOnlyList<string>? callerTools, List<string>? definitionTools)
+    private static List<string>? MergeAllowedTools(IEnumerable<string>? callerTools, List<string>? definitionTools)
     {
-        if (callerTools is not null && callerTools.Count > 0)
+        if (callerTools is not null && callerTools.Any())
             return callerTools.ToList();
         return definitionTools;
     }

@@ -44,7 +44,7 @@ public abstract class OpenAICompatibleProviderDefinitionBase : IProviderDefiniti
         return !string.IsNullOrWhiteSpace(config.ApiKey);
     }
 
-    public virtual IReadOnlyList<ModelEntry> AvailableModels => ModelConfigLoader.GetModels(ProviderConfigKey);
+    public virtual IEnumerable<ModelEntry> AvailableModels => ModelConfigLoader.GetModels(ProviderConfigKey);
 
     public virtual string? ResolveAlias(string input)
     {

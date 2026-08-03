@@ -12,7 +12,7 @@ public sealed record SourceCodeContext
     public required string CurrentContent { get; init; }
 
     /// <summary>相关文件上下文（imports、接口定义等）</summary>
-    public IReadOnlyList<SourceFileSnippet> RelatedSnippets { get; init; } = [];
+    public IEnumerable<SourceFileSnippet> RelatedSnippets { get; init; } = [];
 
     /// <summary>编译错误信息（如果有）</summary>
     public string? BuildErrorOutput { get; init; }

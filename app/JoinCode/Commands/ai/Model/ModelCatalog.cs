@@ -25,10 +25,11 @@ public sealed partial class ModelCatalog(IProviderDefinitionRegistry registry) :
             var customName = Environment.GetEnvironmentVariable(JccEnvVar.CustomModelOptionName.ToValue());
             var customDesc = Environment.GetEnvironmentVariable(JccEnvVar.CustomModelOptionDescription.ToValue());
 
-            var result = new ModelEntry[baseModels.Count + 1];
-            for (int i = 0; i < baseModels.Count; i++)
-                result[i] = baseModels[i];
-            result[baseModels.Count] = new ModelEntry(
+            var baseList = baseModels.ToList();
+            var result = new ModelEntry[baseList.Count + 1];
+            for (int i = 0; i < baseList.Count; i++)
+                result[i] = baseList[i];
+            result[baseList.Count] = new ModelEntry(
                 customModelId,
                 string.IsNullOrWhiteSpace(customName) ? customModelId : customName,
                 128_000,

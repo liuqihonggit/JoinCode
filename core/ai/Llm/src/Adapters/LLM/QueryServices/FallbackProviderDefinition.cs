@@ -25,7 +25,7 @@ internal sealed class FallbackProviderDefinition : IProviderDefinition
     public string? DefaultEndpoint => _inner?.DefaultEndpoint;
     public string? ApiKeyEnvironmentVariable => _inner?.ApiKeyEnvironmentVariable;
     public string? EndpointEnvironmentVariable => _inner?.EndpointEnvironmentVariable;
-    public IReadOnlyList<ModelEntry> AvailableModels => _inner?.AvailableModels ?? [];
+    public IEnumerable<ModelEntry> AvailableModels => _inner?.AvailableModels ?? [];
     public string? ResolveApiKeyFromEnv() => _inner?.ResolveApiKeyFromEnv();
     public bool IsValid(ProviderConfig config) => _inner?.IsValid(config) ?? !string.IsNullOrWhiteSpace(config.ApiKey);
 

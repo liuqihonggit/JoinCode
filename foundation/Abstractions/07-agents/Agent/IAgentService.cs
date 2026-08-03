@@ -48,7 +48,7 @@ public interface IAgentService
     /// <summary>
     /// 获取代理的待处理消息
     /// </summary>
-    Task<IReadOnlyList<AgentMessageInfo>> GetAgentMessagesAsync(string agentId, CancellationToken cancellationToken = default);
+    Task<IEnumerable<AgentMessageInfo>> GetAgentMessagesAsync(string agentId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 代理完成事件（后台代理完成时触发）
@@ -81,7 +81,7 @@ public interface IAgentCoordinator
     /// <summary>
     /// 获取所有正在运行的代理
     /// </summary>
-    Task<IReadOnlyList<RunningAgentInfo>> GetRunningAgentsAsync(CancellationToken cancellationToken = default);
+    Task<IEnumerable<RunningAgentInfo>> GetRunningAgentsAsync(CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -231,7 +231,7 @@ public sealed record AgentSpawnOptions
     /// 技能 fork 模式下，限制子智能体只能使用指定工具
     /// 与 AgentDefinition.Tools 合并（调用方优先）
     /// </summary>
-    public IReadOnlyList<string>? AllowedTools { get; init; }
+    public IEnumerable<string>? AllowedTools { get; init; }
 
     /// <summary>
     /// 推理努力级别 — 对齐 TS PromptCommand.effort
@@ -339,7 +339,7 @@ public sealed record AgentProgress
     public required int ToolUseCount { get; init; }
     public required int TokenCount { get; init; }
     public ToolActivity? LastActivity { get; init; }
-    public IReadOnlyList<ToolActivity>? RecentActivities { get; init; }
+    public IEnumerable<ToolActivity>? RecentActivities { get; init; }
     public string? Summary { get; init; }
 }
 

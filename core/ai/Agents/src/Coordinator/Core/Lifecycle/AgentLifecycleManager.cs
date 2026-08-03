@@ -249,7 +249,7 @@ public sealed partial class AgentLifecycleManager : IAgentLifecycleManager
     /// <summary>
     /// 获取正在运行的Agent列表
     /// </summary>
-    public Task<IReadOnlyList<RunningAgentInfo>> GetRunningAgentsAsync(CancellationToken cancellationToken = default)
+    public Task<IEnumerable<RunningAgentInfo>> GetRunningAgentsAsync(CancellationToken cancellationToken = default)
     {
         var result = _subAgents.Values
             .Where(a => a.State == TaskExecutionStatus.Running)
@@ -263,7 +263,7 @@ public sealed partial class AgentLifecycleManager : IAgentLifecycleManager
             })
             .ToList();
 
-        return Task.FromResult<IReadOnlyList<RunningAgentInfo>>(result);
+        return Task.FromResult<IEnumerable<RunningAgentInfo>>(result);
     }
 
     private string GenerateAgentId()

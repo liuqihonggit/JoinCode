@@ -159,11 +159,12 @@ public partial class TaskStopToolHandlers
         if (type is "all" or AgentToolNameConstants.Agent)
         {
             var agents = await _agentCoordinator.GetRunningAgentsAsync(cancellationToken).ConfigureAwait(false);
-            if (agents.Count > 0)
+            var agentList = agents.ToList();
+            if (agentList.Count > 0)
             {
                 hasAny = true;
                 sb.AppendLine("[Agents]");
-                foreach (var agent in agents)
+                foreach (var agent in agentList)
                 {
                     sb.AppendLine($"- {agent.Id}: {agent.Description}");
                     var typeStr = agent.Variant.HasValue ? agent.Variant.Value.ToValue() : agent.Role.ToValue();

@@ -34,12 +34,12 @@ public sealed class AgentRoleProfile
     /// <summary>
     /// 允许的工具白名单 — null 表示全量工具集
     /// </summary>
-    public IReadOnlyList<string>? AllowedTools { get; init; }
+    public IEnumerable<string>? AllowedTools { get; init; }
 
     /// <summary>
     /// 禁止的工具黑名单
     /// </summary>
-    public IReadOnlyList<string>? DisallowedTools { get; init; }
+    public IEnumerable<string>? DisallowedTools { get; init; }
 
     /// <summary>
     /// 权限模式
@@ -89,7 +89,7 @@ public sealed class AgentRoleProfile
     /// <summary>
     /// 预加载技能
     /// </summary>
-    public IReadOnlyList<string>? Skills { get; init; }
+    public IEnumerable<string>? Skills { get; init; }
 
     /// <summary>
     /// 定义来源路径（用户/项目自定义 .md 文件）

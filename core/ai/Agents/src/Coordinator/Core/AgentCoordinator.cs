@@ -538,7 +538,7 @@ public sealed partial class AgentCoordinator : IAgentCoordinator, ISubAgentCoord
         return await _lifecycleManager.CancelAgentAsync(agentId, cancellationToken).ConfigureAwait(false);
     }
 
-    public Task<IReadOnlyList<RunningAgentInfo>> GetRunningAgentsAsync(CancellationToken cancellationToken = default)
+    public Task<IEnumerable<RunningAgentInfo>> GetRunningAgentsAsync(CancellationToken cancellationToken = default)
     {
         return _lifecycleManager.GetRunningAgentsAsync(cancellationToken);
     }
@@ -567,7 +567,7 @@ public sealed partial class AgentCoordinator : IAgentCoordinator, ISubAgentCoord
             TokenCount = progress?.TokenCount ?? 0,
             ToolUseCount = progress?.ToolUseCount ?? 0,
             LastActivity = progress?.LastActivity?.ActivityDescription ?? info.Task,
-            RecentActivities = progress?.RecentActivities,
+            RecentActivities = progress?.RecentActivities?.ToList(),
         };
     }
 

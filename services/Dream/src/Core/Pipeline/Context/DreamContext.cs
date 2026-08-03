@@ -7,7 +7,7 @@ public sealed class DreamContext : PipelineContextBase
     public required DreamRequest Request { get; init; }
     public CancellationToken CancellationToken { get; init; }
 
-    public IReadOnlyList<string> SessionIds { get; set; } = [];
+    public IEnumerable<string> SessionIds { get; set; } = [];
     public string? TaskId { get; set; }
     public string? SystemPrompt { get; set; }
     public string? UserPrompt { get; set; }

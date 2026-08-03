@@ -69,12 +69,9 @@ public static class StructuredPatchGenerator
         var hunks = BuildHunks(edits, oldLines, newLines, contextLines);
 
         // 对齐 TS: unescapeFromDiff — 反转义每一行的 Content
-        foreach (var hunk in hunks)
+        for (var i = 0; i < hunks.Length; i++)
         {
-            for (var i = 0; i < hunk.Lines.Length; i++)
-            {
-                hunk.Lines[i] = hunk.Lines[i] with { Content = UnescapeFromDiff(hunk.Lines[i].Content) };
-            }
+            hunks[i] = hunks[i] with { Lines = hunks[i].Lines.Select(line => line with { Content = UnescapeFromDiff(line.Content) }).ToArray() };
         }
 
         return hunks;
@@ -313,7 +310,7 @@ public static class StructuredPatchGenerator
         foreach (var range in mergedRanges)
         {
             var hunk = BuildHunk(range, oldLines, newLines);
-            if (hunk.Lines.Length > 0)
+            if (hunk.Lines.Any())
                 hunks.Add(hunk);
         }
 

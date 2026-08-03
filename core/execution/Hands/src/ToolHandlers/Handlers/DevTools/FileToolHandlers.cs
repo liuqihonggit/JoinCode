@@ -347,9 +347,9 @@ public class FileToolHandlers : IDisposable
 
         // 附加 structuredPatch 到 ToolResult — 对齐 TS FileWriteTool 返回 structuredPatch
         var toolResult = ResultBuilder.Success().WithText(response).Build();
-        if (result.StructuredPatch.Length > 0)
+        if (result.StructuredPatch.Any())
         {
-            toolResult.StructuredPatch = result.StructuredPatch;
+            toolResult.StructuredPatch = result.StructuredPatch.ToArray();
         }
 
         // 对齐 TS: clearDeliveredDiagnosticsForFile — 写入后清除已投递诊断，让新诊断能重新展示
@@ -515,9 +515,9 @@ public class FileToolHandlers : IDisposable
 
         // 附加 structuredPatch 到 ToolResult — 对齐 TS FileEditTool 返回 structuredPatch
         var toolResult = ResultBuilder.Success().WithText(response).Build();
-        if (result.StructuredPatch.Length > 0)
+        if (result.StructuredPatch.Any())
         {
-            toolResult.StructuredPatch = result.StructuredPatch;
+            toolResult.StructuredPatch = result.StructuredPatch.ToArray();
         }
 
         // 对齐 TS: clearDeliveredDiagnosticsForFile — 编辑后清除已投递诊断，让新诊断能重新展示
@@ -1454,7 +1454,7 @@ public class FileToolHandlers : IDisposable
         // 记录读取状态
         _fileStateCache?.RecordRead(
             filePath,
-            $"[pdf-extract:{extractResult.GetPages().Count}pages]",
+            $"[pdf-extract:{extractResult.GetPages().Count()}pages]",
             DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
 
         RecordPdfReadTelemetry(filePath, extractResult.OriginalSize ?? 0, success: true);
@@ -1514,7 +1514,7 @@ public class FileToolHandlers : IDisposable
 
         var rangeText = range is not null ? $" pages {range.FirstPage}-{(range.LastPage == int.MaxValue ? "end" : range.LastPage.ToString())}" : string.Empty;
         var totalInfo = extractResult.TotalPageCount is not null ? $", {extractResult.TotalPageCount} total pages" : string.Empty;
-        var summaryText = $"Read PDF: {filePath}{rangeText} — extracted {extractResult.GetPages().Count} page(s){totalInfo}\n{string.Join("\n", pageDescriptions)}";
+        var summaryText = $"Read PDF: {filePath}{rangeText} — extracted {extractResult.GetPages().Count()} page(s){totalInfo}\n{string.Join("\n", pageDescriptions)}";
 
         builder.WithText(summaryText);
 

@@ -18,7 +18,7 @@ public sealed partial class DreamTaskRegisterMiddleware : IDreamMiddleware
     {
         var taskId = await _taskRegistry.RegisterDreamTaskAsync(
             new DreamTaskRegistrationRequest(
-                ctx.SessionIds.Count,
+                ctx.SessionIds.Count(),
                 DateTime.UtcNow.AddHours(-_config.MinHours).Ticks / TimeSpan.TicksPerMillisecond,
                 new CancellationTokenSource()),
             ct).ConfigureAwait(false);

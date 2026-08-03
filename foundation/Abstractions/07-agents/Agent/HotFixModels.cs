@@ -87,10 +87,10 @@ public sealed record DoctorReport
     public PatientInfo? Patient => Patients.Values.FirstOrDefault();
 
     /// <summary>诊断报告列表</summary>
-    public IReadOnlyList<DiagnosticReport> Diagnostics { get; init; } = [];
+    public IEnumerable<DiagnosticReport> Diagnostics { get; init; } = [];
 
     /// <summary>修复结果列表</summary>
-    public IReadOnlyList<HotFixResult> FixResults { get; init; } = [];
+    public IEnumerable<HotFixResult> FixResults { get; init; } = [];
 
     /// <summary>开始时间</summary>
     public DateTimeOffset StartedAt { get; init; }

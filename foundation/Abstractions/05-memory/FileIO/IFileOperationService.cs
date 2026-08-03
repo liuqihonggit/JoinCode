@@ -172,14 +172,14 @@ public sealed record FileWriteResult
     /// 结构化 Patch — 对齐 TS FileWriteOutput.structuredPatch
     /// 更新文件时从 OriginalContent/Content 生成，创建文件时为空数组
     /// </summary>
-    public StructuredPatchHunk[] StructuredPatch { get; init; } = Array.Empty<StructuredPatchHunk>();
+    public IEnumerable<StructuredPatchHunk> StructuredPatch { get; init; } = Array.Empty<StructuredPatchHunk>();
 
     public static FileWriteResult SuccessResult(
         string filePath,
         string content,
         string operation,
         string? originalContent = null,
-        StructuredPatchHunk[]? structuredPatch = null)
+        IEnumerable<StructuredPatchHunk>? structuredPatch = null)
         => new()
         {
             FilePath = filePath,
@@ -216,7 +216,7 @@ public sealed record FileEditResult
     /// 结构化 Patch — 对齐 TS FileEditOutput.structuredPatch
     /// 由 StructuredPatchGenerator 从 OriginalContent/UpdatedContent 生成
     /// </summary>
-    public StructuredPatchHunk[] StructuredPatch { get; init; } = Array.Empty<StructuredPatchHunk>();
+    public IEnumerable<StructuredPatchHunk> StructuredPatch { get; init; } = Array.Empty<StructuredPatchHunk>();
 
     public static FileEditResult SuccessResult(
         string filePath,
@@ -225,7 +225,7 @@ public sealed record FileEditResult
         string originalContent,
         string updatedContent,
         int replaceCount,
-        StructuredPatchHunk[]? structuredPatch = null)
+        IEnumerable<StructuredPatchHunk>? structuredPatch = null)
         => new()
         {
             FilePath = filePath,

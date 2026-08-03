@@ -54,7 +54,7 @@ public sealed record GuardDecision
     public string? Reason { get; init; }
 
     /// <summary>警告列表</summary>
-    public IReadOnlyList<string> Warnings { get; init; } = [];
+    public IEnumerable<string> Warnings { get; init; } = [];
 }
 
 /// <summary>

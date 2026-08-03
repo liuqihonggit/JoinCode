@@ -144,7 +144,7 @@ public sealed class ConeConflictResult
 {
     public required AgentRole RoleA { get; init; }
     public required AgentRole RoleB { get; init; }
-    public IReadOnlyList<string> RoleAConclusions { get; init; } = [];
-    public IReadOnlyList<string> RoleBConclusions { get; init; } = [];
+    public IEnumerable<string> RoleAConclusions { get; init; } = [];
+    public IEnumerable<string> RoleBConclusions { get; init; } = [];
     public bool HasConflict { get; init; }
 }

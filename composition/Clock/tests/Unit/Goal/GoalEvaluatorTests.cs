@@ -26,19 +26,21 @@ public sealed class GoalEvaluatorTests
     }
 
     [Fact]
-    public void ParseEvaluationResult_Yes_Prefix_Should_Return_Completed()
+    public void ParseEvaluationResult_Yes_Prefix_Should_Return_FormatError()
     {
         var result = GoalEvaluator.ParseEvaluationResult("yes, the objective has been achieved");
 
-        Assert.True(result.IsCompleted);
+        Assert.False(result.IsCompleted);
+        Assert.Contains("格式异常", result.Reason);
     }
 
     [Fact]
-    public void ParseEvaluationResult_No_Prefix_Should_Return_NotCompleted()
+    public void ParseEvaluationResult_No_Prefix_Should_Return_FormatError()
     {
         var result = GoalEvaluator.ParseEvaluationResult("no, still working on it");
 
         Assert.False(result.IsCompleted);
+        Assert.Contains("格式异常", result.Reason);
     }
 
     [Fact]
@@ -78,13 +80,12 @@ public sealed class GoalEvaluatorTests
     }
 
     [Fact]
-    public void ParseEvaluationResult_Json_With_1_And_0_Should_Fallback_To_Text()
+    public void ParseEvaluationResult_Json_With_1_And_0_Should_Fallback()
     {
-        // System.Text.Json 不接受 1/0 作为 bool，JSON 解析失败后回退到文本格式
+        // System.Text.Json 不接受 1/0 作为 bool，RepairJson 也无法修复类型不匹配
         var result1 = GoalEvaluator.ParseEvaluationResult("""{"completed": 1, "reason": "done"}""");
         var result0 = GoalEvaluator.ParseEvaluationResult("""{"completed": 0, "reason": "not done"}""");
 
-        // JSON 解析失败 → 不匹配 yes/no 前缀 → 返回格式异常
         Assert.False(result1.IsCompleted);
         Assert.False(result0.IsCompleted);
     }
@@ -181,17 +182,19 @@ public sealed class GoalEvaluatorTests
     }
 
     [Fact]
-    public void ParseEvaluationResult_Yes_CaseInsensitive_Should_Return_Completed()
+    public void ParseEvaluationResult_Yes_CaseInsensitive_Should_Return_FormatError()
     {
         var result = GoalEvaluator.ParseEvaluationResult("YES, done");
-        Assert.True(result.IsCompleted);
+        Assert.False(result.IsCompleted);
+        Assert.Contains("格式异常", result.Reason);
     }
 
     [Fact]
-    public void ParseEvaluationResult_No_CaseInsensitive_Should_Return_NotCompleted()
+    public void ParseEvaluationResult_No_CaseInsensitive_Should_Return_FormatError()
     {
         var result = GoalEvaluator.ParseEvaluationResult("NO, not yet");
         Assert.False(result.IsCompleted);
+        Assert.Contains("格式异常", result.Reason);
     }
 
     [Fact]
@@ -254,5 +257,55 @@ public sealed class GoalEvaluatorTests
         var systemMessage = capturedHistory[0];
         Assert.Equal(MessageRole.System, systemMessage.Role);
         Assert.Contains("不修改公共API", systemMessage.Content);
+    }
+
+    [Fact]
+    public void ParseEvaluationResult_Json_With_Trailing_Comma_Should_Parse()
+    {
+        var content = """{"completed": true, "reason": "done",}""";
+        var result = GoalEvaluator.ParseEvaluationResult(content);
+
+        Assert.True(result.IsCompleted);
+        Assert.Equal("done", result.Reason);
+    }
+
+    [Fact]
+    public void ParseEvaluationResult_Json_With_CaseInsensitive_Should_Parse()
+    {
+        var content = """{"Completed": true, "Reason": "done"}""";
+        var result = GoalEvaluator.ParseEvaluationResult(content);
+
+        Assert.True(result.IsCompleted);
+        Assert.Equal("done", result.Reason);
+    }
+
+    [Fact]
+    public void ParseEvaluationResult_Json_In_CodeBlock_Should_Parse()
+    {
+        var content = "Here is my evaluation:\n```json\n{\"completed\": true, \"reason\": \"all done\"}\n```";
+        var result = GoalEvaluator.ParseEvaluationResult(content);
+
+        Assert.True(result.IsCompleted);
+        Assert.Equal("all done", result.Reason);
+    }
+
+    [Fact]
+    public void ParseEvaluationResult_Json_In_CodeBlock_With_Trailing_Comma_Should_Parse()
+    {
+        var content = "```json\n{\"completed\": true, \"reason\": \"done\",}\n```";
+        var result = GoalEvaluator.ParseEvaluationResult(content);
+
+        Assert.True(result.IsCompleted);
+        Assert.Equal("done", result.Reason);
+    }
+
+    [Fact]
+    public void ParseEvaluationResult_Json_With_Comment_Should_Parse()
+    {
+        var content = """{"completed": true, "reason": "done" /* success */}""";
+        var result = GoalEvaluator.ParseEvaluationResult(content);
+
+        Assert.True(result.IsCompleted);
+        Assert.Equal("done", result.Reason);
     }
 }

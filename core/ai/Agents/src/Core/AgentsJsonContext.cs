@@ -1,7 +1,7 @@
 
 namespace Core.Agents;
 
-[JsonSourceGenerationOptions(WriteIndented = false)]
+[JsonSourceGenerationOptions(WriteIndented = false, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
 [JsonSerializable(typeof(List<string>))]
 [JsonSerializable(typeof(string))]
 [JsonSerializable(typeof(int))]

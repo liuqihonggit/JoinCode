@@ -59,66 +59,18 @@ public sealed partial class GoalEvaluator : IGoalEvaluator
             return GoalEvaluationResult.NotCompleted(L.T(StringKey.GoalEvaluatorEmptyResult));
         }
 
-        var trimmed = content.Trim();
-
-        var jsonBlock = ExtractJsonBlock(trimmed);
-        if (jsonBlock is not null)
+        var result = LlmJsonHelper.Deserialize(content, GoalJsonContext.Default.GoalEvaluationJson, out var repairHint);
+        if (result is not null)
         {
-            try
-            {
-                var result = JsonSerializer.Deserialize(jsonBlock, GoalJsonContext.Default.GoalEvaluationJson);
-                if (result != null)
-                {
-                    return result.Completed
-                        ? GoalEvaluationResult.Completed(result.Reason)
-                        : GoalEvaluationResult.NotCompleted(result.Reason);
-                }
-            }
-            catch (JsonException ex)
-            {
-                System.Diagnostics.Trace.WriteLine($"Goal evaluation JSON parse failed: {ex.Message}");
-            }
+            if (repairHint is not null)
+                System.Diagnostics.Trace.WriteLine($"Goal evaluation JSON repaired: {repairHint}");
+
+            return result.Completed
+                ? GoalEvaluationResult.Completed(result.Reason)
+                : GoalEvaluationResult.NotCompleted(result.Reason);
         }
 
-        var jsonStart = trimmed.IndexOf('{');
-        if (jsonStart >= 0)
-        {
-            var jsonEnd = trimmed.LastIndexOf('}');
-            if (jsonEnd > jsonStart)
-            {
-                var jsonSpan = trimmed.AsSpan(jsonStart, jsonEnd - jsonStart + 1);
-                try
-                {
-                    var result = JsonSerializer.Deserialize(jsonSpan, GoalJsonContext.Default.GoalEvaluationJson);
-                    if (result != null)
-                    {
-                        return result.Completed
-                            ? GoalEvaluationResult.Completed(result.Reason)
-                            : GoalEvaluationResult.NotCompleted(result.Reason);
-                    }
-                }
-                catch (JsonException ex)
-                {
-                    System.Diagnostics.Trace.WriteLine($"Goal evaluation inline JSON parse failed: {ex.Message}");
-                }
-            }
-        }
-
-        return GoalEvaluationResult.NotCompleted(L.T(StringKey.GoalEvaluatorFormatError, trimmed));
-    }
-
-    private static string? ExtractJsonBlock(string output)
-    {
-        var jsonStart = output.IndexOf("```json", StringComparison.OrdinalIgnoreCase);
-        if (jsonStart < 0)
-            return null;
-
-        var contentStart = jsonStart + 7;
-        var jsonEnd = output.IndexOf("```", contentStart, StringComparison.Ordinal);
-        if (jsonEnd <= contentStart)
-            return null;
-
-        return output[contentStart..jsonEnd].Trim();
+        return GoalEvaluationResult.NotCompleted(L.T(StringKey.GoalEvaluatorFormatError, content.Trim()));
     }
 
     private static string BuildEvaluatorPrompt(string objective, IReadOnlyList<string> constraints, string recentConversation)

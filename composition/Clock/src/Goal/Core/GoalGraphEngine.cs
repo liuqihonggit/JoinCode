@@ -517,7 +517,7 @@ public sealed partial class GoalGraphEngine
 
     /// <summary>
     /// 从 neg_review / fix_neg 节点输出中提取 JSON 元数据并写入 payload
-    /// 使用 JsonSerializer 反序列化（AOT 兼容），替代正则表达式
+    /// 使用 LlmJsonHelper 统一门控（ExtractJsonBlock + RepairJson + 宽容反序列化）
     /// </summary>
     private static void ExtractNegReviewMetadata(string nodeId, GoalNodePayload payload, GraphExecutionContext context)
     {
@@ -526,20 +526,7 @@ public sealed partial class GoalGraphEngine
 
         if (nodeId.Equals("neg_review", StringComparison.Ordinal))
         {
-            var json = ExtractJsonBlock(payload.Output);
-            if (json is null)
-                return;
-
-            NegReviewOutputJson? negReview;
-            try
-            {
-                negReview = System.Text.Json.JsonSerializer.Deserialize(json, GoalJsonContext.Default.NegReviewOutputJson);
-            }
-            catch (System.Text.Json.JsonException)
-            {
-                return;
-            }
-
+            var negReview = LlmJsonHelper.Deserialize(payload.Output, GoalJsonContext.Default.NegReviewOutputJson, out _);
             if (negReview is null)
                 return;
 
@@ -552,42 +539,12 @@ public sealed partial class GoalGraphEngine
         }
         else if (nodeId.Equals("fix_neg", StringComparison.Ordinal))
         {
-            var json = ExtractJsonBlock(payload.Output);
-            if (json is null)
-                return;
-
-            FixNegOutputJson? fixNeg;
-            try
-            {
-                fixNeg = System.Text.Json.JsonSerializer.Deserialize(json, GoalJsonContext.Default.FixNegOutputJson);
-            }
-            catch (System.Text.Json.JsonException)
-            {
-                return;
-            }
-
+            var fixNeg = LlmJsonHelper.Deserialize(payload.Output, GoalJsonContext.Default.FixNegOutputJson, out _);
             if (fixNeg is not null && !string.IsNullOrEmpty(fixNeg.Route))
             {
                 payload.Routes = [fixNeg.Route];
             }
         }
-    }
-
-    /// <summary>
-    /// 从 LLM 输出文本中提取 ```json ... ``` 代码块内容
-    /// </summary>
-    private static string? ExtractJsonBlock(string output)
-    {
-        var jsonStart = output.IndexOf("```json", StringComparison.OrdinalIgnoreCase);
-        if (jsonStart < 0)
-            return null;
-
-        var contentStart = jsonStart + 7;
-        var jsonEnd = output.IndexOf("```", contentStart, StringComparison.Ordinal);
-        if (jsonEnd <= contentStart)
-            return null;
-
-        return output[contentStart..jsonEnd].Trim();
     }
 
     /// <summary>

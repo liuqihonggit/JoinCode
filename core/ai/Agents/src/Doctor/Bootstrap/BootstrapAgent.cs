@@ -378,30 +378,17 @@ public sealed class BootstrapAgent : IAsyncDisposable
 
     internal static BootstrapJudgment ParseJudgment(string llmResponse)
     {
-        try
-        {
-            var jsonStart = llmResponse.IndexOf('{');
-            var jsonEnd = llmResponse.LastIndexOf('}');
-            if (jsonStart < 0 || jsonEnd < 0 || jsonEnd <= jsonStart)
-                return new BootstrapJudgment { NeedsFix = false, Priority = "low", Reasoning = "LLM 输出非 JSON" };
+        var result = LlmJsonHelper.Deserialize(llmResponse, AgentsJsonContext.Default.BootstrapJudgmentJson, out _);
+        if (result is null)
+            return new BootstrapJudgment { NeedsFix = false, Priority = "low", Reasoning = "LLM 输出 JSON 解析失败" };
 
-            var jsonSpan = llmResponse.AsSpan(jsonStart, jsonEnd - jsonStart + 1);
-            var result = System.Text.Json.JsonSerializer.Deserialize(jsonSpan, AgentsJsonContext.Default.BootstrapJudgmentJson);
-            if (result is null)
-                return new BootstrapJudgment { NeedsFix = false, Priority = "low", Reasoning = "JSON 反序列化返回 null" };
-
-            return new BootstrapJudgment
-            {
-                NeedsFix = result.NeedsFix,
-                TargetFile = result.TargetFile,
-                Priority = result.Priority,
-                Reasoning = result.Reasoning
-            };
-        }
-        catch (Exception ex)
+        return new BootstrapJudgment
         {
-            return new BootstrapJudgment { NeedsFix = false, Priority = "low", Reasoning = $"JSON 解析失败: {ex.Message}" };
-        }
+            NeedsFix = result.NeedsFix,
+            TargetFile = result.TargetFile,
+            Priority = result.Priority,
+            Reasoning = result.Reasoning
+        };
     }
 
     private static string FormatConfirmMessage(BootstrapJudgment judgment)

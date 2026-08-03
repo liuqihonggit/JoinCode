@@ -5,16 +5,16 @@ public sealed partial class ExternalRulesLoader
     private readonly IFileSystem _fs;
     [Inject] private readonly ILogger<ExternalRulesLoader>? _logger;
 
-    private static readonly string[] ProjectRulesDirs = [
+    private static readonly string[] ProjectRulesDirs = new[] { 
         Path.Combine(".trae", "rules"),
         Path.Combine(".claude", "rules"),
         Path.Combine(".codex", "rules"),
         Path.Combine(AppDataConstants.AppDataFolder, AppDataConstants.RulesFolderName)
-    ];
+     };
 
-    private static readonly string[] UserRulesDirs = [
+    private static readonly string[] UserRulesDirs = new[] { 
         Path.Combine(".codex", "rules")
-    ];
+     };
 
     public ExternalRulesLoader(IFileSystem fs, ILogger<ExternalRulesLoader>? logger = null)
     {

@@ -15,7 +15,7 @@ public static partial class PsGitSafety
     /// <summary>
     /// Git 内部路径前缀（bare-repo 攻击向量）
     /// </summary>
-    private static readonly string[] GitInternalPrefixes = ["head", "objects", "refs", "hooks"];
+    private static readonly string[] GitInternalPrefixes = new[] { "head", "objects", "refs", "hooks" };
 
     /// <summary>
     /// 判断参数（原始 PS 参数文本）是否解析为 cwd 中的 git-internal 路径。

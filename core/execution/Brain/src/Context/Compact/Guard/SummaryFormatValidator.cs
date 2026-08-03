@@ -2,9 +2,9 @@ namespace Core.Context.Compact.Guard;
 
 public sealed class SummaryFormatOptions
 {
-    public string[] InterventionKeywords { get; init; } = ["请用序号箭头方式", "请总结", "⚠️", "重连后仍检测到循环"];
-    public string[] SelfReferenceKeywords { get; init; } = ["我会继续", "让我来", "I'll continue", "Let me"];
-    public string[] TruncationMarkers { get; init; } = ["[被截断]", "[truncated]", "..."];
+    public string[] InterventionKeywords { get; init; } = new[] { "请用序号箭头方式", "请总结", "⚠️", "重连后仍检测到循环" };
+    public string[] SelfReferenceKeywords { get; init; } = new[] { "我会继续", "让我来", "I'll continue", "Let me" };
+    public string[] TruncationMarkers { get; init; } = new[] { "[被截断]", "[truncated]", "..." };
 }
 
 public sealed class SummaryFormatResult

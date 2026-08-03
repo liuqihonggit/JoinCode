@@ -14,7 +14,7 @@ public class InputSchemaValidationTests
             {
                 ["command"] = new() { Type = "string", Description = "Command to execute" }
             },
-            Required = ["command"]
+            Required = new List<string> { "command" }
         };
 
         var arguments = new Dictionary<string, JsonElement>();
@@ -35,7 +35,7 @@ public class InputSchemaValidationTests
             {
                 ["command"] = new() { Type = "string", Description = "Command to execute" }
             },
-            Required = ["command"]
+            Required = new List<string> { "command" }
         };
 
         var arguments = new Dictionary<string, JsonElement>
@@ -137,7 +137,7 @@ public class InputSchemaValidationTests
                 ["command"] = new() { Type = "string", Description = "Command" },
                 ["timeout"] = new() { Type = "integer", Description = "Timeout" }
             },
-            Required = ["command", "timeout"]
+            Required = new List<string> { "command", "timeout" }
         };
 
         var arguments = new Dictionary<string, JsonElement>();
@@ -160,7 +160,7 @@ public class InputSchemaValidationTests
                 ["command"] = new() { Type = "string", Description = "Command" },
                 ["timeout"] = new() { Type = "integer", Description = "Timeout", Default = "30000" }
             },
-            Required = ["command"]
+            Required = new List<string> { "command" }
         };
 
         var arguments = new Dictionary<string, JsonElement>

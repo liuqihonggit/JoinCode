@@ -22,13 +22,13 @@ public static class ImageMediaTypeHelper
     /// 所有支持的图像扩展名（小写，用于 FrozenSet 构造）
     /// </summary>
     public static readonly string[] Extensions =
-    [
+    new[] { 
         ImageMediaType.Png.ToValue(),
         ImageMediaType.Jpg.ToValue(),
         ImageMediaType.Jpeg.ToValue(),
         ImageMediaType.Gif.ToValue(),
         ImageMediaType.Webp.ToValue(),
-    ];
+     };
 
     /// <summary>
     /// 从扩展名解析图像媒体类型（忽略大小写，由生成器的 FromValue 实现）

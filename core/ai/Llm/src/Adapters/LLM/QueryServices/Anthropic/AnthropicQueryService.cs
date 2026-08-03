@@ -399,7 +399,7 @@ public sealed class AnthropicQueryService : QueryServiceBase
                         Description = "Search query: use 'select:tool_name' for exact selection, or keywords to search by name and description"
                     }
                 },
-                Required = ["query"]
+                Required = new List<string> { "query" }
             }
         };
     }

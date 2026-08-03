@@ -3,42 +3,42 @@ namespace Core.Skills.ExpressionMethods;
 
 public sealed class ToUpperMethod : IExpressionMethod
 {
-    public string[] Names => ["toupper", "touppercase"];
+    public string[] Names => new[] { "toupper", "touppercase" };
     public string Execute(string target, List<JsonElement> args, Func<JsonElement, string> elementToString)
         => target.ToUpperInvariant();
 }
 
 public sealed class ToLowerMethod : IExpressionMethod
 {
-    public string[] Names => ["tolower", "tolowercase"];
+    public string[] Names => new[] { "tolower", "tolowercase" };
     public string Execute(string target, List<JsonElement> args, Func<JsonElement, string> elementToString)
         => target.ToLowerInvariant();
 }
 
 public sealed class TrimMethod : IExpressionMethod
 {
-    public string[] Names => ["trim"];
+    public string[] Names => new[] { "trim" };
     public string Execute(string target, List<JsonElement> args, Func<JsonElement, string> elementToString)
         => target.Trim();
 }
 
 public sealed class TrimStartMethod : IExpressionMethod
 {
-    public string[] Names => ["trimstart"];
+    public string[] Names => new[] { "trimstart" };
     public string Execute(string target, List<JsonElement> args, Func<JsonElement, string> elementToString)
         => target.TrimStart();
 }
 
 public sealed class TrimEndMethod : IExpressionMethod
 {
-    public string[] Names => ["trimend"];
+    public string[] Names => new[] { "trimend" };
     public string Execute(string target, List<JsonElement> args, Func<JsonElement, string> elementToString)
         => target.TrimEnd();
 }
 
 public sealed class SubstringMethod : IExpressionMethod
 {
-    public string[] Names => ["substring"];
+    public string[] Names => new[] { "substring" };
     public string Execute(string target, List<JsonElement> args, Func<JsonElement, string> elementToString)
     {
         if (args.Count >= 1 && int.TryParse(elementToString(args[0]), out var startIndex))
@@ -56,7 +56,7 @@ public sealed class SubstringMethod : IExpressionMethod
 
 public sealed class ReplaceMethod : IExpressionMethod
 {
-    public string[] Names => ["replace"];
+    public string[] Names => new[] { "replace" };
     public string Execute(string target, List<JsonElement> args, Func<JsonElement, string> elementToString)
     {
         if (args.Count >= 2)
@@ -69,42 +69,42 @@ public sealed class ReplaceMethod : IExpressionMethod
 
 public sealed class ContainsMethod : IExpressionMethod
 {
-    public string[] Names => ["contains"];
+    public string[] Names => new[] { "contains" };
     public string Execute(string target, List<JsonElement> args, Func<JsonElement, string> elementToString)
         => args.Count >= 1 ? target.Contains(elementToString(args[0])).ToString() : "false";
 }
 
 public sealed class StartsWithMethod : IExpressionMethod
 {
-    public string[] Names => ["startswith"];
+    public string[] Names => new[] { "startswith" };
     public string Execute(string target, List<JsonElement> args, Func<JsonElement, string> elementToString)
         => args.Count >= 1 ? target.StartsWith(elementToString(args[0])).ToString() : "false";
 }
 
 public sealed class EndsWithMethod : IExpressionMethod
 {
-    public string[] Names => ["endswith"];
+    public string[] Names => new[] { "endswith" };
     public string Execute(string target, List<JsonElement> args, Func<JsonElement, string> elementToString)
         => args.Count >= 1 ? target.EndsWith(elementToString(args[0])).ToString() : "false";
 }
 
 public sealed class IndexOfMethod : IExpressionMethod
 {
-    public string[] Names => ["indexof"];
+    public string[] Names => new[] { "indexof" };
     public string Execute(string target, List<JsonElement> args, Func<JsonElement, string> elementToString)
         => args.Count >= 1 ? target.IndexOf(elementToString(args[0]), StringComparison.Ordinal).ToString() : "-1";
 }
 
 public sealed class LengthMethod : IExpressionMethod
 {
-    public string[] Names => ["length"];
+    public string[] Names => new[] { "length" };
     public string Execute(string target, List<JsonElement> args, Func<JsonElement, string> elementToString)
         => target.Length.ToString();
 }
 
 public sealed class SplitMethod : IExpressionMethod
 {
-    public string[] Names => ["split"];
+    public string[] Names => new[] { "split" };
     public string Execute(string target, List<JsonElement> args, Func<JsonElement, string> elementToString)
     {
         if (args.Count >= 1)
@@ -119,7 +119,7 @@ public sealed class SplitMethod : IExpressionMethod
 
 public sealed class FormatMethod : IExpressionMethod
 {
-    public string[] Names => ["format"];
+    public string[] Names => new[] { "format" };
     public string Execute(string target, List<JsonElement> args, Func<JsonElement, string> elementToString)
     {
         if (args.Count >= 1)

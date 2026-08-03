@@ -5,11 +5,11 @@ public sealed partial class CustomCommandLoader
     private readonly IFileSystem _fs;
     [Inject] private readonly ILogger<CustomCommandLoader>? _logger;
 
-    private static readonly string[] ProjectCommandDirs = [
+    private static readonly string[] ProjectCommandDirs = new[] { 
         Path.Combine(".trae", "commands"),
         Path.Combine(".claude", "commands"),
         Path.Combine(".codex", "commands")
-    ];
+     };
 
     public CustomCommandLoader(IFileSystem fs, ILogger<CustomCommandLoader>? logger = null)
     {

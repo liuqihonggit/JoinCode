@@ -11,7 +11,7 @@ internal static class PlanSlugGenerator
     private const int MaxSlugRetries = 10;
 
     private static readonly string[] Adjectives =
-    [
+    new[] { 
         "amber", "azure", "blazing", "calm", "cosmic", "crimson", "crystal", "dazzling",
         "deep", "drifting", "ember", "ethereal", "fierce", "flickering", "flowing", "frosty",
         "gentle", "gleaming", "golden", "graceful", "harmonic", "hidden", "hollow", "icy",
@@ -22,10 +22,10 @@ internal static class PlanSlugGenerator
         "silver", "slate", "smooth", "solid", "sparkling", "stellar", "stormy", "swift",
         "tender", "thunderous", "tranquil", "twilight", "ultimate", "vast", "velvet", "vivid",
         "warm", "whispering", "wild", "woven", "zenith"
-    ];
+     };
 
     private static readonly string[] Verbs =
-    [
+    new[] { 
         "baking", "balancing", "blazing", "blooming", "brewing", "building", "burning", "carving",
         "casting", "charting", "chasing", "crafting", "creating", "cruising", "dancing", "designing",
         "discovering", "dreaming", "driving", "echoing", "emerging", "evolving", "exploring", "fading",
@@ -36,10 +36,10 @@ internal static class PlanSlugGenerator
         "singing", "sketching", "soaring", "sparking", "spinning", "streaming", "striking", "surfing",
         "swimming", "syncing", "thinking", "threading", "tuning", "unfolding", "vaulting", "wandering",
         "weaving", "whispering", "wiring", "writing"
-    ];
+     };
 
     private static readonly string[] Nouns =
-    [
+    new[] { 
         "aurora", "badger", "beacon", "bluebird", "butterfly", "canyon", "cascade", "cedar",
         "chameleon", "citadel", "comet", "coral", "crane", "crystal", "dolphin", "dragon",
         "eagle", "elm", "falcon", "firefly", "flame", "fox", "galaxy", "gazelle",
@@ -51,7 +51,7 @@ internal static class PlanSlugGenerator
         "ridge", "sapphire", "satellite", "scarab", "sequoia", "shadow", "spire", "starling",
         "storm", "swallow", "tempest", "thunder", "tiger", "titan", "tornado", "vortex",
         "vulture", "walrus", "wolverine", "zebra"
-    ];
+     };
 
     private static readonly ConcurrentDictionary<string, string> SlugCache = new();
 

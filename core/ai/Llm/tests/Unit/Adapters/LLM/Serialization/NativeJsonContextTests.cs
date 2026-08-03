@@ -90,7 +90,7 @@ public class NativeJsonContextTests
                     {
                         ["x"] = new() { Type = "integer", Description = "param" }
                     },
-                    Required = ["x"]
+                    Required = new List<string> { "x" }
                 }
             }
         };

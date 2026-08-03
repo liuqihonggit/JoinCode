@@ -6,7 +6,7 @@ public sealed class SimpleCommand : ToggleCommandBase
     public override string Name => ChatCommandNameConstants.Simple;
     public override string Description => "切换精简模式";
     public override string Usage => "/simple";
-    public override string[] Aliases => ["bare"];
+    public override string[] Aliases => new[] { "bare" };
 
     protected override Task OnEnabledAsync(ChatCommandContext context)
     {

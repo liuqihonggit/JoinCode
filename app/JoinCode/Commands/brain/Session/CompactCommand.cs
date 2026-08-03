@@ -11,7 +11,7 @@ public sealed class CompactCommand : ChatCommandBase
     public override string Name => ChatCommandNameConstants.Compact;
     public override string Description => "压缩对话上下文以节省 Token，可选自定义摘要指令";
     public override string Usage => "/compact [自定义摘要指令]";
-    public override string[] Aliases => ["comp"];
+    public override string[] Aliases => new[] { "comp" };
     public override string ArgumentHint => "<optional custom summarization instructions>";
 
     public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)

@@ -198,11 +198,11 @@ public sealed partial class DestructiveCommandDetector : IDestructiveCommandDete
     }
 
     private static readonly string[] DangerousPaths =
-    [
+    new[] { 
         "/", "C:\\", "C:/", "/*", "C:\\*", "C:/*",
         "/home", "/root", "/etc", "/usr", "/var",
         "~", "~/", "..", "../", "..\\"
-    ];
+     };
 
     private static bool IsDangerousPath(string arg)
     {

@@ -13,7 +13,7 @@ public sealed partial class ClearCommand : ChatCommandBase
     public override string Name => ChatCommandNameConstants.Clear;
     public override string Description => "清空聊天历史并释放上下文";
     public override string Usage => "/clear";
-    public override string[] Aliases => ["reset", "new", "cls"];
+    public override string[] Aliases => new[] { "reset", "new", "cls" };
     public override string ArgumentHint => string.Empty;
 
     public ClearCommand(ILogger<ClearCommand>? logger = null)

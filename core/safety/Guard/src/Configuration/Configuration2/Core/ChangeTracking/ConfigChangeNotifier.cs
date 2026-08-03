@@ -11,34 +11,34 @@ public sealed partial class ConfigChangeNotifier : IConfigChangeNotifier, IDispo
     private bool _disposed;
 
     private static readonly string[] RootConfigFiles =
-    [
+    new[] { 
         "AGENTS.md", "agents.md",
         "CLAUDE.md", "claude.md",
         "CLAUDE.local.md", "claude.local.md",
         "codex.md"
-    ];
+     };
 
     private static readonly string[] RulesSubDirs =
-    [
+    new[] { 
         Path.Combine(".trae", "rules"),
         Path.Combine(".claude", "rules"),
         Path.Combine(".codex", "rules"),
         Path.Combine(AppDataConstants.AppDataFolder, AppDataConstants.RulesFolderName)
-    ];
+     };
 
     private static readonly string[] CommandsSubDirs =
-    [
+    new[] { 
         Path.Combine(".trae", "commands"),
         Path.Combine(".claude", "commands"),
         Path.Combine(".codex", "commands"),
         Path.Combine(AppDataConstants.AppDataFolder, AppDataConstants.CommandsFolderName)
-    ];
+     };
 
     private static readonly string[] AppDataConfigFiles =
-    [
+    new[] { 
         AppDataConstants.SettingsFileName,
         AppDataConstants.AuthFileName
-    ];
+     };
 
     public event EventHandler<ConfigChangeEventArgs>? ConfigChanged;
 

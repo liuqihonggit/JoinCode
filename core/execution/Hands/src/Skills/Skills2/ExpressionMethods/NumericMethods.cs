@@ -3,7 +3,7 @@ namespace Core.Skills.ExpressionMethods;
 
 public sealed class AbsMethod : IExpressionMethod
 {
-    public string[] Names => ["abs"];
+    public string[] Names => new[] { "abs" };
     public string Execute(string target, List<JsonElement> args, Func<JsonElement, string> elementToString)
     {
         if (double.TryParse(target, NumberStyles.Any, CultureInfo.InvariantCulture, out var value))
@@ -16,7 +16,7 @@ public sealed class AbsMethod : IExpressionMethod
 
 public sealed class RoundMethod : IExpressionMethod
 {
-    public string[] Names => ["round"];
+    public string[] Names => new[] { "round" };
     public string Execute(string target, List<JsonElement> args, Func<JsonElement, string> elementToString)
     {
         if (double.TryParse(target, NumberStyles.Any, CultureInfo.InvariantCulture, out var value))
@@ -30,7 +30,7 @@ public sealed class RoundMethod : IExpressionMethod
 
 public sealed class FloorMethod : IExpressionMethod
 {
-    public string[] Names => ["floor"];
+    public string[] Names => new[] { "floor" };
     public string Execute(string target, List<JsonElement> args, Func<JsonElement, string> elementToString)
     {
         if (double.TryParse(target, NumberStyles.Any, CultureInfo.InvariantCulture, out var value))
@@ -43,7 +43,7 @@ public sealed class FloorMethod : IExpressionMethod
 
 public sealed class CeilingMethod : IExpressionMethod
 {
-    public string[] Names => ["ceiling", "ceil"];
+    public string[] Names => new[] { "ceiling", "ceil" };
     public string Execute(string target, List<JsonElement> args, Func<JsonElement, string> elementToString)
     {
         if (double.TryParse(target, NumberStyles.Any, CultureInfo.InvariantCulture, out var value))
@@ -56,7 +56,7 @@ public sealed class CeilingMethod : IExpressionMethod
 
 public sealed class MaxMethod : IExpressionMethod
 {
-    public string[] Names => ["max"];
+    public string[] Names => new[] { "max" };
     public string Execute(string target, List<JsonElement> args, Func<JsonElement, string> elementToString)
     {
         if (args.Count >= 1 &&
@@ -71,7 +71,7 @@ public sealed class MaxMethod : IExpressionMethod
 
 public sealed class MinMethod : IExpressionMethod
 {
-    public string[] Names => ["min"];
+    public string[] Names => new[] { "min" };
     public string Execute(string target, List<JsonElement> args, Func<JsonElement, string> elementToString)
     {
         if (args.Count >= 1 &&

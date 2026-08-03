@@ -467,7 +467,7 @@ public sealed partial class GoalGraphEngine
 
         if (!decision.ShouldContinue)
         {
-            payload.Routes = ["NEG_STOP"];
+            payload.Routes = new[] { "NEG_STOP" };
             _logger?.LogInformation("[GoalGraph] 用户选择停止循环 (节点={NodeId}, 负评={NegCount})",
                 nodeId, payload.NegativeReviewCount);
         }

@@ -17,7 +17,7 @@ public sealed partial class FileWatcherIntegration : IAsyncDisposable
     private IFileSystemWatcher? _watcher;
     private int _disposed;
 
-    private static readonly string[] DefaultExcludedDirs = ["bin", "obj", ".git", ".x"];
+    private static readonly string[] DefaultExcludedDirs = new[] { "bin", "obj", ".git", ".x" };
 
     private static void Log(string message)
     {

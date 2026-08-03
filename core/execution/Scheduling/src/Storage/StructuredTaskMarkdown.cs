@@ -79,9 +79,9 @@ public sealed class StructuredTaskMarkdownWriter
 
 public sealed class StructuredTaskMarkdownReader
 {
-    private static readonly string[] StatusPrefixes = ["- **Status**: ", "- **状态**: "];
-    private static readonly string[] ResultPrefixes = ["- **Result**: ", "- **结果**: "];
-    private static readonly string[] ExclusionReasonPrefixes = ["← Exclusion reason: ", "← 排除原因: "];
+    private static readonly string[] StatusPrefixes = new[] { "- **Status**: ", "- **状态**: " };
+    private static readonly string[] ResultPrefixes = new[] { "- **Result**: ", "- **结果**: " };
+    private static readonly string[] ExclusionReasonPrefixes = new[] { "← Exclusion reason: ", "← 排除原因: " };
 
     public static List<StructuredTaskEntry> ParseTasks(string markdown)
     {

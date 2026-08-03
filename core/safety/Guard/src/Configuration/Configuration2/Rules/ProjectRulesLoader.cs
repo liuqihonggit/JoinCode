@@ -26,14 +26,14 @@ public sealed partial class ProjectRulesLoader {
         Path.Combine(AppDataConstants.AppDataFolder, AppDataConstants.RulesFolderName)
     ];
 
-    private static readonly string[] UserRulesFilePaths = [
+    private static readonly string[] UserRulesFilePaths = new[] { 
         Path.Combine(".codex", "instructions.md"),
         Path.Combine(".codex", "AGENTS.md")
-    ];
+     };
 
-    private static readonly string[] UserRulesDirectoryPaths = [
+    private static readonly string[] UserRulesDirectoryPaths = new[] { 
         Path.Combine(".codex", "rules")
-    ];
+     };
 
     public ProjectRulesLoader(
         IFileSystem fs,

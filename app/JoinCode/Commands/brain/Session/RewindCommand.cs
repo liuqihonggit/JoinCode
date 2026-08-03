@@ -10,7 +10,7 @@ public sealed class RewindCommand : ChatCommandBase
     public override string Name => ChatCommandNameConstants.Rewind;
     public override string Description => "恢复代码和/或对话到之前的状态";
     public override string Usage => "/rewind [last|<n>|all]";
-    public override string[] Aliases => ["checkpoint"];
+    public override string[] Aliases => new[] { "checkpoint" };
     public override string ArgumentHint => "[last|<n>|all]";
 
     public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)

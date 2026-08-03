@@ -7,7 +7,7 @@
 public sealed class CommitCommand : ChatCommandBase
 {
     // 对齐 TS: Git Safety Protocol — 禁止提交的文件模式
-    private static readonly string[] SecretFilePatterns = [".env", "credentials", "secret", "password", "apikey", "token"];
+    private static readonly string[] SecretFilePatterns = new[] { ".env", "credentials", "secret", "password", "apikey", "token" };
 
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {

@@ -12,7 +12,7 @@ public sealed class ResumeCommand : ChatCommandBase
     public override string Name => ChatCommandNameConstants.Resume;
     public override string Description => "恢复之前的会话";
     public override string Usage => "/resume [session-id]";
-    public override string[] Aliases => ["continue"];
+    public override string[] Aliases => new[] { "continue" };
     public override string ArgumentHint => "[conversation id or search term]";
 
     private static readonly string SessionsPath = Path.Combine(

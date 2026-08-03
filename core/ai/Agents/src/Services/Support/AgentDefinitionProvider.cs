@@ -9,11 +9,11 @@ public sealed partial class AgentDefinitionProvider : JoinCode.Abstractions.Inte
     private readonly SemaphoreSlim _cacheLock = new(1, 1);
 
     private static readonly string[] ProjectAgentDirs =
-    [
+    new[] { 
         Path.Combine(AppDataConstants.AppDataFolder, "agents"),
         Path.Combine(".trae", "agents"),
         Path.Combine(".claude", "agents")
-    ];
+     };
 
     public async Task<List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition>> GetAgentDefinitionsAsync(
         string? workingDirectory = null,

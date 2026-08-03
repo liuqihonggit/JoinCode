@@ -3,12 +3,12 @@ namespace Sync.Tests.Agents;
 public sealed class AgentDefinitionProviderTests
 {
     [Fact]
-    public void GetBuiltInDefinitions_ReturnsSixAgentTypes()
+    public void GetBuiltInDefinitions_ReturnsNineAgentTypes()
     {
         var definitions = AgentDefinitionProvider.GetBuiltInDefinitions();
 
-        definitions.Should().HaveCount(6);
-        definitions.Select(d => d.DisplayId).Should().Contain(["coordinator", "executor:code", "executor:search", "executor:explore", "executor:plan", "executor:doctor"]);
+        definitions.Should().HaveCount(9);
+        definitions.Select(d => d.DisplayId).Should().Contain(["coordinator", "executor:code", "executor:search", "executor:explore", "executor:plan", "executor:doctor", "executor:verification", "executor:claudeCodeGuide", "executor:contextCompression"]);
     }
 
     [Fact]

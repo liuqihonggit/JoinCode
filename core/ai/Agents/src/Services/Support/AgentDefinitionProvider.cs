@@ -146,6 +146,33 @@ public sealed partial class AgentDefinitionProvider : JoinCode.Abstractions.Inte
                 DisallowedTools = [AgentToolNameConstants.Agent],
                 IsBackground = true,
                 PermissionMode = "doctor"
+            },
+            new()
+            {
+                Role = AgentRole.Executor,
+                Variant = ExecutorVariant.Verification,
+                WhenToUse = "Verify code correctness, quality and security",
+                Description = "Verification agent — checks code for errors, vulnerabilities and best practice violations",
+                Tools = [FileToolNameConstants.FileRead, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep, SearchToolNameConstants.SearchCodebase, ShellToolNameConstants.Bash],
+                DisallowedTools = [AgentToolNameConstants.Agent, FileToolNameConstants.FileEdit, FileToolNameConstants.FileWrite]
+            },
+            new()
+            {
+                Role = AgentRole.Executor,
+                Variant = ExecutorVariant.ClaudeCodeGuide,
+                WhenToUse = "Guide users on how to use Claude Code features and best practices",
+                Description = "Claude Code Guide agent — helps users understand and use Claude Code",
+                Tools = [FileToolNameConstants.FileRead, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep, SearchToolNameConstants.SearchCodebase],
+                DisallowedTools = [AgentToolNameConstants.Agent, FileToolNameConstants.FileEdit, FileToolNameConstants.FileWrite, ShellToolNameConstants.Bash]
+            },
+            new()
+            {
+                Role = AgentRole.Executor,
+                Variant = ExecutorVariant.ContextCompression,
+                WhenToUse = "Intelligently compress and manage conversation context to optimize Token usage",
+                Description = "Context Compression agent — compresses context while preserving key information",
+                Tools = [FileToolNameConstants.FileRead, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep],
+                DisallowedTools = [AgentToolNameConstants.Agent, FileToolNameConstants.FileEdit, FileToolNameConstants.FileWrite, ShellToolNameConstants.Bash]
             }
         ];
     }

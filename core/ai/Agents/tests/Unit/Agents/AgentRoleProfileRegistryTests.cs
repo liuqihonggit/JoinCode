@@ -7,13 +7,13 @@ using Moq;
 public sealed class AgentRoleProfileRegistryTests
 {
     [Fact]
-    public void BuildBuiltInProfiles_ReturnsSixProfiles()
+    public void BuildBuiltInProfiles_ReturnsNineProfiles()
     {
         var profiles = AgentRoleProfileRegistry.BuildBuiltInProfiles();
 
-        profiles.Should().HaveCount(6);
+        profiles.Should().HaveCount(9);
         profiles.Count(p => p.Role == AgentRole.Coordinator).Should().Be(1);
-        profiles.Count(p => p.Role == AgentRole.Executor).Should().Be(5);
+        profiles.Count(p => p.Role == AgentRole.Executor).Should().Be(8);
     }
 
     [Fact]
@@ -79,16 +79,17 @@ public sealed class AgentRoleProfileRegistryTests
     }
 
     [Fact]
-    public void GetAvailableVariants_ReturnsFiveVariants()
+    public void GetAvailableVariants_ReturnsEightVariants()
     {
         var registry = new AgentRoleProfileRegistry();
 
         var variants = registry.GetAvailableVariants();
 
-        variants.Should().HaveCount(5);
+        variants.Should().HaveCount(8);
         variants.Should().Contain([
             ExecutorVariant.Code, ExecutorVariant.Search,
-            ExecutorVariant.Explore, ExecutorVariant.Plan, ExecutorVariant.Doctor
+            ExecutorVariant.Explore, ExecutorVariant.Plan, ExecutorVariant.Doctor,
+            ExecutorVariant.Verification, ExecutorVariant.ClaudeCodeGuide, ExecutorVariant.ContextCompression
         ]);
     }
 
@@ -137,7 +138,46 @@ public sealed class AgentRoleProfileRegistryTests
 
         var executorProfiles = registry.GetProfilesByRole(AgentRole.Executor);
 
-        executorProfiles.Should().HaveCount(5);
+        executorProfiles.Should().HaveCount(8);
         executorProfiles.All(p => p.Role == AgentRole.Executor).Should().BeTrue();
+    }
+
+    [Fact]
+    public void GetProfile_ExecutorVerification_HasCorrectTools()
+    {
+        var registry = new AgentRoleProfileRegistry();
+
+        var profile = registry.GetProfile(AgentRole.Executor, ExecutorVariant.Verification);
+
+        profile.Should().NotBeNull();
+        profile!.AllowedTools.Should().Contain(FileToolNameConstants.FileRead);
+        profile.DisallowedTools.Should().Contain(AgentToolNameConstants.Agent);
+        profile.SystemPrompt.Should().NotBeNullOrEmpty();
+    }
+
+    [Fact]
+    public void GetProfile_ExecutorClaudeCodeGuide_HasCorrectTools()
+    {
+        var registry = new AgentRoleProfileRegistry();
+
+        var profile = registry.GetProfile(AgentRole.Executor, ExecutorVariant.ClaudeCodeGuide);
+
+        profile.Should().NotBeNull();
+        profile!.AllowedTools.Should().Contain(FileToolNameConstants.FileRead);
+        profile.DisallowedTools.Should().Contain(ShellToolNameConstants.Bash);
+        profile.SystemPrompt.Should().NotBeNullOrEmpty();
+    }
+
+    [Fact]
+    public void GetProfile_ExecutorContextCompression_HasCorrectTools()
+    {
+        var registry = new AgentRoleProfileRegistry();
+
+        var profile = registry.GetProfile(AgentRole.Executor, ExecutorVariant.ContextCompression);
+
+        profile.Should().NotBeNull();
+        profile!.AllowedTools.Should().Contain(FileToolNameConstants.FileRead);
+        profile.DisallowedTools.Should().Contain(FileToolNameConstants.FileEdit);
+        profile.SystemPrompt.Should().NotBeNullOrEmpty();
     }
 }

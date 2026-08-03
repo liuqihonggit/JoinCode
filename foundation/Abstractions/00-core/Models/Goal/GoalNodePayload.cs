@@ -17,6 +17,7 @@ public sealed class GoalNodePayload
     /// 为空时回退到 SystemPrompt + Instruction 轻量模式（IChatClient 直接调用）
     /// </summary>
     public ExecutorVariant? Variant { get; init; }
+
     public string? SystemPrompt { get; init; }
     public string? Instruction { get; init; }
     public bool FreshContext { get; init; }

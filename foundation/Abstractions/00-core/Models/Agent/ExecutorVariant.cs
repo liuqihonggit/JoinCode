@@ -31,6 +31,21 @@ public enum ExecutorVariant
     /// </summary>
     [EnumValue("doctor")] Doctor,
 
+    /// <summary>
+    /// 验证执行者 — 验证代码正确性、质量和安全性
+    /// </summary>
+    [EnumValue("verification")] Verification,
+
+    /// <summary>
+    /// 引导执行者 — 提供使用指导和最佳实践
+    /// </summary>
+    [EnumValue("claudeCodeGuide")] ClaudeCodeGuide,
+
+    /// <summary>
+    /// 上下文压缩执行者 — 智能压缩和管理上下文
+    /// </summary>
+    [EnumValue("contextCompression")] ContextCompression,
+
     [EnumValue("teammate")] Teammate
 }
 

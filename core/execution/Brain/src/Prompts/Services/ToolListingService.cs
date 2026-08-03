@@ -10,6 +10,7 @@ public sealed partial class ToolListingService
 {
     [Inject] private readonly ISystemReminderManager _reminderManager;
     [Inject] private readonly IAgentDefinitionProvider? _agentProvider;
+    [Inject] private readonly JoinCode.Abstractions.Interfaces.IAgentRoleRegistry? _roleRegistry;
     [Inject] private readonly ISkillService? _skillService;
     [Inject] private readonly ILogger<ToolListingService>? _logger;
 
@@ -29,9 +30,34 @@ public sealed partial class ToolListingService
     /// </summary>
     public async Task InjectAgentListingAsync(string? workingDirectory = null, CancellationToken ct = default)
     {
-        if (_agentProvider is null) return;
+        List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition> agents;
 
-        var agents = await _agentProvider.GetAgentDefinitionsAsync(workingDirectory, ct).ConfigureAwait(false);
+        if (_roleRegistry is not null)
+        {
+            var profiles = _roleRegistry.GetAllProfiles();
+            agents = profiles.Select(p => new JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition
+            {
+                Role = p.Role,
+                Variant = p.Variant,
+                WhenToUse = p.WhenToUse,
+                Description = p.Description,
+                Tools = (List<string>?)p.AllowedTools,
+                DisallowedTools = (List<string>?)p.DisallowedTools,
+                IsBackground = p.IsBackground,
+                OmitClaudeMd = p.OmitClaudeMd,
+                OmitGitStatus = p.OmitGitStatus,
+                PermissionMode = p.PermissionMode,
+            }).ToList();
+        }
+        else if (_agentProvider is not null)
+        {
+            agents = await _agentProvider.GetAgentDefinitionsAsync(workingDirectory, ct).ConfigureAwait(false);
+        }
+        else
+        {
+            return;
+        }
+
         if (agents.Count == 0) return;
 
         var currentTypes = new HashSet<string>(agents.Select(a => a.DisplayId));

@@ -155,7 +155,7 @@ public sealed class LoggingScopeMiddlewareTests
         var executionLog = new List<string>();
 
         var pipeline = new PipelineBuilder<TestEntity>()
-            .WithLoggingScope()
+            .WithLoggingScope(NullLoggerFactory.Instance)
             .Use(new TrackingMiddleware("A", executionLog))
             .Build();
 
@@ -171,7 +171,7 @@ public sealed class LoggingScopeMiddlewareTests
         var executionLog = new List<string>();
 
         var pipeline = new PipelineBuilder<TestContextWithObjectId>()
-            .WithLoggingScope(ctx => ctx.ObjectId)
+            .WithLoggingScope(ctx => ctx.ObjectId, NullLoggerFactory.Instance)
             .Use(new TrackingContextMiddleware("A", executionLog))
             .Build();
 

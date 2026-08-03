@@ -28,6 +28,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
     public RemoteClientManager(
         IToolRegistry toolRegistry,
         ILogger<RemoteClientManager> logger,
+        ILoggerFactory? loggerFactory = null,
         McpReconnectAcceptLevel acceptLevel = McpReconnectAcceptLevel.IdentityOnly,
         IEnumerable<IRemoteSyncMiddleware>? syncMiddlewares = null,
         IClockService? clock = null)
@@ -40,12 +41,16 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
         _clock = clock ?? SystemClockService.Instance;
         _acceptLevel = acceptLevel;
 
-        if (syncMiddlewares is not null)
+        if (syncMiddlewares is not null && loggerFactory is not null)
         {
             _syncPipeline = new PipelineBuilder<RemoteSyncContext>()
-                .WithLoggingScope()
+                .WithLoggingScope(loggerFactory)
                 .UseRange(syncMiddlewares)
                 .Build();
+        }
+        else if (syncMiddlewares is not null)
+        {
+            _syncPipeline = new MiddlewarePipeline<RemoteSyncContext>(syncMiddlewares);
         }
     }
 

@@ -5,16 +5,20 @@ public class ConfigLoader {
     private readonly IProviderDefinitionRegistry _registry;
     private readonly SettingsMapper _settingsMapper;
 
-    public ConfigLoader(IEnumerable<IConfigLoadMiddleware>? middlewares = null, IProviderDefinitionRegistry? registry = null, SettingsMapper? settingsMapper = null)
+    public ConfigLoader(IEnumerable<IConfigLoadMiddleware>? middlewares = null, ILoggerFactory? loggerFactory = null, IProviderDefinitionRegistry? registry = null, SettingsMapper? settingsMapper = null)
     {
         _registry = registry ?? new ProviderDefinitionRegistry();
         _settingsMapper = settingsMapper ?? new SettingsMapper(_registry);
-        if (middlewares is not null)
+        if (middlewares is not null && loggerFactory is not null)
         {
             _pipeline = new PipelineBuilder<ConfigLoadContext>()
-                .WithLoggingScope()
+                .WithLoggingScope(loggerFactory)
                 .UseRange(middlewares)
                 .Build();
+        }
+        else if (middlewares is not null)
+        {
+            _pipeline = new MiddlewarePipeline<ConfigLoadContext>(middlewares);
         }
     }
 

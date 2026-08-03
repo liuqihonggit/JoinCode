@@ -25,6 +25,7 @@ public sealed partial class QueryEngine : IQueryEngine
     [Inject] private readonly ILogger<QueryEngine>? _logger;
     private readonly QueryEngineConfig _config;
     private readonly IServiceProvider? _serviceProvider;
+    private readonly ILoggerFactory? _loggerFactory;
     private MiddlewarePipeline<QueryMiddlewareContext>? _pipeline;
     private QueryOptions? _currentOptions;
 
@@ -39,13 +40,15 @@ public sealed partial class QueryEngine : IQueryEngine
         IToolRegistry toolRegistry,
         IOptions<QueryEngineConfig> configOptions,
         IServiceProvider? serviceProvider = null,
-        ILogger<QueryEngine>? logger = null)
+        ILogger<QueryEngine>? logger = null,
+        ILoggerFactory? loggerFactory = null)
     {
         _kernel = kernel ?? throw new ArgumentNullException(nameof(kernel));
         _toolRegistry = toolRegistry ?? throw new ArgumentNullException(nameof(toolRegistry));
         _config = configOptions?.Value ?? new QueryEngineConfig();
         _serviceProvider = serviceProvider;
         _logger = logger;
+        _loggerFactory = loggerFactory;
         // 管道延迟构建 — 首次 QueryAsync 时才解析 IQueryMiddleware 集合
     }
 
@@ -66,10 +69,12 @@ public sealed partial class QueryEngine : IQueryEngine
         }
         allMiddlewares.Add(new QueryCoreMiddleware(this));
 
-        _pipeline = new PipelineBuilder<QueryMiddlewareContext>()
-            .WithLoggingScope()
-            .UseRange(allMiddlewares)
-            .Build();
+        _pipeline = _loggerFactory is not null
+            ? new PipelineBuilder<QueryMiddlewareContext>()
+                .WithLoggingScope(_loggerFactory)
+                .UseRange(allMiddlewares)
+                .Build()
+            : new MiddlewarePipeline<QueryMiddlewareContext>(allMiddlewares);
         return _pipeline;
     }
 

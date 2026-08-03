@@ -60,6 +60,7 @@ public sealed partial class InProcessTeammateTaskExecutor : IInProcessTeammateTa
         IAgentLifecycleManager agentLifecycleManager,
         IAgentMessageBroker messageBroker,
         ILogger<InProcessTeammateTaskExecutor>? logger = null,
+        ILoggerFactory? loggerFactory = null,
         ITelemetryService? telemetryService = null,
         IMailboxPoller? mailboxPoller = null,
         IPlanModeManager? planModeManager = null,
@@ -76,12 +77,16 @@ public sealed partial class InProcessTeammateTaskExecutor : IInProcessTeammateTa
         _subAgentContextAccessor = subAgentContextAccessor ?? new SubAgentContextAccessor();
         _clock = clock ?? SystemClockService.Instance;
 
-        if (executeMiddlewares is not null)
+        if (executeMiddlewares is not null && loggerFactory is not null)
         {
             _executePipeline = new PipelineBuilder<TeammateExecutionContext>()
-                .WithLoggingScope()
+                .WithLoggingScope(loggerFactory)
                 .UseRange(executeMiddlewares)
                 .Build();
+        }
+        else if (executeMiddlewares is not null)
+        {
+            _executePipeline = new MiddlewarePipeline<TeammateExecutionContext>(executeMiddlewares);
         }
     }
 

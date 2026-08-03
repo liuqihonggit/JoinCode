@@ -18,6 +18,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
         IFileOperationService fileOperationService,
         IProcessService processService,
         IEnumerable<IWorktreeCreateMiddleware>? createMiddlewares = null,
+        ILoggerFactory? loggerFactory = null,
         ILogger<AgentWorktreeService>? logger = null,
         WorktreeOptions? defaultOptions = null,
         ITelemetryService? telemetryService = null,
@@ -29,12 +30,16 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
         _defaultOptions = defaultOptions ?? new WorktreeOptions();
         _telemetryService = telemetryService;
         _sessionLock = new SemaphoreSlim(1, 1);
-        if (createMiddlewares != null)
+        if (createMiddlewares != null && loggerFactory != null)
         {
             _createPipeline = new PipelineBuilder<WorktreeCreateContext>()
-                .WithLoggingScope()
+                .WithLoggingScope(loggerFactory)
                 .UseRange(createMiddlewares)
                 .Build();
+        }
+        else if (createMiddlewares != null)
+        {
+            _createPipeline = new MiddlewarePipeline<WorktreeCreateContext>(createMiddlewares);
         }
     }
 

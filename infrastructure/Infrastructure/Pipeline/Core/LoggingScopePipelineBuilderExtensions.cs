@@ -4,6 +4,7 @@ using Infrastructure.Pipeline.Middlewares;
 
 /// <summary>
 /// 管道构建器扩展方法 — 一行接入日志 Scope
+/// ILoggerFactory 为必需参数，编译期保证 scope 生效
 /// </summary>
 public static class LoggingScopePipelineBuilderExtensions
 {
@@ -13,8 +14,9 @@ public static class LoggingScopePipelineBuilderExtensions
     /// </summary>
     public static PipelineBuilder<TContext> WithLoggingScope<TContext>(
         this PipelineBuilder<TContext> builder,
-        ILogger<LoggingScopeMiddleware<TContext>>? logger = null)
+        ILoggerFactory loggerFactory)
     {
+        var logger = loggerFactory.CreateLogger<LoggingScopeMiddleware<TContext>>();
         return builder.Use(new LoggingScopeMiddleware<TContext>(logger));
     }
 
@@ -24,8 +26,9 @@ public static class LoggingScopePipelineBuilderExtensions
     public static PipelineBuilder<TContext> WithLoggingScope<TContext>(
         this PipelineBuilder<TContext> builder,
         Func<TContext, ObjectId> objectIdSelector,
-        ILogger<LoggingScopeMiddleware<TContext>>? logger = null)
+        ILoggerFactory loggerFactory)
     {
+        var logger = loggerFactory.CreateLogger<LoggingScopeMiddleware<TContext>>();
         return builder.Use(new LoggingScopeMiddleware<TContext>(logger, objectIdSelector));
     }
 
@@ -34,8 +37,9 @@ public static class LoggingScopePipelineBuilderExtensions
     /// </summary>
     public static StreamPipelineBuilder<TContext, TEvent> WithLoggingScope<TContext, TEvent>(
         this StreamPipelineBuilder<TContext, TEvent> builder,
-        ILogger<StreamLoggingScopeMiddleware<TContext, TEvent>>? logger = null)
+        ILoggerFactory loggerFactory)
     {
+        var logger = loggerFactory.CreateLogger<StreamLoggingScopeMiddleware<TContext, TEvent>>();
         return builder.Use(new StreamLoggingScopeMiddleware<TContext, TEvent>(logger));
     }
 
@@ -45,8 +49,9 @@ public static class LoggingScopePipelineBuilderExtensions
     public static StreamPipelineBuilder<TContext, TEvent> WithLoggingScope<TContext, TEvent>(
         this StreamPipelineBuilder<TContext, TEvent> builder,
         Func<TContext, ObjectId> objectIdSelector,
-        ILogger<StreamLoggingScopeMiddleware<TContext, TEvent>>? logger = null)
+        ILoggerFactory loggerFactory)
     {
+        var logger = loggerFactory.CreateLogger<StreamLoggingScopeMiddleware<TContext, TEvent>>();
         return builder.Use(new StreamLoggingScopeMiddleware<TContext, TEvent>(logger, objectIdSelector));
     }
 }

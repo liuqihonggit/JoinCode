@@ -13,13 +13,16 @@ public sealed partial class McpbLoader
     public McpbLoader(
         IEnumerable<IMcpbMiddleware> middlewares,
         IFileSystem fs,
+        ILoggerFactory? loggerFactory = null,
         ILogger<McpbLoader>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(fs);
-        _pipeline = new PipelineBuilder<McpbLoadContext>()
-            .WithLoggingScope()
-            .UseRange(middlewares)
-            .Build();
+        _pipeline = loggerFactory is not null
+            ? new PipelineBuilder<McpbLoadContext>()
+                .WithLoggingScope(loggerFactory)
+                .UseRange(middlewares)
+                .Build()
+            : new MiddlewarePipeline<McpbLoadContext>(middlewares);
     }
 
     public static bool IsMcpbSource(string source)

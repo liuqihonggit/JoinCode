@@ -137,6 +137,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
         IChatClient kernel,
         IGoalEvaluator evaluator,
         ILogger<GoalEngine>? logger = null,
+        ILoggerFactory? loggerFactory = null,
         IToolPermissionManager? permissionManager = null,
         IEnumerable<IGoalLifecycleMiddleware>? lifecycleMiddlewares = null,
         IGoalHeartbeat? heartbeat = null,
@@ -154,12 +155,16 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
         _heartbeat = heartbeat ?? throw new ArgumentNullException(nameof(heartbeat));
         _heartbeat.RegisterCallback(OnHeartbeatAsync);
 
-        if (lifecycleMiddlewares is not null)
+        if (lifecycleMiddlewares is not null && loggerFactory is not null)
         {
             _lifecyclePipeline = new PipelineBuilder<GoalLifecycleContext>()
-                .WithLoggingScope()
+                .WithLoggingScope(loggerFactory)
                 .UseRange(lifecycleMiddlewares)
                 .Build();
+        }
+        else if (lifecycleMiddlewares is not null)
+        {
+            _lifecyclePipeline = new MiddlewarePipeline<GoalLifecycleContext>(lifecycleMiddlewares);
         }
     }
 

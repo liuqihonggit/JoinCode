@@ -24,7 +24,7 @@ public static partial class ServiceRegistration
         {
             var middlewares = sp.GetServices<IAgentToolMiddleware>().Cast<IMiddleware<AgentToolContext>>();
             var builder = new PipelineBuilder<AgentToolContext>()
-                .WithLoggingScope()
+                .WithLoggingScope(sp.GetRequiredService<ILoggerFactory>())
                 .UseRange(middlewares);
             var logger = sp.GetService<ILogger<AgentToolHandlers>>();
             if (logger is not null)
@@ -36,7 +36,7 @@ public static partial class ServiceRegistration
         {
             var middlewares = sp.GetServices<IToolExecutionMiddleware>().Cast<IMiddleware<ToolExecutionContext>>();
             return new PipelineBuilder<ToolExecutionContext>()
-                .WithLoggingScope()
+                .WithLoggingScope(sp.GetRequiredService<ILoggerFactory>())
                 .UseRange(middlewares)
                 .Build();
         });

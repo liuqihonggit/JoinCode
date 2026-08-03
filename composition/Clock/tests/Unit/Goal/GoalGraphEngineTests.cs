@@ -1211,6 +1211,7 @@ public sealed class GoalGraphEngineTests
         Assert.Equal(GoalNodeStatus.Completed, nodeReviewer.Payload.Status);
         Assert.Equal(GoalStatus.Achieved, result.Status);
     }
+<<<<<<< HEAD
 
     // ─────────────────────────────────────────────────────────────
     // 负向评价循环: neg_review → {NEG_CONTINUE: fix_neg, NEG_STOP: done}
@@ -1470,4 +1471,6 @@ public sealed class GoalGraphEngineTests
         Assert.True(result.TokensUsed <= 250);
         Assert.Equal(GoalStatus.Achieved, result.Status);
     }
+=======
+>>>>>>> c0bbb415c3daaa0e27b22a271cafbff47cad1d13
 }

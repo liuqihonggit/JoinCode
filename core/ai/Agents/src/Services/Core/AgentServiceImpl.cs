@@ -17,6 +17,7 @@ public sealed partial class AgentServiceImpl : JoinCode.Abstractions.Interfaces.
 {
     private readonly IAgentLifecycleManager _lifecycleManager;
     private readonly JoinCode.Abstractions.Interfaces.IAgentDefinitionProvider _definitionProvider;
+    private readonly JoinCode.Abstractions.Interfaces.IAgentRoleRegistry _roleRegistry;
     private readonly JoinCode.Abstractions.Interfaces.IAgentTranscriptService? _transcriptService;
     private readonly IAgentMessageBroker? _messageBroker;
     private readonly SwarmPermissionCallbackService? _permissionCallbackService;
@@ -38,6 +39,7 @@ public sealed partial class AgentServiceImpl : JoinCode.Abstractions.Interfaces.
     public AgentServiceImpl(
         IAgentLifecycleManager lifecycleManager,
         JoinCode.Abstractions.Interfaces.IAgentDefinitionProvider definitionProvider,
+        JoinCode.Abstractions.Interfaces.IAgentRoleRegistry roleRegistry,
         Infrastructure.Pipeline.MiddlewarePipeline<AgentSpawnContext> spawnPipeline,
         AgentServiceDependencies? deps = null,
         JoinCode.Abstractions.Interfaces.IAgentNotificationQueue? notificationQueue = null,
@@ -47,6 +49,7 @@ public sealed partial class AgentServiceImpl : JoinCode.Abstractions.Interfaces.
     {
         _lifecycleManager = lifecycleManager ?? throw new ArgumentNullException(nameof(lifecycleManager));
         _definitionProvider = definitionProvider ?? throw new ArgumentNullException(nameof(definitionProvider));
+        _roleRegistry = roleRegistry ?? throw new ArgumentNullException(nameof(roleRegistry));
         _spawnPipeline = spawnPipeline ?? throw new ArgumentNullException(nameof(spawnPipeline));
         _transcriptService = deps?.TranscriptService;
         _messageBroker = deps?.MessageBroker;
@@ -241,16 +244,18 @@ public sealed partial class AgentServiceImpl : JoinCode.Abstractions.Interfaces.
         return Task.FromResult<JoinCode.Abstractions.Interfaces.AgentProgress?>(null);
     }
 
-    public async Task<List<JoinCode.Abstractions.Interfaces.AgentTypeInfo>> GetAvailableAgentTypesAsync(CancellationToken cancellationToken = default)
+    public Task<List<JoinCode.Abstractions.Interfaces.AgentTypeInfo>> GetAvailableAgentTypesAsync(CancellationToken cancellationToken = default)
     {
-        var definitions = await _definitionProvider.GetAgentDefinitionsAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+        var profiles = _roleRegistry.GetAllProfiles();
 
-        return definitions.Select(d => new JoinCode.Abstractions.Interfaces.AgentTypeInfo
+        var result = profiles.Select(p => new JoinCode.Abstractions.Interfaces.AgentTypeInfo
         {
-            Name = d.DisplayId,
-            Description = d.Description ?? d.WhenToUse,
-            AvailableTools = d.Tools
+            Name = p.DisplayId,
+            Description = p.Description ?? p.WhenToUse,
+            AvailableTools = (List<string>?)p.AllowedTools
         }).ToList();
+
+        return Task.FromResult(result);
     }
 
     public async Task<JoinCode.Abstractions.Interfaces.AgentInfo> ResumeAgentAsync(JoinCode.Abstractions.Interfaces.AgentResumeOptions options, CancellationToken cancellationToken = default)
@@ -272,8 +277,8 @@ public sealed partial class AgentServiceImpl : JoinCode.Abstractions.Interfaces.
 
         var chatHistory = TranscriptConverter.ToMessageListWithNewPrompt(transcript, options.NewPrompt);
 
-        var definition = metadata.Variant.HasValue || metadata.Role != default
-            ? await _definitionProvider.GetAgentDefinitionAsync(metadata.Role, metadata.Variant, cancellationToken: cancellationToken).ConfigureAwait(false)
+        var profile = metadata.Variant.HasValue || metadata.Role != default
+            ? _roleRegistry.GetProfile(metadata.Role, metadata.Variant)
             : null;
 
         var subOptions = new SubAgentOptions
@@ -281,15 +286,15 @@ public sealed partial class AgentServiceImpl : JoinCode.Abstractions.Interfaces.
             Role = metadata.Role,
             Variant = metadata.Variant,
             AdditionalInstructions = options.NewPrompt,
-            ModelName = metadata.ModelName ?? definition?.ModelName,
-            Temperature = definition?.Temperature ?? 0.7f,
+            ModelName = metadata.ModelName ?? profile?.ModelName,
+            Temperature = profile?.Temperature ?? 0.7f,
             DisplayName = metadata.Description ?? "Resumed Agent",
             SystemPrompt = null,
-            AllowedTools = definition?.Tools,
-            DeniedTools = definition?.DisallowedTools,
+            AllowedTools = (List<string>?)profile?.AllowedTools,
+            DeniedTools = (List<string>?)profile?.DisallowedTools,
             InitialMessageList = chatHistory,
-            PreloadSkills = definition?.Skills,
-            PermissionMode = definition?.PermissionMode,
+            PreloadSkills = (List<string>?)profile?.Skills,
+            PermissionMode = profile?.PermissionMode,
         };
 
         var description = $"Resume: {metadata.Description}";

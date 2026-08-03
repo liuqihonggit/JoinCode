@@ -119,6 +119,22 @@ public sealed partial class GoalGraphEngine
 
             context.CompletedNodes.Add(nodeId);
 
+            if (ShouldTerminateLoop(nodeId, payload, context, graph))
+            {
+                _logger?.LogInformation("[GoalGraph] 循环终止条件满足: {NodeId} (迭代={Iter}, 负评={NegCount}, 协调者终止={CoordTerm})",
+                    nodeId, context.GlobalLoopIteration, payload.NegativeReviewCount, context.CoordinatorTerminated);
+
+                var endIds = graph.EndNodeIds;
+                await context.StateLock.WaitAsync(ct).ConfigureAwait(false);
+                try
+                {
+                    goalState.Status = GoalStatus.Achieved;
+                    goalState.AchievedAt = _clock.GetUtcNow();
+                }
+                finally { context.StateLock.Release(); }
+                return goalState;
+            }
+
             var nextIds = context.GetNextNodeIds(nodeId, payload.Routes, payload.RouteMatchMode);
 
             foreach (var nextId in nextIds)
@@ -176,6 +192,7 @@ public sealed partial class GoalGraphEngine
             payload.Routes = result.Routes;
             payload.TokensUsed = result.TokensUsed;
             payload.CompletedAt = _clock.GetUtcNow();
+            context.TotalTokensConsumed += result.TokensUsed;
 
             if (result.IsFailed)
             {
@@ -387,10 +404,11 @@ public sealed partial class GoalGraphEngine
         }
 
         context.RetryCount[targetNodeId] = retryCount + 1;
+        context.GlobalLoopIteration++;
         context.ReadyQueue.Enqueue(targetNodeId);
 
-        _logger?.LogInformation("[GoalGraph] 回退重激活: {NodeId} (第{Retry}次, 影响{Count}个节点)",
-            targetNodeId, retryCount + 1, affected.Count);
+        _logger?.LogInformation("[GoalGraph] 回退重激活: {NodeId} (第{Retry}次, 影响{Count}个节点, 全局迭代={GlobalIter})",
+            targetNodeId, retryCount + 1, affected.Count, context.GlobalLoopIteration);
     }
 
     private async Task UpdateGoalStateAsync(GraphExecutionContext context)
@@ -411,5 +429,26 @@ public sealed partial class GoalGraphEngine
             context.State.TurnsCompleted = totalTurns;
         }
         finally { context.StateLock.Release(); }
+    }
+
+    /// <summary>
+    /// 判断是否应终止负向评价-修复循环
+    /// 终止条件（纵深防御，任一满足即终止）:
+    /// 1. 协调者终止（窥探或接管）
+    /// 2. 循环迭代达到硬上限（默认16轮）
+    /// 3. token/轮次预算耗尽
+    /// </summary>
+    private static bool ShouldTerminateLoop(string nodeId, GoalNodePayload payload, GraphExecutionContext context, GoalGraph graph)
+    {
+        if (context.CoordinatorTerminated)
+            return true;
+
+        if (context.GlobalLoopIteration >= graph.HardMaxLoopIterations)
+            return true;
+
+        if (context.State.TokenBudget.HasValue && context.TotalTokensConsumed >= context.State.TokenBudget.Value)
+            return true;
+
+        return false;
     }
 }

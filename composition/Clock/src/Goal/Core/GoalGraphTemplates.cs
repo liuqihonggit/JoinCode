@@ -16,6 +16,7 @@ public static class GoalGraphTemplates
         registry.Register(ResearchTemplate);
         registry.Register(CodeReviewTemplate);
         registry.Register(TestGenTemplate);
+        registry.Register(NegativeReviewLoopTemplate);
     }
 
     public static GoalGraphTemplate RefactorTemplate => new()
@@ -56,6 +57,18 @@ public static class GoalGraphTemplates
         Keywords = ["测试", "test", "单测", "unit test", "覆盖率", "coverage", "tdd"],
         Description = "analyze → write_tests → run_tests → {PASS: done, FAIL: write_tests}",
         BuildGraph = BuildTestGenGraph,
+    };
+
+    /// <summary>
+    /// 负向评价循环模板 — execute → neg_review ⟲ fix_neg
+    /// 终止条件: 负评≤5→停止 | 6~10→ask_user | token预算耗尽 | 协调者终止 | 16轮硬上限
+    /// </summary>
+    public static GoalGraphTemplate NegativeReviewLoopTemplate => new()
+    {
+        Name = "negative_review_loop",
+        Keywords = ["负评", "负向评价", "negative review", "质量循环", "quality loop", "迭代改进", "iterative improvement"],
+        Description = "execute → neg_review → {NEG_CONTINUE: fix_neg, NEG_STOP: done} ⟲ neg_review",
+        BuildGraph = BuildNegativeReviewLoopGraph,
     };
 
     private static GoalGraph BuildRefactorGraph(GoalGraphEngine engine, string objective)
@@ -151,5 +164,205 @@ public static class GoalGraphTemplates
         dag.Nodes["write_tests"].InEdgeIds.Remove(backEdge);
 
         return new GoalGraph { Name = $"test-gen: {objective}", Dag = dag, StartNodeId = "analyze", EndNodeIds = FrozenSet.Create("run_tests") };
+    }
+
+    /// <summary>
+    /// 构建负向评价循环图: execute → neg_review → {NEG_CONTINUE: fix_neg, NEG_STOP: done}
+    /// fix_neg 完成后回退到 neg_review 形成循环
+    /// </summary>
+    private static GoalGraph BuildNegativeReviewLoopGraph(GoalGraphEngine engine, string objective)
+    {
+        var dag = new Dag<GoalNodePayload>();
+
+        dag.AddNode(new DagNode<GoalNodePayload>
+        {
+            Id = "execute",
+            Payload = new()
+            {
+                Kind = GoalNodeKind.Agent,
+                Name = "executor",
+                AgentType = "code",
+                IsSubAgent = true,
+                SystemPrompt = "You are a code execution expert. Complete the task thoroughly and precisely. After completion, summarize what was done.",
+                Instruction = objective,
+            }
+        });
+
+        dag.AddNode(new DagNode<GoalNodePayload>
+        {
+            Id = "neg_review",
+            Payload = new()
+            {
+                Kind = GoalNodeKind.Agent,
+                Name = "negative-reviewer",
+                AgentType = "default",
+                IsSubAgent = true,
+                FreshContext = true,
+                MaxLoopIterations = 16,
+                SystemPrompt = BuildNegReviewSystemPrompt(),
+                Instruction = BuildNegReviewInstruction(objective),
+                RouteMatchMode = RouteMatchMode.ConditionalOnly,
+            }
+        });
+
+        dag.AddNode(new DagNode<GoalNodePayload>
+        {
+            Id = "fix_neg",
+            Payload = new()
+            {
+                Kind = GoalNodeKind.Agent,
+                Name = "fix-negative-review",
+                AgentType = "code",
+                IsSubAgent = true,
+                SystemPrompt = BuildFixNegSystemPrompt(),
+                Instruction = "根据负向评价要求完成任务。完成后决定：\n- 如果你想再经历一轮负向评价以保证工程质量，输出路由 NEG_CONTINUE\n- 如果当前负评超过10条，建议输出路由 NEG_STOP\n- 否则输出路由 NEG_STOP",
+                RouteMatchMode = RouteMatchMode.ConditionalOnly,
+            }
+        });
+
+        dag.AddNode(new DagNode<GoalNodePayload>
+        {
+            Id = "done",
+            Payload = new()
+            {
+                Kind = GoalNodeKind.Function,
+                Name = "loop-done",
+                Instruction = "Negative review loop completed",
+            }
+        });
+
+        dag.AddEdge(new DagEdge { Id = "e1", FromId = "execute", ToId = "neg_review" });
+        dag.AddEdge(new DagEdge { Id = "e2", FromId = "neg_review", ToId = "fix_neg", Label = "NEG_CONTINUE" });
+        dag.AddEdge(new DagEdge { Id = "e3", FromId = "neg_review", ToId = "done", Label = "NEG_STOP" });
+
+        const string backEdge = "e4";
+        dag.TryAddEdge(new DagEdge { Id = backEdge, FromId = "fix_neg", ToId = "neg_review", Label = "NEG_CONTINUE" });
+        dag.Nodes["neg_review"].InEdgeIds.Remove(backEdge);
+
+        dag.AddEdge(new DagEdge { Id = "e5", FromId = "fix_neg", ToId = "done", Label = "NEG_STOP" });
+
+        engine.RegisterFunction("done", _ =>
+            Task.FromResult(NodeResult.Succeeded("negative-review-loop-completed")));
+
+        return new GoalGraph
+        {
+            Name = $"negative-review-loop: {objective}",
+            Dag = dag,
+            StartNodeId = "execute",
+            EndNodeIds = FrozenSet.Create("done"),
+            HardMaxLoopIterations = 16,
+        };
+    }
+
+    private static string BuildNegReviewSystemPrompt()
+    {
+        return """
+你是一个严格的负向评价专家。你的职责是勇敢说出不足，而非赞美。
+
+## 评价清单（必须逐项执行）
+
+1. **代码负向评价** — 找到代码不足：命名、结构、重复、死代码、异常处理、线程安全
+2. **功能遗留检查** — 是否有功能没有完成？是否只做了表面功夫？
+3. **更优做法搜索** — 通过网络搜索等手段寻找更适合的做法，包括：
+   - 架构优化（是否过度耦合？是否违反SOLID？）
+   - 性能优化（是否有O(n²)可降为O(n)？是否有不必要的分配？）
+   - 安全优化（是否有注入风险？是否有敏感信息泄露？）
+   - 测试优化（覆盖率是否足够？边界条件是否覆盖？）
+4. **连带修改检查** — 同类型功能是否需要连带修改？
+   - 修改了A模块，B模块做了一模一样的事情，必须也改B
+   - 即使用户没有提及，为了项目健壮性，理应继续思考和执行
+5. **清理任务**
+   - 遗忘清理的文件（临时文件、调试代码、TODO标记）
+   - 历史兼容性：如果不允许兼容就直接删掉
+   - 可合并的同名类/函数：名称相差不大就有合并价值
+   - 禁止因"引用位置太多"而不合并 — 可以用脚本构造AST替换
+6. **历史负担调整**
+   - 不断叠加字段使类冗长 → 提取为配置类、DTO、工厂等
+   - 优先选择最少代码的设计模式
+   - 当发现代码已工程化，积极利用已有模式（管道、中间件、洋葱模型）
+   - 除非用户明确要求，否则渐进式调整，不大规模重构
+7. **总结** — 使用 task_create 工具构造任务（每条负评一个任务）
+
+## 路由规则（必须严格遵守）
+
+- 负评条数 ≤ 5 → 输出路由 ["NEG_STOP"]（质量可接受）
+- 负评条数 6~10 → 使用 ask_user 工具询问用户是否继续（5分钟超时后协调者接管）
+- 负评条数 > 10 → 输出路由 ["NEG_CONTINUE"]（必须继续修复）
+- 循环次数 ≥ 16 → 输出路由 ["NEG_STOP"]（纵深防御硬上限）
+
+## 输出格式
+
+```
+## 负向评价报告
+
+### 1. 代码不足
+- [具体不足]
+
+### 2. 功能遗留
+- [遗留项]
+
+### 3. 更优做法
+- [优化建议]
+
+### 4. 连带修改
+- [需要连带修改的位置]
+
+### 5. 清理任务
+- [清理项]
+
+### 6. 历史负担
+- [负担项]
+
+### 7. 任务列表
+- [通过 task_create 创建的任务]
+
+### 路由: NEG_CONTINUE / NEG_STOP
+负评条数: N
+""";
+    }
+
+    private static string BuildNegReviewInstruction(string objective)
+    {
+        return $"""
+对以下任务执行负向评价:
+
+原始任务: {objective}
+
+请严格按照评价清单逐项执行，不要遗漏任何一项。
+完成后根据路由规则决定输出路由。
+""";
+    }
+
+    private static string BuildFixNegSystemPrompt()
+    {
+        return """
+你是一个修复专家。根据负向评价的要求去完成任务。
+
+## 修复原则
+
+1. 每条负评必须对应一个修复动作
+2. 修复后编译验证，确保不引入新问题
+3. 使用 task_update 工具更新负评任务状态为 completed
+4. 修复完成后决定是否需要再经历一轮负向评价
+
+## 循环控制
+
+- 如果你想再经历一轮负向评价以保证工程质量 → 输出路由 ["NEG_CONTINUE"]
+- 如果当前负评超过10条 → 建议输出路由 ["NEG_STOP"]（让用户决定）
+- 否则 → 输出路由 ["NEG_STOP"]
+
+## 输出格式
+
+```
+## 修复报告
+
+### 修复项
+1. [负评1] → [修复动作] → [验证结果]
+2. [负评2] → [修复动作] → [验证结果]
+...
+
+### 路由: NEG_CONTINUE / NEG_STOP
+```
+""";
     }
 }

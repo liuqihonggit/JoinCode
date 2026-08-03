@@ -33,4 +33,29 @@ public sealed class GoalNodePayload
     public DateTime? CompletedAt { get; set; }
     public int TokensUsed { get; set; }
     public int TurnsCompleted { get; set; }
+
+    /// <summary>
+    /// 当前循环迭代次数（负向评价-修复循环）
+    /// </summary>
+    public int LoopIteration { get; set; }
+
+    /// <summary>
+    /// 最大循环迭代次数（纵深防御硬上限，默认16）
+    /// </summary>
+    public int MaxLoopIterations { get; init; } = 16;
+
+    /// <summary>
+    /// 负评条数累计
+    /// </summary>
+    public int NegativeReviewCount { get; set; }
+
+    /// <summary>
+    /// 原始任务ID（跨对话传递，关联 mcp_task）
+    /// </summary>
+    public string? OriginalTaskId { get; init; }
+
+    /// <summary>
+    /// 负向评价任务ID（关联 mcp_task）
+    /// </summary>
+    public string? NegativeReviewTaskId { get; set; }
 }

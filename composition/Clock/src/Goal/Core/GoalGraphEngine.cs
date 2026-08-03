@@ -516,43 +516,78 @@ public sealed partial class GoalGraphEngine
     }
 
     /// <summary>
-    /// 从 neg_review 节点输出中提取元数据（负评条数、任务ID）并写入 payload
+    /// 从 neg_review / fix_neg 节点输出中提取 JSON 元数据并写入 payload
+    /// 使用 JsonSerializer 反序列化（AOT 兼容），替代正则表达式
     /// </summary>
     private static void ExtractNegReviewMetadata(string nodeId, GoalNodePayload payload, GraphExecutionContext context)
     {
-        if (!nodeId.Equals("neg_review", StringComparison.Ordinal))
-            return;
-
         if (string.IsNullOrEmpty(payload.Output))
             return;
 
-        var negCount = ParseNegReviewCount(payload.Output);
-        if (negCount.HasValue)
+        if (nodeId.Equals("neg_review", StringComparison.Ordinal))
         {
-            payload.NegativeReviewCount = negCount.Value;
-        }
+            var json = ExtractJsonBlock(payload.Output);
+            if (json is null)
+                return;
 
-        var taskId = ParseTaskId(payload.Output);
-        if (taskId is not null)
+            NegReviewOutputJson? negReview;
+            try
+            {
+                negReview = System.Text.Json.JsonSerializer.Deserialize(json, GoalJsonContext.Default.NegReviewOutputJson);
+            }
+            catch (System.Text.Json.JsonException)
+            {
+                return;
+            }
+
+            if (negReview is null)
+                return;
+
+            payload.NegativeReviewCount = negReview.NegativeReviewCount;
+            payload.NegativeReviewTaskId = negReview.TaskId;
+            if (!string.IsNullOrEmpty(negReview.Route))
+            {
+                payload.Routes = [negReview.Route];
+            }
+        }
+        else if (nodeId.Equals("fix_neg", StringComparison.Ordinal))
         {
-            payload.NegativeReviewTaskId = taskId;
+            var json = ExtractJsonBlock(payload.Output);
+            if (json is null)
+                return;
+
+            FixNegOutputJson? fixNeg;
+            try
+            {
+                fixNeg = System.Text.Json.JsonSerializer.Deserialize(json, GoalJsonContext.Default.FixNegOutputJson);
+            }
+            catch (System.Text.Json.JsonException)
+            {
+                return;
+            }
+
+            if (fixNeg is not null && !string.IsNullOrEmpty(fixNeg.Route))
+            {
+                payload.Routes = [fixNeg.Route];
+            }
         }
     }
 
-    private static int? ParseNegReviewCount(string output)
+    /// <summary>
+    /// 从 LLM 输出文本中提取 ```json ... ``` 代码块内容
+    /// </summary>
+    private static string? ExtractJsonBlock(string output)
     {
-        var match = System.Text.RegularExpressions.Regex.Match(
-            output, @"负评条数\s*[:：]\s*(\d+)", System.Text.RegularExpressions.RegexOptions.None);
-        if (match.Success && int.TryParse(match.Groups[1].Value, out var count))
-            return count;
-        return null;
-    }
+        var jsonStart = output.IndexOf("```json", StringComparison.OrdinalIgnoreCase);
+        if (jsonStart < 0)
+            return null;
 
-    private static string? ParseTaskId(string output)
-    {
-        var match = System.Text.RegularExpressions.Regex.Match(
-            output, @"task_id\s*[:：]\s*([a-zA-Z0-9_-]+)", System.Text.RegularExpressions.RegexOptions.None);
-        return match.Success ? match.Groups[1].Value : null;
+        var contentStart = jsonStart + 7;
+        var jsonEnd = output.IndexOf("```", contentStart, StringComparison.Ordinal);
+        if (jsonEnd <= contentStart)
+            return null;
+
+        return output[contentStart..jsonEnd].Trim();
     }
 
     /// <summary>

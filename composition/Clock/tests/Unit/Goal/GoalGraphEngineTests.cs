@@ -1500,7 +1500,7 @@ public sealed class GoalGraphEngineTests
             Task.FromResult(NodeResult.Succeeded("task-output", tokensUsed: 50)));
 
         engine.RegisterFunction("neg_review", _ =>
-            Task.FromResult(NodeResult.Routed("## 负向评价报告\n...\n负评条数: 7", ["NEG_STOP"], tokensUsed: 20)));
+            Task.FromResult(NodeResult.Routed("## 负向评价报告\n```json\n{\"negativeReviewCount\":7,\"route\":\"NEG_STOP\",\"taskId\":null,\"items\":[],\"summary\":\"7条不足\"}\n```", ["NEG_STOP"], tokensUsed: 20)));
 
         engine.RegisterFunction("done", _ =>
             Task.FromResult(NodeResult.Succeeded("loop-completed")));
@@ -1543,7 +1543,7 @@ public sealed class GoalGraphEngineTests
             Task.FromResult(NodeResult.Succeeded("task-output", tokensUsed: 50)));
 
         engine.RegisterFunction("neg_review", _ =>
-            Task.FromResult(NodeResult.Routed("...\ntask_id: task-abc-123\n负评条数: 3", ["NEG_STOP"], tokensUsed: 20)));
+            Task.FromResult(NodeResult.Routed("...\n```json\n{\"negativeReviewCount\":3,\"route\":\"NEG_STOP\",\"taskId\":\"task-abc-123\",\"items\":[],\"summary\":\"3条不足\"}\n```", ["NEG_STOP"], tokensUsed: 20)));
 
         engine.RegisterFunction("done", _ =>
             Task.FromResult(NodeResult.Succeeded("loop-completed")));
@@ -1659,7 +1659,7 @@ public sealed class GoalGraphEngineTests
             Task.FromResult(NodeResult.Succeeded("task-output", tokensUsed: 50)));
 
         engine.RegisterFunction("neg_review", _ =>
-            Task.FromResult(NodeResult.Routed("负评条数: 8", ["NEG_STOP"], tokensUsed: 20)));
+            Task.FromResult(NodeResult.Routed("```json\n{\"negativeReviewCount\":8,\"route\":\"NEG_STOP\",\"taskId\":null,\"items\":[],\"summary\":\"8条不足\"}\n```", ["NEG_STOP"], tokensUsed: 20)));
 
         engine.RegisterFunction("done", _ =>
             Task.FromResult(NodeResult.Succeeded("loop-completed")));
@@ -1711,7 +1711,7 @@ public sealed class GoalGraphEngineTests
             Task.FromResult(NodeResult.Succeeded("task-output", tokensUsed: 50)));
 
         engine.RegisterFunction("neg_review", _ =>
-            Task.FromResult(NodeResult.Routed("负评条数: 3", ["NEG_STOP"], tokensUsed: 20)));
+            Task.FromResult(NodeResult.Routed("```json\n{\"negativeReviewCount\":3,\"route\":\"NEG_STOP\",\"taskId\":null,\"items\":[],\"summary\":\"3条不足\"}\n```", ["NEG_STOP"], tokensUsed: 20)));
 
         engine.RegisterFunction("done", _ =>
             Task.FromResult(NodeResult.Succeeded("loop-completed")));

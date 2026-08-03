@@ -283,39 +283,36 @@ public static class GoalGraphTemplates
 
 ## 路由规则（必须严格遵守）
 
-- 负评条数 ≤ 5 → 输出路由 ["NEG_STOP"]（质量可接受）
-- 负评条数 6~10 → 使用 ask_user 工具询问用户是否继续（5分钟超时后协调者接管）
-- 负评条数 > 10 → 输出路由 ["NEG_CONTINUE"]（必须继续修复）
-- 循环次数 ≥ 16 → 输出路由 ["NEG_STOP"]（纵深防御硬上限）
+- 负评条数 ≤ 5 → route = "NEG_STOP"（质量可接受）
+- 负评条数 6~10 → 使用 ask_user 工具询问用户是否继续（1分钟超时后协调者接管）
+- 负评条数 > 10 → route = "NEG_CONTINUE"（必须继续修复）
+- 循环次数 ≥ 16 → route = "NEG_STOP"（纵深防御硬上限）
 
-## 输出格式
+## 输出格式（必须严格遵守）
 
+评价完成后，必须在输出的最后输出一个 JSON 块，格式如下：
+
+```json
+{
+  "negativeReviewCount": 7,
+  "route": "NEG_CONTINUE",
+  "taskId": "task-xxx",
+  "items": [
+    { "category": "代码不足", "description": "命名不规范", "severity": "medium" },
+    { "category": "功能遗留", "description": "未处理空引用", "severity": "high" }
+  ],
+  "summary": "发现7条不足，主要集中在代码质量和功能遗留"
+}
 ```
-## 负向评价报告
 
-### 1. 代码不足
-- [具体不足]
+字段说明：
+- negativeReviewCount: 负评总条数（整数）
+- route: 路由决策，只能是 "NEG_CONTINUE" 或 "NEG_STOP"
+- taskId: 通过 task_create 创建的任务ID（如有）
+- items: 每条负评的详细信息
+- summary: 评价总结
 
-### 2. 功能遗留
-- [遗留项]
-
-### 3. 更优做法
-- [优化建议]
-
-### 4. 连带修改
-- [需要连带修改的位置]
-
-### 5. 清理任务
-- [清理项]
-
-### 6. 历史负担
-- [负担项]
-
-### 7. 任务列表
-- [通过 task_create 创建的任务]
-
-### 路由: NEG_CONTINUE / NEG_STOP
-负评条数: N
+⚠️ JSON 块必须放在输出的最后，用 ```json 和 ``` 包裹。这是程序解析的唯一数据源。
 """;
     }
 
@@ -327,11 +324,7 @@ public static class GoalGraphTemplates
 原始任务: {objective}
 
 请严格按照评价清单逐项执行，不要遗漏任何一项。
-完成后根据路由规则决定输出路由。
-
-## 输出要求
-- 必须在输出末尾包含 "负评条数: N" 行（N为实际负评条数）
-- 使用 task_create 创建任务后，必须输出 "task_id: <创建的任务ID>" 
+完成后根据路由规则决定路由，并在输出末尾输出 JSON 块。
 """;
     }
 
@@ -349,22 +342,30 @@ public static class GoalGraphTemplates
 
 ## 循环控制
 
-- 如果你想再经历一轮负向评价以保证工程质量 → 输出路由 ["NEG_CONTINUE"]
-- 如果当前负评超过10条 → 建议输出路由 ["NEG_STOP"]（让用户决定）
-- 否则 → 输出路由 ["NEG_STOP"]
+- 如果你想再经历一轮负向评价以保证工程质量 → route = "NEG_CONTINUE"
+- 如果当前负评超过10条 → 建议 route = "NEG_STOP"（让用户决定）
+- 否则 → route = "NEG_STOP"
 
-## 输出格式
+## 输出格式（必须严格遵守）
 
+修复完成后，必须在输出的最后输出一个 JSON 块，格式如下：
+
+```json
+{
+  "route": "NEG_STOP",
+  "fixedCount": 5,
+  "remainingCount": 2,
+  "summary": "修复了5条，剩余2条需要下一轮处理"
+}
 ```
-## 修复报告
 
-### 修复项
-1. [负评1] → [修复动作] → [验证结果]
-2. [负评2] → [修复动作] → [验证结果]
-...
+字段说明：
+- route: 路由决策，只能是 "NEG_CONTINUE" 或 "NEG_STOP"
+- fixedCount: 已修复条数
+- remainingCount: 剩余未修复条数
+- summary: 修复总结
 
-### 路由: NEG_CONTINUE / NEG_STOP
-```
+⚠️ JSON 块必须放在输出的最后，用 ```json 和 ``` 包裹。这是程序解析的唯一数据源。
 """;
     }
 }

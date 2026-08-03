@@ -35,14 +35,18 @@ public sealed class GoalGraphEngineTests
         Mock<IChatClient>? kernel = null,
         Mock<IGoalEvaluator>? evaluator = null,
         IClockService? clock = null,
-        IServiceProvider? serviceProvider = null)
+        IServiceProvider? serviceProvider = null,
+        IGoalUserInteraction? userInteraction = null,
+        IGoalLoopObserver? loopObserver = null)
     {
         return new GoalGraphEngine(
             (kernel ?? CreateKernelMock()).Object,
             (evaluator ?? CreateEvaluatorMock()).Object,
             serviceProvider ?? new ServiceCollection().BuildServiceProvider(),
             heartbeat: CreateHeartbeatMock().Object,
-            clock: clock);
+            clock: clock,
+            userInteraction: userInteraction,
+            loopObserver: loopObserver);
     }
 
     private static GoalState CreateGoalState() => new()
@@ -1622,5 +1626,168 @@ public sealed class GoalGraphEngineTests
 
         Assert.True(negReviewCount <= 3);
         Assert.Equal(GoalStatus.Achieved, result.Status);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // 用户交互路径: 负评6~10条时触发ask_user，用户选择停止
+    // ─────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task NegativeReviewLoop_UserInteraction_Should_TriggerWhenNegCount6To10()
+    {
+        var userInteraction = new Mock<IGoalUserInteraction>();
+        userInteraction.Setup(u => u.AskToContinueAsync(
+                It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(),
+                It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(GoalUserDecision.Stop("user chose to stop"));
+
+        var engine = CreateEngine(userInteraction: userInteraction.Object);
+
+        var dag = new Dag<GoalNodePayload>();
+        var nodeExecute = MakeFunctionNode("execute", "executor");
+        var nodeNegReview = MakeFunctionNode("neg_review", "negative-reviewer");
+        var nodeDone = MakeFunctionNode("done", "loop-done");
+
+        dag.AddNode(nodeExecute);
+        dag.AddNode(nodeNegReview);
+        dag.AddNode(nodeDone);
+
+        dag.AddEdge(new DagEdge { Id = "e1", FromId = "execute", ToId = "neg_review" });
+        dag.AddEdge(new DagEdge { Id = "e3", FromId = "neg_review", ToId = "done", Label = "NEG_STOP" });
+
+        engine.RegisterFunction("execute", _ =>
+            Task.FromResult(NodeResult.Succeeded("task-output", tokensUsed: 50)));
+
+        engine.RegisterFunction("neg_review", _ =>
+            Task.FromResult(NodeResult.Routed("负评条数: 8", ["NEG_STOP"], tokensUsed: 20)));
+
+        engine.RegisterFunction("done", _ =>
+            Task.FromResult(NodeResult.Succeeded("loop-completed")));
+
+        var graph = new GoalGraph
+        {
+            Name = "user-interaction-test",
+            Dag = dag,
+            StartNodeId = "execute",
+            EndNodeIds = FrozenSet.Create("done"),
+        };
+
+        await engine.ExecuteAsync(graph, CreateGoalState(), new MessageList(), CancellationToken.None);
+
+        Assert.Equal(8, nodeNegReview.Payload.NegativeReviewCount);
+        userInteraction.Verify(u => u.AskToContinueAsync(
+            It.IsAny<string>(), 8, It.IsAny<int>(),
+            It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // 用户交互路径: 负评≤5时不触发ask_user
+    // ─────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task NegativeReviewLoop_UserInteraction_Should_NotTriggerWhenNegCountBelow6()
+    {
+        var userInteraction = new Mock<IGoalUserInteraction>();
+        userInteraction.Setup(u => u.AskToContinueAsync(
+                It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(),
+                It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(GoalUserDecision.Continue());
+
+        var engine = CreateEngine(userInteraction: userInteraction.Object);
+
+        var dag = new Dag<GoalNodePayload>();
+        var nodeExecute = MakeFunctionNode("execute", "executor");
+        var nodeNegReview = MakeFunctionNode("neg_review", "negative-reviewer");
+        var nodeDone = MakeFunctionNode("done", "loop-done");
+
+        dag.AddNode(nodeExecute);
+        dag.AddNode(nodeNegReview);
+        dag.AddNode(nodeDone);
+
+        dag.AddEdge(new DagEdge { Id = "e1", FromId = "execute", ToId = "neg_review" });
+        dag.AddEdge(new DagEdge { Id = "e3", FromId = "neg_review", ToId = "done", Label = "NEG_STOP" });
+
+        engine.RegisterFunction("execute", _ =>
+            Task.FromResult(NodeResult.Succeeded("task-output", tokensUsed: 50)));
+
+        engine.RegisterFunction("neg_review", _ =>
+            Task.FromResult(NodeResult.Routed("负评条数: 3", ["NEG_STOP"], tokensUsed: 20)));
+
+        engine.RegisterFunction("done", _ =>
+            Task.FromResult(NodeResult.Succeeded("loop-completed")));
+
+        var graph = new GoalGraph
+        {
+            Name = "no-user-interaction-test",
+            Dag = dag,
+            StartNodeId = "execute",
+            EndNodeIds = FrozenSet.Create("done"),
+        };
+
+        await engine.ExecuteAsync(graph, CreateGoalState(), new MessageList(), CancellationToken.None);
+
+        Assert.Equal(3, nodeNegReview.Payload.NegativeReviewCount);
+        userInteraction.Verify(u => u.AskToContinueAsync(
+            It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(),
+            It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // 协调者窥探: 观察者返回true时设置CoordinatorTerminated
+    // ─────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task NegativeReviewLoop_LoopObserver_Should_TerminateWhenObserverReturnsTrue()
+    {
+        var loopObserver = new Mock<IGoalLoopObserver>();
+        loopObserver.Setup(o => o.ObserveAsync(It.IsAny<LoopObservationContext>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        var engine = CreateEngine(loopObserver: loopObserver.Object);
+
+        var dag = new Dag<GoalNodePayload>();
+        var nodeExecute = MakeFunctionNode("execute", "executor");
+        var nodeNegReview = MakeFunctionNode("neg_review", "negative-reviewer");
+        var nodeFixNeg = MakeFunctionNode("fix_neg", "fix-negative-review");
+        var nodeDone = MakeFunctionNode("done", "loop-done");
+
+        dag.AddNode(nodeExecute);
+        dag.AddNode(nodeNegReview);
+        dag.AddNode(nodeFixNeg);
+        dag.AddNode(nodeDone);
+
+        dag.AddEdge(new DagEdge { Id = "e1", FromId = "execute", ToId = "neg_review" });
+        dag.AddEdge(new DagEdge { Id = "e2", FromId = "neg_review", ToId = "fix_neg", Label = "NEG_CONTINUE" });
+        dag.AddEdge(new DagEdge { Id = "e3", FromId = "neg_review", ToId = "done", Label = "NEG_STOP" });
+        const string backEdge = "e4";
+        dag.TryAddEdge(new DagEdge { Id = backEdge, FromId = "fix_neg", ToId = "neg_review", Label = "NEG_CONTINUE" });
+        dag.Nodes["neg_review"].InEdgeIds.Remove(backEdge);
+        dag.AddEdge(new DagEdge { Id = "e5", FromId = "fix_neg", ToId = "done", Label = "NEG_STOP" });
+
+        engine.RegisterFunction("execute", _ =>
+            Task.FromResult(NodeResult.Succeeded("task-output", tokensUsed: 50)));
+
+        engine.RegisterFunction("neg_review", _ =>
+            Task.FromResult(NodeResult.Routed("负评条数: 12", ["NEG_CONTINUE"], tokensUsed: 20)));
+
+        engine.RegisterFunction("fix_neg", _ =>
+            Task.FromResult(NodeResult.Routed("fixes-applied", ["NEG_CONTINUE"], tokensUsed: 30)));
+
+        engine.RegisterFunction("done", _ =>
+            Task.FromResult(NodeResult.Succeeded("loop-completed")));
+
+        var graph = new GoalGraph
+        {
+            Name = "loop-observer-test",
+            Dag = dag,
+            StartNodeId = "execute",
+            EndNodeIds = FrozenSet.Create("done"),
+            HardMaxLoopIterations = 16,
+        };
+
+        var result = await engine.ExecuteAsync(graph, CreateGoalState(), new MessageList(), CancellationToken.None);
+
+        Assert.Equal(GoalStatus.Achieved, result.Status);
+        loopObserver.Verify(o => o.ObserveAsync(It.IsAny<LoopObservationContext>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce);
     }
 }

@@ -29,7 +29,9 @@ public sealed partial class GoalGraphEngine
         IServiceProvider serviceProvider,
         ILogger<GoalGraphEngine>? logger = null,
         IGoalHeartbeat? heartbeat = null,
-        IClockService? clock = null)
+        IClockService? clock = null,
+        IGoalUserInteraction? userInteraction = null,
+        IGoalLoopObserver? loopObserver = null)
     {
         _kernel = kernel;
         _evaluator = evaluator;
@@ -37,6 +39,8 @@ public sealed partial class GoalGraphEngine
         _logger = logger;
         _heartbeat = heartbeat ?? new GoalHeartbeat();
         _clock = clock ?? SystemClockService.Instance;
+        _userInteraction = userInteraction ?? serviceProvider.GetService<IGoalUserInteraction>();
+        _loopObserver = loopObserver ?? serviceProvider.GetService<IGoalLoopObserver>();
     }
 
     public void RegisterFunction(string nodeId, Func<NodeContext, Task<NodeResult>> fn)

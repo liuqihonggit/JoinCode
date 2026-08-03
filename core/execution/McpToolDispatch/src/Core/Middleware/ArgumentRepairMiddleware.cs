@@ -22,7 +22,7 @@ public sealed partial class ArgumentRepairMiddleware : IToolExecutionMiddleware
     {
         if (context.Handler is not null)
         {
-            var argRepair = ToolCallRepairService.RepairArguments(
+            var argRepair = LlmJsonHelper.RepairArguments(
                 context.ToolName, context.Arguments, context.Handler.InputSchema);
             if (argRepair.RepairHint is not null)
             {

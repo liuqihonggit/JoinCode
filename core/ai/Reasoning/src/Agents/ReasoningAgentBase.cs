@@ -103,7 +103,7 @@ public abstract class ReasoningAgentBase : IReasoningAgent
         var json = LlmJsonHelper.ExtractJsonBlock(content);
         if (json is not null)
         {
-            var repairResult = ToolCallRepairService.RepairJson(json);
+            var repairResult = LlmJsonHelper.RepairJson(json);
             return repairResult.Success ? repairResult.RepairedJson : json;
         }
 
@@ -113,7 +113,7 @@ public abstract class ReasoningAgentBase : IReasoningAgent
             return null;
 
         var inlineJson = content[start..(end + 1)];
-        var inlineRepair = ToolCallRepairService.RepairJson(inlineJson);
+        var inlineRepair = LlmJsonHelper.RepairJson(inlineJson);
         return inlineRepair.Success ? inlineRepair.RepairedJson : inlineJson;
     }
 

@@ -135,6 +135,30 @@ public static class LlmJsonHelper
     }
 
     /// <summary>
+    /// 修复 JSON 格式问题（尾随逗号、未加引号的键、单引号、截断等）
+    /// 统一门控入口，所有 LLM 输出的 JSON 修复必须通过此方法
+    /// </summary>
+    public static ToolCallRepairResult RepairJson(string? rawJson)
+        => ToolCallRepairService.RepairJson(rawJson);
+
+    /// <summary>
+    /// 工具名归一化（大小写不敏感匹配到标准名）
+    /// 统一门控入口，所有 LLM 输出的工具名修复必须通过此方法
+    /// </summary>
+    public static string RepairToolName(string? toolName)
+        => ToolCallRepairService.RepairToolName(toolName);
+
+    /// <summary>
+    /// 参数名归一化 + 参数类型自动转换
+    /// 统一门控入口，所有 LLM 输出的工具参数修复必须通过此方法
+    /// </summary>
+    public static ArgumentRepairResult RepairArguments(
+        string toolName,
+        Dictionary<string, JsonElement> arguments,
+        ToolSchema? schema)
+        => ToolCallRepairService.RepairArguments(toolName, arguments, schema);
+
+    /// <summary>
     /// 带修复的重试反序列化：先直接反序列化，失败后 RepairJson 再试
     /// </summary>
     private static T? TryDeserializeWithRepair<T>(string json, JsonTypeInfo<T> jsonTypeInfo, ref string? repairHint) where T : class

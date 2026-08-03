@@ -70,7 +70,7 @@ public class AgentCoordinatorExtendedTests
         var result1 = await _coordinator.SpawnSubAgentAsync("Task 1").ConfigureAwait(true);
         var result2 = await _coordinator.SpawnSubAgentAsync("Task 2").ConfigureAwait(true);
 
-        result1.Id.Should().NotBe(result2.Id);
+        result1.ObjectId.Should().NotBe(result2.ObjectId);
     }
 
     [Fact]
@@ -212,7 +212,7 @@ public class AgentCoordinatorExtendedTests
     {
         // Arrange - 需要先创建Agent以建立执行上下文
         var agent = new Agent("Task", null, _queryEngineMock.Object, null);
-        var agentId = agent.Id;
+        var agentId = agent.ObjectId.UniqueId;
         var expectedResult = new SubAgentResult { AgentId = agentId, IsSuccess = true, Output = "Success" };
 
         _lifecycleManagerMock.Setup(x => x.SpawnSubAgentAsync(It.IsAny<string>(), null, default)).ReturnsAsync(agent);
@@ -337,7 +337,7 @@ public class AgentCoordinatorExtendedTests
     {
         // Arrange
         var agent = new Agent("Task", null, _queryEngineMock.Object, null);
-        var agentId = agent.Id;
+        var agentId = agent.ObjectId.UniqueId;
         var message = new AgentMsg { FromAgentId = "sender", ToAgentId = agentId, MessageType = "text", Content = "Hello" };
         agent.State = TaskExecutionStatus.Running;
 
@@ -417,7 +417,7 @@ public class AgentCoordinatorExtendedTests
     {
         // Arrange
         var agent = new Agent("Task", null, _queryEngineMock.Object, null);
-        var agentId = agent.Id;
+        var agentId = agent.ObjectId.UniqueId;
         agent.State = TaskExecutionStatus.Running;
 
         _lifecycleManagerMock.Setup(x => x.GetAgentAsync(agentId, default)).ReturnsAsync(agent);

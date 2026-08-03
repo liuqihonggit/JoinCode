@@ -155,7 +155,7 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
         // 更新条目中的 AgentId
         if (context.Agent is not null && _entries.TryGetValue(forkId, out var spawnEntry))
         {
-            spawnEntry.AgentId = context.Agent.Id;
+            spawnEntry.AgentId = context.Agent.ObjectId.UniqueId;
         }
 
         // 后台模式: 启动后台任务

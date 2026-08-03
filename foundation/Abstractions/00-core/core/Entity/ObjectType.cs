@@ -20,4 +20,6 @@ public enum ObjectType
     [EnumValue("sandbox")] Sandbox,
     [EnumValue("repo")] Repo,
     [EnumValue("notification")] Notification,
+    [EnumValue("worktree")] Worktree,
+    [EnumValue("bash")] Bash,
 }

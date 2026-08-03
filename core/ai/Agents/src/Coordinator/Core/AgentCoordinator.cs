@@ -108,16 +108,16 @@ public sealed partial class AgentCoordinator : IAgentCoordinator, ISubAgentCoord
 
     public async Task<SubAgentResult> ExecuteAsync(IAgent agent, CancellationToken cancellationToken = default)
     {
-        if (!_executionContexts.TryGetValue(agent.Id, out var context))
+        if (!_executionContexts.TryGetValue(agent.ObjectId.UniqueId, out var context))
         {
             context = new AgentExecutionContext
             {
-                AgentId = agent.Id,
+                AgentId = agent.ObjectId.UniqueId,
                 Task = agent.Task,
                 SpawnedAt = _clock.GetUtcNow(),
                 RetryCount = 0
             };
-            _executionContexts[agent.Id] = context;
+            _executionContexts[agent.ObjectId.UniqueId] = context;
         }
 
         context.LastExecutionStart = _clock.GetUtcNow();
@@ -131,11 +131,11 @@ public sealed partial class AgentCoordinator : IAgentCoordinator, ISubAgentCoord
 
             if (result.IsSuccess)
             {
-                _logger?.LogInformation("[AgentCoordinator] Agent {AgentId} 执行成功", agent.Id);
+                _logger?.LogInformation("[AgentCoordinator] Agent {AgentId} 执行成功", agent.ObjectId.UniqueId);
             }
             else
             {
-                _logger?.LogWarning("[AgentCoordinator] Agent {AgentId} 执行失败: {Error}", agent.Id, result.Error);
+                _logger?.LogWarning("[AgentCoordinator] Agent {AgentId} 执行失败: {Error}", agent.ObjectId.UniqueId, result.Error);
             }
 
             return result;
@@ -144,7 +144,7 @@ public sealed partial class AgentCoordinator : IAgentCoordinator, ISubAgentCoord
         {
             context.LastExecutionEnd = _clock.GetUtcNow();
             context.IsSuccess = false;
-            _logger?.LogError(ex, "[AgentCoordinator] Agent {AgentId} 执行异常", agent.Id);
+            _logger?.LogError(ex, "[AgentCoordinator] Agent {AgentId} 执行异常", agent.ObjectId.UniqueId);
             throw;
         }
     }
@@ -244,7 +244,7 @@ public sealed partial class AgentCoordinator : IAgentCoordinator, ISubAgentCoord
 
         while (!result.IsSuccess && !cancellationToken.IsCancellationRequested)
         {
-            if (!_executionContexts.TryGetValue(agent.Id, out var context))
+            if (!_executionContexts.TryGetValue(agent.ObjectId.UniqueId, out var context))
             {
                 break;
             }
@@ -254,7 +254,7 @@ public sealed partial class AgentCoordinator : IAgentCoordinator, ISubAgentCoord
                 break;
             }
 
-            var retryResult = await RetryWithPolicyAsync(agent.Id, policy, cancellationToken).ConfigureAwait(false);
+            var retryResult = await RetryWithPolicyAsync(agent.ObjectId.UniqueId, policy, cancellationToken).ConfigureAwait(false);
             if (retryResult == null)
             {
                 break;
@@ -295,7 +295,7 @@ public sealed partial class AgentCoordinator : IAgentCoordinator, ISubAgentCoord
 
         foreach (var agent in agentList)
         {
-            if (_executionContexts.TryGetValue(agent.Id, out var context))
+            if (_executionContexts.TryGetValue(agent.ObjectId.UniqueId, out var context))
             {
                 context.ExecutionMode = ExecutionMode.Parallel;
             }
@@ -313,7 +313,7 @@ public sealed partial class AgentCoordinator : IAgentCoordinator, ISubAgentCoord
 
         foreach (var agent in agentList)
         {
-            if (_executionContexts.TryGetValue(agent.Id, out var context))
+            if (_executionContexts.TryGetValue(agent.ObjectId.UniqueId, out var context))
             {
                 context.ExecutionMode = ExecutionMode.Sequential;
             }
@@ -332,7 +332,7 @@ public sealed partial class AgentCoordinator : IAgentCoordinator, ISubAgentCoord
     {
         var fallbacks = fallbackAgents.ToList();
         _logger?.LogInformation("[AgentCoordinator] 执行主Agent {AgentId}，准备 {FallbackCount} 个备用Agent",
-            primaryAgent.Id, fallbacks.Count);
+            primaryAgent.ObjectId.UniqueId, fallbacks.Count);
 
         var results = new List<SubAgentResult>();
         var primaryResult = await ExecuteAsync(primaryAgent, cancellationToken).ConfigureAwait(false);
@@ -344,12 +344,12 @@ public sealed partial class AgentCoordinator : IAgentCoordinator, ISubAgentCoord
             {
                 AllResults = results,
                 SuccessfulResult = primaryResult,
-                SuccessAgentId = primaryAgent.Id,
+                SuccessAgentId = primaryAgent.ObjectId.UniqueId,
                 AttemptCount = 1
             };
         }
 
-        _logger?.LogWarning("[AgentCoordinator] 主Agent {AgentId} 失败，尝试备用Agent", primaryAgent.Id);
+        _logger?.LogWarning("[AgentCoordinator] 主Agent {AgentId} 失败，尝试备用Agent", primaryAgent.ObjectId.UniqueId);
 
         foreach (var fallback in fallbacks)
         {
@@ -363,12 +363,12 @@ public sealed partial class AgentCoordinator : IAgentCoordinator, ISubAgentCoord
 
             if (fallbackResult.IsSuccess)
             {
-                _logger?.LogInformation("[AgentCoordinator] 备用Agent {AgentId} 执行成功", fallback.Id);
+                _logger?.LogInformation("[AgentCoordinator] 备用Agent {AgentId} 执行成功", fallback.ObjectId.UniqueId);
                 return new FallbackExecutionResult
                 {
                     AllResults = results,
                     SuccessfulResult = fallbackResult,
-                    SuccessAgentId = fallback.Id,
+                    SuccessAgentId = fallback.ObjectId.UniqueId,
                     AttemptCount = results.Count
                 };
             }

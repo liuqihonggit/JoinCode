@@ -27,8 +27,8 @@ public sealed class Goal : Entity
         string objective,
         List<string>? constraints = null,
         int? tokenBudget = null,
-        string? id = null)
-        : base(ObjectType.Goal, id)
+        string? displayName = null)
+        : base(ObjectType.Goal, displayName ?? objective)
     {
         Objective = objective;
         Constraints = constraints ?? [];
@@ -50,7 +50,7 @@ public sealed class Goal : Entity
     /// </summary>
     public GoalState ToGoalState() => new()
     {
-        GoalId = Id,
+        GoalId = UniqueId,
         Objective = Objective,
         Status = Status,
         Constraints = Constraints,
@@ -71,7 +71,7 @@ public sealed class Goal : Entity
         objective: state.Objective,
         constraints: state.Constraints,
         tokenBudget: state.TokenBudget,
-        id: state.GoalId)
+        displayName: state.GoalId)
     {
         Status = state.Status,
         TokensUsed = state.TokensUsed,

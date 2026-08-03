@@ -64,7 +64,7 @@ public sealed class CliSession
             chatService,
             new CliEventConsumer(),
             _turnDiffService,
-            _sessionEntity.Id,
+            _sessionObjectId.UniqueId,
             optionalServices?.ServiceProvider);
     }
 
@@ -108,7 +108,7 @@ public sealed class CliSession
             input.StartsWith('/') ? $"cli.command{input.Split(' ')[0]}" : "cli.chat",
             TelemetrySpanKind.Server);
         span?.SetTag("input.length", input.Length);
-        span?.SetTag("session.id", _sessionEntity.Id);
+        span?.SetTag("session.id", _sessionObjectId.UniqueId);
 
         try
         {
@@ -147,7 +147,7 @@ public sealed class CliSession
             Arguments = parseResult.Arguments,
             CancellationToken = cancellationToken,
             SessionStartedAt = _sessionStartedAt,
-            SessionId = _sessionEntity.Id,
+            SessionId = _sessionObjectId.UniqueId,
             Services = new CommandServices
             {
                 ChatService = _controller.ChatService,
@@ -326,10 +326,10 @@ public sealed class CliSession
         {
             var entries = new TranscriptEntry[]
             {
-                new() { SessionId = _sessionEntity.Id, Role = "user", Content = userInput, Timestamp = timestamp },
-                new() { SessionId = _sessionEntity.Id, Role = "assistant", Content = assistantResponse, Timestamp = _clock.GetUtcNow() }
+                new() { SessionId = _sessionObjectId.UniqueId, Role = "user", Content = userInput, Timestamp = timestamp },
+                new() { SessionId = _sessionObjectId.UniqueId, Role = "assistant", Content = assistantResponse, Timestamp = _clock.GetUtcNow() }
             };
-            await _optionalServices.TranscriptService.AppendEntriesAsync(_sessionEntity.Id, entries, cancellationToken).ConfigureAwait(false);
+            await _optionalServices.TranscriptService.AppendEntriesAsync(_sessionObjectId.UniqueId, entries, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {

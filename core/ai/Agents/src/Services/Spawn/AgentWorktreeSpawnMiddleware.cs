@@ -27,7 +27,7 @@ public sealed partial class AgentWorktreeSpawnMiddleware : IAgentSpawnMiddleware
             return;
         }
 
-        var agentId = context.SubAgent.Id;
+        var agentId = context.SubAgent.ObjectId.UniqueId;
         _logger?.LogInformation("[AgentWorktreeSpawn] 为 Agent {AgentId} 创建隔离 Worktree", agentId);
 
         try

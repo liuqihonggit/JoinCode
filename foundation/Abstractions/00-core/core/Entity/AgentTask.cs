@@ -33,8 +33,8 @@ public sealed class AgentTask : Entity
         string? assignee = null,
         DateTime? dueDate = null,
         IReadOnlyList<string>? tags = null,
-        string? id = null)
-        : base(ObjectType.Task, id)
+        string? displayName = null)
+        : base(ObjectType.Task, displayName ?? title)
     {
         Title = title;
         Type = type;
@@ -63,7 +63,7 @@ public sealed class AgentTask : Entity
     /// </summary>
     public TaskItem ToTaskItem() => new()
     {
-        Id = Id,
+        Id = UniqueId,
         Title = Title,
         Description = Description,
         Status = Status.ToValue(),
@@ -84,7 +84,7 @@ public sealed class AgentTask : Entity
         assignee: item.Assignee,
         dueDate: item.DueDate,
         tags: item.Tags,
-        id: item.Id)
+        displayName: item.Id)
     {
         Status = TaskExecutionStatusExtensions.FromValue(item.Status) ?? TaskExecutionStatus.Pending
     };

@@ -81,7 +81,7 @@ public sealed class TurnDiffService : ITurnDiffProvider
     }
 
     /// <inheritdoc/>
-    public IReadOnlyList<TurnDiffSnapshot> GetTurnDiffs()
+    public IEnumerable<TurnDiffSnapshot> GetTurnDiffs()
     {
         var allTurns = new List<TurnDiff>(_completedTurns);
 
@@ -100,7 +100,7 @@ public sealed class TurnDiffService : ITurnDiffProvider
             FilesCount = t.Stats.FilesCount,
             LinesAdded = t.Stats.LinesAdded,
             LinesRemoved = t.Stats.LinesRemoved
-        }).ToArray();
+        });
     }
 
     /// <inheritdoc/>
@@ -117,7 +117,7 @@ public sealed class TurnDiffService : ITurnDiffProvider
     /// <summary>
     /// 获取完整的 Turn Diff 列表（包含文件详情）— 对齐 TS getFullTurnDiffs
     /// </summary>
-    public IReadOnlyList<TurnDiff> GetFullTurnDiffs()
+    public IEnumerable<TurnDiff> GetFullTurnDiffs()
     {
         FlushCurrentTurn();
 

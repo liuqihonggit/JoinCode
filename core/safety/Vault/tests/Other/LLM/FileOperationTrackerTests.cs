@@ -9,7 +9,7 @@ public sealed class FileOperationTrackerTests
 
         tracker.Track("/path/to/file.cs", FileOperationType.Read);
 
-        var entries = tracker.GetAllEntries();
+        var entries = tracker.GetAllEntries().ToList();
         entries.Should().HaveCount(1);
         entries[0].OperationType.Should().Be(FileOperationType.Read);
     }
@@ -21,7 +21,7 @@ public sealed class FileOperationTrackerTests
 
         tracker.Track("/path/to/file.cs", FileOperationType.Write);
 
-        var entries = tracker.GetAllEntries();
+        var entries = tracker.GetAllEntries().ToList();
         entries.Should().HaveCount(1);
         entries[0].OperationType.Should().Be(FileOperationType.Write);
     }
@@ -33,7 +33,7 @@ public sealed class FileOperationTrackerTests
 
         tracker.Track("/path/to/file.cs", FileOperationType.Edit);
 
-        var entries = tracker.GetAllEntries();
+        var entries = tracker.GetAllEntries().ToList();
         entries.Should().HaveCount(1);
         entries[0].OperationType.Should().Be(FileOperationType.Edit);
     }
@@ -81,7 +81,7 @@ public sealed class FileOperationTrackerTests
         tracker.Track("/path/to/z.cs", FileOperationType.Read);
         tracker.Track("/path/to/a.cs", FileOperationType.Read);
 
-        var paths = tracker.GetOperatedFilePaths();
+        var paths = tracker.GetOperatedFilePaths().ToList();
         paths[0].Should().Contain("a.cs");
         paths[1].Should().Contain("z.cs");
     }

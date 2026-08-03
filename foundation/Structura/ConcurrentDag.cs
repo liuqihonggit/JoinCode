@@ -108,14 +108,14 @@ public sealed class ConcurrentDag<T> : IDisposable
     public IReadOnlyList<IReadOnlyList<string>> FindAllCycles()
         => WithLock(() => _inner.FindAllCycles(), Array.Empty<IReadOnlyList<string>>());
 
-    public IReadOnlyList<DagNode<T>> GetAncestors(string nodeId)
-        => WithLock(() => _inner.GetAncestors(nodeId), Array.Empty<DagNode<T>>());
+    public IEnumerable<DagNode<T>> GetAncestors(string nodeId)
+        => WithLock(() => _inner.GetAncestors(nodeId).ToList(), []);
 
-    public IReadOnlyList<DagNode<T>> GetDescendants(string nodeId)
-        => WithLock(() => _inner.GetDescendants(nodeId), Array.Empty<DagNode<T>>());
+    public IEnumerable<DagNode<T>> GetDescendants(string nodeId)
+        => WithLock(() => _inner.GetDescendants(nodeId).ToList(), []);
 
-    public IReadOnlyList<DagNode<T>> GetAffectedSubgraph(string changedNodeId)
-        => WithLock(() => _inner.GetAffectedSubgraph(changedNodeId), Array.Empty<DagNode<T>>());
+    public IEnumerable<DagNode<T>> GetAffectedSubgraph(string changedNodeId)
+        => WithLock(() => _inner.GetAffectedSubgraph(changedNodeId).ToList(), []);
 
     public void Clear()
         => WithLock(() =>

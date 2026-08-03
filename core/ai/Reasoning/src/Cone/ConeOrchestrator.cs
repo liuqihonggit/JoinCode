@@ -84,9 +84,9 @@ public sealed class ConeOrchestrator
         {
             RoleA = roleA,
             RoleB = roleB,
-            RoleAConclusions = aConclusions,
-            RoleBConclusions = bConclusions,
-            HasConflict = aConclusions.Count > 0 && bConclusions.Count > 0,
+            RoleAConclusions = aConclusions.ToList(),
+            RoleBConclusions = bConclusions.ToList(),
+            HasConflict = aConclusions.Any() && bConclusions.Any(),
         };
     }
 

@@ -122,7 +122,7 @@ public sealed class DagTests
         dag.AddEdge(new DagEdge { FromId = "a", ToId = "b" });
         dag.AddEdge(new DagEdge { FromId = "b", ToId = "c" });
 
-        var descendants = dag.GetDescendants("a");
+        var descendants = dag.GetDescendants("a").ToList();
         Assert.Equal(2, descendants.Count);
         Assert.Contains(descendants, d => d.Id == "b");
         Assert.Contains(descendants, d => d.Id == "c");
@@ -138,7 +138,7 @@ public sealed class DagTests
         dag.AddEdge(new DagEdge { FromId = "a", ToId = "b" });
         dag.AddEdge(new DagEdge { FromId = "b", ToId = "c" });
 
-        var ancestors = dag.GetAncestors("c");
+        var ancestors = dag.GetAncestors("c").ToList();
         Assert.Equal(2, ancestors.Count);
         Assert.Contains(ancestors, d => d.Id == "a");
         Assert.Contains(ancestors, d => d.Id == "b");

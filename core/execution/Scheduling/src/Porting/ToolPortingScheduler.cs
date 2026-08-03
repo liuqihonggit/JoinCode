@@ -124,7 +124,7 @@ public sealed partial class ToolPortingScheduler
     /// <summary>
     /// 获取第一波可并行执行的任务
     /// </summary>
-    public IReadOnlyList<ScheduledTask> GetFirstWaveTasks()
+    public IEnumerable<ScheduledTask> GetFirstWaveTasks()
     {
         return _scheduler.GetFirstWaveTasks();
     }
@@ -132,7 +132,7 @@ public sealed partial class ToolPortingScheduler
     /// <summary>
     /// 获取当前可执行的任务（依赖已满足）
     /// </summary>
-    public IReadOnlyList<ScheduledTask> GetExecutableTasks()
+    public IEnumerable<ScheduledTask> GetExecutableTasks()
     {
         return _scheduler.GetExecutableTasks();
     }

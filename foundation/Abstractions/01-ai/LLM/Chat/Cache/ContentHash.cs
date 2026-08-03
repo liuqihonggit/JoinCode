@@ -11,7 +11,7 @@ public static class ContentHash
         return Convert.ToHexString(hash)[..HexLength];
     }
 
-    public static string ComputeToolSpecs(IReadOnlyList<ToolSpec> specs)
+    public static string ComputeToolSpecs(IEnumerable<ToolSpec> specs)
     {
         var sortedSpecs = specs
             .OrderBy(t => t.Name, StringComparer.Ordinal)
@@ -22,7 +22,7 @@ public static class ContentHash
         return Compute(blob);
     }
 
-    public static string ComputeToolNames(IReadOnlyList<ToolSpec> specs)
+    public static string ComputeToolNames(IEnumerable<ToolSpec> specs)
     {
         var blob = string.Join(",",
             specs.Select(t => t.Name).OrderBy(n => n, StringComparer.Ordinal));

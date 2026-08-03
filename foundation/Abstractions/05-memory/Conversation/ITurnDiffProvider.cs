@@ -22,7 +22,7 @@ public interface ITurnDiffProvider
     /// <summary>
     /// 获取所有 Turn Diff 列表（按 TurnIndex 倒序）
     /// </summary>
-    IReadOnlyList<TurnDiffSnapshot> GetTurnDiffs();
+    IEnumerable<TurnDiffSnapshot> GetTurnDiffs();
 
     /// <summary>
     /// 清除所有记录

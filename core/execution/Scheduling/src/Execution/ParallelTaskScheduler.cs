@@ -72,31 +72,29 @@ public sealed class ParallelTaskScheduler
     /// <summary>
     /// 获取指定状态的任务
     /// </summary>
-    public IReadOnlyList<ScheduledTask> GetTasksByStatus(ScheduledTaskStatus status)
+    public IEnumerable<ScheduledTask> GetTasksByStatus(ScheduledTaskStatus status)
     {
-        return _scheduledTasks.Values.Where(t => t.Status == status).ToList();
+        return _scheduledTasks.Values.Where(t => t.Status == status);
     }
 
     /// <summary>
     /// 获取可执行的任务（依赖已满足且状态为Pending）
     /// </summary>
-    public IReadOnlyList<ScheduledTask> GetExecutableTasks()
+    public IEnumerable<ScheduledTask> GetExecutableTasks()
     {
         return _scheduledTasks.Values
             .Where(t => t.Status == ScheduledTaskStatus.Pending && AreDependenciesMet(t.Id))
-            .OrderByDescending(t => t.Priority)
-            .ToList();
+            .OrderByDescending(t => t.Priority);
     }
 
     /// <summary>
     /// 获取第一波可并行执行的任务（无依赖）
     /// </summary>
-    public IReadOnlyList<ScheduledTask> GetFirstWaveTasks()
+    public IEnumerable<ScheduledTask> GetFirstWaveTasks()
     {
         return _scheduledTasks.Values
             .Where(t => t.Status == ScheduledTaskStatus.Pending && !t.Dependencies.Any())
-            .OrderByDescending(t => t.Priority)
-            .ToList();
+            .OrderByDescending(t => t.Priority);
     }
 
     /// <summary>
@@ -147,18 +145,17 @@ public sealed class ParallelTaskScheduler
     /// <summary>
     /// 获取依赖于指定任务的其他任务
     /// </summary>
-    public IReadOnlyList<ScheduledTask> GetDependentTasks(string taskId)
+    public IEnumerable<ScheduledTask> GetDependentTasks(string taskId)
     {
         if (!_reverseDependencies.TryGetValue(taskId, out var dependentIds))
         {
-            return Array.Empty<ScheduledTask>();
+            return [];
         }
 
         return dependentIds
             .Select(id => _scheduledTasks.TryGetValue(id, out var task) ? task : null)
             .Where(t => t != null)
-            .Cast<ScheduledTask>()
-            .ToList();
+            .Cast<ScheduledTask>();
     }
 
     /// <summary>

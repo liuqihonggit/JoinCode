@@ -111,12 +111,11 @@ public sealed class RoleCone
     /// <summary>
     /// 获取当前视锥中所有激活片段的结论列表
     /// </summary>
-    public IReadOnlyList<string> GetActiveConclusions()
+    public IEnumerable<string> GetActiveConclusions()
     {
         return ActiveFragmentIds
             .Where(id => AllFragments.ContainsKey(id))
-            .Select(id => AllFragments[id].Fingerprint.OutputConclusion)
-            .ToList();
+            .Select(id => AllFragments[id].Fingerprint.OutputConclusion);
     }
 
     private static string FormFoldedSummary(ObservationFragment fragment)

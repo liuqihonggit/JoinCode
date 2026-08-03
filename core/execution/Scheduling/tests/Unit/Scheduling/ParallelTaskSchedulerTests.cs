@@ -56,13 +56,13 @@ public class ParallelTaskSchedulerTests
         var t1 = _scheduler.RegisterTask("a", "desc", 1, TodoPriority.Low);
         var t2 = _scheduler.RegisterTask("b", "desc", 1, TodoPriority.High, new List<string> { t1.Id });
 
-        var executable = _scheduler.GetExecutableTasks();
+        var executable = _scheduler.GetExecutableTasks().ToList();
         executable.Should().ContainSingle();
         executable[0].Id.Should().Be(t1.Id);
 
         _scheduler.UpdateTaskStatus(t1.Id, ScheduledTaskStatus.Completed);
 
-        executable = _scheduler.GetExecutableTasks();
+        executable = _scheduler.GetExecutableTasks().ToList();
         executable.Should().ContainSingle();
         executable[0].Id.Should().Be(t2.Id);
     }
@@ -74,7 +74,7 @@ public class ParallelTaskSchedulerTests
         var high = _scheduler.RegisterTask("high", "desc", 1, TodoPriority.High);
         var critical = _scheduler.RegisterTask("critical", "desc", 1, TodoPriority.Critical);
 
-        var executable = _scheduler.GetExecutableTasks();
+        var executable = _scheduler.GetExecutableTasks().ToList();
         executable[0].Id.Should().Be(critical.Id);
         executable[1].Id.Should().Be(high.Id);
         executable[2].Id.Should().Be(low.Id);
@@ -86,7 +86,7 @@ public class ParallelTaskSchedulerTests
         var t1 = _scheduler.RegisterTask("a", "desc", 1, TodoPriority.Low);
         _scheduler.RegisterTask("b", "desc", 1, TodoPriority.Low, new List<string> { t1.Id });
 
-        var firstWave = _scheduler.GetFirstWaveTasks();
+        var firstWave = _scheduler.GetFirstWaveTasks().ToList();
         firstWave.Should().ContainSingle();
         firstWave[0].Id.Should().Be(t1.Id);
     }
@@ -102,7 +102,7 @@ public class ParallelTaskSchedulerTests
         var result = _scheduler.UpdateTaskStatus(task.Id, ScheduledTaskStatus.InProgress, "started");
 
         result.Should().BeTrue();
-        _scheduler.GetTasksByStatus(ScheduledTaskStatus.InProgress)[0].Status.Should().Be(ScheduledTaskStatus.InProgress);
+        _scheduler.GetTasksByStatus(ScheduledTaskStatus.InProgress).ToList()[0].Status.Should().Be(ScheduledTaskStatus.InProgress);
         captured.Should().NotBeNull();
         captured!.OldStatus.Should().Be(ScheduledTaskStatus.Pending);
         captured.Message.Should().Be("started");
@@ -116,7 +116,7 @@ public class ParallelTaskSchedulerTests
 
         _scheduler.UpdateTaskStatus(task.Id, ScheduledTaskStatus.Completed);
 
-        var completed = _scheduler.GetTasksByStatus(ScheduledTaskStatus.Completed)[0];
+        var completed = _scheduler.GetTasksByStatus(ScheduledTaskStatus.Completed).ToList()[0];
         completed.CompletedAt.Should().BeAfter(before);
     }
 

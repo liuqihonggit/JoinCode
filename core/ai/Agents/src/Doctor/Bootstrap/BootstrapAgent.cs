@@ -29,13 +29,13 @@ public sealed class BootstrapAgent : IAsyncDisposable
     private int _isDisposed;
 
     public IDoctorTransport Transport => _transport;
-    public IReadOnlyList<DiagnosticReport> PendingReports
+    public IEnumerable<DiagnosticReport> PendingReports
     {
         get
         {
             if (_reportsLock.Wait(0))
             {
-                try { return _pendingReports.ToList(); }
+                try { return _pendingReports; }
                 finally { _reportsLock.Release(); }
             }
             return _pendingReports.ToList();

@@ -423,7 +423,7 @@ public sealed partial class GoalGraphEngine
         context.ReadyQueue.Enqueue(targetNodeId);
 
         _logger?.LogInformation("[GoalGraph] 回退重激活: {NodeId} (第{Retry}次, 影响{Count}个节点, 全局迭代={GlobalIter})",
-            targetNodeId, retryCount + 1, affected.Count, context.GlobalLoopIteration);
+            targetNodeId, retryCount + 1, affected.Count(), context.GlobalLoopIteration);
     }
 
     private async Task UpdateGoalStateAsync(GraphExecutionContext context)

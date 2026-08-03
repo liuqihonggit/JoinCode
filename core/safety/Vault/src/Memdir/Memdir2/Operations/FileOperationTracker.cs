@@ -26,19 +26,17 @@ public sealed partial class FileOperationTracker : IFileOperationTracker
         _logger?.LogDebug(L.T(StringKey.VaultLogFileOperationRecord), operationType, fullPath);
     }
 
-    public IReadOnlyList<FileOperationEntry> GetAllEntries()
+    public IEnumerable<FileOperationEntry> GetAllEntries()
     {
-        return _entries.AsReadOnly();
+        return _entries;
     }
 
-    public IReadOnlyList<string> GetOperatedFilePaths()
+    public IEnumerable<string> GetOperatedFilePaths()
     {
         return _entries
             .Select(e => e.FilePath)
             .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
-            .ToList()
-            .AsReadOnly();
+            .OrderBy(p => p, StringComparer.OrdinalIgnoreCase);
     }
 
     public void Clear()

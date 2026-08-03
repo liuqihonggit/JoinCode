@@ -6,7 +6,7 @@ public interface ITeamMemorySyncService : IDisposable
     Task StartAsync(CancellationToken cancellationToken = default);
     Task StopAsync(CancellationToken cancellationToken = default);
     Task SyncAsync(string? filePath = null, CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<MemorySyncEvent>> GetSyncHistoryAsync(int limit = 100, CancellationToken cancellationToken = default);
+    Task<IEnumerable<MemorySyncEvent>> GetSyncHistoryAsync(int limit = 100, CancellationToken cancellationToken = default);
     Task<SyncConflictResolution> ResolveConflictAsync(string filePath, SyncConflictResolution resolution, CancellationToken cancellationToken = default);
     bool IsRunning { get; }
 

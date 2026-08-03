@@ -24,12 +24,12 @@ public interface IFileOperationTracker
     /// <summary>
     /// 获取所有文件操作记录
     /// </summary>
-    IReadOnlyList<FileOperationEntry> GetAllEntries();
+    IEnumerable<FileOperationEntry> GetAllEntries();
 
     /// <summary>
     /// 获取所有被操作过的文件路径（去重）
     /// </summary>
-    IReadOnlyList<string> GetOperatedFilePaths();
+    IEnumerable<string> GetOperatedFilePaths();
 
     /// <summary>
     /// 清除所有记录

@@ -7,10 +7,10 @@ public sealed class ImmutablePrefix
     private readonly ApiMessage[] _fewShots;
     private string? _fingerprintCache;
 
-    public IReadOnlyList<ToolSpec> ToolSpecs => _toolSpecs;
-    public IReadOnlyList<ApiMessage> FewShots => _fewShots;
+    public IEnumerable<ToolSpec> ToolSpecs => _toolSpecs;
+    public IEnumerable<ApiMessage> FewShots => _fewShots;
 
-    public ImmutablePrefix(string system, IReadOnlyList<ToolSpec> toolSpecs, IReadOnlyList<ApiMessage> fewShots)
+    public ImmutablePrefix(string system, IEnumerable<ToolSpec> toolSpecs, IEnumerable<ApiMessage> fewShots)
     {
         System = system ?? throw new ArgumentNullException(nameof(system));
         _toolSpecs = toolSpecs != null ? [.. toolSpecs] : [];
@@ -57,7 +57,7 @@ public sealed class ImmutablePrefix
         return fresh;
     }
 
-    public IReadOnlyList<ApiMessage> ToMessages()
+    public IEnumerable<ApiMessage> ToMessages()
     {
         var messages = new List<ApiMessage>(_fewShots.Length + 1);
         messages.Add(new ApiMessage(MessageRole.System, System));

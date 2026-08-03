@@ -33,7 +33,7 @@ public partial class CtxInspectToolHandlers
             var messageCount = history?.Count ?? 0;
             response.AppendLine(L.T(StringKey.CtxMaxTokens, maxTokens));
             response.AppendLine(L.T(StringKey.CtxMessageCount, messageCount));
-            response.AppendLine(L.T(StringKey.CtxDeferredToolCount, deferredTools.Count));
+            response.AppendLine(L.T(StringKey.CtxDeferredToolCount, deferredTools.Count()));
 
             if (inspectType == InspectType.Detailed || inspectType == InspectType.Layers)
             {

@@ -128,7 +128,7 @@ public sealed class EvidenceGraph
     /// <summary>
     /// 获取所有边
     /// </summary>
-    public IReadOnlyList<EvidenceGraphEdge> GetAllEdges() => _edges;
+    public IEnumerable<EvidenceGraphEdge> GetAllEdges() => _edges;
 
     private List<EvidenceGraphNode> GetNeighbors(string nodeId)
     {

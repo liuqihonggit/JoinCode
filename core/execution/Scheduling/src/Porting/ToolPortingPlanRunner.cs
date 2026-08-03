@@ -128,9 +128,9 @@ public sealed partial class ToolPortingPlanRunner
     /// <summary>
     /// 获取执行历史
     /// </summary>
-    public IReadOnlyList<PlanExecutionRecord> GetExecutionHistory()
+    public IEnumerable<PlanExecutionRecord> GetExecutionHistory()
     {
-        return _executionHistory.ToList();
+        return _executionHistory;
     }
 
     /// <summary>
@@ -160,7 +160,7 @@ public sealed partial class ToolPortingPlanRunner
         return new TaskAssignmentPlan
         {
             TotalTasks = tasks.Count,
-            FirstWaveCount = firstWave.Count,
+            FirstWaveCount = firstWave.Count(),
             SecondWaveCount = secondWave.Count,
             TotalAgentsRequired = tasks.Sum(t => t.RequiredAgents),
             Assignments = assignments,

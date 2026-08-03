@@ -19,7 +19,7 @@ public interface IWorkspaceService
     /// <summary>
     /// 获取所有额外工作目录
     /// </summary>
-    IReadOnlyList<string> GetAdditionalDirectories();
+    IEnumerable<string> GetAdditionalDirectories();
 
     /// <summary>
     /// 清除所有额外工作目录

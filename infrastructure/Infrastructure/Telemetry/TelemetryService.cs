@@ -117,14 +117,13 @@ public sealed partial class TelemetryService : ITelemetryService
         });
     }
 
-    public IReadOnlyList<TelemetrySpanData> GetActiveSpans()
+    public IEnumerable<TelemetrySpanData> GetActiveSpans()
     {
         return _activeSpans.Values
-            .Select(s => s.ToSpanData())
-            .ToList();
+            .Select(s => s.ToSpanData());
     }
 
-    public IReadOnlyList<string> GetRegisteredMetrics()
+    public IEnumerable<string> GetRegisteredMetrics()
     {
         var names = new List<string>();
         names.AddRange(_counters.Keys);

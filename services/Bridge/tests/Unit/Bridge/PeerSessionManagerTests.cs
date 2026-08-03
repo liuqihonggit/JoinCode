@@ -132,7 +132,7 @@ public sealed class PeerSessionManagerTests : IAsyncDisposable
 
         // Assert
         activeSessions.Should().HaveCount(1);
-        activeSessions[0].SessionId.Should().Be(session1.SessionId);
+        activeSessions.First().SessionId.Should().Be(session1.SessionId);
 
         await sut.DisposeAsync().ConfigureAwait(true);
     }

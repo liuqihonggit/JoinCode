@@ -39,7 +39,7 @@ public sealed class PeerDiscoveryServiceTests
         _service.RemovePeer("peer-1");
 
         _service.GetConnectedPeers().Should().HaveCount(1);
-        _service.GetConnectedPeers()[0].Id.Should().Be("peer-2");
+        _service.GetConnectedPeers().First().Id.Should().Be("peer-2");
         removedId.Should().Be("peer-1");
     }
 

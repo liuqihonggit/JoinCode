@@ -47,9 +47,9 @@ public sealed partial class WorkspaceService : IWorkspaceService
         return false;
     }
 
-    public IReadOnlyList<string> GetAdditionalDirectories()
+    public IEnumerable<string> GetAdditionalDirectories()
     {
-        return _directories.AsReadOnly();
+        return _directories;
     }
 
     public void Clear()

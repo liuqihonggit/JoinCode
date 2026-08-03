@@ -62,9 +62,9 @@ public sealed class SshPortForwardManager : IAsyncDisposable
         return forward;
     }
 
-    public IReadOnlyList<ISshForwardedPort> GetActiveForwards()
+    public IEnumerable<ISshForwardedPort> GetActiveForwards()
     {
-        return _forwards.Values.Where(f => f.IsForwarding).ToList();
+        return _forwards.Values.Where(f => f.IsForwarding);
     }
 
     public async Task StopAllAsync(CancellationToken ct = default)

@@ -139,7 +139,7 @@ public sealed class TelemetryServiceTests
         var span2 = service.StartSpan("op2");
 
         var active = service.GetActiveSpans();
-        Assert.True(active.Count >= 2);
+        Assert.True(active.Count() >= 2);
 
         await span1.DisposeAsync();
         await span2.DisposeAsync();
@@ -153,7 +153,7 @@ public sealed class TelemetryServiceTests
         service.GetHistogram("h1");
 
         var metrics = service.GetRegisteredMetrics();
-        Assert.True(metrics.Count >= 2);
+        Assert.True(metrics.Count() >= 2);
     }
 
     [Fact]

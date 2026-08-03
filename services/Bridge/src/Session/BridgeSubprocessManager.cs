@@ -33,11 +33,11 @@ public sealed class BridgeSubprocessHandle : IAsyncDisposable
     /// <summary>访问令牌（可动态更新）</summary>
     public string? AccessToken { get; set; }
 
-    /// <summary>最近的活动 — 对齐 TS 端 activities</summary>
-    public IReadOnlyList<string> Activities => _activityQueue.ToList();
+    /// <summary>最近的活动 — 对齐 TS 端 activities（遍历器，不分配新集合）</summary>
+    public IEnumerable<string> Activities => _activityQueue;
 
-    /// <summary>最近的 stderr 输出 — 对齐 TS 端 lastStderr</summary>
-    public IReadOnlyList<string> StderrLines => _stderrQueue.ToList();
+    /// <summary>最近的 stderr 输出 — 对齐 TS 端 lastStderr（遍历器，不分配新集合）</summary>
+    public IEnumerable<string> StderrLines => _stderrQueue;
 
     /// <summary>当前活动 — 对齐 TS 端 currentActivity</summary>
     public string? CurrentActivity { get; private set; }

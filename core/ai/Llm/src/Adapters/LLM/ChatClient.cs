@@ -37,7 +37,7 @@ internal sealed class ToolCollection : IToolCollection
         return _plugins.Remove(name);
     }
 
-    public IReadOnlyList<string> PluginNames => _plugins.Keys.ToList();
+    public IEnumerable<string> PluginNames => _plugins.Keys;
 }
 
 public sealed class ToolGroup : IToolGroup
@@ -52,7 +52,7 @@ public sealed class ToolGroup : IToolGroup
 
     public string Name { get; }
 
-    public IReadOnlyList<IToolDef> Functions => _functions;
+    public IEnumerable<IToolDef> Functions => _functions;
 }
 
 public sealed class ToolDef : IToolDef

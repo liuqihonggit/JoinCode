@@ -280,7 +280,7 @@ public sealed class FalvCommand : ChatCommandBase
             TerminalHelper.WriteLine($"  [{ev.Category}] {ev.Content} (信任度:{ev.TrustLevel}, 提交方:{ev.SubmittedBy}, URL验证:{verifiedLabel})");
         }
 
-        if (engine.GetAllEvidence().Count == 0)
+        if (!engine.GetAllEvidence().Any())
         {
             TerminalHelper.WriteLine("  暂无证据");
         }

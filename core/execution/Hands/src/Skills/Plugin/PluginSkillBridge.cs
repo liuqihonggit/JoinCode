@@ -113,9 +113,9 @@ public sealed partial class PluginSkillBridge : IPluginSkillBridge
         return skills;
     }
 
-    public IReadOnlyList<string> GetPluginsWithSkills()
+    public IEnumerable<string> GetPluginsWithSkills()
     {
-        return _pluginSkillMap.Keys.ToList();
+        return _pluginSkillMap.Keys;
     }
 
     public void Dispose()

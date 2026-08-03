@@ -4,7 +4,7 @@ public interface IInProcessTeammateTaskExecutor
 {
     Task<AgentTaskResult> ExecuteTeammateAsync(InProcessTeammateDefinition definition, CancellationToken ct = default);
     Task<bool> SendMessageToTeammateAsync(string teammateId, CoordinatorMessage message, CancellationToken ct = default);
-    Task<IReadOnlyList<string>> GetActiveTeammatesAsync(CancellationToken ct = default);
+    Task<IEnumerable<string>> GetActiveTeammatesAsync(CancellationToken ct = default);
     Task StopTeammateAsync(string teammateId, CancellationToken ct = default);
     Task TerminateTeammateAsync(string teammateId, string? reason = null, CancellationToken ct = default);
     Task<bool> IsTeammateIdleAsync(string teammateId, CancellationToken ct = default);
@@ -259,12 +259,12 @@ public sealed partial class InProcessTeammateTaskExecutor : IInProcessTeammateTa
         return await _messageBroker.SendMessageAsync(teammateId, message, ct).ConfigureAwait(false);
     }
 
-    public async Task<IReadOnlyList<string>> GetActiveTeammatesAsync(CancellationToken ct = default)
+    public async Task<IEnumerable<string>> GetActiveTeammatesAsync(CancellationToken ct = default)
     {
         await _teammateLock.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            return _activeTeammates.Keys.ToList();
+            return _activeTeammates.Keys;
         }
         finally
         {

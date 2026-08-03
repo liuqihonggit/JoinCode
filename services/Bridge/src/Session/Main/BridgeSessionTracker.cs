@@ -101,14 +101,14 @@ public sealed class BridgeSessionTracker
             ? (long)(clock.GetUtcNow() - startTime).TotalMilliseconds
             : 0L;
 
-    /// <summary>获取所有活跃会话句柄</summary>
-    public IReadOnlyList<BridgeSubprocessHandle> GetAllHandles() => _activeSessions.Values.ToList();
+    /// <summary>获取所有活跃会话句柄（遍历器，不分配新集合）</summary>
+    public IEnumerable<BridgeSubprocessHandle> GetAllHandles() => _activeSessions.Values;
 
-    /// <summary>获取所有会话 ID</summary>
-    public IReadOnlyList<string> GetAllSessionIds() => _activeSessions.Keys.ToList();
+    /// <summary>获取所有会话 ID（遍历器，不分配新集合）</summary>
+    public IEnumerable<string> GetAllSessionIds() => _activeSessions.Keys;
 
-    /// <summary>获取所有工作 ID</summary>
-    public IReadOnlyList<string> GetAllWorkIds() => _sessionWorkIds.Values.ToList();
+    /// <summary>获取所有工作 ID（遍历器，不分配新集合）</summary>
+    public IEnumerable<string> GetAllWorkIds() => _sessionWorkIds.Values;
 
     /// <summary>获取最后一个会话</summary>
     public KeyValuePair<string, BridgeSubprocessHandle>? GetLastSession()

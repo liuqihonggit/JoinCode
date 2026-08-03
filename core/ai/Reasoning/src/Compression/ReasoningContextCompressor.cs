@@ -96,8 +96,8 @@ public sealed class ReasoningContextCompressor : IReasoningContextCompressor
 
     private static string BuildUserPrompt(
         AgentRole role,
-        IReadOnlyList<DataItem> visibleItems,
-        IReadOnlyList<EvidenceRecord> visibleEvidence,
+        IEnumerable<DataItem> visibleItems,
+        IEnumerable<EvidenceRecord> visibleEvidence,
         string coneContext)
     {
         var sb = new StringBuilder();
@@ -111,13 +111,14 @@ public sealed class ReasoningContextCompressor : IReasoningContextCompressor
 
         var relevantItems = role switch
         {
-            AgentRole.Prosecutor => visibleItems.Where(x => x.State == DataState.Assumption).ToList(),
-            AgentRole.Defender => visibleItems.Where(x => x.State is DataState.Verified or DataState.Assumption).ToList(),
-            AgentRole.Judge => visibleItems.Where(x => x.State is DataState.Verified or DataState.Assumption).ToList(),
+            AgentRole.Prosecutor => visibleItems.Where(x => x.State == DataState.Assumption),
+            AgentRole.Defender => visibleItems.Where(x => x.State is DataState.Verified or DataState.Assumption),
+            AgentRole.Judge => visibleItems.Where(x => x.State is DataState.Verified or DataState.Assumption),
             _ => visibleItems,
         };
 
-        if (relevantItems.Count > 0)
+        var relevantItemsList = relevantItems.ToList();
+        if (relevantItemsList.Count > 0)
         {
             sb.AppendLine(role switch
             {
@@ -127,19 +128,20 @@ public sealed class ReasoningContextCompressor : IReasoningContextCompressor
                 _ => "相关数据项：",
             });
 
-            for (var i = 0; i < relevantItems.Count; i++)
+            for (var i = 0; i < relevantItemsList.Count; i++)
             {
-                var item = relevantItems[i];
+                var item = relevantItemsList[i];
                 sb.AppendLine($"{i + 1}. [{item.State}] {item.Content} (置信度:{item.Confidence}%)");
             }
 
             sb.AppendLine();
         }
 
-        if (role == AgentRole.Judge && visibleEvidence.Count > 0)
+        var visibleEvidenceList = visibleEvidence.ToList();
+        if (role == AgentRole.Judge && visibleEvidenceList.Count > 0)
         {
-            var prosCount = visibleEvidence.Count(e => e.SubmittedBy == AgentRole.Prosecutor);
-            var defCount = visibleEvidence.Count(e => e.SubmittedBy == AgentRole.Defender);
+            var prosCount = visibleEvidenceList.Count(e => e.SubmittedBy == AgentRole.Prosecutor);
+            var defCount = visibleEvidenceList.Count(e => e.SubmittedBy == AgentRole.Defender);
             sb.AppendLine($"当前证据概况：控方{prosCount}条，辩方{defCount}条");
         }
 

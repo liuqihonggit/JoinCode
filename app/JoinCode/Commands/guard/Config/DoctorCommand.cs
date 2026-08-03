@@ -244,9 +244,9 @@ public sealed class DoctorCommand : ChatCommandBase
         if (workspaceService is not null)
         {
             var dirs = workspaceService.GetAdditionalDirectories();
-            if (dirs.Count > 0)
+            if (dirs.Any())
             {
-                sb.AppendLine($"  额外工作目录: {dirs.Count} 个");
+                sb.AppendLine($"  额外工作目录: {dirs.Count()} 个");
                 foreach (var dir in dirs)
                 {
                     var trusted = trustManager.IsTrusted(dir);

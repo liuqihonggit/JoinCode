@@ -60,7 +60,7 @@ public sealed partial class SessionTagService : ISessionTagService, IDisposable
         }
     }
 
-    public IReadOnlyList<string> GetTags(string sessionId)
+    public IEnumerable<string> GetTags(string sessionId)
     {
         ArgumentNullException.ThrowIfNull(sessionId);
 
@@ -68,7 +68,7 @@ public sealed partial class SessionTagService : ISessionTagService, IDisposable
 
         lock (tags)
         {
-            return tags.OrderBy(t => t, StringComparer.OrdinalIgnoreCase).ToList();
+            return tags.OrderBy(t => t, StringComparer.OrdinalIgnoreCase);
         }
     }
 

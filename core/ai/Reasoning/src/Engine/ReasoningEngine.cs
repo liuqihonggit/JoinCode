@@ -107,27 +107,24 @@ public sealed class ReasoningEngine : IReasoningEngine
         await RunAdversarialProcessAsync(ct).ConfigureAwait(false);
     }
 
-    public IReadOnlyList<DataItem> GetAllItems()
+    public IEnumerable<DataItem> GetAllItems()
     {
         return _dag.Nodes.Values
-            .Select(n => PayloadToDataItem(n.Payload))
-            .ToList();
+            .Select(n => PayloadToDataItem(n.Payload));
     }
 
-    public IReadOnlyList<EvidenceRecord> GetAllEvidence()
+    public IEnumerable<EvidenceRecord> GetAllEvidence()
     {
         return _dag.Nodes.Values
             .Where(n => n.Payload.Type == ReasoningNodeType.Evidence)
-            .Select(n => PayloadToEvidence(n.Payload))
-            .ToList();
+            .Select(n => PayloadToEvidence(n.Payload));
     }
 
-    public IReadOnlyList<DataItem> GetFacts()
+    public IEnumerable<DataItem> GetFacts()
     {
         return _dag.Nodes.Values
             .Where(n => n.Payload.State == DataState.Fact)
-            .Select(n => PayloadToDataItem(n.Payload))
-            .ToList();
+            .Select(n => PayloadToDataItem(n.Payload));
     }
 
     public void AddEvidence(EvidenceRecord evidence, string claimId)

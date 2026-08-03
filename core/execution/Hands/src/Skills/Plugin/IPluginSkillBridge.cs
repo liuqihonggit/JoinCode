@@ -9,5 +9,5 @@ public interface IPluginSkillBridge : IDisposable
 
     Task<IReadOnlyList<SkillDefinition>> GetPluginSkillsAsync(string pluginName);
 
-    IReadOnlyList<string> GetPluginsWithSkills();
+    IEnumerable<string> GetPluginsWithSkills();
 }

@@ -221,7 +221,7 @@ public sealed class SshSession : ISshSession
             SessionId, Config, remotePort, localHost, localPort, ct).ConfigureAwait(false);
     }
 
-    public IReadOnlyList<ISshForwardedPort> GetActiveForwards()
+    public IEnumerable<ISshForwardedPort> GetActiveForwards()
     {
         return _portForwardManager.GetActiveForwards();
     }

@@ -34,7 +34,7 @@ public partial class ListPeersToolHandlers
 
             var peers = _peerService.GetConnectedPeers();
 
-            if (peers.Count == 0)
+            if (!peers.Any())
             {
                 response.AppendLine(L.T(StringKey.NoConnectedPeers));
                 response.AppendLine();
@@ -42,7 +42,7 @@ public partial class ListPeersToolHandlers
             }
             else
             {
-                response.AppendLine(L.T(StringKey.ConnectedPeerCount, peers.Count));
+                response.AppendLine(L.T(StringKey.ConnectedPeerCount, peers.Count()));
                 response.AppendLine();
 
                 foreach (var peer in peers)

@@ -8,7 +8,7 @@ public interface ISandboxManager : IDisposable
     SandboxInfo? CurrentSandbox { get; }
     string? CurrentSandboxId { get; }
     SandboxHealthState HealthState { get; }
-    IReadOnlyList<SandboxType> AvailableTypes { get; }
+    IEnumerable<SandboxType> AvailableTypes { get; }
 
     Task<SandboxInfo> EnterSandboxAsync(SandboxOptions options, CancellationToken ct = default);
     Task ExitSandboxAsync(CancellationToken ct = default);

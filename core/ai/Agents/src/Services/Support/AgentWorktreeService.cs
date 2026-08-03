@@ -167,10 +167,10 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
         return _fileOperationService.DirectoryExists(session.WorktreePath);
     }
 
-    public async Task<IReadOnlyList<AgentWorktreeSession>> GetAllSessionsAsync(CancellationToken cancellationToken = default) {
+    public async Task<IEnumerable<AgentWorktreeSession>> GetAllSessionsAsync(CancellationToken cancellationToken = default) {
         await _sessionLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try {
-            return _sessions.Values.ToList();
+            return _sessions.Values;
         } finally {
             _sessionLock.Release();
         }

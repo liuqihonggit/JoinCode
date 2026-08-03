@@ -19,7 +19,7 @@ public interface ISessionTagService
     /// <summary>
     /// 获取会话的所有标签
     /// </summary>
-    IReadOnlyList<string> GetTags(string sessionId);
+    IEnumerable<string> GetTags(string sessionId);
 
     /// <summary>
     /// 获取所有会话的标签映射

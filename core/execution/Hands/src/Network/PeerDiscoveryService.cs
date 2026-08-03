@@ -16,11 +16,11 @@ public sealed partial class PeerDiscoveryService : IPeerDiscoveryService
         _logger = logger;
     }
 
-    public IReadOnlyList<PeerInfo> GetConnectedPeers()
+    public IEnumerable<PeerInfo> GetConnectedPeers()
     {
         lock (_peers)
         {
-            return _peers.ToList();
+            return _peers;
         }
     }
 

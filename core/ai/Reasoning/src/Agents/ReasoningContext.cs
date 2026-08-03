@@ -6,8 +6,8 @@ namespace JoinCode.Reasoning.Agents;
 /// </summary>
 public sealed class ReasoningContext
 {
-    public required IReadOnlyList<DataItem> AllItems { get; init; }
-    public required IReadOnlyList<EvidenceRecord> AllEvidence { get; init; }
+    public required IEnumerable<DataItem> AllItems { get; init; }
+    public required IEnumerable<EvidenceRecord> AllEvidence { get; init; }
     public required Dag<ReasoningPayload> Dag { get; init; }
     public required ReasoningOptions Options { get; init; }
 
@@ -33,7 +33,7 @@ public sealed class ReasoningContext
     /// <summary>
     /// 获取角色可见的数据项 — 基于视锥过滤，未裁决项始终可见
     /// </summary>
-    public IReadOnlyList<DataItem> GetVisibleItemsForRole(AgentRole role)
+    public IEnumerable<DataItem> GetVisibleItemsForRole(AgentRole role)
     {
         if (ConeOrchestrator is null) return AllItems;
 
@@ -44,14 +44,13 @@ public sealed class ReasoningContext
 
         return AllItems
             .Where(item => visibleSourceIds.Contains(item.Id) ||
-                          item.State is DataState.Assumption or DataState.PendingEvidence)
-            .ToList();
+                          item.State is DataState.Assumption or DataState.PendingEvidence);
     }
 
     /// <summary>
     /// 获取角色可见的证据 — 基于视锥过滤
     /// </summary>
-    public IReadOnlyList<EvidenceRecord> GetVisibleEvidenceForRole(AgentRole role)
+    public IEnumerable<EvidenceRecord> GetVisibleEvidenceForRole(AgentRole role)
     {
         if (ConeOrchestrator is null) return AllEvidence;
 
@@ -61,8 +60,7 @@ public sealed class ReasoningContext
         var visibleSourceIds = GetVisibleSourceIds(cone);
 
         return AllEvidence
-            .Where(e => visibleSourceIds.Contains(e.Id))
-            .ToList();
+            .Where(e => visibleSourceIds.Contains(e.Id));
     }
 
     private static HashSet<string> GetVisibleSourceIds(RoleCone cone)

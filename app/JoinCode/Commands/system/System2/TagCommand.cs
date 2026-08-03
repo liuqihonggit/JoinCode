@@ -81,7 +81,7 @@ public sealed class TagCommand : ChatCommandBase
         }
 
         var tags = tagService.GetTags(context.SessionId);
-        if (tags.Count == 0)
+        if (!tags.Any())
         {
             TerminalHelper.WriteLine("  (暂无标签)");
         }

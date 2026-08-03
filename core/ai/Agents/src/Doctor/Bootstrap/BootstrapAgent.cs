@@ -29,13 +29,13 @@ public sealed class BootstrapAgent : IAsyncDisposable
     private int _isDisposed;
 
     public IDoctorTransport Transport => _transport;
-    public IReadOnlyList<DiagnosticReport> PendingReports
+    public IEnumerable<DiagnosticReport> PendingReports
     {
         get
         {
             if (_reportsLock.Wait(0))
             {
-                try { return _pendingReports.ToList(); }
+                try { return _pendingReports; }
                 finally { _reportsLock.Release(); }
             }
             return _pendingReports.ToList();
@@ -378,29 +378,17 @@ public sealed class BootstrapAgent : IAsyncDisposable
 
     internal static BootstrapJudgment ParseJudgment(string llmResponse)
     {
-        try
-        {
-            var jsonStart = llmResponse.IndexOf('{');
-            var jsonEnd = llmResponse.LastIndexOf('}');
-            if (jsonStart < 0 || jsonEnd < 0 || jsonEnd <= jsonStart)
-                return new BootstrapJudgment { NeedsFix = false, Priority = "low", Reasoning = "LLM 输出非 JSON" };
+        var result = LlmJsonHelper.Deserialize(llmResponse, AgentsJsonContext.Default.BootstrapJudgmentJson, out _);
+        if (result is null)
+            return new BootstrapJudgment { NeedsFix = false, Priority = "low", Reasoning = "LLM 输出 JSON 解析失败" };
 
-            var json = llmResponse[jsonStart..(jsonEnd + 1)];
-            var doc = System.Text.Json.JsonDocument.Parse(json);
-            var root = doc.RootElement;
-
-            return new BootstrapJudgment
-            {
-                NeedsFix = root.TryGetProperty("needsFix", out var nf) && nf.GetBoolean(),
-                TargetFile = root.TryGetProperty("targetFile", out var tf) ? tf.GetString() : null,
-                Priority = root.TryGetProperty("priority", out var p) ? p.GetString() ?? "low" : "low",
-                Reasoning = root.TryGetProperty("reasoning", out var r) ? r.GetString() : null
-            };
-        }
-        catch (Exception ex)
+        return new BootstrapJudgment
         {
-            return new BootstrapJudgment { NeedsFix = false, Priority = "low", Reasoning = $"JSON 解析失败: {ex.Message}" };
-        }
+            NeedsFix = result.NeedsFix,
+            TargetFile = result.TargetFile,
+            Priority = result.Priority,
+            Reasoning = result.Reasoning
+        };
     }
 
     private static string FormatConfirmMessage(BootstrapJudgment judgment)

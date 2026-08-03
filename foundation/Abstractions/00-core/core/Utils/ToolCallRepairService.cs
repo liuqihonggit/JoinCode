@@ -13,7 +13,7 @@ public sealed class ArgumentRepairResult
     public string? RepairHint { get; init; }
 }
 
-public static class ToolCallRepairService
+internal static class ToolCallRepairService
 {
     private static readonly FrozenDictionary<string, string> ParameterAliases = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {

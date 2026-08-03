@@ -70,7 +70,10 @@ public sealed class CategorizedRegistry<TKey, TValue, TCategory> where TKey : no
 
     public IReadOnlyDictionary<TKey, TValue> GetAllCanonical() => _registry.GetAllCanonical();
 
-    public IReadOnlyList<CategorizedEntry<TKey, TValue, TCategory>> GetCategorizedEntries()
+    /// <summary>
+    /// 遍历器 — 返回 IEnumerable，脏标记缓存数组，仅在变更时重建
+    /// </summary>
+    public IEnumerable<CategorizedEntry<TKey, TValue, TCategory>> GetCategorizedEntries()
     {
         return _cachedEntries ??= _registry.GetCanonicalEntries()
             .Select(kvp => new CategorizedEntry<TKey, TValue, TCategory>(

@@ -20,7 +20,7 @@ public interface IForegroundTaskRegistry
     /// 后台化所有前台任务 — 对齐 TS backgroundAll
     /// </summary>
     /// <returns>被后台化的任务 ID 列表</returns>
-    IReadOnlyList<string> BackgroundAll();
+    IEnumerable<string> BackgroundAll();
 
     /// <summary>
     /// 是否有前台任务正在运行 — 对齐 TS hasForegroundTasks
@@ -28,9 +28,9 @@ public interface IForegroundTaskRegistry
     bool HasForegroundTasks { get; }
 
     /// <summary>
-    /// 获取所有前台任务
+    /// 获取所有前台任务（遍历器，不分配新集合）
     /// </summary>
-    IReadOnlyList<IShellCommandContext> GetForegroundTasks();
+    IEnumerable<IShellCommandContext> GetForegroundTasks();
 
     /// <summary>
     /// 压缩所有注册的前台/后台任务 — 对齐 TS 上下文压缩时的 Shell 资源回收

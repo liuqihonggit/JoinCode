@@ -27,7 +27,7 @@ public sealed class ReasoningEngineEdgeCaseTests
         var item2 = new DataItem { Id = "id2", Content = "内容", State = DataState.Assumption };
         await engine.AddAssumptionsAsync([item2], CancellationToken.None);
 
-        Assert.Equal(2, engine.GetAllItems().Count);
+        Assert.Equal(2, engine.GetAllItems().Count());
     }
 
     [Fact]

@@ -115,7 +115,7 @@ public sealed partial class ChatCommandRegistry : JoinCode.Abstractions.Interfac
         return ChatCommandParseResult.Success(commandName, arguments);
     }
 
-    public IReadOnlyList<ChatCommandInfo> GetCommandInfos()
+    public IEnumerable<ChatCommandInfo> GetCommandInfos()
     {
         return _cachedCommandInfos ??= _registry.GetCategorizedEntries()
             .Select(e => new ChatCommandInfo(

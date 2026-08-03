@@ -1670,7 +1670,7 @@ public sealed partial class BridgeMain : IAsyncDisposable
                 // 超时杀掉的会话已由 onSessionTimeout 记录过日志，关机中断也跳过
                 if (!wasTimedOut && !_loopCts?.IsCancellationRequested != true)
                 {
-                    var stderrSummary = handle.StderrLines.Count > 0
+                    var stderrSummary = handle.StderrLines.Count() > 0
                         ? string.Join("\n", handle.StderrLines)
                         : null;
                     var failureMessage = stderrSummary ?? "Process exited with error";

@@ -33,8 +33,8 @@ public sealed class GraphPersistence : IGraphPersistence
             CallEdges = _store.CallEdges,
             DependencyEdges = _store.DepEdges,
             Projects = _store.Projects.Values.ToList(),
-            ProjectReferences = _store.ProjectRefs,
-            NuGetReferences = _store.NuGetRefs,
+            ProjectReferences = _store.ProjectRefs.Values.SelectMany(v => v).ToList(),
+            NuGetReferences = _store.NuGetRefs.Values.SelectMany(v => v).ToList(),
         };
 
         var json = JsonSerializer.Serialize(data, CodeIndexJsonContext.Default.GraphPersistenceData);
@@ -141,10 +141,24 @@ public sealed class GraphPersistence : IGraphPersistence
             _store.Projects[proj.FilePath] = proj;
 
         foreach (var ref_ in data.ProjectReferences)
-            _store.ProjectRefs.Add(ref_);
+        {
+            if (!_store.ProjectRefs.TryGetValue(ref_.SourceProjectPath, out var refList))
+            {
+                refList = new List<ProjectReferenceEdge>();
+                _store.ProjectRefs[ref_.SourceProjectPath] = refList;
+            }
+            refList.Add(ref_);
+        }
 
         foreach (var pkg in data.NuGetReferences)
-            _store.NuGetRefs.Add(pkg);
+        {
+            if (!_store.NuGetRefs.TryGetValue(pkg.ProjectPath, out var pkgList))
+            {
+                pkgList = new List<NuGetPackageReference>();
+                _store.NuGetRefs[pkg.ProjectPath] = pkgList;
+            }
+            pkgList.Add(pkg);
+        }
 
         _store.LastUpdated = data.SavedAt;
         return true;

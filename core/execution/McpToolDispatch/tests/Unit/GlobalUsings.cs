@@ -1,5 +1,6 @@
 global using AgentInfo = JoinCode.Abstractions.Interfaces.AgentInfo;
 global using JoinCode.Abstractions.Attributes;
+global using JoinCode.Abstractions.Entity;
 global using JoinCode.Abstractions.CodeIndex;
 global using JoinCode.Abstractions.Configuration;
 global using JoinCode.Abstractions.Configuration.AppData;
@@ -49,3 +50,4 @@ global using Testing.Common.Services;
 global using Tools;
 global using Tools.Handlers;
 global using Xunit.Abstractions;
+global using FluentAssertions;

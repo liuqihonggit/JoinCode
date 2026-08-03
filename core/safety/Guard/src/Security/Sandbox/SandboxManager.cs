@@ -47,7 +47,7 @@ public sealed partial class SandboxManager : ISandboxManager, IDisposable
 
     public SandboxHealthState HealthState => _healthState;
 
-    public IReadOnlyList<SandboxType> AvailableTypes => [.. _providers.Keys];
+    public IEnumerable<SandboxType> AvailableTypes => _providers.Keys;
 
     public async Task<SandboxInfo> EnterSandboxAsync(SandboxOptions options, CancellationToken ct = default)
     {

@@ -6,7 +6,7 @@ public sealed class SkillsCommand : IChatCommand
     public string Name => ChatCommandNameConstants.Skills;
     public string Description => "查看可用技能（自定义命令）";
     public string Usage => "/skills [info <skill-name>]";
-    public string[] Aliases => ["skill"];
+    public string[] Aliases => new[] { "skill" };
     public string ArgumentHint => "[info <skill-name>]";
     public bool IsHidden => false;
 

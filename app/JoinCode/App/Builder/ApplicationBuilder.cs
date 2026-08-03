@@ -76,7 +76,14 @@ public sealed class ApplicationBuilder
             })
             .ConfigureLogging(logging =>
             {
-                logging.AddConsole();
+                logging.AddConsole(options =>
+                {
+                    options.FormatterName = "simple";
+                });
+                logging.AddSimpleConsole(options =>
+                {
+                    options.IncludeScopes = true;
+                });
                 var minLevelStr = Environment.GetEnvironmentVariable("JCC_LOG_LEVEL");
                 var minLevel = minLevelStr switch
                 {

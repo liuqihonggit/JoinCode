@@ -26,8 +26,8 @@ public sealed class CronTaskEntity : Entity
         bool isPermanent = false,
         bool isDurable = true,
         ObjectId? agentObjectId = default,
-        string? id = null)
-        : base(ObjectType.Cron, id)
+        string? displayName = null)
+        : base(ObjectType.Cron, displayName ?? prompt)
     {
         CronExpression = cronExpression;
         Prompt = prompt;
@@ -52,17 +52,11 @@ public sealed class CronTaskEntity : Entity
 }
 
 /// <summary>
-/// CronTask 注册器
+/// CronTask 注册器 — 基于 MapRegistry
 /// </summary>
-public sealed class CronTaskEntityRegistry
+public sealed class CronTaskEntityRegistry : MapRegistry<ObjectId, CronTaskEntity>
 {
-    private readonly ConcurrentDictionary<ObjectId, CronTaskEntity> _tasks = new();
-
-    internal void Add(ObjectId id, CronTaskEntity task) => _tasks.TryAdd(id, task);
-    internal bool Remove(ObjectId id) => _tasks.TryRemove(id, out _);
-    public CronTaskEntity? Get(ObjectId id) => _tasks.GetValueOrDefault(id);
-    public IReadOnlyList<CronTaskEntity> GetAll() => [.. _tasks.Values];
-    public IReadOnlyList<CronTaskEntity> GetActive() => [.. _tasks.Values.Where(t => t.LastFiredAt.HasValue)];
-    public int Count => _tasks.Count;
-    public void Clear() => _tasks.Clear();
+    internal void Add(ObjectId id, CronTaskEntity task) => AddCore(id, task);
+    internal bool Remove(ObjectId id) => RemoveCore(id);
+    public IEnumerable<CronTaskEntity> GetActive() => Where(t => t.LastFiredAt.HasValue);
 }

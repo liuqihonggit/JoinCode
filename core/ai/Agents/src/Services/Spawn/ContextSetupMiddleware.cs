@@ -23,7 +23,8 @@ public sealed partial class ContextSetupMiddleware : IAgentSpawnMiddleware
 
         var subOptions = new SubAgentOptions
         {
-            AgentType = context.Options.AgentType,
+            Role = context.Options.Role,
+            Variant = context.Options.Variant,
             AdditionalInstructions = context.Options.Prompt,
             ModelName = context.Options.Model ?? context.Definition?.ModelName,
             Temperature = context.Definition?.Temperature ?? 0.7f,
@@ -34,7 +35,7 @@ public sealed partial class ContextSetupMiddleware : IAgentSpawnMiddleware
             PreloadSkills = context.Definition?.Skills,
             PermissionMode = context.Definition?.PermissionMode,
             WorktreePath = context.Options.Cwd ?? _subAgentContextAccessor.Current?.WorktreePath,
-            SubagentName = context.Options.Name ?? context.Definition?.AgentType,
+            SubagentName = context.Options.Name ?? context.Definition?.DisplayId,
             IsBuiltIn = !string.IsNullOrEmpty(context.Definition?.SourcePath),
             ProgressTracker = context.ProgressTracker,
             CacheSafeParams = cacheSafeParams,
@@ -111,9 +112,9 @@ public sealed partial class ContextSetupMiddleware : IAgentSpawnMiddleware
     /// <summary>
     /// 合并 AllowedTools — 对齐 TS executeForkedSkill: 调用方优先
     /// </summary>
-    private static List<string>? MergeAllowedTools(IReadOnlyList<string>? callerTools, List<string>? definitionTools)
+    private static List<string>? MergeAllowedTools(IEnumerable<string>? callerTools, List<string>? definitionTools)
     {
-        if (callerTools is not null && callerTools.Count > 0)
+        if (callerTools is not null && callerTools.Any())
             return callerTools.ToList();
         return definitionTools;
     }

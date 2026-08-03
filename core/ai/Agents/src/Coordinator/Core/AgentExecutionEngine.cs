@@ -33,7 +33,7 @@ public sealed partial class AgentExecutionEngine : IAgentExecutionEngine
             .Select(async agent =>
             {
                 var result = await _lifecycleManager.ExecuteAsync(agent, cancellationToken).ConfigureAwait(false);
-                return (AgentId: agent.Id, Result: result);
+                return (AgentId: agent.ObjectId.UniqueId, Result: result);
             })
             .ToList();
 
@@ -43,7 +43,7 @@ public sealed partial class AgentExecutionEngine : IAgentExecutionEngine
         var resultDict = results.ToDictionary(r => r.AgentId, r => r.Result);
 
         return agentList
-            .Select(a => resultDict[a.Id])
+            .Select(a => resultDict[a.ObjectId.UniqueId])
             .ToList();
     }
 
@@ -70,7 +70,7 @@ public sealed partial class AgentExecutionEngine : IAgentExecutionEngine
 
             if (!result.IsSuccess)
             {
-                _logger?.LogWarning("[AgentExecutionEngine] Agent {AgentId} 执行失败，停止序列执行", agent.Id);
+                _logger?.LogWarning("[AgentExecutionEngine] Agent {AgentId} 执行失败，停止序列执行", agent.ObjectId.UniqueId);
                 break;
             }
 

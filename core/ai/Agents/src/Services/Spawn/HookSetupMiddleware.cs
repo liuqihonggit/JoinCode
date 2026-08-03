@@ -18,7 +18,7 @@ public sealed partial class HookSetupMiddleware : IAgentSpawnMiddleware
     {
         if (_sessionHookManager is not null && context.SubAgent is not null)
         {
-            await RegisterAgentHooksAsync(context.SubAgent.Id, context.Definition, ct).ConfigureAwait(false);
+            await RegisterAgentHooksAsync(context.SubAgent.ObjectId.UniqueId, context.Definition, ct).ConfigureAwait(false);
         }
 
         await next(context, ct).ConfigureAwait(false);

@@ -87,9 +87,9 @@ public sealed class FileWatcherIntegrationRegistry : IAsyncDisposable
     }
 
     /// <summary>
-    /// 获取所有正在监听的仓库 ID
+    /// 获取所有正在监听的仓库 ID（遍历器，不分配新集合）
     /// </summary>
-    public IReadOnlyList<string> GetWatchingRepoIds()
+    public IEnumerable<string> GetWatchingRepoIds()
     {
         if (_disposed != 0) return [];
 

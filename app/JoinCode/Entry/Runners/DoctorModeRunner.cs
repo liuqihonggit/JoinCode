@@ -22,7 +22,7 @@ internal static class DoctorModeRunner
 
         var agentProvider = services.GetService<IAgentDefinitionProvider>();
         var doctorDef = agentProvider is not null
-            ? await agentProvider.GetAgentDefinitionAsync(AgentTypeDefinition.Doctor.ToValue()).ConfigureAwait(false)
+            ? await agentProvider.GetAgentDefinitionAsync(AgentRole.Executor, ExecutorVariant.Doctor).ConfigureAwait(false)
             : null;
 
         var objective = doctorDef is not null

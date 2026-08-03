@@ -88,7 +88,7 @@ public sealed class RoleConeTests
         var cone = new RoleCone { RoleName = AgentRole.Prosecutor, MaxVisibleFragments = 5 };
         cone.AddFragment(CreateFragment("f1", AgentRole.Prosecutor, conclusion: "test conclusion"));
 
-        var conclusions = cone.GetActiveConclusions();
+        var conclusions = cone.GetActiveConclusions().ToList();
 
         Assert.Single(conclusions);
         Assert.Equal("test conclusion", conclusions[0]);

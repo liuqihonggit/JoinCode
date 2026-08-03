@@ -80,13 +80,14 @@ Return a brief summary of what you consolidated, updated, or pruned. If nothing 
     /// <summary>
     /// 构建带有会话列表的额外上下文
     /// </summary>
-    public static string BuildExtraContext(IReadOnlyList<string> sessionIds, string toolConstraints)
+    public static string BuildExtraContext(IEnumerable<string> sessionIds, string toolConstraints)
     {
-        var sessionsList = sessionIds.Count > 0
-            ? string.Join("\n", sessionIds.Select(id => $"- {id}"))
+        var sessionList = sessionIds.ToList();
+        var sessionsList = sessionList.Count > 0
+            ? string.Join("\n", sessionList.Select(id => $"- {id}"))
             : "(none)";
 
-        return $"{toolConstraints}\n\nSessions since last consolidation ({sessionIds.Count}):\n{sessionsList}";
+        return $"{toolConstraints}\n\nSessions since last consolidation ({sessionList.Count}):\n{sessionsList}";
     }
 
     /// <summary>

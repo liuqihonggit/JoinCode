@@ -129,14 +129,12 @@ public sealed partial class PeerSessionManager : IAsyncDisposable
     }
 
     /// <summary>
-    /// 获取所有活跃的对等会话
+    /// 获取所有活跃的对等会话（遍历器，不分配新集合）
     /// </summary>
-    /// <returns>活跃会话列表</returns>
-    public IReadOnlyList<PeerSession> GetActivePeerSessions()
+    public IEnumerable<PeerSession> GetActivePeerSessions()
     {
         return _sessions.Values
-            .Where(s => s.Status == PeerSessionStatus.Connected)
-            .ToList();
+            .Where(s => s.Status == PeerSessionStatus.Connected);
     }
 
     /// <summary>
@@ -274,7 +272,7 @@ public sealed partial class PeerSessionRouter
 
     public bool HasRoute(string peerId) => _routes.ContainsKey(peerId);
 
-    public IReadOnlyList<string> GetAllPeerIds() => _routes.Keys.ToList();
+    public IEnumerable<string> GetAllPeerIds() => _routes.Keys;
 
     public void Clear() => _routes.Clear();
 }

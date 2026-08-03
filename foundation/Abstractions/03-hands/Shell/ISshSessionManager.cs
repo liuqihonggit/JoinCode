@@ -9,7 +9,7 @@ public interface ISshSessionManager : IAsyncDisposable
 
     ISshSession? GetSession(string sessionId);
 
-    IReadOnlyList<ISshSession> GetActiveSessions();
+    IEnumerable<ISshSession> GetActiveSessions();
 
     Task DestroySessionAsync(
         string sessionId,
@@ -50,7 +50,7 @@ public interface ISshSession : IAsyncDisposable
         int localPort,
         CancellationToken ct = default);
 
-    IReadOnlyList<ISshForwardedPort> GetActiveForwards();
+    IEnumerable<ISshForwardedPort> GetActiveForwards();
 
     event EventHandler<SshConnectionStateChangedEventArgs>? ConnectionStateChanged;
 }

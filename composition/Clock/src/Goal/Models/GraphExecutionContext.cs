@@ -19,6 +19,21 @@ internal sealed class GraphExecutionContext
     public HashSet<string> CompletedNodes { get; } = new(StringComparer.Ordinal);
     public HashSet<string> FailedNodes { get; } = new(StringComparer.Ordinal);
 
+    /// <summary>
+    /// 全局循环迭代计数（负向评价-修复循环）
+    /// </summary>
+    public int GlobalLoopIteration { get; set; }
+
+    /// <summary>
+    /// 协调者终止标记（窥探或接管时设置）
+    /// </summary>
+    public bool CoordinatorTerminated { get; set; }
+
+    /// <summary>
+    /// 累计 token 消耗（不受节点重置影响，用于循环终止判定）
+    /// </summary>
+    public int TotalTokensConsumed { get; set; }
+
     public bool AreAllUpstreamsCompleted(string nodeId)
     {
         if (!Graph.Dag.Nodes.TryGetValue(nodeId, out var node))

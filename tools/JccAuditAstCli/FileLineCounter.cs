@@ -16,7 +16,7 @@ public static class FileLineCounter
     /// </summary>
     public const int DefaultThreshold = 200;
 
-    private static readonly string[] ExcludedDirectories = ["bin", "obj", ".xxx", ".git", ".vs", "artifacts", "node_modules"];
+    private static readonly string[] ExcludedDirectories = new[] { "bin", "obj", ".xxx", ".git", ".vs", "artifacts", "node_modules" };
 
     /// <summary>
     /// 扫描指定目录下所有 .cs 文件，返回行数最高的 Top N

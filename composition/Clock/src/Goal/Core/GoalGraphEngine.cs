@@ -2,6 +2,7 @@ namespace Core.Goal;
 
 using JoinCode.Abstractions.Models.Goal;
 using JoinCode.Abstractions.LLM;
+using JoinCode.Abstractions.Interfaces;
 using Structura.Dag;
 
 /// <summary>
@@ -18,6 +19,8 @@ public sealed partial class GoalGraphEngine
     [Inject] private readonly IServiceProvider _serviceProvider;
     private Core.Agents.Coordinator.AgentRegistry _agentRegistry => Core.Agents.Coordinator.Agent.Registry;
     [Inject] private readonly IAgentService? _agentService = null!;
+    [Inject] private readonly IGoalUserInteraction? _userInteraction = null;
+    [Inject] private readonly IGoalLoopObserver? _loopObserver = null;
     private readonly Dictionary<string, Func<NodeContext, Task<NodeResult>>> _functionRegistry = new(StringComparer.Ordinal);
 
     public GoalGraphEngine(
@@ -26,7 +29,9 @@ public sealed partial class GoalGraphEngine
         IServiceProvider serviceProvider,
         ILogger<GoalGraphEngine>? logger = null,
         IGoalHeartbeat? heartbeat = null,
-        IClockService? clock = null)
+        IClockService? clock = null,
+        IGoalUserInteraction? userInteraction = null,
+        IGoalLoopObserver? loopObserver = null)
     {
         _kernel = kernel;
         _evaluator = evaluator;
@@ -34,6 +39,8 @@ public sealed partial class GoalGraphEngine
         _logger = logger;
         _heartbeat = heartbeat ?? new GoalHeartbeat();
         _clock = clock ?? SystemClockService.Instance;
+        _userInteraction = userInteraction ?? serviceProvider.GetService<IGoalUserInteraction>();
+        _loopObserver = loopObserver ?? serviceProvider.GetService<IGoalLoopObserver>();
     }
 
     public void RegisterFunction(string nodeId, Func<NodeContext, Task<NodeResult>> fn)
@@ -119,6 +126,29 @@ public sealed partial class GoalGraphEngine
 
             context.CompletedNodes.Add(nodeId);
 
+            ExtractNegReviewMetadata(nodeId, payload, context);
+
+            await HandleUserInteractionAsync(nodeId, payload, context, ct).ConfigureAwait(false);
+
+            await HandleLoopObservationAsync(nodeId, payload, context, ct).ConfigureAwait(false);
+
+            if (ShouldTerminateLoop(nodeId, payload, context, graph))
+            {
+                _logger?.LogInformation("[GoalGraph] 循环终止条件满足: {NodeId} (迭代={Iter}, 负评={NegCount}, 协调者终止={CoordTerm})",
+                    nodeId, context.GlobalLoopIteration, payload.NegativeReviewCount, context.CoordinatorTerminated);
+
+                var endIds = graph.EndNodeIds;
+                await context.StateLock.WaitAsync(ct).ConfigureAwait(false);
+                try
+                {
+                    goalState.Status = GoalStatus.Achieved;
+                    goalState.AchievedAt = _clock.GetUtcNow();
+                }
+                finally { context.StateLock.Release(); }
+                return goalState;
+            }
+
+
             var nextIds = context.GetNextNodeIds(nodeId, payload.Routes, payload.RouteMatchMode);
 
             foreach (var nextId in nextIds)
@@ -176,6 +206,7 @@ public sealed partial class GoalGraphEngine
             payload.Routes = result.Routes;
             payload.TokensUsed = result.TokensUsed;
             payload.CompletedAt = _clock.GetUtcNow();
+            context.TotalTokensConsumed += result.TokensUsed;
 
             if (result.IsFailed)
             {
@@ -225,15 +256,14 @@ public sealed partial class GoalGraphEngine
         }
 
         // === 完整模式：通过 IAgentService 执行（复用基础设施）===
-        if (_agentService is not null && payload.AgentType is not null)
+        if (_agentService is not null && (payload.Role != default || payload.Variant.HasValue))
         {
             return await ExecuteViaAgentServiceAsync(nodeId, payload, instruction, context, ct).ConfigureAwait(false);
         }
 
-        // === 无回退：所有 Agent 节点必须通过 IAgentService 执行 ===
-        var missingReason = _agentService is null ? "IAgentService 未注入" : "AgentType 未指定";
+        var missingReason = _agentService is null ? "IAgentService 未注入" : "Role/Variant 未指定";
         _logger?.LogError("[GoalGraph] {NodeId}({Name}): 无法执行 Agent 节点 — {Reason}。所有 Agent 节点必须通过 IAgentService 执行", nodeId, payload.Name, missingReason);
-        return NodeResult.Failed($"Agent 节点无法执行: {missingReason}。Goal 模板必须为每个 agent 节点指定 AgentType");
+        return NodeResult.Failed($"Agent 节点无法执行: {missingReason}。Goal 模板必须为每个 agent 节点指定 Role/Variant");
     }
 
     /// <summary>
@@ -246,7 +276,8 @@ public sealed partial class GoalGraphEngine
         {
             Description = payload.Name,
             Prompt = instruction,
-            AgentType = payload.AgentType,
+            Role = payload.Role,
+            Variant = payload.Variant,
             RunInBackground = false,
             GoalId = context.State.GoalId,
             GraphNodeId = nodeId,
@@ -292,6 +323,7 @@ public sealed partial class GoalGraphEngine
 
         return NodeResult.Succeeded(lastOutput, totalTokens);
     }
+
 
 
 
@@ -387,10 +419,11 @@ public sealed partial class GoalGraphEngine
         }
 
         context.RetryCount[targetNodeId] = retryCount + 1;
+        context.GlobalLoopIteration++;
         context.ReadyQueue.Enqueue(targetNodeId);
 
-        _logger?.LogInformation("[GoalGraph] 回退重激活: {NodeId} (第{Retry}次, 影响{Count}个节点)",
-            targetNodeId, retryCount + 1, affected.Count);
+        _logger?.LogInformation("[GoalGraph] 回退重激活: {NodeId} (第{Retry}次, 影响{Count}个节点, 全局迭代={GlobalIter})",
+            targetNodeId, retryCount + 1, affected.Count(), context.GlobalLoopIteration);
     }
 
     private async Task UpdateGoalStateAsync(GraphExecutionContext context)
@@ -411,5 +444,130 @@ public sealed partial class GoalGraphEngine
             context.State.TurnsCompleted = totalTurns;
         }
         finally { context.StateLock.Release(); }
+    }
+
+    /// <summary>
+    /// 负向评价循环中的用户权限询问
+    /// 负评6~10条时，ask_user 询问用户是否继续
+    /// 1分钟超时后协调者自动接管（用户可能睡觉/离开）
+    /// </summary>
+    private async Task HandleUserInteractionAsync(string nodeId, GoalNodePayload payload, GraphExecutionContext context, CancellationToken ct)
+    {
+        if (_userInteraction is null)
+            return;
+
+        if (payload.NegativeReviewCount < 6 || payload.NegativeReviewCount > 10)
+            return;
+
+        var decision = await _userInteraction.AskToContinueAsync(
+            $"负向评价发现 {payload.NegativeReviewCount} 条不足，是否继续循环修复？",
+            payload.NegativeReviewCount,
+            context.GlobalLoopIteration,
+            timeoutSeconds: 60,
+            cancellationToken: ct).ConfigureAwait(false);
+
+        if (decision.CoordinatorTakenOver)
+        {
+            context.CoordinatorTerminated = true;
+            _logger?.LogWarning("[GoalGraph] 协调者接管: {Reason} (节点={NodeId}, 负评={NegCount})",
+                decision.Reason, nodeId, payload.NegativeReviewCount);
+            return;
+        }
+
+        if (!decision.ShouldContinue)
+        {
+            payload.Routes = new[] { "NEG_STOP" };
+            _logger?.LogInformation("[GoalGraph] 用户选择停止循环 (节点={NodeId}, 负评={NegCount})",
+                nodeId, payload.NegativeReviewCount);
+        }
+    }
+
+    /// <summary>
+    /// 协调者窥探 — 观察循环状态，决定是否终止
+    /// </summary>
+    private async Task HandleLoopObservationAsync(string nodeId, GoalNodePayload payload, GraphExecutionContext context, CancellationToken ct)
+    {
+        if (_loopObserver is null)
+            return;
+
+        if (!nodeId.Equals("neg_review", StringComparison.Ordinal) && !nodeId.Equals("fix_neg", StringComparison.Ordinal))
+            return;
+
+        var observationContext = new LoopObservationContext
+        {
+            GoalId = context.State.GoalId,
+            NodeId = nodeId,
+            LoopIteration = context.GlobalLoopIteration,
+            NegativeReviewCount = payload.NegativeReviewCount,
+            TotalTokensConsumed = context.TotalTokensConsumed,
+            TotalTurnsCompleted = context.State.TurnsCompleted,
+            LastNodeOutput = payload.Output,
+            NegativeReviewTaskId = payload.NegativeReviewTaskId,
+        };
+
+        var shouldTerminate = await _loopObserver.ObserveAsync(observationContext, ct).ConfigureAwait(false);
+
+        if (shouldTerminate)
+        {
+            context.CoordinatorTerminated = true;
+            _logger?.LogInformation("[GoalGraph] 协调者窥探终止: 节点={NodeId}, 迭代={Iter}, 负评={NegCount}",
+                nodeId, context.GlobalLoopIteration, payload.NegativeReviewCount);
+        }
+    }
+
+    /// <summary>
+    /// 从 neg_review / fix_neg 节点输出中提取 JSON 元数据并写入 payload
+    /// 使用 LlmJsonHelper 统一门控（ExtractJsonBlock + RepairJson + 宽容反序列化）
+    /// </summary>
+    private static void ExtractNegReviewMetadata(string nodeId, GoalNodePayload payload, GraphExecutionContext context)
+    {
+        if (string.IsNullOrEmpty(payload.Output))
+            return;
+
+        if (nodeId.Equals("neg_review", StringComparison.Ordinal))
+        {
+            var negReview = LlmJsonHelper.Deserialize(payload.Output, GoalJsonContext.Default.NegReviewOutputJson, out _);
+            if (negReview is null)
+                return;
+
+            payload.NegativeReviewCount = negReview.NegativeReviewCount;
+            payload.NegativeReviewTaskId = negReview.TaskId;
+            if (!string.IsNullOrEmpty(negReview.Route))
+            {
+                payload.Routes = [negReview.Route];
+            }
+        }
+        else if (nodeId.Equals("fix_neg", StringComparison.Ordinal))
+        {
+            var fixNeg = LlmJsonHelper.Deserialize(payload.Output, GoalJsonContext.Default.FixNegOutputJson, out _);
+            if (fixNeg is not null && !string.IsNullOrEmpty(fixNeg.Route))
+            {
+                payload.Routes = [fixNeg.Route];
+            }
+        }
+    }
+
+    /// <summary>
+    /// 判断是否应终止负向评价-修复循环
+    /// 终止条件（纵深防御，任一满足即终止）:
+    /// 1. 协调者终止（窥探或接管）
+    /// 2. 循环迭代达到硬上限（默认16轮）
+    /// 3. token/轮次预算耗尽
+    /// </summary>
+    private static bool ShouldTerminateLoop(string nodeId, GoalNodePayload payload, GraphExecutionContext context, GoalGraph graph)
+    {
+        if (context.CoordinatorTerminated)
+            return true;
+
+        if (context.GlobalLoopIteration >= graph.HardMaxLoopIterations)
+            return true;
+
+        if (context.State.TokenBudget.HasValue && context.TotalTokensConsumed >= context.State.TokenBudget.Value)
+            return true;
+
+        if (context.State.TurnBudget.HasValue && context.GlobalLoopIteration >= context.State.TurnBudget.Value)
+            return true;
+
+        return false;
     }
 }

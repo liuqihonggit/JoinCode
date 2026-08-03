@@ -17,7 +17,7 @@ public sealed partial class ApiContextManagementService : IApiContextManagementS
     /// 使用枚举常量，避免硬编码字符串
     /// </summary>
     private static readonly string[] ToolsClearableResults =
-    [
+    new[] { 
         ShellToolNameConstants.Bash,  // "Bash"
         ShellToolNameConstants.Powershell,    // "PowerShell"
         SearchToolNameConstants.Glob,         // "Glob"
@@ -25,18 +25,18 @@ public sealed partial class ApiContextManagementService : IApiContextManagementS
         FileToolNameConstants.FileRead,       // "Read"
         WebToolNameConstants.WebFetch,        // "WebFetch"
         WebToolNameConstants.WebSearch,       // "WebSearch"
-    ];
+     };
 
     /// <summary>
     /// 可清除工具使用记录的工具名 — 对齐 TS TOOLS_CLEARABLE_USES
     /// 这些工具的输入不需要保留（写入类操作）
     /// </summary>
     private static readonly string[] ToolsClearableUses =
-    [
+    new[] { 
         FileToolNameConstants.FileEdit,       // "Edit"
         FileToolNameConstants.FileWrite,      // "Write"
         NotebookToolNameConstants.NotebookEdit, // "NotebookEdit"
-    ];
+     };
 
     /// <summary>
     /// 获取 API 端上下文管理配置 — 对齐 TS getAPIContextManagement

@@ -1,4 +1,5 @@
 global using JoinCode.Abstractions.Exceptions;
+global using JoinCode.Abstractions.Entity;
 global using Api.LLM.QueryServices;
 global using JoinCode.Abstractions.Configuration;
 global using JoinCode.Abstractions.Configuration.AppData;

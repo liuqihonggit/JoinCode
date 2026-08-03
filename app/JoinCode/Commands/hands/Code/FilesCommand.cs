@@ -15,7 +15,7 @@ public sealed class FilesCommand : ChatCommandBase
         }
 
         var entries = tracker.GetAllEntries();
-        if (entries.Count == 0)
+        if (!entries.Any())
         {
             TerminalHelper.WriteLine("上下文中无文件");
             return Task.FromResult(ChatCommandResult.Continue());
@@ -24,7 +24,7 @@ public sealed class FilesCommand : ChatCommandBase
         var filePaths = tracker.GetOperatedFilePaths();
         var cwd = context.Services.FileSystem.GetCurrentDirectory();
 
-        TerminalHelper.WriteLine($"上下文中的文件 ({filePaths.Count} 个):");
+        TerminalHelper.WriteLine($"上下文中的文件 ({filePaths.Count()} 个):");
         TerminalHelper.NewLine();
 
         foreach (var path in filePaths)

@@ -47,8 +47,8 @@ public sealed class PluginHookInjectorTests
 
         var result = _injector.GetInjectedHooks("test");
         result.Should().HaveCount(2);
-        result[0].HookName.Should().Be("hook1");
-        result[1].HookName.Should().Be("hook2");
+        result.First().HookName.Should().Be("hook1");
+        result.Skip(1).First().HookName.Should().Be("hook2");
     }
 
     [Fact]

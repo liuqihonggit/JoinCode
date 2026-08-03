@@ -30,14 +30,14 @@ public enum SecurityAction { [EnumValue("autoApprove")] AutoApprove, [EnumValue(
 public sealed partial class AutoModeClassifier : IAutoModeClassifier
 {
     private static readonly string[] DangerousCommandPatterns =
-    [
+    new[] { 
         "rm -rf /", "rm -rf ~", "del /f /s /q c:",
         "format", "fdisk", "mkfs",
         "dd if=", ":(){ :|:& };:",
         "shutdown", "restart",
         "wmic", "reg delete",
         "net user", "net localgroup"
-    ];
+     };
 
     private static readonly Regex[] DangerousCommandRegexes = DangerousCommandPatterns
         .Select(p => new Regex(Regex.Escape(p), RegexOptions.IgnoreCase))

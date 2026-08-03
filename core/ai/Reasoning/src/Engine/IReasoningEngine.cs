@@ -13,17 +13,17 @@ public interface IReasoningEngine
     /// <summary>
     /// 获取所有数据项
     /// </summary>
-    IReadOnlyList<DataItem> GetAllItems();
+    IEnumerable<DataItem> GetAllItems();
 
     /// <summary>
     /// 获取所有证据
     /// </summary>
-    IReadOnlyList<EvidenceRecord> GetAllEvidence();
+    IEnumerable<EvidenceRecord> GetAllEvidence();
 
     /// <summary>
     /// 获取已确认的事实
     /// </summary>
-    IReadOnlyList<DataItem> GetFacts();
+    IEnumerable<DataItem> GetFacts();
 
     /// <summary>
     /// 添加证据

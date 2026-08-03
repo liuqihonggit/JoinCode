@@ -39,7 +39,7 @@ public sealed partial class ChatOptionsFactory : IChatOptionsFactory
             PresencePenalty = chatParams.PresencePenalty,
             ToolChoice = ToolChoice.AutoInvoke,
             DiscoveredTools = discoveredTools,
-            DeferredTools = deferredTools.Count > 0 ? deferredTools : null,
+            DeferredTools = deferredTools.Any() ? deferredTools.ToList() : null,
             EffortLevel = effortLevel,
             FastMode = fastMode,
             FastModelId = fastModelId,

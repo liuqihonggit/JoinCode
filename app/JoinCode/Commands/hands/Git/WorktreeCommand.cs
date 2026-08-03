@@ -289,7 +289,7 @@ public sealed class WorktreeCommand : ChatCommandBase
         else
         {
             var sessions = await worktreeService.GetAllSessionsAsync(context.CancellationToken);
-            if (sessions.Count == 0)
+            if (!sessions.Any())
             {
                 TerminalHelper.WriteLine("没有活动的 worktree 会话");
                 return;

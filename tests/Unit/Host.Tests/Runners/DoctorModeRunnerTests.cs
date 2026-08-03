@@ -32,10 +32,11 @@ public class DoctorModeRunnerTests
             .Returns(Task.CompletedTask);
 
         var agentProvider = new Mock<IAgentDefinitionProvider>();
-        agentProvider.Setup(p => p.GetAgentDefinitionAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+        agentProvider.Setup(p => p.GetAgentDefinitionAsync(It.IsAny<AgentRole>(), It.IsAny<ExecutorVariant?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new AgentDefinition
             {
-                AgentType = AgentTypeDefinition.Doctor.ToValue(),
+                Role = AgentRole.Executor,
+                Variant = ExecutorVariant.Doctor,
                 WhenToUse = "自举复盘与修复",
                 SystemPrompt = "你是 doctor Agent",
             });

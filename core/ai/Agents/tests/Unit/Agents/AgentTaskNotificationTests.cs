@@ -13,7 +13,8 @@ public sealed class AgentTaskNotificationTests
             ToolUseId = "call_abc",
             Output = "README found with 100 lines",
             ExecutionTimeMs = 5000,
-            AgentType = "explore",
+            Role = AgentRole.Executor,
+            Variant = ExecutorVariant.Explore,
             ToolUseCount = 3,
             TokenCount = 1500,
             WorktreePath = "/tmp/worktree-agent-123",
@@ -31,7 +32,7 @@ public sealed class AgentTaskNotificationTests
         xml.Should().Contain("<total_tokens>1500</total_tokens>");
         xml.Should().Contain("<tool_uses>3</tool_uses>");
         xml.Should().Contain("<duration_ms>5000</duration_ms>");
-        xml.Should().Contain("<agent-type>explore</agent-type>");
+        xml.Should().Contain("<agent-type>executor:explore</agent-type>");
         xml.Should().Contain("<worktreePath>/tmp/worktree-agent-123</worktreePath>");
         xml.Should().Contain("<worktreeBranch>agent-123</worktreeBranch>");
     }

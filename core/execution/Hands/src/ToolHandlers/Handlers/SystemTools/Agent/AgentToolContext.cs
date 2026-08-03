@@ -22,6 +22,10 @@ public sealed class AgentToolContext
     /// </summary>
     public string? SubagentType { get; init; }
 
+    public AgentRole SubagentRole { get; init; } = AgentRole.Executor;
+
+    public ExecutorVariant? SubagentVariant { get; init; }
+
     /// <summary>
     /// 模型覆盖: sonnet/opus/haiku（可选）
     /// </summary>

@@ -114,10 +114,10 @@ internal sealed class ProjectIndex
         _store.Projects.Remove(csprojPath);
 
         // 移除该项目的所有 ProjectReference
-        _store.ProjectRefs.RemoveAll(e => e.SourceProjectPath == csprojPath);
+        _store.ProjectRefs.Remove(csprojPath);
 
         // 移除该项目的所有 NuGet 引用
-        _store.NuGetRefs.RemoveAll(p => p.ProjectPath == csprojPath);
+        _store.NuGetRefs.Remove(csprojPath);
     }
 
     private void InsertProjectInternal(CsprojParseResult parseResult)
@@ -134,9 +134,15 @@ internal sealed class ProjectIndex
 
     private void InsertProjectReferencesInternal(CsprojParseResult parseResult)
     {
+        if (parseResult.ProjectReferences.Count == 0) return;
+        if (!_store.ProjectRefs.TryGetValue(parseResult.FilePath, out var refList))
+        {
+            refList = new List<ProjectReferenceEdge>();
+            _store.ProjectRefs[parseResult.FilePath] = refList;
+        }
         foreach (var target in parseResult.ProjectReferences)
         {
-            _store.ProjectRefs.Add(new ProjectReferenceEdge
+            refList.Add(new ProjectReferenceEdge
             {
                 SourceProjectPath = parseResult.FilePath,
                 TargetProjectPath = target
@@ -146,9 +152,15 @@ internal sealed class ProjectIndex
 
     private void InsertNuGetReferencesInternal(CsprojParseResult parseResult)
     {
+        if (parseResult.PackageReferences.Count == 0) return;
+        if (!_store.NuGetRefs.TryGetValue(parseResult.FilePath, out var refList))
+        {
+            refList = new List<NuGetPackageReference>();
+            _store.NuGetRefs[parseResult.FilePath] = refList;
+        }
         foreach (var pkg in parseResult.PackageReferences)
         {
-            _store.NuGetRefs.Add(new NuGetPackageReference
+            refList.Add(new NuGetPackageReference
             {
                 ProjectPath = parseResult.FilePath,
                 PackageName = pkg.Name,

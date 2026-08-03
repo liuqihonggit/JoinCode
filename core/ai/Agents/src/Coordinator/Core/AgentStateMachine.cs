@@ -122,12 +122,11 @@ public sealed partial class AgentStateMachine
     /// <summary>
     /// 获取处于特定状态的Agent列表
     /// </summary>
-    public IReadOnlyList<string> GetAgentsInState(TaskExecutionStatus state)
+    public IEnumerable<string> GetAgentsInState(TaskExecutionStatus state)
     {
         return _states
             .Where(kvp => kvp.Value.CurrentState == state)
-            .Select(kvp => kvp.Key)
-            .ToList();
+            .Select(kvp => kvp.Key);
     }
 
     /// <summary>

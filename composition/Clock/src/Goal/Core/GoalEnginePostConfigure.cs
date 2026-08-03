@@ -22,6 +22,6 @@ public sealed class GoalEnginePostConfigure : IGoalEnginePostConfigure
     public void Configure()
     {
         GoalGraphTemplates.RegisterAll(_registry);
-        _logger?.LogInformation("[GoalEngine] 已注册预定义 Graph 模板: refactor, bugfix, research");
+        _logger?.LogInformation("[GoalEngine] 已注册预定义 Graph 模板: refactor, bugfix, research, code_review, test_gen, negative_review_loop");
     }
 }

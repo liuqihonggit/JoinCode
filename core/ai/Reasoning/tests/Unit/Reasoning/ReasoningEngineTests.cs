@@ -12,8 +12,8 @@ public sealed class ReasoningEngineTests
 
         var all = engine.GetAllItems();
         Assert.Single(all);
-        Assert.Equal(DataState.Assumption, all[0].State);
-        Assert.Equal("测试假定", all[0].Content);
+        Assert.Equal(DataState.Assumption, all.First().State);
+        Assert.Equal("测试假定", all.First().Content);
     }
 
     [Fact]

@@ -187,5 +187,5 @@ public sealed class DoctorStdioTransport : IDoctorTransport
 }
 
 [JsonSerializable(typeof(Dictionary<string, JsonElement>))]
-[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
 internal sealed partial class DoctorStdioJsonContext : JsonSerializerContext;

@@ -23,6 +23,7 @@ public sealed record ShellExecutionResult
     public required string Stdout { get; init; }
     public required string Stderr { get; init; }
     public int? ExitCode { get; init; }
+    public int? ProcessId { get; init; }
     public bool Interrupted { get; init; }
     public bool Success => ExitCode == 0 && !Interrupted;
     public string? ErrorMessage { get; init; }

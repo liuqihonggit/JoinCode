@@ -45,11 +45,10 @@ public sealed partial class SshSessionManager : ISshSessionManager
         return _sessions.TryGetValue(sessionId, out var session) ? session : null;
     }
 
-    public IReadOnlyList<ISshSession> GetActiveSessions()
+    public IEnumerable<ISshSession> GetActiveSessions()
     {
         return _sessions.Values
-            .Where(s => s.ConnectionState == SshConnectionState.Connected)
-            .ToList();
+            .Where(s => s.ConnectionState == SshConnectionState.Connected);
     }
 
     public async Task DestroySessionAsync(

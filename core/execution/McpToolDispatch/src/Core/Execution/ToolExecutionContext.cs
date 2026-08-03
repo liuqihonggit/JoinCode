@@ -29,4 +29,7 @@ public sealed class ToolExecutionContext
 
     /// <summary>遥测 Span</summary>
     public ITelemetrySpan? Span { get; set; }
+
+    /// <summary>工具执行实体 — 长时间运行工具的 Entity 实例，与 LoggingScopeMiddleware (w3) 配合</summary>
+    public ToolExecutionEntity? ExecutionEntity { get; set; }
 }

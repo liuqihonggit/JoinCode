@@ -13,7 +13,7 @@ public sealed partial class SpawnCoordTeammatePaneMiddleware : IAgentSpawnCoordM
         {
             try
             {
-                var agentType = _subAgentContextAccessor.Current?.AgentType ?? "agent";
+                var agentType = _subAgentContextAccessor.Current?.Variant?.ToValue() ?? _subAgentContextAccessor.Current?.Role.ToValue() ?? "agent";
                 var command = $"# Agent: {ctx.Task}";
                 await _layoutManager.CreateTeammatePaneAsync(ctx.AgentId, agentType, command, ctx.CancellationToken).ConfigureAwait(false);
                 ctx.TeammatePaneCreated = true;

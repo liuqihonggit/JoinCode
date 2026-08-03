@@ -18,7 +18,7 @@ namespace Core.Scheduling;
 [JsonSerializable(typeof(List<RuntimeTask>))]
 public partial class SchedulingTasksJsonContext : JsonSerializerContext;
 
-[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
 [JsonSerializable(typeof(TaskAssignmentPlan))]
 [JsonSerializable(typeof(TaskAgentAssignment))]
 [JsonSerializable(typeof(ExecutionPhase))]

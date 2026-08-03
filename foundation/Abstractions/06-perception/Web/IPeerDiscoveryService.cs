@@ -9,7 +9,7 @@ public sealed class PeerInfo
 
 public interface IPeerDiscoveryService
 {
-    IReadOnlyList<PeerInfo> GetConnectedPeers();
+    IEnumerable<PeerInfo> GetConnectedPeers();
     event EventHandler<PeerInfo>? PeerConnected;
     event EventHandler<string>? PeerDisconnected;
 }

@@ -20,9 +20,9 @@ public interface ITelemetryService : IAsyncDisposable
 
     ITelemetryGauge GetGauge(string name, string? unit = null, string? description = null);
 
-    IReadOnlyList<TelemetrySpanData> GetActiveSpans();
+    IEnumerable<TelemetrySpanData> GetActiveSpans();
 
-    IReadOnlyList<string> GetRegisteredMetrics();
+    IEnumerable<string> GetRegisteredMetrics();
 }
 
 public interface ITelemetrySpan : IAsyncDisposable

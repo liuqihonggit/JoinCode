@@ -7,7 +7,7 @@ public sealed class AgentSpawnCoordContext : PipelineContextBase
     public CancellationToken CancellationToken { get; init; }
 
     public IAgent? Agent { get; set; }
-    public string AgentId => Agent?.Id ?? string.Empty;
+    public string AgentId => Agent?.ObjectId.UniqueId ?? string.Empty;
     public string? SessionId { get; set; }
     public bool WorktreeCreated { get; set; }
     public bool MessageRegistered { get; set; }

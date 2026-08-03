@@ -36,7 +36,7 @@ public sealed record WorktreeCommitResult
     public string? Diff { get; init; }
 
     /// <summary>变更文件列表</summary>
-    public IReadOnlyList<string> ChangedFiles { get; init; } = [];
+    public IEnumerable<string> ChangedFiles { get; init; } = [];
 
     /// <summary>失败原因</summary>
     public string? FailureReason { get; init; }

@@ -70,7 +70,7 @@ public interface IChatContextManager
     /// <summary>
     /// 获取当前延迟工具列表。MCP 工具默认延迟。
     /// </summary>
-    IReadOnlyList<DeferredToolInfo> GetDeferredTools();
+    IEnumerable<DeferredToolInfo> GetDeferredTools();
 
     /// <summary>
     /// 从历史消息中提取已发现的工具名并更新 DiscoveredToolSet。

@@ -148,7 +148,7 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
             ["code_challenge_method"] = "S256"
         };
 
-        if (_options.Scopes.Count > 0)
+        if (_options.Scopes.Any())
         {
             queryParams["scope"] = string.Join(" ", _options.Scopes);
         }

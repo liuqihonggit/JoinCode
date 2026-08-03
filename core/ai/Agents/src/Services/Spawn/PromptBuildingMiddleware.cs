@@ -17,34 +17,33 @@ public sealed partial class PromptBuildingMiddleware : IAgentSpawnMiddleware
 
     public async Task InvokeAsync(AgentSpawnContext context, JoinCode.Abstractions.Pipeline.MiddlewareDelegate<AgentSpawnContext> next, CancellationToken ct)
     {
+        var agentTypeValue = context.Options.Variant?.ToValue() ?? context.Options.Role.ToValue();
         var systemPrompt = await _promptBuilder.BuildSystemPromptAsync(
-            context.Options.AgentType, context.Options.Description, cancellationToken: ct).ConfigureAwait(false);
+            agentTypeValue, context.Options.Description, cancellationToken: ct).ConfigureAwait(false);
 
-        // 加载 Agent 记忆提示词 — 对齐 TS loadAgentMemoryPrompt
         var memoryScope = context.Options.MemoryScope ?? context.Definition?.Memory;
-        if (memoryScope is not null && _agentMemoryService is not null && !string.IsNullOrWhiteSpace(context.Options.AgentType))
+        if (memoryScope is not null && _agentMemoryService is not null && (context.Options.Variant.HasValue || context.Options.Role != default))
         {
             try
             {
                 var memoryPrompt = await _agentMemoryService.LoadAgentMemoryPromptAsync(
-                    context.Options.AgentType, memoryScope.Value, ct).ConfigureAwait(false);
+                    agentTypeValue, memoryScope.Value, ct).ConfigureAwait(false);
 
                 if (!string.IsNullOrWhiteSpace(memoryPrompt))
                     systemPrompt = $"{systemPrompt}\n\n{memoryPrompt}";
 
-                // 检查快照并初始化 — 对齐 TS initializeAgentMemorySnapshots
                 var snapshotCheck = await _agentMemoryService.CheckSnapshotAsync(
-                    context.Options.AgentType, memoryScope.Value, ct).ConfigureAwait(false);
+                    agentTypeValue, memoryScope.Value, ct).ConfigureAwait(false);
 
                 if (snapshotCheck.Action == AgentMemorySnapshotAction.Initialize)
                 {
                     await _agentMemoryService.InitializeFromSnapshotAsync(
-                        context.Options.AgentType, memoryScope.Value, snapshotCheck.SnapshotTimestamp ?? throw new InvalidOperationException("SnapshotTimestamp is null"), ct).ConfigureAwait(false);
+                        agentTypeValue, memoryScope.Value, snapshotCheck.SnapshotTimestamp ?? throw new InvalidOperationException("SnapshotTimestamp is null"), ct).ConfigureAwait(false);
                 }
             }
             catch (Exception ex)
             {
-                _logger?.LogWarning(ex, "[PromptBuildingMiddleware] 加载 Agent 记忆失败: {AgentType}", context.Options.AgentType);
+                _logger?.LogWarning(ex, "[PromptBuildingMiddleware] 加载 Agent 记忆失败: {Role}", agentTypeValue);
             }
         }
 

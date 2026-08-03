@@ -18,6 +18,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
         IFileOperationService fileOperationService,
         IProcessService processService,
         IEnumerable<IWorktreeCreateMiddleware>? createMiddlewares = null,
+        ILoggerFactory? loggerFactory = null,
         ILogger<AgentWorktreeService>? logger = null,
         WorktreeOptions? defaultOptions = null,
         ITelemetryService? telemetryService = null,
@@ -29,7 +30,14 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
         _defaultOptions = defaultOptions ?? new WorktreeOptions();
         _telemetryService = telemetryService;
         _sessionLock = new SemaphoreSlim(1, 1);
-        if (createMiddlewares != null)
+        if (createMiddlewares != null && loggerFactory != null)
+        {
+            _createPipeline = new PipelineBuilder<WorktreeCreateContext>()
+                .WithLoggingScope(loggerFactory)
+                .UseRange(createMiddlewares)
+                .Build();
+        }
+        else if (createMiddlewares != null)
         {
             _createPipeline = new MiddlewarePipeline<WorktreeCreateContext>(createMiddlewares);
         }
@@ -159,10 +167,10 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
         return _fileOperationService.DirectoryExists(session.WorktreePath);
     }
 
-    public async Task<IReadOnlyList<AgentWorktreeSession>> GetAllSessionsAsync(CancellationToken cancellationToken = default) {
+    public async Task<IEnumerable<AgentWorktreeSession>> GetAllSessionsAsync(CancellationToken cancellationToken = default) {
         await _sessionLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try {
-            return _sessions.Values.ToList();
+            return _sessions.Values;
         } finally {
             _sessionLock.Release();
         }

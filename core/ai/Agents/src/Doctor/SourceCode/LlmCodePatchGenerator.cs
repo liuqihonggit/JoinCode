@@ -68,7 +68,7 @@ public sealed class LlmCodePatchGenerator : ICodePatchGenerator
         sb.AppendLine("```");
         sb.AppendLine();
 
-        if (sourceContext.RelatedSnippets.Count > 0)
+        if (sourceContext.RelatedSnippets.Any())
         {
             sb.AppendLine("## 相关上下文");
             foreach (var snippet in sourceContext.RelatedSnippets)

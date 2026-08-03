@@ -5,7 +5,6 @@ public sealed class CachedRegistry<TKey, TValue> where TKey : notnull
     private readonly Dictionary<TKey, TValue> _items;
     private readonly HashSet<TKey> _canonicalKeys;
     private IReadOnlyDictionary<TKey, TValue>? _cachedAll;
-    private IReadOnlyList<KeyValuePair<TKey, TValue>>? _cachedList;
 
     public int Count => _items.Count;
 
@@ -42,6 +41,9 @@ public sealed class CachedRegistry<TKey, TValue> where TKey : notnull
 
     public bool ContainsKey(TKey key) => _items.ContainsKey(key);
 
+    /// <summary>
+    /// 字典视图 — 返回 IReadOnlyDictionary，脏标记缓存 FrozenDictionary
+    /// </summary>
     public IReadOnlyDictionary<TKey, TValue> GetAllCanonical()
     {
         return _cachedAll ??= _canonicalKeys
@@ -49,16 +51,16 @@ public sealed class CachedRegistry<TKey, TValue> where TKey : notnull
             .ToFrozenDictionary();
     }
 
-    public IReadOnlyList<KeyValuePair<TKey, TValue>> GetCanonicalEntries()
+    /// <summary>
+    /// 遍历器 — 返回 IEnumerable，不分配新集合
+    /// </summary>
+    public IEnumerable<KeyValuePair<TKey, TValue>> GetCanonicalEntries()
     {
-        return _cachedList ??= _canonicalKeys
-            .Select(n => new KeyValuePair<TKey, TValue>(n, _items[n]))
-            .ToArray();
+        return _canonicalKeys.Select(n => new KeyValuePair<TKey, TValue>(n, _items[n]));
     }
 
     private void InvalidateCache()
     {
         _cachedAll = null;
-        _cachedList = null;
     }
 }

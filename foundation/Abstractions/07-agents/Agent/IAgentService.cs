@@ -48,7 +48,7 @@ public interface IAgentService
     /// <summary>
     /// 获取代理的待处理消息
     /// </summary>
-    Task<IReadOnlyList<AgentMessageInfo>> GetAgentMessagesAsync(string agentId, CancellationToken cancellationToken = default);
+    Task<IEnumerable<AgentMessageInfo>> GetAgentMessagesAsync(string agentId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 代理完成事件（后台代理完成时触发）
@@ -81,7 +81,7 @@ public interface IAgentCoordinator
     /// <summary>
     /// 获取所有正在运行的代理
     /// </summary>
-    Task<IReadOnlyList<RunningAgentInfo>> GetRunningAgentsAsync(CancellationToken cancellationToken = default);
+    Task<IEnumerable<RunningAgentInfo>> GetRunningAgentsAsync(CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -95,7 +95,8 @@ public sealed class AgentCompletedEventArgs : EventArgs
     public string? Output { get; init; }
     public string? Error { get; init; }
     public long? ExecutionTimeMs { get; init; }
-    public string? AgentType { get; init; }
+    public AgentRole Role { get; init; }
+    public ExecutorVariant? Variant { get; init; }
     public string? ToolUseId { get; init; }
     public string? WorktreePath { get; init; }
     public string? WorktreeBranch { get; init; }
@@ -115,7 +116,8 @@ public sealed class AgentTaskNotification
     public string? Output { get; init; }
     public string? Error { get; init; }
     public long? ExecutionTimeMs { get; init; }
-    public string? AgentType { get; init; }
+    public AgentRole Role { get; init; }
+    public ExecutorVariant? Variant { get; init; }
     public int? ToolUseCount { get; init; }
     public int? TokenCount { get; init; }
     public string? WorktreePath { get; init; }
@@ -146,8 +148,10 @@ public sealed class AgentTaskNotification
         if (ExecutionTimeMs.HasValue)
             sb.Append("<duration_ms>").Append(ExecutionTimeMs.Value).AppendLine("</duration_ms>");
         sb.AppendLine("</usage>");
-        if (!string.IsNullOrEmpty(AgentType))
-            sb.Append("<agent-type>").Append(AgentType).AppendLine("</agent-type>");
+        if (Variant.HasValue)
+            sb.Append("<agent-type>").Append(Role.ToValue()).Append(":").Append(Variant.Value.ToValue()).AppendLine("</agent-type>");
+        else
+            sb.Append("<agent-type>").Append(Role.ToValue()).AppendLine("</agent-type>");
         if (!string.IsNullOrEmpty(WorktreePath))
         {
             sb.AppendLine("<worktree>");
@@ -168,7 +172,8 @@ public sealed record AgentInfo
 {
     public required string Id { get; init; }
     public required string Description { get; init; }
-    public string? AgentType { get; init; }
+    public AgentRole Role { get; init; }
+    public ExecutorVariant? Variant { get; init; }
     public AgentStatus Status { get; init; } = AgentStatus.Pending;
     public AgentIsolationMode IsolationMode { get; init; } = AgentIsolationMode.None;
     public DateTime? StartedAt { get; init; }
@@ -194,7 +199,8 @@ public sealed record AgentSpawnOptions
 {
     public required string Description { get; init; }
     public required string Prompt { get; init; }
-    public string? AgentType { get; init; }
+    public AgentRole Role { get; init; } = AgentRole.Executor;
+    public ExecutorVariant? Variant { get; init; }
     public bool RunInBackground { get; init; }
     public AgentIsolationMode IsolationMode { get; init; } = AgentIsolationMode.None;
 
@@ -225,7 +231,7 @@ public sealed record AgentSpawnOptions
     /// 技能 fork 模式下，限制子智能体只能使用指定工具
     /// 与 AgentDefinition.Tools 合并（调用方优先）
     /// </summary>
-    public IReadOnlyList<string>? AllowedTools { get; init; }
+    public IEnumerable<string>? AllowedTools { get; init; }
 
     /// <summary>
     /// 推理努力级别 — 对齐 TS PromptCommand.effort
@@ -287,7 +293,8 @@ public sealed record RunningAgentInfo
 {
     public required string Id { get; init; }
     public required string Description { get; init; }
-    public string? AgentType { get; init; }
+    public AgentRole Role { get; init; }
+    public ExecutorVariant? Variant { get; init; }
     public DateTime? StartedAt { get; init; }
     public string? DisplayName { get; init; }
     public string? ColorHex { get; init; }
@@ -332,7 +339,7 @@ public sealed record AgentProgress
     public required int ToolUseCount { get; init; }
     public required int TokenCount { get; init; }
     public ToolActivity? LastActivity { get; init; }
-    public IReadOnlyList<ToolActivity>? RecentActivities { get; init; }
+    public IEnumerable<ToolActivity>? RecentActivities { get; init; }
     public string? Summary { get; init; }
 }
 

@@ -8,7 +8,7 @@ namespace Core.Prompts.Templates.Memory;
 [PromptTemplate(Name = "extract_memories", Category = PromptTemplateCategory.Memory, Description = "记忆提取子代理提示词模板", HasParameters = true)]
 public static class ExtractMemoriesSection
 {
-    private static readonly string[] MemoryTypes = [MessageRoleConstants.User, "feedback", "project", "reference"];
+    private static readonly string[] MemoryTypes = new[] { MessageRoleConstants.User, "feedback", "project", "reference" };
 
     private static string GetMemoryFrontmatterExample()
     {

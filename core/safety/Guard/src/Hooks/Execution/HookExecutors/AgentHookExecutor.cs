@@ -145,7 +145,7 @@ public sealed partial class AgentHookExecutor : HookExecutorBase<AgentHook>
 
         try
         {
-            var hookDecision = JsonSerializer.Deserialize(jsonContent, HooksJsonContext.Default.HookDecision);
+            var hookDecision = LlmJsonHelper.Deserialize(jsonContent, HooksJsonContext.Default.HookDecision, out _);
             if (hookDecision is null)
                 return HookResult.Success(message: "Agent validation passed (empty response)");
 

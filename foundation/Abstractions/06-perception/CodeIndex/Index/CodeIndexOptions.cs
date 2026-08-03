@@ -9,6 +9,6 @@ public sealed record CodeIndexOptions
     public bool EnableL1 { get; init; } = true;
     public bool EnableL2 { get; init; } = true;
     public int MaxMemoryMB { get; init; } = 600;
-    public IReadOnlyList<string> FilePatterns { get; init; } = ["*.cs"];
-    public IReadOnlyList<string> ExcludePatterns { get; init; } = ["bin/", "obj/", ".git/", ".x/"];
+    public IEnumerable<string> FilePatterns { get; init; } = new[] { "*.cs" };
+    public IEnumerable<string> ExcludePatterns { get; init; } = new[] { "bin/", "obj/", ".git/", ".x/" };
 }

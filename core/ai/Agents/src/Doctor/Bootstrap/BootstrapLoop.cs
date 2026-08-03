@@ -140,7 +140,7 @@ public sealed class BootstrapLoop
 
     private static string? LocateTargetFile(DiagnosticReport diagnostic, string worktreePath)
     {
-        if (diagnostic.TriggeringEvents.Count > 0)
+        if (diagnostic.TriggeringEvents.Any())
         {
             foreach (var evt in diagnostic.TriggeringEvents)
             {

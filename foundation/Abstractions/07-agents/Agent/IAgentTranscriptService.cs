@@ -6,6 +6,8 @@ namespace JoinCode.Abstractions.Interfaces;
 public sealed class AgentMetadata
 {
     public required string AgentId { get; init; }
+    public AgentRole Role { get; init; }
+    public ExecutorVariant? Variant { get; init; }
     public string? AgentType { get; init; }
     public string? Description { get; init; }
     public string? WorktreePath { get; init; }
@@ -48,12 +50,12 @@ public interface IAgentTranscriptService
     /// <summary>
     /// 批量追加代理对话条目
     /// </summary>
-    Task AppendEntriesAsync(string sessionId, string agentId, IReadOnlyList<JoinCode.Abstractions.LLM.Chat.TranscriptEntry> entries, CancellationToken cancellationToken = default);
+    Task AppendEntriesAsync(string sessionId, string agentId, IEnumerable<JoinCode.Abstractions.LLM.Chat.TranscriptEntry> entries, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 加载代理对话记录
     /// </summary>
-    Task<IReadOnlyList<JoinCode.Abstractions.LLM.Chat.TranscriptEntry>> LoadTranscriptAsync(string sessionId, string agentId, CancellationToken cancellationToken = default);
+    Task<IEnumerable<JoinCode.Abstractions.LLM.Chat.TranscriptEntry>> LoadTranscriptAsync(string sessionId, string agentId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 保存代理元数据
@@ -68,5 +70,5 @@ public interface IAgentTranscriptService
     /// <summary>
     /// 列出会话下所有代理的元数据
     /// </summary>
-    Task<IReadOnlyList<AgentMetadata>> ListMetadataAsync(string sessionId, CancellationToken cancellationToken = default);
+    Task<IEnumerable<AgentMetadata>> ListMetadataAsync(string sessionId, CancellationToken cancellationToken = default);
 }

@@ -7,11 +7,11 @@ public class CronToolHandlers
     private const int MaxTasks = 50;
 
     private static readonly string[] CommonCronPatterns =
-    [
+    new[] { 
         "*/5 * * * *", "*/15 * * * *", "*/30 * * * *",
         "0 * * * *", "0 */6 * * *", "0 9 * * *",
         "0 9 * * 1-5", "0 0 * * *"
-    ];
+     };
 
     private static readonly FrozenDictionary<string, string> CronHumanMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {

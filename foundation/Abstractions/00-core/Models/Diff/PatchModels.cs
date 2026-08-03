@@ -52,5 +52,5 @@ public sealed record StructuredPatchHunk
     public string Header { get; init; } = string.Empty;
 
     /// <summary>Diff 行数组</summary>
-    public PatchLine[] Lines { get; init; } = [];
+    public IEnumerable<PatchLine> Lines { get; init; } = Array.Empty<PatchLine>();
 }

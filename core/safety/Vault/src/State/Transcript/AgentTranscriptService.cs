@@ -32,20 +32,20 @@ public sealed partial class AgentTranscriptService : JoinCode.Abstractions.Inter
         await _writer.AppendEntryAsync(filePath, entryWithMeta, cancellationToken).ConfigureAwait(false);
     }
 
-    public async Task AppendEntriesAsync(string sessionId, string agentId, IReadOnlyList<TranscriptEntry> entries, CancellationToken cancellationToken = default)
+    public async Task AppendEntriesAsync(string sessionId, string agentId, IEnumerable<TranscriptEntry> entries, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
         ArgumentNullException.ThrowIfNull(entries);
 
-        if (entries.Count == 0) return;
+        if (!entries.Any()) return;
 
         var filePath = GetAgentTranscriptPath(sessionId, agentId);
         var entriesWithMeta = entries.Select(e => e.WithAgentMeta(sessionId, agentId)).ToList();
         await _writer.AppendEntriesAsync(filePath, entriesWithMeta, cancellationToken).ConfigureAwait(false);
     }
 
-    public async Task<IReadOnlyList<TranscriptEntry>> LoadTranscriptAsync(string sessionId, string agentId, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<TranscriptEntry>> LoadTranscriptAsync(string sessionId, string agentId, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
@@ -99,7 +99,7 @@ public sealed partial class AgentTranscriptService : JoinCode.Abstractions.Inter
         }
     }
 
-    public async Task<IReadOnlyList<JoinCode.Abstractions.Interfaces.AgentMetadata>> ListMetadataAsync(string sessionId, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<JoinCode.Abstractions.Interfaces.AgentMetadata>> ListMetadataAsync(string sessionId, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
 

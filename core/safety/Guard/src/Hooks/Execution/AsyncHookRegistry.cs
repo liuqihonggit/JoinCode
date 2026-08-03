@@ -18,9 +18,9 @@ public interface IAsyncHookRegistry
     Task<List<AsyncHookResponse>> CheckForResponsesAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// 获取所有待处理的钩子
+    /// 获取所有待处理的钩子（遍历器，不分配新集合）
     /// </summary>
-    IReadOnlyList<PendingAsyncHook> GetPendingHooks();
+    IEnumerable<PendingAsyncHook> GetPendingHooks();
 
     /// <summary>
     /// 移除已交付的钩子
@@ -212,23 +212,19 @@ public sealed record AsyncHookResponse
 }
 
 /// <summary>
-/// 异步钩子注册表实现
+/// 异步钩子注册表实现 — 基于 MapRegistry
 /// </summary>
 [Register]
-public sealed partial class AsyncHookRegistry : IAsyncHookRegistry
+public sealed partial class AsyncHookRegistry : MapRegistry<string, PendingAsyncHook>, IAsyncHookRegistry
 {
-    private readonly ConcurrentDictionary<string, PendingAsyncHook> _pendingHooks = new();
     [Inject] private readonly ILogger<AsyncHookRegistry>? _logger;
 
-    public AsyncHookRegistry(ILogger<AsyncHookRegistry>? logger = null)
-    {
-        _logger = logger;
-    }
+    public AsyncHookRegistry(ILogger<AsyncHookRegistry>? logger = null) => _logger = logger;
 
     /// <inheritdoc />
     public void Register(PendingAsyncHook hook)
     {
-        _pendingHooks[hook.ProcessId] = hook;
+        AddOrUpdateCore(hook.ProcessId, hook);
         _logger?.LogDebug(
             "Registered async hook {ProcessId} ({HookName}) with timeout {TimeoutMs}ms",
             hook.ProcessId,
@@ -242,7 +238,7 @@ public sealed partial class AsyncHookRegistry : IAsyncHookRegistry
         var responses = new List<AsyncHookResponse>();
         var toRemove = new List<string>();
 
-        var hooks = _pendingHooks.Values.ToList();
+        var hooks = GetAll().ToList();
         _logger?.LogDebug("Checking {Count} async hooks for responses", hooks.Count);
 
         foreach (var hook in hooks)
@@ -261,10 +257,9 @@ public sealed partial class AsyncHookRegistry : IAsyncHookRegistry
             }
         }
 
-        // 清理已处理的钩子
         foreach (var processId in toRemove)
         {
-            if (_pendingHooks.TryRemove(processId, out var removed))
+            if (RemoveCore(processId, out var removed))
             {
                 removed.StopProgressInterval?.Invoke();
                 removed.Process?.Cleanup();
@@ -371,19 +366,15 @@ public sealed partial class AsyncHookRegistry : IAsyncHookRegistry
     }
 
     /// <inheritdoc />
-    public IReadOnlyList<PendingAsyncHook> GetPendingHooks()
-    {
-        return _pendingHooks.Values
-            .Where(h => !h.ResponseAttachmentSent)
-            .ToList();
-    }
+    public IEnumerable<PendingAsyncHook> GetPendingHooks()
+        => Where(h => !h.ResponseAttachmentSent);
 
     /// <inheritdoc />
     public void RemoveDeliveredHooks(IEnumerable<string> processIds)
     {
         foreach (var processId in processIds)
         {
-            if (_pendingHooks.TryRemove(processId, out var hook))
+            if (RemoveCore(processId, out var hook))
             {
                 hook.StopProgressInterval?.Invoke();
                 _logger?.LogDebug("Removed delivered hook {ProcessId}", processId);
@@ -394,9 +385,8 @@ public sealed partial class AsyncHookRegistry : IAsyncHookRegistry
     /// <inheritdoc />
     public async Task FinalizeAllAsync(CancellationToken cancellationToken = default)
     {
-        var hooks = _pendingHooks.Values.ToList();
+        var hooks = GetAll().ToList();
 
-        // 使用 LINQ 和 Task.WhenAll 替代 Parallel.ForEachAsync
         var tasks = hooks
             .Select(async hook =>
             {
@@ -432,26 +422,26 @@ public sealed partial class AsyncHookRegistry : IAsyncHookRegistry
 
         await Task.WhenAll(tasks).ConfigureAwait(false);
 
-        _pendingHooks.Clear();
+        Clear();
     }
 
     /// <inheritdoc />
     public void ClearAll()
     {
-        foreach (var hook in _pendingHooks.Values)
+        var cleared = ClearCore();
+        foreach (var kvp in cleared)
         {
             try
             {
-                hook.StopProgressInterval?.Invoke();
-                hook.Process?.Kill();
-                hook.Process?.Cleanup();
+                kvp.Value.StopProgressInterval?.Invoke();
+                kvp.Value.Process?.Kill();
+                kvp.Value.Process?.Cleanup();
             }
             catch (Exception ex) { /* Ignore cleanup errors */
                 System.Diagnostics.Trace.WriteLine($"Failed to cleanup hook: {ex.Message}");
             }
         }
 
-        _pendingHooks.Clear();
         _logger?.LogDebug("Cleared all async hooks");
     }
 }

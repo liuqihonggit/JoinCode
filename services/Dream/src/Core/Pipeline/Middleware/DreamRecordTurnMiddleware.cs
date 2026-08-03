@@ -27,7 +27,7 @@ public sealed partial class DreamRecordTurnMiddleware : IDreamMiddleware
         await _taskRegistry.CompleteDreamTaskAsync(taskId, ct).ConfigureAwait(false);
         ctx.TaskCompleted = true;
 
-        ctx.Result = DreamResult.Success(consolidationResult, taskId, ctx.SessionIds.Count, 0);
+        ctx.Result = DreamResult.Success(consolidationResult, taskId, ctx.SessionIds.Count(), 0);
 
         await next(ctx, ct).ConfigureAwait(false);
     }

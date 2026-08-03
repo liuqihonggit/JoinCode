@@ -4,7 +4,7 @@ public interface IInProcessTeammateTaskExecutor
 {
     Task<AgentTaskResult> ExecuteTeammateAsync(InProcessTeammateDefinition definition, CancellationToken ct = default);
     Task<bool> SendMessageToTeammateAsync(string teammateId, CoordinatorMessage message, CancellationToken ct = default);
-    Task<IReadOnlyList<string>> GetActiveTeammatesAsync(CancellationToken ct = default);
+    Task<IEnumerable<string>> GetActiveTeammatesAsync(CancellationToken ct = default);
     Task StopTeammateAsync(string teammateId, CancellationToken ct = default);
     Task TerminateTeammateAsync(string teammateId, string? reason = null, CancellationToken ct = default);
     Task<bool> IsTeammateIdleAsync(string teammateId, CancellationToken ct = default);
@@ -17,6 +17,8 @@ public sealed partial class InProcessTeammateDefinition
     public required string Task { get; init; }
     public string? SystemPrompt { get; init; }
     public string? AgentType { get; init; }
+    public AgentRole Role { get; init; } = AgentRole.Executor;
+    public ExecutorVariant? Variant { get; init; }
     public string? AdditionalInstructions { get; init; }
     public int MaxIterations { get; init; } = 50;
     public List<string>? InitialContext { get; init; }
@@ -58,6 +60,7 @@ public sealed partial class InProcessTeammateTaskExecutor : IInProcessTeammateTa
         IAgentLifecycleManager agentLifecycleManager,
         IAgentMessageBroker messageBroker,
         ILogger<InProcessTeammateTaskExecutor>? logger = null,
+        ILoggerFactory? loggerFactory = null,
         ITelemetryService? telemetryService = null,
         IMailboxPoller? mailboxPoller = null,
         IPlanModeManager? planModeManager = null,
@@ -74,7 +77,14 @@ public sealed partial class InProcessTeammateTaskExecutor : IInProcessTeammateTa
         _subAgentContextAccessor = subAgentContextAccessor ?? new SubAgentContextAccessor();
         _clock = clock ?? SystemClockService.Instance;
 
-        if (executeMiddlewares is not null)
+        if (executeMiddlewares is not null && loggerFactory is not null)
+        {
+            _executePipeline = new PipelineBuilder<TeammateExecutionContext>()
+                .WithLoggingScope(loggerFactory)
+                .UseRange(executeMiddlewares)
+                .Build();
+        }
+        else if (executeMiddlewares is not null)
         {
             _executePipeline = new MiddlewarePipeline<TeammateExecutionContext>(executeMiddlewares);
         }
@@ -128,7 +138,8 @@ public sealed partial class InProcessTeammateTaskExecutor : IInProcessTeammateTa
 
             var options = new SubAgentOptions
             {
-                AgentType = definition.AgentType,
+                Role = definition.Role != default ? definition.Role : AgentRole.Executor,
+                Variant = definition.Variant,
                 AdditionalInstructions = definition.AdditionalInstructions,
                 MaxIterations = definition.MaxIterations,
                 ContentReplacementState = _subAgentContextAccessor.Current?.ContentReplacementState?.Clone(),
@@ -248,12 +259,12 @@ public sealed partial class InProcessTeammateTaskExecutor : IInProcessTeammateTa
         return await _messageBroker.SendMessageAsync(teammateId, message, ct).ConfigureAwait(false);
     }
 
-    public async Task<IReadOnlyList<string>> GetActiveTeammatesAsync(CancellationToken ct = default)
+    public async Task<IEnumerable<string>> GetActiveTeammatesAsync(CancellationToken ct = default)
     {
         await _teammateLock.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            return _activeTeammates.Keys.ToList();
+            return _activeTeammates.Keys;
         }
         finally
         {
@@ -329,7 +340,8 @@ public sealed partial class InProcessTeammateTaskExecutor : IInProcessTeammateTa
         var subAgentContext = new SubAgentContext
         {
             AgentId = state.Context.AgentId,
-            AgentType = "teammate",
+            Role = AgentRole.Executor,
+            Variant = ExecutorVariant.Teammate,
             Task = definition.Task,
             ParentAgentId = _subAgentContextAccessor.Current?.AgentId,
             SessionId = definition.ParentSessionId ?? _subAgentContextAccessor.Current?.SessionId ?? "default",
@@ -504,7 +516,7 @@ public sealed partial class InProcessTeammateTaskExecutor : IInProcessTeammateTa
 
         try
         {
-            await _agentLifecycleManager.DisposeAgentAsync(state.Agent.Id, CancellationToken.None).ConfigureAwait(false);
+            await _agentLifecycleManager.DisposeAgentAsync(state.Agent.ObjectId.UniqueId, CancellationToken.None).ConfigureAwait(false);
         }
         catch (Exception ex)
         {

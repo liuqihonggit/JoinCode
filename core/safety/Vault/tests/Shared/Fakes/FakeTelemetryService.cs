@@ -30,9 +30,9 @@ public sealed class FakeTelemetryService : ITelemetryService
     public ITelemetryGauge GetGauge(string name, string? unit = null, string? description = null)
         => new FakeGauge(name);
 
-    public IReadOnlyList<TelemetrySpanData> GetActiveSpans() => Array.Empty<TelemetrySpanData>();
+    public IEnumerable<TelemetrySpanData> GetActiveSpans() => Array.Empty<TelemetrySpanData>();
 
-    public IReadOnlyList<string> GetRegisteredMetrics() => Array.Empty<string>();
+    public IEnumerable<string> GetRegisteredMetrics() => Array.Empty<string>();
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 

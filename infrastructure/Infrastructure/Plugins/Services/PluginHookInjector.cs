@@ -4,7 +4,7 @@ public interface IPluginHookInjector
 {
     Task InjectHooksAsync(string pluginName, IReadOnlyList<PluginHookDefinition> hooks, CancellationToken ct = default);
     Task RemoveHooksAsync(string pluginName, CancellationToken ct = default);
-    IReadOnlyList<PluginHookDefinition> GetInjectedHooks(string pluginName);
+    IEnumerable<PluginHookDefinition> GetInjectedHooks(string pluginName);
 }
 
 public sealed partial class PluginHookDefinition
@@ -80,7 +80,7 @@ public sealed partial class PluginHookInjector : IPluginHookInjector
         await Task.CompletedTask.ConfigureAwait(false);
     }
 
-    public IReadOnlyList<PluginHookDefinition> GetInjectedHooks(string pluginName)
+    public IEnumerable<PluginHookDefinition> GetInjectedHooks(string pluginName)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(pluginName);
 

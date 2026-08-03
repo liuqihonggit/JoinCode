@@ -53,7 +53,7 @@ public sealed class AgentsCommand : ChatCommandBase
             var selector = new Selector<AgentDefinition>(
                 "代理列表",
                 [.. agents],
-                a => a.AgentType + (a.IsBackground ? " [后台]" : ""),
+                a => a.DisplayId + (a.IsBackground ? " [后台]" : ""),
                 a => string.IsNullOrEmpty(a.Description) ? a.WhenToUse : a.Description,
                 enableSearch: true);
 
@@ -83,7 +83,7 @@ public sealed class AgentsCommand : ChatCommandBase
                 var bgMarker = agent.IsBackground ? " [后台]" : "";
                 var desc = string.IsNullOrEmpty(agent.Description) ? agent.WhenToUse : agent.Description;
                 var shortDesc = desc.Length > 60 ? desc[..60] + "..." : desc;
-                TerminalHelper.WriteLine($"    {agent.AgentType}{bgMarker}");
+                TerminalHelper.WriteLine($"    {agent.DisplayId}{bgMarker}");
                 TerminalHelper.WriteLine($"      {shortDesc}");
             }
             TerminalHelper.NewLine();
@@ -97,7 +97,7 @@ public sealed class AgentsCommand : ChatCommandBase
     /// </summary>
     private static Task ShowAgentDetailAsync(AgentDefinition agent)
     {
-        TerminalHelper.WriteLine(L.T(StringKey.HostAgentsDetailHeader, agent.AgentType) + "\n");
+        TerminalHelper.WriteLine(L.T(StringKey.HostAgentsDetailHeader, agent.DisplayId) + "\n");
 
         if (!string.IsNullOrEmpty(agent.Description))
             TerminalHelper.WriteLine(L.T(StringKey.HostAgentsDescriptionLabel, agent.Description));
@@ -153,14 +153,14 @@ public sealed class AgentsCommand : ChatCommandBase
             return;
         }
 
-        var agent = await provider.GetAgentDefinitionAsync(agentType, cancellationToken: context.CancellationToken).ConfigureAwait(false);
+        var agent = await provider.GetAgentDefinitionAsync(JoinCode.Abstractions.Models.Agent.AgentRole.Executor, ExecutorVariantExtensions.FromValue(agentType), cancellationToken: context.CancellationToken).ConfigureAwait(false);
         if (agent is null)
         {
             TerminalHelper.WriteLine(L.T(StringKey.HostAgentsNotFound, agentType));
             return;
         }
 
-        TerminalHelper.WriteLine(L.T(StringKey.HostAgentsDetailHeader, agent.AgentType) + "\n");
+        TerminalHelper.WriteLine(L.T(StringKey.HostAgentsDetailHeader, agent.DisplayId) + "\n");
 
         if (!string.IsNullOrEmpty(agent.Description))
         {

@@ -129,10 +129,10 @@ public class WorktreeToolHandlers
 
         var response = new System.Text.StringBuilder();
         response.AppendLine($"{ObjectSymbol.Directory.ToValue()} {L.T(StringKey.WorktreeSessionList)}");
-        response.AppendLine(L.T(StringKey.WorktreeActiveSessionCount, sessions.Count));
+        response.AppendLine(L.T(StringKey.WorktreeActiveSessionCount, sessions.Count()));
         response.AppendLine();
 
-        if (sessions.Count == 0)
+        if (!sessions.Any())
         {
             response.AppendLine(L.T(StringKey.WorktreeNoActiveSessions));
         }

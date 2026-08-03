@@ -71,7 +71,7 @@ public sealed partial class ToolCacheManager
     /// </summary>
     /// <param name="factory">缓存未命中时的工厂方法</param>
     /// <returns>工具信息列表</returns>
-    public IReadOnlyList<ToolInfo> GetAllToolInfos(Func<IEnumerable<ToolInfo>> factory)
+    public IEnumerable<ToolInfo> GetAllToolInfos(Func<IEnumerable<ToolInfo>> factory)
     {
         if (_cache.TryGetValue(ToolCacheKeys.AllTools, out List<ToolInfo>? cachedTools) && cachedTools != null)
         {

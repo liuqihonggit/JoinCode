@@ -4,10 +4,10 @@ namespace Core.Agents.Coordinator;
 public sealed partial class TmuxPaneBackend : JoinCode.Abstractions.Interfaces.IPaneBackend
 {
     private static readonly string[] TmuxColorMap =
-    [
+    new[] { 
         "red", "blue", "green", "yellow", "magenta", "colour208", "colour205", "cyan",
         "colour131", "colour75", "colour114", "colour221"
-    ];
+     };
 
     [Inject] private readonly ILogger<TmuxPaneBackend>? _logger;
     private readonly IProcessService _processService;

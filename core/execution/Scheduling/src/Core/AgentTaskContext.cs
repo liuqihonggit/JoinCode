@@ -4,7 +4,7 @@ namespace Core.Scheduling;
 public sealed class AgentTaskContext : IAgentTaskContext
 {
     private readonly ConcurrentDictionary<string, JsonElement> _metadata = new();
-    private readonly List<StructuredTaskEntry> _structuredTasks = [];
+    private readonly Dictionary<int, StructuredTaskEntry> _structuredTasks = new();
     private readonly SemaphoreSlim _structuredTasksSemaphore = new(1, 1);
 
     public required string TaskId { get; init; }
@@ -32,7 +32,7 @@ public sealed class AgentTaskContext : IAgentTaskContext
         await _structuredTasksSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            return _structuredTasks.ToList();
+            return _structuredTasks.Values.OrderBy(t => t.Order).ToList();
         }
         finally
         {
@@ -45,7 +45,7 @@ public sealed class AgentTaskContext : IAgentTaskContext
         await _structuredTasksSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            _structuredTasks.Add(task);
+            _structuredTasks[task.Order] = task;
         }
         finally
         {
@@ -58,11 +58,9 @@ public sealed class AgentTaskContext : IAgentTaskContext
         await _structuredTasksSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            var index = _structuredTasks.FindIndex(t => t.Order == order);
-            if (index < 0) return;
+            if (!_structuredTasks.TryGetValue(order, out var existing)) return;
 
-            var existing = _structuredTasks[index];
-            _structuredTasks[index] = existing with
+            _structuredTasks[order] = existing with
             {
                 Result = result ?? existing.Result,
                 Status = status ?? existing.Status
@@ -79,10 +77,8 @@ public sealed class AgentTaskContext : IAgentTaskContext
         await _structuredTasksSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            var taskIndex = _structuredTasks.FindIndex(t => t.Order == taskOrder);
-            if (taskIndex < 0) return;
+            if (!_structuredTasks.TryGetValue(taskOrder, out var task)) return;
 
-            var task = _structuredTasks[taskIndex];
             if (possibilityIndex < 0 || possibilityIndex >= task.Possibilities.Count) return;
 
             var possibilities = task.Possibilities.ToList();
@@ -92,7 +88,7 @@ public sealed class AgentTaskContext : IAgentTaskContext
                 ExclusionReason = reason
             };
 
-            _structuredTasks[taskIndex] = task with { Possibilities = possibilities };
+            _structuredTasks[taskOrder] = task with { Possibilities = possibilities };
         }
         finally
         {
@@ -133,9 +129,9 @@ public sealed class AgentTaskContext : IAgentTaskContext
             throw new TimeoutException("[SCH001] CreateSubContext: 等待结构化任务信号量超时");
         try
         {
-            foreach (var task in _structuredTasks)
+            foreach (var task in _structuredTasks.Values.OrderBy(t => t.Order))
             {
-                subContext._structuredTasks.Add(task);
+                subContext._structuredTasks[task.Order] = task;
             }
         }
         finally

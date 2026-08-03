@@ -53,7 +53,7 @@ public interface IAgentWorktreeService
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>会话列表</returns>
-    Task<IReadOnlyList<AgentWorktreeSession>> GetAllSessionsAsync(
+    Task<IEnumerable<AgentWorktreeSession>> GetAllSessionsAsync(
         CancellationToken cancellationToken = default);
 
     /// <summary>

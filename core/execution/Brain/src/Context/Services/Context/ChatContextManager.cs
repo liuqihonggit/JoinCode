@@ -636,7 +636,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     /// <summary>
     /// 获取延迟加载的工具信息列表（主要是 MCP 工具）
     /// </summary>
-    public IReadOnlyList<DeferredToolInfo> GetDeferredTools()
+    public IEnumerable<DeferredToolInfo> GetDeferredTools()
     {
         return _deferredTools;
     }

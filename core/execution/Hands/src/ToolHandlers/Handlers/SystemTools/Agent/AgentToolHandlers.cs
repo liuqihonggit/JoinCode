@@ -173,9 +173,9 @@ public partial class AgentToolHandlers
         response.AppendLine($"Agent ID: {agent.Id}");
         response.AppendLine($"Description: {agent.Description}");
 
-        if (!string.IsNullOrEmpty(agent.AgentType))
+        if (!string.IsNullOrEmpty(agent.Role.ToValue()))
         {
-            response.AppendLine($"Type: {agent.AgentType}");
+            response.AppendLine($"Type: {agent.Variant?.ToValue() ?? agent.Role.ToValue()}");
         }
 
         if (agent.StartedAt.HasValue)
@@ -244,23 +244,24 @@ public partial class AgentToolHandlers
         {
             var runningAgents = await _coordinator.GetRunningAgentsAsync(cancellationToken).ConfigureAwait(false);
 
+            var runningList = runningAgents.ToList();
             var response = new System.Text.StringBuilder();
-            response.AppendLine(L.T(StringKey.AgentRunningCount, runningAgents.Count));
+            response.AppendLine(L.T(StringKey.AgentRunningCount, runningList.Count));
             response.AppendLine();
 
-            if (runningAgents.Count == 0)
+            if (runningList.Count == 0)
             {
                 response.AppendLine(L.T(StringKey.AgentNoRunningAgents));
             }
             else
             {
-                foreach (var agent in runningAgents)
+                foreach (var agent in runningList)
                 {
                     var duration = agent.StartedAt.HasValue
                         ? (_clock.GetUtcNow() - agent.StartedAt.Value).ToString(@"hh\:mm\:ss")
                         : "unknown";
                     response.AppendLine($"- [{agent.Id}] {agent.Description}");
-                    response.AppendLine($"  Type: {agent.AgentType ?? "generic"}, Duration: {duration}");
+                    response.AppendLine($"  Type: {agent.Variant?.ToValue() ?? agent.Role.ToValue() ?? "generic"}, Duration: {duration}");
                 }
             }
 
@@ -471,7 +472,7 @@ public partial class AgentToolHandlers
 
         try
         {
-            var messages = await _agentService.GetAgentMessagesAsync(agent_id, cancellationToken).ConfigureAwait(false);
+            var messages = (await _agentService.GetAgentMessagesAsync(agent_id, cancellationToken).ConfigureAwait(false)).ToList();
 
             var response = new System.Text.StringBuilder();
             response.AppendLine($"Pending messages for agent {agent_id}: {messages.Count}");

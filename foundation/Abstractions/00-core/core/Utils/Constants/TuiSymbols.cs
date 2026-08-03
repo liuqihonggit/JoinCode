@@ -21,10 +21,10 @@ public static class TuiSymbols
     public const string WarningPrefix = "\u26A0";
 
     /// <summary>Spinner 动画帧 — Windows/Linux 版本 (✳ 替换为 *)</summary>
-    public static readonly string[] SpinnerFrames = ["\u00B7", "\u2722", "*", "\u2736", "\u273B", "\u273D"];
+    public static readonly string[] SpinnerFrames = new[] { "\u00B7", "\u2722", "*", "\u2736", "\u273B", "\u273D" };
 
     /// <summary>Bridge 连接 Spinner 帧 (·|· ·/· ·—· ·\·)</summary>
-    public static readonly string[] BridgeSpinnerFrames = ["\u00B7|\u00B7", "\u00B7/\u00B7", "\u00B7\u2014\u00B7", "\u00B7\\\u00B7"];
+    public static readonly string[] BridgeSpinnerFrames = new[] { "\u00B7|\u00B7", "\u00B7/\u00B7", "\u00B7\u2014\u00B7", "\u00B7\\\u00B7" };
 
     /// <summary>输入提示符 — ❯ (U+276F)</summary>
     public const string PromptPointer = "\u276F";

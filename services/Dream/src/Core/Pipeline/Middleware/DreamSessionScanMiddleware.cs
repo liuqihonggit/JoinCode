@@ -26,17 +26,18 @@ public sealed partial class DreamSessionScanMiddleware : IDreamMiddleware
             ctx.SessionIds = await _sessionScanner.ListSessionsTouchedSinceAsync(lastConsolidationTime, ct).ConfigureAwait(false);
         }
 
-        if (ctx.SessionIds.Count == 0)
+        if (!ctx.SessionIds.Any())
         {
             _logger?.LogDebug("[DreamScan] 没有找到需要处理的会话");
             ctx.Result = DreamResult.Skipped("没有需要处理的会话");
             return;
         }
 
-        if (!ctx.Request.Force && ctx.SessionIds.Count < _config.MinSessions)
+        var sessionCount = ctx.SessionIds.Count();
+        if (!ctx.Request.Force && sessionCount < _config.MinSessions)
         {
-            _logger?.LogDebug("[DreamScan] 会话数量不足: {Count} < {Min}", ctx.SessionIds.Count, _config.MinSessions);
-            ctx.Result = DreamResult.Skipped($"会话数量不足: {ctx.SessionIds.Count} < {_config.MinSessions}");
+            _logger?.LogDebug("[DreamScan] 会话数量不足: {Count} < {Min}", sessionCount, _config.MinSessions);
+            ctx.Result = DreamResult.Skipped($"会话数量不足: {sessionCount} < {_config.MinSessions}");
             return;
         }
 

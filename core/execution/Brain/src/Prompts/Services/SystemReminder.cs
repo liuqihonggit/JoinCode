@@ -5,7 +5,7 @@ namespace Core.Prompts;
 /// </summary>
 [Register(typeof(ISystemReminderManager))]
 public sealed partial class SystemReminderManager : ISystemReminderManager, IAsyncDisposable {
-    private readonly List<SystemReminder> _reminders = [];
+    private readonly Dictionary<string, SystemReminder> _reminders = new(StringComparer.Ordinal);
     private readonly AsyncLock _lock = new();
 
     /// <summary>
@@ -13,8 +13,8 @@ public sealed partial class SystemReminderManager : ISystemReminderManager, IAsy
     /// </summary>
     public async Task AddReminderAsync(string id, string content, int priority = 0, CancellationToken ct = default) {
         using (await _lock.LockAsync(ct).ConfigureAwait(false)) {
-            _reminders.RemoveAll(r => r.Id == id);
-            _reminders.Add(new SystemReminder(id, content, priority));
+            _reminders.Remove(id);
+            _reminders[id] = new SystemReminder(id, content, priority);
         }
     }
 
@@ -23,7 +23,7 @@ public sealed partial class SystemReminderManager : ISystemReminderManager, IAsy
     /// </summary>
     public async Task RemoveReminderAsync(string id, CancellationToken ct = default) {
         using (await _lock.LockAsync(ct).ConfigureAwait(false)) {
-            _reminders.RemoveAll(r => r.Id == id);
+            _reminders.Remove(id);
         }
     }
 
@@ -32,7 +32,7 @@ public sealed partial class SystemReminderManager : ISystemReminderManager, IAsy
     /// </summary>
     public async Task<IReadOnlyList<SystemReminder>> GetRemindersAsync(CancellationToken ct = default) {
         using (await _lock.LockAsync(ct).ConfigureAwait(false)) {
-            return _reminders
+            return _reminders.Values
                 .OrderByDescending(r => r.Priority)
                 .ThenBy(r => r.CreatedAt)
                 .ToList();

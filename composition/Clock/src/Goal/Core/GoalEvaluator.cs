@@ -59,46 +59,18 @@ public sealed partial class GoalEvaluator : IGoalEvaluator
             return GoalEvaluationResult.NotCompleted(L.T(StringKey.GoalEvaluatorEmptyResult));
         }
 
-        var trimmed = content.Trim();
-
-        // 尝试 JSON 解析（使用源码生成器，AOT 兼容）
-        var jsonStart = trimmed.IndexOf('{');
-        if (jsonStart >= 0)
+        var result = LlmJsonHelper.Deserialize(content, GoalJsonContext.Default.GoalEvaluationJson, out var repairHint);
+        if (result is not null)
         {
-            var jsonEnd = trimmed.LastIndexOf('}');
-            if (jsonEnd > jsonStart)
-            {
-                var jsonSpan = trimmed.AsSpan(jsonStart, jsonEnd - jsonStart + 1);
-                try
-                {
-                    var result = JsonSerializer.Deserialize(jsonSpan, GoalJsonContext.Default.GoalEvaluationJson);
-                    if (result != null)
-                    {
-                        return result.Completed
-                            ? GoalEvaluationResult.Completed(result.Reason)
-                            : GoalEvaluationResult.NotCompleted(result.Reason);
-                    }
-                }
-                catch (JsonException ex)
-                {
-                    // JSON 解析失败，尝试文本回退
-                    System.Diagnostics.Trace.WriteLine($"Goal evaluation JSON parse failed, falling back to text: {ex.Message}");
-                }
-            }
+            if (repairHint is not null)
+                System.Diagnostics.Trace.WriteLine($"Goal evaluation JSON repaired: {repairHint}");
+
+            return result.Completed
+                ? GoalEvaluationResult.Completed(result.Reason)
+                : GoalEvaluationResult.NotCompleted(result.Reason);
         }
 
-        // 文本回退：yes/no 前缀
-        if (trimmed.StartsWith("yes", StringComparison.OrdinalIgnoreCase))
-        {
-            return GoalEvaluationResult.Completed(trimmed);
-        }
-
-        if (trimmed.StartsWith("no", StringComparison.OrdinalIgnoreCase))
-        {
-            return GoalEvaluationResult.NotCompleted(trimmed);
-        }
-
-        return GoalEvaluationResult.NotCompleted(L.T(StringKey.GoalEvaluatorFormatError, trimmed));
+        return GoalEvaluationResult.NotCompleted(L.T(StringKey.GoalEvaluatorFormatError, content.Trim()));
     }
 
     private static string BuildEvaluatorPrompt(string objective, IReadOnlyList<string> constraints, string recentConversation)
@@ -128,7 +100,10 @@ public sealed partial class GoalEvaluator : IGoalEvaluator
             - You can only judge based on what appears in the conversation. You cannot execute tools.
 
             RESPONSE FORMAT:
+            Output a JSON block wrapped in ```json and ```:
+            ```json
             {"completed": true/false, "reason": "..."}
+            ```
             """;
     }
 }

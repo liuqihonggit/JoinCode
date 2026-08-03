@@ -40,6 +40,7 @@ public sealed partial class TeamMemorySyncService : ITeamMemorySyncService
         IFileOperationService fileOperationService,
         IOptions<TeamMemorySyncOptions>? options = null,
         ILogger<TeamMemorySyncService>? logger = null,
+        ILoggerFactory? loggerFactory = null,
         ITelemetryService? telemetryService = null,
         IEnumerable<ISyncStartMiddleware>? startMiddlewares = null,
         IClockService? clock = null)
@@ -53,7 +54,14 @@ public sealed partial class TeamMemorySyncService : ITeamMemorySyncService
 
         _syncTimer = new System.Threading.Timer(OnSyncTimerTick, null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
 
-        if (startMiddlewares is not null)
+        if (startMiddlewares is not null && loggerFactory is not null)
+        {
+            _startPipeline = new PipelineBuilder<SyncStartContext>()
+                .WithLoggingScope(loggerFactory)
+                .UseRange(startMiddlewares)
+                .Build();
+        }
+        else if (startMiddlewares is not null)
         {
             _startPipeline = new MiddlewarePipeline<SyncStartContext>(startMiddlewares);
         }
@@ -200,14 +208,13 @@ public sealed partial class TeamMemorySyncService : ITeamMemorySyncService
         }
     }
 
-    public Task<IReadOnlyList<MemorySyncEvent>> GetSyncHistoryAsync(int limit = 100, CancellationToken cancellationToken = default)
+    public Task<IEnumerable<MemorySyncEvent>> GetSyncHistoryAsync(int limit = 100, CancellationToken cancellationToken = default)
     {
         var events = _syncHistory
             .OrderByDescending(e => e.Timestamp)
-            .Take(limit)
-            .ToList();
+            .Take(limit);
 
-        return Task.FromResult<IReadOnlyList<MemorySyncEvent>>(events);
+        return Task.FromResult<IEnumerable<MemorySyncEvent>>(events);
     }
 
     public async Task<SyncConflictResolution> ResolveConflictAsync(string filePath, SyncConflictResolution resolution, CancellationToken cancellationToken = default)

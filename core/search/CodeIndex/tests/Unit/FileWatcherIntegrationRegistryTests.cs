@@ -52,7 +52,7 @@ public sealed class FileWatcherIntegrationRegistryTests : IAsyncDisposable
         Assert.True(_watcherRegistry.IsWatching("repo2"));
 
         var watchingIds = _watcherRegistry.GetWatchingRepoIds();
-        Assert.Equal(2, watchingIds.Count);
+        Assert.Equal(2, watchingIds.Count());
         Assert.Contains("repo1", watchingIds);
         Assert.Contains("repo2", watchingIds);
     }

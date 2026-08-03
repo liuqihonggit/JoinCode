@@ -193,7 +193,7 @@ public sealed class ChatCommandAttribute : Attribute
 
     public string Usage { get; init; } = string.Empty;
 
-    public string[] Aliases { get; init; } = [];
+    public string[] Aliases { get; init; } = Array.Empty<string>();
 
     public string ArgumentHint { get; init; } = string.Empty;
 

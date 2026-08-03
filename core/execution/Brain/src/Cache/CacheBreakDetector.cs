@@ -13,7 +13,7 @@ public class CacheBreakDetector
         {
             SystemPromptHash = ContentHash.Compute(prefix.System),
             ToolSpecsHash = ContentHash.ComputeToolSpecs(prefix.ToolSpecs),
-            ToolCount = prefix.ToolSpecs.Count,
+            ToolCount = prefix.ToolSpecs.Count(),
             ToolNamesHash = ContentHash.ComputeToolNames(prefix.ToolSpecs),
             DynamicContentHash = ContentHash.Compute(dynamicContent),
             ToolSpecs = prefix.ToolSpecs.ToList(),
@@ -60,9 +60,9 @@ public class CacheBreakDetector
 
         var currentToolSpecsHash = ContentHash.ComputeToolSpecs(currentPrefix.ToolSpecs);
         ToolDriftReport? toolDrift = null;
-        if (snapshot.ToolSpecsHash != currentToolSpecsHash || snapshot.ToolCount != currentPrefix.ToolSpecs.Count)
+        if (snapshot.ToolSpecsHash != currentToolSpecsHash || snapshot.ToolCount != currentPrefix.ToolSpecs.Count())
         {
-            toolDrift = ToolListDriftClassifier.Classify(snapshot.ToolSpecs, currentPrefix.ToolSpecs);
+            toolDrift = ToolListDriftClassifier.Classify(snapshot.ToolSpecs, currentPrefix.ToolSpecs.ToList());
 
             if (ShouldReportToolSpecsBreak(toolDrift, usage))
             {

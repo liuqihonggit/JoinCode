@@ -13,7 +13,7 @@ public interface ILspConfigLoader
     /// <param name="configPath">配置文件路径</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>LSP 配置列表</returns>
-    Task<IReadOnlyList<LspServerConfigEntry>> LoadAsync(string? configPath = null, CancellationToken cancellationToken = default);
+    Task<IEnumerable<LspServerConfigEntry>> LoadAsync(string? configPath = null, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 保存配置
@@ -52,7 +52,7 @@ public sealed record LspServerConfigEntry
     /// <summary>
     /// 参数
     /// </summary>
-    public IReadOnlyList<string> Arguments { get; init; } = Array.Empty<string>();
+    public IEnumerable<string> Arguments { get; init; } = Array.Empty<string>();
 
     /// <summary>
     /// 工作目录
@@ -62,7 +62,7 @@ public sealed record LspServerConfigEntry
     /// <summary>
     /// 支持的文件扩展名
     /// </summary>
-    public IReadOnlyList<string> FileExtensions { get; init; } = Array.Empty<string>();
+    public IEnumerable<string> FileExtensions { get; init; } = Array.Empty<string>();
 
     /// <summary>
     /// 语言 ID
@@ -119,7 +119,7 @@ public sealed partial class LspConfigLoader : ILspConfigLoader
     [Inject] private readonly IFileSystem _fs;
 
     /// <inheritdoc />
-    public async Task<IReadOnlyList<LspServerConfigEntry>> LoadAsync(string? configPath = null, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<LspServerConfigEntry>> LoadAsync(string? configPath = null, CancellationToken cancellationToken = default)
     {
         var path = configPath ?? GetDefaultConfigPath();
 
@@ -185,7 +185,7 @@ public sealed partial class LspConfigLoader : ILspConfigLoader
     /// <summary>
     /// 获取默认配置
     /// </summary>
-    private static IReadOnlyList<LspServerConfigEntry> GetDefaultConfigs()
+    private static IEnumerable<LspServerConfigEntry> GetDefaultConfigs()
     {
         return new List<LspServerConfigEntry>
         {

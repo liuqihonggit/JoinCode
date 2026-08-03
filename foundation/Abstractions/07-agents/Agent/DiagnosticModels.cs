@@ -77,7 +77,7 @@ public sealed record DiagnosticReport
     public required string Description { get; init; }
 
     /// <summary>触发该报告的事件列表</summary>
-    public IReadOnlyList<DiagnosticEvent> TriggeringEvents { get; init; } = [];
+    public IEnumerable<DiagnosticEvent> TriggeringEvents { get; init; } = [];
 
     /// <summary>建议修复动作类型</summary>
     public HotFixActionType SuggestedFixType { get; init; }

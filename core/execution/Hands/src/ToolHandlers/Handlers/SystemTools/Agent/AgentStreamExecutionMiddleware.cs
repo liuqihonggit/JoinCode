@@ -23,7 +23,8 @@ public sealed partial class AgentStreamExecutionMiddleware : IAgentToolMiddlewar
         {
             Description = context.Description,
             Prompt = context.Prompt,
-            AgentType = context.SubagentType,
+            Role = context.SubagentRole,
+            Variant = context.SubagentVariant,
             RunInBackground = false,
             IsolationMode = AgentIsolationModeExtensions.FromValue(context.Isolation) ?? AgentIsolationMode.None,
             MemoryScope = AgentMemoryScopeExtensions.FromValue(context.Memory),

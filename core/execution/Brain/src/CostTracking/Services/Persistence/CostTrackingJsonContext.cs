@@ -1,6 +1,6 @@
 namespace Core.CostTracking;
 
-[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = false, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = false, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
 [JsonSerializable(typeof(List<TokenUsageRecord>))]
 [JsonSerializable(typeof(List<AnalyticsEvent>))]
 [JsonSerializable(typeof(AnalyticsEvent))]
@@ -14,7 +14,7 @@ namespace Core.CostTracking;
 [JsonSerializable(typeof(SessionCostData))]
 public partial class CostTrackingJsonContext : JsonSerializerContext;
 
-[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
 [JsonSerializable(typeof(List<AnalyticsEvent>))]
 [JsonSerializable(typeof(AnalyticsExportData))]
 public partial class CostTrackingIndentedJsonContext : JsonSerializerContext;

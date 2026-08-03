@@ -13,8 +13,8 @@ public sealed class BuildEntity : Entity
 
     public static BuildEntityRegistry Registry { get; } = new();
 
-    public BuildEntity(string? projectPath = null, string? configuration = null, string? id = null)
-        : base(ObjectType.Build, id)
+    public BuildEntity(string? projectPath = null, string? configuration = null, string? displayName = null)
+        : base(ObjectType.Build, displayName ?? projectPath)
     {
         ProjectPath = projectPath;
         Configuration = configuration;
@@ -24,16 +24,11 @@ public sealed class BuildEntity : Entity
     protected override void OnDispose() => Registry.Remove(ObjectId);
 }
 
-public sealed class BuildEntityRegistry
+public sealed class BuildEntityRegistry : MapRegistry<ObjectId, BuildEntity>
 {
-    private readonly ConcurrentDictionary<ObjectId, BuildEntity> _builds = new();
-    internal void Add(ObjectId id, BuildEntity build) => _builds.TryAdd(id, build);
-    internal bool Remove(ObjectId id) => _builds.TryRemove(id, out _);
-    public BuildEntity? Get(ObjectId id) => _builds.GetValueOrDefault(id);
-    public IReadOnlyList<BuildEntity> GetAll() => [.. _builds.Values];
-    public IReadOnlyList<BuildEntity> GetByStatus(TaskExecutionStatus status) => [.. _builds.Values.Where(b => b.Status == status)];
-    public int Count => _builds.Count;
-    public void Clear() => _builds.Clear();
+    internal void Add(ObjectId id, BuildEntity build) => AddCore(id, build);
+    internal bool Remove(ObjectId id) => RemoveCore(id);
+    public IEnumerable<BuildEntity> GetByStatus(TaskExecutionStatus status) => Where(b => b.Status == status);
 }
 
 /// <summary>
@@ -46,8 +41,8 @@ public sealed class SandboxEntity : Entity
 
     public static SandboxEntityRegistry Registry { get; } = new();
 
-    public SandboxEntity(string? workingDirectory = null, string? id = null)
-        : base(ObjectType.Sandbox, id)
+    public SandboxEntity(string? workingDirectory = null, string? displayName = null)
+        : base(ObjectType.Sandbox, displayName ?? workingDirectory)
     {
         WorkingDirectory = workingDirectory;
         Registry.Add(ObjectId, this);
@@ -56,15 +51,10 @@ public sealed class SandboxEntity : Entity
     protected override void OnDispose() => Registry.Remove(ObjectId);
 }
 
-public sealed class SandboxEntityRegistry
+public sealed class SandboxEntityRegistry : MapRegistry<ObjectId, SandboxEntity>
 {
-    private readonly ConcurrentDictionary<ObjectId, SandboxEntity> _sandboxes = new();
-    internal void Add(ObjectId id, SandboxEntity sandbox) => _sandboxes.TryAdd(id, sandbox);
-    internal bool Remove(ObjectId id) => _sandboxes.TryRemove(id, out _);
-    public SandboxEntity? Get(ObjectId id) => _sandboxes.GetValueOrDefault(id);
-    public IReadOnlyList<SandboxEntity> GetAll() => [.. _sandboxes.Values];
-    public int Count => _sandboxes.Count;
-    public void Clear() => _sandboxes.Clear();
+    internal void Add(ObjectId id, SandboxEntity sandbox) => AddCore(id, sandbox);
+    internal bool Remove(ObjectId id) => RemoveCore(id);
 }
 
 /// <summary>
@@ -77,8 +67,8 @@ public sealed class RepoEntity : Entity
 
     public static RepoEntityRegistry Registry { get; } = new();
 
-    public RepoEntity(string? repoPath = null, string? id = null)
-        : base(ObjectType.Repo, id)
+    public RepoEntity(string? repoPath = null, string? displayName = null)
+        : base(ObjectType.Repo, displayName ?? repoPath)
     {
         RepoPath = repoPath;
         Registry.Add(ObjectId, this);
@@ -87,15 +77,10 @@ public sealed class RepoEntity : Entity
     protected override void OnDispose() => Registry.Remove(ObjectId);
 }
 
-public sealed class RepoEntityRegistry
+public sealed class RepoEntityRegistry : MapRegistry<ObjectId, RepoEntity>
 {
-    private readonly ConcurrentDictionary<ObjectId, RepoEntity> _repos = new();
-    internal void Add(ObjectId id, RepoEntity repo) => _repos.TryAdd(id, repo);
-    internal bool Remove(ObjectId id) => _repos.TryRemove(id, out _);
-    public RepoEntity? Get(ObjectId id) => _repos.GetValueOrDefault(id);
-    public IReadOnlyList<RepoEntity> GetAll() => [.. _repos.Values];
-    public int Count => _repos.Count;
-    public void Clear() => _repos.Clear();
+    internal void Add(ObjectId id, RepoEntity repo) => AddCore(id, repo);
+    internal bool Remove(ObjectId id) => RemoveCore(id);
 }
 
 /// <summary>
@@ -111,8 +96,8 @@ public sealed class ShellTaskEntity : Entity
 
     public static ShellTaskEntityRegistry Registry { get; } = new();
 
-    public ShellTaskEntity(string? command = null, string? id = null)
-        : base(ObjectType.Task, id)
+    public ShellTaskEntity(string? command = null, string? displayName = null)
+        : base(ObjectType.Task, displayName ?? command)
     {
         Command = command;
         Registry.Add(ObjectId, this);
@@ -121,16 +106,11 @@ public sealed class ShellTaskEntity : Entity
     protected override void OnDispose() => Registry.Remove(ObjectId);
 }
 
-public sealed class ShellTaskEntityRegistry
+public sealed class ShellTaskEntityRegistry : MapRegistry<ObjectId, ShellTaskEntity>
 {
-    private readonly ConcurrentDictionary<ObjectId, ShellTaskEntity> _tasks = new();
-    internal void Add(ObjectId id, ShellTaskEntity task) => _tasks.TryAdd(id, task);
-    internal bool Remove(ObjectId id) => _tasks.TryRemove(id, out _);
-    public ShellTaskEntity? Get(ObjectId id) => _tasks.GetValueOrDefault(id);
-    public IReadOnlyList<ShellTaskEntity> GetAll() => [.. _tasks.Values];
-    public IReadOnlyList<ShellTaskEntity> GetByStatus(TaskExecutionStatus status) => [.. _tasks.Values.Where(t => t.Status == status)];
-    public int Count => _tasks.Count;
-    public void Clear() => _tasks.Clear();
+    internal void Add(ObjectId id, ShellTaskEntity task) => AddCore(id, task);
+    internal bool Remove(ObjectId id) => RemoveCore(id);
+    public IEnumerable<ShellTaskEntity> GetByStatus(TaskExecutionStatus status) => Where(t => t.Status == status);
 }
 
 /// <summary>
@@ -144,8 +124,8 @@ public sealed class PermissionRequestEntity : Entity
 
     public static PermissionRequestEntityRegistry Registry { get; } = new();
 
-    public PermissionRequestEntity(string? toolName = null, string? requestedAction = null, string? id = null)
-        : base(ObjectType.Request, id)
+    public PermissionRequestEntity(string? toolName = null, string? requestedAction = null, string? displayName = null)
+        : base(ObjectType.Request, displayName ?? toolName)
     {
         ToolName = toolName;
         RequestedAction = requestedAction;
@@ -155,16 +135,11 @@ public sealed class PermissionRequestEntity : Entity
     protected override void OnDispose() => Registry.Remove(ObjectId);
 }
 
-public sealed class PermissionRequestEntityRegistry
+public sealed class PermissionRequestEntityRegistry : MapRegistry<ObjectId, PermissionRequestEntity>
 {
-    private readonly ConcurrentDictionary<ObjectId, PermissionRequestEntity> _requests = new();
-    internal void Add(ObjectId id, PermissionRequestEntity request) => _requests.TryAdd(id, request);
-    internal bool Remove(ObjectId id) => _requests.TryRemove(id, out _);
-    public PermissionRequestEntity? Get(ObjectId id) => _requests.GetValueOrDefault(id);
-    public IReadOnlyList<PermissionRequestEntity> GetAll() => [.. _requests.Values];
-    public IReadOnlyList<PermissionRequestEntity> GetPending() => [.. _requests.Values.Where(r => r.Status == TaskExecutionStatus.Pending)];
-    public int Count => _requests.Count;
-    public void Clear() => _requests.Clear();
+    internal void Add(ObjectId id, PermissionRequestEntity request) => AddCore(id, request);
+    internal bool Remove(ObjectId id) => RemoveCore(id);
+    public IEnumerable<PermissionRequestEntity> GetPending() => Where(r => r.Status == TaskExecutionStatus.Pending);
 }
 
 /// <summary>
@@ -178,8 +153,8 @@ public sealed class NotificationEntity : Entity
 
     public static NotificationEntityRegistry Registry { get; } = new();
 
-    public NotificationEntity(string? message = null, string? category = null, string? id = null)
-        : base(ObjectType.Notification, id)
+    public NotificationEntity(string? message = null, string? category = null, string? displayName = null)
+        : base(ObjectType.Notification, displayName ?? message)
     {
         Message = message;
         Category = category;
@@ -189,14 +164,9 @@ public sealed class NotificationEntity : Entity
     protected override void OnDispose() => Registry.Remove(ObjectId);
 }
 
-public sealed class NotificationEntityRegistry
+public sealed class NotificationEntityRegistry : MapRegistry<ObjectId, NotificationEntity>
 {
-    private readonly ConcurrentDictionary<ObjectId, NotificationEntity> _notifications = new();
-    internal void Add(ObjectId id, NotificationEntity notification) => _notifications.TryAdd(id, notification);
-    internal bool Remove(ObjectId id) => _notifications.TryRemove(id, out _);
-    public NotificationEntity? Get(ObjectId id) => _notifications.GetValueOrDefault(id);
-    public IReadOnlyList<NotificationEntity> GetAll() => [.. _notifications.Values];
-    public IReadOnlyList<NotificationEntity> GetUnread() => [.. _notifications.Values.Where(n => !n.IsRead)];
-    public int Count => _notifications.Count;
-    public void Clear() => _notifications.Clear();
+    internal void Add(ObjectId id, NotificationEntity notification) => AddCore(id, notification);
+    internal bool Remove(ObjectId id) => RemoveCore(id);
+    public IEnumerable<NotificationEntity> GetUnread() => Where(n => !n.IsRead);
 }

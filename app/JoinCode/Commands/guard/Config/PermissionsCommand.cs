@@ -123,7 +123,7 @@ public sealed class PermissionsCommand : ChatCommandBase
         if (workspaceService is not null)
         {
             var dirs = workspaceService.GetAdditionalDirectories();
-            if (dirs.Count > 0)
+            if (dirs.Any())
             {
                 sb.AppendLine();
                 foreach (var dir in dirs)

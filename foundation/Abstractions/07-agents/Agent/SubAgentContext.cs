@@ -14,7 +14,8 @@ public sealed class SubAgentContext
     }
 
     public required string AgentId { get; init; }
-    public required string AgentType { get; init; }
+    public required AgentRole Role { get; init; }
+    public ExecutorVariant? Variant { get; init; }
     public required string Task { get; init; }
     public string? ParentAgentId { get; set; }
     public string? SessionId { get; set; }
@@ -28,8 +29,8 @@ public sealed class SubAgentContext
     public TokenUsage TokenUsage { get; } = new();
     public AgentStatus Status { get; set; } = AgentStatus.Pending;
 
-    public IReadOnlyList<string>? AllowedTools { get; init; }
-    public IReadOnlyList<string>? DeniedTools { get; init; }
+    public IEnumerable<string>? AllowedTools { get; init; }
+    public IEnumerable<string>? DeniedTools { get; init; }
 
     public string? SubagentName { get; init; }
     public bool IsBuiltIn { get; init; }

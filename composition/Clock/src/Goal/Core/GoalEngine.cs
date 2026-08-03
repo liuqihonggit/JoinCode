@@ -68,7 +68,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
 
         var dag = new Dag<GoalNodePayload>();
 
-        var nodes = System.Text.Json.JsonSerializer.Deserialize<GraphDefineNode[]>(nodesJson, GraphDefineJsonContext.Default.GraphDefineNodeArray)
+        var nodes = LlmJsonHelper.DeserializeValue(nodesJson, GraphDefineJsonContext.Default.GraphDefineNodeArray, out _)
             ?? throw new ArgumentException("Invalid nodes JSON");
 
         foreach (var node in nodes)
@@ -86,7 +86,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
                         _ => GoalNodeKind.Agent,
                     },
                     Name = node.Name ?? nodeId,
-                    IsSubAgent = true,
+                    Role = AgentRole.Executor,
                     SystemPrompt = node.SystemPrompt,
                     Instruction = node.Instruction,
                     FreshContext = node.FreshContext,
@@ -94,7 +94,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
             });
         }
 
-        var edges = System.Text.Json.JsonSerializer.Deserialize<GraphDefineEdge[]>(edgesJson, GraphDefineJsonContext.Default.GraphDefineEdgeArray)
+        var edges = LlmJsonHelper.DeserializeValue(edgesJson, GraphDefineJsonContext.Default.GraphDefineEdgeArray, out _)
             ?? throw new ArgumentException("Invalid edges JSON");
 
         foreach (var edge in edges)
@@ -137,6 +137,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
         IChatClient kernel,
         IGoalEvaluator evaluator,
         ILogger<GoalEngine>? logger = null,
+        ILoggerFactory? loggerFactory = null,
         IToolPermissionManager? permissionManager = null,
         IEnumerable<IGoalLifecycleMiddleware>? lifecycleMiddlewares = null,
         IGoalHeartbeat? heartbeat = null,
@@ -154,7 +155,14 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
         _heartbeat = heartbeat ?? throw new ArgumentNullException(nameof(heartbeat));
         _heartbeat.RegisterCallback(OnHeartbeatAsync);
 
-        if (lifecycleMiddlewares is not null)
+        if (lifecycleMiddlewares is not null && loggerFactory is not null)
+        {
+            _lifecyclePipeline = new PipelineBuilder<GoalLifecycleContext>()
+                .WithLoggingScope(loggerFactory)
+                .UseRange(lifecycleMiddlewares)
+                .Build();
+        }
+        else if (lifecycleMiddlewares is not null)
         {
             _lifecyclePipeline = new MiddlewarePipeline<GoalLifecycleContext>(lifecycleMiddlewares);
         }
@@ -231,7 +239,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
             {
                 Kind = GoalNodeKind.Agent,
                 Name = "executor",
-                IsSubAgent = true,
+                Role = AgentRole.Executor,
                 Instruction = objective,
                 TokenBudget = tokenBudget,
             },
@@ -244,7 +252,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
             {
                 Kind = GoalNodeKind.Agent,
                 Name = "reviewer",
-                IsSubAgent = true,
+                Role = AgentRole.Coordinator,
                 SystemPrompt = "You are an independent reviewer. Evaluate the following work output objectively. You must determine if the task was completed successfully. Reply with PASS if the work meets the requirements, or FAIL with specific issues if it does not. Do not assume context you were not given — judge only by what you see.",
                 Instruction = "Review the following work output and determine if it successfully completes the task. Be objective and thorough.",
                 FreshContext = true,
@@ -1114,13 +1122,12 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
 
         var mainAgent = new Core.Agents.Coordinator.Agent(
             task: objective,
-            options: new SubAgentOptions { DisplayName = "mainAgent", AgentType = "main" },
+            options: new SubAgentOptions { DisplayName = "mainAgent", Role = AgentRole.Coordinator },
             queryEngine: queryEngine,
             logger: _logger,
             clock: _clock,
             name: "mainAgent",
-            isSubAgent: false,
-            agentType: "main",
+            role: AgentRole.Coordinator,
             goalId: goalId,
             tokenBudget: tokenBudget);
 

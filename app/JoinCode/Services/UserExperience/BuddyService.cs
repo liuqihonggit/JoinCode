@@ -5,10 +5,10 @@ namespace IO.Services;
 [Register]
 public sealed partial class BuddyService : IBuddyService
 {
-    private static readonly string[] Species = ["duck", "goose", "blob", "cat", "dragon", "octopus", "owl", "penguin", "turtle", "snail", "ghost", "axolotl", "capybara", "cactus", "robot", "rabbit", "mushroom", "chonk"];
-    private static readonly string[] Eyes = ["·", "✦", "×", "◉", "@", "°"];
-    private static readonly string[] Hats = ["", "^", "~", "=", "*", "#", "+", "@"];
-    private static readonly string[] Names = ["Quackers", "Goosey", "Blobby", "Whiskers", "Draco", "Inky", "Hoot", "Waddle", "Shelly", "Slimey", "Boo", "Axie", "Cappy", "Spike", "Beep", "Bouncy", "Shroomy", "Chunk"];
+    private static readonly string[] Species = new[] { "duck", "goose", "blob", "cat", "dragon", "octopus", "owl", "penguin", "turtle", "snail", "ghost", "axolotl", "capybara", "cactus", "robot", "rabbit", "mushroom", "chonk" };
+    private static readonly string[] Eyes = new[] { "·", "✦", "×", "◉", "@", "°" };
+    private static readonly string[] Hats = new[] { "", "^", "~", "=", "*", "#", "+", "@" };
+    private static readonly string[] Names = new[] { "Quackers", "Goosey", "Blobby", "Whiskers", "Draco", "Inky", "Hoot", "Waddle", "Shelly", "Slimey", "Boo", "Axie", "Cappy", "Spike", "Beep", "Bouncy", "Shroomy", "Chunk" };
     private static readonly string Salt = "jcc-buddy-salt-2026";
 
     private readonly ConcurrentDictionary<string, BuddyInfo> _cache = new();

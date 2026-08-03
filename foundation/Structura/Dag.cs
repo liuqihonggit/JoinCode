@@ -220,7 +220,7 @@ public sealed class Dag<T>
     /// <summary>
     /// 获取节点的所有上游节点（依赖）
     /// </summary>
-    public IReadOnlyList<DagNode<T>> GetAncestors(string nodeId)
+    public IEnumerable<DagNode<T>> GetAncestors(string nodeId)
     {
         var result = new HashSet<string>(StringComparer.Ordinal);
         var queue = new Queue<string>();
@@ -245,13 +245,13 @@ public sealed class Dag<T>
             }
         }
 
-        return result.Select(id => _nodes[id]).ToList();
+        return result.Select(id => _nodes[id]);
     }
 
     /// <summary>
     /// 获取节点的所有下游节点（受影响者）
     /// </summary>
-    public IReadOnlyList<DagNode<T>> GetDescendants(string nodeId)
+    public IEnumerable<DagNode<T>> GetDescendants(string nodeId)
     {
         var result = new HashSet<string>(StringComparer.Ordinal);
         var queue = new Queue<string>();
@@ -274,13 +274,13 @@ public sealed class Dag<T>
             }
         }
 
-        return result.Select(id => _nodes[id]).ToList();
+        return result.Select(id => _nodes[id]);
     }
 
     /// <summary>
     /// 增量重算 — 从指定节点开始，沿拓扑序重算受影响的子图
     /// </summary>
-    public IReadOnlyList<DagNode<T>> GetAffectedSubgraph(string changedNodeId)
+    public IEnumerable<DagNode<T>> GetAffectedSubgraph(string changedNodeId)
     {
         var descendants = GetDescendants(changedNodeId);
         var descendantIds = descendants.Select(d => d.Id).ToHashSet(StringComparer.Ordinal);

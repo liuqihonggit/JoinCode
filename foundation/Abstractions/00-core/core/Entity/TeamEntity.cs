@@ -10,7 +10,6 @@ public sealed class TeamEntity : Entity
     public string? Description { get; init; }
     public ObjectId? LeadAgentObjectId { get; init; }
     public List<string> Members { get; init; } = [];
-    public DateTime LastActivityAt { get; set; }
 
     /// <summary>
     /// 全局唯一 Team 注册器
@@ -21,8 +20,8 @@ public sealed class TeamEntity : Entity
         string teamName,
         string? description = null,
         ObjectId? leadAgentObjectId = default,
-        string? id = null)
-        : base(ObjectType.Team, id)
+        string? displayName = null)
+        : base(ObjectType.Team, displayName ?? teamName)
     {
         TeamName = teamName;
         Description = description;
@@ -38,10 +37,10 @@ public sealed class TeamEntity : Entity
 
     public TeamInfo ToTeamInfo() => new()
     {
-        TeamId = Id,
+        TeamId = UniqueId,
         TeamName = TeamName,
         Description = Description,
-        LeadAgentId = LeadAgentObjectId?.Id,
+        LeadAgentId = LeadAgentObjectId?.SequenceId.ToString(CultureInfo.InvariantCulture),
         Members = Members,
         CreatedAt = CreatedAt,
         LastActivityAt = LastActivityAt
@@ -49,16 +48,10 @@ public sealed class TeamEntity : Entity
 }
 
 /// <summary>
-/// Team 注册器
+/// Team 注册器 — 基于 MapRegistry
 /// </summary>
-public sealed class TeamEntityRegistry
+public sealed class TeamEntityRegistry : MapRegistry<ObjectId, TeamEntity>
 {
-    private readonly ConcurrentDictionary<ObjectId, TeamEntity> _teams = new();
-
-    internal void Add(ObjectId id, TeamEntity team) => _teams.TryAdd(id, team);
-    internal bool Remove(ObjectId id) => _teams.TryRemove(id, out _);
-    public TeamEntity? Get(ObjectId id) => _teams.GetValueOrDefault(id);
-    public IReadOnlyList<TeamEntity> GetAll() => [.. _teams.Values];
-    public int Count => _teams.Count;
-    public void Clear() => _teams.Clear();
+    internal void Add(ObjectId id, TeamEntity team) => AddCore(id, team);
+    internal bool Remove(ObjectId id) => RemoveCore(id);
 }

@@ -108,7 +108,7 @@ public sealed class AddDirCommand : ChatCommandBase
         if (workspaceService is null) return;
 
         var dirs = workspaceService.GetAdditionalDirectories();
-        if (dirs.Count > 0)
+        if (dirs.Any())
         {
             TerminalHelper.NewLine();
             TerminalHelper.WriteLine("当前额外工作目录:");

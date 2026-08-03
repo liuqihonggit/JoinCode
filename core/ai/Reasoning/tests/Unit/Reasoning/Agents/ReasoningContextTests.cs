@@ -55,7 +55,7 @@ public sealed class ReasoningContextTests
         var result = context.GetVisibleItemsForRole(AgentRole.Prosecutor);
 
         Assert.Single(result);
-        Assert.Equal("item1", result[0].Content);
+        Assert.Equal("item1", result.First().Content);
     }
 
     [Fact]
@@ -95,7 +95,7 @@ public sealed class ReasoningContextTests
         var result = context.GetVisibleItemsForRole(AgentRole.Prosecutor);
 
         Assert.Single(result);
-        Assert.Equal("visible1", result[0].Id);
+        Assert.Equal("visible1", result.First().Id);
     }
 
     [Fact]
@@ -123,7 +123,7 @@ public sealed class ReasoningContextTests
 
         var result = context.GetVisibleItemsForRole(AgentRole.Prosecutor);
 
-        Assert.Equal(3, result.Count);
+        Assert.Equal(3, result.Count());
     }
 
     [Fact]
@@ -165,13 +165,13 @@ public sealed class ReasoningContextTests
         var result = context.GetVisibleEvidenceForRole(AgentRole.Prosecutor);
 
         Assert.Single(result);
-        Assert.Equal("ev1", result[0].Id);
+        Assert.Equal("ev1", result.First().Id);
     }
 
     private static ReasoningContext CreateContext(
         ConeOrchestrator? orchestrator,
-        IReadOnlyList<DataItem>? items = null,
-        IReadOnlyList<EvidenceRecord>? evidence = null)
+        IEnumerable<DataItem>? items = null,
+        IEnumerable<EvidenceRecord>? evidence = null)
     {
         return new ReasoningContext
         {

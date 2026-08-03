@@ -177,7 +177,12 @@ public sealed class ProjectDependencyGraphTests : IDisposable
 
     private void InsertProjectRef(string source, string target)
     {
-        _store.ProjectRefs.Add(new ProjectReferenceEdge
+        if (!_store.ProjectRefs.TryGetValue(source, out var list))
+        {
+            list = new List<ProjectReferenceEdge>();
+            _store.ProjectRefs[source] = list;
+        }
+        list.Add(new ProjectReferenceEdge
         {
             SourceProjectPath = source,
             TargetProjectPath = target
@@ -186,7 +191,12 @@ public sealed class ProjectDependencyGraphTests : IDisposable
 
     private void InsertNuGetRef(string projectPath, string packageName, string? version = null)
     {
-        _store.NuGetRefs.Add(new NuGetPackageReference
+        if (!_store.NuGetRefs.TryGetValue(projectPath, out var list))
+        {
+            list = new List<NuGetPackageReference>();
+            _store.NuGetRefs[projectPath] = list;
+        }
+        list.Add(new NuGetPackageReference
         {
             ProjectPath = projectPath,
             PackageName = packageName,

@@ -49,7 +49,7 @@ public sealed partial class AgentMcpServerManager : JoinCode.Abstractions.Interf
 
         var result = new JoinCode.Abstractions.Interfaces.AgentMcpServerResult
         {
-            AgentId = agentDefinition.AgentType
+            AgentId = agentDefinition.DisplayId
         };
 
         // 合并 parentClientIds（继承父级 MCP）
@@ -73,7 +73,7 @@ public sealed partial class AgentMcpServerManager : JoinCode.Abstractions.Interf
                 ? new List<string>(effectiveParentClientIds)
                 : new List<string>();
             if (clientIds.Count > 0)
-                _agentClients[agentDefinition.AgentType] = clientIds;
+                _agentClients[agentDefinition.DisplayId] = clientIds;
             return result;
         }
 
@@ -104,8 +104,8 @@ public sealed partial class AgentMcpServerManager : JoinCode.Abstractions.Interf
             }
             catch (Exception ex)
             {
-                _logger?.LogWarning(ex, "Agent '{AgentType}' 的 MCP 服务器 '{ServerName}' 连接失败",
-                    agentDefinition.AgentType, spec.ServerNameRef);
+                _logger?.LogWarning(ex, "Agent '{DisplayId}' 的 MCP 服务器 '{ServerName}' 连接失败",
+                    agentDefinition.DisplayId, spec.ServerNameRef);
             }
         }
 
@@ -118,7 +118,7 @@ public sealed partial class AgentMcpServerManager : JoinCode.Abstractions.Interf
         allClientIds.AddRange(newlyCreatedClientIds);
 
         if (allClientIds.Count > 0)
-            _agentClients[agentDefinition.AgentType] = allClientIds;
+            _agentClients[agentDefinition.DisplayId] = allClientIds;
 
         result.ConnectedServers = connectedServers;
         result.ToolNames = allToolNames;

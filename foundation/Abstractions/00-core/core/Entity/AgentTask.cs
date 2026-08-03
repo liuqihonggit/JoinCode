@@ -16,7 +16,7 @@ public sealed class AgentTask : Entity
     public TodoPriority Priority { get; init; }
     public string? Assignee { get; init; }
     public DateTime? DueDate { get; init; }
-    public IReadOnlyList<string> Tags { get; init; } = Array.Empty<string>();
+    public IEnumerable<string> Tags { get; init; } = Array.Empty<string>();
 
     /// <summary>
     /// 全局唯一 Task 注册器 — 静态属性暴露，无需DI
@@ -32,9 +32,9 @@ public sealed class AgentTask : Entity
         string? description = null,
         string? assignee = null,
         DateTime? dueDate = null,
-        IReadOnlyList<string>? tags = null,
-        string? id = null)
-        : base(ObjectType.Task, id)
+        IEnumerable<string>? tags = null,
+        string? displayName = null)
+        : base(ObjectType.Task, displayName ?? title)
     {
         Title = title;
         Type = type;
@@ -63,7 +63,7 @@ public sealed class AgentTask : Entity
     /// </summary>
     public TaskItem ToTaskItem() => new()
     {
-        Id = Id,
+        Id = UniqueId,
         Title = Title,
         Description = Description,
         Status = Status.ToValue(),
@@ -71,7 +71,7 @@ public sealed class AgentTask : Entity
         Assignee = Assignee,
         DueDate = DueDate,
         CreatedAt = CreatedAt,
-        Tags = Tags
+        Tags = Tags.ToList()
     };
 
     /// <summary>
@@ -84,7 +84,7 @@ public sealed class AgentTask : Entity
         assignee: item.Assignee,
         dueDate: item.DueDate,
         tags: item.Tags,
-        id: item.Id)
+        displayName: item.Id)
     {
         Status = TaskExecutionStatusExtensions.FromValue(item.Status) ?? TaskExecutionStatus.Pending
     };

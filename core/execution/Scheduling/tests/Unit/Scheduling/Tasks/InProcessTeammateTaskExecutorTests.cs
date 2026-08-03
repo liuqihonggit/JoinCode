@@ -37,7 +37,7 @@ public class InProcessTeammateTaskExecutorTests
             .Setup(x => x.ExecuteAsync(agent, It.IsAny<CancellationToken>()))
             .ReturnsAsync(agentResult);
         _lifecycleManagerMock
-            .Setup(x => x.DisposeAgentAsync(agent.Id, It.IsAny<CancellationToken>()))
+            .Setup(x => x.DisposeAgentAsync(agent.ObjectId.UniqueId, It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         var definition = new InProcessTeammateDefinition
@@ -76,7 +76,7 @@ public class InProcessTeammateTaskExecutorTests
             .Setup(x => x.ExecuteAsync(agent, It.IsAny<CancellationToken>()))
             .ReturnsAsync(agentResult);
         _lifecycleManagerMock
-            .Setup(x => x.DisposeAgentAsync(agent.Id, It.IsAny<CancellationToken>()))
+            .Setup(x => x.DisposeAgentAsync(agent.ObjectId.UniqueId, It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         var definition = new InProcessTeammateDefinition
@@ -120,7 +120,7 @@ public class InProcessTeammateTaskExecutorTests
             .Setup(x => x.ExecuteAsync(agent, It.IsAny<CancellationToken>()))
             .ReturnsAsync(agentResult);
         _lifecycleManagerMock
-            .Setup(x => x.DisposeAgentAsync(agent.Id, It.IsAny<CancellationToken>()))
+            .Setup(x => x.DisposeAgentAsync(agent.ObjectId.UniqueId, It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         var definition = new InProcessTeammateDefinition

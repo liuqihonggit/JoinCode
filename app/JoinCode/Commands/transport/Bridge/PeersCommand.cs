@@ -23,7 +23,7 @@ public sealed class PeersCommand : ChatCommandBase
         TerminalHelper.WriteLine("对等节点列表:");
         TerminalHelper.NewLine();
 
-        if (peers.Count == 0)
+        if (!peers.Any())
         {
             TerminalHelper.WriteLine("  (暂无已连接的对等节点)");
         }

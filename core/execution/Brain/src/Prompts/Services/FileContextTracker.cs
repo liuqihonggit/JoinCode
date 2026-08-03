@@ -5,16 +5,15 @@ namespace Core.Prompts;
 [Register]
 public sealed partial class FileContextTracker
 {
-    private volatile string[] _currentFilePaths = [];
+    private volatile FrozenSet<string> _currentFilePaths = FrozenSet<string>.Empty;
     private volatile string _currentUserMessage = string.Empty;
 
-    public IReadOnlyList<string> CurrentFilePaths => _currentFilePaths;
+    public IReadOnlySet<string> CurrentFilePaths => _currentFilePaths;
     public string CurrentUserMessage => _currentUserMessage;
 
     public void UpdateFilePaths(string[] paths)
     {
-        // P2-3: 防御性复制 — 避免调用方修改传入数组导致竞态
-        _currentFilePaths = paths is null ? [] : (string[])paths.Clone();
+        _currentFilePaths = paths is null ? FrozenSet<string>.Empty : paths.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
     }
 
     public void UpdateUserMessage(string message)
@@ -24,7 +23,7 @@ public sealed partial class FileContextTracker
 
     public void Clear()
     {
-        _currentFilePaths = [];
+        _currentFilePaths = FrozenSet<string>.Empty;
         _currentUserMessage = string.Empty;
     }
 }

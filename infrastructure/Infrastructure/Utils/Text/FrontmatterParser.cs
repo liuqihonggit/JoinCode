@@ -60,17 +60,17 @@ public sealed class SkillMetadata
     /// <summary>
     /// 标签列表
     /// </summary>
-    public IReadOnlyList<string> Tags { get; init; } = Array.Empty<string>();
+    public IEnumerable<string> Tags { get; init; } = Array.Empty<string>();
 
     /// <summary>
     /// 所需权限
     /// </summary>
-    public IReadOnlyList<string> Permissions { get; init; } = Array.Empty<string>();
+    public IEnumerable<string> Permissions { get; init; } = Array.Empty<string>();
 
     /// <summary>
     /// 依赖项
     /// </summary>
-    public IReadOnlyList<string> Dependencies { get; init; } = Array.Empty<string>();
+    public IEnumerable<string> Dependencies { get; init; } = Array.Empty<string>();
 
     /// <summary>
     /// 额外属性
@@ -378,7 +378,7 @@ public static class FrontmatterParser
         return null;
     }
 
-    private static IReadOnlyList<string> GetStringList(Dictionary<string, JsonElement> data, params string[] keys)
+    private static IEnumerable<string> GetStringList(Dictionary<string, JsonElement> data, params string[] keys)
     {
         foreach (var key in keys)
         {

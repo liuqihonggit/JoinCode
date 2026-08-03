@@ -201,7 +201,7 @@ public sealed class FalvCommand : ChatCommandBase
     {
         TerminalHelper.WriteLine("=== 有限视锥 ===");
 
-        foreach (AgentRole role in Enum.GetValues<AgentRole>())
+        foreach (JoinCode.Reasoning.State.AgentRole role in Enum.GetValues<JoinCode.Reasoning.State.AgentRole>())
         {
             var expanded = engine.ExpandFragment(role, "", "*");
             var coneContext = engine switch
@@ -231,16 +231,16 @@ public sealed class FalvCommand : ChatCommandBase
     {
         TerminalHelper.WriteLine("=== 视锥冲突检测 ===");
 
-        var result = engine.DetectConeConflict(AgentRole.Prosecutor, AgentRole.Defender);
+        var result = engine.DetectConeConflict(JoinCode.Reasoning.State.AgentRole.Prosecutor, JoinCode.Reasoning.State.AgentRole.Defender);
         TerminalHelper.WriteLine($"  控方结论: {string.Join(" -> ", result.RoleAConclusions)}");
         TerminalHelper.WriteLine($"  辩方结论: {string.Join(" -> ", result.RoleBConclusions)}");
         TerminalHelper.WriteLine($"  冲突状态: {(result.HasConflict ? $"{TerminalColors.Warning}存在冲突{AnsiStyleConstants.Reset}" : "无冲突")}");
 
         TerminalHelper.WriteLine();
-        var judgeResult = engine.DetectConeConflict(AgentRole.Prosecutor, AgentRole.Judge);
+        var judgeResult = engine.DetectConeConflict(JoinCode.Reasoning.State.AgentRole.Prosecutor, JoinCode.Reasoning.State.AgentRole.Judge);
         TerminalHelper.WriteLine($"  控方-法官冲突: {(judgeResult.HasConflict ? $"{TerminalColors.Warning}存在{AnsiStyleConstants.Reset}" : "无")}");
 
-        var defJudgeResult = engine.DetectConeConflict(AgentRole.Defender, AgentRole.Judge);
+        var defJudgeResult = engine.DetectConeConflict(JoinCode.Reasoning.State.AgentRole.Defender, JoinCode.Reasoning.State.AgentRole.Judge);
         TerminalHelper.WriteLine($"  辩方-法官冲突: {(defJudgeResult.HasConflict ? $"{TerminalColors.Warning}存在{AnsiStyleConstants.Reset}" : "无")}");
     }
 
@@ -280,7 +280,7 @@ public sealed class FalvCommand : ChatCommandBase
             TerminalHelper.WriteLine($"  [{ev.Category}] {ev.Content} (信任度:{ev.TrustLevel}, 提交方:{ev.SubmittedBy}, URL验证:{verifiedLabel})");
         }
 
-        if (engine.GetAllEvidence().Count == 0)
+        if (!engine.GetAllEvidence().Any())
         {
             TerminalHelper.WriteLine("  暂无证据");
         }

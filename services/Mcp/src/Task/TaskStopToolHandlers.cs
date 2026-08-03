@@ -1,4 +1,5 @@
 
+using JoinCode.Abstractions.Models.Agent;
 
 
 namespace McpToolDispatch;
@@ -158,14 +159,16 @@ public partial class TaskStopToolHandlers
         if (type is "all" or AgentToolNameConstants.Agent)
         {
             var agents = await _agentCoordinator.GetRunningAgentsAsync(cancellationToken).ConfigureAwait(false);
-            if (agents.Count > 0)
+            var agentList = agents.ToList();
+            if (agentList.Count > 0)
             {
                 hasAny = true;
                 sb.AppendLine("[Agents]");
-                foreach (var agent in agents)
+                foreach (var agent in agentList)
                 {
                     sb.AppendLine($"- {agent.Id}: {agent.Description}");
-                    sb.AppendLine($"  Type: {agent.AgentType ?? "general"}");
+                    var typeStr = agent.Variant.HasValue ? agent.Variant.Value.ToValue() : agent.Role.ToValue();
+                    sb.AppendLine($"  Type: {typeStr ?? "general"}");
                     if (agent.StartedAt.HasValue)
                     {
                         var duration = DateTime.UtcNow - agent.StartedAt.Value;

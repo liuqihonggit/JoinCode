@@ -232,7 +232,7 @@ public sealed partial class McpToolSyncBridgeTests
                 {
                     ["query"] = new ToolSchemaProperty { Type = "string", Description = "search query" }
                 },
-                Required = ["query"]
+                Required = new List<string> { "query" }
             }
         };
 

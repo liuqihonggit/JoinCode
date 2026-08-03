@@ -79,7 +79,7 @@ public sealed class ChatClientTests
 
         group.Name.Should().Be("files");
         group.Functions.Should().HaveCount(1);
-        group.Functions[0].Name.Should().Be("read");
+        group.Functions.First().Name.Should().Be("read");
     }
 
     [Fact]

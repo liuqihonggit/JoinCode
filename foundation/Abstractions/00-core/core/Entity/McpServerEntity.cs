@@ -18,8 +18,8 @@ public sealed class McpServerEntity : Entity
 
     public McpServerEntity(
         string name,
-        string? id = null)
-        : base(ObjectType.Mcp, id)
+        string? displayName = null)
+        : base(ObjectType.Mcp, displayName ?? name)
     {
         Name = name;
         Registry.Add(ObjectId, this);
@@ -33,7 +33,7 @@ public sealed class McpServerEntity : Entity
     public McpServerState ToMcpServerState() => new()
     {
         Name = Name,
-        ServerId = Id,
+        ServerId = UniqueId,
         Status = Status,
         LastError = LastError,
         ConnectedAt = ConnectedAt
@@ -41,17 +41,11 @@ public sealed class McpServerEntity : Entity
 }
 
 /// <summary>
-/// McpServer 注册器
+/// McpServer 注册器 — 基于 MapRegistry
 /// </summary>
-public sealed class McpServerEntityRegistry
+public sealed class McpServerEntityRegistry : MapRegistry<ObjectId, McpServerEntity>
 {
-    private readonly ConcurrentDictionary<ObjectId, McpServerEntity> _servers = new();
-
-    internal void Add(ObjectId id, McpServerEntity server) => _servers.TryAdd(id, server);
-    internal bool Remove(ObjectId id) => _servers.TryRemove(id, out _);
-    public McpServerEntity? Get(ObjectId id) => _servers.GetValueOrDefault(id);
-    public IReadOnlyList<McpServerEntity> GetAll() => [.. _servers.Values];
-    public IReadOnlyList<McpServerEntity> GetByStatus(McpConnectionStatus status) => [.. _servers.Values.Where(s => s.Status == status)];
-    public int Count => _servers.Count;
-    public void Clear() => _servers.Clear();
+    internal void Add(ObjectId id, McpServerEntity server) => AddCore(id, server);
+    internal bool Remove(ObjectId id) => RemoveCore(id);
+    public IEnumerable<McpServerEntity> GetByStatus(McpConnectionStatus status) => Where(s => s.Status == status);
 }

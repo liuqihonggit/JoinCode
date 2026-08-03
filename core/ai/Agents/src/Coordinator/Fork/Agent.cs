@@ -21,11 +21,11 @@ public sealed class Agent : Entity, IAgent
     // === 静态注册器 ===
     public static AgentRegistry Registry { get; } = new();
 
-    // === 身份（ObjectId/Id/CreatedAt 继承自 Entity）===
+    // === 身份（ObjectId/UniqueId/CreatedAt 继承自 Entity）===
     public string Name { get; }
-    public bool IsSubAgent { get; }
+    public AgentRole Role { get; }
+    public ExecutorVariant? Variant { get; }
     public ObjectId? ParentObjectId { get; init; }
-    public string? AgentType { get; }
 
     // === 任务 ===
     public string Task { get; }
@@ -67,9 +67,9 @@ public sealed class Agent : Entity, IAgent
         ILogger? logger,
         IClockService? clock = null,
         string? name = null,
-        bool isSubAgent = true,
+        AgentRole role = AgentRole.Executor,
+        ExecutorVariant? variant = null,
         ObjectId? parentObjectId = default,
-        string? agentType = null,
         string? systemPrompt = null,
         string? instruction = null,
         bool freshContext = false,
@@ -79,10 +79,10 @@ public sealed class Agent : Entity, IAgent
         : base(ObjectType.Agent)
     {
         Task = task;
-        Name = name ?? Id;
-        IsSubAgent = isSubAgent;
+        Name = name ?? UniqueId;
+        Role = role;
+        Variant = variant;
         ParentObjectId = parentObjectId;
-        AgentType = agentType;
         SystemPrompt = systemPrompt;
         Instruction = instruction;
         FreshContext = freshContext;
@@ -101,8 +101,9 @@ public sealed class Agent : Entity, IAgent
         _executionCount = 0;
         Context = new SubAgentContext
         {
-            AgentId = Id,
-            AgentType = agentType ?? Options.AgentType ?? AgentTypeDefinition.Default.ToValue(),
+            AgentId = UniqueId,
+            Role = role,
+            Variant = variant,
             Task = task,
             AllowedTools = Options.AllowedTools,
             DeniedTools = Options.DeniedTools,
@@ -160,7 +161,7 @@ public sealed class Agent : Entity, IAgent
 
         try
         {
-            _logger?.LogInformation(AgentCoordinatorConstants.LogMessages.SubAgentStartExecute, AgentCoordinatorConstants.LogMessages.SubAgentPrefix, Id, _executionCount);
+            _logger?.LogInformation(AgentCoordinatorConstants.LogMessages.SubAgentStartExecute, AgentCoordinatorConstants.LogMessages.SubAgentPrefix, UniqueId, _executionCount);
 
             var prompt = BuildPrompt();
 
@@ -187,7 +188,7 @@ public sealed class Agent : Entity, IAgent
             {
                 if (_isPaused)
                 {
-                    _logger?.LogInformation("[{AgentType} {AgentId}] 进入暂停等待状态", nameof(Agent), Id);
+                    _logger?.LogInformation("[{AgentType} {AgentId}] 进入暂停等待状态", nameof(Agent), UniqueId);
                     var pauseStart = _clock.GetUtcNow();
 
                     try
@@ -196,11 +197,11 @@ public sealed class Agent : Entity, IAgent
                         _pauseLock.Release();
 
                         var pauseDuration = _clock.GetUtcNow() - pauseStart;
-                        _logger?.LogInformation("[{AgentType} {AgentId}] 暂停结束，等待时长 {PauseDurationMs}ms", nameof(Agent), Id, pauseDuration.TotalMilliseconds);
+                        _logger?.LogInformation("[{AgentType} {AgentId}] 暂停结束，等待时长 {PauseDurationMs}ms", nameof(Agent), UniqueId, pauseDuration.TotalMilliseconds);
                     }
                     catch (TimeoutException)
                     {
-                        _logger?.LogWarning("[{AgentType} {AgentId}] 暂停等待超时（30秒），自动恢复执行", nameof(Agent), Id);
+                        _logger?.LogWarning("[{AgentType} {AgentId}] 暂停等待超时（30秒），自动恢复执行", nameof(Agent), UniqueId);
                         _isPaused = false;
                         Status = TaskExecutionStatus.Running;
                     }
@@ -233,11 +234,11 @@ public sealed class Agent : Entity, IAgent
             var output = responseBuilder.ToString();
             Output = output;
 
-            _logger?.LogInformation("[Agent {AgentId}] 任务执行完成，耗时{ElapsedMs}ms", Id, stopwatch.ElapsedMilliseconds);
+            _logger?.LogInformation("[Agent {AgentId}] 任务执行完成，耗时{ElapsedMs}ms", UniqueId, stopwatch.ElapsedMilliseconds);
 
             return new SubAgentResult
             {
-                AgentId = Id,
+                AgentId = UniqueId,
                 IsSuccess = true,
                 Output = output,
                 ExecutionTimeMs = stopwatch.ElapsedMilliseconds,
@@ -269,11 +270,11 @@ public sealed class Agent : Entity, IAgent
                 Context.Status = AgentStatus.Failed;
             }
 
-            _logger?.LogError(ex, "[Agent {AgentId}] 任务执行失败", Id);
+            _logger?.LogError(ex, "[Agent {AgentId}] 任务执行失败", UniqueId);
 
             return new SubAgentResult
             {
-                AgentId = Id,
+                AgentId = UniqueId,
                 IsSuccess = false,
                 Output = string.Empty,
                 Error = ex.Message
@@ -368,7 +369,7 @@ public sealed class Agent : Entity, IAgent
                 ToolName = chunk.ToolName,
                 ToolCallNumber = chunk.ToolCallNumber,
                 ToolResult = chunk.ToolResult,
-                AgentId = Id
+                AgentId = UniqueId
             };
         }
 
@@ -391,7 +392,7 @@ public sealed class Agent : Entity, IAgent
             Type = AgentStreamChunkType.Complete,
             Content = finalOutput,
             ExecutionTimeMs = stopwatch.ElapsedMilliseconds,
-            AgentId = Id
+            AgentId = UniqueId
         };
     }
 
@@ -404,7 +405,7 @@ public sealed class Agent : Entity, IAgent
         {
             _isPaused = true;
             Status = TaskExecutionStatus.Paused;
-            _logger?.LogInformation("[{AgentType} {AgentId}] 任务已暂停，等待恢复信号", nameof(Agent), Id);
+            _logger?.LogInformation("[{AgentType} {AgentId}] 任务已暂停，等待恢复信号", nameof(Agent), UniqueId);
         }
     }
 
@@ -417,7 +418,7 @@ public sealed class Agent : Entity, IAgent
         {
             _isPaused = false;
             Status = TaskExecutionStatus.Running;
-            _logger?.LogInformation("[{AgentType} {AgentId}] 任务已恢复，释放暂停锁", nameof(Agent), Id);
+            _logger?.LogInformation("[{AgentType} {AgentId}] 任务已恢复，释放暂停锁", nameof(Agent), UniqueId);
         }
     }
 
@@ -428,7 +429,7 @@ public sealed class Agent : Entity, IAgent
     {
         _cts.Cancel();
         Status = TaskExecutionStatus.Cancelled;
-        _logger?.LogInformation("[Agent {AgentId}] 任务已取消", Id);
+        _logger?.LogInformation("[Agent {AgentId}] 任务已取消", UniqueId);
     }
 
     /// <summary>
@@ -440,7 +441,7 @@ public sealed class Agent : Entity, IAgent
         Status = TaskExecutionStatus.Pending;
         StartedAt = null;
         CompletedAt = null;
-        _logger?.LogInformation("[Agent {AgentId}] 状态已重置", Id);
+        _logger?.LogInformation("[Agent {AgentId}] 状态已重置", UniqueId);
     }
 
     private string BuildPrompt()

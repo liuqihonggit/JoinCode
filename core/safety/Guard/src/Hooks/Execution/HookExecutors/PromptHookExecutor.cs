@@ -118,7 +118,7 @@ public sealed partial class PromptHookExecutor : HookExecutorBase<PromptHook>
 
         try
         {
-            var hookDecision = JsonSerializer.Deserialize(jsonMatch, HooksJsonContext.Default.HookDecision);
+            var hookDecision = LlmJsonHelper.Deserialize(jsonMatch, HooksJsonContext.Default.HookDecision, out _);
             if (hookDecision is null)
                 return HookResult.Success(message: "LLM validation passed (empty response)");
 

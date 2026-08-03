@@ -1,19 +1,18 @@
 ﻿namespace Services.Shell;
 
 /// <summary>
-/// 前台任务注册表实现 — 对齐 TS registerForeground/backgroundAll
+/// 前台任务注册表实现 — 基于 MapRegistry，对齐 TS registerForeground/backgroundAll
 /// </summary>
 [Register]
-public sealed partial class ForegroundTaskRegistry : IForegroundTaskRegistry
+public sealed partial class ForegroundTaskRegistry : MapRegistry<string, IShellCommandContext>, IForegroundTaskRegistry
 {
-    private readonly ConcurrentDictionary<string, IShellCommandContext> _tasks = new();
     [Inject] private readonly ILogger<ForegroundTaskRegistry>? _logger;
 
     /// <inheritdoc />
     public void Register(IShellCommandContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
-        _tasks[context.TaskId] = context;
+        AddOrUpdateCore(context.TaskId, context);
         _logger?.LogInformation("注册前台任务: {TaskId}, 命令: {Command}", context.TaskId, context.Command);
     }
 
@@ -21,7 +20,7 @@ public sealed partial class ForegroundTaskRegistry : IForegroundTaskRegistry
     public void Unregister(string taskId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(taskId);
-        _tasks.TryRemove(taskId, out _);
+        RemoveCore(taskId);
     }
 
     /// <inheritdoc />
@@ -29,7 +28,7 @@ public sealed partial class ForegroundTaskRegistry : IForegroundTaskRegistry
     {
         var backgrounded = new List<string>();
 
-        foreach (var kvp in _tasks)
+        foreach (var kvp in EntriesCore)
         {
             var context = kvp.Value;
             if (context.Status == ShellCommandStatus.Running)
@@ -46,26 +45,23 @@ public sealed partial class ForegroundTaskRegistry : IForegroundTaskRegistry
 
         foreach (var taskId in backgrounded)
         {
-            _tasks.TryRemove(taskId, out _);
+            RemoveCore(taskId);
         }
 
         return backgrounded;
     }
 
     /// <inheritdoc />
-    public bool HasForegroundTasks => _tasks.Values.Any(t => t.Status == ShellCommandStatus.Running);
+    public bool HasForegroundTasks => Where(t => t.Status == ShellCommandStatus.Running).Any();
 
     /// <inheritdoc />
     public IEnumerable<IShellCommandContext> GetForegroundTasks()
-    {
-        return _tasks.Values
-            .Where(t => t.Status == ShellCommandStatus.Running);
-    }
+        => Where(t => t.Status == ShellCommandStatus.Running);
 
     /// <inheritdoc />
     public async Task CompactAllAsync(CancellationToken cancellationToken = default)
     {
-        var tasks = _tasks.Values.ToList();
+        var tasks = GetAll().ToList();
         if (tasks.Count == 0) return;
 
         _logger?.LogInformation("压缩 {Count} 个 Shell 任务", tasks.Count);
@@ -85,7 +81,7 @@ public sealed partial class ForegroundTaskRegistry : IForegroundTaskRegistry
         var completed = tasks.Where(t => t.LifecycleState == ShellLifecycleState.Completed).ToList();
         foreach (var task in completed)
         {
-            _tasks.TryRemove(task.TaskId, out _);
+            RemoveCore(task.TaskId);
         }
     }
 }

@@ -39,6 +39,14 @@ public class MapRegistry<TKey, TValue> where TKey : notnull
         return removed;
     }
 
+    /// <summary>注销项并返回被移除的值</summary>
+    protected bool RemoveCore(TKey key, [MaybeNullWhen(false)] out TValue value)
+    {
+        var removed = _items.TryRemove(key, out value);
+        if (removed) InvalidateCache();
+        return removed;
+    }
+
     /// <summary>按键获取（O(1)）</summary>
     public TValue? Get(TKey key) => _items.GetValueOrDefault(key);
 
@@ -52,6 +60,11 @@ public class MapRegistry<TKey, TValue> where TKey : notnull
     /// 遍历器 — 返回 IEnumerable，不分配新集合，调用方只能遍历
     /// </summary>
     public IEnumerable<TValue> GetAll() => _items.Values;
+
+    /// <summary>
+    /// 键值对遍历器 — 返回 IEnumerable，不分配新集合
+    /// </summary>
+    protected IEnumerable<KeyValuePair<TKey, TValue>> EntriesCore => _items;
 
     /// <summary>
     /// 字典视图 — 返回 IReadOnlyDictionary，脏标记缓存 FrozenDictionary
@@ -70,6 +83,15 @@ public class MapRegistry<TKey, TValue> where TKey : notnull
     {
         _items.Clear();
         InvalidateCache();
+    }
+
+    /// <summary>清空所有注册并返回被清空的项（子类需要在清空前执行清理逻辑时使用）</summary>
+    protected List<KeyValuePair<TKey, TValue>> ClearCore()
+    {
+        var snapshot = new List<KeyValuePair<TKey, TValue>>(_items);
+        _items.Clear();
+        InvalidateCache();
+        return snapshot;
     }
 
     private void InvalidateCache() => _cachedDict = null;

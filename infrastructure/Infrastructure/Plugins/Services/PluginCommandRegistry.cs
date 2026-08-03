@@ -19,15 +19,14 @@ public sealed partial class PluginCommandDefinition
 }
 
 [Register]
-public sealed partial class PluginCommandRegistry : IPluginCommandRegistry
+public sealed partial class PluginCommandRegistry : MapRegistry<string, PluginCommandDefinition>, IPluginCommandRegistry
 {
-    private readonly ConcurrentDictionary<string, PluginCommandDefinition> _commands;
     [Inject] private readonly ILogger<PluginCommandRegistry>? _logger;
     private readonly ITelemetryService? _telemetryService;
 
     public PluginCommandRegistry(ILogger<PluginCommandRegistry>? logger = null, ITelemetryService? telemetryService = null)
+        : base(StringComparer.OrdinalIgnoreCase)
     {
-        _commands = new ConcurrentDictionary<string, PluginCommandDefinition>(StringComparer.OrdinalIgnoreCase);
         _logger = logger;
         _telemetryService = telemetryService;
     }
@@ -36,8 +35,9 @@ public sealed partial class PluginCommandRegistry : IPluginCommandRegistry
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        if (_commands.TryAdd(command.CommandName, command))
+        if (!ContainsKey(command.CommandName))
         {
+            AddOrUpdateCore(command.CommandName, command);
             RecordCommandRegistryMetrics("register", command.CommandName, true);
             _logger?.LogInformation(
                 "[PluginCommandRegistry] 注册命令: {Command} (插件: {Plugin}, 类型: {HandlerType})",
@@ -56,7 +56,7 @@ public sealed partial class PluginCommandRegistry : IPluginCommandRegistry
                         Parameters = command.Parameters
                     };
 
-                    _commands.TryAdd(alias, aliasDef);
+                    AddCore(alias, aliasDef);
                 }
             }
         }
@@ -73,7 +73,7 @@ public sealed partial class PluginCommandRegistry : IPluginCommandRegistry
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(commandName);
 
-        if (_commands.TryRemove(commandName, out var command))
+        if (RemoveCore(commandName, out var command))
         {
             RecordCommandRegistryMetrics("unregister", commandName, true);
             _logger?.LogInformation("[PluginCommandRegistry] 注销命令: {Command} (插件: {Plugin})",
@@ -83,7 +83,7 @@ public sealed partial class PluginCommandRegistry : IPluginCommandRegistry
             {
                 foreach (var alias in command.Aliases)
                 {
-                    _commands.TryRemove(alias, out _);
+                    RemoveCore(alias);
                 }
             }
         }
@@ -91,16 +91,12 @@ public sealed partial class PluginCommandRegistry : IPluginCommandRegistry
         await Task.CompletedTask.ConfigureAwait(false);
     }
 
-    public IEnumerable<PluginCommandDefinition> GetRegisteredCommands()
-    {
-        return _commands.Values;
-    }
+    public IEnumerable<PluginCommandDefinition> GetRegisteredCommands() => GetAll();
 
     public PluginCommandDefinition? GetCommand(string commandName)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(commandName);
-
-        return _commands.TryGetValue(commandName, out var command) ? command : null;
+        return Get(commandName);
     }
 
     private void RecordCommandRegistryMetrics(string operation, string commandName, bool isSuccess) =>

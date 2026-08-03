@@ -64,6 +64,13 @@ public sealed partial class PermissionAwareToolExecutor
             span.SetTag("tool.name", toolName);
         }
 
+        var executionEntity = new ToolExecutionEntity(
+            toolName: toolName,
+            spanId: span?.SpanId);
+        executionEntity.LifecycleState = EntityLifecycle.Active;
+        executionEntity.StartedAt = DateTime.UtcNow;
+        span?.SetTag("entity.object_id", executionEntity.UniqueId);
+
         var context = new ToolExecutionContext
         {
             ToolName = toolName,
@@ -71,8 +78,8 @@ public sealed partial class PermissionAwareToolExecutor
             Handler = handler,
             OnProgress = onProgress,
             AgentMode = _currentAgentMode,
-
             Span = span,
+            ExecutionEntity = executionEntity,
         };
 
         try
@@ -81,12 +88,14 @@ public sealed partial class PermissionAwareToolExecutor
 
             if (context.Result is not null)
             {
+                CompleteExecutionEntity(context);
                 RaiseToolExecutionCompleted(toolName, context.Result, arguments);
                 return context.Result;
             }
 
             _logger.LogError("Tool {ToolName} pipeline completed without result", toolName);
             var noResultError = CreateErrorResult($"Tool '{toolName}' execution produced no result.");
+            CompleteExecutionEntity(context);
             RaiseToolExecutionCompleted(toolName, noResultError, arguments);
             return noResultError;
         }
@@ -94,6 +103,9 @@ public sealed partial class PermissionAwareToolExecutor
         {
             _logger.LogInformation(L.T(StringKey.ToolExecCancelledLog, toolName));
             span?.SetStatus(TelemetryStatusCode.Error, "Cancelled");
+            executionEntity.LifecycleState = EntityLifecycle.Completed;
+            executionEntity.CompletedAt = DateTime.UtcNow;
+            executionEntity.IsError = true;
             throw;
         }
         catch (PermissionDeniedException)
@@ -101,6 +113,9 @@ public sealed partial class PermissionAwareToolExecutor
             _logger.LogWarning(L.T(StringKey.ToolExecPermissionDeniedLog, toolName));
             span?.SetStatus(TelemetryStatusCode.Error, "Permission denied");
             RecordPermissionDenied(toolName);
+            executionEntity.LifecycleState = EntityLifecycle.Completed;
+            executionEntity.CompletedAt = DateTime.UtcNow;
+            executionEntity.IsError = true;
             RaiseToolExecutionCompleted(toolName, null, arguments, "permission_denied");
             throw;
         }
@@ -115,6 +130,9 @@ public sealed partial class PermissionAwareToolExecutor
             _logger.LogError(ex, L.T(StringKey.ToolExecFailedLog, toolName));
             span?.RecordException(ex);
             var exceptionError = CreateErrorResult($"Error executing tool '{toolName}': {ex.Message}");
+            executionEntity.LifecycleState = EntityLifecycle.Completed;
+            executionEntity.CompletedAt = DateTime.UtcNow;
+            executionEntity.IsError = true;
             RaiseToolExecutionCompleted(toolName, exceptionError, arguments, ex.Message);
             return exceptionError;
         }
@@ -126,6 +144,17 @@ public sealed partial class PermissionAwareToolExecutor
 
         var counter = _telemetryService.GetCounter("tool.permission.denied", "count", "Tool permission denied count");
         counter.Add(1, new Dictionary<string, string> { ["tool"] = toolName });
+    }
+
+    private static void CompleteExecutionEntity(ToolExecutionContext context)
+    {
+        var entity = context.ExecutionEntity!;
+        entity.CompletedAt = DateTime.UtcNow;
+        entity.LifecycleState = EntityLifecycle.Completed;
+        entity.IsError = context.Result?.IsError ?? true;
+        entity.ResultSummary = context.Result?
+            .Content?.FirstOrDefault(c => c.Type == ToolContentType.Text)?
+            .Text;
     }
 
     private static ToolResult CreateErrorResult(string errorMessage)

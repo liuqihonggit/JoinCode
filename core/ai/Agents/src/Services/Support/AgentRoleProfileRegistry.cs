@@ -50,28 +50,26 @@ public sealed class AgentRoleProfileRegistry : IAgentRoleRegistry
         return _profileMap.TryGetValue((role, variant), out var profile) ? profile : null;
     }
 
-    public IReadOnlyList<AgentRoleProfile> GetAllProfiles()
+    public IEnumerable<AgentRoleProfile> GetAllProfiles()
     {
         EnsureCustomLoaded();
-        return _profiles.AsReadOnly();
+        return _profiles;
     }
 
-    public IReadOnlyList<AgentRoleProfile> GetProfilesByRole(AgentRole role)
+    public IEnumerable<AgentRoleProfile> GetProfilesByRole(AgentRole role)
     {
         EnsureCustomLoaded();
-        return _profiles.Where(p => p.Role == role).ToList().AsReadOnly();
+        return _profiles.Where(p => p.Role == role);
     }
 
-    public IReadOnlyList<ExecutorVariant> GetAvailableVariants()
+    public IEnumerable<ExecutorVariant> GetAvailableVariants()
     {
         EnsureCustomLoaded();
         return _profiles
             .Where(p => p.Variant.HasValue)
             .Select(p => p.Variant!.Value)
             .Distinct()
-            .OrderBy(v => v)
-            .ToList()
-            .AsReadOnly();
+            .OrderBy(v => v);
     }
 
     public void ClearCache()

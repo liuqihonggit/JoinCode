@@ -56,17 +56,11 @@ public sealed class PlanEntity : Entity
 }
 
 /// <summary>
-/// Plan 注册器
+/// Plan 注册器 — 基于 MapRegistry
 /// </summary>
-public sealed class PlanEntityRegistry
+public sealed class PlanEntityRegistry : MapRegistry<ObjectId, PlanEntity>
 {
-    private readonly ConcurrentDictionary<ObjectId, PlanEntity> _plans = new();
-
-    internal void Add(ObjectId id, PlanEntity plan) => _plans.TryAdd(id, plan);
-    internal bool Remove(ObjectId id) => _plans.TryRemove(id, out _);
-    public PlanEntity? Get(ObjectId id) => _plans.GetValueOrDefault(id);
-    public IReadOnlyList<PlanEntity> GetAll() => [.. _plans.Values];
-    public IReadOnlyList<PlanEntity> GetByStatus(PlanStatus status) => [.. _plans.Values.Where(p => p.Status == status)];
-    public int Count => _plans.Count;
-    public void Clear() => _plans.Clear();
+    internal void Add(ObjectId id, PlanEntity plan) => AddCore(id, plan);
+    internal bool Remove(ObjectId id) => RemoveCore(id);
+    public IEnumerable<PlanEntity> GetByStatus(PlanStatus status) => Where(p => p.Status == status);
 }

@@ -70,19 +70,14 @@ public class ToolExecutionEntity : Entity
 }
 
 /// <summary>
-/// 工具执行实体全局注册器 — 统一查询所有工具执行的生命周期
+/// 工具执行实体全局注册器 — 基于 MapRegistry，统一查询所有工具执行的生命周期
 /// </summary>
-public sealed class ToolExecutionEntityRegistry
+public sealed class ToolExecutionEntityRegistry : MapRegistry<ObjectId, ToolExecutionEntity>
 {
-    private readonly ConcurrentDictionary<ObjectId, ToolExecutionEntity> _entities = new();
-    internal void Add(ObjectId id, ToolExecutionEntity entity) => _entities.TryAdd(id, entity);
-    internal bool Remove(ObjectId id) => _entities.TryRemove(id, out _);
-    public ToolExecutionEntity? Get(ObjectId id) => _entities.GetValueOrDefault(id);
-    public IReadOnlyList<ToolExecutionEntity> GetAll() => [.. _entities.Values];
-    public IReadOnlyList<ToolExecutionEntity> GetActive() => [.. _entities.Values.Where(e => e.LifecycleState == EntityLifecycle.Active)];
-    public IReadOnlyList<ToolExecutionEntity> GetCompleted() => [.. _entities.Values.Where(e => e.LifecycleState == EntityLifecycle.Completed)];
-    public IReadOnlyList<ToolExecutionEntity> GetTimedOut() => [.. _entities.Values.Where(e => e.IsTimedOut)];
-    public IReadOnlyList<ToolExecutionEntity> GetByToolName(string toolName) => [.. _entities.Values.Where(e => string.Equals(e.ToolName, toolName, StringComparison.OrdinalIgnoreCase))];
-    public int Count => _entities.Count;
-    public void Clear() => _entities.Clear();
+    internal void Add(ObjectId id, ToolExecutionEntity entity) => AddCore(id, entity);
+    internal bool Remove(ObjectId id) => RemoveCore(id);
+    public IEnumerable<ToolExecutionEntity> GetActive() => Where(e => e.LifecycleState == EntityLifecycle.Active);
+    public IEnumerable<ToolExecutionEntity> GetCompleted() => Where(e => e.LifecycleState == EntityLifecycle.Completed);
+    public IEnumerable<ToolExecutionEntity> GetTimedOut() => Where(e => e.IsTimedOut);
+    public IEnumerable<ToolExecutionEntity> GetByToolName(string toolName) => Where(e => string.Equals(e.ToolName, toolName, StringComparison.OrdinalIgnoreCase));
 }

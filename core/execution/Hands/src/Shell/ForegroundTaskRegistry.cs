@@ -25,7 +25,7 @@ public sealed partial class ForegroundTaskRegistry : IForegroundTaskRegistry
     }
 
     /// <inheritdoc />
-    public IReadOnlyList<string> BackgroundAll()
+    public IEnumerable<string> BackgroundAll()
     {
         var backgrounded = new List<string>();
 
@@ -44,7 +44,6 @@ public sealed partial class ForegroundTaskRegistry : IForegroundTaskRegistry
             }
         }
 
-        // 清理已后台化的任务
         foreach (var taskId in backgrounded)
         {
             _tasks.TryRemove(taskId, out _);
@@ -57,11 +56,10 @@ public sealed partial class ForegroundTaskRegistry : IForegroundTaskRegistry
     public bool HasForegroundTasks => _tasks.Values.Any(t => t.Status == ShellCommandStatus.Running);
 
     /// <inheritdoc />
-    public IReadOnlyList<IShellCommandContext> GetForegroundTasks()
+    public IEnumerable<IShellCommandContext> GetForegroundTasks()
     {
         return _tasks.Values
-            .Where(t => t.Status == ShellCommandStatus.Running)
-            .ToList();
+            .Where(t => t.Status == ShellCommandStatus.Running);
     }
 
     /// <inheritdoc />

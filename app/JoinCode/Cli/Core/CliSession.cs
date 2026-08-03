@@ -84,7 +84,7 @@ public sealed class CliSession
     /// <summary>
     /// 获取所有已注册命令的信息
     /// </summary>
-    public IReadOnlyList<ChatCommandInfo> GetCommandInfos() => _commandRegistry.GetCommandInfos();
+    public IEnumerable<ChatCommandInfo> GetCommandInfos() => _commandRegistry.GetCommandInfos();
 
     /// <summary>
     /// 停止会话

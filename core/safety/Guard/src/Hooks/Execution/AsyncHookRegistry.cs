@@ -18,9 +18,9 @@ public interface IAsyncHookRegistry
     Task<List<AsyncHookResponse>> CheckForResponsesAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// 获取所有待处理的钩子
+    /// 获取所有待处理的钩子（遍历器，不分配新集合）
     /// </summary>
-    IReadOnlyList<PendingAsyncHook> GetPendingHooks();
+    IEnumerable<PendingAsyncHook> GetPendingHooks();
 
     /// <summary>
     /// 移除已交付的钩子
@@ -371,11 +371,10 @@ public sealed partial class AsyncHookRegistry : IAsyncHookRegistry
     }
 
     /// <inheritdoc />
-    public IReadOnlyList<PendingAsyncHook> GetPendingHooks()
+    public IEnumerable<PendingAsyncHook> GetPendingHooks()
     {
         return _pendingHooks.Values
-            .Where(h => !h.ResponseAttachmentSent)
-            .ToList();
+            .Where(h => !h.ResponseAttachmentSent);
     }
 
     /// <inheritdoc />

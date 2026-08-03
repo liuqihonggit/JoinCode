@@ -7,5 +7,5 @@ public interface IGoalGraphTemplateRegistry
 {
     void Register(GoalGraphTemplate template);
     GoalGraphTemplate? FindMatch(string objective);
-    IReadOnlyList<GoalGraphTemplate> GetAll();
+    IEnumerable<GoalGraphTemplate> GetAll();
 }

@@ -19,19 +19,19 @@ public interface IAgentRoleRegistry
     AgentRoleProfile? GetProfile(AgentRole role, ExecutorVariant? variant = null);
 
     /// <summary>
-    /// 获取所有已注册的角色档案
+    /// 获取所有已注册的角色档案（遍历器，不分配新集合）
     /// </summary>
-    IReadOnlyList<AgentRoleProfile> GetAllProfiles();
+    IEnumerable<AgentRoleProfile> GetAllProfiles();
 
     /// <summary>
-    /// 获取指定角色的所有档案
+    /// 获取指定角色的所有档案（遍历器，不分配新集合）
     /// </summary>
-    IReadOnlyList<AgentRoleProfile> GetProfilesByRole(AgentRole role);
+    IEnumerable<AgentRoleProfile> GetProfilesByRole(AgentRole role);
 
     /// <summary>
     /// 获取所有可用的执行者变体
     /// </summary>
-    IReadOnlyList<ExecutorVariant> GetAvailableVariants();
+    IEnumerable<ExecutorVariant> GetAvailableVariants();
 
     /// <summary>
     /// 清除缓存（用户/项目自定义档案重新加载时调用）

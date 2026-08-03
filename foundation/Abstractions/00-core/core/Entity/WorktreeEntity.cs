@@ -42,15 +42,10 @@ public enum WorktreeEntityStatus
     [EnumValue("removed")] Removed,
 }
 
-public sealed class WorktreeEntityRegistry
+public sealed class WorktreeEntityRegistry : MapRegistry<ObjectId, WorktreeEntity>
 {
-    private readonly ConcurrentDictionary<ObjectId, WorktreeEntity> _worktrees = new();
-    internal void Add(ObjectId id, WorktreeEntity worktree) => _worktrees.TryAdd(id, worktree);
-    internal bool Remove(ObjectId id) => _worktrees.TryRemove(id, out _);
-    public WorktreeEntity? Get(ObjectId id) => _worktrees.GetValueOrDefault(id);
-    public IReadOnlyList<WorktreeEntity> GetAll() => [.. _worktrees.Values];
-    public IReadOnlyList<WorktreeEntity> GetActive() => [.. _worktrees.Values.Where(w => w.Status == WorktreeEntityStatus.Active)];
-    public IReadOnlyList<WorktreeEntity> GetStale() => [.. _worktrees.Values.Where(w => w.Status == WorktreeEntityStatus.Stale)];
-    public int Count => _worktrees.Count;
-    public void Clear() => _worktrees.Clear();
+    internal void Add(ObjectId id, WorktreeEntity worktree) => AddCore(id, worktree);
+    internal bool Remove(ObjectId id) => RemoveCore(id);
+    public IEnumerable<WorktreeEntity> GetActive() => Where(w => w.Status == WorktreeEntityStatus.Active);
+    public IEnumerable<WorktreeEntity> GetStale() => Where(w => w.Status == WorktreeEntityStatus.Stale);
 }

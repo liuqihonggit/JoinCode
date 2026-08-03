@@ -4,7 +4,7 @@ public interface IPluginCommandRegistry
 {
     Task RegisterCommandAsync(PluginCommandDefinition command, CancellationToken ct = default);
     Task UnregisterCommandAsync(string commandName, CancellationToken ct = default);
-    IReadOnlyList<PluginCommandDefinition> GetRegisteredCommands();
+    IEnumerable<PluginCommandDefinition> GetRegisteredCommands();
     PluginCommandDefinition? GetCommand(string commandName);
 }
 
@@ -91,9 +91,9 @@ public sealed partial class PluginCommandRegistry : IPluginCommandRegistry
         await Task.CompletedTask.ConfigureAwait(false);
     }
 
-    public IReadOnlyList<PluginCommandDefinition> GetRegisteredCommands()
+    public IEnumerable<PluginCommandDefinition> GetRegisteredCommands()
     {
-        return _commands.Values.ToList();
+        return _commands.Values;
     }
 
     public PluginCommandDefinition? GetCommand(string commandName)

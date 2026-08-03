@@ -18,7 +18,7 @@ public sealed partial class McpSetupMiddleware : IAgentSpawnMiddleware
     {
         if (_mcpServerManager is not null && context.SubAgent is not null)
         {
-            await InitializeMcpServersIfNeededAsync(context.SubAgent.Id, context.Definition, ct).ConfigureAwait(false);
+            await InitializeMcpServersIfNeededAsync(context.SubAgent.ObjectId.UniqueId, context.Definition, ct).ConfigureAwait(false);
         }
 
         await next(context, ct).ConfigureAwait(false);

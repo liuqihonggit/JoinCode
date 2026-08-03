@@ -504,7 +504,7 @@ public sealed partial class InProcessTeammateTaskExecutor : IInProcessTeammateTa
 
         try
         {
-            await _agentLifecycleManager.DisposeAgentAsync(state.Agent.Id, CancellationToken.None).ConfigureAwait(false);
+            await _agentLifecycleManager.DisposeAgentAsync(state.Agent.ObjectId.UniqueId, CancellationToken.None).ConfigureAwait(false);
         }
         catch (Exception ex)
         {

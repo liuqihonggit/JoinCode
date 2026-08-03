@@ -22,8 +22,8 @@ public sealed class PlanEntity : Entity
 
     public PlanEntity(
         string? description = null,
-        string? id = null)
-        : base(ObjectType.Plan, id)
+        string? displayName = null)
+        : base(ObjectType.Plan, displayName ?? description)
     {
         Description = description;
         LastUpdatedAt = DateTime.UtcNow;
@@ -37,7 +37,7 @@ public sealed class PlanEntity : Entity
 
     public PlanState ToPlanState() => new()
     {
-        PlanId = Id,
+        PlanId = UniqueId,
         Description = Description,
         Status = Status,
         Steps = Steps,

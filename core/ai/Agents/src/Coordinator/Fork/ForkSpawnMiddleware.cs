@@ -85,7 +85,7 @@ public sealed partial class ForkSpawnMiddleware : IForkMiddleware
         var agent = await _lifecycleManager.SpawnSubAgentAsync(
             forkDirective, agentOptions, ct).ConfigureAwait(false);
 
-        _messageBroker.RegisterAgent(agent.Id, context.Options.ParentSessionId);
+        _messageBroker.RegisterAgent(agent.ObjectId.UniqueId, context.Options.ParentSessionId);
 
         context.Agent = agent;
 
@@ -94,10 +94,10 @@ public sealed partial class ForkSpawnMiddleware : IForkMiddleware
             || (_worktreeManager is not null && _worktreeManager.IsWorktreeIsolationEnabled);
         if (shouldCreateWorktree && _worktreeManager is not null)
         {
-            var worktreeCreated = await _worktreeManager.CreateWorktreeAsync(agent.Id, ct).ConfigureAwait(false);
+            var worktreeCreated = await _worktreeManager.CreateWorktreeAsync(agent.ObjectId.UniqueId, ct).ConfigureAwait(false);
             if (worktreeCreated)
             {
-                var session = await _worktreeManager.GetWorktreeSessionAsync(agent.Id, ct).ConfigureAwait(false);
+                var session = await _worktreeManager.GetWorktreeSessionAsync(agent.ObjectId.UniqueId, ct).ConfigureAwait(false);
                 if (session is not null)
                 {
                     var parentCwd = _subAgentContextAccessor.Current?.WorktreePath ?? Environment.CurrentDirectory;
@@ -110,7 +110,7 @@ public sealed partial class ForkSpawnMiddleware : IForkMiddleware
         }
 
         // 邮箱轮询
-        StartMailboxPollingIfNeeded(agent.Id, context.Options.ParentSessionId);
+        StartMailboxPollingIfNeeded(agent.ObjectId.UniqueId, context.Options.ParentSessionId);
 
         _logger?.LogInformation("Fork {ForkId} created for parent session {ParentSessionId}",
             context.ForkId, context.Options.ParentSessionId);

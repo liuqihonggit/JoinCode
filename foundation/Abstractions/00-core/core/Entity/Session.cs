@@ -11,7 +11,6 @@ public sealed class Session : Entity
     public string? CurrentModel { get; set; }
     public bool IsPlanMode { get; set; }
     public string? CurrentPlan { get; set; }
-    public DateTime LastActivityAt { get; set; }
 
     /// <summary>
     /// 全局唯一 Session 注册器 — 静态属性暴露，无需DI
@@ -21,8 +20,8 @@ public sealed class Session : Entity
     public Session(
         string? systemPrompt = null,
         string? currentModel = null,
-        string? id = null)
-        : base(ObjectType.Session, id)
+        string? displayName = null)
+        : base(ObjectType.Session, displayName)
     {
         SystemPrompt = systemPrompt;
         CurrentModel = currentModel;
@@ -45,7 +44,7 @@ public sealed class Session : Entity
     public SessionState ToSessionState(ImmutableList<ApiMessageState> messages)
         => new()
         {
-            SessionId = Id,
+            SessionId = UniqueId,
             SystemPrompt = SystemPrompt ?? string.Empty,
             MessageList = messages,
             StartedAt = CreatedAt,

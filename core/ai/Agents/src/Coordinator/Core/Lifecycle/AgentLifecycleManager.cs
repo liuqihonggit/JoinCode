@@ -43,7 +43,7 @@ public sealed partial class AgentLifecycleManager : IAgentLifecycleManager
             tokenBudget: options?.TokenBudget,
             goalId: options?.GoalId,
             graphNodeId: options?.GraphNodeId);
-        var agentId = agent.Id;
+        var agentId = agent.ObjectId.UniqueId;
 
         _subAgents[agentId] = agent;
         _stateMachine.RegisterAgent(agentId, task, options);
@@ -72,36 +72,36 @@ public sealed partial class AgentLifecycleManager : IAgentLifecycleManager
     /// </summary>
     public async Task<SubAgentResult> ExecuteAsync(IAgent agent, CancellationToken cancellationToken = default)
     {
-        if (!await _stateMachine.TryTransitionAsync(agent.Id, TaskExecutionStatus.Running, "开始执行", cancellationToken))
+        if (!await _stateMachine.TryTransitionAsync(agent.ObjectId.UniqueId, TaskExecutionStatus.Running, "开始执行", cancellationToken))
         {
-            return CreateErrorResult(agent.Id, "Agent状态不允许执行");
+            return CreateErrorResult(agent.ObjectId.UniqueId, "Agent状态不允许执行");
         }
 
         try
         {
-            _logger?.LogInformation("[AgentLifecycleManager] 开始执行Agent {AgentId}", agent.Id);
+            _logger?.LogInformation("[AgentLifecycleManager] 开始执行Agent {AgentId}", agent.ObjectId.UniqueId);
 
             var result = await agent.ExecuteAsync(cancellationToken).ConfigureAwait(false);
-            _results[agent.Id] = result;
+            _results[agent.ObjectId.UniqueId] = result;
 
             var finalState = result.IsSuccess ? TaskExecutionStatus.Completed : TaskExecutionStatus.Failed;
-            await _stateMachine.TryTransitionAsync(agent.Id, finalState, result.Error, cancellationToken).ConfigureAwait(false);
+            await _stateMachine.TryTransitionAsync(agent.ObjectId.UniqueId, finalState, result.Error, cancellationToken).ConfigureAwait(false);
 
             _logger?.LogInformation("[AgentLifecycleManager] Agent {AgentId} 执行完成，状态: {State}",
-                agent.Id, finalState);
+                agent.ObjectId.UniqueId, finalState);
 
             return result;
         }
         catch (OperationCanceledException)
         {
-            await _stateMachine.TryTransitionAsync(agent.Id, TaskExecutionStatus.Cancelled, "任务被取消", cancellationToken).ConfigureAwait(false);
-            return CreateErrorResult(agent.Id, "任务被取消");
+            await _stateMachine.TryTransitionAsync(agent.ObjectId.UniqueId, TaskExecutionStatus.Cancelled, "任务被取消", cancellationToken).ConfigureAwait(false);
+            return CreateErrorResult(agent.ObjectId.UniqueId, "任务被取消");
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "[AgentLifecycleManager] Agent {AgentId} 执行失败", agent.Id);
-            await _stateMachine.TryTransitionAsync(agent.Id, TaskExecutionStatus.Failed, ex.Message, cancellationToken).ConfigureAwait(false);
-            return CreateErrorResult(agent.Id, ex.Message);
+            _logger?.LogError(ex, "[AgentLifecycleManager] Agent {AgentId} 执行失败", agent.ObjectId.UniqueId);
+            await _stateMachine.TryTransitionAsync(agent.ObjectId.UniqueId, TaskExecutionStatus.Failed, ex.Message, cancellationToken).ConfigureAwait(false);
+            return CreateErrorResult(agent.ObjectId.UniqueId, ex.Message);
         }
     }
 
@@ -155,7 +155,7 @@ public sealed partial class AgentLifecycleManager : IAgentLifecycleManager
         }
 
         await Task.WhenAll(_subAgents.Values.Select(agent =>
-            _stateMachine.TryTransitionAsync(agent.Id, TaskExecutionStatus.Cancelled, "批量取消", ct).AsTask())).ConfigureAwait(false);
+            _stateMachine.TryTransitionAsync(agent.ObjectId.UniqueId, TaskExecutionStatus.Cancelled, "批量取消", ct).AsTask())).ConfigureAwait(false);
 
         _logger?.LogInformation("[AgentLifecycleManager] 已取消所有Agent");
     }
@@ -255,7 +255,7 @@ public sealed partial class AgentLifecycleManager : IAgentLifecycleManager
             .Where(a => a.State == TaskExecutionStatus.Running)
             .Select(a => new RunningAgentInfo
             {
-                Id = a.Id,
+                Id = a.ObjectId.UniqueId,
                 Description = a.Task,
                 AgentType = a.Options.AgentType,
                 StartedAt = a.StartedAt

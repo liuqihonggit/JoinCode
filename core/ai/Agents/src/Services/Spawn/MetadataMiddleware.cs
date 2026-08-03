@@ -31,7 +31,7 @@ public sealed partial class MetadataMiddleware : IAgentSpawnMiddleware
             var agent = (Agent)subAgent;
             await (_transcriptService ?? throw new InvalidOperationException("TranscriptService not available")).SaveMetadataAsync("default", new JoinCode.Abstractions.Interfaces.AgentMetadata
             {
-                AgentId = subAgent.Id,
+                AgentId = subAgent.ObjectId.UniqueId,
                 AgentType = agent.Options.AgentType,
                 Description = subAgent.Task,
                 WorktreePath = agent.Options.WorktreePath,
@@ -41,7 +41,7 @@ public sealed partial class MetadataMiddleware : IAgentSpawnMiddleware
         }
         catch (Exception ex)
         {
-            _logger?.LogWarning(ex, "[MetadataMiddleware] 保存代理元数据失败: {AgentId}", subAgent.Id);
+            _logger?.LogWarning(ex, "[MetadataMiddleware] 保存代理元数据失败: {AgentId}", subAgent.ObjectId.UniqueId);
         }
     }
 }

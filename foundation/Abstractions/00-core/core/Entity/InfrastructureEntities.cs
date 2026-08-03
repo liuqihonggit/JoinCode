@@ -13,8 +13,8 @@ public sealed class BuildEntity : Entity
 
     public static BuildEntityRegistry Registry { get; } = new();
 
-    public BuildEntity(string? projectPath = null, string? configuration = null, string? id = null)
-        : base(ObjectType.Build, id)
+    public BuildEntity(string? projectPath = null, string? configuration = null, string? displayName = null)
+        : base(ObjectType.Build, displayName ?? projectPath)
     {
         ProjectPath = projectPath;
         Configuration = configuration;
@@ -46,8 +46,8 @@ public sealed class SandboxEntity : Entity
 
     public static SandboxEntityRegistry Registry { get; } = new();
 
-    public SandboxEntity(string? workingDirectory = null, string? id = null)
-        : base(ObjectType.Sandbox, id)
+    public SandboxEntity(string? workingDirectory = null, string? displayName = null)
+        : base(ObjectType.Sandbox, displayName ?? workingDirectory)
     {
         WorkingDirectory = workingDirectory;
         Registry.Add(ObjectId, this);
@@ -77,8 +77,8 @@ public sealed class RepoEntity : Entity
 
     public static RepoEntityRegistry Registry { get; } = new();
 
-    public RepoEntity(string? repoPath = null, string? id = null)
-        : base(ObjectType.Repo, id)
+    public RepoEntity(string? repoPath = null, string? displayName = null)
+        : base(ObjectType.Repo, displayName ?? repoPath)
     {
         RepoPath = repoPath;
         Registry.Add(ObjectId, this);
@@ -111,8 +111,8 @@ public sealed class ShellTaskEntity : Entity
 
     public static ShellTaskEntityRegistry Registry { get; } = new();
 
-    public ShellTaskEntity(string? command = null, string? id = null)
-        : base(ObjectType.Task, id)
+    public ShellTaskEntity(string? command = null, string? displayName = null)
+        : base(ObjectType.Task, displayName ?? command)
     {
         Command = command;
         Registry.Add(ObjectId, this);
@@ -144,8 +144,8 @@ public sealed class PermissionRequestEntity : Entity
 
     public static PermissionRequestEntityRegistry Registry { get; } = new();
 
-    public PermissionRequestEntity(string? toolName = null, string? requestedAction = null, string? id = null)
-        : base(ObjectType.Request, id)
+    public PermissionRequestEntity(string? toolName = null, string? requestedAction = null, string? displayName = null)
+        : base(ObjectType.Request, displayName ?? toolName)
     {
         ToolName = toolName;
         RequestedAction = requestedAction;
@@ -178,8 +178,8 @@ public sealed class NotificationEntity : Entity
 
     public static NotificationEntityRegistry Registry { get; } = new();
 
-    public NotificationEntity(string? message = null, string? category = null, string? id = null)
-        : base(ObjectType.Notification, id)
+    public NotificationEntity(string? message = null, string? category = null, string? displayName = null)
+        : base(ObjectType.Notification, displayName ?? message)
     {
         Message = message;
         Category = category;

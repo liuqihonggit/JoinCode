@@ -19,8 +19,8 @@ public sealed partial class TranscriptMiddleware : IAgentSpawnMiddleware
     {
         if (_transcriptService is not null && context.SubAgent is not null)
         {
-            await AppendTranscriptEntryAsync(context.SubAgent.Id, "system", context.SystemPrompt, ct).ConfigureAwait(false);
-            await AppendTranscriptEntryAsync(context.SubAgent.Id, "user", context.Options.Prompt ?? context.Options.Description, ct).ConfigureAwait(false);
+            await AppendTranscriptEntryAsync(context.SubAgent.ObjectId.UniqueId, "system", context.SystemPrompt, ct).ConfigureAwait(false);
+            await AppendTranscriptEntryAsync(context.SubAgent.ObjectId.UniqueId, "user", context.Options.Prompt ?? context.Options.Description, ct).ConfigureAwait(false);
         }
 
         await next(context, ct).ConfigureAwait(false);

@@ -372,7 +372,7 @@ public sealed partial class WorkflowTaskExecutor : IWorkflowTaskExecutor
 
         var agent = await _agentLifecycleManager.SpawnSubAgentAsync(description, options, ct).ConfigureAwait(false);
         var result = await _agentLifecycleManager.ExecuteAsync(agent, ct).ConfigureAwait(false);
-        await _agentLifecycleManager.DisposeAgentAsync(agent.Id, ct).ConfigureAwait(false);
+        await _agentLifecycleManager.DisposeAgentAsync(agent.ObjectId.UniqueId, ct).ConfigureAwait(false);
 
         return result.Output ?? string.Empty;
     }

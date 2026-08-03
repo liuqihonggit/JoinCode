@@ -22,7 +22,7 @@ public sealed partial class ForkExecutionMiddleware : IForkMiddleware
         {
             context.FinalState = ForkState.Failed;
             context.FinalResult = "Agent not spawned";
-            await CleanupWorktreeIfNeededAsync(context.Agent?.Id, ct).ConfigureAwait(false);
+            await CleanupWorktreeIfNeededAsync(context.Agent?.ObjectId.UniqueId, ct).ConfigureAwait(false);
             await next(context, ct).ConfigureAwait(false);
             return;
         }
@@ -73,7 +73,7 @@ public sealed partial class ForkExecutionMiddleware : IForkMiddleware
         }
         finally
         {
-            await CleanupWorktreeIfNeededAsync(context.Agent?.Id, ct).ConfigureAwait(false);
+            await CleanupWorktreeIfNeededAsync(context.Agent?.ObjectId.UniqueId, ct).ConfigureAwait(false);
         }
 
         await next(context, ct).ConfigureAwait(false);

@@ -18,8 +18,8 @@ public sealed class McpServerEntity : Entity
 
     public McpServerEntity(
         string name,
-        string? id = null)
-        : base(ObjectType.Mcp, id)
+        string? displayName = null)
+        : base(ObjectType.Mcp, displayName ?? name)
     {
         Name = name;
         Registry.Add(ObjectId, this);
@@ -33,7 +33,7 @@ public sealed class McpServerEntity : Entity
     public McpServerState ToMcpServerState() => new()
     {
         Name = Name,
-        ServerId = Id,
+        ServerId = UniqueId,
         Status = Status,
         LastError = LastError,
         ConnectedAt = ConnectedAt

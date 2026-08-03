@@ -97,7 +97,7 @@ internal sealed class TaskExecutor
         try
         {
             var subAgents = await CreateSubAgentsAsync(task, taskContext, options).ConfigureAwait(false);
-            agentTasks.AddRange(subAgents.Select(a => a.Id));
+            agentTasks.AddRange(subAgents.Select(a => a.ObjectId.UniqueId));
 
             LogAgentCreation(task.Name, subAgents, task.RequiredAgents);
 
@@ -106,7 +106,7 @@ internal sealed class TaskExecutor
 
             HandleExecutionOutcome(task, results, executionLog);
 
-            await CleanupAgentsAsync(subAgents.Select(a => a.Id)).ConfigureAwait(false);
+            await CleanupAgentsAsync(subAgents.Select(a => a.ObjectId.UniqueId)).ConfigureAwait(false);
         }
         catch (Exception)
         {
@@ -195,7 +195,7 @@ internal sealed class TaskExecutor
     {
         for (int i = 0; i < subAgents.Count; i++)
         {
-            _logger?.LogInformation(L.T(StringKey.CreateSubAgentLog, taskName, subAgents[i].Id, i + 1, totalAgents));
+            _logger?.LogInformation(L.T(StringKey.CreateSubAgentLog, taskName, subAgents[i].ObjectId.UniqueId, i + 1, totalAgents));
         }
     }
 

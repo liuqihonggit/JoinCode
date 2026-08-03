@@ -474,6 +474,7 @@ public sealed class ShellCommandContext : IShellCommandContext, IShellLifecycle,
 
         var result = ShellExecutionResult.SuccessResult(stdout, stderr, _process.ExitCode) with
         {
+            ProcessId = _process.Id,
             PersistedOutputPath = persistedPath,
             PersistedOutputSize = persistedSize,
             BackgroundTaskId = _backgroundTaskId,

@@ -172,6 +172,9 @@ public sealed partial class PermissionAwareToolExecutor
                 var exitCodeEntry = metadata.Find(m => m.Key == "exit_code");
                 if (exitCodeEntry?.IntValue is int exitCode)
                     bash.ExitCode = exitCode;
+                var processIdEntry = metadata.Find(m => m.Key == "process_id");
+                if (processIdEntry?.IntValue is int processId)
+                    bash.ProcessId = processId;
                 var interruptedEntry = metadata.Find(m => m.Key == "interrupted");
                 if (interruptedEntry?.BoolValue == true)
                     bash.Status = BashProcessStatus.TimedOut;

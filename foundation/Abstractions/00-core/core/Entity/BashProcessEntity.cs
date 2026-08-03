@@ -6,7 +6,7 @@ namespace JoinCode.Abstractions.Entity;
 /// </summary>
 public sealed class BashProcessEntity : ToolExecutionEntity
 {
-    public int? ProcessId { get; init; }
+    public int? ProcessId { get; set; }
     public string? Command { get; init; }
     public string? WorkingDirectory { get; init; }
     public BashProcessStatus Status { get; set; } = BashProcessStatus.Running;

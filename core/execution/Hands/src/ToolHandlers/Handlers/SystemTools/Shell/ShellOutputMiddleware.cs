@@ -90,6 +90,8 @@ public sealed partial class ShellOutputMiddleware : IShellMiddleware
         var metadata = new List<EntityMetadataEntry>();
         if (result.ExitCode.HasValue)
             metadata.Add(EntityMetadataEntry.Int("exit_code", result.ExitCode.Value));
+        if (result.ProcessId.HasValue)
+            metadata.Add(EntityMetadataEntry.Int("process_id", result.ProcessId.Value));
         if (result.Interrupted)
             metadata.Add(EntityMetadataEntry.Bool("interrupted", true));
         if (result.BackgroundTaskId is not null)

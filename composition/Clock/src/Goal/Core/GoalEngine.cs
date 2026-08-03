@@ -68,7 +68,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
 
         var dag = new Dag<GoalNodePayload>();
 
-        var nodes = System.Text.Json.JsonSerializer.Deserialize<GraphDefineNode[]>(nodesJson, GraphDefineJsonContext.Default.GraphDefineNodeArray)
+        var nodes = LlmJsonHelper.DeserializeValue(nodesJson, GraphDefineJsonContext.Default.GraphDefineNodeArray, out _)
             ?? throw new ArgumentException("Invalid nodes JSON");
 
         foreach (var node in nodes)
@@ -94,7 +94,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
             });
         }
 
-        var edges = System.Text.Json.JsonSerializer.Deserialize<GraphDefineEdge[]>(edgesJson, GraphDefineJsonContext.Default.GraphDefineEdgeArray)
+        var edges = LlmJsonHelper.DeserializeValue(edgesJson, GraphDefineJsonContext.Default.GraphDefineEdgeArray, out _)
             ?? throw new ArgumentException("Invalid edges JSON");
 
         foreach (var edge in edges)

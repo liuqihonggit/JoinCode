@@ -95,13 +95,26 @@ public abstract class ReasoningAgentBase : IReasoningAgent
     }
 
     /// <summary>
-    /// 从JSON字符串中提取第一个JSON对象
+    /// 从 LLM 输出中提取 JSON 对象
+    /// 优先提取 ```json 代码块，回退到大括号截取，并通过 RepairJson 修复格式
     /// </summary>
     protected static string? ExtractJsonObject(string content)
     {
+        var json = LlmJsonHelper.ExtractJsonBlock(content);
+        if (json is not null)
+        {
+            var repairResult = ToolCallRepairService.RepairJson(json);
+            return repairResult.Success ? repairResult.RepairedJson : json;
+        }
+
         var start = content.IndexOf('{');
         var end = content.LastIndexOf('}');
-        return start >= 0 && end > start ? content[start..(end + 1)] : null;
+        if (start < 0 || end <= start)
+            return null;
+
+        var inlineJson = content[start..(end + 1)];
+        var inlineRepair = ToolCallRepairService.RepairJson(inlineJson);
+        return inlineRepair.Success ? inlineRepair.RepairedJson : inlineJson;
     }
 
     /// <summary>

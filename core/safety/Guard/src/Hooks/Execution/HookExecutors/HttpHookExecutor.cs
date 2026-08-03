@@ -158,7 +158,7 @@ public sealed partial class HttpHookExecutor : HookExecutorBase<HttpHook>
 
     private HookResult ParseJsonResponse(string json)
     {
-        var hookDecision = JsonSerializer.Deserialize(json, HooksJsonContext.Default.HookDecision);
+        var hookDecision = LlmJsonHelper.Deserialize(json, HooksJsonContext.Default.HookDecision, out _);
         if (hookDecision is null)
             return new HookResult { Outcome = HookOutcome.Success };
 

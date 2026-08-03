@@ -17,11 +17,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
     [Inject] private readonly IClockService _clock;
     [Inject] private readonly IServiceProvider _serviceProvider = null!;
     [Inject] private readonly IGoalGraphTemplateRegistry _templateRegistry = null!;
-<<<<<<< HEAD:composition/Clock/src/Goal/Core/GoalEngine.cs
     private Core.Agents.Coordinator.AgentRegistry _agentRegistry => Core.Agents.Coordinator.Agent.Registry;
-=======
-    [Inject] private readonly IAgentRegistry? _agentRegistry = null!;
->>>>>>> c0bbb415c3daaa0e27b22a271cafbff47cad1d13:composition/Clock/src/Goal/Goal/Core/GoalEngine.cs
     private readonly IToolPermissionManager? _permissionManager;
     private readonly MiddlewarePipeline<GoalLifecycleContext>? _lifecyclePipeline;
     private GoalState? _state;
@@ -90,11 +86,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
                         _ => GoalNodeKind.Agent,
                     },
                     Name = node.Name ?? nodeId,
-<<<<<<< HEAD:composition/Clock/src/Goal/Core/GoalEngine.cs
                     Role = AgentRole.Executor,
-=======
-                    IsSubAgent = true,
->>>>>>> c0bbb415c3daaa0e27b22a271cafbff47cad1d13:composition/Clock/src/Goal/Goal/Core/GoalEngine.cs
                     SystemPrompt = node.SystemPrompt,
                     Instruction = node.Instruction,
                     FreshContext = node.FreshContext,
@@ -239,11 +231,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
             {
                 Kind = GoalNodeKind.Agent,
                 Name = "executor",
-<<<<<<< HEAD:composition/Clock/src/Goal/Core/GoalEngine.cs
                 Role = AgentRole.Executor,
-=======
-                IsSubAgent = true,
->>>>>>> c0bbb415c3daaa0e27b22a271cafbff47cad1d13:composition/Clock/src/Goal/Goal/Core/GoalEngine.cs
                 Instruction = objective,
                 TokenBudget = tokenBudget,
             },
@@ -256,11 +244,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
             {
                 Kind = GoalNodeKind.Agent,
                 Name = "reviewer",
-<<<<<<< HEAD:composition/Clock/src/Goal/Core/GoalEngine.cs
                 Role = AgentRole.Coordinator,
-=======
-                IsSubAgent = true,
->>>>>>> c0bbb415c3daaa0e27b22a271cafbff47cad1d13:composition/Clock/src/Goal/Goal/Core/GoalEngine.cs
                 SystemPrompt = "You are an independent reviewer. Evaluate the following work output objectively. You must determine if the task was completed successfully. Reply with PASS if the work meets the requirements, or FAIL with specific issues if it does not. Do not assume context you were not given — judge only by what you see.",
                 Instruction = "Review the following work output and determine if it successfully completes the task. Be objective and thorough.",
                 FreshContext = true,
@@ -1108,7 +1092,6 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
 
     private void RegisterMainAgent(string goalId, string objective, int? tokenBudget)
     {
-<<<<<<< HEAD:composition/Clock/src/Goal/Core/GoalEngine.cs
         var mainAgents = _agentRegistry.GetMainAgents();
         if (mainAgents.Count > 0)
         {
@@ -1141,22 +1124,6 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
             tokenBudget: tokenBudget);
 
         _logger?.LogInformation("[GoalEngine] mainAgent 创建并注册到 Agent.Registry: {AgentId}, Goal={GoalId}", mainAgent.Id, goalId);
-=======
-        if (_agentRegistry is null) return;
-
-        var mainAgentId = AgentDescriptor.GenerateId();
-        _agentRegistry.Register(new AgentDescriptor
-        {
-            Id = mainAgentId,
-            Name = "mainAgent",
-            IsSubAgent = false,
-            Instruction = objective,
-            GoalId = goalId,
-            TokenBudget = tokenBudget,
-        });
-
-        _logger?.LogInformation("[GoalEngine] mainAgent 注册到 AgentRegistry: {AgentId}, Goal={GoalId}", mainAgentId, goalId);
->>>>>>> c0bbb415c3daaa0e27b22a271cafbff47cad1d13:composition/Clock/src/Goal/Goal/Core/GoalEngine.cs
     }
 }
 

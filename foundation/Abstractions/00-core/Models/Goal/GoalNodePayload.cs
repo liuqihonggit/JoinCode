@@ -1,10 +1,6 @@
 namespace JoinCode.Abstractions.Models.Goal;
 
-<<<<<<< HEAD
 using JoinCode.Abstractions.Models.Agent;
-
-=======
->>>>>>> c0bbb415c3daaa0e27b22a271cafbff47cad1d13
 /// <summary>
 /// Goal Graph 节点 Payload — 携带执行所需的所有信息
 /// </summary>
@@ -13,7 +9,6 @@ public sealed class GoalNodePayload
     public required GoalNodeKind Kind { get; init; }
     public required string Name { get; init; }
     public string? AgentId { get; set; }
-<<<<<<< HEAD
     public AgentRole Role { get; init; } = AgentRole.Executor;
 
     /// <summary>
@@ -22,10 +17,6 @@ public sealed class GoalNodePayload
     /// 为空时回退到 SystemPrompt + Instruction 轻量模式（IChatClient 直接调用）
     /// </summary>
     public ExecutorVariant? Variant { get; init; }
-
-=======
-    public bool IsSubAgent { get; init; }
->>>>>>> c0bbb415c3daaa0e27b22a271cafbff47cad1d13
     public string? SystemPrompt { get; init; }
     public string? Instruction { get; init; }
     public bool FreshContext { get; init; }
@@ -42,7 +33,6 @@ public sealed class GoalNodePayload
     public DateTime? CompletedAt { get; set; }
     public int TokensUsed { get; set; }
     public int TurnsCompleted { get; set; }
-<<<<<<< HEAD
 
     /// <summary>
     /// 当前循环迭代次数（负向评价-修复循环）
@@ -68,6 +58,4 @@ public sealed class GoalNodePayload
     /// 负向评价任务ID（关联 mcp_task）
     /// </summary>
     public string? NegativeReviewTaskId { get; set; }
-=======
->>>>>>> c0bbb415c3daaa0e27b22a271cafbff47cad1d13
 }

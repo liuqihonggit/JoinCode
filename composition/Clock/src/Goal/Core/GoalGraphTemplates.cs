@@ -16,10 +16,7 @@ public static class GoalGraphTemplates
         registry.Register(ResearchTemplate);
         registry.Register(CodeReviewTemplate);
         registry.Register(TestGenTemplate);
-<<<<<<< HEAD:composition/Clock/src/Goal/Core/GoalGraphTemplates.cs
         registry.Register(NegativeReviewLoopTemplate);
-=======
->>>>>>> c0bbb415c3daaa0e27b22a271cafbff47cad1d13:composition/Clock/src/Goal/Goal/Core/GoalGraphTemplates.cs
     }
 
     public static GoalGraphTemplate RefactorTemplate => new()
@@ -62,7 +59,6 @@ public static class GoalGraphTemplates
         BuildGraph = BuildTestGenGraph,
     };
 
-<<<<<<< HEAD:composition/Clock/src/Goal/Core/GoalGraphTemplates.cs
     /// <summary>
     /// 负向评价循环模板 — execute → neg_review ⟲ fix_neg
     /// 终止条件: 负评≤5→停止 | 6~10→ask_user | token预算耗尽 | 协调者终止 | 16轮硬上限
@@ -75,23 +71,15 @@ public static class GoalGraphTemplates
         BuildGraph = BuildNegativeReviewLoopGraph,
     };
 
-=======
->>>>>>> c0bbb415c3daaa0e27b22a271cafbff47cad1d13:composition/Clock/src/Goal/Goal/Core/GoalGraphTemplates.cs
+
     private static GoalGraph BuildRefactorGraph(GoalGraphEngine engine, string objective)
     {
         var dag = new Dag<GoalNodePayload>();
 
-<<<<<<< HEAD:composition/Clock/src/Goal/Core/GoalGraphTemplates.cs
         dag.AddNode(new DagNode<GoalNodePayload> { Id = "explore", Payload = new() { Kind = GoalNodeKind.Agent, Name = "explorer", Role = AgentRole.Executor, Variant = ExecutorVariant.Explore, SystemPrompt = "You are a code exploration expert. Analyze module structure, identify refactoring opportunities, and create a detailed refactoring plan.", Instruction = objective } });
         dag.AddNode(new DagNode<GoalNodePayload> { Id = "implement", Payload = new() { Kind = GoalNodeKind.Agent, Name = "implementer", Role = AgentRole.Executor, Variant = ExecutorVariant.Code, SystemPrompt = "You are a code implementation expert. Execute refactoring step by step based on the analysis. Compile after each change to verify correctness.", Instruction = "Execute the refactoring based on the exploration results. Compile and fix any errors." } });
         dag.AddNode(new DagNode<GoalNodePayload> { Id = "review", Payload = new() { Kind = GoalNodeKind.Agent, Name = "reviewer", Role = AgentRole.Coordinator, SystemPrompt = "You are an independent code reviewer. Evaluate the refactoring WITHOUT assuming context from the implementation. Check: correctness, no regressions, code quality, completeness.", Instruction = "Review the refactoring result objectively. Verify correctness and completeness.", FreshContext = true } });
         dag.AddNode(new DagNode<GoalNodePayload> { Id = "commit", Payload = new() { Kind = GoalNodeKind.Agent, Name = "committer", Role = AgentRole.Executor, Variant = ExecutorVariant.Code, SystemPrompt = "You are a commit expert. Create a clear, descriptive commit message and commit the changes.", Instruction = "Commit the refactoring result with a descriptive message." } });
-=======
-        dag.AddNode(new DagNode<GoalNodePayload> { Id = "explore", Payload = new() { Kind = GoalNodeKind.Agent, Name = "explorer", IsSubAgent = true, SystemPrompt = "You are a code exploration expert. Analyze module structure, identify refactoring opportunities, and create a detailed refactoring plan.", Instruction = objective } });
-        dag.AddNode(new DagNode<GoalNodePayload> { Id = "implement", Payload = new() { Kind = GoalNodeKind.Agent, Name = "implementer", IsSubAgent = true, SystemPrompt = "You are a code implementation expert. Execute refactoring step by step based on the analysis. Compile after each change to verify correctness.", Instruction = "Execute the refactoring based on the exploration results. Compile and fix any errors." } });
-        dag.AddNode(new DagNode<GoalNodePayload> { Id = "review", Payload = new() { Kind = GoalNodeKind.Agent, Name = "reviewer", IsSubAgent = true, SystemPrompt = "You are an independent code reviewer. Evaluate the refactoring WITHOUT assuming context from the implementation. Check: correctness, no regressions, code quality, completeness.", Instruction = "Review the refactoring result objectively. Verify correctness and completeness.", FreshContext = true } });
-        dag.AddNode(new DagNode<GoalNodePayload> { Id = "commit", Payload = new() { Kind = GoalNodeKind.Agent, Name = "committer", IsSubAgent = true, SystemPrompt = "You are a commit expert. Create a clear, descriptive commit message and commit the changes.", Instruction = "Commit the refactoring result with a descriptive message." } });
->>>>>>> c0bbb415c3daaa0e27b22a271cafbff47cad1d13:composition/Clock/src/Goal/Goal/Core/GoalGraphTemplates.cs
 
         dag.AddEdge(new DagEdge { Id = "e1", FromId = "explore", ToId = "implement" });
         dag.AddEdge(new DagEdge { Id = "e2", FromId = "implement", ToId = "review" });
@@ -107,17 +95,10 @@ public static class GoalGraphTemplates
     {
         var dag = new Dag<GoalNodePayload>();
 
-<<<<<<< HEAD:composition/Clock/src/Goal/Core/GoalGraphTemplates.cs
         dag.AddNode(new DagNode<GoalNodePayload> { Id = "reproduce", Payload = new() { Kind = GoalNodeKind.Agent, Name = "reproducer", Role = AgentRole.Executor, Variant = ExecutorVariant.Code, SystemPrompt = "You are a bug reproduction expert. Create a minimal test case that reliably reproduces the bug.", Instruction = objective } });
         dag.AddNode(new DagNode<GoalNodePayload> { Id = "locate", Payload = new() { Kind = GoalNodeKind.Agent, Name = "locator", Role = AgentRole.Executor, Variant = ExecutorVariant.Explore, SystemPrompt = "You are a root cause analysis expert. Trace the bug from the reproduction to its exact source. Identify the specific code location and the mechanism causing the bug.", Instruction = "Locate the root cause based on the reproduction results." } });
         dag.AddNode(new DagNode<GoalNodePayload> { Id = "fix", Payload = new() { Kind = GoalNodeKind.Agent, Name = "fixer", Role = AgentRole.Executor, Variant = ExecutorVariant.Code, SystemPrompt = "You are a bug fix expert. Implement a minimal, correct fix that addresses the root cause without introducing side effects.", Instruction = "Fix the bug based on the root cause analysis. Make minimal changes." } });
         dag.AddNode(new DagNode<GoalNodePayload> { Id = "verify", Payload = new() { Kind = GoalNodeKind.Agent, Name = "verifier", Role = AgentRole.Coordinator, SystemPrompt = "You are an independent verifier. Confirm the bug is fixed WITHOUT assuming context. Run the reproduction test and all related tests.", Instruction = "Independently verify the bug is fixed. Run tests and check the fix.", FreshContext = true } });
-=======
-        dag.AddNode(new DagNode<GoalNodePayload> { Id = "reproduce", Payload = new() { Kind = GoalNodeKind.Agent, Name = "reproducer", IsSubAgent = true, SystemPrompt = "You are a bug reproduction expert. Create a minimal test case that reliably reproduces the bug.", Instruction = objective } });
-        dag.AddNode(new DagNode<GoalNodePayload> { Id = "locate", Payload = new() { Kind = GoalNodeKind.Agent, Name = "locator", IsSubAgent = true, SystemPrompt = "You are a root cause analysis expert. Trace the bug from the reproduction to its exact source. Identify the specific code location and the mechanism causing the bug.", Instruction = "Locate the root cause based on the reproduction results." } });
-        dag.AddNode(new DagNode<GoalNodePayload> { Id = "fix", Payload = new() { Kind = GoalNodeKind.Agent, Name = "fixer", IsSubAgent = true, SystemPrompt = "You are a bug fix expert. Implement a minimal, correct fix that addresses the root cause without introducing side effects.", Instruction = "Fix the bug based on the root cause analysis. Make minimal changes." } });
-        dag.AddNode(new DagNode<GoalNodePayload> { Id = "verify", Payload = new() { Kind = GoalNodeKind.Agent, Name = "verifier", IsSubAgent = true, SystemPrompt = "You are an independent verifier. Confirm the bug is fixed WITHOUT assuming context. Run the reproduction test and all related tests.", Instruction = "Independently verify the bug is fixed. Run tests and check the fix.", FreshContext = true } });
->>>>>>> c0bbb415c3daaa0e27b22a271cafbff47cad1d13:composition/Clock/src/Goal/Goal/Core/GoalGraphTemplates.cs
 
         dag.AddEdge(new DagEdge { Id = "e1", FromId = "reproduce", ToId = "locate" });
         dag.AddEdge(new DagEdge { Id = "e2", FromId = "locate", ToId = "fix" });
@@ -134,19 +115,11 @@ public static class GoalGraphTemplates
         var dag = new Dag<GoalNodePayload>();
 
         dag.AddNode(new DagNode<GoalNodePayload> { Id = "start", Payload = new() { Kind = GoalNodeKind.Function, Name = "start", Instruction = "Start research" } });
-<<<<<<< HEAD:composition/Clock/src/Goal/Core/GoalGraphTemplates.cs
         dag.AddNode(new DagNode<GoalNodePayload> { Id = "research_a", Payload = new() { Kind = GoalNodeKind.Agent, Name = "researcher-technical", Role = AgentRole.Executor, Variant = ExecutorVariant.Explore, SystemPrompt = "You are a research expert. Investigate technical implementation aspects thoroughly.", Instruction = $"Research technical implementation aspects: {objective}" } });
         dag.AddNode(new DagNode<GoalNodePayload> { Id = "research_b", Payload = new() { Kind = GoalNodeKind.Agent, Name = "researcher-alternatives", Role = AgentRole.Executor, Variant = ExecutorVariant.Explore, SystemPrompt = "You are a research expert. Investigate industry practices and alternative approaches thoroughly.", Instruction = $"Research industry practices and alternatives: {objective}" } });
         dag.AddNode(new DagNode<GoalNodePayload> { Id = "gather", Payload = new() { Kind = GoalNodeKind.Join, Name = "gatherer" } });
         dag.AddNode(new DagNode<GoalNodePayload> { Id = "synthesize", Payload = new() { Kind = GoalNodeKind.Agent, Name = "synthesizer", Role = AgentRole.Coordinator, SystemPrompt = "You are a report synthesis expert. Combine research findings into a coherent, comprehensive report with clear conclusions and recommendations.", Instruction = "Synthesize all research findings into a comprehensive report." } });
         dag.AddNode(new DagNode<GoalNodePayload> { Id = "review", Payload = new() { Kind = GoalNodeKind.Agent, Name = "reviewer", Role = AgentRole.Coordinator, SystemPrompt = "You are an independent report reviewer. Evaluate the report quality objectively: completeness, accuracy, clarity, and actionable recommendations.", Instruction = "Review the research report for completeness and accuracy.", FreshContext = true } });
-=======
-        dag.AddNode(new DagNode<GoalNodePayload> { Id = "research_a", Payload = new() { Kind = GoalNodeKind.Agent, Name = "researcher-technical", IsSubAgent = true, SystemPrompt = "You are a research expert. Investigate technical implementation aspects thoroughly.", Instruction = $"Research technical implementation aspects: {objective}" } });
-        dag.AddNode(new DagNode<GoalNodePayload> { Id = "research_b", Payload = new() { Kind = GoalNodeKind.Agent, Name = "researcher-alternatives", IsSubAgent = true, SystemPrompt = "You are a research expert. Investigate industry practices and alternative approaches thoroughly.", Instruction = $"Research industry practices and alternatives: {objective}" } });
-        dag.AddNode(new DagNode<GoalNodePayload> { Id = "gather", Payload = new() { Kind = GoalNodeKind.Join, Name = "gatherer" } });
-        dag.AddNode(new DagNode<GoalNodePayload> { Id = "synthesize", Payload = new() { Kind = GoalNodeKind.Agent, Name = "synthesizer", IsSubAgent = true, SystemPrompt = "You are a report synthesis expert. Combine research findings into a coherent, comprehensive report with clear conclusions and recommendations.", Instruction = "Synthesize all research findings into a comprehensive report." } });
-        dag.AddNode(new DagNode<GoalNodePayload> { Id = "review", Payload = new() { Kind = GoalNodeKind.Agent, Name = "reviewer", IsSubAgent = true, SystemPrompt = "You are an independent report reviewer. Evaluate the report quality objectively: completeness, accuracy, clarity, and actionable recommendations.", Instruction = "Review the research report for completeness and accuracy.", FreshContext = true } });
->>>>>>> c0bbb415c3daaa0e27b22a271cafbff47cad1d13:composition/Clock/src/Goal/Goal/Core/GoalGraphTemplates.cs
 
         dag.AddEdge(new DagEdge { Id = "e0a", FromId = "start", ToId = "research_a" });
         dag.AddEdge(new DagEdge { Id = "e0b", FromId = "start", ToId = "research_b" });
@@ -165,17 +138,10 @@ public static class GoalGraphTemplates
     {
         var dag = new Dag<GoalNodePayload>();
 
-<<<<<<< HEAD:composition/Clock/src/Goal/Core/GoalGraphTemplates.cs
         dag.AddNode(new DagNode<GoalNodePayload> { Id = "read", Payload = new() { Kind = GoalNodeKind.Agent, Name = "reader", Role = AgentRole.Executor, Variant = ExecutorVariant.Explore, SystemPrompt = "You are a code reading expert. Thoroughly read and understand the code changes, identifying all modified files, functions, and logic.", Instruction = objective } });
         dag.AddNode(new DagNode<GoalNodePayload> { Id = "analyze", Payload = new() { Kind = GoalNodeKind.Agent, Name = "analyzer", Role = AgentRole.Coordinator, SystemPrompt = "You are an independent code review analyst. Evaluate code WITHOUT assuming context from the author. Check: correctness, security, performance, maintainability, error handling, edge cases.", Instruction = "Independently analyze the code for issues. Be thorough and objective.", FreshContext = true } });
         dag.AddNode(new DagNode<GoalNodePayload> { Id = "approve", Payload = new() { Kind = GoalNodeKind.Agent, Name = "approver", Role = AgentRole.Coordinator, SystemPrompt = "You are a review approver. The code has passed review. Summarize the review conclusion.", Instruction = "Summarize the approved review with key findings." } });
         dag.AddNode(new DagNode<GoalNodePayload> { Id = "suggest_fixes", Payload = new() { Kind = GoalNodeKind.Agent, Name = "fix-suggester", Role = AgentRole.Executor, Variant = ExecutorVariant.Code, SystemPrompt = "You are a code improvement expert. Based on the review findings, suggest specific fixes and improvements.", Instruction = "Suggest specific fixes based on the review findings." } });
-=======
-        dag.AddNode(new DagNode<GoalNodePayload> { Id = "read", Payload = new() { Kind = GoalNodeKind.Agent, Name = "reader", IsSubAgent = true, SystemPrompt = "You are a code reading expert. Thoroughly read and understand the code changes, identifying all modified files, functions, and logic.", Instruction = objective } });
-        dag.AddNode(new DagNode<GoalNodePayload> { Id = "analyze", Payload = new() { Kind = GoalNodeKind.Agent, Name = "analyzer", IsSubAgent = true, SystemPrompt = "You are an independent code review analyst. Evaluate code WITHOUT assuming context from the author. Check: correctness, security, performance, maintainability, error handling, edge cases.", Instruction = "Independently analyze the code for issues. Be thorough and objective.", FreshContext = true } });
-        dag.AddNode(new DagNode<GoalNodePayload> { Id = "approve", Payload = new() { Kind = GoalNodeKind.Agent, Name = "approver", IsSubAgent = true, SystemPrompt = "You are a review approver. The code has passed review. Summarize the review conclusion.", Instruction = "Summarize the approved review with key findings." } });
-        dag.AddNode(new DagNode<GoalNodePayload> { Id = "suggest_fixes", Payload = new() { Kind = GoalNodeKind.Agent, Name = "fix-suggester", IsSubAgent = true, SystemPrompt = "You are a code improvement expert. Based on the review findings, suggest specific fixes and improvements.", Instruction = "Suggest specific fixes based on the review findings." } });
->>>>>>> c0bbb415c3daaa0e27b22a271cafbff47cad1d13:composition/Clock/src/Goal/Goal/Core/GoalGraphTemplates.cs
 
         dag.AddEdge(new DagEdge { Id = "e1", FromId = "read", ToId = "analyze" });
         dag.AddEdge(new DagEdge { Id = "e2", FromId = "analyze", ToId = "approve", Label = "PASS" });
@@ -188,15 +154,9 @@ public static class GoalGraphTemplates
     {
         var dag = new Dag<GoalNodePayload>();
 
-<<<<<<< HEAD:composition/Clock/src/Goal/Core/GoalGraphTemplates.cs
         dag.AddNode(new DagNode<GoalNodePayload> { Id = "analyze", Payload = new() { Kind = GoalNodeKind.Agent, Name = "analyzer", Role = AgentRole.Coordinator, SystemPrompt = "You are a test analysis expert. Analyze the code to identify all testable behaviors, edge cases, and error paths.", Instruction = objective } });
         dag.AddNode(new DagNode<GoalNodePayload> { Id = "write_tests", Payload = new() { Kind = GoalNodeKind.Agent, Name = "test-writer", Role = AgentRole.Executor, Variant = ExecutorVariant.Code, SystemPrompt = "You are a test writing expert. Write comprehensive unit tests covering all identified behaviors. Follow TDD principles: arrange-act-assert, one assertion per concept.", Instruction = "Write comprehensive unit tests based on the analysis." } });
         dag.AddNode(new DagNode<GoalNodePayload> { Id = "run_tests", Payload = new() { Kind = GoalNodeKind.Agent, Name = "test-runner", Role = AgentRole.Executor, Variant = ExecutorVariant.Code, SystemPrompt = "You are an independent test verifier. Run the tests and verify they pass WITHOUT assuming context. Check coverage and correctness.", Instruction = "Run all tests and verify they pass. Check coverage.", FreshContext = true } });
-=======
-        dag.AddNode(new DagNode<GoalNodePayload> { Id = "analyze", Payload = new() { Kind = GoalNodeKind.Agent, Name = "analyzer", IsSubAgent = true, SystemPrompt = "You are a test analysis expert. Analyze the code to identify all testable behaviors, edge cases, and error paths.", Instruction = objective } });
-        dag.AddNode(new DagNode<GoalNodePayload> { Id = "write_tests", Payload = new() { Kind = GoalNodeKind.Agent, Name = "test-writer", IsSubAgent = true, SystemPrompt = "You are a test writing expert. Write comprehensive unit tests covering all identified behaviors. Follow TDD principles: arrange-act-assert, one assertion per concept.", Instruction = "Write comprehensive unit tests based on the analysis." } });
-        dag.AddNode(new DagNode<GoalNodePayload> { Id = "run_tests", Payload = new() { Kind = GoalNodeKind.Agent, Name = "test-runner", IsSubAgent = true, SystemPrompt = "You are an independent test verifier. Run the tests and verify they pass WITHOUT assuming context. Check coverage and correctness.", Instruction = "Run all tests and verify they pass. Check coverage.", FreshContext = true } });
->>>>>>> c0bbb415c3daaa0e27b22a271cafbff47cad1d13:composition/Clock/src/Goal/Goal/Core/GoalGraphTemplates.cs
 
         dag.AddEdge(new DagEdge { Id = "e1", FromId = "analyze", ToId = "write_tests" });
         dag.AddEdge(new DagEdge { Id = "e2", FromId = "write_tests", ToId = "run_tests" });
@@ -206,7 +166,6 @@ public static class GoalGraphTemplates
 
         return new GoalGraph { Name = $"test-gen: {objective}", Dag = dag, StartNodeId = "analyze", EndNodeIds = FrozenSet.Create("run_tests") };
     }
-<<<<<<< HEAD:composition/Clock/src/Goal/Core/GoalGraphTemplates.cs
 
     /// <summary>
     /// 构建负向评价循环图: execute → neg_review → {NEG_CONTINUE: fix_neg, NEG_STOP: done}
@@ -404,6 +363,4 @@ public static class GoalGraphTemplates
 ```
 """;
     }
-=======
->>>>>>> c0bbb415c3daaa0e27b22a271cafbff47cad1d13:composition/Clock/src/Goal/Goal/Core/GoalGraphTemplates.cs
 }

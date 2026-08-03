@@ -11,7 +11,10 @@ public class ConfigLoader {
         _settingsMapper = settingsMapper ?? new SettingsMapper(_registry);
         if (middlewares is not null)
         {
-            _pipeline = new MiddlewarePipeline<ConfigLoadContext>(middlewares);
+            _pipeline = new PipelineBuilder<ConfigLoadContext>()
+                .WithLoggingScope()
+                .UseRange(middlewares)
+                .Build();
         }
     }
 

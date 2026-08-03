@@ -55,7 +55,10 @@ public sealed partial class TeamMemorySyncService : ITeamMemorySyncService
 
         if (startMiddlewares is not null)
         {
-            _startPipeline = new MiddlewarePipeline<SyncStartContext>(startMiddlewares);
+            _startPipeline = new PipelineBuilder<SyncStartContext>()
+                .WithLoggingScope()
+                .UseRange(startMiddlewares)
+                .Build();
         }
     }
 

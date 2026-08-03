@@ -31,7 +31,10 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
         _sessionLock = new SemaphoreSlim(1, 1);
         if (createMiddlewares != null)
         {
-            _createPipeline = new MiddlewarePipeline<WorktreeCreateContext>(createMiddlewares);
+            _createPipeline = new PipelineBuilder<WorktreeCreateContext>()
+                .WithLoggingScope()
+                .UseRange(createMiddlewares)
+                .Build();
         }
     }
 

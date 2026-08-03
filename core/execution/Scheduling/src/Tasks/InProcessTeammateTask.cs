@@ -78,7 +78,10 @@ public sealed partial class InProcessTeammateTaskExecutor : IInProcessTeammateTa
 
         if (executeMiddlewares is not null)
         {
-            _executePipeline = new MiddlewarePipeline<TeammateExecutionContext>(executeMiddlewares);
+            _executePipeline = new PipelineBuilder<TeammateExecutionContext>()
+                .WithLoggingScope()
+                .UseRange(executeMiddlewares)
+                .Build();
         }
     }
 

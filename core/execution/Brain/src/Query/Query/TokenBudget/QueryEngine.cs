@@ -66,7 +66,10 @@ public sealed partial class QueryEngine : IQueryEngine
         }
         allMiddlewares.Add(new QueryCoreMiddleware(this));
 
-        _pipeline = new MiddlewarePipeline<QueryMiddlewareContext>(allMiddlewares, onError: null);
+        _pipeline = new PipelineBuilder<QueryMiddlewareContext>()
+            .WithLoggingScope()
+            .UseRange(allMiddlewares)
+            .Build();
         return _pipeline;
     }
 

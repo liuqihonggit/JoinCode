@@ -42,7 +42,10 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
 
         if (syncMiddlewares is not null)
         {
-            _syncPipeline = new MiddlewarePipeline<RemoteSyncContext>(syncMiddlewares);
+            _syncPipeline = new PipelineBuilder<RemoteSyncContext>()
+                .WithLoggingScope()
+                .UseRange(syncMiddlewares)
+                .Build();
         }
     }
 

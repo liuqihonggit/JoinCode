@@ -156,7 +156,10 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
 
         if (lifecycleMiddlewares is not null)
         {
-            _lifecyclePipeline = new MiddlewarePipeline<GoalLifecycleContext>(lifecycleMiddlewares);
+            _lifecyclePipeline = new PipelineBuilder<GoalLifecycleContext>()
+                .WithLoggingScope()
+                .UseRange(lifecycleMiddlewares)
+                .Build();
         }
     }
 

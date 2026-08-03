@@ -15,7 +15,7 @@
 > - **🧠 多模型适配** — DeepSeek / OpenAI / Anthropic / Azure 开箱即用，兼容 OpenAI API 协议
 > - **🔧 丰富内置工具** — Shell 执行、文件操作、Web 请求、代码索引（TreeSitter AST）、浏览器自动化、技能系统
 > - **🔌 MCP 协议** — 完整的 Model Context Protocol 客户端实现，无限扩展自定义工具
-> - **🛡️ 生产级容错** — LLM 宽容处理（LlmJsonHelper 统一门控 + JSON 修复/参数归一化/类型转换）、三级死循环干预、前缀缓存优化
+> - **🛡️ 生产级容错** — LLM 宽容处理（LlmJsonHelper 统一门控 + JSON 修复/参数归一化/类型转换/工具名归一化 + Trace 日志）、三级死循环干预、前缀缓存优化
 > - **⚖️ 结构化推理** — `/falv` 三权分立推理引擎（控方→辩方→法官），DAG 证据链 + 双预算控制
 > - **📦 零微软 AI 依赖** — 拒绝所有不支持 NativeAOT 的微软 AI SDK，从协议层自建 LLM 适配
 > - **🖥️ 终端优先** — 为活在命令行里的开发者设计，交互式 REPL + 非交互式脚本双模式
@@ -325,15 +325,23 @@ OpenAI 的多层记忆 + 半衰期方案更为合理，但实现难度太高，�
 
 #### 4.1.5 LLM 结构化输出统一门控（LlmJsonHelper）
 
-所有 LLM 返回的结构化 JSON 必须通过 `LlmJsonHelper` 反序列化，确保全局宽容处理一致：
+所有 LLM 返回的 JSON 处理必须通过 `LlmJsonHelper`，确保全局宽容处理一致。`ToolCallRepairService` 已收窄为 `internal`，外部禁止直接调用。
 
-**三层宽容策略**：
+**结构化输出反序列化**（三层宽容策略）：
 
 | 层级 | 策略 | 说明 |
 |------|------|------|
 | 第1层 | `ExtractJsonBlock` | 从 ` ```json ... ``` ` 代码块提取（大小写不敏感） |
 | 第2层 | `ExtractInlineJson` / `ExtractArrayJson` | 从 `{...}` 或 `[...]` 提取内联 JSON |
 | 第3层 | `RepairJson` | 调用 `ToolCallRepairService.RepairJson` 修复格式问题 |
+
+**工具调用修复**（三个门控方法）：
+
+| 方法 | 用途 | 触发 Trace 日志条件 |
+|------|------|---------------------|
+| `RepairJson(string?)` | JSON 格式修复（尾随逗号/未引号键/单引号/截断） | 修复成功且有 RepairHint |
+| `RepairToolName(string?)` | 工具名归一化（大小写不敏感匹配） | 工具名被修改时 |
+| `RepairArguments(name, dict, schema)` | 参数名归一化 + 参数类型自动转换 | 修复成功且有 RepairHint |
 
 **使用方式**：
 
@@ -343,6 +351,15 @@ var result = LlmJsonHelper.Deserialize(llmOutput, MyJsonContext.Default.MyType, 
 
 // 数组类型（如 GraphDefineNode[]）
 var nodes = LlmJsonHelper.DeserializeValue(nodesJson, GraphDefineJsonContext.Default.GraphDefineNodeArray, out _);
+
+// 工具调用 JSON 修复
+var repairResult = LlmJsonHelper.RepairJson(rawArguments);
+
+// 工具名归一化
+var normalizedName = LlmJsonHelper.RepairToolName(rawToolName);
+
+// 参数名/类型修复
+var argRepair = LlmJsonHelper.RepairArguments(toolName, arguments, handler.InputSchema);
 ```
 
 **全局 JsonContext 宽容选项**：所有 `JsonSourceGenerationOptions` 统一配置三项宽容选项：

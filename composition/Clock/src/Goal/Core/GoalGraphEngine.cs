@@ -2,7 +2,10 @@ namespace Core.Goal;
 
 using JoinCode.Abstractions.Models.Goal;
 using JoinCode.Abstractions.LLM;
+<<<<<<< HEAD:composition/Clock/src/Goal/Core/GoalGraphEngine.cs
 using JoinCode.Abstractions.Interfaces;
+=======
+>>>>>>> c0bbb415c3daaa0e27b22a271cafbff47cad1d13:composition/Clock/src/Goal/Goal/Core/GoalGraphEngine.cs
 using Structura.Dag;
 
 /// <summary>
@@ -17,9 +20,13 @@ public sealed partial class GoalGraphEngine
     [Inject] private readonly ILogger<GoalGraphEngine>? _logger;
     [Inject] private readonly IClockService _clock;
     [Inject] private readonly IServiceProvider _serviceProvider;
+<<<<<<< HEAD:composition/Clock/src/Goal/Core/GoalGraphEngine.cs
     private Core.Agents.Coordinator.AgentRegistry _agentRegistry => Core.Agents.Coordinator.Agent.Registry;
     [Inject] private readonly IAgentService? _agentService = null!;
     [Inject] private readonly IGoalUserInteraction? _userInteraction = null;
+=======
+    [Inject] private readonly IAgentRegistry? _agentRegistry = null!;
+>>>>>>> c0bbb415c3daaa0e27b22a271cafbff47cad1d13:composition/Clock/src/Goal/Goal/Core/GoalGraphEngine.cs
     private readonly Dictionary<string, Func<NodeContext, Task<NodeResult>>> _functionRegistry = new(StringComparer.Ordinal);
 
     public GoalGraphEngine(
@@ -121,6 +128,7 @@ public sealed partial class GoalGraphEngine
 
             context.CompletedNodes.Add(nodeId);
 
+<<<<<<< HEAD:composition/Clock/src/Goal/Core/GoalGraphEngine.cs
             await HandleUserInteractionAsync(nodeId, payload, context, ct).ConfigureAwait(false);
 
             if (ShouldTerminateLoop(nodeId, payload, context, graph))
@@ -139,6 +147,8 @@ public sealed partial class GoalGraphEngine
                 return goalState;
             }
 
+=======
+>>>>>>> c0bbb415c3daaa0e27b22a271cafbff47cad1d13:composition/Clock/src/Goal/Goal/Core/GoalGraphEngine.cs
             var nextIds = context.GetNextNodeIds(nodeId, payload.Routes, payload.RouteMatchMode);
 
             foreach (var nextId in nextIds)
@@ -196,7 +206,10 @@ public sealed partial class GoalGraphEngine
             payload.Routes = result.Routes;
             payload.TokensUsed = result.TokensUsed;
             payload.CompletedAt = _clock.GetUtcNow();
+<<<<<<< HEAD:composition/Clock/src/Goal/Core/GoalGraphEngine.cs
             context.TotalTokensConsumed += result.TokensUsed;
+=======
+>>>>>>> c0bbb415c3daaa0e27b22a271cafbff47cad1d13:composition/Clock/src/Goal/Goal/Core/GoalGraphEngine.cs
 
             if (result.IsFailed)
             {
@@ -231,12 +244,50 @@ public sealed partial class GoalGraphEngine
 
     private async Task<NodeResult> ExecuteAgentNodeAsync(string nodeId, GoalNodePayload payload, GraphExecutionContext context, CancellationToken ct)
     {
+<<<<<<< HEAD:composition/Clock/src/Goal/Core/GoalGraphEngine.cs
         var agentId = payload.AgentId ?? Core.Agents.Coordinator.Agent.GenerateId();
         payload.AgentId = agentId;
 
         if (_agentRegistry.Get(new JoinCode.Abstractions.Entity.ObjectId(JoinCode.Abstractions.Entity.ObjectType.Agent, agentId)) is null)
         {
             _logger?.LogDebug("[GoalGraph] Agent {AgentId} 未在 Agent.Registry 中，将由 IAgentService 创建时自动注册", agentId);
+=======
+        var agentId = payload.AgentId ?? AgentDescriptor.GenerateId();
+        payload.AgentId = agentId;
+
+        if (_agentRegistry is not null && _agentRegistry.Get(agentId) is null)
+        {
+            var mainAgents = _agentRegistry.GetMainAgents();
+            var mainAgentId = mainAgents.Count > 0 ? mainAgents[0].Id : null;
+
+            _agentRegistry.Register(new AgentDescriptor
+            {
+                Id = agentId,
+                Name = payload.Name,
+                IsSubAgent = payload.IsSubAgent,
+                SystemPrompt = payload.SystemPrompt,
+                Instruction = payload.Instruction,
+                GoalId = context.State.GoalId,
+                GraphNodeId = nodeId,
+                FreshContext = payload.FreshContext,
+                TokenBudget = payload.TokenBudget,
+                ParentAgentId = payload.IsSubAgent ? mainAgentId : null,
+            });
+        }
+
+        var chatHistory = new MessageList();
+        if (!payload.FreshContext)
+        {
+            foreach (var msg in context.ChatHistory)
+            {
+                chatHistory.Add(msg);
+            }
+        }
+
+        if (payload.SystemPrompt is not null)
+        {
+            chatHistory.AddSystemMessage(payload.SystemPrompt);
+>>>>>>> c0bbb415c3daaa0e27b22a271cafbff47cad1d13:composition/Clock/src/Goal/Goal/Core/GoalGraphEngine.cs
         }
 
         var instruction = payload.Instruction ?? payload.Name;
@@ -244,6 +295,7 @@ public sealed partial class GoalGraphEngine
         {
             instruction = $"[上游输入]\n{payload.Input}\n\n[任务指令]\n{instruction}";
         }
+<<<<<<< HEAD:composition/Clock/src/Goal/Core/GoalGraphEngine.cs
 
         // === 完整模式：通过 IAgentService 执行（复用基础设施）===
         if (_agentService is not null && (payload.Role != default || payload.Variant.HasValue))
@@ -274,11 +326,22 @@ public sealed partial class GoalGraphEngine
             TokenBudget = payload.TokenBudget,
             FreshContext = payload.FreshContext,
             SystemPrompt = payload.SystemPrompt,
+=======
+        chatHistory.AddUserMessage(instruction);
+
+        var chatService = _kernel.GetChatCompletionService();
+        var executionSettings = new ChatOptions
+        {
+            Temperature = 0.7f,
+            MaxTokens = 8000,
+            ToolChoice = ToolChoice.AutoInvoke
+>>>>>>> c0bbb415c3daaa0e27b22a271cafbff47cad1d13:composition/Clock/src/Goal/Goal/Core/GoalGraphEngine.cs
         };
 
         var totalTokens = 0;
         var totalTurns = 0;
         var lastOutput = string.Empty;
+<<<<<<< HEAD:composition/Clock/src/Goal/Core/GoalGraphEngine.cs
         var responseBuilder = new System.Text.StringBuilder();
 
         await foreach (var chunk in _agentService!.RunAgentStreamAsync(spawnOptions, ct).ConfigureAwait(false))
@@ -300,6 +363,63 @@ public sealed partial class GoalGraphEngine
 
         payload.TokensUsed = totalTokens;
         payload.TurnsCompleted = totalTurns;
+=======
+
+        while (!ct.IsCancellationRequested)
+        {
+            if (payload.TokenBudget is { } budget && totalTokens >= budget)
+            {
+                _logger?.LogWarning("[GoalGraph] {NodeId}({Name}): Token预算耗尽 ({Used}/{Budget})",
+                    nodeId, payload.Name, totalTokens, budget);
+                break;
+            }
+
+            var results = await chatService.GetApiMessageContentsAsync(
+                chatHistory,
+                executionSettings,
+                _kernel,
+                ct).ConfigureAwait(false);
+
+            var outputText = results.Count > 0 ? results[0].Content ?? string.Empty : string.Empty;
+            var tokensUsed = results.Count > 0 && results[0].TokenUsage is { TotalTokens: var tt }
+                ? tt
+                : 0;
+
+            totalTokens += tokensUsed;
+            totalTurns++;
+            lastOutput = outputText;
+            payload.TokensUsed = totalTokens;
+            payload.TurnsCompleted = totalTurns;
+
+            if (!string.IsNullOrEmpty(outputText))
+            {
+                chatHistory.AddAssistantMessage(outputText);
+            }
+
+            var evaluation = await _evaluator.EvaluateAsync(
+                instruction,
+                [],
+                outputText,
+                ct).ConfigureAwait(false);
+
+            if (evaluation.IsCompleted)
+            {
+                _logger?.LogInformation("[GoalGraph] {NodeId}({Name}): Agent循环完成 (turns={Turns}, tokens={Tokens})",
+                    nodeId, payload.Name, totalTurns, totalTokens);
+                break;
+            }
+
+            var continuationPrompt = ContinuationPromptBuilder.BuildContinuationPrompt(
+                instruction,
+                [],
+                totalTokens,
+                payload.TokenBudget,
+                evaluation.Reason);
+            chatHistory.AddSystemMessage(continuationPrompt);
+
+            _logger?.LogDebug("[GoalGraph] {NodeId}({Name}): Agent继续 (turns={Turns})", nodeId, payload.Name, totalTurns);
+        }
+>>>>>>> c0bbb415c3daaa0e27b22a271cafbff47cad1d13:composition/Clock/src/Goal/Goal/Core/GoalGraphEngine.cs
 
         if (!string.IsNullOrEmpty(lastOutput))
         {
@@ -314,8 +434,11 @@ public sealed partial class GoalGraphEngine
         return NodeResult.Succeeded(lastOutput, totalTokens);
     }
 
+<<<<<<< HEAD:composition/Clock/src/Goal/Core/GoalGraphEngine.cs
 
 
+=======
+>>>>>>> c0bbb415c3daaa0e27b22a271cafbff47cad1d13:composition/Clock/src/Goal/Goal/Core/GoalGraphEngine.cs
     private async Task<NodeResult> ExecuteFunctionNodeAsync(string nodeId, GoalNodePayload payload, GraphExecutionContext context, CancellationToken ct)
     {
         if (!_functionRegistry.TryGetValue(nodeId, out var fn))
@@ -408,11 +531,18 @@ public sealed partial class GoalGraphEngine
         }
 
         context.RetryCount[targetNodeId] = retryCount + 1;
+<<<<<<< HEAD:composition/Clock/src/Goal/Core/GoalGraphEngine.cs
         context.GlobalLoopIteration++;
         context.ReadyQueue.Enqueue(targetNodeId);
 
         _logger?.LogInformation("[GoalGraph] 回退重激活: {NodeId} (第{Retry}次, 影响{Count}个节点, 全局迭代={GlobalIter})",
             targetNodeId, retryCount + 1, affected.Count, context.GlobalLoopIteration);
+=======
+        context.ReadyQueue.Enqueue(targetNodeId);
+
+        _logger?.LogInformation("[GoalGraph] 回退重激活: {NodeId} (第{Retry}次, 影响{Count}个节点)",
+            targetNodeId, retryCount + 1, affected.Count);
+>>>>>>> c0bbb415c3daaa0e27b22a271cafbff47cad1d13:composition/Clock/src/Goal/Goal/Core/GoalGraphEngine.cs
     }
 
     private async Task UpdateGoalStateAsync(GraphExecutionContext context)
@@ -434,6 +564,7 @@ public sealed partial class GoalGraphEngine
         }
         finally { context.StateLock.Release(); }
     }
+<<<<<<< HEAD:composition/Clock/src/Goal/Core/GoalGraphEngine.cs
 
     /// <summary>
     /// 负向评价循环中的用户权限询问
@@ -491,4 +622,6 @@ public sealed partial class GoalGraphEngine
 
         return false;
     }
+=======
+>>>>>>> c0bbb415c3daaa0e27b22a271cafbff47cad1d13:composition/Clock/src/Goal/Goal/Core/GoalGraphEngine.cs
 }

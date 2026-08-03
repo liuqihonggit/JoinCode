@@ -10,7 +10,6 @@
     <Project Path="generators/PromptSection.Generator/src/PromptSection.Generator.csproj" />
     <Project Path="generators/PromptTemplate.Generator/src/PromptTemplate.Generator.csproj" />
     <Project Path="generators/ToolPrompt.Generator/src/ToolPrompt.Generator.csproj" />
-    <Project Path="generators/AgentPrompt.Generator/src/AgentPrompt.Generator.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="generators/AotSafety.Generator/tests/AotSafety.Tests.csproj" />

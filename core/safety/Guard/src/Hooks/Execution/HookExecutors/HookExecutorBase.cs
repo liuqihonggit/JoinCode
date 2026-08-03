@@ -184,7 +184,7 @@ public abstract class HookExecutorBase<THook> : IHookExecutor<THook> where THook
     /// </summary>
     protected virtual HookResult ParseJsonResponse(string jsonLine, string stdout, string stderr)
     {
-        var hookDecision = JsonSerializer.Deserialize(jsonLine, HooksJsonContext.Default.HookDecision);
+        var hookDecision = LlmJsonHelper.Deserialize(jsonLine, HooksJsonContext.Default.HookDecision, out _);
         if (hookDecision is null)
             return new HookResult { Outcome = HookOutcome.Success };
 

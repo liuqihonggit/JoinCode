@@ -14,37 +14,44 @@ public sealed partial class GoalLoopObserver : IGoalLoopObserver
 {
     [Inject] private readonly ILogger<GoalLoopObserver>? _logger;
 
-    private readonly List<int> _negCountHistory = [];
+    private readonly Dictionary<string, List<int>> _historyByGoal = new(StringComparer.Ordinal);
 
     public Task<bool> ObserveAsync(LoopObservationContext context, CancellationToken cancellationToken = default)
     {
-        _negCountHistory.Add(context.NegativeReviewCount);
-
-        if (_negCountHistory.Count < 2)
+        if (!_historyByGoal.TryGetValue(context.GoalId, out var history))
         {
-            _logger?.LogDebug("[GoalLoopObserver] 首次观察，继续循环 (负评={NegCount}, 迭代={Iter})",
-                context.NegativeReviewCount, context.LoopIteration);
+            history = [];
+            _historyByGoal[context.GoalId] = history;
+        }
+
+        history.Add(context.NegativeReviewCount);
+
+        if (history.Count < 2)
+        {
+            _logger?.LogDebug("[GoalLoopObserver] 首次观察，继续循环 (Goal={GoalId}, 负评={NegCount}, 迭代={Iter})",
+                context.GoalId, context.NegativeReviewCount, context.LoopIteration);
             return Task.FromResult(false);
         }
 
-        var shouldTerminate = CheckTrendImprovement() || CheckStalemate() || CheckNearHardLimit(context);
+        var shouldTerminate = CheckTrendImprovement(history) || CheckStalemate(history) || CheckNearHardLimit(context);
 
         if (shouldTerminate)
         {
-            _logger?.LogInformation("[GoalLoopObserver] 协调者建议终止循环 (负评={NegCount}, 迭代={Iter}, 历史=[{History}])",
-                context.NegativeReviewCount, context.LoopIteration, string.Join(",", _negCountHistory));
+            _historyByGoal.Remove(context.GoalId);
+            _logger?.LogInformation("[GoalLoopObserver] 协调者建议终止循环 (Goal={GoalId}, 负评={NegCount}, 迭代={Iter}, 历史=[{History}])",
+                context.GoalId, context.NegativeReviewCount, context.LoopIteration, string.Join(",", history));
         }
 
         return Task.FromResult(shouldTerminate);
     }
 
-    private bool CheckTrendImprovement()
+    private bool CheckTrendImprovement(List<int> history)
     {
-        if (_negCountHistory.Count < 3)
+        if (history.Count < 3)
             return false;
 
-        var recent = _negCountHistory[^2];
-        var current = _negCountHistory[^1];
+        var recent = history[^2];
+        var current = history[^1];
 
         if (recent <= 0)
             return false;
@@ -60,12 +67,12 @@ public sealed partial class GoalLoopObserver : IGoalLoopObserver
         return false;
     }
 
-    private bool CheckStalemate()
+    private bool CheckStalemate(List<int> history)
     {
-        if (_negCountHistory.Count < 3)
+        if (history.Count < 3)
             return false;
 
-        var last3 = _negCountHistory[^3..];
+        var last3 = history[^3..];
         if (last3.Distinct().Count() == 1 && last3[0] > 0)
         {
             _logger?.LogInformation("[GoalLoopObserver] 僵局检测: 连续3轮负评均为 {Count}", last3[0]);

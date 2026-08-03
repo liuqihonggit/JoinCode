@@ -19,7 +19,7 @@ public static class LogScope
     }
 
     /// <summary>
-    /// 仅 TraceId 的轻量 scope（无 ObjectId 场景）
+    /// 仅 TraceId 的轻量 scope（ObjectId = Empty）
     /// </summary>
     public static IDisposable? BeginTrace(ILogger? logger)
     {
@@ -28,7 +28,7 @@ public static class LogScope
         var state = new LogScopeState(
             activity.TraceId.ToString(),
             activity.SpanId.ToString(),
-            null);
+            ObjectId.Empty);
         return logger?.BeginScope(state);
     }
 }

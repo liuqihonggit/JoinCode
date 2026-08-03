@@ -24,7 +24,7 @@ runs:
           nuget-${{ runner.os }}-
 
     - name: Download Build Output
-      uses: actions/download-artifact@v5
+      uses: actions/download-artifact@v8
       with:
         name: ${{ inputs.build-artifact-name }}
         path: artifacts/bin/

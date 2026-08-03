@@ -114,7 +114,7 @@ jobs:
         shell: pwsh
 
       - name: Upload Build Output
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: build-output
           path: |
@@ -201,7 +201,7 @@ jobs:
           --logger "trx;LogFileName=bridge-tests.trx"
       - name: Upload Test Results
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: unit-test-results-group-1
           path: '**/*.trx'
@@ -275,7 +275,7 @@ jobs:
           --logger "trx;LogFileName=composition-tests.trx"
       - name: Upload Test Results
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: unit-test-results-group-2
           path: '**/*.trx'
@@ -321,7 +321,7 @@ jobs:
           --logger "trx;LogFileName=host-tests.trx"
       - name: Upload Test Results
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: unit-test-results-group-3
           path: '**/*.trx'
@@ -395,7 +395,7 @@ jobs:
           --logger "trx;LogFileName=codeindex-tests.trx"
       - name: Upload Test Results
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: unit-test-results-group-4
           path: '**/*.trx'
@@ -421,7 +421,7 @@ jobs:
           --logger "trx;LogFileName=integration-brain-clock.trx"
       - name: Upload Test Results
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: integration-results-brain-clock
           path: '**/integration-brain-clock.trx'
@@ -447,7 +447,7 @@ jobs:
           --logger "trx;LogFileName=integration-guard-vault.trx"
       - name: Upload Test Results
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: integration-results-guard-vault
           path: '**/integration-guard-vault.trx'
@@ -473,7 +473,7 @@ jobs:
           --logger "trx;LogFileName=integration-hands-host-mcp.trx"
       - name: Upload Test Results
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: integration-results-hands-host-mcp
           path: '**/integration-hands-host-mcp.trx'
@@ -499,7 +499,7 @@ jobs:
           --logger "trx;LogFileName=integration-prefixcache.trx"
       - name: Upload Test Results
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: integration-results-prefixcache
           path: '**/integration-prefixcache.trx'
@@ -525,7 +525,7 @@ jobs:
           --logger "trx;LogFileName=e2e-conversation.trx"
       - name: Upload Test Results
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: e2e-results-conversation
           path: '**/e2e-conversation.trx'
@@ -551,7 +551,7 @@ jobs:
           --logger "trx;LogFileName=e2e-multi-provider.trx"
       - name: Upload Test Results
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: e2e-results-multi-provider
           path: '**/e2e-multi-provider.trx'
@@ -577,7 +577,7 @@ jobs:
           --logger "trx;LogFileName=e2e-file-tools.trx"
       - name: Upload Test Results
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: e2e-results-file-tools
           path: '**/e2e-file-tools.trx'
@@ -603,7 +603,7 @@ jobs:
           --logger "trx;LogFileName=e2e-agent-tools.trx"
       - name: Upload Test Results
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: e2e-results-agent-tools
           path: '**/e2e-agent-tools.trx'
@@ -629,7 +629,7 @@ jobs:
           --logger "trx;LogFileName=e2e-chatcmd.trx"
       - name: Upload Test Results
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: e2e-results-chatcmd
           path: '**/e2e-chatcmd.trx'
@@ -655,7 +655,7 @@ jobs:
           --logger "trx;LogFileName=e2e-errors-permission.trx"
       - name: Upload Test Results
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: e2e-results-errors-permission
           path: '**/e2e-errors-permission.trx'
@@ -899,7 +899,7 @@ jobs:
 
       - name: Upload Test Results
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: e2e-results-mcp-smoke
           path: |

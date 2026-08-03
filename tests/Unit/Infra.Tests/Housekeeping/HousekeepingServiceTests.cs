@@ -20,7 +20,7 @@ public sealed class HousekeepingServiceTests
     private readonly Mock<IAgentWorktreeService> _worktreeService = new();
 
     private HousekeepingService CreateSut()
-        => new(_fs, _clock, _planModeManager.Object, _worktreeService.Object, NullLogger<HousekeepingService>.Instance);
+        => new(_fs, _clock, _planModeManager.Object, _worktreeService.Object, null, NullLogger<HousekeepingService>.Instance);
 
     [Fact]
     public void CleanupOldSessionFiles_WithNoSessionsDir_ShouldReturnZero()

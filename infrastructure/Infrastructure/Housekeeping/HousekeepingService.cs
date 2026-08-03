@@ -11,6 +11,7 @@ public sealed partial class HousekeepingService : IHousekeepingService
     [Inject] private readonly IClockService _clock;
     [Inject] private readonly IPlanModeManager _planModeManager;
     [Inject] private readonly IAgentWorktreeService _worktreeService;
+    [Inject] private readonly IEntityReaper? _entityReaper;
     [Inject] private readonly ILogger<HousekeepingService>? _logger;
 
     private static readonly string JccDir = WorkflowConstants.Paths.JccDirectory;
@@ -30,6 +31,11 @@ public sealed partial class HousekeepingService : IHousekeepingService
         total += CleanupNpmCache();
         total += CleanupOldVersions();
         total += await CleanupStaleWorktreesAsync(cancellationToken).ConfigureAwait(false);
+
+        if (_entityReaper is not null)
+        {
+            total += _entityReaper.ScanOnce();
+        }
 
         if (total > 0)
         {

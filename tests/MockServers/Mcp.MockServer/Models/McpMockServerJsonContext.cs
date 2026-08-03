@@ -3,7 +3,10 @@ namespace Mcp.MockServer.Models;
 [JsonSourceGenerationOptions(
     WriteIndented = false,
     PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower,
-    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
+    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+    AllowTrailingCommas = true,
+    ReadCommentHandling = JsonCommentHandling.Skip,
+    PropertyNameCaseInsensitive = true)]
 [JsonSerializable(typeof(McpMockServerConfig))]
 [JsonSerializable(typeof(McpToolDefinition))]
 [JsonSerializable(typeof(List<McpToolDefinition>))]

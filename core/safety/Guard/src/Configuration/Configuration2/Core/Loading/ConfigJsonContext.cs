@@ -1,7 +1,7 @@
 
 namespace Core.Configuration;
 
-[JsonSourceGenerationOptions(WriteIndented = false, ReadCommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true)]
+[JsonSourceGenerationOptions(WriteIndented = false, ReadCommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true, PropertyNameCaseInsensitive = true)]
 [JsonSerializable(typeof(Dictionary<string, string>))]
 [JsonSerializable(typeof(Dictionary<string, JsonElement>))]
 [JsonSerializable(typeof(SettingsJson))]
@@ -14,7 +14,7 @@ namespace Core.Configuration;
 [JsonSerializable(typeof(StatusLineSettings))]
 public partial class ConfigJsonContext : JsonSerializerContext;
 
-[JsonSourceGenerationOptions(WriteIndented = true, ReadCommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true)]
+[JsonSourceGenerationOptions(WriteIndented = true, ReadCommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true, PropertyNameCaseInsensitive = true)]
 [JsonSerializable(typeof(Dictionary<string, string>))]
 [JsonSerializable(typeof(Dictionary<string, JsonElement>))]
 [JsonSerializable(typeof(SettingsJson))]

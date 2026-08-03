@@ -14,5 +14,5 @@ namespace Testing.Common.MockServer;
 [JsonSerializable(typeof(MockUsage))]
 [JsonSerializable(typeof(MockModelsResponse))]
 [JsonSerializable(typeof(MockModelItem))]
-[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower, PropertyNameCaseInsensitive = true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower, PropertyNameCaseInsensitive = true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip)]
 public sealed partial class MockServerJsonContext : JsonSerializerContext;

@@ -179,4 +179,5 @@ internal sealed record ReflexionDiagnosticSummary
 }
 
 [JsonSerializable(typeof(ReflexionEntry))]
+[JsonSourceGenerationOptions(AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
 internal sealed partial class ReflexionEntryJsonContext : JsonSerializerContext;

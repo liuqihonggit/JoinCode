@@ -1,6 +1,6 @@
 namespace Core.Memdir;
 
-[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = true)]
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = true, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
 [JsonSerializable(typeof(DailyLogFile))]
 [JsonSerializable(typeof(DailyLogEntry))]
 [JsonSerializable(typeof(List<DailyLogEntry>))]

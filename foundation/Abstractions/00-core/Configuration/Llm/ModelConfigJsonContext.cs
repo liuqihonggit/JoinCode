@@ -1,7 +1,7 @@
 
 namespace JoinCode.Abstractions.Configuration.Llm;
 
-[JsonSourceGenerationOptions(PropertyNameCaseInsensitive = true)]
+[JsonSourceGenerationOptions(PropertyNameCaseInsensitive = true, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip)]
 [JsonSerializable(typeof(ModelConfigRoot))]
 [JsonSerializable(typeof(ModelProviderConfig))]
 [JsonSerializable(typeof(ModelItemConfig))]

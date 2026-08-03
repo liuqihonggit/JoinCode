@@ -419,7 +419,7 @@ internal sealed class TestOpenAIMessage
     public string? Content { get; set; }
 }
 
-[JsonSourceGenerationOptions(DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
+[JsonSourceGenerationOptions(DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
 [JsonSerializable(typeof(TestAnthropicRequest))]
 [JsonSerializable(typeof(TestOpenAIRequest))]
 internal partial class RealApiCacheJsonContext : JsonSerializerContext;

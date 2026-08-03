@@ -1,7 +1,7 @@
 
 namespace Core.Memdir;
 
-[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = false)]
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = false, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
 [JsonSerializable(typeof(MemoryEntry))]
 [JsonSerializable(typeof(List<MemoryEntry>))]
 [JsonSerializable(typeof(SearchHistoryEntry))]
@@ -9,7 +9,7 @@ namespace Core.Memdir;
 [JsonSerializable(typeof(PastContextSection))]
 public partial class MemdirJsonContext : JsonSerializerContext;
 
-[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = true)]
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = true, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
 [JsonSerializable(typeof(List<MemoryEntry>))]
 [JsonSerializable(typeof(SearchHistoryEntry))]
 [JsonSerializable(typeof(List<SearchHistoryEntry>))]

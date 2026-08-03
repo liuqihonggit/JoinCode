@@ -227,5 +227,5 @@ public sealed class DoctorSseClient : IAsyncDisposable
 }
 
 [JsonSerializable(typeof(Dictionary<string, string?>))]
-[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
 internal sealed partial class DoctorSseClientJsonContext : JsonSerializerContext;

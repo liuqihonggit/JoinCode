@@ -11,7 +11,7 @@ namespace Core.Scheduling;
 [JsonSerializable(typeof(Dictionary<string, JsonElement>))]
 public partial class SchedulingJsonContext : JsonSerializerContext;
 
-[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
 [JsonSerializable(typeof(CronTaskFile))]
 [JsonSerializable(typeof(FileTaskMetadata))]
 public partial class SchedulingIndentedJsonContext : JsonSerializerContext;

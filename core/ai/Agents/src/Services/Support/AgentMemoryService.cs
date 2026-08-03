@@ -447,20 +447,20 @@ public sealed partial class AgentMemoryService : IAgentMemoryService
                 return null;
 
             var json = await _fs.ReadAllTextAsync(path, ct).ConfigureAwait(false);
+            var jsonSpan = json.AsSpan().Trim();
 
-            // 简单 JSON 解析 — AOT 兼容，不用 JsonSerializer.Deserialize
             if (typeof(T) == typeof(SnapshotMeta))
             {
-                var updatedAt = ExtractJsonValue(json, "updatedAt");
-                if (updatedAt is null) return null;
-                return new SnapshotMeta { UpdatedAt = updatedAt } as T;
+                var result = System.Text.Json.JsonSerializer.Deserialize(jsonSpan, AgentsJsonContext.Default.AgentMemorySnapshotMetaJson);
+                if (result is null) return null;
+                return new SnapshotMeta { UpdatedAt = result.UpdatedAt } as T;
             }
 
             if (typeof(T) == typeof(SyncedMeta))
             {
-                var syncedFrom = ExtractJsonValue(json, "syncedFrom");
-                if (syncedFrom is null) return null;
-                return new SyncedMeta { SyncedFrom = syncedFrom } as T;
+                var result = System.Text.Json.JsonSerializer.Deserialize(jsonSpan, AgentsJsonContext.Default.AgentMemorySyncedMetaJson);
+                if (result is null) return null;
+                return new SyncedMeta { SyncedFrom = result.SyncedFrom } as T;
             }
 
             return null;
@@ -470,16 +470,6 @@ public sealed partial class AgentMemoryService : IAgentMemoryService
             _logger.LogDebug(ex, "读取 JSON 文件失败: {Path}", path);
             return null;
         }
-    }
-
-    /// <summary>
-    /// 从 JSON 字符串中提取指定键的值 — AOT 兼容的简单解析
-    /// </summary>
-    private static string? ExtractJsonValue(string json, string key)
-    {
-        var pattern = $"\"{key}\"\\s*:\\s*\"([^\"]+)\"";
-        var match = Regex.Match(json, pattern);
-        return match.Success ? match.Groups[1].Value : null;
     }
 
     /// <summary>

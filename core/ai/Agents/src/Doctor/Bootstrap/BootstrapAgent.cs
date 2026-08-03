@@ -385,16 +385,17 @@ public sealed class BootstrapAgent : IAsyncDisposable
             if (jsonStart < 0 || jsonEnd < 0 || jsonEnd <= jsonStart)
                 return new BootstrapJudgment { NeedsFix = false, Priority = "low", Reasoning = "LLM 输出非 JSON" };
 
-            var json = llmResponse[jsonStart..(jsonEnd + 1)];
-            var doc = System.Text.Json.JsonDocument.Parse(json);
-            var root = doc.RootElement;
+            var jsonSpan = llmResponse.AsSpan(jsonStart, jsonEnd - jsonStart + 1);
+            var result = System.Text.Json.JsonSerializer.Deserialize(jsonSpan, AgentsJsonContext.Default.BootstrapJudgmentJson);
+            if (result is null)
+                return new BootstrapJudgment { NeedsFix = false, Priority = "low", Reasoning = "JSON 反序列化返回 null" };
 
             return new BootstrapJudgment
             {
-                NeedsFix = root.TryGetProperty("needsFix", out var nf) && nf.GetBoolean(),
-                TargetFile = root.TryGetProperty("targetFile", out var tf) ? tf.GetString() : null,
-                Priority = root.TryGetProperty("priority", out var p) ? p.GetString() ?? "low" : "low",
-                Reasoning = root.TryGetProperty("reasoning", out var r) ? r.GetString() : null
+                NeedsFix = result.NeedsFix,
+                TargetFile = result.TargetFile,
+                Priority = result.Priority,
+                Reasoning = result.Reasoning
             };
         }
         catch (Exception ex)

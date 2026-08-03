@@ -1470,4 +1470,157 @@ public sealed class GoalGraphEngineTests
         Assert.True(result.TokensUsed <= 250);
         Assert.Equal(GoalStatus.Achieved, result.Status);
     }
+
+    // ─────────────────────────────────────────────────────────────
+    // NegativeReviewCount 从输出中提取 — 验证 ExtractNegReviewMetadata
+    // ─────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task NegativeReviewLoop_Should_ExtractNegReviewCount_FromOutput()
+    {
+        var engine = CreateEngine();
+
+        var dag = new Dag<GoalNodePayload>();
+        var nodeExecute = MakeFunctionNode("execute", "executor");
+        var nodeNegReview = MakeFunctionNode("neg_review", "negative-reviewer");
+        var nodeDone = MakeFunctionNode("done", "loop-done");
+
+        dag.AddNode(nodeExecute);
+        dag.AddNode(nodeNegReview);
+        dag.AddNode(nodeDone);
+
+        dag.AddEdge(new DagEdge { Id = "e1", FromId = "execute", ToId = "neg_review" });
+        dag.AddEdge(new DagEdge { Id = "e3", FromId = "neg_review", ToId = "done", Label = "NEG_STOP" });
+
+        engine.RegisterFunction("execute", _ =>
+            Task.FromResult(NodeResult.Succeeded("task-output", tokensUsed: 50)));
+
+        engine.RegisterFunction("neg_review", _ =>
+            Task.FromResult(NodeResult.Routed("## 负向评价报告\n...\n负评条数: 7", ["NEG_STOP"], tokensUsed: 20)));
+
+        engine.RegisterFunction("done", _ =>
+            Task.FromResult(NodeResult.Succeeded("loop-completed")));
+
+        var graph = new GoalGraph
+        {
+            Name = "neg-review-count-extract-test",
+            Dag = dag,
+            StartNodeId = "execute",
+            EndNodeIds = FrozenSet.Create("done"),
+        };
+
+        await engine.ExecuteAsync(graph, CreateGoalState(), new MessageList(), CancellationToken.None);
+
+        Assert.Equal(7, nodeNegReview.Payload.NegativeReviewCount);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // NegativeReviewCount 从输出中提取 task_id
+    // ─────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task NegativeReviewLoop_Should_ExtractTaskId_FromOutput()
+    {
+        var engine = CreateEngine();
+
+        var dag = new Dag<GoalNodePayload>();
+        var nodeExecute = MakeFunctionNode("execute", "executor");
+        var nodeNegReview = MakeFunctionNode("neg_review", "negative-reviewer");
+        var nodeDone = MakeFunctionNode("done", "loop-done");
+
+        dag.AddNode(nodeExecute);
+        dag.AddNode(nodeNegReview);
+        dag.AddNode(nodeDone);
+
+        dag.AddEdge(new DagEdge { Id = "e1", FromId = "execute", ToId = "neg_review" });
+        dag.AddEdge(new DagEdge { Id = "e3", FromId = "neg_review", ToId = "done", Label = "NEG_STOP" });
+
+        engine.RegisterFunction("execute", _ =>
+            Task.FromResult(NodeResult.Succeeded("task-output", tokensUsed: 50)));
+
+        engine.RegisterFunction("neg_review", _ =>
+            Task.FromResult(NodeResult.Routed("...\ntask_id: task-abc-123\n负评条数: 3", ["NEG_STOP"], tokensUsed: 20)));
+
+        engine.RegisterFunction("done", _ =>
+            Task.FromResult(NodeResult.Succeeded("loop-completed")));
+
+        var graph = new GoalGraph
+        {
+            Name = "neg-review-taskid-extract-test",
+            Dag = dag,
+            StartNodeId = "execute",
+            EndNodeIds = FrozenSet.Create("done"),
+        };
+
+        await engine.ExecuteAsync(graph, CreateGoalState(), new MessageList(), CancellationToken.None);
+
+        Assert.Equal("task-abc-123", nodeNegReview.Payload.NegativeReviewTaskId);
+        Assert.Equal(3, nodeNegReview.Payload.NegativeReviewCount);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // 轮次预算终止 — TurnBudget 耗尽时终止循环
+    // ─────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task NegativeReviewLoop_TurnBudgetExhausted_Should_Terminate()
+    {
+        var engine = CreateEngine();
+        var negReviewCount = 0;
+
+        var dag = new Dag<GoalNodePayload>();
+        var nodeExecute = MakeFunctionNode("execute", "executor");
+        var nodeNegReview = MakeFunctionNode("neg_review", "negative-reviewer");
+        var nodeFixNeg = MakeFunctionNode("fix_neg", "fix-negative-review");
+        var nodeDone = MakeFunctionNode("done", "loop-done");
+
+        dag.AddNode(nodeExecute);
+        dag.AddNode(nodeNegReview);
+        dag.AddNode(nodeFixNeg);
+        dag.AddNode(nodeDone);
+
+        dag.AddEdge(new DagEdge { Id = "e1", FromId = "execute", ToId = "neg_review" });
+        dag.AddEdge(new DagEdge { Id = "e2", FromId = "neg_review", ToId = "fix_neg", Label = "NEG_CONTINUE" });
+        dag.AddEdge(new DagEdge { Id = "e3", FromId = "neg_review", ToId = "done", Label = "NEG_STOP" });
+        const string backEdge = "e4";
+        dag.TryAddEdge(new DagEdge { Id = backEdge, FromId = "fix_neg", ToId = "neg_review", Label = "NEG_CONTINUE" });
+        dag.Nodes["neg_review"].InEdgeIds.Remove(backEdge);
+        dag.AddEdge(new DagEdge { Id = "e5", FromId = "fix_neg", ToId = "done", Label = "NEG_STOP" });
+
+        engine.RegisterFunction("execute", _ =>
+            Task.FromResult(NodeResult.Succeeded("task-output", tokensUsed: 50)));
+
+        engine.RegisterFunction("neg_review", _ =>
+        {
+            negReviewCount++;
+            return Task.FromResult(NodeResult.Routed($"neg reviews (iter {negReviewCount})", ["NEG_CONTINUE"], tokensUsed: 20));
+        });
+
+        engine.RegisterFunction("fix_neg", _ =>
+            Task.FromResult(NodeResult.Routed("fixes-applied", ["NEG_CONTINUE"], tokensUsed: 30)));
+
+        engine.RegisterFunction("done", _ =>
+            Task.FromResult(NodeResult.Succeeded("loop-completed")));
+
+        var goalState = new GoalState
+        {
+            GoalId = "test-goal",
+            Objective = "test objective",
+            TurnBudget = 2,
+        };
+
+        var graph = new GoalGraph
+        {
+            Name = "neg-review-turn-budget-test",
+            Dag = dag,
+            StartNodeId = "execute",
+            EndNodeIds = FrozenSet.Create("done"),
+            HardMaxLoopIterations = 16,
+        };
+
+        var result = await engine.ExecuteAsync(graph, goalState, new MessageList(), CancellationToken.None);
+
+        Assert.True(negReviewCount <= 3);
+        Assert.Equal(GoalStatus.Achieved, result.Status);
+    }
 }

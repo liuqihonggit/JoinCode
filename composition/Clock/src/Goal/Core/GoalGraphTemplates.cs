@@ -328,6 +328,10 @@ public static class GoalGraphTemplates
 
 请严格按照评价清单逐项执行，不要遗漏任何一项。
 完成后根据路由规则决定输出路由。
+
+## 输出要求
+- 必须在输出末尾包含 "负评条数: N" 行（N为实际负评条数）
+- 使用 task_create 创建任务后，必须输出 "task_id: <创建的任务ID>" 
 """;
     }
 

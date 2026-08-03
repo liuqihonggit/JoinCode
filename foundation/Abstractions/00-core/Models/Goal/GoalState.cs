@@ -11,6 +11,7 @@ public sealed class GoalState
     public GoalStatus Status { get; set; } = GoalStatus.Pursuing;
     public List<string> Constraints { get; init; } = [];
     public int? TokenBudget { get; init; }
+    public int? TurnBudget { get; init; }
     public int TokensUsed { get; set; }
     public int TurnsCompleted { get; set; }
     public DateTime CreatedAt { get; init; } = DateTime.UtcNow;

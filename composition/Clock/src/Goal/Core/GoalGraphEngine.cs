@@ -20,6 +20,7 @@ public sealed partial class GoalGraphEngine
     private Core.Agents.Coordinator.AgentRegistry _agentRegistry => Core.Agents.Coordinator.Agent.Registry;
     [Inject] private readonly IAgentService? _agentService = null!;
     [Inject] private readonly IGoalUserInteraction? _userInteraction = null;
+    [Inject] private readonly IGoalLoopObserver? _loopObserver = null;
     private readonly Dictionary<string, Func<NodeContext, Task<NodeResult>>> _functionRegistry = new(StringComparer.Ordinal);
 
     public GoalGraphEngine(
@@ -121,7 +122,11 @@ public sealed partial class GoalGraphEngine
 
             context.CompletedNodes.Add(nodeId);
 
+            ExtractNegReviewMetadata(nodeId, payload, context);
+
             await HandleUserInteractionAsync(nodeId, payload, context, ct).ConfigureAwait(false);
+
+            await HandleLoopObservationAsync(nodeId, payload, context, ct).ConfigureAwait(false);
 
             if (ShouldTerminateLoop(nodeId, payload, context, graph))
             {
@@ -474,6 +479,79 @@ public sealed partial class GoalGraphEngine
     }
 
     /// <summary>
+    /// 协调者窥探 — 观察循环状态，决定是否终止
+    /// </summary>
+    private async Task HandleLoopObservationAsync(string nodeId, GoalNodePayload payload, GraphExecutionContext context, CancellationToken ct)
+    {
+        if (_loopObserver is null)
+            return;
+
+        if (!nodeId.Equals("neg_review", StringComparison.Ordinal) && !nodeId.Equals("fix_neg", StringComparison.Ordinal))
+            return;
+
+        var observationContext = new LoopObservationContext
+        {
+            GoalId = context.State.GoalId,
+            NodeId = nodeId,
+            LoopIteration = context.GlobalLoopIteration,
+            NegativeReviewCount = payload.NegativeReviewCount,
+            TotalTokensConsumed = context.TotalTokensConsumed,
+            TotalTurnsCompleted = context.State.TurnsCompleted,
+            LastNodeOutput = payload.Output,
+            NegativeReviewTaskId = payload.NegativeReviewTaskId,
+        };
+
+        var shouldTerminate = await _loopObserver.ObserveAsync(observationContext, ct).ConfigureAwait(false);
+
+        if (shouldTerminate)
+        {
+            context.CoordinatorTerminated = true;
+            _logger?.LogInformation("[GoalGraph] 协调者窥探终止: 节点={NodeId}, 迭代={Iter}, 负评={NegCount}",
+                nodeId, context.GlobalLoopIteration, payload.NegativeReviewCount);
+        }
+    }
+
+    /// <summary>
+    /// 从 neg_review 节点输出中提取元数据（负评条数、任务ID）并写入 payload
+    /// </summary>
+    private static void ExtractNegReviewMetadata(string nodeId, GoalNodePayload payload, GraphExecutionContext context)
+    {
+        if (!nodeId.Equals("neg_review", StringComparison.Ordinal))
+            return;
+
+        if (string.IsNullOrEmpty(payload.Output))
+            return;
+
+        var negCount = ParseNegReviewCount(payload.Output);
+        if (negCount.HasValue)
+        {
+            payload.NegativeReviewCount = negCount.Value;
+        }
+
+        var taskId = ParseTaskId(payload.Output);
+        if (taskId is not null)
+        {
+            payload.NegativeReviewTaskId = taskId;
+        }
+    }
+
+    private static int? ParseNegReviewCount(string output)
+    {
+        var match = System.Text.RegularExpressions.Regex.Match(
+            output, @"负评条数\s*[:：]\s*(\d+)", System.Text.RegularExpressions.RegexOptions.None);
+        if (match.Success && int.TryParse(match.Groups[1].Value, out var count))
+            return count;
+        return null;
+    }
+
+    private static string? ParseTaskId(string output)
+    {
+        var match = System.Text.RegularExpressions.Regex.Match(
+            output, @"task_id\s*[:：]\s*([a-zA-Z0-9_-]+)", System.Text.RegularExpressions.RegexOptions.None);
+        return match.Success ? match.Groups[1].Value : null;
+    }
+
+    /// <summary>
     /// 判断是否应终止负向评价-修复循环
     /// 终止条件（纵深防御，任一满足即终止）:
     /// 1. 协调者终止（窥探或接管）
@@ -489,6 +567,9 @@ public sealed partial class GoalGraphEngine
             return true;
 
         if (context.State.TokenBudget.HasValue && context.TotalTokensConsumed >= context.State.TokenBudget.Value)
+            return true;
+
+        if (context.State.TurnBudget.HasValue && context.GlobalLoopIteration >= context.State.TurnBudget.Value)
             return true;
 
         return false;

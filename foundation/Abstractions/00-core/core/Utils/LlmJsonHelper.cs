@@ -139,14 +139,24 @@ public static class LlmJsonHelper
     /// 统一门控入口，所有 LLM 输出的 JSON 修复必须通过此方法
     /// </summary>
     public static ToolCallRepairResult RepairJson(string? rawJson)
-        => ToolCallRepairService.RepairJson(rawJson);
+    {
+        var result = ToolCallRepairService.RepairJson(rawJson);
+        if (result.RepairHint is not null)
+            System.Diagnostics.Trace.WriteLine($"[LlmJsonHelper] RepairJson: {result.RepairHint}");
+        return result;
+    }
 
     /// <summary>
     /// 工具名归一化（大小写不敏感匹配到标准名）
     /// 统一门控入口，所有 LLM 输出的工具名修复必须通过此方法
     /// </summary>
     public static string RepairToolName(string? toolName)
-        => ToolCallRepairService.RepairToolName(toolName);
+    {
+        var result = ToolCallRepairService.RepairToolName(toolName);
+        if (!string.IsNullOrEmpty(toolName) && !string.Equals(toolName, result, StringComparison.Ordinal))
+            System.Diagnostics.Trace.WriteLine($"[LlmJsonHelper] RepairToolName: '{toolName}' -> '{result}'");
+        return result;
+    }
 
     /// <summary>
     /// 参数名归一化 + 参数类型自动转换
@@ -156,7 +166,12 @@ public static class LlmJsonHelper
         string toolName,
         Dictionary<string, JsonElement> arguments,
         ToolSchema? schema)
-        => ToolCallRepairService.RepairArguments(toolName, arguments, schema);
+    {
+        var result = ToolCallRepairService.RepairArguments(toolName, arguments, schema);
+        if (result.RepairHint is not null)
+            System.Diagnostics.Trace.WriteLine($"[LlmJsonHelper] RepairArguments({toolName}): {result.RepairHint}");
+        return result;
+    }
 
     /// <summary>
     /// 带修复的重试反序列化：先直接反序列化，失败后 RepairJson 再试

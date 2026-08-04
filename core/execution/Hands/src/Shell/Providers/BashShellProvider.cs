@@ -7,6 +7,9 @@ namespace Services.Shell.Providers;
 [Register]
 public sealed class BashCapabilityProvider : ShellCapabilityProvider
 {
+    public const string GitBashPathEnvVar = "JCC_GIT_BASH_PATH";
+    public const string ShellPrefixEnvVar = "JCC_SHELL_PREFIX";
+
     private readonly IFileSystem _fs;
     private readonly ILogger? _logger;
 
@@ -25,7 +28,7 @@ public sealed class BashCapabilityProvider : ShellCapabilityProvider
 
     protected override string ResolveShellPath(IFileSystem fs, ILogger? logger)
     {
-        var envPath = ResolveFromEnvVarShared(fs, BashShellProvider.GitBashPathEnvVar);
+        var envPath = ResolveFromEnvVarShared(fs, BashCapabilityProvider.GitBashPathEnvVar);
         if (envPath is not null) return envPath;
 
         var gitPath = FindExecutableShared(fs, logger, "git.exe", excludeCurrentDir: true);
@@ -43,7 +46,7 @@ public sealed class BashCapabilityProvider : ShellCapabilityProvider
             @"C:\Program Files (x86)\Git\bin\bash.exe");
         if (commonPath is not null) return commonPath;
 
-        logger?.LogWarning("Git Bash not found, falling back to cmd.exe. Set {EnvVar} to specify bash path.", BashShellProvider.GitBashPathEnvVar);
+        logger?.LogWarning("Git Bash not found, falling back to cmd.exe. Set {EnvVar} to specify bash path.", BashCapabilityProvider.GitBashPathEnvVar);
         return "cmd.exe";
     }
 
@@ -155,9 +158,6 @@ public sealed class BashShellProvider : ShellProviderBase
     private readonly IEnvironmentProbeService? _probeService;
     private string? _snapshotFilePath;
 
-    public const string GitBashPathEnvVar = "JCC_GIT_BASH_PATH";
-    public const string ShellPrefixEnvVar = "JCC_SHELL_PREFIX";
-
     private static readonly string SnapshotDir = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
         AppDataConstants.AppDataFolder, "shell-snapshots");
@@ -234,7 +234,7 @@ public sealed class BashShellProvider : ShellProviderBase
 
         var commandString = string.Join(" && ", commandParts);
 
-        var shellPrefix = Environment.GetEnvironmentVariable(ShellPrefixEnvVar);
+        var shellPrefix = Environment.GetEnvironmentVariable(BashCapabilityProvider.ShellPrefixEnvVar);
         if (!string.IsNullOrEmpty(shellPrefix))
             commandString = $"{shellPrefix} {ShellQuote(commandString)}";
 
@@ -261,7 +261,7 @@ public sealed class BashShellProvider : ShellProviderBase
 
     private static string? GetDisableExtglobCommand()
     {
-        var prefix = Environment.GetEnvironmentVariable(ShellPrefixEnvVar);
+        var prefix = Environment.GetEnvironmentVariable(BashCapabilityProvider.ShellPrefixEnvVar);
         if (!string.IsNullOrEmpty(prefix))
             return "{ shopt -u extglob || setopt NO_EXTENDED_GLOB; } >/dev/null 2>&1 || true";
         return "shopt -u extglob 2>/dev/null || true";

@@ -49,29 +49,8 @@ public sealed partial class SyncSystemPromptProviderOptions : Core.Prompts.Syste
             .Select(p => p.GetCapability(fs))
             .ToList() ?? [];
 
-        var capabilities = capabilityList.ToDictionary(c => c.Type);
-
-        ShellInfos = capabilities.Count > 0
+        ShellInfos = capabilityList.Count > 0
             ? capabilityList.ToDictionary(kvp => kvp.Type, kvp => kvp.ToShellInfo())
             : null;
-
-        if (capabilities.TryGetValue(ShellType.Bash, out var bash))
-        {
-            BashVersion = bash.Version;
-            BashPath = bash.ShellPath;
-        }
-
-        if (capabilities.TryGetValue(ShellType.PowerShell, out var ps))
-        {
-            PowerShellVersion = ps.Version;
-            PowerShellPath = ps.ShellPath;
-            PowerShellEdition = ps.IsPowerShellCore ? "core" : "desktop";
-        }
-
-        if (capabilities.TryGetValue(ShellType.Python, out var py))
-        {
-            PythonVersion = py.Version;
-            PythonPath = py.ShellPath;
-        }
     }
 }

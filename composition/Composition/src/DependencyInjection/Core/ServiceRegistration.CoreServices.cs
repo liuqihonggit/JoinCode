@@ -84,8 +84,8 @@ public static partial class ServiceRegistration
             return options.Value;
         });
 
-        // IShellProvider — BashShellProvider / PowerShellShellProvider 由 [Register] 自动注册
-        // ShellExecutionService 构造函数直接取具体类型（非 IShellProvider 接口），避免多实现歧义
+        // ShellCapabilityProvider — BashCapabilityProvider / PowerShellCapabilityProvider / PythonCapabilityProvider 由 [Register] 自动注册
+        // ShellExecutionService 注入 IEnumerable<ShellCapabilityProvider> 抽象集合，新增 ShellType 无需改代码
 
         return services;
     }

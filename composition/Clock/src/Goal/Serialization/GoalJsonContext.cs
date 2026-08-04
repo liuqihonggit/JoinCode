@@ -7,6 +7,7 @@ namespace Core.Goal;
 [JsonSerializable(typeof(GoalEvaluationJson))]
 [JsonSerializable(typeof(NegReviewOutputJson))]
 [JsonSerializable(typeof(FixNegOutputJson))]
+[JsonSerializable(typeof(DecompositionAnalysisJson))]
 [JsonSourceGenerationOptions(AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
 public partial class GoalJsonContext : JsonSerializerContext;
 
@@ -74,4 +75,46 @@ public sealed class FixNegOutputJson
 
     [JsonPropertyName("summary")]
     public string Summary { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// 任务分解分析 LLM 输出的 JSON 格式
+/// </summary>
+public sealed class DecompositionAnalysisJson
+{
+    [JsonPropertyName("isDecomposable")]
+    public bool IsDecomposable { get; set; }
+
+    [JsonPropertyName("reason")]
+    public string Reason { get; set; } = string.Empty;
+
+    [JsonPropertyName("subTasks")]
+    public List<SubTaskDefinitionJson> SubTasks { get; set; } = [];
+}
+
+/// <summary>
+/// 子任务定义 JSON — LLM 输出
+/// </summary>
+public sealed class SubTaskDefinitionJson
+{
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = string.Empty;
+
+    [JsonPropertyName("title")]
+    public string Title { get; set; } = string.Empty;
+
+    [JsonPropertyName("description")]
+    public string Description { get; set; } = string.Empty;
+
+    [JsonPropertyName("dependsOn")]
+    public List<string> DependsOn { get; set; } = [];
+
+    [JsonPropertyName("ownedFiles")]
+    public List<string> OwnedFiles { get; set; } = [];
+
+    [JsonPropertyName("priority")]
+    public string Priority { get; set; } = "medium";
+
+    [JsonPropertyName("variant")]
+    public string Variant { get; set; } = "code";
 }

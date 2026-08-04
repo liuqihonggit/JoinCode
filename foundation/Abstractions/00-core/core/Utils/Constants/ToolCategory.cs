@@ -56,4 +56,5 @@ public enum ToolCategory
     [EnumValue("mcp_resource")] McpResource,
     [EnumValue("graph")] Graph,
     [EnumValue("sandbox")] Sandbox,
+    [EnumValue("error_recovery")] ErrorRecovery,
 }

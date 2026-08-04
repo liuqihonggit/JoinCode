@@ -104,7 +104,7 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
                                 {
                                     if (named.Key == "ConcurrencySafe" && named.Value.Value is bool cs)
                                         concurrencySafe = cs;
-                                    else if (named.Key == "Kind" && named.Value.Value is int tkValue)
+                                    else if (named.Key == "Kind" && named.Value.Value is int tkValue && tkValue >= 0)
                                         toolKind = TryResolveToolKindValue(compilation, tkValue);
                                     else if (named.Key == "GroupName" && named.Value.Value is string tgn)
                                         toolGroupName = tgn;

@@ -34,6 +34,9 @@ public sealed partial class SettingsMapper
         // 快速模式
         config.FastMode = settings?.FastMode ?? false;
 
+        // 工具评分配置
+        ApplyToolScoreSettings(config, settings);
+
         return config;
     }
 
@@ -209,6 +212,28 @@ public sealed partial class SettingsMapper
         var envEndpoint = definition.ResolveEndpointFromEnv();
         if (!string.IsNullOrEmpty(envEndpoint))
             config.Provider.Endpoint = envEndpoint;
+    }
+
+    private static void ApplyToolScoreSettings(WorkflowConfig config, SettingsJson? settings)
+    {
+        if (settings?.ToolScore is null) return;
+
+        var ts = settings.ToolScore;
+        var target = config.ToolExecution.ToolScore;
+
+        if (ts.SuccessDelta.HasValue) target.SuccessDelta = ts.SuccessDelta.Value;
+        if (ts.FailDelta.HasValue) target.FailDelta = ts.FailDelta.Value;
+        if (ts.CircuitBreakerThreshold.HasValue) target.CircuitBreakerThreshold = ts.CircuitBreakerThreshold.Value;
+        if (ts.ScoreMin.HasValue) target.ScoreMin = ts.ScoreMin.Value;
+        if (ts.ScoreMax.HasValue) target.ScoreMax = ts.ScoreMax.Value;
+        if (ts.DecayRatePerHour.HasValue) target.DecayRatePerHour = ts.DecayRatePerHour.Value;
+        if (ts.DecayRecoveryScore.HasValue) target.DecayRecoveryScore = ts.DecayRecoveryScore.Value;
+
+        if (settings.BlacklistedTools is not null)
+            config.ToolExecution.BlacklistedTools = settings.BlacklistedTools;
+
+        if (settings.ToolPenalties is not null)
+            config.ToolExecution.ToolPenalties = new Dictionary<string, int>(settings.ToolPenalties, StringComparer.OrdinalIgnoreCase);
     }
 
     #endregion

@@ -34,10 +34,19 @@ public static partial class ServiceRegistration
 
         services.AddSingleton<MiddlewarePipeline<ToolExecutionContext>>(sp =>
         {
-            var middlewares = sp.GetServices<IToolExecutionMiddleware>().Cast<IMiddleware<ToolExecutionContext>>();
+            var lf = sp.GetRequiredService<ILoggerFactory>();
             return new PipelineBuilder<ToolExecutionContext>()
-                .WithLoggingScope(sp.GetRequiredService<ILoggerFactory>())
-                .UseRange(middlewares)
+                .WithLoggingScope(lf)
+                .Use(sp.GetRequiredService<McpToolRegistry.ArgumentRepairMiddleware>())
+                .Use(sp.GetRequiredService<McpToolRegistry.RequiredParamsMiddleware>())
+                .Use(sp.GetRequiredService<McpToolRegistry.SchemaValidationMiddleware>())
+                .Use(sp.GetRequiredService<McpToolRegistry.AgentRestrictionMiddleware>())
+                .Use(sp.GetRequiredService<McpToolRegistry.PermissionCheckMiddleware>())
+                .Use(sp.GetRequiredService<McpToolRegistry.RemotePolicyMiddleware>())
+                .Use(sp.GetRequiredService<McpToolRegistry.FeatureFlagMiddleware>())
+                .Use(sp.GetRequiredService<McpToolRegistry.OnErrorToolInjectionMiddleware>())
+                .Use(sp.GetRequiredService<McpToolRegistry.ToolHealthScoringMiddleware>())
+                .Use(sp.GetRequiredService<McpToolRegistry.ToolExecutionMiddleware>())
                 .Build();
         });
 

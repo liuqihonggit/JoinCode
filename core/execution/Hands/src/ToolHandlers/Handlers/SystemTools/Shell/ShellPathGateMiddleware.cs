@@ -18,7 +18,7 @@ public sealed partial class ShellPathGateMiddleware : IShellMiddleware
     {
         if (!string.IsNullOrEmpty(context.WorkingDirectory))
         {
-            var gated = _probeService.GatePath(context.WorkingDirectory, context.IsPowerShell);
+            var gated = _probeService.GatePath(context.WorkingDirectory, context.Provider);
             if (!string.Equals(gated, context.WorkingDirectory, StringComparison.Ordinal))
             {
                 context.WorkingDirectory = gated;
@@ -27,7 +27,7 @@ public sealed partial class ShellPathGateMiddleware : IShellMiddleware
 
         if (!string.IsNullOrEmpty(context.Command))
         {
-            var gatedCommand = _probeService.GateCommandPaths(context.Command, context.IsPowerShell);
+            var gatedCommand = _probeService.GateCommandPaths(context.Command, context.Provider);
             if (!string.Equals(gatedCommand, context.Command, StringComparison.Ordinal))
             {
                 context.Command = gatedCommand;

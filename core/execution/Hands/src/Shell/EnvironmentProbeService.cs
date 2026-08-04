@@ -79,18 +79,19 @@ public sealed class EnvironmentProbeService : IEnvironmentProbeService
     }
 
     /// <inheritdoc />
-    public string GatePath(string rawPath, bool isPowerShell)
+    public string GatePath(string rawPath, IShellProvider provider)
     {
         if (string.IsNullOrWhiteSpace(rawPath)) return rawPath;
 
         var isWindows = OperatingSystem.IsWindows();
+        var isBash = provider.Type == ShellType.Bash;
 
-        if (isWindows && !isPowerShell)
+        if (isWindows && isBash)
         {
             return PathConverter.WindowsPathToPosixPath(rawPath);
         }
 
-        if (isWindows && isPowerShell)
+        if (isWindows && !isBash)
         {
             return PathConverter.PosixPathToWindowsPath(rawPath);
         }
@@ -104,19 +105,15 @@ public sealed class EnvironmentProbeService : IEnvironmentProbeService
     }
 
     /// <inheritdoc />
-    public string GateCommandPaths(string command, bool isPowerShell)
+    public string GateCommandPaths(string command, IShellProvider provider)
     {
         if (string.IsNullOrEmpty(command)) return command;
 
         var isWindows = OperatingSystem.IsWindows();
-        var toPosix = (isWindows && !isPowerShell) || (!isWindows);
+        var isBash = provider.Type == ShellType.Bash;
+        var toPosix = (isWindows && isBash) || (!isWindows);
 
-        if (!toPosix && isWindows && isPowerShell)
-        {
-            return PathConverter.GateCommandPaths(command, toPosix: false);
-        }
-
-        return PathConverter.GateCommandPaths(command, toPosix: true);
+        return PathConverter.GateCommandPaths(command, toPosix);
     }
 
     public async Task<IReadOnlyDictionary<string, ExecutorScore>> GetExecutorScoresAsync(CancellationToken ct = default)

@@ -10,6 +10,7 @@ public class PowerShellToolHandlers : ShellToolBase
 {
     private readonly MiddlewarePipeline<ShellPipelineContext> _pipeline;
     private readonly IShellExecutionService _shellExecutionService;
+    private readonly IShellProvider _powerShellProvider;
     private readonly IFileOperationService _fileOperationService;
     private readonly IFileSystem _fs;
     private readonly ITelemetryService? _telemetryService;
@@ -17,11 +18,12 @@ public class PowerShellToolHandlers : ShellToolBase
     private readonly IPsDestructiveCommandChecker? _psDestructiveCommandChecker;
 
     public override string ToolName => ShellToolNameConstants.Powershell;
-    public override bool IsPowerShell => true;
+    public override IShellProvider Provider => _powerShellProvider;
 
     public PowerShellToolHandlers(
         MiddlewarePipeline<ShellPipelineContext> pipeline,
         IShellExecutionService shellExecutionService,
+        IShellProvider powerShellProvider,
         IFileOperationService fileOperationService,
         IFileSystem fs,
         IShellToolGateService? gateService = null,
@@ -33,6 +35,7 @@ public class PowerShellToolHandlers : ShellToolBase
     {
         _pipeline = pipeline ?? throw new ArgumentNullException(nameof(pipeline));
         _shellExecutionService = shellExecutionService ?? throw new ArgumentNullException(nameof(shellExecutionService));
+        _powerShellProvider = powerShellProvider ?? throw new ArgumentNullException(nameof(powerShellProvider));
         _fileOperationService = fileOperationService ?? throw new ArgumentNullException(nameof(fileOperationService));
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _telemetryService = telemetryService;
@@ -103,7 +106,7 @@ public class PowerShellToolHandlers : ShellToolBase
         var context = new ShellPipelineContext
         {
             Command = command,
-            IsPowerShell = true,
+            Provider = _powerShellProvider,
             Description = description,
             Timeout = timeout,
             WorkingDirectory = working_directory,

@@ -28,7 +28,7 @@ public sealed partial class ShellBackgroundMiddleware : IShellMiddleware
             context.Command,
             context.Timeout,
             context.WorkingDirectory,
-            isPowerShell: context.IsPowerShell,
+            shellType: context.Provider.Type,
             shouldAutoBackground: false,
             disableSandbox: context.DangerouslyDisableSandbox == true,
             cancellationToken: ct).ConfigureAwait(false);
@@ -44,7 +44,7 @@ public sealed partial class ShellBackgroundMiddleware : IShellMiddleware
         var taskInfo = await _backgroundTaskService.RegisterContextAsync(
             cmdContext, context.WorkingDirectory, ct).ConfigureAwait(false);
 
-        var shellType = context.IsPowerShell ? "powershell" : "cmd";
+        var shellType = context.Provider.Type.ToValue();
         RecordShellMetrics(shellType, "background", "ok");
 
         var response = new StringBuilder();

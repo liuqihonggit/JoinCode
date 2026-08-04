@@ -24,7 +24,7 @@ public sealed partial class ShellOutputMiddleware : IShellMiddleware
             return Task.CompletedTask;
         }
 
-        var shellType = context.IsPowerShell ? "powershell" : "cmd";
+        var shellType = context.Provider.Type.ToValue();
 
         if (result.Interrupted)
         {

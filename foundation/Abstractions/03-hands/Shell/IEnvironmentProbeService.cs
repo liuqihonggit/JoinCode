@@ -13,21 +13,21 @@ public interface IEnvironmentProbeService
     /// 路径门控 — 根据当前平台和目标 Shell 类型转换路径格式
     /// <list type="bullet">
     ///   <item>Windows + Bash(Git Bash/WSL) → POSIX 格式: C:\Users\test → /c/Users/test</item>
-    ///   <item>Windows + PowerShell → Windows 格式: /c/Users/test → C:\Users\test</item>
+    ///   <item>Windows + PowerShell/Cmd → Windows 格式: /c/Users/test → C:\Users\test</item>
     ///   <item>Linux/Mac + 任何 Shell → POSIX 格式</item>
     /// </list>
     /// </summary>
     /// <param name="rawPath">LLM 输出的原始路径</param>
-    /// <param name="isPowerShell">目标 Shell 是否为 PowerShell</param>
+    /// <param name="provider">目标 Shell 执行体</param>
     /// <returns>转换后的路径</returns>
-    string GatePath(string rawPath, bool isPowerShell);
+    string GatePath(string rawPath, IShellProvider provider);
 
     /// <summary>
     /// 命令路径门控 — 扫描命令字符串中的路径片段并转换为指定格式
     /// 匹配 Windows 绝对路径和 POSIX 风格 Windows 路径，排除 URL 和环境变量
     /// </summary>
     /// <param name="command">Shell 命令字符串</param>
-    /// <param name="isPowerShell">目标 Shell 是否为 PowerShell</param>
+    /// <param name="provider">目标 Shell 执行体</param>
     /// <returns>路径转换后的命令字符串</returns>
-    string GateCommandPaths(string command, bool isPowerShell);
+    string GateCommandPaths(string command, IShellProvider provider);
 }

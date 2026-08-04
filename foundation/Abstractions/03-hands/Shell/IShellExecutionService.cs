@@ -45,7 +45,7 @@ public interface IShellExecutionService
     /// <param name="command">命令</param>
     /// <param name="timeout">超时时间（毫秒）</param>
     /// <param name="workingDirectory">工作目录</param>
-    /// <param name="isPowerShell">是否使用 PowerShell</param>
+    /// <param name="shellType">Shell 类型（Bash/PowerShell/Cmd）</param>
     /// <param name="shouldAutoBackground">是否允许超时自动后台化 — 对齐 TS shouldAutoBackground</param>
     /// <param name="disableSandbox">跳过沙箱路径解析 — 对齐 TS dangerouslyDisableSandbox</param>
     /// <param name="cancellationToken">取消令牌</param>
@@ -54,7 +54,7 @@ public interface IShellExecutionService
         string command,
         int? timeout = null,
         string? workingDirectory = null,
-        bool isPowerShell = false,
+        ShellType shellType = ShellType.Bash,
         bool shouldAutoBackground = true,
         bool disableSandbox = false,
         CancellationToken cancellationToken = default);

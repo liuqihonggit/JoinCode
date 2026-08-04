@@ -27,7 +27,7 @@ public sealed partial class ShellExecutionMiddleware : IShellMiddleware
             context.Command,
             context.Timeout,
             context.WorkingDirectory,
-            isPowerShell: context.IsPowerShell,
+            shellType: context.Provider.Type,
             shouldAutoBackground: shouldAutoBackground,
             disableSandbox: context.DangerouslyDisableSandbox == true,
             cancellationToken: ct).ConfigureAwait(false);
@@ -47,7 +47,7 @@ public sealed partial class ShellExecutionMiddleware : IShellMiddleware
         _foregroundTaskRegistry?.Register(cmdContext);
 
         // 对齐 TS bash_progress: 定时轮询输出并报告进度
-        var progressType = context.IsPowerShell ? "ps_progress" : "bash_progress";
+        var progressType = context.Provider.Type == ShellType.PowerShell ? "ps_progress" : "bash_progress";
         using var progressTimer = context.OnProgress is not null
             ? CreateProgressTimer(cmdContext, context.OnProgress, progressType)
             : null;

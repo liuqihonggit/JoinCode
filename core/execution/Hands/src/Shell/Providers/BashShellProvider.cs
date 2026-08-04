@@ -211,7 +211,7 @@ public sealed class BashShellProvider : ShellProviderBase, IDisposable
     /// 转换路径为 POSIX 格式 — 优先委托给 IEnvironmentProbeService.GatePath，回退到 PathConverter
     /// </summary>
     private string ConvertToPosixPath(string path)
-        => _probeService?.GatePath(path, isPowerShell: false) ?? PathConverter.WindowsPathToPosixPath(path);
+        => _probeService?.GatePath(path, this) ?? PathConverter.WindowsPathToPosixPath(path);
 
     /// <summary>
     /// POSIX 路径拼接 — 对齐 TS path/posix.join

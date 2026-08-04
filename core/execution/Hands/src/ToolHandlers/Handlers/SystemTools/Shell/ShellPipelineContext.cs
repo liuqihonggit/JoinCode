@@ -14,9 +14,9 @@ public sealed class ShellPipelineContext
     public required string Command { get; set; }
 
     /// <summary>
-    /// 是否为 PowerShell 命令
+    /// Shell 执行体 — 决定路径门控方向、进程启动方式、编码等
     /// </summary>
-    public required bool IsPowerShell { get; init; }
+    public required IShellProvider Provider { get; init; }
 
     /// <summary>
     /// 命令描述

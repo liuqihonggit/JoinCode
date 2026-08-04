@@ -60,7 +60,7 @@ public sealed partial class ShellExecutionService : IShellExecutionService
         string command,
         int? timeout = null,
         string? workingDirectory = null,
-        bool isPowerShell = false,
+        ShellType shellType = ShellType.Bash,
         bool shouldAutoBackground = true,
         bool disableSandbox = false,
         CancellationToken cancellationToken = default)
@@ -83,7 +83,7 @@ public sealed partial class ShellExecutionService : IShellExecutionService
             }
         }
 
-        var provider = isPowerShell ? _powerShellProvider : _bashProvider;
+        var provider = shellType == ShellType.PowerShell ? _powerShellProvider : _bashProvider;
 
         _logger?.LogInformation("Starting backgroundable command with {ProviderType}: {Command}", provider.Type, command);
 

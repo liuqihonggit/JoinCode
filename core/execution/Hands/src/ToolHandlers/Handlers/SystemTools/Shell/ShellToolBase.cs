@@ -26,9 +26,9 @@ public abstract class ShellToolBase
     public abstract string ToolName { get; }
 
     /// <summary>
-    /// 是否为 PowerShell 类型工具 — 子类覆盖
+    /// Shell 执行体 — 子类覆盖
     /// </summary>
-    public virtual bool IsPowerShell => false;
+    public virtual IShellProvider Provider => throw new NotImplementedException("Subclass must override Provider");
 
     /// <summary>
     /// 是否可被微压缩清理 — 默认 true，所有 Shell 工具结果都可压缩

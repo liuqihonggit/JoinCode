@@ -148,7 +148,7 @@ public class EnvironmentProbeServicePathGateTests
         if (!OperatingSystem.IsWindows()) return;
 
         var sut = CreateSut();
-        var result = sut.GatePath("C:\\Users\\test", isPowerShell: false);
+        var result = sut.GatePath("C:\\Users\\test", MockProvider(ShellType.Bash));
         result.Should().Be("/c/Users/test");
     }
 
@@ -158,7 +158,17 @@ public class EnvironmentProbeServicePathGateTests
         if (!OperatingSystem.IsWindows()) return;
 
         var sut = CreateSut();
-        var result = sut.GatePath("C:\\Users\\test", isPowerShell: true);
+        var result = sut.GatePath("C:\\Users\\test", MockProvider(ShellType.PowerShell));
+        result.Should().Be("C:\\Users\\test");
+    }
+
+    [Fact]
+    public void GatePath_WindowsCmd_KeepsWindowsFormat()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+
+        var sut = CreateSut();
+        var result = sut.GatePath("C:\\Users\\test", MockProvider(ShellType.Cmd));
         result.Should().Be("C:\\Users\\test");
     }
 
@@ -168,7 +178,7 @@ public class EnvironmentProbeServicePathGateTests
         if (!OperatingSystem.IsWindows()) return;
 
         var sut = CreateSut();
-        var result = sut.GatePath("/c/Users/test", isPowerShell: true);
+        var result = sut.GatePath("/c/Users/test", MockProvider(ShellType.PowerShell));
         result.Should().Be("C:\\Users\\test");
     }
 
@@ -176,8 +186,8 @@ public class EnvironmentProbeServicePathGateTests
     public void GatePath_EmptyOrNull_ReturnsAsIs()
     {
         var sut = CreateSut();
-        sut.GatePath("", isPowerShell: false).Should().Be("");
-        sut.GatePath(null!, isPowerShell: false).Should().BeNull();
+        sut.GatePath("", MockProvider(ShellType.Bash)).Should().Be("");
+        sut.GatePath(null!, MockProvider(ShellType.Bash)).Should().BeNull();
     }
 
     [Fact]
@@ -186,11 +196,17 @@ public class EnvironmentProbeServicePathGateTests
         if (!OperatingSystem.IsWindows()) return;
 
         var sut = CreateSut();
-        var result = sut.GatePath("/c/Users/test", isPowerShell: false);
+        var result = sut.GatePath("/c/Users/test", MockProvider(ShellType.Bash));
         result.Should().Be("/c/Users/test");
     }
 
     #endregion
+
+    private static IShellProvider MockProvider(ShellType type)
+    {
+        var mock = Mock.Of<IShellProvider>(p => p.Type == type);
+        return mock;
+    }
 
     private static EnvironmentProbeService CreateSut()
         => new(Mock.Of<IToolHealthMonitor>(), NullLogger<EnvironmentProbeService>.Instance);

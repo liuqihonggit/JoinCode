@@ -11,17 +11,20 @@ public partial class ShellToolHandlers : ShellToolBase
 {
     private readonly MiddlewarePipeline<ShellPipelineContext> _pipeline;
     private readonly IShellBackgroundTaskService? _backgroundTaskService;
+    private readonly IShellProvider _bashProvider;
 
     public override string ToolName => ShellToolNameConstants.Bash;
 
     public ShellToolHandlers(
         MiddlewarePipeline<ShellPipelineContext> pipeline,
+        IShellProvider bashProvider,
         IShellToolGateService? gateService = null,
         IShellProcessWatchdog? watchdog = null,
         IShellBackgroundTaskService? backgroundTaskService = null)
         : base(gateService, watchdog)
     {
         _pipeline = pipeline ?? throw new ArgumentNullException(nameof(pipeline));
+        _bashProvider = bashProvider ?? throw new ArgumentNullException(nameof(bashProvider));
         _backgroundTaskService = backgroundTaskService;
     }
 
@@ -44,7 +47,7 @@ public partial class ShellToolHandlers : ShellToolBase
         var context = new ShellPipelineContext
         {
             Command = command,
-            IsPowerShell = false,
+            Provider = _bashProvider,
             Description = description,
             Timeout = timeout,
             WorkingDirectory = working_directory,

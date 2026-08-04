@@ -8,6 +8,7 @@ namespace Core.Goal;
 [JsonSerializable(typeof(NegReviewOutputJson))]
 [JsonSerializable(typeof(FixNegOutputJson))]
 [JsonSerializable(typeof(DecompositionAnalysisJson))]
+[JsonSerializable(typeof(GradingAnalysisJson))]
 [JsonSourceGenerationOptions(AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
 public partial class GoalJsonContext : JsonSerializerContext;
 
@@ -117,4 +118,31 @@ public sealed class SubTaskDefinitionJson
 
     [JsonPropertyName("variant")]
     public string Variant { get; set; } = "code";
+}
+
+/// <summary>
+/// 评分分析 LLM 输出的 JSON 格式
+/// </summary>
+public sealed class GradingAnalysisJson
+{
+    [JsonPropertyName("reason")]
+    public string Reason { get; set; } = string.Empty;
+
+    [JsonPropertyName("criteria")]
+    public List<GradingCriterionJson> Criteria { get; set; } = [];
+}
+
+/// <summary>
+/// 评分维度 JSON — LLM 输出
+/// </summary>
+public sealed class GradingCriterionJson
+{
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = string.Empty;
+
+    [JsonPropertyName("score")]
+    public double Score { get; set; }
+
+    [JsonPropertyName("feedback")]
+    public string Feedback { get; set; } = string.Empty;
 }

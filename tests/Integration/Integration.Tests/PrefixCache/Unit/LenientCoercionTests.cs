@@ -232,6 +232,67 @@ public sealed class LenientCoercionTests
         report.FormatForLlm().Should().Contain("count");
     }
 
+    [Fact]
+    public void Coerce_FractionalNumberIntoInt_Rounds_NotDefaults()
+    {
+        var result = LlmJsonHelper.DeserializeWithReport(
+            """{"completed": true, "count": 3.7}""",
+            CoercionTestJsonContext.Default.LenientDto,
+            out _);
+
+        result.Should().NotBeNull();
+        result!.Count.Should().Be(4);
+    }
+
+    [Fact]
+    public void Coerce_FractionalStringIntoInt_Rounds_NotDefaults()
+    {
+        var result = LlmJsonHelper.DeserializeWithReport(
+            """{"completed": true, "count": "3.4"}""",
+            CoercionTestJsonContext.Default.LenientDto,
+            out _);
+
+        result.Should().NotBeNull();
+        result!.Count.Should().Be(3);
+    }
+
+    [Fact]
+    public void RepairJson_NegativeHex_ConvertsToDecimal()
+    {
+        var result = LlmJsonHelper.DeserializeWithReport(
+            """{"completed": true, "count": -0xFF}""",
+            CoercionTestJsonContext.Default.LenientDto,
+            out _);
+
+        result.Should().NotBeNull();
+        result!.Count.Should().Be(-255);
+    }
+
+    [Fact]
+    public void Coerce_NanIntoInt_DefaultsWithIssue()
+    {
+        var result = LlmJsonHelper.DeserializeWithReport(
+            """{"completed": true, "count": NaN}""",
+            CoercionTestJsonContext.Default.LenientDto,
+            out var report);
+
+        result.Should().NotBeNull();
+        result!.Count.Should().Be(0);
+        report.RepairHint.Should().Contain("NaN");
+    }
+
+    [Fact]
+    public void Coerce_HugeDecimalIntoString_IsPreserved()
+    {
+        var result = LlmJsonHelper.DeserializeWithReport(
+            """{"completed": true, "reason": 123456789012345678901234567890}""",
+            CoercionTestJsonContext.Default.LenientDto,
+            out _);
+
+        result.Should().NotBeNull();
+        result!.Reason.Should().Be("123456789012345678901234567890");
+    }
+
     #region P1: null 字符串宽容
 
     [Theory]

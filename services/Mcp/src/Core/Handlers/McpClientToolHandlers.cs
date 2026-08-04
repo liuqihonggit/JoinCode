@@ -356,7 +356,9 @@ public partial class McpClientToolHandlers : IAsyncDisposable
             Dictionary<string, JsonElement>? arguments = null;
             if (!string.IsNullOrEmpty(arguments_json))
             {
-                arguments = JsonSerializer.Deserialize(arguments_json, McpToolDispatchJsonContext.Default.DictionaryStringJsonElement);
+                arguments = LlmJsonHelper.Deserialize(arguments_json, McpToolDispatchJsonContext.Default.DictionaryStringJsonElement, out var repairHint);
+                if (!string.IsNullOrEmpty(repairHint))
+                    System.Diagnostics.Trace.WriteLine($"[McpClient] tool arguments JSON repaired: {repairHint}");
             }
 
             var result = await client.CallToolAsync(tool_name, arguments, cancellationToken);

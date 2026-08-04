@@ -13,6 +13,18 @@ public sealed class McpToolAttribute : Attribute
     /// </summary>
     public bool ConcurrencySafe { get; set; }
 
+    /// <summary>
+    /// 工具类型 — 方法级可覆盖类级 Kind
+    /// 未设置时（null）继承类级 [McpToolDispatch(Kind=...)]
+    /// </summary>
+    public ToolKind? Kind { get; set; }
+
+    /// <summary>
+    /// 二级分组名 — 方法级可覆盖类级 GroupName
+    /// 未设置时（null）继承类级 [McpToolDispatch(GroupName=...)]
+    /// </summary>
+    public string? GroupName { get; set; }
+
     public McpToolAttribute(string name, string description, string category = "other")
     {
         Name = name ?? throw new ArgumentNullException(nameof(name));

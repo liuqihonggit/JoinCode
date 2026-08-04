@@ -10,7 +10,7 @@ public static class PlanPrompts
     /// <summary>
     /// 动态构建计划执行系统提示词
     /// </summary>
-    public static string BuildPlanExecutionSystemPrompt(IReadOnlyDictionary<string, List<(string Name, string Description)>> toolCategories)
+    public static string BuildPlanExecutionSystemPrompt(IReadOnlyDictionary<string, List<ToolCategoryEntry>> toolCategories)
     {
         var sb = new StringBuilder(2048);
 

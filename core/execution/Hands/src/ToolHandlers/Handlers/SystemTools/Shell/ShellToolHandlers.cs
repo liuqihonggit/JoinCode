@@ -11,20 +11,26 @@ public partial class ShellToolHandlers : ShellToolBase
 {
     private readonly MiddlewarePipeline<ShellPipelineContext> _pipeline;
     private readonly IShellBackgroundTaskService? _backgroundTaskService;
-    private readonly IShellProvider _bashProvider;
+    private readonly BashCapabilityProvider _bashCapabilityProvider;
+    private readonly IFileSystem _fs;
+    private readonly ILogger? _logger;
 
     public override string ToolName => ShellToolNameConstants.Bash;
 
     public ShellToolHandlers(
         MiddlewarePipeline<ShellPipelineContext> pipeline,
-        IShellProvider bashProvider,
+        BashCapabilityProvider bashCapabilityProvider,
+        IFileSystem fs,
+        ILogger? logger = null,
         IShellToolGateService? gateService = null,
         IShellProcessWatchdog? watchdog = null,
         IShellBackgroundTaskService? backgroundTaskService = null)
         : base(gateService, watchdog)
     {
         _pipeline = pipeline ?? throw new ArgumentNullException(nameof(pipeline));
-        _bashProvider = bashProvider ?? throw new ArgumentNullException(nameof(bashProvider));
+        _bashCapabilityProvider = bashCapabilityProvider ?? throw new ArgumentNullException(nameof(bashCapabilityProvider));
+        _fs = fs ?? throw new ArgumentNullException(nameof(fs));
+        _logger = logger;
         _backgroundTaskService = backgroundTaskService;
     }
 
@@ -44,10 +50,13 @@ public partial class ShellToolHandlers : ShellToolBase
         CancellationToken cancellationToken = default,
         ToolProgressCallback? onProgress = null)
     {
+        var capability = _bashCapabilityProvider.GetCapability(_fs, _logger);
+        using var provider = _bashCapabilityProvider.CreateProvider(capability, _fs, _logger);
+
         var context = new ShellPipelineContext
         {
             Command = command,
-            Provider = _bashProvider,
+            Provider = provider,
             Description = description,
             Timeout = timeout,
             WorkingDirectory = working_directory,

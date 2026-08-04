@@ -10,22 +10,23 @@ public class PowerShellToolHandlers : ShellToolBase
 {
     private readonly MiddlewarePipeline<ShellPipelineContext> _pipeline;
     private readonly IShellExecutionService _shellExecutionService;
-    private readonly IShellProvider _powerShellProvider;
+    private readonly PowerShellCapabilityProvider _psCapabilityProvider;
     private readonly IFileOperationService _fileOperationService;
     private readonly IFileSystem _fs;
+    private readonly ILogger? _logger;
     private readonly ITelemetryService? _telemetryService;
     private readonly IPsPermissionChecker? _psPermissionChecker;
     private readonly IPsDestructiveCommandChecker? _psDestructiveCommandChecker;
 
     public override string ToolName => ShellToolNameConstants.Powershell;
-    public override IShellProvider Provider => _powerShellProvider;
 
     public PowerShellToolHandlers(
         MiddlewarePipeline<ShellPipelineContext> pipeline,
         IShellExecutionService shellExecutionService,
-        IShellProvider powerShellProvider,
+        PowerShellCapabilityProvider psCapabilityProvider,
         IFileOperationService fileOperationService,
         IFileSystem fs,
+        ILogger? logger = null,
         IShellToolGateService? gateService = null,
         IShellProcessWatchdog? watchdog = null,
         ITelemetryService? telemetryService = null,
@@ -35,9 +36,10 @@ public class PowerShellToolHandlers : ShellToolBase
     {
         _pipeline = pipeline ?? throw new ArgumentNullException(nameof(pipeline));
         _shellExecutionService = shellExecutionService ?? throw new ArgumentNullException(nameof(shellExecutionService));
-        _powerShellProvider = powerShellProvider ?? throw new ArgumentNullException(nameof(powerShellProvider));
+        _psCapabilityProvider = psCapabilityProvider ?? throw new ArgumentNullException(nameof(psCapabilityProvider));
         _fileOperationService = fileOperationService ?? throw new ArgumentNullException(nameof(fileOperationService));
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
+        _logger = logger;
         _telemetryService = telemetryService;
         _psPermissionChecker = psPermissionChecker;
         _psDestructiveCommandChecker = psDestructiveCommandChecker;
@@ -103,10 +105,13 @@ public class PowerShellToolHandlers : ShellToolBase
             }
         }
 
+        var capability = _psCapabilityProvider.GetCapability(_fs, _logger);
+        using var provider = _psCapabilityProvider.CreateProvider(capability, _fs, _logger);
+
         var context = new ShellPipelineContext
         {
             Command = command,
-            Provider = _powerShellProvider,
+            Provider = provider,
             Description = description,
             Timeout = timeout,
             WorkingDirectory = working_directory,

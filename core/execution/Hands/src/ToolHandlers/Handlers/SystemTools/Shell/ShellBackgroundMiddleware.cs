@@ -26,9 +26,9 @@ public sealed partial class ShellBackgroundMiddleware : IShellMiddleware
         // 对齐 TS spawnShellTask: 先启动进程，再立即转后台
         await using var cmdContext = await _shellExecutionService.StartWithBackgroundSupportAsync(
             context.Command,
+            context.Provider,
             context.Timeout,
             context.WorkingDirectory,
-            shellType: context.Provider.Type,
             shouldAutoBackground: false,
             disableSandbox: context.DangerouslyDisableSandbox == true,
             cancellationToken: ct).ConfigureAwait(false);

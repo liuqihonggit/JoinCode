@@ -43,18 +43,18 @@ public interface IShellExecutionService
     /// 返回 IShellCommandContext，支持超时自动后台化、Assistant 自动后台化、用户手动后台化
     /// </summary>
     /// <param name="command">命令</param>
+    /// <param name="provider">Shell 执行体（Bash/PowerShell/Cmd）</param>
     /// <param name="timeout">超时时间（毫秒）</param>
     /// <param name="workingDirectory">工作目录</param>
-    /// <param name="shellType">Shell 类型（Bash/PowerShell/Cmd）</param>
     /// <param name="shouldAutoBackground">是否允许超时自动后台化 — 对齐 TS shouldAutoBackground</param>
     /// <param name="disableSandbox">跳过沙箱路径解析 — 对齐 TS dangerouslyDisableSandbox</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>可后台化的执行上下文</returns>
     Task<IShellCommandContext> StartWithBackgroundSupportAsync(
         string command,
+        IShellProvider provider,
         int? timeout = null,
         string? workingDirectory = null,
-        ShellType shellType = ShellType.Bash,
         bool shouldAutoBackground = true,
         bool disableSandbox = false,
         CancellationToken cancellationToken = default);

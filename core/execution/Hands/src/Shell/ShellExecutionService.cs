@@ -58,9 +58,9 @@ public sealed partial class ShellExecutionService : IShellExecutionService
     /// <inheritdoc />
     public async Task<IShellCommandContext> StartWithBackgroundSupportAsync(
         string command,
+        IShellProvider provider,
         int? timeout = null,
         string? workingDirectory = null,
-        ShellType shellType = ShellType.Bash,
         bool shouldAutoBackground = true,
         bool disableSandbox = false,
         CancellationToken cancellationToken = default)
@@ -82,8 +82,6 @@ public sealed partial class ShellExecutionService : IShellExecutionService
                 throw new DirectoryNotFoundException($"Working directory does not exist: {cwd}");
             }
         }
-
-        var provider = shellType == ShellType.PowerShell ? _powerShellProvider : _bashProvider;
 
         _logger?.LogInformation("Starting backgroundable command with {ProviderType}: {Command}", provider.Type, command);
 

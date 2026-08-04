@@ -499,7 +499,13 @@ Start-Process -FilePath "{当前项目}\artifacts\bin\JoinCode\Release\net10.0\j
 **1. 启动 MockServer（固定端口）**
 
 ```powershell
-Start-Process -FilePath "{项目根目录}\artifacts\bin\OpenAI.MockServer\Release\net10.0\JoinCode.OpenAI.MockServer.exe" -ArgumentList "--port 9901"
+# ⚠️ 禁止用 Start-Process -ArgumentList，PowerShell 会把逗号分隔的参数合并为一个字符串
+# ✅ 必须用 ProcessStartInfo.Arguments 传参（空格分隔，与命令行一致）
+$psi = [System.Diagnostics.ProcessStartInfo]::new()
+$psi.FileName = "{项目根目录}\artifacts\bin\OpenAI.MockServer\Release\net10.0\JoinCode.OpenAI.MockServer.exe"
+$psi.Arguments = "--port 9901"
+$psi.UseShellExecute = $false
+[System.Diagnostics.Process]::Start($psi)
 # 验证：Invoke-RestMethod -Uri "http://localhost:9901/" -Method Get
 # 关闭：Invoke-RestMethod -Uri "http://localhost:9901/shutdown" -Method Get
 ```

@@ -22,9 +22,7 @@ public sealed class Program
 
             var port = int.TryParse(portArg, out var p) ? p : config.Port;
 
-            Console.WriteLine($"[OpenAI.MockServer] Config: {configPath}");
-            Console.WriteLine($"[OpenAI.MockServer] Requested Port: {port}");
-            Console.WriteLine($"[OpenAI.MockServer] Scripted turns: {config.ScriptedTurns.Count}");
+            LogMain($"[OpenAI.MockServer] Config: {configPath}, Port: {port}, Turns: {config.ScriptedTurns.Count}");
 
             var strategy = new OpenAIResponseStrategy(config.ScriptedTurns, config.DefaultResponse);
             var cacheSimulator = new PrefixCacheSimulator(
@@ -32,13 +30,18 @@ public sealed class Program
                 TokenEstimator.EstimateFromMessages);
 
             await using var server = new KestrelMockServer(strategy, cacheSimulator, port, serverName: "OpenAI");
-            server.ShutdownRequested += () => ShutdownEvent.Set();
+            server.ShutdownRequested += () =>
+            {
+                LogMain("[OpenAI.MockServer] Shutdown requested");
+                ShutdownEvent.Set();
+            };
             await server.StartAsync().ConfigureAwait(false);
 
-            Console.WriteLine("[OpenAI.MockServer] Server started successfully, waiting for requests...");
+            LogMain($"[OpenAI.MockServer] Server started, URL={server.Url}, waiting for requests...");
 
             ShutdownEvent.Wait(TimeSpan.FromMinutes(30));
 
+            LogMain("[OpenAI.MockServer] ShutdownEvent released, stopping...");
             await server.StopAsync().ConfigureAwait(false);
         }
         catch (Exception ex)

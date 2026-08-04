@@ -10,7 +10,7 @@
     <IsPackable>false</IsPackable>
     <IsTestProject>false</IsTestProject>
     <GenerateProgramFile>false</GenerateProgramFile>
-    <NoWarn>$(NoWarn);JCC3007;JCC3010;JCC3011;JCC3012</NoWarn>
+    <NoWarn>$(NoWarn);JCC3007;JCC3010;JCC3011;JCC3012;JCC9001</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

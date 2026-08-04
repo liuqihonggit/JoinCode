@@ -53,7 +53,6 @@ public sealed class KestrelMockServer : IHttpMockServer
         _dumpDir = Path.Combine(Environment.CurrentDirectory, "tests", "MockServers", "MockServer.Core", "dumps", _serverName);
         Directory.CreateDirectory(_dumpDir);
 
-        var logPath = Path.Combine(Environment.CurrentDirectory, "mockserver_start.log");
         void Log(string msg)
         {
             Console.WriteLine(msg);

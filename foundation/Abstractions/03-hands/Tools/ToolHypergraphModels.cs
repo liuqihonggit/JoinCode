@@ -1,6 +1,17 @@
 namespace JoinCode.Abstractions.Tools;
 
 /// <summary>
+/// 超边热重载接口 — 支持运行时动态更新超图超边配置
+/// </summary>
+public interface IHyperedgeReloadable
+{
+    /// <summary>
+    /// 从配置加载自定义超边 — 合并预设超边和用户自定义超边
+    /// </summary>
+    void LoadCustomHyperedges(List<HyperedgeSettings> customHyperedges);
+}
+
+/// <summary>
 /// 工具链超边 — 一组语义关联的工具共享评分空间
 /// 一条超边可包含任意数量的节点（工具），不限于两个
 /// </summary>

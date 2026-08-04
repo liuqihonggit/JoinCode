@@ -6,7 +6,7 @@ namespace McpToolDispatch;
 /// 定时更新超边共享评分（每小时），支持从配置文件热加载超边定义
 /// </summary>
 [Register]
-public sealed class ToolHypergraphScorer : IDisposable
+public sealed class ToolHypergraphScorer : IHyperedgeReloadable, IDisposable
 {
     private readonly ILogger<ToolHypergraphScorer>? _logger;
     private readonly IToolHealthMonitor? _monitor;

@@ -52,7 +52,7 @@ public sealed partial class ProjectRulesLoader {
     }
 
     private async Task<string?> LoadRulesFromDirectoryAsync(string startDirectory, CancellationToken cancellationToken) {
-        var foundFiles = new List<(string Path, string Content)>();
+        var foundFiles = new Dictionary<string, (string Path, string Content)>(StringComparer.OrdinalIgnoreCase);
         var currentDirPath = _fs.GetFullPath(startDirectory);
 
         while (currentDirPath != null) {
@@ -66,8 +66,8 @@ public sealed partial class ProjectRulesLoader {
             }
             var readResults = await Task.WhenAll(readTasks).ConfigureAwait(false);
             foreach (var result in readResults) {
-                if (result is not null && result.Value.Content != null && !foundFiles.Exists(f => f.Path.Equals(result.Value.Path, StringComparison.OrdinalIgnoreCase))) {
-                    foundFiles.Add((result.Value.Path, result.Value.Content));
+                if (result is not null && result.Value.Content != null && !foundFiles.ContainsKey(result.Value.Path)) {
+                    foundFiles[result.Value.Path] = (result.Value.Path, result.Value.Content);
                 }
             }
 
@@ -82,8 +82,8 @@ public sealed partial class ProjectRulesLoader {
             var dirResults = await Task.WhenAll(dirTasks).ConfigureAwait(false);
             foreach (var dirFiles in dirResults) {
                 foreach (var file in dirFiles) {
-                    if (!foundFiles.Exists(f => f.Path.Equals(file.Path, StringComparison.OrdinalIgnoreCase))) {
-                        foundFiles.Add(file);
+                    if (!foundFiles.ContainsKey(file.Path)) {
+                        foundFiles[file.Path] = file;
                     }
                 }
             }
@@ -103,8 +103,8 @@ public sealed partial class ProjectRulesLoader {
         }
         var userReadResults = await Task.WhenAll(userReadTasks).ConfigureAwait(false);
         foreach (var result in userReadResults) {
-            if (result is not null && result.Value.Content != null && !foundFiles.Exists(f => f.Path.Equals(result.Value.Path, StringComparison.OrdinalIgnoreCase))) {
-                foundFiles.Add((result.Value.Path, result.Value.Content));
+            if (result is not null && result.Value.Content != null && !foundFiles.ContainsKey(result.Value.Path)) {
+                foundFiles[result.Value.Path] = (result.Value.Path, result.Value.Content);
                 _logger?.LogInformation("已加载用户规则文件: {Path}", result.Value.Path);
             }
         }
@@ -120,8 +120,8 @@ public sealed partial class ProjectRulesLoader {
         var userDirResults = await Task.WhenAll(userDirTasks).ConfigureAwait(false);
         foreach (var dirFiles in userDirResults) {
             foreach (var file in dirFiles) {
-                if (!foundFiles.Exists(f => f.Path.Equals(file.Path, StringComparison.OrdinalIgnoreCase))) {
-                    foundFiles.Add(file);
+                if (!foundFiles.ContainsKey(file.Path)) {
+                    foundFiles[file.Path] = file;
                 }
             }
         }
@@ -132,11 +132,11 @@ public sealed partial class ProjectRulesLoader {
         }
 
         if (foundFiles.Count == 1) {
-            return foundFiles[0].Content;
+            return foundFiles.Values.First().Content;
         }
 
         var sb = new System.Text.StringBuilder();
-        foreach (var (path, content) in foundFiles) {
+        foreach (var (path, content) in foundFiles.Values) {
             var fileName = Path.GetFileName(path);
             sb.AppendLine($"<!-- 来源: {fileName} -->");
             sb.AppendLine(content);

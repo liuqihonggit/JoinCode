@@ -76,13 +76,13 @@ public sealed partial class PathPermissionChecker : IPathPermissionChecker
         var rules = new List<PathPermissionRule>();
 
         // 从 AutoRejectedTools 提取路径级 deny 规则
-        BuildPathRulesFromToolRules(config.AutoRejectedTools, PermissionBehavior.Deny, rules);
+        BuildPathRulesFromToolRules(config.AutoRejectedTools.Values, PermissionBehavior.Deny, rules);
 
         // 从 AskRules 提取路径级 ask 规则
         BuildPathRulesFromToolRules(config.AskRules, PermissionBehavior.Ask, rules);
 
         // 从 AutoApprovedTools 提取路径级 allow 规则
-        BuildPathRulesFromToolRules(config.AutoApprovedTools, PermissionBehavior.Allow, rules);
+        BuildPathRulesFromToolRules(config.AutoApprovedTools.Values, PermissionBehavior.Allow, rules);
 
         return rules;
     }
@@ -92,13 +92,12 @@ public sealed partial class PathPermissionChecker : IPathPermissionChecker
     /// 格式: "Read(/path/**)" → PathPermissionRule { ToolType=Read, Pattern="/path/**", Behavior=Deny }
     /// </summary>
     private static void BuildPathRulesFromToolRules(
-        List<ToolPermissionRule> toolRules,
+        IEnumerable<ToolPermissionRule> toolRules,
         PermissionBehavior behavior,
         List<PathPermissionRule> pathRules)
     {
-        for (var i = 0; i < toolRules.Count; i++)
+        foreach (var rule in toolRules)
         {
-            var rule = toolRules[i];
             if (string.IsNullOrEmpty(rule.RuleContent))
                 continue;
 

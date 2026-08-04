@@ -53,9 +53,9 @@ public sealed class ApplicationBuilder
                         {
                             foreach (var tool in cliOptions.AllowedTools)
                             {
-                                if (!permConfig.AutoApprovedTools.Any(r => string.Equals(r.ToolName, tool, StringComparison.OrdinalIgnoreCase)))
+                                if (!permConfig.AutoApprovedTools.ContainsKey(tool))
                                 {
-                                    permConfig.AutoApprovedTools.Add(new ToolPermissionRule { ToolName = tool, Description = "From CLI --allowed-tools" });
+                                    permConfig.AutoApprovedTools[tool] = new ToolPermissionRule { ToolName = tool, Description = "From CLI --allowed-tools" };
                                 }
                             }
                             Diag.WriteLine($"[MAIN] --allowed-tools 合并 {cliOptions.AllowedTools.Count} 个工具到 PermissionConfig.AutoApprovedTools");
@@ -65,9 +65,9 @@ public sealed class ApplicationBuilder
                         {
                             foreach (var tool in cliOptions.DisallowedTools)
                             {
-                                if (!permConfig.AutoRejectedTools.Any(r => string.Equals(r.ToolName, tool, StringComparison.OrdinalIgnoreCase)))
+                                if (!permConfig.AutoRejectedTools.ContainsKey(tool))
                                 {
-                                    permConfig.AutoRejectedTools.Add(new ToolPermissionRule { ToolName = tool, Description = "From CLI --disallowed-tools" });
+                                    permConfig.AutoRejectedTools[tool] = new ToolPermissionRule { ToolName = tool, Description = "From CLI --disallowed-tools" };
                                 }
                             }
                             Diag.WriteLine($"[MAIN] --disallowed-tools 合并 {cliOptions.DisallowedTools.Count} 个工具到 PermissionConfig.AutoRejectedTools");

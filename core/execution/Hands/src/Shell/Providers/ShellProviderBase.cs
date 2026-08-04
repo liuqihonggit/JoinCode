@@ -1,61 +1,55 @@
 namespace Services.Shell.Providers;
 
 /// <summary>
-/// Shell 提供者抽象基类 — 模板方法模式
-/// 封装所有 Shell 类型的通用逻辑：路径解析、版本检测、环境变量注入、编码控制
-/// 子类只需实现差异化的钩子方法，新增通用功能（如 UTF8 编码控制）只需改父类
+/// Shell 执行器实体 — 继承 ToolExecutionEntity，短命（每次命令执行创建）
+/// 引用 ShellCapability（长命缓存）获取版本/路径等静态属性
+/// 新增 Shell 不需要改此基类，只需新增子类 + ShellCapability
 /// </summary>
-public abstract class ShellProviderBase : IShellProvider
+public abstract class ShellProviderBase : ToolExecutionEntity, IShellProvider
 {
     private readonly IFileSystem _fs;
     private readonly ILogger? _logger;
 
-    /// <inheritdoc />
-    public abstract ShellType Type { get; }
-
-    /// <inheritdoc />
-    public string ShellPath { get; }
-
-    /// <inheritdoc />
-    public abstract bool Detached { get; }
-
-    /// <inheritdoc />
-    public string Version { get; }
-
     /// <summary>
-    /// 标准输出编码 — 对齐 TS Shell.ts stdoutEncoding
-    /// 子类可覆盖以指定特定编码（如 PowerShell 可能需要 UTF-8 BOM）
+    /// 执行器能力描述 — 长命缓存，版本/路径/编码等只检测一次
     /// </summary>
-    public virtual Encoding OutputEncoding => Encoding.UTF8;
+    public ShellCapability Capability { get; }
 
-    /// <summary>
-    /// 标准错误编码 — 默认与 OutputEncoding 相同
-    /// </summary>
-    public virtual Encoding ErrorEncoding => OutputEncoding;
+    /// <inheritdoc />
+    public ShellType Type => Capability.Type;
+
+    /// <inheritdoc />
+    public string ShellPath => Capability.ShellPath;
+
+    /// <inheritdoc />
+    public string Version => Capability.Version;
+
+    /// <inheritdoc />
+    public bool Detached => Capability.Detached;
+
+    /// <inheritdoc />
+    public Encoding OutputEncoding => Capability.OutputEncoding;
+
+    /// <inheritdoc />
+    public Encoding ErrorEncoding => Capability.ErrorEncoding;
 
     protected IFileSystem Fs => _fs;
     protected ILogger? Logger => _logger;
 
-    protected ShellProviderBase(IFileSystem fs, string? shellPath, ILogger? logger)
+    protected ShellProviderBase(
+        ShellCapability capability,
+        IFileSystem fs,
+        ILogger? logger = null,
+        string? toolUseId = null,
+        string? spanId = null)
+        : base(ObjectType.Executor, capability.Type.ToValue(), toolUseId, spanId, capability.DisplayName)
     {
+        Capability = capability ?? throw new ArgumentNullException(nameof(capability));
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _logger = logger;
-        ShellPath = shellPath ?? ResolveShellPath();
-        Version = DetectVersion();
     }
 
-    #region 钩子方法 — 子类必须实现
-
-    /// <summary>
-    /// 解析 Shell 可执行文件路径 — 子类定义回退策略
-    /// 环境变量 → PATH 查找 → 常见安装路径 → 回退
-    /// </summary>
-    protected abstract string ResolveShellPath();
-
-    /// <summary>
-    /// 检测 Shell 版本 — 子类定义版本检测命令和解析逻辑
-    /// </summary>
-    protected abstract string DetectVersion();
+    #region IShellProvider — 子类必须实现
 
     /// <inheritdoc />
     public abstract Task<ShellExecCommandResult> BuildExecCommandAsync(
@@ -64,26 +58,20 @@ public abstract class ShellProviderBase : IShellProvider
     /// <inheritdoc />
     public abstract string[] GetSpawnArgs(string commandString);
 
-    #endregion
-
-    #region 环境变量 — 模板方法
-
     /// <inheritdoc />
     public Task<IReadOnlyDictionary<string, string>> GetEnvironmentOverridesAsync(
         string command, CancellationToken cancellationToken = default)
     {
         var env = CreateBaseEnvironment();
-
         AppendExtraEnvironmentVariables(env, command);
-
         Logger?.LogDebug("{Type}: injected {Count} environment overrides", Type, env.Count);
         return Task.FromResult<IReadOnlyDictionary<string, string>>(env);
     }
 
-    /// <summary>
-    /// 创建基础环境变量字典 — 所有 Shell 共享
-    /// CLAUDECODE=1 + GIT_EDITOR=true
-    /// </summary>
+    #endregion
+
+    #region 环境变量
+
     private static Dictionary<string, string> CreateBaseEnvironment()
     {
         return new Dictionary<string, string>(StringComparer.Ordinal)
@@ -93,9 +81,6 @@ public abstract class ShellProviderBase : IShellProvider
         };
     }
 
-    /// <summary>
-    /// 追加特有环境变量 — 子类覆盖以添加 Shell 特定的环境变量
-    /// </summary>
     protected virtual void AppendExtraEnvironmentVariables(
         Dictionary<string, string> env, string command) { }
 
@@ -103,36 +88,6 @@ public abstract class ShellProviderBase : IShellProvider
 
     #region 通用工具方法
 
-    /// <summary>
-    /// 三步路径解析模板 — 对齐 TS Shell.ts resolveShellPath
-    /// 环境变量 → PATH 查找 → 常见安装路径 → 回退
-    /// 子类调用此方法替代重复的三步 if-else 链
-    /// </summary>
-    protected string ResolveShellPathFromCandidates(
-        string envVarName,
-        string pathExecutable,
-        string[] commonPaths,
-        string fallback,
-        bool excludeCurrentDir = true)
-    {
-        var envPath = ResolveFromEnvVar(envVarName);
-        if (envPath is not null) return envPath;
-
-        var fromPath = FindExecutable(pathExecutable, excludeCurrentDir);
-        if (fromPath is not null) return fromPath;
-
-        var commonPath = FindInCommonPaths(commonPaths);
-        if (commonPath is not null) return commonPath;
-
-        Logger?.LogWarning("Shell not found via {EnvVar}, PATH, or common paths. Falling back to {Fallback}.", envVarName, fallback);
-        return fallback;
-    }
-
-    /// <summary>
-    /// 查找可执行文件 — 对齐 TS findExecutable (where.exe)
-    /// </summary>
-    /// <param name="executable">可执行文件名</param>
-    /// <param name="excludeCurrentDir">是否排除当前目录下的结果（Bash 需要防止误用项目本地 exe）</param>
     protected string? FindExecutable(string executable, bool excludeCurrentDir = true)
     {
         try
@@ -158,9 +113,7 @@ public abstract class ShellProviderBase : IShellProvider
             var paths = output.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
 
             if (!excludeCurrentDir)
-            {
                 return paths.Length > 0 ? paths[0].Trim() : null;
-            }
 
             var cwd = _fs.GetCurrentDirectory().ToLowerInvariant();
 
@@ -170,9 +123,7 @@ public abstract class ShellProviderBase : IShellProvider
                 var dir = Path.GetDirectoryName(normalized)!;
                 if (!dir.Equals(cwd, StringComparison.OrdinalIgnoreCase) &&
                     !normalized.StartsWith(cwd + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
-                {
                     return candidate.Trim();
-                }
             }
 
             return null;
@@ -183,34 +134,37 @@ public abstract class ShellProviderBase : IShellProvider
         }
     }
 
-    /// <summary>
-    /// 检查环境变量指定的路径是否存在 — 通用路径解析第一步
-    /// </summary>
     protected string? ResolveFromEnvVar(string envVarName)
     {
         var envPath = Environment.GetEnvironmentVariable(envVarName);
         if (!string.IsNullOrEmpty(envPath) && _fs.FileExists(envPath))
-        {
             return envPath;
-        }
         return null;
     }
 
-    /// <summary>
-    /// 检查常见安装路径 — 通用路径解析第三步
-    /// </summary>
     protected string? FindInCommonPaths(params string[] paths)
     {
         foreach (var p in paths)
-        {
             if (_fs.FileExists(p)) return p;
-        }
         return null;
     }
 
-    /// <summary>
-    /// 执行 Shell 命令并读取输出 — 版本检测通用模式
-    /// </summary>
+    protected string ResolveShellPathFromCandidates(
+        string envVarName, string pathExecutable, string[] commonPaths, string fallback, bool excludeCurrentDir = true)
+    {
+        var envPath = ResolveFromEnvVar(envVarName);
+        if (envPath is not null) return envPath;
+
+        var fromPath = FindExecutable(pathExecutable, excludeCurrentDir);
+        if (fromPath is not null) return fromPath;
+
+        var commonPath = FindInCommonPaths(commonPaths);
+        if (commonPath is not null) return commonPath;
+
+        Logger?.LogWarning("Shell not found via {EnvVar}, PATH, or common paths. Falling back to {Fallback}.", envVarName, fallback);
+        return fallback;
+    }
+
     protected string? ExecuteShellCommand(string fileName, string arguments, int timeoutMs = 5000)
     {
         try
@@ -240,4 +194,52 @@ public abstract class ShellProviderBase : IShellProvider
     }
 
     #endregion
+}
+
+/// <summary>
+/// ShellCapability 构建器 — 长命缓存，子类在 DI 单例中调用一次
+/// </summary>
+public abstract class ShellCapabilityProvider
+{
+    private ShellCapability? _cached;
+
+    /// <summary>
+    /// 获取或创建 ShellCapability — 首次调用时检测，后续返回缓存
+    /// </summary>
+    public ShellCapability GetCapability(IFileSystem fs, ILogger? logger = null)
+    {
+        if (_cached is not null) return _cached;
+
+        var shellPath = ResolveShellPath(fs, logger);
+        var version = DetectVersion(shellPath, logger);
+        var displayName = BuildDisplayName(shellPath, version);
+
+        _cached = new ShellCapability
+        {
+            Type = GetShellType(),
+            ShellPath = shellPath,
+            Version = version,
+            DisplayName = displayName,
+            Detached = IsDetached(),
+            OutputEncoding = GetOutputEncoding(),
+            ErrorEncoding = GetErrorEncoding(),
+            IsPowerShellCore = DetectIsPowerShellCore(shellPath, version),
+        };
+
+        return _cached;
+    }
+
+    protected abstract ShellType GetShellType();
+    protected abstract string ResolveShellPath(IFileSystem fs, ILogger? logger);
+    protected abstract string DetectVersion(string shellPath, ILogger? logger);
+    protected virtual bool IsDetached() => false;
+    protected virtual Encoding GetOutputEncoding() => Encoding.UTF8;
+    protected virtual Encoding GetErrorEncoding() => GetOutputEncoding();
+    protected virtual bool DetectIsPowerShellCore(string shellPath, string version) => false;
+
+    protected virtual string BuildDisplayName(string shellPath, string version)
+    {
+        var typeName = GetShellType().ToValue();
+        return $"{typeName} {version}";
+    }
 }

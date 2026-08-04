@@ -97,7 +97,7 @@ public sealed class ShellTaskEntity : Entity
     public static ShellTaskEntityRegistry Registry { get; } = new();
 
     public ShellTaskEntity(string? command = null, string? displayName = null)
-        : base(ObjectType.Task, displayName ?? command)
+        : base(ObjectType.ShellCommand, displayName ?? command)
     {
         Command = command;
         Registry.Add(ObjectId, this);

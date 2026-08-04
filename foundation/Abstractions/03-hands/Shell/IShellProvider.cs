@@ -2,7 +2,7 @@ namespace JoinCode.Abstractions.Interfaces;
 
 /// <summary>
 /// Shell 提供者接口 — 对齐 TS ShellProvider
-/// 封装不同 Shell 类型（Bash/PowerShell）的命令构建、进程启动和环境变量注入
+/// 封装不同 Shell 类型（Bash/PowerShell/Python/Cmd）的命令构建、进程启动和环境变量注入
 /// </summary>
 public interface IShellProvider
 {
@@ -13,26 +13,27 @@ public interface IShellProvider
 
     /// <summary>
     /// Shell 可执行文件路径 — 对齐 TS ShellProvider.shellPath
-    /// Bash: Git Bash bash.exe 路径; PowerShell: powershell.exe 或 pwsh.exe 路径
     /// </summary>
     string ShellPath { get; }
 
     /// <summary>
+    /// 人类可读的描述名称 — 用于提示词注入和日志
+    /// 示例: "Git Bash 5.2", "PowerShell Core 7.4", "Python 3.12", "CMD"
+    /// </summary>
+    string DisplayName { get; }
+
+    /// <summary>
     /// 是否使用分离进程 — 对齐 TS ShellProvider.detached
-    /// Bash 为 true（独立进程组）; PowerShell 为 false
     /// </summary>
     bool Detached { get; }
 
     /// <summary>
     /// Shell 版本信息 — 对齐 TS powershellDetection / bash --version
-    /// Bash: "5.2.21"; PowerShell: "7.4.6" 或 "5.1.22621.1"
-    /// 用于提示词注入，让 LLM 知道当前 Shell 版本以生成正确的命令语法
     /// </summary>
     string Version { get; }
 
     /// <summary>
     /// 标准输出编码 — 对齐 TS Shell.ts stdoutEncoding
-    /// 默认 UTF-8，子类可覆盖以指定特定编码
     /// </summary>
     Encoding OutputEncoding { get; }
 
@@ -43,7 +44,6 @@ public interface IShellProvider
 
     /// <summary>
     /// 构建执行命令 — 对齐 TS ShellProvider.buildExecCommand()
-    /// 返回完整的命令字符串（含 shell 初始化、CWD 追踪等）和 CWD 追踪文件路径
     /// </summary>
     Task<ShellExecCommandResult> BuildExecCommandAsync(
         string command,
@@ -52,17 +52,26 @@ public interface IShellProvider
 
     /// <summary>
     /// 获取进程启动参数 — 对齐 TS ShellProvider.getSpawnArgs()
-    /// Bash: ["-c", commandString]; PowerShell: ["-NoProfile", "-NonInteractive", "-Command", commandString]
     /// </summary>
     string[] GetSpawnArgs(string commandString);
 
     /// <summary>
     /// 获取环境变量覆盖 — 对齐 TS ShellProvider.getEnvironmentOverrides()
-    /// 注入 CLAUDECODE=1, GIT_EDITOR=true, TMPDIR 等环境变量
     /// </summary>
     Task<IReadOnlyDictionary<string, string>> GetEnvironmentOverridesAsync(
         string command,
         CancellationToken cancellationToken = default);
+}
+
+/// <summary>
+/// Shell 信息快照 — 用于提示词注入，不暴露 IShellProvider 实例
+/// </summary>
+public sealed record ShellInfo
+{
+    public required ShellType Type { get; init; }
+    public required string DisplayName { get; init; }
+    public required string ShellPath { get; init; }
+    public required string Version { get; init; }
 }
 
 

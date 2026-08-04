@@ -23,5 +23,6 @@ public enum ObjectType
     [EnumValue("repo")] Repo = 13,
     [EnumValue("notification")] Notification = 14,
     [EnumValue("worktree")] Worktree = 15,
-    [EnumValue("bash")] Bash = 16,
+    [EnumValue("shellcommand")] ShellCommand = 16,
+    [EnumValue("executor")] Executor = 17,
 }

@@ -1,73 +1,105 @@
 namespace Services.Shell.Providers;
 
 /// <summary>
-/// PowerShell Shell 提供者 — 对齐 TS PowerShellProvider
-/// 支持 CWD 追踪、退出码捕获、EncodedCommand（沙箱模式）
-/// 自动检测 PowerShell 版本（Desktop 5.1 vs Core 7+）并路由到最佳路径
+/// PowerShell 能力描述提供者 — DI 单例，长命缓存
 /// </summary>
 [Register]
+public sealed class PowerShellCapabilityProvider : ShellCapabilityProvider
+{
+    public const string PowerShellPathEnvVar = "JCC_POWERSHELL_PATH";
+
+    protected override ShellType GetShellType() => ShellType.PowerShell;
+
+    protected override string ResolveShellPath(IFileSystem fs, ILogger? logger)
+    {
+        var envPath = Environment.GetEnvironmentVariable(PowerShellPathEnvVar);
+        if (!string.IsNullOrEmpty(envPath) && fs.FileExists(envPath)) return envPath;
+
+        var psi = new ProcessStartInfo
+        {
+            FileName = "where.exe",
+            Arguments = "pwsh.exe",
+            RedirectStandardOutput = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            StandardOutputEncoding = Encoding.UTF8
+        };
+        try
+        {
+            using var p = Process.Start(psi);
+            if (p is not null)
+            {
+                var output = p.StandardOutput.ReadToEnd();
+                p.WaitForExit(5000);
+                if (p.ExitCode == 0)
+                {
+                    var paths = output.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
+                    if (paths.Length > 0) return paths[0].Trim();
+                }
+            }
+        }
+        catch (Exception ex) { logger?.LogDebug(ex, "where.exe pwsh.exe failed"); }
+
+        var commonPath = @"C:\Program Files\PowerShell\7\pwsh.exe";
+        if (fs.FileExists(commonPath)) return commonPath;
+
+        logger?.LogWarning("PowerShell not found, falling back to powershell.exe. Set {EnvVar} to specify path.", PowerShellPathEnvVar);
+        return "powershell.exe";
+    }
+
+    protected override string DetectVersion(string shellPath, ILogger? logger)
+    {
+        try
+        {
+            var psi = new ProcessStartInfo
+            {
+                FileName = shellPath,
+                Arguments = "-NoProfile -NonInteractive -Command \"$PSVersionTable.PSVersion.ToString()\"",
+                RedirectStandardOutput = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                StandardOutputEncoding = Encoding.UTF8
+            };
+            using var p = Process.Start(psi);
+            if (p is null) return "unknown";
+            var output = p.StandardOutput.ReadToEnd();
+            p.WaitForExit(5000);
+            var version = output?.Trim();
+            return string.IsNullOrEmpty(version) ? "unknown" : version;
+        }
+        catch { return "unknown"; }
+    }
+
+    protected override bool DetectIsPowerShellCore(string shellPath, string version)
+        => shellPath.Contains("pwsh", StringComparison.OrdinalIgnoreCase)
+        || version.StartsWith('7') || version.StartsWith('6');
+
+    protected override string BuildDisplayName(string shellPath, string version)
+        => DetectIsPowerShellCore(shellPath, version)
+            ? $"PowerShell Core {version}"
+            : $"PowerShell Desktop {version}";
+}
+
+/// <summary>
+/// PowerShell Shell 执行器 — 短命 Entity，每次命令执行创建
+/// </summary>
 public sealed class PowerShellShellProvider : ShellProviderBase
 {
     private string? _currentSandboxTmpDir;
 
-    public override ShellType Type => ShellType.PowerShell;
-    public override bool Detached => false;
+    public bool IsCore => Capability.IsPowerShellCore;
 
-    /// <summary>
-    /// 是否为 PowerShell Core (7+) — 对齐 TS powershellDetection isPwsh
-    /// </summary>
-    public bool IsCore { get; }
-
-    /// <summary>
-    /// 环境变量名 — 对齐 TS CLAUDE_CODE_POWERSHELL_PATH
-    /// </summary>
-    public const string PowerShellPathEnvVar = "JCC_POWERSHELL_PATH";
-
-    public PowerShellShellProvider(IFileSystem fs, string? shellPath = null, ILogger? logger = null)
-        : base(fs, shellPath, logger)
-    {
-        IsCore = DetectIsCore();
-    }
-
-    /// <inheritdoc />
-    protected override string ResolveShellPath()
-        => ResolveShellPathFromCandidates(
-            PowerShellPathEnvVar,
-            "pwsh.exe",
-            [@"C:\Program Files\PowerShell\7\pwsh.exe"],
-            "powershell.exe",
-            excludeCurrentDir: false);
-
-    /// <inheritdoc />
-    protected override string DetectVersion()
-    {
-        var output = ExecuteShellCommand(
-            ShellPath,
-            "-NoProfile -NonInteractive -Command \"$PSVersionTable.PSVersion.ToString()\"");
-
-        var version = output?.Trim();
-        return string.IsNullOrEmpty(version) ? "unknown" : version;
-    }
-
-    /// <summary>
-    /// 检测是否为 PowerShell Core — 基于 ShellPath 或版本号判断
-    /// </summary>
-    private bool DetectIsCore()
-    {
-        if (ShellPath.Contains("pwsh", StringComparison.OrdinalIgnoreCase))
-            return true;
-
-        if (Version.StartsWith('7') || Version.StartsWith('6'))
-            return true;
-
-        return false;
-    }
+    public PowerShellShellProvider(
+        ShellCapability capability,
+        IFileSystem fs,
+        ILogger? logger = null,
+        string? toolUseId = null,
+        string? spanId = null)
+        : base(capability, fs, logger, toolUseId, spanId) { }
 
     /// <inheritdoc />
     public override Task<ShellExecCommandResult> BuildExecCommandAsync(
-        string command,
-        ShellExecOptions options,
-        CancellationToken cancellationToken = default)
+        string command, ShellExecOptions options, CancellationToken cancellationToken = default)
     {
         _currentSandboxTmpDir = options.UseSandbox ? options.SandboxTmpDir : null;
 
@@ -112,10 +144,6 @@ public sealed class PowerShellShellProvider : ShellProviderBase
         }
     }
 
-    /// <summary>
-    /// 沙箱模式下构建 EncodedCommand — 对齐 TS encodePowerShellCommand
-    /// 使用 base64 UTF-16LE 编码避免引号损坏
-    /// </summary>
     private string BuildSandboxEncodedCommand(string psCommand)
     {
         var encoded = EncodePowerShellCommand(psCommand);
@@ -123,9 +151,6 @@ public sealed class PowerShellShellProvider : ShellProviderBase
         return $"'{escapedPath}' -NoProfile -NonInteractive -EncodedCommand {encoded}";
     }
 
-    /// <summary>
-    /// Base64 UTF-16LE 编码 — 对齐 TS encodePowerShellCommand
-    /// </summary>
     internal static string EncodePowerShellCommand(string psCommand)
     {
         var utf16LeBytes = Encoding.Unicode.GetBytes(psCommand);

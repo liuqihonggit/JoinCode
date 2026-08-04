@@ -50,7 +50,7 @@ public class ToolExecutionEntity : Entity
     }
 
     /// <summary>
-    /// 子类专用构造器 — 允许指定 ObjectType（如 BashProcessEntity 用 ObjectType.Bash）
+    /// 子类专用构造器 — 允许指定 ObjectType（如 BashProcessEntity 用 ObjectType.ShellCommand）
     /// </summary>
     protected ToolExecutionEntity(
         ObjectType objectType,

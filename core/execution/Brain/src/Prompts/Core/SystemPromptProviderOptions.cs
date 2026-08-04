@@ -96,6 +96,22 @@ public partial class SystemPromptProviderOptions
     /// </summary>
     public string? PowerShellPath { get; init; }
 
+    /// <summary>
+    /// Python 版本信息 — 由 PythonShellProvider.Version 检测后注入
+    /// </summary>
+    public string? PythonVersion { get; init; }
+
+    /// <summary>
+    /// Python 可执行文件路径
+    /// </summary>
+    public string? PythonPath { get; init; }
+
+    /// <summary>
+    /// 所有已注册 Shell 的信息快照 — 通用集合，新增 ShellType 无需改代码
+    /// Key: ShellType, Value: ShellInfo (DisplayName + ShellPath + Version)
+    /// </summary>
+    public IReadOnlyDictionary<ShellType, ShellInfo>? ShellInfos { get; init; }
+
     #endregion
 
     #region 自定义

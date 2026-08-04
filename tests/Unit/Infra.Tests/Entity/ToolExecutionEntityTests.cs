@@ -126,7 +126,7 @@ public sealed class ToolExecutionEntityTests
         {
             entity.ToolName.Should().Be("bash");
             entity.Command.Should().Be("dotnet build");
-            entity.ObjectId.Type.Should().Be(ObjectType.Bash);
+            entity.ObjectId.Type.Should().Be(ObjectType.ShellCommand);
             ToolExecutionEntity.Registry.Get(entity.ObjectId).Should().BeSameAs(entity);
         }
         finally { entity.Dispose(); }

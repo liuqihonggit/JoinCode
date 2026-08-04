@@ -1,3 +1,4 @@
+global using JoinCode.Abstractions.Entity;
 global using JoinCode.Abstractions.Attributes;
 global using JoinCode.Abstractions.Shell;
 global using JoinCode.Hands.DependencyInjection;

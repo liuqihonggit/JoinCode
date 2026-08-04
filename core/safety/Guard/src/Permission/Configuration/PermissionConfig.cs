@@ -9,12 +9,12 @@ public class PermissionConfig
     /// <summary>
     /// 自动批准的工具列表
     /// </summary>
-    public List<ToolPermissionRule> AutoApprovedTools { get; set; } = new();
+    public Dictionary<string, ToolPermissionRule> AutoApprovedTools { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// 自动拒绝的工具列表
     /// </summary>
-    public List<ToolPermissionRule> AutoRejectedTools { get; set; } = new();
+    public Dictionary<string, ToolPermissionRule> AutoRejectedTools { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// 需要用户确认的工具列表 — 对齐 TS 版 ask 规则
@@ -65,21 +65,21 @@ public class PermissionConfig
     {
         return new PermissionConfig
         {
-            AutoApprovedTools =
-            [
-                new ToolPermissionRule { ToolName = FileToolNameConstants.FileRead, Description = "Read file" },
-                new ToolPermissionRule { ToolName = "file_list", Description = "List files" },
-                new ToolPermissionRule { ToolName = FileToolNameConstants.DirectoryList, Description = "List directory" },
-                new ToolPermissionRule { ToolName = SearchToolNameConstants.Glob, Description = "File pattern matching" },
-                new ToolPermissionRule { ToolName = SearchToolNameConstants.Grep, Description = "Text search" },
+            AutoApprovedTools = new Dictionary<string, ToolPermissionRule>(StringComparer.OrdinalIgnoreCase)
+            {
+                [FileToolNameConstants.FileRead] = new ToolPermissionRule { ToolName = FileToolNameConstants.FileRead, Description = "Read file" },
+                ["file_list"] = new ToolPermissionRule { ToolName = "file_list", Description = "List files" },
+                [FileToolNameConstants.DirectoryList] = new ToolPermissionRule { ToolName = FileToolNameConstants.DirectoryList, Description = "List directory" },
+                [SearchToolNameConstants.Glob] = new ToolPermissionRule { ToolName = SearchToolNameConstants.Glob, Description = "File pattern matching" },
+                [SearchToolNameConstants.Grep] = new ToolPermissionRule { ToolName = SearchToolNameConstants.Grep, Description = "Text search" },
                 // WebFetch 不在 AutoApprovedTools 中 — 对齐 TS 版: WebFetch 需要域名级权限检查
                 // 预批准域名由 PreapprovedDomains 管理，用户可通过 /allowed-tools 添加域名白名单
                 // WebSearch 只读操作，自动批准
-                new ToolPermissionRule { ToolName = WebToolNameConstants.WebSearch, Description = "Web search" },
-                new ToolPermissionRule { ToolName = TaskToolNameConstants.TaskList, Description = "List tasks" },
-                new ToolPermissionRule { ToolName = TaskToolNameConstants.TaskGet, Description = "Get task" },
-                new ToolPermissionRule { ToolName = SystemToolNameConstants.TaskOutput, Description = "Get task output" }
-            ],
+                [WebToolNameConstants.WebSearch] = new ToolPermissionRule { ToolName = WebToolNameConstants.WebSearch, Description = "Web search" },
+                [TaskToolNameConstants.TaskList] = new ToolPermissionRule { ToolName = TaskToolNameConstants.TaskList, Description = "List tasks" },
+                [TaskToolNameConstants.TaskGet] = new ToolPermissionRule { ToolName = TaskToolNameConstants.TaskGet, Description = "Get task" },
+                [SystemToolNameConstants.TaskOutput] = new ToolPermissionRule { ToolName = SystemToolNameConstants.TaskOutput, Description = "Get task output" }
+            },
             DangerousOperationPatterns =
             [
                 new OperationPattern { Pattern = OperationTypeConstants.Delete, PatternType = PatternType.Contains, Description = "删除操作" },
@@ -223,14 +223,14 @@ public enum PathType
 /// </summary>
 public sealed class PermissionConfigBuilder
 {
-    private readonly List<ToolPermissionRule> _autoApprovedTools = new();
-    private readonly List<ToolPermissionRule> _autoRejectedTools = new();
-    private readonly List<OperationPattern> _dangerousOperationPatterns = new();
-    private readonly List<OperationPattern> _writeOperationPatterns = new();
-    private readonly List<OperationPattern> _readOperationPatterns = new();
-    private readonly List<OperationPattern> _shellOperationPatterns = new();
-    private readonly List<SensitivePathPattern> _sensitivePathPatterns = new();
-    private readonly List<DangerousCommandPattern> _dangerousCommandPatterns = new();
+    private readonly Dictionary<string, ToolPermissionRule> _autoApprovedTools = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, ToolPermissionRule> _autoRejectedTools = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, OperationPattern> _dangerousOperationPatterns = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, OperationPattern> _writeOperationPatterns = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, OperationPattern> _readOperationPatterns = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, OperationPattern> _shellOperationPatterns = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, SensitivePathPattern> _sensitivePathPatterns = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, DangerousCommandPattern> _dangerousCommandPatterns = new(StringComparer.OrdinalIgnoreCase);
 
     private PermissionConfigBuilder()
     {
@@ -249,13 +249,20 @@ public sealed class PermissionConfigBuilder
         var builder = new PermissionConfigBuilder();
         var defaultConfig = PermissionConfig.CreateDefault();
         
-        builder._autoApprovedTools.AddRange(defaultConfig.AutoApprovedTools);
-        builder._dangerousOperationPatterns.AddRange(defaultConfig.DangerousOperationPatterns);
-        builder._writeOperationPatterns.AddRange(defaultConfig.WriteOperationPatterns);
-        builder._readOperationPatterns.AddRange(defaultConfig.ReadOperationPatterns);
-        builder._shellOperationPatterns.AddRange(defaultConfig.ShellOperationPatterns);
-        builder._sensitivePathPatterns.AddRange(defaultConfig.SensitivePathPatterns);
-        builder._dangerousCommandPatterns.AddRange(defaultConfig.DangerousCommandPatterns);
+        foreach (var kvp in defaultConfig.AutoApprovedTools)
+            builder._autoApprovedTools[kvp.Key] = kvp.Value;
+        foreach (var p in defaultConfig.DangerousOperationPatterns)
+            builder._dangerousOperationPatterns[p.Pattern] = p;
+        foreach (var p in defaultConfig.WriteOperationPatterns)
+            builder._writeOperationPatterns[p.Pattern] = p;
+        foreach (var p in defaultConfig.ReadOperationPatterns)
+            builder._readOperationPatterns[p.Pattern] = p;
+        foreach (var p in defaultConfig.ShellOperationPatterns)
+            builder._shellOperationPatterns[p.Pattern] = p;
+        foreach (var p in defaultConfig.SensitivePathPatterns)
+            builder._sensitivePathPatterns[p.Path] = p;
+        foreach (var p in defaultConfig.DangerousCommandPatterns)
+            builder._dangerousCommandPatterns[p.Pattern] = p;
         
         return builder;
     }
@@ -265,7 +272,7 @@ public sealed class PermissionConfigBuilder
     /// </summary>
     public PermissionConfigBuilder AddAutoApprovedTool(string toolName, string description = "")
     {
-        _autoApprovedTools.Add(new ToolPermissionRule { ToolName = toolName, Description = description });
+        _autoApprovedTools[toolName] = new ToolPermissionRule { ToolName = toolName, Description = description };
         return this;
     }
 
@@ -274,7 +281,7 @@ public sealed class PermissionConfigBuilder
     /// </summary>
     public PermissionConfigBuilder AddAutoRejectedTool(string toolName, string description = "")
     {
-        _autoRejectedTools.Add(new ToolPermissionRule { ToolName = toolName, Description = description });
+        _autoRejectedTools[toolName] = new ToolPermissionRule { ToolName = toolName, Description = description };
         return this;
     }
 
@@ -283,7 +290,7 @@ public sealed class PermissionConfigBuilder
     /// </summary>
     public PermissionConfigBuilder AddDangerousOperation(string pattern, PatternType patternType, string description = "")
     {
-        _dangerousOperationPatterns.Add(new OperationPattern { Pattern = pattern, PatternType = patternType, Description = description });
+        _dangerousOperationPatterns[pattern] = new OperationPattern { Pattern = pattern, PatternType = patternType, Description = description };
         return this;
     }
 
@@ -292,7 +299,7 @@ public sealed class PermissionConfigBuilder
     /// </summary>
     public PermissionConfigBuilder AddWriteOperation(string pattern, PatternType patternType, string description = "")
     {
-        _writeOperationPatterns.Add(new OperationPattern { Pattern = pattern, PatternType = patternType, Description = description });
+        _writeOperationPatterns[pattern] = new OperationPattern { Pattern = pattern, PatternType = patternType, Description = description };
         return this;
     }
 
@@ -301,7 +308,7 @@ public sealed class PermissionConfigBuilder
     /// </summary>
     public PermissionConfigBuilder AddReadOperation(string pattern, PatternType patternType, string description = "")
     {
-        _readOperationPatterns.Add(new OperationPattern { Pattern = pattern, PatternType = patternType, Description = description });
+        _readOperationPatterns[pattern] = new OperationPattern { Pattern = pattern, PatternType = patternType, Description = description };
         return this;
     }
 
@@ -310,7 +317,7 @@ public sealed class PermissionConfigBuilder
     /// </summary>
     public PermissionConfigBuilder AddShellOperation(string pattern, PatternType patternType, string description = "")
     {
-        _shellOperationPatterns.Add(new OperationPattern { Pattern = pattern, PatternType = patternType, Description = description });
+        _shellOperationPatterns[pattern] = new OperationPattern { Pattern = pattern, PatternType = patternType, Description = description };
         return this;
     }
 
@@ -319,7 +326,7 @@ public sealed class PermissionConfigBuilder
     /// </summary>
     public PermissionConfigBuilder AddSensitivePath(string path, PathType pathType, string description = "")
     {
-        _sensitivePathPatterns.Add(new SensitivePathPattern { Path = path, PathType = pathType, Description = description });
+        _sensitivePathPatterns[path] = new SensitivePathPattern { Path = path, PathType = pathType, Description = description };
         return this;
     }
 
@@ -328,7 +335,7 @@ public sealed class PermissionConfigBuilder
     /// </summary>
     public PermissionConfigBuilder AddDangerousCommand(string pattern, string description = "")
     {
-        _dangerousCommandPatterns.Add(new DangerousCommandPattern { Pattern = pattern, Description = description });
+        _dangerousCommandPatterns[pattern] = new DangerousCommandPattern { Pattern = pattern, Description = description };
         return this;
     }
 
@@ -337,10 +344,10 @@ public sealed class PermissionConfigBuilder
     /// </summary>
     public PermissionConfigBuilder UseStrictMode()
     {
-        _dangerousOperationPatterns.Add(new OperationPattern { Pattern = "exec", PatternType = PatternType.Contains, Description = "执行操作" });
-        _dangerousOperationPatterns.Add(new OperationPattern { Pattern = "eval", PatternType = PatternType.Contains, Description = "求值操作" });
-        _sensitivePathPatterns.Add(new SensitivePathPattern { Path = "password", PathType = PathType.Contains, Description = "密码文件" });
-        _sensitivePathPatterns.Add(new SensitivePathPattern { Path = "secret", PathType = PathType.Contains, Description = "密钥文件" });
+        _dangerousOperationPatterns["exec"] = new OperationPattern { Pattern = "exec", PatternType = PatternType.Contains, Description = "执行操作" };
+        _dangerousOperationPatterns["eval"] = new OperationPattern { Pattern = "eval", PatternType = PatternType.Contains, Description = "求值操作" };
+        _sensitivePathPatterns["password"] = new SensitivePathPattern { Path = "password", PathType = PathType.Contains, Description = "密码文件" };
+        _sensitivePathPatterns["secret"] = new SensitivePathPattern { Path = "secret", PathType = PathType.Contains, Description = "密钥文件" };
         return this;
     }
 
@@ -349,7 +356,8 @@ public sealed class PermissionConfigBuilder
     /// </summary>
     public PermissionConfigBuilder UsePermissiveMode()
     {
-        _dangerousOperationPatterns.RemoveAll(p => p.Pattern == OperationTypeConstants.Bash || p.Pattern == OperationTypeConstants.Shell);
+        _dangerousOperationPatterns.Remove(OperationTypeConstants.Bash);
+        _dangerousOperationPatterns.Remove(OperationTypeConstants.Shell);
         _shellOperationPatterns.Clear();
         return this;
     }
@@ -379,14 +387,14 @@ public sealed class PermissionConfigBuilder
     {
         return new PermissionConfig
         {
-            AutoApprovedTools = new List<ToolPermissionRule>(_autoApprovedTools),
-            AutoRejectedTools = new List<ToolPermissionRule>(_autoRejectedTools),
-            DangerousOperationPatterns = new List<OperationPattern>(_dangerousOperationPatterns),
-            WriteOperationPatterns = new List<OperationPattern>(_writeOperationPatterns),
-            ReadOperationPatterns = new List<OperationPattern>(_readOperationPatterns),
-            ShellOperationPatterns = new List<OperationPattern>(_shellOperationPatterns),
-            SensitivePathPatterns = new List<SensitivePathPattern>(_sensitivePathPatterns),
-            DangerousCommandPatterns = new List<DangerousCommandPattern>(_dangerousCommandPatterns)
+            AutoApprovedTools = new Dictionary<string, ToolPermissionRule>(_autoApprovedTools, StringComparer.OrdinalIgnoreCase),
+            AutoRejectedTools = new Dictionary<string, ToolPermissionRule>(_autoRejectedTools, StringComparer.OrdinalIgnoreCase),
+            DangerousOperationPatterns = [.. _dangerousOperationPatterns.Values],
+            WriteOperationPatterns = [.. _writeOperationPatterns.Values],
+            ReadOperationPatterns = [.. _readOperationPatterns.Values],
+            ShellOperationPatterns = [.. _shellOperationPatterns.Values],
+            SensitivePathPatterns = [.. _sensitivePathPatterns.Values],
+            DangerousCommandPatterns = [.. _dangerousCommandPatterns.Values]
         };
     }
 }

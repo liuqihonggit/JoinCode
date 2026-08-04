@@ -13,7 +13,7 @@ public sealed partial class TeamManager : ITeamManager, IDisposable
     private readonly ConcurrentDictionary<string, List<TeamMessage>> _teamMessages = new();
     private readonly ConcurrentDictionary<string, string> _agentToTeam = new();
     private readonly ConcurrentDictionary<string, string> _teamSessions = new();
-    private readonly ConcurrentDictionary<string, List<TeamAllowedPath>> _teamAllowedPaths = new();
+    private readonly ConcurrentDictionary<string, Dictionary<string, TeamAllowedPath>> _teamAllowedPaths = new();
     private readonly ConcurrentDictionary<string, Dictionary<string, TeamMemberInfo>> _teamMemberDetails = new();
     private readonly SemaphoreSlim _lock;
     private readonly ITelemetryService? _telemetryService;
@@ -94,7 +94,7 @@ public sealed partial class TeamManager : ITeamManager, IDisposable
         _teamMembers[teamId] = members;
         _teamMessages[teamId] = new List<TeamMessage>();
         _teamMemberDetails[teamId] = memberDetails;
-        _teamAllowedPaths[teamId] = new List<TeamAllowedPath>();
+        _teamAllowedPaths[teamId] = new Dictionary<string, TeamAllowedPath>();
 
         if (sessionId is not null)
         {
@@ -538,7 +538,7 @@ public sealed partial class TeamManager : ITeamManager, IDisposable
             return Task.FromResult<IReadOnlyList<TeamAllowedPath>>(Array.Empty<TeamAllowedPath>());
         }
 
-        return Task.FromResult<IReadOnlyList<TeamAllowedPath>>(paths.ToList());
+        return Task.FromResult<IReadOnlyList<TeamAllowedPath>>(paths.Values.ToList());
     }
 
     public async Task<OperationResult<TeamInfo?>> AddTeamAllowedPathAsync(
@@ -557,20 +557,18 @@ public sealed partial class TeamManager : ITeamManager, IDisposable
             return OperationResult<TeamInfo?>.Fail("路径不能为空");
         }
 
-        var paths = _teamAllowedPaths.GetOrAdd(teamId, _ => new List<TeamAllowedPath>());
+        var paths = _teamAllowedPaths.GetOrAdd(teamId, _ => new Dictionary<string, TeamAllowedPath>());
 
         await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            var existing = paths.FirstOrDefault(p => p.Path == path);
-            if (existing is not null)
+            if (paths.TryGetValue(path, out var existing))
             {
-                var idx = paths.IndexOf(existing);
-                paths[idx] = existing with { AccessLevel = accessLevel };
+                paths[path] = existing with { AccessLevel = accessLevel };
             }
             else
             {
-                paths.Add(new TeamAllowedPath { Path = path, AccessLevel = accessLevel });
+                paths[path] = new TeamAllowedPath { Path = path, AccessLevel = accessLevel };
             }
         }
         finally
@@ -580,7 +578,7 @@ public sealed partial class TeamManager : ITeamManager, IDisposable
 
         _teams[teamId] = team with
         {
-            AllowedPaths = paths.ToList(),
+            AllowedPaths = paths.Values.ToList(),
             LastActivityAt = _clock.GetUtcNow()
         };
 

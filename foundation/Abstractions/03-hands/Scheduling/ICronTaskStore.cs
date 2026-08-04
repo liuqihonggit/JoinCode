@@ -84,4 +84,14 @@ public interface ICronTaskStore
     /// 标记任务已触发
     /// </summary>
     Task MarkTasksFiredAsync(IEnumerable<string> ids, long firedAt, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 根据 ID 获取单个任务
+    /// </summary>
+    Task<CronTask?> GetTaskByIdAsync(string id, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 根据 AgentId 获取该 Agent 创建的所有任务
+    /// </summary>
+    Task<IReadOnlyList<CronTask>> GetTasksByAgentIdAsync(string agentId, CancellationToken cancellationToken = default);
 }

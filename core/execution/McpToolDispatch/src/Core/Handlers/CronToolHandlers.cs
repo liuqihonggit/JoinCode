@@ -138,13 +138,10 @@ public class CronToolHandlers
     public async Task<ToolResult> ListCronTasksAsync(
         CancellationToken cancellationToken = default)
     {
-        var allTasks = await _taskStore.GetAllTasksAsync(cancellationToken).ConfigureAwait(false);
-
-        // 对齐 TS: teammate 只看自己的 cron 任务 — 按 agentId 过滤
         var agentId = _subAgentContextAccessor.Current?.AgentId;
         var tasks = agentId is not null
-            ? allTasks.Where(t => t.AgentId == agentId).ToList()
-            : allTasks;
+            ? await _taskStore.GetTasksByAgentIdAsync(agentId, cancellationToken).ConfigureAwait(false)
+            : await _taskStore.GetAllTasksAsync(cancellationToken).ConfigureAwait(false);
 
         if (tasks.Count == 0)
         {
@@ -186,8 +183,7 @@ public class CronToolHandlers
                 .Build();
         }
 
-        var existingTasks = await _taskStore.GetAllTasksAsync(cancellationToken).ConfigureAwait(false);
-        var task = existingTasks.FirstOrDefault(t => t.Id == task_id);
+        var task = await _taskStore.GetTaskByIdAsync(task_id, cancellationToken).ConfigureAwait(false);
         if (task is null)
         {
             return McpResultBuilder.Error()

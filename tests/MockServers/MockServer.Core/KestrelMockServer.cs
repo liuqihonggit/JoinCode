@@ -70,8 +70,6 @@ public sealed class KestrelMockServer : IHttpMockServer
             ctx.Response.ContentType = "application/json";
             await ctx.Response.WriteAsync("{\"status\":\"shutting_down\"}");
             ShutdownRequested?.Invoke();
-            // 触发 ASP.NET Core 优雅关闭：IHostApplicationLifetime.StopApplication()
-            // 会让 _app.RunAsync() 任务完成，否则进程无法退出
             _appLifetime?.StopApplication();
         });
 
@@ -219,6 +217,9 @@ public sealed class KestrelMockServer : IHttpMockServer
         Url = $"http://localhost:{_port}/";
         _runTask = _app.RunAsync();
 
+        var tcs = new TaskCompletionSource();
+        _appLifetime.ApplicationStarted.Register(() => tcs.TrySetResult());
+
         Console.WriteLine($"[{_serverName}] ========================================");
         Console.WriteLine($"[{_serverName}]   Server:    {_serverName}");
         Console.WriteLine($"[{_serverName}]   URL:       {Url}");
@@ -226,7 +227,7 @@ public sealed class KestrelMockServer : IHttpMockServer
         Console.WriteLine($"[{_serverName}]   Dump Dir:  {_dumpDir}");
         Console.WriteLine($"[{_serverName}] ========================================");
 
-        return Task.CompletedTask;
+        return tcs.Task;
     }
 
     public Task StopAsync()

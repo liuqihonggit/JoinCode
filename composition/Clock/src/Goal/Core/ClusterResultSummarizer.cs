@@ -18,7 +18,6 @@ public sealed partial class ClusterResultSummarizer : IClusterResultSummarizer
         ArgumentNullException.ThrowIfNull(context);
 
         var workerSummaries = context.WorkerOutputs
-            .Where(w => w.IsSuccess)
             .Select(w => new WorkerSummary
             {
                 SubTaskId = w.SubTaskId,

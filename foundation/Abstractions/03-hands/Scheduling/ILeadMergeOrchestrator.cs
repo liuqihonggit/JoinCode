@@ -18,6 +18,7 @@ public sealed class LeadMergeContext
     public required ClusterPlan Plan { get; init; }
     public required IReadOnlyList<WorkerCompletion> CompletedWorkers { get; init; }
     public required string MainBranch { get; init; }
+    public required string WorkingDirectory { get; init; }
 }
 
 /// <summary>

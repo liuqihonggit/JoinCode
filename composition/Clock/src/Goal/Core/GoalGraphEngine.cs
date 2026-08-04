@@ -278,6 +278,7 @@ public sealed partial class GoalGraphEngine
             Prompt = instruction,
             Role = payload.Role,
             Variant = payload.Variant,
+            IsolationMode = payload.IsolationMode,
             RunInBackground = false,
             GoalId = context.State.GoalId,
             GraphNodeId = nodeId,

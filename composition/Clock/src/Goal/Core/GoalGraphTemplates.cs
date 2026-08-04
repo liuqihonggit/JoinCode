@@ -507,7 +507,7 @@ public static class GoalGraphTemplates
             var workerId = $"worker_{task.Id}";
             workerIds.Add(workerId);
 
-            var variant = task.Variant.Equals("explore", StringComparison.OrdinalIgnoreCase)
+            var variant = task.Variant == ExecutorVariant.Explore
                 ? ExecutorVariant.Explore
                 : ExecutorVariant.Code;
 
@@ -517,6 +517,8 @@ public static class GoalGraphTemplates
                 Name = $"worker-{task.Id}",
                 Role = AgentRole.Executor,
                 Variant = variant,
+                IsolationMode = AgentIsolationMode.Worktree,
+                MaxLoopIterations = 2,
                 SystemPrompt = $"You are a parallel worker for subtask '{task.Title}'. Focus ONLY on your assigned task. Files you own: {string.Join(", ", task.OwnedFiles)}",
                 Instruction = task.Description,
             });

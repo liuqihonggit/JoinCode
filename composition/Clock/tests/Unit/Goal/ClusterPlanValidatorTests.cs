@@ -156,13 +156,13 @@ public sealed class ClusterPlanValidatorTests
     {
         var plan = CreatePlan(tasks =>
         {
-            tasks.Add(new SubTaskDefinition { Id = "sub_1", Title = "A", Description = "DA", Priority = "urgent", OwnedFiles = ["a.cs"] });
+            tasks.Add(new SubTaskDefinition { Id = "sub_1", Title = "A", Description = "DA", Priority = (SubTaskPriority)999, OwnedFiles = ["a.cs"] });
         });
 
         var result = _sut.Validate(plan);
 
         Assert.True(result.IsValid);
-        Assert.Contains(result.Warnings, w => w.Contains("urgent"));
+        Assert.Contains(result.Warnings, w => w.Contains("999"));
     }
 
     [Fact]
@@ -170,8 +170,8 @@ public sealed class ClusterPlanValidatorTests
     {
         var plan = CreatePlan(tasks =>
         {
-            tasks.Add(new SubTaskDefinition { Id = "sub_1", Title = "A", Description = "DA", Priority = "high", OwnedFiles = ["a.cs"] });
-            tasks.Add(new SubTaskDefinition { Id = "sub_2", Title = "B", Description = "DB", DependsOn = ["sub_1"], Priority = "medium", OwnedFiles = ["b.cs"] });
+            tasks.Add(new SubTaskDefinition { Id = "sub_1", Title = "A", Description = "DA", Priority = SubTaskPriority.High, OwnedFiles = ["a.cs"] });
+            tasks.Add(new SubTaskDefinition { Id = "sub_2", Title = "B", Description = "DB", DependsOn = ["sub_1"], Priority = SubTaskPriority.Medium, OwnedFiles = ["b.cs"] });
         });
 
         var result = _sut.Validate(plan);

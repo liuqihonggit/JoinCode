@@ -97,8 +97,8 @@ public sealed partial class ClusterPlanApprovalHookManager : IClusterPlanApprova
         }
         catch (Exception ex)
         {
-            _logger?.LogWarning(ex, "Cluster plan approval hook failed, auto-proceeding");
-            return ClusterPlanApprovalHookResult.Proceed("审批异常，自动放行");
+            _logger?.LogWarning(ex, "Cluster plan approval hook failed, blocking for safety");
+            return ClusterPlanApprovalHookResult.Block($"审批异常，安全阻塞: {ex.Message}");
         }
     }
 }

@@ -52,6 +52,7 @@ public sealed partial class LeadMergeOrchestrator : ILeadMergeOrchestrator
 
         var steps = new List<MergeStepResult>();
         var mergedIds = new HashSet<string>();
+        var failedIds = new HashSet<string>();
 
         foreach (var subTaskId in mergeOrder)
         {
@@ -60,7 +61,21 @@ public sealed partial class LeadMergeOrchestrator : ILeadMergeOrchestrator
                 continue;
             }
 
-            var depsMerged = worker.WorktreeBranch.Split('/').LastOrDefault() ?? worker.WorktreeBranch;
+            var deps = context.Plan.Decomposition.SubTasks
+                .FirstOrDefault(t => t.Id == subTaskId)?.DependsOn ?? [];
+            if (deps.Any(d => failedIds.Contains(d)))
+            {
+                _logger?.LogWarning("Worker {SubTaskId} 跳过: 依赖的 Worker 合并失败", subTaskId);
+                steps.Add(new MergeStepResult
+                {
+                    SubTaskId = subTaskId,
+                    Merged = false,
+                    TestsPassed = false,
+                    Message = "跳过: 依赖的 Worker 合并失败"
+                });
+                failedIds.Add(subTaskId);
+                continue;
+            }
 
             var step = await MergeSingleWorkerAsync(worker, context, ct).ConfigureAwait(false);
             steps.Add(step);
@@ -71,8 +86,8 @@ public sealed partial class LeadMergeOrchestrator : ILeadMergeOrchestrator
             }
             else
             {
-                _logger?.LogWarning("Worker {SubTaskId} 合并失败，跳过后续依赖任务", subTaskId);
-                break;
+                failedIds.Add(subTaskId);
+                _logger?.LogWarning("Worker {SubTaskId} 合并失败", subTaskId);
             }
         }
 
@@ -140,7 +155,7 @@ public sealed partial class LeadMergeOrchestrator : ILeadMergeOrchestrator
             var request = new BuildRequest
             {
                 Command = "dotnet build --verbosity quiet --no-restore",
-                WorkingDirectory = context.Plan.Objective,
+                WorkingDirectory = context.WorkingDirectory,
             };
 
             var buildId = await _buildQueue.SubmitAsync(request, ct).ConfigureAwait(false);

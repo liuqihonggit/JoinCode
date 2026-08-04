@@ -18,6 +18,7 @@ public sealed class GoalNodePayload
     /// </summary>
     public ExecutorVariant? Variant { get; init; }
 
+    public AgentIsolationMode IsolationMode { get; init; } = AgentIsolationMode.None;
     public string? SystemPrompt { get; init; }
     public string? Instruction { get; init; }
     public bool FreshContext { get; init; }

@@ -66,15 +66,15 @@ public sealed partial class DecomposabilityAnalyzer : IDecomposabilityAnalyzer
             if (report.RepairHint is not null)
                 _ = report.RepairHint;
 
-            var subTasks = result.SubTasks.Select(s => new SubTaskDefinition
+            var subTasks = result.SubTasks.Select((s, i) => new SubTaskDefinition
             {
-                Id = string.IsNullOrWhiteSpace(s.Id) ? $"sub_{Guid.NewGuid():N}" : s.Id,
+                Id = string.IsNullOrWhiteSpace(s.Id) ? $"sub_{i + 1}" : s.Id,
                 Title = s.Title,
                 Description = s.Description,
                 DependsOn = s.DependsOn,
                 OwnedFiles = s.OwnedFiles,
-                Priority = s.Priority,
-                Variant = s.Variant
+                Priority = SubTaskPriorityExtensions.FromValue(s.Priority) ?? SubTaskPriority.Medium,
+                Variant = ExecutorVariantExtensions.FromValue(s.Variant) ?? ExecutorVariant.Code,
             }).ToList();
 
             var reason = result.Reason;

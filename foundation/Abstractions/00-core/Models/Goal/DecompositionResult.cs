@@ -1,5 +1,6 @@
-
 namespace JoinCode.Abstractions.Models.Goal;
+
+using JoinCode.Abstractions.Models.Agent;
 
 /// <summary>
 /// 任务分解分析结果
@@ -27,6 +28,6 @@ public sealed class SubTaskDefinition
     public string Description { get; init; } = string.Empty;
     public List<string> DependsOn { get; init; } = [];
     public List<string> OwnedFiles { get; init; } = [];
-    public string Priority { get; init; } = "medium";
-    public string Variant { get; init; } = "code";
+    public SubTaskPriority Priority { get; init; } = SubTaskPriority.Medium;
+    public ExecutorVariant Variant { get; init; } = ExecutorVariant.Code;
 }

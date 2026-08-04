@@ -155,13 +155,11 @@ public sealed partial class ClusterPlanValidator : IClusterPlanValidator
 
     private static void ValidatePriority(IReadOnlyList<SubTaskDefinition> subTasks, List<string> warnings)
     {
-        var validPriorities = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "high", "medium", "low" };
-
         foreach (var task in subTasks)
         {
-            if (!validPriorities.Contains(task.Priority))
+            if (!Enum.IsDefined(task.Priority))
             {
-                warnings.Add($"子任务 '{task.Id}' 的优先级 '{task.Priority}' 无效，应为 high/medium/low");
+                warnings.Add($"子任务 '{task.Id}' 的优先级 '{task.Priority}' 无效");
             }
         }
     }

@@ -34,7 +34,6 @@ public sealed partial class ClusterTelemetry : IClusterTelemetry
         var phaseList = _phases.ToArray();
         var successCount = phaseList.Count(p => p.IsSuccess);
         var failureCount = phaseList.Count(p => !p.IsSuccess);
-        var totalDuration = phaseList.Any() ? phaseList.Max(p => phaseList.Min(q => q.Metadata.TryGetValue("startedAt", out var s) && long.TryParse(s, out var sv) ? sv : 0)) : 0;
 
         return new ClusterExecutionSummary
         {

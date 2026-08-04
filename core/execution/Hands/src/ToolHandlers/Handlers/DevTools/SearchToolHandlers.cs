@@ -604,10 +604,8 @@ public class SearchToolHandlers
 
     private void RecordSearchMetrics(string operation, string result, int fileCount = 0)
     {
-        _telemetryService?.RecordCount(
-            "search.handler.count",
-             new Dictionary<string, string> { ["operation"] = operation, ["result"] = result }, description: "Search handler count");
-        if (fileCount > 0) _telemetryService?.RecordHistogram("search.handler.files", fileCount, new Dictionary<string, string> { ["operation"] = operation }, "count", "Search handler file count");
+        ToolTelemetryHelper.RecordToolCount(_telemetryService, "search.handler.count", operation, result);
+        if (fileCount > 0) ToolTelemetryHelper.RecordToolHistogram(_telemetryService, "search.handler.files", fileCount, new Dictionary<string, string> { ["operation"] = operation }, "count", "Search handler file count");
     }
 
 }

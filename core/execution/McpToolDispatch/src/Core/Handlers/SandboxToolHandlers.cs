@@ -14,7 +14,7 @@ public sealed class SandboxToolHandlers
 
     [McpTool(SandboxToolNameConstants.SandboxEnter, "Enter a sandbox with the specified isolation type. If the requested type is unavailable, automatically falls back to a lower isolation level. Available types: soft (path redirection), process (OS-level process isolation), docker (container isolation), bubblewrap (Linux namespace isolation).", "sandbox")]
     public async Task<ToolResult> SandboxEnterAsync(
-        [McpToolParameter("Sandbox type: soft, process, docker, or bubblewrap", Required = true, EnumValues = new[] { "soft", "process", "docker", "bubblewrap" })] string sandboxType,
+        [McpToolParameter("Sandbox type: soft, process, docker, or bubblewrap", Required = true, EnumValues = new[] { SandboxTypeConstants.Soft, SandboxTypeConstants.Process, SandboxTypeConstants.Docker, SandboxTypeConstants.Bubblewrap })] string sandboxType,
         [McpToolParameter("Restrict file system access", Required = false, DefaultValue = "true")] string restrictFileSystem,
         [McpToolParameter("Restrict network access", Required = false, DefaultValue = "true")] string restrictNetwork,
         [McpToolParameter("Custom sandbox root path", Required = false)] string? sandboxRoot,
@@ -115,7 +115,7 @@ public sealed class SandboxToolHandlers
 
     [McpTool(SandboxToolNameConstants.SandboxSwitch, "Switch to a different sandbox type while preserving isolation settings. Useful for escalating or de-escalating isolation level. If the target type is unavailable, automatically falls back.", "sandbox")]
     public async Task<ToolResult> SandboxSwitchAsync(
-        [McpToolParameter("Target sandbox type: soft, process, docker, or bubblewrap", Required = true, EnumValues = new[] { "soft", "process", "docker", "bubblewrap" })] string sandboxType,
+        [McpToolParameter("Target sandbox type: soft, process, docker, or bubblewrap", Required = true, EnumValues = new[] { SandboxTypeConstants.Soft, SandboxTypeConstants.Process, SandboxTypeConstants.Docker, SandboxTypeConstants.Bubblewrap })] string sandboxType,
         CancellationToken cancellationToken = default)
     {
         var type = SandboxTypeExtensions.FromValue(sandboxType);
@@ -207,7 +207,7 @@ public sealed class SandboxToolHandlers
     [McpTool(SandboxToolNameConstants.SandboxExec, "Execute a command inside the sandbox with anti-stuck timeout protection. When timeout is reached, the command is NOT interrupted - instead you (LLM) are asked to decide: continue waiting or force stop. Default timeout is 2 minutes.", "sandbox")]
     public async Task<ToolResult> SandboxExecAsync(
         [McpToolParameter("Command to execute in the sandbox", Required = true)] string command,
-        [McpToolParameter("Timeout preset: 2min (default), 4min, 8min, or custom", Required = false, DefaultValue = "2min", EnumValues = new[] { "2min", "4min", "8min", "custom" })] string timeout,
+        [McpToolParameter("Timeout preset: 2min (default), 4min, 8min, or custom", Required = false, DefaultValue = SandboxExecutionTimeoutConstants.TwoMinutes, EnumValues = new[] { SandboxExecutionTimeoutConstants.TwoMinutes, SandboxExecutionTimeoutConstants.FourMinutes, SandboxExecutionTimeoutConstants.EightMinutes, SandboxExecutionTimeoutConstants.Custom })] string timeout,
         [McpToolParameter("Custom timeout in seconds (only used when timeout=custom)", Required = false, DefaultValue = "0")] string customTimeoutSeconds,
         CancellationToken cancellationToken = default)
     {
@@ -256,7 +256,7 @@ public sealed class SandboxToolHandlers
     [McpTool(SandboxToolNameConstants.SandboxExecContinue, "Continue a timed-out sandbox execution. Choose to wait longer or force stop the command.", "sandbox")]
     public async Task<ToolResult> SandboxExecContinueAsync(
         [McpToolParameter("Execution ID from sandbox_exec timeout response", Required = true)] string executionId,
-        [McpToolParameter("Action: wait (continue waiting for another timeout period) or stop (force kill the process)", Required = true, EnumValues = new[] { "wait", "stop" })] string action,
+        [McpToolParameter("Action: wait (continue waiting for another timeout period) or stop (force kill the process)", Required = true, EnumValues = new[] { SandboxContinueActionConstants.Wait, SandboxContinueActionConstants.Stop })] string action,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(executionId))

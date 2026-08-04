@@ -119,7 +119,7 @@ public class PowerShellToolHandlers : ShellToolBase
 
         await _pipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false);
 
-        return context.Result ?? ToolResultBuilder.Error().WithText("Pipeline did not produce a result").Build();
+        return context.Result ?? ToolResultBuilder.PipelineNoResult();
     }
 
     /// <summary>
@@ -372,7 +372,7 @@ public class PowerShellToolHandlers : ShellToolBase
     #region Private Methods
 
     private void RecordPsmetrics(string operation, string result)
-        => _telemetryService?.RecordCount("powershell.handler.count", new Dictionary<string, string> { ["operation"] = operation, ["result"] = result }, description: "PowerShell handler count");
+        => ToolTelemetryHelper.RecordToolCount(_telemetryService, "powershell.handler.count", operation, result);
 
     private async Task<ConstrainedLanguageModeCheck> CheckConstrainedLanguageModeAsync(CancellationToken cancellationToken)
     {

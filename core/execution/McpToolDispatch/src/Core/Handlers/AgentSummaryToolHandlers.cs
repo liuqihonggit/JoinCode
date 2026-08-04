@@ -152,14 +152,7 @@ public class AgentSummaryToolHandlers
         {
             foreach (var execution in history)
             {
-                var statusIcon = execution.Status switch
-                {
-                    TaskExecutionStatus.Completed => StatusSymbol.Tick.ToValue(),
-                    TaskExecutionStatus.Failed => StatusSymbol.Cross.ToValue(),
-                    TaskExecutionStatus.Running => StatusSymbol.Refresh.ToValue(),
-                    TaskExecutionStatus.Cancelled => StatusSymbol.Prohibited.ToValue(),
-                    _ => StatusSymbol.Circle.ToValue()
-                };
+                var statusIcon = execution.Status.ToStatusSymbol().ToValue();
 
                 response.AppendLine($"{statusIcon} [{execution.ExecutionId}] {execution.CreatedAt:MM-dd HH:mm}");
 

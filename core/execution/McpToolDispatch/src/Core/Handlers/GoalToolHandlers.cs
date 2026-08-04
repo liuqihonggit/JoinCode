@@ -58,7 +58,7 @@ public sealed class GoalToolHandlers
     /// </summary>
     [McpTool(SystemToolNameConstants.GoalUpdate, "Update the current goal status. The model can mark a goal as achieved or unmet. Only 'achieved' and 'unmet' statuses are allowed via this tool.", "goal")]
     public async Task<ToolResult> UpdateGoalAsync(
-        [McpToolParameter("New status for the goal. Must be 'achieved' or 'unmet'.", Required = true, EnumValues = new[] { "achieved", "unmet" })] string status,
+        [McpToolParameter("New status for the goal. Must be 'achieved' or 'unmet'.", Required = true, EnumValues = new[] { GoalStatusConstants.Achieved, GoalStatusConstants.Unmet })] string status,
         [McpToolParameter("Reason for the status change", Required = true)] string reason,
         CancellationToken cancellationToken = default)
     {

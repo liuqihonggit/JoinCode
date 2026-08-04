@@ -60,7 +60,7 @@ public partial class ShellToolHandlers : ShellToolBase
 
         await _pipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false);
 
-        return context.Result ?? ToolResultBuilder.Error().WithText("Pipeline did not produce a result").Build();
+        return context.Result ?? ToolResultBuilder.PipelineNoResult();
     }
 
     /// <summary>
@@ -145,14 +145,7 @@ public partial class ShellToolHandlers : ShellToolBase
         {
             foreach (var task in tasks)
             {
-                var statusIcon = task.Status switch
-                {
-                    TaskExecutionStatus.Running => StatusSymbol.Refresh.ToValue(),
-                    TaskExecutionStatus.Completed => StatusSymbol.Tick.ToValue(),
-                    TaskExecutionStatus.Failed => StatusSymbol.Cross.ToValue(),
-                    TaskExecutionStatus.Cancelled => StatusSymbol.Prohibited.ToValue(),
-                    _ => StatusSymbol.Circle.ToValue()
-                };
+                var statusIcon = task.Status.ToStatusSymbol().ToValue();
 
                 response.AppendLine($"{statusIcon} [{task.TaskId}] {task.Command[..Math.Min(40, task.Command.Length)]}...");
                 response.AppendLine($"   Status: {FormatStatus(task.Status)} | Created: {task.CreatedAt:MM-dd HH:mm}");

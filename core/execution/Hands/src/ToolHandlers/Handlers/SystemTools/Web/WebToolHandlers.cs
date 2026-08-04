@@ -279,7 +279,7 @@ public class WebToolHandlers
 
     private void RecordWebMetrics(string operation, string result, int size = 0)
     {
-        _telemetryService?.RecordCount("web.operation.count", new Dictionary<string, string> { ["operation"] = operation, ["result"] = result }, description: "Web operation count");
-        if (size > 0) _telemetryService?.RecordHistogram("web.operation.size", size, new Dictionary<string, string> { ["operation"] = operation }, "bytes", "Web operation response size");
+        ToolTelemetryHelper.RecordToolCount(_telemetryService, "web.operation.count", operation, result);
+        if (size > 0) ToolTelemetryHelper.RecordToolHistogram(_telemetryService, "web.operation.size", size, new Dictionary<string, string> { ["operation"] = operation }, "bytes", "Web operation response size");
     }
 }

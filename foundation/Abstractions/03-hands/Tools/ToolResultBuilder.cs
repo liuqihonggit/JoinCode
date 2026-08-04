@@ -10,6 +10,12 @@ public sealed class ToolResultBuilder
 
     public static ToolResultBuilder Error() => new() { _isError = true };
 
+    /// <summary>
+    /// 管道未产生结果的错误 — 统一3处重复的 "Pipeline did not produce a result" 消息
+    /// </summary>
+    public static ToolResult PipelineNoResult()
+        => Error().WithText("Pipeline did not produce a result").Build();
+
     public ToolResultBuilder WithText(string text)
     {
         _content.Add(new ToolContent { Type = ToolContentType.Text, Text = text });

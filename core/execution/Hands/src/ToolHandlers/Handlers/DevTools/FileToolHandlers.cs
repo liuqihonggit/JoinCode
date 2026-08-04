@@ -1059,7 +1059,7 @@ public class FileToolHandlers : IDisposable
     }
 
     private void RecordFileMetrics(FileOperationType operation, FileOperationResult result)
-        => _telemetryService?.RecordCount("file.operation.count", new Dictionary<string, string> { ["operation"] = operation.ToValue(), ["result"] = result.ToValue() }, description: "File operation count");
+        => ToolTelemetryHelper.RecordToolCount(_telemetryService, "file.operation.count", new Dictionary<string, string> { ["operation"] = operation.ToValue(), ["result"] = result.ToValue() });
 
     /// <summary>
     /// 记录文件读取详细遥测。

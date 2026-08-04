@@ -105,7 +105,7 @@ public abstract class RemoteCacheRefreshServiceBase<TItem> : IDisposable
     }
 
     protected void RecordMetrics(string operation, bool isSuccess)
-        => _telemetryService?.RecordCount($"{MetricsPrefix}.count", new() { ["operation"] = operation, ["success"] = isSuccess.ToString() }, description: $"{MetricsPrefix} operation count");
+        => ToolTelemetryHelper.RecordToolCount(_telemetryService, $"{MetricsPrefix}.count", operation, isSuccess);
 
     public void Dispose()
     {

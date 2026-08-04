@@ -91,7 +91,7 @@ public static class LlmJsonHelper
         if (string.IsNullOrWhiteSpace(llmOutput))
             return null;
 
-        var trimmed = llmOutput.Trim();
+        var trimmed = StripBomAndTrim(llmOutput);
 
         var json = ExtractJsonBlock(trimmed);
 
@@ -124,7 +124,7 @@ public static class LlmJsonHelper
         if (string.IsNullOrWhiteSpace(llmOutput))
             return default;
 
-        var trimmed = llmOutput.Trim();
+        var trimmed = StripBomAndTrim(llmOutput);
 
         var json = ExtractJsonBlock(trimmed);
 
@@ -295,6 +295,18 @@ public static class LlmJsonHelper
 
         report = new JsonLeniencyReport { Deserialized = false, RepairHint = repairHint, CoercionIssues = issues };
         return null;
+    }
+
+    /// <summary>
+    /// 底层 IO 传输宽容：剥离 UTF-8/UTF-16 BOM 头后 Trim，避免 BOM 字符导致 JSON 解析失败。
+    /// </summary>
+    private static string StripBomAndTrim(string input)
+    {
+        var span = input.AsSpan();
+        while (span.Length > 0 && (span[0] == '\uFEFF' || span[0] == '\uFFFE' || span[0] == '\u0000'))
+            span = span[1..];
+
+return span.ToString().Trim();
     }
 
     /// <summary>

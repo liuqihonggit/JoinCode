@@ -54,13 +54,16 @@ public sealed class JsonLeniencyReport
 /// <summary>
 /// LLM 结构化输出 JSON 纵深防御第三层 — 基于目标 CLR 元数据（JsonTypeInfo）的字段类型强制转换。
 /// 不依赖反射（NativeAOT 安全）：直接读取 source-generator 生成的 JsonTypeInfo.Properties。
-/// 宽容策略：number↔bool、number→string、bool→string、string→number、string Trim。
+/// 宽容策略：number↔bool、number→string、bool→string、string→number、string Trim、
+/// 数值越界截断、未定义枚举值降级为默认值。
 /// </summary>
 public static class JsonLenientCoercer
 {
+    private readonly record struct CoerceAction(JsonElement Result, bool Changed, bool Drop, JsonCoercionIssue? Issue);
+
     /// <summary>
     /// 尝试对顶层对象 DTO 的标量字段做类型强制转换并输出修复后的 JSON。
-    /// 可转换字段被纠正；不可转换字段被降级为默认值并记录为 JsonCoercionIssue（不阻断整条解析）。
+    /// 可转换字段被纠正；不可转换字段被降级为默认值（Drop）并记录为 JsonCoercionIssue（不阻断整条解析）。
     /// 返回 true 表示产生了至少一处转换。
     /// </summary>
     public static bool TryCoerceObjectJson<T>(
@@ -95,6 +98,14 @@ public static class JsonLenientCoercer
                 var action = CoerceValue(srcProp.Name, targetProp, srcProp.Value);
                 if (action.Issue is not null)
                     issues.Add(action.Issue);
+
+                if (action.Drop)
+                {
+                    // 字段降级：从输出中移除，反序列化采用 CLR 默认值
+                    changed = true;
+                    continue;
+                }
+
                 if (action.Changed)
                     changed = true;
                 rebuilt[srcProp.Name] = action.Result;
@@ -161,8 +172,7 @@ public static class JsonLenientCoercer
         return sb.ToString();
     }
 
-    private static (JsonElement Result, bool Changed, JsonCoercionIssue? Issue) CoerceValue(
-        string name, JsonPropertyInfo prop, JsonElement value)
+    private static CoerceAction CoerceValue(string name, JsonPropertyInfo prop, JsonElement value)
     {
         var declaredType = prop.PropertyType;
         var underlying = Nullable.GetUnderlyingType(declaredType);
@@ -174,11 +184,11 @@ public static class JsonLenientCoercer
         {
             var s = value.GetString();
             if (s is null)
-                return (value, false, null);
+                return new CoerceAction(value, false, false, null);
             var trimmed = s.Trim();
             if (!string.Equals(trimmed, s, StringComparison.Ordinal))
-                return (JsonElementHelper.FromString(trimmed), true, null);
-            return (value, false, null);
+                return new CoerceAction(JsonElementHelper.FromString(trimmed), true, false, null);
+            return new CoerceAction(value, false, false, null);
         }
 
         if (effective == typeof(bool) || effective == typeof(bool?))
@@ -190,23 +200,25 @@ public static class JsonLenientCoercer
         if (IsNumericType(effective))
             return CoerceToNumber(name, effective, value, kind);
 
-        // enum / 集合 / 嵌套对象等：System.Text.Json 原生已宽容（枚举忽略大小写、未知字段忽略），无需额外转换
-        return (value, false, null);
+        if (effective.IsEnum)
+            return CoerceToEnum(name, effective, value, kind);
+
+        // 集合 / 嵌套对象等：System.Text.Json 原生已宽容（未知字段忽略），无需额外转换
+        return new CoerceAction(value, false, false, null);
     }
 
-    private static (JsonElement Result, bool Changed, JsonCoercionIssue? Issue) CoerceToBool(
-        string name, Type effective, JsonElement value, JsonValueKind kind)
+    private static CoerceAction CoerceToBool(string name, Type effective, JsonElement value, JsonValueKind kind)
     {
         switch (kind)
         {
             case JsonValueKind.Number:
                 var intVal = value.TryGetInt64(out var l) ? l : (long)value.GetDouble();
-                return (JsonElementHelper.FromBoolean(intVal != 0), true, null);
+                return new CoerceAction(JsonElementHelper.FromBoolean(intVal != 0), true, false, null);
 
             case JsonValueKind.String:
                 var s = value.GetString();
                 if (s is null)
-                    return (JsonElementHelper.FromBoolean(false), true, null);
+                    return new CoerceAction(JsonElementHelper.FromBoolean(false), true, false, null);
                 var trimmed = s.Trim();
                 switch (trimmed.ToLowerInvariant())
                 {
@@ -215,36 +227,34 @@ public static class JsonLenientCoercer
                     case "yes":
                     case "y":
                     case "on":
-                        return (JsonElementHelper.FromBoolean(true), true, null);
+                        return new CoerceAction(JsonElementHelper.FromBoolean(true), true, false, null);
                     case "false":
                     case "0":
                     case "no":
                     case "n":
                     case "off":
                     case "":
-                        return (JsonElementHelper.FromBoolean(false), true, null);
+                        return new CoerceAction(JsonElementHelper.FromBoolean(false), true, false, null);
                     default:
-                        return (JsonElementHelper.FromBoolean(false), true,
+                        return new CoerceAction(default, true, true,
                             new JsonCoercionIssue
                             {
                                 PropertyPath = name,
                                 ExpectedType = effective.Name,
                                 ActualValueKind = JsonValueKind.String.ToString(),
-                                Reason = $"无法将字符串 '{s}' 转换为布尔值"
+                                Reason = $"无法将字符串 '{s}' 转换为布尔值，已使用默认值 false"
                             });
                 }
 
             case JsonValueKind.Null:
-                // null → 降级为 default(bool)=false
-                return (JsonElementHelper.FromBoolean(false), true, null);
+                return new CoerceAction(JsonElementHelper.FromBoolean(false), true, false, null);
 
             default:
-                return (value, false, null);
+                return new CoerceAction(value, false, false, null);
         }
     }
 
-    private static (JsonElement Result, bool Changed, JsonCoercionIssue? Issue) CoerceToString(
-        string name, JsonElement value, JsonValueKind kind)
+    private static CoerceAction CoerceToString(string name, JsonElement value, JsonValueKind kind)
     {
         switch (kind)
         {
@@ -253,21 +263,21 @@ public static class JsonLenientCoercer
                 var raw = value.TryGetInt64(out var longVal)
                     ? longVal.ToString(CultureInfo.InvariantCulture)
                     : value.GetRawText();
-                return (JsonElementHelper.FromString(raw), true, null);
+                return new CoerceAction(JsonElementHelper.FromString(raw), true, false, null);
 
             case JsonValueKind.True:
-                return (JsonElementHelper.FromString("true"), true, null);
+                return new CoerceAction(JsonElementHelper.FromString("true"), true, false, null);
 
             case JsonValueKind.False:
-                return (JsonElementHelper.FromString("false"), true, null);
+                return new CoerceAction(JsonElementHelper.FromString("false"), true, false, null);
 
             case JsonValueKind.Null:
                 // null 字符串 → 空串（等价缺省），不阻断解析
-                return (JsonElementHelper.FromString(""), true, null);
+                return new CoerceAction(JsonElementHelper.FromString(""), true, false, null);
 
             case JsonValueKind.Object:
             case JsonValueKind.Array:
-                return (JsonElementHelper.FromString(""), true,
+                return new CoerceAction(JsonElementHelper.FromString(""), true, false,
                     new JsonCoercionIssue
                     {
                         PropertyPath = name,
@@ -277,15 +287,37 @@ public static class JsonLenientCoercer
                     });
 
             default:
-                return (value, false, null);
+                return new CoerceAction(value, false, false, null);
         }
     }
 
-    private static (JsonElement Result, bool Changed, JsonCoercionIssue? Issue) CoerceToNumber(
-        string name, Type effective, JsonElement value, JsonValueKind kind)
+    private static CoerceAction CoerceToNumber(string name, Type effective, JsonElement value, JsonValueKind kind)
     {
+        if (IsIntegral(effective) && kind == JsonValueKind.Number)
+        {
+            // 数值越界截断：JSON 数字超出目标整型范围时钳制到 [Min, Max]
+            if (value.TryGetInt64(out var l))
+                return ClampIntegral(name, effective, l);
+
+            if (value.TryGetUInt64(out var ul) && ul <= long.MaxValue)
+                return ClampIntegral(name, effective, (long)ul);
+
+            var d = value.GetDouble();
+            if (d >= long.MinValue && d <= long.MaxValue && d == Math.Floor(d))
+                return ClampIntegral(name, effective, (long)d);
+
+            return new CoerceAction(default, true, true,
+                new JsonCoercionIssue
+                {
+                    PropertyPath = name,
+                    ExpectedType = effective.Name,
+                    ActualValueKind = JsonValueKind.Number.ToString(),
+                    Reason = "数值超出可表示范围，已使用默认值"
+                });
+        }
+
         if (kind != JsonValueKind.String)
-            return (value, false, null);
+            return new CoerceAction(value, false, false, null);
 
         var s = value.GetString();
         if (s is null)
@@ -293,7 +325,7 @@ public static class JsonLenientCoercer
             var zero = IsIntegral(effective)
                 ? JsonElementHelper.FromInt64(0)
                 : JsonElementHelper.FromDouble(0);
-            return (zero, true, null);
+            return new CoerceAction(zero, true, false, null);
         }
 
         var trimmed = s.Trim();
@@ -302,15 +334,15 @@ public static class JsonLenientCoercer
         if (IsIntegral(effective)
             && long.TryParse(trimmed, NumberStyles.Integer, CultureInfo.InvariantCulture, out var longVal))
         {
-            return (JsonElementHelper.FromInt64(longVal), true, null);
+            return ClampIntegral(name, effective, longVal);
         }
 
         if (double.TryParse(trimmed, numStyle, CultureInfo.InvariantCulture, out var doubleVal))
         {
-            return (JsonElementHelper.FromDouble(doubleVal), true, null);
+            return new CoerceAction(JsonElementHelper.FromDouble(doubleVal), true, false, null);
         }
 
-        return (value, false, new JsonCoercionIssue
+        return new CoerceAction(value, false, false, new JsonCoercionIssue
         {
             PropertyPath = name,
             ExpectedType = effective.Name,
@@ -319,11 +351,72 @@ public static class JsonLenientCoercer
         });
     }
 
+    private static CoerceAction ClampIntegral(string name, Type effective, long value)
+    {
+        var (min, max) = IntegralRange(effective);
+        if (value < min || value > max)
+        {
+            var clamped = Math.Clamp(value, min, max);
+            return new CoerceAction(JsonElementHelper.FromInt64(clamped), true, false,
+                new JsonCoercionIssue
+                {
+                    PropertyPath = name,
+                    ExpectedType = effective.Name,
+                    ActualValueKind = JsonValueKind.Number.ToString(),
+                    Reason = $"数值 {value} 超出 {effective.Name} 范围，已截断为 {clamped}"
+                });
+        }
+
+        // 已在本类型范围内：转为整型字面量（字符串入参时也需落成数字）
+        return new CoerceAction(JsonElementHelper.FromInt64(value), true, false, null);
+    }
+
+    private static CoerceAction CoerceToEnum(string name, Type effective, JsonElement value, JsonValueKind kind)
+    {
+        if (kind == JsonValueKind.String)
+        {
+            var s = value.GetString();
+            if (s is not null && Enum.TryParse(effective, s, true, out var parsed))
+            {
+                // System.Text.Json 默认枚举转换器只认数字；将合法字符串枚举转为底层数值
+                var underlying = Convert.ToInt64(parsed, CultureInfo.InvariantCulture);
+                return new CoerceAction(JsonElementHelper.FromInt64(underlying), true, false, null);
+            }
+
+            // 未定义枚举值 → 降级为默认值（省略字段），并精确报错
+            return new CoerceAction(default, true, true,
+                new JsonCoercionIssue
+                {
+                    PropertyPath = name,
+                    ExpectedType = effective.Name,
+                    ActualValueKind = JsonValueKind.String.ToString(),
+                    Reason = $"未定义的枚举值 '{s}'，已使用默认值"
+                });
+        }
+
+        // Number：System.Text.Json 原生支持按底层值反序列化
+        return new CoerceAction(value, false, false, null);
+    }
+
+    private static (long Min, long Max) IntegralRange(Type t)
+    {
+        return t switch
+        {
+            _ when t == typeof(sbyte) => (sbyte.MinValue, sbyte.MaxValue),
+            _ when t == typeof(byte) => (byte.MinValue, byte.MaxValue),
+            _ when t == typeof(short) => (short.MinValue, short.MaxValue),
+            _ when t == typeof(ushort) => (ushort.MinValue, ushort.MaxValue),
+            _ when t == typeof(int) => (int.MinValue, int.MaxValue),
+            _ when t == typeof(uint) => (uint.MinValue, uint.MaxValue),
+            _ when t == typeof(long) => (long.MinValue, long.MaxValue),
+            _ => (long.MinValue, long.MaxValue),
+        };
+    }
+
     private static bool IsNumericType(Type t)
     {
-        return t == typeof(int) || t == typeof(long) || t == typeof(short) || t == typeof(byte)
-            || t == typeof(double) || t == typeof(float) || t == typeof(decimal)
-            || t == typeof(uint) || t == typeof(ulong) || t == typeof(ushort) || t == typeof(sbyte);
+        return IsIntegral(t)
+            || t == typeof(double) || t == typeof(float) || t == typeof(decimal);
     }
 
     private static bool IsIntegral(Type t)

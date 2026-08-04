@@ -125,6 +125,84 @@ public sealed class LenientCoercionTests
         result!.Completed.Should().BeTrue();
         report.RepairHint.Should().NotBeNull();
     }
+
+    [Fact]
+    public void BOM_Header_Is_Stripped()
+    {
+        var result = LlmJsonHelper.DeserializeWithReport(
+            "\uFEFF{\"completed\": true, \"reason\": \"bom\"}",
+            CoercionTestJsonContext.Default.LenientDto,
+            out _);
+
+        result.Should().NotBeNull();
+        result!.Completed.Should().BeTrue();
+        result.Reason.Should().Be("bom");
+    }
+
+    [Fact]
+    public void RepairJson_HexNumber_ConvertsToDecimal()
+    {
+        var repair = LlmJsonHelper.RepairJson("""{"mask": 0xFF}""");
+
+        repair.Success.Should().BeTrue();
+        repair.RepairedJson.Should().Contain("255");
+    }
+
+    [Fact]
+    public void RepairJson_LeadingZeroNumber_StripsZeros()
+    {
+        var repair = LlmJsonHelper.RepairJson("""{"count": 0123}""");
+
+        repair.Success.Should().BeTrue();
+        repair.RepairedJson.Should().Contain("\"count\": 123");
+    }
+
+    [Fact]
+    public void RepairJson_HexInsideString_IsNotTouched()
+    {
+        var repair = LlmJsonHelper.RepairJson("""{"mask": "0xFF"}""");
+
+        repair.Success.Should().BeTrue();
+        repair.RepairedJson.Should().Contain("0xFF");
+    }
+
+    [Fact]
+    public void Coerce_OutOfRangeNumber_IsClamped()
+    {
+        var result = LlmJsonHelper.DeserializeWithReport(
+            """{"completed": true, "score": 3000000000}""",
+            CoercionTestJsonContext.Default.LenientDto,
+            out var report);
+
+        result.Should().NotBeNull();
+        result!.Score.Should().Be(int.MaxValue);
+        report.CoercionIssues.Should().ContainSingle(i => i.PropertyPath == "score");
+    }
+
+    [Fact]
+    public void Coerce_UndefinedEnum_Defaults_And_Reports()
+    {
+        var result = LlmJsonHelper.DeserializeWithReport(
+            """{"completed": true, "level": "UNDEFINED_VALUE"}""",
+            CoercionTestJsonContext.Default.LenientDto,
+            out var report);
+
+        result.Should().NotBeNull();
+        result!.Level.Should().Be(default);
+        report.CoercionIssues.Should().ContainSingle(i => i.PropertyPath == "level");
+    }
+
+    [Fact]
+    public void Coerce_ValidEnum_IsKept()
+    {
+        var result = LlmJsonHelper.DeserializeWithReport(
+            """{"completed": true, "level": "High"}""",
+            CoercionTestJsonContext.Default.LenientDto,
+            out _);
+
+        result.Should().NotBeNull();
+        result!.Level.Should().Be(LenientLevel.High);
+    }
 }
 
 /// <summary>
@@ -143,6 +221,22 @@ public sealed class LenientDto
 
     [JsonPropertyName("ratio")]
     public double? Ratio { get; set; }
+
+    [JsonPropertyName("level")]
+    public LenientLevel Level { get; set; }
+
+    [JsonPropertyName("score")]
+    public int Score { get; set; }
+}
+
+/// <summary>
+/// 枚举宽容测试专用枚举
+/// </summary>
+public enum LenientLevel
+{
+    Low = 0,
+    Medium = 1,
+    High = 2,
 }
 
 /// <summary>

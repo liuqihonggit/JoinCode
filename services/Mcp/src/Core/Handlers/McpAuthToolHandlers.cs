@@ -75,7 +75,7 @@ public class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConfigProvider
             return ToolResultBuilder.Error().WithText(L.T(StringKey.TokenCannotBeEmpty)).Build();
         }
 
-        try
+        return await ToolResultBuilder.SafeExecuteAsync(async () =>
         {
             var provider = new BearerAuthProvider(token);
             _authProviders[auth_name] = provider;
@@ -87,12 +87,7 @@ public class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConfigProvider
             response.AppendLine(L.T(StringKey.LabelTokenPrefix, token[..Math.Min(20, token.Length)]));
 
             return ToolResultBuilder.Success().WithText(response.ToString()).Build();
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, L.T(StringKey.ConfigureBearerTokenAuthFailedLog));
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.ConfigurationFailed, ex.Message)).Build();
-        }
+        }, _logger, L.T(StringKey.ConfigureBearerTokenAuthFailedLog)).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -115,7 +110,7 @@ public class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConfigProvider
             return ToolResultBuilder.Error().WithText(L.T(StringKey.UsernameCannotBeEmpty)).Build();
         }
 
-        try
+        return await ToolResultBuilder.SafeExecuteAsync(async () =>
         {
             var provider = new BasicAuthProvider(username, password);
             _authProviders[auth_name] = provider;
@@ -127,12 +122,7 @@ public class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConfigProvider
             response.AppendLine(L.T(StringKey.LabelUsername, username));
 
             return ToolResultBuilder.Success().WithText(response.ToString()).Build();
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, L.T(StringKey.ConfigureBasicAuthFailedLog));
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.ConfigurationFailed, ex.Message)).Build();
-        }
+        }, _logger, L.T(StringKey.ConfigureBasicAuthFailedLog)).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -167,7 +157,7 @@ public class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConfigProvider
             return ToolResultBuilder.Error().WithText(L.T(StringKey.TokenUrlCannotBeEmpty)).Build();
         }
 
-        try
+        return await ToolResultBuilder.SafeExecuteAsync(async () =>
         {
             var scopeList = scopes?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                 .ToList() ?? new List<string>();
@@ -205,12 +195,7 @@ public class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConfigProvider
             }
 
             return ToolResultBuilder.Success().WithText(response.ToString()).Build();
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, L.T(StringKey.ConfigureOAuth2AuthFailedLog));
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.ConfigurationFailed, ex.Message)).Build();
-        }
+        }, _logger, L.T(StringKey.ConfigureOAuth2AuthFailedLog)).ConfigureAwait(false);
     }
 
     /// <summary>

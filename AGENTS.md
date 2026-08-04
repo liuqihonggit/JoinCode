@@ -545,6 +545,8 @@ Invoke-RestMethod -Uri "http://localhost:9901/shutdown" -Method Get
 | MockServer 启动后立即崩溃 | `File.AppendAllText` 在 Kestrel 多线程中并发写同一文件导致 IOException | 禁止在 KestrelMockServer 中用 File.AppendAllText，只用 Console.WriteLine |
 | `RedirectStandardOutput` + `ReadToEnd()` 死锁 | PowerShell 管道消费端阻塞，dotnet 进程 stdout 写入阻塞 | 用 `BeginOutputReadLine()` 异步读取，或不用重定向 |
 | Console.WriteLine 在后台进程中不可见 | `UseShellExecute=false` 时输出到父进程控制台，不写文件 | 前台调试用 `& $exe --port 9901`；后台运行靠 dump 文件诊断 |
+| jcc 环境变量不生效（JCC_ENDPOINT等） | `ApplyEnvOverrides` 只在 `dotEnv != null` 时调用，无 `.env/api.json` 时环境变量被跳过 | 已修复：`ApplyEnvOverrides` 移出 `if (dotEnv is not null)` 块，无论 dotEnv 是否存在都调用 |
+| MockServer 流式最终 chunk 未发送 | `WriteAsync(lastChunk)` 后缺少 `FlushAsync`，`data: [DONE]` 缓冲在服务端 | 在 `BuildStreamFinalChunk` 写入后加 `await ctx.Response.Body.FlushAsync()` |
 
 **2. 启动 jcc 连接 MockServer**
 
@@ -567,7 +569,7 @@ $psi.WorkingDirectory = "D:\project\w3"
 
 | 环境变量 | 示例值 | 说明 |
 |----------|--------|------|
-| `JCC_ENDPOINT` | `http://localhost:9901` | API 端点（jcc 自动追加 `/v1/chat/completions`） |
+| `JCC_ENDPOINT` | `http://localhost:9901` | API 端点（⚠️ 不要带 `/v1`，jcc 内部会自动拼接 `chat/completions`） |
 | `JCC_API_KEY` | `sk-test-1234567890` | API 密钥（MockServer 不校验，任意值即可） |
 | `JCC_PROVIDER` | `openai` | LLM 提供商（openai/anthropic/deepseek） |
 | `JCC_MODEL_ID` | `gpt-4o` | 模型 ID（MockServer 不校验，任意值即可） |

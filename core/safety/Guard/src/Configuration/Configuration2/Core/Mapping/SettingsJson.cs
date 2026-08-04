@@ -270,6 +270,13 @@ public sealed partial class SettingsJson
     [SettingsProperty(SettingsMergeStrategy.Override, SkipKeyAccess = true)]
     public List<HyperedgeSettings>? CustomHyperedges { get; init; }
 
+    /// <summary>
+    /// 搜索范围安全配置 — 控制搜索命令的危险标志和过大路径检测
+    /// </summary>
+    [JsonPropertyName("searchScope")]
+    [SettingsProperty(SettingsMergeStrategy.Override, SkipKeyAccess = true)]
+    public SearchScopeSettings? SearchScope { get; init; }
+
     #region 自定义合并方法
 
     /// <summary>

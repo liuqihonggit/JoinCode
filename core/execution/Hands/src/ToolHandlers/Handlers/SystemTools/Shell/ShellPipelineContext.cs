@@ -29,6 +29,12 @@ public sealed class ShellPipelineContext
     public int? Timeout { get; init; }
 
     /// <summary>
+    /// 超时覆盖值（毫秒）— 由 ShellSearchTimeoutMiddleware 等中间件设置
+    /// 优先级高于 Timeout，用于根据命令类型动态调整超时
+    /// </summary>
+    public int? OverrideTimeout { get; set; }
+
+    /// <summary>
     /// 工作目录 — 可由 ShellPathGateMiddleware 等中间件修改路径格式
     /// </summary>
     public string? WorkingDirectory { get; set; }

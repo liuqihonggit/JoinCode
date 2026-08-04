@@ -31,7 +31,12 @@ public enum CommandCategory
     /// <summary>
     /// 路径违规命令，操作超出工作区
     /// </summary>
-    PathViolation
+    PathViolation,
+
+    /// <summary>
+    /// 搜索范围过大 — 使用危险标志（如 --no-ignore）或搜索系统目录（如 C:\、/），可能导致长时间卡顿
+    /// </summary>
+    ExcessiveSearchScope
 }
 
 /// <summary>
@@ -87,5 +92,10 @@ public enum CommandRisk
     /// <summary>
     /// 权限提升风险
     /// </summary>
-    PrivilegeEscalation
+    PrivilegeEscalation,
+
+    /// <summary>
+    /// 搜索范围过大风险 — 可能导致命令长时间卡顿或消耗过多资源
+    /// </summary>
+    ExcessiveSearchScope
 }

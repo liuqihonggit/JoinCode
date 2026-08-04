@@ -92,6 +92,11 @@ public class ToolExecutionSettings
     /// 自定义工具链超边 — 用户可覆盖或扩展预设超边
     /// </summary>
     public List<HyperedgeSettings> CustomHyperedges { get; set; } = [];
+
+    /// <summary>
+    /// 搜索范围安全配置 — 控制搜索命令的危险标志和过大路径检测
+    /// </summary>
+    public SearchScopeSettings SearchScope { get; set; } = new();
 }
 
 /// <summary>
@@ -235,4 +240,32 @@ public class LlmExecutionSettings
     /// 重试延迟（毫秒）
     /// </summary>
     public int RetryDelayMs { get; set; } = WorkflowConstants.Retry.DefaultRetryDelayMs;
+}
+
+/// <summary>
+/// 搜索范围安全配置 — 控制搜索命令的危险标志和过大路径检测
+/// 支持热重载：settings.json 变更时自动更新 SearchScopeValidator
+/// </summary>
+public class SearchScopeSettings
+{
+    /// <summary>
+    /// 是否启用搜索范围检测（默认启用）
+    /// </summary>
+    public bool Enabled { get; set; } = true;
+
+    /// <summary>
+    /// 搜索类命令超时时间（秒，默认30）— 搜索命令超时自动缩短
+    /// </summary>
+    public int SearchCommandTimeoutSeconds { get; set; } = 30;
+
+    /// <summary>
+    /// 额外的危险标志映射 — 键为命令名（如 "rg"），值为该命令的危险标志列表
+    /// 合并到内置默认值之上，不需要重复定义已有标志
+    /// </summary>
+    public Dictionary<string, List<string>> ExtraDangerousFlags { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// 额外的过大路径前缀 — 合并到内置默认值之上
+    /// </summary>
+    public List<string> ExtraExcessivePathPrefixes { get; set; } = [];
 }

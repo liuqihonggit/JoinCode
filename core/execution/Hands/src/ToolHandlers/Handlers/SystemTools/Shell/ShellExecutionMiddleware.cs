@@ -26,7 +26,7 @@ public sealed partial class ShellExecutionMiddleware : IShellMiddleware
         await using var cmdContext = await _shellExecutionService.StartWithBackgroundSupportAsync(
             context.Command,
             context.Provider,
-            context.Timeout,
+            context.OverrideTimeout ?? context.Timeout,
             context.WorkingDirectory,
             shouldAutoBackground: shouldAutoBackground,
             disableSandbox: context.DangerouslyDisableSandbox == true,

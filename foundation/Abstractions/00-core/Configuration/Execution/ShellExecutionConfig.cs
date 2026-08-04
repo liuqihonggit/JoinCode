@@ -16,10 +16,17 @@ public sealed class ShellExecutionConfig
     public int MaxOutputBytes { get; set; } = 30_000;
 
     /// <summary>
-    /// 默认超时时间（秒，默认 30）
+    /// 默认超时时间（秒，默认 120）
     /// </summary>
     [Range(1, 3600, ErrorMessage = "DefaultTimeoutSeconds 必须在 1 秒到 1 小时之间")]
     public int DefaultTimeoutSeconds { get; set; } = 120;
+
+    /// <summary>
+    /// 搜索类命令默认超时时间（秒，默认 30）
+    /// 适用于 rg/grep/find/ag 等搜索命令，防止搜索范围过大时长时间卡顿
+    /// </summary>
+    [Range(5, 300, ErrorMessage = "SearchCommandTimeoutSeconds 必须在 5 秒到 5 分钟之间")]
+    public int SearchCommandTimeoutSeconds { get; set; } = 30;
 
     /// <summary>
     /// 是否启用命令执行日志

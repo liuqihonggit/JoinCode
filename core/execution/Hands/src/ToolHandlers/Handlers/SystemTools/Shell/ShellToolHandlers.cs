@@ -34,7 +34,7 @@ public partial class ShellToolHandlers : ShellToolBase
     /// </summary>
     [McpTool(ShellToolNameConstants.Bash, "Execute a Bash/CMD command. The description parameter briefly describes the command purpose", "execution")]
     public async Task<ToolResult> ShellExecuteAsync(
-        [McpToolParameter("CMD command to execute")] string command,
+        [McpToolParameter("CMD command to execute. IMPORTANT: For search commands (rg/grep/find/ag), NEVER use --no-ignore/-u flags (bypasses .gitignore, may hang). NEVER search system root paths (C:\\, /, /home, C:\\Users). Always specify a project subdirectory as the search path.")] string command,
         [McpToolParameter("Brief description of the command purpose", Required = false)] string? description = null,
         [McpToolParameter("Timeout in milliseconds, default 120000ms", Required = false, DefaultValue = "120000")] int? timeout = null,
         [McpToolParameter("Working directory, defaults to current directory", Required = false)] string? working_directory = null,

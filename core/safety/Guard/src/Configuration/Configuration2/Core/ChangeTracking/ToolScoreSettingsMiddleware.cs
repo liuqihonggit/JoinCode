@@ -9,6 +9,7 @@ public sealed partial class ToolScoreSettingsMiddleware : ISettingsMiddleware
 {
     [Inject] private readonly IToolHealthMonitor? _healthMonitor;
     [Inject] private readonly IHyperedgeReloadable? _hyperedgeReloadable;
+    [Inject] private readonly ISearchScopeReloadable? _searchScopeReloadable;
     [Inject] private readonly ILogger<ToolScoreSettingsMiddleware>? _logger;
 
     /// <inheritdoc />
@@ -21,6 +22,7 @@ public sealed partial class ToolScoreSettingsMiddleware : ISettingsMiddleware
         {
             ApplyBlacklistAndPenalties(context.NewSettings);
             ApplyHyperedges(context.NewSettings);
+            ApplySearchScope(context.NewSettings);
         }
 
         return next(context, ct);
@@ -51,5 +53,43 @@ public sealed partial class ToolScoreSettingsMiddleware : ISettingsMiddleware
 
         _hyperedgeReloadable.LoadCustomHyperedges(settings.CustomHyperedges);
         _logger?.LogInformation("超图自定义超边已热重载: {Count} 条", settings.CustomHyperedges.Count);
+    }
+
+    private void ApplySearchScope(SettingsJson settings)
+    {
+        if (_searchScopeReloadable is null) return;
+
+        var scopeSettings = settings.SearchScope;
+        var config = new SearchScopeConfig
+        {
+            Enabled = scopeSettings?.Enabled ?? true,
+            ExtraDangerousFlags = BuildExtraDangerousFlags(scopeSettings),
+            ExtraExcessivePathPrefixes = scopeSettings?.ExtraExcessivePathPrefixes is { Count: > 0 }
+                ? FrozenSet.Create(StringComparer.OrdinalIgnoreCase, [.. scopeSettings.ExtraExcessivePathPrefixes])
+                : FrozenSet.Create<string>(StringComparer.OrdinalIgnoreCase),
+        };
+
+        _searchScopeReloadable.ReloadSearchScope(config);
+        _logger?.LogInformation("搜索范围安全配置已热重载: Enabled={Enabled}, ExtraFlags={FlagCount}, ExtraPaths={PathCount}",
+            config.Enabled, config.ExtraDangerousFlags.Count, config.ExtraExcessivePathPrefixes.Count);
+    }
+
+    private static Dictionary<string, FrozenSet<string>> BuildExtraDangerousFlags(SearchScopeSettings? settings)
+    {
+        if (settings?.ExtraDangerousFlags is not { Count: > 0 })
+        {
+            return new Dictionary<string, FrozenSet<string>>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        var result = new Dictionary<string, FrozenSet<string>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (cmd, flags) in settings.ExtraDangerousFlags)
+        {
+            if (flags is { Count: > 0 })
+            {
+                result[cmd] = FrozenSet.Create(StringComparer.OrdinalIgnoreCase, [.. flags]);
+            }
+        }
+
+        return result;
     }
 }

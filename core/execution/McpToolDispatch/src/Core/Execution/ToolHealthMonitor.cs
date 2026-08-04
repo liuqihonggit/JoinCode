@@ -5,7 +5,7 @@ namespace McpToolDispatch;
 /// 持久化到 AppData JSON 文件，支持热更新
 /// </summary>
 [Register]
-public sealed class ToolHealthMonitor : IDisposable
+public sealed class ToolHealthMonitor : IToolHealthMonitor, IDisposable
 {
     private readonly ILogger<ToolHealthMonitor>? _logger;
     private readonly IFileSystem _fs;

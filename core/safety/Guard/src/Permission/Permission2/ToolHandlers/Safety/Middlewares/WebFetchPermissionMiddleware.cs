@@ -19,7 +19,7 @@ public sealed partial class WebFetchPermissionMiddleware : IPermissionMiddleware
         if (context.CurrentMode != PermissionMode.Default || !PermissionCheckContext.IsWebFetchTool(context.ToolName))
             return next(context, ct);
 
-        var webFetchResult = CheckWebFetchPermission(context.ToolName, context.Arguments, context.Config);
+        var webFetchResult = CheckWebFetchPermission(context);
         if (webFetchResult is not null)
         {
             context.Result = webFetchResult;
@@ -32,8 +32,12 @@ public sealed partial class WebFetchPermissionMiddleware : IPermissionMiddleware
     /// <summary>
     /// WebFetch 域名级权限检查 — 对齐 TS 版 WebFetchTool.checkPermissions
     /// </summary>
-    private static ToolPermissionCheckResult? CheckWebFetchPermission(string toolName, Dictionary<string, JsonElement>? arguments, PermissionConfig config)
+    private static ToolPermissionCheckResult? CheckWebFetchPermission(PermissionCheckContext context)
     {
+        var toolName = context.ToolName;
+        var arguments = context.Arguments;
+        var config = context.Config;
+
         if (arguments == null || !arguments.TryGetValue("url", out var urlEl) || urlEl.ValueKind != JsonValueKind.String)
             return null;
 

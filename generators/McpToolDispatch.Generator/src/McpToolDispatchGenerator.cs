@@ -463,6 +463,8 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         sb.AppendLine();
         GenerateToolCategoriesMethod(sb, validHandlers);
         sb.AppendLine();
+        GenerateVisibleToolCategoriesMethod(sb, validHandlers);
+        sb.AppendLine();
         GenerateConcurrencyCacheMethod(sb, validHandlers);
 
         sb.AppendLine("}");
@@ -703,14 +705,30 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
                 var effectiveKind = tool.Kind ?? handlerKind;
                 var effectiveGroupName = tool.GroupName ?? handler.GroupName;
                 var groupNameStr = effectiveGroupName is not null ? $"\"{EscapeString(effectiveGroupName)}\"" : "null";
+                var kindExpr = $"ToolKindExtensions.FromValue(\"{EscapeString(effectiveKind)}\") ?? ToolKind.System";
                 sb.AppendLine($"        if (!categories.ContainsKey(\"{displayName}\")) categories[\"{displayName}\"] = new List<ToolCategoryEntry>();");
-                sb.AppendLine($"        categories[\"{displayName}\"].Add(new ToolCategoryEntry {{ Name = \"{toolName}\", Description = \"{toolDesc}\", Kind = ToolKindExtensions.FromValue(\"{EscapeString(effectiveKind)}\") ?? ToolKind.System, GroupName = {groupNameStr} }});");
+                sb.AppendLine($"        categories[\"{displayName}\"].Add(new ToolCategoryEntry {{ Name = \"{toolName}\", Description = \"{toolDesc}\", Kind = {kindExpr}, GroupName = {groupNameStr} }});");
             }
 
             sb.AppendLine();
         }
 
         sb.AppendLine("        return categories;");
+        sb.AppendLine("    }");
+    }
+
+    private static void GenerateVisibleToolCategoriesMethod(StringBuilder sb, List<HandlerInfo> handlers)
+    {
+        sb.AppendLine($"    public static Dictionary<string, List<ToolCategoryEntry>> GetVisibleToolCategories()");
+        sb.AppendLine("    {");
+        sb.AppendLine("        var all = GetAvailableToolCategories();");
+        sb.AppendLine("        var visible = new Dictionary<string, List<ToolCategoryEntry>>(StringComparer.OrdinalIgnoreCase);");
+        sb.AppendLine("        foreach (var kvp in all)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            var filtered = kvp.Value.Where(t => t.Kind != ToolKind.OnError).ToList();");
+        sb.AppendLine("            if (filtered.Count > 0) visible[kvp.Key] = filtered;");
+        sb.AppendLine("        }");
+        sb.AppendLine("        return visible;");
         sb.AppendLine("    }");
     }
 

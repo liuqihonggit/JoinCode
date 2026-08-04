@@ -6,9 +6,14 @@ namespace JoinCode.Abstractions.Tools;
 public interface IToolCategoryProvider
 {
     /// <summary>
-    /// 获取可用工具的分类信息
+    /// 获取所有工具的分类信息（含 OnError 工具）
     /// </summary>
     Dictionary<string, List<ToolCategoryEntry>> GetAvailableToolCategories();
+
+    /// <summary>
+    /// 获取可见工具的分类信息（排除 OnError 工具，用于系统提示词）
+    /// </summary>
+    Dictionary<string, List<ToolCategoryEntry>> GetVisibleToolCategories();
 }
 
 /// <summary>

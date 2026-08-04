@@ -11,4 +11,9 @@ public sealed partial class GeneratedToolCategoryProvider : IToolCategoryProvide
     {
         return GeneratedToolHandlerRegistration_JoinCode_McpToolDispatch.GetAvailableToolCategories();
     }
+
+    public Dictionary<string, List<ToolCategoryEntry>> GetVisibleToolCategories()
+    {
+        return GeneratedToolHandlerRegistration_JoinCode_McpToolDispatch.GetVisibleToolCategories();
+    }
 }

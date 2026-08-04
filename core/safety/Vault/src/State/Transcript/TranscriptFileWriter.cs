@@ -34,6 +34,8 @@ internal sealed class TranscriptFileWriter
     {
         ArgumentNullException.ThrowIfNull(entry);
 
+        _logger?.LogWarning("[DIAG] AppendEntryAsync called: filePath={FilePath}", filePath);
+
         var entryToWrite = MaybeOffloadToPasteStore(entry);
 
         await _writeLock.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -138,8 +140,11 @@ internal sealed class TranscriptFileWriter
     {
         if (!_fs.FileExists(filePath))
         {
+            _logger?.LogWarning("[DIAG] LoadTranscriptAsync: file not found, returning empty: {FilePath}", filePath);
             return Array.Empty<TranscriptEntry>();
         }
+
+        _logger?.LogWarning("[DIAG] LoadTranscriptAsync: reading file: {FilePath}", filePath);
 
         try
         {

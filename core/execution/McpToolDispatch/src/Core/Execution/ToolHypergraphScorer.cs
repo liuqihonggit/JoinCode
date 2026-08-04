@@ -119,7 +119,7 @@ public sealed class ToolHypergraphScorer
         return new ToolHypergraph
         {
             Hyperedges = [.. edges],
-            ToolToEdges = toolToEdges.ToFrozenDictionary()
+            ToolToEdges = toolToEdges.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase)
         };
     }
 }

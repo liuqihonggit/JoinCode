@@ -322,6 +322,11 @@ public sealed class CliSession
     private async Task AppendTranscriptEntriesAsync(string userInput, string assistantResponse, DateTime timestamp, CancellationToken cancellationToken)
     {
         if (_optionalServices?.TranscriptService is null) return;
+
+        // Worker 进程不写主 session 文件 — 只写 AgentTranscriptService 的独立文件
+        var agentRole = Environment.GetEnvironmentVariable(JccEnvVar.AgentRole.ToValue());
+        if (string.Equals(agentRole, "worker", StringComparison.OrdinalIgnoreCase)) return;
+
         try
         {
             var entries = new TranscriptEntry[]

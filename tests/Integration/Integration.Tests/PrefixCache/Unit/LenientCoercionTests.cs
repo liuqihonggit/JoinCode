@@ -235,7 +235,6 @@ public sealed class LenientCoercionTests
     [Fact]
     public void Coerce_FractionalNumberIntoInt_Rounds_NotDefaults()
     {
-        // 浮点数字入整型字段：四舍五入保留值，而非降级为默认值 0
         var result = LlmJsonHelper.DeserializeWithReport(
             """{"completed": true, "count": 3.7}""",
             CoercionTestJsonContext.Default.LenientDto,
@@ -260,7 +259,6 @@ public sealed class LenientCoercionTests
     [Fact]
     public void RepairJson_NegativeHex_ConvertsToDecimal()
     {
-        // 语法修复层：-0xFF → -255（严格解析失败后落入第2层）
         var result = LlmJsonHelper.DeserializeWithReport(
             """{"completed": true, "count": -0xFF}""",
             CoercionTestJsonContext.Default.LenientDto,
@@ -273,7 +271,6 @@ public sealed class LenientCoercionTests
     [Fact]
     public void Coerce_NanIntoInt_DefaultsWithIssue()
     {
-        // JSON 规范不允许 NaN 字面量：语法修复层将其归一化为 0，保持可解析并给出精确提示
         var result = LlmJsonHelper.DeserializeWithReport(
             """{"completed": true, "count": NaN}""",
             CoercionTestJsonContext.Default.LenientDto,
@@ -287,7 +284,6 @@ public sealed class LenientCoercionTests
     [Fact]
     public void Coerce_HugeDecimalIntoString_IsPreserved()
     {
-        // 超大十进制数字（超出 long 范围）：进字符串字段时保留原始文本，防 JS 精度丢失
         var result = LlmJsonHelper.DeserializeWithReport(
             """{"completed": true, "reason": 123456789012345678901234567890}""",
             CoercionTestJsonContext.Default.LenientDto,
@@ -296,6 +292,92 @@ public sealed class LenientCoercionTests
         result.Should().NotBeNull();
         result!.Reason.Should().Be("123456789012345678901234567890");
     }
+
+    #region P1: null 字符串宽容
+
+    [Theory]
+    [InlineData("null")]
+    [InlineData("none")]
+    [InlineData("nil")]
+    [InlineData("")]
+    public void Coerce_NullLikeString_ToNullableBool_IsNull(string nullLike)
+    {
+        var json = $$"""{"completed": true, "nullableFlag": "{{nullLike}}"}""";
+        var result = LlmJsonHelper.DeserializeWithReport(
+            json, CoercionTestJsonContext.Default.LenientDto, out _);
+
+        result.Should().NotBeNull();
+        result!.NullableFlag.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData("NULL")]
+    [InlineData("None")]
+    [InlineData("Nil")]
+    public void Coerce_NullLikeString_CaseInsensitive_ToNullableBool_IsNull(string nullLike)
+    {
+        var json = $$"""{"completed": true, "nullableFlag": "{{nullLike}}"}""";
+        var result = LlmJsonHelper.DeserializeWithReport(
+            json, CoercionTestJsonContext.Default.LenientDto, out _);
+
+        result.Should().NotBeNull();
+        result!.NullableFlag.Should().BeNull();
+    }
+
+    #endregion
+
+    #region P3: 日期时间宽容
+
+    [Fact]
+    public void Coerce_DateString_ToDateTime_Parses()
+    {
+        var result = LlmJsonHelper.DeserializeWithReport(
+            """{"completed": true, "createdAt": "2025-01-15T10:30:00"}""",
+            CoercionTestJsonContext.Default.LenientDto, out _);
+
+        result.Should().NotBeNull();
+        result!.CreatedAt.Should().NotBeNull();
+        result.CreatedAt!.Value.Year.Should().Be(2025);
+        result.CreatedAt.Value.Month.Should().Be(1);
+        result.CreatedAt.Value.Day.Should().Be(15);
+    }
+
+    [Fact]
+    public void Coerce_DateStringSlash_ToDateTime_Parses()
+    {
+        var result = LlmJsonHelper.DeserializeWithReport(
+            """{"completed": true, "createdAt": "2025/01/15"}""",
+            CoercionTestJsonContext.Default.LenientDto, out _);
+
+        result.Should().NotBeNull();
+        result!.CreatedAt.Should().NotBeNull();
+        result.CreatedAt!.Value.Year.Should().Be(2025);
+    }
+
+    [Fact]
+    public void Coerce_EpochNumber_ToDateTime_Parses()
+    {
+        var result = LlmJsonHelper.DeserializeWithReport(
+            """{"completed": true, "createdAt": 1735689600000}""",
+            CoercionTestJsonContext.Default.LenientDto, out _);
+
+        result.Should().NotBeNull();
+        result!.CreatedAt.Should().NotBeNull();
+        result.CreatedAt!.Value.Year.Should().Be(2025);
+    }
+
+    [Fact]
+    public void Coerce_NullLikeString_ToNullableDateTime_IsNull()
+    {
+        var result = LlmJsonHelper.DeserializeWithReport(
+            """{"completed": true, "createdAt": "none"}""",
+            CoercionTestJsonContext.Default.LenientDto, out _);
+
+        result.Should().NotBeNull();
+        result!.CreatedAt.Should().BeNull();
+    }
+
+    #endregion
 }
 
 /// <summary>
@@ -320,6 +402,12 @@ public sealed class LenientDto
 
     [JsonPropertyName("score")]
     public int Score { get; set; }
+
+    [JsonPropertyName("nullableFlag")]
+    public bool? NullableFlag { get; set; }
+
+    [JsonPropertyName("createdAt")]
+    public DateTime? CreatedAt { get; set; }
 }
 
 /// <summary>

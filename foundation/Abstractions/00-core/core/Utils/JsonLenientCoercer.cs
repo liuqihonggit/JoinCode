@@ -179,6 +179,14 @@ public static class JsonLenientCoercer
         var effective = underlying ?? declaredType;
         var kind = value.ValueKind;
 
+        // null 字符串宽容：当目标类型为 nullable 时，"null"/"none"/"nil"/"" → null
+        if (underlying is not null && kind == JsonValueKind.String)
+        {
+            var s = value.GetString();
+            if (s is not null && IsNullLikeString(s.Trim()))
+                return new CoerceAction(default, true, true, null);
+        }
+
         // 字符串 Trim（业务校验层宽容）
         if (effective == typeof(string) && kind == JsonValueKind.String)
         {
@@ -202,6 +210,12 @@ public static class JsonLenientCoercer
 
         if (effective.IsEnum)
             return CoerceToEnum(name, effective, value, kind);
+
+        if (effective == typeof(DateTime) || effective == typeof(DateTime?))
+            return CoerceToDateTime(name, effective, value, kind);
+
+        if (effective == typeof(DateTimeOffset) || effective == typeof(DateTimeOffset?))
+            return CoerceToDateTimeOffset(name, effective, value, kind);
 
         // 集合 / 嵌套对象等：System.Text.Json 原生已宽容（未知字段忽略），无需额外转换
         return new CoerceAction(value, false, false, null);
@@ -455,5 +469,90 @@ public static class JsonLenientCoercer
     {
         return t == typeof(int) || t == typeof(long) || t == typeof(short) || t == typeof(byte)
             || t == typeof(uint) || t == typeof(ulong) || t == typeof(ushort) || t == typeof(sbyte);
+    }
+
+    private static bool IsNullLikeString(string s) =>
+        s is "null" or "none" or "nil" or "NULL" or "None" or "Nil" or "";
+
+    private static readonly string[] s_dateFormats =
+    [
+        "yyyy-MM-dd", "yyyy/MM/dd", "yyyy-MM-ddTHH:mm:ss", "yyyy-MM-ddTHH:mm:ssZ",
+        "yyyy-MM-dd HH:mm:ss", "yyyy/MM/dd HH:mm:ss",
+        "yyyy-MM-ddTHH:mm:ss.fff", "yyyy-MM-ddTHH:mm:ss.fffZ",
+        "o"
+    ];
+
+    private static CoerceAction CoerceToDateTime(string name, Type effective, JsonElement value, JsonValueKind kind)
+    {
+        if (kind == JsonValueKind.String)
+        {
+            var s = value.GetString()?.Trim();
+            if (s is not null)
+            {
+                if (IsNullLikeString(s))
+                    return new CoerceAction(default, true, true, null);
+
+                if (DateTime.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var dt))
+                    return new CoerceAction(JsonElementHelper.FromString(dt.ToString("o", CultureInfo.InvariantCulture)), true, false, null);
+            }
+        }
+
+        if (kind == JsonValueKind.Number)
+        {
+            if (value.TryGetInt64(out var epochMs))
+            {
+                var dt = DateTimeOffset.FromUnixTimeMilliseconds(epochMs).DateTime;
+                return new CoerceAction(JsonElementHelper.FromString(dt.ToString("o", CultureInfo.InvariantCulture)), true, false, null);
+            }
+
+            if (value.TryGetDouble(out var epochMsDouble))
+            {
+                var dt = DateTimeOffset.FromUnixTimeMilliseconds((long)epochMsDouble).DateTime;
+                return new CoerceAction(JsonElementHelper.FromString(dt.ToString("o", CultureInfo.InvariantCulture)), true, false, null);
+            }
+        }
+
+        return new CoerceAction(default, true, true,
+            new JsonCoercionIssue
+            {
+                PropertyPath = name,
+                ExpectedType = effective.Name,
+                ActualValueKind = kind.ToString(),
+                Reason = $"无法将 {kind} 转换为 DateTime，已使用默认值"
+            });
+    }
+
+    private static CoerceAction CoerceToDateTimeOffset(string name, Type effective, JsonElement value, JsonValueKind kind)
+    {
+        if (kind == JsonValueKind.String)
+        {
+            var s = value.GetString()?.Trim();
+            if (s is not null)
+            {
+                if (IsNullLikeString(s))
+                    return new CoerceAction(default, true, true, null);
+
+                if (DateTimeOffset.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var dto))
+                    return new CoerceAction(JsonElementHelper.FromString(dto.ToString("o", CultureInfo.InvariantCulture)), true, false, null);
+            }
+        }
+
+        if (kind == JsonValueKind.Number)
+        {
+            if (value.TryGetInt64(out var epochMs))
+            {
+                var dto = DateTimeOffset.FromUnixTimeMilliseconds(epochMs);
+                return new CoerceAction(JsonElementHelper.FromString(dto.ToString("o", CultureInfo.InvariantCulture)), true, false, null);
+            }
+        }
+
+        return new CoerceAction(default, true, true,
+            new JsonCoercionIssue
+            {
+                PropertyPath = name,
+                ExpectedType = effective.Name,
+                ActualValueKind = kind.ToString(),
+                Reason = $"无法将 {kind} 转换为 DateTimeOffset，已使用默认值"
+            });
     }
 }

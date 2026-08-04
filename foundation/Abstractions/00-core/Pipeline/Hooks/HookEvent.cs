@@ -176,6 +176,7 @@ public static class HookEventDisplayExtensions
             HookEvent.ConfigChange => true,
             HookEvent.TaskCreated => true,
             HookEvent.TaskCompleted => true,
+            HookEvent.SubagentStop => true,
             _ => false
         };
     }

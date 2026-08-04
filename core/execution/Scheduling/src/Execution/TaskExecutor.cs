@@ -185,7 +185,7 @@ internal sealed class TaskExecutor
             CancellationToken = _cts.Token
         };
 
-        return await _agentCoordinator.ExecuteParallelAsync(subAgents, parallelOptions, _cts.Token).ConfigureAwait(false);
+        return await _agentCoordinator.ExecuteParallelAsync(subAgents, parallelOptions, clusterOptions: null, cancellationToken: _cts.Token).ConfigureAwait(false);
     }
 
     /// <summary>

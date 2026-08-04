@@ -12,6 +12,7 @@ public interface IAgentExecutionEngine
     Task<IReadOnlyList<SubAgentResult>> ExecuteParallelAsync(
         IEnumerable<IAgent> agents,
         ParallelOptions? options = null,
+        ClusterExecutionOptions? clusterOptions = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>

@@ -93,6 +93,24 @@ public static class LlmJsonHelper
 
         var trimmed = StripBomAndTrim(llmOutput);
 
+        // P3: 空字符串宽容 — 当输入为空串或仅含空白时，尝试解析为空对象
+        if (string.IsNullOrEmpty(trimmed) || trimmed == "\"\"" || trimmed == "''")
+        {
+            try
+            {
+                var emptyResult = JsonSerializer.Deserialize("{}", jsonTypeInfo);
+                if (emptyResult is not null)
+                {
+                    report = new JsonLeniencyReport { Deserialized = true, RepairHint = "empty string treated as empty object" };
+                    return emptyResult;
+                }
+            }
+            catch (JsonException ex)
+            {
+                System.Diagnostics.Trace.WriteLine($"[LlmJsonHelper] Empty string → empty object fallback failed: {ex.Message}");
+            }
+        }
+
         var json = ExtractJsonBlock(trimmed);
 
         if (json is not null)

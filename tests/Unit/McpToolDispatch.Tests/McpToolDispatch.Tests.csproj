@@ -1,0 +1,15 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>McpToolDispatch.Tests</RootNamespace>
+    <AssemblyName>JoinCode.McpToolDispatch.Tests</AssemblyName>
+    <Description>JoinCode McpToolDispatch 库单元测试（健康监控 + 超图评分）</Description>
+    <NoWarn>$(NoWarn);JCC3007;JCC3010;JCC3011;JCC3012</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)core\execution\McpToolDispatch\src\McpToolDispatch.csproj" />
+    <ProjectReference Include="$(RepoRoot)tests\Unit\Testing.Common\Testing.Common.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -60,6 +60,7 @@ internal static class ToolCallRepairService
             return new ToolCallRepairResult { Success = true, RepairedJson = "{}" };
 
         var json = StripBom(rawJson.Trim());
+        json = StripTrailingSemicolon(json);
 
         if (TryParseJson(json, out _))
             return new ToolCallRepairResult { Success = true, RepairedJson = json };
@@ -69,9 +70,10 @@ internal static class ToolCallRepairService
 
         repaired = RemoveTrailingCommas(repaired, hints);
         repaired = FixUnquotedKeys(repaired, hints);
-        repaired = FixSingleQuotedKeys(repaired, hints);
+        repaired = FixSingleQuotedStrings(repaired, hints);
+        repaired = FixEscapeSequences(repaired, hints);
         repaired = FixHexAndLeadingZeroNumbers(repaired, hints);
-        repaired = FixNamedFloatingPointNumbers(repaired, hints);
+        repaired = FixNamedFloatingPointLiterals(repaired, hints);
 
         if (TryParseJson(repaired, out _))
             return new ToolCallRepairResult
@@ -316,7 +318,21 @@ internal static class ToolCallRepairService
         return result.ToString();
     }
 
-    private static string FixSingleQuotedKeys(string json, List<string> hints)
+    private static string StripTrailingSemicolon(string json)
+    {
+        var trimmed = json.AsSpan().Trim();
+        if (trimmed.Length > 0 && trimmed[trimmed.Length - 1] == ';')
+        {
+            var end = json.Length;
+            while (end > 0 && char.IsWhiteSpace(json[end - 1])) end--;
+            if (end > 0 && json[end - 1] == ';')
+                return json[..(end - 1)];
+        }
+
+        return json;
+    }
+
+    private static string FixSingleQuotedStrings(string json, List<string> hints)
     {
         bool changed = false;
         var result = new StringBuilder(json.Length);
@@ -369,6 +385,162 @@ internal static class ToolCallRepairService
     /// 修复十六进制数字（0xFF → 255）与前导零数字（0123 → 123）。
     /// 字符串内容不受影响；对已是合法 JSON 的输入不产生任何改动。
     /// </summary>
+    /// <summary>
+    /// 修复 JSON 字符串中的非法转义序列和裸控制字符。
+    /// 1. \' → ' （标准 JSON 字符串内不需要转义单引号，System.Text.Json 会拒绝）
+    /// 2. 裸控制字符（0x00-0x1F）→ 对应 \n \t \r 等转义序列
+    /// </summary>
+    private static string FixEscapeSequences(string json, List<string> hints)
+    {
+        bool changed = false;
+        var result = new StringBuilder(json.Length);
+        int i = 0;
+
+        while (i < json.Length)
+        {
+            if (json[i] == '"')
+            {
+                int start = i;
+                i++;
+                while (i < json.Length)
+                {
+                    if (json[i] == '\\' && i + 1 < json.Length)
+                    {
+                        var next = json[i + 1];
+                        if (next == '\'')
+                        {
+                            result.Append(json.AsSpan(start, i - start));
+                            result.Append('\'');
+                            changed = true;
+                            i += 2;
+                            start = i;
+                            continue;
+                        }
+
+                        i += 2;
+                        continue;
+                    }
+
+                    if (json[i] == '"') { i++; break; }
+
+                    if (json[i] < 0x20)
+                    {
+                        result.Append(json.AsSpan(start, i - start));
+                        result.Append(json[i] switch
+                        {
+                            '\n' => "\\n",
+                            '\r' => "\\r",
+                            '\t' => "\\t",
+                            '\b' => "\\b",
+                            '\f' => "\\f",
+                            _ => $"\\u{((int)json[i]):x4}"
+                        });
+                        changed = true;
+                        i++;
+                        start = i;
+                        continue;
+                    }
+
+                    i++;
+                }
+
+                result.Append(json.AsSpan(start, i - start));
+                continue;
+            }
+
+            result.Append(json[i]);
+            i++;
+        }
+
+        if (changed)
+            hints.Add("fixed escape sequence(s)/control character(s)");
+
+        return result.ToString();
+    }
+
+    /// <summary>
+    /// 修复 JSON 中的 Infinity / -Infinity / NaN 字面量。
+    /// 标准 JSON 不支持这些值，System.Text.Json 默认拒绝。
+    /// 策略：将裸字面量转为字符串（如 Infinity → "Infinity"），
+    /// 由 JsonLenientCoercer 在类型转换层进一步处理。
+    /// </summary>
+    private static string FixNamedFloatingPointLiterals(string json, List<string> hints)
+    {
+        bool changed = false;
+        var result = new StringBuilder(json.Length);
+        int i = 0;
+
+        while (i < json.Length)
+        {
+            if (json[i] == '"')
+            {
+                int start = i;
+                i++;
+                while (i < json.Length)
+                {
+                    if (json[i] == '\\' && i + 1 < json.Length) { i += 2; continue; }
+                    if (json[i] == '"') { i++; break; }
+                    i++;
+                }
+                result.Append(json.AsSpan(start, i - start));
+                continue;
+            }
+
+            if (i + 7 < json.Length && json.AsSpan(i, 8) is "Infinity")
+            {
+                var before = i > 0 ? json[i - 1] : '\0';
+                var afterIdx = i + 8;
+                var after = afterIdx < json.Length ? json[afterIdx] : '\0';
+                if (!IsAlphaNumeric(before) && !IsAlphaNumeric(after))
+                {
+                    result.Append("\"Infinity\"");
+                    changed = true;
+                    i += 8;
+                    continue;
+                }
+            }
+
+            if (i + 8 < json.Length && json.AsSpan(i, 9) is "-Infinity")
+            {
+                var before = i > 0 ? json[i - 1] : '\0';
+                var afterIdx = i + 9;
+                var after = afterIdx < json.Length ? json[afterIdx] : '\0';
+                if (!IsAlphaNumeric(before) && !IsAlphaNumeric(after))
+                {
+                    result.Append("\"-Infinity\"");
+                    changed = true;
+                    i += 9;
+                    continue;
+                }
+            }
+
+            if (i + 2 < json.Length && json.AsSpan(i, 3) is "NaN")
+            {
+                var before = i > 0 ? json[i - 1] : '\0';
+                var afterIdx = i + 3;
+                var after = afterIdx < json.Length ? json[afterIdx] : '\0';
+                if (!IsAlphaNumeric(before) && !IsAlphaNumeric(after))
+                {
+                    result.Append("\"NaN\"");
+                    changed = true;
+                    i += 3;
+                    continue;
+                }
+            }
+
+            result.Append(json[i]);
+            i++;
+        }
+
+        if (changed)
+            hints.Add("quoted named floating-point literal(s)");
+
+        return result.ToString();
+    }
+
+    private static bool IsAlphaNumeric(char c) =>
+        c is (>= 'a' and <= 'z') or (>= 'A' and <= 'Z') or (>= '0' and <= '9') or '_';
+
     private static string FixHexAndLeadingZeroNumbers(string json, List<string> hints)
     {
         bool changed = false;
@@ -439,95 +611,7 @@ internal static class ToolCallRepairService
         return c is >= '0' and <= '9' or >= 'a' and <= 'f' or >= 'A' and <= 'F';
     }
 
-    /// <summary>
-    /// 将裸的 NaN / Infinity / -Infinity 字面量（非字符串内）归一化为 0。
-    /// JSON 规范不允许这些字面量，System.Text.Json 解析会直接抛异常；
-    /// 部分模型会误输出它们表示数值，这里在语法修复层降级为 0 保持可解析。
-    /// </summary>
-    private static string FixNamedFloatingPointNumbers(string json, List<string> hints)
-    {
-        bool changed = false;
-        var result = new StringBuilder(json.Length);
-        int i = 0;
 
-        while (i < json.Length)
-        {
-            if (json[i] == '"')
-            {
-                int start = i;
-                i++;
-                while (i < json.Length)
-                {
-                    if (json[i] == '\\' && i + 1 < json.Length) { i += 2; continue; }
-                    if (json[i] == '"') { i++; break; }
-                    i++;
-                }
-                result.Append(json.AsSpan(start, i - start));
-                continue;
-            }
-
-            var matched = TryMatchFloatingToken(json, i, out var tokenLength);
-            if (matched)
-            {
-                var tokenStart = i;
-                i += tokenLength;
-                if (tokenStart == 0 || !IsWordChar(json[tokenStart - 1]))
-                {
-                    if (i >= json.Length || !IsWordChar(json[i]))
-                    {
-                        result.Append('0');
-                        changed = true;
-                        continue;
-                    }
-                }
-                result.Append(json.AsSpan(tokenStart, tokenLength));
-                continue;
-            }
-
-            result.Append(json[i]);
-            i++;
-        }
-
-        if (changed)
-            hints.Add("converted NaN/Infinity literal(s) to 0");
-
-        return result.ToString();
-    }
-
-    private static bool TryMatchFloatingToken(string json, int i, out int length)
-    {
-        length = 0;
-        if (i + 2 < json.Length && json[i] == 'N' && json[i + 1] == 'a' && json[i + 2] == 'N')
-        {
-            length = 3;
-            return true;
-        }
-
-        if (i + 7 < json.Length
-            && json[i] == 'I' && json[i + 1] == 'n' && json[i + 2] == 'f'
-            && json[i + 3] == 'i' && json[i + 4] == 'n' && json[i + 5] == 'i'
-            && json[i + 6] == 't' && json[i + 7] == 'y')
-        {
-            length = 8;
-            return true;
-        }
-
-        if (i + 8 < json.Length
-            && json[i] == '-' && json[i + 1] == 'I' && json[i + 2] == 'n'
-            && json[i + 3] == 'f' && json[i + 4] == 'i' && json[i + 5] == 'n'
-            && json[i + 6] == 'i' && json[i + 7] == 't' && json[i + 8] == 'y')
-        {
-            length = 9;
-            return true;
-        }
-
-        return false;
-    }
-
-    private static bool IsWordChar(char c)
-    {
-        return char.IsLetterOrDigit(c) || c == '_';
-    }
 
     private static (Dictionary<string, JsonElement> Arguments, bool Modified, string? Hint) RepairParameterNames(
         Dictionary<string, JsonElement> arguments,

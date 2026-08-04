@@ -16,6 +16,44 @@ public sealed class ToolResultBuilder
     public static ToolResult PipelineNoResult()
         => Error().WithText("Pipeline did not produce a result").Build();
 
+    /// <summary>
+    /// 安全执行工具操作 — 封装 try-catch-log-returnError 三段式，统一26+处重复模式
+    /// </summary>
+    public static ToolResult SafeExecute(
+        Func<ToolResult> action,
+        ILogger? logger,
+        string operationName)
+    {
+        try
+        {
+            return action();
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "{Operation} failed", operationName);
+            return Error().WithText($"{operationName}失败: {ex.Message}").Build();
+        }
+    }
+
+    /// <summary>
+    /// 安全执行异步工具操作 — 封装 try-catch-log-returnError 三段式（异步版本）
+    /// </summary>
+    public static async Task<ToolResult> SafeExecuteAsync(
+        Func<Task<ToolResult>> action,
+        ILogger? logger,
+        string operationName)
+    {
+        try
+        {
+            return await action().ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "{Operation} failed", operationName);
+            return Error().WithText($"{operationName}失败: {ex.Message}").Build();
+        }
+    }
+
     public ToolResultBuilder WithText(string text)
     {
         _content.Add(new ToolContent { Type = ToolContentType.Text, Text = text });

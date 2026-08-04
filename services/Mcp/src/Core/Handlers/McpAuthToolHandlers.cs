@@ -41,7 +41,7 @@ public class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConfigProvider
             return ToolResultBuilder.Error().WithText(L.T(StringKey.ApiKeyCannotBeEmpty)).Build();
         }
 
-        try
+        return await ToolResultBuilder.SafeExecuteAsync(async () =>
         {
             var provider = new ApiKeyAuthProvider(api_key, header_name);
             _authProviders[auth_name] = provider;
@@ -53,12 +53,7 @@ public class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConfigProvider
             response.AppendLine(L.T(StringKey.LabelHeader, header_name));
 
             return ToolResultBuilder.Success().WithText(response.ToString()).Build();
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, L.T(StringKey.ConfigureApiKeyAuthFailedLog));
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.ConfigurationFailed, ex.Message)).Build();
-        }
+        }, _logger, L.T(StringKey.ConfigureApiKeyAuthFailedLog)).ConfigureAwait(false);
     }
 
     /// <summary>

@@ -611,6 +611,8 @@ internal static class ToolCallRepairService
         return c is >= '0' and <= '9' or >= 'a' and <= 'f' or >= 'A' and <= 'F';
     }
 
+
+
     private static (Dictionary<string, JsonElement> Arguments, bool Modified, string? Hint) RepairParameterNames(
         Dictionary<string, JsonElement> arguments,
         ToolSchema schema)

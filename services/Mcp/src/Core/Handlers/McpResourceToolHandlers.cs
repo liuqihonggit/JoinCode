@@ -241,14 +241,14 @@ public class McpResourceToolHandlers
         Dictionary<string, JsonElement>? args = null;
         if (!string.IsNullOrEmpty(arguments))
         {
-            try
+            args = LlmJsonHelper.Deserialize(arguments, McpToolDispatchJsonContext.Default.DictionaryStringJsonElement, out var repairHint);
+            if (args is null)
             {
-                args = JsonSerializer.Deserialize(arguments, McpToolDispatchJsonContext.Default.DictionaryStringJsonElement);
+                var detail = string.IsNullOrEmpty(repairHint) ? "" : $" ({repairHint})";
+                return McpResultBuilder.Error().WithText($"arguments must be valid JSON format{detail}").Build();
             }
-            catch
-            {
-                return McpResultBuilder.Error().WithText("arguments must be valid JSON format").Build();
-            }
+            if (!string.IsNullOrEmpty(repairHint))
+                System.Diagnostics.Trace.WriteLine($"[McpResource] arguments JSON repaired: {repairHint}");
         }
 
         // 如果指定了客户端ID，优先使用该客户端

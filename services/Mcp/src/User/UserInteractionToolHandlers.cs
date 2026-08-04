@@ -24,8 +24,10 @@ public class UserInteractionToolHandlers
         List<QuestionItem> questionItems;
         try
         {
-            questionItems = System.Text.Json.JsonSerializer.Deserialize(questions, QuestionItemListContext.Default.ListQuestionItem)
+            questionItems = LlmJsonHelper.DeserializeValue(questions, QuestionItemListContext.Default.ListQuestionItem, out var repairHint)
                 ?? new List<QuestionItem>();
+            if (!string.IsNullOrEmpty(repairHint))
+                System.Diagnostics.Trace.WriteLine($"[AskUserQuestion] questions JSON repaired: {repairHint}");
         }
         catch (Exception ex)
         {

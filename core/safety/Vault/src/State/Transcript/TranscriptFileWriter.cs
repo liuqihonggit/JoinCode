@@ -40,14 +40,30 @@ internal sealed class TranscriptFileWriter
         try
         {
             EnsureDirectoryExists(Path.GetDirectoryName(filePath));
-            EnsureFileExists(filePath);
-            var line = JsonSerializer.Serialize(entryToWrite, TranscriptJsonContext.Default.TranscriptEntry);
-            await _fs.AppendAllTextAsync(filePath, line + '\n', cancellationToken).ConfigureAwait(false);
+
+            var maxRetries = 3;
+            for (var attempt = 0; attempt <= maxRetries; attempt++)
+            {
+                try
+                {
+                    await using var stream = _fs.CreateStream(filePath, FileMode.OpenOrCreate, FileAccess.Write, FileShare.ReadWrite);
+                    stream.Seek(0, SeekOrigin.End);
+                    await using var writer = new StreamWriter(stream);
+                    var line = JsonSerializer.Serialize(entryToWrite, TranscriptJsonContext.Default.TranscriptEntry);
+                    await writer.WriteLineAsync(line.AsMemory(), cancellationToken).ConfigureAwait(false);
+                    await writer.FlushAsync(cancellationToken).ConfigureAwait(false);
+                    break;
+                }
+                catch (UnauthorizedAccessException ex) when (attempt < maxRetries)
+                {
+                    _logger?.LogWarning(ex, "Transient UnauthorizedAccessException writing {FilePath}, retry {Attempt}/{Max}", filePath, attempt + 1, maxRetries);
+                    await Task.Delay(100 * (attempt + 1), cancellationToken).ConfigureAwait(false);
+                }
+            }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger?.LogError(ex, "Failed to append transcript entry to {FilePath}", filePath);
-            // 不重新抛出 — transcript 写入失败不应中断主流程
         }
         finally
         {
@@ -72,30 +88,37 @@ internal sealed class TranscriptFileWriter
         try
         {
             EnsureDirectoryExists(Path.GetDirectoryName(filePath));
-            EnsureFileExists(filePath);
 
-            // FileMode.OpenOrCreate: 文件不存在时创建,存在时打开
-            // 不用 FileMode.Append 是因为 .NET 5+ 中文件不存在时抛 FileNotFoundException (与 .NET Framework 不同)
-            // 即使 EnsureFileExists 试图先创建文件,也可能因竞态/权限问题失败被吞,导致后续 Append 抛错
-            await using var stream = _fs.CreateStream(filePath, FileMode.OpenOrCreate, FileAccess.Write, FileShare.Read);
-            // OpenOrCreate 打开后指针在文件开头,需要 seek 到末尾才能追加
-            stream.Seek(0, SeekOrigin.End);
-            await using var writer = new StreamWriter(stream);
-
-            foreach (var entry in entries)
+            var maxRetries = 3;
+            for (var attempt = 0; attempt <= maxRetries; attempt++)
             {
-                var entryToWrite = MaybeOffloadToPasteStore(entry);
-                var line = JsonSerializer.Serialize(entryToWrite, TranscriptJsonContext.Default.TranscriptEntry);
-                await writer.WriteLineAsync(line.AsMemory(), cancellationToken).ConfigureAwait(false);
-            }
-            await writer.FlushAsync(cancellationToken).ConfigureAwait(false);
+                try
+                {
+                    await using var stream = _fs.CreateStream(filePath, FileMode.OpenOrCreate, FileAccess.Write, FileShare.ReadWrite);
+                    stream.Seek(0, SeekOrigin.End);
+                    await using var writer = new StreamWriter(stream);
 
-            _logger?.LogDebug("{Count} transcript entries appended to {FilePath}", entries.Count, filePath);
+                    foreach (var entry in entries)
+                    {
+                        var entryToWrite = MaybeOffloadToPasteStore(entry);
+                        var line = JsonSerializer.Serialize(entryToWrite, TranscriptJsonContext.Default.TranscriptEntry);
+                        await writer.WriteLineAsync(line.AsMemory(), cancellationToken).ConfigureAwait(false);
+                    }
+                    await writer.FlushAsync(cancellationToken).ConfigureAwait(false);
+
+                    _logger?.LogDebug("{Count} transcript entries appended to {FilePath}", entries.Count, filePath);
+                    break;
+                }
+                catch (UnauthorizedAccessException ex) when (attempt < maxRetries)
+                {
+                    _logger?.LogWarning(ex, "Transient UnauthorizedAccessException writing {FilePath}, retry {Attempt}/{Max}", filePath, attempt + 1, maxRetries);
+                    await Task.Delay(100 * (attempt + 1), cancellationToken).ConfigureAwait(false);
+                }
+            }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger?.LogError(ex, "Failed to append transcript entries to {FilePath}", filePath);
-            // 不重新抛出 — transcript 写入失败不应中断主流程
         }
         finally
         {
@@ -176,7 +199,7 @@ internal sealed class TranscriptFileWriter
         {
             try
             {
-                _fs.CreateStream(filePath, FileMode.CreateNew, FileAccess.Write, FileShare.Read).Dispose();
+                _fs.CreateStream(filePath, FileMode.CreateNew, FileAccess.Write, FileShare.ReadWrite).Dispose();
             }
             catch (IOException ex) when (_fs.FileExists(filePath))
             {

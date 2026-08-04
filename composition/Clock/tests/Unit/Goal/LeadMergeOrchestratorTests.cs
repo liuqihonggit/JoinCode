@@ -99,6 +99,61 @@ public sealed class LeadMergeOrchestratorTests
         Assert.Empty(order);
     }
 
+    [Fact]
+    public void PreCheckFileConflictsFromDiffs_NoOverlap_ShouldReturnEmpty()
+    {
+        var diffs = new Dictionary<string, IReadOnlyList<string>>
+        {
+            ["sub_1"] = ["a.cs", "b.cs"],
+            ["sub_2"] = ["c.cs", "d.cs"],
+        };
+
+        var warnings = LeadMergeOrchestrator.PreCheckFileConflictsFromDiffs(diffs);
+
+        Assert.Empty(warnings);
+    }
+
+    [Fact]
+    public void PreCheckFileConflictsFromDiffs_Overlap_ShouldReturnWarning()
+    {
+        var diffs = new Dictionary<string, IReadOnlyList<string>>
+        {
+            ["sub_1"] = ["a.cs", "shared.cs"],
+            ["sub_2"] = ["b.cs", "shared.cs"],
+        };
+
+        var warnings = LeadMergeOrchestrator.PreCheckFileConflictsFromDiffs(diffs);
+
+        Assert.Single(warnings);
+        Assert.Contains("shared.cs", warnings[0]);
+    }
+
+    [Fact]
+    public void PreCheckFileConflictsFromDiffs_ThreeWayOverlap_ShouldReturnWarning()
+    {
+        var diffs = new Dictionary<string, IReadOnlyList<string>>
+        {
+            ["sub_1"] = ["shared.cs"],
+            ["sub_2"] = ["shared.cs"],
+            ["sub_3"] = ["shared.cs"],
+        };
+
+        var warnings = LeadMergeOrchestrator.PreCheckFileConflictsFromDiffs(diffs);
+
+        Assert.Single(warnings);
+        Assert.Contains("3 个 Worker", warnings[0]);
+    }
+
+    [Fact]
+    public void PreCheckFileConflictsFromDiffs_EmptyDiffs_ShouldReturnEmpty()
+    {
+        var diffs = new Dictionary<string, IReadOnlyList<string>>();
+
+        var warnings = LeadMergeOrchestrator.PreCheckFileConflictsFromDiffs(diffs);
+
+        Assert.Empty(warnings);
+    }
+
     private static ClusterPlan CreatePlan(List<SubTaskDefinition> subTasks)
     {
         return new ClusterPlan

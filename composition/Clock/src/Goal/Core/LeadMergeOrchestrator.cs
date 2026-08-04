@@ -2,6 +2,7 @@
 namespace Core.Goal;
 
 using JoinCode.Abstractions.Models.Build;
+using JoinCode.Abstractions.Security.Scanning;
 using Structura.Dag;
 
 [Register]
@@ -9,16 +10,19 @@ public sealed partial class LeadMergeOrchestrator : ILeadMergeOrchestrator
 {
     private readonly IWorktreeMergeService _worktreeMerge;
     private readonly IBuildQueueService _buildQueue;
+    private readonly IGitDiffProvider? _diffProvider;
     [Inject] private readonly ILogger<LeadMergeOrchestrator>? _logger;
 
     public LeadMergeOrchestrator(
         IWorktreeMergeService worktreeMerge,
         IBuildQueueService buildQueue,
-        ILogger<LeadMergeOrchestrator>? logger = null)
+        ILogger<LeadMergeOrchestrator>? logger = null,
+        IGitDiffProvider? diffProvider = null)
     {
         _worktreeMerge = worktreeMerge;
         _buildQueue = buildQueue;
         _logger = logger;
+        _diffProvider = diffProvider;
     }
 
     public async Task<LeadMergeResult> MergeCompletedWorkersAsync(LeadMergeContext context, CancellationToken ct = default)
@@ -38,6 +42,12 @@ public sealed partial class LeadMergeOrchestrator : ILeadMergeOrchestrator
         if (mergeOrder is null)
         {
             return LeadMergeResult.Failed("无法计算合并顺序（依赖关系异常）", []);
+        }
+
+        var preCheckWarnings = await PreCheckFileConflictsAsync(completedMap, ct).ConfigureAwait(false);
+        foreach (var warning in preCheckWarnings)
+        {
+            _logger?.LogWarning("冲突预检告警: {Warning}", warning);
         }
 
         var steps = new List<MergeStepResult>();
@@ -143,6 +153,61 @@ public sealed partial class LeadMergeOrchestrator : ILeadMergeOrchestrator
             _logger?.LogWarning(ex, "Post-merge build verification failed");
             return false;
         }
+    }
+
+    internal static List<string> PreCheckFileConflictsFromDiffs(Dictionary<string, IReadOnlyList<string>> workerDiffs)
+    {
+        var warnings = new List<string>();
+        var fileToWorkers = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var (workerId, files) in workerDiffs)
+        {
+            foreach (var file in files)
+            {
+                if (!fileToWorkers.TryGetValue(file, out var workerList))
+                {
+                    workerList = [];
+                    fileToWorkers[file] = workerList;
+                }
+
+                workerList.Add(workerId);
+            }
+        }
+
+        foreach (var (file, workers) in fileToWorkers)
+        {
+            if (workers.Count >= 2)
+            {
+                warnings.Add($"文件 '{file}' 被 {workers.Count} 个 Worker 修改: {string.Join(", ", workers)}");
+            }
+        }
+
+        return warnings;
+    }
+
+    private async Task<List<string>> PreCheckFileConflictsAsync(Dictionary<string, WorkerCompletion> completedMap, CancellationToken ct)
+    {
+        if (_diffProvider is null)
+        {
+            return [];
+        }
+
+        var workerDiffs = new Dictionary<string, IReadOnlyList<string>>();
+
+        foreach (var (subTaskId, worker) in completedMap)
+        {
+            try
+            {
+                var files = await _diffProvider.GetStagedFileNamesAsync(worker.WorktreePath, ct).ConfigureAwait(false);
+                workerDiffs[subTaskId] = files;
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "Worker {SubTaskId} diff预检失败", subTaskId);
+            }
+        }
+
+        return PreCheckFileConflictsFromDiffs(workerDiffs);
     }
 
     internal static List<string>? ComputeMergeOrder(ClusterPlan plan, HashSet<string> availableIds)

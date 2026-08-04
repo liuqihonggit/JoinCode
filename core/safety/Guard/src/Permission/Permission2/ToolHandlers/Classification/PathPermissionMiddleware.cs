@@ -32,14 +32,13 @@ public sealed partial class PathPermissionMiddleware : IPermissionMiddleware
         if (context.CurrentMode != PermissionMode.Default && context.CurrentMode != PermissionMode.Auto)
             return next(context, ct);
 
-        var path = PermissionCheckContext.ExtractPathFromArguments(context.Arguments);
-        if (string.IsNullOrEmpty(path))
+        if (PermissionCheckContext.ExtractPathFromArguments(context.Arguments) is not { } path || string.IsNullOrEmpty(path))
             return next(context, ct);
 
         // Auto 模式仅拦截非批准结果
         if (context.CurrentMode == PermissionMode.Auto)
         {
-            var autoPathResult = CheckPathPermission(context.ToolName, path);
+            var autoPathResult = CheckPathPermission(context);
             if (autoPathResult is not null && !autoPathResult.IsApproved)
             {
                 context.Result = autoPathResult;
@@ -49,7 +48,7 @@ public sealed partial class PathPermissionMiddleware : IPermissionMiddleware
         }
 
         // Default 模式：完整路径权限检查
-        var pathResult = CheckPathPermission(context.ToolName, path);
+        var pathResult = CheckPathPermission(context);
         if (pathResult is not null)
         {
             context.Result = pathResult;
@@ -62,9 +61,14 @@ public sealed partial class PathPermissionMiddleware : IPermissionMiddleware
     /// <summary>
     /// 路径级权限检查 — 对齐 TS checkReadPermissionForTool / checkWritePermissionForTool
     /// </summary>
-    private ToolPermissionCheckResult? CheckPathPermission(string toolName, string path)
+    private ToolPermissionCheckResult? CheckPathPermission(PermissionCheckContext context)
     {
         var checker = _pathPermissionChecker ?? throw new InvalidOperationException("Path permission checker not available.");
+        var path = context.Arguments is not null ? PermissionCheckContext.ExtractPathFromArguments(context.Arguments) : null;
+        if (string.IsNullOrEmpty(path))
+            return null;
+
+        var toolName = context.ToolName;
         // 读取工具: 调用 CheckReadPermission
         if (PermissionCheckContext.IsFileReadTool(toolName))
         {

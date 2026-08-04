@@ -1,21 +1,21 @@
 namespace State;
 
+using Core.Utils;
+
 /// <summary>
 /// 共享的 Transcript 文件写入器 — 提取自 TranscriptService 和 AgentTranscriptService
 /// 封装 JSONL 格式的追加写入和读取逻辑，消除两个服务间的重复代码
-/// 跨进程并发保护：Named Mutex（Global\jcc-transcript-{sessionId}）
-/// 同进程并发保护：SemaphoreSlim（_writeLock）
+/// 并发保护：AsyncLock（SemaphoreSlim(1,1)），异步友好，无线程亲和问题
 /// </summary>
-internal sealed class TranscriptFileWriter
+internal sealed class TranscriptFileWriter : IDisposable
 {
-    private readonly SemaphoreSlim _writeLock;
+    private readonly AsyncLock _writeLock;
     private readonly string _sessionsDirectory;
     private readonly ILogger? _logger;
     private readonly IFileSystem _fs;
     private readonly IPasteStore? _pasteStore;
 
     private const int MaxPastedContentLength = 1024;
-    private const int MutexTimeoutMs = 5000;
 
     public TranscriptFileWriter(IFileSystem fs, string sessionsDirectory, ILogger? logger = null, IPasteStore? pasteStore = null)
     {
@@ -23,7 +23,7 @@ internal sealed class TranscriptFileWriter
         _sessionsDirectory = sessionsDirectory;
         _logger = logger;
         _pasteStore = pasteStore;
-        _writeLock = new SemaphoreSlim(1, 1);
+        _writeLock = new AsyncLock();
     }
 
     /// <summary>
@@ -35,24 +35,17 @@ internal sealed class TranscriptFileWriter
 
         var entryToWrite = MaybeOffloadToPasteStore(entry);
 
-        await _writeLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _writeLock.LockAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            await WithCrossProcessMutexAsync(filePath, async () =>
-            {
-                EnsureDirectoryExists(Path.GetDirectoryName(filePath));
-                EnsureFileExists(filePath);
-                var line = JsonSerializer.Serialize(entryToWrite, TranscriptJsonContext.Default.TranscriptEntry);
-                await _fs.AppendAllTextAsync(filePath, line + '\n', cancellationToken).ConfigureAwait(false);
-            }, cancellationToken).ConfigureAwait(false);
+            EnsureDirectoryExists(Path.GetDirectoryName(filePath));
+            EnsureFileExists(filePath);
+            var line = JsonSerializer.Serialize(entryToWrite, TranscriptJsonContext.Default.TranscriptEntry);
+            await _fs.AppendAllTextAsync(filePath, line + '\n', cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger?.LogError(ex, "Failed to append transcript entry to {FilePath}", filePath);
-        }
-        finally
-        {
-            _writeLock.Release();
         }
     }
 
@@ -66,33 +59,26 @@ internal sealed class TranscriptFileWriter
 
         _logger?.LogDebug("AppendEntriesAsync: filePath={FilePath}, count={Count}", filePath, entries.Count);
 
-        await _writeLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _writeLock.LockAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            await WithCrossProcessMutexAsync(filePath, async () =>
+            EnsureDirectoryExists(Path.GetDirectoryName(filePath));
+            EnsureFileExists(filePath);
+
+            var sb = new StringBuilder();
+            foreach (var entry in entries)
             {
-                EnsureDirectoryExists(Path.GetDirectoryName(filePath));
-                EnsureFileExists(filePath);
+                var entryToWrite = MaybeOffloadToPasteStore(entry);
+                var line = JsonSerializer.Serialize(entryToWrite, TranscriptJsonContext.Default.TranscriptEntry);
+                sb.AppendLine(line);
+            }
 
-                var sb = new StringBuilder();
-                foreach (var entry in entries)
-                {
-                    var entryToWrite = MaybeOffloadToPasteStore(entry);
-                    var line = JsonSerializer.Serialize(entryToWrite, TranscriptJsonContext.Default.TranscriptEntry);
-                    sb.AppendLine(line);
-                }
-
-                await _fs.AppendAllTextAsync(filePath, sb.ToString(), cancellationToken).ConfigureAwait(false);
-                _logger?.LogDebug("{Count} transcript entries appended to {FilePath}", entries.Count, filePath);
-            }, cancellationToken).ConfigureAwait(false);
+            await _fs.AppendAllTextAsync(filePath, sb.ToString(), cancellationToken).ConfigureAwait(false);
+            _logger?.LogDebug("{Count} transcript entries appended to {FilePath}", entries.Count, filePath);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger?.LogError(ex, "Failed to append transcript entries to {FilePath}", filePath);
-        }
-        finally
-        {
-            _writeLock.Release();
         }
     }
 
@@ -165,15 +151,12 @@ internal sealed class TranscriptFileWriter
     /// </summary>
     private async Task<string[]> ReadAllLinesWithWriteShareAsync(string filePath, CancellationToken cancellationToken)
     {
-        // InMemoryFileSystem 的 CreateStream(FileMode.Open) 可能与写入路径不一致
-        // 优先尝试 ReadAllLinesAsync（FileShare.Read），失败时再用 ReadWrite 模式
         try
         {
             return await _fs.ReadAllLinesAsync(filePath, cancellationToken).ConfigureAwait(false);
         }
         catch (UnauthorizedAccessException)
         {
-            // FileShare.Read 冲突时，降级为 ReadWrite 模式
             try
             {
                 await using var stream = _fs.CreateStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
@@ -202,76 +185,16 @@ internal sealed class TranscriptFileWriter
             }
             catch (IOException ex) when (_fs.FileExists(filePath))
             {
-                // TOCTOU 竞态：其他进程在我们检查和创建之间已创建了文件 — 安全忽略
                 _logger?.LogDebug(ex, "Transcript file already exists (created by another process): {FilePath}", filePath);
             }
             catch (UnauthorizedAccessException ex)
             {
-                // 文件可能被其他进程锁定，或目录权限不足 — 降级为日志
                 _logger?.LogDebug(ex, "Cannot create transcript file {FilePath}, will retry on append", filePath);
             }
         }
     }
 
     public void Dispose() => _writeLock.Dispose();
-
-    /// <summary>
-    /// 跨进程互斥写入 — 用 Named Mutex 保护同一 session 文件的并发追加
-    /// Mutex 名称: Global\jcc-transcript-{文件名不含扩展名}
-    /// 超时后放弃写入并记录错误，避免死锁
-    /// </summary>
-    private async Task WithCrossProcessMutexAsync(string filePath, Func<Task> action, CancellationToken cancellationToken)
-    {
-        var mutexName = GetMutexName(filePath);
-        Mutex? mutex = null;
-        bool owned = false;
-
-        try
-        {
-            mutex = new Mutex(initiallyOwned: false, name: mutexName);
-            owned = mutex.WaitOne(MutexTimeoutMs);
-
-            if (!owned)
-            {
-                _logger?.LogWarning("Cross-process mutex timeout for {FilePath} (mutex={MutexName}), skipping write", filePath, mutexName);
-                return;
-            }
-
-            await action().ConfigureAwait(false);
-        }
-        catch (AbandonedMutexException)
-        {
-            _logger?.LogDebug("Acquired abandoned mutex for {FilePath} (previous owner crashed), proceeding with write", filePath);
-            owned = true;
-            await action().ConfigureAwait(false);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            _logger?.LogWarning(ex, "Cannot acquire cross-process mutex for {FilePath} (mutex={MutexName}), writing without lock", filePath, mutexName);
-            await action().ConfigureAwait(false);
-        }
-        finally
-        {
-            if (mutex is not null)
-            {
-                try
-                {
-                    if (owned) mutex.ReleaseMutex();
-                    mutex.Dispose();
-                }
-                catch (ObjectDisposedException) { _logger?.LogDebug("Mutex already disposed for {FilePath}", filePath); }
-            }
-        }
-    }
-
-    /// <summary>
-    /// 从文件路径生成 Named Mutex 名称 — Global\jcc-transcript-{sessionId}
-    /// </summary>
-    private static string GetMutexName(string filePath)
-    {
-        var fileName = Path.GetFileNameWithoutExtension(filePath);
-        return $@"Global\jcc-transcript-{fileName}";
-    }
 
     /// <summary>
     /// 序列化前：大文本(>1024字符)存到 paste-cache，Content 置空，设 ContentHash — 对齐 TS addToPromptHistory

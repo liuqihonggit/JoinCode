@@ -335,6 +335,7 @@ public sealed partial class GoalGraphEngine
         }
 
         var upstreamOutputs = context.CollectUpstreamOutputs(nodeId);
+        var mutator = new GoalGraphMutator(context, _logger);
         var nodeContext = new NodeContext
         {
             NodeId = nodeId,
@@ -343,9 +344,46 @@ public sealed partial class GoalGraphEngine
             GlobalState = context.State,
             Services = _serviceProvider,
             CancellationToken = ct,
+            GraphMutator = mutator,
         };
 
         return await fn(nodeContext).ConfigureAwait(false);
+    }
+
+    private sealed class GoalGraphMutator : IGoalGraphMutator
+    {
+        private readonly GraphExecutionContext _context;
+        private readonly ILogger? _logger;
+
+        public GoalGraphMutator(GraphExecutionContext context, ILogger? logger)
+        {
+            _context = context;
+            _logger = logger;
+        }
+
+        public void AddNode(string nodeId, GoalNodePayload payload)
+        {
+            _context.Graph.Dag.AddNode(new DagNode<GoalNodePayload> { Id = nodeId, Payload = payload });
+            _logger?.LogInformation("[GoalGraphMutator] 动态添加节点: {NodeId}", nodeId);
+        }
+
+        public void AddEdge(string edgeId, string fromId, string toId, string? label = null)
+        {
+            _context.Graph.Dag.AddEdge(new DagEdge { Id = edgeId, FromId = fromId, ToId = toId, Label = label ?? string.Empty });
+            _logger?.LogInformation("[GoalGraphMutator] 动态添加边: {EdgeId} ({FromId} → {ToId})", edgeId, fromId, toId);
+        }
+
+        public void EnqueueNode(string nodeId)
+        {
+            _context.ReadyQueue.Enqueue(nodeId);
+            _logger?.LogInformation("[GoalGraphMutator] 入队节点: {NodeId}", nodeId);
+        }
+
+        public void AddEndNode(string nodeId)
+        {
+            _context.Graph.AddEndNode(nodeId);
+            _logger?.LogInformation("[GoalGraphMutator] 添加终止节点: {NodeId}", nodeId);
+        }
     }
 
     private Task<NodeResult> ExecuteJoinNodeAsync(string nodeId, GoalNodePayload payload, GraphExecutionContext context, CancellationToken ct)

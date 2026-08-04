@@ -1,7 +1,10 @@
 namespace Core.Goal;
 
 using System.Collections.Frozen;
+using JoinCode.Abstractions.Models.Agent;
 using JoinCode.Abstractions.Models.Goal;
+using JoinCode.Abstractions.Interfaces;
+using Core.Hooks.Lifecycle;
 using Structura.Dag;
 
 /// <summary>
@@ -17,6 +20,7 @@ public static class GoalGraphTemplates
         registry.Register(CodeReviewTemplate);
         registry.Register(TestGenTemplate);
         registry.Register(NegativeReviewLoopTemplate);
+        registry.Register(ClusterTemplate);
     }
 
     public static GoalGraphTemplate RefactorTemplate => new()
@@ -367,5 +371,221 @@ public static class GoalGraphTemplates
 
 ⚠️ JSON 块必须放在输出的最后，用 ```json 和 ``` 包裹。这是程序解析的唯一数据源。
 """;
+    }
+
+    public static GoalGraphTemplate ClusterTemplate => new()
+    {
+        Name = "cluster",
+        Keywords = ["集群", "cluster", "并行", "parallel", "批量", "batch", "多任务", "multi-task", "同时", "concurrent"],
+        Description = "cluster_analyze → [动态展开并行Worker] → gather → merge → review",
+        BuildGraph = BuildClusterGraph,
+    };
+
+    private static GoalGraph BuildClusterGraph(GoalGraphEngine engine, string objective)
+    {
+        var dag = new Dag<GoalNodePayload>();
+
+        dag.AddNode(new DagNode<GoalNodePayload>
+        {
+            Id = "cluster_analyze",
+            Payload = new()
+            {
+                Kind = GoalNodeKind.Agent,
+                Name = "cluster-analyzer",
+                Role = AgentRole.Coordinator,
+                SystemPrompt = BuildClusterAnalyzerSystemPrompt(),
+                Instruction = $"Analyze whether this objective can be decomposed into parallel subtasks: {objective}",
+            }
+        });
+
+        dag.AddNode(new DagNode<GoalNodePayload>
+        {
+            Id = "cluster_expand",
+            Payload = new()
+            {
+                Kind = GoalNodeKind.Function,
+                Name = "cluster-expander",
+                Instruction = "Dynamically expand parallel worker nodes based on analysis results",
+            }
+        });
+
+        dag.AddNode(new DagNode<GoalNodePayload>
+        {
+            Id = "cluster_review",
+            Payload = new()
+            {
+                Kind = GoalNodeKind.Agent,
+                Name = "cluster-reviewer",
+                Role = AgentRole.Coordinator,
+                SystemPrompt = "You are an independent reviewer for a parallel cluster execution. Evaluate the overall result: were all subtasks completed? Is the merged result correct? Are there any regressions or conflicts?",
+                Instruction = "Review the cluster execution results objectively.",
+                FreshContext = true,
+            }
+        });
+
+        dag.AddEdge(new DagEdge { Id = "e-ca-ce", FromId = "cluster_analyze", ToId = "cluster_expand" });
+        dag.AddEdge(new DagEdge { Id = "e-ce-cr", FromId = "cluster_expand", ToId = "cluster_review" });
+
+        engine.RegisterFunction("cluster_expand", ClusterExpandFunction);
+
+        return new GoalGraph
+        {
+            Name = $"cluster: {objective}",
+            Dag = dag,
+            StartNodeId = "cluster_analyze",
+            EndNodeIds = FrozenSet.Create("cluster_review"),
+        };
+    }
+
+    private static async Task<NodeResult> ClusterExpandFunction(NodeContext ctx)
+    {
+        var mutator = ctx.GraphMutator;
+        if (mutator is null)
+        {
+            return NodeResult.Failed("GraphMutator not available — cannot expand cluster graph");
+        }
+
+        var analyzer = ctx.Services.GetService<IDecomposabilityAnalyzer>();
+        var validator = ctx.Services.GetService<IClusterPlanValidator>();
+        var approvalHook = ctx.Services.GetService<IClusterPlanApprovalHookManager>();
+
+        if (analyzer is null)
+        {
+            return NodeResult.Failed("IDecomposabilityAnalyzer not available");
+        }
+
+        var objective = ctx.GlobalState.Objective;
+        var constraints = ctx.GlobalState.Constraints;
+
+        var decomposition = await analyzer.AnalyzeAsync(objective, constraints, ctx.CancellationToken).ConfigureAwait(false);
+
+        if (!decomposition.IsDecomposable)
+        {
+            return NodeResult.Routed($"任务不可分解: {decomposition.Reason}，回退到单Agent模式", ["FALLBACK"]);
+        }
+
+        var plan = new ClusterPlan
+        {
+            Objective = objective,
+            Decomposition = decomposition,
+            ExecutionOptions = new ClusterExecutionOptions()
+        };
+
+        if (validator is not null)
+        {
+            var validationResult = validator.Validate(plan);
+            plan.ValidationResult = validationResult;
+
+            if (!validationResult.IsValid)
+            {
+                return NodeResult.Routed($"计划验证失败: {string.Join(", ", validationResult.Errors)}", ["FALLBACK"]);
+            }
+        }
+
+        if (approvalHook is not null)
+        {
+            var approvalResult = await approvalHook.OnClusterPlanApprovalAsync(
+                new ClusterPlanApprovalHookContext
+                {
+                    SessionId = ctx.GlobalState.GoalId,
+                    Objective = objective,
+                    Plan = plan,
+                }, ctx.CancellationToken).ConfigureAwait(false);
+
+            if (!approvalResult.ShouldProceed)
+            {
+                return NodeResult.Routed($"计划审批被阻止: {approvalResult.Message}", ["FALLBACK"]);
+            }
+        }
+
+        var subTasks = decomposition.SubTasks;
+        var workerIds = new List<string>();
+        var edgeCounter = 0;
+
+        foreach (var task in subTasks)
+        {
+            var workerId = $"worker_{task.Id}";
+            workerIds.Add(workerId);
+
+            var variant = task.Variant.Equals("explore", StringComparison.OrdinalIgnoreCase)
+                ? ExecutorVariant.Explore
+                : ExecutorVariant.Code;
+
+            mutator.AddNode(workerId, new GoalNodePayload
+            {
+                Kind = GoalNodeKind.Agent,
+                Name = $"worker-{task.Id}",
+                Role = AgentRole.Executor,
+                Variant = variant,
+                SystemPrompt = $"You are a parallel worker for subtask '{task.Title}'. Focus ONLY on your assigned task. Files you own: {string.Join(", ", task.OwnedFiles)}",
+                Instruction = task.Description,
+            });
+
+            if (task.DependsOn is { Count: > 0 })
+            {
+                foreach (var depId in task.DependsOn)
+                {
+                    var depWorkerId = $"worker_{depId}";
+                    mutator.AddEdge($"e-w-{edgeCounter++}", depWorkerId, workerId, "depends-on");
+                }
+            }
+            else
+            {
+                mutator.AddEdge($"e-ce-{edgeCounter++}", "cluster_expand", workerId);
+            }
+        }
+
+        mutator.AddNode("cluster_gather", new GoalNodePayload
+        {
+            Kind = GoalNodeKind.Join,
+            Name = "cluster-gatherer",
+        });
+
+        foreach (var workerId in workerIds)
+        {
+            mutator.AddEdge($"e-g-{edgeCounter++}", workerId, "cluster_gather");
+        }
+
+        mutator.AddNode("cluster_merge", new GoalNodePayload
+        {
+            Kind = GoalNodeKind.Agent,
+            Name = "cluster-merger",
+            Role = AgentRole.Coordinator,
+            SystemPrompt = "You are a merge coordinator. Collect all worker results and merge them into a coherent final output. Resolve any conflicts.",
+            Instruction = "Merge all parallel worker results into a unified output.",
+        });
+
+        mutator.AddEdge($"e-gm-{edgeCounter++}", "cluster_gather", "cluster_merge");
+        mutator.AddEdge($"e-mr-{edgeCounter++}", "cluster_merge", "cluster_review");
+
+        mutator.AddEndNode("cluster_review");
+
+        foreach (var workerId in workerIds)
+        {
+            mutator.EnqueueNode(workerId);
+        }
+
+        return NodeResult.Succeeded($"集群图已展开: {workerIds.Count} 个并行Worker");
+    }
+
+    private static string BuildClusterAnalyzerSystemPrompt()
+    {
+        return """
+            You are a cluster analysis agent. Your job is to:
+            1. Use the DecomposabilityAnalyzer to determine if the objective can be split into parallel subtasks
+            2. If decomposable, validate the plan and get approval
+            3. Output the analysis result as structured JSON
+
+            You have access to the following tools:
+            - decomposability_analyzer: Analyze whether a task can be decomposed
+            - cluster_plan_validator: Validate the decomposition plan
+            - cluster_plan_approval: Get approval for the plan
+
+            If the task is NOT decomposable, output: NOT_DECOMPOSABLE
+            If the task IS decomposable and approved, output: DECOMPOSABLE with the subtask list
+            If approval is blocked, output: BLOCKED with the reason
+
+            IMPORTANT: You must actually call the tools to perform the analysis. Do not guess or fabricate results.
+            """;
     }
 }

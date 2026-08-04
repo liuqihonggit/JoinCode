@@ -8,20 +8,32 @@ using Structura.Dag;
 /// </summary>
 public sealed class GoalGraph
 {
+    private readonly HashSet<string> _endNodeIds;
+
     public required string Name { get; init; }
     public required Dag<GoalNodePayload> Dag { get; init; }
     public required string StartNodeId { get; init; }
     public required FrozenSet<string> EndNodeIds { get; init; }
     public int MaxRetriesPerNode { get; init; } = 3;
 
-    /// <summary>
-    /// 循环迭代硬上限（纵深防御，即使所有终止条件失效也强制终止）
-    /// </summary>
     public int HardMaxLoopIterations { get; init; } = 16;
+
+    public GoalGraph()
+    {
+        _endNodeIds = [];
+    }
 
     public GoalNodePayload? FindNode(string nodeId)
         => Dag.Nodes.TryGetValue(nodeId, out var node) ? node.Payload : null;
 
     public bool IsEndNode(string nodeId)
-        => EndNodeIds.Contains(nodeId);
+        => _endNodeIds.Count > 0 ? _endNodeIds.Contains(nodeId) : EndNodeIds.Contains(nodeId);
+
+    public void AddEndNode(string nodeId)
+    {
+        _endNodeIds.Add(nodeId);
+    }
+
+    public IReadOnlySet<string> GetEffectiveEndNodeIds()
+        => _endNodeIds.Count > 0 ? _endNodeIds : EndNodeIds;
 }

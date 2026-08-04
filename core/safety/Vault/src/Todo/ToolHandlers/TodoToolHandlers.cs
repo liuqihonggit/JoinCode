@@ -22,17 +22,17 @@ public class TodoToolHandlers
         {
             if (string.IsNullOrWhiteSpace(item.Content))
             {
-                return McpResultBuilder.Error().WithText("Todo item content cannot be empty").Build();
+                return ToolResultBuilder.Error().WithText("Todo item content cannot be empty").Build();
             }
 
             if (!TodoIcons.ValidTodoStatuses.Contains(item.Status))
             {
-                return McpResultBuilder.Error().WithText($"Invalid status '{item.Status}'. Must be one of: pending, in_progress, completed").Build();
+                return ToolResultBuilder.Error().WithText($"Invalid status '{item.Status}'. Must be one of: pending, in_progress, completed").Build();
             }
 
             if (!string.IsNullOrEmpty(item.Priority) && TodoPriorityExtensions.FromValue(item.Priority) is null)
             {
-                return McpResultBuilder.Error().WithText($"Invalid priority '{item.Priority}'. Must be one of: high, medium, low").Build();
+                return ToolResultBuilder.Error().WithText($"Invalid priority '{item.Priority}'. Must be one of: high, medium, low").Build();
             }
         }
 
@@ -65,7 +65,7 @@ public class TodoToolHandlers
 
             if (!result.Success)
             {
-                return McpResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to write todos").Build();
+                return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to write todos").Build();
             }
         }
 
@@ -82,7 +82,7 @@ public class TodoToolHandlers
             response.Append("NOTE: You just closed out 3+ tasks and none of them was a verification step. Before writing your final summary, spawn the verification agent (subagent_type=\"verification\"). You cannot self-assign PARTIAL by listing caveats in your summary — only the verifier issues a verdict.");
         }
 
-        return McpResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     [McpTool(TodoToolNameConstants.TodoList, "List todo items with optional filtering", "todo")]
@@ -94,12 +94,12 @@ public class TodoToolHandlers
     {
         if (!string.IsNullOrEmpty(status) && !TodoIcons.ValidTodoStatuses.Contains(status))
         {
-            return McpResultBuilder.Error().WithText($"Invalid status filter '{status}'. Must be one of: pending, in_progress, completed").Build();
+            return ToolResultBuilder.Error().WithText($"Invalid status filter '{status}'. Must be one of: pending, in_progress, completed").Build();
         }
 
         if (!string.IsNullOrEmpty(priority) && TodoPriorityExtensions.FromValue(priority) is null)
         {
-            return McpResultBuilder.Error().WithText($"Invalid priority filter '{priority}'. Must be one of: high, medium, low").Build();
+            return ToolResultBuilder.Error().WithText($"Invalid priority filter '{priority}'. Must be one of: high, medium, low").Build();
         }
 
         var result = await _todoService.ListTodosAsync(
@@ -110,7 +110,7 @@ public class TodoToolHandlers
 
         if (!result.Success)
         {
-            return McpResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to list todos").Build();
+            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to list todos").Build();
         }
 
         var response = new StringBuilder();
@@ -132,7 +132,7 @@ public class TodoToolHandlers
             response.AppendLine("No todo items found");
         }
 
-        return McpResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     [McpTool(TodoToolNameConstants.TodoUpdate, "Update a single todo item", "todo")]
@@ -145,17 +145,17 @@ public class TodoToolHandlers
     {
         if (string.IsNullOrWhiteSpace(todo_id))
         {
-            return McpResultBuilder.Error().WithText("todo_id cannot be empty").Build();
+            return ToolResultBuilder.Error().WithText("todo_id cannot be empty").Build();
         }
 
         if (!string.IsNullOrEmpty(status) && !TodoIcons.ValidTodoStatuses.Contains(status))
         {
-            return McpResultBuilder.Error().WithText($"Invalid status '{status}'. Must be one of: pending, in_progress, completed").Build();
+            return ToolResultBuilder.Error().WithText($"Invalid status '{status}'. Must be one of: pending, in_progress, completed").Build();
         }
 
         if (!string.IsNullOrEmpty(priority) && TodoPriorityExtensions.FromValue(priority) is null)
         {
-            return McpResultBuilder.Error().WithText($"Invalid priority '{priority}'. Must be one of: high, medium, low").Build();
+            return ToolResultBuilder.Error().WithText($"Invalid priority '{priority}'. Must be one of: high, medium, low").Build();
         }
 
         var result = await _todoService.UpdateTodoAsync(
@@ -167,7 +167,7 @@ public class TodoToolHandlers
 
         if (!result.Success)
         {
-            return McpResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to update todo").Build();
+            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to update todo").Build();
         }
 
         var response = new StringBuilder();
@@ -178,7 +178,7 @@ public class TodoToolHandlers
             response.Append(FormatTodoSummary(result.Data));
         }
 
-        return McpResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     #region Private Methods

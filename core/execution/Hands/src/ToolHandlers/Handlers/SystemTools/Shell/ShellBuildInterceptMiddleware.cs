@@ -42,7 +42,7 @@ public sealed partial class ShellBuildInterceptMiddleware : IShellMiddleware
                     ExitCode = -1,
                     Interrupted = true,
                 };
-                context.Result = ResultBuilder.Error().WithText("Build was cancelled").Build();
+                context.Result = ToolResultBuilder.Error().WithText("Build was cancelled").Build();
                 return;
             }
 
@@ -65,7 +65,7 @@ public sealed partial class ShellBuildInterceptMiddleware : IShellMiddleware
                         : 0;
                     var statusText = currentEntry?.Status == BuildQueueEntryStatus.Queued ? "queued" : "compiling";
 
-                    context.Result = ResultBuilder.Success()
+                    context.Result = ToolResultBuilder.Success()
                         .WithText($"Build {buildId} is {statusText} ({elapsed}s elapsed). Run the same build command again to wait for the result, or cancel it.")
                         .Build();
                 }
@@ -99,8 +99,8 @@ public sealed partial class ShellBuildInterceptMiddleware : IShellMiddleware
             ExitCode = r.ExitCode,
         };
         context.Result = r.ExitCode == 0
-            ? ResultBuilder.Success().WithText(displayOutput).Build()
-            : ResultBuilder.Error().WithText(displayOutput).Build();
+            ? ToolResultBuilder.Success().WithText(displayOutput).Build()
+            : ToolResultBuilder.Error().WithText(displayOutput).Build();
     }
 
     private const int MaxTailLines = 15;

@@ -19,7 +19,7 @@ public class UserInteractionToolHandlers
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(questions))
-            return McpResultBuilder.Error().WithText("questions cannot be empty").Build();
+            return ToolResultBuilder.Error().WithText("questions cannot be empty").Build();
 
         List<QuestionItem> questionItems;
         try
@@ -31,32 +31,32 @@ public class UserInteractionToolHandlers
         }
         catch (Exception ex)
         {
-            return McpResultBuilder.Error().WithText($"Invalid questions JSON: {ex.Message}").Build();
+            return ToolResultBuilder.Error().WithText($"Invalid questions JSON: {ex.Message}").Build();
         }
 
         if (questionItems.Count == 0)
-            return McpResultBuilder.Error().WithText("At least 1 question required").Build();
+            return ToolResultBuilder.Error().WithText("At least 1 question required").Build();
 
         if (questionItems.Count > 4)
-            return McpResultBuilder.Error().WithText("Maximum 4 questions allowed").Build();
+            return ToolResultBuilder.Error().WithText("Maximum 4 questions allowed").Build();
 
         var validationError = ValidateQuestions(questionItems);
         if (validationError is not null)
-            return McpResultBuilder.Error().WithText(validationError).Build();
+            return ToolResultBuilder.Error().WithText(validationError).Build();
 
         var result = await _interactiveService.AskUserQuestionsAsync(questionItems, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
-            return McpResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to get user answers").Build();
+            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to get user answers").Build();
 
         if (result.Cancelled)
-            return McpResultBuilder.Error().WithText("User declined to answer questions").Build();
+            return ToolResultBuilder.Error().WithText("User declined to answer questions").Build();
 
         var answersText = result.Answers is not null
             ? string.Join(", ", result.Answers.Select(kv => $"\"{kv.Key}\"=\"{kv.Value}\""))
             : result.Answer ?? string.Empty;
 
-        return McpResultBuilder.Success()
+        return ToolResultBuilder.Success()
             .WithText($"User has answered your questions: {answersText}. You can now continue with the user's answers in mind.")
             .Build();
     }

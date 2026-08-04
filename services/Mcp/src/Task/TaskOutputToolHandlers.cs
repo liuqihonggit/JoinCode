@@ -22,7 +22,7 @@ public partial class TaskOutputToolHandlers
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(task_id))
-            return McpResultBuilder.Error().WithText(L.T(StringKey.TaskIdCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.TaskIdCannotBeEmpty)).Build();
 
         var outputType = TaskOutputTypeExtensions.FromValue(output_type ?? "all") ?? TaskOutputType.All;
 
@@ -30,7 +30,7 @@ public partial class TaskOutputToolHandlers
         {
             var task = await _taskService.GetTaskAsync(task_id, cancellationToken).ConfigureAwait(false);
             if (task == null)
-                return McpResultBuilder.Error().WithText(L.T(StringKey.TaskNotFound, task_id)).Build();
+                return ToolResultBuilder.Error().WithText(L.T(StringKey.TaskNotFound, task_id)).Build();
 
             var response = new System.Text.StringBuilder();
             response.AppendLine(L.T(StringKey.TaskOutputTitle, task_id));
@@ -57,13 +57,13 @@ public partial class TaskOutputToolHandlers
                 response.AppendLine(L.T(StringKey.TaskNoOutput));
             }
 
-            return McpResultBuilder.Success().WithText(response.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(response.ToString()).Build();
         }
         catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             _logger?.LogError(ex, L.T(StringKey.TaskOutputFailedLog, task_id));
-            return McpResultBuilder.Error().WithText(L.T(StringKey.TaskOutputFailed, ex.Message)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.TaskOutputFailed, ex.Message)).Build();
         }
     }
 }

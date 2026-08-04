@@ -20,7 +20,7 @@ public sealed class CodeIndexToolHandlers
     {
         if (string.IsNullOrWhiteSpace(query))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.QueryCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.QueryCannotBeEmpty)).Build();
         }
 
         try
@@ -29,7 +29,7 @@ public sealed class CodeIndexToolHandlers
 
             if (result.Items.Count == 0)
             {
-                return McpResultBuilder.Success().WithText(L.T(StringKey.NoMatchingSymbols, query)).Build();
+                return ToolResultBuilder.Success().WithText(L.T(StringKey.NoMatchingSymbols, query)).Build();
             }
 
             var sb = new System.Text.StringBuilder();
@@ -60,11 +60,11 @@ public sealed class CodeIndexToolHandlers
                 sb.AppendLine(L.T(StringKey.MoreResults, result.Items.Count - 30));
             }
 
-            return McpResultBuilder.Success().WithText(sb.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
         }
         catch (Exception ex)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.SymbolSearchFailed, ex.Message)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.SymbolSearchFailed, ex.Message)).Build();
         }
     }
 
@@ -77,7 +77,7 @@ public sealed class CodeIndexToolHandlers
     {
         if (string.IsNullOrWhiteSpace(pattern))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.QueryCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.QueryCannotBeEmpty)).Build();
         }
 
         try
@@ -91,7 +91,7 @@ public sealed class CodeIndexToolHandlers
                 var emptySb = new System.Text.StringBuilder();
                 emptySb.AppendLine(L.T(StringKey.NoMatchingSymbols, pattern));
                 emptySb.AppendLine($"耗时: {result.ElapsedMs}ms");
-                return McpResultBuilder.Success().WithText(emptySb.ToString()).Build();
+                return ToolResultBuilder.Success().WithText(emptySb.ToString()).Build();
             }
 
             var sb = new System.Text.StringBuilder();
@@ -165,11 +165,11 @@ public sealed class CodeIndexToolHandlers
                 sb.AppendLine();
             }
 
-            return McpResultBuilder.Success().WithText(sb.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
         }
         catch (Exception ex)
         {
-            return McpResultBuilder.Error().WithText($"综合检索失败: {ex.Message}").Build();
+            return ToolResultBuilder.Error().WithText($"综合检索失败: {ex.Message}").Build();
         }
     }
 
@@ -180,7 +180,7 @@ public sealed class CodeIndexToolHandlers
     {
         if (string.IsNullOrWhiteSpace(symbol_name))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.SymbolNameCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.SymbolNameCannotBeEmpty)).Build();
         }
 
         try
@@ -189,7 +189,7 @@ public sealed class CodeIndexToolHandlers
 
             if (definition is null)
             {
-                return McpResultBuilder.Success().WithText(L.T(StringKey.SymbolDefinitionNotFound, symbol_name)).Build();
+                return ToolResultBuilder.Success().WithText(L.T(StringKey.SymbolDefinitionNotFound, symbol_name)).Build();
             }
 
             var sb = new System.Text.StringBuilder();
@@ -212,11 +212,11 @@ public sealed class CodeIndexToolHandlers
                 sb.AppendLine(L.T(StringKey.LabelAccessModifier, definition.Accessibility));
             }
 
-            return McpResultBuilder.Success().WithText(sb.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
         }
         catch (Exception ex)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.FindDefinitionFailed, ex.Message)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.FindDefinitionFailed, ex.Message)).Build();
         }
     }
 
@@ -227,7 +227,7 @@ public sealed class CodeIndexToolHandlers
     {
         if (string.IsNullOrWhiteSpace(symbol_name))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.SymbolNameCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.SymbolNameCannotBeEmpty)).Build();
         }
 
         try
@@ -236,7 +236,7 @@ public sealed class CodeIndexToolHandlers
 
             if (references.Count == 0)
             {
-                return McpResultBuilder.Success().WithText(L.T(StringKey.SymbolReferencesNotFound, symbol_name)).Build();
+                return ToolResultBuilder.Success().WithText(L.T(StringKey.SymbolReferencesNotFound, symbol_name)).Build();
             }
 
             var sb = new System.Text.StringBuilder();
@@ -257,11 +257,11 @@ public sealed class CodeIndexToolHandlers
                 sb.AppendLine();
             }
 
-            return McpResultBuilder.Success().WithText(sb.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
         }
         catch (Exception ex)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.FindReferencesFailed, ex.Message)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.FindReferencesFailed, ex.Message)).Build();
         }
     }
 
@@ -272,7 +272,7 @@ public sealed class CodeIndexToolHandlers
     {
         if (string.IsNullOrWhiteSpace(symbol_name))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.SymbolNameCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.SymbolNameCannotBeEmpty)).Build();
         }
 
         try
@@ -281,7 +281,7 @@ public sealed class CodeIndexToolHandlers
 
             if (callers.Count == 0)
             {
-                return McpResultBuilder.Success().WithText(L.T(StringKey.CallersNotFound, symbol_name)).Build();
+                return ToolResultBuilder.Success().WithText(L.T(StringKey.CallersNotFound, symbol_name)).Build();
             }
 
             var sb = new System.Text.StringBuilder();
@@ -296,11 +296,11 @@ public sealed class CodeIndexToolHandlers
                 sb.AppendLine();
             }
 
-            return McpResultBuilder.Success().WithText(sb.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
         }
         catch (Exception ex)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.FindCallersFailed, ex.Message)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.FindCallersFailed, ex.Message)).Build();
         }
     }
 
@@ -311,7 +311,7 @@ public sealed class CodeIndexToolHandlers
     {
         if (string.IsNullOrWhiteSpace(symbol_name))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.SymbolNameCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.SymbolNameCannotBeEmpty)).Build();
         }
 
         try
@@ -320,7 +320,7 @@ public sealed class CodeIndexToolHandlers
 
             if (callees.Count == 0)
             {
-                return McpResultBuilder.Success().WithText(L.T(StringKey.CalleesNotFound, symbol_name)).Build();
+                return ToolResultBuilder.Success().WithText(L.T(StringKey.CalleesNotFound, symbol_name)).Build();
             }
 
             var sb = new System.Text.StringBuilder();
@@ -335,11 +335,11 @@ public sealed class CodeIndexToolHandlers
                 sb.AppendLine();
             }
 
-            return McpResultBuilder.Success().WithText(sb.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
         }
         catch (Exception ex)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.FindCalleesFailed, ex.Message)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.FindCalleesFailed, ex.Message)).Build();
         }
     }
 
@@ -351,12 +351,12 @@ public sealed class CodeIndexToolHandlers
     {
         if (string.IsNullOrWhiteSpace(from))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.FromCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.FromCannotBeEmpty)).Build();
         }
 
         if (string.IsNullOrWhiteSpace(to))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.ToCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.ToCannotBeEmpty)).Build();
         }
 
         try
@@ -365,7 +365,7 @@ public sealed class CodeIndexToolHandlers
 
             if (chain.Count == 0)
             {
-                return McpResultBuilder.Success().WithText(L.T(StringKey.CallChainNotFound, from, to)).Build();
+                return ToolResultBuilder.Success().WithText(L.T(StringKey.CallChainNotFound, from, to)).Build();
             }
 
             var sb = new System.Text.StringBuilder();
@@ -380,11 +380,11 @@ public sealed class CodeIndexToolHandlers
                 sb.AppendLine();
             }
 
-            return McpResultBuilder.Success().WithText(sb.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
         }
         catch (Exception ex)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.FindCallChainFailed, ex.Message)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.FindCallChainFailed, ex.Message)).Build();
         }
     }
 
@@ -395,7 +395,7 @@ public sealed class CodeIndexToolHandlers
     {
         if (string.IsNullOrWhiteSpace(symbol_name))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.SymbolNameCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.SymbolNameCannotBeEmpty)).Build();
         }
 
         try
@@ -404,7 +404,7 @@ public sealed class CodeIndexToolHandlers
 
             if (scope.Count == 0)
             {
-                return McpResultBuilder.Success().WithText(L.T(StringKey.ModifyNoImpact, symbol_name)).Build();
+                return ToolResultBuilder.Success().WithText(L.T(StringKey.ModifyNoImpact, symbol_name)).Build();
             }
 
             var sb = new System.Text.StringBuilder();
@@ -416,11 +416,11 @@ public sealed class CodeIndexToolHandlers
                 sb.AppendLine($"{i + 1}. {scope[i]}");
             }
 
-            return McpResultBuilder.Success().WithText(sb.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
         }
         catch (Exception ex)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.ImpactScopeAnalysisFailed, ex.Message)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.ImpactScopeAnalysisFailed, ex.Message)).Build();
         }
     }
 
@@ -431,7 +431,7 @@ public sealed class CodeIndexToolHandlers
     {
         if (string.IsNullOrWhiteSpace(symbol_name))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.SymbolNameCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.SymbolNameCannotBeEmpty)).Build();
         }
 
         try
@@ -440,7 +440,7 @@ public sealed class CodeIndexToolHandlers
 
             if (inheritors.Count == 0)
             {
-                return McpResultBuilder.Success().WithText(L.T(StringKey.InheritorsNotFound, symbol_name)).Build();
+                return ToolResultBuilder.Success().WithText(L.T(StringKey.InheritorsNotFound, symbol_name)).Build();
             }
 
             var sb = new System.Text.StringBuilder();
@@ -454,11 +454,11 @@ public sealed class CodeIndexToolHandlers
                 sb.AppendLine();
             }
 
-            return McpResultBuilder.Success().WithText(sb.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
         }
         catch (Exception ex)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.FindInheritorsFailed, ex.Message)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.FindInheritorsFailed, ex.Message)).Build();
         }
     }
 
@@ -469,7 +469,7 @@ public sealed class CodeIndexToolHandlers
     {
         if (string.IsNullOrWhiteSpace(symbol_name))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.SymbolNameCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.SymbolNameCannotBeEmpty)).Build();
         }
 
         try
@@ -478,7 +478,7 @@ public sealed class CodeIndexToolHandlers
 
             if (deps.Count == 0)
             {
-                return McpResultBuilder.Success().WithText(L.T(StringKey.DependenciesNotFound, symbol_name)).Build();
+                return ToolResultBuilder.Success().WithText(L.T(StringKey.DependenciesNotFound, symbol_name)).Build();
             }
 
             var sb = new System.Text.StringBuilder();
@@ -492,11 +492,11 @@ public sealed class CodeIndexToolHandlers
                 sb.AppendLine();
             }
 
-            return McpResultBuilder.Success().WithText(sb.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
         }
         catch (Exception ex)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.FindDependenciesFailed, ex.Message)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.FindDependenciesFailed, ex.Message)).Build();
         }
     }
 
@@ -507,7 +507,7 @@ public sealed class CodeIndexToolHandlers
     {
         if (string.IsNullOrWhiteSpace(file_path))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.FilePathCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.FilePathCannotBeEmpty)).Build();
         }
 
         try
@@ -516,7 +516,7 @@ public sealed class CodeIndexToolHandlers
 
             if (files.Count == 0)
             {
-                return McpResultBuilder.Success().WithText(L.T(StringKey.ModifyFileNoImpact, file_path)).Build();
+                return ToolResultBuilder.Success().WithText(L.T(StringKey.ModifyFileNoImpact, file_path)).Build();
             }
 
             var sb = new System.Text.StringBuilder();
@@ -528,11 +528,11 @@ public sealed class CodeIndexToolHandlers
                 sb.AppendLine($"{i + 1}. {files[i]}");
             }
 
-            return McpResultBuilder.Success().WithText(sb.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
         }
         catch (Exception ex)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.AffectedFilesAnalysisFailed, ex.Message)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.AffectedFilesAnalysisFailed, ex.Message)).Build();
         }
     }
 
@@ -543,7 +543,7 @@ public sealed class CodeIndexToolHandlers
     {
         if (string.IsNullOrWhiteSpace(workspace_root))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.WorkspaceRootCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.WorkspaceRootCannotBeEmpty)).Build();
         }
 
         try
@@ -557,11 +557,11 @@ public sealed class CodeIndexToolHandlers
             sb.AppendLine(L.T(StringKey.SkippedFiles, result.SkippedCount));
             sb.AppendLine(L.T(StringKey.DeletedFiles, result.DeletedCount));
 
-            return McpResultBuilder.Success().WithText(sb.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
         }
         catch (Exception ex)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.IndexRebuildFailed, ex.Message)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.IndexRebuildFailed, ex.Message)).Build();
         }
     }
 
@@ -582,11 +582,11 @@ public sealed class CodeIndexToolHandlers
             sb.AppendLine(L.T(StringKey.StatsProjectCount, stats.ProjectCount));
             sb.AppendLine(L.T(StringKey.StatsLastUpdated, stats.LastUpdated.ToString("yyyy-MM-dd HH:mm:ss")));
 
-            return McpResultBuilder.Success().WithText(sb.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
         }
         catch (Exception ex)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.GetStatsFailed, ex.Message)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.GetStatsFailed, ex.Message)).Build();
         }
     }
 
@@ -598,12 +598,12 @@ public sealed class CodeIndexToolHandlers
     {
         if (string.IsNullOrWhiteSpace(query))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.QueryCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.QueryCannotBeEmpty)).Build();
         }
 
         if (_disclosure is null)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.ProgressiveDisclosureNotEnabled)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.ProgressiveDisclosureNotEnabled)).Build();
         }
 
         var disclosureLevel = level.ToLowerInvariant() switch
@@ -629,11 +629,11 @@ public sealed class CodeIndexToolHandlers
                 sb.AppendLine(L.T(StringKey.NeedMoreInfoHint, ObjectSymbol.DiamondFilled.ToValue(), result.Level == DisclosureLevel.Index ? "relationships" : "source"));
             }
 
-            return McpResultBuilder.Success().WithText(sb.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
         }
         catch (Exception ex)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.ProgressiveExploreFailed, ex.Message)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.ProgressiveExploreFailed, ex.Message)).Build();
         }
     }
 
@@ -644,7 +644,7 @@ public sealed class CodeIndexToolHandlers
     {
         if (string.IsNullOrWhiteSpace(project_path))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.ProjectPathCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.ProjectPathCannotBeEmpty)).Build();
         }
 
         try
@@ -653,7 +653,7 @@ public sealed class CodeIndexToolHandlers
 
             if (deps.Count == 0)
             {
-                return McpResultBuilder.Success().WithText(L.T(StringKey.ProjectNoDependencies, project_path)).Build();
+                return ToolResultBuilder.Success().WithText(L.T(StringKey.ProjectNoDependencies, project_path)).Build();
             }
 
             var sb = new System.Text.StringBuilder();
@@ -665,11 +665,11 @@ public sealed class CodeIndexToolHandlers
                 sb.AppendLine($"{i + 1}. {deps[i].TargetProjectPath}");
             }
 
-            return McpResultBuilder.Success().WithText(sb.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
         }
         catch (Exception ex)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.FindProjectDependenciesFailed, ex.Message)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.FindProjectDependenciesFailed, ex.Message)).Build();
         }
     }
 
@@ -680,7 +680,7 @@ public sealed class CodeIndexToolHandlers
     {
         if (string.IsNullOrWhiteSpace(project_path))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.ProjectPathCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.ProjectPathCannotBeEmpty)).Build();
         }
 
         try
@@ -689,7 +689,7 @@ public sealed class CodeIndexToolHandlers
 
             if (dependents.Count == 0)
             {
-                return McpResultBuilder.Success().WithText(L.T(StringKey.NoProjectDependsOn, project_path)).Build();
+                return ToolResultBuilder.Success().WithText(L.T(StringKey.NoProjectDependsOn, project_path)).Build();
             }
 
             var sb = new System.Text.StringBuilder();
@@ -701,11 +701,11 @@ public sealed class CodeIndexToolHandlers
                 sb.AppendLine($"{i + 1}. {dependents[i].SourceProjectPath}");
             }
 
-            return McpResultBuilder.Success().WithText(sb.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
         }
         catch (Exception ex)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.FindProjectDependentsFailed, ex.Message)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.FindProjectDependentsFailed, ex.Message)).Build();
         }
     }
 
@@ -716,7 +716,7 @@ public sealed class CodeIndexToolHandlers
     {
         if (string.IsNullOrWhiteSpace(file_path))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.FilePathCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.FilePathCannotBeEmpty)).Build();
         }
 
         try
@@ -725,7 +725,7 @@ public sealed class CodeIndexToolHandlers
 
             if (projects.Count == 0)
             {
-                return McpResultBuilder.Success().WithText(L.T(StringKey.ModifyFileNoProjectImpact, file_path)).Build();
+                return ToolResultBuilder.Success().WithText(L.T(StringKey.ModifyFileNoProjectImpact, file_path)).Build();
             }
 
             var sb = new System.Text.StringBuilder();
@@ -737,11 +737,11 @@ public sealed class CodeIndexToolHandlers
                 sb.AppendLine($"{i + 1}. {projects[i]}");
             }
 
-            return McpResultBuilder.Success().WithText(sb.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
         }
         catch (Exception ex)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.AffectedProjectsAnalysisFailed, ex.Message)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.AffectedProjectsAnalysisFailed, ex.Message)).Build();
         }
     }
 
@@ -752,7 +752,7 @@ public sealed class CodeIndexToolHandlers
     {
         if (string.IsNullOrWhiteSpace(project_path))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.ProjectPathCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.ProjectPathCannotBeEmpty)).Build();
         }
 
         try
@@ -761,7 +761,7 @@ public sealed class CodeIndexToolHandlers
 
             if (packages.Count == 0)
             {
-                return McpResultBuilder.Success().WithText(L.T(StringKey.ProjectNoNuGetPackages, project_path)).Build();
+                return ToolResultBuilder.Success().WithText(L.T(StringKey.ProjectNoNuGetPackages, project_path)).Build();
             }
 
             var sb = new System.Text.StringBuilder();
@@ -774,11 +774,11 @@ public sealed class CodeIndexToolHandlers
                 sb.AppendLine($"{i + 1}. {pkg.PackageName}{(pkg.Version is not null ? $" ({pkg.Version})" : "")}");
             }
 
-            return McpResultBuilder.Success().WithText(sb.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
         }
         catch (Exception ex)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.FindNuGetPackagesFailed, ex.Message)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.FindNuGetPackagesFailed, ex.Message)).Build();
         }
     }
 
@@ -789,7 +789,7 @@ public sealed class CodeIndexToolHandlers
     {
         if (string.IsNullOrWhiteSpace(package_name))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.PackageNameCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.PackageNameCannotBeEmpty)).Build();
         }
 
         try
@@ -798,7 +798,7 @@ public sealed class CodeIndexToolHandlers
 
             if (projects.Count == 0)
             {
-                return McpResultBuilder.Success().WithText(L.T(StringKey.NoProjectUsingNuGet, package_name)).Build();
+                return ToolResultBuilder.Success().WithText(L.T(StringKey.NoProjectUsingNuGet, package_name)).Build();
             }
 
             var sb = new System.Text.StringBuilder();
@@ -810,11 +810,11 @@ public sealed class CodeIndexToolHandlers
                 sb.AppendLine($"{i + 1}. {projects[i]}");
             }
 
-            return McpResultBuilder.Success().WithText(sb.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
         }
         catch (Exception ex)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.FindProjectsFailed, ex.Message)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.FindProjectsFailed, ex.Message)).Build();
         }
     }
 
@@ -828,7 +828,7 @@ public sealed class CodeIndexToolHandlers
 
             if (projects.Count == 0)
             {
-                return McpResultBuilder.Success().WithText(L.T(StringKey.NoIndexedProjects)).Build();
+                return ToolResultBuilder.Success().WithText(L.T(StringKey.NoIndexedProjects)).Build();
             }
 
             var sb = new System.Text.StringBuilder();
@@ -854,11 +854,11 @@ public sealed class CodeIndexToolHandlers
                 sb.AppendLine();
             }
 
-            return McpResultBuilder.Success().WithText(sb.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
         }
         catch (Exception ex)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.ListProjectsFailed, ex.Message)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.ListProjectsFailed, ex.Message)).Build();
         }
     }
 

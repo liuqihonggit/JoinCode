@@ -37,13 +37,13 @@ public partial class BundledSkillToolHandlers
     {
         if (string.IsNullOrWhiteSpace(file_path))
         {
-            return ResultBuilder.Error().WithText("file_path cannot be empty").Build();
+            return ToolResultBuilder.Error().WithText("file_path cannot be empty").Build();
         }
 
         var readResult = await _fileOperationService.ReadFileAsync(file_path, cancellationToken: cancellationToken).ConfigureAwait(false);
         if (!readResult.Success)
         {
-            return ResultBuilder.Error().WithText($"File does not exist or read failed: {file_path}").Build();
+            return ToolResultBuilder.Error().WithText($"File does not exist or read failed: {file_path}").Build();
         }
 
         var content = readResult.Content;
@@ -76,7 +76,7 @@ public partial class BundledSkillToolHandlers
             }
         }
 
-        return ResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     #endregion
@@ -95,7 +95,7 @@ public partial class BundledSkillToolHandlers
     {
         if (string.IsNullOrWhiteSpace(path))
         {
-            return ResultBuilder.Error().WithText("path cannot be empty").Build();
+            return ToolResultBuilder.Error().WithText("path cannot be empty").Build();
         }
 
         var response = new System.Text.StringBuilder();
@@ -112,7 +112,7 @@ public partial class BundledSkillToolHandlers
             var fileResult = await _fileOperationService.ReadFileAsync(path, cancellationToken: cancellationToken).ConfigureAwait(false);
             if (!fileResult.Success)
             {
-                return ResultBuilder.Error().WithText($"Path does not exist: {path}").Build();
+                return ToolResultBuilder.Error().WithText($"Path does not exist: {path}").Build();
             }
             isFile = true;
         }
@@ -152,10 +152,10 @@ public partial class BundledSkillToolHandlers
 
         if (failed > 0)
         {
-            return ResultBuilder.Error().WithText(response.ToString()).Build();
+            return ToolResultBuilder.Error().WithText(response.ToString()).Build();
         }
 
-        return ResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     #endregion
@@ -174,7 +174,7 @@ public partial class BundledSkillToolHandlers
     {
         if (string.IsNullOrWhiteSpace(path))
         {
-            return ResultBuilder.Error().WithText("path cannot be empty").Build();
+            return ToolResultBuilder.Error().WithText("path cannot be empty").Build();
         }
 
         var isDirectory = _fs.DirectoryExists(path);
@@ -183,7 +183,7 @@ public partial class BundledSkillToolHandlers
             var fileResult = await _fileOperationService.ReadFileAsync(path, cancellationToken: cancellationToken).ConfigureAwait(false);
             if (!fileResult.Success)
             {
-                return ResultBuilder.Error().WithText($"Path does not exist: {path}").Build();
+                return ToolResultBuilder.Error().WithText($"Path does not exist: {path}").Build();
             }
         }
 
@@ -236,7 +236,7 @@ public partial class BundledSkillToolHandlers
         response.AppendLine("3. Check related dependencies and configuration");
         response.AppendLine("4. Verify input data and boundary conditions");
 
-        return ResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     #endregion
@@ -257,7 +257,7 @@ public partial class BundledSkillToolHandlers
     {
         if (string.IsNullOrWhiteSpace(pattern))
         {
-            return ResultBuilder.Error().WithText("pattern cannot be empty").Build();
+            return ToolResultBuilder.Error().WithText("pattern cannot be empty").Build();
         }
 
         var response = new System.Text.StringBuilder();
@@ -274,7 +274,7 @@ public partial class BundledSkillToolHandlers
 
         if (files.Count == 0)
         {
-            return ResultBuilder.Success().WithText(response.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(response.ToString()).Build();
         }
 
         var results = new List<(string File, bool Success, string Message)>();
@@ -333,7 +333,7 @@ public partial class BundledSkillToolHandlers
             }
         }
 
-        return ResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     #endregion
@@ -394,7 +394,7 @@ public partial class BundledSkillToolHandlers
         response.AppendLine("- Verify assumptions: check each prerequisite");
         response.AppendLine("- Seek help: consult docs or ask peers");
 
-        return Task.FromResult(ResultBuilder.Success().WithText(response.ToString()).Build());
+        return Task.FromResult(ToolResultBuilder.Success().WithText(response.ToString()).Build());
     }
 
     #endregion

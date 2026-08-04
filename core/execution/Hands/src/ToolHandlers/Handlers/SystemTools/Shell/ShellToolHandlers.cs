@@ -60,7 +60,7 @@ public partial class ShellToolHandlers : ShellToolBase
 
         await _pipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false);
 
-        return context.Result ?? ResultBuilder.Error().WithText("Pipeline did not produce a result").Build();
+        return context.Result ?? ToolResultBuilder.Error().WithText("Pipeline did not produce a result").Build();
     }
 
     /// <summary>
@@ -73,19 +73,19 @@ public partial class ShellToolHandlers : ShellToolBase
     {
         if (_backgroundTaskService == null)
         {
-            return ResultBuilder.Error().WithText("Background task service is not available").Build();
+            return ToolResultBuilder.Error().WithText("Background task service is not available").Build();
         }
 
         if (string.IsNullOrWhiteSpace(task_id))
         {
-            return ResultBuilder.Error().WithText("task_id is required").Build();
+            return ToolResultBuilder.Error().WithText("task_id is required").Build();
         }
 
         var task = await _backgroundTaskService.GetTaskAsync(task_id, cancellationToken).ConfigureAwait(false);
 
         if (task == null)
         {
-            return ResultBuilder.Error().WithText($"Task not found: {task_id}").Build();
+            return ToolResultBuilder.Error().WithText($"Task not found: {task_id}").Build();
         }
 
         var response = new StringBuilder();
@@ -116,7 +116,7 @@ public partial class ShellToolHandlers : ShellToolBase
             response.AppendLine($"Error: {task.ErrorMessage}");
         }
 
-        return ResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     /// <summary>
@@ -128,7 +128,7 @@ public partial class ShellToolHandlers : ShellToolBase
     {
         if (_backgroundTaskService == null)
         {
-            return ResultBuilder.Error().WithText("Background task service is not available").Build();
+            return ToolResultBuilder.Error().WithText("Background task service is not available").Build();
         }
 
         var tasks = await _backgroundTaskService.ListTasksAsync(cancellationToken).ConfigureAwait(false);
@@ -159,7 +159,7 @@ public partial class ShellToolHandlers : ShellToolBase
             }
         }
 
-        return ResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     /// <summary>
@@ -172,22 +172,22 @@ public partial class ShellToolHandlers : ShellToolBase
     {
         if (_backgroundTaskService == null)
         {
-            return ResultBuilder.Error().WithText("Background task service is not available").Build();
+            return ToolResultBuilder.Error().WithText("Background task service is not available").Build();
         }
 
         if (string.IsNullOrWhiteSpace(task_id))
         {
-            return ResultBuilder.Error().WithText("task_id is required").Build();
+            return ToolResultBuilder.Error().WithText("task_id is required").Build();
         }
 
         var output = await _backgroundTaskService.GetTaskOutputAsync(task_id, cancellationToken).ConfigureAwait(false);
 
         if (string.IsNullOrEmpty(output))
         {
-            return ResultBuilder.Success().WithText("(No output yet)").Build();
+            return ToolResultBuilder.Success().WithText("(No output yet)").Build();
         }
 
-        return ResultBuilder.Success().WithText(output).Build();
+        return ToolResultBuilder.Success().WithText(output).Build();
     }
 
     /// <summary>
@@ -200,22 +200,22 @@ public partial class ShellToolHandlers : ShellToolBase
     {
         if (_backgroundTaskService == null)
         {
-            return ResultBuilder.Error().WithText("Background task service is not available").Build();
+            return ToolResultBuilder.Error().WithText("Background task service is not available").Build();
         }
 
         if (string.IsNullOrWhiteSpace(task_id))
         {
-            return ResultBuilder.Error().WithText("task_id is required").Build();
+            return ToolResultBuilder.Error().WithText("task_id is required").Build();
         }
 
         var cancelled = await _backgroundTaskService.CancelTaskAsync(task_id, cancellationToken).ConfigureAwait(false);
 
         if (!cancelled)
         {
-            return ResultBuilder.Error().WithText($"Cannot cancel task {task_id} — task may not exist or already completed").Build();
+            return ToolResultBuilder.Error().WithText($"Cannot cancel task {task_id} — task may not exist or already completed").Build();
         }
 
-        return ResultBuilder.Success().WithText($"Task {task_id} cancelled").Build();
+        return ToolResultBuilder.Success().WithText($"Task {task_id} cancelled").Build();
     }
 
     /// <summary>
@@ -227,12 +227,12 @@ public partial class ShellToolHandlers : ShellToolBase
     {
         if (_backgroundTaskService == null)
         {
-            return ResultBuilder.Error().WithText("Background task service is not available").Build();
+            return ToolResultBuilder.Error().WithText("Background task service is not available").Build();
         }
 
         var killedCount = await _backgroundTaskService.KillAllRunningAsync(cancellationToken).ConfigureAwait(false);
 
-        return ResultBuilder.Success().WithText(killedCount > 0
+        return ToolResultBuilder.Success().WithText(killedCount > 0
             ? $"Killed {killedCount} running background task(s)"
             : "No running background tasks to kill").Build();
     }

@@ -265,9 +265,9 @@ public sealed class PermissionAwareToolExecutorEntityTests
     }
 
     [Fact]
-    public void ResultBuilder_WithEntityMetadata_PropagatesToToolResult()
+    public void ToolResultBuilder_WithEntityMetadata_PropagatesToToolResult()
     {
-        var result = ResultBuilder.Success()
+        var result = ToolResultBuilder.Success()
             .WithText("ok")
             .WithEntityMetadata(EntityMetadataEntry.Int("exit_code", 0))
             .Build();
@@ -279,9 +279,9 @@ public sealed class PermissionAwareToolExecutorEntityTests
     }
 
     [Fact]
-    public void McpResultBuilder_WithEntityMetadata_PropagatesToToolResult()
+    public void ToolResultBuilder_WithEntityMetadata_MultipleEntries()
     {
-        var result = McpResultBuilder.Success()
+        var result = ToolResultBuilder.Success()
             .WithText("ok")
             .WithEntityMetadata(EntityMetadataEntry.Int("http_status_code", 200))
             .WithEntityMetadata(EntityMetadataEntry.Long("content_length", 5000L))

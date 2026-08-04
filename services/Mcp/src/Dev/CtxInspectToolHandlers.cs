@@ -58,13 +58,13 @@ public partial class CtxInspectToolHandlers
                 }
             }
 
-            return McpResultBuilder.Success().WithText(response.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(response.ToString()).Build();
         }
         catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             _logger?.LogError(ex, L.T(StringKey.CtxInspectFailedLog));
-            return McpResultBuilder.Error().WithText(L.T(StringKey.CtxInspectFailed, ex.Message)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.CtxInspectFailed, ex.Message)).Build();
         }
     }
 }

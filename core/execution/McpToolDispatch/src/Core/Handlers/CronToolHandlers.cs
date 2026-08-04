@@ -52,14 +52,14 @@ public class CronToolHandlers
     {
         if (!CronExpressionParser.IsValid(cron))
         {
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText($"Invalid cron expression: {cron}\nFormat: minute hour day month weekday\nExamples: \"0 9 * * *\" (daily 9am), \"0 */6 * * *\" (every 6h), \"0 9 * * 1-5\" (weekdays 9am)")
                 .Build();
         }
 
         if (string.IsNullOrWhiteSpace(prompt))
         {
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText("prompt cannot be empty")
                 .Build();
         }
@@ -71,7 +71,7 @@ public class CronToolHandlers
         var agentId = _subAgentContextAccessor.Current?.AgentId;
         if (agentId is not null && isDurable)
         {
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText("Sub-agents cannot create durable (persisted) cron tasks. Durable tasks persist across sessions but sub-agents do not.")
                 .Build();
         }
@@ -79,7 +79,7 @@ public class CronToolHandlers
         var nextRun = CronJitterHelper.NextCronRunMs(cron, _clock.GetUtcNowOffset().ToUnixTimeMilliseconds());
         if (nextRun == null)
         {
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText($"Cron expression \"{cron}\" does not match any date in the next year. Please verify the expression is correct.")
                 .Build();
         }
@@ -87,7 +87,7 @@ public class CronToolHandlers
         var existingTasks = await _taskStore.GetAllTasksAsync(cancellationToken).ConfigureAwait(false);
         if (existingTasks.Count >= MaxTasks)
         {
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText($"Maximum number of scheduled tasks reached ({MaxTasks}). Delete existing tasks before creating new ones.")
                 .Build();
         }
@@ -131,7 +131,7 @@ public class CronToolHandlers
             response.Append($"Next run: {nextTime:yyyy-MM-dd HH:mm}");
         }
 
-        return McpResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     [McpTool(CronToolNameConstants.CronList, "List all scheduled tasks", "cron")]
@@ -145,7 +145,7 @@ public class CronToolHandlers
 
         if (tasks.Count == 0)
         {
-            return McpResultBuilder.Success()
+            return ToolResultBuilder.Success()
                 .WithText("No scheduled tasks")
                 .Build();
         }
@@ -168,7 +168,7 @@ public class CronToolHandlers
             response.AppendLine($"{task.Id} — {humanSchedule} ({type}) [{durability}]{owner}: {promptDisplay}");
         }
 
-        return McpResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     [McpTool(CronToolNameConstants.CronDelete, "Delete a scheduled task by ID", "cron")]
@@ -178,7 +178,7 @@ public class CronToolHandlers
     {
         if (string.IsNullOrWhiteSpace(task_id))
         {
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText("task_id cannot be empty")
                 .Build();
         }
@@ -186,7 +186,7 @@ public class CronToolHandlers
         var task = await _taskStore.GetTaskByIdAsync(task_id, cancellationToken).ConfigureAwait(false);
         if (task is null)
         {
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText($"Scheduled task {task_id} not found")
                 .Build();
         }
@@ -195,7 +195,7 @@ public class CronToolHandlers
         var agentId = _subAgentContextAccessor.Current?.AgentId;
         if (agentId is not null && task.AgentId != agentId)
         {
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText($"Cannot delete cron job '{task_id}': owned by another agent")
                 .Build();
         }
@@ -205,7 +205,7 @@ public class CronToolHandlers
         // 对齐 TS: 删除后通知调度器刷新
         _schedulerRef?.NotifyTaskChanged();
 
-        return McpResultBuilder.Success()
+        return ToolResultBuilder.Success()
             .WithText($"Cancelled job {task_id}")
             .Build();
     }
@@ -217,7 +217,7 @@ public class CronToolHandlers
     {
         if (string.IsNullOrWhiteSpace(cron))
         {
-            return Task.FromResult(McpResultBuilder.Error()
+            return Task.FromResult(ToolResultBuilder.Error()
                 .WithText("cron cannot be empty")
                 .Build());
         }
@@ -225,7 +225,7 @@ public class CronToolHandlers
         var fields = CronExpressionParser.Parse(cron);
         if (fields == null)
         {
-            return Task.FromResult(McpResultBuilder.Error()
+            return Task.FromResult(ToolResultBuilder.Error()
                 .WithText($"Invalid cron expression: {cron}\n\nFormat: minute hour day month weekday\nExamples:\n- \"0 9 * * *\" daily at 9am\n- \"0 */6 * * *\" every 6 hours\n- \"0 9 * * 1-5\" weekdays at 9am")
                 .Build());
         }
@@ -249,7 +249,7 @@ public class CronToolHandlers
             response.AppendLine($"Next run: {nextTime:yyyy-MM-dd HH:mm}");
         }
 
-        return Task.FromResult(McpResultBuilder.Success()
+        return Task.FromResult(ToolResultBuilder.Success()
             .WithText(response.ToString())
             .Build());
     }

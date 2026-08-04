@@ -48,14 +48,14 @@ public partial class VerifyPlanExecutionToolHandlers
                     response.AppendLine(L.T(StringKey.VerifyPlanError, result.Error));
             }
 
-            var builder = result.Success ? McpResultBuilder.Success() : McpResultBuilder.Error();
+            var builder = result.Success ? ToolResultBuilder.Success() : ToolResultBuilder.Error();
             return builder.WithText(response.ToString()).Build();
         }
         catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             _logger?.LogError(ex, L.T(StringKey.VerifyPlanFailedLog));
-            return McpResultBuilder.Error().WithText(L.T(StringKey.VerifyPlanFailed, ex.Message)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.VerifyPlanFailed, ex.Message)).Build();
         }
     }
 }

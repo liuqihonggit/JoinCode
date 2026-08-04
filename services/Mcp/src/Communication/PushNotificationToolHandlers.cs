@@ -25,9 +25,9 @@ public partial class PushNotificationToolHandlers
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(title))
-            return McpResultBuilder.Error().WithText(L.T(StringKey.PushNotificationTitleCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.PushNotificationTitleCannotBeEmpty)).Build();
         if (string.IsNullOrWhiteSpace(message))
-            return McpResultBuilder.Error().WithText(L.T(StringKey.PushNotificationMessageCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.PushNotificationMessageCannotBeEmpty)).Build();
 
         var notificationLevel = NotificationTypeExtensions.FromValue(level) ?? NotificationType.Info;
 
@@ -45,13 +45,13 @@ public partial class PushNotificationToolHandlers
             response.AppendLine(L.T(StringKey.PushNotificationLabelMessage, message));
             response.AppendLine(L.T(StringKey.PushNotificationLabelLevel, notificationLevel.ToValue()));
 
-            return McpResultBuilder.Success().WithText(response.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(response.ToString()).Build();
         }
         catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             _logger?.LogError(ex, "{Message}", L.T(StringKey.PushNotificationFailedLog));
-            return McpResultBuilder.Error().WithText(L.T(StringKey.PushNotificationFailed, ex.Message)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.PushNotificationFailed, ex.Message)).Build();
         }
     }
 }

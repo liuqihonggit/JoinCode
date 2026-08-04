@@ -57,7 +57,7 @@ public sealed partial class ShellBackgroundMiddleware : IShellMiddleware
         response.AppendLine($"  - Get output: shell_background_output task_id=\"{taskInfo.TaskId}\"");
         response.AppendLine($"  - Cancel task: shell_background_cancel task_id=\"{taskInfo.TaskId}\"");
 
-        context.BackgroundResult = ResultBuilder.Success().WithText(response.ToString()).Build();
+        context.BackgroundResult = ToolResultBuilder.Success().WithText(response.ToString()).Build();
         context.Result = context.BackgroundResult;
     }
 

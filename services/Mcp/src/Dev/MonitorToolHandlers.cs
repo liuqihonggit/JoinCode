@@ -22,7 +22,7 @@ public partial class MonitorToolHandlers
     {
         var monitorType = MonitorTypeExtensions.FromValue(monitor_type);
         if (monitorType == null)
-            return McpResultBuilder.Error().WithText(L.T(StringKey.MonitorUnknownType, monitor_type)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.MonitorUnknownType, monitor_type)).Build();
 
         try
         {
@@ -65,7 +65,7 @@ public partial class MonitorToolHandlers
                     {
                         var client = await _toolRegistry.GetRemoteClientAsync(client_id, cancellationToken).ConfigureAwait(false);
                         if (client == null)
-                            return McpResultBuilder.Error().WithText(L.T(StringKey.MonitorClientNotFound, client_id)).Build();
+                            return ToolResultBuilder.Error().WithText(L.T(StringKey.MonitorClientNotFound, client_id)).Build();
                         response.AppendLine(L.T(StringKey.MonitorClientHealthCheck, client_id));
                         response.AppendLine(L.T(StringKey.LabelServer, client.ServerInfo?.Name ?? L.T(StringKey.MonitorUnknown)));
                         response.AppendLine(L.T(StringKey.LabelStatus, client.IsConnected ? L.T(StringKey.MonitorConnected) : L.T(StringKey.MonitorDisconnected)));
@@ -85,13 +85,13 @@ public partial class MonitorToolHandlers
                     break;
             }
 
-            return McpResultBuilder.Success().WithText(response.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(response.ToString()).Build();
         }
         catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             _logger?.LogError(ex, L.T(StringKey.MonitorFailedLog));
-            return McpResultBuilder.Error().WithText(L.T(StringKey.MonitorFailed, ex.Message)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.MonitorFailed, ex.Message)).Build();
         }
     }
 }

@@ -54,7 +54,7 @@ public sealed partial class ShellClassificationMiddleware : IShellMiddleware
                 warning.AppendLine();
                 warning.AppendLine("If you are sure you want to execute this command, re-invoke and confirm you understand the risks.");
 
-                return ResultBuilder.Error().WithText(warning.ToString()).Build();
+                return ToolResultBuilder.Error().WithText(warning.ToString()).Build();
             }
 
             if (classification.Category == CommandCategory.PathViolation)
@@ -65,7 +65,7 @@ public sealed partial class ShellClassificationMiddleware : IShellMiddleware
                 {
                     warning.AppendLine(classification.Details);
                 }
-                return ResultBuilder.Error().WithText(warning.ToString()).Build();
+                return ToolResultBuilder.Error().WithText(warning.ToString()).Build();
             }
 
             return null; // 安全命令
@@ -91,7 +91,7 @@ public sealed partial class ShellClassificationMiddleware : IShellMiddleware
             warning.AppendLine("Danger level: " + dangerAnalysis.Level);
             warning.AppendLine("If you are sure you want to execute this command, re-invoke and confirm you understand the risks.");
 
-            return ResultBuilder.Error().WithText(warning.ToString()).Build();
+            return ToolResultBuilder.Error().WithText(warning.ToString()).Build();
         }
 
         return null;

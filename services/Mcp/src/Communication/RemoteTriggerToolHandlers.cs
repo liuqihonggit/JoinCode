@@ -25,7 +25,7 @@ public partial class RemoteTriggerToolHandlers
         {
             if (_triggerService == null)
             {
-                return McpResultBuilder.Error()
+                return ToolResultBuilder.Error()
                     .WithText(L.T(StringKey.RemoteTriggerServiceNotConfigured))
                     .Build();
             }
@@ -42,7 +42,7 @@ public partial class RemoteTriggerToolHandlers
 
             if (triggerAction == null)
             {
-                return McpResultBuilder.Error()
+                return ToolResultBuilder.Error()
                     .WithText(L.T(StringKey.RemoteTriggerUnknownAction, action))
                     .Build();
             }
@@ -50,7 +50,7 @@ public partial class RemoteTriggerToolHandlers
             if ((triggerAction == TriggerAction.Get || triggerAction == TriggerAction.Update || triggerAction == TriggerAction.Run)
                 && string.IsNullOrEmpty(trigger_id))
             {
-                return McpResultBuilder.Error()
+                return ToolResultBuilder.Error()
                     .WithText(L.T(StringKey.RemoteTriggerActionRequiresId, action))
                     .Build();
             }
@@ -65,18 +65,18 @@ public partial class RemoteTriggerToolHandlers
             {
                 response.AppendLine();
                 response.AppendLine(result.Json);
-                return McpResultBuilder.Success().WithText(response.ToString()).Build();
+                return ToolResultBuilder.Success().WithText(response.ToString()).Build();
             }
 
             response.AppendLine();
             response.AppendLine(L.T(StringKey.RemoteTriggerErrorResponse, result.Json));
-            return McpResultBuilder.Error().WithText(response.ToString()).Build();
+            return ToolResultBuilder.Error().WithText(response.ToString()).Build();
         }
         catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             _logger?.LogError(ex, "{Message}", L.T(StringKey.RemoteTriggerFailedLog));
-            return McpResultBuilder.Error().WithText(L.T(StringKey.RemoteTriggerFailed, ex.Message)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.RemoteTriggerFailed, ex.Message)).Build();
         }
     }
 }

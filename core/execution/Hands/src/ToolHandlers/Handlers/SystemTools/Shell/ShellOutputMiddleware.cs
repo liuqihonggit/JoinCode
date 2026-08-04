@@ -20,7 +20,7 @@ public sealed partial class ShellOutputMiddleware : IShellMiddleware
         var result = context.ExecutionResult;
         if (result is null)
         {
-            context.Result = ResultBuilder.Error().WithText("No execution result available").Build();
+            context.Result = ToolResultBuilder.Error().WithText("No execution result available").Build();
             return Task.CompletedTask;
         }
 
@@ -29,7 +29,7 @@ public sealed partial class ShellOutputMiddleware : IShellMiddleware
         if (result.Interrupted)
         {
             RecordShellMetrics(shellType, "execute", "interrupted");
-            context.Result = ResultBuilder.Error()
+            context.Result = ToolResultBuilder.Error()
                 .WithText(BuildOutputResponse(result, context.Command))
                 .WithEntityMetadata(EntityMetadataEntry.Int("exit_code", result.ExitCode ?? -1))
                 .WithEntityMetadata(EntityMetadataEntry.Bool("interrupted", true))
@@ -67,7 +67,7 @@ public sealed partial class ShellOutputMiddleware : IShellMiddleware
         if (interpretation.IsError)
         {
             RecordShellMetrics(shellType, "execute", "failed");
-            context.Result = ResultBuilder.Error()
+            context.Result = ToolResultBuilder.Error()
                 .WithText(output)
                 .WithEntityMetadata(EntityMetadataEntry.Int("exit_code", result.ExitCode ?? -1))
                 .Build();
@@ -75,7 +75,7 @@ public sealed partial class ShellOutputMiddleware : IShellMiddleware
         }
 
         RecordShellMetrics(shellType, "execute", "ok");
-        context.Result = ResultBuilder.Success()
+        context.Result = ToolResultBuilder.Success()
             .WithText(output)
             .WithEntityMetadata(EntityMetadataEntry.Int("exit_code", result.ExitCode ?? 0))
             .Build();

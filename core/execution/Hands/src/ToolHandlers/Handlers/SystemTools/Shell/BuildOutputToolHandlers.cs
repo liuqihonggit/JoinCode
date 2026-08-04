@@ -29,21 +29,21 @@ public partial class BuildOutputToolHandlers
     {
         if (_buildQueueService is null)
         {
-            return Task.FromResult(McpResultBuilder.Error()
+            return Task.FromResult(ToolResultBuilder.Error()
                 .WithText("Build queue service is not available")
                 .Build());
         }
 
         if (string.IsNullOrWhiteSpace(build_id))
         {
-            return Task.FromResult(McpResultBuilder.Error()
+            return Task.FromResult(ToolResultBuilder.Error()
                 .WithText("build_id is required")
                 .Build());
         }
 
         if (start_line < 1)
         {
-            return Task.FromResult(McpResultBuilder.Error()
+            return Task.FromResult(ToolResultBuilder.Error()
                 .WithText("start_line must be >= 1")
                 .Build());
         }
@@ -57,7 +57,7 @@ public partial class BuildOutputToolHandlers
                 ? $"\n[Build {build_id}, exit={entry.Result.ExitCode}]"
                 : "";
 
-            return Task.FromResult(McpResultBuilder.Success()
+            return Task.FromResult(ToolResultBuilder.Success()
                 .WithText($"{output}{totalInfo}")
                 .Build());
         }
@@ -65,7 +65,7 @@ public partial class BuildOutputToolHandlers
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Failed to get build output for {BuildId}", build_id);
-            return Task.FromResult(McpResultBuilder.Error()
+            return Task.FromResult(ToolResultBuilder.Error()
                 .WithText($"Failed: {ex.Message}")
                 .Build());
         }
@@ -80,7 +80,7 @@ public partial class BuildOutputToolHandlers
     {
         if (_buildQueueService is null)
         {
-            return Task.FromResult(McpResultBuilder.Error()
+            return Task.FromResult(ToolResultBuilder.Error()
                 .WithText("Build queue service is not available")
                 .Build());
         }
@@ -107,7 +107,7 @@ public partial class BuildOutputToolHandlers
                 }
             }
 
-            return Task.FromResult(McpResultBuilder.Success()
+            return Task.FromResult(ToolResultBuilder.Success()
                 .WithText(sb.ToString())
                 .Build());
         }
@@ -115,7 +115,7 @@ public partial class BuildOutputToolHandlers
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Failed to get build queue status");
-            return Task.FromResult(McpResultBuilder.Error()
+            return Task.FromResult(ToolResultBuilder.Error()
                 .WithText($"Failed: {ex.Message}")
                 .Build());
         }
@@ -131,14 +131,14 @@ public partial class BuildOutputToolHandlers
     {
         if (_buildQueueService is null)
         {
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText("Build queue service is not available")
                 .Build();
         }
 
         if (string.IsNullOrWhiteSpace(build_id))
         {
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText("build_id is required")
                 .Build();
         }
@@ -148,14 +148,14 @@ public partial class BuildOutputToolHandlers
             var cancelled = await _buildQueueService.CancelAsync(build_id, cancellationToken).ConfigureAwait(false);
 
             return cancelled
-                ? McpResultBuilder.Success().WithText($"Build {build_id} cancelled").Build()
-                : McpResultBuilder.Error().WithText($"Build {build_id} not found or already completed").Build();
+                ? ToolResultBuilder.Success().WithText($"Build {build_id} cancelled").Build()
+                : ToolResultBuilder.Error().WithText($"Build {build_id} not found or already completed").Build();
         }
         catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Failed to cancel build {BuildId}", build_id);
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText($"Failed: {ex.Message}")
                 .Build();
         }

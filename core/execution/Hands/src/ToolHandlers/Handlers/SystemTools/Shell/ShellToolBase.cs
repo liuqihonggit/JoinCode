@@ -44,7 +44,7 @@ public abstract class ShellToolBase
     {
         if (isPowerShellCall && _gateService is not null && !_gateService.IsPowerShellToolEnabled())
         {
-            return ResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText("PowerShell tool is not available on this platform. Set JCC_USE_POWERSHELL_TOOL=1 to enable.")
                 .Build();
         }
@@ -52,7 +52,7 @@ public abstract class ShellToolBase
         // 对齐 TS isWindowsSandboxPolicyViolation: Windows 上沙箱必需但不可用时拒绝 PS
         if (isPowerShellCall && IsWindowsSandboxPolicyViolation())
         {
-            return ResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText("Enterprise policy requires sandboxing, but sandboxing is not available on native Windows. PowerShell commands cannot be executed in this configuration.")
                 .Build();
         }

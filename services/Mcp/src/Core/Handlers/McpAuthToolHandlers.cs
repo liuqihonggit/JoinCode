@@ -33,12 +33,12 @@ public class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConfigProvider
     {
         if (string.IsNullOrWhiteSpace(auth_name))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.AuthNameCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.AuthNameCannotBeEmpty)).Build();
         }
 
         if (string.IsNullOrWhiteSpace(api_key))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.ApiKeyCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.ApiKeyCannotBeEmpty)).Build();
         }
 
         try
@@ -52,12 +52,12 @@ public class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConfigProvider
             response.AppendLine(L.T(StringKey.ApiKeyAuthConfigured, auth_name));
             response.AppendLine(L.T(StringKey.LabelHeader, header_name));
 
-            return McpResultBuilder.Success().WithText(response.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(response.ToString()).Build();
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, L.T(StringKey.ConfigureApiKeyAuthFailedLog));
-            return McpResultBuilder.Error().WithText(L.T(StringKey.ConfigurationFailed, ex.Message)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.ConfigurationFailed, ex.Message)).Build();
         }
     }
 
@@ -72,12 +72,12 @@ public class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConfigProvider
     {
         if (string.IsNullOrWhiteSpace(auth_name))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.AuthNameCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.AuthNameCannotBeEmpty)).Build();
         }
 
         if (string.IsNullOrWhiteSpace(token))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.TokenCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.TokenCannotBeEmpty)).Build();
         }
 
         try
@@ -91,12 +91,12 @@ public class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConfigProvider
             response.AppendLine(L.T(StringKey.BearerTokenAuthConfigured, auth_name));
             response.AppendLine(L.T(StringKey.LabelTokenPrefix, token[..Math.Min(20, token.Length)]));
 
-            return McpResultBuilder.Success().WithText(response.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(response.ToString()).Build();
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, L.T(StringKey.ConfigureBearerTokenAuthFailedLog));
-            return McpResultBuilder.Error().WithText(L.T(StringKey.ConfigurationFailed, ex.Message)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.ConfigurationFailed, ex.Message)).Build();
         }
     }
 
@@ -112,12 +112,12 @@ public class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConfigProvider
     {
         if (string.IsNullOrWhiteSpace(auth_name))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.AuthNameCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.AuthNameCannotBeEmpty)).Build();
         }
 
         if (string.IsNullOrWhiteSpace(username))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.UsernameCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.UsernameCannotBeEmpty)).Build();
         }
 
         try
@@ -131,12 +131,12 @@ public class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConfigProvider
             response.AppendLine(L.T(StringKey.BasicAuthConfigured, auth_name));
             response.AppendLine(L.T(StringKey.LabelUsername, username));
 
-            return McpResultBuilder.Success().WithText(response.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(response.ToString()).Build();
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, L.T(StringKey.ConfigureBasicAuthFailedLog));
-            return McpResultBuilder.Error().WithText(L.T(StringKey.ConfigurationFailed, ex.Message)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.ConfigurationFailed, ex.Message)).Build();
         }
     }
 
@@ -154,22 +154,22 @@ public class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConfigProvider
     {
         if (string.IsNullOrWhiteSpace(auth_name))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.AuthNameCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.AuthNameCannotBeEmpty)).Build();
         }
 
         if (string.IsNullOrWhiteSpace(client_id))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.ClientIdCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.ClientIdCannotBeEmpty)).Build();
         }
 
         if (string.IsNullOrWhiteSpace(client_secret))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.ClientSecretCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.ClientSecretCannotBeEmpty)).Build();
         }
 
         if (string.IsNullOrWhiteSpace(token_url))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.TokenUrlCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.TokenUrlCannotBeEmpty)).Build();
         }
 
         try
@@ -209,12 +209,12 @@ public class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConfigProvider
                 response.AppendLine(L.T(StringKey.LabelScopes, string.Join(", ", scopeList)));
             }
 
-            return McpResultBuilder.Success().WithText(response.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(response.ToString()).Build();
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, L.T(StringKey.ConfigureOAuth2AuthFailedLog));
-            return McpResultBuilder.Error().WithText(L.T(StringKey.ConfigurationFailed, ex.Message)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.ConfigurationFailed, ex.Message)).Build();
         }
     }
 
@@ -228,7 +228,7 @@ public class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConfigProvider
     {
         if (string.IsNullOrWhiteSpace(auth_name))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.AuthNameCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.AuthNameCannotBeEmpty)).Build();
         }
 
         await _authLock.WaitAsync(cancellationToken);
@@ -236,20 +236,20 @@ public class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConfigProvider
         {
             if (!_authProviders.TryGetValue(auth_name, out var provider))
             {
-                return McpResultBuilder.Error().WithText(L.T(StringKey.AuthConfigNotFound, auth_name)).Build();
+                return ToolResultBuilder.Error().WithText(L.T(StringKey.AuthConfigNotFound, auth_name)).Build();
             }
 
             var success = await provider.RefreshAsync(cancellationToken);
 
             if (success)
             {
-                return McpResultBuilder.Success()
+                return ToolResultBuilder.Success()
                     .WithText(L.T(StringKey.AuthTokenRefreshed, auth_name))
                     .Build();
             }
             else
             {
-                return McpResultBuilder.Error()
+                return ToolResultBuilder.Error()
                     .WithText(L.T(StringKey.RefreshAuthTokenFailed, auth_name))
                     .Build();
             }
@@ -257,7 +257,7 @@ public class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConfigProvider
         catch (Exception ex)
         {
             _logger?.LogError(ex, L.T(StringKey.RefreshAuthTokenFailedLog), auth_name);
-            return McpResultBuilder.Error().WithText(L.T(StringKey.RefreshFailed, ex.Message)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.RefreshFailed, ex.Message)).Build();
         }
         finally
         {
@@ -301,7 +301,7 @@ public class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConfigProvider
             {
                 if (!_authProviders.TryGetValue(auth_name, out var provider))
                 {
-                    return Task.FromResult(McpResultBuilder.Error()
+                    return Task.FromResult(ToolResultBuilder.Error()
                         .WithText(L.T(StringKey.AuthConfigNotFound, auth_name))
                         .Build());
                 }
@@ -311,12 +311,12 @@ public class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConfigProvider
                 response.AppendLine(L.T(StringKey.LabelStatus, provider.IsAuthenticated ? L.T(StringKey.Authenticated) : L.T(StringKey.NotAuthenticated)));
             }
 
-            return Task.FromResult(McpResultBuilder.Success().WithText(response.ToString()).Build());
+            return Task.FromResult(ToolResultBuilder.Success().WithText(response.ToString()).Build());
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, L.T(StringKey.GetAuthStatusFailedLog));
-            return Task.FromResult(McpResultBuilder.Error().WithText(L.T(StringKey.GetStatusFailed, ex.Message)).Build());
+            return Task.FromResult(ToolResultBuilder.Error().WithText(L.T(StringKey.GetStatusFailed, ex.Message)).Build());
         }
     }
 
@@ -330,28 +330,28 @@ public class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConfigProvider
     {
         if (string.IsNullOrWhiteSpace(auth_name))
         {
-            return Task.FromResult(McpResultBuilder.Error().WithText(L.T(StringKey.AuthNameCannotBeEmpty)).Build());
+            return Task.FromResult(ToolResultBuilder.Error().WithText(L.T(StringKey.AuthNameCannotBeEmpty)).Build());
         }
 
         try
         {
             if (!_authProviders.Remove(auth_name))
             {
-                return Task.FromResult(McpResultBuilder.Error()
+                return Task.FromResult(ToolResultBuilder.Error()
                     .WithText(L.T(StringKey.AuthConfigNotFound, auth_name))
                     .Build());
             }
 
             _ = RemovePersistedAuthConfigAsync(auth_name, cancellationToken);
 
-            return Task.FromResult(McpResultBuilder.Success()
+            return Task.FromResult(ToolResultBuilder.Success()
                 .WithText(L.T(StringKey.AuthConfigRemoved, auth_name))
                 .Build());
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, L.T(StringKey.RemoveAuthConfigFailedLog));
-            return Task.FromResult(McpResultBuilder.Error().WithText(L.T(StringKey.RemoveFailed, ex.Message)).Build());
+            return Task.FromResult(ToolResultBuilder.Error().WithText(L.T(StringKey.RemoveFailed, ex.Message)).Build());
         }
     }
 

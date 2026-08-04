@@ -27,7 +27,7 @@ public sealed partial class ShellValidationMiddleware : IShellMiddleware
         if (validationError != null)
         {
             context.ValidationError = validationError;
-            context.Result = ResultBuilder.Error().WithText(validationError).Build();
+            context.Result = ToolResultBuilder.Error().WithText(validationError).Build();
             return Task.CompletedTask; // 短路
         }
 

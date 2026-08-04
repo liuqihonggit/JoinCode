@@ -22,7 +22,7 @@ public sealed partial class PolicyToolHandlers
     {
         if (string.IsNullOrWhiteSpace(action))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.ActionCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.ActionCannotBeEmpty)).Build();
         }
 
         try
@@ -51,13 +51,13 @@ public sealed partial class PolicyToolHandlers
             }
 
             return result.Allowed
-                ? McpResultBuilder.Success().WithText(response.ToString()).Build()
-                : McpResultBuilder.Error().WithText(response.ToString()).Build();
+                ? ToolResultBuilder.Success().WithText(response.ToString()).Build()
+                : ToolResultBuilder.Error().WithText(response.ToString()).Build();
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, L.T(StringKey.PolicyCheckFailedLog), action);
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText(L.T(StringKey.PolicyCheckFailed, ex.Message))
                 .Build();
         }
@@ -97,12 +97,12 @@ public sealed partial class PolicyToolHandlers
                 }
             }
 
-            return McpResultBuilder.Success().WithText(response.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(response.ToString()).Build();
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, L.T(StringKey.GetPolicyListFailedLog));
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText(L.T(StringKey.GetPolicyListFailed, ex.Message))
                 .Build();
         }

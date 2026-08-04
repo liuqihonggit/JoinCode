@@ -685,3 +685,71 @@ Get-ChildItem "D:\project\w3\tests\MockServers\MockServer.Core\dumps\OpenAI" -Fi
 以破坏架构为耻,以遵循规范为荣;
 以假装理解为耻,以诚实无知为荣;
 以盲目修改为耻,以谨慎重构为荣;
+
+## 六项架构规则（2026-08-05 新增）
+
+### 规则1：超图与DAG不统一，但 ChainOrder 可升级
+
+- **结论**：DAG 管**执行顺序+硬依赖**（拓扑排序、环检测、增量重算），超图管**评分共享+链路推荐**（语义关联、权重传播）
+- **当前**：`ToolHyperedge.ChainOrder` 是 `string[]?`（简单线性链），是 DAG 的特例
+- **升级条件**：当 ChainOrder 需要支持分支/汇合（如"分析后可走代码生成或测试生成两条路"）时，改用 `Dag<string>` 替代 `string[]`
+- **禁止**：在无实际需求时强行统一两者，造成过度抽象
+
+### 规则2：MCP工具覆盖原则 — 296个工具已覆盖53个Category
+
+- **现状**：63个Handler类，296个McpTool方法，覆盖53个ToolCategory
+- **新增工具原则**：
+  1. 新工具必须归属已有 ToolCategory 枚举值，除非有充分理由新增枚举
+  2. 新增 ToolCategory 枚举值需同步更新 `ToolHypergraphPresets`（如有关联工具链）
+  3. 优先用 `[McpTool]` + 源码生成器模式，禁止手动实现 `IToolHandler`
+  4. 工具描述用中文（对齐 ErrorRecoveryToolHandlers 风格）
+  5. 新增工具后必须更新 `ToolCategory` 枚举的 `[EnumValue]` 并全量重建
+
+### 规则3：配置热重载 — 双变量切换模式
+
+- **现状**：`IConfigChangeNotifier` + `SettingsChangeApplier` 管道已监控 settings.json 变更，但只更新部分字段（EffortLevel、Hook缓存、Permission缓存），**不重建 WorkflowConfig**
+- **双变量切换模式**：
+  1. 每个可热重载的配置项维护两个变量：`_active`（当前生效）和 `_staging`（新值待切换）
+  2. 文件变更时：加载新值到 `_staging` → 验证合法性 → 原子交换 `_active = _staging`
+  3. 交换用 `Interlocked.Exchange` 或 `lock`，确保读取端无锁
+  4. WorkflowConfig 中的可热重载字段改为 `volatile` 或用 `FrozenDictionary` 不可变快照
+- **新增热重载字段**：ToolScoreSettings、BlacklistedTools、ToolPenalties、HyperedgeSettings（评分配置变更最频繁）
+- **禁止**：直接修改 `_active` 而不经过 `_staging` 验证
+
+### 规则4：工具函数统一 — 三项合并
+
+- **合并1：双 IToolHandler 接口**
+  - `McpProtocol.IToolHandler`（InputSchema=JsonElement, 返回object）保留为 MCP 协议内部类型
+  - `Abstractions.IToolHandler`（InputSchema=ToolSchema, 返回ToolResult, 有Kind/GroupName/onProgress）是主接口
+  - 两者不合并（语义不同），但 `McpProtocol.IToolHandler` 重命名为 `IMcpProtocolHandler` 避免混淆
+- **合并2：三个 ResultBuilder → 一个**
+  - `ToolResultBuilder`（Abstractions）= 基础版
+  - `ResultBuilder`（Hands）= +WithPdf +WithEntityMetadata
+  - `McpResultBuilder`（Abstractions）= +WithBinary +WithEntityMetadata
+  - **统一方案**：将 WithPdf/WithBinary/WithEntityMetadata 全部合并到 `ToolResultBuilder`，删除 `ResultBuilder` 和 `McpResultBuilder`
+- **合并3：ToolHandler 委托的 toolName 参数**
+  - 保留当前设计（DelegateToolHandler 内部补传 Name），不做修改
+  - 原因：委托需要工具名做路由，接口通过 this.Name 获取，两者语义不同
+
+### 规则5：参数传递传父类/接口，不传属性
+
+- **核心原则**：函数参数尽可能传父类/接口/完整对象，到了末尾才拆开使用
+- **反面案例**：`bool isBash = shell.Type == ShellType.Bash`，然后传 `isBash` 给下游
+- **正面案例**：直接传 `ShellProvider shell`，下游在需要时才 `shell.Type == ShellType.Bash`
+- **适用范围**：
+  1. 构造函数参数：传接口/完整对象
+  2. 方法参数：传接口/完整对象，除非方法只需要一个原始值（如 `int timeoutMs`）
+  3. 中间件管道：传 `TContext` 上下文对象，不传上下文的某个属性
+- **例外**：当拆开的属性是原始类型且语义独立（如 `string filePath`），不需要传整个 `IFileSystem`
+- **重构策略**：渐进式，每次发现一个就修一个，禁止一次性大规模重构
+
+### 规则6：归纳性重构不放弃
+
+- **原则**：无论扫描的地方如何复杂，只要存在归纳可能性，都不要放弃重构
+- **操作**：
+  1. 发现重复模式 → 提取公共方法/基类/接口
+  2. 发现相似逻辑 → 用策略模式或模板方法统一
+  3. 发现散落的常量 → 枚举化 + `[EnumValue]` + 源码生成器
+  4. 发现冗余的 Builder/Helper → 合并到统一入口
+- **放弃条件**：必须用户明确同意，AI不得自行放弃
+- **验证**：每次重构后编译+测试，确保不破坏现有功能

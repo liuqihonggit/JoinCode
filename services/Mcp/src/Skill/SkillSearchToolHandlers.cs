@@ -54,12 +54,12 @@ public sealed partial class SkillSearchToolHandlers
                 }
             }
 
-            return McpResultBuilder.Success().WithText(response.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(response.ToString()).Build();
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, L.T(StringKey.SkillSearchFailedLog));
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText(L.T(StringKey.SkillSearchFailed, ex.Message))
                 .Build();
         }
@@ -73,7 +73,7 @@ public sealed partial class SkillSearchToolHandlers
     {
         if (string.IsNullOrWhiteSpace(context))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.ContextDescriptionCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.ContextDescriptionCannotBeEmpty)).Build();
         }
 
         try
@@ -100,12 +100,12 @@ public sealed partial class SkillSearchToolHandlers
                 }
             }
 
-            return McpResultBuilder.Success().WithText(response.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(response.ToString()).Build();
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, L.T(StringKey.SkillRecommendFailedLog));
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText(L.T(StringKey.SkillRecommendFailed, ex.Message))
                 .Build();
         }
@@ -124,7 +124,7 @@ public sealed partial class SkillSearchToolHandlers
     {
         if (string.IsNullOrWhiteSpace(context))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.ContextDescriptionCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.ContextDescriptionCannotBeEmpty)).Build();
         }
 
         try
@@ -175,12 +175,12 @@ public sealed partial class SkillSearchToolHandlers
                 }
             }
 
-            return McpResultBuilder.Success().WithText(response.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(response.ToString()).Build();
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Skill discovery failed: {Message}", ex.Message);
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText($"Skill discovery failed: {ex.Message}")
                 .Build();
         }

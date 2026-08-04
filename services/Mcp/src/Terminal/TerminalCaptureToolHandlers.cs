@@ -36,7 +36,7 @@ public partial class TerminalCaptureToolHandlers
         catch (Exception ex)
         {
             _logger?.LogError(ex, L.T(StringKey.TerminalCaptureFailedLog));
-            return McpResultBuilder.Error().WithText(L.T(StringKey.TerminalCaptureFailed, ex.Message)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.TerminalCaptureFailed, ex.Message)).Build();
         }
     }
 
@@ -54,7 +54,7 @@ public partial class TerminalCaptureToolHandlers
                 response.AppendLine();
                 response.AppendLine(L.T(StringKey.BufferCaptureUnavailable));
                 response.AppendLine(L.T(StringKey.UseScreenModeCapture));
-                return McpResultBuilder.Success().WithText(response.ToString()).Build();
+                return ToolResultBuilder.Success().WithText(response.ToString()).Build();
             }
 
             response.AppendLine(L.T(StringKey.TerminalBufferCapture));
@@ -74,7 +74,7 @@ public partial class TerminalCaptureToolHandlers
             response.AppendLine(snapshot.Content);
         }
 
-        return McpResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     private ToolResult CaptureFallback(CaptureType captureType, int maxLines)
@@ -109,6 +109,6 @@ public partial class TerminalCaptureToolHandlers
             response.AppendLine(L.T(StringKey.PlatformNotSupportTerminalCapture));
         }
 
-        return McpResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 }

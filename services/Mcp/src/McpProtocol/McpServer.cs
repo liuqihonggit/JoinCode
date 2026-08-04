@@ -2,7 +2,7 @@ namespace McpProtocol;
 
 public class McpServer : IMcpServer
 {
-    private readonly Dictionary<string, McpProtocol.IToolHandler> _tools = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, IMcpProtocolHandler> _tools = new(StringComparer.Ordinal);
     private readonly Dictionary<string, IResourceHandler> _resources = new(StringComparer.Ordinal);
     private readonly Dictionary<string, IPromptHandler> _prompts = new(StringComparer.Ordinal);
     private readonly string _serverName;
@@ -32,17 +32,17 @@ public class McpServer : IMcpServer
     {
         ArgumentNullException.ThrowIfNull(toolInstance);
 
-        if (toolInstance is McpProtocol.IToolHandler handler)
+        if (toolInstance is IMcpProtocolHandler handler)
         {
             _tools[handler.Name] = handler;
         }
         else
         {
-            throw new ArgumentException($"Tool instance must implement {nameof(McpProtocol.IToolHandler)}", nameof(toolInstance));
+            throw new ArgumentException($"Tool instance must implement {nameof(IMcpProtocolHandler)}", nameof(toolInstance));
         }
     }
 
-    public void RegisterToolHandler(McpProtocol.IToolHandler handler)
+    public void RegisterToolHandler(IMcpProtocolHandler handler)
     {
         ArgumentNullException.ThrowIfNull(handler);
         _tools[handler.Name] = handler;

@@ -64,7 +64,7 @@ public class PowerShellToolHandlers : ShellToolBase
 
         if (string.IsNullOrWhiteSpace(command))
         {
-            return ResultBuilder.Error().WithText("command cannot be empty").Build();
+            return ToolResultBuilder.Error().WithText("command cannot be empty").Build();
         }
 
         var workDir = string.IsNullOrEmpty(working_directory) ? _fs.GetCurrentDirectory() : working_directory;
@@ -82,7 +82,7 @@ public class PowerShellToolHandlers : ShellToolBase
                 if (!string.IsNullOrEmpty(permResult.Suggestions)) { permWarning.AppendLine(); permWarning.AppendLine(permResult.Suggestions); }
 
                 RecordPsmetrics("ps_enhanced", permResult.Behavior == PermissionBehavior.Deny ? "denied" : "ask");
-                return ResultBuilder.Error().WithText(permWarning.ToString()).Build();
+                return ToolResultBuilder.Error().WithText(permWarning.ToString()).Build();
             }
         }
 
@@ -99,7 +99,7 @@ public class PowerShellToolHandlers : ShellToolBase
                 warning.AppendLine("If you are sure you want to execute this command, re-invoke and confirm you understand the risks.");
 
                 RecordPsmetrics("ps_enhanced", "dangerous");
-                return ResultBuilder.Error().WithText(warning.ToString()).Build();
+                return ToolResultBuilder.Error().WithText(warning.ToString()).Build();
             }
         }
 
@@ -119,7 +119,7 @@ public class PowerShellToolHandlers : ShellToolBase
 
         await _pipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false);
 
-        return context.Result ?? ResultBuilder.Error().WithText("Pipeline did not produce a result").Build();
+        return context.Result ?? ToolResultBuilder.Error().WithText("Pipeline did not produce a result").Build();
     }
 
     /// <summary>
@@ -140,19 +140,19 @@ public class PowerShellToolHandlers : ShellToolBase
 
         if (string.IsNullOrWhiteSpace(script_path))
         {
-            return ResultBuilder.Error().WithText("script_path cannot be empty").Build();
+            return ToolResultBuilder.Error().WithText("script_path cannot be empty").Build();
         }
 
         // 检查文件扩展名
         if (!script_path.EndsWith(".ps1", StringComparison.OrdinalIgnoreCase))
         {
-            return ResultBuilder.Error().WithText("File must be a .ps1 PowerShell script").Build();
+            return ToolResultBuilder.Error().WithText("File must be a .ps1 PowerShell script").Build();
         }
 
         var fileResult = await _fileOperationService.ReadFileAsync(script_path, cancellationToken: cancellationToken).ConfigureAwait(false);
         if (!fileResult.Success)
         {
-            return ResultBuilder.Error().WithText($"Script file does not exist: {script_path}").Build();
+            return ToolResultBuilder.Error().WithText($"Script file does not exist: {script_path}").Build();
         }
 
         // 构建PowerShell参数
@@ -186,7 +186,7 @@ public class PowerShellToolHandlers : ShellToolBase
         if (result.Interrupted)
         {
             RecordPsmetrics("ps_script", "interrupted");
-            return ResultBuilder.Error().WithText(result.Stderr).Build();
+            return ToolResultBuilder.Error().WithText(result.Stderr).Build();
         }
 
         var output = ShellOutputMiddleware.BuildOutputResponse(result);
@@ -194,11 +194,11 @@ public class PowerShellToolHandlers : ShellToolBase
         if (!result.Success)
         {
             RecordPsmetrics("ps_script", "failed");
-            return ResultBuilder.Error().WithText(output).Build();
+            return ToolResultBuilder.Error().WithText(output).Build();
         }
 
         RecordPsmetrics("ps_script", "ok");
-        return ResultBuilder.Success().WithText(output).Build();
+        return ToolResultBuilder.Success().WithText(output).Build();
     }
 
     /// <summary>
@@ -257,7 +257,7 @@ public class PowerShellToolHandlers : ShellToolBase
             response.AppendLine($"{StatusSymbol.Warning.ToValue()} {clmCheck.Warning}");
         }
 
-        return ResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     /// <summary>
@@ -309,7 +309,7 @@ public class PowerShellToolHandlers : ShellToolBase
         response.AppendLine("  - Unrestricted: All scripts allowed");
         response.AppendLine("  - Bypass: No restrictions");
 
-        return ResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     /// <summary>
@@ -327,13 +327,13 @@ public class PowerShellToolHandlers : ShellToolBase
 
         if (string.IsNullOrWhiteSpace(policy))
         {
-            return ResultBuilder.Error().WithText("policy cannot be empty").Build();
+            return ToolResultBuilder.Error().WithText("policy cannot be empty").Build();
         }
 
         var validPolicies = new[] { "Restricted", "AllSigned", "RemoteSigned", "Unrestricted", "Bypass", "Undefined" };
         if (!validPolicies.Contains(policy, StringComparer.OrdinalIgnoreCase))
         {
-            return ResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText($"Invalid execution policy: {policy}. Valid values: {string.Join(", ", validPolicies)}")
                 .Build();
         }
@@ -352,7 +352,7 @@ public class PowerShellToolHandlers : ShellToolBase
 
         if (result.Success)
         {
-            return ResultBuilder.Success()
+            return ToolResultBuilder.Success()
                 .WithText($"{StatusSymbol.Tick.ToValue()} Execution policy set to '{policy}' (scope: {scopeParam})")
                 .Build();
         }
@@ -365,7 +365,7 @@ public class PowerShellToolHandlers : ShellToolBase
                 error = $"{error}\n\n{StatusSymbol.Warning.ToValue()} Administrator privileges are required to change the execution policy for this scope.\nSuggestion: Use scope=\"Process\" to change the execution policy for the current process only.";
             }
 
-            return ResultBuilder.Error().WithText(error).Build();
+            return ToolResultBuilder.Error().WithText(error).Build();
         }
     }
 

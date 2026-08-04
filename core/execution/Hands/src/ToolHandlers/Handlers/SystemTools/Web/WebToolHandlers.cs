@@ -72,9 +72,9 @@ public class WebToolHandlers
         }
 
         var markdownContent = result.Content ?? string.Empty;
-        var isPreapproved = IsPreapprovedUrl(url);
 
         string processedResult;
+        var isPreapproved = IsPreapprovedUrl(url);
         if (isPreapproved
             && (result.ContentType?.Contains("text/markdown", StringComparison.OrdinalIgnoreCase) ?? false)
             && markdownContent.Length < 100_000)
@@ -84,7 +84,7 @@ public class WebToolHandlers
         else
         {
             processedResult = await ApplyPromptToMarkdownAsync(
-                prompt, markdownContent, isPreapproved, cancellationToken).ConfigureAwait(false);
+                prompt, markdownContent, url, cancellationToken).ConfigureAwait(false);
         }
 
         RecordWebMetrics("fetch", "ok", result.Bytes);
@@ -223,7 +223,7 @@ public class WebToolHandlers
     private async Task<string> ApplyPromptToMarkdownAsync(
         string prompt,
         string markdownContent,
-        bool isPreapprovedDomain,
+        string url,
         CancellationToken cancellationToken)
     {
         if (_queryService == null)
@@ -237,6 +237,7 @@ public class WebToolHandlers
             ? markdownContent[..100_000] + "\n\n[Content truncated due to length...]"
             : markdownContent;
 
+        var isPreapprovedDomain = IsPreapprovedUrl(url);
         var modelPrompt = WebFetchToolPrompt.MakeSecondaryModelPrompt(
             truncatedContent, prompt, isPreapprovedDomain);
 

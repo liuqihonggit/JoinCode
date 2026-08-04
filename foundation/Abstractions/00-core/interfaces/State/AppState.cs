@@ -697,3 +697,16 @@ public enum PermissionRequestStatus
     [EnumValue("rejected")] Rejected,
     [EnumValue("expired")] Expired
 }
+
+public static class TaskExecutionStatusSymbolExtensions
+{
+    public static StatusSymbol ToStatusSymbol(this TaskExecutionStatus status)
+        => status switch
+        {
+            TaskExecutionStatus.Running => StatusSymbol.Refresh,
+            TaskExecutionStatus.Completed => StatusSymbol.Tick,
+            TaskExecutionStatus.Failed => StatusSymbol.Cross,
+            TaskExecutionStatus.Cancelled => StatusSymbol.Prohibited,
+            _ => StatusSymbol.Circle
+        };
+}

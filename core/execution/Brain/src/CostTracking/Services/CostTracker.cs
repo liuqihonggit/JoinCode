@@ -79,6 +79,13 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
         };
 
         _usageRecords.Add(record);
+
+        var sessionKey = record.SessionId;
+        _sessionIndex.AddOrUpdate(
+            sessionKey,
+            _ => [record],
+            (_, existing) => { lock (existing) { existing.Add(record); } return existing; });
+
         _logger?.LogInformation("[CostTracker] 记录用量 - 模型: {Model}, Prompt: {PromptTokens}, Completion: {CompletionTokens}, CacheCreate: {CacheCreate}, CacheRead: {CacheRead}, 成本: ${Cost:F6}",
             model, promptTokens, completionTokens, cacheCreationTokens, cacheReadTokens, record.CostUsd);
 

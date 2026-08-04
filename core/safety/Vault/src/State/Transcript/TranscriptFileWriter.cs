@@ -34,38 +34,15 @@ internal sealed class TranscriptFileWriter
     {
         ArgumentNullException.ThrowIfNull(entry);
 
-        _logger?.LogWarning("[DIAG] AppendEntryAsync called: filePath={FilePath}", filePath);
-
         var entryToWrite = MaybeOffloadToPasteStore(entry);
 
         await _writeLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             EnsureDirectoryExists(Path.GetDirectoryName(filePath));
-
-            var maxRetries = 3;
-            for (var attempt = 0; attempt <= maxRetries; attempt++)
-            {
-                try
-                {
-                    await using var stream = OpenForAppend(filePath);
-                    await using var writer = new StreamWriter(stream);
-                    var line = JsonSerializer.Serialize(entryToWrite, TranscriptJsonContext.Default.TranscriptEntry);
-                    await writer.WriteLineAsync(line.AsMemory(), cancellationToken).ConfigureAwait(false);
-                    await writer.FlushAsync(cancellationToken).ConfigureAwait(false);
-                    break;
-                }
-                catch (UnauthorizedAccessException ex) when (attempt < maxRetries)
-                {
-                    _logger?.LogWarning(ex, "Transient UnauthorizedAccessException writing {FilePath}, retry {Attempt}/{Max}", filePath, attempt + 1, maxRetries);
-                    await Task.Delay(100 * (attempt + 1), cancellationToken).ConfigureAwait(false);
-                }
-                catch (IOException ex) when (attempt < maxRetries)
-                {
-                    _logger?.LogWarning(ex, "IOException writing {FilePath}, retry {Attempt}/{Max}", filePath, attempt + 1, maxRetries);
-                    await Task.Delay(100 * (attempt + 1), cancellationToken).ConfigureAwait(false);
-                }
-            }
+            EnsureFileExists(filePath);
+            var line = JsonSerializer.Serialize(entryToWrite, TranscriptJsonContext.Default.TranscriptEntry);
+            await _fs.AppendAllTextAsync(filePath, line + '\n', cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -85,7 +62,7 @@ internal sealed class TranscriptFileWriter
         ArgumentNullException.ThrowIfNull(entries);
         if (entries.Count == 0) return;
 
-        _logger?.LogWarning("[DIAG] AppendEntriesAsync called: filePath={FilePath}, count={Count}, _fs={FsType}", filePath, entries.Count, _fs.GetType().FullName);
+        _logger?.LogDebug("AppendEntriesAsync: filePath={FilePath}, count={Count}", filePath, entries.Count);
 
         await _writeLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -140,15 +117,12 @@ internal sealed class TranscriptFileWriter
     {
         if (!_fs.FileExists(filePath))
         {
-            _logger?.LogWarning("[DIAG] LoadTranscriptAsync: file not found, returning empty: {FilePath}", filePath);
             return Array.Empty<TranscriptEntry>();
         }
 
-        _logger?.LogWarning("[DIAG] LoadTranscriptAsync: reading file: {FilePath}", filePath);
-
         try
         {
-            var lines = await _fs.ReadAllLinesAsync(filePath, cancellationToken).ConfigureAwait(false);
+            var lines = await ReadAllLinesWithWriteShareAsync(filePath, cancellationToken).ConfigureAwait(false);
             var entries = new List<TranscriptEntry>(lines.Length);
 
             foreach (var line in lines)
@@ -208,8 +182,6 @@ internal sealed class TranscriptFileWriter
     /// </summary>
     private Stream OpenForAppend(string filePath)
     {
-        _logger?.LogWarning("[DIAG] OpenForAppend: _fs type={FsType}, filePath={FilePath}", _fs.GetType().FullName, filePath);
-
         var shareLevels = new[] { FileShare.ReadWrite, FileShare.Read, FileShare.None };
         Exception? lastEx = null;
         foreach (var share in shareLevels)
@@ -223,13 +195,13 @@ internal sealed class TranscriptFileWriter
             catch (UnauthorizedAccessException ex)
             {
                 lastEx = ex;
-                _logger?.LogWarning("[DIAG] OpenForAppend FileShare={Share} failed for {FilePath}, HResult=0x{HResult:X8}, Message={Message}", share, filePath, ex.HResult, ex.Message);
+                _logger?.LogDebug(ex, "OpenForAppend FileShare={Share} failed for {FilePath}", share, filePath);
                 continue;
             }
             catch (IOException ex)
             {
                 lastEx = ex;
-                _logger?.LogWarning("[DIAG] OpenForAppend FileShare={Share} IOException for {FilePath}, HResult=0x{HResult:X8}, Message={Message}", share, filePath, ex.HResult, ex.Message);
+                _logger?.LogDebug(ex, "OpenForAppend FileShare={Share} IOException for {FilePath}", share, filePath);
                 continue;
             }
         }
@@ -240,6 +212,38 @@ internal sealed class TranscriptFileWriter
     /// <summary>
     /// 确保文件存在 — FileMode.Append 在 .NET 5+ 中文件不存在时抛 FileNotFoundException
     /// </summary>
+    /// <summary>
+    /// 用 FileShare.ReadWrite 读取所有行 — 允许并发写入者，避免 ReadAllLinesAsync 的 FileShare.Read 阻止写入
+    /// </summary>
+    private async Task<string[]> ReadAllLinesWithWriteShareAsync(string filePath, CancellationToken cancellationToken)
+    {
+        // InMemoryFileSystem 的 CreateStream(FileMode.Open) 可能与写入路径不一致
+        // 优先尝试 ReadAllLinesAsync（FileShare.Read），失败时再用 ReadWrite 模式
+        try
+        {
+            return await _fs.ReadAllLinesAsync(filePath, cancellationToken).ConfigureAwait(false);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // FileShare.Read 冲突时，降级为 ReadWrite 模式
+            try
+            {
+                await using var stream = _fs.CreateStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                using var reader = new StreamReader(stream);
+                var lines = new List<string>();
+                while (await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false) is { } line)
+                {
+                    lines.Add(line);
+                }
+                return lines.ToArray();
+            }
+            catch (FileNotFoundException)
+            {
+                return [];
+            }
+        }
+    }
+
     private void EnsureFileExists(string filePath)
     {
         if (!_fs.FileExists(filePath))

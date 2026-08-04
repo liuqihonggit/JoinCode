@@ -59,7 +59,7 @@ public class PowerShellToolHandlers : ShellToolBase
         CancellationToken cancellationToken = default,
         ToolProgressCallback? onProgress = null)
     {
-        var gateResult = CheckGate(isPowerShellCall: true);
+        var gateResult = CheckGate(ShellType.PowerShell);
         if (gateResult is not null) return gateResult;
 
         if (string.IsNullOrWhiteSpace(command))
@@ -135,7 +135,7 @@ public class PowerShellToolHandlers : ShellToolBase
         [McpToolParameter("Working directory", Required = false)] string? working_directory = null,
         CancellationToken cancellationToken = default)
     {
-        var gateResult = CheckGate(isPowerShellCall: true);
+        var gateResult = CheckGate(ShellType.PowerShell);
         if (gateResult is not null) return gateResult;
 
         if (string.IsNullOrWhiteSpace(script_path))
@@ -208,7 +208,7 @@ public class PowerShellToolHandlers : ShellToolBase
     public async Task<ToolResult> PowerShellVersionAsync(
         CancellationToken cancellationToken = default)
     {
-        var gateResult = CheckGate(isPowerShellCall: true);
+        var gateResult = CheckGate(ShellType.PowerShell);
         if (gateResult is not null) return gateResult;
 
         var command = "$PSVersionTable | ConvertTo-Json";
@@ -268,7 +268,7 @@ public class PowerShellToolHandlers : ShellToolBase
         [McpToolParameter("Scope (e.g. Process, CurrentUser, LocalMachine)", Required = false)] string? scope = null,
         CancellationToken cancellationToken = default)
     {
-        var gateResult = CheckGate(isPowerShellCall: true);
+        var gateResult = CheckGate(ShellType.PowerShell);
         if (gateResult is not null) return gateResult;
 
         var command = string.IsNullOrEmpty(scope)
@@ -322,7 +322,7 @@ public class PowerShellToolHandlers : ShellToolBase
         [McpToolParameter("Force setting without confirmation prompt", Required = false, DefaultValue = "true")] bool? force = null,
         CancellationToken cancellationToken = default)
     {
-        var gateResult = CheckGate(isPowerShellCall: true);
+        var gateResult = CheckGate(ShellType.PowerShell);
         if (gateResult is not null) return gateResult;
 
         if (string.IsNullOrWhiteSpace(policy))

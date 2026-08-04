@@ -8,6 +8,7 @@
   <ItemGroup>
     <ProjectReference Include="$(RepoRoot)composition\Clock\src\Clock.csproj" />
     <ProjectReference Include="$(RepoRoot)infrastructure\Infrastructure\Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)core\safety\Guard\src\Guard.csproj" />
     <ProjectReference Include="$(RepoRoot)tests\Unit\Testing.Common\Testing.Common.csproj" />
   </ItemGroup>
   <ItemGroup>

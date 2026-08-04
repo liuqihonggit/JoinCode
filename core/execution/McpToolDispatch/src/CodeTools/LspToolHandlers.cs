@@ -23,16 +23,7 @@ public class LspToolHandlers {
         [McpToolParameter("Line number (1-based, consistent with editor)")] int line,
         [McpToolParameter("Character position (1-based, consistent with editor)")] int character,
         CancellationToken cancellationToken = default) {
-        if (string.IsNullOrWhiteSpace(file_path)) {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.FilePathCannotBeEmpty)).Build();
-        }
-
-        var fileResult = await _fileOperationService.ReadFileAsync(file_path, cancellationToken: cancellationToken).ConfigureAwait(false);
-        if (!fileResult.Success) {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.FileNotExist, file_path)).Build();
-        }
-
-        try {
+        return await ValidateFileAndExecuteAsync(file_path, async () => {
             var locations = await _lspService.GotoDefinitionAsync(file_path, line - 1, character - 1, cancellationToken).ConfigureAwait(false);
 
             locations = await FilterLocationsGitIgnoredAsync(locations).ConfigureAwait(false);
@@ -56,9 +47,7 @@ public class LspToolHandlers {
             }
 
             return ToolResultBuilder.Success().WithText(response.ToString()).Build();
-        } catch (Exception ex) {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.LspError, ex.Message)).Build();
-        }
+        }, cancellationToken);
     }
 
     /// <summary>
@@ -740,4 +729,24 @@ public class LspToolHandlers {
     }
 
     #endregion
+
+    private async Task<ToolResult> ValidateFileAndExecuteAsync(
+        string? file_path, Func<Task<ToolResult>> action, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(file_path))
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.FilePathCannotBeEmpty)).Build();
+
+        var fileResult = await _fileOperationService.ReadFileAsync(file_path, cancellationToken: cancellationToken).ConfigureAwait(false);
+        if (!fileResult.Success)
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.FileNotExist, file_path)).Build();
+
+        try
+        {
+            return await action().ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.LspError, ex.Message)).Build();
+        }
+    }
 }

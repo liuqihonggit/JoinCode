@@ -17,6 +17,7 @@ public sealed class ToolHealthMonitor : IToolHealthMonitor, IDisposable
     private readonly Timer? _decayTimer;
     private readonly HashSet<string> _blacklist;
     private readonly Dictionary<string, int> _penalties;
+    private readonly List<string> _blacklistPatterns;
 
     public ToolHealthMonitor(IFileSystem fs, ILogger<ToolHealthMonitor>? logger = null, ToolScoreConfig? config = null,
         HashSet<string>? blacklist = null, Dictionary<string, int>? penalties = null)
@@ -26,6 +27,7 @@ public sealed class ToolHealthMonitor : IToolHealthMonitor, IDisposable
         _config = config ?? new ToolScoreConfig();
         _blacklist = blacklist ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         _penalties = penalties ?? new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        _blacklistPatterns = _blacklist.Where(b => b.Contains('*')).ToList();
         _configPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "JoinCode",
@@ -35,9 +37,53 @@ public sealed class ToolHealthMonitor : IToolHealthMonitor, IDisposable
         _decayTimer = new Timer(_ => ApplyTimeDecay(), null, TimeSpan.FromHours(1), TimeSpan.FromHours(1));
     }
 
-    public bool IsBlacklisted(string toolName) => _blacklist.Contains(toolName);
+    public bool IsBlacklisted(string toolName)
+    {
+        if (_blacklist.Contains(toolName)) return true;
 
-    public int GetPenalty(string toolName) => _penalties.GetValueOrDefault(toolName, 0);
+        foreach (var pattern in _blacklistPatterns)
+        {
+            if (MatchesPattern(pattern, toolName)) return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// 简单通配符匹配 — 支持 * 通配任意字符
+    /// 例如: "shell_*" 匹配 "shell_check", "shell_background_get"
+    /// </summary>
+    private static bool MatchesPattern(string pattern, string toolName)
+    {
+        var parts = pattern.Split('*');
+        if (parts.Length == 1) return string.Equals(parts[0], toolName, StringComparison.OrdinalIgnoreCase);
+
+        if (!toolName.StartsWith(parts[0], StringComparison.OrdinalIgnoreCase)) return false;
+        if (!toolName.EndsWith(parts[^1], StringComparison.OrdinalIgnoreCase)) return false;
+
+        var idx = parts[0].Length;
+        for (var i = 1; i < parts.Length - 1; i++)
+        {
+            var pos = toolName.IndexOf(parts[i], idx, StringComparison.OrdinalIgnoreCase);
+            if (pos < 0) return false;
+            idx = pos + parts[i].Length;
+        }
+
+        return true;
+    }
+
+    public int GetPenalty(string toolName)
+    {
+        if (_penalties.TryGetValue(toolName, out var penalty)) return penalty;
+
+        foreach (var kvp in _penalties)
+        {
+            if (kvp.Key.Contains('*') && MatchesPattern(kvp.Key, toolName))
+                return kvp.Value;
+        }
+
+        return 0;
+    }
 
     public int GetEffectiveScore(string toolName)
     {

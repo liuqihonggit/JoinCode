@@ -302,4 +302,44 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime
         await _monitorWithBlacklist.RecordSuccessAsync("normal_tool");
         _monitorWithBlacklist.GetEffectiveScore("normal_tool").Should().Be(1);
     }
+
+    // === 通配符黑名单 ===
+
+    [Fact]
+    public void IsBlacklisted_WildcardPattern_MatchesToolName()
+    {
+        var fs = new InMemoryFileSystem();
+        using var monitor = new ToolHealthMonitor(fs,
+            blacklist: new HashSet<string>(["shell_*"], StringComparer.OrdinalIgnoreCase));
+
+        monitor.IsBlacklisted("shell_check").Should().BeTrue();
+        monitor.IsBlacklisted("shell_background_get").Should().BeTrue();
+        monitor.IsBlacklisted("Bash").Should().BeFalse();
+    }
+
+    [Fact]
+    public void IsBlacklisted_WildcardPrefixAndSuffix_MatchesToolName()
+    {
+        var fs = new InMemoryFileSystem();
+        using var monitor = new ToolHealthMonitor(fs,
+            blacklist: new HashSet<string>(["*_background_*"], StringComparer.OrdinalIgnoreCase));
+
+        monitor.IsBlacklisted("shell_background_get").Should().BeTrue();
+        monitor.IsBlacklisted("shell_background_list").Should().BeTrue();
+        monitor.IsBlacklisted("shell_check").Should().BeFalse();
+    }
+
+    // === 通配符降权 ===
+
+    [Fact]
+    public void GetPenalty_WildcardPattern_MatchesToolName()
+    {
+        var fs = new InMemoryFileSystem();
+        using var monitor = new ToolHealthMonitor(fs,
+            penalties: new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase) { ["shell_*"] = -30 });
+
+        monitor.GetPenalty("shell_check").Should().Be(-30);
+        monitor.GetPenalty("shell_background_get").Should().Be(-30);
+        monitor.GetPenalty("Bash").Should().Be(0);
+    }
 }

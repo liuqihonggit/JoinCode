@@ -119,7 +119,7 @@ public class PowerShellToolHandlers : ShellToolBase
 
         await _pipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false);
 
-        return context.Result ?? ToolResultBuilder.Error().WithText("Pipeline did not produce a result").Build();
+        return context.Result ?? ToolResultBuilder.PipelineNoResult();
     }
 
     /// <summary>

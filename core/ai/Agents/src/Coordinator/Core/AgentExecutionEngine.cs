@@ -17,29 +17,38 @@ public sealed partial class AgentExecutionEngine : IAgentExecutionEngine
     }
 
     /// <summary>
-    /// 并行执行多个Agent
+    /// 并行执行多个Agent — 支持并发度控制
     /// </summary>
     public async Task<IReadOnlyList<SubAgentResult>> ExecuteParallelAsync(
         IEnumerable<IAgent> agents,
         ParallelOptions? options = null,
+        ClusterExecutionOptions? clusterOptions = null,
         CancellationToken cancellationToken = default)
     {
         options ??= new ParallelOptions { MaxDegreeOfParallelism = CpuParallelism.GetDegree() };
+        var maxConcurrency = clusterOptions?.MaxConcurrency ?? options.MaxDegreeOfParallelism;
 
         var agentList = agents.ToList();
+        var semaphore = new SemaphoreSlim(Math.Max(1, maxConcurrency), Math.Max(1, maxConcurrency));
 
-        // 使用 LINQ 和 Task.WhenAll 替代 Parallel.ForEachAsync，符合项目规范
         var tasks = agentList
             .Select(async agent =>
             {
-                var result = await _lifecycleManager.ExecuteAsync(agent, cancellationToken).ConfigureAwait(false);
-                return (AgentId: agent.ObjectId.UniqueId, Result: result);
+                await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+                try
+                {
+                    var result = await _lifecycleManager.ExecuteAsync(agent, cancellationToken).ConfigureAwait(false);
+                    return (AgentId: agent.ObjectId.UniqueId, Result: result);
+                }
+                finally
+                {
+                    semaphore.Release();
+                }
             })
             .ToList();
 
         var results = await Task.WhenAll(tasks).ConfigureAwait(false);
 
-        // 使用字典保持原始顺序
         var resultDict = results.ToDictionary(r => r.AgentId, r => r.Result);
 
         return agentList

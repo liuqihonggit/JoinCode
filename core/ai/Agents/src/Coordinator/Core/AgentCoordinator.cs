@@ -293,6 +293,7 @@ public sealed partial class AgentCoordinator : IAgentCoordinator, ISubAgentCoord
     public async Task<IReadOnlyList<SubAgentResult>> ExecuteParallelAsync(
         IEnumerable<IAgent> agents,
         ParallelOptions? options = null,
+        ClusterExecutionOptions? clusterOptions = null,
         CancellationToken cancellationToken = default)
     {
         var agentList = agents.ToList();
@@ -306,7 +307,7 @@ public sealed partial class AgentCoordinator : IAgentCoordinator, ISubAgentCoord
             }
         }
 
-        return await _executionEngine.ExecuteParallelAsync(agentList, options, cancellationToken).ConfigureAwait(false);
+        return await _executionEngine.ExecuteParallelAsync(agentList, options, clusterOptions, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<IReadOnlyList<SubAgentResult>> ExecuteSequentialAsync(

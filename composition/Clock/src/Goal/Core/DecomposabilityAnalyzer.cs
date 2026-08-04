@@ -22,6 +22,13 @@ public sealed partial class DecomposabilityAnalyzer : IDecomposabilityAnalyzer
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(objective);
 
+        var envOverride = Environment.GetEnvironmentVariable("JCC_CLUSTER_DECOMPOSITION_OVERRIDE");
+        if (!string.IsNullOrWhiteSpace(envOverride))
+        {
+            _logger?.LogInformation("Decomposability analyzer using environment override");
+            return ParseAnalysisResult(envOverride);
+        }
+
         var prompt = BuildAnalyzerPrompt(objective, constraints);
 
         var chatHistory = new MessageList();

@@ -77,7 +77,7 @@ internal sealed class TranscriptFileWriter
             // FileMode.OpenOrCreate: 文件不存在时创建,存在时打开
             // 不用 FileMode.Append 是因为 .NET 5+ 中文件不存在时抛 FileNotFoundException (与 .NET Framework 不同)
             // 即使 EnsureFileExists 试图先创建文件,也可能因竞态/权限问题失败被吞,导致后续 Append 抛错
-            await using var stream = _fs.CreateStream(filePath, FileMode.OpenOrCreate, FileAccess.Write, FileShare.None);
+            await using var stream = _fs.CreateStream(filePath, FileMode.OpenOrCreate, FileAccess.Write, FileShare.Read);
             // OpenOrCreate 打开后指针在文件开头,需要 seek 到末尾才能追加
             stream.Seek(0, SeekOrigin.End);
             await using var writer = new StreamWriter(stream);
@@ -176,7 +176,7 @@ internal sealed class TranscriptFileWriter
         {
             try
             {
-                _fs.CreateStream(filePath, FileMode.CreateNew, FileAccess.Write, FileShare.None).Dispose();
+                _fs.CreateStream(filePath, FileMode.CreateNew, FileAccess.Write, FileShare.Read).Dispose();
             }
             catch (IOException ex) when (_fs.FileExists(filePath))
             {

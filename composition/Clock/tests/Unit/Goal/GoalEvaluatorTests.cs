@@ -111,6 +111,17 @@ public sealed class GoalEvaluatorTests
     }
 
     [Fact]
+    public void ParseEvaluationResult_ObjectIntoBool_DegradationDetail_Reaches_Reason()
+    {
+        // 纵深防御第4层精确报错：字段级宽容降级明细拼入 Reason，随续作提示回喂 LLM
+        var result = GoalEvaluator.ParseEvaluationResult("""{"completed": {"nested": true}, "reason": "x"}""");
+
+        Assert.False(result.IsCompleted);
+        Assert.Contains("宽容修复", result.Reason);
+        Assert.Contains("completed", result.Reason);
+    }
+
+    [Fact]
     public async Task EvaluateAsync_NullObjective_Should_Throw()
     {
         var kernel = new Mock<IChatClient>();

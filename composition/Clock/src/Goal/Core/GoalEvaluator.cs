@@ -59,18 +59,27 @@ public sealed partial class GoalEvaluator : IGoalEvaluator
             return GoalEvaluationResult.NotCompleted(L.T(StringKey.GoalEvaluatorEmptyResult));
         }
 
-        var result = LlmJsonHelper.Deserialize(content, GoalJsonContext.Default.GoalEvaluationJson, out var repairHint);
+        var result = LlmJsonHelper.DeserializeWithReport(content, GoalJsonContext.Default.GoalEvaluationJson, out var report);
         if (result is not null)
         {
-            if (repairHint is not null)
-                System.Diagnostics.Trace.WriteLine($"Goal evaluation JSON repaired: {repairHint}");
+            if (report.RepairHint is not null)
+                System.Diagnostics.Trace.WriteLine($"Goal evaluation JSON repaired: {report.RepairHint}");
+
+            // 字段级宽容降级明细也回喂 LLM：让下一轮知道自己字段被默认值替换，避免误解
+            var reason = result.Reason;
+            if (report.FormatForLlm() is { Length: > 0 } detail)
+                reason = $"{reason} [宽容修复: {detail}]";
 
             return result.Completed
-                ? GoalEvaluationResult.Completed(result.Reason)
-                : GoalEvaluationResult.NotCompleted(result.Reason);
+                ? GoalEvaluationResult.Completed(reason)
+                : GoalEvaluationResult.NotCompleted(reason);
         }
 
-        return GoalEvaluationResult.NotCompleted(L.T(StringKey.GoalEvaluatorFormatError, content.Trim()));
+        // 精确报错回喂 LLM：格式异常的原因里带上字段级修复明细，随续作提示进入下一轮对话
+        var formatError = L.T(StringKey.GoalEvaluatorFormatError, content.Trim());
+        if (report.FormatForLlm() is { Length: > 0 } failureDetail)
+            formatError = $"{formatError} | 解析明细: {failureDetail}";
+        return GoalEvaluationResult.NotCompleted(formatError);
     }
 
     private static string BuildEvaluatorPrompt(string objective, IReadOnlyList<string> constraints, string recentConversation)

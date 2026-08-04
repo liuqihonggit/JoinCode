@@ -118,9 +118,13 @@ public sealed partial class PromptHookExecutor : HookExecutorBase<PromptHook>
 
         try
         {
-            var hookDecision = LlmJsonHelper.Deserialize(jsonMatch, HooksJsonContext.Default.HookDecision, out _);
+            var hookDecision = LlmJsonHelper.Deserialize(jsonMatch, HooksJsonContext.Default.HookDecision, out var repairHint);
             if (hookDecision is null)
+            {
+                if (!string.IsNullOrEmpty(repairHint))
+                    Logger?.LogWarning("LLM Hook JSON 反序列化失败/已宽容修复: {Detail}", repairHint);
                 return HookResult.Success(message: "LLM validation passed (empty response)");
+            }
 
             var decisionStr = hookDecision.Decision?.ToLowerInvariant() ?? PermissionBehaviorConstants.Allow;
             var decision = PermissionBehaviorExtensions.FromValue(decisionStr) ?? PermissionBehavior.Allow;

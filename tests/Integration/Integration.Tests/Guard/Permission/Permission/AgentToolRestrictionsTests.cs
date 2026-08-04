@@ -51,6 +51,6 @@ public sealed class AgentToolRestrictionsTests
         var config = PermissionConfig.CreateDefault();
 
         // Assert — TaskOutput 是只读工具（获取后台任务输出），应在默认 AutoApprovedTools 中
-        Assert.Contains(config.AutoApprovedTools, r => r.ToolName == SystemToolNameConstants.TaskOutput);
+        Assert.Contains(config.AutoApprovedTools.Values, r => r.ToolName == SystemToolNameConstants.TaskOutput);
     }
 }

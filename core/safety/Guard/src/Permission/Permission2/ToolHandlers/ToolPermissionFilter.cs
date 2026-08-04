@@ -20,13 +20,13 @@ public sealed partial class ToolDenyRule
 [Register]
 public sealed partial class ToolPermissionFilter : IToolPermissionFilter
 {
-    private readonly ConcurrentBag<ToolDenyRule> _denyRules;
+    private readonly ConcurrentDictionary<string, ToolDenyRule> _denyRules;
     [Inject] private readonly ILogger<ToolPermissionFilter>? _logger;
     private readonly ITelemetryService? _telemetryService;
 
     public ToolPermissionFilter(ILogger<ToolPermissionFilter>? logger = null, ITelemetryService? telemetryService = null)
     {
-        _denyRules = new ConcurrentBag<ToolDenyRule>();
+        _denyRules = new ConcurrentDictionary<string, ToolDenyRule>(StringComparer.OrdinalIgnoreCase);
         _logger = logger;
         _telemetryService = telemetryService;
     }
@@ -53,7 +53,7 @@ public sealed partial class ToolPermissionFilter : IToolPermissionFilter
 
     public bool IsToolDenied(string toolName, string? permissionMode = null)
     {
-        foreach (var rule in _denyRules)
+        foreach (var rule in _denyRules.Values)
         {
             if (!string.IsNullOrEmpty(rule.PermissionMode) &&
                 !string.Equals(rule.PermissionMode, permissionMode, StringComparison.OrdinalIgnoreCase))
@@ -95,7 +95,7 @@ public sealed partial class ToolPermissionFilter : IToolPermissionFilter
     public void AddDenyRule(ToolDenyRule rule)
     {
         ArgumentNullException.ThrowIfNull(rule);
-        _denyRules.Add(rule);
+        _denyRules[rule.RuleName] = rule;
         _logger?.LogInformation("[ToolPermissionFilter] 添加拒绝规则: {RuleName} (模式: {Pattern})",
             rule.RuleName, rule.ToolPattern);
     }
@@ -104,13 +104,7 @@ public sealed partial class ToolPermissionFilter : IToolPermissionFilter
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(ruleName);
 
-        var rulesToRemove = _denyRules.Where(r => r.RuleName == ruleName).ToList();
-        foreach (var rule in rulesToRemove)
-        {
-            _ = _denyRules.TryTake(out var _);
-        }
-
-        if (rulesToRemove.Count > 0)
+        if (_denyRules.TryRemove(ruleName, out _))
         {
             _logger?.LogInformation("[ToolPermissionFilter] 移除拒绝规则: {RuleName}", ruleName);
         }

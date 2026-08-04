@@ -105,11 +105,11 @@ public static partial class ServiceRegistration
                 foreach (var rule in settings.Permissions.Allow)
                 {
                     var parsed = ParsePermissionRuleValue(rule);
-                    if (parsed is not null && !options.AutoApprovedTools.Any(r =>
+                    if (parsed is not null && !options.AutoApprovedTools.Values.Any(r =>
                         string.Equals(r.ToolName, parsed.ToolName, StringComparison.OrdinalIgnoreCase) &&
                         string.Equals(r.RuleContent ?? "", parsed.RuleContent ?? "", StringComparison.OrdinalIgnoreCase)))
                     {
-                        options.AutoApprovedTools.Add(parsed);
+                        options.AutoApprovedTools[parsed.ToolName] = parsed;
                     }
                 }
             }
@@ -120,7 +120,7 @@ public static partial class ServiceRegistration
                 {
                     var parsed = ParsePermissionRuleValue(rule);
                     if (parsed is not null)
-                        options.AutoRejectedTools.Add(parsed);
+                        options.AutoRejectedTools[parsed.ToolName] = parsed;
                 }
             }
 

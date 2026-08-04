@@ -46,7 +46,7 @@ public sealed partial class WebFetchPermissionMiddleware : IPermissionMiddleware
         var ruleContent = ExtractWebFetchRuleContent(url);
 
         // 2. deny 规则匹配
-        if (MatchesWebFetchRule(config.AutoRejectedTools, ruleContent))
+        if (MatchesWebFetchRule(config.AutoRejectedTools.Values, ruleContent))
             return ToolPermissionCheckResult.Rejected($"WebFetch denied access to {ruleContent}.");
 
         // 3. ask 规则匹配
@@ -55,7 +55,7 @@ public sealed partial class WebFetchPermissionMiddleware : IPermissionMiddleware
                 $"Claude requested permissions to use {toolName}, but you haven't granted it yet.");
 
         // 4. allow 规则匹配（含 RuleContent 的细粒度规则）
-        if (MatchesWebFetchRuleWithContent(config.AutoApprovedTools, ruleContent))
+        if (MatchesWebFetchRuleWithContent(config.AutoApprovedTools.Values, ruleContent))
             return ToolPermissionCheckResult.Approved();
 
         // 5. 默认 → ask
@@ -84,11 +84,10 @@ public sealed partial class WebFetchPermissionMiddleware : IPermissionMiddleware
     /// <summary>
     /// 检查规则列表中是否有匹配的 RuleContent
     /// </summary>
-    private static bool MatchesWebFetchRule(List<ToolPermissionRule> rules, string ruleContent)
+    private static bool MatchesWebFetchRule(IEnumerable<ToolPermissionRule> rules, string ruleContent)
     {
-        for (var i = 0; i < rules.Count; i++)
+        foreach (var rule in rules)
         {
-            var rule = rules[i];
             if (!string.Equals(rule.ToolName, WebToolNameConstants.WebFetch, StringComparison.OrdinalIgnoreCase))
                 continue;
             if (string.IsNullOrEmpty(rule.RuleContent))
@@ -104,11 +103,10 @@ public sealed partial class WebFetchPermissionMiddleware : IPermissionMiddleware
     /// 检查 allow 规则列表中是否有匹配的 RuleContent
     /// 无 RuleContent 的 WebFetch 规则不匹配（避免无条件批准所有域名）
     /// </summary>
-    private static bool MatchesWebFetchRuleWithContent(List<ToolPermissionRule> rules, string ruleContent)
+    private static bool MatchesWebFetchRuleWithContent(IEnumerable<ToolPermissionRule> rules, string ruleContent)
     {
-        for (var i = 0; i < rules.Count; i++)
+        foreach (var rule in rules)
         {
-            var rule = rules[i];
             if (!string.Equals(rule.ToolName, WebToolNameConstants.WebFetch, StringComparison.OrdinalIgnoreCase))
                 continue;
             if (string.IsNullOrEmpty(rule.RuleContent))

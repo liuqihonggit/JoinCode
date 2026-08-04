@@ -184,9 +184,13 @@ public abstract class HookExecutorBase<THook> : IHookExecutor<THook> where THook
     /// </summary>
     protected virtual HookResult ParseJsonResponse(string jsonLine, string stdout, string stderr)
     {
-        var hookDecision = LlmJsonHelper.Deserialize(jsonLine, HooksJsonContext.Default.HookDecision, out _);
+        var hookDecision = LlmJsonHelper.Deserialize(jsonLine, HooksJsonContext.Default.HookDecision, out var repairHint);
         if (hookDecision is null)
+        {
+            if (!string.IsNullOrEmpty(repairHint))
+                Logger?.LogWarning("Hook JSON 反序列化失败/已宽容修复: {Detail}", repairHint);
             return new HookResult { Outcome = HookOutcome.Success };
+        }
 
         var outcome = HookOutcome.Success;
         var preventContinuation = false;

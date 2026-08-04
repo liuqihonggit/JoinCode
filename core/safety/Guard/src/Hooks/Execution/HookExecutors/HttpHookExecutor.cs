@@ -158,9 +158,13 @@ public sealed partial class HttpHookExecutor : HookExecutorBase<HttpHook>
 
     private HookResult ParseJsonResponse(string json)
     {
-        var hookDecision = LlmJsonHelper.Deserialize(json, HooksJsonContext.Default.HookDecision, out _);
+        var hookDecision = LlmJsonHelper.Deserialize(json, HooksJsonContext.Default.HookDecision, out var repairHint);
         if (hookDecision is null)
+        {
+            if (!string.IsNullOrEmpty(repairHint))
+                Logger?.LogWarning("外部 Hook JSON 反序列化失败/已宽容修复: {Detail}", repairHint);
             return new HookResult { Outcome = HookOutcome.Success };
+        }
 
         var outcome = HookOutcome.Success;
         var preventContinuation = false;

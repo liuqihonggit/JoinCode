@@ -249,6 +249,17 @@ public static class JsonLenientCoercer
             case JsonValueKind.Null:
                 return new CoerceAction(JsonElementHelper.FromBoolean(false), true, false, null);
 
+            case JsonValueKind.Object:
+            case JsonValueKind.Array:
+                return new CoerceAction(default, true, true,
+                    new JsonCoercionIssue
+                    {
+                        PropertyPath = name,
+                        ExpectedType = effective.Name,
+                        ActualValueKind = kind.ToString(),
+                        Reason = $"{kind} 无法转换为布尔值，已使用默认值 false"
+                    });
+
             default:
                 return new CoerceAction(value, false, false, null);
         }
@@ -315,6 +326,16 @@ public static class JsonLenientCoercer
                     Reason = "数值超出可表示范围，已使用默认值"
                 });
         }
+
+        if (kind is JsonValueKind.Object or JsonValueKind.Array)
+            return new CoerceAction(default, true, true,
+                new JsonCoercionIssue
+                {
+                    PropertyPath = name,
+                    ExpectedType = effective.Name,
+                    ActualValueKind = kind.ToString(),
+                    Reason = $"{kind} 无法转换为数值，已使用默认值"
+                });
 
         if (kind != JsonValueKind.String)
             return new CoerceAction(value, false, false, null);

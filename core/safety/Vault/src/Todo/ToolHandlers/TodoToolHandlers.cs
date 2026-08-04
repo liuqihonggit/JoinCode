@@ -11,9 +11,9 @@ public class TodoToolHandlers
         _todoService = todoService ?? throw new ArgumentNullException(nameof(todoService));
     }
 
-    [McpTool(TodoToolNameConstants.TodoWrite, "Update the todo list for the current session. To be used proactively and often to track progress and pending tasks. Make sure that at least one task is in_progress at all times. Always provide both content (imperative) and activeForm (present continuous) for each task.", "todo")]
+    [McpTool(TodoToolNameConstants.TodoWrite, "Update the todo list for the current session. To be used proactively and often to track progress and pending tasks. Make sure that at least one task is in_progress at all times. Always provide both content (imperative) and activeForm (present continuous) for each task. Supports dependsOn (list of todo IDs this task depends on) and ownedFiles (list of file paths this task owns) for DAG-based task planning.", "todo")]
     public async Task<ToolResult> TodoWriteAsync(
-        [McpToolParameter("The updated todo list. Each item has: content (required), status (pending/in_progress/completed, required), activeForm (required, present tense like 'Implementing feature'), priority (high/medium/low, optional), id (optional, auto-generated if omitted)", Required = false)] List<TodoItemInput>? todos = null,
+        [McpToolParameter("The updated todo list. Each item has: content (required), status (pending/in_progress/completed, required), activeForm (required, present tense like 'Implementing feature'), priority (high/medium/low, optional), id (optional, auto-generated if omitted), dependsOn (optional, list of todo IDs this task depends on), ownedFiles (optional, list of file paths this task owns)", Required = false)] List<TodoItemInput>? todos = null,
         CancellationToken cancellationToken = default)
     {
         var todoInputs = todos ?? [];

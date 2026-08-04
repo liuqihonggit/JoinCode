@@ -33,9 +33,9 @@ public class ToolCreationToolHandlers
         [McpToolParameter("工具描述（LLM看到的功能说明）", Required = true)] string description,
         [McpToolParameter("执行类型: shell 或 mcp_call", Required = true)] string executionType,
         [McpToolParameter("执行命令或MCP目标（shell: 命令路径; mcp_call: 服务器.方法）", Required = true)] string command,
-        [McpToolParameter("参数定义JSON数组，格式: [{\"name\":\"param1\",\"description\":\"参数1\",\"type\":\"string\",\"required\":true}]", Required = false)] string? parametersJson,
-        [McpToolParameter("命令参数模板（shell类型），支持{{param}}占位符", Required = false)] string? argsTemplate,
-        [McpToolParameter("二级分组名", Required = false)] string? groupName,
+        [McpToolParameter("参数定义JSON数组，格式: [{\"name\":\"param1\",\"description\":\"参数1\",\"type\":\"string\",\"required\":true}]", Required = false)] string? parametersJson = null,
+        [McpToolParameter("命令参数模板（shell类型），支持{{param}}占位符", Required = false)] string? argsTemplate = null,
+        [McpToolParameter("二级分组名", Required = false)] string? groupName = null,
         CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(toolName) || string.IsNullOrWhiteSpace(description))

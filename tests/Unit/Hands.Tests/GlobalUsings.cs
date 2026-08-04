@@ -6,3 +6,4 @@ global using Moq;
 global using System.Text.Json;
 global using Testing.Common;
 global using Tools;
+global using Tools.Handlers;

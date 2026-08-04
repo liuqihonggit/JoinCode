@@ -494,35 +494,89 @@ Start-Process -FilePath "{当前项目}\artifacts\bin\JoinCode\Release\net10.0\j
 
 ### MockServer + jcc 联合测试
 
-⚠️ **阻塞进程禁止直接运行**，必须用 `Start-Process` 后台启动，否则会卡住 sandbox。
+⚠️ **阻塞进程禁止直接运行**，必须后台启动，否则会卡住 sandbox。
 
-**1. 启动 MockServer（固定端口）**
+**MockServer 参数表**
+
+| 参数 | 格式 | 默认值 | 说明 |
+|------|------|--------|------|
+| `--port` | `--port <数字>` | 配置文件中的 `port` 字段（0=自动分配） | 监听端口 |
+| `--config` | `--config <路径>` | `mockserver.json` | 预设脚本配置文件 |
+
+**MockServer 端点**
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/` | 健康检查，返回 `{"status":"ok"}` |
+| GET | `/shutdown` | 优雅关闭，返回 `{"status":"shutting_down"}` |
+| POST | `/v1/chat/completions` | OpenAI 兼容的 chat 接口（stream=true/false） |
+| POST | `{**path}` | 通配 POST，匹配任意路径 |
+
+**1. 启动 MockServer**
 
 ```powershell
-# ⚠️ 禁止用 Start-Process -ArgumentList，PowerShell 会把逗号分隔的参数合并为一个字符串
-# ✅ 必须用 ProcessStartInfo.Arguments 传参（空格分隔，与命令行一致）
+# ✅ 方式A：Start-Process（推荐，最简单）
+Start-Process -FilePath "D:\project\w3\artifacts\bin\OpenAI.MockServer\Release\net10.0\JoinCode.OpenAI.MockServer.exe" -ArgumentList "--port","9901"
+
+# ✅ 方式B：ProcessStartInfo（需要捕获输出时用）
 $psi = [System.Diagnostics.ProcessStartInfo]::new()
-$psi.FileName = "{项目根目录}\artifacts\bin\OpenAI.MockServer\Release\net10.0\JoinCode.OpenAI.MockServer.exe"
+$psi.FileName = "D:\project\w3\artifacts\bin\OpenAI.MockServer\Release\net10.0\JoinCode.OpenAI.MockServer.exe"
 $psi.Arguments = "--port 9901"
 $psi.UseShellExecute = $false
 [System.Diagnostics.Process]::Start($psi)
-# 验证：Invoke-RestMethod -Uri "http://localhost:9901/" -Method Get
-# 关闭：Invoke-RestMethod -Uri "http://localhost:9901/shutdown" -Method Get
+
+# 验证启动成功：
+Invoke-RestMethod -Uri "http://localhost:9901/" -Method Get
+# 期望返回：@{status=ok}
+
+# 手动 POST 测试（模拟 jcc 发送请求）：
+$body = '{"model":"gpt-4o","messages":[{"role":"user","content":"hello"}],"stream":true}'
+Invoke-RestMethod -Uri "http://localhost:9901/v1/chat/completions" -Method Post -Body $body -ContentType "application/json"
+
+# 关闭：
+Invoke-RestMethod -Uri "http://localhost:9901/shutdown" -Method Get
 ```
 
-**2. 启动 jcc 连接 MockServer（需 ProcessStartInfo 传环境变量）**
+**踩坑记录**
+
+| 问题 | 原因 | 解决 |
+|------|------|------|
+| 端口始终绑定到配置文件默认值 | `Start-Process -ArgumentList "--port=9901"` 把等号格式当单参数传入 | 用逗号分隔：`-ArgumentList "--port","9901"` |
+| MockServer 启动后立即崩溃 | `File.AppendAllText` 在 Kestrel 多线程中并发写同一文件导致 IOException | 禁止在 KestrelMockServer 中用 File.AppendAllText，只用 Console.WriteLine |
+| `RedirectStandardOutput` + `ReadToEnd()` 死锁 | PowerShell 管道消费端阻塞，dotnet 进程 stdout 写入阻塞 | 用 `BeginOutputReadLine()` 异步读取，或不用重定向 |
+| Console.WriteLine 在后台进程中不可见 | `UseShellExecute=false` 时输出到父进程控制台，不写文件 | 前台调试用 `& $exe --port 9901`；后台运行靠 dump 文件诊断 |
+
+**2. 启动 jcc 连接 MockServer**
 
 ```powershell
 $psi = [System.Diagnostics.ProcessStartInfo]::new()
-$psi.FileName = "{项目根目录}\artifacts\bin\JoinCode\Release\net10.0\jcc.exe"
-$psi.Arguments = "--trust --force-interactive"
+$psi.FileName = "D:\project\w3\artifacts\bin\JoinCode\Release\net10.0\jcc.exe"
+$psi.Arguments = "--trust --await 20 -p `"echo hello`""
 $psi.EnvironmentVariables["JCC_ENDPOINT"] = "http://localhost:9901"
 $psi.EnvironmentVariables["JCC_API_KEY"] = "sk-test-1234567890"
 $psi.EnvironmentVariables["JCC_PROVIDER"] = "openai"
 $psi.EnvironmentVariables["JCC_MODEL_ID"] = "gpt-4o"
 $psi.UseShellExecute = $false
-$psi.WorkingDirectory = "{项目根目录}"
+$psi.WorkingDirectory = "D:\project\w3"
 [System.Diagnostics.Process]::Start($psi)
+# --await 20: 20秒超时自动关闭（超时返回1234，正常完成不受影响）
+# --verbose: 启用诊断输出（[WIRE] [STEP] [READY] 等）
+```
+
+**jcc 环境变量参数表**
+
+| 环境变量 | 示例值 | 说明 |
+|----------|--------|------|
+| `JCC_ENDPOINT` | `http://localhost:9901` | API 端点（jcc 自动追加 `/v1/chat/completions`） |
+| `JCC_API_KEY` | `sk-test-1234567890` | API 密钥（MockServer 不校验，任意值即可） |
+| `JCC_PROVIDER` | `openai` | LLM 提供商（openai/anthropic/deepseek） |
+| `JCC_MODEL_ID` | `gpt-4o` | 模型 ID（MockServer 不校验，任意值即可） |
+
+**3. 诊断：查看 MockServer 请求记录**
+
+```powershell
+# dump 目录包含每个请求的完整记录
+Get-ChildItem "D:\project\w3\tests\MockServers\MockServer.Core\dumps\OpenAI" -File | Sort-Object LastWriteTime -Descending | Select-Object -First 5 Name,LastWriteTime
 ```
 
 ***

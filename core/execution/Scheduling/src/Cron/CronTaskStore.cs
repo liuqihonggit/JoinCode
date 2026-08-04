@@ -15,7 +15,7 @@ public sealed partial class FileCronTaskStore : ICronTaskStore, IDisposable
     private readonly IFileSystem _fs;
     private readonly IClockService _clock;
     private readonly SemaphoreSlim _semaphore;
-    private readonly List<CronTask> _sessionTasks = new();
+    private readonly Dictionary<string, CronTask> _sessionTasks = new();
     private IFileSystemWatcher? _watcher;
     private bool _disposed;
 
@@ -75,7 +75,7 @@ public sealed partial class FileCronTaskStore : ICronTaskStore, IDisposable
         {
             var fileTasks = await ReadFileTasksAsync(cancellationToken).ConfigureAwait(false);
             var allTasks = new List<CronTask>(fileTasks);
-            allTasks.AddRange(_sessionTasks);
+            allTasks.AddRange(_sessionTasks.Values);
             return allTasks;
         }
         finally
@@ -107,7 +107,7 @@ public sealed partial class FileCronTaskStore : ICronTaskStore, IDisposable
             await _semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                _sessionTasks.Add(task);
+                _sessionTasks[task.Id] = task;
             }
             finally
             {
@@ -149,7 +149,10 @@ public sealed partial class FileCronTaskStore : ICronTaskStore, IDisposable
         await _semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            _sessionTasks.RemoveAll(t => idSet.Contains(t.Id));
+            foreach (var id in idSet)
+            {
+                _sessionTasks.Remove(id);
+            }
 
             var fileTasks = await ReadFileTasksAsync(cancellationToken).ConfigureAwait(false);
             var originalCount = fileTasks.Count;
@@ -183,7 +186,7 @@ public sealed partial class FileCronTaskStore : ICronTaskStore, IDisposable
         await _semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            foreach (var task in _sessionTasks.Where(t => idSet.Contains(t.Id)))
+            foreach (var task in _sessionTasks.Values.Where(t => idSet.Contains(t.Id)))
             {
                 task.LastFiredAt = firedAt;
             }
@@ -210,6 +213,55 @@ public sealed partial class FileCronTaskStore : ICronTaskStore, IDisposable
         if (jsonToWrite != null)
         {
             await WriteJsonAsync(jsonToWrite, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    public async Task<CronTask?> GetTaskByIdAsync(string id, CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        if (_sessionTasks.TryGetValue(id, out var sessionTask))
+            return sessionTask;
+
+        await _semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            var fileTasks = await ReadFileTasksAsync(cancellationToken).ConfigureAwait(false);
+            return fileTasks.FirstOrDefault(t => t.Id == id);
+        }
+        finally
+        {
+            _semaphore.Release();
+        }
+    }
+
+    public async Task<IReadOnlyList<CronTask>> GetTasksByAgentIdAsync(string agentId, CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        await _semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            var fileTasks = await ReadFileTasksAsync(cancellationToken).ConfigureAwait(false);
+            var result = new List<CronTask>();
+
+            foreach (var t in _sessionTasks.Values)
+            {
+                if (t.AgentId == agentId)
+                    result.Add(t);
+            }
+
+            foreach (var t in fileTasks)
+            {
+                if (t.AgentId == agentId && !_sessionTasks.ContainsKey(t.Id))
+                    result.Add(t);
+            }
+
+            return result;
+        }
+        finally
+        {
+            _semaphore.Release();
         }
     }
 

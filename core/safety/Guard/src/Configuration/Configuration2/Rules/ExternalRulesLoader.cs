@@ -24,13 +24,13 @@ public sealed partial class ExternalRulesLoader
 
     public async Task<List<RuleFile>> LoadProjectRulesAsync(string workingDirectory, CancellationToken cancellationToken = default)
     {
-        var rules = new List<RuleFile>();
+        var rules = new Dictionary<string, RuleFile>(StringComparer.OrdinalIgnoreCase);
         var currentDirPath = _fs.GetFullPath(workingDirectory);
 
         while (currentDirPath != null)
         {
             // 并行扫描所有项目规则目录
-            var dirTasks = new List<Task<List<RuleFile>>>();
+            var dirTasks = new List<Task<Dictionary<string, RuleFile>>>();
             foreach (var rulesDir in ProjectRulesDirs)
             {
                 var fullDirPath = Path.Combine(currentDirPath, rulesDir);
@@ -42,7 +42,10 @@ public sealed partial class ExternalRulesLoader
             var dirResults = await Task.WhenAll(dirTasks).ConfigureAwait(false);
             foreach (var dirRules in dirResults)
             {
-                rules.AddRange(dirRules);
+                foreach (var kvp in dirRules)
+                {
+                    rules.TryAdd(kvp.Key, kvp.Value);
+                }
             }
 
             currentDirPath = _fs.GetParentPath(currentDirPath);
@@ -50,7 +53,7 @@ public sealed partial class ExternalRulesLoader
 
         var appDataRoot = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         // 并行扫描所有用户规则目录
-        var userDirTasks = new List<Task<List<RuleFile>>>();
+        var userDirTasks = new List<Task<Dictionary<string, RuleFile>>>();
         foreach (var rulesDir in UserRulesDirs)
         {
             var fullDirPath = Path.Combine(appDataRoot, rulesDir);
@@ -62,10 +65,13 @@ public sealed partial class ExternalRulesLoader
         var userDirResults = await Task.WhenAll(userDirTasks).ConfigureAwait(false);
         foreach (var dirRules in userDirResults)
         {
-            rules.AddRange(dirRules);
+            foreach (var kvp in dirRules)
+            {
+                rules.TryAdd(kvp.Key, kvp.Value);
+            }
         }
 
-        return Deduplicate(rules);
+        return rules.Values.ToList();
     }
 
     public List<RuleFile> FilterAlwaysApply(List<RuleFile> rules)
@@ -101,9 +107,9 @@ public sealed partial class ExternalRulesLoader
         return rules.Where(r => r.MatchStrategy == RuleMatchStrategy.Description).ToList();
     }
 
-    private async Task<List<RuleFile>> LoadRulesFromDirectoryAsync(string directoryPath, CancellationToken cancellationToken)
+    private async Task<Dictionary<string, RuleFile>> LoadRulesFromDirectoryAsync(string directoryPath, CancellationToken cancellationToken)
     {
-        var rules = new List<RuleFile>();
+        var rules = new Dictionary<string, RuleFile>(StringComparer.OrdinalIgnoreCase);
 
         try
         {
@@ -117,7 +123,7 @@ public sealed partial class ExternalRulesLoader
         return rules;
     }
 
-    private async Task LoadRulesRecursiveAsync(string baseDirPath, string currentDirPath, List<RuleFile> rules, CancellationToken cancellationToken)
+    private async Task LoadRulesRecursiveAsync(string baseDirPath, string currentDirPath, Dictionary<string, RuleFile> rules, CancellationToken cancellationToken)
     {
         try
         {
@@ -127,7 +133,7 @@ public sealed partial class ExternalRulesLoader
             var readTasks = new List<Task<RuleFile?>>();
             foreach (var filePath in mdFiles)
             {
-                if (rules.Exists(r => r.SourcePath.Equals(filePath, StringComparison.OrdinalIgnoreCase))) continue;
+                if (rules.ContainsKey(filePath)) continue;
                 readTasks.Add(TryReadRuleFileAsync(baseDirPath, filePath, cancellationToken));
             }
             var readResults = await Task.WhenAll(readTasks).ConfigureAwait(false);
@@ -135,7 +141,7 @@ public sealed partial class ExternalRulesLoader
             {
                 if (rule is not null)
                 {
-                    rules.Add(rule);
+                    rules[rule.SourcePath] = rule;
                     _logger?.LogInformation("已加载规则: {Name} ({Strategy}) [{Path}]", rule.Name, rule.MatchStrategy, rule.SourcePath);
                 }
             }

@@ -27,7 +27,7 @@ public sealed class EvidenceGraphEdge
 public sealed class EvidenceGraph
 {
     private readonly Dictionary<string, EvidenceGraphNode> _nodes = [];
-    private readonly List<EvidenceGraphEdge> _edges = [];
+    private readonly Dictionary<(string SourceId, string TargetId), EvidenceGraphEdge> _edges = [];
     private readonly EvidenceWeightCalculator _calculator = new();
 
     /// <summary>
@@ -65,13 +65,13 @@ public sealed class EvidenceGraph
     /// </summary>
     public void AddEdge(string sourceId, string targetId, double strength = 1.0, string? label = null)
     {
-        _edges.Add(new EvidenceGraphEdge
+        _edges[(sourceId, targetId)] = new EvidenceGraphEdge
         {
             SourceId = sourceId,
             TargetId = targetId,
             RelationshipStrength = strength,
             Label = label,
-        });
+        };
     }
 
     /// <summary>
@@ -128,11 +128,11 @@ public sealed class EvidenceGraph
     /// <summary>
     /// 获取所有边
     /// </summary>
-    public IEnumerable<EvidenceGraphEdge> GetAllEdges() => _edges;
+    public IEnumerable<EvidenceGraphEdge> GetAllEdges() => _edges.Values;
 
     private List<EvidenceGraphNode> GetNeighbors(string nodeId)
     {
-        var neighborIds = _edges
+        var neighborIds = _edges.Values
             .Where(e => e.SourceId == nodeId || e.TargetId == nodeId)
             .Select(e => e.SourceId == nodeId ? e.TargetId : e.SourceId)
             .ToHashSet();
@@ -145,16 +145,17 @@ public sealed class EvidenceGraph
 
     private double GetEdgeStrength(string fromId, string toId)
     {
-        var edge = _edges.FirstOrDefault(e =>
-            (e.SourceId == fromId && e.TargetId == toId) ||
-            (e.SourceId == toId && e.TargetId == fromId));
-        return edge?.RelationshipStrength ?? 1.0;
+        if (_edges.TryGetValue((fromId, toId), out var edge))
+            return edge.RelationshipStrength;
+        if (_edges.TryGetValue((toId, fromId), out var reverseEdge))
+            return reverseEdge.RelationshipStrength;
+        return 1.0;
     }
 
     private double CalculateGraphCentrality(string nodeId)
     {
-        var inDegree = _edges.Count(e => e.TargetId == nodeId);
-        var outDegree = _edges.Count(e => e.SourceId == nodeId);
+        var inDegree = _edges.Values.Count(e => e.TargetId == nodeId);
+        var outDegree = _edges.Values.Count(e => e.SourceId == nodeId);
         return _nodes.Count > 0 ? (inDegree + outDegree) / (double)_nodes.Count : 0;
     }
 

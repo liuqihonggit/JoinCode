@@ -71,6 +71,7 @@ internal static class ToolCallRepairService
         repaired = FixUnquotedKeys(repaired, hints);
         repaired = FixSingleQuotedKeys(repaired, hints);
         repaired = FixHexAndLeadingZeroNumbers(repaired, hints);
+        repaired = FixNamedFloatingPointNumbers(repaired, hints);
 
         if (TryParseJson(repaired, out _))
             return new ToolCallRepairResult
@@ -436,6 +437,96 @@ internal static class ToolCallRepairService
     private static bool IsHexDigit(char c)
     {
         return c is >= '0' and <= '9' or >= 'a' and <= 'f' or >= 'A' and <= 'F';
+    }
+
+    /// <summary>
+    /// 将裸的 NaN / Infinity / -Infinity 字面量（非字符串内）归一化为 0。
+    /// JSON 规范不允许这些字面量，System.Text.Json 解析会直接抛异常；
+    /// 部分模型会误输出它们表示数值，这里在语法修复层降级为 0 保持可解析。
+    /// </summary>
+    private static string FixNamedFloatingPointNumbers(string json, List<string> hints)
+    {
+        bool changed = false;
+        var result = new StringBuilder(json.Length);
+        int i = 0;
+
+        while (i < json.Length)
+        {
+            if (json[i] == '"')
+            {
+                int start = i;
+                i++;
+                while (i < json.Length)
+                {
+                    if (json[i] == '\\' && i + 1 < json.Length) { i += 2; continue; }
+                    if (json[i] == '"') { i++; break; }
+                    i++;
+                }
+                result.Append(json.AsSpan(start, i - start));
+                continue;
+            }
+
+            var matched = TryMatchFloatingToken(json, i, out var tokenLength);
+            if (matched)
+            {
+                var tokenStart = i;
+                i += tokenLength;
+                if (tokenStart == 0 || !IsWordChar(json[tokenStart - 1]))
+                {
+                    if (i >= json.Length || !IsWordChar(json[i]))
+                    {
+                        result.Append('0');
+                        changed = true;
+                        continue;
+                    }
+                }
+                result.Append(json.AsSpan(tokenStart, tokenLength));
+                continue;
+            }
+
+            result.Append(json[i]);
+            i++;
+        }
+
+        if (changed)
+            hints.Add("converted NaN/Infinity literal(s) to 0");
+
+        return result.ToString();
+    }
+
+    private static bool TryMatchFloatingToken(string json, int i, out int length)
+    {
+        length = 0;
+        if (i + 2 < json.Length && json[i] == 'N' && json[i + 1] == 'a' && json[i + 2] == 'N')
+        {
+            length = 3;
+            return true;
+        }
+
+        if (i + 7 < json.Length
+            && json[i] == 'I' && json[i + 1] == 'n' && json[i + 2] == 'f'
+            && json[i + 3] == 'i' && json[i + 4] == 'n' && json[i + 5] == 'i'
+            && json[i + 6] == 't' && json[i + 7] == 'y')
+        {
+            length = 8;
+            return true;
+        }
+
+        if (i + 8 < json.Length
+            && json[i] == '-' && json[i + 1] == 'I' && json[i + 2] == 'n'
+            && json[i + 3] == 'f' && json[i + 4] == 'i' && json[i + 5] == 'n'
+            && json[i + 6] == 'i' && json[i + 7] == 't' && json[i + 8] == 'y')
+        {
+            length = 9;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool IsWordChar(char c)
+    {
+        return char.IsLetterOrDigit(c) || c == '_';
     }
 
     private static (Dictionary<string, JsonElement> Arguments, bool Modified, string? Hint) RepairParameterNames(

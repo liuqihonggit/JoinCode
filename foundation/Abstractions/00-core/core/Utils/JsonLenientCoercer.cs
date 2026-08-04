@@ -314,8 +314,12 @@ public static class JsonLenientCoercer
                 return ClampIntegral(name, effective, (long)ul);
 
             var d = value.GetDouble();
-            if (d >= long.MinValue && d <= long.MaxValue && d == Math.Floor(d))
-                return ClampIntegral(name, effective, (long)d);
+            if (!double.IsNaN(d) && !double.IsInfinity(d) && d >= long.MinValue && d <= long.MaxValue)
+            {
+                // 浮点数字入整型字段：在范围内则四舍五入（保留值，而非降级为默认值）
+                var rounded = Math.Round(d, MidpointRounding.AwayFromZero);
+                return ClampIntegral(name, effective, (long)rounded);
+            }
 
             return new CoerceAction(default, true, true,
                 new JsonCoercionIssue
@@ -360,6 +364,13 @@ public static class JsonLenientCoercer
 
         if (double.TryParse(trimmed, numStyle, CultureInfo.InvariantCulture, out var doubleVal))
         {
+            if (IsIntegral(effective) && !double.IsNaN(doubleVal) && !double.IsInfinity(doubleVal)
+                && doubleVal >= long.MinValue && doubleVal <= long.MaxValue)
+            {
+                var rounded = Math.Round(doubleVal, MidpointRounding.AwayFromZero);
+                return ClampIntegral(name, effective, (long)rounded);
+            }
+
             return new CoerceAction(JsonElementHelper.FromDouble(doubleVal), true, false, null);
         }
 

@@ -71,17 +71,18 @@ public class SkillToolHandlers
         Dictionary<string, JsonElement>? parameters = null;
         if (!string.IsNullOrEmpty(args))
         {
-            try
-            {
-                parameters = JsonSerializer.Deserialize(args, McpToolDispatchJsonContext.Default.DictionaryStringJsonElement);
-            }
-            catch (JsonException)
+            parameters = LlmJsonHelper.Deserialize(args, ContractsJsonContext.Default.DictionaryStringJsonElement, out var repairHint);
+            if (parameters is null)
             {
                 using var doc = JsonDocument.Parse($"{{\"args\":{JsonSerializer.Serialize(args, McpToolDispatchJsonContext.Default.String)}}}");
                 parameters = new Dictionary<string, JsonElement>
                 {
                     ["args"] = doc.RootElement.GetProperty("args").Clone()
                 };
+            }
+            else if (!string.IsNullOrEmpty(repairHint))
+            {
+                System.Diagnostics.Trace.WriteLine($"[Skill] args JSON repaired: {repairHint}");
             }
         }
 

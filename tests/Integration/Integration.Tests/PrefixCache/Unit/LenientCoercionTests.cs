@@ -231,6 +231,71 @@ public sealed class LenientCoercionTests
         report.CoercionIssues.Should().Contain(i => i.PropertyPath == "count");
         report.FormatForLlm().Should().Contain("count");
     }
+
+    [Fact]
+    public void Coerce_FractionalNumberIntoInt_Rounds_NotDefaults()
+    {
+        // 浮点数字入整型字段：四舍五入保留值，而非降级为默认值 0
+        var result = LlmJsonHelper.DeserializeWithReport(
+            """{"completed": true, "count": 3.7}""",
+            CoercionTestJsonContext.Default.LenientDto,
+            out _);
+
+        result.Should().NotBeNull();
+        result!.Count.Should().Be(4);
+    }
+
+    [Fact]
+    public void Coerce_FractionalStringIntoInt_Rounds_NotDefaults()
+    {
+        var result = LlmJsonHelper.DeserializeWithReport(
+            """{"completed": true, "count": "3.4"}""",
+            CoercionTestJsonContext.Default.LenientDto,
+            out _);
+
+        result.Should().NotBeNull();
+        result!.Count.Should().Be(3);
+    }
+
+    [Fact]
+    public void RepairJson_NegativeHex_ConvertsToDecimal()
+    {
+        // 语法修复层：-0xFF → -255（严格解析失败后落入第2层）
+        var result = LlmJsonHelper.DeserializeWithReport(
+            """{"completed": true, "count": -0xFF}""",
+            CoercionTestJsonContext.Default.LenientDto,
+            out _);
+
+        result.Should().NotBeNull();
+        result!.Count.Should().Be(-255);
+    }
+
+    [Fact]
+    public void Coerce_NanIntoInt_DefaultsWithIssue()
+    {
+        // JSON 规范不允许 NaN 字面量：语法修复层将其归一化为 0，保持可解析并给出精确提示
+        var result = LlmJsonHelper.DeserializeWithReport(
+            """{"completed": true, "count": NaN}""",
+            CoercionTestJsonContext.Default.LenientDto,
+            out var report);
+
+        result.Should().NotBeNull();
+        result!.Count.Should().Be(0);
+        report.RepairHint.Should().Contain("NaN");
+    }
+
+    [Fact]
+    public void Coerce_HugeDecimalIntoString_IsPreserved()
+    {
+        // 超大十进制数字（超出 long 范围）：进字符串字段时保留原始文本，防 JS 精度丢失
+        var result = LlmJsonHelper.DeserializeWithReport(
+            """{"completed": true, "reason": 123456789012345678901234567890}""",
+            CoercionTestJsonContext.Default.LenientDto,
+            out _);
+
+        result.Should().NotBeNull();
+        result!.Reason.Should().Be("123456789012345678901234567890");
+    }
 }
 
 /// <summary>

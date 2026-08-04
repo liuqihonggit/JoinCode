@@ -20,6 +20,30 @@ public static partial class ServiceRegistration
         services.AddSingleton<Func<IMcpToolRegistry, IServiceProvider, CancellationToken, Task<IMcpToolRegistry>>>(
             (registry, sp, ct) => GeneratedToolHandlerRegistration_JoinCode_Composition.RegisterAllMcpToolDispatchAsync(registry, sp, ct));
 
+        // 工具评分配置 — 从 WorkflowConfig.ToolExecution 提取
+        services.AddSingleton(sp =>
+        {
+            var config = sp.GetRequiredService<WorkflowConfig>();
+            return config.ToolExecution.ToolScore.ToToolScoreConfig();
+        });
+        services.AddSingleton(sp =>
+        {
+            var config = sp.GetRequiredService<WorkflowConfig>();
+            return new HashSet<string>(config.ToolExecution.BlacklistedTools, StringComparer.OrdinalIgnoreCase);
+        });
+        services.AddSingleton(sp =>
+        {
+            var config = sp.GetRequiredService<WorkflowConfig>();
+            return new Dictionary<string, int>(config.ToolExecution.ToolPenalties, StringComparer.OrdinalIgnoreCase);
+        });
+
+        // 超图自定义超边 — 启动时从配置加载
+        services.AddSingleton(sp =>
+        {
+            var config = sp.GetRequiredService<WorkflowConfig>();
+            return config.ToolExecution.CustomHyperedges;
+        });
+
         services.AddSingleton<MiddlewarePipeline<AgentToolContext>>(sp =>
         {
             var middlewares = sp.GetServices<IAgentToolMiddleware>().Cast<IMiddleware<AgentToolContext>>();

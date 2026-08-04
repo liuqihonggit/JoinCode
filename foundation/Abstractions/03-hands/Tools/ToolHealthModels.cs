@@ -10,6 +10,9 @@ public interface IToolHealthMonitor
     Task<ToolHealthRecord?> GetRecordAsync(string toolName, CancellationToken ct = default);
     Task<IReadOnlyDictionary<string, ToolHealthRecord>> GetAllRecordsAsync(CancellationToken ct = default);
     Task ResetToolAsync(string toolName, CancellationToken ct = default);
+    bool IsBlacklisted(string toolName);
+    int GetPenalty(string toolName);
+    int GetEffectiveScore(string toolName);
 }
 
 /// <summary>

@@ -1,12 +1,13 @@
 namespace McpToolDispatch.Tests.Execution;
 
 /// <summary>
-/// ToolHealthMonitor 单元测试 — 验证评分增减、熔断、时间衰减、重置、自动恢复
+/// ToolHealthMonitor 单元测试 — 验证评分增减、熔断、时间衰减、重置、自动恢复、黑名单、降权
 /// </summary>
 public sealed class ToolHealthMonitorTest : IAsyncLifetime
 {
     private InMemoryFileSystem _fs = null!;
     private ToolHealthMonitor _monitor = null!;
+    private ToolHealthMonitor _monitorWithBlacklist = null!;
 
     public Task InitializeAsync()
     {
@@ -21,12 +22,16 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime
             DecayRatePerHour = 0.1,
             DecayRecoveryScore = 1
         });
+        _monitorWithBlacklist = new ToolHealthMonitor(_fs, config: new ToolScoreConfig(),
+            blacklist: new HashSet<string>(["blacklisted_tool"], StringComparer.OrdinalIgnoreCase),
+            penalties: new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase) { ["penalized_tool"] = -20 });
         return Task.CompletedTask;
     }
 
     public Task DisposeAsync()
     {
         _monitor.Dispose();
+        _monitorWithBlacklist.Dispose();
         return Task.CompletedTask;
     }
 
@@ -123,7 +128,6 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime
         await _monitor.RecordFailureAsync("tool_a", "err2");
         (await _monitor.GetRecordAsync("tool_a"))!.IsEnabled.Should().BeTrue();
 
-        // 第3次连续失败 → 熔断
         var record = await _monitor.RecordFailureAsync("tool_a", "err3");
         record.IsEnabled.Should().BeFalse();
     }
@@ -247,5 +251,55 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime
         await _monitor.RecordSuccessAsync("tool_a");
         var record = await _monitor.GetRecordAsync("tool_a");
         record!.SuccessRate.Should().Be(1.0);
+    }
+
+    // === 黑名单 ===
+
+    [Fact]
+    public void IsBlacklisted_BlacklistedTool_ReturnsTrue()
+    {
+        _monitorWithBlacklist.IsBlacklisted("blacklisted_tool").Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsBlacklisted_NormalTool_ReturnsFalse()
+    {
+        _monitorWithBlacklist.IsBlacklisted("normal_tool").Should().BeFalse();
+    }
+
+    // === 降权 ===
+
+    [Fact]
+    public void GetPenalty_PenalizedTool_ReturnsPenalty()
+    {
+        _monitorWithBlacklist.GetPenalty("penalized_tool").Should().Be(-20);
+    }
+
+    [Fact]
+    public void GetPenalty_NormalTool_ReturnsZero()
+    {
+        _monitorWithBlacklist.GetPenalty("normal_tool").Should().Be(0);
+    }
+
+    // === 有效评分 ===
+
+    [Fact]
+    public async Task GetEffectiveScore_WithPenalty_ReturnsAdjustedScore()
+    {
+        await _monitorWithBlacklist.RecordSuccessAsync("penalized_tool");
+        _monitorWithBlacklist.GetEffectiveScore("penalized_tool").Should().Be(-19);
+    }
+
+    [Fact]
+    public void GetEffectiveScore_BlacklistedTool_ReturnsMinScore()
+    {
+        _monitorWithBlacklist.GetEffectiveScore("blacklisted_tool").Should().Be(-100);
+    }
+
+    [Fact]
+    public async Task GetEffectiveScore_NormalTool_ReturnsBaseScore()
+    {
+        await _monitorWithBlacklist.RecordSuccessAsync("normal_tool");
+        _monitorWithBlacklist.GetEffectiveScore("normal_tool").Should().Be(1);
     }
 }

@@ -3,17 +3,50 @@ namespace McpToolDispatch;
 /// <summary>
 /// 工具链超图评分器 — 融合独立评分与超边共享评分，避免错误压制导致链路断裂
 /// 算法: 最终评分 = (1 - Σ权重) × 独立评分 + Σ(超边权重 × 超边共享评分)
+/// 定时更新超边共享评分（每小时），支持从配置文件热加载超边定义
 /// </summary>
 [Register]
-public sealed class ToolHypergraphScorer
+public sealed class ToolHypergraphScorer : IDisposable
 {
     private readonly ILogger<ToolHypergraphScorer>? _logger;
+    private readonly IToolHealthMonitor? _monitor;
     private ToolHypergraph _graph;
+    private readonly Timer? _syncTimer;
 
-    public ToolHypergraphScorer(ILogger<ToolHypergraphScorer>? logger = null)
+    public ToolHypergraphScorer(ILogger<ToolHypergraphScorer>? logger = null, IToolHealthMonitor? monitor = null)
     {
         _logger = logger;
+        _monitor = monitor;
         _graph = BuildGraph(ToolHypergraphPresets.GetPresets());
+
+        if (_monitor is not null)
+        {
+            _syncTimer = new Timer(async _ => await SyncSharedScoresAsync().ConfigureAwait(false),
+                null, TimeSpan.FromHours(1), TimeSpan.FromHours(1));
+        }
+    }
+
+    /// <summary>
+    /// 从配置加载自定义超边 — 合并预设超边和用户自定义超边
+    /// 用户自定义超边通过 Id 覆盖同名预设超边
+    /// </summary>
+    public void LoadCustomHyperedges(List<HyperedgeSettings> customHyperedges)
+    {
+        if (customHyperedges is null || customHyperedges.Count == 0) return;
+
+        var presets = ToolHypergraphPresets.GetPresets();
+        var presetById = presets.ToDictionary(p => p.Id, StringComparer.OrdinalIgnoreCase);
+        var customEdges = customHyperedges.Select(c => c.ToHyperedge()).ToList();
+
+        foreach (var custom in customEdges)
+        {
+            presetById[custom.Id] = custom;
+        }
+
+        var merged = presetById.Values.ToArray();
+        _graph = BuildGraph(merged);
+        _logger?.LogInformation("超图已加载自定义配置，{Custom} 条自定义 + {Preset} 条预设 = {Total} 条超边",
+            customEdges.Count, presets.Length - customEdges.Count, merged.Length);
     }
 
     public void ReloadHyperedges(ToolHyperedge[] edges)
@@ -99,6 +132,22 @@ public sealed class ToolHypergraphScorer
         return edges;
     }
 
+    private async Task SyncSharedScoresAsync()
+    {
+        if (_monitor is null) return;
+
+        try
+        {
+            var allRecords = await _monitor.GetAllRecordsAsync().ConfigureAwait(false);
+            UpdateSharedScores(allRecords);
+            _logger?.LogDebug("超图共享评分已同步更新");
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "超图共享评分同步更新失败");
+        }
+    }
+
     private static ToolHypergraph BuildGraph(ToolHyperedge[] edges)
     {
         var toolToEdges = new Dictionary<string, List<ToolHyperedge>>(StringComparer.OrdinalIgnoreCase);
@@ -121,5 +170,10 @@ public sealed class ToolHypergraphScorer
             Hyperedges = [.. edges],
             ToolToEdges = toolToEdges.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase)
         };
+    }
+
+    public void Dispose()
+    {
+        _syncTimer?.Dispose();
     }
 }

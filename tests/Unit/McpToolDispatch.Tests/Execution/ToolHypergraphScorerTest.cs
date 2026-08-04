@@ -262,9 +262,80 @@ public sealed class ToolHypergraphScorerTest
         // 使用默认预设
         _scorer = new ToolHypergraphScorer();
 
-        // file_read 应该在 file_ops 超边中
-        var score = _scorer.CalculateFinalScore("file_read", 50);
+        // FileToolName.FileRead.ToValue() = "Read"
+        var score = _scorer.CalculateFinalScore("Read", 50);
         // 不应抛异常，且应返回有效评分
         score.Should().BeInRange(-100, 100);
+    }
+
+    // === LoadCustomHyperedges ===
+
+    [Fact]
+    public void LoadCustomHyperedges_MergesWithPresets()
+    {
+        var custom = new List<JoinCode.Abstractions.Configuration.Settings.HyperedgeSettings>
+        {
+            new()
+            {
+                Id = "custom_chain",
+                ToolNames = ["custom_a", "custom_b"],
+                Weight = 0.7,
+                ChainOrder = ["custom_a", "custom_b"]
+            }
+        };
+
+        _scorer.LoadCustomHyperedges(custom);
+
+        // 自定义工具应该有超边
+        var edges = _scorer.GetEdges("custom_a");
+        edges.Should().HaveCount(1);
+        edges[0].Id.Should().Be("custom_chain");
+
+        // 预设超边应该仍然存在 (FileToolName.FileRead.ToValue() = "Read")
+        var presetEdges = _scorer.GetEdges("Read");
+        presetEdges.Should().NotBeEmpty();
+    }
+
+    [Fact]
+    public void LoadCustomHyperedges_OverridesPresetById()
+    {
+        var custom = new List<JoinCode.Abstractions.Configuration.Settings.HyperedgeSettings>
+        {
+            new()
+            {
+                Id = "file_ops",
+                ToolNames = ["custom_file_a"],
+                Weight = 0.8
+            }
+        };
+
+        _scorer.LoadCustomHyperedges(custom);
+
+        // file_ops 超边应该被覆盖
+        var edges = _scorer.GetEdges("custom_file_a");
+        edges.Should().HaveCount(1);
+        edges[0].Weight.Should().Be(0.8);
+
+        // 原来的 Read 不应再在 file_ops 超边中
+        var oldEdges = _scorer.GetEdges("Read");
+        oldEdges.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void LoadCustomHyperedges_EmptyList_DoesNothing()
+    {
+        var scoreBefore = _scorer.CalculateFinalScore("Read", 50);
+        _scorer.LoadCustomHyperedges([]);
+        var scoreAfter = _scorer.CalculateFinalScore("Read", 50);
+        scoreAfter.Should().Be(scoreBefore);
+    }
+
+    [Fact]
+    public void LoadCustomHyperedges_Null_DoesNothing()
+    {
+        var scoreBefore = _scorer.CalculateFinalScore("Read", 50);
+        _scorer.LoadCustomHyperedges(null!);
+        var scoreAfter = _scorer.CalculateFinalScore("Read", 50);
+        scoreAfter.Should().Be(scoreBefore);
     }
 }

@@ -3,6 +3,7 @@ namespace McpToolDispatch;
 /// <summary>
 /// 工具健康监控服务 — 追踪工具执行成功率、评分、熔断状态
 /// 持久化到 AppData JSON 文件，支持热更新
+/// 支持黑名单（完全禁用）和降权（额外扣分）配置
 /// </summary>
 [Register]
 public sealed class ToolHealthMonitor : IToolHealthMonitor, IDisposable
@@ -14,12 +15,17 @@ public sealed class ToolHealthMonitor : IToolHealthMonitor, IDisposable
     private readonly SemaphoreSlim _lock = new(1, 1);
     private readonly string _configPath;
     private readonly Timer? _decayTimer;
+    private readonly HashSet<string> _blacklist;
+    private readonly Dictionary<string, int> _penalties;
 
-    public ToolHealthMonitor(IFileSystem fs, ILogger<ToolHealthMonitor>? logger = null, ToolScoreConfig? config = null)
+    public ToolHealthMonitor(IFileSystem fs, ILogger<ToolHealthMonitor>? logger = null, ToolScoreConfig? config = null,
+        HashSet<string>? blacklist = null, Dictionary<string, int>? penalties = null)
     {
         _fs = fs;
         _logger = logger;
         _config = config ?? new ToolScoreConfig();
+        _blacklist = blacklist ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        _penalties = penalties ?? new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         _configPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "JoinCode",
@@ -27,6 +33,18 @@ public sealed class ToolHealthMonitor : IToolHealthMonitor, IDisposable
         LoadFromDisk();
 
         _decayTimer = new Timer(_ => ApplyTimeDecay(), null, TimeSpan.FromHours(1), TimeSpan.FromHours(1));
+    }
+
+    public bool IsBlacklisted(string toolName) => _blacklist.Contains(toolName);
+
+    public int GetPenalty(string toolName) => _penalties.GetValueOrDefault(toolName, 0);
+
+    public int GetEffectiveScore(string toolName)
+    {
+        if (IsBlacklisted(toolName)) return _config.ScoreMin;
+        var record = _records.GetValueOrDefault(toolName);
+        var baseScore = record?.Score ?? 0;
+        return Math.Clamp(baseScore + GetPenalty(toolName), _config.ScoreMin, _config.ScoreMax);
     }
 
     public async Task<ToolHealthRecord> RecordSuccessAsync(string toolName, CancellationToken ct = default)

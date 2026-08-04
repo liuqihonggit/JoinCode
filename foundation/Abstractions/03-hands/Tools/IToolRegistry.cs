@@ -8,7 +8,7 @@ public interface IToolRegistry : IAsyncDisposable
 {
     Task RegisterToolAsync(IToolHandler handler, CancellationToken cancellationToken = default);
 
-    Task RegisterToolAsync(string name, string description, ToolSchema inputSchema, ToolHandler handler, CancellationToken cancellationToken = default);
+    Task RegisterToolAsync(string name, string description, ToolSchema inputSchema, ToolHandler handler, CancellationToken cancellationToken = default, ToolKind kind = ToolKind.System, string? groupName = null);
 
     Task<bool> UnregisterToolAsync(string toolName, CancellationToken cancellationToken = default);
 
@@ -31,4 +31,10 @@ public interface IToolRegistry : IAsyncDisposable
     Task<int> GetCountAsync(CancellationToken cancellationToken = default);
 
     Task ClearAsync(CancellationToken cancellationToken = default);
+
+    Task<FrozenSet<string>> GetGroupNamesAsync(CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyDictionary<string, IToolHandler>> GetToolsByKindAsync(ToolKind kind, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyDictionary<string, IToolHandler>> GetToolsByGroupAsync(string groupName, CancellationToken cancellationToken = default);
 }

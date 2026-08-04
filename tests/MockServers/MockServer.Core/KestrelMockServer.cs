@@ -196,9 +196,9 @@ public sealed class KestrelMockServer : IHttpMockServer
                         await Task.Delay(20, ctx.RequestAborted);
                     }
 
-                    // 最终 chunk 包含 usage/cache stats — 真实 LLM API 在最后一个 chunk 返回 usage
                     var lastChunk = _responseStrategy.BuildStreamFinalChunk(id, cacheStats);
                     await ctx.Response.WriteAsync(lastChunk, ctx.RequestAborted);
+                    await ctx.Response.Body.FlushAsync(ctx.RequestAborted);
                 }
             }
             else

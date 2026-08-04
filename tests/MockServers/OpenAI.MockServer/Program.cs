@@ -6,37 +6,48 @@ public sealed class Program
 
     public static async Task Main(string[] args)
     {
-        var configPath = ParseArgument(args, "--config") ?? "mockserver.json";
-        var portArg = ParseArgument(args, "--port");
-        var config = MockServerConfig.LoadFromFileOrDefault(configPath);
+        try
+        {
+            void LogMain(string msg)
+            {
+                Console.WriteLine(msg);
+                System.Diagnostics.Trace.WriteLine(msg);
+            }
 
-        var port = int.TryParse(portArg, out var p) ? p : config.Port;
+            LogMain($"[OpenAI.MockServer] Args.Length={args.Length}, Args=[{string.Join("|", args)}]");
+            var configPath = ParseArgument(args, "--config") ?? "mockserver.json";
+            var portArg = ParseArgument(args, "--port");
+            LogMain($"[OpenAI.MockServer] configPath={configPath}, portArg={portArg}");
+            var config = MockServerConfig.LoadFromFileOrDefault(configPath);
 
-        Console.WriteLine($"[OpenAI.MockServer] Config: {configPath}");
-        Console.WriteLine($"[OpenAI.MockServer] Requested Port: {port}");
-        Console.WriteLine($"[OpenAI.MockServer] Scripted turns: {config.ScriptedTurns.Count}");
+            var port = int.TryParse(portArg, out var p) ? p : config.Port;
 
-        var strategy = new OpenAIResponseStrategy(config.ScriptedTurns, config.DefaultResponse);
-        var cacheSimulator = new PrefixCacheSimulator(
-            TokenEstimator.ExtractConversationPrefix,
-            TokenEstimator.EstimateFromMessages);
+            Console.WriteLine($"[OpenAI.MockServer] Config: {configPath}");
+            Console.WriteLine($"[OpenAI.MockServer] Requested Port: {port}");
+            Console.WriteLine($"[OpenAI.MockServer] Scripted turns: {config.ScriptedTurns.Count}");
 
-        await using var server = new KestrelMockServer(strategy, cacheSimulator, port, serverName: "OpenAI");
-        server.ShutdownRequested += () => ShutdownEvent.Set();
-        await server.StartAsync().ConfigureAwait(false);
+            var strategy = new OpenAIResponseStrategy(config.ScriptedTurns, config.DefaultResponse);
+            var cacheSimulator = new PrefixCacheSimulator(
+                TokenEstimator.ExtractConversationPrefix,
+                TokenEstimator.EstimateFromMessages);
 
-        ShutdownEvent.Wait(TimeSpan.FromMinutes(30));
+            await using var server = new KestrelMockServer(strategy, cacheSimulator, port, serverName: "OpenAI");
+            server.ShutdownRequested += () => ShutdownEvent.Set();
+            await server.StartAsync().ConfigureAwait(false);
 
-        await server.StopAsync().ConfigureAwait(false);
+            Console.WriteLine("[OpenAI.MockServer] Server started successfully, waiting for requests...");
+
+            ShutdownEvent.Wait(TimeSpan.FromMinutes(30));
+
+            await server.StopAsync().ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[OpenAI.MockServer] FATAL: {ex}");
+            Environment.ExitCode = 1;
+        }
     }
 
     private static string? ParseArgument(string[] args, string name)
-    {
-        for (var i = 0; i < args.Length - 1; i++)
-        {
-            if (args[i] == name)
-                return args[i + 1];
-        }
-        return null;
-    }
+        => CommandLineParser.ParseArgument(args, name);
 }

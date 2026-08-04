@@ -53,6 +53,15 @@ public sealed class KestrelMockServer : IHttpMockServer
         _dumpDir = Path.Combine(Environment.CurrentDirectory, "tests", "MockServers", "MockServer.Core", "dumps", _serverName);
         Directory.CreateDirectory(_dumpDir);
 
+        var logPath = Path.Combine(Environment.CurrentDirectory, "mockserver_start.log");
+        void Log(string msg)
+        {
+            Console.WriteLine(msg);
+            System.Diagnostics.Trace.WriteLine(msg);
+        }
+
+        Log($"[{_serverName}] StartAsync called, port={_port}");
+
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseUrls($"http://localhost:{_port}/");
         builder.Logging.ClearProviders();
@@ -61,8 +70,10 @@ public sealed class KestrelMockServer : IHttpMockServer
             builder.Services.AddSingleton(_logger);
         }
 
+        Log($"[{_serverName}] Building WebApplication...");
         _app = builder.Build();
         _appLifetime = _app.Services.GetRequiredService<IHostApplicationLifetime>();
+        Log($"[{_serverName}] WebApplication built, mapping endpoints...");
 
         _app.MapGet("/shutdown", async (HttpContext ctx) =>
         {
@@ -215,17 +226,35 @@ public sealed class KestrelMockServer : IHttpMockServer
         });
 
         Url = $"http://localhost:{_port}/";
-        _runTask = _app.RunAsync();
 
         var tcs = new TaskCompletionSource();
-        _appLifetime.ApplicationStarted.Register(() => tcs.TrySetResult());
+        _appLifetime.ApplicationStarted.Register(() =>
+        {
+            Log($"[{_serverName}] ApplicationStarted fired!");
+            tcs.TrySetResult();
+        });
 
-        Console.WriteLine($"[{_serverName}] ========================================");
-        Console.WriteLine($"[{_serverName}]   Server:    {_serverName}");
-        Console.WriteLine($"[{_serverName}]   URL:       {Url}");
-        Console.WriteLine($"[{_serverName}]   Port:      {_port}");
-        Console.WriteLine($"[{_serverName}]   Dump Dir:  {_dumpDir}");
-        Console.WriteLine($"[{_serverName}] ========================================");
+        _runTask = Task.Run(async () =>
+        {
+            try
+            {
+                Log($"[{_serverName}] Calling _app.RunAsync()...");
+                await _app.RunAsync().ConfigureAwait(false);
+                Log($"[{_serverName}] _app.RunAsync() completed normally");
+            }
+            catch (Exception ex)
+            {
+                Log($"[{_serverName}] FATAL: Kestrel failed: {ex.GetType().Name}: {ex.Message}");
+                tcs.TrySetException(ex);
+            }
+        });
+
+        Log($"[{_serverName}] ========================================");
+        Log($"[{_serverName}]   Server:    {_serverName}");
+        Log($"[{_serverName}]   URL:       {Url}");
+        Log($"[{_serverName}]   Port:      {_port}");
+        Log($"[{_serverName}]   Dump Dir:  {_dumpDir}");
+        Log($"[{_serverName}] ========================================");
 
         return tcs.Task;
     }

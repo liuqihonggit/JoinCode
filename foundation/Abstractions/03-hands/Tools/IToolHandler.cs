@@ -31,11 +31,18 @@ public interface IToolHandler
     ToolSchema InputSchema { get; }
 
     /// <summary>
+    /// 工具类型 — 决定注入策略：System/Mcp/OnError
+    /// </summary>
+    ToolKind Kind { get; }
+
+    /// <summary>
+    /// 二级分组名 — 同组工具在系统提示词中合并展示
+    /// </summary>
+    string? GroupName { get; }
+
+    /// <summary>
     /// 执行工具 — 对齐 TS Tool.call(input, context, canUseTool, parentMsg, onProgress)
     /// </summary>
-    /// <param name="arguments">工具参数</param>
-    /// <param name="cancellationToken">取消令牌</param>
-    /// <param name="onProgress">进度回调 — 对齐 TS ToolCallProgress，工具执行过程中可报告中间进度</param>
     Task<ToolResult> ExecuteAsync(
         Dictionary<string, JsonElement> arguments,
         CancellationToken cancellationToken = default,

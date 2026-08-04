@@ -13,13 +13,16 @@ internal sealed class RemoteMcpToolDispatch : IToolHandler
     public string Name { get; }
     public string Description => _tool.Description ?? string.Empty;
     public ToolSchema InputSchema => _tool.InputSchema;
+    public ToolKind Kind => ToolKind.Mcp;
+    public string? GroupName { get; }
 
-    public RemoteMcpToolDispatch(string clientId, IMcpClient client, ToolInfo tool)
+    public RemoteMcpToolDispatch(string clientId, IMcpClient client, ToolInfo tool, string? groupName = null)
     {
         _clientId = clientId;
         _client = client;
         _tool = tool;
         Name = McpNameNormalizer.BuildMcpToolName(clientId, tool.Name);
+        GroupName = groupName;
     }
 
     public async Task<ToolResult> ExecuteAsync(

@@ -5,6 +5,8 @@ namespace Tools;
 public sealed partial class LocalToolRegistry : IToolRegistry
 {
     private readonly Dictionary<string, IToolHandler> _tools = new();
+    private readonly Dictionary<ToolKind, Dictionary<string, IToolHandler>> _kindIndex = new();
+    private readonly Dictionary<string, Dictionary<string, IToolHandler>> _groupIndex = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _lock;
     private readonly ILogger? _logger;
 
@@ -18,7 +20,7 @@ public sealed partial class LocalToolRegistry : IToolRegistry
         _logger = null;
     }
 
-    public LocalToolRegistry( ILogger? logger)
+    public LocalToolRegistry(ILogger? logger)
     {
         _lock = new SemaphoreSlim(1, 1);
         _logger = logger;
@@ -31,18 +33,19 @@ public sealed partial class LocalToolRegistry : IToolRegistry
         await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            if (_tools.ContainsKey(handler.Name))
+            var isOverwrite = _tools.ContainsKey(handler.Name);
+
+            if (isOverwrite)
             {
-                // 覆盖已注册的同名工具（增强版替代基础版）
-                _tools[handler.Name] = handler;
-                OnToolRegistered(handler.Name, handler.Description);
-                _logger?.LogDebug("Tool re-registered (overwritten): {ToolName}", handler.Name);
-                return;
+                var old = _tools[handler.Name];
+                RemoveFromIndex(old);
             }
 
             _tools[handler.Name] = handler;
+            AddToIndex(handler);
+
             OnToolRegistered(handler.Name, handler.Description);
-            _logger?.LogDebug("Tool registered: {ToolName}", handler.Name);
+            _logger?.LogDebug(isOverwrite ? "Tool re-registered (overwritten): {ToolName}" : "Tool registered: {ToolName}", handler.Name);
         }
         finally
         {
@@ -50,14 +53,14 @@ public sealed partial class LocalToolRegistry : IToolRegistry
         }
     }
 
-    public async Task RegisterToolAsync(string name, string description, ToolSchema inputSchema, ToolHandler handler, CancellationToken cancellationToken = default)
+    public async Task RegisterToolAsync(string name, string description, ToolSchema inputSchema, ToolHandler handler, CancellationToken cancellationToken = default, ToolKind kind = ToolKind.System, string? groupName = null)
     {
         ArgumentException.ThrowIfNullOrEmpty(name);
         ArgumentException.ThrowIfNullOrEmpty(description);
         ArgumentNullException.ThrowIfNull(inputSchema);
         ArgumentNullException.ThrowIfNull(handler);
 
-        await RegisterToolAsync(new DelegateToolHandler(name, description, inputSchema, handler), cancellationToken).ConfigureAwait(false);
+        await RegisterToolAsync(new DelegateToolHandler(name, description, inputSchema, handler, kind, groupName), cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<bool> UnregisterToolAsync(string toolName, CancellationToken cancellationToken = default)
@@ -67,13 +70,13 @@ public sealed partial class LocalToolRegistry : IToolRegistry
         await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            var removed = _tools.Remove(toolName);
-            if (removed)
-            {
-                OnToolUnregistered(toolName);
-                _logger?.LogDebug("Tool unregistered: {ToolName}", toolName);
-            }
-            return removed;
+            if (!_tools.Remove(toolName, out var handler))
+                return false;
+
+            RemoveFromIndex(handler);
+            OnToolUnregistered(toolName);
+            _logger?.LogDebug("Tool unregistered: {ToolName}", toolName);
+            return true;
         }
         finally
         {
@@ -109,6 +112,47 @@ public sealed partial class LocalToolRegistry : IToolRegistry
         }
     }
 
+    public async Task<FrozenSet<string>> GetGroupNamesAsync(CancellationToken cancellationToken = default)
+    {
+        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            return _groupIndex.Keys.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            _lock.Release();
+        }
+    }
+
+    public async Task<IReadOnlyDictionary<string, IToolHandler>> GetToolsByKindAsync(ToolKind kind, CancellationToken cancellationToken = default)
+    {
+        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            return _kindIndex.GetValueOrDefault(kind)?.ToFrozenDictionary() ?? FrozenDictionary<string, IToolHandler>.Empty;
+        }
+        finally
+        {
+            _lock.Release();
+        }
+    }
+
+    public async Task<IReadOnlyDictionary<string, IToolHandler>> GetToolsByGroupAsync(string groupName, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(groupName);
+
+        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            return _groupIndex.GetValueOrDefault(groupName)?.ToFrozenDictionary() ?? FrozenDictionary<string, IToolHandler>.Empty;
+        }
+        finally
+        {
+            _lock.Release();
+        }
+    }
+
     public async Task<ToolResult> ExecuteToolAsync(
         string toolName,
         Dictionary<string, JsonElement> arguments,
@@ -126,10 +170,7 @@ public sealed partial class LocalToolRegistry : IToolRegistry
             {
                 return new ToolResult
                 {
-                    Content = new List<ToolContent>
-                    {
-                        new() { Type = ToolContentType.Text, Text = $"Tool '{toolName}' not found." }
-                    },
+                    Content = [new() { Type = ToolContentType.Text, Text = $"Tool '{toolName}' not found." }],
                     IsError = true
                 };
             }
@@ -147,10 +188,7 @@ public sealed partial class LocalToolRegistry : IToolRegistry
         {
             return new ToolResult
             {
-                Content = new List<ToolContent>
-                {
-                    new() { Type = ToolContentType.Text, Text = $"Tool '{toolName}' was canceled." }
-                },
+                Content = [new() { Type = ToolContentType.Text, Text = $"Tool '{toolName}' was canceled." }],
                 IsError = true
             };
         }
@@ -158,10 +196,7 @@ public sealed partial class LocalToolRegistry : IToolRegistry
         {
             return new ToolResult
             {
-                Content = new List<ToolContent>
-                {
-                    new() { Type = ToolContentType.Text, Text = $"Error executing tool '{toolName}': {ex.Message}" }
-                },
+                Content = [new() { Type = ToolContentType.Text, Text = $"Error executing tool '{toolName}': {ex.Message}" }],
                 IsError = true
             };
         }
@@ -225,6 +260,8 @@ public sealed partial class LocalToolRegistry : IToolRegistry
         try
         {
             _tools.Clear();
+            _kindIndex.Clear();
+            _groupIndex.Clear();
             OnToolsCleared();
             _logger?.LogInformation("All tools cleared");
         }
@@ -238,6 +275,35 @@ public sealed partial class LocalToolRegistry : IToolRegistry
     {
         _lock.Dispose();
         return ValueTask.CompletedTask;
+    }
+
+    private void AddToIndex(IToolHandler handler)
+    {
+        if (!_kindIndex.TryGetValue(handler.Kind, out var kindBucket))
+        {
+            kindBucket = new Dictionary<string, IToolHandler>();
+            _kindIndex[handler.Kind] = kindBucket;
+        }
+        kindBucket[handler.Name] = handler;
+
+        if (handler.GroupName is not null)
+        {
+            if (!_groupIndex.TryGetValue(handler.GroupName, out var groupBucket))
+            {
+                groupBucket = new Dictionary<string, IToolHandler>(StringComparer.OrdinalIgnoreCase);
+                _groupIndex[handler.GroupName] = groupBucket;
+            }
+            groupBucket[handler.Name] = handler;
+        }
+    }
+
+    private void RemoveFromIndex(IToolHandler handler)
+    {
+        if (_kindIndex.TryGetValue(handler.Kind, out var kindBucket))
+            kindBucket.Remove(handler.Name);
+
+        if (handler.GroupName is not null && _groupIndex.TryGetValue(handler.GroupName, out var groupBucket))
+            groupBucket.Remove(handler.Name);
     }
 
     private void OnToolRegistered(string toolName, string description)

@@ -670,7 +670,10 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
 
         sb.AppendLine($"            await registry.RegisterToolAsync(\"{tool.Name}\", \"{EscapeString(tool.Description)}\", __schema,");
         sb.AppendLine($"                async (__name, args, ct, onProgress) => await handler.{tool.MethodName}({argsList}),");
-        sb.AppendLine("                cancellationToken);");
+        var effectiveKind = tool.Kind ?? handler.Kind;
+        var effectiveGroupName = tool.GroupName ?? handler.GroupName;
+        var groupNameArg = effectiveGroupName is not null ? $"\"{EscapeString(effectiveGroupName)}\"" : "null";
+        sb.AppendLine($"                cancellationToken, kind: ToolKindExtensions.FromValue(\"{EscapeString(effectiveKind)}\") ?? ToolKind.System, groupName: {groupNameArg});");
         sb.AppendLine("        }");
     }
 

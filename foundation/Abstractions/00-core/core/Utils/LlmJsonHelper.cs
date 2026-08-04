@@ -74,7 +74,19 @@ public static class LlmJsonHelper
     /// </summary>
     public static T? Deserialize<T>(string? llmOutput, JsonTypeInfo<T> jsonTypeInfo, out string? repairHint) where T : class
     {
-        repairHint = null;
+        var result = DeserializeWithReport(llmOutput, jsonTypeInfo, out var report);
+        repairHint = report.RepairHint ?? (report.CoercionIssues.Count > 0 ? report.FormatForLlm() : null);
+        return result;
+    }
+
+    /// <summary>
+    /// LLM 结构化输出统一反序列化入口（引用类型，纵深防御 + 精确报错版）
+    /// 层次：第1层 严格反序列化 → 第2层 RepairJson 语法修复 → 第3层 JsonLenientCoercer 类型强制转换 → 第4层 精确报错
+    /// 任一字段不可转换时降级为默认值，同时把单字段失败写进 report.CoercionIssues，供报告给 LLM 自我修正。
+    /// </summary>
+    public static T? DeserializeWithReport<T>(string? llmOutput, JsonTypeInfo<T> jsonTypeInfo, out JsonLeniencyReport report) where T : class
+    {
+        report = new JsonLeniencyReport { Deserialized = false, RepairHint = null };
 
         if (string.IsNullOrWhiteSpace(llmOutput))
             return null;
@@ -85,7 +97,7 @@ public static class LlmJsonHelper
 
         if (json is not null)
         {
-            var result = TryDeserializeWithRepair(json, jsonTypeInfo, ref repairHint);
+            var result = TryDeserializeDefensive(json, jsonTypeInfo, ref report);
             if (result is not null)
                 return result;
         }
@@ -93,7 +105,7 @@ public static class LlmJsonHelper
         var inlineJson = ExtractInlineJson(trimmed);
         if (inlineJson is not null)
         {
-            var result = TryDeserializeWithRepair(inlineJson, jsonTypeInfo, ref repairHint);
+            var result = TryDeserializeDefensive(inlineJson, jsonTypeInfo, ref report);
             if (result is not null)
                 return result;
         }
@@ -205,6 +217,83 @@ public static class LlmJsonHelper
             System.Diagnostics.Trace.WriteLine($"[LlmJsonHelper] Repaired JSON deserialize still failed: {ex.Message}");
         }
 
+        return null;
+    }
+
+    /// <summary>
+    /// 纵深防御反序列化：严格 → 语法修复 → 类型强制转换，失败字段降级并精确记录。
+    /// 贯穿三层，任一字段的失败都被聚合进 report.CoercionIssues 供上层报告给 LLM。
+    /// </summary>
+    private static T? TryDeserializeDefensive<T>(string json, JsonTypeInfo<T> jsonTypeInfo, ref JsonLeniencyReport report) where T : class
+    {
+        var issues = new List<JsonCoercionIssue>();
+
+        // 第1层：严格反序列化（JsonContext 已带尾随逗号/注释/大小写宽容）
+        try
+        {
+            var direct = JsonSerializer.Deserialize(json, jsonTypeInfo);
+            if (direct is not null)
+            {
+                report = new JsonLeniencyReport { Deserialized = true, RepairHint = report.RepairHint, CoercionIssues = issues };
+                return direct;
+            }
+        }
+        catch (JsonException ex)
+        {
+            System.Diagnostics.Trace.WriteLine($"[LlmJsonHelper] Direct deserialize failed, will try repair: {ex.Message}");
+        }
+
+        // 第2层：语法修复（尾随逗号/未加引号键/单引号/截断）
+        var repairResult = ToolCallRepairService.RepairJson(json);
+        var repaired = repairResult.Success ? repairResult.RepairedJson : json;
+        var repairHint = repairResult.RepairHint;
+
+        try
+        {
+            var afterRepair = JsonSerializer.Deserialize(repaired, jsonTypeInfo);
+            if (afterRepair is not null)
+            {
+                report = new JsonLeniencyReport { Deserialized = true, RepairHint = repairHint, CoercionIssues = issues };
+                return afterRepair;
+            }
+        }
+        catch (JsonException ex)
+        {
+            System.Diagnostics.Trace.WriteLine($"[LlmJsonHelper] Repaired JSON deserialize still failed, will try type coercion: {ex.Message}");
+        }
+
+        // 第3层：类型强制转换（number↔bool、number→string、bool→string、string→number、Trim）
+        try
+        {
+            if (JsonLenientCoercer.TryCoerceObjectJson(repaired, jsonTypeInfo, out var coercedJson, out var coercionIssues))
+            {
+                issues.AddRange(coercionIssues);
+                var coercedResult = JsonSerializer.Deserialize(coercedJson!, jsonTypeInfo);
+                if (coercedResult is not null)
+                {
+                    report = new JsonLeniencyReport { Deserialized = true, RepairHint = repairHint, CoercionIssues = issues };
+                    return coercedResult;
+                }
+            }
+        }
+        catch (JsonException ex)
+        {
+            System.Diagnostics.Trace.WriteLine($"[LlmJsonHelper] Type coercion deserialize failed: {ex.Message}");
+        }
+
+        // 第4层：精确报错 — 把失败的字段明细写入报告，供调用方回喂 LLM
+        if (issues.Count == 0)
+        {
+            issues.Add(new JsonCoercionIssue
+            {
+                PropertyPath = "(root)",
+                ExpectedType = typeof(T).Name,
+                ActualValueKind = "Unknown",
+                Reason = "严格解析、语法修复与类型转换均失败，JSON 无法映射到目标类型"
+            });
+        }
+
+        report = new JsonLeniencyReport { Deserialized = false, RepairHint = repairHint, CoercionIssues = issues };
         return null;
     }
 

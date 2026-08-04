@@ -80,13 +80,13 @@ public sealed class GoalEvaluatorTests
     }
 
     [Fact]
-    public void ParseEvaluationResult_Json_With_1_And_0_Should_Fallback()
+    public void ParseEvaluationResult_Json_With_1_And_0_Should_Coerce_To_Bool()
     {
-        // System.Text.Json 不接受 1/0 作为 bool，RepairJson 也无法修复类型不匹配
+        // LlmJsonHelper 纵深防御第3层：number→bool 强制转换（1→true, 0→false）
         var result1 = GoalEvaluator.ParseEvaluationResult("""{"completed": 1, "reason": "done"}""");
         var result0 = GoalEvaluator.ParseEvaluationResult("""{"completed": 0, "reason": "not done"}""");
 
-        Assert.False(result1.IsCompleted);
+        Assert.True(result1.IsCompleted);
         Assert.False(result0.IsCompleted);
     }
 
@@ -101,13 +101,13 @@ public sealed class GoalEvaluatorTests
     }
 
     [Fact]
-    public void ParseEvaluationResult_Json_With_Malformed_Reason_Should_Fallback()
+    public void ParseEvaluationResult_Json_With_Numeric_Reason_Should_Coerce_To_String()
     {
-        // reason 为数字 123 时类型不匹配，JSON 解析失败回退到文本格式
+        // reason 为数字 123 时，LlmJsonHelper 第3层将其强制转换为字符串 "123"
         var result = GoalEvaluator.ParseEvaluationResult("""{"completed": false, "reason": 123}""");
 
         Assert.False(result.IsCompleted);
-        Assert.Contains("格式异常", result.Reason);
+        Assert.Equal("123", result.Reason);
     }
 
     [Fact]

@@ -210,34 +210,9 @@ public sealed partial class BridgeMain : IAsyncDisposable
         {
             await RegisterEnvironmentAsync(config, ct).ConfigureAwait(false);
         }
-        catch (BridgeFatalError ex)
-        {
-            TelemetryCount("tengu_bridge_registration_failed", new Dictionary<string, string>
-            {
-                ["status"] = ex.StatusCode?.ToString() ?? "0",
-            });
-            if (BridgeApiClient.IsExpiredErrorType(ex.ErrorType))
-            {
-                _logger?.LogWarning("BridgeMain: registration expired: {Message}", ex.Message);
-            }
-            else if (BridgeApiClient.IsSuppressible403(ex))
-            {
-                _logger?.LogDebug("BridgeMain: suppressed 403 during registration: {Message}", ex.Message);
-            }
-            else
-            {
-                _logger?.LogError(ex, "BridgeMain: environment registration failed (fatal)");
-            }
-            return new BridgeMainResult { Error = $"Registration failed: {ex.Message}" };
-        }
-        catch (InvalidOperationException ex) when (ex.Message.StartsWith("Registration returned null"))
-        {
-            return new BridgeMainResult { Error = ex.Message };
-        }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "BridgeMain: environment registration failed");
-            return new BridgeMainResult { Error = $"Registration failed: {ex.Message}" };
+            return HandleRegistrationError(ex);
         }
 
         _logger?.LogInformation("BridgeMain: environment registered, ID={EnvId}", EnvironmentId);
@@ -538,36 +513,9 @@ public sealed partial class BridgeMain : IAsyncDisposable
         {
             await RegisterEnvironmentAsync(config, ct).ConfigureAwait(false);
         }
-        catch (BridgeFatalError ex)
-        {
-            // 对齐 TS 端: logEvent("tengu_bridge_registration_failed", {status})
-            TelemetryCount("tengu_bridge_registration_failed", new Dictionary<string, string>
-            {
-                ["status"] = ex.StatusCode?.ToString() ?? "0",
-            });
-            // 对齐 TS 端: 分层判断 — 过期/可抑制403 vs 真正致命
-            if (BridgeApiClient.IsExpiredErrorType(ex.ErrorType))
-            {
-                _logger?.LogWarning("BridgeMain: registration expired: {Message}", ex.Message);
-            }
-            else if (BridgeApiClient.IsSuppressible403(ex))
-            {
-                _logger?.LogDebug("BridgeMain: suppressed 403 during registration: {Message}", ex.Message);
-            }
-            else
-            {
-                _logger?.LogError(ex, "BridgeMain: environment registration failed (fatal)");
-            }
-            return new BridgeMainResult { Error = $"Registration failed: {ex.Message}" };
-        }
-        catch (InvalidOperationException ex) when (ex.Message.StartsWith("Registration returned null"))
-        {
-            return new BridgeMainResult { Error = ex.Message };
-        }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "BridgeMain: environment registration failed");
-            return new BridgeMainResult { Error = $"Registration failed: {ex.Message}" };
+            return HandleRegistrationError(ex);
         }
 
         _logger?.LogInformation("BridgeMain: environment registered, ID={EnvId}", EnvironmentId);
@@ -1854,5 +1802,37 @@ public sealed partial class BridgeMain : IAsyncDisposable
                 _logger?.LogDebug(ex, "BridgeMain: pending cleanups timeout (non-fatal)");
             }
         }
+    }
+
+    private BridgeMainResult HandleRegistrationError(Exception ex)
+    {
+        if (ex is BridgeFatalError fatal)
+        {
+            TelemetryCount("tengu_bridge_registration_failed", new Dictionary<string, string>
+            {
+                ["status"] = fatal.StatusCode?.ToString() ?? "0",
+            });
+            if (BridgeApiClient.IsExpiredErrorType(fatal.ErrorType))
+            {
+                _logger?.LogWarning("BridgeMain: registration expired: {Message}", fatal.Message);
+            }
+            else if (BridgeApiClient.IsSuppressible403(fatal))
+            {
+                _logger?.LogDebug("BridgeMain: suppressed 403 during registration: {Message}", fatal.Message);
+            }
+            else
+            {
+                _logger?.LogError(fatal, "BridgeMain: environment registration failed (fatal)");
+            }
+            return new BridgeMainResult { Error = $"Registration failed: {fatal.Message}" };
+        }
+
+        if (ex is InvalidOperationException { Message: var msg } && msg.StartsWith("Registration returned null"))
+        {
+            return new BridgeMainResult { Error = msg };
+        }
+
+        _logger?.LogError(ex, "BridgeMain: environment registration failed");
+        return new BridgeMainResult { Error = $"Registration failed: {ex.Message}" };
     }
 }

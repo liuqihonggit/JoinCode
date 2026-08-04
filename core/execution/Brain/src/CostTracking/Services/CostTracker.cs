@@ -7,6 +7,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
 {
     private readonly ConcurrentDictionary<string, ModelCostInfo> _modelCosts;
     private readonly ConcurrentBag<TokenUsageRecord> _usageRecords;
+    private readonly ConcurrentDictionary<string, List<TokenUsageRecord>> _sessionIndex;
     private readonly string _storagePath;
     [Inject] private readonly ILogger<CostTracker>? _logger;
     private readonly IFileOperationService _fileOperationService;
@@ -32,6 +33,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
         _sessionStartTime = _clock.GetUtcNow();
         _modelCosts = new ConcurrentDictionary<string, ModelCostInfo>(StringComparer.OrdinalIgnoreCase);
         _usageRecords = new ConcurrentBag<TokenUsageRecord>();
+        _sessionIndex = new ConcurrentDictionary<string, List<TokenUsageRecord>>(StringComparer.OrdinalIgnoreCase);
         _budgetLock = new SemaphoreSlim(1, 1);
 
         if (_budgetConfig != null)
@@ -104,8 +106,12 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
 
     public CostStatistics GetSessionStatistics(string sessionId)
     {
-        var records = _usageRecords.Where(r => r.SessionId == sessionId).ToList();
-        return CalculateStatistics(records);
+        if (!_sessionIndex.TryGetValue(sessionId, out var records))
+            return new CostStatistics();
+        lock (records)
+        {
+            return CalculateStatistics(new List<TokenUsageRecord>(records));
+        }
     }
 
     public CostStatistics GetTodayStatistics()
@@ -410,6 +416,12 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
                     _usageRecords.Add(record);
                 }
 
+                foreach (var group in records.GroupBy(r => r.SessionId))
+                {
+                    var list = new List<TokenUsageRecord>(group);
+                    _sessionIndex.TryAdd(group.Key, list);
+                }
+
                 _logger?.LogInformation("[CostTracker] 加载了 {Count} 条历史用量记录", records.Count);
             }
         }
@@ -454,6 +466,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
     public void Reset()
     {
         while (_usageRecords.TryTake(out _)) { }
+        _sessionIndex.Clear();
         _triggeredThresholds.Clear();
         Interlocked.Exchange(ref _totalLinesAdded, 0);
         Interlocked.Exchange(ref _totalLinesRemoved, 0);

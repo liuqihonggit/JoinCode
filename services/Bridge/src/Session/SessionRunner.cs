@@ -131,6 +131,7 @@ public sealed partial class BridgeSessionFactory
 public sealed partial class BridgeSessionRunner : IAsyncDisposable
 {
     private readonly ConcurrentDictionary<string, BridgeSession> _sessions;
+    private readonly ConcurrentDictionary<string, string> _clientIdToSessionId;
     private readonly BridgeSessionFactory _sessionFactory;
     private readonly BridgeSessionConfiguration _configuration;
     private readonly ILogger? _logger;
@@ -157,6 +158,7 @@ public sealed partial class BridgeSessionRunner : IAsyncDisposable
         _configuration = configuration ?? new BridgeSessionConfiguration();
         _logger = logger;
         _sessions = new ConcurrentDictionary<string, BridgeSession>();
+        _clientIdToSessionId = new ConcurrentDictionary<string, string>();
         _lock = new SemaphoreSlim(1, 1);
         _timeProvider = timeProvider ?? TimeProvider.System;
     }
@@ -232,6 +234,7 @@ public sealed partial class BridgeSessionRunner : IAsyncDisposable
 
             var session = _sessionFactory.Create(clientId, metadata);
             _sessions[session.SessionId] = session;
+            _clientIdToSessionId[clientId] = session.SessionId;
 
             _logger?.LogInformation(
                 "[SessionRunner] 会话已创建: {SessionId}, 客户端: {ClientId}",
@@ -276,6 +279,9 @@ public sealed partial class BridgeSessionRunner : IAsyncDisposable
             var previousStatus = session.Status;
             session.Status = BridgeSessionStatus.Closed;
             session.LastActiveAt = _timeProvider.GetUtcNow();
+
+            if (_clientIdToSessionId.TryGetValue(session.ClientId, out var mappedId) && mappedId == sessionId)
+                _clientIdToSessionId.TryRemove(session.ClientId, out _);
 
             _logger?.LogInformation("[SessionRunner] 会话已停止: {SessionId}", sessionId);
 
@@ -370,6 +376,18 @@ public sealed partial class BridgeSessionRunner : IAsyncDisposable
     public BridgeSession? GetSession(string sessionId)
     {
         return _sessions.TryGetValue(sessionId, out var session) ? session : null;
+    }
+
+    /// <summary>
+    /// 根据客户端 ID 获取会话
+    /// </summary>
+    /// <param name="clientId">客户端标识</param>
+    /// <returns>会话实例，不存在则返回 null</returns>
+    public BridgeSession? GetByClientId(string clientId)
+    {
+        return _clientIdToSessionId.TryGetValue(clientId, out var sessionId)
+            ? GetSession(sessionId)
+            : null;
     }
 
     /// <summary>

@@ -78,6 +78,45 @@ public sealed class EnvironmentProbeService : IEnvironmentProbeService
         return normalized.Replace('/', '\\');
     }
 
+    /// <inheritdoc />
+    public string GatePath(string rawPath, bool isPowerShell)
+    {
+        if (string.IsNullOrWhiteSpace(rawPath)) return rawPath;
+
+        var isWindows = OperatingSystem.IsWindows();
+
+        if (isWindows && !isPowerShell)
+        {
+            return PathConverter.WindowsPathToPosixPath(rawPath);
+        }
+
+        if (isWindows && isPowerShell)
+        {
+            return PathConverter.PosixPathToWindowsPath(rawPath);
+        }
+
+        if (!isWindows && PathConverter.LooksLikeWindowsPath(rawPath))
+        {
+            return PathConverter.WindowsPathToPosixPath(rawPath);
+        }
+
+        return rawPath;
+    }
+
+    /// <summary>
+    /// Windows 路径转 POSIX 路径 — 委托给 PathConverter，保留为向后兼容
+    /// </summary>
+    [Obsolete("Use PathConverter.WindowsPathToPosixPath instead")]
+    internal static string WindowsPathToPosixPath(string windowsPath)
+        => PathConverter.WindowsPathToPosixPath(windowsPath);
+
+    /// <summary>
+    /// POSIX 风格 Windows 路径转 Windows 路径 — 委托给 PathConverter，保留为向后兼容
+    /// </summary>
+    [Obsolete("Use PathConverter.PosixPathToWindowsPath instead")]
+    internal static string PosixPathToWindowsPath(string posixPath)
+        => PathConverter.PosixPathToWindowsPath(posixPath);
+
     public async Task<IReadOnlyDictionary<string, ExecutorScore>> GetExecutorScoresAsync(CancellationToken ct = default)
     {
         var report = await ProbeEnvironmentAsync(false, ct).ConfigureAwait(false);

@@ -9,9 +9,9 @@ public sealed class ShellPipelineContext
     // === 输入 ===
 
     /// <summary>
-    /// 要执行的命令
+    /// 要执行的命令 — 可由 ShellPathGateMiddleware 等中间件修改路径格式
     /// </summary>
-    public required string Command { get; init; }
+    public required string Command { get; set; }
 
     /// <summary>
     /// 是否为 PowerShell 命令
@@ -29,9 +29,9 @@ public sealed class ShellPipelineContext
     public int? Timeout { get; init; }
 
     /// <summary>
-    /// 工作目录
+    /// 工作目录 — 可由 ShellPathGateMiddleware 等中间件修改路径格式
     /// </summary>
-    public string? WorkingDirectory { get; init; }
+    public string? WorkingDirectory { get; set; }
 
     /// <summary>
     /// 是否在后台运行

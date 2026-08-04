@@ -589,23 +589,8 @@ public sealed partial class PathPermissionChecker : IPathPermissionChecker
     }
 
     /// <summary>
-    /// 将路径转换为 POSIX 格式 — 对齐 TS windowsPathToPosixPath
+    /// 将路径转换为 POSIX 格式 — 委托给 PathConverter.WindowsPathToPosixPath
     /// C:\Users\test → /c/Users/test
     /// </summary>
-    private static string ToPosixPath(string path)
-    {
-        if (string.IsNullOrEmpty(path))
-            return path;
-
-        // Windows 绝对路径: C:\... → /c/...
-        if (path.Length >= 2 && char.IsLetter(path[0]) && path[1] == ':')
-        {
-            var driveLetter = char.ToLowerInvariant(path[0]);
-            var rest = path[2..].Replace('\\', '/');
-            return $"/{driveLetter}{rest}";
-        }
-
-        // UNC 路径和相对路径：只替换分隔符
-        return path.Replace('\\', '/');
-    }
+    private static string ToPosixPath(string path) => PathConverter.WindowsPathToPosixPath(path);
 }

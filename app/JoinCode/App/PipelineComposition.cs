@@ -210,6 +210,7 @@ public static class PipelineComposition
                 .WithLoggingScope(sp.GetRequiredService<ILoggerFactory>())
                 .Use(new FixedTimeoutMiddleware<ShellPipelineContext>(TimeSpan.FromSeconds(120)))
                 .Use(sp.GetRequiredService<ShellValidationMiddleware>())
+                .Use(sp.GetRequiredService<ShellPathGateMiddleware>())
                 .Use(sp.GetRequiredService<ShellClassificationMiddleware>())
                 .Use(sp.GetRequiredService<ShellSedInterceptMiddleware>())
                 .Use(sp.GetRequiredService<ShellBackgroundMiddleware>())

@@ -103,19 +103,21 @@ public sealed class EnvironmentProbeService : IEnvironmentProbeService
         return rawPath;
     }
 
-    /// <summary>
-    /// Windows 路径转 POSIX 路径 — 委托给 PathConverter，保留为向后兼容
-    /// </summary>
-    [Obsolete("Use PathConverter.WindowsPathToPosixPath instead")]
-    internal static string WindowsPathToPosixPath(string windowsPath)
-        => PathConverter.WindowsPathToPosixPath(windowsPath);
+    /// <inheritdoc />
+    public string GateCommandPaths(string command, bool isPowerShell)
+    {
+        if (string.IsNullOrEmpty(command)) return command;
 
-    /// <summary>
-    /// POSIX 风格 Windows 路径转 Windows 路径 — 委托给 PathConverter，保留为向后兼容
-    /// </summary>
-    [Obsolete("Use PathConverter.PosixPathToWindowsPath instead")]
-    internal static string PosixPathToWindowsPath(string posixPath)
-        => PathConverter.PosixPathToWindowsPath(posixPath);
+        var isWindows = OperatingSystem.IsWindows();
+        var toPosix = (isWindows && !isPowerShell) || (!isWindows);
+
+        if (!toPosix && isWindows && isPowerShell)
+        {
+            return PathConverter.GateCommandPaths(command, toPosix: false);
+        }
+
+        return PathConverter.GateCommandPaths(command, toPosix: true);
+    }
 
     public async Task<IReadOnlyDictionary<string, ExecutorScore>> GetExecutorScoresAsync(CancellationToken ct = default)
     {

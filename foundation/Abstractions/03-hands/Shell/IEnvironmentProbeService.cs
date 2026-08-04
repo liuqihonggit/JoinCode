@@ -21,4 +21,13 @@ public interface IEnvironmentProbeService
     /// <param name="isPowerShell">目标 Shell 是否为 PowerShell</param>
     /// <returns>转换后的路径</returns>
     string GatePath(string rawPath, bool isPowerShell);
+
+    /// <summary>
+    /// 命令路径门控 — 扫描命令字符串中的路径片段并转换为指定格式
+    /// 匹配 Windows 绝对路径和 POSIX 风格 Windows 路径，排除 URL 和环境变量
+    /// </summary>
+    /// <param name="command">Shell 命令字符串</param>
+    /// <param name="isPowerShell">目标 Shell 是否为 PowerShell</param>
+    /// <returns>路径转换后的命令字符串</returns>
+    string GateCommandPaths(string command, bool isPowerShell);
 }

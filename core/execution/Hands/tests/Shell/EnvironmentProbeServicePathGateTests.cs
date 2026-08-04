@@ -93,6 +93,49 @@ public class EnvironmentProbeServicePathGateTests
 
     #endregion
 
+    #region PathConverter.GateCommandPaths
+
+    [Theory]
+    [InlineData("cat C:\\Users\\test\\file.txt", true, "cat /c/Users/test/file.txt")]
+    [InlineData("cat C:\\Users\\test\\file.txt", false, "cat C:\\Users\\test\\file.txt")]
+    [InlineData("cd /c/Users/test; npm run build", false, "cd C:\\Users\\test; npm run build")]
+    [InlineData("cd /c/Users/test; npm run build", true, "cd /c/Users/test; npm run build")]
+    [InlineData("echo hello", true, "echo hello")]
+    [InlineData("echo hello", false, "echo hello")]
+    [InlineData("cat D:\\project\\w3\\src\\file.cs", true, "cat /d/project/w3/src/file.cs")]
+    [InlineData("python D:/project/script.py", true, "python /d/project/script.py")]
+    public void GateCommandPaths_ConvertsPathsInCommand(string input, bool toPosix, string expected)
+    {
+        var result = PathConverter.GateCommandPaths(input, toPosix);
+        result.Should().Be(expected);
+    }
+
+    [Fact]
+    public void GateCommandPaths_ExcludesUrls()
+    {
+        var cmd = "curl https://api.example.com/data C:\\Users\\test\\output.json";
+        var result = PathConverter.GateCommandPaths(cmd, toPosix: true);
+        result.Should().Contain("https://api.example.com/data");
+        result.Should().Contain("/c/Users/test/output.json");
+    }
+
+    [Fact]
+    public void GateCommandPaths_MultiplePaths()
+    {
+        var cmd = "copy C:\\Users\\test\\a.txt C:\\Users\\test\\b.txt";
+        var result = PathConverter.GateCommandPaths(cmd, toPosix: true);
+        result.Should().Be("copy /c/Users/test/a.txt /c/Users/test/b.txt");
+    }
+
+    [Fact]
+    public void GateCommandPaths_NullOrEmpty_ReturnsAsIs()
+    {
+        PathConverter.GateCommandPaths(null!, true).Should().BeNull();
+        PathConverter.GateCommandPaths("", true).Should().Be("");
+    }
+
+    #endregion
+
     #region GatePath — 集成测试（依赖平台）
 
     /// <summary>

@@ -6,6 +6,7 @@ namespace Tools.Shell;
 ///   - Windows + Bash(Git Bash/WSL) → POSIX 格式
 ///   - Windows + PowerShell → Windows 格式
 ///   - Linux/Mac → POSIX 格式
+/// 覆盖 working_directory 和 command 中的路径片段
 /// </summary>
 [Register]
 public sealed partial class ShellPathGateMiddleware : IShellMiddleware
@@ -21,6 +22,15 @@ public sealed partial class ShellPathGateMiddleware : IShellMiddleware
             if (!string.Equals(gated, context.WorkingDirectory, StringComparison.Ordinal))
             {
                 context.WorkingDirectory = gated;
+            }
+        }
+
+        if (!string.IsNullOrEmpty(context.Command))
+        {
+            var gatedCommand = _probeService.GateCommandPaths(context.Command, context.IsPowerShell);
+            if (!string.Equals(gatedCommand, context.Command, StringComparison.Ordinal))
+            {
+                context.Command = gatedCommand;
             }
         }
 

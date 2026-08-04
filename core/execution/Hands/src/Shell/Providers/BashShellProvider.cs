@@ -214,28 +214,6 @@ public sealed class BashShellProvider : ShellProviderBase, IDisposable
         => _probeService?.GatePath(path, isPowerShell: false) ?? PathConverter.WindowsPathToPosixPath(path);
 
     /// <summary>
-    /// Windows 路径转 POSIX 路径 — 对齐 TS windowsPathToPosixPath
-    /// 保留为向后兼容，新代码应使用 PathConverter.WindowsPathToPosixPath 或 IEnvironmentProbeService.GatePath
-    /// </summary>
-    [Obsolete("Use PathConverter.WindowsPathToPosixPath instead")]
-    internal static string WindowsPathToPosixPath(string windowsPath)
-    {
-        if (windowsPath.StartsWith("\\\\"))
-        {
-            return windowsPath.Replace('\\', '/');
-        }
-
-        var match = Regex.Match(windowsPath, @"^([A-Za-z]):[/\\]");
-        if (match.Success)
-        {
-            var drive = match.Groups[1].Value.ToLowerInvariant();
-            return '/' + drive + windowsPath[2..].Replace('\\', '/');
-        }
-
-        return windowsPath.Replace('\\', '/');
-    }
-
-    /// <summary>
     /// POSIX 路径拼接 — 对齐 TS path/posix.join
     /// </summary>
     private static string PosixJoin(params string[] segments)

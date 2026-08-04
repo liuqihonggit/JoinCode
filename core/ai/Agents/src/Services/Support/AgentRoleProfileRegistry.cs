@@ -18,6 +18,7 @@ public sealed class AgentRoleProfileRegistry : IAgentRoleRegistry
 #pragma warning restore JCC4005
     private List<AgentRoleProfile> _profiles;
     private FrozenDictionary<(AgentRole, ExecutorVariant?), AgentRoleProfile> _profileMap;
+    private Dictionary<AgentRole, List<AgentRoleProfile>> _roleIndex;
     private volatile bool _customLoaded;
 
     public AgentRoleProfileRegistry(
@@ -28,6 +29,7 @@ public sealed class AgentRoleProfileRegistry : IAgentRoleRegistry
         _logger = logger;
         _profiles = BuildBuiltInProfiles();
         _profileMap = BuildProfileMap(_profiles);
+        _roleIndex = BuildRoleIndex(_profiles);
     }
 
     public void Register(AgentRoleProfile profile)
@@ -37,6 +39,12 @@ public sealed class AgentRoleProfileRegistry : IAgentRoleRegistry
         {
             _profiles.Add(profile);
             _profileMap = BuildProfileMap(_profiles);
+            if (!_roleIndex.TryGetValue(profile.Role, out var list))
+            {
+                list = new List<AgentRoleProfile>();
+                _roleIndex[profile.Role] = list;
+            }
+            list.Add(profile);
         }
         finally
         {
@@ -59,7 +67,7 @@ public sealed class AgentRoleProfileRegistry : IAgentRoleRegistry
     public IEnumerable<AgentRoleProfile> GetProfilesByRole(AgentRole role)
     {
         EnsureCustomLoaded();
-        return _profiles.Where(p => p.Role == role);
+        return _roleIndex.GetValueOrDefault(role) ?? [];
     }
 
     public IEnumerable<ExecutorVariant> GetAvailableVariants()
@@ -80,6 +88,7 @@ public sealed class AgentRoleProfileRegistry : IAgentRoleRegistry
             _customLoaded = false;
             _profiles = BuildBuiltInProfiles();
             _profileMap = BuildProfileMap(_profiles);
+            _roleIndex = BuildRoleIndex(_profiles);
         }
         finally
         {
@@ -132,6 +141,7 @@ public sealed class AgentRoleProfileRegistry : IAgentRoleRegistry
                     }
                 }
                 _profileMap = BuildProfileMap(_profiles);
+                _roleIndex = BuildRoleIndex(_profiles);
                 _customLoaded = true;
             }
             catch (Exception ex)
@@ -155,6 +165,21 @@ public sealed class AgentRoleProfileRegistry : IAgentRoleRegistry
             builder.TryAdd((p.Role, p.Variant), p);
         }
         return builder.ToFrozenDictionary();
+    }
+
+    private static Dictionary<AgentRole, List<AgentRoleProfile>> BuildRoleIndex(List<AgentRoleProfile> profiles)
+    {
+        var index = new Dictionary<AgentRole, List<AgentRoleProfile>>();
+        foreach (var p in profiles)
+        {
+            if (!index.TryGetValue(p.Role, out var list))
+            {
+                list = new List<AgentRoleProfile>();
+                index[p.Role] = list;
+            }
+            list.Add(p);
+        }
+        return index;
     }
 
     internal static List<AgentRoleProfile> BuildBuiltInProfiles()

@@ -205,12 +205,14 @@ public interface IUsageTracker
 public sealed partial class UsageTracker : IUsageTracker, IDisposable
 {
     private readonly ConcurrentBag<TokenUsageRecord> _usageRecords;
+    private readonly ConcurrentDictionary<string, List<TokenUsageRecord>> _sessionIndex;
     [Inject] private readonly ILogger<UsageTracker>? _logger;
     private readonly ICostTracker? _costTracker;
 
     public UsageTracker(ILogger<UsageTracker>? logger = null, ICostTracker? costTracker = null)
     {
         _usageRecords = new ConcurrentBag<TokenUsageRecord>();
+        _sessionIndex = new ConcurrentDictionary<string, List<TokenUsageRecord>>(StringComparer.OrdinalIgnoreCase);
         _logger = logger;
         _costTracker = costTracker;
     }
@@ -222,6 +224,14 @@ public sealed partial class UsageTracker : IUsageTracker, IDisposable
     public void RecordUsage(TokenUsageRecord usage)
     {
         _usageRecords.Add(usage);
+        if (usage.SessionId is not null)
+        {
+            var sessionList = _sessionIndex.GetOrAdd(usage.SessionId, _ => new List<TokenUsageRecord>());
+            lock (sessionList)
+            {
+                sessionList.Add(usage);
+            }
+        }
         UsageRecorded?.Invoke(this, usage);
 
         _logger?.LogInformation(
@@ -278,8 +288,12 @@ public sealed partial class UsageTracker : IUsageTracker, IDisposable
     /// <inheritdoc />
     public TokenUsageStatistics GetSessionStatistics(string sessionId)
     {
-        var records = _usageRecords.Where(r => r.SessionId == sessionId).ToList();
-        return CalculateStatistics(records);
+        if (!_sessionIndex.TryGetValue(sessionId, out var records))
+            return new TokenUsageStatistics();
+        lock (records)
+        {
+            return CalculateStatistics(new List<TokenUsageRecord>(records));
+        }
     }
 
     /// <inheritdoc />

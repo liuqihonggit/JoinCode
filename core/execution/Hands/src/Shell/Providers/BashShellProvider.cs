@@ -1,10 +1,9 @@
 namespace Services.Shell.Providers;
 
 /// <summary>
-/// Bash 能力描述提供者 — DI 单例，长命缓存
-/// 版本/路径只检测一次，后续调用返回缓存
+/// Bash 能力描述提供者 — 纯检测工具，不再 DI 注册
+/// 版本/路径只检测一次，通过 ShellCapabilityCache 全局共享
 /// </summary>
-[Register]
 public sealed class BashCapabilityProvider : ShellCapabilityProvider
 {
     public const string GitBashPathEnvVar = "JCC_GIT_BASH_PATH";

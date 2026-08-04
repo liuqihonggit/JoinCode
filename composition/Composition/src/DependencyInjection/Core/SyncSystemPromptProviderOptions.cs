@@ -9,7 +9,7 @@ public sealed partial class SyncSystemPromptProviderOptions : Core.Prompts.Syste
 {
     /// <summary>
     /// DI 构造函数 — 从 WorkflowConfig 和可选服务推导所有属性
-    /// shellCapabilityProviders: 所有已注册的 ShellCapabilityProvider，新增 ShellType 无需改此代码
+    /// Shell 信息从 ShellCapabilityCache 全局缓存获取
     /// </summary>
     public SyncSystemPromptProviderOptions(
         WorkflowConfig config,
@@ -17,8 +17,7 @@ public sealed partial class SyncSystemPromptProviderOptions : Core.Prompts.Syste
         IFileSystem fs,
         IAssistantDailyLogService? dailyLogService = null,
         IMemorySearchHistoryService? searchHistoryService = null,
-        IBriefModeService? briefModeService = null,
-        IEnumerable<ShellCapabilityProvider>? shellCapabilityProviders = null)
+        IBriefModeService? briefModeService = null)
     {
         ProjectRules = config.ProjectRules;
         ExternalRules = config.ExternalRules.Count > 0
@@ -45,12 +44,8 @@ public sealed partial class SyncSystemPromptProviderOptions : Core.Prompts.Syste
             : null;
         AwaySummary = null;
 
-        var capabilityList = shellCapabilityProviders?
-            .Select(p => p.GetCapability(fs))
-            .ToList() ?? [];
-
-        ShellInfos = capabilityList.Count > 0
-            ? capabilityList.ToDictionary(kvp => kvp.Type, kvp => kvp.ToShellInfo())
+        ShellInfos = ShellCapabilityCache.IsInitialized
+            ? ShellCapabilityCache.GetAllShellInfos()
             : null;
     }
 }

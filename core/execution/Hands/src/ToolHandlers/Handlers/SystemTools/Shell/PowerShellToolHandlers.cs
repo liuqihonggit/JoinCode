@@ -10,7 +10,6 @@ public class PowerShellToolHandlers : ShellToolBase
 {
     private readonly MiddlewarePipeline<ShellPipelineContext> _pipeline;
     private readonly IShellExecutionService _shellExecutionService;
-    private readonly PowerShellCapabilityProvider _psCapabilityProvider;
     private readonly IFileOperationService _fileOperationService;
     private readonly IFileSystem _fs;
     private readonly ILogger? _logger;
@@ -23,7 +22,6 @@ public class PowerShellToolHandlers : ShellToolBase
     public PowerShellToolHandlers(
         MiddlewarePipeline<ShellPipelineContext> pipeline,
         IShellExecutionService shellExecutionService,
-        PowerShellCapabilityProvider psCapabilityProvider,
         IFileOperationService fileOperationService,
         IFileSystem fs,
         ILogger? logger = null,
@@ -36,7 +34,6 @@ public class PowerShellToolHandlers : ShellToolBase
     {
         _pipeline = pipeline ?? throw new ArgumentNullException(nameof(pipeline));
         _shellExecutionService = shellExecutionService ?? throw new ArgumentNullException(nameof(shellExecutionService));
-        _psCapabilityProvider = psCapabilityProvider ?? throw new ArgumentNullException(nameof(psCapabilityProvider));
         _fileOperationService = fileOperationService ?? throw new ArgumentNullException(nameof(fileOperationService));
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _logger = logger;
@@ -105,8 +102,7 @@ public class PowerShellToolHandlers : ShellToolBase
             }
         }
 
-        var capability = _psCapabilityProvider.GetCapability(_fs, _logger);
-        using var provider = _psCapabilityProvider.CreateProvider(capability, _fs, _logger);
+        using var provider = ShellProviderFactory.Create(ShellType.PowerShell, _fs, _logger);
 
         var context = new ShellPipelineContext
         {

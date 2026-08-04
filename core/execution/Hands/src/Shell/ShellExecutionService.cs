@@ -1,8 +1,7 @@
 namespace Services.Shell;
 
 /// <summary>
-/// Shell 执行服务实现 — 注入 ShellCapabilityProvider 抽象集合
-/// 每次执行时从 Capability 创建短命 ShellProviderBase 实例
+/// Shell 执行服务实现 — 从 ShellCapabilityCache 获取能力描述，通过 ShellProviderFactory 创建短命实例
 /// </summary>
 [Register]
 public sealed partial class ShellExecutionService : IShellExecutionService
@@ -12,12 +11,10 @@ public sealed partial class ShellExecutionService : IShellExecutionService
     private readonly IFileSystem _fs;
     private readonly ISandboxManager? _sandboxManager;
     private readonly IPreventSleepService? _preventSleepService;
-    private readonly IReadOnlyDictionary<ShellType, ShellCapabilityProvider> _capabilityProviders;
 
     public ShellExecutionService(
         ShellExecutionConfig config,
         IFileSystem fs,
-        IEnumerable<ShellCapabilityProvider> capabilityProviders,
         ILogger<ShellExecutionService>? logger = null,
         ISandboxManager? sandboxManager = null,
         IPreventSleepService? preventSleepService = null)
@@ -27,7 +24,6 @@ public sealed partial class ShellExecutionService : IShellExecutionService
         _logger = logger;
         _sandboxManager = sandboxManager;
         _preventSleepService = preventSleepService;
-        _capabilityProviders = capabilityProviders.ToDictionary(p => p.GetCapability(fs).Type);
     }
 
     /// <inheritdoc />
@@ -115,11 +111,10 @@ public sealed partial class ShellExecutionService : IShellExecutionService
 
         _logger?.LogInformation("Executing {ShellType} command: {Command}", shellType, command);
 
-        if (!_capabilityProviders.TryGetValue(shellType, out var capProvider))
-            return ShellExecutionResult.FailureResult($"No ShellCapabilityProvider registered for {shellType}");
+        if (!ShellCapabilityCache.TryGet(shellType, out _))
+            return ShellExecutionResult.FailureResult($"No ShellCapability registered for {shellType}");
 
-        var capability = capProvider.GetCapability(_fs, _logger as ILogger);
-        using var provider = capProvider.CreateProvider(capability, _fs, _logger as ILogger);
+        using var provider = ShellProviderFactory.Create(shellType, _fs, _logger as ILogger);
 
         if (_preventSleepService is not null) await _preventSleepService.PreventSleepAsync(SleepPreventionType.Continuous).ConfigureAwait(false);
         try

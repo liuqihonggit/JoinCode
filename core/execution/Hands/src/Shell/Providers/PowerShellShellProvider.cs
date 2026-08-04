@@ -1,9 +1,8 @@
 namespace Services.Shell.Providers;
 
 /// <summary>
-/// PowerShell 能力描述提供者 — DI 单例，长命缓存
+/// PowerShell 能力描述提供者 — 纯检测工具，不再 DI 注册
 /// </summary>
-[Register]
 public sealed class PowerShellCapabilityProvider : ShellCapabilityProvider
 {
     public const string PowerShellPathEnvVar = "JCC_POWERSHELL_PATH";

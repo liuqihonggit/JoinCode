@@ -1,9 +1,8 @@
 namespace Services.Shell.Providers;
 
 /// <summary>
-/// Python 能力描述提供者 — DI 单例，长命缓存
+/// Python 能力描述提供者 — 纯检测工具，不再 DI 注册
 /// </summary>
-[Register]
 public sealed class PythonCapabilityProvider : ShellCapabilityProvider
 {
     public const string PythonPathEnvVar = "JCC_PYTHON_PATH";

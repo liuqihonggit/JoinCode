@@ -84,8 +84,8 @@ public static partial class ServiceRegistration
             return options.Value;
         });
 
-        // ShellCapabilityProvider — BashCapabilityProvider / PowerShellCapabilityProvider / PythonCapabilityProvider 由 [Register] 自动注册
-        // ShellExecutionService 注入 IEnumerable<ShellCapabilityProvider> 抽象集合，新增 ShellType 无需改代码
+        // ShellCapabilityProvider — 已改为静态缓存，不再 DI 注册
+        // ShellCapabilityCache + ShellProviderFactory 在 ShellCapabilityInitializer 中初始化
 
         return services;
     }

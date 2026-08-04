@@ -84,8 +84,8 @@ public static partial class ServiceRegistration
             return options.Value;
         });
 
-        // IShellProvider — BashShellProvider / PowerShellShellProvider 由 [Register] 自动注册
-        // ShellExecutionService 构造函数直接取具体类型（非 IShellProvider 接口），避免多实现歧义
+        // ShellCapabilityProvider — 已改为静态缓存，不再 DI 注册
+        // ShellCapabilityCache + ShellProviderFactory 在 ShellCapabilityInitializer 中初始化
 
         return services;
     }

@@ -26,7 +26,7 @@ public class MemoryManagementToolHandlers
     {
         if (string.IsNullOrWhiteSpace(query))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.VaultQueryCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.VaultQueryCannotBeEmpty)).Build();
         }
 
         var result = await _memoryManagementService.ScanMemoriesAsync(query, category, limit ?? 10, cancellationToken).ConfigureAwait(false);
@@ -61,7 +61,7 @@ public class MemoryManagementToolHandlers
             }
         }
 
-        return McpResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     /// <summary>
@@ -118,7 +118,7 @@ public class MemoryManagementToolHandlers
             }
         }
 
-        return McpResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     /// <summary>
@@ -133,7 +133,7 @@ public class MemoryManagementToolHandlers
     {
         if (confirm != "yes")
         {
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText(L.T(StringKey.VaultCleanupConfirmRequired))
                 .Build();
         }
@@ -166,7 +166,7 @@ public class MemoryManagementToolHandlers
             }
         }
 
-        return McpResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     /// <summary>
@@ -213,7 +213,7 @@ public class MemoryManagementToolHandlers
             }
         }
 
-        return McpResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     /// <summary>
@@ -229,12 +229,12 @@ public class MemoryManagementToolHandlers
     {
         if (string.IsNullOrWhiteSpace(team_id))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.VaultTeamIdCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.VaultTeamIdCannotBeEmpty)).Build();
         }
 
         if (string.IsNullOrWhiteSpace(path))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.VaultPathCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.VaultPathCannotBeEmpty)).Build();
         }
 
         var agents = !string.IsNullOrEmpty(allowed_agents)
@@ -255,7 +255,7 @@ public class MemoryManagementToolHandlers
             response.AppendLine(L.T(StringKey.VaultLabelAllowedAgents, string.Join(", ", agents)));
         }
 
-        return McpResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     /// <summary>
@@ -306,7 +306,7 @@ public class MemoryManagementToolHandlers
             }
         }
 
-        return McpResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     /// <summary>
@@ -320,22 +320,22 @@ public class MemoryManagementToolHandlers
     {
         if (string.IsNullOrWhiteSpace(team_id))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.VaultTeamIdCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.VaultTeamIdCannotBeEmpty)).Build();
         }
 
         if (string.IsNullOrWhiteSpace(path))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.VaultPathCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.VaultPathCannotBeEmpty)).Build();
         }
 
         var removed = await _memoryManagementService.RemoveTeamMemoryPathAsync(team_id, path, cancellationToken).ConfigureAwait(false);
 
         if (!removed)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.VaultTeamNotFound)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.VaultTeamNotFound)).Build();
         }
 
-        return McpResultBuilder.Success()
+        return ToolResultBuilder.Success()
             .WithText(L.T(StringKey.VaultTeamPathRemoved, StatusSymbol.Tick.ToValue(), team_id, path))
             .Build();
     }
@@ -352,12 +352,12 @@ public class MemoryManagementToolHandlers
     {
         if (string.IsNullOrWhiteSpace(team_id))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.VaultTeamIdCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.VaultTeamIdCannotBeEmpty)).Build();
         }
 
         if (string.IsNullOrWhiteSpace(query))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.VaultQueryCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.VaultQueryCannotBeEmpty)).Build();
         }
 
         var result = await _memoryManagementService.ScanTeamMemoriesAsync(team_id, query, limit ?? 10, cancellationToken).ConfigureAwait(false);
@@ -386,7 +386,7 @@ public class MemoryManagementToolHandlers
             }
         }
 
-        return McpResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     #region Private Methods

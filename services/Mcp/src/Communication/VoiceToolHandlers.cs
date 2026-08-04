@@ -22,7 +22,7 @@ public sealed partial class VoiceToolHandlers
         {
             if (_voiceService.IsRecording)
             {
-                return McpResultBuilder.Error()
+                return ToolResultBuilder.Error()
                     .WithText(L.T(StringKey.VoiceAlreadyRecording))
                     .Build();
             }
@@ -31,14 +31,14 @@ public sealed partial class VoiceToolHandlers
 
             _logger?.LogInformation("Voice recording started");
 
-            return McpResultBuilder.Success()
+            return ToolResultBuilder.Success()
                 .WithText(L.T(StringKey.VoiceRecordingStarted))
                 .Build();
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, "{Message}", L.T(StringKey.VoiceStartRecordingFailedLog));
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText(L.T(StringKey.VoiceStartRecordingFailed, ex.Message))
                 .Build();
         }
@@ -52,7 +52,7 @@ public sealed partial class VoiceToolHandlers
         {
             if (!_voiceService.IsRecording)
             {
-                return McpResultBuilder.Error()
+                return ToolResultBuilder.Error()
                     .WithText(L.T(StringKey.VoiceNotRecording))
                     .Build();
             }
@@ -77,15 +77,15 @@ public sealed partial class VoiceToolHandlers
             if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
             {
                 response.AppendLine(L.T(StringKey.VoiceLabelError, result.ErrorMessage));
-                return McpResultBuilder.Error().WithText(response.ToString()).Build();
+                return ToolResultBuilder.Error().WithText(response.ToString()).Build();
             }
 
-            return McpResultBuilder.Success().WithText(response.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(response.ToString()).Build();
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, "{Message}", L.T(StringKey.VoiceStopRecordingFailedLog));
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText(L.T(StringKey.VoiceStopRecordingFailed, ex.Message))
                 .Build();
         }
@@ -99,7 +99,7 @@ public sealed partial class VoiceToolHandlers
     {
         if (string.IsNullOrWhiteSpace(file_path))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.VoiceFilePathCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.VoiceFilePathCannotBeEmpty)).Build();
         }
 
         try
@@ -117,12 +117,12 @@ public sealed partial class VoiceToolHandlers
 
             response.AppendLine(L.T(StringKey.VoiceLabelTranscription, transcription));
 
-            return McpResultBuilder.Success().WithText(response.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(response.ToString()).Build();
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, "{Message}", L.T(StringKey.VoiceTranscriptionFailedLog, file_path));
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText(L.T(StringKey.VoiceTranscriptionFailed, ex.Message))
                 .Build();
         }
@@ -137,6 +137,6 @@ public sealed partial class VoiceToolHandlers
         response.AppendLine(L.T(StringKey.VoiceLabelState, _voiceService.State.ToString()));
         response.AppendLine(L.T(StringKey.VoiceLabelIsRecording, _voiceService.IsRecording.ToString()));
 
-        return Task.FromResult(McpResultBuilder.Success().WithText(response.ToString()).Build());
+        return Task.FromResult(ToolResultBuilder.Success().WithText(response.ToString()).Build());
     }
 }

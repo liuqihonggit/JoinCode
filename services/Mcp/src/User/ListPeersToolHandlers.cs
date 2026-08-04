@@ -29,7 +29,7 @@ public partial class ListPeersToolHandlers
             {
                 response.AppendLine(L.T(StringKey.PeerDiscoveryNotEnabled));
                 response.AppendLine(L.T(StringKey.EnsureBridgeRunning));
-                return McpResultBuilder.Success().WithText(response.ToString()).Build();
+                return ToolResultBuilder.Success().WithText(response.ToString()).Build();
             }
 
             var peers = _peerService.GetConnectedPeers();
@@ -53,13 +53,13 @@ public partial class ListPeersToolHandlers
                 }
             }
 
-            return McpResultBuilder.Success().WithText(response.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(response.ToString()).Build();
         }
         catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             _logger?.LogError(ex, "{Message}", L.T(StringKey.ListPeersFailedLog));
-            return McpResultBuilder.Error().WithText(L.T(StringKey.ListPeersFailed, ex.Message)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.ListPeersFailed, ex.Message)).Build();
         }
     }
 

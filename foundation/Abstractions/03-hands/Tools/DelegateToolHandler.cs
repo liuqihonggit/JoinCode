@@ -11,8 +11,10 @@ public sealed class DelegateToolHandler : IToolHandler
     public string Name { get; }
     public string Description { get; }
     public ToolSchema InputSchema { get; }
+    public ToolKind Kind { get; }
+    public string? GroupName { get; }
 
-    public DelegateToolHandler(string name, string description, ToolSchema inputSchema, ToolHandler handler)
+    public DelegateToolHandler(string name, string description, ToolSchema inputSchema, ToolHandler handler, ToolKind kind = ToolKind.System, string? groupName = null)
     {
         ArgumentException.ThrowIfNullOrEmpty(name);
         ArgumentException.ThrowIfNullOrEmpty(description);
@@ -22,6 +24,8 @@ public sealed class DelegateToolHandler : IToolHandler
         Name = name;
         Description = description;
         InputSchema = inputSchema;
+        Kind = kind;
+        GroupName = groupName;
         _handler = handler;
     }
 

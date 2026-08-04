@@ -57,7 +57,7 @@ public sealed partial class AgentForkMiddleware : IAgentToolMiddleware
         response.AppendLine("Fork sub-agent is running in the background. You will be notified when it completes.");
         response.AppendLine("Fork inherits the parent's full context and tool pool, sharing Prompt Cache.");
 
-        RecordAgentMetrics("fork", true);
+        ToolTelemetryHelper.RecordToolCount(_telemetryService, "agent.handler.count", "fork", true);
         context.ForkResult = ToolResultBuilder.Success()
             .WithText(response.ToString())
             .Build();
@@ -65,6 +65,4 @@ public sealed partial class AgentForkMiddleware : IAgentToolMiddleware
         // 短路 — fork 路径不需要后续中间件
     }
 
-    private void RecordAgentMetrics(string operation, bool isSuccess)
-        => _telemetryService?.RecordCount("agent.handler.count", new Dictionary<string, string> { ["operation"] = operation, ["success"] = isSuccess.ToString() }, description: "Agent handler count");
 }

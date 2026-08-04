@@ -185,134 +185,32 @@ public sealed partial class ReplService : IReplService
     }
 
     private async Task<ReplResult> ExecuteCSharpAsync(string code, int timeoutSeconds, CancellationToken ct)
-    {
-        var executable = ResolveExecutable("dotnet-script", "csharp");
-        if (executable == null)
-        {
-            return new ReplResult
-            {
-                Success = false,
-                Output = string.Empty,
-                Language = "csharp",
-                ExecutionTime = TimeSpan.Zero,
-                Error = "dotnet-script 未安装。请执行: dotnet tool install -g dotnet-script"
-            };
-        }
-
-        var scriptFile = _fs.CombinePath(Path.GetTempPath(), $"jcc_repl_{Guid.NewGuid():N}.csx");
-        var output = new System.Text.StringBuilder();
-
-        try
-        {
-            await _fs.WriteAllTextAsync(scriptFile, code, ct).ConfigureAwait(false);
-
-            var result = await _processService.ExecuteAsync(new ProcessOptions
-            {
-                FileName = executable,
-                Arguments = $"\"{scriptFile}\"",
-                TimeoutMs = timeoutSeconds * 1000
-            }, ct).ConfigureAwait(false);
-
-            output.AppendLine(result.StandardOutput);
-
-            return new ReplResult
-            {
-                Success = result.Success,
-                Output = output.ToString(),
-                Language = "csharp",
-                ExecutionTime = result.ExecutionTime,
-                Error = result.Success ? null : result.StandardError
-            };
-        }
-        catch (OperationCanceledException) { throw; }
-        catch (Exception ex)
-        {
-            return new ReplResult
-            {
-                Success = false,
-                Output = output.ToString(),
-                Language = "csharp",
-                ExecutionTime = TimeSpan.Zero,
-                Error = $"dotnet-script 执行失败: {ex.Message}"
-            };
-        }
-        finally
-        {
-            try { if (_fs.FileExists(scriptFile)) _fs.DeleteFile(scriptFile); } catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"ReplService: failed to delete C# script file: {ex.Message}"); }
-        }
-    }
+        => await ExecuteScriptLanguageAsync("csharp", "dotnet-script", ".csx", $"\"{{0}}\"", "dotnet-script 未安装。请执行: dotnet tool install -g dotnet-script", "dotnet-script", code, timeoutSeconds, ct).ConfigureAwait(false);
 
     private async Task<ReplResult> ExecutePowerShellAsync(string code, int timeoutSeconds, CancellationToken ct)
-    {
-        var executable = ResolveExecutable("pwsh", "powershell");
-        if (executable == null)
-        {
-            return new ReplResult
-            {
-                Success = false,
-                Output = string.Empty,
-                Language = "powershell",
-                ExecutionTime = TimeSpan.Zero,
-                Error = "PowerShell 未安装。请访问: https://github.com/PowerShell/PowerShell"
-            };
-        }
-
-        var scriptFile = _fs.CombinePath(Path.GetTempPath(), $"jcc_repl_{Guid.NewGuid():N}.ps1");
-
-        try
-        {
-            await _fs.WriteAllTextAsync(scriptFile, code, ct).ConfigureAwait(false);
-
-            var result = await _processService.ExecuteAsync(new ProcessOptions
-            {
-                FileName = executable,
-                Arguments = "-NoProfile -NonInteractive -File \"" + scriptFile + "\"",
-                TimeoutMs = timeoutSeconds * 1000
-            }, ct).ConfigureAwait(false);
-
-            return new ReplResult
-            {
-                Success = result.Success,
-                Output = result.StandardOutput,
-                Language = "powershell",
-                ExecutionTime = result.ExecutionTime,
-                Error = result.Success ? null : result.StandardError
-            };
-        }
-        catch (OperationCanceledException) { throw; }
-        catch (Exception ex)
-        {
-            return new ReplResult
-            {
-                Success = false,
-                Output = string.Empty,
-                Language = "powershell",
-                ExecutionTime = TimeSpan.Zero,
-                Error = $"PowerShell 执行失败: {ex.Message}"
-            };
-        }
-        finally
-        {
-            try { if (_fs.FileExists(scriptFile)) _fs.DeleteFile(scriptFile); } catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"ReplService: failed to delete PowerShell script file: {ex.Message}"); }
-        }
-    }
+        => await ExecuteScriptLanguageAsync("powershell", "pwsh", ".ps1", "-NoProfile -NonInteractive -File \"{0}\"", "PowerShell 未安装。请访问: https://github.com/PowerShell/PowerShell", "powershell", code, timeoutSeconds, ct).ConfigureAwait(false);
 
     private async Task<ReplResult> ExecutePythonAsync(string code, int timeoutSeconds, CancellationToken ct)
+        => await ExecuteScriptLanguageAsync("python", "python3", ".py", $"\"{{0}}\"", "Python 未安装。请访问: https://www.python.org/downloads/", "python", code, timeoutSeconds, ct).ConfigureAwait(false);
+
+    private async Task<ReplResult> ExecuteScriptLanguageAsync(
+        string language, string exeName, string extension, string argumentsTemplate,
+        string installHint, string resolveKey, string code, int timeoutSeconds, CancellationToken ct)
     {
-        var executable = ResolveExecutable("python3", "python");
+        var executable = ResolveExecutable(exeName, resolveKey);
         if (executable == null)
         {
             return new ReplResult
             {
                 Success = false,
                 Output = string.Empty,
-                Language = "python",
+                Language = language,
                 ExecutionTime = TimeSpan.Zero,
-                Error = "Python 未安装。请访问: https://www.python.org/downloads/"
+                Error = installHint
             };
         }
 
-        var scriptFile = _fs.CombinePath(Path.GetTempPath(), $"jcc_repl_{Guid.NewGuid():N}.py");
+        var scriptFile = _fs.CombinePath(Path.GetTempPath(), $"jcc_repl_{Guid.NewGuid():N}{extension}");
 
         try
         {
@@ -321,7 +219,7 @@ public sealed partial class ReplService : IReplService
             var result = await _processService.ExecuteAsync(new ProcessOptions
             {
                 FileName = executable,
-                Arguments = $"\"{scriptFile}\"",
+                Arguments = string.Format(argumentsTemplate, scriptFile),
                 TimeoutMs = timeoutSeconds * 1000
             }, ct).ConfigureAwait(false);
 
@@ -329,7 +227,7 @@ public sealed partial class ReplService : IReplService
             {
                 Success = result.Success,
                 Output = result.StandardOutput,
-                Language = "python",
+                Language = language,
                 ExecutionTime = result.ExecutionTime,
                 Error = result.Success ? null : result.StandardError
             };
@@ -341,14 +239,14 @@ public sealed partial class ReplService : IReplService
             {
                 Success = false,
                 Output = string.Empty,
-                Language = "python",
+                Language = language,
                 ExecutionTime = TimeSpan.Zero,
-                Error = $"Python 执行失败: {ex.Message}"
+                Error = $"{exeName} 执行失败: {ex.Message}"
             };
         }
         finally
         {
-            try { if (_fs.FileExists(scriptFile)) _fs.DeleteFile(scriptFile); } catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"ReplService: failed to delete Python script file: {ex.Message}"); }
+            try { if (_fs.FileExists(scriptFile)) _fs.DeleteFile(scriptFile); } catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"ReplService: failed to delete {language} script file: {ex.Message}"); }
         }
     }
 

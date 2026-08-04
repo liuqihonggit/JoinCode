@@ -9,15 +9,15 @@ public sealed partial class SyncSystemPromptProviderOptions : Core.Prompts.Syste
 {
     /// <summary>
     /// DI 构造函数 — 从 WorkflowConfig 和可选服务推导所有属性
+    /// Shell 信息从 ShellCapabilityCache 全局缓存获取
     /// </summary>
     public SyncSystemPromptProviderOptions(
         WorkflowConfig config,
         Core.Prompts.FileContextTracker fileContext,
+        IFileSystem fs,
         IAssistantDailyLogService? dailyLogService = null,
         IMemorySearchHistoryService? searchHistoryService = null,
-        IBriefModeService? briefModeService = null,
-        BashShellProvider? bashProvider = null,
-        PowerShellShellProvider? psProvider = null)
+        IBriefModeService? briefModeService = null)
     {
         ProjectRules = config.ProjectRules;
         ExternalRules = config.ExternalRules.Count > 0
@@ -43,12 +43,9 @@ public sealed partial class SyncSystemPromptProviderOptions : Core.Prompts.Syste
             ? async (query) => (await searchHistoryService.BuildSearchingPastContextSectionAsync(query).ConfigureAwait(false))?.PromptText ?? string.Empty
             : null;
         AwaySummary = null;
-        BashVersion = bashProvider?.Version;
-        BashPath = bashProvider?.ShellPath;
-        PowerShellVersion = psProvider?.Version;
-        PowerShellPath = psProvider?.ShellPath;
-        PowerShellEdition = psProvider is not null
-            ? (psProvider.IsCore ? "core" : "desktop")
+
+        ShellInfos = ShellCapabilityCache.IsInitialized
+            ? ShellCapabilityCache.GetAllShellInfos()
             : null;
     }
 }

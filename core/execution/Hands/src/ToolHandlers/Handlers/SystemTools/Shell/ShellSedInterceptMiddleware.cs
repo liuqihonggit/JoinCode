@@ -49,7 +49,7 @@ public sealed partial class ShellSedInterceptMiddleware : IShellMiddleware
     {
         if (_fs is null)
         {
-            return ResultBuilder.Error().WithText("sed -i requires file system access but IFileSystem is not available").Build();
+            return ToolResultBuilder.Error().WithText("sed -i requires file system access but IFileSystem is not available").Build();
         }
 
         var filePath = sedInfo.FilePath;
@@ -78,10 +78,10 @@ public sealed partial class ShellSedInterceptMiddleware : IShellMiddleware
                 }
                 catch (Exception ex)
                 {
-                    return ResultBuilder.Error().WithText($"Failed to write file: {ex.Message}").Build();
+                    return ToolResultBuilder.Error().WithText($"Failed to write file: {ex.Message}").Build();
                 }
 
-                return ResultBuilder.Success().WithText($"Applied sed substitution to {sedInfo.FilePath}").Build();
+                return ToolResultBuilder.Success().WithText($"Applied sed substitution to {sedInfo.FilePath}").Build();
             }
 
             // sed 信息不匹配，清除旧的 pending 并重新预览
@@ -97,7 +97,7 @@ public sealed partial class ShellSedInterceptMiddleware : IShellMiddleware
         // 首次调用：读取文件→模拟替换→返回预览
         if (!_fs.FileExists(filePath))
         {
-            return ResultBuilder.Error().WithText($"File not found: {sedInfo.FilePath}").Build();
+            return ToolResultBuilder.Error().WithText($"File not found: {sedInfo.FilePath}").Build();
         }
 
         string oldContent;
@@ -110,7 +110,7 @@ public sealed partial class ShellSedInterceptMiddleware : IShellMiddleware
         }
         catch (Exception ex)
         {
-            return ResultBuilder.Error().WithText($"Failed to read file: {ex.Message}").Build();
+            return ToolResultBuilder.Error().WithText($"Failed to read file: {ex.Message}").Build();
         }
 
         // 模拟替换
@@ -122,7 +122,7 @@ public sealed partial class ShellSedInterceptMiddleware : IShellMiddleware
             var noChangeMsg = string.IsNullOrEmpty(oldContent)
                 ? "File is empty, pattern did not match"
                 : "Pattern did not match any content";
-            return ResultBuilder.Success().WithText(noChangeMsg).Build();
+            return ToolResultBuilder.Success().WithText(noChangeMsg).Build();
         }
 
         // 存储待确认编辑 — 对齐 TS _simulatedSedEdit 注入
@@ -166,7 +166,7 @@ public sealed partial class ShellSedInterceptMiddleware : IShellMiddleware
         preview.AppendLine();
         preview.AppendLine($"{changeCount} line(s) changed. Re-run the same sed command to confirm and apply this edit.");
 
-        return ResultBuilder.Success().WithText(preview.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(preview.ToString()).Build();
     }
 
     /// <summary>

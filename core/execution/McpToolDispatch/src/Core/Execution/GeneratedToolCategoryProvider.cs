@@ -7,11 +7,13 @@ namespace McpToolDispatch;
 [Register]
 public sealed partial class GeneratedToolCategoryProvider : IToolCategoryProvider
 {
-    /// <summary>
-    /// 获取可用工具的分类信息
-    /// </summary>
-    public Dictionary<string, List<(string Name, string Description)>> GetAvailableToolCategories()
+    public Dictionary<string, List<ToolCategoryEntry>> GetAvailableToolCategories()
     {
         return GeneratedToolHandlerRegistration_JoinCode_McpToolDispatch.GetAvailableToolCategories();
+    }
+
+    public Dictionary<string, List<ToolCategoryEntry>> GetVisibleToolCategories()
+    {
+        return GeneratedToolHandlerRegistration_JoinCode_McpToolDispatch.GetVisibleToolCategories();
     }
 }

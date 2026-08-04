@@ -22,10 +22,10 @@ public sealed partial class PolicyToolHandlers
     {
         if (string.IsNullOrWhiteSpace(action))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.ActionCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.ActionCannotBeEmpty)).Build();
         }
 
-        try
+        return await ToolResultBuilder.SafeExecuteAsync(async () =>
         {
             var result = await _policyService.EvaluateAsync(action, context, cancellationToken).ConfigureAwait(false);
 
@@ -51,23 +51,16 @@ public sealed partial class PolicyToolHandlers
             }
 
             return result.Allowed
-                ? McpResultBuilder.Success().WithText(response.ToString()).Build()
-                : McpResultBuilder.Error().WithText(response.ToString()).Build();
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, L.T(StringKey.PolicyCheckFailedLog), action);
-            return McpResultBuilder.Error()
-                .WithText(L.T(StringKey.PolicyCheckFailed, ex.Message))
-                .Build();
-        }
+                ? ToolResultBuilder.Success().WithText(response.ToString()).Build()
+                : ToolResultBuilder.Error().WithText(response.ToString()).Build();
+        }, _logger, L.T(StringKey.PolicyCheckFailedLog)).ConfigureAwait(false);
     }
 
     [McpTool(InteractionToolNameConstants.PolicyList, "List all active policy rules", "policy")]
     public async Task<ToolResult> PolicyListAsync(
         CancellationToken cancellationToken = default)
     {
-        try
+        return await ToolResultBuilder.SafeExecuteAsync(async () =>
         {
             var rules = await _policyService.GetActiveRulesAsync(cancellationToken).ConfigureAwait(false);
 
@@ -97,14 +90,7 @@ public sealed partial class PolicyToolHandlers
                 }
             }
 
-            return McpResultBuilder.Success().WithText(response.ToString()).Build();
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, L.T(StringKey.GetPolicyListFailedLog));
-            return McpResultBuilder.Error()
-                .WithText(L.T(StringKey.GetPolicyListFailed, ex.Message))
-                .Build();
-        }
+            return ToolResultBuilder.Success().WithText(response.ToString()).Build();
+        }, _logger, L.T(StringKey.GetPolicyListFailedLog)).ConfigureAwait(false);
     }
 }

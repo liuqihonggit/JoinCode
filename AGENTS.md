@@ -494,29 +494,91 @@ Start-Process -FilePath "{当前项目}\artifacts\bin\JoinCode\Release\net10.0\j
 
 ### MockServer + jcc 联合测试
 
-⚠️ **阻塞进程禁止直接运行**，必须用 `Start-Process` 后台启动，否则会卡住 sandbox。
+⚠️ **阻塞进程禁止直接运行**，必须后台启动，否则会卡住 sandbox。
 
-**1. 启动 MockServer（固定端口）**
+**MockServer 参数表**
+
+| 参数 | 格式 | 默认值 | 说明 |
+|------|------|--------|------|
+| `--port` | `--port <数字>` | 配置文件中的 `port` 字段（0=自动分配） | 监听端口 |
+| `--config` | `--config <路径>` | `mockserver.json` | 预设脚本配置文件 |
+
+**MockServer 端点**
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/` | 健康检查，返回 `{"status":"ok"}` |
+| GET | `/shutdown` | 优雅关闭，返回 `{"status":"shutting_down"}` |
+| POST | `/v1/chat/completions` | OpenAI 兼容的 chat 接口（stream=true/false） |
+| POST | `{**path}` | 通配 POST，匹配任意路径 |
+
+**1. 启动 MockServer**
 
 ```powershell
-Start-Process -FilePath "{项目根目录}\artifacts\bin\OpenAI.MockServer\Release\net10.0\JoinCode.OpenAI.MockServer.exe" -ArgumentList "--port 9901"
-# 验证：Invoke-RestMethod -Uri "http://localhost:9901/" -Method Get
-# 关闭：Invoke-RestMethod -Uri "http://localhost:9901/shutdown" -Method Get
+# ✅ 方式A：Start-Process（推荐，最简单）
+Start-Process -FilePath "D:\project\w3\artifacts\bin\OpenAI.MockServer\Release\net10.0\JoinCode.OpenAI.MockServer.exe" -ArgumentList "--port","9901"
+
+# ✅ 方式B：ProcessStartInfo（需要捕获输出时用）
+$psi = [System.Diagnostics.ProcessStartInfo]::new()
+$psi.FileName = "D:\project\w3\artifacts\bin\OpenAI.MockServer\Release\net10.0\JoinCode.OpenAI.MockServer.exe"
+$psi.Arguments = "--port 9901"
+$psi.UseShellExecute = $false
+[System.Diagnostics.Process]::Start($psi)
+
+# 验证启动成功：
+Invoke-RestMethod -Uri "http://localhost:9901/" -Method Get
+# 期望返回：@{status=ok}
+
+# 手动 POST 测试（模拟 jcc 发送请求）：
+$body = '{"model":"gpt-4o","messages":[{"role":"user","content":"hello"}],"stream":true}'
+Invoke-RestMethod -Uri "http://localhost:9901/v1/chat/completions" -Method Post -Body $body -ContentType "application/json"
+
+# 关闭：
+Invoke-RestMethod -Uri "http://localhost:9901/shutdown" -Method Get
 ```
 
-**2. 启动 jcc 连接 MockServer（需 ProcessStartInfo 传环境变量）**
+**踩坑记录**
+
+| 问题 | 原因 | 解决 |
+|------|------|------|
+| 端口始终绑定到配置文件默认值 | `Start-Process -ArgumentList "--port=9901"` 把等号格式当单参数传入 | 用逗号分隔：`-ArgumentList "--port","9901"` |
+| MockServer 启动后立即崩溃 | `File.AppendAllText` 在 Kestrel 多线程中并发写同一文件导致 IOException | 禁止在 KestrelMockServer 中用 File.AppendAllText，只用 Console.WriteLine |
+| `RedirectStandardOutput` + `ReadToEnd()` 死锁 | PowerShell 管道消费端阻塞，dotnet 进程 stdout 写入阻塞 | 用 `BeginOutputReadLine()` 异步读取，或不用重定向 |
+| Console.WriteLine 在后台进程中不可见 | `UseShellExecute=false` 时输出到父进程控制台，不写文件 | 前台调试用 `& $exe --port 9901`；后台运行靠 dump 文件诊断 |
+| jcc 环境变量不生效（JCC_ENDPOINT等） | `ApplyEnvOverrides` 只在 `dotEnv != null` 时调用，无 `.env/api.json` 时环境变量被跳过 | 已修复：`ApplyEnvOverrides` 移出 `if (dotEnv is not null)` 块，无论 dotEnv 是否存在都调用 |
+| MockServer 流式最终 chunk 未发送 | `WriteAsync(lastChunk)` 后缺少 `FlushAsync`，`data: [DONE]` 缓冲在服务端 | 在 `BuildStreamFinalChunk` 写入后加 `await ctx.Response.Body.FlushAsync()` |
+
+**2. 启动 jcc 连接 MockServer**
 
 ```powershell
 $psi = [System.Diagnostics.ProcessStartInfo]::new()
-$psi.FileName = "{项目根目录}\artifacts\bin\JoinCode\Release\net10.0\jcc.exe"
-$psi.Arguments = "--trust --force-interactive"
+$psi.FileName = "D:\project\w3\artifacts\bin\JoinCode\Release\net10.0\jcc.exe"
+$psi.Arguments = "--trust --await 20 -p `"echo hello`""
 $psi.EnvironmentVariables["JCC_ENDPOINT"] = "http://localhost:9901"
 $psi.EnvironmentVariables["JCC_API_KEY"] = "sk-test-1234567890"
 $psi.EnvironmentVariables["JCC_PROVIDER"] = "openai"
 $psi.EnvironmentVariables["JCC_MODEL_ID"] = "gpt-4o"
 $psi.UseShellExecute = $false
-$psi.WorkingDirectory = "{项目根目录}"
+$psi.WorkingDirectory = "D:\project\w3"
 [System.Diagnostics.Process]::Start($psi)
+# --await 20: 20秒超时自动关闭（超时返回1234，正常完成不受影响）
+# --verbose: 启用诊断输出（[WIRE] [STEP] [READY] 等）
+```
+
+**jcc 环境变量参数表**
+
+| 环境变量 | 示例值 | 说明 |
+|----------|--------|------|
+| `JCC_ENDPOINT` | `http://localhost:9901` | API 端点（⚠️ 不要带 `/v1`，jcc 内部会自动拼接 `chat/completions`） |
+| `JCC_API_KEY` | `sk-test-1234567890` | API 密钥（MockServer 不校验，任意值即可） |
+| `JCC_PROVIDER` | `openai` | LLM 提供商（openai/anthropic/deepseek） |
+| `JCC_MODEL_ID` | `gpt-4o` | 模型 ID（MockServer 不校验，任意值即可） |
+
+**3. 诊断：查看 MockServer 请求记录**
+
+```powershell
+# dump 目录包含每个请求的完整记录
+Get-ChildItem "D:\project\w3\tests\MockServers\MockServer.Core\dumps\OpenAI" -File | Sort-Object LastWriteTime -Descending | Select-Object -First 5 Name,LastWriteTime
 ```
 
 ***
@@ -625,3 +687,71 @@ $psi.WorkingDirectory = "{项目根目录}"
 以破坏架构为耻,以遵循规范为荣;
 以假装理解为耻,以诚实无知为荣;
 以盲目修改为耻,以谨慎重构为荣;
+
+## 六项架构规则（2026-08-05 新增）
+
+### 规则1：超图与DAG不统一，但 ChainOrder 可升级
+
+- **结论**：DAG 管**执行顺序+硬依赖**（拓扑排序、环检测、增量重算），超图管**评分共享+链路推荐**（语义关联、权重传播）
+- **当前**：`ToolHyperedge.ChainOrder` 是 `string[]?`（简单线性链），是 DAG 的特例
+- **升级条件**：当 ChainOrder 需要支持分支/汇合（如"分析后可走代码生成或测试生成两条路"）时，改用 `Dag<string>` 替代 `string[]`
+- **禁止**：在无实际需求时强行统一两者，造成过度抽象
+
+### 规则2：MCP工具覆盖原则 — 296个工具已覆盖53个Category
+
+- **现状**：63个Handler类，296个McpTool方法，覆盖53个ToolCategory
+- **新增工具原则**：
+  1. 新工具必须归属已有 ToolCategory 枚举值，除非有充分理由新增枚举
+  2. 新增 ToolCategory 枚举值需同步更新 `ToolHypergraphPresets`（如有关联工具链）
+  3. 优先用 `[McpTool]` + 源码生成器模式，禁止手动实现 `IToolHandler`
+  4. 工具描述用中文（对齐 ErrorRecoveryToolHandlers 风格）
+  5. 新增工具后必须更新 `ToolCategory` 枚举的 `[EnumValue]` 并全量重建
+
+### 规则3：配置热重载 — 双变量切换模式
+
+- **现状**：`IConfigChangeNotifier` + `SettingsChangeApplier` 管道已监控 settings.json 变更，但只更新部分字段（EffortLevel、Hook缓存、Permission缓存），**不重建 WorkflowConfig**
+- **双变量切换模式**：
+  1. 每个可热重载的配置项维护两个变量：`_active`（当前生效）和 `_staging`（新值待切换）
+  2. 文件变更时：加载新值到 `_staging` → 验证合法性 → 原子交换 `_active = _staging`
+  3. 交换用 `Interlocked.Exchange` 或 `lock`，确保读取端无锁
+  4. WorkflowConfig 中的可热重载字段改为 `volatile` 或用 `FrozenDictionary` 不可变快照
+- **新增热重载字段**：ToolScoreSettings、BlacklistedTools、ToolPenalties、HyperedgeSettings（评分配置变更最频繁）
+- **禁止**：直接修改 `_active` 而不经过 `_staging` 验证
+
+### 规则4：工具函数统一 — 三项合并
+
+- **合并1：双 IToolHandler 接口**
+  - `McpProtocol.IToolHandler`（InputSchema=JsonElement, 返回object）保留为 MCP 协议内部类型
+  - `Abstractions.IToolHandler`（InputSchema=ToolSchema, 返回ToolResult, 有Kind/GroupName/onProgress）是主接口
+  - 两者不合并（语义不同），但 `McpProtocol.IToolHandler` 重命名为 `IMcpProtocolHandler` 避免混淆
+- **合并2：三个 ResultBuilder → 一个**
+  - `ToolResultBuilder`（Abstractions）= 基础版
+  - `ResultBuilder`（Hands）= +WithPdf +WithEntityMetadata
+  - `McpResultBuilder`（Abstractions）= +WithBinary +WithEntityMetadata
+  - **统一方案**：将 WithPdf/WithBinary/WithEntityMetadata 全部合并到 `ToolResultBuilder`，删除 `ResultBuilder` 和 `McpResultBuilder`
+- **合并3：ToolHandler 委托的 toolName 参数**
+  - 保留当前设计（DelegateToolHandler 内部补传 Name），不做修改
+  - 原因：委托需要工具名做路由，接口通过 this.Name 获取，两者语义不同
+
+### 规则5：参数传递传父类/接口，不传属性
+
+- **核心原则**：函数参数尽可能传父类/接口/完整对象，到了末尾才拆开使用
+- **反面案例**：`bool isBash = shell.Type == ShellType.Bash`，然后传 `isBash` 给下游
+- **正面案例**：直接传 `ShellProvider shell`，下游在需要时才 `shell.Type == ShellType.Bash`
+- **适用范围**：
+  1. 构造函数参数：传接口/完整对象
+  2. 方法参数：传接口/完整对象，除非方法只需要一个原始值（如 `int timeoutMs`）
+  3. 中间件管道：传 `TContext` 上下文对象，不传上下文的某个属性
+- **例外**：当拆开的属性是原始类型且语义独立（如 `string filePath`），不需要传整个 `IFileSystem`
+- **重构策略**：渐进式，每次发现一个就修一个，禁止一次性大规模重构
+
+### 规则6：归纳性重构不放弃
+
+- **原则**：无论扫描的地方如何复杂，只要存在归纳可能性，都不要放弃重构
+- **操作**：
+  1. 发现重复模式 → 提取公共方法/基类/接口
+  2. 发现相似逻辑 → 用策略模式或模板方法统一
+  3. 发现散落的常量 → 枚举化 + `[EnumValue]` + 源码生成器
+  4. 发现冗余的 Builder/Helper → 合并到统一入口
+- **放弃条件**：必须用户明确同意，AI不得自行放弃
+- **验证**：每次重构后编译+测试，确保不破坏现有功能

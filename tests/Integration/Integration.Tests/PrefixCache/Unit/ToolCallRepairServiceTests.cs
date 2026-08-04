@@ -593,4 +593,158 @@ public sealed class ToolCallRepairServiceTests
         parsed.RootElement.GetProperty("a").GetInt32().Should().Be(1);
         parsed.RootElement.GetProperty("b").GetInt32().Should().Be(2);
     }
+
+    #region P0: 转义字符宽容
+
+    [Fact]
+    public void RepairJson_SingleQuoteEscapeInString_RemovesEscape()
+    {
+        var result = ToolCallRepairService.RepairJson("""{"text": "it\'s a test"}""");
+
+        result.Success.Should().BeTrue();
+        var parsed = JsonDocument.Parse(result.RepairedJson);
+        parsed.RootElement.GetProperty("text").GetString().Should().Be("it's a test");
+        result.RepairHint.Should().Contain("escape");
+    }
+
+    [Fact]
+    public void RepairJson_BareNewlineInString_EscapesNewline()
+    {
+        var json = "{\"text\": \"line1\nline2\"}";
+        var result = ToolCallRepairService.RepairJson(json);
+
+        result.Success.Should().BeTrue();
+        var parsed = JsonDocument.Parse(result.RepairedJson);
+        parsed.RootElement.GetProperty("text").GetString().Should().Be("line1\nline2");
+    }
+
+    [Fact]
+    public void RepairJson_BareTabInString_EscapesTab()
+    {
+        var json = "{\"text\": \"col1\tcol2\"}";
+        var result = ToolCallRepairService.RepairJson(json);
+
+        result.Success.Should().BeTrue();
+        var parsed = JsonDocument.Parse(result.RepairedJson);
+        parsed.RootElement.GetProperty("text").GetString().Should().Be("col1\tcol2");
+    }
+
+    [Fact]
+    public void RepairJson_LegalEscapeSequences_Preserved()
+    {
+        var result = ToolCallRepairService.RepairJson("""{"text": "line1\nline2\ttab"}""");
+
+        result.Success.Should().BeTrue();
+        var parsed = JsonDocument.Parse(result.RepairedJson);
+        parsed.RootElement.GetProperty("text").GetString().Should().Be("line1\nline2\ttab");
+        result.RepairHint.Should().BeNull();
+    }
+
+    #endregion
+
+    #region P1: 分号结尾剥离
+
+    [Fact]
+    public void RepairJson_TrailingSemicolon_StripsSemicolon()
+    {
+        var result = ToolCallRepairService.RepairJson("""{"key": "value"};""");
+
+        result.Success.Should().BeTrue();
+        var parsed = JsonDocument.Parse(result.RepairedJson);
+        parsed.RootElement.GetProperty("key").GetString().Should().Be("value");
+    }
+
+    [Fact]
+    public void RepairJson_TrailingSemicolonWithWhitespace_StripsSemicolon()
+    {
+        var result = ToolCallRepairService.RepairJson("""{"key": "value"} ;  """);
+
+        result.Success.Should().BeTrue();
+        var parsed = JsonDocument.Parse(result.RepairedJson);
+        parsed.RootElement.GetProperty("key").GetString().Should().Be("value");
+    }
+
+    [Fact]
+    public void RepairJson_SemicolonInsideString_NotStripped()
+    {
+        var result = ToolCallRepairService.RepairJson("""{"cmd": "echo hello; ls"}""");
+
+        result.Success.Should().BeTrue();
+        var parsed = JsonDocument.Parse(result.RepairedJson);
+        parsed.RootElement.GetProperty("cmd").GetString().Should().Be("echo hello; ls");
+        result.RepairHint.Should().BeNull();
+    }
+
+    #endregion
+
+    #region P2: Infinity/NaN 字面量
+
+    [Fact]
+    public void RepairJson_InfinityLiteral_QuotedAsStjString()
+    {
+        var result = ToolCallRepairService.RepairJson("""{"value": Infinity}""");
+
+        result.Success.Should().BeTrue();
+        var parsed = JsonDocument.Parse(result.RepairedJson);
+        parsed.RootElement.GetProperty("value").ValueKind.Should().Be(JsonValueKind.String);
+        parsed.RootElement.GetProperty("value").GetString().Should().Be("Infinity");
+    }
+
+    [Fact]
+    public void RepairJson_NegativeInfinityLiteral_QuotedAsStjString()
+    {
+        var result = ToolCallRepairService.RepairJson("""{"value": -Infinity}""");
+
+        result.Success.Should().BeTrue();
+        var parsed = JsonDocument.Parse(result.RepairedJson);
+        parsed.RootElement.GetProperty("value").ValueKind.Should().Be(JsonValueKind.String);
+        parsed.RootElement.GetProperty("value").GetString().Should().Be("-Infinity");
+    }
+
+    [Fact]
+    public void RepairJson_NanLiteral_QuotedAsStjString()
+    {
+        var result = ToolCallRepairService.RepairJson("""{"value": NaN}""");
+
+        result.Success.Should().BeTrue();
+        var parsed = JsonDocument.Parse(result.RepairedJson);
+        parsed.RootElement.GetProperty("value").ValueKind.Should().Be(JsonValueKind.String);
+        parsed.RootElement.GetProperty("value").GetString().Should().Be("NaN");
+    }
+
+    [Fact]
+    public void RepairJson_InfinityInsideString_NotModified()
+    {
+        var result = ToolCallRepairService.RepairJson("""{"desc": "approaches Infinity"}""");
+
+        result.Success.Should().BeTrue();
+        result.RepairHint.Should().BeNull();
+    }
+
+    #endregion
+
+    #region P2: 单引号 value 修复
+
+    [Fact]
+    public void RepairJson_SingleQuotedValue_ConvertsToDoubleQuotes()
+    {
+        var result = ToolCallRepairService.RepairJson("""{"key": 'value'}""");
+
+        result.Success.Should().BeTrue();
+        var parsed = JsonDocument.Parse(result.RepairedJson);
+        parsed.RootElement.GetProperty("key").GetString().Should().Be("value");
+        result.RepairHint.Should().Contain("single-quoted");
+    }
+
+    [Fact]
+    public void RepairJson_MixedSingleQuotedKeyAndValue_ConvertsAll()
+    {
+        var result = ToolCallRepairService.RepairJson("""{'key': 'value'}""");
+
+        result.Success.Should().BeTrue();
+        var parsed = JsonDocument.Parse(result.RepairedJson);
+        parsed.RootElement.GetProperty("key").GetString().Should().Be("value");
+    }
+
+    #endregion
 }

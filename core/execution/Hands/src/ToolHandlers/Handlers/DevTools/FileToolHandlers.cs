@@ -87,17 +87,17 @@ public class FileToolHandlers : IDisposable
             ValidationHelper.ValidateRange(limit, 1, int.MaxValue, "limit"));
         if (validationError != null)
         {
-            return ResultBuilder.Error().WithText(validationError).Build();
+            return ToolResultBuilder.Error().WithText(validationError).Build();
         }
 
         if (IsUncPath(file_path))
         {
-            return ResultBuilder.Error().WithText("Cannot read UNC path files (starting with \\\\), this may lead to credential leakage").Build();
+            return ToolResultBuilder.Error().WithText("Cannot read UNC path files (starting with \\\\), this may lead to credential leakage").Build();
         }
 
         if (IsBlockedDevicePath(file_path))
         {
-            return ResultBuilder.Error().WithText($"Cannot read '{file_path}': this device file would block or produce infinite output.").Build();
+            return ToolResultBuilder.Error().WithText($"Cannot read '{file_path}': this device file would block or produce infinite output.").Build();
         }
 
         var ext = Path.GetExtension(file_path).ToLowerInvariant();
@@ -123,7 +123,7 @@ public class FileToolHandlers : IDisposable
 
         if (HasBinaryExtension(ext))
         {
-            return ResultBuilder.Error().WithText($"This tool cannot read binary files. The file appears to be a binary {ext} file. Use an appropriate tool for analysis.").Build();
+            return ToolResultBuilder.Error().WithText($"This tool cannot read binary files. The file appears to be a binary {ext} file. Use an appropriate tool for analysis.").Build();
         }
 
         file_path = await ResolveSandboxPathAsync(file_path, cancellationToken).ConfigureAwait(false);
@@ -143,7 +143,7 @@ public class FileToolHandlers : IDisposable
                     if (currentMtimeMs == existingState.TimestampMs)
                     {
                         RecordFileMetrics(FileOperationType.Read, FileOperationResult.Ok);
-                        return ResultBuilder.Success()
+                        return ToolResultBuilder.Success()
                             .WithText("File unchanged since last read. The content from the earlier Read tool_result in this conversation is still current — refer to that instead of re-reading.")
                             .Build();
                     }
@@ -167,19 +167,19 @@ public class FileToolHandlers : IDisposable
         if (!result.Success)
         {
             RecordFileMetrics(FileOperationType.Read, FileOperationResult.Failed);
-            return ResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to read file").Build();
+            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to read file").Build();
         }
 
         if (result.TotalLines == 0)
         {
             RecordFileMetrics(FileOperationType.Read, FileOperationResult.Ok);
-            return ResultBuilder.Success().WithText("<system-reminder>Warning: the file exists but the contents are empty.</system-reminder>").Build();
+            return ToolResultBuilder.Success().WithText("<system-reminder>Warning: the file exists but the contents are empty.</system-reminder>").Build();
         }
 
         if (result.NumLines == 0 && offset.HasValue && offset.Value > result.TotalLines)
         {
             RecordFileMetrics(FileOperationType.Read, FileOperationResult.Ok);
-            return ResultBuilder.Success().WithText($"<system-reminder>Warning: the file exists but is shorter than the provided offset ({offset.Value}). The file has {result.TotalLines} lines.</system-reminder>").Build();
+            return ToolResultBuilder.Success().WithText($"<system-reminder>Warning: the file exists but is shorter than the provided offset ({offset.Value}). The file has {result.TotalLines} lines.</system-reminder>").Build();
         }
 
         // Token limit check (matches TS: validateContentTokens)
@@ -191,7 +191,7 @@ public class FileToolHandlers : IDisposable
         if (estimatedTokens > maxTokens)
         {
             RecordFileMetrics(FileOperationType.Read, FileOperationResult.TokenExceeded);
-            return ResultBuilder.Error().WithText(
+            return ToolResultBuilder.Error().WithText(
                 $"File content ({estimatedTokens} tokens) exceeds maximum allowed tokens ({maxTokens}). " +
                 "Use offset and limit parameters to read specific portions of the file, " +
                 "or search for specific content instead of reading the whole file.").Build();
@@ -245,7 +245,7 @@ public class FileToolHandlers : IDisposable
         RecordFileReadTelemetry(result.FilePath, result.Content, result.TotalLines, result.NumLines, offset, limit);
 
         RecordFileMetrics(FileOperationType.Read, FileOperationResult.Ok);
-        return ResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     [McpTool(FileToolNameConstants.FileWrite, "Write a file to the local filesystem", "file")]
@@ -259,12 +259,12 @@ public class FileToolHandlers : IDisposable
             ValidationHelper.ValidateStringLength(file_path, 4096, "file_path"));
         if (validationError != null)
         {
-            return ResultBuilder.Error().WithText(validationError).Build();
+            return ToolResultBuilder.Error().WithText(validationError).Build();
         }
 
         if (IsUncPath(file_path))
         {
-            return ResultBuilder.Error().WithText("Cannot write UNC path files (starting with \\\\), this may lead to credential leakage").Build();
+            return ToolResultBuilder.Error().WithText("Cannot write UNC path files (starting with \\\\), this may lead to credential leakage").Build();
         }
 
         file_path = await ResolveSandboxPathAsync(file_path, cancellationToken).ConfigureAwait(false);
@@ -275,7 +275,7 @@ public class FileToolHandlers : IDisposable
             var secretError = _teamMemSecretGuard.CheckTeamMemSecrets(file_path, content);
             if (secretError is not null)
             {
-                return ResultBuilder.Error().WithText(secretError).Build();
+                return ToolResultBuilder.Error().WithText(secretError).Build();
             }
         }
 
@@ -285,7 +285,7 @@ public class FileToolHandlers : IDisposable
             if (!_fileStateCache.HasBeenRead(file_path))
             {
                 RecordFileMetrics(FileOperationType.Write, FileOperationResult.Rejected);
-                return ResultBuilder.Error().WithText("File has not been read yet. Read it first before writing to it. Use the Read tool to examine the file, then write your changes.").Build();
+                return ToolResultBuilder.Error().WithText("File has not been read yet. Read it first before writing to it. Use the Read tool to examine the file, then write your changes.").Build();
             }
 
             // Stale-write guard: check if file was modified after we read it
@@ -312,13 +312,13 @@ public class FileToolHandlers : IDisposable
                         else
                         {
                             RecordFileMetrics(FileOperationType.Write, FileOperationResult.Stale);
-                            return ResultBuilder.Error().WithText("File has been modified since it was last read. The file may have been changed by another process. Read it again before writing to ensure you have the latest content.").Build();
+                            return ToolResultBuilder.Error().WithText("File has been modified since it was last read. The file may have been changed by another process. Read it again before writing to ensure you have the latest content.").Build();
                         }
                     }
                     else
                     {
                         RecordFileMetrics(FileOperationType.Write, FileOperationResult.Stale);
-                        return ResultBuilder.Error().WithText("File has been modified since it was last read. The file may have been changed by another process. Read it again before writing to ensure you have the latest content.").Build();
+                        return ToolResultBuilder.Error().WithText("File has been modified since it was last read. The file may have been changed by another process. Read it again before writing to ensure you have the latest content.").Build();
                     }
                 }
             }
@@ -338,7 +338,7 @@ public class FileToolHandlers : IDisposable
         if (!result.Success)
         {
             RecordFileMetrics(FileOperationType.Write, FileOperationResult.Failed);
-            return ResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to write file").Build();
+            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to write file").Build();
         }
 
         var response = result.Operation == FileOperationTypeConstants.Create
@@ -346,7 +346,7 @@ public class FileToolHandlers : IDisposable
             : $"The file {result.FilePath} has been updated successfully.";
 
         // 附加 structuredPatch 到 ToolResult — 对齐 TS FileWriteTool 返回 structuredPatch
-        var toolResult = ResultBuilder.Success().WithText(response).Build();
+        var toolResult = ToolResultBuilder.Success().WithText(response).Build();
         if (result.StructuredPatch.Any())
         {
             toolResult.StructuredPatch = result.StructuredPatch.ToArray();
@@ -376,22 +376,22 @@ public class FileToolHandlers : IDisposable
             ValidationHelper.ValidateStringLength(file_path, 4096, "file_path"));
         if (validationError != null)
         {
-            return ResultBuilder.Error().WithText(validationError).Build();
+            return ToolResultBuilder.Error().WithText(validationError).Build();
         }
 
         if (IsUncPath(file_path))
         {
-            return ResultBuilder.Error().WithText("Cannot edit UNC path files (starting with \\\\), this may lead to credential leakage").Build();
+            return ToolResultBuilder.Error().WithText("Cannot edit UNC path files (starting with \\\\), this may lead to credential leakage").Build();
         }
 
         if (file_path.EndsWith(".ipynb", StringComparison.OrdinalIgnoreCase))
         {
-            return ResultBuilder.Error().WithText("This is a Jupyter Notebook file. Use the notebook_edit tool to edit this file.").Build();
+            return ToolResultBuilder.Error().WithText("This is a Jupyter Notebook file. Use the notebook_edit tool to edit this file.").Build();
         }
 
         if (old_string == new_string)
         {
-            return ResultBuilder.Error().WithText("old_string and new_string are identical, no changes needed").Build();
+            return ToolResultBuilder.Error().WithText("old_string and new_string are identical, no changes needed").Build();
         }
 
         file_path = await ResolveSandboxPathAsync(file_path, cancellationToken).ConfigureAwait(false);
@@ -402,7 +402,7 @@ public class FileToolHandlers : IDisposable
             var secretError = _teamMemSecretGuard.CheckTeamMemSecrets(file_path, new_string);
             if (secretError is not null)
             {
-                return ResultBuilder.Error().WithText(secretError).Build();
+                return ToolResultBuilder.Error().WithText(secretError).Build();
             }
         }
 
@@ -420,7 +420,7 @@ public class FileToolHandlers : IDisposable
             if (settingsError is not null)
             {
                 RecordFileMetrics(FileOperationType.Edit, FileOperationResult.Rejected);
-                return ResultBuilder.Error().WithText(settingsError).Build();
+                return ToolResultBuilder.Error().WithText(settingsError).Build();
             }
         }
 
@@ -431,7 +431,7 @@ public class FileToolHandlers : IDisposable
             if (currentAgentType is not null && !currentAgentType.Equals("keywordMaintenance", StringComparison.OrdinalIgnoreCase))
             {
                 RecordFileMetrics(FileOperationType.Edit, FileOperationResult.Rejected);
-                return ResultBuilder.Error().WithText("keyword-sections.json 只能由 keywordMaintenance Agent 编辑").Build();
+                return ToolResultBuilder.Error().WithText("keyword-sections.json 只能由 keywordMaintenance Agent 编辑").Build();
             }
         }
 
@@ -442,7 +442,7 @@ public class FileToolHandlers : IDisposable
             if (!IsDoctorAllowedEditPath(file_path))
             {
                 RecordFileMetrics(FileOperationType.Edit, FileOperationResult.Rejected);
-                return ResultBuilder.Error().WithText("doctor Agent 只能编辑 .jcc/diag/、.jcc/reflexion/ 和 worktree 内文件").Build();
+                return ToolResultBuilder.Error().WithText("doctor Agent 只能编辑 .jcc/diag/、.jcc/reflexion/ 和 worktree 内文件").Build();
             }
         }
 
@@ -452,7 +452,7 @@ public class FileToolHandlers : IDisposable
             if (!_fileStateCache.HasBeenRead(file_path))
             {
                 RecordFileMetrics(FileOperationType.Edit, FileOperationResult.Rejected);
-                return ResultBuilder.Error().WithText("File has not been read yet. Read it first before editing it. Use the Read tool to examine the file, then make your edits.").Build();
+                return ToolResultBuilder.Error().WithText("File has not been read yet. Read it first before editing it. Use the Read tool to examine the file, then make your edits.").Build();
             }
 
             var readTimestamp = _fileStateCache.GetReadTimestampMs(file_path);
@@ -478,13 +478,13 @@ public class FileToolHandlers : IDisposable
                         else
                         {
                             RecordFileMetrics(FileOperationType.Edit, FileOperationResult.Stale);
-                            return ResultBuilder.Error().WithText("File has been modified since it was last read. The file may have been changed by another process. Read it again before editing to ensure you have the latest content.").Build();
+                            return ToolResultBuilder.Error().WithText("File has been modified since it was last read. The file may have been changed by another process. Read it again before editing to ensure you have the latest content.").Build();
                         }
                     }
                     else
                     {
                         RecordFileMetrics(FileOperationType.Edit, FileOperationResult.Stale);
-                        return ResultBuilder.Error().WithText("File has been modified since it was last read. The file may have been changed by another process. Read it again before editing to ensure you have the latest content.").Build();
+                        return ToolResultBuilder.Error().WithText("File has been modified since it was last read. The file may have been changed by another process. Read it again before editing to ensure you have the latest content.").Build();
                     }
                 }
             }
@@ -506,7 +506,7 @@ public class FileToolHandlers : IDisposable
         if (!result.Success)
         {
             RecordFileMetrics(FileOperationType.Edit, FileOperationResult.Failed);
-            return ResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to edit file").Build();
+            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to edit file").Build();
         }
 
         var response = replace_all
@@ -514,7 +514,7 @@ public class FileToolHandlers : IDisposable
             : $"The file {result.FilePath} has been updated successfully.";
 
         // 附加 structuredPatch 到 ToolResult — 对齐 TS FileEditTool 返回 structuredPatch
-        var toolResult = ResultBuilder.Success().WithText(response).Build();
+        var toolResult = ToolResultBuilder.Success().WithText(response).Build();
         if (result.StructuredPatch.Any())
         {
             toolResult.StructuredPatch = result.StructuredPatch.ToArray();
@@ -541,7 +541,7 @@ public class FileToolHandlers : IDisposable
             ValidationHelper.ValidateStringLength(file_path, 4096, "file_path"));
         if (validationError != null)
         {
-            return ResultBuilder.Error().WithText(validationError).Build();
+            return ToolResultBuilder.Error().WithText(validationError).Build();
         }
 
         file_path = await ResolveSandboxPathAsync(file_path, cancellationToken).ConfigureAwait(false);
@@ -553,11 +553,11 @@ public class FileToolHandlers : IDisposable
         if (!success)
         {
             RecordFileMetrics(FileOperationType.Delete, FileOperationResult.Failed);
-            return ResultBuilder.Error().WithText("Failed to delete file, file may not exist").Build();
+            return ToolResultBuilder.Error().WithText("Failed to delete file, file may not exist").Build();
         }
 
         RecordFileMetrics(FileOperationType.Delete, FileOperationResult.Ok);
-        return ResultBuilder.Success().WithText($"File deleted: {file_path}").Build();
+        return ToolResultBuilder.Success().WithText($"File deleted: {file_path}").Build();
     }
 
     [McpTool(FileToolNameConstants.DirectoryList, "List directory contents including files and subdirectories", "file", ConcurrencySafe = true)]
@@ -571,7 +571,7 @@ public class FileToolHandlers : IDisposable
             ValidationHelper.ValidateStringLength(directory_path, 4096, "directory_path"));
         if (validationError != null)
         {
-            return ResultBuilder.Error().WithText(validationError).Build();
+            return ToolResultBuilder.Error().WithText(validationError).Build();
         }
 
         directory_path = await ResolveSandboxPathAsync(directory_path, cancellationToken).ConfigureAwait(false);
@@ -584,7 +584,7 @@ public class FileToolHandlers : IDisposable
         if (!result.Success)
         {
             RecordFileMetrics(FileOperationType.List, FileOperationResult.Failed);
-            return ResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to list directory").Build();
+            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to list directory").Build();
         }
 
         var response = new StringBuilder(512);
@@ -622,7 +622,7 @@ public class FileToolHandlers : IDisposable
         }
 
         RecordFileMetrics(FileOperationType.List, FileOperationResult.Ok);
-        return ResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     [McpTool(FileToolNameConstants.FileEditRegex, "Edit file using regex pattern to replace matched text", "file")]
@@ -634,13 +634,13 @@ public class FileToolHandlers : IDisposable
         CancellationToken cancellationToken = default)
     {
         if (_fileEditLogic == null)
-            return ResultBuilder.Error().WithText("File edit service is not initialized").Build();
+            return ToolResultBuilder.Error().WithText("File edit service is not initialized").Build();
 
         var validationError = ValidationHelper.CombineErrors(
             ValidationHelper.ValidateRequired(file_path, "file_path"),
             ValidationHelper.ValidateRequired(pattern, "pattern"));
         if (validationError != null)
-            return ResultBuilder.Error().WithText(validationError).Build();
+            return ToolResultBuilder.Error().WithText(validationError).Build();
 
         file_path = await ResolveSandboxPathAsync(file_path, cancellationToken).ConfigureAwait(false);
 
@@ -649,7 +649,7 @@ public class FileToolHandlers : IDisposable
         if (!result.Success)
         {
             RecordFileMetrics(FileOperationType.EditRegex, FileOperationResult.Failed);
-            return ResultBuilder.Error().WithText(result.ErrorMessage ?? "Regex edit failed").Build();
+            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "Regex edit failed").Build();
         }
 
         var response = new StringBuilder(128);
@@ -657,7 +657,7 @@ public class FileToolHandlers : IDisposable
         response.AppendLine($"Replaced {result.ReplaceCount} occurrence(s)");
 
         RecordFileMetrics(FileOperationType.EditRegex, FileOperationResult.Ok);
-        return ResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     [McpTool(FileToolNameConstants.FileInsertLines, "Insert new content after a specified line in the file", "file")]
@@ -668,14 +668,14 @@ public class FileToolHandlers : IDisposable
         CancellationToken cancellationToken = default)
     {
         if (_fileEditLogic == null)
-            return ResultBuilder.Error().WithText("File edit service is not initialized").Build();
+            return ToolResultBuilder.Error().WithText("File edit service is not initialized").Build();
 
         var validationError = ValidationHelper.CombineErrors(
             ValidationHelper.ValidateRequired(file_path, "file_path"),
             ValidationHelper.ValidateRequired(new_content, "new_content"),
             ValidationHelper.ValidateRange(after_line, 0, int.MaxValue, "after_line"));
         if (validationError != null)
-            return ResultBuilder.Error().WithText(validationError).Build();
+            return ToolResultBuilder.Error().WithText(validationError).Build();
 
         file_path = await ResolveSandboxPathAsync(file_path, cancellationToken).ConfigureAwait(false);
 
@@ -684,7 +684,7 @@ public class FileToolHandlers : IDisposable
         if (!result.Success)
         {
             RecordFileMetrics(FileOperationType.InsertLines, FileOperationResult.Failed);
-            return ResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to insert lines").Build();
+            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to insert lines").Build();
         }
 
         var response = new StringBuilder(128);
@@ -692,7 +692,7 @@ public class FileToolHandlers : IDisposable
         response.AppendLine($"Inserted {result.ReplacedLinesCount} line(s) after line {after_line}");
 
         RecordFileMetrics(FileOperationType.InsertLines, FileOperationResult.Ok);
-        return ResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     [McpTool(FileToolNameConstants.FileDeleteLines, "Delete a range of lines from the file", "file")]
@@ -703,14 +703,14 @@ public class FileToolHandlers : IDisposable
         CancellationToken cancellationToken = default)
     {
         if (_fileEditLogic == null)
-            return ResultBuilder.Error().WithText("File edit service is not initialized").Build();
+            return ToolResultBuilder.Error().WithText("File edit service is not initialized").Build();
 
         var validationError = ValidationHelper.CombineErrors(
             ValidationHelper.ValidateRequired(file_path, "file_path"),
             ValidationHelper.ValidateRange(start_line, 1, int.MaxValue, "start_line"),
             ValidationHelper.ValidateRange(end_line, 1, int.MaxValue, "end_line"));
         if (validationError != null)
-            return ResultBuilder.Error().WithText(validationError).Build();
+            return ToolResultBuilder.Error().WithText(validationError).Build();
 
         file_path = await ResolveSandboxPathAsync(file_path, cancellationToken).ConfigureAwait(false);
 
@@ -719,7 +719,7 @@ public class FileToolHandlers : IDisposable
         if (!result.Success)
         {
             RecordFileMetrics(FileOperationType.DeleteLines, FileOperationResult.Failed);
-            return ResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to delete lines").Build();
+            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to delete lines").Build();
         }
 
         var response = new StringBuilder(128);
@@ -727,7 +727,7 @@ public class FileToolHandlers : IDisposable
         response.AppendLine($"Deleted {result.ReplacedLinesCount} line(s) ({result.StartLine}-{result.EndLine})");
 
         RecordFileMetrics(FileOperationType.DeleteLines, FileOperationResult.Ok);
-        return ResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     [McpTool(FileToolNameConstants.FileBatchEdit, "Batch edit multiple files with the same search-and-replace", "file")]
@@ -739,15 +739,15 @@ public class FileToolHandlers : IDisposable
         CancellationToken cancellationToken = default)
     {
         if (_fileEditLogic == null)
-            return ResultBuilder.Error().WithText("File edit service is not initialized").Build();
+            return ToolResultBuilder.Error().WithText("File edit service is not initialized").Build();
 
         var validationError = ValidationHelper.CombineErrors(
             ValidationHelper.ValidateRequired(old_string, "old_string"));
         if (validationError != null)
-            return ResultBuilder.Error().WithText(validationError).Build();
+            return ToolResultBuilder.Error().WithText(validationError).Build();
 
         if (file_paths == null || file_paths.Length == 0)
-            return ResultBuilder.Error().WithText("At least one file path is required").Build();
+            return ToolResultBuilder.Error().WithText("At least one file path is required").Build();
 
         var resolvedPaths = await Task.WhenAll(
             file_paths.Select(path => ResolveSandboxPathAsync(path, cancellationToken))).ConfigureAwait(false);
@@ -778,7 +778,7 @@ public class FileToolHandlers : IDisposable
         response.AppendLine($"Succeeded: {successCount}, Failed: {failureCount}");
 
         RecordFileMetrics(FileOperationType.BatchEdit, failureCount == 0 ? FileOperationResult.Ok : FileOperationResult.Partial);
-        return ResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     [McpTool(FileToolNameConstants.FileSnipLines, "Read a range of lines from the file (snip read)", "file", ConcurrencySafe = true)]
@@ -789,14 +789,14 @@ public class FileToolHandlers : IDisposable
         CancellationToken cancellationToken = default)
     {
         if (_snipLogic == null)
-            return ResultBuilder.Error().WithText("File chunking service is not initialized").Build();
+            return ToolResultBuilder.Error().WithText("File chunking service is not initialized").Build();
 
         var validationError = ValidationHelper.CombineErrors(
             ValidationHelper.ValidateRequired(file_path, "file_path"),
             ValidationHelper.ValidateRange(start_line, 0, int.MaxValue, "start_line"),
             ValidationHelper.ValidateRange(line_count, 1, int.MaxValue, "line_count"));
         if (validationError != null)
-            return ResultBuilder.Error().WithText(validationError).Build();
+            return ToolResultBuilder.Error().WithText(validationError).Build();
 
         file_path = await ResolveSandboxPathAsync(file_path, cancellationToken).ConfigureAwait(false);
 
@@ -808,7 +808,7 @@ public class FileToolHandlers : IDisposable
         catch (FileNotFoundException ex)
         {
             RecordFileMetrics(FileOperationType.SnipLines, FileOperationResult.Failed);
-            return ResultBuilder.Error().WithText(ex.Message).Build();
+            return ToolResultBuilder.Error().WithText(ex.Message).Build();
         }
 
         var response = new StringBuilder(256);
@@ -821,7 +821,7 @@ public class FileToolHandlers : IDisposable
         response.AppendLine("```");
 
         RecordFileMetrics(FileOperationType.SnipLines, FileOperationResult.Ok);
-        return ResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     [McpTool(FileToolNameConstants.FileSnipPreview, "Get file preview info (size, line count, first N lines)", "file", ConcurrencySafe = true)]
@@ -831,13 +831,13 @@ public class FileToolHandlers : IDisposable
         CancellationToken cancellationToken = default)
     {
         if (_snipLogic == null)
-            return ResultBuilder.Error().WithText("File chunking service is not initialized").Build();
+            return ToolResultBuilder.Error().WithText("File chunking service is not initialized").Build();
 
         var validationError = ValidationHelper.CombineErrors(
             ValidationHelper.ValidateRequired(file_path, "file_path"),
             ValidationHelper.ValidateRange(max_preview_lines, 1, int.MaxValue, "max_preview_lines"));
         if (validationError != null)
-            return ResultBuilder.Error().WithText(validationError).Build();
+            return ToolResultBuilder.Error().WithText(validationError).Build();
 
         file_path = await ResolveSandboxPathAsync(file_path, cancellationToken).ConfigureAwait(false);
 
@@ -849,7 +849,7 @@ public class FileToolHandlers : IDisposable
         catch (FileNotFoundException ex)
         {
             RecordFileMetrics(FileOperationType.SnipPreview, FileOperationResult.Failed);
-            return ResultBuilder.Error().WithText(ex.Message).Build();
+            return ToolResultBuilder.Error().WithText(ex.Message).Build();
         }
 
         var response = new StringBuilder(256);
@@ -863,7 +863,7 @@ public class FileToolHandlers : IDisposable
             response.AppendLine("...");
 
         RecordFileMetrics(FileOperationType.SnipPreview, FileOperationResult.Ok);
-        return ResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     #region Private Methods
@@ -1059,7 +1059,7 @@ public class FileToolHandlers : IDisposable
     }
 
     private void RecordFileMetrics(FileOperationType operation, FileOperationResult result)
-        => _telemetryService?.RecordCount("file.operation.count", new Dictionary<string, string> { ["operation"] = operation.ToValue(), ["result"] = result.ToValue() }, description: "File operation count");
+        => ToolTelemetryHelper.RecordToolCount(_telemetryService, "file.operation.count", new Dictionary<string, string> { ["operation"] = operation.ToValue(), ["result"] = result.ToValue() });
 
     /// <summary>
     /// 记录文件读取详细遥测。
@@ -1215,14 +1215,14 @@ public class FileToolHandlers : IDisposable
         {
             // 对齐 TS: findSimilarFile + suggestPathUnderCwd — 文件未找到时建议相似文件
             var message = FileSuggestionHelper.BuildFileNotFoundMessage(filePath, _fs);
-            return ResultBuilder.Error().WithText(message).Build();
+            return ToolResultBuilder.Error().WithText(message).Build();
         }
 
         var originalSize = _fs.GetFileLength(filePath);
 
         if (originalSize == 0)
         {
-            return ResultBuilder.Error().WithText($"Image file is empty: {filePath}").Build();
+            return ToolResultBuilder.Error().WithText($"Image file is empty: {filePath}").Build();
         }
 
         // 读取原始图像字节
@@ -1233,7 +1233,7 @@ public class FileToolHandlers : IDisposable
         }
         catch (Exception ex)
         {
-            return ResultBuilder.Error().WithText($"Failed to read image file: {ex.Message}").Build();
+            return ToolResultBuilder.Error().WithText($"Failed to read image file: {ex.Message}").Build();
         }
 
         // 用 magic bytes 检测实际格式（对齐 TS: detectImageFormatFromBuffer）
@@ -1251,7 +1251,7 @@ public class FileToolHandlers : IDisposable
         catch (InvalidOperationException ex)
         {
             RecordFileMetrics(FileOperationType.Read, FileOperationResult.ResizeFailed);
-            return ResultBuilder.Error().WithText(ex.Message).Build();
+            return ToolResultBuilder.Error().WithText(ex.Message).Build();
         }
 
         // Base64 编码
@@ -1261,7 +1261,7 @@ public class FileToolHandlers : IDisposable
         if (base64Data.Length > FileOperationConfig.ApiImageMaxBase64Size)
         {
             RecordFileMetrics(FileOperationType.Read, FileOperationResult.ApiLimitExceeded);
-            return ResultBuilder.Error().WithText(
+            return ToolResultBuilder.Error().WithText(
                 $"Image base64 size ({base64Data.Length} bytes) exceeds API limit ({FileOperationConfig.ApiImageMaxBase64Size} bytes). " +
                 "Please use a smaller image.").Build();
         }
@@ -1288,7 +1288,7 @@ public class FileToolHandlers : IDisposable
             {
                 // 所有压缩策略都无法满足预算
                 RecordFileMetrics(FileOperationType.Read, FileOperationResult.TokenExceeded);
-                return ResultBuilder.Error().WithText(
+                return ToolResultBuilder.Error().WithText(
                     $"Image content ({estimatedTokens} tokens, {resizeResult.Buffer.Length} bytes) exceeds maximum allowed tokens ({maxTokens}). " +
                     "Try reading a smaller image or use offset/limit on text files instead.").Build();
             }
@@ -1315,7 +1315,7 @@ public class FileToolHandlers : IDisposable
         if (metadataText is not null)
             summaryText += $"\n{metadataText}";
 
-        return ResultBuilder.Success()
+        return ToolResultBuilder.Success()
             .WithImage(base64Data, resizeResult.MediaType)
             .WithText(summaryText)
             .Build();
@@ -1340,7 +1340,7 @@ public class FileToolHandlers : IDisposable
             parsedRange = PdfReader.ParsePageRange(pages);
             if (parsedRange is null)
             {
-                return ResultBuilder.Error()
+                return ToolResultBuilder.Error()
                     .WithText($"Invalid pages parameter: \"{pages}\". Use formats like \"1-5\", \"3\", or \"10-20\". Pages are 1-indexed.")
                     .Build();
             }
@@ -1350,7 +1350,7 @@ public class FileToolHandlers : IDisposable
                 : parsedRange.LastPage - parsedRange.FirstPage + 1;
             if (rangePageCount > FileOperationConfig.PdfMaxPagesPerRead)
             {
-                return ResultBuilder.Error()
+                return ToolResultBuilder.Error()
                     .WithText($"Page range \"{pages}\" exceeds maximum of {FileOperationConfig.PdfMaxPagesPerRead} pages per request. Please use a smaller range.")
                     .Build();
             }
@@ -1370,7 +1370,7 @@ public class FileToolHandlers : IDisposable
         if (!result.Success)
         {
             RecordFileMetrics(FileOperationType.Read, FileOperationResult.PdfFailed);
-            return ResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to read PDF file").Build();
+            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to read PDF file").Build();
         }
 
         // 对齐 TS: 决策2 — 超过 PdfMaxInlinePageCount 页必须使用 pages 参数
@@ -1378,7 +1378,7 @@ public class FileToolHandlers : IDisposable
             result.PageCount > FileOperationConfig.PdfMaxInlinePageCount)
         {
             RecordFileMetrics(FileOperationType.Read, FileOperationResult.Failed);
-            return ResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText($"This PDF has {result.PageCount} pages, which is too many to read at once. " +
                           $"Use the pages parameter to read specific page ranges (e.g., pages: \"1-5\"). " +
                           $"Maximum {FileOperationConfig.PdfMaxPagesPerRead} pages per request.")
@@ -1407,7 +1407,7 @@ public class FileToolHandlers : IDisposable
         var pageCountInfo = result.PageCount is not null ? $", {result.PageCount} pages" : string.Empty;
         var summaryText = $"Read PDF: {filePath} ({ContentReplacementConstants.FormatFileSize(result.GetOriginalSize())}{pageCountInfo})";
 
-        return ResultBuilder.Success()
+        return ToolResultBuilder.Success()
             .WithPdf(result.GetBase64(), result.GetOriginalSize())
             .WithText(summaryText)
             .Build();
@@ -1428,12 +1428,12 @@ public class FileToolHandlers : IDisposable
             if (!fallbackResult.Success)
             {
                 RecordFileMetrics(FileOperationType.Read, FileOperationResult.PdfFailed);
-                return ResultBuilder.Error().WithText(fallbackResult.ErrorMessage ?? "Failed to read PDF file").Build();
+                return ToolResultBuilder.Error().WithText(fallbackResult.ErrorMessage ?? "Failed to read PDF file").Build();
             }
 
             RecordFileMetrics(FileOperationType.Read, FileOperationResult.Ok);
             var fallbackInfo = fallbackResult.PageCount is not null ? $", {fallbackResult.PageCount} pages" : string.Empty;
-            return ResultBuilder.Success()
+            return ToolResultBuilder.Success()
                 .WithPdf(fallbackResult.GetBase64(), fallbackResult.GetOriginalSize())
                 .WithText($"Read PDF (rendering unavailable, sent as document): {filePath} ({ContentReplacementConstants.FormatFileSize(fallbackResult.GetOriginalSize())}{fallbackInfo})")
                 .Build();
@@ -1448,7 +1448,7 @@ public class FileToolHandlers : IDisposable
         if (!extractResult.Success)
         {
             RecordFileMetrics(FileOperationType.Read, FileOperationResult.PdfFailed);
-            return ResultBuilder.Error().WithText(extractResult.ErrorMessage ?? "Failed to extract PDF pages").Build();
+            return ToolResultBuilder.Error().WithText(extractResult.ErrorMessage ?? "Failed to extract PDF pages").Build();
         }
 
         // 记录读取状态
@@ -1461,7 +1461,7 @@ public class FileToolHandlers : IDisposable
         RecordFileOperationTelemetry(filePath, FileOperationTypeConstants.Read);
 
         // 对齐 TS: extractPDFPages → 读取输出目录中的 .jpg 文件 → maybeResizeAndDownsampleImageBuffer
-        var builder = ResultBuilder.Success();
+        var builder = ToolResultBuilder.Success();
         var pageDescriptions = new List<string>();
 
         foreach (var page in extractResult.GetPages())
@@ -1542,7 +1542,7 @@ public class FileToolHandlers : IDisposable
                 if (currentMtimeMs == existingState.TimestampMs)
                 {
                     RecordFileMetrics(FileOperationType.Read, FileOperationResult.Ok);
-                    return ResultBuilder.Success()
+                    return ToolResultBuilder.Success()
                         .WithText("File unchanged since last read. The content from the earlier Read tool_result in this conversation is still current — refer to that instead of re-reading.")
                         .Build();
                 }
@@ -1559,7 +1559,7 @@ public class FileToolHandlers : IDisposable
         if (!result.Success)
         {
             RecordFileMetrics(FileOperationType.Read, FileOperationResult.NotebookFailed);
-            return ResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to read notebook file").Build();
+            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to read notebook file").Build();
         }
 
         // 记录读取状态
@@ -1574,7 +1574,7 @@ public class FileToolHandlers : IDisposable
         RecordFileMetrics(FileOperationType.Read, FileOperationResult.Ok);
 
         // 对齐 TS: mapNotebookCellsToToolResult — 文本 + 图像块
-        var builder = ResultBuilder.Success().WithText(result.GetText());
+        var builder = ToolResultBuilder.Success().WithText(result.GetText());
 
         // 对齐 TS: cellOutputToToolResult — 将 cell 输出中的图像作为 ImageBlock 发送
         if (result.Images is { Count: > 0 })
@@ -1595,11 +1595,11 @@ public class FileToolHandlers : IDisposable
         CancellationToken cancellationToken = default)
     {
         if (_applyPatchLogic is null)
-            return ResultBuilder.Error().WithText("ApplyPatchLogic is not available").Build();
+            return ToolResultBuilder.Error().WithText("ApplyPatchLogic is not available").Build();
 
         var validationError = ValidationHelper.ValidateRequired(patch, "patch");
         if (validationError != null)
-            return ResultBuilder.Error().WithText(validationError).Build();
+            return ToolResultBuilder.Error().WithText(validationError).Build();
 
         var result = await _applyPatchLogic.ApplyAsync(patch, dry_run, workingDirectory: null, cancellationToken).ConfigureAwait(false);
 
@@ -1608,14 +1608,14 @@ public class FileToolHandlers : IDisposable
             var errorText = result.ErrorMessage ?? "Patch did not apply";
             if (result.Details.Count > 0)
                 errorText += "\n" + string.Join("\n", result.Details);
-            return ResultBuilder.Error().WithText(errorText).Build();
+            return ToolResultBuilder.Error().WithText(errorText).Build();
         }
 
         var summary = result.DryRun
             ? $"Dry run: {result.FilesWouldModify} file(s) would be modified"
             : $"Applied patch: {result.FilesModified} file(s) modified";
         var detailText = result.Details.Count > 0 ? "\n" + string.Join("\n", result.Details) : "";
-        return ResultBuilder.Success().WithText(summary + detailText).Build();
+        return ToolResultBuilder.Success().WithText(summary + detailText).Build();
     }
 
     #endregion

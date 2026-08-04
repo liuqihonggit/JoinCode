@@ -21,7 +21,7 @@ public sealed partial class VcrToolHandlers
     {
         if (string.IsNullOrWhiteSpace(cassette_name))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.CassetteNameCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.CassetteNameCannotBeEmpty)).Build();
         }
 
         try
@@ -32,14 +32,14 @@ public sealed partial class VcrToolHandlers
 
             _logger?.LogInformation("VCR recording started: {CassetteName}", cassette_name);
 
-            return McpResultBuilder.Success()
+            return ToolResultBuilder.Success()
                 .WithText(L.T(StringKey.VcrRecordStarted, cassette_name))
                 .Build();
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, L.T(StringKey.VcrRecordStartFailedLog), cassette_name);
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText(L.T(StringKey.VcrRecordStartFailed, ex.Message))
                 .Build();
         }
@@ -52,7 +52,7 @@ public sealed partial class VcrToolHandlers
     {
         if (string.IsNullOrWhiteSpace(cassette_name))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.CassetteNameCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.CassetteNameCannotBeEmpty)).Build();
         }
 
         try
@@ -67,12 +67,12 @@ public sealed partial class VcrToolHandlers
             response.AppendLine(L.T(StringKey.VcrPlaybackStarted, cassette_name));
             response.AppendLine(L.T(StringKey.VcrPlaybackLabelCassetteName, cassette.Name));
 
-            return McpResultBuilder.Success().WithText(response.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(response.ToString()).Build();
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, L.T(StringKey.VcrPlaybackStartFailedLog), cassette_name);
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText(L.T(StringKey.VcrPlaybackStartFailed, ex.Message))
                 .Build();
         }
@@ -86,6 +86,6 @@ public sealed partial class VcrToolHandlers
         response.AppendLine(L.T(StringKey.VcrServiceStatus));
         response.AppendLine(L.T(StringKey.VcrLabelCurrentMode, _vcrService.CurrentMode));
 
-        return Task.FromResult(McpResultBuilder.Success().WithText(response.ToString()).Build());
+        return Task.FromResult(ToolResultBuilder.Success().WithText(response.ToString()).Build());
     }
 }

@@ -31,13 +31,13 @@ public class PermissionToolHandlers
     {
         if (string.IsNullOrWhiteSpace(agent_pattern))
         {
-            return McpResultBuilder.Error().WithText("agent_pattern 不能为空").Build();
+            return ToolResultBuilder.Error().WithText("agent_pattern 不能为空").Build();
         }
 
         var permissionMode = PermissionModeExtensions.FromValue(mode);
         if (permissionMode is null)
         {
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText($"无效的权限模式: {mode}。有效值: auto, plan, ask, deny").Build();
         }
 
@@ -47,7 +47,7 @@ public class PermissionToolHandlers
             var parsedLevel = PermissionLevelExtensions.FromValue(level);
             if (parsedLevel is null)
             {
-                return McpResultBuilder.Error()
+                return ToolResultBuilder.Error()
                     .WithText($"无效的权限级别: {level}。有效值: none, read, write, execute, admin").Build();
             }
             permissionLevel = parsedLevel.Value;
@@ -81,7 +81,7 @@ public class PermissionToolHandlers
         response.AppendLine();
         response.AppendLine(FormatRule(rule));
 
-        return McpResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     /// <summary>
@@ -94,17 +94,17 @@ public class PermissionToolHandlers
     {
         if (string.IsNullOrWhiteSpace(agent_pattern))
         {
-            return McpResultBuilder.Error().WithText("agent_pattern 不能为空").Build();
+            return ToolResultBuilder.Error().WithText("agent_pattern 不能为空").Build();
         }
 
         var removed = await _permissionManager.RemoveRuleAsync(agent_pattern, cancellationToken).ConfigureAwait(false);
 
         if (!removed)
         {
-            return McpResultBuilder.Error().WithText($"未找到规则: {agent_pattern}").Build();
+            return ToolResultBuilder.Error().WithText($"未找到规则: {agent_pattern}").Build();
         }
 
-        return McpResultBuilder.Success()
+        return ToolResultBuilder.Success()
             .WithText($"{StatusSymbol.Tick.ToValue()} 规则 '{agent_pattern}' 已移除")
             .Build();
     }
@@ -136,7 +136,7 @@ public class PermissionToolHandlers
             }
         }
 
-        return McpResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     /// <summary>
@@ -150,12 +150,12 @@ public class PermissionToolHandlers
     {
         if (string.IsNullOrWhiteSpace(agent_name))
         {
-            return McpResultBuilder.Error().WithText("agent_name 不能为空").Build();
+            return ToolResultBuilder.Error().WithText("agent_name 不能为空").Build();
         }
 
         if (string.IsNullOrWhiteSpace(tool_name))
         {
-            return McpResultBuilder.Error().WithText("tool_name 不能为空").Build();
+            return ToolResultBuilder.Error().WithText("tool_name 不能为空").Build();
         }
 
         var result = await _permissionManager.CheckToolPermissionAsync(agent_name, tool_name, null, cancellationToken).ConfigureAwait(false);
@@ -188,7 +188,7 @@ public class PermissionToolHandlers
             response.AppendLine($"{ObjectSymbol.Pencil.ToValue()} 需要详细计划");
         }
 
-        return McpResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     /// <summary>
@@ -202,12 +202,12 @@ public class PermissionToolHandlers
     {
         if (string.IsNullOrWhiteSpace(agent_name))
         {
-            return McpResultBuilder.Error().WithText("agent_name 不能为空").Build();
+            return ToolResultBuilder.Error().WithText("agent_name 不能为空").Build();
         }
 
         if (string.IsNullOrWhiteSpace(path))
         {
-            return McpResultBuilder.Error().WithText("path 不能为空").Build();
+            return ToolResultBuilder.Error().WithText("path 不能为空").Build();
         }
 
         var result = await _permissionManager.CheckPathPermissionAsync(agent_name, path, cancellationToken).ConfigureAwait(false);
@@ -230,7 +230,7 @@ public class PermissionToolHandlers
             response.AppendLine($"原因: {result.Reason}");
         }
 
-        return McpResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     /// <summary>
@@ -243,14 +243,14 @@ public class PermissionToolHandlers
     {
         if (string.IsNullOrWhiteSpace(agent_name))
         {
-            return McpResultBuilder.Error().WithText("agent_name 不能为空").Build();
+            return ToolResultBuilder.Error().WithText("agent_name 不能为空").Build();
         }
 
         var rule = await _permissionManager.GetRuleForAgentAsync(agent_name, cancellationToken).ConfigureAwait(false);
 
         if (rule == null)
         {
-            return McpResultBuilder.Success()
+            return ToolResultBuilder.Success()
                 .WithText($"代理 '{agent_name}' 没有特定的权限规则，将使用默认设置")
                 .Build();
         }
@@ -260,7 +260,7 @@ public class PermissionToolHandlers
         response.AppendLine();
         response.AppendLine(FormatRule(rule));
 
-        return McpResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     /// <summary>
@@ -273,14 +273,14 @@ public class PermissionToolHandlers
     {
         if (confirm != "yes")
         {
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText("请输入 'yes' 确认清除所有规则")
                 .Build();
         }
 
         await _permissionManager.ClearRulesAsync(cancellationToken).ConfigureAwait(false);
 
-        return McpResultBuilder.Success()
+        return ToolResultBuilder.Success()
             .WithText($"{StatusSymbol.Tick.ToValue()} 所有权限规则已清除")
             .Build();
     }

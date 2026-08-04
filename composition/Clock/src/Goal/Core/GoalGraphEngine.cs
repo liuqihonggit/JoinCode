@@ -278,6 +278,7 @@ public sealed partial class GoalGraphEngine
             Prompt = instruction,
             Role = payload.Role,
             Variant = payload.Variant,
+            IsolationMode = payload.IsolationMode,
             RunInBackground = false,
             GoalId = context.State.GoalId,
             GraphNodeId = nodeId,
@@ -335,6 +336,7 @@ public sealed partial class GoalGraphEngine
         }
 
         var upstreamOutputs = context.CollectUpstreamOutputs(nodeId);
+        var mutator = new GoalGraphMutator(context, _logger);
         var nodeContext = new NodeContext
         {
             NodeId = nodeId,
@@ -343,9 +345,46 @@ public sealed partial class GoalGraphEngine
             GlobalState = context.State,
             Services = _serviceProvider,
             CancellationToken = ct,
+            GraphMutator = mutator,
         };
 
         return await fn(nodeContext).ConfigureAwait(false);
+    }
+
+    private sealed class GoalGraphMutator : IGoalGraphMutator
+    {
+        private readonly GraphExecutionContext _context;
+        private readonly ILogger? _logger;
+
+        public GoalGraphMutator(GraphExecutionContext context, ILogger? logger)
+        {
+            _context = context;
+            _logger = logger;
+        }
+
+        public void AddNode(string nodeId, GoalNodePayload payload)
+        {
+            _context.Graph.Dag.AddNode(new DagNode<GoalNodePayload> { Id = nodeId, Payload = payload });
+            _logger?.LogInformation("[GoalGraphMutator] 动态添加节点: {NodeId}", nodeId);
+        }
+
+        public void AddEdge(string edgeId, string fromId, string toId, string? label = null)
+        {
+            _context.Graph.Dag.AddEdge(new DagEdge { Id = edgeId, FromId = fromId, ToId = toId, Label = label ?? string.Empty });
+            _logger?.LogInformation("[GoalGraphMutator] 动态添加边: {EdgeId} ({FromId} → {ToId})", edgeId, fromId, toId);
+        }
+
+        public void EnqueueNode(string nodeId)
+        {
+            _context.ReadyQueue.Enqueue(nodeId);
+            _logger?.LogInformation("[GoalGraphMutator] 入队节点: {NodeId}", nodeId);
+        }
+
+        public void AddEndNode(string nodeId)
+        {
+            _context.Graph.AddEndNode(nodeId);
+            _logger?.LogInformation("[GoalGraphMutator] 添加终止节点: {NodeId}", nodeId);
+        }
     }
 
     private Task<NodeResult> ExecuteJoinNodeAsync(string nodeId, GoalNodePayload payload, GraphExecutionContext context, CancellationToken ct)
@@ -526,9 +565,13 @@ public sealed partial class GoalGraphEngine
 
         if (nodeId.Equals("neg_review", StringComparison.Ordinal))
         {
-            var negReview = LlmJsonHelper.Deserialize(payload.Output, GoalJsonContext.Default.NegReviewOutputJson, out _);
+            var negReview = LlmJsonHelper.Deserialize(payload.Output, GoalJsonContext.Default.NegReviewOutputJson, out var negRepair);
             if (negReview is null)
+            {
+                if (!string.IsNullOrEmpty(negRepair))
+                    System.Diagnostics.Trace.WriteLine($"[GoalGraph] neg_review 元数据解析失败: {negRepair}");
                 return;
+            }
 
             payload.NegativeReviewCount = negReview.NegativeReviewCount;
             payload.NegativeReviewTaskId = negReview.TaskId;
@@ -539,10 +582,14 @@ public sealed partial class GoalGraphEngine
         }
         else if (nodeId.Equals("fix_neg", StringComparison.Ordinal))
         {
-            var fixNeg = LlmJsonHelper.Deserialize(payload.Output, GoalJsonContext.Default.FixNegOutputJson, out _);
+            var fixNeg = LlmJsonHelper.Deserialize(payload.Output, GoalJsonContext.Default.FixNegOutputJson, out var fixRepair);
             if (fixNeg is not null && !string.IsNullOrEmpty(fixNeg.Route))
             {
                 payload.Routes = [fixNeg.Route];
+            }
+            else if (fixNeg is null && !string.IsNullOrEmpty(fixRepair))
+            {
+                System.Diagnostics.Trace.WriteLine($"[GoalGraph] fix_neg 元数据解析失败: {fixRepair}");
             }
         }
     }

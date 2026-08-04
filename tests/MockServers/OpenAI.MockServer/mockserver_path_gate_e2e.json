@@ -1,0 +1,29 @@
+{
+  "port": 9901,
+  "default_response": "Path gate E2E test completed.",
+  "scripted_turns": [
+    {
+      "text_response": "I will test the path gate middleware. First, running a bash command with a Windows-style working directory.",
+      "tool_calls": [
+        {
+          "tool_name": "Bash",
+          "arguments": "{\"command\":\"pwd\",\"working_directory\":\"D:\\\\project\\\\w3\"}",
+          "tool_call_id": "bash_pwd_001"
+        }
+      ]
+    },
+    {
+      "text_response": "Good, the working directory was converted. Now testing a command with Windows path inside the command string.",
+      "tool_calls": [
+        {
+          "tool_name": "Bash",
+          "arguments": "{\"command\":\"ls C:\\\\Users\"}",
+          "tool_call_id": "bash_path_in_cmd_002"
+        }
+      ]
+    },
+    {
+      "text_response": "Path gate E2E test completed. Both working_directory and command path conversion verified."
+    }
+  ]
+}

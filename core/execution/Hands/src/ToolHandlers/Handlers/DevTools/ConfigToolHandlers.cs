@@ -30,7 +30,7 @@ public sealed partial class ConfigToolHandlers
         // 对齐 TS: isSupported — 未知 key 拒绝
         if (!SupportedSettings.IsSupported(setting))
         {
-            return ResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText($"Unknown setting: \"{setting}\"")
                 .Build();
         }
@@ -45,7 +45,7 @@ public sealed partial class ConfigToolHandlers
             ? config.FormatOnRead(currentValue)
             : currentValue;
 
-        return ResultBuilder.Success()
+        return ToolResultBuilder.Success()
             .WithText($"{setting} = {FormatValue(displayValue)}")
             .Build();
     }
@@ -64,7 +64,7 @@ public sealed partial class ConfigToolHandlers
         // 对齐 TS: isSupported — 未知 key 拒绝
         if (!SupportedSettings.IsSupported(setting))
         {
-            return ResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText($"Unknown setting: \"{setting}\"")
                 .Build();
         }
@@ -81,7 +81,7 @@ public sealed partial class ConfigToolHandlers
             else if (lower is "false")
                 finalValue = "false";
             else
-                return ResultBuilder.Error()
+                return ToolResultBuilder.Error()
                     .WithText($"{setting} requires true or false.")
                     .Build();
         }
@@ -90,7 +90,7 @@ public sealed partial class ConfigToolHandlers
         var options = SupportedSettings.GetOptionsForSetting(setting);
         if (options is not null && !options.Contains(finalValue))
         {
-            return ResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText($"Invalid value \"{value}\". Options: {string.Join(", ", options)}")
                 .Build();
         }
@@ -101,7 +101,7 @@ public sealed partial class ConfigToolHandlers
             var (valid, error) = await config.ValidateOnWrite(finalValue).ConfigureAwait(false);
             if (!valid)
             {
-                return ResultBuilder.Error()
+                return ToolResultBuilder.Error()
                     .WithText(error ?? "Validation failed")
                     .Build();
             }
@@ -115,7 +115,7 @@ public sealed partial class ConfigToolHandlers
 
         if (!success)
         {
-            return ResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText($"Failed to set {setting}")
                 .Build();
         }
@@ -125,7 +125,7 @@ public sealed partial class ConfigToolHandlers
         // 对齐 TS: logEvent('tengu_config_tool_changed', { setting, value })
         _telemetryService?.RecordCount("config.tool.changed", new Dictionary<string, string> { ["setting"] = setting, ["value"] = finalValue }, description: "Config tool setting changed");
 
-        return ResultBuilder.Success()
+        return ToolResultBuilder.Success()
             .WithText($"Set {setting} to {FormatValue(finalValue)}")
             .Build();
     }
@@ -171,7 +171,7 @@ public sealed partial class ConfigToolHandlers
             }
         }
 
-        return Task.FromResult(ResultBuilder.Success()
+        return Task.FromResult(ToolResultBuilder.Success()
             .WithText(sb.ToString())
             .Build());
     }

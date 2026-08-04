@@ -150,23 +150,8 @@ public sealed partial class PipeQueryService : IQueryService
 
         _logger?.LogDebug("Sending chat request to pipe");
 
-        HttpResponseMessage response;
-        if (_resilientExecutor is not null)
-        {
-            response = await _resilientExecutor.ExecuteAsync(
-                async ct =>
-                {
-                    var content = new StringContent(json, Encoding.UTF8, "application/json");
-                    return await _httpClient.PostAsync("/v1/chat/completions", content, ct).ConfigureAwait(false);
-                },
-                "Pipe.ChatCompletion",
-                cancellationToken).ConfigureAwait(false);
-        }
-        else
-        {
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-            response = await _httpClient.PostAsync("/v1/chat/completions", content, cancellationToken).ConfigureAwait(false);
-        }
+        var response = await QueryServiceBase.SendWithResilienceCoreAsync(
+            _httpClient, _resilientExecutor, json, "/v1/chat/completions", "Pipe.ChatCompletion", cancellationToken).ConfigureAwait(false);
 
         response.EnsureSuccessStatusCode();
 
@@ -189,23 +174,8 @@ public sealed partial class PipeQueryService : IQueryService
 
         _logger?.LogDebug("Sending streaming chat request to pipe");
 
-        HttpResponseMessage response;
-        if (_resilientExecutor is not null)
-        {
-            response = await _resilientExecutor.ExecuteAsync(
-                async ct =>
-                {
-                    var content = new StringContent(json, Encoding.UTF8, "application/json");
-                    return await _httpClient.PostAsync("/v1/chat/completions", content, ct).ConfigureAwait(false);
-                },
-                "Pipe.StreamingChatCompletion",
-                cancellationToken).ConfigureAwait(false);
-        }
-        else
-        {
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-            response = await _httpClient.PostAsync("/v1/chat/completions", content, cancellationToken).ConfigureAwait(false);
-        }
+        var response = await QueryServiceBase.SendWithResilienceCoreAsync(
+            _httpClient, _resilientExecutor, json, "/v1/chat/completions", "Pipe.StreamingChatCompletion", cancellationToken).ConfigureAwait(false);
 
         response.EnsureSuccessStatusCode();
 
@@ -254,16 +224,13 @@ public sealed partial class PipeQueryService : IQueryService
     }
 
     private static MessageRole ConvertRole(string? role)
-    {
-        var parsed = MessageRoleExtensions.FromValue(role);
-        return parsed ?? MessageRole.Assistant;
-    }
+        => QueryServiceBase.ConvertRole(role);
 
     private static OpenAIApiMessage ConvertToMessage(ApiMessage content)
     {
         var msg = new OpenAIApiMessage
         {
-            Role = ConvertRoleToString(content.Role),
+            Role = QueryServiceBase.ConvertRoleToString(content.Role),
             Content = content.Content
         };
 
@@ -301,17 +268,6 @@ public sealed partial class PipeQueryService : IQueryService
         return msg;
     }
 
-    private static string ConvertRoleToString(MessageRole role)
-    {
-        return role switch
-        {
-            MessageRole.System => "system",
-            MessageRole.User => "user",
-            MessageRole.Assistant => "assistant",
-            MessageRole.Tool => "tool",
-            _ => "assistant"
-        };
-    }
 
     internal sealed class ChatRequest
     {

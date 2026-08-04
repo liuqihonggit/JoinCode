@@ -130,12 +130,5 @@ public sealed class Program
     }
 
     private static string? ParseArgument(string[] args, string name)
-    {
-        for (var i = 0; i < args.Length - 1; i++)
-        {
-            if (args[i] == name)
-                return args[i + 1];
-        }
-        return null;
-    }
+        => CommandLineParser.ParseArgument(args, name);
 }

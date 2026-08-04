@@ -132,6 +132,7 @@ public static class PipelineComposition
                 .Use(sp.GetRequiredService<EffortLevelMiddleware>())
                 .Use(sp.GetRequiredService<HookRefreshMiddleware>())
                 .Use(sp.GetRequiredService<PermissionCacheMiddleware>())
+                .Use(sp.GetRequiredService<ToolScoreSettingsMiddleware>())
                 .WithHooks(sp)
                 .Build());
 
@@ -210,6 +211,7 @@ public static class PipelineComposition
                 .WithLoggingScope(sp.GetRequiredService<ILoggerFactory>())
                 .Use(new FixedTimeoutMiddleware<ShellPipelineContext>(TimeSpan.FromSeconds(120)))
                 .Use(sp.GetRequiredService<ShellValidationMiddleware>())
+                .Use(sp.GetRequiredService<ShellPathGateMiddleware>())
                 .Use(sp.GetRequiredService<ShellClassificationMiddleware>())
                 .Use(sp.GetRequiredService<ShellSedInterceptMiddleware>())
                 .Use(sp.GetRequiredService<ShellBackgroundMiddleware>())

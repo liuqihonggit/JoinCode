@@ -25,11 +25,11 @@ public partial class SubscribePRToolHandlers
         {
             var subAction = PrSubscriptionActionExtensions.FromValue(action);
             if (subAction == null)
-                return McpResultBuilder.Error().WithText(L.T(StringKey.UnknownAction, action)).Build();
+                return ToolResultBuilder.Error().WithText(L.T(StringKey.UnknownAction, action)).Build();
 
             if (_gitHubService == null)
             {
-                return McpResultBuilder.Error()
+                return ToolResultBuilder.Error()
                     .WithText(L.T(StringKey.GitHubServiceNotConfigured))
                     .Build();
             }
@@ -40,7 +40,7 @@ public partial class SubscribePRToolHandlers
             {
                 case PrSubscriptionAction.Subscribe:
                     if (string.IsNullOrEmpty(pr_ref))
-                        return McpResultBuilder.Error().WithText(L.T(StringKey.SubscribeRequiresPrRef)).Build();
+                        return ToolResultBuilder.Error().WithText(L.T(StringKey.SubscribeRequiresPrRef)).Build();
 
                     var subscription = await _gitHubService.SubscribeAsync(pr_ref, events ?? "all", cancellationToken).ConfigureAwait(false);
                     response.AppendLine(L.T(StringKey.SubscribedPR, subscription.PrRef));
@@ -50,7 +50,7 @@ public partial class SubscribePRToolHandlers
 
                 case PrSubscriptionAction.Unsubscribe:
                     if (string.IsNullOrEmpty(pr_ref))
-                        return McpResultBuilder.Error().WithText(L.T(StringKey.UnsubscribeRequiresPrRef)).Build();
+                        return ToolResultBuilder.Error().WithText(L.T(StringKey.UnsubscribeRequiresPrRef)).Build();
 
                     await _gitHubService.UnsubscribeAsync(pr_ref, cancellationToken).ConfigureAwait(false);
                     response.AppendLine(L.T(StringKey.UnsubscribedPR, pr_ref));
@@ -76,13 +76,13 @@ public partial class SubscribePRToolHandlers
                     break;
             }
 
-            return McpResultBuilder.Success().WithText(response.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(response.ToString()).Build();
         }
         catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             _logger?.LogError(ex, "{Message}", L.T(StringKey.PRSubscriptionFailedLog));
-            return McpResultBuilder.Error().WithText(L.T(StringKey.PRSubscriptionFailed, ex.Message)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.PRSubscriptionFailed, ex.Message)).Build();
         }
     }
 }

@@ -33,17 +33,17 @@ public partial class McpClientToolHandlers : IAsyncDisposable
     {
         if (string.IsNullOrWhiteSpace(connection_name))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.ConnectionNameCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionNameCannotBeEmpty)).Build();
         }
 
         if (string.IsNullOrWhiteSpace(endpoint))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.EndpointCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.EndpointCannotBeEmpty)).Build();
         }
 
         if (_deps.ServerStateManager?.IsDisabled(connection_name) == true)
         {
-            return McpResultBuilder.Error().WithText($"MCP 服务器 '{connection_name}' 已被禁用，请先启用后再连接").Build();
+            return ToolResultBuilder.Error().WithText($"MCP 服务器 '{connection_name}' 已被禁用，请先启用后再连接").Build();
         }
 
         await _clientLock.WaitAsync(cancellationToken);
@@ -51,7 +51,7 @@ public partial class McpClientToolHandlers : IAsyncDisposable
         {
             if (_clients.ContainsKey(connection_name))
             {
-                return McpResultBuilder.Error().WithText(L.T(StringKey.ConnectionAlreadyExists, connection_name)).Build();
+                return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionAlreadyExists, connection_name)).Build();
             }
 
             var expandedEndpoint = endpoint.Contains('$') ? McpEnvExpander.ExpandEndpoint(endpoint) : endpoint;
@@ -69,7 +69,7 @@ public partial class McpClientToolHandlers : IAsyncDisposable
                 var authConfig = _deps.AuthToolHandlers.GetAuthConfig(auth_name);
                 if (authConfig == null)
                 {
-                    return McpResultBuilder.Error().WithText(L.T(StringKey.AuthConfigNotFound, auth_name)).Build();
+                    return ToolResultBuilder.Error().WithText(L.T(StringKey.AuthConfigNotFound, auth_name)).Build();
                 }
                 config = new McpServerConnectionConfig
                 {
@@ -86,14 +86,14 @@ public partial class McpClientToolHandlers : IAsyncDisposable
                     var authSuccess = await _deps.OAuthService.StartAuthorizationFlowAsync(cancellationToken).ConfigureAwait(false);
                     if (!authSuccess)
                     {
-                        return McpResultBuilder.Error().WithText(L.T(StringKey.OAuthAuthenticationFailed)).Build();
+                        return ToolResultBuilder.Error().WithText(L.T(StringKey.OAuthAuthenticationFailed)).Build();
                     }
                 }
 
                 var accessToken = await _deps.OAuthService.GetAccessTokenAsync(cancellationToken).ConfigureAwait(false);
                 if (string.IsNullOrEmpty(accessToken))
                 {
-                    return McpResultBuilder.Error().WithText(L.T(StringKey.CannotGetOAuthAccessToken)).Build();
+                    return ToolResultBuilder.Error().WithText(L.T(StringKey.CannotGetOAuthAccessToken)).Build();
                 }
 
                 config = new McpServerConnectionConfig
@@ -159,12 +159,12 @@ public partial class McpClientToolHandlers : IAsyncDisposable
                 response.AppendLine(L.T(StringKey.SupportsPrompts));
             }
 
-            return McpResultBuilder.Success().WithText(response.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(response.ToString()).Build();
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, L.T(StringKey.ConnectMcpServerFailedLog), connection_name);
-            return McpResultBuilder.Error().WithText(L.T(StringKey.ConnectionFailed, ex.Message)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionFailed, ex.Message)).Build();
         }
         finally
         {
@@ -182,7 +182,7 @@ public partial class McpClientToolHandlers : IAsyncDisposable
     {
         if (string.IsNullOrWhiteSpace(connection_name))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.ConnectionNameCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionNameCannotBeEmpty)).Build();
         }
 
         await _clientLock.WaitAsync(cancellationToken);
@@ -190,7 +190,7 @@ public partial class McpClientToolHandlers : IAsyncDisposable
         {
             if (!_clients.TryGetValue(connection_name, out var client))
             {
-                return McpResultBuilder.Error().WithText(L.T(StringKey.ConnectionNotFound, connection_name)).Build();
+                return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionNotFound, connection_name)).Build();
             }
 
             await client.DisconnectAsync(cancellationToken);
@@ -201,14 +201,14 @@ public partial class McpClientToolHandlers : IAsyncDisposable
                 await _deps.ToolRegistry.UnregisterRemoteClientAsync(connection_name, cancellationToken).ConfigureAwait(false);
             }
 
-            return McpResultBuilder.Success()
+            return ToolResultBuilder.Success()
                 .WithText(L.T(StringKey.Disconnected, connection_name))
                 .Build();
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, L.T(StringKey.DisconnectFailedLog), connection_name);
-            return McpResultBuilder.Error().WithText(L.T(StringKey.DisconnectFailed, ex.Message)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.DisconnectFailed, ex.Message)).Build();
         }
         finally
         {
@@ -223,7 +223,7 @@ public partial class McpClientToolHandlers : IAsyncDisposable
     {
         if (_deps.ServerStateManager == null)
         {
-            return McpResultBuilder.Error().WithText("MCP 服务器状态管理器未配置").Build();
+            return ToolResultBuilder.Error().WithText("MCP 服务器状态管理器未配置").Build();
         }
 
         var disabled = await _deps.ServerStateManager.DisableAsync(connection_name, cancellationToken).ConfigureAwait(false);
@@ -252,8 +252,8 @@ public partial class McpClientToolHandlers : IAsyncDisposable
         }
 
         return disabled
-            ? McpResultBuilder.Success().WithText($"MCP 服务器 '{connection_name}' 已禁用并断开连接").Build()
-            : McpResultBuilder.Success().WithText($"MCP 服务器 '{connection_name}' 已处于禁用状态").Build();
+            ? ToolResultBuilder.Success().WithText($"MCP 服务器 '{connection_name}' 已禁用并断开连接").Build()
+            : ToolResultBuilder.Success().WithText($"MCP 服务器 '{connection_name}' 已处于禁用状态").Build();
     }
 
     [McpTool("mcp_enable_server", "Enable an MCP server (persisted to disk)", "mcp")]
@@ -263,14 +263,14 @@ public partial class McpClientToolHandlers : IAsyncDisposable
     {
         if (_deps.ServerStateManager == null)
         {
-            return McpResultBuilder.Error().WithText("MCP 服务器状态管理器未配置").Build();
+            return ToolResultBuilder.Error().WithText("MCP 服务器状态管理器未配置").Build();
         }
 
         var enabled = await _deps.ServerStateManager.EnableAsync(connection_name, cancellationToken).ConfigureAwait(false);
 
         return enabled
-            ? McpResultBuilder.Success().WithText($"MCP 服务器 '{connection_name}' 已启用，可使用 mcp_connect 重新连接").Build()
-            : McpResultBuilder.Success().WithText($"MCP 服务器 '{connection_name}' 已处于启用状态").Build();
+            ? ToolResultBuilder.Success().WithText($"MCP 服务器 '{connection_name}' 已启用，可使用 mcp_connect 重新连接").Build()
+            : ToolResultBuilder.Success().WithText($"MCP 服务器 '{connection_name}' 已处于启用状态").Build();
     }
 
     /// <summary>
@@ -283,22 +283,22 @@ public partial class McpClientToolHandlers : IAsyncDisposable
     {
         if (string.IsNullOrWhiteSpace(connection_name))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.ConnectionNameCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionNameCannotBeEmpty)).Build();
         }
 
         var client = await GetClientAsync(connection_name, cancellationToken);
         if (client == null)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.ConnectionNotFound, connection_name)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionNotFound, connection_name)).Build();
         }
 
-        try
+        return await ToolResultBuilder.SafeExecuteAsync(async () =>
         {
             var result = await client.ListToolsAsync(cancellationToken);
 
             if (!result.Success)
             {
-                return McpResultBuilder.Error().WithText(L.T(StringKey.ListToolsFailed, result.ErrorMessage)).Build();
+                return ToolResultBuilder.Error().WithText(L.T(StringKey.ListToolsFailed, result.ErrorMessage)).Build();
             }
 
             var response = new System.Text.StringBuilder();
@@ -316,13 +316,8 @@ public partial class McpClientToolHandlers : IAsyncDisposable
                 response.AppendLine();
             }
 
-            return McpResultBuilder.Success().WithText(response.ToString()).Build();
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, L.T(StringKey.ListToolsFailedLog));
-            return McpResultBuilder.Error().WithText(L.T(StringKey.ListToolsFailedEx, ex.Message)).Build();
-        }
+            return ToolResultBuilder.Success().WithText(response.ToString()).Build();
+        }, _logger, L.T(StringKey.ListToolsFailedLog)).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -337,32 +332,33 @@ public partial class McpClientToolHandlers : IAsyncDisposable
     {
         if (string.IsNullOrWhiteSpace(connection_name))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.ConnectionNameCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionNameCannotBeEmpty)).Build();
         }
 
         if (string.IsNullOrWhiteSpace(tool_name))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.ToolNameCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.ToolNameCannotBeEmpty)).Build();
         }
 
         var client = await GetClientAsync(connection_name, cancellationToken);
         if (client == null)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.ConnectionNotFound, connection_name)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionNotFound, connection_name)).Build();
         }
 
-        try
+        return await ToolResultBuilder.SafeExecuteAsync(async () =>
         {
             Dictionary<string, JsonElement>? arguments = null;
             if (!string.IsNullOrEmpty(arguments_json))
             {
-                arguments = JsonSerializer.Deserialize(arguments_json, McpToolDispatchJsonContext.Default.DictionaryStringJsonElement);
+                arguments = LlmJsonHelper.Deserialize(arguments_json, McpToolDispatchJsonContext.Default.DictionaryStringJsonElement, out var repairHint);
+                if (!string.IsNullOrEmpty(repairHint))
+                    System.Diagnostics.Trace.WriteLine($"[McpClient] tool arguments JSON repaired: {repairHint}");
             }
 
             var result = await client.CallToolAsync(tool_name, arguments, cancellationToken);
 
-            // 对齐 TS convertResultContentToContentBlocks — 分发 text/image/binary
-            var builder = result.IsError ? McpResultBuilder.Error() : McpResultBuilder.Success();
+            var builder = result.IsError ? ToolResultBuilder.Error() : ToolResultBuilder.Success();
 
             if (result.IsError)
             {
@@ -375,19 +371,16 @@ public partial class McpClientToolHandlers : IAsyncDisposable
 
             foreach (var content in result.Content)
             {
-                // 图片类型 — base64 内联 + 降采样（对齐 TS image 路径）
                 if (content.Type == ToolContentType.Image && !string.IsNullOrEmpty(content.Data) && !string.IsNullOrEmpty(content.MimeType))
                 {
                     var imageData = await MaybeResizeImageAsync(content.Data, content.MimeType).ConfigureAwait(false);
                     builder.WithImage(imageData.base64, imageData.mediaType);
                 }
-                // 二进制资源类型 — 写盘持久化（对齐 TS resource blob 路径）
                 else if (content.Type == ToolContentType.Resource && !string.IsNullOrEmpty(content.Data) && !string.IsNullOrEmpty(content.MimeType))
                 {
                     var binaryText = await PersistBlobToTextBlockAsync(content.Data, content.MimeType, connection_name).ConfigureAwait(false);
                     builder.WithText(binaryText);
                 }
-                // 文本类型
                 else if (!string.IsNullOrEmpty(content.Text))
                 {
                     builder.WithText(content.Text);
@@ -395,12 +388,7 @@ public partial class McpClientToolHandlers : IAsyncDisposable
             }
 
             return builder.Build();
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, L.T(StringKey.CallToolFailedLog), tool_name);
-            return McpResultBuilder.Error().WithText(L.T(StringKey.CallToolFailed, ex.Message)).Build();
-        }
+        }, _logger, L.T(StringKey.CallToolFailedLog)).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -413,22 +401,22 @@ public partial class McpClientToolHandlers : IAsyncDisposable
     {
         if (string.IsNullOrWhiteSpace(connection_name))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.ConnectionNameCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionNameCannotBeEmpty)).Build();
         }
 
         var client = await GetClientAsync(connection_name, cancellationToken);
         if (client == null)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.ConnectionNotFound, connection_name)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionNotFound, connection_name)).Build();
         }
 
-        try
+        return await ToolResultBuilder.SafeExecuteAsync(async () =>
         {
             var result = await client.ListResourcesAsync(cancellationToken);
 
             if (!result.Success)
             {
-                return McpResultBuilder.Error().WithText(L.T(StringKey.ListResourcesFailed, result.ErrorMessage)).Build();
+                return ToolResultBuilder.Error().WithText(L.T(StringKey.ListResourcesFailed, result.ErrorMessage)).Build();
             }
 
             var response = new System.Text.StringBuilder();
@@ -451,13 +439,8 @@ public partial class McpClientToolHandlers : IAsyncDisposable
                 response.AppendLine();
             }
 
-            return McpResultBuilder.Success().WithText(response.ToString()).Build();
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, L.T(StringKey.ListResourcesFailedLog));
-            return McpResultBuilder.Error().WithText(L.T(StringKey.ListResourcesFailedEx, ex.Message)).Build();
-        }
+            return ToolResultBuilder.Success().WithText(response.ToString()).Build();
+        }, _logger, L.T(StringKey.ListResourcesFailedLog)).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -471,32 +454,32 @@ public partial class McpClientToolHandlers : IAsyncDisposable
     {
         if (string.IsNullOrWhiteSpace(connection_name))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.ConnectionNameCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionNameCannotBeEmpty)).Build();
         }
 
         if (string.IsNullOrWhiteSpace(resource_uri))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.ResourceUriCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.ResourceUriCannotBeEmpty)).Build();
         }
 
         var client = await GetClientAsync(connection_name, cancellationToken);
         if (client == null)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.ConnectionNotFound, connection_name)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionNotFound, connection_name)).Build();
         }
 
-        try
+        return await ToolResultBuilder.SafeExecuteAsync(async () =>
         {
             var result = await client.ReadResourceAsync(resource_uri, cancellationToken);
 
             if (!result.Success)
             {
-                return McpResultBuilder.Error().WithText(L.T(StringKey.ReadResourceFailed, result.ErrorMessage)).Build();
+                return ToolResultBuilder.Error().WithText(L.T(StringKey.ReadResourceFailed, result.ErrorMessage)).Build();
             }
 
             if (result.Data == null)
             {
-                return McpResultBuilder.Error().WithText(L.T(StringKey.ResourceContentEmpty)).Build();
+                return ToolResultBuilder.Error().WithText(L.T(StringKey.ResourceContentEmpty)).Build();
             }
 
             var response = new System.Text.StringBuilder();
@@ -515,12 +498,10 @@ public partial class McpClientToolHandlers : IAsyncDisposable
             }
             else if (!string.IsNullOrEmpty(result.Data.Blob))
             {
-                // 对齐 TS persistBlobToTextBlock — 解码 base64 + 写盘持久化
                 var mimeType = result.Data.MimeType;
                 if (McpBinaryHelper.IsImageMimeType(mimeType))
                 {
-                    // 图片走 base64 内联路径 + 降采样
-                    var builder = McpResultBuilder.Success();
+                    var builder = ToolResultBuilder.Success();
                     builder.WithText(response.ToString());
                     var imageData = await MaybeResizeImageAsync(result.Data.Blob ?? string.Empty, mimeType ?? "image/png").ConfigureAwait(false);
                     builder.WithImage(imageData.base64, imageData.mediaType);
@@ -533,13 +514,8 @@ public partial class McpClientToolHandlers : IAsyncDisposable
                 }
             }
 
-            return McpResultBuilder.Success().WithText(response.ToString()).Build();
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, L.T(StringKey.ReadResourceFailedLog), resource_uri);
-            return McpResultBuilder.Error().WithText(L.T(StringKey.ReadResourceFailedEx, ex.Message)).Build();
-        }
+            return ToolResultBuilder.Success().WithText(response.ToString()).Build();
+        }, _logger, L.T(StringKey.ReadResourceFailedLog)).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -552,22 +528,22 @@ public partial class McpClientToolHandlers : IAsyncDisposable
     {
         if (string.IsNullOrWhiteSpace(connection_name))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.ConnectionNameCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionNameCannotBeEmpty)).Build();
         }
 
         var client = await GetClientAsync(connection_name, cancellationToken);
         if (client == null)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.ConnectionNotFound, connection_name)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionNotFound, connection_name)).Build();
         }
 
-        try
+        return await ToolResultBuilder.SafeExecuteAsync(async () =>
         {
             var result = await client.ListPromptsAsync(cancellationToken);
 
             if (!result.Success)
             {
-                return McpResultBuilder.Error().WithText(L.T(StringKey.ListPromptsFailed, result.ErrorMessage)).Build();
+                return ToolResultBuilder.Error().WithText(L.T(StringKey.ListPromptsFailed, result.ErrorMessage)).Build();
             }
 
             var response = new System.Text.StringBuilder();
@@ -589,13 +565,8 @@ public partial class McpClientToolHandlers : IAsyncDisposable
                 response.AppendLine();
             }
 
-            return McpResultBuilder.Success().WithText(response.ToString()).Build();
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, L.T(StringKey.ListPromptsFailedLog));
-            return McpResultBuilder.Error().WithText(L.T(StringKey.ListPromptsFailedEx, ex.Message)).Build();
-        }
+            return ToolResultBuilder.Success().WithText(response.ToString()).Build();
+        }, _logger, L.T(StringKey.ListPromptsFailedLog)).ConfigureAwait(false);
     }
 
     private async Task<IMcpClient?> GetClientAsync(string connectionName, CancellationToken cancellationToken)

@@ -12,8 +12,19 @@ public sealed class McpToolBridge
 
     public async Task<IToolGroup> CreatePluginAsync(CancellationToken cancellationToken = default)
     {
-        var tools = await _toolRegistry.GetAllToolInfosAsync(cancellationToken);
-        var functions = tools.Select(t => (IToolDef)new ToolDef(
+        var allTools = await _toolRegistry.GetAllToolsAsync(cancellationToken);
+
+        var visibleTools = allTools.Values
+            .Where(h => h.Kind != ToolKind.OnError)
+            .Select(h => new ToolInfo
+            {
+                Name = h.Name,
+                Description = h.Description,
+                InputSchema = h.InputSchema
+            })
+            .ToList();
+
+        var functions = visibleTools.Select(t => (IToolDef)new ToolDef(
             t.Name,
             t.Description ?? string.Empty,
             BuildParameters(t))).ToList();

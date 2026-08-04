@@ -296,10 +296,11 @@ public class ShellBuildInterceptMiddlewareTests
 
     private static ShellPipelineContext CreateContext(string command, string? workingDirectory = null)
     {
+        var provider = Mock.Of<IShellProvider>(p => p.Type == ShellType.Bash);
         return new ShellPipelineContext
         {
             Command = command,
-            IsPowerShell = false,
+            Provider = provider,
             WorkingDirectory = workingDirectory,
         };
     }

@@ -242,6 +242,41 @@ public sealed partial class SettingsJson
     [SettingsProperty(SettingsMergeStrategy.Override)]
     public string? OutputStyle { get; init; }
 
+    /// <summary>
+    /// 工具评分配置 — 对齐 CS 版 ToolScoreSettings
+    /// </summary>
+    [JsonPropertyName("toolScore")]
+    [SettingsProperty(SettingsMergeStrategy.Override, SkipKeyAccess = true)]
+    public ToolScoreSettingsJson? ToolScore { get; init; }
+
+    /// <summary>
+    /// 工具黑名单 — 用户主动禁用的工具列表
+    /// </summary>
+    [JsonPropertyName("blacklistedTools")]
+    [SettingsProperty(SettingsMergeStrategy.ListConcatDistinct)]
+    public List<string>? BlacklistedTools { get; init; }
+
+    /// <summary>
+    /// 工具降权配置 — 键为工具名，值为额外扣分
+    /// </summary>
+    [JsonPropertyName("toolPenalties")]
+    [SettingsProperty(SettingsMergeStrategy.DictionaryMerge, DictionaryValueType = "int", SkipKeyAccess = true)]
+    public Dictionary<string, int>? ToolPenalties { get; init; }
+
+    /// <summary>
+    /// 自定义超边配置 — 用户自定义工具链超图超边
+    /// </summary>
+    [JsonPropertyName("customHyperedges")]
+    [SettingsProperty(SettingsMergeStrategy.Override, SkipKeyAccess = true)]
+    public List<HyperedgeSettings>? CustomHyperedges { get; init; }
+
+    /// <summary>
+    /// 搜索范围安全配置 — 控制搜索命令的危险标志和过大路径检测
+    /// </summary>
+    [JsonPropertyName("searchScope")]
+    [SettingsProperty(SettingsMergeStrategy.Override, SkipKeyAccess = true)]
+    public SearchScopeSettings? SearchScope { get; init; }
+
     #region 自定义合并方法
 
     /// <summary>
@@ -472,4 +507,31 @@ public sealed class StatusLineSettings
 
     [JsonPropertyName("padding")]
     public int? Padding { get; init; }
+}
+
+/// <summary>
+/// 工具评分配置 — 对齐 CS 版 ToolScoreSettings
+/// </summary>
+public sealed class ToolScoreSettingsJson
+{
+    [JsonPropertyName("successDelta")]
+    public int? SuccessDelta { get; init; }
+
+    [JsonPropertyName("failDelta")]
+    public int? FailDelta { get; init; }
+
+    [JsonPropertyName("circuitBreakerThreshold")]
+    public int? CircuitBreakerThreshold { get; init; }
+
+    [JsonPropertyName("scoreMin")]
+    public int? ScoreMin { get; init; }
+
+    [JsonPropertyName("scoreMax")]
+    public int? ScoreMax { get; init; }
+
+    [JsonPropertyName("decayRatePerHour")]
+    public double? DecayRatePerHour { get; init; }
+
+    [JsonPropertyName("decayRecoveryScore")]
+    public int? DecayRecoveryScore { get; init; }
 }

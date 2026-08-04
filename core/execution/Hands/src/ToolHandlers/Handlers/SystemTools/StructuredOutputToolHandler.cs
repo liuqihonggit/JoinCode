@@ -39,7 +39,7 @@ public sealed class StructuredOutputToolHandler
             ValidationHelper.ValidateStringLength(schema_name, 128, "schema_name"));
         if (validationError != null)
         {
-            return Task.FromResult(ResultBuilder.Error().WithText(validationError).Build());
+            return Task.FromResult(ToolResultBuilder.Error().WithText(validationError).Build());
         }
 
         // 对齐 TS ajv.validateSchema(): 验证Schema结构合法性（不仅语法检查）
@@ -47,7 +47,7 @@ public sealed class StructuredOutputToolHandler
         if (!schemaValidation.IsValid)
         {
             var errorMessages = string.Join("; ", schemaValidation.Errors.Select(e => $"{e.Path}: {e.Message}"));
-            return Task.FromResult(ResultBuilder.Error().WithText($"Invalid JSON Schema: {errorMessages}").Build());
+            return Task.FromResult(ToolResultBuilder.Error().WithText($"Invalid JSON Schema: {errorMessages}").Build());
         }
 
         var schema = new StructuredOutputSchema
@@ -71,7 +71,7 @@ public sealed class StructuredOutputToolHandler
         }
         response.AppendLine($"Strict mode: {(strict ? "Yes" : "No")}");
 
-        return Task.FromResult(ResultBuilder.Success().WithText(response.ToString()).Build());
+        return Task.FromResult(ToolResultBuilder.Success().WithText(response.ToString()).Build());
     }
 
     /// <summary>
@@ -89,13 +89,13 @@ public sealed class StructuredOutputToolHandler
             ValidationHelper.ValidateRequired(content, "content"));
         if (validationError != null)
         {
-            return Task.FromResult(ResultBuilder.Error().WithText(validationError).Build());
+            return Task.FromResult(ToolResultBuilder.Error().WithText(validationError).Build());
         }
 
         StructuredOutputSchema schema;
         if (!_schemas.TryGetValue(schema_name, out var found))
         {
-            return Task.FromResult(ResultBuilder.Error()
+            return Task.FromResult(ToolResultBuilder.Error()
                 .WithText($"Registered Schema not found: {schema_name}. Please register a Schema using structured_output_register first.")
                 .Build());
         }
@@ -141,7 +141,7 @@ public sealed class StructuredOutputToolHandler
 
         return Task.FromResult(
             result.IsValid
-                ? ResultBuilder.Success().WithText(response.ToString()).Build()
-                : ResultBuilder.Error().WithText(response.ToString()).Build());
+                ? ToolResultBuilder.Success().WithText(response.ToString()).Build()
+                : ToolResultBuilder.Error().WithText(response.ToString()).Build());
     }
 }

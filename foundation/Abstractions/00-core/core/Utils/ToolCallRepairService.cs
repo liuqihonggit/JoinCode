@@ -59,7 +59,8 @@ internal static class ToolCallRepairService
         if (string.IsNullOrWhiteSpace(rawJson))
             return new ToolCallRepairResult { Success = true, RepairedJson = "{}" };
 
-        var json = rawJson.Trim();
+        var json = StripBom(rawJson.Trim());
+        json = StripTrailingSemicolon(json);
 
         if (TryParseJson(json, out _))
             return new ToolCallRepairResult { Success = true, RepairedJson = json };
@@ -69,7 +70,10 @@ internal static class ToolCallRepairService
 
         repaired = RemoveTrailingCommas(repaired, hints);
         repaired = FixUnquotedKeys(repaired, hints);
-        repaired = FixSingleQuotedKeys(repaired, hints);
+        repaired = FixSingleQuotedStrings(repaired, hints);
+        repaired = FixEscapeSequences(repaired, hints);
+        repaired = FixHexAndLeadingZeroNumbers(repaired, hints);
+        repaired = FixNamedFloatingPointLiterals(repaired, hints);
 
         if (TryParseJson(repaired, out _))
             return new ToolCallRepairResult
@@ -193,6 +197,18 @@ internal static class ToolCallRepairService
         }
     }
 
+    /// <summary>
+    /// 剥离 UTF-8/UTF-16 BOM 头
+    /// </summary>
+    private static string StripBom(string input)
+    {
+        var span = input.AsSpan();
+        while (span.Length > 0 && (span[0] == '\uFEFF' || span[0] == '\uFFFE' || span[0] == '\u0000'))
+            span = span[1..];
+
+        return span.ToString();
+    }
+
     private static string RemoveTrailingCommas(string json, List<string> hints)
     {
         bool changed = false;
@@ -302,7 +318,21 @@ internal static class ToolCallRepairService
         return result.ToString();
     }
 
-    private static string FixSingleQuotedKeys(string json, List<string> hints)
+    private static string StripTrailingSemicolon(string json)
+    {
+        var trimmed = json.AsSpan().Trim();
+        if (trimmed.Length > 0 && trimmed[trimmed.Length - 1] == ';')
+        {
+            var end = json.Length;
+            while (end > 0 && char.IsWhiteSpace(json[end - 1])) end--;
+            if (end > 0 && json[end - 1] == ';')
+                return json[..(end - 1)];
+        }
+
+        return json;
+    }
+
+    private static string FixSingleQuotedStrings(string json, List<string> hints)
     {
         bool changed = false;
         var result = new StringBuilder(json.Length);
@@ -350,6 +380,238 @@ internal static class ToolCallRepairService
 
         return result.ToString();
     }
+
+    /// <summary>
+    /// 修复十六进制数字（0xFF → 255）与前导零数字（0123 → 123）。
+    /// 字符串内容不受影响；对已是合法 JSON 的输入不产生任何改动。
+    /// </summary>
+    /// <summary>
+    /// 修复 JSON 字符串中的非法转义序列和裸控制字符。
+    /// 1. \' → ' （标准 JSON 字符串内不需要转义单引号，System.Text.Json 会拒绝）
+    /// 2. 裸控制字符（0x00-0x1F）→ 对应 \n \t \r 等转义序列
+    /// </summary>
+    private static string FixEscapeSequences(string json, List<string> hints)
+    {
+        bool changed = false;
+        var result = new StringBuilder(json.Length);
+        int i = 0;
+
+        while (i < json.Length)
+        {
+            if (json[i] == '"')
+            {
+                int start = i;
+                i++;
+                while (i < json.Length)
+                {
+                    if (json[i] == '\\' && i + 1 < json.Length)
+                    {
+                        var next = json[i + 1];
+                        if (next == '\'')
+                        {
+                            result.Append(json.AsSpan(start, i - start));
+                            result.Append('\'');
+                            changed = true;
+                            i += 2;
+                            start = i;
+                            continue;
+                        }
+
+                        i += 2;
+                        continue;
+                    }
+
+                    if (json[i] == '"') { i++; break; }
+
+                    if (json[i] < 0x20)
+                    {
+                        result.Append(json.AsSpan(start, i - start));
+                        result.Append(json[i] switch
+                        {
+                            '\n' => "\\n",
+                            '\r' => "\\r",
+                            '\t' => "\\t",
+                            '\b' => "\\b",
+                            '\f' => "\\f",
+                            _ => $"\\u{((int)json[i]):x4}"
+                        });
+                        changed = true;
+                        i++;
+                        start = i;
+                        continue;
+                    }
+
+                    i++;
+                }
+
+                result.Append(json.AsSpan(start, i - start));
+                continue;
+            }
+
+            result.Append(json[i]);
+            i++;
+        }
+
+        if (changed)
+            hints.Add("fixed escape sequence(s)/control character(s)");
+
+        return result.ToString();
+    }
+
+    /// <summary>
+    /// 修复 JSON 中的 Infinity / -Infinity / NaN 字面量。
+    /// 标准 JSON 不支持这些值，System.Text.Json 默认拒绝。
+    /// 策略：将裸字面量转为字符串（如 Infinity → "Infinity"），
+    /// 由 JsonLenientCoercer 在类型转换层进一步处理。
+    /// </summary>
+    private static string FixNamedFloatingPointLiterals(string json, List<string> hints)
+    {
+        bool changed = false;
+        var result = new StringBuilder(json.Length);
+        int i = 0;
+
+        while (i < json.Length)
+        {
+            if (json[i] == '"')
+            {
+                int start = i;
+                i++;
+                while (i < json.Length)
+                {
+                    if (json[i] == '\\' && i + 1 < json.Length) { i += 2; continue; }
+                    if (json[i] == '"') { i++; break; }
+                    i++;
+                }
+                result.Append(json.AsSpan(start, i - start));
+                continue;
+            }
+
+            if (i + 7 < json.Length && json.AsSpan(i, 8) is "Infinity")
+            {
+                var before = i > 0 ? json[i - 1] : '\0';
+                var afterIdx = i + 8;
+                var after = afterIdx < json.Length ? json[afterIdx] : '\0';
+                if (!IsAlphaNumeric(before) && !IsAlphaNumeric(after))
+                {
+                    result.Append("\"Infinity\"");
+                    changed = true;
+                    i += 8;
+                    continue;
+                }
+            }
+
+            if (i + 8 < json.Length && json.AsSpan(i, 9) is "-Infinity")
+            {
+                var before = i > 0 ? json[i - 1] : '\0';
+                var afterIdx = i + 9;
+                var after = afterIdx < json.Length ? json[afterIdx] : '\0';
+                if (!IsAlphaNumeric(before) && !IsAlphaNumeric(after))
+                {
+                    result.Append("\"-Infinity\"");
+                    changed = true;
+                    i += 9;
+                    continue;
+                }
+            }
+
+            if (i + 2 < json.Length && json.AsSpan(i, 3) is "NaN")
+            {
+                var before = i > 0 ? json[i - 1] : '\0';
+                var afterIdx = i + 3;
+                var after = afterIdx < json.Length ? json[afterIdx] : '\0';
+                if (!IsAlphaNumeric(before) && !IsAlphaNumeric(after))
+                {
+                    result.Append("\"NaN\"");
+                    changed = true;
+                    i += 3;
+                    continue;
+                }
+            }
+
+            result.Append(json[i]);
+            i++;
+        }
+
+        if (changed)
+            hints.Add("quoted named floating-point literal(s)");
+
+        return result.ToString();
+    }
+
+    private static bool IsAlphaNumeric(char c) =>
+        c is (>= 'a' and <= 'z') or (>= 'A' and <= 'Z') or (>= '0' and <= '9') or '_';
+
+    private static string FixHexAndLeadingZeroNumbers(string json, List<string> hints)
+    {
+        bool changed = false;
+        var result = new StringBuilder(json.Length);
+        int i = 0;
+
+        while (i < json.Length)
+        {
+            if (json[i] == '"')
+            {
+                int start = i;
+                i++;
+                while (i < json.Length)
+                {
+                    if (json[i] == '\\' && i + 1 < json.Length) { i += 2; continue; }
+                    if (json[i] == '"') { i++; break; }
+                    i++;
+                }
+                result.Append(json.AsSpan(start, i - start));
+                continue;
+            }
+
+            // 十六进制：0x / 0X 后跟十六进制数字
+            if (json[i] == '0' && i + 1 < json.Length && (json[i + 1] == 'x' || json[i + 1] == 'X'))
+            {
+                int j = i + 2;
+                int hexStart = j;
+                while (j < json.Length && IsHexDigit(json[j])) j++;
+
+                if (j > hexStart
+                    && ulong.TryParse(json.AsSpan(hexStart, j - hexStart), NumberStyles.HexNumber,
+                        CultureInfo.InvariantCulture, out var hexVal))
+                {
+                    result.Append(hexVal.ToString(CultureInfo.InvariantCulture));
+                    changed = true;
+                    i = j;
+                    continue;
+                }
+            }
+
+            // 前导零整数：0 紧跟数字（如 0123）→ 去前导零（保留至少一位）
+            if (json[i] == '0' && i + 1 < json.Length && json[i + 1] is >= '0' and <= '9')
+            {
+                int j = i + 1;
+                while (j < json.Length && json[j] is >= '0' and <= '9') j++;
+
+                int k = i;
+                while (k < j - 1 && json[k] == '0') k++;
+
+                result.Append(json.AsSpan(k, j - k));
+                changed = true;
+                i = j;
+                continue;
+            }
+
+            result.Append(json[i]);
+            i++;
+        }
+
+        if (changed)
+            hints.Add("converted hex/leading-zero number(s)");
+
+        return result.ToString();
+    }
+
+    private static bool IsHexDigit(char c)
+    {
+        return c is >= '0' and <= '9' or >= 'a' and <= 'f' or >= 'A' and <= 'F';
+    }
+
+
 
     private static (Dictionary<string, JsonElement> Arguments, bool Modified, string? Hint) RepairParameterNames(
         Dictionary<string, JsonElement> arguments,

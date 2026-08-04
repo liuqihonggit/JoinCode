@@ -9,14 +9,14 @@ public sealed class ShellPipelineContext
     // === 输入 ===
 
     /// <summary>
-    /// 要执行的命令
+    /// 要执行的命令 — 可由 ShellPathGateMiddleware 等中间件修改路径格式
     /// </summary>
-    public required string Command { get; init; }
+    public required string Command { get; set; }
 
     /// <summary>
-    /// 是否为 PowerShell 命令
+    /// Shell 执行体 — 决定路径门控方向、进程启动方式、编码等
     /// </summary>
-    public required bool IsPowerShell { get; init; }
+    public required IShellProvider Provider { get; init; }
 
     /// <summary>
     /// 命令描述
@@ -29,9 +29,15 @@ public sealed class ShellPipelineContext
     public int? Timeout { get; init; }
 
     /// <summary>
-    /// 工作目录
+    /// 超时覆盖值（毫秒）— 由 ShellSearchTimeoutMiddleware 等中间件设置
+    /// 优先级高于 Timeout，用于根据命令类型动态调整超时
     /// </summary>
-    public string? WorkingDirectory { get; init; }
+    public int? OverrideTimeout { get; set; }
+
+    /// <summary>
+    /// 工作目录 — 可由 ShellPathGateMiddleware 等中间件修改路径格式
+    /// </summary>
+    public string? WorkingDirectory { get; set; }
 
     /// <summary>
     /// 是否在后台运行

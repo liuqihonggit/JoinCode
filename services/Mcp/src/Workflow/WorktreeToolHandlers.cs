@@ -10,13 +10,16 @@ namespace McpToolDispatch;
 public class WorktreeToolHandlers
 {
     private readonly IAgentWorktreeService _worktreeService;
+    private readonly IWorktreeMergeService _mergeService;
     private readonly IFileSystem _fs;
 
-    public WorktreeToolHandlers(IAgentWorktreeService worktreeService, IFileSystem fs)
+    public WorktreeToolHandlers(IAgentWorktreeService worktreeService, IWorktreeMergeService mergeService, IFileSystem fs)
     {
         ArgumentNullException.ThrowIfNull(worktreeService);
+        ArgumentNullException.ThrowIfNull(mergeService);
         ArgumentNullException.ThrowIfNull(fs);
         _worktreeService = worktreeService;
+        _mergeService = mergeService;
         _fs = fs;
     }
 
@@ -32,7 +35,7 @@ public class WorktreeToolHandlers
     {
         if (string.IsNullOrWhiteSpace(agent_id))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.WorktreeAgentIdCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.WorktreeAgentIdCannotBeEmpty)).Build();
         }
 
         var options = new WorktreeOptions
@@ -44,7 +47,7 @@ public class WorktreeToolHandlers
 
         if (!result.Success)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.WorktreeCreateFailed, result.ErrorMessage)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.WorktreeCreateFailed, result.ErrorMessage)).Build();
         }
 
         var session = result.Session ?? throw new InvalidOperationException("Session is required.");
@@ -63,7 +66,7 @@ public class WorktreeToolHandlers
         response.AppendLine();
         response.AppendLine(L.T(StringKey.WorktreeAgentIsolationNote));
 
-        return McpResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     /// <summary>
@@ -77,7 +80,7 @@ public class WorktreeToolHandlers
     {
         if (string.IsNullOrWhiteSpace(agent_id))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.WorktreeAgentIdCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.WorktreeAgentIdCannotBeEmpty)).Build();
         }
 
         // 先检查是否有未提交更改
@@ -87,7 +90,7 @@ public class WorktreeToolHandlers
             var hasChanges = await _worktreeService.HasUncommittedChangesAsync(session.WorktreePath, cancellationToken);
             if (hasChanges && force != true)
             {
-                return McpResultBuilder.Error()
+                return ToolResultBuilder.Error()
                     .WithText(L.T(StringKey.WorktreeUncommittedChangesWarning))
                     .Build();
             }
@@ -97,7 +100,7 @@ public class WorktreeToolHandlers
 
         if (!result.Success)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.WorktreeRemoveFailed, result.ErrorMessage)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.WorktreeRemoveFailed, result.ErrorMessage)).Build();
         }
 
         var response = new System.Text.StringBuilder();
@@ -115,7 +118,7 @@ public class WorktreeToolHandlers
             response.AppendLine(L.T(StringKey.WorktreeLabelBlockReason, result.BlockReason));
         }
 
-        return McpResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     /// <summary>
@@ -148,7 +151,7 @@ public class WorktreeToolHandlers
             }
         }
 
-        return McpResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     /// <summary>
@@ -161,14 +164,14 @@ public class WorktreeToolHandlers
     {
         if (string.IsNullOrWhiteSpace(agent_id))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.WorktreeAgentIdCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.WorktreeAgentIdCannotBeEmpty)).Build();
         }
 
         var session = await _worktreeService.GetSessionAsync(agent_id);
 
         if (session == null)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.WorktreeSessionNotFound, agent_id)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.WorktreeSessionNotFound, agent_id)).Build();
         }
 
         // 检查状态
@@ -193,7 +196,7 @@ public class WorktreeToolHandlers
         response.AppendLine();
         response.AppendLine(L.T(StringKey.WorktreeLabelCreateTime, $"{session.CreatedAt:yyyy-MM-dd HH:mm:ss}"));
 
-        return McpResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     /// <summary>
@@ -207,7 +210,7 @@ public class WorktreeToolHandlers
     {
         if (confirm != "yes")
         {
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText(L.T(StringKey.WorktreeConfirmCleanup))
                 .Build();
         }
@@ -225,7 +228,7 @@ public class WorktreeToolHandlers
         response.AppendLine(L.T(StringKey.WorktreeLabelStaleHours, options.StaleTimeoutHours));
         response.AppendLine(L.T(StringKey.WorktreeLabelCleanedCount, cleanedCount));
 
-        return McpResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     /// <summary>
@@ -241,7 +244,7 @@ public class WorktreeToolHandlers
 
         if (string.IsNullOrEmpty(gitRoot))
         {
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText(L.T(StringKey.WorktreeGitRootNotFound, path))
                 .Build();
         }
@@ -263,7 +266,7 @@ public class WorktreeToolHandlers
             response.AppendLine();
         }
 
-        return McpResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     /// <summary>
@@ -296,6 +299,56 @@ public class WorktreeToolHandlers
             response.AppendLine();
         }
 
-        return McpResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
+    }
+
+    [McpTool(WorktreeToolNameConstants.WorktreeMerge, "Merge a source Worktree changes into a target Worktree", "worktree")]
+    public async Task<ToolResult> WorktreeMergeAsync(
+        [McpToolParameter("Source worktree path (the worktree whose changes will be merged)")] string source_worktree_path,
+        [McpToolParameter("Target worktree path (the worktree to merge changes into)")] string target_worktree_path,
+        [McpToolParameter("Merge strategy: fail, ours, theirs, auto_merge", Required = false)] string? strategy = null,
+        CancellationToken cancellationToken = default)
+    {
+        var mergeStrategy = strategy?.ToLowerInvariant() switch
+        {
+            "ours" => WorktreeMergeStrategy.Ours,
+            "theirs" => WorktreeMergeStrategy.Theirs,
+            "auto_merge" => WorktreeMergeStrategy.AutoMerge,
+            _ => WorktreeMergeStrategy.Fail
+        };
+
+        var result = await _mergeService.MergeToTargetAsync(source_worktree_path, target_worktree_path, mergeStrategy, cancellationToken);
+
+        if (!result.IsSuccess)
+        {
+            var errorResponse = new System.Text.StringBuilder();
+            errorResponse.AppendLine($"Merge failed: {result.Error}");
+            if (result.ConflictFiles.Count > 0)
+            {
+                errorResponse.AppendLine("Conflicting files:");
+                foreach (var file in result.ConflictFiles)
+                {
+                    errorResponse.AppendLine($"  - {file}");
+                }
+            }
+            return ToolResultBuilder.Success().WithText(errorResponse.ToString()).Build();
+        }
+
+        var response = new System.Text.StringBuilder();
+        response.AppendLine("Merge completed successfully");
+        response.AppendLine($"Strategy: {result.StrategyUsed}");
+        if (result.HadConflicts)
+        {
+            response.AppendLine("Conflicts were resolved automatically");
+        }
+        if (result.MergedFiles.Count > 0)
+        {
+            response.AppendLine($"Merged {result.MergedFiles.Count} files:");
+            foreach (var file in result.MergedFiles)
+            {
+                response.AppendLine($"  + {file}");
+            }
+        }
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 }

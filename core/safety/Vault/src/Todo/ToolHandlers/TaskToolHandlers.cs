@@ -31,7 +31,7 @@ public class TaskToolHandlers
         var validationError = ValidateCommand(command);
         if (validationError != null)
         {
-            return McpResultBuilder.Error().WithText(validationError).Build();
+            return ToolResultBuilder.Error().WithText(validationError).Build();
         }
 
         var result = await _taskService.CreateTaskAsync(
@@ -45,11 +45,11 @@ public class TaskToolHandlers
 
         if (!result.Success)
         {
-            return McpResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.VaultCreateTaskFailed)).Build();
+            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.VaultCreateTaskFailed)).Build();
         }
 
         var response = FormatTaskResponse(result.GetData() ?? throw new InvalidOperationException("Task data is null."), L.T(StringKey.VaultTaskCreated));
-        return McpResultBuilder.Success().WithText(response).Build();
+        return ToolResultBuilder.Success().WithText(response).Build();
     }
 
     /// <summary>
@@ -76,7 +76,7 @@ public class TaskToolHandlers
 
         if (!result.Success)
         {
-            return McpResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.VaultListTaskFailed)).Build();
+            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.VaultListTaskFailed)).Build();
         }
 
         var response = new System.Text.StringBuilder();
@@ -89,7 +89,7 @@ public class TaskToolHandlers
             response.AppendLine(FormatTaskSummary(task));
         }
 
-        return McpResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     /// <summary>
@@ -104,7 +104,7 @@ public class TaskToolHandlers
         var validationError = ValidateCommand(command);
         if (validationError != null)
         {
-            return McpResultBuilder.Error().WithText(validationError).Build();
+            return ToolResultBuilder.Error().WithText(validationError).Build();
         }
 
         var result = await _taskService.UpdateTaskAsync(
@@ -123,11 +123,11 @@ public class TaskToolHandlers
 
         if (!result.Success)
         {
-            return McpResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.VaultUpdateTaskFailed)).Build();
+            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.VaultUpdateTaskFailed)).Build();
         }
 
         var response = FormatTaskResponse(result.GetData() ?? throw new InvalidOperationException("Task data is null."), L.T(StringKey.VaultTaskUpdated));
-        return McpResultBuilder.Success().WithText(response).Build();
+        return ToolResultBuilder.Success().WithText(response).Build();
     }
 
     /// <summary>
@@ -143,7 +143,7 @@ public class TaskToolHandlers
         var validationError = ValidateCommand(command);
         if (validationError != null)
         {
-            return McpResultBuilder.Error().WithText(validationError).Build();
+            return ToolResultBuilder.Error().WithText(validationError).Build();
         }
 
         var result = await _taskService.StopTaskAsync(
@@ -153,7 +153,7 @@ public class TaskToolHandlers
 
         if (!result.Success)
         {
-            return McpResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.VaultStopTaskFailed)).Build();
+            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.VaultStopTaskFailed)).Build();
         }
 
         var response = new System.Text.StringBuilder();
@@ -164,7 +164,7 @@ public class TaskToolHandlers
             response.AppendLine(L.T(StringKey.VaultLabelReason, command.Reason));
         }
 
-        return McpResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     /// <summary>
@@ -179,18 +179,18 @@ public class TaskToolHandlers
         var validationError = ValidateCommand(command);
         if (validationError != null)
         {
-            return McpResultBuilder.Error().WithText(validationError).Build();
+            return ToolResultBuilder.Error().WithText(validationError).Build();
         }
 
         var task = await _taskService.GetTaskAsync(command.TaskId, cancellationToken).ConfigureAwait(false);
 
         if (task == null)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.VaultTaskNotFound, command.TaskId)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.VaultTaskNotFound, command.TaskId)).Build();
         }
 
         var response = FormatTaskResponse(task, L.T(StringKey.VaultTaskDetails));
-        return McpResultBuilder.Success().WithText(response).Build();
+        return ToolResultBuilder.Success().WithText(response).Build();
     }
 
     /// <summary>
@@ -207,7 +207,7 @@ public class TaskToolHandlers
         var validationError = ValidateCommand(command);
         if (validationError != null)
         {
-            return McpResultBuilder.Error().WithText(validationError).Build();
+            return ToolResultBuilder.Error().WithText(validationError).Build();
         }
 
         var dependencyType = ParseDependencyType(command.DependencyType);
@@ -220,7 +220,7 @@ public class TaskToolHandlers
 
         if (!result.Success)
         {
-            return McpResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.VaultSetDependencyFailed)).Build();
+            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.VaultSetDependencyFailed)).Build();
         }
 
         var response = new System.Text.StringBuilder();
@@ -229,7 +229,7 @@ public class TaskToolHandlers
         response.AppendLine(L.T(StringKey.VaultLabelDependsOn, command.DependsOnTaskId));
         response.AppendLine(L.T(StringKey.VaultLabelDependencyType, dependencyType));
 
-        return McpResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     /// <summary>
@@ -245,7 +245,7 @@ public class TaskToolHandlers
         var validationError = ValidateCommand(command);
         if (validationError != null)
         {
-            return McpResultBuilder.Error().WithText(validationError).Build();
+            return ToolResultBuilder.Error().WithText(validationError).Build();
         }
 
         var result = await _taskService.RemoveTaskDependencyAsync(
@@ -255,7 +255,7 @@ public class TaskToolHandlers
 
         if (!result.Success)
         {
-            return McpResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.VaultRemoveDependencyFailed)).Build();
+            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.VaultRemoveDependencyFailed)).Build();
         }
 
         var response = new System.Text.StringBuilder();
@@ -263,7 +263,7 @@ public class TaskToolHandlers
         response.AppendLine(L.T(StringKey.VaultLabelTask, command.TaskId));
         response.AppendLine(L.T(StringKey.VaultLabelDependsOn, command.DependsOnTaskId));
 
-        return McpResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     /// <summary>
@@ -278,7 +278,7 @@ public class TaskToolHandlers
         var validationError = ValidateCommand(command);
         if (validationError != null)
         {
-            return McpResultBuilder.Error().WithText(validationError).Build();
+            return ToolResultBuilder.Error().WithText(validationError).Build();
         }
 
         var dependencies = await _taskService.GetTaskDependenciesAsync(command.TaskId, cancellationToken).ConfigureAwait(false);
@@ -299,7 +299,7 @@ public class TaskToolHandlers
             response.AppendLine();
         }
 
-        return McpResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     /// <summary>
@@ -314,7 +314,7 @@ public class TaskToolHandlers
         var validationError = ValidateCommand(command);
         if (validationError != null)
         {
-            return McpResultBuilder.Error().WithText(validationError).Build();
+            return ToolResultBuilder.Error().WithText(validationError).Build();
         }
 
         var canExecute = await _taskService.CanExecuteTaskAsync(command.TaskId, cancellationToken).ConfigureAwait(false);
@@ -337,7 +337,7 @@ public class TaskToolHandlers
             response.AppendLine(L.T(StringKey.VaultReasonBlockingDependency));
         }
 
-        return McpResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     #region Private Methods

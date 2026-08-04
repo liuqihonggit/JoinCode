@@ -223,4 +223,27 @@ public abstract partial class QueryServiceBase : IQueryService
     }
 
     #endregion
+
+    protected Task<HttpResponseMessage> SendWithResilienceAsync(
+        string json, string endpoint, string operationName, CancellationToken ct)
+        => SendWithResilienceCoreAsync(HttpClient, ResilientExecutor, json, endpoint, operationName, ct);
+
+    internal static async Task<HttpResponseMessage> SendWithResilienceCoreAsync(
+        HttpClient httpClient, ResilientHttpExecutor? resilientExecutor,
+        string json, string endpoint, string operationName, CancellationToken ct)
+    {
+        if (resilientExecutor is not null)
+        {
+            return await resilientExecutor.ExecuteAsync(
+                async innerCt =>
+                {
+                    var content = new StringContent(json, Encoding.UTF8, "application/json");
+                    return await httpClient.PostAsync(endpoint, content, innerCt).ConfigureAwait(false);
+                },
+                operationName, ct).ConfigureAwait(false);
+        }
+
+        var httpContent = new StringContent(json, Encoding.UTF8, "application/json");
+        return await httpClient.PostAsync(endpoint, httpContent, ct).ConfigureAwait(false);
+    }
 }

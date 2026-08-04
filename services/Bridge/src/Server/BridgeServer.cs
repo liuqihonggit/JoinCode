@@ -303,8 +303,7 @@ public sealed partial class BridgeServer : IDisposable
             // Close session if runner is available
             if (_sessionRunner != null)
             {
-                var activeSessions = _sessionRunner.GetActiveSessions();
-                var session = activeSessions.FirstOrDefault(s => s.ClientId == clientId);
+                var session = _sessionRunner.GetByClientId(clientId);
                 if (session != null)
                 {
                     await _sessionRunner.StopSessionAsync(session.SessionId).ConfigureAwait(false);

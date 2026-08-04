@@ -1,7 +1,7 @@
 namespace JoinCode.Abstractions.Entity;
 
 /// <summary>
-/// Bash 进程实体 — 派生自 ToolExecutionEntity，追踪 Shell/bash 进程生命周期
+/// Shell 命令进程实体 — 派生自 ToolExecutionEntity，追踪 Shell 命令进程生命周期
 /// 超时检测+强制终止，避免僵尸进程
 /// </summary>
 public sealed class BashProcessEntity : ToolExecutionEntity
@@ -19,7 +19,7 @@ public sealed class BashProcessEntity : ToolExecutionEntity
         string? toolUseId = null,
         string? spanId = null,
         string? displayName = null)
-        : base(ObjectType.Bash, "bash", toolUseId, spanId, displayName ?? command ?? $"pid:{processId}")
+        : base(ObjectType.ShellCommand, "bash", toolUseId, spanId, displayName ?? command ?? $"pid:{processId}")
     {
         ProcessId = processId;
         Command = command;
@@ -32,7 +32,7 @@ public sealed class BashProcessEntity : ToolExecutionEntity
     }
 
     /// <summary>
-    /// 回收判定 — Bash 进程已完成（有 ExitCode）且已持久化
+    /// 回收判定 — Shell 命令进程已完成（有 ExitCode）且已持久化
     /// </summary>
     public override bool CanReclaim()
     {
@@ -41,7 +41,7 @@ public sealed class BashProcessEntity : ToolExecutionEntity
 }
 
 /// <summary>
-/// Bash 进程状态
+/// Shell 命令进程状态
 /// </summary>
 public enum BashProcessStatus
 {

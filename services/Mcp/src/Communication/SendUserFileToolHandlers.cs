@@ -26,12 +26,12 @@ public partial class SendUserFileToolHandlers
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(file_path))
-            return McpResultBuilder.Error().WithText(L.T(StringKey.SendUserFilePathCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.SendUserFilePathCannotBeEmpty)).Build();
 
         try
         {
             if (!_fs.FileExists(file_path))
-                return McpResultBuilder.Error().WithText(L.T(StringKey.SendUserFileNotFound, file_path)).Build();
+                return ToolResultBuilder.Error().WithText(L.T(StringKey.SendUserFileNotFound, file_path)).Build();
 
             long fileSize;
             using (var sizeStream = _fs.OpenRead(file_path))
@@ -87,13 +87,13 @@ public partial class SendUserFileToolHandlers
                 response.AppendLine(L.T(StringKey.SendUserFilePreviewEnd));
             }
 
-            return McpResultBuilder.Success().WithText(response.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(response.ToString()).Build();
         }
         catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             _logger?.LogError(ex, "{Message}", L.T(StringKey.SendUserFileFailedLog, file_path));
-            return McpResultBuilder.Error().WithText(L.T(StringKey.SendUserFileFailed, ex.Message)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.SendUserFileFailed, ex.Message)).Build();
         }
     }
 }

@@ -41,21 +41,18 @@ public sealed partial class ApiContextManagementService : IApiContextManagementS
     /// <summary>
     /// 获取 API 端上下文管理配置 — 对齐 TS getAPIContextManagement
     /// </summary>
-    public ContextManagementConfig? GetConfig(
-        bool hasThinking = false,
-        bool isRedactThinkingActive = false,
-        bool clearAllThinking = false)
+    public ContextManagementConfig? GetConfig(ThinkingContext? thinking = null)
     {
         var strategies = new List<ContextEditStrategy>();
 
         // 对齐 TS: thinking 策略 — 保留 thinking 块
         // redact-thinking 激活时跳过（已编辑的块无模型可见内容）
         // clearAllThinking 时仅保留最近 1 个 thinking turn
-        if (hasThinking && !isRedactThinkingActive)
+        if (thinking is { HasThinking: true } && !thinking.IsRedactThinkingActive)
         {
             strategies.Add(new ClearThinkingStrategy
             {
-                Keep = clearAllThinking
+                Keep = thinking.ClearAllThinking
                     ? new ContextKeep { Type = "thinking_turns", Value = 1 }
                     : "all"
             });

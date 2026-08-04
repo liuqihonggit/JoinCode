@@ -30,14 +30,14 @@ public sealed partial class ToolRegistryAdapter : IMcpToolRegistry
         _logger?.LogDebug("MCP tool registered via adapter: {ToolName}", handler.Name);
     }
 
-    public async Task RegisterToolAsync(string name, string description, ToolSchema inputSchema, ToolHandler handler, CancellationToken cancellationToken = default)
+    public async Task RegisterToolAsync(string name, string description, ToolSchema inputSchema, ToolHandler handler, CancellationToken cancellationToken = default, ToolKind kind = ToolKind.System, string? groupName = null)
     {
         ArgumentException.ThrowIfNullOrEmpty(name);
         ArgumentException.ThrowIfNullOrEmpty(description);
         ArgumentNullException.ThrowIfNull(inputSchema);
         ArgumentNullException.ThrowIfNull(handler);
 
-        var delegateHandler = new DelegateToolHandler(name, description, inputSchema, handler);
+        var delegateHandler = new DelegateToolHandler(name, description, inputSchema, handler, kind, groupName);
         await _toolRegistry.RegisterToolAsync(delegateHandler, cancellationToken);
     }
 
@@ -114,6 +114,21 @@ public sealed partial class ToolRegistryAdapter : IMcpToolRegistry
     public Task<bool> ContainsToolAsync(string toolName, CancellationToken cancellationToken = default)
     {
         return _toolRegistry.ContainsToolAsync(toolName, cancellationToken);
+    }
+
+    public Task<FrozenSet<string>> GetGroupNamesAsync(CancellationToken cancellationToken = default)
+    {
+        return _toolRegistry.GetGroupNamesAsync(cancellationToken);
+    }
+
+    public Task<IReadOnlyDictionary<string, IToolHandler>> GetToolsByKindAsync(ToolKind kind, CancellationToken cancellationToken = default)
+    {
+        return _toolRegistry.GetToolsByKindAsync(kind, cancellationToken);
+    }
+
+    public Task<IReadOnlyDictionary<string, IToolHandler>> GetToolsByGroupAsync(string groupName, CancellationToken cancellationToken = default)
+    {
+        return _toolRegistry.GetToolsByGroupAsync(groupName, cancellationToken);
     }
 
     #endregion

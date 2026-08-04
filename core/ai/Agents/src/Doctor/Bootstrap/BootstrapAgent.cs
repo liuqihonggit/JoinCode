@@ -378,9 +378,14 @@ public sealed class BootstrapAgent : IAsyncDisposable
 
     internal static BootstrapJudgment ParseJudgment(string llmResponse)
     {
-        var result = LlmJsonHelper.Deserialize(llmResponse, AgentsJsonContext.Default.BootstrapJudgmentJson, out _);
+        var result = LlmJsonHelper.Deserialize(llmResponse, AgentsJsonContext.Default.BootstrapJudgmentJson, out var repairHint);
         if (result is null)
-            return new BootstrapJudgment { NeedsFix = false, Priority = "low", Reasoning = "LLM 输出 JSON 解析失败" };
+        {
+            var reasoning = string.IsNullOrEmpty(repairHint)
+                ? "LLM 输出 JSON 解析失败"
+                : $"LLM 输出 JSON 解析失败: {repairHint}";
+            return new BootstrapJudgment { NeedsFix = false, Priority = "low", Reasoning = reasoning };
+        }
 
         return new BootstrapJudgment
         {

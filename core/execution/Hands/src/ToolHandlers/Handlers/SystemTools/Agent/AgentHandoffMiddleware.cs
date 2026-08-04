@@ -79,7 +79,7 @@ public sealed partial class AgentHandoffMiddleware : IAgentToolMiddleware
             responseBuilder.AppendLine($"Use {AgentToolName.AgentSendMessage.ToValue()} to continue this agent by providing the agent ID.");
         }
 
-        RecordAgentMetrics("spawn", true);
+        ToolTelemetryHelper.RecordToolCount(_telemetryService, "agent.handler.count", "spawn", true);
         context.Result = ToolResultBuilder.Success()
             .WithText(responseBuilder.ToString())
             .Build();
@@ -122,9 +122,6 @@ public sealed partial class AgentHandoffMiddleware : IAgentToolMiddleware
             return "Note: The safety classifier was unavailable when reviewing this sub-agent's work. Please carefully verify the sub-agent's actions and output before acting on them.";
         }
     }
-
-    private void RecordAgentMetrics(string operation, bool isSuccess)
-        => _telemetryService?.RecordCount("agent.handler.count", new Dictionary<string, string> { ["operation"] = operation, ["success"] = isSuccess.ToString() }, description: "Agent handler count");
 
     /// <summary>
     /// 追加 worktree 信息到响应 — 对齐 TS LocalAgentTask worktreeSection

@@ -76,13 +76,13 @@ public sealed partial class PathPermissionChecker : IPathPermissionChecker
         var rules = new List<PathPermissionRule>();
 
         // 从 AutoRejectedTools 提取路径级 deny 规则
-        BuildPathRulesFromToolRules(config.AutoRejectedTools, PermissionBehavior.Deny, rules);
+        BuildPathRulesFromToolRules(config.AutoRejectedTools.Values, PermissionBehavior.Deny, rules);
 
         // 从 AskRules 提取路径级 ask 规则
         BuildPathRulesFromToolRules(config.AskRules, PermissionBehavior.Ask, rules);
 
         // 从 AutoApprovedTools 提取路径级 allow 规则
-        BuildPathRulesFromToolRules(config.AutoApprovedTools, PermissionBehavior.Allow, rules);
+        BuildPathRulesFromToolRules(config.AutoApprovedTools.Values, PermissionBehavior.Allow, rules);
 
         return rules;
     }
@@ -92,13 +92,12 @@ public sealed partial class PathPermissionChecker : IPathPermissionChecker
     /// 格式: "Read(/path/**)" → PathPermissionRule { ToolType=Read, Pattern="/path/**", Behavior=Deny }
     /// </summary>
     private static void BuildPathRulesFromToolRules(
-        List<ToolPermissionRule> toolRules,
+        IEnumerable<ToolPermissionRule> toolRules,
         PermissionBehavior behavior,
         List<PathPermissionRule> pathRules)
     {
-        for (var i = 0; i < toolRules.Count; i++)
+        foreach (var rule in toolRules)
         {
-            var rule = toolRules[i];
             if (string.IsNullOrEmpty(rule.RuleContent))
                 continue;
 
@@ -590,23 +589,8 @@ public sealed partial class PathPermissionChecker : IPathPermissionChecker
     }
 
     /// <summary>
-    /// 将路径转换为 POSIX 格式 — 对齐 TS windowsPathToPosixPath
+    /// 将路径转换为 POSIX 格式 — 委托给 PathConverter.WindowsPathToPosixPath
     /// C:\Users\test → /c/Users/test
     /// </summary>
-    private static string ToPosixPath(string path)
-    {
-        if (string.IsNullOrEmpty(path))
-            return path;
-
-        // Windows 绝对路径: C:\... → /c/...
-        if (path.Length >= 2 && char.IsLetter(path[0]) && path[1] == ':')
-        {
-            var driveLetter = char.ToLowerInvariant(path[0]);
-            var rest = path[2..].Replace('\\', '/');
-            return $"/{driveLetter}{rest}";
-        }
-
-        // UNC 路径和相对路径：只替换分隔符
-        return path.Replace('\\', '/');
-    }
+    private static string ToPosixPath(string path) => PathConverter.WindowsPathToPosixPath(path);
 }

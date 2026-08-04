@@ -51,7 +51,7 @@ public class AnalyticsToolHandlers
             response.AppendLine();
         }
 
-        return Task.FromResult(McpResultBuilder.Success().WithText(response.ToString()).Build());
+        return Task.FromResult(ToolResultBuilder.Success().WithText(response.ToString()).Build());
     }
 
     /// <summary>
@@ -94,7 +94,7 @@ public class AnalyticsToolHandlers
             }
         }
 
-        return Task.FromResult(McpResultBuilder.Success().WithText(response.ToString()).Build());
+        return Task.FromResult(ToolResultBuilder.Success().WithText(response.ToString()).Build());
     }
 
     /// <summary>
@@ -164,7 +164,7 @@ public class AnalyticsToolHandlers
             }
         }
 
-        return Task.FromResult(McpResultBuilder.Success().WithText(response.ToString()).Build());
+        return Task.FromResult(ToolResultBuilder.Success().WithText(response.ToString()).Build());
     }
 
     /// <summary>
@@ -218,7 +218,7 @@ public class AnalyticsToolHandlers
 
         response.AppendLine("```");
 
-        return McpResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     /// <summary>
@@ -232,7 +232,7 @@ public class AnalyticsToolHandlers
     {
         if (confirm != "yes")
         {
-            return Task.FromResult(McpResultBuilder.Error()
+            return Task.FromResult(ToolResultBuilder.Error()
                 .WithText(L.T(StringKey.AnalyticsConfirmClear))
                 .Build());
         }
@@ -243,6 +243,6 @@ public class AnalyticsToolHandlers
             ? $"{StatusSymbol.Tick.ToValue()} {L.T(StringKey.AnalyticsClearedOlder, older_than_days.Value)}"
             : $"{StatusSymbol.Tick.ToValue()} {L.T(StringKey.AnalyticsClearedAll)}";
 
-        return Task.FromResult(McpResultBuilder.Success().WithText(message).Build());
+        return Task.FromResult(ToolResultBuilder.Success().WithText(message).Build());
     }
 }

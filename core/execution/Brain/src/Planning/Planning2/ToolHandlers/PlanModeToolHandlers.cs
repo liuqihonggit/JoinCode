@@ -25,7 +25,7 @@ public class PlanModeToolHandlers
         // 原因: 退出审批对话框需要终端交互，channels 用户不在终端前会导致对话框挂起
         if (_channelStateService?.IsChannelsEnabled == true)
         {
-            return McpResultBuilder.Error().WithText("Plan mode is disabled when channels are active. The plan-approval dialog requires terminal interaction, which is not available when the user is on an external channel (Telegram/Discord/etc.).").Build();
+            return ToolResultBuilder.Error().WithText("Plan mode is disabled when channels are active. The plan-approval dialog requires terminal interaction, which is not available when the user is on an external channel (Telegram/Discord/etc.).").Build();
         }
 
         var result = await _planModeManager.EnterPlanModeAsync(
@@ -33,7 +33,7 @@ public class PlanModeToolHandlers
             cancellationToken: cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
-            return McpResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to enter plan mode").Build();
+            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to enter plan mode").Build();
 
         var sb = new System.Text.StringBuilder();
         sb.AppendLine("Entered plan mode. You should now focus on exploring the codebase and designing an implementation approach.");
@@ -58,7 +58,7 @@ public class PlanModeToolHandlers
         sb.AppendLine();
         sb.AppendLine("Remember: DO NOT write or edit any files yet. This is a read-only exploration and planning phase.");
 
-        return McpResultBuilder.Success().WithText(sb.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
     }
 
     [McpTool(PlanToolNameConstants.ExitPlanMode, "Exit plan mode and present plan for approval", "plan")]
@@ -71,7 +71,7 @@ public class PlanModeToolHandlers
         // 原因: 与 EnterPlanMode 配对，防止模型进入 PlanMode 后无法退出
         if (_channelStateService?.IsChannelsEnabled == true)
         {
-            return McpResultBuilder.Error().WithText("Plan mode exit is disabled when channels are active. The plan-approval dialog requires terminal interaction.").Build();
+            return ToolResultBuilder.Error().WithText("Plan mode exit is disabled when channels are active. The plan-approval dialog requires terminal interaction.").Build();
         }
 
         // 对齐 TS AllowedPrompt: 将 Dictionary[] 转换为结构化 AllowedPrompt[]
@@ -87,7 +87,7 @@ public class PlanModeToolHandlers
             cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
-            return McpResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to exit plan mode").Build();
+            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to exit plan mode").Build();
 
         // 对齐 TS: teammate 退出 PlanMode 时等待 leader 审批
         // TS 返回 { awaitingLeaderApproval: true, requestId, plan, filePath }
@@ -103,7 +103,7 @@ public class PlanModeToolHandlers
                 approvalSb.AppendLine("Plan content:");
                 approvalSb.AppendLine(result.PlanFileContent);
             }
-            return McpResultBuilder.Success().WithText(approvalSb.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(approvalSb.ToString()).Build();
         }
 
         var sb = new System.Text.StringBuilder();
@@ -133,7 +133,7 @@ public class PlanModeToolHandlers
             sb.AppendLine(result.PlanFileContent);
         }
 
-        return McpResultBuilder.Success().WithText(sb.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
     }
 
     /// <summary>
@@ -147,11 +147,11 @@ public class PlanModeToolHandlers
 
         if (plan == null)
         {
-            return McpResultBuilder.Success().WithText("当前不在计划模式中").Build();
+            return ToolResultBuilder.Success().WithText("当前不在计划模式中").Build();
         }
 
         var response = FormatPlanStateResponse(plan, "计划状态");
-        return McpResultBuilder.Success().WithText(response).Build();
+        return ToolResultBuilder.Success().WithText(response).Build();
     }
 
     /// <summary>
@@ -168,7 +168,7 @@ public class PlanModeToolHandlers
         var validationError = ValidateCommand(command);
         if (validationError != null)
         {
-            return McpResultBuilder.Error().WithText(validationError).Build();
+            return ToolResultBuilder.Error().WithText(validationError).Build();
         }
 
         var result = await _planModeManager.AddStepAsync(
@@ -179,7 +179,7 @@ public class PlanModeToolHandlers
 
         if (!result.Success)
         {
-            return McpResultBuilder.Error().WithText(result.ErrorMessage ?? "添加步骤失败").Build();
+            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "添加步骤失败").Build();
         }
 
         var response = new System.Text.StringBuilder();
@@ -188,7 +188,7 @@ public class PlanModeToolHandlers
         response.AppendLine();
         response.AppendLine(FormatStepSummary(result.PlanState.Steps.Last()));
 
-        return McpResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     /// <summary>
@@ -203,18 +203,18 @@ public class PlanModeToolHandlers
         var validationError = ValidateCommand(command);
         if (validationError != null)
         {
-            return McpResultBuilder.Error().WithText(validationError).Build();
+            return ToolResultBuilder.Error().WithText(validationError).Build();
         }
 
         var result = await _planModeManager.ApproveStepAsync(command.StepIndex, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
-            return McpResultBuilder.Error().WithText(result.ErrorMessage ?? "批准步骤失败").Build();
+            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "批准步骤失败").Build();
         }
 
         var response = $"步骤 {command.StepIndex} 已批准";
-        return McpResultBuilder.Success().WithText(response).Build();
+        return ToolResultBuilder.Success().WithText(response).Build();
     }
 
     /// <summary>
@@ -230,14 +230,14 @@ public class PlanModeToolHandlers
         var validationError = ValidateCommand(command);
         if (validationError != null)
         {
-            return McpResultBuilder.Error().WithText(validationError).Build();
+            return ToolResultBuilder.Error().WithText(validationError).Build();
         }
 
         var result = await _planModeManager.RejectStepAsync(command.StepIndex, command.Reason, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
-            return McpResultBuilder.Error().WithText(result.ErrorMessage ?? "拒绝步骤失败").Build();
+            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "拒绝步骤失败").Build();
         }
 
         var response = new System.Text.StringBuilder();
@@ -247,7 +247,7 @@ public class PlanModeToolHandlers
             response.AppendLine($"原因: {command.Reason}");
         }
 
-        return McpResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     /// <summary>
@@ -261,7 +261,7 @@ public class PlanModeToolHandlers
 
         if (!result.Success)
         {
-            return McpResultBuilder.Error().WithText(result.ErrorMessage ?? "执行步骤失败").Build();
+            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "执行步骤失败").Build();
         }
 
         var response = new System.Text.StringBuilder();
@@ -279,7 +279,7 @@ public class PlanModeToolHandlers
             response.AppendLine(result.ExecutionResult);
         }
 
-        return McpResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     /// <summary>
@@ -297,7 +297,7 @@ public class PlanModeToolHandlers
         var validationError = ValidateCommand(command);
         if (validationError != null)
         {
-            return McpResultBuilder.Error().WithText(validationError).Build();
+            return ToolResultBuilder.Error().WithText(validationError).Build();
         }
 
         var result = await _planModeManager.ModifyStepAsync(
@@ -309,11 +309,11 @@ public class PlanModeToolHandlers
 
         if (!result.Success)
         {
-            return McpResultBuilder.Error().WithText(result.ErrorMessage ?? "修改步骤失败").Build();
+            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "修改步骤失败").Build();
         }
 
         var response = $"步骤 {command.StepIndex} 已修改";
-        return McpResultBuilder.Success().WithText(response).Build();
+        return ToolResultBuilder.Success().WithText(response).Build();
     }
 
     /// <summary>
@@ -328,18 +328,18 @@ public class PlanModeToolHandlers
         var validationError = ValidateCommand(command);
         if (validationError != null)
         {
-            return McpResultBuilder.Error().WithText(validationError).Build();
+            return ToolResultBuilder.Error().WithText(validationError).Build();
         }
 
         var result = await _planModeManager.RemoveStepAsync(command.StepIndex, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
-            return McpResultBuilder.Error().WithText(result.ErrorMessage ?? "删除步骤失败").Build();
+            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "删除步骤失败").Build();
         }
 
         var response = $"步骤 {command.StepIndex} 已删除";
-        return McpResultBuilder.Success().WithText(response).Build();
+        return ToolResultBuilder.Success().WithText(response).Build();
     }
 
     /// <summary>
@@ -374,7 +374,7 @@ public class PlanModeToolHandlers
             }
         }
 
-        return McpResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     #region Private Methods

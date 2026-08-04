@@ -93,7 +93,7 @@ public partial class AgentToolHandlers
         try
         {
             await _pipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false);
-            return context.Result ?? ToolResultBuilder.Error().WithText("Pipeline did not produce a result").Build();
+            return context.Result ?? ToolResultBuilder.PipelineNoResult();
         }
         catch (OperationCanceledException)
         {
@@ -102,7 +102,7 @@ public partial class AgentToolHandlers
         catch (Exception ex)
         {
             _logger?.LogError(ex, L.T(StringKey.AgentCreateFailed));
-            RecordAgentMetrics("spawn", false);
+            ToolTelemetryHelper.RecordToolCount(_telemetryService, "agent.handler.count", "spawn", false);
             return ToolResultBuilder.Error()
                 .WithText($"Failed to create agent: {ex.Message}")
                 .Build();
@@ -219,13 +219,13 @@ public partial class AgentToolHandlers
 
         if (!success)
         {
-            RecordAgentMetrics("stop", false);
+            ToolTelemetryHelper.RecordToolCount(_telemetryService, "agent.handler.count", "stop", false);
             return ToolResultBuilder.Error()
                 .WithText($"Failed to stop agent or agent not found: {agent_id}")
                 .Build();
         }
 
-        RecordAgentMetrics("stop", true);
+        ToolTelemetryHelper.RecordToolCount(_telemetryService, "agent.handler.count", "stop", true);
         return ToolResultBuilder.Success()
             .WithText($"Agent {agent_id} stopped")
             .Build();
@@ -265,7 +265,7 @@ public partial class AgentToolHandlers
                 }
             }
 
-            RecordAgentMetrics("list", true);
+            ToolTelemetryHelper.RecordToolCount(_telemetryService, "agent.handler.count", "list", true);
             return ToolResultBuilder.Success()
                 .WithText(response.ToString())
                 .Build();
@@ -277,7 +277,7 @@ public partial class AgentToolHandlers
         catch (Exception ex)
         {
             _logger?.LogError(ex, L.T(StringKey.AgentListFailed));
-            RecordAgentMetrics("list", false);
+            ToolTelemetryHelper.RecordToolCount(_telemetryService, "agent.handler.count", "list", false);
             return ToolResultBuilder.Error()
                 .WithText($"Failed to list agents: {ex.Message}")
                 .Build();
@@ -358,13 +358,13 @@ public partial class AgentToolHandlers
 
             if (!sent)
             {
-                RecordAgentMetrics("send_message", false);
+                ToolTelemetryHelper.RecordToolCount(_telemetryService, "agent.handler.count", "send_message", false);
                 return ToolResultBuilder.Error()
                     .WithText($"Failed to send message: agent '{to}' not found or messaging service unavailable")
                     .Build();
             }
 
-            RecordAgentMetrics("send_message", true);
+            ToolTelemetryHelper.RecordToolCount(_telemetryService, "agent.handler.count", "send_message", true);
 
             // 结构化消息的响应格式 — 对齐 TS RequestOutput/ResponseOutput
             if (isStructured && structuredData is not null)
@@ -410,7 +410,7 @@ public partial class AgentToolHandlers
         catch (Exception ex)
         {
             _logger?.LogError(ex, L.T(StringKey.AgentSendMessageFailed));
-            RecordAgentMetrics("send_message", false);
+            ToolTelemetryHelper.RecordToolCount(_telemetryService, "agent.handler.count", "send_message", false);
             return ToolResultBuilder.Error()
                 .WithText($"Failed to send message: {ex.Message}")
                 .Build();
@@ -449,7 +449,7 @@ public partial class AgentToolHandlers
             if (result.Success) sentCount++;
         }
 
-        RecordAgentMetrics("broadcast", sentCount > 0);
+        ToolTelemetryHelper.RecordToolCount(_telemetryService, "agent.handler.count", "broadcast", sentCount > 0);
         return ToolResultBuilder.Success()
             .WithText($"Broadcast sent to {sentCount} team(s){(summary is not null ? $": {summary}" : "")}")
             .Build();
@@ -491,7 +491,7 @@ public partial class AgentToolHandlers
                 }
             }
 
-            RecordAgentMetrics("get_messages", true);
+            ToolTelemetryHelper.RecordToolCount(_telemetryService, "agent.handler.count", "get_messages", true);
             return ToolResultBuilder.Success()
                 .WithText(response.ToString())
                 .Build();
@@ -503,13 +503,11 @@ public partial class AgentToolHandlers
         catch (Exception ex)
         {
             _logger?.LogError(ex, L.T(StringKey.AgentGetMessagesFailed));
-            RecordAgentMetrics("get_messages", false);
+            ToolTelemetryHelper.RecordToolCount(_telemetryService, "agent.handler.count", "get_messages", false);
             return ToolResultBuilder.Error()
                 .WithText($"Failed to get messages: {ex.Message}")
                 .Build();
         }
     }
 
-    private void RecordAgentMetrics(string operation, bool isSuccess)
-        => _telemetryService?.RecordCount("agent.handler.count", new Dictionary<string, string> { ["operation"] = operation, ["success"] = isSuccess.ToString() }, description: "Agent handler count");
 }

@@ -12,18 +12,19 @@ public class PowerShellToolHandlers : ShellToolBase
     private readonly IShellExecutionService _shellExecutionService;
     private readonly IFileOperationService _fileOperationService;
     private readonly IFileSystem _fs;
+    private readonly ILogger? _logger;
     private readonly ITelemetryService? _telemetryService;
     private readonly IPsPermissionChecker? _psPermissionChecker;
     private readonly IPsDestructiveCommandChecker? _psDestructiveCommandChecker;
 
     public override string ToolName => ShellToolNameConstants.Powershell;
-    public override bool IsPowerShell => true;
 
     public PowerShellToolHandlers(
         MiddlewarePipeline<ShellPipelineContext> pipeline,
         IShellExecutionService shellExecutionService,
         IFileOperationService fileOperationService,
         IFileSystem fs,
+        ILogger? logger = null,
         IShellToolGateService? gateService = null,
         IShellProcessWatchdog? watchdog = null,
         ITelemetryService? telemetryService = null,
@@ -35,6 +36,7 @@ public class PowerShellToolHandlers : ShellToolBase
         _shellExecutionService = shellExecutionService ?? throw new ArgumentNullException(nameof(shellExecutionService));
         _fileOperationService = fileOperationService ?? throw new ArgumentNullException(nameof(fileOperationService));
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
+        _logger = logger;
         _telemetryService = telemetryService;
         _psPermissionChecker = psPermissionChecker;
         _psDestructiveCommandChecker = psDestructiveCommandChecker;
@@ -56,12 +58,12 @@ public class PowerShellToolHandlers : ShellToolBase
         CancellationToken cancellationToken = default,
         ToolProgressCallback? onProgress = null)
     {
-        var gateResult = CheckGate(isPowerShellCall: true);
+        var gateResult = CheckGate(ShellType.PowerShell);
         if (gateResult is not null) return gateResult;
 
         if (string.IsNullOrWhiteSpace(command))
         {
-            return ResultBuilder.Error().WithText("command cannot be empty").Build();
+            return ToolResultBuilder.Error().WithText("command cannot be empty").Build();
         }
 
         var workDir = string.IsNullOrEmpty(working_directory) ? _fs.GetCurrentDirectory() : working_directory;
@@ -79,7 +81,7 @@ public class PowerShellToolHandlers : ShellToolBase
                 if (!string.IsNullOrEmpty(permResult.Suggestions)) { permWarning.AppendLine(); permWarning.AppendLine(permResult.Suggestions); }
 
                 RecordPsmetrics("ps_enhanced", permResult.Behavior == PermissionBehavior.Deny ? "denied" : "ask");
-                return ResultBuilder.Error().WithText(permWarning.ToString()).Build();
+                return ToolResultBuilder.Error().WithText(permWarning.ToString()).Build();
             }
         }
 
@@ -96,14 +98,16 @@ public class PowerShellToolHandlers : ShellToolBase
                 warning.AppendLine("If you are sure you want to execute this command, re-invoke and confirm you understand the risks.");
 
                 RecordPsmetrics("ps_enhanced", "dangerous");
-                return ResultBuilder.Error().WithText(warning.ToString()).Build();
+                return ToolResultBuilder.Error().WithText(warning.ToString()).Build();
             }
         }
+
+        using var provider = ShellProviderFactory.Create(ShellType.PowerShell, _fs, _logger);
 
         var context = new ShellPipelineContext
         {
             Command = command,
-            IsPowerShell = true,
+            Provider = provider,
             Description = description,
             Timeout = timeout,
             WorkingDirectory = working_directory,
@@ -116,7 +120,7 @@ public class PowerShellToolHandlers : ShellToolBase
 
         await _pipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false);
 
-        return context.Result ?? ResultBuilder.Error().WithText("Pipeline did not produce a result").Build();
+        return context.Result ?? ToolResultBuilder.PipelineNoResult();
     }
 
     /// <summary>
@@ -132,24 +136,24 @@ public class PowerShellToolHandlers : ShellToolBase
         [McpToolParameter("Working directory", Required = false)] string? working_directory = null,
         CancellationToken cancellationToken = default)
     {
-        var gateResult = CheckGate(isPowerShellCall: true);
+        var gateResult = CheckGate(ShellType.PowerShell);
         if (gateResult is not null) return gateResult;
 
         if (string.IsNullOrWhiteSpace(script_path))
         {
-            return ResultBuilder.Error().WithText("script_path cannot be empty").Build();
+            return ToolResultBuilder.Error().WithText("script_path cannot be empty").Build();
         }
 
         // 检查文件扩展名
         if (!script_path.EndsWith(".ps1", StringComparison.OrdinalIgnoreCase))
         {
-            return ResultBuilder.Error().WithText("File must be a .ps1 PowerShell script").Build();
+            return ToolResultBuilder.Error().WithText("File must be a .ps1 PowerShell script").Build();
         }
 
         var fileResult = await _fileOperationService.ReadFileAsync(script_path, cancellationToken: cancellationToken).ConfigureAwait(false);
         if (!fileResult.Success)
         {
-            return ResultBuilder.Error().WithText($"Script file does not exist: {script_path}").Build();
+            return ToolResultBuilder.Error().WithText($"Script file does not exist: {script_path}").Build();
         }
 
         // 构建PowerShell参数
@@ -183,7 +187,7 @@ public class PowerShellToolHandlers : ShellToolBase
         if (result.Interrupted)
         {
             RecordPsmetrics("ps_script", "interrupted");
-            return ResultBuilder.Error().WithText(result.Stderr).Build();
+            return ToolResultBuilder.Error().WithText(result.Stderr).Build();
         }
 
         var output = ShellOutputMiddleware.BuildOutputResponse(result);
@@ -191,11 +195,11 @@ public class PowerShellToolHandlers : ShellToolBase
         if (!result.Success)
         {
             RecordPsmetrics("ps_script", "failed");
-            return ResultBuilder.Error().WithText(output).Build();
+            return ToolResultBuilder.Error().WithText(output).Build();
         }
 
         RecordPsmetrics("ps_script", "ok");
-        return ResultBuilder.Success().WithText(output).Build();
+        return ToolResultBuilder.Success().WithText(output).Build();
     }
 
     /// <summary>
@@ -205,7 +209,7 @@ public class PowerShellToolHandlers : ShellToolBase
     public async Task<ToolResult> PowerShellVersionAsync(
         CancellationToken cancellationToken = default)
     {
-        var gateResult = CheckGate(isPowerShellCall: true);
+        var gateResult = CheckGate(ShellType.PowerShell);
         if (gateResult is not null) return gateResult;
 
         var command = "$PSVersionTable | ConvertTo-Json";
@@ -254,7 +258,7 @@ public class PowerShellToolHandlers : ShellToolBase
             response.AppendLine($"{StatusSymbol.Warning.ToValue()} {clmCheck.Warning}");
         }
 
-        return ResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     /// <summary>
@@ -265,7 +269,7 @@ public class PowerShellToolHandlers : ShellToolBase
         [McpToolParameter("Scope (e.g. Process, CurrentUser, LocalMachine)", Required = false)] string? scope = null,
         CancellationToken cancellationToken = default)
     {
-        var gateResult = CheckGate(isPowerShellCall: true);
+        var gateResult = CheckGate(ShellType.PowerShell);
         if (gateResult is not null) return gateResult;
 
         var command = string.IsNullOrEmpty(scope)
@@ -306,7 +310,7 @@ public class PowerShellToolHandlers : ShellToolBase
         response.AppendLine("  - Unrestricted: All scripts allowed");
         response.AppendLine("  - Bypass: No restrictions");
 
-        return ResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     /// <summary>
@@ -319,18 +323,18 @@ public class PowerShellToolHandlers : ShellToolBase
         [McpToolParameter("Force setting without confirmation prompt", Required = false, DefaultValue = "true")] bool? force = null,
         CancellationToken cancellationToken = default)
     {
-        var gateResult = CheckGate(isPowerShellCall: true);
+        var gateResult = CheckGate(ShellType.PowerShell);
         if (gateResult is not null) return gateResult;
 
         if (string.IsNullOrWhiteSpace(policy))
         {
-            return ResultBuilder.Error().WithText("policy cannot be empty").Build();
+            return ToolResultBuilder.Error().WithText("policy cannot be empty").Build();
         }
 
         var validPolicies = new[] { "Restricted", "AllSigned", "RemoteSigned", "Unrestricted", "Bypass", "Undefined" };
         if (!validPolicies.Contains(policy, StringComparer.OrdinalIgnoreCase))
         {
-            return ResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText($"Invalid execution policy: {policy}. Valid values: {string.Join(", ", validPolicies)}")
                 .Build();
         }
@@ -349,7 +353,7 @@ public class PowerShellToolHandlers : ShellToolBase
 
         if (result.Success)
         {
-            return ResultBuilder.Success()
+            return ToolResultBuilder.Success()
                 .WithText($"{StatusSymbol.Tick.ToValue()} Execution policy set to '{policy}' (scope: {scopeParam})")
                 .Build();
         }
@@ -362,14 +366,14 @@ public class PowerShellToolHandlers : ShellToolBase
                 error = $"{error}\n\n{StatusSymbol.Warning.ToValue()} Administrator privileges are required to change the execution policy for this scope.\nSuggestion: Use scope=\"Process\" to change the execution policy for the current process only.";
             }
 
-            return ResultBuilder.Error().WithText(error).Build();
+            return ToolResultBuilder.Error().WithText(error).Build();
         }
     }
 
     #region Private Methods
 
     private void RecordPsmetrics(string operation, string result)
-        => _telemetryService?.RecordCount("powershell.handler.count", new Dictionary<string, string> { ["operation"] = operation, ["result"] = result }, description: "PowerShell handler count");
+        => ToolTelemetryHelper.RecordToolCount(_telemetryService, "powershell.handler.count", operation, result);
 
     private async Task<ConstrainedLanguageModeCheck> CheckConstrainedLanguageModeAsync(CancellationToken cancellationToken)
     {

@@ -26,14 +26,14 @@ public partial class ReplToolHandlers
         {
             if (_replService == null)
             {
-                return McpResultBuilder.Error()
+                return ToolResultBuilder.Error()
                     .WithText(L.T(StringKey.ReplServiceNotEnabled))
                     .Build();
             }
 
             var replAction = ReplActionExtensions.FromValue(action);
             if (replAction == null)
-                return McpResultBuilder.Error().WithText($"Unknown REPL action: {action}").Build();
+                return ToolResultBuilder.Error().WithText($"Unknown REPL action: {action}").Build();
 
             var replLanguage = ReplLanguageExtensions.FromValue(language) ?? ReplLanguage.CSharp;
 
@@ -41,13 +41,13 @@ public partial class ReplToolHandlers
             {
                 case ReplAction.Enable:
                     _replService.EnableReplMode();
-                    return McpResultBuilder.Success()
+                    return ToolResultBuilder.Success()
                         .WithText(L.T(StringKey.ReplModeEnabled))
                         .Build();
 
                 case ReplAction.Disable:
                     _replService.DisableReplMode();
-                    return McpResultBuilder.Success()
+                    return ToolResultBuilder.Success()
                         .WithText(L.T(StringKey.ReplModeDisabled))
                         .Build();
 
@@ -62,7 +62,7 @@ public partial class ReplToolHandlers
                             statusResponse.AppendLine($"  - {tool}");
                         }
                     }
-                    return McpResultBuilder.Success().WithText(statusResponse.ToString()).Build();
+                    return ToolResultBuilder.Success().WithText(statusResponse.ToString()).Build();
             }
 
             if (string.IsNullOrEmpty(code))
@@ -72,7 +72,7 @@ public partial class ReplToolHandlers
                 infoResponse.AppendLine(L.T(StringKey.ReplLabelMode, _replService.IsReplModeEnabled ? L.T(StringKey.ReplEnabled) : L.T(StringKey.ReplDisabled)));
                 infoResponse.AppendLine();
                 infoResponse.AppendLine(L.T(StringKey.ProvideCodeOrManageMode));
-                return McpResultBuilder.Success().WithText(infoResponse.ToString()).Build();
+                return ToolResultBuilder.Success().WithText(infoResponse.ToString()).Build();
             }
 
             var result = await _replService.ExecuteAsync(code, replLanguage.ToValue(), timeout_seconds ?? 30, cancellationToken).ConfigureAwait(false);
@@ -95,14 +95,14 @@ public partial class ReplToolHandlers
             }
 
             return result.Success
-                ? McpResultBuilder.Success().WithText(response.ToString()).Build()
-                : McpResultBuilder.Error().WithText(response.ToString()).Build();
+                ? ToolResultBuilder.Success().WithText(response.ToString()).Build()
+                : ToolResultBuilder.Error().WithText(response.ToString()).Build();
         }
         catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             _logger?.LogError(ex, L.T(StringKey.ReplExecutionFailedLog));
-            return McpResultBuilder.Error().WithText(L.T(StringKey.ReplExecutionFailed, ex.Message)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.ReplExecutionFailed, ex.Message)).Build();
         }
     }
 }

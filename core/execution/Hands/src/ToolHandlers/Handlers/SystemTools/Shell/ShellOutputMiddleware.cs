@@ -20,16 +20,16 @@ public sealed partial class ShellOutputMiddleware : IShellMiddleware
         var result = context.ExecutionResult;
         if (result is null)
         {
-            context.Result = ResultBuilder.Error().WithText("No execution result available").Build();
+            context.Result = ToolResultBuilder.Error().WithText("No execution result available").Build();
             return Task.CompletedTask;
         }
 
-        var shellType = context.IsPowerShell ? "powershell" : "cmd";
+        var shellType = context.Provider.Type.ToValue();
 
         if (result.Interrupted)
         {
-            RecordShellMetrics(shellType, "execute", "interrupted");
-            context.Result = ResultBuilder.Error()
+            ToolTelemetryHelper.RecordToolCount(_telemetryService, "shell.execution.count", new Dictionary<string, string> { ["shell"] = shellType, ["operation"] = "execute", ["result"] = "interrupted" });
+            context.Result = ToolResultBuilder.Error()
                 .WithText(BuildOutputResponse(result, context.Command))
                 .WithEntityMetadata(EntityMetadataEntry.Int("exit_code", result.ExitCode ?? -1))
                 .WithEntityMetadata(EntityMetadataEntry.Bool("interrupted", true))
@@ -43,7 +43,7 @@ public sealed partial class ShellOutputMiddleware : IShellMiddleware
             if (parsed is { } img)
             {
                 var (resizedMediaType, resizedBase64Data) = ShellImageOutputDetector.ResizeIfOversized(img.MediaType, img.Base64Data) ?? img;
-                RecordShellMetrics(shellType, "execute", "ok");
+                ToolTelemetryHelper.RecordToolCount(_telemetryService, "shell.execution.count", new Dictionary<string, string> { ["shell"] = shellType, ["operation"] = "execute", ["result"] = "ok" });
                 context.Result = new ToolResult
                 {
                     Content = [new ToolContent { Type = ToolContentType.Image, Data = resizedBase64Data, MimeType = resizedMediaType }],
@@ -66,16 +66,16 @@ public sealed partial class ShellOutputMiddleware : IShellMiddleware
         var interpretation = InterpretCommandResult(context.Command, result.ExitCode ?? 0, result.Stdout ?? string.Empty, result.Stderr ?? string.Empty);
         if (interpretation.IsError)
         {
-            RecordShellMetrics(shellType, "execute", "failed");
-            context.Result = ResultBuilder.Error()
+            ToolTelemetryHelper.RecordToolCount(_telemetryService, "shell.execution.count", new Dictionary<string, string> { ["shell"] = shellType, ["operation"] = "execute", ["result"] = "failed" });
+            context.Result = ToolResultBuilder.Error()
                 .WithText(output)
                 .WithEntityMetadata(EntityMetadataEntry.Int("exit_code", result.ExitCode ?? -1))
                 .Build();
             return Task.CompletedTask;
         }
 
-        RecordShellMetrics(shellType, "execute", "ok");
-        context.Result = ResultBuilder.Success()
+        ToolTelemetryHelper.RecordToolCount(_telemetryService, "shell.execution.count", new Dictionary<string, string> { ["shell"] = shellType, ["operation"] = "execute", ["result"] = "ok" });
+        context.Result = ToolResultBuilder.Success()
             .WithText(output)
             .WithEntityMetadata(EntityMetadataEntry.Int("exit_code", result.ExitCode ?? 0))
             .Build();
@@ -98,9 +98,6 @@ public sealed partial class ShellOutputMiddleware : IShellMiddleware
             metadata.Add(EntityMetadataEntry.String("background_task_id", result.BackgroundTaskId));
         return metadata;
     }
-
-    private void RecordShellMetrics(string shellType, string operation, string result)
-        => _telemetryService?.RecordCount("shell.execution.count", new Dictionary<string, string> { ["shell"] = shellType, ["operation"] = operation, ["result"] = result }, description: "Shell execution count");
 
     /// <summary>
     /// 构建输出响应 — 对齐 TS mapToolResultToToolResultBlockParam

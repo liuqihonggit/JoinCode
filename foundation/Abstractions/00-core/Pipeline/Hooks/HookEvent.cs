@@ -98,7 +98,11 @@ public enum HookEvent
     [EnumValue("worktreeCreate")] WorktreeCreate,
 
     /// <summary>工作树移除时</summary>
-    [EnumValue("worktreeRemove")] WorktreeRemove
+    [EnumValue("worktreeRemove")] WorktreeRemove,
+
+    // ========== 集群循环 ==========
+    /// <summary>集群计划审批时</summary>
+    [EnumValue("clusterPlanApproval")] ClusterPlanApproval
 }
 
 /// <summary>
@@ -121,6 +125,7 @@ public static class HookEventDisplayExtensions
     private const string ReasonField = "reason";
     private const string McpServerNameField = "mcp_server_name";
     private const string LoadReasonField = "load_reason";
+    private const string PlanTypeField = "plan_type";
 
     /// <summary>
     /// 获取事件的匹配器元数据字段
@@ -148,6 +153,7 @@ public static class HookEventDisplayExtensions
             HookEvent.ElicitationResult => McpServerNameField,
             HookEvent.ConfigChange => SourceField,
             HookEvent.InstructionsLoaded => LoadReasonField,
+            HookEvent.ClusterPlanApproval => PlanTypeField,
             _ => null
         };
     }
@@ -176,6 +182,8 @@ public static class HookEventDisplayExtensions
             HookEvent.ConfigChange => true,
             HookEvent.TaskCreated => true,
             HookEvent.TaskCompleted => true,
+            HookEvent.SubagentStop => true,
+            HookEvent.ClusterPlanApproval => true,
             _ => false
         };
     }

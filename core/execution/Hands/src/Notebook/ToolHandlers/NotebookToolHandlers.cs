@@ -28,7 +28,7 @@ public class NotebookToolHandlers
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(notebook_path))
-            return McpResultBuilder.Error().WithText("notebook_path cannot be empty").Build();
+            return ToolResultBuilder.Error().WithText("notebook_path cannot be empty").Build();
 
         // 对齐 TS: 相对路径自动转绝对路径
         if (!Path.IsPathRooted(notebook_path))
@@ -38,24 +38,24 @@ public class NotebookToolHandlers
         if (notebook_path.StartsWith(@"\\", StringComparison.Ordinal) ||
             (notebook_path.Length >= 2 && notebook_path[0] == '/' && notebook_path[1] == '/'))
         {
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText("UNC paths are not allowed for security reasons (potential NTLM credential leakage). Use a local path instead.")
                 .Build();
         }
 
         if (!notebook_path.EndsWith(".ipynb", StringComparison.OrdinalIgnoreCase))
-            return McpResultBuilder.Error().WithText("File must be a Jupyter notebook (.ipynb file). For editing other file types, use the FileEdit tool.").Build();
+            return ToolResultBuilder.Error().WithText("File must be a Jupyter notebook (.ipynb file). For editing other file types, use the FileEdit tool.").Build();
 
         var modeStr = edit_mode ?? NotebookEditModeConstants.Replace;
         var mode = NotebookEditModeExtensions.FromValue(modeStr) ?? NotebookEditMode.Replace;
         if (!NotebookEditModeExtensions.IsDefined(mode))
-            return McpResultBuilder.Error().WithText("edit_mode must be replace, insert, or delete").Build();
+            return ToolResultBuilder.Error().WithText("edit_mode must be replace, insert, or delete").Build();
 
         if (mode == NotebookEditMode.Insert && string.IsNullOrWhiteSpace(cell_type))
-            return McpResultBuilder.Error().WithText("cell_type is required when using edit_mode=insert").Build();
+            return ToolResultBuilder.Error().WithText("cell_type is required when using edit_mode=insert").Build();
 
         if (mode != NotebookEditMode.Insert && string.IsNullOrWhiteSpace(cell_id))
-            return McpResultBuilder.Error().WithText("cell_id must be specified when not inserting a new cell").Build();
+            return ToolResultBuilder.Error().WithText("cell_id must be specified when not inserting a new cell").Build();
 
         // 对齐 TS checkPermissions: 写入权限检查
         // Plan 模式下写入操作需要确认，Ask 模式下每个操作都需要确认
@@ -64,7 +64,7 @@ public class NotebookToolHandlers
             var currentMode = await _permissionManager.GetCurrentModeAsync(cancellationToken).ConfigureAwait(false);
             if (currentMode == PermissionMode.Plan)
             {
-                return McpResultBuilder.Error()
+                return ToolResultBuilder.Error()
                     .WithText("Cannot edit notebook in plan mode. Exit plan mode first before editing files.")
                     .Build();
             }
@@ -72,7 +72,7 @@ public class NotebookToolHandlers
 
         // Read-before-Edit 校验：必须先读取文件才能编辑，防止模型编辑从未见过的文件
         if (!_fileStateCache.HasBeenRead(notebook_path))
-            return McpResultBuilder.Error().WithText("File has not been read yet. Read it first before writing to it.").Build();
+            return ToolResultBuilder.Error().WithText("File has not been read yet. Read it first before writing to it.").Build();
 
         // 并发修改检测：检查文件是否在读取后被外部修改
         var readTimestamp = _fileStateCache.GetReadTimestampMs(notebook_path);
@@ -80,16 +80,16 @@ public class NotebookToolHandlers
         {
             var lastWriteMs = new DateTimeOffset(_fs.GetLastWriteTimeUtc(notebook_path)).ToUnixTimeMilliseconds();
             if (lastWriteMs > readTimestamp.Value + 1000) // 1s tolerance
-                return McpResultBuilder.Error().WithText("File has been modified since read, either by the user or by a linter. Read it again before attempting to write it.").Build();
+                return ToolResultBuilder.Error().WithText("File has been modified since read, either by the user or by a linter. Read it again before attempting to write it.").Build();
         }
 
         var fileResult = await _fileOperationService.ReadFileAsync(notebook_path, cancellationToken: cancellationToken).ConfigureAwait(false);
         if (!fileResult.Success)
-            return McpResultBuilder.Error().WithText("Notebook file does not exist").Build();
+            return ToolResultBuilder.Error().WithText("Notebook file does not exist").Build();
 
         var notebook = await _notebookService.LoadAsync(notebook_path, cancellationToken).ConfigureAwait(false);
         if (notebook == null)
-            return McpResultBuilder.Error().WithText("Notebook is not valid JSON").Build();
+            return ToolResultBuilder.Error().WithText("Notebook is not valid JSON").Build();
 
         int cellIndex;
         if (string.IsNullOrWhiteSpace(cell_id))
@@ -100,7 +100,7 @@ public class NotebookToolHandlers
         {
             cellIndex = ResolveCellIndex(notebook, cell_id);
             if (cellIndex < 0)
-                return McpResultBuilder.Error().WithText($"Cell with ID \"{cell_id}\" not found in notebook").Build();
+                return ToolResultBuilder.Error().WithText($"Cell with ID \"{cell_id}\" not found in notebook").Build();
         }
 
         if (mode == NotebookEditMode.Insert)
@@ -116,7 +116,7 @@ public class NotebookToolHandlers
         {
             var deleteResult = _notebookService.DeleteCell(notebook, cellIndex);
             if (!deleteResult.Success)
-                return McpResultBuilder.Error().WithText(deleteResult.ErrorMessage ?? "Failed to delete cell").Build();
+                return ToolResultBuilder.Error().WithText(deleteResult.ErrorMessage ?? "Failed to delete cell").Build();
             notebook = deleteResult.GetNotebook();
         }
         else if (mode == NotebookEditMode.Insert)
@@ -124,7 +124,7 @@ public class NotebookToolHandlers
             var ct = NotebookCellTypeExtensions.FromValue(cell_type) ?? NotebookCellType.Code;
             var addResult = _notebookService.AddCell(notebook, ct, new_source, cellIndex);
             if (!addResult.Success)
-                return McpResultBuilder.Error().WithText(addResult.ErrorMessage ?? "Failed to insert cell").Build();
+                return ToolResultBuilder.Error().WithText(addResult.ErrorMessage ?? "Failed to insert cell").Build();
             notebook = addResult.GetNotebook();
         }
         else
@@ -132,13 +132,13 @@ public class NotebookToolHandlers
             // 对齐 TS: replace 模式下支持修改 cell_type
             var editResult = _notebookService.EditCell(notebook, cellIndex, new_source, cell_type);
             if (!editResult.Success)
-                return McpResultBuilder.Error().WithText(editResult.ErrorMessage ?? "Failed to edit cell").Build();
+                return ToolResultBuilder.Error().WithText(editResult.ErrorMessage ?? "Failed to edit cell").Build();
             notebook = editResult.GetNotebook();
         }
 
         var saved = await _notebookService.SaveAsync(notebook_path, notebook, cancellationToken).ConfigureAwait(false);
         if (!saved)
-            return McpResultBuilder.Error().WithText("Failed to save notebook").Build();
+            return ToolResultBuilder.Error().WithText("Failed to save notebook").Build();
 
         // 写入后更新 FileStateCache，确保后续读取不会返回过时的缓存内容
         if (_fs.FileExists(notebook_path))
@@ -155,7 +155,7 @@ public class NotebookToolHandlers
             _ => "Unknown edit mode"
         };
 
-        return McpResultBuilder.Success().WithText(outputMessage).Build();
+        return ToolResultBuilder.Success().WithText(outputMessage).Build();
     }
 
     private static int ResolveCellIndex(NotebookDocument notebook, string cellId)
@@ -190,7 +190,7 @@ public class NotebookToolHandlers
     {
         if (string.IsNullOrWhiteSpace(file_path))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.NotebookFilePathCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookFilePathCannotBeEmpty)).Build();
         }
 
         if (!file_path.EndsWith(".ipynb", StringComparison.OrdinalIgnoreCase))
@@ -201,7 +201,7 @@ public class NotebookToolHandlers
         var fileResult = await _fileOperationService.ReadFileAsync(file_path, cancellationToken: cancellationToken).ConfigureAwait(false);
         if (fileResult.Success)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.NotebookFileAlreadyExists, file_path)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookFileAlreadyExists, file_path)).Build();
         }
 
         var notebook = _notebookService.Create(kernel_name, language);
@@ -209,7 +209,7 @@ public class NotebookToolHandlers
 
         if (!saved)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.NotebookSaveFailed)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookSaveFailed)).Build();
         }
 
         var response = new System.Text.StringBuilder();
@@ -222,7 +222,7 @@ public class NotebookToolHandlers
             response.AppendLine(L.T(StringKey.NotebookKernelLabel, notebook.Metadata.KernelSpec.DisplayName));
         }
 
-        return McpResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     /// <summary>
@@ -236,13 +236,13 @@ public class NotebookToolHandlers
     {
         if (string.IsNullOrWhiteSpace(file_path))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.NotebookFilePathCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookFilePathCannotBeEmpty)).Build();
         }
 
         var fileResult = await _fileOperationService.ReadFileAsync(file_path, cancellationToken: cancellationToken).ConfigureAwait(false);
         if (!fileResult.Success)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.NotebookFileNotExist, file_path)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookFileNotExist, file_path)).Build();
         }
 
         // 对齐 TS: 读取后记录到 FileStateCache，确保后续 Edit 的 Read-before-Edit 检查能通过
@@ -256,7 +256,7 @@ public class NotebookToolHandlers
 
         if (notebook == null)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.NotebookParseFailed)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookParseFailed)).Build();
         }
 
         var response = new System.Text.StringBuilder();
@@ -296,7 +296,7 @@ public class NotebookToolHandlers
             }
         }
 
-        return McpResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     /// <summary>
@@ -312,43 +312,43 @@ public class NotebookToolHandlers
     {
         if (string.IsNullOrWhiteSpace(file_path))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.NotebookFilePathCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookFilePathCannotBeEmpty)).Build();
         }
 
         var fileResult = await _fileOperationService.ReadFileAsync(file_path, cancellationToken: cancellationToken).ConfigureAwait(false);
         if (!fileResult.Success)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.NotebookFileNotExist, file_path)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookFileNotExist, file_path)).Build();
         }
 
         var cellType = NotebookCellTypeExtensions.FromValue(cell_type);
         if (cellType is null)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.NotebookInvalidCellType, cell_type)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookInvalidCellType, cell_type)).Build();
         }
 
         var notebook = await _notebookService.LoadAsync(file_path, cancellationToken).ConfigureAwait(false);
 
         if (notebook == null)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.NotebookParseFailed)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookParseFailed)).Build();
         }
 
         var result = _notebookService.AddCell(notebook, cellType.Value, content, index);
 
         if (!result.Success)
         {
-            return McpResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.NotebookAddCellFailed)).Build();
+            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.NotebookAddCellFailed)).Build();
         }
 
         var saved = await _notebookService.SaveAsync(file_path, result.GetNotebook(), cancellationToken).ConfigureAwait(false);
 
         if (!saved)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.NotebookSaveFailed)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookSaveFailed)).Build();
         }
 
-        return McpResultBuilder.Success()
+        return ToolResultBuilder.Success()
             .WithText($"{StatusSymbol.Tick.ToValue()} {L.T(StringKey.NotebookCellAddedSuccess, result.AffectedCellIndex, cellType)}")
             .Build();
     }
@@ -364,37 +364,37 @@ public class NotebookToolHandlers
     {
         if (string.IsNullOrWhiteSpace(file_path))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.NotebookFilePathCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookFilePathCannotBeEmpty)).Build();
         }
 
         var fileResult = await _fileOperationService.ReadFileAsync(file_path, cancellationToken: cancellationToken).ConfigureAwait(false);
         if (!fileResult.Success)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.NotebookFileNotExist, file_path)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookFileNotExist, file_path)).Build();
         }
 
         var notebook = await _notebookService.LoadAsync(file_path, cancellationToken).ConfigureAwait(false);
 
         if (notebook == null)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.NotebookParseFailed)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookParseFailed)).Build();
         }
 
         var result = _notebookService.DeleteCell(notebook, index);
 
         if (!result.Success)
         {
-            return McpResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.NotebookDeleteCellFailed)).Build();
+            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.NotebookDeleteCellFailed)).Build();
         }
 
         var saved = await _notebookService.SaveAsync(file_path, result.GetNotebook(), cancellationToken).ConfigureAwait(false);
 
         if (!saved)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.NotebookSaveFailed)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookSaveFailed)).Build();
         }
 
-        return McpResultBuilder.Success()
+        return ToolResultBuilder.Success()
             .WithText($"{StatusSymbol.Tick.ToValue()} {L.T(StringKey.NotebookCellDeleted, index)}")
             .Build();
     }
@@ -411,37 +411,37 @@ public class NotebookToolHandlers
     {
         if (string.IsNullOrWhiteSpace(file_path))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.NotebookFilePathCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookFilePathCannotBeEmpty)).Build();
         }
 
         var fileResult = await _fileOperationService.ReadFileAsync(file_path, cancellationToken: cancellationToken).ConfigureAwait(false);
         if (!fileResult.Success)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.NotebookFileNotExist, file_path)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookFileNotExist, file_path)).Build();
         }
 
         var notebook = await _notebookService.LoadAsync(file_path, cancellationToken).ConfigureAwait(false);
 
         if (notebook == null)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.NotebookParseFailed)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookParseFailed)).Build();
         }
 
         var result = _notebookService.EditCell(notebook, index, content, null);
 
         if (!result.Success)
         {
-            return McpResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.NotebookEditCellFailed)).Build();
+            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.NotebookEditCellFailed)).Build();
         }
 
         var saved = await _notebookService.SaveAsync(file_path, result.GetNotebook(), cancellationToken).ConfigureAwait(false);
 
         if (!saved)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.NotebookSaveFailed)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookSaveFailed)).Build();
         }
 
-        return McpResultBuilder.Success()
+        return ToolResultBuilder.Success()
             .WithText($"{StatusSymbol.Tick.ToValue()} {L.T(StringKey.NotebookCellUpdated, index)}")
             .Build();
     }
@@ -458,37 +458,37 @@ public class NotebookToolHandlers
     {
         if (string.IsNullOrWhiteSpace(file_path))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.NotebookFilePathCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookFilePathCannotBeEmpty)).Build();
         }
 
         var fileResult = await _fileOperationService.ReadFileAsync(file_path, cancellationToken: cancellationToken).ConfigureAwait(false);
         if (!fileResult.Success)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.NotebookFileNotExist, file_path)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookFileNotExist, file_path)).Build();
         }
 
         var notebook = await _notebookService.LoadAsync(file_path, cancellationToken).ConfigureAwait(false);
 
         if (notebook == null)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.NotebookParseFailed)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookParseFailed)).Build();
         }
 
         var result = _notebookService.MoveCell(notebook, from_index, to_index);
 
         if (!result.Success)
         {
-            return McpResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.NotebookMoveCellFailed)).Build();
+            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.NotebookMoveCellFailed)).Build();
         }
 
         var saved = await _notebookService.SaveAsync(file_path, result.GetNotebook(), cancellationToken).ConfigureAwait(false);
 
         if (!saved)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.NotebookSaveFailed)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookSaveFailed)).Build();
         }
 
-        return McpResultBuilder.Success()
+        return ToolResultBuilder.Success()
             .WithText($"{StatusSymbol.Tick.ToValue()} {L.T(StringKey.NotebookCellMoved, from_index, to_index)}")
             .Build();
     }
@@ -505,43 +505,43 @@ public class NotebookToolHandlers
     {
         if (string.IsNullOrWhiteSpace(file_path))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.NotebookFilePathCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookFilePathCannotBeEmpty)).Build();
         }
 
         var fileResult = await _fileOperationService.ReadFileAsync(file_path, cancellationToken: cancellationToken).ConfigureAwait(false);
         if (!fileResult.Success)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.NotebookFileNotExist, file_path)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookFileNotExist, file_path)).Build();
         }
 
         var newType = NotebookCellTypeExtensions.FromValue(new_type);
         if (newType is null)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.NotebookInvalidType, new_type)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookInvalidType, new_type)).Build();
         }
 
         var notebook = await _notebookService.LoadAsync(file_path, cancellationToken).ConfigureAwait(false);
 
         if (notebook == null)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.NotebookParseFailed)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookParseFailed)).Build();
         }
 
         var result = _notebookService.ChangeCellType(notebook, index, newType.Value);
 
         if (!result.Success)
         {
-            return McpResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.NotebookChangeCellTypeFailed)).Build();
+            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.NotebookChangeCellTypeFailed)).Build();
         }
 
         var saved = await _notebookService.SaveAsync(file_path, result.GetNotebook(), cancellationToken).ConfigureAwait(false);
 
         if (!saved)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.NotebookSaveFailed)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookSaveFailed)).Build();
         }
 
-        return McpResultBuilder.Success()
+        return ToolResultBuilder.Success()
             .WithText($"{StatusSymbol.Tick.ToValue()} {L.T(StringKey.NotebookCellTypeChanged, index, newType)}")
             .Build();
     }
@@ -556,37 +556,37 @@ public class NotebookToolHandlers
     {
         if (string.IsNullOrWhiteSpace(file_path))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.NotebookFilePathCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookFilePathCannotBeEmpty)).Build();
         }
 
         var fileResult = await _fileOperationService.ReadFileAsync(file_path, cancellationToken: cancellationToken).ConfigureAwait(false);
         if (!fileResult.Success)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.NotebookFileNotExist, file_path)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookFileNotExist, file_path)).Build();
         }
 
         var notebook = await _notebookService.LoadAsync(file_path, cancellationToken).ConfigureAwait(false);
 
         if (notebook == null)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.NotebookParseFailed)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookParseFailed)).Build();
         }
 
         var result = _notebookService.ClearAllOutputs(notebook);
 
         if (!result.Success)
         {
-            return McpResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.NotebookClearOutputsFailed)).Build();
+            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.NotebookClearOutputsFailed)).Build();
         }
 
         var saved = await _notebookService.SaveAsync(file_path, result.GetNotebook(), cancellationToken).ConfigureAwait(false);
 
         if (!saved)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.NotebookSaveFailed)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookSaveFailed)).Build();
         }
 
-        return McpResultBuilder.Success()
+        return ToolResultBuilder.Success()
             .WithText($"{StatusSymbol.Tick.ToValue()} {L.T(StringKey.NotebookOutputsCleared)}")
             .Build();
     }
@@ -602,25 +602,25 @@ public class NotebookToolHandlers
     {
         if (string.IsNullOrWhiteSpace(file_path))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.NotebookFilePathCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookFilePathCannotBeEmpty)).Build();
         }
 
         var fileResult = await _fileOperationService.ReadFileAsync(file_path, cancellationToken: cancellationToken).ConfigureAwait(false);
         if (!fileResult.Success)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.NotebookFileNotExist, file_path)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookFileNotExist, file_path)).Build();
         }
 
         var notebook = await _notebookService.LoadAsync(file_path, cancellationToken).ConfigureAwait(false);
 
         if (notebook == null)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.NotebookParseFailed)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookParseFailed)).Build();
         }
 
         if (index < 0 || index >= notebook.Cells.Count)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.NotebookInvalidCellIndex, index)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookInvalidCellIndex, index)).Build();
         }
 
         var cell = notebook.Cells[index];
@@ -650,6 +650,6 @@ public class NotebookToolHandlers
             response.AppendLine();
         }
 
-        return McpResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 }

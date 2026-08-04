@@ -35,7 +35,7 @@ public class WebToolHandlers
             ValidationHelper.ValidateStringLength(url, 2048, "URL"));
         if (validationError != null)
         {
-            return ResultBuilder.Error().WithText(validationError).Build();
+            return ToolResultBuilder.Error().WithText(validationError).Build();
         }
 
         // 域名级权限检查已移入全局权限链路 PermissionChecker.CheckWebFetchPermission
@@ -46,7 +46,7 @@ public class WebToolHandlers
         if (!result.Success)
         {
             RecordWebMetrics("fetch", "failed");
-            return ResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText(result.ErrorMessage ?? "Failed to fetch web content")
                 .WithEntityMetadata(EntityMetadataEntry.Int("http_status_code", result.StatusCode))
                 .Build();
@@ -65,16 +65,16 @@ public class WebToolHandlers
             var redirectMessage = $"REDIRECT DETECTED: The URL redirects to a different host.\n\nOriginal URL: {result.Url}\nRedirect URL: {result.RedirectUrl}\nStatus: {result.RedirectStatusCode} {statusText}\n\nTo complete your request, I need to fetch content from the redirected URL. Please use WebFetch again with these parameters:\n- url: \"{result.RedirectUrl}\"\n- prompt: \"{prompt}\"";
 
             RecordWebMetrics("fetch", "redirect");
-            return ResultBuilder.Success()
+            return ToolResultBuilder.Success()
                 .WithText(redirectMessage)
                 .WithEntityMetadata(EntityMetadataEntry.Int("http_status_code", result.RedirectStatusCode))
                 .Build();
         }
 
         var markdownContent = result.Content ?? string.Empty;
-        var isPreapproved = IsPreapprovedUrl(url);
 
         string processedResult;
+        var isPreapproved = IsPreapprovedUrl(url);
         if (isPreapproved
             && (result.ContentType?.Contains("text/markdown", StringComparison.OrdinalIgnoreCase) ?? false)
             && markdownContent.Length < 100_000)
@@ -84,7 +84,7 @@ public class WebToolHandlers
         else
         {
             processedResult = await ApplyPromptToMarkdownAsync(
-                prompt, markdownContent, isPreapproved, cancellationToken).ConfigureAwait(false);
+                prompt, markdownContent, url, cancellationToken).ConfigureAwait(false);
         }
 
         RecordWebMetrics("fetch", "ok", result.Bytes);
@@ -98,7 +98,7 @@ public class WebToolHandlers
             finalResult += $"\n\n[Binary content ({result.ContentType}, {sizeStr}) also saved to {result.PersistedPath}]";
         }
 
-        return ResultBuilder.Success()
+        return ToolResultBuilder.Success()
             .WithText(finalResult)
             .WithEntityMetadata(EntityMetadataEntry.Int("http_status_code", result.StatusCode))
             .WithEntityMetadata(EntityMetadataEntry.Long("content_length", result.Bytes))
@@ -117,7 +117,7 @@ public class WebToolHandlers
             ValidationHelper.ValidateRange(max_length, 1, int.MaxValue, "max_length"));
         if (validationError != null)
         {
-            return ResultBuilder.Error().WithText(validationError).Build();
+            return ToolResultBuilder.Error().WithText(validationError).Build();
         }
 
         var result = await _webService.FetchAsync(url, cancellationToken).ConfigureAwait(false);
@@ -125,7 +125,7 @@ public class WebToolHandlers
         if (!result.Success)
         {
             RecordWebMetrics("to_markdown", "failed");
-            return ResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText(result.ErrorMessage ?? "Failed to fetch web content")
                 .WithEntityMetadata(EntityMetadataEntry.Int("http_status_code", result.StatusCode))
                 .Build();
@@ -134,7 +134,7 @@ public class WebToolHandlers
         if (result.RedirectUrl != null)
         {
             RecordWebMetrics("to_markdown", "redirect");
-            return ResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText($"URL redirects to {result.RedirectUrl} (status {result.RedirectStatusCode}). Please use the redirect URL directly.")
                 .WithEntityMetadata(EntityMetadataEntry.Int("http_status_code", result.RedirectStatusCode))
                 .Build();
@@ -149,7 +149,7 @@ public class WebToolHandlers
         }
 
         RecordWebMetrics("to_markdown", "ok", result.Bytes);
-        return ResultBuilder.Success()
+        return ToolResultBuilder.Success()
             .WithText(markdownContent)
             .WithEntityMetadata(EntityMetadataEntry.Int("http_status_code", result.StatusCode))
             .WithEntityMetadata(EntityMetadataEntry.Long("content_length", result.Bytes))
@@ -168,7 +168,7 @@ public class WebToolHandlers
             ValidationHelper.ValidateStringLength(query, 500, "search query"));
         if (validationError != null)
         {
-            return ResultBuilder.Error().WithText(validationError).Build();
+            return ToolResultBuilder.Error().WithText(validationError).Build();
         }
 
         var result = await _webService.SearchAsync(
@@ -180,7 +180,7 @@ public class WebToolHandlers
         if (!result.Success)
         {
             RecordWebMetrics("search", "failed");
-            return ResultBuilder.Error().WithText(result.ErrorMessage ?? "Search failed").Build();
+            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "Search failed").Build();
         }
 
         var response = new StringBuilder();
@@ -217,13 +217,13 @@ public class WebToolHandlers
         response.AppendLine("REMINDER: You MUST include the sources above in your response using markdown hyperlinks: [Title](URL)");
 
         RecordWebMetrics("search", "ok", result.Results.Count);
-        return ResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     private async Task<string> ApplyPromptToMarkdownAsync(
         string prompt,
         string markdownContent,
-        bool isPreapprovedDomain,
+        string url,
         CancellationToken cancellationToken)
     {
         if (_queryService == null)
@@ -237,6 +237,7 @@ public class WebToolHandlers
             ? markdownContent[..100_000] + "\n\n[Content truncated due to length...]"
             : markdownContent;
 
+        var isPreapprovedDomain = IsPreapprovedUrl(url);
         var modelPrompt = WebFetchToolPrompt.MakeSecondaryModelPrompt(
             truncatedContent, prompt, isPreapprovedDomain);
 
@@ -278,7 +279,7 @@ public class WebToolHandlers
 
     private void RecordWebMetrics(string operation, string result, int size = 0)
     {
-        _telemetryService?.RecordCount("web.operation.count", new Dictionary<string, string> { ["operation"] = operation, ["result"] = result }, description: "Web operation count");
-        if (size > 0) _telemetryService?.RecordHistogram("web.operation.size", size, new Dictionary<string, string> { ["operation"] = operation }, "bytes", "Web operation response size");
+        ToolTelemetryHelper.RecordToolCount(_telemetryService, "web.operation.count", operation, result);
+        if (size > 0) ToolTelemetryHelper.RecordToolHistogram(_telemetryService, "web.operation.size", size, new Dictionary<string, string> { ["operation"] = operation }, "bytes", "Web operation response size");
     }
 }

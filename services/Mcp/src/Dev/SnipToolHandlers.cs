@@ -22,7 +22,7 @@ public partial class SnipToolHandlers
     {
         var snipMode = SnipModeExtensions.FromValue(mode);
         if (snipMode == null)
-            return McpResultBuilder.Error().WithText(L.T(StringKey.SnipUnknownMode, mode)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.SnipUnknownMode, mode)).Build();
 
         try
         {
@@ -38,7 +38,7 @@ public partial class SnipToolHandlers
 
                 case SnipMode.RewindTo:
                     if (message_index == null)
-                        return McpResultBuilder.Error().WithText(L.T(StringKey.SnipRewindToRequiresIndex)).Build();
+                        return ToolResultBuilder.Error().WithText(L.T(StringKey.SnipRewindToRequiresIndex)).Build();
                     var rewindToResult = await _contextManager.RewindToMessageIndexAsync(message_index.Value, cancellationToken).ConfigureAwait(false);
                     response.AppendLine(L.T(StringKey.SnipRewindToSuccess, message_index));
                     response.AppendLine(L.T(StringKey.SnipRemovedCount, rewindToResult.RemovedCount));
@@ -51,13 +51,13 @@ public partial class SnipToolHandlers
                     break;
             }
 
-            return McpResultBuilder.Success().WithText(response.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(response.ToString()).Build();
         }
         catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             _logger?.LogError(ex, L.T(StringKey.SnipFailedLog));
-            return McpResultBuilder.Error().WithText(L.T(StringKey.SnipFailed, ex.Message)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.SnipFailed, ex.Message)).Build();
         }
     }
 }

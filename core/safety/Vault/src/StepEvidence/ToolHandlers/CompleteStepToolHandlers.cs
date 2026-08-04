@@ -28,19 +28,19 @@ public class CompleteStepToolHandlers
     {
         if (string.IsNullOrWhiteSpace(step))
         {
-            return Task.FromResult(McpResultBuilder.Error()
+            return Task.FromResult(ToolResultBuilder.Error()
                 .WithText("step is required — name the plan step you are completing").Build());
         }
 
         if (string.IsNullOrWhiteSpace(result))
         {
-            return Task.FromResult(McpResultBuilder.Error()
+            return Task.FromResult(ToolResultBuilder.Error()
                 .WithText("result is required — state what is now true after finishing this step").Build());
         }
 
         if (evidence is null || evidence.Count == 0)
         {
-            return Task.FromResult(McpResultBuilder.Error()
+            return Task.FromResult(ToolResultBuilder.Error()
                 .WithText("At least one evidence item is required — don't mark a step complete without showing why it's done (run a check, cite the diff, or confirm manually)").Build());
         }
 
@@ -51,20 +51,20 @@ public class CompleteStepToolHandlers
 
             if (!ValidKinds.Contains(e.Kind))
             {
-                return Task.FromResult(McpResultBuilder.Error()
+                return Task.FromResult(ToolResultBuilder.Error()
                     .WithText($"evidence {i + 1}: invalid kind '{e.Kind}' (want verification|diff|files|manual)").Build());
             }
 
             if (string.IsNullOrWhiteSpace(e.Summary))
             {
-                return Task.FromResult(McpResultBuilder.Error()
+                return Task.FromResult(ToolResultBuilder.Error()
                     .WithText($"evidence {i + 1}: summary is required — the evidence is the summary, not just its kind").Build());
             }
 
             if (e.Kind.Equals(StepEvidenceKindConstants.Verification, StringComparison.OrdinalIgnoreCase)
                 && string.IsNullOrWhiteSpace(e.Command))
             {
-                return Task.FromResult(McpResultBuilder.Error()
+                return Task.FromResult(ToolResultBuilder.Error()
                     .WithText($"evidence {i + 1}: verification command is required for verification evidence — cite the command you ran, or use kind \"manual\"").Build());
             }
 
@@ -72,7 +72,7 @@ public class CompleteStepToolHandlers
                  || e.Kind.Equals(StepEvidenceKindConstants.Files, StringComparison.OrdinalIgnoreCase))
                 && (e.Paths is null || e.Paths.Count == 0))
             {
-                return Task.FromResult(McpResultBuilder.Error()
+                return Task.FromResult(ToolResultBuilder.Error()
                     .WithText($"evidence {i + 1}: {e.Kind} evidence requires paths — cite the files you changed or touched").Build());
             }
 
@@ -89,6 +89,6 @@ public class CompleteStepToolHandlers
 
         response.Append(" The host advanced the task list; continue with the next step.");
 
-        return Task.FromResult(McpResultBuilder.Success().WithText(response.ToString()).Build());
+        return Task.FromResult(ToolResultBuilder.Success().WithText(response.ToString()).Build());
     }
 }

@@ -45,9 +45,7 @@ public sealed partial class ChatOptionsFactory : IChatOptionsFactory
             FastModelId = fastModelId,
             ExtensionData = extensionData,
             ContextManagement = _apiContextManagementService?.GetConfig(
-                hasThinking: effortLevel is not null,
-                isRedactThinkingActive: false,
-                clearAllThinking: false)
+                effortLevel is not null ? new ThinkingContext { HasThinking = true } : null)
         };
     }
 }

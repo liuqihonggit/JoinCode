@@ -31,7 +31,7 @@ public class McpResourceToolHandlers
         if (clients.Count == 0)
         {
             response.AppendLine("No connected MCP remote clients");
-            return McpResultBuilder.Success().WithText(response.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(response.ToString()).Build();
         }
 
         foreach (var (clientId, client) in clients)
@@ -84,7 +84,7 @@ public class McpResourceToolHandlers
             response.AppendLine();
         }
 
-        return McpResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     /// <summary>
@@ -98,7 +98,7 @@ public class McpResourceToolHandlers
     {
         if (string.IsNullOrWhiteSpace(uri))
         {
-            return McpResultBuilder.Error().WithText("uri cannot be empty").Build();
+            return ToolResultBuilder.Error().WithText("uri cannot be empty").Build();
         }
 
         // 获取所有远程客户端
@@ -106,7 +106,7 @@ public class McpResourceToolHandlers
 
         if (clients.Count == 0)
         {
-            return McpResultBuilder.Error().WithText("No connected MCP remote clients").Build();
+            return ToolResultBuilder.Error().WithText("No connected MCP remote clients").Build();
         }
 
         // 如果指定了客户端ID，优先使用该客户端
@@ -114,7 +114,7 @@ public class McpResourceToolHandlers
         {
             if (!clients.TryGetValue(client_id, out var specificClient))
             {
-                return McpResultBuilder.Error().WithText($"Client not found: {client_id}").Build();
+                return ToolResultBuilder.Error().WithText($"Client not found: {client_id}").Build();
             }
 
             return await ReadResourceFromClientAsync(specificClient, uri, client_id, cancellationToken);
@@ -132,7 +132,7 @@ public class McpResourceToolHandlers
             }
         }
 
-        return McpResultBuilder.Error().WithText($"Failed to read resource from any client: {uri}").Build();
+        return ToolResultBuilder.Error().WithText($"Failed to read resource from any client: {uri}").Build();
     }
 
     /// <summary>
@@ -152,7 +152,7 @@ public class McpResourceToolHandlers
         if (clients.Count == 0)
         {
             response.AppendLine("No connected MCP remote clients");
-            return McpResultBuilder.Success().WithText(response.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(response.ToString()).Build();
         }
 
         foreach (var (clientId, client) in clients)
@@ -211,7 +211,7 @@ public class McpResourceToolHandlers
             response.AppendLine();
         }
 
-        return McpResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     /// <summary>
@@ -226,7 +226,7 @@ public class McpResourceToolHandlers
     {
         if (string.IsNullOrWhiteSpace(prompt_name))
         {
-            return McpResultBuilder.Error().WithText("prompt_name cannot be empty").Build();
+            return ToolResultBuilder.Error().WithText("prompt_name cannot be empty").Build();
         }
 
         // 获取所有远程客户端
@@ -234,21 +234,21 @@ public class McpResourceToolHandlers
 
         if (clients.Count == 0)
         {
-            return McpResultBuilder.Error().WithText("No connected MCP remote clients").Build();
+            return ToolResultBuilder.Error().WithText("No connected MCP remote clients").Build();
         }
 
         // 解析参数
         Dictionary<string, JsonElement>? args = null;
         if (!string.IsNullOrEmpty(arguments))
         {
-            try
+            args = LlmJsonHelper.Deserialize(arguments, McpToolDispatchJsonContext.Default.DictionaryStringJsonElement, out var repairHint);
+            if (args is null)
             {
-                args = JsonSerializer.Deserialize(arguments, McpToolDispatchJsonContext.Default.DictionaryStringJsonElement);
+                var detail = string.IsNullOrEmpty(repairHint) ? "" : $" ({repairHint})";
+                return ToolResultBuilder.Error().WithText($"arguments must be valid JSON format{detail}").Build();
             }
-            catch
-            {
-                return McpResultBuilder.Error().WithText("arguments must be valid JSON format").Build();
-            }
+            if (!string.IsNullOrEmpty(repairHint))
+                System.Diagnostics.Trace.WriteLine($"[McpResource] arguments JSON repaired: {repairHint}");
         }
 
         // 如果指定了客户端ID，优先使用该客户端
@@ -256,7 +256,7 @@ public class McpResourceToolHandlers
         {
             if (!clients.TryGetValue(client_id, out var specificClient))
             {
-                return McpResultBuilder.Error().WithText($"Client not found: {client_id}").Build();
+                return ToolResultBuilder.Error().WithText($"Client not found: {client_id}").Build();
             }
 
             return await GetPromptFromClientAsync(specificClient, prompt_name, args, client_id, cancellationToken);
@@ -274,7 +274,7 @@ public class McpResourceToolHandlers
             }
         }
 
-        return McpResultBuilder.Error().WithText($"Failed to get prompt from any client: {prompt_name}").Build();
+        return ToolResultBuilder.Error().WithText($"Failed to get prompt from any client: {prompt_name}").Build();
     }
 
     /// <summary>
@@ -314,7 +314,7 @@ public class McpResourceToolHandlers
             }
         }
 
-        return McpResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     #region Private Methods
@@ -331,12 +331,12 @@ public class McpResourceToolHandlers
 
             if (!result.Success)
             {
-                return McpResultBuilder.Error().WithText($"Failed to read resource: {result.ErrorMessage}").Build();
+                return ToolResultBuilder.Error().WithText($"Failed to read resource: {result.ErrorMessage}").Build();
             }
 
             if (result.Data == null)
             {
-                return McpResultBuilder.Error().WithText($"Resource content is empty: {uri}").Build();
+                return ToolResultBuilder.Error().WithText($"Resource content is empty: {uri}").Build();
             }
 
             var response = new System.Text.StringBuilder();
@@ -363,11 +363,11 @@ public class McpResourceToolHandlers
 
             response.AppendLine();
 
-            return McpResultBuilder.Success().WithText(response.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(response.ToString()).Build();
         }
         catch (Exception ex)
         {
-            return McpResultBuilder.Error().WithText($"Failed to read resource: {ex.Message}").Build();
+            return ToolResultBuilder.Error().WithText($"Failed to read resource: {ex.Message}").Build();
         }
     }
 
@@ -384,12 +384,12 @@ public class McpResourceToolHandlers
 
             if (!result.Success)
             {
-                return McpResultBuilder.Error().WithText($"Failed to get prompt: {result.ErrorMessage}").Build();
+                return ToolResultBuilder.Error().WithText($"Failed to get prompt: {result.ErrorMessage}").Build();
             }
 
             if (result.Data == null)
             {
-                return McpResultBuilder.Error().WithText($"Prompt content is empty: {promptName}").Build();
+                return ToolResultBuilder.Error().WithText($"Prompt content is empty: {promptName}").Build();
             }
 
             var response = new System.Text.StringBuilder();
@@ -429,11 +429,11 @@ public class McpResourceToolHandlers
                 response.AppendLine();
             }
 
-            return McpResultBuilder.Success().WithText(response.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(response.ToString()).Build();
         }
         catch (Exception ex)
         {
-            return McpResultBuilder.Error().WithText($"Failed to get prompt: {ex.Message}").Build();
+            return ToolResultBuilder.Error().WithText($"Failed to get prompt: {ex.Message}").Build();
         }
     }
 

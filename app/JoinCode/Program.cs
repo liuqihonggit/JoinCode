@@ -42,6 +42,10 @@ class Program
                 var doctorHost = doctorBuilder.BuildHost(doctorConfig, options);
                 await doctorBuilder.ConfigureModulesAsync(doctorHost.Services);
 
+                // Shell 能力缓存初始化（doctor 模式）
+                Core.DependencyInjection.ShellCapabilityInitializer.Initialize(
+                    doctorFs, doctorHost.Services.GetService<ILogger<Program>>());
+
                 try
                 {
                     return await Entry.DoctorModeRunner.RunAsync(options, doctorHost.Services);
@@ -98,6 +102,10 @@ class Program
             var host = builder.BuildHost(config, options);
 
             await builder.ConfigureModulesAsync(host.Services);
+
+            // Shell 能力缓存初始化 — 检测 Shell 路径/版本并冻结到全局缓存
+            Core.DependencyInjection.ShellCapabilityInitializer.Initialize(
+                fs, host.Services.GetService<ILogger<Program>>());
 
             // 3.3 工具执行遥测：订阅 PermissionAwareToolExecutor.ToolExecutionCompleted，转发给医生
             if (doctorClient is not null)

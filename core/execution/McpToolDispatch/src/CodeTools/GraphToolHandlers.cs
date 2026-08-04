@@ -33,7 +33,7 @@ public sealed class GraphToolHandlers
             var communities = await indexer.Analytics.DetectCommunitiesAsync(cancellationToken).ConfigureAwait(false);
 
             if (communities.Count == 0)
-                return McpResultBuilder.Success().WithText("No communities detected (index may be empty).").Build();
+                return ToolResultBuilder.Success().WithText("No communities detected (index may be empty).").Build();
 
             var sb = new System.Text.StringBuilder();
             sb.AppendLine($"Detected {communities.Count} communities:");
@@ -51,11 +51,11 @@ public sealed class GraphToolHandlers
                 sb.AppendLine();
             }
 
-            return McpResultBuilder.Success().WithText(sb.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
         }
         catch (Exception ex)
         {
-            return McpResultBuilder.Error().WithText($"Community detection failed: {ex.Message}").Build();
+            return ToolResultBuilder.Error().WithText($"Community detection failed: {ex.Message}").Build();
         }
     }
 
@@ -71,7 +71,7 @@ public sealed class GraphToolHandlers
             var hubs = await indexer.Analytics.GetHubNodesAsync(top_n, cancellationToken).ConfigureAwait(false);
 
             if (hubs.Count == 0)
-                return McpResultBuilder.Success().WithText("No hub nodes found (index may be empty).").Build();
+                return ToolResultBuilder.Success().WithText("No hub nodes found (index may be empty).").Build();
 
             var sb = new System.Text.StringBuilder();
             sb.AppendLine($"Top {hubs.Count} hub nodes:");
@@ -85,11 +85,11 @@ public sealed class GraphToolHandlers
                     sb.AppendLine($"   {h.FilePath}");
             }
 
-            return McpResultBuilder.Success().WithText(sb.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
         }
         catch (Exception ex)
         {
-            return McpResultBuilder.Error().WithText($"Hub analysis failed: {ex.Message}").Build();
+            return ToolResultBuilder.Error().WithText($"Hub analysis failed: {ex.Message}").Build();
         }
     }
 
@@ -104,7 +104,7 @@ public sealed class GraphToolHandlers
             var dead = await indexer.Analytics.DetectDeadCodeAsync(cancellationToken).ConfigureAwait(false);
 
             if (dead.Count == 0)
-                return McpResultBuilder.Success().WithText("No dead code detected.").Build();
+                return ToolResultBuilder.Success().WithText("No dead code detected.").Build();
 
             var sb = new System.Text.StringBuilder();
             sb.AppendLine($"Detected {dead.Count} potentially dead code entries:");
@@ -119,11 +119,11 @@ public sealed class GraphToolHandlers
                 sb.AppendLine();
             }
 
-            return McpResultBuilder.Success().WithText(sb.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
         }
         catch (Exception ex)
         {
-            return McpResultBuilder.Error().WithText($"Dead code detection failed: {ex.Message}").Build();
+            return ToolResultBuilder.Error().WithText($"Dead code detection failed: {ex.Message}").Build();
         }
     }
 
@@ -135,7 +135,7 @@ public sealed class GraphToolHandlers
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(center_symbol))
-            return McpResultBuilder.Error().WithText("center_symbol cannot be empty.").Build();
+            return ToolResultBuilder.Error().WithText("center_symbol cannot be empty.").Build();
 
         try
         {
@@ -155,11 +155,11 @@ public sealed class GraphToolHandlers
             foreach (var edge in result.Edges)
                 sb.AppendLine($"  {edge.CallerSymbol} -> {edge.CalleeSymbol} [{edge.CallKind}]");
 
-            return McpResultBuilder.Success().WithText(sb.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
         }
         catch (Exception ex)
         {
-            return McpResultBuilder.Error().WithText($"Subgraph extraction failed: {ex.Message}").Build();
+            return ToolResultBuilder.Error().WithText($"Subgraph extraction failed: {ex.Message}").Build();
         }
     }
 
@@ -170,7 +170,7 @@ public sealed class GraphToolHandlers
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(changed_files))
-            return McpResultBuilder.Error().WithText("changed_files cannot be empty.").Build();
+            return ToolResultBuilder.Error().WithText("changed_files cannot be empty.").Build();
 
         try
         {
@@ -202,11 +202,11 @@ public sealed class GraphToolHandlers
                     sb.AppendLine($"  - {proj}");
             }
 
-            return McpResultBuilder.Success().WithText(sb.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
         }
         catch (Exception ex)
         {
-            return McpResultBuilder.Error().WithText($"Change impact analysis failed: {ex.Message}").Build();
+            return ToolResultBuilder.Error().WithText($"Change impact analysis failed: {ex.Message}").Build();
         }
     }
 
@@ -220,11 +220,11 @@ public sealed class GraphToolHandlers
         {
             var indexer = ResolveIndexer(repo_id);
             await indexer.Persistence.SaveAsync(directory, cancellationToken).ConfigureAwait(false);
-            return McpResultBuilder.Success().WithText($"Index saved to {directory}").Build();
+            return ToolResultBuilder.Success().WithText($"Index saved to {directory}").Build();
         }
         catch (Exception ex)
         {
-            return McpResultBuilder.Error().WithText($"Save failed: {ex.Message}").Build();
+            return ToolResultBuilder.Error().WithText($"Save failed: {ex.Message}").Build();
         }
     }
 
@@ -239,12 +239,12 @@ public sealed class GraphToolHandlers
             var indexer = ResolveIndexer(repo_id);
             var loaded = await indexer.Persistence.LoadAsync(directory, cancellationToken).ConfigureAwait(false);
             return loaded
-                ? McpResultBuilder.Success().WithText($"Index loaded from {directory}").Build()
-                : McpResultBuilder.Error().WithText($"No valid index found at {directory}").Build();
+                ? ToolResultBuilder.Success().WithText($"Index loaded from {directory}").Build()
+                : ToolResultBuilder.Error().WithText($"No valid index found at {directory}").Build();
         }
         catch (Exception ex)
         {
-            return McpResultBuilder.Error().WithText($"Load failed: {ex.Message}").Build();
+            return ToolResultBuilder.Error().WithText($"Load failed: {ex.Message}").Build();
         }
     }
 
@@ -257,11 +257,11 @@ public sealed class GraphToolHandlers
         {
             var indexer = ResolveIndexer(repo_id);
             var dot = await indexer.Visualization.ExportDotAsync(cancellationToken).ConfigureAwait(false);
-            return McpResultBuilder.Success().WithText(dot).Build();
+            return ToolResultBuilder.Success().WithText(dot).Build();
         }
         catch (Exception ex)
         {
-            return McpResultBuilder.Error().WithText($"DOT export failed: {ex.Message}").Build();
+            return ToolResultBuilder.Error().WithText($"DOT export failed: {ex.Message}").Build();
         }
     }
 
@@ -274,11 +274,11 @@ public sealed class GraphToolHandlers
         {
             var indexer = ResolveIndexer(repo_id);
             var html = await indexer.Visualization.ExportHtmlAsync(cancellationToken).ConfigureAwait(false);
-            return McpResultBuilder.Success().WithText(html).Build();
+            return ToolResultBuilder.Success().WithText(html).Build();
         }
         catch (Exception ex)
         {
-            return McpResultBuilder.Error().WithText($"HTML export failed: {ex.Message}").Build();
+            return ToolResultBuilder.Error().WithText($"HTML export failed: {ex.Message}").Build();
         }
     }
 
@@ -291,11 +291,11 @@ public sealed class GraphToolHandlers
         {
             var indexer = ResolveIndexer(repo_id);
             var wiki = await indexer.Visualization.ExportWikiAsync(cancellationToken).ConfigureAwait(false);
-            return McpResultBuilder.Success().WithText(wiki).Build();
+            return ToolResultBuilder.Success().WithText(wiki).Build();
         }
         catch (Exception ex)
         {
-            return McpResultBuilder.Error().WithText($"Wiki export failed: {ex.Message}").Build();
+            return ToolResultBuilder.Error().WithText($"Wiki export failed: {ex.Message}").Build();
         }
     }
 
@@ -307,7 +307,7 @@ public sealed class GraphToolHandlers
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(query))
-            return McpResultBuilder.Error().WithText("query cannot be empty.").Build();
+            return ToolResultBuilder.Error().WithText("query cannot be empty.").Build();
 
         try
         {
@@ -327,11 +327,11 @@ public sealed class GraphToolHandlers
                     sb.AppendLine($"   Related: {string.Join(", ", m.RelatedSymbols.Take(5))}");
             }
 
-            return McpResultBuilder.Success().WithText(sb.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
         }
         catch (Exception ex)
         {
-            return McpResultBuilder.Error().WithText($"Graph query failed: {ex.Message}").Build();
+            return ToolResultBuilder.Error().WithText($"Graph query failed: {ex.Message}").Build();
         }
     }
 
@@ -343,9 +343,9 @@ public sealed class GraphToolHandlers
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(from_symbol))
-            return McpResultBuilder.Error().WithText("from_symbol cannot be empty.").Build();
+            return ToolResultBuilder.Error().WithText("from_symbol cannot be empty.").Build();
         if (string.IsNullOrWhiteSpace(to_symbol))
-            return McpResultBuilder.Error().WithText("to_symbol cannot be empty.").Build();
+            return ToolResultBuilder.Error().WithText("to_symbol cannot be empty.").Build();
 
         try
         {
@@ -353,7 +353,7 @@ public sealed class GraphToolHandlers
             var result = await indexer.Analytics.FindPathAsync(from_symbol, to_symbol, cancellationToken).ConfigureAwait(false);
 
             if (!result.PathFound)
-                return McpResultBuilder.Success().WithText($"No path found from '{result.FromSymbol}' to '{result.ToSymbol}'.").Build();
+                return ToolResultBuilder.Success().WithText($"No path found from '{result.FromSymbol}' to '{result.ToSymbol}'.").Build();
 
             var sb = new System.Text.StringBuilder();
             sb.AppendLine($"Path from '{result.FromSymbol}' to '{result.ToSymbol}' (length={result.PathLength}):");
@@ -366,11 +366,11 @@ public sealed class GraphToolHandlers
                     sb.AppendLine($"     └─[{result.PathEdges[i].CallKind}]→");
             }
 
-            return McpResultBuilder.Success().WithText(sb.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
         }
         catch (Exception ex)
         {
-            return McpResultBuilder.Error().WithText($"Path search failed: {ex.Message}").Build();
+            return ToolResultBuilder.Error().WithText($"Path search failed: {ex.Message}").Build();
         }
     }
 
@@ -381,7 +381,7 @@ public sealed class GraphToolHandlers
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(symbol_name))
-            return McpResultBuilder.Error().WithText("symbol_name cannot be empty.").Build();
+            return ToolResultBuilder.Error().WithText("symbol_name cannot be empty.").Build();
 
         try
         {
@@ -436,11 +436,11 @@ public sealed class GraphToolHandlers
                     sb.AppendLine($"  ... and {result.SameFile.Count - 10} more");
             }
 
-            return McpResultBuilder.Success().WithText(sb.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
         }
         catch (Exception ex)
         {
-            return McpResultBuilder.Error().WithText($"Explain failed: {ex.Message}").Build();
+            return ToolResultBuilder.Error().WithText($"Explain failed: {ex.Message}").Build();
         }
     }
 
@@ -451,25 +451,25 @@ public sealed class GraphToolHandlers
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(repo_id))
-            return McpResultBuilder.Error().WithText("repo_id cannot be empty.").Build();
+            return ToolResultBuilder.Error().WithText("repo_id cannot be empty.").Build();
         if (string.IsNullOrWhiteSpace(workspace_root))
-            return McpResultBuilder.Error().WithText("workspace_root cannot be empty.").Build();
+            return ToolResultBuilder.Error().WithText("workspace_root cannot be empty.").Build();
 
         if (_registry is null)
-            return McpResultBuilder.Error().WithText("Multi-repo registry is not available.").Build();
+            return ToolResultBuilder.Error().WithText("Multi-repo registry is not available.").Build();
 
         try
         {
             var reg = await _registry.RegisterAsync(repo_id, workspace_root, cancellationToken).ConfigureAwait(false);
-            return McpResultBuilder.Success().WithText($"Repository '{reg.RepoId}' registered (root: {reg.WorkspaceRoot}).").Build();
+            return ToolResultBuilder.Success().WithText($"Repository '{reg.RepoId}' registered (root: {reg.WorkspaceRoot}).").Build();
         }
         catch (InvalidOperationException ex)
         {
-            return McpResultBuilder.Error().WithText(ex.Message).Build();
+            return ToolResultBuilder.Error().WithText(ex.Message).Build();
         }
         catch (Exception ex)
         {
-            return McpResultBuilder.Error().WithText($"Register failed: {ex.Message}").Build();
+            return ToolResultBuilder.Error().WithText($"Register failed: {ex.Message}").Build();
         }
     }
 
@@ -479,21 +479,21 @@ public sealed class GraphToolHandlers
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(repo_id))
-            return McpResultBuilder.Error().WithText("repo_id cannot be empty.").Build();
+            return ToolResultBuilder.Error().WithText("repo_id cannot be empty.").Build();
 
         if (_registry is null)
-            return McpResultBuilder.Error().WithText("Multi-repo registry is not available.").Build();
+            return ToolResultBuilder.Error().WithText("Multi-repo registry is not available.").Build();
 
         try
         {
             var removed = await _registry.UnregisterAsync(repo_id, cancellationToken).ConfigureAwait(false);
             return removed
-                ? McpResultBuilder.Success().WithText($"Repository '{repo_id}' unregistered.").Build()
-                : McpResultBuilder.Error().WithText($"Repository '{repo_id}' not found.").Build();
+                ? ToolResultBuilder.Success().WithText($"Repository '{repo_id}' unregistered.").Build()
+                : ToolResultBuilder.Error().WithText($"Repository '{repo_id}' not found.").Build();
         }
         catch (Exception ex)
         {
-            return McpResultBuilder.Error().WithText($"Unregister failed: {ex.Message}").Build();
+            return ToolResultBuilder.Error().WithText($"Unregister failed: {ex.Message}").Build();
         }
     }
 
@@ -502,7 +502,7 @@ public sealed class GraphToolHandlers
         CancellationToken cancellationToken = default)
     {
         if (_registry is null)
-            return McpResultBuilder.Success().WithText("Multi-repo not available. Only default repository is in use.").Build();
+            return ToolResultBuilder.Success().WithText("Multi-repo not available. Only default repository is in use.").Build();
 
         try
         {
@@ -518,11 +518,11 @@ public sealed class GraphToolHandlers
                 sb.AppendLine($"  {repo.RepoId}{marker}: {repo.WorkspaceRoot}");
             }
 
-            return McpResultBuilder.Success().WithText(sb.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
         }
         catch (Exception ex)
         {
-            return McpResultBuilder.Error().WithText($"List repos failed: {ex.Message}").Build();
+            return ToolResultBuilder.Error().WithText($"List repos failed: {ex.Message}").Build();
         }
     }
 }

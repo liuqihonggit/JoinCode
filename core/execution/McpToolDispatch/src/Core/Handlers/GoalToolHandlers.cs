@@ -25,7 +25,7 @@ public sealed class GoalToolHandlers
 
         if (state == null)
         {
-            return Task.FromResult(McpResultBuilder.Success()
+            return Task.FromResult(ToolResultBuilder.Success()
                 .WithText("No active goal")
                 .Build());
         }
@@ -47,7 +47,7 @@ public sealed class GoalToolHandlers
             response.AppendLine($"Last evaluation: {(state.LastEvaluation.IsCompleted ? "COMPLETED" : "NOT COMPLETED")} — {state.LastEvaluation.Reason}");
         }
 
-        return Task.FromResult(McpResultBuilder.Success()
+        return Task.FromResult(ToolResultBuilder.Success()
             .WithText(response.ToString())
             .Build());
     }
@@ -58,27 +58,27 @@ public sealed class GoalToolHandlers
     /// </summary>
     [McpTool(SystemToolNameConstants.GoalUpdate, "Update the current goal status. The model can mark a goal as achieved or unmet. Only 'achieved' and 'unmet' statuses are allowed via this tool.", "goal")]
     public async Task<ToolResult> UpdateGoalAsync(
-        [McpToolParameter("New status for the goal. Must be 'achieved' or 'unmet'.", Required = true, EnumValues = new[] { "achieved", "unmet" })] string status,
+        [McpToolParameter("New status for the goal. Must be 'achieved' or 'unmet'.", Required = true, EnumValues = new[] { GoalStatusConstants.Achieved, GoalStatusConstants.Unmet })] string status,
         [McpToolParameter("Reason for the status change", Required = true)] string reason,
         CancellationToken cancellationToken = default)
     {
         if (_goalEngine.CurrentState == null)
         {
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText("No active goal to update")
                 .Build();
         }
 
         if (string.IsNullOrWhiteSpace(status))
         {
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText("status is required. Must be 'achieved' or 'unmet'")
                 .Build();
         }
 
         if (string.IsNullOrWhiteSpace(reason))
         {
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText("reason is required")
                 .Build();
         }
@@ -98,13 +98,13 @@ public sealed class GoalToolHandlers
                 break;
 
             default:
-                return McpResultBuilder.Error()
+                return ToolResultBuilder.Error()
                     .WithText($"Invalid status: '{status}'. Must be 'achieved' or 'unmet'")
                     .Build();
         }
 
         var finalStatus = _goalEngine.CurrentState?.Status.ToString() ?? status;
-        return McpResultBuilder.Success()
+        return ToolResultBuilder.Success()
             .WithText($"Goal updated: {objective} → {finalStatus} ({reason})")
             .Build();
     }
@@ -124,13 +124,13 @@ public sealed class GoalToolHandlers
         {
             _goalEngine.SetGraphDefinition(nodes, edges, start_node_id, end_node_ids);
 
-            return Task.FromResult(McpResultBuilder.Success()
+            return Task.FromResult(ToolResultBuilder.Success()
                 .WithText($"Graph defined successfully. Start: {start_node_id}, Ends: {end_node_ids}. The graph will execute when the goal loop continues.")
                 .Build());
         }
         catch (Exception ex)
         {
-            return Task.FromResult(McpResultBuilder.Error()
+            return Task.FromResult(ToolResultBuilder.Error()
                 .WithText($"Failed to define graph: {ex.Message}")
                 .Build());
         }

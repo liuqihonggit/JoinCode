@@ -13,7 +13,7 @@ public interface ISubAgentCoordinator
     /// <summary>
     /// 并行执行多个子代理
     /// </summary>
-    Task<IReadOnlyList<SubAgentResult>> ExecuteParallelAsync(IEnumerable<IAgent> agents, ParallelOptions? options = null, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<SubAgentResult>> ExecuteParallelAsync(IEnumerable<IAgent> agents, ParallelOptions? options = null, ClusterExecutionOptions? clusterOptions = null, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 释放子代理资源

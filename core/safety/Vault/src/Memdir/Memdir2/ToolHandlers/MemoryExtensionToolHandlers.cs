@@ -33,7 +33,7 @@ public class MemoryExtensionToolHandlers
     {
         if (string.IsNullOrWhiteSpace(content))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.VaultContentCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.VaultContentCannotBeEmpty)).Build();
         }
 
         var categoryValue = DailyLogCategoryExtensions.FromValue(category) ?? DailyLogCategory.Observation;
@@ -53,7 +53,7 @@ public class MemoryExtensionToolHandlers
 
         response.AppendLine(L.T(StringKey.VaultLabelTime, entry.Timestamp.ToString("yyyy-MM-dd HH:mm:ss")));
 
-        return McpResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     /// <summary>
@@ -68,12 +68,12 @@ public class MemoryExtensionToolHandlers
 
         if (string.IsNullOrWhiteSpace(dailyLogPrompt))
         {
-            return McpResultBuilder.Success()
+            return ToolResultBuilder.Success()
                 .WithText(L.T(StringKey.VaultNoDailyLogToday, ObjectSymbol.DiamondOpen.ToValue()))
                 .Build();
         }
 
-        return McpResultBuilder.Success()
+        return ToolResultBuilder.Success()
             .WithText($"{L.T(StringKey.VaultDailyLogToday, ObjectSymbol.DiamondOpen.ToValue())}{Environment.NewLine}{Environment.NewLine}{dailyLogPrompt}")
             .Build();
     }
@@ -89,7 +89,7 @@ public class MemoryExtensionToolHandlers
     {
         if (string.IsNullOrWhiteSpace(query))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.VaultQueryCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.VaultQueryCannotBeEmpty)).Build();
         }
 
         var results = await _memoryManagementService.SearchPastConversationsAsync(
@@ -133,7 +133,7 @@ public class MemoryExtensionToolHandlers
             }
         }
 
-        return McpResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     /// <summary>
@@ -146,12 +146,12 @@ public class MemoryExtensionToolHandlers
     {
         if (string.IsNullOrWhiteSpace(team_id))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.VaultTeamIdCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.VaultTeamIdCannotBeEmpty)).Build();
         }
 
         if (_teamMemorySyncService is null)
         {
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText(L.T(StringKey.VaultTeamSyncServiceNotRegistered))
                 .Build();
         }
@@ -189,7 +189,7 @@ public class MemoryExtensionToolHandlers
             }
         }
 
-        return McpResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     /// <summary>
@@ -202,12 +202,12 @@ public class MemoryExtensionToolHandlers
     {
         if (string.IsNullOrWhiteSpace(team_id))
         {
-            return Task.FromResult(McpResultBuilder.Error().WithText(L.T(StringKey.VaultTeamIdCannotBeEmpty)).Build());
+            return Task.FromResult(ToolResultBuilder.Error().WithText(L.T(StringKey.VaultTeamIdCannotBeEmpty)).Build());
         }
 
         if (_teamMemorySyncService is null)
         {
-            return Task.FromResult(McpResultBuilder.Error()
+            return Task.FromResult(ToolResultBuilder.Error()
                 .WithText(L.T(StringKey.VaultTeamSyncServiceNotRegisteredStatus))
                 .Build());
         }
@@ -216,7 +216,7 @@ public class MemoryExtensionToolHandlers
 
         if (status is null)
         {
-            return Task.FromResult(McpResultBuilder.Success()
+            return Task.FromResult(ToolResultBuilder.Success()
                 .WithText(L.T(StringKey.VaultTeamNeverSynced, team_id))
                 .Build());
         }
@@ -229,6 +229,6 @@ public class MemoryExtensionToolHandlers
         response.AppendLine(L.T(StringKey.VaultLabelSyncedMemories, status.SyncedMemoryCount));
         response.AppendLine(L.T(StringKey.VaultLabelHasConflicts, status.HasConflicts ? $"{StatusSymbol.Warning.ToValue()} {L.T(StringKey.VaultYes)} ({status.Conflicts.Count})" : L.T(StringKey.VaultNo)));
 
-        return Task.FromResult(McpResultBuilder.Success().WithText(response.ToString()).Build());
+        return Task.FromResult(ToolResultBuilder.Success().WithText(response.ToString()).Build());
     }
 }

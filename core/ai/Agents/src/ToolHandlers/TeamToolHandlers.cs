@@ -31,7 +31,7 @@ public class TeamToolHandlers
         var validationError = ValidateCommand(command);
         if (validationError != null)
         {
-            return McpResultBuilder.Error().WithText(validationError).Build();
+            return ToolResultBuilder.Error().WithText(validationError).Build();
         }
 
         var result = await _teamManager.CreateTeamAsync(
@@ -43,12 +43,12 @@ public class TeamToolHandlers
         if (!result.Success)
         {
             RecordTeamMetrics("create", "failed");
-            return McpResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.TeamCreateFailed)).Build();
+            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.TeamCreateFailed)).Build();
         }
 
         var response = FormatTeamResponse(result.Data ?? throw new InvalidOperationException("Team creation succeeded but no data was returned."), L.T(StringKey.TeamCreated));
         RecordTeamMetrics("create", "ok");
-        return McpResultBuilder.Success().WithText(response).Build();
+        return ToolResultBuilder.Success().WithText(response).Build();
     }
 
     /// <summary>
@@ -63,18 +63,18 @@ public class TeamToolHandlers
         var validationError = ValidateCommand(command);
         if (validationError != null)
         {
-            return McpResultBuilder.Error().WithText(validationError).Build();
+            return ToolResultBuilder.Error().WithText(validationError).Build();
         }
 
         var result = await _teamManager.DeleteTeamAsync(command.TeamId, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
-            return McpResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.TeamDeleteFailed)).Build();
+            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.TeamDeleteFailed)).Build();
         }
 
         var response = L.T(StringKey.TeamDeleted, command.TeamId);
-        return McpResultBuilder.Success().WithText(response).Build();
+        return ToolResultBuilder.Success().WithText(response).Build();
     }
 
     /// <summary>
@@ -89,18 +89,18 @@ public class TeamToolHandlers
         var validationError = ValidateCommand(command);
         if (validationError != null)
         {
-            return McpResultBuilder.Error().WithText(validationError).Build();
+            return ToolResultBuilder.Error().WithText(validationError).Build();
         }
 
         var team = await _teamManager.GetTeamAsync(command.TeamId, cancellationToken).ConfigureAwait(false);
 
         if (team == null)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.TeamNotFound, command.TeamId)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.TeamNotFound, command.TeamId)).Build();
         }
 
         var response = FormatTeamResponse(team, L.T(StringKey.TeamInfo));
-        return McpResultBuilder.Success().WithText(response).Build();
+        return ToolResultBuilder.Success().WithText(response).Build();
     }
 
     /// <summary>
@@ -128,7 +128,7 @@ public class TeamToolHandlers
             }
         }
 
-        return McpResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     /// <summary>
@@ -144,7 +144,7 @@ public class TeamToolHandlers
         var validationError = ValidateCommand(command);
         if (validationError != null)
         {
-            return McpResultBuilder.Error().WithText(validationError).Build();
+            return ToolResultBuilder.Error().WithText(validationError).Build();
         }
 
         var result = await _teamManager.AddTeamMemberAsync(
@@ -154,11 +154,11 @@ public class TeamToolHandlers
 
         if (!result.Success)
         {
-            return McpResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.AddMemberFailed)).Build();
+            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.AddMemberFailed)).Build();
         }
 
         var response = L.T(StringKey.MemberAdded, command.TeamId, command.AgentId);
-        return McpResultBuilder.Success().WithText(response).Build();
+        return ToolResultBuilder.Success().WithText(response).Build();
     }
 
     /// <summary>
@@ -174,7 +174,7 @@ public class TeamToolHandlers
         var validationError = ValidateCommand(command);
         if (validationError != null)
         {
-            return McpResultBuilder.Error().WithText(validationError).Build();
+            return ToolResultBuilder.Error().WithText(validationError).Build();
         }
 
         var result = await _teamManager.RemoveTeamMemberAsync(
@@ -184,11 +184,11 @@ public class TeamToolHandlers
 
         if (!result.Success)
         {
-            return McpResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.RemoveMemberFailed)).Build();
+            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.RemoveMemberFailed)).Build();
         }
 
         var response = L.T(StringKey.MemberRemoved, command.TeamId, command.AgentId);
-        return McpResultBuilder.Success().WithText(response).Build();
+        return ToolResultBuilder.Success().WithText(response).Build();
     }
 
     /// <summary>
@@ -206,7 +206,7 @@ public class TeamToolHandlers
         var validationError = ValidateCommand(command);
         if (validationError != null)
         {
-            return McpResultBuilder.Error().WithText(validationError).Build();
+            return ToolResultBuilder.Error().WithText(validationError).Build();
         }
 
         var result = await _teamManager.SendMessageAsync(
@@ -219,12 +219,12 @@ public class TeamToolHandlers
         if (!result.Success)
         {
             RecordTeamMetrics("send_message", "failed");
-            return McpResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.SendMessageFailed)).Build();
+            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.SendMessageFailed)).Build();
         }
 
         var response = L.T(StringKey.MessageSentToTeam, command.TeamId, command.SenderId);
         RecordTeamMetrics("send_message", "ok");
-        return McpResultBuilder.Success().WithText(response).Build();
+        return ToolResultBuilder.Success().WithText(response).Build();
     }
 
     /// <summary>
@@ -242,7 +242,7 @@ public class TeamToolHandlers
         var validationError = ValidateCommand(command);
         if (validationError != null)
         {
-            return McpResultBuilder.Error().WithText(validationError).Build();
+            return ToolResultBuilder.Error().WithText(validationError).Build();
         }
 
         var result = await _teamManager.SendMessageToAgentAsync(
@@ -254,11 +254,11 @@ public class TeamToolHandlers
 
         if (!result.Success)
         {
-            return McpResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.DirectMessageFailed)).Build();
+            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.DirectMessageFailed)).Build();
         }
 
         var response = L.T(StringKey.DirectMessageSent, command.TargetAgentId, command.SenderId);
-        return McpResultBuilder.Success().WithText(response).Build();
+        return ToolResultBuilder.Success().WithText(response).Build();
     }
 
     /// <summary>
@@ -276,7 +276,7 @@ public class TeamToolHandlers
         var validationError = ValidateCommand(command);
         if (validationError != null)
         {
-            return McpResultBuilder.Error().WithText(validationError).Build();
+            return ToolResultBuilder.Error().WithText(validationError).Build();
         }
 
         var result = await _teamManager.BroadcastMessageAsync(
@@ -288,11 +288,11 @@ public class TeamToolHandlers
 
         if (!result.Success)
         {
-            return McpResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.BroadcastFailed)).Build();
+            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.BroadcastFailed)).Build();
         }
 
         var response = L.T(StringKey.BroadcastSent, command.TeamId, command.SenderId);
-        return McpResultBuilder.Success().WithText(response).Build();
+        return ToolResultBuilder.Success().WithText(response).Build();
     }
 
     /// <summary>
@@ -308,7 +308,7 @@ public class TeamToolHandlers
         var validationError = ValidateCommand(command);
         if (validationError != null)
         {
-            return McpResultBuilder.Error().WithText(validationError).Build();
+            return ToolResultBuilder.Error().WithText(validationError).Build();
         }
 
         var messages = await _teamManager.GetTeamMessagesAsync(
@@ -333,7 +333,7 @@ public class TeamToolHandlers
             }
         }
 
-        return McpResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     #region Private Methods

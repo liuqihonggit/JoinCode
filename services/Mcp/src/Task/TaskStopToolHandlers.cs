@@ -29,7 +29,7 @@ public partial class TaskStopToolHandlers
     {
         var id = task_id ?? shell_id;
         if (string.IsNullOrWhiteSpace(id))
-            return McpResultBuilder.Error().WithText("Missing required parameter: task_id").Build();
+            return ToolResultBuilder.Error().WithText("Missing required parameter: task_id").Build();
 
         try
         {
@@ -40,7 +40,7 @@ public partial class TaskStopToolHandlers
             var agentMatch = runningAgents.FirstOrDefault(a => a.Id == id);
 
             if (taskMatch is null && agentMatch is null)
-                return McpResultBuilder.Error().WithText($"No task found with ID: {id}").Build();
+                return ToolResultBuilder.Error().WithText($"No task found with ID: {id}").Build();
 
             string? taskType = null;
             string? command = null;
@@ -68,7 +68,7 @@ public partial class TaskStopToolHandlers
                 Command: command
             );
 
-            return McpResultBuilder.Success()
+            return ToolResultBuilder.Success()
                 .WithText(System.Text.Json.JsonSerializer.Serialize(output, TaskStopOutputContext.Default.TaskStopOutput))
                 .Build();
         }
@@ -76,7 +76,7 @@ public partial class TaskStopToolHandlers
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Failed to stop task {TaskId}", id);
-            return McpResultBuilder.Error().WithText($"Failed to stop task: {ex.Message}").Build();
+            return ToolResultBuilder.Error().WithText($"Failed to stop task: {ex.Message}").Build();
         }
     }
 
@@ -86,7 +86,7 @@ public partial class TaskStopToolHandlers
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(task_ids))
-            return McpResultBuilder.Error().WithText("task_ids cannot be empty").Build();
+            return ToolResultBuilder.Error().WithText("task_ids cannot be empty").Build();
 
         var ids = task_ids.Split(',', StringSplitOptions.RemoveEmptyEntries)
             .Select(static id => id.Trim())
@@ -94,7 +94,7 @@ public partial class TaskStopToolHandlers
             .ToList();
 
         if (ids.Count == 0)
-            return McpResultBuilder.Error().WithText("No valid task IDs provided").Build();
+            return ToolResultBuilder.Error().WithText("No valid task IDs provided").Build();
 
         var tasks = ids.Select(async id =>
         {
@@ -120,7 +120,7 @@ public partial class TaskStopToolHandlers
             return $"{icon} {r.Id}: {r.Detail}";
         })));
 
-        var builder = results.All(r => r.Success) ? McpResultBuilder.Success() : McpResultBuilder.Error();
+        var builder = results.All(r => r.Success) ? ToolResultBuilder.Success() : ToolResultBuilder.Error();
         return builder.WithText(sb.ToString()).Build();
     }
 
@@ -182,7 +182,7 @@ public partial class TaskStopToolHandlers
         if (!hasAny)
             sb.AppendLine("No running tasks or agents");
 
-        return McpResultBuilder.Success().WithText(sb.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
     }
 }
 

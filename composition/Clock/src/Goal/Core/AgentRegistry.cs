@@ -10,7 +10,7 @@ using JoinCode.Abstractions.Models.Agent;
 public sealed class AgentRegistry : IAgentRegistry
 {
     private readonly ConcurrentDictionary<string, AgentDescriptor> _agents = new(StringComparer.Ordinal);
-    private readonly ConcurrentDictionary<string, List<AgentDescriptor>> _subAgentMap = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, Dictionary<string, AgentDescriptor>> _subAgentMap = new(StringComparer.Ordinal);
     private readonly ILogger<AgentRegistry>? _logger;
 
     public AgentRegistry(ILogger<AgentRegistry>? logger = null)
@@ -24,7 +24,7 @@ public sealed class AgentRegistry : IAgentRegistry
     public IReadOnlyDictionary<string, IReadOnlyList<AgentDescriptor>> SubAgentMap
         => _subAgentMap.ToFrozenDictionary(
             kvp => kvp.Key,
-            kvp => (IReadOnlyList<AgentDescriptor>)kvp.Value.AsReadOnly(),
+            kvp => (IReadOnlyList<AgentDescriptor>)kvp.Value.Values.ToList().AsReadOnly(),
             StringComparer.Ordinal);
 
     public AgentDescriptor Register(AgentDescriptor agent)
@@ -41,8 +41,8 @@ public sealed class AgentRegistry : IAgentRegistry
         {
             _subAgentMap.AddOrUpdate(
                 agent.ParentAgentId,
-                _ => [agent],
-                (_, list) => { list.Add(agent); return list; });
+                _ => new Dictionary<string, AgentDescriptor> { [agent.Id] = agent },
+                (_, dict) => { dict[agent.Id] = agent; return dict; });
         }
 
         _logger?.LogDebug("[AgentRegistry] 注册 Agent: {AgentId} ({Name}, IsSub={IsSub}, Parent={ParentId}, Goal={GoalId})",
@@ -62,7 +62,7 @@ public sealed class AgentRegistry : IAgentRegistry
             {
                 lock (siblings)
                 {
-                    siblings.RemoveAll(a => a.Id == agentId);
+                    siblings.Remove(agentId);
                 }
             }
         }
@@ -89,7 +89,7 @@ public sealed class AgentRegistry : IAgentRegistry
         => [.. _agents.Values.Where(a => !a.IsSubAgent)];
 
     public IReadOnlyList<AgentDescriptor> GetSubAgents(string mainAgentId)
-        => _subAgentMap.TryGetValue(mainAgentId, out var list) ? list.AsReadOnly() : [];
+        => _subAgentMap.TryGetValue(mainAgentId, out var dict) ? dict.Values.ToList() : [];
 
     public IReadOnlyList<AgentDescriptor> GetByGoalId(string goalId)
         => [.. _agents.Values.Where(a => a.GoalId == goalId)];

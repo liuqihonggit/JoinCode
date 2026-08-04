@@ -39,11 +39,11 @@ public sealed partial class PermissionChecker : IPermissionChecker
         _config.AutoRejectedTools ??= [];
 
         _autoApprovedTools = _config.AutoApprovedTools
-            .Select(r => r.ToolName)
+            .Keys
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         _autoRejectedTools = _config.AutoRejectedTools
-            .Select(r => r.ToolName)
+            .Keys
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
     }
 
@@ -141,7 +141,7 @@ public sealed partial class PermissionChecker : IPermissionChecker
     public void AddToAutoApproved(string toolName)
     {
         _autoApprovedTools.Add(toolName);
-        _config.AutoApprovedTools.Add(new ToolPermissionRule { ToolName = toolName });
+        _config.AutoApprovedTools[toolName] = new ToolPermissionRule { ToolName = toolName };
     }
 
     /// <summary>
@@ -158,12 +158,12 @@ public sealed partial class PermissionChecker : IPermissionChecker
 
         // 域名级规则: 不添加工具名到 HashSet（避免无条件批准所有域名）
         // 只添加带 RuleContent 的规则到配置列表
-        _config.AutoApprovedTools.Add(new ToolPermissionRule
+        _config.AutoApprovedTools[toolName] = new ToolPermissionRule
         {
             ToolName = toolName,
             RuleContent = ruleContent,
             Description = $"Auto-approved: {ruleContent}"
-        });
+        };
     }
 
     /// <summary>
@@ -220,7 +220,7 @@ public sealed partial class PermissionChecker : IPermissionChecker
     public void AddToAutoRejected(string toolName)
     {
         _autoRejectedTools.Add(toolName);
-        _config.AutoRejectedTools.Add(new ToolPermissionRule { ToolName = toolName });
+        _config.AutoRejectedTools[toolName] = new ToolPermissionRule { ToolName = toolName };
     }
 
     /// <summary>
@@ -229,8 +229,7 @@ public sealed partial class PermissionChecker : IPermissionChecker
     public void RemoveFromAutoApproved(string toolName)
     {
         _autoApprovedTools.Remove(toolName);
-        _config.AutoApprovedTools.RemoveAll(r =>
-            r.ToolName.Equals(toolName, StringComparison.OrdinalIgnoreCase));
+        _config.AutoApprovedTools.Remove(toolName);
     }
 
     /// <summary>
@@ -239,7 +238,6 @@ public sealed partial class PermissionChecker : IPermissionChecker
     public void RemoveFromAutoRejected(string toolName)
     {
         _autoRejectedTools.Remove(toolName);
-        _config.AutoRejectedTools.RemoveAll(r =>
-            r.ToolName.Equals(toolName, StringComparison.OrdinalIgnoreCase));
+        _config.AutoRejectedTools.Remove(toolName);
     }
 }

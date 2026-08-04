@@ -22,7 +22,7 @@ public class BriefToolHandlers
         // 对齐 TS: Entitlement check only gates the on-transition — off is always allowed
         if (enabled && _entitlementService is not null && !_entitlementService.IsBriefEntitled)
         {
-            return Task.FromResult(McpResultBuilder.Error().WithText("Brief tool is not enabled for your account").Build());
+            return Task.FromResult(ToolResultBuilder.Error().WithText("Brief tool is not enabled for your account").Build());
         }
 
         var wasEnabled = _briefModeService.IsEnabled;
@@ -40,7 +40,7 @@ public class BriefToolHandlers
         else
             sb.AppendLine(isNowEnabled ? "Brief mode already enabled" : "Brief mode already disabled");
 
-        return Task.FromResult(McpResultBuilder.Success().WithText(sb.ToString()).Build());
+        return Task.FromResult(ToolResultBuilder.Success().WithText(sb.ToString()).Build());
     }
 
     [McpTool(SystemToolNameConstants.BriefStatus, "Get current brief mode status", "mode")]
@@ -54,7 +54,7 @@ public class BriefToolHandlers
         if (status.EnabledAt.HasValue)
             sb.AppendLine($"Enabled at: {status.EnabledAt.Value:yyyy-MM-dd HH:mm:ss}");
 
-        return Task.FromResult(McpResultBuilder.Success().WithText(sb.ToString()).Build());
+        return Task.FromResult(ToolResultBuilder.Success().WithText(sb.ToString()).Build());
     }
 
     [McpTool(SystemToolNameConstants.SendUserMessage, "Send a message to the user, supports markdown and file attachments", "messaging")]
@@ -67,21 +67,21 @@ public class BriefToolHandlers
         // 对齐 TS: isBriefEnabled() — 需要 entitlement + userMsgOptIn
         if (_entitlementService is not null && !_entitlementService.IsBriefEnabled)
         {
-            return Task.FromResult(McpResultBuilder.Error().WithText("Brief tool is not currently enabled").Build());
+            return Task.FromResult(ToolResultBuilder.Error().WithText("Brief tool is not currently enabled").Build());
         }
 
         if (_briefService == null)
-            return Task.FromResult(McpResultBuilder.Error().WithText("Brief service not initialized").Build());
+            return Task.FromResult(ToolResultBuilder.Error().WithText("Brief service not initialized").Build());
 
         if (string.IsNullOrWhiteSpace(message))
-            return Task.FromResult(McpResultBuilder.Error().WithText("Message cannot be empty").Build());
+            return Task.FromResult(ToolResultBuilder.Error().WithText("Message cannot be empty").Build());
 
         if (attachments is not null)
         {
             foreach (var path in attachments)
             {
                 if (string.IsNullOrWhiteSpace(path))
-                    return Task.FromResult(McpResultBuilder.Error().WithText("Attachment path cannot be empty").Build());
+                    return Task.FromResult(ToolResultBuilder.Error().WithText("Attachment path cannot be empty").Build());
             }
         }
 
@@ -94,13 +94,13 @@ public class BriefToolHandlers
             var attachmentCount = attachments?.Length ?? 0;
             var suffix = attachmentCount > 0 ? $" ({attachmentCount} attachment{(attachmentCount > 1 ? "s" : "")} included)" : "";
 
-            return Task.FromResult(McpResultBuilder.Success()
+            return Task.FromResult(ToolResultBuilder.Success()
                 .WithText($"Message delivered to user.{suffix}")
                 .Build());
         }
         catch (Exception ex)
         {
-            return Task.FromResult(McpResultBuilder.Error().WithText($"Failed to send message: {ex.Message}").Build());
+            return Task.FromResult(ToolResultBuilder.Error().WithText($"Failed to send message: {ex.Message}").Build());
         }
     }
 }

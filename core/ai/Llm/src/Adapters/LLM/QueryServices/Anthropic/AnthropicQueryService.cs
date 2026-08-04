@@ -446,23 +446,7 @@ public sealed class AnthropicQueryService : QueryServiceBase
         var json = JsonSerializer.Serialize(request, AnthropicJsonContext.Default.AnthropicMessagesRequest);
         var endpoint = GetChatEndpoint(Config);
 
-        HttpResponseMessage response;
-        if (ResilientExecutor is not null)
-        {
-            response = await ResilientExecutor.ExecuteAsync(
-                async ct =>
-                {
-                    var content = new StringContent(json, Encoding.UTF8, "application/json");
-                    return await HttpClient.PostAsync(endpoint, content, ct).ConfigureAwait(false);
-                },
-                "LLM.Anthropic.ChatCompletion",
-                cancellationToken).ConfigureAwait(false);
-        }
-        else
-        {
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-            response = await HttpClient.PostAsync(endpoint, content, cancellationToken).ConfigureAwait(false);
-        }
+        var response = await SendWithResilienceAsync(json, endpoint, "LLM.Anthropic.ChatCompletion", cancellationToken).ConfigureAwait(false);
 
         response.EnsureSuccessStatusCode();
 
@@ -598,23 +582,7 @@ public sealed class AnthropicQueryService : QueryServiceBase
         var json = JsonSerializer.Serialize(request, AnthropicJsonContext.Default.AnthropicMessagesRequest);
         var endpoint = GetChatEndpoint(Config);
 
-        HttpResponseMessage response;
-        if (ResilientExecutor is not null)
-        {
-            response = await ResilientExecutor.ExecuteAsync(
-                async ct =>
-                {
-                    var content = new StringContent(json, Encoding.UTF8, "application/json");
-                    return await HttpClient.PostAsync(endpoint, content, ct).ConfigureAwait(false);
-                },
-                "LLM.Anthropic.StreamingChatCompletion",
-                cancellationToken).ConfigureAwait(false);
-        }
-        else
-        {
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-            response = await HttpClient.PostAsync(endpoint, content, cancellationToken).ConfigureAwait(false);
-        }
+        var response = await SendWithResilienceAsync(json, endpoint, "LLM.Anthropic.StreamingChatCompletion", cancellationToken).ConfigureAwait(false);
 
         response.EnsureSuccessStatusCode();
 

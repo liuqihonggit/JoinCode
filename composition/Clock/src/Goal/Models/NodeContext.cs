@@ -13,6 +13,7 @@ public sealed class NodeContext
     public required GoalState GlobalState { get; init; }
     public required IServiceProvider Services { get; init; }
     public required CancellationToken CancellationToken { get; init; }
+    public IGoalGraphMutator? GraphMutator { get; init; }
 }
 
 /// <summary>

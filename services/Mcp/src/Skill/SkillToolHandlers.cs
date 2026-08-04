@@ -32,14 +32,14 @@ public class SkillToolHandlers
     {
         if (string.IsNullOrWhiteSpace(skill))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.SkillNameCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.SkillNameCannotBeEmpty)).Build();
         }
 
         var skillName = skill.TrimStart('/');
 
         if (!_skillService.SkillExists(skillName))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.SkillNotFound, skillName)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.SkillNotFound, skillName)).Build();
         }
 
         // 获取技能定义 — 在执行前检查执行模式
@@ -49,7 +49,7 @@ public class SkillToolHandlers
         var validation = ValidateSkillInvocation(skillName, skillDef);
         if (!validation.IsValid)
         {
-            return McpResultBuilder.Error().WithText(validation.Message ?? "Validation failed").Build();
+            return ToolResultBuilder.Error().WithText(validation.Message ?? "Validation failed").Build();
         }
 
         // fork 模式 — 对齐 TS SkillTool.executeForkedSkill
@@ -71,17 +71,18 @@ public class SkillToolHandlers
         Dictionary<string, JsonElement>? parameters = null;
         if (!string.IsNullOrEmpty(args))
         {
-            try
-            {
-                parameters = JsonSerializer.Deserialize(args, McpToolDispatchJsonContext.Default.DictionaryStringJsonElement);
-            }
-            catch (JsonException)
+            parameters = LlmJsonHelper.Deserialize(args, ContractsJsonContext.Default.DictionaryStringJsonElement, out var repairHint);
+            if (parameters is null)
             {
                 using var doc = JsonDocument.Parse($"{{\"args\":{JsonSerializer.Serialize(args, McpToolDispatchJsonContext.Default.String)}}}");
                 parameters = new Dictionary<string, JsonElement>
                 {
                     ["args"] = doc.RootElement.GetProperty("args").Clone()
                 };
+            }
+            else if (!string.IsNullOrEmpty(repairHint))
+            {
+                System.Diagnostics.Trace.WriteLine($"[Skill] args JSON repaired: {repairHint}");
             }
         }
 
@@ -110,12 +111,12 @@ public class SkillToolHandlers
                 response.AppendLine(L.T(StringKey.SkillExecutionSuccessNoOutput));
             }
 
-            return McpResultBuilder.Success().WithText(response.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(response.ToString()).Build();
         }
         else
         {
             response.AppendLine($"{L.T(StringKey.LabelError)} {result.ErrorMessage ?? L.T(StringKey.SkillExecutionFailed)}");
-            return McpResultBuilder.Error().WithText(response.ToString()).Build();
+            return ToolResultBuilder.Error().WithText(response.ToString()).Build();
         }
     }
 
@@ -129,7 +130,7 @@ public class SkillToolHandlers
         // 构建技能完整 prompt — 对齐 TS getPromptForCommand
         var skillContent = BuildSkillPromptContent(skillDef, args);
 
-        var toolResult = McpResultBuilder.Success()
+        var toolResult = ToolResultBuilder.Success()
             .WithText($"Skill '{skillName}' loaded. The skill instructions have been injected into the conversation.")
             .Build();
 
@@ -159,12 +160,12 @@ public class SkillToolHandlers
     {
         if (string.IsNullOrWhiteSpace(skill_name))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.SkillNameCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.SkillNameCannotBeEmpty)).Build();
         }
 
         if (!_skillService.SkillExists(skill_name))
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.SkillNotFound, skill_name)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.SkillNotFound, skill_name)).Build();
         }
 
         var ctx = new ExecutionContext(cancellationToken);
@@ -192,12 +193,12 @@ public class SkillToolHandlers
                 response.AppendLine(L.T(StringKey.SkillExecutionSuccessNoOutput));
             }
 
-            return McpResultBuilder.Success().WithText(response.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(response.ToString()).Build();
         }
         else
         {
             response.AppendLine($"{L.T(StringKey.LabelError)} {result.ErrorMessage ?? L.T(StringKey.SkillExecutionFailed)}");
-            return McpResultBuilder.Error().WithText(response.ToString()).Build();
+            return ToolResultBuilder.Error().WithText(response.ToString()).Build();
         }
     }
 
@@ -243,7 +244,7 @@ public class SkillToolHandlers
             response.AppendLine(L.T(StringKey.NoAvailableSkills));
         }
 
-        return McpResultBuilder.Success().WithText(response.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     /// <summary>
@@ -335,7 +336,7 @@ public class SkillToolHandlers
             {
                 resultBuilder.AppendLine();
                 resultBuilder.AppendLine($"Error: {errorMessage ?? "Unknown error"}");
-                return McpResultBuilder.Error().WithText(resultBuilder.ToString()).Build();
+                return ToolResultBuilder.Error().WithText(resultBuilder.ToString()).Build();
             }
 
             var output = responseBuilder.ToString();
@@ -346,7 +347,7 @@ public class SkillToolHandlers
                 resultBuilder.AppendLine(output);
             }
 
-            var toolResult = McpResultBuilder.Success().WithText(resultBuilder.ToString()).Build();
+            var toolResult = ToolResultBuilder.Success().WithText(resultBuilder.ToString()).Build();
 
             // 对齐 TS: onProgress 进度消息传递给 UI
             // TS 通过 renderToolUseProgressMessage 渲染子智能体的工具调用进度
@@ -363,7 +364,7 @@ public class SkillToolHandlers
         }
         catch (Exception ex)
         {
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText($"Forked skill execution failed for '{skillName}': {ex.Message}")
                 .Build();
         }

@@ -14,9 +14,10 @@ public class ShellExecutionServiceTests
     {
         var config = new ShellExecutionConfig();
         var fs = new IO.FileSystem.PhysicalFileSystem();
-        var bashProvider = new BashShellProvider(fs);
-        var psProvider = new PowerShellShellProvider(fs);
-        _service = new ShellExecutionService(config, fs, bashProvider, psProvider);
+
+        Core.DependencyInjection.ShellCapabilityInitializer.Initialize(fs);
+
+        _service = new ShellExecutionService(config, fs);
     }
 
     [Fact]

@@ -1,6 +1,6 @@
 namespace McpProtocol;
 
-public interface IToolHandler
+public interface IMcpProtocolHandler
 {
     string Name { get; }
     string Description { get; }

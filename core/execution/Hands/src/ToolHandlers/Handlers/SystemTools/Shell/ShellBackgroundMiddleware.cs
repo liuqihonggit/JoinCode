@@ -26,9 +26,9 @@ public sealed partial class ShellBackgroundMiddleware : IShellMiddleware
         // 对齐 TS spawnShellTask: 先启动进程，再立即转后台
         await using var cmdContext = await _shellExecutionService.StartWithBackgroundSupportAsync(
             context.Command,
+            context.Provider,
             context.Timeout,
             context.WorkingDirectory,
-            isPowerShell: context.IsPowerShell,
             shouldAutoBackground: false,
             disableSandbox: context.DangerouslyDisableSandbox == true,
             cancellationToken: ct).ConfigureAwait(false);
@@ -44,8 +44,8 @@ public sealed partial class ShellBackgroundMiddleware : IShellMiddleware
         var taskInfo = await _backgroundTaskService.RegisterContextAsync(
             cmdContext, context.WorkingDirectory, ct).ConfigureAwait(false);
 
-        var shellType = context.IsPowerShell ? "powershell" : "cmd";
-        RecordShellMetrics(shellType, "background", "ok");
+        var shellType = context.Provider.Type.ToValue();
+        ToolTelemetryHelper.RecordToolCount(_telemetryService, "shell.execution.count", new Dictionary<string, string> { ["shell"] = shellType, ["operation"] = "background", ["result"] = "ok" });
 
         var response = new StringBuilder();
         response.AppendLine("Background task created");
@@ -57,10 +57,8 @@ public sealed partial class ShellBackgroundMiddleware : IShellMiddleware
         response.AppendLine($"  - Get output: shell_background_output task_id=\"{taskInfo.TaskId}\"");
         response.AppendLine($"  - Cancel task: shell_background_cancel task_id=\"{taskInfo.TaskId}\"");
 
-        context.BackgroundResult = ResultBuilder.Success().WithText(response.ToString()).Build();
+        context.BackgroundResult = ToolResultBuilder.Success().WithText(response.ToString()).Build();
         context.Result = context.BackgroundResult;
     }
 
-    private void RecordShellMetrics(string shellType, string operation, string result)
-        => _telemetryService?.RecordCount("shell.execution.count", new Dictionary<string, string> { ["shell"] = shellType, ["operation"] = operation, ["result"] = result }, description: "Shell execution count");
 }

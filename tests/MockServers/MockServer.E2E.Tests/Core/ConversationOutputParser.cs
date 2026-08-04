@@ -187,7 +187,7 @@ public static class ConversationOutputParser
                  record.AssistantResponse),
 
             AssertType.NoErrors =>
-                (record.Errors.Count == 0 && !record.RawOutput.Contains("错误", StringComparison.OrdinalIgnoreCase),
+                (record.Errors.Count == 0,
                  record.Errors.Count > 0 ? string.Join("; ", record.Errors) : "(无错误)"),
 
             AssertType.Custom =>

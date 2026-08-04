@@ -27,7 +27,7 @@ public partial class SleepToolHandlers
     {
         if (duration_seconds <= 0)
         {
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText(L.T(StringKey.SleepDurationMustBePositive))
                 .Build();
         }
@@ -35,21 +35,21 @@ public partial class SleepToolHandlers
         const int maxDuration = 1800;
         if (duration_seconds > maxDuration)
         {
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText(L.T(StringKey.SleepDurationTooLarge, maxDuration))
                 .Build();
         }
 
         if (tick_interval_seconds < 0)
         {
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText(L.T(StringKey.SleepTickIntervalCannotBeNegative))
                 .Build();
         }
 
         if (tick_interval_seconds > 0 && tick_interval_seconds > duration_seconds)
         {
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText(L.T(StringKey.SleepTickIntervalTooLarge))
                 .Build();
         }
@@ -107,7 +107,7 @@ public partial class SleepToolHandlers
                 response.AppendLine(L.T(StringKey.SleepReason, reason));
             }
 
-            return McpResultBuilder.Success()
+            return ToolResultBuilder.Success()
                 .WithText(response.ToString())
                 .Build();
         }
@@ -119,7 +119,7 @@ public partial class SleepToolHandlers
         catch (Exception ex)
         {
             _logger?.LogError(ex, L.T(StringKey.SleepFailedLog));
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText(L.T(StringKey.SleepFailed, ex.Message))
                 .Build();
         }
@@ -136,7 +136,7 @@ public partial class SleepToolHandlers
     {
         if (string.IsNullOrWhiteSpace(target_time))
         {
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText(L.T(StringKey.SleepTargetTimeCannotBeEmpty))
                 .Build();
         }
@@ -165,7 +165,7 @@ public partial class SleepToolHandlers
         }
         else
         {
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText(L.T(StringKey.SleepTimeParseFailed, target_time))
                 .Build();
         }
@@ -181,7 +181,7 @@ public partial class SleepToolHandlers
         // 检查是否已过期
         if (waitDuration <= TimeSpan.Zero)
         {
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText(L.T(StringKey.SleepTargetTimeExpired, targetDateTime.ToString("yyyy-MM-dd HH:mm:ss")))
                 .Build();
         }
@@ -190,7 +190,7 @@ public partial class SleepToolHandlers
         const int maxWaitSeconds = 1800;
         if (waitDuration.TotalSeconds > maxWaitSeconds)
         {
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText(L.T(StringKey.SleepWaitTooLong, waitDuration.TotalMinutes, maxWaitSeconds / 60))
                 .Build();
         }
@@ -202,7 +202,7 @@ public partial class SleepToolHandlers
 
             await Task.Delay(waitDuration, cancellationToken);
 
-            return McpResultBuilder.Success()
+            return ToolResultBuilder.Success()
                 .WithText(L.T(StringKey.SleepUntilReached, targetDateTime.ToString("yyyy-MM-dd HH:mm:ss")))
                 .Build();
         }

@@ -53,6 +53,14 @@ public sealed class KestrelMockServer : IHttpMockServer
         _dumpDir = Path.Combine(Environment.CurrentDirectory, "tests", "MockServers", "MockServer.Core", "dumps", _serverName);
         Directory.CreateDirectory(_dumpDir);
 
+        void Log(string msg)
+        {
+            Console.WriteLine(msg);
+            System.Diagnostics.Trace.WriteLine(msg);
+        }
+
+        Log($"[{_serverName}] StartAsync called, port={_port}");
+
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseUrls($"http://localhost:{_port}/");
         builder.Logging.ClearProviders();
@@ -61,8 +69,10 @@ public sealed class KestrelMockServer : IHttpMockServer
             builder.Services.AddSingleton(_logger);
         }
 
+        Log($"[{_serverName}] Building WebApplication...");
         _app = builder.Build();
         _appLifetime = _app.Services.GetRequiredService<IHostApplicationLifetime>();
+        Log($"[{_serverName}] WebApplication built, mapping endpoints...");
 
         _app.MapGet("/shutdown", async (HttpContext ctx) =>
         {
@@ -70,8 +80,6 @@ public sealed class KestrelMockServer : IHttpMockServer
             ctx.Response.ContentType = "application/json";
             await ctx.Response.WriteAsync("{\"status\":\"shutting_down\"}");
             ShutdownRequested?.Invoke();
-            // 触发 ASP.NET Core 优雅关闭：IHostApplicationLifetime.StopApplication()
-            // 会让 _app.RunAsync() 任务完成，否则进程无法退出
             _appLifetime?.StopApplication();
         });
 
@@ -188,9 +196,9 @@ public sealed class KestrelMockServer : IHttpMockServer
                         await Task.Delay(20, ctx.RequestAborted);
                     }
 
-                    // 最终 chunk 包含 usage/cache stats — 真实 LLM API 在最后一个 chunk 返回 usage
                     var lastChunk = _responseStrategy.BuildStreamFinalChunk(id, cacheStats);
                     await ctx.Response.WriteAsync(lastChunk, ctx.RequestAborted);
+                    await ctx.Response.Body.FlushAsync(ctx.RequestAborted);
                 }
             }
             else
@@ -217,16 +225,37 @@ public sealed class KestrelMockServer : IHttpMockServer
         });
 
         Url = $"http://localhost:{_port}/";
-        _runTask = _app.RunAsync();
 
-        Console.WriteLine($"[{_serverName}] ========================================");
-        Console.WriteLine($"[{_serverName}]   Server:    {_serverName}");
-        Console.WriteLine($"[{_serverName}]   URL:       {Url}");
-        Console.WriteLine($"[{_serverName}]   Port:      {_port}");
-        Console.WriteLine($"[{_serverName}]   Dump Dir:  {_dumpDir}");
-        Console.WriteLine($"[{_serverName}] ========================================");
+        var tcs = new TaskCompletionSource();
+        _appLifetime.ApplicationStarted.Register(() =>
+        {
+            Log($"[{_serverName}] ApplicationStarted fired!");
+            tcs.TrySetResult();
+        });
 
-        return Task.CompletedTask;
+        _runTask = Task.Run(async () =>
+        {
+            try
+            {
+                Log($"[{_serverName}] Calling _app.RunAsync()...");
+                await _app.RunAsync().ConfigureAwait(false);
+                Log($"[{_serverName}] _app.RunAsync() completed normally");
+            }
+            catch (Exception ex)
+            {
+                Log($"[{_serverName}] FATAL: Kestrel failed: {ex.GetType().Name}: {ex.Message}");
+                tcs.TrySetException(ex);
+            }
+        });
+
+        Log($"[{_serverName}] ========================================");
+        Log($"[{_serverName}]   Server:    {_serverName}");
+        Log($"[{_serverName}]   URL:       {Url}");
+        Log($"[{_serverName}]   Port:      {_port}");
+        Log($"[{_serverName}]   Dump Dir:  {_dumpDir}");
+        Log($"[{_serverName}] ========================================");
+
+        return tcs.Task;
     }
 
     public Task StopAsync()

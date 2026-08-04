@@ -60,7 +60,7 @@ public class WorkflowToolHandlers
             async (cmd, ct) =>
             {
                 var result = await (_planService ?? throw new InvalidOperationException("PlanService is not available")).ExecutePlanAsync(cmd.Task, ct);
-                return McpResultBuilder.Success().WithText(result).Build();
+                return ToolResultBuilder.Success().WithText(result).Build();
             },
             cancellationToken);
     }
@@ -77,7 +77,7 @@ public class WorkflowToolHandlers
             async (cmd, ct) =>
             {
                 var result = await (_planService ?? throw new InvalidOperationException("PlanService is not available")).ExecutePlanAsync(cmd.Prompt, ct);
-                return McpResultBuilder.Success().WithText(result).Build();
+                return ToolResultBuilder.Success().WithText(result).Build();
             },
             cancellationToken);
     }
@@ -94,7 +94,7 @@ public class WorkflowToolHandlers
             async (cmd, ct) =>
             {
                 var result = await (_codeService ?? throw new InvalidOperationException("CodeService is not available")).GenerateCodeAsync(cmd.Requirement, ct);
-                return McpResultBuilder.Success().WithText(result).Build();
+                return ToolResultBuilder.Success().WithText(result).Build();
             },
             cancellationToken);
     }
@@ -117,7 +117,7 @@ public class WorkflowToolHandlers
             async (cmd, ct) =>
             {
                 var result = await (_codeService ?? throw new InvalidOperationException("CodeService is not available")).AnalyzeCodeAsync(cmd.Code, ct);
-                return McpResultBuilder.Success().WithText(result).Build();
+                return ToolResultBuilder.Success().WithText(result).Build();
             },
             cancellationToken);
     }
@@ -142,7 +142,7 @@ public class WorkflowToolHandlers
             async (cmd, ct) =>
             {
                 var result = await (_chatService ?? throw new InvalidOperationException("ChatService is not available")).SendMessageAsync(cmd.Message);
-                return McpResultBuilder.Success().WithText(result).Build();
+                return ToolResultBuilder.Success().WithText(result).Build();
             },
             cancellationToken);
     }
@@ -154,16 +154,16 @@ public class WorkflowToolHandlers
         {
             // 在提示词模式下，清空内存历史
             await ClearInMemoryHistoryAsync(cancellationToken);
-            return McpResultBuilder.Success().WithText(L.T(StringKey.WorkflowPromptModeHistoryCleared)).Build();
+            return ToolResultBuilder.Success().WithText(L.T(StringKey.WorkflowPromptModeHistoryCleared)).Build();
         }
 
         if (_chatService == null)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.WorkflowChatServiceUnavailable)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.WorkflowChatServiceUnavailable)).Build();
         }
 
         await _chatService.ClearHistoryAsync();
-        return McpResultBuilder.Success().WithText(L.T(StringKey.WorkflowChatHistoryCleared)).Build();
+        return ToolResultBuilder.Success().WithText(L.T(StringKey.WorkflowChatHistoryCleared)).Build();
     }
 
     [McpTool(WorkflowToolNameConstants.McpAiWorkflowWorkflowGetHistory, "Get chat history records", "chat")]
@@ -175,26 +175,26 @@ public class WorkflowToolHandlers
             var history = await GetInMemoryHistoryAsync(cancellationToken);
             if (history.Count == 0)
             {
-                return McpResultBuilder.Success().WithText(L.T(StringKey.WorkflowPromptModeNoHistory)).Build();
+                return ToolResultBuilder.Success().WithText(L.T(StringKey.WorkflowPromptModeNoHistory)).Build();
             }
 
             var formattedHistory = string.Join("\n\n", history.Select(m => $"[{m.Role}]: {m.Content}"));
-            return McpResultBuilder.Success().WithText(formattedHistory).Build();
+            return ToolResultBuilder.Success().WithText(formattedHistory).Build();
         }
 
         if (_chatService == null)
         {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.WorkflowChatServiceUnavailable)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.WorkflowChatServiceUnavailable)).Build();
         }
 
         var serviceHistory = await _chatService.GetMessageListAsync();
         if (serviceHistory == null || serviceHistory.Count == 0)
         {
-            return McpResultBuilder.Success().WithText(L.T(StringKey.WorkflowNoChatHistory)).Build();
+            return ToolResultBuilder.Success().WithText(L.T(StringKey.WorkflowNoChatHistory)).Build();
         }
 
         var formattedServiceHistory = string.Join("\n\n", serviceHistory.Select(m => $"[{m.Role}]: {m.Content}"));
-        return McpResultBuilder.Success().WithText(formattedServiceHistory).Build();
+        return ToolResultBuilder.Success().WithText(formattedServiceHistory).Build();
     }
 
     #region In-Memory Chat History (for Prompt-Only Mode Testing)
@@ -257,12 +257,12 @@ public class WorkflowToolHandlers
         if (IsPromptOnlyMode())
         {
             var prompt = await promptGenerator(command, cancellationToken);
-            return McpResultBuilder.Success().WithText(prompt).Build();
+            return ToolResultBuilder.Success().WithText(prompt).Build();
         }
 
         if (_planService == null || _chatService == null || _codeService == null)
         {
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText(L.T(StringKey.WorkflowAiServiceUnavailable))
                 .Build();
         }
@@ -283,7 +283,7 @@ public class WorkflowToolHandlers
         };
 
         return validationError != null
-            ? McpResultBuilder.Error().WithText(validationError).Build()
+            ? ToolResultBuilder.Error().WithText(validationError).Build()
             : null;
     }
 }

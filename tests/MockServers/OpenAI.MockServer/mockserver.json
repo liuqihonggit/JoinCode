@@ -3,17 +3,27 @@
   "default_response": "Mock server default response.",
   "scripted_turns": [
     {
-      "text_response": "Hello! I will read a file for you.",
+      "text_response": "Hello! I will run a bash command with a Windows path to test the path gate middleware.",
       "tool_calls": [
         {
-          "tool_name": "read",
-          "arguments": "{\"file_path\":\"D:\\\\JoinCode\\\\README.md\"}",
-          "tool_call_id": "call_001"
+          "tool_name": "Bash",
+          "arguments": "{\"command\":\"pwd\",\"working_directory\":\"D:\\\\project\\\\w3\"}",
+          "tool_call_id": "call_pathgate_001"
         }
       ]
     },
     {
-      "text_response": "I have read the file. The task is complete."
+      "text_response": "The path gate middleware converted the Windows path to POSIX format for Git Bash. Now I will test a command with a Windows path inside the command string.",
+      "tool_calls": [
+        {
+          "tool_name": "Bash",
+          "arguments": "{\"command\":\"ls C:\\\\Users\"}",
+          "tool_call_id": "call_pathgate_002"
+        }
+      ]
+    },
+    {
+      "text_response": "Path gate E2E test completed. Both working_directory and command path conversion verified."
     }
   ]
 }

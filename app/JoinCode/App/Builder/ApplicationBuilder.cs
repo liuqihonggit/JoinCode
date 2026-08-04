@@ -53,9 +53,9 @@ public sealed class ApplicationBuilder
                         {
                             foreach (var tool in cliOptions.AllowedTools)
                             {
-                                if (!permConfig.AutoApprovedTools.Any(r => string.Equals(r.ToolName, tool, StringComparison.OrdinalIgnoreCase)))
+                                if (!permConfig.AutoApprovedTools.ContainsKey(tool))
                                 {
-                                    permConfig.AutoApprovedTools.Add(new ToolPermissionRule { ToolName = tool, Description = "From CLI --allowed-tools" });
+                                    permConfig.AutoApprovedTools[tool] = new ToolPermissionRule { ToolName = tool, Description = "From CLI --allowed-tools" };
                                 }
                             }
                             Diag.WriteLine($"[MAIN] --allowed-tools 合并 {cliOptions.AllowedTools.Count} 个工具到 PermissionConfig.AutoApprovedTools");
@@ -65,9 +65,9 @@ public sealed class ApplicationBuilder
                         {
                             foreach (var tool in cliOptions.DisallowedTools)
                             {
-                                if (!permConfig.AutoRejectedTools.Any(r => string.Equals(r.ToolName, tool, StringComparison.OrdinalIgnoreCase)))
+                                if (!permConfig.AutoRejectedTools.ContainsKey(tool))
                                 {
-                                    permConfig.AutoRejectedTools.Add(new ToolPermissionRule { ToolName = tool, Description = "From CLI --disallowed-tools" });
+                                    permConfig.AutoRejectedTools[tool] = new ToolPermissionRule { ToolName = tool, Description = "From CLI --disallowed-tools" };
                                 }
                             }
                             Diag.WriteLine($"[MAIN] --disallowed-tools 合并 {cliOptions.DisallowedTools.Count} 个工具到 PermissionConfig.AutoRejectedTools");
@@ -357,10 +357,12 @@ public sealed class ApplicationBuilder
         if (dotEnv is not null)
         {
             dotEnv.ApplyToMemory(config, new Core.Configuration.Providers.ProviderDefinitionRegistry());
-
-            // 环境变量优先级最高 — ApplyToMemory 可能覆盖了 env var 设置的值，重新应用
-            new Core.Configuration.SettingsMapper(new Core.Configuration.Providers.ProviderDefinitionRegistry()).ApplyEnvOverrides(config);
         }
+
+        // 环境变量优先级最高 — 无论 dotEnv 是否存在，都必须应用环境变量覆盖
+        // 修复: 之前 ApplyEnvOverrides 只在 dotEnv != null 时调用，
+        // 导致无 .env/api.json 时 JCC_ENDPOINT/JCC_MODEL_ID 等环境变量不生效
+        new Core.Configuration.SettingsMapper(new Core.Configuration.Providers.ProviderDefinitionRegistry()).ApplyEnvOverrides(config);
 
         if (!string.IsNullOrWhiteSpace(options.Model))
             config.Provider.ModelId = options.Model;

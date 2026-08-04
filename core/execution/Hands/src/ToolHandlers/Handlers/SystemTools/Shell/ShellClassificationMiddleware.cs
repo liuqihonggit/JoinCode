@@ -54,7 +54,7 @@ public sealed partial class ShellClassificationMiddleware : IShellMiddleware
                 warning.AppendLine();
                 warning.AppendLine("If you are sure you want to execute this command, re-invoke and confirm you understand the risks.");
 
-                return ResultBuilder.Error().WithText(warning.ToString()).Build();
+                return ToolResultBuilder.Error().WithText(warning.ToString()).Build();
             }
 
             if (classification.Category == CommandCategory.PathViolation)
@@ -65,7 +65,24 @@ public sealed partial class ShellClassificationMiddleware : IShellMiddleware
                 {
                     warning.AppendLine(classification.Details);
                 }
-                return ResultBuilder.Error().WithText(warning.ToString()).Build();
+                return ToolResultBuilder.Error().WithText(warning.ToString()).Build();
+            }
+
+            if (classification.Category == CommandCategory.ExcessiveSearchScope)
+            {
+                var warning = new StringBuilder();
+                warning.AppendLine($"{StatusSymbol.Warning.ToValue()} Search scope too large — command may hang or take very long");
+                warning.AppendLine();
+                if (!string.IsNullOrEmpty(classification.Details))
+                {
+                    warning.AppendLine(classification.Details);
+                }
+                warning.AppendLine();
+                warning.AppendLine("Please restrict the search scope to a specific project directory.");
+                warning.AppendLine("Avoid flags like --no-ignore/-u (rg) that bypass .gitignore rules.");
+                warning.AppendLine("Avoid searching system root paths like C:\\, /, /home, etc.");
+
+                return ToolResultBuilder.Error().WithText(warning.ToString()).Build();
             }
 
             return null; // 安全命令
@@ -91,7 +108,7 @@ public sealed partial class ShellClassificationMiddleware : IShellMiddleware
             warning.AppendLine("Danger level: " + dangerAnalysis.Level);
             warning.AppendLine("If you are sure you want to execute this command, re-invoke and confirm you understand the risks.");
 
-            return ResultBuilder.Error().WithText(warning.ToString()).Build();
+            return ToolResultBuilder.Error().WithText(warning.ToString()).Build();
         }
 
         return null;

@@ -47,7 +47,6 @@ internal sealed class TranscriptFileWriter
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger?.LogError(ex, "Failed to append transcript entry to {FilePath}", filePath);
-            // 不重新抛出 — transcript 写入失败不应中断主流程
         }
         finally
         {
@@ -58,44 +57,52 @@ internal sealed class TranscriptFileWriter
     /// <summary>
     /// 追加多条记录到 JSONL 文件
     /// </summary>
-    /// <remarks>
-    /// ⚠️ 不使用 FileMode.Append — 在 .NET 5+ 中文件不存在时抛 FileNotFoundException (与 .NET Framework 不同)
-    /// 即使 EnsureFileExists 试图先创建文件,也可能因竞态/权限问题失败被吞,导致后续 Append 抛错
-    /// 使用 FileMode.OpenOrCreate 避免 FileNotFoundException,文件不存在时自动创建
-    /// </remarks>
     public async Task AppendEntriesAsync(string filePath, IReadOnlyList<TranscriptEntry> entries, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(entries);
         if (entries.Count == 0) return;
 
+        _logger?.LogDebug("AppendEntriesAsync: filePath={FilePath}, count={Count}", filePath, entries.Count);
+
         await _writeLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             EnsureDirectoryExists(Path.GetDirectoryName(filePath));
-            EnsureFileExists(filePath);
 
-            // FileMode.OpenOrCreate: 文件不存在时创建,存在时打开
-            // 不用 FileMode.Append 是因为 .NET 5+ 中文件不存在时抛 FileNotFoundException (与 .NET Framework 不同)
-            // 即使 EnsureFileExists 试图先创建文件,也可能因竞态/权限问题失败被吞,导致后续 Append 抛错
-            await using var stream = _fs.CreateStream(filePath, FileMode.OpenOrCreate, FileAccess.Write, FileShare.None);
-            // OpenOrCreate 打开后指针在文件开头,需要 seek 到末尾才能追加
-            stream.Seek(0, SeekOrigin.End);
-            await using var writer = new StreamWriter(stream);
-
-            foreach (var entry in entries)
+            var maxRetries = 3;
+            for (var attempt = 0; attempt <= maxRetries; attempt++)
             {
-                var entryToWrite = MaybeOffloadToPasteStore(entry);
-                var line = JsonSerializer.Serialize(entryToWrite, TranscriptJsonContext.Default.TranscriptEntry);
-                await writer.WriteLineAsync(line.AsMemory(), cancellationToken).ConfigureAwait(false);
-            }
-            await writer.FlushAsync(cancellationToken).ConfigureAwait(false);
+                try
+                {
+                    await using var stream = OpenForAppend(filePath);
+                    await using var writer = new StreamWriter(stream);
 
-            _logger?.LogDebug("{Count} transcript entries appended to {FilePath}", entries.Count, filePath);
+                    foreach (var entry in entries)
+                    {
+                        var entryToWrite = MaybeOffloadToPasteStore(entry);
+                        var line = JsonSerializer.Serialize(entryToWrite, TranscriptJsonContext.Default.TranscriptEntry);
+                        await writer.WriteLineAsync(line.AsMemory(), cancellationToken).ConfigureAwait(false);
+                    }
+                    await writer.FlushAsync(cancellationToken).ConfigureAwait(false);
+
+                    _logger?.LogDebug("{Count} transcript entries appended to {FilePath}", entries.Count, filePath);
+                    break;
+                }
+                catch (UnauthorizedAccessException ex) when (attempt < maxRetries)
+                {
+                    _logger?.LogWarning(ex, "Transient UnauthorizedAccessException writing {FilePath}, retry {Attempt}/{Max}", filePath, attempt + 1, maxRetries);
+                    await Task.Delay(100 * (attempt + 1), cancellationToken).ConfigureAwait(false);
+                }
+                catch (IOException ex) when (attempt < maxRetries)
+                {
+                    _logger?.LogWarning(ex, "IOException writing {FilePath}, retry {Attempt}/{Max}", filePath, attempt + 1, maxRetries);
+                    await Task.Delay(100 * (attempt + 1), cancellationToken).ConfigureAwait(false);
+                }
+            }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger?.LogError(ex, "Failed to append transcript entries to {FilePath}", filePath);
-            // 不重新抛出 — transcript 写入失败不应中断主流程
         }
         finally
         {
@@ -115,7 +122,7 @@ internal sealed class TranscriptFileWriter
 
         try
         {
-            var lines = await _fs.ReadAllLinesAsync(filePath, cancellationToken).ConfigureAwait(false);
+            var lines = await ReadAllLinesWithWriteShareAsync(filePath, cancellationToken).ConfigureAwait(false);
             var entries = new List<TranscriptEntry>(lines.Length);
 
             foreach (var line in lines)
@@ -168,15 +175,82 @@ internal sealed class TranscriptFileWriter
     }
 
     /// <summary>
+    /// 以追加模式打开文件 — 逐步降级 FileShare 策略
+    /// 1. 先用 FileShare.ReadWrite（允许并发读取者）
+    /// 2. 如果被拒绝，降级为 FileShare.Read（只允许读取）
+    /// 3. 如果仍被拒绝，降级为 FileShare.None（独占，因 _writeLock 保护同进程并发）
+    /// </summary>
+    private Stream OpenForAppend(string filePath)
+    {
+        var shareLevels = new[] { FileShare.ReadWrite, FileShare.Read, FileShare.None };
+        Exception? lastEx = null;
+        foreach (var share in shareLevels)
+        {
+            try
+            {
+                var stream = _fs.CreateStream(filePath, FileMode.OpenOrCreate, FileAccess.Write, share);
+                stream.Seek(0, SeekOrigin.End);
+                return stream;
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                lastEx = ex;
+                _logger?.LogDebug(ex, "OpenForAppend FileShare={Share} failed for {FilePath}", share, filePath);
+                continue;
+            }
+            catch (IOException ex)
+            {
+                lastEx = ex;
+                _logger?.LogDebug(ex, "OpenForAppend FileShare={Share} IOException for {FilePath}", share, filePath);
+                continue;
+            }
+        }
+
+        throw new IOException($"Unable to open transcript file for append after trying all share modes: {filePath}", lastEx);
+    }
+
+    /// <summary>
     /// 确保文件存在 — FileMode.Append 在 .NET 5+ 中文件不存在时抛 FileNotFoundException
     /// </summary>
+    /// <summary>
+    /// 用 FileShare.ReadWrite 读取所有行 — 允许并发写入者，避免 ReadAllLinesAsync 的 FileShare.Read 阻止写入
+    /// </summary>
+    private async Task<string[]> ReadAllLinesWithWriteShareAsync(string filePath, CancellationToken cancellationToken)
+    {
+        // InMemoryFileSystem 的 CreateStream(FileMode.Open) 可能与写入路径不一致
+        // 优先尝试 ReadAllLinesAsync（FileShare.Read），失败时再用 ReadWrite 模式
+        try
+        {
+            return await _fs.ReadAllLinesAsync(filePath, cancellationToken).ConfigureAwait(false);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // FileShare.Read 冲突时，降级为 ReadWrite 模式
+            try
+            {
+                await using var stream = _fs.CreateStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                using var reader = new StreamReader(stream);
+                var lines = new List<string>();
+                while (await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false) is { } line)
+                {
+                    lines.Add(line);
+                }
+                return lines.ToArray();
+            }
+            catch (FileNotFoundException)
+            {
+                return [];
+            }
+        }
+    }
+
     private void EnsureFileExists(string filePath)
     {
         if (!_fs.FileExists(filePath))
         {
             try
             {
-                _fs.CreateStream(filePath, FileMode.CreateNew, FileAccess.Write, FileShare.None).Dispose();
+                _fs.CreateStream(filePath, FileMode.CreateNew, FileAccess.Write, FileShare.ReadWrite).Dispose();
             }
             catch (IOException ex) when (_fs.FileExists(filePath))
             {

@@ -1,0 +1,9 @@
+global using System.Collections.Frozen;
+global using JoinCode.Abstractions.Utils;
+global using JoinCode.Abstractions.Tools;
+global using McpToolDispatch;
+global using FluentAssertions;
+global using Moq;
+global using System.Text.Json;
+global using Testing.Common;
+global using IO.FileSystem;

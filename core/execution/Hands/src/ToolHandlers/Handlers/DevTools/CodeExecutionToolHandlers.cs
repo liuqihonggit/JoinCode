@@ -170,7 +170,7 @@ public class CodeExecutionToolHandlers
     }
 
     private void RecordCodeExecutionMetrics(string operation, string result)
-        => _telemetryService?.RecordCount("code.execution.count", new Dictionary<string, string> { ["operation"] = operation, ["result"] = result }, description: "Code execution count");
+        => ToolTelemetryHelper.RecordToolCount(_telemetryService, "code.execution.count", operation, result);
 
     private static string BuildTestCode(string code, string testInput)
     {

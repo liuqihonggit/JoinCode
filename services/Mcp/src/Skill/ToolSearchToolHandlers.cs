@@ -21,7 +21,7 @@ public partial class ToolSearchToolHandlers
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(query))
-            return McpResultBuilder.Error().WithText(L.T(StringKey.ToolSearchQueryCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.ToolSearchQueryCannotBeEmpty)).Build();
 
         try
         {
@@ -53,13 +53,13 @@ public partial class ToolSearchToolHandlers
                 response.AppendLine(L.T(StringKey.ToolSearchMatchedCount, result.MatchedToolNames.Count, allTools.Count));
             }
 
-            return McpResultBuilder.Success().WithText(response.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(response.ToString()).Build();
         }
         catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             _logger?.LogError(ex, L.T(StringKey.ToolSearchFailedLog));
-            return McpResultBuilder.Error().WithText(L.T(StringKey.ToolSearchFailed, ex.Message)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.ToolSearchFailed, ex.Message)).Build();
         }
     }
 }

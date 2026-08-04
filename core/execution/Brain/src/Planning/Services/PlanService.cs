@@ -39,7 +39,7 @@ public partial class PlanService : IPlanService {
             var chatCompletionService = _kernel.GetChatCompletionService();
 
             var chatHistory = new MessageList();
-            var planPrompt = PlanPrompts.BuildPlanExecutionSystemPrompt(_toolCategoryProvider.GetAvailableToolCategories());
+            var planPrompt = PlanPrompts.BuildPlanExecutionSystemPrompt(_toolCategoryProvider.GetVisibleToolCategories());
             chatHistory.AddSystemMessage(planPrompt);
             chatHistory.AddUserMessage($"请为以下任务创建并执行计划:\n\n{userPrompt}");
 

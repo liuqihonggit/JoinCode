@@ -62,6 +62,8 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
                 {
                     var displayName = attribute.ConstructorArguments.FirstOrDefault().Value as string ?? typeSymbol.Name;
                     var optional = false;
+                    var kind = "system";
+                    string? groupName = null;
                     foreach (var namedArg in attribute.NamedArguments)
                     {
                         if (namedArg.Key == "Optional" && namedArg.Value.Value is bool b)
@@ -71,6 +73,14 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
                             var resolved = TryResolveEnumValue(compilation, enumValue);
                             if (resolved is not null)
                                 displayName = resolved;
+                        }
+                        else if (namedArg.Key == "Kind" && namedArg.Value.Value is int kindValue)
+                        {
+                            kind = TryResolveToolKindValue(compilation, kindValue) ?? "system";
+                        }
+                        else if (namedArg.Key == "GroupName" && namedArg.Value.Value is string gn)
+                        {
+                            groupName = gn;
                         }
                     }
 
@@ -88,10 +98,16 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
                                 var toolCategory = toolAttribute.ConstructorArguments.ElementAtOrDefault(2).Value as string ?? "other";
 
                                 var concurrencySafe = false;
+                                var toolKind = (string?)null;
+                                var toolGroupName = (string?)null;
                                 foreach (var named in toolAttribute.NamedArguments)
                                 {
                                     if (named.Key == "ConcurrencySafe" && named.Value.Value is bool cs)
                                         concurrencySafe = cs;
+                                    else if (named.Key == "Kind" && named.Value.Value is int tkValue && tkValue >= 0)
+                                        toolKind = TryResolveToolKindValue(compilation, tkValue);
+                                    else if (named.Key == "GroupName" && named.Value.Value is string tgn)
+                                        toolGroupName = tgn;
                                 }
 
                                 var parameters = new List<ParamInfo>();
@@ -200,7 +216,7 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
                                 }
 
                                 var returnTypeName = method.ReturnType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-                                tools.Add(new ToolMethodInfo(toolName, toolDescription, toolCategory, method.Name, parameters, returnTypeName, optionsTypeNames, hasProgressCallback, concurrencySafe));
+                                tools.Add(new ToolMethodInfo(toolName, toolDescription, toolCategory, method.Name, parameters, returnTypeName, optionsTypeNames, hasProgressCallback, concurrencySafe, toolKind, toolGroupName));
                             }
                         }
                     }
@@ -210,6 +226,8 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
                         typeSymbol.Name,
                         displayName,
                         optional,
+                        kind,
+                        groupName,
                         tools));
                 }
             }
@@ -445,6 +463,8 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         sb.AppendLine();
         GenerateToolCategoriesMethod(sb, validHandlers);
         sb.AppendLine();
+        GenerateVisibleToolCategoriesMethod(sb, validHandlers);
+        sb.AppendLine();
         GenerateConcurrencyCacheMethod(sb, validHandlers);
 
         sb.AppendLine("}");
@@ -652,7 +672,10 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
 
         sb.AppendLine($"            await registry.RegisterToolAsync(\"{tool.Name}\", \"{EscapeString(tool.Description)}\", __schema,");
         sb.AppendLine($"                async (__name, args, ct, onProgress) => await handler.{tool.MethodName}({argsList}),");
-        sb.AppendLine("                cancellationToken);");
+        var effectiveKind = tool.Kind ?? handler.Kind;
+        var effectiveGroupName = tool.GroupName ?? handler.GroupName;
+        var groupNameArg = effectiveGroupName is not null ? $"\"{EscapeString(effectiveGroupName)}\"" : "null";
+        sb.AppendLine($"                cancellationToken, kind: ToolKindExtensions.FromValue(\"{EscapeString(effectiveKind)}\") ?? ToolKind.System, groupName: {groupNameArg});");
         sb.AppendLine("        }");
     }
 
@@ -663,9 +686,9 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
 
     private static void GenerateToolCategoriesMethod(StringBuilder sb, List<HandlerInfo> handlers)
     {
-        sb.AppendLine($"    public static Dictionary<string, List<(string Name, string Description)>> GetAvailableToolCategories()");
+        sb.AppendLine($"    public static Dictionary<string, List<ToolCategoryEntry>> GetAvailableToolCategories()");
         sb.AppendLine("    {");
-        sb.AppendLine("        var categories = new Dictionary<string, List<(string Name, string Description)>>(StringComparer.OrdinalIgnoreCase);");
+        sb.AppendLine("        var categories = new Dictionary<string, List<ToolCategoryEntry>>(StringComparer.OrdinalIgnoreCase);");
         sb.AppendLine();
 
         foreach (var handler in handlers)
@@ -673,19 +696,39 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
             if (handler.Tools.Count == 0) continue;
 
             var displayName = EscapeString(handler.DisplayName);
+            var handlerKind = EscapeString(handler.Kind);
 
             foreach (var tool in handler.Tools)
             {
                 var toolName = EscapeString(tool.Name);
                 var toolDesc = EscapeString(tool.Description);
-                sb.AppendLine($"        if (!categories.ContainsKey(\"{displayName}\")) categories[\"{displayName}\"] = new List<(string, string)>();");
-                sb.AppendLine($"        categories[\"{displayName}\"].Add((\"{toolName}\", \"{toolDesc}\"));");
+                var effectiveKind = tool.Kind ?? handlerKind;
+                var effectiveGroupName = tool.GroupName ?? handler.GroupName;
+                var groupNameStr = effectiveGroupName is not null ? $"\"{EscapeString(effectiveGroupName)}\"" : "null";
+                var kindExpr = $"ToolKindExtensions.FromValue(\"{EscapeString(effectiveKind)}\") ?? ToolKind.System";
+                sb.AppendLine($"        if (!categories.ContainsKey(\"{displayName}\")) categories[\"{displayName}\"] = new List<ToolCategoryEntry>();");
+                sb.AppendLine($"        categories[\"{displayName}\"].Add(new ToolCategoryEntry {{ Name = \"{toolName}\", Description = \"{toolDesc}\", Kind = {kindExpr}, GroupName = {groupNameStr} }});");
             }
 
             sb.AppendLine();
         }
 
         sb.AppendLine("        return categories;");
+        sb.AppendLine("    }");
+    }
+
+    private static void GenerateVisibleToolCategoriesMethod(StringBuilder sb, List<HandlerInfo> handlers)
+    {
+        sb.AppendLine($"    public static Dictionary<string, List<ToolCategoryEntry>> GetVisibleToolCategories()");
+        sb.AppendLine("    {");
+        sb.AppendLine("        var all = GetAvailableToolCategories();");
+        sb.AppendLine("        var visible = new Dictionary<string, List<ToolCategoryEntry>>(StringComparer.OrdinalIgnoreCase);");
+        sb.AppendLine("        foreach (var kvp in all)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            var filtered = kvp.Value.Where(t => t.Kind != ToolKind.OnError).ToList();");
+        sb.AppendLine("            if (filtered.Count > 0) visible[kvp.Key] = filtered;");
+        sb.AppendLine("        }");
+        sb.AppendLine("        return visible;");
         sb.AppendLine("    }");
     }
 
@@ -725,14 +768,18 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         public string TypeName { get; }
         public string DisplayName { get; }
         public bool Optional { get; }
+        public string Kind { get; }
+        public string? GroupName { get; }
         public List<ToolMethodInfo> Tools { get; }
 
-        public HandlerInfo(string fullyQualifiedName, string typeName, string displayName, bool optional, List<ToolMethodInfo> tools)
+        public HandlerInfo(string fullyQualifiedName, string typeName, string displayName, bool optional, string kind, string? groupName, List<ToolMethodInfo> tools)
         {
             FullyQualifiedName = fullyQualifiedName;
             TypeName = typeName;
             DisplayName = displayName;
             Optional = optional;
+            Kind = kind;
+            GroupName = groupName;
             Tools = tools;
         }
     }
@@ -757,8 +804,16 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         /// 工具是否并发安全 — 对齐 TS isConcurrencySafe()
         /// </summary>
         public bool ConcurrencySafe { get; }
+        /// <summary>
+        /// 工具类型 — 方法级覆盖类级 Kind，null 时继承类级
+        /// </summary>
+        public string? Kind { get; }
+        /// <summary>
+        /// 二级分组名 — 方法级覆盖类级 GroupName，null 时继承类级
+        /// </summary>
+        public string? GroupName { get; }
 
-        public ToolMethodInfo(string name, string description, string category, string methodName, List<ParamInfo> parameters, string returnTypeName, Dictionary<string, string> optionsTypeNames, bool hasProgressCallback, bool concurrencySafe)
+        public ToolMethodInfo(string name, string description, string category, string methodName, List<ParamInfo> parameters, string returnTypeName, Dictionary<string, string> optionsTypeNames, bool hasProgressCallback, bool concurrencySafe, string? kind, string? groupName)
         {
             Name = name;
             Description = description;
@@ -769,6 +824,8 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
             OptionsTypeNames = optionsTypeNames;
             HasProgressCallback = hasProgressCallback;
             ConcurrencySafe = concurrencySafe;
+            Kind = kind;
+            GroupName = groupName;
         }
     }
 
@@ -806,6 +863,28 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
     private static string? TryResolveEnumValue(Compilation compilation, int enumValue)
     {
         var enumType = compilation.GetTypeByMetadataName("JoinCode.Abstractions.Utils.ToolCategory");
+        if (enumType is null || enumType.TypeKind != TypeKind.Enum)
+            return null;
+
+        foreach (var member in enumType.GetMembers().OfType<IFieldSymbol>())
+        {
+            if (member.HasConstantValue && member.ConstantValue is int intValue && intValue == enumValue)
+            {
+                var enumValueAttr = member.GetAttributes()
+                    .FirstOrDefault(a => a.AttributeClass?.Name == "EnumValueAttribute");
+                if (enumValueAttr is not null)
+                {
+                    return enumValueAttr.ConstructorArguments.FirstOrDefault().Value as string;
+                }
+                return member.Name;
+            }
+        }
+        return null;
+    }
+
+    private static string? TryResolveToolKindValue(Compilation compilation, int enumValue)
+    {
+        var enumType = compilation.GetTypeByMetadataName("JoinCode.Abstractions.Utils.ToolKind");
         if (enumType is null || enumType.TypeKind != TypeKind.Enum)
             return null;
 

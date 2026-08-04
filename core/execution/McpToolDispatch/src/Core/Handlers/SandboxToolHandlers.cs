@@ -14,7 +14,7 @@ public sealed class SandboxToolHandlers
 
     [McpTool(SandboxToolNameConstants.SandboxEnter, "Enter a sandbox with the specified isolation type. If the requested type is unavailable, automatically falls back to a lower isolation level. Available types: soft (path redirection), process (OS-level process isolation), docker (container isolation), bubblewrap (Linux namespace isolation).", "sandbox")]
     public async Task<ToolResult> SandboxEnterAsync(
-        [McpToolParameter("Sandbox type: soft, process, docker, or bubblewrap", Required = true, EnumValues = new[] { "soft", "process", "docker", "bubblewrap" })] string sandboxType,
+        [McpToolParameter("Sandbox type: soft, process, docker, or bubblewrap", Required = true, EnumValues = new[] { SandboxTypeConstants.Soft, SandboxTypeConstants.Process, SandboxTypeConstants.Docker, SandboxTypeConstants.Bubblewrap })] string sandboxType,
         [McpToolParameter("Restrict file system access", Required = false, DefaultValue = "true")] string restrictFileSystem,
         [McpToolParameter("Restrict network access", Required = false, DefaultValue = "true")] string restrictNetwork,
         [McpToolParameter("Custom sandbox root path", Required = false)] string? sandboxRoot,
@@ -26,7 +26,7 @@ public sealed class SandboxToolHandlers
         var type = SandboxTypeExtensions.FromValue(sandboxType);
         if (type is null)
         {
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText($"未知沙箱类型: '{sandboxType}'。可用类型: soft, process, docker, bubblewrap。使用 sandbox_status 查看当前平台支持哪些类型。")
                 .Build();
         }
@@ -35,7 +35,7 @@ public sealed class SandboxToolHandlers
         {
             if (!allowFallback.Equals("true", StringComparison.OrdinalIgnoreCase))
             {
-                return McpResultBuilder.Error()
+                return ToolResultBuilder.Error()
                     .WithText($"沙箱类型 '{sandboxType}' 在当前平台不可用。可用类型: {string.Join(", ", _sandboxManager.AvailableTypes.Select(t => t.ToValue()))}。设置 allowFallback=true 可自动降级。")
                     .Build();
             }
@@ -67,7 +67,7 @@ public sealed class SandboxToolHandlers
             response.AppendLine("提示: 使用 sandbox_status 查看状态, sandbox_switch 切换类型, sandbox_exit 退出沙箱");
             response.AppendLine("执行命令: 使用 sandbox_exec 在沙箱内执行命令（支持超时防卡死）");
 
-            return McpResultBuilder.Success()
+            return ToolResultBuilder.Success()
                 .WithText(response.ToString())
                 .Build();
         }
@@ -78,7 +78,7 @@ public sealed class SandboxToolHandlers
                 return await EnterWithFallbackAsync(type.Value, restrictFileSystem, restrictNetwork, sandboxRoot, memoryLimitMb, cpuLimitPercent, cancellationToken).ConfigureAwait(false);
             }
 
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText($"进入沙箱失败: {ex.Message}。可用类型: {string.Join(", ", _sandboxManager.AvailableTypes.Select(t => t.ToValue()))}。设置 allowFallback=true 可自动降级。")
                 .Build();
         }
@@ -90,7 +90,7 @@ public sealed class SandboxToolHandlers
     {
         if (!_sandboxManager.IsInSandbox)
         {
-            return McpResultBuilder.Success()
+            return ToolResultBuilder.Success()
                 .WithText("当前不在沙箱中，无需退出。使用 sandbox_enter 进入沙箱。")
                 .Build();
         }
@@ -101,13 +101,13 @@ public sealed class SandboxToolHandlers
             var previousId = _sandboxManager.CurrentSandboxId;
             await _sandboxManager.ExitSandboxAsync(cancellationToken).ConfigureAwait(false);
 
-            return McpResultBuilder.Success()
+            return ToolResultBuilder.Success()
                 .WithText($"已退出沙箱 (类型: {previousType.ToValue()}, ID: {previousId})。文件系统和网络访问已恢复正常。")
                 .Build();
         }
         catch (Exception ex)
         {
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText($"退出沙箱失败: {ex.Message}。沙箱资源可能未完全清理，建议使用 sandbox_status 检查状态。")
                 .Build();
         }
@@ -115,27 +115,27 @@ public sealed class SandboxToolHandlers
 
     [McpTool(SandboxToolNameConstants.SandboxSwitch, "Switch to a different sandbox type while preserving isolation settings. Useful for escalating or de-escalating isolation level. If the target type is unavailable, automatically falls back.", "sandbox")]
     public async Task<ToolResult> SandboxSwitchAsync(
-        [McpToolParameter("Target sandbox type: soft, process, docker, or bubblewrap", Required = true, EnumValues = new[] { "soft", "process", "docker", "bubblewrap" })] string sandboxType,
+        [McpToolParameter("Target sandbox type: soft, process, docker, or bubblewrap", Required = true, EnumValues = new[] { SandboxTypeConstants.Soft, SandboxTypeConstants.Process, SandboxTypeConstants.Docker, SandboxTypeConstants.Bubblewrap })] string sandboxType,
         CancellationToken cancellationToken = default)
     {
         var type = SandboxTypeExtensions.FromValue(sandboxType);
         if (type is null)
         {
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText($"未知沙箱类型: '{sandboxType}'。可用类型: soft, process, docker, bubblewrap")
                 .Build();
         }
 
         if (!_sandboxManager.IsInSandbox)
         {
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText($"当前不在沙箱中，无法切换。请先使用 sandbox_enter 进入沙箱。")
                 .Build();
         }
 
         if (!_sandboxManager.AvailableTypes.Contains(type.Value))
         {
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText($"沙箱类型 '{sandboxType}' 在当前平台不可用。可用类型: {string.Join(", ", _sandboxManager.AvailableTypes.Select(t => t.ToValue()))}")
                 .Build();
         }
@@ -147,13 +147,13 @@ public sealed class SandboxToolHandlers
 
             var isolationChange = GetIsolationChangeDescription(previousType, type.Value);
 
-            return McpResultBuilder.Success()
+            return ToolResultBuilder.Success()
                 .WithText($"沙箱已切换: {previousType.ToValue()} → {type.Value.ToValue()}。{isolationChange}")
                 .Build();
         }
         catch (Exception ex)
         {
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText($"切换沙箱失败: {ex.Message}。旧沙箱可能已销毁，建议使用 sandbox_enter 重新进入。")
                 .Build();
         }
@@ -199,7 +199,7 @@ public sealed class SandboxToolHandlers
             response.AppendLine("⚠️ 沙箱处于降级状态，部分功能可能异常。建议 sandbox_exit 后重新进入。");
         }
 
-        return Task.FromResult(McpResultBuilder.Success()
+        return Task.FromResult(ToolResultBuilder.Success()
             .WithText(response.ToString())
             .Build());
     }
@@ -207,13 +207,13 @@ public sealed class SandboxToolHandlers
     [McpTool(SandboxToolNameConstants.SandboxExec, "Execute a command inside the sandbox with anti-stuck timeout protection. When timeout is reached, the command is NOT interrupted - instead you (LLM) are asked to decide: continue waiting or force stop. Default timeout is 2 minutes.", "sandbox")]
     public async Task<ToolResult> SandboxExecAsync(
         [McpToolParameter("Command to execute in the sandbox", Required = true)] string command,
-        [McpToolParameter("Timeout preset: 2min (default), 4min, 8min, or custom", Required = false, DefaultValue = "2min", EnumValues = new[] { "2min", "4min", "8min", "custom" })] string timeout,
+        [McpToolParameter("Timeout preset: 2min (default), 4min, 8min, or custom", Required = false, DefaultValue = SandboxExecutionTimeoutConstants.TwoMinutes, EnumValues = new[] { SandboxExecutionTimeoutConstants.TwoMinutes, SandboxExecutionTimeoutConstants.FourMinutes, SandboxExecutionTimeoutConstants.EightMinutes, SandboxExecutionTimeoutConstants.Custom })] string timeout,
         [McpToolParameter("Custom timeout in seconds (only used when timeout=custom)", Required = false, DefaultValue = "0")] string customTimeoutSeconds,
         CancellationToken cancellationToken = default)
     {
         if (!_sandboxManager.IsInSandbox)
         {
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText("当前不在沙箱中，无法执行沙箱命令。请先使用 sandbox_enter 进入沙箱，或直接使用 bash/powershell 工具执行。")
                 .Build();
         }
@@ -221,7 +221,7 @@ public sealed class SandboxToolHandlers
         var timeoutPreset = SandboxExecutionTimeoutExtensions.FromValue(timeout);
         if (timeoutPreset is null)
         {
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText($"未知超时选项: '{timeout}'。可用: 2min, 4min, 8min, custom")
                 .Build();
         }
@@ -234,7 +234,7 @@ public sealed class SandboxToolHandlers
 
         if (timeoutPreset.Value == SandboxExecutionTimeout.Custom && execOptions.CustomTimeoutSeconds <= 0)
         {
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText("使用 custom 超时选项时，customTimeoutSeconds 必须大于 0。")
                 .Build();
         }
@@ -247,7 +247,7 @@ public sealed class SandboxToolHandlers
         }
         catch (Exception ex)
         {
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText($"沙箱执行失败: {ex.Message}")
                 .Build();
         }
@@ -256,19 +256,19 @@ public sealed class SandboxToolHandlers
     [McpTool(SandboxToolNameConstants.SandboxExecContinue, "Continue a timed-out sandbox execution. Choose to wait longer or force stop the command.", "sandbox")]
     public async Task<ToolResult> SandboxExecContinueAsync(
         [McpToolParameter("Execution ID from sandbox_exec timeout response", Required = true)] string executionId,
-        [McpToolParameter("Action: wait (continue waiting for another timeout period) or stop (force kill the process)", Required = true, EnumValues = new[] { "wait", "stop" })] string action,
+        [McpToolParameter("Action: wait (continue waiting for another timeout period) or stop (force kill the process)", Required = true, EnumValues = new[] { SandboxContinueActionConstants.Wait, SandboxContinueActionConstants.Stop })] string action,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(executionId))
         {
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText("缺少 executionId 参数。请使用 sandbox_exec 超时响应中返回的 Execution ID。")
                 .Build();
         }
 
         if (!action.Equals("wait", StringComparison.OrdinalIgnoreCase) && !action.Equals("stop", StringComparison.OrdinalIgnoreCase))
         {
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText($"未知操作: '{action}'。可用: wait (继续等待), stop (强行终止)")
                 .Build();
         }
@@ -281,7 +281,7 @@ public sealed class SandboxToolHandlers
         }
         catch (Exception ex)
         {
-            return McpResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText($"继续执行失败: {ex.Message}")
                 .Build();
         }
@@ -357,7 +357,7 @@ public sealed class SandboxToolHandlers
                 break;
         }
 
-        return McpResultBuilder.Success()
+        return ToolResultBuilder.Success()
             .WithText(response.ToString())
             .Build();
     }
@@ -398,12 +398,12 @@ public sealed class SandboxToolHandlers
                 response.AppendLine("降级后隔离级别较低，请避免执行高风险操作。");
             }
 
-            return McpResultBuilder.Success()
+            return ToolResultBuilder.Success()
                 .WithText(response.ToString())
                 .Build();
         }
 
-        return McpResultBuilder.Error()
+        return ToolResultBuilder.Error()
             .WithText(result.Message ?? "所有沙箱类型均不可用。当前平台无沙箱保护。")
             .Build();
     }

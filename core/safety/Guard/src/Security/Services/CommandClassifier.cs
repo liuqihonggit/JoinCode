@@ -6,15 +6,18 @@ public sealed partial class CommandClassifier : ICommandClassifier
     private readonly IPathValidator _pathValidator;
     private readonly IDestructiveCommandDetector _destructiveDetector;
     private readonly IReadOnlyCommandDetector _readOnlyDetector;
+    private readonly ISearchScopeValidator? _searchScopeValidator;
 
     public CommandClassifier(
         IPathValidator pathValidator,
         IDestructiveCommandDetector destructiveDetector,
-        IReadOnlyCommandDetector readOnlyDetector)
+        IReadOnlyCommandDetector readOnlyDetector,
+        ISearchScopeValidator? searchScopeValidator = null)
     {
         _pathValidator = pathValidator;
         _destructiveDetector = destructiveDetector;
         _readOnlyDetector = readOnlyDetector;
+        _searchScopeValidator = searchScopeValidator;
     }
 
     public CommandClassification Classify(ShellCommand command, string workingDirectory)
@@ -60,6 +63,21 @@ public sealed partial class CommandClassifier : ICommandClassifier
                 CommandCategory.PathViolation,
                 risks,
                 pathValidationOnly.Message);
+        }
+
+        if (_searchScopeValidator is not null)
+        {
+            var scopeResult = _searchScopeValidator.Validate(command, workingDirectory);
+            if (scopeResult is not null)
+            {
+                risks.Add(scopeResult.Risk);
+                return new CommandClassification(
+                    CommandCategory.ExcessiveSearchScope,
+                    risks,
+                    scopeResult.Details + (scopeResult.Suggestion is not null
+                        ? $"。建议: {scopeResult.Suggestion}"
+                        : string.Empty));
+            }
         }
 
         return new CommandClassification(CommandCategory.Unknown, risks);

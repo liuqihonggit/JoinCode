@@ -45,7 +45,7 @@ public partial class GitToolHandlers
 
         if (!result.Success)
         {
-            return ResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText($"Git status failed:\n{result.Error}")
                 .Build();
         }
@@ -63,7 +63,7 @@ public partial class GitToolHandlers
             response.AppendLine(result.Output);
         }
 
-        return ResultBuilder.Success()
+        return ToolResultBuilder.Success()
             .WithText(response.ToString())
             .Build();
     }
@@ -76,7 +76,7 @@ public partial class GitToolHandlers
     {
         if (string.IsNullOrWhiteSpace(path))
         {
-            return ResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText("path cannot be empty")
                 .Build();
         }
@@ -86,7 +86,7 @@ public partial class GitToolHandlers
 
         if (!result.Success)
         {
-            return ResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText($"Git add failed:\n{result.Error}")
                 .Build();
         }
@@ -95,7 +95,7 @@ public partial class GitToolHandlers
         if (securityResult != null)
             return securityResult;
 
-        return ResultBuilder.Success()
+        return ToolResultBuilder.Success()
             .WithText($"Added: {path}")
             .Build();
     }
@@ -109,7 +109,7 @@ public partial class GitToolHandlers
     {
         if (string.IsNullOrWhiteSpace(message))
         {
-            return ResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText("message cannot be empty")
                 .Build();
         }
@@ -129,12 +129,12 @@ public partial class GitToolHandlers
 
         if (!result.Success)
         {
-            return ResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText($"Git commit failed:\n{result.Error}")
                 .Build();
         }
 
-        return ResultBuilder.Success()
+        return ToolResultBuilder.Success()
             .WithText($"Commit successful:\n{result.Output}")
             .Build();
     }
@@ -161,12 +161,12 @@ public partial class GitToolHandlers
 
         if (!result.Success)
         {
-            return ResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText($"Git push failed:\n{result.Error}")
                 .Build();
         }
 
-        return ResultBuilder.Success()
+        return ToolResultBuilder.Success()
             .WithText($"Push successful:\n{result.Output}")
             .Build();
     }
@@ -189,12 +189,12 @@ public partial class GitToolHandlers
 
         if (!result.Success)
         {
-            return ResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText($"Git pull failed:\n{result.Error}")
                 .Build();
         }
 
-        return ResultBuilder.Success()
+        return ToolResultBuilder.Success()
             .WithText($"Pull successful:\n{result.Output}")
             .Build();
     }
@@ -209,7 +209,7 @@ public partial class GitToolHandlers
         var validationError = ValidationHelper.ValidateRange(count, 1, 1000, "count");
         if (validationError != null)
         {
-            return ResultBuilder.Error().WithText(validationError).Build();
+            return ToolResultBuilder.Error().WithText(validationError).Build();
         }
 
         var formatArg = format?.ToLowerInvariant() switch
@@ -225,7 +225,7 @@ public partial class GitToolHandlers
 
         if (!result.Success)
         {
-            return ResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText($"Git log failed:\n{result.Error}")
                 .Build();
         }
@@ -235,7 +235,7 @@ public partial class GitToolHandlers
         response.AppendLine();
         response.AppendLine(result.Output);
 
-        return ResultBuilder.Success()
+        return ToolResultBuilder.Success()
             .WithText(response.ToString())
             .Build();
     }
@@ -261,19 +261,19 @@ public partial class GitToolHandlers
 
         if (!result.Success)
         {
-            return ResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText($"Git diff failed:\n{result.Error}")
                 .Build();
         }
 
         if (string.IsNullOrWhiteSpace(result.Output))
         {
-            return ResultBuilder.Success()
+            return ToolResultBuilder.Success()
                 .WithText("No differences")
                 .Build();
         }
 
-        return ResultBuilder.Success()
+        return ToolResultBuilder.Success()
             .WithText(result.Output)
             .Build();
     }
@@ -288,7 +288,7 @@ public partial class GitToolHandlers
     {
         if (string.IsNullOrWhiteSpace(branch_name))
         {
-            return ResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText("branch_name cannot be empty")
                 .Build();
         }
@@ -316,7 +316,7 @@ public partial class GitToolHandlers
                 args = $"{GitSubCommand.Branch.ToValue()} -d \"{branch_name}\"";
                 break;
             default:
-                return ResultBuilder.Error()
+                return ToolResultBuilder.Error()
                     .WithText($"Unsupported operation: {operation}")
                     .Build();
         }
@@ -325,12 +325,12 @@ public partial class GitToolHandlers
 
         if (!result.Success)
         {
-            return ResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText($"Git branch {op.ToValue()} failed:\n{result.Error}")
                 .Build();
         }
 
-        return ResultBuilder.Success()
+        return ToolResultBuilder.Success()
             .WithText($"Branch '{op.ToValue()}' successful: {branch_name}")
             .Build();
     }
@@ -345,7 +345,7 @@ public partial class GitToolHandlers
     {
         if (string.IsNullOrWhiteSpace(url))
         {
-            return ResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText("url cannot be empty")
                 .Build();
         }
@@ -365,18 +365,18 @@ public partial class GitToolHandlers
 
         if (!result.Success)
         {
-            return ResultBuilder.Error()
+            return ToolResultBuilder.Error()
                 .WithText($"Git clone failed:\n{result.Error}")
                 .Build();
         }
 
-        return ResultBuilder.Success()
+        return ToolResultBuilder.Success()
             .WithText($"Clone successful:\n{result.Output}")
             .Build();
     }
 
     private void RecordGitMetrics(string command, bool isSuccess)
-        => _telemetryService?.RecordCount("git.operation.count", new Dictionary<string, string> { ["command"] = command, ["success"] = isSuccess.ToString() }, description: "Git operation count");
+        => ToolTelemetryHelper.RecordToolCount(_telemetryService, "git.operation.count", command, isSuccess);
 
     private async Task<ToolResult?> ScanBeforeCommitAsync(string? workingDir, CancellationToken ct)
     {
@@ -389,7 +389,7 @@ public partial class GitToolHandlers
         if (!scanResult.IsBlocked)
             return null;
 
-        return ResultBuilder.Error()
+        return ToolResultBuilder.Error()
             .WithText(scanResult.FormatReport())
             .Build();
     }

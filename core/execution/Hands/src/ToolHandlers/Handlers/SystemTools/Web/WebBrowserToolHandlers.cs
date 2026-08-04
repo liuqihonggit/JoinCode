@@ -30,15 +30,15 @@ public partial class WebBrowserToolHandlers
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(target))
-            return McpResultBuilder.Error().WithText(L.T(StringKey.BrowserTargetCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.BrowserTargetCannotBeEmpty)).Build();
 
         var validationError = ValidationHelper.ValidateRange(wait_ms, 0, 60000, "wait_ms");
         if (validationError != null)
-            return McpResultBuilder.Error().WithText(validationError).Build();
+            return ToolResultBuilder.Error().WithText(validationError).Build();
 
         var browserAction = BrowserActionExtensions.FromValue(action);
         if (browserAction == null)
-            return McpResultBuilder.Error().WithText(L.T(StringKey.BrowserUnknownAction, action)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.BrowserUnknownAction, action)).Build();
 
         try
         {
@@ -81,7 +81,7 @@ public partial class WebBrowserToolHandlers
                         response.AppendLine(L.T(StringKey.BrowserFetched, target));
                         response.AppendLine(L.T(StringKey.BrowserContentSize, screenshotResult.Data.Length));
                         var base64Png = Convert.ToBase64String(screenshotResult.Data);
-                        return McpResultBuilder.Success()
+                        return ToolResultBuilder.Success()
                             .WithText(response.ToString())
                             .WithImage(base64Png, "image/png")
                             .Build();
@@ -118,16 +118,16 @@ public partial class WebBrowserToolHandlers
                     break;
 
                 default:
-                    return McpResultBuilder.Error().WithText(L.T(StringKey.BrowserUnknownAction, action)).Build();
+                    return ToolResultBuilder.Error().WithText(L.T(StringKey.BrowserUnknownAction, action)).Build();
             }
 
-            return McpResultBuilder.Success().WithText(response.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(response.ToString()).Build();
         }
         catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             _logger?.LogError(ex, L.T(StringKey.BrowserFailedLog));
-            return McpResultBuilder.Error().WithText(L.T(StringKey.BrowserFailed, ex.Message)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.BrowserFailed, ex.Message)).Build();
         }
     }
 }

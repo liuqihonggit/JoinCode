@@ -23,22 +23,13 @@ public class LspToolHandlers {
         [McpToolParameter("Line number (1-based, consistent with editor)")] int line,
         [McpToolParameter("Character position (1-based, consistent with editor)")] int character,
         CancellationToken cancellationToken = default) {
-        if (string.IsNullOrWhiteSpace(file_path)) {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.FilePathCannotBeEmpty)).Build();
-        }
-
-        var fileResult = await _fileOperationService.ReadFileAsync(file_path, cancellationToken: cancellationToken).ConfigureAwait(false);
-        if (!fileResult.Success) {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.FileNotExist, file_path)).Build();
-        }
-
-        try {
+        return await ValidateFileAndExecuteAsync(file_path, async () => {
             var locations = await _lspService.GotoDefinitionAsync(file_path, line - 1, character - 1, cancellationToken).ConfigureAwait(false);
 
             locations = await FilterLocationsGitIgnoredAsync(locations).ConfigureAwait(false);
 
             if (locations.Count == 0) {
-                return McpResultBuilder.Success().WithText(L.T(StringKey.NoDefinitionFound)).Build();
+                return ToolResultBuilder.Success().WithText(L.T(StringKey.NoDefinitionFound)).Build();
             }
 
             var response = new System.Text.StringBuilder();
@@ -55,10 +46,8 @@ public class LspToolHandlers {
                 response.AppendLine();
             }
 
-            return McpResultBuilder.Success().WithText(response.ToString()).Build();
-        } catch (Exception ex) {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.LspError, ex.Message)).Build();
-        }
+            return ToolResultBuilder.Success().WithText(response.ToString()).Build();
+        }, cancellationToken);
     }
 
     /// <summary>
@@ -70,29 +59,19 @@ public class LspToolHandlers {
         [McpToolParameter("Line number (1-based, consistent with editor)")] int line,
         [McpToolParameter("Character position (1-based, consistent with editor)")] int character,
         CancellationToken cancellationToken = default) {
-        if (string.IsNullOrWhiteSpace(file_path)) {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.FilePathCannotBeEmpty)).Build();
-        }
-
-        var fileResult = await _fileOperationService.ReadFileAsync(file_path, cancellationToken: cancellationToken).ConfigureAwait(false);
-        if (!fileResult.Success) {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.FileNotExist, file_path)).Build();
-        }
-
-        try {
+        return await ValidateFileAndExecuteAsync(file_path, async () => {
             var locations = await _lspService.FindReferencesAsync(file_path, line - 1, character - 1, cancellationToken).ConfigureAwait(false);
 
             locations = await FilterLocationsGitIgnoredAsync(locations).ConfigureAwait(false);
 
             if (locations.Count == 0) {
-                return McpResultBuilder.Success().WithText(L.T(StringKey.NoReferencesFound)).Build();
+                return ToolResultBuilder.Success().WithText(L.T(StringKey.NoReferencesFound)).Build();
             }
 
             var response = new System.Text.StringBuilder();
             response.AppendLine(L.T(StringKey.FoundReferencesCountLsp, locations.Count));
             response.AppendLine();
 
-            // 按文件分组
             var grouped = locations.GroupBy(l => l.Uri).ToList();
 
             foreach (var group in grouped) {
@@ -108,10 +87,8 @@ public class LspToolHandlers {
                 response.AppendLine();
             }
 
-            return McpResultBuilder.Success().WithText(response.ToString()).Build();
-        } catch (Exception ex) {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.LspError, ex.Message)).Build();
-        }
+            return ToolResultBuilder.Success().WithText(response.ToString()).Build();
+        }, cancellationToken);
     }
 
     /// <summary>
@@ -123,20 +100,11 @@ public class LspToolHandlers {
         [McpToolParameter("Line number (1-based, consistent with editor)")] int line,
         [McpToolParameter("Character position (1-based, consistent with editor)")] int character,
         CancellationToken cancellationToken = default) {
-        if (string.IsNullOrWhiteSpace(file_path)) {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.FilePathCannotBeEmpty)).Build();
-        }
-
-        var fileResult = await _fileOperationService.ReadFileAsync(file_path, cancellationToken: cancellationToken).ConfigureAwait(false);
-        if (!fileResult.Success) {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.FileNotExist, file_path)).Build();
-        }
-
-        try {
+        return await ValidateFileAndExecuteAsync(file_path, async () => {
             var hover = await _lspService.HoverAsync(file_path, line - 1, character - 1, cancellationToken).ConfigureAwait(false);
 
             if (hover?.Contents == null) {
-                return McpResultBuilder.Success().WithText(L.T(StringKey.NoHoverInfo)).Build();
+                return ToolResultBuilder.Success().WithText(L.T(StringKey.NoHoverInfo)).Build();
             }
 
             var content = FormatHoverContents(hover.Contents);
@@ -146,10 +114,8 @@ public class LspToolHandlers {
             response.AppendLine();
             response.AppendLine(content);
 
-            return McpResultBuilder.Success().WithText(response.ToString()).Build();
-        } catch (Exception ex) {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.LspError, ex.Message)).Build();
-        }
+            return ToolResultBuilder.Success().WithText(response.ToString()).Build();
+        }, cancellationToken);
     }
 
     /// <summary>
@@ -161,20 +127,11 @@ public class LspToolHandlers {
         [McpToolParameter("Line number (1-based, consistent with editor)")] int line,
         [McpToolParameter("Character position (1-based, consistent with editor)")] int character,
         CancellationToken cancellationToken = default) {
-        if (string.IsNullOrWhiteSpace(file_path)) {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.FilePathCannotBeEmpty)).Build();
-        }
-
-        var fileResult = await _fileOperationService.ReadFileAsync(file_path, cancellationToken: cancellationToken).ConfigureAwait(false);
-        if (!fileResult.Success) {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.FileNotExist, file_path)).Build();
-        }
-
-        try {
+        return await ValidateFileAndExecuteAsync(file_path, async () => {
             var completions = await _lspService.GetCompletionsAsync(file_path, line - 1, character - 1, cancellationToken).ConfigureAwait(false);
 
             if (completions.Count == 0) {
-                return McpResultBuilder.Success().WithText(L.T(StringKey.NoCompletionSuggestions)).Build();
+                return ToolResultBuilder.Success().WithText(L.T(StringKey.NoCompletionSuggestions)).Build();
             }
 
             var response = new System.Text.StringBuilder();
@@ -205,10 +162,8 @@ public class LspToolHandlers {
                 response.AppendLine(L.T(StringKey.MoreSuggestions, completions.Count - 20));
             }
 
-            return McpResultBuilder.Success().WithText(response.ToString()).Build();
-        } catch (Exception ex) {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.LspError, ex.Message)).Build();
-        }
+            return ToolResultBuilder.Success().WithText(response.ToString()).Build();
+        }, cancellationToken);
     }
 
     /// <summary>
@@ -218,20 +173,11 @@ public class LspToolHandlers {
     public async Task<ToolResult> LspDocumentSymbolsAsync(
         [McpToolParameter("File path")] string file_path,
         CancellationToken cancellationToken = default) {
-        if (string.IsNullOrWhiteSpace(file_path)) {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.FilePathCannotBeEmpty)).Build();
-        }
-
-        var fileResult = await _fileOperationService.ReadFileAsync(file_path, cancellationToken: cancellationToken).ConfigureAwait(false);
-        if (!fileResult.Success) {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.FileNotExist, file_path)).Build();
-        }
-
-        try {
+        return await ValidateFileAndExecuteAsync(file_path, async () => {
             var symbols = await _lspService.GetDocumentSymbolsAsync(file_path, cancellationToken).ConfigureAwait(false);
 
             if (symbols.Count == 0) {
-                return McpResultBuilder.Success().WithText(L.T(StringKey.NoDocumentSymbols)).Build();
+                return ToolResultBuilder.Success().WithText(L.T(StringKey.NoDocumentSymbols)).Build();
             }
 
             var response = new System.Text.StringBuilder();
@@ -242,10 +188,8 @@ public class LspToolHandlers {
                 FormatSymbol(response, symbol, 0);
             }
 
-            return McpResultBuilder.Success().WithText(response.ToString()).Build();
-        } catch (Exception ex) {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.LspError, ex.Message)).Build();
-        }
+            return ToolResultBuilder.Success().WithText(response.ToString()).Build();
+        }, cancellationToken);
     }
 
     /// <summary>
@@ -256,7 +200,7 @@ public class LspToolHandlers {
         [McpToolParameter("Search query")] string query,
         CancellationToken cancellationToken = default) {
         if (string.IsNullOrWhiteSpace(query)) {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.QueryCannotBeEmpty)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.QueryCannotBeEmpty)).Build();
         }
 
         try {
@@ -265,7 +209,7 @@ public class LspToolHandlers {
             symbols = await FilterSymbolsGitIgnoredAsync(symbols).ConfigureAwait(false);
 
             if (symbols.Count == 0) {
-                return McpResultBuilder.Success().WithText(L.T(StringKey.NoMatchingSymbolsLsp, query)).Build();
+                return ToolResultBuilder.Success().WithText(L.T(StringKey.NoMatchingSymbolsLsp, query)).Build();
             }
 
             var response = new System.Text.StringBuilder();
@@ -291,9 +235,9 @@ public class LspToolHandlers {
                 response.AppendLine(L.T(StringKey.MoreResultsLsp, symbols.Count - 30));
             }
 
-            return McpResultBuilder.Success().WithText(response.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(response.ToString()).Build();
         } catch (Exception ex) {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.LspError, ex.Message)).Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.LspError, ex.Message)).Build();
         }
     }
 
@@ -306,22 +250,13 @@ public class LspToolHandlers {
         [McpToolParameter("Line number (1-based, consistent with editor)")] int line,
         [McpToolParameter("Character position (1-based, consistent with editor)")] int character,
         CancellationToken cancellationToken = default) {
-        if (string.IsNullOrWhiteSpace(file_path)) {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.FilePathCannotBeEmpty)).Build();
-        }
-
-        var fileResult = await _fileOperationService.ReadFileAsync(file_path, cancellationToken: cancellationToken).ConfigureAwait(false);
-        if (!fileResult.Success) {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.FileNotExist, file_path)).Build();
-        }
-
-        try {
+        return await ValidateFileAndExecuteAsync(file_path, async () => {
             var locations = await _lspService.GotoImplementationAsync(file_path, line - 1, character - 1, cancellationToken).ConfigureAwait(false);
 
             locations = await FilterLocationsGitIgnoredAsync(locations).ConfigureAwait(false);
 
             if (locations.Count == 0) {
-                return McpResultBuilder.Success().WithText(L.T(StringKey.NoImplementationFound)).Build();
+                return ToolResultBuilder.Success().WithText(L.T(StringKey.NoImplementationFound)).Build();
             }
 
             var response = new System.Text.StringBuilder();
@@ -338,10 +273,8 @@ public class LspToolHandlers {
                 response.AppendLine();
             }
 
-            return McpResultBuilder.Success().WithText(response.ToString()).Build();
-        } catch (Exception ex) {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.LspError, ex.Message)).Build();
-        }
+            return ToolResultBuilder.Success().WithText(response.ToString()).Build();
+        }, cancellationToken);
     }
 
     /// <summary>
@@ -353,20 +286,11 @@ public class LspToolHandlers {
         [McpToolParameter("Line number (1-based, consistent with editor)")] int line,
         [McpToolParameter("Character position (1-based, consistent with editor)")] int character,
         CancellationToken cancellationToken = default) {
-        if (string.IsNullOrWhiteSpace(file_path)) {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.FilePathCannotBeEmpty)).Build();
-        }
-
-        var fileResult = await _fileOperationService.ReadFileAsync(file_path, cancellationToken: cancellationToken).ConfigureAwait(false);
-        if (!fileResult.Success) {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.FileNotExist, file_path)).Build();
-        }
-
-        try {
+        return await ValidateFileAndExecuteAsync(file_path, async () => {
             var items = await _lspService.PrepareCallHierarchyAsync(file_path, line - 1, character - 1, cancellationToken).ConfigureAwait(false);
 
             if (items.Count == 0) {
-                return McpResultBuilder.Success().WithText(L.T(StringKey.NoCallHierarchyInfo)).Build();
+                return ToolResultBuilder.Success().WithText(L.T(StringKey.NoCallHierarchyInfo)).Build();
             }
 
             var response = new System.Text.StringBuilder();
@@ -387,10 +311,8 @@ public class LspToolHandlers {
                 response.AppendLine();
             }
 
-            return McpResultBuilder.Success().WithText(response.ToString()).Build();
-        } catch (Exception ex) {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.LspError, ex.Message)).Build();
-        }
+            return ToolResultBuilder.Success().WithText(response.ToString()).Build();
+        }, cancellationToken);
     }
 
     /// <summary>
@@ -402,26 +324,17 @@ public class LspToolHandlers {
         [McpToolParameter("Line number (1-based, consistent with editor)")] int line,
         [McpToolParameter("Character position (1-based, consistent with editor)")] int character,
         CancellationToken cancellationToken = default) {
-        if (string.IsNullOrWhiteSpace(file_path)) {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.FilePathCannotBeEmpty)).Build();
-        }
-
-        var fileResult = await _fileOperationService.ReadFileAsync(file_path, cancellationToken: cancellationToken).ConfigureAwait(false);
-        if (!fileResult.Success) {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.FileNotExist, file_path)).Build();
-        }
-
-        try {
+        return await ValidateFileAndExecuteAsync(file_path, async () => {
             var items = await _lspService.PrepareCallHierarchyAsync(file_path, line - 1, character - 1, cancellationToken).ConfigureAwait(false);
 
             if (items.Count == 0) {
-                return McpResultBuilder.Success().WithText(L.T(StringKey.NoCallHierarchyInfo)).Build();
+                return ToolResultBuilder.Success().WithText(L.T(StringKey.NoCallHierarchyInfo)).Build();
             }
 
             var calls = await _lspService.CallHierarchyIncomingCallsAsync(items[0], cancellationToken).ConfigureAwait(false);
 
             if (calls.Count == 0) {
-                return McpResultBuilder.Success().WithText(L.T(StringKey.NoIncomingCalls, items[0].Name)).Build();
+                return ToolResultBuilder.Success().WithText(L.T(StringKey.NoIncomingCalls, items[0].Name)).Build();
             }
 
             var response = new System.Text.StringBuilder();
@@ -450,10 +363,8 @@ public class LspToolHandlers {
                 response.AppendLine();
             }
 
-            return McpResultBuilder.Success().WithText(response.ToString()).Build();
-        } catch (Exception ex) {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.LspError, ex.Message)).Build();
-        }
+            return ToolResultBuilder.Success().WithText(response.ToString()).Build();
+        }, cancellationToken);
     }
 
     /// <summary>
@@ -465,26 +376,17 @@ public class LspToolHandlers {
         [McpToolParameter("Line number (1-based, consistent with editor)")] int line,
         [McpToolParameter("Character position (1-based, consistent with editor)")] int character,
         CancellationToken cancellationToken = default) {
-        if (string.IsNullOrWhiteSpace(file_path)) {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.FilePathCannotBeEmpty)).Build();
-        }
-
-        var fileResult = await _fileOperationService.ReadFileAsync(file_path, cancellationToken: cancellationToken).ConfigureAwait(false);
-        if (!fileResult.Success) {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.FileNotExist, file_path)).Build();
-        }
-
-        try {
+        return await ValidateFileAndExecuteAsync(file_path, async () => {
             var items = await _lspService.PrepareCallHierarchyAsync(file_path, line - 1, character - 1, cancellationToken).ConfigureAwait(false);
 
             if (items.Count == 0) {
-                return McpResultBuilder.Success().WithText(L.T(StringKey.NoCallHierarchyInfo)).Build();
+                return ToolResultBuilder.Success().WithText(L.T(StringKey.NoCallHierarchyInfo)).Build();
             }
 
             var calls = await _lspService.CallHierarchyOutgoingCallsAsync(items[0], cancellationToken).ConfigureAwait(false);
 
             if (calls.Count == 0) {
-                return McpResultBuilder.Success().WithText(L.T(StringKey.NoOutgoingCalls, items[0].Name)).Build();
+                return ToolResultBuilder.Success().WithText(L.T(StringKey.NoOutgoingCalls, items[0].Name)).Build();
             }
 
             var response = new System.Text.StringBuilder();
@@ -513,10 +415,8 @@ public class LspToolHandlers {
                 response.AppendLine();
             }
 
-            return McpResultBuilder.Success().WithText(response.ToString()).Build();
-        } catch (Exception ex) {
-            return McpResultBuilder.Error().WithText(L.T(StringKey.LspError, ex.Message)).Build();
-        }
+            return ToolResultBuilder.Success().WithText(response.ToString()).Build();
+        }, cancellationToken);
     }
 
     #region Private Methods
@@ -740,4 +640,24 @@ public class LspToolHandlers {
     }
 
     #endregion
+
+    private async Task<ToolResult> ValidateFileAndExecuteAsync(
+        string? file_path, Func<Task<ToolResult>> action, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(file_path))
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.FilePathCannotBeEmpty)).Build();
+
+        var fileResult = await _fileOperationService.ReadFileAsync(file_path, cancellationToken: cancellationToken).ConfigureAwait(false);
+        if (!fileResult.Success)
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.FileNotExist, file_path)).Build();
+
+        try
+        {
+            return await action().ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.LspError, ex.Message)).Build();
+        }
+    }
 }

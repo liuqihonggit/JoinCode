@@ -292,7 +292,7 @@ public partial class McpClientToolHandlers : IAsyncDisposable
             return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionNotFound, connection_name)).Build();
         }
 
-        try
+        return await ToolResultBuilder.SafeExecuteAsync(async () =>
         {
             var result = await client.ListToolsAsync(cancellationToken);
 
@@ -317,12 +317,7 @@ public partial class McpClientToolHandlers : IAsyncDisposable
             }
 
             return ToolResultBuilder.Success().WithText(response.ToString()).Build();
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, L.T(StringKey.ListToolsFailedLog));
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.ListToolsFailedEx, ex.Message)).Build();
-        }
+        }, _logger, L.T(StringKey.ListToolsFailedLog)).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -351,7 +346,7 @@ public partial class McpClientToolHandlers : IAsyncDisposable
             return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionNotFound, connection_name)).Build();
         }
 
-        try
+        return await ToolResultBuilder.SafeExecuteAsync(async () =>
         {
             Dictionary<string, JsonElement>? arguments = null;
             if (!string.IsNullOrEmpty(arguments_json))
@@ -363,7 +358,6 @@ public partial class McpClientToolHandlers : IAsyncDisposable
 
             var result = await client.CallToolAsync(tool_name, arguments, cancellationToken);
 
-            // 对齐 TS convertResultContentToContentBlocks — 分发 text/image/binary
             var builder = result.IsError ? ToolResultBuilder.Error() : ToolResultBuilder.Success();
 
             if (result.IsError)
@@ -377,19 +371,16 @@ public partial class McpClientToolHandlers : IAsyncDisposable
 
             foreach (var content in result.Content)
             {
-                // 图片类型 — base64 内联 + 降采样（对齐 TS image 路径）
                 if (content.Type == ToolContentType.Image && !string.IsNullOrEmpty(content.Data) && !string.IsNullOrEmpty(content.MimeType))
                 {
                     var imageData = await MaybeResizeImageAsync(content.Data, content.MimeType).ConfigureAwait(false);
                     builder.WithImage(imageData.base64, imageData.mediaType);
                 }
-                // 二进制资源类型 — 写盘持久化（对齐 TS resource blob 路径）
                 else if (content.Type == ToolContentType.Resource && !string.IsNullOrEmpty(content.Data) && !string.IsNullOrEmpty(content.MimeType))
                 {
                     var binaryText = await PersistBlobToTextBlockAsync(content.Data, content.MimeType, connection_name).ConfigureAwait(false);
                     builder.WithText(binaryText);
                 }
-                // 文本类型
                 else if (!string.IsNullOrEmpty(content.Text))
                 {
                     builder.WithText(content.Text);
@@ -397,12 +388,7 @@ public partial class McpClientToolHandlers : IAsyncDisposable
             }
 
             return builder.Build();
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, L.T(StringKey.CallToolFailedLog), tool_name);
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.CallToolFailed, ex.Message)).Build();
-        }
+        }, _logger, L.T(StringKey.CallToolFailedLog)).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -424,7 +410,7 @@ public partial class McpClientToolHandlers : IAsyncDisposable
             return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionNotFound, connection_name)).Build();
         }
 
-        try
+        return await ToolResultBuilder.SafeExecuteAsync(async () =>
         {
             var result = await client.ListResourcesAsync(cancellationToken);
 
@@ -454,12 +440,7 @@ public partial class McpClientToolHandlers : IAsyncDisposable
             }
 
             return ToolResultBuilder.Success().WithText(response.ToString()).Build();
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, L.T(StringKey.ListResourcesFailedLog));
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.ListResourcesFailedEx, ex.Message)).Build();
-        }
+        }, _logger, L.T(StringKey.ListResourcesFailedLog)).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -487,7 +468,7 @@ public partial class McpClientToolHandlers : IAsyncDisposable
             return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionNotFound, connection_name)).Build();
         }
 
-        try
+        return await ToolResultBuilder.SafeExecuteAsync(async () =>
         {
             var result = await client.ReadResourceAsync(resource_uri, cancellationToken);
 
@@ -517,11 +498,9 @@ public partial class McpClientToolHandlers : IAsyncDisposable
             }
             else if (!string.IsNullOrEmpty(result.Data.Blob))
             {
-                // 对齐 TS persistBlobToTextBlock — 解码 base64 + 写盘持久化
                 var mimeType = result.Data.MimeType;
                 if (McpBinaryHelper.IsImageMimeType(mimeType))
                 {
-                    // 图片走 base64 内联路径 + 降采样
                     var builder = ToolResultBuilder.Success();
                     builder.WithText(response.ToString());
                     var imageData = await MaybeResizeImageAsync(result.Data.Blob ?? string.Empty, mimeType ?? "image/png").ConfigureAwait(false);
@@ -536,12 +515,7 @@ public partial class McpClientToolHandlers : IAsyncDisposable
             }
 
             return ToolResultBuilder.Success().WithText(response.ToString()).Build();
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, L.T(StringKey.ReadResourceFailedLog), resource_uri);
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.ReadResourceFailedEx, ex.Message)).Build();
-        }
+        }, _logger, L.T(StringKey.ReadResourceFailedLog)).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -563,7 +537,7 @@ public partial class McpClientToolHandlers : IAsyncDisposable
             return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionNotFound, connection_name)).Build();
         }
 
-        try
+        return await ToolResultBuilder.SafeExecuteAsync(async () =>
         {
             var result = await client.ListPromptsAsync(cancellationToken);
 
@@ -592,12 +566,7 @@ public partial class McpClientToolHandlers : IAsyncDisposable
             }
 
             return ToolResultBuilder.Success().WithText(response.ToString()).Build();
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, L.T(StringKey.ListPromptsFailedLog));
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.ListPromptsFailedEx, ex.Message)).Build();
-        }
+        }, _logger, L.T(StringKey.ListPromptsFailedLog)).ConfigureAwait(false);
     }
 
     private async Task<IMcpClient?> GetClientAsync(string connectionName, CancellationToken cancellationToken)

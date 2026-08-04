@@ -34,6 +34,9 @@ public static partial class PathConverter
     /// POSIX 风格 Windows 路径转 Windows 路径
     /// <list type="bullet">
     ///   <item>/c/Users/test → C:\Users\test</item>
+    ///   <item>C:/Users/test → C:\Users\test</item>
+    ///   <item>D:/project/w3 → D:\project\w3</item>
+    ///   <item>//server/share → \\server\share</item>
     /// </list>
     /// </summary>
     public static string PosixPathToWindowsPath(string posixPath)
@@ -45,6 +48,16 @@ public static partial class PathConverter
         if (normalized.Length > 2 && normalized[0] == '/' && normalized[2] == '/' && char.IsLetter(normalized[1]))
         {
             return $"{char.ToUpperInvariant(normalized[1])}:{normalized[2..]}".Replace('/', '\\');
+        }
+
+        if (normalized.Length > 2 && char.IsLetter(normalized[0]) && normalized[1] == ':' && normalized[2] == '/')
+        {
+            return $"{char.ToUpperInvariant(normalized[0])}:{normalized[2..]}".Replace('/', '\\');
+        }
+
+        if (normalized.StartsWith("//") && normalized.Length > 2)
+        {
+            return normalized.Replace('/', '\\');
         }
 
         return posixPath;
@@ -63,12 +76,15 @@ public static partial class PathConverter
         if (path.StartsWith("\\\\"))
             return true;
 
+        if (path.StartsWith("//") && path.Length > 2 && path[2] != '/')
+            return true;
+
         return false;
     }
 
     /// <summary>
     /// 扫描命令字符串中的路径片段并转换为指定格式
-    /// 匹配 Windows 绝对路径（C:\...）和 POSIX 风格 Windows 路径（/c/...），排除 URL 和环境变量
+    /// 匹配 Windows 绝对路径（C:\...、C:/...）和 POSIX 风格 Windows 路径（/c/...），排除 URL 和环境变量
     /// </summary>
     /// <param name="command">Shell 命令字符串</param>
     /// <param name="toPosix">true 转为 POSIX 格式，false 转为 Windows 格式</param>
@@ -80,7 +96,7 @@ public static partial class PathConverter
         var result = WindowsAbsolutePathRegex().Replace(command, m =>
         {
             var path = m.Groups[1].Value;
-            var converted = toPosix ? WindowsPathToPosixPath(path) : path;
+            var converted = toPosix ? WindowsPathToPosixPath(path) : PosixPathToWindowsPath(path);
             return converted;
         });
 

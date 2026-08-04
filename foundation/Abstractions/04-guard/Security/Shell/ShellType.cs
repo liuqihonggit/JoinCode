@@ -7,7 +7,8 @@ public enum ShellType
 {
     [EnumValue("bash")] Bash,
     [EnumValue("powershell")] PowerShell,
-    [EnumValue("cmd")] Cmd
+    [EnumValue("cmd")] Cmd,
+    [EnumValue("python")] Python
 }
 
 /// <summary>
@@ -24,9 +25,10 @@ public static class ShellTypeHelper
         var result = ShellTypeExtensions.FromValue(value);
         if (result is not null) return result;
 
-        // 别名: pwsh → PowerShell
         return value.Equals("pwsh", StringComparison.OrdinalIgnoreCase)
             ? ShellType.PowerShell
+            : value.Equals("python3", StringComparison.OrdinalIgnoreCase) || value.Equals("py", StringComparison.OrdinalIgnoreCase)
+            ? ShellType.Python
             : null;
     }
 }

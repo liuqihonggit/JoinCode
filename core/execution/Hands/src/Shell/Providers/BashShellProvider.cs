@@ -16,6 +16,10 @@ public sealed class BashCapabilityProvider : ShellCapabilityProvider
         _logger = logger;
     }
 
+    public override ShellProviderBase CreateProvider(
+        ShellCapability capability, IFileSystem fs, ILogger? logger = null)
+        => new BashShellProvider(capability, fs, logger: logger);
+
     protected override ShellType GetShellType() => ShellType.Bash;
     protected override bool IsDetached() => true;
 

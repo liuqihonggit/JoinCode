@@ -237,6 +237,12 @@ public abstract class ShellCapabilityProvider
     protected virtual Encoding GetErrorEncoding() => GetOutputEncoding();
     protected virtual bool DetectIsPowerShellCore(string shellPath, string version) => false;
 
+    /// <summary>
+    /// 创建短命执行器实例 — 每次命令执行时调用，返回 ShellProviderBase 子类
+    /// </summary>
+    public abstract ShellProviderBase CreateProvider(
+        ShellCapability capability, IFileSystem fs, ILogger? logger = null);
+
     protected virtual string BuildDisplayName(string shellPath, string version)
     {
         var typeName = GetShellType().ToValue();

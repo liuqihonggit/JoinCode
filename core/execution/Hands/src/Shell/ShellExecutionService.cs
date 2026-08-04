@@ -1,10 +1,8 @@
-
-using Services.Shell.Providers;
-
 namespace Services.Shell;
 
 /// <summary>
-/// Shell 执行服务实现 — 使用 IShellProvider 替代硬编码的 cmd.exe/powershell.exe
+/// Shell 执行服务实现 — 注入 ShellCapabilityProvider 抽象集合
+/// 每次执行时从 Capability 创建短命 ShellProviderBase 实例
 /// </summary>
 [Register]
 public sealed partial class ShellExecutionService : IShellExecutionService
@@ -14,25 +12,22 @@ public sealed partial class ShellExecutionService : IShellExecutionService
     private readonly IFileSystem _fs;
     private readonly ISandboxManager? _sandboxManager;
     private readonly IPreventSleepService? _preventSleepService;
-    private readonly IShellProvider _bashProvider;
-    private readonly IShellProvider _powerShellProvider;
+    private readonly IReadOnlyDictionary<ShellType, ShellCapabilityProvider> _capabilityProviders;
 
     public ShellExecutionService(
         ShellExecutionConfig config,
         IFileSystem fs,
-        BashShellProvider bashProvider,
-        PowerShellShellProvider powerShellProvider,
+        IEnumerable<ShellCapabilityProvider> capabilityProviders,
         ILogger<ShellExecutionService>? logger = null,
         ISandboxManager? sandboxManager = null,
         IPreventSleepService? preventSleepService = null)
     {
         _config = config ?? throw new ArgumentNullException(nameof(config));
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
-        _bashProvider = bashProvider ?? throw new ArgumentNullException(nameof(bashProvider));
-        _powerShellProvider = powerShellProvider ?? throw new ArgumentNullException(nameof(powerShellProvider));
         _logger = logger;
         _sandboxManager = sandboxManager;
         _preventSleepService = preventSleepService;
+        _capabilityProviders = capabilityProviders.ToDictionary(p => p.GetCapability(fs).Type);
     }
 
     /// <inheritdoc />
@@ -42,8 +37,7 @@ public sealed partial class ShellExecutionService : IShellExecutionService
         string? workingDirectory = null,
         bool disableSandbox = false,
         CancellationToken cancellationToken = default)
-        => ExecuteCoreAsync(command, timeout, workingDirectory, disableSandbox, _bashProvider,
-            "Bash", cancellationToken);
+        => ExecuteCoreAsync(command, timeout, workingDirectory, disableSandbox, ShellType.Bash, cancellationToken);
 
     /// <inheritdoc />
     public Task<ShellExecutionResult> ExecutePowerShellAsync(
@@ -52,8 +46,7 @@ public sealed partial class ShellExecutionService : IShellExecutionService
         string? workingDirectory = null,
         bool disableSandbox = false,
         CancellationToken cancellationToken = default)
-        => ExecuteCoreAsync(command, timeout, workingDirectory, disableSandbox, _powerShellProvider,
-            "PowerShell", cancellationToken);
+        => ExecuteCoreAsync(command, timeout, workingDirectory, disableSandbox, ShellType.PowerShell, cancellationToken);
 
     /// <inheritdoc />
     public async Task<IShellCommandContext> StartWithBackgroundSupportAsync(
@@ -66,21 +59,16 @@ public sealed partial class ShellExecutionService : IShellExecutionService
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(command))
-        {
             throw new ArgumentException("Command cannot be empty", nameof(command));
-        }
 
         var cwd = ResolveWorkingDirectory(workingDirectory, disableSandbox);
 
-        // 对齐 TS Shell.ts: CWD 不存在时回退到项目根目录而非抛异常
         if (!_fs.DirectoryExists(cwd))
         {
             _logger?.LogWarning("工作目录不存在: {Cwd}，回退到项目根目录", cwd);
             cwd = _fs.GetCurrentDirectory();
             if (!_fs.DirectoryExists(cwd))
-            {
                 throw new DirectoryNotFoundException($"Working directory does not exist: {cwd}");
-            }
         }
 
         _logger?.LogInformation("Starting backgroundable command with {ProviderType}: {Command}", provider.Type, command);
@@ -91,15 +79,8 @@ public sealed partial class ShellExecutionService : IShellExecutionService
         var sandboxTmpDir = useSandbox ? (_sandboxManager ?? throw new InvalidOperationException("SandboxManager not available.")).CurrentSandbox?.RootPath : null;
 
         var context = await ShellCommandContext.StartAsync(
-            command,
-            cwd,
-            _fs,
-            provider,
-            timeout,
-            shouldAutoBackground,
-            useSandbox,
-            sandboxTmpDir,
-            _logger).ConfigureAwait(false);
+            command, cwd, _fs, provider, timeout,
+            shouldAutoBackground, useSandbox, sandboxTmpDir, _logger).ConfigureAwait(false);
 
         _ = context.ResultTask.ContinueWith(async _ =>
         {
@@ -111,23 +92,16 @@ public sealed partial class ShellExecutionService : IShellExecutionService
 
     #region Core Execution
 
-    /// <summary>
-    /// 统一执行核心 — 对齐 TS Shell.ts，所有路径走 ShellCommandContext
-    /// 消除双路径（IProcessService vs ShellCommandContext），统一环境变量清理、大输出持久化、CWD 追踪
-    /// </summary>
     private async Task<ShellExecutionResult> ExecuteCoreAsync(
         string command,
         int? timeout,
         string? workingDirectory,
         bool disableSandbox,
-        IShellProvider provider,
-        string shellLabel,
+        ShellType shellType,
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(command))
-        {
             return ShellExecutionResult.FailureResult("Command cannot be empty");
-        }
 
         var cwd = ResolveWorkingDirectory(workingDirectory, disableSandbox);
 
@@ -136,12 +110,16 @@ public sealed partial class ShellExecutionService : IShellExecutionService
             _logger?.LogWarning("工作目录不存在: {Cwd}，回退到项目根目录", cwd);
             cwd = _fs.GetCurrentDirectory();
             if (!_fs.DirectoryExists(cwd))
-            {
                 return ShellExecutionResult.FailureResult($"Working directory does not exist: {cwd}");
-            }
         }
 
-        _logger?.LogInformation("Executing {Shell} command: {Command}", shellLabel, command);
+        _logger?.LogInformation("Executing {ShellType} command: {Command}", shellType, command);
+
+        if (!_capabilityProviders.TryGetValue(shellType, out var capProvider))
+            return ShellExecutionResult.FailureResult($"No ShellCapabilityProvider registered for {shellType}");
+
+        var capability = capProvider.GetCapability(_fs, _logger as ILogger);
+        using var provider = capProvider.CreateProvider(capability, _fs, _logger as ILogger);
 
         if (_preventSleepService is not null) await _preventSleepService.PreventSleepAsync(SleepPreventionType.Continuous).ConfigureAwait(false);
         try
@@ -156,18 +134,15 @@ public sealed partial class ShellExecutionService : IShellExecutionService
             var result = await context.ResultTask.ConfigureAwait(false);
 
             _logger?.LogInformation(
-                "{LogLabel} completed: ExitCode={ExitCode}, StdoutLength={StdoutLength}, StderrLength={StderrLength}",
-                shellLabel, result.ExitCode, result.Stdout?.Length ?? 0, result.Stderr?.Length ?? 0);
+                "{ShellType} completed: ExitCode={ExitCode}, StdoutLength={StdoutLength}, StderrLength={StderrLength}",
+                shellType, result.ExitCode, result.Stdout?.Length ?? 0, result.Stderr?.Length ?? 0);
 
             return result;
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
+        catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "{LogLabel} execution failed: {Command}", shellLabel, command);
+            _logger?.LogError(ex, "{ShellType} execution failed: {Command}", shellType, command);
             return ShellExecutionResult.FailureResult(ex.Message);
         }
         finally
@@ -183,9 +158,7 @@ public sealed partial class ShellExecutionService : IShellExecutionService
             : Path.GetFullPath(workingDirectory);
 
         if (!disableSandbox && _sandboxManager != null && _sandboxManager.IsInSandbox)
-        {
             cwd = _sandboxManager.ResolvePath(cwd);
-        }
 
         return cwd;
     }

@@ -8,6 +8,10 @@ public sealed class PowerShellCapabilityProvider : ShellCapabilityProvider
 {
     public const string PowerShellPathEnvVar = "JCC_POWERSHELL_PATH";
 
+    public override ShellProviderBase CreateProvider(
+        ShellCapability capability, IFileSystem fs, ILogger? logger = null)
+        => new PowerShellShellProvider(capability, fs, logger);
+
     protected override ShellType GetShellType() => ShellType.PowerShell;
 
     protected override string ResolveShellPath(IFileSystem fs, ILogger? logger)

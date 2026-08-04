@@ -8,6 +8,10 @@ public sealed class PythonCapabilityProvider : ShellCapabilityProvider
 {
     public const string PythonPathEnvVar = "JCC_PYTHON_PATH";
 
+    public override ShellProviderBase CreateProvider(
+        ShellCapability capability, IFileSystem fs, ILogger? logger = null)
+        => new PythonShellProvider(capability, fs, logger);
+
     protected override ShellType GetShellType() => ShellType.Python;
 
     protected override string ResolveShellPath(IFileSystem fs, ILogger? logger)

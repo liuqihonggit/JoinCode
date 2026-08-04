@@ -16,9 +16,8 @@ public class ShellExecutionServiceTests
         var fs = new IO.FileSystem.PhysicalFileSystem();
         var bashCapProvider = new BashCapabilityProvider(fs);
         var psCapProvider = new PowerShellCapabilityProvider();
-        var bashProvider = new BashShellProvider(bashCapProvider.GetCapability(fs), fs);
-        var psProvider = new PowerShellShellProvider(psCapProvider.GetCapability(fs), fs);
-        _service = new ShellExecutionService(config, fs, bashProvider, psProvider);
+        var capProviders = new ShellCapabilityProvider[] { bashCapProvider, psCapProvider };
+        _service = new ShellExecutionService(config, fs, capProviders);
     }
 
     [Fact]

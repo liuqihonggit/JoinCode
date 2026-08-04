@@ -36,27 +36,25 @@ public class ErrorRecoveryToolHandlers
         sb.AppendLine();
 
         sb.AppendLine("### 常见原因分析");
-        if (errorMessage.Contains("permission", StringComparison.OrdinalIgnoreCase) ||
-            errorMessage.Contains("权限", StringComparison.OrdinalIgnoreCase))
+        var category = ErrorClassifier.Classify(errorMessage);
+        switch (category)
         {
-            sb.AppendLine("- **权限不足**: 当前用户可能没有操作目标文件/目录的权限");
-            sb.AppendLine("- 建议: 检查文件权限，或使用 `chmod`/`icacls` 修改权限");
-        }
-        else if (errorMessage.Contains("not found", StringComparison.OrdinalIgnoreCase) ||
-                 errorMessage.Contains("找不到", StringComparison.OrdinalIgnoreCase))
-        {
-            sb.AppendLine("- **路径不存在**: 目标文件或目录可能不存在");
-            sb.AppendLine("- 建议: 先使用 `directory_list` 确认路径，再执行操作");
-        }
-        else if (errorMessage.Contains("timeout", StringComparison.OrdinalIgnoreCase) ||
-                 errorMessage.Contains("超时", StringComparison.OrdinalIgnoreCase))
-        {
-            sb.AppendLine("- **执行超时**: 命令执行时间过长");
-            sb.AppendLine("- 建议: 拆分任务为更小的步骤，或增加超时时间");
-        }
-        else
-        {
-            sb.AppendLine("- 通用建议: 检查输入参数是否正确，确认目标资源是否可用");
+            case ToolErrorCategory.Permission:
+            case ToolErrorCategory.AccessDenied:
+                sb.AppendLine("- **权限不足**: 当前用户可能没有操作目标文件/目录的权限");
+                sb.AppendLine("- 建议: 检查文件权限，或使用 `chmod`/`icacls` 修改权限");
+                break;
+            case ToolErrorCategory.NotFound:
+                sb.AppendLine("- **路径不存在**: 目标文件或目录可能不存在");
+                sb.AppendLine("- 建议: 先使用 `directory_list` 确认路径，再执行操作");
+                break;
+            case ToolErrorCategory.Timeout:
+                sb.AppendLine("- **执行超时**: 命令执行时间过长");
+                sb.AppendLine("- 建议: 拆分任务为更小的步骤，或增加超时时间");
+                break;
+            default:
+                sb.AppendLine("- 通用建议: 检查输入参数是否正确，确认目标资源是否可用");
+                break;
         }
 
         if (!string.IsNullOrEmpty(workingDirectory) && _fs.DirectoryExists(workingDirectory))
@@ -98,23 +96,24 @@ public class ErrorRecoveryToolHandlers
         sb.AppendLine();
 
         sb.AppendLine("### 替代方案");
-        if (errorOutput.Contains("command not found", StringComparison.OrdinalIgnoreCase))
+        var shellCategory = ErrorClassifier.Classify(errorOutput);
+        switch (shellCategory)
         {
-            sb.AppendLine("- 命令不存在，可能需要安装对应工具包");
-            sb.AppendLine("- 使用 `where`/`which` 检查命令是否在 PATH 中");
-            sb.AppendLine("- 考虑使用 PowerShell 等效命令替代");
-        }
-        else if (errorOutput.Contains("access denied", StringComparison.OrdinalIgnoreCase) ||
-                 errorOutput.Contains("拒绝访问", StringComparison.OrdinalIgnoreCase))
-        {
-            sb.AppendLine("- 权限不足，尝试以管理员身份运行");
-            sb.AppendLine("- 检查文件/目录权限设置");
-        }
-        else
-        {
-            sb.AppendLine("- 检查命令语法是否正确");
-            sb.AppendLine("- 确认所有参数和路径是否有效");
-            sb.AppendLine("- 尝试分步执行复杂命令");
+            case ToolErrorCategory.CommandNotFound:
+                sb.AppendLine("- 命令不存在，可能需要安装对应工具包");
+                sb.AppendLine("- 使用 `where`/`which` 检查命令是否在 PATH 中");
+                sb.AppendLine("- 考虑使用 PowerShell 等效命令替代");
+                break;
+            case ToolErrorCategory.Permission:
+            case ToolErrorCategory.AccessDenied:
+                sb.AppendLine("- 权限不足，尝试以管理员身份运行");
+                sb.AppendLine("- 检查文件/目录权限设置");
+                break;
+            default:
+                sb.AppendLine("- 检查命令语法是否正确");
+                sb.AppendLine("- 确认所有参数和路径是否有效");
+                sb.AppendLine("- 尝试分步执行复杂命令");
+                break;
         }
 
         return Task.FromResult(ToolResultBuilder.Success().WithText(sb.ToString()).Build());

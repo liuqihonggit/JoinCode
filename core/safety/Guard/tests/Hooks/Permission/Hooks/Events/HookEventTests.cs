@@ -67,6 +67,7 @@ public class HookEventTests
     [InlineData(HookEvent.UserPromptSubmit, true)]
     [InlineData(HookEvent.PreCompact, true)]
     [InlineData(HookEvent.PermissionRequest, true)]
+    [InlineData(HookEvent.SubagentStop, true)]
     [InlineData(HookEvent.SessionStart, false)]
     [InlineData(HookEvent.PostCompact, false)]
     public void SupportsBlocking_ShouldReturnCorrectValue(HookEvent hookEvent, bool expected)

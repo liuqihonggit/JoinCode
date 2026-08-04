@@ -22,7 +22,9 @@ public sealed record TodoItem(
     [StringLength(500, ErrorMessage = "ActiveForm过长")]
     string? ActiveForm = null,
     DateTime? CreatedAt = null,
-    DateTime? UpdatedAt = null);
+    DateTime? UpdatedAt = null,
+    List<string>? DependsOn = null,
+    List<string>? OwnedFiles = null);
 
 /// <summary>
 /// 待办输入项（用于写入）— 对齐 TS TodoItemSchema
@@ -44,7 +46,9 @@ public sealed record TodoItemInput(
     string? ParentId = null,
     [Required(ErrorMessage = "activeForm 不能为空")]
     [StringLength(500, ErrorMessage = "ActiveForm过长")]
-    string ActiveForm = "");
+    string ActiveForm = "",
+    List<string>? DependsOn = null,
+    List<string>? OwnedFiles = null);
 
 /// <summary>
 /// 待办写入命令

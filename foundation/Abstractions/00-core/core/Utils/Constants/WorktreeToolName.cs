@@ -12,6 +12,7 @@ public enum WorktreeToolName
     [EnumValue("worktree_cleanup")] WorktreeCleanup,
     [EnumValue("worktree_find_git")] WorktreeFindGit,
     [EnumValue("worktree_list_all")] WorktreeListAll,
+    [EnumValue("worktree_merge")] WorktreeMerge,
     [EnumValue("EnterWorktree")] EnterWorktree,
     [EnumValue("ExitWorktree")] ExitWorktree,
 }

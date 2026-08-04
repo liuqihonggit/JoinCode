@@ -22,12 +22,11 @@ public sealed partial class OnErrorToolInjectionMiddleware : IToolExecutionMiddl
         if (context.Result is null || !context.Result.IsError) return;
 
         var sb = new StringBuilder(1024);
-        var errorMsg = context.Result.GetFirstText();
 
         sb.AppendLine($"工具 '{context.ToolName}' 执行失败。");
 
         // 历史修复分析 — 从健康记录中提取同类工具的失败模式
-        var historyAnalysis = await BuildHistoryAnalysisAsync(context.ToolName, errorMsg, ct).ConfigureAwait(false);
+        var historyAnalysis = await BuildHistoryAnalysisAsync(context, ct).ConfigureAwait(false);
         if (historyAnalysis is not null)
             sb.AppendLine(historyAnalysis);
 
@@ -69,8 +68,10 @@ public sealed partial class OnErrorToolInjectionMiddleware : IToolExecutionMiddl
     /// 历史修复分析 — 从健康记录中提取同类工具的失败模式
     /// 分析维度：1) 同工具历史失败率 2) 同超边关联工具状态 3) 常见错误模式
     /// </summary>
-    private async Task<string?> BuildHistoryAnalysisAsync(string toolName, string? errorMsg, CancellationToken ct)
+    private async Task<string?> BuildHistoryAnalysisAsync(ToolExecutionContext context, CancellationToken ct)
     {
+        var toolName = context.ToolName;
+        var errorMsg = context.Result?.GetFirstText();
         var record = await _monitor.GetRecordAsync(toolName, ct).ConfigureAwait(false);
         var allRecords = await _monitor.GetAllRecordsAsync(ct).ConfigureAwait(false);
 

@@ -13,6 +13,8 @@ public class EnvironmentProbeServicePathGateTests
     [InlineData("D:\\project\\w3", "/d/project/w3")]
     [InlineData("c:\\Users\\test", "/c/Users/test")]
     [InlineData("Z:\\foo\\bar", "/z/foo/bar")]
+    [InlineData("C:/Users/test", "/c/Users/test")]
+    [InlineData("D:/project/w3", "/d/project/w3")]
     public void WindowsPathToPosixPath_DriveLetter_ConvertsCorrectly(string input, string expected)
     {
         var result = PathConverter.WindowsPathToPosixPath(input);
@@ -52,6 +54,10 @@ public class EnvironmentProbeServicePathGateTests
     [Theory]
     [InlineData("/c/Users/test", "C:\\Users\\test")]
     [InlineData("/d/project/w3", "D:\\project\\w3")]
+    [InlineData("C:/Users/test", "C:\\Users\\test")]
+    [InlineData("D:/project/w3", "D:\\project\\w3")]
+    [InlineData("//server/share/path", "\\\\server\\share\\path")]
+    [InlineData("//192.168.1.1/c$/Windows", "\\\\192.168.1.1\\c$\\Windows")]
     public void PosixPathToWindowsPath_PosixDriveLetter_ConvertsCorrectly(string input, string expected)
     {
         var result = PathConverter.PosixPathToWindowsPath(input);
@@ -60,6 +66,7 @@ public class EnvironmentProbeServicePathGateTests
 
     [Theory]
     [InlineData("C:\\Users\\test", "C:\\Users\\test")]
+    [InlineData("C:/Users/test", "C:\\Users\\test")]
     [InlineData("/home/user", "/home/user")]
     [InlineData("", "")]
     public void PosixPathToWindowsPath_NonPosixDriveLetter_ReturnsAsIs(string input, string expected)
@@ -83,6 +90,7 @@ public class EnvironmentProbeServicePathGateTests
     [InlineData("C:\\Users\\test", true)]
     [InlineData("c:\\path", true)]
     [InlineData("\\\\server\\share", true)]
+    [InlineData("//server/share", true)]
     [InlineData("/home/user", false)]
     [InlineData("relative/path", false)]
     [InlineData("", false)]
@@ -104,6 +112,8 @@ public class EnvironmentProbeServicePathGateTests
     [InlineData("echo hello", false, "echo hello")]
     [InlineData("cat D:\\project\\w3\\src\\file.cs", true, "cat /d/project/w3/src/file.cs")]
     [InlineData("python D:/project/script.py", true, "python /d/project/script.py")]
+    [InlineData("python D:/project/script.py", false, "python D:\\project\\script.py")]
+    [InlineData("cat C:/Users/test/file.txt", false, "cat C:\\Users\\test\\file.txt")]
     public void GateCommandPaths_ConvertsPathsInCommand(string input, bool toPosix, string expected)
     {
         var result = PathConverter.GateCommandPaths(input, toPosix);
@@ -198,6 +208,46 @@ public class EnvironmentProbeServicePathGateTests
         var sut = CreateSut();
         var result = sut.GatePath("/c/Users/test", MockProvider(ShellType.Bash));
         result.Should().Be("/c/Users/test");
+    }
+
+    [Fact]
+    public void GatePath_WindowsPowerShell_ForwardSlashPath_ConvertsToBackslash()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+
+        var sut = CreateSut();
+        var result = sut.GatePath("C:/Users/test", MockProvider(ShellType.PowerShell));
+        result.Should().Be("C:\\Users\\test");
+    }
+
+    [Fact]
+    public void GatePath_WindowsCmd_ForwardSlashPath_ConvertsToBackslash()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+
+        var sut = CreateSut();
+        var result = sut.GatePath("C:/Users/test", MockProvider(ShellType.Cmd));
+        result.Should().Be("C:\\Users\\test");
+    }
+
+    [Fact]
+    public void GatePath_WindowsPython_ForwardSlashPath_ConvertsToBackslash()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+
+        var sut = CreateSut();
+        var result = sut.GatePath("C:/Users/test", MockProvider(ShellType.Python));
+        result.Should().Be("C:\\Users\\test");
+    }
+
+    [Fact]
+    public void GatePath_WindowsPython_PosixInput_ConvertsToWindows()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+
+        var sut = CreateSut();
+        var result = sut.GatePath("/c/Users/test", MockProvider(ShellType.Python));
+        result.Should().Be("C:\\Users\\test");
     }
 
     #endregion

@@ -68,8 +68,8 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
 
         var dag = new Dag<GoalNodePayload>();
 
-        var nodes = LlmJsonHelper.DeserializeValue(nodesJson, GraphDefineJsonContext.Default.GraphDefineNodeArray, out _)
-            ?? throw new ArgumentException("Invalid nodes JSON");
+        var nodes = LlmJsonHelper.DeserializeValue(nodesJson, GraphDefineJsonContext.Default.GraphDefineNodeArray, out var nodesRepair)
+            ?? throw new ArgumentException(FormatInvalidGraphError("nodes", nodesRepair));
 
         foreach (var node in nodes)
         {
@@ -94,8 +94,8 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
             });
         }
 
-        var edges = LlmJsonHelper.DeserializeValue(edgesJson, GraphDefineJsonContext.Default.GraphDefineEdgeArray, out _)
-            ?? throw new ArgumentException("Invalid edges JSON");
+        var edges = LlmJsonHelper.DeserializeValue(edgesJson, GraphDefineJsonContext.Default.GraphDefineEdgeArray, out var edgesRepair)
+            ?? throw new ArgumentException(FormatInvalidGraphError("edges", edgesRepair));
 
         foreach (var edge in edges)
         {
@@ -131,6 +131,17 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
 
         _logger?.LogInformation("[GoalEngine] 协调者定义了 Graph: {NodeCount}个节点, {EdgeCount}条边, Start={Start}",
             nodes.Length, edges.Length, startNodeId);
+    }
+
+    /// <summary>
+    /// 将 Graph JSON 解析失败信息连同修复/宽容明细组装为精确错误消息，供 MCP 工具结果回喂 LLM。
+    /// </summary>
+    private static string FormatInvalidGraphError(string kind, string? repairHint)
+    {
+        var message = $"Invalid {kind} JSON";
+        if (!string.IsNullOrEmpty(repairHint))
+            message = $"{message}: {repairHint}";
+        return message;
     }
 
     public GoalEngine(

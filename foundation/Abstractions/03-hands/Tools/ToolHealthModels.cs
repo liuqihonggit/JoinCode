@@ -1,6 +1,18 @@
 namespace JoinCode.Abstractions.Tools;
 
 /// <summary>
+/// 工具健康监控服务接口 — 追踪工具执行成功率、评分、熔断状态
+/// </summary>
+public interface IToolHealthMonitor
+{
+    Task<ToolHealthRecord> RecordSuccessAsync(string toolName, CancellationToken ct = default);
+    Task<ToolHealthRecord> RecordFailureAsync(string toolName, string? errorMessage, CancellationToken ct = default);
+    Task<ToolHealthRecord?> GetRecordAsync(string toolName, CancellationToken ct = default);
+    Task<IReadOnlyDictionary<string, ToolHealthRecord>> GetAllRecordsAsync(CancellationToken ct = default);
+    Task ResetToolAsync(string toolName, CancellationToken ct = default);
+}
+
+/// <summary>
 /// 工具健康记录 — 追踪单个工具的执行成功/失败/评分/熔断状态
 /// </summary>
 public sealed class ToolHealthRecord

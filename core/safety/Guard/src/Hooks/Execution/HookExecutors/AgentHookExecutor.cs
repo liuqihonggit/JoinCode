@@ -145,9 +145,13 @@ public sealed partial class AgentHookExecutor : HookExecutorBase<AgentHook>
 
         try
         {
-            var hookDecision = LlmJsonHelper.Deserialize(jsonContent, HooksJsonContext.Default.HookDecision, out _);
+            var hookDecision = LlmJsonHelper.Deserialize(jsonContent, HooksJsonContext.Default.HookDecision, out var repairHint);
             if (hookDecision is null)
+            {
+                if (!string.IsNullOrEmpty(repairHint))
+                    Logger?.LogWarning("Agent Hook JSON 反序列化失败/已宽容修复: {Detail}", repairHint);
                 return HookResult.Success(message: "Agent validation passed (empty response)");
+            }
 
             var decisionStr = hookDecision.Decision?.ToLowerInvariant() ?? PermissionBehaviorConstants.Allow;
             var decision = PermissionBehaviorExtensions.FromValue(decisionStr) ?? PermissionBehavior.Allow;

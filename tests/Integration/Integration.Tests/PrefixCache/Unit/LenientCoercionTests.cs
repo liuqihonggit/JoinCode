@@ -203,6 +203,34 @@ public sealed class LenientCoercionTests
         result.Should().NotBeNull();
         result!.Level.Should().Be(LenientLevel.High);
     }
+
+    [Fact]
+    public void Coerce_ObjectIntoBool_DefaultsAndReportsPreciseIssue()
+    {
+        var result = LlmJsonHelper.DeserializeWithReport(
+            """{"completed": {"nested": true}, "reason": "x"}""",
+            CoercionTestJsonContext.Default.LenientDto,
+            out var report);
+
+        result.Should().NotBeNull();
+        result!.Completed.Should().BeFalse();
+        report.CoercionIssues.Should().Contain(i => i.PropertyPath == "completed");
+        report.FormatForLlm().Should().Contain("completed");
+    }
+
+    [Fact]
+    public void Coerce_ArrayIntoNumber_DefaultsAndReportsPreciseIssue()
+    {
+        var result = LlmJsonHelper.DeserializeWithReport(
+            """{"completed": true, "count": [1, 2]}""",
+            CoercionTestJsonContext.Default.LenientDto,
+            out var report);
+
+        result.Should().NotBeNull();
+        result!.Count.Should().Be(0);
+        report.CoercionIssues.Should().Contain(i => i.PropertyPath == "count");
+        report.FormatForLlm().Should().Contain("count");
+    }
 }
 
 /// <summary>

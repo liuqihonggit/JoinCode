@@ -526,9 +526,13 @@ public sealed partial class GoalGraphEngine
 
         if (nodeId.Equals("neg_review", StringComparison.Ordinal))
         {
-            var negReview = LlmJsonHelper.Deserialize(payload.Output, GoalJsonContext.Default.NegReviewOutputJson, out _);
+            var negReview = LlmJsonHelper.Deserialize(payload.Output, GoalJsonContext.Default.NegReviewOutputJson, out var negRepair);
             if (negReview is null)
+            {
+                if (!string.IsNullOrEmpty(negRepair))
+                    System.Diagnostics.Trace.WriteLine($"[GoalGraph] neg_review 元数据解析失败: {negRepair}");
                 return;
+            }
 
             payload.NegativeReviewCount = negReview.NegativeReviewCount;
             payload.NegativeReviewTaskId = negReview.TaskId;
@@ -539,10 +543,14 @@ public sealed partial class GoalGraphEngine
         }
         else if (nodeId.Equals("fix_neg", StringComparison.Ordinal))
         {
-            var fixNeg = LlmJsonHelper.Deserialize(payload.Output, GoalJsonContext.Default.FixNegOutputJson, out _);
+            var fixNeg = LlmJsonHelper.Deserialize(payload.Output, GoalJsonContext.Default.FixNegOutputJson, out var fixRepair);
             if (fixNeg is not null && !string.IsNullOrEmpty(fixNeg.Route))
             {
                 payload.Routes = [fixNeg.Route];
+            }
+            else if (fixNeg is null && !string.IsNullOrEmpty(fixRepair))
+            {
+                System.Diagnostics.Trace.WriteLine($"[GoalGraph] fix_neg 元数据解析失败: {fixRepair}");
             }
         }
     }

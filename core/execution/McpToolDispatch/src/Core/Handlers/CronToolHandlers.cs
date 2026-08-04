@@ -8,25 +8,25 @@ public class CronToolHandlers
 
     private static readonly string[] CommonCronPatterns =
     new[] { 
-        "*/5 * * * *", "*/15 * * * *", "*/30 * * * *",
-        "0 * * * *", "0 */6 * * *", "0 9 * * *",
-        "0 9 * * 1-5", "0 0 * * *"
+        CronPresetConstants.Every5Minutes, CronPresetConstants.Every15Minutes, CronPresetConstants.Every30Minutes,
+        CronPresetConstants.EveryHour, CronPresetConstants.Every6Hours, CronPresetConstants.EveryDayAt9,
+        CronPresetConstants.EveryWeekdayAt9, CronPresetConstants.EveryDayAtMidnight
      };
 
     private static readonly FrozenDictionary<string, string> CronHumanMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
-        ["*/5 * * * *"] = "every 5 minutes",
-        ["*/10 * * * *"] = "every 10 minutes",
-        ["*/15 * * * *"] = "every 15 minutes",
-        ["*/30 * * * *"] = "every 30 minutes",
-        ["0 * * * *"] = "every hour",
-        ["0 */2 * * *"] = "every 2 hours",
-        ["0 */6 * * *"] = "every 6 hours",
-        ["0 9 * * *"] = "every day at 9:00",
-        ["0 0 * * *"] = "every day at midnight",
-        ["0 9 * * 1-5"] = "every weekday at 9:00",
-        ["0 9 * * 1"] = "every Monday at 9:00",
-        ["0 0 1 * *"] = "every month on the 1st",
+        [CronPresetConstants.Every5Minutes] = "every 5 minutes",
+        [CronPresetConstants.Every10Minutes] = "every 10 minutes",
+        [CronPresetConstants.Every15Minutes] = "every 15 minutes",
+        [CronPresetConstants.Every30Minutes] = "every 30 minutes",
+        [CronPresetConstants.EveryHour] = "every hour",
+        [CronPresetConstants.Every2Hours] = "every 2 hours",
+        [CronPresetConstants.Every6Hours] = "every 6 hours",
+        [CronPresetConstants.EveryDayAt9] = "every day at 9:00",
+        [CronPresetConstants.EveryDayAtMidnight] = "every day at midnight",
+        [CronPresetConstants.EveryWeekdayAt9] = "every weekday at 9:00",
+        [CronPresetConstants.EveryMondayAt9] = "every Monday at 9:00",
+        [CronPresetConstants.EveryMonthOnFirst] = "every month on the 1st",
     }.ToFrozenDictionary();
 
     private readonly ICronTaskStore _taskStore;

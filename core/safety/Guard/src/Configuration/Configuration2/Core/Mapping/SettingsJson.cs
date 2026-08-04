@@ -263,6 +263,13 @@ public sealed partial class SettingsJson
     [SettingsProperty(SettingsMergeStrategy.DictionaryMerge, DictionaryValueType = "int", SkipKeyAccess = true)]
     public Dictionary<string, int>? ToolPenalties { get; init; }
 
+    /// <summary>
+    /// 自定义超边配置 — 用户自定义工具链超图超边
+    /// </summary>
+    [JsonPropertyName("customHyperedges")]
+    [SettingsProperty(SettingsMergeStrategy.Override, SkipKeyAccess = true)]
+    public List<HyperedgeSettings>? CustomHyperedges { get; init; }
+
     #region 自定义合并方法
 
     /// <summary>

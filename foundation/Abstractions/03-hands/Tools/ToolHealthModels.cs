@@ -13,6 +13,8 @@ public interface IToolHealthMonitor
     bool IsBlacklisted(string toolName);
     int GetPenalty(string toolName);
     int GetEffectiveScore(string toolName);
+    void UpdateBlacklist(HashSet<string> newBlacklist);
+    void UpdatePenalties(Dictionary<string, int> newPenalties);
 }
 
 /// <summary>

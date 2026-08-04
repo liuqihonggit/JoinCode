@@ -132,6 +132,7 @@ public static class PipelineComposition
                 .Use(sp.GetRequiredService<EffortLevelMiddleware>())
                 .Use(sp.GetRequiredService<HookRefreshMiddleware>())
                 .Use(sp.GetRequiredService<PermissionCacheMiddleware>())
+                .Use(sp.GetRequiredService<ToolScoreSettingsMiddleware>())
                 .WithHooks(sp)
                 .Build());
 

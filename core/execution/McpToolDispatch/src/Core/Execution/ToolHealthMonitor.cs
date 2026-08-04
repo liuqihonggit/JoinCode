@@ -15,9 +15,14 @@ public sealed class ToolHealthMonitor : IToolHealthMonitor, IDisposable
     private readonly SemaphoreSlim _lock = new(1, 1);
     private readonly string _configPath;
     private readonly Timer? _decayTimer;
-    private readonly HashSet<string> _blacklist;
-    private readonly Dictionary<string, int> _penalties;
-    private readonly List<string> _blacklistPatterns;
+    private volatile BlacklistSnapshot _blacklistSnapshot;
+    private volatile Dictionary<string, int> _penalties;
+
+    private sealed record BlacklistSnapshot
+    {
+        public required FrozenSet<string> Exact { get; init; }
+        public required FrozenSet<string> Patterns { get; init; }
+    }
 
     public ToolHealthMonitor(IFileSystem fs, ILogger<ToolHealthMonitor>? logger = null, ToolScoreConfig? config = null,
         HashSet<string>? blacklist = null, Dictionary<string, int>? penalties = null)
@@ -25,9 +30,13 @@ public sealed class ToolHealthMonitor : IToolHealthMonitor, IDisposable
         _fs = fs;
         _logger = logger;
         _config = config ?? new ToolScoreConfig();
-        _blacklist = blacklist ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var bl = blacklist ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        _blacklistSnapshot = new BlacklistSnapshot
+        {
+            Exact = bl.Where(b => !b.Contains('*')).ToFrozenSet(StringComparer.OrdinalIgnoreCase),
+            Patterns = bl.Where(b => b.Contains('*')).ToFrozenSet(StringComparer.OrdinalIgnoreCase)
+        };
         _penalties = penalties ?? new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-        _blacklistPatterns = _blacklist.Where(b => b.Contains('*')).ToList();
         _configPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "JoinCode",
@@ -37,11 +46,36 @@ public sealed class ToolHealthMonitor : IToolHealthMonitor, IDisposable
         _decayTimer = new Timer(_ => ApplyTimeDecay(), null, TimeSpan.FromHours(1), TimeSpan.FromHours(1));
     }
 
+    /// <summary>
+    /// 热更新黑名单 — 双变量切换模式：构建新快照 → 原子替换引用
+    /// </summary>
+    public void UpdateBlacklist(HashSet<string> newBlacklist)
+    {
+        var snapshot = new BlacklistSnapshot
+        {
+            Exact = newBlacklist.Where(b => !b.Contains('*')).ToFrozenSet(StringComparer.OrdinalIgnoreCase),
+            Patterns = newBlacklist.Where(b => b.Contains('*')).ToFrozenSet(StringComparer.OrdinalIgnoreCase)
+        };
+        _blacklistSnapshot = snapshot;
+        _logger?.LogInformation("黑名单已热更新: {Exact} 个精确匹配, {Pattern} 个通配符模式",
+            snapshot.Exact.Count, snapshot.Patterns.Count);
+    }
+
+    /// <summary>
+    /// 热更新降权配置 — 双变量切换模式：构建新字典 → 原子替换引用
+    /// </summary>
+    public void UpdatePenalties(Dictionary<string, int> newPenalties)
+    {
+        _penalties = new Dictionary<string, int>(newPenalties, StringComparer.OrdinalIgnoreCase);
+        _logger?.LogInformation("降权配置已热更新: {Count} 条规则", newPenalties.Count);
+    }
+
     public bool IsBlacklisted(string toolName)
     {
-        if (_blacklist.Contains(toolName)) return true;
+        var snapshot = _blacklistSnapshot;
+        if (snapshot.Exact.Contains(toolName)) return true;
 
-        foreach (var pattern in _blacklistPatterns)
+        foreach (var pattern in snapshot.Patterns)
         {
             if (MatchesPattern(pattern, toolName)) return true;
         }
@@ -74,9 +108,10 @@ public sealed class ToolHealthMonitor : IToolHealthMonitor, IDisposable
 
     public int GetPenalty(string toolName)
     {
-        if (_penalties.TryGetValue(toolName, out var penalty)) return penalty;
+        var penalties = _penalties;
+        if (penalties.TryGetValue(toolName, out var penalty)) return penalty;
 
-        foreach (var kvp in _penalties)
+        foreach (var kvp in penalties)
         {
             if (kvp.Key.Contains('*') && MatchesPattern(kvp.Key, toolName))
                 return kvp.Value;

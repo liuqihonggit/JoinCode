@@ -10,7 +10,7 @@ public static class PlanPrompts
     /// <summary>
     /// 动态构建计划执行系统提示词
     /// </summary>
-    public static string BuildPlanExecutionSystemPrompt(IReadOnlyDictionary<string, List<ToolCategoryEntry>> toolCategories)
+    public static string BuildPlanExecutionSystemPrompt(IReadOnlyDictionary<string, List<ToolCategoryEntry>> visibleToolCategories)
     {
         var sb = new StringBuilder(2048);
 
@@ -28,7 +28,7 @@ public static class PlanPrompts
         sb.AppendLine();
         sb.AppendLine("可用工具：");
 
-        foreach (var category in toolCategories.OrderBy(t => t.Key))
+        foreach (var category in visibleToolCategories.OrderBy(t => t.Key))
         {
             sb.AppendLine();
             sb.AppendLine($"【{GetCategoryDisplayName(category.Key)}】");

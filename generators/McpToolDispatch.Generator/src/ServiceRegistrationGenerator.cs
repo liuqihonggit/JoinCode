@@ -149,8 +149,25 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
         if (registerAttr is null)
             return results;
 
+        // 防御性检查：只保留直接标注在当前类型声明语法节点上的 [Register] 特性
+        // 避免同文件多类场景下 Roslyn GetAttributes() 返回其他类的特性
+        var typeDeclSpans = typeSymbol.DeclaringSyntaxReferences
+            .Select(r => (tree: r.SyntaxTree, span: r.Span))
+            .ToList();
+
         foreach (var attr in typeSymbol.GetAttributes().Where(a => SymbolEqualityComparer.Default.Equals(a.AttributeClass, registerAttr)))
         {
+            // 验证 [Register] 的语法位置在当前类型声明的范围内
+            if (attr.ApplicationSyntaxReference is { } attrRef)
+            {
+                var attrSpan = attrRef.Span;
+                var attrTree = attrRef.SyntaxTree;
+                var belongsToType = typeDeclSpans.Any(t =>
+                    t.tree == attrTree && t.span.Contains(attrSpan));
+                if (!belongsToType)
+                    continue;
+            }
+
             var lifetime = LifetimeSingleton;
 
             // 从构造函数参数提取 Lifetime

@@ -63,7 +63,7 @@ public sealed partial class AgentBackgroundSpawnMiddleware : IAgentToolMiddlewar
         response.AppendLine("Agent is running in the background. You will be notified when it completes.");
         response.AppendLine($"Use {AgentToolName.AgentStatus.ToValue()} to query agent status, or {AgentToolName.AgentRunning.ToValue()} to see all running agents.");
 
-        RecordAgentMetrics("spawn", true);
+        ToolTelemetryHelper.RecordToolCount(_telemetryService, "agent.handler.count", "spawn", true);
         context.BackgroundSpawnResult = ToolResultBuilder.Success()
             .WithText(response.ToString())
             .Build();
@@ -71,6 +71,4 @@ public sealed partial class AgentBackgroundSpawnMiddleware : IAgentToolMiddlewar
         // 短路 — 后台模式不需要流式执行和 handoff
     }
 
-    private void RecordAgentMetrics(string operation, bool isSuccess)
-        => _telemetryService?.RecordCount("agent.handler.count", new Dictionary<string, string> { ["operation"] = operation, ["success"] = isSuccess.ToString() }, description: "Agent handler count");
 }

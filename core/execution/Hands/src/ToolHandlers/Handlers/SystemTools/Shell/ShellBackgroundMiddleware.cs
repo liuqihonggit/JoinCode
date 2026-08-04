@@ -45,7 +45,7 @@ public sealed partial class ShellBackgroundMiddleware : IShellMiddleware
             cmdContext, context.WorkingDirectory, ct).ConfigureAwait(false);
 
         var shellType = context.Provider.Type.ToValue();
-        RecordShellMetrics(shellType, "background", "ok");
+        ToolTelemetryHelper.RecordToolCount(_telemetryService, "shell.execution.count", new Dictionary<string, string> { ["shell"] = shellType, ["operation"] = "background", ["result"] = "ok" });
 
         var response = new StringBuilder();
         response.AppendLine("Background task created");
@@ -61,6 +61,4 @@ public sealed partial class ShellBackgroundMiddleware : IShellMiddleware
         context.Result = context.BackgroundResult;
     }
 
-    private void RecordShellMetrics(string shellType, string operation, string result)
-        => _telemetryService?.RecordCount("shell.execution.count", new Dictionary<string, string> { ["shell"] = shellType, ["operation"] = operation, ["result"] = result }, description: "Shell execution count");
 }

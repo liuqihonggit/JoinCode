@@ -376,7 +376,7 @@ public partial class GitToolHandlers
     }
 
     private void RecordGitMetrics(string command, bool isSuccess)
-        => _telemetryService?.RecordCount("git.operation.count", new Dictionary<string, string> { ["command"] = command, ["success"] = isSuccess.ToString() }, description: "Git operation count");
+        => ToolTelemetryHelper.RecordToolCount(_telemetryService, "git.operation.count", command, isSuccess);
 
     private async Task<ToolResult?> ScanBeforeCommitAsync(string? workingDir, CancellationToken ct)
     {

@@ -174,6 +174,7 @@ public enum JccEnvVar
     // 运行时/会话
     [EnumValue("JCC_ENVIRONMENT_KIND")] EnvironmentKind,
     [EnumValue("JCC_SESSION_KIND")] SessionKind,
+    [EnumValue("JCC_AGENT_ROLE")] AgentRole,
     [EnumValue("JCC_ENTRYPOINT")] Entrypoint,
     [EnumValue("JCC_EXEC_PATH")] ExecPath,
     [EnumValue("JCC_USE_API_CLEAR_TOOL_RESULTS")] UseApiClearToolResults,

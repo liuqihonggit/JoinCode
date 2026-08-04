@@ -717,6 +717,7 @@ public sealed class BridgeSubprocessSpawner
 
         // Bridge 专用环境变量 — 对齐 TS 端
         env["JCC_ENVIRONMENT_KIND"] = "bridge";
+        env["JCC_AGENT_ROLE"] = "worker";
 
         if (options.AccessToken is not null)
         {

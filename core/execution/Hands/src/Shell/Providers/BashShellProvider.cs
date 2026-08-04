@@ -9,6 +9,7 @@ namespace Services.Shell.Providers;
 public sealed class BashShellProvider : ShellProviderBase, IDisposable
 {
     private string? _snapshotFilePath;
+    private readonly IEnvironmentProbeService? _probeService;
 
     public override ShellType Type => ShellType.Bash;
     public override bool Detached => true;
@@ -35,9 +36,10 @@ public sealed class BashShellProvider : ShellProviderBase, IDisposable
     /// </summary>
     private const int MaxSnapshotCount = 200;
 
-    public BashShellProvider(IFileSystem fs, string? shellPath = null, ILogger? logger = null)
+    public BashShellProvider(IFileSystem fs, IEnvironmentProbeService? probeService = null, string? shellPath = null, ILogger? logger = null)
         : base(fs, shellPath, logger)
     {
+        _probeService = probeService;
         _snapshotFilePath = TryCreateSnapshot();
     }
 
@@ -112,7 +114,7 @@ public sealed class BashShellProvider : ShellProviderBase, IDisposable
         CancellationToken cancellationToken = default)
     {
         var tmpDir = Path.GetTempPath();
-        var shellTmpDir = WindowsPathToPosixPath(tmpDir);
+        var shellTmpDir = ConvertToPosixPath(tmpDir);
 
         var shellCwdFilePath = options.UseSandbox && options.SandboxTmpDir is not null
             ? PosixJoin(options.SandboxTmpDir, $"cwd-{options.SessionId}")
@@ -128,7 +130,7 @@ public sealed class BashShellProvider : ShellProviderBase, IDisposable
 
         if (_snapshotFilePath is not null && Fs.FileExists(_snapshotFilePath))
         {
-            var posixSnapshotPath = WindowsPathToPosixPath(_snapshotFilePath);
+            var posixSnapshotPath = ConvertToPosixPath(_snapshotFilePath);
             commandParts.Add($"source {ShellQuote(posixSnapshotPath)} 2>/dev/null || true");
         }
 
@@ -206,8 +208,16 @@ public sealed class BashShellProvider : ShellProviderBase, IDisposable
         => "'" + s.Replace("'", "'\\''") + "'";
 
     /// <summary>
-    /// Windows 路径转 POSIX 路径 — 对齐 TS windowsPathToPosixPath
+    /// 转换路径为 POSIX 格式 — 优先委托给 IEnvironmentProbeService.GatePath，回退到 PathConverter
     /// </summary>
+    private string ConvertToPosixPath(string path)
+        => _probeService?.GatePath(path, isPowerShell: false) ?? PathConverter.WindowsPathToPosixPath(path);
+
+    /// <summary>
+    /// Windows 路径转 POSIX 路径 — 对齐 TS windowsPathToPosixPath
+    /// 保留为向后兼容，新代码应使用 PathConverter.WindowsPathToPosixPath 或 IEnvironmentProbeService.GatePath
+    /// </summary>
+    [Obsolete("Use PathConverter.WindowsPathToPosixPath instead")]
     internal static string WindowsPathToPosixPath(string windowsPath)
     {
         if (windowsPath.StartsWith("\\\\"))

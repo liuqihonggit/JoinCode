@@ -168,6 +168,7 @@ public static class TestPipelineRegistration
         services.AddSingleton<MiddlewarePipeline<ShellPipelineContext>>(sp =>
             new PipelineBuilder<ShellPipelineContext>()
                 .Use(sp.GetRequiredService<ShellValidationMiddleware>())
+                .Use(sp.GetRequiredService<ShellPathGateMiddleware>())
                 .Use(sp.GetRequiredService<ShellClassificationMiddleware>())
                 .Use(sp.GetRequiredService<ShellSedInterceptMiddleware>())
                 .Use(sp.GetRequiredService<ShellBackgroundMiddleware>())

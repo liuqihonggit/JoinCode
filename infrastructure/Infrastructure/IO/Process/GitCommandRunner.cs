@@ -26,7 +26,9 @@ public sealed partial class GitCommandRunner : IGitCommandRunner
                 EnvironmentVariables = new Dictionary<string, string>
                 {
                     ["GIT_TERMINAL_PROMPT"] = "0",
-                    ["GIT_ASKPASS"] = ""
+                    ["GIT_ASKPASS"] = "",
+                    ["GIT_PAGER"] = "cat",
+                    ["PAGER"] = "cat"
                 }
             };
 

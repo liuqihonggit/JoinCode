@@ -151,6 +151,24 @@ public abstract class McpClientBase : IMcpClient
         }
     }
 
+    /// <summary>
+    /// 安全的 fire-and-forget 响应处理 — 供传输层接收循环调用
+    /// 防止客户端释放后到达的响应在 _requestLock.WaitAsync 抛 ObjectDisposedException
+    /// 成为未观察异常被静默丢弃（多级报错：捕获并记录，不崩溃、不污染接收循环）
+    /// </summary>
+    protected async Task FireAndForgetProcessResponseAsync(JsonRpcResponse response)
+    {
+        try
+        {
+            await ProcessResponseAsync(response, CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "处理 MCP 服务器响应失败（客户端可能已释放）: {Id}", response.Id.ToString());
+        }
+    }
+
     protected async Task CancelPendingRequestsAsync(CancellationToken cancellationToken = default)
     {
         await _requestLock.WaitAsync(cancellationToken).ConfigureAwait(false);

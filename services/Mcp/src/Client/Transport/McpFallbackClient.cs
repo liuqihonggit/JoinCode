@@ -109,7 +109,7 @@ public sealed class McpFallbackClient : McpClientBase
         switch (e.Message)
         {
             case JsonRpcResponse response:
-                ProcessResponseAsync(response).ConfigureAwait(false);
+                _ = FireAndForgetProcessResponseAsync(response);
                 break;
             case JsonRpcNotification notification:
                 OnNotificationReceived(new McpNotificationReceivedEventArgs

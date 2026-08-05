@@ -155,7 +155,7 @@ namespace AotSafety.Generator
 
                 var fullName = paramType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
 
-if (fullName.StartsWith("global::System.Text.Json.JsonTypeInfo", StringComparison.Ordinal)
+                if (fullName.StartsWith("global::System.Text.Json.JsonTypeInfo", StringComparison.Ordinal)
                     || fullName.StartsWith("System.Text.Json.JsonTypeInfo", StringComparison.Ordinal))
                     return true;
 

@@ -924,7 +924,14 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
 
         try
         {
-            _savedPermissionMode = await _permissionManager.GetCurrentModeAsync(cancellationToken).ConfigureAwait(false);
+            var currentMode = await _permissionManager.GetCurrentModeAsync(cancellationToken).ConfigureAwait(false);
+            if (currentMode == PermissionMode.BypassPermissions || currentMode == PermissionMode.DontAsk)
+            {
+                _logger?.LogInformation("[GoalEngine] 当前权限模式为 {Mode}，跳过切换到 Auto", currentMode);
+                return;
+            }
+
+            _savedPermissionMode = currentMode;
             await _permissionManager.SetPermissionModeAsync(PermissionMode.Auto, cancellationToken).ConfigureAwait(false);
             _logger?.LogInformation(L.T(StringKey.PermissionModeSwitched), _savedPermissionMode);
         }

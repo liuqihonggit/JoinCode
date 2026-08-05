@@ -1985,4 +1985,134 @@ public sealed class GoalGraphEngineTests
 
         Assert.Equal(GoalStatus.Unmet, result.Status);
     }
+
+    // ─────────────────────────────────────────────────────────────
+    // P0-1 真正并行执行：A→[B,C]→J，B 和 C 应并发执行（maxConcurrent >= 2）
+    // 串行队列下 maxConcurrent 恒为 1，此测试验证真正并行
+    // ─────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task ParallelExecution_Should_RunIndependentNodesConcurrently()
+    {
+        var engine = CreateEngine();
+        var concurrentCount = 0;
+        var maxConcurrent = 0;
+
+        var dag = new Dag<GoalNodePayload>();
+        var nodeA = MakeFunctionNode("A", "source");
+        var nodeB = MakeFunctionNode("B", "branch-b");
+        var nodeC = MakeFunctionNode("C", "branch-c");
+        var nodeJ = MakeJoinNode("J", "join");
+
+        dag.AddNode(nodeA);
+        dag.AddNode(nodeB);
+        dag.AddNode(nodeC);
+        dag.AddNode(nodeJ);
+        dag.AddEdge(new DagEdge { Id = "e-a-b", FromId = "A", ToId = "B" });
+        dag.AddEdge(new DagEdge { Id = "e-a-c", FromId = "A", ToId = "C" });
+        dag.AddEdge(new DagEdge { Id = "e-b-j", FromId = "B", ToId = "J" });
+        dag.AddEdge(new DagEdge { Id = "e-c-j", FromId = "C", ToId = "J" });
+
+        engine.RegisterFunction("A", _ =>
+            Task.FromResult(NodeResult.Succeeded("output-A", tokensUsed: 10)));
+
+        engine.RegisterFunction("B", async _ =>
+        {
+            var current = Interlocked.Increment(ref concurrentCount);
+            if (current > Volatile.Read(ref maxConcurrent))
+                Interlocked.Exchange(ref maxConcurrent, current);
+            await Task.Delay(150, CancellationToken.None);
+            Interlocked.Decrement(ref concurrentCount);
+            return NodeResult.Succeeded("output-B", tokensUsed: 20);
+        });
+
+        engine.RegisterFunction("C", async _ =>
+        {
+            var current = Interlocked.Increment(ref concurrentCount);
+            if (current > Volatile.Read(ref maxConcurrent))
+                Interlocked.Exchange(ref maxConcurrent, current);
+            await Task.Delay(150, CancellationToken.None);
+            Interlocked.Decrement(ref concurrentCount);
+            return NodeResult.Succeeded("output-C", tokensUsed: 30);
+        });
+
+        var graph = new GoalGraph
+        {
+            Name = "parallel-execution-test",
+            Dag = dag,
+            StartNodeId = "A",
+            EndNodeIds = FrozenSet.Create("J"),
+        };
+
+        var result = await engine.ExecuteAsync(graph, CreateGoalState(), new MessageList(), CancellationToken.None);
+
+        Assert.Equal(GoalNodeStatus.Completed, nodeB.Payload.Status);
+        Assert.Equal(GoalNodeStatus.Completed, nodeC.Payload.Status);
+        Assert.Equal(GoalStatus.Achieved, result.Status);
+        Assert.True(maxConcurrent >= 2, $"B 和 C 应并发执行，但 maxConcurrent={maxConcurrent}（串行执行）");
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // P0-1 并行限流：MaxConcurrency=1 时退化为串行（maxConcurrent == 1）
+    // ─────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task ParallelExecution_WithMaxConcurrency1_Should_DegradeToSerial()
+    {
+        var engine = CreateEngine();
+        var concurrentCount = 0;
+        var maxConcurrent = 0;
+
+        var dag = new Dag<GoalNodePayload>();
+        var nodeA = MakeFunctionNode("A", "source");
+        var nodeB = MakeFunctionNode("B", "branch-b");
+        var nodeC = MakeFunctionNode("C", "branch-c");
+        var nodeJ = MakeJoinNode("J", "join");
+
+        dag.AddNode(nodeA);
+        dag.AddNode(nodeB);
+        dag.AddNode(nodeC);
+        dag.AddNode(nodeJ);
+        dag.AddEdge(new DagEdge { Id = "e-a-b", FromId = "A", ToId = "B" });
+        dag.AddEdge(new DagEdge { Id = "e-a-c", FromId = "A", ToId = "C" });
+        dag.AddEdge(new DagEdge { Id = "e-b-j", FromId = "B", ToId = "J" });
+        dag.AddEdge(new DagEdge { Id = "e-c-j", FromId = "C", ToId = "J" });
+
+        engine.RegisterFunction("A", _ =>
+            Task.FromResult(NodeResult.Succeeded("output-A", tokensUsed: 10)));
+
+        engine.RegisterFunction("B", async _ =>
+        {
+            var current = Interlocked.Increment(ref concurrentCount);
+            if (current > Volatile.Read(ref maxConcurrent))
+                Interlocked.Exchange(ref maxConcurrent, current);
+            await Task.Delay(100, CancellationToken.None);
+            Interlocked.Decrement(ref concurrentCount);
+            return NodeResult.Succeeded("output-B", tokensUsed: 20);
+        });
+
+        engine.RegisterFunction("C", async _ =>
+        {
+            var current = Interlocked.Increment(ref concurrentCount);
+            if (current > Volatile.Read(ref maxConcurrent))
+                Interlocked.Exchange(ref maxConcurrent, current);
+            await Task.Delay(100, CancellationToken.None);
+            Interlocked.Decrement(ref concurrentCount);
+            return NodeResult.Succeeded("output-C", tokensUsed: 30);
+        });
+
+        var graph = new GoalGraph
+        {
+            Name = "parallel-max1-test",
+            Dag = dag,
+            StartNodeId = "A",
+            EndNodeIds = FrozenSet.Create("J"),
+            MaxConcurrency = 1,
+        };
+
+        var result = await engine.ExecuteAsync(graph, CreateGoalState(), new MessageList(), CancellationToken.None);
+
+        Assert.Equal(GoalStatus.Achieved, result.Status);
+        Assert.True(maxConcurrent == 1, $"MaxConcurrency=1 应串行，但 maxConcurrent={maxConcurrent}");
+    }
 }

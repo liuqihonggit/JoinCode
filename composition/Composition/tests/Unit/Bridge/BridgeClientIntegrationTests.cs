@@ -168,13 +168,13 @@ public class BridgeClientIntegrationTests : IAsyncLifetime
             CacheExpiration = TimeSpan.FromMinutes(5)
         };
         var queryEngine = new NullQueryEngine();
-        var toolRegistry = CreateToolRegistry();
+        var toolExecutionGateway = Mock.Of<IToolExecutionGateway>();
 
         var middlewares = new IMiddleware<Core.Skills.SkillContext>[]
         {
             new Core.Skills.SkillValidationMiddleware(),
             new Core.Skills.SkillTelemetryMiddleware(),
-            new Core.Skills.SkillExecutionMiddleware(queryEngine, toolRegistry, new VariableResolver()),
+            new Core.Skills.SkillExecutionMiddleware(queryEngine, toolExecutionGateway, new VariableResolver()),
             new MetricsMiddleware<Core.Skills.SkillContext>()
         };
         var pipeline = new MiddlewarePipeline<Core.Skills.SkillContext>(middlewares);

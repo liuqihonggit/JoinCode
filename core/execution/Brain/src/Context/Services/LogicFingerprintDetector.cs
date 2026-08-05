@@ -10,7 +10,7 @@ public sealed class LogicFingerprintDetector
     private readonly int _fingerprintSuffixLen;
     private readonly int _windowSize;
     private readonly int _hitThreshold;
-    private readonly List<int> _fingerprints;
+    private readonly RingBuffer<int> _fingerprints;
     private int _triggerCount;
 
     public LogicFingerprintDetector(
@@ -28,7 +28,7 @@ public sealed class LogicFingerprintDetector
         _fingerprintSuffixLen = fingerprintSuffixLen;
         _windowSize = windowSize;
         _hitThreshold = hitThreshold;
-        _fingerprints = [];
+        _fingerprints = new RingBuffer<int>(windowSize * 2);
         _triggerCount = 0;
     }
 
@@ -53,9 +53,6 @@ public sealed class LogicFingerprintDetector
         }
 
         _fingerprints.Add(fingerprint);
-
-        if (_fingerprints.Count > _windowSize * 2)
-            _fingerprints.RemoveRange(0, _fingerprints.Count - _windowSize * 2);
 
         if (hitsInWindow >= _hitThreshold - 1)
         {

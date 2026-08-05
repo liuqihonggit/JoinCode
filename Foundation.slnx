@@ -4,4 +4,9 @@
     <Project Path="foundation/Structura/Structura.csproj" />
     <Project Path="foundation/Transport.Contracts/Transport.Contracts.csproj" />
   </Folder>
+  <Folder Name="/foundation/Structura/" />
+  <Folder Name="/foundation/Structura/tests/" />
+  <Folder Name="/foundation/Structura/tests/Unit/">
+    <Project Path="foundation/Structura/tests/Unit/Structura.Tests.csproj" />
+  </Folder>
 </Solution>

@@ -375,6 +375,9 @@ public sealed partial class BuildQueueService : IBuildQueueService
             entry.Status = BuildQueueEntryStatus.Building;
             entry.StartedAt = DateTimeOffset.UtcNow;
 
+            _logger?.LogInformation("Build {BuildId} started (checkpoint): queuePos={QueuePos}, pending={Pending}",
+                entry.BuildId, entry.QueuePosition, _entries.Values.Count(e => e.Status == BuildQueueEntryStatus.Queued));
+
             var waitStart = DateTimeOffset.UtcNow;
 
             try
@@ -432,6 +435,9 @@ public sealed partial class BuildQueueService : IBuildQueueService
                 _currentBuild = null;
                 _currentBuildCts?.Dispose();
                 _currentBuildCts = null;
+
+                _logger?.LogDebug("Build {BuildId} checkpoint: status={Status}, remaining={Remaining}",
+                    entry.BuildId, entry.Status, _entries.Values.Count(e => e.Status == BuildQueueEntryStatus.Queued));
             }
         }
     }

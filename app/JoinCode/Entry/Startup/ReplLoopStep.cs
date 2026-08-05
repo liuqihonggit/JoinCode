@@ -57,7 +57,11 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
             }
             catch (Exception ex)
             {
+                // 单轮失败不应杀死 REPL — 记录错误日志 + 分类提示后继续循环
+                WriteErrorLog(ex);
                 Cli.TerminalHelper.WriteLine($"错误: {ex.Message}");
+                if (ex is JoinCode.Abstractions.Exceptions.ApiException apiEx && apiEx.IsRetryable)
+                    Cli.TerminalHelper.WriteLine("  此错误通常可重试，请稍后再试。");
             }
             finally
             {
@@ -87,5 +91,22 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
             }
         }
         catch (OperationCanceledException) { }
+    }
+
+    /// <summary>
+    /// 写入错误日志到临时目录的 jcc_error.log — 与 Program.WriteErrorLog 一致
+    /// </summary>
+    private static void WriteErrorLog(Exception ex)
+    {
+        var errorLog = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "jcc_error.log");
+        var errorContent = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}";
+        try
+        {
+            System.IO.File.WriteAllText(errorLog, errorContent);
+        }
+        catch (Exception logEx)
+        {
+            System.Diagnostics.Trace.WriteLine($"写入错误日志失败: {logEx.Message}");
+        }
     }
 }

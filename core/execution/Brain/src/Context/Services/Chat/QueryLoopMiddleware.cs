@@ -157,6 +157,24 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
                         await _toolHandler.WriteAbortedToolResultsAsync(toolCalls, 0, CancellationToken.None).ConfigureAwait(false);
                         throw;
                     }
+                    catch (Exception applyEx)
+                    {
+                        // 纵深防御：单工具结果持久化失败不应中断整个回合
+                        // 写入占位结果保持上下文一致，避免孤立 tool_call 导致下一轮 LLM 400
+                        _logger?.LogError(applyEx, "[QueryLoopMiddleware] 应用工具结果到上下文失败: {ToolName}", result.ToolName);
+                        try
+                        {
+                            var placeholderMetadata = ToolCallEntry.BuildToolResultMetadata(result.ToolCallId, result.ToolName);
+                            await _contextManager.AddToolResultMessageAsync(
+                                $"(工具结果应用失败: {applyEx.Message})", placeholderMetadata, null, CancellationToken.None)
+                                .ConfigureAwait(false);
+                        }
+                        catch (Exception placeholderEx)
+                        {
+                            _logger?.LogError(placeholderEx, "[QueryLoopMiddleware] 写入占位结果也失败，中断回合");
+                            throw;
+                        }
+                    }
                 }
 
                 if (iterState.StreamUsage is not null) finalUsage = iterState.StreamUsage;
@@ -234,6 +252,23 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
                         await _toolHandler.WriteAbortedToolResultsAsync(toolCalls, idx, CancellationToken.None).ConfigureAwait(false);
                         throw;
                     }
+                    catch (Exception applyEx)
+                    {
+                        // 纵深防御：单工具结果持久化失败不应中断整个回合
+                        _logger?.LogError(applyEx, "[QueryLoopMiddleware] 应用工具结果到上下文失败: {ToolName}", toolCall.Name);
+                        try
+                        {
+                            var placeholderMetadata = ToolCallEntry.BuildToolResultMetadata(toolCall.Id, toolCall.Name);
+                            await _contextManager.AddToolResultMessageAsync(
+                                $"(工具结果应用失败: {applyEx.Message})", placeholderMetadata, null, CancellationToken.None)
+                                .ConfigureAwait(false);
+                        }
+                        catch (Exception placeholderEx)
+                        {
+                            _logger?.LogError(placeholderEx, "[QueryLoopMiddleware] 写入占位结果也失败，中断回合");
+                            throw;
+                        }
+                    }
                 }
             }
 
@@ -244,6 +279,9 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
         if (totalToolCalls >= MaxToolCallIterations)
         {
             _logger?.LogWarning("[QueryLoopMiddleware] 达到最大工具调用次数限制: {Max}", MaxToolCallIterations);
+            // 显式通知用户而非静默截断 — 避免用户误以为任务已完成
+            yield return ChatStreamEvent.Text(
+                $"⚠ 已达到最大工具调用次数（{MaxToolCallIterations} 次），为避免死循环本轮对话已被截断。");
         }
 
         context.TotalToolCalls = totalToolCalls;

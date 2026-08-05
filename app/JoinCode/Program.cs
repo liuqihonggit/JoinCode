@@ -226,6 +226,20 @@ class Program
             callback: _ =>
             {
                 // ⚠️ 禁止在 Environment.Exit 之前写 Console.Error（详见方法 remarks 注释）
+                // 超时诊断降级：写时间戳文件留审计轨迹（文件写不依赖 Console，不会因 pipe 阻塞）
+                try
+                {
+                    var timeoutLog = System.IO.Path.Combine(
+                        System.IO.Path.GetTempPath(), "jcc_await_timeout.log");
+                    System.IO.File.AppendAllText(timeoutLog,
+                        $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] --await {seconds}s 超时, 进程强制退出(1234)\n");
+                }
+                catch (Exception logEx)
+                {
+                    // 诊断日志失败不影响超时退出
+                    System.Diagnostics.Trace.WriteLine($"写入 --await 超时日志失败: {logEx.Message}");
+                }
+
                 Environment.Exit(1234);
             },
             state: null,

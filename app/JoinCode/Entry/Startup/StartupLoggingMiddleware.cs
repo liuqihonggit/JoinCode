@@ -18,7 +18,8 @@ internal sealed partial class StartupLoggingMiddleware : ServiceEntity, IMiddlew
         }
         catch (OperationCanceledException)
         {
-            // 用户取消，静默退出
+            // 用户取消 — 设置中断退出码，避免误报为成功（对齐 Program.cs 的 130 = 128+SIGINT）
+            context.ExitCode = 130;
             return;
         }
         catch (Exception ex)

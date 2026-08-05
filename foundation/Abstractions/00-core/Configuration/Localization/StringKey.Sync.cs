@@ -551,6 +551,7 @@ public static partial class StringKey
     public const string PersistTasksLog = "PersistTasksLog";
     public const string CrashRecoveryMsg = "CrashRecoveryMsg";
     public const string RecoverTasksLog = "RecoverTasksLog";
+    public const string RecoverTasksCorruptFileLog = "RecoverTasksCorruptFileLog";
     public const string RemoteAgentTaskExecutorNotRegistered = "RemoteAgentTaskExecutorNotRegistered";
     public const string WorkflowTaskExecutorNotRegistered = "WorkflowTaskExecutorNotRegistered";
     public const string MonitorMcpTaskExecutorNotRegistered = "MonitorMcpTaskExecutorNotRegistered";

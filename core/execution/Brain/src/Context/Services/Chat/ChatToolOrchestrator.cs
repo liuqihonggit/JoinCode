@@ -152,6 +152,16 @@ public sealed partial class ChatToolOrchestrator : ServiceEntity, IChatToolOrche
         }
         catch (Exception ex)
         {
+            // 多级报错分类：可重试的基础设施故障（限流/超时/5xx）在错误文本中标注，
+            // 让 LLM 知道可以重试；致命/逻辑错误保持原样。不 rethrow — 保持工具循环契约，
+            // 由模型自行决定修复或放弃（对齐 TS tool_use_error 行为）。
+            if (ex is WorkflowException { IsRetryable: true } retryableEx)
+            {
+                _logger?.LogWarning(retryableEx, "[ChatToolOrchestrator] 工具调用可重试失败: {ToolName}, Code={Code}, Retry={Retry}",
+                    toolCallName, retryableEx.ErrorCode, retryableEx.SuggestedRetryCount);
+                return new ToolCallResult { ResultText = FormatToolError($"工具调用失败（可重试）: {ex.Message}"), IsError = true };
+            }
+
             _logger?.LogError(ex, "[ChatToolOrchestrator] 工具调用失败: {ToolName}", toolCallName);
             return new ToolCallResult { ResultText = FormatToolError($"工具调用失败: {ex.Message}"), IsError = true };
         }

@@ -123,3 +123,12 @@ PreChatMiddleware.RecordPromptStateAsync        // core/execution/Brain/src/Cont
 <!-- 原因: Go 版已把本项目 Phase1+Phase2 的想方案<E2E 实测落地，是比 Claude Code TS 更完整、更贴近本项目的参照基准 -->
 <!-- 替代方案: 仅 Claude 参考(缺"缓存优先折叠"背书)；仅 Reasonix TS 参考(旧、无 E2E)。Go 版兼有二者 -->
 <!-- 验证: 在 reset 到 upstream 时于 reflog 找回"缓存设计.md"供归档比对；本会话未改行为代码 -->
+
+## 9. 决策记录（Phase1 落地，2026-08-06）
+
+<!-- 🤖 Auto Decision: 2026-08-06 -->
+<!-- 决策: 落地 Phase1 缓存感知折叠 — DecideAfterUsage 增加 cache 输入，缓存命中且低于硬阈值时返回新枚举 Deferred 推迟折叠，DeferFoldLimit=3 封顶，达到硬阈值无条件 ExitWithSummary -->
+<!-- 原因: 对齐 Reasonix Go 版"缓存优先折叠"（soft 只提示不折叠），拉长缓存命中区间，避免"折叠→全量miss→重建"锯齿 -->
+<!-- 替代方案: 0.5 即折叠（现状，缓存健康时白扔增量性价比）；无封顶无限推迟（会顶爆窗口）-->
+<!-- 验证: 新增 ContextFoldDecideAfterUsageTests 7 例全绿 + 既有 ContextFold 13 例/ ChatUsageProcessor 4 例不回归；Brain 编译 0 警告 0 错误 -->
+

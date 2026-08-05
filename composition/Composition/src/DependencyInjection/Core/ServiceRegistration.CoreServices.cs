@@ -85,7 +85,7 @@ public static partial class ServiceRegistration
         });
 
         // ShellCapabilityProvider — 已改为静态缓存，不再 DI 注册
-        // ShellCapabilityCache + ShellProviderFactory 在 ShellCapabilityInitializer 中初始化
+        // SystemActuatorRegistry 在 SystemActuatorInitializer 中初始化（替代原 ShellCapabilityCache + ShellProviderFactory）
 
         return services;
     }

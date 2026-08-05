@@ -32,7 +32,7 @@ public sealed partial class BridgeServer : IDisposable
     private readonly ITrustedDeviceStore? _trustedDeviceStore;
     private readonly PeerSessionManager? _peerSessionManager;
     private readonly BridgeUIService? _bridgeUIService;
-    private readonly IShellExecutionService? _shellService;
+    private readonly ISystemActuatorRegistry? _actuatorRegistry;
     private readonly IIdeIntegrationService? _ideService;
     private FlushGate<BridgeServerMessage>? _outgoingFlushGate;
     private volatile int _gateActive;
@@ -45,7 +45,7 @@ public sealed partial class BridgeServer : IDisposable
         int port = 3456,
         ILogger<BridgeServer>? logger = null,
         IClockService? clock = null,
-        IShellExecutionService? shellService = null,
+        ISystemActuatorRegistry? actuatorRegistry = null,
         IIdeIntegrationService? ideService = null)
     {
         _fileOperationService = fileOperationService ?? throw new ArgumentNullException(nameof(fileOperationService));
@@ -57,7 +57,7 @@ public sealed partial class BridgeServer : IDisposable
         _bridgeUIService = session?.UIService;
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
-        _shellService = shellService;
+        _actuatorRegistry = actuatorRegistry;
         _ideService = ideService;
         _clients = new ConcurrentDictionary<string, WebSocket>();
         _cts = new CancellationTokenSource();
@@ -548,7 +548,7 @@ public sealed partial class BridgeServer : IDisposable
 
     /// <summary>
     /// 构建 executeCommand 响应消息 — internal 便于单元测试
-    /// 决策：复用 IShellExecutionService（含沙箱/拦截器），避免在 BridgeServer 重复实现
+    /// 决策：复用 ISystemActuatorRegistry（含沙箱/拦截器），避免在 BridgeServer 重复实现
     /// </summary>
     internal async Task<BridgeServerMessage> BuildExecuteCommandResponseAsync(BridgeServerMessage message, CancellationToken cancellationToken)
     {
@@ -563,20 +563,20 @@ public sealed partial class BridgeServer : IDisposable
             };
         }
 
-        if (_shellService is null)
+        if (_actuatorRegistry is null)
         {
-            _logger?.LogDebug("[BridgeServer] executeCommand 请求: {Command} — Shell 服务未注入", command);
+            _logger?.LogDebug("[BridgeServer] executeCommand 请求: {Command} — 系统执行器注册表未注入", command);
             return new BridgeServerMessage
             {
                 Type = "commandExecuted",
-                Data = JsonSerializer.SerializeToElement(new BridgeCommandExecutedData { Command = command, Success = false, Error = "Shell 服务未注入" }, BridgeJsonContext.Default.BridgeCommandExecutedData)
+                Data = JsonSerializer.SerializeToElement(new BridgeCommandExecutedData { Command = command, Success = false, Error = "系统执行器注册表未注入" }, BridgeJsonContext.Default.BridgeCommandExecutedData)
             };
         }
 
         try
         {
             var sw = Stopwatch.StartNew();
-            var result = await _shellService.ExecuteAsync(command, timeout: 30000, cancellationToken: cancellationToken).ConfigureAwait(false);
+            var result = await _actuatorRegistry.Get(SystemActuatorKind.Bash).ExecuteAsync(command, timeout: 30000, cancellationToken: cancellationToken).ConfigureAwait(false);
             sw.Stop();
 
             return new BridgeServerMessage

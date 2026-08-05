@@ -72,10 +72,10 @@ public partial class SystemPromptProviderOptions
     public IFileSystem? FileSystem { get; init; }
 
     /// <summary>
-    /// 所有已注册 Shell 的信息快照 — 通用集合，新增 ShellType 无需改代码
-    /// Key: ShellType, Value: ShellInfo (DisplayName + ShellPath + Version)
+    /// 所有已注册系统执行器的信息快照 — 通用集合，新增执行器类型无需改代码
+    /// Key: SystemActuatorKind, Value: SystemActuatorInfo (DisplayName + ShellPath + Version)
     /// </summary>
-    public IReadOnlyDictionary<ShellType, ShellInfo>? ShellInfos { get; init; }
+    public IReadOnlyDictionary<SystemActuatorKind, SystemActuatorInfo>? ShellInfos { get; init; }
 
     #endregion
 

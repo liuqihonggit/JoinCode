@@ -20,14 +20,14 @@ public sealed partial class LocalShellTaskDefinition
 [Register]
 public sealed partial class LocalShellTaskExecutor : ILocalShellTaskExecutor
 {
-    private readonly IShellExecutionService _shellExecutionService;
+    private readonly ISystemActuatorRegistry _actuatorRegistry;
     [Inject] private readonly ILogger<LocalShellTaskExecutor>? _logger;
     private readonly ITelemetryService? _telemetryService;
     private readonly IClockService _clock;
 
-    public LocalShellTaskExecutor(IShellExecutionService shellExecutionService, ILogger<LocalShellTaskExecutor>? logger = null, ITelemetryService? telemetryService = null, IClockService? clock = null)
+    public LocalShellTaskExecutor(ISystemActuatorRegistry actuatorRegistry, ILogger<LocalShellTaskExecutor>? logger = null, ITelemetryService? telemetryService = null, IClockService? clock = null)
     {
-        _shellExecutionService = shellExecutionService;
+        _actuatorRegistry = actuatorRegistry;
         _logger = logger;
         _telemetryService = telemetryService;
         _clock = clock ?? SystemClockService.Instance;
@@ -44,7 +44,7 @@ public sealed partial class LocalShellTaskExecutor : ILocalShellTaskExecutor
             _logger?.LogInformation("执行本地 Shell 任务: {TaskId}, 命令: {Command}", definition.TaskId, definition.Command);
 
             SetEnvironmentVariables(definition);
-            var result = await _shellExecutionService.ExecuteAsync(definition.Command, definition.TimeoutMs, definition.WorkingDirectory, cancellationToken: ct).ConfigureAwait(false);
+            var result = await _actuatorRegistry.Get(SystemActuatorKind.Bash).ExecuteAsync(definition.Command, definition.TimeoutMs, definition.WorkingDirectory, cancellationToken: ct).ConfigureAwait(false);
 
             var elapsed = (long)(_clock.GetUtcNow() - startTime).TotalMilliseconds;
 
@@ -85,7 +85,7 @@ public sealed partial class LocalShellTaskExecutor : ILocalShellTaskExecutor
             _logger?.LogInformation(L.T(StringKey.LocalPowershellTaskStartLog, definition.TaskId, definition.Command));
 
             SetEnvironmentVariables(definition);
-            var result = await _shellExecutionService.ExecutePowerShellAsync(definition.Command, definition.TimeoutMs, definition.WorkingDirectory, cancellationToken: ct).ConfigureAwait(false);
+            var result = await _actuatorRegistry.Get(SystemActuatorKind.PowerShell).ExecuteAsync(definition.Command, definition.TimeoutMs, definition.WorkingDirectory, cancellationToken: ct).ConfigureAwait(false);
 
             var elapsed = (long)(_clock.GetUtcNow() - startTime).TotalMilliseconds;
 

@@ -9,7 +9,7 @@ using System.Diagnostics.CodeAnalysis;
 [Register]
 public sealed partial class BuildQueueService : IBuildQueueService
 {
-    [Inject] private readonly IShellExecutionService _shellExecutionService;
+    [Inject] private readonly ISystemActuatorRegistry _actuatorRegistry;
     [Inject] private readonly IFileSystem _fs;
     [Inject] private readonly IPreventSleepService? _preventSleepService;
     [Inject] private readonly ILogger<BuildQueueService>? _logger;
@@ -43,13 +43,13 @@ public sealed partial class BuildQueueService : IBuildQueueService
     private readonly object _fingerprintLock = new();
 
     public BuildQueueService(
-        IShellExecutionService shellExecutionService,
+        ISystemActuatorRegistry actuatorRegistry,
         IFileSystem fs,
         IPreventSleepService? preventSleepService = null,
         ILogger<BuildQueueService>? logger = null,
         string? crossProcessLockPath = null)
     {
-        _shellExecutionService = shellExecutionService;
+        _actuatorRegistry = actuatorRegistry;
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _preventSleepService = preventSleepService;
         _logger = logger;
@@ -531,7 +531,7 @@ public sealed partial class BuildQueueService : IBuildQueueService
                 var sw = Stopwatch.StartNew();
                 var wallStart = DateTimeOffset.UtcNow;
 
-                var result = await _shellExecutionService.ExecuteAsync(
+                var result = await _actuatorRegistry.Get(SystemActuatorKind.Bash).ExecuteAsync(
                     entry.Request.Command,
                     workingDirectory: entry.Request.WorkingDirectory,
                     cancellationToken: buildCt).ConfigureAwait(false);

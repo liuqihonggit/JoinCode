@@ -159,12 +159,11 @@ public sealed partial class BashCommandHookExecutor : HookExecutorBase<BashComma
 
     private static (string FileName, string Arguments) GetShellCommand(string shell, string command)
     {
-        var shellType = ShellTypeHelper.ParseShellType(shell) ?? ShellType.Bash;
-        return shellType switch
-        {
-            ShellType.PowerShell => ("pwsh", $"-Command \"{command.Replace("\"", "\"\"")}\""),
-            ShellType.Cmd => ("cmd.exe", $"/c \"{command.Replace("\"", "\"\"")}\""),
-            _ => ("bash", $"-c \"{command.Replace("\"", "\\\"")}\"")
-        };
+        var kind = SystemActuatorKind.FromId(shell) ?? SystemActuatorKind.Bash;
+        if (kind == SystemActuatorKind.PowerShell)
+            return ("pwsh", $"-Command \"{command.Replace("\"", "\"\"")}\"");
+        if (kind == SystemActuatorKind.Cmd)
+            return ("cmd.exe", $"/c \"{command.Replace("\"", "\"\"")}\"");
+        return ("bash", $"-c \"{command.Replace("\"", "\\\"")}\"");
     }
 }

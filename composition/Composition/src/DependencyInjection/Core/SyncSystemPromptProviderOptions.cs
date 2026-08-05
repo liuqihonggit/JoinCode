@@ -9,7 +9,7 @@ public sealed partial class SyncSystemPromptProviderOptions : Core.Prompts.Syste
 {
     /// <summary>
     /// DI 构造函数 — 从 WorkflowConfig 和可选服务推导所有属性
-    /// Shell 信息从 ShellCapabilityCache 全局缓存获取
+    /// Shell 信息从 ISystemActuatorRegistry 获取
     /// </summary>
     public SyncSystemPromptProviderOptions(
         WorkflowConfig config,
@@ -17,7 +17,8 @@ public sealed partial class SyncSystemPromptProviderOptions : Core.Prompts.Syste
         IFileSystem fs,
         IAssistantDailyLogService? dailyLogService = null,
         IMemorySearchHistoryService? searchHistoryService = null,
-        IBriefModeService? briefModeService = null)
+        IBriefModeService? briefModeService = null,
+        ISystemActuatorRegistry? actuatorRegistry = null)
     {
         ProjectRules = config.ProjectRules;
         ExternalRules = config.ExternalRules.Count > 0
@@ -44,8 +45,6 @@ public sealed partial class SyncSystemPromptProviderOptions : Core.Prompts.Syste
             : null;
         AwaySummary = null;
 
-        ShellInfos = ShellCapabilityCache.IsInitialized
-            ? ShellCapabilityCache.GetAllShellInfos()
-            : null;
+        ShellInfos = actuatorRegistry?.GetAllInfos();
     }
 }

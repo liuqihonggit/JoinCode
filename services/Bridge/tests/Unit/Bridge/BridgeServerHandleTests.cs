@@ -1,7 +1,7 @@
 namespace Bridge.Tests;
 
 using System.Text.Json;
-using JoinCode.Abstractions.Models.Shell;
+using JoinCode.Abstractions.Interfaces;
 
 /// <summary>
 /// BridgeServer.executeCommand/setSelection 单元测试 — P0-B TDD
@@ -17,14 +17,14 @@ public sealed class BridgeServerHandleTests
     }
 
     private static BridgeServer CreateServer(
-        IShellExecutionService? shellService = null,
+        ISystemActuatorRegistry? actuatorRegistry = null,
         IIdeIntegrationService? ideService = null)
     {
         return new BridgeServer(
             CreateFileOpMock().Object,
             port: 0,
             logger: NullLogger<BridgeServer>.Instance,
-            shellService: shellService,
+            actuatorRegistry: actuatorRegistry,
             ideService: ideService);
     }
 
@@ -64,6 +64,13 @@ public sealed class BridgeServerHandleTests
             ?? throw new InvalidOperationException("[UTU002] 反序列化失败");
     }
 
+    private static Mock<ISystemActuatorRegistry> CreateRegistryMock(Mock<ISystemActuator> actuatorMock)
+    {
+        var registryMock = new Mock<ISystemActuatorRegistry>();
+        registryMock.Setup(r => r.Get(It.IsAny<SystemActuatorKind>())).Returns(actuatorMock.Object);
+        return registryMock;
+    }
+
     // ============================================================
     // executeCommand 单元测试
     // ============================================================
@@ -72,20 +79,20 @@ public sealed class BridgeServerHandleTests
     public async Task BuildExecuteCommandResponseAsync_WithShellService_ShouldCallExecuteAndReturnSuccess()
     {
         // Arrange
-        var shellMock = new Mock<IShellExecutionService>();
+        var shellMock = new Mock<ISystemActuator>();
         shellMock.Setup(s => s.ExecuteAsync(
                 It.Is<string>(c => c == "echo hello"),
                 It.IsAny<int?>(),
                 It.IsAny<string?>(),
                 It.IsAny<bool>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ShellExecutionResult
+            .ReturnsAsync(new SystemActuatorExecutionResult
             {
                 Stdout = "hello",
                 Stderr = "",
                 ExitCode = 0
             });
-        var server = CreateServer(shellService: shellMock.Object);
+        var server = CreateServer(actuatorRegistry: CreateRegistryMock(shellMock).Object);
         var message = CreateExecuteCommandMessage("echo hello");
 
         // Act
@@ -110,7 +117,7 @@ public sealed class BridgeServerHandleTests
     public async Task BuildExecuteCommandResponseAsync_WithoutShellService_ShouldReturnNotSupported()
     {
         // Arrange
-        var server = CreateServer(shellService: null);
+        var server = CreateServer(actuatorRegistry: null);
         var message = CreateExecuteCommandMessage("echo hello");
 
         // Act
@@ -120,15 +127,15 @@ public sealed class BridgeServerHandleTests
         var data = ParseCommandExecuted(response);
         data.Success.Should().BeFalse();
         data.Error.Should().NotBeNullOrEmpty();
-        data.Error.Should().Contain("Shell");
+        data.Error.Should().Contain("执行器");
     }
 
     [Fact]
     public async Task BuildExecuteCommandResponseAsync_EmptyCommand_ShouldReturnFailureWithErrorMessage()
     {
         // Arrange
-        var shellMock = new Mock<IShellExecutionService>();
-        var server = CreateServer(shellService: shellMock.Object);
+        var shellMock = new Mock<ISystemActuator>();
+        var server = CreateServer(actuatorRegistry: CreateRegistryMock(shellMock).Object);
         var message = CreateExecuteCommandMessage("");
 
         // Act
@@ -150,7 +157,7 @@ public sealed class BridgeServerHandleTests
     public async Task BuildExecuteCommandResponseAsync_WhenShellThrows_ShouldReturnExceptionMessage()
     {
         // Arrange
-        var shellMock = new Mock<IShellExecutionService>();
+        var shellMock = new Mock<ISystemActuator>();
         shellMock.Setup(s => s.ExecuteAsync(
                 It.IsAny<string>(),
                 It.IsAny<int?>(),
@@ -158,7 +165,7 @@ public sealed class BridgeServerHandleTests
                 It.IsAny<bool>(),
                 It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("模拟执行失败"));
-        var server = CreateServer(shellService: shellMock.Object);
+        var server = CreateServer(actuatorRegistry: CreateRegistryMock(shellMock).Object);
         var message = CreateExecuteCommandMessage("bad-command");
 
         // Act

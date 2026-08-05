@@ -20,7 +20,7 @@ public sealed partial class GoalGraphEngine : ServiceEntity
     private Core.Agents.Coordinator.AgentRegistry _agentRegistry => Core.Agents.Coordinator.Agent.Registry;
     [Inject] private readonly IAgentService? _agentService = null!;
     [Inject] private readonly IGoalUserInteraction? _userInteraction = null;
-    [Inject] private readonly IGoalLoopObserver? _loopObserver = null;
+    [Inject] private readonly IGoalNodeInspector? _nodeInspector = null;
     private readonly Dictionary<string, Func<NodeContext, Task<NodeResult>>> _functionRegistry = new(StringComparer.Ordinal);
 
     public GoalGraphEngine(
@@ -31,7 +31,7 @@ public sealed partial class GoalGraphEngine : ServiceEntity
         IGoalHeartbeat? heartbeat = null,
         IClockService? clock = null,
         IGoalUserInteraction? userInteraction = null,
-        IGoalLoopObserver? loopObserver = null)
+        IGoalNodeInspector? nodeInspector = null)
     {
         _kernel = kernel;
         _evaluator = evaluator;
@@ -40,7 +40,7 @@ public sealed partial class GoalGraphEngine : ServiceEntity
         _heartbeat = heartbeat ?? new GoalHeartbeat();
         _clock = clock ?? SystemClockService.Instance;
         _userInteraction = userInteraction ?? serviceProvider.GetService<IGoalUserInteraction>();
-        _loopObserver = loopObserver ?? serviceProvider.GetService<IGoalLoopObserver>();
+        _nodeInspector = nodeInspector ?? serviceProvider.GetService<IGoalNodeInspector>();
         _agentService = serviceProvider.GetService<IAgentService>();
     }
 
@@ -626,7 +626,7 @@ public sealed partial class GoalGraphEngine : ServiceEntity
     /// </summary>
     private async Task HandleLoopObservationAsync(string nodeId, GoalNodePayload payload, GraphExecutionContext context, CancellationToken ct)
     {
-        if (_loopObserver is null)
+        if (_nodeInspector is null)
             return;
 
         if (!nodeId.Equals("neg_review", StringComparison.Ordinal) && !nodeId.Equals("fix_neg", StringComparison.Ordinal))
@@ -644,7 +644,7 @@ public sealed partial class GoalGraphEngine : ServiceEntity
             NegativeReviewTaskId = payload.NegativeReviewTaskId,
         };
 
-        var shouldTerminate = await _loopObserver.ObserveAsync(observationContext, ct).ConfigureAwait(false);
+        var shouldTerminate = await _nodeInspector.ObserveLoopAsync(observationContext, ct).ConfigureAwait(false);
 
         if (shouldTerminate)
         {

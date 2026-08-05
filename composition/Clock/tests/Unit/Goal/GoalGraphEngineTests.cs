@@ -37,7 +37,7 @@ public sealed class GoalGraphEngineTests
         IClockService? clock = null,
         IServiceProvider? serviceProvider = null,
         IGoalUserInteraction? userInteraction = null,
-        IGoalLoopObserver? loopObserver = null)
+        IGoalNodeInspector? nodeInspector = null)
     {
         return new GoalGraphEngine(
             (kernel ?? CreateKernelMock()).Object,
@@ -46,7 +46,7 @@ public sealed class GoalGraphEngineTests
             heartbeat: CreateHeartbeatMock().Object,
             clock: clock,
             userInteraction: userInteraction,
-            loopObserver: loopObserver);
+            nodeInspector: nodeInspector);
     }
 
     private static GoalState CreateGoalState() => new()
@@ -1739,11 +1739,11 @@ public sealed class GoalGraphEngineTests
     [Fact]
     public async Task NegativeReviewLoop_LoopObserver_Should_TerminateWhenObserverReturnsTrue()
     {
-        var loopObserver = new Mock<IGoalLoopObserver>();
-        loopObserver.Setup(o => o.ObserveAsync(It.IsAny<LoopObservationContext>(), It.IsAny<CancellationToken>()))
+        var nodeInspector = new Mock<IGoalNodeInspector>();
+        nodeInspector.Setup(o => o.ObserveLoopAsync(It.IsAny<LoopObservationContext>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
-        var engine = CreateEngine(loopObserver: loopObserver.Object);
+        var engine = CreateEngine(nodeInspector: nodeInspector.Object);
 
         var dag = new Dag<GoalNodePayload>();
         var nodeExecute = MakeFunctionNode("execute", "executor");
@@ -1788,7 +1788,7 @@ public sealed class GoalGraphEngineTests
         var result = await engine.ExecuteAsync(graph, CreateGoalState(), new MessageList(), CancellationToken.None);
 
         Assert.Equal(GoalStatus.Achieved, result.Status);
-        loopObserver.Verify(o => o.ObserveAsync(It.IsAny<LoopObservationContext>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+        nodeInspector.Verify(o => o.ObserveLoopAsync(It.IsAny<LoopObservationContext>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce);
     }
 
     // ─────────────────────────────────────────────────────────────

@@ -31,7 +31,7 @@ public sealed partial class WorkSessionTrackMiddleware : ServiceEntity, IHandleW
 
         if (ctx.UseCcrV2)
         {
-            ctx.V2Sessions.Add(work.SessionId);
+            ctx.V2Sessions.TryAdd(work.SessionId, 0);
         }
 
         var compatId = SessionIdCompat.ToCompatSessionId(work.SessionId);

@@ -25,7 +25,7 @@ public sealed partial class WorkCapacityCheckMiddleware : ServiceEntity, IHandle
             return;
         }
 
-        if (ctx.CompletedWorkIds.Contains(ctx.Work.WorkId))
+        if (ctx.CompletedWorkIds.ContainsKey(ctx.Work.WorkId))
         {
             _logger?.LogDebug("BridgeMain: skipping duplicate work {WorkId}", ctx.Work.WorkId);
 

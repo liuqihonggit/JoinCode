@@ -52,7 +52,7 @@ public sealed partial class WorkSpawnMiddleware : ServiceEntity, IHandleWorkMidd
                 {
                     await _worktreeService.RemoveAgentWorktreeAsync(
                         ctx.Work.SessionId, force: true, cancellationToken: ct).ConfigureAwait(false);
-                    ctx.SessionWorktrees.Remove(ctx.Work.SessionId);
+                    ctx.SessionWorktrees.TryRemove(ctx.Work.SessionId, out _);
                 }
                 catch (Exception cleanupEx)
                 {
@@ -60,7 +60,7 @@ public sealed partial class WorkSpawnMiddleware : ServiceEntity, IHandleWorkMidd
                 }
             }
 
-            ctx.CompletedWorkIds.Add(ctx.Work.WorkId);
+            ctx.CompletedWorkIds.TryAdd(ctx.Work.WorkId, 0);
             if (ctx.StopWorkAsync is not null)
             {
                 await ctx.StopWorkAsync(ctx.Work.WorkId, ct).ConfigureAwait(false);

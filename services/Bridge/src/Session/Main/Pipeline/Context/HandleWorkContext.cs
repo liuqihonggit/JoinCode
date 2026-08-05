@@ -31,14 +31,14 @@ public sealed class HandleWorkContext : IPipelineContext
     internal BridgeSubprocessSpawner? Spawner { get; set; }
     internal BridgeMainPollConfig? PollConfig { get; set; }
 
-    internal Dictionary<string, BridgeSubprocessHandle> ActiveSessions { get; set; } = new();
-    internal Dictionary<string, DateTime> SessionStartTimes { get; set; } = new();
-    internal Dictionary<string, string> SessionWorkIds { get; set; } = new();
-    internal Dictionary<string, string> SessionIngressTokens { get; set; } = new();
-    internal Dictionary<string, string> SessionWorktrees { get; set; } = new();
-    internal HashSet<string> CompletedWorkIds { get; set; } = new();
-    internal HashSet<string> V2Sessions { get; set; } = new();
-    internal Dictionary<string, string> SessionCompatIds { get; set; } = new();
+    internal ConcurrentDictionary<string, BridgeSubprocessHandle> ActiveSessions { get; set; } = new();
+    internal ConcurrentDictionary<string, DateTime> SessionStartTimes { get; set; } = new();
+    internal ConcurrentDictionary<string, string> SessionWorkIds { get; set; } = new();
+    internal ConcurrentDictionary<string, string> SessionIngressTokens { get; set; } = new();
+    internal ConcurrentDictionary<string, string> SessionWorktrees { get; set; } = new();
+    internal ConcurrentDictionary<string, byte> CompletedWorkIds { get; set; } = new();
+    internal ConcurrentDictionary<string, byte> V2Sessions { get; set; } = new();
+    internal ConcurrentDictionary<string, string> SessionCompatIds { get; set; } = new();
 
     internal Func<string, CancellationToken, Task>? StopWorkAsync { get; set; }
     internal Action<Task>? TrackCleanup { get; set; }    internal Action? CapacityWake { get; set; }
@@ -57,7 +57,7 @@ public sealed class HandleWorkContext : IPipelineContext
     /// </summary>
     internal void FailWork(CancellationToken ct = default)
     {
-        CompletedWorkIds.Add(Work.WorkId);
+        CompletedWorkIds.TryAdd(Work.WorkId, 0);
         if (TrackCleanup is not null && StopWorkAsync is not null)
         {
             TrackCleanup(StopWorkAsync(Work.WorkId, ct));

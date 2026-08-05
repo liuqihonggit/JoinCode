@@ -348,9 +348,9 @@ public sealed partial class BridgeMain
     {
         // 对齐 TS 端: if (titledSessions.has(compatSessionId)) return
         var compatId = GetCompatId(sessionId);
-        if (_tracker.TitledSessions.Contains(compatId)) return;
+        if (_tracker.TitledSessions.ContainsKey(compatId)) return;
 
-        _tracker.TitledSessions.Add(compatId);
+        _tracker.TitledSessions.TryAdd(compatId, 0);
         var title = DeriveSessionTitle(text);
         _deps.BridgeLogger?.SetSessionTitle(compatId, title);
         _logger?.LogDebug("BridgeMain: derived title for {SessionId}: {Title}", sessionId, title);
@@ -396,7 +396,7 @@ public sealed partial class BridgeMain
             if (title is not null && _tracker.ActiveSessions.ContainsKey(sessionId))
             {
                 var compatId = GetCompatId(sessionId);
-                _tracker.TitledSessions.Add(compatId);
+                _tracker.TitledSessions.TryAdd(compatId, 0);
                 _deps.BridgeLogger?.SetSessionTitle(compatId, title);
                 _logger?.LogDebug("BridgeMain: server title for {SessionId}: {Title}", sessionId, title);
             }

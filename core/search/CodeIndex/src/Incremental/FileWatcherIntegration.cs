@@ -15,6 +15,7 @@ public sealed partial class FileWatcherIntegration : IAsyncDisposable
     private readonly SemaphoreSlim _pendingLock = new(1, 1);
     private CancellationTokenSource? _updateCts;
     private IFileSystemWatcher? _watcher;
+    private readonly ILogger<FileWatcherIntegration>? _logger;
     private int _disposed;
 
     private static readonly string[] DefaultExcludedDirs = new[] { "bin", "obj", ".git", ".x" };
@@ -34,7 +35,7 @@ public sealed partial class FileWatcherIntegration : IAsyncDisposable
     {
     }
 
-    public FileWatcherIntegration(ICodeIndexer indexer, string workspaceRoot, IFileSystem? fs, Action<Exception>? onError, TimeSpan? debounceInterval = null)
+    public FileWatcherIntegration(ICodeIndexer indexer, string workspaceRoot, IFileSystem? fs, Action<Exception>? onError, TimeSpan? debounceInterval = null, ILogger<FileWatcherIntegration>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(indexer);
         ArgumentNullException.ThrowIfNull(workspaceRoot);
@@ -43,6 +44,7 @@ public sealed partial class FileWatcherIntegration : IAsyncDisposable
         _fs = fs;
         _workspaceRoot = workspaceRoot;
         _onError = onError;
+        _logger = logger;
         _debounceInterval = debounceInterval ?? TimeSpan.FromMilliseconds(500);
         _excludedDirs = new HashSet<string>(DefaultExcludedDirs, StringComparer.OrdinalIgnoreCase);
         _updateCts = new CancellationTokenSource();
@@ -108,7 +110,7 @@ public sealed partial class FileWatcherIntegration : IAsyncDisposable
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Trace.WriteLine($"FileWatcherIntegration: Error waiting for pending updates during stop: {ex.Message}");
+                _logger?.LogWarning(ex, "FileWatcherIntegration: 停止期间等待待处理更新失败");
             }
         }
     }
@@ -169,7 +171,7 @@ public sealed partial class FileWatcherIntegration : IAsyncDisposable
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Trace.WriteLine($"FileWatcherIntegration: Error in ProcessFileChangeAsync: {ex.Message}");
+            _logger?.LogWarning(ex, "FileWatcherIntegration: ProcessFileChangeAsync 处理失败");
         }
     }
 
@@ -183,7 +185,7 @@ public sealed partial class FileWatcherIntegration : IAsyncDisposable
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Trace.WriteLine($"FileWatcherIntegration: Error watching task completion: {ex.Message}");
+            _logger?.LogWarning(ex, "FileWatcherIntegration: 监视任务完成时出错");
         }
         finally
         {

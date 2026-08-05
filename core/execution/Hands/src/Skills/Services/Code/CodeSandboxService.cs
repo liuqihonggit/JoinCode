@@ -8,13 +8,15 @@ public sealed partial class CodeSandboxService : ServiceEntity, ICodeSandboxServ
     private readonly IFileSystem _fs;
     private readonly IProcessService _processService;
     private readonly ITelemetryService? _telemetryService;
+    private readonly ILogger<CodeSandboxService>? _logger;
 
-    public CodeSandboxService(IFileOperationService fileOperationService, IFileSystem fs, IProcessService processService, ITelemetryService? telemetryService = null)
+    public CodeSandboxService(IFileOperationService fileOperationService, IFileSystem fs, IProcessService processService, ITelemetryService? telemetryService = null, ILogger<CodeSandboxService>? logger = null)
     {
         _fileOperationService = fileOperationService ?? throw new ArgumentNullException(nameof(fileOperationService));
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _processService = processService ?? throw new ArgumentNullException(nameof(processService));
         _telemetryService = telemetryService;
+        _logger = logger;
     }
 
     public async Task<string> ExecuteAsync(string code, int timeoutMs, CancellationToken cancellationToken = default)
@@ -117,7 +119,7 @@ public sealed partial class CodeSandboxService : ServiceEntity, ICodeSandboxServ
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Trace.WriteLine($"清理临时目录失败: {ex.Message}");
+                _logger?.LogWarning(ex, "清理临时目录失败");
             }
         }
     }

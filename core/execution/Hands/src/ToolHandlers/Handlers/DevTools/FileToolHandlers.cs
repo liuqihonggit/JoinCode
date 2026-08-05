@@ -44,6 +44,7 @@ public class FileToolHandlers : IDisposable
     private readonly IFileSystem _fs;
     private readonly ApplyPatchLogic? _applyPatchLogic;
     private readonly ISubAgentContextAccessor? _subAgentContextAccessor;
+    private readonly ILogger<FileToolHandlers>? _logger;
 
     /// <summary>
     /// Default max read tokens (matches TS: DEFAULT_MAX_OUTPUT_TOKENS = 25000)
@@ -53,10 +54,12 @@ public class FileToolHandlers : IDisposable
     public FileToolHandlers(
         IFileOperationService fileOperationService,
         IFileSystem fs,
-        FileToolHandlersContext? context = null)
+        FileToolHandlersContext? context = null,
+        ILogger<FileToolHandlers>? logger = null)
     {
         _fileOperationService = fileOperationService ?? throw new ArgumentNullException(nameof(fileOperationService));
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
+        _logger = logger;
         _sandboxManager = context?.SandboxManager;
         _telemetryService = context?.TelemetryService;
         _fileEditLogic = context?.FileEditLogic;
@@ -151,7 +154,7 @@ public class FileToolHandlers : IDisposable
                 catch (Exception ex)
                 {
                     // stat 失败（文件可能被删除），降级为完整读取
-                    System.Diagnostics.Trace.WriteLine($"文件stat检查失败，降级为完整读取: {ex.Message}");
+                    _logger?.LogWarning(ex, "文件 stat 检查失败，降级为完整读取");
                 }
             }
         }
@@ -933,9 +936,9 @@ public class FileToolHandlers : IDisposable
 
     public void Dispose()
     {
-        try { _disposeCts.Cancel(); } catch (ObjectDisposedException ex) { System.Diagnostics.Trace.WriteLine($"Dispose时取消CancellationTokenSource失败: {ex.Message}"); }
-        try { _disposeCts.Dispose(); } catch (ObjectDisposedException ex) { System.Diagnostics.Trace.WriteLine($"Dispose时释放CancellationTokenSource失败: {ex.Message}"); }
-        try { _lspNotificationCompleted.Dispose(); } catch (ObjectDisposedException ex) { System.Diagnostics.Trace.WriteLine($"Dispose时释放LSP通知信号量失败: {ex.Message}"); }
+        try { _disposeCts.Cancel(); } catch (ObjectDisposedException ex) { _logger?.LogWarning(ex, "Dispose 时取消 CancellationTokenSource 失败"); }
+        try { _disposeCts.Dispose(); } catch (ObjectDisposedException ex) { _logger?.LogWarning(ex, "Dispose 时释放 CancellationTokenSource 失败"); }
+        try { _lspNotificationCompleted.Dispose(); } catch (ObjectDisposedException ex) { _logger?.LogWarning(ex, "Dispose 时释放 LSP 通知信号量失败"); }
     }
 
     private static FrozenSet<string> CreateBinaryExtensionSet()
@@ -1550,7 +1553,7 @@ public class FileToolHandlers : IDisposable
             catch (Exception ex)
             {
                 // stat 失败，降级为完整读取
-                System.Diagnostics.Trace.WriteLine($"Notebook文件stat检查失败，降级为完整读取: {ex.Message}");
+                _logger?.LogWarning(ex, "Notebook 文件 stat 检查失败，降级为完整读取");
             }
         }
 

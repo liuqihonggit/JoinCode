@@ -21,6 +21,7 @@ public sealed class DoctorTcpServer : IDoctorTransport
     private readonly Dictionary<string, DoctorTcpPatient> _patients = new();
     private readonly SemaphoreSlim _patientsLock = new(1, 1);
     private readonly Channel<DiagnosticEvent> _eventChannel;
+    private readonly ILogger<DoctorTcpServer>? _logger;
     private CancellationTokenSource? _listenCts;
     private Task? _listenTask;
     private int _isDisposed;
@@ -48,9 +49,10 @@ public sealed class DoctorTcpServer : IDoctorTransport
     /// <inheritdoc/>
     public event EventHandler<string>? PatientDisconnected;
 
-    public DoctorTcpServer(int port)
+    public DoctorTcpServer(int port, ILogger<DoctorTcpServer>? logger = null)
     {
         _port = port;
+        _logger = logger;
         _eventChannel = Channel.CreateBounded<DiagnosticEvent>(new BoundedChannelOptions(512)
         {
             FullMode = BoundedChannelFullMode.DropOldest,
@@ -196,7 +198,7 @@ public sealed class DoctorTcpServer : IDoctorTransport
         finally
         {
             try { tcpClient.Close(); }
-            catch (Exception closeEx) { System.Diagnostics.Trace.WriteLine($"[DoctorTCP] 关闭连接失败: {closeEx.Message}"); }
+            catch (Exception closeEx) { _logger?.LogWarning(closeEx, "[DoctorTCP] 关闭连接失败"); }
         }
     }
 
@@ -211,7 +213,7 @@ public sealed class DoctorTcpServer : IDoctorTransport
         await stream.WriteAsync(headerBytes, ct).ConfigureAwait(false);
         await stream.FlushAsync(ct).ConfigureAwait(false);
 
-        var patient = new DoctorTcpPatient(patientId, stream);
+        var patient = new DoctorTcpPatient(patientId, stream, _logger);
 
         await _patientsLock.WaitAsync(ct).ConfigureAwait(false);
         try { _patients[patientId] = patient; }
@@ -438,7 +440,7 @@ public sealed class DoctorTcpServer : IDoctorTransport
 
         if (_listenTask is not null)
         {
-            try { _listenTask.GetAwaiter().GetResult(); } catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"[DoctorTCP] 等待监听任务完成失败: {ex.Message}"); }
+            try { _listenTask.GetAwaiter().GetResult(); } catch (Exception ex) { _logger?.LogWarning(ex, "[DoctorTCP] 等待监听任务完成失败"); }
         }
 
         await _patientsLock.WaitAsync().ConfigureAwait(false);
@@ -450,7 +452,7 @@ public sealed class DoctorTcpServer : IDoctorTransport
         }
         finally { _patientsLock.Release(); }
 
-        try { _listener?.Stop(); } catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"[DoctorTCP] TcpListener.Stop 失败: {ex.Message}"); }
+        try { _listener?.Stop(); } catch (Exception ex) { _logger?.LogWarning(ex, "[DoctorTCP] TcpListener.Stop 失败"); }
         _listener = null;
 
         _eventChannel.Writer.TryComplete();
@@ -464,15 +466,17 @@ public sealed class DoctorTcpServer : IDoctorTransport
 internal sealed class DoctorTcpPatient : IAsyncDisposable
 {
     private readonly SemaphoreSlim _writeLock = new(1, 1);
+    private readonly ILogger? _logger;
     private bool _disposed;
 
     public string PatientId { get; }
     public NetworkStream Stream { get; }
 
-    public DoctorTcpPatient(string patientId, NetworkStream stream)
+    public DoctorTcpPatient(string patientId, NetworkStream stream, ILogger? logger = null)
     {
         PatientId = patientId;
         Stream = stream;
+        _logger = logger;
     }
 
     public async Task SendAsync(byte[] data, CancellationToken cancellationToken)
@@ -495,7 +499,7 @@ internal sealed class DoctorTcpPatient : IAsyncDisposable
         _writeLock.Dispose();
 
         try { await Stream.DisposeAsync().ConfigureAwait(false); }
-        catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"[DoctorTCP] 释放病人输出流失败: {ex.Message}"); }
+        catch (Exception ex) { _logger?.LogWarning(ex, "[DoctorTCP] 释放病人输出流失败"); }
     }
 }
 

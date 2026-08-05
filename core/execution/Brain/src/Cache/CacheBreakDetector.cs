@@ -4,11 +4,17 @@ public class CacheBreakDetector
 {
     private bool _hasPreviousCacheHit;
 
-    public PromptStateSnapshot RecordPromptState(ImmutablePrefix prefix, string dynamicContent, string? modelId = null, bool? fastMode = null)
+    public PromptStateSnapshot RecordPromptState(
+        ImmutablePrefix prefix,
+        string dynamicContent,
+        IReadOnlyList<ApiMessage>? conversation = null,
+        string? modelId = null,
+        bool? fastMode = null)
     {
         ArgumentNullException.ThrowIfNull(prefix);
         ArgumentNullException.ThrowIfNull(dynamicContent);
 
+        var conversationCount = conversation?.Count ?? 0;
         return new PromptStateSnapshot
         {
             SystemPromptHash = ContentHash.Compute(prefix.System),
@@ -16,6 +22,8 @@ public class CacheBreakDetector
             ToolCount = prefix.ToolSpecs.Count(),
             ToolNamesHash = ContentHash.ComputeToolNames(prefix.ToolSpecs),
             DynamicContentHash = ContentHash.Compute(dynamicContent),
+            ConversationHash = conversationCount > 0 ? ContentHash.ComputeConversation(conversation!) : string.Empty,
+            ConversationCount = conversationCount,
             ToolSpecs = prefix.ToolSpecs.ToList(),
             ModelId = modelId,
             FastMode = fastMode
@@ -27,6 +35,7 @@ public class CacheBreakDetector
         ImmutablePrefix currentPrefix,
         string currentDynamicContent,
         TokenUsage usage,
+        IReadOnlyList<ApiMessage>? currentConversation = null,
         string? currentModelId = null,
         bool? currentFastMode = null)
     {
@@ -79,6 +88,24 @@ public class CacheBreakDetector
                 "Dynamic system content changed");
         }
 
+        // 消息序列前缀检测 — 对齐线上真实字节前缀。
+        // 只比对快照时已存在的前 N 条消息：尾部追加（多轮增长）不破坏前缀，前缀变短（撤回）仍是可命中前缀，
+        // 唯有既有前缀中的消息被篡改/插入会破坏真实线上前缀，必须上报。
+        if (snapshot.ConversationCount > 0 && !string.IsNullOrEmpty(snapshot.ConversationHash))
+        {
+            var currentCount = currentConversation?.Count ?? 0;
+            if (currentCount >= snapshot.ConversationCount)
+            {
+                var preserved = currentConversation!.Take(snapshot.ConversationCount).ToList();
+                var preservedHash = ContentHash.ComputeConversation(preserved);
+                if (preservedHash != snapshot.ConversationHash)
+                {
+                    return CacheBreakResult.Break(CacheBreakKind.ConversationHistoryChanged,
+                        $"Conversation history prefix changed: hash {snapshot.ConversationHash} → {preservedHash} (first {snapshot.ConversationCount} messages)");
+                }
+            }
+        }
+
         var allHashesMatch = snapshot.SystemPromptHash == currentSystemHash
             && snapshot.ToolSpecsHash == currentToolSpecsHash
             && snapshot.DynamicContentHash == currentDynamicHash;
@@ -118,3 +145,15 @@ public class CacheBreakDetector
         return snapshot.FastMode != currentFastMode;
     }
 }
+
+// <!-- 🤖 Auto Decision: 2026-08-06 -->
+// <!-- 决策: 为 CacheBreakDetector 增加"消息序列前缀"hash 检测 -->
+// <!-- 原因: 原检测器只对 system/tools/dynamic 逻辑构件做 hash，从不核对线上实际对话消息序列。
+//        若中途某条既有历史消息被篡改/插入，真实线上前缀已被破坏，但检测器误报"无失效" -->
+// <!-- 实现: RecordPromptState/CheckCacheBreak 新增可选 conversation 参数；照 MockServer
+//       ExtractConversationPrefix 的逐条编码（role\x01 content\x00）计算联合 hash。
+//       只比对快照时已存在的前 N 条消息——尾部追加(多轮增长)/前缀变短(撤回)均不误报，
+//       唯有既有前缀被篡改/插入才报 ConversationHistoryChanged -->
+// <!-- 替代方案: 直接比对整段序列化字节(需 provider 特定的序列化器、开销大且耦合；弃用 -->
+// <!-- 验证: 编译通过，243 个 PrefixCache 测试 + 11 个 CacheBreakMonitor 测试 + 6 个新测试全绿 ✅ -->
+

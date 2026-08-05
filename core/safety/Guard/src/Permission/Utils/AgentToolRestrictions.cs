@@ -14,6 +14,8 @@ public sealed partial class AgentToolRestrictions : ServiceEntity, IAgentToolRes
     {
         FileToolNameConstants.FileRead, FileToolNameConstants.DirectoryList, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep,
         SearchToolNameConstants.SearchCode, SearchToolNameConstants.SearchText,
+        SearchToolNameConstants.SearchFiles, SearchToolNameConstants.SearchCodebase,
+        SearchToolNameConstants.CodeSearch, SearchToolNameConstants.SymbolSearch,
         WebToolNameConstants.WebFetch, WebToolNameConstants.WebSearch,
         TaskToolNameConstants.TaskList, TaskToolNameConstants.TaskGet,
         SystemToolNameConstants.TaskOutput,
@@ -39,6 +41,8 @@ public sealed partial class AgentToolRestrictions : ServiceEntity, IAgentToolRes
     {
         FileToolNameConstants.FileRead, FileToolNameConstants.DirectoryList, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep,
         SearchToolNameConstants.SearchCode, SearchToolNameConstants.SearchText,
+        SearchToolNameConstants.SearchFiles, SearchToolNameConstants.SearchCodebase,
+        SearchToolNameConstants.CodeSearch, SearchToolNameConstants.SymbolSearch,
         WebToolNameConstants.WebFetch, WebToolNameConstants.WebSearch,
         TaskToolNameConstants.TaskList, TaskToolNameConstants.TaskGet,
         SystemToolNameConstants.TaskOutput,
@@ -56,6 +60,8 @@ public sealed partial class AgentToolRestrictions : ServiceEntity, IAgentToolRes
     {
         FileToolNameConstants.FileRead, FileToolNameConstants.DirectoryList, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep,
         SearchToolNameConstants.SearchCode, SearchToolNameConstants.SearchText,
+        SearchToolNameConstants.SearchFiles, SearchToolNameConstants.SearchCodebase,
+        SearchToolNameConstants.CodeSearch, SearchToolNameConstants.SymbolSearch,
         WebToolNameConstants.WebFetch, WebToolNameConstants.WebSearch,
         TaskToolNameConstants.TaskList, TaskToolNameConstants.TaskGet,
         SystemToolNameConstants.TaskOutput,

@@ -44,7 +44,8 @@ public sealed partial class FeatureFlagService : RemoteCacheRefreshServiceBase<F
         ArgumentNullException.ThrowIfNull(featureKey);
 
         var flag = await GetFlagAsync(featureKey, cancellationToken).ConfigureAwait(false);
-        if (flag == null || !flag.Enabled) return false;
+        if (flag == null) return true;
+        if (!flag.Enabled) return false;
         if (!MatchesTargetingRules(flag, attributes)) return false;
         if (flag.RolloutPercentage >= 100.0) return true;
         if (flag.RolloutPercentage <= 0.0) return false;

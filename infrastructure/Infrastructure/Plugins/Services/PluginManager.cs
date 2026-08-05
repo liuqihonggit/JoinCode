@@ -177,8 +177,13 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
                 }
             };
 
-            if (!process.Start())
+            bool started;
+            try { started = process.Start(); }
+            catch (Exception) { process.Dispose(); throw; }
+
+            if (!started)
             {
+                process.Dispose();
                 RecordPluginMetrics("external", "load", false);
                 throw new InvalidOperationException($"[INF037] 无法启动外部插件进程: {exePath}");
             }

@@ -183,13 +183,16 @@ public sealed class McpStdioClient : McpClientBase
             _stdinWriter?.Dispose();
             _stdoutReader?.Dispose();
 
-            if (_process != null && !_process.HasExited)
+            if (_process != null)
             {
                 try
                 {
-                    _process.Kill();
-                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-                    await _process.WaitForExitAsync(cts.Token);
+                    if (!_process.HasExited)
+                    {
+                        _process.Kill();
+                        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                        await _process.WaitForExitAsync(cts.Token);
+                    }
                 }
                 catch (Exception ex)
                 {

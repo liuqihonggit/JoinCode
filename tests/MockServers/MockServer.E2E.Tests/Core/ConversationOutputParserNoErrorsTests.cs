@@ -55,4 +55,34 @@ public sealed class ConversationOutputParserNoErrorsTests
 
         results[0].IsPassed.Should().BeTrue();
     }
+
+    [Fact]
+    public void NoErrors_WhenDotNetILoggerErrorLine_ShouldNotTriggerFalsePositive()
+    {
+        var output = "[Tool] search_code(query=class)\n[FAIL] search_code\n  Tool 'search_code' execution failed\nwarn: McpToolRegistry.PermissionAwareToolExecutor[0]\n      => SpanId:abc123\nerror: Core.Context.ChatToolOrchestrator[0]\n      Tool pipeline error";
+        var record = ConversationOutputParser.Parse(output);
+
+        record.Errors.Should().BeEmpty(".NET ILogger 格式的 error:/warn: 日志行不应被误识别为错误");
+    }
+
+    [Fact]
+    public void NoErrors_WhenRealErrorLine_ShouldBeDetected()
+    {
+        var output = "Error: something went wrong\nException: NullReferenceException";
+        var record = ConversationOutputParser.Parse(output);
+
+        record.Errors.Should().HaveCount(2, "真正的 Error: 和 Exception 行应被检测");
+    }
+
+    [Fact]
+    public void Parse_ShouldCaptureToolResultLines()
+    {
+        var output = "[Tool] Read(file_path=test.txt)\n[FAIL] Read\n  File not found: test.txt\n  Current directory: /tmp";
+        var record = ConversationOutputParser.Parse(output);
+
+        record.ToolCalls.Should().HaveCount(1);
+        record.ToolCalls[0].ToolName.Should().Be("Read");
+        record.ToolCalls[0].IsSuccess.Should().BeFalse();
+        record.ToolCalls[0].Result.Should().Contain("File not found");
+    }
 }

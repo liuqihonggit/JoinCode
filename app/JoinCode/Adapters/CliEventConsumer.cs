@@ -61,6 +61,15 @@ public sealed class CliEventConsumer : IResettableEventConsumer
     {
         var glyph = isError ? "FAIL" : "OK";
         TerminalHelper.WriteLine($"[{glyph}] {toolName}");
+        if (!string.IsNullOrEmpty(resultText) && isError)
+        {
+            var lines = resultText.Split('\n');
+            var displayCount = Math.Min(lines.Length, 5);
+            for (var i = 0; i < displayCount; i++)
+                TerminalHelper.WriteLine($"  {lines[i].TrimEnd('\r')}");
+            if (lines.Length > 5)
+                TerminalHelper.WriteLine($"  ... ({lines.Length} lines)");
+        }
     }
 
     /// <summary>工具调用进度</summary>

@@ -568,7 +568,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         {
             var prefix = new ImmutablePrefix(_staticSystemPrompt, _currentToolSpecs, []);
             var dynamicContent = string.Join("\n", _dynamicSystemMessages);
-            var snapshot = _cacheBreakDetector.RecordPromptState(prefix, dynamicContent);
+            var snapshot = _cacheBreakDetector.RecordPromptState(prefix, dynamicContent, _conversationLog.ToMessages());
 
             var toolSpecsBytes = _currentToolSpecs.Sum(t =>
                 System.Text.Encoding.UTF8.GetByteCount(t.Name) +
@@ -604,7 +604,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         {
             var currentPrefix = new ImmutablePrefix(_staticSystemPrompt, _currentToolSpecs, []);
             var currentDynamicContent = string.Join("\n", _dynamicSystemMessages);
-            var result = _cacheBreakDetector.CheckCacheBreak(snapshot, currentPrefix, currentDynamicContent, usage);
+            var result = _cacheBreakDetector.CheckCacheBreak(snapshot, currentPrefix, currentDynamicContent, usage, _conversationLog.ToMessages());
 
             if (result.BreakDetected)
             {

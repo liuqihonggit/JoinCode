@@ -1,7 +1,7 @@
 namespace JoinCode.Abstractions.LLM.Chat;
 
 [Register(typeof(ISessionStats))]
-public sealed partial class SessionStats : ISessionStats
+public sealed partial class SessionStats : ServiceEntity, ISessionStats
 {
     public long CarryoverCacheHitTokens { get; private set; }
     public long CarryoverCacheMissTokens { get; private set; }

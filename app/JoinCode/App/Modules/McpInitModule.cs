@@ -19,19 +19,23 @@ public sealed class McpInitModule : IAppModule
         var remoteClientManager = services.GetRequiredService<RemoteClientManager>();
         var syncBridge = services.GetRequiredService<McpToolSyncBridge>();
 
+        // async void 事件处理器必须 try/catch — 否则异常逃逸到同步上下文导致进程崩溃
         remoteClientManager.ToolsListChanged += async (_, _) =>
         {
-            await syncBridge.OnToolsListChangedAsync().ConfigureAwait(false);
+            try { await syncBridge.OnToolsListChangedAsync().ConfigureAwait(false); }
+            catch (Exception ex) { logger?.LogError(ex, "[MCP] OnToolsListChanged handler failed"); }
         };
 
         remoteClientManager.ResourcesListChanged += async (_, args) =>
         {
-            await syncBridge.OnResourcesListChangedAsync(args.ClientId, args.SyncResult).ConfigureAwait(false);
+            try { await syncBridge.OnResourcesListChangedAsync(args.ClientId, args.SyncResult).ConfigureAwait(false); }
+            catch (Exception ex) { logger?.LogError(ex, "[MCP] OnResourcesListChanged handler failed"); }
         };
 
         remoteClientManager.PromptsListChanged += async (_, args) =>
         {
-            await syncBridge.OnPromptsListChangedAsync(args.ClientId, args.SyncResult).ConfigureAwait(false);
+            try { await syncBridge.OnPromptsListChangedAsync(args.ClientId, args.SyncResult).ConfigureAwait(false); }
+            catch (Exception ex) { logger?.LogError(ex, "[MCP] OnPromptsListChanged handler failed"); }
         };
 
         services.WirePluginSkillBridge();

@@ -42,6 +42,54 @@ public sealed class TaskProgressTrackerTests
     }
 
     [Fact]
+    public async Task GetCompletedTodoCountAsync_QueryFailsAfterSuccess_ReturnsLastKnownCount()
+    {
+        var call = 0;
+        var todoService = new Mock<ITodoService>();
+        todoService.Setup(s => s.ListTodosAsync(It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .Returns(() =>
+            {
+                call++;
+                if (call == 1)
+                    return Task.FromResult(new TodoListResult(true, CreateTodoItems(5, 8)));
+                throw new InvalidOperationException("transient failure");
+            });
+
+        var tracker = new TaskProgressTracker(todoService.Object);
+
+        var first = await tracker.GetCompletedTodoCountAsync().ConfigureAwait(true);
+        var afterFailure = await tracker.GetCompletedTodoCountAsync().ConfigureAwait(true);
+
+        first.Should().Be(5);
+        afterFailure.Should().Be(5);
+    }
+
+    [Fact]
+    public async Task HasProgressedSinceLastSnapshotAsync_QueryFailsAfterSnapshot_DoesNotReportFalseNoProgress()
+    {
+        var call = 0;
+        var todoService = new Mock<ITodoService>();
+        todoService.Setup(s => s.ListTodosAsync(It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .Returns(() =>
+            {
+                call++;
+                if (call <= 2)
+                    return Task.FromResult(new TodoListResult(true, CreateTodoItems(3, 5)));
+                throw new InvalidOperationException("transient failure");
+            });
+
+        var tracker = new TaskProgressTracker(todoService.Object);
+        await tracker.SnapshotCurrentProgressAsync().ConfigureAwait(true);
+
+        // 快照后查询失败 → 仍保持 3，不把基线清零误判为"回退"
+        var hasProgressed = await tracker.HasProgressedSinceLastSnapshotAsync().ConfigureAwait(true);
+
+        hasProgressed.Should().BeFalse();
+        var countAfterFailure = await tracker.GetCompletedTodoCountAsync().ConfigureAwait(true);
+        countAfterFailure.Should().Be(3);
+    }
+
+    [Fact]
     public async Task SnapshotCurrentProgressAsync_RecordsCompletedCount()
     {
         var todoService = CreateTodoService(completedCount: 5, totalCount: 8);

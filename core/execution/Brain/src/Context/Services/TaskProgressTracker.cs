@@ -15,6 +15,7 @@ public sealed partial class TaskProgressTracker : ServiceEntity, ITaskProgressTr
     [Inject] private readonly ITodoService _todoService;
     [Inject] private readonly ILogger<TaskProgressTracker>? _logger;
     private int _lastSnapshotCompletedCount;
+    private int _lastKnownCompletedCount;
     private bool _hasSnapshot;
 
     public async Task<int> GetCompletedTodoCountAsync(CancellationToken cancellationToken = default)
@@ -22,12 +23,21 @@ public sealed partial class TaskProgressTracker : ServiceEntity, ITaskProgressTr
         try
         {
             var result = await _todoService.ListTodosAsync(includeCompleted: true, cancellationToken: cancellationToken).ConfigureAwait(false);
-            return result.Success ? result.CompletedCount : 0;
+            if (result.Success)
+            {
+                _lastKnownCompletedCount = result.CompletedCount;
+                return result.CompletedCount;
+            }
+
+            _logger?.LogWarning("[TaskProgressTracker] TODO 查询失败(Success=false)，保留上次成功值 {Count}", _lastKnownCompletedCount);
+            return _lastKnownCompletedCount;
         }
         catch (Exception ex)
         {
-            _logger?.LogWarning(ex, "[TaskProgressTracker] 获取TODO完成数失败");
-            return 0;
+            // 查询失败不返回 0 — 否则基线被清零会误报"无推进"，触发误伤压缩。
+            // 返回上次成功读取的计数，保持进度判定稳定。
+            _logger?.LogWarning(ex, "[TaskProgressTracker] 获取TODO完成数失败，保留上次成功值 {Count}", _lastKnownCompletedCount);
+            return _lastKnownCompletedCount;
         }
     }
 

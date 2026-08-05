@@ -270,4 +270,128 @@ public class WorkflowTaskExecutorTests
         ctorParameterTypes.Should().NotContain(typeof(IToolRegistry));
         ctorParameterTypes.Should().Contain(typeof(IToolExecutionGateway));
     }
+
+    [Fact]
+    public async Task ExecuteWorkflowAsync_WorkflowExceptionFailure_ShouldCaptureErrorCode()
+    {
+        var inner = new InvalidOperationException("inner failure detail");
+        var apiEx = new JoinCode.Abstractions.Exceptions.ApiException(
+            "API failed", inner, statusCode: 500, errorCode: "API008");
+
+        _toolGatewayMock
+            .Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<Dictionary<string, JsonElement>>(), It.IsAny<CancellationToken>(), It.IsAny<ToolProgressCallback?>()))
+            .ThrowsAsync(apiEx);
+
+        var definition = new WorkflowDefinition
+        {
+            WorkflowId = "wf-errorcode",
+            Steps = new List<WorkflowStep>
+            {
+                new()
+                {
+                    StepId = "step-1",
+                    Name = "Fail",
+                    StepType = WorkflowStepType.ToolCall,
+                    ToolName = "fail_tool",
+                    OnFailure = WorkflowStepOnFailure.Stop
+                }
+            },
+            ExecutionMode = WorkflowExecutionMode.Sequential
+        };
+
+        var result = await _executor.ExecuteWorkflowAsync(definition).ConfigureAwait(true);
+
+        result.Status.Should().Be(TaskExecutionStatus.Failed);
+        result.ErrorMessage.Should().Be("API failed");
+        var serialized = System.Text.Json.JsonSerializer.Serialize(
+            new StepStatus
+            {
+                StepId = "step-1",
+                State = StepState.Failed,
+                Result = JsonElementHelper.FromString(string.Empty),
+                Error = "API failed",
+                ErrorCode = "API008",
+                ErrorDetail = apiEx.ToString()
+            },
+            Core.Scheduling.SchedulingTasksJsonContext.Default.StepStatus);
+        serialized.Should().Contain("API008");
+        serialized.Should().Contain("inner failure detail");
+    }
+
+    [Fact]
+    public async Task ExecuteWorkflowAsync_PlainExceptionFailure_ShouldCaptureFullDetail()
+    {
+        _toolGatewayMock
+            .Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<Dictionary<string, JsonElement>>(), It.IsAny<CancellationToken>(), It.IsAny<ToolProgressCallback?>()))
+            .ThrowsAsync(new InvalidOperationException("boom"));
+
+        var definition = new WorkflowDefinition
+        {
+            WorkflowId = "wf-plain",
+            Steps = new List<WorkflowStep>
+            {
+                new()
+                {
+                    StepId = "step-1",
+                    Name = "Fail",
+                    StepType = WorkflowStepType.ToolCall,
+                    ToolName = "fail_tool",
+                    OnFailure = WorkflowStepOnFailure.Stop
+                }
+            },
+            ExecutionMode = WorkflowExecutionMode.Sequential
+        };
+
+        var result = await _executor.ExecuteWorkflowAsync(definition).ConfigureAwait(true);
+
+        result.Status.Should().Be(TaskExecutionStatus.Failed);
+        result.ErrorMessage.Should().Be("boom");
+        var serialized = System.Text.Json.JsonSerializer.Serialize(
+            new StepStatus
+            {
+                StepId = "step-1",
+                State = StepState.Failed,
+                Result = JsonElementHelper.FromString(string.Empty),
+                Error = "boom",
+                ErrorDetail = "System.InvalidOperationException: boom"
+            },
+            Core.Scheduling.SchedulingTasksJsonContext.Default.StepStatus);
+        serialized.Should().Contain("InvalidOperationException");
+        serialized.Should().Contain("boom");
+    }
+
+    [Fact]
+    public async Task ExecuteWorkflowAsync_RetryWithMaxRetries_ShouldUseConfiguredCount()
+    {
+        var callCount = 0;
+        _toolGatewayMock
+            .Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<Dictionary<string, JsonElement>>(), It.IsAny<CancellationToken>(), It.IsAny<ToolProgressCallback?>()))
+            .ReturnsAsync(() =>
+            {
+                callCount++;
+                throw new InvalidOperationException("transient");
+            });
+
+        var definition = new WorkflowDefinition
+        {
+            WorkflowId = "wf-retry",
+            Steps = new List<WorkflowStep>
+            {
+                new()
+                {
+                    StepId = "step-1",
+                    Name = "Retry",
+                    StepType = WorkflowStepType.ToolCall,
+                    ToolName = "retry_tool",
+                    OnFailure = WorkflowStepOnFailure.Retry,
+                    MaxRetries = 2
+                }
+            },
+            ExecutionMode = WorkflowExecutionMode.Sequential
+        };
+
+        var result = await _executor.ExecuteWorkflowAsync(definition).ConfigureAwait(true);
+
+        callCount.Should().Be(3);
+    }
 }

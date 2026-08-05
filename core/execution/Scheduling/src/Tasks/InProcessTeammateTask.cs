@@ -197,7 +197,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
 
             if (definition.ContinuousMode)
             {
-                _ = RunTeammateLoopAsync(definition, state, lifecycleCts.Token);
+                RunTeammateLoopBackground(definition, state, lifecycleCts.Token);
 
                 var elapsed = (long)(_clock.GetUtcNow() - startTime).TotalMilliseconds;
                 return AgentTaskResult.Success(definition.TaskId, definition.TeammateId, "Teammate started in continuous mode", elapsed);
@@ -329,6 +329,32 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
         finally
         {
             _teammateLock.Release();
+        }
+    }
+
+    /// <summary>
+    /// 后台启动 teammate 循环 — 观察未处理异常，避免静默死亡；退出时通知 coordinator
+    /// </summary>
+    private void RunTeammateLoopBackground(InProcessTeammateDefinition definition, TeammateState state, CancellationToken lifecycleCt)
+    {
+        _ = SafeRunLoopAsync();
+
+        async Task SafeRunLoopAsync()
+        {
+            try
+            {
+                await RunTeammateLoopAsync(definition, state, lifecycleCt).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (lifecycleCt.IsCancellationRequested)
+            {
+                // 主动停止 — 预期行为
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Teammate {TeammateId} 后台循环异常退出", definition.TeammateId);
+                await NotifyIdleAsync(definition.TeammateId, state, $"后台循环异常: {ex.Message}").ConfigureAwait(false);
+                await TryCleanupTeammateAsync(definition.TeammateId).ConfigureAwait(false);
+            }
         }
     }
 

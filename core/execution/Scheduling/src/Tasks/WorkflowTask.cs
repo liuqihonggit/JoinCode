@@ -29,6 +29,7 @@ public sealed partial class WorkflowStep
     public AgentRole Role { get; init; } = AgentRole.Executor;
     public ExecutorVariant? Variant { get; init; }
     public WorkflowStepOnFailure OnFailure { get; init; } = WorkflowStepOnFailure.Stop;
+    public int? MaxRetries { get; init; }
 }
 
 public enum WorkflowExecutionMode
@@ -66,6 +67,8 @@ public sealed partial class StepStatus
     public required StepState State { get; init; }
     public JsonElement Result { get; init; }
     public string? Error { get; init; }
+    public string? ErrorCode { get; init; }
+    public string? ErrorDetail { get; init; }
     public TimeSpan? Duration { get; init; }
 }
 
@@ -173,7 +176,7 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
         {
             linkedCts.Token.ThrowIfCancellationRequested();
 
-            var stepResult = await ExecuteStepAsync(step, runState, linkedCts.Token).ConfigureAwait(false);
+            var stepResult = await ExecuteStepWithFailureHandlingAsync(step, runState, linkedCts.Token).ConfigureAwait(false);
             runState.StepStatuses[step.StepId] = stepResult;
             _logger?.LogDebug("Workflow checkpoint: step {StepId} -> {State}, completed {Completed}/{Total}",
                 step.StepId, stepResult.State, runState.StepStatuses.Count, runState.Definition.Steps.Count);
@@ -181,7 +184,7 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
             if (stepResult.State == StepState.Failed)
             {
                 var action = step.OnFailure;
-                if (action == WorkflowStepOnFailure.Stop)
+                if (action is WorkflowStepOnFailure.Stop or WorkflowStepOnFailure.Retry)
                 {
                     _logger?.LogWarning("Workflow stopped at step {StepId} due to failure. Completed: {Completed}/{Total}",
                         step.StepId, runState.StepStatuses.Count, runState.Definition.Steps.Count);
@@ -189,7 +192,7 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
                 }
                 if (action == WorkflowStepOnFailure.Skip)
                 {
-                    runState.StepStatuses[step.StepId] = new StepStatus { StepId = stepResult.StepId, State = StepState.Skipped, Error = stepResult.Error, Result = stepResult.Result, Duration = stepResult.Duration };
+                    runState.StepStatuses[step.StepId] = new StepStatus { StepId = stepResult.StepId, State = StepState.Skipped, Error = stepResult.Error, ErrorCode = stepResult.ErrorCode, ErrorDetail = stepResult.ErrorDetail, Result = stepResult.Result, Duration = stepResult.Duration };
                 }
             }
         }
@@ -304,7 +307,8 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
 
             if (result.State == StepState.Failed && step.OnFailure == WorkflowStepOnFailure.Retry)
             {
-                for (var i = 0; i < 3; i++)
+                var maxRetries = step.MaxRetries ?? 3;
+                for (var i = 0; i < maxRetries; i++)
                 {
                     ct.ThrowIfCancellationRequested();
                     await Task.Delay(TimeSpan.FromMilliseconds(200 * (i + 1)), ct).ConfigureAwait(false);
@@ -323,7 +327,10 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
             {
                 StepId = step.StepId,
                 State = StepState.Failed,
+                Result = JsonElementHelper.FromString(string.Empty),
                 Error = ex.Message,
+                ErrorCode = ex is WorkflowException wfEx ? wfEx.ErrorCode : null,
+                ErrorDetail = ex.ToString(),
                 Duration = TimeSpan.Zero
             };
             runState.StepStatuses[step.StepId] = failedStatus;
@@ -364,7 +371,10 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
             {
                 StepId = step.StepId,
                 State = StepState.Failed,
+                Result = JsonElementHelper.FromString(string.Empty),
                 Error = ex.Message,
+                ErrorCode = ex is WorkflowException wfEx ? wfEx.ErrorCode : null,
+                ErrorDetail = ex.ToString(),
                 Duration = _clock.GetUtcNow() - stepStart
             };
         }

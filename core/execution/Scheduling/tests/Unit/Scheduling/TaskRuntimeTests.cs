@@ -239,3 +239,82 @@ public class TaskRuntimeTests : IDisposable
         await act.Should().ThrowAsync<InvalidOperationException>();
     }
 }
+
+/// <summary>
+/// TaskRuntime 持久化恢复的纵深防御测试
+/// </summary>
+public sealed class TaskRuntimeRecoveryTests : IDisposable
+{
+    private readonly InMemoryFileOperationService _fileOperationService;
+
+    public TaskRuntimeRecoveryTests()
+    {
+        _fileOperationService = new InMemoryFileOperationService();
+    }
+
+    public void Dispose()
+    {
+        _fileOperationService.Dispose();
+    }
+
+    private TaskRuntime CreateRuntime()
+    {
+        return new TaskRuntime(new TaskRuntimeDeps(
+            FileOperationService: _fileOperationService,
+            PersistenceDirectory: "/test/runtime-tasks"));
+    }
+
+    [Fact]
+    public async Task RecoverTasksAsync_CorruptFile_ShouldNotThrow()
+    {
+        var runtime = CreateRuntime();
+        _fileOperationService.FileSystem.CreateDirectory("/test/runtime-tasks");
+        _fileOperationService.FileSystem.WriteAllText("/test/runtime-tasks/runtime-tasks.json", "{not valid json");
+
+        var act = async () => await runtime.RecoverTasksAsync();
+        await act.Should().NotThrowAsync();
+        runtime.Dispose();
+    }
+
+    [Fact]
+    public async Task RecoverTasksAsync_CorruptFile_ShouldReturnEmpty()
+    {
+        var runtime = CreateRuntime();
+        _fileOperationService.FileSystem.CreateDirectory("/test/runtime-tasks");
+        _fileOperationService.FileSystem.WriteAllText("/test/runtime-tasks/runtime-tasks.json", "{not valid json");
+
+        var recovered = await runtime.RecoverTasksAsync();
+        recovered.Should().BeEmpty();
+        runtime.Dispose();
+    }
+
+    [Fact]
+    public async Task RecoverTasksAsync_CorruptFile_ShouldQuarantineCorruptFile()
+    {
+        var runtime = CreateRuntime();
+        _fileOperationService.FileSystem.CreateDirectory("/test/runtime-tasks");
+        var originalPath = "/test/runtime-tasks/runtime-tasks.json";
+        _fileOperationService.FileSystem.WriteAllText(originalPath, "{not valid json");
+
+        await runtime.RecoverTasksAsync();
+
+        _fileOperationService.FileExists(originalPath).Should().BeFalse();
+        _fileOperationService.FileSystem.EnumerateFiles("/test/runtime-tasks", "*.corrupt", SearchOption.TopDirectoryOnly)
+            .Should().NotBeEmpty();
+        runtime.Dispose();
+    }
+
+    [Fact]
+    public async Task RecoverTasksAsync_ValidFile_ShouldRestoreTasks()
+    {
+        var runtime = CreateRuntime();
+        var created = await runtime.CreateTaskAsync(new RuntimeTaskInput { Description = "persist", IsDurable = true });
+        await runtime.PersistAsync();
+
+        var recoveredRuntime = CreateRuntime();
+        var recovered = await recoveredRuntime.RecoverTasksAsync();
+        recovered.Should().Contain(t => t.Id == created.Data!.Id);
+        recoveredRuntime.Dispose();
+        runtime.Dispose();
+    }
+}

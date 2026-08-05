@@ -41,6 +41,7 @@ public sealed partial class GoalGraphEngine
         _clock = clock ?? SystemClockService.Instance;
         _userInteraction = userInteraction ?? serviceProvider.GetService<IGoalUserInteraction>();
         _loopObserver = loopObserver ?? serviceProvider.GetService<IGoalLoopObserver>();
+        _agentService = serviceProvider.GetService<IAgentService>();
     }
 
     public void RegisterFunction(string nodeId, Func<NodeContext, Task<NodeResult>> fn)

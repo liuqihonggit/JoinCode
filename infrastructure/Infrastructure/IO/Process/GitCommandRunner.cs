@@ -28,7 +28,10 @@ public sealed partial class GitCommandRunner : IGitCommandRunner
                     ["GIT_TERMINAL_PROMPT"] = "0",
                     ["GIT_ASKPASS"] = "",
                     ["GIT_PAGER"] = "cat",
-                    ["PAGER"] = "cat"
+                    ["PAGER"] = "cat",
+                    ["GIT_EDITOR"] = "true",
+                    ["EDITOR"] = "true",
+                    ["VISUAL"] = "true"
                 }
             };
 

@@ -104,7 +104,7 @@ internal sealed partial class V1WorkPollSetupMiddleware : ServiceEntity, IMiddle
                     Source = BridgePointerSource.Repl.ToValue(),
                 }, ct);
             }
-            catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"[BridgeRemoteCore] Write pointer during reconnect failed: {ex.Message}"); }
+            catch (Exception ex) { logger?.LogWarning(ex, "[BridgeRemoteCore] 重连期间写入指针失败"); }
 
             // 关闭旧传输
             if (currentTransport is not null)
@@ -122,11 +122,11 @@ internal sealed partial class V1WorkPollSetupMiddleware : ServiceEntity, IMiddle
                     _ = Task.Run(async () =>
                     {
                         try { await oldTransport.CloseAsync(ct).ConfigureAwait(false); }
-                        catch (Exception ex2) { System.Diagnostics.Trace.WriteLine($"[BridgeRemoteCore] Close old transport failed: {ex2.Message}"); }
+                        catch (Exception ex2) { logger?.LogWarning(ex2, "[BridgeRemoteCore] 关闭旧传输失败"); }
                         await oldTransport.DisposeAsync().ConfigureAwait(false);
                     });
                 }
-                catch (Exception ex2) { System.Diagnostics.Trace.WriteLine($"[BridgeRemoteCore] Close old transport failed: {ex2.Message}"); }
+                catch (Exception ex2) { logger?.LogWarning(ex2, "[BridgeRemoteCore] 关闭旧传输失败"); }
             }
 
             state.FlushGate.Deactivate();
@@ -200,7 +200,7 @@ internal sealed partial class V1WorkPollSetupMiddleware : ServiceEntity, IMiddle
                         {
                             await apiClient.StopWorkAsync(environmentId, e.WorkId, ct).ConfigureAwait(false);
                         }
-                        catch (Exception ex2) { System.Diagnostics.Trace.WriteLine($"[BridgeRemoteCore] StopWork after transport creation failed: {ex2.Message}"); }
+                        catch (Exception ex2) { logger?.LogWarning(ex2, "[BridgeRemoteCore] 创建传输后停止工作失败"); }
                         pollLoop.Wake();
                     }
                 }, ct);
@@ -266,11 +266,11 @@ internal sealed partial class V1WorkPollSetupMiddleware : ServiceEntity, IMiddle
                     _ = Task.Run(async () =>
                     {
                         try { await currentTransport.CloseAsync(ct).ConfigureAwait(false); }
-                        catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"[BridgeRemoteCore] Close transport during teardown failed: {ex.Message}"); }
+                        catch (Exception ex) { logger?.LogWarning(ex, "[BridgeRemoteCore] 拆除期间关闭传输失败"); }
                         await currentTransport.DisposeAsync().ConfigureAwait(false);
                     });
                 }
-                catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"[BridgeRemoteCore] Close transport during teardown failed: {ex.Message}"); }
+                catch (Exception ex) { logger?.LogWarning(ex, "[BridgeRemoteCore] 拆除期间关闭传输失败"); }
                 currentTransport = null;
             }
 

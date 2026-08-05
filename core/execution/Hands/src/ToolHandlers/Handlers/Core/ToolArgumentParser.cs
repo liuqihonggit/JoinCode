@@ -7,8 +7,11 @@ namespace Tools;
 /// </summary>
 public sealed class ToolArgumentParser
 {
-    public ToolArgumentParser()
+    private readonly ILogger<ToolArgumentParser>? _logger;
+
+    public ToolArgumentParser(ILogger<ToolArgumentParser>? logger = null)
     {
+        _logger = logger;
     }
 
     /// <summary>
@@ -33,7 +36,7 @@ public sealed class ToolArgumentParser
         catch (JsonException ex)
         {
             // 不是有效的JSON，继续尝试其他格式
-            System.Diagnostics.Trace.WriteLine($"JSON解析失败，将尝试键值对格式: {ex.Message}");
+            _logger?.LogDebug(ex, "JSON 解析失败，将尝试键值对格式");
         }
 
         // 解析键值对格式: key=value key2=value2

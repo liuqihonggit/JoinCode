@@ -15,6 +15,7 @@ public sealed class CliSession
     private readonly DateTime _sessionStartedAt;
     private readonly SessionController _controller;
     private readonly IClockService _clock;
+    private readonly ILogger<CliSession>? _logger;
 
     /// <summary>
     /// 会话实体 — 派生自 Entity，自动注册到 Session.Registry + ObjectIdManager
@@ -45,9 +46,11 @@ public sealed class CliSession
         IToolRegistry toolRegistry,
         IFileSystem fs,
         CliServiceContext? optionalServices = null,
-        IClockService? clock = null)
+        IClockService? clock = null,
+        ILogger<CliSession>? logger = null)
     {
         _clock = clock ?? SystemClockService.Instance;
+        _logger = logger;
         _sessionStartedAt = _clock.GetUtcNow();
         _codeService = codeService;
         _planService = planService;
@@ -187,7 +190,7 @@ public sealed class CliSession
             },
             ClearScreen = () =>
             {
-                try { System.Console.Clear(); } catch (IOException ex) { System.Diagnostics.Trace.WriteLine($"清屏失败: {ex.Message}"); }
+                try { System.Console.Clear(); } catch (IOException ex) { _logger?.LogWarning(ex, "清屏失败"); }
             },
             Confirm = msg =>
             {
@@ -338,7 +341,7 @@ public sealed class CliSession
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Trace.WriteLine($"Transcript 写入失败: {ex.Message}");
+            _logger?.LogWarning(ex, "Transcript 写入失败");
         }
     }
 

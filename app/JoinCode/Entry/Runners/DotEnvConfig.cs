@@ -15,7 +15,7 @@ internal sealed class DotEnvConfig
     /// <summary>
     /// 从 .env/api.json 文件解析配置
     /// </summary>
-    public static DotEnvConfig? LoadFrom(string filePath)
+    public static DotEnvConfig? LoadFrom(string filePath, ILogger? logger = null)
     {
         if (!System.IO.File.Exists(filePath)) return null;
 
@@ -106,9 +106,9 @@ internal sealed class DotEnvConfig
 
             return config;
         }
-        catch (System.Text.Json.JsonException)
+        catch (System.Text.Json.JsonException ex)
         {
-            System.Diagnostics.Trace.WriteLine("DotEnvConfig: JSON parse failed");
+            logger?.LogWarning(ex, "DotEnvConfig: JSON 解析失败");
             return null;
         }
     }

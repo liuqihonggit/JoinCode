@@ -549,7 +549,7 @@ public sealed class BridgeWorkPollLoop : IAsyncDisposable
                     {
                         await _apiClient.StopWorkAsync(_environmentId, work.WorkId, ct).ConfigureAwait(false);
                     }
-                    catch (Exception ex2) { System.Diagnostics.Trace.WriteLine($"[BridgeWorkPollLoop] StopWork after decode failure failed: {ex2.Message}"); }
+                    catch (Exception ex2) { _logger?.LogWarning(ex2, "[BridgeWorkPollLoop] 解码失败后停止工作失败"); }
                 }
                 return;
             }

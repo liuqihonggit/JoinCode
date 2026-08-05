@@ -9,10 +9,12 @@ public sealed class AppEventBus : IAppEventBus
     private readonly ServiceMessageBus _messageBus;
     private readonly ConcurrentDictionary<ServiceMessageType, ImmutableList<Action<AppEvent>>> _subscribers = new();
     private readonly object _lock = new();
+    private readonly ILogger<AppEventBus>? _logger;
 
-    public AppEventBus(ServiceMessageBus messageBus)
+    public AppEventBus(ServiceMessageBus messageBus, ILogger<AppEventBus>? logger = null)
     {
         _messageBus = messageBus;
+        _logger = logger;
         _messageBus.MessageReceived += OnMessageReceivedAsync;
     }
 
@@ -94,7 +96,7 @@ public sealed class AppEventBus : IAppEventBus
             foreach (var handler in handlers)
             {
                 try { handler(appEvent); }
-                catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"[AppEventBus] Subscriber handler failed: {ex.Message}"); }
+                catch (Exception ex) { _logger?.LogWarning(ex, "[AppEventBus] 订阅者处理程序失败"); }
             }
         }
 
@@ -103,7 +105,7 @@ public sealed class AppEventBus : IAppEventBus
             foreach (var handler in allHandlers)
             {
                 try { handler(appEvent); }
-                catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"[AppEventBus] SubscribeAll handler failed: {ex.Message}"); }
+                catch (Exception ex) { _logger?.LogWarning(ex, "[AppEventBus] SubscribeAll 处理程序失败"); }
             }
         }
     }

@@ -14,14 +14,16 @@ public sealed class FileWatcherIntegrationRegistry : IAsyncDisposable
     private readonly IFileSystem _fs;
     private readonly Dictionary<string, FileWatcherIntegration> _watchers = new(StringComparer.Ordinal);
     private readonly ReaderWriterLockSlim _lock = new();
+    private readonly ILogger<FileWatcherIntegrationRegistry>? _logger;
     private int _disposed;
 
-    public FileWatcherIntegrationRegistry(ICodeIndexerRegistry registry, IFileSystem fs)
+    public FileWatcherIntegrationRegistry(ICodeIndexerRegistry registry, IFileSystem fs, ILogger<FileWatcherIntegrationRegistry>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(registry);
         ArgumentNullException.ThrowIfNull(fs);
         _registry = registry;
         _fs = fs;
+        _logger = logger;
 
         _registry.RepoRegistered += OnRepoRegistered;
         _registry.RepoUnregistered += OnRepoUnregistered;
@@ -104,7 +106,7 @@ public sealed class FileWatcherIntegrationRegistry : IAsyncDisposable
         }
     }
 
-    private static async Task StopAndDisposeWatcherAsync(FileWatcherIntegration watcher)
+    private async Task StopAndDisposeWatcherAsync(FileWatcherIntegration watcher)
     {
         try
         {
@@ -113,7 +115,7 @@ public sealed class FileWatcherIntegrationRegistry : IAsyncDisposable
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Trace.WriteLine($"FileWatcherIntegrationRegistry: Error stopping watcher: {ex.Message}");
+            _logger?.LogWarning(ex, "FileWatcherIntegrationRegistry: 停止 watcher 失败");
         }
     }
 
@@ -145,7 +147,7 @@ public sealed class FileWatcherIntegrationRegistry : IAsyncDisposable
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Trace.WriteLine($"FileWatcherIntegrationRegistry: Error disposing watcher: {ex.Message}");
+                _logger?.LogWarning(ex, "FileWatcherIntegrationRegistry: 释放 watcher 失败");
             }
         }
 

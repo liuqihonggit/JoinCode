@@ -13,11 +13,13 @@ public class SkillToolHandlers
     private readonly ISkillService _skillService;
     private readonly IAgentService? _agentService;
     private readonly ArgumentSubstitutor _argumentSubstitutor = new();
+    private readonly ILogger<SkillToolHandlers>? _logger;
 
-    public SkillToolHandlers(ISkillService skillService, IAgentService? agentService = null)
+    public SkillToolHandlers(ISkillService skillService, IAgentService? agentService = null, ILogger<SkillToolHandlers>? logger = null)
     {
         _skillService = skillService ?? throw new ArgumentNullException(nameof(skillService));
         _agentService = agentService;
+        _logger = logger;
     }
 
     /// <summary>
@@ -82,7 +84,7 @@ public class SkillToolHandlers
             }
             else if (!string.IsNullOrEmpty(repairHint))
             {
-                System.Diagnostics.Trace.WriteLine($"[Skill] args JSON repaired: {repairHint}");
+                _logger?.LogDebug("[Skill] args JSON 已修复: {RepairHint}", repairHint);
             }
         }
 

@@ -59,7 +59,7 @@ internal sealed class V1BridgeHandle : IReplBridgeHandle
                     _ = transport.WriteAsync(keepAliveJson, _disposeCts.Token);
                 }
             }
-            catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"[V1BridgeHandle] Keep-alive failed: {ex.Message}"); }
+            catch (Exception ex) { _logger?.LogWarning(ex, "[V1BridgeHandle] Keep-alive 失败"); }
         }, null, TimeSpan.FromSeconds(120), TimeSpan.FromSeconds(120));
 
         // 对齐 TS 端: pointerRefreshTimer — perpetual 模式下每小时刷新指针 mtime
@@ -82,7 +82,7 @@ internal sealed class V1BridgeHandle : IReplBridgeHandle
                         Source = BridgePointerSource.Repl.ToValue(),
                     }, _disposeCts.Token).ConfigureAwait(false);
                 }
-                catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"[V1BridgeHandle] Pointer refresh failed: {ex.Message}"); }
+                catch (Exception ex) { _logger?.LogWarning(ex, "[V1BridgeHandle] 指针刷新失败"); }
             }, null, TimeSpan.FromHours(1), TimeSpan.FromHours(1));
         }
     }
@@ -343,7 +343,7 @@ internal sealed class V1BridgeHandle : IReplBridgeHandle
                 _ = transport.WriteAsync(BridgeMessaging.MakeResultMessage(SessionId), _disposeCts.Token);
             }
         }
-        catch (Exception ex) { /* best-effort */ System.Diagnostics.Trace.WriteLine($"[V1BridgeHandle] Send result message failed: {ex.Message}"); }
+        catch (Exception ex) { /* best-effort */ _logger?.LogWarning(ex, "[V1BridgeHandle] 发送结果消息失败"); }
 
         // 对齐 TS 端: stopWork + archiveSession 并行执行
         var stopWorkTask = _coreContext.PollLoop.StopAsync(ct);

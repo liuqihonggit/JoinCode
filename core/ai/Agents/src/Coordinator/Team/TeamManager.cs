@@ -21,6 +21,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
     private readonly IServiceProvider? _serviceProvider;
     private readonly IClockService _clock;
     [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
+    private readonly ILogger<TeamManager>? _logger;
     private int _teamCounter;
     private int _messageCounter;
 
@@ -31,7 +32,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
     private ITeammateObserver? ResolvedTeammateObserver =>
         _serviceProvider?.GetService(typeof(ITeammateObserver)) as ITeammateObserver;
 
-    public TeamManager(IClockService clock, ITelemetryService? telemetryService = null, ITeammateMailboxService? mailboxService = null, IServiceProvider? serviceProvider = null, ISubAgentContextAccessor? subAgentContextAccessor = null)
+    public TeamManager(IClockService clock, ITelemetryService? telemetryService = null, ITeammateMailboxService? mailboxService = null, IServiceProvider? serviceProvider = null, ISubAgentContextAccessor? subAgentContextAccessor = null, ILogger<TeamManager>? logger = null)
     {
         _lock = new SemaphoreSlim(1, 1);
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
@@ -39,6 +40,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         _mailboxService = mailboxService;
         _serviceProvider = serviceProvider;
         _subAgentContextAccessor = subAgentContextAccessor ?? new SubAgentContextAccessor();
+        _logger = logger;
     }
 
     public Task<OperationResult<TeamInfo?>> CreateTeamAsync(
@@ -464,7 +466,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            System.Diagnostics.Trace.WriteLine($"Broadcast message failed: {ex.Message}");
+            _logger?.LogWarning(ex, "广播团队消息失败");
         }
     }
 
@@ -488,7 +490,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         }
         catch (Exception ex2) when (ex2 is not OperationCanceledException)
         {
-            System.Diagnostics.Trace.WriteLine($"Persist direct message to mailbox failed: {ex2.Message}");
+            _logger?.LogWarning(ex2, "持久化直发消息到邮箱失败");
         }
     }
 

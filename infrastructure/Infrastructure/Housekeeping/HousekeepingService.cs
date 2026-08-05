@@ -7,6 +7,16 @@ namespace Infrastructure.Housekeeping;
 [Register(typeof(IHousekeepingService))]
 public sealed partial class HousekeepingService : ServiceEntity, IHousekeepingService
 {
+
+    public HousekeepingService(IFileSystem fs, IClockService clock, IPlanModeManager planModeManager, IAgentWorktreeService worktreeService, IEntityReaper? entityReaper = null, ILogger<HousekeepingService>? logger = null)
+    {
+        _fs = fs;
+        _clock = clock;
+        _planModeManager = planModeManager;
+        _worktreeService = worktreeService;
+        _entityReaper = entityReaper;
+        _logger = logger;
+    }
     [Inject] private readonly IFileSystem _fs;
     [Inject] private readonly IClockService _clock;
     [Inject] private readonly IPlanModeManager _planModeManager;

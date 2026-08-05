@@ -5,6 +5,12 @@ using JoinCode.Abstractions.Pipeline;
 [Register(typeof(IHandleWorkMiddleware))]
 public sealed partial class WorkSessionTrackMiddleware : ServiceEntity, IHandleWorkMiddleware
 {
+
+    public WorkSessionTrackMiddleware(IClockService clock, ILogger<WorkSessionTrackMiddleware>? logger = null)
+    {
+        _clock = clock;
+        _logger = logger;
+    }
     [Inject] private readonly ILogger<WorkSessionTrackMiddleware>? _logger;
     [Inject] private readonly IClockService _clock;
 

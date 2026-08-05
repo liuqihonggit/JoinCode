@@ -5,6 +5,12 @@ using JoinCode.Abstractions.Pipeline;
 [Register(typeof(IHandleWorkMiddleware))]
 public sealed partial class WorkSpawnMiddleware : ServiceEntity, IHandleWorkMiddleware
 {
+
+    public WorkSpawnMiddleware(ILogger<WorkSpawnMiddleware>? logger = null, IAgentWorktreeService? worktreeService = null)
+    {
+        _logger = logger;
+        _worktreeService = worktreeService;
+    }
     [Inject] private readonly ILogger<WorkSpawnMiddleware>? _logger;
     [Inject] private readonly IAgentWorktreeService? _worktreeService;
 

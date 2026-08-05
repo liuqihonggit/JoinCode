@@ -6,6 +6,12 @@ namespace McpClient.Mcpb;
 [Register(typeof(IMcpbMiddleware))]
 public sealed partial class McpbValidationMiddleware : ServiceEntity, IMcpbMiddleware
 {
+
+    public McpbValidationMiddleware(IFileSystem fs, ILogger<McpbValidationMiddleware>? logger = null)
+    {
+        _fs = fs;
+        _logger = logger;
+    }
     [Inject] private readonly IFileSystem _fs;
     [Inject] private readonly ILogger<McpbValidationMiddleware>? _logger;
 

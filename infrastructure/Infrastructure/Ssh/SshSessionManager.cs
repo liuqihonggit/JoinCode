@@ -1,10 +1,17 @@
-﻿
+
 namespace Core.Ssh;
 
 [Register]
 [AllowSkipEntity("实现 IAsyncDisposable，与 Entity 的 IDisposable 冲突")]
 public sealed partial class SshSessionManager : ISshSessionManager
 {
+
+    public SshSessionManager(IFileSystem fs, ILogger<SshSessionManager>? logger = null, ITelemetryService? telemetryService = null)
+    {
+        _fs = fs;
+        _logger = logger;
+        _telemetryService = telemetryService;
+    }
     private readonly ConcurrentDictionary<string, SshSession> _sessions = new();
     [Inject] private readonly ILogger<SshSessionManager>? _logger;
     [Inject] private readonly IFileSystem _fs;

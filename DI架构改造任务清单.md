@@ -38,9 +38,14 @@
 - [x] 4e. 修复嵌套类误改+加GlobalUsings+JCC4005识别OnDispose
 - [x] 4f. 全层编译验证通过+Entity测试通过
 
-### 阶段5：删除ConstructorInjection.Generator [pending]
-- 移除生成器项目（移到.xxx/）
-- 452个[Inject]字段手动补构造函数
+### 阶段5：删除ConstructorInjection.Generator [completed]
+- [x] 5a. 174个类手动补构造函数（Python脚本批量生成）
+- [x] 5b. 修复5个record/嵌套类误生成构造函数
+- [x] 5c. 修复4个漏补构造函数的类（CS8618/CS0649）
+- [x] 5d. 从23个csproj移除ConstructorInjection.Generator引用
+- [x] 5e. 从Generators.slnx移除项目引用
+- [x] 5f. 移动生成器项目到.xxx/备份（不删除）
+- [x] 5g. 全量编译验证通过+测试通过
 
 ### 阶段6：78个基类冲突类处理 [completed]
 - [x] 通过[AllowSkipEntity]豁免IAsyncDisposable冲突类（32+5个）
@@ -48,8 +53,10 @@
 - [x] 通过[AllowSkipEntity]豁免record类型（2个）
 
 ## 当前状态
-- ✅ 阶段1-4,6已完成
-- ⏳ 阶段5（删除ConstructorInjection.Generator）待做 — 452个[Inject]字段手动补构造函数
+- ✅ 全部6个阶段完成
+- ✅ 每个服务有ObjectId追查生命周期
+- ✅ 编译期就知道循环依赖（JCC4002硬错误+白名单豁免）
+- ✅ 减法简化DI机制（删除ConstructorInjection.Generator）
 
 ## 决策记录
 

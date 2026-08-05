@@ -3,6 +3,12 @@ namespace Core.Utils;
 
 [Register]
 public sealed partial class ExceptionService : ServiceEntity, IExceptionService {
+
+    public ExceptionService(ILogger<ExceptionService> logger, ITelemetryService? telemetryService = null)
+    {
+        _logger = logger;
+        _telemetryService = telemetryService;
+    }
     [Inject] private readonly ILogger<ExceptionService> _logger;
     [Inject] private readonly ITelemetryService? _telemetryService;
 

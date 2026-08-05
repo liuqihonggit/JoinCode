@@ -6,6 +6,11 @@ namespace Core.Skills;
 [Register]
 public sealed partial class SkillTelemetryMiddleware : ServiceEntity, ISkillMiddleware
 {
+
+    public SkillTelemetryMiddleware(ITelemetryService? telemetryService = null)
+    {
+        _telemetryService = telemetryService;
+    }
     [Inject] private readonly ITelemetryService? _telemetryService;
 
     /// <inheritdoc />

@@ -9,6 +9,14 @@ namespace Core.Context;
 [Register(typeof(IChatInitMiddleware))]
 public sealed partial class ConfigChangeStartMiddleware : IChatInitMiddleware, IAsyncDisposable
 {
+
+    public ConfigChangeStartMiddleware(IFileSystem fs, IConfigChangeNotifier? configChangeNotifier = null, ISettingsChangeApplier? settingsChangeApplier = null, ILogger<ConfigChangeStartMiddleware>? logger = null)
+    {
+        _fs = fs;
+        _configChangeNotifier = configChangeNotifier;
+        _settingsChangeApplier = settingsChangeApplier;
+        _logger = logger;
+    }
     [Inject] private readonly IConfigChangeNotifier? _configChangeNotifier;
     [Inject] private readonly IFileSystem _fs;
     [Inject] private readonly ISettingsChangeApplier? _settingsChangeApplier;

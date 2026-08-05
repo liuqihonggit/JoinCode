@@ -7,6 +7,14 @@ namespace Core.Configuration;
 [Register(typeof(ISettingsMiddleware))]
 public sealed partial class ToolScoreSettingsMiddleware : ServiceEntity, ISettingsMiddleware
 {
+
+    public ToolScoreSettingsMiddleware(IToolHealthMonitor? healthMonitor = null, IHyperedgeReloadable? hyperedgeReloadable = null, ISearchScopeReloadable? searchScopeReloadable = null, ILogger<ToolScoreSettingsMiddleware>? logger = null)
+    {
+        _healthMonitor = healthMonitor;
+        _hyperedgeReloadable = hyperedgeReloadable;
+        _searchScopeReloadable = searchScopeReloadable;
+        _logger = logger;
+    }
     [Inject] private readonly IToolHealthMonitor? _healthMonitor;
     [Inject] private readonly IHyperedgeReloadable? _hyperedgeReloadable;
     [Inject] private readonly ISearchScopeReloadable? _searchScopeReloadable;

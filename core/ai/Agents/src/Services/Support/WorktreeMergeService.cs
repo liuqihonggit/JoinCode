@@ -3,6 +3,13 @@ namespace Core.Agents;
 [Register(typeof(IWorktreeMergeService))]
 public sealed partial class WorktreeMergeService : ServiceEntity, IWorktreeMergeService
 {
+
+    public WorktreeMergeService(IGitCommandRunner gitRunner, IFileSystem fileSystem, ILogger<WorktreeMergeService>? logger = null)
+    {
+        _gitRunner = gitRunner;
+        _fileSystem = fileSystem;
+        _logger = logger;
+    }
     [Inject] private readonly ILogger<WorktreeMergeService>? _logger;
     [Inject] private readonly IGitCommandRunner _gitRunner;
     [Inject] private readonly IFileSystem _fileSystem;

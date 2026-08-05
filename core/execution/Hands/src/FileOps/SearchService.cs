@@ -12,6 +12,18 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
     [Inject] private readonly ITelemetryService? _telemetryService;
     [Inject] private readonly IFileSystem _fs;
 
+    public SearchService(
+        IFileOperationService fileOperationService,
+        IFileSystem fs,
+        ILogger<SearchService>? logger = null,
+        ITelemetryService? telemetryService = null)
+    {
+        _fileOperationService = fileOperationService;
+        _fs = fs;
+        _logger = logger;
+        _telemetryService = telemetryService;
+    }
+
     /// <inheritdoc />
     public async Task<GlobSearchResult> GlobSearchAsync(
         string pattern,

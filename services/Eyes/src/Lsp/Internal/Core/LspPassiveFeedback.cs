@@ -8,6 +8,12 @@ public interface ILspPassiveFeedback
 [Register]
 public sealed partial class LspPassiveFeedback : ServiceEntity, ILspPassiveFeedback
 {
+
+    public LspPassiveFeedback(ILspDiagnosticRegistry diagnosticRegistry, ILogger<LspPassiveFeedback>? logger = null)
+    {
+        _diagnosticRegistry = diagnosticRegistry;
+        _logger = logger;
+    }
     [Inject] private readonly ILspDiagnosticRegistry _diagnosticRegistry;
     [Inject] private readonly ILogger<LspPassiveFeedback>? _logger;
 

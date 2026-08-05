@@ -5,6 +5,11 @@ using JoinCode.Abstractions.Pipeline;
 [Register(typeof(ITeammateExecutionMiddleware))]
 public sealed partial class TeammateValidationMiddleware : ServiceEntity, ITeammateExecutionMiddleware
 {
+
+    public TeammateValidationMiddleware(ILogger<TeammateValidationMiddleware>? logger = null)
+    {
+        _logger = logger;
+    }
     [Inject] private readonly ILogger<TeammateValidationMiddleware>? _logger;
 
 

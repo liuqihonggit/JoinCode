@@ -7,6 +7,11 @@ namespace Services.Web;
 [Register]
 public sealed partial class WebFetchMiddleware : ServiceEntity, IWebMiddleware
 {
+
+    public WebFetchMiddleware(IApiClient apiClient)
+    {
+        _apiClient = apiClient;
+    }
     private const int MaxRedirects = 10;
     private const int MaxHttpContentLength = 10 * 1024 * 1024;
 

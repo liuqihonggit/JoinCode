@@ -7,6 +7,11 @@ namespace Services.Web;
 [Register]
 public sealed partial class WebDomainCheckMiddleware : ServiceEntity, IWebMiddleware
 {
+
+    public WebDomainCheckMiddleware(IDomainBlocklistChecker domainBlocklistChecker)
+    {
+        _domainBlocklistChecker = domainBlocklistChecker;
+    }
     [Inject] private readonly IDomainBlocklistChecker _domainBlocklistChecker;
 
     /// <inheritdoc />

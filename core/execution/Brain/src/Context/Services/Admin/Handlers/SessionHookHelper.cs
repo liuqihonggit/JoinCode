@@ -8,6 +8,13 @@ namespace Core.Context;
 [Register]
 public sealed partial class SessionHookHelper : ServiceEntity
 {
+
+    public SessionHookHelper(ISessionStartHookManager? sessionStartHookManager = null, IHookOrchestrator? hookOrchestrator = null, ILogger<SessionHookHelper>? logger = null)
+    {
+        _sessionStartHookManager = sessionStartHookManager;
+        _hookOrchestrator = hookOrchestrator;
+        _logger = logger;
+    }
     [Inject] private readonly ISessionStartHookManager? _sessionStartHookManager;
     [Inject] private readonly IHookOrchestrator? _hookOrchestrator;
     [Inject] private readonly ILogger<SessionHookHelper>? _logger;

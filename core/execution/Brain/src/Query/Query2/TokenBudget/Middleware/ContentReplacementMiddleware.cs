@@ -8,6 +8,11 @@ namespace Core.Query;
 [Register(typeof(IQueryMiddleware))]
 public sealed partial class ContentReplacementMiddleware : ServiceEntity, IQueryMiddleware
 {
+
+    public ContentReplacementMiddleware(IContentReplacementService? contentReplacementService = null)
+    {
+        _contentReplacementService = contentReplacementService;
+    }
     [Inject] private readonly IContentReplacementService? _contentReplacementService;
 
 

@@ -5,6 +5,12 @@ using JoinCode.Abstractions.Pipeline;
 [Register(typeof(IHandleWorkMiddleware))]
 public sealed partial class WorkHealthcheckMiddleware : ServiceEntity, IHandleWorkMiddleware
 {
+
+    public WorkHealthcheckMiddleware(BridgeApiClient apiClient, ILogger<WorkHealthcheckMiddleware>? logger = null)
+    {
+        _apiClient = apiClient;
+        _logger = logger;
+    }
     [Inject] private readonly ILogger<WorkHealthcheckMiddleware>? _logger;
     [Inject] private readonly BridgeApiClient _apiClient;
 

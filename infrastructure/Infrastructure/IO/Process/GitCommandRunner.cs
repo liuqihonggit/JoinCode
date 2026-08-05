@@ -6,6 +6,12 @@ namespace IO.ProcessService;
 [Register]
 public sealed partial class GitCommandRunner : ServiceEntity, IGitCommandRunner
 {
+
+    public GitCommandRunner(IProcessService processService, ILogger<GitCommandRunner>? logger = null)
+    {
+        _processService = processService;
+        _logger = logger;
+    }
     [Inject] private readonly IProcessService _processService;
     [Inject] private readonly ILogger<GitCommandRunner>? _logger;
 

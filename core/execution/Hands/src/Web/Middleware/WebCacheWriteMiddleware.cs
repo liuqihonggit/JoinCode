@@ -7,6 +7,11 @@ namespace Services.Web;
 [Register]
 public sealed partial class WebCacheWriteMiddleware : ServiceEntity, IWebMiddleware
 {
+
+    public WebCacheWriteMiddleware(IWebFetchCache cache)
+    {
+        _cache = cache;
+    }
     [Inject] private readonly IWebFetchCache _cache;
 
     /// <inheritdoc />

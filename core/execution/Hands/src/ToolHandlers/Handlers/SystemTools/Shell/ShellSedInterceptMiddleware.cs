@@ -7,6 +7,11 @@ namespace Tools.Shell;
 [Register]
 public sealed partial class ShellSedInterceptMiddleware : ServiceEntity, IShellMiddleware
 {
+
+    public ShellSedInterceptMiddleware(IFileSystem? fs = null)
+    {
+        _fs = fs;
+    }
     [Inject] private readonly IFileSystem? _fs;
 
     /// <summary>

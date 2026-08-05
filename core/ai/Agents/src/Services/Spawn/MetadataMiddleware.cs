@@ -6,6 +6,12 @@ namespace Core.Agents;
 [Register]
 public sealed partial class MetadataMiddleware : ServiceEntity, IAgentSpawnMiddleware
 {
+
+    public MetadataMiddleware(JoinCode.Abstractions.Interfaces.IAgentTranscriptService? transcriptService = null, ILogger<MetadataMiddleware>? logger = null)
+    {
+        _transcriptService = transcriptService;
+        _logger = logger;
+    }
     [Inject] private readonly JoinCode.Abstractions.Interfaces.IAgentTranscriptService? _transcriptService;
     [Inject] private readonly ILogger<MetadataMiddleware>? _logger;
 

@@ -8,6 +8,12 @@ namespace Core.Context.Compact;
 [Register(typeof(ICompactMiddleware))]
 public sealed partial class ContextCollapseMiddleware : ServiceEntity, ICompactMiddleware
 {
+
+    public ContextCollapseMiddleware(IContextCollapseService? contextCollapseService = null, ILogger<ContextCollapseMiddleware>? logger = null)
+    {
+        _contextCollapseService = contextCollapseService;
+        _logger = logger;
+    }
     [Inject] private readonly IContextCollapseService? _contextCollapseService;
     [Inject] private readonly ILogger<ContextCollapseMiddleware>? _logger;
 

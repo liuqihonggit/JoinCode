@@ -8,6 +8,11 @@ namespace Core.Scheduling;
 [Register] // 注册为自身类型，不注册为 ITaskService
 public sealed partial class TaskService : ServiceEntity, ITaskService, IDisposable
 {
+
+    public TaskService(ITelemetryService? telemetryService = null)
+    {
+        _telemetryService = telemetryService;
+    }
     private readonly ConcurrentDictionary<string, TaskItem> _tasks = new();
     private readonly ConcurrentDictionary<string, TaskStateMachine> _taskStateMachines = new();
     private readonly ConcurrentDag<string> _dag = new();

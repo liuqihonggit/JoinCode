@@ -7,6 +7,11 @@ namespace Core.Configuration;
 [Register(typeof(ISettingsMiddleware))]
 public sealed partial class PermissionCacheMiddleware : ServiceEntity, ISettingsMiddleware
 {
+
+    public PermissionCacheMiddleware(IToolPermissionManager? toolPermissionManager = null)
+    {
+        _toolPermissionManager = toolPermissionManager;
+    }
     [Inject] private readonly IToolPermissionManager? _toolPermissionManager;
 
     /// <inheritdoc />

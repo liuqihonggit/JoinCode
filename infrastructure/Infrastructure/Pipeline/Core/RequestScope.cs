@@ -31,6 +31,11 @@ public sealed class RequestScope : IRequestScope
 [Register(typeof(IRequestScopeFactory))]
 public sealed partial class RequestScopeFactory : ServiceEntity, IRequestScopeFactory
 {
+
+    public RequestScopeFactory(IServiceScopeFactory scopeFactory)
+    {
+        _scopeFactory = scopeFactory;
+    }
     [Inject] private readonly IServiceScopeFactory _scopeFactory;
 
     public IRequestScope CreateScope()

@@ -6,6 +6,11 @@ namespace McpClient.Mcpb;
 [Register(typeof(IMcpbMiddleware))]
 public sealed partial class McpbCacheCheckMiddleware : ServiceEntity, IMcpbMiddleware
 {
+
+    public McpbCacheCheckMiddleware(IFileSystem fs)
+    {
+        _fs = fs;
+    }
     [Inject] private readonly IFileSystem _fs;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;

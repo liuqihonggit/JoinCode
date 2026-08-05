@@ -28,6 +28,13 @@ public sealed record ContentReplacementResult
 [Register]
 public sealed partial class ChatContentReplacer : ServiceEntity, IChatContentReplacer
 {
+
+    public ChatContentReplacer(IContentReplacementService? contentReplacementService = null, ITranscriptService? transcriptService = null, ILogger<ChatContentReplacer>? logger = null)
+    {
+        _contentReplacementService = contentReplacementService;
+        _transcriptService = transcriptService;
+        _logger = logger;
+    }
     [Inject] private readonly IContentReplacementService? _contentReplacementService;
     [Inject] private readonly ITranscriptService? _transcriptService;
     [Inject] private readonly ILogger<ChatContentReplacer>? _logger;

@@ -6,6 +6,11 @@ namespace Core.Skills;
 [Register]
 public sealed partial class CodeSecurityMiddleware : ServiceEntity, ICodeMiddleware
 {
+
+    public CodeSecurityMiddleware(ICodeSecurityValidator securityValidator)
+    {
+        _securityValidator = securityValidator;
+    }
     [Inject] private readonly ICodeSecurityValidator _securityValidator;
 
     /// <inheritdoc />

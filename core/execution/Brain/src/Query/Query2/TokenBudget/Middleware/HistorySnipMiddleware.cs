@@ -8,6 +8,12 @@ namespace Core.Query;
 [Register(typeof(IQueryMiddleware))]
 public sealed partial class HistorySnipMiddleware : ServiceEntity, IQueryMiddleware
 {
+
+    public HistorySnipMiddleware(IHistorySnipService? historySnipService = null, ITokenBudgetManager? tokenBudgetManager = null)
+    {
+        _historySnipService = historySnipService;
+        _tokenBudgetManager = tokenBudgetManager;
+    }
     [Inject] private readonly IHistorySnipService? _historySnipService;
     [Inject] private readonly ITokenBudgetManager? _tokenBudgetManager;
 

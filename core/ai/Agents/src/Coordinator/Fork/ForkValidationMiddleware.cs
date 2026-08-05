@@ -6,6 +6,11 @@ namespace Core.Agents.Coordinator;
 [Register(typeof(IForkMiddleware))]
 public sealed partial class ForkValidationMiddleware : ServiceEntity, IForkMiddleware
 {
+
+    public ForkValidationMiddleware(ILogger<ForkValidationMiddleware>? logger = null)
+    {
+        _logger = logger;
+    }
     [Inject] private readonly ILogger<ForkValidationMiddleware>? _logger;
 
     /// <summary>验证最先执行</summary>

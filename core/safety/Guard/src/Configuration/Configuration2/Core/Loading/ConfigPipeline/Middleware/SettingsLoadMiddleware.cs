@@ -6,6 +6,11 @@ namespace Core.Configuration.ConfigPipeline;
 [Register(typeof(IConfigLoadMiddleware))]
 public sealed partial class SettingsLoadMiddleware : ServiceEntity, IConfigLoadMiddleware
 {
+
+    public SettingsLoadMiddleware(IFileSystem fs)
+    {
+        _fs = fs;
+    }
     [Inject] private readonly IFileSystem _fs;
 
 

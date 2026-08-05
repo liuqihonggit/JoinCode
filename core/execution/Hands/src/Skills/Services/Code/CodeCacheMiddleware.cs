@@ -6,6 +6,11 @@ namespace Core.Skills;
 [Register]
 public sealed partial class CodeCacheMiddleware : ServiceEntity, ICodeMiddleware
 {
+
+    public CodeCacheMiddleware(ICacheService cacheService)
+    {
+        _cacheService = cacheService;
+    }
     [Inject] private readonly ICacheService _cacheService;
 
     /// <inheritdoc />

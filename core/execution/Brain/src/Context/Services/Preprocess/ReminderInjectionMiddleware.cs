@@ -8,6 +8,13 @@ namespace Core.Context;
 [Register(typeof(IPreparePreprocessMiddleware))]
 public sealed partial class ReminderInjectionMiddleware : ServiceEntity, IPreparePreprocessMiddleware
 {
+
+    public ReminderInjectionMiddleware(ToolIdleReminderService toolIdleReminder, ISystemReminderManager reminderManager, IChatContextManager contextManager)
+    {
+        _toolIdleReminder = toolIdleReminder;
+        _reminderManager = reminderManager;
+        _contextManager = contextManager;
+    }
     [Inject] private readonly ToolIdleReminderService _toolIdleReminder;
     [Inject] private readonly ISystemReminderManager _reminderManager;
     [Inject] private readonly IChatContextManager _contextManager;

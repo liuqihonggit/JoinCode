@@ -3,6 +3,12 @@ namespace Core.Agents.Coordinator;
 [Register(typeof(IAgentDisposeMiddleware))]
 public sealed partial class DisposeShellTasksMiddleware : ServiceEntity, IAgentDisposeMiddleware
 {
+
+    public DisposeShellTasksMiddleware(ILogger<DisposeShellTasksMiddleware> logger, ISystemActuatorRegistry? actuatorRegistry = null)
+    {
+        _logger = logger;
+        _actuatorRegistry = actuatorRegistry;
+    }
     [Inject] private readonly ISystemActuatorRegistry? _actuatorRegistry;
     [Inject] private readonly ILogger<DisposeShellTasksMiddleware> _logger;
 

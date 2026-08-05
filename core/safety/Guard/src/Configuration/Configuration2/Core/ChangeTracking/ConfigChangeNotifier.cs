@@ -3,6 +3,13 @@ namespace Core.Configuration;
 [Register]
 public sealed partial class ConfigChangeNotifier : ServiceEntity, IConfigChangeNotifier, IDisposable
 {
+
+    public ConfigChangeNotifier(IFileSystem fs, ILogger<ConfigChangeNotifier>? logger = null, ITelemetryService? telemetryService = null)
+    {
+        _fs = fs;
+        _logger = logger;
+        _telemetryService = telemetryService;
+    }
     [Inject] private readonly IFileSystem _fs;
     [Inject] private readonly ILogger<ConfigChangeNotifier>? _logger;
     [Inject] private readonly ITelemetryService? _telemetryService;

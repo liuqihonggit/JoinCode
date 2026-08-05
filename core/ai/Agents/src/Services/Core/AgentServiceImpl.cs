@@ -15,6 +15,7 @@ public sealed record AgentServiceDependencies(
 [Register(typeof(JoinCode.Abstractions.Interfaces.IAgentService))]
 public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstractions.Interfaces.IAgentService, IDisposable
 {
+
     private readonly IAgentLifecycleManager _lifecycleManager;
     private readonly JoinCode.Abstractions.Interfaces.IAgentDefinitionProvider _definitionProvider;
     private readonly JoinCode.Abstractions.Interfaces.IAgentRoleRegistry _roleRegistry;

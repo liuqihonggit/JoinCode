@@ -8,6 +8,12 @@ namespace Core.Agents;
 [Register]
 public sealed partial class AgentWorktreeSpawnMiddleware : ServiceEntity, IAgentSpawnMiddleware
 {
+
+    public AgentWorktreeSpawnMiddleware(IAgentWorktreeService? worktreeService = null, ILogger<AgentWorktreeSpawnMiddleware>? logger = null)
+    {
+        _worktreeService = worktreeService;
+        _logger = logger;
+    }
     [Inject] private readonly IAgentWorktreeService? _worktreeService;
     [Inject] private readonly ILogger<AgentWorktreeSpawnMiddleware>? _logger;
 

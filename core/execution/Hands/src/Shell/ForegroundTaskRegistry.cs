@@ -1,4 +1,4 @@
-﻿namespace Services.Shell;
+namespace Services.Shell;
 
 /// <summary>
 /// 前台任务注册表实现 — 基于 MapRegistry，对齐 TS registerForeground/backgroundAll
@@ -6,6 +6,11 @@
 [Register]
 public sealed partial class ForegroundTaskRegistry : MapRegistry<string, ISystemActuatorCommandContext>, IForegroundTaskRegistry
 {
+
+    public ForegroundTaskRegistry(ILogger<ForegroundTaskRegistry>? logger = null)
+    {
+        _logger = logger;
+    }
     [Inject] private readonly ILogger<ForegroundTaskRegistry>? _logger;
 
     /// <inheritdoc />

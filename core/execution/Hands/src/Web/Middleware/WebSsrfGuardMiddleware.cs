@@ -8,6 +8,11 @@ namespace Services.Web;
 [Register]
 public sealed partial class WebSsrfGuardMiddleware : ServiceEntity, IWebMiddleware
 {
+
+    public WebSsrfGuardMiddleware(ILogger<WebSsrfGuardMiddleware>? logger = null)
+    {
+        _logger = logger;
+    }
     [Inject] private readonly ILogger<WebSsrfGuardMiddleware>? _logger;
 
     /// <inheritdoc />

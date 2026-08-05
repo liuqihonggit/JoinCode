@@ -3,6 +3,12 @@ namespace Core.Agents;
 [Register(typeof(JoinCode.Abstractions.Interfaces.IAgentDefinitionProvider))]
 public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Abstractions.Interfaces.IAgentDefinitionProvider
 {
+
+    public AgentDefinitionProvider(IFileSystem fs, ILogger<AgentDefinitionProvider>? logger = null)
+    {
+        _fs = fs;
+        _logger = logger;
+    }
     [Inject] private readonly IFileSystem _fs;
     [Inject] private readonly ILogger<AgentDefinitionProvider>? _logger;
     private volatile List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition>? _cachedDefinitions;

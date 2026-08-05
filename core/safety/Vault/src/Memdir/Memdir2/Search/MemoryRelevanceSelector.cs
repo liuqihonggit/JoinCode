@@ -34,6 +34,7 @@ public sealed record ScoredMemory(MemoryEntry Memory, double RelevanceScore);
 [Register]
 public sealed partial class MemoryRelevanceSelector : ServiceEntity, IMemoryRelevanceSelector
 {
+
     private readonly IMemoryAgeCalculator _ageCalculator;
     [Inject] private readonly ILogger<MemoryRelevanceSelector>? _logger;
     private readonly IClockService _clock;

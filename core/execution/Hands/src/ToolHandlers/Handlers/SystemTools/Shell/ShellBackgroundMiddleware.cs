@@ -8,6 +8,12 @@ namespace Tools.Shell;
 [Register]
 public sealed partial class ShellBackgroundMiddleware : ServiceEntity, IShellMiddleware
 {
+
+    public ShellBackgroundMiddleware(ISystemActuatorRegistry registry, ITelemetryService? telemetryService = null)
+    {
+        _registry = registry;
+        _telemetryService = telemetryService;
+    }
     [Inject] private readonly ISystemActuatorRegistry _registry;
     [Inject] private readonly ITelemetryService? _telemetryService;
 

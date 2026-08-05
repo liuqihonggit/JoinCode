@@ -5,6 +5,11 @@ using JoinCode.Abstractions.Pipeline;
 [Register(typeof(IShutdownMiddleware))]
 public sealed partial class ShutdownClearPointerMiddleware : ServiceEntity, IShutdownMiddleware
 {
+
+    public ShutdownClearPointerMiddleware(ILogger<ShutdownClearPointerMiddleware>? logger = null)
+    {
+        _logger = logger;
+    }
     [Inject] private readonly ILogger<ShutdownClearPointerMiddleware>? _logger;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;

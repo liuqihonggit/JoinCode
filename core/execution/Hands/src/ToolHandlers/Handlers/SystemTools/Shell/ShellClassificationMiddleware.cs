@@ -7,6 +7,11 @@ namespace Tools.Shell;
 [Register]
 public sealed partial class ShellClassificationMiddleware : ServiceEntity, IShellMiddleware
 {
+
+    public ShellClassificationMiddleware(ICommandClassifier? commandClassifier = null)
+    {
+        _commandClassifier = commandClassifier;
+    }
     [Inject] private readonly ICommandClassifier? _commandClassifier;
 
     /// <inheritdoc />

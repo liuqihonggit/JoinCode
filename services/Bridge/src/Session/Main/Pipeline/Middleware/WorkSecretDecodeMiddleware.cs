@@ -5,6 +5,11 @@ using JoinCode.Abstractions.Pipeline;
 [Register(typeof(IHandleWorkMiddleware))]
 public sealed partial class WorkSecretDecodeMiddleware : ServiceEntity, IHandleWorkMiddleware
 {
+
+    public WorkSecretDecodeMiddleware(ILogger<WorkSecretDecodeMiddleware>? logger = null)
+    {
+        _logger = logger;
+    }
     [Inject] private readonly ILogger<WorkSecretDecodeMiddleware>? _logger;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;

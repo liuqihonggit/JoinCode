@@ -4,6 +4,14 @@ namespace Core.Agents.ToolHandlers;
 [Register]
 public partial class BuiltInAgentToolHandlers : ServiceEntity
 {
+
+    public BuiltInAgentToolHandlers(IAgentService agentService, IAgentRoleRegistry roleRegistry, ILogger<BuiltInAgentToolHandlers>? logger = null, ITelemetryService? telemetryService = null)
+    {
+        _agentService = agentService;
+        _roleRegistry = roleRegistry;
+        _logger = logger;
+        _telemetryService = telemetryService;
+    }
     [Inject] private readonly IAgentService _agentService;
     [Inject] private readonly IAgentRoleRegistry _roleRegistry;
     [Inject] private readonly ILogger<BuiltInAgentToolHandlers>? _logger;

@@ -6,6 +6,13 @@ namespace Core.Agents.Worktree;
 [Register(typeof(IWorktreeCreateMiddleware))]
 public sealed partial class WorktreeConfigMiddleware : ServiceEntity, IWorktreeCreateMiddleware
 {
+
+    public WorktreeConfigMiddleware(IFileOperationService fs, Lazy<IWorktreePipelineOperations> worktreeService, ILogger<WorktreeConfigMiddleware>? logger = null)
+    {
+        _fs = fs;
+        _worktreeService = worktreeService;
+        _logger = logger;
+    }
     [Inject] private readonly IFileOperationService _fs;
     [Inject] private readonly Lazy<IWorktreePipelineOperations> _worktreeService;
     [Inject] private readonly ILogger<WorktreeConfigMiddleware>? _logger;

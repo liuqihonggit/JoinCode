@@ -6,6 +6,11 @@ namespace Core.Configuration;
 [Register(typeof(ISettingsMiddleware))]
 public sealed partial class HookRefreshMiddleware : ServiceEntity, ISettingsMiddleware
 {
+
+    public HookRefreshMiddleware(IHookConfigurationManager? hookConfigurationManager = null)
+    {
+        _hookConfigurationManager = hookConfigurationManager;
+    }
     [Inject] private readonly IHookConfigurationManager? _hookConfigurationManager;
 
     /// <inheritdoc />

@@ -8,6 +8,12 @@ namespace Core.Context.Compact;
 [Register(typeof(ICompactMiddleware))]
 public sealed partial class SessionMemoryCompactMiddleware : ServiceEntity, ICompactMiddleware
 {
+
+    public SessionMemoryCompactMiddleware(ISessionMemoryCompactService sessionMemoryCompactService, ILogger<SessionMemoryCompactMiddleware>? logger = null)
+    {
+        _sessionMemoryCompactService = sessionMemoryCompactService;
+        _logger = logger;
+    }
     [Inject] private readonly ISessionMemoryCompactService _sessionMemoryCompactService;
     [Inject] private readonly ILogger<SessionMemoryCompactMiddleware>? _logger;
 

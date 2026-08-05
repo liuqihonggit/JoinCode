@@ -12,6 +12,14 @@ namespace Core.Context;
 [Register(typeof(IAnalyzePreprocessMiddleware))]
 public sealed partial class KeywordInjectionMiddleware : ServiceEntity, IAnalyzePreprocessMiddleware
 {
+
+    public KeywordInjectionMiddleware(ISystemReminderManager reminderManager, IDynamicKeywordConfigService dynamicKeywordService, IFileSystem fs, ILogger<KeywordInjectionMiddleware>? logger = null)
+    {
+        _reminderManager = reminderManager;
+        _dynamicKeywordService = dynamicKeywordService;
+        _fs = fs;
+        _logger = logger;
+    }
     [Inject] private readonly ISystemReminderManager _reminderManager;
     [Inject] private readonly IDynamicKeywordConfigService _dynamicKeywordService;
     [Inject] private readonly IFileSystem _fs;

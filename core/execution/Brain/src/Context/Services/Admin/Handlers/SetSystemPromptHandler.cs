@@ -8,6 +8,11 @@ namespace Core.Context;
 [Register]
 public sealed partial class SetSystemPromptHandler : ServiceEntity, IChatAdminOperationHandler
 {
+
+    public SetSystemPromptHandler(ILogger<SetSystemPromptHandler>? logger = null)
+    {
+        _logger = logger;
+    }
     [Inject] private readonly ILogger<SetSystemPromptHandler>? _logger;
 
     public ChatAdminOperation Operation => ChatAdminOperation.SetSystemPrompt;

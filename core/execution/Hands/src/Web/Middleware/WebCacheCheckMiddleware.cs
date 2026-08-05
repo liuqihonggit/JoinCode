@@ -7,6 +7,12 @@ namespace Services.Web;
 [Register]
 public sealed partial class WebCacheCheckMiddleware : ServiceEntity, IWebMiddleware
 {
+
+    public WebCacheCheckMiddleware(IWebFetchCache cache, ITelemetryService? telemetryService = null)
+    {
+        _cache = cache;
+        _telemetryService = telemetryService;
+    }
     [Inject] private readonly IWebFetchCache _cache;
     [Inject] private readonly ITelemetryService? _telemetryService;
 

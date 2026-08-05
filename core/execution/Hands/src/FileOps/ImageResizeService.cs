@@ -7,6 +7,11 @@ namespace Infrastructure.IO;
 [Register(typeof(JoinCode.Abstractions.LLM.Chat.IImageResizeService))]
 public sealed partial class ImageResizeService : ServiceEntity, JoinCode.Abstractions.LLM.Chat.IImageResizeService
 {
+
+    public ImageResizeService(ILogger<ImageResizeService>? logger = null)
+    {
+        _logger = logger;
+    }
     [Inject] private readonly ILogger<ImageResizeService>? _logger;
 
     public async Task<JoinCode.Abstractions.LLM.Chat.McpImageResizeResult> ResizeAsync(byte[] imageBuffer, long originalSize, string extension)

@@ -8,6 +8,12 @@ namespace Core.Context;
 [Register(typeof(IChatInitMiddleware))]
 public sealed partial class SessionStartHookMiddleware : ServiceEntity, IChatInitMiddleware
 {
+
+    public SessionStartHookMiddleware(ISessionStartHookManager? sessionStartHookManager = null, ILogger<SessionStartHookMiddleware>? logger = null)
+    {
+        _sessionStartHookManager = sessionStartHookManager;
+        _logger = logger;
+    }
     [Inject] private readonly ISessionStartHookManager? _sessionStartHookManager;
     [Inject] private readonly ILogger<SessionStartHookMiddleware>? _logger;
 

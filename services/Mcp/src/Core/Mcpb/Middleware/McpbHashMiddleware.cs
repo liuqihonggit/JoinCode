@@ -6,6 +6,11 @@ namespace McpClient.Mcpb;
 [Register(typeof(IMcpbMiddleware))]
 public sealed partial class McpbHashMiddleware : ServiceEntity, IMcpbMiddleware
 {
+
+    public McpbHashMiddleware(IFileSystem fs)
+    {
+        _fs = fs;
+    }
     [Inject] private readonly IFileSystem _fs;
 
 

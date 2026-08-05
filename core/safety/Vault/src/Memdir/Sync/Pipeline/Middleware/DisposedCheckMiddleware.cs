@@ -8,6 +8,11 @@ using JoinCode.Abstractions.Pipeline;
 [Register(typeof(ISyncStartMiddleware))]
 public sealed partial class DisposedCheckMiddleware : ServiceEntity, ISyncStartMiddleware
 {
+
+    public DisposedCheckMiddleware(ILogger<DisposedCheckMiddleware>? logger = null)
+    {
+        _logger = logger;
+    }
     [Inject] private readonly ILogger<DisposedCheckMiddleware>? _logger;
 
 

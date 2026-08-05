@@ -8,6 +8,12 @@ namespace State;
 [Register]
 public sealed partial class AppStateSelectors : ServiceEntity
 {
+
+    public AppStateSelectors(IStore<AppState> store, ITelemetryService? telemetryService = null)
+    {
+        _store = store;
+        _telemetryService = telemetryService;
+    }
     [Inject] private readonly IStore<AppState> _store;
     [Inject] private readonly ITelemetryService? _telemetryService;
 

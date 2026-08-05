@@ -7,6 +7,11 @@ namespace Core.Configuration;
 [Register]
 public partial class BriefModeService : ServiceEntity, IBriefModeService
 {
+
+    public BriefModeService(IClockService clock)
+    {
+        _clock = clock;
+    }
     private bool _isEnabled;
     private DateTime? _enabledAt;
     private bool _userMsgOptIn;

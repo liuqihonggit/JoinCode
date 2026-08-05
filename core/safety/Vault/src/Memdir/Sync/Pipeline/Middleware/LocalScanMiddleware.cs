@@ -8,6 +8,11 @@ using JoinCode.Abstractions.Pipeline;
 [Register(typeof(ISyncStartMiddleware))]
 public sealed partial class LocalScanMiddleware : ServiceEntity, ISyncStartMiddleware
 {
+
+    public LocalScanMiddleware(ILogger<LocalScanMiddleware>? logger = null)
+    {
+        _logger = logger;
+    }
     [Inject] private readonly ILogger<LocalScanMiddleware>? _logger;
 
 

@@ -7,6 +7,12 @@ namespace McpClient.Mcpb;
 [Register(typeof(IMcpbMiddleware))]
 public sealed partial class McpbExtractionMiddleware : ServiceEntity, IMcpbMiddleware
 {
+
+    public McpbExtractionMiddleware(IFileSystem fs, ILogger<McpbExtractionMiddleware>? logger = null)
+    {
+        _fs = fs;
+        _logger = logger;
+    }
     [Inject] private readonly IFileSystem _fs;
     [Inject] private readonly ILogger<McpbExtractionMiddleware>? _logger;
 

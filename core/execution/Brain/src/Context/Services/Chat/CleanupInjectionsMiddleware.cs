@@ -9,6 +9,12 @@ namespace Core.Context;
 [Register]
 public sealed partial class CleanupInjectionsMiddleware : ServiceEntity, IChatMiddleware
 {
+
+    public CleanupInjectionsMiddleware(IChatPreprocessor preprocessor, ILogger<CleanupInjectionsMiddleware>? logger = null)
+    {
+        _preprocessor = preprocessor;
+        _logger = logger;
+    }
     [Inject] private readonly IChatPreprocessor _preprocessor;
     [Inject] private readonly ILogger<CleanupInjectionsMiddleware>? _logger;
 

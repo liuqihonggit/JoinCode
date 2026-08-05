@@ -3,6 +3,11 @@ namespace Core.Utils;
 [Register]
 public sealed partial class AgentToolRestrictions : ServiceEntity, IAgentToolRestrictions
 {
+
+    public AgentToolRestrictions(ITelemetryService? telemetryService = null)
+    {
+        _telemetryService = telemetryService;
+    }
     [Inject] private readonly ITelemetryService? _telemetryService;
 
     private static readonly FrozenSet<string> AutoAllowedTools = new HashSet<string>(StringComparer.OrdinalIgnoreCase)

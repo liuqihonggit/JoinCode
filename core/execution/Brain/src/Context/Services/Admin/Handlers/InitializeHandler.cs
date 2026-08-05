@@ -8,6 +8,11 @@ namespace Core.Context;
 [Register]
 public sealed partial class InitializeHandler : ServiceEntity, IChatAdminOperationHandler
 {
+
+    public InitializeHandler(IChatInitializer initializer)
+    {
+        _initializer = initializer;
+    }
     [Inject] private readonly IChatInitializer _initializer;
 
     public ChatAdminOperation Operation => ChatAdminOperation.Initialize;

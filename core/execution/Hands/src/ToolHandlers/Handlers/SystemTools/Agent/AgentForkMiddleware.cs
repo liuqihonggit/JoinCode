@@ -7,6 +7,13 @@ namespace Tools.Handlers;
 [Register]
 public sealed partial class AgentForkMiddleware : ServiceEntity, IAgentToolMiddleware
 {
+
+    public AgentForkMiddleware(ISubAgentContextAccessor subAgentContextAccessor, IForkSubAgentManager? forkManager = null, ITelemetryService? telemetryService = null)
+    {
+        _subAgentContextAccessor = subAgentContextAccessor;
+        _forkManager = forkManager;
+        _telemetryService = telemetryService;
+    }
     [Inject] private readonly IForkSubAgentManager? _forkManager;
     [Inject] private readonly ITelemetryService? _telemetryService;
     [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;

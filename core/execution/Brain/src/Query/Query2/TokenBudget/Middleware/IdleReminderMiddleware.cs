@@ -8,6 +8,11 @@ namespace Core.Query;
 [Register(typeof(IQueryMiddleware))]
 public sealed partial class IdleReminderMiddleware : ServiceEntity, IQueryMiddleware
 {
+
+    public IdleReminderMiddleware(IToolIdleReminderService? toolIdleReminder = null)
+    {
+        _toolIdleReminder = toolIdleReminder;
+    }
     [Inject] private readonly IToolIdleReminderService? _toolIdleReminder;
 
 

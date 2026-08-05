@@ -8,6 +8,12 @@ using JoinCode.Abstractions.Interfaces;
 [Register]
 public sealed partial class DefinitionResolutionMiddleware : ServiceEntity, IAgentSpawnMiddleware
 {
+
+    public DefinitionResolutionMiddleware(IAgentRoleRegistry roleRegistry, IAgentDefinitionProvider? definitionProvider = null)
+    {
+        _roleRegistry = roleRegistry;
+        _definitionProvider = definitionProvider;
+    }
     [Inject] private readonly IAgentRoleRegistry _roleRegistry;
     [Inject] private readonly IAgentDefinitionProvider? _definitionProvider;
 

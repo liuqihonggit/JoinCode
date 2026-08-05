@@ -5,6 +5,11 @@ namespace JoinCode.Abstractions.Security.Shell;
 [Register]
 public sealed partial class BashSecurityValidator : ServiceEntity, IBashSecurityValidator
 {
+
+    public BashSecurityValidator(IBashAstSecurityWalker astWalker)
+    {
+        _astWalker = astWalker;
+    }
     [Inject] private readonly IBashAstSecurityWalker _astWalker;
 
     public BashSecurityResult Validate(string command)

@@ -9,6 +9,12 @@ namespace Core.Context;
 [Register]
 public sealed partial class ProcessUsageMiddleware : ServiceEntity, IChatMiddleware
 {
+
+    public ProcessUsageMiddleware(IChatUsageProcessor usageProcessor, ILogger<ProcessUsageMiddleware>? logger = null)
+    {
+        _usageProcessor = usageProcessor;
+        _logger = logger;
+    }
     [Inject] private readonly IChatUsageProcessor _usageProcessor;
     [Inject] private readonly ILogger<ProcessUsageMiddleware>? _logger;
 

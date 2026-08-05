@@ -8,6 +8,11 @@ using JoinCode.Abstractions.Pipeline;
 [Register(typeof(IGoalLifecycleMiddleware))]
 public sealed partial class GoalStateTransitionMiddleware : ServiceEntity, IGoalLifecycleMiddleware
 {
+
+    public GoalStateTransitionMiddleware(IClockService clock)
+    {
+        _clock = clock;
+    }
     [Inject] private readonly IClockService _clock;
 
 

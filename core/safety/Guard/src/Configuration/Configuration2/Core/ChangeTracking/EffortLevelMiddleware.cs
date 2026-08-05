@@ -6,6 +6,11 @@ namespace Core.Configuration;
 [Register(typeof(ISettingsMiddleware))]
 public sealed partial class EffortLevelMiddleware : ServiceEntity, ISettingsMiddleware
 {
+
+    public EffortLevelMiddleware(IExecutionSettingsProvider? executionSettingsProvider = null)
+    {
+        _executionSettingsProvider = executionSettingsProvider;
+    }
     [Inject] private readonly IExecutionSettingsProvider? _executionSettingsProvider;
 
     /// <inheritdoc />

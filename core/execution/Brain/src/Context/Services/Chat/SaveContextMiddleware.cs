@@ -9,6 +9,12 @@ namespace Core.Context;
 [Register]
 public sealed partial class SaveContextMiddleware : ServiceEntity, IChatMiddleware
 {
+
+    public SaveContextMiddleware(IChatContextManager contextManager, ILogger<SaveContextMiddleware>? logger = null)
+    {
+        _contextManager = contextManager;
+        _logger = logger;
+    }
     [Inject] private readonly IChatContextManager _contextManager;
     [Inject] private readonly ILogger<SaveContextMiddleware>? _logger;
 

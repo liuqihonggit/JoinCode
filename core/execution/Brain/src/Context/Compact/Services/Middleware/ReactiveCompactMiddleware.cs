@@ -8,6 +8,12 @@ namespace Core.Context.Compact;
 [Register(typeof(ICompactMiddleware))]
 public sealed partial class ReactiveCompactMiddleware : ServiceEntity, ICompactMiddleware
 {
+
+    public ReactiveCompactMiddleware(IReactiveCompactService reactiveCompactService, ILogger<ReactiveCompactMiddleware>? logger = null)
+    {
+        _reactiveCompactService = reactiveCompactService;
+        _logger = logger;
+    }
     [Inject] private readonly IReactiveCompactService _reactiveCompactService;
     [Inject] private readonly ILogger<ReactiveCompactMiddleware>? _logger;
 

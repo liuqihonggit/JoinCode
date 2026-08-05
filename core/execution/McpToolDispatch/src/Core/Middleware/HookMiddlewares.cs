@@ -10,6 +10,7 @@ internal sealed partial class HookMiddlewareJsonContext : JsonSerializerContext;
 [Register]
 public sealed partial class PreToolUseHookMiddleware : ServiceEntity, IToolExecutionMiddleware
 {
+
     private readonly IHookOrchestrator? _hookOrchestrator;
     [Inject] private readonly ILogger<PreToolUseHookMiddleware>? _logger;
 

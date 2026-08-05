@@ -4,7 +4,6 @@
     <Project Path="generators/AppModule.Generator/src/AppModule.Generator.csproj" />
     <Project Path="generators/CodeFixes/src/CodeFixes.csproj" />
     <Project Path="generators/CliOption.Generator/src/CliOption.Generator.csproj" />
-    <Project Path="generators/ConstructorInjection.Generator/src/ConstructorInjection.Generator.csproj" />
     <Project Path="generators/EnumMetadata.Generator/src/EnumMetadata.Generator.csproj" />
     <Project Path="generators/McpToolDispatch.Generator/src/McpToolDispatch.Generator.csproj" />
     <Project Path="generators/PromptSection.Generator/src/PromptSection.Generator.csproj" />

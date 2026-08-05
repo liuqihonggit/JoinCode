@@ -8,6 +8,11 @@ namespace Core.Query;
 [Register(typeof(IQueryMiddleware))]
 public sealed partial class StopHookMiddleware : ServiceEntity, IQueryMiddleware
 {
+
+    public StopHookMiddleware(IQueryStopHookManager? stopHookManager = null)
+    {
+        _stopHookManager = stopHookManager;
+    }
     [Inject] private readonly IQueryStopHookManager? _stopHookManager;
 
 

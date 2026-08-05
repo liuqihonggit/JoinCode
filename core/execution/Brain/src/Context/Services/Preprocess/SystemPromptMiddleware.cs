@@ -8,6 +8,12 @@ namespace Core.Context;
 [Register(typeof(IPreparePreprocessMiddleware))]
 public sealed partial class SystemPromptMiddleware : ServiceEntity, IPreparePreprocessMiddleware
 {
+
+    public SystemPromptMiddleware(SystemPromptBuilder systemPromptBuilder, IChatContextManager contextManager)
+    {
+        _systemPromptBuilder = systemPromptBuilder;
+        _contextManager = contextManager;
+    }
     [Inject] private readonly SystemPromptBuilder _systemPromptBuilder;
     [Inject] private readonly IChatContextManager _contextManager;
 

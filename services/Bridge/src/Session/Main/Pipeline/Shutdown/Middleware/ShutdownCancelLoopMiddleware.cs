@@ -5,6 +5,11 @@ using JoinCode.Abstractions.Pipeline;
 [Register(typeof(IShutdownMiddleware))]
 public sealed partial class ShutdownCancelLoopMiddleware : ServiceEntity, IShutdownMiddleware
 {
+
+    public ShutdownCancelLoopMiddleware(ILogger<ShutdownCancelLoopMiddleware>? logger = null)
+    {
+        _logger = logger;
+    }
     [Inject] private readonly ILogger<ShutdownCancelLoopMiddleware>? _logger;
 
 

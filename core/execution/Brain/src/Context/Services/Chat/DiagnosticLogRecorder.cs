@@ -10,6 +10,12 @@ namespace Core.Context;
 [Register]
 public sealed partial class DiagnosticLogRecorder : ServiceEntity, IChatMiddleware
 {
+
+    public DiagnosticLogRecorder(IFileSystem fs, ILogger<DiagnosticLogRecorder>? logger = null)
+    {
+        _fs = fs;
+        _logger = logger;
+    }
     [Inject] private readonly IFileSystem _fs;
     [Inject] private readonly ILogger<DiagnosticLogRecorder>? _logger;
 

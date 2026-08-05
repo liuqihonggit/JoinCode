@@ -8,6 +8,11 @@ using JoinCode.Abstractions.Pipeline;
 [Register(typeof(IGoalLifecycleMiddleware))]
 public sealed partial class GoalPermissionModeMiddleware : ServiceEntity, IGoalLifecycleMiddleware
 {
+
+    public GoalPermissionModeMiddleware(ILogger<GoalPermissionModeMiddleware>? logger = null)
+    {
+        _logger = logger;
+    }
     [Inject] private readonly ILogger<GoalPermissionModeMiddleware>? _logger;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;

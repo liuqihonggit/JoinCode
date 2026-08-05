@@ -131,6 +131,11 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
 
     [Inject] private readonly IPathValidator _pathValidator;
 
+    public PathConstraintValidator(IPathValidator pathValidator)
+    {
+        _pathValidator = pathValidator;
+    }
+
     /// <summary>
     /// 检查命令的路径约束 — 主入口，对齐 TS checkPathConstraints
     /// </summary>

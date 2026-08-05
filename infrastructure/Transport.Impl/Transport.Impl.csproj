@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <AllowPack>true</AllowPack>
@@ -19,6 +19,5 @@
 
 
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)generators\ConstructorInjection.Generator/src/ConstructorInjection.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 </Project>

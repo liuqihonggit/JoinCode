@@ -8,6 +8,11 @@ namespace Core.Context;
 [Register(typeof(IPreparePreprocessMiddleware))]
 public sealed partial class ToolListingInjectionMiddleware : ServiceEntity, IPreparePreprocessMiddleware
 {
+
+    public ToolListingInjectionMiddleware(Prompts.Services.ToolListingService? toolListingService = null)
+    {
+        _toolListingService = toolListingService;
+    }
     [Inject] private readonly Prompts.Services.ToolListingService? _toolListingService;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;

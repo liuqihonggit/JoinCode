@@ -12,6 +12,11 @@ using JoinCode.Abstractions.Interfaces;
 [Register(typeof(IGoalLoopObserver))]
 public sealed partial class GoalLoopObserver : ServiceEntity, IGoalLoopObserver
 {
+
+    public GoalLoopObserver(ILogger<GoalLoopObserver>? logger = null)
+    {
+        _logger = logger;
+    }
     [Inject] private readonly ILogger<GoalLoopObserver>? _logger;
 
     private readonly Dictionary<string, List<int>> _historyByGoal = new(StringComparer.Ordinal);

@@ -5,6 +5,11 @@ using JoinCode.Abstractions.Pipeline;
 [Register(typeof(IShutdownMiddleware))]
 public sealed partial class ShutdownSubprocessesMiddleware : ServiceEntity, IShutdownMiddleware
 {
+
+    public ShutdownSubprocessesMiddleware(ILogger<ShutdownSubprocessesMiddleware>? logger = null)
+    {
+        _logger = logger;
+    }
     [Inject] private readonly ILogger<ShutdownSubprocessesMiddleware>? _logger;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;

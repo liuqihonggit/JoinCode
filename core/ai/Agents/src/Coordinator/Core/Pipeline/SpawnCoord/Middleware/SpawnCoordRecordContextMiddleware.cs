@@ -3,6 +3,11 @@ namespace Core.Agents.Coordinator;
 [Register(typeof(IAgentSpawnCoordMiddleware))]
 public sealed partial class SpawnCoordRecordContextMiddleware : ServiceEntity, IAgentSpawnCoordMiddleware
 {
+
+    public SpawnCoordRecordContextMiddleware(IClockService clock)
+    {
+        _clock = clock;
+    }
     [Inject] private readonly IClockService _clock;
 
     public Task InvokeAsync(AgentSpawnCoordContext ctx, MiddlewareDelegate<AgentSpawnCoordContext> next, CancellationToken ct)

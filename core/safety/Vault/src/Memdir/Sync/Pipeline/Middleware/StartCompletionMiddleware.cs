@@ -8,6 +8,12 @@ using JoinCode.Abstractions.Pipeline;
 [Register(typeof(ISyncStartMiddleware))]
 public sealed partial class StartCompletionMiddleware : ServiceEntity, ISyncStartMiddleware
 {
+
+    public StartCompletionMiddleware(ILogger<StartCompletionMiddleware>? logger = null, ITelemetryService? telemetryService = null)
+    {
+        _logger = logger;
+        _telemetryService = telemetryService;
+    }
     [Inject] private readonly ILogger<StartCompletionMiddleware>? _logger;
     [Inject] private readonly ITelemetryService? _telemetryService;
 

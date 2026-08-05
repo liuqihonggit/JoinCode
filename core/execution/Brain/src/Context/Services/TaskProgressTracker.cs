@@ -6,6 +6,12 @@ namespace Core.Context;
 [Register]
 public sealed partial class TaskProgressTracker : ServiceEntity, ITaskProgressTracker
 {
+
+    public TaskProgressTracker(ITodoService todoService, ILogger<TaskProgressTracker>? logger = null)
+    {
+        _todoService = todoService;
+        _logger = logger;
+    }
     [Inject] private readonly ITodoService _todoService;
     [Inject] private readonly ILogger<TaskProgressTracker>? _logger;
     private int _lastSnapshotCompletedCount;

@@ -8,6 +8,12 @@ namespace Core.Context.Compact;
 [Register(typeof(ICompactMiddleware))]
 public sealed partial class CompactHookMiddleware : ServiceEntity, ICompactMiddleware
 {
+
+    public CompactHookMiddleware(IMicrocompactService microcompactService, ICompactHookManager? compactHookManager = null)
+    {
+        _microcompactService = microcompactService;
+        _compactHookManager = compactHookManager;
+    }
     [Inject] private readonly IMicrocompactService _microcompactService;
     [Inject] private readonly ICompactHookManager? _compactHookManager;
 

@@ -6,6 +6,12 @@ namespace Core.Agents;
 [Register]
 public sealed partial class McpSetupMiddleware : ServiceEntity, IAgentSpawnMiddleware
 {
+
+    public McpSetupMiddleware(JoinCode.Abstractions.Interfaces.IAgentMcpServerManager? mcpServerManager = null, ILogger<McpSetupMiddleware>? logger = null)
+    {
+        _mcpServerManager = mcpServerManager;
+        _logger = logger;
+    }
     [Inject] private readonly JoinCode.Abstractions.Interfaces.IAgentMcpServerManager? _mcpServerManager;
     [Inject] private readonly ILogger<McpSetupMiddleware>? _logger;
 

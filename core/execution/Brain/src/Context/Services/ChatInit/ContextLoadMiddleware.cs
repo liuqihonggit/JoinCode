@@ -9,6 +9,12 @@ namespace Core.Context;
 [Register(typeof(IChatInitMiddleware))]
 public sealed partial class ContextLoadMiddleware : ServiceEntity, IChatInitMiddleware
 {
+
+    public ContextLoadMiddleware(IChatContentReplacer contentReplacer, ILogger<ContextLoadMiddleware>? logger = null)
+    {
+        _contentReplacer = contentReplacer;
+        _logger = logger;
+    }
     [Inject] private readonly IChatContentReplacer _contentReplacer;
     [Inject] private readonly ILogger<ContextLoadMiddleware>? _logger;
 

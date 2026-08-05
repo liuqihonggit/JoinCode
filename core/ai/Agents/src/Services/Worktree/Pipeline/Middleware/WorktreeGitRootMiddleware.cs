@@ -6,6 +6,12 @@ namespace Core.Agents.Worktree;
 [Register(typeof(IWorktreeCreateMiddleware))]
 public sealed partial class WorktreeGitRootMiddleware : ServiceEntity, IWorktreeCreateMiddleware
 {
+
+    public WorktreeGitRootMiddleware(IFileOperationService fs, ILogger<WorktreeGitRootMiddleware>? logger = null)
+    {
+        _fs = fs;
+        _logger = logger;
+    }
     [Inject] private readonly IFileOperationService _fs;
     [Inject] private readonly ILogger<WorktreeGitRootMiddleware>? _logger;
 

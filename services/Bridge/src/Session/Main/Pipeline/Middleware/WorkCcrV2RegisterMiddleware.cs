@@ -5,6 +5,12 @@ using JoinCode.Abstractions.Pipeline;
 [Register(typeof(IHandleWorkMiddleware))]
 public sealed partial class WorkCcrV2RegisterMiddleware : ServiceEntity, IHandleWorkMiddleware
 {
+
+    public WorkCcrV2RegisterMiddleware(BridgeApiClient apiClient, ILogger<WorkCcrV2RegisterMiddleware>? logger = null)
+    {
+        _apiClient = apiClient;
+        _logger = logger;
+    }
     [Inject] private readonly ILogger<WorkCcrV2RegisterMiddleware>? _logger;
     [Inject] private readonly BridgeApiClient _apiClient;
 

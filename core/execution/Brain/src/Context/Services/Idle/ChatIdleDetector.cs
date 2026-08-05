@@ -7,6 +7,15 @@ namespace Core.Context;
 [Register]
 public sealed partial class ChatIdleDetector : ServiceEntity, IChatIdleDetector
 {
+
+    public ChatIdleDetector(IChatContextManager contextManager, ISystemReminderManager reminderManager, ToolIdleReminderService toolIdleReminder, IdleToolDetector idleDetector, ILogger<ChatIdleDetector>? logger = null)
+    {
+        _contextManager = contextManager;
+        _reminderManager = reminderManager;
+        _toolIdleReminder = toolIdleReminder;
+        _idleDetector = idleDetector;
+        _logger = logger;
+    }
     [Inject] private readonly IChatContextManager _contextManager;
     [Inject] private readonly ISystemReminderManager _reminderManager;
     [Inject] private readonly ToolIdleReminderService _toolIdleReminder;

@@ -6,6 +6,12 @@ namespace Tools.Shell;
 [Register]
 public sealed partial class ShellPathGateMiddleware : ServiceEntity, IShellMiddleware
 {
+
+    public ShellPathGateMiddleware(IEnvironmentProbeService probeService, ILogger<ShellPathGateMiddleware>? logger = null)
+    {
+        _probeService = probeService;
+        _logger = logger;
+    }
     [Inject] private readonly IEnvironmentProbeService _probeService;
     [Inject] private readonly ILogger<ShellPathGateMiddleware>? _logger;
 

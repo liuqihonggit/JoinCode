@@ -5,7 +5,13 @@ public record BatchEditResult(string FilePath, FileEditResult Result);
 [Register]
 public sealed partial class FileEditLogic : ServiceEntity
 {
+
     [Inject] private readonly IFileSystem _fs;
+
+    public FileEditLogic(IFileSystem fs)
+    {
+        _fs = fs;
+    }
 
     public async Task<FileEditResult> EditWithRegexAsync(
         string filePath,

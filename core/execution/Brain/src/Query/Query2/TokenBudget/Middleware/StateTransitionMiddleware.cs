@@ -8,6 +8,11 @@ namespace Core.Query;
 [Register(typeof(IQueryMiddleware))]
 public sealed partial class StateTransitionMiddleware : ServiceEntity, IQueryMiddleware
 {
+
+    public StateTransitionMiddleware(IQueryStateTransitions? stateTransitions = null)
+    {
+        _stateTransitions = stateTransitions;
+    }
     [Inject] private readonly IQueryStateTransitions? _stateTransitions;
 
 

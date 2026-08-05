@@ -10,6 +10,12 @@ namespace Infrastructure.Cache;
 [Register(typeof(JoinCode.Abstractions.Interfaces.Cache.IPasteStore))]
 public sealed partial class PasteStore : ServiceEntity, JoinCode.Abstractions.Interfaces.Cache.IPasteStore
 {
+
+    public PasteStore(IFileSystem fs, ILogger<PasteStore>? logger = null)
+    {
+        _fs = fs;
+        _logger = logger;
+    }
     [Inject] private readonly IFileSystem _fs;
     [Inject] private readonly ILogger<PasteStore>? _logger;
 

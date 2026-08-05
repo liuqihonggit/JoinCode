@@ -8,6 +8,11 @@ namespace Core.Context;
 [Register]
 public sealed partial class LoadSessionMessagesHandler : ServiceEntity, IChatAdminOperationHandler
 {
+
+    public LoadSessionMessagesHandler(ILogger<LoadSessionMessagesHandler>? logger = null)
+    {
+        _logger = logger;
+    }
     [Inject] private readonly ILogger<LoadSessionMessagesHandler>? _logger;
 
     public ChatAdminOperation Operation => ChatAdminOperation.LoadSessionMessages;

@@ -7,6 +7,11 @@ namespace Core.Scheduling;
 [Register]
 public sealed partial class TaskFileReader : ServiceEntity, ITaskFileReader
 {
+
+    public TaskFileReader(IFileOperationService fileOperationService)
+    {
+        _fileOperationService = fileOperationService;
+    }
     [Inject] private readonly IFileOperationService _fileOperationService;
 
     /// <summary>

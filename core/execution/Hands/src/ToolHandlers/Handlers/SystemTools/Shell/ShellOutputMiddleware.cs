@@ -7,6 +7,11 @@ namespace Tools.Shell;
 [Register]
 public sealed partial class ShellOutputMiddleware : ServiceEntity, IShellMiddleware
 {
+
+    public ShellOutputMiddleware(ITelemetryService? telemetryService = null)
+    {
+        _telemetryService = telemetryService;
+    }
     [Inject] private readonly ITelemetryService? _telemetryService;
 
     /// <inheritdoc />

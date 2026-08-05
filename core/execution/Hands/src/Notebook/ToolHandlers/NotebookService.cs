@@ -7,6 +7,14 @@ namespace Services.Notebook;
 [Register]
 public sealed partial class NotebookService : ServiceEntity, INotebookService
 {
+
+    public NotebookService(IFileOperationService fileOperationService, IFileSystem fs, IFileHistoryService? fileHistoryService = null, ITelemetryService? telemetryService = null)
+    {
+        _fileOperationService = fileOperationService;
+        _fs = fs;
+        _fileHistoryService = fileHistoryService;
+        _telemetryService = telemetryService;
+    }
     [Inject] private readonly IFileOperationService _fileOperationService;
     [Inject] private readonly IFileSystem _fs;
     [Inject] private readonly IFileHistoryService? _fileHistoryService;

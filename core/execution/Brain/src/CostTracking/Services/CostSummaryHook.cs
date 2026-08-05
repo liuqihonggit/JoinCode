@@ -9,6 +9,13 @@ public interface ICostSummaryHook
 [Register]
 public sealed partial class CostSummaryHook : ServiceEntity, ICostSummaryHook
 {
+
+    public CostSummaryHook(CostTracker costTracker, ILogger<CostSummaryHook>? logger = null, ITelemetryService? telemetryService = null)
+    {
+        _costTracker = costTracker;
+        _logger = logger;
+        _telemetryService = telemetryService;
+    }
     [Inject] private readonly CostTracker _costTracker;
     [Inject] private readonly ILogger<CostSummaryHook>? _logger;
     [Inject] private readonly ITelemetryService? _telemetryService;

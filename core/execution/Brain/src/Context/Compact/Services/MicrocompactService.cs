@@ -10,6 +10,11 @@ namespace Core.Context.Compact;
 /// </summary>
 [Register]
 public sealed partial class MicrocompactService : ServiceEntity, IMicrocompactService {
+
+    public MicrocompactService(IClockService clock)
+    {
+        _clock = clock;
+    }
     [Inject] private readonly IClockService _clock;
 
     /// <summary>粗略估算：每4字节≈1个token（英文为主时约4字符/token）</summary>

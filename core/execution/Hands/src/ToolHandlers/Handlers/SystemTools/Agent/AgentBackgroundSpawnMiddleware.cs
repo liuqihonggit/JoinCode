@@ -7,6 +7,12 @@ namespace Tools.Handlers;
 [Register]
 public sealed partial class AgentBackgroundSpawnMiddleware : ServiceEntity, IAgentToolMiddleware
 {
+
+    public AgentBackgroundSpawnMiddleware(IAgentService agentService, ITelemetryService? telemetryService = null)
+    {
+        _agentService = agentService;
+        _telemetryService = telemetryService;
+    }
     [Inject] private readonly IAgentService _agentService;
     [Inject] private readonly ITelemetryService? _telemetryService;
 

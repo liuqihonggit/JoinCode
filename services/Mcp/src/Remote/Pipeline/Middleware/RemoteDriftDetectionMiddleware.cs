@@ -8,6 +8,11 @@ using JoinCode.Abstractions.Pipeline;
 [Register(typeof(IRemoteSyncMiddleware))]
 public sealed partial class RemoteDriftDetectionMiddleware : ServiceEntity, IRemoteSyncMiddleware
 {
+
+    public RemoteDriftDetectionMiddleware(ILogger<RemoteDriftDetectionMiddleware> logger)
+    {
+        _logger = logger;
+    }
     [Inject] private readonly ILogger<RemoteDriftDetectionMiddleware> _logger;
 
 

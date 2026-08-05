@@ -8,6 +8,15 @@ namespace Core.Prompts.Services;
 [Register]
 public sealed partial class ToolListingService : ServiceEntity
 {
+
+    public ToolListingService(ISystemReminderManager reminderManager, IAgentDefinitionProvider? agentProvider = null, JoinCode.Abstractions.Interfaces.IAgentRoleRegistry? roleRegistry = null, ISkillService? skillService = null, ILogger<ToolListingService>? logger = null)
+    {
+        _reminderManager = reminderManager;
+        _agentProvider = agentProvider;
+        _roleRegistry = roleRegistry;
+        _skillService = skillService;
+        _logger = logger;
+    }
     [Inject] private readonly ISystemReminderManager _reminderManager;
     [Inject] private readonly IAgentDefinitionProvider? _agentProvider;
     [Inject] private readonly JoinCode.Abstractions.Interfaces.IAgentRoleRegistry? _roleRegistry;

@@ -8,6 +8,13 @@ namespace Core.Context;
 [Register(typeof(IPreparePreprocessMiddleware))]
 public sealed partial class LspDiagnosticMiddleware : ServiceEntity, IPreparePreprocessMiddleware
 {
+
+    public LspDiagnosticMiddleware(ISystemReminderManager reminderManager, IChatContextManager contextManager, JoinCode.Abstractions.Interfaces.Lsp.ILspDiagnosticProvider? lspDiagnosticProvider = null)
+    {
+        _reminderManager = reminderManager;
+        _contextManager = contextManager;
+        _lspDiagnosticProvider = lspDiagnosticProvider;
+    }
     [Inject] private readonly JoinCode.Abstractions.Interfaces.Lsp.ILspDiagnosticProvider? _lspDiagnosticProvider;
     [Inject] private readonly ISystemReminderManager _reminderManager;
     [Inject] private readonly IChatContextManager _contextManager;

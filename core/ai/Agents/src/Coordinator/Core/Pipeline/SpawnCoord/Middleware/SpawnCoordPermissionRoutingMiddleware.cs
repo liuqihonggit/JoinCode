@@ -3,6 +3,15 @@ namespace Core.Agents.Coordinator;
 [Register(typeof(IAgentSpawnCoordMiddleware))]
 public sealed partial class SpawnCoordPermissionRoutingMiddleware : ServiceEntity, IAgentSpawnCoordMiddleware
 {
+
+    public SpawnCoordPermissionRoutingMiddleware(IAgentMessageBroker messageBroker, ISubAgentContextAccessor subAgentContextAccessor, ILogger<SpawnCoordPermissionRoutingMiddleware> logger, SwarmPermissionMessageRouter? permissionRouter = null, PlanApprovalMessageRouter? planApprovalRouter = null)
+    {
+        _messageBroker = messageBroker;
+        _subAgentContextAccessor = subAgentContextAccessor;
+        _logger = logger;
+        _permissionRouter = permissionRouter;
+        _planApprovalRouter = planApprovalRouter;
+    }
     [Inject] private readonly IAgentMessageBroker _messageBroker;
     [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
     [Inject] private readonly ILogger<SpawnCoordPermissionRoutingMiddleware> _logger;

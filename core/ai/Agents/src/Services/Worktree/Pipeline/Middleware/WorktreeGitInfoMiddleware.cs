@@ -7,6 +7,12 @@ namespace Core.Agents.Worktree;
 [Register(typeof(IWorktreeCreateMiddleware))]
 public sealed partial class WorktreeGitInfoMiddleware : ServiceEntity, IWorktreeCreateMiddleware
 {
+
+    public WorktreeGitInfoMiddleware(Lazy<IWorktreePipelineOperations> worktreeService, ILogger<WorktreeGitInfoMiddleware>? logger = null)
+    {
+        _worktreeService = worktreeService;
+        _logger = logger;
+    }
     [Inject] private readonly Lazy<IWorktreePipelineOperations> _worktreeService;
     [Inject] private readonly ILogger<WorktreeGitInfoMiddleware>? _logger;
 

@@ -5,6 +5,12 @@ using JoinCode.Abstractions.Pipeline;
 [Register(typeof(ITeammateExecutionMiddleware))]
 public sealed partial class TeammatePlanModeMiddleware : ServiceEntity, ITeammateExecutionMiddleware
 {
+
+    public TeammatePlanModeMiddleware(IPlanModeManager? planModeManager = null, ILogger<TeammatePlanModeMiddleware>? logger = null)
+    {
+        _planModeManager = planModeManager;
+        _logger = logger;
+    }
     [Inject] private readonly IPlanModeManager? _planModeManager;
     [Inject] private readonly ILogger<TeammatePlanModeMiddleware>? _logger;
 

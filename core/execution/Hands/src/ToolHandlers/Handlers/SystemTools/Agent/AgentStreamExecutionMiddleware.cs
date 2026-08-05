@@ -7,6 +7,13 @@ namespace Tools.Handlers;
 [Register]
 public sealed partial class AgentStreamExecutionMiddleware : ServiceEntity, IAgentToolMiddleware
 {
+
+    public AgentStreamExecutionMiddleware(IAgentService agentService, ILogger<AgentStreamExecutionMiddleware>? logger = null, ITelemetryService? telemetryService = null)
+    {
+        _agentService = agentService;
+        _logger = logger;
+        _telemetryService = telemetryService;
+    }
     [Inject] private readonly IAgentService _agentService;
     [Inject] private readonly ILogger<AgentStreamExecutionMiddleware>? _logger;
     [Inject] private readonly ITelemetryService? _telemetryService;

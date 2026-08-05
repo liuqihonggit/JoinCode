@@ -7,6 +7,11 @@ namespace Core.Scheduling;
 [Register]
 public sealed partial class TaskFileWriter : ServiceEntity, ITaskFileWriter
 {
+
+    public TaskFileWriter(IFileOperationService fileOperationService)
+    {
+        _fileOperationService = fileOperationService;
+    }
     [Inject] private readonly IFileOperationService _fileOperationService;
 
     /// <summary>

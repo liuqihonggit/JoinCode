@@ -8,6 +8,11 @@ namespace Core.Context.Compact;
 [Register(typeof(ICompactMiddleware))]
 public sealed partial class MicrocompactMiddleware : ServiceEntity, ICompactMiddleware
 {
+
+    public MicrocompactMiddleware(IMicrocompactService microcompactService)
+    {
+        _microcompactService = microcompactService;
+    }
     [Inject] private readonly IMicrocompactService _microcompactService;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;

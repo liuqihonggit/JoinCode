@@ -5,6 +5,11 @@ using JoinCode.Abstractions.Pipeline;
 [Register(typeof(IHandleWorkMiddleware))]
 public sealed partial class WorkCapacityCheckMiddleware : ServiceEntity, IHandleWorkMiddleware
 {
+
+    public WorkCapacityCheckMiddleware(ILogger<WorkCapacityCheckMiddleware>? logger = null)
+    {
+        _logger = logger;
+    }
     [Inject] private readonly ILogger<WorkCapacityCheckMiddleware>? _logger;
 
 

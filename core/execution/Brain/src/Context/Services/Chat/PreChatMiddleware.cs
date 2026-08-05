@@ -10,6 +10,15 @@ namespace Core.Context;
 [Register]
 public sealed partial class PreChatMiddleware : ServiceEntity, IChatMiddleware
 {
+
+    public PreChatMiddleware(IChatContextManager contextManager, IChatPreprocessor preprocessor, IChatFileContextService fileContextService, IChatOptionsFactory optionsFactory, ILogger<PreChatMiddleware>? logger = null)
+    {
+        _contextManager = contextManager;
+        _preprocessor = preprocessor;
+        _fileContextService = fileContextService;
+        _optionsFactory = optionsFactory;
+        _logger = logger;
+    }
     [Inject] private readonly IChatContextManager _contextManager;
     [Inject] private readonly IChatPreprocessor _preprocessor;
     [Inject] private readonly IChatFileContextService _fileContextService;

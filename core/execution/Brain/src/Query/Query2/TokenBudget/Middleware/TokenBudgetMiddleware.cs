@@ -8,6 +8,11 @@ namespace Core.Query;
 [Register(typeof(IQueryMiddleware))]
 public sealed partial class TokenBudgetMiddleware : ServiceEntity, IQueryMiddleware
 {
+
+    public TokenBudgetMiddleware(ITokenBudgetManager? tokenBudgetManager = null)
+    {
+        _tokenBudgetManager = tokenBudgetManager;
+    }
     [Inject] private readonly ITokenBudgetManager? _tokenBudgetManager;
 
 

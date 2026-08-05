@@ -6,6 +6,13 @@ namespace Core.Agents;
 [Register]
 public sealed partial class ContextSetupMiddleware : ServiceEntity, IAgentSpawnMiddleware
 {
+
+    public ContextSetupMiddleware(IAgentLifecycleManager lifecycleManager, ISubAgentContextAccessor subAgentContextAccessor, JoinCode.Abstractions.Interfaces.IFileStateCache? fileStateCache = null)
+    {
+        _lifecycleManager = lifecycleManager;
+        _subAgentContextAccessor = subAgentContextAccessor;
+        _fileStateCache = fileStateCache;
+    }
     [Inject] private readonly IAgentLifecycleManager _lifecycleManager;
     [Inject] private readonly JoinCode.Abstractions.Interfaces.IFileStateCache? _fileStateCache;
     [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;

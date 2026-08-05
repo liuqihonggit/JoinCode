@@ -7,6 +7,12 @@ namespace Tools.Shell;
 [Register]
 public sealed partial class ShellExecutionMiddleware : ServiceEntity, IShellMiddleware
 {
+
+    public ShellExecutionMiddleware(ISystemActuatorRegistry registry, IForegroundTaskRegistry? foregroundTaskRegistry = null)
+    {
+        _registry = registry;
+        _foregroundTaskRegistry = foregroundTaskRegistry;
+    }
     [Inject] private readonly ISystemActuatorRegistry _registry;
     [Inject] private readonly IForegroundTaskRegistry? _foregroundTaskRegistry;
 

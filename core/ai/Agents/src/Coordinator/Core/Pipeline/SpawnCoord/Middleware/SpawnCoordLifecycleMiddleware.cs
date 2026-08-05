@@ -3,6 +3,12 @@ namespace Core.Agents.Coordinator;
 [Register(typeof(IAgentSpawnCoordMiddleware))]
 public sealed partial class SpawnCoordLifecycleMiddleware : ServiceEntity, IAgentSpawnCoordMiddleware
 {
+
+    public SpawnCoordLifecycleMiddleware(IAgentLifecycleManager lifecycleManager, ILogger<SpawnCoordLifecycleMiddleware> logger)
+    {
+        _lifecycleManager = lifecycleManager;
+        _logger = logger;
+    }
     [Inject] private readonly IAgentLifecycleManager _lifecycleManager;
     [Inject] private readonly ILogger<SpawnCoordLifecycleMiddleware> _logger;
 

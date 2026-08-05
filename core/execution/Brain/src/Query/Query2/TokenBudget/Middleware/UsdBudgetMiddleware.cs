@@ -8,6 +8,11 @@ namespace Core.Query;
 [Register(typeof(IQueryMiddleware))]
 public sealed partial class UsdBudgetMiddleware : ServiceEntity, IQueryMiddleware
 {
+
+    public UsdBudgetMiddleware(IUsdBudgetManager? usdBudgetManager = null)
+    {
+        _usdBudgetManager = usdBudgetManager;
+    }
     [Inject] private readonly IUsdBudgetManager? _usdBudgetManager;
 
 

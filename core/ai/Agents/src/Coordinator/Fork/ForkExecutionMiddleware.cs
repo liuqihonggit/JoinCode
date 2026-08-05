@@ -7,6 +7,14 @@ namespace Core.Agents.Coordinator;
 [Register(typeof(IForkMiddleware))]
 public sealed partial class ForkExecutionMiddleware : ServiceEntity, IForkMiddleware
 {
+
+    public ForkExecutionMiddleware(IAgentLifecycleManager lifecycleManager, ITelemetryService? telemetryService = null, IAgentWorktreeManager? worktreeManager = null, ILogger<ForkExecutionMiddleware>? logger = null)
+    {
+        _lifecycleManager = lifecycleManager;
+        _telemetryService = telemetryService;
+        _worktreeManager = worktreeManager;
+        _logger = logger;
+    }
     [Inject] private readonly IAgentLifecycleManager _lifecycleManager;
     [Inject] private readonly ITelemetryService? _telemetryService;
     [Inject] private readonly IAgentWorktreeManager? _worktreeManager;

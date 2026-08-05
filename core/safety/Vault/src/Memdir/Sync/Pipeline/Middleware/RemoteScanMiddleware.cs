@@ -8,6 +8,11 @@ using JoinCode.Abstractions.Pipeline;
 [Register(typeof(ISyncStartMiddleware))]
 public sealed partial class RemoteScanMiddleware : ServiceEntity, ISyncStartMiddleware
 {
+
+    public RemoteScanMiddleware(ILogger<RemoteScanMiddleware>? logger = null)
+    {
+        _logger = logger;
+    }
     [Inject] private readonly ILogger<RemoteScanMiddleware>? _logger;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;

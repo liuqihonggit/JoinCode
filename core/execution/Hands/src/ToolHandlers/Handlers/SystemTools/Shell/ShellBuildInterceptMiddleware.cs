@@ -8,6 +8,13 @@ namespace Tools.Shell;
 [Register]
 public sealed partial class ShellBuildInterceptMiddleware : ServiceEntity, IShellMiddleware
 {
+
+    public ShellBuildInterceptMiddleware(IBuildQueueService buildQueueService, ISubAgentContextAccessor subAgentContextAccessor, IClockService clock)
+    {
+        _buildQueueService = buildQueueService;
+        _subAgentContextAccessor = subAgentContextAccessor;
+        _clock = clock;
+    }
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(30);
 
     [Inject] private readonly IBuildQueueService _buildQueueService;

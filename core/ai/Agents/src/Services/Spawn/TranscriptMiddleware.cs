@@ -6,6 +6,13 @@ namespace Core.Agents;
 [Register]
 public sealed partial class TranscriptMiddleware : ServiceEntity, IAgentSpawnMiddleware
 {
+
+    public TranscriptMiddleware(IClockService clock, JoinCode.Abstractions.Interfaces.IAgentTranscriptService? transcriptService = null, ILogger<TranscriptMiddleware>? logger = null)
+    {
+        _clock = clock;
+        _transcriptService = transcriptService;
+        _logger = logger;
+    }
     [Inject] private readonly JoinCode.Abstractions.Interfaces.IAgentTranscriptService? _transcriptService;
     [Inject] private readonly ILogger<TranscriptMiddleware>? _logger;
     [Inject] private readonly IClockService _clock;

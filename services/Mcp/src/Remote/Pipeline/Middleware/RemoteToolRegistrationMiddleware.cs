@@ -8,6 +8,12 @@ using JoinCode.Abstractions.Pipeline;
 [Register(typeof(IRemoteSyncMiddleware))]
 public sealed partial class RemoteToolRegistrationMiddleware : ServiceEntity, IRemoteSyncMiddleware
 {
+
+    public RemoteToolRegistrationMiddleware(IToolRegistry toolRegistry, ILogger<RemoteToolRegistrationMiddleware> logger)
+    {
+        _toolRegistry = toolRegistry;
+        _logger = logger;
+    }
     [Inject] private readonly IToolRegistry _toolRegistry;
     [Inject] private readonly ILogger<RemoteToolRegistrationMiddleware> _logger;
 

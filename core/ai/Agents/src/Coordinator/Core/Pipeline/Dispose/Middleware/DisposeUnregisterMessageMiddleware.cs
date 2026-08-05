@@ -3,6 +3,12 @@ namespace Core.Agents.Coordinator;
 [Register(typeof(IAgentDisposeMiddleware))]
 public sealed partial class DisposeUnregisterMessageMiddleware : ServiceEntity, IAgentDisposeMiddleware
 {
+
+    public DisposeUnregisterMessageMiddleware(IAgentMessageBroker messageBroker, ILogger<DisposeUnregisterMessageMiddleware> logger)
+    {
+        _messageBroker = messageBroker;
+        _logger = logger;
+    }
     [Inject] private readonly IAgentMessageBroker _messageBroker;
     [Inject] private readonly ILogger<DisposeUnregisterMessageMiddleware> _logger;
 

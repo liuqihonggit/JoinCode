@@ -6,6 +6,12 @@ namespace Core.Agents.Coordinator;
 [Register(typeof(IForkMiddleware))]
 public sealed partial class ForkPermissionMiddleware : ServiceEntity, IForkMiddleware
 {
+
+    public ForkPermissionMiddleware(ISwarmPermissionBridge? permissionBridge = null, ILogger<ForkPermissionMiddleware>? logger = null)
+    {
+        _permissionBridge = permissionBridge;
+        _logger = logger;
+    }
     [Inject] private readonly ISwarmPermissionBridge? _permissionBridge;
     [Inject] private readonly ILogger<ForkPermissionMiddleware>? _logger;
 

@@ -8,6 +8,12 @@ namespace Services.UserInteraction;
 [Register]
 public sealed partial class UserInteractionService : ServiceEntity, IUserInteractionService
 {
+
+    public UserInteractionService(ILogger<UserInteractionService>? logger = null, ITelemetryService? telemetryService = null)
+    {
+        _logger = logger;
+        _telemetryService = telemetryService;
+    }
     [Inject] private readonly ILogger<UserInteractionService>? _logger;
     [Inject] private readonly ITelemetryService? _telemetryService;
 

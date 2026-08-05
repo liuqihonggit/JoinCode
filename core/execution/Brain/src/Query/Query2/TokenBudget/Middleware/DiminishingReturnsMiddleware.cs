@@ -8,6 +8,11 @@ namespace Core.Query;
 [Register(typeof(IQueryMiddleware))]
 public sealed partial class DiminishingReturnsMiddleware : ServiceEntity, IQueryMiddleware
 {
+
+    public DiminishingReturnsMiddleware(IDiminishingReturnsDetector? detector = null)
+    {
+        _detector = detector;
+    }
     [Inject] private readonly IDiminishingReturnsDetector? _detector;
 
 

@@ -133,6 +133,7 @@ public sealed partial class DecomposabilityAnalyzer : ServiceEntity, IDecomposab
               1. It is a single focused change in one file/module
               2. Subtasks would heavily share the same files (high conflict risk)
               3. The objective is too small to benefit from parallelization
+<<<<<<< HEAD
 
             COMPLEXITY LEVELS:
             - "low": 1-5 subtasks, simple independent changes
@@ -158,6 +159,23 @@ public sealed partial class DecomposabilityAnalyzer : ServiceEntity, IDecomposab
             - Ensure the declared complexity is consistent with the actual number of subtasks.
             - For mode "A": first subtask should have no dependencies (serial start), last subtask should depend on all others (review end).
             - For mode "B": first subtask should have no dependencies (parallel start), remaining subtasks should have empty or minimal dependsOn.
+=======
+            - Assess the complexity level of the objective:
+              - "low": 1-5 subtasks, simple independent changes
+              - "medium": 6-20 subtasks, moderate dependencies and coordination
+              - "high": more than 20 subtasks, complex orchestration (rarely decomposable within limits)
+            - For each subtask, specify:
+              - id: short identifier (e.g., "sub_1", "sub_2")
+              - title: concise name
+              - description: what to implement/fix
+              - dependsOn: list of subtask IDs this depends on (empty if independent)
+              - ownedFiles: list of files this subtask will primarily modify
+              - priority: "high", "medium", or "low"
+              - variant: "code" for implementation, "explore" for analysis/research
+            - Ensure ownedFiles overlap between subtasks is MINIMAL to avoid merge conflicts.
+            - Ensure dependsOn forms a valid DAG (no cycles).
+            - Ensure the declared complexity is consistent with the actual number of subtasks.
+>>>>>>> f3ccf043b (feat: P1-1 复杂度档次机制 | 决策: ComplexityLevel枚举(low/medium/high)+[EnumValue],ValidateComplexityConsistency按子任务数校验档次一致性,边界互斥告警含complexity_mismatch标识)
 
             RESPONSE FORMAT:
             Output a JSON block wrapped in ```json and ```:
@@ -166,8 +184,11 @@ public sealed partial class DecomposabilityAnalyzer : ServiceEntity, IDecomposab
               "isDecomposable": true/false,
               "reason": "brief explanation",
               "complexity": "low" | "medium" | "high",
+<<<<<<< HEAD
               "mode": "A" | "B",
               "rationale": "why this mode and complexity were chosen",
+=======
+>>>>>>> f3ccf043b (feat: P1-1 复杂度档次机制 | 决策: ComplexityLevel枚举(low/medium/high)+[EnumValue],ValidateComplexityConsistency按子任务数校验档次一致性,边界互斥告警含complexity_mismatch标识)
               "subTasks": [
                 {
                   "id": "sub_1",

@@ -1,30 +1,32 @@
 namespace Core.Tests.Services;
 
 /// <summary>
-/// ShellExecutionService 测试 - 使用真实 Shell 执行
+/// SystemActuator 执行测试 - 使用真实 Shell 执行
 /// 标记为 Integration 测试，常规运行时不执行
 /// </summary>
 [Trait("Category", "Integration")]
 [Trait("Requires", "Shell")]
 public class ShellExecutionServiceTests
 {
-    private readonly ShellExecutionService _service;
+    private readonly ISystemActuator _bashActuator;
+    private readonly ISystemActuator _powershellActuator;
 
     public ShellExecutionServiceTests()
     {
-        var config = new ShellExecutionConfig();
         var fs = new IO.FileSystem.PhysicalFileSystem();
 
-        Core.DependencyInjection.ShellCapabilityInitializer.Initialize(fs);
+        Core.DependencyInjection.SystemActuatorInitializer.Initialize(fs);
 
-        _service = new ShellExecutionService(config, fs);
+        var registry = new SystemActuatorRegistry(fs);
+        _bashActuator = registry.Get(SystemActuatorKind.Bash);
+        _powershellActuator = registry.Get(SystemActuatorKind.PowerShell);
     }
 
     [Fact]
     public async Task ExecuteAsync_SimpleCommand_ReturnsOutput()
     {
         // Act
-        var result = await _service.ExecuteAsync("echo hello").ConfigureAwait(true);
+        var result = await _bashActuator.ExecuteAsync("echo hello").ConfigureAwait(true);
 
         // Assert
         Assert.True(result.Success);
@@ -38,7 +40,7 @@ public class ShellExecutionServiceTests
         var tempDir = Path.GetTempPath();
 
         // Act
-        var result = await _service.ExecuteAsync("cd", workingDirectory: tempDir).ConfigureAwait(true);
+        var result = await _bashActuator.ExecuteAsync("cd", workingDirectory: tempDir).ConfigureAwait(true);
 
         // Assert
         Assert.True(result.Success);
@@ -49,7 +51,7 @@ public class ShellExecutionServiceTests
     public async Task ExecuteAsync_InvalidCommand_ReturnsError()
     {
         // Act
-        var result = await _service.ExecuteAsync("nonexistentcommand12345").ConfigureAwait(true);
+        var result = await _bashActuator.ExecuteAsync("nonexistentcommand12345").ConfigureAwait(true);
 
         // Assert
         Assert.False(result.Success);
@@ -60,7 +62,7 @@ public class ShellExecutionServiceTests
     public async Task ExecuteAsync_EmptyCommand_ReturnsFailure()
     {
         // Act
-        var result = await _service.ExecuteAsync("").ConfigureAwait(true);
+        var result = await _bashActuator.ExecuteAsync("").ConfigureAwait(true);
 
         // Assert
         Assert.False(result.Success);
@@ -72,7 +74,7 @@ public class ShellExecutionServiceTests
     {
 
         // Act - 使用 ping 命令作为更可靠的超时测试
-        var result = await _service.ExecuteAsync("ping 127.0.0.1 -n 10", timeout: 100).ConfigureAwait(true);
+        var result = await _bashActuator.ExecuteAsync("ping 127.0.0.1 -n 10", timeout: 100).ConfigureAwait(true);
 
         // Assert - Windows 超时行为不一致，使用更宽松的断言
         // 要么被中断，要么成功完成（取决于系统负载）
@@ -95,7 +97,7 @@ public class ShellExecutionServiceTests
     public async Task ExecutePowerShellAsync_SimpleCommand_ReturnsOutput()
     {
         // Act
-        var result = await _service.ExecutePowerShellAsync("Write-Output 'hello from ps'").ConfigureAwait(true);
+        var result = await _powershellActuator.ExecuteAsync("Write-Output 'hello from ps'").ConfigureAwait(true);
 
         // Assert
         Assert.True(result.Success);
@@ -106,7 +108,7 @@ public class ShellExecutionServiceTests
     public async Task ExecutePowerShellAsync_ComplexCommand_ReturnsOutput()
     {
         // Act
-        var result = await _service.ExecutePowerShellAsync("Get-Date -Format 'yyyy-MM-dd'").ConfigureAwait(true);
+        var result = await _powershellActuator.ExecuteAsync("Get-Date -Format 'yyyy-MM-dd'").ConfigureAwait(true);
 
         // Assert
         Assert.True(result.Success);
@@ -121,7 +123,7 @@ public class ShellExecutionServiceTests
     public async Task ExecutePowerShellAsync_WithVariables_ReturnsOutput()
     {
         // Act
-        var result = await _service.ExecutePowerShellAsync("$name = 'test'; Write-Output $name").ConfigureAwait(true);
+        var result = await _powershellActuator.ExecuteAsync("$name = 'test'; Write-Output $name").ConfigureAwait(true);
 
         // Assert
         Assert.True(result.Success);
@@ -132,7 +134,7 @@ public class ShellExecutionServiceTests
     public async Task ExecutePowerShellAsync_InvalidCommand_ReturnsError()
     {
         // Act
-        var result = await _service.ExecutePowerShellAsync("NonExistent-Cmdlet").ConfigureAwait(true);
+        var result = await _powershellActuator.ExecuteAsync("NonExistent-Cmdlet").ConfigureAwait(true);
 
         // Assert
         Assert.False(result.Success);
@@ -142,7 +144,7 @@ public class ShellExecutionServiceTests
     public async Task ExecutePowerShellAsync_EmptyCommand_ReturnsFailure()
     {
         // Act
-        var result = await _service.ExecutePowerShellAsync("").ConfigureAwait(true);
+        var result = await _powershellActuator.ExecuteAsync("").ConfigureAwait(true);
 
         // Assert
         Assert.False(result.Success);
@@ -154,7 +156,7 @@ public class ShellExecutionServiceTests
     {
 
         // Act - 使用更长的睡眠时间来确保超时
-        var result = await _service.ExecutePowerShellAsync("Start-Sleep -Milliseconds 5000", timeout: 100).ConfigureAwait(true);
+        var result = await _powershellActuator.ExecuteAsync("Start-Sleep -Milliseconds 5000", timeout: 100).ConfigureAwait(true);
 
         // Assert - Windows 超时行为不一致，使用更宽松的断言
         // 要么被中断，要么成功完成（取决于系统负载）
@@ -177,7 +179,7 @@ public class ShellExecutionServiceTests
     public async Task ExecuteAsync_LongOutput_Truncated()
     {
         // Act - 生成超过 30KB 的输出（MaxOutputBytes 默认 30000）
-        var result = await _service.ExecuteAsync("powershell -Command \"Write-Output ('x' * 40000)\"").ConfigureAwait(true);
+        var result = await _bashActuator.ExecuteAsync("powershell -Command \"Write-Output ('x' * 40000)\"").ConfigureAwait(true);
 
         // Assert - TruncateOutput 返回 "[Output truncated — exceeded 30000 bytes]"
         Assert.True(result.Success);

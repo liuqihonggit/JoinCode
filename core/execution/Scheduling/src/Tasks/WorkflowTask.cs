@@ -307,7 +307,7 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
 
             if (result.State == StepState.Failed && step.OnFailure == WorkflowStepOnFailure.Retry)
             {
-var maxRetries = step.MaxRetries ?? 3;
+                var maxRetries = step.MaxRetries ?? 3;
                 for (var i = 0; i < maxRetries; i++)
                 {
                     ct.ThrowIfCancellationRequested();

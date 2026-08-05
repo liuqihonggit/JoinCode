@@ -138,6 +138,25 @@ public sealed class PluginHotReloaderTests
         }
     }
 
+    [Fact]
+    public async Task ReloadPluginAsync_ThrowingReloadingSubscriber_ShouldNotAbortOtherSubscribersOrReload()
+    {
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        _fileSystem.Setup(fs => fs.FileExists(It.IsAny<string>())).Returns(false);
+        _pluginManager.Setup(pm => pm.IsPluginLoaded(It.IsAny<string>())).Returns(false);
+
+        var secondCalled = false;
+        var reloadedCalled = false;
+        _reloader.PluginReloading += (_, _) => throw new InvalidOperationException("subscriber failure");
+        _reloader.PluginReloading += (_, _) => secondCalled = true;
+        _reloader.PluginReloaded += (_, _) => reloadedCalled = true;
+
+        var act = async () => await _reloader.ReloadPluginAsync("plugin-x", "/plugins/plugin-x.dll", ReloadReason.FileChanged).ConfigureAwait(true);
+        await act.Should().NotThrowAsync().ConfigureAwait(true);
+        secondCalled.Should().BeTrue();
+        reloadedCalled.Should().BeTrue();
+    }
+
     private static string CreateRealTempDir()
     {
         var path = Path.Combine(Path.GetTempPath(), $"plugin-test-{Guid.NewGuid():N}");

@@ -21,6 +21,7 @@
     <InternalsVisibleTo Include="JoinCode.Hands.Tests" />
     <InternalsVisibleTo Include="JoinCode.Hands" />
     <InternalsVisibleTo Include="JoinCode.Composition.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Guard.Config.Tests" />
     <InternalsVisibleTo Include="JoinCode.Integration.Tests" />
     <InternalsVisibleTo Include="JoinCode.Dream" />
     <InternalsVisibleTo Include="JoinCode.Dream.Tests" />

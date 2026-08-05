@@ -117,7 +117,7 @@ public sealed partial class PluginHotReloader : IPluginHotReloader
         _ = ReloadPluginAsync(Path.GetFileNameWithoutExtension(e.FullPath), e.FullPath, ReloadReason.FileDeleted);
     }
 
-    private async Task ReloadPluginAsync(string pluginName, string filePath, ReloadReason reason)
+    internal async Task ReloadPluginAsync(string pluginName, string filePath, ReloadReason reason)
     {
         using var guard = await AsyncLockGuard.AcquireAsync(_reloadLock).ConfigureAwait(false);
         var args = new PluginReloadEventArgs
@@ -127,7 +127,7 @@ public sealed partial class PluginHotReloader : IPluginHotReloader
             Reason = reason
         };
 
-        PluginReloading?.Invoke(this, args);
+        NotifyReloading(args);
 
         _logger?.LogInformation("[PluginHotReloader] 重载插件: {Plugin}, 原因: {Reason}", pluginName, reason);
 
@@ -148,9 +148,45 @@ public sealed partial class PluginHotReloader : IPluginHotReloader
             }
         }
 
-        PluginReloaded?.Invoke(this, args);
+        NotifyReloaded(args);
 
         _telemetryService?.RecordCount("plugin.hotreload.count", new Dictionary<string, string> { ["reason"] = reason.ToString(), ["success"] = true.ToString() }, "count", "Plugin hot reload count");
+    }
+
+    /// <summary>
+    /// 触发 PluginReloading 事件 — 逐订阅者隔离异常，单个订阅者失败不中断重载链
+    /// </summary>
+    private void NotifyReloading(PluginReloadEventArgs args)
+    {
+        RaiseEventIsolated(PluginReloading, "PluginReloading", args);
+    }
+
+    /// <summary>
+    /// 触发 PluginReloaded 事件 — 逐订阅者隔离异常，单个订阅者失败不影响其他订阅者
+    /// </summary>
+    private void NotifyReloaded(PluginReloadEventArgs args)
+    {
+        RaiseEventIsolated(PluginReloaded, "PluginReloaded", args);
+    }
+
+    /// <summary>
+    /// 快照订阅者并逐个调用，隔离每个订阅者的异常（对齐 ThreadSafeListenerList.Notify 约定）
+    /// </summary>
+    private void RaiseEventIsolated(EventHandler<PluginReloadEventArgs>? handler, string eventName, PluginReloadEventArgs args)
+    {
+        if (handler is null) return;
+
+        foreach (EventHandler<PluginReloadEventArgs> subscriber in handler.GetInvocationList())
+        {
+            try
+            {
+                subscriber(this, args);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "[PluginHotReloader] {EventName} 订阅者抛异常，已隔离: {Plugin}", eventName, args.PluginName);
+            }
+        }
     }
 
     public async ValueTask DisposeAsync()

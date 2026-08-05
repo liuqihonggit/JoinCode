@@ -65,7 +65,7 @@ public sealed class GoalEngineTests
     {
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         linkedCts.CancelAfter(GateTimeout);
-        await gate.WaitAsync(linkedCts.Token);
+await gate.WaitAsync(linkedCts.Token);
 
         yield return new AgentStreamChunk
         {
@@ -176,7 +176,7 @@ public sealed class GoalEngineTests
     [Fact]
     public async Task StartAsync_WhenAlreadyRunning_Should_Throw()
     {
-        using var gate = new SemaphoreSlim(0, 1);
+using var gate = new SemaphoreSlim(0, 1);
         var (kernel, evaluator, serviceProvider) = CreateBlockingMocks(gate);
 
         var engine = new GoalEngine(kernel.Object, evaluator.Object, heartbeat: CreateHeartbeatMock().Object, serviceProvider: serviceProvider.Object);
@@ -190,7 +190,10 @@ public sealed class GoalEngineTests
         }
         finally
         {
+<<<<<<< HEAD
             try { gate.Release(); } catch (SemaphoreFullException ex) { _ = ex; }
+=======
+>>>>>>> 8227c69f2 (fix: 修复CI三类失败 - AOT序列化/GoalEngine serviceProvider/GoalGraph引擎适配 | 决策: HookMiddlewares补JsonTypeInfo,JsonNode.ToJsonString用#pragma抑制JCC1012误报,GoalGraphEngine去掉Role!=default前置条件,测试适配Graph引擎架构)
             await SafeDisposeAsync(engine).ConfigureAwait(true);
         }
     }
@@ -244,7 +247,11 @@ public sealed class GoalEngineTests
         }
         finally
         {
+<<<<<<< HEAD
             try { gate.Release(); } catch (SemaphoreFullException ex) { _ = ex; }
+=======
+            try { gate.Release(); } catch (SemaphoreFullException) { }
+>>>>>>> 8227c69f2 (fix: 修复CI三类失败 - AOT序列化/GoalEngine serviceProvider/GoalGraph引擎适配 | 决策: HookMiddlewares补JsonTypeInfo,JsonNode.ToJsonString用#pragma抑制JCC1012误报,GoalGraphEngine去掉Role!=default前置条件,测试适配Graph引擎架构)
             await SafeDisposeAsync(engine).ConfigureAwait(true);
         }
     }
@@ -367,7 +374,11 @@ public sealed class GoalEngineTests
         }
         finally
         {
+<<<<<<< HEAD
             try { gate.Release(); } catch (SemaphoreFullException ex) { _ = ex; }
+=======
+            try { gate.Release(); } catch (SemaphoreFullException) { }
+>>>>>>> 8227c69f2 (fix: 修复CI三类失败 - AOT序列化/GoalEngine serviceProvider/GoalGraph引擎适配 | 决策: HookMiddlewares补JsonTypeInfo,JsonNode.ToJsonString用#pragma抑制JCC1012误报,GoalGraphEngine去掉Role!=default前置条件,测试适配Graph引擎架构)
             await SafeDisposeAsync(engine).ConfigureAwait(true);
         }
     }

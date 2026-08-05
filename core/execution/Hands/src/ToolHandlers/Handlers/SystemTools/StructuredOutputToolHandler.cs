@@ -15,7 +15,7 @@ public sealed class StructuredOutputToolHandler
     /// </summary>
     private readonly ConcurrentDictionary<string, SchemaValidationResult> _validationCache = new();
 
-    private static readonly JsonWriterOptions s_indentedWriterOptions = new() { Indented = true };
+private static readonly JsonWriterOptions s_indentedWriterOptions = new() { Indented = true };
 
     public StructuredOutputToolHandler(SimpleJsonSchemaValidator validator)
     {

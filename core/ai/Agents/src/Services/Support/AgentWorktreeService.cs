@@ -438,7 +438,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
                 ["usedSparsePaths"] = session.SparsePaths?.Count > 0
             };
 
-            var updatedJson = FormatJsonNode(root);
+var updatedJson = FormatJsonNode(root);
 
             var dir = Path.GetDirectoryName(localSettingsPath);
             if (!string.IsNullOrEmpty(dir) && !_fileOperationService.DirectoryExists(dir))

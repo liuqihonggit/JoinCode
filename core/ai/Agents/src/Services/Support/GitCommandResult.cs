@@ -1,12 +1,2 @@
-namespace Core.Agents;
-
-/// <summary>
-/// Git 命令执行结果
-/// </summary>
-public sealed class GitCommandResult
-{
-    public required bool Success { get; init; }
-    public string Output { get; init; } = string.Empty;
-    public string Error { get; init; } = string.Empty;
-    public int ExitCode { get; init; }
-}
+// GitCommandResult 已迁移到 JoinCode.Abstractions.Interfaces.IGitCommandRunner.cs
+// 此文件保留以避免破坏引用路径；类型通过 GlobalUsings (JoinCode.Abstractions.Interfaces) 可见

@@ -75,6 +75,13 @@ public class BootstrapWorktreeManagerTests
     {
         executedCommands = [];
         var fs = new InMemoryFileSystem();
-        return new BootstrapWorktreeManager(fs);
+        var gitRunner = new StubGitCommandRunner();
+        return new BootstrapWorktreeManager(fs, gitRunner);
+    }
+
+    private sealed class StubGitCommandRunner : IGitCommandRunner
+    {
+        public Task<GitCommandResult> ExecuteAsync(string arguments, string? workingDirectory = null, CancellationToken ct = default)
+            => Task.FromResult(new GitCommandResult { Success = true, Output = string.Empty, Error = string.Empty, ExitCode = 0 });
     }
 }

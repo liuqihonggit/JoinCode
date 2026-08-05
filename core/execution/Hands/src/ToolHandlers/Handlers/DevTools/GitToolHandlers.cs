@@ -7,24 +7,24 @@ namespace Tools.Handlers;
 public partial class GitToolHandlers
 {
     [Inject] private readonly ILogger<GitToolHandlers>? _logger;
-    [Inject] private readonly IProcessService _processService;
+    [Inject] private readonly IGitCommandRunner _gitRunner;
     private readonly IGitSecurityInterceptor? _securityInterceptor;
     private readonly ITelemetryService? _telemetryService;
     private readonly IFileSystem _fs;
     private string? _currentWorkingDirectory;
 
-    public GitToolHandlers(IFileSystem fs, IProcessService processService, ILogger<GitToolHandlers>? logger = null, ITelemetryService? telemetryService = null)
+    public GitToolHandlers(IFileSystem fs, IGitCommandRunner gitRunner, ILogger<GitToolHandlers>? logger = null, ITelemetryService? telemetryService = null)
     {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
-        _processService = processService ?? throw new ArgumentNullException(nameof(processService));
+        _gitRunner = gitRunner ?? throw new ArgumentNullException(nameof(gitRunner));
         _logger = logger;
         _telemetryService = telemetryService;
     }
 
-    public GitToolHandlers(IFileSystem fs, IProcessService processService, IGitSecurityInterceptor securityInterceptor, ILogger<GitToolHandlers>? logger = null, ITelemetryService? telemetryService = null)
+    public GitToolHandlers(IFileSystem fs, IGitCommandRunner gitRunner, IGitSecurityInterceptor securityInterceptor, ILogger<GitToolHandlers>? logger = null, ITelemetryService? telemetryService = null)
     {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
-        _processService = processService ?? throw new ArgumentNullException(nameof(processService));
+        _gitRunner = gitRunner ?? throw new ArgumentNullException(nameof(gitRunner));
         _securityInterceptor = securityInterceptor;
         _logger = logger;
         _telemetryService = telemetryService;
@@ -394,51 +394,24 @@ public partial class GitToolHandlers
             .Build();
     }
 
-    private async Task<GitResult> ExecuteGitCommandAsync(GitSubCommand subCommand, string arguments, string? workingDirectory, CancellationToken cancellationToken)
+    private async Task<GitCommandResult> ExecuteGitCommandAsync(GitSubCommand subCommand, string arguments, string? workingDirectory, CancellationToken cancellationToken)
     {
         var cwd = workingDirectory ?? _currentWorkingDirectory ?? _fs.GetCurrentDirectory();
 
-        try
+        var result = await _gitRunner.ExecuteAsync(arguments, cwd, cancellationToken).ConfigureAwait(false);
+        RecordGitMetrics(subCommand.ToValue(), result.Success);
+
+        if (!result.Success)
         {
-            var options = new ProcessOptions
-            {
-                FileName = "git",
-                Arguments = arguments,
-                WorkingDirectory = cwd,
-                StandardOutputEncoding = System.Text.Encoding.UTF8,
-                StandardErrorEncoding = System.Text.Encoding.UTF8
-            };
-
-            var result = await _processService.ExecuteAsync(options, cancellationToken).ConfigureAwait(false);
-
-            RecordGitMetrics(subCommand.ToValue(), result.Success);
-            return new GitResult
-            {
-                Success = result.Success,
-                Output = result.StandardOutput.Trim(),
-                Error = result.StandardError.Trim(),
-                ExitCode = result.ExitCode
-            };
+            _logger?.LogError("执行 Git 命令失败: git {Arguments}, Error: {Error}", arguments, result.Error);
         }
-        catch (Exception ex)
+
+        return new GitCommandResult
         {
-            _logger?.LogError(ex, "执行 Git 命令失败: {Arguments}", arguments);
-            RecordGitMetrics(subCommand.ToValue(), false);
-            return new GitResult
-            {
-                Success = false,
-                Output = string.Empty,
-                Error = ex.Message,
-                ExitCode = -1
-            };
-        }
-    }
-
-    private sealed record GitResult
-    {
-        public required bool Success { get; init; }
-        public required string Output { get; init; }
-        public required string Error { get; init; }
-        public required int ExitCode { get; init; }
+            Success = result.Success,
+            Output = result.Output.Trim(),
+            Error = result.Error.Trim(),
+            ExitCode = result.ExitCode
+        };
     }
 }

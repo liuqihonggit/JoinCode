@@ -5,7 +5,7 @@ namespace Core.Security.Services;
 public sealed partial class GitDiffProvider : IGitDiffProvider
 {
     [Inject] private readonly ILogger<GitDiffProvider> _logger;
-    [Inject] private readonly IProcessService _processService;
+    [Inject] private readonly IGitCommandRunner _gitRunner;
 
     public async Task<IReadOnlyList<string>> GetStagedFileNamesAsync(string workingDirectory, CancellationToken ct = default)
     {
@@ -29,31 +29,14 @@ public sealed partial class GitDiffProvider : IGitDiffProvider
 
     private async Task<string> ExecuteGitCommandAsync(string arguments, string workingDirectory, CancellationToken ct)
     {
-        try
+        var result = await _gitRunner.ExecuteAsync(arguments, workingDirectory, ct).ConfigureAwait(false);
+
+        if (!result.Success)
         {
-            var options = new ProcessOptions
-            {
-                FileName = "git",
-                Arguments = arguments,
-                WorkingDirectory = workingDirectory,
-                StandardOutputEncoding = System.Text.Encoding.UTF8,
-                StandardErrorEncoding = System.Text.Encoding.UTF8
-            };
-
-            var result = await _processService.ExecuteAsync(options, ct).ConfigureAwait(false);
-
-            if (!result.Success)
-            {
-                _logger.LogWarning("Git 命令执行失败: git {Args}, ExitCode={ExitCode}", arguments, result.ExitCode);
-                return string.Empty;
-            }
-
-            return result.StandardOutput.Trim();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "执行 Git 命令异常: git {Args}", arguments);
+            _logger.LogWarning("Git 命令执行失败: git {Args}, ExitCode={ExitCode}", arguments, result.ExitCode);
             return string.Empty;
         }
+
+        return result.Output.Trim();
     }
 }

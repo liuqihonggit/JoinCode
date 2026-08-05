@@ -108,8 +108,8 @@ public class WorktreeAlignmentTests
     public async Task KeepWorktreeAsync_ShouldRemoveSessionButKeepDirectory()
     {
         var fs = new InMemoryFileOperationService();
-        var processService = new Mock<IProcessService>();
-        var service = new AgentWorktreeService(fs, processService.Object);
+        var gitRunner = new Mock<IGitCommandRunner>();
+        var service = new AgentWorktreeService(fs, gitRunner.Object);
 
         var session = new AgentWorktreeSession
         {

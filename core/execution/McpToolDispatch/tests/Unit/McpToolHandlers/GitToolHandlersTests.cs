@@ -88,7 +88,7 @@ public sealed class GitToolHandlersTests
 
     // === GitToolHandlers 参数验证测试 ===
 
-    private readonly GitToolHandlers _handler = new(new IO.FileSystem.PhysicalFileSystem(), new NoOpProcessService());
+    private readonly GitToolHandlers _handler = new(new IO.FileSystem.PhysicalFileSystem(), new StubGitCommandRunner());
 
     [Fact]
     public async Task GitToolHandlers_GitAdd_EmptyPath_ReturnsError()
@@ -168,5 +168,11 @@ public sealed class GitToolHandlersTests
 
         result.IsError.Should().BeTrue();
         result.GetTextContent().Should().Contain("cannot be empty");
+    }
+
+    private sealed class StubGitCommandRunner : IGitCommandRunner
+    {
+        public Task<GitCommandResult> ExecuteAsync(string arguments, string? workingDirectory = null, CancellationToken ct = default)
+            => Task.FromResult(new GitCommandResult { Success = true, Output = string.Empty, Error = string.Empty, ExitCode = 0 });
     }
 }

@@ -155,7 +155,7 @@ public class SourceCodeEngineTests
 
     private static SourceCodeEngine CreateEngine(IFileSystem fs)
     {
-        return new SourceCodeEngine(fs);
+        return new SourceCodeEngine(fs, new StubGitCommandRunner());
     }
 
     private sealed class EnvVarScope : IDisposable
@@ -174,5 +174,11 @@ public class SourceCodeEngineTests
         {
             Environment.SetEnvironmentVariable(_name, _oldValue);
         }
+    }
+
+    private sealed class StubGitCommandRunner : IGitCommandRunner
+    {
+        public Task<GitCommandResult> ExecuteAsync(string arguments, string? workingDirectory = null, CancellationToken ct = default)
+            => Task.FromResult(new GitCommandResult { Success = true, Output = string.Empty, Error = string.Empty, ExitCode = 0 });
     }
 }

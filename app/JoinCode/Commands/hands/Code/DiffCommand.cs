@@ -10,7 +10,7 @@ public sealed class DiffCommand : ChatCommandBase
     {
         try
         {
-            var processService = ChatCommandBase.GetService<IProcessService>(context)!;
+            var gitRunner = ChatCommandBase.GetService<IGitCommandRunner>(context)!;
             var subCommand = !string.IsNullOrWhiteSpace(context.Arguments)
                 ? ChatCommandBase.GetSplitArgs(context).FirstOrDefault()?.ToLowerInvariant() ?? "default"
                 : "default";
@@ -18,14 +18,14 @@ public sealed class DiffCommand : ChatCommandBase
             switch (subCommand)
             {
                 case DiffModeConstants.Files:
-                    await ShowChangedFilesAsync(context.CancellationToken, context.Services.FileSystem, processService).ConfigureAwait(false);
+                    await ShowChangedFilesAsync(context.CancellationToken, context.Services.FileSystem, gitRunner).ConfigureAwait(false);
                     break;
                 case DiffModeConstants.Cached:
                 case DiffModeConstants.Staged:
-                    await ShowStagedDiffAsync(context.CancellationToken, context.Services.FileSystem, processService).ConfigureAwait(false);
+                    await ShowStagedDiffAsync(context.CancellationToken, context.Services.FileSystem, gitRunner).ConfigureAwait(false);
                     break;
                 default:
-                    await ShowInteractiveDiffAsync(context.Services.TurnDiffProvider, context.CancellationToken, context.Services.FileSystem, processService).ConfigureAwait(false);
+                    await ShowInteractiveDiffAsync(context.Services.TurnDiffProvider, context.CancellationToken, context.Services.FileSystem, gitRunner).ConfigureAwait(false);
                     break;
             }
         }
@@ -40,9 +40,9 @@ public sealed class DiffCommand : ChatCommandBase
     /// <summary>
     /// 交互式 diff 浏览器 — 对齐 TS DiffDialog 主流程
     /// </summary>
-    private static async Task ShowInteractiveDiffAsync(ITurnDiffProvider? turnDiffProvider, CancellationToken cancellationToken, IFileSystem fs, IProcessService processService)
+    private static async Task ShowInteractiveDiffAsync(ITurnDiffProvider? turnDiffProvider, CancellationToken cancellationToken, IFileSystem fs, IGitCommandRunner gitRunner)
     {
-        var gitDiffService = new GitDiffService(fs);
+        var gitDiffService = new GitDiffService(fs, gitRunner);
         var dialogRenderer = new DiffDialogRenderer();
         var fileListRenderer = new DiffFileListRenderer();
         var turnDiffService = turnDiffProvider as TurnDiffService;
@@ -197,11 +197,11 @@ public sealed class DiffCommand : ChatCommandBase
         }
     }
 
-    private static async Task ShowStagedDiffAsync(CancellationToken cancellationToken, IFileSystem fs, IProcessService processService)
+    private static async Task ShowStagedDiffAsync(CancellationToken cancellationToken, IFileSystem fs, IGitCommandRunner gitRunner)
     {
         TerminalHelper.WriteLine("=== Staged Changes ===\n");
 
-        var result = await RunGitCommandAsync($"{GitSubCommand.Diff.ToValue()} --cached", cancellationToken, fs, processService).ConfigureAwait(false);
+        var result = await RunGitCommandAsync($"{GitSubCommand.Diff.ToValue()} --cached", cancellationToken, fs, gitRunner).ConfigureAwait(false);
 
         if (string.IsNullOrWhiteSpace(result))
         {
@@ -215,11 +215,11 @@ public sealed class DiffCommand : ChatCommandBase
         }
     }
 
-    private static async Task ShowChangedFilesAsync(CancellationToken cancellationToken, IFileSystem fs, IProcessService processService)
+    private static async Task ShowChangedFilesAsync(CancellationToken cancellationToken, IFileSystem fs, IGitCommandRunner gitRunner)
     {
         TerminalHelper.WriteLine("=== Changed Files ===\n");
 
-        var modified = await RunGitCommandAsync("diff --name-only", cancellationToken, fs, processService).ConfigureAwait(false);
+        var modified = await RunGitCommandAsync("diff --name-only", cancellationToken, fs, gitRunner).ConfigureAwait(false);
         if (!string.IsNullOrWhiteSpace(modified))
         {
             TerminalHelper.WriteLine("[Modified but not staged]");
@@ -229,7 +229,7 @@ public sealed class DiffCommand : ChatCommandBase
             }
         }
 
-        var staged = await RunGitCommandAsync($"{GitSubCommand.Diff.ToValue()} --cached --name-only", cancellationToken, fs, processService).ConfigureAwait(false);
+        var staged = await RunGitCommandAsync($"{GitSubCommand.Diff.ToValue()} --cached --name-only", cancellationToken, fs, gitRunner).ConfigureAwait(false);
         if (!string.IsNullOrWhiteSpace(staged))
         {
             TerminalHelper.WriteLine("\n[Staged]");
@@ -239,7 +239,7 @@ public sealed class DiffCommand : ChatCommandBase
             }
         }
 
-        var untracked = await RunGitCommandAsync("ls-files --others --exclude-standard", cancellationToken, fs, processService).ConfigureAwait(false);
+        var untracked = await RunGitCommandAsync("ls-files --others --exclude-standard", cancellationToken, fs, gitRunner).ConfigureAwait(false);
         if (!string.IsNullOrWhiteSpace(untracked))
         {
             TerminalHelper.WriteLine("\n[Untracked]");
@@ -255,20 +255,12 @@ public sealed class DiffCommand : ChatCommandBase
         }
     }
 
-    private static async Task<string> RunGitCommandAsync(string arguments, CancellationToken cancellationToken, IFileSystem fs, IProcessService processService)
+    private static async Task<string> RunGitCommandAsync(string arguments, CancellationToken cancellationToken, IFileSystem fs, IGitCommandRunner gitRunner)
     {
         try
         {
-            var options = new ProcessOptions
-            {
-                FileName = "git",
-                Arguments = arguments,
-                WorkingDirectory = fs.GetCurrentDirectory()
-            };
-
-            var result = await processService.ExecuteAsync(options, cancellationToken).ConfigureAwait(false);
-
-            return result.StandardOutput;
+            var result = await gitRunner.ExecuteAsync(arguments, fs.GetCurrentDirectory(), cancellationToken).ConfigureAwait(false);
+            return result.Output;
         }
         catch (Exception ex)
         {

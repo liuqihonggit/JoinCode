@@ -4,7 +4,7 @@ namespace Core.Agents;
 public sealed partial class WorktreeMergeService : IWorktreeMergeService
 {
     [Inject] private readonly ILogger<WorktreeMergeService>? _logger;
-    [Inject] private readonly IProcessService _processService;
+    [Inject] private readonly IGitCommandRunner _gitRunner;
     [Inject] private readonly IFileSystem _fileSystem;
 
     public async Task<WorktreeMergeResult> MergeToTargetAsync(
@@ -202,46 +202,6 @@ public sealed partial class WorktreeMergeService : IWorktreeMergeService
         return files.ToList();
     }
 
-    private async Task<GitCommandResult> ExecuteGitAsync(string workingDirectory, string arguments, CancellationToken cancellationToken)
-    {
-        try
-        {
-            var options = new ProcessOptions
-            {
-                FileName = "git",
-                Arguments = arguments,
-                WorkingDirectory = workingDirectory,
-                StandardOutputEncoding = System.Text.Encoding.UTF8,
-                StandardErrorEncoding = System.Text.Encoding.UTF8,
-                EnvironmentVariables = new Dictionary<string, string>
-                {
-                    ["GIT_TERMINAL_PROMPT"] = "0",
-                    ["GIT_ASKPASS"] = ""
-                }
-            };
-
-            var result = await _processService.ExecuteAsync(options, cancellationToken).ConfigureAwait(false);
-
-            return new GitCommandResult
-            {
-                Success = result.Success,
-                Output = result.StandardOutput,
-                Error = result.StandardError,
-                ExitCode = result.ExitCode
-            };
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            return new GitCommandResult
-            {
-                Success = false,
-                Error = ex.Message,
-                ExitCode = -1
-            };
-        }
-    }
+    private Task<GitCommandResult> ExecuteGitAsync(string workingDirectory, string arguments, CancellationToken cancellationToken)
+        => _gitRunner.ExecuteAsync(arguments, workingDirectory, cancellationToken);
 }

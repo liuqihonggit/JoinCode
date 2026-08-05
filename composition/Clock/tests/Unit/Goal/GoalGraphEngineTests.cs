@@ -37,7 +37,8 @@ public sealed class GoalGraphEngineTests
         IClockService? clock = null,
         IServiceProvider? serviceProvider = null,
         IGoalUserInteraction? userInteraction = null,
-        IGoalNodeInspector? nodeInspector = null)
+        IGoalNodeInspector? nodeInspector = null,
+        IGoalConflictMessenger? conflictMessenger = null)
     {
         return new GoalGraphEngine(
             (kernel ?? CreateKernelMock()).Object,
@@ -46,7 +47,8 @@ public sealed class GoalGraphEngineTests
             heartbeat: CreateHeartbeatMock().Object,
             clock: clock,
             userInteraction: userInteraction,
-            nodeInspector: nodeInspector);
+            nodeInspector: nodeInspector,
+            conflictMessenger: conflictMessenger);
     }
 
     private static GoalState CreateGoalState() => new()

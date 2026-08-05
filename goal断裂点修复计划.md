@@ -5,25 +5,121 @@
 
 ---
 
-## 〇、Goal 流程图
+## 〇、Goal 完整流程图
 
-### 默认图（无模板匹配时自动构建）
+### 1. /goal 命令入口 → GoalEngine 启动
 
 ```
-┌─────────┐     ┌──────────┐
-│  agent  │────▶│ reviewer │
-│(Executor)│     │(Coordinator)│
-└─────────┘     └──────────┘
-     ▲               │
-     │    FAIL（回边）│
-     └───────────────┘
+用户输入 /goal <目标>
+        │
+        ▼
+┌─────────────────┐
+│  GoalCommand    │
+│  ExecuteAsync   │
+└────────┬────────┘
+         │
+    ┌────┴────┬────────┬──────────┐
+    ▼         ▼        ▼          ▼
+ /goal     /goal     /goal      /goal <目标>
+ pause     resume    clear      [--cron] [--constraint] [--budget]
+    │         │        │          │
+    ▼         ▼        ▼          ▼
+ PauseAsync ResumeAsync ClearAsync  ┌─────────────────┐
+                                     │  GoalEngine     │
+                                     │  StartAsync     │
+                                     └────────┬────────┘
+                                              │
+                                    ┌─────────▼─────────┐
+                                    │ BuildDefaultGraph │
+                                    │    IfAbsent       │
+                                    └─────────┬─────────┘
+                                              │
+                                   ┌──────────┴──────────┐
+                                   ▼                     ▼
+                            模板匹配成功            无匹配模板
+                                   │                     │
+                                   ▼                     ▼
+                          template.BuildGraph     默认 agent→reviewer 图
+                                   │                     │
+                                   └──────────┬──────────┘
+                                              ▼
+                                    ┌─────────────────┐
+                                    │  RunGoalLoopAsync│
+                                    └────────┬────────┘
+                                             │
+                              ┌──────────────┴──────────────┐
+                              ▼                             ▼
+                        有 Graph                      无 Graph
+                              │                             │
+                              ▼                             ▼
+                   ┌──────────────────┐      ┌──────────────────────┐
+                   │ GoalGraphEngine  │      │  while 循环（单Agent）│
+                   │  ExecuteAsync    │      │  ExecuteAgentTurn    │
+                   │  (DAG 调度)      │      │  → Evaluate          │
+                   └──────────────────┘      │  → ContinuationPrompt│
+                                             └──────────────────────┘
 ```
 
-- `agent`：执行目标，Role=Executor
-- `reviewer`：独立审查，Role=Coordinator，FreshContext=true
-- FAIL 回边：reviewer 评价不通过时回到 agent 重做
+### 2. GoalGraphEngine DAG 调度
 
-### cluster 模板（并行集群执行）
+```
+┌─────────────────────────────────────────────────┐
+│  ExecuteAsync(graph, goalState, chatHistory, ct) │
+└────────────────────┬────────────────────────────┘
+                     │
+                     ▼
+              ReadyQueue.Enqueue(StartNode)
+                     │
+                     ▼
+              ┌──────────────┐
+              │ while 循环   │◀─────────────────┐
+              │ TryDequeue   │                   │
+              └──────┬───────┘                   │
+                     │                           │
+                     ▼                           │
+           ┌──────────────────┐                  │
+           │AreAllUpstreams   │──否──▶ 重新入队  │
+           │  Completed?      │      +Delay(50)─┘
+           └────────┬─────────┘
+                    │是
+                    ▼
+           ┌──────────────────┐
+           │ ExecuteNodeAsync │
+           └────────┬─────────┘
+                    │
+           ┌────────┴────────┐
+           ▼                 ▼
+     Kind=Agent        Kind=Function     Kind=Join
+           │                 │                 │
+           ▼                 ▼                 ▼
+   IAgentService      _functionRegistry   CollectUpstream
+   .RunAgentStream    [nodeId]            CountSuccessful
+   → 评估+合成        → fn(NodeContext)   → MinSuccessfulInputs
+           │                 │                 │
+           └────────┬────────┘                 │
+                    ▼                          │
+           ┌──────────────────┐                │
+           │  结果处理        │                │
+           │  成功→Completed  │                │
+           │  失败→Failed     │                │
+           └────────┬─────────┘                │
+                    │                          │
+                    ▼                          │
+           ┌──────────────────┐                │
+           │ GetNextNodeIds    │───────────────┘
+           │ → Enqueue 下游    │
+           └────────┬─────────┘
+                    │
+                    ▼
+           ┌──────────────────┐
+           │ 终止判定          │
+           │ EndNode完成→Achieved│
+           │ EndNode失败→Unmet │
+           │ 预算耗尽→BudgetLimited│
+           └──────────────────┘
+```
+
+### 3. cluster 模板（并行集群执行）
 
 ```
 ┌──────────────┐     ┌───────────────┐
@@ -31,6 +127,7 @@
 │  analyze     │────▶│  expand       │
 │ (Agent/      │     │ (Function)    │
 │ Coordinator) │     │ 动态展开Worker │
+│ 分析可分解性  │     │ +审批检查     │
 └──────────────┘     └───────┬───────┘
                              │
               ┌──────────────┼──────────────┐
@@ -49,6 +146,7 @@
                     │  gather      │
                     │ (Join节点)   │
                     │ 等待所有Worker│
+                    │ MinSuccessfulInputs│
                     └──────┬───────┘
                            ▼
                     ┌──────────────┐
@@ -56,7 +154,9 @@
                     │  merge       │
                     │ (Agent/      │
                     │ Coordinator) │
-                    │ LLM合并结果  │
+                    │ 评估+合成    │ ← 已修复：管理者在完整上下文中
+                    │ Worker质量   │   同时评估每个 Worker 的 0-1 分
+                    │ +合并结果    │   +合成最终输出
                     └──────┬───────┘
                            ▼
                     ┌──────────────┐
@@ -65,18 +165,32 @@
                     │ (Agent/      │
                     │ Coordinator) │
                     │ 独立审查     │
+                    │ FreshContext │
                     └──────────────┘
 ```
 
-**流程说明**:
-1. `cluster_analyze`：管理者分析任务是否可分解为并行子任务
-2. `cluster_expand`：Function 节点，动态创建 Worker 节点 + cluster_gather + cluster_merge + cluster_review
-3. `worker_1..N`：执行者并行执行子任务，各自在独立 worktree 中工作
-4. `cluster_gather`：Join 节点，等待所有 Worker 完成，收集结果
-5. `cluster_merge`：管理者合并所有 Worker 结果 ← **当前是 LLM Agent 合并，不调用 LeadMergeOrchestrator**
-6. `cluster_review`：独立审查合并结果
+### 4. 状态转换
 
-### 其他模板
+```
+                 StartAsync
+                      │
+                      ▼
+                ┌──────────┐
+                │ Pursuing │
+                └────┬─────┘
+                     │
+          ┌──────────┼──────────┬────────────┐
+          ▼          ▼          ▼            ▼
+    ┌──────────┐ ┌────────┐ ┌──────────┐ ┌────────┐
+    │ Achieved │ │ Unmet  │ │BudgetLimit│ │ Paused │
+    └──────────┘ └────────┘ └──────────┘ └────────┘
+     评估通过     EndNode    预算耗尽     /goal pause
+     或所有       失败                    /goal resume
+     EndNode      或超时                  → Pursuing
+     完成
+```
+
+### 5. 其他模板
 
 | 模板 | 流程 | 用途 |
 |------|------|------|
@@ -86,15 +200,6 @@
 | code_review | agent → reviewer | 代码审查 |
 | test_gen | agent → reviewer | 生成测试 |
 | negative_review_loop | agent → neg_review → fix_neg（循环）| 负向评价修复循环 |
-
-### 孤儿服务（已实现但未接入图中）
-
-```
-SubAgentGrader        ──▶ 无人调用（Worker 完成后应评分）
-LeadMergeOrchestrator ──▶ 无人调用（cluster_merge 应调用它）
-ClusterTelemetry      ──▶ 无人调用（各阶段应记录遥测）
-ClusterResultSummarizer──▶ 无人调用（cluster 完成后应汇总）
-```
 
 ---
 

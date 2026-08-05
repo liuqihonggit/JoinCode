@@ -275,7 +275,7 @@ public sealed partial class LspClient : ILspClient
                 _ = SendNotificationAsync(LspMethod.Shutdown.ToValue(), null, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
                 _process.Kill();
             }
-            catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"LSP client shutdown notification failed: {ex.Message}"); }
+            catch (Exception ex) { _logger?.LogWarning(ex, "LSP 客户端关闭通知发送失败"); }
         }
 
         if (_process is not null) await _process.DisposeAsync().ConfigureAwait(false);

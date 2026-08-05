@@ -85,7 +85,7 @@ public sealed partial class McpbValidationMiddleware : ServiceEntity, IMcpbMiddl
     {
         if (context.TempFilePath != null && _fs.FileExists(context.TempFilePath))
         {
-            try { _fs.DeleteFile(context.TempFilePath); } catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"McpbLoader: Failed to delete temp file: {ex.Message}"); }
+            try { _fs.DeleteFile(context.TempFilePath); } catch (Exception ex) { _logger?.LogDebug(ex, "MCPB 下载后清理临时文件失败: {Path}", context.TempFilePath); }
         }
     }
 }

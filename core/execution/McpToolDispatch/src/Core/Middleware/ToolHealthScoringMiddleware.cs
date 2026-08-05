@@ -7,9 +7,19 @@ namespace McpToolRegistry;
 [Register]
 public sealed partial class ToolHealthScoringMiddleware : ServiceEntity, IToolExecutionMiddleware
 {
-    [Inject] private readonly ToolHealthMonitor _monitor = null!;
-    [Inject] private readonly ToolHypergraphScorer _scorer = null!;
-    [Inject] private readonly ILogger<ToolHealthScoringMiddleware> _logger = null!;
+    private readonly ToolHealthMonitor _monitor;
+    private readonly ToolHypergraphScorer _scorer;
+    private readonly ILogger<ToolHealthScoringMiddleware> _logger;
+
+    public ToolHealthScoringMiddleware(
+        ToolHealthMonitor monitor,
+        ToolHypergraphScorer scorer,
+        ILogger<ToolHealthScoringMiddleware> logger)
+    {
+        _monitor = monitor;
+        _scorer = scorer;
+        _logger = logger;
+    }
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 

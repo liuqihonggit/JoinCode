@@ -44,6 +44,7 @@ public sealed partial class GoalGraphEngine : ServiceEntity
         _userInteraction = userInteraction ?? serviceProvider.GetService<IGoalUserInteraction>();
         _nodeInspector = nodeInspector ?? serviceProvider.GetService<IGoalNodeInspector>();
         _conflictMessenger = conflictMessenger ?? serviceProvider.GetService<IGoalConflictMessenger>();
+        _loopObserver = loopObserver ?? serviceProvider.GetService<IGoalLoopObserver>();
         _agentService = serviceProvider.GetService<IAgentService>();
     }
 

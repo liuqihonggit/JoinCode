@@ -74,6 +74,9 @@ public static partial class ServiceRegistration
                 .Build();
         });
 
+        // IToolExecutionGateway — 统一工具执行入口，映射到 PermissionAwareToolExecutor（[Register] 自动注册）
+        services.AddSingleton<IToolExecutionGateway>(sp => sp.GetRequiredService<McpToolRegistry.PermissionAwareToolExecutor>());
+
         // IToolCategoryProvider — [Register] 自动注册（GeneratedToolCategoryProvider）
         // PromptConfig — [Register] 自动注册（DI 构造函数接收 IToolCategoryProvider）
 

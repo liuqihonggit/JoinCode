@@ -72,7 +72,7 @@ public sealed partial class StepStatus
 [Register]
 public sealed partial class WorkflowTaskExecutor : IWorkflowTaskExecutor
 {
-    private readonly IToolRegistry _toolRegistry;
+    private readonly IToolExecutionGateway _toolExecutionGateway;
     private readonly IAgentLifecycleManager _agentLifecycleManager;
     [Inject] private readonly ILogger<WorkflowTaskExecutor>? _logger;
     [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
@@ -82,14 +82,14 @@ public sealed partial class WorkflowTaskExecutor : IWorkflowTaskExecutor
     private readonly SemaphoreSlim _stateLock = new(1, 1);
 
     public WorkflowTaskExecutor(
-        IToolRegistry toolRegistry,
+        IToolExecutionGateway toolExecutionGateway,
         IAgentLifecycleManager agentLifecycleManager,
         ILogger<WorkflowTaskExecutor>? logger = null,
         ITelemetryService? telemetryService = null,
         ISubAgentContextAccessor? subAgentContextAccessor = null,
         IClockService? clock = null)
     {
-        _toolRegistry = toolRegistry;
+        _toolExecutionGateway = toolExecutionGateway;
         _agentLifecycleManager = agentLifecycleManager;
         _logger = logger;
         _telemetryService = telemetryService;
@@ -358,7 +358,7 @@ public sealed partial class WorkflowTaskExecutor : IWorkflowTaskExecutor
         }
 
         var args = step.Parameters ?? new Dictionary<string, JsonElement>();
-        var result = await _toolRegistry.ExecuteToolAsync(step.ToolName, args, ct).ConfigureAwait(false);
+        var result = await _toolExecutionGateway.ExecuteAsync(step.ToolName, args, ct).ConfigureAwait(false);
         return string.Join("\n", result.Content.Select(c => c.Text ?? string.Empty));
     }
 

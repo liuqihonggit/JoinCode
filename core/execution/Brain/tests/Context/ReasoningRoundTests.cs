@@ -139,6 +139,16 @@ public class ReasoningRoundTests
     {
         var (recorder, clock) = CreateRecorder(capacity: 50);
 
+        var random = new Random(42);
+        var texts = new string[100];
+        for (var i = 0; i < 100; i++)
+        {
+            var chars = new char[5000];
+            for (var j = 0; j < 5000; j++)
+                chars[j] = (char)('a' + random.Next(26));
+            texts[i] = new string(chars);
+        }
+
         GC.Collect();
         GC.WaitForFullGCComplete();
         var memBefore = GC.GetTotalMemory(false);
@@ -149,8 +159,8 @@ public class ReasoningRoundTests
             recorder.StartRound();
             clock.Advance(TimeSpan.FromMilliseconds(1));
             recorder.EndRound(
-                responseText: new string('x', 500),
-                thinkingText: new string('y', 200),
+                responseText: texts[i % 100],
+                thinkingText: texts[(i + 50) % 100],
                 logicFingerprint: i,
                 shannonEntropy: 3.14,
                 toolCalls: new[] { "read", "grep", "edit" },
@@ -167,7 +177,7 @@ public class ReasoningRoundTests
         recorder.Count.Should().Be(50, "capacity=50,超出覆盖最旧");
         var rounds = recorder.GetRounds();
         rounds[^1].Turn.Should().Be(100_000, "最新轮次应为10万");
-        sw.ElapsedMilliseconds.Should().BeLessThan(2000, $"10万轮应在2秒内完成: {sw.ElapsedMilliseconds}ms");
+        sw.ElapsedMilliseconds.Should().BeLessThan(3000, $"10万轮(5000字符随机上下文)应在3秒内: {sw.ElapsedMilliseconds}ms");
         memGrowthMB.Should().BeLessThan(50, $"内存增长应小于50MB(RingBuffer定长覆盖): {memGrowthMB:F1}MB");
     }
 }

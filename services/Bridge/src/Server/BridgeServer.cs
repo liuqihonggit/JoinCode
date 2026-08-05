@@ -165,7 +165,11 @@ public sealed partial class BridgeServer : ServiceEntity, IDisposable
             try
             {
                 var context = await _httpListener.GetContextAsync().ConfigureAwait(false);
-                _ = Task.Run(() => HandleRequestAsync(context, _cts.Token));
+                _ = Task.Run(async () =>
+                {
+                    try { await HandleRequestAsync(context, _cts.Token).ConfigureAwait(false); }
+                    catch (Exception ex) { _logger?.LogError(ex, "[BridgeServer] HandleRequestAsync 异常"); }
+                });
             }
             catch (HttpListenerException) when (_cts.Token.IsCancellationRequested)
             {

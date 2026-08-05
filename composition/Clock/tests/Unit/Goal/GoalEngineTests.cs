@@ -176,7 +176,8 @@ public sealed class GoalEngineTests
     [Fact]
     public async Task StartAsync_WhenAlreadyRunning_Should_Throw()
     {
-        var (kernel, evaluator, serviceProvider) = CreateMocks();
+        using var gate = new SemaphoreSlim(0, 1);
+        var (kernel, evaluator, serviceProvider) = CreateBlockingMocks(gate);
 
         var engine = new GoalEngine(kernel.Object, evaluator.Object, heartbeat: CreateHeartbeatMock().Object, serviceProvider: serviceProvider.Object);
         try
@@ -189,6 +190,7 @@ public sealed class GoalEngineTests
         }
         finally
         {
+            try { gate.Release(); } catch (SemaphoreFullException ex) { _ = ex; }
             await SafeDisposeAsync(engine).ConfigureAwait(true);
         }
     }

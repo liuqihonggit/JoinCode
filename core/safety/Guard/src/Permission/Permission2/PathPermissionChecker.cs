@@ -7,7 +7,7 @@ namespace Core.Permission;
 /// 检查文件读写操作的路径级权限（工作目录、规则匹配、内部路径白名单等）
 /// </summary>
 [Register]
-public sealed partial class PathPermissionChecker : IPathPermissionChecker
+public sealed partial class PathPermissionChecker : ServiceEntity, IPathPermissionChecker
 {
     private readonly string _workingDirectory;
     private readonly string[] _resolvedAdditionalDirectories;

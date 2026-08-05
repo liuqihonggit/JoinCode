@@ -41,7 +41,7 @@ public sealed class TeammateState
 }
 
 [Register]
-public sealed partial class InProcessTeammateTaskExecutor : IInProcessTeammateTaskExecutor
+public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInProcessTeammateTaskExecutor
 {
     private readonly IAgentLifecycleManager _agentLifecycleManager;
     private readonly IAgentMessageBroker _messageBroker;
@@ -197,7 +197,7 @@ public sealed partial class InProcessTeammateTaskExecutor : IInProcessTeammateTa
 
             if (definition.ContinuousMode)
             {
-                _ = RunTeammateLoopAsync(definition, state, lifecycleCts.Token);
+                RunTeammateLoopBackground(definition, state, lifecycleCts.Token);
 
                 var elapsed = (long)(_clock.GetUtcNow() - startTime).TotalMilliseconds;
                 return AgentTaskResult.Success(definition.TaskId, definition.TeammateId, "Teammate started in continuous mode", elapsed);
@@ -332,6 +332,32 @@ public sealed partial class InProcessTeammateTaskExecutor : IInProcessTeammateTa
         }
     }
 
+    /// <summary>
+    /// 后台启动 teammate 循环 — 观察未处理异常，避免静默死亡；退出时通知 coordinator
+    /// </summary>
+    private void RunTeammateLoopBackground(InProcessTeammateDefinition definition, TeammateState state, CancellationToken lifecycleCt)
+    {
+        _ = SafeRunLoopAsync();
+
+        async Task SafeRunLoopAsync()
+        {
+            try
+            {
+                await RunTeammateLoopAsync(definition, state, lifecycleCt).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (lifecycleCt.IsCancellationRequested)
+            {
+                // 主动停止 — 预期行为
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Teammate {TeammateId} 后台循环异常退出", definition.TeammateId);
+                await NotifyIdleAsync(definition.TeammateId, state, $"后台循环异常: {ex.Message}").ConfigureAwait(false);
+                await TryCleanupTeammateAsync(definition.TeammateId).ConfigureAwait(false);
+            }
+        }
+    }
+
     private async Task RunTeammateLoopAsync(
         InProcessTeammateDefinition definition,
         TeammateState state,
@@ -393,6 +419,9 @@ public sealed partial class InProcessTeammateTaskExecutor : IInProcessTeammateTa
 
                     RecordTeammateMetrics("turn_complete", result.IsSuccess);
 
+                    _logger?.LogDebug("Teammate {TeammateId} checkpoint: turn={TurnCount} success={Success} outputLen={OutputLen}",
+                        definition.TeammateId, state.TurnCount, result.IsSuccess, result.Output?.Length ?? 0);
+
                     var waitResult = await WaitForNextPromptOrShutdownAsync(
                         definition.TeammateId, lifecycleCt).ConfigureAwait(false);
 
@@ -421,6 +450,8 @@ public sealed partial class InProcessTeammateTaskExecutor : IInProcessTeammateTa
                     _logger?.LogError(ex, "Teammate {TeammateId} loop iteration failed", definition.TeammateId);
                     state.IsIdle = true;
                     RecordTeammateMetrics("turn_error", false);
+
+                    _logger?.LogWarning("Teammate {TeammateId} checkpoint: turn={TurnCount} failed, will retry after delay", definition.TeammateId, state.TurnCount);
 
                     try
                     {
@@ -585,5 +616,7 @@ public sealed partial class InProcessTeammateTaskExecutor : IInProcessTeammateTa
             _logger?.LogWarning(ex, "Failed to stop mailbox polling for teammate {TeammateId}", teammateId);
         }
     }
+
+    protected override void OnDispose() => _teammateLock.Dispose();
 }
 

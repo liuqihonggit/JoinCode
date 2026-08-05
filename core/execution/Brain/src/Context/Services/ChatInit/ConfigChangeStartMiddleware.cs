@@ -9,9 +9,16 @@ namespace Core.Context;
 [Register(typeof(IChatInitMiddleware))]
 public sealed partial class ConfigChangeStartMiddleware : IChatInitMiddleware, IAsyncDisposable
 {
+
+    public ConfigChangeStartMiddleware(IFileSystem fs, IConfigChangeNotifier? configChangeNotifier = null, ISettingsChangeApplier? settingsChangeApplier = null, ILogger<ConfigChangeStartMiddleware>? logger = null)
+    {
+        _fs = fs;
+        _configChangeNotifier = configChangeNotifier;
+        _settingsChangeApplier = settingsChangeApplier;
+        _logger = logger;
+    }
     [Inject] private readonly IConfigChangeNotifier? _configChangeNotifier;
     [Inject] private readonly IFileSystem _fs;
-    [Inject] private readonly ISystemReminderManager _reminderManager;
     [Inject] private readonly ISettingsChangeApplier? _settingsChangeApplier;
     [Inject] private readonly ILogger<ConfigChangeStartMiddleware>? _logger;
     private readonly CancellationTokenSource _disposeCts = new();
@@ -42,23 +49,15 @@ public sealed partial class ConfigChangeStartMiddleware : IChatInitMiddleware, I
     {
         if (_disposed != 0) return;
 
-        var fileName = Path.GetFileName(e.FilePath);
-        var reminderId = $"config-change-{fileName}";
-        var message = $"配置文件 {e.FilePath} 已变更，请重新读取以获取最新规则";
-
-        _reminderManager.AddReminderAsync(reminderId, message, priority: 90)
-            .ConfigureAwait(false)
-            .GetAwaiter()
-            .GetResult();
-
         // 对齐 TS 版 applySettingsChange — 自动更新 EffortLevel 和 Hook 配置
+        // 注：不再向 LLM 注入 <system-reminder> 提示，仅应用设置热重载
         if (_settingsChangeApplier is not null && _disposed == 0)
         {
             _ = _settingsChangeApplier.ApplySettingsChangeAsync(_disposeCts.Token)
                 .ConfigureAwait(false);
         }
 
-        _logger?.LogInformation("[ConfigChange] 配置文件变更通知已注入: {Path} ({ChangeType})", e.FilePath, e.ChangeType);
+        _logger?.LogInformation("[ConfigChange] 配置文件变更已应用热重载: {Path} ({ChangeType})", e.FilePath, e.ChangeType);
     }
 
     /// <summary>

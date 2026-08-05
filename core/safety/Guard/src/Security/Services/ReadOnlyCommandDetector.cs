@@ -7,7 +7,7 @@ namespace JoinCode.Abstractions.Security.Shell;
 /// 核心功能: 白名单标志验证 + 正则验证 + 变量扩展检测 + git 沙箱逃逸防护
 /// </summary>
 [Register]
-public sealed partial class ReadOnlyCommandDetector : IReadOnlyCommandDetector
+public sealed partial class ReadOnlyCommandDetector : ServiceEntity, IReadOnlyCommandDetector
 {
     /// <summary>
     /// 简单只读命令列表 — 对齐 TS READONLY_COMMANDS

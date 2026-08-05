@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿namespace Core.Context;
+﻿﻿﻿﻿﻿namespace Core.Context;
 
 /// <summary>
 /// 流式块处理动作
@@ -64,7 +64,7 @@ public sealed record StreamChunkResult
 /// 负责元数据解析、思考/内容分离、循环检测、用量提取
 /// </summary>
 [Register]
-public sealed partial class ChatStreamChunkProcessor : IChatStreamChunkProcessor
+public sealed partial class ChatStreamChunkProcessor : ServiceEntity, IChatStreamChunkProcessor
 {
     private readonly IOutputLoopDetector _loopDetector;
     private readonly IChatUsageProcessor _usageProcessor;

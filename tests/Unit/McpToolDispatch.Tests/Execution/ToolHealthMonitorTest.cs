@@ -1,7 +1,7 @@
 namespace McpToolDispatch.Tests.Execution;
 
 /// <summary>
-/// ToolHealthMonitor 单元测试 — 验证评分增减、熔断、时间衰减、重置、自动恢复、黑名单、降权
+/// ToolHealthMonitor 单元测试 — 验证评分增减、提示词阈值、时间衰减、重置、黑名单、降权
 /// </summary>
 public sealed class ToolHealthMonitorTest : IAsyncLifetime
 {
@@ -16,7 +16,7 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime
         {
             SuccessDelta = 1,
             FailDelta = -5,
-            CircuitBreakerThreshold = 3,
+            WarningThreshold = 3,
             ScoreMin = -100,
             ScoreMax = 100,
             DecayRatePerHour = 0.1,
@@ -119,17 +119,18 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime
         record!.Score.Should().Be(-100);
     }
 
-    // === 熔断 ===
+    // === 提示词阈值 ===
 
     [Fact]
-    public async Task RecordFailureAsync_ConsecutiveFailuresReachesThreshold_DisablesTool()
+    public async Task RecordFailureAsync_ConsecutiveFailuresReachesThreshold_StaysEnabled()
     {
         await _monitor.RecordFailureAsync("tool_a", "err1");
         await _monitor.RecordFailureAsync("tool_a", "err2");
         (await _monitor.GetRecordAsync("tool_a"))!.IsEnabled.Should().BeTrue();
 
         var record = await _monitor.RecordFailureAsync("tool_a", "err3");
-        record.IsEnabled.Should().BeFalse();
+        record.ConsecutiveFailures.Should().Be(3);
+        record.IsEnabled.Should().BeTrue();
     }
 
     [Fact]
@@ -145,15 +146,15 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime
         record.IsEnabled.Should().BeTrue();
     }
 
-    // === 自动恢复 ===
+    // === 评分恢复 ===
 
     [Fact]
-    public async Task RecordSuccessAsync_AutoReEnablesWhenScoreRecovers()
+    public async Task RecordSuccessAsync_ScoreRecoversAfterFailures()
     {
         await _monitor.RecordFailureAsync("tool_a", "err1");
         await _monitor.RecordFailureAsync("tool_a", "err2");
         await _monitor.RecordFailureAsync("tool_a", "err3");
-        (await _monitor.GetRecordAsync("tool_a"))!.IsEnabled.Should().BeFalse();
+        (await _monitor.GetRecordAsync("tool_a"))!.IsEnabled.Should().BeTrue();
 
         for (var i = 0; i < 20; i++)
             await _monitor.RecordSuccessAsync("tool_a");
@@ -166,12 +167,12 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime
     // === ResetToolAsync ===
 
     [Fact]
-    public async Task ResetToolAsync_ResetsScoreAndReEnables()
+    public async Task ResetToolAsync_ResetsScoreAndConsecutiveFailures()
     {
         await _monitor.RecordFailureAsync("tool_a", "err1");
         await _monitor.RecordFailureAsync("tool_a", "err2");
         await _monitor.RecordFailureAsync("tool_a", "err3");
-        (await _monitor.GetRecordAsync("tool_a"))!.IsEnabled.Should().BeFalse();
+        (await _monitor.GetRecordAsync("tool_a"))!.IsEnabled.Should().BeTrue();
 
         await _monitor.ResetToolAsync("tool_a");
 

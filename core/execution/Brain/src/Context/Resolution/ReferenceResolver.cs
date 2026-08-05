@@ -6,7 +6,7 @@ namespace Core.Context.Resolution;
 /// 集成 ISearchService 进行文件搜索，支持模糊匹配和精确匹配
 /// </summary>
 [Register(typeof(IReferenceResolver), JoinCode.Abstractions.Attributes.ServiceLifetime.Scoped)]
-public sealed partial class ReferenceResolver : IReferenceResolver
+public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolver
 {
     private readonly ISearchService _searchService;
     private readonly IFileOperationService _fileOperationService;
@@ -278,7 +278,7 @@ public sealed partial class ReferenceResolver : IReferenceResolver
                     catch (Exception ex)
                     {
                         // 无法获取文件大小时使用默认值
-                        System.Diagnostics.Trace.WriteLine($"Failed to get file size for reference: {ex.Message}");
+                        _logger?.LogWarning("获取代码引用文件大小时失败: {Error}", ex.Message);
                     }
 
                     var indexedRef = IndexedReference.Create(

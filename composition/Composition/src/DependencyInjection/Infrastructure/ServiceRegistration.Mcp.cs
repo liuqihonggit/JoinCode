@@ -66,13 +66,18 @@ public static partial class ServiceRegistration
                 .Use(sp.GetRequiredService<McpToolRegistry.SchemaValidationMiddleware>())
                 .Use(sp.GetRequiredService<McpToolRegistry.AgentRestrictionMiddleware>())
                 .Use(sp.GetRequiredService<McpToolRegistry.PermissionCheckMiddleware>())
+                .Use(sp.GetRequiredService<McpToolRegistry.PreToolUseHookMiddleware>())
                 .Use(sp.GetRequiredService<McpToolRegistry.RemotePolicyMiddleware>())
                 .Use(sp.GetRequiredService<McpToolRegistry.FeatureFlagMiddleware>())
                 .Use(sp.GetRequiredService<McpToolRegistry.OnErrorToolInjectionMiddleware>())
                 .Use(sp.GetRequiredService<McpToolRegistry.ToolHealthScoringMiddleware>())
+                .Use(sp.GetRequiredService<McpToolRegistry.PostToolUseHookMiddleware>())
                 .Use(sp.GetRequiredService<McpToolRegistry.ToolExecutionMiddleware>())
                 .Build();
         });
+
+        // IToolExecutionGateway — 统一工具执行入口，映射到 PermissionAwareToolExecutor（[Register] 自动注册）
+        services.AddSingleton<IToolExecutionGateway>(sp => sp.GetRequiredService<McpToolRegistry.PermissionAwareToolExecutor>());
 
         // IToolCategoryProvider — [Register] 自动注册（GeneratedToolCategoryProvider）
         // PromptConfig — [Register] 自动注册（DI 构造函数接收 IToolCategoryProvider）

@@ -9,7 +9,7 @@ namespace JoinCode.App.Middlewares;
 /// 仅提供结构化日志记录 + 友好异常转换，异常由上层 ChatService 处理
 /// </summary>
 [Register(typeof(Core.Context.IChatMiddleware))]
-internal sealed partial class ChatErrorHandlingMiddleware : Core.Context.IChatMiddleware
+internal sealed partial class ChatErrorHandlingMiddleware : ServiceEntity, Core.Context.IChatMiddleware
 {
     private readonly ILogger<ChatErrorHandlingMiddleware> _logger;
 
@@ -57,20 +57,24 @@ internal sealed partial class ChatErrorHandlingMiddleware : Core.Context.IChatMi
 
         if (error is not null)
         {
-            var friendly = ClassifyException(error);
+            var classified = ClassifyException(error);
+            var errorCode = classified is WorkflowException wfEx ? wfEx.ErrorCode : ErrorCode.WorkflowExecution.ToValue();
             _logger.LogError(error, "[ChatErrorHandling] 管道异常: Turn={Turn}, DryRun={DryRun}, Code={Code}",
-                context.ConversationTurn, context.IsDryRun, friendly.ErrorCode);
-            throw friendly;
+                context.ConversationTurn, context.IsDryRun, errorCode);
+            throw classified;
         }
     }
 
     /// <summary>
-    /// 将原始异常分类转换为带友好消息的 ApiException
+    /// 将原始异常分类转换：
+    /// 1. 已带错误码的 WorkflowException 子类（ApiException/ConfigurationException/PermissionDeniedException 等）原样保留类型
+    /// 2. 纯 HTTP/超时类异常转换为带友好消息的 ApiException
+    /// 3. 其余异常转换为 WorkflowExecution 通用 ApiException
     /// </summary>
-    private static ApiException ClassifyException(Exception ex)
+    internal static Exception ClassifyException(Exception ex)
     {
-        if (ex is ApiException apiEx)
-            return apiEx;
+        if (ex is WorkflowException workflowEx)
+            return workflowEx;
 
         if (ex is System.Net.Http.HttpRequestException httpEx)
         {
@@ -82,7 +86,7 @@ internal sealed partial class ChatErrorHandlingMiddleware : Core.Context.IChatMi
                 429 => ApiException.RateLimit(GetEndpointHint(ex)),
                 >= 500 => ApiException.ResponseError(GetEndpointHint(ex), statusCode ?? 500, ex.Message),
                 null when ex.InnerException is System.Net.Sockets.SocketException => ApiException.Connection(GetEndpointHint(ex), ex),
-                null when ex.InnerException is System.Threading.Tasks.TaskCanceledException => ApiException.Timeout(GetEndpointHint(ex)),
+                null when ex.InnerException is TimeoutException or System.Threading.Tasks.TaskCanceledException => ApiException.Timeout(GetEndpointHint(ex)),
                 _ => new ApiException($"网络请求失败: {ex.Message}", ex, errorCode: ErrorCode.ApiConnection.ToValue())
             };
         }
@@ -90,12 +94,8 @@ internal sealed partial class ChatErrorHandlingMiddleware : Core.Context.IChatMi
         if (ex is TimeoutException)
             return ApiException.Timeout(GetEndpointHint(ex));
 
-        if (ex is System.Threading.Tasks.TaskCanceledException tce)
-        {
-            if (tce.InnerException is TimeoutException)
-                return ApiException.Timeout(GetEndpointHint(ex));
+        if (ex is System.Threading.Tasks.TaskCanceledException)
             return ApiException.Timeout(GetEndpointHint(ex));
-        }
 
         return new ApiException($"对话管道异常: {ex.Message}", ex, errorCode: ErrorCode.WorkflowExecution.ToValue());
     }

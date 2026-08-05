@@ -6,8 +6,14 @@ using JoinCode.Abstractions.Interfaces;
 /// 定义解析中间件 — 从 IAgentRoleRegistry 获取角色档案，回退到 IAgentDefinitionProvider
 /// </summary>
 [Register]
-public sealed partial class DefinitionResolutionMiddleware : IAgentSpawnMiddleware
+public sealed partial class DefinitionResolutionMiddleware : ServiceEntity, IAgentSpawnMiddleware
 {
+
+    public DefinitionResolutionMiddleware(IAgentRoleRegistry roleRegistry, IAgentDefinitionProvider? definitionProvider = null)
+    {
+        _roleRegistry = roleRegistry;
+        _definitionProvider = definitionProvider;
+    }
     [Inject] private readonly IAgentRoleRegistry _roleRegistry;
     [Inject] private readonly IAgentDefinitionProvider? _definitionProvider;
 

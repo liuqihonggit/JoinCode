@@ -228,4 +228,118 @@ public sealed class BridgeSessionTrackerTests
         sut.CompletedWorkIds.Should().NotBeNull();
         sut.V2Sessions.Should().NotBeNull();
     }
+
+    [Fact]
+    public async Task Concurrent_Register_And_Enumerate_DoesNotThrow()
+    {
+        var sut = CreateSut();
+        for (var i = 0; i < 100; i++)
+            sut.RegisterSession($"session-{i}", (BridgeSubprocessHandle?)null!, "work");
+
+        var exceptions = new ConcurrentQueue<Exception>();
+        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(800));
+
+        var enumeratorTask = Task.Run(() =>
+        {
+            try
+            {
+                while (!cts.IsCancellationRequested)
+                {
+                    foreach (var _ in sut.GetAllHandles()) { }
+                    foreach (var _ in sut.GetAllSessionIds()) { }
+                }
+            }
+            catch (Exception ex) { exceptions.Enqueue(ex); }
+        });
+
+        var modifierTask = Task.Run(() =>
+        {
+            try
+            {
+                var i = 100;
+                while (!cts.IsCancellationRequested)
+                    sut.RegisterSession($"session-{i++}", (BridgeSubprocessHandle?)null!, "work");
+            }
+            catch (Exception ex) { exceptions.Enqueue(ex); }
+        });
+
+        var cleanupTask = Task.Run(() =>
+        {
+            try
+            {
+                var i = 0;
+                while (!cts.IsCancellationRequested)
+                    sut.CleanupSession($"session-{i++ % 200}");
+            }
+            catch (Exception ex) { exceptions.Enqueue(ex); }
+        });
+
+        await Task.WhenAll(enumeratorTask, modifierTask, cleanupTask);
+        exceptions.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Concurrent_MarkCompleted_And_Check_DoesNotThrow()
+    {
+        var sut = CreateSut();
+        var exceptions = new ConcurrentQueue<Exception>();
+        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
+
+        var writerTask = Task.Run(() =>
+        {
+            try
+            {
+                var i = 0;
+                while (!cts.IsCancellationRequested)
+                    sut.MarkWorkCompleted($"work-{i++}");
+            }
+            catch (Exception ex) { exceptions.Enqueue(ex); }
+        });
+
+        var readerTask = Task.Run(() =>
+        {
+            try
+            {
+                var i = 0;
+                while (!cts.IsCancellationRequested)
+                    sut.IsWorkCompleted($"work-{i++ % 1000}");
+            }
+            catch (Exception ex) { exceptions.Enqueue(ex); }
+        });
+
+        await Task.WhenAll(writerTask, readerTask);
+        exceptions.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Concurrent_ClearAll_And_Register_DoesNotThrow()
+    {
+        var sut = CreateSut();
+        var exceptions = new ConcurrentQueue<Exception>();
+        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
+
+        var clearTask = Task.Run(() =>
+        {
+            try
+            {
+                while (!cts.IsCancellationRequested)
+                    sut.ClearAll();
+            }
+            catch (Exception ex) { exceptions.Enqueue(ex); }
+        });
+
+        var registerTask = Task.Run(() =>
+        {
+            try
+            {
+                var i = 0;
+                while (!cts.IsCancellationRequested)
+                    sut.RegisterSession($"session-{i++}", (BridgeSubprocessHandle?)null!, "work");
+            }
+            catch (Exception ex) { exceptions.Enqueue(ex); }
+        });
+
+        await Task.WhenAll(clearTask, registerTask);
+        exceptions.Should().BeEmpty();
+    }
 }

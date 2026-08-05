@@ -15,6 +15,7 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
     private readonly ITeammateMailboxService? _mailboxService;
     private readonly IFileSystem _fs;
     private readonly IClockService _clock;
+    private readonly ILogger<PlanModeManager>? _logger;
     [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
     private int _planCounter;
 
@@ -53,7 +54,7 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
     /// </summary>
     private readonly ConcurrentDictionary<string, TaskCompletionSource<PlanApprovalResponseMessage>> _pendingApprovals = new();
 
-    public PlanModeManager(IFileSystem fs, IClockService clock, ITelemetryService? telemetryService = null, IToolPermissionManager? permissionManager = null, ITeammateMailboxService? mailboxService = null, ISubAgentContextAccessor? subAgentContextAccessor = null)
+    public PlanModeManager(IFileSystem fs, IClockService clock, ITelemetryService? telemetryService = null, IToolPermissionManager? permissionManager = null, ITeammateMailboxService? mailboxService = null, ISubAgentContextAccessor? subAgentContextAccessor = null, ILogger<PlanModeManager>? logger = null)
     {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
@@ -62,6 +63,7 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
         _permissionManager = permissionManager;
         _mailboxService = mailboxService;
         _subAgentContextAccessor = subAgentContextAccessor ?? new SubAgentContextAccessor();
+        _logger = logger;
     }
 
     /// <summary>
@@ -130,7 +132,7 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
 
         // 对齐 TS getPlanSlug(): 同一 session 内缓存 slug，保证覆盖同一文件
         _currentSessionSlug ??= PlanSlugGenerator.GetOrCreateSlug(
-            $"session_{Environment.CurrentManagedThreadId}_{_clock.GetUtcNow():yyyyMMddHHmmss}", _fs);
+            $"session_{Environment.CurrentManagedThreadId}_{_clock.GetUtcNow():yyyyMMddHHmmss}", _fs, _logger);
 
         var plan = new PlanState
         {
@@ -292,7 +294,7 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
                 if (!autoModeEnabled)
                 {
                     restoreMode = PermissionMode.Default;
-                    System.Diagnostics.Trace.WriteLine("Auto mode gate disabled during plan mode, falling back to Default mode");
+                    _logger?.LogWarning("计划模式期间 auto mode gate 被禁用，回退到 Default 模式");
                 }
             }
 
@@ -738,14 +740,14 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
                 catch (Exception ex)
                 {
                     // 单个文件清理失败不影响其他文件
-                    System.Diagnostics.Trace.WriteLine($"Plan file cleanup failed: {ex.Message}");
+                    _logger?.LogWarning("计划文件清理失败: {Error}", ex.Message);
                 }
             }
         }
         catch (Exception ex)
         {
             // 目录遍历失败不抛出
-            System.Diagnostics.Trace.WriteLine($"Plan directory traversal failed: {ex.Message}");
+            _logger?.LogWarning("计划目录遍历失败: {Error}", ex.Message);
         }
 
         return cleanedCount;

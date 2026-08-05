@@ -1,7 +1,7 @@
 namespace State;
 
 [Register]
-public sealed partial class TranscriptService : ITranscriptService, IDisposable
+public sealed partial class TranscriptService : ServiceEntity, ITranscriptService, IDisposable
 {
     private readonly string _sessionsDirectory;
     [Inject] private readonly ILogger<TranscriptService>? _logger;
@@ -262,5 +262,5 @@ public sealed partial class TranscriptService : ITranscriptService, IDisposable
         return Path.Combine(_sessionsDirectory, $"{sessionId}.jsonl");
     }
 
-    public void Dispose() => _writer.Dispose();
+    protected override void OnDispose() => _writer.Dispose();
 }

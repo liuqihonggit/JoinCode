@@ -1,7 +1,7 @@
 namespace Core.Agents.Coordinator;
 
 [Register]
-public sealed partial class TeammateMailboxService : ITeammateMailboxService, IDisposable
+public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMailboxService, IDisposable
 {
     private readonly IFileSystem _fs;
     private readonly string _mailboxRoot;
@@ -278,7 +278,7 @@ public sealed partial class TeammateMailboxService : ITeammateMailboxService, ID
         }
     }
 
-    public void Dispose()
+    protected override void OnDispose()
     {
         _writeLock.Dispose();
         foreach (var agentLock in _agentLocks.Values)

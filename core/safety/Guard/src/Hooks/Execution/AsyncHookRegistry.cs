@@ -357,7 +357,7 @@ public sealed partial class AsyncHookRegistry : MapRegistry<string, PendingAsync
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Trace.WriteLine($"Failed to parse JSON output from async hook: {ex.Message}");
+                    _logger?.LogWarning(ex, "解析异步钩子 JSON 输出失败");
                 }
             }
         }
@@ -437,8 +437,9 @@ public sealed partial class AsyncHookRegistry : MapRegistry<string, PendingAsync
                 kvp.Value.Process?.Kill();
                 kvp.Value.Process?.Cleanup();
             }
-            catch (Exception ex) { /* Ignore cleanup errors */
-                System.Diagnostics.Trace.WriteLine($"Failed to cleanup hook: {ex.Message}");
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "清理异步钩子失败");
             }
         }
 

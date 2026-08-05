@@ -9,7 +9,7 @@ namespace Core.Agents.Coordinator;
 [Register(typeof(IAgentCoordinator))]
 [Register(typeof(ISubAgentCoordinator))]
 [Register(typeof(ITeammateObserver))]
-public sealed partial class AgentCoordinator : IAgentCoordinator, ISubAgentCoordinator, ITeammateObserver
+public sealed partial class AgentCoordinator : ServiceEntity, IAgentCoordinator, ISubAgentCoordinator, ITeammateObserver
 {
     private readonly IAgentLifecycleManager _lifecycleManager;
     private readonly IAgentWorktreeManager _worktreeManager;
@@ -18,7 +18,7 @@ public sealed partial class AgentCoordinator : IAgentCoordinator, ISubAgentCoord
     private readonly IClockService _clock;
     [Inject] private readonly ILogger<AgentCoordinator>? _logger;
     [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
-    private readonly IHookOrchestrator? _hookOrchestrator;
+    private readonly ISubagentStopHookManager? _subagentStopHookManager;
     private readonly IForkSubAgentManager? _forkManager;
     private readonly ISwarmPermissionBridge? _permissionBridge;
     private readonly JoinCode.Abstractions.Interfaces.ITeammateReconnectService? _reconnectService;
@@ -41,7 +41,7 @@ public sealed partial class AgentCoordinator : IAgentCoordinator, ISubAgentCoord
         IForkSubAgentManager? forkManager = null,
         ILogger<AgentCoordinator>? logger = null,
         ISubAgentContextAccessor? subAgentContextAccessor = null,
-        IHookOrchestrator? hookOrchestrator = null)
+        ISubagentStopHookManager? subagentStopHookManager = null)
     {
         _lifecycleManager = core.LifecycleManager ?? throw new ArgumentNullException(nameof(core.LifecycleManager));
         _worktreeManager = core.WorktreeManager ?? throw new ArgumentNullException(nameof(core.WorktreeManager));
@@ -52,7 +52,7 @@ public sealed partial class AgentCoordinator : IAgentCoordinator, ISubAgentCoord
         _spawnPipeline = spawnPipeline ?? throw new ArgumentNullException(nameof(spawnPipeline));
         _logger = logger;
         _subAgentContextAccessor = subAgentContextAccessor ?? new SubAgentContextAccessor();
-        _hookOrchestrator = hookOrchestrator;
+        _subagentStopHookManager = subagentStopHookManager;
         _forkManager = forkManager;
         _permissionBridge = permission?.PermissionBridge;
         _reconnectService = team?.ReconnectService;
@@ -695,48 +695,26 @@ public sealed partial class AgentCoordinator : IAgentCoordinator, ISubAgentCoord
 
     private async Task OnSubagentStopHookAsync(string agentId, CancellationToken cancellationToken)
     {
-        if (_hookOrchestrator is null)
+        if (_subagentStopHookManager is null)
             return;
 
         var subAgentContext = _subAgentContextAccessor.Current;
         var agentType = subAgentContext?.Role.ToValue() ?? "executor";
         var sessionId = subAgentContext?.SessionId ?? "default";
 
-        var payload = new Dictionary<string, JsonElement>
+        var context = new SubagentStopHookContext
         {
-            ["agentId"] = JsonElementHelper.FromString(agentId),
-            ["agentType"] = JsonElementHelper.FromString(agentType),
+            SessionId = sessionId,
+            AgentId = agentId,
+            AgentType = agentType,
+            WorktreePath = subAgentContext?.WorktreePath,
         };
 
-        if (subAgentContext?.WorktreePath is not null)
+        var result = await _subagentStopHookManager.OnSubagentStopAsync(context, cancellationToken).ConfigureAwait(false);
+        if (!result.ShouldProceed)
         {
-            payload["worktreePath"] = JsonElementHelper.FromString(subAgentContext.WorktreePath);
-        }
-
-        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeoutCts.CancelAfter(TimeSpan.FromSeconds(60));
-
-        try
-        {
-            await foreach (var result in _hookOrchestrator.ExecuteHooksAsync(
-                HookEvent.SubagentStop,
-                payload,
-                matcher: agentType,
-                sessionId: sessionId,
-                cancellationToken: timeoutCts.Token).ConfigureAwait(false))
-            {
-                if (result.Outcome == HookOutcome.Blocking || result.PreventContinuation)
-                {
-                    _logger?.LogWarning("[AgentCoordinator] SubagentStop Hook 阻塞了 Agent {AgentId} 的释放: {Message}",
-                        agentId, result.Message);
-
-                    return;
-                }
-            }
-        }
-        catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
-        {
-            _logger?.LogWarning("[AgentCoordinator] SubagentStop Hook 超时 60s，自动放行 Agent {AgentId}", agentId);
+            _logger?.LogWarning("[AgentCoordinator] SubagentStop Hook 阻塞了 Agent {AgentId} 的释放: {Message}",
+                agentId, result.Message);
         }
     }
 

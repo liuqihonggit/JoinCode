@@ -1,8 +1,15 @@
-﻿namespace Core.Configuration;
+namespace Core.Configuration;
 
 [Register]
-public sealed partial class ConfigChangeNotifier : IConfigChangeNotifier, IDisposable
+public sealed partial class ConfigChangeNotifier : ServiceEntity, IConfigChangeNotifier, IDisposable
 {
+
+    public ConfigChangeNotifier(IFileSystem fs, ILogger<ConfigChangeNotifier>? logger = null, ITelemetryService? telemetryService = null)
+    {
+        _fs = fs;
+        _logger = logger;
+        _telemetryService = telemetryService;
+    }
     [Inject] private readonly IFileSystem _fs;
     [Inject] private readonly ILogger<ConfigChangeNotifier>? _logger;
     [Inject] private readonly ITelemetryService? _telemetryService;
@@ -91,7 +98,7 @@ public sealed partial class ConfigChangeNotifier : IConfigChangeNotifier, IDispo
         }
     }
 
-    public void Dispose()
+    protected override void OnDispose()
     {
         if (_disposed) return;
         _disposed = true;

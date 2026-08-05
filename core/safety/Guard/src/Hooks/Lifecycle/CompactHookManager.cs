@@ -1,7 +1,7 @@
-﻿namespace Core.Hooks.Lifecycle;
+namespace Core.Hooks.Lifecycle;
 
 [Register]
-public sealed partial class CompactHookManager : ICompactHookManager
+public sealed partial class CompactHookManager : ServiceEntity, ICompactHookManager
 {
     private readonly IHookOrchestrator _orchestrator;
     [Inject] private readonly ILogger<CompactHookManager>? _logger;

@@ -4,7 +4,7 @@ namespace Core.Goal;
 /// Goal Graph 模板注册表默认实现 — 内部 ConcurrentDictionary，对外暴露遍历器 + 字典视图
 /// </summary>
 [Register]
-public sealed class GoalGraphTemplateRegistry : IGoalGraphTemplateRegistry
+public sealed class GoalGraphTemplateRegistry : ServiceEntity, IGoalGraphTemplateRegistry
 {
     private readonly ConcurrentDictionary<string, GoalGraphTemplate> _templates = new(StringComparer.Ordinal);
 

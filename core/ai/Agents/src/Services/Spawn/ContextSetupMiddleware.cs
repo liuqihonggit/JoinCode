@@ -4,8 +4,15 @@ namespace Core.Agents;
 /// 上下文构建中间件 — 构建 SubAgentOptions 并 Spawn 子智能体
 /// </summary>
 [Register]
-public sealed partial class ContextSetupMiddleware : IAgentSpawnMiddleware
+public sealed partial class ContextSetupMiddleware : ServiceEntity, IAgentSpawnMiddleware
 {
+
+    public ContextSetupMiddleware(IAgentLifecycleManager lifecycleManager, ISubAgentContextAccessor subAgentContextAccessor, JoinCode.Abstractions.Interfaces.IFileStateCache? fileStateCache = null)
+    {
+        _lifecycleManager = lifecycleManager;
+        _subAgentContextAccessor = subAgentContextAccessor;
+        _fileStateCache = fileStateCache;
+    }
     [Inject] private readonly IAgentLifecycleManager _lifecycleManager;
     [Inject] private readonly JoinCode.Abstractions.Interfaces.IFileStateCache? _fileStateCache;
     [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;

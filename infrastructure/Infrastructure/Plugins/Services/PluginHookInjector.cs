@@ -1,4 +1,4 @@
-﻿namespace Core.Plugins;
+namespace Core.Plugins;
 
 public interface IPluginHookInjector
 {
@@ -18,7 +18,7 @@ public sealed partial class PluginHookDefinition
 }
 
 [Register]
-public sealed partial class PluginHookInjector : IPluginHookInjector
+public sealed partial class PluginHookInjector : ServiceEntity, IPluginHookInjector
 {
     private readonly IPluginManager _pluginManager;
     [Inject] private readonly ILogger<PluginHookInjector>? _logger;

@@ -48,7 +48,7 @@ public sealed class TasksCommand : ChatCommandBase
     {
         var allTasks = new List<(string Id, string Type, string Description, string Status)>();
 
-        var shellService = ChatCommandBase.GetService<IShellBackgroundTaskService>(context, typeof(IShellBackgroundTaskService));
+        var shellService = ChatCommandBase.GetService<ISystemActuatorRegistry>(context, typeof(ISystemActuatorRegistry));
         if (shellService is not null)
         {
             var tasks = await shellService.ListTasksAsync(context.CancellationToken).ConfigureAwait(false);
@@ -109,7 +109,7 @@ public sealed class TasksCommand : ChatCommandBase
 
         var taskId = args[1];
 
-        var shellService = ChatCommandBase.GetService<IShellBackgroundTaskService>(context, typeof(IShellBackgroundTaskService));
+        var shellService = ChatCommandBase.GetService<ISystemActuatorRegistry>(context, typeof(ISystemActuatorRegistry));
         if (shellService is not null)
         {
             var cancelled = await shellService.CancelTaskAsync(taskId, context.CancellationToken).ConfigureAwait(false);
@@ -155,7 +155,7 @@ public sealed class TasksCommand : ChatCommandBase
 
         var taskId = args[1];
 
-        var shellService = ChatCommandBase.GetService<IShellBackgroundTaskService>(context, typeof(IShellBackgroundTaskService));
+        var shellService = ChatCommandBase.GetService<ISystemActuatorRegistry>(context, typeof(ISystemActuatorRegistry));
         if (shellService is not null)
         {
             var task = await shellService.GetTaskAsync(taskId, context.CancellationToken).ConfigureAwait(false);

@@ -4,7 +4,7 @@ namespace Core.Agents.Coordinator;
 /// Agent MCP 服务器管理器 - 负责 Agent 级别的 MCP 服务器初始化和清理
 /// </summary>
 [Register(typeof(JoinCode.Abstractions.Interfaces.IAgentMcpServerManager))]
-public sealed partial class AgentMcpServerManager : JoinCode.Abstractions.Interfaces.IAgentMcpServerManager
+public sealed partial class AgentMcpServerManager : ServiceEntity, JoinCode.Abstractions.Interfaces.IAgentMcpServerManager
 {
     private readonly IRemoteClientManager _remoteClientManager;
     [Inject] private readonly ILogger<AgentMcpServerManager>? _logger;

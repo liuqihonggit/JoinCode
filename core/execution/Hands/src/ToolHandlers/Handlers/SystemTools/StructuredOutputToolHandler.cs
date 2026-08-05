@@ -15,7 +15,7 @@ public sealed class StructuredOutputToolHandler
     /// </summary>
     private readonly ConcurrentDictionary<string, SchemaValidationResult> _validationCache = new();
 
-    private static readonly JsonSerializerOptions s_indentedOptions = new() { WriteIndented = true };
+    private static readonly JsonWriterOptions s_indentedWriterOptions = new() { Indented = true };
 
     public StructuredOutputToolHandler(SimpleJsonSchemaValidator validator)
     {
@@ -117,7 +117,19 @@ public sealed class StructuredOutputToolHandler
                 try
                 {
                     var jsonNode = JsonNode.Parse(content);
-                    var formattedJson = jsonNode?.ToJsonString(s_indentedOptions) ?? content;
+                    string formattedJson;
+                    if (jsonNode is not null)
+                    {
+                        using var stream = new MemoryStream();
+                        using var writer = new Utf8JsonWriter(stream, s_indentedWriterOptions);
+                        jsonNode.WriteTo(writer);
+                        writer.Flush();
+                        formattedJson = System.Text.Encoding.UTF8.GetString(stream.ToArray());
+                    }
+                    else
+                    {
+                        formattedJson = content;
+                    }
                     response.AppendLine();
                     response.AppendLine("[Formatted output]");
                     response.AppendLine(formattedJson);

@@ -1,10 +1,10 @@
-﻿namespace JoinCode.Cli;
+namespace JoinCode.Cli;
 
 /// <summary>
 /// Vim 引擎 — CLI 简化版存根，提供基本模式切换但无完整 Vim 键绑定
 /// </summary>
 [Register]
-public sealed partial class VimEngine : IVimEngine
+public sealed partial class VimEngine : ServiceEntity, IVimEngine
 {
     public VimMode CurrentMode { get; private set; }
     public bool IsEnabled { get; private set; }

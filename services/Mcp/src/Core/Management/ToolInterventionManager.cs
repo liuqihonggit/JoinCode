@@ -5,7 +5,7 @@ namespace McpToolDispatch;
 /// Blacklist→工具不注册; Downgrade→Score扣分; Redirect→注入替代建议
 /// </summary>
 [Register]
-public sealed class ToolInterventionManager
+public sealed class ToolInterventionManager : ServiceEntity
 {
     private readonly ILogger<ToolInterventionManager>? _logger;
     private readonly IFileSystem _fs;
@@ -143,6 +143,8 @@ public sealed class ToolInterventionManager
             _logger?.LogWarning(ex, "保存工具干预配置失败");
         }
     }
+
+    protected override void OnDispose() => _lock.Dispose();
 }
 
 [JsonSerializable(typeof(Dictionary<string, InterventionRule>))]

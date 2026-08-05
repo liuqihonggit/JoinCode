@@ -51,7 +51,7 @@ public sealed record CoordinatorPermissionParams
 /// 3. 如果都未解决，返回 null 让调用者回退到交互式对话框
 /// </summary>
 [Register]
-public sealed partial class CoordinatorHandler
+public sealed partial class CoordinatorHandler : ServiceEntity
 {
     [Inject] private readonly ILogger<CoordinatorHandler>? _logger;
 
@@ -87,10 +87,21 @@ public sealed partial class CoordinatorHandler
                 return classifierDecision;
             }
         }
+        catch (OperationCanceledException)
+        {
+            // 用户取消或超时 — 不吞掉，向上传播让上层正确处理
+            throw;
+        }
+        catch (WorkflowException)
+        {
+            // 权限系统自身的业务异常（含 PermissionDeniedException）— 是明确决策而非故障，
+            // 不降级为对话框，向上传播保留原始语义
+            throw;
+        }
         catch (Exception ex)
         {
-            // 如果自动检查意外失败，回退到显示对话框
-            // 让用户可以手动决定
+            // 基础设施/意外故障（hook 执行器崩溃、分类器 I/O 异常等）— 回退到显示对话框
+            // 让用户可以手动决定，避免自动放行
             _logger?.LogError(ex, "自动权限检查失败，回退到对话框: Tool={ToolName}", ctx.ToolName);
         }
 

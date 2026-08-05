@@ -1,4 +1,4 @@
-﻿namespace Services.Lsp.Internal;
+namespace Services.Lsp.Internal;
 
 public interface ILspManager : IAsyncDisposable
 {
@@ -24,6 +24,15 @@ public interface ILspManager : IAsyncDisposable
 [Register]
 public sealed partial class LspManager : ILspManager
 {
+
+    public LspManager(ILogger<LspManager> logger, IFileSystem fs, IProcessService processService, IFileOperationService? fileOperationService = null, ILspPassiveFeedback? passiveFeedback = null)
+    {
+        _logger = logger;
+        _fs = fs;
+        _processService = processService;
+        _fileOperationService = fileOperationService;
+        _passiveFeedback = passiveFeedback;
+    }
     private const int MaxLspFileSizeBytes = 10_000_000;
 
     private readonly ConcurrentDictionary<string, LspServerInstance> _servers = new();

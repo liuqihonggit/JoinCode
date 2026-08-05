@@ -4,8 +4,14 @@ namespace Core.Agents;
 /// Hook 注册中间件 — 注册 Agent 定义中的 Hooks
 /// </summary>
 [Register]
-public sealed partial class HookSetupMiddleware : IAgentSpawnMiddleware
+public sealed partial class HookSetupMiddleware : ServiceEntity, IAgentSpawnMiddleware
 {
+
+    public HookSetupMiddleware(ISessionHookManager? sessionHookManager = null, ILogger<HookSetupMiddleware>? logger = null)
+    {
+        _sessionHookManager = sessionHookManager;
+        _logger = logger;
+    }
     [Inject] private readonly ISessionHookManager? _sessionHookManager;
     [Inject] private readonly ILogger<HookSetupMiddleware>? _logger;
 

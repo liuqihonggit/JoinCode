@@ -104,27 +104,25 @@ public sealed class SessionController
                     {
                         lastModelId = modelId;
                         _consumer.OnDone(usage, modelId);
-                        if (thinkingContent.Length > 0)
-                        {
-                            var thinkingStore = _serviceProvider?.GetService<IThinkingStore>();
-                            if (thinkingStore != null)
-                            {
-                                _ = thinkingStore.StoreAsync(_sessionId, thinkingContent.ToString(), lastModelId, cancellationToken);
-                            }
-                        }
                     });
             }
 
             LastResponse = fullResponse.ToString();
+
+            // 等待思考内容持久化完成，避免 fire-and-forget 丢失
+            await StoreThinkingIfAnyAsync(thinkingContent, lastModelId, cancellationToken).ConfigureAwait(false);
+
             return SessionTurnResult.Success(LastResponse, requestTimestamp);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && !hasReceivedEvent)
         {
+            await StoreThinkingIfAnyAsync(thinkingContent, lastModelId, CancellationToken.None).ConfigureAwait(false);
             return SessionTurnResult.Timeout(apiTimeoutMs);
         }
         catch (OperationCanceledException)
         {
             LastResponse = fullResponse.ToString();
+            await StoreThinkingIfAnyAsync(thinkingContent, lastModelId, CancellationToken.None).ConfigureAwait(false);
             return SessionTurnResult.FromCancellation(LastResponse);
         }
         catch (PermissionPendingConfirmationException)
@@ -135,11 +133,31 @@ public sealed class SessionController
         catch (Exception ex)
         {
             LastResponse = fullResponse.ToString();
+            await StoreThinkingIfAnyAsync(thinkingContent, lastModelId, CancellationToken.None).ConfigureAwait(false);
             if (ex is JoinCode.Abstractions.Exceptions.ApiException apiEx)
                 return SessionTurnResult.Error(apiEx.Message, LastResponse, apiEx.ErrorCode, apiEx.IsRetryable);
             if (ex is JoinCode.Abstractions.Exceptions.WorkflowException wfEx)
                 return SessionTurnResult.Error(wfEx.Message, LastResponse, wfEx.ErrorCode);
             return SessionTurnResult.Error(ex.Message, LastResponse);
+        }
+    }
+
+    /// <summary>
+    /// 持久化思考内容 — 等待完成并记录失败，避免 fire-and-forget 静默丢失
+    /// </summary>
+    private async Task StoreThinkingIfAnyAsync(StringBuilder thinkingContent, string? modelId, CancellationToken ct)
+    {
+        if (thinkingContent.Length == 0) return;
+        var thinkingStore = _serviceProvider?.GetService<IThinkingStore>();
+        if (thinkingStore is null) return;
+        try
+        {
+            await thinkingStore.StoreAsync(_sessionId, thinkingContent.ToString(), modelId, ct).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            var logger = _serviceProvider?.GetService<ILogger<SessionController>>();
+            logger?.LogError(ex, "[SessionController] 思考内容持久化失败");
         }
     }
 

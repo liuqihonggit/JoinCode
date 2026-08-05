@@ -2,9 +2,9 @@ namespace McpProtocol;
 
 public class McpServer : IMcpServer
 {
-    private readonly Dictionary<string, IMcpProtocolHandler> _tools = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, IResourceHandler> _resources = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, IPromptHandler> _prompts = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, IMcpProtocolHandler> _tools = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, IResourceHandler> _resources = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, IPromptHandler> _prompts = new(StringComparer.Ordinal);
     private readonly string _serverName;
     private readonly string _serverVersion;
     private readonly string? _instructions;

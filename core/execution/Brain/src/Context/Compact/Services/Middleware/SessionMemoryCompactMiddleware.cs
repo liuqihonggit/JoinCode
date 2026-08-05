@@ -6,8 +6,14 @@ namespace Core.Context.Compact;
 /// 会话记忆压缩中间件 — 使用会话记忆进行压缩
 /// </summary>
 [Register(typeof(ICompactMiddleware))]
-public sealed partial class SessionMemoryCompactMiddleware : ICompactMiddleware
+public sealed partial class SessionMemoryCompactMiddleware : ServiceEntity, ICompactMiddleware
 {
+
+    public SessionMemoryCompactMiddleware(ISessionMemoryCompactService sessionMemoryCompactService, ILogger<SessionMemoryCompactMiddleware>? logger = null)
+    {
+        _sessionMemoryCompactService = sessionMemoryCompactService;
+        _logger = logger;
+    }
     [Inject] private readonly ISessionMemoryCompactService _sessionMemoryCompactService;
     [Inject] private readonly ILogger<SessionMemoryCompactMiddleware>? _logger;
 

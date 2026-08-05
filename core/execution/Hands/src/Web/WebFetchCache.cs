@@ -5,7 +5,7 @@ namespace Services.Web;
 /// 对齐TS版 URL_CACHE + DOMAIN_CHECK_CACHE
 /// </summary>
 [Register(typeof(IWebFetchCache))]
-public sealed partial class WebFetchCache : IWebFetchCache, IDisposable
+public sealed partial class WebFetchCache : ServiceEntity, IWebFetchCache, IDisposable
 {
     private const int MaxCacheSizeBytes = 50 * 1024 * 1024; // 50MB
     private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(15);
@@ -91,7 +91,7 @@ public sealed partial class WebFetchCache : IWebFetchCache, IDisposable
         _logger?.LogInformation("WebFetch缓存已清空");
     }
 
-    public void Dispose()
+    protected override void OnDispose()
     {
         _urlCache.Dispose();
         _domainCheckCache.Dispose();

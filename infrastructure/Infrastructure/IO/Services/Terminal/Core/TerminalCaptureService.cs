@@ -3,7 +3,7 @@ using JoinCode.Abstractions.Attributes;
 namespace IO.Services;
 
 [Register]
-public sealed partial class TerminalCaptureService : ITerminalCaptureService
+public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCaptureService
 {
     private readonly IFileSystem _fs;
     [Inject] private readonly ILogger<TerminalCaptureService>? _logger;

@@ -1,4 +1,4 @@
-﻿
+
 namespace Core.Bridge.Init.V1;
 
 using JoinCode.Abstractions.Pipeline;
@@ -7,7 +7,7 @@ using JoinCode.Abstractions.Pipeline;
 /// V1 注册 Bridge 环境 — 对齐 TS 端: registerBridgeEnvironment
 /// </summary>
 [Register]
-internal sealed partial class V1EnvRegistrationMiddleware : IMiddleware<V1BridgeInitContext>
+internal sealed partial class V1EnvRegistrationMiddleware : ServiceEntity, IMiddleware<V1BridgeInitContext>
 {
 
     public async Task InvokeAsync(V1BridgeInitContext ctx, MiddlewareDelegate<V1BridgeInitContext> next, CancellationToken ct)

@@ -1,7 +1,7 @@
-﻿namespace Core.Memdir;
+namespace Core.Memdir;
 
 [Register]
-public sealed partial class ThinkingStore : IThinkingStore, IDisposable
+public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisposable
 {
     private readonly ConcurrentDictionary<string, List<ThinkingEntry>> _entries = new(StringComparer.OrdinalIgnoreCase);
     private readonly string _storagePath;
@@ -142,7 +142,7 @@ public sealed partial class ThinkingStore : IThinkingStore, IDisposable
         }
     }
 
-    public void Dispose()
+    protected override void OnDispose()
     {
         _disposeCts.Cancel();
         _disposeCts.Dispose();

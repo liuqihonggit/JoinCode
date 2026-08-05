@@ -7,7 +7,7 @@ namespace Core.Configuration;
 /// 精简模式服务实现 - 管理精简模式的启用/禁用状态和配置
 /// </summary>
 [Register]
-public sealed partial class SimpleModeService : ISimpleModeService
+public sealed partial class SimpleModeService : ServiceEntity, ISimpleModeService
 {
     private readonly object _lock = new();
     private bool _isSimpleMode;

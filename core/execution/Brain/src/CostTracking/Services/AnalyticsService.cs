@@ -1,8 +1,8 @@
-﻿
+
 namespace Core.CostTracking;
 
 [Register]
-public sealed partial class AnalyticsService : IAnalyticsService, IDisposable
+public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService, IDisposable
 {
     private readonly ConcurrentQueue<AnalyticsEvent> _events = new();
     private readonly ConcurrentDictionary<string, ITelemetrySpan> _agentSpans = new();
@@ -359,7 +359,7 @@ public sealed partial class AnalyticsService : IAnalyticsService, IDisposable
 
     #endregion
 
-    public void Dispose()
+    protected override void OnDispose()
     {
         if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
         _disposeCts.Cancel();

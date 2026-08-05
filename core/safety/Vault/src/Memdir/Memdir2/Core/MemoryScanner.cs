@@ -1,4 +1,4 @@
-﻿
+
 namespace Core.Memdir;
 
 /// <summary>
@@ -35,7 +35,7 @@ public interface IMemoryScanner
 /// 记忆扫描器实现
 /// </summary>
 [Register]
-public sealed partial class MemoryScanner : IMemoryScanner
+public sealed partial class MemoryScanner : ServiceEntity, IMemoryScanner
 {
     private readonly IMemoryPaths _memoryPaths;
     [Inject] private readonly ILogger<MemoryScanner>? _logger;

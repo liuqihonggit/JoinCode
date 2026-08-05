@@ -8,11 +8,13 @@ using JoinCode.Abstractions.Interfaces.Doctor;
 public sealed class BootstrapWorktreeManager : IBootstrapWorktreeManager
 {
     private readonly IFileSystem _fs;
+    private readonly IGitCommandRunner _gitRunner;
     private BootstrapWorktree? _current;
 
-    public BootstrapWorktreeManager(IFileSystem fs)
+    public BootstrapWorktreeManager(IFileSystem fs, IGitCommandRunner gitRunner)
     {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
+        _gitRunner = gitRunner ?? throw new ArgumentNullException(nameof(gitRunner));
     }
 
     public async Task<BootstrapWorktree> CreateAsync(
@@ -139,7 +141,7 @@ public sealed class BootstrapWorktreeManager : IBootstrapWorktreeManager
         _current = null;
     }
 
-    private static async Task CleanupStaleBranchesAsync(string gitRoot, CancellationToken ct)
+    private async Task CleanupStaleBranchesAsync(string gitRoot, CancellationToken ct)
     {
         try
         {
@@ -180,26 +182,9 @@ public sealed class BootstrapWorktreeManager : IBootstrapWorktreeManager
         }
     }
 
-    private static async Task<string> ExecuteGitCommandAsync(string workingDir, string arguments, CancellationToken ct)
+    private async Task<string> ExecuteGitCommandAsync(string workingDir, string arguments, CancellationToken ct)
     {
-        var startInfo = new System.Diagnostics.ProcessStartInfo
-        {
-            FileName = "git",
-            Arguments = arguments,
-            WorkingDirectory = workingDir,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true
-        };
-
-        using var process = System.Diagnostics.Process.Start(startInfo)
-            ?? throw new InvalidOperationException("无法启动 git 进程");
-
-        var output = await process.StandardOutput.ReadToEndAsync(ct).ConfigureAwait(false);
-        _ = await process.StandardError.ReadToEndAsync(ct).ConfigureAwait(false);
-        await process.WaitForExitAsync(ct).ConfigureAwait(false);
-
-        return output.Trim();
+        var result = await _gitRunner.ExecuteAsync(arguments, workingDir, ct).ConfigureAwait(false);
+        return result.Output.Trim();
     }
 }

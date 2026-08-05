@@ -1,4 +1,4 @@
-﻿
+
 namespace Core.Bridge.Init.V2;
 
 using JoinCode.Abstractions.Pipeline;
@@ -7,7 +7,7 @@ using JoinCode.Abstractions.Pipeline;
 /// V2 创建 code session — 对齐 TS 端: createCodeSession
 /// </summary>
 [Register]
-internal sealed partial class V2CodeSessionMiddleware : IMiddleware<V2BridgeInitContext>
+internal sealed partial class V2CodeSessionMiddleware : ServiceEntity, IMiddleware<V2BridgeInitContext>
 {
 
     public async Task InvokeAsync(V2BridgeInitContext ctx, MiddlewareDelegate<V2BridgeInitContext> next, CancellationToken ct)

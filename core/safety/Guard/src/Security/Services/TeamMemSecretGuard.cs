@@ -1,4 +1,4 @@
-﻿
+
 namespace Core.Security.Services;
 
 /// <summary>
@@ -6,7 +6,7 @@ namespace Core.Security.Services;
 /// 对齐 TS: teamMemSecretGuard.ts
 /// </summary>
 [Register]
-public sealed partial class TeamMemSecretGuard : ITeamMemSecretGuard
+public sealed partial class TeamMemSecretGuard : ServiceEntity, ITeamMemSecretGuard
 {
     private readonly string? _teamMemDirectory;
 

@@ -7,9 +7,10 @@ using System.Diagnostics.CodeAnalysis;
 /// 核心特性：串行执行 + 结果缓冲区（源码指纹失效）+ 防睡眠
 /// </summary>
 [Register]
+[AllowSkipEntity("实现 IAsyncDisposable，与 ServiceEntity 的 IDisposable 冲突，保留异步释放模式")]
 public sealed partial class BuildQueueService : IBuildQueueService
 {
-    [Inject] private readonly IShellExecutionService _shellExecutionService;
+    [Inject] private readonly ISystemActuatorRegistry _actuatorRegistry;
     [Inject] private readonly IFileSystem _fs;
     [Inject] private readonly IPreventSleepService? _preventSleepService;
     [Inject] private readonly ILogger<BuildQueueService>? _logger;
@@ -43,13 +44,13 @@ public sealed partial class BuildQueueService : IBuildQueueService
     private readonly object _fingerprintLock = new();
 
     public BuildQueueService(
-        IShellExecutionService shellExecutionService,
+        ISystemActuatorRegistry actuatorRegistry,
         IFileSystem fs,
         IPreventSleepService? preventSleepService = null,
         ILogger<BuildQueueService>? logger = null,
         string? crossProcessLockPath = null)
     {
-        _shellExecutionService = shellExecutionService;
+        _actuatorRegistry = actuatorRegistry;
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _preventSleepService = preventSleepService;
         _logger = logger;
@@ -374,6 +375,9 @@ public sealed partial class BuildQueueService : IBuildQueueService
             entry.Status = BuildQueueEntryStatus.Building;
             entry.StartedAt = DateTimeOffset.UtcNow;
 
+            _logger?.LogInformation("Build {BuildId} started (checkpoint): queuePos={QueuePos}, pending={Pending}",
+                entry.BuildId, entry.QueuePosition, _entries.Values.Count(e => e.Status == BuildQueueEntryStatus.Queued));
+
             var waitStart = DateTimeOffset.UtcNow;
 
             try
@@ -431,6 +435,9 @@ public sealed partial class BuildQueueService : IBuildQueueService
                 _currentBuild = null;
                 _currentBuildCts?.Dispose();
                 _currentBuildCts = null;
+
+                _logger?.LogDebug("Build {BuildId} checkpoint: status={Status}, remaining={Remaining}",
+                    entry.BuildId, entry.Status, _entries.Values.Count(e => e.Status == BuildQueueEntryStatus.Queued));
             }
         }
     }
@@ -531,7 +538,7 @@ public sealed partial class BuildQueueService : IBuildQueueService
                 var sw = Stopwatch.StartNew();
                 var wallStart = DateTimeOffset.UtcNow;
 
-                var result = await _shellExecutionService.ExecuteAsync(
+                var result = await _actuatorRegistry.Get(SystemActuatorKind.Bash).ExecuteAsync(
                     entry.Request.Command,
                     workingDirectory: entry.Request.WorkingDirectory,
                     cancellationToken: buildCt).ConfigureAwait(false);

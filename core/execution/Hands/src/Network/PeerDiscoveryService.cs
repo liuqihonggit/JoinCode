@@ -4,7 +4,7 @@ using JoinCode.Abstractions.Attributes;
 namespace IO.Services;
 
 [Register]
-public sealed partial class PeerDiscoveryService : IPeerDiscoveryService
+public sealed partial class PeerDiscoveryService : ServiceEntity, IPeerDiscoveryService
 {
     private readonly ConcurrentDictionary<string, PeerInfo> _peers = new(StringComparer.Ordinal);
     [Inject] private readonly ILogger<PeerDiscoveryService>? _logger;

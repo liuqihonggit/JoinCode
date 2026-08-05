@@ -27,7 +27,7 @@ public sealed partial class SwarmPermissionUpdateData
 
 [Register]
 [Register]
-public sealed partial class SwarmPermissionCallbackService : ISwarmPermissionCallbacks
+public sealed partial class SwarmPermissionCallbackService : ServiceEntity, ISwarmPermissionCallbacks
 {
     private readonly IAgentMessageBroker _messageBroker;
     [Inject] private readonly ILogger<SwarmPermissionCallbackService>? _logger;

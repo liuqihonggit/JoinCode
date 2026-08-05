@@ -3,8 +3,14 @@ namespace Core.Bridge;
 using JoinCode.Abstractions.Pipeline;
 
 [Register(typeof(IHandleWorkMiddleware))]
-public sealed partial class WorkSpawnMiddleware : IHandleWorkMiddleware
+public sealed partial class WorkSpawnMiddleware : ServiceEntity, IHandleWorkMiddleware
 {
+
+    public WorkSpawnMiddleware(ILogger<WorkSpawnMiddleware>? logger = null, IAgentWorktreeService? worktreeService = null)
+    {
+        _logger = logger;
+        _worktreeService = worktreeService;
+    }
     [Inject] private readonly ILogger<WorkSpawnMiddleware>? _logger;
     [Inject] private readonly IAgentWorktreeService? _worktreeService;
 
@@ -46,7 +52,7 @@ public sealed partial class WorkSpawnMiddleware : IHandleWorkMiddleware
                 {
                     await _worktreeService.RemoveAgentWorktreeAsync(
                         ctx.Work.SessionId, force: true, cancellationToken: ct).ConfigureAwait(false);
-                    ctx.SessionWorktrees.Remove(ctx.Work.SessionId);
+                    ctx.SessionWorktrees.TryRemove(ctx.Work.SessionId, out _);
                 }
                 catch (Exception cleanupEx)
                 {
@@ -54,7 +60,7 @@ public sealed partial class WorkSpawnMiddleware : IHandleWorkMiddleware
                 }
             }
 
-            ctx.CompletedWorkIds.Add(ctx.Work.WorkId);
+            ctx.CompletedWorkIds.TryAdd(ctx.Work.WorkId, 0);
             if (ctx.StopWorkAsync is not null)
             {
                 await ctx.StopWorkAsync(ctx.Work.WorkId, ct).ConfigureAwait(false);

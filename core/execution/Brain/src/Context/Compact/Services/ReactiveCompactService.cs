@@ -1,8 +1,8 @@
-﻿
+
 namespace Core.Context.Compact;
 
 [Register]
-public sealed partial class ReactiveCompactService : IReactiveCompactService
+public sealed partial class ReactiveCompactService : ServiceEntity, IReactiveCompactService
 {
     private const string PromptTooLongPrefix = "prompt_too_long";
     private const string PromptTooLongErrorPrefix = "API Error: prompt_too_long";

@@ -143,25 +143,47 @@ public abstract class CoverageTestBase : IAsyncLifetime
         Output.WriteLine($"[Coverage] 耗时: {elapsed.TotalMilliseconds:F1}ms");
         Output.WriteLine($"[Coverage] 断言: {result.AssertResults.Count(a => a.IsPassed)} 通过 / {result.AssertResults.Count(a => !a.IsPassed)} 失败");
 
+        var hasFailures = result.AssertResults.Any(a => !a.IsPassed);
+
         foreach (var turn in result.TurnRecords)
         {
             Output.WriteLine($"--- Turn: UserInput=\"{turn.UserInput}\"");
             Output.WriteLine($"    ToolCalls: {turn.ToolCalls.Count}");
+
+            foreach (var tc in turn.ToolCalls)
+            {
+                var status = tc.IsSuccess ? "OK" : "FAIL";
+                var resultPreview = tc.Result.Length > 200 ? tc.Result[..200] + "..." : tc.Result;
+                Output.WriteLine($"    [{status}] {tc.ToolName}: {resultPreview}");
+            }
+
             var respPreview = turn.AssistantResponse.Length > 100
                 ? turn.AssistantResponse[..100] + "..."
                 : turn.AssistantResponse;
             Output.WriteLine($"    AssistantResponse: {respPreview}");
             Output.WriteLine($"    Errors: {turn.Errors.Count}");
+
+            if (turn.Errors.Count > 0)
+            {
+                foreach (var err in turn.Errors.Take(10))
+                {
+                    var errPreview = err.Length > 300 ? err[..300] + "..." : err;
+                    Output.WriteLine($"    ERROR: {errPreview}");
+                }
+            }
         }
 
         foreach (var assert in result.AssertResults.Where(a => !a.IsPassed))
         {
-            Output.WriteLine($"FAIL: {assert.Type} Expected=\"{assert.Expected}\" Desc=\"{assert.Description}\"");
+            var actual = string.IsNullOrWhiteSpace(assert.ActualValue) ? "" : $" Actual=\"{Truncate(assert.ActualValue, 200)}\"";
+            Output.WriteLine($"FAIL: {assert.Type} Expected=\"{assert.Expected}\"{actual} Desc=\"{assert.Description}\"");
         }
 
         if (!string.IsNullOrWhiteSpace(result.StderrOutput))
         {
-            var stderrLines = result.StderrOutput.Split('\n').Where(l => l.Contains("DIAG") || l.Contains("StreamingFallback") || l.Contains("Enabled")).Take(20).ToList();
+            var stderrLines = result.StderrOutput.Split('\n')
+                .Where(l => l.Contains("DIAG") || l.Contains("StreamingFallback") || l.Contains("Enabled"))
+                .Take(20).ToList();
             if (stderrLines.Count > 0)
             {
                 Output.WriteLine($"[Coverage] DIAG stderr:");
@@ -169,13 +191,40 @@ public abstract class CoverageTestBase : IAsyncLifetime
                     Output.WriteLine($"  {line.TrimEnd('\r')}");
             }
         }
+
+        if (hasFailures)
+        {
+            Output.WriteLine("[Coverage] === 诊断: RawOutput 片段 ===");
+            foreach (var turn in result.TurnRecords)
+            {
+                if (turn.RawOutput.Length > 0)
+                {
+                    var rawPreview = turn.RawOutput.Length > 2000 ? turn.RawOutput[..2000] + "..." : turn.RawOutput;
+                    Output.WriteLine($"--- Turn RawOutput (len={turn.RawOutput.Length}):");
+                    Output.WriteLine(rawPreview);
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(result.StderrOutput))
+            {
+                var stderrPreview = result.StderrOutput.Length > 2000 ? result.StderrOutput[..2000] + "..." : result.StderrOutput;
+                Output.WriteLine($"--- StderrOutput (len={result.StderrOutput.Length}):");
+                Output.WriteLine(stderrPreview);
+            }
+        }
     }
+
+    private static string Truncate(string s, int maxLen) =>
+        string.IsNullOrEmpty(s) ? s : s.Length <= maxLen ? s : s[..maxLen] + "...";
 
     private static string FormatFailures(ConversationResult result)
     {
         var failures = result.AssertResults.Where(a => !a.IsPassed).ToList();
         if (failures.Count == 0) return "(无)";
         return string.Join("; ", failures.Select(f =>
-            $"{f.Type}: Expected=\"{f.Expected}\" Desc=\"{f.Description}\""));
+        {
+            var actual = string.IsNullOrWhiteSpace(f.ActualValue) ? "" : $", Actual=\"{Truncate(f.ActualValue, 100)}\"";
+            return $"{f.Type}: Expected=\"{f.Expected}\"{actual} Desc=\"{f.Description}\"";
+        }));
     }
 }

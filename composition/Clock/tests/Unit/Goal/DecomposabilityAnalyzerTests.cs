@@ -215,4 +215,122 @@ public sealed class DecomposabilityAnalyzerTests
 
         Assert.True(result.IsDecomposable);
     }
+
+    [Fact]
+    public void ParseAnalysisResult_Json_With_ComplexityLow_Should_Parse()
+    {
+        var content = """{"isDecomposable": true, "reason": "ok", "complexity": "low", "subTasks": [{"id": "sub_1", "title": "A", "description": "D", "dependsOn": [], "ownedFiles": ["a.cs"], "priority": "high", "variant": "code"}]}""";
+
+        var result = DecomposabilityAnalyzer.ParseAnalysisResult(content);
+
+        Assert.True(result.IsDecomposable);
+        Assert.Equal(ComplexityLevel.Low, result.Complexity);
+    }
+
+    [Fact]
+    public void ParseAnalysisResult_Json_With_ComplexityHigh_Should_Parse()
+    {
+        var content = """{"isDecomposable": true, "reason": "ok", "complexity": "high", "subTasks": [{"id": "sub_1", "title": "A", "description": "D", "dependsOn": [], "ownedFiles": ["a.cs"], "priority": "high", "variant": "code"}]}""";
+
+        var result = DecomposabilityAnalyzer.ParseAnalysisResult(content);
+
+        Assert.True(result.IsDecomposable);
+        Assert.Equal(ComplexityLevel.High, result.Complexity);
+    }
+
+    [Fact]
+    public void ParseAnalysisResult_Json_MissingComplexity_Should_DefaultToMedium()
+    {
+        var content = """{"isDecomposable": true, "reason": "ok", "subTasks": [{"id": "sub_1", "title": "A", "description": "D", "dependsOn": [], "ownedFiles": ["a.cs"], "priority": "high", "variant": "code"}]}""";
+
+        var result = DecomposabilityAnalyzer.ParseAnalysisResult(content);
+
+        Assert.True(result.IsDecomposable);
+        Assert.Equal(ComplexityLevel.Medium, result.Complexity);
+    }
+
+    [Fact]
+    public void ParseAnalysisResult_Json_InvalidComplexity_Should_DefaultToMedium()
+    {
+        var content = """{"isDecomposable": true, "reason": "ok", "complexity": "ultra", "subTasks": [{"id": "sub_1", "title": "A", "description": "D", "dependsOn": [], "ownedFiles": ["a.cs"], "priority": "high", "variant": "code"}]}""";
+
+        var result = DecomposabilityAnalyzer.ParseAnalysisResult(content);
+
+        Assert.True(result.IsDecomposable);
+        Assert.Equal(ComplexityLevel.Medium, result.Complexity);
+    }
+
+    [Fact]
+    public void ParseAnalysisResult_Json_With_ModeB_Should_Parse()
+    {
+        var content = """{"isDecomposable": true, "reason": "ok", "complexity": "low", "mode": "B", "rationale": "independent tasks", "subTasks": [{"id": "sub_1", "title": "A", "description": "D", "dependsOn": [], "ownedFiles": ["a.cs"], "priority": "high", "variant": "code"}]}""";
+
+        var result = DecomposabilityAnalyzer.ParseAnalysisResult(content);
+
+        Assert.True(result.IsDecomposable);
+        Assert.Equal(ExecutionMode.PlanB, result.Mode);
+        Assert.Equal("independent tasks", result.Rationale);
+    }
+
+    [Fact]
+    public void ParseAnalysisResult_Json_With_ModeA_Should_Parse()
+    {
+        var content = """{"isDecomposable": true, "reason": "ok", "complexity": "medium", "mode": "A", "rationale": "sequential pipeline", "subTasks": [{"id": "sub_1", "title": "A", "description": "D", "dependsOn": [], "ownedFiles": ["a.cs"], "priority": "high", "variant": "code"}]}""";
+
+        var result = DecomposabilityAnalyzer.ParseAnalysisResult(content);
+
+        Assert.True(result.IsDecomposable);
+        Assert.Equal(ExecutionMode.PlanA, result.Mode);
+        Assert.Equal("sequential pipeline", result.Rationale);
+    }
+
+    [Fact]
+    public void ParseAnalysisResult_Json_MissingMode_Should_DefaultToPlanA()
+    {
+        var content = """{"isDecomposable": true, "reason": "ok", "subTasks": [{"id": "sub_1", "title": "A", "description": "D", "dependsOn": [], "ownedFiles": ["a.cs"], "priority": "high", "variant": "code"}]}""";
+
+        var result = DecomposabilityAnalyzer.ParseAnalysisResult(content);
+
+        Assert.True(result.IsDecomposable);
+        Assert.Equal(ExecutionMode.PlanA, result.Mode);
+    }
+
+    [Fact]
+    public void ParseAnalysisResult_Json_InvalidMode_Should_DefaultToPlanA()
+    {
+        var content = """{"isDecomposable": true, "reason": "ok", "mode": "C", "subTasks": [{"id": "sub_1", "title": "A", "description": "D", "dependsOn": [], "ownedFiles": ["a.cs"], "priority": "high", "variant": "code"}]}""";
+
+        var result = DecomposabilityAnalyzer.ParseAnalysisResult(content);
+
+        Assert.True(result.IsDecomposable);
+        Assert.Equal(ExecutionMode.PlanA, result.Mode);
+    }
+
+    [Fact]
+    public async Task AnalyzeAsync_Prompt_Should_Contain_ThinkingChain()
+    {
+        var kernel = new Mock<IChatClient>();
+        var chatService = new Mock<IQueryService>();
+
+        MessageList? capturedHistory = null;
+        chatService.Setup(x => x.GetApiMessageContentsAsync(It.IsAny<MessageList>(), It.IsAny<ChatOptions>(), It.IsAny<IChatClient>(), It.IsAny<CancellationToken>()))
+            .Callback<MessageList, ChatOptions, IChatClient, CancellationToken>((history, _, _, _) => capturedHistory = history)
+            .ReturnsAsync([new ApiMessage { Role = MessageRole.Assistant, Content = """{"isDecomposable": false, "reason": "no", "subTasks": []}""" }]);
+
+        kernel.Setup(x => x.GetChatCompletionService()).Returns(chatService.Object);
+
+        var analyzer = new DecomposabilityAnalyzer(kernel.Object);
+        await analyzer.AnalyzeAsync("实现功能", []).ConfigureAwait(true);
+
+        Assert.NotNull(capturedHistory);
+        var systemMessage = capturedHistory[0].Content;
+        Assert.Contains("THINKING CHAIN", systemMessage);
+        Assert.Contains("Step 1", systemMessage);
+        Assert.Contains("Step 2", systemMessage);
+        Assert.Contains("Step 3", systemMessage);
+        Assert.Contains("Step 4", systemMessage);
+        Assert.Contains("EXECUTION MODES", systemMessage);
+        Assert.Contains("\"mode\"", systemMessage);
+        Assert.Contains("\"rationale\"", systemMessage);
+    }
 }

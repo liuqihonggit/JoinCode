@@ -27,7 +27,7 @@ public sealed class CodeSessionApiResponse
 }
 
 [Register]
-public sealed partial class CodeSessionApiHandler
+public sealed partial class CodeSessionApiHandler : ServiceEntity
 {
     private readonly CodeSessionManager _manager;
     private readonly Core.Bridge.BridgeJwtService? _jwtService;

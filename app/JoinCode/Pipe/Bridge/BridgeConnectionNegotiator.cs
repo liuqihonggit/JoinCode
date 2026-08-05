@@ -9,7 +9,7 @@ public sealed class BridgeNegotiationResult
 }
 
 [Register]
-public sealed partial class BridgeConnectionNegotiator
+public sealed partial class BridgeConnectionNegotiator : ServiceEntity
 {
     private static readonly FrozenSet<string> SupportedVersions = new HashSet<string>(StringComparer.Ordinal)
     {

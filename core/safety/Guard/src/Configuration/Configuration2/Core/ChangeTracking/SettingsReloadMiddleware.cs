@@ -1,10 +1,10 @@
-﻿namespace Core.Configuration;
+namespace Core.Configuration;
 
 /// <summary>
 /// 设置重载中间件 — 重新加载 SettingsJson，对齐 TS 版 getInitialSettings()
 /// </summary>
 [Register(typeof(ISettingsMiddleware))]
-public sealed partial class SettingsReloadMiddleware : ISettingsMiddleware
+public sealed partial class SettingsReloadMiddleware : ServiceEntity, ISettingsMiddleware
 {
     /// <inheritdoc />
 

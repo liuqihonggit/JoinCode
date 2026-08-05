@@ -331,7 +331,7 @@ public class WorktreeToolHandlers
                     errorResponse.AppendLine($"  - {file}");
                 }
             }
-            return ToolResultBuilder.Success().WithText(errorResponse.ToString()).Build();
+            return ToolResultBuilder.Error().WithText(errorResponse.ToString()).Build();
         }
 
         var response = new System.Text.StringBuilder();

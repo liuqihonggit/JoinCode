@@ -18,6 +18,12 @@ public sealed class GoalGraph
 
     public int HardMaxLoopIterations { get; init; } = 16;
 
+    /// <summary>
+    /// 同层节点最大并发数。0 = 无限制（按就绪节点数并发）。
+    /// 1 = 退化为串行执行。对齐 ClusterExecutionOptions.MaxConcurrency。
+    /// </summary>
+    public int MaxConcurrency { get; init; } = 0;
+
     public GoalGraph()
     {
         _endNodeIds = [];

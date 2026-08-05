@@ -9,6 +9,7 @@ using JoinCode.Abstractions.Interfaces.Doctor;
 public sealed class SourceCodeEngine : ISourceCodeEngine
 {
     private readonly IFileSystem _fs;
+    private readonly IGitCommandRunner _gitRunner;
 
     private static readonly (int Layer, string SlnxName)[] BuildLayers =
     [
@@ -21,9 +22,10 @@ public sealed class SourceCodeEngine : ISourceCodeEngine
         (7, "App.slnx")
     ];
 
-    public SourceCodeEngine(IFileSystem fs)
+    public SourceCodeEngine(IFileSystem fs, IGitCommandRunner gitRunner)
     {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
+        _gitRunner = gitRunner ?? throw new ArgumentNullException(nameof(gitRunner));
     }
 
     public async Task<SourceCodeLocation> LocateSourceRepositoryAsync(
@@ -289,26 +291,10 @@ public sealed class SourceCodeEngine : ISourceCodeEngine
             if (!_fs.DirectoryExists(cloneDir))
                 _fs.CreateDirectory(cloneDir);
 
-            var startInfo = new System.Diagnostics.ProcessStartInfo
-            {
-                FileName = "git",
-                Arguments = $"clone \"{repoUrl}\" \"{cloneDir}\"",
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
+            var result = await _gitRunner.ExecuteAsync($"clone \"{repoUrl}\" \"{cloneDir}\"", null, ct).ConfigureAwait(false);
 
-            using var process = System.Diagnostics.Process.Start(startInfo);
-            if (process is null)
-                return new SourceCodeLocation { GitRoot = "", IsAvailable = false, FailureReason = "无法启动 git 进程" };
-
-            var errorTask = process.StandardError.ReadToEndAsync(ct);
-            await process.WaitForExitAsync(ct).ConfigureAwait(false);
-            var error = await errorTask.ConfigureAwait(false);
-
-            if (process.ExitCode != 0)
-                return new SourceCodeLocation { GitRoot = "", IsAvailable = false, FailureReason = $"git clone 失败: {error}" };
+            if (!result.Success)
+                return new SourceCodeLocation { GitRoot = "", IsAvailable = false, FailureReason = $"git clone 失败: {result.Error}" };
 
             return await BuildLocationAsync(cloneDir, ct).ConfigureAwait(false);
         }
@@ -338,30 +324,11 @@ public sealed class SourceCodeEngine : ISourceCodeEngine
 
         try
         {
-            var startInfo = new System.Diagnostics.ProcessStartInfo
-            {
-                FileName = "git",
-                Arguments = "rev-parse --abbrev-ref HEAD",
-                WorkingDirectory = gitRoot,
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
+            var branchResult = await _gitRunner.ExecuteAsync("rev-parse --abbrev-ref HEAD", gitRoot, ct).ConfigureAwait(false);
+            branch = branchResult.Output.Trim();
 
-            using var branchProcess = System.Diagnostics.Process.Start(startInfo);
-            if (branchProcess is not null)
-            {
-                branch = (await branchProcess.StandardOutput.ReadToEndAsync(ct).ConfigureAwait(false)).Trim();
-                await branchProcess.WaitForExitAsync(ct).ConfigureAwait(false);
-            }
-
-            startInfo.Arguments = "rev-parse HEAD";
-            using var hashProcess = System.Diagnostics.Process.Start(startInfo);
-            if (hashProcess is not null)
-            {
-                commitHash = (await hashProcess.StandardOutput.ReadToEndAsync(ct).ConfigureAwait(false)).Trim();
-                await hashProcess.WaitForExitAsync(ct).ConfigureAwait(false);
-            }
+            var hashResult = await _gitRunner.ExecuteAsync("rev-parse HEAD", gitRoot, ct).ConfigureAwait(false);
+            commitHash = hashResult.Output.Trim();
         }
         catch (Exception ex) { DoctorDiag.WriteError($"[Doctor] 获取 git 信息失败: {ex.Message}"); }
 

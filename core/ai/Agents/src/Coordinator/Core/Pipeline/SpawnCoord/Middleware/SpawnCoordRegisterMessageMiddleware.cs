@@ -1,8 +1,17 @@
 namespace Core.Agents.Coordinator;
 
 [Register(typeof(IAgentSpawnCoordMiddleware))]
-public sealed partial class SpawnCoordRegisterMessageMiddleware : IAgentSpawnCoordMiddleware
+public sealed partial class SpawnCoordRegisterMessageMiddleware : ServiceEntity, IAgentSpawnCoordMiddleware
 {
+
+    public SpawnCoordRegisterMessageMiddleware(IAgentMessageBroker messageBroker, ISubAgentContextAccessor subAgentContextAccessor, ILogger<SpawnCoordRegisterMessageMiddleware> logger, ITeammateInitService? teammateInitService = null, IServiceProvider? serviceProvider = null)
+    {
+        _messageBroker = messageBroker;
+        _subAgentContextAccessor = subAgentContextAccessor;
+        _logger = logger;
+        _teammateInitService = teammateInitService;
+        _serviceProvider = serviceProvider;
+    }
     [Inject] private readonly IAgentMessageBroker _messageBroker;
     [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
     [Inject] private readonly ILogger<SpawnCoordRegisterMessageMiddleware> _logger;

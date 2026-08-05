@@ -5,8 +5,13 @@ namespace Core.Configuration;
 /// 简要模式服务实现
 /// </summary>
 [Register]
-public partial class BriefModeService : IBriefModeService
+public partial class BriefModeService : ServiceEntity, IBriefModeService
 {
+
+    public BriefModeService(IClockService clock)
+    {
+        _clock = clock;
+    }
     private bool _isEnabled;
     private DateTime? _enabledAt;
     private bool _userMsgOptIn;

@@ -1,4 +1,4 @@
-﻿namespace Core.Prompts;
+namespace Core.Prompts;
 
 public sealed partial class ToolIdleReminderConfig
 {
@@ -24,7 +24,7 @@ public sealed partial class ToolIdleReminderConfig
 }
 
 [Register]
-public sealed partial class ToolIdleReminderService : IToolIdleReminderService
+public sealed partial class ToolIdleReminderService : ServiceEntity, IToolIdleReminderService
 {
     private readonly Dictionary<string, int> _turnsSinceLastUse = [];
     private readonly Dictionary<string, int> _turnsSinceLastReminder = [];

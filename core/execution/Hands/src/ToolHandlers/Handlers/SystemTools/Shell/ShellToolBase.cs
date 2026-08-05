@@ -31,20 +31,18 @@ public abstract class ShellToolBase
     public virtual bool IsCompactable => true;
 
     /// <summary>
-    /// 检查 Shell 门控 — 对齐 TS isPowerShellToolEnabled + isWindowsSandboxPolicyViolation
-    /// 1. 非 Windows 或环境变量禁用时不可用
-    /// 2. Windows 上沙箱策略启用但沙箱不可用时拒绝执行
+    /// 检查执行器门控 — 对齐 TS isPowerShellToolEnabled + isWindowsSandboxPolicyViolation
     /// </summary>
-    protected ToolResult? CheckGate(ShellType shellType)
+    protected ToolResult? CheckGate(SystemActuatorKind kind)
     {
-        if (shellType == ShellType.PowerShell && _gateService is not null && !_gateService.IsPowerShellToolEnabled())
+        if (kind == SystemActuatorKind.PowerShell && _gateService is not null && !_gateService.IsPowerShellToolEnabled())
         {
             return ToolResultBuilder.Error()
                 .WithText("PowerShell tool is not available on this platform. Set JCC_USE_POWERSHELL_TOOL=1 to enable.")
                 .Build();
         }
 
-        if (shellType == ShellType.PowerShell && IsWindowsSandboxPolicyViolation())
+        if (kind == SystemActuatorKind.PowerShell && IsWindowsSandboxPolicyViolation())
         {
             return ToolResultBuilder.Error()
                 .WithText("Enterprise policy requires sandboxing, but sandboxing is not available on native Windows. PowerShell commands cannot be executed in this configuration.")

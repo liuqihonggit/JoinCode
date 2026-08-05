@@ -6,14 +6,15 @@ public sealed class SecurityReviewCommand : ChatCommandBase
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var fs = context.Services.FileSystem;
-        var gitStatus = await RunGitCommandAsync($"{GitSubCommand.Status.ToValue()} --porcelain", context.CancellationToken, fs).ConfigureAwait(false);
-        var gitDiffNames = await RunGitCommandAsync($"{GitSubCommand.Diff.ToValue()} --name-only", context.CancellationToken, fs).ConfigureAwait(false);
-        var gitLog = await RunGitCommandAsync($"{GitSubCommand.Log.ToValue()} --oneline -10", context.CancellationToken, fs).ConfigureAwait(false);
-        var gitDiff = await RunGitCommandAsync(GitSubCommand.Diff.ToValue(), context.CancellationToken, fs).ConfigureAwait(false);
+        var gitRunner = ChatCommandBase.GetService<IGitCommandRunner>(context)!;
+        var gitStatus = await RunGitCommandAsync($"{GitSubCommand.Status.ToValue()} --porcelain", context.CancellationToken, fs, gitRunner).ConfigureAwait(false);
+        var gitDiffNames = await RunGitCommandAsync($"{GitSubCommand.Diff.ToValue()} --name-only", context.CancellationToken, fs, gitRunner).ConfigureAwait(false);
+        var gitLog = await RunGitCommandAsync($"{GitSubCommand.Log.ToValue()} --oneline -10", context.CancellationToken, fs, gitRunner).ConfigureAwait(false);
+        var gitDiff = await RunGitCommandAsync(GitSubCommand.Diff.ToValue(), context.CancellationToken, fs, gitRunner).ConfigureAwait(false);
 
         if (string.IsNullOrWhiteSpace(gitDiff))
         {
-            gitDiff = await RunGitCommandAsync($"{GitSubCommand.Diff.ToValue()} --cached", context.CancellationToken, fs).ConfigureAwait(false);
+            gitDiff = await RunGitCommandAsync($"{GitSubCommand.Diff.ToValue()} --cached", context.CancellationToken, fs, gitRunner).ConfigureAwait(false);
         }
 
         if (string.IsNullOrWhiteSpace(gitStatus) && string.IsNullOrWhiteSpace(gitDiff))
@@ -121,30 +122,12 @@ If no high-confidence vulnerabilities are found, state: "No high-confidence secu
 
     private static string TruncateDiff(string diff, int maxLength) => StringTruncator.Truncate(diff, maxLength, "\n... (diff truncated)", suffixWithinLimit: false);
 
-    private static async Task<string> RunGitCommandAsync(string arguments, CancellationToken cancellationToken, IFileSystem fs)
+    private static async Task<string> RunGitCommandAsync(string arguments, CancellationToken cancellationToken, IFileSystem fs, IGitCommandRunner gitRunner)
     {
         try
         {
-            var psi = new System.Diagnostics.ProcessStartInfo
-            {
-                FileName = "git",
-                Arguments = arguments,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                WorkingDirectory = fs.GetCurrentDirectory()
-            };
-
-            using var process = new System.Diagnostics.Process { StartInfo = psi };
-            process.Start();
-
-            var stdoutTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
-            var stderrTask = process.StandardError.ReadToEndAsync(cancellationToken);
-            await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
-            await Task.WhenAll(stdoutTask, stderrTask).ConfigureAwait(false);
-
-            return await stdoutTask.ConfigureAwait(false);
+            var result = await gitRunner.ExecuteAsync(arguments, fs.GetCurrentDirectory(), cancellationToken).ConfigureAwait(false);
+            return result.Output;
         }
         catch
         {

@@ -7,7 +7,7 @@ namespace Core.Prompts.Templates.System;
 /// 核心消费链路：PromptSuggestionFilter.SuggestionPrompt → IForkSubAgentManager.ForkAsync() → PromptSuggestionFilter.ShouldFilterSuggestion()
 /// </summary>
 [Register]
-public sealed partial class PromptSuggestionCallback : IPostSamplingCallback
+public sealed partial class PromptSuggestionCallback : ServiceEntity, IPostSamplingCallback
 {
     private readonly IForkSubAgentManager? _forkManager;
     private readonly ILogger<PromptSuggestionCallback>? _logger;

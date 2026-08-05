@@ -1,10 +1,10 @@
-﻿namespace JoinCode.Cli;
+namespace JoinCode.Cli;
 
 /// <summary>
 /// Onboarding 流程控制器 - 管理步骤导航、状态持久化和完成追踪
 /// </summary>
 [Register]
-public sealed partial class OnboardingFlowController : IOnboardingService, IDisposable
+public sealed partial class OnboardingFlowController : ServiceEntity, IOnboardingService, IDisposable
 {
     private const int TotalStepCount = 4;
 
@@ -260,7 +260,7 @@ public sealed partial class OnboardingFlowController : IOnboardingService, IDisp
         }
     }
 
-    public void Dispose()
+    protected override void OnDispose()
     {
         _lock.Dispose();
     }

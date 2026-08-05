@@ -1,34 +1,7 @@
 namespace Core.Hooks.Lifecycle;
 
-public interface ISubagentStopHookManager
-{
-    Task<SubagentStopHookResult> OnSubagentStopAsync(SubagentStopHookContext context, CancellationToken ct = default);
-}
-
-public sealed partial class SubagentStopHookContext
-{
-    public required string SessionId { get; init; }
-    public required string AgentId { get; init; }
-    public required string AgentType { get; init; }
-    public string? WorktreePath { get; init; }
-    public bool IsSuccess { get; init; }
-    public string? Error { get; init; }
-    public long? ExecutionTimeMs { get; init; }
-    public Dictionary<string, JsonElement> Metadata { get; init; } = new();
-}
-
-public sealed partial class SubagentStopHookResult
-{
-    public bool ShouldProceed { get; init; } = true;
-    public string? Message { get; init; }
-    public Dictionary<string, JsonElement> AdditionalData { get; init; } = new();
-
-    public static SubagentStopHookResult Proceed(string? message = null) => new() { ShouldProceed = true, Message = message };
-    public static SubagentStopHookResult Block(string? message = null) => new() { ShouldProceed = false, Message = message };
-}
-
 [Register]
-public sealed partial class SubagentStopHookManager : ISubagentStopHookManager
+public sealed partial class SubagentStopHookManager : ServiceEntity, ISubagentStopHookManager
 {
     private readonly IHookOrchestrator _orchestrator;
     [Inject] private readonly ILogger<SubagentStopHookManager>? _logger;

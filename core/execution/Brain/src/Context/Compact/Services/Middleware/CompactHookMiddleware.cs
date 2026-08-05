@@ -6,8 +6,14 @@ namespace Core.Context.Compact;
 /// 压缩钩子中间件 — 执行 pre-compact / post-compact hooks
 /// </summary>
 [Register(typeof(ICompactMiddleware))]
-public sealed partial class CompactHookMiddleware : ICompactMiddleware
+public sealed partial class CompactHookMiddleware : ServiceEntity, ICompactMiddleware
 {
+
+    public CompactHookMiddleware(IMicrocompactService microcompactService, ICompactHookManager? compactHookManager = null)
+    {
+        _microcompactService = microcompactService;
+        _compactHookManager = compactHookManager;
+    }
     [Inject] private readonly IMicrocompactService _microcompactService;
     [Inject] private readonly ICompactHookManager? _compactHookManager;
 

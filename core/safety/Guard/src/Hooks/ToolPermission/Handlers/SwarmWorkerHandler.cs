@@ -13,7 +13,7 @@ public sealed record SwarmWorkerPermissionParams
 }
 
 [Register]
-public sealed partial class SwarmWorkerHandler
+public sealed partial class SwarmWorkerHandler : ServiceEntity
 {
     [Inject] private readonly ILogger<SwarmWorkerHandler>? _logger;
     private readonly ISwarmPermissionCallbacks? _injectedCallbacks;

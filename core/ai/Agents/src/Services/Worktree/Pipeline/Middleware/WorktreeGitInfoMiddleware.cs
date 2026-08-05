@@ -1,12 +1,18 @@
-﻿namespace Core.Agents.Worktree;
+namespace Core.Agents.Worktree;
 
 /// <summary>
 /// Worktree Git 信息获取中间件 — 获取当前分支、HEAD commit SHA，以及基础分支
 /// 对齐 TS getOrCreateWorktree：本地已有 origin ref 时跳过 fetch（大仓库节省 6-8s）
 /// </summary>
 [Register(typeof(IWorktreeCreateMiddleware))]
-public sealed partial class WorktreeGitInfoMiddleware : IWorktreeCreateMiddleware
+public sealed partial class WorktreeGitInfoMiddleware : ServiceEntity, IWorktreeCreateMiddleware
 {
+
+    public WorktreeGitInfoMiddleware(Lazy<IWorktreePipelineOperations> worktreeService, ILogger<WorktreeGitInfoMiddleware>? logger = null)
+    {
+        _worktreeService = worktreeService;
+        _logger = logger;
+    }
     [Inject] private readonly Lazy<IWorktreePipelineOperations> _worktreeService;
     [Inject] private readonly ILogger<WorktreeGitInfoMiddleware>? _logger;
 

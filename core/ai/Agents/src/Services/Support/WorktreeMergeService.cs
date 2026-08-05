@@ -1,10 +1,17 @@
 namespace Core.Agents;
 
 [Register(typeof(IWorktreeMergeService))]
-public sealed partial class WorktreeMergeService : IWorktreeMergeService
+public sealed partial class WorktreeMergeService : ServiceEntity, IWorktreeMergeService
 {
+
+    public WorktreeMergeService(IGitCommandRunner gitRunner, IFileSystem fileSystem, ILogger<WorktreeMergeService>? logger = null)
+    {
+        _gitRunner = gitRunner;
+        _fileSystem = fileSystem;
+        _logger = logger;
+    }
     [Inject] private readonly ILogger<WorktreeMergeService>? _logger;
-    [Inject] private readonly IProcessService _processService;
+    [Inject] private readonly IGitCommandRunner _gitRunner;
     [Inject] private readonly IFileSystem _fileSystem;
 
     public async Task<WorktreeMergeResult> MergeToTargetAsync(
@@ -109,6 +116,12 @@ public sealed partial class WorktreeMergeService : IWorktreeMergeService
             return WorktreeMergeResult.Failed(sourceWorktreePath, targetWorktreePath, $"git commit failed: {commitResult.Error}");
         }
 
+        var preCheckConflicts = await PreCheckMergeConflictsAsync(sourceWorktreePath, targetWorktreePath, sourceBranch, strategy, cancellationToken).ConfigureAwait(false);
+        if (preCheckConflicts is not null)
+        {
+            return preCheckConflicts;
+        }
+
         var mergeResult = await ExecuteGitAsync(targetWorktreePath, $"merge {sourceBranch} --no-edit", cancellationToken).ConfigureAwait(false);
 
         if (mergeResult.Success)
@@ -202,46 +215,80 @@ public sealed partial class WorktreeMergeService : IWorktreeMergeService
         return files.ToList();
     }
 
-    private async Task<GitCommandResult> ExecuteGitAsync(string workingDirectory, string arguments, CancellationToken cancellationToken)
+    private async Task<WorktreeMergeResult?> PreCheckMergeConflictsAsync(
+        string sourceWorktreePath,
+        string targetWorktreePath,
+        string sourceBranch,
+        WorktreeMergeStrategy strategy,
+        CancellationToken cancellationToken)
     {
-        try
+        var staleCheck = await CheckStaleConflictMarkersAsync(sourceWorktreePath, targetWorktreePath, cancellationToken).ConfigureAwait(false);
+        if (staleCheck is not null)
         {
-            var options = new ProcessOptions
-            {
-                FileName = "git",
-                Arguments = arguments,
-                WorkingDirectory = workingDirectory,
-                StandardOutputEncoding = System.Text.Encoding.UTF8,
-                StandardErrorEncoding = System.Text.Encoding.UTF8,
-                EnvironmentVariables = new Dictionary<string, string>
-                {
-                    ["GIT_TERMINAL_PROMPT"] = "0",
-                    ["GIT_ASKPASS"] = ""
-                }
-            };
+            return staleCheck;
+        }
 
-            var result = await _processService.ExecuteAsync(options, cancellationToken).ConfigureAwait(false);
+        var targetBranchResult = await ExecuteGitAsync(targetWorktreePath, "branch --show-current", cancellationToken).ConfigureAwait(false);
+        if (!targetBranchResult.Success || string.IsNullOrWhiteSpace(targetBranchResult.Output))
+        {
+            return null;
+        }
 
-            return new GitCommandResult
-            {
-                Success = result.Success,
-                Output = result.StandardOutput,
-                Error = result.StandardError,
-                ExitCode = result.ExitCode
-            };
-        }
-        catch (OperationCanceledException)
+        var targetBranch = targetBranchResult.Output.Trim();
+        var conflictCheck = await _gitRunner.DetectMergeConflictAsync(targetBranch, sourceBranch, targetWorktreePath, cancellationToken).ConfigureAwait(false);
+
+        if (!conflictCheck.HasConflict)
         {
-            throw;
+            return null;
         }
-        catch (Exception ex)
+
+        _logger?.LogInformation("[WorktreeMerge] 只读预检发现 {Count} 个冲突文件: {Files}",
+            conflictCheck.ConflictFiles.Count, string.Join(", ", conflictCheck.ConflictFiles));
+
+        if (strategy == WorktreeMergeStrategy.Fail)
         {
-            return new GitCommandResult
-            {
-                Success = false,
-                Error = ex.Message,
-                ExitCode = -1
-            };
+            return WorktreeMergeResult.Failed(
+                sourceWorktreePath,
+                targetWorktreePath,
+                "Merge conflict detected (pre-merge read-only check), strategy=Fail",
+                conflictCheck.ConflictFiles);
         }
+
+        return null;
     }
+
+    private async Task<WorktreeMergeResult?> CheckStaleConflictMarkersAsync(
+        string sourceWorktreePath,
+        string targetWorktreePath,
+        CancellationToken cancellationToken)
+    {
+        var sourceCheck = await _gitRunner.DetectStaleConflictMarkersAsync(sourceWorktreePath, cancellationToken).ConfigureAwait(false);
+        if (sourceCheck.HasStaleMarkers)
+        {
+            _logger?.LogError("[WorktreeMerge] 源 worktree 存在遗留冲突标记，禁止合并: {Files}",
+                string.Join(", ", sourceCheck.Files));
+            return WorktreeMergeResult.Failed(
+                sourceWorktreePath,
+                targetWorktreePath,
+                "Stale conflict markers found in source worktree (unclean merge from previous run)",
+                sourceCheck.Files);
+        }
+
+        var targetCheck = await _gitRunner.DetectStaleConflictMarkersAsync(targetWorktreePath, cancellationToken).ConfigureAwait(false);
+        if (targetCheck.HasStaleMarkers)
+        {
+            _logger?.LogError("[WorktreeMerge] 目标 worktree 存在遗留冲突标记，禁止合并: {Files}",
+                string.Join(", ", targetCheck.Files));
+            return WorktreeMergeResult.Failed(
+                sourceWorktreePath,
+                targetWorktreePath,
+                "Stale conflict markers found in target worktree (unclean merge from previous run)",
+                targetCheck.Files);
+        }
+
+        return null;
+    }
+
+    private Task<GitCommandResult> ExecuteGitAsync(string workingDirectory, string arguments, CancellationToken cancellationToken)
+        => _gitRunner.ExecuteAsync(arguments, workingDirectory, cancellationToken);
 }

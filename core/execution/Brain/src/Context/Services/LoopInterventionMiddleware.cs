@@ -9,7 +9,7 @@ namespace Core.Context;
 /// Level 3(第CompactThreshold次+/重连失败): 上下文压缩，无人值守
 /// </summary>
 [Register]
-public sealed partial class LoopInterventionMiddleware : IChatMiddleware
+public sealed partial class LoopInterventionMiddleware : ServiceEntity, IChatMiddleware
 {
     private readonly IChatClient _kernel;
     private readonly IChatContextManager _contextManager;

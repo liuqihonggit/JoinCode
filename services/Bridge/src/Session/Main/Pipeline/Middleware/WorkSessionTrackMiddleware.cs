@@ -1,10 +1,16 @@
-﻿namespace Core.Bridge;
+namespace Core.Bridge;
 
 using JoinCode.Abstractions.Pipeline;
 
 [Register(typeof(IHandleWorkMiddleware))]
-public sealed partial class WorkSessionTrackMiddleware : IHandleWorkMiddleware
+public sealed partial class WorkSessionTrackMiddleware : ServiceEntity, IHandleWorkMiddleware
 {
+
+    public WorkSessionTrackMiddleware(IClockService clock, ILogger<WorkSessionTrackMiddleware>? logger = null)
+    {
+        _clock = clock;
+        _logger = logger;
+    }
     [Inject] private readonly ILogger<WorkSessionTrackMiddleware>? _logger;
     [Inject] private readonly IClockService _clock;
 
@@ -25,7 +31,7 @@ public sealed partial class WorkSessionTrackMiddleware : IHandleWorkMiddleware
 
         if (ctx.UseCcrV2)
         {
-            ctx.V2Sessions.Add(work.SessionId);
+            ctx.V2Sessions.TryAdd(work.SessionId, 0);
         }
 
         var compatId = SessionIdCompat.ToCompatSessionId(work.SessionId);

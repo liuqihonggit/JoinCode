@@ -6,8 +6,13 @@ namespace Core.Query;
 /// 状态转换中间件 — 查询开始前和完成后转换查询状态
 /// </summary>
 [Register(typeof(IQueryMiddleware))]
-public sealed partial class StateTransitionMiddleware : IQueryMiddleware
+public sealed partial class StateTransitionMiddleware : ServiceEntity, IQueryMiddleware
 {
+
+    public StateTransitionMiddleware(IQueryStateTransitions? stateTransitions = null)
+    {
+        _stateTransitions = stateTransitions;
+    }
     [Inject] private readonly IQueryStateTransitions? _stateTransitions;
 
 

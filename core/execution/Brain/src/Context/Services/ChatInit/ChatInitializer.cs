@@ -1,4 +1,4 @@
-﻿namespace Core.Context;
+namespace Core.Context;
 
 /// <summary>
 /// 聊天初始化器 — 负责会话启动时的初始化
@@ -6,7 +6,7 @@
 /// 提取自 ChatService.InitializeCoreAsync + OnConfigChanged
 /// </summary>
 [Register]
-public sealed partial class ChatInitializer : IChatInitializer
+public sealed partial class ChatInitializer : ServiceEntity, IChatInitializer
 {
     private readonly MiddlewarePipeline<ChatInitContext> _pipeline;
     private readonly IChatContextManager _contextManager;

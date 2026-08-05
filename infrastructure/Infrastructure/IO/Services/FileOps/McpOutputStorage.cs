@@ -7,7 +7,7 @@ namespace Infrastructure.IO;
 /// 静态辅助方法见 JoinCode.Abstractions.LLM.Chat.McpBinaryHelper
 /// </summary>
 [Register(typeof(JoinCode.Abstractions.LLM.Chat.IMcpOutputStorage))]
-public sealed partial class McpOutputStorage : JoinCode.Abstractions.LLM.Chat.IMcpOutputStorage
+public sealed partial class McpOutputStorage : ServiceEntity, JoinCode.Abstractions.LLM.Chat.IMcpOutputStorage
 {
     [Inject] private readonly ILogger<McpOutputStorage>? _logger;
     private readonly IFileSystem _fs;

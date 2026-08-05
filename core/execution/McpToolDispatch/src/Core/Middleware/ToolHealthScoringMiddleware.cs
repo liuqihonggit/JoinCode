@@ -1,15 +1,26 @@
 namespace McpToolRegistry;
 
 /// <summary>
-/// 工具健康评分中间件 — Order=850 — 执行后根据结果更新评分，熔断工具短路返回
-/// 支持黑名单（完全禁用）、降权（额外扣分）、超图评分（关联工具共享评分空间）
+/// 工具健康评分中间件 — Order=850 — 执行后根据结果更新评分，连续失败时注入提示词提醒LLM换策略
+/// 支持黑名单（用户主动禁用）、降权（额外扣分）、超图评分（关联工具共享评分空间）
+/// 设计原则：永远不禁用工具，失败多次只注入提示词，由LLM自行决策是否换工具
 /// </summary>
 [Register]
-public sealed partial class ToolHealthScoringMiddleware : IToolExecutionMiddleware
+public sealed partial class ToolHealthScoringMiddleware : ServiceEntity, IToolExecutionMiddleware
 {
-    [Inject] private readonly ToolHealthMonitor _monitor = null!;
-    [Inject] private readonly ToolHypergraphScorer _scorer = null!;
-    [Inject] private readonly ILogger<ToolHealthScoringMiddleware> _logger = null!;
+    private readonly ToolHealthMonitor _monitor;
+    private readonly ToolHypergraphScorer _scorer;
+    private readonly ILogger<ToolHealthScoringMiddleware> _logger;
+
+    public ToolHealthScoringMiddleware(
+        ToolHealthMonitor monitor,
+        ToolHypergraphScorer scorer,
+        ILogger<ToolHealthScoringMiddleware> logger)
+    {
+        _monitor = monitor;
+        _scorer = scorer;
+        _logger = logger;
+    }
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
@@ -31,25 +42,8 @@ public sealed partial class ToolHealthScoringMiddleware : IToolExecutionMiddlewa
             return;
         }
 
-        var record = await _monitor.GetRecordAsync(context.ToolName, ct).ConfigureAwait(false);
-
-        if (record is not null && !record.IsEnabled)
-        {
-            var effectiveScore = _scorer.CalculateFinalScore(context.ToolName, record.Score);
-            _logger.LogWarning("工具 {ToolName} 已熔断禁用（连续失败{Count}次，独立评分{Score}，超图评分{EffectiveScore}）",
-                context.ToolName, record.ConsecutiveFailures, record.Score, effectiveScore);
-            context.Result = new ToolResult
-            {
-                Content = [new ToolContent
-                {
-                    Type = ToolContentType.Text,
-                    Text = $"工具 '{context.ToolName}' 已被熔断禁用（连续失败{record.ConsecutiveFailures}次）。" +
-                           $"评分: {effectiveScore}。请尝试替代工具或使用 /tools reset {context.ToolName} 重置。"
-                }],
-                IsError = true
-            };
-            return;
-        }
+        var recordBefore = await _monitor.GetRecordAsync(context.ToolName, ct).ConfigureAwait(false);
+        var consecutiveFailuresBefore = recordBefore?.ConsecutiveFailures ?? 0;
 
         await next(context, ct).ConfigureAwait(false);
 
@@ -65,8 +59,24 @@ public sealed partial class ToolHealthScoringMiddleware : IToolExecutionMiddlewa
             await _monitor.RecordSuccessAsync(context.ToolName, ct).ConfigureAwait(false);
         }
 
-        // 执行后更新超边共享评分
         var allRecords = await _monitor.GetAllRecordsAsync(ct).ConfigureAwait(false);
         _scorer.UpdateSharedScores(allRecords);
+
+        if (consecutiveFailuresBefore >= _monitor.Config.WarningThreshold && context.Result.IsError)
+        {
+            var effectiveScore = _scorer.CalculateFinalScore(context.ToolName, recordBefore?.Score ?? 0);
+            _logger.LogWarning("工具 {ToolName} 连续失败{Count}次（评分{EffectiveScore}），注入提示词",
+                context.ToolName, consecutiveFailuresBefore, effectiveScore);
+
+            var warning = new JoinCode.Abstractions.LLM.Chat.ApiMessage(
+                JoinCode.Abstractions.LLM.Chat.MessageRole.User,
+                $"[系统提示] 工具 '{context.ToolName}' 已连续失败 {consecutiveFailuresBefore} 次" +
+                $"（评分: {effectiveScore}）。建议尝试替代工具或换一种方式完成任务。");
+
+            context.Result = context.Result with
+            {
+                InjectedMessages = [.. (context.Result.InjectedMessages ?? []), warning]
+            };
+        }
     }
 }

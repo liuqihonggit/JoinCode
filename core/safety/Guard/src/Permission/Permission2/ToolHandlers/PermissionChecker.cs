@@ -5,7 +5,7 @@ namespace Core.Permission;
 /// 权限检查器 - 通过中间件管道管理工具执行权限
 /// </summary>
 [Register]
-public sealed partial class PermissionChecker : IPermissionChecker
+public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecker
 {
     private readonly MiddlewarePipeline<PermissionCheckContext> _pipeline;
     [Inject] private readonly ILogger<PermissionChecker>? _logger;

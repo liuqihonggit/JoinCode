@@ -1,4 +1,4 @@
-﻿namespace Memdir.Sync;
+namespace Memdir.Sync;
 
 using JoinCode.Abstractions.Pipeline;
 
@@ -6,8 +6,13 @@ using JoinCode.Abstractions.Pipeline;
 /// 已释放/已运行检查中间件 — 短路无效启动请求
 /// </summary>
 [Register(typeof(ISyncStartMiddleware))]
-public sealed partial class DisposedCheckMiddleware : ISyncStartMiddleware
+public sealed partial class DisposedCheckMiddleware : ServiceEntity, ISyncStartMiddleware
 {
+
+    public DisposedCheckMiddleware(ILogger<DisposedCheckMiddleware>? logger = null)
+    {
+        _logger = logger;
+    }
     [Inject] private readonly ILogger<DisposedCheckMiddleware>? _logger;
 
 

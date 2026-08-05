@@ -1,9 +1,17 @@
-﻿
+
 namespace Core.Services;
 
 [Register]
-public sealed partial class McpService : IMcpService
+public sealed partial class McpService : ServiceEntity, IMcpService
 {
+
+    public McpService(IMcpToolRegistry toolRegistry, ILogger<McpService>? logger = null, ITelemetryService? telemetryService = null, Func<IMcpToolRegistry, IServiceProvider, CancellationToken, Task<IMcpToolRegistry>>? registerAllHandlersFunc = null)
+    {
+        _toolRegistry = toolRegistry;
+        _logger = logger;
+        _telemetryService = telemetryService;
+        _registerAllHandlersFunc = registerAllHandlersFunc;
+    }
     [Inject] private readonly IMcpToolRegistry _toolRegistry;
     [Inject] private readonly ILogger<McpService>? _logger;
     [Inject] private readonly ITelemetryService? _telemetryService;

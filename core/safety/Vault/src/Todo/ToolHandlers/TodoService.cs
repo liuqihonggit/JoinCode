@@ -3,8 +3,15 @@ using Structura.Dag;
 namespace Services.Todo;
 
 [Register]
-public sealed partial class TodoService : ITodoService, IDisposable
+public sealed partial class TodoService : ServiceEntity, ITodoService, IDisposable
 {
+
+    public TodoService(IClockService clock, ITaskRuntime? taskRuntime = null, ITelemetryService? telemetryService = null)
+    {
+        _clock = clock;
+        _taskRuntime = taskRuntime;
+        _telemetryService = telemetryService;
+    }
     [Inject] private readonly ITaskRuntime? _taskRuntime;
     [Inject] private readonly ITelemetryService? _telemetryService;
     [Inject] private readonly IClockService _clock;
@@ -259,7 +266,7 @@ public sealed partial class TodoService : ITodoService, IDisposable
         _telemetryService?.RecordHistogram("todo.operation.items", count, new Dictionary<string, string> { ["operation"] = operation }, "items", "Todo items affected");
     }
 
-    public void Dispose()
+    protected override void OnDispose()
     {
         _todoDag.Dispose();
     }

@@ -1,4 +1,4 @@
-﻿
+
 namespace Core.Summary;
 
 /// <summary>
@@ -16,7 +16,7 @@ internal sealed record SummaryTemplateData(
     string PendingText);
 
 [Register]
-public sealed partial class AwaySummaryService : IAwaySummaryService, IDisposable
+public sealed partial class AwaySummaryService : ServiceEntity, IAwaySummaryService, IDisposable
 {
     private readonly AwaySummaryOptions _options;
     [Inject] private readonly ILogger<AwaySummaryService>? _logger;
@@ -254,7 +254,7 @@ public sealed partial class AwaySummaryService : IAwaySummaryService, IDisposabl
         }
     }
 
-    public void Dispose()
+    protected override void OnDispose()
     {
         if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
         _disposeCts.Cancel();

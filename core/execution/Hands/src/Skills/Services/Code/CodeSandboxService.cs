@@ -1,8 +1,8 @@
-﻿
+
 namespace Core.Skills;
 
 [Register]
-public sealed partial class CodeSandboxService : ICodeSandboxService
+public sealed partial class CodeSandboxService : ServiceEntity, ICodeSandboxService
 {
     private readonly IFileOperationService _fileOperationService;
     private readonly IFileSystem _fs;

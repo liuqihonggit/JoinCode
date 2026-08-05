@@ -3,8 +3,14 @@ namespace Core.Scheduling.Tasks;
 using JoinCode.Abstractions.Pipeline;
 
 [Register(typeof(ITeammateExecutionMiddleware))]
-public sealed partial class TeammateSpawnMiddleware : ITeammateExecutionMiddleware
+public sealed partial class TeammateSpawnMiddleware : ServiceEntity, ITeammateExecutionMiddleware
 {
+
+    public TeammateSpawnMiddleware(IAgentLifecycleManager agentLifecycleManager, ISubAgentContextAccessor subAgentContextAccessor)
+    {
+        _agentLifecycleManager = agentLifecycleManager;
+        _subAgentContextAccessor = subAgentContextAccessor;
+    }
     [Inject] private readonly IAgentLifecycleManager _agentLifecycleManager;
     [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
 

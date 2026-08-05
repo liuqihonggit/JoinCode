@@ -4,7 +4,7 @@ namespace JoinCode.CodeIndex.Analytics;
 /// 图持久化实现 — 将 InMemoryIndexStore 序列化为 JSON 文件
 /// </summary>
 [Register]
-public sealed class GraphPersistence : IGraphPersistence
+public sealed class GraphPersistence : ServiceEntity, IGraphPersistence
 {
     private readonly InMemoryIndexStore _store;
     private readonly IFileSystem _fs;

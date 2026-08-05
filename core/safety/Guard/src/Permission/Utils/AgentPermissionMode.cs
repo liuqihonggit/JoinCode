@@ -1,4 +1,4 @@
-﻿
+
 using PermissionCheckResult = JoinCode.Abstractions.Security.Permission.PermissionCheckResult;
 
 namespace Core.Utils;

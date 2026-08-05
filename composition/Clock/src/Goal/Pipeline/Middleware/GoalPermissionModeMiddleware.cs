@@ -6,8 +6,13 @@ using JoinCode.Abstractions.Pipeline;
 /// 权限模式中间件 — Start 时切换 Auto，Clear/MarkCompleted/MarkUnmet 时恢复
 /// </summary>
 [Register(typeof(IGoalLifecycleMiddleware))]
-public sealed partial class GoalPermissionModeMiddleware : IGoalLifecycleMiddleware
+public sealed partial class GoalPermissionModeMiddleware : ServiceEntity, IGoalLifecycleMiddleware
 {
+
+    public GoalPermissionModeMiddleware(ILogger<GoalPermissionModeMiddleware>? logger = null)
+    {
+        _logger = logger;
+    }
     [Inject] private readonly ILogger<GoalPermissionModeMiddleware>? _logger;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;

@@ -6,7 +6,7 @@ namespace JoinCode.Abstractions.Security.Shell;
 /// 支持热重载：通过 ISearchScopeReloadable 接口动态更新额外配置
 /// </summary>
 [Register]
-public sealed partial class SearchScopeValidator : ISearchScopeValidator, ISearchScopeReloadable
+public sealed partial class SearchScopeValidator : ServiceEntity, ISearchScopeValidator, ISearchScopeReloadable
 {
     private static readonly FrozenSet<string> SearchCommands = FrozenSet.Create(
         StringComparer.OrdinalIgnoreCase,

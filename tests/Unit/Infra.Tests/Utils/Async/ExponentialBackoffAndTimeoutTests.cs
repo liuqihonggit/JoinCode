@@ -100,8 +100,10 @@ public class TimeoutHelperTests
     [Fact]
     public async Task CreateLinkedTimeout_ShouldCancelAfterTimeout()
     {
-        using var linked = TimeoutHelper.CreateLinkedTimeout(CancellationToken.None, TimeSpan.FromMilliseconds(50));
-        await Task.Delay(100);
+        using var linked = TimeoutHelper.CreateLinkedTimeout(CancellationToken.None, TimeSpan.FromMilliseconds(1));
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
+        while (!linked.IsCancellationRequested && DateTime.UtcNow < deadline)
+            await Task.Delay(10);
         linked.IsCancellationRequested.Should().BeTrue();
     }
 }

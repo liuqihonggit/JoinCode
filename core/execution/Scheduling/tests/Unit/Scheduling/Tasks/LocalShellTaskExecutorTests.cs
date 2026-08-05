@@ -3,21 +3,23 @@ namespace Sync.Tests.Scheduling.Tasks;
 
 public class LocalShellTaskExecutorTests
 {
-    private readonly Mock<IShellExecutionService> _shellMock;
+    private readonly Mock<ISystemActuator> _shellMock;
     private readonly LocalShellTaskExecutor _executor;
 
     public LocalShellTaskExecutorTests()
     {
-        _shellMock = new Mock<IShellExecutionService>();
+        _shellMock = new Mock<ISystemActuator>();
+        var registryMock = new Mock<ISystemActuatorRegistry>();
+        registryMock.Setup(r => r.Get(It.IsAny<SystemActuatorKind>())).Returns(_shellMock.Object);
         _executor = new LocalShellTaskExecutor(
-            _shellMock.Object,
+            registryMock.Object,
             NullLogger<LocalShellTaskExecutor>.Instance);
     }
 
     [Fact]
     public async Task ExecuteShellAsync_SuccessfulExecution_ShouldReturnSuccessResult()
     {
-        var shellResult = ShellExecutionResult.SuccessResult("hello world", "", 0);
+        var shellResult = SystemActuatorExecutionResult.SuccessResult("hello world", "", 0);
 
         _shellMock
             .Setup(x => x.ExecuteAsync("echo hello", null, null, It.IsAny<bool>(), It.IsAny<CancellationToken>()))
@@ -40,7 +42,7 @@ public class LocalShellTaskExecutorTests
     [Fact]
     public async Task ExecuteShellAsync_FailedExecution_ShouldReturnFailureResult()
     {
-        var shellResult = ShellExecutionResult.FailureResult("command not found");
+        var shellResult = SystemActuatorExecutionResult.FailureResult("command not found");
 
         _shellMock
             .Setup(x => x.ExecuteAsync("bad_cmd", null, null, It.IsAny<bool>(), It.IsAny<CancellationToken>()))
@@ -71,7 +73,7 @@ public class LocalShellTaskExecutorTests
     [Fact]
     public async Task ExecuteShellAsync_WithStderr_ShouldIncludeStderrInOutput()
     {
-        var shellResult = ShellExecutionResult.SuccessResult("stdout", "stderr warning", 0);
+        var shellResult = SystemActuatorExecutionResult.SuccessResult("stdout", "stderr warning", 0);
 
         _shellMock
             .Setup(x => x.ExecuteAsync("cmd", null, null, It.IsAny<bool>(), It.IsAny<CancellationToken>()))
@@ -93,10 +95,10 @@ public class LocalShellTaskExecutorTests
     [Fact]
     public async Task ExecutePowerShellAsync_SuccessfulExecution_ShouldReturnSuccessResult()
     {
-        var shellResult = ShellExecutionResult.SuccessResult("PS output", "", 0);
+        var shellResult = SystemActuatorExecutionResult.SuccessResult("PS output", "", 0);
 
         _shellMock
-            .Setup(x => x.ExecutePowerShellAsync("Get-Date", null, null, It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .Setup(x => x.ExecuteAsync("Get-Date", null, null, It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(shellResult);
 
         var definition = new LocalShellTaskDefinition
@@ -116,10 +118,10 @@ public class LocalShellTaskExecutorTests
     [Fact]
     public async Task ExecutePowerShellAsync_FailedExecution_ShouldReturnFailureResult()
     {
-        var shellResult = ShellExecutionResult.FailureResult("PowerShell error");
+        var shellResult = SystemActuatorExecutionResult.FailureResult("PowerShell error");
 
         _shellMock
-            .Setup(x => x.ExecutePowerShellAsync("bad_ps", null, null, It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .Setup(x => x.ExecuteAsync("bad_ps", null, null, It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(shellResult);
 
         var definition = new LocalShellTaskDefinition

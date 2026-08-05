@@ -7,7 +7,7 @@ namespace JoinCode.Abstractions.Security.Shell;
 /// 核心功能: 34个命令的路径提取 + 操作类型映射 + 危险路径检查 + 重定向验证
 /// </summary>
 [Register]
-public sealed partial class PathConstraintValidator : IPathConstraintValidator
+public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstraintValidator
 {
     /// <summary>
     /// 命令操作类型映射 — 对齐 TS COMMAND_OPERATION_TYPE
@@ -130,6 +130,11 @@ public sealed partial class PathConstraintValidator : IPathConstraintValidator
         @"\$[A-Za-z_]|%[A-Za-z_]%|\$\{", RegexOptions.Compiled);
 
     [Inject] private readonly IPathValidator _pathValidator;
+
+    public PathConstraintValidator(IPathValidator pathValidator)
+    {
+        _pathValidator = pathValidator;
+    }
 
     /// <summary>
     /// 检查命令的路径约束 — 主入口，对齐 TS checkPathConstraints

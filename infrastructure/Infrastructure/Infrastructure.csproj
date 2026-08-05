@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <AllowPack>true</AllowPack>
@@ -12,7 +12,6 @@
     <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)foundation\Structura\Structura.csproj" />
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="Structura" Version="$(JccComponentPackageVersion)" />
     <ProjectReference Include="$(RepoRoot)generators\EnumMetadata.Generator\src\EnumMetadata.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
-    <ProjectReference Include="$(RepoRoot)generators\ConstructorInjection.Generator\src\ConstructorInjection.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <ItemGroup>
@@ -22,6 +21,7 @@
     <InternalsVisibleTo Include="JoinCode.Hands.Tests" />
     <InternalsVisibleTo Include="JoinCode.Hands" />
     <InternalsVisibleTo Include="JoinCode.Composition.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Guard.Config.Tests" />
     <InternalsVisibleTo Include="JoinCode.Integration.Tests" />
     <InternalsVisibleTo Include="JoinCode.Dream" />
     <InternalsVisibleTo Include="JoinCode.Dream.Tests" />

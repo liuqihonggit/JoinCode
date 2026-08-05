@@ -1,4 +1,4 @@
-﻿
+
 namespace Core.Bridge.Init.V1;
 
 using JoinCode.Abstractions.Pipeline;
@@ -8,7 +8,7 @@ using JoinCode.Abstractions.Pipeline;
 /// 这是 V1 初始化最复杂的步骤，包含 lambda 回调和事件订阅
 /// </summary>
 [Register]
-internal sealed partial class V1WorkPollSetupMiddleware : IMiddleware<V1BridgeInitContext>
+internal sealed partial class V1WorkPollSetupMiddleware : ServiceEntity, IMiddleware<V1BridgeInitContext>
 {
 
     public Task InvokeAsync(V1BridgeInitContext ctx, MiddlewareDelegate<V1BridgeInitContext> next, CancellationToken ct)

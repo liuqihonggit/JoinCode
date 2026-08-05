@@ -5,7 +5,7 @@ namespace McpToolDispatch;
 /// 支持三种执行类型: shell（命令行）、mcp_call（调用 MCP 服务器）
 /// </summary>
 [Register]
-public sealed class ToolTemplateService : IToolTemplateService, IDisposable
+public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, IDisposable
 {
     private readonly IFileSystem _fs;
     private readonly ILogger<ToolTemplateService>? _logger;
@@ -252,7 +252,7 @@ public sealed class ToolTemplateService : IToolTemplateService, IDisposable
         }
     }
 
-    public void Dispose()
+    protected override void OnDispose()
     {
         _disposeCts.Cancel();
         _disposeCts.Dispose();

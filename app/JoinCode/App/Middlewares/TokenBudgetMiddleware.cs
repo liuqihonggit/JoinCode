@@ -8,7 +8,7 @@ namespace JoinCode.App.Middlewares;
 /// 预览模式下跳过预算检查（预览不消耗 Token）
 /// </summary>
 [Register(typeof(Core.Context.IChatMiddleware))]
-internal sealed partial class TokenBudgetMiddleware : Core.Context.IChatMiddleware
+internal sealed partial class TokenBudgetMiddleware : ServiceEntity, Core.Context.IChatMiddleware
 {
     private readonly JoinCode.Abstractions.Interfaces.ITokenBudgetManager _budgetManager;
     private readonly ILogger<TokenBudgetMiddleware> _logger;

@@ -1,8 +1,15 @@
 namespace Core.Agents.Coordinator;
 
 [Register(typeof(IAgentSpawnCoordMiddleware))]
-public sealed partial class SpawnCoordTeammatePaneMiddleware : IAgentSpawnCoordMiddleware
+public sealed partial class SpawnCoordTeammatePaneMiddleware : ServiceEntity, IAgentSpawnCoordMiddleware
 {
+
+    public SpawnCoordTeammatePaneMiddleware(ISubAgentContextAccessor subAgentContextAccessor, ILogger<SpawnCoordTeammatePaneMiddleware> logger, ITeammateLayoutManager? layoutManager = null)
+    {
+        _subAgentContextAccessor = subAgentContextAccessor;
+        _logger = logger;
+        _layoutManager = layoutManager;
+    }
     [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
     [Inject] private readonly ITeammateLayoutManager? _layoutManager;
     [Inject] private readonly ILogger<SpawnCoordTeammatePaneMiddleware> _logger;

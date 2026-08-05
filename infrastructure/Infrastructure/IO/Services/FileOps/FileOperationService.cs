@@ -8,7 +8,7 @@ namespace IO;
 /// 作为 FileReader、FileWriter、FileEditor 的外观
 /// </summary>
 [Register(typeof(IFileOperationService))]
-public sealed partial class FileOperationService : IFileOperationService
+public sealed partial class FileOperationService : ServiceEntity, IFileOperationService
 {
     private readonly IFileSystem _fs;
     private readonly FileReader _fileReader;

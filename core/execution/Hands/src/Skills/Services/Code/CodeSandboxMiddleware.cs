@@ -1,10 +1,10 @@
-﻿namespace Core.Skills;
+namespace Core.Skills;
 
 /// <summary>
 /// 代码沙箱执行中间件 — Execute 操作的沙箱执行
 /// </summary>
 [Register]
-public sealed partial class CodeSandboxMiddleware : ICodeMiddleware
+public sealed partial class CodeSandboxMiddleware : ServiceEntity, ICodeMiddleware
 {
     private readonly ICodeSandboxService _sandboxService;
     private readonly WorkflowConfig _config;

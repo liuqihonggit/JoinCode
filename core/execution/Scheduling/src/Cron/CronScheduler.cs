@@ -153,12 +153,13 @@ public sealed partial class CronScheduler : ICronScheduler, ICronSchedulerRef, I
         // 使用 Task.Run 避免在 Timer 线程上同步等待异步操作
         _ = Task.Run(async () =>
         {
+            var now = 0L;
+            var firedRecurring = new List<string>();
             try
             {
-                var now = _clock.GetUtcNowOffset().ToUnixTimeMilliseconds();
+                now = _clock.GetUtcNowOffset().ToUnixTimeMilliseconds();
                 var tasks = await _taskStore.GetAllTasksAsync().ConfigureAwait(false);
                 var seen = new HashSet<string>();
-                var firedRecurring = new List<string>();
 
                 foreach (var task in tasks)
                 {
@@ -183,17 +184,19 @@ public sealed partial class CronScheduler : ICronScheduler, ICronSchedulerRef, I
                 {
                     _nextFireAt.TryRemove(id, out _);
                 }
-
-                // 批量更新重复任务的 lastFiredAt
-                if (firedRecurring.Count > 0)
-                {
-                    await _taskStore.MarkTasksFiredAsync(firedRecurring, now).ConfigureAwait(false);
-                }
             }
             catch (Exception ex)
             {
-                // 记录错误但不停止调度器
-                System.Diagnostics.Trace.WriteLine($"[CronScheduler] Check failed: {ex}");
+                System.Diagnostics.Trace.WriteLine($"[CronScheduler] Check 失败: {ex}");
+            }
+            finally
+            {
+                // 批量更新重复任务的 lastFiredAt — 放在 finally 确保异常时也标记已触发，避免重复触发
+                if (firedRecurring.Count > 0)
+                {
+                    try { await _taskStore.MarkTasksFiredAsync(firedRecurring, now).ConfigureAwait(false); }
+                    catch (Exception markEx) { System.Diagnostics.Trace.WriteLine($"[CronScheduler] MarkTasksFiredAsync 失败: {markEx}"); }
+                }
             }
         });
     }

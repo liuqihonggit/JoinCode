@@ -93,7 +93,7 @@ public sealed class StreamingToolExecutor : IAsyncDisposable
         {
             _semaphore.Release();
         }
-        _ = ProcessQueueAsync();
+        RunFireAndForget(ProcessQueueAsync);
     }
 
     /// <summary>
@@ -196,7 +196,7 @@ public sealed class StreamingToolExecutor : IAsyncDisposable
 
             foreach (var tool in uncompletedTools)
             {
-                tool.CompletionSource.SetResult(new StreamingToolResult
+                tool.CompletionSource.TrySetResult(new StreamingToolResult
                 {
                     ToolName = tool.Entry.Name,
                     ToolCallId = tool.Entry.Id,
@@ -247,10 +247,9 @@ public sealed class StreamingToolExecutor : IAsyncDisposable
                 _semaphore.Release();
             }
 
-            _ = ExecuteToolAsync(toolToExecute);
+            RunFireAndForget(() => ExecuteToolAsync(toolToExecute));
         }
     }
-
     private async Task<QueuedTool?> FindNextExecutableAsync()
     {
         foreach (var tool in _queue)
@@ -367,9 +366,33 @@ public sealed class StreamingToolExecutor : IAsyncDisposable
             _semaphore.Release();
         }
 
-        tool.CompletionSource.SetResult(result);
+        tool.CompletionSource.TrySetResult(result);
 
-        _ = ProcessQueueAsync();
+        RunFireAndForget(ProcessQueueAsync);
+    }
+
+    /// <summary>
+    /// 安全启动 fire-and-forget 任务 — 观察未处理异常，避免静默吞掉或泄漏
+    /// </summary>
+    private void RunFireAndForget(Func<Task> taskFactory)
+    {
+        _ = SafeRunAsync();
+
+        async Task SafeRunAsync()
+        {
+            try
+            {
+                await taskFactory().ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (_discarded || _siblingCts.IsCancellationRequested)
+            {
+                // 丢弃或级联取消导致的取消 — 预期行为，不视为错误
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "[StreamingToolExecutor] 后台队列任务异常");
+            }
+        }
     }
 
     private static bool IsShellTool(string toolName)

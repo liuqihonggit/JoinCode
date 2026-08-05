@@ -1,12 +1,20 @@
-﻿namespace Core.Agents.Coordinator;
+namespace Core.Agents.Coordinator;
 
 /// <summary>
 /// Fork 执行中间件 — 执行子智能体并处理结果；后台模式仅标记，由 Manager 启动后台任务
 /// 对齐 TS: cleanupWorktreeIfNeeded — fork 完成后清理 worktree
 /// </summary>
 [Register(typeof(IForkMiddleware))]
-public sealed partial class ForkExecutionMiddleware : IForkMiddleware
+public sealed partial class ForkExecutionMiddleware : ServiceEntity, IForkMiddleware
 {
+
+    public ForkExecutionMiddleware(IAgentLifecycleManager lifecycleManager, ITelemetryService? telemetryService = null, IAgentWorktreeManager? worktreeManager = null, ILogger<ForkExecutionMiddleware>? logger = null)
+    {
+        _lifecycleManager = lifecycleManager;
+        _telemetryService = telemetryService;
+        _worktreeManager = worktreeManager;
+        _logger = logger;
+    }
     [Inject] private readonly IAgentLifecycleManager _lifecycleManager;
     [Inject] private readonly ITelemetryService? _telemetryService;
     [Inject] private readonly IAgentWorktreeManager? _worktreeManager;

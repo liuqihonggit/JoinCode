@@ -1,7 +1,7 @@
 namespace JoinCode.Abstractions.Security.Shell;
 
 [Register]
-public sealed partial class CommandClassifier : ICommandClassifier
+public sealed partial class CommandClassifier : ServiceEntity, ICommandClassifier
 {
     private readonly IPathValidator _pathValidator;
     private readonly IDestructiveCommandDetector _destructiveDetector;

@@ -5,7 +5,7 @@ namespace Tools;
 /// 5分钟缓存，IFileSystem抽象，路径归一化
 /// </summary>
 [Register]
-public sealed class EnvironmentProbeService : IEnvironmentProbeService
+public sealed class EnvironmentProbeService : ServiceEntity, IEnvironmentProbeService
 {
     private readonly ILogger<EnvironmentProbeService>? _logger;
     private readonly IToolHealthMonitor _healthMonitor;
@@ -79,12 +79,12 @@ public sealed class EnvironmentProbeService : IEnvironmentProbeService
     }
 
     /// <inheritdoc />
-    public string GatePath(string rawPath, IShellProvider provider)
+    public string GatePath(string rawPath, ISystemActuator actuator)
     {
         if (string.IsNullOrWhiteSpace(rawPath)) return rawPath;
 
         var isWindows = OperatingSystem.IsWindows();
-        var isBash = provider.Type == ShellType.Bash;
+        var isBash = actuator.Kind == SystemActuatorKind.Bash;
 
         if (isWindows && isBash)
         {
@@ -105,12 +105,12 @@ public sealed class EnvironmentProbeService : IEnvironmentProbeService
     }
 
     /// <inheritdoc />
-    public string GateCommandPaths(string command, IShellProvider provider)
+    public string GateCommandPaths(string command, ISystemActuator actuator)
     {
         if (string.IsNullOrEmpty(command)) return command;
 
         var isWindows = OperatingSystem.IsWindows();
-        var isBash = provider.Type == ShellType.Bash;
+        var isBash = actuator.Kind == SystemActuatorKind.Bash;
         var toPosix = (isWindows && isBash) || (!isWindows);
 
         return PathConverter.GateCommandPaths(command, toPosix);
@@ -245,4 +245,6 @@ public sealed class EnvironmentProbeService : IEnvironmentProbeService
         var ps = components.FirstOrDefault(c => c.Id == "powershell");
         return ps?.IsInstalled == true ? "powershell" : "cmd";
     }
+
+    protected override void OnDispose() => _lock.Dispose();
 }

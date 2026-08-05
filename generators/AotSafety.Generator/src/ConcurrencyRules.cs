@@ -420,7 +420,8 @@ namespace AotSafety.Generator
                     if (!implementsDisposable) continue;
 
                     var disposedInDispose = IsFieldDisposedInMethod(containingType, field.Name, "Dispose") ||
-                                            IsFieldDisposedInMethod(containingType, field.Name, "DisposeAsync");
+                                            IsFieldDisposedInMethod(containingType, field.Name, "DisposeAsync") ||
+                                            IsFieldDisposedInMethod(containingType, field.Name, "OnDispose");
 
                     if (!disposedInDispose)
                     {
@@ -480,7 +481,8 @@ namespace AotSafety.Generator
                     if (!implementsDisposable) continue;
 
                     var hasForEachDispose = HasForEachDisposeInMethod(containingType, field.Name, "Dispose") ||
-                                            HasForEachDisposeInMethod(containingType, field.Name, "DisposeAsync");
+                                            HasForEachDisposeInMethod(containingType, field.Name, "DisposeAsync") ||
+                                            HasForEachDisposeInMethod(containingType, field.Name, "OnDispose");
 
                     if (!hasForEachDispose)
                     {

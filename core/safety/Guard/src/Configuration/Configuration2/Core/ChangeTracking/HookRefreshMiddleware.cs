@@ -1,11 +1,16 @@
-﻿namespace Core.Configuration;
+namespace Core.Configuration;
 
 /// <summary>
 /// Hook 配置刷新中间件 — 对齐 TS 版 updateHooksConfigSnapshot()
 /// </summary>
 [Register(typeof(ISettingsMiddleware))]
-public sealed partial class HookRefreshMiddleware : ISettingsMiddleware
+public sealed partial class HookRefreshMiddleware : ServiceEntity, ISettingsMiddleware
 {
+
+    public HookRefreshMiddleware(IHookConfigurationManager? hookConfigurationManager = null)
+    {
+        _hookConfigurationManager = hookConfigurationManager;
+    }
     [Inject] private readonly IHookConfigurationManager? _hookConfigurationManager;
 
     /// <inheritdoc />

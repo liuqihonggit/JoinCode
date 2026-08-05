@@ -1,4 +1,4 @@
-﻿
+
 namespace Core.Hooks.Session;
 
 /// <summary>
@@ -128,7 +128,7 @@ public sealed partial class SessionHookStore
 /// 会话钩子管理器实现
 /// </summary>
 [Register]
-public sealed partial class SessionHookManager : ISessionHookManagerInternal
+public sealed partial class SessionHookManager : ServiceEntity, ISessionHookManagerInternal
 {
     private readonly ConcurrentDictionary<string, SessionHookStore> _sessionStores = new();
     [Inject] private readonly ILogger<SessionHookManager>? _logger;

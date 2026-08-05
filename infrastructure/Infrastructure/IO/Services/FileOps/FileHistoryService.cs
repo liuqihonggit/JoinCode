@@ -8,7 +8,7 @@ namespace IO;
 /// Uses SHA256 hash of file path as backup filename for privacy and cross-platform safety.
 /// </summary>
 [Register]
-public sealed partial class FileHistoryService : IFileHistoryService
+public sealed partial class FileHistoryService : ServiceEntity, IFileHistoryService
 {
     [Inject] private readonly ILogger<FileHistoryService>? _logger;
     private readonly IFileSystem _fs;

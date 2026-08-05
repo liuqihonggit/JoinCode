@@ -5,8 +5,16 @@ namespace Core.Agents.Worktree;
 /// 对齐 TS readWorktreeHeadSha：直接读取 .git 指针文件获取 HEAD SHA（无子进程，~15ms 优化）
 /// </summary>
 [Register(typeof(IWorktreeCreateMiddleware))]
-public sealed partial class WorktreeRecoveryMiddleware : IWorktreeCreateMiddleware
+public sealed partial class WorktreeRecoveryMiddleware : ServiceEntity, IWorktreeCreateMiddleware
 {
+
+    public WorktreeRecoveryMiddleware(IFileOperationService fs, Lazy<IWorktreePipelineOperations> worktreeService, IClockService clock, ILogger<WorktreeRecoveryMiddleware>? logger = null)
+    {
+        _fs = fs;
+        _worktreeService = worktreeService;
+        _clock = clock;
+        _logger = logger;
+    }
     [Inject] private readonly IFileOperationService _fs;
     [Inject] private readonly ILogger<WorktreeRecoveryMiddleware>? _logger;
     [Inject] private readonly Lazy<IWorktreePipelineOperations> _worktreeService;

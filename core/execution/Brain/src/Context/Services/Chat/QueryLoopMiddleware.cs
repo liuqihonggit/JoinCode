@@ -7,7 +7,7 @@ namespace Core.Context;
 /// 支持流式工具执行：对齐 TS StreamingToolExecutor，流式期间收到 tool_use block 立即执行
 /// </summary>
 [Register]
-public sealed partial class QueryLoopMiddleware : IChatMiddleware
+public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
 {
     private const int MaxToolCallIterations = 128;
 
@@ -98,8 +98,11 @@ public sealed partial class QueryLoopMiddleware : IChatMiddleware
 
                 if (iterState.ToolCallName is null)
                 {
-                    foreach (var evt in HandlePureTextResponse(iterState, context))
+                    var (pureEvents, pureResponse) = BuildPureTextResponse(iterState, context);
+                    foreach (var evt in pureEvents)
                         yield return evt;
+                    if (!context.IsDryRun)
+                        await _contextManager.AddAssistantMessageAsync(pureResponse, ct).ConfigureAwait(false);
                     break;
                 }
 
@@ -154,6 +157,24 @@ public sealed partial class QueryLoopMiddleware : IChatMiddleware
                         await _toolHandler.WriteAbortedToolResultsAsync(toolCalls, 0, CancellationToken.None).ConfigureAwait(false);
                         throw;
                     }
+                    catch (Exception applyEx)
+                    {
+                        // 纵深防御：单工具结果持久化失败不应中断整个回合
+                        // 写入占位结果保持上下文一致，避免孤立 tool_call 导致下一轮 LLM 400
+                        _logger?.LogError(applyEx, "[QueryLoopMiddleware] 应用工具结果到上下文失败: {ToolName}", result.ToolName);
+                        try
+                        {
+                            var placeholderMetadata = ToolCallEntry.BuildToolResultMetadata(result.ToolCallId, result.ToolName);
+                            await _contextManager.AddToolResultMessageAsync(
+                                $"(工具结果应用失败: {applyEx.Message})", placeholderMetadata, null, CancellationToken.None)
+                                .ConfigureAwait(false);
+                        }
+                        catch (Exception placeholderEx)
+                        {
+                            _logger?.LogError(placeholderEx, "[QueryLoopMiddleware] 写入占位结果也失败，中断回合");
+                            throw;
+                        }
+                    }
                 }
 
                 if (iterState.StreamUsage is not null) finalUsage = iterState.StreamUsage;
@@ -174,8 +195,11 @@ public sealed partial class QueryLoopMiddleware : IChatMiddleware
 
                 if (iterState.ToolCallName is null)
                 {
-                    foreach (var evt in HandlePureTextResponse(iterState, context))
+                    var (pureEvents, pureResponse) = BuildPureTextResponse(iterState, context);
+                    foreach (var evt in pureEvents)
                         yield return evt;
+                    if (!context.IsDryRun)
+                        await _contextManager.AddAssistantMessageAsync(pureResponse, ct).ConfigureAwait(false);
                     break;
                 }
 
@@ -228,6 +252,23 @@ public sealed partial class QueryLoopMiddleware : IChatMiddleware
                         await _toolHandler.WriteAbortedToolResultsAsync(toolCalls, idx, CancellationToken.None).ConfigureAwait(false);
                         throw;
                     }
+                    catch (Exception applyEx)
+                    {
+                        // 纵深防御：单工具结果持久化失败不应中断整个回合
+                        _logger?.LogError(applyEx, "[QueryLoopMiddleware] 应用工具结果到上下文失败: {ToolName}", toolCall.Name);
+                        try
+                        {
+                            var placeholderMetadata = ToolCallEntry.BuildToolResultMetadata(toolCall.Id, toolCall.Name);
+                            await _contextManager.AddToolResultMessageAsync(
+                                $"(工具结果应用失败: {applyEx.Message})", placeholderMetadata, null, CancellationToken.None)
+                                .ConfigureAwait(false);
+                        }
+                        catch (Exception placeholderEx)
+                        {
+                            _logger?.LogError(placeholderEx, "[QueryLoopMiddleware] 写入占位结果也失败，中断回合");
+                            throw;
+                        }
+                    }
                 }
             }
 
@@ -238,6 +279,9 @@ public sealed partial class QueryLoopMiddleware : IChatMiddleware
         if (totalToolCalls >= MaxToolCallIterations)
         {
             _logger?.LogWarning("[QueryLoopMiddleware] 达到最大工具调用次数限制: {Max}", MaxToolCallIterations);
+            // 显式通知用户而非静默截断 — 避免用户误以为任务已完成
+            yield return ChatStreamEvent.Text(
+                $"⚠ 已达到最大工具调用次数（{MaxToolCallIterations} 次），为避免死循环本轮对话已被截断。");
         }
 
         context.TotalToolCalls = totalToolCalls;
@@ -270,26 +314,26 @@ public sealed partial class QueryLoopMiddleware : IChatMiddleware
     }
 
     /// <summary>
-    /// 处理纯文本响应 — 循环检测后结束
+    /// 构建纯文本响应事件 — 循环检测后返回事件列表和最终响应文本
     /// </summary>
-    private IEnumerable<ChatStreamEvent> HandlePureTextResponse(
+    private (List<ChatStreamEvent> Events, string FinalResponse) BuildPureTextResponse(
         IterationState iterState, ChatMiddlewareContext context)
     {
+        var events = new List<ChatStreamEvent>();
         var aiResponse = iterState.FullResponse.ToString();
         if (string.IsNullOrEmpty(aiResponse))
         {
             aiResponse = "抱歉，我无法生成回复。";
-            yield return ChatStreamEvent.Text(aiResponse);
+            events.Add(ChatStreamEvent.Text(aiResponse));
         }
 
         var textLoop = _loopDetectionStrategy.CheckTextLoop(aiResponse);
         if (textLoop is not null)
         {
             _logger?.LogWarning("[QueryLoopMiddleware] 逻辑指纹循环已触发");
-            yield return ChatStreamEvent.LoopDetected(textLoop.TriggerCount, textLoop.ToolCallCount, textLoop.Reason);
+            events.Add(ChatStreamEvent.LoopDetected(textLoop.TriggerCount, textLoop.ToolCallCount, textLoop.Reason));
         }
 
-        if (!context.IsDryRun)
-            _contextManager.AddAssistantMessageAsync(aiResponse, default).GetAwaiter().GetResult();
+        return (events, aiResponse);
     }
 }

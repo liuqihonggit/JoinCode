@@ -4,7 +4,7 @@ namespace Core.Context;
 /// 撤回到初始状态操作处理器
 /// </summary>
 [Register]
-public sealed partial class RewindToStartHandler : IChatAdminOperationHandler
+public sealed partial class RewindToStartHandler : ServiceEntity, IChatAdminOperationHandler
 {
     private readonly ISessionStats _sessionStats;
 

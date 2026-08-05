@@ -1,12 +1,17 @@
-﻿namespace Tools.Shell;
+namespace Tools.Shell;
 
 /// <summary>
 /// Shell sed 编辑拦截中间件 — 对齐 TS SedEditPermissionRequest 预览-确认-应用流程
 /// 首次 sed -i 返回预览，存储预计算结果；二次调用确认后写入
 /// </summary>
 [Register]
-public sealed partial class ShellSedInterceptMiddleware : IShellMiddleware
+public sealed partial class ShellSedInterceptMiddleware : ServiceEntity, IShellMiddleware
 {
+
+    public ShellSedInterceptMiddleware(IFileSystem? fs = null)
+    {
+        _fs = fs;
+    }
     [Inject] private readonly IFileSystem? _fs;
 
     /// <summary>

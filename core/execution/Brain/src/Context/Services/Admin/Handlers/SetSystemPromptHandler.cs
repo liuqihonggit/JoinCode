@@ -6,8 +6,13 @@ namespace Core.Context;
 /// 设置系统提示词操作处理器
 /// </summary>
 [Register]
-public sealed partial class SetSystemPromptHandler : IChatAdminOperationHandler
+public sealed partial class SetSystemPromptHandler : ServiceEntity, IChatAdminOperationHandler
 {
+
+    public SetSystemPromptHandler(ILogger<SetSystemPromptHandler>? logger = null)
+    {
+        _logger = logger;
+    }
     [Inject] private readonly ILogger<SetSystemPromptHandler>? _logger;
 
     public ChatAdminOperation Operation => ChatAdminOperation.SetSystemPrompt;

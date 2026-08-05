@@ -1,12 +1,17 @@
-﻿namespace Services.Web;
+namespace Services.Web;
 
 /// <summary>
 /// 域名黑名单预检中间件 — 检查域名是否被Anthropic安全策略拦截
 /// Order=300 在缓存检查之后执行，Blocked时短路管道
 /// </summary>
 [Register]
-public sealed partial class WebDomainCheckMiddleware : IWebMiddleware
+public sealed partial class WebDomainCheckMiddleware : ServiceEntity, IWebMiddleware
 {
+
+    public WebDomainCheckMiddleware(IDomainBlocklistChecker domainBlocklistChecker)
+    {
+        _domainBlocklistChecker = domainBlocklistChecker;
+    }
     [Inject] private readonly IDomainBlocklistChecker _domainBlocklistChecker;
 
     /// <inheritdoc />

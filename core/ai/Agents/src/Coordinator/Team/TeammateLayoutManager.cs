@@ -1,7 +1,7 @@
 namespace Core.Agents.Coordinator;
 
 [Register(typeof(JoinCode.Abstractions.Interfaces.ITeammateLayoutManager))]
-public sealed partial class TeammateLayoutManager : JoinCode.Abstractions.Interfaces.ITeammateLayoutManager
+public sealed partial class TeammateLayoutManager : ServiceEntity, JoinCode.Abstractions.Interfaces.ITeammateLayoutManager
 {
     private static readonly string[] AgentColors =
     new[] { 
@@ -95,4 +95,6 @@ public sealed partial class TeammateLayoutManager : JoinCode.Abstractions.Interf
             _lock.Release();
         }
     }
+
+    protected override void OnDispose() => _lock.Dispose();
 }

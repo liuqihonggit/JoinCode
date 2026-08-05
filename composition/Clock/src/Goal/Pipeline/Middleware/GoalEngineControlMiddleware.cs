@@ -1,4 +1,4 @@
-﻿namespace Core.Goal;
+namespace Core.Goal;
 
 using JoinCode.Abstractions.Pipeline;
 
@@ -6,7 +6,7 @@ using JoinCode.Abstractions.Pipeline;
 /// 引擎控制中间件 — Start/Resume 时标记启动循环，Clear/MarkCompleted/MarkUnmet 时标记取消循环
 /// </summary>
 [Register(typeof(IGoalLifecycleMiddleware))]
-public sealed partial class GoalEngineControlMiddleware : IGoalLifecycleMiddleware
+public sealed partial class GoalEngineControlMiddleware : ServiceEntity, IGoalLifecycleMiddleware
 {
 
     public Task InvokeAsync(GoalLifecycleContext ctx, MiddlewareDelegate<GoalLifecycleContext> next, CancellationToken ct)

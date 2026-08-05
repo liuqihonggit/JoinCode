@@ -4,7 +4,7 @@ namespace Core.Goal;
 using Structura.Dag;
 
 [Register]
-public sealed partial class ClusterPlanValidator : IClusterPlanValidator
+public sealed partial class ClusterPlanValidator : ServiceEntity, IClusterPlanValidator
 {
     private const int MaxSubTasks = 8;
     private const int MaxFileOverlap = 2;
@@ -40,6 +40,7 @@ public sealed partial class ClusterPlanValidator : IClusterPlanValidator
         ValidateDependencies(subTasks, errors);
         ValidateFileOwnership(subTasks, conflicts, warnings);
         ValidatePriority(subTasks, warnings);
+        ValidateComplexityConsistency(plan.Decomposition.Complexity, subTasks.Count, warnings);
 
         if (errors.Count > 0)
         {
@@ -161,6 +162,25 @@ public sealed partial class ClusterPlanValidator : IClusterPlanValidator
             {
                 warnings.Add($"子任务 '{task.Id}' 的优先级 '{task.Priority}' 无效");
             }
+        }
+    }
+
+    private static void ValidateComplexityConsistency(ComplexityLevel complexity, int subTaskCount, List<string> warnings)
+    {
+        switch (complexity)
+        {
+            case ComplexityLevel.Low when subTaskCount > 5:
+                warnings.Add($"complexity_mismatch: Low 档次子任务数应≤5，实际 {subTaskCount}，建议升级为 Medium");
+                break;
+            case ComplexityLevel.Medium when subTaskCount <= 5:
+                warnings.Add($"complexity_mismatch: Medium 档次子任务数应 6-20，实际 {subTaskCount}，建议降级为 Low");
+                break;
+            case ComplexityLevel.Medium when subTaskCount > 20:
+                warnings.Add($"complexity_mismatch: Medium 档次子任务数应 6-20，实际 {subTaskCount}，建议升级为 High");
+                break;
+            case ComplexityLevel.High when subTaskCount <= 20:
+                warnings.Add($"complexity_mismatch: High 档次子任务数应>20，实际 {subTaskCount}，建议降级为 Medium");
+                break;
         }
     }
 }

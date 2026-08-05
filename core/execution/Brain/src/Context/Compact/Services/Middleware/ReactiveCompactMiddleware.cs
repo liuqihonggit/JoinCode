@@ -6,8 +6,14 @@ namespace Core.Context.Compact;
 /// 响应式压缩中间件 — 处理 prompt-too-long 等错误触发的压缩
 /// </summary>
 [Register(typeof(ICompactMiddleware))]
-public sealed partial class ReactiveCompactMiddleware : ICompactMiddleware
+public sealed partial class ReactiveCompactMiddleware : ServiceEntity, ICompactMiddleware
 {
+
+    public ReactiveCompactMiddleware(IReactiveCompactService reactiveCompactService, ILogger<ReactiveCompactMiddleware>? logger = null)
+    {
+        _reactiveCompactService = reactiveCompactService;
+        _logger = logger;
+    }
     [Inject] private readonly IReactiveCompactService _reactiveCompactService;
     [Inject] private readonly ILogger<ReactiveCompactMiddleware>? _logger;
 

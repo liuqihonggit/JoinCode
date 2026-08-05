@@ -1,10 +1,15 @@
-﻿namespace Core.Bridge;
+namespace Core.Bridge;
 
 using JoinCode.Abstractions.Pipeline;
 
 [Register(typeof(IShutdownMiddleware))]
-public sealed partial class ShutdownCancelLoopMiddleware : IShutdownMiddleware
+public sealed partial class ShutdownCancelLoopMiddleware : ServiceEntity, IShutdownMiddleware
 {
+
+    public ShutdownCancelLoopMiddleware(ILogger<ShutdownCancelLoopMiddleware>? logger = null)
+    {
+        _logger = logger;
+    }
     [Inject] private readonly ILogger<ShutdownCancelLoopMiddleware>? _logger;
 
 

@@ -1,8 +1,8 @@
-﻿
+
 namespace Services.Notification;
 
 [Register]
-public partial class NotificationService : INotificationService
+public partial class NotificationService : ServiceEntity, INotificationService
 {
     [Inject] private readonly ILogger<NotificationService>? _logger;
     private readonly ITelemetryService? _telemetryService;

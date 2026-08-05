@@ -3,9 +3,15 @@ namespace Tools.Handlers;
 public record SnipPreview(string FilePath, long FileSize, int TotalLines, string PreviewContent);
 
 [Register]
-public sealed partial class SnipLogic
+public sealed partial class SnipLogic : ServiceEntity
 {
+
     [Inject] private readonly IFileSystem _fs;
+
+    public SnipLogic(IFileSystem fs)
+    {
+        _fs = fs;
+    }
 
     public async Task<string> SnipLinesAsync(string filePath, int startLine, int lineCount, CancellationToken cancellationToken = default)
     {

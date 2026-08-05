@@ -7,18 +7,18 @@ namespace Tools.Handlers;
 [McpToolDispatch(ToolCategory.Skill)]
 public partial class BundledSkillToolHandlers
 {
-    private readonly IShellExecutionService _shellExecutionService;
+    private readonly ISystemActuatorRegistry _actuatorRegistry;
     private readonly IFileOperationService _fileOperationService;
     private readonly IFileSystem _fs;
     [Inject] private readonly ILogger<BundledSkillToolHandlers>? _logger;
 
     public BundledSkillToolHandlers(
-        IShellExecutionService shellExecutionService,
+        ISystemActuatorRegistry actuatorRegistry,
         IFileOperationService fileOperationService,
         IFileSystem fs,
         ILogger<BundledSkillToolHandlers>? logger = null)
     {
-        _shellExecutionService = shellExecutionService ?? throw new ArgumentNullException(nameof(shellExecutionService));
+        _actuatorRegistry = actuatorRegistry ?? throw new ArgumentNullException(nameof(actuatorRegistry));
         _fileOperationService = fileOperationService ?? throw new ArgumentNullException(nameof(fileOperationService));
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _logger = logger;
@@ -472,7 +472,7 @@ public partial class BundledSkillToolHandlers
         if (_fs.DirectoryExists(path))
         {
             // 检查项目
-            var result = await _shellExecutionService.ExecuteAsync(
+            var result = await _actuatorRegistry.Get(SystemActuatorKind.Bash).ExecuteAsync(
                 "dotnet build --verbosity quiet --no-restore",
                 workingDirectory: path,
                 cancellationToken: cancellationToken).ConfigureAwait(false);
@@ -488,7 +488,7 @@ public partial class BundledSkillToolHandlers
 
     private async Task<(bool Success, string Message)> CheckPythonSyntaxAsync(string path, CancellationToken cancellationToken)
     {
-        var result = await _shellExecutionService.ExecuteAsync(
+        var result = await _actuatorRegistry.Get(SystemActuatorKind.Bash).ExecuteAsync(
             $"python -m py_compile \"{path}\"",
             cancellationToken: cancellationToken).ConfigureAwait(false);
 
@@ -498,7 +498,7 @@ public partial class BundledSkillToolHandlers
     private async Task<(bool Success, string Message)> CheckJavaScriptSyntaxAsync(string path, CancellationToken cancellationToken)
     {
         // 尝试使用 node 检查语法
-        var result = await _shellExecutionService.ExecuteAsync(
+        var result = await _actuatorRegistry.Get(SystemActuatorKind.Bash).ExecuteAsync(
             $"node --check \"{path}\"",
             cancellationToken: cancellationToken).ConfigureAwait(false);
 
@@ -507,7 +507,7 @@ public partial class BundledSkillToolHandlers
 
     private async Task<(bool Success, string Message)> CheckBuildAsync(string path, CancellationToken cancellationToken)
     {
-        var result = await _shellExecutionService.ExecuteAsync(
+        var result = await _actuatorRegistry.Get(SystemActuatorKind.Bash).ExecuteAsync(
             "dotnet build --verbosity quiet",
             workingDirectory: path,
             cancellationToken: cancellationToken).ConfigureAwait(false);
@@ -518,7 +518,7 @@ public partial class BundledSkillToolHandlers
     private async Task<(bool Success, string Message)> RunTestsAsync(string path, string? filter, CancellationToken cancellationToken)
     {
         var filterArg = !string.IsNullOrEmpty(filter) ? $" --filter \"{filter}\"" : "";
-        var result = await _shellExecutionService.ExecuteAsync(
+        var result = await _actuatorRegistry.Get(SystemActuatorKind.Bash).ExecuteAsync(
             $"dotnet test --verbosity quiet{filterArg}",
             workingDirectory: path,
             cancellationToken: cancellationToken).ConfigureAwait(false);

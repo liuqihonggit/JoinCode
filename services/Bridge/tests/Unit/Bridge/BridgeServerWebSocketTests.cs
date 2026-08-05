@@ -3,7 +3,7 @@ namespace Bridge.Tests;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
-using JoinCode.Abstractions.Models.Shell;
+using JoinCode.Abstractions.Interfaces;
 
 /// <summary>
 /// BridgeServer WebSocket 端到端集成测试 — P0-B E2E
@@ -25,7 +25,7 @@ public sealed class BridgeServerWebSocketTests : IAsyncDisposable
             CreateFileOpMock().Object,
             port: _port,
             logger: NullLogger<BridgeServer>.Instance,
-            shellService: CreateShellServiceMock().Object,
+            actuatorRegistry: CreateShellServiceMock().Object,
             ideService: CreateIdeServiceMock().Object);
         _server.Start();
     }
@@ -44,34 +44,36 @@ public sealed class BridgeServerWebSocketTests : IAsyncDisposable
         return mock;
     }
 
-    private static Mock<IShellExecutionService> CreateShellServiceMock()
+    private static Mock<ISystemActuatorRegistry> CreateShellServiceMock()
     {
-        var mock = new Mock<IShellExecutionService>();
-        mock.Setup(s => s.ExecuteAsync(
+        var actuatorMock = new Mock<ISystemActuator>();
+        actuatorMock.Setup(s => s.ExecuteAsync(
                 It.Is<string>(c => c == "echo hello"),
                 It.IsAny<int?>(),
                 It.IsAny<string?>(),
                 It.IsAny<bool>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ShellExecutionResult
+            .ReturnsAsync(new SystemActuatorExecutionResult
             {
                 Stdout = "hello",
                 Stderr = "",
                 ExitCode = 0
             });
-        mock.Setup(s => s.ExecuteAsync(
+        actuatorMock.Setup(s => s.ExecuteAsync(
                 It.Is<string>(c => c == "nonexistent-cmd-xxx"),
                 It.IsAny<int?>(),
                 It.IsAny<string?>(),
                 It.IsAny<bool>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ShellExecutionResult
+            .ReturnsAsync(new SystemActuatorExecutionResult
             {
                 Stdout = "",
                 Stderr = "command not found",
                 ExitCode = 127
             });
-        return mock;
+        var registryMock = new Mock<ISystemActuatorRegistry>();
+        registryMock.Setup(r => r.Get(It.IsAny<SystemActuatorKind>())).Returns(actuatorMock.Object);
+        return registryMock;
     }
 
     private static Mock<IIdeIntegrationService> CreateIdeServiceMock()
@@ -203,7 +205,7 @@ public sealed class BridgeServerWebSocketTests : IAsyncDisposable
             CreateFileOpMock().Object,
             port: port,
             logger: NullLogger<BridgeServer>.Instance,
-            shellService: CreateShellServiceMock().Object,
+            actuatorRegistry: CreateShellServiceMock().Object,
             ideService: null);
         serverNoIde.Start();
         try

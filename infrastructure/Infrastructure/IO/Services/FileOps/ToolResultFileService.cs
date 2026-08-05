@@ -1,7 +1,7 @@
 namespace Infrastructure.IO;
 
 [Register(typeof(JoinCode.Abstractions.LLM.Chat.IToolResultFileService))]
-public sealed partial class ToolResultFileService : JoinCode.Abstractions.LLM.Chat.IToolResultFileService
+public sealed partial class ToolResultFileService : ServiceEntity, JoinCode.Abstractions.LLM.Chat.IToolResultFileService
 {
     [Inject] private readonly ILogger<ToolResultFileService>? _logger;
     private readonly IFileSystem _fs;

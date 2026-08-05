@@ -1,8 +1,13 @@
 namespace Tools.Handlers;
 
 [Register]
-public sealed partial class ApplyPatchLogic
+public sealed partial class ApplyPatchLogic : ServiceEntity
 {
+
+    public ApplyPatchLogic(IFileSystem fs)
+    {
+        _fs = fs;
+    }
     [Inject] private readonly IFileSystem _fs;
 
     public async Task<ApplyPatchResult> ApplyAsync(

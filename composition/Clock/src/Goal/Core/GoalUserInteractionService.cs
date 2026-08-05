@@ -7,7 +7,7 @@ using JoinCode.Abstractions.Interfaces;
 /// 封装 IInteractiveService，1分钟超时后协调者自动接管
 /// </summary>
 [Register(typeof(IGoalUserInteraction))]
-public sealed class GoalUserInteractionService : IGoalUserInteraction
+public sealed class GoalUserInteractionService : ServiceEntity, IGoalUserInteraction
 {
     private readonly IInteractiveService _interactiveService;
     [Inject] private readonly ILogger<GoalUserInteractionService>? _logger;

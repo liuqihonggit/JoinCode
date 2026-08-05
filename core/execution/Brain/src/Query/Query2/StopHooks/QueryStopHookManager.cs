@@ -1,4 +1,4 @@
-﻿namespace Core.Query.StopHooks;
+namespace Core.Query.StopHooks;
 
 public interface IQueryStopHookManager
 {
@@ -32,7 +32,7 @@ public sealed partial class StopHookResult
 }
 
 [Register]
-public sealed partial class QueryStopHookManager : IQueryStopHookManager
+public sealed partial class QueryStopHookManager : ServiceEntity, IQueryStopHookManager
 {
     private readonly ConcurrentDictionary<string, IQueryStopHook> _hooks;
     [Inject] private readonly ILogger<QueryStopHookManager>? _logger;

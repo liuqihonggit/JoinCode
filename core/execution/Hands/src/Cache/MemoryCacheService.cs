@@ -1,8 +1,8 @@
-﻿
+
 namespace Services.Cache;
 
 [Register]
-public partial class MemoryCacheService : ICacheService, IDisposable {
+public partial class MemoryCacheService : ServiceEntity, ICacheService, IDisposable {
     private MemoryCache _cache;
     [Inject] private readonly ILogger<MemoryCacheService>? _logger;
     private readonly ITelemetryService? _telemetryService;
@@ -91,7 +91,7 @@ public partial class MemoryCacheService : ICacheService, IDisposable {
         return Task.CompletedTask;
     }
 
-    public void Dispose() {
+    protected override void OnDispose() {
         _cache?.Dispose();
     }
 

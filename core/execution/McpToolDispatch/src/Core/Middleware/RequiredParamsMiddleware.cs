@@ -1,11 +1,11 @@
-﻿
+
 namespace McpToolRegistry;
 
 /// <summary>
 /// 必填参数校验中间件 — Order=200 — 检查必填参数是否提供
 /// </summary>
 [Register]
-public sealed partial class RequiredParamsMiddleware : IToolExecutionMiddleware
+public sealed partial class RequiredParamsMiddleware : ServiceEntity, IToolExecutionMiddleware
 {
 
     [Inject] private readonly ILogger<RequiredParamsMiddleware> _logger;

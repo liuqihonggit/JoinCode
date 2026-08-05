@@ -2,7 +2,7 @@
 namespace McpClient;
 
 [Register]
-public sealed partial class McpOfficialRegistry
+public sealed partial class McpOfficialRegistry : ServiceEntity
 {
     private readonly IResilientHttpClientProvider _resilientProvider;
     [Inject] private readonly ILogger<McpOfficialRegistry>? _logger;

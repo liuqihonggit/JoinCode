@@ -1,15 +1,20 @@
-﻿namespace Tools.Shell;
+namespace Tools.Shell;
 
 /// <summary>
 /// Shell 后台任务中间件 — 对齐 TS spawnShellTask/LocalShellTask
-/// 当 background=true 时，先启动 ShellCommandContext，再立即转后台并注册到后台任务服务
-/// 统一走 ShellCommandContext 路径，复用溢出文件机制，不再独立启动新进程
+/// 当 background=true 时，先启动 SystemActuatorCommandContext，再立即转后台并注册到后台任务服务
+/// 统一走 SystemActuatorCommandContext 路径，复用溢出文件机制，不再独立启动新进程
 /// </summary>
 [Register]
-public sealed partial class ShellBackgroundMiddleware : IShellMiddleware
+public sealed partial class ShellBackgroundMiddleware : ServiceEntity, IShellMiddleware
 {
-    [Inject] private readonly IShellExecutionService _shellExecutionService;
-    [Inject] private readonly IShellBackgroundTaskService? _backgroundTaskService;
+
+    public ShellBackgroundMiddleware(ISystemActuatorRegistry registry, ITelemetryService? telemetryService = null)
+    {
+        _registry = registry;
+        _telemetryService = telemetryService;
+    }
+    [Inject] private readonly ISystemActuatorRegistry _registry;
     [Inject] private readonly ITelemetryService? _telemetryService;
 
     /// <inheritdoc />
@@ -17,16 +22,15 @@ public sealed partial class ShellBackgroundMiddleware : IShellMiddleware
     /// <inheritdoc />
     public async Task InvokeAsync(ShellPipelineContext context, MiddlewareDelegate<ShellPipelineContext> next, CancellationToken ct)
     {
-        if (context.Background != true || _backgroundTaskService == null)
+        if (context.Background != true)
         {
             await next(context, ct).ConfigureAwait(false);
             return;
         }
 
         // 对齐 TS spawnShellTask: 先启动进程，再立即转后台
-        await using var cmdContext = await _shellExecutionService.StartWithBackgroundSupportAsync(
+        await using var cmdContext = await context.Provider.StartWithBackgroundSupportAsync(
             context.Command,
-            context.Provider,
             context.Timeout,
             context.WorkingDirectory,
             shouldAutoBackground: false,
@@ -35,16 +39,13 @@ public sealed partial class ShellBackgroundMiddleware : IShellMiddleware
 
         // 立即转后台 — 对齐 TS shellCommand.background(taskId)
         var taskId = cmdContext.TaskId;
-        if (cmdContext is ShellCommandContext shellCtx)
-        {
-            shellCtx.Background(taskId);
-        }
+        cmdContext.Background(taskId);
 
-        // 注册到后台任务服务 — 输出通过 ShellCommandContext.GetCurrentStdout() 获取
-        var taskInfo = await _backgroundTaskService.RegisterContextAsync(
+        // 注册到后台任务服务 — 输出通过 ISystemActuatorCommandContext.GetCurrentStdout() 获取
+        var taskInfo = await _registry.RegisterContextAsync(
             cmdContext, context.WorkingDirectory, ct).ConfigureAwait(false);
 
-        var shellType = context.Provider.Type.ToValue();
+        var shellType = context.Provider.Kind.Id;
         ToolTelemetryHelper.RecordToolCount(_telemetryService, "shell.execution.count", new Dictionary<string, string> { ["shell"] = shellType, ["operation"] = "background", ["result"] = "ok" });
 
         var response = new StringBuilder();

@@ -1,12 +1,18 @@
-﻿namespace McpClient.Mcpb;
+namespace McpClient.Mcpb;
 
 /// <summary>
 /// MCPB 解压中间件 — 安全解压 MCPB 包（含路径遍历检测、文件大小限制）
 /// 缓存命中时跳过
 /// </summary>
 [Register(typeof(IMcpbMiddleware))]
-public sealed partial class McpbExtractionMiddleware : IMcpbMiddleware
+public sealed partial class McpbExtractionMiddleware : ServiceEntity, IMcpbMiddleware
 {
+
+    public McpbExtractionMiddleware(IFileSystem fs, ILogger<McpbExtractionMiddleware>? logger = null)
+    {
+        _fs = fs;
+        _logger = logger;
+    }
     [Inject] private readonly IFileSystem _fs;
     [Inject] private readonly ILogger<McpbExtractionMiddleware>? _logger;
 

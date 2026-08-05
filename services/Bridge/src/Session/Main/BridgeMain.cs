@@ -253,7 +253,7 @@ public sealed partial class BridgeMain : IAsyncDisposable
                     GetAccessToken = _deps.GetAccessToken,
                     OnRefresh = (sessionId, oauthToken) =>
                     {
-                        if (_tracker.V2Sessions.Contains(sessionId))
+                        if (_tracker.V2Sessions.ContainsKey(sessionId))
                         {
                             _logger?.LogDebug("BridgeMain: refreshing v2 session {SessionId} via reconnectSession", sessionId);
                             if (EnvironmentId is not null && _deps.ReconnectSession is not null)
@@ -569,7 +569,7 @@ public sealed partial class BridgeMain : IAsyncDisposable
                     GetAccessToken = _deps.GetAccessToken,
                     OnRefresh = (sessionId, oauthToken) =>
                     {
-                        if (_tracker.V2Sessions.Contains(sessionId))
+                        if (_tracker.V2Sessions.ContainsKey(sessionId))
                         {
                             // 对齐 TS 端: v2 会话通过 reconnectSession 刷新 — 服务端重新派发带新 JWT 的工作项
                             // 对齐 TS 端: 双 ID 尝试 — 先 compatId(session_*), 失败再 infraId(cse_*)
@@ -1271,7 +1271,7 @@ public sealed partial class BridgeMain : IAsyncDisposable
 
         // 去重检查 — 对齐 TS 端: completedWorkIds
         // 服务端可能在处理 stopWork 请求前重新投递过期工作项
-        if (_tracker.CompletedWorkIds.Contains(work.WorkId))
+        if (_tracker.CompletedWorkIds.ContainsKey(work.WorkId))
         {
             _logger?.LogDebug("BridgeMain: skipping duplicate work {WorkId}", work.WorkId);
             // 容量节流 — 对齐 TS 端: 持续的过期重投递会导致 tight-loop
@@ -1705,7 +1705,7 @@ public sealed partial class BridgeMain : IAsyncDisposable
         }
 
         // 超时: 终止子进程
-        if (handle.IsRunning && !_tracker.TimedOutSessions.Contains(work.SessionId))
+        if (handle.IsRunning && !_tracker.TimedOutSessions.ContainsKey(work.SessionId))
         {
             _tracker.MarkTimedOut(work.SessionId);
             var compatId = GetCompatId(work.SessionId);

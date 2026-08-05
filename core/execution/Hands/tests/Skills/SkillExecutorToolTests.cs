@@ -8,16 +8,16 @@ namespace Core.Tests.Skills;
 public class SkillExecutorToolTests
 {
     private readonly Mock<IQueryEngine> _queryEngineMock;
-    private readonly Mock<IToolRegistry> _toolRegistryMock;
+    private readonly Mock<IToolExecutionGateway> _toolExecutionGatewayMock;
     private readonly SkillExecutor _skillExecutor;
 
     public SkillExecutorToolTests()
     {
         _queryEngineMock = new Mock<IQueryEngine>();
-        _toolRegistryMock = new Mock<IToolRegistry>();
+        _toolExecutionGatewayMock = new Mock<IToolExecutionGateway>();
         _skillExecutor = new SkillExecutor(
             _queryEngineMock.Object,
-            _toolRegistryMock.Object,
+            _toolExecutionGatewayMock.Object,
             NullLogger<SkillExecutor>.Instance);
     }
 
@@ -54,8 +54,8 @@ public class SkillExecutorToolTests
             }
         };
 
-        _toolRegistryMock
-            .Setup(x => x.ExecuteToolAsync(
+        _toolExecutionGatewayMock
+            .Setup(x => x.ExecuteAsync(
                 "TestTool",
                 It.IsAny<Dictionary<string, JsonElement>>(),
                 It.IsAny<CancellationToken>(),
@@ -66,8 +66,8 @@ public class SkillExecutorToolTests
 
         result.IsSuccess.Should().BeTrue();
         result.Output.Should().Contain("Tool executed successfully");
-        _toolRegistryMock.Verify(
-            x => x.ExecuteToolAsync(
+        _toolExecutionGatewayMock.Verify(
+            x => x.ExecuteAsync(
                 "TestTool",
                 It.IsAny<Dictionary<string, JsonElement>>(),
                 It.IsAny<CancellationToken>(),
@@ -98,8 +98,8 @@ public class SkillExecutorToolTests
         };
 
         Dictionary<string, JsonElement>? capturedArgs = null;
-        _toolRegistryMock
-            .Setup(x => x.ExecuteToolAsync(
+        _toolExecutionGatewayMock
+            .Setup(x => x.ExecuteAsync(
                 It.IsAny<string>(),
                 It.IsAny<Dictionary<string, JsonElement>>(),
                 It.IsAny<CancellationToken>(),
@@ -143,8 +143,8 @@ public class SkillExecutorToolTests
             }
         };
 
-        _toolRegistryMock
-            .Setup(x => x.ExecuteToolAsync(
+        _toolExecutionGatewayMock
+            .Setup(x => x.ExecuteAsync(
                 It.IsAny<string>(),
                 It.IsAny<Dictionary<string, JsonElement>>(),
                 It.IsAny<CancellationToken>(),
@@ -195,8 +195,8 @@ public class SkillExecutorToolTests
         };
 
         Dictionary<string, JsonElement>? capturedArgs = null;
-        _toolRegistryMock
-            .Setup(x => x.ExecuteToolAsync(
+        _toolExecutionGatewayMock
+            .Setup(x => x.ExecuteAsync(
                 It.IsAny<string>(),
                 It.IsAny<Dictionary<string, JsonElement>>(),
                 It.IsAny<CancellationToken>(),
@@ -249,8 +249,8 @@ public class SkillExecutorToolTests
             }
         };
 
-        _toolRegistryMock
-            .Setup(x => x.ExecuteToolAsync(
+        _toolExecutionGatewayMock
+            .Setup(x => x.ExecuteAsync(
                 It.IsAny<string>(),
                 It.IsAny<Dictionary<string, JsonElement>>(),
                 It.IsAny<CancellationToken>(),
@@ -296,8 +296,8 @@ public class SkillExecutorToolTests
             }
         };
 
-        _toolRegistryMock
-            .Setup(x => x.ExecuteToolAsync(
+        _toolExecutionGatewayMock
+            .Setup(x => x.ExecuteAsync(
                 It.IsAny<string>(),
                 It.IsAny<Dictionary<string, JsonElement>>(),
                 It.IsAny<CancellationToken>(),

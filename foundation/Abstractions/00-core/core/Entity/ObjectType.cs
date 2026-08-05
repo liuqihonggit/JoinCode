@@ -25,4 +25,5 @@ public enum ObjectType
     [EnumValue("worktree")] Worktree = 15,
     [EnumValue("shellcommand")] ShellCommand = 16,
     [EnumValue("executor")] Executor = 17,
+    [EnumValue("service")] Service = 18,
 }

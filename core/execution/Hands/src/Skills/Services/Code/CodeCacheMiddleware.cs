@@ -1,11 +1,16 @@
-﻿namespace Core.Skills;
+namespace Core.Skills;
 
 /// <summary>
 /// 代码缓存中间件 — Generate/Analyze 操作的缓存检查与写入
 /// </summary>
 [Register]
-public sealed partial class CodeCacheMiddleware : ICodeMiddleware
+public sealed partial class CodeCacheMiddleware : ServiceEntity, ICodeMiddleware
 {
+
+    public CodeCacheMiddleware(ICacheService cacheService)
+    {
+        _cacheService = cacheService;
+    }
     [Inject] private readonly ICacheService _cacheService;
 
     /// <inheritdoc />

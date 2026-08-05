@@ -1,9 +1,14 @@
-﻿
+
 namespace Core.Planning;
 
 [Register]
-public sealed partial class InteractiveService : IInteractiveService
+public sealed partial class InteractiveService : ServiceEntity, IInteractiveService
 {
+
+    public InteractiveService(ILogger<InteractiveService>? logger = null)
+    {
+        _logger = logger;
+    }
     [Inject] private readonly ILogger<InteractiveService>? _logger;
 
     public Task<AskUserQuestionResult> AskUserQuestionAsync(string question, List<string>? options = null, bool multiSelect = false, CancellationToken cancellationToken = default)

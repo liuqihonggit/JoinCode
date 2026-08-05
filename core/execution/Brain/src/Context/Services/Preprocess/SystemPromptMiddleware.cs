@@ -1,4 +1,4 @@
-﻿using JoinCode.Abstractions.Attributes;
+using JoinCode.Abstractions.Attributes;
 
 namespace Core.Context;
 
@@ -6,8 +6,14 @@ namespace Core.Context;
 /// 系统提示构建中间件 — 构建分区系统提示（静态前缀 + 动态后缀）
 /// </summary>
 [Register(typeof(IPreparePreprocessMiddleware))]
-public sealed partial class SystemPromptMiddleware : IPreparePreprocessMiddleware
+public sealed partial class SystemPromptMiddleware : ServiceEntity, IPreparePreprocessMiddleware
 {
+
+    public SystemPromptMiddleware(SystemPromptBuilder systemPromptBuilder, IChatContextManager contextManager)
+    {
+        _systemPromptBuilder = systemPromptBuilder;
+        _contextManager = contextManager;
+    }
     [Inject] private readonly SystemPromptBuilder _systemPromptBuilder;
     [Inject] private readonly IChatContextManager _contextManager;
 

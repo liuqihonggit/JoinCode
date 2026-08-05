@@ -1,9 +1,9 @@
-﻿namespace Core.Scheduling.Runtime;
+namespace Core.Scheduling.Runtime;
 
 using JoinCode.Abstractions.Attributes;
 
 [Register]
-public sealed partial class TaskRuntime : ITaskRuntime, IDisposable
+public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposable
 {
     private readonly ConcurrentDictionary<string, RuntimeTask> _tasks = new();
     private readonly ConcurrentDag<string> _dag = new();
@@ -320,10 +320,23 @@ public sealed partial class TaskRuntime : ITaskRuntime, IDisposable
             var readResult = await _deps.FileOperationService.ReadFileAsync(filePath, cancellationToken: cancellationToken).ConfigureAwait(false);
             if (!readResult.Success)
             {
+                _logger?.LogWarning(L.T(StringKey.RecoverTasksCorruptFileLog), filePath, readResult.ErrorMessage ?? "读取失败");
                 return Array.Empty<RuntimeTask>();
             }
 
-            var tasks = JsonSerializer.Deserialize(readResult.Content, SchedulingTasksJsonContext.Default.ListRuntimeTask);
+            List<RuntimeTask>? tasks;
+            try
+            {
+                tasks = JsonSerializer.Deserialize(readResult.Content, SchedulingTasksJsonContext.Default.ListRuntimeTask);
+            }
+            catch (JsonException ex)
+            {
+                // 损坏的持久化文件 — 隔离而非崩溃，保留进程内已加载任务，等待下次持久化覆盖
+                _logger?.LogWarning(ex, L.T(StringKey.RecoverTasksCorruptFileLog), filePath, ex.Message);
+                await QuarantineCorruptFileAsync(filePath, cancellationToken).ConfigureAwait(false);
+                return Array.Empty<RuntimeTask>();
+            }
+
             if (tasks is null || tasks.Count == 0)
             {
                 return Array.Empty<RuntimeTask>();
@@ -365,6 +378,24 @@ public sealed partial class TaskRuntime : ITaskRuntime, IDisposable
 
             _logger?.LogInformation(L.T(StringKey.RecoverTasksLog), recovered.Count);
             return recovered;
+        }
+    }
+
+    /// <summary>
+    /// 隔离损坏的持久化文件 — 移动到带时间戳的 .corrupt 后缀，避免反复报错且保留证据
+    /// </summary>
+    private async Task QuarantineCorruptFileAsync(string filePath, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var corruptPath = $"{filePath}.{DateTime.Now:yyyyMMddHHmmss}.corrupt";
+            await _deps.FileOperationService!.MoveFileAsync(filePath, corruptPath, overwrite: false, cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
+            _logger?.LogWarning(L.T(StringKey.RecoverTasksCorruptFileLog), corruptPath, "已隔离损坏文件");
+        }
+        catch (Exception moveEx)
+        {
+            _logger?.LogWarning(moveEx, "隔离损坏任务文件失败: {FilePath}", filePath);
         }
     }
 
@@ -418,7 +449,7 @@ public sealed partial class TaskRuntime : ITaskRuntime, IDisposable
         return $"rtask_{counter:D4}";
     }
 
-    public void Dispose()
+    protected override void OnDispose()
     {
         _dag.Dispose();
         _persistLock.Dispose();

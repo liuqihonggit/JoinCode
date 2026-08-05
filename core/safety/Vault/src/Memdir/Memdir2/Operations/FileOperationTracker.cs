@@ -1,8 +1,8 @@
-﻿
+
 namespace Core.Memdir;
 
 [Register]
-public sealed partial class FileOperationTracker : IFileOperationTracker
+public sealed partial class FileOperationTracker : ServiceEntity, IFileOperationTracker
 {
     private readonly List<FileOperationEntry> _entries = [];
     [Inject] private readonly ILogger<FileOperationTracker>? _logger;

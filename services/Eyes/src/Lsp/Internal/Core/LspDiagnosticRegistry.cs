@@ -34,8 +34,13 @@ public interface ILspDiagnosticRegistry
 }
 
 [Register(typeof(ILspDiagnosticRegistry)), Register(typeof(JoinCode.Abstractions.Interfaces.Lsp.ILspDiagnosticProvider))]
-public sealed partial class LspDiagnosticRegistry : ILspDiagnosticRegistry, JoinCode.Abstractions.Interfaces.Lsp.ILspDiagnosticProvider
+public sealed partial class LspDiagnosticRegistry : ServiceEntity, ILspDiagnosticRegistry, JoinCode.Abstractions.Interfaces.Lsp.ILspDiagnosticProvider
 {
+
+    public LspDiagnosticRegistry(IClockService clock)
+    {
+        _clock = clock;
+    }
     private const int MaxDiagnosticsPerFile = 10;
     private const int MaxTotalDiagnostics = 30;
     private const int MaxDeliveredFiles = 500;

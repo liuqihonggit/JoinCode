@@ -1,4 +1,4 @@
-﻿
+
 namespace Core.Hooks.ToolPermission;
 
 /// <summary>
@@ -6,8 +6,14 @@ namespace Core.Hooks.ToolPermission;
 /// 集中处理所有权限决策的分析/遥测日志记录
 /// </summary>
 [Register]
-public sealed partial class PermissionLogger : IPermissionLogger
+public sealed partial class PermissionLogger : ServiceEntity, IPermissionLogger
 {
+
+    public PermissionLogger(ILogger<PermissionLogger>? logger = null, ITelemetryService? telemetryService = null)
+    {
+        _logger = logger;
+        _telemetryService = telemetryService;
+    }
     [Inject] private readonly ILogger<PermissionLogger>? _logger;
     [Inject] private readonly ITelemetryService? _telemetryService;
 

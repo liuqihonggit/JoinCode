@@ -5,13 +5,13 @@ public sealed class SkillServiceAlignmentTests : IDisposable
 {
     private readonly Mock<IFileOperationService> _fileOperationServiceMock;
     private readonly Mock<IQueryEngine> _queryEngineMock;
-    private readonly Mock<IToolRegistry> _toolRegistryMock;
+    private readonly Mock<IToolExecutionGateway> _toolExecutionGatewayMock;
 
     public SkillServiceAlignmentTests()
     {
         _fileOperationServiceMock = new Mock<IFileOperationService>();
         _queryEngineMock = new Mock<IQueryEngine>();
-        _toolRegistryMock = new Mock<IToolRegistry>();
+        _toolExecutionGatewayMock = new Mock<IToolExecutionGateway>();
 
         _fileOperationServiceMock.Setup(x => x.DirectoryExists(It.IsAny<string>())).Returns(true);
         _fileOperationServiceMock.Setup(x => x.GetFiles(It.IsAny<string>(), "*.json", SearchOption.AllDirectories))
@@ -28,7 +28,7 @@ public sealed class SkillServiceAlignmentTests : IDisposable
         {
             new Core.Skills.SkillValidationMiddleware(),
             new Core.Skills.SkillTelemetryMiddleware(),
-            new Core.Skills.SkillExecutionMiddleware(_queryEngineMock.Object, _toolRegistryMock.Object, new VariableResolver()),
+            new Core.Skills.SkillExecutionMiddleware(_queryEngineMock.Object, _toolExecutionGatewayMock.Object, new VariableResolver()),
             new MetricsMiddleware<Core.Skills.SkillContext>()
         };
         var pipeline = new MiddlewarePipeline<Core.Skills.SkillContext>(middlewares);

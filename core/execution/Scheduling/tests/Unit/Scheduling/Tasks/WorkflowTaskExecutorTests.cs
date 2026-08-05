@@ -3,16 +3,16 @@ namespace Sync.Tests.Scheduling.Tasks;
 
 public class WorkflowTaskExecutorTests
 {
-    private readonly Mock<JoinCode.Abstractions.Tools.IToolRegistry> _toolRegistryMock;
+    private readonly Mock<JoinCode.Abstractions.Tools.IToolExecutionGateway> _toolGatewayMock;
     private readonly Mock<IAgentLifecycleManager> _lifecycleManagerMock;
     private readonly WorkflowTaskExecutor _executor;
 
     public WorkflowTaskExecutorTests()
     {
-        _toolRegistryMock = new Mock<JoinCode.Abstractions.Tools.IToolRegistry>();
+        _toolGatewayMock = new Mock<JoinCode.Abstractions.Tools.IToolExecutionGateway>();
         _lifecycleManagerMock = new Mock<IAgentLifecycleManager>();
         _executor = new WorkflowTaskExecutor(
-            _toolRegistryMock.Object,
+            _toolGatewayMock.Object,
             _lifecycleManagerMock.Object,
             NullLogger<WorkflowTaskExecutor>.Instance);
     }
@@ -25,8 +25,8 @@ public class WorkflowTaskExecutorTests
             Content = new List<ToolContent> { new() { Type = ToolContentType.Text, Text = "ok" } }
         };
 
-        _toolRegistryMock
-            .Setup(x => x.ExecuteToolAsync(It.IsAny<string>(), It.IsAny<Dictionary<string, System.Text.Json.JsonElement>>(), It.IsAny<CancellationToken>(), It.IsAny<ToolProgressCallback?>()))
+        _toolGatewayMock
+            .Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<Dictionary<string, System.Text.Json.JsonElement>>(), It.IsAny<CancellationToken>(), It.IsAny<ToolProgressCallback?>()))
             .ReturnsAsync(toolResult);
 
         var definition = new WorkflowDefinition
@@ -92,8 +92,8 @@ public class WorkflowTaskExecutorTests
             Content = new List<ToolContent> { new() { Type = ToolContentType.Text, Text = "ok" } }
         };
 
-        _toolRegistryMock
-            .Setup(x => x.ExecuteToolAsync(It.IsAny<string>(), It.IsAny<Dictionary<string, System.Text.Json.JsonElement>>(), It.IsAny<CancellationToken>(), It.IsAny<ToolProgressCallback?>()))
+        _toolGatewayMock
+            .Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<Dictionary<string, System.Text.Json.JsonElement>>(), It.IsAny<CancellationToken>(), It.IsAny<ToolProgressCallback?>()))
             .ReturnsAsync(toolResult);
 
         var definition = new WorkflowDefinition
@@ -208,5 +208,190 @@ public class WorkflowTaskExecutorTests
         var result = await _executor.ExecuteWorkflowAsync(definition).ConfigureAwait(true);
 
         result.Status.Should().Be(TaskExecutionStatus.Completed);
+    }
+
+    [Fact]
+    public async Task ExecuteWorkflowAsync_ToolCallStep_ShouldInvokeGatewayExecute()
+    {
+        // 权限拦截回归守卫：ToolCall 步骤必须经由 IToolExecutionGateway.ExecuteAsync 入口，
+        // 而非绕过权限管道直接调用 IToolRegistry.ExecuteToolAsync。
+        var gatewayMock = new Mock<IToolExecutionGateway>();
+        var lifecycleMock = new Mock<IAgentLifecycleManager>();
+        var executor = new WorkflowTaskExecutor(
+            gatewayMock.Object,
+            lifecycleMock.Object,
+            NullLogger<WorkflowTaskExecutor>.Instance);
+
+        var expectedToolName = "permission_guarded_tool";
+        var toolResult = new ToolResult
+        {
+            Content = new List<ToolContent> { new() { Type = ToolContentType.Text, Text = "executed via gateway" } }
+        };
+
+        gatewayMock
+            .Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<Dictionary<string, JsonElement>>(), It.IsAny<CancellationToken>(), It.IsAny<ToolProgressCallback?>()))
+            .ReturnsAsync(toolResult);
+
+        var definition = new WorkflowDefinition
+        {
+            WorkflowId = "wf-gateway-guard",
+            Steps = new List<WorkflowStep>
+            {
+                new()
+                {
+                    StepId = "step-1",
+                    Name = "Tool call via gateway",
+                    StepType = WorkflowStepType.ToolCall,
+                    ToolName = expectedToolName
+                }
+            },
+            ExecutionMode = WorkflowExecutionMode.Sequential
+        };
+
+        var result = await executor.ExecuteWorkflowAsync(definition).ConfigureAwait(true);
+
+        result.Status.Should().Be(TaskExecutionStatus.Completed);
+        gatewayMock.Verify(
+            x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<Dictionary<string, JsonElement>>(), It.IsAny<CancellationToken>(), It.IsAny<ToolProgressCallback?>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public void Constructor_ShouldNotAcceptIToolRegistry()
+    {
+        // 接口不可绕过守卫：WorkflowTaskExecutor 构造函数不得再接受 IToolRegistry 参数，
+        // 确保工具调用只能经由 IToolExecutionGateway 收敛到权限管道。
+        var ctorParameterTypes = typeof(WorkflowTaskExecutor)
+            .GetConstructors()
+            .SelectMany(c => c.GetParameters())
+            .Select(p => p.ParameterType)
+            .ToList();
+
+        ctorParameterTypes.Should().NotContain(typeof(IToolRegistry));
+        ctorParameterTypes.Should().Contain(typeof(IToolExecutionGateway));
+    }
+
+    [Fact]
+    public async Task ExecuteWorkflowAsync_WorkflowExceptionFailure_ShouldCaptureErrorCode()
+    {
+        var inner = new InvalidOperationException("inner failure detail");
+        var apiEx = new JoinCode.Abstractions.Exceptions.ApiException(
+            "API failed", inner, statusCode: 500, errorCode: "API008");
+
+        _toolGatewayMock
+            .Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<Dictionary<string, JsonElement>>(), It.IsAny<CancellationToken>(), It.IsAny<ToolProgressCallback?>()))
+            .ThrowsAsync(apiEx);
+
+        var definition = new WorkflowDefinition
+        {
+            WorkflowId = "wf-errorcode",
+            Steps = new List<WorkflowStep>
+            {
+                new()
+                {
+                    StepId = "step-1",
+                    Name = "Fail",
+                    StepType = WorkflowStepType.ToolCall,
+                    ToolName = "fail_tool",
+                    OnFailure = WorkflowStepOnFailure.Stop
+                }
+            },
+            ExecutionMode = WorkflowExecutionMode.Sequential
+        };
+
+        var result = await _executor.ExecuteWorkflowAsync(definition).ConfigureAwait(true);
+
+        result.Status.Should().Be(TaskExecutionStatus.Failed);
+        result.ErrorMessage.Should().Be("API failed");
+        var serialized = System.Text.Json.JsonSerializer.Serialize(
+            new StepStatus
+            {
+                StepId = "step-1",
+                State = StepState.Failed,
+                Result = JsonElementHelper.FromString(string.Empty),
+                Error = "API failed",
+                ErrorCode = "API008",
+                ErrorDetail = apiEx.ToString()
+            },
+            Core.Scheduling.SchedulingTasksJsonContext.Default.StepStatus);
+        serialized.Should().Contain("API008");
+        serialized.Should().Contain("inner failure detail");
+    }
+
+    [Fact]
+    public async Task ExecuteWorkflowAsync_PlainExceptionFailure_ShouldCaptureFullDetail()
+    {
+        _toolGatewayMock
+            .Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<Dictionary<string, JsonElement>>(), It.IsAny<CancellationToken>(), It.IsAny<ToolProgressCallback?>()))
+            .ThrowsAsync(new InvalidOperationException("boom"));
+
+        var definition = new WorkflowDefinition
+        {
+            WorkflowId = "wf-plain",
+            Steps = new List<WorkflowStep>
+            {
+                new()
+                {
+                    StepId = "step-1",
+                    Name = "Fail",
+                    StepType = WorkflowStepType.ToolCall,
+                    ToolName = "fail_tool",
+                    OnFailure = WorkflowStepOnFailure.Stop
+                }
+            },
+            ExecutionMode = WorkflowExecutionMode.Sequential
+        };
+
+        var result = await _executor.ExecuteWorkflowAsync(definition).ConfigureAwait(true);
+
+        result.Status.Should().Be(TaskExecutionStatus.Failed);
+        result.ErrorMessage.Should().Be("boom");
+        var serialized = System.Text.Json.JsonSerializer.Serialize(
+            new StepStatus
+            {
+                StepId = "step-1",
+                State = StepState.Failed,
+                Result = JsonElementHelper.FromString(string.Empty),
+                Error = "boom",
+                ErrorDetail = "System.InvalidOperationException: boom"
+            },
+            Core.Scheduling.SchedulingTasksJsonContext.Default.StepStatus);
+        serialized.Should().Contain("InvalidOperationException");
+        serialized.Should().Contain("boom");
+    }
+
+    [Fact]
+    public async Task ExecuteWorkflowAsync_RetryWithMaxRetries_ShouldUseConfiguredCount()
+    {
+        var callCount = 0;
+        _toolGatewayMock
+            .Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<Dictionary<string, JsonElement>>(), It.IsAny<CancellationToken>(), It.IsAny<ToolProgressCallback?>()))
+            .ReturnsAsync(() =>
+            {
+                callCount++;
+                throw new InvalidOperationException("transient");
+            });
+
+        var definition = new WorkflowDefinition
+        {
+            WorkflowId = "wf-retry",
+            Steps = new List<WorkflowStep>
+            {
+                new()
+                {
+                    StepId = "step-1",
+                    Name = "Retry",
+                    StepType = WorkflowStepType.ToolCall,
+                    ToolName = "retry_tool",
+                    OnFailure = WorkflowStepOnFailure.Retry,
+                    MaxRetries = 2
+                }
+            },
+            ExecutionMode = WorkflowExecutionMode.Sequential
+        };
+
+        var result = await _executor.ExecuteWorkflowAsync(definition).ConfigureAwait(true);
+
+        callCount.Should().Be(3);
     }
 }

@@ -6,7 +6,7 @@ namespace McpClient;
 /// 管道: 验证 → 哈希 → 缓存检查 → 解压 → 解析清单
 /// </summary>
 [Register]
-public sealed partial class McpbLoader
+public sealed partial class McpbLoader : ServiceEntity
 {
     private readonly MiddlewarePipeline<McpbLoadContext> _pipeline;
 

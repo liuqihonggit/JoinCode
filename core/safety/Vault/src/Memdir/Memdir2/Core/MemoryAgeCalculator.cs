@@ -1,4 +1,4 @@
-﻿namespace Core.Memdir;
+namespace Core.Memdir;
 
 /// <summary>
 /// 记忆老化计算器
@@ -28,7 +28,7 @@ public interface IMemoryAgeCalculator
 /// 使用指数衰减模型
 /// </summary>
 [Register]
-public sealed partial class MemoryAgeCalculator : IMemoryAgeCalculator
+public sealed partial class MemoryAgeCalculator : ServiceEntity, IMemoryAgeCalculator
 {
     private readonly MemoryAgeOptions _options;
 

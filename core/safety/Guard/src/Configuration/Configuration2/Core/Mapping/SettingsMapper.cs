@@ -6,7 +6,7 @@ namespace Core.Configuration;
 /// 优先级: 环境变量 > SettingsJson 字段 > Provider 定义默认值 > 内置默认值
 /// </summary>
 [Register]
-public sealed partial class SettingsMapper
+public sealed partial class SettingsMapper : ServiceEntity
 {
     private readonly IProviderDefinitionRegistry _registry;
 
@@ -223,7 +223,7 @@ public sealed partial class SettingsMapper
 
         if (ts.SuccessDelta.HasValue) target.SuccessDelta = ts.SuccessDelta.Value;
         if (ts.FailDelta.HasValue) target.FailDelta = ts.FailDelta.Value;
-        if (ts.CircuitBreakerThreshold.HasValue) target.CircuitBreakerThreshold = ts.CircuitBreakerThreshold.Value;
+        if (ts.WarningThreshold.HasValue) target.WarningThreshold = ts.WarningThreshold.Value;
         if (ts.ScoreMin.HasValue) target.ScoreMin = ts.ScoreMin.Value;
         if (ts.ScoreMax.HasValue) target.ScoreMax = ts.ScoreMax.Value;
         if (ts.DecayRatePerHour.HasValue) target.DecayRatePerHour = ts.DecayRatePerHour.Value;

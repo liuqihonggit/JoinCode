@@ -69,7 +69,7 @@ public interface IWorkSecretStore
 /// 使用 AES-GCM 加密密钥值，兼容 NativeAOT
 /// </summary>
 [Register]
-public sealed partial class WorkSecretStore : IWorkSecretStore, IDisposable
+public sealed partial class WorkSecretStore : ServiceEntity, IWorkSecretStore, IDisposable
 {
     private readonly ConcurrentDictionary<string, WorkSecretEntry> _secrets;
     [Inject] private readonly ILogger<WorkSecretStore>? _logger;
@@ -293,7 +293,7 @@ public sealed partial class WorkSecretStore : IWorkSecretStore, IDisposable
         return Encoding.UTF8.GetString(plainBytes);
     }
 
-    public void Dispose()
+    protected override void OnDispose()
     {
         Array.Clear(_encryptionKey);
     }

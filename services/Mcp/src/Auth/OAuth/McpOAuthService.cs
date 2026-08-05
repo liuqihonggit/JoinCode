@@ -4,7 +4,7 @@ using JoinCode.Abstractions.Attributes;
 namespace McpClient;
 
 [Register]
-public sealed partial class McpOAuthService
+public sealed partial class McpOAuthService : ServiceEntity
 {
     private readonly McpOAuthOptions _options;
     private readonly McpPkceAuthProvider _authProvider;
@@ -124,12 +124,12 @@ public sealed partial class McpOAuthService
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Trace.WriteLine($"McpOAuthService: Failed to stop callback listener: {ex.Message}");
+            _logger?.LogWarning(ex, "停止 OAuth 回调监听器失败");
         }
         _callbackListener = null;
     }
 
-    public void Dispose()
+    protected override void OnDispose()
     {
         StopCallbackListener();
         _authProvider.Dispose();

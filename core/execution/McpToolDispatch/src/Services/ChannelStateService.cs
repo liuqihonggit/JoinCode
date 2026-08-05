@@ -1,4 +1,4 @@
-﻿namespace Sync.McpToolDispatch.Services;
+namespace Sync.McpToolDispatch.Services;
 
 /// <summary>
 /// Channel 状态服务实现
@@ -7,7 +7,7 @@
 /// 后续实现 --channels 命令行参数和 MCP channel 注册时扩展
 /// </summary>
 [Register]
-public sealed partial class ChannelStateService : IChannelStateService
+public sealed partial class ChannelStateService : ServiceEntity, IChannelStateService
 {
     private volatile IReadOnlyList<ChannelEntry> _allowedChannels = Array.Empty<ChannelEntry>();
 

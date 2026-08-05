@@ -29,8 +29,13 @@ public sealed class RequestScope : IRequestScope
 /// 请求 Scope 工厂实现
 /// </summary>
 [Register(typeof(IRequestScopeFactory))]
-public sealed partial class RequestScopeFactory : IRequestScopeFactory
+public sealed partial class RequestScopeFactory : ServiceEntity, IRequestScopeFactory
 {
+
+    public RequestScopeFactory(IServiceScopeFactory scopeFactory)
+    {
+        _scopeFactory = scopeFactory;
+    }
     [Inject] private readonly IServiceScopeFactory _scopeFactory;
 
     public IRequestScope CreateScope()

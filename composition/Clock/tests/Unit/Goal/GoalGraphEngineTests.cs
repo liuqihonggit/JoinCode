@@ -37,7 +37,8 @@ public sealed class GoalGraphEngineTests
         IClockService? clock = null,
         IServiceProvider? serviceProvider = null,
         IGoalUserInteraction? userInteraction = null,
-        IGoalLoopObserver? loopObserver = null)
+        IGoalNodeInspector? nodeInspector = null,
+        IGoalConflictMessenger? conflictMessenger = null)
     {
         return new GoalGraphEngine(
             (kernel ?? CreateKernelMock()).Object,
@@ -46,7 +47,8 @@ public sealed class GoalGraphEngineTests
             heartbeat: CreateHeartbeatMock().Object,
             clock: clock,
             userInteraction: userInteraction,
-            loopObserver: loopObserver);
+            nodeInspector: nodeInspector,
+            conflictMessenger: conflictMessenger);
     }
 
     private static GoalState CreateGoalState() => new()
@@ -1739,11 +1741,11 @@ public sealed class GoalGraphEngineTests
     [Fact]
     public async Task NegativeReviewLoop_LoopObserver_Should_TerminateWhenObserverReturnsTrue()
     {
-        var loopObserver = new Mock<IGoalLoopObserver>();
-        loopObserver.Setup(o => o.ObserveAsync(It.IsAny<LoopObservationContext>(), It.IsAny<CancellationToken>()))
+        var nodeInspector = new Mock<IGoalNodeInspector>();
+        nodeInspector.Setup(o => o.ObserveLoopAsync(It.IsAny<LoopObservationContext>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
-        var engine = CreateEngine(loopObserver: loopObserver.Object);
+        var engine = CreateEngine(nodeInspector: nodeInspector.Object);
 
         var dag = new Dag<GoalNodePayload>();
         var nodeExecute = MakeFunctionNode("execute", "executor");
@@ -1788,6 +1790,199 @@ public sealed class GoalGraphEngineTests
         var result = await engine.ExecuteAsync(graph, CreateGoalState(), new MessageList(), CancellationToken.None);
 
         Assert.Equal(GoalStatus.Achieved, result.Status);
-        loopObserver.Verify(o => o.ObserveAsync(It.IsAny<LoopObservationContext>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+        nodeInspector.Verify(o => o.ObserveLoopAsync(It.IsAny<LoopObservationContext>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // P0-1 真正并行执行：A→[B,C]→J，B 和 C 应并发执行（maxConcurrent >= 2）
+    // 串行队列下 maxConcurrent 恒为 1，此测试验证真正并行
+    // ─────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task ParallelExecution_Should_RunIndependentNodesConcurrently()
+    {
+        var engine = CreateEngine();
+        var concurrentCount = 0;
+        var maxConcurrent = 0;
+
+        var dag = new Dag<GoalNodePayload>();
+        var nodeA = MakeFunctionNode("A", "source");
+        var nodeB = MakeFunctionNode("B", "branch-b");
+        var nodeC = MakeFunctionNode("C", "branch-c");
+        var nodeJ = MakeJoinNode("J", "join");
+
+        dag.AddNode(nodeA);
+        dag.AddNode(nodeB);
+        dag.AddNode(nodeC);
+        dag.AddNode(nodeJ);
+        dag.AddEdge(new DagEdge { Id = "e-a-b", FromId = "A", ToId = "B" });
+        dag.AddEdge(new DagEdge { Id = "e-a-c", FromId = "A", ToId = "C" });
+        dag.AddEdge(new DagEdge { Id = "e-b-j", FromId = "B", ToId = "J" });
+        dag.AddEdge(new DagEdge { Id = "e-c-j", FromId = "C", ToId = "J" });
+
+        engine.RegisterFunction("A", _ =>
+            Task.FromResult(NodeResult.Succeeded("output-A", tokensUsed: 10)));
+
+        engine.RegisterFunction("B", async _ =>
+        {
+            var current = Interlocked.Increment(ref concurrentCount);
+            if (current > Volatile.Read(ref maxConcurrent))
+                Interlocked.Exchange(ref maxConcurrent, current);
+            await Task.Delay(150, CancellationToken.None);
+            Interlocked.Decrement(ref concurrentCount);
+            return NodeResult.Succeeded("output-B", tokensUsed: 20);
+        });
+
+        engine.RegisterFunction("C", async _ =>
+        {
+            var current = Interlocked.Increment(ref concurrentCount);
+            if (current > Volatile.Read(ref maxConcurrent))
+                Interlocked.Exchange(ref maxConcurrent, current);
+            await Task.Delay(150, CancellationToken.None);
+            Interlocked.Decrement(ref concurrentCount);
+            return NodeResult.Succeeded("output-C", tokensUsed: 30);
+        });
+
+        var graph = new GoalGraph
+        {
+            Name = "parallel-execution-test",
+            Dag = dag,
+            StartNodeId = "A",
+            EndNodeIds = FrozenSet.Create("J"),
+        };
+
+        var result = await engine.ExecuteAsync(graph, CreateGoalState(), new MessageList(), CancellationToken.None);
+
+        Assert.Equal(GoalNodeStatus.Completed, nodeB.Payload.Status);
+        Assert.Equal(GoalNodeStatus.Completed, nodeC.Payload.Status);
+        Assert.Equal(GoalStatus.Achieved, result.Status);
+        Assert.True(maxConcurrent >= 2, $"B 和 C 应并发执行，但 maxConcurrent={maxConcurrent}（串行执行）");
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // P0-1 并行限流：MaxConcurrency=1 时退化为串行（maxConcurrent == 1）
+    // ─────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task ParallelExecution_WithMaxConcurrency1_Should_DegradeToSerial()
+    {
+        var engine = CreateEngine();
+        var concurrentCount = 0;
+        var maxConcurrent = 0;
+
+        var dag = new Dag<GoalNodePayload>();
+        var nodeA = MakeFunctionNode("A", "source");
+        var nodeB = MakeFunctionNode("B", "branch-b");
+        var nodeC = MakeFunctionNode("C", "branch-c");
+        var nodeJ = MakeJoinNode("J", "join");
+
+        dag.AddNode(nodeA);
+        dag.AddNode(nodeB);
+        dag.AddNode(nodeC);
+        dag.AddNode(nodeJ);
+        dag.AddEdge(new DagEdge { Id = "e-a-b", FromId = "A", ToId = "B" });
+        dag.AddEdge(new DagEdge { Id = "e-a-c", FromId = "A", ToId = "C" });
+        dag.AddEdge(new DagEdge { Id = "e-b-j", FromId = "B", ToId = "J" });
+        dag.AddEdge(new DagEdge { Id = "e-c-j", FromId = "C", ToId = "J" });
+
+        engine.RegisterFunction("A", _ =>
+            Task.FromResult(NodeResult.Succeeded("output-A", tokensUsed: 10)));
+
+        engine.RegisterFunction("B", async _ =>
+        {
+            var current = Interlocked.Increment(ref concurrentCount);
+            if (current > Volatile.Read(ref maxConcurrent))
+                Interlocked.Exchange(ref maxConcurrent, current);
+            await Task.Delay(100, CancellationToken.None);
+            Interlocked.Decrement(ref concurrentCount);
+            return NodeResult.Succeeded("output-B", tokensUsed: 20);
+        });
+
+        engine.RegisterFunction("C", async _ =>
+        {
+            var current = Interlocked.Increment(ref concurrentCount);
+            if (current > Volatile.Read(ref maxConcurrent))
+                Interlocked.Exchange(ref maxConcurrent, current);
+            await Task.Delay(100, CancellationToken.None);
+            Interlocked.Decrement(ref concurrentCount);
+            return NodeResult.Succeeded("output-C", tokensUsed: 30);
+        });
+
+        var graph = new GoalGraph
+        {
+            Name = "parallel-max1-test",
+            Dag = dag,
+            StartNodeId = "A",
+            EndNodeIds = FrozenSet.Create("J"),
+            MaxConcurrency = 1,
+        };
+
+        var result = await engine.ExecuteAsync(graph, CreateGoalState(), new MessageList(), CancellationToken.None);
+
+        Assert.Equal(GoalStatus.Achieved, result.Status);
+        Assert.True(maxConcurrent == 1, $"MaxConcurrency=1 应串行，但 maxConcurrent={maxConcurrent}");
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // P1-4 失败率终止：B/C 失败，D/E 成功，失败率>50% 时终止为 Unmet
+    // B/C 立即失败先完成，D/E 延迟100ms，C 完成时 2/3=66%>50% 触发
+    // ─────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task HighFailureRate_Should_TerminateAsUnmet()
+    {
+        var engine = CreateEngine();
+
+        var dag = new Dag<GoalNodePayload>();
+        var nodeA = MakeFunctionNode("A", "source");
+        var nodeB = MakeFunctionNode("B", "fail-b");
+        var nodeC = MakeFunctionNode("C", "fail-c");
+        var nodeD = MakeFunctionNode("D", "ok-d");
+        var nodeE = MakeFunctionNode("E", "ok-e");
+        var nodeJ = MakeJoinNode("J", "join", minSuccessfulInputs: 2);
+
+        dag.AddNode(nodeA);
+        dag.AddNode(nodeB);
+        dag.AddNode(nodeC);
+        dag.AddNode(nodeD);
+        dag.AddNode(nodeE);
+        dag.AddNode(nodeJ);
+        dag.AddEdge(new DagEdge { Id = "e1", FromId = "A", ToId = "B" });
+        dag.AddEdge(new DagEdge { Id = "e2", FromId = "A", ToId = "C" });
+        dag.AddEdge(new DagEdge { Id = "e3", FromId = "A", ToId = "D" });
+        dag.AddEdge(new DagEdge { Id = "e4", FromId = "A", ToId = "E" });
+        dag.AddEdge(new DagEdge { Id = "e5", FromId = "B", ToId = "J" });
+        dag.AddEdge(new DagEdge { Id = "e6", FromId = "C", ToId = "J" });
+        dag.AddEdge(new DagEdge { Id = "e7", FromId = "D", ToId = "J" });
+        dag.AddEdge(new DagEdge { Id = "e8", FromId = "E", ToId = "J" });
+
+        engine.RegisterFunction("A", _ =>
+            Task.FromResult(NodeResult.Succeeded("output-A", tokensUsed: 10)));
+        engine.RegisterFunction("B", _ =>
+            Task.FromResult(NodeResult.Failed("B-failed", tokensUsed: 5)));
+        engine.RegisterFunction("C", _ =>
+            Task.FromResult(NodeResult.Failed("C-failed", tokensUsed: 5)));
+        engine.RegisterFunction("D", async _ =>
+        {
+            await Task.Delay(100, CancellationToken.None);
+            return NodeResult.Succeeded("D-ok", tokensUsed: 10);
+        });
+        engine.RegisterFunction("E", async _ =>
+        {
+            await Task.Delay(100, CancellationToken.None);
+            return NodeResult.Succeeded("E-ok", tokensUsed: 10);
+        });
+
+        var graph = new GoalGraph
+        {
+            Name = "high-failure-rate-test",
+            Dag = dag,
+            StartNodeId = "A",
+            EndNodeIds = FrozenSet.Create("J"),
+        };
+
+        var result = await engine.ExecuteAsync(graph, CreateGoalState(), new MessageList(), CancellationToken.None);
+
+        Assert.Equal(GoalStatus.Unmet, result.Status);
     }
 }

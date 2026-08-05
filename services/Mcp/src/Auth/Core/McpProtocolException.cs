@@ -42,7 +42,7 @@ public sealed class McpProtocolException : WorkflowException
         string? methodName = null,
         string? rawMessage = null,
         ExceptionContext? context = null)
-        : base(message, global::JoinCode.Abstractions.Exceptions.ErrorCode.McpProtocol.ToValue(), ErrorCategory.Mcp, context)
+        : base(message, ResolveErrorCode(jsonRpcErrorCode), ErrorCategory.Mcp, context)
     {
         JsonRpcErrorCode = jsonRpcErrorCode;
         RequestId = requestId;
@@ -61,12 +61,24 @@ public sealed class McpProtocolException : WorkflowException
         string? methodName = null,
         string? rawMessage = null,
         ExceptionContext? context = null)
-        : base(message, innerException, global::JoinCode.Abstractions.Exceptions.ErrorCode.McpProtocol.ToValue(), ErrorCategory.Mcp, context)
+        : base(message, innerException, ResolveErrorCode(jsonRpcErrorCode), ErrorCategory.Mcp, context)
     {
         JsonRpcErrorCode = jsonRpcErrorCode;
         RequestId = requestId;
         MethodName = methodName;
         RawMessage = rawMessage;
+    }
+
+    /// <summary>
+    /// 将 JSON-RPC 错误码映射为结构化的 WorkflowException 错误码：
+    /// 方法未找到(-32601) → MCP004(ToolNotFound)，其余 → MCP002(Protocol)。
+    /// 避免所有协议异常都笼统标记为 MCP002，便于上层区分"工具不存在"与"协议错误"。
+    /// </summary>
+    private static string ResolveErrorCode(int? jsonRpcErrorCode)
+    {
+        return jsonRpcErrorCode == -32601
+            ? global::JoinCode.Abstractions.Exceptions.ErrorCode.McpToolNotFound.ToValue()
+            : global::JoinCode.Abstractions.Exceptions.ErrorCode.McpProtocol.ToValue();
     }
 
     /// <summary>

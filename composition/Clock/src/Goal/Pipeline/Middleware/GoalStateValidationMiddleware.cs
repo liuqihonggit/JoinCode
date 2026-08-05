@@ -1,4 +1,4 @@
-﻿namespace Core.Goal;
+namespace Core.Goal;
 
 using JoinCode.Abstractions.Pipeline;
 
@@ -6,7 +6,7 @@ using JoinCode.Abstractions.Pipeline;
 /// 状态校验中间件 — 根据操作类型校验当前状态是否允许该操作
 /// </summary>
 [Register(typeof(IGoalLifecycleMiddleware))]
-public sealed partial class GoalStateValidationMiddleware : IGoalLifecycleMiddleware
+public sealed partial class GoalStateValidationMiddleware : ServiceEntity, IGoalLifecycleMiddleware
 {
 
     public Task InvokeAsync(GoalLifecycleContext ctx, MiddlewareDelegate<GoalLifecycleContext> next, CancellationToken ct)

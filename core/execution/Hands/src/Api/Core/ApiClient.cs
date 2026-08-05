@@ -1,4 +1,4 @@
-﻿
+
 namespace Services.Api;
 
 public sealed record ApiClientOptions
@@ -17,7 +17,7 @@ public sealed record ApiClientOptions
 }
 
 [Register]
-public sealed partial class ApiClient : IApiClient, IDisposable
+public sealed partial class ApiClient : ServiceEntity, IApiClient, IDisposable
 {
     private HttpClient _httpClient;
     private readonly RetryPolicy _retryPolicy;
@@ -369,7 +369,7 @@ public sealed partial class ApiClient : IApiClient, IDisposable
         return defaultMessage;
     }
 
-    public void Dispose()
+    protected override void OnDispose()
     {
         if (!_disposed)
         {

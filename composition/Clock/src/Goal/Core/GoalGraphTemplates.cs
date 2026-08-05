@@ -553,8 +553,8 @@ public static class GoalGraphTemplates
             Kind = GoalNodeKind.Agent,
             Name = "cluster-merger",
             Role = AgentRole.Coordinator,
-            SystemPrompt = "You are a merge coordinator. Collect all worker results and merge them into a coherent final output. Resolve any conflicts.",
-            Instruction = "Merge all parallel worker results into a unified output.",
+            SystemPrompt = BuildClusterMergerSystemPrompt(),
+            Instruction = "Evaluate each worker's output quality, then synthesize all results into a unified output. Output a JSON block with per-worker scores and the merged result.",
         });
 
         mutator.AddEdge($"e-gm-{edgeCounter++}", "cluster_gather", "cluster_merge");
@@ -588,6 +588,40 @@ public static class GoalGraphTemplates
             If approval is blocked, output: BLOCKED with the reason
 
             IMPORTANT: You must actually call the tools to perform the analysis. Do not guess or fabricate results.
+            """;
+    }
+
+    /// <summary>
+    /// cluster_merge 节点的系统提示词 — 管理者在完整上下文中同时评估 Worker 输出质量并合成最终结果。
+    /// 对齐 Anthropic orchestrator-worker 模式：Lead agent synthesizes subagent results，不做独立评分步骤。
+    /// </summary>
+    private static string BuildClusterMergerSystemPrompt()
+    {
+        return """
+            You are the merge coordinator for a parallel cluster execution. You have full context of the original objective and all worker outputs.
+
+            Your job (do BOTH in one pass):
+            1. EVALUATE: Assess each worker's output quality (0.0-1.0) based on correctness, completeness, and relevance to its assigned subtask. Use your full context — you know the objective, the constraints, and what each worker was supposed to do.
+            2. SYNTHESIZE: Merge all worker results into a coherent final output. Resolve conflicts, eliminate duplication, and integrate complementary contributions. Discard low-quality outputs (score < 0.6) and explain why.
+
+            Output a JSON block wrapped in ```json and ```:
+            ```json
+            {
+              "worker_scores": [
+                {"worker_id": "worker_0", "score": 0.85, "feedback": "correct and complete"},
+                {"worker_id": "worker_1", "score": 0.30, "feedback": "missed key requirement, discarded"}
+              ],
+              "merged_result": "the synthesized final output",
+              "conflicts_resolved": ["description of any conflicts resolved"],
+              "discarded_workers": ["worker_1"]
+            }
+            ```
+
+            IMPORTANT:
+            - You are NOT a passive merger. You are an active evaluator with full context.
+            - Do not just concatenate worker outputs. Synthesize them into a coherent whole.
+            - If a worker's output contradicts the objective or is clearly wrong, discard it with explanation.
+            - The merged_result should read as a single coherent piece, not a stitched-together patchwork.
             """;
     }
 }

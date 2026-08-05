@@ -296,7 +296,7 @@ public class ShellBuildInterceptMiddlewareTests
 
     private static ShellPipelineContext CreateContext(string command, string? workingDirectory = null)
     {
-        var provider = Mock.Of<IShellProvider>(p => p.Type == ShellType.Bash);
+        var provider = Mock.Of<ISystemActuator>(p => p.Kind == SystemActuatorKind.Bash);
         return new ShellPipelineContext
         {
             Command = command,

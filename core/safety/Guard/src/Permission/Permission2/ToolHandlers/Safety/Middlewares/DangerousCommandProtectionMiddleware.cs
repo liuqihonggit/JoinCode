@@ -1,4 +1,4 @@
-﻿
+
 namespace Core.Permission;
 
 /// <summary>
@@ -10,7 +10,7 @@ namespace Core.Permission;
 /// 同时支持 IDeleteOperationDetector 检测非 Shell 工具的删除操作（如 file_delete）
 /// </summary>
 [Register(typeof(IPermissionMiddleware))]
-public sealed partial class DangerousCommandProtectionMiddleware : IPermissionMiddleware
+public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity, IPermissionMiddleware
 {
     private readonly IDestructiveCommandDetector? _destructiveCommandDetector;
     private readonly FrozenDictionary<CommandRisk, ICommandRiskHandler> _riskHandlers;

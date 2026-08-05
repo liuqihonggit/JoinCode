@@ -73,6 +73,19 @@ public static class ConversationOutputParser
 
         ToolCallRecord? currentTool = null;
         var toolArgsBuffer = new StringBuilder();
+        var toolResultBuffer = new StringBuilder();
+        var capturingResult = false;
+
+        void FlushResultToLastTool()
+        {
+            if (!capturingResult || toolCalls.Count == 0) return;
+            var resultText = toolResultBuffer.ToString().Trim();
+            if (string.IsNullOrEmpty(resultText)) return;
+            var last = toolCalls[^1];
+            var combinedResult = string.IsNullOrEmpty(last.Result) ? resultText : $"{last.Result}\n{resultText}";
+            toolCalls[^1] = last with { Result = combinedResult };
+            toolResultBuffer.Clear();
+        }
 
         foreach (var line in stdoutOutput.Split('\n'))
         {
@@ -81,11 +94,14 @@ public static class ConversationOutputParser
 
             if (TryParseToolStart(trimmed, out var toolName, out var toolArgs))
             {
+                FlushResultToLastTool();
+                capturingResult = false;
                 if (currentTool is not null)
                 {
-                    currentTool = currentTool with { Arguments = toolArgsBuffer.ToString() };
+                    currentTool = currentTool with { Arguments = toolArgsBuffer.ToString(), Result = toolResultBuffer.ToString().Trim() };
                     toolCalls.Add(currentTool);
                     toolArgsBuffer.Clear();
+                    toolResultBuffer.Clear();
                 }
                 currentTool = new ToolCallRecord { ToolName = toolName };
                 toolArgsBuffer.Append(toolArgs);
@@ -99,14 +115,26 @@ public static class ConversationOutputParser
                     currentTool = currentTool with
                     {
                         Arguments = toolArgsBuffer.ToString(),
-                        IsSuccess = isSuccess
+                        IsSuccess = isSuccess,
+                        Result = toolResultBuffer.ToString().Trim()
                     };
                     toolCalls.Add(currentTool);
                     toolArgsBuffer.Clear();
+                    toolResultBuffer.Clear();
                     currentTool = null;
+                    capturingResult = true;
                 }
                 continue;
             }
+
+            if (capturingResult && trimmed.StartsWith("  ", StringComparison.Ordinal))
+            {
+                toolResultBuffer.AppendLine(trimmed.TrimStart());
+                continue;
+            }
+
+            FlushResultToLastTool();
+            capturingResult = false;
 
             if (TryParseToolProgress(trimmed, out var progressToolName, out var progressMsg))
             {
@@ -128,9 +156,11 @@ public static class ConversationOutputParser
             responseLines.Add(trimmed);
         }
 
+        FlushResultToLastTool();
+
         if (currentTool is not null)
         {
-            currentTool = currentTool with { Arguments = toolArgsBuffer.ToString() };
+            currentTool = currentTool with { Arguments = toolArgsBuffer.ToString(), Result = toolResultBuffer.ToString().Trim() };
             toolCalls.Add(currentTool);
         }
 
@@ -176,11 +206,11 @@ public static class ConversationOutputParser
 
             AssertType.ToolCallSucceeded =>
                 (record.ToolCalls.Any(tc => tc.ToolName.Contains(assert.Expected, StringComparison.OrdinalIgnoreCase) && tc.IsSuccess),
-                 string.Join(", ", record.ToolCalls.Where(tc => tc.ToolName.Contains(assert.Expected, StringComparison.OrdinalIgnoreCase)).Select(tc => $"{tc.ToolName}={(tc.IsSuccess ? "OK" : "FAIL")}"))),
+                  string.Join("; ", record.ToolCalls.Where(tc => tc.ToolName.Contains(assert.Expected, StringComparison.OrdinalIgnoreCase)).Select(tc => $"{tc.ToolName}={(tc.IsSuccess ? "OK" : "FAIL")} result={Truncate(tc.Result, 200)}"))),
 
             AssertType.ToolCallFailed =>
                 (record.ToolCalls.Any(tc => tc.ToolName.Contains(assert.Expected, StringComparison.OrdinalIgnoreCase) && !tc.IsSuccess),
-                 string.Join(", ", record.ToolCalls.Where(tc => tc.ToolName.Contains(assert.Expected, StringComparison.OrdinalIgnoreCase)).Select(tc => $"{tc.ToolName}={(tc.IsSuccess ? "OK" : "FAIL")}"))),
+                  string.Join("; ", record.ToolCalls.Where(tc => tc.ToolName.Contains(assert.Expected, StringComparison.OrdinalIgnoreCase)).Select(tc => $"{tc.ToolName}={(tc.IsSuccess ? "OK" : "FAIL")} result={Truncate(tc.Result, 200)}"))),
 
             AssertType.HasAssistantResponse =>
                 (!string.IsNullOrWhiteSpace(record.AssistantResponse),
@@ -294,6 +324,9 @@ public static class ConversationOutputParser
     {
         errorMsg = "";
 
+        if (IsDotNetILoggerLine(line))
+            return false;
+
         if (line.StartsWith("错误:", StringComparison.OrdinalIgnoreCase) ||
             line.StartsWith("Error:", StringComparison.OrdinalIgnoreCase) ||
             line.Contains("Exception", StringComparison.OrdinalIgnoreCase))
@@ -304,4 +337,31 @@ public static class ConversationOutputParser
 
         return false;
     }
+
+    private static readonly string[] ILoggerPrefixes = ["crit:", "error:", "warn:", "info:", "dbug:", "trce:"];
+
+    /// <summary>
+    /// 检测 .NET ILogger simple console 格式的日志行
+    /// 格式特征: "level: Namespace.Class[EventId]" — 冒号后紧跟带点号和方括号的类路径
+    /// 真正的错误行: "Error: something went wrong" — 冒号后是自然语言，不含 [EventId] 模式
+    /// </summary>
+    private static bool IsDotNetILoggerLine(string line)
+    {
+        foreach (var prefix in ILoggerPrefixes)
+        {
+            if (line.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                var rest = line[prefix.Length..].TrimStart();
+                if (rest.Contains('[', StringComparison.Ordinal) &&
+                    rest.Contains(']', StringComparison.Ordinal) &&
+                    rest.IndexOf('[') > 0)
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static string Truncate(string s, int maxLen) =>
+        string.IsNullOrEmpty(s) ? s : s.Length <= maxLen ? s : s[..maxLen] + "...";
 }

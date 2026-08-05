@@ -1,11 +1,11 @@
-﻿
+
 namespace McpToolRegistry;
 
 /// <summary>
 /// Agent 工具限制检查中间件 — Order=400 — 检查当前 Agent 模式是否允许使用该工具
 /// </summary>
 [Register]
-public sealed partial class AgentRestrictionMiddleware : IToolExecutionMiddleware
+public sealed partial class AgentRestrictionMiddleware : ServiceEntity, IToolExecutionMiddleware
 {
 
     private readonly IAgentToolRestrictions? _agentToolRestrictions;

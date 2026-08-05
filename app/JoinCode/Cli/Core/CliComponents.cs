@@ -663,49 +663,23 @@ public sealed record DiffDialogState
 public sealed class GitDiffService
 {
     private readonly IFileSystem _fs;
-    private readonly IProcessService? _processService;
+    private readonly IGitCommandRunner? _gitRunner;
 
-    public GitDiffService(IFileSystem fs, IProcessService? processService = null)
+    public GitDiffService(IFileSystem fs, IGitCommandRunner? gitRunner = null)
     {
         _fs = fs;
-        _processService = processService;
+        _gitRunner = gitRunner;
     }
 
     public async Task<DiffData> FetchDiffDataAsync(CancellationToken ct = default)
     {
         try
         {
-            if (_processService is not null)
-            {
-                var options = new ProcessOptions
-                {
-                    FileName = "git",
-                    Arguments = "diff --stat",
-                    WorkingDirectory = _fs.GetCurrentDirectory()
-                };
+            if (_gitRunner is null)
+                return new DiffData(null, [], [], false);
 
-                var result = await _processService.ExecuteAsync(options, ct).ConfigureAwait(false);
-                return ParseDiffStatOutput(result.StandardOutput);
-            }
-
-            var psi = new ProcessStartInfo
-            {
-                FileName = "git",
-                Arguments = "diff --stat",
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                WorkingDirectory = _fs.GetCurrentDirectory()
-            };
-
-            using var process = new Process { StartInfo = psi };
-            process.Start();
-            var output = await process.StandardOutput.ReadToEndAsync(ct).ConfigureAwait(false);
-            _ = await process.StandardError.ReadToEndAsync(ct).ConfigureAwait(false);
-            await process.WaitForExitAsync(ct).ConfigureAwait(false);
-
-            return ParseDiffStatOutput(output);
+            var result = await _gitRunner.ExecuteAsync("diff --stat", _fs.GetCurrentDirectory(), ct).ConfigureAwait(false);
+            return ParseDiffStatOutput(result.Output);
         }
         catch
         {

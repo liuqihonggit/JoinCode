@@ -3,16 +3,16 @@ using JoinCode.Abstractions.Attributes;
 namespace Core.Context;
 
 /// <summary>
-/// 信息熵减检测器 — 并行防御 + OR仲裁
-/// 四路检测器同时运行，任一触发即判定循环：
-///   Layer1: OutputLoopDetector      — 输出文本重复模式（尾部子串重复）
-///   Layer2: LogicFingerprintDetector — 逻辑指纹循环（前缀+后缀hash，检测"换词同逻辑"）
-///   Layer3: ToolCallSequenceDetector — 工具调用序列循环（工具名+参数指纹重复）
-///   Layer4: ShannonEntropyDetector   — Shannon信息熵持续下降（字符分布趋于集中）
+/// 信息熵减检测器 — 串行漏斗式纵深防御
+/// 检测器按成本从低到高串行运行,任一触发即返回(不跑后续更昂贵的检测器):
+///   Layer1: OutputLoopDetector      — 输出文本重复模式（尾部子串重复,最廉价）
+///   Layer2: LogicFingerprintDetector — 逻辑指纹循环（前缀+后缀hash,中等）
+///   Layer3: ToolCallSequenceDetector — 工具调用序列循环（工具名+参数指纹重复,中等）
+///   Layer4: ShannonEntropyDetector   — Shannon信息熵持续下降（字符分布趋于集中,最昂贵）
 /// 触发时通过 LoopDiagnosticJournal 记录追踪链，供医生模式回溯分析
 /// </summary>
 [Register]
-public sealed class InformationEntropyGuardian : IOutputLoopDetector, ILoopDetectionStrategy
+public sealed class InformationEntropyGuardian : ServiceEntity, IOutputLoopDetector, ILoopDetectionStrategy
 {
     private readonly OutputLoopDetector _outputLoopDetector;
     private readonly LogicFingerprintDetector _logicFingerprintDetector;
@@ -52,7 +52,7 @@ public sealed class InformationEntropyGuardian : IOutputLoopDetector, ILoopDetec
     }
 
     /// <summary>
-    /// IOutputLoopDetector.Detect — 并行运行 OutputLoop + LogicFingerprint，任一触发即返回
+    /// IOutputLoopDetector.Detect — 串行漏斗: OutputLoop(廉价)→LogicFingerprint(中等),任一触发即返回
     /// 注意：ShannonEntropy 不参与 Detect，因为 Detect 传入的是累积文本（不断增长），熵趋势无意义
     /// </summary>
     public LoopDetectionResult Detect(string accumulatedText)
@@ -64,8 +64,6 @@ public sealed class InformationEntropyGuardian : IOutputLoopDetector, ILoopDetec
             new Dictionary<string, string> { ["text_len"] = accumulatedText.Length.ToString() });
 
         var outputResult = _outputLoopDetector.Detect(accumulatedText);
-        var fpResult = _logicFingerprintDetector.Record(accumulatedText);
-
         if (outputResult.IsLoopDetected)
         {
             _logger?.LogWarning("[InformationEntropyGuardian] OutputLoop 检测触发: 重复{Count}次, 模式长度={Len}",
@@ -78,6 +76,7 @@ public sealed class InformationEntropyGuardian : IOutputLoopDetector, ILoopDetec
             return outputResult;
         }
 
+        var fpResult = _logicFingerprintDetector.Record(accumulatedText);
         if (fpResult.IsLoopDetected)
         {
             _logger?.LogWarning("[InformationEntropyGuardian] LogicFingerprint 检测触发: 指纹={FP}, 命中{Count}次",
@@ -98,7 +97,8 @@ public sealed class InformationEntropyGuardian : IOutputLoopDetector, ILoopDetec
     }
 
     /// <summary>
-    /// ILoopDetectionStrategy.CheckTextLoop — 并行运行 LogicFingerprint + OutputLoop + ShannonEntropy，任一触发即返回
+    /// ILoopDetectionStrategy.CheckTextLoop — 串行漏斗: OutputLoop(廉价)→LogicFingerprint(中等)→ShannonEntropy(昂贵)
+    /// 前面触发就不跑后续更昂贵的检测器,降低平均检测成本
     /// </summary>
     public LoopInterventionResult? CheckTextLoop(string text)
     {
@@ -108,25 +108,7 @@ public sealed class InformationEntropyGuardian : IOutputLoopDetector, ILoopDetec
         _journal.Record("guardian_check_text", _sessionId, _conversationTurn, _toolCallCount,
             new Dictionary<string, string> { ["text_len"] = text.Length.ToString() });
 
-        var fpResult = _logicFingerprintDetector.Record(text);
         var outputResult = _outputLoopDetector.Detect(text);
-        var entropyResult = _shannonEntropyDetector.Record(text);
-
-        if (fpResult.IsLoopDetected)
-        {
-            _logger?.LogWarning("[InformationEntropyGuardian] CheckTextLoop: LogicFingerprint 触发: 指纹={FP}, 命中{Count}次",
-                fpResult.Fingerprint, fpResult.HitCount);
-            _journal.OnLoopDetected(
-                "LogicFingerprint", _sessionId, _conversationTurn, _toolCallCount,
-                fpResult.TriggerCount,
-                $"逻辑指纹循环(命中{fpResult.HitCount}次)",
-                textSnippet: text);
-            return new LoopInterventionResult(
-                fpResult.TriggerCount,
-                0,
-                $"逻辑指纹循环(命中{fpResult.HitCount}次)");
-        }
-
         if (outputResult.IsLoopDetected)
         {
             _logger?.LogWarning("[InformationEntropyGuardian] CheckTextLoop: OutputLoop 触发: 重复{Count}次",
@@ -142,6 +124,23 @@ public sealed class InformationEntropyGuardian : IOutputLoopDetector, ILoopDetec
                 $"输出文本循环(重复{outputResult.RepeatCount}次)");
         }
 
+        var fpResult = _logicFingerprintDetector.Record(text);
+        if (fpResult.IsLoopDetected)
+        {
+            _logger?.LogWarning("[InformationEntropyGuardian] CheckTextLoop: LogicFingerprint 触发: 指纹={FP}, 命中{Count}次",
+                fpResult.Fingerprint, fpResult.HitCount);
+            _journal.OnLoopDetected(
+                "LogicFingerprint", _sessionId, _conversationTurn, _toolCallCount,
+                fpResult.TriggerCount,
+                $"逻辑指纹循环(命中{fpResult.HitCount}次)",
+                textSnippet: text);
+            return new LoopInterventionResult(
+                fpResult.TriggerCount,
+                0,
+                $"逻辑指纹循环(命中{fpResult.HitCount}次)");
+        }
+
+        var entropyResult = _shannonEntropyDetector.Record(text);
         if (entropyResult.IsLoopDetected)
         {
             _logger?.LogWarning("[InformationEntropyGuardian] CheckTextLoop: ShannonEntropy 触发: 熵={Entropy:F3}, 连续下降{Streak}轮",

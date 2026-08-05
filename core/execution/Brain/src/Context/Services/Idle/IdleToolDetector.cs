@@ -1,7 +1,7 @@
-﻿namespace Core.Context;
+namespace Core.Context;
 
 [Register]
-public sealed partial class IdleToolDetector
+public sealed partial class IdleToolDetector : ServiceEntity
 {
     private int _consecutiveNoToolRounds;
     private readonly int _maxIdleRounds;

@@ -9,7 +9,7 @@ namespace Core.Prompts.Utils;
 /// 动态关键词词表服务 — 从 ~/.jcc/keyword-sections.json 加载关键词配置，支持文件监控热加载
 /// </summary>
 [Register(typeof(IDynamicKeywordConfigService))]
-public sealed partial class DynamicKeywordConfigService : IDynamicKeywordConfigService, IDisposable
+public sealed partial class DynamicKeywordConfigService : ServiceEntity, IDynamicKeywordConfigService, IDisposable
 {
     private readonly IFileSystem _fs;
     [Inject] private readonly ILogger<DynamicKeywordConfigService>? _logger;
@@ -122,7 +122,7 @@ public sealed partial class DynamicKeywordConfigService : IDynamicKeywordConfigS
         }
     }
 
-    public void Dispose()
+    protected override void OnDispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) == 1)
             return;

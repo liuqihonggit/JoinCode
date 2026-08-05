@@ -8,7 +8,7 @@ using JoinCode.Abstractions.Attributes;
 /// 锁内只做内存操作和JSON序列化（快），文件I/O（慢）在锁外执行
 /// </summary>
 [Register]
-public sealed partial class FileCronTaskStore : ICronTaskStore, IDisposable
+public sealed partial class FileCronTaskStore : ServiceEntity, ICronTaskStore, IDisposable
 {
     private readonly string _filePath;
     private readonly IFileOperationService _fileOperationService;
@@ -320,7 +320,7 @@ public sealed partial class FileCronTaskStore : ICronTaskStore, IDisposable
         return Guid.NewGuid().ToString("N")[..8];
     }
 
-    public void Dispose()
+    protected override void OnDispose()
     {
         if (_disposed) return;
 

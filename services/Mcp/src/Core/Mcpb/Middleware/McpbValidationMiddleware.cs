@@ -1,11 +1,17 @@
-﻿namespace McpClient.Mcpb;
+namespace McpClient.Mcpb;
 
 /// <summary>
 /// MCPB 参数验证中间件 — 检查源路径有效性，URL 源时下载到临时文件
 /// </summary>
 [Register(typeof(IMcpbMiddleware))]
-public sealed partial class McpbValidationMiddleware : IMcpbMiddleware
+public sealed partial class McpbValidationMiddleware : ServiceEntity, IMcpbMiddleware
 {
+
+    public McpbValidationMiddleware(IFileSystem fs, ILogger<McpbValidationMiddleware>? logger = null)
+    {
+        _fs = fs;
+        _logger = logger;
+    }
     [Inject] private readonly IFileSystem _fs;
     [Inject] private readonly ILogger<McpbValidationMiddleware>? _logger;
 

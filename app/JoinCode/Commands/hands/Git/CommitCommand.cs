@@ -14,8 +14,8 @@ public sealed class CommitCommand : ChatCommandBase
         TerminalHelper.WriteLine($"{TerminalColors.Muted}正在创建提交...{AnsiStyleConstants.Reset}");
 
         var fs = context.Services.FileSystem;
-        var processService = ChatCommandBase.GetService<IProcessService>(context)!;
-        var status = await RunGitCommandAsync("status --porcelain", context.CancellationToken, fs, processService).ConfigureAwait(false);
+        var gitRunner = ChatCommandBase.GetService<IGitCommandRunner>(context)!;
+        var status = await RunGitCommandAsync("status --porcelain", context.CancellationToken, fs, gitRunner).ConfigureAwait(false);
         if (string.IsNullOrWhiteSpace(status))
         {
             // 对齐 TS: 不创建空提交
@@ -55,7 +55,7 @@ public sealed class CommitCommand : ChatCommandBase
         }
         else
         {
-            message = await GenerateCommitMessageAsync(context.CancellationToken, fs, processService).ConfigureAwait(false);
+            message = await GenerateCommitMessageAsync(context.CancellationToken, fs, gitRunner).ConfigureAwait(false);
             TerminalHelper.WriteLine($"\n建议的提交信息: {message}");
 
             if (!(context.Confirm?.Invoke("使用此提交信息？") ?? false))
@@ -90,9 +90,9 @@ public sealed class CommitCommand : ChatCommandBase
         }
 
         // 对齐 TS: Git Safety Protocol — 不使用 --no-verify、不使用 --amend
-        var addResult = await RunGitCommandAsync("add -A", context.CancellationToken, fs, processService).ConfigureAwait(false);
+        var addResult = await RunGitCommandAsync("add -A", context.CancellationToken, fs, gitRunner).ConfigureAwait(false);
         var escapedMessage = message.Replace("\"", "\\\"");
-        var commitResult = await RunGitCommandAsync($"commit -m \"{escapedMessage}\"", context.CancellationToken, fs, processService).ConfigureAwait(false);
+        var commitResult = await RunGitCommandAsync($"commit -m \"{escapedMessage}\"", context.CancellationToken, fs, gitRunner).ConfigureAwait(false);
 
         if (commitResult.Contains("error") || commitResult.Contains("fatal"))
         {
@@ -107,17 +107,17 @@ public sealed class CommitCommand : ChatCommandBase
         return ChatCommandResult.Continue();
     }
 
-    private static async Task<string> GenerateCommitMessageAsync(CancellationToken cancellationToken, IFileSystem fs, IProcessService processService)
+    private static async Task<string> GenerateCommitMessageAsync(CancellationToken cancellationToken, IFileSystem fs, IGitCommandRunner gitRunner)
     {
         try
         {
-            var diff = await RunGitCommandAsync($"{GitSubCommand.Diff.ToValue()} --cached --stat", cancellationToken, fs, processService).ConfigureAwait(false);
+            var diff = await RunGitCommandAsync($"{GitSubCommand.Diff.ToValue()} --cached --stat", cancellationToken, fs, gitRunner).ConfigureAwait(false);
             if (string.IsNullOrWhiteSpace(diff))
             {
-                diff = await RunGitCommandAsync($"{GitSubCommand.Diff.ToValue()} --stat", cancellationToken, fs, processService).ConfigureAwait(false);
+                diff = await RunGitCommandAsync($"{GitSubCommand.Diff.ToValue()} --stat", cancellationToken, fs, gitRunner).ConfigureAwait(false);
             }
 
-            var files = await RunGitCommandAsync($"{GitSubCommand.Diff.ToValue()} --name-only", cancellationToken, fs, processService).ConfigureAwait(false);
+            var files = await RunGitCommandAsync($"{GitSubCommand.Diff.ToValue()} --name-only", cancellationToken, fs, gitRunner).ConfigureAwait(false);
             var fileList = files.Split('\n', StringSplitOptions.RemoveEmptyEntries).ToList();
 
             if (fileList.Count == 1)
@@ -155,20 +155,12 @@ public sealed class CommitCommand : ChatCommandBase
         }
     }
 
-    private static async Task<string> RunGitCommandAsync(string arguments, CancellationToken cancellationToken, IFileSystem fs, IProcessService processService)
+    private static async Task<string> RunGitCommandAsync(string arguments, CancellationToken cancellationToken, IFileSystem fs, IGitCommandRunner gitRunner)
     {
         try
         {
-            var options = new ProcessOptions
-            {
-                FileName = "git",
-                Arguments = arguments,
-                WorkingDirectory = fs.GetCurrentDirectory()
-            };
-
-            var result = await processService.ExecuteAsync(options, cancellationToken).ConfigureAwait(false);
-
-            return string.IsNullOrEmpty(result.StandardOutput) ? result.StandardError : result.StandardOutput;
+            var result = await gitRunner.ExecuteAsync(arguments, fs.GetCurrentDirectory(), cancellationToken).ConfigureAwait(false);
+            return string.IsNullOrEmpty(result.Output) ? result.Error : result.Output;
         }
         catch (Exception ex)
         {

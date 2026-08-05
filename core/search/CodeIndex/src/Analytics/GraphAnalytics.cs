@@ -8,7 +8,7 @@ namespace JoinCode.CodeIndex.Analytics;
 /// 环检测/拓扑排序: 构建 Dag&lt;string&gt; 委托 Structura 算法
 /// </summary>
 [Register]
-public sealed class GraphAnalytics : IGraphAnalytics
+public sealed class GraphAnalytics : ServiceEntity, IGraphAnalytics
 {
     private readonly InMemoryIndexStore _store;
 

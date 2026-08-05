@@ -1,4 +1,4 @@
-﻿
+
 using JoinCode.Abstractions.Attributes;
 
 namespace Core.Query;
@@ -18,10 +18,11 @@ public sealed record QueryEngineOptions(
 /// 可选依赖通过 IQueryMiddleware 中间件管道注入，构造函数仅保留核心依赖
 /// </summary>
 [Register]
-public sealed partial class QueryEngine : IQueryEngine
+public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
 {
     private readonly IChatClient _kernel;
     private readonly IToolRegistry _toolRegistry;
+    private readonly IToolExecutionGateway? _toolExecutionGateway;
     [Inject] private readonly ILogger<QueryEngine>? _logger;
     private readonly QueryEngineConfig _config;
     private readonly IServiceProvider? _serviceProvider;
@@ -41,10 +42,12 @@ public sealed partial class QueryEngine : IQueryEngine
         IOptions<QueryEngineConfig> configOptions,
         IServiceProvider? serviceProvider = null,
         ILogger<QueryEngine>? logger = null,
-        ILoggerFactory? loggerFactory = null)
+        ILoggerFactory? loggerFactory = null,
+        IToolExecutionGateway? toolExecutionGateway = null)
     {
         _kernel = kernel ?? throw new ArgumentNullException(nameof(kernel));
         _toolRegistry = toolRegistry ?? throw new ArgumentNullException(nameof(toolRegistry));
+        _toolExecutionGateway = toolExecutionGateway;
         _config = configOptions?.Value ?? new QueryEngineConfig();
         _serviceProvider = serviceProvider;
         _logger = logger;
@@ -440,7 +443,9 @@ public sealed partial class QueryEngine : IQueryEngine
 
         try
         {
-            var result = await _toolRegistry.ExecuteToolAsync(request.ToolName, request.Arguments, cancellationToken).ConfigureAwait(false);
+            var result = _toolExecutionGateway is not null
+                ? await _toolExecutionGateway.ExecuteAsync(request.ToolName, request.Arguments, cancellationToken).ConfigureAwait(false)
+                : await _toolRegistry.ExecuteToolAsync(request.ToolName, request.Arguments, cancellationToken).ConfigureAwait(false);
             _currentOptions?.ProgressTracker?.RecordToolUse(request.ToolName);
             return result;
         }

@@ -1,4 +1,4 @@
-﻿namespace McpToolRegistry;
+namespace McpToolRegistry;
 
 using JoinCode.Abstractions.Pipeline;
 
@@ -6,7 +6,7 @@ using JoinCode.Abstractions.Pipeline;
 /// 客户端查找中间件 — 从远程客户端字典中获取客户端和旧规格
 /// </summary>
 [Register(typeof(IRemoteSyncMiddleware))]
-public sealed partial class RemoteClientLookupMiddleware : IRemoteSyncMiddleware
+public sealed partial class RemoteClientLookupMiddleware : ServiceEntity, IRemoteSyncMiddleware
 {
 
     public Task InvokeAsync(RemoteSyncContext ctx, MiddlewareDelegate<RemoteSyncContext> next, CancellationToken ct)

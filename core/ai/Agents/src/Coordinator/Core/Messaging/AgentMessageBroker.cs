@@ -1,7 +1,7 @@
-﻿namespace Core.Agents.Coordinator;
+namespace Core.Agents.Coordinator;
 
 [Register]
-public sealed partial class AgentMessageBroker : IAgentMessageBroker
+public sealed partial class AgentMessageBroker : ServiceEntity, IAgentMessageBroker
 {
     private readonly ILogger? _logger;
     private readonly ITeammateMailboxService? _mailboxService;

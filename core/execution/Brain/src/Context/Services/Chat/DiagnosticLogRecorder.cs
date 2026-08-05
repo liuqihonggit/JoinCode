@@ -8,8 +8,14 @@ namespace Core.Context;
 /// OnError=Continue：日志记录失败不影响管道继续执行
 /// </summary>
 [Register]
-public sealed partial class DiagnosticLogRecorder : IChatMiddleware
+public sealed partial class DiagnosticLogRecorder : ServiceEntity, IChatMiddleware
 {
+
+    public DiagnosticLogRecorder(IFileSystem fs, ILogger<DiagnosticLogRecorder>? logger = null)
+    {
+        _fs = fs;
+        _logger = logger;
+    }
     [Inject] private readonly IFileSystem _fs;
     [Inject] private readonly ILogger<DiagnosticLogRecorder>? _logger;
 

@@ -1,4 +1,4 @@
-﻿
+
 namespace Core.Bridge;
 
 using JoinCode.Abstractions.Attributes;
@@ -528,7 +528,8 @@ public sealed partial class BridgeClient : IAsyncDisposable
 /// Bridge 客户端选项
 /// </summary>
 [Register]
-public partial class BridgeClientOptions
+[AllowSkipEntity("实现 IAsyncDisposable，与 Entity 的 IDisposable 冲突")]
+public partial class BridgeClientOptions 
 {
     // 默认配置常量
     public const int DefaultPollingIntervalMs = 100;

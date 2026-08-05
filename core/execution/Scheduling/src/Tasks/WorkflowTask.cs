@@ -29,6 +29,7 @@ public sealed partial class WorkflowStep
     public AgentRole Role { get; init; } = AgentRole.Executor;
     public ExecutorVariant? Variant { get; init; }
     public WorkflowStepOnFailure OnFailure { get; init; } = WorkflowStepOnFailure.Stop;
+    public int? MaxRetries { get; init; }
 }
 
 public enum WorkflowExecutionMode
@@ -66,13 +67,15 @@ public sealed partial class StepStatus
     public required StepState State { get; init; }
     public JsonElement Result { get; init; }
     public string? Error { get; init; }
+    public string? ErrorCode { get; init; }
+    public string? ErrorDetail { get; init; }
     public TimeSpan? Duration { get; init; }
 }
 
 [Register]
-public sealed partial class WorkflowTaskExecutor : IWorkflowTaskExecutor
+public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskExecutor
 {
-    private readonly IToolRegistry _toolRegistry;
+    private readonly IToolExecutionGateway _toolExecutionGateway;
     private readonly IAgentLifecycleManager _agentLifecycleManager;
     [Inject] private readonly ILogger<WorkflowTaskExecutor>? _logger;
     [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
@@ -82,14 +85,14 @@ public sealed partial class WorkflowTaskExecutor : IWorkflowTaskExecutor
     private readonly SemaphoreSlim _stateLock = new(1, 1);
 
     public WorkflowTaskExecutor(
-        IToolRegistry toolRegistry,
+        IToolExecutionGateway toolExecutionGateway,
         IAgentLifecycleManager agentLifecycleManager,
         ILogger<WorkflowTaskExecutor>? logger = null,
         ITelemetryService? telemetryService = null,
         ISubAgentContextAccessor? subAgentContextAccessor = null,
         IClockService? clock = null)
     {
-        _toolRegistry = toolRegistry;
+        _toolExecutionGateway = toolExecutionGateway;
         _agentLifecycleManager = agentLifecycleManager;
         _logger = logger;
         _telemetryService = telemetryService;
@@ -173,19 +176,23 @@ public sealed partial class WorkflowTaskExecutor : IWorkflowTaskExecutor
         {
             linkedCts.Token.ThrowIfCancellationRequested();
 
-            var stepResult = await ExecuteStepAsync(step, runState, linkedCts.Token).ConfigureAwait(false);
+            var stepResult = await ExecuteStepWithFailureHandlingAsync(step, runState, linkedCts.Token).ConfigureAwait(false);
             runState.StepStatuses[step.StepId] = stepResult;
+            _logger?.LogDebug("Workflow checkpoint: step {StepId} -> {State}, completed {Completed}/{Total}",
+                step.StepId, stepResult.State, runState.StepStatuses.Count, runState.Definition.Steps.Count);
 
             if (stepResult.State == StepState.Failed)
             {
                 var action = step.OnFailure;
-                if (action == WorkflowStepOnFailure.Stop)
+                if (action is WorkflowStepOnFailure.Stop or WorkflowStepOnFailure.Retry)
                 {
+                    _logger?.LogWarning("Workflow stopped at step {StepId} due to failure. Completed: {Completed}/{Total}",
+                        step.StepId, runState.StepStatuses.Count, runState.Definition.Steps.Count);
                     return BuildResult(runState, TaskExecutionStatus.Failed, stepResult.Error);
                 }
                 if (action == WorkflowStepOnFailure.Skip)
                 {
-                    runState.StepStatuses[step.StepId] = new StepStatus { StepId = stepResult.StepId, State = StepState.Skipped, Error = stepResult.Error, Result = stepResult.Result, Duration = stepResult.Duration };
+                    runState.StepStatuses[step.StepId] = new StepStatus { StepId = stepResult.StepId, State = StepState.Skipped, Error = stepResult.Error, ErrorCode = stepResult.ErrorCode, ErrorDetail = stepResult.ErrorDetail, Result = stepResult.Result, Duration = stepResult.Duration };
                 }
             }
         }
@@ -294,21 +301,41 @@ public sealed partial class WorkflowTaskExecutor : IWorkflowTaskExecutor
 
     private async Task<StepStatus> ExecuteStepWithFailureHandlingAsync(WorkflowStep step, WorkflowRunState runState, CancellationToken ct)
     {
-        var result = await ExecuteStepAsync(step, runState, ct).ConfigureAwait(false);
-
-        if (result.State == StepState.Failed && step.OnFailure == WorkflowStepOnFailure.Retry)
+        try
         {
-            for (var i = 0; i < 3; i++)
-            {
-                ct.ThrowIfCancellationRequested();
-                await Task.Delay(TimeSpan.FromMilliseconds(200 * (i + 1)), ct).ConfigureAwait(false);
-                result = await ExecuteStepAsync(step, runState, ct).ConfigureAwait(false);
-                if (result.State != StepState.Failed) break;
-            }
-        }
+            var result = await ExecuteStepAsync(step, runState, ct).ConfigureAwait(false);
 
-        runState.StepStatuses[step.StepId] = result;
-        return result;
+            if (result.State == StepState.Failed && step.OnFailure == WorkflowStepOnFailure.Retry)
+            {
+                var maxRetries = step.MaxRetries ?? 3;
+                for (var i = 0; i < maxRetries; i++)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    await Task.Delay(TimeSpan.FromMilliseconds(200 * (i + 1)), ct).ConfigureAwait(false);
+                    result = await ExecuteStepAsync(step, runState, ct).ConfigureAwait(false);
+                    if (result.State != StepState.Failed) break;
+                }
+            }
+
+            runState.StepStatuses[step.StepId] = result;
+            return result;
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception ex)
+        {
+            var failedStatus = new StepStatus
+            {
+                StepId = step.StepId,
+                State = StepState.Failed,
+                Result = JsonElementHelper.FromString(string.Empty),
+                Error = ex.Message,
+                ErrorCode = ex is WorkflowException wfEx ? wfEx.ErrorCode : null,
+                ErrorDetail = ex.ToString(),
+                Duration = TimeSpan.Zero
+            };
+            runState.StepStatuses[step.StepId] = failedStatus;
+            return failedStatus;
+        }
     }
 
     private async Task<StepStatus> ExecuteStepAsync(WorkflowStep step, WorkflowRunState runState, CancellationToken ct)
@@ -344,7 +371,10 @@ public sealed partial class WorkflowTaskExecutor : IWorkflowTaskExecutor
             {
                 StepId = step.StepId,
                 State = StepState.Failed,
+                Result = JsonElementHelper.FromString(string.Empty),
                 Error = ex.Message,
+                ErrorCode = ex is WorkflowException wfEx ? wfEx.ErrorCode : null,
+                ErrorDetail = ex.ToString(),
                 Duration = _clock.GetUtcNow() - stepStart
             };
         }
@@ -358,7 +388,7 @@ public sealed partial class WorkflowTaskExecutor : IWorkflowTaskExecutor
         }
 
         var args = step.Parameters ?? new Dictionary<string, JsonElement>();
-        var result = await _toolRegistry.ExecuteToolAsync(step.ToolName, args, ct).ConfigureAwait(false);
+        var result = await _toolExecutionGateway.ExecuteAsync(step.ToolName, args, ct).ConfigureAwait(false);
         return string.Join("\n", result.Content.Select(c => c.Text ?? string.Empty));
     }
 
@@ -426,6 +456,8 @@ public sealed partial class WorkflowTaskExecutor : IWorkflowTaskExecutor
             ErrorMessage = error
         };
     }
+
+    protected override void OnDispose() => _stateLock.Dispose();
 
 }
 

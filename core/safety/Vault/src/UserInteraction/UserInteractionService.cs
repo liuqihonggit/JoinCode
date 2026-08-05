@@ -1,4 +1,4 @@
-﻿
+
 namespace Services.UserInteraction;
 
 /// <summary>
@@ -6,8 +6,14 @@ namespace Services.UserInteraction;
 /// TUI 模式下由 Terminal 渲染层直接处理用户交互，不经过此服务
 /// </summary>
 [Register]
-public sealed partial class UserInteractionService : IUserInteractionService
+public sealed partial class UserInteractionService : ServiceEntity, IUserInteractionService
 {
+
+    public UserInteractionService(ILogger<UserInteractionService>? logger = null, ITelemetryService? telemetryService = null)
+    {
+        _logger = logger;
+        _telemetryService = telemetryService;
+    }
     [Inject] private readonly ILogger<UserInteractionService>? _logger;
     [Inject] private readonly ITelemetryService? _telemetryService;
 

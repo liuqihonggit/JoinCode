@@ -122,7 +122,7 @@ public static class MemorySection
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Trace.WriteLine($"Memory section content loading failed: {ex.Message}");
+                PromptConfigSnapshot.Current.Logger?.LogWarning("记忆内容加载失败: {Error}", ex.Message);
             }
         }
 

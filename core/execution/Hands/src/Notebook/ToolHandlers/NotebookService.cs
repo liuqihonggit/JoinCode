@@ -1,12 +1,20 @@
-﻿
+
 namespace Services.Notebook;
 
 /// <summary>
 /// Notebook服务实现
 /// </summary>
 [Register]
-public sealed partial class NotebookService : INotebookService
+public sealed partial class NotebookService : ServiceEntity, INotebookService
 {
+
+    public NotebookService(IFileOperationService fileOperationService, IFileSystem fs, IFileHistoryService? fileHistoryService = null, ITelemetryService? telemetryService = null)
+    {
+        _fileOperationService = fileOperationService;
+        _fs = fs;
+        _fileHistoryService = fileHistoryService;
+        _telemetryService = telemetryService;
+    }
     [Inject] private readonly IFileOperationService _fileOperationService;
     [Inject] private readonly IFileSystem _fs;
     [Inject] private readonly IFileHistoryService? _fileHistoryService;
@@ -42,7 +50,8 @@ public sealed partial class NotebookService : INotebookService
             var options = new JsonSerializerOptions(NotebookDocumentJsonContext.Default.Options)
             {
                 WriteIndented = true,
-                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+                TypeInfoResolver = NotebookDocumentJsonContext.Default,
             };
             var context = new NotebookDocumentJsonContext(options);
             var json = JsonSerializer.Serialize(notebook, context.NotebookDocument);

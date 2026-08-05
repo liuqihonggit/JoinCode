@@ -1,11 +1,11 @@
-﻿
+
 namespace Core.Permission;
 
 /// <summary>
 /// Agent 工具限制中间件 — Default 模式下检查 Agent 工具限制
 /// </summary>
 [Register(typeof(IPermissionMiddleware))]
-public sealed partial class AgentRestrictionMiddleware : IPermissionMiddleware
+public sealed partial class AgentRestrictionMiddleware : ServiceEntity, IPermissionMiddleware
 {
     private readonly IAgentToolRestrictions? _agentToolRestrictions;
 

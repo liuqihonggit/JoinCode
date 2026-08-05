@@ -7,7 +7,7 @@ namespace Core.Agents.Coordinator;
 /// Teammate 侧: 检测 plan_approval_response → 调用 IPlanModeManager.HandlePlanApprovalResponseAsync
 /// </summary>
 [Register]
-public sealed partial class PlanApprovalMessageRouter
+public sealed partial class PlanApprovalMessageRouter : ServiceEntity
 {
     private readonly IAgentMessageBroker _messageBroker;
     private readonly IPlanModeManager _planModeManager;

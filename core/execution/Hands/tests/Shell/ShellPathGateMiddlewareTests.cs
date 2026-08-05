@@ -6,20 +6,21 @@ namespace Hands.Tests.Shell;
 public class ShellPathGateMiddlewareTests
 {
     [Theory]
-    [InlineData("C:\\Users\\test", ShellType.Bash, "/c/Users/test")]
-    [InlineData("C:\\Users\\test", ShellType.PowerShell, "C:\\Users\\test")]
-    [InlineData("/c/Users/test", ShellType.PowerShell, "C:\\Users\\test")]
-    [InlineData("/c/Users/test", ShellType.Bash, "/c/Users/test")]
-    [InlineData(null, ShellType.Bash, null)]
-    [InlineData("", ShellType.Bash, "")]
-    public async Task InvokeAsync_ConvertsWorkingDirectory(string? input, ShellType shellType, string? expected)
+    [InlineData("C:\\Users\\test", "bash", "/c/Users/test")]
+    [InlineData("C:\\Users\\test", "powershell", "C:\\Users\\test")]
+    [InlineData("/c/Users/test", "powershell", "C:\\Users\\test")]
+    [InlineData("/c/Users/test", "bash", "/c/Users/test")]
+    [InlineData(null, "bash", null)]
+    [InlineData("", "bash", "")]
+    public async Task InvokeAsync_ConvertsWorkingDirectory(string? input, string kindId, string? expected)
     {
+        var kind = SystemActuatorKind.FromId(kindId)!;
         var probeService = new Mock<IEnvironmentProbeService>();
-        probeService.Setup(x => x.GatePath(It.IsAny<string>(), It.IsAny<IShellProvider>()))
-            .Returns((string path, IShellProvider provider) =>
-                provider.Type == ShellType.Bash ? path.Replace('\\', '/') : path.Replace('/', '\\'));
+        probeService.Setup(x => x.GatePath(It.IsAny<string>(), It.IsAny<ISystemActuator>()))
+            .Returns((string path, ISystemActuator provider) =>
+                provider.Kind == SystemActuatorKind.Bash ? path.Replace('\\', '/') : path.Replace('/', '\\'));
 
-        var provider = CreateMockProvider(shellType);
+        var provider = CreateMockProvider(kind);
         var sut = new ShellPathGateMiddleware(probeService.Object);
         var context = new ShellPipelineContext
         {
@@ -44,7 +45,7 @@ public class ShellPathGateMiddlewareTests
     public async Task InvokeAsync_NoChangeNeeded_DoesNotModifyContext()
     {
         var probeService = new Mock<IEnvironmentProbeService>();
-        var provider = CreateMockProvider(ShellType.Bash);
+        var provider = CreateMockProvider(SystemActuatorKind.Bash);
         probeService.Setup(x => x.GatePath("/home/user", provider.Object))
             .Returns("/home/user");
 
@@ -65,10 +66,10 @@ public class ShellPathGateMiddlewareTests
     public async Task InvokeAsync_CallsNextMiddleware()
     {
         var probeService = new Mock<IEnvironmentProbeService>();
-        probeService.Setup(x => x.GatePath(It.IsAny<string>(), It.IsAny<IShellProvider>()))
-            .Returns((string p, IShellProvider _) => p);
+        probeService.Setup(x => x.GatePath(It.IsAny<string>(), It.IsAny<ISystemActuator>()))
+            .Returns((string p, ISystemActuator _) => p);
 
-        var provider = CreateMockProvider(ShellType.Bash);
+        var provider = CreateMockProvider(SystemActuatorKind.Bash);
         var sut = new ShellPathGateMiddleware(probeService.Object);
         var context = new ShellPipelineContext
         {
@@ -83,11 +84,11 @@ public class ShellPathGateMiddlewareTests
         nextCalled.Should().BeTrue();
     }
 
-    private static Mock<IShellProvider> CreateMockProvider(ShellType type)
+    private static Mock<ISystemActuator> CreateMockProvider(SystemActuatorKind kind)
     {
-        var mock = new Mock<IShellProvider>();
-        mock.SetupGet(x => x.Type).Returns(type);
-        mock.SetupGet(x => x.ShellPath).Returns(type == ShellType.Bash ? "bash" : type == ShellType.PowerShell ? "pwsh" : "cmd.exe");
+        var mock = new Mock<ISystemActuator>();
+        mock.SetupGet(x => x.Kind).Returns(kind);
+        mock.SetupGet(x => x.ShellPath).Returns(kind == SystemActuatorKind.Bash ? "bash" : kind == SystemActuatorKind.PowerShell ? "pwsh" : "cmd.exe");
         return mock;
     }
 }

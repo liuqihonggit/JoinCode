@@ -1,4 +1,4 @@
-﻿
+
 namespace Core.Agents;
 
 [Register(typeof(IAgentWorktreeService))]
@@ -6,7 +6,7 @@ namespace Core.Agents;
 public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorktreePipelineOperations, IAsyncDisposable {
     [Inject] private readonly ILogger<AgentWorktreeService>? _logger;
     [Inject] private readonly IClockService _clock;
-    [Inject] private readonly IProcessService _processService;
+    [Inject] private readonly IGitCommandRunner _gitRunner;
     private readonly IFileOperationService _fileOperationService;
     private readonly WorktreeOptions _defaultOptions;
     private readonly ITelemetryService? _telemetryService;
@@ -16,7 +16,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
 
     public AgentWorktreeService(
         IFileOperationService fileOperationService,
-        IProcessService processService,
+        IGitCommandRunner gitRunner,
         IEnumerable<IWorktreeCreateMiddleware>? createMiddlewares = null,
         ILoggerFactory? loggerFactory = null,
         ILogger<AgentWorktreeService>? logger = null,
@@ -24,7 +24,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
         ITelemetryService? telemetryService = null,
         IClockService? clock = null) {
         _fileOperationService = fileOperationService ?? throw new ArgumentNullException(nameof(fileOperationService));
-        _processService = processService ?? throw new ArgumentNullException(nameof(processService));
+        _gitRunner = gitRunner ?? throw new ArgumentNullException(nameof(gitRunner));
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
         _defaultOptions = defaultOptions ?? new WorktreeOptions();
@@ -438,7 +438,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
                 ["usedSparsePaths"] = session.SparsePaths?.Count > 0
             };
 
-            var updatedJson = root.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
+            var updatedJson = FormatJsonNode(root);
 
             var dir = Path.GetDirectoryName(localSettingsPath);
             if (!string.IsNullOrEmpty(dir) && !_fileOperationService.DirectoryExists(dir))
@@ -473,7 +473,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
 
             root.Remove("activeWorktreeSession");
 
-            var updatedJson = root.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
+            var updatedJson = FormatJsonNode(root);
             await _fileOperationService.WriteFileAsync(localSettingsPath, updatedJson).ConfigureAwait(false);
         }
         catch (Exception ex)
@@ -734,42 +734,22 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
         });
     }
 
-    public async Task<GitCommandResult> ExecuteGitCommandAsync(
+    public Task<GitCommandResult> ExecuteGitCommandAsync(
         string workingDirectory,
         string arguments,
-        CancellationToken cancellationToken = default) {
-        try {
-            var options = new ProcessOptions {
-                FileName = "git",
-                Arguments = arguments,
-                WorkingDirectory = workingDirectory,
-                StandardOutputEncoding = System.Text.Encoding.UTF8,
-                StandardErrorEncoding = System.Text.Encoding.UTF8,
-                EnvironmentVariables = new Dictionary<string, string>
-                {
-                    ["GIT_TERMINAL_PROMPT"] = "0",
-                    ["GIT_ASKPASS"] = ""
-                }
-            };
-
-            var result = await _processService.ExecuteAsync(options, cancellationToken).ConfigureAwait(false);
-
-            return new GitCommandResult {
-                Success = result.Success,
-                Output = result.StandardOutput,
-                Error = result.StandardError,
-                ExitCode = result.ExitCode
-            };
-        } catch (OperationCanceledException) {
-            throw;
-        } catch (Exception ex) {
-            return new GitCommandResult {
-                Success = false,
-                Error = ex.Message,
-                ExitCode = -1
-            };
-        }
-    }
+        CancellationToken cancellationToken = default)
+        => _gitRunner.ExecuteAsync(arguments, workingDirectory, cancellationToken);
 
     #endregion
+
+    private static readonly JsonWriterOptions s_indentedWriterOptions = new() { Indented = true };
+
+    private static string FormatJsonNode(JsonNode node)
+    {
+        using var stream = new MemoryStream();
+        using var writer = new Utf8JsonWriter(stream, s_indentedWriterOptions);
+        node.WriteTo(writer);
+        writer.Flush();
+        return System.Text.Encoding.UTF8.GetString(stream.ToArray());
+    }
 }

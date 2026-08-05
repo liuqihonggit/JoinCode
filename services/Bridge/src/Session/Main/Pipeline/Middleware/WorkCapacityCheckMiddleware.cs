@@ -1,10 +1,15 @@
-﻿namespace Core.Bridge;
+namespace Core.Bridge;
 
 using JoinCode.Abstractions.Pipeline;
 
 [Register(typeof(IHandleWorkMiddleware))]
-public sealed partial class WorkCapacityCheckMiddleware : IHandleWorkMiddleware
+public sealed partial class WorkCapacityCheckMiddleware : ServiceEntity, IHandleWorkMiddleware
 {
+
+    public WorkCapacityCheckMiddleware(ILogger<WorkCapacityCheckMiddleware>? logger = null)
+    {
+        _logger = logger;
+    }
     [Inject] private readonly ILogger<WorkCapacityCheckMiddleware>? _logger;
 
 
@@ -20,7 +25,7 @@ public sealed partial class WorkCapacityCheckMiddleware : IHandleWorkMiddleware
             return;
         }
 
-        if (ctx.CompletedWorkIds.Contains(ctx.Work.WorkId))
+        if (ctx.CompletedWorkIds.ContainsKey(ctx.Work.WorkId))
         {
             _logger?.LogDebug("BridgeMain: skipping duplicate work {WorkId}", ctx.Work.WorkId);
 

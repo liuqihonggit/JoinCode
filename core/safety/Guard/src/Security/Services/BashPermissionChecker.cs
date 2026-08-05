@@ -3,8 +3,15 @@ using JoinCode.Abstractions.Attributes;
 namespace JoinCode.Abstractions.Security.Shell;
 
 [Register]
-public sealed partial class BashPermissionChecker : IBashPermissionChecker
+public sealed partial class BashPermissionChecker : ServiceEntity, IBashPermissionChecker
 {
+
+    public BashPermissionChecker(IBashSecurityValidator securityValidator, IPathConstraintValidator pathConstraintValidator, IReadOnlyCommandDetector readOnlyDetector)
+    {
+        _securityValidator = securityValidator;
+        _pathConstraintValidator = pathConstraintValidator;
+        _readOnlyDetector = readOnlyDetector;
+    }
     [Inject] private readonly IBashSecurityValidator _securityValidator;
     [Inject] private readonly IPathConstraintValidator _pathConstraintValidator;
     [Inject] private readonly IReadOnlyCommandDetector _readOnlyDetector;

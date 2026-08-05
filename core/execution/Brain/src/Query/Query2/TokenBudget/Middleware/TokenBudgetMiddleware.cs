@@ -6,8 +6,13 @@ namespace Core.Query;
 /// Token 预算中间件 — 每次 LLM 调用后消耗 Token 预算
 /// </summary>
 [Register(typeof(IQueryMiddleware))]
-public sealed partial class TokenBudgetMiddleware : IQueryMiddleware
+public sealed partial class TokenBudgetMiddleware : ServiceEntity, IQueryMiddleware
 {
+
+    public TokenBudgetMiddleware(ITokenBudgetManager? tokenBudgetManager = null)
+    {
+        _tokenBudgetManager = tokenBudgetManager;
+    }
     [Inject] private readonly ITokenBudgetManager? _tokenBudgetManager;
 
 

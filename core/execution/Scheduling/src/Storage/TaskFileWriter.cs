@@ -1,12 +1,17 @@
-﻿
+
 namespace Core.Scheduling;
 
 /// <summary>
 /// 任务文件写入工具类
 /// </summary>
 [Register]
-public sealed partial class TaskFileWriter : ITaskFileWriter
+public sealed partial class TaskFileWriter : ServiceEntity, ITaskFileWriter
 {
+
+    public TaskFileWriter(IFileOperationService fileOperationService)
+    {
+        _fileOperationService = fileOperationService;
+    }
     [Inject] private readonly IFileOperationService _fileOperationService;
 
     /// <summary>

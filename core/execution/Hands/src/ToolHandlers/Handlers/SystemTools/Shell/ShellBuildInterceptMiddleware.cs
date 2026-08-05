@@ -6,8 +6,15 @@ namespace Tools.Shell;
 /// 缓存命中直接返回结果，同命令编译中共享结果
 /// </summary>
 [Register]
-public sealed partial class ShellBuildInterceptMiddleware : IShellMiddleware
+public sealed partial class ShellBuildInterceptMiddleware : ServiceEntity, IShellMiddleware
 {
+
+    public ShellBuildInterceptMiddleware(IBuildQueueService buildQueueService, ISubAgentContextAccessor subAgentContextAccessor, IClockService clock)
+    {
+        _buildQueueService = buildQueueService;
+        _subAgentContextAccessor = subAgentContextAccessor;
+        _clock = clock;
+    }
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(30);
 
     [Inject] private readonly IBuildQueueService _buildQueueService;
@@ -35,13 +42,13 @@ public sealed partial class ShellBuildInterceptMiddleware : IShellMiddleware
 
             if (entry?.Status == BuildQueueEntryStatus.Cancelled)
             {
-                context.ExecutionResult = new ShellExecutionResult
-                {
-                    Stdout = string.Empty,
-                    Stderr = "Build was cancelled",
-                    ExitCode = -1,
-                    Interrupted = true,
-                };
+            context.ExecutionResult = new SystemActuatorExecutionResult
+            {
+                Stdout = string.Empty,
+                Stderr = "Build was cancelled",
+                ExitCode = -1,
+                Interrupted = true,
+            };
                 context.Result = ToolResultBuilder.Error().WithText("Build was cancelled").Build();
                 return;
             }
@@ -92,7 +99,7 @@ public sealed partial class ShellBuildInterceptMiddleware : IShellMiddleware
         var fullOutput = r.ExitCode == 0 ? r.Output : $"{r.ErrorOutput}\n{r.Output}";
         var displayOutput = TruncateOutput(fullOutput, r.BuildId);
 
-        context.ExecutionResult = new ShellExecutionResult
+        context.ExecutionResult = new SystemActuatorExecutionResult
         {
             Stdout = r.Output,
             Stderr = r.ErrorOutput,

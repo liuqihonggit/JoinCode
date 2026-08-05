@@ -1,10 +1,10 @@
-﻿namespace Core.Agents.Worktree;
+namespace Core.Agents.Worktree;
 
 /// <summary>
 /// Worktree 参数验证中间件 — 检查 AgentId 有效性
 /// </summary>
 [Register(typeof(IWorktreeCreateMiddleware))]
-public sealed partial class WorktreeValidationMiddleware : IWorktreeCreateMiddleware
+public sealed partial class WorktreeValidationMiddleware : ServiceEntity, IWorktreeCreateMiddleware
 {
 
     public Task InvokeAsync(WorktreeCreateContext context, MiddlewareDelegate<WorktreeCreateContext> next, CancellationToken ct)

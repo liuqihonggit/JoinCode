@@ -8,10 +8,12 @@ namespace Services.Lsp.ToolHandlers;
 public class LspToolHandlers {
     private readonly ILspService _lspService;
     private readonly IFileOperationService _fileOperationService;
+    private readonly IGitCommandRunner _gitRunner;
 
-    public LspToolHandlers(ILspService lspService, IFileOperationService fileOperationService) {
+    public LspToolHandlers(ILspService lspService, IFileOperationService fileOperationService, IGitCommandRunner gitRunner) {
         _lspService = lspService ?? throw new ArgumentNullException(nameof(lspService));
         _fileOperationService = fileOperationService ?? throw new ArgumentNullException(nameof(fileOperationService));
+        _gitRunner = gitRunner ?? throw new ArgumentNullException(nameof(gitRunner));
     }
 
     /// <summary>
@@ -437,7 +439,7 @@ public class LspToolHandlers {
         return filePath;
     }
 
-    private static async Task<HashSet<string>> GetGitIgnoredPathsAsync(List<string> paths, string cwd) {
+    private async Task<HashSet<string>> GetGitIgnoredPathsAsync(List<string> paths, string cwd) {
         var ignored = new HashSet<string>();
         if (paths.Count == 0) return ignored;
 
@@ -447,28 +449,10 @@ public class LspToolHandlers {
             var args = string.Join(" ", new[] { "check-ignore" }.Concat(batch.Select(p => $"\"{p}\"")));
 
             try {
-                using var process = new System.Diagnostics.Process {
-                    StartInfo = new System.Diagnostics.ProcessStartInfo {
-                        FileName = "git",
-                        Arguments = args,
-                        WorkingDirectory = cwd,
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true,
-                        UseShellExecute = false,
-                        CreateNoWindow = true
-                    }
-                };
+                var result = await _gitRunner.ExecuteAsync(args, cwd).ConfigureAwait(false);
 
-                process.Start();
-                var stdoutTask = process.StandardOutput.ReadToEndAsync();
-                var stderrTask = process.StandardError.ReadToEndAsync();
-                await Task.WhenAll(stdoutTask, stderrTask).ConfigureAwait(false);
-                await process.WaitForExitAsync().ConfigureAwait(false);
-
-                var stdout = await stdoutTask.ConfigureAwait(false);
-
-                if (process.ExitCode == 0 && !string.IsNullOrWhiteSpace(stdout)) {
-                    foreach (var line in stdout.Split('\n')) {
+                if (result.Success && !string.IsNullOrWhiteSpace(result.Output)) {
+                    foreach (var line in result.Output.Split('\n')) {
                         var trimmed = line.Trim();
                         if (!string.IsNullOrEmpty(trimmed)) {
                             ignored.Add(trimmed);

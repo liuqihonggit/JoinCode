@@ -4,7 +4,7 @@ namespace Core.Context;
 /// 撤回到指定消息索引操作处理器
 /// </summary>
 [Register]
-public sealed partial class RewindToMessageIndexHandler : IChatAdminOperationHandler
+public sealed partial class RewindToMessageIndexHandler : ServiceEntity, IChatAdminOperationHandler
 {
     public ChatAdminOperation Operation => ChatAdminOperation.RewindToMessageIndex;
 

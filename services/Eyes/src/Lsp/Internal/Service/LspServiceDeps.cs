@@ -6,7 +6,7 @@ namespace Services.Lsp;
 /// LspService 核心引擎依赖聚合
 /// </summary>
 [Register]
-public sealed partial class LspEngineContext
+public sealed partial class LspEngineContext : ServiceEntity
 {
     /// <summary>
     /// LSP 管理器

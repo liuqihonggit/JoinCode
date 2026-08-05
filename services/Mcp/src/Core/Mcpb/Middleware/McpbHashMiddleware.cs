@@ -1,11 +1,16 @@
-﻿namespace McpClient.Mcpb;
+namespace McpClient.Mcpb;
 
 /// <summary>
 /// MCPB 哈希计算中间件 — 计算文件内容哈希，确定解压目标路径
 /// </summary>
 [Register(typeof(IMcpbMiddleware))]
-public sealed partial class McpbHashMiddleware : IMcpbMiddleware
+public sealed partial class McpbHashMiddleware : ServiceEntity, IMcpbMiddleware
 {
+
+    public McpbHashMiddleware(IFileSystem fs)
+    {
+        _fs = fs;
+    }
     [Inject] private readonly IFileSystem _fs;
 
 

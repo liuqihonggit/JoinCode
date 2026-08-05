@@ -6,7 +6,7 @@ namespace Core.Permission;
 /// 利用已有的 IDestructiveCommandDetector 检测 CommandRisk.FileDeletion 风险
 /// </summary>
 [Register(typeof(IDeleteOperationDetector))]
-public sealed partial class ShellDeleteDetector : IDeleteOperationDetector
+public sealed partial class ShellDeleteDetector : ServiceEntity, IDeleteOperationDetector
 {
     private static readonly FrozenSet<string> DeleteToolNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {

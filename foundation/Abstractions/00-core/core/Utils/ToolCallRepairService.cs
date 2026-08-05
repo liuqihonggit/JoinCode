@@ -467,6 +467,7 @@ internal static class ToolCallRepairService
     private static string FixNamedFloatingPointLiterals(string json, List<string> hints)
     {
         bool changed = false;
+        var literals = new List<string>();
         var result = new StringBuilder(json.Length);
         int i = 0;
 
@@ -495,6 +496,7 @@ internal static class ToolCallRepairService
                 {
                     result.Append("\"Infinity\"");
                     changed = true;
+                    literals.Add("Infinity");
                     i += 8;
                     continue;
                 }
@@ -509,6 +511,7 @@ internal static class ToolCallRepairService
                 {
                     result.Append("\"-Infinity\"");
                     changed = true;
+                    literals.Add("-Infinity");
                     i += 9;
                     continue;
                 }
@@ -523,6 +526,7 @@ internal static class ToolCallRepairService
                 {
                     result.Append("\"NaN\"");
                     changed = true;
+                    literals.Add("NaN");
                     i += 3;
                     continue;
                 }
@@ -533,7 +537,7 @@ internal static class ToolCallRepairService
         }
 
         if (changed)
-            hints.Add("quoted named floating-point literal(s)");
+            hints.Add($"quoted named floating-point literal(s): {string.Join(", ", literals)}");
 
         return result.ToString();
     }

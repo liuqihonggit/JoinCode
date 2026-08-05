@@ -1,61 +1,52 @@
-﻿namespace Tools.Shell;
+namespace Tools.Shell;
 
 /// <summary>
 /// Shell 命令执行中间件 — 核心执行逻辑
 /// 启动命令进程、注册后台化事件、注册前台任务、等待结果
 /// </summary>
 [Register]
-public sealed partial class ShellExecutionMiddleware : IShellMiddleware
+public sealed partial class ShellExecutionMiddleware : ServiceEntity, IShellMiddleware
 {
-    [Inject] private readonly IShellExecutionService _shellExecutionService;
-    [Inject] private readonly IShellBackgroundTaskService? _backgroundTaskService;
+
+    public ShellExecutionMiddleware(ISystemActuatorRegistry registry, IForegroundTaskRegistry? foregroundTaskRegistry = null)
+    {
+        _registry = registry;
+        _foregroundTaskRegistry = foregroundTaskRegistry;
+    }
+    [Inject] private readonly ISystemActuatorRegistry _registry;
     [Inject] private readonly IForegroundTaskRegistry? _foregroundTaskRegistry;
-
-    /// <inheritdoc />
-
-    /// <inheritdoc />
 
     /// <inheritdoc />
     public async Task InvokeAsync(ShellPipelineContext context, MiddlewareDelegate<ShellPipelineContext> next, CancellationToken ct)
     {
-        // 判断是否允许自动后台化 — 对齐 TS isAutobackgroundingAllowed
         var shouldAutoBackground = context.AutoBackground != false
-            && ShellBackgroundConstants.IsAutoBackgroundAllowed(context.Command);
+            && SystemActuatorBackgroundConstants.IsAutoBackgroundAllowed(context.Command);
 
-        // 使用可后台化的执行上下文 — 对齐 TS ShellCommand.exec
-        await using var cmdContext = await _shellExecutionService.StartWithBackgroundSupportAsync(
+        await using var cmdContext = await context.Provider.StartWithBackgroundSupportAsync(
             context.Command,
-            context.Provider,
             context.OverrideTimeout ?? context.Timeout,
             context.WorkingDirectory,
             shouldAutoBackground: shouldAutoBackground,
             disableSandbox: context.DangerouslyDisableSandbox == true,
             cancellationToken: ct).ConfigureAwait(false);
 
-        // 注册后台化事件 — 对齐 TS spawnShellTask: 将后台化的命令注册到后台任务服务
-        // 统一走 ShellCommandContext 路径，输出通过 GetCurrentStdout() 获取（支持溢出文件）
-        if (_backgroundTaskService != null && cmdContext is ShellCommandContext shellCtx)
+        if (cmdContext is SystemActuatorCommandContext actuatorCtx)
         {
-            shellCtx.Backgrounded += (ctx, taskId) =>
+            actuatorCtx.Backgrounded += (ctx, taskId) =>
             {
-                _ = _backgroundTaskService.RegisterContextAsync(
-                    ctx, context.WorkingDirectory, cancellationToken: default);
+                _ = _registry.RegisterContextAsync(ctx, context.WorkingDirectory, cancellationToken: default);
             };
         }
 
-        // 注册前台任务 — 对齐 TS registerForeground，支持 Ctrl+B 后台化
         _foregroundTaskRegistry?.Register(cmdContext);
 
-        // 对齐 TS bash_progress: 定时轮询输出并报告进度
-        var progressType = context.Provider.Type == ShellType.PowerShell ? "ps_progress" : "bash_progress";
+        var progressType = context.Provider.Kind == SystemActuatorKind.PowerShell ? "ps_progress" : "bash_progress";
         using var progressTimer = context.OnProgress is not null
             ? CreateProgressTimer(cmdContext, context.OnProgress, progressType)
             : null;
 
-        // 等待命令完成或后台化
         var result = await cmdContext.ResultTask.ConfigureAwait(false);
 
-        // 注销前台任务
         _foregroundTaskRegistry?.Unregister(cmdContext.TaskId);
 
         context.ExecutionResult = result;
@@ -64,10 +55,9 @@ public sealed partial class ShellExecutionMiddleware : IShellMiddleware
     }
 
     /// <summary>
-    /// 创建进度报告定时器 — 对齐 TS TaskOutput 共享轮询器（1s interval）
-    /// 定时轮询 ShellCommandContext 的当前输出，通过 onProgress 回调报告进度
+    /// 创建进度报告定时器
     /// </summary>
-    private static Timer CreateProgressTimer(IShellCommandContext context, ToolProgressCallback onProgress, string progressType)
+    private static Timer CreateProgressTimer(ISystemActuatorCommandContext context, ToolProgressCallback onProgress, string progressType)
     {
         var startTime = Environment.TickCount64;
         var progressCounter = 0;
@@ -76,7 +66,7 @@ public sealed partial class ShellExecutionMiddleware : IShellMiddleware
         {
             try
             {
-                if (context.Status != ShellCommandStatus.Running) return;
+                if (context.Status != SystemActuatorCommandStatus.Running) return;
 
                 var elapsedMs = Environment.TickCount64 - startTime;
                 var currentOutput = context.GetCurrentStdout();
@@ -104,14 +94,13 @@ public sealed partial class ShellExecutionMiddleware : IShellMiddleware
             }
             catch (Exception ex)
             {
-                // 进度报告失败不影响命令执行
                 System.Diagnostics.Trace.WriteLine($"进度报告发送失败: {ex.Message}");
             }
-        }, null, TimeSpan.FromMilliseconds(ShellBackgroundConstants.ProgressThresholdMs), TimeSpan.FromSeconds(1));
+        }, null, TimeSpan.FromMilliseconds(SystemActuatorBackgroundConstants.ProgressThresholdMs), TimeSpan.FromSeconds(1));
     }
 
     /// <summary>
-    /// 获取字符串的最后 N 行 — 对齐 TS tailFile
+    /// 获取字符串的最后 N 行
     /// </summary>
     private static string GetLastNLines(string text, int lineCount)
     {

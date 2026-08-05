@@ -3,7 +3,7 @@ using JoinCode.Abstractions.Attributes;
 namespace IO.Services;
 
 [Register]
-public sealed partial class ChromeIntegrationService : IChromeIntegrationService, IDisposable
+public sealed partial class ChromeIntegrationService : ServiceEntity, IChromeIntegrationService, IDisposable
 {
     private bool _isConnected;
     private bool _isDefaultEnabled;
@@ -29,7 +29,7 @@ public sealed partial class ChromeIntegrationService : IChromeIntegrationService
         {
             try
             {
-                return _processService.FindExecutableAsync("chrome").GetAwaiter().GetResult() != null;
+                return Task.Run(() => _processService.FindExecutableAsync("chrome")).GetAwaiter().GetResult() != null;
             }
             catch
             {
@@ -55,7 +55,7 @@ public sealed partial class ChromeIntegrationService : IChromeIntegrationService
         try
         {
             if (_initialized) return;
-            try { _isDefaultEnabled = ReadDefaultEnabledAsync().GetAwaiter().GetResult(); }
+            try { _isDefaultEnabled = Task.Run(() => ReadDefaultEnabledAsync()).GetAwaiter().GetResult(); }
             catch { _isDefaultEnabled = false; }
             _initialized = true;
         }
@@ -123,7 +123,7 @@ public sealed partial class ChromeIntegrationService : IChromeIntegrationService
         return string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
     }
 
-    public void Dispose()
+    protected override void OnDispose()
     {
         _initLock.Dispose();
     }

@@ -116,7 +116,7 @@ public abstract class McpNetworkClient<TTransport> : McpClientBase
         switch (e.Message)
         {
             case JsonRpcResponse response:
-                ProcessResponseAsync(response).ConfigureAwait(false);
+                _ = FireAndForgetProcessResponseAsync(response);
                 break;
             case JsonRpcNotification notification:
                 OnNotificationReceived(new McpNotificationReceivedEventArgs

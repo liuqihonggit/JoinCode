@@ -1,4 +1,4 @@
-﻿
+
 namespace Core.Permission;
 
 /// <summary>
@@ -6,7 +6,7 @@ namespace Core.Permission;
 /// Default/Auto/Plan 模式下均生效
 /// </summary>
 [Register(typeof(IPermissionMiddleware))]
-public sealed partial class ToolListPermissionMiddleware : IPermissionMiddleware
+public sealed partial class ToolListPermissionMiddleware : ServiceEntity, IPermissionMiddleware
 {
     /// <inheritdoc />
 

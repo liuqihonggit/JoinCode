@@ -6,12 +6,24 @@ namespace McpToolRegistry;
 /// 增强功能：历史修复分析 — 从健康记录中提取同类工具的失败模式，提前给出建议
 /// </summary>
 [Register]
-public sealed partial class OnErrorToolInjectionMiddleware : IToolExecutionMiddleware
+public sealed partial class OnErrorToolInjectionMiddleware : ServiceEntity, IToolExecutionMiddleware
 {
-    [Inject] private readonly IToolRegistry _registry = null!;
-    [Inject] private readonly IToolHealthMonitor _monitor = null!;
-    [Inject] private readonly ToolHypergraphScorer _scorer = null!;
-    [Inject] private readonly ILogger<OnErrorToolInjectionMiddleware> _logger = null!;
+    private readonly IToolRegistry _registry;
+    private readonly IToolHealthMonitor _monitor;
+    private readonly ToolHypergraphScorer _scorer;
+    private readonly ILogger<OnErrorToolInjectionMiddleware> _logger;
+
+    public OnErrorToolInjectionMiddleware(
+        IToolRegistry registry,
+        IToolHealthMonitor monitor,
+        ToolHypergraphScorer scorer,
+        ILogger<OnErrorToolInjectionMiddleware> logger)
+    {
+        _registry = registry;
+        _monitor = monitor;
+        _scorer = scorer;
+        _logger = logger;
+    }
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 

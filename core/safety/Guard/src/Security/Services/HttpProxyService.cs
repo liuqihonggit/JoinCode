@@ -1,7 +1,7 @@
-﻿namespace Core.Security.Services;
+namespace Core.Security.Services;
 
 [Register]
-public sealed partial class HttpProxyService : IHttpProxyService
+public sealed partial class HttpProxyService : ServiceEntity, IHttpProxyService
 {
     [Inject] private readonly ILogger<HttpProxyService>? _logger;
     private readonly ITelemetryService? _telemetryService;

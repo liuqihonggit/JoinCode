@@ -4,7 +4,7 @@ namespace Core.Context;
 /// 撤回最后一轮对话操作处理器
 /// </summary>
 [Register]
-public sealed partial class RewindLastTurnHandler : IChatAdminOperationHandler
+public sealed partial class RewindLastTurnHandler : ServiceEntity, IChatAdminOperationHandler
 {
     public ChatAdminOperation Operation => ChatAdminOperation.RewindLastTurn;
 

@@ -3,7 +3,7 @@ using JoinCode.Abstractions.Attributes;
 namespace IO.Services;
 
 [Register]
-public sealed partial class ProactiveStateService : IProactiveStateService
+public sealed partial class ProactiveStateService : ServiceEntity, IProactiveStateService
 {
     private bool _active;
     private bool _paused;

@@ -9,7 +9,7 @@ using Structura.Dag;
 /// Goal Graph 执行引擎 — 事件驱动队列 + 条件路由 + 回退重激活
 /// </summary>
 [Register]
-public sealed partial class GoalGraphEngine
+public sealed partial class GoalGraphEngine : ServiceEntity
 {
     private readonly IChatClient _kernel;
     private readonly IGoalEvaluator _evaluator;
@@ -20,7 +20,8 @@ public sealed partial class GoalGraphEngine
     private Core.Agents.Coordinator.AgentRegistry _agentRegistry => Core.Agents.Coordinator.Agent.Registry;
     [Inject] private readonly IAgentService? _agentService = null!;
     [Inject] private readonly IGoalUserInteraction? _userInteraction = null;
-    [Inject] private readonly IGoalLoopObserver? _loopObserver = null;
+    [Inject] private readonly IGoalNodeInspector? _nodeInspector = null;
+    [Inject] private readonly IGoalConflictMessenger? _conflictMessenger = null;
     private readonly Dictionary<string, Func<NodeContext, Task<NodeResult>>> _functionRegistry = new(StringComparer.Ordinal);
 
     public GoalGraphEngine(
@@ -31,7 +32,8 @@ public sealed partial class GoalGraphEngine
         IGoalHeartbeat? heartbeat = null,
         IClockService? clock = null,
         IGoalUserInteraction? userInteraction = null,
-        IGoalLoopObserver? loopObserver = null)
+        IGoalNodeInspector? nodeInspector = null,
+        IGoalConflictMessenger? conflictMessenger = null)
     {
         _kernel = kernel;
         _evaluator = evaluator;
@@ -40,7 +42,9 @@ public sealed partial class GoalGraphEngine
         _heartbeat = heartbeat ?? new GoalHeartbeat();
         _clock = clock ?? SystemClockService.Instance;
         _userInteraction = userInteraction ?? serviceProvider.GetService<IGoalUserInteraction>();
-        _loopObserver = loopObserver ?? serviceProvider.GetService<IGoalLoopObserver>();
+        _nodeInspector = nodeInspector ?? serviceProvider.GetService<IGoalNodeInspector>();
+        _conflictMessenger = conflictMessenger ?? serviceProvider.GetService<IGoalConflictMessenger>();
+        _agentService = serviceProvider.GetService<IAgentService>();
     }
 
     public void RegisterFunction(string nodeId, Func<NodeContext, Task<NodeResult>> fn)
@@ -65,17 +69,66 @@ public sealed partial class GoalGraphEngine
 
         context.ReadyQueue.Enqueue(graph.StartNodeId);
 
-        while (context.ReadyQueue.TryDequeue(out var nodeId))
+        using var concurrencyLimiter = graph.MaxConcurrency > 0
+            ? new SemaphoreSlim(graph.MaxConcurrency, graph.MaxConcurrency)
+            : null;
+
+        while (true)
         {
             ct.ThrowIfCancellationRequested();
 
-            if (context.CompletedNodes.Contains(nodeId))
+            var batch = DrainReadyBatch(graph, context);
+
+            if (batch.Count == 0)
+            {
+                if (context.ReadyQueue.IsEmpty)
+                    break;
+                await Task.Delay(50, ct).ConfigureAwait(false);
+                continue;
+            }
+
+            var outcomes = await Task.WhenAll(batch.Select(nodeId =>
+                ExecuteWithSemaphoreAsync(nodeId, graph, context, concurrencyLimiter, ct))).ConfigureAwait(false);
+
+            foreach (var outcome in outcomes)
+            {
+                if (outcome == NodeCompletionOutcome.GoalAchieved)
+                {
+                    await SetGoalStatusAsync(goalState, GoalStatus.Achieved, context, ct).ConfigureAwait(false);
+                    return goalState;
+                }
+                if (outcome == NodeCompletionOutcome.GoalUnmet)
+                {
+                    await SetGoalStatusAsync(goalState, GoalStatus.Unmet, context, ct).ConfigureAwait(false);
+                    return goalState;
+                }
+            }
+        }
+
+        return goalState;
+    }
+
+    /// <summary>
+    /// 从就绪队列批量取出所有上游已完成的节点（同层节点，可并行执行）。
+    /// 未就绪节点重新入队，待下一轮处理。
+    /// </summary>
+    private List<string> DrainReadyBatch(GoalGraph graph, GraphExecutionContext context)
+    {
+        var batch = new List<string>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var deferred = new List<string>();
+
+        while (context.ReadyQueue.TryDequeue(out var nodeId))
+        {
+            if (!seen.Add(nodeId))
+                continue;
+
+            if (context.CompletedNodes.ContainsKey(nodeId))
                 continue;
 
             if (!context.AreAllUpstreamsCompleted(nodeId))
             {
-                context.ReadyQueue.Enqueue(nodeId);
-                await Task.Delay(50, ct).ConfigureAwait(false);
+                deferred.Add(nodeId);
                 continue;
             }
 
@@ -85,102 +138,153 @@ public sealed partial class GoalGraphEngine
                 continue;
             }
 
-            var payload = dagNode.Payload;
-
-            if (payload.Status == GoalNodeStatus.Completed)
+            if (dagNode.Payload.Status == GoalNodeStatus.Completed)
                 continue;
 
-            await ExecuteNodeAsync(nodeId, dagNode, context, ct).ConfigureAwait(false);
+            batch.Add(nodeId);
+        }
 
-            await UpdateGoalStateAsync(context).ConfigureAwait(false);
+        foreach (var id in deferred)
+            context.ReadyQueue.Enqueue(id);
 
-            if (payload.Status == GoalNodeStatus.Failed)
+        return batch;
+    }
+
+    /// <summary>
+    /// 在并发限流器控制下执行单个节点完成处理。
+    /// </summary>
+    private async Task<NodeCompletionOutcome> ExecuteWithSemaphoreAsync(
+        string nodeId,
+        GoalGraph graph,
+        GraphExecutionContext context,
+        SemaphoreSlim? limiter,
+        CancellationToken ct)
+    {
+        if (limiter is not null)
+            await limiter.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            var dagNode = graph.Dag.Nodes[nodeId];
+            return await ProcessNodeCompletionAsync(nodeId, dagNode, graph, context, ct).ConfigureAwait(false);
+        }
+        finally
+        {
+            if (limiter is not null)
+                limiter.Release();
+        }
+    }
+
+    /// <summary>
+    /// 处理单个节点执行 + 完成后逻辑（失败回退 / 终止判断 / 后继入队 / EndNode 判断）。
+    /// 返回节点完成后的整体目标状态决策。
+    /// </summary>
+    private async Task<NodeCompletionOutcome> ProcessNodeCompletionAsync(
+        string nodeId,
+        DagNode<GoalNodePayload> dagNode,
+        GoalGraph graph,
+        GraphExecutionContext context,
+        CancellationToken ct)
+    {
+        var payload = dagNode.Payload;
+
+        await ExecuteNodeAsync(nodeId, dagNode, context, ct).ConfigureAwait(false);
+        await UpdateGoalStateAsync(context).ConfigureAwait(false);
+
+        if (payload.Status == GoalNodeStatus.Failed)
+        {
+            context.FailedNodes.TryAdd(nodeId, default);
+
+            var failureOutcome = CheckFailureRateTermination(context);
+            if (failureOutcome is not null)
+                return failureOutcome.Value;
+
+            foreach (var edgeId in dagNode.OutEdgeIds)
             {
-                context.FailedNodes.Add(nodeId);
-
-                foreach (var edgeId in dagNode.OutEdgeIds)
+                if (!graph.Dag.Edges.TryGetValue(edgeId, out var edge))
+                    continue;
+                if (edge.Label.Length > 0)
+                    continue;
+                if (!context.CompletedNodes.ContainsKey(edge.ToId) && !context.FailedNodes.ContainsKey(edge.ToId))
                 {
-                    if (!graph.Dag.Edges.TryGetValue(edgeId, out var edge))
-                        continue;
-                    if (edge.Label.Length > 0)
-                        continue;
-                    if (!context.CompletedNodes.Contains(edge.ToId) && !context.FailedNodes.Contains(edge.ToId))
-                    {
-                        context.ReadyQueue.Enqueue(edge.ToId);
-                    }
-                }
-
-                if (graph.IsEndNode(nodeId))
-                {
-                    await context.StateLock.WaitAsync(ct).ConfigureAwait(false);
-                    try
-                    {
-                        goalState.Status = GoalStatus.Unmet;
-                        goalState.AchievedAt = _clock.GetUtcNow();
-                    }
-                    finally { context.StateLock.Release(); }
-                    return goalState;
-                }
-                continue;
-            }
-
-            context.CompletedNodes.Add(nodeId);
-
-            ExtractNegReviewMetadata(nodeId, payload, context);
-
-            await HandleUserInteractionAsync(nodeId, payload, context, ct).ConfigureAwait(false);
-
-            await HandleLoopObservationAsync(nodeId, payload, context, ct).ConfigureAwait(false);
-
-            if (ShouldTerminateLoop(nodeId, payload, context, graph))
-            {
-                _logger?.LogInformation("[GoalGraph] 循环终止条件满足: {NodeId} (迭代={Iter}, 负评={NegCount}, 协调者终止={CoordTerm})",
-                    nodeId, context.GlobalLoopIteration, payload.NegativeReviewCount, context.CoordinatorTerminated);
-
-                var endIds = graph.EndNodeIds;
-                await context.StateLock.WaitAsync(ct).ConfigureAwait(false);
-                try
-                {
-                    goalState.Status = GoalStatus.Achieved;
-                    goalState.AchievedAt = _clock.GetUtcNow();
-                }
-                finally { context.StateLock.Release(); }
-                return goalState;
-            }
-
-
-            var nextIds = context.GetNextNodeIds(nodeId, payload.Routes, payload.RouteMatchMode);
-
-            foreach (var nextId in nextIds)
-            {
-                if (context.CompletedNodes.Contains(nextId))
-                {
-                    await HandleRetryAsync(nextId, context, ct).ConfigureAwait(false);
-                }
-                else
-                {
-                    context.ReadyQueue.Enqueue(nextId);
+                    context.ReadyQueue.Enqueue(edge.ToId);
                 }
             }
 
-            if (graph.IsEndNode(nodeId) && payload.Status == GoalNodeStatus.Completed)
+            if (graph.IsEndNode(nodeId))
+                return NodeCompletionOutcome.GoalUnmet;
+
+            return NodeCompletionOutcome.Continue;
+        }
+
+        context.CompletedNodes.TryAdd(nodeId, default);
+
+        ExtractNegReviewMetadata(nodeId, payload, context);
+
+        await HandleUserInteractionAsync(nodeId, payload, context, ct).ConfigureAwait(false);
+        await HandleLoopObservationAsync(nodeId, payload, context, ct).ConfigureAwait(false);
+
+        if (ShouldTerminateLoop(nodeId, payload, context, graph))
+        {
+            _logger?.LogInformation("[GoalGraph] 循环终止条件满足: {NodeId} (迭代={Iter}, 负评={NegCount}, 协调者终止={CoordTerm})",
+                nodeId, context.GlobalLoopIteration, payload.NegativeReviewCount, context.CoordinatorTerminated);
+            return NodeCompletionOutcome.GoalAchieved;
+        }
+
+        var nextIds = context.GetNextNodeIds(nodeId, payload.Routes, payload.RouteMatchMode);
+        foreach (var nextId in nextIds)
+        {
+            if (context.CompletedNodes.ContainsKey(nextId))
             {
-                var allEndsDone = graph.EndNodeIds.All(end => context.CompletedNodes.Contains(end) || end == nodeId);
-                if (allEndsDone)
-                {
-                    await context.StateLock.WaitAsync(ct).ConfigureAwait(false);
-                    try
-                    {
-                        goalState.Status = GoalStatus.Achieved;
-                        goalState.AchievedAt = _clock.GetUtcNow();
-                    }
-                    finally { context.StateLock.Release(); }
-                    return goalState;
-                }
+                await HandleRetryAsync(nextId, context, ct).ConfigureAwait(false);
+            }
+            else
+            {
+                context.ReadyQueue.Enqueue(nextId);
             }
         }
 
-        return goalState;
+        if (graph.IsEndNode(nodeId) && payload.Status == GoalNodeStatus.Completed)
+        {
+            var allEndsDone = graph.EndNodeIds.All(end => context.CompletedNodes.ContainsKey(end) || end == nodeId);
+            if (allEndsDone)
+                return NodeCompletionOutcome.GoalAchieved;
+        }
+
+        return NodeCompletionOutcome.Continue;
+    }
+
+    /// <summary>
+    /// P1-4: 失败率终止检查 — 至少3个节点完成且失败率>50% 时返回 GoalUnmet。
+    /// 阈值3避免小图误触发（2节点1失败=50%不触发，3节点2失败=66%触发）。
+    /// </summary>
+    private NodeCompletionOutcome? CheckFailureRateTermination(GraphExecutionContext context)
+    {
+        var totalFinished = context.CompletedNodes.Count + context.FailedNodes.Count;
+        if (totalFinished >= 3 && (double)context.FailedNodes.Count / totalFinished > 0.5)
+        {
+            _logger?.LogInformation("[GoalGraph] 失败率过高终止: {Failed}/{Total}",
+                context.FailedNodes.Count, totalFinished);
+            return NodeCompletionOutcome.GoalUnmet;
+        }
+        return null;
+    }
+
+    private async Task SetGoalStatusAsync(GoalState goalState, GoalStatus status, GraphExecutionContext context, CancellationToken ct)
+    {
+        await context.StateLock.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            goalState.Status = status;
+            goalState.AchievedAt = _clock.GetUtcNow();
+        }
+        finally { context.StateLock.Release(); }
+    }
+
+    private enum NodeCompletionOutcome
+    {
+        Continue,
+        GoalAchieved,
+        GoalUnmet,
     }
 
     private async Task ExecuteNodeAsync(string nodeId, DagNode<GoalNodePayload> dagNode, GraphExecutionContext context, CancellationToken ct)
@@ -222,6 +326,19 @@ public sealed partial class GoalGraphEngine
                     _logger?.LogInformation("[GoalGraph] {NodeId}({Name}): {Message}", nodeId, payload.Name, result.Message);
                 }
             }
+
+            if (_conflictMessenger is not null && payload.Status == GoalNodeStatus.Completed)
+            {
+                var conflicts = await _conflictMessenger.DequeueConflictsAsync(nodeId, ct).ConfigureAwait(false);
+                if (conflicts.Count > 0)
+                {
+                    var conflictSummary = string.Join("; ", conflicts.Select(c => $"[{c.SourceNodeId}] {c.Content}"));
+                    payload.Output = string.IsNullOrWhiteSpace(payload.Output)
+                        ? $"[冲突通知] {conflictSummary}"
+                        : $"{payload.Output}\n[冲突通知] {conflictSummary}";
+                    _logger?.LogInformation("[GoalGraph] {NodeId} 拉取 {Count} 条冲突消息", nodeId, conflicts.Count);
+                }
+            }
         }
         catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !ct.IsCancellationRequested)
         {
@@ -256,14 +373,13 @@ public sealed partial class GoalGraphEngine
         }
 
         // === 完整模式：通过 IAgentService 执行（复用基础设施）===
-        if (_agentService is not null && (payload.Role != default || payload.Variant.HasValue))
+        if (_agentService is not null)
         {
             return await ExecuteViaAgentServiceAsync(nodeId, payload, instruction, context, ct).ConfigureAwait(false);
         }
 
-        var missingReason = _agentService is null ? "IAgentService 未注入" : "Role/Variant 未指定";
-        _logger?.LogError("[GoalGraph] {NodeId}({Name}): 无法执行 Agent 节点 — {Reason}。所有 Agent 节点必须通过 IAgentService 执行", nodeId, payload.Name, missingReason);
-        return NodeResult.Failed($"Agent 节点无法执行: {missingReason}。Goal 模板必须为每个 agent 节点指定 Role/Variant");
+        _logger?.LogError("[GoalGraph] {NodeId}({Name}): 无法执行 Agent 节点 — IAgentService 未注入。所有 Agent 节点必须通过 IAgentService 执行", nodeId, payload.Name);
+        return NodeResult.Failed("Agent 节点无法执行: IAgentService 未注入。Goal 模板必须为每个 agent 节点指定 Role/Variant");
     }
 
     /// <summary>
@@ -429,6 +545,32 @@ public sealed partial class GoalGraphEngine
     private async Task HandleRetryAsync(string targetNodeId, GraphExecutionContext context, CancellationToken ct)
     {
         var retryCount = context.RetryCount.GetValueOrDefault(targetNodeId, 0);
+
+        if (_nodeInspector is not null && context.Graph.Dag.Nodes.TryGetValue(targetNodeId, out var targetNode))
+        {
+            var output = targetNode.Payload.Output ?? string.Empty;
+            if (!string.IsNullOrWhiteSpace(output))
+            {
+                var score = await _nodeInspector.ScoreAsync(output, cancellationToken: ct).ConfigureAwait(false);
+                var decision = GoalRetryPolicy.Decide(score.Overall, retryCount);
+
+                _logger?.LogInformation("[GoalGraph] 分级重试决策: {NodeId} (分数={Score:F2}, 重试={Retries}, 决策={Decision})",
+                    targetNodeId, score.Overall, retryCount, decision);
+
+                switch (decision)
+                {
+                    case RetryDecision.Accept:
+                        return;
+                    case RetryDecision.Abandon:
+                        targetNode.Payload.Status = GoalNodeStatus.Failed;
+                        targetNode.Payload.ErrorMessage = $"质量分数过低放弃重试 (score={score.Overall:F2}, retries={retryCount})";
+                        return;
+                    case RetryDecision.RetryWithPatch:
+                        break;
+                }
+            }
+        }
+
         if (retryCount >= context.Graph.MaxRetriesPerNode)
         {
             _logger?.LogWarning("[GoalGraph] 回退超过最大重试次数: {NodeId} ({Retries}/{Max})",
@@ -453,8 +595,8 @@ public sealed partial class GoalGraphEngine
             node.Payload.CompletedAt = null;
             node.Payload.TokensUsed = 0;
             node.Version++;
-            context.CompletedNodes.Remove(node.Id);
-            context.FailedNodes.Remove(node.Id);
+            context.CompletedNodes.TryRemove(node.Id, out _);
+            context.FailedNodes.TryRemove(node.Id, out _);
         }
 
         context.RetryCount[targetNodeId] = retryCount + 1;
@@ -526,7 +668,7 @@ public sealed partial class GoalGraphEngine
     /// </summary>
     private async Task HandleLoopObservationAsync(string nodeId, GoalNodePayload payload, GraphExecutionContext context, CancellationToken ct)
     {
-        if (_loopObserver is null)
+        if (_nodeInspector is null)
             return;
 
         if (!nodeId.Equals("neg_review", StringComparison.Ordinal) && !nodeId.Equals("fix_neg", StringComparison.Ordinal))
@@ -544,7 +686,7 @@ public sealed partial class GoalGraphEngine
             NegativeReviewTaskId = payload.NegativeReviewTaskId,
         };
 
-        var shouldTerminate = await _loopObserver.ObserveAsync(observationContext, ct).ConfigureAwait(false);
+        var shouldTerminate = await _nodeInspector.ObserveLoopAsync(observationContext, ct).ConfigureAwait(false);
 
         if (shouldTerminate)
         {

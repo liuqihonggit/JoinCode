@@ -1,4 +1,4 @@
-﻿namespace Core.Hooks.Lifecycle;
+namespace Core.Hooks.Lifecycle;
 
 public interface IStopHookManager
 {
@@ -23,7 +23,7 @@ public sealed partial class StopHookResult
 }
 
 [Register]
-public sealed partial class StopHookManager : IStopHookManager
+public sealed partial class StopHookManager : ServiceEntity, IStopHookManager
 {
     private readonly IHookOrchestrator _orchestrator;
     [Inject] private readonly ILogger<StopHookManager>? _logger;

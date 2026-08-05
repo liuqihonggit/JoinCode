@@ -1,7 +1,7 @@
 namespace JoinCode.Dream.Pipeline;
 
 [Register]
-public sealed partial class DreamSessionScanMiddleware : IDreamMiddleware
+public sealed partial class DreamSessionScanMiddleware : ServiceEntity, IDreamMiddleware
 {
     private readonly ISessionScanner _sessionScanner;
     private readonly AutoDreamConfig _config;

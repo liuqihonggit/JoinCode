@@ -1,16 +1,28 @@
-﻿
+
 namespace Infrastructure.IO.Services.FileOps;
 
 /// <summary>
 /// Search service implementation - provides Glob and Grep search capabilities
 /// </summary>
 [Register]
-public sealed partial class SearchService : ISearchService
+public sealed partial class SearchService : ServiceEntity, ISearchService
 {
     [Inject] private readonly ILogger<SearchService>? _logger;
     [Inject] private readonly IFileOperationService _fileOperationService;
     [Inject] private readonly ITelemetryService? _telemetryService;
     [Inject] private readonly IFileSystem _fs;
+
+    public SearchService(
+        IFileOperationService fileOperationService,
+        IFileSystem fs,
+        ILogger<SearchService>? logger = null,
+        ITelemetryService? telemetryService = null)
+    {
+        _fileOperationService = fileOperationService;
+        _fs = fs;
+        _logger = logger;
+        _telemetryService = telemetryService;
+    }
 
     /// <inheritdoc />
     public async Task<GlobSearchResult> GlobSearchAsync(

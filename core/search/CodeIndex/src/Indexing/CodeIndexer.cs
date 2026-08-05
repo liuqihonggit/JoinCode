@@ -1,7 +1,7 @@
 namespace JoinCode.CodeIndex;
 
 [Register]
-public sealed partial class CodeIndexer : ICodeIndexer, IDisposable
+public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposable
 {
     private readonly InMemoryIndexStore _store;
     private readonly IFileSystem _fs;
@@ -458,7 +458,7 @@ public sealed partial class CodeIndexer : ICodeIndexer, IDisposable
             .ToList();
     }
 
-    public void Dispose()
+    protected override void OnDispose()
     {
         if (!DisposableHelper.TryMarkDisposed(ref _disposed))
         {

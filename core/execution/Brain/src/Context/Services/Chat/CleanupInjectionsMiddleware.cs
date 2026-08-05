@@ -7,8 +7,14 @@ namespace Core.Context;
 /// OnError=Continue：清理失败不影响管道继续执行
 /// </summary>
 [Register]
-public sealed partial class CleanupInjectionsMiddleware : IChatMiddleware
+public sealed partial class CleanupInjectionsMiddleware : ServiceEntity, IChatMiddleware
 {
+
+    public CleanupInjectionsMiddleware(IChatPreprocessor preprocessor, ILogger<CleanupInjectionsMiddleware>? logger = null)
+    {
+        _preprocessor = preprocessor;
+        _logger = logger;
+    }
     [Inject] private readonly IChatPreprocessor _preprocessor;
     [Inject] private readonly ILogger<CleanupInjectionsMiddleware>? _logger;
 

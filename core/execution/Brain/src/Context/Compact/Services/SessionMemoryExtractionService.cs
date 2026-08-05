@@ -6,7 +6,7 @@ namespace Core.Context.Compact;
 /// 核心消费点：SessionMemoryPromptTemplate.BuildSessionMemoryUpdatePrompt()
 /// </summary>
 [Register]
-public sealed partial class SessionMemoryExtractionService : ISessionMemoryExtractionService
+public sealed partial class SessionMemoryExtractionService : ServiceEntity, ISessionMemoryExtractionService
 {
     private readonly ISessionMemoryCompactService _compactService;
     private readonly IFileSystem _fileSystem;

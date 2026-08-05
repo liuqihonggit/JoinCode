@@ -98,7 +98,7 @@ public static class EnvironmentSection {
                     TimeoutMs = 3000
                 };
 
-                var procResult = processService.ExecuteAsync(options).GetAwaiter().GetResult();
+                var procResult = Task.Run(() => processService.ExecuteAsync(options)).GetAwaiter().GetResult();
                 var procOutput = string.IsNullOrWhiteSpace(procResult.StandardOutput) ? procResult.StandardError : procResult.StandardOutput;
                 return string.IsNullOrWhiteSpace(procOutput) ? null : procOutput.Trim();
             }

@@ -1,10 +1,10 @@
-﻿namespace JoinCode.Entry;
+namespace JoinCode.Entry;
 
 /// <summary>
 /// 会话初始化中间件 — 创建 CliSession 并初始化
 /// </summary>
 [Register]
-internal sealed partial class SessionInitStep : IMiddleware<StartupContext>
+internal sealed partial class SessionInitStep : ServiceEntity, IMiddleware<StartupContext>
 {
 
     public async Task InvokeAsync(StartupContext context, MiddlewareDelegate<StartupContext> next, CancellationToken ct)

@@ -1,7 +1,7 @@
-﻿namespace Services.CodeIndex;
+namespace Services.CodeIndex;
 
 [Register]
-public sealed partial class ProgressiveDisclosureService : IProgressiveDisclosure
+public sealed partial class ProgressiveDisclosureService : ServiceEntity, IProgressiveDisclosure
 {
     private readonly ICodeIndexer _indexer;
     [Inject] private readonly ILogger<ProgressiveDisclosureService>? _logger;

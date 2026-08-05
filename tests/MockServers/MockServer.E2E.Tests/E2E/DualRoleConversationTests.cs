@@ -371,26 +371,73 @@ public sealed class DualRoleConversationTests : IAsyncLifetime
         _output.WriteLine($"轮次数: {result.TurnRecords.Count}");
         _output.WriteLine($"断言: {result.AssertResults.Count(a => a.IsPassed)} 通过 / {result.AssertResults.Count(a => !a.IsPassed)} 失败");
 
+        var hasFailures = result.AssertResults.Any(a => !a.IsPassed);
+
         foreach (var turn in result.TurnRecords)
         {
             _output.WriteLine($"--- Turn: UserInput=\"{turn.UserInput}\"");
             _output.WriteLine($"    ToolCalls: {turn.ToolCalls.Count}");
+
+            foreach (var tc in turn.ToolCalls)
+            {
+                var status = tc.IsSuccess ? "OK" : "FAIL";
+                var resultPreview = tc.Result.Length > 200 ? tc.Result[..200] + "..." : tc.Result;
+                _output.WriteLine($"    [{status}] {tc.ToolName}: {resultPreview}");
+            }
+
             _output.WriteLine($"    AssistantResponse: {turn.AssistantResponse[..Math.Min(100, turn.AssistantResponse.Length)]}...");
             _output.WriteLine($"    Errors: {turn.Errors.Count}");
+
+            if (turn.Errors.Count > 0)
+            {
+                foreach (var err in turn.Errors.Take(10))
+                {
+                    var errPreview = err.Length > 300 ? err[..300] + "..." : err;
+                    _output.WriteLine($"    ERROR: {errPreview}");
+                }
+            }
         }
 
         foreach (var assert in result.AssertResults.Where(a => !a.IsPassed))
         {
-            _output.WriteLine($"FAIL: {assert.Type} Expected=\"{assert.Expected}\" Desc=\"{assert.Description}\"");
+            var actual = string.IsNullOrWhiteSpace(assert.ActualValue) ? "" : $" Actual=\"{Truncate(assert.ActualValue, 200)}\"";
+            _output.WriteLine($"FAIL: {assert.Type} Expected=\"{assert.Expected}\"{actual} Desc=\"{assert.Description}\"");
+        }
+
+        if (hasFailures)
+        {
+            _output.WriteLine("[DualRole] === 诊断: RawOutput 片段 ===");
+            foreach (var turn in result.TurnRecords)
+            {
+                if (turn.RawOutput.Length > 0)
+                {
+                    var rawPreview = turn.RawOutput.Length > 2000 ? turn.RawOutput[..2000] + "..." : turn.RawOutput;
+                    _output.WriteLine($"--- Turn RawOutput (len={turn.RawOutput.Length}):");
+                    _output.WriteLine(rawPreview);
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(result.StderrOutput))
+            {
+                var stderrPreview = result.StderrOutput.Length > 2000 ? result.StderrOutput[..2000] + "..." : result.StderrOutput;
+                _output.WriteLine($"--- StderrOutput (len={result.StderrOutput.Length}):");
+                _output.WriteLine(stderrPreview);
+            }
         }
     }
+
+    private static string Truncate(string s, int maxLen) =>
+        string.IsNullOrEmpty(s) ? s : s.Length <= maxLen ? s : s[..maxLen] + "...";
 
     private static string FormatFailures(ConversationResult result)
     {
         var failures = result.AssertResults.Where(a => !a.IsPassed).ToList();
         if (failures.Count == 0) return "(无)";
         return string.Join("; ", failures.Select(f =>
-            $"{f.Type}: Expected=\"{f.Expected}\" Desc=\"{f.Description}\""));
+        {
+            var actual = string.IsNullOrWhiteSpace(f.ActualValue) ? "" : $", Actual=\"{Truncate(f.ActualValue, 100)}\"";
+            return $"{f.Type}: Expected=\"{f.Expected}\"{actual} Desc=\"{f.Description}\"";
+        }));
     }
 
     private static string FormatCacheBreaks(PrefixCacheAnalysis analysis)

@@ -1,4 +1,4 @@
-﻿namespace Core.Query.UsdBudget;
+namespace Core.Query.UsdBudget;
 
 public interface IUsdBudgetManager
 {

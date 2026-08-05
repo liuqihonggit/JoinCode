@@ -1,12 +1,17 @@
-﻿namespace Services.Web;
+namespace Services.Web;
 
 /// <summary>
 /// 缓存写入中间件 — 将处理后的内容写入缓存
 /// Order=600 在内容处理之后执行
 /// </summary>
 [Register]
-public sealed partial class WebCacheWriteMiddleware : IWebMiddleware
+public sealed partial class WebCacheWriteMiddleware : ServiceEntity, IWebMiddleware
 {
+
+    public WebCacheWriteMiddleware(IWebFetchCache cache)
+    {
+        _cache = cache;
+    }
     [Inject] private readonly IWebFetchCache _cache;
 
     /// <inheritdoc />

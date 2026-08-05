@@ -53,3 +53,4 @@ global using Infrastructure.Pipeline;
 global using Infrastructure.Subprocess;
 global using Infrastructure.Utils.Resilience;
 global using QRCoder;
+global using JoinCode.Abstractions.Entity;

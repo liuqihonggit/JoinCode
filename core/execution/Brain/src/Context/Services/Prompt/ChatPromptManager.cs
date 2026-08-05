@@ -5,8 +5,15 @@ namespace Core.Context;
 /// 提取自 ChatService 中的 _systemPromptBuilder + _reminderManager 使用逻辑
 /// </summary>
 [Register(typeof(IChatPromptManager))]
-public sealed partial class ChatPromptManager : IChatPromptManager
+public sealed partial class ChatPromptManager : ServiceEntity, IChatPromptManager
 {
+
+    public ChatPromptManager(SystemPromptBuilder systemPromptBuilder, ISystemReminderManager reminderManager, ILogger<ChatPromptManager>? logger = null)
+    {
+        _systemPromptBuilder = systemPromptBuilder;
+        _reminderManager = reminderManager;
+        _logger = logger;
+    }
     [Inject] private readonly SystemPromptBuilder _systemPromptBuilder;
     [Inject] private readonly ISystemReminderManager _reminderManager;
     [Inject] private readonly ILogger<ChatPromptManager>? _logger;

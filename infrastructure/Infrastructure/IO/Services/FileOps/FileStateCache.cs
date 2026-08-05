@@ -8,7 +8,7 @@ namespace IO;
 /// Mirrors TS FileStateCache with normalized path keys and size limits.
 /// </summary>
 [Register]
-public sealed partial class FileStateCache : IFileStateCache
+public sealed partial class FileStateCache : ServiceEntity, IFileStateCache
 {
     private const int DefaultMaxEntries = 100;
     private const long DefaultMaxSizeBytes = 25 * 1024 * 1024; // 25MB

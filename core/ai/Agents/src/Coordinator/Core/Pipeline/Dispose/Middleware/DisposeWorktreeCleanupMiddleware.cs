@@ -1,8 +1,14 @@
 namespace Core.Agents.Coordinator;
 
 [Register(typeof(IAgentDisposeMiddleware))]
-public sealed partial class DisposeWorktreeCleanupMiddleware : IAgentDisposeMiddleware
+public sealed partial class DisposeWorktreeCleanupMiddleware : ServiceEntity, IAgentDisposeMiddleware
 {
+
+    public DisposeWorktreeCleanupMiddleware(IAgentWorktreeManager worktreeManager, ILogger<DisposeWorktreeCleanupMiddleware> logger)
+    {
+        _worktreeManager = worktreeManager;
+        _logger = logger;
+    }
     [Inject] private readonly IAgentWorktreeManager _worktreeManager;
     [Inject] private readonly ILogger<DisposeWorktreeCleanupMiddleware> _logger;
 

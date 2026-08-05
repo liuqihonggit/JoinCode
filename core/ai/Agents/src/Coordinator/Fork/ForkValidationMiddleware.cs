@@ -1,11 +1,16 @@
-﻿namespace Core.Agents.Coordinator;
+namespace Core.Agents.Coordinator;
 
 /// <summary>
 /// Fork 验证中间件 — 递归防护和深度限制检查
 /// </summary>
 [Register(typeof(IForkMiddleware))]
-public sealed partial class ForkValidationMiddleware : IForkMiddleware
+public sealed partial class ForkValidationMiddleware : ServiceEntity, IForkMiddleware
 {
+
+    public ForkValidationMiddleware(ILogger<ForkValidationMiddleware>? logger = null)
+    {
+        _logger = logger;
+    }
     [Inject] private readonly ILogger<ForkValidationMiddleware>? _logger;
 
     /// <summary>验证最先执行</summary>

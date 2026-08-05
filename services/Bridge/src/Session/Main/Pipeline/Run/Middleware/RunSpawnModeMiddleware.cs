@@ -1,8 +1,14 @@
 namespace Core.Bridge;
 
 [Register(typeof(IBridgeRunMiddleware))]
-public sealed partial class RunSpawnModeMiddleware : IBridgeRunMiddleware
+public sealed partial class RunSpawnModeMiddleware : ServiceEntity, IBridgeRunMiddleware
 {
+
+    public RunSpawnModeMiddleware(BridgeMainDeps deps, ILogger<RunSpawnModeMiddleware> logger)
+    {
+        _deps = deps;
+        _logger = logger;
+    }
     [Inject] private readonly BridgeMainDeps _deps;
     [Inject] private readonly ILogger<RunSpawnModeMiddleware> _logger;
 

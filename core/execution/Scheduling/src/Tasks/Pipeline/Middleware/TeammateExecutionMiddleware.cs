@@ -1,10 +1,18 @@
-﻿namespace Core.Scheduling.Tasks;
+namespace Core.Scheduling.Tasks;
 
 using JoinCode.Abstractions.Pipeline;
 
 [Register(typeof(ITeammateExecutionMiddleware))]
-public sealed partial class TeammateExecutionMiddleware : ITeammateExecutionMiddleware
+public sealed partial class TeammateExecutionMiddleware : ServiceEntity, ITeammateExecutionMiddleware
 {
+
+    public TeammateExecutionMiddleware(IAgentLifecycleManager agentLifecycleManager, IClockService clock, ITelemetryService? telemetryService = null, ILogger<TeammateExecutionMiddleware>? logger = null)
+    {
+        _agentLifecycleManager = agentLifecycleManager;
+        _clock = clock;
+        _telemetryService = telemetryService;
+        _logger = logger;
+    }
     [Inject] private readonly IAgentLifecycleManager _agentLifecycleManager;
     [Inject] private readonly ITelemetryService? _telemetryService;
     [Inject] private readonly ILogger<TeammateExecutionMiddleware>? _logger;

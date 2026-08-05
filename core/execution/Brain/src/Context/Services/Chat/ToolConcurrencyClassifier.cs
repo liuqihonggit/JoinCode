@@ -24,7 +24,7 @@ public interface IToolConcurrencyClassifier
 /// 静态分类由源码生成器生成 SafeToolNames（通过 DI 注入），动态分类（Bash 只读判断）由委托注入
 /// </summary>
 [Register(typeof(IToolConcurrencyClassifier))]
-public sealed partial class ToolConcurrencyClassifier : IToolConcurrencyClassifier
+public sealed partial class ToolConcurrencyClassifier : ServiceEntity, IToolConcurrencyClassifier
 {
     private readonly FrozenSet<string> _safeToolNames;
     private readonly Func<string, bool>? _isCommandReadOnly;

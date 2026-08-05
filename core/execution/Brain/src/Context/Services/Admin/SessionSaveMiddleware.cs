@@ -7,8 +7,13 @@ namespace Core.Context;
 /// 无业务服务依赖，仅使用 context.ContextManager
 /// </summary>
 [Register(typeof(IChatAdminMiddleware))]
-public sealed partial class SessionSaveMiddleware : IChatAdminMiddleware
+public sealed partial class SessionSaveMiddleware : ServiceEntity, IChatAdminMiddleware
 {
+
+    public SessionSaveMiddleware(ILogger<SessionSaveMiddleware>? logger = null)
+    {
+        _logger = logger;
+    }
     [Inject] private readonly ILogger<SessionSaveMiddleware>? _logger;
 
 

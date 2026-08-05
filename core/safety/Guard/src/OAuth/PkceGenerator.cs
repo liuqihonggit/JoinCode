@@ -1,4 +1,4 @@
-﻿
+
 namespace Services.OAuth;
 
 /// <summary>
@@ -49,7 +49,7 @@ public sealed record PkceParameters
 /// 使用 S256 方法
 /// </summary>
 [Register]
-public sealed partial class PkceGenerator : IPkceGenerator
+public sealed partial class PkceGenerator : ServiceEntity, IPkceGenerator
 {
     private const int MinVerifierLength = 43;
     private const int MaxVerifierLength = 128;

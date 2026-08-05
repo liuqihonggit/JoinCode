@@ -35,11 +35,10 @@ public sealed record ToolCallResult
 /// 负责权限检查、Hook 编排、工具执行
 /// </summary>
 [Register]
-public sealed partial class ChatToolOrchestrator : IChatToolOrchestrator
+public sealed partial class ChatToolOrchestrator : ServiceEntity, IChatToolOrchestrator
 {
     private readonly IToolRegistry? _toolRegistry;
-    private readonly IPermissionChecker? _permissionChecker;
-    private readonly IHookOrchestrator? _hookOrchestrator;
+    private readonly IToolExecutionGateway? _toolExecutionGateway;
     [Inject] private readonly ILogger<ChatToolOrchestrator>? _logger;
 
     /// <summary>
@@ -47,13 +46,11 @@ public sealed partial class ChatToolOrchestrator : IChatToolOrchestrator
     /// </summary>
     public ChatToolOrchestrator(
         IToolRegistry? toolRegistry = null,
-        IPermissionChecker? permissionChecker = null,
-        IHookOrchestrator? hookOrchestrator = null,
+        IToolExecutionGateway? toolExecutionGateway = null,
         ILogger<ChatToolOrchestrator>? logger = null)
     {
         _toolRegistry = toolRegistry;
-        _permissionChecker = permissionChecker;
-        _hookOrchestrator = hookOrchestrator;
+        _toolExecutionGateway = toolExecutionGateway;
         _logger = logger;
     }
 
@@ -74,11 +71,11 @@ public sealed partial class ChatToolOrchestrator : IChatToolOrchestrator
         Dictionary<string, JsonElement>? toolCallArguments,
         CancellationToken ct)
     {
-        if (_toolRegistry is null)
+        if (_toolExecutionGateway is null)
         {
             return new ToolCallResult
             {
-                ResultText = FormatToolError($"工具注册表不可用: {toolCallName}"),
+                ResultText = FormatToolError($"工具执行网关不可用: {toolCallName}"),
                 IsError = true
             };
         }
@@ -104,14 +101,7 @@ public sealed partial class ChatToolOrchestrator : IChatToolOrchestrator
 
             var combinedRepairHint = argumentRepairHint;
 
-            // 权限检查 — 对齐 TS 版 hasPermissionsToUseTool
-            await CheckPermissionAsync(toolCallName, arguments, ct).ConfigureAwait(false);
-
-            // Hook: PreToolUse — 工具执行前触发 Hook 编排
-            await ExecutePreHooksAsync(toolCallName, arguments, ct).ConfigureAwait(false);
-
-            var toolRegistry = _toolRegistry ?? throw new InvalidOperationException("Tool registry not available.");
-            var toolResult = await toolRegistry.ExecuteToolAsync(toolCallName, arguments ?? new Dictionary<string, JsonElement>(), ct).ConfigureAwait(false);
+            var toolResult = await _toolExecutionGateway.ExecuteAsync(toolCallName, arguments ?? new Dictionary<string, JsonElement>(), ct).ConfigureAwait(false);
 
             // 构建结果文本
             string resultText;
@@ -126,9 +116,6 @@ public sealed partial class ChatToolOrchestrator : IChatToolOrchestrator
                         .Select(c => toolResult.IsError ? $"Error: {c.Text}" : c.Text)
                         .Where(t => !string.IsNullOrEmpty(t)));
             }
-
-            // Hook: PostToolUse — 工具执行后触发 Hook 编排
-            await ExecutePostHooksAsync(toolCallName, resultText, ct).ConfigureAwait(false);
 
             if (combinedRepairHint is not null)
             {
@@ -165,6 +152,16 @@ public sealed partial class ChatToolOrchestrator : IChatToolOrchestrator
         }
         catch (Exception ex)
         {
+            // 多级报错分类：可重试的基础设施故障（限流/超时/5xx）在错误文本中标注，
+            // 让 LLM 知道可以重试；致命/逻辑错误保持原样。不 rethrow — 保持工具循环契约，
+            // 由模型自行决定修复或放弃（对齐 TS tool_use_error 行为）。
+            if (ex is WorkflowException { IsRetryable: true } retryableEx)
+            {
+                _logger?.LogWarning(retryableEx, "[ChatToolOrchestrator] 工具调用可重试失败: {ToolName}, Code={Code}, Retry={Retry}",
+                    toolCallName, retryableEx.ErrorCode, retryableEx.SuggestedRetryCount);
+                return new ToolCallResult { ResultText = FormatToolError($"工具调用失败（可重试）: {ex.Message}"), IsError = true };
+            }
+
             _logger?.LogError(ex, "[ChatToolOrchestrator] 工具调用失败: {ToolName}", toolCallName);
             return new ToolCallResult { ResultText = FormatToolError($"工具调用失败: {ex.Message}"), IsError = true };
         }
@@ -186,93 +183,4 @@ public sealed partial class ChatToolOrchestrator : IChatToolOrchestrator
         return $"<tool_use_error>{message}</tool_use_error>";
     }
 
-    /// <summary>
-    /// 权限检查 — 对齐 TS 版 hasPermissionsToUseTool
-    /// </summary>
-    private async Task CheckPermissionAsync(string toolCallName, Dictionary<string, JsonElement>? arguments, CancellationToken ct)
-    {
-        if (_permissionChecker is null) return;
-
-        var permResult = await _permissionChecker.CheckPermissionAsync(toolCallName, arguments).ConfigureAwait(false);
-        if (permResult.ConfirmationRequired)
-        {
-            // 提取 RuleContent — 对齐 TS 版 ruleContent
-            // WebFetch 使用 "domain:hostname" 格式
-            string? ruleContent = null;
-            if (string.Equals(toolCallName, WebToolNameConstants.WebFetch, StringComparison.OrdinalIgnoreCase)
-                && arguments != null
-                && arguments.TryGetValue("url", out var urlEl)
-                && urlEl.ValueKind == JsonValueKind.String)
-            {
-                try
-                {
-                    if (Uri.TryCreate(urlEl.GetString(), UriKind.Absolute, out var parsed))
-                        ruleContent = $"domain:{parsed.Host}";
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Trace.WriteLine($"URL parsing failed for permission rule: {ex.Message}");
-                }
-            }
-
-            throw new PermissionPendingConfirmationException(
-                toolCallName, permResult.Reason ?? $"工具 '{toolCallName}' 需要确认",
-                ruleContent: ruleContent);
-        }
-
-        if (!permResult.IsApproved)
-        {
-            throw PermissionDeniedException.ToolDenied(
-                toolCallName,
-                permResult.Reason ?? "权限被拒绝");
-        }
-    }
-
-    /// <summary>
-    /// Hook: PreToolUse — 工具执行前触发 Hook 编排
-    /// </summary>
-    private async Task ExecutePreHooksAsync(string toolCallName, Dictionary<string, JsonElement>? arguments, CancellationToken ct)
-    {
-        if (_hookOrchestrator is null) return;
-
-        var prePayload = new Dictionary<string, JsonElement>
-        {
-            ["tool_name"] = JsonSerializer.SerializeToElement(toolCallName, ChatServiceJsonContext.Default.String),
-            ["tool_input"] = arguments != null
-                ? JsonSerializer.SerializeToElement(arguments, ChatServiceJsonContext.Default.DictionaryStringJsonElement)
-                : JsonSerializer.SerializeToElement((string?)null, ChatServiceJsonContext.Default.String)
-        };
-
-        await foreach (var hookResult in _hookOrchestrator.ExecuteHooksAsync(
-            HookEvent.PreToolUse, prePayload,
-            matcher: toolCallName, cancellationToken: ct).ConfigureAwait(false))
-        {
-            if (hookResult.Outcome == HookOutcome.Blocking)
-            {
-                throw PermissionDeniedException.ToolDenied(toolCallName,
-                    hookResult.Message ?? "Hook 阻止了工具执行");
-            }
-        }
-    }
-
-    /// <summary>
-    /// Hook: PostToolUse — 工具执行后触发 Hook 编排
-    /// </summary>
-    private async Task ExecutePostHooksAsync(string toolCallName, string toolResultText, CancellationToken ct)
-    {
-        if (_hookOrchestrator is null) return;
-
-        var postPayload = new Dictionary<string, JsonElement>
-        {
-            ["tool_name"] = JsonSerializer.SerializeToElement(toolCallName, ChatServiceJsonContext.Default.String),
-            ["tool_result"] = JsonSerializer.SerializeToElement(toolResultText ?? "", ChatServiceJsonContext.Default.String)
-        };
-
-        await foreach (var _ in _hookOrchestrator.ExecuteHooksAsync(
-            HookEvent.PostToolUse, postPayload,
-            matcher: toolCallName, cancellationToken: ct).ConfigureAwait(false))
-        {
-            // 消费所有结果，PostToolUse 通常不阻塞
-        }
-    }
 }

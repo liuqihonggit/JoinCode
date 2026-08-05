@@ -1,8 +1,8 @@
-﻿
+
 namespace Api.LLM;
 
 [Register]
-public sealed partial class ChatClient : IChatClient
+public sealed partial class ChatClient : ServiceEntity, IChatClient
 {
     private readonly IQueryService _chatCompletionService;
     private readonly ToolCollection _plugins;

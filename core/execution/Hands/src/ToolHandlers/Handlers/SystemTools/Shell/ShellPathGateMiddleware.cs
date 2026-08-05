@@ -1,17 +1,17 @@
 namespace Tools.Shell;
 
 /// <summary>
-/// Shell 路径门控中间件 — 根据当前平台和目标 Shell 类型转换路径格式
-/// 确保 LLM 输出的路径在传递给执行层之前已转换为正确格式：
-///   - Windows + Bash(Git Bash/WSL) → POSIX 格式
-///   - Windows + PowerShell/Cmd/Python → Windows 格式
-///   - Linux/Mac → POSIX 格式
-/// 覆盖 working_directory 和 command 中的路径片段
-/// UNC 路径 + Bash 组合时记录警告（Git Bash 对 UNC 支持有限）
+/// Shell 路径门控中间件 — 根据当前平台和目标执行器类型转换路径格式
 /// </summary>
 [Register]
-public sealed partial class ShellPathGateMiddleware : IShellMiddleware
+public sealed partial class ShellPathGateMiddleware : ServiceEntity, IShellMiddleware
 {
+
+    public ShellPathGateMiddleware(IEnvironmentProbeService probeService, ILogger<ShellPathGateMiddleware>? logger = null)
+    {
+        _probeService = probeService;
+        _logger = logger;
+    }
     [Inject] private readonly IEnvironmentProbeService _probeService;
     [Inject] private readonly ILogger<ShellPathGateMiddleware>? _logger;
 
@@ -41,9 +41,9 @@ public sealed partial class ShellPathGateMiddleware : IShellMiddleware
         return next(context, ct);
     }
 
-    private void WarnUncPathForBash(string path, IShellProvider provider)
+    private void WarnUncPathForBash(string path, ISystemActuator actuator)
     {
-        if (provider.Type != ShellType.Bash) return;
+        if (actuator.Kind != SystemActuatorKind.Bash) return;
         if (!PathConverter.LooksLikeWindowsPath(path) && !path.StartsWith("//")) return;
 
         var normalized = path.Replace('\\', '/');

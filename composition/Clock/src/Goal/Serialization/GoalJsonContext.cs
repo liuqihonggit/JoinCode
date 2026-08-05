@@ -9,6 +9,8 @@ namespace Core.Goal;
 [JsonSerializable(typeof(FixNegOutputJson))]
 [JsonSerializable(typeof(DecompositionAnalysisJson))]
 [JsonSerializable(typeof(GradingAnalysisJson))]
+[JsonSerializable(typeof(JoinCode.Abstractions.Models.Goal.GoalState))]
+[JsonSerializable(typeof(JoinCode.Abstractions.Models.Goal.GoalEvaluationResult))]
 [JsonSourceGenerationOptions(AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
 public partial class GoalJsonContext : JsonSerializerContext;
 
@@ -88,6 +90,15 @@ public sealed class DecompositionAnalysisJson
 
     [JsonPropertyName("reason")]
     public string Reason { get; set; } = string.Empty;
+
+    [JsonPropertyName("complexity")]
+    public string Complexity { get; set; } = "medium";
+
+    [JsonPropertyName("mode")]
+    public string Mode { get; set; } = "A";
+
+    [JsonPropertyName("rationale")]
+    public string Rationale { get; set; } = string.Empty;
 
     [JsonPropertyName("subTasks")]
     public List<SubTaskDefinitionJson> SubTasks { get; set; } = [];

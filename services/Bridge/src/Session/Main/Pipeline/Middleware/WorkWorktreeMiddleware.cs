@@ -3,8 +3,14 @@ namespace Core.Bridge;
 using JoinCode.Abstractions.Pipeline;
 
 [Register(typeof(IHandleWorkMiddleware))]
-public sealed partial class WorkWorktreeMiddleware : IHandleWorkMiddleware
+public sealed partial class WorkWorktreeMiddleware : ServiceEntity, IHandleWorkMiddleware
 {
+
+    public WorkWorktreeMiddleware(ILogger<WorkWorktreeMiddleware>? logger = null, IAgentWorktreeService? worktreeService = null)
+    {
+        _logger = logger;
+        _worktreeService = worktreeService;
+    }
     [Inject] private readonly ILogger<WorkWorktreeMiddleware>? _logger;
     [Inject] private readonly IAgentWorktreeService? _worktreeService;
 

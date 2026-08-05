@@ -152,9 +152,9 @@ public class ToolScoreSettings
     public int FailDelta { get; set; } = -5;
 
     /// <summary>
-    /// 熔断阈值 — 连续失败次数达到此值时自动禁用工具
+    /// 提示词阈值 — 连续失败次数达到此值时注入提示词提醒LLM换策略（不禁用工具）
     /// </summary>
-    public int CircuitBreakerThreshold { get; set; } = 3;
+    public int WarningThreshold { get; set; } = 3;
 
     /// <summary>
     /// 评分下限
@@ -183,7 +183,7 @@ public class ToolScoreSettings
     {
         SuccessDelta = SuccessDelta,
         FailDelta = FailDelta,
-        CircuitBreakerThreshold = CircuitBreakerThreshold,
+        WarningThreshold = WarningThreshold,
         ScoreMin = ScoreMin,
         ScoreMax = ScoreMax,
         DecayRatePerHour = DecayRatePerHour,

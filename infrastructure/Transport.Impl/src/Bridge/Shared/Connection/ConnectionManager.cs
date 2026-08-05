@@ -1,4 +1,4 @@
-﻿using JoinCode.Abstractions.Attributes;
+using JoinCode.Abstractions.Attributes;
 
 namespace JoinCode.Transport.Bridge;
 
@@ -8,6 +8,7 @@ namespace JoinCode.Transport.Bridge;
 /// 连接管理器 - 管理传输连接生命周期和重连逻辑
 /// </summary>
 [Register]
+[AllowSkipEntity("实现 IAsyncDisposable，与 ServiceEntity 的 IDisposable 冲突，保留异步释放模式")]
 public sealed partial class ConnectionManager : IConnectionManager
 {
     private readonly ILogger? _logger;

@@ -4,7 +4,7 @@ using TreeSitter;
 namespace JoinCode.Abstractions.Security.Shell;
 
 [Register]
-public sealed partial class BashAstSecurityWalker : IBashAstSecurityWalker, IDisposable
+public sealed partial class BashAstSecurityWalker : ServiceEntity, IBashAstSecurityWalker, IDisposable
 {
     private const string CmdsubPlaceholder = "__CMDSUB_OUTPUT__";
     private const string VarPlaceholder = "__TRACKED_VAR__";
@@ -66,7 +66,7 @@ public sealed partial class BashAstSecurityWalker : IBashAstSecurityWalker, IDis
         return new BashAstSecurityResult.Simple([.. commands]);
     }
 
-    public void Dispose()
+    protected override void OnDispose()
     {
         if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
         _parser.Dispose();

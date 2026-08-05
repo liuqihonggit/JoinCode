@@ -1,7 +1,7 @@
-﻿namespace Core.Hooks.Lifecycle;
+namespace Core.Hooks.Lifecycle;
 
 [Register]
-public sealed partial class SessionStartHookManager : ISessionStartHookManager
+public sealed partial class SessionStartHookManager : ServiceEntity, ISessionStartHookManager
 {
     private readonly IHookOrchestrator _orchestrator;
     [Inject] private readonly ILogger<SessionStartHookManager>? _logger;

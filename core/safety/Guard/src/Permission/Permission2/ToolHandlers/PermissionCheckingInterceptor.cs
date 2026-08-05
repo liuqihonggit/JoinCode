@@ -5,7 +5,7 @@ namespace Core.Permission;
 /// 权限检查拦截器 - 在工具调用前进行权限验证
 /// </summary>
 [Register]
-public sealed partial class PermissionCheckingInterceptor : IPermissionCheckingInterceptor, IDisposable
+public sealed partial class PermissionCheckingInterceptor : ServiceEntity, IPermissionCheckingInterceptor, IDisposable
 {
     private readonly IToolPermissionManager _permissionManager;
     [Inject] private readonly ILogger<PermissionCheckingInterceptor>? _logger;
@@ -152,7 +152,7 @@ public sealed partial class PermissionCheckingInterceptor : IPermissionCheckingI
     }
 
     /// <inheritdoc />
-    public void Dispose()
+    protected override void OnDispose()
     {
         if (_disposed)
         {

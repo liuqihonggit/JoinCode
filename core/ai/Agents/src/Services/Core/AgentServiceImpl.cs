@@ -13,8 +13,9 @@ public sealed record AgentServiceDependencies(
     JoinCode.Abstractions.Interfaces.IAgentMcpServerManager? McpServerManager = null);
 
 [Register(typeof(JoinCode.Abstractions.Interfaces.IAgentService))]
-public sealed partial class AgentServiceImpl : JoinCode.Abstractions.Interfaces.IAgentService, IDisposable
+public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstractions.Interfaces.IAgentService, IDisposable
 {
+
     private readonly IAgentLifecycleManager _lifecycleManager;
     private readonly JoinCode.Abstractions.Interfaces.IAgentDefinitionProvider _definitionProvider;
     private readonly JoinCode.Abstractions.Interfaces.IAgentRoleRegistry _roleRegistry;
@@ -662,7 +663,7 @@ public sealed partial class AgentServiceImpl : JoinCode.Abstractions.Interfaces.
         };
     }
 
-    public void Dispose()
+    protected override void OnDispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
 

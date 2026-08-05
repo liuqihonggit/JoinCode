@@ -3,7 +3,7 @@ namespace Services.Voice;
 
 [Register(typeof(IVoiceService))]
 [Register(typeof(JoinCode.Abstractions.Interfaces.IVoiceService))]
-public sealed partial class VoiceService : IVoiceService, JoinCode.Abstractions.Interfaces.IVoiceService, IDisposable
+public sealed partial class VoiceService : ServiceEntity, IVoiceService, JoinCode.Abstractions.Interfaces.IVoiceService, IDisposable
 {
     private readonly VoiceOptions _options;
     private readonly IResilientHttpClientProvider _resilientProvider;
@@ -264,7 +264,7 @@ public sealed partial class VoiceService : IVoiceService, JoinCode.Abstractions.
         StateChanged?.Invoke(this, newState);
     }
 
-    public void Dispose()
+    protected override void OnDispose()
     {
         _recordingCts?.Cancel();
         _recordingCts?.Dispose();

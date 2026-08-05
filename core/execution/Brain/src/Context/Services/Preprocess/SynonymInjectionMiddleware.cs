@@ -6,7 +6,7 @@ namespace Core.Context;
 /// 同义词注入中间件 — 检测同义词并注入补充上下文
 /// </summary>
 [Register(typeof(IAnalyzePreprocessMiddleware))]
-public sealed partial class SynonymInjectionMiddleware : IAnalyzePreprocessMiddleware
+public sealed partial class SynonymInjectionMiddleware : ServiceEntity, IAnalyzePreprocessMiddleware
 {
     private readonly ISynonymMap _synonymMap;
     private readonly ISystemReminderManager _reminderManager;

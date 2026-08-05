@@ -4,8 +4,16 @@ namespace Core.Agents.Worktree;
 /// Worktree 会话保存中间件 — 保存会话 + 遥测记录
 /// </summary>
 [Register(typeof(IWorktreeCreateMiddleware))]
-public sealed partial class WorktreeSessionSaveMiddleware : IWorktreeCreateMiddleware
+public sealed partial class WorktreeSessionSaveMiddleware : ServiceEntity, IWorktreeCreateMiddleware
 {
+
+    public WorktreeSessionSaveMiddleware(Lazy<IWorktreePipelineOperations> worktreeService, IClockService clock, ITelemetryService? telemetryService = null, ILogger<WorktreeSessionSaveMiddleware>? logger = null)
+    {
+        _worktreeService = worktreeService;
+        _clock = clock;
+        _telemetryService = telemetryService;
+        _logger = logger;
+    }
     [Inject] private readonly Lazy<IWorktreePipelineOperations> _worktreeService;
     [Inject] private readonly ITelemetryService? _telemetryService;
     [Inject] private readonly ILogger<WorktreeSessionSaveMiddleware>? _logger;

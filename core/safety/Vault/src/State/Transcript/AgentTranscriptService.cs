@@ -1,7 +1,7 @@
-﻿namespace State;
+namespace State;
 
 [Register(typeof(JoinCode.Abstractions.Interfaces.IAgentTranscriptService))]
-public sealed partial class AgentTranscriptService : JoinCode.Abstractions.Interfaces.IAgentTranscriptService, IDisposable
+public sealed partial class AgentTranscriptService : ServiceEntity, JoinCode.Abstractions.Interfaces.IAgentTranscriptService, IDisposable
 {
     private readonly string _sessionsDirectory;
     [Inject] private readonly ILogger<AgentTranscriptService>? _logger;
@@ -159,7 +159,7 @@ public sealed partial class AgentTranscriptService : JoinCode.Abstractions.Inter
         DirectoryHelper.EnsureDirectoryExists(_fs, dir);
     }
 
-    public void Dispose()
+    protected override void OnDispose()
     {
         _writer.Dispose();
         _metaLock.Dispose();

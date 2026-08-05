@@ -5,8 +5,16 @@ namespace Core.Configuration;
 /// 双变量切换模式：构建新快照 → 原子替换引用，读取端无锁
 /// </summary>
 [Register(typeof(ISettingsMiddleware))]
-public sealed partial class ToolScoreSettingsMiddleware : ISettingsMiddleware
+public sealed partial class ToolScoreSettingsMiddleware : ServiceEntity, ISettingsMiddleware
 {
+
+    public ToolScoreSettingsMiddleware(IToolHealthMonitor? healthMonitor = null, IHyperedgeReloadable? hyperedgeReloadable = null, ISearchScopeReloadable? searchScopeReloadable = null, ILogger<ToolScoreSettingsMiddleware>? logger = null)
+    {
+        _healthMonitor = healthMonitor;
+        _hyperedgeReloadable = hyperedgeReloadable;
+        _searchScopeReloadable = searchScopeReloadable;
+        _logger = logger;
+    }
     [Inject] private readonly IToolHealthMonitor? _healthMonitor;
     [Inject] private readonly IHyperedgeReloadable? _hyperedgeReloadable;
     [Inject] private readonly ISearchScopeReloadable? _searchScopeReloadable;

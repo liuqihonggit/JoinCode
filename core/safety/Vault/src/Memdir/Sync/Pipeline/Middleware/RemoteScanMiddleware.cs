@@ -6,8 +6,13 @@ using JoinCode.Abstractions.Pipeline;
 /// 远程文件扫描中间件 — 从远程存储读取文件索引并填充 RemoteEntries
 /// </summary>
 [Register(typeof(ISyncStartMiddleware))]
-public sealed partial class RemoteScanMiddleware : ISyncStartMiddleware
+public sealed partial class RemoteScanMiddleware : ServiceEntity, ISyncStartMiddleware
 {
+
+    public RemoteScanMiddleware(ILogger<RemoteScanMiddleware>? logger = null)
+    {
+        _logger = logger;
+    }
     [Inject] private readonly ILogger<RemoteScanMiddleware>? _logger;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;

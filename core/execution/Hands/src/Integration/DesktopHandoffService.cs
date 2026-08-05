@@ -3,7 +3,7 @@ using JoinCode.Abstractions.Attributes;
 namespace IO.Services;
 
 [Register]
-public sealed partial class DesktopHandoffService : IDesktopHandoffService
+public sealed partial class DesktopHandoffService : ServiceEntity, IDesktopHandoffService
 {
     private readonly IProcessService _processService;
     [Inject] private readonly ILogger<DesktopHandoffService>? _logger;
@@ -21,7 +21,7 @@ public sealed partial class DesktopHandoffService : IDesktopHandoffService
             if (!OperatingSystem.IsWindows() && !OperatingSystem.IsMacOS()) return false;
             try
             {
-                return _processService.FindExecutableAsync("jcc-desktop").GetAwaiter().GetResult() != null;
+                return Task.Run(() => _processService.FindExecutableAsync("jcc-desktop")).GetAwaiter().GetResult() != null;
             }
             catch
             {

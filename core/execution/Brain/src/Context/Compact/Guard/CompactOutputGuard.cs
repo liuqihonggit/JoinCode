@@ -29,7 +29,7 @@ public sealed record CompactGuardResult
 }
 
 [Register]
-public sealed class CompactOutputGuard
+public sealed class CompactOutputGuard : ServiceEntity
 {
     private readonly ILogger<CompactOutputGuard>? _logger;
 

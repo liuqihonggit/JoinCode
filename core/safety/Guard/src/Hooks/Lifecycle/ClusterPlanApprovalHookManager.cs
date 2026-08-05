@@ -28,7 +28,7 @@ public sealed partial class ClusterPlanApprovalHookResult
 }
 
 [Register]
-public sealed partial class ClusterPlanApprovalHookManager : IClusterPlanApprovalHookManager
+public sealed partial class ClusterPlanApprovalHookManager : ServiceEntity, IClusterPlanApprovalHookManager
 {
     private readonly IHookOrchestrator _orchestrator;
     [Inject] private readonly ILogger<ClusterPlanApprovalHookManager>? _logger;

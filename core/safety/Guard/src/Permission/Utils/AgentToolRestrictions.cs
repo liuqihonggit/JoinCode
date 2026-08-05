@@ -1,14 +1,21 @@
 namespace Core.Utils;
 
 [Register]
-public sealed partial class AgentToolRestrictions : IAgentToolRestrictions
+public sealed partial class AgentToolRestrictions : ServiceEntity, IAgentToolRestrictions
 {
+
+    public AgentToolRestrictions(ITelemetryService? telemetryService = null)
+    {
+        _telemetryService = telemetryService;
+    }
     [Inject] private readonly ITelemetryService? _telemetryService;
 
     private static readonly FrozenSet<string> AutoAllowedTools = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
         FileToolNameConstants.FileRead, FileToolNameConstants.DirectoryList, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep,
         SearchToolNameConstants.SearchCode, SearchToolNameConstants.SearchText,
+        SearchToolNameConstants.SearchFiles, SearchToolNameConstants.SearchCodebase,
+        SearchToolNameConstants.CodeSearch, SearchToolNameConstants.SymbolSearch,
         WebToolNameConstants.WebFetch, WebToolNameConstants.WebSearch,
         TaskToolNameConstants.TaskList, TaskToolNameConstants.TaskGet,
         SystemToolNameConstants.TaskOutput,
@@ -34,6 +41,8 @@ public sealed partial class AgentToolRestrictions : IAgentToolRestrictions
     {
         FileToolNameConstants.FileRead, FileToolNameConstants.DirectoryList, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep,
         SearchToolNameConstants.SearchCode, SearchToolNameConstants.SearchText,
+        SearchToolNameConstants.SearchFiles, SearchToolNameConstants.SearchCodebase,
+        SearchToolNameConstants.CodeSearch, SearchToolNameConstants.SymbolSearch,
         WebToolNameConstants.WebFetch, WebToolNameConstants.WebSearch,
         TaskToolNameConstants.TaskList, TaskToolNameConstants.TaskGet,
         SystemToolNameConstants.TaskOutput,
@@ -51,6 +60,8 @@ public sealed partial class AgentToolRestrictions : IAgentToolRestrictions
     {
         FileToolNameConstants.FileRead, FileToolNameConstants.DirectoryList, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep,
         SearchToolNameConstants.SearchCode, SearchToolNameConstants.SearchText,
+        SearchToolNameConstants.SearchFiles, SearchToolNameConstants.SearchCodebase,
+        SearchToolNameConstants.CodeSearch, SearchToolNameConstants.SymbolSearch,
         WebToolNameConstants.WebFetch, WebToolNameConstants.WebSearch,
         TaskToolNameConstants.TaskList, TaskToolNameConstants.TaskGet,
         SystemToolNameConstants.TaskOutput,

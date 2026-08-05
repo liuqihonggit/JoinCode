@@ -1,4 +1,4 @@
-﻿namespace Core.Context.Compact;
+namespace Core.Context.Compact;
 
 /// <summary>
 /// API 端上下文管理服务 — 对齐 TS apiMicrocompact.ts getAPIContextManagement
@@ -6,7 +6,7 @@
 /// 不破坏 prompt cache，优于客户端 microcompact
 /// </summary>
 [Register]
-public sealed partial class ApiContextManagementService : IApiContextManagementService
+public sealed partial class ApiContextManagementService : ServiceEntity, IApiContextManagementService
 {
     // 对齐 TS: DEFAULT_MAX_INPUT_TOKENS / DEFAULT_TARGET_INPUT_TOKENS
     private const int DefaultMaxInputTokens = 180_000;

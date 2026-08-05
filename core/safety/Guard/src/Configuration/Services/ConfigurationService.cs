@@ -8,7 +8,7 @@ namespace Core.Configuration;
 /// 对齐 TS 版 ConfigTool: 双存储源(global/settings) + appStateKey 热更新同步
 /// </summary>
 [Register]
-public sealed partial class ConfigurationService : IConfigurationService
+public sealed partial class ConfigurationService : ServiceEntity, IConfigurationService
 {
     private readonly ConcurrentDictionary<string, string> _configurations = new();
     private readonly IFileSystem _fs;

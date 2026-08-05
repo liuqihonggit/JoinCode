@@ -10,24 +10,18 @@ public interface IEnvironmentProbeService
     Task<IReadOnlyDictionary<string, ExecutorScore>> GetExecutorScoresAsync(CancellationToken ct = default);
 
     /// <summary>
-    /// 路径门控 — 根据当前平台和目标 Shell 类型转换路径格式
-    /// <list type="bullet">
-    ///   <item>Windows + Bash(Git Bash/WSL) → POSIX 格式: C:\Users\test → /c/Users/test</item>
-    ///   <item>Windows + PowerShell/Cmd → Windows 格式: /c/Users/test → C:\Users\test</item>
-    ///   <item>Linux/Mac + 任何 Shell → POSIX 格式</item>
-    /// </list>
+    /// 路径门控 — 根据当前平台和目标执行器类型转换路径格式
     /// </summary>
     /// <param name="rawPath">LLM 输出的原始路径</param>
-    /// <param name="provider">目标 Shell 执行体</param>
+    /// <param name="actuator">目标系统执行器</param>
     /// <returns>转换后的路径</returns>
-    string GatePath(string rawPath, IShellProvider provider);
+    string GatePath(string rawPath, ISystemActuator actuator);
 
     /// <summary>
-    /// 命令路径门控 — 扫描命令字符串中的路径片段并转换为指定格式
-    /// 匹配 Windows 绝对路径和 POSIX 风格 Windows 路径，排除 URL 和环境变量
+    /// 命令路径.门控 — 扫描命令字符串中的路径片段并转换为指定格式
     /// </summary>
-    /// <param name="command">Shell 命令字符串</param>
-    /// <param name="provider">目标 Shell 执行体</param>
+    /// <param name="command">命令字符串</param>
+    /// <param name="actuator">目标系统执行器</param>
     /// <returns>路径转换后的命令字符串</returns>
-    string GateCommandPaths(string command, IShellProvider provider);
+    string GateCommandPaths(string command, ISystemActuator actuator);
 }

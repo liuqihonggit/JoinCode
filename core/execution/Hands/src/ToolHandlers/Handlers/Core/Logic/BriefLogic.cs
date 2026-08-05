@@ -1,8 +1,13 @@
-﻿namespace Tools.Handlers;
+namespace Tools.Handlers;
 
 [Register]
-public sealed partial class BriefLogic : IBriefService
+public sealed partial class BriefLogic : ServiceEntity, IBriefService
 {
+
+    public BriefLogic(IFileSystem fs)
+    {
+        _fs = fs;
+    }
     private const long DefaultMaxAttachmentSize = 10 * 1024 * 1024;
     [Inject] private readonly IFileSystem _fs;
 

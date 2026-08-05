@@ -1,8 +1,8 @@
-﻿
+
 namespace Core.Planning;
 
 [Register]
-public partial class PlanService : IPlanService {
+public partial class PlanService : ServiceEntity, IPlanService {
     private readonly IChatClient _kernel;
     private readonly IExceptionService _exceptionService;
     [Inject] private readonly ILogger<PlanService>? _logger;

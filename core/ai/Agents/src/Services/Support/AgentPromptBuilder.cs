@@ -1,8 +1,16 @@
 namespace Core.Agents;
 
 [Register(typeof(JoinCode.Abstractions.Interfaces.IAgentPromptBuilder))]
-public sealed partial class AgentPromptBuilder : JoinCode.Abstractions.Interfaces.IAgentPromptBuilder
+public sealed partial class AgentPromptBuilder : ServiceEntity, JoinCode.Abstractions.Interfaces.IAgentPromptBuilder
 {
+
+    public AgentPromptBuilder(JoinCode.Abstractions.Interfaces.IAgentDefinitionProvider definitionProvider, ISubAgentContextAccessor subAgentContextAccessor, IServiceProvider? serviceProvider = null, ILogger<AgentPromptBuilder>? logger = null)
+    {
+        _definitionProvider = definitionProvider;
+        _subAgentContextAccessor = subAgentContextAccessor;
+        _serviceProvider = serviceProvider;
+        _logger = logger;
+    }
     [Inject] private readonly JoinCode.Abstractions.Interfaces.IAgentDefinitionProvider _definitionProvider;
     [Inject] private readonly IServiceProvider? _serviceProvider;
     [Inject] private readonly ILogger<AgentPromptBuilder>? _logger;

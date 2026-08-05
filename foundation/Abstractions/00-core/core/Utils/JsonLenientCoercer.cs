@@ -368,6 +368,21 @@ public static class JsonLenientCoercer
         }
 
         var trimmed = s.Trim();
+
+        // 命名浮点字面量（NaN/Infinity/-Infinity）经 RepairJson 第2层被加引号转为字符串，
+        // 数值字段无法承载 → 降级为默认值（Drop），并精确报错供 LLM 自我修正
+        if (trimmed is "NaN" or "Infinity" or "-Infinity")
+        {
+            return new CoerceAction(default, true, true,
+                new JsonCoercionIssue
+                {
+                    PropertyPath = name,
+                    ExpectedType = effective.Name,
+                    ActualValueKind = JsonValueKind.String.ToString(),
+                    Reason = $"无法将命名浮点字面量 '{trimmed}' 转换为 {effective.Name}，已使用默认值"
+                });
+        }
+
         var numStyle = NumberStyles.Float | NumberStyles.AllowThousands;
 
         if (IsIntegral(effective)

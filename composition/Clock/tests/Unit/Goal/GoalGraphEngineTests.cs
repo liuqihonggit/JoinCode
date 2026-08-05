@@ -2115,4 +2115,67 @@ public sealed class GoalGraphEngineTests
         Assert.Equal(GoalStatus.Achieved, result.Status);
         Assert.True(maxConcurrent == 1, $"MaxConcurrency=1 应串行，但 maxConcurrent={maxConcurrent}");
     }
+
+    // ─────────────────────────────────────────────────────────────
+    // P1-4 失败率终止：B/C 失败，D/E 成功，失败率>50% 时终止为 Unmet
+    // B/C 立即失败先完成，D/E 延迟100ms，C 完成时 2/3=66%>50% 触发
+    // ─────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task HighFailureRate_Should_TerminateAsUnmet()
+    {
+        var engine = CreateEngine();
+
+        var dag = new Dag<GoalNodePayload>();
+        var nodeA = MakeFunctionNode("A", "source");
+        var nodeB = MakeFunctionNode("B", "fail-b");
+        var nodeC = MakeFunctionNode("C", "fail-c");
+        var nodeD = MakeFunctionNode("D", "ok-d");
+        var nodeE = MakeFunctionNode("E", "ok-e");
+        var nodeJ = MakeJoinNode("J", "join", minSuccessfulInputs: 2);
+
+        dag.AddNode(nodeA);
+        dag.AddNode(nodeB);
+        dag.AddNode(nodeC);
+        dag.AddNode(nodeD);
+        dag.AddNode(nodeE);
+        dag.AddNode(nodeJ);
+        dag.AddEdge(new DagEdge { Id = "e1", FromId = "A", ToId = "B" });
+        dag.AddEdge(new DagEdge { Id = "e2", FromId = "A", ToId = "C" });
+        dag.AddEdge(new DagEdge { Id = "e3", FromId = "A", ToId = "D" });
+        dag.AddEdge(new DagEdge { Id = "e4", FromId = "A", ToId = "E" });
+        dag.AddEdge(new DagEdge { Id = "e5", FromId = "B", ToId = "J" });
+        dag.AddEdge(new DagEdge { Id = "e6", FromId = "C", ToId = "J" });
+        dag.AddEdge(new DagEdge { Id = "e7", FromId = "D", ToId = "J" });
+        dag.AddEdge(new DagEdge { Id = "e8", FromId = "E", ToId = "J" });
+
+        engine.RegisterFunction("A", _ =>
+            Task.FromResult(NodeResult.Succeeded("output-A", tokensUsed: 10)));
+        engine.RegisterFunction("B", _ =>
+            Task.FromResult(NodeResult.Failed("B-failed", tokensUsed: 5)));
+        engine.RegisterFunction("C", _ =>
+            Task.FromResult(NodeResult.Failed("C-failed", tokensUsed: 5)));
+        engine.RegisterFunction("D", async _ =>
+        {
+            await Task.Delay(100, CancellationToken.None);
+            return NodeResult.Succeeded("D-ok", tokensUsed: 10);
+        });
+        engine.RegisterFunction("E", async _ =>
+        {
+            await Task.Delay(100, CancellationToken.None);
+            return NodeResult.Succeeded("E-ok", tokensUsed: 10);
+        });
+
+        var graph = new GoalGraph
+        {
+            Name = "high-failure-rate-test",
+            Dag = dag,
+            StartNodeId = "A",
+            EndNodeIds = FrozenSet.Create("J"),
+        };
+
+        var result = await engine.ExecuteAsync(graph, CreateGoalState(), new MessageList(), CancellationToken.None);
+
+        Assert.Equal(GoalStatus.Unmet, result.Status);
+    }
 }

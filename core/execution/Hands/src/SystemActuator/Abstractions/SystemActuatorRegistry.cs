@@ -276,7 +276,7 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
     }
 
     /// <inheritdoc />
-    public Task<int> CancelTasksForAgentAsync(string agentId, CancellationToken cancellationToken = default)
+    public async Task<int> CancelTasksForAgentAsync(string agentId, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
 
@@ -286,16 +286,26 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
             .ToList();
 
         var cancelledCount = 0;
+        cancellationToken.ThrowIfCancellationRequested();
         foreach (var taskId in agentTaskIds)
         {
-            if (CancelTaskAsync(taskId, cancellationToken).GetAwaiter().GetResult())
-                cancelledCount++;
+            cancellationToken.ThrowIfCancellationRequested();
+            try
+            {
+                if (await CancelTaskAsync(taskId, cancellationToken).ConfigureAwait(false))
+                    cancelledCount++;
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex)
+            {
+                _logger?.LogDebug(ex, "取消 Agent {AgentId} 的后台任务 {TaskId} 失败（继续取消其余任务）", agentId, taskId);
+            }
         }
 
         if (cancelledCount > 0)
             _logger?.LogInformation("取消 Agent {AgentId} 的后台任务: {Count} 个", agentId, cancelledCount);
 
-        return Task.FromResult(cancelledCount);
+        return cancelledCount;
     }
 
     /// <inheritdoc />

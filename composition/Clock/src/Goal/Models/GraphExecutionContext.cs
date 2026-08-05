@@ -14,10 +14,10 @@ internal sealed class GraphExecutionContext
     public required SemaphoreSlim StateLock { get; init; }
     public required IClockService Clock { get; init; }
 
-    public Queue<string> ReadyQueue { get; } = new();
-    public Dictionary<string, int> RetryCount { get; } = new(StringComparer.Ordinal);
-    public HashSet<string> CompletedNodes { get; } = new(StringComparer.Ordinal);
-    public HashSet<string> FailedNodes { get; } = new(StringComparer.Ordinal);
+    public ConcurrentQueue<string> ReadyQueue { get; } = new();
+    public ConcurrentDictionary<string, int> RetryCount { get; } = new(StringComparer.Ordinal);
+    public ConcurrentDictionary<string, byte> CompletedNodes { get; } = new(StringComparer.Ordinal);
+    public ConcurrentDictionary<string, byte> FailedNodes { get; } = new(StringComparer.Ordinal);
 
     /// <summary>
     /// 全局循环迭代计数（负向评价-修复循环）
@@ -47,7 +47,7 @@ internal sealed class GraphExecutionContext
             if (edge.Label.Length > 0)
                 continue;
 
-            if (!CompletedNodes.Contains(edge.FromId) && !FailedNodes.Contains(edge.FromId))
+            if (!CompletedNodes.ContainsKey(edge.FromId) && !FailedNodes.ContainsKey(edge.FromId))
                 return false;
         }
 
@@ -66,7 +66,7 @@ internal sealed class GraphExecutionContext
                 continue;
             if (edge.Label.Length > 0)
                 continue;
-            if (CompletedNodes.Contains(edge.FromId) || FailedNodes.Contains(edge.FromId))
+            if (CompletedNodes.ContainsKey(edge.FromId) || FailedNodes.ContainsKey(edge.FromId))
                 count++;
         }
 
@@ -85,7 +85,7 @@ internal sealed class GraphExecutionContext
                 continue;
             if (edge.Label.Length > 0)
                 continue;
-            if (CompletedNodes.Contains(edge.FromId))
+            if (CompletedNodes.ContainsKey(edge.FromId))
                 count++;
         }
 

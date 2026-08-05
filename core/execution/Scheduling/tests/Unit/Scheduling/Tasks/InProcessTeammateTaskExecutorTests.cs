@@ -172,4 +172,60 @@ public class InProcessTeammateTaskExecutorTests
 
         await act.Should().NotThrowAsync().ConfigureAwait(true);
     }
+
+    [Fact]
+    public async Task ExecuteTeammateAsync_ContinuousMode_FailureThenRetry_ShouldContinueLoop()
+    {
+        var queryEngineMock = new Mock<JoinCode.Abstractions.Interfaces.IQueryEngine>();
+        var agent = new Agent("Continuous task", null, queryEngineMock.Object, null);
+
+        var successResult = new SubAgentResult
+        {
+            AgentId = "agent-c",
+            IsSuccess = true,
+            Output = "ok"
+        };
+
+        var executeCallCount = 0;
+        _lifecycleManagerMock
+            .Setup(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(agent);
+        _lifecycleManagerMock
+            .Setup(x => x.ExecuteAsync(It.IsAny<IAgent>(), It.IsAny<CancellationToken>()))
+            .Returns(() =>
+            {
+                var n = Interlocked.Increment(ref executeCallCount);
+                if (n == 1)
+                {
+                    return Task.FromException<SubAgentResult>(new InvalidOperationException("simulated failure"));
+                }
+                return Task.FromResult(successResult);
+            });
+        _lifecycleManagerMock
+            .Setup(x => x.DisposeAgentAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        var definition = new InProcessTeammateDefinition
+        {
+            TaskId = "tm-ct",
+            TeammateId = "teammate-ct",
+            Task = "Continuous task",
+            ContinuousMode = true
+        };
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var result = await _executor.ExecuteTeammateAsync(definition, cts.Token).ConfigureAwait(true);
+
+        result.IsSuccess.Should().BeTrue("continuous mode 应立即返回 success");
+
+        var deadline = DateTime.UtcNow.AddSeconds(4);
+        while (executeCallCount < 2 && DateTime.UtcNow < deadline)
+        {
+            await Task.Delay(100).ConfigureAwait(true);
+        }
+
+        await _executor.StopTeammateAsync("teammate-ct").ConfigureAwait(true);
+
+        executeCallCount.Should().BeGreaterThanOrEqualTo(2, "第一次失败后循环应重试而非退出");
+    }
 }

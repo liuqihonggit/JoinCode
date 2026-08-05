@@ -419,6 +419,9 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
 
                     RecordTeammateMetrics("turn_complete", result.IsSuccess);
 
+                    _logger?.LogDebug("Teammate {TeammateId} checkpoint: turn={TurnCount} success={Success} outputLen={OutputLen}",
+                        definition.TeammateId, state.TurnCount, result.IsSuccess, result.Output?.Length ?? 0);
+
                     var waitResult = await WaitForNextPromptOrShutdownAsync(
                         definition.TeammateId, lifecycleCt).ConfigureAwait(false);
 
@@ -447,6 +450,8 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
                     _logger?.LogError(ex, "Teammate {TeammateId} loop iteration failed", definition.TeammateId);
                     state.IsIdle = true;
                     RecordTeammateMetrics("turn_error", false);
+
+                    _logger?.LogWarning("Teammate {TeammateId} checkpoint: turn={TurnCount} failed, will retry after delay", definition.TeammateId, state.TurnCount);
 
                     try
                     {

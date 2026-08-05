@@ -98,7 +98,7 @@ ClusterResultSummarizer──▶ 无人调用（cluster 完成后应汇总）
 
 ---
 
-## 一、已修复（2 个）
+## 一、已修复（4 个）
 
 ### ✅ P0 #1：GoalGraphEngine._agentService 永远 null
 
@@ -114,14 +114,18 @@ ClusterResultSummarizer──▶ 无人调用（cluster 完成后应汇总）
 - **修复**: 删除该重载（不在 IGoalEngine 接口中，不破坏契约）
 - **文件**: `composition/Clock/src/Goal/Core/GoalEngine.cs`
 
+### ✅ #2/#3/#7：cluster_merge 评估断裂 + 孤儿代码移走
+
+- **commit**: `a65f0fdcc`（SystemPrompt 修复）+ `22e13ee6f`（孤儿代码移走）
+- **问题**: cluster_merge 是 LLM Agent 合并但不评估 Worker 质量；SubAgentGrader/LeadMergeOrchestrator 是孤儿代码
+- **修复**: 采纳 Anthropic orchestrator-worker 模式，cluster_merge SystemPrompt 加评估+合成指令（Lead 在完整上下文中同时评估 Worker 质量 0-1 分 + 合成最终结果）；SubAgentGrader/LeadMergeOrchestrator 移到 .xxx/
+- **文件**: `GoalGraphTemplates.cs`（SystemPrompt）+ 6 个文件移到 `.xxx/`
+
 ---
 
-## 二、剩余断裂点（5 个，需架构决策）
+## 二、剩余断裂点（3 个）
 
-### #2/#3/#7：LeadMergeOrchestrator + cluster_merge + SubAgentGrader（逻辑冲突）
-
-**现状**:
-- `LeadMergeOrchestrator` 已实现（拓扑排序+git merge+build验证+冲突预检），标注 `[Register]`，但**零消费方**
+### #5/#6：ClusterTelemetry + ClusterResultSummarizer（孤儿辅助服务）
 - `cluster_merge` 节点是 `Kind=Agent`（LLM Agent 合并），不调用 `LeadMergeOrchestrator`
 - `SubAgentGrader` 已实现（规则+LLM 评分），标注 `[Register]`，但**零消费方**
 - `LeadMergeOrchestrator` 第32行用 `GradingScore >= 0.6` 过滤 Worker

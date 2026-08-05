@@ -87,4 +87,7 @@ global using System.Text.RegularExpressions;
 global using System.Threading;
 global using System.Threading.Channels;
 global using Structura.Collections;
+<<<<<<< HEAD
 global using JoinCode.Abstractions.Entity;
+=======
+>>>>>>> 647955cbb (feat: 添加 RingBuffer 定长环形队列并替换三个检测器的 List+RemoveRange)

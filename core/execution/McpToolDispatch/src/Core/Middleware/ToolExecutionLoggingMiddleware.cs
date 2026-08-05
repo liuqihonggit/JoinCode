@@ -3,7 +3,12 @@ namespace McpToolRegistry;
 [Register]
 public sealed partial class ToolExecutionLoggingMiddleware : ServiceEntity, IToolExecutionMiddleware
 {
-    [Inject] private readonly ILogger<ToolExecutionLoggingMiddleware> _logger = null!;
+    private readonly ILogger<ToolExecutionLoggingMiddleware> _logger;
+
+    public ToolExecutionLoggingMiddleware(ILogger<ToolExecutionLoggingMiddleware> logger)
+    {
+        _logger = logger;
+    }
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 

@@ -5,6 +5,99 @@
 
 ---
 
+## 〇、Goal 流程图
+
+### 默认图（无模板匹配时自动构建）
+
+```
+┌─────────┐     ┌──────────┐
+│  agent  │────▶│ reviewer │
+│(Executor)│     │(Coordinator)│
+└─────────┘     └──────────┘
+     ▲               │
+     │    FAIL（回边）│
+     └───────────────┘
+```
+
+- `agent`：执行目标，Role=Executor
+- `reviewer`：独立审查，Role=Coordinator，FreshContext=true
+- FAIL 回边：reviewer 评价不通过时回到 agent 重做
+
+### cluster 模板（并行集群执行）
+
+```
+┌──────────────┐     ┌───────────────┐
+│ cluster_     │     │ cluster_      │
+│  analyze     │────▶│  expand       │
+│ (Agent/      │     │ (Function)    │
+│ Coordinator) │     │ 动态展开Worker │
+└──────────────┘     └───────┬───────┘
+                             │
+              ┌──────────────┼──────────────┐
+              ▼              ▼              ▼
+        ┌─────────┐   ┌─────────┐   ┌─────────┐
+        │ worker_1│   │ worker_2│   │ worker_N│
+        │(Executor│   │(Executor│   │(Executor│
+        │ Worktree│   │ Worktree│   │ Worktree│
+        │ 隔离)   │   │ 隔离)   │   │ 隔离)   │
+        └────┬────┘   └────┬────┘   └────┬────┘
+             │             │             │
+             └─────────────┼─────────────┘
+                           ▼
+                    ┌──────────────┐
+                    │ cluster_     │
+                    │  gather      │
+                    │ (Join节点)   │
+                    │ 等待所有Worker│
+                    └──────┬───────┘
+                           ▼
+                    ┌──────────────┐
+                    │ cluster_     │
+                    │  merge       │
+                    │ (Agent/      │
+                    │ Coordinator) │
+                    │ LLM合并结果  │
+                    └──────┬───────┘
+                           ▼
+                    ┌──────────────┐
+                    │ cluster_     │
+                    │  review      │
+                    │ (Agent/      │
+                    │ Coordinator) │
+                    │ 独立审查     │
+                    └──────────────┘
+```
+
+**流程说明**:
+1. `cluster_analyze`：管理者分析任务是否可分解为并行子任务
+2. `cluster_expand`：Function 节点，动态创建 Worker 节点 + cluster_gather + cluster_merge + cluster_review
+3. `worker_1..N`：执行者并行执行子任务，各自在独立 worktree 中工作
+4. `cluster_gather`：Join 节点，等待所有 Worker 完成，收集结果
+5. `cluster_merge`：管理者合并所有 Worker 结果 ← **当前是 LLM Agent 合并，不调用 LeadMergeOrchestrator**
+6. `cluster_review`：独立审查合并结果
+
+### 其他模板
+
+| 模板 | 流程 | 用途 |
+|------|------|------|
+| refactor | agent → reviewer | 代码重构 |
+| bugfix | agent → reviewer | 修复 bug |
+| research | agent → reviewer | 研究调查 |
+| code_review | agent → reviewer | 代码审查 |
+| test_gen | agent → reviewer | 生成测试 |
+| negative_review_loop | agent → neg_review → fix_neg（循环）| 负向评价修复循环 |
+
+### 孤儿服务（已实现但未接入图中）
+
+```
+SubAgentGrader        ──▶ 无人调用（Worker 完成后应评分）
+LeadMergeOrchestrator ──▶ 无人调用（cluster_merge 应调用它）
+ClusterTelemetry      ──▶ 无人调用（各阶段应记录遥测）
+ClusterResultSummarizer──▶ 无人调用（cluster 完成后应汇总）
+```
+
+---
+
 ## 一、已修复（2 个）
 
 ### ✅ P0 #1：GoalGraphEngine._agentService 永远 null

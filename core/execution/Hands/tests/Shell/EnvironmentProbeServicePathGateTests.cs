@@ -158,7 +158,7 @@ public class EnvironmentProbeServicePathGateTests
         if (!OperatingSystem.IsWindows()) return;
 
         var sut = CreateSut();
-        var result = sut.GatePath("C:\\Users\\test", MockProvider(ShellType.Bash));
+        var result = sut.GatePath("C:\\Users\\test", MockProvider(SystemActuatorKind.Bash));
         result.Should().Be("/c/Users/test");
     }
 
@@ -168,7 +168,7 @@ public class EnvironmentProbeServicePathGateTests
         if (!OperatingSystem.IsWindows()) return;
 
         var sut = CreateSut();
-        var result = sut.GatePath("C:\\Users\\test", MockProvider(ShellType.PowerShell));
+        var result = sut.GatePath("C:\\Users\\test", MockProvider(SystemActuatorKind.PowerShell));
         result.Should().Be("C:\\Users\\test");
     }
 
@@ -178,7 +178,7 @@ public class EnvironmentProbeServicePathGateTests
         if (!OperatingSystem.IsWindows()) return;
 
         var sut = CreateSut();
-        var result = sut.GatePath("C:\\Users\\test", MockProvider(ShellType.Cmd));
+        var result = sut.GatePath("C:\\Users\\test", MockProvider(SystemActuatorKind.Cmd));
         result.Should().Be("C:\\Users\\test");
     }
 
@@ -188,7 +188,7 @@ public class EnvironmentProbeServicePathGateTests
         if (!OperatingSystem.IsWindows()) return;
 
         var sut = CreateSut();
-        var result = sut.GatePath("/c/Users/test", MockProvider(ShellType.PowerShell));
+        var result = sut.GatePath("/c/Users/test", MockProvider(SystemActuatorKind.PowerShell));
         result.Should().Be("C:\\Users\\test");
     }
 
@@ -196,8 +196,8 @@ public class EnvironmentProbeServicePathGateTests
     public void GatePath_EmptyOrNull_ReturnsAsIs()
     {
         var sut = CreateSut();
-        sut.GatePath("", MockProvider(ShellType.Bash)).Should().Be("");
-        sut.GatePath(null!, MockProvider(ShellType.Bash)).Should().BeNull();
+        sut.GatePath("", MockProvider(SystemActuatorKind.Bash)).Should().Be("");
+        sut.GatePath(null!, MockProvider(SystemActuatorKind.Bash)).Should().BeNull();
     }
 
     [Fact]
@@ -206,7 +206,7 @@ public class EnvironmentProbeServicePathGateTests
         if (!OperatingSystem.IsWindows()) return;
 
         var sut = CreateSut();
-        var result = sut.GatePath("/c/Users/test", MockProvider(ShellType.Bash));
+        var result = sut.GatePath("/c/Users/test", MockProvider(SystemActuatorKind.Bash));
         result.Should().Be("/c/Users/test");
     }
 
@@ -216,7 +216,7 @@ public class EnvironmentProbeServicePathGateTests
         if (!OperatingSystem.IsWindows()) return;
 
         var sut = CreateSut();
-        var result = sut.GatePath("C:/Users/test", MockProvider(ShellType.PowerShell));
+        var result = sut.GatePath("C:/Users/test", MockProvider(SystemActuatorKind.PowerShell));
         result.Should().Be("C:\\Users\\test");
     }
 
@@ -226,7 +226,7 @@ public class EnvironmentProbeServicePathGateTests
         if (!OperatingSystem.IsWindows()) return;
 
         var sut = CreateSut();
-        var result = sut.GatePath("C:/Users/test", MockProvider(ShellType.Cmd));
+        var result = sut.GatePath("C:/Users/test", MockProvider(SystemActuatorKind.Cmd));
         result.Should().Be("C:\\Users\\test");
     }
 
@@ -236,7 +236,7 @@ public class EnvironmentProbeServicePathGateTests
         if (!OperatingSystem.IsWindows()) return;
 
         var sut = CreateSut();
-        var result = sut.GatePath("C:/Users/test", MockProvider(ShellType.Python));
+        var result = sut.GatePath("C:/Users/test", MockProvider(SystemActuatorKind.Python));
         result.Should().Be("C:\\Users\\test");
     }
 
@@ -246,15 +246,15 @@ public class EnvironmentProbeServicePathGateTests
         if (!OperatingSystem.IsWindows()) return;
 
         var sut = CreateSut();
-        var result = sut.GatePath("/c/Users/test", MockProvider(ShellType.Python));
+        var result = sut.GatePath("/c/Users/test", MockProvider(SystemActuatorKind.Python));
         result.Should().Be("C:\\Users\\test");
     }
 
     #endregion
 
-    private static IShellProvider MockProvider(ShellType type)
+    private static ISystemActuator MockProvider(SystemActuatorKind kind)
     {
-        var mock = Mock.Of<IShellProvider>(p => p.Type == type);
+        var mock = Mock.Of<ISystemActuator>(p => p.Kind == kind);
         return mock;
     }
 

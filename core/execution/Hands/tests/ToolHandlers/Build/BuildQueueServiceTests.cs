@@ -192,6 +192,32 @@ public class BuildQueueServiceTests
     }
 
     /// <summary>
+    /// 验证队列 checkpoint 推进 — 多个 build 全部完成后，队列应无 pending 项
+    /// </summary>
+    [Fact]
+    public async Task Checkpoint_AllBuildsComplete_QueueShouldBeEmpty()
+    {
+        var shellMock = new Mock<ISystemActuator>();
+        shellMock.Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<int?>(),
+                It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(SystemActuatorExecutionResult.SuccessResult("ok", ""));
+
+        var sut = CreateSut(actuator: shellMock.Object);
+
+        var id1 = await sut.SubmitAsync(CreateRequest(command: "cmd-a"), CancellationToken.None).ConfigureAwait(true);
+        var id2 = await sut.SubmitAsync(CreateRequest(command: "cmd-b"), CancellationToken.None).ConfigureAwait(true);
+
+        await sut.WaitAsync(id1, CancellationToken.None).ConfigureAwait(true);
+        await sut.WaitAsync(id2, CancellationToken.None).ConfigureAwait(true);
+
+        var status = sut.GetStatus();
+        status.PendingCount.Should().Be(0, "所有 build 完成后队列应无 pending");
+        status.IsBuilding.Should().BeFalse();
+        sut.GetBuild(id1)!.Status.Should().Be(BuildQueueEntryStatus.Completed);
+        sut.GetBuild(id2)!.Status.Should().Be(BuildQueueEntryStatus.Completed);
+    }
+
+    /// <summary>
     /// 跨进程构建锁集成测试 — 验证当锁文件被其他进程持有时，构建会等待锁释放后才执行
     /// 使用 PhysicalFileSystem + 真实文件 I/O 验证 FileShare.None 跨进程互斥语义
     /// </summary>

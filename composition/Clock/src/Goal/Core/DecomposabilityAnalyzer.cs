@@ -84,12 +84,14 @@ public sealed partial class DecomposabilityAnalyzer : ServiceEntity, IDecomposab
                 Variant = ExecutorVariantExtensions.FromValue(s.Variant) ?? ExecutorVariant.Code,
             }).ToList();
 
+            var complexity = ComplexityLevelExtensions.FromValue(result.Complexity) ?? ComplexityLevel.Medium;
+
             var reason = result.Reason;
             if (report.FormatForLlm() is { Length: > 0 } detail)
                 reason = $"{reason} [宽容修复: {detail}]";
 
             return result.IsDecomposable
-                ? DecompositionResult.Decomposable(reason, subTasks)
+                ? DecompositionResult.Decomposable(reason, subTasks, complexity)
                 : DecompositionResult.NotDecomposable(reason);
         }
 
@@ -124,6 +126,10 @@ public sealed partial class DecomposabilityAnalyzer : ServiceEntity, IDecomposab
               1. It is a single focused change in one file/module
               2. Subtasks would heavily share the same files (high conflict risk)
               3. The objective is too small to benefit from parallelization
+            - Assess the complexity level of the objective:
+              - "low": 1-5 subtasks, simple independent changes
+              - "medium": 6-20 subtasks, moderate dependencies and coordination
+              - "high": more than 20 subtasks, complex orchestration (rarely decomposable within limits)
             - For each subtask, specify:
               - id: short identifier (e.g., "sub_1", "sub_2")
               - title: concise name
@@ -134,6 +140,7 @@ public sealed partial class DecomposabilityAnalyzer : ServiceEntity, IDecomposab
               - variant: "code" for implementation, "explore" for analysis/research
             - Ensure ownedFiles overlap between subtasks is MINIMAL to avoid merge conflicts.
             - Ensure dependsOn forms a valid DAG (no cycles).
+            - Ensure the declared complexity is consistent with the actual number of subtasks.
 
             RESPONSE FORMAT:
             Output a JSON block wrapped in ```json and ```:
@@ -141,6 +148,7 @@ public sealed partial class DecomposabilityAnalyzer : ServiceEntity, IDecomposab
             {
               "isDecomposable": true/false,
               "reason": "brief explanation",
+              "complexity": "low" | "medium" | "high",
               "subTasks": [
                 {
                   "id": "sub_1",

@@ -18,6 +18,27 @@ public sealed class ClusterPlanValidatorTests
         };
     }
 
+    private static ClusterPlan CreatePlanWithComplexity(ComplexityLevel complexity, Action<List<SubTaskDefinition>> configureSubTasks)
+    {
+        var subTasks = new List<SubTaskDefinition>();
+        configureSubTasks(subTasks);
+
+        return new ClusterPlan
+        {
+            Objective = "test",
+            Decomposition = DecompositionResult.Decomposable("test", subTasks, complexity),
+            ExecutionOptions = new ClusterExecutionOptions()
+        };
+    }
+
+    private static void AddNSubTasks(List<SubTaskDefinition> tasks, int n)
+    {
+        for (int i = 0; i < n; i++)
+        {
+            tasks.Add(new SubTaskDefinition { Id = $"sub_{i}", Title = $"T{i}", Description = $"D{i}", OwnedFiles = [$"file{i}.cs"] });
+        }
+    }
+
     [Fact]
     public void Validate_NotDecomposable_Should_Return_Invalid()
     {
@@ -217,5 +238,71 @@ public sealed class ClusterPlanValidatorTests
 
         Assert.True(result.IsValid);
         Assert.Empty(result.Errors);
+    }
+
+    [Fact]
+    public void Validate_LowComplexity_TooManySubTasks_Should_Add_ComplexityMismatchWarning()
+    {
+        var plan = CreatePlanWithComplexity(ComplexityLevel.Low, tasks => AddNSubTasks(tasks, 6));
+
+        var result = _sut.Validate(plan);
+
+        Assert.True(result.IsValid);
+        Assert.Contains(result.Warnings, w => w.Contains("complexity_mismatch") && w.Contains("Low"));
+    }
+
+    [Fact]
+    public void Validate_MediumComplexity_TooFewSubTasks_Should_Add_ComplexityMismatchWarning()
+    {
+        var plan = CreatePlanWithComplexity(ComplexityLevel.Medium, tasks => AddNSubTasks(tasks, 3));
+
+        var result = _sut.Validate(plan);
+
+        Assert.True(result.IsValid);
+        Assert.Contains(result.Warnings, w => w.Contains("complexity_mismatch") && w.Contains("Medium") && w.Contains("Low"));
+    }
+
+    [Fact]
+    public void Validate_MediumComplexity_FiveSubTasks_Should_SuggestDowngradeToLow()
+    {
+        var plan = CreatePlanWithComplexity(ComplexityLevel.Medium, tasks => AddNSubTasks(tasks, 5));
+
+        var result = _sut.Validate(plan);
+
+        Assert.True(result.IsValid);
+        Assert.Contains(result.Warnings, w => w.Contains("complexity_mismatch") && w.Contains("Low"));
+    }
+
+    [Fact]
+    public void Validate_HighComplexity_TooFewSubTasks_Should_Add_ComplexityMismatchWarning()
+    {
+        var plan = CreatePlanWithComplexity(ComplexityLevel.High, tasks => AddNSubTasks(tasks, 8));
+
+        var result = _sut.Validate(plan);
+
+        Assert.True(result.IsValid);
+        Assert.Contains(result.Warnings, w => w.Contains("complexity_mismatch") && w.Contains("High") && w.Contains("Medium"));
+    }
+
+    [Fact]
+    public void Validate_LowComplexity_Consistent_Should_NoComplexityWarning()
+    {
+        var plan = CreatePlanWithComplexity(ComplexityLevel.Low, tasks => AddNSubTasks(tasks, 4));
+
+        var result = _sut.Validate(plan);
+
+        Assert.True(result.IsValid);
+        Assert.DoesNotContain(result.Warnings, w => w.Contains("complexity_mismatch"));
+    }
+
+    [Fact]
+    public void Validate_MediumComplexity_Consistent_Should_NoComplexityWarning()
+    {
+        var plan = CreatePlanWithComplexity(ComplexityLevel.Medium, tasks => AddNSubTasks(tasks, 7));
+
+        var result = _sut.Validate(plan);
+
+        Assert.True(result.IsValid);
+        Assert.DoesNotContain(result.Warnings, w => w.Contains("complexity_mismatch"));
     }
 }

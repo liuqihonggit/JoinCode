@@ -10,12 +10,16 @@ public sealed class DecompositionResult
     public bool IsDecomposable { get; init; }
     public string Reason { get; init; } = string.Empty;
     public IReadOnlyList<SubTaskDefinition> SubTasks { get; init; } = [];
+    public ComplexityLevel Complexity { get; init; } = ComplexityLevel.Medium;
 
     public static DecompositionResult NotDecomposable(string reason) =>
         new() { IsDecomposable = false, Reason = reason };
 
     public static DecompositionResult Decomposable(string reason, IReadOnlyList<SubTaskDefinition> subTasks) =>
         new() { IsDecomposable = true, Reason = reason, SubTasks = subTasks };
+
+    public static DecompositionResult Decomposable(string reason, IReadOnlyList<SubTaskDefinition> subTasks, ComplexityLevel complexity) =>
+        new() { IsDecomposable = true, Reason = reason, SubTasks = subTasks, Complexity = complexity };
 }
 
 /// <summary>

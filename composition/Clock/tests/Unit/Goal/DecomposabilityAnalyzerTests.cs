@@ -215,4 +215,48 @@ public sealed class DecomposabilityAnalyzerTests
 
         Assert.True(result.IsDecomposable);
     }
+
+    [Fact]
+    public void ParseAnalysisResult_Json_With_ComplexityLow_Should_Parse()
+    {
+        var content = """{"isDecomposable": true, "reason": "ok", "complexity": "low", "subTasks": [{"id": "sub_1", "title": "A", "description": "D", "dependsOn": [], "ownedFiles": ["a.cs"], "priority": "high", "variant": "code"}]}""";
+
+        var result = DecomposabilityAnalyzer.ParseAnalysisResult(content);
+
+        Assert.True(result.IsDecomposable);
+        Assert.Equal(ComplexityLevel.Low, result.Complexity);
+    }
+
+    [Fact]
+    public void ParseAnalysisResult_Json_With_ComplexityHigh_Should_Parse()
+    {
+        var content = """{"isDecomposable": true, "reason": "ok", "complexity": "high", "subTasks": [{"id": "sub_1", "title": "A", "description": "D", "dependsOn": [], "ownedFiles": ["a.cs"], "priority": "high", "variant": "code"}]}""";
+
+        var result = DecomposabilityAnalyzer.ParseAnalysisResult(content);
+
+        Assert.True(result.IsDecomposable);
+        Assert.Equal(ComplexityLevel.High, result.Complexity);
+    }
+
+    [Fact]
+    public void ParseAnalysisResult_Json_MissingComplexity_Should_DefaultToMedium()
+    {
+        var content = """{"isDecomposable": true, "reason": "ok", "subTasks": [{"id": "sub_1", "title": "A", "description": "D", "dependsOn": [], "ownedFiles": ["a.cs"], "priority": "high", "variant": "code"}]}""";
+
+        var result = DecomposabilityAnalyzer.ParseAnalysisResult(content);
+
+        Assert.True(result.IsDecomposable);
+        Assert.Equal(ComplexityLevel.Medium, result.Complexity);
+    }
+
+    [Fact]
+    public void ParseAnalysisResult_Json_InvalidComplexity_Should_DefaultToMedium()
+    {
+        var content = """{"isDecomposable": true, "reason": "ok", "complexity": "ultra", "subTasks": [{"id": "sub_1", "title": "A", "description": "D", "dependsOn": [], "ownedFiles": ["a.cs"], "priority": "high", "variant": "code"}]}""";
+
+        var result = DecomposabilityAnalyzer.ParseAnalysisResult(content);
+
+        Assert.True(result.IsDecomposable);
+        Assert.Equal(ComplexityLevel.Medium, result.Complexity);
+    }
 }

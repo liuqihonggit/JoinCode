@@ -3,6 +3,26 @@ namespace JoinCode.Abstractions.LLM.Chat;
 public class CacheBreakDetector
 {
     private bool _hasPreviousCacheHit;
+    private bool _pendingCompaction;
+
+    /// <summary>
+    /// 通知检测器：前缀已被主动压缩/折叠重写。重置缓存命中基线并标记待上报的压缩事件，
+    /// 使随后的 cache miss 被归因为 <see cref="CacheBreakKind.CompactionEntered"/> 而非 <see cref="CacheBreakKind.CacheEviction"/>。
+    /// </summary>
+    public void NotifyCompaction()
+    {
+        _hasPreviousCacheHit = false;
+        _pendingCompaction = true;
+    }
+
+    /// <summary>
+    /// 复位内部状态（新会话/重置缓存统计时调用）。
+    /// </summary>
+    public void Reset()
+    {
+        _hasPreviousCacheHit = false;
+        _pendingCompaction = false;
+    }
 
     public PromptStateSnapshot RecordPromptState(
         ImmutablePrefix prefix,
@@ -109,12 +129,25 @@ public class CacheBreakDetector
         var allHashesMatch = snapshot.SystemPromptHash == currentSystemHash
             && snapshot.ToolSpecsHash == currentToolSpecsHash
             && snapshot.DynamicContentHash == currentDynamicHash;
+
+        // 主动压缩后的首次全量 miss：归因为 CompactionEntered（本项目发起的重建），与驱逐无关
+        if (_pendingCompaction
+            && usage.CacheReadInputTokens == 0
+            && usage.CacheCreationInputTokens > 0)
+        {
+            _pendingCompaction = false;
+            return CacheBreakResult.Break(CacheBreakKind.CompactionEntered,
+                "Cache miss after context compaction — prefix rebuilt by this session");
+        }
+
         if (ShouldReportCacheEviction(usage, allHashesMatch))
         {
             return CacheBreakResult.Break(CacheBreakKind.CacheEviction,
                 "Cache miss despite identical prefix — likely TTL eviction");
         }
 
+        // 未发现失效：若此前压缩事件未触发到上报（本轮有缓存命中），清除待上报标记
+        _pendingCompaction = false;
         return new CacheBreakResult { BreakDetected = false, Kind = CacheBreakKind.None, ToolDrift = toolDrift };
     }
 

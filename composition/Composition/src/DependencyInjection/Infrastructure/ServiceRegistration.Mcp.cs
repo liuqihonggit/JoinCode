@@ -66,10 +66,12 @@ public static partial class ServiceRegistration
                 .Use(sp.GetRequiredService<McpToolRegistry.SchemaValidationMiddleware>())
                 .Use(sp.GetRequiredService<McpToolRegistry.AgentRestrictionMiddleware>())
                 .Use(sp.GetRequiredService<McpToolRegistry.PermissionCheckMiddleware>())
+                .Use(sp.GetRequiredService<McpToolRegistry.PreToolUseHookMiddleware>())
                 .Use(sp.GetRequiredService<McpToolRegistry.RemotePolicyMiddleware>())
                 .Use(sp.GetRequiredService<McpToolRegistry.FeatureFlagMiddleware>())
                 .Use(sp.GetRequiredService<McpToolRegistry.OnErrorToolInjectionMiddleware>())
                 .Use(sp.GetRequiredService<McpToolRegistry.ToolHealthScoringMiddleware>())
+                .Use(sp.GetRequiredService<McpToolRegistry.PostToolUseHookMiddleware>())
                 .Use(sp.GetRequiredService<McpToolRegistry.ToolExecutionMiddleware>())
                 .Build();
         });

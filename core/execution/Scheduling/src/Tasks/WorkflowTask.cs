@@ -175,12 +175,16 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
 
             var stepResult = await ExecuteStepAsync(step, runState, linkedCts.Token).ConfigureAwait(false);
             runState.StepStatuses[step.StepId] = stepResult;
+            _logger?.LogDebug("Workflow checkpoint: step {StepId} -> {State}, completed {Completed}/{Total}",
+                step.StepId, stepResult.State, runState.StepStatuses.Count, runState.Definition.Steps.Count);
 
             if (stepResult.State == StepState.Failed)
             {
                 var action = step.OnFailure;
                 if (action == WorkflowStepOnFailure.Stop)
                 {
+                    _logger?.LogWarning("Workflow stopped at step {StepId} due to failure. Completed: {Completed}/{Total}",
+                        step.StepId, runState.StepStatuses.Count, runState.Definition.Steps.Count);
                     return BuildResult(runState, TaskExecutionStatus.Failed, stepResult.Error);
                 }
                 if (action == WorkflowStepOnFailure.Skip)
@@ -294,21 +298,37 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
 
     private async Task<StepStatus> ExecuteStepWithFailureHandlingAsync(WorkflowStep step, WorkflowRunState runState, CancellationToken ct)
     {
-        var result = await ExecuteStepAsync(step, runState, ct).ConfigureAwait(false);
-
-        if (result.State == StepState.Failed && step.OnFailure == WorkflowStepOnFailure.Retry)
+        try
         {
-            for (var i = 0; i < 3; i++)
-            {
-                ct.ThrowIfCancellationRequested();
-                await Task.Delay(TimeSpan.FromMilliseconds(200 * (i + 1)), ct).ConfigureAwait(false);
-                result = await ExecuteStepAsync(step, runState, ct).ConfigureAwait(false);
-                if (result.State != StepState.Failed) break;
-            }
-        }
+            var result = await ExecuteStepAsync(step, runState, ct).ConfigureAwait(false);
 
-        runState.StepStatuses[step.StepId] = result;
-        return result;
+            if (result.State == StepState.Failed && step.OnFailure == WorkflowStepOnFailure.Retry)
+            {
+                for (var i = 0; i < 3; i++)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    await Task.Delay(TimeSpan.FromMilliseconds(200 * (i + 1)), ct).ConfigureAwait(false);
+                    result = await ExecuteStepAsync(step, runState, ct).ConfigureAwait(false);
+                    if (result.State != StepState.Failed) break;
+                }
+            }
+
+            runState.StepStatuses[step.StepId] = result;
+            return result;
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception ex)
+        {
+            var failedStatus = new StepStatus
+            {
+                StepId = step.StepId,
+                State = StepState.Failed,
+                Error = ex.Message,
+                Duration = TimeSpan.Zero
+            };
+            runState.StepStatuses[step.StepId] = failedStatus;
+            return failedStatus;
+        }
     }
 
     private async Task<StepStatus> ExecuteStepAsync(WorkflowStep step, WorkflowRunState runState, CancellationToken ct)

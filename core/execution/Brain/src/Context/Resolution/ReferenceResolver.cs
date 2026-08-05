@@ -278,7 +278,7 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
                     catch (Exception ex)
                     {
                         // 无法获取文件大小时使用默认值
-                        System.Diagnostics.Trace.WriteLine($"Failed to get file size for reference: {ex.Message}");
+                        _logger?.LogWarning("获取代码引用文件大小时失败: {Error}", ex.Message);
                     }
 
                     var indexedRef = IndexedReference.Create(

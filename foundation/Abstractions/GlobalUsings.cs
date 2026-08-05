@@ -44,6 +44,7 @@ global using JoinCode.Abstractions.Models.Todo;
 global using JoinCode.Abstractions.Models.Vcr;
 global using JoinCode.Abstractions.Models.Voice;
 global using JoinCode.Abstractions.Pipeline;
+global using JoinCode.Abstractions.Pipeline.Interceptors;
 global using JoinCode.Abstractions.Prompts;
 global using JoinCode.Abstractions.Prompts.ToolPrompts;
 global using JoinCode.Abstractions.Security;

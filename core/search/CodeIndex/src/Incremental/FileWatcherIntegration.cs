@@ -20,11 +20,6 @@ public sealed partial class FileWatcherIntegration : IAsyncDisposable
 
     private static readonly string[] DefaultExcludedDirs = new[] { "bin", "obj", ".git", ".x" };
 
-    private static void Log(string message)
-    {
-        System.Diagnostics.Trace.WriteLine(message);
-    }
-
     public FileWatcherIntegration(ICodeIndexer indexer, string workspaceRoot, TimeSpan? debounceInterval = null)
         : this(indexer, workspaceRoot, null, null, debounceInterval)
     {

@@ -529,6 +529,32 @@ public sealed partial class GoalGraphEngine : ServiceEntity
     private async Task HandleRetryAsync(string targetNodeId, GraphExecutionContext context, CancellationToken ct)
     {
         var retryCount = context.RetryCount.GetValueOrDefault(targetNodeId, 0);
+
+        if (_nodeInspector is not null && context.Graph.Dag.Nodes.TryGetValue(targetNodeId, out var targetNode))
+        {
+            var output = targetNode.Payload.Output ?? string.Empty;
+            if (!string.IsNullOrWhiteSpace(output))
+            {
+                var score = await _nodeInspector.ScoreAsync(output, cancellationToken: ct).ConfigureAwait(false);
+                var decision = GoalRetryPolicy.Decide(score.Overall, retryCount);
+
+                _logger?.LogInformation("[GoalGraph] 分级重试决策: {NodeId} (分数={Score:F2}, 重试={Retries}, 决策={Decision})",
+                    targetNodeId, score.Overall, retryCount, decision);
+
+                switch (decision)
+                {
+                    case RetryDecision.Accept:
+                        return;
+                    case RetryDecision.Abandon:
+                        targetNode.Payload.Status = GoalNodeStatus.Failed;
+                        targetNode.Payload.ErrorMessage = $"质量分数过低放弃重试 (score={score.Overall:F2}, retries={retryCount})";
+                        return;
+                    case RetryDecision.RetryWithPatch:
+                        break;
+                }
+            }
+        }
+
         if (retryCount >= context.Graph.MaxRetriesPerNode)
         {
             _logger?.LogWarning("[GoalGraph] 回退超过最大重试次数: {NodeId} ({Retries}/{Max})",

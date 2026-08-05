@@ -1,7 +1,7 @@
 namespace Services.SystemActuator;
 
 /// <summary>
-/// 系统执行器抽象基类 — 合并原 ShellProviderBase + ShellCapabilityProvider + ShellExecutionService
+/// 系统执行器抽象基类 — 合并原 ProviderBase + CapabilityProvider + ExecutionService
 /// 含：静态能力缓存 + 命令构建 + 执行编排 + 环境变量 + 工具方法
 /// 子类只需重写命令构建 + 能力检测，无需改基类
 /// </summary>
@@ -348,7 +348,7 @@ public abstract class SystemActuatorBase : ToolExecutionEntity, ISystemActuator
     }
 
     /// <summary>
-    /// 从候选路径解析 Shell 路径
+    /// 从候选路径解析执行器路径
     /// </summary>
     protected string ResolveShellPathFromCandidates(
         string envVarName, string pathExecutable, string[] commonPaths, string fallback, bool excludeCurrentDir = true)
@@ -367,7 +367,7 @@ public abstract class SystemActuatorBase : ToolExecutionEntity, ISystemActuator
     }
 
     /// <summary>
-    /// 执行 Shell 命令并返回输出
+    /// 执行命令行并返回输出
     /// </summary>
     protected string? ExecuteShellCommand(string fileName, string arguments, int timeoutMs = 5000)
     {

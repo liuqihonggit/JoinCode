@@ -76,16 +76,16 @@ public static partial class ServiceRegistration
             }, "ShellExecutionConfig 验证失败")
             .ValidateOnStart();
 
-        // ShellExecutionConfig — 直接注册供 ShellExecutionService 构造函数使用
-        // （ShellExecutionService 构造函数取 ShellExecutionConfig 而非 IOptions<>）
+        // ShellExecutionConfig — 直接注册供 SystemActuatorBase 构造函数使用
+        // （SystemActuatorBase 构造函数取 ShellExecutionConfig 而非 IOptions<>）
         services.AddSingleton(sp =>
         {
             var options = sp.GetRequiredService<IOptions<ShellExecutionConfig>>();
             return options.Value;
         });
 
-        // ShellCapabilityProvider — 已改为静态缓存，不再 DI 注册
-        // SystemActuatorRegistry 在 SystemActuatorInitializer 中初始化（替代原 ShellCapabilityCache + ShellProviderFactory）
+        // SystemActuatorBase — 已改为静态缓存，不再 DI 注册
+        // SystemActuatorRegistry 在 SystemActuatorInitializer 中初始化（替代原 SystemActuatorRegistry + SystemActuatorRegistry）
 
         return services;
     }

@@ -2,7 +2,7 @@ namespace JoinCode.Abstractions.Interfaces;
 
 /// <summary>
 /// 系统执行器注册表接口 — 按 Kind 查找执行器 + 统一管理跨执行器的后台任务
-/// 合并原 ShellCapabilityCache + ShellProviderFactory + ShellBackgroundTaskService 三层
+/// 合并原 CapabilityCache + ProviderFactory + BackgroundTaskService 三层
 /// </summary>
 public interface ISystemActuatorRegistry
 {

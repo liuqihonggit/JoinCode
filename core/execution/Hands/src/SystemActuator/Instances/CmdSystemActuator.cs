@@ -1,7 +1,7 @@
 namespace Services.SystemActuator;
 
 /// <summary>
-/// CMD 系统执行器 — Windows 命令提示符，新增实现（原 ShellType.Cmd 无实现）
+/// CMD 系统执行器 — Windows 命令提示符，新增实现（原 Kind.Cmd 无实现）
 /// </summary>
 public sealed class CmdSystemActuator : SystemActuatorBase
 {

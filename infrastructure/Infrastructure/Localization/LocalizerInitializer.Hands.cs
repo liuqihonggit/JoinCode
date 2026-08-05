@@ -287,7 +287,7 @@ public static partial class LocalizerInitializer
         zhEntries[StringKey.SkillDiscoveryStepMissingType] = "步骤 {0} 缺少 Type";
         zhEntries[StringKey.SkillDiscoveryParamMissingType] = "参数 {0} 缺少类型定义";
 
-        // === ShellBackgroundTaskService ===
+        // === SystemActuatorRegistry ===
         defaultEntries[StringKey.ShellBgCommandCannotBeEmpty] = "Command cannot be empty";
         defaultEntries[StringKey.ShellBgTaskCreated] = "Created shell background task {0}: {1}";
         defaultEntries[StringKey.ShellBgTaskCancelled] = "Cancelled shell background task {0}";

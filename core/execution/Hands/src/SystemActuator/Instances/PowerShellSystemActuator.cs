@@ -1,7 +1,7 @@
 namespace Services.SystemActuator;
 
 /// <summary>
-/// PowerShell 系统执行器 — 合并原 PowerShellShellProvider + PowerShellCapabilityProvider
+/// PowerShell 系统执行器 — 合并原 PowerShellProvider + PowerShellCapabilityProvider
 /// </summary>
 public sealed class PowerShellSystemActuator : SystemActuatorBase
 {

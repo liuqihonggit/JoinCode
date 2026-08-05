@@ -1,7 +1,7 @@
 namespace JoinCode.Abstractions.Interfaces;
 
 /// <summary>
-/// 系统执行器类型标识 — 替代 ShellType 枚举，支持"构造类即扩展"的注册式扩展
+/// 系统执行器类型标识 — 替代枚举，支持"构造类即扩展"的注册式扩展
 /// 新增执行器类型只需添加静态实例 + 对应 SystemActuatorBase 子类，无需改枚举
 /// </summary>
 public sealed class SystemActuatorKind

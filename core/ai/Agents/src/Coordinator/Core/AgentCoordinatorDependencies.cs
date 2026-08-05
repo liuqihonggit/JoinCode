@@ -24,7 +24,7 @@ public sealed record AgentPermissionDependencies(
 /// <summary>
 /// AgentCoordinator 团队管理依赖聚合 — 1 个可选服务
 /// TeammateInitService 已移至 SpawnCoordRegisterMessageMiddleware
-/// ShellBackgroundTaskService 已移至 DisposeShellTasksMiddleware
+/// SystemActuatorRegistry 已移至 DisposeShellTasksMiddleware
 /// LayoutManager 已移至 SpawnCoordTeammatePaneMiddleware + DisposePaneMiddleware
 /// </summary>
 [Register]

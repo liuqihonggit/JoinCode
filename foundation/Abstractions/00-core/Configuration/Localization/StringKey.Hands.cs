@@ -148,7 +148,7 @@ public static partial class StringKey
     public const string SkillDiscoveryStepMissingType = "SkillDiscoveryStepMissingType";
     public const string SkillDiscoveryParamMissingType = "SkillDiscoveryParamMissingType";
 
-    // === ShellBackgroundTaskService ===
+    // === SystemActuatorRegistry ===
     public const string ShellBgCommandCannotBeEmpty = "ShellBgCommandCannotBeEmpty";
     public const string ShellBgTaskCreated = "ShellBgTaskCreated";
     public const string ShellBgTaskCancelled = "ShellBgTaskCancelled";

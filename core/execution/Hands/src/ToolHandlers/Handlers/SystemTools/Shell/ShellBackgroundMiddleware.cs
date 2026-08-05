@@ -2,8 +2,8 @@
 
 /// <summary>
 /// Shell 后台任务中间件 — 对齐 TS spawnShellTask/LocalShellTask
-/// 当 background=true 时，先启动 ShellCommandContext，再立即转后台并注册到后台任务服务
-/// 统一走 ShellCommandContext 路径，复用溢出文件机制，不再独立启动新进程
+/// 当 background=true 时，先启动 SystemActuatorCommandContext，再立即转后台并注册到后台任务服务
+/// 统一走 SystemActuatorCommandContext 路径，复用溢出文件机制，不再独立启动新进程
 /// </summary>
 [Register]
 public sealed partial class ShellBackgroundMiddleware : IShellMiddleware

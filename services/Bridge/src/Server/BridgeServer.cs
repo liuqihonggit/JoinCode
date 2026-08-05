@@ -486,7 +486,7 @@ public sealed partial class BridgeServer : IDisposable
     }
 
     /// <summary>
-    /// 处理执行命令请求 — 调用 IShellExecutionService.ExecuteAsync 执行命令
+    /// 处理执行命令请求 — 调用 ISystemActuator.ExecuteAsync 执行命令
     /// </summary>
     private async Task HandleExecuteCommandAsync(string clientId, BridgeServerMessage message, CancellationToken cancellationToken)
     {

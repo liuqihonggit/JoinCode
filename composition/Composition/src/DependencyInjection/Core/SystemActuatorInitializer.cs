@@ -3,7 +3,7 @@ namespace Core.DependencyInjection;
 /// <summary>
 /// 系统执行器初始化器 — 应用启动时调用一次
 /// 检测所有执行器能力并注册工厂到 SystemActuatorRegistry
-/// 替代原 ShellCapabilityInitializer
+/// 替代原 CapabilityInitializer
 /// </summary>
 public static class SystemActuatorInitializer
 {

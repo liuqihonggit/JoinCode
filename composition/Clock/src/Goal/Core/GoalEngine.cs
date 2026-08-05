@@ -179,25 +179,6 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
         }
     }
 
-    /// <summary>
-    /// 使用 GoalGraph 启动目标 — 执行引擎将从单 Agent 循环切换为 DAG 编排
-    /// </summary>
-    public async Task<GoalState> StartAsync(
-        GoalGraph graph,
-        GoalGraphEngine graphEngine,
-        List<string>? constraints = null,
-        int? tokenBudget = null,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(graph);
-        ArgumentNullException.ThrowIfNull(graphEngine);
-
-        _goalGraph = graph;
-        _graphEngine = graphEngine;
-
-        return await StartAsync(graph.Name, constraints, tokenBudget, systemPrompt: null, cancellationToken).ConfigureAwait(false);
-    }
-
     public async Task<GoalState> StartAsync(
         string objective,
         List<string>? constraints = null,

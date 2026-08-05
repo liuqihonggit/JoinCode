@@ -24,9 +24,11 @@
 - [x] 2c. 修复ToolRegistryAdapter循环注册（显式指定IMcpToolRegistry接口）
 - [x] 2d. 全层编译验证通过（Foundation→Infrastructure→Core→Services→Composition→App）
 
-### 阶段3：RegisterAttributeAnalyzer加强 [pending]
-- 编译期验证[Register]类必须继承ServiceEntity/Entity
-- 除非标记[AllowSkipEntity]豁免
+### 阶段3：RegisterAttributeAnalyzer加强 [completed]
+- [x] 3a. JCC4003规则：[Register]类必须继承ServiceEntity/Entity
+- [x] 3b. [AllowSkipEntity]豁免 + record跳过
+- [x] 3c. 修复7个漏改类（5个IAsyncDisposable + 1个基类冲突 + 1个直接继承）
+- [x] 3d. 全层编译验证0个JCC4003错误
 
 ### 阶段4：531个[Register]类改继承ServiceEntity [completed]
 - [x] 4a. Foundation层4个类（2个继承ServiceEntity，2个AllowSkipEntity豁免）
@@ -40,8 +42,14 @@
 - 移除生成器项目（移到.xxx/）
 - 452个[Inject]字段手动补构造函数
 
-### 阶段6：78个基类冲突类处理 [pending]
-- 用[AllowSkipEntity]豁免
+### 阶段6：78个基类冲突类处理 [completed]
+- [x] 通过[AllowSkipEntity]豁免IAsyncDisposable冲突类（32+5个）
+- [x] 通过[AllowSkipEntity]豁免基类冲突类（51个）
+- [x] 通过[AllowSkipEntity]豁免record类型（2个）
+
+## 当前状态
+- ✅ 阶段1-4,6已完成
+- ⏳ 阶段5（删除ConstructorInjection.Generator）待做 — 452个[Inject]字段手动补构造函数
 
 ## 决策记录
 

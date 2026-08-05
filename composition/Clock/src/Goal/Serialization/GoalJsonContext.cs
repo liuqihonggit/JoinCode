@@ -94,6 +94,12 @@ public sealed class DecompositionAnalysisJson
     [JsonPropertyName("complexity")]
     public string Complexity { get; set; } = "medium";
 
+    [JsonPropertyName("mode")]
+    public string Mode { get; set; } = "A";
+
+    [JsonPropertyName("rationale")]
+    public string Rationale { get; set; } = string.Empty;
+
     [JsonPropertyName("subTasks")]
     public List<SubTaskDefinitionJson> SubTasks { get; set; } = [];
 }

@@ -29,6 +29,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
     private TaskCompletionSource? _completionTcs;
     private GoalGraph? _goalGraph;
     private GoalGraphEngine? _graphEngine;
+    [Inject] private readonly IGoalStateStore? _stateStore = null;
 
     public GoalState? CurrentState => _state;
     public bool IsRunning => _state?.Status == GoalStatus.Pursuing;
@@ -153,7 +154,8 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
         IEnumerable<IGoalLifecycleMiddleware>? lifecycleMiddlewares = null,
         IGoalHeartbeat? heartbeat = null,
         IClockService? clock = null,
-        IServiceProvider? serviceProvider = null)
+        IServiceProvider? serviceProvider = null,
+        IGoalStateStore? stateStore = null)
     {
         _kernel = kernel;
         _evaluator = evaluator;
@@ -164,6 +166,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
         _stateLock = new SemaphoreSlim(1, 1);
         _chatHistory = new MessageList();
         _heartbeat = heartbeat ?? throw new ArgumentNullException(nameof(heartbeat));
+        _stateStore = stateStore;
         _heartbeat.RegisterCallback(OnHeartbeatAsync);
 
         if (lifecycleMiddlewares is not null && loggerFactory is not null)
@@ -388,6 +391,8 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
         _completionTcs = new();
         _engineLoop = Task.Run(() => RunGoalLoopAsync(_engineCts.Token));
 
+        await PersistStateAsync(cancellationToken).ConfigureAwait(false);
+
         return _state;
     }
 
@@ -396,10 +401,13 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
         if (_lifecyclePipeline is not null)
         {
             await PauseViaPipelineAsync(cancellationToken).ConfigureAwait(false);
-            return;
+        }
+        else
+        {
+            await PauseDirectAsync(cancellationToken).ConfigureAwait(false);
         }
 
-        await PauseDirectAsync(cancellationToken).ConfigureAwait(false);
+        await PersistStateAsync(cancellationToken).ConfigureAwait(false);
     }
 
     private async Task PauseViaPipelineAsync(CancellationToken cancellationToken)
@@ -465,10 +473,13 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
         if (_lifecyclePipeline is not null)
         {
             await ResumeViaPipelineAsync(cancellationToken).ConfigureAwait(false);
-            return;
+        }
+        else
+        {
+            await ResumeDirectAsync(cancellationToken).ConfigureAwait(false);
         }
 
-        await ResumeDirectAsync(cancellationToken).ConfigureAwait(false);
+        await PersistStateAsync(cancellationToken).ConfigureAwait(false);
     }
 
     private async Task ResumeViaPipelineAsync(CancellationToken cancellationToken)
@@ -560,10 +571,13 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
         if (_lifecyclePipeline is not null)
         {
             await ClearViaPipelineAsync(cancellationToken).ConfigureAwait(false);
-            return;
+        }
+        else
+        {
+            await ClearDirectAsync(cancellationToken).ConfigureAwait(false);
         }
 
-        await ClearDirectAsync(cancellationToken).ConfigureAwait(false);
+        await PersistStateAsync(cancellationToken).ConfigureAwait(false);
     }
 
     private async Task ClearViaPipelineAsync(CancellationToken cancellationToken)
@@ -634,6 +648,23 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
         _logger?.LogInformation(L.T(StringKey.GoalEngineCleared), _state?.GoalId);
     }
 
+    /// <summary>
+    /// 持久化当前目标状态到 IGoalStateStore（异常不抛出，仅记录日志）。
+    /// </summary>
+    private async Task PersistStateAsync(CancellationToken ct)
+    {
+        if (_stateStore is null || _state is null)
+            return;
+        try
+        {
+            await _stateStore.SaveAsync(_state, ct).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "[GoalEngine] 状态持久化失败: {GoalId}", _state.GoalId);
+        }
+    }
+
     public async Task MarkCompletedAsync(string reason, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(reason);
@@ -641,10 +672,13 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
         if (_lifecyclePipeline is not null)
         {
             await MarkCompletedViaPipelineAsync(reason, cancellationToken).ConfigureAwait(false);
-            return;
+        }
+        else
+        {
+            await MarkCompletedDirectAsync(reason, cancellationToken).ConfigureAwait(false);
         }
 
-        await MarkCompletedDirectAsync(reason, cancellationToken).ConfigureAwait(false);
+        await PersistStateAsync(cancellationToken).ConfigureAwait(false);
     }
 
     private async Task MarkCompletedViaPipelineAsync(string reason, CancellationToken cancellationToken)
@@ -731,10 +765,13 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
         if (_lifecyclePipeline is not null)
         {
             await MarkUnmetViaPipelineAsync(reason, cancellationToken).ConfigureAwait(false);
-            return;
+        }
+        else
+        {
+            await MarkUnmetDirectAsync(reason, cancellationToken).ConfigureAwait(false);
         }
 
-        await MarkUnmetDirectAsync(reason, cancellationToken).ConfigureAwait(false);
+        await PersistStateAsync(cancellationToken).ConfigureAwait(false);
     }
 
     private async Task MarkUnmetViaPipelineAsync(string reason, CancellationToken cancellationToken)

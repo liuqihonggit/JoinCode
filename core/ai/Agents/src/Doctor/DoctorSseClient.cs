@@ -16,6 +16,7 @@ public sealed class DoctorSseClient : IAsyncDisposable
     private readonly HttpClient _httpClient;
     private readonly CancellationTokenSource _cts;
     private readonly TaskCompletionSource _connectedTcs = new();
+    private readonly ILogger<DoctorSseClient>? _logger;
     private Task? _sseListenTask;
     private int _isDisposed;
 
@@ -28,12 +29,13 @@ public sealed class DoctorSseClient : IAsyncDisposable
     /// <summary>收到医生指令事件</summary>
     public event EventHandler<string>? CommandReceived;
 
-    public DoctorSseClient(string endpoint, string? patientId = null)
+    public DoctorSseClient(string endpoint, string? patientId = null, ILogger<DoctorSseClient>? logger = null)
     {
         _endpoint = endpoint.TrimEnd('/');
         _patientId = patientId ?? Guid.NewGuid().ToString("N")[..8];
         _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
         _cts = new CancellationTokenSource();
+        _logger = logger;
     }
 
     /// <summary>
@@ -218,7 +220,7 @@ public sealed class DoctorSseClient : IAsyncDisposable
 
         if (_sseListenTask is not null)
         {
-            try { _sseListenTask.GetAwaiter().GetResult(); } catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"[DoctorSSE-Client] 等待SSE监听任务完成失败: {ex.Message}"); }
+            try { _sseListenTask.GetAwaiter().GetResult(); } catch (Exception ex) { _logger?.LogWarning(ex, "[DoctorSSE-Client] 等待SSE监听任务完成失败"); }
         }
 
         _cts.Dispose();

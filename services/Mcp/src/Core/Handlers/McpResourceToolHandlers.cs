@@ -7,10 +7,12 @@ namespace McpToolDispatch;
 public class McpResourceToolHandlers
 {
     private readonly IMcpToolRegistry _toolRegistry;
+    private readonly ILogger<McpResourceToolHandlers>? _logger;
 
-    public McpResourceToolHandlers(IMcpToolRegistry toolRegistry)
+    public McpResourceToolHandlers(IMcpToolRegistry toolRegistry, ILogger<McpResourceToolHandlers>? logger = null)
     {
         _toolRegistry = toolRegistry ?? throw new ArgumentNullException(nameof(toolRegistry));
+        _logger = logger;
     }
 
     /// <summary>
@@ -248,7 +250,7 @@ public class McpResourceToolHandlers
                 return ToolResultBuilder.Error().WithText($"arguments must be valid JSON format{detail}").Build();
             }
             if (!string.IsNullOrEmpty(repairHint))
-                System.Diagnostics.Trace.WriteLine($"[McpResource] arguments JSON repaired: {repairHint}");
+                _logger?.LogDebug("[McpResource] 参数 JSON 已修复: {RepairHint}", repairHint);
         }
 
         // 如果指定了客户端ID，优先使用该客户端

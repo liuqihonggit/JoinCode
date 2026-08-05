@@ -9,6 +9,7 @@ public sealed class SseTransport : TransportBase, IMcpTransport
 {
     private readonly int _port;
     private readonly string _host;
+    private readonly ILogger<SseTransport>? _logger;
     private HttpListener? _listener;
     private readonly Dictionary<string, SseClient> _clients = new();
     private readonly SemaphoreSlim _clientsLock = new(1, 1);
@@ -19,10 +20,11 @@ public sealed class SseTransport : TransportBase, IMcpTransport
     /// <summary>IMcpTransport: 传输错误（隐藏基类同名事件，使用 MCP 专用参数类型）</summary>
     public new event EventHandler<McpTransportErrorEventArgs>? ErrorOccurred;
 
-    public SseTransport(int port, string host = "localhost")
+    public SseTransport(int port, string host = "localhost", ILogger<SseTransport>? logger = null)
     {
         _port = port;
         _host = host;
+        _logger = logger;
 
         // 订阅基类事件，桥接到 MCP 事件
         base.ErrorOccurred += (_, e) =>
@@ -210,7 +212,7 @@ public sealed class SseTransport : TransportBase, IMcpTransport
             }
             catch (Exception closeEx)
             {
-                System.Diagnostics.Trace.WriteLine($"关闭 HTTP 响应失败: {closeEx.Message}");
+                _logger?.LogWarning(closeEx, "关闭 HTTP 响应失败");
             }
         }
     }
@@ -329,15 +331,17 @@ public sealed class SseTransport : TransportBase, IMcpTransport
 internal sealed class SseClient : IAsyncDisposable
 {
     private readonly SemaphoreSlim _writeLock = new(1, 1);
+    private readonly ILogger<SseTransport>? _logger;
     private bool _disposed;
 
     public string ConnectionId { get; }
     public Stream OutputStream { get; }
 
-    public SseClient(string connectionId, Stream outputStream)
+    public SseClient(string connectionId, Stream outputStream, ILogger<SseTransport>? logger = null)
     {
         ConnectionId = connectionId;
         OutputStream = outputStream;
+        _logger = logger;
     }
 
     public async Task SendAsync(byte[] data, CancellationToken cancellationToken)
@@ -375,7 +379,7 @@ internal sealed class SseClient : IAsyncDisposable
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Trace.WriteLine($"释放 SSE 输出流失败: {ex.Message}");
+            _logger?.LogWarning(ex, "释放 SSE 输出流失败");
         }
     }
 }

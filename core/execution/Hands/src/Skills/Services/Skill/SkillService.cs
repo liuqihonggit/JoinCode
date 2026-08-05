@@ -30,6 +30,7 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
     private readonly SemaphoreSlim _reloadLock;
     private readonly ConcurrentDictionary<string, SkillDefinition> _skills;
     private readonly Core.Skills.Discovery.ISkillDiscoveryService? _discoveryService;
+    private readonly ILogger<SkillService>? _logger;
     private DateTime _lastReloadTime = DateTime.MinValue;
 
     public SkillService(
@@ -37,7 +38,8 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
         IFileOperationService files,
         MiddlewarePipeline<SkillContext> pipeline,
         Core.Skills.Discovery.ISkillDiscoveryService? discoveryService = null,
-        Core.Skills.Mcp.IMcpSkillProvider? mcpSkillProvider = null
+        Core.Skills.Mcp.IMcpSkillProvider? mcpSkillProvider = null,
+        ILogger<SkillService>? logger = null
         )
     {
         Diag.WriteLine("[SKILL-CTOR] 1 assign fields");
@@ -46,6 +48,7 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
         _pipeline = pipeline;
         _discoveryService = discoveryService;
         _mcpSkillProvider = mcpSkillProvider;
+        _logger = logger;
         _reloadLock = new SemaphoreSlim(1, 1);
         _skills = new ConcurrentDictionary<string, SkillDefinition>(StringComparer.OrdinalIgnoreCase);
 
@@ -249,7 +252,7 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
         catch (Exception ex)
         {
             // 技能加载失败不应阻止应用启动，但需记录日志
-            System.Diagnostics.Trace.WriteLine($"SkillService.LoadExternalSkillsAsync failed: {ex.Message}");
+            _logger?.LogWarning(ex, "SkillService.LoadExternalSkillsAsync 失败");
         }
     }
 
@@ -273,7 +276,7 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
             catch (Exception ex)
             {
                 // 技能发现失败不应阻止应用启动，但需记录日志
-                System.Diagnostics.Trace.WriteLine($"SkillService.DiscoverAsync failed: {ex.Message}");
+                _logger?.LogWarning(ex, "SkillService.DiscoverAsync 失败");
             }
         }
     }

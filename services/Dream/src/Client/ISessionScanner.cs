@@ -27,11 +27,13 @@ public sealed partial class DefaultSessionScanner : ServiceEntity, ISessionScann
 {
     private readonly string _projectDir;
     private readonly IFileSystem _fs;
+    private readonly ILogger<DefaultSessionScanner>? _logger;
 
-    public DefaultSessionScanner(AutoDreamConfig config, IFileSystem fs)
+    public DefaultSessionScanner(AutoDreamConfig config, IFileSystem fs, ILogger<DefaultSessionScanner>? logger = null)
     {
         _projectDir = config?.ProjectDir ?? fs.GetCurrentDirectory();
         _fs = fs;
+        _logger = logger;
     }
 
     /// <inheritdoc />
@@ -70,7 +72,7 @@ public sealed partial class DefaultSessionScanner : ServiceEntity, ISessionScann
         catch (Exception ex)
         {
             // 忽略扫描错误
-            System.Diagnostics.Trace.WriteLine($"DefaultSessionScanner: Failed to scan sessions: {ex.Message}");
+            _logger?.LogWarning(ex, "DefaultSessionScanner: 扫描会话失败");
         }
 
         return Task.FromResult<IReadOnlyList<string>>(sessions);

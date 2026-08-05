@@ -74,6 +74,35 @@ app/ 与 services/ 层经过前两轮加固后已高度防御化。主要残留�
 <!-- 踩坑: 日志消息里的 `filePath ?? "?"` 会触发 CS8604（形参本已非空），去除空值合并后消除 -->
 <!-- 验证: Core/Services Debug 全量编译 0 错误，五套件测试通过 ✅ -->
 
-### B 组（待办）
+### B 组（已全部完成 ✅）
 
-无 logger 实例类（logger-less）需**可选 ILogger 构造注入**，属 DI 架构面改动，逐个评估影响后处理。
+用户选定"B 组全部 22 类一次做完"。22 个 logger-less 实例类加可选 `ILogger<T>? logger = null` 构造注入（MS.DI 对可选参数自动回退默认值，兼容既有 `new X()` 调用），统一将 `Trace.WriteLine` 改为 `_logger?.LogXxx`：
+
+| 层 | 类 | Trace 数 |
+|----|----|----------|
+| App | `CliSession`、`DotEnvConfig`(静态工厂加 `ILogger?` 参) | 3 |
+| Composition | `AppEventBus` | 2 |
+| Core-Agents | `TeamManager`、`DoctorSseClient` | 3 |
+| Core-Hands | `UpgradeService`、`SkillService`、`ToolArgumentParser` | 4 |
+| Core/Vault | `ConfigPersistentServiceBase`(抽象基类，`protected ILogger?`) | 3 |
+| Core/CodeIndex | `FileWatcherIntegrationRegistry`（去 static 解耦 logger） | 2 |
+| Foundation | `ToolUseContext`（方法级可选 `ILogger?` 参） | 1 |
+| Infrastructure | `ExternalPluginHost`、`SshForwardedPort`、`SshSession`（已有 logger）、`ThreadSafeListenerList` | 4 |
+| Services/Bridge | `BridgeWorkPollLoop`、`V1BridgeHandle`（已有 logger）、`V1WorkPollSetupMiddleware`（复用 `ctx.Logger`） | 10 |
+| Services/Dream | `DefaultSessionScanner` | 1 |
+| Services/Mcp | `McpResourceToolHandlers`、`SkillToolHandlers`、`SseTransport`+`SseClient` | 5 |
+
+### 验证（B 组）
+
+- 6 层 Debug `--no-incremental` 全量编译 0 警告 0 错误 ✅（Foundation/Infrastructure/Services/Core/Composition/App）
+- 套件全部通过 ✅：Infra 565、Agents 271、Clock 421、CodeIndex 374、Host 707、Scheduling 257、Bridge 594、Mcp 139、Dream 174、Vault 238+137、Hands 184+109+220+119（`WebSocket_EchoHello` 曾因端口 9761 冲突单发失败，重跑即通过 = 环境性 flake，非代码回归）
+- 22 个 B 组文件 `Trace\.WriteLine` 复核零残留 ✅
+
+### 决策记录（B 组）
+
+<!-- 🤖 Auto Decision: 2026-08-06 -->
+<!-- 决策: 22 个无 logger 实例类统一加可选 ILogger 构造注入，Trace→ILogger -->
+<!-- 原因: 可选参默认 null 使既有 new X() 与 MS DI（可选参自动回退默认值）双兼容，改动面经 compile+test 全绿验证；用户明确选择一次全部完成 -->
+<!-- 特例: ToolUseContext 为 DTO 采方法级可选 ILogger 参避免类污染；ThreadSafeListenerList 等工具类亦可选 ILogger<泛型>；V1WorkPollSetupMiddleware 复用 ctx.Logger 免构造注入 -->
+<!-- 踩坑: ① FileWatcherIntegrationRegistry 一处 Trace 在 static 方法内用 logger 需去 static; ② SseTransport 的"释放 SSE 输出流"实为内部 SseClient 类 → 需给 SseClient 加 logger -->
+<!-- 验证: 6 层全量编译 0 错误 + 15 套件全绿 ✅ -->

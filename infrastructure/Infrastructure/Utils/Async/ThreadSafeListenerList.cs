@@ -4,6 +4,12 @@ public sealed class ThreadSafeListenerList<T>
 {
     private readonly List<T> _listeners = [];
     private readonly object _lock = new();
+    private readonly ILogger<ThreadSafeListenerList<T>>? _logger;
+
+    public ThreadSafeListenerList(ILogger<ThreadSafeListenerList<T>>? logger = null)
+    {
+        _logger = logger;
+    }
 
     public IDisposable Register(T listener)
     {
@@ -34,7 +40,7 @@ public sealed class ThreadSafeListenerList<T>
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Trace.WriteLine($"ThreadSafeListenerList: listener threw exception: {ex.Message}");
+                _logger?.LogWarning(ex, "ThreadSafeListenerList: 监听器抛出异常");
             }
         }
     }

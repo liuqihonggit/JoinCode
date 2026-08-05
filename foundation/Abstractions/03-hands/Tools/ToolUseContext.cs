@@ -86,7 +86,8 @@ public sealed class ToolUseContext
         IFileSystem fs,
         int maxFiles = 5,
         int totalTokenBudget = 50000,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        ILogger? logger = null)
     {
         if (RecentlyReadFiles.Count == 0) return null;
 
@@ -121,10 +122,10 @@ public sealed class ToolUseContext
 
                 totalTokens += contentTokens;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 // 文件读取失败时跳过，不影响压缩流程
-                System.Diagnostics.Trace.WriteLine($"[PostCompactFileTracker] 读取文件失败: {filePath}");
+                logger?.LogWarning(ex, "[PostCompactFileTracker] 读取文件失败: {FilePath}", filePath);
             }
         }
 

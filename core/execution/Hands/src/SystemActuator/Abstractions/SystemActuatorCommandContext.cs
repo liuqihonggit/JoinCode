@@ -533,7 +533,24 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
 
             return (filePath, fileSize);
         }
-        catch (Exception ex) { _logger?.LogDebug(ex, "大输出持久化失败"); return (null, null); }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "大输出持久化失败，尝试重试一次");
+            try
+            {
+                var retryDir = Path.Combine(Path.GetTempPath(), "jcc-tool-results");
+                DirectoryHelper.EnsureDirectoryExists(_fs, retryDir);
+                var retryPath = Path.Combine(retryDir, $"{Guid.NewGuid():N}"[..^20] + ".txt");
+                await _fs.WriteAllTextAsync(retryPath, output).ConfigureAwait(false);
+                var retrySize = _fs.GetFileLength(retryPath);
+                return (retryPath, retrySize);
+            }
+            catch (Exception retryEx)
+            {
+                _logger?.LogError(retryEx, "大输出持久化重试也失败，数据将丢失");
+                return (null, null);
+            }
+        }
     }
 
     /// <inheritdoc />

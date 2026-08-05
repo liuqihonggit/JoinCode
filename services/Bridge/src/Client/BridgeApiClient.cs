@@ -1132,8 +1132,8 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
         }
         catch (Exception ex)
         {
-            // 对齐 TS 端: 错误静默吞掉 — 标题同步是 best-effort
-            System.Diagnostics.Trace.WriteLine($"[BridgeApiClient] Sync title failed: {ex.Message}");
+            // 对齐 TS 端: 错误静默吞掉 — 标题同步是 best-effort，但保留日志可见性
+            _logger?.LogDebug(ex, "[BridgeApiClient] 会话标题同步失败");
         }
     }
 

@@ -124,7 +124,7 @@ public sealed partial class McpOAuthService : ServiceEntity
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Trace.WriteLine($"McpOAuthService: Failed to stop callback listener: {ex.Message}");
+            _logger?.LogWarning(ex, "停止 OAuth 回调监听器失败");
         }
         _callbackListener = null;
     }

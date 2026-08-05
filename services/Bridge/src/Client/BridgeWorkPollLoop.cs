@@ -267,17 +267,21 @@ public sealed class BridgeWorkPollLoop : IAsyncDisposable
             try
             {
                 // P1-4: 改用异步关闭+释放，消除 sync 方法中的 sync-over-async 阻塞
+                // P1-4: DisposeAsync 与 CloseAsync 同置于 try/catch 内，防止旧传输释放异常成为未观察异常
                 _ = Task.Run(async () =>
                 {
-                    try { await oldTransport.CloseAsync().ConfigureAwait(false); }
-                    catch (Exception closeEx) { System.Diagnostics.Trace.WriteLine($"[BridgeWorkPollLoop] CloseAsync old transport failed: {closeEx.Message}"); }
-                    await oldTransport.DisposeAsync().ConfigureAwait(false);
+                    try
+                    {
+                        await oldTransport.CloseAsync().ConfigureAwait(false);
+                        await oldTransport.DisposeAsync().ConfigureAwait(false);
+                    }
+                    catch (Exception closeEx) { _logger?.LogWarning(closeEx, "[BridgeWorkPollLoop] 关闭旧传输失败"); }
                 });
             }
             catch (Exception ex)
             {
                 // 忽略旧传输关闭错误
-                System.Diagnostics.Trace.WriteLine($"[BridgeWorkPollLoop] Close old transport failed: {ex.Message}");
+                _logger?.LogWarning(ex, "[BridgeWorkPollLoop] 关闭旧传输失败（外部）");
             }
         }
     }
@@ -420,7 +424,7 @@ public sealed class BridgeWorkPollLoop : IAsyncDisposable
                         catch (Exception ex2)
                         {
                             // best-effort: 心跳失败不阻塞退避
-                            System.Diagnostics.Trace.WriteLine($"[BridgeWorkPollLoop] Heartbeat during backoff failed: {ex2.Message}");
+                            _logger?.LogDebug(ex2, "[BridgeWorkPollLoop] 退避期间心跳失败");
                         }
                     }
 

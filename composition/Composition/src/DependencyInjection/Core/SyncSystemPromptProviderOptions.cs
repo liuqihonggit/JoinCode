@@ -5,6 +5,7 @@ namespace Core.DependencyInjection;
 /// <para>从 WorkflowConfig + 可选 DI 服务推导所有提示词配置属性</para>
 /// </summary>
 [Register]
+[AllowSkipEntity("已有基类 SystemPromptProviderOptions，C# 单继承冲突")]
 public sealed partial class SyncSystemPromptProviderOptions : Core.Prompts.SystemPromptProviderOptions
 {
     /// <summary>

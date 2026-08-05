@@ -2,7 +2,7 @@
 namespace JoinCode.ChatCommands;
 
 [Register]
-public sealed partial class ModelCatalog(IProviderDefinitionRegistry registry) : IModelCatalog
+public sealed partial class ModelCatalog(IProviderDefinitionRegistry registry) : ServiceEntity, IModelCatalog
 {
     private readonly IProviderDefinitionRegistry _registry = registry;
 

@@ -14,6 +14,7 @@ public sealed record ForkManagerDependencies(
     ITelemetryService? TelemetryService = null);
 
 [Register]
+[AllowSkipEntity("实现 IAsyncDisposable，与 ServiceEntity 的 IDisposable 冲突，保留异步释放模式")]
 public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDisposable
 {
     private sealed class ForkEntry

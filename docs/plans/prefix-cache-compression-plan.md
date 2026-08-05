@@ -132,3 +132,11 @@ PreChatMiddleware.RecordPromptStateAsync        // core/execution/Brain/src/Cont
 <!-- 替代方案: 0.5 即折叠（现状，缓存健康时白扔增量性价比）；无封顶无限推迟（会顶爆窗口）-->
 <!-- 验证: 新增 ContextFoldDecideAfterUsageTests 7 例全绿 + 既有 ContextFold 13 例/ ChatUsageProcessor 4 例不回归；Brain 编译 0 警告 0 错误 -->
 
+## 10. 决策记录（Phase2 落地，2026-08-06）
+
+<!-- 🤖 Auto Decision: 2026-08-06 -->
+<!-- 决策: 落地 Phase2 压缩后重基线 — CacheBreakDetector 新增 NotifyCompaction()，折叠改写前缀后(manager FoldIfNeededAsync)调用重置缓存基线并标记待上报; 下次全量miss(CacheRead==0且Creation>0)归因新枚举 CacheBreakKind.CompactionEntered 而非 CacheEviction -->
+<!-- 原因: 对齐 Reasonix Go 版 rewriteVersion→log_rewrite 与上游 Claude notifyCompaction; 消除"压缩导致的全量miss被误报驱逐"的语义错乱 -->
+<!-- 替代方案: 直接把压缩miss当驱逐(现状，观测/成本告警误导); 仅重置基线不上报专用kind(失去可观测性) -->
+<!-- 验证: 新增 CacheBreakDetectorCompactionTests 4 例 + SessionStats CompactionEnteredBreaks 全绿; 既有 25 例 CacheBreak/ContextFold + Brain.Context.Tests 723 例不回归; 编译 0 警告 0 错误 -->
+

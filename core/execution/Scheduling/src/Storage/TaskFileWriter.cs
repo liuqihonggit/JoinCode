@@ -8,11 +8,13 @@ namespace Core.Scheduling;
 public sealed partial class TaskFileWriter : ServiceEntity, ITaskFileWriter
 {
 
-    public TaskFileWriter(IFileOperationService fileOperationService)
+    public TaskFileWriter(IFileOperationService fileOperationService, ILogger<TaskFileWriter>? logger = null)
     {
         _fileOperationService = fileOperationService;
+        _logger = logger;
     }
     [Inject] private readonly IFileOperationService _fileOperationService;
+    private readonly ILogger<TaskFileWriter>? _logger;
 
     /// <summary>
     /// 写入任务文件
@@ -63,7 +65,7 @@ public sealed partial class TaskFileWriter : ServiceEntity, ITaskFileWriter
             if (_fileOperationService.FileExists(tempPath))
             {
                 try { await _fileOperationService.DeleteFileAsync(tempPath, cancellationToken).ConfigureAwait(false); } catch (Exception ex) {
-                    System.Diagnostics.Trace.WriteLine(L.T(StringKey.DeleteTempFileFailedLog, ex.Message));
+                    _logger?.LogWarning(ex, L.T(StringKey.DeleteTempFileFailedLog, ex.Message));
                 }
             }
             throw;

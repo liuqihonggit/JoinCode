@@ -14,6 +14,7 @@ public sealed class StoreSelector<TState, TSelected> : IStoreSelector<TState, TS
     private readonly IEqualityComparer<TSelected> _comparer;
     private readonly object _valueLock = new();
     private ImmutableList<Action<TSelected>> _subscribers = ImmutableList<Action<TSelected>>.Empty;
+    private readonly ILogger<StoreSelector<TState, TSelected>>? _logger;
 
     private TSelected _currentValue;
     private IDisposable? _storeSubscription;
@@ -25,11 +26,13 @@ public sealed class StoreSelector<TState, TSelected> : IStoreSelector<TState, TS
     public StoreSelector(
         IStore<TState> store,
         Func<TState, TSelected> selector,
-        IEqualityComparer<TSelected>? comparer = null)
+        IEqualityComparer<TSelected>? comparer = null,
+        ILogger<StoreSelector<TState, TSelected>>? logger = null)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _selector = selector ?? throw new ArgumentNullException(nameof(selector));
         _comparer = comparer ?? EqualityComparer<TSelected>.Default;
+        _logger = logger;
 
         _currentValue = _selector(store.GetState());
 
@@ -65,7 +68,7 @@ public sealed class StoreSelector<TState, TSelected> : IStoreSelector<TState, TS
         catch (Exception ex)
         {
             // 订阅者异常不应中断其他订阅者的通知，但需记录日志
-            System.Diagnostics.Trace.WriteLine($"StoreSelector subscriber threw: {ex.Message}");
+            _logger?.LogWarning(ex, "StoreSelector 订阅者抛出异常");
         }
 
         return new SelectorSubscriptionDisposable(this, handler);
@@ -103,7 +106,7 @@ public sealed class StoreSelector<TState, TSelected> : IStoreSelector<TState, TS
             catch (Exception ex)
             {
                 // 订阅者异常不应中断其他订阅者的通知，但需记录日志
-                System.Diagnostics.Trace.WriteLine($"StoreSelector subscriber threw: {ex.Message}");
+                _logger?.LogWarning(ex, "StoreSelector 订阅者抛出异常");
             }
         }
     }

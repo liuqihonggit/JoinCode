@@ -18,10 +18,11 @@
 - [x] 1b. 创建ServiceEntity : Entity中间基类
 - [x] 1c. 编译验证 + 单元测试通过 + 提交
 
-### 阶段2：源码生成器加编译期环检测 [pending]
-- 在ServiceRegistrationGenerator中加入DAG构建
-- 实现[AllowCycle]白名单特性
-- 发现环报error（硬错误），[AllowCycle]豁免
+### 阶段2：源码生成器加编译期环检测 [completed]
+- [x] 2a. 创建[AllowCycle]白名单特性
+- [x] 2b. ServiceRegistrationGenerator加DAG构建+DFS三色标记环检测
+- [x] 2c. 修复ToolRegistryAdapter循环注册（显式指定IMcpToolRegistry接口）
+- [x] 2d. 全层编译验证通过（Foundation→Infrastructure→Core→Services→Composition→App）
 
 ### 阶段3：RegisterAttributeAnalyzer加强 [pending]
 - 编译期验证[Register]类必须继承ServiceEntity/Entity

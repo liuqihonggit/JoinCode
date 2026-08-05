@@ -6,7 +6,17 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
 {
     private const string RegisterAttributeFullName = "JoinCode.Abstractions.Attributes.RegisterAttribute";
     private const string RegisterOptionsAttributeFullName = "JoinCode.Abstractions.Attributes.RegisterOptionsAttribute";
+    private const string AllowCycleAttributeFullName = "JoinCode.Abstractions.Attributes.AllowCycleAttribute";
     private const string IHostedServiceFullName = "global::Microsoft.Extensions.Hosting.IHostedService";
+
+    private static readonly DiagnosticDescriptor DiCycleRule = new(
+        "JCC4002",
+        "DI 循环依赖",
+        "检测到 DI 循环依赖: {0}。请用延迟解析打破循环，或用 [AllowCycle(\"原因\")] 标记已知合法循环。",
+        "DIServiceRegistration",
+        DiagnosticSeverity.Error,
+        true,
+        "DI 循环依赖会导致运行期容器解析时栈溢出或死锁. 编译期检测可在开发阶段立即发现问题.");
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
@@ -16,13 +26,14 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
             .Select(static (compilation, _) =>
             {
                 var registerAttr = compilation.GetTypeByMetadataName(RegisterAttributeFullName);
+                var allowCycleAttr = compilation.GetTypeByMetadataName(AllowCycleAttributeFullName);
                 var assemblyName = compilation.AssemblyName ?? "CurrentAssembly";
                 var sanitized = SanitizeAssemblyName(assemblyName);
                 var isExe = compilation.Options.OutputKind == OutputKind.ConsoleApplication;
 
                 var results = new List<ServiceRegistrationInfo>();
                 if (registerAttr is not null)
-                    VisitNamespaces(compilation.GlobalNamespace, registerAttr, results, assemblyName, isExe);
+                    VisitNamespaces(compilation.GlobalNamespace, registerAttr, allowCycleAttr, results, assemblyName, isExe);
 
                 return new ServiceGenerationContext(sanitized, results.ToImmutableArray());
             });
@@ -114,6 +125,7 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
     private static void VisitNamespaces(
         INamespaceSymbol namespaceSymbol,
         INamedTypeSymbol? registerAttr,
+        INamedTypeSymbol? allowCycleAttr,
         List<ServiceRegistrationInfo> results,
         string currentAssemblyName,
         bool filterByCurrentAssembly)
@@ -121,7 +133,7 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
         foreach (var member in namespaceSymbol.GetMembers())
         {
             if (member is INamespaceSymbol childNamespace)
-                VisitNamespaces(childNamespace, registerAttr, results, currentAssemblyName, filterByCurrentAssembly);
+                VisitNamespaces(childNamespace, registerAttr, allowCycleAttr, results, currentAssemblyName, filterByCurrentAssembly);
             else if (member is INamedTypeSymbol typeSymbol)
             {
                 // Exe 项目仅扫描自身程序集的类型，避免与被引用库项目生成的同名方法产生 CS0121 歧义
@@ -132,12 +144,46 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
                 var registrations = ExtractRegistrations(typeSymbol, registerAttr);
                 if (registrations.Count > 0)
                 {
+                    var constructorDeps = ExtractConstructorDependencies(typeSymbol);
+                    var location = typeSymbol.Locations.FirstOrDefault();
+                    var hasAllowCycle = typeSymbol.GetAttributes()
+                        .Any(a => SymbolEqualityComparer.Default.Equals(a.AttributeClass, allowCycleAttr));
                     results.Add(new ServiceRegistrationInfo(
                         typeSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
-                        registrations));
+                        registrations,
+                        constructorDeps,
+                        location,
+                        hasAllowCycle));
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// 提取类型的构造函数依赖（用于编译期 DI 循环依赖检测）。
+    /// 仅扫描 public/internal 构造函数的参数，跳过 Error 类型。
+    /// </summary>
+    private static List<ConstructorDependency> ExtractConstructorDependencies(INamedTypeSymbol typeSymbol)
+    {
+        var deps = new List<ConstructorDependency>();
+        foreach (var ctor in typeSymbol.Constructors)
+        {
+            if (ctor.DeclaredAccessibility != Accessibility.Public &&
+                ctor.DeclaredAccessibility != Accessibility.Internal)
+                continue;
+
+            foreach (var param in ctor.Parameters)
+            {
+                if (param.Type.TypeKind == TypeKind.Error)
+                    continue;
+
+                var typeName = param.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+                var isOptional = param.HasExplicitDefaultValue ||
+                    param.NullableAnnotation == NullableAnnotation.Annotated;
+                deps.Add(new ConstructorDependency(typeName, isOptional));
+            }
+        }
+        return deps;
     }
 
     private static List<ServiceRegistration> ExtractRegistrations(
@@ -244,6 +290,9 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
 
     private static void GenerateRegistrationCode(SourceProductionContext context, string sanitizedAssemblyName, ImmutableArray<ServiceRegistrationInfo> services)
     {
+        // 编译期 DI 循环依赖检测
+        DetectCyclesAndReport(context, services);
+
         // 按实现类型分组，每个实现类型只注册一次
         var groupedByImpl = services
             .GroupBy(s => s.ImplementationName)
@@ -376,6 +425,148 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
         return name;
     }
 
+    /// <summary>
+    /// 编译期 DI 循环依赖检测：基于 DFS 三色标记法（白=未访问，灰=正在访问，黑=已完成）。
+    /// 构建实现类型间的邻接表（接口依赖映射为实现类型，跳过可选依赖），
+    /// 发现灰节点即存在环。环中任一类型标注 [AllowCycle] 则豁免，否则报 Diagnostic。
+    /// </summary>
+    private static void DetectCyclesAndReport(
+        SourceProductionContext context,
+        ImmutableArray<ServiceRegistrationInfo> services)
+    {
+        // 构建接口→实现映射
+        var interfaceToImpl = new Dictionary<string, string>();
+        foreach (var svc in services)
+        {
+            foreach (var reg in svc.Registrations)
+            {
+                if (reg.InterfaceName is not null && reg.InterfaceName != svc.ImplementationName)
+                    interfaceToImpl[reg.InterfaceName] = svc.ImplementationName;
+            }
+        }
+
+        // 所有实现类型集合
+        var allImpls = new HashSet<string>(services.Select(s => s.ImplementationName));
+
+        // 构建邻接表：实现类型 → 依赖的实现类型
+        var adjacency = new Dictionary<string, List<string>>();
+        var locationMap = new Dictionary<string, Location?>();
+        var allowCycleSet = new HashSet<string>();
+
+        foreach (var svc in services)
+        {
+            var implName = svc.ImplementationName;
+            if (!adjacency.ContainsKey(implName))
+                adjacency[implName] = new List<string>();
+            locationMap[implName] = svc.Location;
+            if (svc.HasAllowCycle)
+                allowCycleSet.Add(implName);
+
+            foreach (var dep in svc.ConstructorDependencies)
+            {
+                if (dep.IsOptional)
+                    continue;
+
+                // 将接口依赖替换为实现类型
+                var depImpl = dep.DependencyType;
+                if (interfaceToImpl.TryGetValue(dep.DependencyType, out var impl))
+                    depImpl = impl;
+
+                // 只关注DI服务之间的依赖
+                if (allImpls.Contains(depImpl))
+                    adjacency[implName].Add(depImpl);
+            }
+        }
+
+        // DFS三色标记检测环
+        var color = new Dictionary<string, int>();
+        foreach (var node in adjacency.Keys)
+            color[node] = 0;
+
+        var reportedCycles = new HashSet<string>();
+        foreach (var node in adjacency.Keys)
+        {
+            int nodeColor;
+            color.TryGetValue(node, out nodeColor);
+            if (nodeColor == 0)
+            {
+                var path = new List<string>();
+                DfsCycle(node, adjacency, color, path, context, locationMap, allowCycleSet, reportedCycles);
+            }
+        }
+    }
+
+    /// <summary>
+    /// DFS 三色标记递归：0=白未访问，1=灰正在访问，2=黑已完成。
+    /// 遇到灰节点表示发现环，提取环路径并检查 [AllowCycle] 豁免。
+    /// </summary>
+    private static void DfsCycle(
+        string node,
+        Dictionary<string, List<string>> adjacency,
+        Dictionary<string, int> color,
+        List<string> path,
+        SourceProductionContext context,
+        Dictionary<string, Location?> locationMap,
+        HashSet<string> allowCycleSet,
+        HashSet<string> reportedCycles)
+    {
+        color[node] = 1; // 灰
+        path.Add(node);
+
+        if (adjacency.TryGetValue(node, out var neighbors))
+        {
+            foreach (var neighbor in neighbors)
+            {
+                int neighborColor;
+                color.TryGetValue(neighbor, out neighborColor);
+                if (neighborColor == 1) // 遇到灰节点 = 发现环
+                {
+                    // 提取环：从path中找到neighbor的位置到当前
+                    var cycleStart = path.IndexOf(neighbor);
+                    var cycle = path.Skip(cycleStart).ToList();
+
+                    // 检查[AllowCycle]豁免
+                    var hasAllowCycle = cycle.Any(n => allowCycleSet.Contains(n));
+                    if (!hasAllowCycle)
+                    {
+                        // 去重
+                        var normalized = NormalizeCycleKey(cycle);
+                        if (reportedCycles.Add(normalized))
+                        {
+                            var cycleStr = string.Join(" → ", cycle) + " → " + cycle[0];
+                            var location = cycle.Select(n => locationMap[n]).FirstOrDefault(l => l is not null) ?? Location.None;
+                            context.ReportDiagnostic(Diagnostic.Create(DiCycleRule, location, cycleStr));
+                        }
+                    }
+                }
+                else if (neighborColor == 0) // 白节点，继续DFS
+                {
+                    DfsCycle(neighbor, adjacency, color, path, context, locationMap, allowCycleSet, reportedCycles);
+                }
+            }
+        }
+
+        path.RemoveAt(path.Count - 1);
+        color[node] = 2; // 黑
+    }
+
+    /// <summary>
+    /// 环路径规范化：将环旋转到最小元素开头，用于去重（同一环不同起点只报一次）。
+    /// </summary>
+    private static string NormalizeCycleKey(List<string> cycle)
+    {
+        var minIdx = 0;
+        for (var i = 1; i < cycle.Count; i++)
+        {
+            if (string.CompareOrdinal(cycle[i], cycle[minIdx]) < 0)
+                minIdx = i;
+        }
+        var rotated = new string[cycle.Count];
+        for (var i = 0; i < cycle.Count; i++)
+            rotated[i] = cycle[(minIdx + i) % cycle.Count];
+        return string.Join("->", rotated);
+    }
+
 
 
     // 与 JoinCode.Abstractions.Attributes.ServiceLifetime 对齐的常量值
@@ -400,11 +591,37 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
     {
         public string ImplementationName { get; }
         public List<ServiceRegistration> Registrations { get; }
+        public List<ConstructorDependency> ConstructorDependencies { get; }
+        public Location? Location { get; }
+        public bool HasAllowCycle { get; }
 
-        public ServiceRegistrationInfo(string implementationName, List<ServiceRegistration> registrations)
+        public ServiceRegistrationInfo(
+            string implementationName,
+            List<ServiceRegistration> registrations,
+            List<ConstructorDependency> constructorDependencies,
+            Location? location,
+            bool hasAllowCycle)
         {
             ImplementationName = implementationName;
             Registrations = registrations;
+            ConstructorDependencies = constructorDependencies;
+            Location = location;
+            HasAllowCycle = hasAllowCycle;
+        }
+    }
+
+    /// <summary>
+    /// 构造函数依赖项：依赖类型名 + 是否可选（有默认值或可空标注视为可选，环检测时跳过可选依赖）。
+    /// </summary>
+    private sealed class ConstructorDependency
+    {
+        public string DependencyType { get; }
+        public bool IsOptional { get; }
+
+        public ConstructorDependency(string dependencyType, bool isOptional)
+        {
+            DependencyType = dependencyType;
+            IsOptional = isOptional;
         }
     }
 

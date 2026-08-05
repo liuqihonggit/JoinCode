@@ -2,7 +2,7 @@ using JoinCode.Abstractions.Attributes;
 
 namespace McpToolRegistry;
 
-[Register]
+[Register(typeof(IMcpToolRegistry))]
 public sealed partial class ToolRegistryAdapter : IMcpToolRegistry
 {
     private readonly IToolRegistry _toolRegistry;

@@ -6,7 +6,8 @@ public static class ContextFoldDecider
         TokenUsage usage,
         int ctxMax,
         bool alreadyFoldedThisTurn,
-        ContextFoldThresholds? thresholds = null)
+        ContextFoldThresholds? thresholds = null,
+        int deferralCount = 0)
     {
         ArgumentNullException.ThrowIfNull(usage);
         if (ctxMax <= 0) throw new ArgumentOutOfRangeException(nameof(ctxMax));
@@ -20,13 +21,20 @@ public static class ContextFoldDecider
         if (alreadyFoldedThisTurn)
             return ContextFoldDecision.None;
 
+        var action = ContextFoldDecision.None;
         if (ratio > t.AggressiveThreshold)
-            return ContextFoldDecision.FoldAggressive;
+            action = ContextFoldDecision.FoldAggressive;
+        else if (ratio > t.FoldThreshold)
+            action = ContextFoldDecision.FoldNormal;
 
-        if (ratio > t.FoldThreshold)
-            return ContextFoldDecision.FoldNormal;
+        if (action != ContextFoldDecision.None
+            && usage.CacheReadInputTokens > 0
+            && deferralCount < t.DeferFoldLimit)
+        {
+            return ContextFoldDecision.Deferred;
+        }
 
-        return ContextFoldDecision.None;
+        return action;
     }
 
     public static PreflightDecision DecidePreflight(

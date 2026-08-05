@@ -53,6 +53,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     private readonly DiscoveredToolSet _discoveredTools = new();
     private readonly List<DeferredToolInfo> _deferredTools = [];
     private string _previousDynamicHash = string.Empty;
+    private int _deferredFoldCount;
 
     public ChatContextManager(
         IStateService stateService,
@@ -399,10 +400,26 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
 
     /// <summary>
     /// 根据本次 token 用量决定是否需要折叠上下文
+    /// 缓存命中且低于硬阈值时返回 <see cref="ContextFoldDecision.Deferred"/>，推迟折叠以保留缓存前缀
     /// </summary>
     public ContextFoldDecision DecideAfterUsage(TokenUsage usage, bool alreadyFoldedThisTurn = false)
     {
-        return ContextFoldDecider.DecideAfterUsage(usage, _contextWindowResolver.ResolveCurrentContextWindow(), alreadyFoldedThisTurn, _thresholds);
+        var decision = ContextFoldDecider.DecideAfterUsage(
+            usage,
+            _contextWindowResolver.ResolveCurrentContextWindow(),
+            alreadyFoldedThisTurn,
+            _thresholds,
+            _deferredFoldCount);
+
+        if (decision == ContextFoldDecision.Deferred)
+        {
+            _deferredFoldCount++;
+            _logger?.LogInformation("缓存命中，上下文折叠推迟（第 {DeferralCount}/{DeferFoldLimit} 次），保留缓存前缀", _deferredFoldCount, _thresholds.DeferFoldLimit);
+            return decision;
+        }
+
+        _deferredFoldCount = 0;
+        return decision;
     }
 
     /// <summary>

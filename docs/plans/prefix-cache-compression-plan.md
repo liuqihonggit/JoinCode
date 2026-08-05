@@ -1,7 +1,7 @@
 # 前缀缓存 × 上下文压缩：矛盾现状与改造计划
 
 > 创建时间: 2026-08-06
-> 范围: 只记录现场 + 给出改造蓝图，**未改任何代码**（除本会话已提交的 conversation 序列 hash，见 §0.3）
+> 范围: 只记录现场 + 给出改造蓝图，**未改任何代码**（除本会话已提交的 conversation 序列 hash，见 §0.2）
 
 ## 0. 背景
 
@@ -39,41 +39,60 @@ PreChatMiddleware.RecordPromptStateAsync        // core/execution/Brain/src/Cont
 | # | 严重度 | 缺陷 | 影响 | 证据 |
 |---|--------|------|------|------|
 | D1 | 高 | 折叠只看 token 占比，忽略缓存经济性 | 前缀健康命中时过早折叠，形成"缓存涨→全量 miss→重建→再涨→再折叠"锯齿，白扔增量性价比 | `ContextFoldDecider.cs:20-30` 无 cache 输入 |
-| D2 | 中 | 压缩导致的全量 miss 被 `CacheEviction` 启发式**误报** | 观测/成本告警语义错乱，无法区分"摇塞"与"压缩前主动替换" | `CacheBreakDetector.ShouldReportCacheEviction`（identical 且 read=0） |
+| D2 | 中 | 压缩导致的全量 miss 被 `CacheEviction` 启发式**误报** | 观测/成本告警语义错乱，无法区分"驱逐"与"压缩前主动替换" | `CacheBreakDetector.ShouldReportCacheEviction`（identical 且 read=0） |
 | D3 | 中 | README 与代码**矛盾** | 文档说"soft 50% 保护前缀"但与 `ContextFoldDecider` 0.5 即折叠相反；软/硬区间不存在 | `README.md:385` vs `ContextFoldThresholds.cs:5` |
-| D4 | 低 | 前缀破坏的**种类**未细分（历史篡改 vs 压缩 vs 换模型） | 下游无法区分原因做不同处置 | `CacheBreakKind` 枚举仅 8 值 |
+| D4 | 低 | 前缀破坏的**种类**未细分（历史篡改 vs 压缩 vs 换模型 vs TTL） | 下游无法区分原因做不同处置 | `CacheBreakKind` 枚举仅 8 值 |
 | D5 | 低 | 折叠后无"重建新前缀"策略 | 折叠后首个请求必然全量 miss，无法回到增量 | `ContextFoldExecutor` 替换后不重取快照 |
 
 ## 3. 改造蓝图（分阶段，渐进式）
 
 ### Phase 1 — 缓存感知折叠调度（解决 D1，核心收益）
-- `DecideAfterFold` 增加 cache 输入（`usage.CacheReadInputTokens`）：当命中且 `ratio > FoldThreshold` 时，把折叠**推迟**到硬区间，仅在 **`ratio > HardFold` 或 `CacheRead == 0`** 时真正执行。
+- `DecideAfterUsage` 增加 cache 输入（`usage.CacheReadInputTokens`）：当命中且 `ratio > FoldThreshold` 时，把折叠**推迟**到硬区间，仅在 **`ratio > HardFold` 或 `CacheRead == 0`** 时真正执行。
 - 新增"推迟计数"封顶，避免无限推迟顶爆窗口；达到硬阈值无条件折叠。
 - 目标：把缓存命中区间拉长，压缩只落在"非命中/硬冗余"的时机。
 
-**Phase 2（压缩后建立新前缀，解 D2/D5）**
-- 折叠后立即 `RecordPromptSnapshot` 重置快照；压缩摘要标记 `isCompactSummary` 固定在头部作为新前缀。
-- 以"折叠"检测：`ConversationCount 变短 + CacheRead==0` 上报专用 `CompactionEntered`，而非 `CacheEviction`。
+### Phase 2 — 压缩后重基线 + 种类细分（解决 D2/D5，上游已验证）
+- 折叠/压缩后立即重置 cache-read 基线（等价上游 `notifyCompaction()`），使压缩 miss 不再被误报为 `CacheEviction`。
+- `ConversationCount 变短 + CacheRead==0` 上报专用 `CompactionEntered`；配合 `timeSinceLastAssistantMsg` 区分 TTL/服务端/客户端变更。
+- 压缩摘要标记 `isCompactSummary` 固定在头部作为新前缀（重建前缀锚点）。
 
-### Phase 3（文档-代码对齐，解 D3）
+### Phase 3 — 文档-代码对齐（解决 D3）
 - 把软/硬阈值语义落到 `ContextFoldThresholds` + README 统一；或删除"软保护"表述改为真实行为。
 
-### Phase 4（可选 — 增量 hash，配合本会话已提交的 conversation hash）
+### Phase 4 — 增量 hash（可选，配合已提交的 conversation hash）
 - `AppendOnlyLog` 维护滚动哈希（追加即 O(1) 摊轮），使 `Record/Check` 从每轮 O(n) 降到增量级。
 
 ## 4. 依赖与风险
 
 | 项 | 说明 |
 |----|------|
-| Phase 1 之理出口 | 推迟折叠需封顶（`FoldLimit`），否则窗口膨胀 |
-| 需接入方 | `IChatContextManager.DecideAfterFold` 契约（Abstractions）变更 → 全链路 regenome |
+| Phase 1 合理性出口 | 推迟折叠需封顶（`FoldLimit`），否则窗口膨胀 |
+| 需接入方 | `IChatContextManager.DecideAfterUsage` 契约（Abstractions）变更 → 全链路 recompile |
 | 成本模型 | cache_read 0.1× / creation 1.25× 已在 `ComputeCostUsd` 计价，调度应参照 |
 | 测试 | 每条用 TDD：🔴E2E(若接口变更) → 🔴单元 → 🟢单元 → 🟢刷新；`AutoCompactSoftThresholdTests` 可扩展 |
 
-## 5. 决策记录
+## 5. 上游参考（Claude Code TS，claude-code-rev-main/src）
+
+> 调查核实：上游同样存在"压缩 vs 前缀缓存"矛盾，且有成熟解法，可作 C# 实现对齐基准。
+
+| 我的计划项 | 上游实现 | 文件 | 结论 |
+|-----------|---------|------|------|
+| Phase1 缓存感知折叠 | **无**（不看缓存），靠"晚折叠"化解 | `services/compact/autoCompact.ts:160-239` | 是本项目**创新点**，无上游背书；上游用"压到离窗 13k 才折"替代 |
+| Phase2 折叠后重基线 | ✅ **`notifyCompaction()` 把 `prevCacheReadTokens=null`** | `services/api/promptCacheBreakDetection.ts:689` | **上游已工程验证，注释称漏缺致 20% 误报；优先必补** → 你项目 D2 的对应修复 |
+| D4 种类细分 | ✅ 用 `timeSinceLastAssistantMsg` 区分 TTL5min/1h/超1h/服务端 | `promptCacheBreakDetection.ts:566-588` | 建议对齐：绝对降幅 ≥2000 + 相对降 >5% 才判 break，且跳过 haiku |
+| 探测维度 | ✅ 额外 hash cache_control/模型/betas/effort/extraBody | `promptCacheBreakDetection.ts:274-294`，模型排除 `haiku` | 比本 C# 更细（含 scope/TTL 翻转、header/effort 变更） |
+| microcompact 缓存编辑 | ✅ `notifyCacheDeletion()` | `promptCacheBreakDetection.ts:673` | C# 有对应 `MicrocompactService` 时须加同款重基线 |
+| 压缩阈值 | 上游按 token 绝对值 `窗口-13000-20000(保留输出)` | `autoCompact.ts:28-49,62-91` | 你计划 C# 用比例 0.5/0.7/0.8 偏早，建议向"接近窗口"拉齐 |
+
+**对齐建议（依上游）**：
+1. **Phase2 必须做**：折叠/压缩后重置 cache-read 基线（相当于 `notifyCompaction`），消除压缩 miss 被判 `CacheEviction` 的误报——这是上游用真实 BQ 数据踩出来的必需项。
+2. 判 break 用「相对 >5% 且绝对 ≥2k token 下降」替换现有"identical 且 read==0"过于粗糙的后置判定。
+3. 归因细分：TTL(时间间隔) vs 服务端 vs 客户端变更，消除现有单一 `CacheEviction` 语义混淆。
+
+## 6. 决策记录
 
 <!-- 🤖 Auto Decision: 2026-08-06 -->
-<!-- 决策: 先出蓝图计划 md，不直接改代码 -->
-<!-- 原因: 该问题是"缓存 vs 压缩"的量级权衡，涉及行为变更，需用户确认方向与阈值 -->
+<!-- 决策: 先出蓝图计划 md，不直接改代码；并把上游 Claude Code 的参考结论并入计划 -->
+<!-- 原因: "缓存 vs 压缩"是量级权衡，涉及行为变更，需用户确认方向与阈值；上游结论可作对齐基准 -->
 <!-- 替代方案: 直接重构（风险高，未获确认，弃用）-->
-<!-- 验证: 计划文档产出，未编译改型，未提交 % -->
+<!-- 验证: 计划文档产出 + 上游调研核实，未改行为代码 -->

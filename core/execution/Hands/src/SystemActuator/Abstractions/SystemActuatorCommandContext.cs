@@ -299,7 +299,7 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
         return true;
     }
 
-    private static void KillProcessTree(Process process)
+    private void KillProcessTree(Process process)
     {
         if (OperatingSystem.IsWindows())
         {
@@ -320,11 +320,24 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
                 killer.Start();
                 killer.WaitForExit(5000);
             }
-            catch (Exception) { process.Kill(); }
+            catch (Exception ex)
+            {
+                _logger?.LogDebug(ex, "taskkill.exe 终止进程树失败，尝试直接 Kill PID {Pid}", process.Id);
+                TryKillSafely(process);
+            }
         }
         else
         {
-            process.Kill();
+            TryKillSafely(process);
+        }
+    }
+
+    private void TryKillSafely(Process process)
+    {
+        try { process.Kill(); }
+        catch (Exception killEx)
+        {
+            _logger?.LogDebug(killEx, "直接 Kill PID {Pid} 失败（可能已退出或无权限）", process.Id);
         }
     }
 

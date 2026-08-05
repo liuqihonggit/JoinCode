@@ -283,7 +283,7 @@ public sealed partial class IdeIntegrationService : ServiceEntity, IIdeIntegrati
 
         try
         {
-            return _processService.FindExecutableAsync(command).GetAwaiter().GetResult();
+            return Task.Run(() => _processService.FindExecutableAsync(command)).GetAwaiter().GetResult();
         }
         catch
         {

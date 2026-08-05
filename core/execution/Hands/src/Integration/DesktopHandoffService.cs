@@ -21,7 +21,7 @@ public sealed partial class DesktopHandoffService : ServiceEntity, IDesktopHando
             if (!OperatingSystem.IsWindows() && !OperatingSystem.IsMacOS()) return false;
             try
             {
-                return _processService.FindExecutableAsync("jcc-desktop").GetAwaiter().GetResult() != null;
+                return Task.Run(() => _processService.FindExecutableAsync("jcc-desktop")).GetAwaiter().GetResult() != null;
             }
             catch
             {

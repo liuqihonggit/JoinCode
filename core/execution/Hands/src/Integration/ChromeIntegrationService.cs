@@ -29,7 +29,7 @@ public sealed partial class ChromeIntegrationService : ServiceEntity, IChromeInt
         {
             try
             {
-                return _processService.FindExecutableAsync("chrome").GetAwaiter().GetResult() != null;
+                return Task.Run(() => _processService.FindExecutableAsync("chrome")).GetAwaiter().GetResult() != null;
             }
             catch
             {
@@ -55,7 +55,7 @@ public sealed partial class ChromeIntegrationService : ServiceEntity, IChromeInt
         try
         {
             if (_initialized) return;
-            try { _isDefaultEnabled = ReadDefaultEnabledAsync().GetAwaiter().GetResult(); }
+            try { _isDefaultEnabled = Task.Run(() => ReadDefaultEnabledAsync()).GetAwaiter().GetResult(); }
             catch { _isDefaultEnabled = false; }
             _initialized = true;
         }

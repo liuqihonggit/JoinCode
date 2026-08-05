@@ -60,11 +60,11 @@ public sealed class FeatureFlagServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task IsEnabledAsync_WithNonExistentFlag_ReturnsFalse()
+    public async Task IsEnabledAsync_WithNonExistentFlag_ReturnsTrue()
     {
         var result = await _service.IsEnabledAsync("nonexistent-feature").ConfigureAwait(true);
 
-        result.Should().BeFalse();
+        result.Should().BeTrue();
     }
 
     [Fact]

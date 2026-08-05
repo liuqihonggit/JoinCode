@@ -8,10 +8,22 @@ namespace McpToolRegistry;
 [Register]
 public sealed partial class OnErrorToolInjectionMiddleware : ServiceEntity, IToolExecutionMiddleware
 {
-    [Inject] private readonly IToolRegistry _registry = null!;
-    [Inject] private readonly IToolHealthMonitor _monitor = null!;
-    [Inject] private readonly ToolHypergraphScorer _scorer = null!;
-    [Inject] private readonly ILogger<OnErrorToolInjectionMiddleware> _logger = null!;
+    private readonly IToolRegistry _registry;
+    private readonly IToolHealthMonitor _monitor;
+    private readonly ToolHypergraphScorer _scorer;
+    private readonly ILogger<OnErrorToolInjectionMiddleware> _logger;
+
+    public OnErrorToolInjectionMiddleware(
+        IToolRegistry registry,
+        IToolHealthMonitor monitor,
+        ToolHypergraphScorer scorer,
+        ILogger<OnErrorToolInjectionMiddleware> logger)
+    {
+        _registry = registry;
+        _monitor = monitor;
+        _scorer = scorer;
+        _logger = logger;
+    }
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 

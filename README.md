@@ -386,7 +386,7 @@ var argRepair = LlmJsonHelper.RepairArguments(toolName, arguments, handler.Input
 
 - **撤回操作**（`/rewind`）：移除尾部消息后，剩余消息必须是原始消息的前缀
 - **追加日志**（AppendOnlyLog）：所有消息变更都保证前缀特性，避免缓存失效
-- **自动压缩保护**：soft threshold（50%）和 hard threshold 之间不触发自动压缩，保护前缀缓存
+- **自动压缩保护**：缓存命中时（`CacheReadInputTokens>0`）在 soft threshold（50%）~ 硬阈值（80%）之间推迟折叠（`Deferred`），达 `DeferFoldLimit` 次或缓存变冷才真正压缩，保护前缀缓存（对齐 Reasonix Go 版分层折叠）
 
 #### 4.2.3 DeepSeek 缓存统计
 

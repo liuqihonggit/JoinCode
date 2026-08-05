@@ -1,6 +1,7 @@
 namespace McpToolRegistry;
 
 [JsonSerializable(typeof(Dictionary<string, JsonElement>))]
+[JsonSerializable(typeof(string))]
 internal sealed partial class HookMiddlewareJsonContext : JsonSerializerContext;
 
 /// <summary>
@@ -31,7 +32,7 @@ public sealed partial class PreToolUseHookMiddleware : ServiceEntity, IToolExecu
         {
             var prePayload = new Dictionary<string, JsonElement>
             {
-                ["tool_name"] = JsonSerializer.SerializeToElement(context.ToolName),
+                ["tool_name"] = JsonSerializer.SerializeToElement(context.ToolName, HookMiddlewareJsonContext.Default.String),
                 ["tool_input"] = JsonSerializer.SerializeToElement(context.Arguments, HookMiddlewareJsonContext.Default.DictionaryStringJsonElement),
             };
 
@@ -81,8 +82,8 @@ public sealed partial class PostToolUseHookMiddleware : ServiceEntity, IToolExec
             var resultText = string.Join("\n", context.Result.Content.Select(c => c.Text ?? string.Empty));
             var postPayload = new Dictionary<string, JsonElement>
             {
-                ["tool_name"] = JsonSerializer.SerializeToElement(context.ToolName),
-                ["tool_result"] = JsonSerializer.SerializeToElement(resultText),
+                ["tool_name"] = JsonSerializer.SerializeToElement(context.ToolName, HookMiddlewareJsonContext.Default.String),
+                ["tool_result"] = JsonSerializer.SerializeToElement(resultText, HookMiddlewareJsonContext.Default.String),
             };
 
             await foreach (var _ in _hookOrchestrator.ExecuteHooksAsync(

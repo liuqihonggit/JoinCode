@@ -15,7 +15,9 @@ public sealed class StructuredOutputToolHandler
     /// </summary>
     private readonly ConcurrentDictionary<string, SchemaValidationResult> _validationCache = new();
 
+#pragma warning disable JCC1012
     private static readonly JsonSerializerOptions s_indentedOptions = new() { WriteIndented = true };
+#pragma warning restore JCC1012
 
     public StructuredOutputToolHandler(SimpleJsonSchemaValidator validator)
     {

@@ -438,7 +438,9 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
                 ["usedSparsePaths"] = session.SparsePaths?.Count > 0
             };
 
+#pragma warning disable JCC1012
             var updatedJson = root.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
+#pragma warning restore JCC1012
 
             var dir = Path.GetDirectoryName(localSettingsPath);
             if (!string.IsNullOrEmpty(dir) && !_fileOperationService.DirectoryExists(dir))
@@ -473,7 +475,9 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
 
             root.Remove("activeWorktreeSession");
 
+#pragma warning disable JCC1012
             var updatedJson = root.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
+#pragma warning restore JCC1012
             await _fileOperationService.WriteFileAsync(localSettingsPath, updatedJson).ConfigureAwait(false);
         }
         catch (Exception ex)

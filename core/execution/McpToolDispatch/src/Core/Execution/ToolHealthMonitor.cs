@@ -1,9 +1,10 @@
 namespace McpToolDispatch;
 
 /// <summary>
-/// 工具健康监控服务 — 追踪工具执行成功率、评分、熔断状态
+/// 工具健康监控服务 — 追踪工具执行成功率、评分状态
 /// 持久化到 AppData JSON 文件，支持热更新
-/// 支持黑名单（完全禁用）和降权（额外扣分）配置
+/// 支持黑名单（用户主动禁用）、降权（额外扣分）配置
+/// 设计原则：永远不禁用工具，连续失败只注入提示词提醒LLM换策略
 /// </summary>
 [Register]
 public sealed class ToolHealthMonitor : ServiceEntity, IToolHealthMonitor, IDisposable
@@ -11,6 +12,7 @@ public sealed class ToolHealthMonitor : ServiceEntity, IToolHealthMonitor, IDisp
     private readonly ILogger<ToolHealthMonitor>? _logger;
     private readonly IFileSystem _fs;
     private readonly ToolScoreConfig _config;
+    internal ToolScoreConfig Config => _config;
     private readonly Dictionary<string, ToolHealthRecord> _records = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _lock = new(1, 1);
     private readonly string _configPath;
@@ -140,12 +142,6 @@ public sealed class ToolHealthMonitor : ServiceEntity, IToolHealthMonitor, IDisp
             record.LastAdjusted = DateTime.UtcNow;
             record.LastErrorMessage = null;
 
-            if (!record.IsEnabled && record.Score > _config.ScoreMin / 2)
-            {
-                record.IsEnabled = true;
-                _logger?.LogInformation("工具 {ToolName} 评分恢复，自动重新启用", toolName);
-            }
-
             SaveToDisk();
             return record;
         }
@@ -167,10 +163,10 @@ public sealed class ToolHealthMonitor : ServiceEntity, IToolHealthMonitor, IDisp
             record.LastAdjusted = DateTime.UtcNow;
             record.LastErrorMessage = errorMessage;
 
-            if (record.ConsecutiveFailures >= _config.CircuitBreakerThreshold && record.IsEnabled)
+            if (record.ConsecutiveFailures >= _config.WarningThreshold)
             {
-                record.IsEnabled = false;
-                _logger?.LogWarning("工具 {ToolName} 连续失败 {Count} 次，自动禁用（熔断）", toolName, record.ConsecutiveFailures);
+                _logger?.LogWarning("工具 {ToolName} 连续失败 {Count} 次，评分 {Score}，将在下次调用时注入提示词",
+                    toolName, record.ConsecutiveFailures, record.Score);
             }
 
             SaveToDisk();

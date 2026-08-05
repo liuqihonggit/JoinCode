@@ -520,8 +520,8 @@ public sealed class ToolScoreSettingsJson
     [JsonPropertyName("failDelta")]
     public int? FailDelta { get; init; }
 
-    [JsonPropertyName("circuitBreakerThreshold")]
-    public int? CircuitBreakerThreshold { get; init; }
+    [JsonPropertyName("warningThreshold")]
+    public int? WarningThreshold { get; init; }
 
     [JsonPropertyName("scoreMin")]
     public int? ScoreMin { get; init; }

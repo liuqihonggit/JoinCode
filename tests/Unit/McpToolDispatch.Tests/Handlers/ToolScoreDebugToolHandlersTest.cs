@@ -20,7 +20,7 @@ public sealed class ToolScoreDebugToolHandlersTest : IAsyncLifetime
         {
             SuccessDelta = 1,
             FailDelta = -5,
-            CircuitBreakerThreshold = 3
+            WarningThreshold = 3
         });
         _scorer = new ToolHypergraphScorer(monitor: _monitor);
         _handlers = new ToolScoreDebugToolHandlers(_monitor, _scorer);

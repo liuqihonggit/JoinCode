@@ -223,7 +223,7 @@ public sealed partial class SettingsMapper : ServiceEntity
 
         if (ts.SuccessDelta.HasValue) target.SuccessDelta = ts.SuccessDelta.Value;
         if (ts.FailDelta.HasValue) target.FailDelta = ts.FailDelta.Value;
-        if (ts.CircuitBreakerThreshold.HasValue) target.CircuitBreakerThreshold = ts.CircuitBreakerThreshold.Value;
+        if (ts.WarningThreshold.HasValue) target.WarningThreshold = ts.WarningThreshold.Value;
         if (ts.ScoreMin.HasValue) target.ScoreMin = ts.ScoreMin.Value;
         if (ts.ScoreMax.HasValue) target.ScoreMax = ts.ScoreMax.Value;
         if (ts.DecayRatePerHour.HasValue) target.DecayRatePerHour = ts.DecayRatePerHour.Value;

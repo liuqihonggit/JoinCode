@@ -23,6 +23,16 @@ public sealed class MergeConflictResult
 }
 
 /// <summary>
+/// 遗留冲突标记检测结果 — 扫描工作区中是否存在未被清理的 git 冲突标记
+/// </summary>
+public sealed class StaleConflictMarkerResult
+{
+    public required bool HasStaleMarkers { get; init; }
+    public IReadOnlyList<string> Files { get; init; } = [];
+    public string Error { get; init; } = string.Empty;
+}
+
+/// <summary>
 /// Git 命令统一执行器 — 消除各处重复的 ExecuteGitCommandAsync 私有方法
 /// <para>
 /// 核心价值：
@@ -55,6 +65,17 @@ public interface IGitCommandRunner
     Task<MergeConflictResult> DetectMergeConflictAsync(
         string branch1,
         string branch2,
+        string? workingDirectory = null,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// 扫描工作区中是否存在遗留的 git 冲突标记（&lt;&lt;&lt;&lt;&lt;&lt;&lt; / ======= / &gt;&gt;&gt;&gt;&gt;&gt;&gt;）
+    /// <para>用于防止上次 merge 失败后未清理就 commit，导致冲突标记被后续 merge 合入主干</para>
+    /// </summary>
+    /// <param name="workingDirectory">工作目录（null=当前目录）</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>HasStaleMarkers=true 时 Files 列出包含冲突标记的文件路径</returns>
+    Task<StaleConflictMarkerResult> DetectStaleConflictMarkersAsync(
         string? workingDirectory = null,
         CancellationToken ct = default);
 }

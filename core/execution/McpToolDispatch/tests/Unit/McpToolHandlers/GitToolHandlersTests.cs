@@ -174,5 +174,11 @@ public sealed class GitToolHandlersTests
     {
         public Task<GitCommandResult> ExecuteAsync(string arguments, string? workingDirectory = null, CancellationToken ct = default)
             => Task.FromResult(new GitCommandResult { Success = true, Output = string.Empty, Error = string.Empty, ExitCode = 0 });
+
+        public Task<MergeConflictResult> DetectMergeConflictAsync(string branch1, string branch2, string? workingDirectory = null, CancellationToken ct = default)
+            => Task.FromResult(new MergeConflictResult { HasConflict = false });
+
+        public Task<StaleConflictMarkerResult> DetectStaleConflictMarkersAsync(string? workingDirectory = null, CancellationToken ct = default)
+            => Task.FromResult(new StaleConflictMarkerResult { HasStaleMarkers = false });
     }
 }

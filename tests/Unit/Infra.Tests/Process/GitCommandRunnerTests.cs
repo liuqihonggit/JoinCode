@@ -73,6 +73,59 @@ public sealed class GitCommandRunnerTests
         }
     }
 
+    [Fact(Timeout = 15000)]
+    public async Task DetectStaleConflictMarkersAsync_WithMarkers_ReturnsFiles()
+    {
+        var tmp = Path.Combine(Path.GetTempPath(), $"git-stale-test-{Guid.NewGuid():N}");
+        _fs.CreateDirectory(tmp);
+        try
+        {
+            await InitRepoAsync(tmp);
+
+            var conflictContent = "line1\n<<<<<<< HEAD\nmain\n=======\nfeature\n>>>>>>> branch\nline3";
+            await _fs.WriteAllTextAsync(Path.Combine(tmp, "conflict.txt"), conflictContent);
+            await _fs.WriteAllTextAsync(Path.Combine(tmp, "clean.txt"), "no markers here");
+            await _runner.ExecuteAsync("add -A", tmp);
+            await _runner.ExecuteAsync("commit -m with-markers", tmp);
+
+            var result = await _runner.DetectStaleConflictMarkersAsync(tmp);
+
+            result.HasStaleMarkers.Should().BeTrue();
+            result.Files.Should().Contain("conflict.txt");
+            result.Files.Should().NotContain("clean.txt");
+        }
+        finally
+        {
+            try { if (_fs.DirectoryExists(tmp)) _fs.DeleteDirectory(tmp, true); }
+            catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"清理临时目录失败: {ex.Message}"); }
+        }
+    }
+
+    [Fact(Timeout = 15000)]
+    public async Task DetectStaleConflictMarkersAsync_NoMarkers_ReturnsEmpty()
+    {
+        var tmp = Path.Combine(Path.GetTempPath(), $"git-clean-test-{Guid.NewGuid():N}");
+        _fs.CreateDirectory(tmp);
+        try
+        {
+            await InitRepoAsync(tmp);
+
+            await _fs.WriteAllTextAsync(Path.Combine(tmp, "clean.txt"), "no markers here");
+            await _runner.ExecuteAsync("add -A", tmp);
+            await _runner.ExecuteAsync("commit -m clean", tmp);
+
+            var result = await _runner.DetectStaleConflictMarkersAsync(tmp);
+
+            result.HasStaleMarkers.Should().BeFalse();
+            result.Files.Should().BeEmpty();
+        }
+        finally
+        {
+            try { if (_fs.DirectoryExists(tmp)) _fs.DeleteDirectory(tmp, true); }
+            catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"清理临时目录失败: {ex.Message}"); }
+        }
+    }
+
     private async Task InitRepoAsync(string dir)
     {
         await _runner.ExecuteAsync("init", dir);

@@ -85,4 +85,29 @@ public sealed partial class GitCommandRunner : IGitCommandRunner
 
         return new MergeConflictResult { HasConflict = false, Error = result.Error };
     }
+
+    public async Task<StaleConflictMarkerResult> DetectStaleConflictMarkersAsync(
+        string? workingDirectory = null,
+        CancellationToken ct = default)
+    {
+        var result = await ExecuteAsync(
+            "grep -l -E \"^<<<<<<< |^=======$|^>>>>>>> \"",
+            workingDirectory, ct).ConfigureAwait(false);
+
+        if (result.ExitCode == 0)
+        {
+            var files = result.Output.Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                .Select(static f => f.Trim())
+                .Where(static f => f.Length > 0)
+                .ToList();
+            return new StaleConflictMarkerResult { HasStaleMarkers = true, Files = files };
+        }
+
+        if (result.ExitCode == 1)
+        {
+            return new StaleConflictMarkerResult { HasStaleMarkers = false };
+        }
+
+        return new StaleConflictMarkerResult { HasStaleMarkers = false, Error = result.Error };
+    }
 }

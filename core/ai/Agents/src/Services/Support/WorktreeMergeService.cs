@@ -109,6 +109,12 @@ public sealed partial class WorktreeMergeService : IWorktreeMergeService
             return WorktreeMergeResult.Failed(sourceWorktreePath, targetWorktreePath, $"git commit failed: {commitResult.Error}");
         }
 
+        var preCheckConflicts = await PreCheckMergeConflictsAsync(sourceWorktreePath, targetWorktreePath, sourceBranch, strategy, cancellationToken).ConfigureAwait(false);
+        if (preCheckConflicts is not null)
+        {
+            return preCheckConflicts;
+        }
+
         var mergeResult = await ExecuteGitAsync(targetWorktreePath, $"merge {sourceBranch} --no-edit", cancellationToken).ConfigureAwait(false);
 
         if (mergeResult.Success)
@@ -200,6 +206,80 @@ public sealed partial class WorktreeMergeService : IWorktreeMergeService
             }
         }
         return files.ToList();
+    }
+
+    private async Task<WorktreeMergeResult?> PreCheckMergeConflictsAsync(
+        string sourceWorktreePath,
+        string targetWorktreePath,
+        string sourceBranch,
+        WorktreeMergeStrategy strategy,
+        CancellationToken cancellationToken)
+    {
+        var staleCheck = await CheckStaleConflictMarkersAsync(sourceWorktreePath, targetWorktreePath, cancellationToken).ConfigureAwait(false);
+        if (staleCheck is not null)
+        {
+            return staleCheck;
+        }
+
+        var targetBranchResult = await ExecuteGitAsync(targetWorktreePath, "branch --show-current", cancellationToken).ConfigureAwait(false);
+        if (!targetBranchResult.Success || string.IsNullOrWhiteSpace(targetBranchResult.Output))
+        {
+            return null;
+        }
+
+        var targetBranch = targetBranchResult.Output.Trim();
+        var conflictCheck = await _gitRunner.DetectMergeConflictAsync(targetBranch, sourceBranch, targetWorktreePath, cancellationToken).ConfigureAwait(false);
+
+        if (!conflictCheck.HasConflict)
+        {
+            return null;
+        }
+
+        _logger?.LogInformation("[WorktreeMerge] 只读预检发现 {Count} 个冲突文件: {Files}",
+            conflictCheck.ConflictFiles.Count, string.Join(", ", conflictCheck.ConflictFiles));
+
+        if (strategy == WorktreeMergeStrategy.Fail)
+        {
+            return WorktreeMergeResult.Failed(
+                sourceWorktreePath,
+                targetWorktreePath,
+                "Merge conflict detected (pre-merge read-only check), strategy=Fail",
+                conflictCheck.ConflictFiles);
+        }
+
+        return null;
+    }
+
+    private async Task<WorktreeMergeResult?> CheckStaleConflictMarkersAsync(
+        string sourceWorktreePath,
+        string targetWorktreePath,
+        CancellationToken cancellationToken)
+    {
+        var sourceCheck = await _gitRunner.DetectStaleConflictMarkersAsync(sourceWorktreePath, cancellationToken).ConfigureAwait(false);
+        if (sourceCheck.HasStaleMarkers)
+        {
+            _logger?.LogError("[WorktreeMerge] 源 worktree 存在遗留冲突标记，禁止合并: {Files}",
+                string.Join(", ", sourceCheck.Files));
+            return WorktreeMergeResult.Failed(
+                sourceWorktreePath,
+                targetWorktreePath,
+                "Stale conflict markers found in source worktree (unclean merge from previous run)",
+                sourceCheck.Files);
+        }
+
+        var targetCheck = await _gitRunner.DetectStaleConflictMarkersAsync(targetWorktreePath, cancellationToken).ConfigureAwait(false);
+        if (targetCheck.HasStaleMarkers)
+        {
+            _logger?.LogError("[WorktreeMerge] 目标 worktree 存在遗留冲突标记，禁止合并: {Files}",
+                string.Join(", ", targetCheck.Files));
+            return WorktreeMergeResult.Failed(
+                sourceWorktreePath,
+                targetWorktreePath,
+                "Stale conflict markers found in target worktree (unclean merge from previous run)",
+                targetCheck.Files);
+        }
+
+        return null;
     }
 
     private Task<GitCommandResult> ExecuteGitAsync(string workingDirectory, string arguments, CancellationToken cancellationToken)

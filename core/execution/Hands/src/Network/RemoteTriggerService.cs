@@ -81,7 +81,7 @@ public sealed partial class RemoteTriggerService : ServiceEntity, IRemoteTrigger
                 var saved = await _configService.GetAsync("api.endpoint", ct).ConfigureAwait(false);
                 if (!string.IsNullOrEmpty(saved)) return saved.TrimEnd('/');
             }
-            catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"RemoteTriggerService: failed to get endpoint from config: {ex.Message}"); }
+            catch (Exception ex) { _logger?.LogWarning(ex, "RemoteTriggerService: 从配置获取端点失败"); }
         }
 
         return null;
@@ -98,7 +98,7 @@ public sealed partial class RemoteTriggerService : ServiceEntity, IRemoteTrigger
             {
                 return await _configService.GetAsync("api.key", ct).ConfigureAwait(false);
             }
-            catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"RemoteTriggerService: failed to get auth token from config: {ex.Message}"); }
+            catch (Exception ex) { _logger?.LogWarning(ex, "RemoteTriggerService: 从配置获取认证令牌失败"); }
         }
 
         return null;

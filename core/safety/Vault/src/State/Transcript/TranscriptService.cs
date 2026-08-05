@@ -98,8 +98,8 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
                         }
                         catch (Exception ex)
                         {
-                            // ignore - preview extraction is non-critical
-                            System.Diagnostics.Trace.WriteLine($"TranscriptService: Failed to extract preview from last entry: {ex.Message}");
+                            // preview extraction 非关键，保留日志可见性
+                            _logger?.LogDebug(ex, "TranscriptService: 上次摘要预览提取失败");
                         }
                     }
 
@@ -114,8 +114,8 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
                 }
                 catch (Exception ex)
                 {
-                    // skip unreadable files
-                    System.Diagnostics.Trace.WriteLine($"TranscriptService: Skipping unreadable session file: {ex.Message}");
+                    // 跳过不可读文件，保留日志可见性
+                    _logger?.LogWarning(ex, "TranscriptService: 跳过不可读会话文件");
                 }
             }
 

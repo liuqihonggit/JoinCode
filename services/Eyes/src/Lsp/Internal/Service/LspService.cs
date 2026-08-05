@@ -82,7 +82,7 @@ public sealed partial class LspService : ILspService
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Trace.WriteLine($"LSP file size check failed: {ex.Message}");
+            _logger?.LogWarning(ex, "LSP 文件大小检查失败: {FilePath}", filePath);
         }
 
         var readResult = await _fileOperationService.ReadFileAsync(filePath, cancellationToken: cancellationToken).ConfigureAwait(false);

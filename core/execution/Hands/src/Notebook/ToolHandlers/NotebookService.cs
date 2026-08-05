@@ -50,7 +50,8 @@ public sealed partial class NotebookService : ServiceEntity, INotebookService
             var options = new JsonSerializerOptions(NotebookDocumentJsonContext.Default.Options)
             {
                 WriteIndented = true,
-                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+                TypeInfoResolver = NotebookDocumentJsonContext.Default,
             };
             var context = new NotebookDocumentJsonContext(options);
             var json = JsonSerializer.Serialize(notebook, context.NotebookDocument);

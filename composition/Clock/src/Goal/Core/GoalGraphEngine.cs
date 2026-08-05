@@ -191,6 +191,10 @@ public sealed partial class GoalGraphEngine : ServiceEntity
         {
             context.FailedNodes.TryAdd(nodeId, default);
 
+            var failureOutcome = CheckFailureRateTermination(context);
+            if (failureOutcome is not null)
+                return failureOutcome.Value;
+
             foreach (var edgeId in dagNode.OutEdgeIds)
             {
                 if (!graph.Dag.Edges.TryGetValue(edgeId, out var edge))
@@ -244,6 +248,22 @@ public sealed partial class GoalGraphEngine : ServiceEntity
         }
 
         return NodeCompletionOutcome.Continue;
+    }
+
+    /// <summary>
+    /// P1-4: 失败率终止检查 — 至少3个节点完成且失败率>50% 时返回 GoalUnmet。
+    /// 阈值3避免小图误触发（2节点1失败=50%不触发，3节点2失败=66%触发）。
+    /// </summary>
+    private NodeCompletionOutcome? CheckFailureRateTermination(GraphExecutionContext context)
+    {
+        var totalFinished = context.CompletedNodes.Count + context.FailedNodes.Count;
+        if (totalFinished >= 3 && (double)context.FailedNodes.Count / totalFinished > 0.5)
+        {
+            _logger?.LogInformation("[GoalGraph] 失败率过高终止: {Failed}/{Total}",
+                context.FailedNodes.Count, totalFinished);
+            return NodeCompletionOutcome.GoalUnmet;
+        }
+        return null;
     }
 
     private async Task SetGoalStatusAsync(GoalState goalState, GoalStatus status, GraphExecutionContext context, CancellationToken ct)

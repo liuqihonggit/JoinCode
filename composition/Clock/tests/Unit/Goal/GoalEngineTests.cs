@@ -65,7 +65,7 @@ public sealed class GoalEngineTests
     {
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         linkedCts.CancelAfter(GateTimeout);
-        await gate.WaitAsync(linkedCts.Token).ConfigureAwait(false);
+        await gate.WaitAsync(linkedCts.Token);
 
         yield return new AgentStreamChunk
         {
@@ -242,7 +242,7 @@ public sealed class GoalEngineTests
         }
         finally
         {
-            try { gate.Release(); } catch (SemaphoreFullException) { }
+            try { gate.Release(); } catch (SemaphoreFullException ex) { _ = ex; }
             await SafeDisposeAsync(engine).ConfigureAwait(true);
         }
     }
@@ -365,7 +365,7 @@ public sealed class GoalEngineTests
         }
         finally
         {
-            try { gate.Release(); } catch (SemaphoreFullException) { }
+            try { gate.Release(); } catch (SemaphoreFullException ex) { _ = ex; }
             await SafeDisposeAsync(engine).ConfigureAwait(true);
         }
     }

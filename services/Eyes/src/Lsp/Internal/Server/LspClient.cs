@@ -224,7 +224,13 @@ public sealed partial class LspClient : ILspClient
             _reader = new StreamReader(_process.StandardOutput.BaseStream, Encoding.UTF8);
 
             _readCts = new CancellationTokenSource();
-            _ = Task.Run(() => ReadLoopAsync(_readCts.Token), CancellationToken.None);
+            var readToken = _readCts.Token;
+            _ = Task.Run(async () =>
+            {
+                try { await ReadLoopAsync(readToken).ConfigureAwait(false); }
+                catch (OperationCanceledException) { }
+                catch (Exception ex) { _logger?.LogDebug(ex, "LSP read loop terminated with exception"); }
+            }, readToken);
             _process.ErrorDataReceived += (_, line) =>
             {
                 if (line != null) _logger?.LogDebug("LSP stderr: {Line}", line);

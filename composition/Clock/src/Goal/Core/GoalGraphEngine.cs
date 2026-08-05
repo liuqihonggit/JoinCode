@@ -21,6 +21,7 @@ public sealed partial class GoalGraphEngine : ServiceEntity
     [Inject] private readonly IAgentService? _agentService = null!;
     [Inject] private readonly IGoalUserInteraction? _userInteraction = null;
     [Inject] private readonly IGoalNodeInspector? _nodeInspector = null;
+    [Inject] private readonly IGoalConflictMessenger? _conflictMessenger = null;
     private readonly Dictionary<string, Func<NodeContext, Task<NodeResult>>> _functionRegistry = new(StringComparer.Ordinal);
 
     public GoalGraphEngine(
@@ -31,7 +32,8 @@ public sealed partial class GoalGraphEngine : ServiceEntity
         IGoalHeartbeat? heartbeat = null,
         IClockService? clock = null,
         IGoalUserInteraction? userInteraction = null,
-        IGoalNodeInspector? nodeInspector = null)
+        IGoalNodeInspector? nodeInspector = null,
+        IGoalConflictMessenger? conflictMessenger = null)
     {
         _kernel = kernel;
         _evaluator = evaluator;
@@ -41,6 +43,7 @@ public sealed partial class GoalGraphEngine : ServiceEntity
         _clock = clock ?? SystemClockService.Instance;
         _userInteraction = userInteraction ?? serviceProvider.GetService<IGoalUserInteraction>();
         _nodeInspector = nodeInspector ?? serviceProvider.GetService<IGoalNodeInspector>();
+        _conflictMessenger = conflictMessenger ?? serviceProvider.GetService<IGoalConflictMessenger>();
         _agentService = serviceProvider.GetService<IAgentService>();
     }
 
@@ -321,6 +324,19 @@ public sealed partial class GoalGraphEngine : ServiceEntity
                 if (result.Message is not null)
                 {
                     _logger?.LogInformation("[GoalGraph] {NodeId}({Name}): {Message}", nodeId, payload.Name, result.Message);
+                }
+            }
+
+            if (_conflictMessenger is not null && payload.Status == GoalNodeStatus.Completed)
+            {
+                var conflicts = await _conflictMessenger.DequeueConflictsAsync(nodeId, ct).ConfigureAwait(false);
+                if (conflicts.Count > 0)
+                {
+                    var conflictSummary = string.Join("; ", conflicts.Select(c => $"[{c.SourceNodeId}] {c.Content}"));
+                    payload.Output = string.IsNullOrWhiteSpace(payload.Output)
+                        ? $"[冲突通知] {conflictSummary}"
+                        : $"{payload.Output}\n[冲突通知] {conflictSummary}";
+                    _logger?.LogInformation("[GoalGraph] {NodeId} 拉取 {Count} 条冲突消息", nodeId, conflicts.Count);
                 }
             }
         }

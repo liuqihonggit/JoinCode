@@ -155,10 +155,12 @@ namespace AotSafety.Generator
 
                 var fullName = paramType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
 
-                if (fullName.StartsWith("System.Text.Json.JsonTypeInfo", StringComparison.Ordinal))
+                if (fullName.StartsWith("global::System.Text.Json.JsonTypeInfo", StringComparison.Ordinal)
+                    || fullName.StartsWith("System.Text.Json.JsonTypeInfo", StringComparison.Ordinal))
                     return true;
 
-                if (fullName.StartsWith("System.Text.Json.Serialization.Metadata.JsonTypeInfo", StringComparison.Ordinal))
+                if (fullName.StartsWith("global::System.Text.Json.Serialization.Metadata.JsonTypeInfo", StringComparison.Ordinal)
+                    || fullName.StartsWith("System.Text.Json.Serialization.Metadata.JsonTypeInfo", StringComparison.Ordinal))
                     return true;
             }
 

@@ -9,7 +9,7 @@ using Structura.Dag;
 /// Goal Graph 执行引擎 — 事件驱动队列 + 条件路由 + 回退重激活
 /// </summary>
 [Register]
-public sealed partial class GoalGraphEngine
+public sealed partial class GoalGraphEngine : ServiceEntity
 {
     private readonly IChatClient _kernel;
     private readonly IGoalEvaluator _evaluator;

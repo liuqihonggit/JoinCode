@@ -12,7 +12,7 @@ namespace Core.Context;
 /// 触发时通过 LoopDiagnosticJournal 记录追踪链，供医生模式回溯分析
 /// </summary>
 [Register]
-public sealed class InformationEntropyGuardian : IOutputLoopDetector, ILoopDetectionStrategy
+public sealed class InformationEntropyGuardian : ServiceEntity, IOutputLoopDetector, ILoopDetectionStrategy
 {
     private readonly OutputLoopDetector _outputLoopDetector;
     private readonly LogicFingerprintDetector _logicFingerprintDetector;

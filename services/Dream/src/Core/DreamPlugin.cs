@@ -6,7 +6,7 @@ namespace JoinCode.Dream;
 /// </summary>
 [Register(typeof(IWorkflowPlugin))]
 [Register(typeof(ICommandRegistrationHook))]
-public sealed partial class DreamPlugin : IWorkflowPlugin, ICommandRegistrationHook, IDisposable
+public sealed partial class DreamPlugin : ServiceEntity, IWorkflowPlugin, ICommandRegistrationHook, IDisposable
 {
     private readonly List<string> _registeredCommandNames = new();
     private bool _disposed;
@@ -48,7 +48,7 @@ public sealed partial class DreamPlugin : IWorkflowPlugin, ICommandRegistrationH
         _registeredCommandNames.Add(nameof(DreamTasksCommand));
     }
 
-    public void Dispose()
+    protected override void OnDispose()
     {
         if (_disposed) return;
         _disposed = true;

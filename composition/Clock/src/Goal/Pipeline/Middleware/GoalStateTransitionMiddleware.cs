@@ -1,4 +1,4 @@
-﻿namespace Core.Goal;
+namespace Core.Goal;
 
 using JoinCode.Abstractions.Pipeline;
 
@@ -6,7 +6,7 @@ using JoinCode.Abstractions.Pipeline;
 /// 状态变更中间件 — 根据操作类型执行状态转换
 /// </summary>
 [Register(typeof(IGoalLifecycleMiddleware))]
-public sealed partial class GoalStateTransitionMiddleware : IGoalLifecycleMiddleware
+public sealed partial class GoalStateTransitionMiddleware : ServiceEntity, IGoalLifecycleMiddleware
 {
     [Inject] private readonly IClockService _clock;
 

@@ -1,10 +1,10 @@
-﻿namespace Core.Skills;
+namespace Core.Skills;
 
 /// <summary>
 /// 技能参数验证中间件 — 检查必填参数是否提供
 /// </summary>
 [Register]
-public sealed partial class SkillValidationMiddleware : ISkillMiddleware
+public sealed partial class SkillValidationMiddleware : ServiceEntity, ISkillMiddleware
 {
     /// <inheritdoc />
 

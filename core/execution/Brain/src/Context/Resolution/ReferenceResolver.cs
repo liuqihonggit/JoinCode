@@ -6,7 +6,7 @@ namespace Core.Context.Resolution;
 /// 集成 ISearchService 进行文件搜索，支持模糊匹配和精确匹配
 /// </summary>
 [Register(typeof(IReferenceResolver), JoinCode.Abstractions.Attributes.ServiceLifetime.Scoped)]
-public sealed partial class ReferenceResolver : IReferenceResolver
+public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolver
 {
     private readonly ISearchService _searchService;
     private readonly IFileOperationService _fileOperationService;

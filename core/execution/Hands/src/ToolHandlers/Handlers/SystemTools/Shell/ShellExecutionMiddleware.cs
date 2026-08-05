@@ -5,7 +5,7 @@ namespace Tools.Shell;
 /// 启动命令进程、注册后台化事件、注册前台任务、等待结果
 /// </summary>
 [Register]
-public sealed partial class ShellExecutionMiddleware : IShellMiddleware
+public sealed partial class ShellExecutionMiddleware : ServiceEntity, IShellMiddleware
 {
     [Inject] private readonly ISystemActuatorRegistry _registry;
     [Inject] private readonly IForegroundTaskRegistry? _foregroundTaskRegistry;

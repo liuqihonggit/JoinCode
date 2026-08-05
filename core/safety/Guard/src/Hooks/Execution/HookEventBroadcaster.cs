@@ -1,4 +1,4 @@
-﻿
+
 namespace Core.Hooks;
 
 /// <summary>
@@ -51,7 +51,7 @@ public interface IHookEventBroadcaster
 /// 钩子事件广播器实现
 /// </summary>
 [Register]
-public sealed partial class HookEventBroadcaster : IHookEventBroadcaster
+public sealed partial class HookEventBroadcaster : ServiceEntity, IHookEventBroadcaster
 {
     private readonly ConcurrentBag<Action<HookExecutionEvent>> _handlers = new();
     private readonly ConcurrentQueue<HookExecutionEvent> _pendingEvents = new();

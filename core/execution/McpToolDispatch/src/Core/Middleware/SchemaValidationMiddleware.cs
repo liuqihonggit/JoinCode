@@ -1,11 +1,11 @@
-﻿
+
 namespace McpToolRegistry;
 
 /// <summary>
 /// Schema 校验中间件 — Order=300 — 验证工具参数是否符合 InputSchema
 /// </summary>
 [Register]
-public sealed partial class SchemaValidationMiddleware : IToolExecutionMiddleware
+public sealed partial class SchemaValidationMiddleware : ServiceEntity, IToolExecutionMiddleware
 {
 
     private readonly IJsonSchemaValidator? _schemaValidator;

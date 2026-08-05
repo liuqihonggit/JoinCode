@@ -1,7 +1,7 @@
 namespace Core.Agents;
 
 [Register(typeof(JoinCode.Abstractions.Interfaces.IAgentDefinitionProvider))]
-public sealed partial class AgentDefinitionProvider : JoinCode.Abstractions.Interfaces.IAgentDefinitionProvider
+public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Abstractions.Interfaces.IAgentDefinitionProvider
 {
     [Inject] private readonly IFileSystem _fs;
     [Inject] private readonly ILogger<AgentDefinitionProvider>? _logger;
@@ -657,4 +657,6 @@ public sealed partial class AgentDefinitionProvider : JoinCode.Abstractions.Inte
 
         return (AgentRole.Executor, null);
     }
+
+    protected override void OnDispose() => _cacheLock.Dispose();
 }

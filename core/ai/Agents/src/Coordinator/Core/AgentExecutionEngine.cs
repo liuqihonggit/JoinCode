@@ -5,7 +5,7 @@ namespace Core.Agents.Coordinator;
 /// Agent 执行引擎 - 负责执行策略（并行/串行）
 /// </summary>
 [Register]
-public sealed partial class AgentExecutionEngine : IAgentExecutionEngine
+public sealed partial class AgentExecutionEngine : ServiceEntity, IAgentExecutionEngine
 {
     private readonly IAgentLifecycleManager _lifecycleManager;
     private readonly ILogger? _logger;

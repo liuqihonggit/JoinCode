@@ -7,7 +7,7 @@ namespace Core.Context;
 /// 线程安全，使用 SemaphoreSlim 优化异步并发性能
 /// </summary>
 [Register(typeof(IContextHierarchy), JoinCode.Abstractions.Attributes.ServiceLifetime.Scoped)]
-public sealed partial class ContextHierarchy : IContextHierarchy, IDisposable
+public sealed partial class ContextHierarchy : ServiceEntity, IContextHierarchy, IDisposable
 {
     private readonly List<IContextLayer> _layers = new();
     private readonly Dictionary<ContextLayerType, IContextLayer> _layerDict = new();
@@ -368,5 +368,5 @@ public sealed partial class ContextHierarchy : IContextHierarchy, IDisposable
         }
     }
 
-    public void Dispose() => _lock.Dispose();
+    protected override void OnDispose() => _lock.Dispose();
 }

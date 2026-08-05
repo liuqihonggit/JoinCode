@@ -3,7 +3,7 @@ using JoinCode.Abstractions.Attributes;
 namespace IO.Services;
 
 [Register]
-public sealed partial class ReplService : IReplService
+public sealed partial class ReplService : ServiceEntity, IReplService
 {
     private volatile bool _replModeEnabled;
     private readonly IFileSystem _fs;

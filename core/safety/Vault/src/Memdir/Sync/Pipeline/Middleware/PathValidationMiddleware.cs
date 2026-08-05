@@ -1,4 +1,4 @@
-﻿namespace Memdir.Sync;
+namespace Memdir.Sync;
 
 using JoinCode.Abstractions.Pipeline;
 
@@ -6,7 +6,7 @@ using JoinCode.Abstractions.Pipeline;
 /// 路径验证中间件 — 验证 WatchPath 非空并确保目录存在
 /// </summary>
 [Register(typeof(ISyncStartMiddleware))]
-public sealed partial class PathValidationMiddleware : ISyncStartMiddleware
+public sealed partial class PathValidationMiddleware : ServiceEntity, ISyncStartMiddleware
 {
 
     public Task InvokeAsync(SyncStartContext ctx, MiddlewareDelegate<SyncStartContext> next, CancellationToken ct)

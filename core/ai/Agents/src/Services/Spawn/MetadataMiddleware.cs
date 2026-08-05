@@ -4,7 +4,7 @@ namespace Core.Agents;
 /// 元数据保存中间件 — 保存 Agent 元数据到 Transcript
 /// </summary>
 [Register]
-public sealed partial class MetadataMiddleware : IAgentSpawnMiddleware
+public sealed partial class MetadataMiddleware : ServiceEntity, IAgentSpawnMiddleware
 {
     [Inject] private readonly JoinCode.Abstractions.Interfaces.IAgentTranscriptService? _transcriptService;
     [Inject] private readonly ILogger<MetadataMiddleware>? _logger;

@@ -1,4 +1,4 @@
-﻿
+
 
 namespace Services.Lsp.Internal;
 
@@ -7,7 +7,7 @@ namespace Services.Lsp.Internal;
 /// 对齐 TS LSPServerManager 的 changeFile/saveFile/openFile/closeFile
 /// </summary>
 [Register]
-public sealed partial class LspFileSync : ILspFileSync
+public sealed partial class LspFileSync : ServiceEntity, ILspFileSync
 {
     [Inject] private readonly ILspManager _lspManager;
     [Inject] private readonly ILogger<LspFileSync>? _logger;

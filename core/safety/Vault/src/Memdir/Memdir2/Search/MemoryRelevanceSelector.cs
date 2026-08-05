@@ -1,4 +1,4 @@
-﻿
+
 namespace Core.Memdir;
 
 /// <summary>
@@ -32,7 +32,7 @@ public sealed record ScoredMemory(MemoryEntry Memory, double RelevanceScore);
 /// 使用关键词匹配和语义相似度计算
 /// </summary>
 [Register]
-public sealed partial class MemoryRelevanceSelector : IMemoryRelevanceSelector
+public sealed partial class MemoryRelevanceSelector : ServiceEntity, IMemoryRelevanceSelector
 {
     private readonly IMemoryAgeCalculator _ageCalculator;
     [Inject] private readonly ILogger<MemoryRelevanceSelector>? _logger;

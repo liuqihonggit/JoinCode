@@ -3,7 +3,7 @@ using JoinCode.Abstractions.Attributes;
 namespace Core.Skills.Discovery;
 
 [Register]
-public sealed partial class SkillDiscoveryService : ISkillDiscoveryService
+public sealed partial class SkillDiscoveryService : ServiceEntity, ISkillDiscoveryService
 {
     private readonly SkillDiscoveryOptions _options;
     private readonly IFileOperationService _files;
@@ -204,7 +204,7 @@ public sealed partial class SkillDiscoveryService : ISkillDiscoveryService
         _logger?.LogInformation("[SkillDiscovery] 停止监视技能目录");
     }
 
-    public void Dispose()
+    protected override void OnDispose()
     {
         if (!_isDisposed)
         {

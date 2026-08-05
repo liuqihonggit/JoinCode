@@ -10,7 +10,7 @@ using JoinCode.Abstractions.Interfaces;
 /// 3. 循环迭代 ≥ 12 且负评 ≤ 8 → 接近硬上限但质量尚可，提前终止
 /// </summary>
 [Register(typeof(IGoalLoopObserver))]
-public sealed partial class GoalLoopObserver : IGoalLoopObserver
+public sealed partial class GoalLoopObserver : ServiceEntity, IGoalLoopObserver
 {
     [Inject] private readonly ILogger<GoalLoopObserver>? _logger;
 

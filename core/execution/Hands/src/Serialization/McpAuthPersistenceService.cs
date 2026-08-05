@@ -3,7 +3,7 @@ using JoinCode.Abstractions.Attributes;
 namespace IO.Services;
 
 [Register]
-public sealed partial class McpAuthPersistenceService : IMcpAuthPersistenceService
+public sealed partial class McpAuthPersistenceService : ServiceEntity, IMcpAuthPersistenceService
 {
     private readonly IConfigurationService? _configService;
     [Inject] private readonly ILogger<McpAuthPersistenceService>? _logger;
@@ -122,5 +122,7 @@ public sealed partial class McpAuthPersistenceService : IMcpAuthPersistenceServi
             _logger?.LogWarning(ex, "保存 MCP 认证配置失败");
         }
     }
+
+    protected override void OnDispose() => _lock.Dispose();
 }
 

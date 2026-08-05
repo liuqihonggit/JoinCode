@@ -1,4 +1,4 @@
-﻿namespace Core.Security.Services;
+namespace Core.Security.Services;
 
 public interface IAutoModeClassifier
 {
@@ -27,7 +27,7 @@ public enum SecurityClassification { [EnumValue("safe")] Safe, [EnumValue("lowRi
 public enum SecurityAction { [EnumValue("autoApprove")] AutoApprove, [EnumValue("requireConfirmation")] RequireConfirmation, [EnumValue("requireApproval")] RequireApproval, [EnumValue("block")] Block }
 
 [Register]
-public sealed partial class AutoModeClassifier : IAutoModeClassifier
+public sealed partial class AutoModeClassifier : ServiceEntity, IAutoModeClassifier
 {
     private static readonly string[] DangerousCommandPatterns =
     new[] { 

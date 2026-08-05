@@ -3,7 +3,7 @@ using JoinCode.Abstractions.Attributes;
 namespace IO.Services;
 
 [Register]
-public sealed partial class ChromeIntegrationService : IChromeIntegrationService, IDisposable
+public sealed partial class ChromeIntegrationService : ServiceEntity, IChromeIntegrationService, IDisposable
 {
     private bool _isConnected;
     private bool _isDefaultEnabled;
@@ -123,7 +123,7 @@ public sealed partial class ChromeIntegrationService : IChromeIntegrationService
         return string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
     }
 
-    public void Dispose()
+    protected override void OnDispose()
     {
         _initLock.Dispose();
     }

@@ -1,8 +1,8 @@
-﻿
+
 namespace Core.Goal;
 
 [Register]
-public sealed partial class GoalEvaluator : IGoalEvaluator
+public sealed partial class GoalEvaluator : ServiceEntity, IGoalEvaluator
 {
     private readonly IChatClient _kernel;
     [Inject] private readonly ILogger<GoalEvaluator>? _logger;

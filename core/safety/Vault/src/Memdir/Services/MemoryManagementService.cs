@@ -1,4 +1,4 @@
-﻿
+
 namespace Core.Memdir;
 
 #region Memory Management Models
@@ -304,7 +304,7 @@ public sealed record MemoryHealthReport
 /// 内存管理服务实现
 /// </summary>
 [Register]
-public sealed partial class MemoryManagementService : IMemoryManagementService, IDisposable
+public sealed partial class MemoryManagementService : ServiceEntity, IMemoryManagementService, IDisposable
 {
     private readonly MemoryStore _memoryStore;
     private readonly Dictionary<(string TeamId, string Path), TeamMemoryPath> _teamMemoryPaths = new();
@@ -940,5 +940,5 @@ public sealed partial class MemoryManagementService : IMemoryManagementService, 
 
     #endregion
 
-    public void Dispose() => _skillLock.Dispose();
+    protected override void OnDispose() => _skillLock.Dispose();
 }

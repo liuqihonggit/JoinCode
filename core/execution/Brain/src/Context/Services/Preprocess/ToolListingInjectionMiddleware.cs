@@ -6,7 +6,7 @@ namespace Core.Context;
 /// 工具列表注入中间件 — 注入 Agent/Skill 列表附件
 /// </summary>
 [Register(typeof(IPreparePreprocessMiddleware))]
-public sealed partial class ToolListingInjectionMiddleware : IPreparePreprocessMiddleware
+public sealed partial class ToolListingInjectionMiddleware : ServiceEntity, IPreparePreprocessMiddleware
 {
     [Inject] private readonly Prompts.Services.ToolListingService? _toolListingService;
 

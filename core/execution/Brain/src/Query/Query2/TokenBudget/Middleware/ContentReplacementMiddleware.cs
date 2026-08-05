@@ -6,7 +6,7 @@ namespace Core.Query;
 /// 内容替换中间件 — 工具调用结果处理时执行内容替换和预算检查
 /// </summary>
 [Register(typeof(IQueryMiddleware))]
-public sealed partial class ContentReplacementMiddleware : IQueryMiddleware
+public sealed partial class ContentReplacementMiddleware : ServiceEntity, IQueryMiddleware
 {
     [Inject] private readonly IContentReplacementService? _contentReplacementService;
 

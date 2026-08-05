@@ -7,7 +7,7 @@ public interface ISwarmPermissionRequestProcessor
 }
 
 [Register]
-public sealed partial class SwarmPermissionRequestProcessor : ISwarmPermissionRequestProcessor
+public sealed partial class SwarmPermissionRequestProcessor : ServiceEntity, ISwarmPermissionRequestProcessor
 {
     private readonly IAgentMessageBroker _messageBroker;
     private readonly IAgentPermissionManager _permissionManager;

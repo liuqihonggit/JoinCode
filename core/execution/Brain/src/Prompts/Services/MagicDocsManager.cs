@@ -7,7 +7,7 @@ namespace Core.Prompts.Services;
 /// 核心消费点：MagicDocsPromptTemplate.BuildMagicDocsUpdatePrompt()
 /// </summary>
 [Register]
-public sealed partial class MagicDocsManager : IFileReadListener, IPostSamplingCallback
+public sealed partial class MagicDocsManager : ServiceEntity, IFileReadListener, IPostSamplingCallback
 {
     private readonly IFileSystem _fileSystem;
     private readonly IForkSubAgentManager? _forkManager;
@@ -188,4 +188,6 @@ public sealed partial class MagicDocsManager : IFileReadListener, IPostSamplingC
         try { _trackedDocs.Clear(); }
         finally { _semaphore.Release(); }
     }
+
+    protected override void OnDispose() => _semaphore.Dispose();
 }

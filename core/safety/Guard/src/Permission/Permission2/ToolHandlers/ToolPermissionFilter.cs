@@ -1,4 +1,4 @@
-﻿namespace Core.Permission;
+namespace Core.Permission;
 
 public interface IToolPermissionFilter
 {
@@ -18,7 +18,7 @@ public sealed partial class ToolDenyRule
 }
 
 [Register]
-public sealed partial class ToolPermissionFilter : IToolPermissionFilter
+public sealed partial class ToolPermissionFilter : ServiceEntity, IToolPermissionFilter
 {
     private readonly ConcurrentDictionary<string, ToolDenyRule> _denyRules;
     [Inject] private readonly ILogger<ToolPermissionFilter>? _logger;

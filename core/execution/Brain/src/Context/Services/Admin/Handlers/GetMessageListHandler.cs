@@ -4,7 +4,7 @@ namespace Core.Context;
 /// 获取消息列表操作处理器
 /// </summary>
 [Register]
-public sealed partial class GetMessageListHandler : IChatAdminOperationHandler
+public sealed partial class GetMessageListHandler : ServiceEntity, IChatAdminOperationHandler
 {
     public ChatAdminOperation Operation => ChatAdminOperation.GetMessageList;
 

@@ -1,8 +1,8 @@
-﻿
+
 namespace Core.Planning;
 
 [Register]
-public sealed partial class InteractiveService : IInteractiveService
+public sealed partial class InteractiveService : ServiceEntity, IInteractiveService
 {
     [Inject] private readonly ILogger<InteractiveService>? _logger;
 

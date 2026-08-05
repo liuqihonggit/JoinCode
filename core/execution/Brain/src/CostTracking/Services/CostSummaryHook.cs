@@ -1,4 +1,4 @@
-﻿namespace Core.CostTracking;
+namespace Core.CostTracking;
 
 public interface ICostSummaryHook
 {
@@ -7,7 +7,7 @@ public interface ICostSummaryHook
 }
 
 [Register]
-public sealed partial class CostSummaryHook : ICostSummaryHook
+public sealed partial class CostSummaryHook : ServiceEntity, ICostSummaryHook
 {
     [Inject] private readonly CostTracker _costTracker;
     [Inject] private readonly ILogger<CostSummaryHook>? _logger;

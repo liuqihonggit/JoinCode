@@ -1,10 +1,10 @@
-﻿namespace Core.Context;
+namespace Core.Context;
 
 /// <summary>
 /// 任务进度追踪器 — 基于 ITodoService 追踪 TODO 表完成数，供循环检测判断任务是否真正推进
 /// </summary>
 [Register]
-public sealed partial class TaskProgressTracker : ITaskProgressTracker
+public sealed partial class TaskProgressTracker : ServiceEntity, ITaskProgressTracker
 {
     [Inject] private readonly ITodoService _todoService;
     [Inject] private readonly ILogger<TaskProgressTracker>? _logger;

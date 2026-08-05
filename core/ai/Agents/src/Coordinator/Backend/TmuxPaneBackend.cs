@@ -1,7 +1,7 @@
 namespace Core.Agents.Coordinator;
 
 [Register]
-public sealed partial class TmuxPaneBackend : JoinCode.Abstractions.Interfaces.IPaneBackend
+public sealed partial class TmuxPaneBackend : ServiceEntity, JoinCode.Abstractions.Interfaces.IPaneBackend
 {
     private static readonly string[] TmuxColorMap =
     new[] { 
@@ -227,4 +227,6 @@ public sealed partial class TmuxPaneBackend : JoinCode.Abstractions.Interfaces.I
 
         return (result.ExitCode, result.StandardOutput, result.StandardError);
     }
+
+    protected override void OnDispose() => _creationLock.Dispose();
 }

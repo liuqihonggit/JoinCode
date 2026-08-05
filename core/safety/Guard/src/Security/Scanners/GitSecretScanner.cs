@@ -1,8 +1,8 @@
-﻿
+
 namespace Core.Security.Scanners;
 
 [Register]
-public sealed partial class GitSecretScanner : IGitSecretScanner
+public sealed partial class GitSecretScanner : ServiceEntity, IGitSecretScanner
 {
     [Inject] private readonly ILogger<GitSecretScanner> _logger;
 

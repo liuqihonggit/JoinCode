@@ -112,3 +112,4 @@ global using Memdir.Sync;
 global using State;
 global using Api;
 global using System.Text.Json.Serialization;
+global using JoinCode.Abstractions.Entity;

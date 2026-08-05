@@ -1,11 +1,11 @@
-﻿
+
 namespace Core.Permission;
 
 /// <summary>
 /// 绕过权限检查中间件 — BypassPermissions 模式下直接批准所有操作
 /// </summary>
 [Register(typeof(IPermissionMiddleware))]
-public sealed partial class BypassPermissionMiddleware : IPermissionMiddleware
+public sealed partial class BypassPermissionMiddleware : ServiceEntity, IPermissionMiddleware
 {
     /// <inheritdoc />
 

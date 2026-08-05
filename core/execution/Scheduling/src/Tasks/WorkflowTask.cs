@@ -70,7 +70,7 @@ public sealed partial class StepStatus
 }
 
 [Register]
-public sealed partial class WorkflowTaskExecutor : IWorkflowTaskExecutor
+public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskExecutor
 {
     private readonly IToolExecutionGateway _toolExecutionGateway;
     private readonly IAgentLifecycleManager _agentLifecycleManager;
@@ -426,6 +426,8 @@ public sealed partial class WorkflowTaskExecutor : IWorkflowTaskExecutor
             ErrorMessage = error
         };
     }
+
+    protected override void OnDispose() => _stateLock.Dispose();
 
 }
 

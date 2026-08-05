@@ -6,7 +6,7 @@ using JoinCode.Abstractions.Models.Build;
 public interface ISubagentStopCheckpointInternal : ISubagentStopCheckpoint;
 
 [Register]
-public sealed partial class SubagentStopCheckpoint : ISubagentStopCheckpointInternal
+public sealed partial class SubagentStopCheckpoint : ServiceEntity, ISubagentStopCheckpointInternal
 {
     private readonly IGitSecretScanner _secretScanner;
     private readonly IGitDiffProvider _diffProvider;

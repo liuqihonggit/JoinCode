@@ -1,9 +1,9 @@
-﻿
+
 namespace Services.Api.Vcr;
 
 [Register(typeof(IVcrService))]
 [Register(typeof(JoinCode.Abstractions.Interfaces.IVcrService))]
-public sealed partial class VcrService : IVcrService, JoinCode.Abstractions.Interfaces.IVcrService, IDisposable
+public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Abstractions.Interfaces.IVcrService, IDisposable
 {
     private readonly VcrOptions _options;
     [Inject] private readonly ILogger<VcrService>? _logger;
@@ -177,7 +177,7 @@ public sealed partial class VcrService : IVcrService, JoinCode.Abstractions.Inte
         return true;
     }
 
-    public void Dispose()
+    protected override void OnDispose()
     {
         _fileLock.Dispose();
     }

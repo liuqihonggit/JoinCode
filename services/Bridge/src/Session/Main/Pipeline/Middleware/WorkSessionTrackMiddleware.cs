@@ -1,9 +1,9 @@
-﻿namespace Core.Bridge;
+namespace Core.Bridge;
 
 using JoinCode.Abstractions.Pipeline;
 
 [Register(typeof(IHandleWorkMiddleware))]
-public sealed partial class WorkSessionTrackMiddleware : IHandleWorkMiddleware
+public sealed partial class WorkSessionTrackMiddleware : ServiceEntity, IHandleWorkMiddleware
 {
     [Inject] private readonly ILogger<WorkSessionTrackMiddleware>? _logger;
     [Inject] private readonly IClockService _clock;

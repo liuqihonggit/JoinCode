@@ -1,7 +1,7 @@
-﻿namespace Core.Hooks.ToolPermission;
+namespace Core.Hooks.ToolPermission;
 
 [Register]
-public sealed partial class PermissionHookExecutor : IPermissionHookExecutor
+public sealed partial class PermissionHookExecutor : ServiceEntity, IPermissionHookExecutor
 {
     [Inject] private readonly IHookOrchestrator _hookOrchestrator;
     [Inject] private readonly ILogger<PermissionHookExecutor>? _logger;

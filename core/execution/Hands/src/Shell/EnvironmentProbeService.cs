@@ -5,7 +5,7 @@ namespace Tools;
 /// 5分钟缓存，IFileSystem抽象，路径归一化
 /// </summary>
 [Register]
-public sealed class EnvironmentProbeService : IEnvironmentProbeService
+public sealed class EnvironmentProbeService : ServiceEntity, IEnvironmentProbeService
 {
     private readonly ILogger<EnvironmentProbeService>? _logger;
     private readonly IToolHealthMonitor _healthMonitor;
@@ -245,4 +245,6 @@ public sealed class EnvironmentProbeService : IEnvironmentProbeService
         var ps = components.FirstOrDefault(c => c.Id == "powershell");
         return ps?.IsInstalled == true ? "powershell" : "cmd";
     }
+
+    protected override void OnDispose() => _lock.Dispose();
 }

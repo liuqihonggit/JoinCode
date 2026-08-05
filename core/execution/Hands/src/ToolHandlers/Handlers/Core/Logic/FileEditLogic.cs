@@ -3,7 +3,7 @@ namespace Tools.Handlers;
 public record BatchEditResult(string FilePath, FileEditResult Result);
 
 [Register]
-public sealed partial class FileEditLogic
+public sealed partial class FileEditLogic : ServiceEntity
 {
     [Inject] private readonly IFileSystem _fs;
 

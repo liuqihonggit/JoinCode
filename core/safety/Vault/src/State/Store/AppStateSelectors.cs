@@ -6,7 +6,7 @@ namespace State;
 /// 提供类型安全的派生状态选择
 /// </summary>
 [Register]
-public sealed partial class AppStateSelectors
+public sealed partial class AppStateSelectors : ServiceEntity
 {
     [Inject] private readonly IStore<AppState> _store;
     [Inject] private readonly ITelemetryService? _telemetryService;

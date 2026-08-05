@@ -1,4 +1,4 @@
-﻿
+
 namespace Core.Agents.Coordinator;
 
 public interface ISwarmPermissionBridge : IDisposable
@@ -41,7 +41,7 @@ public sealed partial class PermissionSyncEventArgs : EventArgs
 }
 
 [Register(typeof(ISwarmPermissionBridge))]
-public sealed partial class SwarmPermissionBridge : ISwarmPermissionBridge, IDisposable
+public sealed partial class SwarmPermissionBridge : ServiceEntity, ISwarmPermissionBridge, IDisposable
 {
     private readonly IAgentMessageBroker _messageBroker;
     private readonly IAgentPermissionManager _permissionManager;
@@ -194,5 +194,5 @@ public sealed partial class SwarmPermissionBridge : ISwarmPermissionBridge, IDis
         return changes;
     }
 
-    public void Dispose() => _lock.Dispose();
+    protected override void OnDispose() => _lock.Dispose();
 }

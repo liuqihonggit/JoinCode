@@ -4,7 +4,7 @@ namespace Core.Agents;
 /// 转录记录中间件 — 记录系统提示词和用户输入到 Transcript
 /// </summary>
 [Register]
-public sealed partial class TranscriptMiddleware : IAgentSpawnMiddleware
+public sealed partial class TranscriptMiddleware : ServiceEntity, IAgentSpawnMiddleware
 {
     [Inject] private readonly JoinCode.Abstractions.Interfaces.IAgentTranscriptService? _transcriptService;
     [Inject] private readonly ILogger<TranscriptMiddleware>? _logger;

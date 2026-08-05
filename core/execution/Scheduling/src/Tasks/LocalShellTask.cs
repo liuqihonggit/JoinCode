@@ -1,4 +1,4 @@
-﻿
+
 namespace Core.Scheduling.Tasks;
 
 public interface ILocalShellTaskExecutor
@@ -18,7 +18,7 @@ public sealed partial class LocalShellTaskDefinition
 }
 
 [Register]
-public sealed partial class LocalShellTaskExecutor : ILocalShellTaskExecutor
+public sealed partial class LocalShellTaskExecutor : ServiceEntity, ILocalShellTaskExecutor
 {
     private readonly ISystemActuatorRegistry _actuatorRegistry;
     [Inject] private readonly ILogger<LocalShellTaskExecutor>? _logger;

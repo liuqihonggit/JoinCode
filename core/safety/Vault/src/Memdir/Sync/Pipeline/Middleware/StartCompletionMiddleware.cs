@@ -1,4 +1,4 @@
-﻿namespace Memdir.Sync;
+namespace Memdir.Sync;
 
 using JoinCode.Abstractions.Pipeline;
 
@@ -6,7 +6,7 @@ using JoinCode.Abstractions.Pipeline;
 /// 启动完成中间件 — 标记运行状态、记录日志和指标
 /// </summary>
 [Register(typeof(ISyncStartMiddleware))]
-public sealed partial class StartCompletionMiddleware : ISyncStartMiddleware
+public sealed partial class StartCompletionMiddleware : ServiceEntity, ISyncStartMiddleware
 {
     [Inject] private readonly ILogger<StartCompletionMiddleware>? _logger;
     [Inject] private readonly ITelemetryService? _telemetryService;

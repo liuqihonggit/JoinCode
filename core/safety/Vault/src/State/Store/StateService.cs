@@ -7,7 +7,7 @@ namespace State;
 /// </summary>
 [Register(typeof(StateService))]
 [Register(typeof(IStateService))]
-public sealed partial class StateService : IStateService, IDisposable
+public sealed partial class StateService : ServiceEntity, IStateService, IDisposable
 {
     private readonly ConcurrentDictionary<string, SessionState> _storage = new();
     private readonly IClockService _clock;
@@ -151,5 +151,5 @@ public sealed partial class StateService : IStateService, IDisposable
 
     #endregion
 
-    public void Dispose() => _storage.Clear();
+    protected override void OnDispose() => _storage.Clear();
 }

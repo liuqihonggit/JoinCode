@@ -3,7 +3,7 @@ using JoinCode.Abstractions.Attributes;
 namespace IO.Services;
 
 [Register]
-public sealed partial class MobileConnectService : IMobileConnectService, IDisposable
+public sealed partial class MobileConnectService : ServiceEntity, IMobileConnectService, IDisposable
 {
     private System.Net.Sockets.TcpListener? _tcpListener;
     [Inject] private readonly ILogger<MobileConnectService>? _logger;
@@ -130,7 +130,7 @@ public sealed partial class MobileConnectService : IMobileConnectService, IDispo
     }
 
     /// <summary>释放移动端连接服务资源 — P1-10: 补全 IDisposable 避免资源累积</summary>
-    public void Dispose()
+    protected override void OnDispose()
     {
         StopConnectServer();
         _cts?.Dispose();

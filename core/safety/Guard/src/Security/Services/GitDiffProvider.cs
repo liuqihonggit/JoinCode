@@ -1,8 +1,8 @@
-﻿
+
 namespace Core.Security.Services;
 
 [Register]
-public sealed partial class GitDiffProvider : IGitDiffProvider
+public sealed partial class GitDiffProvider : ServiceEntity, IGitDiffProvider
 {
     [Inject] private readonly ILogger<GitDiffProvider> _logger;
     [Inject] private readonly IGitCommandRunner _gitRunner;

@@ -5,7 +5,7 @@ namespace Infrastructure.Housekeeping;
 /// 聚合调度所有 CleanupOld* 方法，延迟执行+循环清理
 /// </summary>
 [Register(typeof(IHousekeepingService))]
-public sealed partial class HousekeepingService : IHousekeepingService
+public sealed partial class HousekeepingService : ServiceEntity, IHousekeepingService
 {
     [Inject] private readonly IFileSystem _fs;
     [Inject] private readonly IClockService _clock;

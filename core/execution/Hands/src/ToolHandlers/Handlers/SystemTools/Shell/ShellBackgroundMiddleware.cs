@@ -1,4 +1,4 @@
-﻿namespace Tools.Shell;
+namespace Tools.Shell;
 
 /// <summary>
 /// Shell 后台任务中间件 — 对齐 TS spawnShellTask/LocalShellTask
@@ -6,7 +6,7 @@
 /// 统一走 SystemActuatorCommandContext 路径，复用溢出文件机制，不再独立启动新进程
 /// </summary>
 [Register]
-public sealed partial class ShellBackgroundMiddleware : IShellMiddleware
+public sealed partial class ShellBackgroundMiddleware : ServiceEntity, IShellMiddleware
 {
     [Inject] private readonly ISystemActuatorRegistry _registry;
     [Inject] private readonly ITelemetryService? _telemetryService;

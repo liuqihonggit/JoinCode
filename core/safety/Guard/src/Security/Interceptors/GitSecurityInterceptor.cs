@@ -2,7 +2,7 @@
 namespace Core.Security.Interceptors;
 
 [Register]
-public sealed partial class GitSecurityInterceptor : IGitSecurityInterceptor
+public sealed partial class GitSecurityInterceptor : ServiceEntity, IGitSecurityInterceptor
 {
     private readonly IGitDiffProvider _diffProvider;
     private readonly IGitSecretScanner _scanner;

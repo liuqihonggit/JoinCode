@@ -3,7 +3,7 @@ using JoinCode.Abstractions.Attributes;
 namespace JoinCode.Abstractions.Security.Shell;
 
 [Register]
-public sealed partial class BashSecurityValidator : IBashSecurityValidator
+public sealed partial class BashSecurityValidator : ServiceEntity, IBashSecurityValidator
 {
     [Inject] private readonly IBashAstSecurityWalker _astWalker;
 

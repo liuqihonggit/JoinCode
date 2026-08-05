@@ -1,4 +1,4 @@
-﻿
+
 namespace Core.Permission;
 
 /// <summary>
@@ -6,7 +6,7 @@ namespace Core.Permission;
 /// 对齐 TS 版 ConfigTool.checkPermissions: GET 操作自动允许
 /// </summary>
 [Register(typeof(IPermissionMiddleware))]
-public sealed partial class ConfigGetOperationMiddleware : IPermissionMiddleware
+public sealed partial class ConfigGetOperationMiddleware : ServiceEntity, IPermissionMiddleware
 {
     /// <inheritdoc />
 

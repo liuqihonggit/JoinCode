@@ -1,10 +1,10 @@
-﻿namespace IO.FileSystem;
+namespace IO.FileSystem;
 
 /// <summary>
 /// 物理文件系统实现 — 直接委托给 System.IO.File / System.IO.Directory
 /// </summary>
 [Register]
-public sealed partial class PhysicalFileSystem : IFileSystem
+public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem
 {
     // === File 写操作 ===
 

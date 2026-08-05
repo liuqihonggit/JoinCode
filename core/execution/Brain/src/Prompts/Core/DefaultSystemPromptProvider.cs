@@ -1,10 +1,10 @@
-﻿namespace Core.Prompts;
+namespace Core.Prompts;
 
 /// <summary>
 /// 默认系统提示词提供者 - 组合所有标准提示词部分
 /// </summary>
 [Register]
-public sealed partial class DefaultSystemPromptProvider : ISystemPromptProvider
+public sealed partial class DefaultSystemPromptProvider : ServiceEntity, ISystemPromptProvider
 {
     private readonly SystemPromptProviderOptions _options;
 

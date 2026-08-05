@@ -1,7 +1,7 @@
 namespace Services.CodeIndex;
 
 [Register]
-public sealed partial class LspIntegration : IDisposable
+public sealed partial class LspIntegration : ServiceEntity, IDisposable
 {
     private readonly ICodeIndexer _indexer;
     private readonly ILspService? _lspService;
@@ -111,7 +111,7 @@ public sealed partial class LspIntegration : IDisposable
         }
     }
 
-    public void Dispose()
+    protected override void OnDispose()
     {
         if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
 

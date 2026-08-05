@@ -1,7 +1,7 @@
-﻿namespace Services.Api;
+namespace Services.Api;
 
 [Register]
-public sealed partial class RateLimitTracker : IRateLimitTracker
+public sealed partial class RateLimitTracker : ServiceEntity, IRateLimitTracker
 {
     private volatile RateLimitSnapshot? _snapshot;
 

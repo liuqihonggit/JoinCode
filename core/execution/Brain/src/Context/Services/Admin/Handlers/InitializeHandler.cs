@@ -6,7 +6,7 @@ namespace Core.Context;
 /// 初始化操作处理器
 /// </summary>
 [Register]
-public sealed partial class InitializeHandler : IChatAdminOperationHandler
+public sealed partial class InitializeHandler : ServiceEntity, IChatAdminOperationHandler
 {
     [Inject] private readonly IChatInitializer _initializer;
 

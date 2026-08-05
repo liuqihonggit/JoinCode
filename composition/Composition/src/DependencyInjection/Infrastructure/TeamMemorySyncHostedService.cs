@@ -4,7 +4,7 @@ using JoinCode.Abstractions.Attributes;
 namespace Core.DependencyInjection;
 
 [Register(typeof(IHostedService))]
-public sealed partial class TeamMemorySyncHostedService : IHostedService
+public sealed partial class TeamMemorySyncHostedService : ServiceEntity, IHostedService
 {
     private readonly global::Memdir.Sync.ITeamMemorySyncService _syncService;
     [Inject] private readonly ILogger<TeamMemorySyncHostedService>? _logger;

@@ -2,7 +2,7 @@
 namespace Core.Agents.Coordinator;
 
 [Register(typeof(ITeammateInitService))]
-public sealed partial class TeammateInitService : ITeammateInitService
+public sealed partial class TeammateInitService : ServiceEntity, ITeammateInitService
 {
     private readonly ITeamManager _teamManager;
     private readonly ISessionHookManager? _sessionHookManager;

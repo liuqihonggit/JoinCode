@@ -5,7 +5,7 @@ namespace State;
 /// 对齐 TS 版 ConfigTool 中 context.setAppState({ [appStateKey]: finalValue }) 的热更新机制
 /// </summary>
 [Register]
-public sealed partial class AppStateSettingSyncService : IDisposable
+public sealed partial class AppStateSettingSyncService : ServiceEntity, IDisposable
 {
     private readonly IConfigurationService _configurationService;
     private readonly IStore<AppState> _store;
@@ -56,7 +56,7 @@ public sealed partial class AppStateSettingSyncService : IDisposable
         });
     }
 
-    public void Dispose()
+    protected override void OnDispose()
     {
         _configurationService.SettingChanged -= OnSettingChanged;
     }

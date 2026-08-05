@@ -4,7 +4,7 @@ namespace Core.Agents;
 /// MCP 服务器初始化中间件 — 初始化 Agent 定义中的 MCP 服务器
 /// </summary>
 [Register]
-public sealed partial class McpSetupMiddleware : IAgentSpawnMiddleware
+public sealed partial class McpSetupMiddleware : ServiceEntity, IAgentSpawnMiddleware
 {
     [Inject] private readonly JoinCode.Abstractions.Interfaces.IAgentMcpServerManager? _mcpServerManager;
     [Inject] private readonly ILogger<McpSetupMiddleware>? _logger;

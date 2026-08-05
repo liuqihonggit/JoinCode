@@ -171,7 +171,7 @@ public sealed partial class BridgeFatalError : Exception
 /// Bridge API 选项 - 远程 API 通信配置
 /// </summary>
 [Register]
-public sealed partial class BridgeApiOptions
+public sealed partial class BridgeApiOptions : ServiceEntity
 {
     /// <summary>默认重试次数</summary>
     public const int DefaultMaxRetries = 3;
@@ -251,7 +251,7 @@ public sealed partial class BridgeApiOptions
 /// 使用 JsonSerializer + JsonContext 实现 AOT 兼容的 JSON 序列化
 /// </summary>
 [Register]
-public sealed partial class BridgeApiClient : IDisposable
+public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
 {
     /// <summary>对齐 TS 端 anthropic-beta header — 与 BridgeSessionApi.BetaHeader 一致</summary>
     private const string BetaHeader = "ccr-byoc-2025-07-29";
@@ -1284,7 +1284,7 @@ public sealed partial class BridgeApiClient : IDisposable
 
     #endregion
 
-    public void Dispose()
+    protected override void OnDispose()
     {
         if (Interlocked.Exchange(ref _isDisposed, 1) == 1)
         {

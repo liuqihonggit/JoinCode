@@ -7,7 +7,7 @@ namespace Core.Context;
 /// OnError=Continue：保存失败不影响管道继续执行
 /// </summary>
 [Register]
-public sealed partial class SaveContextMiddleware : IChatMiddleware
+public sealed partial class SaveContextMiddleware : ServiceEntity, IChatMiddleware
 {
     [Inject] private readonly IChatContextManager _contextManager;
     [Inject] private readonly ILogger<SaveContextMiddleware>? _logger;

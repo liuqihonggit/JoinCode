@@ -6,7 +6,7 @@ namespace JoinCode.CodeIndex;
 /// 通过 RepoRegistered/RepoUnregistered 事件通知订阅方（如 FileWatcherIntegrationRegistry）
 /// </summary>
 [Register(typeof(ICodeIndexerRegistry))]
-public sealed class CodeIndexerRegistry : ICodeIndexerRegistry, IDisposable
+public sealed class CodeIndexerRegistry : ServiceEntity, ICodeIndexerRegistry, IDisposable
 {
     private readonly IFileSystem _fs;
     private readonly ICodeIndexer _defaultIndexer;
@@ -142,7 +142,7 @@ public sealed class CodeIndexerRegistry : ICodeIndexerRegistry, IDisposable
         }
     }
 
-    public void Dispose()
+    protected override void OnDispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
 

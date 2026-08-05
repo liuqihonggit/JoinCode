@@ -202,7 +202,7 @@ public interface IUsageTracker
 /// Token 使用量追踪器实现
 /// </summary>
 [Register]
-public sealed partial class UsageTracker : IUsageTracker, IDisposable
+public sealed partial class UsageTracker : ServiceEntity, IUsageTracker, IDisposable
 {
     private readonly ConcurrentBag<TokenUsageRecord> _usageRecords;
     private readonly ConcurrentDictionary<string, List<TokenUsageRecord>> _sessionIndex;
@@ -403,7 +403,7 @@ public sealed partial class UsageTracker : IUsageTracker, IDisposable
         };
     }
 
-    public void Dispose()
+    protected override void OnDispose()
     {
         // ConcurrentBag 不需要显式释放，Dispose 仅为接口契约
         GC.SuppressFinalize(this);

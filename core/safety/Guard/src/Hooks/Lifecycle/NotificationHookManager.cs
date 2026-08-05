@@ -1,4 +1,4 @@
-﻿namespace Core.Hooks.Lifecycle;
+namespace Core.Hooks.Lifecycle;
 
 public interface INotificationHookManager
 {
@@ -14,7 +14,7 @@ public sealed partial class NotificationHookContext
 }
 
 [Register]
-public sealed partial class NotificationHookManager : INotificationHookManager
+public sealed partial class NotificationHookManager : ServiceEntity, INotificationHookManager
 {
     private readonly IHookOrchestrator _orchestrator;
     [Inject] private readonly ILogger<NotificationHookManager>? _logger;

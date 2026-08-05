@@ -3,7 +3,7 @@ using JoinCode.Abstractions.Attributes;
 namespace Core.Configuration;
 
 [Register]
-public sealed partial class FastModeService : IFastModeService, IDisposable
+public sealed partial class FastModeService : ServiceEntity, IFastModeService, IDisposable
 {
     private readonly object _lock = new();
     private bool _isActive;
@@ -153,7 +153,7 @@ public sealed partial class FastModeService : IFastModeService, IDisposable
         }
     }
 
-    public void Dispose()
+    protected override void OnDispose()
     {
         StopCooldownTimer();
     }

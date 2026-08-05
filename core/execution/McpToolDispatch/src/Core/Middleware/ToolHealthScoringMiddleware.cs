@@ -5,7 +5,7 @@ namespace McpToolRegistry;
 /// 支持黑名单（完全禁用）、降权（额外扣分）、超图评分（关联工具共享评分空间）
 /// </summary>
 [Register]
-public sealed partial class ToolHealthScoringMiddleware : IToolExecutionMiddleware
+public sealed partial class ToolHealthScoringMiddleware : ServiceEntity, IToolExecutionMiddleware
 {
     [Inject] private readonly ToolHealthMonitor _monitor = null!;
     [Inject] private readonly ToolHypergraphScorer _scorer = null!;

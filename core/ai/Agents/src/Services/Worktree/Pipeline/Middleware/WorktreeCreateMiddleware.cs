@@ -1,10 +1,10 @@
-﻿namespace Core.Agents.Worktree;
+namespace Core.Agents.Worktree;
 
 /// <summary>
 /// Worktree 创建中间件 — git worktree add + 可选稀疏检出（失败回滚）
 /// </summary>
 [Register(typeof(IWorktreeCreateMiddleware))]
-public sealed partial class WorktreeCreateMiddleware : IWorktreeCreateMiddleware
+public sealed partial class WorktreeCreateMiddleware : ServiceEntity, IWorktreeCreateMiddleware
 {
     [Inject] private readonly Lazy<IWorktreePipelineOperations> _worktreeService;
     [Inject] private readonly IFileOperationService _fs;

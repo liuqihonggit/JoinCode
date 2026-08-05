@@ -1,8 +1,8 @@
-﻿
+
 namespace Core.Configuration.ConfigPipeline;
 
 [Register(typeof(IConfigLoadMiddleware))]
-public sealed partial class ApiKeyResolveMiddleware : IConfigLoadMiddleware
+public sealed partial class ApiKeyResolveMiddleware : ServiceEntity, IConfigLoadMiddleware
 {
     private readonly IFileSystem _fs;
     private readonly ConfigLoader _loader;

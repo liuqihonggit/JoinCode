@@ -51,7 +51,7 @@ public sealed record CoordinatorPermissionParams
 /// 3. 如果都未解决，返回 null 让调用者回退到交互式对话框
 /// </summary>
 [Register]
-public sealed partial class CoordinatorHandler
+public sealed partial class CoordinatorHandler : ServiceEntity
 {
     [Inject] private readonly ILogger<CoordinatorHandler>? _logger;
 

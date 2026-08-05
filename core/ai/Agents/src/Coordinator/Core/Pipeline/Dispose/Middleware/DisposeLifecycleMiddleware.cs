@@ -1,7 +1,7 @@
 namespace Core.Agents.Coordinator;
 
 [Register(typeof(IAgentDisposeMiddleware))]
-public sealed partial class DisposeLifecycleMiddleware : IAgentDisposeMiddleware
+public sealed partial class DisposeLifecycleMiddleware : ServiceEntity, IAgentDisposeMiddleware
 {
     [Inject] private readonly IAgentLifecycleManager _lifecycleManager;
     [Inject] private readonly ILogger<DisposeLifecycleMiddleware> _logger;

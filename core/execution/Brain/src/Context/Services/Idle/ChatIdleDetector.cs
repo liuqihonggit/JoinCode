@@ -1,11 +1,11 @@
-﻿namespace Core.Context;
+namespace Core.Context;
 
 /// <summary>
 /// 聊天空闲检测器 — 负责检测工具空闲轮次并注入提醒
 /// 提取自 ChatService.HandleIdleDetectionAsync + DetectToolUsageAsync
 /// </summary>
 [Register]
-public sealed partial class ChatIdleDetector : IChatIdleDetector
+public sealed partial class ChatIdleDetector : ServiceEntity, IChatIdleDetector
 {
     [Inject] private readonly IChatContextManager _contextManager;
     [Inject] private readonly ISystemReminderManager _reminderManager;

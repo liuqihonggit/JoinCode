@@ -6,7 +6,7 @@ namespace Core.Agents;
 /// 在 ContextSetupMiddleware (Order=300) 创建 SubAgent 之后执行
 /// </summary>
 [Register]
-public sealed partial class AgentWorktreeSpawnMiddleware : IAgentSpawnMiddleware
+public sealed partial class AgentWorktreeSpawnMiddleware : ServiceEntity, IAgentSpawnMiddleware
 {
     [Inject] private readonly IAgentWorktreeService? _worktreeService;
     [Inject] private readonly ILogger<AgentWorktreeSpawnMiddleware>? _logger;

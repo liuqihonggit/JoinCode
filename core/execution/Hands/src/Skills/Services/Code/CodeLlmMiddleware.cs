@@ -1,10 +1,10 @@
-﻿namespace Core.Skills;
+namespace Core.Skills;
 
 /// <summary>
 /// 代码 LLM 中间件 — Generate/Analyze 操作的 LLM 调用
 /// </summary>
 [Register]
-public sealed partial class CodeLlmMiddleware : ICodeMiddleware
+public sealed partial class CodeLlmMiddleware : ServiceEntity, ICodeMiddleware
 {
     private readonly JoinCode.Abstractions.LLM.IQueryService _queryService;
 

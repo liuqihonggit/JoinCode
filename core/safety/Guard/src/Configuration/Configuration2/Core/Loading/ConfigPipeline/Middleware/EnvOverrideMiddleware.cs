@@ -1,8 +1,8 @@
-﻿
+
 namespace Core.Configuration.ConfigPipeline;
 
 [Register(typeof(IConfigLoadMiddleware))]
-public sealed partial class EnvOverrideMiddleware : IConfigLoadMiddleware
+public sealed partial class EnvOverrideMiddleware : ServiceEntity, IConfigLoadMiddleware
 {
     private readonly SettingsMapper _mapper;
 

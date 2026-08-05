@@ -1,4 +1,4 @@
-﻿
+
 namespace Core.Hooks;
 
 /// <summary>
@@ -21,7 +21,7 @@ public interface IHookOrchestratorInternal : IHookOrchestrator
 /// 钩子编排器实现
 /// </summary>
 [Register]
-public sealed partial class HookOrchestrator : IHookOrchestratorInternal
+public sealed partial class HookOrchestrator : ServiceEntity, IHookOrchestratorInternal
 {
     private readonly IHookConfigurationManager _configurationManager;
     private readonly IHookExecutorFactory _executorFactory;

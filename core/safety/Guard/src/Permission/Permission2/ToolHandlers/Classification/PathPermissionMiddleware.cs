@@ -1,4 +1,4 @@
-﻿
+
 namespace Core.Permission;
 
 /// <summary>
@@ -6,7 +6,7 @@ namespace Core.Permission;
 /// 对齐 TS checkReadPermissionForTool / checkWritePermissionForTool
 /// </summary>
 [Register(typeof(IPermissionMiddleware))]
-public sealed partial class PathPermissionMiddleware : IPermissionMiddleware
+public sealed partial class PathPermissionMiddleware : ServiceEntity, IPermissionMiddleware
 {
     private readonly IPathPermissionChecker? _pathPermissionChecker;
 

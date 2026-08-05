@@ -1,4 +1,4 @@
-﻿
+
 namespace Core.Bridge;
 
 /// <summary>
@@ -46,7 +46,7 @@ public sealed partial class PollConfig
 /// 轮询配置管理器 - 管理动态轮询配置，支持指数退避和抖动
 /// </summary>
 [Register]
-public sealed partial class PollConfigManager : IDisposable
+public sealed partial class PollConfigManager : ServiceEntity, IDisposable
 {
     [Inject] private readonly ILogger<PollConfigManager>? _logger;
     private readonly AsyncLock _configLock = new();
@@ -165,5 +165,5 @@ public sealed partial class PollConfigManager : IDisposable
         }
     }
 
-    public void Dispose() => _configLock.Dispose();
+    protected override void OnDispose() => _configLock.Dispose();
 }

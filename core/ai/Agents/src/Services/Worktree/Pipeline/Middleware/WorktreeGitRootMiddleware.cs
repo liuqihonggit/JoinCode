@@ -1,10 +1,10 @@
-﻿namespace Core.Agents.Worktree;
+namespace Core.Agents.Worktree;
 
 /// <summary>
 /// Worktree Git 根查找中间件 — 查找 Git 仓库根目录
 /// </summary>
 [Register(typeof(IWorktreeCreateMiddleware))]
-public sealed partial class WorktreeGitRootMiddleware : IWorktreeCreateMiddleware
+public sealed partial class WorktreeGitRootMiddleware : ServiceEntity, IWorktreeCreateMiddleware
 {
     [Inject] private readonly IFileOperationService _fs;
     [Inject] private readonly ILogger<WorktreeGitRootMiddleware>? _logger;

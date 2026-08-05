@@ -6,7 +6,7 @@ namespace Core.Context;
 /// 提醒注入中间件 — 检查工具空闲提醒并注入系统提醒
 /// </summary>
 [Register(typeof(IPreparePreprocessMiddleware))]
-public sealed partial class ReminderInjectionMiddleware : IPreparePreprocessMiddleware
+public sealed partial class ReminderInjectionMiddleware : ServiceEntity, IPreparePreprocessMiddleware
 {
     [Inject] private readonly ToolIdleReminderService _toolIdleReminder;
     [Inject] private readonly ISystemReminderManager _reminderManager;

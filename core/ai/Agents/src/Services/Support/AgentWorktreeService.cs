@@ -1,4 +1,4 @@
-﻿
+
 namespace Core.Agents;
 
 [Register(typeof(IAgentWorktreeService))]

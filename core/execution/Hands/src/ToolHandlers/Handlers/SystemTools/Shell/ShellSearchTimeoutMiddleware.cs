@@ -6,7 +6,7 @@ namespace Tools.Shell;
 /// 仅在用户未显式指定超时时生效
 /// </summary>
 [Register]
-public sealed partial class ShellSearchTimeoutMiddleware : IShellMiddleware
+public sealed partial class ShellSearchTimeoutMiddleware : ServiceEntity, IShellMiddleware
 {
     private static readonly FrozenSet<string> SearchCommands = FrozenSet.Create(
         StringComparer.OrdinalIgnoreCase,

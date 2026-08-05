@@ -1,7 +1,7 @@
 namespace Core.Context;
 
 [Register(typeof(IContextHierarchyFactory))]
-public sealed partial class ContextHierarchyFactory : IContextHierarchyFactory
+public sealed partial class ContextHierarchyFactory : ServiceEntity, IContextHierarchyFactory
 {
     [Inject] private readonly ILogger<ContextHierarchyFactory>? _logger;
 

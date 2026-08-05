@@ -21,7 +21,7 @@ public sealed record SkillOptions
 }
 
 [Register]
-public sealed partial class SkillService : ISkillService, IDisposable
+public sealed partial class SkillService : ServiceEntity, ISkillService, IDisposable
 {
     private readonly SkillOptions _options;
     private readonly IFileOperationService _files;
@@ -399,5 +399,5 @@ public sealed partial class SkillService : ISkillService, IDisposable
 
     #endregion
 
-    public void Dispose() => _reloadLock.Dispose();
+    protected override void OnDispose() => _reloadLock.Dispose();
 }

@@ -1,11 +1,11 @@
-﻿namespace Core.Configuration;
+namespace Core.Configuration;
 
 /// <summary>
 /// 设置变更应用器 — 对齐 TS 版 applySettingsChange
 /// 当 settings.json 变更时，通过中间件管道重新加载设置并更新相关服务状态
 /// </summary>
 [Register]
-public sealed partial class SettingsChangeApplier : ISettingsChangeApplier, IDisposable
+public sealed partial class SettingsChangeApplier : ServiceEntity, ISettingsChangeApplier, IDisposable
 {
     private readonly IConfigChangeNotifier _configChangeNotifier;
     private readonly MiddlewarePipeline<SettingsContext> _pipeline;
@@ -75,7 +75,7 @@ public sealed partial class SettingsChangeApplier : ISettingsChangeApplier, IDis
         _ = ApplySettingsChangeAsync(_disposeCts.Token).WaitAsync(TimeSpan.FromSeconds(10), _disposeCts.Token).ConfigureAwait(false);
     }
 
-    public void Dispose()
+    protected override void OnDispose()
     {
         if (!DisposableHelper.TryMarkDisposed(ref _isDisposed)) return;
 

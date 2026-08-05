@@ -5,7 +5,7 @@ namespace Tools.Handlers;
 /// 对齐 TS: 省略 subagent_type 时 fork 自己，继承完整对话上下文
 /// </summary>
 [Register]
-public sealed partial class AgentForkMiddleware : IAgentToolMiddleware
+public sealed partial class AgentForkMiddleware : ServiceEntity, IAgentToolMiddleware
 {
     [Inject] private readonly IForkSubAgentManager? _forkManager;
     [Inject] private readonly ITelemetryService? _telemetryService;

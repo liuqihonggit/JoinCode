@@ -6,7 +6,7 @@ namespace Tools.Handlers;
 /// 对齐 TS cleanupWorktreeIfNeeded — 输出 worktree 信息（worktreePath/branch）
 /// </summary>
 [Register]
-public sealed partial class AgentHandoffMiddleware : IAgentToolMiddleware
+public sealed partial class AgentHandoffMiddleware : ServiceEntity, IAgentToolMiddleware
 {
     [Inject] private readonly IHandoffClassifier? _handoffClassifier;
     [Inject] private readonly JoinCode.Abstractions.Interfaces.IAgentWorktreeManager? _worktreeManager;

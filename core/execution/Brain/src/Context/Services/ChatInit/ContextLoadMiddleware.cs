@@ -1,4 +1,4 @@
-﻿using JoinCode.Abstractions.Attributes;
+using JoinCode.Abstractions.Attributes;
 
 namespace Core.Context;
 
@@ -7,7 +7,7 @@ namespace Core.Context;
 /// 对齐 TS REPL.tsx: provisionContentReplacementState(initialMessages, initialContentReplacements)
 /// </summary>
 [Register(typeof(IChatInitMiddleware))]
-public sealed partial class ContextLoadMiddleware : IChatInitMiddleware
+public sealed partial class ContextLoadMiddleware : ServiceEntity, IChatInitMiddleware
 {
     [Inject] private readonly IChatContentReplacer _contentReplacer;
     [Inject] private readonly ILogger<ContextLoadMiddleware>? _logger;

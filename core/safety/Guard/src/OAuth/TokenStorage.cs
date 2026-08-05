@@ -1,4 +1,4 @@
-﻿
+
 namespace Services.OAuth;
 
 /// <summary>
@@ -58,7 +58,7 @@ public sealed record OAuthToken
 /// Token 存储实现
 /// </summary>
 [Register]
-public sealed partial class TokenStorage : ITokenStorage
+public sealed partial class TokenStorage : ServiceEntity, ITokenStorage
 {
     private readonly string _storagePath;
     [Inject] private readonly ILogger<TokenStorage>? _logger;

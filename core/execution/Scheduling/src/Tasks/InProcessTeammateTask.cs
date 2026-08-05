@@ -41,7 +41,7 @@ public sealed class TeammateState
 }
 
 [Register]
-public sealed partial class InProcessTeammateTaskExecutor : IInProcessTeammateTaskExecutor
+public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInProcessTeammateTaskExecutor
 {
     private readonly IAgentLifecycleManager _agentLifecycleManager;
     private readonly IAgentMessageBroker _messageBroker;
@@ -585,5 +585,7 @@ public sealed partial class InProcessTeammateTaskExecutor : IInProcessTeammateTa
             _logger?.LogWarning(ex, "Failed to stop mailbox polling for teammate {TeammateId}", teammateId);
         }
     }
+
+    protected override void OnDispose() => _teammateLock.Dispose();
 }
 

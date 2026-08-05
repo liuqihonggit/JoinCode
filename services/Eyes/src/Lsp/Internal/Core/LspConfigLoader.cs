@@ -1,4 +1,4 @@
-﻿
+
 namespace Services.Lsp.Internal;
 
 /// <summary>
@@ -113,7 +113,7 @@ public sealed record LspServerConfigEntry
 /// LSP 配置加载器实现
 /// </summary>
 [Register]
-public sealed partial class LspConfigLoader : ILspConfigLoader
+public sealed partial class LspConfigLoader : ServiceEntity, ILspConfigLoader
 {
     [Inject] private readonly ILogger<LspConfigLoader>? _logger;
     [Inject] private readonly IFileSystem _fs;

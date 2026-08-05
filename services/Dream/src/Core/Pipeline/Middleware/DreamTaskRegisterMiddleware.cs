@@ -3,7 +3,7 @@ namespace JoinCode.Dream.Pipeline;
 using JoinCode.Dream.Persistence;
 
 [Register]
-public sealed partial class DreamTaskRegisterMiddleware : IDreamMiddleware
+public sealed partial class DreamTaskRegisterMiddleware : ServiceEntity, IDreamMiddleware
 {
     private readonly IDreamTaskRegistry _taskRegistry;
     private readonly AutoDreamConfig _config;

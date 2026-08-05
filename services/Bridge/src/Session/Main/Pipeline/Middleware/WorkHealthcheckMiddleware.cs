@@ -1,9 +1,9 @@
-﻿namespace Core.Bridge;
+namespace Core.Bridge;
 
 using JoinCode.Abstractions.Pipeline;
 
 [Register(typeof(IHandleWorkMiddleware))]
-public sealed partial class WorkHealthcheckMiddleware : IHandleWorkMiddleware
+public sealed partial class WorkHealthcheckMiddleware : ServiceEntity, IHandleWorkMiddleware
 {
     [Inject] private readonly ILogger<WorkHealthcheckMiddleware>? _logger;
     [Inject] private readonly BridgeApiClient _apiClient;

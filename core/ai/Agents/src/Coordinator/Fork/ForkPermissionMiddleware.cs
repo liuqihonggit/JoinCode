@@ -1,10 +1,10 @@
-﻿namespace Core.Agents.Coordinator;
+namespace Core.Agents.Coordinator;
 
 /// <summary>
 /// Fork 权限同步中间件 — 同步子智能体权限到权限桥
 /// </summary>
 [Register(typeof(IForkMiddleware))]
-public sealed partial class ForkPermissionMiddleware : IForkMiddleware
+public sealed partial class ForkPermissionMiddleware : ServiceEntity, IForkMiddleware
 {
     [Inject] private readonly ISwarmPermissionBridge? _permissionBridge;
     [Inject] private readonly ILogger<ForkPermissionMiddleware>? _logger;

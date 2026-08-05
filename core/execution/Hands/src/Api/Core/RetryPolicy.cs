@@ -115,7 +115,7 @@ public sealed record RetryPolicyOptions
 /// 重试策略执行器
 /// </summary>
 [Register]
-public sealed partial class RetryPolicy
+public sealed partial class RetryPolicy : ServiceEntity
 {
     private readonly RetryPolicyOptions _options;
     private readonly Random _random;

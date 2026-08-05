@@ -6,7 +6,7 @@ namespace Core.Query;
 /// 递减回报检测中间件 — 每次工具调用后检测递减回报
 /// </summary>
 [Register(typeof(IQueryMiddleware))]
-public sealed partial class DiminishingReturnsMiddleware : IQueryMiddleware
+public sealed partial class DiminishingReturnsMiddleware : ServiceEntity, IQueryMiddleware
 {
     [Inject] private readonly IDiminishingReturnsDetector? _detector;
 

@@ -1,11 +1,11 @@
-﻿
+
 namespace Services.Notebook;
 
 /// <summary>
 /// Notebook服务实现
 /// </summary>
 [Register]
-public sealed partial class NotebookService : INotebookService
+public sealed partial class NotebookService : ServiceEntity, INotebookService
 {
     [Inject] private readonly IFileOperationService _fileOperationService;
     [Inject] private readonly IFileSystem _fs;

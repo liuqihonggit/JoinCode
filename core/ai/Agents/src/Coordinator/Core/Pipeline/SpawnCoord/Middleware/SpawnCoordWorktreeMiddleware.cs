@@ -1,7 +1,7 @@
-﻿namespace Core.Agents.Coordinator;
+namespace Core.Agents.Coordinator;
 
 [Register(typeof(IAgentSpawnCoordMiddleware))]
-public sealed partial class SpawnCoordWorktreeMiddleware : IAgentSpawnCoordMiddleware
+public sealed partial class SpawnCoordWorktreeMiddleware : ServiceEntity, IAgentSpawnCoordMiddleware
 {
     [Inject] private readonly IAgentWorktreeManager _worktreeManager;
     [Inject] private readonly IAgentLifecycleManager _lifecycleManager;

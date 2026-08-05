@@ -87,3 +87,4 @@ global using System.Text.RegularExpressions;
 global using System.Threading;
 global using System.Threading.Channels;
 global using Structura.Collections;
+global using JoinCode.Abstractions.Entity;

@@ -5,7 +5,7 @@ namespace Core.Permission;
 /// 文件删除工具检测器 — 检测 file_delete 工具调用
 /// </summary>
 [Register(typeof(IDeleteOperationDetector))]
-public sealed partial class FileDeleteDetector : IDeleteOperationDetector
+public sealed partial class FileDeleteDetector : ServiceEntity, IDeleteOperationDetector
 {
     /// <inheritdoc />
     public DeleteOperationInfo? Detect(string toolName, Dictionary<string, JsonElement>? arguments)

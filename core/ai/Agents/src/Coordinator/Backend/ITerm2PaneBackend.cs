@@ -1,7 +1,7 @@
 namespace Core.Agents.Coordinator;
 
 [Register]
-public sealed partial class ITerm2PaneBackend : JoinCode.Abstractions.Interfaces.IPaneBackend
+public sealed partial class ITerm2PaneBackend : ServiceEntity, JoinCode.Abstractions.Interfaces.IPaneBackend
 {
     [Inject] private readonly ILogger<ITerm2PaneBackend>? _logger;
     private readonly IProcessService _processService;

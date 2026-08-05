@@ -6,7 +6,7 @@ namespace Core.Query;
 /// 历史裁剪中间件 — 每次工具调用后检查是否需要裁剪对话历史
 /// </summary>
 [Register(typeof(IQueryMiddleware))]
-public sealed partial class HistorySnipMiddleware : IQueryMiddleware
+public sealed partial class HistorySnipMiddleware : ServiceEntity, IQueryMiddleware
 {
     [Inject] private readonly IHistorySnipService? _historySnipService;
     [Inject] private readonly ITokenBudgetManager? _tokenBudgetManager;

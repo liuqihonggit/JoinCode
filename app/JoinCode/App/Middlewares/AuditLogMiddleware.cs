@@ -8,7 +8,7 @@ namespace JoinCode.App.Middlewares;
 /// 用户消息截断到 200 字符；AI 回复仅累积前 200 字符；记录工具调用和 TokenUsage
 /// </summary>
 [Register(typeof(Core.Context.IChatMiddleware))]
-internal sealed partial class AuditLogMiddleware : Core.Context.IChatMiddleware
+internal sealed partial class AuditLogMiddleware : ServiceEntity, Core.Context.IChatMiddleware
 {
     private readonly ILogger<AuditLogMiddleware> _logger;
     private const int MaxAuditLength = 200;

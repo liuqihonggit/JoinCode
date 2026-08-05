@@ -1,7 +1,7 @@
 namespace JoinCode.Dream.Pipeline;
 
 [Register]
-public sealed partial class DreamLlmConsolidateMiddleware : IDreamMiddleware
+public sealed partial class DreamLlmConsolidateMiddleware : ServiceEntity, IDreamMiddleware
 {
     private readonly IChatCompletionClient _chatCompletionClient;
 

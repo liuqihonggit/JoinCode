@@ -1,4 +1,4 @@
-﻿namespace Services.Web;
+namespace Services.Web;
 
 /// <summary>
 /// SSRF 私有网络地址检查中间件 — 阻止请求访问内网/链路本地/回环地址
@@ -6,7 +6,7 @@
 /// 对齐 Reasonix web_fetch SSRF 防护：在 DNS 解析后检查解析后的 IP 地址
 /// </summary>
 [Register]
-public sealed partial class WebSsrfGuardMiddleware : IWebMiddleware
+public sealed partial class WebSsrfGuardMiddleware : ServiceEntity, IWebMiddleware
 {
     [Inject] private readonly ILogger<WebSsrfGuardMiddleware>? _logger;
 

@@ -6,7 +6,7 @@ namespace Core.Context;
 /// 会话 Hook 辅助服务 — ClearHistory/CompactHistory 共用的 SessionStart/SessionEnd Hook 执行逻辑
 /// </summary>
 [Register]
-public sealed partial class SessionHookHelper
+public sealed partial class SessionHookHelper : ServiceEntity
 {
     [Inject] private readonly ISessionStartHookManager? _sessionStartHookManager;
     [Inject] private readonly IHookOrchestrator? _hookOrchestrator;

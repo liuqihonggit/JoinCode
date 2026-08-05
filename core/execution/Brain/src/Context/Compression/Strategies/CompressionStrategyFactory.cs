@@ -1,11 +1,11 @@
-﻿
+
 namespace Core.Context.Compression;
 
 /// <summary>
 /// 压缩策略工厂实现
 /// </summary>
 [Register]
-public partial class CompressionStrategyFactory : ICompressionStrategyFactory
+public partial class CompressionStrategyFactory : ServiceEntity, ICompressionStrategyFactory
 {
     private readonly Dictionary<string, ICompressionStrategy> _strategies;
     private readonly Dictionary<ContentType, List<ICompressionStrategy>> _strategiesByType;

@@ -1,4 +1,4 @@
-﻿
+
 namespace Core.Memdir;
 
 /// <summary>
@@ -121,7 +121,7 @@ public interface IMemorySearchHistoryService : IDisposable
 /// 检索相关的过往对话记忆，构建上下文提示
 /// </summary>
 [Register]
-public sealed partial class MemorySearchHistoryService : IMemorySearchHistoryService, IDisposable
+public sealed partial class MemorySearchHistoryService : ServiceEntity, IMemorySearchHistoryService, IDisposable
 {
     private const int MaxHistorySize = 100;
 
@@ -340,7 +340,7 @@ public sealed partial class MemorySearchHistoryService : IMemorySearchHistorySer
         return (double)overlap / minCount > 0.3;
     }
 
-    public void Dispose() => _historyLock.Dispose();
+    protected override void OnDispose() => _historyLock.Dispose();
 }
 
 /// <summary>

@@ -6,7 +6,7 @@ namespace Core.Agents;
 /// 管理三种作用域记忆（user/project/local）和快照机制
 /// </summary>
 [Register]
-public sealed partial class AgentMemoryService : IAgentMemoryService
+public sealed partial class AgentMemoryService : ServiceEntity, IAgentMemoryService
 {
     private const string AgentMemorySubdir = "agent-memory";
     private const string AgentMemoryLocalSubdir = "agent-memory-local";

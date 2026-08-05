@@ -1,4 +1,4 @@
-﻿namespace Memdir.Sync;
+namespace Memdir.Sync;
 
 using JoinCode.Abstractions.Pipeline;
 
@@ -6,7 +6,7 @@ using JoinCode.Abstractions.Pipeline;
 /// 文件监控中间件 — 初始化 IFileSystemWatcher
 /// </summary>
 [Register(typeof(ISyncStartMiddleware))]
-public sealed partial class FileWatcherMiddleware : ISyncStartMiddleware
+public sealed partial class FileWatcherMiddleware : ServiceEntity, ISyncStartMiddleware
 {
 
     public Task InvokeAsync(SyncStartContext ctx, MiddlewareDelegate<SyncStartContext> next, CancellationToken ct)

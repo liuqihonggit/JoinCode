@@ -6,7 +6,7 @@ namespace Core.Scheduling;
 /// 生产环境应使用 FileBasedTaskService（支持跨进程/多智能体协作）
 /// </summary>
 [Register] // 注册为自身类型，不注册为 ITaskService
-public sealed partial class TaskService : ITaskService, IDisposable
+public sealed partial class TaskService : ServiceEntity, ITaskService, IDisposable
 {
     private readonly ConcurrentDictionary<string, TaskItem> _tasks = new();
     private readonly ConcurrentDictionary<string, TaskStateMachine> _taskStateMachines = new();
@@ -332,7 +332,7 @@ public sealed partial class TaskService : ITaskService, IDisposable
         return TaskDependencyTypeExtensions.FromValue(label) ?? TaskDependencyType.Blocks;
     }
 
-    public void Dispose()
+    protected override void OnDispose()
     {
         _dag.Dispose();
     }

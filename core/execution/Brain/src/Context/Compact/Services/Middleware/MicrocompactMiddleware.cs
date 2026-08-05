@@ -6,7 +6,7 @@ namespace Core.Context.Compact;
 /// 微压缩中间件 — 时间间隔压缩 + 工具结果清理
 /// </summary>
 [Register(typeof(ICompactMiddleware))]
-public sealed partial class MicrocompactMiddleware : ICompactMiddleware
+public sealed partial class MicrocompactMiddleware : ServiceEntity, ICompactMiddleware
 {
     [Inject] private readonly IMicrocompactService _microcompactService;
 

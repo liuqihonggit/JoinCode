@@ -1,4 +1,4 @@
-﻿
+
 namespace Core.Memdir;
 
 /// <summary>
@@ -50,7 +50,7 @@ public sealed record TruncationThreshold
 /// 记忆截断器实现
 /// </summary>
 [Register]
-public sealed partial class MemoryTruncator : IMemoryTruncator
+public sealed partial class MemoryTruncator : ServiceEntity, IMemoryTruncator
 {
     [Inject] private readonly ILogger<MemoryTruncator>? _logger;
 

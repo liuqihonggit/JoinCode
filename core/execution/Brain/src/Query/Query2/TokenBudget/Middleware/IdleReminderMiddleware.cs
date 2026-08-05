@@ -6,7 +6,7 @@ namespace Core.Query;
 /// 空闲提醒中间件 — 每次迭代后记录助手轮次
 /// </summary>
 [Register(typeof(IQueryMiddleware))]
-public sealed partial class IdleReminderMiddleware : IQueryMiddleware
+public sealed partial class IdleReminderMiddleware : ServiceEntity, IQueryMiddleware
 {
     [Inject] private readonly IToolIdleReminderService? _toolIdleReminder;
 

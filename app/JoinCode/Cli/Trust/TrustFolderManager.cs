@@ -4,7 +4,7 @@ namespace JoinCode.Cli;
 /// 信任目录管理器 — CLI 简化版，实现 ITrustFolderManager
 /// </summary>
 [Register]
-public sealed partial class TrustFolderManager : ITrustFolderManager
+public sealed partial class TrustFolderManager : ServiceEntity, ITrustFolderManager
 {
     private readonly string _trustedFoldersPath;
     private readonly IFileSystem _fs;

@@ -1,4 +1,4 @@
-﻿
+
 namespace Core.Permission;
 
 /// <summary>
@@ -6,7 +6,7 @@ namespace Core.Permission;
 /// Default 模式描述为"根据配置自动判断是否需要确认"，因此也使用分类器自动批准只读/安全写入工具
 /// </summary>
 [Register(typeof(IPermissionMiddleware))]
-public sealed partial class AutoClassifierMiddleware : IPermissionMiddleware
+public sealed partial class AutoClassifierMiddleware : ServiceEntity, IPermissionMiddleware
 {
     private readonly IToolPermissionFilter? _toolPermissionFilter;
     private readonly IAutoModeClassifier? _autoModeClassifier;

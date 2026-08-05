@@ -6,7 +6,7 @@ namespace Core.Query;
 /// 停止 Hook 中间件 — 查询完成后执行停止 Hook
 /// </summary>
 [Register(typeof(IQueryMiddleware))]
-public sealed partial class StopHookMiddleware : IQueryMiddleware
+public sealed partial class StopHookMiddleware : ServiceEntity, IQueryMiddleware
 {
     [Inject] private readonly IQueryStopHookManager? _stopHookManager;
 

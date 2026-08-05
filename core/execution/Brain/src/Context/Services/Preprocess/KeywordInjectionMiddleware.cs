@@ -10,7 +10,7 @@ namespace Core.Context;
 /// 未命中时记录 miss 事件，供后台 Agent 分析优化词表
 /// </summary>
 [Register(typeof(IAnalyzePreprocessMiddleware))]
-public sealed partial class KeywordInjectionMiddleware : IAnalyzePreprocessMiddleware
+public sealed partial class KeywordInjectionMiddleware : ServiceEntity, IAnalyzePreprocessMiddleware
 {
     [Inject] private readonly ISystemReminderManager _reminderManager;
     [Inject] private readonly IDynamicKeywordConfigService _dynamicKeywordService;

@@ -5,7 +5,7 @@ namespace Core.Context;
 /// 每个 Handler 只注入自己需要的服务，替代原来的 11 路 switch + 8 个服务注入
 /// </summary>
 [Register(typeof(IChatAdminMiddleware))]
-public sealed partial class SessionAdminMiddleware : IChatAdminMiddleware
+public sealed partial class SessionAdminMiddleware : ServiceEntity, IChatAdminMiddleware
 {
     private readonly Dictionary<ChatAdminOperation, IChatAdminOperationHandler> _handlers;
 

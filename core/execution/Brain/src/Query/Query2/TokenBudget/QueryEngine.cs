@@ -1,4 +1,4 @@
-﻿
+
 using JoinCode.Abstractions.Attributes;
 
 namespace Core.Query;
@@ -18,7 +18,7 @@ public sealed record QueryEngineOptions(
 /// 可选依赖通过 IQueryMiddleware 中间件管道注入，构造函数仅保留核心依赖
 /// </summary>
 [Register]
-public sealed partial class QueryEngine : IQueryEngine
+public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
 {
     private readonly IChatClient _kernel;
     private readonly IToolRegistry _toolRegistry;

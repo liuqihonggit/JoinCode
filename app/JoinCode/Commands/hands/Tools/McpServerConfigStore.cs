@@ -1,7 +1,7 @@
-﻿namespace JoinCode.ChatCommands;
+namespace JoinCode.ChatCommands;
 
 [Register]
-public sealed partial class McpServerConfigStore : IMcpServerConfigStore
+public sealed partial class McpServerConfigStore : ServiceEntity, IMcpServerConfigStore
 {
     private readonly string _userConfigDir = WorkflowConstants.Paths.JccDirectory;
     private readonly IFileSystem _fs;

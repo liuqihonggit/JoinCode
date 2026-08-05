@@ -3,7 +3,7 @@ using JoinCode.Abstractions.Interfaces;
 namespace McpClient;
 
 [Register]
-public sealed partial class InteractiveElicitationHandler : IElicitationHandler
+public sealed partial class InteractiveElicitationHandler : ServiceEntity, IElicitationHandler
 {
     private readonly IUserInteractionService _userInteraction;
     [Inject] private readonly ILogger<InteractiveElicitationHandler>? _logger;
@@ -152,4 +152,6 @@ public sealed partial class InteractiveElicitationHandler : IElicitationHandler
             _ => JsonSerializer.SerializeToElement(value, McpClientJsonContext.Default.String)
         };
     }
+
+    protected override void OnDispose() => _queueLock.Dispose();
 }

@@ -3,7 +3,7 @@ using JoinCode.Abstractions.Attributes;
 namespace IO.Services;
 
 [Register]
-public sealed partial class DesktopHandoffService : IDesktopHandoffService
+public sealed partial class DesktopHandoffService : ServiceEntity, IDesktopHandoffService
 {
     private readonly IProcessService _processService;
     [Inject] private readonly ILogger<DesktopHandoffService>? _logger;

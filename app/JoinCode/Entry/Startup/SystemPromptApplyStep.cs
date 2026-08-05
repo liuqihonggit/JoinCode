@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Entry;
+namespace JoinCode.Entry;
 
 /// <summary>
 /// 系统提示词应用中间件 — 处理 --system-prompt 和 --append-system-prompt CLI 参数
@@ -6,7 +6,7 @@
 /// 对齐 TS: claude --system-prompt / claude --append-system-prompt
 /// </summary>
 [Register]
-internal sealed partial class SystemPromptApplyStep : IMiddleware<StartupContext>
+internal sealed partial class SystemPromptApplyStep : ServiceEntity, IMiddleware<StartupContext>
 {
 
     public async Task InvokeAsync(StartupContext context, MiddlewareDelegate<StartupContext> next, CancellationToken ct)

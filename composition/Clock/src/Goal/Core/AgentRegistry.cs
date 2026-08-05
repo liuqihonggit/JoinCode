@@ -7,7 +7,7 @@ using JoinCode.Abstractions.Models.Agent;
 /// 核心路由：SubAgentMap[mainAgent.Id] 获取该主 Agent 下的所有子 Agent
 /// </summary>
 [Register(typeof(IAgentRegistry))]
-public sealed class AgentRegistry : IAgentRegistry
+public sealed class AgentRegistry : ServiceEntity, IAgentRegistry
 {
     private readonly ConcurrentDictionary<string, AgentDescriptor> _agents = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, Dictionary<string, AgentDescriptor>> _subAgentMap = new(StringComparer.Ordinal);

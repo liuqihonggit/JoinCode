@@ -4,7 +4,7 @@ namespace Core.Goal;
 using JoinCode.Abstractions.Models.Goal;
 
 [Register]
-public sealed partial class DecomposabilityAnalyzer : IDecomposabilityAnalyzer
+public sealed partial class DecomposabilityAnalyzer : ServiceEntity, IDecomposabilityAnalyzer
 {
     private readonly IChatClient _kernel;
     [Inject] private readonly ILogger<DecomposabilityAnalyzer>? _logger;

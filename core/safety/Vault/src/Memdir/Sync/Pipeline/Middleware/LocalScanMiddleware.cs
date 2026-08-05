@@ -1,4 +1,4 @@
-﻿namespace Memdir.Sync;
+namespace Memdir.Sync;
 
 using JoinCode.Abstractions.Pipeline;
 
@@ -6,7 +6,7 @@ using JoinCode.Abstractions.Pipeline;
 /// 本地文件扫描中间件 — 扫描 WatchPath 下的文件并填充 LocalEntries
 /// </summary>
 [Register(typeof(ISyncStartMiddleware))]
-public sealed partial class LocalScanMiddleware : ISyncStartMiddleware
+public sealed partial class LocalScanMiddleware : ServiceEntity, ISyncStartMiddleware
 {
     [Inject] private readonly ILogger<LocalScanMiddleware>? _logger;
 

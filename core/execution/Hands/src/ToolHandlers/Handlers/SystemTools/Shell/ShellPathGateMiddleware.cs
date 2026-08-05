@@ -4,7 +4,7 @@ namespace Tools.Shell;
 /// Shell 路径门控中间件 — 根据当前平台和目标执行器类型转换路径格式
 /// </summary>
 [Register]
-public sealed partial class ShellPathGateMiddleware : IShellMiddleware
+public sealed partial class ShellPathGateMiddleware : ServiceEntity, IShellMiddleware
 {
     [Inject] private readonly IEnvironmentProbeService _probeService;
     [Inject] private readonly ILogger<ShellPathGateMiddleware>? _logger;

@@ -6,7 +6,7 @@ namespace McpToolDispatch;
 /// 支持黑名单（完全禁用）和降权（额外扣分）配置
 /// </summary>
 [Register]
-public sealed class ToolHealthMonitor : IToolHealthMonitor, IDisposable
+public sealed class ToolHealthMonitor : ServiceEntity, IToolHealthMonitor, IDisposable
 {
     private readonly ILogger<ToolHealthMonitor>? _logger;
     private readonly IFileSystem _fs;
@@ -299,7 +299,7 @@ public sealed class ToolHealthMonitor : IToolHealthMonitor, IDisposable
         }
     }
 
-    public void Dispose()
+    protected override void OnDispose()
     {
         _decayTimer?.Dispose();
         _lock.Dispose();

@@ -6,7 +6,7 @@ using JoinCode.Abstractions.Pipeline;
 /// 远程列表中间件 — 调用 ListTools/ListResources/ListPrompts
 /// </summary>
 [Register(typeof(IRemoteSyncMiddleware))]
-public sealed partial class RemoteListMiddleware : IRemoteSyncMiddleware
+public sealed partial class RemoteListMiddleware : ServiceEntity, IRemoteSyncMiddleware
 {
     [Inject] private readonly ILogger<RemoteListMiddleware> _logger;
 

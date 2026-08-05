@@ -1,4 +1,4 @@
-﻿
+
 namespace Core.Context.Compact;
 
 /// <summary>
@@ -9,7 +9,7 @@ namespace Core.Context.Compact;
 ///   2. 普通微压缩：无时间条件，直接清除旧工具结果内容
 /// </summary>
 [Register]
-public sealed partial class MicrocompactService : IMicrocompactService {
+public sealed partial class MicrocompactService : ServiceEntity, IMicrocompactService {
     [Inject] private readonly IClockService _clock;
 
     /// <summary>粗略估算：每4字节≈1个token（英文为主时约4字符/token）</summary>

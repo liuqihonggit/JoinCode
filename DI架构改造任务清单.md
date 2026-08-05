@@ -28,9 +28,13 @@
 - 编译期验证[Register]类必须继承ServiceEntity/Entity
 - 除非标记[AllowSkipEntity]豁免
 
-### 阶段4：531个[Register]类改继承ServiceEntity [pending]
-- 分项目渐进式改
-- 优先改核心层（Foundation → Infrastructure → Core → Services → Composition → App）
+### 阶段4：531个[Register]类改继承ServiceEntity [completed]
+- [x] 4a. Foundation层4个类（2个继承ServiceEntity，2个AllowSkipEntity豁免）
+- [x] 4b. 批量脚本处理593个类（Infrastructure/Core/Services/Composition/App）
+- [x] 4c. 修复Dispose冲突（49个类Dispose改为OnDispose）
+- [x] 4d. 回退IAsyncDisposable冲突类（32个类加AllowSkipEntity豁免）
+- [x] 4e. 修复嵌套类误改+加GlobalUsings+JCC4005识别OnDispose
+- [x] 4f. 全层编译验证通过+Entity测试通过
 
 ### 阶段5：删除ConstructorInjection.Generator [pending]
 - 移除生成器项目（移到.xxx/）

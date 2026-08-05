@@ -1,8 +1,8 @@
-﻿
+
 namespace Services.SystemPower;
 
 [Register]
-public sealed partial class PreventSleepService : IPreventSleepService
+public sealed partial class PreventSleepService : ServiceEntity, IPreventSleepService
 {
     [Inject] private readonly ILogger<PreventSleepService>? _logger;
     [Inject] private readonly ITelemetryService? _telemetryService;
@@ -81,7 +81,7 @@ public sealed partial class PreventSleepService : IPreventSleepService
         }
     }
 
-    public void Dispose()
+    protected override void OnDispose()
     {
         if (_disposed) return;
 

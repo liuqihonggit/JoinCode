@@ -1,7 +1,7 @@
-﻿namespace JoinCode.Entry;
+namespace JoinCode.Entry;
 
 [Register]
-internal sealed partial class NonInteractiveExecuteStep : IMiddleware<StartupContext>
+internal sealed partial class NonInteractiveExecuteStep : ServiceEntity, IMiddleware<StartupContext>
 {
 
     public async Task InvokeAsync(StartupContext context, MiddlewareDelegate<StartupContext> next, CancellationToken ct)

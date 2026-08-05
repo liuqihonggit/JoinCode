@@ -1,4 +1,4 @@
-﻿
+
 namespace Services.OAuth;
 
 /// <summary>
@@ -48,7 +48,7 @@ public interface IOAuthClient
 /// OAuth 客户端实现
 /// </summary>
 [Register]
-public sealed partial class OAuthClient : IOAuthClient
+public sealed partial class OAuthClient : ServiceEntity, IOAuthClient
 {
     private readonly HttpClient _httpClient;
     [Inject] private readonly ILogger<OAuthClient>? _logger;

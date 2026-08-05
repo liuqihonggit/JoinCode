@@ -1,11 +1,11 @@
-﻿namespace Core.Configuration;
+namespace Core.Configuration;
 
 /// <summary>
 /// 权限缓存清除中间件 — 对齐 TS: IToolPermissionManager.ClearCache
 /// settings.json 中的 permissions 规则变更后需要热同步
 /// </summary>
 [Register(typeof(ISettingsMiddleware))]
-public sealed partial class PermissionCacheMiddleware : ISettingsMiddleware
+public sealed partial class PermissionCacheMiddleware : ServiceEntity, ISettingsMiddleware
 {
     [Inject] private readonly IToolPermissionManager? _toolPermissionManager;
 

@@ -2,7 +2,7 @@
 namespace Core.Agents.Coordinator;
 
 [Register]
-public sealed partial class SwarmPermissionMessageRouter
+public sealed partial class SwarmPermissionMessageRouter : ServiceEntity
 {
     private readonly IAgentMessageBroker _messageBroker;
     private readonly SwarmPermissionCallbackService _callbackService;

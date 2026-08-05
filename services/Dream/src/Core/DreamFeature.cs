@@ -1,4 +1,4 @@
-﻿
+
 namespace JoinCode.Dream;
 
 using JoinCode.Dream.Pipeline;
@@ -7,7 +7,7 @@ using JoinCode.Dream.Pipeline;
 /// 做梦功能实现 - 记忆整合功能
 /// </summary>
 [Register]
-public sealed partial class DreamFeature : IDreamFeature
+public sealed partial class DreamFeature : ServiceEntity, IDreamFeature
 {
     private readonly IChatCompletionClient _chatCompletionClient;
     private readonly ISessionScanner _sessionScanner;

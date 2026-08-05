@@ -5,7 +5,7 @@ namespace Core.Agents.Coordinator;
 /// Agent 生命周期管理器 - 负责 Agent 的生成、状态管理和资源释放
 /// </summary>
 [Register]
-public sealed partial class AgentLifecycleManager : IAgentLifecycleManager
+public sealed partial class AgentLifecycleManager : ServiceEntity, IAgentLifecycleManager
 {
     private readonly IQueryEngine _queryEngine;
     private readonly ILogger? _logger;

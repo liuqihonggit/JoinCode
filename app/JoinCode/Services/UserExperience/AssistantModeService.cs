@@ -3,7 +3,7 @@ using JoinCode.Abstractions.Attributes;
 namespace IO.Services;
 
 [Register]
-public sealed partial class AssistantModeService : IAssistantModeService
+public sealed partial class AssistantModeService : ServiceEntity, IAssistantModeService
 {
     public bool IsAssistantMode => IsAssistantModeEnabled;
 

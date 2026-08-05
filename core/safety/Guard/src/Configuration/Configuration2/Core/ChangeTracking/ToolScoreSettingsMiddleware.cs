@@ -5,7 +5,7 @@ namespace Core.Configuration;
 /// 双变量切换模式：构建新快照 → 原子替换引用，读取端无锁
 /// </summary>
 [Register(typeof(ISettingsMiddleware))]
-public sealed partial class ToolScoreSettingsMiddleware : ISettingsMiddleware
+public sealed partial class ToolScoreSettingsMiddleware : ServiceEntity, ISettingsMiddleware
 {
     [Inject] private readonly IToolHealthMonitor? _healthMonitor;
     [Inject] private readonly IHyperedgeReloadable? _hyperedgeReloadable;

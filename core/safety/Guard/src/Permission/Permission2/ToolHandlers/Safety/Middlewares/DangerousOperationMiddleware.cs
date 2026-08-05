@@ -1,11 +1,11 @@
-﻿
+
 namespace Core.Permission;
 
 /// <summary>
 /// 危险操作中间件 — Default 模式下检查危险操作
 /// </summary>
 [Register(typeof(IPermissionMiddleware))]
-public sealed partial class DangerousOperationMiddleware : IPermissionMiddleware
+public sealed partial class DangerousOperationMiddleware : ServiceEntity, IPermissionMiddleware
 {
     /// <inheritdoc />
 

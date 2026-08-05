@@ -1,9 +1,9 @@
-﻿namespace Core.Scheduling.Runtime;
+namespace Core.Scheduling.Runtime;
 
 using JoinCode.Abstractions.Attributes;
 
 [Register]
-public sealed partial class TaskRuntime : ITaskRuntime, IDisposable
+public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposable
 {
     private readonly ConcurrentDictionary<string, RuntimeTask> _tasks = new();
     private readonly ConcurrentDag<string> _dag = new();
@@ -418,7 +418,7 @@ public sealed partial class TaskRuntime : ITaskRuntime, IDisposable
         return $"rtask_{counter:D4}";
     }
 
-    public void Dispose()
+    protected override void OnDispose()
     {
         _dag.Dispose();
         _persistLock.Dispose();

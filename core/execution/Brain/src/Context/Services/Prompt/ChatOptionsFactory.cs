@@ -1,11 +1,11 @@
-﻿namespace Core.Context;
+namespace Core.Context;
 
 /// <summary>
 /// 聊天选项工厂 — 负责创建 ChatOptions（执行设置）
 /// 提取自 ChatService.CreateExecutionSettings
 /// </summary>
 [Register]
-public sealed partial class ChatOptionsFactory : IChatOptionsFactory
+public sealed partial class ChatOptionsFactory : ServiceEntity, IChatOptionsFactory
 {
     [Inject] private readonly IChatContextManager _contextManager;
     [Inject] private readonly IExecutionSettingsProvider? _executionSettingsProvider;

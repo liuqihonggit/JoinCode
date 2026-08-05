@@ -1,4 +1,4 @@
-﻿namespace Core.Query.Snip;
+namespace Core.Query.Snip;
 
 public interface IHistorySnipService
 {
@@ -33,7 +33,7 @@ public sealed class SnipResult
 }
 
 [Register]
-public sealed partial class HistorySnipService : IHistorySnipService
+public sealed partial class HistorySnipService : ServiceEntity, IHistorySnipService
 {
     private const int EstimatedCharsPerToken = 4;
     private readonly ITelemetryService? _telemetryService;

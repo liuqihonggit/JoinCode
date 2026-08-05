@@ -1,4 +1,4 @@
-﻿namespace Core.CostTracking;
+namespace Core.CostTracking;
 
 public interface ISessionCostPersistence
 {
@@ -16,7 +16,7 @@ public sealed partial class SessionCostData
 }
 
 [Register]
-public sealed partial class SessionCostPersistence : ISessionCostPersistence
+public sealed partial class SessionCostPersistence : ServiceEntity, ISessionCostPersistence
 {
     private readonly IFileOperationService _fileOperationService;
     private readonly string _storageDirectory;

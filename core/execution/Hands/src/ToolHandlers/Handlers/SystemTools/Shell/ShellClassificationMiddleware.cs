@@ -1,11 +1,11 @@
-﻿namespace Tools.Shell;
+namespace Tools.Shell;
 
 /// <summary>
 /// Shell 命令分类中间件 — 使用 ICommandClassifier 检测危险命令
 /// 优先使用 Guard 的 ICommandClassifier（AST 解析），回退到 DestructiveCommandAnalyzer（正则）
 /// </summary>
 [Register]
-public sealed partial class ShellClassificationMiddleware : IShellMiddleware
+public sealed partial class ShellClassificationMiddleware : ServiceEntity, IShellMiddleware
 {
     [Inject] private readonly ICommandClassifier? _commandClassifier;
 

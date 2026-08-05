@@ -4,7 +4,7 @@ namespace JoinCode.Transport.Bridge;
 /// 传输配置
 /// 注意: 不使用 [Register]，因为需要从 BridgeConfig 初始化，由 Sync 层手动注册
 /// </summary>
-public class TransportConfiguration
+public class TransportConfiguration : ServiceEntity
 {
     /// <summary>默认 WebSocket 端点</summary>
     public const string DefaultWebSocketEndpoint = "ws://localhost:3456/bridge";

@@ -6,7 +6,7 @@ namespace Core.Context;
 /// 会话启动 Hook 中间件 — 执行会话启动 Hook，允许外部逻辑阻止会话启动
 /// </summary>
 [Register(typeof(IChatInitMiddleware))]
-public sealed partial class SessionStartHookMiddleware : IChatInitMiddleware
+public sealed partial class SessionStartHookMiddleware : ServiceEntity, IChatInitMiddleware
 {
     [Inject] private readonly ISessionStartHookManager? _sessionStartHookManager;
     [Inject] private readonly ILogger<SessionStartHookMiddleware>? _logger;

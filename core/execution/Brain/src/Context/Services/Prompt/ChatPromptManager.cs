@@ -5,7 +5,7 @@ namespace Core.Context;
 /// 提取自 ChatService 中的 _systemPromptBuilder + _reminderManager 使用逻辑
 /// </summary>
 [Register(typeof(IChatPromptManager))]
-public sealed partial class ChatPromptManager : IChatPromptManager
+public sealed partial class ChatPromptManager : ServiceEntity, IChatPromptManager
 {
     [Inject] private readonly SystemPromptBuilder _systemPromptBuilder;
     [Inject] private readonly ISystemReminderManager _reminderManager;

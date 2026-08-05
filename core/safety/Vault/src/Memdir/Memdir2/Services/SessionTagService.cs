@@ -1,8 +1,8 @@
-﻿
+
 namespace Core.Memdir;
 
 [Register]
-public sealed partial class SessionTagService : ISessionTagService, IDisposable
+public sealed partial class SessionTagService : ServiceEntity, ISessionTagService, IDisposable
 {
     private readonly ConcurrentDictionary<string, HashSet<string>> _tags = new(StringComparer.OrdinalIgnoreCase);
     private readonly string _storagePath;
@@ -139,7 +139,7 @@ public sealed partial class SessionTagService : ISessionTagService, IDisposable
         }
     }
 
-    public void Dispose()
+    protected override void OnDispose()
     {
         _disposeCts.Cancel();
         _disposeCts.Dispose();

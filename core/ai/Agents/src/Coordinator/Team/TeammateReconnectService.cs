@@ -1,7 +1,7 @@
 namespace Core.Agents.Coordinator;
 
 [Register(typeof(JoinCode.Abstractions.Interfaces.ITeammateReconnectService))]
-public sealed partial class TeammateReconnectService : JoinCode.Abstractions.Interfaces.ITeammateReconnectService
+public sealed partial class TeammateReconnectService : ServiceEntity, JoinCode.Abstractions.Interfaces.ITeammateReconnectService
 {
     private const int MaxReconnectAttempts = 5;
     private const int InitialBackoffMs = 1000;

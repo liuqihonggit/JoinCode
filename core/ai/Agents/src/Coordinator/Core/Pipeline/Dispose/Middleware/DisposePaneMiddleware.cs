@@ -1,7 +1,7 @@
 namespace Core.Agents.Coordinator;
 
 [Register(typeof(IAgentDisposeMiddleware))]
-public sealed partial class DisposePaneMiddleware : IAgentDisposeMiddleware
+public sealed partial class DisposePaneMiddleware : ServiceEntity, IAgentDisposeMiddleware
 {
     [Inject] private readonly ITeammateLayoutManager? _layoutManager;
     [Inject] private readonly ILogger<DisposePaneMiddleware> _logger;

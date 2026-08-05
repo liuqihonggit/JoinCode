@@ -1,10 +1,10 @@
-﻿namespace Core.Skills;
+namespace Core.Skills;
 
 /// <summary>
 /// 技能遥测中间件 — 启动 Span、记录开始/完成日志、处理异常
 /// </summary>
 [Register]
-public sealed partial class SkillTelemetryMiddleware : ISkillMiddleware
+public sealed partial class SkillTelemetryMiddleware : ServiceEntity, ISkillMiddleware
 {
     [Inject] private readonly ITelemetryService? _telemetryService;
 

@@ -1,8 +1,8 @@
-﻿
+
 namespace Core.Context.Compact;
 
 [Register]
-public sealed partial class SessionMemoryCompactService : ISessionMemoryCompactService
+public sealed partial class SessionMemoryCompactService : ServiceEntity, ISessionMemoryCompactService
 {
     private static readonly string SessionMemorySubdir = AppDataConstants.AppDataFolder;
     private const string SessionMemoryFileName = "session-memory.md";

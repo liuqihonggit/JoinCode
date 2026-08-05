@@ -5,7 +5,8 @@ namespace Core.Agents.Coordinator;
 /// Agent状态机 - 管理Agent的生命周期和状态转换
 /// </summary>
 [Register]
-public sealed partial class AgentStateMachine
+[AllowSkipEntity("实现 IAsyncDisposable，与 Entity 的 IDisposable 冲突")]
+public sealed partial class AgentStateMachine 
 {
     private readonly ILogger? _logger;
     private readonly ConcurrentDictionary<string, AgentStateContext> _states;

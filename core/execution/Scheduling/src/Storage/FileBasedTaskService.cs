@@ -1,4 +1,4 @@
-﻿
+
 namespace Core.Scheduling;
 
 /// <summary>
@@ -6,7 +6,7 @@ namespace Core.Scheduling;
 /// 参考 Claude Code 的任务管理设计，支持跨进程/多智能体协作
 /// </summary>
 [Register]
-public sealed partial class FileBasedTaskService : ITaskService, IDisposable
+public sealed partial class FileBasedTaskService : ServiceEntity, ITaskService, IDisposable
 {
     private readonly TaskDirectoryOptions _options;
     private readonly HighWaterMarkManager _highWaterMarkManager;
@@ -491,5 +491,5 @@ public sealed partial class FileBasedTaskService : ITaskService, IDisposable
         return 0;
     }
 
-    public void Dispose() => _initLock.Dispose();
+    protected override void OnDispose() => _initLock.Dispose();
 }

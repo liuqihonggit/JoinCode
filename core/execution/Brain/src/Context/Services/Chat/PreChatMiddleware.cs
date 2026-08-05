@@ -8,7 +8,7 @@ namespace Core.Context;
 /// 遥测已统一到管道 onPreExecute/onPostExecute 回调
 /// </summary>
 [Register]
-public sealed partial class PreChatMiddleware : IChatMiddleware
+public sealed partial class PreChatMiddleware : ServiceEntity, IChatMiddleware
 {
     [Inject] private readonly IChatContextManager _contextManager;
     [Inject] private readonly IChatPreprocessor _preprocessor;

@@ -1,11 +1,11 @@
-﻿namespace JoinCode.Entry;
+namespace JoinCode.Entry;
 
 /// <summary>
 /// 启动日志中间件 — 记录每个启动步骤的耗时，统一捕获异常
 /// 横切关注点示例：通过 Order = int.MinValue 排在最外层，包裹所有后续中间件
 /// </summary>
 [Register]
-internal sealed partial class StartupLoggingMiddleware : IMiddleware<StartupContext>
+internal sealed partial class StartupLoggingMiddleware : ServiceEntity, IMiddleware<StartupContext>
 {
 
     public async Task InvokeAsync(StartupContext context, MiddlewareDelegate<StartupContext> next, CancellationToken ct)

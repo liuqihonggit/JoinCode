@@ -5,7 +5,7 @@ namespace Core.Configuration;
 /// 简要模式服务实现
 /// </summary>
 [Register]
-public partial class BriefModeService : IBriefModeService
+public partial class BriefModeService : ServiceEntity, IBriefModeService
 {
     private bool _isEnabled;
     private DateTime? _enabledAt;

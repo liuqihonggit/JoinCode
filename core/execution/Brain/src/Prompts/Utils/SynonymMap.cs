@@ -2,7 +2,7 @@
 namespace Core.Prompts.Utils;
 
 [Register(typeof(ISynonymMap))]
-public sealed partial class SynonymMap : ISynonymMap
+public sealed partial class SynonymMap : ServiceEntity, ISynonymMap
 {
     private readonly FrozenDictionary<string, string> _map;
 

@@ -1,10 +1,10 @@
-﻿namespace JoinCode.Services;
+namespace JoinCode.Services;
 
 /// <summary>
 /// 控制台输出 — 纯 CLI 模式，无 TUI 依赖
 /// </summary>
 [Register]
-public sealed partial class ConsoleOutput : IConsoleOutput
+public sealed partial class ConsoleOutput : ServiceEntity, IConsoleOutput
 {
     [Inject] private readonly ILogger<ConsoleOutput>? _logger;
 

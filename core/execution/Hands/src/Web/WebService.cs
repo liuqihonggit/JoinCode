@@ -1,4 +1,4 @@
-﻿namespace Services.Web;
+namespace Services.Web;
 
 /// <summary>
 /// Web服务实现 — URL获取、缓存、域名安全检查、重定向安全、HTML转Markdown
@@ -6,7 +6,7 @@
 /// FetchAsync 通过中间件管道执行，SearchAsync 直接实现
 /// </summary>
 [Register]
-public sealed partial class WebService : IWebService
+public sealed partial class WebService : ServiceEntity, IWebService
 {
     private readonly MiddlewarePipeline<WebContext> _pipeline;
     private readonly IWebFetchCache _cache;

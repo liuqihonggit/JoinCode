@@ -4,7 +4,7 @@ namespace Core.Agents;
 /// 代理摘要服务实现
 /// </summary>
 [Register]
-public sealed partial class AgentSummaryService : IAgentSummaryService
+public sealed partial class AgentSummaryService : ServiceEntity, IAgentSummaryService
 {
     private readonly ConcurrentDictionary<string, AgentExecutionSummary> _executions = new();
     private readonly ConcurrentDictionary<string, AgentMetricsAccumulator> _metrics = new();

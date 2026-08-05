@@ -1,11 +1,11 @@
-﻿namespace Tools.Shell;
+namespace Tools.Shell;
 
 /// <summary>
 /// Shell 输出格式化中间件 — 处理执行结果的输出格式化
 /// 包括中断检测、图片输出检测、输出构建、命令语义解释
 /// </summary>
 [Register]
-public sealed partial class ShellOutputMiddleware : IShellMiddleware
+public sealed partial class ShellOutputMiddleware : ServiceEntity, IShellMiddleware
 {
     [Inject] private readonly ITelemetryService? _telemetryService;
 

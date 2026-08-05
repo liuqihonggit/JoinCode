@@ -1,8 +1,8 @@
-﻿
+
 namespace Core.Services;
 
 [Register]
-public sealed partial class McpService : IMcpService
+public sealed partial class McpService : ServiceEntity, IMcpService
 {
     [Inject] private readonly IMcpToolRegistry _toolRegistry;
     [Inject] private readonly ILogger<McpService>? _logger;

@@ -1,4 +1,4 @@
-﻿namespace McpToolRegistry;
+namespace McpToolRegistry;
 
 using JoinCode.Abstractions.Pipeline;
 
@@ -6,7 +6,7 @@ using JoinCode.Abstractions.Pipeline;
 /// 漂移检测中间件 — 仅 Tools 操作：检测工具漂移并决策重连策略
 /// </summary>
 [Register(typeof(IRemoteSyncMiddleware))]
-public sealed partial class RemoteDriftDetectionMiddleware : IRemoteSyncMiddleware
+public sealed partial class RemoteDriftDetectionMiddleware : ServiceEntity, IRemoteSyncMiddleware
 {
     [Inject] private readonly ILogger<RemoteDriftDetectionMiddleware> _logger;
 

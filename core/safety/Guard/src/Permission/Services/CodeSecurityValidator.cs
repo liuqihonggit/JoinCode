@@ -1,8 +1,8 @@
-﻿
+
 namespace Core.Permission;
 
 [Register]
-public sealed partial class CodeSecurityValidator : ICodeSecurityValidator
+public sealed partial class CodeSecurityValidator : ServiceEntity, ICodeSecurityValidator
 {
     private readonly ICommandClassifier _commandClassifier;
     private readonly IFileSystem _fs;

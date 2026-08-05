@@ -6,7 +6,7 @@ namespace Core.Prompts.Services;
 /// 增量机制：只发送新增/移除的列表项，避免重复注入
 /// </summary>
 [Register]
-public sealed partial class ToolListingService
+public sealed partial class ToolListingService : ServiceEntity
 {
     [Inject] private readonly ISystemReminderManager _reminderManager;
     [Inject] private readonly IAgentDefinitionProvider? _agentProvider;

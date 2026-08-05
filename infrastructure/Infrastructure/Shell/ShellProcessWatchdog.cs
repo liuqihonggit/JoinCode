@@ -7,7 +7,7 @@ namespace Infrastructure.Shell;
 /// 在 Windows 上额外监听系统睡眠/唤醒事件，唤醒后立即检查
 /// </summary>
 [Register]
-public sealed class ShellProcessWatchdog : IShellProcessWatchdog
+public sealed class ShellProcessWatchdog : ServiceEntity, IShellProcessWatchdog
 {
     private readonly ConcurrentDictionary<int, Action<int>> _callbacks = new();
     private Timer? _healthCheckTimer;
@@ -69,7 +69,7 @@ public sealed class ShellProcessWatchdog : IShellProcessWatchdog
         }
     }
 
-    public void Dispose()
+    protected override void OnDispose()
     {
         _healthCheckTimer?.Dispose();
         _healthCheckTimer = null;

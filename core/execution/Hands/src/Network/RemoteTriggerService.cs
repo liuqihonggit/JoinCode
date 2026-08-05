@@ -1,7 +1,7 @@
-﻿namespace IO.Services;
+namespace IO.Services;
 
 [Register]
-public sealed partial class RemoteTriggerService : IRemoteTriggerService
+public sealed partial class RemoteTriggerService : ServiceEntity, IRemoteTriggerService
 {
     private readonly HttpClient _httpClient;
     private readonly IConfigurationService? _configService;

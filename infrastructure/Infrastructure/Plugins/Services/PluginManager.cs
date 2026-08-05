@@ -1,8 +1,8 @@
-﻿
+
 namespace Core.Plugins;
 
 [Register]
-public sealed partial class PluginManager : IPluginManager
+public sealed partial class PluginManager : ServiceEntity, IPluginManager
 {
     private readonly ConcurrentDictionary<string, WorkflowPluginHost> _workflowPlugins = new();
     private readonly ConcurrentDictionary<string, ExternalPluginHost> _externalPlugins = new();
@@ -347,10 +347,8 @@ public sealed partial class PluginManager : IPluginManager
     private void RecordPluginMetrics(string kind, string operation, bool isSuccess) =>
         _telemetryService?.RecordCount("plugin.operation.count", new Dictionary<string, string> { ["kind"] = kind, ["operation"] = operation, ["success"] = isSuccess.ToString() }, "count", "Plugin operation count");
 
-    public void Dispose()
+    protected override void OnDispose()
     {
-        if (!DisposableHelper.TryMarkDisposed(ref _isDisposed)) return;
-
         var externalPluginNames = _externalPlugins.Keys.ToList();
         foreach (var pluginName in externalPluginNames)
         {

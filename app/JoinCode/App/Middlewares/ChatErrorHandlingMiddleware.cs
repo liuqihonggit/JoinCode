@@ -9,7 +9,7 @@ namespace JoinCode.App.Middlewares;
 /// 仅提供结构化日志记录 + 友好异常转换，异常由上层 ChatService 处理
 /// </summary>
 [Register(typeof(Core.Context.IChatMiddleware))]
-internal sealed partial class ChatErrorHandlingMiddleware : Core.Context.IChatMiddleware
+internal sealed partial class ChatErrorHandlingMiddleware : ServiceEntity, Core.Context.IChatMiddleware
 {
     private readonly ILogger<ChatErrorHandlingMiddleware> _logger;
 

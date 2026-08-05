@@ -2,7 +2,7 @@
 namespace Core.Utils;
 
 [Register]
-public sealed partial class ExceptionService : IExceptionService {
+public sealed partial class ExceptionService : ServiceEntity, IExceptionService {
     [Inject] private readonly ILogger<ExceptionService> _logger;
     [Inject] private readonly ITelemetryService? _telemetryService;
 

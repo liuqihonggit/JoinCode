@@ -1,11 +1,11 @@
-﻿namespace Core.Context;
+namespace Core.Context;
 
 /// <summary>
 /// 聊天用量处理器 — 从 ChatService 提取
 /// 负责费率限制提取、成本计算、Usage 处理、指标记录
 /// </summary>
 [Register]
-public sealed partial class ChatUsageProcessor : IChatUsageProcessor
+public sealed partial class ChatUsageProcessor : ServiceEntity, IChatUsageProcessor
 {
     private readonly ISessionStats _sessionStats;
     private readonly IChatContextManager _contextManager;

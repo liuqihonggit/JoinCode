@@ -1,11 +1,11 @@
-﻿namespace Services.Web;
+namespace Services.Web;
 
 /// <summary>
 /// 缓存检查中间件 — 查询URL缓存，命中时短路管道直接返回
 /// Order=200 在验证之后执行
 /// </summary>
 [Register]
-public sealed partial class WebCacheCheckMiddleware : IWebMiddleware
+public sealed partial class WebCacheCheckMiddleware : ServiceEntity, IWebMiddleware
 {
     [Inject] private readonly IWebFetchCache _cache;
     [Inject] private readonly ITelemetryService? _telemetryService;

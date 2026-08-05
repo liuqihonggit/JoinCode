@@ -4,7 +4,7 @@ using JoinCode.Abstractions.Attributes;
 namespace Core.DependencyInjection;
 
 [Register]
-public sealed partial class McpToolSyncBridge
+public sealed partial class McpToolSyncBridge : ServiceEntity
 {
     private readonly IToolRegistry _toolRegistry;
     private readonly IChatContextManager _contextManager;

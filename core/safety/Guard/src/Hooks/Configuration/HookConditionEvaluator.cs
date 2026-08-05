@@ -1,4 +1,4 @@
-﻿namespace Core.Hooks.Configuration;
+namespace Core.Hooks.Configuration;
 
 public static class InputFieldNames
 {
@@ -14,7 +14,7 @@ public interface IHookConditionEvaluator
 }
 
 [Register]
-public sealed partial class HookConditionEvaluator : IHookConditionEvaluator
+public sealed partial class HookConditionEvaluator : ServiceEntity, IHookConditionEvaluator
 {
     [Inject] private readonly ILogger<HookConditionEvaluator>? _logger;
 

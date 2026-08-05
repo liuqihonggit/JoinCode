@@ -26,3 +26,4 @@ global using JoinCode.Dream.DependencyInjection;
 global using JoinCode.Llm.DependencyInjection;
 global using System.Runtime.CompilerServices;
 global using System.Text.Json.Serialization;
+global using JoinCode.Abstractions.Entity;

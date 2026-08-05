@@ -2,7 +2,7 @@
 namespace Core.Skills.Plugin;
 
 [Register]
-public sealed partial class PluginSkillBridge : IPluginSkillBridge
+public sealed partial class PluginSkillBridge : ServiceEntity, IPluginSkillBridge
 {
     private readonly IPluginManager _pluginManager;
     private readonly ISkillService _skillService;
@@ -118,7 +118,7 @@ public sealed partial class PluginSkillBridge : IPluginSkillBridge
         return _pluginSkillMap.Keys;
     }
 
-    public void Dispose()
+    protected override void OnDispose()
     {
         if (_isDisposed)
         {

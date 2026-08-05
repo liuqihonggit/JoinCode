@@ -1,7 +1,7 @@
 namespace Tools.Handlers;
 
 [Register]
-public sealed partial class ApplyPatchLogic
+public sealed partial class ApplyPatchLogic : ServiceEntity
 {
     [Inject] private readonly IFileSystem _fs;
 

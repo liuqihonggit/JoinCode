@@ -42,7 +42,7 @@ public sealed partial class BridgeSessionDisplay
 /// 注意: 不得依赖 BridgeServer,否则会形成 DI 循环依赖 (BridgeServer → BridgeServerSession → BridgeUIService → BridgeServer)
 /// </summary>
 [Register]
-public sealed partial class BridgeUIService
+public sealed partial class BridgeUIService : ServiceEntity
 {
     [Inject] private readonly ILogger<BridgeUIService>? _logger;
     private readonly IClockService _clock;

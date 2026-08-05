@@ -9,7 +9,7 @@ namespace Core.Agents.Coordinator;
 [Register(typeof(IAgentCoordinator))]
 [Register(typeof(ISubAgentCoordinator))]
 [Register(typeof(ITeammateObserver))]
-public sealed partial class AgentCoordinator : IAgentCoordinator, ISubAgentCoordinator, ITeammateObserver
+public sealed partial class AgentCoordinator : ServiceEntity, IAgentCoordinator, ISubAgentCoordinator, ITeammateObserver
 {
     private readonly IAgentLifecycleManager _lifecycleManager;
     private readonly IAgentWorktreeManager _worktreeManager;

@@ -3,7 +3,7 @@ namespace Core.Bridge;
 using JoinCode.Abstractions.Pipeline;
 
 [Register(typeof(IHandleWorkMiddleware))]
-public sealed partial class WorkSecretDecodeMiddleware : IHandleWorkMiddleware
+public sealed partial class WorkSecretDecodeMiddleware : ServiceEntity, IHandleWorkMiddleware
 {
     [Inject] private readonly ILogger<WorkSecretDecodeMiddleware>? _logger;
 

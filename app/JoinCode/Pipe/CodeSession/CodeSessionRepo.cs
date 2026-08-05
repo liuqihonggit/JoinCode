@@ -17,7 +17,7 @@ public sealed class CodeSessionRecord
 }
 
 [Register]
-public sealed partial class CodeSessionRepo
+public sealed partial class CodeSessionRepo : ServiceEntity
 {
     private readonly ConcurrentDictionary<string, CodeSessionRecord> _store = new(StringComparer.Ordinal);
 

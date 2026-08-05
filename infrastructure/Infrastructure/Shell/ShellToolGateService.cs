@@ -6,7 +6,7 @@ namespace Infrastructure.Shell;
 /// Shell 工具门控服务 — 对齐 TS isPowerShellToolEnabled()
 /// </summary>
 [Register]
-public sealed class ShellToolGateService : IShellToolGateService
+public sealed class ShellToolGateService : ServiceEntity, IShellToolGateService
 {
     private readonly bool _cachedResult;
 

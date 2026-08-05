@@ -7,7 +7,7 @@ namespace Core.Context;
 /// OnError=Continue：用量处理失败不影响管道继续执行
 /// </summary>
 [Register]
-public sealed partial class ProcessUsageMiddleware : IChatMiddleware
+public sealed partial class ProcessUsageMiddleware : ServiceEntity, IChatMiddleware
 {
     [Inject] private readonly IChatUsageProcessor _usageProcessor;
     [Inject] private readonly ILogger<ProcessUsageMiddleware>? _logger;

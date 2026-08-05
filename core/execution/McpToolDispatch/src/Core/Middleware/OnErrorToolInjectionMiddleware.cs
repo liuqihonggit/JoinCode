@@ -6,7 +6,7 @@ namespace McpToolRegistry;
 /// 增强功能：历史修复分析 — 从健康记录中提取同类工具的失败模式，提前给出建议
 /// </summary>
 [Register]
-public sealed partial class OnErrorToolInjectionMiddleware : IToolExecutionMiddleware
+public sealed partial class OnErrorToolInjectionMiddleware : ServiceEntity, IToolExecutionMiddleware
 {
     [Inject] private readonly IToolRegistry _registry = null!;
     [Inject] private readonly IToolHealthMonitor _monitor = null!;

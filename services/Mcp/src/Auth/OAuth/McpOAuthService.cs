@@ -4,7 +4,7 @@ using JoinCode.Abstractions.Attributes;
 namespace McpClient;
 
 [Register]
-public sealed partial class McpOAuthService
+public sealed partial class McpOAuthService : ServiceEntity
 {
     private readonly McpOAuthOptions _options;
     private readonly McpPkceAuthProvider _authProvider;
@@ -129,7 +129,7 @@ public sealed partial class McpOAuthService
         _callbackListener = null;
     }
 
-    public void Dispose()
+    protected override void OnDispose()
     {
         StopCallbackListener();
         _authProvider.Dispose();

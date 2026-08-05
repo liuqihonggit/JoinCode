@@ -1,4 +1,4 @@
-﻿namespace Services.Lsp.Internal;
+namespace Services.Lsp.Internal;
 
 public interface ILspManager : IAsyncDisposable
 {

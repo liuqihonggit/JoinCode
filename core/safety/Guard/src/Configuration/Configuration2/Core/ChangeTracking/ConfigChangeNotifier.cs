@@ -1,7 +1,7 @@
-﻿namespace Core.Configuration;
+namespace Core.Configuration;
 
 [Register]
-public sealed partial class ConfigChangeNotifier : IConfigChangeNotifier, IDisposable
+public sealed partial class ConfigChangeNotifier : ServiceEntity, IConfigChangeNotifier, IDisposable
 {
     [Inject] private readonly IFileSystem _fs;
     [Inject] private readonly ILogger<ConfigChangeNotifier>? _logger;
@@ -91,7 +91,7 @@ public sealed partial class ConfigChangeNotifier : IConfigChangeNotifier, IDispo
         }
     }
 
-    public void Dispose()
+    protected override void OnDispose()
     {
         if (_disposed) return;
         _disposed = true;

@@ -1,7 +1,7 @@
 namespace Core.Hooks.Lifecycle;
 
 [Register]
-public sealed partial class SubagentStopHookManager : ISubagentStopHookManager
+public sealed partial class SubagentStopHookManager : ServiceEntity, ISubagentStopHookManager
 {
     private readonly IHookOrchestrator _orchestrator;
     [Inject] private readonly ILogger<SubagentStopHookManager>? _logger;

@@ -53,7 +53,7 @@ public sealed partial class TokenRefreshEventArgs : EventArgs
 /// Token 刷新调度器实现
 /// </summary>
 [Register(typeof(ITokenRefreshScheduler))]
-public sealed partial class TokenRefreshScheduler : ITokenRefreshScheduler, IDisposable
+public sealed partial class TokenRefreshScheduler : ServiceEntity, ITokenRefreshScheduler, IDisposable
 {
     [Inject] private readonly ILogger<TokenRefreshScheduler>? _logger;
     [Inject] private readonly IClockService _clock;
@@ -146,7 +146,7 @@ public sealed partial class TokenRefreshScheduler : ITokenRefreshScheduler, IDis
         _monitors.TryRemove(provider, out _);
     }
 
-    public void Dispose()
+    protected override void OnDispose()
     {
         foreach (var monitor in _monitors.Values)
         {

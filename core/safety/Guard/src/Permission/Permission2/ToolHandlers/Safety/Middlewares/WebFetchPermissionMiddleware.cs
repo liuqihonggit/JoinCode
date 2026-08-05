@@ -1,4 +1,4 @@
-﻿
+
 namespace Core.Permission;
 
 /// <summary>
@@ -7,7 +7,7 @@ namespace Core.Permission;
 /// 对齐 TS 版 WebFetchTool.checkPermissions
 /// </summary>
 [Register(typeof(IPermissionMiddleware))]
-public sealed partial class WebFetchPermissionMiddleware : IPermissionMiddleware
+public sealed partial class WebFetchPermissionMiddleware : ServiceEntity, IPermissionMiddleware
 {
     /// <inheritdoc />
 

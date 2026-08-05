@@ -23,7 +23,7 @@ public interface ISessionScanner
 /// 默认会话扫描器实现
 /// </summary>
 [Register]
-public sealed partial class DefaultSessionScanner : ISessionScanner
+public sealed partial class DefaultSessionScanner : ServiceEntity, ISessionScanner
 {
     private readonly string _projectDir;
     private readonly IFileSystem _fs;

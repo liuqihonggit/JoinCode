@@ -4,7 +4,7 @@ using JoinCode.Abstractions.Attributes;
 namespace IO.Services;
 
 [Register]
-public sealed partial class ClipboardService : IClipboardService
+public sealed partial class ClipboardService : ServiceEntity, IClipboardService
 {
     [Inject] private readonly ILogger<ClipboardService>? _logger;
     [Inject] private readonly IProcessService _processService;

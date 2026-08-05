@@ -1,8 +1,8 @@
-﻿
+
 namespace Core.Memdir;
 
 [Register]
-public sealed partial class WorkspaceService : IWorkspaceService
+public sealed partial class WorkspaceService : ServiceEntity, IWorkspaceService
 {
     private readonly HashSet<string> _directories = new(StringComparer.OrdinalIgnoreCase);
     [Inject] private readonly ILogger<WorkspaceService>? _logger;

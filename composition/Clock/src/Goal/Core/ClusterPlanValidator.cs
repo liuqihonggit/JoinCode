@@ -4,7 +4,7 @@ namespace Core.Goal;
 using Structura.Dag;
 
 [Register]
-public sealed partial class ClusterPlanValidator : IClusterPlanValidator
+public sealed partial class ClusterPlanValidator : ServiceEntity, IClusterPlanValidator
 {
     private const int MaxSubTasks = 8;
     private const int MaxFileOverlap = 2;

@@ -1,7 +1,7 @@
 namespace JoinCode.Pipe;
 
 [Register]
-public sealed partial class CodeSessionManager
+public sealed partial class CodeSessionManager : ServiceEntity
 {
     private readonly CodeSessionRepo _repo;
     private readonly SemaphoreSlim _lock = new(1, 1);
@@ -89,5 +89,10 @@ public sealed partial class CodeSessionManager
         {
             _lock.Release();
         }
+    }
+
+    protected override void OnDispose()
+    {
+        _lock.Dispose();
     }
 }

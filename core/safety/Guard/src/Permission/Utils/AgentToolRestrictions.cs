@@ -1,7 +1,7 @@
 namespace Core.Utils;
 
 [Register]
-public sealed partial class AgentToolRestrictions : IAgentToolRestrictions
+public sealed partial class AgentToolRestrictions : ServiceEntity, IAgentToolRestrictions
 {
     [Inject] private readonly ITelemetryService? _telemetryService;
 

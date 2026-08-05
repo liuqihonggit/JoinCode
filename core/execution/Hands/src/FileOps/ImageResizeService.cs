@@ -5,7 +5,7 @@ namespace Infrastructure.IO;
 /// 对齐 TS maybeResizeAndDownsampleImageBuffer
 /// </summary>
 [Register(typeof(JoinCode.Abstractions.LLM.Chat.IImageResizeService))]
-public sealed partial class ImageResizeService : JoinCode.Abstractions.LLM.Chat.IImageResizeService
+public sealed partial class ImageResizeService : ServiceEntity, JoinCode.Abstractions.LLM.Chat.IImageResizeService
 {
     [Inject] private readonly ILogger<ImageResizeService>? _logger;
 

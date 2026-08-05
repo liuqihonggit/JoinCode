@@ -3,6 +3,7 @@ using JoinCode.Abstractions.Attributes;
 namespace McpToolRegistry;
 
 [Register(typeof(IMcpToolRegistry))]
+[AllowSkipEntity("实现 IAsyncDisposable，与 ServiceEntity 的 IDisposable 冲突，保留异步释放模式")]
 public sealed partial class ToolRegistryAdapter : IMcpToolRegistry
 {
     private readonly IToolRegistry _toolRegistry;

@@ -1,4 +1,4 @@
-﻿
+
 namespace Core.Security.Services;
 
 /// <summary>
@@ -6,7 +6,7 @@ namespace Core.Security.Services;
 /// 基于 AutoModeClassifier 的规则引擎，审查子智能体整体执行过程
 /// </summary>
 [Register]
-public sealed partial class HandoffClassifier : IHandoffClassifier
+public sealed partial class HandoffClassifier : ServiceEntity, IHandoffClassifier
 {
     private readonly IAutoModeClassifier _autoModeClassifier;
     [Inject] private readonly ILogger<HandoffClassifier>? _logger;

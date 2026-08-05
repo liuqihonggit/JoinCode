@@ -37,7 +37,7 @@ public interface IMemoryPaths
 /// 记忆路径管理实现
 /// </summary>
 [Register]
-public sealed partial class MemoryPaths : IMemoryPaths
+public sealed partial class MemoryPaths : ServiceEntity, IMemoryPaths
 {
     private static readonly FrozenDictionary<MemoryType, string> TypeDirectoryNames =
         Enum.GetValues<MemoryType>().ToFrozenDictionary(t => t, t => t.ToString().ToLowerInvariant());
@@ -132,7 +132,7 @@ public interface ITeamMemoryPaths
 /// 团队记忆路径管理实现
 /// </summary>
 [Register]
-public sealed partial class TeamMemoryPaths : ITeamMemoryPaths
+public sealed partial class TeamMemoryPaths : ServiceEntity, ITeamMemoryPaths
 {
     private readonly string _baseDirectory;
 

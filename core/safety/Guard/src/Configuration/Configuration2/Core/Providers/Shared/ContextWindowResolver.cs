@@ -8,7 +8,7 @@ namespace Core.Configuration.Providers;
 /// 每次调用实时解析当前模型的上下文窗口大小，不缓存状态
 /// </summary>
 [Register]
-public sealed partial class ContextWindowResolver : IContextWindowResolver
+public sealed partial class ContextWindowResolver : ServiceEntity, IContextWindowResolver
 {
     private readonly IFastModeService _fastModeService;
     private readonly IProviderDefinitionRegistry _registry;

@@ -1,4 +1,4 @@
-﻿
+
 namespace Core.Memdir;
 
 /// <summary>
@@ -169,7 +169,7 @@ public interface IAssistantDailyLogService : IDisposable
 /// 存储在用户记忆目录下的 daily-logs 子目录中
 /// </summary>
 [Register]
-public sealed partial class AssistantDailyLogService : IAssistantDailyLogService, IDisposable
+public sealed partial class AssistantDailyLogService : ServiceEntity, IAssistantDailyLogService, IDisposable
 {
     private const string DailyLogsDirectoryName = "daily-logs";
     private const string DateFormat = "yyyy-MM-dd";
@@ -375,6 +375,6 @@ public sealed partial class AssistantDailyLogService : IAssistantDailyLogService
         }
     }
 
-    public void Dispose() => _writeLock.Dispose();
+    protected override void OnDispose() => _writeLock.Dispose();
 }
 

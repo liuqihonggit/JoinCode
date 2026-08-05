@@ -1,7 +1,7 @@
-﻿namespace Core.Bridge;
+namespace Core.Bridge;
 
 [Register(typeof(IBridgeRunMiddleware))]
-public sealed partial class RunValidationMiddleware : IBridgeRunMiddleware
+public sealed partial class RunValidationMiddleware : ServiceEntity, IBridgeRunMiddleware
 {
     [Inject] private readonly BridgeMainDeps _deps;
     [Inject] private readonly ILogger<RunValidationMiddleware> _logger;

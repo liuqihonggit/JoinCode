@@ -1,10 +1,10 @@
-﻿namespace Core.Configuration.ConfigPipeline;
+namespace Core.Configuration.ConfigPipeline;
 
 /// <summary>
 /// Step 6: 规则赋值
 /// </summary>
 [Register(typeof(IConfigLoadMiddleware))]
-public sealed partial class RulesAssignMiddleware : IConfigLoadMiddleware
+public sealed partial class RulesAssignMiddleware : ServiceEntity, IConfigLoadMiddleware
 {
 
     public Task InvokeAsync(ConfigLoadContext context, MiddlewareDelegate<ConfigLoadContext> next, CancellationToken ct)

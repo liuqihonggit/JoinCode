@@ -1,4 +1,4 @@
-﻿namespace Core.Security.Services;
+namespace Core.Security.Services;
 
 public interface ICaCertificateService
 {
@@ -15,7 +15,7 @@ public sealed partial class CaCertificateOptions
 }
 
 [Register]
-public sealed partial class CaCertificateService : ICaCertificateService
+public sealed partial class CaCertificateService : ServiceEntity, ICaCertificateService
 {
     private readonly IFileSystem _fs;
     [Inject] private readonly ILogger<CaCertificateService>? _logger;

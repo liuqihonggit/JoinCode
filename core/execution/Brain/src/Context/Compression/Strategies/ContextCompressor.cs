@@ -5,7 +5,7 @@ namespace Core.Context.Compression;
 /// 上下文压缩器基础实现
 /// </summary>
 [Register(typeof(IContextCompressor), JoinCode.Abstractions.Attributes.ServiceLifetime.Transient)]
-public sealed partial class ContextCompressor : IContextCompressor
+public sealed partial class ContextCompressor : ServiceEntity, IContextCompressor
 {
     private readonly ICompressionStrategyFactory _strategyFactory;
     private readonly CompressionOptions _defaultOptions;

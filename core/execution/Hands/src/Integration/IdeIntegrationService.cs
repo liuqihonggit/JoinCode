@@ -3,7 +3,7 @@ using JoinCode.Abstractions.Attributes;
 namespace IO.Services;
 
 [Register]
-public sealed partial class IdeIntegrationService : IIdeIntegrationService
+public sealed partial class IdeIntegrationService : ServiceEntity, IIdeIntegrationService
 {
     private IdeInfo? _currentConnection;
     private string? _currentFilePath;

@@ -13,7 +13,7 @@ public sealed partial class SyncFileEntry
 }
 
 [Register]
-public sealed partial class TeamMemorySyncService : ITeamMemorySyncService
+public sealed partial class TeamMemorySyncService : ServiceEntity, ITeamMemorySyncService
 {
     [Inject] private readonly ILogger<TeamMemorySyncService>? _logger;
     [Inject] private readonly IClockService _clock;
@@ -702,7 +702,7 @@ public sealed partial class TeamMemorySyncService : ITeamMemorySyncService
         };
     }
 
-    public void Dispose()
+    protected override void OnDispose()
     {
         if (_disposed) return;
         _disposed = true;

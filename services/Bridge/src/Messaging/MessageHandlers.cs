@@ -465,7 +465,7 @@ public sealed class PingHandler : IMessageHandler
 /// 统一协调所有消息的处理
 /// </summary>
 [Register]
-public sealed partial class MessageHandlerCoordinator
+public sealed partial class MessageHandlerCoordinator : ServiceEntity
 {
     private readonly MessageHandlerRegistry _registry;
     private readonly MessageHandlerContext _context;

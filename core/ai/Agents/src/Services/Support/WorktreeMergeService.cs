@@ -1,7 +1,7 @@
 namespace Core.Agents;
 
 [Register(typeof(IWorktreeMergeService))]
-public sealed partial class WorktreeMergeService : IWorktreeMergeService
+public sealed partial class WorktreeMergeService : ServiceEntity, IWorktreeMergeService
 {
     [Inject] private readonly ILogger<WorktreeMergeService>? _logger;
     [Inject] private readonly IGitCommandRunner _gitRunner;

@@ -3,7 +3,7 @@ namespace Core.Scheduling.Tasks;
 using JoinCode.Abstractions.Pipeline;
 
 [Register(typeof(ITeammateExecutionMiddleware))]
-public sealed partial class TeammateRegistrationMiddleware : ITeammateExecutionMiddleware
+public sealed partial class TeammateRegistrationMiddleware : ServiceEntity, ITeammateExecutionMiddleware
 {
     [Inject] private readonly IAgentMessageBroker _messageBroker;
     [Inject] private readonly ILogger<TeammateRegistrationMiddleware>? _logger;

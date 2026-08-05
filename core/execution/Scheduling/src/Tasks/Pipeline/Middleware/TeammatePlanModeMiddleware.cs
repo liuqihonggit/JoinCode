@@ -3,7 +3,7 @@ namespace Core.Scheduling.Tasks;
 using JoinCode.Abstractions.Pipeline;
 
 [Register(typeof(ITeammateExecutionMiddleware))]
-public sealed partial class TeammatePlanModeMiddleware : ITeammateExecutionMiddleware
+public sealed partial class TeammatePlanModeMiddleware : ServiceEntity, ITeammateExecutionMiddleware
 {
     [Inject] private readonly IPlanModeManager? _planModeManager;
     [Inject] private readonly ILogger<TeammatePlanModeMiddleware>? _logger;

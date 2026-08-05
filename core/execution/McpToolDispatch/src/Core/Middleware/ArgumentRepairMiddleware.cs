@@ -1,11 +1,11 @@
-﻿
+
 namespace McpToolRegistry;
 
 /// <summary>
 /// 参数修复中间件 — Order=100 — 修复工具调用参数中的常见问题
 /// </summary>
 [Register]
-public sealed partial class ArgumentRepairMiddleware : IToolExecutionMiddleware
+public sealed partial class ArgumentRepairMiddleware : ServiceEntity, IToolExecutionMiddleware
 {
 
     [Inject] private readonly ILogger<ArgumentRepairMiddleware> _logger;

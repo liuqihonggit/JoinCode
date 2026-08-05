@@ -1,4 +1,4 @@
-namespace Core.Plugins;
+﻿namespace Core.Plugins;
 
 public interface IPluginHotReloader : IAsyncDisposable
 {
@@ -20,6 +20,7 @@ public sealed partial class PluginReloadEventArgs : EventArgs
 public enum ReloadReason { FileChanged, FileCreated, FileDeleted, Manual }
 
 [Register(typeof(IPluginHotReloader))]
+[AllowSkipEntity("实现 IAsyncDisposable，与 Entity 的 IDisposable 冲突")]
 public sealed partial class PluginHotReloader : IPluginHotReloader
 {
     private readonly IPluginManager _pluginManager;

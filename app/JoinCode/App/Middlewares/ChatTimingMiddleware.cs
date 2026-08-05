@@ -9,7 +9,7 @@ namespace JoinCode.App.Middlewares;
 /// 本中间件仅负责在管道最外层输出 TimingSummary 事件
 /// </summary>
 [Register(typeof(Core.Context.IChatMiddleware))]
-internal sealed partial class ChatTimingMiddleware : Core.Context.IChatMiddleware
+internal sealed partial class ChatTimingMiddleware : ServiceEntity, Core.Context.IChatMiddleware
 {
     private readonly bool _verbose;
 

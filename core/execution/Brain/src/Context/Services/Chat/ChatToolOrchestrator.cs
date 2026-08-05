@@ -35,7 +35,7 @@ public sealed record ToolCallResult
 /// 负责权限检查、Hook 编排、工具执行
 /// </summary>
 [Register]
-public sealed partial class ChatToolOrchestrator : IChatToolOrchestrator
+public sealed partial class ChatToolOrchestrator : ServiceEntity, IChatToolOrchestrator
 {
     private readonly IToolRegistry? _toolRegistry;
     private readonly IToolExecutionGateway? _toolExecutionGateway;

@@ -6,7 +6,7 @@ namespace Core.Context;
 /// 成本恢复中间件 — 从持久化存储恢复会话成本状态
 /// </summary>
 [Register(typeof(IChatInitMiddleware))]
-public sealed partial class CostRestoreMiddleware : IChatInitMiddleware
+public sealed partial class CostRestoreMiddleware : ServiceEntity, IChatInitMiddleware
 {
     private readonly ISessionCostPersistence? _sessionCostPersistence;
     private readonly ISessionStats _sessionStats;

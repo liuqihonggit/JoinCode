@@ -4,7 +4,7 @@ namespace IO.ProcessService;
 /// Git 命令统一执行器 — 委托给 IProcessService，消除各处重复代码
 /// </summary>
 [Register]
-public sealed partial class GitCommandRunner : IGitCommandRunner
+public sealed partial class GitCommandRunner : ServiceEntity, IGitCommandRunner
 {
     [Inject] private readonly IProcessService _processService;
     [Inject] private readonly ILogger<GitCommandRunner>? _logger;

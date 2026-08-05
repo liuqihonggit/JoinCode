@@ -3,7 +3,7 @@ namespace JoinCode.Pipe;
 using JoinCode.Abstractions.Attributes;
 
 [Register]
-public sealed partial class BridgeHeartbeatService
+public sealed partial class BridgeHeartbeatService : ServiceEntity
 {
     private readonly TimeSpan _interval;
     private readonly TimeSpan _timeout;

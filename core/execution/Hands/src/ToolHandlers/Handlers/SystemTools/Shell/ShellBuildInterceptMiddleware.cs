@@ -6,7 +6,7 @@ namespace Tools.Shell;
 /// 缓存命中直接返回结果，同命令编译中共享结果
 /// </summary>
 [Register]
-public sealed partial class ShellBuildInterceptMiddleware : IShellMiddleware
+public sealed partial class ShellBuildInterceptMiddleware : ServiceEntity, IShellMiddleware
 {
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(30);
 

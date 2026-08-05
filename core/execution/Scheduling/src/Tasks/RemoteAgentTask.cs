@@ -1,4 +1,4 @@
-﻿
+
 namespace Core.Scheduling.Tasks;
 
 public interface IRemoteAgentTaskExecutor
@@ -20,7 +20,7 @@ public sealed partial class RemoteAgentTaskDefinition
 }
 
 [Register]
-public sealed partial class RemoteAgentTaskExecutor : IRemoteAgentTaskExecutor
+public sealed partial class RemoteAgentTaskExecutor : ServiceEntity, IRemoteAgentTaskExecutor
 {
     private readonly HttpClient _httpClient;
     [Inject] private readonly ILogger<RemoteAgentTaskExecutor>? _logger;

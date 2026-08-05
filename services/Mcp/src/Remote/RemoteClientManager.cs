@@ -5,6 +5,7 @@ using Infrastructure.Pipeline;
 namespace McpToolRegistry;
 
 [Register]
+[AllowSkipEntity("实现 IAsyncDisposable，与 ServiceEntity 的 IDisposable 冲突，保留异步释放模式")]
 public sealed partial class RemoteClientManager : IRemoteClientManager
 {
     private const int MaxReconnectAttempts = 5;

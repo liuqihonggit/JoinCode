@@ -8,3 +8,4 @@ global using JoinCode.Abstractions.Models;
 global using Microsoft.Extensions.DependencyInjection;
 global using Microsoft.Extensions.Logging;
 global using PuppeteerSharp;
+global using JoinCode.Abstractions.Entity;

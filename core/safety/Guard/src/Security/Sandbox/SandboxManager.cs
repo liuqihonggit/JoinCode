@@ -7,7 +7,7 @@ using Providers;
 using AbstractionsSandboxExecutionResult = JoinCode.Abstractions.Security.Sandbox.SandboxExecutionResult;
 
 [Register]
-public sealed partial class SandboxManager : ISandboxManager, IDisposable
+public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDisposable
 {
     private readonly FrozenDictionary<SandboxType, ISandboxProvider> _providers;
     private readonly AsyncLock _lock = new();
@@ -802,7 +802,7 @@ public sealed partial class SandboxManager : ISandboxManager, IDisposable
         execution.Stopwatch.Stop();
     }
 
-    public void Dispose() => _lock.Dispose();
+    protected override void OnDispose() => _lock.Dispose();
 }
 
 internal sealed class SandboxActiveExecution

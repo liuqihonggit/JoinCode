@@ -24,7 +24,7 @@ public interface IQueryStateTransitions
 }
 
 [Register(typeof(IQueryStateTransitions))]
-public sealed partial class QueryStateTransitions : IQueryStateTransitions
+public sealed partial class QueryStateTransitions : ServiceEntity, IQueryStateTransitions
 {
     private static readonly FrozenDictionary<QueryState, FrozenSet<QueryState>> TransitionTable = CreateTransitionTable();
 

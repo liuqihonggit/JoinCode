@@ -1,7 +1,7 @@
 namespace McpToolRegistry;
 
 [Register]
-public sealed partial class ToolExecutionLoggingMiddleware : IToolExecutionMiddleware
+public sealed partial class ToolExecutionLoggingMiddleware : ServiceEntity, IToolExecutionMiddleware
 {
     [Inject] private readonly ILogger<ToolExecutionLoggingMiddleware> _logger = null!;
 

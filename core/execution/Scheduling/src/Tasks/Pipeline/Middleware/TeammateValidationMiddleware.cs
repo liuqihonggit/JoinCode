@@ -1,9 +1,9 @@
-﻿namespace Core.Scheduling.Tasks;
+namespace Core.Scheduling.Tasks;
 
 using JoinCode.Abstractions.Pipeline;
 
 [Register(typeof(ITeammateExecutionMiddleware))]
-public sealed partial class TeammateValidationMiddleware : ITeammateExecutionMiddleware
+public sealed partial class TeammateValidationMiddleware : ServiceEntity, ITeammateExecutionMiddleware
 {
     [Inject] private readonly ILogger<TeammateValidationMiddleware>? _logger;
 

@@ -1,4 +1,4 @@
-﻿namespace Services.Lsp.Internal;
+namespace Services.Lsp.Internal;
 
 public interface ILspPassiveFeedback
 {
@@ -6,7 +6,7 @@ public interface ILspPassiveFeedback
 }
 
 [Register]
-public sealed partial class LspPassiveFeedback : ILspPassiveFeedback
+public sealed partial class LspPassiveFeedback : ServiceEntity, ILspPassiveFeedback
 {
     [Inject] private readonly ILspDiagnosticRegistry _diagnosticRegistry;
     [Inject] private readonly ILogger<LspPassiveFeedback>? _logger;

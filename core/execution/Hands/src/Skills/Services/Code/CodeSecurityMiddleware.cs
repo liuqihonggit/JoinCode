@@ -1,10 +1,10 @@
-﻿namespace Core.Skills;
+namespace Core.Skills;
 
 /// <summary>
 /// 代码安全验证中间件 — Execute 操作的安全检查
 /// </summary>
 [Register]
-public sealed partial class CodeSecurityMiddleware : ICodeMiddleware
+public sealed partial class CodeSecurityMiddleware : ServiceEntity, ICodeMiddleware
 {
     [Inject] private readonly ICodeSecurityValidator _securityValidator;
 

@@ -1,10 +1,10 @@
-﻿namespace McpClient.Mcpb;
+namespace McpClient.Mcpb;
 
 /// <summary>
 /// MCPB 清单解析中间件 — 解析 manifest.json 并构建最终结果
 /// </summary>
 [Register(typeof(IMcpbMiddleware))]
-public sealed partial class McpbManifestMiddleware : IMcpbMiddleware
+public sealed partial class McpbManifestMiddleware : ServiceEntity, IMcpbMiddleware
 {
     [Inject] private readonly IFileSystem _fs;
 

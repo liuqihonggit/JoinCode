@@ -1,4 +1,4 @@
-﻿namespace Core.Goal;
+namespace Core.Goal;
 
 using JoinCode.Abstractions.Pipeline;
 
@@ -6,7 +6,7 @@ using JoinCode.Abstractions.Pipeline;
 /// 心跳控制中间件 — Pause/Clear/MarkCompleted/MarkUnmet 时重置心跳
 /// </summary>
 [Register(typeof(IGoalLifecycleMiddleware))]
-public sealed partial class GoalHeartbeatControlMiddleware : IGoalLifecycleMiddleware
+public sealed partial class GoalHeartbeatControlMiddleware : ServiceEntity, IGoalLifecycleMiddleware
 {
 
     public Task InvokeAsync(GoalLifecycleContext ctx, MiddlewareDelegate<GoalLifecycleContext> next, CancellationToken ct)

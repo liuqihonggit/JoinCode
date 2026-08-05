@@ -1,10 +1,10 @@
-﻿namespace JoinCode.Transport.Bridge;
+namespace JoinCode.Transport.Bridge;
 
 /// <summary>
 /// 传输层工厂实现 — 创建 v1/v2 传输实例
 /// </summary>
 [Register]
-public sealed partial class DefaultReplBridgeTransportFactory : IReplBridgeTransportFactory
+public sealed partial class DefaultReplBridgeTransportFactory : ServiceEntity, IReplBridgeTransportFactory
 {
     /// <inheritdoc />
     public IReplBridgeTransport CreateV2Transport(string sdkUrl, string sessionId, string workerJwt, int connectTimeoutMs)

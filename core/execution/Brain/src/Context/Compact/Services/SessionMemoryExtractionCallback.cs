@@ -7,7 +7,7 @@ namespace Core.Context.Compact;
 /// 核心消费链路：ISessionMemoryExtractionService.BuildExtractionPromptAsync() → IForkSubAgentManager.ForkAsync()
 /// </summary>
 [Register]
-public sealed partial class SessionMemoryExtractionCallback : IPostSamplingCallback
+public sealed partial class SessionMemoryExtractionCallback : ServiceEntity, IPostSamplingCallback
 {
     private const string EditToolName = "Edit";
 

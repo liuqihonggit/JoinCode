@@ -1,11 +1,11 @@
-﻿namespace Services.Web;
+namespace Services.Web;
 
 /// <summary>
 /// 浏览器自动化服务默认实现 — 未安装 PuppeteerSharp 卫星包时使用
 /// 所有操作返回"不支持"，对齐TS版 WebBrowserTool 未启用时的行为
 /// </summary>
 [Register]
-public sealed partial class NoOpBrowserAutomationService : IBrowserAutomationService
+public sealed partial class NoOpBrowserAutomationService : ServiceEntity, IBrowserAutomationService
 {
     public bool IsAvailable => false;
 

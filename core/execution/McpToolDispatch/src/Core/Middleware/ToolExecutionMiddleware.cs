@@ -1,11 +1,11 @@
-﻿
+
 namespace McpToolRegistry;
 
 /// <summary>
 /// 工具执行终端中间件 — Order=900 — 实际调用工具处理器执行
 /// </summary>
 [Register]
-public sealed partial class ToolExecutionMiddleware : IToolExecutionMiddleware
+public sealed partial class ToolExecutionMiddleware : ServiceEntity, IToolExecutionMiddleware
 {
 
     [Inject] private readonly ILogger<ToolExecutionMiddleware> _logger;

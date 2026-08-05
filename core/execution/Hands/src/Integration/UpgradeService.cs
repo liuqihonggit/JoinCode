@@ -1,7 +1,7 @@
-﻿namespace IO.Services;
+namespace IO.Services;
 
 [Register]
-public sealed partial class UpgradeService : IUpgradeService
+public sealed partial class UpgradeService : ServiceEntity, IUpgradeService
 {
     private readonly HttpClient _httpClient;
     private readonly string _repoOwner;

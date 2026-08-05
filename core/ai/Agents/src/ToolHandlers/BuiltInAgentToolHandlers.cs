@@ -2,7 +2,7 @@ namespace Core.Agents.ToolHandlers;
 
 [McpToolDispatch(ToolCategory.Agent, Optional = true)]
 [Register]
-public partial class BuiltInAgentToolHandlers
+public partial class BuiltInAgentToolHandlers : ServiceEntity
 {
     [Inject] private readonly IAgentService _agentService;
     [Inject] private readonly IAgentRoleRegistry _roleRegistry;

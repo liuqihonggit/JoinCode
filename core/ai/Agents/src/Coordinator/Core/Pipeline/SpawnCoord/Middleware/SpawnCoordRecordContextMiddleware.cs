@@ -1,7 +1,7 @@
 namespace Core.Agents.Coordinator;
 
 [Register(typeof(IAgentSpawnCoordMiddleware))]
-public sealed partial class SpawnCoordRecordContextMiddleware : IAgentSpawnCoordMiddleware
+public sealed partial class SpawnCoordRecordContextMiddleware : ServiceEntity, IAgentSpawnCoordMiddleware
 {
     [Inject] private readonly IClockService _clock;
 

@@ -1,8 +1,8 @@
-﻿
+
 namespace Core.Context.Collapse;
 
 [Register]
-public sealed partial class ContextCollapseService : IContextCollapseService
+public sealed partial class ContextCollapseService : ServiceEntity, IContextCollapseService
 {
     [Inject] private readonly ILogger<ContextCollapseService>? _logger;
     private readonly SemaphoreSlim _collapseLock = new(1, 1);
@@ -464,6 +464,8 @@ public sealed partial class ContextCollapseService : IContextCollapseService
         }
         return offset;
     }
+
+    protected override void OnDispose() => _collapseLock.Dispose();
 
     private sealed class PatternRange
     {

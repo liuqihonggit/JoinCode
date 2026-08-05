@@ -7,7 +7,7 @@ namespace Core.Context;
 /// 支持流式工具执行：对齐 TS StreamingToolExecutor，流式期间收到 tool_use block 立即执行
 /// </summary>
 [Register]
-public sealed partial class QueryLoopMiddleware : IChatMiddleware
+public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
 {
     private const int MaxToolCallIterations = 128;
 

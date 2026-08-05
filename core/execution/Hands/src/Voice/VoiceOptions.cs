@@ -2,7 +2,7 @@
 namespace Services.Voice;
 
 [Register]
-public sealed partial class VoiceOptions
+public sealed partial class VoiceOptions : ServiceEntity
 {
     public SttBackend Backend { get; init; } = SttBackend.WhisperApi;
     public string WhisperApiEndpoint { get; init; } = "https://api.openai.com/v1/audio/transcriptions";

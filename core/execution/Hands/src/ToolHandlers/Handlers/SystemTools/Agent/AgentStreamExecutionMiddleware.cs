@@ -1,11 +1,11 @@
-﻿namespace Tools.Handlers;
+namespace Tools.Handlers;
 
 /// <summary>
 /// Agent 流式执行中间件 — 前台模式使用 RunAgentStreamAsync 流式执行子智能体
 /// 对齐 TS runAgent AsyncGenerator
 /// </summary>
 [Register]
-public sealed partial class AgentStreamExecutionMiddleware : IAgentToolMiddleware
+public sealed partial class AgentStreamExecutionMiddleware : ServiceEntity, IAgentToolMiddleware
 {
     [Inject] private readonly IAgentService _agentService;
     [Inject] private readonly ILogger<AgentStreamExecutionMiddleware>? _logger;

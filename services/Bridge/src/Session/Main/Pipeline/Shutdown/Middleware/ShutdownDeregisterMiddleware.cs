@@ -3,7 +3,7 @@ namespace Core.Bridge;
 using JoinCode.Abstractions.Pipeline;
 
 [Register(typeof(IShutdownMiddleware))]
-public sealed partial class ShutdownDeregisterMiddleware : IShutdownMiddleware
+public sealed partial class ShutdownDeregisterMiddleware : ServiceEntity, IShutdownMiddleware
 {
     [Inject] private readonly ILogger<ShutdownDeregisterMiddleware>? _logger;
 

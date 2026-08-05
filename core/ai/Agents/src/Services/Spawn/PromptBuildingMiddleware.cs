@@ -4,7 +4,7 @@ namespace Core.Agents;
 /// 提示构建中间件 — 构建系统提示词并加载记忆
 /// </summary>
 [Register]
-public sealed partial class PromptBuildingMiddleware : IAgentSpawnMiddleware
+public sealed partial class PromptBuildingMiddleware : ServiceEntity, IAgentSpawnMiddleware
 {
     [Inject] private readonly JoinCode.Abstractions.Interfaces.IAgentPromptBuilder _promptBuilder;
     [Inject] private readonly IAgentMemoryService? _agentMemoryService;

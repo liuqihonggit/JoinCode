@@ -3,7 +3,7 @@ namespace Core.Skills.Search;
 
 [Register(typeof(ISkillSearchService))]
 [Register(typeof(JoinCode.Abstractions.Interfaces.ISkillSearchService))]
-public sealed partial class SkillSearchService : ISkillSearchService, JoinCode.Abstractions.Interfaces.ISkillSearchService
+public sealed partial class SkillSearchService : ServiceEntity, ISkillSearchService, JoinCode.Abstractions.Interfaces.ISkillSearchService
 {
     private readonly ISkillService _skillService;
     [Inject] private readonly ILogger<SkillSearchService>? _logger;
@@ -331,5 +331,7 @@ public sealed partial class SkillSearchService : ISkillSearchService, JoinCode.A
             .Take(20)
             .ToList();
     }
+
+    protected override void OnDispose() => _indexLock.Dispose();
 
 }

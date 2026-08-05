@@ -5,7 +5,7 @@ namespace Services.Web;
 /// 将二进制响应（PDF、图片等）的原始字节保存到 {sessionDir}/tool-results/{persistId}.{ext}
 /// </summary>
 [Register(typeof(IBinaryContentStorage))]
-public sealed partial class BinaryContentStorage : IBinaryContentStorage
+public sealed partial class BinaryContentStorage : ServiceEntity, IBinaryContentStorage
 {
     [Inject] private readonly ILogger<BinaryContentStorage>? _logger;
     [Inject] private readonly IClockService _clock;

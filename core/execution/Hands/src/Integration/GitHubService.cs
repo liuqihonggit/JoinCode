@@ -1,7 +1,7 @@
-﻿namespace IO.Services;
+namespace IO.Services;
 
 [Register]
-public sealed partial class GitHubService : IGitHubService
+public sealed partial class GitHubService : ServiceEntity, IGitHubService
 {
     private readonly HttpClient _httpClient;
     private readonly IConfigurationService? _configService;
@@ -133,5 +133,7 @@ public sealed partial class GitHubService : IGitHubService
             _lock.Release();
         }
     }
+
+    protected override void OnDispose() => _lock.Dispose();
 }
 

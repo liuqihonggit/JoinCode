@@ -1,4 +1,4 @@
-﻿namespace Core.Context;
+namespace Core.Context;
 
 /// <summary>
 /// 内容替换结果 — 工具调用后的内容替换和预算应用结果
@@ -26,7 +26,7 @@ public sealed record ContentReplacementResult
 /// 负责超大工具结果持久化、per-message 预算检查、transcript 记录
 /// </summary>
 [Register]
-public sealed partial class ChatContentReplacer : IChatContentReplacer
+public sealed partial class ChatContentReplacer : ServiceEntity, IChatContentReplacer
 {
     [Inject] private readonly IContentReplacementService? _contentReplacementService;
     [Inject] private readonly ITranscriptService? _transcriptService;

@@ -6,7 +6,7 @@ namespace Core.Context;
 /// 加载历史消息操作处理器
 /// </summary>
 [Register]
-public sealed partial class LoadSessionMessagesHandler : IChatAdminOperationHandler
+public sealed partial class LoadSessionMessagesHandler : ServiceEntity, IChatAdminOperationHandler
 {
     [Inject] private readonly ILogger<LoadSessionMessagesHandler>? _logger;
 

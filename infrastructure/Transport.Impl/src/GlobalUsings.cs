@@ -5,3 +5,4 @@ global using JoinCode.Abstractions.Interfaces;
 global using JoinCode.Abstractions.Transport;
 global using JoinCode.Abstractions.Utils;
 global using JoinCode.Transport.DependencyInjection;
+global using JoinCode.Abstractions.Entity;

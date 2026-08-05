@@ -1,7 +1,7 @@
-﻿namespace Core.Security.Services;
+namespace Core.Security.Services;
 
 [Register]
-public sealed partial class MtlsService : IMtlsService
+public sealed partial class MtlsService : ServiceEntity, IMtlsService
 {
     private readonly IFileSystem _fs;
     [Inject] private readonly ILogger<MtlsService>? _logger;

@@ -17,7 +17,7 @@ public sealed partial class BridgeSessionListData
 /// 桥接服务器 - 与 IDE 扩展通信
 /// </summary>
 [Register]
-public sealed partial class BridgeServer : IDisposable
+public sealed partial class BridgeServer : ServiceEntity, IDisposable
 {
     private readonly HttpListener _httpListener;
     private readonly ConcurrentDictionary<string, WebSocket> _clients;
@@ -712,7 +712,7 @@ public sealed partial class BridgeServer : IDisposable
         response.Close();
     }
 
-    public void Dispose()
+    protected override void OnDispose()
     {
         _ = StopAsync(_cts.Token);
         _httpListener.Close();

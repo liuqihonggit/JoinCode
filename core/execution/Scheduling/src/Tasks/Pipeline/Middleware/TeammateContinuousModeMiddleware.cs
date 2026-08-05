@@ -1,9 +1,9 @@
-﻿namespace Core.Scheduling.Tasks;
+namespace Core.Scheduling.Tasks;
 
 using JoinCode.Abstractions.Pipeline;
 
 [Register(typeof(ITeammateExecutionMiddleware))]
-public sealed partial class TeammateContinuousModeMiddleware : ITeammateExecutionMiddleware
+public sealed partial class TeammateContinuousModeMiddleware : ServiceEntity, ITeammateExecutionMiddleware
 {
     [Inject] private readonly ILogger<TeammateContinuousModeMiddleware>? _logger;
     [Inject] private readonly IClockService _clock;

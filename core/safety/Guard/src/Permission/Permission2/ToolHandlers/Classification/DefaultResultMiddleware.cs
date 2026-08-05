@@ -1,4 +1,4 @@
-﻿
+
 namespace Core.Permission;
 
 /// <summary>
@@ -6,7 +6,7 @@ namespace Core.Permission;
 /// Default 模式返回待确认，Auto 模式返回批准
 /// </summary>
 [Register(typeof(IPermissionMiddleware))]
-public sealed partial class DefaultResultMiddleware : IPermissionMiddleware
+public sealed partial class DefaultResultMiddleware : ServiceEntity, IPermissionMiddleware
 {
     /// <inheritdoc />
 

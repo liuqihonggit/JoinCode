@@ -8,7 +8,7 @@ internal sealed partial class HookMiddlewareJsonContext : JsonSerializerContext;
 /// 对齐 ChatToolOrchestrator.ExecutePreHooksAsync
 /// </summary>
 [Register]
-public sealed partial class PreToolUseHookMiddleware : IToolExecutionMiddleware
+public sealed partial class PreToolUseHookMiddleware : ServiceEntity, IToolExecutionMiddleware
 {
     private readonly IHookOrchestrator? _hookOrchestrator;
     [Inject] private readonly ILogger<PreToolUseHookMiddleware>? _logger;
@@ -55,7 +55,7 @@ public sealed partial class PreToolUseHookMiddleware : IToolExecutionMiddleware
 /// 放在 ToolExecutionMiddleware 之前，用 await next 后置模式读取 context.Result
 /// </summary>
 [Register]
-public sealed partial class PostToolUseHookMiddleware : IToolExecutionMiddleware
+public sealed partial class PostToolUseHookMiddleware : ServiceEntity, IToolExecutionMiddleware
 {
     private readonly IHookOrchestrator? _hookOrchestrator;
     [Inject] private readonly ILogger<PostToolUseHookMiddleware>? _logger;

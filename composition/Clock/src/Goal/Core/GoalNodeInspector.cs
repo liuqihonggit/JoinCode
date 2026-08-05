@@ -15,14 +15,16 @@ public sealed partial class GoalNodeInspector : ServiceEntity, IGoalNodeInspecto
     private static readonly TimeSpan DeadLoopTimeWindow = TimeSpan.FromMinutes(5);
 
     private readonly Dictionary<string, List<int>> _loopHistoryByGoal = new(StringComparer.Ordinal);
+    private readonly IChatClient? _kernel;
 
     [Inject] private readonly ILogger<GoalNodeInspector>? _logger;
     [Inject] private readonly IClockService _clock;
 
-    public GoalNodeInspector(ILogger<GoalNodeInspector>? logger = null, IClockService? clock = null)
+    public GoalNodeInspector(ILogger<GoalNodeInspector>? logger = null, IClockService? clock = null, IChatClient? kernel = null)
     {
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
+        _kernel = kernel;
     }
 
     /// <inheritdoc />
@@ -85,10 +87,98 @@ public sealed partial class GoalNodeInspector : ServiceEntity, IGoalNodeInspecto
     }
 
     /// <inheritdoc />
-    public Task<NodeQualityScore> ScoreAsync(string nodeOutput, IReadOnlyList<string>? criteria = null, CancellationToken cancellationToken = default)
+    public async Task<NodeQualityScore> ScoreAsync(string nodeOutput, IReadOnlyList<string>? criteria = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(nodeOutput);
-        return Task.FromResult(NodeQualityScore.Default);
+
+        if (_kernel is null)
+            return NodeQualityScore.Default;
+
+        try
+        {
+            var prompt = BuildScoringPrompt(nodeOutput, criteria);
+            var chatHistory = new MessageList();
+            chatHistory.AddSystemMessage(prompt);
+            chatHistory.AddUserMessage("Score this node output.");
+
+            var executionSettings = new ChatOptions
+            {
+                Temperature = 0.0f,
+                MaxTokens = 500
+            };
+
+            var chatService = _kernel.GetChatCompletionService();
+            var results = await chatService.GetApiMessageContentsAsync(
+                chatHistory, executionSettings, _kernel, cancellationToken).ConfigureAwait(false);
+
+            var content = results.Count > 0 ? results[0].Content : null;
+            return ParseScoringResult(content);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "[GoalNodeInspector] LLM 评分失败，回退默认评分");
+            return NodeQualityScore.Default;
+        }
+    }
+
+    private static string BuildScoringPrompt(string nodeOutput, IReadOnlyList<string>? criteria)
+    {
+        var criteriaText = criteria is not null && criteria.Count > 0
+            ? string.Join(", ", criteria)
+            : "completeness, correctness, format, no_hallucination";
+
+        return $$$"""
+            You are a quality scorer for a parallel agent system. Score the node output across multiple dimensions.
+
+            NODE OUTPUT:
+            {{{nodeOutput}}}
+
+            SCORING DIMENSIONS:
+            {{{criteriaText}}}
+
+            Each dimension score ranges from 0.0 (worst) to 1.0 (best).
+
+            RESPONSE FORMAT:
+            Output a JSON block wrapped in ```json and ```:
+            ```json
+            {
+              "reason": "brief explanation",
+              "criteria": [
+                {"name": "completeness", "score": 0.8, "feedback": "..."},
+                {"name": "correctness", "score": 0.7, "feedback": "..."},
+                {"name": "format", "score": 0.9, "feedback": "..."},
+                {"name": "no_hallucination", "score": 0.85, "feedback": "..."}
+              ]
+            }
+            ```
+            """;
+    }
+
+    private static NodeQualityScore ParseScoringResult(string? content)
+    {
+        if (string.IsNullOrWhiteSpace(content))
+            return NodeQualityScore.Default;
+
+        var result = LlmJsonHelper.DeserializeWithReport(content, GoalJsonContext.Default.GradingAnalysisJson, out _);
+        if (result is null || result.Criteria.Count == 0)
+            return NodeQualityScore.Default;
+
+        var dimensions = new Dictionary<string, double>(StringComparer.Ordinal);
+        var totalScore = 0.0;
+        foreach (var criterion in result.Criteria)
+        {
+            var clampedScore = Math.Clamp(criterion.Score, 0.0, 1.0);
+            dimensions[criterion.Name] = clampedScore;
+            totalScore += clampedScore;
+        }
+
+        var overall = result.Criteria.Count > 0 ? totalScore / result.Criteria.Count : 0.5;
+        return new NodeQualityScore
+        {
+            Overall = overall,
+            Dimensions = dimensions,
+            Reason = result.Reason,
+        };
     }
 
     private void CheckNodeTimeout(GoalNodePayload node, DateTime now, List<NodeHealthAlert> alerts)

@@ -235,4 +235,55 @@ public sealed class GoalNodeInspectorTests
     {
         await Assert.ThrowsAsync<ArgumentException>(() => _sut.ScoreAsync("")).ConfigureAwait(true);
     }
+
+    [Fact]
+    public async Task ScoreAsync_WithKernel_Should_ParseLlmScore()
+    {
+        var kernel = new Mock<IChatClient>();
+        var chatService = new Mock<IQueryService>();
+        chatService.Setup(x => x.GetApiMessageContentsAsync(It.IsAny<MessageList>(), It.IsAny<ChatOptions>(), It.IsAny<IChatClient>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([new ApiMessage { Role = MessageRole.Assistant, Content = """{"reason":"ok","criteria":[{"name":"completeness","score":0.8,"feedback":"good"},{"name":"correctness","score":0.6,"feedback":"fair"}]}""" }]);
+
+        kernel.Setup(x => x.GetChatCompletionService()).Returns(chatService.Object);
+
+        var inspector = new GoalNodeInspector(kernel: kernel.Object);
+        var score = await inspector.ScoreAsync("test output").ConfigureAwait(true);
+
+        Assert.Equal(0.7, score.Overall, precision: 2);
+        Assert.Equal(2, score.Dimensions.Count);
+        Assert.Equal(0.8, score.Dimensions["completeness"]);
+        Assert.Equal(0.6, score.Dimensions["correctness"]);
+    }
+
+    [Fact]
+    public async Task ScoreAsync_WithKernel_LlmFails_Should_ReturnDefault()
+    {
+        var kernel = new Mock<IChatClient>();
+        var chatService = new Mock<IQueryService>();
+        chatService.Setup(x => x.GetApiMessageContentsAsync(It.IsAny<MessageList>(), It.IsAny<ChatOptions>(), It.IsAny<IChatClient>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new HttpRequestException("网络错误"));
+
+        kernel.Setup(x => x.GetChatCompletionService()).Returns(chatService.Object);
+
+        var inspector = new GoalNodeInspector(kernel: kernel.Object);
+        var score = await inspector.ScoreAsync("test output").ConfigureAwait(true);
+
+        Assert.Equal(0.5, score.Overall);
+    }
+
+    [Fact]
+    public async Task ScoreAsync_WithKernel_InvalidJson_Should_ReturnDefault()
+    {
+        var kernel = new Mock<IChatClient>();
+        var chatService = new Mock<IQueryService>();
+        chatService.Setup(x => x.GetApiMessageContentsAsync(It.IsAny<MessageList>(), It.IsAny<ChatOptions>(), It.IsAny<IChatClient>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([new ApiMessage { Role = MessageRole.Assistant, Content = "not json" }]);
+
+        kernel.Setup(x => x.GetChatCompletionService()).Returns(chatService.Object);
+
+        var inspector = new GoalNodeInspector(kernel: kernel.Object);
+        var score = await inspector.ScoreAsync("test output").ConfigureAwait(true);
+
+        Assert.Equal(0.5, score.Overall);
+    }
 }

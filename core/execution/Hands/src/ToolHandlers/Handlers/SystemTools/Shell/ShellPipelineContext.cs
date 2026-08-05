@@ -14,9 +14,9 @@ public sealed class ShellPipelineContext
     public required string Command { get; set; }
 
     /// <summary>
-    /// Shell 执行体 — 决定路径门控方向、进程启动方式、编码等
+    /// 系统执行器 — 决定路径门控方向、进程启动方式、编码等
     /// </summary>
-    public required IShellProvider Provider { get; init; }
+    public required ISystemActuator Provider { get; init; }
 
     /// <summary>
     /// 命令描述
@@ -97,7 +97,7 @@ public sealed class ShellPipelineContext
     /// <summary>
     /// 执行结果 — 由 ShellExecutionMiddleware 设置
     /// </summary>
-    public ShellExecutionResult? ExecutionResult { get; set; }
+    public SystemActuatorExecutionResult? ExecutionResult { get; set; }
 
     // === ShellOutputMiddleware 填充 ===
 

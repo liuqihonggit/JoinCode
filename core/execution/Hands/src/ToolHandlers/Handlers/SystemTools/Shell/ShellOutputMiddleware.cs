@@ -24,7 +24,7 @@ public sealed partial class ShellOutputMiddleware : IShellMiddleware
             return Task.CompletedTask;
         }
 
-        var shellType = context.Provider.Type.ToValue();
+        var shellType = context.Provider.Kind.Id;
 
         if (result.Interrupted)
         {
@@ -85,7 +85,7 @@ public sealed partial class ShellOutputMiddleware : IShellMiddleware
     /// <summary>
     /// 构建 Shell 执行实体元数据 — 用于回填 BashProcessEntity 子类字段
     /// </summary>
-    private static List<EntityMetadataEntry> BuildShellEntityMetadata(ShellExecutionResult result)
+    private static List<EntityMetadataEntry> BuildShellEntityMetadata(SystemActuatorExecutionResult result)
     {
         var metadata = new List<EntityMetadataEntry>();
         if (result.ExitCode.HasValue)
@@ -103,7 +103,7 @@ public sealed partial class ShellOutputMiddleware : IShellMiddleware
     /// 构建输出响应 — 对齐 TS mapToolResultToToolResultBlockParam
     /// 供 PowerShellToolHandlers 等非管道路径复用，避免重复实现输出格式化
     /// </summary>
-    internal static string BuildOutputResponse(ShellExecutionResult result, string? command = null)
+    internal static string BuildOutputResponse(SystemActuatorExecutionResult result, string? command = null)
     {
         // 对齐 TS mapToolResultToToolResultBlockParam: stdout 处理
         var processedStdout = result.Stdout ?? string.Empty;
@@ -153,7 +153,7 @@ public sealed partial class ShellOutputMiddleware : IShellMiddleware
     /// <summary>
     /// 构建后台任务信息 — 对齐 TS mapToolResultToToolResultBlockParam backgroundInfo
     /// </summary>
-    private static string BuildBackgroundInfo(ShellExecutionResult result)
+    private static string BuildBackgroundInfo(SystemActuatorExecutionResult result)
     {
         if (result.BackgroundTaskId is null) return string.Empty;
 

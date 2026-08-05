@@ -127,7 +127,7 @@ public sealed class BashShellProvider : ShellProviderBase
     private static string ShellQuote(string s) => "'" + s.Replace("'", "'\\''") + "'";
 
     private string ConvertToPosixPath(string path)
-        => _probeService?.GatePath(path, this) ?? PathConverter.WindowsPathToPosixPath(path);
+        => PathConverter.WindowsPathToPosixPath(path);
 
     private static string PosixJoin(params string[] segments)
         => string.Join('/', segments.Select(s => s.TrimEnd('/')));

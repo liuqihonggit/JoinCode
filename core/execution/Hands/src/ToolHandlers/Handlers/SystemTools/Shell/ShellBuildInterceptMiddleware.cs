@@ -35,13 +35,13 @@ public sealed partial class ShellBuildInterceptMiddleware : IShellMiddleware
 
             if (entry?.Status == BuildQueueEntryStatus.Cancelled)
             {
-                context.ExecutionResult = new ShellExecutionResult
-                {
-                    Stdout = string.Empty,
-                    Stderr = "Build was cancelled",
-                    ExitCode = -1,
-                    Interrupted = true,
-                };
+            context.ExecutionResult = new SystemActuatorExecutionResult
+            {
+                Stdout = string.Empty,
+                Stderr = "Build was cancelled",
+                ExitCode = -1,
+                Interrupted = true,
+            };
                 context.Result = ToolResultBuilder.Error().WithText("Build was cancelled").Build();
                 return;
             }
@@ -92,7 +92,7 @@ public sealed partial class ShellBuildInterceptMiddleware : IShellMiddleware
         var fullOutput = r.ExitCode == 0 ? r.Output : $"{r.ErrorOutput}\n{r.Output}";
         var displayOutput = TruncateOutput(fullOutput, r.BuildId);
 
-        context.ExecutionResult = new ShellExecutionResult
+        context.ExecutionResult = new SystemActuatorExecutionResult
         {
             Stdout = r.Output,
             Stderr = r.ErrorOutput,

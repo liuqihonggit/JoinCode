@@ -9,7 +9,7 @@ namespace Tools.Handlers;
 public class PowerShellToolHandlers : ShellToolBase
 {
     private readonly MiddlewarePipeline<ShellPipelineContext> _pipeline;
-    private readonly IShellExecutionService _shellExecutionService;
+    private readonly ISystemActuatorRegistry _registry;
     private readonly IFileOperationService _fileOperationService;
     private readonly IFileSystem _fs;
     private readonly ILogger? _logger;
@@ -21,7 +21,7 @@ public class PowerShellToolHandlers : ShellToolBase
 
     public PowerShellToolHandlers(
         MiddlewarePipeline<ShellPipelineContext> pipeline,
-        IShellExecutionService shellExecutionService,
+        ISystemActuatorRegistry registry,
         IFileOperationService fileOperationService,
         IFileSystem fs,
         ILogger? logger = null,
@@ -33,7 +33,7 @@ public class PowerShellToolHandlers : ShellToolBase
         : base(gateService, watchdog)
     {
         _pipeline = pipeline ?? throw new ArgumentNullException(nameof(pipeline));
-        _shellExecutionService = shellExecutionService ?? throw new ArgumentNullException(nameof(shellExecutionService));
+        _registry = registry ?? throw new ArgumentNullException(nameof(registry));
         _fileOperationService = fileOperationService ?? throw new ArgumentNullException(nameof(fileOperationService));
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _logger = logger;
@@ -58,7 +58,7 @@ public class PowerShellToolHandlers : ShellToolBase
         CancellationToken cancellationToken = default,
         ToolProgressCallback? onProgress = null)
     {
-        var gateResult = CheckGate(ShellType.PowerShell);
+        var gateResult = CheckGate(SystemActuatorKind.PowerShell);
         if (gateResult is not null) return gateResult;
 
         if (string.IsNullOrWhiteSpace(command))
@@ -102,12 +102,12 @@ public class PowerShellToolHandlers : ShellToolBase
             }
         }
 
-        using var provider = ShellProviderFactory.Create(ShellType.PowerShell, _fs, _logger);
+        var actuator = _registry.Get(SystemActuatorKind.PowerShell);
 
         var context = new ShellPipelineContext
         {
             Command = command,
-            Provider = provider,
+            Provider = actuator,
             Description = description,
             Timeout = timeout,
             WorkingDirectory = working_directory,
@@ -136,7 +136,7 @@ public class PowerShellToolHandlers : ShellToolBase
         [McpToolParameter("Working directory", Required = false)] string? working_directory = null,
         CancellationToken cancellationToken = default)
     {
-        var gateResult = CheckGate(ShellType.PowerShell);
+        var gateResult = CheckGate(SystemActuatorKind.PowerShell);
         if (gateResult is not null) return gateResult;
 
         if (string.IsNullOrWhiteSpace(script_path))
@@ -178,7 +178,7 @@ public class PowerShellToolHandlers : ShellToolBase
 
         var fullCommand = $"powershell.exe {psArgs}";
 
-        var result = await _shellExecutionService.ExecuteAsync(
+        var result = await _registry.Get(SystemActuatorKind.PowerShell).ExecuteAsync(
             fullCommand,
             timeout ?? 60000,
             working_directory,
@@ -209,13 +209,13 @@ public class PowerShellToolHandlers : ShellToolBase
     public async Task<ToolResult> PowerShellVersionAsync(
         CancellationToken cancellationToken = default)
     {
-        var gateResult = CheckGate(ShellType.PowerShell);
+        var gateResult = CheckGate(SystemActuatorKind.PowerShell);
         if (gateResult is not null) return gateResult;
 
         var command = "$PSVersionTable | ConvertTo-Json";
         var fullCommand = $"powershell.exe -NoProfile -Command \"{command}\"";
 
-        var result = await _shellExecutionService.ExecuteAsync(
+        var result = await _registry.Get(SystemActuatorKind.PowerShell).ExecuteAsync(
             fullCommand,
             10000,
             null,
@@ -231,7 +231,7 @@ public class PowerShellToolHandlers : ShellToolBase
         }
         else
         {
-            var simpleResult = await _shellExecutionService.ExecuteAsync(
+            var simpleResult = await _registry.Get(SystemActuatorKind.PowerShell).ExecuteAsync(
                 "powershell.exe -NoProfile -Command \"$PSVersionTable.PSVersion\"",
                 10000,
                 null,
@@ -269,7 +269,7 @@ public class PowerShellToolHandlers : ShellToolBase
         [McpToolParameter("Scope (e.g. Process, CurrentUser, LocalMachine)", Required = false)] string? scope = null,
         CancellationToken cancellationToken = default)
     {
-        var gateResult = CheckGate(ShellType.PowerShell);
+        var gateResult = CheckGate(SystemActuatorKind.PowerShell);
         if (gateResult is not null) return gateResult;
 
         var command = string.IsNullOrEmpty(scope)
@@ -278,7 +278,7 @@ public class PowerShellToolHandlers : ShellToolBase
 
         var fullCommand = $"powershell.exe -NoProfile -Command \"{command}\"";
 
-        var result = await _shellExecutionService.ExecuteAsync(
+        var result = await _registry.Get(SystemActuatorKind.PowerShell).ExecuteAsync(
             fullCommand,
             10000,
             null,
@@ -323,7 +323,7 @@ public class PowerShellToolHandlers : ShellToolBase
         [McpToolParameter("Force setting without confirmation prompt", Required = false, DefaultValue = "true")] bool? force = null,
         CancellationToken cancellationToken = default)
     {
-        var gateResult = CheckGate(ShellType.PowerShell);
+        var gateResult = CheckGate(SystemActuatorKind.PowerShell);
         if (gateResult is not null) return gateResult;
 
         if (string.IsNullOrWhiteSpace(policy))
@@ -345,7 +345,7 @@ public class PowerShellToolHandlers : ShellToolBase
         var command = $"Set-ExecutionPolicy -ExecutionPolicy {policy} -Scope {scopeParam} {forceParam}";
         var fullCommand = $"powershell.exe -NoProfile -Command \"{command}\"";
 
-        var result = await _shellExecutionService.ExecuteAsync(
+        var result = await _registry.Get(SystemActuatorKind.PowerShell).ExecuteAsync(
             fullCommand,
             30000,
             null,
@@ -382,7 +382,7 @@ public class PowerShellToolHandlers : ShellToolBase
             var command = "$ExecutionContext.SessionState.LanguageMode";
             var fullCommand = $"powershell.exe -NoProfile -Command \"{command}\"";
 
-            var result = await _shellExecutionService.ExecuteAsync(
+            var result = await _registry.Get(SystemActuatorKind.PowerShell).ExecuteAsync(
                 fullCommand,
                 5000,
                 null,

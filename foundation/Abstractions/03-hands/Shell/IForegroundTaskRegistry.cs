@@ -9,7 +9,7 @@ public interface IForegroundTaskRegistry
     /// <summary>
     /// 注册前台任务 — 对齐 TS registerForeground
     /// </summary>
-    void Register(IShellCommandContext context);
+    void Register(ISystemActuatorCommandContext context);
 
     /// <summary>
     /// 注销前台任务
@@ -30,7 +30,7 @@ public interface IForegroundTaskRegistry
     /// <summary>
     /// 获取所有前台任务（遍历器，不分配新集合）
     /// </summary>
-    IEnumerable<IShellCommandContext> GetForegroundTasks();
+    IEnumerable<ISystemActuatorCommandContext> GetForegroundTasks();
 
     /// <summary>
     /// 压缩所有注册的前台/后台任务 — 对齐 TS 上下文压缩时的 Shell 资源回收

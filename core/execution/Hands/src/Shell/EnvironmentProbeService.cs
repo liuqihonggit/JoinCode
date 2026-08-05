@@ -79,12 +79,12 @@ public sealed class EnvironmentProbeService : IEnvironmentProbeService
     }
 
     /// <inheritdoc />
-    public string GatePath(string rawPath, IShellProvider provider)
+    public string GatePath(string rawPath, ISystemActuator actuator)
     {
         if (string.IsNullOrWhiteSpace(rawPath)) return rawPath;
 
         var isWindows = OperatingSystem.IsWindows();
-        var isBash = provider.Type == ShellType.Bash;
+        var isBash = actuator.Kind == SystemActuatorKind.Bash;
 
         if (isWindows && isBash)
         {
@@ -105,12 +105,12 @@ public sealed class EnvironmentProbeService : IEnvironmentProbeService
     }
 
     /// <inheritdoc />
-    public string GateCommandPaths(string command, IShellProvider provider)
+    public string GateCommandPaths(string command, ISystemActuator actuator)
     {
         if (string.IsNullOrEmpty(command)) return command;
 
         var isWindows = OperatingSystem.IsWindows();
-        var isBash = provider.Type == ShellType.Bash;
+        var isBash = actuator.Kind == SystemActuatorKind.Bash;
         var toPosix = (isWindows && isBash) || (!isWindows);
 
         return PathConverter.GateCommandPaths(command, toPosix);

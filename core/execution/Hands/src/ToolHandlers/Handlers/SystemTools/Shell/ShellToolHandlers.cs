@@ -3,14 +3,12 @@ namespace Tools.Handlers;
 /// <summary>
 /// Shell 执行工具处理器 — 提供 Bash 命令执行 + 后台任务管理
 /// 通过中间件管道处理验证、分类、sed拦截、后台判断、执行、输出格式化
-/// 继承 ShellToolBase 获得 PowerShell 门控、进程看护、压缩标记
-/// PowerShell 命令由 PowerShellToolHandlers 独立处理
 /// </summary>
 [McpToolDispatch(ToolCategory.Shell)]
 public partial class ShellToolHandlers : ShellToolBase
 {
     private readonly MiddlewarePipeline<ShellPipelineContext> _pipeline;
-    private readonly IShellBackgroundTaskService? _backgroundTaskService;
+    private readonly ISystemActuatorRegistry _registry;
     private readonly IFileSystem _fs;
     private readonly ILogger? _logger;
 
@@ -18,22 +16,21 @@ public partial class ShellToolHandlers : ShellToolBase
 
     public ShellToolHandlers(
         MiddlewarePipeline<ShellPipelineContext> pipeline,
+        ISystemActuatorRegistry registry,
         IFileSystem fs,
         ILogger? logger = null,
         IShellToolGateService? gateService = null,
-        IShellProcessWatchdog? watchdog = null,
-        IShellBackgroundTaskService? backgroundTaskService = null)
+        IShellProcessWatchdog? watchdog = null)
         : base(gateService, watchdog)
     {
         _pipeline = pipeline ?? throw new ArgumentNullException(nameof(pipeline));
+        _registry = registry ?? throw new ArgumentNullException(nameof(registry));
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _logger = logger;
-        _backgroundTaskService = backgroundTaskService;
     }
 
     /// <summary>
-    /// 执行 Bash 命令 — 对齐 TS BashTool
-    /// 超时自动后台化、assistant 自动后台化、description 参数
+    /// 执行 Bash 命令
     /// </summary>
     [McpTool(ShellToolNameConstants.Bash, "Execute a Bash/CMD command. The description parameter briefly describes the command purpose", "execution")]
     public async Task<ToolResult> ShellExecuteAsync(
@@ -42,17 +39,17 @@ public partial class ShellToolHandlers : ShellToolBase
         [McpToolParameter("Timeout in milliseconds, default 120000ms", Required = false, DefaultValue = "120000")] int? timeout = null,
         [McpToolParameter("Working directory, defaults to current directory", Required = false)] string? working_directory = null,
         [McpToolParameter("Run in background (do not wait for completion)", Required = false, DefaultValue = "false")] bool? background = null,
-        [McpToolParameter("Enable auto-backgrounding on timeout — 对齐 TS shouldAutoBackground", Required = false, DefaultValue = "true")] bool? auto_background = null,
-        [McpToolParameter("Override sandbox mode for this command — 对齐 TS dangerouslyDisableSandbox", Required = false, DefaultValue = "false")] bool? dangerously_disable_sandbox = null,
+        [McpToolParameter("Enable auto-backgrounding on timeout", Required = false, DefaultValue = "true")] bool? auto_background = null,
+        [McpToolParameter("Override sandbox mode for this command", Required = false, DefaultValue = "false")] bool? dangerously_disable_sandbox = null,
         CancellationToken cancellationToken = default,
         ToolProgressCallback? onProgress = null)
     {
-        using var provider = ShellProviderFactory.Create(ShellType.Bash, _fs, _logger);
+        var actuator = _registry.Get(SystemActuatorKind.Bash);
 
         var context = new ShellPipelineContext
         {
             Command = command,
-            Provider = provider,
+            Provider = actuator,
             Description = description,
             Timeout = timeout,
             WorkingDirectory = working_directory,
@@ -76,22 +73,13 @@ public partial class ShellToolHandlers : ShellToolBase
         [McpToolParameter("Task ID")] string task_id,
         CancellationToken cancellationToken = default)
     {
-        if (_backgroundTaskService == null)
-        {
-            return ToolResultBuilder.Error().WithText("Background task service is not available").Build();
-        }
-
         if (string.IsNullOrWhiteSpace(task_id))
-        {
             return ToolResultBuilder.Error().WithText("task_id is required").Build();
-        }
 
-        var task = await _backgroundTaskService.GetTaskAsync(task_id, cancellationToken).ConfigureAwait(false);
+        var task = await _registry.GetTaskAsync(task_id, cancellationToken).ConfigureAwait(false);
 
         if (task == null)
-        {
             return ToolResultBuilder.Error().WithText($"Task not found: {task_id}").Build();
-        }
 
         var response = new StringBuilder();
         response.AppendLine("Background task status");
@@ -102,24 +90,16 @@ public partial class ShellToolHandlers : ShellToolBase
         response.AppendLine($"Created: {task.CreatedAt:yyyy-MM-dd HH:mm:ss}");
 
         if (task.StartedAt.HasValue)
-        {
             response.AppendLine($"Started: {task.StartedAt.Value:yyyy-MM-dd HH:mm:ss}");
-        }
 
         if (task.CompletedAt.HasValue)
-        {
             response.AppendLine($"Completed: {task.CompletedAt.Value:yyyy-MM-dd HH:mm:ss}");
-        }
 
         if (task.ExitCode.HasValue)
-        {
             response.AppendLine($"Exit code: {task.ExitCode}");
-        }
 
         if (!string.IsNullOrEmpty(task.ErrorMessage))
-        {
             response.AppendLine($"Error: {task.ErrorMessage}");
-        }
 
         return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
@@ -131,12 +111,7 @@ public partial class ShellToolHandlers : ShellToolBase
     public async Task<ToolResult> ShellBackgroundListAsync(
         CancellationToken cancellationToken = default)
     {
-        if (_backgroundTaskService == null)
-        {
-            return ToolResultBuilder.Error().WithText("Background task service is not available").Build();
-        }
-
-        var tasks = await _backgroundTaskService.ListTasksAsync(cancellationToken).ConfigureAwait(false);
+        var tasks = await _registry.ListTasksAsync(cancellationToken).ConfigureAwait(false);
 
         var response = new StringBuilder();
         response.AppendLine($"Background tasks ({tasks.Count} total)");
@@ -168,22 +143,13 @@ public partial class ShellToolHandlers : ShellToolBase
         [McpToolParameter("Task ID")] string task_id,
         CancellationToken cancellationToken = default)
     {
-        if (_backgroundTaskService == null)
-        {
-            return ToolResultBuilder.Error().WithText("Background task service is not available").Build();
-        }
-
         if (string.IsNullOrWhiteSpace(task_id))
-        {
             return ToolResultBuilder.Error().WithText("task_id is required").Build();
-        }
 
-        var output = await _backgroundTaskService.GetTaskOutputAsync(task_id, cancellationToken).ConfigureAwait(false);
+        var output = await _registry.GetTaskOutputAsync(task_id, cancellationToken).ConfigureAwait(false);
 
         if (string.IsNullOrEmpty(output))
-        {
             return ToolResultBuilder.Success().WithText("(No output yet)").Build();
-        }
 
         return ToolResultBuilder.Success().WithText(output).Build();
     }
@@ -196,39 +162,25 @@ public partial class ShellToolHandlers : ShellToolBase
         [McpToolParameter("Task ID")] string task_id,
         CancellationToken cancellationToken = default)
     {
-        if (_backgroundTaskService == null)
-        {
-            return ToolResultBuilder.Error().WithText("Background task service is not available").Build();
-        }
-
         if (string.IsNullOrWhiteSpace(task_id))
-        {
             return ToolResultBuilder.Error().WithText("task_id is required").Build();
-        }
 
-        var cancelled = await _backgroundTaskService.CancelTaskAsync(task_id, cancellationToken).ConfigureAwait(false);
+        var cancelled = await _registry.CancelTaskAsync(task_id, cancellationToken).ConfigureAwait(false);
 
         if (!cancelled)
-        {
             return ToolResultBuilder.Error().WithText($"Cannot cancel task {task_id} — task may not exist or already completed").Build();
-        }
 
         return ToolResultBuilder.Success().WithText($"Task {task_id} cancelled").Build();
     }
 
     /// <summary>
-    /// 强制杀死所有运行中的后台任务 — 对齐 TS 用户强行消灭全部后台进程
+    /// 强制杀死所有运行中的后台任务
     /// </summary>
     [McpTool(ShellToolNameConstants.ShellBackgroundKillAll, "Force kill ALL running background shell tasks and reclaim memory", "execution")]
     public async Task<ToolResult> ShellBackgroundKillAllAsync(
         CancellationToken cancellationToken = default)
     {
-        if (_backgroundTaskService == null)
-        {
-            return ToolResultBuilder.Error().WithText("Background task service is not available").Build();
-        }
-
-        var killedCount = await _backgroundTaskService.KillAllRunningAsync(cancellationToken).ConfigureAwait(false);
+        var killedCount = await _registry.KillAllRunningAsync(cancellationToken).ConfigureAwait(false);
 
         return ToolResultBuilder.Success().WithText(killedCount > 0
             ? $"Killed {killedCount} running background task(s)"

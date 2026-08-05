@@ -14,6 +14,7 @@ public sealed partial class SessionStats : ServiceEntity, ISessionStats
     public int ToolSpecsCacheBreaks { get; private set; }
     public int DynamicContentCacheBreaks { get; private set; }
     public int CacheEvictionBreaks { get; private set; }
+    public int CompactionEnteredBreaks { get; private set; }
     public decimal TotalCostUsd => _carryoverCostUsd + _turnsCostUsd;
     private decimal _carryoverCostUsd;
     private decimal _turnsCostUsd;
@@ -63,6 +64,9 @@ public sealed partial class SessionStats : ServiceEntity, ISessionStats
                 case CacheBreakKind.CacheEviction:
                     CacheEvictionBreaks++;
                     break;
+                case CacheBreakKind.CompactionEntered:
+                    CompactionEnteredBreaks++;
+                    break;
             }
         }
     }
@@ -82,6 +86,7 @@ public sealed partial class SessionStats : ServiceEntity, ISessionStats
         ToolSpecsCacheBreaks = 0;
         DynamicContentCacheBreaks = 0;
         CacheEvictionBreaks = 0;
+        CompactionEnteredBreaks = 0;
     }
 
     public SessionMeta ToMeta()

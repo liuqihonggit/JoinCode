@@ -26,7 +26,9 @@ public enum CacheBreakKind
     ModelChanged,
     FastModeChanged,
     /// <summary>对话消息序列中的既有前缀被篡改/插入（真实线上前缀已破坏）</summary>
-    ConversationHistoryChanged
+    ConversationHistoryChanged,
+    /// <summary>上下文已被主动压缩/折叠，前缀被重写 —— 是本项目发起的缓存重建，非驱逐</summary>
+    CompactionEntered
 }
 
 public sealed class CacheBreakResult

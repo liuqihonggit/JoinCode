@@ -452,13 +452,21 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            return decision switch
+            var foldResult = decision switch
             {
                 ContextFoldDecision.FoldNormal => await _foldExecutor.FoldAsync(_conversationLog, _contextWindowResolver.ResolveCurrentContextWindow(), aggressive: false, _thresholds, cancellationToken).ConfigureAwait(false),
                 ContextFoldDecision.FoldAggressive => await _foldExecutor.FoldAsync(_conversationLog, _contextWindowResolver.ResolveCurrentContextWindow(), aggressive: true, _thresholds, cancellationToken).ConfigureAwait(false),
                 ContextFoldDecision.ExitWithSummary => _foldExecutor.TrimTrailingAndPrepareExit(_conversationLog),
                 _ => new ContextFoldResult { Folded = false, Decision = decision, OriginalMessageCount = _conversationLog.Count }
             };
+
+            // 折叠/压缩确实改写前缀后，通知检测器重置缓存基线，避免下一次 miss 被误报为驱逐
+            if (foldResult.Folded)
+            {
+                _cacheBreakDetector.NotifyCompaction();
+            }
+
+            return foldResult;
         }
         finally
         {

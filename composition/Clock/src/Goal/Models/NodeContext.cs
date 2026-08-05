@@ -26,6 +26,7 @@ public sealed class NodeResult
     public string? Message { get; init; }
     public int TokensUsed { get; init; }
     public bool IsFailed { get; init; }
+    public IReadOnlyList<ConflictMessage>? Conflicts { get; init; }
 
     public static NodeResult Succeeded(string? output, int tokensUsed = 0)
         => new() { Output = output, TokensUsed = tokensUsed };
@@ -35,4 +36,7 @@ public sealed class NodeResult
 
     public static NodeResult Failed(string errorMessage, int tokensUsed = 0)
         => new() { Output = null, TokensUsed = tokensUsed, Message = errorMessage, IsFailed = true };
+
+    public NodeResult WithConflicts(IReadOnlyList<ConflictMessage> conflicts)
+        => new() { Output = Output, Routes = Routes, Message = Message, TokensUsed = TokensUsed, IsFailed = IsFailed, Conflicts = conflicts };
 }

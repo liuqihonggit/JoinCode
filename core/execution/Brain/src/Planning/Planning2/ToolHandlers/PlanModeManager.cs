@@ -132,7 +132,7 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
 
         // 对齐 TS getPlanSlug(): 同一 session 内缓存 slug，保证覆盖同一文件
         _currentSessionSlug ??= PlanSlugGenerator.GetOrCreateSlug(
-            $"session_{Environment.CurrentManagedThreadId}_{_clock.GetUtcNow():yyyyMMddHHmmss}", _fs);
+            $"session_{Environment.CurrentManagedThreadId}_{_clock.GetUtcNow():yyyyMMddHHmmss}", _fs, _logger);
 
         var plan = new PlanState
         {

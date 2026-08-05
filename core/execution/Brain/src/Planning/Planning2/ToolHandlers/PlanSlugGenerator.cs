@@ -58,9 +58,9 @@ internal static class PlanSlugGenerator
     /// <summary>
     /// 对齐 TS getPlanSlug(): 获取或生成 session 级别的 slug 缓存
     /// </summary>
-    public static string GetOrCreateSlug(string sessionId, IFileSystem fs)
+    public static string GetOrCreateSlug(string sessionId, IFileSystem fs, ILogger? logger = null)
     {
-        return SlugCache.GetOrAdd(sessionId, static (id, fileSystem) =>
+        return SlugCache.GetOrAdd(sessionId, (id, fileSystem) =>
         {
             var slug = GenerateWordSlug();
 
@@ -82,7 +82,7 @@ internal static class PlanSlugGenerator
             catch (Exception ex)
             {
                 // 目录创建失败时直接返回 slug，不检查文件冲突
-                System.Diagnostics.Trace.WriteLine($"Plan slug directory check failed: {ex.Message}");
+                logger?.LogWarning("计划 slug 目录检查失败: {Error}", ex.Message);
             }
 
             return slug;

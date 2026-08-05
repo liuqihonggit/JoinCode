@@ -55,4 +55,34 @@ public sealed partial class GitCommandRunner : IGitCommandRunner
             };
         }
     }
+
+    public async Task<MergeConflictResult> DetectMergeConflictAsync(
+        string branch1,
+        string branch2,
+        string? workingDirectory = null,
+        CancellationToken ct = default)
+    {
+        var result = await ExecuteAsync($"merge-tree --write-tree --name-only {branch1} {branch2}", workingDirectory, ct).ConfigureAwait(false);
+
+        if (result.ExitCode == 0)
+        {
+            return new MergeConflictResult { HasConflict = false, MergedTreeOid = result.Output.Trim() };
+        }
+
+        if (result.ExitCode == 1)
+        {
+            var lines = result.Output.Split('\n');
+            var treeOid = lines.Length > 0 ? lines[0].Trim() : string.Empty;
+            var conflictFiles = new List<string>();
+            for (var i = 1; i < lines.Length; i++)
+            {
+                var line = lines[i].Trim();
+                if (line.Length == 0) break;
+                conflictFiles.Add(line);
+            }
+            return new MergeConflictResult { HasConflict = true, MergedTreeOid = treeOid, ConflictFiles = conflictFiles };
+        }
+
+        return new MergeConflictResult { HasConflict = false, Error = result.Error };
+    }
 }

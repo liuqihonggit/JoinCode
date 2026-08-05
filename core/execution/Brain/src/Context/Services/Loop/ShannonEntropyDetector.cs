@@ -10,7 +10,7 @@ public sealed class ShannonEntropyDetector
     private readonly int _windowSize;
     private readonly int _declineThreshold;
     private readonly double _minEntropyDelta;
-    private readonly List<double> _entropyHistory;
+    private readonly RingBuffer<double> _entropyHistory;
     private int _triggerCount;
 
     /// <summary>
@@ -31,7 +31,7 @@ public sealed class ShannonEntropyDetector
         _windowSize = windowSize;
         _declineThreshold = declineThreshold;
         _minEntropyDelta = minEntropyDelta;
-        _entropyHistory = [];
+        _entropyHistory = new RingBuffer<double>(windowSize * 2);
         _triggerCount = 0;
     }
 
@@ -48,8 +48,6 @@ public sealed class ShannonEntropyDetector
         var entropy = ComputeShannonEntropy(text);
 
         _entropyHistory.Add(entropy);
-        if (_entropyHistory.Count > _windowSize * 2)
-            _entropyHistory.RemoveRange(0, _entropyHistory.Count - _windowSize * 2);
 
         var declineStreak = CountConsecutiveDecline();
         var currentEntropy = entropy;

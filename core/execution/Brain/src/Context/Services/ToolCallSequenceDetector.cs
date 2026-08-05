@@ -11,8 +11,8 @@ public sealed class ToolCallSequenceDetector
     private readonly int _windowSize;
     private readonly int _minPatternLength;
     private readonly int _requiredRepeats;
-    private readonly List<string> _nameSequence;
-    private readonly List<string?> _fingerprintSequence;
+    private readonly RingBuffer<string> _nameSequence;
+    private readonly RingBuffer<string?> _fingerprintSequence;
 
     public ToolCallSequenceDetector(
         int windowSize = 6,
@@ -26,8 +26,9 @@ public sealed class ToolCallSequenceDetector
         _windowSize = windowSize;
         _minPatternLength = minPatternLength;
         _requiredRepeats = requiredRepeats;
-        _nameSequence = [];
-        _fingerprintSequence = [];
+        var maxCount = windowSize * requiredRepeats + windowSize;
+        _nameSequence = new RingBuffer<string>(maxCount);
+        _fingerprintSequence = new RingBuffer<string?>(maxCount);
     }
 
     /// <summary>
@@ -49,8 +50,6 @@ public sealed class ToolCallSequenceDetector
         _nameSequence.Add(toolName);
         _fingerprintSequence.Add(argsFingerprint);
 
-        TrimSequences();
-
         if (_nameSequence.Count < _minPatternLength * _requiredRepeats)
             return ToolCallSequenceResult.NoLoop;
 
@@ -70,17 +69,6 @@ public sealed class ToolCallSequenceDetector
     {
         _nameSequence.Clear();
         _fingerprintSequence.Clear();
-    }
-
-    private void TrimSequences()
-    {
-        var maxCount = _windowSize * _requiredRepeats + _windowSize;
-        if (_nameSequence.Count > maxCount)
-        {
-            var removeCount = _nameSequence.Count - maxCount;
-            _nameSequence.RemoveRange(0, removeCount);
-            _fingerprintSequence.RemoveRange(0, removeCount);
-        }
     }
 
     private ToolCallSequenceResult AnalyzePattern(int patternLen)
@@ -125,7 +113,7 @@ public sealed class ToolCallSequenceDetector
         if (repeatCount < _requiredRepeats)
             return ToolCallSequenceResult.NoLoop;
 
-        var pattern = string.Join("→", _nameSequence[^patternLen..]);
+        var pattern = string.Join("→", _nameSequence.Slice(_nameSequence.Count - patternLen, patternLen));
         var allArgsMatched = argsMatchCount >= repeatCount - 1;
 
         return new ToolCallSequenceResult(true, pattern, repeatCount, ArgsMatched: allArgsMatched);

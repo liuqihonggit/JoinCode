@@ -89,10 +89,37 @@ PreChatMiddleware.RecordPromptStateAsync        // core/execution/Brain/src/Cont
 2. 判 break 用「相对 >5% 且绝对 ≥2k token 下降」替换现有"identical 且 read==0"过于粗糙的后置判定。
 3. 归因细分：TTL(时间间隔) vs 服务端 vs 客户端变更，消除现有单一 `CacheEviction` 语义混淆。
 
-## 6. 决策记录
+## 6. 上游参考（DeepSeek-Reasonix Go 版，main-v2/v1.20）
+
+> 调查核实：这个"压缩 vs 前缀缓存"矛盾在三家（Claude Code TS / Reasonix TS / **Reasonix Go**）中都存在；Go 版是**唯一把"缓存优先折叠"落地并带 E2E 验证的**，是本 C# 计划的黄金参照。
+
+| 我的计划项 | Go 版实现 | 文件 | 结论 |
+|-----------|----------|------|------|
+| Phase1 缓存感知延迟折叠 | ✅ **软/硬分层阈值**：`soft=0.5` 只提示不改折叠、显式保留前缀 | `internal/agent/compact.go:87-112,125` | **Go 版已落地同款想法**，比 Claude Code 更接近本 Phase1；直接抄 |
+| Phase1 推迟封顶 | ✅ **折叠卡死锁**：窗口太小时折叠赶不上增长→自动暂停、让前缀只增不改 | `compact.go:94,122-131,154-159` | 比"计数封顶"更强的兜底，命中率恢复 |
+| Phase1 折叠前低成本剪裁 | ✅ **`snip=0.6` 先剪裁过期 tool_calls** 再摘要折叠 | `compact.go:113-121,133-143` | 剪裁比摘要省一轮 omitcall，可作为折叠前预步骤 |
+| Phase2 折叠后重基线 | ✅ `session.RewriteVersion` → `CacheBreakKind` 属于 `log_rewrite` 而非 `CacheEviction` | `agent/session.go:20,92` + `cache_shape.go:26,75` | 与主张一致，已工程验证 |
+| Phase2 归因细分 | ✅ `PrefixChangeReasons: system/tools/log_rewrite` + `CacheDiagnostics` 上报 | `cache_shape.go:66-93` | D4 的落地形态 |
+| MCP 工具漂移保护 | ✅ `normalizeToolSchemas` 按名排序再 hash，化解工具重排漂移 | `cache_shape.go:51-64` | 比 TS 版 `drift.ts` 5 级更像本方案的 hash 判定；加进 D4 |
+| 前缀稳定性测试 | ✅ `TestBuildComposesByteStableSystemPrompt` 保证系统提示词逐字节稳定 | `boot/prompt_stability_test.go` | 建议在 w2 补同款"两 Build 前缀逐字节一致"守卫 |
+| 缓存 TTL（冷恢复） | ✅ 按 vendor 返回缓存 TTL（DeepSeek 24h / DashScope+Anthropic 5min） | `config/cache_policy.go:21-36` | 判断"服务端缓存是否已过期"，可并入 D4 归因 |
+
+**对齐建议（依 Go 版）**：
+1. **Phase1 采纳：`0.5` 只提示不折叠**，到 `0.8` 才真正折叠，加 `0.6` 剪裁、`0.9` 强制——Go 版已用 `TestCacheHitSurvivesTooSmallWindow`（`cachehit_e2e_test.go`) 实证命中率曲线不塌。
+2. 补**折叠卡死锁**：窗口太小、折叠追不上增长时 pause，别让 `ContentFold` 只在比例上反复触发。
+3. **缓存字节级/工具哈希归一化**加入 D4，配合已提交的 conversation 序列 hash。
+
+## 7. 决策记录
 
 <!-- 🤖 Auto Decision: 2026-08-06 -->
 <!-- 决策: 先出蓝图计划 md，不直接改代码；并把上游 Claude Code 的参考结论并入计划 -->
 <!-- 原因: "缓存 vs 压缩"是量级权衡，涉及行为变更，需用户确认方向与阈值；上游结论可作对齐基准 -->
 <!-- 替代方案: 直接重构（风险高，未获确认，弃用）-->
 <!-- 验证: 计划文档产出 + 上游调研核实，未改行为代码 -->
+
+## 8. 决策记录（Reasonix 调研补充，2026-08-06）
+
+<!-- 决策: 将 DeepSeek-Reasonix Go 版(上游 main-v2)分层折叠/折叠卡死锁/剪裁/log_rewrite 归因等结论并入本计划 §6 -->
+<!-- 原因: Go 版已把本项目 Phase1+Phase2 的想方案<E2E 实测落地，是比 Claude Code TS 更完整、更贴近本项目的参照基准 -->
+<!-- 替代方案: 仅 Claude 参考(缺"缓存优先折叠"背书)；仅 Reasonix TS 参考(旧、无 E2E)。Go 版兼有二者 -->
+<!-- 验证: 在 reset 到 upstream 时于 reflog 找回"缓存设计.md"供归档比对；本会话未改行为代码 -->

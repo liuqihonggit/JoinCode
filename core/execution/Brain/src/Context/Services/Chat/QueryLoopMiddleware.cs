@@ -98,8 +98,11 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
 
                 if (iterState.ToolCallName is null)
                 {
-                    foreach (var evt in HandlePureTextResponse(iterState, context))
+                    var (pureEvents, pureResponse) = BuildPureTextResponse(iterState, context);
+                    foreach (var evt in pureEvents)
                         yield return evt;
+                    if (!context.IsDryRun)
+                        await _contextManager.AddAssistantMessageAsync(pureResponse, ct).ConfigureAwait(false);
                     break;
                 }
 
@@ -174,8 +177,11 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
 
                 if (iterState.ToolCallName is null)
                 {
-                    foreach (var evt in HandlePureTextResponse(iterState, context))
+                    var (pureEvents, pureResponse) = BuildPureTextResponse(iterState, context);
+                    foreach (var evt in pureEvents)
                         yield return evt;
+                    if (!context.IsDryRun)
+                        await _contextManager.AddAssistantMessageAsync(pureResponse, ct).ConfigureAwait(false);
                     break;
                 }
 
@@ -270,26 +276,26 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
     }
 
     /// <summary>
-    /// 处理纯文本响应 — 循环检测后结束
+    /// 构建纯文本响应事件 — 循环检测后返回事件列表和最终响应文本
     /// </summary>
-    private IEnumerable<ChatStreamEvent> HandlePureTextResponse(
+    private (List<ChatStreamEvent> Events, string FinalResponse) BuildPureTextResponse(
         IterationState iterState, ChatMiddlewareContext context)
     {
+        var events = new List<ChatStreamEvent>();
         var aiResponse = iterState.FullResponse.ToString();
         if (string.IsNullOrEmpty(aiResponse))
         {
             aiResponse = "抱歉，我无法生成回复。";
-            yield return ChatStreamEvent.Text(aiResponse);
+            events.Add(ChatStreamEvent.Text(aiResponse));
         }
 
         var textLoop = _loopDetectionStrategy.CheckTextLoop(aiResponse);
         if (textLoop is not null)
         {
             _logger?.LogWarning("[QueryLoopMiddleware] 逻辑指纹循环已触发");
-            yield return ChatStreamEvent.LoopDetected(textLoop.TriggerCount, textLoop.ToolCallCount, textLoop.Reason);
+            events.Add(ChatStreamEvent.LoopDetected(textLoop.TriggerCount, textLoop.ToolCallCount, textLoop.Reason));
         }
 
-        if (!context.IsDryRun)
-            _contextManager.AddAssistantMessageAsync(aiResponse, default).GetAwaiter().GetResult();
+        return (events, aiResponse);
     }
 }

@@ -10,7 +10,7 @@ public sealed class DecompositionResult
     public bool IsDecomposable { get; init; }
     public string Reason { get; init; } = string.Empty;
     public IReadOnlyList<SubTaskDefinition> SubTasks { get; init; } = [];
-public ComplexityLevel Complexity { get; init; } = ComplexityLevel.Medium;
+    public ComplexityLevel Complexity { get; init; } = ComplexityLevel.Medium;
     public ExecutionMode Mode { get; init; } = ExecutionMode.PlanA;
     public string Rationale { get; init; } = string.Empty;
 

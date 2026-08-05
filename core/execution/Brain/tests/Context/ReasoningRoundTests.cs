@@ -139,7 +139,7 @@ public class ReasoningRoundTests
     {
         var (recorder, clock) = CreateRecorder(capacity: 50);
 
-        var random = new Random(42);
+var random = new Random(42);
         var texts = new string[100];
         for (var i = 0; i < 100; i++)
         {
@@ -177,7 +177,7 @@ public class ReasoningRoundTests
         recorder.Count.Should().Be(50, "capacity=50,超出覆盖最旧");
         var rounds = recorder.GetRounds();
         rounds[^1].Turn.Should().Be(100_000, "最新轮次应为10万");
-        sw.ElapsedMilliseconds.Should().BeLessThan(3000, $"10万轮(5000字符随机上下文)应在3秒内: {sw.ElapsedMilliseconds}ms");
+sw.ElapsedMilliseconds.Should().BeLessThan(3000, $"10万轮(5000字符随机上下文)应在3秒内: {sw.ElapsedMilliseconds}ms");
         memGrowthMB.Should().BeLessThan(50, $"内存增长应小于50MB(RingBuffer定长覆盖): {memGrowthMB:F1}MB");
     }
 }

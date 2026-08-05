@@ -203,8 +203,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
         if (_goalGraph is not null && _graphEngine is not null)
             return;
 
-        if (_serviceProvider is null)
-            return;
+        ArgumentNullException.ThrowIfNull(_serviceProvider);
 
         _graphEngine = new GoalGraphEngine(
             _kernel,
@@ -821,152 +820,17 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
     {
         try
         {
-            if (_goalGraph is not null && _graphEngine is not null && _state is not null)
+            if (_goalGraph is null || _graphEngine is null || _state is null)
             {
-                _logger?.LogInformation("[GoalEngine] 使用 Graph 引擎执行: {GraphName}", _goalGraph.Name);
-                _state = await _graphEngine.ExecuteAsync(_goalGraph, _state, _chatHistory, ct).ConfigureAwait(false);
-                _completionTcs?.TrySetResult();
-                return;
+                throw new InvalidOperationException("GoalGraph 未构建 — BuildDefaultGraphIfAbsent 应确保 Graph 总是可用");
             }
 
-            while (!ct.IsCancellationRequested)
-            {
-                await _stateLock.WaitAsync(ct).ConfigureAwait(false);
-                try
-                {
-                    if (_state?.Status != GoalStatus.Pursuing) break;
-                }
-                finally
-                {
-                    _stateLock.Release();
-                }
-
-                if (_state is { TokenBudget: { } budget } && _state.TokensUsed >= budget)
-                {
-                    await _stateLock.WaitAsync(ct).ConfigureAwait(false);
-                    try
-                    {
-                        _state.Status = GoalStatus.BudgetLimited;
-                    }
-                    finally
-                    {
-                        _stateLock.Release();
-                    }
-
-                    var budgetPrompt = ContinuationPromptBuilder.BuildBudgetLimitPrompt(
-                        _state.Objective,
-                        _state.TokensUsed,
-                        _state.TokenBudget.Value,
-                        (int)_state.Elapsed.TotalSeconds);
-                    _chatHistory.AddSystemMessage(budgetPrompt);
-
-                    _logger?.LogInformation(L.T(StringKey.GoalEngineBudgetExhausted),
-                        _state.GoalId, _state.TokensUsed, _state.TokenBudget.Value);
-                    break;
-                }
-
-                var turnResult = await ExecuteAgentTurnAsync(ct).ConfigureAwait(false);
-
-                await _stateLock.WaitAsync(ct).ConfigureAwait(false);
-                try
-                {
-                    _state.TokensUsed += turnResult.TokensUsed;
-                    _state.TurnsCompleted++;
-                }
-                finally
-                {
-                    _stateLock.Release();
-                }
-
-                var evaluation = await _evaluator.EvaluateAsync(
-                    _state.Objective,
-                    _state.Constraints,
-                    turnResult.RecentOutput,
-                    ct).ConfigureAwait(false);
-
-                await _stateLock.WaitAsync(ct).ConfigureAwait(false);
-                try
-                {
-                    _state.LastEvaluation = evaluation;
-                }
-                finally
-                {
-                    _stateLock.Release();
-                }
-
-                if (evaluation.IsCompleted)
-                {
-                    await _stateLock.WaitAsync(ct).ConfigureAwait(false);
-                    try
-                    {
-                        _state.Status = GoalStatus.Achieved;
-                        _state.AchievedAt = _clock.GetUtcNow();
-                    }
-                    finally
-                    {
-                        _stateLock.Release();
-                    }
-
-                    await _heartbeat.ResetAsync().ConfigureAwait(false);
-                    await RestorePermissionModeAsync(ct).ConfigureAwait(false);
-                    _logger?.LogInformation(L.T(StringKey.GoalEngineCompleted),
-                        _state.GoalId, _state.TurnsCompleted, _state.TokensUsed);
-                    break;
-                }
-
-                var continuationPrompt = ContinuationPromptBuilder.BuildContinuationPrompt(
-                    _state.Objective,
-                    _state.Constraints,
-                    _state.TokensUsed,
-                    _state.TokenBudget,
-                    evaluation.Reason);
-                _chatHistory.AddSystemMessage(continuationPrompt);
-
-                _logger?.LogDebug(L.T(StringKey.GoalEngineContinuing),
-                    _state.GoalId, evaluation.Reason);
-            }
+            _logger?.LogInformation("[GoalEngine] 使用 Graph 引擎执行: {GraphName}", _goalGraph.Name);
+            _state = await _graphEngine.ExecuteAsync(_goalGraph, _state, _chatHistory, ct).ConfigureAwait(false);
         }
         finally
         {
             _completionTcs?.TrySetResult();
-        }
-    }
-
-    private async Task<GoalTurnResult> ExecuteAgentTurnAsync(CancellationToken ct)
-    {
-        var chatService = _kernel.GetChatCompletionService();
-
-        var executionSettings = new ChatOptions
-        {
-            Temperature = 0.7f,
-            MaxTokens = 8000,
-            ToolChoice = ToolChoice.AutoInvoke
-        };
-
-        await _heartbeat.StartActivityAsync(SessionActivityReason.ApiCall).ConfigureAwait(false);
-        try
-        {
-            var results = await chatService.GetApiMessageContentsAsync(
-                _chatHistory,
-                executionSettings,
-                _kernel,
-                ct).ConfigureAwait(false);
-
-            var content = results.Count > 0 ? results[0].Content ?? string.Empty : string.Empty;
-            var tokensUsed = results.Count > 0 && results[0].TokenUsage is { TotalTokens: var tt }
-                ? tt
-                : 0;
-
-            if (!string.IsNullOrEmpty(content))
-            {
-                _chatHistory.AddAssistantMessage(content);
-            }
-
-            return new GoalTurnResult(content, tokensUsed);
-        }
-        finally
-        {
-            await _heartbeat.StopActivityAsync(SessionActivityReason.ApiCall).ConfigureAwait(false);
         }
     }
 
@@ -1127,4 +991,3 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
     }
 }
 
-internal sealed record GoalTurnResult(string RecentOutput, int TokensUsed);

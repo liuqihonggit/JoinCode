@@ -7,7 +7,7 @@
 public sealed partial class SkillExecutionMiddleware : ISkillMiddleware
 {
     private readonly IQueryEngine _queryEngine;
-    private readonly IToolRegistry _toolRegistry;
+    private readonly IToolExecutionGateway _toolExecutionGateway;
     private readonly IVariableResolver _variableResolver;
 
     /// <inheritdoc />
@@ -17,10 +17,10 @@ public sealed partial class SkillExecutionMiddleware : ISkillMiddleware
     /// <summary>
     /// 创建 SkillExecutionMiddleware
     /// </summary>
-    public SkillExecutionMiddleware(IQueryEngine queryEngine, IToolRegistry toolRegistry, IVariableResolver variableResolver)
+    public SkillExecutionMiddleware(IQueryEngine queryEngine, IToolExecutionGateway toolExecutionGateway, IVariableResolver variableResolver)
     {
         _queryEngine = queryEngine;
-        _toolRegistry = toolRegistry;
+        _toolExecutionGateway = toolExecutionGateway;
         _variableResolver = variableResolver;
     }
 
@@ -120,7 +120,7 @@ public sealed partial class SkillExecutionMiddleware : ISkillMiddleware
             ["input"] = JsonSerializer.SerializeToElement(prompt, SkillsJsonContext.Default.String)
         };
 
-        var result = await _toolRegistry.ExecuteToolAsync(step.Tool, arguments, context.CancellationToken).ConfigureAwait(false);
+        var result = await _toolExecutionGateway.ExecuteAsync(step.Tool, arguments, context.CancellationToken).ConfigureAwait(false);
 
         if (result.IsError)
         {

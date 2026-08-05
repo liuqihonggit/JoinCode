@@ -7,11 +7,13 @@ namespace Tools;
 public sealed partial class ToolExecutor
 {
     private readonly IToolRegistry _toolRegistry;
+    private readonly IToolExecutionGateway _toolExecutionGateway;
     [Inject] private readonly ILogger<ToolExecutor>? _logger;
 
-    public ToolExecutor(IToolRegistry toolRegistry, ILogger<ToolExecutor>? logger = null)
+    public ToolExecutor(IToolRegistry toolRegistry, IToolExecutionGateway toolExecutionGateway, ILogger<ToolExecutor>? logger = null)
     {
         _toolRegistry = toolRegistry ?? throw new ArgumentNullException(nameof(toolRegistry));
+        _toolExecutionGateway = toolExecutionGateway ?? throw new ArgumentNullException(nameof(toolExecutionGateway));
         _logger = logger;
     }
 
@@ -31,7 +33,7 @@ public sealed partial class ToolExecutor
 
         try
         {
-            var result = await _toolRegistry.ExecuteToolAsync(toolName, arguments, cancellationToken, onProgress).ConfigureAwait(false);
+            var result = await _toolExecutionGateway.ExecuteAsync(toolName, arguments, cancellationToken, onProgress).ConfigureAwait(false);
 
             if (result.IsError)
             {

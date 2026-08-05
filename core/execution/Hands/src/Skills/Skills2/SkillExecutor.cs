@@ -7,7 +7,7 @@ namespace Core.Skills;
 public sealed partial class SkillExecutor
 {
     private readonly IQueryEngine _queryEngine;
-    private readonly IToolRegistry _toolRegistry;
+    private readonly IToolExecutionGateway _toolExecutionGateway;
     [Inject] private readonly ILogger<SkillExecutor>? _logger;
     private readonly Dictionary<string, JsonElement> _variables;
     private readonly IVariableResolver _variableResolver;
@@ -15,10 +15,10 @@ public sealed partial class SkillExecutor
     /// <summary>
     /// 初始化技能执行器
     /// </summary>
-    public SkillExecutor(IQueryEngine queryEngine, IToolRegistry toolRegistry, ILogger<SkillExecutor>? logger = null, IVariableResolver? variableResolver = null)
+    public SkillExecutor(IQueryEngine queryEngine, IToolExecutionGateway toolExecutionGateway, ILogger<SkillExecutor>? logger = null, IVariableResolver? variableResolver = null)
     {
         _queryEngine = queryEngine ?? throw new ArgumentNullException(nameof(queryEngine));
-        _toolRegistry = toolRegistry ?? throw new ArgumentNullException(nameof(toolRegistry));
+        _toolExecutionGateway = toolExecutionGateway ?? throw new ArgumentNullException(nameof(toolExecutionGateway));
         _logger = logger;
         _variables = new Dictionary<string, JsonElement>();
         _variableResolver = variableResolver ?? new VariableResolver();
@@ -227,7 +227,7 @@ public sealed partial class SkillExecutor
         {
             var arguments = ParseToolArguments(step);
 
-            var result = await _toolRegistry.ExecuteToolAsync(toolName, arguments, cancellationToken).ConfigureAwait(false);
+            var result = await _toolExecutionGateway.ExecuteAsync(toolName, arguments, cancellationToken).ConfigureAwait(false);
 
             if (result.IsError)
             {

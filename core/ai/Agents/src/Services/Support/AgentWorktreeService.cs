@@ -438,9 +438,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
                 ["usedSparsePaths"] = session.SparsePaths?.Count > 0
             };
 
-#pragma warning disable JCC1012
-            var updatedJson = root.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
-#pragma warning restore JCC1012
+            var updatedJson = FormatJsonNode(root);
 
             var dir = Path.GetDirectoryName(localSettingsPath);
             if (!string.IsNullOrEmpty(dir) && !_fileOperationService.DirectoryExists(dir))
@@ -475,9 +473,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
 
             root.Remove("activeWorktreeSession");
 
-#pragma warning disable JCC1012
-            var updatedJson = root.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
-#pragma warning restore JCC1012
+            var updatedJson = FormatJsonNode(root);
             await _fileOperationService.WriteFileAsync(localSettingsPath, updatedJson).ConfigureAwait(false);
         }
         catch (Exception ex)
@@ -745,4 +741,15 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
         => _gitRunner.ExecuteAsync(arguments, workingDirectory, cancellationToken);
 
     #endregion
+
+    private static readonly JsonWriterOptions s_indentedWriterOptions = new() { Indented = true };
+
+    private static string FormatJsonNode(JsonNode node)
+    {
+        using var stream = new MemoryStream();
+        using var writer = new Utf8JsonWriter(stream, s_indentedWriterOptions);
+        node.WriteTo(writer);
+        writer.Flush();
+        return System.Text.Encoding.UTF8.GetString(stream.ToArray());
+    }
 }

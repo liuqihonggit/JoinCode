@@ -26,6 +26,7 @@ namespace AotSafety.Generator
         public static bool IsInsideTestMethod(SyntaxNode node)
         {
             var current = node.Parent;
+            var foundTestClass = false;
             while (current is not null)
             {
                 if (current is MethodDeclarationSyntax methodDecl)
@@ -41,9 +42,26 @@ namespace AotSafety.Generator
                         })))
                         return true;
                 }
+
+                if (current is ClassDeclarationSyntax classDecl)
+                {
+                    var className = classDecl.Identifier.ValueText;
+                    if (className.EndsWith("Tests", StringComparison.Ordinal) ||
+                        className.EndsWith("Test", StringComparison.Ordinal))
+                        foundTestClass = true;
+                }
+
+                if (current is BaseNamespaceDeclarationSyntax nsDecl)
+                {
+                    var nsName = nsDecl.Name.ToString();
+                    if (nsName.Contains("Tests", StringComparison.Ordinal) ||
+                        nsName.Contains("Test", StringComparison.Ordinal))
+                        foundTestClass = true;
+                }
+
                 current = current.Parent;
             }
-            return false;
+            return foundTestClass;
         }
 
         /// <summary>

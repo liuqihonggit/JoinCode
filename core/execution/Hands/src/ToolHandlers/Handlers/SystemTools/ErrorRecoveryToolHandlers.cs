@@ -9,11 +9,13 @@ namespace Tools.Handlers;
 public class ErrorRecoveryToolHandlers
 {
     private readonly IFileSystem _fs;
+    private readonly IGitCommandRunner _gitRunner;
     private readonly ILogger<ErrorRecoveryToolHandlers>? _logger;
 
-    public ErrorRecoveryToolHandlers(IFileSystem fs, ILogger<ErrorRecoveryToolHandlers>? logger = null)
+    public ErrorRecoveryToolHandlers(IFileSystem fs, IGitCommandRunner gitRunner, ILogger<ErrorRecoveryToolHandlers>? logger = null)
     {
         _fs = fs;
+        _gitRunner = gitRunner;
         _logger = logger;
     }
 
@@ -176,5 +178,116 @@ public class ErrorRecoveryToolHandlers
         }
 
         return Task.FromResult(ToolResultBuilder.Success().WithText(sb.ToString()).Build());
+    }
+
+    /// <summary>
+    /// 合并冲突修复工具 — 专门处理 worktree merge 失败
+    /// GroupName="worktree_merge" 表示当 worktree_merge 工具失败时精准推荐此工具
+    /// </summary>
+    [McpTool("fix_merge_conflict", "分析 worktree 合并失败原因，检测遗留冲突标记和分支冲突，提供修复建议", "error_recovery",
+        Kind = JoinCode.Abstractions.Attributes.ToolKindConstants.OnError, GroupName = "worktree_merge")]
+    public async Task<ToolResult> FixMergeConflictAsync(
+        [McpToolParameter("源 worktree 路径", Required = true)] string source_worktree_path,
+        [McpToolParameter("目标 worktree 路径", Required = true)] string target_worktree_path,
+        [McpToolParameter("错误信息", Required = true)] string error_message,
+        CancellationToken ct = default)
+    {
+        var sb = new StringBuilder(512);
+        sb.AppendLine("## Worktree 合并冲突修复建议");
+        sb.AppendLine();
+        sb.AppendLine($"**源 worktree**: `{source_worktree_path}`");
+        sb.AppendLine($"**目标 worktree**: `{target_worktree_path}`");
+        sb.AppendLine($"**错误信息**: {error_message}");
+        sb.AppendLine();
+
+        var hasStaleMarkers = false;
+        var hasBranchConflict = false;
+
+        sb.AppendLine("### 诊断结果");
+
+        try
+        {
+            var sourceStale = await _gitRunner.DetectStaleConflictMarkersAsync(source_worktree_path, ct).ConfigureAwait(false);
+            if (sourceStale.HasStaleMarkers)
+            {
+                hasStaleMarkers = true;
+                sb.AppendLine($"- ⚠️ **源 worktree 存在遗留冲突标记**: {string.Join(", ", sourceStale.Files)}");
+                sb.AppendLine("  这些文件包含未清理的 `<<<<<<<`/`=======`/`>>>>>>>` 标记");
+                sb.AppendLine("  需要手动解决冲突后重新 commit，或用 `git checkout -- <file>` 撤回");
+            }
+
+            var targetStale = await _gitRunner.DetectStaleConflictMarkersAsync(target_worktree_path, ct).ConfigureAwait(false);
+            if (targetStale.HasStaleMarkers)
+            {
+                hasStaleMarkers = true;
+                sb.AppendLine($"- ⚠️ **目标 worktree 存在遗留冲突标记**: {string.Join(", ", targetStale.Files)}");
+                sb.AppendLine("  这些文件包含未清理的 `<<<<<<<`/`=======`/`>>>>>>>` 标记");
+            }
+
+            if (!hasStaleMarkers)
+            {
+                sb.AppendLine("- ✅ 两边 worktree 均无遗留冲突标记");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogDebug(ex, "检测遗留冲突标记失败");
+            sb.AppendLine("- 无法检测遗留冲突标记");
+        }
+
+        try
+        {
+            var sourceBranchResult = await _gitRunner.ExecuteAsync("branch --show-current", source_worktree_path, ct).ConfigureAwait(false);
+            var targetBranchResult = await _gitRunner.ExecuteAsync("branch --show-current", target_worktree_path, ct).ConfigureAwait(false);
+
+            if (sourceBranchResult.Success && targetBranchResult.Success)
+            {
+                var sourceBranch = sourceBranchResult.Output.Trim();
+                var targetBranch = targetBranchResult.Output.Trim();
+
+                if (!string.IsNullOrEmpty(sourceBranch) && !string.IsNullOrEmpty(targetBranch))
+                {
+                    var conflictCheck = await _gitRunner.DetectMergeConflictAsync(targetBranch, sourceBranch, target_worktree_path, ct).ConfigureAwait(false);
+                    if (conflictCheck.HasConflict)
+                    {
+                        hasBranchConflict = true;
+                        sb.AppendLine($"- ⚠️ **分支合并冲突**: {targetBranch} ← {sourceBranch}");
+                        sb.AppendLine($"  冲突文件: {string.Join(", ", conflictCheck.ConflictFiles)}");
+                    }
+                    else
+                    {
+                        sb.AppendLine($"- ✅ 分支 {targetBranch} 与 {sourceBranch} 无合并冲突");
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogDebug(ex, "检测分支合并冲突失败");
+            sb.AppendLine("- 无法检测分支合并冲突");
+        }
+
+        sb.AppendLine();
+        sb.AppendLine("### 修复方案");
+        if (hasStaleMarkers)
+        {
+            sb.AppendLine("1. **清理遗留冲突标记**:");
+            sb.AppendLine("   - 检查冲突文件，手动解决冲突内容");
+            sb.AppendLine("   - `git add <file>` 标记已解决");
+            sb.AppendLine("   - `git commit` 完成解决");
+            sb.AppendLine("   - 或 `git merge --abort` 撤回整个 merge");
+        }
+        if (hasBranchConflict)
+        {
+            sb.AppendLine("2. **解决分支冲突**:");
+            sb.AppendLine("   - 使用 `worktree_merge` 工具时指定 strategy=ours 或 strategy=theirs");
+            sb.AppendLine("   - 或手动在目标 worktree 中解决冲突后 commit");
+        }
+        if (!hasStaleMarkers && !hasBranchConflict)
+        {
+            sb.AppendLine("- 冲突可能已在预检后自动解决，尝试重新执行 merge");
+        }
+
+        return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
     }
 }

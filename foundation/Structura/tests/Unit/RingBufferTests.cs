@@ -183,4 +183,82 @@ public class RingBufferTests
         buf[2].Should().Be(4.4);
         buf[3].Should().Be(5.5);
     }
+
+    [Fact]
+    public void ToArray_ReturnsConsistentSnapshot()
+    {
+        var buf = new RingBuffer<int>(5);
+        foreach (var v in new[] { 1, 2, 3, 4, 5 })
+            buf.Add(v);
+
+        buf.ToArray().Should().Equal(1, 2, 3, 4, 5);
+
+        buf.Add(6);
+        buf.ToArray().Should().Equal(2, 3, 4, 5, 6);
+    }
+
+    [Fact]
+    public void MultiThread_ProducerConsumer_NoCorruption()
+    {
+        var buf = new RingBuffer<int>(1000);
+        var producerDone = new ManualResetEventSlim(false);
+        var snapshots = new List<int[]>();
+        var snapshotLock = new object();
+
+        var consumer = new Thread(() =>
+        {
+            while (!producerDone.IsSet)
+            {
+                var snap = buf.ToArray();
+                lock (snapshotLock)
+                    snapshots.Add(snap);
+            }
+        }) { IsBackground = true };
+        consumer.Start();
+
+        for (var i = 0; i < 100_000; i++)
+            buf.Add(i);
+
+        producerDone.Set();
+        consumer.Join(TimeSpan.FromSeconds(2));
+
+        lock (snapshotLock)
+        {
+            foreach (var snap in snapshots)
+            {
+                snap.Length.Should().BeLessThanOrEqualTo(1000);
+                for (var i = 1; i < snap.Length; i++)
+                    snap[i].Should().Be(snap[i - 1] + 1,
+                        "快照中相邻元素必须是连续递增的,不允许读到写一半的中间状态");
+            }
+        }
+    }
+
+    [Fact]
+    public void MultiThread_ConcurrentAdd_NoException()
+    {
+        var buf = new RingBuffer<int>(500);
+        var threads = new Thread[4];
+        var errors = new List<Exception>();
+
+        for (var t = 0; t < 4; t++)
+        {
+            var threadId = t;
+            threads[t] = new Thread(() =>
+            {
+                try
+                {
+                    for (var i = 0; i < 10_000; i++)
+                        buf.Add(threadId * 10_000 + i);
+                }
+                catch (Exception ex) { lock (errors) errors.Add(ex); }
+            }) { IsBackground = true };
+        }
+
+        foreach (var th in threads) th.Start();
+        foreach (var th in threads) th.Join();
+
+        errors.Should().BeEmpty();
+        buf.Count.Should().Be(500);
+    }
 }

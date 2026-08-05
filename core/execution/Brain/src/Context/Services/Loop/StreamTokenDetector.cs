@@ -1,14 +1,13 @@
 namespace Core.Context;
 
 /// <summary>
-/// 流式 token 序列检测器 — 共享环形队列 + 后台单线程持续轮询检测
-/// 架构类似麦克风采集: 生产者(Ingest)写入共享 RingBuffer,后台单线程周期性采样快照进行检测
+/// 流式 token 序列检测器 — 共享无锁环形队列 + 后台单线程持续轮询检测
+/// 架构类似麦克风采集: 生产者(Ingest)写入共享 RingBuffer(SeqLock 无锁),后台单线程周期性采样快照进行检测
 /// 串行多分析器(尾重复→n-gram),漏斗式触发: 先廉价检测后昂贵检测,任一触发即返回
 /// </summary>
 public sealed class StreamTokenDetector : IDisposable
 {
     private readonly RingBuffer<string> _tokenWindow;
-    private readonly object _lock = new();
     private readonly Thread _detectThread;
     private readonly CancellationTokenSource _cts;
     private readonly TimeSpan _detectInterval;
@@ -49,13 +48,12 @@ public sealed class StreamTokenDetector : IDisposable
     }
 
     /// <summary>
-    /// 生产者: 写入共享环形队列(加锁,O(1),非阻塞)
+    /// 生产者: 写入共享无锁环形队列(O(1),非阻塞,SeqLock 内部保证安全)
     /// </summary>
     public void Ingest(string token)
     {
         ArgumentNullException.ThrowIfNull(token);
-        lock (_lock)
-            _tokenWindow.Add(token);
+        _tokenWindow.Add(token);
     }
 
     /// <summary>
@@ -78,19 +76,13 @@ public sealed class StreamTokenDetector : IDisposable
     }
 
     /// <summary>
-    /// 同步检测: 复制当前窗口快照,串行运行多分析器(漏斗式触发)
+    /// 同步检测: 获取无锁快照(SeqLock 保证一致性),串行运行多分析器(漏斗式触发)
     /// </summary>
     public LoopDetectionResult DetectNow()
     {
-        string[] snapshot;
-        lock (_lock)
-        {
-            if (_tokenWindow.Count == 0)
-                return LoopDetectionResult.NoLoop;
-            snapshot = new string[_tokenWindow.Count];
-            for (var i = 0; i < _tokenWindow.Count; i++)
-                snapshot[i] = _tokenWindow[i];
-        }
+        var snapshot = _tokenWindow.ToArray();
+        if (snapshot.Length == 0)
+            return LoopDetectionResult.NoLoop;
 
         var result = DetectTailRepetition(snapshot);
         if (result.IsLoopDetected)
@@ -187,10 +179,7 @@ public sealed class StreamTokenDetector : IDisposable
     /// <summary>
     /// 当前环形队列中的 token 数
     /// </summary>
-    public int TokenCount
-    {
-        get { lock (_lock) return _tokenWindow.Count; }
-    }
+    public int TokenCount => _tokenWindow.Count;
 
     /// <summary>
     /// 循环检测触发次数(由后台线程递增)
@@ -202,8 +191,7 @@ public sealed class StreamTokenDetector : IDisposable
     /// </summary>
     public void Reset()
     {
-        lock (_lock)
-            _tokenWindow.Clear();
+        _tokenWindow.Clear();
         _latestResult = null;
         Interlocked.Exchange(ref _triggerCount, 0);
     }

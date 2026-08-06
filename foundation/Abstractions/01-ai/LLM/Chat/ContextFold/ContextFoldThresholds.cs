@@ -12,6 +12,11 @@ public sealed class ContextFoldThresholds
     public int CharsPerToken { get; init; } = 4;
     public int DeferFoldLimit { get; init; } = 3;
     public int StuckFoldLimit { get; init; } = 2;
+    public int MinSnipChars { get; init; } = 1024;
+    public int SnipHeadLines { get; init; } = 40;
+    public int SnipTailLines { get; init; } = 40;
+    public int SnipHeadChars { get; init; } = 8000;
+    public int SnipTailChars { get; init; } = 8000;
 
     public static ContextFoldThresholds Default { get; } = new();
 }

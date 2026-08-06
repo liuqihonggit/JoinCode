@@ -156,3 +156,11 @@ PreChatMiddleware.RecordPromptStateAsync        // core/execution/Brain/src/Cont
 <!-- 替代方案: 仅指纹(ContentHash)判定(不够，需覆盖序列化字节路径); 运行时断言 VerifyFingerprint(已有，缺的是测试级守卫) -->
 <!-- 验证: ImmutablePrefixStableSortTests 10 例(含新增2例)全绿；编译 0 警告 0 错误 -->
 
+## 13. 决策记录（Phase6 落地：剪裁优先于折叠，2026-08-06）
+
+<!-- 🤖 Auto Decision: 2026-08-06 -->
+<!-- 决策: 折叠前先 Snip — ContextFoldThresholds 增 MinSnipChars=1024/SnipHeadLines=40/SnipTailLines=40/SnipHeadChars=8000/SnipTailChars=8000；ContextFoldDecider.SnipStaleToolResults 用 ComputeTailBoundary(false) 定头部，对 role==Tool 且 ≥MinSnipChars 且未带 snipped: 前缀的消息做 RewriteSnipped(行数超 40+40 保头尾行，否则保头尾字符)，CompactInPlace 保留配对元数据；ChatContextManager.FoldIfNeededAsync 折叠前先 Snip，若剪裁后仍降到 FoldThreshold/AggressiveThreshold 之下则跳过摘要折叠并重置卡死计数，否则照常折叠且 Snip 计入 Folded 结果 -->
+<!-- 原因: 对齐 Reasonix Go 版 prune_before_fold( prune.go 的 defaultToolResultSnipRatio=0.6，剪裁"免费"：可重派生、不丢消息、无摘要器调用)；先剪裁过期大工具结果再决定是否摘要，可省一轮摘要轮并保持折叠判定更准 -->
+<!-- 替代方案: 仅摘要折叠(剪裁为空操作管道)；把剪裁并入 DecideAfterUsage(职责混乱，剪裁是结果维护非决策) -->
+<!-- 验证: 新增 ContextFoldSnipTests 6 例(占位符改写/小结果跳过/保护区逐字保留/幂等/配对元数据保留/回归)全绿；Brain.Context.Tests 725 + PrefixCache 245 不回归；编译 0 警告 0 错误 -->
+

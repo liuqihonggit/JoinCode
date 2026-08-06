@@ -191,6 +191,90 @@ public static class ContextFoldDecider
         return true;
     }
 
+    /// <summary>
+    /// 剪裁折叠保护区（tail boundary）之前的过期大工具结果 — 对齐 Reasonix Go 版 SnipStaleToolResults。
+    /// 工具结果可重派生，重写其内容无需调用摘要器、不丢弃消息，只把超长内容压成"头尾行保留"的占位符。
+    /// 幂等：已剪裁（带 snipped 标记）的结果不再重复剪裁；保护区内的结果原样保留。
+    /// </summary>
+    /// <param name="log">会话消息日志，原地改写。</param>
+    /// <param name="ctxMax">上下文窗口大小。</param>
+    /// <param name="thresholds">折叠阈值（默认使用 <see cref="ContextFoldThresholds.Default"/>）。</param>
+    /// <returns>本次剪裁统计。</returns>
+    public static SnipStats SnipStaleToolResults(AppendOnlyLog log, int ctxMax, ContextFoldThresholds? thresholds = null)
+    {
+        ArgumentNullException.ThrowIfNull(log);
+        if (ctxMax <= 0) throw new ArgumentOutOfRangeException(nameof(ctxMax));
+
+        var t = thresholds ?? ContextFoldThresholds.Default;
+        var messages = log.ToMessages();
+        if (messages.Count == 0) return new SnipStats();
+
+        var boundary = ComputeTailBoundary(messages, ctxMax, aggressive: false, t);
+
+        var index = 0;
+        var saved = 0;
+        var changed = false;
+        var rewritten = new List<ApiMessage>(messages.Count);
+
+        for (var i = 0; i < messages.Count; i++)
+        {
+            var msg = messages[i];
+            if (i < boundary && msg.Role == MessageRole.Tool && (msg.Content?.Length ?? 0) >= t.MinSnipChars && !IsSnipped(msg))
+            {
+                var replacement = RewriteSnipped(msg, t);
+                saved += (msg.Content?.Length ?? 0) - replacement.Length;
+                rewritten.Add(new ApiMessage(msg.Role, replacement, msg.Metadata));
+                index++;
+                changed = true;
+                continue;
+            }
+
+            rewritten.Add(msg);
+        }
+
+        if (changed)
+        {
+            log.CompactInPlace(rewritten);
+        }
+
+        return new SnipStats { Results = index, SavedChars = saved };
+    }
+
+    /// <summary>判定消息是否已被剪裁过（内容带 snipped 标记）。</summary>
+    private static bool IsSnipped(ApiMessage msg) =>
+        msg.Content != null && msg.Content.StartsWith("snipped:", StringComparison.Ordinal);
+
+    /// <summary>
+    /// 把工具结果压缩为"头 N 行 + 省略标记 + 尾 M 行"占位符，保留 head/tail 行语义。
+    /// 对齐 Reasonix Go 版 snipToolResult 的头尾行保留策略（side-effecting 默认 40/40）。
+    /// </summary>
+    private static string RewriteSnipped(ApiMessage msg, ContextFoldThresholds t)
+    {
+        var content = msg.Content ?? string.Empty;
+        var toolName = msg.ExtractToolName() ?? "tool";
+        var lines = content.Split('\n');
+
+        string head;
+        string tail;
+        int omitted;
+
+        if (lines.Length > t.SnipHeadLines + t.SnipTailLines)
+        {
+            head = string.Join("\n", lines.Take(t.SnipHeadLines));
+            tail = string.Join("\n", lines.TakeLast(t.SnipTailLines));
+            omitted = lines.Length - t.SnipHeadLines - t.SnipTailLines;
+            return $"snipped: {toolName} ({content.Length} bytes, {omitted} lines omitted; rerun tool to restore)\n" +
+                   $"{head}\n[... {omitted} lines omitted ...]\n{tail}";
+        }
+
+        var headChars = Math.Min(t.SnipHeadChars, content.Length / 2);
+        var tailChars = Math.Min(t.SnipTailChars, content.Length / 4);
+        head = content[..headChars];
+        tail = content[^tailChars..];
+        return $"snipped: {toolName} ({content.Length} bytes; rerun tool to restore)\n" +
+               $"{head}\n[... {content.Length - headChars - tailChars} chars omitted ...]\n{tail}";
+    }
+
     private static bool HasToolCalls(ApiMessage msg)
     {
         return msg.Metadata != null &&

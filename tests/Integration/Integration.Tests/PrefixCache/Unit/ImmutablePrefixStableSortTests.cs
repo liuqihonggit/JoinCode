@@ -133,4 +133,50 @@ public sealed class ImmutablePrefixStableSortTests
         prefix1.Fingerprint.Should().Be(prefix2.Fingerprint,
             "identical inputs must produce identical fingerprints");
     }
+
+    [Fact]
+    public void TwoBuilds_ProduceByteStableConversationPrefix()
+    {
+        var tools = new List<ToolSpec>
+        {
+            new("read", "Read files", """{"type":"object","properties":{"path":{"type":"string"}}}"""),
+            new("write", "Write files", """{"type":"object","properties":{"content":{"type":"string"}}}""")
+        };
+        var fewShots = new List<ApiMessage>
+        {
+            new(MessageRole.Assistant, "example output")
+        };
+
+        var prefix1 = new ImmutablePrefix("System prompt", tools, fewShots);
+        var prefix2 = new ImmutablePrefix("System prompt", tools, fewShots);
+
+        var bytes1 = ContentHash.ComputeConversation(prefix1.ToMessages());
+        var bytes2 = ContentHash.ComputeConversation(prefix2.ToMessages());
+
+        bytes1.Should().Be(bytes2,
+            "two builds of identical prefix must serialize to byte-identical conversation");
+    }
+
+    [Fact]
+    public void TwoBuilds_FingerprintAndBytes_BothStableAcrossToolOrder()
+    {
+        var toolsAb = new List<ToolSpec>
+        {
+            new("alpha", "Alpha tool"),
+            new("beta", "Beta tool")
+        };
+        var toolsBa = new List<ToolSpec>
+        {
+            new("beta", "Beta tool"),
+            new("alpha", "Alpha tool")
+        };
+
+        var prefixAb = new ImmutablePrefix("System prompt", toolsAb, []);
+        var prefixBa = new ImmutablePrefix("System prompt", toolsBa, []);
+
+        prefixAb.Fingerprint.Should().Be(prefixBa.Fingerprint);
+        ContentHash.ComputeConversation(prefixAb.ToMessages()).Should().Be(
+            ContentHash.ComputeConversation(prefixBa.ToMessages()),
+            "prefix bytes (system + fewshots) must be byte-stable across tool registration order");
+    }
 }

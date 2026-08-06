@@ -56,6 +56,14 @@
 | `composition/Composition/.../ServiceRegistration.Skills.cs` | 2 | DI 注册 |
 | `core/safety/Guard/.../ServiceRegistration.cs` | 1 | DI 注册 |
 
+#### 第六桶分析结论（2026-08-07）
+
+- **19处Trace全部为内部诊断**(缓存/解析/遥测/日志写入失败等非致命边缘失败,均有"不影响主流程"注释)
+- **10个类全部无 `_logger` 字段**;16处在static方法/lambda中,3处在实例方法但类无_logger
+- **建议方案**:全部改 `Console.Error.WriteLine`(stderr不干扰stdout,4处"日志机制本身失败的兜底"场景是唯一可靠通道)
+- **若未来统一用logger**:需先为这些类注入 `ILogger<T>`(DI构造函数注入或从 ChatCommandContext.Services/IServiceProvider 获取),当前代码未建立此模式
+- **状态**: 待用户确认后处理
+
 ## 验证基线
 
 - 每批：所属 slnx Debug `--no-incremental` 编译 0 错误 0 警告

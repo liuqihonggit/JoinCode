@@ -14,7 +14,15 @@ public partial class CacheBreakMonitorTests
     }
 
     private ChatContextManager CreateSut() =>
-        new(_stateService.Object, _logger);
+        new(_stateService.Object, _logger, new ChatContextOptions
+        {
+            ContextWindowResolver = new FixedWindowResolver(1000)
+        });
+
+    private sealed class FixedWindowResolver(int window) : IContextWindowResolver
+    {
+        public int ResolveCurrentContextWindow() => window;
+    }
 
     [Fact]
     public async Task RecordPromptStateAsync_CapturesCurrentState()
@@ -225,5 +233,57 @@ public partial class CacheBreakMonitorTests
         var usage2 = new TokenUsage(100, 50) { CacheReadInputTokens = 80, CacheCreationInputTokens = 0 };
         var result2 = await sut.CheckCacheBreakAsync(snapshot2, usage2).ConfigureAwait(true);
         result2.BreakDetected.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task DecideAfterUsage_AfterNoProgressFolds_PausesFolding()
+    {
+        var sut = CreateSut();
+        var usage = new TokenUsage(600, 0);
+
+        sut.DecideAfterUsage(usage).Should().Be(ContextFoldDecision.FoldNormal);
+        await sut.FoldIfNeededAsync(ContextFoldDecision.FoldNormal).ConfigureAwait(true);
+        await sut.FoldIfNeededAsync(ContextFoldDecision.FoldNormal).ConfigureAwait(true);
+
+        sut.DecideAfterUsage(usage).Should().Be(ContextFoldDecision.None);
+    }
+
+    [Fact]
+    public async Task DecideAfterUsage_SuccessfulFold_ResetsStuckGuard()
+    {
+        var executor = new ContextFoldExecutor(new StubSummarizer());
+        var sut = new ChatContextManager(
+            _stateService.Object,
+            _logger,
+            new ChatContextOptions
+            {
+                FoldExecutor = executor,
+                ContextWindowResolver = new FixedWindowResolver(1000)
+            });
+        var usage = new TokenUsage(600, 0);
+
+        sut.DecideAfterUsage(usage).Should().Be(ContextFoldDecision.FoldNormal);
+        await sut.FoldIfNeededAsync(ContextFoldDecision.FoldNormal).ConfigureAwait(true);
+        await sut.FoldIfNeededAsync(ContextFoldDecision.FoldNormal).ConfigureAwait(true);
+
+        sut.DecideAfterUsage(usage).Should().Be(ContextFoldDecision.None);
+
+        await sut.AddAssistantToolCallMessageAsync(null, new Dictionary<string, JsonElement>
+        {
+            ["ToolCalls"] = JsonSerializer.SerializeToElement("[]")
+        }).ConfigureAwait(true);
+
+        var result = await sut.FoldIfNeededAsync(ContextFoldDecision.ExitWithSummary).ConfigureAwait(true);
+        result.Folded.Should().BeTrue();
+
+        sut.DecideAfterUsage(usage).Should().Be(ContextFoldDecision.FoldNormal);
+    }
+
+    private sealed class StubSummarizer : IFoldSummarizer
+    {
+        public Task<string> SummarizeForFoldAsync(
+            IReadOnlyList<ApiMessage> headMessages,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult("[summary]");
     }
 }

@@ -19,14 +19,21 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
     [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
     private int _planCounter;
 
-    private readonly ConcurrentDictionary<ObjectId, SessionPlanState> _sessionStates = new();
     private readonly SessionPlanState _fallbackState = new();
+    private const string PlanStateKey = "plan_state";
 
     private SessionPlanState CurrentSessionState()
     {
         var sessionId = SessionContext.Current;
         if (sessionId is null) return _fallbackState;
-        return _sessionStates.GetOrAdd(sessionId.Value, _ => new SessionPlanState());
+        var scope = SessionRouter.GetOrCreateScope(sessionId.Value);
+        var state = scope.Cache.Get<SessionPlanState>(PlanStateKey);
+        if (state is null)
+        {
+            state = new SessionPlanState();
+            scope.Cache.Set(PlanStateKey, state);
+        }
+        return state;
     }
 
     private sealed class SessionPlanState

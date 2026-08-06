@@ -9,15 +9,16 @@ namespace State;
 [Register(typeof(IStateService))]
 public sealed partial class StateService : ServiceEntity, IStateService, IDisposable
 {
-    private readonly ConcurrentDictionary<string, SessionState> _storage = new();
+    private readonly ConcurrentDictionary<string, SessionState> _fallbackStorage = new();
     private readonly IClockService _clock;
     [Inject] private readonly ILogger<StateService>? _logger;
-    private const string StateId = "current";
+    private const string StateKey = "state";
 
-    private static string GetStateKey()
+    private static ISessionCache? GetCurrentCache()
     {
         var sessionId = SessionContext.Current;
-        return sessionId is null ? StateId : sessionId.Value.ToString();
+        if (sessionId is null) return null;
+        return SessionRouter.GetScope(sessionId.Value)?.Cache;
     }
 
     public StateService(IClockService clock, ILogger<StateService>? logger = null)
@@ -41,12 +42,18 @@ public sealed partial class StateService : ServiceEntity, IStateService, IDispos
             })
             .ToImmutableList();
 
-        _storage[GetStateKey()] = new SessionState
+        var state = new SessionState
         {
             SystemPrompt = systemPrompt,
             MessageList = chatHistoryList,
             LastActivityAt = _clock.GetUtcNow()
         };
+
+        var cache = GetCurrentCache();
+        if (cache is not null)
+            cache.Set(StateKey, state);
+        else
+            _fallbackStorage[StateKey] = state;
         _logger?.LogInformation(L.T(StringKey.VaultLogStateSaveSuccess));
     }
 
@@ -81,7 +88,9 @@ public sealed partial class StateService : ServiceEntity, IStateService, IDispos
     {
         try
         {
-            if (!_storage.TryGetValue(GetStateKey(), out var sessionState))
+            var cache = GetCurrentCache();
+            var sessionState = cache?.Get<SessionState>(StateKey) ?? _fallbackStorage.GetValueOrDefault(StateKey);
+            if (sessionState is null)
                 return (string.Empty, new MessageList());
 
             var chatHistory = new MessageList();
@@ -144,7 +153,8 @@ public sealed partial class StateService : ServiceEntity, IStateService, IDispos
 
     public bool ClearState()
     {
-        var result = _storage.TryRemove(GetStateKey(), out _);
+        var cache = GetCurrentCache();
+        var result = cache?.Remove(StateKey) ?? _fallbackStorage.TryRemove(StateKey, out _);
         if (result)
             _logger?.LogInformation(L.T(StringKey.VaultLogStateClearSuccess));
         return result;
@@ -157,5 +167,5 @@ public sealed partial class StateService : ServiceEntity, IStateService, IDispos
 
     #endregion
 
-    protected override void OnDispose() => _storage.Clear();
+    protected override void OnDispose() => _fallbackStorage.Clear();
 }

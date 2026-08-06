@@ -19,12 +19,13 @@ public sealed partial class ShellSedInterceptMiddleware : ServiceEntity, IShellM
     /// 首次 sed -i 返回预览，存储预计算结果；二次调用确认后写入
     /// key: 文件路径, value: (新内容, 创建时间)
     /// </summary>
-    private readonly ConcurrentDictionary<string, PendingSedConfirmation> _pendingSedEdits = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, PendingSedConfirmation> _fallbackEdits = new(StringComparer.OrdinalIgnoreCase);
 
-    private static string GetSedKey(string filePath)
+    private static ISessionCache? GetCurrentCache()
     {
         var sessionId = SessionContext.Current;
-        return sessionId is null ? filePath : $"{sessionId.Value}:{filePath}";
+        if (sessionId is null) return null;
+        return SessionRouter.GetScope(sessionId.Value)?.Cache;
     }
 
     /// <summary>
@@ -73,13 +74,18 @@ public sealed partial class ShellSedInterceptMiddleware : ServiceEntity, IShellM
         }
 
         // 二次调用确认：检查是否有待确认的编辑 — 对齐 TS _simulatedSedEdit
-        var sedKey = GetSedKey(filePath);
-        if (_pendingSedEdits.TryGetValue(sedKey, out var pending) && !pending.IsExpired)
+        var cache = GetCurrentCache();
+        PendingSedConfirmation? pending = cache?.Get<PendingSedConfirmation>(filePath);
+        if (pending is null && _fallbackEdits.TryGetValue(filePath, out var fallbackPending))
+            pending = fallbackPending;
+
+        if (pending is not null && !pending.IsExpired)
         {
             // 验证 sed 信息匹配（防止模型伪造不同编辑）
             if (pending.SedPattern == sedInfo.Pattern && pending.SedReplacement == sedInfo.Replacement)
             {
-                _pendingSedEdits.TryRemove(sedKey, out _);
+                cache?.Remove(filePath);
+                _fallbackEdits.TryRemove(filePath, out _);
 
                 // 直接写入预计算的新内容 — 对齐 TS applySedEdit
                 try
@@ -97,13 +103,8 @@ public sealed partial class ShellSedInterceptMiddleware : ServiceEntity, IShellM
             }
 
             // sed 信息不匹配，清除旧的 pending 并重新预览
-            _pendingSedEdits.TryRemove(sedKey, out _);
-        }
-
-        // 清除过期的 pending edits
-        foreach (var kvp in _pendingSedEdits)
-        {
-            if (kvp.Value.IsExpired) _pendingSedEdits.TryRemove(kvp.Key, out _);
+            cache?.Remove(filePath);
+            _fallbackEdits.TryRemove(filePath, out _);
         }
 
         // 首次调用：读取文件→模拟替换→返回预览
@@ -138,11 +139,15 @@ public sealed partial class ShellSedInterceptMiddleware : ServiceEntity, IShellM
         }
 
         // 存储待确认编辑 — 对齐 TS _simulatedSedEdit 注入
-        _pendingSedEdits[sedKey] = new PendingSedConfirmation(
+        var confirmation = new PendingSedConfirmation(
             newContent,
             originalLineEnding,
             sedInfo.Pattern,
             sedInfo.Replacement);
+        if (cache is not null)
+            cache.Set(filePath, confirmation, SedConfirmationWindow);
+        else
+            _fallbackEdits[filePath] = confirmation;
 
         // 返回 diff 预览 — 对齐 TS SedEditPermissionRequest 展示 FileEditToolDiff
         var preview = new StringBuilder();

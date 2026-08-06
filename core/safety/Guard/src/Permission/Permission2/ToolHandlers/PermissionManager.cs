@@ -9,7 +9,6 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
 {
     private readonly PermissionChecker _permissionChecker;
     [Inject] private readonly ILogger<PermissionManager>? _logger;
-    private readonly ConcurrentDictionary<string, CachedPermissionResult> _permissionCache;
     private readonly ConcurrentDictionary<string, DateTimeOffset> _approvedTools;
     private readonly AsyncLock _modeLock = new();
     private readonly PermissionConfig _config;
@@ -37,7 +36,6 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
         _permissionChecker = permissionChecker;
         _logger = logger;
         _timeProvider = timeProvider ?? TimeProvider.System;
-        _permissionCache = new ConcurrentDictionary<string, CachedPermissionResult>();
         _approvedTools = new ConcurrentDictionary<string, DateTimeOffset>();
         _currentMode = PermissionChecker.TryGetPermissionModeFromEnv(fs) ?? PermissionMode.Default;
     }
@@ -173,7 +171,8 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
     /// </summary>
     public void ClearCache()
     {
-        _permissionCache.Clear();
+        foreach (var scope in SessionRouter.GetAllScopes())
+            scope.Cache.Clear();
         _logger?.LogDebug("权限缓存已清除");
     }
 
@@ -184,22 +183,15 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
     {
         var now = _timeProvider.GetUtcNow();
 
-        var expiredKeys = _permissionCache
-            .Where(kvp => kvp.Value.IsExpired(now))
-            .Select(kvp => kvp.Key)
-            .ToList();
-        expiredKeys.ForEach(key => _permissionCache.TryRemove(key, out _));
-
         var expiredTools = _approvedTools
             .Where(kvp => kvp.Value <= now)
             .Select(kvp => kvp.Key)
             .ToList();
         expiredTools.ForEach(tool => _approvedTools.TryRemove(tool, out _));
 
-        if (expiredKeys.Count > 0 || expiredTools.Count > 0)
+        if (expiredTools.Count > 0)
         {
-            _logger?.LogDebug("已清理过期缓存项: Cache={CacheCount}, Tools={ToolCount}",
-                expiredKeys.Count, expiredTools.Count);
+            _logger?.LogDebug("已清理过期临时批准: {ToolCount}", expiredTools.Count);
         }
     }
 
@@ -266,7 +258,6 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
         _disposed = true;
 
         _modeLock.Dispose();
-        _permissionCache.Clear();
         _approvedTools.Clear();
 
         GC.SuppressFinalize(this);
@@ -276,13 +267,17 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
 
     private string GenerateCacheKey(PermissionRequest request)
     {
-        var baseKey = request.Arguments == null || request.Arguments.Count == 0
-            ? $"{request.ToolName}:noargs"
-            : $"{request.ToolName}:{string.Join("|", request.Arguments.Where(kvp => IsKeyParameter(kvp.Key)).OrderBy(kvp => kvp.Key).Select(kvp => $"{kvp.Key}={kvp.Value}"))}";
+        if (request.Arguments == null || request.Arguments.Count == 0)
+        {
+            return $"{request.ToolName}:noargs";
+        }
 
-        var sessionId = SessionContext.Current;
-        if (sessionId is null) return baseKey;
-        return $"{sessionId.Value}:{baseKey}";
+        var keyParams = request.Arguments
+            .Where(kvp => IsKeyParameter(kvp.Key))
+            .OrderBy(kvp => kvp.Key)
+            .Select(kvp => $"{kvp.Key}={kvp.Value}");
+
+        return $"{request.ToolName}:{string.Join("|", keyParams)}";
     }
 
     private static bool IsKeyParameter(string paramName)
@@ -301,17 +296,14 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
     private bool TryGetCachedResult(string cacheKey, [NotNullWhen(true)] out PermissionResult? result)
     {
         result = null;
+        var sessionId = SessionContext.Current;
+        if (sessionId is null) return false;
 
-        if (!_permissionCache.TryGetValue(cacheKey, out var cached))
-        {
-            return false;
-        }
+        var scope = SessionRouter.GetScope(sessionId.Value);
+        if (scope is null) return false;
 
-        if (cached.IsExpired(_timeProvider.GetUtcNow()))
-        {
-            _permissionCache.TryRemove(cacheKey, out _);
-            return false;
-        }
+        var cached = scope.Cache.Get<CachedPermissionResult>(cacheKey);
+        if (cached is null) return false;
 
         result = cached.Result;
         return true;
@@ -319,13 +311,14 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
 
     private void CacheResult(string cacheKey, PermissionResult result)
     {
-        if (result.RequiresConfirmation)
-        {
-            return;
-        }
+        if (result.RequiresConfirmation) return;
 
+        var sessionId = SessionContext.Current;
+        if (sessionId is null) return;
+
+        var scope = SessionRouter.GetOrCreateScope(sessionId.Value);
         var cached = new CachedPermissionResult(result, _timeProvider.GetUtcNow().Add(CacheExpiration));
-        _permissionCache.AddOrUpdate(cacheKey, cached, (_, _) => cached);
+        scope.Cache.Set(cacheKey, cached, CacheExpiration);
     }
 
     private bool IsToolTemporarilyApproved(string toolName)

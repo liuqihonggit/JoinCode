@@ -143,6 +143,30 @@ public sealed class ContextFoldSnipTests
     }
 
     [Fact]
+    public void Snip_LastMessageHuge_StillSnipsEarlierStale()
+    {
+        // 当最后一条消息单独超预算时，ComputeTailBoundary 返回 0（整个日志视为保护区）。
+        // 但剪裁仍应保留最近一小段（对齐 Go tailStart 的 minKeep 下限），
+        // 剪掉更早的过期大工具结果，否则最后一条巨大时前面再也无法瘦身。
+        var log = new AppendOnlyLog();
+        log.Append(new ApiMessage(MessageRole.User, "turn 1"));
+        log.Append(new ApiMessage(MessageRole.Assistant, "tool call",
+            new Dictionary<string, JsonElement> { ["ToolCalls"] = JsonSerializer.SerializeToElement("[]") }));
+        log.Append(new ApiMessage(MessageRole.Tool, BigResult(5000),
+            new Dictionary<string, JsonElement> { ["ToolName"] = JsonSerializer.SerializeToElement("bash") }));
+        log.Append(new ApiMessage(MessageRole.User, "recent turn"));
+        log.Append(new ApiMessage(MessageRole.Assistant, "recent reply"));
+        log.Append(new ApiMessage(MessageRole.Tool, BigResult(50_000),
+            new Dictionary<string, JsonElement> { ["ToolName"] = JsonSerializer.SerializeToElement("huge_recent") }));
+
+        var stats = ContextFoldDecider.SnipStaleToolResults(log, CtxMax);
+
+        stats.Results.Should().Be(1, "末尾超大时仍应剪裁更早的过期工具结果");
+        log[2].Content.Should().Contain("snipped");
+        log[5].Content.Should().Be(BigResult(50_000), "最近的超大结果仍在尾部原样保留");
+    }
+
+    [Fact]
     public void Snip_SkipsWhenRewriteIsNotShorter()
     {
         // 81 行×~40 字符：只略超 40+40 行阈值，保留 80 行 + 2 个 marker 反而比原文更长。

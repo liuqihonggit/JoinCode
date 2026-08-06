@@ -18,5 +18,12 @@ public sealed class ContextFoldThresholds
     public int SnipHeadChars { get; init; } = 8000;
     public int SnipTailChars { get; init; } = 8000;
 
+    /// <summary>
+    /// 剪裁时保护区的最小消息数兜底 — 对齐 Reasonix Go 版 tailStart 的 minKeep/tailFloor。
+    /// 当末条消息单独超预算导致 ComputeTailBoundary 归零时，仍保留最近 N 条消息逐字，
+    /// 更早的过期大工具结果允许剪裁，避免"末条巨大→前面永不再剪"。
+    /// </summary>
+    public int RecentKeepTailMessages { get; init; } = 2;
+
     public static ContextFoldThresholds Default { get; } = new();
 }

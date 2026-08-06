@@ -212,6 +212,14 @@ public static class ContextFoldDecider
 
         var boundary = ComputeTailBoundary(messages, ctxMax, aggressive: false, t);
 
+        // 兜底：末条消息单独超预算时 ComputeTailBoundary 归零（整个日志被视作保护区）。
+        // 对齐 Go tailStart 的 minKeep 下限，仍保护最近 RecentKeepTailMessages 条，
+        // 允许剪裁更早的过期大工具结果 — 否则末条巨大时前面永不再剪。
+        if (boundary == 0 && messages.Count > t.RecentKeepTailMessages)
+        {
+            boundary = messages.Count - t.RecentKeepTailMessages;
+        }
+
         var index = 0;
         var saved = 0;
         var changed = false;

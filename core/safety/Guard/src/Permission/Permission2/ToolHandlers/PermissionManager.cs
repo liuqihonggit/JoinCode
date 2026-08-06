@@ -276,17 +276,13 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
 
     private string GenerateCacheKey(PermissionRequest request)
     {
-        if (request.Arguments == null || request.Arguments.Count == 0)
-        {
-            return $"{request.ToolName}:noargs";
-        }
+        var baseKey = request.Arguments == null || request.Arguments.Count == 0
+            ? $"{request.ToolName}:noargs"
+            : $"{request.ToolName}:{string.Join("|", request.Arguments.Where(kvp => IsKeyParameter(kvp.Key)).OrderBy(kvp => kvp.Key).Select(kvp => $"{kvp.Key}={kvp.Value}"))}";
 
-        var keyParams = request.Arguments
-            .Where(kvp => IsKeyParameter(kvp.Key))
-            .OrderBy(kvp => kvp.Key)
-            .Select(kvp => $"{kvp.Key}={kvp.Value}");
-
-        return $"{request.ToolName}:{string.Join("|", keyParams)}";
+        var sessionId = SessionContext.Current;
+        if (sessionId is null) return baseKey;
+        return $"{sessionId.Value}:{baseKey}";
     }
 
     private static bool IsKeyParameter(string paramName)

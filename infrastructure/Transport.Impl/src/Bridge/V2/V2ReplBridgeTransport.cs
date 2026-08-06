@@ -367,7 +367,7 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
         catch (Exception ex)
         {
             // 非致命: 解析失败不影响主流程
-            System.Diagnostics.Trace.WriteLine($"[V2ReplBridgeTransport] Parse SSE event failed: {ex.Message}");
+            _logger?.LogWarning(ex, "[V2Transport] 解析 SSE 事件失败");
         }
     }
 

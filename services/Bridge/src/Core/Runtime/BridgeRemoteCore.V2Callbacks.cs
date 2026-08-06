@@ -210,7 +210,7 @@ public static partial class BridgeRemoteCore
             {
                 state.LastTransportSequenceNum = seq;
             }
-            try { await pollLoop.CurrentTransport.CloseAsync().ConfigureAwait(false); } catch (Exception ex) { /* 忽略 */ System.Diagnostics.Trace.WriteLine($"[BridgeRemoteCore] Close transport during reconnect failed: {ex.Message}"); }
+            try { await pollLoop.CurrentTransport.CloseAsync().ConfigureAwait(false); } catch (Exception ex) { logger?.LogWarning(ex, "[BridgeRemoteCore] 重连期间关闭传输失败"); }
             _ = pollLoop.CurrentTransport.DisposeAsync();
             pollLoop.ClearTransport();
         }
@@ -284,7 +284,7 @@ public static partial class BridgeRemoteCore
         if (state.TornDown || ct.IsCancellationRequested)
         {
             logger?.LogDebug("Bridge v1: Reconnect aborted after env registration, cleaning up");
-            try { await apiClient.DeregisterEnvironmentAsync(reconnectState.EnvironmentId, ct).ConfigureAwait(false); } catch (Exception ex2) { System.Diagnostics.Trace.WriteLine($"[BridgeRemoteCore] Deregister environment during abort failed: {ex2.Message}"); }
+            try { await apiClient.DeregisterEnvironmentAsync(reconnectState.EnvironmentId, ct).ConfigureAwait(false); } catch (Exception ex2) { logger?.LogWarning(ex2, "[BridgeRemoteCore] 中止期间注销环境失败"); }
             return false;
         }
 
@@ -365,7 +365,7 @@ public static partial class BridgeRemoteCore
         if (state.TornDown || ct.IsCancellationRequested)
         {
             logger?.LogDebug("Bridge v1: Reconnect aborted after session creation, archiving new session");
-            try { await parameters.ArchiveSession(newSessionId, ct).ConfigureAwait(false); } catch (Exception ex) { /* best-effort */ System.Diagnostics.Trace.WriteLine($"[BridgeRemoteCore] Archive session during abort failed: {ex.Message}"); }
+            try { await parameters.ArchiveSession(newSessionId, ct).ConfigureAwait(false); } catch (Exception ex) { logger?.LogWarning(ex, "[BridgeRemoteCore] 中止期间归档会话失败"); }
             return false;
         }
 

@@ -13,6 +13,13 @@ public sealed class SessionMeta
     public int LastPromptTokens { get; init; }
     public int TurnCount { get; init; }
     public decimal TotalCostUsd { get; init; }
+
+    /// <summary>
+    /// 会话最后活跃时间的 UTC 刻度数（DateTime.UtcNow.Ticks），用于冷恢复剪裁判定
+    /// 缓存是否已冷（空闲超 vendor TTL）。0 表示未知（旧文件/未写入），冷恢复保守跳过。
+    /// 对齐 Reasonix Go 版 branch meta 的 UpdatedAt。
+    /// </summary>
+    public long UpdatedAtUtcTicks { get; init; }
 }
 
 public static class SessionMetaSerializer

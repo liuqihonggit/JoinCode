@@ -89,7 +89,7 @@ public sealed partial class SessionStats : ServiceEntity, ISessionStats
         CompactionEnteredBreaks = 0;
     }
 
-    public SessionMeta ToMeta()
+    public SessionMeta ToMeta(long updatedAtUtcTicks = 0)
     {
         return new SessionMeta
         {
@@ -97,7 +97,8 @@ public sealed partial class SessionStats : ServiceEntity, ISessionStats
             CacheMissTokens = CarryoverCacheMissTokens + TotalCacheMissTokens,
             LastPromptTokens = TurnCount > 0 ? (int)(TotalPromptTokens / TurnCount) : 0,
             TurnCount = TurnCount,
-            TotalCostUsd = _carryoverCostUsd + TotalCostUsd
+            TotalCostUsd = _carryoverCostUsd + TotalCostUsd,
+            UpdatedAtUtcTicks = updatedAtUtcTicks
         };
     }
 }

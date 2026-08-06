@@ -219,7 +219,7 @@ public class ConfigLoader {
     /// <summary>
     /// 保存 API Key 到 ~/.jcc/auth.json
     /// </summary>
-    public static async Task SaveApiKeyToJccAsync(string provider, string apiKey, IFileSystem fs, CancellationToken cancellationToken = default)
+    public static async Task SaveApiKeyToJccAsync(string provider, string apiKey, IFileSystem fs, CancellationToken cancellationToken = default, ILogger? logger = null)
     {
         var authPath = WorkflowConstants.Paths.AuthFilePath;
         var directory = Path.GetDirectoryName(authPath);
@@ -239,7 +239,7 @@ public class ConfigLoader {
             catch (Exception ex)
             {
                 // 文件损坏，重新创建
-                System.Diagnostics.Trace.WriteLine($"Failed to read auth file '{authPath}': {ex.Message}");
+                logger?.LogWarning(ex, "Failed to read auth file '{AuthPath}'", authPath);
             }
         }
 
@@ -252,7 +252,7 @@ public class ConfigLoader {
     /// <summary>
     /// 从 ~/.jcc/settings.json 读取指定键的值（兼容旧版扁平 KV 格式）
     /// </summary>
-    public static async Task<string?> LoadSettingFromSettingsJsonAsync(string key, IFileSystem fs, CancellationToken cancellationToken = default)
+    public static async Task<string?> LoadSettingFromSettingsJsonAsync(string key, IFileSystem fs, CancellationToken cancellationToken = default, ILogger? logger = null)
     {
         var settingsPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
@@ -270,7 +270,7 @@ public class ConfigLoader {
         catch (Exception ex)
         {
             // 文件损坏或格式错误，忽略
-            System.Diagnostics.Trace.WriteLine($"Failed to load setting '{key}' from settings.json: {ex.Message}");
+            logger?.LogWarning(ex, "Failed to load setting '{Key}' from settings.json", key);
         }
 
         return null;
@@ -280,7 +280,7 @@ public class ConfigLoader {
     /// 从 ~/.jcc/settings.json 同步读取指定键的值（兼容旧版扁平 KV 格式）
     /// P1-3: 为 Lazy&lt;T&gt; 加载场景提供同步入口，避免 sync-over-async 阻塞
     /// </summary>
-    public static string? LoadSettingFromSettingsJson(string key, IFileSystem fs)
+    public static string? LoadSettingFromSettingsJson(string key, IFileSystem fs, ILogger? logger = null)
     {
         var settingsPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
@@ -298,7 +298,7 @@ public class ConfigLoader {
         catch (Exception ex)
         {
             // 文件损坏或格式错误，忽略
-            System.Diagnostics.Trace.WriteLine($"Failed to load setting '{key}' from settings.json: {ex.Message}");
+            logger?.LogWarning(ex, "Failed to load setting '{Key}' from settings.json", key);
         }
 
         return null;
@@ -329,7 +329,7 @@ public class ConfigLoader {
     /// <summary>
     /// 将指定键值对写入 ~/.jcc/settings.json — 对齐 TS updateSettingsForSource
     /// </summary>
-    public static async Task SaveSettingToSettingsJsonAsync(string key, string? value, IFileSystem fs, CancellationToken cancellationToken = default)
+    public static async Task SaveSettingToSettingsJsonAsync(string key, string? value, IFileSystem fs, CancellationToken cancellationToken = default, ILogger? logger = null)
     {
         var settingsPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
@@ -354,7 +354,7 @@ public class ConfigLoader {
             catch (Exception ex)
             {
                 // 文件损坏，重新创建
-                System.Diagnostics.Trace.WriteLine($"Failed to read settings file '{settingsPath}': {ex.Message}");
+                logger?.LogWarning(ex, "Failed to read settings file '{SettingsPath}'", settingsPath);
             }
         }
 
@@ -383,7 +383,7 @@ public class ConfigLoader {
     /// <summary>
     /// 从 ~/.jcc/global.json 读取全局配置值 — 对齐 TS getGlobalConfig
     /// </summary>
-    public static async Task<string?> LoadSettingFromGlobalConfigAsync(string key, IFileSystem fs, CancellationToken cancellationToken = default)
+    public static async Task<string?> LoadSettingFromGlobalConfigAsync(string key, IFileSystem fs, CancellationToken cancellationToken = default, ILogger? logger = null)
     {
         var globalPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
@@ -412,7 +412,7 @@ public class ConfigLoader {
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Trace.WriteLine($"Failed to load setting from global.json: {ex.Message}");
+            logger?.LogWarning(ex, "Failed to load setting from global.json");
         }
 
         return null;
@@ -421,7 +421,7 @@ public class ConfigLoader {
     /// <summary>
     /// 将键值对写入 ~/.jcc/global.json — 对齐 TS saveGlobalConfig
     /// </summary>
-    public static async Task SaveSettingToGlobalConfigAsync(string key, string? value, IFileSystem fs, CancellationToken cancellationToken = default)
+    public static async Task SaveSettingToGlobalConfigAsync(string key, string? value, IFileSystem fs, CancellationToken cancellationToken = default, ILogger? logger = null)
     {
         var globalPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
@@ -442,7 +442,7 @@ public class ConfigLoader {
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Trace.WriteLine($"Failed to read global config file '{globalPath}': {ex.Message}");
+                logger?.LogWarning(ex, "Failed to read global config file '{GlobalPath}'", globalPath);
             }
         }
 

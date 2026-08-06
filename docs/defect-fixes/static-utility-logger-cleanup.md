@@ -17,7 +17,7 @@
 | 序号 | 文件 | Trace 数 | 处理 | 状态 |
 |------|------|----------|------|------|
 | S1 | `foundation/Abstractions/.../Utils/LlmJsonHelper.cs` | 11 | static 类，public 方法加可选 `ILogger? logger = null`，private 透传；19 调用点传 `_logger` | ✅ |
-| S2 | `core/safety/Guard/.../ConfigLoader.cs` | 6 | static 类，方法加 logger 参 | ⏳ |
+| S2 | `core/safety/Guard/.../ConfigLoader.cs` | 6 | static 类，方法加 logger 参 | ✅ |
 | S3 | `core/safety/Guard/.../SettingsLoader.cs` | 1 | static 类 | ⏳ |
 | S4 | `core/safety/Guard/.../PathValidator.cs` | 2 | static 类 | ⏳ |
 | S5 | `core/search/CodeIndex/.../CsprojParser.cs` | 1 | static 类 | ⏳ |
@@ -74,3 +74,9 @@
 <!-- 原因: 与既有模式一致，static 方法不可访问实例 _logger，必须显式透传；调用点升级为"能传就传"，保证日志不丢 -->
 <!-- 替代方案: 调用点全部不传 logger（丢失全库 LLM JSON 诊断，不采用）-->
 <!-- 验证: Foundation/Core/Services/Clock 全部 0 错误 0 警告；Reasoning 280、Agents 265、Clock 421、Mcp 139、Brain.Context 725、McpToolDispatch 198、Guard.Hooks 206 全部通过 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-08-06 (S2 完成) -->
+<!-- 决策: S2 ConfigLoader 6个 static 方法加可选 ILogger? logger = null 尾参（在 cancellationToken 之后），6个 Trace.WriteLine 改 logger?.LogWarning(ex, ...)；ConfigurationService 5个调用点传 _logger；DotEnvConfig/ExecutionSettingsProvider/ProviderSetupStep/StartupWorkflow/Tests 无 logger 字段不传（可选参数默认 null，行为等价） -->
+<!-- 原因: ConfigLoader 是实例类但 static 方法无法访问实例字段，必须显式透传；文件损坏 catch 块属警告级别；无 logger 调用点保持静默与原 Trace 不可见等价 -->
+<!-- 替代方案: 给 ConfigLoader 加实例 _logger 字段（但 static 方法仍无法访问，不解决问题）；调用点全部传 null（多此一举，可选参数已默认 null）-->
+<!-- 验证: Guard Debug 0 错误 0 警告；Guard.Config 783 全通过；App Debug 0 错误 0 警告 ✅ -->

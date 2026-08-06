@@ -58,7 +58,7 @@ public sealed class ResumeCommand : ChatCommandBase
 
         // L3.1: 尝试自定义标题搜索
         // 对齐 TS: searchSessionsByCustomTitle — 大小写不敏感匹配
-        var titleMatches = await SearchByCustomTitleAsync(searchTerm, context.CancellationToken, context.Services.FileSystem).ConfigureAwait(false);
+        var titleMatches = await SearchByCustomTitleAsync(searchTerm, context.CancellationToken, context.Services.FileSystem, context.Services.ServiceProvider?.GetService<ILogger<ResumeCommand>>()).ConfigureAwait(false);
 
         if (titleMatches.Count == 0)
         {
@@ -96,7 +96,7 @@ public sealed class ResumeCommand : ChatCommandBase
     /// 按自定义标题搜索会话
     /// 对齐 TS: sessionStorage.ts searchSessionsByCustomTitle
     /// </summary>
-    private async Task<List<SessionLiteData>> SearchByCustomTitleAsync(string searchTerm, CancellationToken cancellationToken, IFileSystem fs)
+    private async Task<List<SessionLiteData>> SearchByCustomTitleAsync(string searchTerm, CancellationToken cancellationToken, IFileSystem fs, ILogger? logger = null)
     {
         if (!fs.DirectoryExists(SessionsPath))
         {
@@ -136,7 +136,7 @@ public sealed class ResumeCommand : ChatCommandBase
             catch (Exception ex)
             {
                 // 跳过无法解析的文件
-                System.Diagnostics.Trace.WriteLine($"会话文件解析失败: {ex.Message}");
+                logger?.LogWarning(ex, "会话文件解析失败");
             }
         }
 
@@ -159,7 +159,7 @@ public sealed class ResumeCommand : ChatCommandBase
         var currentSessionId = context.SessionId;
 
         // L3.3: Lite 日志加载 — 只读取文件 stat 信息，不读内容
-        var liteEntries = LoadLiteSessions(showAllProjects, context.Services.FileSystem);
+        var liteEntries = LoadLiteSessions(showAllProjects, context.Services.FileSystem, context.Services.ServiceProvider?.GetService<ILogger<ResumeCommand>>());
 
         // 过滤可恢复会话：排除当前会话
         // 对齐 TS: filterResumableSessions — 排除 sidechain + 当前会话
@@ -272,7 +272,7 @@ public sealed class ResumeCommand : ChatCommandBase
     /// L3.3: Lite 日志加载 — 只读取文件 stat 信息
     /// 对齐 TS: isLiteLog / getStatOnlyLogsForWorktrees
     /// </summary>
-    private List<SessionLiteData> LoadLiteSessions(bool showAllProjects, IFileSystem fs)
+    private List<SessionLiteData> LoadLiteSessions(bool showAllProjects, IFileSystem fs, ILogger? logger = null)
     {
         if (!fs.DirectoryExists(SessionsPath))
         {
@@ -309,7 +309,7 @@ public sealed class ResumeCommand : ChatCommandBase
             catch (Exception ex)
             {
                 // 无法解析 → 仅保留 stat 信息
-                System.Diagnostics.Trace.WriteLine($"Lite会话数据解析失败: {ex.Message}");
+                logger?.LogWarning(ex, "Lite会话数据解析失败");
             }
 
             // L3.4: 全项目过滤
@@ -374,7 +374,7 @@ public sealed class ResumeCommand : ChatCommandBase
 
             // 跨项目恢复检查
             // 对齐 TS: checkCrossProjectResume
-            var crossProjectResult = await CheckCrossProjectResumeAsync(session, context);
+            var crossProjectResult = await CheckCrossProjectResumeAsync(session, context, context.Services.ServiceProvider?.GetService<ILogger<ResumeCommand>>());
             if (crossProjectResult.IsCrossProject && !crossProjectResult.IsSameRepoWorktree)
             {
                 // 不同项目 — 生成命令并复制到剪贴板
@@ -444,7 +444,7 @@ public sealed class ResumeCommand : ChatCommandBase
     /// 跨项目恢复检查
     /// 对齐 TS: checkCrossProjectResume
     /// </summary>
-    private static async Task<CrossProjectResumeResult> CheckCrossProjectResumeAsync(SessionData session, ChatCommandContext context)
+    private static async Task<CrossProjectResumeResult> CheckCrossProjectResumeAsync(SessionData session, ChatCommandContext context, ILogger? logger = null)
     {
         var currentCwd = Environment.CurrentDirectory;
 
@@ -480,7 +480,7 @@ public sealed class ResumeCommand : ChatCommandBase
             catch (Exception ex)
             {
                 // Worktree 检测失败 → 视为不同项目
-                System.Diagnostics.Trace.WriteLine($"Worktree检测失败: {ex.Message}");
+                logger?.LogWarning(ex, "Worktree检测失败");
             }
         }
 

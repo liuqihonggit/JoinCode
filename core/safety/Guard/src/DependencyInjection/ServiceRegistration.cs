@@ -35,7 +35,7 @@ public static partial class ServiceRegistration
     public static IServiceCollection AddPermissionServices(this IServiceCollection services)
     {
         services.AddOptions<PermissionConfig>()
-            .Configure<IFileSystem>((options, fs) => {
+            .Configure<IFileSystem, ILogger<PermissionConfig>>((options, fs, logger) => {
                 var defaultConfig = PermissionConfig.CreateDefault();
                 options.AutoApprovedTools = defaultConfig.AutoApprovedTools;
                 options.AutoRejectedTools = defaultConfig.AutoRejectedTools;
@@ -46,7 +46,7 @@ public static partial class ServiceRegistration
                 options.SensitivePathPatterns = defaultConfig.SensitivePathPatterns;
                 options.DangerousCommandPatterns = defaultConfig.DangerousCommandPatterns;
 
-                LoadPermissionsFromSettings(options, fs);
+                LoadPermissionsFromSettings(options, fs, logger);
             });
 
         return services;
@@ -92,7 +92,7 @@ public static partial class ServiceRegistration
         return services;
     }
 
-    private static void LoadPermissionsFromSettings(PermissionConfig options, IFileSystem fs)
+    private static void LoadPermissionsFromSettings(PermissionConfig options, IFileSystem fs, ILogger? logger = null)
     {
         try
         {
@@ -136,7 +136,7 @@ public static partial class ServiceRegistration
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Trace.WriteLine($"Failed to load permission settings: {ex.Message}");
+            logger?.LogWarning(ex, "Failed to load permission settings");
         }
     }
 

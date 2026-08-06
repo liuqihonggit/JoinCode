@@ -96,7 +96,7 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
     /// <summary>
     /// 写入错误日志到临时目录的 jcc_error.log — 与 Program.WriteErrorLog 一致
     /// </summary>
-    private static void WriteErrorLog(Exception ex)
+    private static void WriteErrorLog(Exception ex, ILogger? logger = null)
     {
         var errorLog = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "jcc_error.log");
         var errorContent = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}";
@@ -106,7 +106,7 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
         }
         catch (Exception logEx)
         {
-            System.Diagnostics.Trace.WriteLine($"写入错误日志失败: {logEx.Message}");
+            logger?.LogWarning(logEx, "写入错误日志失败");
         }
     }
 }

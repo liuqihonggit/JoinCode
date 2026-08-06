@@ -5,6 +5,7 @@ public static partial class ServiceRegistration
 {
     public static void WirePluginSkillBridge(this IServiceProvider serviceProvider)
     {
+        var logger = serviceProvider.GetService<ILoggerFactory>()?.CreateLogger("ServiceRegistration.Skills");
         Diag.WriteLine("[WIRE] resolving IPluginManager...");
         var pluginManager = serviceProvider.GetRequiredService<IPluginManager>();
         Diag.WriteLine("[WIRE] IPluginManager OK, resolving IPluginSkillBridge...");
@@ -41,7 +42,7 @@ public static partial class ServiceRegistration
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Trace.WriteLine(L.T(StringKey.RegisterPluginSkillFailedLog, pluginName, ex.Message));
+                    logger?.LogWarning(ex, L.T(StringKey.RegisterPluginSkillFailedLog, pluginName, ex.Message));
                 }
             };
 
@@ -53,7 +54,7 @@ public static partial class ServiceRegistration
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Trace.WriteLine($"[PluginSkillBridge] UnregisterPluginSkills failed for {pluginName}: {ex.Message}");
+                    logger?.LogWarning(ex, "[PluginSkillBridge] UnregisterPluginSkills failed for {PluginName}: {Error}", pluginName, ex.Message);
                 }
             };
         }

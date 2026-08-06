@@ -41,28 +41,30 @@
 | S23 | `infrastructure/.../FileLock.cs` | 4 | internal 原语 | ✅ |
 | S24 | `app/JoinCode/Cli/Display/TerminalHelper.cs` | 1 | static 类 | ✅ |
 
-### 第六桶：App 命令 / DI 注册（保留 Trace 待用户确认）
+### 第六桶：App 命令 / DI 注册
 
-| 文件 | Trace 数 | 原因 |
-|------|----------|------|
-| `app/JoinCode/Commands/ai/Info/InsightsCommand.cs` | 4 | App 命令层 |
-| `app/JoinCode/Commands/brain/Session/ResumeCommand.cs` | 3 | App 命令层 |
-| `app/JoinCode/Commands/guard/Auth/LoginCommand.cs` | 1 | App 命令层 |
-| `app/JoinCode/Commands/guard/Auth/LogoutCommand.cs` | 1 | App 命令层 |
-| `app/JoinCode/Commands/hands/Code/AddDirCommand.cs` | 1 | App 命令层 |
-| `app/JoinCode/Entry/Startup/ReplLoopStep.cs` | 1 | 入口 |
-| `app/JoinCode/Entry/Startup/NonInteractiveExecuteStep.cs` | 1 | 入口 |
-| `app/JoinCode/Program.cs` | 4 | 入口 |
-| `composition/Composition/.../ServiceRegistration.Skills.cs` | 2 | DI 注册 |
-| `core/safety/Guard/.../ServiceRegistration.cs` | 1 | DI 注册 |
+| 文件 | Trace 数 | 处理 | 状态 |
+|------|----------|------|------|
+| `app/JoinCode/Commands/ai/Info/InsightsCommand.cs` | 4 | ExtractFacetsAsync/SummarizeLongTranscriptAsync 加 logger 尾参,调用点从 context.Services.ServiceProvider 获取 ILogger | ✅ |
+| `app/JoinCode/Commands/brain/Session/ResumeCommand.cs` | 3 | SearchByCustomTitleAsync/LoadLiteSessions/CheckCrossProjectResumeAsync 加 logger 尾参,调用点从 ServiceProvider 获取 | ✅ |
+| `app/JoinCode/Commands/guard/Auth/LoginCommand.cs` | 1 | PostLoginRefreshAsync 加 logger | ✅ |
+| `app/JoinCode/Commands/guard/Auth/LogoutCommand.cs` | 1 | PostLogoutRefreshAsync 加 logger | ✅ |
+| `app/JoinCode/Commands/hands/Code/AddDirCommand.cs` | 1 | PersistDirectoryAsync 加 logger | ✅ |
+| `app/JoinCode/Entry/Startup/ReplLoopStep.cs` | 1 | WriteErrorLog 加 logger | ✅ |
+| `app/JoinCode/Entry/Startup/NonInteractiveExecuteStep.cs` | 1 | WriteErrorLog 加 logger | ✅ |
+| `app/JoinCode/Program.cs` | 4 | logger 提到 try 外;WriteErrorLog/StartAwaitTimer 加 logger 尾参;doctor lambda 捕获 logger | ✅ |
+| `composition/Composition/.../ServiceRegistration.Skills.cs` | 2 | 从 IServiceProvider 获取 ILoggerFactory 创建 logger,lambda 捕获 | ✅ |
+| `core/safety/Guard/.../ServiceRegistration.cs` | 1 | LoadPermissionsFromSettings 加 logger,Configure 泛型加 ILogger 参数 | ✅ |
 
 #### 第六桶分析结论（2026-08-07）
 
 - **19处Trace全部为内部诊断**(缓存/解析/遥测/日志写入失败等非致命边缘失败,均有"不影响主流程"注释)
-- **10个类全部无 `_logger` 字段**;16处在static方法/lambda中,3处在实例方法但类无_logger
-- **建议方案**:全部改 `Console.Error.WriteLine`(stderr不干扰stdout,4处"日志机制本身失败的兜底"场景是唯一可靠通道)
-- **若未来统一用logger**:需先为这些类注入 `ILogger<T>`(DI构造函数注入或从 ChatCommandContext.Services/IServiceProvider 获取),当前代码未建立此模式
-- **状态**: 待用户确认后处理
+- **统一方案**: 全部采用 `ILogger? logger = null` 透传模式(与第五桶一致)
+  - App 命令层: 从 `context.Services.ServiceProvider?.GetService<ILogger<T>>()` 获取 logger 传入
+  - DI 注册层(Composition): 从 `serviceProvider.GetService<ILoggerFactory>()?.CreateLogger(...)` 创建 logger
+  - DI 注册层(Guard): `Configure<T1,T2>` 泛型加 `ILogger<T>` 参数,DI 自动注入
+  - Program.cs: `logger` 声明提到 try 外供 catch 块使用,host 创建后从 `host.Services` 获取
+- **状态**: ✅ 全部完成
 
 ## 验证基线
 
@@ -119,3 +121,10 @@
 <!-- 替代方案: 无(S18/S19 最简,S17/S24 标准模式)-->
 <!-- 验证: Hands.Api 184、Clock 421 全通过;Hands/Clock/App Debug 0 错误 0 警告 ✅ -->
 <!-- 🎉 第五桶 S1-S24 全部完成! 剩余第六桶(App命令/DI注册)待用户确认 -->
+
+<!-- 🤖 Auto Decision: 2026-08-07 (第六桶全部完成) -->
+<!-- 决策: 第六桶10文件19处Trace全部采用 ILogger? logger = null 透传模式(与第五桶一致)。App命令层从 context.Services.ServiceProvider 获取 ILogger;Composition 从 ILoggerFactory.CreateLogger 创建(ServiceRegistration 是 static 类不能做泛型参数);Guard Configure 泛型加 ILogger 参数;Program.cs logger 提到 try 外供 catch 块使用 -->
+<!-- 原因: ILogger 本身是多态抽象,null 即静默,与原 Trace.WriteLine 无 listener 等价;用户确认统一用此模式不新建抽象 -->
+<!-- 替代方案: Console.Error.WriteLine(stderr不干扰stdout,但不符合 ILogger 统一日志模式);为每个类注入 ILogger<T> 字段(需改构造函数+DI,改动面大)-->
+<!-- 验证: Guard/Composition/App Debug 0 错误 0 警告 ✅ -->
+<!-- 🎉🎉 全部六桶完成! 34个文件所有 Trace.WriteLine 已清理为 ILogger 透传模式 -->

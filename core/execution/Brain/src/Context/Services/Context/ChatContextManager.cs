@@ -466,6 +466,51 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            // 折叠前先做低成本剪裁：过期的大工具结果可重派生，重写它们无需调用摘要器。
+            // 若剪裁本身已把前缀压回阈值以下，则跳过本轮昂贵的摘要折叠（对齐 Reasonix Go 版
+            // maybeCompact 的 prune-before-fold：裁剪省一轮 summarize）。
+            var snip = ContextFoldDecider.SnipStaleToolResults(
+                _conversationLog,
+                _contextWindowResolver.ResolveCurrentContextWindow(),
+                _thresholds);
+
+            if (snip.Results > 0)
+            {
+                _logger?.LogInformation("折叠前剪裁 {Results} 条过期工具结果，节省约 {SavedChars} 字符",
+                    snip.Results, snip.SavedChars);
+
+                _telemetryService?.RecordCount("context.snip.count",
+                    new() { ["results"] = snip.Results.ToString() },
+                    "count", "Context fold pre-snip operation count");
+                _telemetryService?.RecordHistogram("context.snip.saved_chars", snip.SavedChars,
+                    unit: "chars", description: "Chars saved by context fold pre-snip");
+
+                var postSnipRatio = (double)ContextFoldDecider.EstimateTokenCount(
+                    _conversationLog.ToMessages(), _currentToolSpecs, _thresholds)
+                    / _contextWindowResolver.ResolveCurrentContextWindow();
+
+                var clearedBySnip = decision switch
+                {
+                    ContextFoldDecision.FoldNormal => postSnipRatio <= _thresholds.FoldThreshold,
+                    ContextFoldDecision.FoldAggressive => postSnipRatio <= _thresholds.AggressiveThreshold,
+                    _ => false
+                };
+
+                if (clearedBySnip)
+                {
+                    _consecutiveNoProgressFolds = 0;
+                    _cacheBreakDetector.NotifyCompaction();
+
+                    return new ContextFoldResult
+                    {
+                        Folded = false,
+                        Decision = decision,
+                        Snip = snip,
+                        OriginalMessageCount = _conversationLog.Count
+                    };
+                }
+            }
+
             var foldResult = decision switch
             {
                 ContextFoldDecision.FoldNormal => await _foldExecutor.FoldAsync(_conversationLog, _contextWindowResolver.ResolveCurrentContextWindow(), aggressive: false, _thresholds, cancellationToken).ConfigureAwait(false),
@@ -474,13 +519,28 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
                 _ => new ContextFoldResult { Folded = false, Decision = decision, OriginalMessageCount = _conversationLog.Count }
             };
 
+            if (snip.Results > 0)
+            {
+                foldResult = new ContextFoldResult
+                {
+                    Folded = foldResult.Folded,
+                    HeadMessageCount = foldResult.HeadMessageCount,
+                    TailMessageCount = foldResult.TailMessageCount,
+                    OriginalMessageCount = foldResult.OriginalMessageCount,
+                    Summary = foldResult.Summary,
+                    Decision = foldResult.Decision,
+                    Snip = snip
+                };
+            }
+
             // 折叠/压缩确实改写前缀后，通知检测器重置缓存基线，避免下一次 miss 被误报为驱逐
             if (foldResult.Folded)
             {
                 _consecutiveNoProgressFolds = 0;
                 _cacheBreakDetector.NotifyCompaction();
             }
-            else if (decision is ContextFoldDecision.FoldNormal or ContextFoldDecision.FoldAggressive)
+            else if (decision is ContextFoldDecision.FoldNormal or ContextFoldDecision.FoldAggressive
+                     && snip.Results == 0)
             {
                 // 折叠动作执行但未产生任何缩减（窗口过小），累计无进展次数，触发卡死守卫
                 _consecutiveNoProgressFolds++;

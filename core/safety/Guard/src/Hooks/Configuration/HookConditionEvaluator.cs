@@ -236,7 +236,7 @@ public sealed partial class HookConditionEvaluator : ServiceEntity, IHookConditi
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Trace.WriteLine($"Failed to evaluate regex pattern '{pattern}': {ex.Message}");
+                _logger?.LogWarning(ex, "评估正则模式 {Pattern} 失败", pattern);
             }
         }
 

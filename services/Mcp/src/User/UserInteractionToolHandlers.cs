@@ -7,10 +7,12 @@ namespace McpToolDispatch;
 public class UserInteractionToolHandlers
 {
     private readonly IInteractiveService _interactiveService;
+    private readonly ILogger<UserInteractionToolHandlers>? _logger;
 
-    public UserInteractionToolHandlers(IInteractiveService interactiveService)
+    public UserInteractionToolHandlers(IInteractiveService interactiveService, ILogger<UserInteractionToolHandlers>? logger = null)
     {
         _interactiveService = interactiveService ?? throw new ArgumentNullException(nameof(interactiveService));
+        _logger = logger;
     }
 
     [McpTool(InteractionToolNameConstants.AskUserQuestion, "Ask the user multiple choice questions to gather information, clarify ambiguity, or make decisions", "interaction")]
@@ -27,7 +29,7 @@ public class UserInteractionToolHandlers
             questionItems = LlmJsonHelper.DeserializeValue(questions, QuestionItemListContext.Default.ListQuestionItem, out var repairHint)
                 ?? new List<QuestionItem>();
             if (!string.IsNullOrEmpty(repairHint))
-                System.Diagnostics.Trace.WriteLine($"[AskUserQuestion] questions JSON repaired: {repairHint}");
+                _logger?.LogInformation("[AskUserQuestion] questions JSON 已修复: {RepairHint}", repairHint);
         }
         catch (Exception ex)
         {

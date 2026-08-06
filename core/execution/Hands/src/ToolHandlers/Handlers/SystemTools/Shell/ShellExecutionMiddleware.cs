@@ -8,13 +8,15 @@ namespace Tools.Shell;
 public sealed partial class ShellExecutionMiddleware : ServiceEntity, IShellMiddleware
 {
 
-    public ShellExecutionMiddleware(ISystemActuatorRegistry registry, IForegroundTaskRegistry? foregroundTaskRegistry = null)
+    public ShellExecutionMiddleware(ISystemActuatorRegistry registry, IForegroundTaskRegistry? foregroundTaskRegistry = null, ILogger<ShellExecutionMiddleware>? logger = null)
     {
         _registry = registry;
         _foregroundTaskRegistry = foregroundTaskRegistry;
+        _logger = logger;
     }
     [Inject] private readonly ISystemActuatorRegistry _registry;
     [Inject] private readonly IForegroundTaskRegistry? _foregroundTaskRegistry;
+    private readonly ILogger<ShellExecutionMiddleware>? _logger;
 
     /// <inheritdoc />
     public async Task InvokeAsync(ShellPipelineContext context, MiddlewareDelegate<ShellPipelineContext> next, CancellationToken ct)
@@ -42,7 +44,7 @@ public sealed partial class ShellExecutionMiddleware : ServiceEntity, IShellMidd
 
         var progressType = context.Provider.Kind == SystemActuatorKind.PowerShell ? "ps_progress" : "bash_progress";
         using var progressTimer = context.OnProgress is not null
-            ? CreateProgressTimer(cmdContext, context.OnProgress, progressType)
+            ? CreateProgressTimer(cmdContext, context.OnProgress, progressType, _logger)
             : null;
 
         var result = await cmdContext.ResultTask.ConfigureAwait(false);
@@ -57,7 +59,7 @@ public sealed partial class ShellExecutionMiddleware : ServiceEntity, IShellMidd
     /// <summary>
     /// 创建进度报告定时器
     /// </summary>
-    private static Timer CreateProgressTimer(ISystemActuatorCommandContext context, ToolProgressCallback onProgress, string progressType)
+    private static Timer CreateProgressTimer(ISystemActuatorCommandContext context, ToolProgressCallback onProgress, string progressType, ILogger<ShellExecutionMiddleware>? logger = null)
     {
         var startTime = Environment.TickCount64;
         var progressCounter = 0;
@@ -94,7 +96,7 @@ public sealed partial class ShellExecutionMiddleware : ServiceEntity, IShellMidd
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Trace.WriteLine($"进度报告发送失败: {ex.Message}");
+                logger?.LogWarning(ex, "进度报告发送失败");
             }
         }, null, TimeSpan.FromMilliseconds(SystemActuatorBackgroundConstants.ProgressThresholdMs), TimeSpan.FromSeconds(1));
     }

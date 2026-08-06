@@ -170,7 +170,7 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport
             catch (Exception ex)
             {
                 // 优雅关闭超时，忽略
-                System.Diagnostics.Trace.WriteLine($"[V1ReplBridgeTransport] Graceful flush timeout: {ex.Message}");
+                _logger?.LogWarning(ex, "[V1Transport] 优雅关闭 flush 超时");
             }
             finally
             {
@@ -187,7 +187,7 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport
         catch (Exception ex)
         {
             // 关闭时忽略异常
-            System.Diagnostics.Trace.WriteLine($"[V1ReplBridgeTransport] WS stop failed on close: {ex.Message}");
+            _logger?.LogWarning(ex, "[V1Transport] 关闭时 WS stop 失败");
         }
 
         _httpClient.Dispose();
@@ -254,7 +254,7 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport
         catch (Exception ex)
         {
             // Dispose 时忽略异常
-            System.Diagnostics.Trace.WriteLine($"[V1ReplBridgeTransport] WS stop failed on dispose: {ex.Message}");
+            _logger?.LogWarning(ex, "[V1Transport] Dispose 时 WS stop 失败");
         }
     }
 

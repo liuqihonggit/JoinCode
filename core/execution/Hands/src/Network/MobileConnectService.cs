@@ -59,7 +59,7 @@ public sealed partial class MobileConnectService : ServiceEntity, IMobileConnect
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Trace.WriteLine($"MobileConnectService: failed to stop TCP listener: {ex.Message}");
+                _logger?.LogWarning(ex, "MobileConnectService: 停止 TCP 监听器失败");
             }
             _logger?.LogInformation("移动端连接服务已停止");
         }
@@ -74,7 +74,7 @@ public sealed partial class MobileConnectService : ServiceEntity, IMobileConnect
             try
             {
                 var client = await _tcpListener.AcceptTcpClientAsync(ct).ConfigureAwait(false);
-                _ = HandleClientAsync(client, ct);
+                _ = HandleClientAsync(client, ct, _logger);
             }
             catch (ObjectDisposedException)
             {
@@ -97,7 +97,7 @@ public sealed partial class MobileConnectService : ServiceEntity, IMobileConnect
         }
     }
 
-    private static async Task HandleClientAsync(System.Net.Sockets.TcpClient client, CancellationToken ct)
+    private static async Task HandleClientAsync(System.Net.Sockets.TcpClient client, CancellationToken ct, ILogger<MobileConnectService>? logger = null)
     {
         try
         {
@@ -112,7 +112,7 @@ public sealed partial class MobileConnectService : ServiceEntity, IMobileConnect
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Trace.WriteLine($"MobileConnectService: client handling failed: {ex.Message}");
+            logger?.LogWarning(ex, "MobileConnectService: 客户端处理失败");
         }
         finally
         {

@@ -148,7 +148,7 @@ public sealed class BridgePermissionCallbackService : IBridgePermissionCallbacks
             foreach (var handler in handlers)
             {
                 try { await handler(response).ConfigureAwait(false); }
-                catch (Exception ex) { /* 忽略处理器异常 */ System.Diagnostics.Trace.WriteLine($"[BridgePermissionCallbacks] Handler threw exception: {ex.Message}"); }
+                catch (Exception ex) { _logger?.LogWarning(ex, "[BridgePermissionCallbacks] 处理器抛出异常"); }
             }
         }
         finally

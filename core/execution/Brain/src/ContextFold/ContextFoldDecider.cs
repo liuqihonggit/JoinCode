@@ -222,6 +222,16 @@ public static class ContextFoldDecider
             if (i < boundary && msg.Role == MessageRole.Tool && (msg.Content?.Length ?? 0) >= t.MinSnipChars && !IsSnipped(msg))
             {
                 var replacement = RewriteSnipped(msg, t);
+
+                // 剪裁必须承诺严格变短：行数仅略超 head+tail 阈值时，保留的
+                // 80 行加上 marker 头可能反超原文（SavedChars 变负、上下文膨胀）。
+                // 此时保持原文不动，跳过本轮剪裁。
+                if (replacement.Length >= (msg.Content?.Length ?? 0))
+                {
+                    rewritten.Add(msg);
+                    continue;
+                }
+
                 saved += (msg.Content?.Length ?? 0) - replacement.Length;
                 rewritten.Add(new ApiMessage(msg.Role, replacement, msg.Metadata));
                 index++;
@@ -263,7 +273,7 @@ public static class ContextFoldDecider
             head = string.Join("\n", lines.Take(t.SnipHeadLines));
             tail = string.Join("\n", lines.TakeLast(t.SnipTailLines));
             omitted = lines.Length - t.SnipHeadLines - t.SnipTailLines;
-            return $"snipped: {toolName} ({content.Length} bytes, {omitted} lines omitted; rerun tool to restore)\n" +
+            return $"snipped: {toolName} ({content.Length} chars, {omitted} lines omitted; rerun tool to restore)\n" +
                    $"{head}\n[... {omitted} lines omitted ...]\n{tail}";
         }
 
@@ -271,7 +281,7 @@ public static class ContextFoldDecider
         var tailChars = Math.Min(t.SnipTailChars, content.Length / 4);
         head = content[..headChars];
         tail = content[^tailChars..];
-        return $"snipped: {toolName} ({content.Length} bytes; rerun tool to restore)\n" +
+        return $"snipped: {toolName} ({content.Length} chars; rerun tool to restore)\n" +
                $"{head}\n[... {content.Length - headChars - tailChars} chars omitted ...]\n{tail}";
     }
 

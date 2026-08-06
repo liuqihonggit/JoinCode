@@ -107,4 +107,48 @@ public sealed class ContextFoldSnipTests
         log[2].ExtractToolCallId().Should().Be("call_1");
         log[2].ExtractToolName().Should().Be("bash");
     }
+
+    [Fact]
+    public void Snip_LineBranch_KeepsHeadAndTailLines()
+    {
+        var lines = Enumerable.Range(0, 200)
+            .Select(i => $"LINE_{i}_" + new string('x', 40));
+        var content = string.Join("\n", lines);
+        var log = BuildToolResult(content);
+
+        var stats = ContextFoldDecider.SnipStaleToolResults(log, CtxMax);
+
+        stats.Results.Should().Be(1);
+        stats.SavedChars.Should().BeGreaterThan(0);
+        log[2].Content.Should().Contain("LINE_0_");
+        log[2].Content.Should().Contain("LINE_199_");
+        log[2].Content.Should().Contain("[... 120 lines omitted ...]");
+    }
+
+    [Fact]
+    public void Snip_SkipsWhenRewriteIsNotShorter()
+    {
+        // 81 行×~40 字符：只略超 40+40 行阈值，保留 80 行 + 2 个 marker 反而比原文更长。
+        // 剪裁必须承诺严格变短，否则跳过（避免上下文膨胀与负 SavedChars）。
+        var lines = Enumerable.Repeat(new string('b', 40), 81);
+        var log = BuildToolResult(string.Join("\n", lines));
+
+        var stats = ContextFoldDecider.SnipStaleToolResults(log, CtxMax);
+
+        stats.Results.Should().Be(0, "重写不变短时必须跳过");
+        stats.SavedChars.Should().Be(0);
+        log[2].Content.Should().HaveLength(81 * 40 + 80);
+    }
+
+    private static AppendOnlyLog BuildToolResult(string content)
+    {
+        var log = new AppendOnlyLog();
+        log.Append(new ApiMessage(MessageRole.User, "turn 1"));
+        log.Append(new ApiMessage(MessageRole.Assistant, "tool call",
+            new Dictionary<string, JsonElement> { ["ToolCalls"] = JsonSerializer.SerializeToElement("[]") }));
+        log.Append(new ApiMessage(MessageRole.Tool, content,
+            new Dictionary<string, JsonElement> { ["ToolName"] = JsonSerializer.SerializeToElement("bash") }));
+        log.Append(new ApiMessage(MessageRole.User, "recent follow-up"));
+        return log;
+    }
 }

@@ -164,3 +164,11 @@ PreChatMiddleware.RecordPromptStateAsync        // core/execution/Brain/src/Cont
 <!-- 替代方案: 仅摘要折叠(剪裁为空操作管道)；把剪裁并入 DecideAfterUsage(职责混乱，剪裁是结果维护非决策) -->
 <!-- 验证: 新增 ContextFoldSnipTests 6 例(占位符改写/小结果跳过/保护区逐字保留/幂等/配对元数据保留/回归)全绿；Brain.Context.Tests 725 + PrefixCache 245 不回归；编译 0 警告 0 错误 -->
 
+## 14. 决策记录（Phase6 打磨：剪裁严格变短守卫 + 单元统一，2026-08-06）
+
+<!-- 🤖 Auto Decision: 2026-08-06 -->
+<!-- 决策: ① SnipStaleToolResults 增加严格变短守卫 — RewriteSnipped 结果长度 ≥ 原文时不改写，保持原文并跳过；② marker 计量单元从 bytes 统一为 chars -->
+<!-- 原因: ① Go 上游仅 guard replacement==content，未防"行数略超 40+40 阈值、每行较短"时保留 80 行 + marker 头反超原文（SavedChars 变负、上下文膨胀）；② w2 内部记账（EstimateTokenCount/SavedChars）均为字符，非 ASCII 时 bytes≠chars，观测单元错乱 -->
+<!-- 替代方案: ① 无守卫(沿用 Go，容忍负收益)；② 按 UTF-8 字节记账(与 EstimateTokenCount 字符估算脱节，需双轨换算) -->
+<!-- 验证: 新增 ContextFoldSnipTests 2 例(行分支头尾行保留/不变短跳过)全绿，7 例全绿；Brain.Context.Tests 725 + PrefixCache 245 不回归；编译 0 警告 0 错误 -->
+

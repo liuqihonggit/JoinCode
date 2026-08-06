@@ -11,6 +11,7 @@ public sealed class ContextFoldThresholds
     public double MinSavingsFraction { get; init; } = 0.3;
     public int CharsPerToken { get; init; } = 4;
     public int DeferFoldLimit { get; init; } = 3;
+    public int StuckFoldLimit { get; init; } = 2;
 
     public static ContextFoldThresholds Default { get; } = new();
 }

@@ -54,6 +54,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     private readonly List<DeferredToolInfo> _deferredTools = [];
     private string _previousDynamicHash = string.Empty;
     private int _deferredFoldCount;
+    private int _consecutiveNoProgressFolds;
 
     public ChatContextManager(
         IStateService stateService,
@@ -419,6 +420,14 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         }
 
         _deferredFoldCount = 0;
+
+        if (decision is ContextFoldDecision.FoldNormal or ContextFoldDecision.FoldAggressive
+            && ContextFoldDecider.IsFoldStuck(_consecutiveNoProgressFolds, _thresholds.StuckFoldLimit))
+        {
+            _logger?.LogWarning("上下文折叠连续 {Count} 次无进展（窗口过小），暂停自动折叠以避免每轮重试", _consecutiveNoProgressFolds);
+            return ContextFoldDecision.None;
+        }
+
         return decision;
     }
 
@@ -438,6 +447,11 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     {
         if (_foldExecutor == null)
         {
+            if (decision is ContextFoldDecision.FoldNormal or ContextFoldDecision.FoldAggressive)
+            {
+                _consecutiveNoProgressFolds++;
+            }
+
             return new ContextFoldResult
             {
                 Folded = false,
@@ -463,7 +477,13 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
             // 折叠/压缩确实改写前缀后，通知检测器重置缓存基线，避免下一次 miss 被误报为驱逐
             if (foldResult.Folded)
             {
+                _consecutiveNoProgressFolds = 0;
                 _cacheBreakDetector.NotifyCompaction();
+            }
+            else if (decision is ContextFoldDecision.FoldNormal or ContextFoldDecision.FoldAggressive)
+            {
+                // 折叠动作执行但未产生任何缩减（窗口过小），累计无进展次数，触发卡死守卫
+                _consecutiveNoProgressFolds++;
             }
 
             return foldResult;

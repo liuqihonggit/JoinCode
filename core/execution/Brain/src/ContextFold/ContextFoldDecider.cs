@@ -156,6 +156,24 @@ public static class ContextFoldDecider
         return headFraction >= t.MinSavingsFraction;
     }
 
+    /// <summary>
+    /// Determines whether repeated folding has made no progress (stuck).
+    /// Mirrors the upstream Go reference's <c>compactStuck</c> guard: when the
+    /// window is too small for a fold to reduce pressure, repeated attempts
+    /// would re-fire every turn, so after <paramref name="limit"/> consecutive
+    /// no-progress folds the caller should pause auto-folding.
+    /// </summary>
+    /// <param name="consecutiveNoProgressFolds">Number of consecutive folds that
+    /// returned no saved tokens.</param>
+    /// <param name="limit">Maximum tolerated consecutive no-progress folds before
+    /// declaring the fold stuck.</param>
+    /// <returns>True when the fold is considered stuck.</returns>
+    public static bool IsFoldStuck(int consecutiveNoProgressFolds, int limit)
+    {
+        if (limit <= 0) throw new ArgumentOutOfRangeException(nameof(limit));
+        return consecutiveNoProgressFolds >= limit;
+    }
+
     public static bool TrimTrailingToolCalls(AppendOnlyLog log)
     {
         ArgumentNullException.ThrowIfNull(log);

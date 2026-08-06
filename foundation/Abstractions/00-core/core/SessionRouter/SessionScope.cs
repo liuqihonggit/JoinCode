@@ -16,6 +16,9 @@ public sealed class SessionScope : IDisposable
     /// <summary>此作用域的会话 ObjectId</summary>
     public ObjectId SessionId { get; }
 
+    /// <summary>会话级缓存 — 缓存项派生 Entity, 纳入回收体系</summary>
+    public ISessionCache Cache { get; }
+
     /// <summary>当前注册的 Entity 总数</summary>
     public int Count => _entities.Count;
 
@@ -30,6 +33,7 @@ public sealed class SessionScope : IDisposable
         if (sessionId.IsEmpty)
             throw new ArgumentException("SessionId 不能为空", nameof(sessionId));
         SessionId = sessionId;
+        Cache = new SessionCache(sessionId);
     }
 
     /// <summary>
@@ -107,6 +111,8 @@ public sealed class SessionScope : IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+
+        Cache.Clear();
 
         foreach (var entity in _entities.Values)
         {

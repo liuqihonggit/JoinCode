@@ -3,18 +3,22 @@ namespace Structura.Tests;
 public class RingBufferTests
 {
     [Fact]
-    public void Constructor_CapacityLessThan1_Throws()
+    public void Constructor_CapacityNotPowerOfTwo_Throws()
     {
-        var act = () => new RingBuffer<int>(0);
-        act.Should().Throw<ArgumentOutOfRangeException>();
+        var act0 = () => new RingBuffer<int>(0);
+        act0.Should().Throw<ArgumentException>();
+        var act3 = () => new RingBuffer<int>(3);
+        act3.Should().Throw<ArgumentException>();
+        var act5 = () => new RingBuffer<int>(5);
+        act5.Should().Throw<ArgumentException>();
     }
 
     [Fact]
     public void NewBuffer_CountIsZero_IsFullFalse()
     {
-        var buf = new RingBuffer<int>(5);
+        var buf = new RingBuffer<int>(8);
         buf.Count.Should().Be(0);
-        buf.Capacity.Should().BeGreaterThanOrEqualTo(5);
+        buf.Capacity.Should().BeGreaterThanOrEqualTo(8);
         buf.IsFull.Should().BeFalse();
         buf.IsEmpty.Should().BeTrue();
     }

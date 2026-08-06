@@ -37,7 +37,7 @@ public sealed class StreamTokenDetector : IDisposable
         ArgumentOutOfRangeException.ThrowIfLessThan(minPatternLength, 1);
         ArgumentOutOfRangeException.ThrowIfLessThan(requiredRepeats, 2);
 
-        _tokenWindow = new RingBuffer<string>(windowCapacity);
+        _tokenWindow = new RingBuffer<string>(RingBuffer<string>.RoundUpToPowerOfTwo(windowCapacity));
         _detectInterval = detectInterval ?? TimeSpan.FromMilliseconds(100);
         _minPatternLength = minPatternLength;
         _requiredRepeats = requiredRepeats;
@@ -180,6 +180,11 @@ public sealed class StreamTokenDetector : IDisposable
     /// 当前环形队列中的 token 数
     /// </summary>
     public int TokenCount => _tokenWindow.Count;
+
+    /// <summary>
+    /// 环形队列实际容量(向上取整到 2 次幂后)
+    /// </summary>
+    public int WindowCapacity => _tokenWindow.Capacity;
 
     /// <summary>
     /// 循环检测触发次数(由后台线程递增)

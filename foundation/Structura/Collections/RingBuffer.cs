@@ -30,8 +30,9 @@ public sealed class RingBuffer<T>
     /// <param name="capacity">期望容量;物理缓冲向上取整到 2 次幂,实际可用容量 = 物理大小 - 1(留一空位区分空/满)</param>
     public RingBuffer(int capacity)
     {
-        ArgumentOutOfRangeException.ThrowIfLessThan(capacity, 1);
-        var actualSize = NextPowerOfTwo(capacity + 1);
+        if (capacity <= 0 || (capacity & (capacity - 1)) != 0)
+            throw new ArgumentException("容量必须是2的幂", nameof(capacity));
+        var actualSize = RoundUpToPowerOfTwo(capacity + 1);
         _buffer = new T[actualSize];
         _capacity = actualSize;
         _mask = actualSize - 1;
@@ -272,7 +273,7 @@ public sealed class RingBuffer<T>
     /// <summary>
     /// 向上取整到不小于 value 的最小 2 次幂
     /// </summary>
-    private static int NextPowerOfTwo(int value)
+    public static int RoundUpToPowerOfTwo(int value)
     {
         var v = value - 1;
         v |= v >> 1;

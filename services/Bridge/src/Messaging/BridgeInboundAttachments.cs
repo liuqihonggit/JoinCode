@@ -23,7 +23,7 @@ public static class BridgeInboundAttachments
     /// <summary>
     /// 从消息提取 file_attachments — 对齐 TS 端 extractInboundAttachments
     /// </summary>
-    public static List<BridgeInboundAttachment> ExtractInboundAttachments(JsonElement msg)
+    public static List<BridgeInboundAttachment> ExtractInboundAttachments(JsonElement msg, ILogger? logger = null)
     {
         if (msg.ValueKind != JsonValueKind.Object) return [];
 
@@ -48,7 +48,7 @@ public static class BridgeInboundAttachments
             catch (Exception ex)
             {
                 // best-effort: 跳过无法解析的附件
-                System.Diagnostics.Trace.WriteLine($"[BridgeInboundAttachments] Skip unparseable attachment: {ex.Message}");
+                logger?.LogWarning(ex, "[BridgeInboundAttachments] Skip unparseable attachment");
             }
         }
 

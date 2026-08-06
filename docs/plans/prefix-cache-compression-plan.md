@@ -140,3 +140,11 @@ PreChatMiddleware.RecordPromptStateAsync        // core/execution/Brain/src/Cont
 <!-- 替代方案: 直接把压缩miss当驱逐(现状，观测/成本告警误导); 仅重置基线不上报专用kind(失去可观测性) -->
 <!-- 验证: 新增 CacheBreakDetectorCompactionTests 4 例 + SessionStats CompactionEnteredBreaks 全绿; 既有 25 例 CacheBreak/ContextFold + Brain.Context.Tests 723 例不回归; 编译 0 警告 0 错误 -->
 
+## 11. 决策记录（Phase4 落地：折叠卡死守卫，2026-08-06）
+
+<!-- 🤖 Auto Decision: 2026-08-06 -->
+<!-- 决策: 新增折叠卡死守卫 — ContextFoldThresholds.StuckFoldLimit=2；ContextFoldDecider.IsFoldStuck()；ChatContextManager 追踪 _consecutiveNoProgressFolds，折叠动作执行但未产生任何缩减时累计，达到上限后 DecideAfterUsage 将 FoldNormal/FoldAggressive 降级为 None 暂停自动折叠；折叠成功即重置 -->
+<!-- 原因: 对齐 Reasonix Go 版 compactStuck 防护；窗口过小时"折叠→无缩减→下轮再折叠"会每轮重试，造成循环损耗并干扰缓存前缀 -->
+<!-- 替代方案: 不守卫(现状，窗口过小时折叠死循环); 用时间窗/绝对次数(无进展语义不精确) -->
+<!-- 验证: 新增 ContextFoldStuckGuardTests 3 例(纯守卫) + CacheBreakMonitorTests 2 例(管理器级：暂停与重置)全绿；Brain.Context.Tests 725 例不回归；编译 0 警告 0 错误 -->
+

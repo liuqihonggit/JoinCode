@@ -12,7 +12,15 @@ public sealed class RingBuffer<T>
     private readonly Slot[] _slots;
     private readonly int _capacity;
     private readonly long _mask;
-    private long _tail;
+    private PaddedLong _tail;
+
+#pragma warning disable 0169
+    private struct PaddedLong
+    {
+        internal long Value;
+        private long _p1, _p2, _p3, _p4, _p5, _p6, _p7;
+    }
+#pragma warning restore 0169
 
     private struct Slot
     {
@@ -44,12 +52,12 @@ public sealed class RingBuffer<T>
     /// 当前元素数(volatile read,封顶到容量) — _tail 是单调递增的总写入计数,
     /// 并发 Add 下用 CAS 原子递增获取唯一写入槽位,读数取 Min 得上限
     /// </summary>
-    public int Count => (int)Math.Min(Volatile.Read(ref _tail), _capacity);
+    public int Count => (int)Math.Min(Volatile.Read(ref _tail.Value), _capacity);
 
     /// <summary>
     /// 是否已满
     /// </summary>
-    public bool IsFull => Volatile.Read(ref _tail) >= _capacity;
+    public bool IsFull => Volatile.Read(ref _tail.Value) >= _capacity;
 
     /// <summary>
     /// 按逻辑索引访问元素 — 0=最旧,Count-1=最新;每槽位双 seq 验证保证读到一致值
@@ -61,7 +69,7 @@ public sealed class RingBuffer<T>
             ArgumentOutOfRangeException.ThrowIfNegative(index);
             while (true)
             {
-                var tail = Volatile.Read(ref _tail);
+                var tail = Volatile.Read(ref _tail.Value);
                 var count = Math.Min(tail, _capacity);
                 ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(index, (int)count);
                 var pos = tail - count + index;
@@ -91,15 +99,16 @@ public sealed class RingBuffer<T>
     /// 成功 CAS 后写入 _slots[pos &amp; _mask].Value,再 release-write 槽位 Seq=pos+1 标记可见;
     /// release 屏障保证 Value 先于 Seq 对读者可见,读者通过双 seq 验证检测"写一半"或被覆盖
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Add(T item)
     {
         long pos;
         long next;
         do
         {
-            pos = Volatile.Read(ref _tail);
+            pos = Volatile.Read(ref _tail.Value);
             next = pos + 1;
-        } while (Interlocked.CompareExchange(ref _tail, next, pos) != pos);
+        } while (Interlocked.CompareExchange(ref _tail.Value, next, pos) != pos);
         ref var slot = ref _slots[(int)(pos & _mask)];
         slot.Value = item;
         Volatile.Write(ref slot.Seq, pos + 1);
@@ -110,7 +119,7 @@ public sealed class RingBuffer<T>
     /// </summary>
     public void Clear()
     {
-        Interlocked.Exchange(ref _tail, 0);
+        Interlocked.Exchange(ref _tail.Value, 0);
         for (var i = 0; i < _slots.Length; i++)
             _slots[i].Seq = i;
     }
@@ -123,7 +132,7 @@ public sealed class RingBuffer<T>
     {
         while (true)
         {
-            var tail = Volatile.Read(ref _tail);
+            var tail = Volatile.Read(ref _tail.Value);
             var count = Math.Min(tail, _capacity);
             if (count == 0)
                 return [];

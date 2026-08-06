@@ -172,3 +172,11 @@ PreChatMiddleware.RecordPromptStateAsync        // core/execution/Brain/src/Cont
 <!-- 替代方案: ① 无守卫(沿用 Go)；② UTF-8 字节记账(与字符估算脱节)；③ 只记 count(丢规模)；④ 剪裁时连 ContentBlocks 一起清空(丢图片)；⑥ Split 后按非空行过滤(用字段有意义的空行也会被误滤)；⑦ 边界归零时不剪(与 Go minKeep 语义不符) -->
 <!-- 验证: ContextFoldSnipTests 12 例全绿(含多模态跳过/字段保留/无损回归守卫/尾换行/末条超大兜底)；Brain.Context.Tests 725 + PrefixCache 245 不回归；编译 0 警告 0 错误 -->
 
+## 15. 决策记录（Phase7 落地：冷恢复剪裁，2026-08-06）
+
+<!-- 🤖 Auto Decision: 2026-08-06 -->
+<!-- 决策: 冷恢复剪裁 — ① SessionMeta 增 UpdatedAtUtcTicks（UTC ticks，0=未知），SaveContextAsync 用注入的 IClockService 写入；② 新增 CacheTtlResolver 按 baseUrl host 精确/后缀匹配 vendor（DashScope 5m / Anthropic 5m / DeepSeek+未知 24h 保守），对齐 Go DefaultCacheTTL；③ LoadContextAsync 恢复 meta 后调用 TryColdResumePruneAsync：meta 无时间戳保守跳过 → 空闲 < TTL 跳过（缓存仍热不动）→ 空闲 ≥ TTL 时 SnipStaleToolResults 剪裁过期大工具结果 → 有结果才记录遥测并 SaveContextAsync 持久化（保存文件与提示词同步）；④ ChatContextOptions 增 Clock/ProviderBaseUrl 注入点 -->
+<!-- 原因: 对齐 Reasonix Go 版 maybeColdResumePrune（controller.go:3836-3861）+ cacheColdAfter：会话空闲超 vendor 缓存保留时长后，服务端缓存已冷，重写前缀零额外 miss 成本——此时剪裁只给全价首请求瘦身；空闲时不做，避免烧掉仍热的服务端缓存（DeepSeek miss 成本实测约 4 倍）；meta 无时间戳（旧文件/未写入）保守跳过直到首次快照创建时间戳 -->
+<!-- 替代方案: 固定 24h TTL 不区分 vendor（丢 DashScope/Anthropic 5m 细节，用户确认弃用）；用 .meta.json 文件 LastWriteTime 推断空闲（易被全量扫描扰动）；冷恢复仅记录不自动剪（需手动触发，丢收益） -->
+<!-- 验证: CacheTtlResolverTests 11 例 + SessionMetaUpdatedAtTests 4 例 + ChatContextManagerColdResumeTests 5 例全绿；Brain.Context.Tests 730（725+5）不回归；全量回归 7 slnx + tools 共 8090 例 0 失败；编译 0 警告 0 错误；RingBuffer MultiThread 并发例一次 flaky（重跑 17 例全绿，与本次改动无关） -->
+

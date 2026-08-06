@@ -140,6 +140,69 @@ public sealed class ContextFoldSnipTests
         log[2].Content.Should().HaveLength(81 * 40 + 80);
     }
 
+    [Fact]
+    public void Snip_SkipsMultimodalToolResults()
+    {
+        // Bash 图片/二进制工具结果带 ContentBlocks，剪裁只改文本会静默丢失多模态块并破坏配对
+        var log = new AppendOnlyLog();
+        log.Append(new ApiMessage(MessageRole.User, "turn 1"));
+        log.Append(new ApiMessage(MessageRole.Assistant, "tool call",
+            new Dictionary<string, JsonElement> { ["ToolCalls"] = JsonSerializer.SerializeToElement("[]") }));
+        log.Append(new ApiMessage(MessageRole.Tool, BigResult(5000),
+            new Dictionary<string, JsonElement> { ["ToolName"] = JsonSerializer.SerializeToElement("bash") })
+        {
+            ContentBlocks = [new ToolContent { Type = ToolContentType.Image }]
+        });
+        log.Append(new ApiMessage(MessageRole.User, "recent follow-up"));
+
+        var stats = ContextFoldDecider.SnipStaleToolResults(log, CtxMax);
+
+        stats.Results.Should().Be(0, "多模态工具结果不得剪裁，避免丢失图片块");
+        log[2].Content.Should().Be(BigResult(5000));
+        log[2].ContentBlocks.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void Snip_KeepsModelAndUsageMetadata()
+    {
+        var log = new AppendOnlyLog();
+        log.Append(new ApiMessage(MessageRole.User, "turn 1"));
+        log.Append(new ApiMessage(MessageRole.Assistant, "tool call",
+            new Dictionary<string, JsonElement> { ["ToolCalls"] = JsonSerializer.SerializeToElement("[]") }));
+        log.Append(new ApiMessage(MessageRole.Tool, BigResult(5000),
+            new Dictionary<string, JsonElement> { ["ToolName"] = JsonSerializer.SerializeToElement("bash") },
+            modelId: "gpt-4o",
+            tokenUsage: new TokenUsage { PromptTokens = 1 }));
+        log.Append(new ApiMessage(MessageRole.User, "recent follow-up"));
+
+        ContextFoldDecider.SnipStaleToolResults(log, CtxMax);
+
+        log[2].Content.Should().Contain("snipped");
+        log[2].ModelId.Should().Be("gpt-4o");
+        log[2].TokenUsage.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void ToMessages_RoundTripsMultimodalFields()
+    {
+        // 回归守卫：AppendOnlyLog.ToMessages 必须无损拷贝，否则剪裁判定会丢失
+        // ContentBlocks/ModelId/TokenUsage（曾导致多模态结果被误剪、配对损坏）
+        var log = new AppendOnlyLog();
+        log.Append(new ApiMessage(MessageRole.Tool, "result",
+            new Dictionary<string, JsonElement> { ["ToolName"] = JsonSerializer.SerializeToElement("bash") },
+            modelId: "gpt-4o",
+            tokenUsage: new TokenUsage { PromptTokens = 1 })
+        {
+            ContentBlocks = [new ToolContent { Type = ToolContentType.Image }]
+        });
+
+        var snapshot = log.ToMessages();
+
+        snapshot[0].ContentBlocks.Should().NotBeNull();
+        snapshot[0].ModelId.Should().Be("gpt-4o");
+        snapshot[0].TokenUsage.Should().NotBeNull();
+    }
+
     private static AppendOnlyLog BuildToolResult(string content)
     {
         var log = new AppendOnlyLog();

@@ -191,10 +191,11 @@ public static class ContextFoldDecider
         return true;
     }
 
-    /// <summary>
+/// <summary>
     /// 剪裁折叠保护区（tail boundary）之前的过期大工具结果 — 对齐 Reasonix Go 版 SnipStaleToolResults。
     /// 工具结果可重派生，重写其内容无需调用摘要器、不丢弃消息，只把超长内容压成"头尾行保留"的占位符。
     /// 幂等：已剪裁（带 snipped 标记）的结果不再重复剪裁；保护区内的结果原样保留。
+    /// 多模态工具结果（含 ContentBlocks）不剪裁 — 只改文本会静默丢失图片/二进制块并破坏 tool_call 配对。
     /// </summary>
     /// <param name="log">会话消息日志，原地改写。</param>
     /// <param name="ctxMax">上下文窗口大小。</param>
@@ -219,7 +220,10 @@ public static class ContextFoldDecider
         for (var i = 0; i < messages.Count; i++)
         {
             var msg = messages[i];
-            if (i < boundary && msg.Role == MessageRole.Tool && (msg.Content?.Length ?? 0) >= t.MinSnipChars && !IsSnipped(msg))
+            if (i < boundary && msg.Role == MessageRole.Tool
+                && (msg.Content?.Length ?? 0) >= t.MinSnipChars
+                && msg.ContentBlocks is null or { Count: 0 }
+                && !IsSnipped(msg))
             {
                 var replacement = RewriteSnipped(msg, t);
 
@@ -233,7 +237,10 @@ public static class ContextFoldDecider
                 }
 
                 saved += (msg.Content?.Length ?? 0) - replacement.Length;
-                rewritten.Add(new ApiMessage(msg.Role, replacement, msg.Metadata));
+                rewritten.Add(new ApiMessage(msg.Role, replacement, msg.Metadata, msg.ModelId, msg.TokenUsage)
+                {
+                    ContentBlocks = msg.ContentBlocks
+                });
                 index++;
                 changed = true;
                 continue;

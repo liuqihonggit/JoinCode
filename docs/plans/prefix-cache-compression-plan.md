@@ -164,11 +164,11 @@ PreChatMiddleware.RecordPromptStateAsync        // core/execution/Brain/src/Cont
 <!-- 替代方案: 仅摘要折叠(剪裁为空操作管道)；把剪裁并入 DecideAfterUsage(职责混乱，剪裁是结果维护非决策) -->
 <!-- 验证: 新增 ContextFoldSnipTests 6 例(占位符改写/小结果跳过/保护区逐字保留/幂等/配对元数据保留/回归)全绿；Brain.Context.Tests 725 + PrefixCache 245 不回归；编译 0 警告 0 错误 -->
 
-## 14. 决策记录（Phase6 打磨：剪裁严格变短守卫 + 单元统一，2026-08-06）
+## 14. 决策记录（Phase6 打磨：严格变短守卫/单元统一/遥测/多模态保护，2026-08-06）
 
 <!-- 🤖 Auto Decision: 2026-08-06 -->
-<!-- 决策: ① SnipStaleToolResults 增加严格变短守卫 — RewriteSnipped 结果长度 ≥ 原文时不改写，保持原文并跳过；② marker 计量单元从 bytes 统一为 chars；③ 剪裁统计接入 telemetry（context.snip.count 计数器 + context.snip.saved_chars 直方图） -->
-<!-- 原因: ① Go 上游仅 guard replacement==content，未防"行数略超 40+40 阈值、每行较短"时保留 80 行 + marker 头反超原文（SavedChars 变负、上下文膨胀）；② w2 内部记账（EstimateTokenCount/SavedChars）均为字符，非 ASCII 时 bytes≠chars，观测单元错乱；③ Go 上游 PruneStats 会回传上层，w2 剪裁此前只打日志不进遥测，无法从 metric 观察剪裁规模 -->
-<!-- 替代方案: ① 无守卫(沿用 Go，容忍负收益)；② 按 UTF-8 字节记账(与 EstimateTokenCount 字符估算脱节，需双轨换算)；③ 只加 count 不记 saved_chars(丢失规模信息，无法评估剪裁性价比) -->
-<!-- 验证: 新增 ContextFoldSnipTests 2 例(行分支头尾行保留/不变短跳过)全绿，7 例全绿；Brain.Context.Tests 725 + PrefixCache 245 不回归；编译 0 警告 0 错误 -->
+<!-- 决策: ① 严格变短守卫 — RewriteSnipped 结果长度 ≥ 原文时跳过；② marker 计量单元 bytes→chars；③ 剪裁统计接入 telemetry（context.snip.count 计数器 + context.snip.saved_chars 直方图）；④ 多模态工具结果（含 ContentBlocks）不剪裁；⑤ AppendOnlyLog.ToMessages 修复为无损拷贝（补 ContentBlocks/ModelId/TokenUsage） -->
+<!-- 原因: ① 行数略超 40+40 阈值时保留 80 行 + marker 反超原文（SavedChars 变负、上下文膨胀）；② w2 字符记账，bytes 观测错乱；③ Go PruneStats 回传上层，w2 缺 metric；④ 只改文本会静默丢图片块并破坏 tool_call 配对；⑤ ToMessages 曾丢弃多模态/模型字段，导致剪裁误判多模态可剪 -->
+<!-- 替代方案: ① 无守卫(沿用 Go)；② UTF-8 字节记账(与字符估算脱节)；③ 只记 count 不记 saved_chars(丢规模)；④ 剪裁时连 ContentBlocks 一起清空(丢图片，不可取) -->
+<!-- 验证: ContextFoldSnipTests 10 例全绿(含多模态跳过/字段保留/无损回归守卫)；Brain.Context.Tests 725 + PrefixCache 245 不回归；编译 0 警告 0 错误 -->
 

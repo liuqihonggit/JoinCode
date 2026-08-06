@@ -24,7 +24,10 @@ public sealed class AppendOnlyLog
 
     public IReadOnlyList<ApiMessage> ToMessages()
     {
-        return _entries.Select(e => new ApiMessage(e.Role, e.Content, e.Metadata)).ToList();
+        return _entries.Select(e => new ApiMessage(e.Role, e.Content, e.Metadata, e.ModelId, e.TokenUsage)
+        {
+            ContentBlocks = e.ContentBlocks
+        }).ToList();
     }
 
     public void CompactInPlace(IReadOnlyList<ApiMessage> replacement)

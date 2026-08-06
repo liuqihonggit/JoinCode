@@ -14,8 +14,9 @@ public sealed class WebFetchEntity : ToolExecutionEntity
         string? url = null,
         string? toolUseId = null,
         string? spanId = null,
-        string? displayName = null)
-        : base("web_fetch", toolUseId, spanId, displayName ?? url)
+        string? displayName = null,
+        ObjectId sessionId = default)
+        : base("web_fetch", toolUseId, spanId, displayName ?? url, sessionId)
     {
         Url = url;
     }

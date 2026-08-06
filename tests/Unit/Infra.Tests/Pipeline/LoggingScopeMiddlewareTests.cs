@@ -218,7 +218,7 @@ public sealed class LoggingScopeMiddlewareTests
 
     // === 测试辅助类 ===
 
-    private sealed class TestEntity(ObjectType type, string? displayName = null) : Entity(type, displayName)
+    private sealed class TestEntity(ObjectType type, string? displayName = null) : Entity(type, displayName: displayName)
     {
         protected override void OnDispose() { }
     }

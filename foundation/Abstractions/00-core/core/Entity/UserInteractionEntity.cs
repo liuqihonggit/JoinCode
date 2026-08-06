@@ -13,8 +13,9 @@ public sealed class UserInteractionEntity : ToolExecutionEntity
         string? question = null,
         string? toolUseId = null,
         string? spanId = null,
-        string? displayName = null)
-        : base("ask_user", toolUseId, spanId, displayName ?? "ask_user")
+        string? displayName = null,
+        ObjectId sessionId = default)
+        : base("ask_user", toolUseId, spanId, displayName ?? "ask_user", sessionId)
     {
         Question = question;
     }

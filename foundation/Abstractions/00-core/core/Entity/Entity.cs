@@ -2,12 +2,15 @@ namespace JoinCode.Abstractions.Entity;
 
 /// <summary>
 /// 实体基类 — 所有有生命周期的实体派生此类
-/// 共同属性：ObjectId + CreatedAt + StartedAt + CompletedAt + LifecycleState + 惰性释放 + 回收判定
+/// 共同属性：ObjectId + SessionId + CreatedAt + StartedAt + CompletedAt + LifecycleState + 惰性释放 + 回收判定
 /// 加一个共同属性只改此处，不需要改所有子类
+/// SessionId 为空表示自身即会话根（如 Session 实体），否则为所属会话的 ObjectId
 /// </summary>
 public abstract class Entity : IDisposable
 {
     public ObjectId ObjectId { get; }
+    /// <summary>所属会话 ObjectId — 空表示自身即会话根，所有 Entity 不跨会话</summary>
+    public ObjectId SessionId { get; }
     public long Id => ObjectId.SequenceId;
     public string UniqueId => ObjectId.UniqueId;
     public string DisplayName => ObjectId.DisplayName;
@@ -42,13 +45,16 @@ public abstract class Entity : IDisposable
 
     private bool _disposed;
 
-    protected Entity(ObjectType type, string? displayName = null)
+    protected Entity(ObjectType type, ObjectId sessionId = default, string? displayName = null, bool registerToSessionRouter = true)
     {
         ObjectId = new ObjectId(type, displayName);
+        SessionId = sessionId.IsEmpty ? (SessionContext.Current ?? ObjectId) : sessionId;
         CreatedAt = DateTime.UtcNow;
         LastActivityAt = CreatedAt;
         TraceId = System.Diagnostics.Activity.Current?.TraceId.ToString();
         ObjectIdManager.Register(this, ObjectId);
+        if (registerToSessionRouter)
+            SessionRouter.GetOrCreateScope(SessionId).Register(this);
     }
 
     /// <summary>
@@ -62,6 +68,8 @@ public abstract class Entity : IDisposable
         LifecycleState = EntityLifecycle.Disposed;
         OnDispose();
         ObjectIdManager.Unregister(ObjectId);
+        if (SessionRouter.TryGetScope(SessionId, out var scope))
+            scope.Unregister(ObjectId);
         GC.SuppressFinalize(this);
     }
 

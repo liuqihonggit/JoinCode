@@ -16,8 +16,9 @@ public sealed class SleepEntity : ToolExecutionEntity
         string? reason = null,
         string? toolUseId = null,
         string? spanId = null,
-        string? displayName = null)
-        : base("sleep", toolUseId, spanId, displayName ?? $"sleep:{durationSeconds}s")
+        string? displayName = null,
+        ObjectId sessionId = default)
+        : base("sleep", toolUseId, spanId, displayName ?? $"sleep:{durationSeconds}s", sessionId)
     {
         DurationSeconds = durationSeconds;
         RemainingSeconds = durationSeconds;

@@ -8,7 +8,7 @@ namespace JoinCode.Abstractions.Entity;
 /// </summary>
 public abstract class ServiceEntity : Entity
 {
-    protected ServiceEntity(string? displayName = null) : base(ObjectType.Service, displayName) { }
+    protected ServiceEntity(string? displayName = null) : base(ObjectType.Service, ObjectId.Empty, displayName, registerToSessionRouter: false) { }
 
     protected override void OnDispose() { }
 }

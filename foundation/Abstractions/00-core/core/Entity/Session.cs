@@ -20,8 +20,9 @@ public sealed class Session : Entity
     public Session(
         string? systemPrompt = null,
         string? currentModel = null,
-        string? displayName = null)
-        : base(ObjectType.Session, displayName)
+        string? displayName = null,
+        ObjectId sessionId = default)
+        : base(ObjectType.Session, sessionId, displayName)
     {
         SystemPrompt = systemPrompt;
         CurrentModel = currentModel;

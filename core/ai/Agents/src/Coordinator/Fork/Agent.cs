@@ -75,8 +75,9 @@ public sealed class Agent : Entity, IAgent
         bool freshContext = false,
         int? tokenBudget = null,
         string? goalId = null,
-        string? graphNodeId = null)
-        : base(ObjectType.Agent)
+        string? graphNodeId = null,
+        ObjectId sessionId = default)
+        : base(ObjectType.Agent, sessionId)
     {
         Task = task;
         Name = name ?? UniqueId;

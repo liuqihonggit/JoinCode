@@ -13,8 +13,9 @@ public sealed class ReplSessionEntity : ToolExecutionEntity
         string language = "csharp",
         string? toolUseId = null,
         string? spanId = null,
-        string? displayName = null)
-        : base("repl", toolUseId, spanId, displayName ?? $"repl:{language}")
+        string? displayName = null,
+        ObjectId sessionId = default)
+        : base("repl", toolUseId, spanId, displayName ?? $"repl:{language}", sessionId)
     {
         Language = language;
     }

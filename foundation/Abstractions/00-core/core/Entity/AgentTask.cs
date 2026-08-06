@@ -33,8 +33,9 @@ public sealed class AgentTask : Entity
         string? assignee = null,
         DateTime? dueDate = null,
         IEnumerable<string>? tags = null,
-        string? displayName = null)
-        : base(ObjectType.Task, displayName ?? title)
+        string? displayName = null,
+        ObjectId sessionId = default)
+        : base(ObjectType.Task, sessionId, displayName ?? title)
     {
         Title = title;
         Type = type;
@@ -77,14 +78,15 @@ public sealed class AgentTask : Entity
     /// <summary>
     /// 从 TaskItem DTO 创建 AgentTask 实体（反持久化）
     /// </summary>
-    public static AgentTask FromTaskItem(TaskItem item) => new(
+    public static AgentTask FromTaskItem(TaskItem item, ObjectId sessionId = default) => new(
         title: item.Title,
         priority: item.Priority,
         description: item.Description,
         assignee: item.Assignee,
         dueDate: item.DueDate,
         tags: item.Tags,
-        displayName: item.Id)
+        displayName: item.Id,
+        sessionId: sessionId)
     {
         Status = TaskExecutionStatusExtensions.FromValue(item.Status) ?? TaskExecutionStatus.Pending
     };

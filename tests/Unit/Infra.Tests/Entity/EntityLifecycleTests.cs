@@ -7,7 +7,7 @@ public sealed class EntityLifecycleTests
         public static readonly ConcurrentDictionary<ObjectId, TestEntity> Registry = new();
 
         public TestEntity(string? displayName = null)
-            : base(ObjectType.Agent, displayName)
+            : base(ObjectType.Agent, displayName: displayName)
         {
             Registry.TryAdd(ObjectId, this);
         }

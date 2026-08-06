@@ -27,8 +27,9 @@ public sealed class Goal : Entity
         string objective,
         List<string>? constraints = null,
         int? tokenBudget = null,
-        string? displayName = null)
-        : base(ObjectType.Goal, displayName ?? objective)
+        string? displayName = null,
+        ObjectId sessionId = default)
+        : base(ObjectType.Goal, sessionId, displayName ?? objective)
     {
         Objective = objective;
         Constraints = constraints ?? [];
@@ -67,11 +68,12 @@ public sealed class Goal : Entity
     /// <summary>
     /// 从 GoalState DTO 创建 Goal 实体（反持久化）
     /// </summary>
-    public static Goal FromGoalState(GoalState state) => new(
+    public static Goal FromGoalState(GoalState state, ObjectId sessionId = default) => new(
         objective: state.Objective,
         constraints: state.Constraints,
         tokenBudget: state.TokenBudget,
-        displayName: state.GoalId)
+        displayName: state.GoalId,
+        sessionId: sessionId)
     {
         Status = state.Status,
         TokensUsed = state.TokensUsed,

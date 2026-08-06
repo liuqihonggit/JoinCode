@@ -18,8 +18,9 @@ public sealed class McpServerEntity : Entity
 
     public McpServerEntity(
         string name,
-        string? displayName = null)
-        : base(ObjectType.Mcp, displayName ?? name)
+        string? displayName = null,
+        ObjectId sessionId = default)
+        : base(ObjectType.Mcp, sessionId, displayName ?? name)
     {
         Name = name;
         Registry.Add(ObjectId, this);

@@ -22,8 +22,9 @@ public sealed class PlanEntity : Entity
 
     public PlanEntity(
         string? description = null,
-        string? displayName = null)
-        : base(ObjectType.Plan, displayName ?? description)
+        string? displayName = null,
+        ObjectId sessionId = default)
+        : base(ObjectType.Plan, sessionId, displayName ?? description)
     {
         Description = description;
         LastUpdatedAt = DateTime.UtcNow;

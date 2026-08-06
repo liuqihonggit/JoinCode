@@ -90,4 +90,28 @@ public sealed class Goal : Entity
     public TimeSpan Elapsed => AchievedAt.HasValue
         ? AchievedAt.Value - CreatedAt
         : DateTime.UtcNow - CreatedAt;
+
+    /// <summary>
+    /// 跨会话深拷贝 — 新 ObjectId + 目标会话，深拷贝所有字段
+    /// </summary>
+    public override Entity Clone(CloneContext context)
+    {
+        var cloned = new Goal(
+            objective: Objective,
+            constraints: new List<string>(Constraints),
+            tokenBudget: TokenBudget,
+            displayName: DisplayName,
+            sessionId: context.TargetSessionId)
+        {
+            Status = Status,
+            TokensUsed = TokensUsed,
+            TurnsCompleted = TurnsCompleted,
+            PausedAt = PausedAt,
+            AchievedAt = AchievedAt,
+            LastEvaluation = LastEvaluation,
+            StagnationAlertedAt = StagnationAlertedAt
+        };
+        context.Map(ObjectId, cloned.ObjectId);
+        return cloned;
+    }
 }

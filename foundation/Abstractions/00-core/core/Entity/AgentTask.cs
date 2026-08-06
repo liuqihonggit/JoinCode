@@ -90,4 +90,29 @@ public sealed class AgentTask : Entity
     {
         Status = TaskExecutionStatusExtensions.FromValue(item.Status) ?? TaskExecutionStatus.Pending
     };
+
+    /// <summary>
+    /// 跨会话深拷贝 — 新 ObjectId + 目标会话，深拷贝所有字段
+    /// AssigneeObjectId/ParentTaskObjectId 通过 CloneContext 重映射，找不到抛异常
+    /// </summary>
+    public override Entity Clone(CloneContext context)
+    {
+        var cloned = new AgentTask(
+            title: Title,
+            type: Type,
+            priority: Priority,
+            assigneeObjectId: context.RemapNullableOrThrow(AssigneeObjectId),
+            parentTaskObjectId: context.RemapNullableOrThrow(ParentTaskObjectId),
+            description: Description,
+            assignee: Assignee,
+            dueDate: DueDate,
+            tags: Tags.ToList(),
+            displayName: DisplayName,
+            sessionId: context.TargetSessionId)
+        {
+            Status = Status
+        };
+        context.Map(ObjectId, cloned.ObjectId);
+        return cloned;
+    }
 }

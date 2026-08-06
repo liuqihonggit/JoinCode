@@ -74,4 +74,15 @@ public static class SessionRouter
         }
         _scopes.Clear();
     }
+
+    /// <summary>
+    /// 跨会话拷贝 — 将 Entity 深拷贝到目标会话，返回新副本
+    /// 原 Entity 不变，两个独立副本互不影响
+    /// 引用重映射通过 CloneContext 处理，找不到抛异常
+    /// </summary>
+    public static T CloneTo<T>(T entity, CloneContext context) where T : Entity
+    {
+        ArgumentNullException.ThrowIfNull(entity);
+        return (T)entity.Clone(context);
+    }
 }

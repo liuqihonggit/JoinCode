@@ -6,7 +6,7 @@ namespace JoinCode.Abstractions.Entity;
 /// 加一个共同属性只改此处，不需要改所有子类
 /// SessionId 为空表示自身即会话根（如 Session 实体），否则为所属会话的 ObjectId
 /// </summary>
-public abstract class Entity : IDisposable
+public abstract class Entity : IDisposable, ICloneableEntity
 {
     public ObjectId ObjectId { get; }
     /// <summary>所属会话 ObjectId — 空表示自身即会话根，所有 Entity 不跨会话</summary>
@@ -111,4 +111,10 @@ public abstract class Entity : IDisposable
     /// 是否已超时 — TimeoutAt 有值且当前时间已超过
     /// </summary>
     public bool IsTimedOut => TimeoutAt.HasValue && DateTime.UtcNow > TimeoutAt.Value;
+
+    /// <summary>
+    /// 跨会话深拷贝 — 默认抛 NotSupportedException, 需要跨会话的派生类 override
+    /// </summary>
+    public virtual Entity Clone(CloneContext context)
+        => throw new NotSupportedException($"{GetType().Name} 不支持跨会话克隆, 如需跨会话传递请 override Clone");
 }

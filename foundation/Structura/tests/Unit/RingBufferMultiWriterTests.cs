@@ -75,6 +75,6 @@ public sealed class RingBufferMultiWriterTests
 
         threadErrors.Should().BeEmpty();
         errors.Should().BeEmpty("多写者并发下每槽位 seq 标记必须保证快照无重复(读到完整写入而非混装)");
-        buf.Count.Should().Be(capacity);
+        buf.Count.Should().Be(buf.Capacity);
     }
 }

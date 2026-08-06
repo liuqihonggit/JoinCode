@@ -10,7 +10,8 @@ public static partial class PsPermissions
         IReadOnlyList<string> allowRules,
         IReadOnlyList<string> allowedDirectories,
         IReadOnlyList<string> denyDirectories,
-        bool acceptEdits = false)
+        bool acceptEdits = false,
+        ILogger? logger = null)
     {
         if (string.IsNullOrWhiteSpace(command))
         {
@@ -29,7 +30,7 @@ public static partial class PsPermissions
         }
 
         // 前缀/通配符匹配 deny 规则
-        var prefixDeny = MatchPrefixRule(command, denyRules);
+        var prefixDeny = MatchPrefixRule(command, denyRules, logger);
         if (prefixDeny is not null)
         {
             return PsSecurityResult.Deny($"Command matches deny rule pattern: {prefixDeny}");
@@ -37,7 +38,7 @@ public static partial class PsPermissions
 
         // 前缀/通配符匹配 ask 规则（延迟，不立即返回）
         PsSecurityResult? preParseAsk = null;
-        var prefixAsk = MatchPrefixRule(command, askRules);
+        var prefixAsk = MatchPrefixRule(command, askRules, logger);
         if (prefixAsk is not null)
         {
             preParseAsk = PsSecurityResult.Ask($"Command matches ask rule pattern: {prefixAsk}");
@@ -50,7 +51,7 @@ public static partial class PsPermissions
         if (!parsed.Valid)
         {
             // 解析失败降级路径
-            return HandleParseFailure(command, denyRules, preParseAsk);
+            return HandleParseFailure(command, denyRules, preParseAsk, logger);
         }
 
         // 安全检查（子表达式/脚本块/编码命令/下载等）
@@ -165,7 +166,8 @@ public static partial class PsPermissions
     private static PsSecurityResult HandleParseFailure(
         string command,
         IReadOnlyList<string> denyRules,
-        PsSecurityResult? preParseAsk)
+        PsSecurityResult? preParseAsk,
+        ILogger? logger = null)
     {
         var backtickStripped = command.Replace("`", "");
 
@@ -181,7 +183,7 @@ public static partial class PsPermissions
                 return PsSecurityResult.Deny($"Command fragment matches deny rule: {exactDeny}");
             }
 
-            var prefixDeny = MatchPrefixRule(normalized, denyRules);
+            var prefixDeny = MatchPrefixRule(normalized, denyRules, logger);
             if (prefixDeny is not null)
             {
                 return PsSecurityResult.Deny($"Command fragment matches deny rule pattern: {prefixDeny}");
@@ -300,7 +302,7 @@ public static partial class PsPermissions
     /// <summary>
     /// 前缀/通配符匹配规则
     /// </summary>
-    private static string? MatchPrefixRule(string command, IReadOnlyList<string> rules)
+    private static string? MatchPrefixRule(string command, IReadOnlyList<string> rules, ILogger? logger = null)
     {
         var cmdLower = command.Trim().ToLowerInvariant();
         var firstWord = GetFirstWord(cmdLower);
@@ -330,7 +332,7 @@ public static partial class PsPermissions
                 catch (System.Text.RegularExpressions.RegexParseException ex)
                 {
                     // 无效模式，跳过
-                    System.Diagnostics.Trace.WriteLine($"Invalid regex pattern '{pattern}' for rule '{ruleLower}': {ex.Message}");
+                    logger?.LogWarning(ex, "Invalid regex pattern '{Pattern}' for rule '{Rule}'", pattern, ruleLower);
                 }
             }
         }

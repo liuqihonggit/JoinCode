@@ -146,7 +146,7 @@ public sealed partial class PathValidator : ServiceEntity, IPathValidator
         return false;
     }
 
-    private static string NormalizePath(string path)
+    private static string NormalizePath(string path, ILogger? logger = null)
     {
         if (string.IsNullOrWhiteSpace(path))
         {
@@ -173,7 +173,7 @@ public sealed partial class PathValidator : ServiceEntity, IPathValidator
         catch (Exception ex)
         {
             // 如果无法解析，返回原路径（如路径格式无效）
-            System.Diagnostics.Trace.WriteLine($"Path normalization failed for '{normalized}': {ex.Message}");
+            logger?.LogWarning(ex, "Path normalization failed for '{Normalized}'", normalized);
         }
 
         return normalized;
@@ -182,7 +182,7 @@ public sealed partial class PathValidator : ServiceEntity, IPathValidator
     /// <summary>
     /// 使用基础路径规范化路径（用于已经组合好的路径）
     /// </summary>
-    private static string NormalizePathWithBase(string path)
+    private static string NormalizePathWithBase(string path, ILogger? logger = null)
     {
         if (string.IsNullOrWhiteSpace(path))
         {
@@ -209,7 +209,7 @@ public sealed partial class PathValidator : ServiceEntity, IPathValidator
         catch (Exception ex)
         {
             // 如果无法解析，返回原路径（如路径格式无效）
-            System.Diagnostics.Trace.WriteLine($"Path normalization failed for '{normalized}': {ex.Message}");
+            logger?.LogWarning(ex, "Path normalization failed for '{Normalized}'", normalized);
         }
 
         return normalized;

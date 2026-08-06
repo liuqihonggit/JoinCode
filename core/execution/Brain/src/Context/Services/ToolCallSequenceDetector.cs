@@ -26,7 +26,7 @@ public sealed class ToolCallSequenceDetector
         _windowSize = windowSize;
         _minPatternLength = minPatternLength;
         _requiredRepeats = requiredRepeats;
-        var maxCount = windowSize * requiredRepeats + windowSize;
+        var maxCount = RingBuffer<string>.RoundUpToPowerOfTwo(windowSize * requiredRepeats + windowSize);
         _nameSequence = new RingBuffer<string>(maxCount);
         _fingerprintSequence = new RingBuffer<string?>(maxCount);
     }
@@ -48,7 +48,7 @@ public sealed class ToolCallSequenceDetector
         ArgumentNullException.ThrowIfNull(toolName);
 
         _nameSequence.Add(toolName);
-        _fingerprintSequence.Add(argsFingerprint);
+        _fingerprintSequence.Add(argsFingerprint ?? string.Empty);
 
         if (_nameSequence.Count < _minPatternLength * _requiredRepeats)
             return ToolCallSequenceResult.NoLoop;

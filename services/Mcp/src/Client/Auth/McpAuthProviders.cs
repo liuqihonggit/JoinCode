@@ -251,7 +251,7 @@ public sealed class OAuth2AuthProvider : IMcpAuthProvider, IAsyncDisposable
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Trace.WriteLine($"OAuth2AuthProvider: Failed to dispose refresh lock: {ex.Message}");
+            _logger?.LogWarning(ex, "OAuth2AuthProvider: 释放 refresh lock 失败");
         }
     }
 

@@ -28,7 +28,7 @@ public sealed class LogicFingerprintDetector
         _fingerprintSuffixLen = fingerprintSuffixLen;
         _windowSize = windowSize;
         _hitThreshold = hitThreshold;
-        _fingerprints = new RingBuffer<int>(windowSize * 2);
+        _fingerprints = new RingBuffer<int>(RingBuffer<int>.RoundUpToPowerOfTwo(windowSize * 2));
         _triggerCount = 0;
     }
 

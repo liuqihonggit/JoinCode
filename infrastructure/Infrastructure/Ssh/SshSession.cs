@@ -242,7 +242,7 @@ public sealed class SshSession : ISshSession
             {
                 _sshProcess.Kill();
             }
-            catch (InvalidOperationException ex) { System.Diagnostics.Trace.WriteLine($"SshSession: failed to kill SSH process: {ex.Message}"); }
+            catch (InvalidOperationException ex) { _logger?.LogWarning(ex, "SshSession: 终止 SSH 进程失败"); }
 
             _sshProcess.Dispose();
         }

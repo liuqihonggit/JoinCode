@@ -86,7 +86,7 @@ public sealed partial class SessionScanner : ServiceEntity, IInsightSessionScann
         var sessionId = Path.GetFileNameWithoutExtension(filePath);
         if (string.IsNullOrEmpty(sessionId)) return null;
 
-        var entries = await ReadEntriesAsync(_fs, filePath, cancellationToken).ConfigureAwait(false);
+        var entries = await ReadEntriesAsync(_fs, filePath, cancellationToken, _logger).ConfigureAwait(false);
         if (entries.Count == 0) return null;
 
         var lastWriteTimeUtc = _fs.GetLastWriteTimeUtc(filePath);
@@ -231,7 +231,7 @@ public sealed partial class SessionScanner : ServiceEntity, IInsightSessionScann
     /// <summary>
     /// 读取 JSONL 文件中的所有 TranscriptEntry
     /// </summary>
-    private static async Task<List<TranscriptEntry>> ReadEntriesAsync(IFileSystem fs, string filePath, CancellationToken cancellationToken)
+    private static async Task<List<TranscriptEntry>> ReadEntriesAsync(IFileSystem fs, string filePath, CancellationToken cancellationToken, ILogger? logger = null)
     {
         var entries = new List<TranscriptEntry>();
 
@@ -252,7 +252,7 @@ public sealed partial class SessionScanner : ServiceEntity, IInsightSessionScann
             catch (JsonException ex)
             {
                 // 跳过格式错误的行
-                System.Diagnostics.Trace.WriteLine($"SessionScanner: Skipping malformed JSON line: {ex.Message}");
+                logger?.LogWarning(ex, "SessionScanner: Skipping malformed JSON line");
             }
         }
 

@@ -31,7 +31,7 @@ public sealed class ShannonEntropyDetector
         _windowSize = windowSize;
         _declineThreshold = declineThreshold;
         _minEntropyDelta = minEntropyDelta;
-        _entropyHistory = new RingBuffer<double>(windowSize * 2);
+        _entropyHistory = new RingBuffer<double>(RingBuffer<double>.RoundUpToPowerOfTwo(windowSize * 2));
         _triggerCount = 0;
     }
 

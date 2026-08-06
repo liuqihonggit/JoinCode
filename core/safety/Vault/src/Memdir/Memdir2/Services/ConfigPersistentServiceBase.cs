@@ -8,11 +8,13 @@ public abstract class ConfigPersistentServiceBase<TValue> : IDisposable
     private int _disposed;
     private bool _initialized;
     private readonly SemaphoreSlim _initLock = new(1, 1);
+    protected readonly ILogger? _logger;
 
-    protected ConfigPersistentServiceBase(TValue defaultValue, IConfigurationService? configService = null)
+    protected ConfigPersistentServiceBase(TValue defaultValue, IConfigurationService? configService = null, ILogger? logger = null)
     {
         _value = defaultValue;
         _configService = configService;
+        _logger = logger;
     }
 
     protected abstract string ConfigKey { get; }
@@ -44,7 +46,7 @@ public abstract class ConfigPersistentServiceBase<TValue> : IDisposable
         {
             if (_initialized) return;
             try { InitializeAsync().GetAwaiter().GetResult(); }
-            catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"{GetType().Name}: Initialization failed: {ex.Message}"); }
+            catch (Exception ex) { _logger?.LogWarning(ex, "{TypeName}: 初始化失败", GetType().Name); }
             _initialized = true;
         }
         finally
@@ -64,7 +66,7 @@ public abstract class ConfigPersistentServiceBase<TValue> : IDisposable
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Trace.WriteLine($"{GetType().Name}: Failed to load {ConfigKey} from config: {ex.Message}");
+            _logger?.LogWarning(ex, "{TypeName}: 从配置加载 {ConfigKey} 失败", GetType().Name, ConfigKey);
         }
     }
 
@@ -79,7 +81,7 @@ public abstract class ConfigPersistentServiceBase<TValue> : IDisposable
         catch (OperationCanceledException) { }
         catch (Exception ex)
         {
-            System.Diagnostics.Trace.WriteLine($"{GetType().Name}: Failed to persist {ConfigKey}: {ex.Message}");
+            _logger?.LogWarning(ex, "{TypeName}: 持久化 {ConfigKey} 失败", GetType().Name, ConfigKey);
         }
     }
 

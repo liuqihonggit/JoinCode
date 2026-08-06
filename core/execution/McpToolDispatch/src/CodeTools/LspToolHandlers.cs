@@ -9,11 +9,13 @@ public class LspToolHandlers {
     private readonly ILspService _lspService;
     private readonly IFileOperationService _fileOperationService;
     private readonly IGitCommandRunner _gitRunner;
+    private readonly ILogger<LspToolHandlers>? _logger;
 
-    public LspToolHandlers(ILspService lspService, IFileOperationService fileOperationService, IGitCommandRunner gitRunner) {
+    public LspToolHandlers(ILspService lspService, IFileOperationService fileOperationService, IGitCommandRunner gitRunner, ILogger<LspToolHandlers>? logger = null) {
         _lspService = lspService ?? throw new ArgumentNullException(nameof(lspService));
         _fileOperationService = fileOperationService ?? throw new ArgumentNullException(nameof(fileOperationService));
         _gitRunner = gitRunner ?? throw new ArgumentNullException(nameof(gitRunner));
+        _logger = logger;
     }
 
     /// <summary>
@@ -423,7 +425,7 @@ public class LspToolHandlers {
 
     #region Private Methods
 
-    private static string UriToFilePath(string uri) {
+    private static string UriToFilePath(string uri, ILogger? logger = null) {
         var filePath = uri.StartsWith("file://") ? uri[7..] : uri;
 
         if (filePath.Length > 2 && filePath[0] == '/' && char.IsLetter(filePath[1]) && filePath[2] == ':') {
@@ -433,7 +435,7 @@ public class LspToolHandlers {
         try {
             filePath = Uri.UnescapeDataString(filePath);
         } catch (Exception ex) {
-            System.Diagnostics.Trace.WriteLine($"Failed to unescape URI data string: {ex.Message}");
+            logger?.LogWarning(ex, "Uri 解码失败");
         }
 
         return filePath;
@@ -460,7 +462,7 @@ public class LspToolHandlers {
                     }
                 }
             } catch (Exception ex) {
-                System.Diagnostics.Trace.WriteLine($"Git check-ignore failed: {ex.Message}");
+                _logger?.LogWarning(ex, "Git check-ignore 失败");
             }
         }
 

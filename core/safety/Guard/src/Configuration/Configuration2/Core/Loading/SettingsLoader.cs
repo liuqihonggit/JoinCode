@@ -15,7 +15,8 @@ public static class SettingsLoader
         IFileSystem fs,
         string? projectDir = null,
         string? flagSettingsPath = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        ILogger? logger = null)
     {
         SettingsJson? merged = null;
 
@@ -42,7 +43,7 @@ public static class SettingsLoader
             catch (Exception ex)
             {
                 // 单个来源加载失败不影响其他来源
-                System.Diagnostics.Trace.WriteLine($"Failed to load settings from source: {ex.Message}");
+                logger?.LogWarning(ex, "Failed to load settings from source");
             }
         }
 

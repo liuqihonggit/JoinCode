@@ -72,9 +72,9 @@ public static class LlmJsonHelper
     /// 内置三层宽容策略：ExtractJsonBlock → ExtractInlineJson → RepairJson
     /// 配合 JsonContext 的 AllowTrailingCommas/ReadCommentHandling/PropertyNameCaseInsensitive 实现完整宽容
     /// </summary>
-    public static T? Deserialize<T>(string? llmOutput, JsonTypeInfo<T> jsonTypeInfo, out string? repairHint) where T : class
+    public static T? Deserialize<T>(string? llmOutput, JsonTypeInfo<T> jsonTypeInfo, out string? repairHint, ILogger? logger = null) where T : class
     {
-        var result = DeserializeWithReport(llmOutput, jsonTypeInfo, out var report);
+        var result = DeserializeWithReport(llmOutput, jsonTypeInfo, out var report, logger);
         repairHint = report.RepairHint ?? (report.CoercionIssues.Count > 0 ? report.FormatForLlm() : null);
         return result;
     }
@@ -84,7 +84,7 @@ public static class LlmJsonHelper
     /// 层次：第1层 严格反序列化 → 第2层 RepairJson 语法修复 → 第3层 JsonLenientCoercer 类型强制转换 → 第4层 精确报错
     /// 任一字段不可转换时降级为默认值，同时把单字段失败写进 report.CoercionIssues，供报告给 LLM 自我修正。
     /// </summary>
-    public static T? DeserializeWithReport<T>(string? llmOutput, JsonTypeInfo<T> jsonTypeInfo, out JsonLeniencyReport report) where T : class
+    public static T? DeserializeWithReport<T>(string? llmOutput, JsonTypeInfo<T> jsonTypeInfo, out JsonLeniencyReport report, ILogger? logger = null) where T : class
     {
         report = new JsonLeniencyReport { Deserialized = false, RepairHint = null };
 
@@ -107,7 +107,7 @@ public static class LlmJsonHelper
             }
             catch (JsonException ex)
             {
-                System.Diagnostics.Trace.WriteLine($"[LlmJsonHelper] Empty string → empty object fallback failed: {ex.Message}");
+                logger?.LogWarning(ex, "[LlmJsonHelper] Empty string → empty object fallback failed");
             }
         }
 
@@ -115,7 +115,7 @@ public static class LlmJsonHelper
 
         if (json is not null)
         {
-            var result = TryDeserializeDefensive(json, jsonTypeInfo, ref report);
+            var result = TryDeserializeDefensive(json, jsonTypeInfo, ref report, logger);
             if (result is not null)
                 return result;
         }
@@ -123,7 +123,7 @@ public static class LlmJsonHelper
         var inlineJson = ExtractInlineJson(trimmed);
         if (inlineJson is not null)
         {
-            var result = TryDeserializeDefensive(inlineJson, jsonTypeInfo, ref report);
+            var result = TryDeserializeDefensive(inlineJson, jsonTypeInfo, ref report, logger);
             if (result is not null)
                 return result;
         }
@@ -135,7 +135,7 @@ public static class LlmJsonHelper
     /// LLM 结构化输出统一反序列化入口（数组/值类型）
     /// 与 Deserialize 相同的宽容策略，但支持数组类型（如 GraphDefineNode[]）
     /// </summary>
-    public static T? DeserializeValue<T>(string? llmOutput, JsonTypeInfo<T> jsonTypeInfo, out string? repairHint)
+    public static T? DeserializeValue<T>(string? llmOutput, JsonTypeInfo<T> jsonTypeInfo, out string? repairHint, ILogger? logger = null)
     {
         repairHint = null;
 
@@ -148,7 +148,7 @@ public static class LlmJsonHelper
 
         if (json is not null)
         {
-            var result = TryDeserializeValueWithRepair(json, jsonTypeInfo, ref repairHint);
+            var result = TryDeserializeValueWithRepair(json, jsonTypeInfo, ref repairHint, logger);
             if (result is not null)
                 return result;
         }
@@ -156,7 +156,7 @@ public static class LlmJsonHelper
         var arrayJson = ExtractArrayJson(trimmed);
         if (arrayJson is not null)
         {
-            var result = TryDeserializeValueWithRepair(arrayJson, jsonTypeInfo, ref repairHint);
+            var result = TryDeserializeValueWithRepair(arrayJson, jsonTypeInfo, ref repairHint, logger);
             if (result is not null)
                 return result;
         }
@@ -168,11 +168,11 @@ public static class LlmJsonHelper
     /// 修复 JSON 格式问题（尾随逗号、未加引号的键、单引号、截断等）
     /// 统一门控入口，所有 LLM 输出的 JSON 修复必须通过此方法
     /// </summary>
-    public static ToolCallRepairResult RepairJson(string? rawJson)
+    public static ToolCallRepairResult RepairJson(string? rawJson, ILogger? logger = null)
     {
         var result = ToolCallRepairService.RepairJson(rawJson);
         if (result.RepairHint is not null)
-            System.Diagnostics.Trace.WriteLine($"[LlmJsonHelper] RepairJson: {result.RepairHint}");
+            logger?.LogDebug("[LlmJsonHelper] RepairJson: {RepairHint}", result.RepairHint);
         return result;
     }
 
@@ -180,11 +180,11 @@ public static class LlmJsonHelper
     /// 工具名归一化（大小写不敏感匹配到标准名）
     /// 统一门控入口，所有 LLM 输出的工具名修复必须通过此方法
     /// </summary>
-    public static string RepairToolName(string? toolName)
+    public static string RepairToolName(string? toolName, ILogger? logger = null)
     {
         var result = ToolCallRepairService.RepairToolName(toolName);
         if (!string.IsNullOrEmpty(toolName) && !string.Equals(toolName, result, StringComparison.Ordinal))
-            System.Diagnostics.Trace.WriteLine($"[LlmJsonHelper] RepairToolName: '{toolName}' -> '{result}'");
+            logger?.LogDebug("[LlmJsonHelper] RepairToolName: '{OriginalName}' -> '{RepairedName}'", toolName, result);
         return result;
     }
 
@@ -195,18 +195,19 @@ public static class LlmJsonHelper
     public static ArgumentRepairResult RepairArguments(
         string toolName,
         Dictionary<string, JsonElement> arguments,
-        ToolSchema? schema)
+        ToolSchema? schema,
+        ILogger? logger = null)
     {
         var result = ToolCallRepairService.RepairArguments(toolName, arguments, schema);
         if (result.RepairHint is not null)
-            System.Diagnostics.Trace.WriteLine($"[LlmJsonHelper] RepairArguments({toolName}): {result.RepairHint}");
+            logger?.LogDebug("[LlmJsonHelper] RepairArguments({ToolName}): {RepairHint}", toolName, result.RepairHint);
         return result;
     }
 
     /// <summary>
     /// 带修复的重试反序列化：先直接反序列化，失败后 RepairJson 再试
     /// </summary>
-    private static T? TryDeserializeWithRepair<T>(string json, JsonTypeInfo<T> jsonTypeInfo, ref string? repairHint) where T : class
+    private static T? TryDeserializeWithRepair<T>(string json, JsonTypeInfo<T> jsonTypeInfo, ref string? repairHint, ILogger? logger = null) where T : class
     {
         try
         {
@@ -214,7 +215,7 @@ public static class LlmJsonHelper
         }
         catch (JsonException ex)
         {
-            System.Diagnostics.Trace.WriteLine($"[LlmJsonHelper] Direct deserialize failed, will try repair: {ex.Message}");
+            logger?.LogDebug(ex, "[LlmJsonHelper] Direct deserialize failed, will try repair");
         }
 
         var repairResult = ToolCallRepairService.RepairJson(json);
@@ -232,7 +233,7 @@ public static class LlmJsonHelper
         }
         catch (JsonException ex)
         {
-            System.Diagnostics.Trace.WriteLine($"[LlmJsonHelper] Repaired JSON deserialize still failed: {ex.Message}");
+            logger?.LogDebug(ex, "[LlmJsonHelper] Repaired JSON deserialize still failed");
         }
 
         return null;
@@ -242,7 +243,7 @@ public static class LlmJsonHelper
     /// 纵深防御反序列化：严格 → 语法修复 → 类型强制转换，失败字段降级并精确记录。
     /// 贯穿三层，任一字段的失败都被聚合进 report.CoercionIssues 供上层报告给 LLM。
     /// </summary>
-    private static T? TryDeserializeDefensive<T>(string json, JsonTypeInfo<T> jsonTypeInfo, ref JsonLeniencyReport report) where T : class
+    private static T? TryDeserializeDefensive<T>(string json, JsonTypeInfo<T> jsonTypeInfo, ref JsonLeniencyReport report, ILogger? logger = null) where T : class
     {
         var issues = new List<JsonCoercionIssue>();
 
@@ -258,7 +259,7 @@ public static class LlmJsonHelper
         }
         catch (JsonException ex)
         {
-            System.Diagnostics.Trace.WriteLine($"[LlmJsonHelper] Direct deserialize failed, will try repair: {ex.Message}");
+            logger?.LogDebug(ex, "[LlmJsonHelper] Direct deserialize failed, will try repair");
         }
 
         // 第2层：语法修复（尾随逗号/未加引号键/单引号/截断）
@@ -277,7 +278,7 @@ public static class LlmJsonHelper
         }
         catch (JsonException ex)
         {
-            System.Diagnostics.Trace.WriteLine($"[LlmJsonHelper] Repaired JSON deserialize still failed, will try type coercion: {ex.Message}");
+            logger?.LogDebug(ex, "[LlmJsonHelper] Repaired JSON deserialize still failed, will try type coercion");
         }
 
         // 第3层：类型强制转换（number↔bool、number→string、bool→string、string→number、Trim）
@@ -296,7 +297,7 @@ public static class LlmJsonHelper
         }
         catch (JsonException ex)
         {
-            System.Diagnostics.Trace.WriteLine($"[LlmJsonHelper] Type coercion deserialize failed: {ex.Message}");
+            logger?.LogDebug(ex, "[LlmJsonHelper] Type coercion deserialize failed");
         }
 
         // 第4层：精确报错 — 把失败的字段明细写入报告，供调用方回喂 LLM
@@ -330,7 +331,7 @@ return span.ToString().Trim();
     /// <summary>
     /// 带修复的重试反序列化（数组/值类型版本）
     /// </summary>
-    private static T? TryDeserializeValueWithRepair<T>(string json, JsonTypeInfo<T> jsonTypeInfo, ref string? repairHint)
+    private static T? TryDeserializeValueWithRepair<T>(string json, JsonTypeInfo<T> jsonTypeInfo, ref string? repairHint, ILogger? logger = null)
     {
         try
         {
@@ -338,7 +339,7 @@ return span.ToString().Trim();
         }
         catch (JsonException ex)
         {
-            System.Diagnostics.Trace.WriteLine($"[LlmJsonHelper] Direct deserialize failed, will try repair: {ex.Message}");
+            logger?.LogDebug(ex, "[LlmJsonHelper] Direct deserialize failed, will try repair");
         }
 
         var repairResult = ToolCallRepairService.RepairJson(json);
@@ -356,7 +357,7 @@ return span.ToString().Trim();
         }
         catch (JsonException ex)
         {
-            System.Diagnostics.Trace.WriteLine($"[LlmJsonHelper] Repaired JSON deserialize still failed: {ex.Message}");
+            logger?.LogDebug(ex, "[LlmJsonHelper] Repaired JSON deserialize still failed");
         }
 
         return default;

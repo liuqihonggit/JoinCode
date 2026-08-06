@@ -39,8 +39,8 @@ public sealed partial class ConfigurationService : ServiceEntity, IConfiguration
         try
         {
             string? diskValue = source == SettingSource.GlobalConfig
-                ? await ConfigLoader.LoadSettingFromGlobalConfigAsync(key, _fs, cancellationToken).ConfigureAwait(false)
-                : await ConfigLoader.LoadSettingFromSettingsJsonAsync(key, _fs, cancellationToken).ConfigureAwait(false);
+                ? await ConfigLoader.LoadSettingFromGlobalConfigAsync(key, _fs, cancellationToken, _logger).ConfigureAwait(false)
+                : await ConfigLoader.LoadSettingFromSettingsJsonAsync(key, _fs, cancellationToken, _logger).ConfigureAwait(false);
 
             if (diskValue is not null)
             {
@@ -93,11 +93,11 @@ public sealed partial class ConfigurationService : ServiceEntity, IConfiguration
 
             if (source == SettingSource.GlobalConfig)
             {
-                await ConfigLoader.SaveSettingToGlobalConfigAsync(key, value, _fs, cancellationToken).ConfigureAwait(false);
+                await ConfigLoader.SaveSettingToGlobalConfigAsync(key, value, _fs, cancellationToken, _logger).ConfigureAwait(false);
             }
             else
             {
-                await ConfigLoader.SaveSettingToSettingsJsonAsync(key, value, _fs, cancellationToken).ConfigureAwait(false);
+                await ConfigLoader.SaveSettingToSettingsJsonAsync(key, value, _fs, cancellationToken, _logger).ConfigureAwait(false);
             }
         }
         catch (Exception ex)
@@ -123,7 +123,7 @@ public sealed partial class ConfigurationService : ServiceEntity, IConfiguration
             var targetPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), AppDataConstants.AppDataFolder, AppDataConstants.SettingsFileName);
             _configChangeNotifier?.MarkInternalWrite(targetPath);
 
-            await ConfigLoader.SaveSettingToSettingsJsonAsync(key, null, _fs, cancellationToken).ConfigureAwait(false);
+            await ConfigLoader.SaveSettingToSettingsJsonAsync(key, null, _fs, cancellationToken, _logger).ConfigureAwait(false);
         }
         catch (Exception ex)
         {

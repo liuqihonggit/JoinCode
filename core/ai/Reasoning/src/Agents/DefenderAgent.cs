@@ -90,7 +90,7 @@ public sealed class DefenderAgent : ReasoningAgentBase
 
         try
         {
-            var json = ExtractJsonObject(content);
+            var json = ExtractJsonObject(content, _logger);
             if (json is null) return (counterEvidence, doubts);
 
             using var doc = JsonDocument.Parse(json);

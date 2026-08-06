@@ -23,7 +23,7 @@ public sealed partial class ArgumentRepairMiddleware : ServiceEntity, IToolExecu
         if (context.Handler is not null)
         {
             var argRepair = LlmJsonHelper.RepairArguments(
-                context.ToolName, context.Arguments, context.Handler.InputSchema);
+                context.ToolName, context.Arguments, context.Handler.InputSchema, _logger);
             if (argRepair.RepairHint is not null)
             {
                 context.Arguments = argRepair.RepairedArguments;

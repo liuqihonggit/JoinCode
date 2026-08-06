@@ -70,7 +70,7 @@ public sealed partial class WebFetchPermissionMiddleware : ServiceEntity, IPermi
     /// <summary>
     /// 提取 WebFetch ruleContent — 格式: "domain:{hostname}"
     /// </summary>
-    private static string ExtractWebFetchRuleContent(string url)
+    private static string ExtractWebFetchRuleContent(string url, ILogger? logger = null)
     {
         try
         {
@@ -79,7 +79,7 @@ public sealed partial class WebFetchPermissionMiddleware : ServiceEntity, IPermi
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Trace.WriteLine($"Failed to parse URL '{url}': {ex.Message}");
+            logger?.LogWarning(ex, "Failed to parse URL '{Url}'", url);
         }
 
         return $"input:{url}";

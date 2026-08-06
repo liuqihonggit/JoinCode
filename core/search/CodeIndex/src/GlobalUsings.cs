@@ -19,3 +19,4 @@ global using TreeSitter;
 global using System.Xml.Linq;
 global using Range = System.Range;
 global using JoinCode.Abstractions.Entity;
+global using Microsoft.Extensions.Logging;

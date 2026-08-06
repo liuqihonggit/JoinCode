@@ -118,13 +118,11 @@ public class StreamTokenDetectorTests
     [Fact]
     public void Ingest_OverCapacity_OverwritesOldest()
     {
-        using var detector = new StreamTokenDetector(windowCapacity: 3);
-        detector.Ingest("a");
-        detector.Ingest("b");
-        detector.Ingest("c");
-        detector.Ingest("d");
-
-        detector.TokenCount.Should().Be(3);
+        using var detector = new StreamTokenDetector(windowCapacity: 4);
+        var cap = detector.WindowCapacity;
+        for (var i = 0; i < cap + 1; i++)
+            detector.Ingest(((char)('a' + i)).ToString());
+        detector.TokenCount.Should().Be(cap);
     }
 
     [Fact]

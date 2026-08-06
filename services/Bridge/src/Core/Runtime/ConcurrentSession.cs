@@ -309,6 +309,6 @@ public sealed class ConcurrentSessionService
             _fs.DeleteFile(path);
             _logger?.LogDebug("[ConcurrentSession] 清理过期 PID 文件: {Path}", path);
         }
-        catch (Exception ex) { /* best-effort */ System.Diagnostics.Trace.WriteLine($"[ConcurrentSession] Failed to delete PID file '{path}': {ex.Message}"); }
+        catch (Exception ex) { _logger?.LogWarning(ex, "[ConcurrentSession] 删除 PID 文件 {Path} 失败", path); }
     }
 }

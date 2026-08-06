@@ -129,7 +129,7 @@ public sealed class ExternalPluginHost : IDisposable
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Trace.WriteLine($"ExternalPluginHost: failed to close process: {ex.Message}");
+            _logger?.LogWarning(ex, "ExternalPluginHost: 关闭插件进程失败");
         }
     }
 }

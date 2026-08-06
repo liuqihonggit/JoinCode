@@ -246,7 +246,7 @@ public sealed partial class ReplService : ServiceEntity, IReplService
         }
         finally
         {
-            try { if (_fs.FileExists(scriptFile)) _fs.DeleteFile(scriptFile); } catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"ReplService: failed to delete {language} script file: {ex.Message}"); }
+            try { if (_fs.FileExists(scriptFile)) _fs.DeleteFile(scriptFile); } catch (Exception ex) { _logger?.LogWarning(ex, "ReplService: 删除 {Language} 脚本文件失败", language); }
         }
     }
 

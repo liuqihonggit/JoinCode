@@ -24,6 +24,8 @@ public sealed record ChatContextOptions
     public SessionStats? SessionStats { get; init; }
     public string? SessionId { get; init; }
     public ITelemetryService? TelemetryService { get; init; }
+    public IClockService? Clock { get; init; }
+    public string? ProviderBaseUrl { get; init; }
 }
 
 [Register(typeof(IChatContextManager))]
@@ -39,6 +41,8 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     private readonly SessionStats? _sessionStats;
     private readonly string _sessionId;
     private readonly ITelemetryService? _telemetryService;
+    private readonly IClockService _clock;
+    private readonly string? _providerBaseUrl;
 
     /// <summary>
     /// 当前会话标识
@@ -53,6 +57,8 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     private readonly DiscoveredToolSet _discoveredTools = new();
     private readonly List<DeferredToolInfo> _deferredTools = [];
     private string _previousDynamicHash = string.Empty;
+    private int _deferredFoldCount;
+    private int _consecutiveNoProgressFolds;
 
     public ChatContextManager(
         IStateService stateService,
@@ -69,6 +75,8 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         _sessionStats = options?.SessionStats;
         _sessionId = options?.SessionId ?? "default";
         _telemetryService = options?.TelemetryService;
+        _clock = options?.Clock ?? SystemClockService.Instance;
+        _providerBaseUrl = options?.ProviderBaseUrl;
     }
 
     /// <summary>
@@ -125,6 +133,8 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
                     _logger.LogInformation("会话统计已恢复，缓存命中: {Hit}, 未命中: {Miss}, 轮次: {Turns}",
                         meta.CacheHitTokens, meta.CacheMissTokens, meta.TurnCount);
                 }
+
+                await TryColdResumePruneAsync(meta, cancellationToken).ConfigureAwait(false);
             }
         }
         catch (Exception ex)
@@ -134,6 +144,61 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
             span?.RecordException(ex);
             throw;
         }
+    }
+
+    /// <summary>
+    /// 冷恢复剪裁 — 会话空闲超 vendor 缓存 TTL 时服务端缓存已冷，重写前缀零额外
+    /// miss 成本，此时剪裁过期大工具结果给全价首请求瘦身。
+    /// 对齐 Reasonix Go 版 maybeColdResumePrune：meta 无时间戳保守跳过、缓存仍热跳过、
+    /// 剪裁有结果才持久化（保存文件与提示词同步）。
+    /// </summary>
+    private async Task TryColdResumePruneAsync(SessionMeta? meta, CancellationToken cancellationToken)
+    {
+        if (meta is null || meta.UpdatedAtUtcTicks <= 0)
+        {
+            return;
+        }
+
+        var idle = _clock.GetUtcNow().Ticks - meta.UpdatedAtUtcTicks;
+        var ttl = CacheTtlResolver.DefaultCacheTtl(_providerBaseUrl);
+        if (idle < ttl.Ticks)
+        {
+            return;
+        }
+
+        SnipStats snip;
+        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            snip = ContextFoldDecider.SnipStaleToolResults(
+                _conversationLog,
+                _contextWindowResolver.ResolveCurrentContextWindow(),
+                _thresholds);
+        }
+        finally
+        {
+            _lock.Release();
+        }
+
+        if (snip.Results == 0)
+        {
+            return;
+        }
+
+        _logger.LogInformation(
+            "会话空闲 {Idle} 超缓存 TTL {Ttl}，冷恢复剪裁 {Results} 条过期工具结果，节省约 {SavedChars} 字符",
+            TimeSpan.FromTicks(idle).TotalHours.ToString("F1") + "h",
+            ttl.ToString(),
+            snip.Results,
+            snip.SavedChars);
+
+        _telemetryService?.RecordCount("context.cold_resume_snip.count",
+            new() { ["results"] = snip.Results.ToString() },
+            "count", "Cold resume snip operation count");
+        _telemetryService?.RecordHistogram("context.cold_resume_snip.saved_chars", snip.SavedChars,
+            unit: "chars", description: "Chars saved by cold resume snip");
+
+        await SaveContextAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -380,7 +445,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
 
             if (_metaStore is not null && _sessionStats is not null)
             {
-                var meta = _sessionStats.ToMeta();
+                var meta = _sessionStats.ToMeta(updatedAtUtcTicks: _clock.GetUtcNow().Ticks);
                 await _metaStore.SaveAsync(_sessionId, meta, cancellationToken).ConfigureAwait(false);
             }
 
@@ -399,10 +464,34 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
 
     /// <summary>
     /// 根据本次 token 用量决定是否需要折叠上下文
+    /// 缓存命中且低于硬阈值时返回 <see cref="ContextFoldDecision.Deferred"/>，推迟折叠以保留缓存前缀
     /// </summary>
     public ContextFoldDecision DecideAfterUsage(TokenUsage usage, bool alreadyFoldedThisTurn = false)
     {
-        return ContextFoldDecider.DecideAfterUsage(usage, _contextWindowResolver.ResolveCurrentContextWindow(), alreadyFoldedThisTurn, _thresholds);
+        var decision = ContextFoldDecider.DecideAfterUsage(
+            usage,
+            _contextWindowResolver.ResolveCurrentContextWindow(),
+            alreadyFoldedThisTurn,
+            _thresholds,
+            _deferredFoldCount);
+
+        if (decision == ContextFoldDecision.Deferred)
+        {
+            _deferredFoldCount++;
+            _logger?.LogInformation("缓存命中，上下文折叠推迟（第 {DeferralCount}/{DeferFoldLimit} 次），保留缓存前缀", _deferredFoldCount, _thresholds.DeferFoldLimit);
+            return decision;
+        }
+
+        _deferredFoldCount = 0;
+
+        if (decision is ContextFoldDecision.FoldNormal or ContextFoldDecision.FoldAggressive
+            && ContextFoldDecider.IsFoldStuck(_consecutiveNoProgressFolds, _thresholds.StuckFoldLimit))
+        {
+            _logger?.LogWarning("上下文折叠连续 {Count} 次无进展（窗口过小），暂停自动折叠以避免每轮重试", _consecutiveNoProgressFolds);
+            return ContextFoldDecision.None;
+        }
+
+        return decision;
     }
 
     /// <summary>
@@ -421,6 +510,11 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     {
         if (_foldExecutor == null)
         {
+            if (decision is ContextFoldDecision.FoldNormal or ContextFoldDecision.FoldAggressive)
+            {
+                _consecutiveNoProgressFolds++;
+            }
+
             return new ContextFoldResult
             {
                 Folded = false,
@@ -435,13 +529,87 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            return decision switch
+            // 折叠前先做低成本剪裁：过期的大工具结果可重派生，重写它们无需调用摘要器。
+            // 若剪裁本身已把前缀压回阈值以下，则跳过本轮昂贵的摘要折叠（对齐 Reasonix Go 版
+            // maybeCompact 的 prune-before-fold：裁剪省一轮 summarize）。
+            var snip = ContextFoldDecider.SnipStaleToolResults(
+                _conversationLog,
+                _contextWindowResolver.ResolveCurrentContextWindow(),
+                _thresholds);
+
+            if (snip.Results > 0)
+            {
+                _logger?.LogInformation("折叠前剪裁 {Results} 条过期工具结果，节省约 {SavedChars} 字符",
+                    snip.Results, snip.SavedChars);
+
+                _telemetryService?.RecordCount("context.snip.count",
+                    new() { ["results"] = snip.Results.ToString() },
+                    "count", "Context fold pre-snip operation count");
+                _telemetryService?.RecordHistogram("context.snip.saved_chars", snip.SavedChars,
+                    unit: "chars", description: "Chars saved by context fold pre-snip");
+
+                var postSnipRatio = (double)ContextFoldDecider.EstimateTokenCount(
+                    _conversationLog.ToMessages(), _currentToolSpecs, _thresholds)
+                    / _contextWindowResolver.ResolveCurrentContextWindow();
+
+                var clearedBySnip = decision switch
+                {
+                    ContextFoldDecision.FoldNormal => postSnipRatio <= _thresholds.FoldThreshold,
+                    ContextFoldDecision.FoldAggressive => postSnipRatio <= _thresholds.AggressiveThreshold,
+                    _ => false
+                };
+
+                if (clearedBySnip)
+                {
+                    _consecutiveNoProgressFolds = 0;
+                    _cacheBreakDetector.NotifyCompaction();
+
+                    return new ContextFoldResult
+                    {
+                        Folded = false,
+                        Decision = decision,
+                        Snip = snip,
+                        OriginalMessageCount = _conversationLog.Count
+                    };
+                }
+            }
+
+            var foldResult = decision switch
             {
                 ContextFoldDecision.FoldNormal => await _foldExecutor.FoldAsync(_conversationLog, _contextWindowResolver.ResolveCurrentContextWindow(), aggressive: false, _thresholds, cancellationToken).ConfigureAwait(false),
                 ContextFoldDecision.FoldAggressive => await _foldExecutor.FoldAsync(_conversationLog, _contextWindowResolver.ResolveCurrentContextWindow(), aggressive: true, _thresholds, cancellationToken).ConfigureAwait(false),
                 ContextFoldDecision.ExitWithSummary => _foldExecutor.TrimTrailingAndPrepareExit(_conversationLog),
                 _ => new ContextFoldResult { Folded = false, Decision = decision, OriginalMessageCount = _conversationLog.Count }
             };
+
+            if (snip.Results > 0)
+            {
+                foldResult = new ContextFoldResult
+                {
+                    Folded = foldResult.Folded,
+                    HeadMessageCount = foldResult.HeadMessageCount,
+                    TailMessageCount = foldResult.TailMessageCount,
+                    OriginalMessageCount = foldResult.OriginalMessageCount,
+                    Summary = foldResult.Summary,
+                    Decision = foldResult.Decision,
+                    Snip = snip
+                };
+            }
+
+            // 折叠/压缩确实改写前缀后，通知检测器重置缓存基线，避免下一次 miss 被误报为驱逐
+            if (foldResult.Folded)
+            {
+                _consecutiveNoProgressFolds = 0;
+                _cacheBreakDetector.NotifyCompaction();
+            }
+            else if (decision is ContextFoldDecision.FoldNormal or ContextFoldDecision.FoldAggressive
+                     && snip.Results == 0)
+            {
+                // 折叠动作执行但未产生任何缩减（窗口过小），累计无进展次数，触发卡死守卫
+                _consecutiveNoProgressFolds++;
+            }
+
+            return foldResult;
         }
         finally
         {
@@ -568,7 +736,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         {
             var prefix = new ImmutablePrefix(_staticSystemPrompt, _currentToolSpecs, []);
             var dynamicContent = string.Join("\n", _dynamicSystemMessages);
-            var snapshot = _cacheBreakDetector.RecordPromptState(prefix, dynamicContent);
+            var snapshot = _cacheBreakDetector.RecordPromptState(prefix, dynamicContent, _conversationLog.ToMessages());
 
             var toolSpecsBytes = _currentToolSpecs.Sum(t =>
                 System.Text.Encoding.UTF8.GetByteCount(t.Name) +
@@ -604,7 +772,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         {
             var currentPrefix = new ImmutablePrefix(_staticSystemPrompt, _currentToolSpecs, []);
             var currentDynamicContent = string.Join("\n", _dynamicSystemMessages);
-            var result = _cacheBreakDetector.CheckCacheBreak(snapshot, currentPrefix, currentDynamicContent, usage);
+            var result = _cacheBreakDetector.CheckCacheBreak(snapshot, currentPrefix, currentDynamicContent, usage, _conversationLog.ToMessages());
 
             if (result.BreakDetected)
             {

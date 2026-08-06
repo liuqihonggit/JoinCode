@@ -12,7 +12,7 @@ internal sealed class CsprojParseResult
 
 internal sealed class CsprojParser
 {
-    internal static CsprojParseResult Parse(string filePath, IFileSystem fs, string? workspaceRoot = null)
+    internal static CsprojParseResult Parse(string filePath, IFileSystem fs, string? workspaceRoot = null, ILogger? logger = null)
     {
         ArgumentNullException.ThrowIfNull(filePath);
         ArgumentNullException.ThrowIfNull(fs);
@@ -21,7 +21,7 @@ internal sealed class CsprojParser
         var projectDir = Path.GetDirectoryName(filePath) ?? string.Empty;
         var name = Path.GetFileNameWithoutExtension(filePath);
 
-        var msbuildProps = LoadMsBuildProperties(projectDir, fs, workspaceRoot);
+        var msbuildProps = LoadMsBuildProperties(projectDir, fs, workspaceRoot, logger);
 
         var targetFramework = ExtractProperty(doc, "TargetFramework");
         var outputType = ExtractProperty(doc, "OutputType");
@@ -143,7 +143,7 @@ internal sealed class CsprojParser
         return result;
     }
 
-    private static Dictionary<string, string> LoadMsBuildProperties(string projectDir, IFileSystem fs, string? workspaceRoot)
+    private static Dictionary<string, string> LoadMsBuildProperties(string projectDir, IFileSystem fs, string? workspaceRoot, ILogger? logger = null)
     {
         var props = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
@@ -174,7 +174,7 @@ internal sealed class CsprojParser
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Trace.WriteLine($"CsprojParser: Failed to parse Directory.Build.props file: {ex.Message}");
+                logger?.LogWarning(ex, "CsprojParser: Failed to parse Directory.Build.props file");
             }
         }
 

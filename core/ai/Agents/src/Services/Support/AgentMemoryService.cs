@@ -380,7 +380,7 @@ public sealed partial class AgentMemoryService : ServiceEntity, IAgentMemoryServ
         catch (Exception ex)
         {
             // 删除失败不抛异常 — 对齐 TS 的容错设计
-            System.Diagnostics.Trace.WriteLine($"Failed to delete markdown files in directory '{directory}': {ex.Message}");
+            _logger.LogWarning(ex, "删除目录 {Directory} 中的 markdown 文件失败", directory);
         }
     }
 

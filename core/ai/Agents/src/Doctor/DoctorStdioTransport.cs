@@ -13,6 +13,7 @@ public sealed class DoctorStdioTransport : IDoctorTransport
     private readonly PatientProcessManager _patientManager;
     private readonly string _patientId;
     private readonly Channel<DiagnosticEvent> _eventChannel;
+    private readonly ILogger<DoctorStdioTransport>? _logger;
     private int _isDisposed;
 
     /// <inheritdoc/>
@@ -37,10 +38,11 @@ public sealed class DoctorStdioTransport : IDoctorTransport
     /// <inheritdoc/>
     public event EventHandler<string>? PatientDisconnected;
 
-    public DoctorStdioTransport(PatientProcessManager patientManager, string patientId)
+    public DoctorStdioTransport(PatientProcessManager patientManager, string patientId, ILogger<DoctorStdioTransport>? logger = null)
     {
         _patientManager = patientManager ?? throw new ArgumentNullException(nameof(patientManager));
         _patientId = patientId ?? throw new ArgumentNullException(nameof(patientId));
+        _logger = logger;
         _eventChannel = Channel.CreateBounded<DiagnosticEvent>(new BoundedChannelOptions(256)
         {
             FullMode = BoundedChannelFullMode.DropOldest,
@@ -109,7 +111,7 @@ public sealed class DoctorStdioTransport : IDoctorTransport
 
         try
         {
-            var evt = ParseDiagnosticEvent(e.Line, _patientId);
+            var evt = ParseDiagnosticEvent(e.Line, _patientId, _logger);
             if (evt is not null)
             {
                 _eventChannel.Writer.TryWrite(evt);
@@ -122,11 +124,11 @@ public sealed class DoctorStdioTransport : IDoctorTransport
         }
     }
 
-    internal static DiagnosticEvent? ParseDiagnosticEvent(string line, string patientId)
+    internal static DiagnosticEvent? ParseDiagnosticEvent(string line, string patientId, ILogger? logger = null)
     {
         if (string.IsNullOrWhiteSpace(line)) return null;
 
-        var eventType = DetectEventType(line);
+        var eventType = DetectEventType(line, logger);
         if (eventType is null) return null;
 
         return new DiagnosticEvent
@@ -138,7 +140,7 @@ public sealed class DoctorStdioTransport : IDoctorTransport
         };
     }
 
-    private static string? DetectEventType(string line)
+    private static string? DetectEventType(string line, ILogger? logger = null)
     {
         var isDiagLine = line.Contains("[WIRE]") || line.Contains("[STEP]") || line.Contains("[MAIN]") || line.Contains("[ERROR]");
 
@@ -166,7 +168,7 @@ public sealed class DoctorStdioTransport : IDoctorTransport
                     return typeEl.GetString();
                 }
             }
-            catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"[Doctor-stdio] NDJSON 解析失败: {ex.Message}"); }
+            catch (Exception ex) { logger?.LogWarning(ex, "[Doctor-stdio] NDJSON 解析失败"); }
         }
 
         return null;

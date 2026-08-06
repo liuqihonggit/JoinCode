@@ -272,7 +272,7 @@ public sealed partial class MonitorMcpTaskExecutor : IMonitorMcpTaskExecutor, IA
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Trace.WriteLine($"MCP client connect failed for server '{session.Config.ServerName}': {ex.Message}");
+                _logger?.LogWarning(ex, "MCP 客户端连接失败: {Server}", session.Config.ServerName);
             }
         }
 

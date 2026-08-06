@@ -90,8 +90,9 @@ public static class FrontmatterParser
     /// 解析Markdown文件的frontmatter
     /// </summary>
     /// <param name="markdown">Markdown内容</param>
+    /// <param name="logger">日志记录器</param>
     /// <returns>解析结果</returns>
-    public static FrontmatterParseResult Parse(string markdown)
+    public static FrontmatterParseResult Parse(string markdown, ILogger? logger = null)
     {
         if (string.IsNullOrWhiteSpace(markdown))
         {
@@ -132,7 +133,7 @@ public static class FrontmatterParser
         var contentStart = endIndex + FrontmatterDelimiter.Length;
         var content = trimmedContent[contentStart..].TrimStart();
 
-        var data = ParseYaml(frontmatterContent);
+        var data = ParseYaml(frontmatterContent, logger);
 
         return new FrontmatterParseResult
         {
@@ -148,10 +149,11 @@ public static class FrontmatterParser
     /// </summary>
     /// <param name="markdown">Markdown内容</param>
     /// <param name="cancellationToken">取消令牌</param>
+    /// <param name="logger">日志记录器</param>
     /// <returns>解析结果</returns>
-    public static Task<FrontmatterParseResult> ParseAsync(string markdown, CancellationToken cancellationToken = default)
+    public static Task<FrontmatterParseResult> ParseAsync(string markdown, CancellationToken cancellationToken = default, ILogger? logger = null)
     {
-        return Task.Run(() => Parse(markdown), cancellationToken);
+        return Task.Run(() => Parse(markdown, logger), cancellationToken);
     }
 
     /// <summary>
@@ -159,14 +161,15 @@ public static class FrontmatterParser
     /// </summary>
     /// <param name="filePath">文件路径</param>
     /// <param name="fs">文件系统抽象</param>
+    /// <param name="logger">日志记录器</param>
     /// <returns>解析结果</returns>
-    public static FrontmatterParseResult ParseFile(string filePath, IFileSystem fs)
+    public static FrontmatterParseResult ParseFile(string filePath, IFileSystem fs, ILogger? logger = null)
     {
         if (!fs.FileExists(filePath))
             throw new FileNotFoundException($"[INF045] 文件不存在: {filePath}");
 
         var content = fs.ReadAllText(filePath, Encoding.UTF8);
-        return Parse(content);
+        return Parse(content, logger);
     }
 
     /// <summary>
@@ -175,14 +178,15 @@ public static class FrontmatterParser
     /// <param name="filePath">文件路径</param>
     /// <param name="fs">文件系统抽象</param>
     /// <param name="cancellationToken">取消令牌</param>
+    /// <param name="logger">日志记录器</param>
     /// <returns>解析结果</returns>
-    public static async Task<FrontmatterParseResult> ParseFileAsync(string filePath, IFileSystem fs, CancellationToken cancellationToken = default)
+    public static async Task<FrontmatterParseResult> ParseFileAsync(string filePath, IFileSystem fs, CancellationToken cancellationToken = default, ILogger? logger = null)
     {
         if (!fs.FileExists(filePath))
             throw new FileNotFoundException($"[INF046] 文件不存在: {filePath}");
 
         var content = await fs.ReadAllTextAsync(filePath, Encoding.UTF8, cancellationToken).ConfigureAwait(false);
-        return Parse(content);
+        return Parse(content, logger);
     }
 
     /// <summary>
@@ -262,7 +266,7 @@ public static class FrontmatterParser
         return endIndex;
     }
 
-    private static Dictionary<string, JsonElement> ParseYaml(string yamlContent)
+    private static Dictionary<string, JsonElement> ParseYaml(string yamlContent, ILogger? logger = null)
     {
         var result = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
 
@@ -285,7 +289,7 @@ public static class FrontmatterParser
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Trace.WriteLine($"FrontmatterParser: failed to parse YAML frontmatter: {ex.Message}");
+            logger?.LogWarning(ex, "FrontmatterParser: failed to parse YAML frontmatter");
         }
 
         return result;

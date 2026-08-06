@@ -42,7 +42,7 @@ public sealed partial class FacetCacheService : ServiceEntity, IFacetCacheServic
 
             // 损坏的缓存 — 对齐 TS: 校验失败时删除缓存文件
             _logger?.LogWarning("Facet 缓存校验失败，删除: {SessionId}", sessionId);
-            MoveToDeleted(_fs, filePath);
+            MoveToDeleted(_fs, filePath, _logger);
 
             return null;
         }
@@ -103,7 +103,7 @@ public sealed partial class FacetCacheService : ServiceEntity, IFacetCacheServic
     /// <summary>
     /// 移动损坏缓存到 .x/ 目录 — 遵循项目安全删除规则
     /// </summary>
-    private static void MoveToDeleted(IFileSystem fs, string filePath)
+    private static void MoveToDeleted(IFileSystem fs, string filePath, ILogger? logger = null)
     {
         try
         {
@@ -123,7 +123,7 @@ public sealed partial class FacetCacheService : ServiceEntity, IFacetCacheServic
         catch (Exception ex)
         {
             // 移动失败不影响主流程
-            System.Diagnostics.Trace.WriteLine($"FacetCacheService: Failed to move corrupted cache file to .x directory: {ex.Message}");
+            logger?.LogWarning(ex, "FacetCacheService: Failed to move corrupted cache file to .x directory");
         }
     }
 }

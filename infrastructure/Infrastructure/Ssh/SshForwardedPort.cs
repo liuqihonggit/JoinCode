@@ -93,7 +93,7 @@ public sealed class SshForwardedPort : ISshForwardedPort
             {
                 _forwardProcess.Kill();
             }
-            catch (InvalidOperationException ex) { System.Diagnostics.Trace.WriteLine($"SshForwardedPort: failed to kill forward process: {ex.Message}"); }
+            catch (InvalidOperationException ex) { _logger?.LogWarning(ex, "SshForwardedPort: 终止端口转发进程失败"); }
         }
 
         IsForwarding = false;

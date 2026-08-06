@@ -16,15 +16,17 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     private readonly GraphAnalytics _analytics;
     private readonly GraphPersistence _persistence;
     private readonly GraphVisualization _visualization;
+    private readonly ILogger<CodeIndexer>? _logger;
     private int _disposed;
 
-    public CodeIndexer(InMemoryIndexStore store, IFileSystem fs)
+    public CodeIndexer(InMemoryIndexStore store, IFileSystem fs, ILogger<CodeIndexer>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(store);
         ArgumentNullException.ThrowIfNull(fs);
 
         _store = store;
         _fs = fs;
+        _logger = logger;
         _plugin = new CSharpSymbolExtractor();
         _symbolIndex = new SymbolIndex(store, fs, _plugin);
         _updater = new IncrementalUpdater(_symbolIndex, store, fs, () => new CSharpSymbolExtractor());
@@ -417,7 +419,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
                 result.Add(file);
             }
         }
-        catch (UnauthorizedAccessException ex) { System.Diagnostics.Trace.WriteLine($"CodeIndexer: Access denied scanning directory: {ex.Message}"); }
+        catch (UnauthorizedAccessException ex) { _logger?.LogWarning(ex, "CodeIndexer: 扫描目录时访问被拒绝"); }
     }
 
     private List<string> CollectFiles(string workspaceRoot, string pattern)
@@ -430,7 +432,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
                 result.Add(file);
             }
         }
-        catch (UnauthorizedAccessException ex) { System.Diagnostics.Trace.WriteLine($"CodeIndexer: Access denied collecting files with pattern {pattern}: {ex.Message}"); }
+        catch (UnauthorizedAccessException ex) { _logger?.LogWarning(ex, "CodeIndexer: 按模式 {Pattern} 收集文件时访问被拒绝", pattern); }
         return result;
     }
 

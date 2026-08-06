@@ -312,7 +312,7 @@ public sealed partial class UsageTracker : ServiceEntity, IUsageTracker, IDispos
     /// <summary>
     /// 从响应内容中提取 Token 使用信息
     /// </summary>
-    private static (int InputTokens, int OutputTokens, int CacheCreationTokens, int CacheReadTokens) ExtractTokenUsage(string responseContent)
+    private (int InputTokens, int OutputTokens, int CacheCreationTokens, int CacheReadTokens) ExtractTokenUsage(string responseContent)
     {
         if (string.IsNullOrWhiteSpace(responseContent))
             return (0, 0, 0, 0);
@@ -332,7 +332,7 @@ public sealed partial class UsageTracker : ServiceEntity, IUsageTracker, IDispos
         catch (JsonException ex)
         {
             // JSON 解析失败时返回零值，但需记录日志
-            System.Diagnostics.Trace.WriteLine($"UsageTracker.ParseUsage failed: {ex.Message}");
+            _logger?.LogWarning(ex, "[UsageTracker] ParseUsage 失败");
         }
 
         return (0, 0, 0, 0);

@@ -6,19 +6,21 @@ public sealed class TreeCache : IDisposable
     private readonly LinkedList<string> _lruList;
     private readonly Dictionary<string, CacheEntry> _entries;
     private readonly Threading.TimeoutLock _lock;
+    private readonly ILogger? _logger;
     private int _disposed;
 
-    private static void Log(string message)
+    private void Log(string message)
     {
-        System.Diagnostics.Trace.WriteLine(message);
+        _logger?.LogDebug(message);
     }
 
-    public TreeCache(int maxEntries = 1000)
+    public TreeCache(int maxEntries = 1000, ILogger? logger = null)
     {
         if (maxEntries < 1) throw new ArgumentOutOfRangeException(nameof(maxEntries));
         _maxEntries = maxEntries;
         _lruList = new LinkedList<string>();
         _entries = new Dictionary<string, CacheEntry>(StringComparer.OrdinalIgnoreCase);
+        _logger = logger;
         _lock = new Threading.TimeoutLock("TreeCache", TimeSpan.FromSeconds(30), Log);
     }
 

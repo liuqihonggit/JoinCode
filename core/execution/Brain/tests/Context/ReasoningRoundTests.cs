@@ -83,9 +83,10 @@ public class ReasoningRoundTests
     [Fact]
     public void OverCapacity_OverwritesOldest()
     {
-        var (recorder, clock) = CreateRecorder(capacity: 3);
+        var (recorder, clock) = CreateRecorder(capacity: 4);
+        var cap = recorder.Capacity;
 
-        for (var i = 0; i < 5; i++)
+        for (var i = 0; i < cap + 2; i++)
         {
             recorder.StartRound();
             clock.Advance(TimeSpan.FromMilliseconds(10));
@@ -93,9 +94,9 @@ public class ReasoningRoundTests
         }
 
         var rounds = recorder.GetRounds();
-        rounds.Should().HaveCount(3);
-        rounds[0].ResponseText.Should().Be("r2");
-        rounds[2].ResponseText.Should().Be("r4");
+        rounds.Should().HaveCount(cap);
+        rounds[0].ResponseText.Should().Be($"r2");
+        rounds[^1].ResponseText.Should().Be($"r{cap + 1}");
     }
 
     [Fact]
@@ -174,7 +175,7 @@ public class ReasoningRoundTests
         var memAfter = GC.GetTotalMemory(false);
         var memGrowthMB = (memAfter - memBefore) / 1024.0 / 1024.0;
 
-        recorder.Count.Should().Be(50, "capacity=50,超出覆盖最旧");
+        recorder.Count.Should().Be(recorder.Capacity, "超出容量覆盖最旧");
         var rounds = recorder.GetRounds();
         rounds[^1].Turn.Should().Be(100_000, "最新轮次应为10万");
         sw.ElapsedMilliseconds.Should().BeLessThan(3000, $"10万轮(5000字符随机上下文)应在3秒内: {sw.ElapsedMilliseconds}ms");

@@ -43,7 +43,7 @@ public sealed partial class GoalEvaluator : ServiceEntity, IGoalEvaluator
                 cancellationToken).ConfigureAwait(false);
 
             var content = results.Count > 0 ? results[0].Content : null;
-            return ParseEvaluationResult(content);
+            return ParseEvaluationResult(content, _logger);
         }
         catch (Exception ex)
         {
@@ -52,18 +52,18 @@ public sealed partial class GoalEvaluator : ServiceEntity, IGoalEvaluator
         }
     }
 
-    internal static GoalEvaluationResult ParseEvaluationResult(string? content)
+    internal static GoalEvaluationResult ParseEvaluationResult(string? content, ILogger? logger = null)
     {
         if (string.IsNullOrWhiteSpace(content))
         {
             return GoalEvaluationResult.NotCompleted(L.T(StringKey.GoalEvaluatorEmptyResult));
         }
 
-        var result = LlmJsonHelper.DeserializeWithReport(content, GoalJsonContext.Default.GoalEvaluationJson, out var report);
+        var result = LlmJsonHelper.DeserializeWithReport(content, GoalJsonContext.Default.GoalEvaluationJson, out var report, logger);
         if (result is not null)
         {
             if (report.RepairHint is not null)
-                System.Diagnostics.Trace.WriteLine($"Goal evaluation JSON repaired: {report.RepairHint}");
+                logger?.LogDebug("Goal evaluation JSON repaired: {RepairHint}", report.RepairHint);
 
             // 字段级宽容降级明细也回喂 LLM：让下一轮知道自己字段被默认值替换，避免误解
             var reason = result.Reason;

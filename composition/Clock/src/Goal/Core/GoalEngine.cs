@@ -69,7 +69,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
 
         var dag = new Dag<GoalNodePayload>();
 
-        var nodes = LlmJsonHelper.DeserializeValue(nodesJson, GraphDefineJsonContext.Default.GraphDefineNodeArray, out var nodesRepair)
+        var nodes = LlmJsonHelper.DeserializeValue(nodesJson, GraphDefineJsonContext.Default.GraphDefineNodeArray, out var nodesRepair, _logger)
             ?? throw new ArgumentException(FormatInvalidGraphError("nodes", nodesRepair));
 
         foreach (var node in nodes)
@@ -95,7 +95,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
             });
         }
 
-        var edges = LlmJsonHelper.DeserializeValue(edgesJson, GraphDefineJsonContext.Default.GraphDefineEdgeArray, out var edgesRepair)
+        var edges = LlmJsonHelper.DeserializeValue(edgesJson, GraphDefineJsonContext.Default.GraphDefineEdgeArray, out var edgesRepair, _logger)
             ?? throw new ArgumentException(FormatInvalidGraphError("edges", edgesRepair));
 
         foreach (var edge in edges)

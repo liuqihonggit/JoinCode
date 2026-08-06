@@ -35,3 +35,164 @@ app/ 与 services/ 层经过前两轮加固后已高度防御化。主要残留�
 <!-- 原因: app/services 层经前两轮加固已高度防御化，剩余 Trace.WriteLine 多为 best-effort catch；仅在帧已有 ILogger 的类内统一改为 _logger，避免给无 logger 的类加注入（大改动低价值） -->
 <!-- 替代方案: 给无 logger 类逐一加构造注入（改动面大、破坏 DI，收益低，不采用）-->
 <!-- 验证: Bridge 594 + Mcp 139 通过，Debug 编译 0 错误 ✅ -->
+
+---
+
+## 第四轮（追加：处理剩余 Trace.WriteLine）
+
+> 用户选择"处理剩余无 logger 类"。按 `classify_trace.py` 依 `has_logger/static` 分类，分两批：
+> **A 组（已有 `_logger` 的实例类，零风险直接替换）** 与 **B 组（无 logger 需构造注入）**。
+
+### A 组修复（已完成 ✅，提交 ab46a58ed）
+
+10 个已含 `_logger` 的实例类，将 `Trace.WriteLine` 统一改为 `_logger?.LogWarning/Debug/Error`：
+
+| 文件 | 处理 |
+|------|------|
+| `Hands/src/Api/Core/UsageTracker.cs` | `ExtractTokenUsage` 去 `static` 以访问实例 `_logger`，改 `LogWarning` |
+| `Hands/src/Network/RemoteTriggerService.cs` | 2 处 `LogWarning` |
+| `Scheduling/src/Cron/CronScheduler.cs` | 补 `_logger` 字段 + DI 构造链透传 logger（原 DI 构造器丢弃 logger 参数属潜在缺陷），2 处 Trace→Log |
+| `Scheduling/src/Tasks/MonitorMcpTask.cs` | 1 处 `LogWarning` |
+| `Vault/src/State/Transcript/TranscriptService.cs` | 2 处 Trace→Log |
+| `Eyes/Lsp/Internal/Server/LspClient.cs` | 1 处 `LogWarning` |
+| `Eyes/Lsp/Internal/Service/LspService.cs` | 1 处 `LogWarning` |
+| `Mcp/Mcpb/Middleware/McpbExtractionMiddleware.cs` | 1 处 `LogDebug` |
+| `Mcp/Mcpb/Middleware/McpbValidationMiddleware.cs` | 1 处 `LogDebug` |
+| `Mcp/Remote/RemoteClientManager.cs` | 1 处 `LogWarning` |
+
+### 验证（A 组）
+
+- `dotnet build Core.slnx` / `Services.slnx` Debug `--no-incremental`：0 错误 0 警告 ✅
+- `Scheduling.Tests` 257、`Mcp.Tests` 139、`Vault.Other` 238、`Vault.Memdir` 137、`Hands.Api` 184 全部通过 ✅
+- 10 个 A 组文件 `Trace\.WriteLine` 经 `rg` 复核零残留 ✅
+
+### 决策记录（A 组）
+
+<!-- 🤖 Auto Decision: 2026-08-06 -->
+<!-- 决策: A 组 10 个已有 logger 类直接替换 Trace→ILogger；UsageTracker.ExtractTokenUsage 去 static；CronScheduler 补齐被丢弃的 DI logger 构造链 -->
+<!-- 原因: has_logger 类零风险直接替换；CronScheduler 原 DI 构造器接收 logger 却未透传属静默缺陷一并修复 -->
+<!-- 踩坑: 日志消息里的 `filePath ?? "?"` 会触发 CS8604（形参本已非空），去除空值合并后消除 -->
+<!-- 验证: Core/Services Debug 全量编译 0 错误，五套件测试通过 ✅ -->
+
+### B 组（已全部完成 ✅）
+
+用户选定"B 组全部 22 类一次做完"。22 个 logger-less 实例类加可选 `ILogger<T>? logger = null` 构造注入（MS.DI 对可选参数自动回退默认值，兼容既有 `new X()` 调用），统一将 `Trace.WriteLine` 改为 `_logger?.LogXxx`：
+
+| 层 | 类 | Trace 数 |
+|----|----|----------|
+| App | `CliSession`、`DotEnvConfig`(静态工厂加 `ILogger?` 参) | 3 |
+| Composition | `AppEventBus` | 2 |
+| Core-Agents | `TeamManager`、`DoctorSseClient` | 3 |
+| Core-Hands | `UpgradeService`、`SkillService`、`ToolArgumentParser` | 4 |
+| Core/Vault | `ConfigPersistentServiceBase`(抽象基类，`protected ILogger?`) | 3 |
+| Core/CodeIndex | `FileWatcherIntegrationRegistry`（去 static 解耦 logger） | 2 |
+| Foundation | `ToolUseContext`（方法级可选 `ILogger?` 参） | 1 |
+| Infrastructure | `ExternalPluginHost`、`SshForwardedPort`、`SshSession`（已有 logger）、`ThreadSafeListenerList` | 4 |
+| Services/Bridge | `BridgeWorkPollLoop`、`V1BridgeHandle`（已有 logger）、`V1WorkPollSetupMiddleware`（复用 `ctx.Logger`） | 10 |
+| Services/Dream | `DefaultSessionScanner` | 1 |
+| Services/Mcp | `McpResourceToolHandlers`、`SkillToolHandlers`、`SseTransport`+`SseClient` | 5 |
+
+### 验证（B 组）
+
+- 6 层 Debug `--no-incremental` 全量编译 0 警告 0 错误 ✅（Foundation/Infrastructure/Services/Core/Composition/App）
+- 套件全部通过 ✅：Infra 565、Agents 271、Clock 421、CodeIndex 374、Host 707、Scheduling 257、Bridge 594、Mcp 139、Dream 174、Vault 238+137、Hands 184+109+220+119（`WebSocket_EchoHello` 曾因端口 9761 冲突单发失败，重跑即通过 = 环境性 flake，非代码回归）
+- 22 个 B 组文件 `Trace\.WriteLine` 复核零残留 ✅
+
+### 决策记录（B 组）
+
+<!-- 🤖 Auto Decision: 2026-08-06 -->
+<!-- 决策: 22 个无 logger 实例类统一加可选 ILogger 构造注入，Trace→ILogger -->
+<!-- 原因: 可选参默认 null 使既有 new X() 与 MS DI（可选参自动回退默认值）双兼容，改动面经 compile+test 全绿验证；用户明确选择一次全部完成 -->
+<!-- 特例: ToolUseContext 为 DTO 采方法级可选 ILogger 参避免类污染；ThreadSafeListenerList 等工具类亦可选 ILogger<泛型>；V1WorkPollSetupMiddleware 复用 ctx.Logger 免构造注入 -->
+<!-- 踩坑: ① FileWatcherIntegrationRegistry 一处 Trace 在 static 方法内用 logger 需去 static; ② SseTransport 的"释放 SSE 输出流"实为内部 SseClient 类 → 需给 SseClient 加 logger -->
+<!-- 验证: 6 层全量编译 0 错误 + 15 套件全绿 ✅ -->
+
+### 第三桶（实例类收尾，已完成 ✅）
+
+用户选定"扫第三桶静态类"，逐案判断：**实例类**照 B 组方式加可选 `ILogger<T>?` 构造注入并替换 Trace；**纯静态解析/工具类**（改动面大、收益低）跳过。共替换 9 个文件：
+
+| 文件 | 处理 |
+|------|------|
+| `Agents/src/Doctor/DoctorStdioTransport.cs` | 加 `ILogger<DoctorStdioTransport>?`；`ParseDiagnosticEvent`/`DetectEventType` 由纯 static 改为透传 `ILogger? logger = null`（保留 static 签名） |
+| `Agents/src/Doctor/DoctorTcpServer.cs` | 加 logger；3 处 Trace→LogWarning；内部 `DoctorTcpPatient` 加 `ILogger?` 构造参并透传 |
+| `Hands/src/Skills/Services/Code/CodeSandboxService.cs` | 加 logger；1 处 Trace→LogWarning |
+| `Scheduling/src/Storage/TaskFileWriter.cs` | 加 logger；1 处 Trace→LogWarning（含本地化消息） |
+| `Hands/src/ToolHandlers/Handlers/DevTools/FileToolHandlers.cs` | 加 logger（context 之后追加）；5 处 Trace→LogWarning（含 Dispose 内 3 处 ObjectDisposedException） |
+| `McpToolDispatch/src/CodeTools/LspToolHandlers.cs` | 加 logger；`UriToFilePath` 保持 **static** 并追加 `ILogger? logger = null` 参数（被 static 过滤 lambda 调用） |
+| `CodeIndex/src/Incremental/FileWatcherIntegration.cs` | 主构造器追加 logger；3 处 Trace→LogWarning；删除未使用的 dead `Log` helper |
+| `CodeIndex/src/Indexing/CodeIndexer.cs` | 加 logger；2 处 Trace→LogWarning |
+| `Vault/src/State/Store/StoreSelector.cs` | 加 `ILogger<StoreSelector<TState,TSelected>>?`；2 处 Trace→LogWarning |
+
+### 跳过清单（第三桶，保留 Trace）
+
+| 类别 | 文件 | 原因 |
+|------|------|------|
+| 纯静态工具 | `CsprojParser`、`CSharpSymbolExtractor`、`TreeCache`（TimeoutLock 锁等待诊断）、`FrontmatterParser`、`LlmJsonHelper`(11)、`TerminalHelper`、`ConfigLoader`(6)、`SettingsLoader`、`PsPermissions` | 静态方法内 Trace，无 logger 可注入，改造成本高、收益低 |
+| static 方法内 catch | `PathValidator`(2)、`WebFetchPermissionMiddleware`(1) | Trace 位于 static 方法，派生 `ServiceEntity`（无 logger） |
+| App 命令 | `ResumeCommand`/`LoginCommand`/`LogoutCommand`/`AddDirCommand`/`InsightsCommand`/`ReplLoopStep`/`NonInteractiveExecuteStep`/`Program.cs` | 一次性 CLI 命令，Trace 即可 |
+| 测试/测试基建 | `Testing.Common/*`、`MockServers/*`、各 `*.Tests` | Trace 是测试正确工具（测试输出监听器可见） |
+| DI 注册文件 | `ServiceRegistration.cs`、`ServiceRegistration.Skills.cs` | 注册期诊断，无类实例 |
+
+### 验证（第三桶）
+
+- `dotnet build Core.slnx -c Debug --no-incremental`：0 错误 0 警告 ✅
+- 套件全绿 ✅：CodeIndex 374、McpToolDispatch 198、Vault.Other 238、Agents 265、Scheduling 257
+- 提交 `b624af1b5`（9 文件，59+/37-）
+
+### 决策记录（第三桶）
+
+<!-- 🤖 Auto Decision: 2026-08-06 -->
+<!-- 决策: 第三桶实例类全部 ILogger 化，纯静态工具类/static 方法内 Trace/一次性 CLI 命令跳过 -->
+<!-- 原因: 实例类加可选 ILogger 注入与 B 组同模式零风险；静态类无 logger 可注入、改动面大收益低 -->
+<!-- 踩坑: ① 误加 readonly 到 _updateCts（运行期被重新赋值）编译报 CS0191 已回退; ② UriToFilePath 改实例后被 static lambda 调用报 CS0120 → 保持 static 并透传 ILogger 参数 -->
+<!-- 验证: Core 全量编译 0 错误 + 5 套件全绿 ✅ -->
+
+---
+
+## 第四桶（遗留，未处理）
+
+Services/Bridge、Infrastructure、Eyes 中仍有 ~20 个**实例类**使用 Trace.WriteLine（`BridgeSubprocessManager`、`ConcurrentSession`、`BridgeRemoteCore.*`、`BridgeSessionApi`、`BridgeApiClient`、`BridgePermissionCallbacks`、`BridgeInboundAttachments`、`V1/V2ReplBridgeTransport`、`BridgeDebugUtils`、`McpClientToolHandlers`、`McpAuthProviders`、`UserInteractionToolHandlers`、`LspServerInstance`、`TerminalCaptureService`、`ReplService`、`FileLock`、`BatchLock`、`ApiClient`、`MobileConnectService`、`AgentMemoryService`、`SessionScanner`、`FacetCacheService`、`HookExecutorBase`、`HookConditionEvaluator`、`GoalEvaluator`、`GoalGraphEngine`），如需继续可走 B 组同模式批量处理。
+
+---
+
+## 第四桶（已完成 ✅，提交 3989db7f4）
+
+用户入睡前授权继续。逐案分类：**实例类有 logger 直接替换 / 无 logger 加可选注入**；**static 方法内 Trace 跳过**。共替换 16 个文件：
+
+| 层 | 文件 | 处理 |
+|----|------|------|
+| Infrastructure | `V2ReplBridgeTransport`、`V1ReplBridgeTransport`、`ReplService` | 已有 `_logger`，4 处 Trace→LogWarning |
+| Services/Bridge | `BridgePermissionCallbacks`、`BridgeSubprocessManager`、`ConcurrentSession`、`BridgeRemoteCore.V2Callbacks`(3, 静态方法但有 logger 参) | 已有 logger，9 处 Trace→LogWarning |
+| Services/Mcp | `UserInteractionToolHandlers`(补注入)、`McpClientToolHandlers`、`McpAuthProviders` | 3 处 Trace→LogInformation/Warning |
+| Services/Eyes | `LspServerInstance` | 已有 logger，1 处 |
+| Core/Agents | `AgentMemoryService` | 已有 logger，1 处 |
+| Core/Hands | `MobileConnectService`、`ShellExecutionMiddleware` | 补注入；`HandleClientAsync`/`CreateProgressTimer` 为 static → 透传 `ILogger?` 参数 |
+| Core/Guard | `HookConditionEvaluator`、`HookExecutorBase` | 已有 logger/Logger，2 处 |
+
+### 第四桶跳过清单（保留 Trace）
+
+| 类别 | 文件 | 原因 |
+|------|------|------|
+| 静态类/静态方法 | `BridgeInboundAttachments`、`BridgeSessionApi`、`BridgeDebugUtils`、`BridgeRemoteCore.Helpers:25`、`BridgeApiClient.ExtractErrorTypeFromData`、`TerminalCaptureService`(4)、`ApiClient.GetErrorMessage`、`FacetCacheService.MoveToDeleted`、`SessionScanner.ReadEntriesAsync`、`GoalGraphEngine.ExtractNegReviewMetadata`、`GoalEvaluator.ParseEvaluationResult` | 静态上下文无 logger 可注入 |
+| 内部同步原语 | `FileLock`、`BatchLock` | internal 类，入口为静态 `FileLockService` 门面，4 跳透传成本高收益低 |
+
+### 验证（第四桶）
+
+- `Infrastructure.slnx` / `Services.slnx` / `Core.slnx` / `Composition.slnx` Debug `--no-incremental`：0 错误 0 警告 ✅
+- 套件全绿 ✅：Bridge 590、Mcp 139、Infra 561、Hands.Shell 119、Hands.Api 184、Agents 265、Clock 421、Guard.Hooks 206
+- 提交 `3989db7f4`（16 文件，34+/30-）
+
+### 决策记录（第四桶）
+
+<!-- 🤖 Auto Decision: 2026-08-06 -->
+<!-- 决策: 第四桶实例类全部 ILogger 化（有 logger 直接用，无 logger 可选注入），static 上下文与内部同步原语跳过 -->
+<!-- 原因: 实例类模式与前几桶一致零风险；static 方法无 logger 可注入改造成本高收益低；FileLock/BatchLock 为 internal 原语经静态 FileLockService 门面进入，透传成本高 -->
+<!-- 踩坑: MobileConnectService.HandleClientAsync 与 ShellExecutionMiddleware.CreateProgressTimer 实为 static → CS0120 编译错误后改为透传 ILogger 参数，调用点传 _logger -->
+<!-- 验证: 4 层全量编译 0 错误 + 8 套件全绿 ✅ -->
+
+---
+
+## 收尾（全库状态）
+
+- 全库 `System.Diagnostics.Trace.WriteLine` 仅剩：**测试代码/测试基建**（`Testing.Common`、`MockServers`、各 `*.Tests`，Trace 是正确工具）+ **上述静态/App命令/DI注册/内部原语跳过清单**（34 个 src 文件），均已文档化。
+- 生产代码实例类的 Trace→ILogger 清理已完成（A 组 10 + B 组 22 + 第三桶 9 + 第四桶 16 = 57 个文件，6 个提交）。

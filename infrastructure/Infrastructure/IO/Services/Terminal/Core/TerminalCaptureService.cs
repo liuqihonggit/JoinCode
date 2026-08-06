@@ -18,19 +18,19 @@ public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCap
 
     public TerminalSnapshot CaptureScreen()
     {
-        var (width, height) = GetTerminalDimensions();
+        var (width, height) = GetTerminalDimensions(_logger);
 
         string content;
         try
         {
             content = OperatingSystem.IsWindows()
                 ? CaptureWindowsScreen(width, height)
-                : CaptureUnixScreen(width, height, _fs);
+                : CaptureUnixScreen(width, height, _fs, _logger);
         }
         catch (Exception ex)
         {
             _logger?.LogWarning(ex, "终端屏幕捕获失败，返回元数据");
-            content = FormatMetadataFallback(width, height);
+            content = FormatMetadataFallback(width, height, _logger);
         }
 
         return new TerminalSnapshot
@@ -44,7 +44,7 @@ public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCap
 
     public TerminalSnapshot? CaptureBuffer(int maxLines = 50)
     {
-        var (width, height) = GetTerminalBufferDimensions();
+        var (width, height) = GetTerminalBufferDimensions(_logger);
 
         if (Console.IsOutputRedirected)
         {
@@ -56,7 +56,7 @@ public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCap
         {
             content = OperatingSystem.IsWindows()
                 ? CaptureWindowsBuffer(width, maxLines)
-                : CaptureUnixBuffer(width, maxLines, _fs);
+                : CaptureUnixBuffer(width, maxLines, _fs, _logger);
         }
         catch (Exception ex)
         {
@@ -75,7 +75,7 @@ public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCap
 
     #region Dimension Helpers
 
-    private static (int width, int height) GetTerminalDimensions()
+    private static (int width, int height) GetTerminalDimensions(ILogger? logger = null)
     {
         try
         {
@@ -84,11 +84,11 @@ public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCap
                 return (Console.WindowWidth, Console.WindowHeight);
             }
         }
-        catch (PlatformNotSupportedException ex) { System.Diagnostics.Trace.WriteLine($"Console size query not supported: {ex.Message}"); }
+        catch (PlatformNotSupportedException ex) { logger?.LogWarning(ex, "Console size query not supported"); }
         return (80, 24);
     }
 
-    private static (int width, int height) GetTerminalBufferDimensions()
+    private static (int width, int height) GetTerminalBufferDimensions(ILogger? logger = null)
     {
         try
         {
@@ -97,7 +97,7 @@ public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCap
                 return (Console.BufferWidth, Console.BufferHeight);
             }
         }
-        catch (PlatformNotSupportedException ex) { System.Diagnostics.Trace.WriteLine($"Console buffer query not supported: {ex.Message}"); }
+        catch (PlatformNotSupportedException ex) { logger?.LogWarning(ex, "Console buffer query not supported"); }
         return (80, 24);
     }
 
@@ -191,7 +191,7 @@ public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCap
 
     #region Unix Implementation
 
-    private static string CaptureUnixScreen(int width, int height, IFileSystem fs)
+    private static string CaptureUnixScreen(int width, int height, IFileSystem fs, ILogger? logger = null)
     {
         var tmuxContent = TryTmuxCapture();
         if (tmuxContent != null)
@@ -199,7 +199,7 @@ public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCap
             return tmuxContent;
         }
 
-        var screenContent = TryScreenCapture(fs);
+        var screenContent = TryScreenCapture(fs, null, logger);
         if (screenContent != null)
         {
             return screenContent;
@@ -211,10 +211,10 @@ public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCap
             return ansiContent;
         }
 
-        return FormatMetadataFallback(width, height);
+        return FormatMetadataFallback(width, height, logger);
     }
 
-    private static string CaptureUnixBuffer(int width, int maxLines, IFileSystem fs)
+    private static string CaptureUnixBuffer(int width, int maxLines, IFileSystem fs, ILogger? logger = null)
     {
         var tmuxContent = TryTmuxCapture(maxLines);
         if (tmuxContent != null)
@@ -222,7 +222,7 @@ public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCap
             return tmuxContent;
         }
 
-        var screenContent = TryScreenCapture(fs, maxLines);
+        var screenContent = TryScreenCapture(fs, maxLines, logger);
         if (screenContent != null)
         {
             return screenContent;
@@ -234,7 +234,7 @@ public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCap
             return ansiContent;
         }
 
-        return FormatMetadataFallback(width, maxLines);
+        return FormatMetadataFallback(width, maxLines, logger);
     }
 
     private static string? TryTmuxCapture(int? historyLines = null)
@@ -269,7 +269,7 @@ public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCap
         }
     }
 
-    private static string? TryScreenCapture(IFileSystem fs, int? maxLines = null)
+    private static string? TryScreenCapture(IFileSystem fs, int? maxLines = null, ILogger? logger = null)
     {
         try
         {
@@ -299,7 +299,7 @@ public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCap
             }
             finally
             {
-                try { fs.DeleteFile(tmpFile); } catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"TerminalCaptureService: failed to delete temp file: {ex.Message}"); }
+                try { fs.DeleteFile(tmpFile); } catch (Exception ex) { logger?.LogWarning(ex, "TerminalCaptureService: failed to delete temp file"); }
             }
         }
         catch
@@ -397,7 +397,7 @@ public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCap
         return null;
     }
 
-    private static string FormatMetadataFallback(int width, int height)
+    private static string FormatMetadataFallback(int width, int height, ILogger? logger = null)
     {
         var sb = new System.Text.StringBuilder();
         sb.AppendLine($"[终端屏幕 {width}x{height}]");
@@ -411,7 +411,7 @@ public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCap
                 sb.AppendLine($"光标位置: ({Console.CursorLeft}, {Console.CursorTop})");
             }
         }
-        catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"TerminalCaptureService: failed to get cursor position: {ex.Message}"); }
+        catch (Exception ex) { logger?.LogWarning(ex, "TerminalCaptureService: failed to get cursor position"); }
 
         return sb.ToString();
     }

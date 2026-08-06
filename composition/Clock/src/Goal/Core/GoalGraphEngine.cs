@@ -218,7 +218,7 @@ public sealed partial class GoalGraphEngine : ServiceEntity
 
         context.CompletedNodes.TryAdd(nodeId, default);
 
-        ExtractNegReviewMetadata(nodeId, payload, context);
+        ExtractNegReviewMetadata(nodeId, payload, context, _logger);
 
         await HandleUserInteractionAsync(nodeId, payload, context, ct).ConfigureAwait(false);
         await HandleLoopObservationAsync(nodeId, payload, context, ct).ConfigureAwait(false);
@@ -700,18 +700,18 @@ public sealed partial class GoalGraphEngine : ServiceEntity
     /// 从 neg_review / fix_neg 节点输出中提取 JSON 元数据并写入 payload
     /// 使用 LlmJsonHelper 统一门控（ExtractJsonBlock + RepairJson + 宽容反序列化）
     /// </summary>
-    private static void ExtractNegReviewMetadata(string nodeId, GoalNodePayload payload, GraphExecutionContext context)
+    private static void ExtractNegReviewMetadata(string nodeId, GoalNodePayload payload, GraphExecutionContext context, ILogger? logger = null)
     {
         if (string.IsNullOrEmpty(payload.Output))
             return;
 
         if (nodeId.Equals("neg_review", StringComparison.Ordinal))
         {
-            var negReview = LlmJsonHelper.Deserialize(payload.Output, GoalJsonContext.Default.NegReviewOutputJson, out var negRepair);
+            var negReview = LlmJsonHelper.Deserialize(payload.Output, GoalJsonContext.Default.NegReviewOutputJson, out var negRepair, logger);
             if (negReview is null)
             {
                 if (!string.IsNullOrEmpty(negRepair))
-                    System.Diagnostics.Trace.WriteLine($"[GoalGraph] neg_review 元数据解析失败: {negRepair}");
+                    logger?.LogDebug("[GoalGraph] neg_review 元数据解析失败: {NegRepair}", negRepair);
                 return;
             }
 
@@ -724,14 +724,14 @@ public sealed partial class GoalGraphEngine : ServiceEntity
         }
         else if (nodeId.Equals("fix_neg", StringComparison.Ordinal))
         {
-            var fixNeg = LlmJsonHelper.Deserialize(payload.Output, GoalJsonContext.Default.FixNegOutputJson, out var fixRepair);
+            var fixNeg = LlmJsonHelper.Deserialize(payload.Output, GoalJsonContext.Default.FixNegOutputJson, out var fixRepair, logger);
             if (fixNeg is not null && !string.IsNullOrEmpty(fixNeg.Route))
             {
                 payload.Routes = [fixNeg.Route];
             }
             else if (fixNeg is null && !string.IsNullOrEmpty(fixRepair))
             {
-                System.Diagnostics.Trace.WriteLine($"[GoalGraph] fix_neg 元数据解析失败: {fixRepair}");
+                logger?.LogDebug("[GoalGraph] fix_neg 元数据解析失败: {FixRepair}", fixRepair);
             }
         }
     }

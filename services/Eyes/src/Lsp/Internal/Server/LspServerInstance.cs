@@ -302,7 +302,7 @@ public sealed partial class LspServerInstance : ILspServerInstance
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Trace.WriteLine($"LSP server instance stop failed during dispose: {ex.Message}");
+            _logger.LogWarning(ex, "LSP server instance 释放期间停止失败");
         }
 
         await _client.DisposeAsync().ConfigureAwait(false);

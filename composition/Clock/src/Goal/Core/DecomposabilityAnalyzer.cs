@@ -26,7 +26,7 @@ public sealed partial class DecomposabilityAnalyzer : ServiceEntity, IDecomposab
         if (!string.IsNullOrWhiteSpace(envOverride))
         {
             _logger?.LogInformation("Decomposability analyzer using environment override");
-            return ParseAnalysisResult(envOverride);
+            return ParseAnalysisResult(envOverride, _logger);
         }
 
         var prompt = BuildAnalyzerPrompt(objective, constraints);
@@ -51,7 +51,7 @@ public sealed partial class DecomposabilityAnalyzer : ServiceEntity, IDecomposab
                 cancellationToken).ConfigureAwait(false);
 
             var content = results.Count > 0 ? results[0].Content : null;
-            return ParseAnalysisResult(content);
+            return ParseAnalysisResult(content, _logger);
         }
         catch (Exception ex)
         {
@@ -60,14 +60,14 @@ public sealed partial class DecomposabilityAnalyzer : ServiceEntity, IDecomposab
         }
     }
 
-    internal static DecompositionResult ParseAnalysisResult(string? content)
+    internal static DecompositionResult ParseAnalysisResult(string? content, ILogger? logger = null)
     {
         if (string.IsNullOrWhiteSpace(content))
         {
             return DecompositionResult.NotDecomposable("分解分析器返回空结果");
         }
 
-        var result = LlmJsonHelper.DeserializeWithReport(content, GoalJsonContext.Default.DecompositionAnalysisJson, out var report);
+        var result = LlmJsonHelper.DeserializeWithReport(content, GoalJsonContext.Default.DecompositionAnalysisJson, out var report, logger);
         if (result is not null)
         {
             if (report.RepairHint is not null)

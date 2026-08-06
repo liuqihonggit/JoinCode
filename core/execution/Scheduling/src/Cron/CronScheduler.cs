@@ -74,6 +74,7 @@ public sealed partial class CronScheduler : ICronScheduler, ICronSchedulerRef, I
     private readonly CronSchedulerOptions _options;
     private readonly ICronTaskStore _taskStore;
     private readonly IClockService _clock;
+    private readonly ILogger<CronScheduler>? _logger;
     private readonly ConcurrentDictionary<string, long> _nextFireAt = new();
     private readonly ConcurrentDictionary<string, byte> _inFlight = new();
     private readonly Timer _timer;
@@ -82,11 +83,12 @@ public sealed partial class CronScheduler : ICronScheduler, ICronSchedulerRef, I
     private volatile bool _started;
     private volatile bool _disposed;
 
-    public CronScheduler(CronSchedulerOptions options, ICronTaskStore taskStore, IClockService? clock = null)
+    public CronScheduler(CronSchedulerOptions options, ICronTaskStore taskStore, IClockService? clock = null, ILogger<CronScheduler>? logger = null)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _taskStore = taskStore ?? throw new ArgumentNullException(nameof(taskStore));
         _clock = clock ?? SystemClockService.Instance;
+        _logger = logger;
         _timer = new Timer(Check, null, Timeout.Infinite, Timeout.Infinite);
     }
 
@@ -98,7 +100,7 @@ public sealed partial class CronScheduler : ICronScheduler, ICronSchedulerRef, I
         {
             OnFire = task => handler.OnFireAsync(task),
             JitterConfig = CronJitterConfig.Default
-        }, taskStore, clock)
+        }, taskStore, clock, logger)
     {
     }
 
@@ -187,7 +189,7 @@ public sealed partial class CronScheduler : ICronScheduler, ICronSchedulerRef, I
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Trace.WriteLine($"[CronScheduler] Check 失败: {ex}");
+                _logger?.LogError(ex, "[CronScheduler] Check 失败");
             }
             finally
             {
@@ -195,7 +197,7 @@ public sealed partial class CronScheduler : ICronScheduler, ICronSchedulerRef, I
                 if (firedRecurring.Count > 0)
                 {
                     try { await _taskStore.MarkTasksFiredAsync(firedRecurring, now).ConfigureAwait(false); }
-                    catch (Exception markEx) { System.Diagnostics.Trace.WriteLine($"[CronScheduler] MarkTasksFiredAsync 失败: {markEx}"); }
+                    catch (Exception markEx) { _logger?.LogWarning(markEx, "[CronScheduler] MarkTasksFiredAsync 失败"); }
                 }
             }
         });
@@ -271,7 +273,7 @@ public sealed partial class CronScheduler : ICronScheduler, ICronSchedulerRef, I
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Trace.WriteLine($"[CronScheduler] Fire task {task.Id} failed: {ex}");
+            _logger?.LogError(ex, "[CronScheduler] 触发任务 {TaskId} 失败", task.Id);
         }
     }
 

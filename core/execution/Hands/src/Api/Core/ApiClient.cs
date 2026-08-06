@@ -312,8 +312,8 @@ public sealed partial class ApiClient : ServiceEntity, IApiClient, IDisposable
         {
             429 => CreateRateLimitException(response, endpoint, rawContent),
             >= 500 => new ServerErrorException(endpoint, statusCode, rawContent),
-            401 or 403 => new AuthException(endpoint, statusCode, GetErrorMessage(rawContent, "认证失败"), rawContent),
-            400 or 422 => new ValidationException(endpoint, GetErrorMessage(rawContent, "请求参数无效"), null, rawContent),
+            401 or 403 => new AuthException(endpoint, statusCode, GetErrorMessage(rawContent, "认证失败", _logger), rawContent),
+            400 or 422 => new ValidationException(endpoint, GetErrorMessage(rawContent, "请求参数无效", _logger), null, rawContent),
             _ => ApiException.ResponseError(endpoint, statusCode, rawContent)
         };
     }
@@ -337,7 +337,7 @@ public sealed partial class ApiClient : ServiceEntity, IApiClient, IDisposable
         return new RateLimitException(endpoint, retryAfter, rawContent);
     }
 
-    private static string GetErrorMessage(string rawContent, string defaultMessage)
+    private static string GetErrorMessage(string rawContent, string defaultMessage, ILogger? logger = null)
     {
         if (string.IsNullOrWhiteSpace(rawContent))
             return defaultMessage;
@@ -363,7 +363,7 @@ public sealed partial class ApiClient : ServiceEntity, IApiClient, IDisposable
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Trace.WriteLine($"解析API错误响应失败，使用默认消息: {ex.Message}");
+            logger?.LogWarning(ex, "解析API错误响应失败，使用默认消息: {DefaultMessage}", defaultMessage);
         }
 
         return defaultMessage;

@@ -298,7 +298,7 @@ public sealed class BridgeSubprocessHandle : IAsyncDisposable
                     catch (Exception ex)
                     {
                         // transcript 写入失败不阻塞
-                        System.Diagnostics.Trace.WriteLine($"[BridgeSubprocessManager] Transcript write failed: {ex.Message}");
+                        _logger?.LogWarning(ex, "[BridgeSubprocessManager] transcript 写入失败");
                     }
                 }
 
@@ -472,7 +472,7 @@ public sealed class BridgeSubprocessHandle : IAsyncDisposable
         catch (Exception ex)
         {
             // Dispose 时忽略异常
-            System.Diagnostics.Trace.WriteLine($"[BridgeSubprocessManager] Process wait for exit failed on dispose: {ex.Message}");
+            _logger?.LogWarning(ex, "[BridgeSubprocessManager] Dispose 时等待进程退出失败");
         }
 
         // 等待读取任务完成
@@ -487,7 +487,7 @@ public sealed class BridgeSubprocessHandle : IAsyncDisposable
             catch (Exception ex)
             {
                 // 忽略读取任务异常
-                System.Diagnostics.Trace.WriteLine($"[BridgeSubprocessManager] Read task exception on dispose: {ex.Message}");
+                _logger?.LogWarning(ex, "[BridgeSubprocessManager] Dispose 时读取任务异常");
             }
         }
 
@@ -510,7 +510,7 @@ public sealed class BridgeSubprocessHandle : IAsyncDisposable
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Trace.WriteLine($"[BridgeSubprocessManager] Transcript stream dispose failed: {ex.Message}");
+            _logger?.LogWarning(ex, "[BridgeSubprocessManager] transcript 流释放失败");
         }
     }
 }

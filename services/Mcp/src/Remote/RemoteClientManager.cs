@@ -243,7 +243,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Trace.WriteLine($"RemoteClientManager: Disconnect failed during reconnect for client: {ex.Message}");
+            _logger.LogWarning(ex, "RemoteClientManager: Disconnect failed during reconnect for client");
         }
 
         await client.ConnectAsync(cancellationToken).ConfigureAwait(false);

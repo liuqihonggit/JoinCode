@@ -35,7 +35,7 @@ public sealed partial class McpbExtractionMiddleware : ServiceEntity, IMcpbMiddl
 
         if (_fs.DirectoryExists(extractPath))
         {
-            try { _fs.DeleteDirectory(extractPath, true); } catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"McpbExtraction: Failed to delete directory: {ex.Message}"); }
+            try { _fs.DeleteDirectory(extractPath, true); } catch (Exception ex) { _logger?.LogDebug(ex, "MCPB 解压后清理目录失败: {Path}", extractPath); }
         }
 
         _fs.CreateDirectory(extractPath);

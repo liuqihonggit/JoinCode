@@ -58,7 +58,7 @@ public sealed class ReasoningRoundRecorder
     public ReasoningRoundRecorder(int capacity = 50, TimeProvider? timeProvider = null)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(capacity, 1);
-        _rounds = new RingBuffer<ReasoningRound>(capacity);
+        _rounds = new RingBuffer<ReasoningRound>(RingBuffer<ReasoningRound>.RoundUpToPowerOfTwo(capacity));
         _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
@@ -110,6 +110,11 @@ public sealed class ReasoningRoundRecorder
     /// 当前记录数
     /// </summary>
     public int Count => _rounds.Count;
+
+    /// <summary>
+    /// 最大保留轮次数(向上取整到 2 次幂后)
+    /// </summary>
+    public int Capacity => _rounds.Capacity;
 
     /// <summary>
     /// 当前轮次号(未开始为 0)

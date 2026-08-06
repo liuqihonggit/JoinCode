@@ -6,13 +6,15 @@ public sealed partial class UpgradeService : ServiceEntity, IUpgradeService
     private readonly HttpClient _httpClient;
     private readonly string _repoOwner;
     private readonly string _repoName;
+    private readonly ILogger<UpgradeService>? _logger;
     private Version? _cachedLatest;
 
-    public UpgradeService(HttpClient httpClient, string repoOwner = "jcc", string repoName = "JoinCode")
+    public UpgradeService(HttpClient httpClient, string repoOwner = "jcc", string repoName = "JoinCode", ILogger<UpgradeService>? logger = null)
     {
         _httpClient = httpClient;
         _repoOwner = repoOwner;
         _repoName = repoName;
+        _logger = logger;
     }
 
     public Version GetCurrentVersion()
@@ -48,7 +50,7 @@ public sealed partial class UpgradeService : ServiceEntity, IUpgradeService
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Trace.WriteLine($"UpgradeService: failed to get latest version: {ex.Message}");
+            _logger?.LogDebug(ex, "UpgradeService: 获取最新版本失败");
         }
 
         return null;

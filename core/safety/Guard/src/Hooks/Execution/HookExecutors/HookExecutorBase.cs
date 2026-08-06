@@ -93,7 +93,7 @@ public abstract class HookExecutorBase<THook> : IHookExecutor<THook> where THook
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Trace.WriteLine($"Failed to substitute template variables: {ex.Message}");
+            Logger?.LogWarning(ex, "替换模板变量失败");
         }
 
         return result;
@@ -184,7 +184,7 @@ public abstract class HookExecutorBase<THook> : IHookExecutor<THook> where THook
     /// </summary>
     protected virtual HookResult ParseJsonResponse(string jsonLine, string stdout, string stderr)
     {
-        var hookDecision = LlmJsonHelper.Deserialize(jsonLine, HooksJsonContext.Default.HookDecision, out var repairHint);
+        var hookDecision = LlmJsonHelper.Deserialize(jsonLine, HooksJsonContext.Default.HookDecision, out var repairHint, Logger);
         if (hookDecision is null)
         {
             if (!string.IsNullOrEmpty(repairHint))

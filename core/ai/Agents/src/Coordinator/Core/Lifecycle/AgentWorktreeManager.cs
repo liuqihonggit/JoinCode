@@ -319,4 +319,14 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
             }
         });
     }
+
+    protected override void OnDispose()
+    {
+        foreach (var kvp in _worktreeSessions)
+        {
+            try { _worktreeService?.RemoveAgentWorktreeAsync(kvp.Key, force: true).Wait(TimeSpan.FromSeconds(5)); }
+            catch (Exception ex) { _logger?.LogDebug(ex, "OnDispose 清理 worktree {AgentId} 失败", kvp.Key); }
+        }
+        _worktreeSessions.Clear();
+    }
 }

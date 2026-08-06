@@ -148,3 +148,11 @@ PreChatMiddleware.RecordPromptStateAsync        // core/execution/Brain/src/Cont
 <!-- 替代方案: 不守卫(现状，窗口过小时折叠死循环); 用时间窗/绝对次数(无进展语义不精确) -->
 <!-- 验证: 新增 ContextFoldStuckGuardTests 3 例(纯守卫) + CacheBreakMonitorTests 2 例(管理器级：暂停与重置)全绿；Brain.Context.Tests 725 例不回归；编译 0 警告 0 错误 -->
 
+## 12. 决策记录（Phase5 落地：前缀字节稳定性守卫，2026-08-06）
+
+<!-- 🤖 Auto Decision: 2026-08-06 -->
+<!-- 决策: ImmutablePrefixStableSortTests 新增 2 例字节级守卫 — 两 Build 相同输入 ToMessages() 经 ContentHash.ComputeConversation 逐字节一致，且顺序相反注册工具亦字节稳定 -->
+<!-- 原因: 对齐 Reasonix Go 版 TestBuildComposesByteStableSystemPrompt；缓存前缀逐字节稳定是"缓存命中率不塌"的前提，防未来重构悄悄引入非确定性序列化 -->
+<!-- 替代方案: 仅指纹(ContentHash)判定(不够，需覆盖序列化字节路径); 运行时断言 VerifyFingerprint(已有，缺的是测试级守卫) -->
+<!-- 验证: ImmutablePrefixStableSortTests 10 例(含新增2例)全绿；编译 0 警告 0 错误 -->
+

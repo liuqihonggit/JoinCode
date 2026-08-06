@@ -152,3 +152,47 @@ app/ 与 services/ 层经过前两轮加固后已高度防御化。主要残留�
 ## 第四桶（遗留，未处理）
 
 Services/Bridge、Infrastructure、Eyes 中仍有 ~20 个**实例类**使用 Trace.WriteLine（`BridgeSubprocessManager`、`ConcurrentSession`、`BridgeRemoteCore.*`、`BridgeSessionApi`、`BridgeApiClient`、`BridgePermissionCallbacks`、`BridgeInboundAttachments`、`V1/V2ReplBridgeTransport`、`BridgeDebugUtils`、`McpClientToolHandlers`、`McpAuthProviders`、`UserInteractionToolHandlers`、`LspServerInstance`、`TerminalCaptureService`、`ReplService`、`FileLock`、`BatchLock`、`ApiClient`、`MobileConnectService`、`AgentMemoryService`、`SessionScanner`、`FacetCacheService`、`HookExecutorBase`、`HookConditionEvaluator`、`GoalEvaluator`、`GoalGraphEngine`），如需继续可走 B 组同模式批量处理。
+
+---
+
+## 第四桶（已完成 ✅，提交 3989db7f4）
+
+用户入睡前授权继续。逐案分类：**实例类有 logger 直接替换 / 无 logger 加可选注入**；**static 方法内 Trace 跳过**。共替换 16 个文件：
+
+| 层 | 文件 | 处理 |
+|----|------|------|
+| Infrastructure | `V2ReplBridgeTransport`、`V1ReplBridgeTransport`、`ReplService` | 已有 `_logger`，4 处 Trace→LogWarning |
+| Services/Bridge | `BridgePermissionCallbacks`、`BridgeSubprocessManager`、`ConcurrentSession`、`BridgeRemoteCore.V2Callbacks`(3, 静态方法但有 logger 参) | 已有 logger，9 处 Trace→LogWarning |
+| Services/Mcp | `UserInteractionToolHandlers`(补注入)、`McpClientToolHandlers`、`McpAuthProviders` | 3 处 Trace→LogInformation/Warning |
+| Services/Eyes | `LspServerInstance` | 已有 logger，1 处 |
+| Core/Agents | `AgentMemoryService` | 已有 logger，1 处 |
+| Core/Hands | `MobileConnectService`、`ShellExecutionMiddleware` | 补注入；`HandleClientAsync`/`CreateProgressTimer` 为 static → 透传 `ILogger?` 参数 |
+| Core/Guard | `HookConditionEvaluator`、`HookExecutorBase` | 已有 logger/Logger，2 处 |
+
+### 第四桶跳过清单（保留 Trace）
+
+| 类别 | 文件 | 原因 |
+|------|------|------|
+| 静态类/静态方法 | `BridgeInboundAttachments`、`BridgeSessionApi`、`BridgeDebugUtils`、`BridgeRemoteCore.Helpers:25`、`BridgeApiClient.ExtractErrorTypeFromData`、`TerminalCaptureService`(4)、`ApiClient.GetErrorMessage`、`FacetCacheService.MoveToDeleted`、`SessionScanner.ReadEntriesAsync`、`GoalGraphEngine.ExtractNegReviewMetadata`、`GoalEvaluator.ParseEvaluationResult` | 静态上下文无 logger 可注入 |
+| 内部同步原语 | `FileLock`、`BatchLock` | internal 类，入口为静态 `FileLockService` 门面，4 跳透传成本高收益低 |
+
+### 验证（第四桶）
+
+- `Infrastructure.slnx` / `Services.slnx` / `Core.slnx` / `Composition.slnx` Debug `--no-incremental`：0 错误 0 警告 ✅
+- 套件全绿 ✅：Bridge 590、Mcp 139、Infra 561、Hands.Shell 119、Hands.Api 184、Agents 265、Clock 421、Guard.Hooks 206
+- 提交 `3989db7f4`（16 文件，34+/30-）
+
+### 决策记录（第四桶）
+
+<!-- 🤖 Auto Decision: 2026-08-06 -->
+<!-- 决策: 第四桶实例类全部 ILogger 化（有 logger 直接用，无 logger 可选注入），static 上下文与内部同步原语跳过 -->
+<!-- 原因: 实例类模式与前几桶一致零风险；static 方法无 logger 可注入改造成本高收益低；FileLock/BatchLock 为 internal 原语经静态 FileLockService 门面进入，透传成本高 -->
+<!-- 踩坑: MobileConnectService.HandleClientAsync 与 ShellExecutionMiddleware.CreateProgressTimer 实为 static → CS0120 编译错误后改为透传 ILogger 参数，调用点传 _logger -->
+<!-- 验证: 4 层全量编译 0 错误 + 8 套件全绿 ✅ -->
+
+---
+
+## 收尾（全库状态）
+
+- 全库 `System.Diagnostics.Trace.WriteLine` 仅剩：**测试代码/测试基建**（`Testing.Common`、`MockServers`、各 `*.Tests`，Trace 是正确工具）+ **上述静态/App命令/DI注册/内部原语跳过清单**（34 个 src 文件），均已文档化。
+- 生产代码实例类的 Trace→ILogger 清理已完成（A 组 10 + B 组 22 + 第三桶 9 + 第四桶 16 = 57 个文件，6 个提交）。

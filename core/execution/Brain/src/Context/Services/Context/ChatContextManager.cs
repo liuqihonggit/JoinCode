@@ -24,6 +24,8 @@ public sealed record ChatContextOptions
     public SessionStats? SessionStats { get; init; }
     public string? SessionId { get; init; }
     public ITelemetryService? TelemetryService { get; init; }
+    public IClockService? Clock { get; init; }
+    public string? ProviderBaseUrl { get; init; }
 }
 
 [Register(typeof(IChatContextManager))]
@@ -39,6 +41,8 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     private readonly SessionStats? _sessionStats;
     private readonly string _sessionId;
     private readonly ITelemetryService? _telemetryService;
+    private readonly IClockService _clock;
+    private readonly string? _providerBaseUrl;
 
     /// <summary>
     /// 当前会话标识
@@ -71,6 +75,8 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         _sessionStats = options?.SessionStats;
         _sessionId = options?.SessionId ?? "default";
         _telemetryService = options?.TelemetryService;
+        _clock = options?.Clock ?? SystemClockService.Instance;
+        _providerBaseUrl = options?.ProviderBaseUrl;
     }
 
     /// <summary>
@@ -127,6 +133,8 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
                     _logger.LogInformation("会话统计已恢复，缓存命中: {Hit}, 未命中: {Miss}, 轮次: {Turns}",
                         meta.CacheHitTokens, meta.CacheMissTokens, meta.TurnCount);
                 }
+
+                await TryColdResumePruneAsync(meta, cancellationToken).ConfigureAwait(false);
             }
         }
         catch (Exception ex)
@@ -136,6 +144,61 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
             span?.RecordException(ex);
             throw;
         }
+    }
+
+    /// <summary>
+    /// 冷恢复剪裁 — 会话空闲超 vendor 缓存 TTL 时服务端缓存已冷，重写前缀零额外
+    /// miss 成本，此时剪裁过期大工具结果给全价首请求瘦身。
+    /// 对齐 Reasonix Go 版 maybeColdResumePrune：meta 无时间戳保守跳过、缓存仍热跳过、
+    /// 剪裁有结果才持久化（保存文件与提示词同步）。
+    /// </summary>
+    private async Task TryColdResumePruneAsync(SessionMeta? meta, CancellationToken cancellationToken)
+    {
+        if (meta is null || meta.UpdatedAtUtcTicks <= 0)
+        {
+            return;
+        }
+
+        var idle = _clock.GetUtcNow().Ticks - meta.UpdatedAtUtcTicks;
+        var ttl = CacheTtlResolver.DefaultCacheTtl(_providerBaseUrl);
+        if (idle < ttl.Ticks)
+        {
+            return;
+        }
+
+        SnipStats snip;
+        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            snip = ContextFoldDecider.SnipStaleToolResults(
+                _conversationLog,
+                _contextWindowResolver.ResolveCurrentContextWindow(),
+                _thresholds);
+        }
+        finally
+        {
+            _lock.Release();
+        }
+
+        if (snip.Results == 0)
+        {
+            return;
+        }
+
+        _logger.LogInformation(
+            "会话空闲 {Idle} 超缓存 TTL {Ttl}，冷恢复剪裁 {Results} 条过期工具结果，节省约 {SavedChars} 字符",
+            TimeSpan.FromTicks(idle).TotalHours.ToString("F1") + "h",
+            ttl.ToString(),
+            snip.Results,
+            snip.SavedChars);
+
+        _telemetryService?.RecordCount("context.cold_resume_snip.count",
+            new() { ["results"] = snip.Results.ToString() },
+            "count", "Cold resume snip operation count");
+        _telemetryService?.RecordHistogram("context.cold_resume_snip.saved_chars", snip.SavedChars,
+            unit: "chars", description: "Chars saved by cold resume snip");
+
+        await SaveContextAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -382,7 +445,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
 
             if (_metaStore is not null && _sessionStats is not null)
             {
-                var meta = _sessionStats.ToMeta();
+                var meta = _sessionStats.ToMeta(updatedAtUtcTicks: _clock.GetUtcNow().Ticks);
                 await _metaStore.SaveAsync(_sessionId, meta, cancellationToken).ConfigureAwait(false);
             }
 

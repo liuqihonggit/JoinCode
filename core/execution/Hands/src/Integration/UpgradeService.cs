@@ -50,7 +50,7 @@ public sealed partial class UpgradeService : ServiceEntity, IUpgradeService
         }
         catch (Exception ex)
         {
-            _logger?.LogWarning(ex, "UpgradeService: 获取最新版本失败");
+            _logger?.LogDebug(ex, "UpgradeService: 获取最新版本失败");
         }
 
         return null;

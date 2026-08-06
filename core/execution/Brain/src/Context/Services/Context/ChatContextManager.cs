@@ -479,6 +479,12 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
                 _logger?.LogInformation("折叠前剪裁 {Results} 条过期工具结果，节省约 {SavedChars} 字符",
                     snip.Results, snip.SavedChars);
 
+                _telemetryService?.RecordCount("context.snip.count",
+                    new() { ["results"] = snip.Results.ToString() },
+                    "count", "Context fold pre-snip operation count");
+                _telemetryService?.RecordHistogram("context.snip.saved_chars", snip.SavedChars,
+                    unit: "chars", description: "Chars saved by context fold pre-snip");
+
                 var postSnipRatio = (double)ContextFoldDecider.EstimateTokenCount(
                     _conversationLog.ToMessages(), _currentToolSpecs, _thresholds)
                     / _contextWindowResolver.ResolveCurrentContextWindow();

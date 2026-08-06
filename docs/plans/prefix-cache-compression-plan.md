@@ -167,8 +167,8 @@ PreChatMiddleware.RecordPromptStateAsync        // core/execution/Brain/src/Cont
 ## 14. 决策记录（Phase6 打磨：剪裁严格变短守卫 + 单元统一，2026-08-06）
 
 <!-- 🤖 Auto Decision: 2026-08-06 -->
-<!-- 决策: ① SnipStaleToolResults 增加严格变短守卫 — RewriteSnipped 结果长度 ≥ 原文时不改写，保持原文并跳过；② marker 计量单元从 bytes 统一为 chars -->
-<!-- 原因: ① Go 上游仅 guard replacement==content，未防"行数略超 40+40 阈值、每行较短"时保留 80 行 + marker 头反超原文（SavedChars 变负、上下文膨胀）；② w2 内部记账（EstimateTokenCount/SavedChars）均为字符，非 ASCII 时 bytes≠chars，观测单元错乱 -->
-<!-- 替代方案: ① 无守卫(沿用 Go，容忍负收益)；② 按 UTF-8 字节记账(与 EstimateTokenCount 字符估算脱节，需双轨换算) -->
+<!-- 决策: ① SnipStaleToolResults 增加严格变短守卫 — RewriteSnipped 结果长度 ≥ 原文时不改写，保持原文并跳过；② marker 计量单元从 bytes 统一为 chars；③ 剪裁统计接入 telemetry（context.snip.count 计数器 + context.snip.saved_chars 直方图） -->
+<!-- 原因: ① Go 上游仅 guard replacement==content，未防"行数略超 40+40 阈值、每行较短"时保留 80 行 + marker 头反超原文（SavedChars 变负、上下文膨胀）；② w2 内部记账（EstimateTokenCount/SavedChars）均为字符，非 ASCII 时 bytes≠chars，观测单元错乱；③ Go 上游 PruneStats 会回传上层，w2 剪裁此前只打日志不进遥测，无法从 metric 观察剪裁规模 -->
+<!-- 替代方案: ① 无守卫(沿用 Go，容忍负收益)；② 按 UTF-8 字节记账(与 EstimateTokenCount 字符估算脱节，需双轨换算)；③ 只加 count 不记 saved_chars(丢失规模信息，无法评估剪裁性价比) -->
 <!-- 验证: 新增 ContextFoldSnipTests 2 例(行分支头尾行保留/不变短跳过)全绿，7 例全绿；Brain.Context.Tests 725 + PrefixCache 245 不回归；编译 0 警告 0 错误 -->
 

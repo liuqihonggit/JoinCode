@@ -19,34 +19,25 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
     [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
     private int _planCounter;
 
-    /// <summary>
-    /// 对齐 TS planSlugCache: 当前 session 的 slug 缓存
-    /// 同一 session 内进出 plan mode 始终使用同一文件路径
-    /// </summary>
-    private string? _currentSessionSlug;
+    private readonly ConcurrentDictionary<ObjectId, SessionPlanState> _sessionStates = new();
+    private readonly SessionPlanState _fallbackState = new();
 
-    /// <summary>
-    /// 进入 Plan 模式前保存的权限模式，退出时恢复
-    /// 对齐 TS ToolPermissionContext.prePlanMode
-    /// </summary>
-    private PermissionMode? _prePlanMode;
+    private SessionPlanState CurrentSessionState()
+    {
+        var sessionId = SessionContext.Current;
+        if (sessionId is null) return _fallbackState;
+        return _sessionStates.GetOrAdd(sessionId.Value, _ => new SessionPlanState());
+    }
 
-    /// <summary>
-    /// 对齐 TS strippedDangerousRules: 进入Plan时剥离的危险权限规则数量，退出时恢复
-    /// </summary>
-    private int _strippedRuleCount;
-
-    /// <summary>
-    /// 对齐 TS hasExitedPlanMode: 本次会话是否退出过plan模式
-    /// 用于检测重入plan模式时提供引导（plan_mode_reentry attachment）
-    /// </summary>
-    private bool _hasExitedPlanMode;
-
-    /// <summary>
-    /// 对齐 TS needsPlanModeExitAttachment: 退出plan后是否需要发送一次性通知
-    /// 消费方读取后应清除标志
-    /// </summary>
-    private bool _needsPlanModeExitAttachment;
+    private sealed class SessionPlanState
+    {
+        public string? CurrentSessionSlug;
+        public PermissionMode? PrePlanMode;
+        public int StrippedRuleCount;
+        public bool HasExitedPlanMode;
+        public bool NeedsPlanModeExitAttachment;
+        public string? CurrentPlanId;
+    }
 
     /// <summary>
     /// 待审批请求的等待字典 — 对齐 TS awaitingLeaderApproval
@@ -74,31 +65,35 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
     /// <summary>
     /// 当前计划ID
     /// </summary>
-    public string? CurrentPlanId { get; private set; }
+    public string? CurrentPlanId
+    {
+        get => CurrentSessionState().CurrentPlanId;
+        private set => CurrentSessionState().CurrentPlanId = value;
+    }
 
     /// <summary>
     /// 对齐 TS hasExitedPlanModeInSession: 本次会话是否退出过plan模式
     /// 用于检测重入plan模式时提供引导
     /// </summary>
-    public bool HasExitedPlanMode => _hasExitedPlanMode;
+    public bool HasExitedPlanMode => CurrentSessionState().HasExitedPlanMode;
 
     /// <summary>
     /// 对齐 TS needsPlanModeExitAttachment: 退出plan后是否需要发送一次性通知
     /// 消费方读取后应调用 ClearPlanModeExitAttachment() 清除标志
     /// </summary>
-    public bool NeedsPlanModeExitAttachment => _needsPlanModeExitAttachment;
+    public bool NeedsPlanModeExitAttachment => CurrentSessionState().NeedsPlanModeExitAttachment;
 
     /// <summary>
     /// 对齐 TS setNeedsPlanModeExitAttachment(false): 清除退出通知标志
     /// 消费方发送完plan_mode_exit通知后调用
     /// </summary>
-    public void ClearPlanModeExitAttachment() => _needsPlanModeExitAttachment = false;
+    public void ClearPlanModeExitAttachment() => CurrentSessionState().NeedsPlanModeExitAttachment = false;
 
     /// <summary>
     /// 对齐 TS setHasExitedPlanMode(false): 清除已退出plan标志
     /// 消费方发送完plan_mode_reentry引导后调用
     /// </summary>
-    public void ClearHasExitedPlanMode() => _hasExitedPlanMode = false;
+    public void ClearHasExitedPlanMode() => CurrentSessionState().HasExitedPlanMode = false;
 
     /// <summary>
     /// 进入计划模式
@@ -131,7 +126,8 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
         }).ToList() ?? new List<PlanStep>();
 
         // 对齐 TS getPlanSlug(): 同一 session 内缓存 slug，保证覆盖同一文件
-        _currentSessionSlug ??= PlanSlugGenerator.GetOrCreateSlug(
+        var sessionState = CurrentSessionState();
+        sessionState.CurrentSessionSlug ??= PlanSlugGenerator.GetOrCreateSlug(
             $"session_{Environment.CurrentManagedThreadId}_{_clock.GetUtcNow():yyyyMMddHHmmss}", _fs, _logger);
 
         var plan = new PlanState
@@ -142,7 +138,7 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
             Steps = steps,
             CurrentStepIndex = 0,
             IsInPlanMode = true,
-            PlanFilePath = GetPlanFilePath(_currentSessionSlug),
+            PlanFilePath = GetPlanFilePath(sessionState.CurrentSessionSlug!),
             CreatedAt = _clock.GetUtcNow(),
             LastUpdatedAt = _clock.GetUtcNow()
         };
@@ -151,18 +147,18 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
         CurrentPlanId = planId;
 
         // 对齐 TS handlePlanModeTransition: 进入plan时清除退出通知标志
-        _needsPlanModeExitAttachment = false;
+        CurrentSessionState().NeedsPlanModeExitAttachment = false;
 
         // 对齐 TS: 保存当前权限模式并切换到 Plan 模式
         if (_permissionManager != null)
         {
-            _prePlanMode = await _permissionManager.GetCurrentModeAsync(cancellationToken).ConfigureAwait(false);
+            CurrentSessionState().PrePlanMode = await _permissionManager.GetCurrentModeAsync(cancellationToken).ConfigureAwait(false);
             await _permissionManager.SetPermissionModeAsync(PermissionMode.Plan, cancellationToken).ConfigureAwait(false);
 
             // 对齐 TS: 从 Auto 模式进入 Plan 时剥离危险权限规则
-            if (_prePlanMode == PermissionMode.Auto)
+            if (CurrentSessionState().PrePlanMode == PermissionMode.Auto)
             {
-                _strippedRuleCount = await _permissionManager.StripDangerousRulesAsync(cancellationToken).ConfigureAwait(false);
+                CurrentSessionState().StrippedRuleCount = await _permissionManager.StripDangerousRulesAsync(cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -280,9 +276,10 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
         CurrentPlanId = null;
 
         // 对齐 TS: 恢复进入 Plan 模式前的权限模式
-        if (_permissionManager != null && _prePlanMode.HasValue)
+        var sessionState = CurrentSessionState();
+        if (_permissionManager != null && sessionState.PrePlanMode.HasValue)
         {
-            var restoreMode = _prePlanMode.Value;
+            var restoreMode = sessionState.PrePlanMode.Value;
 
             // 对齐 TS Auto模式断路器: 如果之前是 Auto 模式，检查是否仍可恢复
             // TS 版 isAutoModeGateEnabled: 如果断路器触发，回退到 Default 而非 Auto
@@ -299,13 +296,13 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
             }
 
             await _permissionManager.SetPermissionModeAsync(restoreMode, cancellationToken).ConfigureAwait(false);
-            _prePlanMode = null;
+            sessionState.PrePlanMode = null;
 
             // 对齐 TS: 恢复之前剥离的危险权限规则
-            if (_strippedRuleCount > 0)
+            if (sessionState.StrippedRuleCount > 0)
             {
-                await _permissionManager.RestoreDangerousRulesAsync(_strippedRuleCount, cancellationToken).ConfigureAwait(false);
-                _strippedRuleCount = 0;
+                await _permissionManager.RestoreDangerousRulesAsync(sessionState.StrippedRuleCount, cancellationToken).ConfigureAwait(false);
+                sessionState.StrippedRuleCount = 0;
             }
         }
 
@@ -318,8 +315,8 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
         }
 
         // 对齐 TS: 设置全局状态标志
-        _hasExitedPlanMode = true;
-        _needsPlanModeExitAttachment = true;
+        CurrentSessionState().HasExitedPlanMode = true;
+        CurrentSessionState().NeedsPlanModeExitAttachment = true;
 
         RecordPlanMetrics("exit", true);
         return new PlanOperationResult(true, plan, planFileContent: diskPlanContent);
@@ -758,7 +755,7 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
     /// </summary>
     public void ClearPlanSlug()
     {
-        _currentSessionSlug = null;
+        CurrentSessionState().CurrentSessionSlug = null;
     }
 
     private static string GetDeletedPath(string filePath, DateTime timestamp)
@@ -863,10 +860,10 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
             }
 
             // 恢复之前剥离的危险权限规则
-            if (_permissionManager is not null && _strippedRuleCount > 0)
+            if (_permissionManager is not null && CurrentSessionState().StrippedRuleCount > 0)
             {
-                await _permissionManager.RestoreDangerousRulesAsync(_strippedRuleCount, cancellationToken).ConfigureAwait(false);
-                _strippedRuleCount = 0;
+                await _permissionManager.RestoreDangerousRulesAsync(CurrentSessionState().StrippedRuleCount, cancellationToken).ConfigureAwait(false);
+                CurrentSessionState().StrippedRuleCount = 0;
             }
 
             // 退出 PlanMode
@@ -875,8 +872,8 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
             {
                 currentPlan.IsInPlanMode = false;
                 currentPlan.LastUpdatedAt = _clock.GetUtcNow();
-                _hasExitedPlanMode = true;
-                _needsPlanModeExitAttachment = true;
+                CurrentSessionState().HasExitedPlanMode = true;
+                CurrentSessionState().NeedsPlanModeExitAttachment = true;
 
                 // 对齐 TS: 退出时不自动写文件 — plan 文件由模型通过 FileWriteTool 写入
             }

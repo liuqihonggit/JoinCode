@@ -14,6 +14,12 @@ public sealed partial class StateService : ServiceEntity, IStateService, IDispos
     [Inject] private readonly ILogger<StateService>? _logger;
     private const string StateId = "current";
 
+    private static string GetStateKey()
+    {
+        var sessionId = SessionContext.Current;
+        return sessionId is null ? StateId : sessionId.Value.ToString();
+    }
+
     public StateService(IClockService clock, ILogger<StateService>? logger = null)
     {
         _clock = clock;
@@ -35,7 +41,7 @@ public sealed partial class StateService : ServiceEntity, IStateService, IDispos
             })
             .ToImmutableList();
 
-        _storage[StateId] = new SessionState
+        _storage[GetStateKey()] = new SessionState
         {
             SystemPrompt = systemPrompt,
             MessageList = chatHistoryList,
@@ -75,7 +81,7 @@ public sealed partial class StateService : ServiceEntity, IStateService, IDispos
     {
         try
         {
-            if (!_storage.TryGetValue(StateId, out var sessionState))
+            if (!_storage.TryGetValue(GetStateKey(), out var sessionState))
                 return (string.Empty, new MessageList());
 
             var chatHistory = new MessageList();
@@ -138,7 +144,7 @@ public sealed partial class StateService : ServiceEntity, IStateService, IDispos
 
     public bool ClearState()
     {
-        var result = _storage.TryRemove(StateId, out _);
+        var result = _storage.TryRemove(GetStateKey(), out _);
         if (result)
             _logger?.LogInformation(L.T(StringKey.VaultLogStateClearSuccess));
         return result;

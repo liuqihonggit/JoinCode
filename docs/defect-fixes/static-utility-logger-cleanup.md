@@ -20,9 +20,9 @@
 | S2 | `core/safety/Guard/.../ConfigLoader.cs` | 6 | static 类，方法加 logger 参 | ✅ |
 | S3 | `core/safety/Guard/.../SettingsLoader.cs` | 1 | static 类 | ✅ |
 | S4 | `core/safety/Guard/.../PathValidator.cs` | 2 | static 类 | ✅ |
-| S5 | `core/search/CodeIndex/.../CsprojParser.cs` | 1 | static 类 | ⏳ |
-| S6 | `core/search/CodeIndex/.../CSharpSymbolExtractor.cs` | 1 | static 类 | ⏳ |
-| S7 | `core/search/CodeIndex/.../TreeCache.cs` | 1 | static 类 | ⏳ |
+| S5 | `core/search/CodeIndex/.../CsprojParser.cs` | 1 | static 类 | ✅ |
+| S6 | `core/search/CodeIndex/.../CSharpSymbolExtractor.cs` | 1 | static 类 | ✅ |
+| S7 | `core/search/CodeIndex/.../TreeCache.cs` | 1 | static 类 | ✅ |
 | S8 | `infrastructure/.../FrontmatterParser.cs` | 1 | static 类 | ⏳ |
 | S9 | `infrastructure/.../TerminalCaptureService.cs` | 4 | static 类 | ⏳ |
 | S10 | `infrastructure/.../BridgeDebugUtils.cs` | 1 | static 类 | ⏳ |
@@ -86,3 +86,9 @@
 <!-- 原因: 4文件均无实例 _logger 字段,private static 无法访问实例字段;Trace 原本不可见(无 listener),logger null 等价静默;API 支持 logger 供未来注入 -->
 <!-- 替代方案: 给 PathValidator/WebFetchPermissionMiddleware 加 _logger 字段(需改构造函数+DI,改动面大,留后续);PsPermissionChecker 加 _logger 传给 CheckPermission(同样需 DI 改动)-->
 <!-- 验证: Guard Debug 0 错误 0 警告;Guard.Config 783、Guard.Security 4、Guard.Hooks 206 全通过 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-08-07 (S5/S6/S7 CodeIndex层批量完成) -->
+<!-- 决策: S5 CsprojParser.Parse→LoadMsBuildProperties 链式加 logger 尾参,Trace改LogWarning;S6 CSharpSymbolExtractor 加 _logger 字段+3构造函数加可选logger,Log从static改实例方法(_logger?.LogDebug),内部new TreeCache传logger;S7 TreeCache 同理加 _logger 字段+构造函数加logger,Log改实例方法。CodeIndex GlobalUsings 加 Microsoft.Extensions.Logging。Log 方法从 static 改实例以访问 _logger,传给 TimeoutLock 的 Action<string> 回调兼容 -->
+<!-- 原因: Log 是 Action<string> 回调传给 TimeoutLock,static 无法访问实例 _logger,必须改实例方法;Trace.WriteLine 原本无 listener 不可见,LogDebug 降级为调试级别;调用点(CodeIndexer/ProjectIndex/测试)不传 logger 默认 null,Log 变 no-op 等价静默 -->
+<!-- 替代方案: 保留 static Log + 传 logger 参数(但 Action<string> 签名不匹配);改 TimeoutLock 接收 ILogger(改动面大,TimeoutLock 不在本次清单)-->
+<!-- 验证: CodeIndex Debug 0 错误 0 警告;CodeIndex.Tests 374 全通过 ✅ -->

@@ -36,21 +36,24 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable
     private readonly TreeCache _treeCache;
     private readonly Threading.TimeoutLock _parseLock;
     private readonly TreeSitterParser? _dedicatedParser;
+    private readonly ILogger? _logger;
     private int _disposed;
 
-    private static void Log(string message)
+    private void Log(string message)
     {
-        System.Diagnostics.Trace.WriteLine(message);
+        _logger?.LogDebug(message);
     }
 
-    public CSharpSymbolExtractor()
+    public CSharpSymbolExtractor(ILogger? logger = null)
     {
-        _treeCache = new TreeCache(maxEntries: 500);
+        _logger = logger;
+        _treeCache = new TreeCache(maxEntries: 500, logger);
         _parseLock = new Threading.TimeoutLock("CSharpExtractor.Parse", TimeSpan.FromSeconds(30), Log);
     }
 
-    internal CSharpSymbolExtractor(TreeCache treeCache)
+    internal CSharpSymbolExtractor(TreeCache treeCache, ILogger? logger = null)
     {
+        _logger = logger;
         _treeCache = treeCache;
         _parseLock = new Threading.TimeoutLock("CSharpExtractor.Parse", TimeSpan.FromSeconds(30), Log);
     }
@@ -60,11 +63,12 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable
     /// Use only in parallel/async contexts where all files processed by this instance are accessed
     /// from a single thread, so no cross-thread contention on TreeSitter's non-thread-safe Parser.
     /// </summary>
-    internal CSharpSymbolExtractor(TreeSitterParser dedicatedParser)
+    internal CSharpSymbolExtractor(TreeSitterParser dedicatedParser, ILogger? logger = null)
     {
         ArgumentNullException.ThrowIfNull(dedicatedParser);
 
-        _treeCache = new TreeCache(maxEntries: 500);
+        _logger = logger;
+        _treeCache = new TreeCache(maxEntries: 500, logger);
         _parseLock = new Threading.TimeoutLock("CSharpExtractor.Parse", TimeSpan.FromSeconds(30), Log);
         _dedicatedParser = dedicatedParser;
     }

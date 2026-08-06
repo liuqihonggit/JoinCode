@@ -6,21 +6,24 @@ internal sealed class FileLock : System.IAsyncDisposable
 {
     private readonly AsyncCrossProcessMutex _mutex;
     private AsyncCrossProcessMutex.LockReleaser? _releaser;
+    private readonly ILogger? _logger;
     private bool _disposed;
 
     public string FilePath { get; }
 
-    private FileLock(string filePath, AsyncCrossProcessMutex mutex, AsyncCrossProcessMutex.LockReleaser releaser)
+    private FileLock(string filePath, AsyncCrossProcessMutex mutex, AsyncCrossProcessMutex.LockReleaser releaser, ILogger? logger = null)
     {
         FilePath = filePath;
         _mutex = mutex;
         _releaser = releaser;
+        _logger = logger;
     }
 
     public static async Task<FileLock> AcquireAsync(
         string filePath,
         TimeSpan timeout,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        ILogger? logger = null)
     {
         var fullPath = Path.GetFullPath(filePath);
         var mutexName = GetMutexName(fullPath);
@@ -36,7 +39,7 @@ internal sealed class FileLock : System.IAsyncDisposable
                     $"Failed to acquire lock for '{filePath}' within {timeout.TotalSeconds}s");
             }
 
-            return new FileLock(fullPath, mutex, releaser.Value);
+            return new FileLock(fullPath, mutex, releaser.Value, logger);
         }
         catch
         {
@@ -51,11 +54,11 @@ internal sealed class FileLock : System.IAsyncDisposable
 
         if (_releaser.HasValue)
         {
-            try { _releaser.Value.Dispose(); } catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"FileLock: failed to dispose releaser: {ex.Message}"); }
+            try { _releaser.Value.Dispose(); } catch (Exception ex) { _logger?.LogWarning(ex, "FileLock: failed to dispose releaser"); }
             _releaser = null;
         }
 
-        try { _mutex.Dispose(); } catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"FileLock: failed to dispose mutex: {ex.Message}"); }
+        try { _mutex.Dispose(); } catch (Exception ex) { _logger?.LogWarning(ex, "FileLock: failed to dispose mutex"); }
     }
 
     internal void Release()
@@ -64,11 +67,11 @@ internal sealed class FileLock : System.IAsyncDisposable
 
         if (_releaser.HasValue)
         {
-            try { _releaser.Value.Dispose(); } catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"FileLock: failed to dispose releaser on release: {ex.Message}"); }
+            try { _releaser.Value.Dispose(); } catch (Exception ex) { _logger?.LogWarning(ex, "FileLock: failed to dispose releaser on release"); }
             _releaser = null;
         }
 
-        try { _mutex.Dispose(); } catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"FileLock: failed to dispose mutex on release: {ex.Message}"); }
+        try { _mutex.Dispose(); } catch (Exception ex) { _logger?.LogWarning(ex, "FileLock: failed to dispose mutex on release"); }
     }
 
     private static string GetMutexName(string filePath)

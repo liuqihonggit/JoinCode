@@ -185,11 +185,11 @@ public static class FileLockService
         return AcquireBatchAsync([filePath], timeout, cancellationToken, clock);
     }
 
-    private static void ReleaseAllReverse(List<FileLock> acquired)
+    private static void ReleaseAllReverse(List<FileLock> acquired, ILogger? logger = null)
     {
         for (var i = acquired.Count - 1; i >= 0; i--)
         {
-            try { acquired[i].Release(); } catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"BatchLock: failed to release lock during rollback: {ex.Message}"); }
+            try { acquired[i].Release(); } catch (Exception ex) { logger?.LogWarning(ex, "BatchLock: failed to release lock during rollback"); }
         }
     }
 }

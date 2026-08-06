@@ -23,9 +23,9 @@
 | S5 | `core/search/CodeIndex/.../CsprojParser.cs` | 1 | static 类 | ✅ |
 | S6 | `core/search/CodeIndex/.../CSharpSymbolExtractor.cs` | 1 | static 类 | ✅ |
 | S7 | `core/search/CodeIndex/.../TreeCache.cs` | 1 | static 类 | ✅ |
-| S8 | `infrastructure/.../FrontmatterParser.cs` | 1 | static 类 | ⏳ |
-| S9 | `infrastructure/.../TerminalCaptureService.cs` | 4 | static 类 | ⏳ |
-| S10 | `infrastructure/.../BridgeDebugUtils.cs` | 1 | static 类 | ⏳ |
+| S8 | `infrastructure/.../FrontmatterParser.cs` | 1 | static 类 | ✅ |
+| S9 | `infrastructure/.../TerminalCaptureService.cs` | 4 | static 类 | ✅ |
+| S10 | `infrastructure/.../BridgeDebugUtils.cs` | 1 | static 类 | ✅ |
 | S11 | `services/Bridge/.../BridgeSessionApi.cs` | 1 | static 类 | ⏳ |
 | S12 | `services/Bridge/.../BridgeInboundAttachments.cs` | 1 | static 类 | ⏳ |
 | S13 | `services/Bridge/.../BridgeRemoteCore.Helpers.cs` | 1 | static 方法 | ⏳ |
@@ -37,8 +37,8 @@
 | S19 | `composition/Clock/.../GoalGraphEngine.cs` | 2 | 已有 logger，static 方法透传 | ⏳ |
 | S20 | `core/safety/Guard/.../WebFetchPermissionMiddleware.cs` | 1 | 已有 logger | ✅ |
 | S21 | `core/safety/Guard/.../PsPermissions.cs` | 1 | static 类 | ✅ |
-| S22 | `infrastructure/.../BatchLock.cs` | 1 | internal 原语 | ⏳ |
-| S23 | `infrastructure/.../FileLock.cs` | 4 | internal 原语 | ⏳ |
+| S22 | `infrastructure/.../BatchLock.cs` | 1 | internal 原语 | ✅ |
+| S23 | `infrastructure/.../FileLock.cs` | 4 | internal 原语 | ✅ |
 | S24 | `app/JoinCode/Cli/Display/TerminalHelper.cs` | 1 | static 类 | ⏳ |
 
 ### 第六桶：App 命令 / DI 注册（保留 Trace 待用户确认）
@@ -92,3 +92,9 @@
 <!-- 原因: Log 是 Action<string> 回调传给 TimeoutLock,static 无法访问实例 _logger,必须改实例方法;Trace.WriteLine 原本无 listener 不可见,LogDebug 降级为调试级别;调用点(CodeIndexer/ProjectIndex/测试)不传 logger 默认 null,Log 变 no-op 等价静默 -->
 <!-- 替代方案: 保留 static Log + 传 logger 参数(但 Action<string> 签名不匹配);改 TimeoutLock 接收 ILogger(改动面大,TimeoutLock 不在本次清单)-->
 <!-- 验证: CodeIndex Debug 0 错误 0 警告;CodeIndex.Tests 374 全通过 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-08-07 (S8/S9/S10/S22/S23 Infrastructure+Transport层批量完成) -->
+<!-- 决策: S8 FrontmatterParser 全链加 logger 透传+补XML param;S9 TerminalCaptureService 有 _logger,4个 private static 加 logger 参数,2个上层 static CaptureUnixScreen/Buffer 透传,实例调用点传 _logger;S10 BridgeDebugUtils 加 logger,Transport.Impl GlobalUsings 加 Logging;S22 BatchLock.ReleaseAllReverse 加 logger;S23 FileLock 加 _logger 字段+构造函数+AcquireAsync 加 logger,修复重复方法定义 -->
+<!-- 原因: CaptureUnixScreen/Buffer 是 static 不能访问实例 _logger,必须加参数透传;FileLock 编辑产生重复方法已清理;FrontmatterParser XML 缺 param 标记触发 TreatWarningsAsErrors -->
+<!-- 替代方案: 改 CaptureUnixScreen/Buffer 为实例方法(被 static 调用链引用,改动面大)-->
+<!-- 验证: Infrastructure+Transport.Impl Debug 0 错误 0 警告(无独立测试项目) ✅ -->

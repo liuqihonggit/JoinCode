@@ -71,12 +71,12 @@ public static partial class BridgeDebugUtils
     /// 从 HTTP 错误提取描述 — 对齐 TS 端 describeAxiosError
     /// 优先提取 response.data.message 或 response.data.error.message
     /// </summary>
-    public static string DescribeHttpError(Exception err)
+    public static string DescribeHttpError(Exception err, ILogger? logger = null)
     {
         if (err is HttpRequestException httpEx)
         {
             var msg = httpEx.Message;
-            if (TryExtractErrorMessage(httpEx, out var errorDetail))
+            if (TryExtractErrorMessage(httpEx, out var errorDetail, logger))
             {
                 return errorDetail;
             }
@@ -127,7 +127,7 @@ public static partial class BridgeDebugUtils
     /// <summary>
     /// 尝试从 HttpRequestException 的 Data 中提取错误消息
     /// </summary>
-    private static bool TryExtractErrorMessage(HttpRequestException httpEx, out string message)
+    private static bool TryExtractErrorMessage(HttpRequestException httpEx, out string message, ILogger? logger = null)
     {
         message = string.Empty;
 
@@ -147,7 +147,7 @@ public static partial class BridgeDebugUtils
             catch (Exception ex)
             {
                 // 忽略解析失败
-                System.Diagnostics.Trace.WriteLine($"[BridgeDebugUtils] Parse error detail failed: {ex.Message}");
+                logger?.LogWarning(ex, "[BridgeDebugUtils] Parse error detail failed");
             }
         }
 

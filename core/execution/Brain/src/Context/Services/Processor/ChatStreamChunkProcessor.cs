@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿namespace Core.Context;
+﻿namespace Core.Context;
 
 /// <summary>
 /// 流式块处理动作
@@ -99,13 +99,13 @@ public sealed partial class ChatStreamChunkProcessor : ServiceEntity, IChatStrea
         // 1. 工具调用检测
         if (chunk.Metadata?.TryGetValue("ToolCall", out var tcEl) == true && tcEl.ValueKind == JsonValueKind.String)
         {
-            state.ToolCallName = LlmJsonHelper.RepairToolName(tcEl.GetString());
+            state.ToolCallName = LlmJsonHelper.RepairToolName(tcEl.GetString(), _logger);
             state.ToolCallId = chunk.Metadata?.TryGetValue("ToolCallId", out var idEl) == true && idEl.ValueKind == JsonValueKind.String
                 ? idEl.GetString() : null;
             if (chunk.Metadata?.TryGetValue("ToolCallArguments", out var argsEl) == true && argsEl.ValueKind == JsonValueKind.String)
             {
                 var rawArgs = argsEl.GetString();
-                var jsonRepair = LlmJsonHelper.RepairJson(rawArgs);
+                var jsonRepair = LlmJsonHelper.RepairJson(rawArgs, _logger);
                 state.ToolCallArguments = JsonArgumentParser.Parse(jsonRepair.Success ? jsonRepair.RepairedJson : rawArgs);
             }
 
@@ -113,7 +113,7 @@ public sealed partial class ChatStreamChunkProcessor : ServiceEntity, IChatStrea
             // AllToolCalls 格式: [{"Id":"...","Name":"...","Arguments":"..."},...]
             if (chunk.Metadata is not null && chunk.Metadata.TryGetValue("AllToolCalls", out var allEl) && allEl.ValueKind == JsonValueKind.Array)
             {
-                ParseAllToolCalls(allEl, state);
+                ParseAllToolCalls(allEl, state, _logger);
             }
             else
             {
@@ -259,7 +259,7 @@ public sealed partial class ChatStreamChunkProcessor : ServiceEntity, IChatStrea
     /// 格式: [{"Id":"...","Name":"...","Arguments":"..."},...]
     /// 对每个工具调用独立执行参数修复（RepairToolName + RepairJson）
     /// </summary>
-    private static void ParseAllToolCalls(JsonElement allEl, IterationState state)
+    private static void ParseAllToolCalls(JsonElement allEl, IterationState state, ILogger<ChatStreamChunkProcessor>? logger = null)
     {
         foreach (var item in allEl.EnumerateArray())
         {
@@ -277,8 +277,8 @@ public sealed partial class ChatStreamChunkProcessor : ServiceEntity, IChatStrea
             if (name is null) continue;
 
             // 对每个工具调用独立执行工具名修复
-            var repairedName = LlmJsonHelper.RepairToolName(name);
-            var jsonRepair = LlmJsonHelper.RepairJson(arguments);
+            var repairedName = LlmJsonHelper.RepairToolName(name, logger);
+            var jsonRepair = LlmJsonHelper.RepairJson(arguments, logger);
             var repairedArgs = jsonRepair.Success ? jsonRepair.RepairedJson : arguments;
 
             state.ToolCalls.Add(new ToolCallEntry

@@ -376,9 +376,9 @@ public sealed class BootstrapAgent : IAsyncDisposable
         }
     }
 
-    internal static BootstrapJudgment ParseJudgment(string llmResponse)
+    internal static BootstrapJudgment ParseJudgment(string llmResponse, ILogger? logger = null)
     {
-        var result = LlmJsonHelper.Deserialize(llmResponse, AgentsJsonContext.Default.BootstrapJudgmentJson, out var repairHint);
+        var result = LlmJsonHelper.Deserialize(llmResponse, AgentsJsonContext.Default.BootstrapJudgmentJson, out var repairHint, logger);
         if (result is null)
         {
             var reasoning = string.IsNullOrEmpty(repairHint)

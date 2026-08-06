@@ -98,12 +98,12 @@ public abstract class ReasoningAgentBase : IReasoningAgent
     /// 从 LLM 输出中提取 JSON 对象
     /// 优先提取 ```json 代码块，回退到大括号截取，并通过 RepairJson 修复格式
     /// </summary>
-    protected static string? ExtractJsonObject(string content)
+    protected static string? ExtractJsonObject(string content, ILogger? logger = null)
     {
         var json = LlmJsonHelper.ExtractJsonBlock(content);
         if (json is not null)
         {
-            var repairResult = LlmJsonHelper.RepairJson(json);
+            var repairResult = LlmJsonHelper.RepairJson(json, logger);
             return repairResult.Success ? repairResult.RepairedJson : json;
         }
 
@@ -113,7 +113,7 @@ public abstract class ReasoningAgentBase : IReasoningAgent
             return null;
 
         var inlineJson = content[start..(end + 1)];
-        var inlineRepair = LlmJsonHelper.RepairJson(inlineJson);
+        var inlineRepair = LlmJsonHelper.RepairJson(inlineJson, logger);
         return inlineRepair.Success ? inlineRepair.RepairedJson : inlineJson;
     }
 

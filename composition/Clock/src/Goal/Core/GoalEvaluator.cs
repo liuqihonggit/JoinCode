@@ -43,7 +43,7 @@ public sealed partial class GoalEvaluator : ServiceEntity, IGoalEvaluator
                 cancellationToken).ConfigureAwait(false);
 
             var content = results.Count > 0 ? results[0].Content : null;
-            return ParseEvaluationResult(content);
+            return ParseEvaluationResult(content, _logger);
         }
         catch (Exception ex)
         {
@@ -52,14 +52,14 @@ public sealed partial class GoalEvaluator : ServiceEntity, IGoalEvaluator
         }
     }
 
-    internal static GoalEvaluationResult ParseEvaluationResult(string? content)
+    internal static GoalEvaluationResult ParseEvaluationResult(string? content, ILogger? logger = null)
     {
         if (string.IsNullOrWhiteSpace(content))
         {
             return GoalEvaluationResult.NotCompleted(L.T(StringKey.GoalEvaluatorEmptyResult));
         }
 
-        var result = LlmJsonHelper.DeserializeWithReport(content, GoalJsonContext.Default.GoalEvaluationJson, out var report);
+        var result = LlmJsonHelper.DeserializeWithReport(content, GoalJsonContext.Default.GoalEvaluationJson, out var report, logger);
         if (result is not null)
         {
             if (report.RepairHint is not null)

@@ -243,7 +243,7 @@ public class McpResourceToolHandlers
         Dictionary<string, JsonElement>? args = null;
         if (!string.IsNullOrEmpty(arguments))
         {
-            args = LlmJsonHelper.Deserialize(arguments, McpToolDispatchJsonContext.Default.DictionaryStringJsonElement, out var repairHint);
+            args = LlmJsonHelper.Deserialize(arguments, McpToolDispatchJsonContext.Default.DictionaryStringJsonElement, out var repairHint, _logger);
             if (args is null)
             {
                 var detail = string.IsNullOrEmpty(repairHint) ? "" : $" ({repairHint})";

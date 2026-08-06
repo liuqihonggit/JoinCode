@@ -112,7 +112,7 @@ public sealed partial class GoalNodeInspector : ServiceEntity, IGoalNodeInspecto
                 chatHistory, executionSettings, _kernel, cancellationToken).ConfigureAwait(false);
 
             var content = results.Count > 0 ? results[0].Content : null;
-            return ParseScoringResult(content);
+            return ParseScoringResult(content, _logger);
         }
         catch (Exception ex)
         {
@@ -154,12 +154,12 @@ public sealed partial class GoalNodeInspector : ServiceEntity, IGoalNodeInspecto
             """;
     }
 
-    private static NodeQualityScore ParseScoringResult(string? content)
+    private static NodeQualityScore ParseScoringResult(string? content, ILogger? logger = null)
     {
         if (string.IsNullOrWhiteSpace(content))
             return NodeQualityScore.Default;
 
-        var result = LlmJsonHelper.DeserializeWithReport(content, GoalJsonContext.Default.GradingAnalysisJson, out _);
+        var result = LlmJsonHelper.DeserializeWithReport(content, GoalJsonContext.Default.GradingAnalysisJson, out _, logger);
         if (result is null || result.Criteria.Count == 0)
             return NodeQualityScore.Default;
 

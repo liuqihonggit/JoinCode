@@ -236,7 +236,8 @@ public static class BridgeSessionApi
         string accessToken,
         string orgUUID,
         HttpClient httpClient,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        ILogger? logger = null)
     {
         if (string.IsNullOrEmpty(accessToken) || string.IsNullOrEmpty(title))
         {
@@ -265,7 +266,7 @@ public static class BridgeSessionApi
         catch (Exception ex)
         {
             // best-effort
-            System.Diagnostics.Trace.WriteLine($"[BridgeSessionApi] Send request failed: {ex.Message}");
+            logger?.LogWarning(ex, "[BridgeSessionApi] Send request failed");
         }
     }
 

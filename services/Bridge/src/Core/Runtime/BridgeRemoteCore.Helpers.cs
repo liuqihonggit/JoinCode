@@ -10,7 +10,7 @@ public static partial class BridgeRemoteCore
     /// </summary>
     internal static async Task<BridgeRemoteCredentials?> FetchCredentialsWithDeviceTokenAsync(
         string sessionId, BridgeEnvLessParams parameters, int httpTimeoutMs,
-        HttpClient httpClient, string accessToken, CancellationToken ct)
+        HttpClient httpClient, string accessToken, CancellationToken ct, ILogger? logger = null)
     {
         string? trustedDeviceToken = null;
         if (parameters.GetTrustedDeviceToken is not null)
@@ -22,7 +22,7 @@ public static partial class BridgeRemoteCore
             catch (Exception ex)
             {
                 // best-effort: 获取设备令牌失败不阻塞主流程
-                System.Diagnostics.Trace.WriteLine($"[BridgeRemoteCore] Failed to get trusted device token: {ex.Message}");
+                logger?.LogWarning(ex, "[BridgeRemoteCore] Failed to get trusted device token");
             }
         }
 

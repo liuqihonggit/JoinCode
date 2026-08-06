@@ -685,7 +685,7 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
             if ((int)response.StatusCode is >= 400 and < 500)
             {
                 var body = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
-                HandleErrorStatus((int)response.StatusCode, body, "Poll");
+                HandleErrorStatus((int)response.StatusCode, body, "Poll", _logger);
             }
 
             // 204 No Content 表示没有可用工作
@@ -1145,12 +1145,12 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
     /// 处理非 2xx 响应状态 — 对齐 TS 端 handleErrorStatus
     /// 从响应体提取 errorType 和 detail，按状态码抛出 BridgeFatalError 或 Exception
     /// </summary>
-    internal static void HandleErrorStatus(int status, string? responseBody, string context)
+    internal static void HandleErrorStatus(int status, string? responseBody, string context, ILogger? logger = null)
     {
         if (status is 200 or 204) return;
 
-        var detail = ExtractErrorDetail(responseBody);
-        var errorType = ExtractErrorTypeFromData(responseBody);
+        var detail = ExtractErrorDetail(responseBody, logger);
+        var errorType = ExtractErrorTypeFromData(responseBody, logger);
 
         switch (status)
         {
@@ -1184,7 +1184,7 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
     /// 从响应体 JSON 提取 errorType — 对齐 TS 端 extractErrorTypeFromData
     /// 路径: data.error.type
     /// </summary>
-    internal static string? ExtractErrorTypeFromData(string? responseBody)
+    internal static string? ExtractErrorTypeFromData(string? responseBody, ILogger? logger = null)
     {
         if (string.IsNullOrWhiteSpace(responseBody)) return null;
         try
@@ -1204,7 +1204,7 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
                 }
             }
         }
-        catch (Exception ex) { /* 解析失败返回 null */ System.Diagnostics.Trace.WriteLine($"[BridgeApiClient] Extract error type failed: {ex.Message}"); }
+        catch (Exception ex) { /* 解析失败返回 null */ logger?.LogWarning(ex, "[BridgeApiClient] Extract error type failed"); }
         return null;
     }
 
@@ -1212,7 +1212,7 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
     /// 从响应体 JSON 提取错误详情 — 对齐 TS 端 extractErrorDetail
     /// 优先 data.message，其次 data.error.message
     /// </summary>
-    internal static string? ExtractErrorDetail(string? responseBody)
+    internal static string? ExtractErrorDetail(string? responseBody, ILogger? logger = null)
     {
         if (string.IsNullOrWhiteSpace(responseBody)) return null;
         try
@@ -1238,7 +1238,7 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
                 }
             }
         }
-        catch (Exception ex) { /* 解析失败返回 null */ System.Diagnostics.Trace.WriteLine($"[BridgeApiClient] Extract error detail failed: {ex.Message}"); }
+        catch (Exception ex) { /* 解析失败返回 null */ logger?.LogWarning(ex, "[BridgeApiClient] Extract error detail failed"); }
         return null;
     }
 
@@ -1267,13 +1267,13 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
     /// 描述 HTTP 错误 — 对齐 TS 端 describeAxiosError
     /// 从 HttpResponseMessage 提取基础消息 + 服务器返回的详细信息
     /// </summary>
-    public static string DescribeHttpError(Exception ex)
+    public static string DescribeHttpError(Exception ex, ILogger? logger = null)
     {
         var msg = ex.Message;
         if (ex is HttpRequestException httpEx && httpEx.Data.Contains("ResponseBody"))
         {
             var body = httpEx.Data["ResponseBody"] as string;
-            var detail = ExtractErrorDetail(body);
+            var detail = ExtractErrorDetail(body, logger);
             if (detail is not null)
             {
                 return $"{msg}: {detail}";

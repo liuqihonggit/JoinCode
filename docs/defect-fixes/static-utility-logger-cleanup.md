@@ -26,12 +26,12 @@
 | S8 | `infrastructure/.../FrontmatterParser.cs` | 1 | static 类 | ✅ |
 | S9 | `infrastructure/.../TerminalCaptureService.cs` | 4 | static 类 | ✅ |
 | S10 | `infrastructure/.../BridgeDebugUtils.cs` | 1 | static 类 | ✅ |
-| S11 | `services/Bridge/.../BridgeSessionApi.cs` | 1 | static 类 | ⏳ |
-| S12 | `services/Bridge/.../BridgeInboundAttachments.cs` | 1 | static 类 | ⏳ |
-| S13 | `services/Bridge/.../BridgeRemoteCore.Helpers.cs` | 1 | static 方法 | ⏳ |
-| S14 | `services/Bridge/.../BridgeApiClient.cs` | 2 | 已有 logger，static 方法透传 | ⏳ |
-| S15 | `services/Vault/.../FacetCacheService.cs` | 1 | static 方法 | ⏳ |
-| S16 | `services/Vault/.../SessionScanner.cs` | 1 | static 方法 | ⏳ |
+| S11 | `services/Bridge/.../BridgeSessionApi.cs` | 1 | static 类 | ✅ |
+| S12 | `services/Bridge/.../BridgeInboundAttachments.cs` | 1 | static 类 | ✅ |
+| S13 | `services/Bridge/.../BridgeRemoteCore.Helpers.cs` | 1 | static 方法 | ✅ |
+| S14 | `services/Bridge/.../BridgeApiClient.cs` | 2 | 已有 logger，static 方法透传 | ✅ |
+| S15 | `services/Vault/.../FacetCacheService.cs` | 1 | static 方法 | ✅ |
+| S16 | `services/Vault/.../SessionScanner.cs` | 1 | static 方法 | ✅ |
 | S17 | `core/execution/Hands/.../ApiClient.cs` | 1 | static 方法 | ⏳ |
 | S18 | `composition/Clock/.../GoalEvaluator.cs` | 1 | static 方法 | ⏳ |
 | S19 | `composition/Clock/.../GoalGraphEngine.cs` | 2 | 已有 logger，static 方法透传 | ⏳ |
@@ -98,3 +98,9 @@
 <!-- 原因: CaptureUnixScreen/Buffer 是 static 不能访问实例 _logger,必须加参数透传;FileLock 编辑产生重复方法已清理;FrontmatterParser XML 缺 param 标记触发 TreatWarningsAsErrors -->
 <!-- 替代方案: 改 CaptureUnixScreen/Buffer 为实例方法(被 static 调用链引用,改动面大)-->
 <!-- 验证: Infrastructure+Transport.Impl Debug 0 错误 0 警告(无独立测试项目) ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-08-07 (S11-S16 Services层批量完成) -->
+<!-- 决策: S11/S12/S13 static类方法加logger尾参,调用点不传;S14 BridgeApiClient 有 _logger,ExtractErrorTypeFromData/ExtractErrorDetail/HandleErrorStatus/DescribeHttpError 链式加logger,实例调用点传 _logger,static HandleErrorStatus 透传;S15/S16 Vault 有 _logger,private static MoveToDeleted/ReadEntriesAsync 加logger,实例调用点传 _logger。Vault GlobalUsings 加 Microsoft.Extensions.Logging -->
+<!-- 原因: BridgeApiClient.HandleErrorStatus 是 internal static 不能访问实例 _logger,必须加参数透传;S15/S16 的 private static 同理;调用点在实例方法中可传 _logger -->
+<!-- 替代方案: 改 HandleErrorStatus/MoveToDeleted/ReadEntriesAsync 为实例方法(但被 static 调用链引用,改动面大)-->
+<!-- 验证: Bridge 590、Vault.Memdir 137、Vault.Other 238 全通过 ✅ -->

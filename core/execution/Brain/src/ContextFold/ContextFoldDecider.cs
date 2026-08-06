@@ -267,7 +267,7 @@ public static class ContextFoldDecider
     /// </summary>
     private static string RewriteSnipped(ApiMessage msg, ContextFoldThresholds t)
     {
-        var content = msg.Content ?? string.Empty;
+        var content = (msg.Content ?? string.Empty).TrimEnd('\n', '\r');
         var toolName = msg.ExtractToolName() ?? "tool";
         var lines = content.Split('\n');
 

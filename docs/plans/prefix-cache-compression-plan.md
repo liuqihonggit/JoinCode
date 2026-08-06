@@ -167,8 +167,8 @@ PreChatMiddleware.RecordPromptStateAsync        // core/execution/Brain/src/Cont
 ## 14. 决策记录（Phase6 打磨：严格变短守卫/单元统一/遥测/多模态保护，2026-08-06）
 
 <!-- 🤖 Auto Decision: 2026-08-06 -->
-<!-- 决策: ① 严格变短守卫 — RewriteSnipped 结果长度 ≥ 原文时跳过；② marker 计量单元 bytes→chars；③ 剪裁统计接入 telemetry（context.snip.count 计数器 + context.snip.saved_chars 直方图）；④ 多模态工具结果（含 ContentBlocks）不剪裁；⑤ AppendOnlyLog.ToMessages 修复为无损拷贝（补 ContentBlocks/ModelId/TokenUsage） -->
-<!-- 原因: ① 行数略超 40+40 阈值时保留 80 行 + marker 反超原文（SavedChars 变负、上下文膨胀）；② w2 字符记账，bytes 观测错乱；③ Go PruneStats 回传上层，w2 缺 metric；④ 只改文本会静默丢图片块并破坏 tool_call 配对；⑤ ToMessages 曾丢弃多模态/模型字段，导致剪裁误判多模态可剪 -->
-<!-- 替代方案: ① 无守卫(沿用 Go)；② UTF-8 字节记账(与字符估算脱节)；③ 只记 count 不记 saved_chars(丢规模)；④ 剪裁时连 ContentBlocks 一起清空(丢图片，不可取) -->
-<!-- 验证: ContextFoldSnipTests 10 例全绿(含多模态跳过/字段保留/无损回归守卫)；Brain.Context.Tests 725 + PrefixCache 245 不回归；编译 0 警告 0 错误 -->
+<!-- 决策: ① 严格变短守卫 — RewriteSnipped 结果长度 ≥ 原文时跳过；② marker 计量单元 bytes→chars；③ 剪裁统计接入 telemetry（context.snip.count 计数器 + context.snip.saved_chars 直方图）；④ 多模态工具结果（含 ContentBlocks）不剪裁；⑤ AppendOnlyLog.ToMessages 修复为无损拷贝（补 ContentBlocks/ModelId/TokenUsage）；⑥ 行分支先 TrimEnd 尾随换行，避免 Split 产生尾部空行导致 omitted 虚高与冗余尾空行 -->
+<!-- 原因: ① 行数略超 40+40 阈值时保留 80 行 + marker 反超原文（SavedChars 变负、上下文膨胀）；② w2 字符记账，bytes 观测错乱；③ Go PruneStats 回传上层，w2 缺 metric；④ 只改文本会静默丢图片块并破坏 tool_call 配对；⑤ ToMessages 曾丢失多模态/模型字段，导致剪裁误判多模态可剪；⑥ 内容以 \n 结尾时 Split 造出空行，被 TakeLast 当最后一行，omitted 多算 1 行并污染 tail -->
+<!-- 替代方案: ① 无守卫(沿用 Go)；② UTF-8 字节记账(与字符估算脱节)；③ 只记 count(丢规模)；④ 剪裁时连 ContentBlocks 一起清空(丢图片)；⑥ Split 后按非空行过滤(用字段有意义的空行也会被误滤) -->
+<!-- 验证: ContextFoldSnipTests 11 例全绿(含多模态跳过/字段保留/无损回归守卫/尾换行)；Brain.Context.Tests 725 + PrefixCache 245 不回归；编译 0 警告 0 错误 -->
 

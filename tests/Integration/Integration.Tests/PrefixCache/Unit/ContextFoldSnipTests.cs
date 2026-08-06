@@ -126,6 +126,23 @@ public sealed class ContextFoldSnipTests
     }
 
     [Fact]
+    public void Snip_LineBranch_TrailingNewlineCountsNoEmptyLine()
+    {
+        // 内容以 \n 结尾时，Split 会产生尾部空行；它不应被当作"最后一行"保留，
+        // 否则 marker 出现冗余尾空行且 omitted 行数虚高
+        var lines = Enumerable.Range(0, 100)
+            .Select(i => $"L_{i}_" + new string('y', 40));
+        var content = string.Join("\n", lines) + "\n";
+        var log = BuildToolResult(content);
+
+        var stats = ContextFoldDecider.SnipStaleToolResults(log, CtxMax);
+
+        stats.Results.Should().Be(1);
+        log[2].Content.Should().Contain("[... 20 lines omitted ...]");
+        log[2].Content.Should().NotEndWith("\n\n", "尾随换行不得留下冗余空行");
+    }
+
+    [Fact]
     public void Snip_SkipsWhenRewriteIsNotShorter()
     {
         // 81 行×~40 字符：只略超 40+40 行阈值，保留 80 行 + 2 个 marker 反而比原文更长。

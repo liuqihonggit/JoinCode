@@ -5,7 +5,7 @@ namespace Infrastructure.EntityReaper;
 /// 独立于 HousekeepingService（文件清理），专注于内存中 Entity 的生命周期管理
 /// </summary>
 [Register(typeof(IEntityReaper))]
-public sealed partial class EntityReaper : IEntityReaper
+public sealed partial class EntityReaper : IEntityReaper, IScanStrategy
 {
     [Inject] private readonly IClockService _clock;
     [Inject] private readonly ILogger<EntityReaper>? _logger;
@@ -123,6 +123,41 @@ public sealed partial class EntityReaper : IEntityReaper
         if (!entity.CompletedAt.HasValue)
         {
             entity.CompletedAt = entity.TimeoutAt;
+        }
+    }
+
+    /// <summary>IScanStrategy.Name</summary>
+    public string Name => "EntityReaper";
+
+    /// <summary>
+    /// IScanStrategy.Scan — 按会话隔离扫描, 只扫描该会话的 Entity
+    /// </summary>
+    public void Scan(SessionScope scope)
+    {
+        var now = _clock.GetUtcNow();
+        foreach (var entity in scope.GetAll())
+        {
+            if (entity.LifecycleState == EntityLifecycle.Disposed)
+                continue;
+
+            if (entity.IsTimedOut)
+                OnEntityTimeout(entity);
+
+            if (_config.EnableLeakDetection && IsLeaked(entity, now))
+                OnEntityLeakDetected(entity);
+
+            if (_config.EnableAutoReclaim && entity.CanReclaim())
+            {
+                try
+                {
+                    entity.Dispose();
+                    OnEntityReclaimed(entity);
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogWarning(ex, "回收 Entity {ObjectId} 失败", entity.ObjectId);
+                }
+            }
         }
     }
 }

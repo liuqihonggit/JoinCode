@@ -351,7 +351,7 @@ public partial class McpClientToolHandlers : IAsyncDisposable
             Dictionary<string, JsonElement>? arguments = null;
             if (!string.IsNullOrEmpty(arguments_json))
             {
-                arguments = LlmJsonHelper.Deserialize(arguments_json, McpToolDispatchJsonContext.Default.DictionaryStringJsonElement, out var repairHint);
+                arguments = LlmJsonHelper.Deserialize(arguments_json, McpToolDispatchJsonContext.Default.DictionaryStringJsonElement, out var repairHint, _logger);
                 if (!string.IsNullOrEmpty(repairHint))
                     _logger?.LogInformation("[McpClient] tool 参数 JSON 已修复: {RepairHint}", repairHint);
             }

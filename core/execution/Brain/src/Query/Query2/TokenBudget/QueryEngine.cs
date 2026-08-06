@@ -516,7 +516,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
     {
         if (!string.IsNullOrEmpty(rawArguments))
         {
-            var jsonRepair = LlmJsonHelper.RepairJson(rawArguments);
+            var jsonRepair = LlmJsonHelper.RepairJson(rawArguments, _logger);
             var parsed = JsonArgumentParser.Parse(jsonRepair.Success ? jsonRepair.RepairedJson : rawArguments);
             if (parsed.Count > 0)
                 return parsed;

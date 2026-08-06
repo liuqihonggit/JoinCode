@@ -67,7 +67,7 @@ public sealed class ProsecutorAgent : ReasoningAgentBase
         var records = new List<EvidenceRecord>();
         try
         {
-            var json = ExtractJsonObject(content);
+            var json = ExtractJsonObject(content, _logger);
             if (json is null) return records;
 
             using var doc = JsonDocument.Parse(json);

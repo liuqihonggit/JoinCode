@@ -26,7 +26,7 @@ public class UserInteractionToolHandlers
         List<QuestionItem> questionItems;
         try
         {
-            questionItems = LlmJsonHelper.DeserializeValue(questions, QuestionItemListContext.Default.ListQuestionItem, out var repairHint)
+            questionItems = LlmJsonHelper.DeserializeValue(questions, QuestionItemListContext.Default.ListQuestionItem, out var repairHint, _logger)
                 ?? new List<QuestionItem>();
             if (!string.IsNullOrEmpty(repairHint))
                 _logger?.LogInformation("[AskUserQuestion] questions JSON 已修复: {RepairHint}", repairHint);

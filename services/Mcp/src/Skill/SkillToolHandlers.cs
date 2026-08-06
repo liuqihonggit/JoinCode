@@ -73,7 +73,7 @@ public class SkillToolHandlers
         Dictionary<string, JsonElement>? parameters = null;
         if (!string.IsNullOrEmpty(args))
         {
-            parameters = LlmJsonHelper.Deserialize(args, ContractsJsonContext.Default.DictionaryStringJsonElement, out var repairHint);
+            parameters = LlmJsonHelper.Deserialize(args, ContractsJsonContext.Default.DictionaryStringJsonElement, out var repairHint, _logger);
             if (parameters is null)
             {
                 using var doc = JsonDocument.Parse($"{{\"args\":{JsonSerializer.Serialize(args, McpToolDispatchJsonContext.Default.String)}}}");

@@ -183,7 +183,7 @@ public sealed class ReasoningAgentBaseTests
             return Task.FromResult(new AgentAction { AgentRole = Role });
         }
 
-        public new static string? ExtractJsonObject(string content) => ReasoningAgentBase.ExtractJsonObject(content);
+        public new static string? ExtractJsonObject(string content, ILogger? logger = null) => ReasoningAgentBase.ExtractJsonObject(content, logger);
 
         public new static TrustLevel ParseTrustLevel(string? value) => ReasoningAgentBase.ParseTrustLevel(value);
 

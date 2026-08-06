@@ -164,7 +164,7 @@ public sealed class JudgeAgent : ReasoningAgentBase
         var verdicts = new List<Verdict>();
         try
         {
-            var json = ExtractJsonObject(content);
+            var json = ExtractJsonObject(content, _logger);
             if (json is null) return verdicts;
 
             using var doc = JsonDocument.Parse(json);

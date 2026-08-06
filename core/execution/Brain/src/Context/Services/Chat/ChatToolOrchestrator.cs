@@ -90,7 +90,7 @@ public sealed partial class ChatToolOrchestrator : ServiceEntity, IChatToolOrche
                 var handler = await _toolRegistry.GetToolAsync(toolCallName, ct).ConfigureAwait(false);
                 if (handler is not null)
                 {
-                    var argRepair = LlmJsonHelper.RepairArguments(toolCallName, arguments, handler.InputSchema);
+                    var argRepair = LlmJsonHelper.RepairArguments(toolCallName, arguments, handler.InputSchema, _logger);
                     if (argRepair.RepairHint is not null)
                     {
                         arguments = argRepair.RepairedArguments;

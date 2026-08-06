@@ -63,7 +63,7 @@ public sealed partial class GoalEvaluator : ServiceEntity, IGoalEvaluator
         if (result is not null)
         {
             if (report.RepairHint is not null)
-                System.Diagnostics.Trace.WriteLine($"Goal evaluation JSON repaired: {report.RepairHint}");
+                logger?.LogDebug("Goal evaluation JSON repaired: {RepairHint}", report.RepairHint);
 
             // 字段级宽容降级明细也回喂 LLM：让下一轮知道自己字段被默认值替换，避免误解
             var reason = result.Reason;

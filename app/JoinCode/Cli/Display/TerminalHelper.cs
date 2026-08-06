@@ -168,7 +168,7 @@ public static class TerminalHelper
     private const uint VirtualTerminalProcessingFlag = 0x0004;
     private const uint ProcessedOutputFlag = 0x0001;
 
-    private static void EnableVirtualTerminalProcessing()
+    private static void EnableVirtualTerminalProcessing(ILogger? logger = null)
     {
         try
         {
@@ -184,7 +184,7 @@ public static class TerminalHelper
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Trace.WriteLine($"启用虚拟终端处理失败: {ex.Message}");
+            logger?.LogWarning(ex, "启用虚拟终端处理失败");
         }
     }
 }

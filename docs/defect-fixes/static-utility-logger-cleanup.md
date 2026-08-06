@@ -32,14 +32,14 @@
 | S14 | `services/Bridge/.../BridgeApiClient.cs` | 2 | 已有 logger，static 方法透传 | ✅ |
 | S15 | `services/Vault/.../FacetCacheService.cs` | 1 | static 方法 | ✅ |
 | S16 | `services/Vault/.../SessionScanner.cs` | 1 | static 方法 | ✅ |
-| S17 | `core/execution/Hands/.../ApiClient.cs` | 1 | static 方法 | ⏳ |
-| S18 | `composition/Clock/.../GoalEvaluator.cs` | 1 | static 方法 | ⏳ |
-| S19 | `composition/Clock/.../GoalGraphEngine.cs` | 2 | 已有 logger，static 方法透传 | ⏳ |
+| S17 | `core/execution/Hands/.../ApiClient.cs` | 1 | static 方法 | ✅ |
+| S18 | `composition/Clock/.../GoalEvaluator.cs` | 1 | static 方法 | ✅ |
+| S19 | `composition/Clock/.../GoalGraphEngine.cs` | 2 | 已有 logger，static 方法透传 | ✅ |
 | S20 | `core/safety/Guard/.../WebFetchPermissionMiddleware.cs` | 1 | 已有 logger | ✅ |
 | S21 | `core/safety/Guard/.../PsPermissions.cs` | 1 | static 类 | ✅ |
 | S22 | `infrastructure/.../BatchLock.cs` | 1 | internal 原语 | ✅ |
 | S23 | `infrastructure/.../FileLock.cs` | 4 | internal 原语 | ✅ |
-| S24 | `app/JoinCode/Cli/Display/TerminalHelper.cs` | 1 | static 类 | ⏳ |
+| S24 | `app/JoinCode/Cli/Display/TerminalHelper.cs` | 1 | static 类 | ✅ |
 
 ### 第六桶：App 命令 / DI 注册（保留 Trace 待用户确认）
 
@@ -104,3 +104,10 @@
 <!-- 原因: BridgeApiClient.HandleErrorStatus 是 internal static 不能访问实例 _logger,必须加参数透传;S15/S16 的 private static 同理;调用点在实例方法中可传 _logger -->
 <!-- 替代方案: 改 HandleErrorStatus/MoveToDeleted/ReadEntriesAsync 为实例方法(但被 static 调用链引用,改动面大)-->
 <!-- 验证: Bridge 590、Vault.Memdir 137、Vault.Other 238 全通过 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-08-07 (S17/S18/S19/S24 最后批次完成,S1-S24全部✅) -->
+<!-- 决策: S17 ApiClient.GetErrorMessage(private static)加logger,实例调用点传_logger;S18/S19 GoalEvaluator/GoalGraphEngine 方法已有logger参数(S1加的),Trace直接改logger?.LogDebug;S24 TerminalHelper.EnableVirtualTerminalProcessing(private static)加logger,调用点不传 -->
+<!-- 原因: S18/S19 的 ParseEvaluationResult/ProcessNodeOutput 在 S1 时已加 logger 参数用于 LlmJsonHelper 透传,本次只需把残留 Trace 改成 logger?.LogDebug;S17/S24 是 private static 需加参数 -->
+<!-- 替代方案: 无(S18/S19 最简,S17/S24 标准模式)-->
+<!-- 验证: Hands.Api 184、Clock 421 全通过;Hands/Clock/App Debug 0 错误 0 警告 ✅ -->
+<!-- 🎉 第五桶 S1-S24 全部完成! 剩余第六桶(App命令/DI注册)待用户确认 -->

@@ -711,7 +711,7 @@ public sealed partial class GoalGraphEngine : ServiceEntity
             if (negReview is null)
             {
                 if (!string.IsNullOrEmpty(negRepair))
-                    System.Diagnostics.Trace.WriteLine($"[GoalGraph] neg_review 元数据解析失败: {negRepair}");
+                    logger?.LogDebug("[GoalGraph] neg_review 元数据解析失败: {NegRepair}", negRepair);
                 return;
             }
 
@@ -731,7 +731,7 @@ public sealed partial class GoalGraphEngine : ServiceEntity
             }
             else if (fixNeg is null && !string.IsNullOrEmpty(fixRepair))
             {
-                System.Diagnostics.Trace.WriteLine($"[GoalGraph] fix_neg 元数据解析失败: {fixRepair}");
+                logger?.LogDebug("[GoalGraph] fix_neg 元数据解析失败: {FixRepair}", fixRepair);
             }
         }
     }

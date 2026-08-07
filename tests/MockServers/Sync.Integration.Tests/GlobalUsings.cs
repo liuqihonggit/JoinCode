@@ -40,3 +40,4 @@ global using Services.Web;
 global using Tools.Shell;
 global using SkillContext = Core.Skills.SkillContext;
 global using AgentRestrictionMiddleware = Core.Permission.AgentRestrictionMiddleware;
+global using JoinCode.Pipelines;

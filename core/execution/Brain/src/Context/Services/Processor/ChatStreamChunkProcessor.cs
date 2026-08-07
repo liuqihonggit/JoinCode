@@ -193,7 +193,7 @@ public sealed partial class ChatStreamChunkProcessor : ServiceEntity, IChatStrea
         var isThinking = chunk.Metadata?.ContainsKey("thinking_content") == true
             || chunk.Metadata?.ContainsKey("reasoning_content") == true;
 
-        var events = new List<ChatStreamEvent>();
+        ChatStreamEvent[] events = [];
         var shouldBreak = false;
 
         if (chunk.Content is not null)
@@ -201,7 +201,7 @@ public sealed partial class ChatStreamChunkProcessor : ServiceEntity, IChatStrea
             if (isThinking)
             {
                 state.ThinkingResponse.Append(chunk.Content);
-                events.Add(ChatStreamEvent.Thinking(chunk.Content));
+                events = [ChatStreamEvent.Thinking(chunk.Content)];
             }
             else
             {
@@ -212,12 +212,14 @@ public sealed partial class ChatStreamChunkProcessor : ServiceEntity, IChatStrea
                 {
                     _logger?.LogWarning("[ChatStreamChunkProcessor] 检测到LLM循环输出，第{N}次触发，重复模式长度: {Len}, 重复次数: {Count}",
                         loopResult.LoopTriggerCount, loopResult.RepeatedPattern?.Length ?? 0, loopResult.RepeatCount);
-                    events.Add(ChatStreamEvent.Text(chunk.Content));
-                    events.Add(ChatStreamEvent.LoopDetected(loopResult.LoopTriggerCount, loopResult.LoopStartIndex, loopResult.RepeatedPattern));
+                    events = [
+                        ChatStreamEvent.Text(chunk.Content),
+                        ChatStreamEvent.LoopDetected(loopResult.LoopTriggerCount, loopResult.LoopStartIndex, loopResult.RepeatedPattern)
+                    ];
                 }
                 else
                 {
-                    events.Add(ChatStreamEvent.Text(chunk.Content));
+                    events = [ChatStreamEvent.Text(chunk.Content)];
                 }
             }
         }
@@ -249,7 +251,7 @@ public sealed partial class ChatStreamChunkProcessor : ServiceEntity, IChatStrea
 
         return new StreamChunkResult
         {
-            Action = shouldBreak ? ChunkAction.Break : (events.Count > 0 ? ChunkAction.Yield : ChunkAction.Continue),
+            Action = shouldBreak ? ChunkAction.Break : (events.Length > 0 ? ChunkAction.Yield : ChunkAction.Continue),
             Events = events
         };
     }

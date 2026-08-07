@@ -17,6 +17,22 @@
       <Setter Property="Foreground" Value="{DynamicResource GuiButtonForeground}" />
       <Setter Property="CornerRadius" Value="5" />
       <Setter Property="Padding" Value="10,5" />
+      <Setter Property="Template">
+        <ControlTemplate TargetType="Button">
+          <Border Name="root"
+                  Background="{TemplateBinding Background}"
+                  BorderBrush="{TemplateBinding BorderBrush}"
+                  BorderThickness="{TemplateBinding BorderThickness}"
+                  CornerRadius="{TemplateBinding CornerRadius}"
+                  Padding="{TemplateBinding Padding}">
+            <ContentPresenter Name="PART_ContentPresenter"
+                              Content="{TemplateBinding Content}"
+                              ContentTemplate="{TemplateBinding ContentTemplate}"
+                              HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                              VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" />
+          </Border>
+        </ControlTemplate>
+      </Setter>
     </Style>
     <Style Selector="Button:pointerover">
       <Setter Property="Background" Value="{DynamicResource GuiButtonHover}" />
@@ -31,7 +47,7 @@
   <DockPanel Background="{DynamicResource GuiWindowBackground}">
 
     <!-- 侧边栏：会话导航 -->
-    <Border DockPanel.Dock="Left" Width="220" Background="{DynamicResource GuiSidebarBackground}">
+    <Border DockPanel.Dock="Left" Width="220" Background="{DynamicResource GuiSidebarBackground}" ClipToBounds="True">
       <DockPanel>
         <!-- 侧边栏头部 -->
         <StackPanel DockPanel.Dock="Top" Spacing="10" Margin="12,14,12,0">
@@ -81,7 +97,7 @@
     </Border>
 
     <!-- 顶部工具栏 -->
-    <Border DockPanel.Dock="Top" Padding="10,8" Background="{DynamicResource GuiTopBarBackground}">
+    <Border DockPanel.Dock="Top" Padding="10,8" Background="{DynamicResource GuiTopBarBackground}" ClipToBounds="True">
       <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="10">
         <ToggleButton Content="🌙" Command="{Binding ToggleThemeCommand}" ToolTip.Tip="切换深浅主题" />
         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
@@ -103,7 +119,7 @@
     </Border>
 
     <!-- 底部输入栏 -->
-    <Border DockPanel.Dock="Bottom" Padding="10" Background="{DynamicResource GuiInputBarBackground}">
+    <Border DockPanel.Dock="Bottom" Padding="10" Background="{DynamicResource GuiInputBarBackground}" ClipToBounds="True">
       <StackPanel Spacing="6">
         <Grid ColumnDefinitions="*,Auto,Auto">
           <TextBox Text="{Binding InputText}" Watermark="输入消息，Enter 发送 / Shift+Enter 换行…"
@@ -143,10 +159,10 @@
     </Border>
 
     <!-- 主区：状态 + 空状态 + 消息列表 -->
-    <DockPanel>
+    <DockPanel ClipToBounds="True">
       <!-- 右侧设置面板 -->
       <Border DockPanel.Dock="Right" Width="240" Background="{DynamicResource GuiSettingsBackground}" Padding="12"
-              IsVisible="{Binding IsSettingsPanelOpen}">
+              IsVisible="{Binding IsSettingsPanelOpen}" ClipToBounds="True">
         <StackPanel Spacing="12">
           <TextBlock Text="对话设置" FontWeight="SemiBold" Foreground="{DynamicResource GuiPrimaryText}" />
           <StackPanel Spacing="4">
@@ -198,7 +214,7 @@
                   ToolTip.Tip="复制会话为文本" />
         </Grid>
       </Border>
-      <Panel>
+      <Panel ClipToBounds="True">
         <StackPanel x:Name="EmptyState" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="8"
                     IsVisible="{Binding !HasMessages}">
           <TextBlock Text="👋" FontSize="40" HorizontalAlignment="Center" />

@@ -1,0 +1,72 @@
+using FluentAssertions;
+
+using JoinCode.Abstractions.LLM.Chat;
+using JoinCode.Abstractions.Configuration;
+using JoinCode.Abstractions.Configuration.Providers;
+using JoinCode.Abstractions.Interfaces;
+using JoinCode.Abstractions.LLM;
+
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Configuration;
+using Core.DependencyInjection;
+using JoinCode.Pipelines;
+using Api.Chat;
+
+namespace JoinCode.Gui.Tests.Hosting;
+
+/// <summary>
+/// 引擎会话组装测试 — 验证 GUI 进程内引擎接入的关键假设：
+/// <c>WorkflowConfig.PipeEndpoint = null</c> 时应走标准 HTTP QueryService，
+/// 而非命名管道服务（GUI 不连接 Bridge 管道服务进程）。
+/// 不依赖真实磁盘配置，直接复现 JccChatSession.CreateAsync 的 DI 组装，保证确定性。
+/// </summary>
+public class JccChatSessionAssemblyTests
+{
+    /// <summary>
+    /// 组装引擎会话所需的完整 DI（与 Jcc 一致）：AiWorkflowServices + 共享管道 + ChatService 注册。
+    /// </summary>
+    private static IServiceProvider BuildEngineProvider()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddSingleton<IConfiguration>(
+            new ConfigurationBuilder().Build());
+        var config = new WorkflowConfig
+        {
+            Provider = new ProviderConfig
+            {
+                Provider = "openai",
+                ApiKey = "sk-test-non-pipe",
+                ModelId = "gpt-4o"
+            },
+            PipeEndpoint = null
+        };
+
+        services.AddAiWorkflowServices(config);
+        services.AddAllPipelines();
+
+        return services.BuildServiceProvider();
+    }
+
+    [Fact]
+    public void EngineAssembly_WithNullPipeEndpoint_ResolvesChatService()
+    {
+        var sp = BuildEngineProvider();
+
+        var chat = sp.GetRequiredService<IChatService>();
+
+        chat.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void EngineAssembly_WithNullPipeEndpoint_DoesNotUsePipeQueryService()
+    {
+        var sp = BuildEngineProvider();
+
+        var query = sp.GetRequiredService<IQueryService>();
+        var impl = query.GetType();
+
+        impl.Should().NotBe(typeof(Api.Chat.PipeQueryService),
+            "PipeEndpoint=null 时应注册标准 HTTP QueryService，而非命名管道服务");
+    }
+}

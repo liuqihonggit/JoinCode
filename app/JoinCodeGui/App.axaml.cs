@@ -34,11 +34,26 @@ public sealed partial class App : Application
         {
             desktop.MainWindow = new MainWindow
             {
-                DataContext = new MainViewModel()
+                DataContext = CreateViewModel()
             };
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    /// <summary>组装真实的引擎会话并注入 ViewModel，失败时回退到占位会话以保证 UI 可启动</summary>
+    private static MainViewModel CreateViewModel()
+    {
+        try
+        {
+            var session = Hosting.JccChatSession.CreateAsync().GetAwaiter().GetResult();
+            return new MainViewModel(session);
+        }
+        catch (Exception ex)
+        {
+            WriteCrashLog(ex);
+            return new MainViewModel();
+        }
     }
 
     /// <summary>将未处理异常写入日志（GUI 进程无控制台，崩溃时便于诊断）</summary>

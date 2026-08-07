@@ -5,3 +5,8 @@ global using System.Collections.ObjectModel;
 global using System.Text;
 global using System.Threading;
 global using System.Threading.Tasks;
+
+// 引擎 DI 组装（Composition + 共享管道）
+global using Core.DependencyInjection;
+global using JoinCode.Pipelines;
+global using JoinCode.Pipelines.Middlewares;

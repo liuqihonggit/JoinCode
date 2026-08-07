@@ -26,8 +26,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- 解耦边界：UI 只依赖 Abstractions 门面接口与 DTO，不引 Core.Brain/Hands 等具体实现 -->
+    <!-- 解耦边界：Views/ViewModels 只依赖 Abstractions 门面接口与 DTO，不引 Core.Brain/Hands 实现
+         引擎组装收敛在 Hosting/ 触碰处，故此处引入 Composition + Pipelines 仅供 Hosting 使用 -->
     <ProjectReference Include="$(RepoRoot)foundation\Abstractions\Abstractions.csproj" />
+    <ProjectReference Include="$(RepoRoot)composition\Composition\src\Composition.csproj" />
+    <ProjectReference Include="$(RepoRoot)composition\Pipelines\src\Pipelines.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -802,8 +802,16 @@ public sealed class AnthropicQueryService : QueryServiceBase
 
                             if (toolCallAccumulator.Count > 1)
                             {
-                                var allCallsJson = "[" + string.Join(",", toolCallAccumulator.Values.Select(tc => $"{{\"Name\":\"{tc.Name}\",\"Id\":\"{tc.Id}\"}}")) + "]";
-                                metadata["AllToolCalls"] = JsonElementHelper.FromJson(allCallsJson);
+                                var sb = new StringBuilder("[");
+                                var firstCall = true;
+                                foreach (var tc in toolCallAccumulator.Values)
+                                {
+                                    if (!firstCall) sb.Append(',');
+                                    firstCall = false;
+                                    sb.Append("{\"Name\":\"").Append(tc.Name).Append("\",\"Id\":\"").Append(tc.Id).Append("\"}");
+                                }
+                                sb.Append(']');
+                                metadata["AllToolCalls"] = JsonElementHelper.FromJson(sb.ToString());
                             }
                         }
 

@@ -5,17 +5,21 @@ namespace Core.Agents.ToolHandlers;
 public partial class BuiltInAgentToolHandlers : ServiceEntity
 {
 
-    public BuiltInAgentToolHandlers(IAgentService agentService, IAgentRoleRegistry roleRegistry, ILogger<BuiltInAgentToolHandlers>? logger = null, ITelemetryService? telemetryService = null)
+    public BuiltInAgentToolHandlers(IAgentService agentService, IAgentRoleRegistry roleRegistry, ILogger<BuiltInAgentToolHandlers>? logger = null, ITelemetryService? telemetryService = null, SubAgentOutputTruncator? outputTruncator = null)
     {
         _agentService = agentService;
         _roleRegistry = roleRegistry;
         _logger = logger;
         _telemetryService = telemetryService;
+        _outputTruncator = outputTruncator;
     }
     [Inject] private readonly IAgentService _agentService;
     [Inject] private readonly IAgentRoleRegistry _roleRegistry;
     [Inject] private readonly ILogger<BuiltInAgentToolHandlers>? _logger;
     [Inject] private readonly ITelemetryService? _telemetryService;
+    [Inject] private readonly SubAgentOutputTruncator? _outputTruncator;
+
+    private const int DefaultOutputTokenBudget = 50_000;
 
     [McpTool(AgentToolNameConstants.PlanAgent, "Use Plan Agent to create task execution plan", AgentToolNameConstants.Agent)]
     public async Task<ToolResult> PlanAgentAsync(
@@ -48,7 +52,7 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
             }
 
             RecordAgentToolMetrics("plan", true);
-            return ToolResultBuilder.Success().WithText(result.Output).Build();
+            return ToolResultBuilder.Success().WithText(await BuildAgentOutputAsync(agentInfo.Id, result.Output, cancellationToken)).Build();
         }
         catch (Exception ex)
         {
@@ -89,7 +93,7 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
             }
 
             RecordAgentToolMetrics("explore", true);
-            return ToolResultBuilder.Success().WithText(result.Output).Build();
+            return ToolResultBuilder.Success().WithText(await BuildAgentOutputAsync(agentInfo.Id, result.Output, cancellationToken)).Build();
         }
         catch (Exception ex)
         {
@@ -130,7 +134,7 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
             }
 
             RecordAgentToolMetrics("verification", true);
-            return ToolResultBuilder.Success().WithText(result.Output).Build();
+            return ToolResultBuilder.Success().WithText(await BuildAgentOutputAsync(agentInfo.Id, result.Output, cancellationToken)).Build();
         }
         catch (Exception ex)
         {
@@ -170,7 +174,7 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
             }
 
             RecordAgentToolMetrics("general", true);
-            return ToolResultBuilder.Success().WithText(result.Output).Build();
+            return ToolResultBuilder.Success().WithText(await BuildAgentOutputAsync(agentInfo.Id, result.Output, cancellationToken)).Build();
         }
         catch (Exception ex)
         {
@@ -210,7 +214,7 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
             }
 
             RecordAgentToolMetrics("guide", true);
-            return ToolResultBuilder.Success().WithText(result.Output).Build();
+            return ToolResultBuilder.Success().WithText(await BuildAgentOutputAsync(agentInfo.Id, result.Output, cancellationToken)).Build();
         }
         catch (Exception ex)
         {
@@ -247,6 +251,20 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
 
     private void RecordAgentToolMetrics(string agentType, bool isSuccess)
         => _telemetryService?.RecordCount("agent.tool.invoked.count", new Dictionary<string, string> { ["agent"] = agentType, ["success"] = isSuccess.ToString() }, "count", "Agent tool invoked count");
+
+    /// <summary>
+    /// 构建子智能体输出文本 — L0 XML 包装 + L3 落盘指针截断
+    /// <para>步3: 固定阈值 DefaultOutputTokenBudget; 动态预算留给步4 L2 自摘要。</para>
+    /// </summary>
+    private async Task<string> BuildAgentOutputAsync(string agentId, string output, CancellationToken cancellationToken)
+    {
+        if (_outputTruncator is null)
+            return output;
+
+        var summary = SubAgentOutputEnvelope.ExtractSummary(output);
+        var truncation = await _outputTruncator.TruncateAsync(agentId, output, DefaultOutputTokenBudget, summary, cancellationToken).ConfigureAwait(false);
+        return SubAgentOutputEnvelope.Wrap(agentId, SubAgentEnvelopeState.Completed, summary, truncation.FinalText);
+    }
 
     private static string BuildPlanPrompt(string goal, string? context, string? constraints)
     {

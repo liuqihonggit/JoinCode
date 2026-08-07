@@ -55,18 +55,10 @@ public sealed class BashProcessEntity : ToolExecutionEntity
             displayName: DisplayName,
             sessionId: context.TargetSessionId)
         {
-            ArgumentsSummary = ArgumentsSummary,
-            ResultSummary = ResultSummary,
-            IsError = IsError,
-            SessionObjectId = context.RemapNullable(SessionObjectId),
-            LifecycleState = LifecycleState,
-            StartedAt = StartedAt,
-            CompletedAt = CompletedAt,
-            LastActivityAt = LastActivityAt,
             Status = Status,
             ExitCode = ExitCode,
         };
-        context.Map(ObjectId, cloned.ObjectId);
+        ApplyCloneState(cloned, context);
         return cloned;
     }
 }

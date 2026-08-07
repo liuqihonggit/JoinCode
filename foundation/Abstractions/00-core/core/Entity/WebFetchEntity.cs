@@ -33,18 +33,10 @@ public sealed class WebFetchEntity : ToolExecutionEntity
             displayName: DisplayName,
             sessionId: context.TargetSessionId)
         {
-            ArgumentsSummary = ArgumentsSummary,
-            ResultSummary = ResultSummary,
-            IsError = IsError,
-            SessionObjectId = context.RemapNullable(SessionObjectId),
-            LifecycleState = LifecycleState,
-            StartedAt = StartedAt,
-            CompletedAt = CompletedAt,
-            LastActivityAt = LastActivityAt,
             HttpStatusCode = HttpStatusCode,
             ContentLength = ContentLength,
         };
-        context.Map(ObjectId, cloned.ObjectId);
+        ApplyCloneState(cloned, context);
         return cloned;
     }
 }

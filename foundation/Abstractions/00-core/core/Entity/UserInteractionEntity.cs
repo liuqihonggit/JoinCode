@@ -32,17 +32,9 @@ public sealed class UserInteractionEntity : ToolExecutionEntity
             displayName: DisplayName,
             sessionId: context.TargetSessionId)
         {
-            ArgumentsSummary = ArgumentsSummary,
-            ResultSummary = ResultSummary,
-            IsError = IsError,
-            SessionObjectId = context.RemapNullable(SessionObjectId),
-            LifecycleState = LifecycleState,
-            StartedAt = StartedAt,
-            CompletedAt = CompletedAt,
-            LastActivityAt = LastActivityAt,
             Response = Response,
         };
-        context.Map(ObjectId, cloned.ObjectId);
+        ApplyCloneState(cloned, context);
         return cloned;
     }
 }

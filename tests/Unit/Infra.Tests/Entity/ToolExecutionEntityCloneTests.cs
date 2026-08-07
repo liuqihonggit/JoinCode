@@ -26,6 +26,7 @@ public sealed class ToolExecutionEntityCloneTests
         try
         {
             var context = new CloneContext(targetSession);
+            context.Map(sourceSession, targetSession);
             var cloned = (ToolExecutionEntity)source.Clone(context);
 
             cloned.Should().NotBeNull();
@@ -212,7 +213,7 @@ public sealed class ToolExecutionEntityCloneTests
     }
 
     [Fact]
-    public void ToolExecutionEntity_Clone_SessionObjectId_Unmapped_BecomesNull()
+    public void ToolExecutionEntity_Clone_SessionObjectId_Unmapped_ThrowsExposeDanglingReference()
     {
         var sourceSession = new ObjectId(ObjectType.Session, "src-unmapped");
         var targetSession = new ObjectId(ObjectType.Session, "tgt-unmapped");
@@ -225,10 +226,12 @@ public sealed class ToolExecutionEntityCloneTests
         try
         {
             var context = new CloneContext(targetSession);
-            var cloned = (ToolExecutionEntity)source.Clone(context);
 
-            cloned.SessionObjectId.Should().BeNull();
-            cloned.Dispose();
+            var act = () => source.Clone(context);
+            act.Should().Throw<InvalidOperationException>()
+                .WithMessage("*跨会话克隆失败*");
+
+            context.Remap(source.ObjectId).Should().Be(ObjectId.Empty);
         }
         finally { source.Dispose(); }
     }

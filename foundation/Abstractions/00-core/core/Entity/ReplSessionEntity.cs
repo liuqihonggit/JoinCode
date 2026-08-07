@@ -32,17 +32,9 @@ public sealed class ReplSessionEntity : ToolExecutionEntity
             displayName: DisplayName,
             sessionId: context.TargetSessionId)
         {
-            ArgumentsSummary = ArgumentsSummary,
-            ResultSummary = ResultSummary,
-            IsError = IsError,
-            SessionObjectId = context.RemapNullable(SessionObjectId),
-            LifecycleState = LifecycleState,
-            StartedAt = StartedAt,
-            CompletedAt = CompletedAt,
-            LastActivityAt = LastActivityAt,
             IsEnabled = IsEnabled,
         };
-        context.Map(ObjectId, cloned.ObjectId);
+        ApplyCloneState(cloned, context);
         return cloned;
     }
 }

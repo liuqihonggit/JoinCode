@@ -33,8 +33,9 @@ public sealed class AgentTask : Entity
         string? assignee = null,
         DateTime? dueDate = null,
         IEnumerable<string>? tags = null,
-        string? displayName = null)
-        : base(ObjectType.Task, displayName ?? title)
+        string? displayName = null,
+        ObjectId sessionId = default)
+        : base(ObjectType.Task, sessionId, displayName ?? title)
     {
         Title = title;
         Type = type;
@@ -77,15 +78,41 @@ public sealed class AgentTask : Entity
     /// <summary>
     /// 从 TaskItem DTO 创建 AgentTask 实体（反持久化）
     /// </summary>
-    public static AgentTask FromTaskItem(TaskItem item) => new(
+    public static AgentTask FromTaskItem(TaskItem item, ObjectId sessionId = default) => new(
         title: item.Title,
         priority: item.Priority,
         description: item.Description,
         assignee: item.Assignee,
         dueDate: item.DueDate,
         tags: item.Tags,
-        displayName: item.Id)
+        displayName: item.Id,
+        sessionId: sessionId)
     {
         Status = TaskExecutionStatusExtensions.FromValue(item.Status) ?? TaskExecutionStatus.Pending
     };
+
+    /// <summary>
+    /// 跨会话深拷贝 — 新 ObjectId + 目标会话，深拷贝所有字段
+    /// AssigneeObjectId/ParentTaskObjectId 通过 CloneContext 重映射，找不到抛异常
+    /// </summary>
+    public override Entity Clone(CloneContext context)
+    {
+        var cloned = new AgentTask(
+            title: Title,
+            type: Type,
+            priority: Priority,
+            assigneeObjectId: context.RemapNullableOrThrow(AssigneeObjectId),
+            parentTaskObjectId: context.RemapNullableOrThrow(ParentTaskObjectId),
+            description: Description,
+            assignee: Assignee,
+            dueDate: DueDate,
+            tags: Tags.ToList(),
+            displayName: DisplayName,
+            sessionId: context.TargetSessionId)
+        {
+            Status = Status
+        };
+        context.Map(ObjectId, cloned.ObjectId);
+        return cloned;
+    }
 }

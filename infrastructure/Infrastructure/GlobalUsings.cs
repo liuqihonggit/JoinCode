@@ -1,4 +1,5 @@
 global using AsyncFileLock;
+global using Infrastructure.ReaperScheduler;
 global using JoinCode.Transport;
 global using JoinCode.Abstractions.Attributes;
 global using JoinCode.Abstractions.Clock;

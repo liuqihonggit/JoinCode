@@ -27,8 +27,9 @@ public sealed class Goal : Entity
         string objective,
         List<string>? constraints = null,
         int? tokenBudget = null,
-        string? displayName = null)
-        : base(ObjectType.Goal, displayName ?? objective)
+        string? displayName = null,
+        ObjectId sessionId = default)
+        : base(ObjectType.Goal, sessionId, displayName ?? objective)
     {
         Objective = objective;
         Constraints = constraints ?? [];
@@ -67,11 +68,12 @@ public sealed class Goal : Entity
     /// <summary>
     /// 从 GoalState DTO 创建 Goal 实体（反持久化）
     /// </summary>
-    public static Goal FromGoalState(GoalState state) => new(
+    public static Goal FromGoalState(GoalState state, ObjectId sessionId = default) => new(
         objective: state.Objective,
         constraints: state.Constraints,
         tokenBudget: state.TokenBudget,
-        displayName: state.GoalId)
+        displayName: state.GoalId,
+        sessionId: sessionId)
     {
         Status = state.Status,
         TokensUsed = state.TokensUsed,
@@ -88,4 +90,28 @@ public sealed class Goal : Entity
     public TimeSpan Elapsed => AchievedAt.HasValue
         ? AchievedAt.Value - CreatedAt
         : DateTime.UtcNow - CreatedAt;
+
+    /// <summary>
+    /// 跨会话深拷贝 — 新 ObjectId + 目标会话，深拷贝所有字段
+    /// </summary>
+    public override Entity Clone(CloneContext context)
+    {
+        var cloned = new Goal(
+            objective: Objective,
+            constraints: new List<string>(Constraints),
+            tokenBudget: TokenBudget,
+            displayName: DisplayName,
+            sessionId: context.TargetSessionId)
+        {
+            Status = Status,
+            TokensUsed = TokensUsed,
+            TurnsCompleted = TurnsCompleted,
+            PausedAt = PausedAt,
+            AchievedAt = AchievedAt,
+            LastEvaluation = LastEvaluation,
+            StagnationAlertedAt = StagnationAlertedAt
+        };
+        context.Map(ObjectId, cloned.ObjectId);
+        return cloned;
+    }
 }

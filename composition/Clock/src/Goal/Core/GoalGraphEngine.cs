@@ -17,7 +17,6 @@ public sealed partial class GoalGraphEngine : ServiceEntity
     [Inject] private readonly ILogger<GoalGraphEngine>? _logger;
     [Inject] private readonly IClockService _clock;
     [Inject] private readonly IServiceProvider _serviceProvider;
-    private Core.Agents.Coordinator.AgentRegistry _agentRegistry => Core.Agents.Coordinator.Agent.Registry;
     [Inject] private readonly IAgentService? _agentService = null!;
     [Inject] private readonly IGoalUserInteraction? _userInteraction = null;
     [Inject] private readonly IGoalNodeInspector? _nodeInspector = null;
@@ -361,9 +360,9 @@ public sealed partial class GoalGraphEngine : ServiceEntity
         var agentId = payload.AgentId ?? Core.Agents.Coordinator.Agent.GenerateId();
         payload.AgentId = agentId;
 
-        if (_agentRegistry.Get(new JoinCode.Abstractions.Entity.ObjectId(JoinCode.Abstractions.Entity.ObjectType.Agent, agentId)) is null)
+        if (Core.Agents.Coordinator.Agent.GetById(new JoinCode.Abstractions.Entity.ObjectId(JoinCode.Abstractions.Entity.ObjectType.Agent, agentId)) is null)
         {
-            _logger?.LogDebug("[GoalGraph] Agent {AgentId} 未在 Agent.Registry 中，将由 IAgentService 创建时自动注册", agentId);
+            _logger?.LogDebug("[GoalGraph] Agent {AgentId} 未在 SessionScope 中，将由 IAgentService 创建时自动注册", agentId);
         }
 
         var instruction = payload.Instruction ?? payload.Name;

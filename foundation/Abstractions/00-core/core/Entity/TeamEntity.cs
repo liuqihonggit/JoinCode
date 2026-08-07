@@ -20,8 +20,9 @@ public sealed class TeamEntity : Entity
         string teamName,
         string? description = null,
         ObjectId? leadAgentObjectId = default,
-        string? displayName = null)
-        : base(ObjectType.Team, displayName ?? teamName)
+        string? displayName = null,
+        ObjectId sessionId = default)
+        : base(ObjectType.Team, sessionId, displayName ?? teamName)
     {
         TeamName = teamName;
         Description = description;

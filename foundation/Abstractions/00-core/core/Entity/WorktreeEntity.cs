@@ -17,8 +17,9 @@ public sealed class WorktreeEntity : Entity
         string worktreePath,
         string? branchName = null,
         ObjectId? agentObjectId = default,
-        string? displayName = null)
-        : base(ObjectType.Worktree, displayName ?? worktreePath)
+        string? displayName = null,
+        ObjectId sessionId = default)
+        : base(ObjectType.Worktree, sessionId, displayName ?? worktreePath)
     {
         WorktreePath = worktreePath;
         BranchName = branchName;

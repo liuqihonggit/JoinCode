@@ -1,5 +1,6 @@
 global using JoinCode.Abstractions.Utils;
 global using JoinCode.Abstractions.Tools;
+global using JoinCode.Abstractions.Entity;
 global using FluentAssertions;
 global using Moq;
 global using System.Text.Json;

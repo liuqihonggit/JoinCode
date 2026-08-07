@@ -40,8 +40,9 @@ public class ToolExecutionEntity : Entity
         string toolName,
         string? toolUseId = null,
         string? spanId = null,
-        string? displayName = null)
-        : base(ObjectType.Tool, displayName ?? toolName)
+        string? displayName = null,
+        ObjectId sessionId = default)
+        : base(ObjectType.Tool, sessionId, displayName ?? toolName)
     {
         ToolName = toolName;
         ToolUseId = toolUseId;
@@ -57,8 +58,9 @@ public class ToolExecutionEntity : Entity
         string toolName,
         string? toolUseId = null,
         string? spanId = null,
-        string? displayName = null)
-        : base(objectType, displayName ?? toolName)
+        string? displayName = null,
+        ObjectId sessionId = default)
+        : base(objectType, sessionId, displayName ?? toolName)
     {
         ToolName = toolName;
         ToolUseId = toolUseId;

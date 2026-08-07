@@ -58,7 +58,7 @@ internal sealed partial class NonInteractiveExecuteStep : ServiceEntity, IMiddle
     /// <summary>
     /// 写入错误日志到临时目录的 jcc_error.log
     /// </summary>
-    private static string WriteErrorLog(Exception ex)
+    private static string WriteErrorLog(Exception ex, ILogger? logger = null)
     {
         var errorLog = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "jcc_error.log");
         var errorContent = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}";
@@ -68,7 +68,7 @@ internal sealed partial class NonInteractiveExecuteStep : ServiceEntity, IMiddle
         }
         catch (Exception logEx)
         {
-            System.Diagnostics.Trace.WriteLine($"写入错误日志失败: {logEx.Message}");
+            logger?.LogWarning(logEx, "写入错误日志失败");
         }
         return errorLog;
     }

@@ -87,7 +87,7 @@ public sealed class LogoutCommand : ChatCommandBase
     ///     + resetUserCache + refreshGrowthBook + clearRemoteManagedSettings + clearPolicyLimitsCache
     /// C#: 成本重置 + 速率限制清除（多 Provider 架构下的等价操作）
     /// </summary>
-    private static Task PostLogoutRefreshAsync(ChatCommandContext context)
+    private static Task PostLogoutRefreshAsync(ChatCommandContext context, ILogger? logger = null)
     {
         // 重置成本追踪 — 对齐 TS clearAuthRelatedCaches 中的成本相关缓存
         var costTracker = context.Services.CostTracker;
@@ -100,7 +100,7 @@ public sealed class LogoutCommand : ChatCommandBase
             catch (Exception ex)
             {
                 // 成本重置失败不影响登出
-                System.Diagnostics.Trace.WriteLine($"成本重置失败: {ex.Message}");
+                logger?.LogWarning(ex, "成本重置失败");
             }
         }
 

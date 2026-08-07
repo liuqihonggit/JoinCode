@@ -54,7 +54,7 @@ public sealed class LoginCommand : ChatCommandBase
     /// TS: resetCostState + refreshRemoteManagedSettings + refreshPolicyLimits + resetUserCache + etc.
     /// C#: 成本重置 + 速率限制清除 + 服务刷新
     /// </summary>
-    private static Task PostLoginRefreshAsync(ChatCommandContext context)
+    private static Task PostLoginRefreshAsync(ChatCommandContext context, ILogger? logger = null)
     {
         // 重置成本追踪 — 对齐 TS resetCostState
         var costTracker = context.Services.CostTracker;
@@ -67,7 +67,7 @@ public sealed class LoginCommand : ChatCommandBase
             catch (Exception ex)
             {
                 // 成本重置失败不影响登录
-                System.Diagnostics.Trace.WriteLine($"成本重置失败: {ex.Message}");
+                logger?.LogWarning(ex, "成本重置失败");
             }
         }
 

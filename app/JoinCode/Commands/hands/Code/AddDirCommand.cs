@@ -78,7 +78,7 @@ public sealed class AddDirCommand : ChatCommandBase
         }
     }
 
-    private static async Task PersistDirectoryAsync(ChatCommandContext context, string fullPath)
+    private static async Task PersistDirectoryAsync(ChatCommandContext context, string fullPath, ILogger? logger = null)
     {
         var configService = ChatCommandBase.GetService<IConfigurationService>(context, typeof(IConfigurationService));
         if (configService is null) return;
@@ -98,7 +98,7 @@ public sealed class AddDirCommand : ChatCommandBase
         catch (Exception ex)
         {
             // 持久化失败不影响主流程
-            System.Diagnostics.Trace.WriteLine($"持久化目录设置失败: {ex.Message}");
+            logger?.LogWarning(ex, "持久化目录设置失败");
         }
     }
 

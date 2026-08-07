@@ -22,8 +22,9 @@ public sealed class PlanEntity : Entity
 
     public PlanEntity(
         string? description = null,
-        string? displayName = null)
-        : base(ObjectType.Plan, displayName ?? description)
+        string? displayName = null,
+        ObjectId sessionId = default)
+        : base(ObjectType.Plan, sessionId, displayName ?? description)
     {
         Description = description;
         LastUpdatedAt = DateTime.UtcNow;
@@ -53,6 +54,28 @@ public sealed class PlanEntity : Entity
     public int ApprovedStepsCount => Steps.Count(s => s.IsApproved);
     public int CompletedStepsCount => Steps.Count(s => s.IsCompleted);
     public int TotalSteps => Steps.Count;
+
+    /// <summary>
+    /// 跨会话深拷贝 — 新 ObjectId + 目标会话，深拷贝所有字段
+    /// </summary>
+    public override Entity Clone(CloneContext context)
+    {
+        var cloned = new PlanEntity(
+            description: Description,
+            displayName: DisplayName,
+            sessionId: context.TargetSessionId)
+        {
+            Status = Status,
+            Steps = new List<PlanStep>(Steps),
+            CurrentStepIndex = CurrentStepIndex,
+            LastUpdatedAt = LastUpdatedAt,
+            IsInPlanMode = IsInPlanMode,
+            PlanFilePath = PlanFilePath,
+            WasEditedByUser = WasEditedByUser
+        };
+        context.Map(ObjectId, cloned.ObjectId);
+        return cloned;
+    }
 }
 
 /// <summary>

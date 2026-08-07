@@ -13,8 +13,8 @@ public sealed class BuildEntity : Entity
 
     public static BuildEntityRegistry Registry { get; } = new();
 
-    public BuildEntity(string? projectPath = null, string? configuration = null, string? displayName = null)
-        : base(ObjectType.Build, displayName ?? projectPath)
+    public BuildEntity(string? projectPath = null, string? configuration = null, string? displayName = null, ObjectId sessionId = default)
+        : base(ObjectType.Build, sessionId, displayName ?? projectPath)
     {
         ProjectPath = projectPath;
         Configuration = configuration;
@@ -41,8 +41,8 @@ public sealed class SandboxEntity : Entity
 
     public static SandboxEntityRegistry Registry { get; } = new();
 
-    public SandboxEntity(string? workingDirectory = null, string? displayName = null)
-        : base(ObjectType.Sandbox, displayName ?? workingDirectory)
+    public SandboxEntity(string? workingDirectory = null, string? displayName = null, ObjectId sessionId = default)
+        : base(ObjectType.Sandbox, sessionId, displayName ?? workingDirectory)
     {
         WorkingDirectory = workingDirectory;
         Registry.Add(ObjectId, this);
@@ -67,8 +67,8 @@ public sealed class RepoEntity : Entity
 
     public static RepoEntityRegistry Registry { get; } = new();
 
-    public RepoEntity(string? repoPath = null, string? displayName = null)
-        : base(ObjectType.Repo, displayName ?? repoPath)
+    public RepoEntity(string? repoPath = null, string? displayName = null, ObjectId sessionId = default)
+        : base(ObjectType.Repo, sessionId, displayName ?? repoPath)
     {
         RepoPath = repoPath;
         Registry.Add(ObjectId, this);
@@ -96,8 +96,8 @@ public sealed class ShellTaskEntity : Entity
 
     public static ShellTaskEntityRegistry Registry { get; } = new();
 
-    public ShellTaskEntity(string? command = null, string? displayName = null)
-        : base(ObjectType.ShellCommand, displayName ?? command)
+    public ShellTaskEntity(string? command = null, string? displayName = null, ObjectId sessionId = default)
+        : base(ObjectType.ShellCommand, sessionId, displayName ?? command)
     {
         Command = command;
         Registry.Add(ObjectId, this);
@@ -124,8 +124,8 @@ public sealed class PermissionRequestEntity : Entity
 
     public static PermissionRequestEntityRegistry Registry { get; } = new();
 
-    public PermissionRequestEntity(string? toolName = null, string? requestedAction = null, string? displayName = null)
-        : base(ObjectType.Request, displayName ?? toolName)
+    public PermissionRequestEntity(string? toolName = null, string? requestedAction = null, string? displayName = null, ObjectId sessionId = default)
+        : base(ObjectType.Request, sessionId, displayName ?? toolName)
     {
         ToolName = toolName;
         RequestedAction = requestedAction;
@@ -153,8 +153,8 @@ public sealed class NotificationEntity : Entity
 
     public static NotificationEntityRegistry Registry { get; } = new();
 
-    public NotificationEntity(string? message = null, string? category = null, string? displayName = null)
-        : base(ObjectType.Notification, displayName ?? message)
+    public NotificationEntity(string? message = null, string? category = null, string? displayName = null, ObjectId sessionId = default)
+        : base(ObjectType.Notification, sessionId, displayName ?? message)
     {
         Message = message;
         Category = category;

@@ -26,4 +26,5 @@ public enum ObjectType
     [EnumValue("shellcommand")] ShellCommand = 16,
     [EnumValue("executor")] Executor = 17,
     [EnumValue("service")] Service = 18,
+    [EnumValue("cache")] Cache = 19,
 }

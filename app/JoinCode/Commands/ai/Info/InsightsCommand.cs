@@ -193,7 +193,7 @@ public sealed class InsightsCommand : ChatCommandBase
 
             // Step 3: Facet 提取（带缓存）
             TerminalHelper.WriteLine("正在提取会话 Facet...");
-            var facets = await ExtractFacetsAsync(sessions, facetCache, context).ConfigureAwait(false);
+            var facets = await ExtractFacetsAsync(sessions, facetCache, context, context.Services.ServiceProvider?.GetService<ILogger<InsightsCommand>>()).ConfigureAwait(false);
 
             // Step 4: 聚合 Facet
             var facetSummary = facets.Count > 0 ? FacetAggregator.Aggregate(facets) : null;
@@ -257,7 +257,7 @@ public sealed class InsightsCommand : ChatCommandBase
 
             // Step 3: Facet 提取（带缓存）
             TerminalHelper.WriteLine("正在提取会话 Facet...");
-            var facets = await ExtractFacetsAsync(sessions, facetCache, context).ConfigureAwait(false);
+            var facets = await ExtractFacetsAsync(sessions, facetCache, context, context.Services.ServiceProvider?.GetService<ILogger<InsightsCommand>>()).ConfigureAwait(false);
             var facetSummary = facets.Count > 0 ? FacetAggregator.Aggregate(facets) : null;
 
             // Step 4: Multi-Clauding 检测
@@ -307,7 +307,8 @@ public sealed class InsightsCommand : ChatCommandBase
     private static async Task<List<SessionFacets>> ExtractFacetsAsync(
         IReadOnlyList<InsightSessionMeta> sessions,
         IFacetCacheService? facetCache,
-        ChatCommandContext context)
+        ChatCommandContext context,
+        ILogger? logger = null)
     {
         var facets = new List<SessionFacets>();
         var chatService = context.Services.ChatService;
@@ -331,7 +332,7 @@ public sealed class InsightsCommand : ChatCommandBase
                 catch (Exception ex)
                 {
                     // 缓存读取失败，继续提取
-                    System.Diagnostics.Trace.WriteLine($"Facet缓存读取失败: {ex.Message}");
+                    logger?.LogWarning(ex, "Facet缓存读取失败");
                 }
             }
 
@@ -344,7 +345,7 @@ public sealed class InsightsCommand : ChatCommandBase
                 // 长会话摘要 — 对齐 TS: >30000 字符时分块摘要
                 if (transcriptText.Length > 30000)
                 {
-                    transcriptText = await SummarizeLongTranscriptAsync(transcriptText, chatService, context.CancellationToken).ConfigureAwait(false);
+                    transcriptText = await SummarizeLongTranscriptAsync(transcriptText, chatService, context.CancellationToken, logger).ConfigureAwait(false);
                 }
 
                 var prompt = InsightPrompts.BuildFacetExtractionPrompt(transcriptText);
@@ -365,7 +366,7 @@ public sealed class InsightsCommand : ChatCommandBase
                         catch (Exception ex2)
                         {
                             // 缓存保存失败不影响主流程
-                            System.Diagnostics.Trace.WriteLine($"Facet缓存保存失败: {ex2.Message}");
+                            logger?.LogWarning(ex2, "Facet缓存保存失败");
                         }
                     }
                 }
@@ -374,7 +375,7 @@ public sealed class InsightsCommand : ChatCommandBase
             catch (Exception ex)
             {
                 // 单个会话 Facet 提取失败不影响其他会话
-                System.Diagnostics.Trace.WriteLine($"Facet提取失败: {ex.Message}");
+                logger?.LogWarning(ex, "Facet提取失败");
             }
         }
 
@@ -426,7 +427,8 @@ public sealed class InsightsCommand : ChatCommandBase
     private static async Task<string> SummarizeLongTranscriptAsync(
         string transcriptText,
         IChatService chatService,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        ILogger? logger = null)
     {
         const int chunkSize = 25000;
         var chunks = new List<string>();
@@ -458,7 +460,7 @@ public sealed class InsightsCommand : ChatCommandBase
             catch (Exception ex)
             {
                 // 单个块摘要失败不影响其他块
-                System.Diagnostics.Trace.WriteLine($"会话摘要块处理失败: {ex.Message}");
+                logger?.LogWarning(ex, "会话摘要块处理失败");
             }
         }
 

@@ -73,8 +73,9 @@ public sealed class RegisterAttributeAnalyzer : DiagnosticAnalyzer
         if (hasExplicitType)
             return; // 已显式指定，不需要检查
 
-        // 统计业务接口数量（排除 IDisposable/IAsyncDisposable 和管道接口）
-        var businessInterfaces = typeSymbol.AllInterfaces
+        // 统计业务接口数量 — 只看类直接声明的接口(Interfaces), 不看从基类继承的(AllInterfaces)
+        // 基类继承的接口(如 Entity 的 ICloneableEntity/IDisposable)不算派生类的业务接口
+        var businessInterfaces = typeSymbol.Interfaces
             .Where(i => i.Name != "IDisposable" && i.Name != "IAsyncDisposable")
             .Where(i => !i.ToDisplayString().Contains("IMiddleware<") && !i.ToDisplayString().Contains("IStreamMiddleware<"))
             .ToList();

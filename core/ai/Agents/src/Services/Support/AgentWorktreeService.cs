@@ -483,6 +483,12 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
     }
 
     public async ValueTask DisposeAsync() {
+        foreach (var kvp in _sessions)
+        {
+            try { await RemoveAgentWorktreeAsync(kvp.Key, force: true).ConfigureAwait(false); }
+            catch (Exception ex) { _logger?.LogDebug(ex, "DisposeAsync 清理 worktree 会话 {AgentId} 失败", kvp.Key); }
+        }
+        _sessions.Clear();
         _sessionLock.Dispose();
     }
 

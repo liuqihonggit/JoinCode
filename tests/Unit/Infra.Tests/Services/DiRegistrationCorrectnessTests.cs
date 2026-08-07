@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using System.Reflection;
 using JoinCode.Abstractions.Attributes;
 
@@ -5,10 +6,32 @@ namespace Infra.Tests;
 
 /// <summary>
 /// DI 注册正确性测试 — 检测 [Register] 特性是否正确指定接口类型
-/// 新规则: [Register] 无参数时自动发现接口(排除IDisposable)，多接口时需显式指定
+/// 新规则: [Register] 无参数时自动发现接口(排除能力接口)，多服务接口时需显式指定
 /// </summary>
 public sealed class DiRegistrationCorrectnessTests
 {
+    /// <summary>
+    /// 能力接口集合 — 这些接口是 .NET 基础接口或框架内部能力标记，不用于 DI 服务注册
+    /// 新增能力接口时只需在此集合添加一行全名
+    /// </summary>
+    private static readonly FrozenSet<string> s_capabilityInterfaceNames = new[]
+    {
+        "System.IDisposable",
+        "System.IAsyncDisposable",
+        "System.ICloneable",
+        "System.IEquatable`1",
+        "JoinCode.Abstractions.Entity.ICloneableEntity",
+    }.ToFrozenSet();
+
+    /// <summary>
+    /// 管道接口前缀 — 这些接口的泛型定义以此前缀开头，属于框架管道能力，不用于 DI 服务注册
+    /// </summary>
+    private static readonly FrozenSet<string> s_pipelineInterfacePrefixes = new[]
+    {
+        "JoinCode.Abstractions.Pipeline.IMiddleware",
+        "JoinCode.Abstractions.Pipeline.IStreamMiddleware",
+    }.ToFrozenSet();
+
     /// <summary>
     /// 检测 Contracts 程序集中所有标记了 [Register] 但未指定 typeof(IInterface) 且实现多个业务接口的类
     /// 这些类应该使用 [Register(typeof(IFoo), typeof(IBar))] 显式指定
@@ -59,13 +82,9 @@ public sealed class DiRegistrationCorrectnessTests
                 {
                     if (attr.InterfaceType is not null) continue;
 
-                    // [Register] 无参数: 自动发现接口是允许的，但多接口时需要显式指定
+                    // [Register] 无参数: 自动发现接口是允许的，但多服务接口时需要显式指定
                     var businessInterfaces = type.GetInterfaces()
-                        .Where(i => i != typeof(IDisposable) && i != typeof(IAsyncDisposable))
-                        .Where(i => !i.IsGenericType || i.GetGenericTypeDefinition() != typeof(IEquatable<>))
-                        // 排除管道接口
-                        .Where(i => !i.IsGenericType || !i.GetGenericTypeDefinition().FullName?.StartsWith("JoinCode.Abstractions.Pipeline.IMiddleware") == true)
-                        .Where(i => !i.IsGenericType || !i.GetGenericTypeDefinition().FullName?.StartsWith("JoinCode.Abstractions.Pipeline.IStreamMiddleware") == true)
+                        .Where(IsServiceInterface)
                         .ToList();
 
                     if (businessInterfaces.Count > 1)
@@ -82,5 +101,24 @@ public sealed class DiRegistrationCorrectnessTests
         }
 
         return buggyTypes;
+    }
+
+    /// <summary>
+    /// 判断接口是否为服务接口（用于 DI 注册），排除能力接口和管道接口
+    /// </summary>
+    private static bool IsServiceInterface(Type interfaceType)
+    {
+        // 能力接口按全名匹配
+        var name = interfaceType.IsGenericType
+            ? interfaceType.GetGenericTypeDefinition().FullName
+            : interfaceType.FullName;
+        if (name is not null && s_capabilityInterfaceNames.Contains(name))
+            return false;
+
+        // 管道接口按前缀匹配
+        if (name is not null && s_pipelineInterfacePrefixes.Any(p => name.StartsWith(p)))
+            return false;
+
+        return true;
     }
 }

@@ -26,8 +26,9 @@ public sealed class CronTaskEntity : Entity
         bool isPermanent = false,
         bool isDurable = true,
         ObjectId? agentObjectId = default,
-        string? displayName = null)
-        : base(ObjectType.Cron, displayName ?? prompt)
+        string? displayName = null,
+        ObjectId sessionId = default)
+        : base(ObjectType.Cron, sessionId, displayName ?? prompt)
     {
         CronExpression = cronExpression;
         Prompt = prompt;

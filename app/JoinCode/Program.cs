@@ -8,6 +8,7 @@ class Program
     static async Task<int> Main(string[] args)
     {
         Cli.TerminalHelper.Init();
+        ILogger<Program>? logger = null;
         try
         {
             // 1. 本地化
@@ -70,7 +71,7 @@ class Program
                 Diag.DiagnosticLineWritten += async (_, line) =>
                 {
                     try { await doctorClient.SendTextEventAsync("diag_output", line).ConfigureAwait(false); }
-                    catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"[Doctor] 发送遥测失败: {ex.Message}"); }
+                    catch (Exception ex) { logger?.LogWarning(ex, "[Doctor] 发送遥测失败"); }
                 };
 
                 doctorClient.CommandReceived += (_, command) =>
@@ -82,7 +83,7 @@ class Program
             }
 
             // 3.5 --await N: 启动超时计时器，N秒后强制退出返回1234（用于诊断卡死）
-            using var awaitTimer = StartAwaitTimer(options);
+            using var awaitTimer = StartAwaitTimer(options, logger);
 
             var fs = IO.FileSystem.FileSystemFactory.Create();
 
@@ -100,6 +101,8 @@ class Program
                 .UseModule<App.Modules.McpInitModule>();
 
             var host = builder.BuildHost(config, options);
+
+            logger = host.Services.GetService<ILogger<Program>>();
 
             await builder.ConfigureModulesAsync(host.Services);
 
@@ -121,7 +124,7 @@ class Program
                             var data = $"{{\"tool\":\"{e.ToolName}\",\"isError\":{e.IsError.ToString().ToLowerInvariant()}}}";
                             await doctorClient.SendTextEventAsync(eventType, data).ConfigureAwait(false);
                         }
-                        catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"[Doctor] 发送工具遥测失败: {ex.Message}"); }
+                        catch (Exception ex) { logger?.LogWarning(ex, "[Doctor] 发送工具遥测失败"); }
                     };
                 }
             }
@@ -163,14 +166,14 @@ class Program
         catch (Exception ex) when (ex is OutOfMemoryException or TypeInitializationException)
         {
             // P2-7: 不可恢复异常 — 记录日志后 rethrow 让进程崩溃（继续运行可能损坏数据）
-            WriteErrorLog(ex, fatal: true);
+            WriteErrorLog(ex, fatal: true, logger);
             throw;
         }
         catch (Exception ex)
         {
             // 通用异常 — 记录日志并友好提示
             // 视角2 #27: 使用 ErrorConsole.Fatal 渲染（红色致命错误 + 图标）
-            var errorLog = WriteErrorLog(ex);
+            var errorLog = WriteErrorLog(ex, logger: logger);
 
             Cli.TerminalHelper.Init();
             App.ErrorConsole.Fatal(ex.Message);
@@ -186,7 +189,7 @@ class Program
     /// <param name="ex">异常对象</param>
     /// <param name="fatal">是否为致命异常（标记 [FATAL] 前缀）</param>
     /// <returns>错误日志文件路径</returns>
-    private static string WriteErrorLog(Exception ex, bool fatal = false)
+    private static string WriteErrorLog(Exception ex, bool fatal = false, ILogger? logger = null)
     {
         var errorLog = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "jcc_error.log");
         var prefix = fatal ? "[FATAL] " : string.Empty;
@@ -198,7 +201,7 @@ class Program
         catch (Exception logEx)
         {
             // 写入日志失败不应影响主流程 — 记录到跟踪监听器
-            System.Diagnostics.Trace.WriteLine($"写入错误日志失败: {logEx.Message}");
+            logger?.LogWarning(logEx, "写入错误日志失败");
         }
         return errorLog;
     }
@@ -215,7 +218,7 @@ class Program
     /// 进程卡死。详见 <c>docs/AI交互文档/MockServer测试问题清单.md</c> P2-1。
     /// 启动时的日志 + ExitCode=1234 已足够诊断超时触发。
     /// </remarks>
-    private static System.Threading.Timer? StartAwaitTimer(CommandLineOptions options)
+    private static System.Threading.Timer? StartAwaitTimer(CommandLineOptions options, ILogger? logger = null)
     {
         if (options.AwaitTimeoutSeconds is not { } seconds || seconds <= 0)
             return null;
@@ -237,7 +240,7 @@ class Program
                 catch (Exception logEx)
                 {
                     // 诊断日志失败不影响超时退出
-                    System.Diagnostics.Trace.WriteLine($"写入 --await 超时日志失败: {logEx.Message}");
+                    logger?.LogWarning(logEx, "写入 --await 超时日志失败");
                 }
 
                 Environment.Exit(1234);

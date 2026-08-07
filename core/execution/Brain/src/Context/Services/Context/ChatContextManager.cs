@@ -57,6 +57,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     private readonly DiscoveredToolSet _discoveredTools = new();
     private readonly List<DeferredToolInfo> _deferredTools = [];
     private string _previousDynamicHash = string.Empty;
+    private List<ApiMessage>? _cachedSystemMessages;
     private int _deferredFoldCount;
     private int _consecutiveNoProgressFolds;
 
@@ -94,6 +95,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
             {
                 _staticSystemPrompt = systemPrompt ?? string.Empty;
                 _dynamicSystemMessages.Clear();
+                _cachedSystemMessages = null;
                 _conversationLog.CompactInPlace([]);
 
                 if (chatHistory is { Count: > 0 })
@@ -105,6 +107,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
                             if (string.IsNullOrWhiteSpace(_staticSystemPrompt))
                             {
                                 _staticSystemPrompt = msg.Content ?? string.Empty;
+                                _cachedSystemMessages = null;
                             }
                             continue;
                         }
@@ -339,6 +342,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         try
         {
             _dynamicSystemMessages.Add(content);
+            _cachedSystemMessages = null;
             _logger.LogDebug("已添加动态系统消息，当前动态消息数: {Count}", _dynamicSystemMessages.Count);
         }
         finally
@@ -356,6 +360,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         try
         {
             _dynamicSystemMessages.Clear();
+            _cachedSystemMessages = null;
             _logger.LogDebug("已清空动态系统消息");
         }
         finally
@@ -374,6 +379,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         {
             _conversationLog.CompactInPlace([]);
             _dynamicSystemMessages.Clear();
+            _cachedSystemMessages = null;
 
             _logger.LogInformation("聊天消息已清空，保留静态系统提示词");
         }
@@ -394,6 +400,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         try
         {
             _staticSystemPrompt = systemPrompt;
+            _cachedSystemMessages = null;
             _logger.LogInformation("静态系统提示词已更新，长度: {Len}", _staticSystemPrompt.Length);
         }
         finally
@@ -683,6 +690,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
             var removed = _conversationLog.Count;
             _conversationLog.CompactInPlace([]);
             _dynamicSystemMessages.Clear();
+            _cachedSystemMessages = null;
 
             _logger.LogInformation("撤回到会话初始状态 (SP-0)，移除 {Count} 条消息，前缀保留", removed);
 
@@ -840,29 +848,8 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     {
         var messages = new List<ApiMessage>();
 
-        if (!string.IsNullOrWhiteSpace(_staticSystemPrompt))
-        {
-            messages.Add(new ApiMessage(MessageRole.System, _staticSystemPrompt));
-        }
-
-        var dynamicContent = string.Join("\n", _dynamicSystemMessages);
-        var currentDynamicHash = string.IsNullOrEmpty(dynamicContent)
-            ? string.Empty
-            : ContentHash.Compute(dynamicContent);
-        var dynamicChanged = currentDynamicHash != _previousDynamicHash;
-        _previousDynamicHash = currentDynamicHash;
-
-        foreach (var dynamicMsg in _dynamicSystemMessages)
-        {
-            if (dynamicChanged)
-            {
-                messages.Add(new ApiMessage(MessageRole.System, dynamicMsg, CacheBreakMarker.Create()));
-            }
-            else
-            {
-                messages.Add(new ApiMessage(MessageRole.System, dynamicMsg));
-            }
-        }
+        var systemMessages = GetOrCreateCachedSystemMessages();
+        messages.AddRange(systemMessages);
 
         foreach (var msg in _conversationLog.ToMessages())
         {
@@ -870,5 +857,44 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         }
 
         return messages;
+    }
+
+    /// <summary>
+    /// 获取或创建缓存的系统消息列表 — 动态消息未变时复用缓存，避免每轮重建 ApiMessage
+    /// </summary>
+    private List<ApiMessage> GetOrCreateCachedSystemMessages()
+    {
+        var dynamicContent = string.Join("\n", _dynamicSystemMessages);
+        var currentDynamicHash = string.IsNullOrEmpty(dynamicContent)
+            ? string.Empty
+            : ContentHash.Compute(dynamicContent);
+        var dynamicChanged = currentDynamicHash != _previousDynamicHash;
+        _previousDynamicHash = currentDynamicHash;
+
+        if (!dynamicChanged && _cachedSystemMessages is not null)
+        {
+            return _cachedSystemMessages;
+        }
+
+        var systemMessages = new List<ApiMessage>();
+        if (!string.IsNullOrWhiteSpace(_staticSystemPrompt))
+        {
+            systemMessages.Add(new ApiMessage(MessageRole.System, _staticSystemPrompt));
+        }
+
+        foreach (var dynamicMsg in _dynamicSystemMessages)
+        {
+            if (dynamicChanged)
+            {
+                systemMessages.Add(new ApiMessage(MessageRole.System, dynamicMsg, CacheBreakMarker.Create()));
+            }
+            else
+            {
+                systemMessages.Add(new ApiMessage(MessageRole.System, dynamicMsg));
+            }
+        }
+
+        _cachedSystemMessages = dynamicChanged ? null : systemMessages;
+        return systemMessages;
     }
 }

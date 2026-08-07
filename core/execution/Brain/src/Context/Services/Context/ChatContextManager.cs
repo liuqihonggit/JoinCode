@@ -609,6 +609,22 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
                 _consecutiveNoProgressFolds++;
             }
 
+            // L5 兜底：折叠/剪裁后仍超 EmergencyThreshold → 抛 ContextOverflowException
+            if ((foldResult.Folded || snip.Results > 0) && decision is not ContextFoldDecision.None)
+            {
+                var postFoldTokens = ContextFoldDecider.EstimateTokenCount(
+                    _conversationLog.ToMessages(), _currentToolSpecs, _thresholds);
+                var ctxMax = _contextWindowResolver.ResolveCurrentContextWindow();
+                if (postFoldTokens > ctxMax * _thresholds.EmergencyThreshold)
+                {
+                    _logger?.LogError("上下文溢出：折叠后 {Tokens} token 仍超过紧急阈值 {Threshold} token（ctxMax={CtxMax}）",
+                        postFoldTokens, (int)(ctxMax * _thresholds.EmergencyThreshold), ctxMax);
+                    throw new ContextOverflowException(
+                        $"上下文溢出：折叠后 {postFoldTokens} token 仍超过紧急阈值 {(int)(ctxMax * _thresholds.EmergencyThreshold)} token",
+                        ctxMax, postFoldTokens);
+                }
+            }
+
             return foldResult;
         }
         finally

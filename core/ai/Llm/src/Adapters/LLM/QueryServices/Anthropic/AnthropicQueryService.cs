@@ -594,7 +594,10 @@ public sealed class AnthropicQueryService : QueryServiceBase
         var messageId = string.Empty;
         var modelName = string.Empty;
         var toolCallAccumulator = new Dictionary<int, (string Id, string Name, StringBuilder Arguments)>();
-        var serverToolUseTracker = new Dictionary<int, (string ToolUseId, string? LastQuery, StringBuilder JsonBuilder)>();
+        var serverToolUseTracker = new Dictionary<int, (string ToolUseId, string? LastQuery, StringBuilder JsonBuilder, int LastExtractionLength)>();
+
+        FrozenDictionary<string, JsonElement>? textDeltaMetadata = null;
+        FrozenDictionary<string, JsonElement>? thinkingDeltaMetadata = null;
 
         string? line;
         while ((line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) != null)
@@ -629,6 +632,20 @@ public sealed class AnthropicQueryService : QueryServiceBase
                     {
                         messageId = evt.Message.Id;
                         modelName = evt.Message.Model;
+
+                        var idElement = JsonElementHelper.FromString(messageId);
+                        var modelElement = JsonElementHelper.FromString(modelName);
+                        textDeltaMetadata = new Dictionary<string, JsonElement>
+                        {
+                            ["Id"] = idElement,
+                            ["Model"] = modelElement
+                        }.ToFrozenDictionary();
+                        thinkingDeltaMetadata = new Dictionary<string, JsonElement>
+                        {
+                            ["Id"] = idElement,
+                            ["Model"] = modelElement,
+                            ["thinking_content"] = JsonElementHelper.FromBoolean(true)
+                        }.ToFrozenDictionary();
                     }
                     break;
 
@@ -647,7 +664,7 @@ public sealed class AnthropicQueryService : QueryServiceBase
                         else if (evt.ContentBlock.Type == AnthropicContentBlockType.ServerToolUse)
                         {
                             var serverToolUseId = evt.ContentBlock.Id ?? "";
-                            serverToolUseTracker[idx] = (serverToolUseId, null, new StringBuilder());
+                            serverToolUseTracker[idx] = (serverToolUseId, null, new StringBuilder(), 0);
 
                             var metadata = new Dictionary<string, JsonElement>
                             {
@@ -708,22 +725,11 @@ public sealed class AnthropicQueryService : QueryServiceBase
 
                         if (delta.Type == AnthropicDeltaType.ThinkingDelta && delta.Thinking != null)
                         {
-                            var metadata = new Dictionary<string, JsonElement>
-                            {
-                                ["Id"] = JsonElementHelper.FromString(messageId),
-                                ["Model"] = JsonElementHelper.FromString(modelName),
-                                ["thinking_content"] = JsonElementHelper.FromBoolean(true)
-                            };
-                            yield return new StreamEvent(MessageRole.Assistant, delta.Thinking, modelName, metadata);
+                            yield return new StreamEvent(MessageRole.Assistant, delta.Thinking, modelName, thinkingDeltaMetadata);
                         }
                         else if (delta.Type == AnthropicDeltaType.TextDelta && delta.Text != null)
                         {
-                            var metadata = new Dictionary<string, JsonElement>
-                            {
-                                ["Id"] = JsonElementHelper.FromString(messageId),
-                                ["Model"] = JsonElementHelper.FromString(modelName)
-                            };
-                            yield return new StreamEvent(MessageRole.Assistant, delta.Text, modelName, metadata);
+                            yield return new StreamEvent(MessageRole.Assistant, delta.Text, modelName, textDeltaMetadata);
                         }
                         else if (delta.Type == AnthropicDeltaType.InputJsonDelta && delta.PartialJson != null)
                         {
@@ -735,30 +741,34 @@ public sealed class AnthropicQueryService : QueryServiceBase
                             if (serverToolUseTracker.TryGetValue(idx, out var tracker))
                             {
                                 tracker.JsonBuilder.Append(delta.PartialJson);
-                                var partialJson = tracker.JsonBuilder.ToString();
 
-                                var queryMatch = System.Text.RegularExpressions.Regex.Match(
-                                    partialJson, @"""query""\s*:\s*""((?:[^""\\]|\\.)*)""");
-                                if (queryMatch.Success)
+                                if (tracker.JsonBuilder.Length - tracker.LastExtractionLength >= 50)
                                 {
-                                    var extractedQuery = queryMatch.Groups[1].Value;
-                                    extractedQuery = extractedQuery.Replace("\\\"", "\"")
-                                        .Replace("\\\\", "\\")
-                                        .Replace("\\n", "\n");
+                                    var partialJson = tracker.JsonBuilder.ToString();
 
-                                    if (extractedQuery != tracker.LastQuery)
+                                    var queryMatch = System.Text.RegularExpressions.Regex.Match(
+                                        partialJson, @"""query""\s*:\s*""((?:[^""\\]|\\.)*)""");
+                                    if (queryMatch.Success)
                                     {
-                                        serverToolUseTracker[idx] = (tracker.ToolUseId, extractedQuery, tracker.JsonBuilder);
-                                        var queryUpdateMetadata = new Dictionary<string, JsonElement>
+                                        var extractedQuery = queryMatch.Groups[1].Value;
+                                        extractedQuery = extractedQuery.Replace("\\\"", "\"")
+                                            .Replace("\\\\", "\\")
+                                            .Replace("\\n", "\n");
+
+                                        if (extractedQuery != tracker.LastQuery)
                                         {
-                                            ["Id"] = JsonElementHelper.FromString(messageId),
-                                            ["Model"] = JsonElementHelper.FromString(modelName),
-                                            ["server_tool_use"] = JsonElementHelper.FromBoolean(true),
-                                            ["tool_use_id"] = JsonElementHelper.FromString(tracker.ToolUseId),
-                                            ["tool_name"] = JsonElementHelper.FromString("web_search"),
-                                            ["query_update"] = JsonElementHelper.FromString(extractedQuery)
-                                        };
-                                        yield return new StreamEvent(MessageRole.Assistant, string.Empty, modelName, queryUpdateMetadata);
+                                            serverToolUseTracker[idx] = (tracker.ToolUseId, extractedQuery, tracker.JsonBuilder, tracker.JsonBuilder.Length);
+                                            var queryUpdateMetadata = new Dictionary<string, JsonElement>
+                                            {
+                                                ["Id"] = JsonElementHelper.FromString(messageId),
+                                                ["Model"] = JsonElementHelper.FromString(modelName),
+                                                ["server_tool_use"] = JsonElementHelper.FromBoolean(true),
+                                                ["tool_use_id"] = JsonElementHelper.FromString(tracker.ToolUseId),
+                                                ["tool_name"] = JsonElementHelper.FromString("web_search"),
+                                                ["query_update"] = JsonElementHelper.FromString(extractedQuery)
+                                            };
+                                            yield return new StreamEvent(MessageRole.Assistant, string.Empty, modelName, queryUpdateMetadata);
+                                        }
                                     }
                                 }
                             }

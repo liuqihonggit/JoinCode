@@ -210,6 +210,10 @@ public static class ContextFoldDecider
         var messages = log.ToMessages();
         if (messages.Count == 0) return new SnipStats();
 
+        // L4 prune 门槛：PruneMinimumTokens 按 ctxMax 比例缩放，避免小上下文场景门槛过高
+        var pruneMinTokens = Math.Min(t.PruneMinimumTokens, ctxMax / 10);
+        var minSnipChars = Math.Max(t.MinSnipChars, pruneMinTokens * t.CharsPerToken);
+
         var boundary = ComputeTailBoundary(messages, ctxMax, aggressive: false, t);
 
         // 兜底：末条消息单独超预算时 ComputeTailBoundary 归零（整个日志被视作保护区）。
@@ -229,7 +233,7 @@ public static class ContextFoldDecider
         {
             var msg = messages[i];
             if (i < boundary && msg.Role == MessageRole.Tool
-                && (msg.Content?.Length ?? 0) >= t.MinSnipChars
+                && (msg.Content?.Length ?? 0) >= minSnipChars
                 && msg.ContentBlocks is null or { Count: 0 }
                 && !IsSnipped(msg))
             {

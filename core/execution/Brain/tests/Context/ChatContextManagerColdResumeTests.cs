@@ -41,13 +41,13 @@ public sealed class ChatContextManagerColdResumeTests
     }
 
     /// <summary>
-    /// 构造带过期大工具结果的历史：静态前缀 + [Tool(5000 chars), User recent]。
+    /// 构造带过期大工具结果的历史：静态前缀 + [Tool(100000 chars), User recent]。
     /// </summary>
     private void SetupHistoryWithStaleToolResult()
     {
         var savedHistory = new MessageList();
         var big = new StringBuilder();
-        for (var i = 0; i < 5000; i++)
+        for (var i = 0; i < 100_000; i++)
             big.Append((char)('a' + i % 26));
 
         savedHistory.Add(new ApiMessage(MessageRole.Tool, big.ToString(),

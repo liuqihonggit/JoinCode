@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>JoinCode.Pipelines</RootNamespace>
+    <AssemblyName>JoinCode.Pipelines</AssemblyName>
+    <PackageId>JoinCode.Pipelines</PackageId>
+    <Description>JoinCode Pipelines — 共享中间件管道注册，供 CLI 与 GUI 宿主统一复用，消除两套管道注册漂移</Description>
+    <NoWarn>$(NoWarn);IL2026;IL3050;NU5104</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)composition\Composition\src\Composition.csproj" />
+    <ProjectReference Include="$(RepoRoot)services\Dream\src\Dream.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="$(MicrosoftExtensionsVersion)" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="$(MicrosoftExtensionsVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="JoinCode.Pipelines.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Host.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Gui.Tests" />
+  </ItemGroup>
+
+</Project>

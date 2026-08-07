@@ -398,4 +398,30 @@ public abstract class SystemActuatorBase : ToolExecutionEntity, ISystemActuator
     }
 
     #endregion
+
+    #region 跨会话克隆 — 执行器是服务组件，不应跨会话克隆
+
+    /// <summary>
+    /// 执行器是可复用的服务组件（持有 IFileSystem/ILogger 等依赖），不是数据实体
+    /// 跨会话时应通过 SystemActuatorRegistry.Get() 在目标会话创建新实例，而非克隆
+    /// </summary>
+    public override Entity Clone(CloneContext context)
+        => throw new NotSupportedException(
+            $"{GetType().Name} 是服务执行器组件，不应跨会话克隆。" +
+            $"请在新会话中通过 SystemActuatorRegistry.Get(Kind) 创建新实例。");
+
+    /// <summary>
+    /// 回收判定 — 执行器是服务组件，放宽条件：非 Disposed 且超过 5 分钟无活动即可回收
+    /// 避免每次 Registry.Get() 创建的执行器实例在 SessionScope 中无限堆积
+    /// </summary>
+    public override bool CanReclaim()
+    {
+        return LifecycleState != EntityLifecycle.Disposed
+            && DateTime.UtcNow - LastActivityAt > SystemActuatorReclaimTimeout;
+    }
+
+    /// <summary>执行器回收超时 — 5 分钟无活动</summary>
+    private static readonly TimeSpan SystemActuatorReclaimTimeout = TimeSpan.FromMinutes(5);
+
+    #endregion
 }

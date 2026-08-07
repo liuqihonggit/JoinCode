@@ -275,4 +275,64 @@ public sealed class OutputLoopDetectorTests
     {
         Assert.Equal(0, LoopDetectionResult.NoLoop.LoopTriggerCount);
     }
+
+    [Fact]
+    public void Detect_StringBuilder_SameResult_As_String_Overload()
+    {
+        var pattern = "重复模式。";
+        var text = string.Concat(Enumerable.Repeat(pattern, 4));
+
+        var sbDetector = new OutputLoopDetector(minPatternLength: 5, checkInterval: 1, requiredRepeats: 3);
+        var strDetector = new OutputLoopDetector(minPatternLength: 5, checkInterval: 1, requiredRepeats: 3);
+
+        var sbResult = sbDetector.Detect(new StringBuilder(text));
+        var strResult = strDetector.Detect(text);
+
+        Assert.Equal(strResult.IsLoopDetected, sbResult.IsLoopDetected);
+        Assert.Equal(strResult.RepeatCount, sbResult.RepeatCount);
+    }
+
+    [Fact]
+    public void Detect_StringBuilder_Skips_ToString_When_Below_MinLength()
+    {
+        var detector = new OutputLoopDetector(
+            minPatternLength: 10, requiredRepeats: 3, checkInterval: 1);
+        var sb = new StringBuilder("短");
+
+        var result = detector.Detect(sb);
+
+        Assert.False(result.IsLoopDetected);
+    }
+
+    [Fact]
+    public void Detect_StringBuilder_Skips_ToString_When_Within_CheckInterval()
+    {
+        var detector = new OutputLoopDetector(
+            minPatternLength: 5, requiredRepeats: 3, checkInterval: 10);
+        var pattern = "重复模式。";
+        var text = string.Concat(Enumerable.Repeat(pattern, 4));
+
+        var result1 = detector.Detect(new StringBuilder(text));
+        Assert.True(result1.IsLoopDetected);
+
+        var result2 = detector.Detect(new StringBuilder(text + pattern));
+        Assert.False(result2.IsLoopDetected);
+    }
+
+    [Fact]
+    public void Detect_StringBuilder_After_Reset_Detects_Again()
+    {
+        var detector = new OutputLoopDetector(minPatternLength: 5, checkInterval: 1, requiredRepeats: 3);
+        var pattern = "重复模式。";
+        var text = string.Concat(Enumerable.Repeat(pattern, 4));
+
+        var sb = new StringBuilder(text);
+        var result1 = detector.Detect(sb);
+        Assert.True(result1.IsLoopDetected);
+
+        detector.Reset();
+
+        var result2 = detector.Detect(sb);
+        Assert.True(result2.IsLoopDetected);
+    }
 }

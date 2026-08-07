@@ -97,19 +97,26 @@ public class McpServer : IMcpServer
             var contentLength = int.Parse(line.AsSpan(JsonRpc.ContentLengthPrefix.Length).Trim());
             await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
 
-            var buffer = new char[contentLength];
-            var read = await reader.ReadAsync(buffer, 0, contentLength).ConfigureAwait(false);
-            var json = new string(buffer, 0, read);
-
-            var responseLsp = await ProcessMessageAsync(json, cancellationToken).ConfigureAwait(false);
-            if (responseLsp != null)
+            var buffer = System.Buffers.ArrayPool<char>.Shared.Rent(contentLength);
+            try
             {
-                var responseJson = McpJsonSerializer.Serialize(responseLsp);
-                var responseBytes = System.Text.Encoding.UTF8.GetBytes(responseJson);
-                await writer.WriteLineAsync($"Content-Length: {responseBytes.Length}").ConfigureAwait(false);
+                var read = await reader.ReadAsync(buffer, 0, contentLength).ConfigureAwait(false);
+                var json = new string(buffer, 0, read);
+
+                var responseLsp = await ProcessMessageAsync(json, cancellationToken).ConfigureAwait(false);
+                if (responseLsp != null)
+                {
+                    var responseJson = McpJsonSerializer.Serialize(responseLsp);
+                    var responseBytes = System.Text.Encoding.UTF8.GetBytes(responseJson);
+                    await writer.WriteLineAsync($"Content-Length: {responseBytes.Length}").ConfigureAwait(false);
                 await writer.WriteLineAsync().ConfigureAwait(false);
                 await writer.WriteAsync(responseJson).ConfigureAwait(false);
                 await writer.FlushAsync(cancellationToken).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                System.Buffers.ArrayPool<char>.Shared.Return(buffer);
             }
         }
     }

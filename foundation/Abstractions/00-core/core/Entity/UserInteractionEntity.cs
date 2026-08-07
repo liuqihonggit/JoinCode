@@ -19,4 +19,22 @@ public sealed class UserInteractionEntity : ToolExecutionEntity
     {
         Question = question;
     }
+
+    /// <summary>
+    /// 跨会话深拷贝 — 保留 Question/Response 等用户交互特有字段
+    /// </summary>
+    public override Entity Clone(CloneContext context)
+    {
+        var cloned = new UserInteractionEntity(
+            question: Question,
+            toolUseId: ToolUseId,
+            spanId: SpanId,
+            displayName: DisplayName,
+            sessionId: context.TargetSessionId)
+        {
+            Response = Response,
+        };
+        ApplyCloneState(cloned, context);
+        return cloned;
+    }
 }

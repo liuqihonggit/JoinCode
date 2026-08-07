@@ -22,12 +22,14 @@ public sealed class AppendOnlyLog
         foreach (var m in messages) Append(m);
     }
 
+    /// <summary>
+    /// 返回消息的只读视图 — 零分配，直接返回内部 List 引用
+    /// 安全性: AppendOnlyLog 是追加模式(只 Add 不修改已有条目)，且所有调用方只读不写
+    /// CompactInPlace/TrimLastTurn 不会在遍历期间执行(同一 async 流)
+    /// </summary>
     public IReadOnlyList<ApiMessage> ToMessages()
     {
-        return _entries.Select(e => new ApiMessage(e.Role, e.Content, e.Metadata, e.ModelId, e.TokenUsage)
-        {
-            ContentBlocks = e.ContentBlocks
-        }).ToList();
+        return _entries;
     }
 
     public void CompactInPlace(IReadOnlyList<ApiMessage> replacement)

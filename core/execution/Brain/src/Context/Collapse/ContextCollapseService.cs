@@ -351,7 +351,7 @@ public sealed partial class ContextCollapseService : ServiceEntity, IContextColl
     {
         var patterns = new List<PatternRange>();
         var lines = content.Split('\n');
-        var lineCounts = new Dictionary<string, List<int>>();
+        var lineCounts = new Dictionary<string, (int Count, int FirstLine, int LastLine)>();
 
         for (var i = 0; i < lines.Length; i++)
         {
@@ -359,17 +359,22 @@ public sealed partial class ContextCollapseService : ServiceEntity, IContextColl
             if (trimmed.Length < 10) continue;
 
             var key = trimmed.Length > 50 ? trimmed[..50] : trimmed;
-            if (!lineCounts.ContainsKey(key))
+            if (lineCounts.TryGetValue(key, out var existing))
             {
-                lineCounts[key] = new List<int>();
+                lineCounts[key] = (existing.Count + 1, existing.FirstLine, i);
             }
-            lineCounts[key].Add(i);
+            else
+            {
+                lineCounts[key] = (1, i, i);
+            }
         }
 
-        foreach (var kvp in lineCounts.Where(k => k.Value.Count >= 3))
+        foreach (var kvp in lineCounts)
         {
-            var firstLine = kvp.Value[0];
-            var lastLine = kvp.Value[^1];
+            if (kvp.Value.Count < 3) continue;
+
+            var firstLine = kvp.Value.FirstLine;
+            var lastLine = kvp.Value.LastLine;
             var startOffset = GetOffsetForLine(content, firstLine);
             var endOffset = GetOffsetForLine(content, lastLine) + lines[lastLine].Length;
 

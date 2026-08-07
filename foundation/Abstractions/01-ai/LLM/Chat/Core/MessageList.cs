@@ -14,6 +14,20 @@ public sealed class MessageList : IList<ApiMessage>, IReadOnlyList<ApiMessage>
         _messages = [.. messages];
     }
 
+    /// <summary>
+    /// 零拷贝工厂 — 直接接管传入的 List，不复制元素。
+    /// 调用方在此调用后不得再使用原 List 引用（所有权转移）。
+    /// </summary>
+    public static MessageList FromList(List<ApiMessage> messages)
+    {
+        return new MessageList(messages, owns: true);
+    }
+
+    private MessageList(List<ApiMessage> messages, bool owns)
+    {
+        _messages = messages;
+    }
+
     public ApiMessage this[int index]
     {
         get => _messages[index];

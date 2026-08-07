@@ -14,6 +14,7 @@ public static partial class ServiceRegistration
         services.AddSingleton<IGoalHeartbeat, GoalHeartbeat>();
         services.AddSingleton<IGoalGraphTemplateRegistry, GoalGraphTemplateRegistry>();
         services.AddSingleton<IGoalEngine, GoalEngine>();
+        services.AddSingleton<IAgentRunner>(static sp => (IAgentRunner)sp.GetRequiredService<IGoalEngine>());
         services.AddSingleton<IGoalEnginePostConfigure, GoalEnginePostConfigure>();
         return services;
     }

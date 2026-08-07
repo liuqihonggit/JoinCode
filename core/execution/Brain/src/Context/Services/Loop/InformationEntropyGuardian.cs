@@ -1,4 +1,5 @@
 using JoinCode.Abstractions.Attributes;
+using System.Text;
 
 namespace Core.Context;
 
@@ -24,6 +25,7 @@ public sealed class InformationEntropyGuardian : ServiceEntity, IOutputLoopDetec
     private string _sessionId = "";
     private int _conversationTurn;
     private int _toolCallCount;
+    private int _lastSbCheckLength;
 
     public InformationEntropyGuardian(
         OutputLoopDetector? outputLoopDetector = null,
@@ -95,6 +97,26 @@ public sealed class InformationEntropyGuardian : ServiceEntity, IOutputLoopDetec
 
         return LoopDetectionResult.NoLoop;
     }
+
+    /// <summary>
+    /// StringBuilder 重载 — 延迟 ToString() 直到通过最小长度和检查间隔门控。
+    /// 避免每 token 对累积文本执行 O(n) 的 StringBuilder.ToString()。
+    /// </summary>
+    public LoopDetectionResult Detect(StringBuilder accumulatedText)
+    {
+        var len = accumulatedText.Length;
+        if (len < MinDetectionLength)
+            return LoopDetectionResult.NoLoop;
+
+        if (len - _lastSbCheckLength < SbCheckInterval)
+            return LoopDetectionResult.NoLoop;
+
+        _lastSbCheckLength = len;
+        return Detect(accumulatedText.ToString());
+    }
+
+    private const int MinDetectionLength = 100;
+    private const int SbCheckInterval = 50;
 
     /// <summary>
     /// ILoopDetectionStrategy.CheckTextLoop — 串行漏斗: OutputLoop(廉价)→LogicFingerprint(中等)→ShannonEntropy(昂贵)
@@ -198,6 +220,7 @@ public sealed class InformationEntropyGuardian : ServiceEntity, IOutputLoopDetec
         _toolCallSequenceDetector.Reset();
         _shannonEntropyDetector.Reset();
         _journal.Reset();
+        _lastSbCheckLength = 0;
     }
 
     /// <summary>

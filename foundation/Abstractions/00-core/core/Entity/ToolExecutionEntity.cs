@@ -69,6 +69,32 @@ public class ToolExecutionEntity : Entity
     }
 
     protected override void OnDispose() => Registry.Remove(ObjectId);
+
+    /// <summary>
+    /// 跨会话深拷贝 — 新 ObjectId + 目标会话，深拷贝所有字段
+    /// SessionObjectId 通过 CloneContext 重映射，找不到则置 null（原 Session 未克隆时不抛异常）
+    /// </summary>
+    public override Entity Clone(CloneContext context)
+    {
+        var cloned = new ToolExecutionEntity(
+            toolName: ToolName,
+            toolUseId: ToolUseId,
+            spanId: SpanId,
+            displayName: DisplayName,
+            sessionId: context.TargetSessionId)
+        {
+            ArgumentsSummary = ArgumentsSummary,
+            ResultSummary = ResultSummary,
+            IsError = IsError,
+            SessionObjectId = context.RemapNullable(SessionObjectId),
+            LifecycleState = LifecycleState,
+            StartedAt = StartedAt,
+            CompletedAt = CompletedAt,
+            LastActivityAt = LastActivityAt,
+        };
+        context.Map(ObjectId, cloned.ObjectId);
+        return cloned;
+    }
 }
 
 /// <summary>

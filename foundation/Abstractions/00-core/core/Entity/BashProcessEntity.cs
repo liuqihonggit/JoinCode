@@ -39,6 +39,36 @@ public sealed class BashProcessEntity : ToolExecutionEntity
     {
         return base.CanReclaim() && ExitCode.HasValue;
     }
+
+    /// <summary>
+    /// 跨会话深拷贝 — 新 ObjectId + 目标会话，深拷贝进程特有字段 + 基类字段
+    /// ProcessId/Command/WorkingDirectory 原样拷贝（进程已结束，仅作历史记录）
+    /// </summary>
+    public override Entity Clone(CloneContext context)
+    {
+        var cloned = new BashProcessEntity(
+            processId: ProcessId,
+            command: Command,
+            workingDirectory: WorkingDirectory,
+            toolUseId: ToolUseId,
+            spanId: SpanId,
+            displayName: DisplayName,
+            sessionId: context.TargetSessionId)
+        {
+            ArgumentsSummary = ArgumentsSummary,
+            ResultSummary = ResultSummary,
+            IsError = IsError,
+            SessionObjectId = context.RemapNullable(SessionObjectId),
+            LifecycleState = LifecycleState,
+            StartedAt = StartedAt,
+            CompletedAt = CompletedAt,
+            LastActivityAt = LastActivityAt,
+            Status = Status,
+            ExitCode = ExitCode,
+        };
+        context.Map(ObjectId, cloned.ObjectId);
+        return cloned;
+    }
 }
 
 /// <summary>

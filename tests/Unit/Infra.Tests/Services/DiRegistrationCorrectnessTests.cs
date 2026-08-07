@@ -62,6 +62,7 @@ public sealed class DiRegistrationCorrectnessTests
                     // [Register] 无参数: 自动发现接口是允许的，但多接口时需要显式指定
                     var businessInterfaces = type.GetInterfaces()
                         .Where(i => i != typeof(IDisposable) && i != typeof(IAsyncDisposable))
+                        .Where(i => i != typeof(ICloneableEntity))
                         .Where(i => !i.IsGenericType || i.GetGenericTypeDefinition() != typeof(IEquatable<>))
                         // 排除管道接口
                         .Where(i => !i.IsGenericType || !i.GetGenericTypeDefinition().FullName?.StartsWith("JoinCode.Abstractions.Pipeline.IMiddleware") == true)

@@ -43,7 +43,7 @@ public sealed partial class ContentReplacementMiddleware : ServiceEntity, IQuery
         var neverPersistTools = context.Options?.NeverPersistTools;
 
         var (budgeted, newlyReplaced) = await contentReplacementService.ApplyToolResultBudgetAsync(
-            context.ChatHistory.ToList(), state, sessionId, neverPersistTools, ct).ConfigureAwait(false);
+            context.ChatHistory, state, sessionId, neverPersistTools, ct).ConfigureAwait(false);
 
         if (newlyReplaced.Count > 0)
         {

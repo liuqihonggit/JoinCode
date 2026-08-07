@@ -48,11 +48,22 @@ public sealed partial class ChatUsageProcessor : ServiceEntity, IChatUsageProces
         var foldDecision = _contextManager.DecideAfterUsage(usage);
         if (foldDecision != ContextFoldDecision.None)
         {
-            var foldResult = await _contextManager.FoldIfNeededAsync(foldDecision, ct).ConfigureAwait(false);
-            if (foldResult.Folded)
+            try
             {
-                _logger?.LogInformation("上下文折叠已执行: {Decision}, 原始 {Original} 条 → 保留 {Tail} 条 + 摘要",
-                    foldDecision, foldResult.OriginalMessageCount, foldResult.TailMessageCount);
+                var foldResult = await _contextManager.FoldIfNeededAsync(foldDecision, ct).ConfigureAwait(false);
+                if (foldResult.Folded)
+                {
+                    _logger?.LogInformation("上下文折叠已执行: {Decision}, 原始 {Original} 条 → 保留 {Tail} 条 + 摘要",
+                        foldDecision, foldResult.OriginalMessageCount, foldResult.TailMessageCount);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "上下文折叠失败（决策={Decision}），保留原始历史继续对话", foldDecision);
             }
         }
     }

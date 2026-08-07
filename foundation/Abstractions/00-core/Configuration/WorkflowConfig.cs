@@ -93,4 +93,9 @@ public class WorkflowConfig {
     /// 工具执行配置
     /// </summary>
     public ToolExecutionSettings ToolExecution { get; set; } = new();
+
+    /// <summary>
+    /// 子智能体输出防护配置 — L0-L3 炸窗防护
+    /// </summary>
+    public SubAgentConfig SubAgent { get; set; } = new();
 }

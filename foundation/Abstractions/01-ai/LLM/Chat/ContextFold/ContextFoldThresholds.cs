@@ -25,5 +25,15 @@ public sealed class ContextFoldThresholds
     /// </summary>
     public int RecentKeepTailMessages { get; init; } = 2;
 
+    /// <summary>
+    /// L4 prune 保护阈值（token）— 保护最近此 token 数的消息不被 prune，对齐 openCode prune protect 40k。
+    /// </summary>
+    public int PruneProtectTokens { get; init; } = 40_000;
+
+    /// <summary>
+    /// L4 prune 门槛（token）— 只 prune 超过此 token 数的过期工具结果，对齐 openCode prune minimum 20k。
+    /// </summary>
+    public int PruneMinimumTokens { get; init; } = 20_000;
+
     public static ContextFoldThresholds Default { get; } = new();
 }

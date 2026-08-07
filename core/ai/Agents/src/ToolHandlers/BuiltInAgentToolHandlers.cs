@@ -5,17 +5,35 @@ namespace Core.Agents.ToolHandlers;
 public partial class BuiltInAgentToolHandlers : ServiceEntity
 {
 
-    public BuiltInAgentToolHandlers(IAgentService agentService, IAgentRoleRegistry roleRegistry, ILogger<BuiltInAgentToolHandlers>? logger = null, ITelemetryService? telemetryService = null)
+    public BuiltInAgentToolHandlers(
+        IAgentService agentService,
+        IAgentRoleRegistry roleRegistry,
+        ILogger<BuiltInAgentToolHandlers>? logger = null,
+        ITelemetryService? telemetryService = null,
+        SubAgentOutputTruncator? outputTruncator = null,
+        SubAgentSummaryGenerator? summaryGenerator = null,
+        SubAgentConfig? subAgentConfig = null,
+        IChatContextManager? contextManager = null)
     {
         _agentService = agentService;
         _roleRegistry = roleRegistry;
         _logger = logger;
         _telemetryService = telemetryService;
+        _outputTruncator = outputTruncator;
+        _summaryGenerator = summaryGenerator;
+        _subAgentConfig = subAgentConfig;
+        _contextManager = contextManager;
     }
     [Inject] private readonly IAgentService _agentService;
     [Inject] private readonly IAgentRoleRegistry _roleRegistry;
     [Inject] private readonly ILogger<BuiltInAgentToolHandlers>? _logger;
     [Inject] private readonly ITelemetryService? _telemetryService;
+    [Inject] private readonly SubAgentOutputTruncator? _outputTruncator;
+    [Inject] private readonly SubAgentSummaryGenerator? _summaryGenerator;
+    [Inject] private readonly SubAgentConfig? _subAgentConfig;
+    [Inject] private readonly IChatContextManager? _contextManager;
+
+    private const int DefaultOutputTokenBudget = 50_000;
 
     [McpTool(AgentToolNameConstants.PlanAgent, "Use Plan Agent to create task execution plan", AgentToolNameConstants.Agent)]
     public async Task<ToolResult> PlanAgentAsync(
@@ -48,7 +66,7 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
             }
 
             RecordAgentToolMetrics("plan", true);
-            return ToolResultBuilder.Success().WithText(result.Output).Build();
+            return ToolResultBuilder.Success().WithText(await BuildAgentOutputAsync(agentInfo.Id, result.Output, cancellationToken)).Build();
         }
         catch (Exception ex)
         {
@@ -89,7 +107,7 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
             }
 
             RecordAgentToolMetrics("explore", true);
-            return ToolResultBuilder.Success().WithText(result.Output).Build();
+            return ToolResultBuilder.Success().WithText(await BuildAgentOutputAsync(agentInfo.Id, result.Output, cancellationToken)).Build();
         }
         catch (Exception ex)
         {
@@ -130,7 +148,7 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
             }
 
             RecordAgentToolMetrics("verification", true);
-            return ToolResultBuilder.Success().WithText(result.Output).Build();
+            return ToolResultBuilder.Success().WithText(await BuildAgentOutputAsync(agentInfo.Id, result.Output, cancellationToken)).Build();
         }
         catch (Exception ex)
         {
@@ -170,7 +188,7 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
             }
 
             RecordAgentToolMetrics("general", true);
-            return ToolResultBuilder.Success().WithText(result.Output).Build();
+            return ToolResultBuilder.Success().WithText(await BuildAgentOutputAsync(agentInfo.Id, result.Output, cancellationToken)).Build();
         }
         catch (Exception ex)
         {
@@ -210,7 +228,7 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
             }
 
             RecordAgentToolMetrics("guide", true);
-            return ToolResultBuilder.Success().WithText(result.Output).Build();
+            return ToolResultBuilder.Success().WithText(await BuildAgentOutputAsync(agentInfo.Id, result.Output, cancellationToken)).Build();
         }
         catch (Exception ex)
         {
@@ -247,6 +265,48 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
 
     private void RecordAgentToolMetrics(string agentType, bool isSuccess)
         => _telemetryService?.RecordCount("agent.tool.invoked.count", new Dictionary<string, string> { ["agent"] = agentType, ["success"] = isSuccess.ToString() }, "count", "Agent tool invoked count");
+
+    /// <summary>
+    /// 构建子智能体输出文本 — L0 XML 包装 + L1 直接放 + L2 自摘要 + L3 落盘指针
+    /// <para>步3: L0+L3 固定阈值。步4: 接入 L2 自摘要。后续4: 动态预算 R = min(ctxMax/4, fallback)。</para>
+    /// </summary>
+    private async Task<string> BuildAgentOutputAsync(string agentId, string output, CancellationToken cancellationToken)
+    {
+        if (_outputTruncator is null)
+            return output;
+
+        var budget = CalculateOutputTokenBudget();
+        var summary = SubAgentOutputEnvelope.ExtractSummary(output);
+
+        if (_summaryGenerator is not null)
+        {
+            var summaryResult = await _summaryGenerator.TrySummarizeAsync(agentId, output, budget, cancellationToken).ConfigureAwait(false);
+            if (summaryResult.Status == SubAgentSummaryStatus.Success)
+                return SubAgentOutputEnvelope.Wrap(agentId, SubAgentEnvelopeState.Completed, summary, summaryResult.Summary!);
+            if (summaryResult.Status == SubAgentSummaryStatus.NotNeeded)
+                return SubAgentOutputEnvelope.Wrap(agentId, SubAgentEnvelopeState.Completed, summary, output);
+        }
+
+        var truncation = await _outputTruncator.TruncateAsync(agentId, output, budget, summary, cancellationToken).ConfigureAwait(false);
+        return SubAgentOutputEnvelope.Wrap(agentId, SubAgentEnvelopeState.Completed, summary, truncation.FinalText);
+    }
+
+    /// <summary>
+    /// 计算子智能体输出 token 预算 — 动态预算 R = min(ctxMax/4, fallback)
+    /// <para>IChatContextManager 可用时用 ctxMax/4（1/4 窗口），否则用固定回退值。</para>
+    /// </summary>
+    private int CalculateOutputTokenBudget()
+    {
+        var fallback = _subAgentConfig?.FallbackOutputTokenBudget ?? DefaultOutputTokenBudget;
+        if (_contextManager is null)
+            return fallback;
+
+        var ctxMax = _contextManager.GetContextMaxTokens();
+        if (ctxMax <= 0)
+            return fallback;
+
+        return Math.Min(ctxMax / 4, fallback);
+    }
 
     private static string BuildPlanPrompt(string goal, string? context, string? constraints)
     {

@@ -49,6 +49,9 @@ public enum ErrorCode
     // 验证相关 (VAL)
     [EnumValue("VAL005")] ValidationVariableResolution,
 
+    // 上下文相关 (CTX)
+    [EnumValue("CTX001")] ContextOverflow,
+
     // 一般错误 (GEN)
     [EnumValue("GEN001")] General,
     [EnumValue("GEN004")] OperationCancelled,

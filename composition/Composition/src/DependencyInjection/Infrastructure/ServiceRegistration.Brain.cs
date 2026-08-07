@@ -7,6 +7,14 @@ public static partial class ServiceRegistration
 {
     public static IServiceCollection AddBrainPipelines(this IServiceCollection services)
     {
+        services.AddSingleton<ChatContextOptions>(sp =>
+        {
+            var summarizer = sp.GetRequiredService<IFoldSummarizer>();
+            var foldLogger = sp.GetService<ILogger<ContextFoldExecutor>>();
+            var executor = new ContextFoldExecutor(summarizer, foldLogger);
+            return new ChatContextOptions { FoldExecutor = executor };
+        });
+
         services.AddSingleton<IChatPreprocessor>(sp =>
         {
             var analyzeMiddlewares = sp.GetServices<IAnalyzePreprocessMiddleware>().Cast<IMiddleware<PreprocessContext>>();

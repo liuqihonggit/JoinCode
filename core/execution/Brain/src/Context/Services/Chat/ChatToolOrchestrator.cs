@@ -111,10 +111,28 @@ public sealed partial class ChatToolOrchestrator : ServiceEntity, IChatToolOrche
             }
             else
             {
-                resultText = string.Join("\n",
-                    toolResult.Content
-                        .Select(c => toolResult.IsError ? $"Error: {c.Text}" : c.Text)
-                        .Where(t => !string.IsNullOrEmpty(t)));
+                if (toolResult.IsError)
+                {
+                    var sb = new StringBuilder();
+                    foreach (var c in toolResult.Content)
+                    {
+                        if (string.IsNullOrEmpty(c.Text)) continue;
+                        if (sb.Length > 0) sb.Append('\n');
+                        sb.Append("Error: ").Append(c.Text);
+                    }
+                    resultText = sb.ToString();
+                }
+                else
+                {
+                    var sb = new StringBuilder();
+                    foreach (var c in toolResult.Content)
+                    {
+                        if (string.IsNullOrEmpty(c.Text)) continue;
+                        if (sb.Length > 0) sb.Append('\n');
+                        sb.Append(c.Text);
+                    }
+                    resultText = sb.ToString();
+                }
             }
 
             if (combinedRepairHint is not null)

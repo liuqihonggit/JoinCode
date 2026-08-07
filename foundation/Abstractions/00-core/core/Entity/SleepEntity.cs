@@ -24,4 +24,24 @@ public sealed class SleepEntity : ToolExecutionEntity
         RemainingSeconds = durationSeconds;
         Reason = reason;
     }
+
+    /// <summary>
+    /// 跨会话深拷贝 — 保留 DurationSeconds/RemainingSeconds/TickCount/Reason 等延迟执行特有字段
+    /// </summary>
+    public override Entity Clone(CloneContext context)
+    {
+        var cloned = new SleepEntity(
+            durationSeconds: DurationSeconds,
+            reason: Reason,
+            toolUseId: ToolUseId,
+            spanId: SpanId,
+            displayName: DisplayName,
+            sessionId: context.TargetSessionId)
+        {
+            RemainingSeconds = RemainingSeconds,
+            TickCount = TickCount,
+        };
+        ApplyCloneState(cloned, context);
+        return cloned;
+    }
 }

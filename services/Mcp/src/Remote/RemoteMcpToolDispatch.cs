@@ -35,12 +35,15 @@ internal sealed class RemoteMcpToolDispatch : IToolHandler
         {
             var clientId = _clientId;
             var toolName = _tool.Name;
+            var serverNameElement = JsonSerializer.SerializeToElement(clientId, McpClientJsonContext.Default.String);
+            var toolNameElement = JsonSerializer.SerializeToElement(toolName, McpClientJsonContext.Default.String);
+            var toolUseId = $"{clientId}.{toolName}";
             mcpProgress = progress =>
             {
                 var extra = new Dictionary<string, JsonElement>
                 {
-                    ["serverName"] = JsonSerializer.SerializeToElement(clientId, McpClientJsonContext.Default.String),
-                    ["toolName"] = JsonSerializer.SerializeToElement(toolName, McpClientJsonContext.Default.String),
+                    ["serverName"] = serverNameElement,
+                    ["toolName"] = toolNameElement,
                     ["status"] = JsonSerializer.SerializeToElement(progress.Status, McpClientJsonContext.Default.String),
                 };
                 if (progress.Progress.HasValue)
@@ -55,7 +58,7 @@ internal sealed class RemoteMcpToolDispatch : IToolHandler
                 onProgress(new ToolProgressData
                 {
                     ProgressType = progress.Type,
-                    ToolUseId = $"{clientId}.{toolName}",
+                    ToolUseId = toolUseId,
                     Message = progress.ProgressMessage,
                     Extra = extra
                 });

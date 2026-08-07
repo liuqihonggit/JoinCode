@@ -259,8 +259,9 @@ public sealed class StreamingToolExecutor : IAsyncDisposable
 
             if (!tool.IsConcurrencySafeDetermined)
             {
+                tool.ParsedArguments ??= JsonArgumentParser.Parse(tool.Entry.Arguments);
                 tool.IsConcurrencySafe = await _concurrencyClassifier
-                    .IsConcurrencySafeAsync(tool.Entry.Name, JsonArgumentParser.Parse(tool.Entry.Arguments), CancellationToken.None)
+                    .IsConcurrencySafeAsync(tool.Entry.Name, tool.ParsedArguments, CancellationToken.None)
                     .ConfigureAwait(false);
                 tool.IsConcurrencySafeDetermined = true;
             }
@@ -310,7 +311,7 @@ public sealed class StreamingToolExecutor : IAsyncDisposable
         {
             try
             {
-                var args = JsonArgumentParser.Parse(tool.Entry.Arguments);
+                var args = tool.ParsedArguments ??= JsonArgumentParser.Parse(tool.Entry.Arguments);
                 var toolCallResult = await _toolHandler.ExecuteToolCallAsync(
                     tool.Entry.Name, tool.Entry.Id, args, _context, _combinedCt).ConfigureAwait(false);
 
@@ -417,5 +418,6 @@ public sealed class StreamingToolExecutor : IAsyncDisposable
         public bool IsConcurrencySafeDetermined { get; set; }
         public required ToolStatus Status { get; set; }
         public required TaskCompletionSource<StreamingToolResult> CompletionSource { get; init; }
+        public Dictionary<string, JsonElement>? ParsedArguments { get; set; }
     }
 }

@@ -20,4 +20,23 @@ public sealed class WebFetchEntity : ToolExecutionEntity
     {
         Url = url;
     }
+
+    /// <summary>
+    /// 跨会话深拷贝 — 保留 Url/HttpStatusCode/ContentLength 等 Web 请求特有字段
+    /// </summary>
+    public override Entity Clone(CloneContext context)
+    {
+        var cloned = new WebFetchEntity(
+            url: Url,
+            toolUseId: ToolUseId,
+            spanId: SpanId,
+            displayName: DisplayName,
+            sessionId: context.TargetSessionId)
+        {
+            HttpStatusCode = HttpStatusCode,
+            ContentLength = ContentLength,
+        };
+        ApplyCloneState(cloned, context);
+        return cloned;
+    }
 }

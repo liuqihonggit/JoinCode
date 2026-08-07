@@ -7,7 +7,7 @@ using JoinCode.Abstractions.Models.Goal;
 
 /// <summary>
 /// 医生模式运行器 — jcc.exe --doctor 入口
-/// 通过 IGoalEngine 执行 doctor Agent，复用 Agent 基础设施
+/// 通过 IAgentRunner 执行 doctor Agent，复用 Agent 基础设施
 /// </summary>
 internal static class DoctorModeRunner
 {
@@ -16,9 +16,9 @@ internal static class DoctorModeRunner
         Cli.TerminalHelper.Init();
         Diag.WriteLifecycle("[DOCTOR] 自举医生模式启动");
 
-        var goalEngine = services.GetService<IGoalEngine>();
-        if (goalEngine is null)
-            throw new InvalidOperationException("无法从 DI 容器解析 IGoalEngine。请确保 ClockModule 已注册。");
+        var runner = services.GetService<IAgentRunner>();
+        if (runner is null)
+            throw new InvalidOperationException("无法从 DI 容器解析 IAgentRunner。请确保 ClockModule 已注册。");
 
         var agentProvider = services.GetService<IAgentDefinitionProvider>();
         var doctorDef = agentProvider is not null
@@ -35,13 +35,13 @@ internal static class DoctorModeRunner
 
         try
         {
-            var state = await goalEngine.StartAsync(
+            var state = await runner.RunAsync(
                 objective,
                 systemPrompt: systemPrompt).ConfigureAwait(false);
 
-            await goalEngine.WaitForCompletionAsync().ConfigureAwait(false);
+            await runner.WaitForCompletionAsync().ConfigureAwait(false);
 
-            var finalState = goalEngine.CurrentState;
+            var finalState = runner.CurrentState;
             var exitCode = finalState?.Status switch
             {
                 GoalStatus.Achieved => 0,

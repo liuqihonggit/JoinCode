@@ -22,7 +22,7 @@ public class ToolExecutionEntity : Entity
     public string? SpanId { get; init; }
 
     /// <summary>执行参数摘要（截断，避免内存爆炸）</summary>
-    public string? ArgumentsSummary { get; init; }
+    public string? ArgumentsSummary { get; set; }
 
     /// <summary>结果摘要（完成后设置）</summary>
     public string? ResultSummary { get; set; }
@@ -31,7 +31,7 @@ public class ToolExecutionEntity : Entity
     public bool IsError { get; set; }
 
     /// <summary>关联的 Session ObjectId — 属于哪个会话</summary>
-    public ObjectId? SessionObjectId { get; init; }
+    public ObjectId? SessionObjectId { get; set; }
 
     /// <summary>全局注册器 — 查询所有活跃/超时/僵尸的工具执行</summary>
     public static ToolExecutionEntityRegistry Registry { get; } = new();
@@ -69,6 +69,40 @@ public class ToolExecutionEntity : Entity
     }
 
     protected override void OnDispose() => Registry.Remove(ObjectId);
+
+    /// <summary>
+    /// 将基类字段拷贝到克隆体 — 子类 Clone 调用此方法避免重复代码
+    /// SessionObjectId 通过 RemapNullableOrThrow 重映射，未映射则抛异常暴露引用断裂
+    /// 克隆后 Touch() 刷新活跃时间，避免 EntityReaper 立即回收
+    /// </summary>
+    protected void ApplyCloneState(ToolExecutionEntity cloned, CloneContext context)
+    {
+        cloned.ArgumentsSummary = ArgumentsSummary;
+        cloned.ResultSummary = ResultSummary;
+        cloned.IsError = IsError;
+        cloned.SessionObjectId = context.RemapNullableOrThrow(SessionObjectId);
+        cloned.LifecycleState = LifecycleState;
+        cloned.StartedAt = StartedAt;
+        cloned.CompletedAt = CompletedAt;
+        cloned.LastActivityAt = LastActivityAt;
+        cloned.Touch();
+        context.Map(ObjectId, cloned.ObjectId);
+    }
+
+    /// <summary>
+    /// 跨会话深拷贝 — 新 ObjectId + 目标会话，深拷贝所有字段
+    /// </summary>
+    public override Entity Clone(CloneContext context)
+    {
+        var cloned = new ToolExecutionEntity(
+            toolName: ToolName,
+            toolUseId: ToolUseId,
+            spanId: SpanId,
+            displayName: DisplayName,
+            sessionId: context.TargetSessionId);
+        ApplyCloneState(cloned, context);
+        return cloned;
+    }
 }
 
 /// <summary>

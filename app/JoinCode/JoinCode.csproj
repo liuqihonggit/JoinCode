@@ -20,6 +20,7 @@
     <ProjectReference Include="$(RepoRoot)services\Dream\src\Dream.csproj" />
     <ProjectReference Include="$(RepoRoot)core\search\Browser\src\Browser.csproj" />
     <ProjectReference Include="$(RepoRoot)foundation\Transport.Contracts\Transport.Contracts.csproj" />
+    <ProjectReference Include="$(RepoRoot)composition\Pipelines\src\Pipelines.csproj" />
     <ProjectReference Include="$(RepoRoot)infrastructure\Transport.Impl\Transport.Impl.csproj" />
     <ProjectReference Include="$(RepoRoot)core\ai\Reasoning\src\Reasoning.csproj" />
     <ProjectReference Include="$(RepoRoot)core\ai\Agents\src\Agents.csproj" />

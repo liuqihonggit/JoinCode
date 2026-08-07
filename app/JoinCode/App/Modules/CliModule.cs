@@ -10,6 +10,7 @@ public sealed class CliModule : IAppModule
 
     public void ConfigureServices(IServiceCollection services, AppModuleContext context)
     {
+        services.AddSingleton<IInteractiveService, TerminalInteractiveService>();
     }
 
     public Task ConfigureAsync(IServiceProvider services, CancellationToken ct)

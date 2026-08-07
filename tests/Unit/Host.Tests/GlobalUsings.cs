@@ -51,5 +51,7 @@ global using Testing.Common;
 
 global using JoinCode.Adapters;
 global using JoinCode.Cli;
+global using JoinCode.Cli.Interaction;
+global using JoinCode.Abstractions.Models.Interactive;
 global using IMcpClient = JoinCode.Abstractions.Mcp.Client.IMcpClient;
 global using IMcpToolRegistry = JoinCode.Abstractions.Mcp.Registry.IMcpToolRegistry;

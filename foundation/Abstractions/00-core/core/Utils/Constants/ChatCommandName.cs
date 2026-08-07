@@ -70,6 +70,7 @@ public enum ChatCommandName
     [EnumValue("insights")] Insights,
     [EnumValue("version")] Version,
     [EnumValue("help")] Help,
+    [EnumValue("??")] AskClarify,
     [EnumValue("release-notes")] ReleaseNotes,
     [EnumValue("context")] Context,
 

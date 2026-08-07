@@ -1,0 +1,291 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="980" d:DesignHeight="680"
+        xmlns:vm="using:JoinCode.Gui.ViewModels"
+        x:Class="JoinCode.Gui.Views.MainWindow"
+        x:Name="Root"
+        x:DataType="vm:MainViewModel"
+        Width="980" Height="680"
+        Title="JoinCode Ava">
+  <Window.Styles>
+    <Style Selector="Button">
+      <Setter Property="Background" Value="{DynamicResource GuiButtonBackground}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource GuiButtonBorder}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Foreground" Value="{DynamicResource GuiButtonForeground}" />
+      <Setter Property="CornerRadius" Value="5" />
+      <Setter Property="Padding" Value="10,5" />
+    </Style>
+    <Style Selector="Button:pointerover">
+      <Setter Property="Background" Value="{DynamicResource GuiButtonHover}" />
+    </Style>
+    <Style Selector="Button:pressed">
+      <Setter Property="Background" Value="{DynamicResource GuiButtonPressed}" />
+    </Style>
+    <Style Selector="Button:disabled">
+      <Setter Property="Opacity" Value="0.5" />
+    </Style>
+  </Window.Styles>
+  <DockPanel Background="{DynamicResource GuiWindowBackground}">
+
+    <!-- 侧边栏：会话导航 -->
+    <Border DockPanel.Dock="Left" Width="220" Background="{DynamicResource GuiSidebarBackground}">
+      <DockPanel>
+        <!-- 侧边栏头部 -->
+        <StackPanel DockPanel.Dock="Top" Spacing="10" Margin="12,14,12,0">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBlock Text="◆" FontSize="18" Foreground="{DynamicResource GuiAccentText}" />
+            <TextBlock Text="JoinCode Ava" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource GuiSidebarTitle}" />
+          </StackPanel>
+          <Button Content="＋ 新建对话" Command="{Binding NewConversationCommand}"
+                  HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="8,5" />
+        </StackPanel>
+        <Border DockPanel.Dock="Bottom" Padding="14,10" Background="{DynamicResource GuiStatusBarBackground}">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <TextBlock Text="●" Foreground="{DynamicResource GuiAccentText}" />
+            <TextBlock Text="本地引擎待接入" FontSize="11" Foreground="{DynamicResource GuiMutedText}" />
+          </StackPanel>
+        </Border>
+        <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,6">
+          <StackPanel DataContext="{Binding}">
+            <TextBlock Text="会话列表" Foreground="{DynamicResource GuiMutedText}" FontSize="11" Margin="4,0,0,6" />
+            <ItemsControl ItemsSource="{Binding Sessions}" Margin="6,0">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:SessionItem">
+                <Border Padding="10,9" CornerRadius="5" Background="{Binding IsSelected, Converter={StaticResource BoolToSessHighlight}}"
+                        DoubleTapped="OnSessionDoubleTapped"
+                        Tapped="OnSessionSingleTapped"
+                        Cursor="Hand">
+                  <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Orientation="Horizontal" Spacing="7">
+                      <TextBlock Text="💬" FontSize="12" />
+                      <TextBlock Text="{Binding Title}" Foreground="{DynamicResource GuiPrimaryText}" FontSize="12" VerticalAlignment="Center"
+                                 IsVisible="{Binding !IsRenaming}" />
+                      <TextBox Text="{Binding RenameDraft}" FontSize="12" Padding="2,0" MinWidth="90"
+                               IsVisible="{Binding IsRenaming}"
+                               KeyDown="OnRenameKeyDown" />
+                    </StackPanel>
+                    <Button Grid.Column="1" Content="✕" FontSize="9" Padding="2,0" Background="Transparent"
+                            BorderThickness="0" Foreground="{DynamicResource GuiMutedText}"
+                            Tag="{Binding}" Click="OnSessionRemoveClick" />
+                  </Grid>
+                </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+          </ScrollViewer>
+      </DockPanel>
+    </Border>
+
+    <!-- 顶部工具栏 -->
+    <Border DockPanel.Dock="Top" Padding="10,8" Background="{DynamicResource GuiTopBarBackground}">
+      <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="10">
+        <ToggleButton Content="🌙" Command="{Binding ToggleThemeCommand}" ToolTip.Tip="切换深浅主题" />
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+          <TextBlock Text="●" FontSize="12" Foreground="{Binding StatusKind, Converter={StaticResource StatusToBrush}}"
+                     VerticalAlignment="Center" />
+          <TextBlock Text="{Binding StatusText}" Foreground="{DynamicResource GuiSecondaryText}" FontSize="12" VerticalAlignment="Center"
+                     TextTrimming="CharacterEllipsis" MaxWidth="280" />
+        </StackPanel>
+        <Button Grid.Column="2" Content="↻ 重新生成" Command="{Binding RegenerateLastReplyCommand}"
+                IsEnabled="{Binding CanRegenerate}" FontSize="11" ToolTip.Tip="撤回上一轮并重新生成" />
+        <Button Grid.Column="3" Content="🗑 清空" Command="{Binding ClearHistoryCommand}"
+                IsEnabled="{Binding HasMessages}" />
+        <Button Grid.Column="4" Content="⊘ 全部重置" Command="{Binding ClearAllSessionsCommand}"
+                FontSize="11" />
+        <ComboBox Grid.Column="5" ItemsSource="{Binding ModelOptions}" SelectedItem="{Binding SelectedModel}"
+                  PlaceholderText="选择模型" MinWidth="150" />
+        <Button Grid.Column="6" Content="⛭" ToolTip.Tip="设置面板" Command="{Binding ToggleSettingsPanelCommand}" />
+      </Grid>
+    </Border>
+
+    <!-- 底部输入栏 -->
+    <Border DockPanel.Dock="Bottom" Padding="10" Background="{DynamicResource GuiInputBarBackground}">
+      <StackPanel Spacing="6">
+        <Grid ColumnDefinitions="*,Auto,Auto">
+          <TextBox Text="{Binding InputText}" Watermark="输入消息，Enter 发送 / Shift+Enter 换行…"
+                   IsEnabled="{Binding !IsBusy}" AcceptsReturn="True" MaxLines="5"
+                   KeyDown="OnInputKeyDown" />
+          <TextBlock Grid.Column="1" Foreground="{Binding IsInputTooLong, Converter={StaticResource BoolToWarnBrush}}"
+                   FontSize="11" VerticalAlignment="Bottom" Margin="8,0"
+                   ToolTip.Tip="{Binding MaxInputChars, StringFormat='{}建议上限 {0} 字符'}">
+            <TextBlock.Text>
+              <MultiBinding StringFormat="{} {0} / {1}">
+                <Binding Path="CharsCount" />
+                <Binding Path="MaxInputChars" />
+              </MultiBinding>
+            </TextBlock.Text>
+          </TextBlock>
+          <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4">
+            <Button Content="停止" Command="{Binding StopGeneratingCommand}" IsVisible="{Binding CanStop}" />
+            <Button Content="发送" Command="{Binding SendCommand}" IsEnabled="{Binding !IsBusy}" />
+          </StackPanel>
+        </Grid>
+        <StackPanel Orientation="Horizontal" Spacing="4">
+          <Button Content="─ 分隔线" Command="{Binding InsertDividerCommand}" FontSize="11" Padding="8,3" />
+          <Button Content="⏱ 时间戳" Command="{Binding InsertTimestampCommand}" FontSize="11" Padding="8,3" />
+        </StackPanel>
+      </StackPanel>
+    </Border>
+
+    <!-- 状态栏：会话/消息计数 + 当前模型 -->
+    <Border DockPanel.Dock="Bottom" Padding="12,4" Background="{DynamicResource GuiStatusBarBackground}">
+      <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+        <TextBlock Text="{Binding Sessions.Count, StringFormat='{}会话 {0}'}" Foreground="{DynamicResource GuiMutedText}" FontSize="11" />
+        <TextBlock Grid.Column="1" Text="{Binding MessageCount, StringFormat='{}  · 消息 {0}'}"
+                   Foreground="{DynamicResource GuiMutedText}" FontSize="11" Margin="10,0" />
+        <TextBlock Grid.Column="3" Text="{Binding SelectedModel}" Foreground="{DynamicResource GuiAccentText}" FontSize="11"
+                   TextTrimming="CharacterEllipsis" MaxWidth="220" />
+      </Grid>
+    </Border>
+
+    <!-- 主区：状态 + 空状态 + 消息列表 -->
+    <DockPanel>
+      <!-- 右侧设置面板 -->
+      <Border DockPanel.Dock="Right" Width="240" Background="{DynamicResource GuiSettingsBackground}" Padding="12"
+              IsVisible="{Binding IsSettingsPanelOpen}">
+        <StackPanel Spacing="12">
+          <TextBlock Text="对话设置" FontWeight="SemiBold" Foreground="{DynamicResource GuiPrimaryText}" />
+          <StackPanel Spacing="4">
+            <TextBlock Text="{Binding Temperature, StringFormat='{}温度 {0:0.0}'}" Foreground="{DynamicResource GuiSecondaryText}" FontSize="12" />
+            <Slider Minimum="0" Maximum="2" Value="{Binding Temperature}" TickFrequency="0.1" />
+          </StackPanel>
+          <StackPanel Spacing="4">
+            <TextBlock Text="{Binding MaxTokens, StringFormat='{}最大长度 {0}'}" Foreground="{DynamicResource GuiSecondaryText}" FontSize="12" />
+            <Slider Minimum="256" Maximum="32768" Value="{Binding MaxTokens}" TickFrequency="256" />
+          </StackPanel>
+          <StackPanel Spacing="4">
+            <TextBlock Text="{Binding FontSize, StringFormat='{}消息字号 {0:0}'}" Foreground="{DynamicResource GuiSecondaryText}" FontSize="12" />
+            <Slider Minimum="11" Maximum="20" Value="{Binding FontSize}" TickFrequency="1" />
+          </StackPanel>
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBlock Text="流式输出" Foreground="{DynamicResource GuiSecondaryText}" FontSize="12" VerticalAlignment="Center" />
+            <ToggleButton IsChecked="{Binding StreamingEnabled}" />
+          </StackPanel>
+          <StackPanel Spacing="4">
+            <TextBlock Text="系统提示词" Foreground="{DynamicResource GuiSecondaryText}" FontSize="12" />
+            <TextBox Text="{Binding SystemPrompt}" AcceptsReturn="True" MaxLines="4"
+                     TextWrapping="Wrap" FontSize="11" MinHeight="70" />
+          </StackPanel>
+          <Border Height="1" Background="{DynamicResource GuiDivider}" />
+          <TextBlock Text="快捷操作" FontWeight="SemiBold" Foreground="{DynamicResource GuiPrimaryText}" />
+          <Button Content="插入分隔线" Command="{Binding InsertDividerCommand}" />
+          <Button Content="插入时间戳" Command="{Binding InsertTimestampCommand}" />
+          <Button Content="↺ 恢复默认" Command="{Binding ResetSettingsCommand}" FontSize="11" />
+          <Border Height="1" Background="{DynamicResource GuiDivider}" />
+          <TextBlock Text="快捷键" FontWeight="SemiBold" Foreground="{DynamicResource GuiPrimaryText}" />
+          <TextBlock Text="Ctrl+N 新建 · Ctrl+L 清空 · Esc 收起/停止"
+                     Foreground="{DynamicResource GuiMutedText}" FontSize="11" TextWrapping="Wrap" />
+        </StackPanel>
+      </Border>
+      <Border DockPanel.Dock="Top" Padding="10,6" Background="{DynamicResource GuiSearchBarBackground}">
+        <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto">
+          <TextBox Text="{Binding SearchText}" Watermark="搜索消息…" FontSize="12" Padding="6,2"
+                   MinHeight="24" VerticalAlignment="Center" />
+          <TextBlock Grid.Column="1" Text=" 🔍" VerticalAlignment="Center"
+                     IsVisible="{Binding IsSearching}" />
+          <TextBlock Grid.Column="2" Text="{Binding MessageCount, StringFormat='{} 消息 {0}'}"
+                     Foreground="{DynamicResource GuiMutedText}" FontSize="12" VerticalAlignment="Center" Margin="14,0" />
+          <TextBlock Grid.Column="3" Text="{Binding EstimatedTokens, StringFormat='{} 约 {0} tokens'}"
+                     Foreground="{DynamicResource GuiMutedText}" FontSize="12" VerticalAlignment="Center" />
+          <TextBlock Grid.Column="4" Text="{Binding TotalChars, StringFormat='{} {0} 字符'}"
+                     Foreground="{DynamicResource GuiMutedText}" FontSize="12" VerticalAlignment="Center" Margin="14,0" />
+          <Button Grid.Column="5" Content="⧉ 导出" Command="{Binding CopySessionExportCommand}"
+                  FontSize="11" Padding="8,3" IsEnabled="{Binding HasMessages}"
+                  ToolTip.Tip="复制会话为文本" />
+        </Grid>
+      </Border>
+      <Panel>
+        <StackPanel x:Name="EmptyState" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="8"
+                    IsVisible="{Binding !HasMessages}">
+          <TextBlock Text="👋" FontSize="40" HorizontalAlignment="Center" />
+          <TextBlock Text="开始与 JoinCode 对话" FontSize="18" FontWeight="SemiBold"
+                     HorizontalAlignment="Center" Foreground="{DynamicResource GuiPrimaryText}" />
+          <TextBlock Text="在下方输入消息，Enter 发送" FontSize="13"
+                     HorizontalAlignment="Center" Foreground="{DynamicResource GuiMutedText}" />
+          <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,10,0,0"
+                      HorizontalAlignment="Center">
+            <ItemsControl ItemsSource="{Binding SuggestedPrompts}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="8" /></ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Button Content="{Binding}" Command="{Binding DataContext.UseSuggestionCommand, ElementName=Root}"
+                          CommandParameter="{Binding}" FontSize="11" Padding="10,5" />
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </StackPanel>
+        <ScrollViewer x:Name="MessageScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                      ScrollChanged="OnMessageScrollChanged">
+          <ItemsControl ItemsSource="{Binding FilteredMessages}" Margin="10,6">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:ChatUiMessage">
+                <Border CornerRadius="8" Padding="10,8" Margin="0,4" MaxWidth="640"
+                        HorizontalAlignment="{Binding IsUser, Converter={StaticResource BoolToAlign}}"
+                        Background="{Binding, Converter={StaticResource KindToBubbleBg}}">
+                  <StackPanel Spacing="4">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                      <TextBlock Text="{Binding RoleLabel}" FontWeight="SemiBold"
+                                 Foreground="{Binding IsUser, Converter={StaticResource BoolToRoleBrush}}" />
+                      <TextBlock Text="{Binding KindLabel}" FontSize="11" Foreground="{DynamicResource GuiThinkingLabel}"
+                                 IsVisible="{Binding IsThinking}" />
+                      <TextBlock Text="{Binding KindLabel}" FontSize="11" Foreground="{DynamicResource GuiToolLabel}"
+                                 IsVisible="{Binding IsToolCall}" />
+                      <TextBlock Text="{Binding Timestamp, StringFormat='{}{0:HH:mm:ss}'}"
+                                 Foreground="{DynamicResource GuiMutedText}" FontSize="11" />
+                      <TextBlock Text="●" Foreground="{DynamicResource GuiBusyText}" FontSize="10"
+                                 IsVisible="{Binding IsStreaming}" ToolTip.Tip="输出中" />
+                      <Button Content="⧉" FontSize="10" Padding="3,1" Background="Transparent"
+                              BorderThickness="0" Foreground="{DynamicResource GuiMutedText}"
+                              Command="{Binding DataContext.CopyMessageCommand, ElementName=Root}"
+                              CommandParameter="{Binding}" />
+                      <Button Content="✕" FontSize="10" Padding="3,1" Background="Transparent"
+                              BorderThickness="0" Foreground="{DynamicResource GuiErrorText}"
+                              Tag="{Binding}"
+                              Click="OnRemoveClick" />
+                    </StackPanel>
+                    <Button IsVisible="{Binding IsThinkingCollapsed}" Padding="0" Background="Transparent"
+                            BorderThickness="0" HorizontalContentAlignment="Stretch"
+                            Command="{Binding DataContext.ToggleThinkingCommand, ElementName=Root}"
+                            CommandParameter="{Binding}">
+                      <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,2">
+                        <TextBlock Text="▶" Foreground="{DynamicResource GuiThinkingLabel}" FontSize="11" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding ThinkingSummary}" Foreground="{DynamicResource GuiThinkingLabel}" FontSize="11"
+                                   FontStyle="Italic" VerticalAlignment="Center" />
+                      </StackPanel>
+                    </Button>
+                    <TextBlock Text="{Binding DisplayText}" TextWrapping="Wrap"
+                               FontSize="{Binding DataContext.FontSize, ElementName=Root}"
+                               FontFamily="{Binding IsCodeBlock, Converter={StaticResource BoolToMonoFont}}"
+                               IsVisible="{Binding ShowBody}"
+                               Opacity="{Binding IsThinking, Converter={StaticResource BoolToThinkingOpacity}}" />
+                    <StackPanel IsVisible="{Binding IsToolCall}" Spacing="2">
+                      <TextBlock Text="{Binding ToolName}" FontWeight="SemiBold" Foreground="{DynamicResource GuiToolLabel}" FontSize="12" />
+                      <TextBlock Text="{Binding ToolArguments}" Foreground="{DynamicResource GuiToolArgument}" FontSize="11" FontFamily="Consolas"
+                                 TextWrapping="Wrap" IsVisible="{Binding IsToolCallStart}" />
+                      <TextBlock Text="{Binding ToolResultText}" Foreground="{DynamicResource GuiToolResult}" FontSize="11"
+                                 TextWrapping="Wrap" IsVisible="{Binding IsToolResultMessage}" />
+                    </StackPanel>
+                  </StackPanel>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+        <Border VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,10" CornerRadius="12"
+                Padding="14,6" Background="#4a9eff" IsVisible="{Binding HasCopied}">
+          <TextBlock Text="已复制到剪贴板" Foreground="White" FontSize="12" />
+        </Border>
+        <Button x:Name="BackToBottomButton" Content="↓ 跳到最新" VerticalAlignment="Bottom"
+                HorizontalAlignment="Center" Margin="0,0,0,12" FontSize="11" Padding="12,6"
+                IsVisible="False" Background="{DynamicResource GuiSessionHighlight}" Click="OnBackToBottomClick" />
+      </Panel>
+    </DockPanel>
+  </DockPanel>
+</Window>

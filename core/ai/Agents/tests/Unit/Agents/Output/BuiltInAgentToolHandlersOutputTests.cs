@@ -33,6 +33,25 @@ public sealed class BuiltInAgentToolHandlersOutputTests
         return (handler, svcMock);
     }
 
+    private static (BuiltInAgentToolHandlers handler, Mock<IAgentService> svc, Mock<ISubAgentSummaryClient> summaryMock) CreateWithSummary(
+        string agentId, bool success, string output,
+        SubAgentConfig? subAgentConfig = null)
+    {
+        var svcMock = new Mock<IAgentService>();
+        svcMock.Setup(x => x.SpawnAgentAsync(It.IsAny<AgentSpawnOptions>(), It.IsAny<CancellationToken>()))
+               .ReturnsAsync(new AgentInfo { Id = agentId, Description = "test" });
+        svcMock.Setup(x => x.WaitForAgentAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+               .ReturnsAsync(new AgentResult { AgentId = agentId, Success = success, Output = output });
+
+        var roleMock = new Mock<IAgentRoleRegistry>();
+        var fsMock = CreateFsMock();
+        var truncator = new SubAgentOutputTruncator(fsMock.Object, NullLogger<SubAgentOutputTruncator>.Instance, "X:\\tmp\\subagent");
+        var summaryClientMock = new Mock<ISubAgentSummaryClient>();
+        var summaryGenerator = new SubAgentSummaryGenerator(summaryClientMock.Object, subAgentConfig?.Summary, NullLogger<SubAgentSummaryGenerator>.Instance);
+        var handler = new BuiltInAgentToolHandlers(svcMock.Object, roleMock.Object, NullLogger<BuiltInAgentToolHandlers>.Instance, null, truncator, summaryGenerator, subAgentConfig);
+        return (handler, svcMock, summaryClientMock);
+    }
+
     [Fact]
     public async Task PlanAgentAsync_SmallOutput_WrappedInXml_NoArchive()
     {
@@ -87,5 +106,68 @@ public sealed class BuiltInAgentToolHandlersOutputTests
 
         result.IsError.Should().BeFalse();
         result.GetFirstText().Should().Contain("read 查看");
+    }
+
+    [Fact]
+    public async Task PlanAgentAsync_MediumOutput_L2SummarySuccess_PlaceSummary()
+    {
+        var config = new SubAgentConfig { FallbackOutputTokenBudget = 100, Summary = new SubAgentSummaryConfig { Auto = true } };
+        var big = new string('x', 400 * 4);
+        var (handler, _, summaryMock) = CreateWithSummary("agent-med", true, big, config);
+        var summaryText = new string('s', 50 * 4);
+        summaryMock
+            .Setup(c => c.SummarizeAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(summaryText);
+
+        var result = await handler.PlanAgentAsync("目标");
+
+        result.IsError.Should().BeFalse();
+        result.GetFirstText().Should().Contain("<task ");
+        result.GetFirstText().Should().Contain(summaryText);
+        result.GetFirstText().Should().NotContain("read 查看");
+    }
+
+    [Fact]
+    public async Task PlanAgentAsync_MediumOutput_L2Failed_FallbackToL3Archive()
+    {
+        var config = new SubAgentConfig { FallbackOutputTokenBudget = 100, Summary = new SubAgentSummaryConfig { Auto = true, MaxRetries = 0 } };
+        var big = new string('x', 400 * 4);
+        var (handler, _, summaryMock) = CreateWithSummary("agent-fail", true, big, config);
+        summaryMock
+            .Setup(c => c.SummarizeAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string?)null);
+
+        var result = await handler.PlanAgentAsync("目标");
+
+        result.IsError.Should().BeFalse();
+        result.GetFirstText().Should().Contain("read 查看");
+    }
+
+    [Fact]
+    public async Task PlanAgentAsync_L2Disabled_FallbackToL3Archive()
+    {
+        var config = new SubAgentConfig { FallbackOutputTokenBudget = 100, Summary = new SubAgentSummaryConfig { Auto = false } };
+        var big = new string('x', 400 * 4);
+        var (handler, _, summaryMock) = CreateWithSummary("agent-disabled", true, big, config);
+
+        var result = await handler.PlanAgentAsync("目标");
+
+        result.IsError.Should().BeFalse();
+        result.GetFirstText().Should().Contain("read 查看");
+        summaryMock.Verify(c => c.SummarizeAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task PlanAgentAsync_SmallOutput_WithSummaryGenerator_PlaceOriginal()
+    {
+        var config = new SubAgentConfig { FallbackOutputTokenBudget = 100, Summary = new SubAgentSummaryConfig { Auto = true } };
+        var (handler, _, summaryMock) = CreateWithSummary("agent-small-l2", true, "小输出", config);
+
+        var result = await handler.PlanAgentAsync("目标");
+
+        result.IsError.Should().BeFalse();
+        result.GetFirstText().Should().Contain("小输出");
+        result.GetFirstText().Should().NotContain("read 查看");
+        summaryMock.Verify(c => c.SummarizeAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 }

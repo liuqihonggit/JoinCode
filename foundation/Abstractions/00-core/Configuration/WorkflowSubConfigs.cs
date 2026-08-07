@@ -63,3 +63,61 @@ public class IdleDetectionConfig {
     /// </summary>
     public string? CustomReminderContent { get; set; }
 }
+
+/// <summary>
+/// 子智能体输出防护配置 — L0-L3 炸窗防护
+/// </summary>
+public class SubAgentConfig
+{
+    /// <summary>
+    /// L2 自摘要配置
+    /// </summary>
+    public SubAgentSummaryConfig Summary { get; set; } = new();
+
+    /// <summary>
+    /// L3 落盘存档配置
+    /// </summary>
+    public SubAgentArchiveConfig Archive { get; set; } = new();
+
+    /// <summary>
+    /// 算剩余预算 R 时的 reserve token（学 openCode COMPACTION_BUFFER）
+    /// </summary>
+    public int ReserveTokens { get; set; } = 20_000;
+
+    /// <summary>
+    /// 固定输出 token 预算 — IChatContextManager 不可用时的回退值
+    /// </summary>
+    public int FallbackOutputTokenBudget { get; set; } = 50_000;
+}
+
+/// <summary>
+/// L2 自摘要配置
+/// </summary>
+public class SubAgentSummaryConfig
+{
+    /// <summary>
+    /// 是否启用 L2 自摘要（默认 true）。关则跳过 L2，中等超限直接落盘
+    /// </summary>
+    public bool Auto { get; set; } = true;
+
+    /// <summary>
+    /// LLM 调用失败重试次数
+    /// </summary>
+    public int MaxRetries { get; set; } = 1;
+}
+
+/// <summary>
+/// L3 落盘存档配置
+/// </summary>
+public class SubAgentArchiveConfig
+{
+    /// <summary>
+    /// 落盘目录（相对路径，基于当前工作目录）
+    /// </summary>
+    public string Dir { get; set; } = Path.Combine(".xxx", "subagent");
+
+    /// <summary>
+    /// 落盘文件保留天数（学 openCode 7天）
+    /// </summary>
+    public int RetentionDays { get; set; } = 7;
+}

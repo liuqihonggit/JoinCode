@@ -5,19 +5,30 @@ namespace Core.Agents.ToolHandlers;
 public partial class BuiltInAgentToolHandlers : ServiceEntity
 {
 
-    public BuiltInAgentToolHandlers(IAgentService agentService, IAgentRoleRegistry roleRegistry, ILogger<BuiltInAgentToolHandlers>? logger = null, ITelemetryService? telemetryService = null, SubAgentOutputTruncator? outputTruncator = null)
+    public BuiltInAgentToolHandlers(
+        IAgentService agentService,
+        IAgentRoleRegistry roleRegistry,
+        ILogger<BuiltInAgentToolHandlers>? logger = null,
+        ITelemetryService? telemetryService = null,
+        SubAgentOutputTruncator? outputTruncator = null,
+        SubAgentSummaryGenerator? summaryGenerator = null,
+        SubAgentConfig? subAgentConfig = null)
     {
         _agentService = agentService;
         _roleRegistry = roleRegistry;
         _logger = logger;
         _telemetryService = telemetryService;
         _outputTruncator = outputTruncator;
+        _summaryGenerator = summaryGenerator;
+        _subAgentConfig = subAgentConfig;
     }
     [Inject] private readonly IAgentService _agentService;
     [Inject] private readonly IAgentRoleRegistry _roleRegistry;
     [Inject] private readonly ILogger<BuiltInAgentToolHandlers>? _logger;
     [Inject] private readonly ITelemetryService? _telemetryService;
     [Inject] private readonly SubAgentOutputTruncator? _outputTruncator;
+    [Inject] private readonly SubAgentSummaryGenerator? _summaryGenerator;
+    [Inject] private readonly SubAgentConfig? _subAgentConfig;
 
     private const int DefaultOutputTokenBudget = 50_000;
 
@@ -253,16 +264,27 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
         => _telemetryService?.RecordCount("agent.tool.invoked.count", new Dictionary<string, string> { ["agent"] = agentType, ["success"] = isSuccess.ToString() }, "count", "Agent tool invoked count");
 
     /// <summary>
-    /// 构建子智能体输出文本 — L0 XML 包装 + L3 落盘指针截断
-    /// <para>步3: 固定阈值 DefaultOutputTokenBudget; 动态预算留给步4 L2 自摘要。</para>
+    /// 构建子智能体输出文本 — L0 XML 包装 + L1 直接放 + L2 自摘要 + L3 落盘指针
+    /// <para>步3: L0+L3 固定阈值。步4: 接入 L2 自摘要，L2 成功放摘要，L2 跳过/失败走 L3。</para>
     /// </summary>
     private async Task<string> BuildAgentOutputAsync(string agentId, string output, CancellationToken cancellationToken)
     {
         if (_outputTruncator is null)
             return output;
 
+        var budget = _subAgentConfig?.FallbackOutputTokenBudget ?? DefaultOutputTokenBudget;
         var summary = SubAgentOutputEnvelope.ExtractSummary(output);
-        var truncation = await _outputTruncator.TruncateAsync(agentId, output, DefaultOutputTokenBudget, summary, cancellationToken).ConfigureAwait(false);
+
+        if (_summaryGenerator is not null)
+        {
+            var summaryResult = await _summaryGenerator.TrySummarizeAsync(agentId, output, budget, cancellationToken).ConfigureAwait(false);
+            if (summaryResult.Status == SubAgentSummaryStatus.Success)
+                return SubAgentOutputEnvelope.Wrap(agentId, SubAgentEnvelopeState.Completed, summary, summaryResult.Summary!);
+            if (summaryResult.Status == SubAgentSummaryStatus.NotNeeded)
+                return SubAgentOutputEnvelope.Wrap(agentId, SubAgentEnvelopeState.Completed, summary, output);
+        }
+
+        var truncation = await _outputTruncator.TruncateAsync(agentId, output, budget, summary, cancellationToken).ConfigureAwait(false);
         return SubAgentOutputEnvelope.Wrap(agentId, SubAgentEnvelopeState.Completed, summary, truncation.FinalText);
     }
 

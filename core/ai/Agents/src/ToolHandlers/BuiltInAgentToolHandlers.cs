@@ -12,7 +12,8 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
         ITelemetryService? telemetryService = null,
         SubAgentOutputTruncator? outputTruncator = null,
         SubAgentSummaryGenerator? summaryGenerator = null,
-        SubAgentConfig? subAgentConfig = null)
+        SubAgentConfig? subAgentConfig = null,
+        IChatContextManager? contextManager = null)
     {
         _agentService = agentService;
         _roleRegistry = roleRegistry;
@@ -21,6 +22,7 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
         _outputTruncator = outputTruncator;
         _summaryGenerator = summaryGenerator;
         _subAgentConfig = subAgentConfig;
+        _contextManager = contextManager;
     }
     [Inject] private readonly IAgentService _agentService;
     [Inject] private readonly IAgentRoleRegistry _roleRegistry;
@@ -29,6 +31,7 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
     [Inject] private readonly SubAgentOutputTruncator? _outputTruncator;
     [Inject] private readonly SubAgentSummaryGenerator? _summaryGenerator;
     [Inject] private readonly SubAgentConfig? _subAgentConfig;
+    [Inject] private readonly IChatContextManager? _contextManager;
 
     private const int DefaultOutputTokenBudget = 50_000;
 
@@ -265,14 +268,14 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
 
     /// <summary>
     /// 构建子智能体输出文本 — L0 XML 包装 + L1 直接放 + L2 自摘要 + L3 落盘指针
-    /// <para>步3: L0+L3 固定阈值。步4: 接入 L2 自摘要，L2 成功放摘要，L2 跳过/失败走 L3。</para>
+    /// <para>步3: L0+L3 固定阈值。步4: 接入 L2 自摘要。后续4: 动态预算 R = min(ctxMax/4, fallback)。</para>
     /// </summary>
     private async Task<string> BuildAgentOutputAsync(string agentId, string output, CancellationToken cancellationToken)
     {
         if (_outputTruncator is null)
             return output;
 
-        var budget = _subAgentConfig?.FallbackOutputTokenBudget ?? DefaultOutputTokenBudget;
+        var budget = CalculateOutputTokenBudget();
         var summary = SubAgentOutputEnvelope.ExtractSummary(output);
 
         if (_summaryGenerator is not null)
@@ -286,6 +289,23 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
 
         var truncation = await _outputTruncator.TruncateAsync(agentId, output, budget, summary, cancellationToken).ConfigureAwait(false);
         return SubAgentOutputEnvelope.Wrap(agentId, SubAgentEnvelopeState.Completed, summary, truncation.FinalText);
+    }
+
+    /// <summary>
+    /// 计算子智能体输出 token 预算 — 动态预算 R = min(ctxMax/4, fallback)
+    /// <para>IChatContextManager 可用时用 ctxMax/4（1/4 窗口），否则用固定回退值。</para>
+    /// </summary>
+    private int CalculateOutputTokenBudget()
+    {
+        var fallback = _subAgentConfig?.FallbackOutputTokenBudget ?? DefaultOutputTokenBudget;
+        if (_contextManager is null)
+            return fallback;
+
+        var ctxMax = _contextManager.GetContextMaxTokens();
+        if (ctxMax <= 0)
+            return fallback;
+
+        return Math.Min(ctxMax / 4, fallback);
     }
 
     private static string BuildPlanPrompt(string goal, string? context, string? constraints)

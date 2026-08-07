@@ -207,7 +207,7 @@ public sealed partial class ChatStreamChunkProcessor : ServiceEntity, IChatStrea
             {
                 state.FullResponse.Append(chunk.Content);
 
-                var loopResult = _loopDetector.Detect(state.FullResponse.ToString());
+                var loopResult = _loopDetector.Detect(state.FullResponse);
                 if (loopResult.IsLoopDetected)
                 {
                     _logger?.LogWarning("[ChatStreamChunkProcessor] 检测到LLM循环输出，第{N}次触发，重复模式长度: {Len}, 重复次数: {Count}",

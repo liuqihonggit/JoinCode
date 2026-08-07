@@ -1,4 +1,5 @@
 using JoinCode.Abstractions.Attributes;
+using System.Text;
 
 namespace Core.Context;
 
@@ -105,6 +106,21 @@ public sealed partial class OutputLoopDetector : IOutputLoopDetector
         }
 
         return LoopDetectionResult.NoLoop;
+    }
+
+    /// <summary>
+    /// StringBuilder 重载 — 延迟 ToString() 直到通过检查间隔门控，避免每 token O(n) 拷贝。
+    /// </summary>
+    public LoopDetectionResult Detect(StringBuilder accumulatedText)
+    {
+        var len = accumulatedText.Length;
+        if (len < _minPatternLength * _requiredRepeats)
+            return LoopDetectionResult.NoLoop;
+
+        if (len - _lastCheckedLength < _checkInterval)
+            return LoopDetectionResult.NoLoop;
+
+        return Detect(accumulatedText.ToString());
     }
 
     /// <summary>

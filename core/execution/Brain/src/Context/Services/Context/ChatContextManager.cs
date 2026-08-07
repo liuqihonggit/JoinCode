@@ -418,7 +418,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         try
         {
             var messages = AssembleMessages();
-            return new MessageList(messages);
+            return MessageList.FromList(messages);
         }
         finally
         {
@@ -826,7 +826,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         try
         {
             var history = AssembleMessages();
-            var chatHistory = new MessageList(history);
+            var chatHistory = MessageList.FromList(history);
             var discovered = ToolReferenceExtractor.ExtractDiscoveredToolNames(chatHistory);
             await _discoveredTools.DiscoverRangeAsync(discovered).ConfigureAwait(false);
         }

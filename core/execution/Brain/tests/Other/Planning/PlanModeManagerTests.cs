@@ -520,15 +520,18 @@ public class PlanModeManagerTests
     public void ClearPlanSlug_ShouldResetSlugCache()
     {
         // 对齐 TS clearPlanSlug(): 清除后下次进入 plan mode 应生成新 slug
-        var slug1 = _planModeManager.GetType()
-            .GetField("_currentSessionSlug", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
-            .GetValue(_planModeManager) as string;
+        // PlanModeManager 迁移到 SessionScope.Cache 后，slug 存储在 SessionPlanState.CurrentSessionSlug
+        var state1 = _planModeManager.GetType()
+            .GetMethod("CurrentSessionState", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+            .Invoke(_planModeManager, null);
+        var slug1 = state1?.GetType().GetField("CurrentSessionSlug")!.GetValue(state1) as string;
 
         _planModeManager.ClearPlanSlug();
 
-        var slug2 = _planModeManager.GetType()
-            .GetField("_currentSessionSlug", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
-            .GetValue(_planModeManager) as string;
+        var state2 = _planModeManager.GetType()
+            .GetMethod("CurrentSessionState", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+            .Invoke(_planModeManager, null);
+        var slug2 = state2?.GetType().GetField("CurrentSessionSlug")!.GetValue(state2) as string;
 
         slug2.Should().BeNull("ClearPlanSlug 应清除 slug 缓存");
     }

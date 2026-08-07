@@ -19,4 +19,30 @@ public sealed class ReplSessionEntity : ToolExecutionEntity
     {
         Language = language;
     }
+
+    /// <summary>
+    /// 跨会话深拷贝 — 保留 Language/IsEnabled 等 REPL 会话特有字段
+    /// </summary>
+    public override Entity Clone(CloneContext context)
+    {
+        var cloned = new ReplSessionEntity(
+            language: Language,
+            toolUseId: ToolUseId,
+            spanId: SpanId,
+            displayName: DisplayName,
+            sessionId: context.TargetSessionId)
+        {
+            ArgumentsSummary = ArgumentsSummary,
+            ResultSummary = ResultSummary,
+            IsError = IsError,
+            SessionObjectId = context.RemapNullable(SessionObjectId),
+            LifecycleState = LifecycleState,
+            StartedAt = StartedAt,
+            CompletedAt = CompletedAt,
+            LastActivityAt = LastActivityAt,
+            IsEnabled = IsEnabled,
+        };
+        context.Map(ObjectId, cloned.ObjectId);
+        return cloned;
+    }
 }

@@ -463,4 +463,118 @@ public sealed class ToolExecutionEntityCloneTests
             finally { source.Dispose(); }
         }
     }
+
+    [Fact]
+    public void WebFetchEntity_Clone_PreservesUrlAndHttpFields()
+    {
+        var targetSession = new ObjectId(ObjectType.Session, "tgt-web");
+        var source = new WebFetchEntity(
+            url: "https://example.com/api",
+            toolUseId: "tu_web_001",
+            spanId: "span_web",
+            sessionId: new ObjectId(ObjectType.Session, "src-web"))
+        {
+            HttpStatusCode = 200,
+            ContentLength = 1024,
+            ResultSummary = "OK",
+            LifecycleState = EntityLifecycle.Completed,
+        };
+        try
+        {
+            var context = new CloneContext(targetSession);
+            var cloned = (WebFetchEntity)source.Clone(context);
+
+            cloned.Url.Should().Be("https://example.com/api");
+            cloned.HttpStatusCode.Should().Be(200);
+            cloned.ContentLength.Should().Be(1024);
+            cloned.ToolName.Should().Be("web_fetch");
+            cloned.ResultSummary.Should().Be("OK");
+            cloned.SessionId.Should().Be(targetSession);
+            cloned.GetType().Should().Be(typeof(WebFetchEntity));
+            cloned.Dispose();
+        }
+        finally { source.Dispose(); }
+    }
+
+    [Fact]
+    public void UserInteractionEntity_Clone_PreservesQuestionAndResponse()
+    {
+        var targetSession = new ObjectId(ObjectType.Session, "tgt-interact");
+        var source = new UserInteractionEntity(
+            question: "Continue with deployment?",
+            toolUseId: "tu_ask_001",
+            sessionId: new ObjectId(ObjectType.Session, "src-interact"))
+        {
+            Response = "yes",
+            LifecycleState = EntityLifecycle.Completed,
+        };
+        try
+        {
+            var context = new CloneContext(targetSession);
+            var cloned = (UserInteractionEntity)source.Clone(context);
+
+            cloned.Question.Should().Be("Continue with deployment?");
+            cloned.Response.Should().Be("yes");
+            cloned.ToolName.Should().Be("ask_user");
+            cloned.GetType().Should().Be(typeof(UserInteractionEntity));
+            cloned.Dispose();
+        }
+        finally { source.Dispose(); }
+    }
+
+    [Fact]
+    public void SleepEntity_Clone_PreservesDurationAndProgress()
+    {
+        var targetSession = new ObjectId(ObjectType.Session, "tgt-sleep");
+        var source = new SleepEntity(
+            durationSeconds: 30,
+            reason: "rate-limit-backoff",
+            toolUseId: "tu_sleep_001",
+            sessionId: new ObjectId(ObjectType.Session, "src-sleep"))
+        {
+            RemainingSeconds = 12,
+            TickCount = 18,
+            LifecycleState = EntityLifecycle.Active,
+        };
+        try
+        {
+            var context = new CloneContext(targetSession);
+            var cloned = (SleepEntity)source.Clone(context);
+
+            cloned.DurationSeconds.Should().Be(30);
+            cloned.RemainingSeconds.Should().Be(12);
+            cloned.TickCount.Should().Be(18);
+            cloned.Reason.Should().Be("rate-limit-backoff");
+            cloned.ToolName.Should().Be("sleep");
+            cloned.GetType().Should().Be(typeof(SleepEntity));
+            cloned.Dispose();
+        }
+        finally { source.Dispose(); }
+    }
+
+    [Fact]
+    public void ReplSessionEntity_Clone_PreservesLanguageAndEnabled()
+    {
+        var targetSession = new ObjectId(ObjectType.Session, "tgt-repl");
+        var source = new ReplSessionEntity(
+            language: "python",
+            toolUseId: "tu_repl_001",
+            sessionId: new ObjectId(ObjectType.Session, "src-repl"))
+        {
+            IsEnabled = true,
+            LifecycleState = EntityLifecycle.Active,
+        };
+        try
+        {
+            var context = new CloneContext(targetSession);
+            var cloned = (ReplSessionEntity)source.Clone(context);
+
+            cloned.Language.Should().Be("python");
+            cloned.IsEnabled.Should().BeTrue();
+            cloned.ToolName.Should().Be("repl");
+            cloned.GetType().Should().Be(typeof(ReplSessionEntity));
+            cloned.Dispose();
+        }
+        finally { source.Dispose(); }
+    }
 }

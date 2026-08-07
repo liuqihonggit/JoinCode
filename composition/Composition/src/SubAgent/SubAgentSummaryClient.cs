@@ -5,7 +5,7 @@ namespace JoinCode.Composition.SubAgent;
 /// <para>在 Composition 层实现，注入 IChatClient（Abstractions），调 LLM 生成连贯摘要。</para>
 /// <para>对齐 Dream ChatCompletionClient 的调用模式：GetChatCompletionService → GetApiMessageContentsAsync。</para>
 /// </summary>
-[Register]
+[Register(typeof(ISubAgentSummaryClient))]
 public sealed partial class SubAgentSummaryClient : ServiceEntity, ISubAgentSummaryClient
 {
     [Inject] private readonly ILogger<SubAgentSummaryClient>? _logger;

@@ -97,6 +97,66 @@ public class AskClarifyCommandTests
         prompt.Should().Contain("【澄清规则】");
         prompt.Should().Contain("【需求已明确】");
     }
+
+    [Fact]
+    public void Parse_DoubleQuestionMark_ShouldRouteToAskClarifyNotHelp()
+    {
+        var registry = new ChatCommandRegistry();
+        registry.Register(new AskClarifyCommand());
+        registry.Register(new HelpCommand());
+
+        var parseResult = registry.Parse("/??");
+        parseResult.IsSuccess.Should().BeTrue();
+        parseResult.CommandName.Should().Be("??");
+
+        var command = registry.GetCommand(parseResult.CommandName!);
+        command.Should().NotBeNull();
+        command.Should().BeOfType<AskClarifyCommand>();
+    }
+
+    [Fact]
+    public void Parse_SingleQuestionMark_ShouldRouteToHelpNotAskClarify()
+    {
+        var registry = new ChatCommandRegistry();
+        registry.Register(new AskClarifyCommand());
+        registry.Register(new HelpCommand());
+
+        var parseResult = registry.Parse("/?");
+        parseResult.IsSuccess.Should().BeTrue();
+        parseResult.CommandName.Should().Be("?");
+
+        var command = registry.GetCommand(parseResult.CommandName!);
+        command.Should().NotBeNull();
+        command.Should().BeOfType<HelpCommand>();
+    }
+
+    [Fact]
+    public void Parse_AskAlias_ShouldRouteToAskClarify()
+    {
+        var registry = new ChatCommandRegistry();
+        registry.Register(new AskClarifyCommand());
+        registry.Register(new HelpCommand());
+
+        var parseResult = registry.Parse("/ask");
+        parseResult.IsSuccess.Should().BeTrue();
+        parseResult.CommandName.Should().Be("ask");
+
+        var command = registry.GetCommand(parseResult.CommandName!);
+        command.Should().NotBeNull();
+        command.Should().BeOfType<AskClarifyCommand>();
+    }
+
+    [Fact]
+    public void Parse_DoubleQuestionMarkWithArgs_ShouldParseArgsCorrectly()
+    {
+        var registry = new ChatCommandRegistry();
+        registry.Register(new AskClarifyCommand());
+
+        var parseResult = registry.Parse("/?? 我想做一个网页");
+        parseResult.IsSuccess.Should().BeTrue();
+        parseResult.CommandName.Should().Be("??");
+        parseResult.Arguments.Should().Be("我想做一个网页");
+    }
 }
 
 /// <summary>

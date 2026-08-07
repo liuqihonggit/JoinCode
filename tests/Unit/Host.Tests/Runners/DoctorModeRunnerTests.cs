@@ -12,23 +12,23 @@ using Moq;
 public class DoctorModeRunnerTests
 {
     [Fact]
-    public async Task RunAsync_WithGoalEngineAchieved_ReturnsZero()
+    public async Task RunAsync_WithAgentRunnerAchieved_ReturnsZero()
     {
-        var goalEngine = new Mock<IGoalEngine>();
-        goalEngine.SetupGet(e => e.CurrentState).Returns(new GoalState
+        var runner = new Mock<IAgentRunner>();
+        runner.SetupGet(e => e.CurrentState).Returns(new GoalState
         {
             GoalId = "goal_001",
             Objective = "自举复盘",
             Status = GoalStatus.Achieved,
         });
-        goalEngine.Setup(e => e.StartAsync(It.IsAny<string>(), It.IsAny<List<string>?>(), It.IsAny<int?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((string obj, List<string>? c, int? b, string? sp, CancellationToken ct) => new GoalState
+        runner.Setup(e => e.RunAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string obj, string? sp, CancellationToken ct) => new GoalState
             {
                 GoalId = "goal_001",
                 Objective = obj,
                 Status = GoalStatus.Pursuing,
             });
-        goalEngine.Setup(e => e.WaitForCompletionAsync(It.IsAny<CancellationToken>()))
+        runner.Setup(e => e.WaitForCompletionAsync(It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         var agentProvider = new Mock<IAgentDefinitionProvider>();
@@ -42,7 +42,7 @@ public class DoctorModeRunnerTests
             });
 
         var services = new Mock<IServiceProvider>();
-        services.Setup(s => s.GetService(typeof(IGoalEngine))).Returns(goalEngine.Object);
+        services.Setup(s => s.GetService(typeof(IAgentRunner))).Returns(runner.Object);
         services.Setup(s => s.GetService(typeof(IAgentDefinitionProvider))).Returns(agentProvider.Object);
 
         var options = new CommandLineOptions { DoctorMode = true };
@@ -50,36 +50,34 @@ public class DoctorModeRunnerTests
         var result = await DoctorModeRunner.RunAsync(options, services.Object).ConfigureAwait(true);
 
         result.Should().Be(0);
-        goalEngine.Verify(e => e.StartAsync(
+        runner.Verify(e => e.RunAsync(
             "自举复盘与修复",
-            It.IsAny<List<string>?>(),
-            It.IsAny<int?>(),
             "你是 doctor Agent",
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
-    public async Task RunAsync_WithGoalEngineUnmet_ReturnsOne()
+    public async Task RunAsync_WithAgentRunnerUnmet_ReturnsOne()
     {
-        var goalEngine = new Mock<IGoalEngine>();
-        goalEngine.SetupGet(e => e.CurrentState).Returns(new GoalState
+        var runner = new Mock<IAgentRunner>();
+        runner.SetupGet(e => e.CurrentState).Returns(new GoalState
         {
             GoalId = "goal_002",
             Objective = "自举复盘",
             Status = GoalStatus.Unmet,
         });
-        goalEngine.Setup(e => e.StartAsync(It.IsAny<string>(), It.IsAny<List<string>?>(), It.IsAny<int?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((string obj, List<string>? c, int? b, string? sp, CancellationToken ct) => new GoalState
+        runner.Setup(e => e.RunAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string obj, string? sp, CancellationToken ct) => new GoalState
             {
                 GoalId = "goal_002",
                 Objective = obj,
                 Status = GoalStatus.Pursuing,
             });
-        goalEngine.Setup(e => e.WaitForCompletionAsync(It.IsAny<CancellationToken>()))
+        runner.Setup(e => e.WaitForCompletionAsync(It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         var services = new Mock<IServiceProvider>();
-        services.Setup(s => s.GetService(typeof(IGoalEngine))).Returns(goalEngine.Object);
+        services.Setup(s => s.GetService(typeof(IAgentRunner))).Returns(runner.Object);
         services.Setup(s => s.GetService(typeof(IAgentDefinitionProvider))).Returns((IAgentDefinitionProvider?)null);
 
         var options = new CommandLineOptions { DoctorMode = true };
@@ -90,10 +88,10 @@ public class DoctorModeRunnerTests
     }
 
     [Fact]
-    public async Task RunAsync_WithNoGoalEngine_ThrowsInvalidOperationException()
+    public async Task RunAsync_WithNoAgentRunner_ThrowsInvalidOperationException()
     {
         var services = new Mock<IServiceProvider>();
-        services.Setup(s => s.GetService(typeof(IGoalEngine))).Returns((IGoalEngine?)null);
+        services.Setup(s => s.GetService(typeof(IAgentRunner))).Returns((IAgentRunner?)null);
         services.Setup(s => s.GetService(typeof(IAgentDefinitionProvider))).Returns((IAgentDefinitionProvider?)null);
 
         var options = new CommandLineOptions { DoctorMode = true };
@@ -103,14 +101,14 @@ public class DoctorModeRunnerTests
     }
 
     [Fact]
-    public async Task RunAsync_WithGoalEngineAlreadyRunning_ReturnsTwo()
+    public async Task RunAsync_WithAgentRunnerAlreadyRunning_ReturnsTwo()
     {
-        var goalEngine = new Mock<IGoalEngine>();
-        goalEngine.Setup(e => e.StartAsync(It.IsAny<string>(), It.IsAny<List<string>?>(), It.IsAny<int?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+        var runner = new Mock<IAgentRunner>();
+        runner.Setup(e => e.RunAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("已有目标正在运行"));
 
         var services = new Mock<IServiceProvider>();
-        services.Setup(s => s.GetService(typeof(IGoalEngine))).Returns(goalEngine.Object);
+        services.Setup(s => s.GetService(typeof(IAgentRunner))).Returns(runner.Object);
         services.Setup(s => s.GetService(typeof(IAgentDefinitionProvider))).Returns((IAgentDefinitionProvider?)null);
 
         var options = new CommandLineOptions { DoctorMode = true };
@@ -123,25 +121,25 @@ public class DoctorModeRunnerTests
     [Fact]
     public async Task RunAsync_WithoutAgentProvider_UsesDefaultObjective()
     {
-        var goalEngine = new Mock<IGoalEngine>();
-        goalEngine.SetupGet(e => e.CurrentState).Returns(new GoalState
+        var runner = new Mock<IAgentRunner>();
+        runner.SetupGet(e => e.CurrentState).Returns(new GoalState
         {
             GoalId = "goal_003",
             Objective = "default",
             Status = GoalStatus.Achieved,
         });
-        goalEngine.Setup(e => e.StartAsync(It.IsAny<string>(), It.IsAny<List<string>?>(), It.IsAny<int?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((string obj, List<string>? c, int? b, string? sp, CancellationToken ct) => new GoalState
+        runner.Setup(e => e.RunAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string obj, string? sp, CancellationToken ct) => new GoalState
             {
                 GoalId = "goal_003",
                 Objective = obj,
                 Status = GoalStatus.Pursuing,
             });
-        goalEngine.Setup(e => e.WaitForCompletionAsync(It.IsAny<CancellationToken>()))
+        runner.Setup(e => e.WaitForCompletionAsync(It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         var services = new Mock<IServiceProvider>();
-        services.Setup(s => s.GetService(typeof(IGoalEngine))).Returns(goalEngine.Object);
+        services.Setup(s => s.GetService(typeof(IAgentRunner))).Returns(runner.Object);
         services.Setup(s => s.GetService(typeof(IAgentDefinitionProvider))).Returns((IAgentDefinitionProvider?)null);
 
         var options = new CommandLineOptions { DoctorMode = true };
@@ -149,10 +147,8 @@ public class DoctorModeRunnerTests
         var result = await DoctorModeRunner.RunAsync(options, services.Object).ConfigureAwait(true);
 
         result.Should().Be(0);
-        goalEngine.Verify(e => e.StartAsync(
+        runner.Verify(e => e.RunAsync(
             "自举复盘与修复 — 分析链路日志，发现缺陷，生成修复 patch",
-            It.IsAny<List<string>?>(),
-            It.IsAny<int?>(),
             null,
             It.IsAny<CancellationToken>()), Times.Once);
     }

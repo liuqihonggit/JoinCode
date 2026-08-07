@@ -7,7 +7,7 @@ using Structura.Dag;
 // IGoalEngine 接口已移至 JoinCode.Abstractions.Interfaces.Scheduling
 
 [Register]
-public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
+public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDisposable
 {
     private readonly IChatClient _kernel;
     private readonly IGoalEvaluator _evaluator;
@@ -41,6 +41,13 @@ public sealed partial class GoalEngine : IGoalEngine, IAsyncDisposable
     {
         return _completionTcs?.Task ?? Task.CompletedTask;
     }
+
+    /// <summary>
+    /// IAgentRunner.RunAsync — 轻量启动入口，委托给完整 StartAsync（不传 constraints/tokenBudget）。
+    /// 显式实现以避免与 IGoalEngine.StartAsync 签名冲突。
+    /// </summary>
+    Task<GoalState> IAgentRunner.RunAsync(string objective, string? systemPrompt, CancellationToken cancellationToken)
+        => StartAsync(objective, systemPrompt: systemPrompt, cancellationToken: cancellationToken);
 
     /// <summary>
     /// 设置 Graph 定义 — 由协调者 Agent 通过 goal_graph_define MCP 工具调用

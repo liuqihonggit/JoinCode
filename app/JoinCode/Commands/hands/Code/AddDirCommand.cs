@@ -88,7 +88,8 @@ public sealed class AddDirCommand : ChatCommandBase
             var existing = await configService.GetAsync("permissions.additionalDirectories",
                 context.CancellationToken).ConfigureAwait(false);
             var dirs = string.IsNullOrEmpty(existing) ? [] : existing.Split(';', StringSplitOptions.RemoveEmptyEntries);
-            if (!dirs.Contains(fullPath))
+            var dirSet = new HashSet<string>(dirs, StringComparer.OrdinalIgnoreCase);
+            if (!dirSet.Contains(fullPath))
             {
                 dirs = [.. dirs, fullPath];
                 await configService.SetAsync("permissions.additionalDirectories",

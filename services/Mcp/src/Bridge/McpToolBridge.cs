@@ -34,7 +34,7 @@ public sealed class McpToolBridge
 
     private static IReadOnlyList<IToolParam> BuildParameters(ToolInfo toolInfo)
     {
-        var required = toolInfo.InputSchema.Required ?? [];
+        var requiredSet = (toolInfo.InputSchema.Required ?? []).ToFrozenSet();
 
         return toolInfo.InputSchema.Properties
             .Select(kvp =>
@@ -51,7 +51,7 @@ public sealed class McpToolBridge
                     kvp.Key,
                     description,
                     MapSchemaTypeToClrType(kvp.Value.Type),
-                    required.Contains(kvp.Key));
+                    requiredSet.Contains(kvp.Key));
             })
             .ToList();
     }

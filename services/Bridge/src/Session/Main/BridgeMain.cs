@@ -7,6 +7,9 @@ namespace Core.Bridge;
 /// </summary>
 public sealed partial class BridgeMain : IAsyncDisposable
 {
+    private static readonly FrozenSet<string> ValidPermissionModes = FrozenSet.Create(
+        StringComparer.OrdinalIgnoreCase, "default", "plan", "auto-accept", "bubble");
+
     private readonly BridgeMainDeps _deps;
     private readonly ILogger? _logger;
     private readonly IFileSystem _fs;
@@ -360,10 +363,9 @@ public sealed partial class BridgeMain : IAsyncDisposable
         // 2.5 permissionMode 早期验证 — 对齐 TS 端: PERMISSION_MODES 校验
         if (_deps.PermissionMode is not null)
         {
-            var validModes = new[] { "default", "plan", "auto-accept", "bubble" };
-            if (!validModes.Contains(_deps.PermissionMode, StringComparer.OrdinalIgnoreCase))
+            if (!ValidPermissionModes.Contains(_deps.PermissionMode))
             {
-                return new BridgeMainResult { Error = $"Invalid permission mode '{_deps.PermissionMode}'. Valid modes: {string.Join(", ", validModes)}" };
+                return new BridgeMainResult { Error = $"Invalid permission mode '{_deps.PermissionMode}'. Valid modes: default, plan, auto-accept, bubble" };
             }
         }
 

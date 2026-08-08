@@ -3,6 +3,8 @@ namespace Core.Bridge;
 [Register(typeof(IBridgeRunMiddleware))]
 public sealed partial class RunValidationMiddleware : ServiceEntity, IBridgeRunMiddleware
 {
+    private static readonly FrozenSet<string> ValidPermissionModes = FrozenSet.Create(
+        StringComparer.OrdinalIgnoreCase, "default", "plan", "auto-accept", "bubble");
 
     public RunValidationMiddleware(BridgeMainDeps deps, ILogger<RunValidationMiddleware> logger)
     {
@@ -29,10 +31,9 @@ public sealed partial class RunValidationMiddleware : ServiceEntity, IBridgeRunM
 
         if (_deps.PermissionMode is not null)
         {
-            var validModes = new[] { "default", "plan", "auto-accept", "bubble" };
-            if (!validModes.Contains(_deps.PermissionMode, StringComparer.OrdinalIgnoreCase))
+            if (!ValidPermissionModes.Contains(_deps.PermissionMode))
             {
-                ctx.EarlyResult = new BridgeMainResult { Error = $"Invalid permission mode '{_deps.PermissionMode}'. Valid modes: {string.Join(", ", validModes)}" };
+                ctx.EarlyResult = new BridgeMainResult { Error = $"Invalid permission mode '{_deps.PermissionMode}'. Valid modes: default, plan, auto-accept, bubble" };
                 return;
             }
         }

@@ -58,29 +58,11 @@ public sealed partial class ChatCommandRegistry : JoinCode.Abstractions.Interfac
 
     public IChatCommand? GetCommand(string commandName)
     {
-        if (_registry.TryGetValue(commandName, out var cmd))
-            return cmd;
-
-        foreach (var entry in _registry.GetCategorizedEntries())
-        {
-            if (entry.Value.Aliases.Contains(commandName, StringComparer.OrdinalIgnoreCase))
-                return entry.IsEnabled ? entry.Value : null;
-        }
-        return null;
+        _registry.TryGetValue(commandName, out var cmd);
+        return cmd;
     }
 
-    public bool HasCommand(string commandName)
-    {
-        if (_registry.ContainsKey(commandName))
-            return true;
-
-        foreach (var entry in _registry.GetCategorizedEntries())
-        {
-            if (entry.Value.Aliases.Contains(commandName, StringComparer.OrdinalIgnoreCase))
-                return entry.IsEnabled;
-        }
-        return false;
-    }
+    public bool HasCommand(string commandName) => _registry.ContainsKey(commandName);
 
     public IReadOnlyDictionary<string, IChatCommand> GetAllCommands() => _registry.GetAllCanonical();
 

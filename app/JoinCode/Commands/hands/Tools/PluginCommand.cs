@@ -150,7 +150,8 @@ public sealed class PluginCommand : ChatCommandBase
                 var autoLoad = string.IsNullOrEmpty(autoLoadJson)
                     ? new List<string>()
                     : JsonSerializer.Deserialize(autoLoadJson, CliJsonContext.Default.ListString) ?? new List<string>();
-                if (!autoLoad.Contains(pluginName))
+                var autoLoadSet = new HashSet<string>(autoLoad, StringComparer.OrdinalIgnoreCase);
+                if (!autoLoadSet.Contains(pluginName))
                 {
                     autoLoad.Add(pluginName);
                     var updatedJson = JsonSerializer.Serialize(autoLoad, CliJsonContext.Default.ListString);
@@ -201,7 +202,8 @@ public sealed class PluginCommand : ChatCommandBase
             }
             else
             {
-                if (!disabled.Contains(name))
+                var disabledSet = new HashSet<string>(disabled, StringComparer.OrdinalIgnoreCase);
+                if (!disabledSet.Contains(name))
                 {
                     disabled.Add(name);
                     var updatedJson = JsonSerializer.Serialize(disabled, CliJsonContext.Default.ListString);

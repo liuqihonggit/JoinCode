@@ -36,10 +36,11 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
         get
         {
             if (string.IsNullOrEmpty(_pendingStepUpScope)) return false;
-            var currentScopes = _authContext.Scope?.Split(' ', StringSplitOptions.RemoveEmptyEntries)
-                ?? Array.Empty<string>();
+            var currentScopes = new HashSet<string>(
+                _authContext.Scope?.Split(' ', StringSplitOptions.RemoveEmptyEntries) ?? [],
+                StringComparer.Ordinal);
             return _pendingStepUpScope.Split(' ', StringSplitOptions.RemoveEmptyEntries)
-                .Any(s => !currentScopes.Contains(s, StringComparer.Ordinal));
+                .Any(s => !currentScopes.Contains(s));
         }
     }
 

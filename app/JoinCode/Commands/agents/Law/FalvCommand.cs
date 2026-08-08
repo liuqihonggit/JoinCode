@@ -201,7 +201,7 @@ public sealed class FalvCommand : ChatCommandBase
     {
         TerminalHelper.WriteLine("=== 有限视锥 ===");
 
-        foreach (JoinCode.Reasoning.State.AgentRole role in Enum.GetValues<JoinCode.Reasoning.State.AgentRole>())
+        foreach (JoinCode.Abstractions.Models.Agent.AgentRole role in Enum.GetValues<JoinCode.Abstractions.Models.Agent.AgentRole>())
         {
             var expanded = engine.ExpandFragment(role, "", "*");
             var coneContext = engine switch
@@ -231,16 +231,16 @@ public sealed class FalvCommand : ChatCommandBase
     {
         TerminalHelper.WriteLine("=== 视锥冲突检测 ===");
 
-        var result = engine.DetectConeConflict(JoinCode.Reasoning.State.AgentRole.Prosecutor, JoinCode.Reasoning.State.AgentRole.Defender);
+        var result = engine.DetectConeConflict(JoinCode.Abstractions.Models.Agent.AgentRole.Prosecutor, JoinCode.Abstractions.Models.Agent.AgentRole.Defender);
         TerminalHelper.WriteLine($"  控方结论: {string.Join(" -> ", result.RoleAConclusions)}");
         TerminalHelper.WriteLine($"  辩方结论: {string.Join(" -> ", result.RoleBConclusions)}");
         TerminalHelper.WriteLine($"  冲突状态: {(result.HasConflict ? $"{TerminalColors.Warning}存在冲突{AnsiStyleConstants.Reset}" : "无冲突")}");
 
         TerminalHelper.WriteLine();
-        var judgeResult = engine.DetectConeConflict(JoinCode.Reasoning.State.AgentRole.Prosecutor, JoinCode.Reasoning.State.AgentRole.Judge);
+        var judgeResult = engine.DetectConeConflict(JoinCode.Abstractions.Models.Agent.AgentRole.Prosecutor, JoinCode.Abstractions.Models.Agent.AgentRole.Judge);
         TerminalHelper.WriteLine($"  控方-法官冲突: {(judgeResult.HasConflict ? $"{TerminalColors.Warning}存在{AnsiStyleConstants.Reset}" : "无")}");
 
-        var defJudgeResult = engine.DetectConeConflict(JoinCode.Reasoning.State.AgentRole.Defender, JoinCode.Reasoning.State.AgentRole.Judge);
+        var defJudgeResult = engine.DetectConeConflict(JoinCode.Abstractions.Models.Agent.AgentRole.Defender, JoinCode.Abstractions.Models.Agent.AgentRole.Judge);
         TerminalHelper.WriteLine($"  辩方-法官冲突: {(defJudgeResult.HasConflict ? $"{TerminalColors.Warning}存在{AnsiStyleConstants.Reset}" : "无")}");
     }
 

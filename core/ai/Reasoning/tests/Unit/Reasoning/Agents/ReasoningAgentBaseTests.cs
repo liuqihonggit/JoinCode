@@ -48,38 +48,15 @@ public sealed class ReasoningAgentBaseTests
     }
 
     [Fact]
-    public async Task CompressPromptIfNeededAsync_WhenCompressorIsNull_ReturnsOriginal()
+    public async Task CompressPromptIfNeededAsync_WhenContextManagerIsNull_ReturnsOriginal()
     {
-        var context = CreateContext(compressor: null, maxPromptTokens: 10);
+        var context = CreateContext(maxPromptTokens: 10);
         var prompt = "这是一个很长的提示词";
+        var agent = new TestAgent(NullLogger<TestAgent>.Instance);
 
-        var result = await TestAgent.CompressPromptIfNeededAsync(context, AgentRole.Prosecutor, prompt, CancellationToken.None);
-
-        Assert.Same(prompt, result);
-    }
-
-    [Fact]
-    public async Task CompressPromptIfNeededAsync_WhenUnderBudget_ReturnsOriginal()
-    {
-        var compressor = new FakeCompressor { CompressedUserPrompt = "compressed" };
-        var context = CreateContext(compressor, maxPromptTokens: 10000);
-        var prompt = "短";
-
-        var result = await TestAgent.CompressPromptIfNeededAsync(context, AgentRole.Prosecutor, prompt, CancellationToken.None);
+        var result = await agent.CompressPromptIfNeededAsync(context, AgentRole.Prosecutor, prompt, CancellationToken.None);
 
         Assert.Same(prompt, result);
-    }
-
-    [Fact]
-    public async Task CompressPromptIfNeededAsync_WhenOverBudget_ReturnsCompressed()
-    {
-        var compressor = new FakeCompressor { CompressedUserPrompt = "compressed" };
-        var context = CreateContext(compressor, maxPromptTokens: 1);
-        var prompt = new string('x', 1000);
-
-        var result = await TestAgent.CompressPromptIfNeededAsync(context, AgentRole.Prosecutor, prompt, CancellationToken.None);
-
-        Assert.Equal("compressed", result);
     }
 
     [Fact]
@@ -157,7 +134,7 @@ public sealed class ReasoningAgentBaseTests
         Assert.Equal("broadcast", broker.BroadcastMessages[0].ToAgentId);
     }
 
-    private static ReasoningContext CreateContext(IReasoningContextCompressor? compressor, int maxPromptTokens)
+    private static ReasoningContext CreateContext(int maxPromptTokens)
     {
         return new ReasoningContext
         {
@@ -165,30 +142,27 @@ public sealed class ReasoningAgentBaseTests
             AllEvidence = [],
             Dag = new Dag<ReasoningPayload>(),
             Options = new ReasoningOptions { MaxPromptTokens = maxPromptTokens },
-            ContextCompressor = compressor,
         };
     }
 
-    private sealed class TestAgent : ReasoningAgentBase
+    private sealed class TestAgent : ReasoningAgent
     {
-        public override AgentRole Role => AgentRole.Prosecutor;
-        public override string Name => "测试Agent";
         public override string SystemPrompt => "你是测试Agent";
 
-        public TestAgent(ILogger<TestAgent> logger, IChatClient? chatClient = null, IAgentMessageBroker? messageBroker = null)
-            : base(logger, chatClient, messageBroker) { }
+        public TestAgent(ILogger logger, IChatClient? chatClient = null, IAgentMessageBroker? messageBroker = null)
+            : base(new FakeQueryEngine(), logger, AgentRole.Prosecutor, "测试Agent", chatClient, messageBroker) { }
 
         public override Task<AgentAction> ReasonAsync(ReasoningContext context, CancellationToken ct)
         {
-            return Task.FromResult(new AgentAction { AgentRole = Role });
+            return System.Threading.Tasks.Task.FromResult(new AgentAction { AgentRole = Role });
         }
 
-        public new static string? ExtractJsonObject(string content, ILogger? logger = null) => ReasoningAgentBase.ExtractJsonObject(content, logger);
+        public new static string? ExtractJsonObject(string content, ILogger? logger = null) => ReasoningAgent.ExtractJsonObject(content, logger);
 
-        public new static TrustLevel ParseTrustLevel(string? value) => ReasoningAgentBase.ParseTrustLevel(value);
+        public new static TrustLevel ParseTrustLevel(string? value) => ReasoningAgent.ParseTrustLevel(value);
 
-        public new static Task<string> CompressPromptIfNeededAsync(ReasoningContext context, AgentRole role, string userPrompt, CancellationToken ct)
-            => ReasoningAgentBase.CompressPromptIfNeededAsync(context, role, userPrompt, ct);
+        public new Task<string> CompressPromptIfNeededAsync(ReasoningContext context, AgentRole role, string userPrompt, CancellationToken ct)
+            => base.CompressPromptIfNeededAsync(context, role, userPrompt, ct);
 
         public new Task<(string? Content, TokenUsage? Usage, int EstimatedPromptTokens)> CallLlmAsync(string userPrompt, float temperature = 0.3f, int maxTokens = 2000, CancellationToken ct = default)
             => base.CallLlmAsync(userPrompt, temperature, maxTokens, ct);

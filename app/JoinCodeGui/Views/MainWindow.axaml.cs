@@ -1,6 +1,5 @@
 using Avalonia.Controls;
 using Avalonia.Input;
-using Avalonia.Markup.Xaml;
 
 using JoinCode.Gui.Theming;
 using JoinCode.Gui.ViewModels;
@@ -20,7 +19,7 @@ public sealed partial class MainWindow : Window
 
     public MainWindow()
     {
-        AvaloniaXamlLoader.Load(this);
+        InitializeComponent();
     }
 
     protected override void OnDataContextChanged(EventArgs e)
@@ -124,8 +123,12 @@ public sealed partial class MainWindow : Window
     /// <summary>新消息加入时，若未上滑浏览则自动滚动到底部</summary>
     private void OnMessagesChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
     {
-        if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Add && _autoScrollEnabled)
+        if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Add
+            && _autoScrollEnabled
+            && MessageScroll is not null)
+        {
             MessageScroll.ScrollToEnd();
+        }
     }
 
     /// <summary>滚动变化时：上滑超过阈值则暂停自动滚动并显示回底浮钮</summary>

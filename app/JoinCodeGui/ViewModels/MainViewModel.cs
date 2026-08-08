@@ -429,6 +429,7 @@ public sealed partial class MainViewModel : ViewModelBase
         catch (Exception ex)
         {
             StatusText = $"错误: {ex.Message}";
+            WriteErrorLog(ex);
         }
         finally
         {
@@ -437,6 +438,23 @@ public sealed partial class MainViewModel : ViewModelBase
             IsBusy = false;
             OnPropertyChanged(nameof(CanStop));
             SaveActiveSession();
+        }
+    }
+
+    /// <summary>把发送异常写入 dumps/send_error.log 以便诊断；写入失败则忽略</summary>
+    private static void WriteErrorLog(Exception ex)
+    {
+        try
+        {
+            var dir = System.IO.Path.Combine(AppContext.BaseDirectory, "dumps");
+            System.IO.Directory.CreateDirectory(dir);
+            System.IO.File.AppendAllText(
+                System.IO.Path.Combine(dir, "send_error.log"),
+                $"[{DateTime.Now:HH:mm:ss}] {ex}{Environment.NewLine}");
+        }
+        catch (Exception writeEx)
+        {
+            System.Console.Error.WriteLine($"无法写入错误日志: {writeEx.Message}");
         }
     }
 

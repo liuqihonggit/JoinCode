@@ -23,6 +23,7 @@
     <PackageReference Include="Avalonia.Diagnostics" Version="$(AvaloniaVersion)" />
     <PackageReference Include="Avalonia.ReactiveUI" Version="$(AvaloniaVersion)" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="$(CommunityToolkitMvvmVersion)" />
+    <PackageReference Include="Markdig" Version="$(MarkdigVersion)" />
   </ItemGroup>
 
   <ItemGroup>

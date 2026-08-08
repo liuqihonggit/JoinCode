@@ -34,9 +34,18 @@ public sealed partial class MainWindow : Window
         _vm = DataContext as MainViewModel;
         if (_vm is not null)
         {
+            _vm.PermissionConfirmCallback = ShowPermissionDialogAsync;
             _vm.Messages.CollectionChanged += OnMessagesChanged;
             _vm.PropertyChanged += OnVmPropertyChanged;
         }
+    }
+
+    /// <summary>权限确认回调：弹出确认框并把用户决策返回给网关；关闭窗口等价于拒绝</summary>
+    private async Task<Hosting.PermissionConfirmationDecision> ShowPermissionDialogAsync(
+        Hosting.PermissionConfirmationRequest request)
+    {
+        var dialog = new PermissionDialog(request);
+        return await dialog.ShowDialog<Hosting.PermissionConfirmationDecision>(this);
     }
 
     /// <summary>窗口级快捷键：Ctrl+N 新建会话 / Ctrl+L 清空 / Esc 收起设置面板或停止生成</summary>

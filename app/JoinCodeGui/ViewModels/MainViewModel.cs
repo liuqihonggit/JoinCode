@@ -1,6 +1,8 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
+using JoinCode.Abstractions.Configuration.Llm;
+using JoinCode.Abstractions.Configuration.Providers;
 using JoinCode.Abstractions.LLM.Chat;
 using JoinCode.Gui.Hosting;
 
@@ -132,8 +134,31 @@ public sealed partial class MainViewModel : ViewModelBase
     partial void OnSearchTextChanged(string value)
         => OnPropertyChanged(nameof(FilteredMessages));
 
-    /// <summary>模型下拉选项（绑定引擎共享配置的真实模型列表）</summary>
-    public IReadOnlyList<string> ModelOptions => _session.AvailableModels;
+    /// <summary>模型下拉选项（绑定引擎共享配置的真实模型列表，展示"供应商 · 模型显示名"）</summary>
+    public IReadOnlyList<ModelOptionItem> ModelOptions
+    {
+        get
+        {
+            var provider = _session.CurrentProvider;
+            var providerDisplay = ProviderKindExtensions.FromValue(provider)?.ToString() ?? provider;
+            var catalog = ModelConfigLoader.GetModels(provider);
+
+            var source = _session.AvailableModels;
+            var items = new ModelOptionItem[source.Count];
+            for (var i = 0; i < source.Count; i++)
+            {
+                var id = source[i];
+                var entry = catalog.FirstOrDefault(m => m.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
+                var modelDisplay = entry?.DisplayName ?? id;
+                items[i] = new ModelOptionItem(id, $"{providerDisplay} · {modelDisplay}");
+            }
+            return items;
+        }
+    }
+
+    /// <summary>当前选中的模型下拉项（View 层绑定 ComboBox.SelectedItem）</summary>
+    [ObservableProperty]
+    private ModelOptionItem? _selectedModelOption;
 
     /// <summary>空状态建议提问（点击填充输入框）</summary>
     public IReadOnlyList<string> SuggestedPrompts { get; } =
@@ -225,6 +250,7 @@ public sealed partial class MainViewModel : ViewModelBase
         _sessionStore = store ?? new Persistence.GuiSessionStore(new IO.FileSystem.PhysicalFileSystem());
         _session.PermissionConfirmationHandler = OnPermissionConfirmationRequestedAsync;
         _selectedModel = _session.CurrentModelId;
+        _selectedModelOption = ModelOptions.FirstOrDefault(m => m.Id == _session.CurrentModelId);
         Messages.CollectionChanged += OnMessagesChanged;
         LoadPersistedSessions();
         NewConversation();
@@ -273,6 +299,15 @@ public sealed partial class MainViewModel : ViewModelBase
 
     partial void OnMaxTokensChanged(int value)
         => OnPropertyChanged(nameof(IsInputTooLong));
+
+    /// <summary>用户切换模型下拉项时回写共享配置（绑定同一个配置源，下次请求引擎生效）</summary>
+    partial void OnSelectedModelOptionChanged(ModelOptionItem? value)
+    {
+        if (value is not null && value.Id != _session.CurrentModelId)
+        {
+            SelectedModel = value.Id;
+        }
+    }
 
     /// <summary>用户切换模型时回写共享配置（绑定同一个配置源，下次请求引擎生效）</summary>
     partial void OnSelectedModelChanged(string value)

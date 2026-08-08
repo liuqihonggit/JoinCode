@@ -113,4 +113,46 @@ public class JccChatSessionAssemblyTests
         session.AvailableModels.Should().BeEquivalentTo(expected);
         session.AvailableModels.Should().Contain("gpt-4o");
     }
+
+    [Fact]
+    public void ModelSurface_AvailableModels_IncludesCurrentModelWhenNotInCatalog()
+    {
+        // 用户场景：provider=openai 但 endpoint 是商汤 senseNova（OpenAI 兼容），
+        // 模型 sensenova-6.7-flash-lite 不在内置 models.json 的 openai 组。
+        // 对齐 CLI ModelCatalog.EnsureCurrentModelInList：当前模型必须出现在列表中，
+        // 否则下拉切换模型会把请求发往错误 endpoint 导致 404。
+        var config = new WorkflowConfig
+        {
+            Provider = new ProviderConfig
+            {
+                Provider = "openai",
+                ModelId = "sensenova-6.7-flash-lite"
+            }
+        };
+        var session = new JccChatSession(
+            new ServiceCollection().BuildServiceProvider(),
+            null!,
+            config);
+
+        session.AvailableModels.Should().Contain("sensenova-6.7-flash-lite");
+    }
+
+    [Fact]
+    public void ModelSurface_AvailableModels_DoesNotDuplicateCatalogModel()
+    {
+        var config = new WorkflowConfig
+        {
+            Provider = new ProviderConfig
+            {
+                Provider = "openai",
+                ModelId = "gpt-4o"
+            }
+        };
+        var session = new JccChatSession(
+            new ServiceCollection().BuildServiceProvider(),
+            null!,
+            config);
+
+        session.AvailableModels.Count(m => m == "gpt-4o").Should().Be(1);
+    }
 }

@@ -113,8 +113,14 @@
                 IsEnabled="{Binding HasMessages}" />
         <Button Grid.Column="4" Content="⊘ 全部重置" Command="{Binding ClearAllSessionsCommand}"
                 FontSize="11" />
-        <ComboBox Grid.Column="5" ItemsSource="{Binding ModelOptions}" SelectedItem="{Binding SelectedModel}"
-                  PlaceholderText="选择模型" MinWidth="150" />
+        <ComboBox Grid.Column="5" ItemsSource="{Binding ModelOptions}" SelectedItem="{Binding SelectedModelOption}"
+                  PlaceholderText="选择模型" MinWidth="180">
+          <ComboBox.ItemTemplate>
+            <DataTemplate x:DataType="vm:ModelOptionItem">
+              <TextBlock Text="{Binding DisplayText}" TextTrimming="CharacterEllipsis" />
+            </DataTemplate>
+          </ComboBox.ItemTemplate>
+        </ComboBox>
         <Button Grid.Column="6" Content="⛭" ToolTip.Tip="设置面板" Command="{Binding ToggleSettingsPanelCommand}" />
       </Grid>
     </Border>

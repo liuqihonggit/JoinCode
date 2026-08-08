@@ -68,11 +68,28 @@ internal sealed class JccChatSession : IJccChatSession
     /// <summary>当前启用的模型 ID</summary>
     public string CurrentModelId => _config.Provider.ModelId;
 
-    /// <summary>当前 Provider 可选真实模型 ID 列表（绑定共享 ModelConfigLoader）</summary>
-    public IReadOnlyList<string> AvailableModels =>
-        ModelConfigLoader.GetModels(_config.Provider.Provider)
-            .Select(m => m.Id)
-            .ToArray();
+    /// <summary>
+    /// 当前 Provider 可选真实模型 ID 列表（绑定共享 ModelConfigLoader）。
+    /// 对齐 CLI <c>ModelCatalog.EnsureCurrentModelInList</c>：即使当前配置的模型
+    /// 不在内置 models.json（如 OpenAI 兼容的自定义 endpoint），也追加到列表，
+    /// 保证下拉框默认选中当前模型，切换前不触发 404。
+    /// </summary>
+    public IReadOnlyList<string> AvailableModels
+    {
+        get
+        {
+            var catalog = ModelConfigLoader.GetModels(_config.Provider.Provider)
+                .Select(m => m.Id)
+                .ToList();
+            var current = _config.Provider.ModelId;
+            if (!string.IsNullOrWhiteSpace(current)
+                && catalog.All(id => !string.Equals(id, current, StringComparison.OrdinalIgnoreCase)))
+            {
+                catalog.Add(current);
+            }
+            return catalog;
+        }
+    }
 
     /// <summary>切换当前模型 — 直接回写共享 WorkflowConfig.Provider（DI 单例，QueryService 请求期读取同一实例）</summary>
     public Task SetModelAsync(string modelId, CancellationToken cancellationToken = default)

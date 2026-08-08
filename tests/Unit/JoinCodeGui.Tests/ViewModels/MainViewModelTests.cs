@@ -129,8 +129,22 @@ public class MainViewModelTests
     {
         var vm = CreateVm();
 
-        vm.ModelOptions.Should().BeEquivalentTo(["deepseek-chat", "deepseek-reasoner"]);
+        vm.ModelOptions.Select(m => m.Id).Should().BeEquivalentTo(["deepseek-chat", "deepseek-reasoner"]);
+        vm.ModelOptions.Should().Contain(m => m.Id == "deepseek-chat" && m.DisplayText == "DeepSeek · deepseek-chat");
         vm.SelectedModel.Should().Be("deepseek-chat");
+        vm.SelectedModelOption.Should().NotBeNull();
+        vm.SelectedModelOption!.Id.Should().Be("deepseek-chat");
+    }
+
+    [Fact]
+    public void ModelOptions_DisplayText_DistinguishesProviderAndModel()
+    {
+        var vm = CreateVm();
+
+        foreach (var item in vm.ModelOptions)
+        {
+            item.DisplayText.Should().Contain("·", "展示文本应区分供应商与模型：如 'DeepSeek · deepseek-chat'");
+        }
     }
 
     [Fact]
@@ -139,6 +153,17 @@ public class MainViewModelTests
         var vm = CreateVm();
 
         vm.SelectedModel = "deepseek-reasoner";
+
+        vm.SelectedModel.Should().Be("deepseek-reasoner");
+    }
+
+    [Fact]
+    public void SelectedModelOptionChange_SyncsSelectedModel()
+    {
+        var vm = CreateVm();
+
+        var target = vm.ModelOptions.First(m => m.Id == "deepseek-reasoner");
+        vm.SelectedModelOption = target;
 
         vm.SelectedModel.Should().Be("deepseek-reasoner");
     }

@@ -343,7 +343,7 @@ public sealed partial class MainViewModel : ViewModelBase
             var thinkingBuilder = new StringBuilder();
             ChatUiMessage? currentThinking = null;
             ChatUiMessage? currentToolCall = null;
-            await foreach (var evt in _session.StreamAsync(message, _sendCts.Token).ConfigureAwait(false))
+            await foreach (var evt in _session.StreamAsync(message, _sendCts.Token))
             {
                 switch (evt.Type)
                 {

@@ -69,8 +69,11 @@ public sealed partial class ReactiveCompactService : ServiceEntity, IReactiveCom
             });
         }
 
+        var droppedGroups = groups.Take(dropCount).ToList();
         var keptGroups = groups.Skip(dropCount).ToList();
         var keptMessages = keptGroups.SelectMany(g => g).ToList();
+
+        var droppedSummary = BuildDroppedGroupsSummary(droppedGroups);
 
         var preCompactTokens = _microcompactService.EstimateMessageTokens(messages);
         var postCompactTokens = _microcompactService.EstimateMessageTokens(keptMessages);
@@ -80,6 +83,7 @@ public sealed partial class ReactiveCompactService : ServiceEntity, IReactiveCom
             Compacted = true,
             Level = CompactLevel.ReactiveCompact,
             Trigger = CompactTrigger.Reactive,
+            Summary = droppedSummary,
             PreCompactTokenCount = preCompactTokens,
             PostCompactTokenCount = postCompactTokens,
             MessagesRemoved = messages.Count - keptMessages.Count,
@@ -88,7 +92,8 @@ public sealed partial class ReactiveCompactService : ServiceEntity, IReactiveCom
             {
                 ["droppedGroups"] = JsonElementHelper.FromInt32(dropCount),
                 ["totalGroups"] = JsonElementHelper.FromInt32(groups.Count),
-                ["tokenGap"] = JsonElementHelper.FromInt32(tokenGap ?? 0)
+                ["tokenGap"] = JsonElementHelper.FromInt32(tokenGap ?? 0),
+                ["hasSummary"] = JsonElementHelper.FromBoolean(!string.IsNullOrEmpty(droppedSummary))
             }
         });
     }
@@ -114,6 +119,75 @@ public sealed partial class ReactiveCompactService : ServiceEntity, IReactiveCom
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// 为被丢弃的消息组构建结构化占位摘要 — 不调 LLM，提取关键信息避免历史完全丢失
+    /// </summary>
+    private static string BuildDroppedGroupsSummary(IReadOnlyList<IReadOnlyList<ApiMessage>> droppedGroups)
+    {
+        if (droppedGroups.Count == 0)
+            return string.Empty;
+
+        var sb = new StringBuilder();
+        sb.AppendLine("[响应式压缩：以下为被丢弃消息组的关键信息摘要]");
+        sb.AppendLine();
+
+        var userMessages = new List<string>();
+        var assistantSnippets = new List<string>();
+        var toolCallCount = 0;
+
+        foreach (var group in droppedGroups)
+        {
+            foreach (var msg in group)
+            {
+                if (msg.Role == MessageRole.User && !string.IsNullOrEmpty(msg.Content))
+                {
+                    var content = msg.Content.Trim();
+                    if (content.Length > 200)
+                        content = content[..200] + "...";
+                    userMessages.Add(content);
+                }
+                else if (msg.Role == MessageRole.Assistant && !string.IsNullOrEmpty(msg.Content))
+                {
+                    var content = msg.Content.Trim();
+                    if (content.Length > 150)
+                        content = content[..150] + "...";
+                    if (!string.IsNullOrWhiteSpace(content))
+                        assistantSnippets.Add(content);
+                }
+                else if (msg.Role == MessageRole.Tool)
+                {
+                    toolCallCount++;
+                }
+            }
+        }
+
+        if (userMessages.Count > 0)
+        {
+            sb.AppendLine("用户消息：");
+            foreach (var um in userMessages)
+                sb.AppendLine($"  - {um}");
+            sb.AppendLine();
+        }
+
+        if (assistantSnippets.Count > 0)
+        {
+            sb.AppendLine("助手回复摘要：");
+            foreach (var snip in assistantSnippets.Take(10))
+                sb.AppendLine($"  - {snip}");
+            if (assistantSnippets.Count > 10)
+                sb.AppendLine($"  - ...（共 {assistantSnippets.Count} 条，仅显示前10条）");
+            sb.AppendLine();
+        }
+
+        if (toolCallCount > 0)
+        {
+            sb.AppendLine($"工具调用次数：{toolCallCount}");
+        }
+
+        sb.AppendLine($"被丢弃消息组数：{droppedGroups.Count}");
+        return sb.ToString();
     }
 
     private int CalculateDropCount(IReadOnlyList<IReadOnlyList<ApiMessage>> groups, int? tokenGap)

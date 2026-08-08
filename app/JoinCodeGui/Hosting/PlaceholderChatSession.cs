@@ -17,6 +17,9 @@ internal sealed class PlaceholderChatSession : IJccChatSession
 
     public IReadOnlyList<string> AvailableModels { get; } = ["deepseek-chat", "deepseek-reasoner"];
 
+    /// <summary>占位会话不触发引擎权限异常，保留回调供 UI 注入（无实际效果）</summary>
+    public Func<PermissionConfirmationRequest, Task<PermissionConfirmationDecision>>? PermissionConfirmationHandler { get; set; }
+
     public Task SetModelAsync(string modelId, CancellationToken cancellationToken = default)
         => Task.CompletedTask;
 

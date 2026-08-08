@@ -18,6 +18,13 @@ public interface IJccChatSession : IAsyncDisposable
     /// <summary>以事件流方式发送消息（含工具调用迭代），是聊天界面主通道</summary>
     IAsyncEnumerable<ChatStreamEvent> StreamAsync(string message, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// 权限确认回调 — 引擎抛出 <c>PermissionPendingConfirmationException</c> 时由网关调用。
+    /// UI 注入后返回决策；为 null 时网关默认拒绝（等价于 Deny）。
+    /// 决策为 Allow/AlwaysAllow 时网关自动批准工具并重发同一条消息完成闭环。
+    /// </summary>
+    Func<PermissionConfirmationRequest, Task<PermissionConfirmationDecision>>? PermissionConfirmationHandler { get; set; }
+
     /// <summary>获取当前会话消息列表</summary>
     Task<IReadOnlyList<ApiMessageRecord>> GetMessagesAsync(CancellationToken cancellationToken = default);
 

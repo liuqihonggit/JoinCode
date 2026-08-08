@@ -1,6 +1,8 @@
 using JoinCode.Abstractions.Configuration.Llm;
 using JoinCode.Abstractions.Interfaces;
 using JoinCode.Abstractions.LLM.Chat;
+using JoinCode.Abstractions.Security;
+using JoinCode.Abstractions.Security.Permission;
 
 namespace JoinCode.Gui.Hosting;
 
@@ -11,9 +13,21 @@ namespace JoinCode.Gui.Hosting;
 /// </summary>
 internal sealed class JccChatSession : IJccChatSession
 {
+    /// <summary>权限确认最大重试次数（同一消息连续触发确认）</summary>
+    private const int MaxPermissionRetries = 3;
+
+    /// <summary>临时批准时长 — 选择"允许本次"（对齐 CLI 5 分钟窗口）</summary>
+    private static readonly TimeSpan AllowDuration = TimeSpan.FromMinutes(5);
+
+    /// <summary>临时批准时长 — 选择"始终允许"（较长窗口，视为会话级始终允许）</summary>
+    private static readonly TimeSpan AlwaysAllowDuration = TimeSpan.FromHours(24);
+
     private readonly Microsoft.Extensions.DependencyInjection.ServiceProvider _services;
     private readonly IChatService _chat;
     private readonly JoinCode.Abstractions.Configuration.WorkflowConfig _config;
+
+    /// <inheritdoc />
+    public Func<PermissionConfirmationRequest, Task<PermissionConfirmationDecision>>? PermissionConfirmationHandler { get; set; }
 
     internal JccChatSession(
         Microsoft.Extensions.DependencyInjection.ServiceProvider services,
@@ -77,7 +91,86 @@ internal sealed class JccChatSession : IJccChatSession
     public IAsyncEnumerable<ChatStreamEvent> StreamAsync(
         string message,
         CancellationToken cancellationToken = default)
-        => _chat.StreamWithEventsAsync(message, cancellationToken);
+        => StreamWithPermissionRetryAsync(message, cancellationToken);
+
+    /// <summary>
+    /// 带权限确认闭环的事件流：引擎抛出 <see cref="PermissionPendingConfirmationException"/>
+    /// 时调用 <see cref="PermissionConfirmationHandler"/> 获取用户决策；
+    /// Allow/AlwaysAllow → 临时批准工具 + 撤回本轮（用户消息已在 ChatPreprocessor 入上下文，
+    /// 不撤回会重复）→ 重发同一条消息（无重复）；Deny → 产出工具错误事件后结束。
+    /// </summary>
+    private async IAsyncEnumerable<ChatStreamEvent> StreamWithPermissionRetryAsync(
+        string message,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        var retries = 0;
+        while (true)
+        {
+            // 手动枚举器：yield return 不能出现在 try/catch 内（CS1626），
+            // 因此 try 只包住 MoveNextAsync，yield return 在 try 外。
+            PermissionPendingConfirmationException? pending = null;
+            await using var enumerator = _chat.StreamWithEventsAsync(message, cancellationToken).GetAsyncEnumerator(cancellationToken);
+            while (true)
+            {
+                bool hasNext;
+                try
+                {
+                    hasNext = await enumerator.MoveNextAsync().ConfigureAwait(false);
+                }
+                catch (PermissionPendingConfirmationException ex)
+                {
+                    pending = ex;
+                    break;
+                }
+
+                if (!hasNext)
+                {
+                    // 正常完成，无权限异常
+                    yield break;
+                }
+
+                yield return enumerator.Current;
+            }
+
+            if (retries >= MaxPermissionRetries)
+            {
+                yield return ChatStreamEvent.ToolEnd(pending!.ToolName,
+                    $"权限确认重试次数超限: {pending.ConfirmationPrompt}", isError: true);
+                yield break;
+            }
+
+            var decision = PermissionConfirmationDecision.Deny;
+            if (PermissionConfirmationHandler is not null)
+            {
+                decision = await PermissionConfirmationHandler(
+                    new PermissionConfirmationRequest(
+                        pending.ToolName, pending.ConfirmationPrompt, pending.RequestId, pending.RuleContent))
+                    .ConfigureAwait(false);
+            }
+
+            if (decision == PermissionConfirmationDecision.Deny)
+            {
+                yield return ChatStreamEvent.ToolEnd(pending.ToolName,
+                    $"权限确认被拒绝: {pending.ConfirmationPrompt}", isError: true);
+                yield break;
+            }
+
+            // 允许/始终允许 → 批准工具（共享 PermissionManager，与 CLI 同源）
+            var permissionManager = _services.GetService<IToolPermissionManager>();
+            if (permissionManager is not null)
+            {
+                var duration = decision == PermissionConfirmationDecision.AlwaysAllow
+                    ? AlwaysAllowDuration
+                    : AllowDuration;
+                permissionManager.ApproveToolTemporarily(pending.ToolName, duration);
+            }
+
+            // 撤回本轮（含用户消息 + 部分助手回复），重发同一条消息无重复
+            await RewindLastTurnAsync(cancellationToken).ConfigureAwait(false);
+            retries++;
+            // while 循环重发同一条消息
+        }
+    }
 
     public Task<IReadOnlyList<ApiMessageRecord>> GetMessagesAsync(CancellationToken cancellationToken = default)
         => _chat.GetMessageListAsync(cancellationToken);

@@ -760,6 +760,19 @@ public class MainViewModelTests
         }
 
         [Fact]
+        public async Task Send_WhenSessionThrows_KeepsStatusReady()
+        {
+            var fake = new ThrowingSession();
+            var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"));
+
+            vm.InputText = "hello";
+            await Task.Run(() => vm.SendCommand.ExecuteAsync(null)).WaitAsync(Timeout);
+
+            vm.StatusText.Should().Be("就绪");
+            vm.StatusKind.Should().Be(StatusKind.Ready);
+        }
+
+        [Fact]
         public void CopyErrorToast_SetsClipboardTextAndDismisses()
         {
             var vm = CreateVm();

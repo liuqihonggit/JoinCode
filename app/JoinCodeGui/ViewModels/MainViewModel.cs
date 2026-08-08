@@ -460,8 +460,8 @@ public sealed partial class MainViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
-            StatusText = $"错误: {ex.Message}";
             ErrorToastText = ex.Message;
+            StatusText = "就绪";
             WriteErrorLog(ex);
         }
         finally

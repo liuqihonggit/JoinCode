@@ -7,6 +7,9 @@ namespace JoinCode.Gui.ViewModels;
 /// </summary>
 public sealed partial class SessionItem : ObservableObject
 {
+    /// <summary>会话唯一 ID（持久化到 ~/.jcc/sessions/{Id}.json，用于恢复与删除）</summary>
+    public string Id { get; set; } = Guid.NewGuid().ToString("N");
+
     [ObservableProperty]
     private string _title = string.Empty;
 

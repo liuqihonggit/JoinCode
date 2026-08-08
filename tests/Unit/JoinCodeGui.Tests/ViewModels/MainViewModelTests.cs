@@ -1,8 +1,10 @@
 ﻿using FluentAssertions;
 
+using IO.FileSystem;
 using JoinCode.Abstractions.LLM.Chat;
 using JoinCode.Abstractions.Interfaces;
 using JoinCode.Gui.Hosting;
+using JoinCode.Gui.Persistence;
 using JoinCode.Gui.ViewModels;
 
 namespace JoinCode.Gui.Tests.ViewModels;
@@ -16,10 +18,15 @@ public class MainViewModelTests
 {
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(5);
 
+    /// <summary>创建注入 InMemoryFileSystem 会话存储的 ViewModel — 避免测试污染真实 ~/.jcc/sessions</summary>
+    private static MainViewModel CreateVm() => new(
+        null,
+        new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"));
+
     [Fact]
     public async Task Send_WithValidInput_BuildsUserAndAssistantMessages()
     {
-        var vm = new MainViewModel();
+        var vm = CreateVm();
 
         vm.InputText = "hello";
         await Task.Run(() => vm.SendCommand.ExecuteAsync(null)).WaitAsync(Timeout);
@@ -37,7 +44,7 @@ public class MainViewModelTests
     [Fact]
     public async Task Send_WithWhitespaceInput_DoesNothing()
     {
-        var vm = new MainViewModel();
+        var vm = CreateVm();
 
         vm.InputText = "   ";
         await vm.SendCommand.ExecuteAsync(null).WaitAsync(Timeout);
@@ -49,7 +56,7 @@ public class MainViewModelTests
     [Fact]
     public async Task ClearHistory_RemovesMessages()
     {
-        var vm = new MainViewModel();
+        var vm = CreateVm();
 
         vm.InputText = "hello";
         await Task.Run(() => vm.SendCommand.ExecuteAsync(null)).WaitAsync(Timeout);
@@ -62,7 +69,7 @@ public class MainViewModelTests
     [Fact]
     public void NewConversation_CreatesSessionAndClearsMessages()
     {
-        var vm = new MainViewModel();
+        var vm = CreateVm();
         vm.InputText = "hello";
         vm.SendCommand.Execute(null);
         vm.Messages.Should().NotBeEmpty();
@@ -76,9 +83,51 @@ public class MainViewModelTests
     }
 
     [Fact]
+    public async Task Session_SendThenNewVm_IsPersistedAndRestored()
+    {
+        var store = new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions");
+        var vm = new MainViewModel(null, store);
+
+        vm.InputText = "你好，帮我写个 hello world";
+        await Task.Run(() => vm.SendCommand.ExecuteAsync(null)).WaitAsync(Timeout);
+        var sessionId = vm.Sessions.First(s => s.IsSelected).Id;
+        var savedCount = vm.Messages.Count(m =>
+            (m.Role == MessageRole.User || m.Role == MessageRole.Assistant)
+            && !string.IsNullOrWhiteSpace(m.Content));
+
+        // 新 VM（模拟重启）共享同一 store → 会话应出现在侧边栏
+        var vm2 = new MainViewModel(null, store);
+        vm2.Sessions.Should().Contain(s => s.Id == sessionId);
+        var restored = vm2.Sessions.First(s => s.Id == sessionId);
+        restored.Title.Should().Contain("你好");
+
+        // 选中恢复的会话 → 消息区填充已持久化消息
+        vm2.SelectSessionCommand.Execute(restored);
+        vm2.Messages.Should().NotBeEmpty();
+        vm2.Messages.Count.Should().BeGreaterThanOrEqualTo(savedCount);
+        vm2.Messages[0].Content.Should().Contain("hello world");
+    }
+
+    [Fact]
+    public void RemoveSession_DeletesPersistedFile()
+    {
+        var store = new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions");
+        var vm = new MainViewModel(null, store);
+
+        vm.InputText = "hello";
+        vm.SendCommand.Execute(null);
+        var target = vm.Sessions.First(s => s.IsSelected);
+
+        vm.RemoveSessionCommand.Execute(target);
+
+        store.Load(target.Id).Should().BeNull();
+        vm.Sessions.Should().NotContain(target);
+    }
+
+    [Fact]
     public void ModelOptions_AreBoundToSessionRealModels()
     {
-        var vm = new MainViewModel();
+        var vm = CreateVm();
 
         vm.ModelOptions.Should().BeEquivalentTo(["deepseek-chat", "deepseek-reasoner"]);
         vm.SelectedModel.Should().Be("deepseek-chat");
@@ -87,7 +136,7 @@ public class MainViewModelTests
     [Fact]
     public void SelectedModelChange_WritesBackToSharedConfig()
     {
-        var vm = new MainViewModel();
+        var vm = CreateVm();
 
         vm.SelectedModel = "deepseek-reasoner";
 
@@ -97,7 +146,7 @@ public class MainViewModelTests
     [Fact]
     public async Task RemoveMessage_DeletesSingleMessage()
     {
-        var vm = new MainViewModel();
+        var vm = CreateVm();
 
         vm.InputText = "hello";
         await Task.Run(() => vm.SendCommand.ExecuteAsync(null)).WaitAsync(Timeout);
@@ -114,7 +163,7 @@ public class MainViewModelTests
     [Fact]
     public void InsertDividerAndTimestamp_AppendToInput()
     {
-        var vm = new MainViewModel();
+        var vm = CreateVm();
 
         vm.InsertDividerCommand.Execute(null);
         vm.InputText.Should().Contain("---");
@@ -126,7 +175,7 @@ public class MainViewModelTests
     [Fact]
     public void InputTextChange_UpdatesCharsCount()
     {
-        var vm = new MainViewModel();
+        var vm = CreateVm();
         vm.InputText = "abcde";
         vm.CharsCount.Should().Be(5);
     }
@@ -134,7 +183,7 @@ public class MainViewModelTests
 [Fact]
         public void RemoveSession_RemovesFromList()
         {
-            var vm = new MainViewModel();
+            var vm = CreateVm();
             var before = vm.Sessions.Count;
             var target = vm.Sessions[^1];
 
@@ -147,7 +196,7 @@ public class MainViewModelTests
         [Fact]
         public void SelectSession_MarksOnlyTargetSelected()
         {
-            var vm = new MainViewModel();
+            var vm = CreateVm();
             var first = vm.Sessions[0];
             vm.NewConversationCommand.Execute(null);
             var second = vm.Sessions[^1];
@@ -166,7 +215,7 @@ public class MainViewModelTests
         [Fact]
         public async Task Send_UsesFirstUserMessageAsSessionTitle()
         {
-            var vm = new MainViewModel();
+            var vm = CreateVm();
             vm.InputText = "帮我写个爬虫脚本";
             await Task.Run(() => vm.SendCommand.ExecuteAsync(null)).WaitAsync(Timeout);
 
@@ -177,7 +226,7 @@ public class MainViewModelTests
         [Fact]
         public void CopyMessage_SetsFeedbackState()
         {
-            var vm = new MainViewModel();
+            var vm = CreateVm();
             var msg = new ChatUiMessage { Role = MessageRole.Assistant, Content = "sample" };
             vm.Messages.Add(msg);
 
@@ -189,7 +238,7 @@ public class MainViewModelTests
         [Fact]
         public void CopyEmptyMessage_DoesNotSetFeedback()
         {
-            var vm = new MainViewModel();
+            var vm = CreateVm();
             var msg = new ChatUiMessage { Role = MessageRole.Assistant, Content = string.Empty };
             vm.Messages.Add(msg);
 
@@ -201,7 +250,7 @@ public class MainViewModelTests
         [Fact]
         public void BeginRename_PutsSessionIntoEditState()
         {
-            var vm = new MainViewModel();
+            var vm = CreateVm();
             var session = vm.Sessions[0];
 
             vm.BeginRenameSessionCommand.Execute(session);
@@ -214,7 +263,7 @@ public class MainViewModelTests
         [Fact]
         public void CommitRename_AppliesDraftTitle()
         {
-            var vm = new MainViewModel();
+            var vm = CreateVm();
             var session = vm.Sessions[0];
             vm.BeginRenameSessionCommand.Execute(session);
             session.RenameDraft = "新标题";
@@ -228,7 +277,7 @@ public class MainViewModelTests
         [Fact]
         public void CommitRename_EmptyDraft_KeepsOriginalTitle()
         {
-            var vm = new MainViewModel();
+            var vm = CreateVm();
             var session = vm.Sessions[0];
             var original = session.Title;
             vm.BeginRenameSessionCommand.Execute(session);
@@ -243,7 +292,7 @@ public class MainViewModelTests
         [Fact]
         public async Task StopGenerating_CancelsInFlightSend()
         {
-            var vm = new MainViewModel();
+            var vm = CreateVm();
             vm.InputText = "hello";
 
             var sendTask = Task.Run(() => vm.SendCommand.ExecuteAsync(null));
@@ -258,7 +307,7 @@ public class MainViewModelTests
         [Fact]
         public void StopGenerating_WhenNotBusy_DoesNothing()
         {
-            var vm = new MainViewModel();
+            var vm = CreateVm();
 
             vm.StopGeneratingCommand.Execute(null);
             vm.CanStop.Should().BeFalse();
@@ -268,7 +317,7 @@ public class MainViewModelTests
         [Fact]
         public void StatusKind_ErrorPrefix_MapsToError()
         {
-            var vm = new MainViewModel();
+            var vm = CreateVm();
             vm.StatusText = "错误: something failed";
             vm.StatusKind.Should().Be(StatusKind.Error);
         }
@@ -276,7 +325,7 @@ public class MainViewModelTests
         [Fact]
         public void StatusKind_Thinking_MapsToBusy()
         {
-            var vm = new MainViewModel();
+            var vm = CreateVm();
             vm.StatusText = "思考中…";
             vm.StatusKind.Should().Be(StatusKind.Busy);
         }
@@ -284,7 +333,7 @@ public class MainViewModelTests
         [Fact]
         public void StatusKind_Ready_MapsToReady()
         {
-            var vm = new MainViewModel();
+            var vm = CreateVm();
             vm.StatusText = "就绪";
             vm.StatusKind.Should().Be(StatusKind.Ready);
         }
@@ -292,7 +341,7 @@ public class MainViewModelTests
         [Fact]
         public void ClearAllSessions_ResetsToListWithOneSession()
         {
-            var vm = new MainViewModel();
+            var vm = CreateVm();
             vm.SendCommand.Execute(null);
 
             vm.ClearAllSessionsCommand.Execute(null);
@@ -304,14 +353,14 @@ public class MainViewModelTests
         [Fact]
         public void SystemPrompt_HasDefaultValue()
         {
-            var vm = new MainViewModel();
+            var vm = CreateVm();
             vm.SystemPrompt.Should().NotBeNullOrWhiteSpace();
         }
 
         [Fact]
         public async Task CanRegenerate_AfterReply_IsTrue()
         {
-            var vm = new MainViewModel();
+            var vm = CreateVm();
             vm.InputText = "hello";
             await Task.Run(() => vm.SendCommand.ExecuteAsync(null)).WaitAsync(Timeout);
 
@@ -321,7 +370,7 @@ public class MainViewModelTests
         [Fact]
         public async Task Regenerate_RemovesLastTurnAndResends()
         {
-            var vm = new MainViewModel();
+            var vm = CreateVm();
             vm.InputText = "hello";
             await Task.Run(() => vm.SendCommand.ExecuteAsync(null)).WaitAsync(Timeout);
             var beforeCount = vm.Messages.Count;
@@ -336,7 +385,7 @@ public class MainViewModelTests
         [Fact]
         public void Regenerate_WithoutAssistantMessage_DoesNothing()
         {
-            var vm = new MainViewModel();
+            var vm = CreateVm();
 
             var act = () => vm.RegenerateLastReplyCommand.Execute(null);
 
@@ -347,7 +396,7 @@ public class MainViewModelTests
         [Fact]
         public void EstimatedTokens_TracksMessageContent()
         {
-            var vm = new MainViewModel();
+            var vm = CreateVm();
             vm.Messages.Add(new ChatUiMessage { Role = MessageRole.User, Content = "abcdefgh" });
 
             vm.EstimatedTokens.Should().Be(2);
@@ -357,7 +406,7 @@ public class MainViewModelTests
         [Fact]
         public void ResetSettings_RestoresDefaults()
         {
-            var vm = new MainViewModel();
+            var vm = CreateVm();
             vm.Temperature = 1.5;
             vm.MaxTokens = 1024;
             vm.StreamingEnabled = false;
@@ -376,14 +425,14 @@ public class MainViewModelTests
         [Fact]
         public void FontSize_HasDefaultValue()
         {
-            var vm = new MainViewModel();
+            var vm = CreateVm();
             vm.FontSize.Should().Be(14);
         }
 
         [Fact]
         public void FilteredMessages_EmptySearch_ReturnsAll()
         {
-            var vm = new MainViewModel();
+            var vm = CreateVm();
             vm.Messages.Add(new ChatUiMessage { Role = MessageRole.User, Content = "苹果" });
             vm.Messages.Add(new ChatUiMessage { Role = MessageRole.Assistant, Content = "香蕉" });
 
@@ -393,7 +442,7 @@ public class MainViewModelTests
         [Fact]
         public void FilteredMessages_SearchFiltersByKeyword()
         {
-            var vm = new MainViewModel();
+            var vm = CreateVm();
             var apple = new ChatUiMessage { Role = MessageRole.User, Content = "苹果很甜" };
             var banana = new ChatUiMessage { Role = MessageRole.Assistant, Content = "香蕉很香" };
             vm.Messages.Add(apple);
@@ -409,7 +458,7 @@ public class MainViewModelTests
         [Fact]
         public void FilteredMessages_CaseInsensitive()
         {
-            var vm = new MainViewModel();
+            var vm = CreateVm();
             var msg = new ChatUiMessage { Role = MessageRole.Assistant, Content = "Hello World" };
             vm.Messages.Add(msg);
 
@@ -421,7 +470,7 @@ public class MainViewModelTests
         [Fact]
         public void ExportSessionText_ContainsRolesAndContents()
         {
-            var vm = new MainViewModel();
+            var vm = CreateVm();
             vm.Messages.Add(new ChatUiMessage { Role = MessageRole.User, Content = "你好" });
             vm.Messages.Add(new ChatUiMessage { Role = MessageRole.Assistant, Content = "你好！" });
 
@@ -436,7 +485,7 @@ public class MainViewModelTests
         [Fact]
         public void CopySessionExport_SetsExportPayload()
         {
-            var vm = new MainViewModel();
+            var vm = CreateVm();
             vm.Messages.Add(new ChatUiMessage { Role = MessageRole.User, Content = "hi" });
 
             vm.CopySessionExportCommand.Execute(null);
@@ -447,7 +496,7 @@ public class MainViewModelTests
         [Fact]
         public async Task NavigateHistory_TraversesSentMessages()
         {
-            var vm = new MainViewModel();
+            var vm = CreateVm();
             vm.InputText = "第一条";
             await Task.Run(() => vm.SendCommand.ExecuteAsync(null)).WaitAsync(Timeout);
             vm.InputText = "第二条";
@@ -464,7 +513,7 @@ public class MainViewModelTests
         [Fact]
         public async Task NavigateHistory_IgnoresBeyondBounds()
         {
-            var vm = new MainViewModel();
+            var vm = CreateVm();
             vm.InputText = "only";
             await Task.Run(() => vm.SendCommand.ExecuteAsync(null)).WaitAsync(Timeout);
 
@@ -476,7 +525,7 @@ public class MainViewModelTests
         [Fact]
         public async Task ManualInput_ExitsHistoryCursor()
         {
-            var vm = new MainViewModel();
+            var vm = CreateVm();
             vm.InputText = "hello";
             await Task.Run(() => vm.SendCommand.ExecuteAsync(null)).WaitAsync(Timeout);
 
@@ -511,14 +560,14 @@ public class MainViewModelTests
         [Fact]
         public void SuggestedPrompts_NotEmpty()
         {
-            var vm = new MainViewModel();
+            var vm = CreateVm();
             vm.SuggestedPrompts.Should().NotBeEmpty();
         }
 
         [Fact]
         public void UseSuggestion_FillsInput()
         {
-            var vm = new MainViewModel();
+            var vm = CreateVm();
             var prompt = vm.SuggestedPrompts[0];
 
             vm.UseSuggestionCommand.Execute(prompt);
@@ -529,7 +578,7 @@ public class MainViewModelTests
         [Fact]
         public void UseSuggestion_NullOrBlank_DoesNothing()
         {
-            var vm = new MainViewModel();
+            var vm = CreateVm();
             vm.UseSuggestionCommand.Execute(null);
             vm.InputText.Should().BeEmpty();
         }
@@ -537,7 +586,7 @@ public class MainViewModelTests
         [Fact]
         public void InputTooLong_WhenExceedsMaxTokensTriple()
         {
-            var vm = new MainViewModel();
+            var vm = CreateVm();
             vm.MaxTokens = 100;
             vm.InputText = new string('x', 301);
 
@@ -547,7 +596,7 @@ public class MainViewModelTests
         [Fact]
         public void InputNotTooLong_BelowLimit()
         {
-            var vm = new MainViewModel();
+            var vm = CreateVm();
             vm.MaxTokens = 100;
             vm.InputText = new string('x', 299);
 
@@ -557,7 +606,7 @@ public class MainViewModelTests
         [Fact]
         public async Task Send_BuildsThinkingToolAndContentMessages()
         {
-            var vm = new MainViewModel();
+            var vm = CreateVm();
 
             vm.InputText = "mock query";
             await Task.Run(() => vm.SendCommand.ExecuteAsync(null)).WaitAsync(Timeout);
@@ -574,7 +623,7 @@ public class MainViewModelTests
         [Fact]
         public async Task Send_ToolCallsCarryNameAndArguments()
         {
-            var vm = new MainViewModel();
+            var vm = CreateVm();
 
             vm.InputText = "mock query";
             await Task.Run(() => vm.SendCommand.ExecuteAsync(null)).WaitAsync(Timeout);
@@ -588,7 +637,7 @@ public class MainViewModelTests
         [Fact]
         public async Task Send_ThinkingContent_IsNonEmpty()
         {
-            var vm = new MainViewModel();
+            var vm = CreateVm();
 
             vm.InputText = "mock query";
             await Task.Run(() => vm.SendCommand.ExecuteAsync(null)).WaitAsync(Timeout);
@@ -615,7 +664,7 @@ public class MainViewModelTests
         [Fact]
         public void ThinkingMessage_ToggleExpandsAndRevealsBody()
         {
-            var vm = new MainViewModel();
+            var vm = CreateVm();
             var msg = new ChatUiMessage
             {
                 Role = MessageRole.Assistant,
@@ -636,7 +685,7 @@ public class MainViewModelTests
         [Fact]
         public void ToggleThinking_OnNonThinkingMessage_DoesNothing()
         {
-            var vm = new MainViewModel();
+            var vm = CreateVm();
             var msg = new ChatUiMessage { Role = MessageRole.Assistant, Content = "hi" };
 
             vm.ToggleThinkingCommand.Execute(msg);

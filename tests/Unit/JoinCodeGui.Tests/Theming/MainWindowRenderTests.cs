@@ -8,6 +8,7 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Media.Imaging;
 
 using JoinCode.Gui.Theming;
+using JoinCode.Gui.Persistence;
 using JoinCode.Gui.ViewModels;
 using JoinCode.Gui.Views;
 
@@ -23,6 +24,11 @@ public sealed class MainWindowRenderTests
     private const double BrightThreshold = 170;
     private const double ContrastMargin = 60;
 
+    /// <summary>创建注入 InMemoryFileSystem 会话存储的 ViewModel — 避免测试污染真实 ~/.jcc/sessions</summary>
+    private static MainViewModel CreateVm() => new(
+        null,
+        new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"));
+
     /// <summary>捕获指定主题下的 MainWindow 渲染帧，返回 (WriteableBitmap, 三区域平均亮度)。</summary>
     private static (WriteableBitmap Bmp, double Sidebar, double Input, double Full) Capture(bool dark)
     {
@@ -33,7 +39,7 @@ public sealed class MainWindowRenderTests
         var avaVariant = dark ? Avalonia.Styling.ThemeVariant.Dark : Avalonia.Styling.ThemeVariant.Light;
         var win = new MainWindow
         {
-            DataContext = new MainViewModel(),
+            DataContext = CreateVm(),
             Width = 980,
             Height = 680,
             RequestedThemeVariant = avaVariant
@@ -119,7 +125,7 @@ public sealed class MainWindowRenderTests
         // 不手动设置窗口主题 → 完全依赖 App 启动默认,验证首帧即 Dark,不出现 Fluent Default/浅色残留
         var win = new MainWindow
         {
-            DataContext = new MainViewModel(),
+            DataContext = CreateVm(),
             Width = 980,
             Height = 680
         };
@@ -136,7 +142,7 @@ public sealed class MainWindowRenderTests
     public void SessionSelectSwitchesHighlightColor()
     {
         GuiPalette.CurrentVariant = GuiPalette.GuiThemeVariant.Dark;
-        var vm = new MainViewModel();
+        var vm = CreateVm();
         vm.NewConversationCommand.Execute(null);
         var first = vm.Sessions[0];
         var second = vm.Sessions[^1];

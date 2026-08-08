@@ -13,6 +13,7 @@ namespace JoinCode.Gui.ViewModels;
 public sealed partial class MainViewModel : ViewModelBase
 {
     private readonly IJccChatSession _session;
+    private readonly Persistence.GuiSessionStore _sessionStore;
 
     [ObservableProperty]
     private string _inputText = string.Empty;
@@ -186,12 +187,27 @@ public sealed partial class MainViewModel : ViewModelBase
     /// <summary>估算 token 数（中文约 1.6 字符/token，英文约 4 字符/token，取保守下限 4）</summary>
     public int EstimatedTokens => TotalChars / 4;
 
-    public MainViewModel(IJccChatSession? session = null)
+    public MainViewModel(IJccChatSession? session = null, Persistence.GuiSessionStore? store = null)
     {
         _session = session ?? new Hosting.PlaceholderChatSession();
+        _sessionStore = store ?? new Persistence.GuiSessionStore(new IO.FileSystem.PhysicalFileSystem());
         _selectedModel = _session.CurrentModelId;
         Messages.CollectionChanged += OnMessagesChanged;
+        LoadPersistedSessions();
         NewConversation();
+    }
+
+    /// <summary>启动时从同一 sessions 目录恢复历史会话到侧边栏（CLI 与 GUI 共享会话文件）</summary>
+    private void LoadPersistedSessions()
+    {
+        foreach (var summary in _sessionStore.ListSessions())
+        {
+            Sessions.Add(new SessionItem
+            {
+                Id = summary.Id,
+                Title = summary.Title
+            });
+        }
     }
 
     private void OnMessagesChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
@@ -240,8 +256,7 @@ public sealed partial class MainViewModel : ViewModelBase
         {
             Title = $"会话 {_sessionCounter}",
             IsSelected = true
-        };
-        foreach (var s in Sessions)
+        };        foreach (var s in Sessions)
             s.IsSelected = false;
         Sessions.Add(item);
         _activeSession = item;
@@ -408,6 +423,39 @@ public sealed partial class MainViewModel : ViewModelBase
             _sendCts = null;
             IsBusy = false;
             OnPropertyChanged(nameof(CanStop));
+            SaveActiveSession();
+        }
+    }
+
+    /// <summary>将当前会话消息持久化到 ~/.jcc/sessions/{Id}.json（含自动命名标题）</summary>
+    private void SaveActiveSession()
+    {
+        if (_activeSession is null)
+            return;
+
+        var data = new Persistence.GuiSessionData
+        {
+            Id = _activeSession.Id,
+            CustomTitle = _activeSession.Title,
+            CreatedAt = DateTime.UtcNow,
+            Messages = Messages
+                .Where(m => m.Role is MessageRole.User or MessageRole.Assistant && !string.IsNullOrWhiteSpace(m.Content))
+                .Select(m => new Persistence.GuiSessionMessage
+                {
+                    Role = m.Role.ToValue(),
+                    Content = m.Content,
+                    Timestamp = m.Timestamp
+                })
+                .ToList()
+        };
+
+        try
+        {
+            _sessionStore.Save(data);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MainViewModel] 会话持久化失败: {ex.Message}");
         }
     }
 
@@ -478,10 +526,21 @@ public sealed partial class MainViewModel : ViewModelBase
     [RelayCommand]
     private void ToggleSettingsPanel() => IsSettingsPanelOpen = !IsSettingsPanelOpen;
 
-    /// <summary>清空全部会话（会话列表与消息一并重置）</summary>
+    /// <summary>清空全部会话（会话列表与消息一并重置，持久化文件同步删除）</summary>
     [RelayCommand]
     private void ClearAllSessions()
     {
+        foreach (var s in Sessions.ToList())
+        {
+            try
+            {
+                _sessionStore.Delete(s.Id);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[MainViewModel] 会话删除失败: {ex.Message}");
+            }
+        }
         Sessions.Clear();
         Messages.Clear();
         _sessionCounter = 0;
@@ -508,13 +567,21 @@ public sealed partial class MainViewModel : ViewModelBase
     [RelayCommand]
     private void InsertTimestamp() => ConcatInput($"[{DateTime.Now:HH:mm:ss}] ");
 
-    /// <summary>从会话列表删除指定会话</summary>
+    /// <summary>从会话列表删除指定会话（同步删除持久化文件）</summary>
     [RelayCommand]
     private void RemoveSession(SessionItem? session)
     {
         if (session is null)
             return;
         Sessions.Remove(session);
+        try
+        {
+            _sessionStore.Delete(session.Id);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MainViewModel] 会话删除失败: {ex.Message}");
+        }
         if (session.IsSelected && Sessions.Count > 0)
             Sessions[^1].IsSelected = true;
     }
@@ -525,9 +592,31 @@ public sealed partial class MainViewModel : ViewModelBase
     {
         if (session is null)
             return;
+        if (session == _activeSession)
+            return;
+
         foreach (var s in Sessions)
             s.IsSelected = s == session;
         _activeSession = session;
+
+        // 切换会话时从持久化恢复该会话消息到消息区（空会话则清空）
+        var data = _sessionStore.Load(session.Id);
+        Messages.Clear();
+        if (data is not null)
+        {
+            foreach (var msg in data.Messages)
+            {
+                if (string.IsNullOrWhiteSpace(msg.Content))
+                    continue;
+                var role = MessageRoleExtensions.FromValue(msg.Role) ?? MessageRole.User;
+                Messages.Add(new ChatUiMessage
+                {
+                    Role = role,
+                    Content = msg.Content,
+                    Timestamp = msg.Timestamp
+                });
+            }
+        }
     }
 
     /// <summary>重命名指定会话（标题由视图双击触发，空标题忽略）</summary>

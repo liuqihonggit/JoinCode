@@ -19,6 +19,11 @@ public sealed class ProcessOptions
 {
     public required string FileName { get; init; }
     public string Arguments { get; init; } = string.Empty;
+    /// <summary>
+    /// 参数化启动列表 — 优先于 <see cref="Arguments"/>，通过 ProcessStartInfo.ArgumentList 逐个添加，消除字符串拼接注入风险
+    /// <para>非空时忽略 <see cref="Arguments"/>；为 null 时回退到 <see cref="Arguments"/></para>
+    /// </summary>
+    public IReadOnlyList<string>? ArgumentList { get; init; }
     public string? WorkingDirectory { get; init; }
     public IReadOnlyDictionary<string, string>? EnvironmentVariables { get; init; }
     public System.Text.Encoding? StandardOutputEncoding { get; init; }
@@ -26,6 +31,11 @@ public sealed class ProcessOptions
     public int? TimeoutMs { get; init; }
     public bool RedirectStandardOutput { get; init; } = true;
     public bool RedirectStandardError { get; init; } = true;
+    /// <summary>
+    /// 是否跳过参数危险字符校验 — 仅用于 Shell 命令本身需要元字符的场景（如 bash -c "cmd &amp;&amp; cmd"）
+    /// <para>默认 false：执行参数黑名单校验，拒绝 &amp;|;`$()&lt;&gt; 等 shell 元字符</para>
+    /// </summary>
+    public bool SkipArgumentValidation { get; init; }
 }
 
 /// <summary>
@@ -65,12 +75,20 @@ public sealed class InteractiveProcessOptions
 {
     public required string FileName { get; init; }
     public string Arguments { get; init; } = string.Empty;
+    /// <summary>
+    /// 参数化启动列表 — 优先于 <see cref="Arguments"/>，消除字符串拼接注入风险
+    /// </summary>
+    public IReadOnlyList<string>? ArgumentList { get; init; }
     public string? WorkingDirectory { get; init; }
     public IReadOnlyDictionary<string, string>? EnvironmentVariables { get; init; }
     public bool RedirectStandardError { get; init; } = true;
     public System.Text.Encoding? StandardOutputEncoding { get; init; }
     public System.Text.Encoding? StandardErrorEncoding { get; init; }
     public System.Text.Encoding? StandardInputEncoding { get; init; }
+    /// <summary>
+    /// 是否跳过参数危险字符校验 — 仅用于 Shell 命令本身需要元字符的场景
+    /// </summary>
+    public bool SkipArgumentValidation { get; init; }
 }
 
 /// <summary>

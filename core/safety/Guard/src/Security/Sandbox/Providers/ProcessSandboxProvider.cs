@@ -96,13 +96,14 @@ public sealed partial class ProcessSandboxProvider : SandboxProviderBase
         var psi = new ProcessStartInfo
         {
             FileName = OperatingSystem.IsWindows() ? "cmd.exe" : "/bin/sh",
-            Arguments = OperatingSystem.IsWindows() ? $"/c {command}" : $"-c {command}",
             WorkingDirectory = effectiveWorkingDir,
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             CreateNoWindow = true
         };
+        psi.ArgumentList.Add(OperatingSystem.IsWindows() ? "/c" : "-c");
+        psi.ArgumentList.Add(command);
 
         foreach (var (key, value) in env)
         {

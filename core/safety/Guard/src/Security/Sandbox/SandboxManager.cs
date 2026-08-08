@@ -539,13 +539,14 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
         var processStartInfo = new ProcessStartInfo
         {
             FileName = OperatingSystem.IsWindows() ? "cmd.exe" : "/bin/sh",
-            Arguments = OperatingSystem.IsWindows() ? $"/c {command}" : $"-c {command}",
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             CreateNoWindow = true,
             WorkingDirectory = workingDir
         };
+        processStartInfo.ArgumentList.Add(OperatingSystem.IsWindows() ? "/c" : "-c");
+        processStartInfo.ArgumentList.Add(command);
 
         Process process;
         try

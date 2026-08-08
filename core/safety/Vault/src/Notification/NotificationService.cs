@@ -74,12 +74,13 @@ public partial class NotificationService : ServiceEntity, INotificationService
             var psi = new System.Diagnostics.ProcessStartInfo
             {
                 FileName = "powershell.exe",
-                Arguments = $"-Command \"{script}\"",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = true
             };
+            psi.ArgumentList.Add("-Command");
+            psi.ArgumentList.Add(script);
 
             using var process = new System.Diagnostics.Process { StartInfo = psi };
             process.Start();

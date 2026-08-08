@@ -132,15 +132,16 @@ public sealed class SandboxSatelliteHost : IAsyncDisposable
         var psi = new ProcessStartInfo
         {
             FileName = OperatingSystem.IsWindows() ? "cmd.exe" : "/bin/sh",
-            Arguments = OperatingSystem.IsWindows()
-                ? $"/c {execRequest.Command}"
-                : $"-c {EscapeForSingleQuotedShell(execRequest.Command)}",
             WorkingDirectory = execRequest.WorkingDirectory ?? _fs.GetCurrentDirectory(),
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true
         };
+        psi.ArgumentList.Add(OperatingSystem.IsWindows() ? "/c" : "-c");
+        psi.ArgumentList.Add(OperatingSystem.IsWindows()
+            ? execRequest.Command
+            : EscapeForSingleQuotedShell(execRequest.Command));
 
         if (execRequest.EnvironmentVariables is not null)
         {

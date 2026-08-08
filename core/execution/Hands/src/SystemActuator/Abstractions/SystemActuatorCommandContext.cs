@@ -153,7 +153,6 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
         var psi = new ProcessStartInfo
         {
             FileName = actuator.ShellPath,
-            Arguments = string.Join(' ', spawnArgs),
             WorkingDirectory = workingDirectory,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
@@ -162,6 +161,9 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
             StandardOutputEncoding = actuator.OutputEncoding,
             StandardErrorEncoding = actuator.ErrorEncoding
         };
+
+        foreach (var arg in spawnArgs)
+            psi.ArgumentList.Add(arg);
 
         if (actuator.Detached)
         {

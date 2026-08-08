@@ -17,16 +17,32 @@ public sealed class PhysicalProcessService : IProcessService
     {
         ArgumentNullException.ThrowIfNull(options);
 
+        if (!options.SkipArgumentValidation)
+        {
+            CommandArgumentValidator.ValidateList(options.ArgumentList);
+            if (options.ArgumentList is null)
+                CommandArgumentValidator.ValidateString(options.Arguments);
+        }
+
         var psi = new ProcessStartInfo
         {
             FileName = options.FileName,
-            Arguments = options.Arguments,
             WorkingDirectory = options.WorkingDirectory ?? string.Empty,
             UseShellExecute = false,
             CreateNoWindow = true,
             RedirectStandardOutput = options.RedirectStandardOutput,
             RedirectStandardError = options.RedirectStandardError
         };
+
+        if (options.ArgumentList is { Count: > 0 })
+        {
+            foreach (var arg in options.ArgumentList)
+                psi.ArgumentList.Add(arg);
+        }
+        else
+        {
+            psi.Arguments = options.Arguments;
+        }
 
         if (options.StandardOutputEncoding != null) psi.StandardOutputEncoding = options.StandardOutputEncoding;
         if (options.StandardErrorEncoding != null) psi.StandardErrorEncoding = options.StandardErrorEncoding;
@@ -37,7 +53,10 @@ public sealed class PhysicalProcessService : IProcessService
                 psi.EnvironmentVariables[key] = value;
         }
 
-        _logger?.LogDebug("[Process] 执行: {FileName} {Arguments}", options.FileName, options.Arguments);
+        var argsDisplay = options.ArgumentList is { Count: > 0 }
+            ? string.Join(' ', options.ArgumentList)
+            : options.Arguments;
+        _logger?.LogDebug("[Process] 执行: {FileName} {Arguments}", options.FileName, argsDisplay);
 
         using var process = System.Diagnostics.Process.Start(psi)
             ?? throw new InvalidOperationException($"[INF014] 无法启动进程: {options.FileName}");
@@ -90,10 +109,16 @@ public sealed class PhysicalProcessService : IProcessService
     {
         ArgumentNullException.ThrowIfNull(options);
 
+        if (!options.SkipArgumentValidation)
+        {
+            CommandArgumentValidator.ValidateList(options.ArgumentList);
+            if (options.ArgumentList is null)
+                CommandArgumentValidator.ValidateString(options.Arguments);
+        }
+
         var psi = new ProcessStartInfo
         {
             FileName = options.FileName,
-            Arguments = options.Arguments,
             WorkingDirectory = options.WorkingDirectory ?? string.Empty,
             UseShellExecute = false,
             CreateNoWindow = true,
@@ -101,6 +126,16 @@ public sealed class PhysicalProcessService : IProcessService
             RedirectStandardInput = true,
             RedirectStandardError = options.RedirectStandardError
         };
+
+        if (options.ArgumentList is { Count: > 0 })
+        {
+            foreach (var arg in options.ArgumentList)
+                psi.ArgumentList.Add(arg);
+        }
+        else
+        {
+            psi.Arguments = options.Arguments;
+        }
 
         if (options.StandardOutputEncoding != null) psi.StandardOutputEncoding = options.StandardOutputEncoding;
         if (options.StandardErrorEncoding != null) psi.StandardErrorEncoding = options.StandardErrorEncoding;
@@ -112,7 +147,10 @@ public sealed class PhysicalProcessService : IProcessService
                 psi.EnvironmentVariables[key] = value;
         }
 
-        _logger?.LogDebug("[Process] 启动交互式进程: {FileName} {Arguments}", options.FileName, options.Arguments);
+        var argsDisplay = options.ArgumentList is { Count: > 0 }
+            ? string.Join(' ', options.ArgumentList)
+            : options.Arguments;
+        _logger?.LogDebug("[Process] 启动交互式进程: {FileName} {Arguments}", options.FileName, argsDisplay);
 
         var process = System.Diagnostics.Process.Start(psi)
             ?? throw new InvalidOperationException($"[INF015] 无法启动交互式进程: {options.FileName}");

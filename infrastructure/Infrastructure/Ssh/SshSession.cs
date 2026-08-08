@@ -153,12 +153,16 @@ public sealed class SshSession : ISshSession
         var startInfo = new ProcessStartInfo
         {
             FileName = "ssh",
-            Arguments = BuildSshArgs() + $" -- {command}",
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true
         };
+
+        foreach (var arg in BuildSshArgList())
+            startInfo.ArgumentList.Add(arg);
+        startInfo.ArgumentList.Add("--");
+        startInfo.ArgumentList.Add(command);
 
         AddAuthArgs(startInfo);
 
@@ -341,46 +345,55 @@ public sealed class SshSession : ISshSession
 
     private ProcessStartInfo BuildSshProcessStartInfo(string? forwardArgs)
     {
-        var args = BuildSshArgs();
-        if (forwardArgs != null)
-        {
-            args += " " + forwardArgs;
-        }
-
         var startInfo = new ProcessStartInfo
         {
             FileName = "ssh",
-            Arguments = args,
             RedirectStandardOutput = false,
             RedirectStandardError = false,
             UseShellExecute = false,
             CreateNoWindow = true
         };
 
+        foreach (var arg in BuildSshArgList())
+            startInfo.ArgumentList.Add(arg);
+
+        if (forwardArgs != null)
+        {
+            startInfo.ArgumentList.Add(forwardArgs);
+        }
+
         AddAuthArgs(startInfo);
         return startInfo;
     }
 
-    private string BuildSshArgs()
+    /// <summary>
+    /// 构建 SSH 连接参数列表 — 参数化启动，消除字符串拼接注入风险
+    /// </summary>
+    private IReadOnlyList<string> BuildSshArgList()
     {
-        var args = new StringBuilder();
+        var args = new List<string>();
 
-        args.Append($" -o ConnectTimeout={Config.ConnectionTimeoutMs / 1000}");
-        args.Append($" -o ServerAliveInterval={Config.KeepAliveIntervalMs / 1000}");
-        args.Append(" -o ServerAliveCountMax=3");
+        args.Add("-o");
+        args.Add($"ConnectTimeout={Config.ConnectionTimeoutMs / 1000}");
+        args.Add("-o");
+        args.Add($"ServerAliveInterval={Config.KeepAliveIntervalMs / 1000}");
+        args.Add("-o");
+        args.Add("ServerAliveCountMax=3");
 
-        args.Append(Config.KnownHostsPolicy switch
+        args.Add("-o");
+        args.Add(Config.KnownHostsPolicy switch
         {
-            SshKnownHostsPolicy.Strict => " -o StrictHostKeyChecking=yes",
-            SshKnownHostsPolicy.AcceptNew => " -o StrictHostKeyChecking=accept-new",
-            SshKnownHostsPolicy.Ignore => " -o StrictHostKeyChecking=no",
-            _ => " -o StrictHostKeyChecking=accept-new"
+            SshKnownHostsPolicy.Strict => "StrictHostKeyChecking=yes",
+            SshKnownHostsPolicy.AcceptNew => "StrictHostKeyChecking=accept-new",
+            SshKnownHostsPolicy.Ignore => "StrictHostKeyChecking=no",
+            _ => "StrictHostKeyChecking=accept-new"
         });
 
-        args.Append($" -p {Config.Port}");
-        args.Append($" {Config.Username}@{Config.Host}");
+        args.Add("-p");
+        args.Add(Config.Port.ToString());
+        args.Add($"{Config.Username}@{Config.Host}");
 
-        return args.ToString();
+        return args;
     }
 
     private void AddAuthArgs(ProcessStartInfo startInfo)
@@ -394,7 +407,8 @@ public sealed class SshSession : ISshSession
 
                 _fs.CreateDirectory(Path.GetDirectoryName(keyFile)!);
                 _fs.WriteAllText(keyFile, Config.PrivateKey);
-                startInfo.Arguments += $" -i \"{keyFile}\"";
+                startInfo.ArgumentList.Add("-i");
+                startInfo.ArgumentList.Add(keyFile);
                 break;
 
             case SshAuthMethod.Password when Config.Password != null:

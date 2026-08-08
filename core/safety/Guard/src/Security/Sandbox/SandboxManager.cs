@@ -536,17 +536,14 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
             ? _activeProvider.ResolvePath(".", _activeSandboxId)
             : _fs.GetCurrentDirectory();
 
-        var processStartInfo = new ProcessStartInfo
+        var builder = new IO.ProcessService.ProcessStartInfoBuilder(new IO.ProcessService.ProcessEncodingProvider());
+        var processStartInfo = builder.Build(new ProcessOptions
         {
             FileName = OperatingSystem.IsWindows() ? "cmd.exe" : "/bin/sh",
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            CreateNoWindow = true,
-            WorkingDirectory = workingDir
-        };
-        processStartInfo.ArgumentList.Add(OperatingSystem.IsWindows() ? "/c" : "-c");
-        processStartInfo.ArgumentList.Add(command);
+            ArgumentList = [OperatingSystem.IsWindows() ? "/c" : "-c", command],
+            WorkingDirectory = workingDir,
+            SkipArgumentValidation = true,
+        });
 
         Process process;
         try

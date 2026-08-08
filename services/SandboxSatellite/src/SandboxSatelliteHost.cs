@@ -129,27 +129,20 @@ public sealed class SandboxSatelliteHost : IAsyncDisposable
             return;
         }
 
-        var psi = new ProcessStartInfo
+        var builder = new IO.ProcessService.ProcessStartInfoBuilder(new IO.ProcessService.ProcessEncodingProvider());
+        var psi = builder.Build(new ProcessOptions
         {
             FileName = OperatingSystem.IsWindows() ? "cmd.exe" : "/bin/sh",
             WorkingDirectory = execRequest.WorkingDirectory ?? _fs.GetCurrentDirectory(),
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true
-        };
-        psi.ArgumentList.Add(OperatingSystem.IsWindows() ? "/c" : "-c");
-        psi.ArgumentList.Add(OperatingSystem.IsWindows()
-            ? execRequest.Command
-            : EscapeForSingleQuotedShell(execRequest.Command));
-
-        if (execRequest.EnvironmentVariables is not null)
-        {
-            foreach (var kv in execRequest.EnvironmentVariables)
-            {
-                psi.EnvironmentVariables[kv.Key] = kv.Value;
-            }
-        }
+            ArgumentList = [
+                OperatingSystem.IsWindows() ? "/c" : "-c",
+                OperatingSystem.IsWindows()
+                    ? execRequest.Command
+                    : EscapeForSingleQuotedShell(execRequest.Command)
+            ],
+            EnvironmentVariables = execRequest.EnvironmentVariables,
+            SkipArgumentValidation = true,
+        });
 
         using var process = Process.Start(psi);
         if (process is null)

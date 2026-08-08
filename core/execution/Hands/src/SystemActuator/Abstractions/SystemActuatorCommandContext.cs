@@ -150,20 +150,15 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
 
         var spawnArgs = actuator.GetSpawnArgs(execResult.CommandString);
 
-        var psi = new ProcessStartInfo
+        var psi = SystemActuatorBase.SharedBuilder.Build(new ProcessOptions
         {
             FileName = actuator.ShellPath,
             WorkingDirectory = workingDirectory,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true,
+            ArgumentList = spawnArgs,
             StandardOutputEncoding = actuator.OutputEncoding,
-            StandardErrorEncoding = actuator.ErrorEncoding
-        };
-
-        foreach (var arg in spawnArgs)
-            psi.ArgumentList.Add(arg);
+            StandardErrorEncoding = actuator.ErrorEncoding,
+            SkipArgumentValidation = true,
+        });
 
         if (actuator.Detached)
         {
@@ -307,18 +302,12 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
         {
             try
             {
-                using var killer = new Process
+                var killerPsi = SystemActuatorBase.SharedBuilder.Build(new ProcessOptions
                 {
-                    StartInfo = new ProcessStartInfo
-                    {
-                        FileName = "taskkill.exe",
-                        Arguments = $"/T /F /PID {process.Id}",
-                        UseShellExecute = false,
-                        CreateNoWindow = true,
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true,
-                    }
-                };
+                    FileName = "taskkill.exe",
+                    ArgumentList = ["/T", "/F", "/PID", process.Id.ToString()],
+                });
+                using var killer = new Process { StartInfo = killerPsi };
                 killer.Start();
                 killer.WaitForExit(5000);
             }

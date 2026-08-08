@@ -11,7 +11,6 @@ public sealed class McpStdioClient : McpClientBase
     private readonly IClockService _clock;
     private readonly IProcessService? _processService;
     private IInteractiveProcess? _interactiveProcess;
-    private Process? _process;
     private StreamWriter? _stdinWriter;
     private StreamReader? _stdoutReader;
     private CancellationTokenSource? _readCts;
@@ -48,55 +47,19 @@ public sealed class McpStdioClient : McpClientBase
 
         try
         {
-            if (_processService != null)
+            var effectiveProcessService = _processService ?? IO.ProcessService.ProcessServiceFactory.Create();
+            var opts = new InteractiveProcessOptions
             {
-                var opts = new InteractiveProcessOptions
-                {
-                    FileName = _config.Endpoint,
-                    EnvironmentVariables = envVars,
-                    RedirectStandardError = true,
-                    StandardOutputEncoding = System.Text.Encoding.UTF8,
-                    StandardErrorEncoding = System.Text.Encoding.UTF8,
-                    StandardInputEncoding = System.Text.Encoding.UTF8,
-                };
+                FileName = _config.Endpoint,
+                EnvironmentVariables = envVars,
+                RedirectStandardError = true,
+            };
 
-                _interactiveProcess = await _processService.StartInteractiveAsync(opts, cancellationToken);
-                _interactiveProcess.ErrorDataReceived += OnInteractiveErrorDataReceived;
+            _interactiveProcess = await effectiveProcessService.StartInteractiveAsync(opts, cancellationToken);
+            _interactiveProcess.ErrorDataReceived += OnInteractiveErrorDataReceived;
 
-                _stdinWriter = _interactiveProcess.StandardInput;
-                _stdoutReader = _interactiveProcess.StandardOutput;
-            }
-            else
-            {
-                var processStartInfo = new ProcessStartInfo
-                {
-                    FileName = _config.Endpoint,
-                    RedirectStandardInput = true,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                    StandardOutputEncoding = System.Text.Encoding.UTF8,
-                    StandardErrorEncoding = System.Text.Encoding.UTF8,
-                    StandardInputEncoding = System.Text.Encoding.UTF8
-                };
-
-                if (envVars != null)
-                {
-                    foreach (var env in envVars)
-                    {
-                        processStartInfo.EnvironmentVariables[env.Key] = env.Value;
-                    }
-                }
-
-                _process = new Process { StartInfo = processStartInfo };
-                _process.ErrorDataReceived += OnErrorDataReceived;
-                _process.Start();
-                _process.BeginErrorReadLine();
-
-                _stdinWriter = new StreamWriter(_process.StandardInput.BaseStream) { AutoFlush = true };
-                _stdoutReader = new StreamReader(_process.StandardOutput.BaseStream);
-            }
+            _stdinWriter = _interactiveProcess.StandardInput;
+            _stdoutReader = _interactiveProcess.StandardOutput;
 
             _readCts = new CancellationTokenSource();
             _readTask = Task.Run(() => ReadLoopAsync(_readCts.Token), _readCts.Token);
@@ -178,30 +141,9 @@ public sealed class McpStdioClient : McpClientBase
             await _interactiveProcess.DisposeAsync();
             _interactiveProcess = null;
         }
-        else
-        {
-            _stdinWriter?.Dispose();
-            _stdoutReader?.Dispose();
 
-            if (_process != null)
-            {
-                try
-                {
-                    if (!_process.HasExited)
-                    {
-                        _process.Kill();
-                        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-                        await _process.WaitForExitAsync(cts.Token);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger?.LogDebug("终止进程时出错: {Error}", ex.Message);
-                }
-            }
-
-            _process?.Dispose();
-        }
+        _stdinWriter?.Dispose();
+        _stdoutReader?.Dispose();
 
         _readCts?.Dispose();
 
@@ -213,14 +155,6 @@ public sealed class McpStdioClient : McpClientBase
         if (!string.IsNullOrEmpty(data))
         {
             _logger?.LogError("MCP 服务器错误输出: {Error}", data);
-        }
-    }
-
-    private void OnErrorDataReceived(object sender, DataReceivedEventArgs e)
-    {
-        if (!string.IsNullOrEmpty(e.Data))
-        {
-            _logger?.LogError("MCP 服务器错误输出: {Error}", e.Data);
         }
     }
 

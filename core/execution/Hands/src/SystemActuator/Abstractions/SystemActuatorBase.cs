@@ -9,6 +9,12 @@ public abstract class SystemActuatorBase : ToolExecutionEntity, ISystemActuator
 {
     private static readonly ConcurrentDictionary<SystemActuatorKind, SystemActuatorCapability> _capabilityCache = new();
 
+    /// <summary>
+    /// 静态 ProcessStartInfo 构建器 — 供静态方法使用，强制三道防线 + 统一编码
+    /// </summary>
+    internal static readonly ProcessStartInfoBuilder SharedBuilder =
+        new(new ProcessEncodingProvider());
+
     private readonly SystemActuatorKind _kind;
     private readonly IFileSystem _fs;
     private readonly ILogger? _logger;
@@ -284,15 +290,12 @@ public abstract class SystemActuatorBase : ToolExecutionEntity, ISystemActuator
     {
         try
         {
-            var psi = new ProcessStartInfo
+            var psi = SharedBuilder.Build(new ProcessOptions
             {
                 FileName = "where.exe",
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                StandardOutputEncoding = Encoding.UTF8
-            };
-            psi.ArgumentList.Add(executable);
+                ArgumentList = [executable],
+                RedirectStandardError = false,
+            });
 
             using var process = Process.Start(psi);
             if (process is null) return null;
@@ -373,16 +376,12 @@ public abstract class SystemActuatorBase : ToolExecutionEntity, ISystemActuator
     {
         try
         {
-            var psi = new ProcessStartInfo
+            var psi = SharedBuilder.Build(new ProcessOptions
             {
                 FileName = fileName,
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                StandardOutputEncoding = Encoding.UTF8
-            };
-            foreach (var arg in args)
-                psi.ArgumentList.Add(arg);
+                ArgumentList = args,
+                RedirectStandardError = false,
+            });
 
             using var process = Process.Start(psi);
             if (process is null) return null;

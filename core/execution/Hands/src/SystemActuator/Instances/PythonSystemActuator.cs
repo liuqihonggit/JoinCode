@@ -46,15 +46,12 @@ public sealed class PythonSystemActuator : SystemActuatorBase
 
         try
         {
-            var psi = new ProcessStartInfo
+            var psi = SystemActuatorBase.SharedBuilder.Build(new ProcessOptions
             {
                 FileName = "where.exe",
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                StandardOutputEncoding = Encoding.UTF8
-            };
-            psi.ArgumentList.Add("python3.exe");
+                ArgumentList = ["python3.exe"],
+                RedirectStandardError = false,
+            });
             using var p = Process.Start(psi);
             if (p is not null)
             {
@@ -81,15 +78,12 @@ public sealed class PythonSystemActuator : SystemActuatorBase
     {
         try
         {
-            var psi = new ProcessStartInfo
+            var psi = SystemActuatorBase.SharedBuilder.Build(new ProcessOptions
             {
                 FileName = shellPath,
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                StandardOutputEncoding = Encoding.UTF8
-            };
-            psi.ArgumentList.Add("--version");
+                ArgumentList = ["--version"],
+                RedirectStandardError = false,
+            });
             using var p = Process.Start(psi);
             if (p is null) return "unknown";
             var output = p.StandardOutput.ReadToEnd();
@@ -100,15 +94,12 @@ public sealed class PythonSystemActuator : SystemActuatorBase
 
         try
         {
-            var psi = new ProcessStartInfo
+            var psi = SystemActuatorBase.SharedBuilder.Build(new ProcessOptions
             {
                 FileName = "python",
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                StandardOutputEncoding = Encoding.UTF8
-            };
-            psi.ArgumentList.Add("--version");
+                ArgumentList = ["--version"],
+                RedirectStandardError = false,
+            });
             using var p = Process.Start(psi);
             if (p is not null)
             {

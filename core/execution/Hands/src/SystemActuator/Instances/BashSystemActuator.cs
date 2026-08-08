@@ -96,15 +96,12 @@ public sealed class BashSystemActuator : SystemActuatorBase
     {
         try
         {
-            var psi = new ProcessStartInfo
+            var psi = SystemActuatorBase.SharedBuilder.Build(new ProcessOptions
             {
                 FileName = "where.exe",
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                StandardOutputEncoding = Encoding.UTF8
-            };
-            psi.ArgumentList.Add(executable);
+                ArgumentList = [executable],
+                RedirectStandardError = false,
+            });
 
             using var process = Process.Start(psi);
             if (process is null) return null;
@@ -136,16 +133,12 @@ public sealed class BashSystemActuator : SystemActuatorBase
     {
         try
         {
-            var psi = new ProcessStartInfo
+            var psi = SystemActuatorBase.SharedBuilder.Build(new ProcessOptions
             {
                 FileName = fileName,
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                StandardOutputEncoding = Encoding.UTF8
-            };
-            foreach (var arg in args)
-                psi.ArgumentList.Add(arg);
+                ArgumentList = args,
+                RedirectStandardError = false,
+            });
             using var process = Process.Start(psi);
             if (process is null) return null;
             var output = process.StandardOutput.ReadToEnd();

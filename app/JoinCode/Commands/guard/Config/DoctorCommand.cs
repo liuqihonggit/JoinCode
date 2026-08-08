@@ -114,41 +114,15 @@ public sealed class DoctorCommand : ChatCommandBase
     {
         try
         {
-            if (processService is not null)
-            {
-                var options = new ProcessOptions
-                {
-                    FileName = command,
-                    ArgumentList = args
-                };
-
-                var result = await processService.ExecuteAsync(options, cancellationToken).ConfigureAwait(false);
-                return (result.Success, string.IsNullOrEmpty(result.StandardOutput) ? result.StandardError : result.StandardOutput);
-            }
-
-            var psi = new ProcessStartInfo
+            var effectiveProcessService = processService ?? IO.ProcessService.ProcessServiceFactory.Create();
+            var options = new ProcessOptions
             {
                 FileName = command,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
+                ArgumentList = args
             };
-            foreach (var a in args)
-                psi.ArgumentList.Add(a);
 
-            using var process = new Process { StartInfo = psi };
-            process.Start();
-
-            var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
-            var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
-            await Task.WhenAll(outputTask, errorTask).ConfigureAwait(false);
-            var output = await outputTask.ConfigureAwait(false);
-            var error = await errorTask.ConfigureAwait(false);
-
-            await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
-
-            return (process.ExitCode == 0, string.IsNullOrEmpty(output) ? error : output);
+            var result = await effectiveProcessService.ExecuteAsync(options, cancellationToken).ConfigureAwait(false);
+            return (result.Success, string.IsNullOrEmpty(result.StandardOutput) ? result.StandardError : result.StandardOutput);
         }
         catch
         {

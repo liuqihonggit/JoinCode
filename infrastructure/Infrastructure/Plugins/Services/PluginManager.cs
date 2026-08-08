@@ -158,15 +158,12 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
 
             _logger?.LogInformation("正在加载外部插件: {PluginName} 从 {ExePath}", pluginName, exePath);
 
-            var startInfo = new ProcessStartInfo
+            var builder = new IO.ProcessService.ProcessStartInfoBuilder(new IO.ProcessService.ProcessEncodingProvider());
+            var startInfo = builder.BuildInteractive(new InteractiveProcessOptions
             {
                 FileName = exePath,
-                RedirectStandardInput = true,
-                RedirectStandardOutput = true,
                 RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
+            });
 
             var process = new Process { StartInfo = startInfo };
             process.ErrorDataReceived += (sender, e) =>

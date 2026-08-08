@@ -150,19 +150,13 @@ public sealed class SshSession : ISshSession
             throw new InvalidOperationException($"[SSH001] SSH 会话未连接，当前状态: {_stateMachine.CurrentState}");
         }
 
-        var startInfo = new ProcessStartInfo
+        var builder = new IO.ProcessService.ProcessStartInfoBuilder(new IO.ProcessService.ProcessEncodingProvider());
+        var startInfo = builder.Build(new ProcessOptions
         {
             FileName = "ssh",
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true
-        };
-
-        foreach (var arg in BuildSshArgList())
-            startInfo.ArgumentList.Add(arg);
-        startInfo.ArgumentList.Add("--");
-        startInfo.ArgumentList.Add(command);
+            ArgumentList = [.. BuildSshArgList(), "--", command],
+            SkipArgumentValidation = true,
+        });
 
         AddAuthArgs(startInfo);
 
@@ -345,22 +339,21 @@ public sealed class SshSession : ISshSession
 
     private ProcessStartInfo BuildSshProcessStartInfo(string? forwardArgs)
     {
-        var startInfo = new ProcessStartInfo
-        {
-            FileName = "ssh",
-            RedirectStandardOutput = false,
-            RedirectStandardError = false,
-            UseShellExecute = false,
-            CreateNoWindow = true
-        };
-
-        foreach (var arg in BuildSshArgList())
-            startInfo.ArgumentList.Add(arg);
-
+        var argList = new List<string>(BuildSshArgList());
         if (forwardArgs != null)
         {
-            startInfo.ArgumentList.Add(forwardArgs);
+            argList.Add(forwardArgs);
         }
+
+        var builder = new IO.ProcessService.ProcessStartInfoBuilder(new IO.ProcessService.ProcessEncodingProvider());
+        var startInfo = builder.Build(new ProcessOptions
+        {
+            FileName = "ssh",
+            ArgumentList = argList,
+            RedirectStandardOutput = false,
+            RedirectStandardError = false,
+            SkipArgumentValidation = true,
+        });
 
         AddAuthArgs(startInfo);
         return startInfo;

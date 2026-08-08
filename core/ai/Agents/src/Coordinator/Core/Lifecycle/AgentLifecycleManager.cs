@@ -10,7 +10,7 @@ public sealed partial class AgentLifecycleManager : ServiceEntity, IAgentLifecyc
     private readonly IQueryEngine _queryEngine;
     private readonly ILogger? _logger;
     private readonly AgentStateMachine _stateMachine;
-    private readonly ConcurrentDictionary<string, Agent> _subAgents;
+    private readonly ConcurrentDictionary<string, AgentBase> _subAgents;
     private readonly ConcurrentDictionary<string, SubAgentResult> _results;
     private int _agentCounter;
 
@@ -21,7 +21,7 @@ public sealed partial class AgentLifecycleManager : ServiceEntity, IAgentLifecyc
         _queryEngine = queryEngine ?? throw new ArgumentNullException(nameof(queryEngine));
         _logger = logger;
         _stateMachine = stateMachine;
-        _subAgents = new ConcurrentDictionary<string, Agent>();
+        _subAgents = new ConcurrentDictionary<string, AgentBase>();
         _results = new ConcurrentDictionary<string, SubAgentResult>();
     }
 
@@ -30,7 +30,7 @@ public sealed partial class AgentLifecycleManager : ServiceEntity, IAgentLifecyc
     /// </summary>
     public Task<IAgent> SpawnSubAgentAsync(string task, SubAgentOptions? options = null, CancellationToken cancellationToken = default)
     {
-        var agent = new Agent(
+        var agent = AgentFactory.Create(
             task,
             options,
             _queryEngine,
@@ -210,7 +210,7 @@ public sealed partial class AgentLifecycleManager : ServiceEntity, IAgentLifecyc
     /// </summary>
     public Task<IReadOnlyCollection<IAgent>> GetAllAgentsAsync(CancellationToken cancellationToken = default)
     {
-        return Task.FromResult<IReadOnlyCollection<IAgent>>(_subAgents.Values.ToList());
+        return Task.FromResult<IReadOnlyCollection<IAgent>>(_subAgents.Values.Cast<IAgent>().ToList());
     }
 
     /// <summary>

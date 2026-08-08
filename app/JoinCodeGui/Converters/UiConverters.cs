@@ -75,18 +75,6 @@ public sealed class StatusToBrushConverter : IValueConverter
 }
 
 /// <summary>
-/// 布尔 → 字体族：代码块用等宽字体，否则系统默认。
-/// </summary>
-public sealed class BoolToMonoFontFamilyConverter : IValueConverter
-{
-    public object Convert(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture)
-        => value is true ? new Avalonia.Media.FontFamily("Cascadia Code,Consolas,monospace") : Avalonia.Media.FontFamily.Default;
-
-    public object ConvertBack(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture)
-        => throw new NotSupportedException();
-}
-
-/// <summary>
 /// 布尔 → 警示前景色：超限用错误色，否则次要文字色。取自身份配色，随主题切换。
 /// </summary>
 public sealed class BoolToWarnBrushConverter : IValueConverter

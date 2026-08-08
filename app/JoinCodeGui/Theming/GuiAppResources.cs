@@ -37,7 +37,6 @@ public static class GuiAppResources
             ["BoolToRoleBrush"] = new Converters.BoolToRoleBrushConverter(),
             ["BoolToSessHighlight"] = new Converters.BoolToSessionHighlightConverter(),
             ["StatusToBrush"] = new Converters.StatusToBrushConverter(),
-            ["BoolToMonoFont"] = new Converters.BoolToMonoFontFamilyConverter(),
             ["BoolToWarnBrush"] = new Converters.BoolToWarnBrushConverter(),
             ["KindToBubbleBg"] = new Converters.KindToBubbleBackgroundConverter(),
             ["BoolToThinkingOpacity"] = new Converters.BoolToThinkingOpacityConverter()

@@ -19,6 +19,9 @@ public sealed class MarkdownView : StackPanel
     public static readonly StyledProperty<string?> MarkdownProperty =
         AvaloniaProperty.Register<MarkdownView, string?>(nameof(Markdown));
 
+    public static readonly StyledProperty<double> BaseFontSizeProperty =
+        AvaloniaProperty.Register<MarkdownView, double>(nameof(BaseFontSize), 14);
+
     public MarkdownView()
     {
         Spacing = 6;
@@ -29,6 +32,13 @@ public sealed class MarkdownView : StackPanel
     {
         get => GetValue(MarkdownProperty);
         set => SetValue(MarkdownProperty, value);
+    }
+
+    /// <summary>正文字号（用户消息字号设置）；标题字号按比例放大</summary>
+    public double BaseFontSize
+    {
+        get => GetValue(BaseFontSizeProperty);
+        set => SetValue(BaseFontSizeProperty, value);
     }
 
     /// <inheritdoc />
@@ -57,7 +67,7 @@ public sealed class MarkdownView : StackPanel
     private static readonly FontFamily MonoFont = new("Consolas");
 
     /// <summary>把块模型渲染为控件；不支持的块返回 null</summary>
-    private static Control? BuildBlock(MarkdownBlock block)
+    private Control? BuildBlock(MarkdownBlock block)
     {
         var scheme = GuiPalette.Current;
         switch (block)
@@ -66,22 +76,22 @@ public sealed class MarkdownView : StackPanel
                 return new TextBlock
                 {
                     Text = PlainText(heading.Inlines),
-                    FontSize = HeadingFontSize(heading.Level),
+                    FontSize = HeadingFontSize(heading.Level, BaseFontSize),
                     FontWeight = FontWeight.SemiBold,
                     Foreground = ToBrush(scheme.PrimaryText),
                     Margin = new Thickness(0, 4, 0, 0),
                     TextWrapping = TextWrapping.Wrap
                 };
             case MarkdownParagraph paragraph:
-                return BuildInlineText(paragraph.Inlines, scheme, wrap: true);
+                return BuildInlineText(paragraph.Inlines, scheme, BaseFontSize, wrap: true);
             case MarkdownCodeBlock code:
                 return BuildCodeBlock(code, scheme);
             case MarkdownList list:
-                return BuildList(list, scheme);
+                return BuildList(list, scheme, BaseFontSize);
             case MarkdownTable table:
                 return BuildTable(table, scheme);
             case MarkdownQuote quote:
-                return BuildQuote(quote, scheme);
+                return BuildQuote(quote, scheme, BaseFontSize);
             case MarkdownRule:
                 return new Border
                 {
@@ -94,22 +104,22 @@ public sealed class MarkdownView : StackPanel
         }
     }
 
-    private static double HeadingFontSize(int level) => level switch
+    private static double HeadingFontSize(int level, double baseSize) => level switch
     {
-        1 => 20,
-        2 => 17,
-        3 => 15,
-        _ => 14
+        1 => baseSize * 1.43,
+        2 => baseSize * 1.21,
+        3 => baseSize * 1.07,
+        _ => baseSize
     };
 
     /// <summary>段落/内联构建为 TextBlock（含粗体/斜体/行内代码/链接/删除线 Run）</summary>
-    private static TextBlock BuildInlineText(IReadOnlyList<MarkdownInline> inlines, GuiPalette.Scheme scheme, bool wrap)
+    private static TextBlock BuildInlineText(IReadOnlyList<MarkdownInline> inlines, GuiPalette.Scheme scheme, double baseSize, bool wrap)
     {
         var tb = new TextBlock
         {
             TextWrapping = wrap ? TextWrapping.Wrap : TextWrapping.NoWrap,
             Foreground = ToBrush(scheme.PrimaryText),
-            FontSize = 13,
+            FontSize = baseSize,
             TextTrimming = wrap ? TextTrimming.None : TextTrimming.CharacterEllipsis,
             MaxLines = wrap ? 0 : 1
         };
@@ -193,7 +203,7 @@ public sealed class MarkdownView : StackPanel
     }
 
     /// <summary>列表 → 每项一行（无序 • / 有序 N.）</summary>
-    private static Control BuildList(MarkdownList list, GuiPalette.Scheme scheme)
+    private static Control BuildList(MarkdownList list, GuiPalette.Scheme scheme, double baseSize)
     {
         var stack = new StackPanel { Spacing = 2 };
         for (int i = 0; i < list.Items.Count; i++)
@@ -201,7 +211,7 @@ public sealed class MarkdownView : StackPanel
             var prefix = list.Ordered ? $"{i + 1}. " : "• ";
             var item = new TextBlock
             {
-                FontSize = 13,
+                FontSize = baseSize,
                 Foreground = ToBrush(scheme.PrimaryText),
                 TextWrapping = TextWrapping.Wrap
             };
@@ -279,12 +289,12 @@ public sealed class MarkdownView : StackPanel
     }
 
     /// <summary>引用块 → 左侧竖条 + 次级文本</summary>
-    private static Control BuildQuote(MarkdownQuote quote, GuiPalette.Scheme scheme)
+    private static Control BuildQuote(MarkdownQuote quote, GuiPalette.Scheme scheme, double baseSize)
     {
         var text = new TextBlock
         {
             Inlines = BuildInlines(quote.Inlines, scheme),
-            FontSize = 13,
+            FontSize = baseSize,
             Foreground = ToBrush(scheme.SecondaryText),
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(8, 6)

@@ -4,6 +4,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="980" d:DesignHeight="680"
         xmlns:vm="using:JoinCode.Gui.ViewModels"
+        xmlns:md="using:JoinCode.Gui.Markdown"
         x:Class="JoinCode.Gui.Views.MainWindow"
         x:Name="Root"
         x:DataType="vm:MainViewModel"
@@ -276,11 +277,10 @@
                                    FontStyle="Italic" VerticalAlignment="Center" />
                       </StackPanel>
                     </Button>
-                    <TextBlock Text="{Binding DisplayText}" TextWrapping="Wrap"
-                               FontSize="{Binding DataContext.FontSize, ElementName=Root}"
-                               FontFamily="{Binding IsCodeBlock, Converter={StaticResource BoolToMonoFont}}"
-                               IsVisible="{Binding ShowBody}"
-                               Opacity="{Binding IsThinking, Converter={StaticResource BoolToThinkingOpacity}}" />
+                    <md:MarkdownView Markdown="{Binding DisplayText}"
+                                     BaseFontSize="{Binding DataContext.FontSize, ElementName=Root}"
+                                     IsVisible="{Binding ShowBody}"
+                                     Opacity="{Binding IsThinking, Converter={StaticResource BoolToThinkingOpacity}}" />
                     <StackPanel IsVisible="{Binding IsToolCall}" Spacing="2">
                       <TextBlock Text="{Binding ToolName}" FontWeight="SemiBold" Foreground="{DynamicResource GuiToolLabel}" FontSize="12" />
                       <TextBlock Text="{Binding ToolArguments}" Foreground="{DynamicResource GuiToolArgument}" FontSize="11" FontFamily="Consolas"

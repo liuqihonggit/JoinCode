@@ -16,7 +16,7 @@ namespace IO.ProcessService;
 /// 禁止在生产代码中直接 <c>new ProcessStartInfo</c>。
 /// </para>
 /// </summary>
-public sealed class ProcessStartInfoBuilder
+public sealed class ProcessStartInfoBuilder : IProcessStartInfoBuilder
 {
     private readonly IProcessEncodingProvider _encodingProvider;
 

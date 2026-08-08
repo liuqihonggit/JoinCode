@@ -170,6 +170,7 @@ public static partial class ServiceRegistration
 
         // ProcessStartInfoBuilder — 统一构建器，强制三道防线 + 统一编码
         services.TryAddSingleton<IO.ProcessService.ProcessStartInfoBuilder>();
+        services.TryAddSingleton<IProcessStartInfoBuilder>(sp => sp.GetRequiredService<IO.ProcessService.ProcessStartInfoBuilder>());
 
         // IProcessService — 根据 JCC_PROCESS_MODE 环境变量决定后端
         // 默认 Physical（真实进程），NoOp=禁止所有进程操作（调试/E2E测试用）

@@ -54,14 +54,14 @@ public sealed partial class LocalToolRegistry : IToolRegistry
         }
     }
 
-    public async Task RegisterToolAsync(string name, string description, ToolSchema inputSchema, ToolHandler handler, CancellationToken cancellationToken = default, ToolKind kind = ToolKind.System, string? groupName = null)
+    public async Task RegisterToolAsync(string name, string description, ToolSchema inputSchema, ToolHandler handler, CancellationToken cancellationToken = default, ToolKind kind = ToolKind.System, string? groupName = null, ToolTimeoutPolicy? timeoutPolicy = null)
     {
         ArgumentException.ThrowIfNullOrEmpty(name);
         ArgumentException.ThrowIfNullOrEmpty(description);
         ArgumentNullException.ThrowIfNull(inputSchema);
         ArgumentNullException.ThrowIfNull(handler);
 
-        await RegisterToolAsync(new DelegateToolHandler(name, description, inputSchema, handler, kind, groupName), cancellationToken).ConfigureAwait(false);
+        await RegisterToolAsync(new DelegateToolHandler(name, description, inputSchema, handler, kind, groupName, timeoutPolicy), cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<bool> UnregisterToolAsync(string toolName, CancellationToken cancellationToken = default)

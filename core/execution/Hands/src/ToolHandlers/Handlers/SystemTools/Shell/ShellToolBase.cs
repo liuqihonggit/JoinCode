@@ -2,12 +2,14 @@ namespace Tools.Handlers;
 
 /// <summary>
 /// Shell 工具基类 — 统一门控检查、进程看护、压缩标记
+/// 继承 OneShotCommandGroup: 2分钟绝对超时 + kill + 可续期
 /// 子类只需关注业务逻辑，父类自动处理：
 ///   1. PowerShell 门控（非 Windows 或环境变量禁用时不可用）
 ///   2. 进程看护注册（睡眠唤醒后自动检测僵尸进程）
 ///   3. 压缩标记（微压缩时按 Shell 分类链式清理，无需硬编码枚举）
+///   4. 超时策略（OneShotCommandGroup: 2min绝对超时）
 /// </summary>
-public abstract class ShellToolBase
+public abstract class ShellToolBase : OneShotCommandGroup
 {
     private readonly IShellToolGateService? _gateService;
     private readonly IShellProcessWatchdog? _watchdog;

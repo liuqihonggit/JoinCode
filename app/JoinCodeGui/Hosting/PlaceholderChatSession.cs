@@ -60,8 +60,16 @@ internal sealed class PlaceholderChatSession : IJccChatSession
             yield return ChatStreamEvent.Thinking(ch.ToString());
         }
 
-        // 正式回复内容
-        foreach (var ch in "[占位引擎未接入 " + message + "]\n\n这是一个模拟回复，包含工具调用与思考过程的完整链路展示。")
+        // 正式回复内容（Markdown 示例，供 UI Markdown 渲染目视验证）
+        foreach (var ch in "[占位引擎未接入 " + message + "]\n\n" +
+            "## 功能清单\n\n" +
+            "- **代码块**：等宽字体 + 深色底\n" +
+            "- *斜体* 与 ~~删除线~~ 行内样式\n" +
+            "- 表格对齐展示\n\n" +
+            "| 功能 | 状态 |\n|---|---|\n| 代码块 | ✅ |\n| 表格 | ✅ |\n\n" +
+            "```csharp\npublic void Hello()\n{\n    Console.WriteLine(\"MarkdownView\");\n}\n```\n\n" +
+            "> 引用块：左侧竖条样式\n\n" +
+            "---\n\n1. 有序列表第一项\n2. 有序列表第二项")
         {
             cancellationToken.ThrowIfCancellationRequested();
             await Task.Yield();

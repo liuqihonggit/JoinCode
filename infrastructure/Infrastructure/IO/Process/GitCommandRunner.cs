@@ -29,16 +29,7 @@ public sealed partial class GitCommandRunner : ServiceEntity, IGitCommandRunner
                 WorkingDirectory = workingDirectory,
                 StandardOutputEncoding = System.Text.Encoding.UTF8,
                 StandardErrorEncoding = System.Text.Encoding.UTF8,
-                EnvironmentVariables = new Dictionary<string, string>
-                {
-                    ["GIT_TERMINAL_PROMPT"] = "0",
-                    ["GIT_ASKPASS"] = "",
-                    ["GIT_PAGER"] = "cat",
-                    ["PAGER"] = "cat",
-                    ["GIT_EDITOR"] = "true",
-                    ["EDITOR"] = "true",
-                    ["VISUAL"] = "true"
-                }
+                EnvironmentVariables = CreateGitEnvironment()
             };
 
             var result = await _processService.ExecuteAsync(options, ct).ConfigureAwait(false);
@@ -101,13 +92,20 @@ public sealed partial class GitCommandRunner : ServiceEntity, IGitCommandRunner
         string? workingDirectory = null,
         CancellationToken ct = default)
     {
-        var result = await ExecuteAsync(
-            "grep -l -E \"^<<<<<<< |^=======$|^>>>>>>> \"",
-            workingDirectory, ct).ConfigureAwait(false);
+        var options = new ProcessOptions
+        {
+            FileName = "git",
+            ArgumentList = ["grep", "-l", "-E", "^<<<<<<< |^=======$|^>>>>>>> "],
+            WorkingDirectory = workingDirectory,
+            SkipArgumentValidation = true,
+            EnvironmentVariables = CreateGitEnvironment()
+        };
+
+        var result = await _processService.ExecuteAsync(options, ct).ConfigureAwait(false);
 
         if (result.ExitCode == 0)
         {
-            var files = result.Output.Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            var files = result.StandardOutput.Split('\n', StringSplitOptions.RemoveEmptyEntries)
                 .Select(static f => f.Trim())
                 .Where(static f => f.Length > 0)
                 .ToList();
@@ -119,6 +117,20 @@ public sealed partial class GitCommandRunner : ServiceEntity, IGitCommandRunner
             return new StaleConflictMarkerResult { HasStaleMarkers = false };
         }
 
-        return new StaleConflictMarkerResult { HasStaleMarkers = false, Error = result.Error };
+        return new StaleConflictMarkerResult { HasStaleMarkers = false, Error = result.StandardError };
     }
+
+    /// <summary>
+    /// 创建 Git 命令专用环境变量 — 避免交互式提示卡死
+    /// </summary>
+    private static Dictionary<string, string> CreateGitEnvironment() => new()
+    {
+        ["GIT_TERMINAL_PROMPT"] = "0",
+        ["GIT_ASKPASS"] = "",
+        ["GIT_PAGER"] = "cat",
+        ["PAGER"] = "cat",
+        ["GIT_EDITOR"] = "true",
+        ["EDITOR"] = "true",
+        ["VISUAL"] = "true"
+    };
 }

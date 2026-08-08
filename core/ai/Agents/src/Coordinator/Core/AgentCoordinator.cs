@@ -240,7 +240,7 @@ public sealed partial class AgentCoordinator : ServiceEntity, IAgentCoordinator,
     /// <summary>
     /// 执行Agent并在失败时自动重试
     /// </summary>
-    public async Task<SubAgentResult> ExecuteWithRetryAsync(Agent agent, RetryPolicy? policy = null, CancellationToken cancellationToken = default)
+    public async Task<SubAgentResult> ExecuteWithRetryAsync(AgentBase agent, RetryPolicy? policy = null, CancellationToken cancellationToken = default)
     {
         policy ??= RetryPolicy.Default;
         var result = await ExecuteAsync(agent, cancellationToken).ConfigureAwait(false);

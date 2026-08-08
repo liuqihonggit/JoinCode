@@ -357,10 +357,10 @@ public sealed partial class GoalGraphEngine : ServiceEntity
 
     private async Task<NodeResult> ExecuteAgentNodeAsync(string nodeId, GoalNodePayload payload, GraphExecutionContext context, CancellationToken ct)
     {
-        var agentId = payload.AgentId ?? Core.Agents.Coordinator.Agent.GenerateId();
+        var agentId = payload.AgentId ?? Core.Agents.Coordinator.AgentBase.GenerateId();
         payload.AgentId = agentId;
 
-        if (Core.Agents.Coordinator.Agent.GetById(new JoinCode.Abstractions.Entity.ObjectId(JoinCode.Abstractions.Entity.ObjectType.Agent, agentId)) is null)
+        if (Core.Agents.Coordinator.AgentBase.GetById(new JoinCode.Abstractions.Entity.ObjectId(JoinCode.Abstractions.Entity.ObjectType.Agent, agentId)) is null)
         {
             _logger?.LogDebug("[GoalGraph] Agent {AgentId} 未在 SessionScope 中，将由 IAgentService 创建时自动注册", agentId);
         }

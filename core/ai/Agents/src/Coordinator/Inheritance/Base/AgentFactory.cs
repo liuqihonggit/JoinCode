@@ -32,7 +32,7 @@ public static class AgentFactory
     {
         if (role == AgentRole.Coordinator)
         {
-            return new Agent(task, options, queryEngine, logger, clock, name, role, variant,
+            return new CoordinatorAgent(task, options, queryEngine, logger, clock, name,
                 parentObjectId, systemPrompt, instruction, freshContext, tokenBudget,
                 goalId, graphNodeId, sessionId, contextManager);
         }
@@ -66,7 +66,7 @@ public static class AgentFactory
             ExecutorVariant.Teammate => new TeammateAgent(task, options, queryEngine, logger, clock, name,
                 parentObjectId, systemPrompt, instruction, freshContext, tokenBudget,
                 goalId, graphNodeId, sessionId, contextManager),
-            _ => new Agent(task, options, queryEngine, logger, clock, name, role, variant,
+            _ => new CodeAgent(task, options, queryEngine, logger, clock, name,
                 parentObjectId, systemPrompt, instruction, freshContext, tokenBudget,
                 goalId, graphNodeId, sessionId, contextManager),
         };

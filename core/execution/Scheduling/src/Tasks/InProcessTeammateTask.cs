@@ -152,7 +152,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
             {
                 foreach (var ctx in definition.InitialContext)
                 {
-                    ((Agent)agent).AddContext(ctx);
+                    ((AgentBase)agent).AddContext(ctx);
                 }
             }
 

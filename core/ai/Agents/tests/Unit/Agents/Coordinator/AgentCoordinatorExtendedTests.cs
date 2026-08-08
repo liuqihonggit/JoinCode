@@ -302,7 +302,7 @@ public class AgentCoordinatorExtendedTests
     public async Task ExecuteParallelAsync_ShouldExecuteAgentsInParallel()
     {
         // Arrange
-        var agents = new List<Agent>();
+        var agents = new List<AgentBase>();
         var expectedResults = new List<SubAgentResult>();
 
         _executionEngineMock.Setup(x => x.ExecuteParallelAsync(agents, null, default))
@@ -319,7 +319,7 @@ public class AgentCoordinatorExtendedTests
     public async Task ExecuteSequentialAsync_ShouldExecuteAgentsSequentially()
     {
         // Arrange
-        var agents = new List<Agent>();
+        var agents = new List<AgentBase>();
         var expectedResults = new List<SubAgentResult>();
 
         _executionEngineMock.Setup(x => x.ExecuteSequentialAsync(agents, default))

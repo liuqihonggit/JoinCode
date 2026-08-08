@@ -58,6 +58,13 @@ public abstract class AgentBase : Entity, IAgent
     protected int _executionCount;
 
     /// <summary>
+    /// 对话上下文管理器 — 每个 Agent 实例独立持有，包含压缩管线
+    /// null 表示使用裸 MessageList（兼容旧行为），非 null 表示通过 ContextManager 管理对话
+    /// 子类继承 AgentBase 自动获得此字段和压缩能力
+    /// </summary>
+    protected IChatContextManager? ContextManager;
+
+    /// <summary>
     /// AgentBase 构造函数 — 子类通过 base(...) 委托
     /// </summary>
     protected AgentBase(
@@ -76,7 +83,8 @@ public abstract class AgentBase : Entity, IAgent
         int? tokenBudget = null,
         string? goalId = null,
         string? graphNodeId = null,
-        ObjectId sessionId = default)
+        ObjectId sessionId = default,
+        IChatContextManager? contextManager = null)
         : base(ObjectType.Agent, sessionId)
     {
         Task = task;
@@ -100,6 +108,7 @@ public abstract class AgentBase : Entity, IAgent
         Status = TaskExecutionStatus.Pending;
         _isPaused = false;
         _executionCount = 0;
+        ContextManager = contextManager;
         Context = new SubAgentContext
         {
             AgentId = UniqueId,

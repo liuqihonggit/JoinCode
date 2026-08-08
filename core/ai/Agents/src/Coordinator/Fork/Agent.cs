@@ -24,8 +24,9 @@ public sealed class Agent : AgentBase
         int? tokenBudget = null,
         string? goalId = null,
         string? graphNodeId = null,
-        ObjectId sessionId = default)
-        : base(task, options, queryEngine, logger, clock, name, role, variant, parentObjectId, systemPrompt, instruction, freshContext, tokenBudget, goalId, graphNodeId, sessionId)
+        ObjectId sessionId = default,
+        IChatContextManager? contextManager = null)
+        : base(task, options, queryEngine, logger, clock, name, role, variant, parentObjectId, systemPrompt, instruction, freshContext, tokenBudget, goalId, graphNodeId, sessionId, contextManager)
     {
     }
 

@@ -578,7 +578,7 @@ jobs:
                 var options = new ProcessOptions
                 {
                     FileName = "cmd.exe",
-                    Arguments = $"/c {command}"
+                    ArgumentList = new[] { "/c", command }
                 };
 
                 var result = await processService.ExecuteAsync(options, ct).ConfigureAwait(false);

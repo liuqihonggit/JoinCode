@@ -24,7 +24,7 @@ public static class McpHeadersHelper
                 var options = new ProcessOptions
                 {
                     FileName = "cmd.exe",
-                    Arguments = "/c " + headersHelper,
+                    ArgumentList = new[] { "/c", headersHelper },
                     StandardOutputEncoding = System.Text.Encoding.UTF8,
                     StandardErrorEncoding = System.Text.Encoding.UTF8,
                     TimeoutMs = (int)Timeout.TotalMilliseconds,

@@ -76,7 +76,7 @@ public sealed partial class ClipboardService : ServiceEntity, IClipboardService
         var options = new ProcessOptions
         {
             FileName = "powershell",
-            Arguments = "-NoProfile -Command \"Get-Clipboard\""
+            ArgumentList = new[] { "-NoProfile", "-Command", "Get-Clipboard" }
         };
 
         var result = await _processService.ExecuteAsync(options, cancellationToken).ConfigureAwait(false);
@@ -113,7 +113,7 @@ public sealed partial class ClipboardService : ServiceEntity, IClipboardService
         var options = new InteractiveProcessOptions
         {
             FileName = "xclip",
-            Arguments = "-selection clipboard"
+            ArgumentList = new[] { "-selection", "clipboard" }
         };
 
         var interactiveProcess = await _processService.StartInteractiveAsync(options, cancellationToken).ConfigureAwait(false);
@@ -128,7 +128,7 @@ public sealed partial class ClipboardService : ServiceEntity, IClipboardService
         var options = new ProcessOptions
         {
             FileName = "xclip",
-            Arguments = "-selection clipboard -o"
+            ArgumentList = new[] { "-selection", "clipboard", "-o" }
         };
 
         var result = await _processService.ExecuteAsync(options, cancellationToken).ConfigureAwait(false);

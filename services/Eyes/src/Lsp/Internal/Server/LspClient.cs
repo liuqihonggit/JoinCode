@@ -212,7 +212,7 @@ public sealed partial class LspClient : ILspClient
             var options = new InteractiveProcessOptions
             {
                 FileName = config.Command,
-                Arguments = string.Join(" ", config.Arguments),
+                ArgumentList = config.Arguments,
                 StandardOutputEncoding = System.Text.Encoding.UTF8,
                 StandardErrorEncoding = System.Text.Encoding.UTF8,
                 StandardInputEncoding = System.Text.Encoding.UTF8

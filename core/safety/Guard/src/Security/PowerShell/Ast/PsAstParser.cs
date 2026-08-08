@@ -83,7 +83,7 @@ public static partial class PsAstParser
                 var options = new ProcessOptions
                 {
                     FileName = pwshPath,
-                    Arguments = $"-NoProfile -NonInteractive -NoLogo -EncodedCommand {scriptEncoded}",
+                    ArgumentList = new[] { "-NoProfile", "-NonInteractive", "-NoLogo", "-EncodedCommand", scriptEncoded },
                     TimeoutMs = 5000,
                     EnvironmentVariables = new Dictionary<string, string>
                     {

@@ -104,7 +104,7 @@ public sealed partial class DockerSandboxProvider : SandboxProviderBase
                 await _processService.ExecuteAsync(new ProcessOptions
                 {
                     FileName = "docker",
-                    Arguments = $"rm -f {containerId}",
+                    ArgumentList = new[] { "rm", "-f", containerId },
                     TimeoutMs = 10000
                 }, ct).ConfigureAwait(false);
 
@@ -133,7 +133,7 @@ public sealed partial class DockerSandboxProvider : SandboxProviderBase
         var result = await _processService.ExecuteAsync(new ProcessOptions
         {
             FileName = "docker",
-            Arguments = $"exec {containerId} /bin/sh -c {ShellCommandEscape.EscapeForSingleQuotedShell(command)}",
+            ArgumentList = new[] { "exec", containerId, "/bin/sh", "-c", ShellCommandEscape.EscapeForSingleQuotedShell(command) },
             TimeoutMs = timeoutMs
         }, ct).ConfigureAwait(false);
 

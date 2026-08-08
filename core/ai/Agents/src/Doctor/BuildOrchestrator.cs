@@ -28,7 +28,7 @@ public sealed class BuildOrchestrator
             var options = new ProcessOptions
             {
                 FileName = "dotnet",
-                Arguments = arguments,
+                ArgumentList = new[] { "build", projectPath, "-c", configuration, "--no-incremental" },
                 WorkingDirectory = workingDirectory,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,

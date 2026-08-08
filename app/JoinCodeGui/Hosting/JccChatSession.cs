@@ -60,6 +60,17 @@ internal sealed class JccChatSession : IJccChatSession
             .Select(m => m.Id)
             .ToArray();
 
+    /// <summary>切换当前模型 — 直接回写共享 WorkflowConfig.Provider（DI 单例，QueryService 请求期读取同一实例）</summary>
+    public Task SetModelAsync(string modelId, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(modelId))
+        {
+            throw new System.ArgumentException("模型 ID 不能为空", nameof(modelId));
+        }
+        _config.Provider.ModelId = modelId;
+        return Task.CompletedTask;
+    }
+
     public Task InitializeAsync(CancellationToken cancellationToken = default)
         => Task.CompletedTask;
 

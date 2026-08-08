@@ -17,6 +17,9 @@ internal sealed class PlaceholderChatSession : IJccChatSession
 
     public IReadOnlyList<string> AvailableModels { get; } = ["deepseek-chat", "deepseek-reasoner"];
 
+    public Task SetModelAsync(string modelId, CancellationToken cancellationToken = default)
+        => Task.CompletedTask;
+
     public Task InitializeAsync(CancellationToken cancellationToken = default)
         => Task.CompletedTask;
 

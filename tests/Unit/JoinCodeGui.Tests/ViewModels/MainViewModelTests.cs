@@ -85,6 +85,16 @@ public class MainViewModelTests
     }
 
     [Fact]
+    public void SelectedModelChange_WritesBackToSharedConfig()
+    {
+        var vm = new MainViewModel();
+
+        vm.SelectedModel = "deepseek-reasoner";
+
+        vm.SelectedModel.Should().Be("deepseek-reasoner");
+    }
+
+    [Fact]
     public async Task RemoveMessage_DeletesSingleMessage()
     {
         var vm = new MainViewModel();

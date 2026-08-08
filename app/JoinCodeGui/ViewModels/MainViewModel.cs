@@ -213,6 +213,15 @@ public sealed partial class MainViewModel : ViewModelBase
     partial void OnMaxTokensChanged(int value)
         => OnPropertyChanged(nameof(IsInputTooLong));
 
+    /// <summary>用户切换模型时回写共享配置（绑定同一个配置源，下次请求引擎生效）</summary>
+    partial void OnSelectedModelChanged(string value)
+    {
+        if (!string.IsNullOrWhiteSpace(value) && value != _session.CurrentModelId)
+        {
+            _session.SetModelAsync(value);
+        }
+    }
+
     /// <summary>输入框变化时同步字符计数，并退出历史回看游标</summary>
     partial void OnInputTextChanged(string value)
     {

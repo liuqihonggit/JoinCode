@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Agents.Coordinator;
 
 /// <summary>
@@ -71,7 +71,7 @@ public sealed partial class AgentExecutionEngine : ServiceEntity, IAgentExecutio
             // 添加上下文
             if (previousResult != null)
             {
-                ((Agent)agent).AddContext($"上一个任务的结果: {previousResult}");
+                ((AgentBase)agent).AddContext($"上一个任务的结果: {previousResult}");
             }
 
             var result = await _lifecycleManager.ExecuteAsync(agent, cancellationToken).ConfigureAwait(false);

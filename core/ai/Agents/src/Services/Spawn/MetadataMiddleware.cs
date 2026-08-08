@@ -1,4 +1,4 @@
-namespace Core.Agents;
+﻿namespace Core.Agents;
 
 /// <summary>
 /// 元数据保存中间件 — 保存 Agent 元数据到 Transcript
@@ -34,7 +34,7 @@ public sealed partial class MetadataMiddleware : ServiceEntity, IAgentSpawnMiddl
     {
         try
         {
-            var agent = (Agent)subAgent;
+            var agent = (AgentBase)subAgent;
             await (_transcriptService ?? throw new InvalidOperationException("TranscriptService not available")).SaveMetadataAsync("default", new JoinCode.Abstractions.Interfaces.AgentMetadata
             {
                 AgentId = subAgent.ObjectId.UniqueId,

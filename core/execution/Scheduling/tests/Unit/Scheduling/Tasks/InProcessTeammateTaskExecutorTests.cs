@@ -1,4 +1,4 @@
-
+﻿
 namespace Sync.Tests.Scheduling.Tasks;
 
 public class InProcessTeammateTaskExecutorTests
@@ -21,7 +21,7 @@ public class InProcessTeammateTaskExecutorTests
     public async Task ExecuteTeammateAsync_SuccessfulAgentExecution_ShouldReturnSuccessResult()
     {
         var queryEngineMock = new Mock<JoinCode.Abstractions.Interfaces.IQueryEngine>();
-        var agent = new Agent("Test task", null, queryEngineMock.Object, null);
+        var agent = new CodeAgent("Test task", null, queryEngineMock.Object, null);
 
         var agentResult = new SubAgentResult
         {
@@ -59,7 +59,7 @@ public class InProcessTeammateTaskExecutorTests
     public async Task ExecuteTeammateAsync_FailedAgentExecution_ShouldReturnFailureResult()
     {
         var queryEngineMock = new Mock<JoinCode.Abstractions.Interfaces.IQueryEngine>();
-        var agent = new Agent("Failing task", null, queryEngineMock.Object, null);
+        var agent = new CodeAgent("Failing task", null, queryEngineMock.Object, null);
 
         var agentResult = new SubAgentResult
         {
@@ -104,7 +104,7 @@ public class InProcessTeammateTaskExecutorTests
     public async Task ExecuteTeammateAsync_ShouldRegisterAndUnregisterMessageBroker()
     {
         var queryEngineMock = new Mock<JoinCode.Abstractions.Interfaces.IQueryEngine>();
-        var agent = new Agent("Task", null, queryEngineMock.Object, null);
+        var agent = new CodeAgent("Task", null, queryEngineMock.Object, null);
 
         var agentResult = new SubAgentResult
         {
@@ -177,7 +177,7 @@ public class InProcessTeammateTaskExecutorTests
     public async Task ExecuteTeammateAsync_ContinuousMode_FailureThenRetry_ShouldContinueLoop()
     {
         var queryEngineMock = new Mock<JoinCode.Abstractions.Interfaces.IQueryEngine>();
-        var agent = new Agent("Continuous task", null, queryEngineMock.Object, null);
+        var agent = new CodeAgent("Continuous task", null, queryEngineMock.Object, null);
 
         var successResult = new SubAgentResult
         {

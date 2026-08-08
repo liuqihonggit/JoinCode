@@ -22,7 +22,7 @@ public sealed class AskClarifyCommand : ChatCommandBase
     /// <summary>
     /// 退出澄清模式的命令
     /// </summary>
-    private static readonly string[] ExitCommands = ["/end", "/done", "/exit", "/quit"];
+    private static readonly FrozenSet<string> ExitCommands = FrozenSet.Create("/end", "/done", "/exit", "/quit");
 
     /// <inheritdoc/>
     public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
@@ -149,7 +149,7 @@ public sealed class AskClarifyCommand : ChatCommandBase
     internal static bool IsExitCommand(string input)
     {
         var trimmed = input.Trim().ToLowerInvariant();
-        return ExitCommands.Any(c => trimmed == c);
+        return ExitCommands.Contains(trimmed);
     }
 
     /// <summary>

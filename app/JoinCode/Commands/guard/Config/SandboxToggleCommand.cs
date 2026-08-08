@@ -199,7 +199,8 @@ public sealed class SandboxToggleCommand : ChatCommandBase
         {
             var existing = await configService.GetAsync("sandbox.excludedPaths", context.CancellationToken).ConfigureAwait(false);
             var paths = string.IsNullOrEmpty(existing) ? [] : existing.Split(';', StringSplitOptions.RemoveEmptyEntries).ToList();
-            if (!paths.Contains(fullPath))
+            var pathSet = new HashSet<string>(paths, StringComparer.OrdinalIgnoreCase);
+            if (!pathSet.Contains(fullPath))
             {
                 paths.Add(fullPath);
                 await configService.SetAsync("sandbox.excludedPaths", string.Join(";", paths), context.CancellationToken).ConfigureAwait(false);

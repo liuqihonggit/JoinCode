@@ -16,6 +16,9 @@ public sealed partial class McpMonitorConfig
     public TimeSpan PollInterval { get; init; } = TimeSpan.FromSeconds(5);
     public int MaxEvents { get; init; } = 100;
     public bool AutoReconnect { get; init; } = true;
+
+    private FrozenSet<string>? _eventFilterSet;
+    public FrozenSet<string>? EventFilterSet => _eventFilterSet ??= EventFilters is null || EventFilters.Count == 0 ? null : EventFilters.ToFrozenSet();
 }
 
 public sealed partial class McpMonitorStatus
@@ -281,8 +284,7 @@ public sealed partial class MonitorMcpTaskExecutor : IMonitorMcpTaskExecutor, IA
 
     private void OnMonitorEvent(MonitorSession session, string eventType, Dictionary<string, JsonElement> data)
     {
-        if (session.Config.EventFilters is not null && session.Config.EventFilters.Count > 0 &&
-            !session.Config.EventFilters.Contains(eventType))
+        if (session.Config.EventFilterSet is { } filterSet && !filterSet.Contains(eventType))
         {
             return;
         }

@@ -13,19 +13,22 @@ public sealed class QueryOptions
     public EffortLevel? EffortLevel { get; init; }
     public string? ModelId { get; init; }
 
+    private HashSet<string>? _deniedSet;
+    private HashSet<string>? _allowedSet;
+
     public bool IsToolAllowed(string toolName)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(toolName);
 
         if (DeniedTools is not null && DeniedTools.Count > 0)
         {
-            if (DeniedTools.Contains(toolName))
+            if ((_deniedSet ??= new HashSet<string>(DeniedTools)).Contains(toolName))
                 return false;
         }
 
         if (AllowedTools is not null && AllowedTools.Count > 0)
         {
-            return AllowedTools.Contains(toolName);
+            return (_allowedSet ??= new HashSet<string>(AllowedTools)).Contains(toolName);
         }
 
         return true;

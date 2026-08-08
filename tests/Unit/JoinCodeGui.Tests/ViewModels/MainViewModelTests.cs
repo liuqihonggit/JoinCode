@@ -738,9 +738,80 @@ public class MainViewModelTests
             received!.RequestId.Should().Be("req-2");
         }
 
-        /// <summary>记录 VM 注入权限处理器的假会话，用于验证回调接线</summary>
-        private sealed class FakeSession : JoinCode.Gui.Hosting.IJccChatSession
+        [Fact]
+        public void ErrorToast_InitiallyHidden()
         {
+            var vm = CreateVm();
+
+            vm.HasErrorToast.Should().BeFalse();
+        }
+
+        [Fact]
+        public async Task Send_WhenSessionThrows_SetsErrorToast()
+        {
+            var fake = new ThrowingSession();
+            var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"));
+
+            vm.InputText = "hello";
+            await Task.Run(() => vm.SendCommand.ExecuteAsync(null)).WaitAsync(Timeout);
+
+            vm.HasErrorToast.Should().BeTrue();
+            vm.ErrorToastText.Should().NotBeNullOrWhiteSpace();
+        }
+
+        [Fact]
+        public void CopyErrorToast_SetsClipboardTextAndDismisses()
+        {
+            var vm = CreateVm();
+            vm.ErrorToastText = "boom";
+
+            vm.CopyErrorToastCommand.Execute(null);
+
+            vm.ErrorToastText.Should().BeNull();
+            vm.HasErrorToast.Should().BeFalse();
+            vm.ErrorToastCopy.Should().Be("boom");
+        }
+
+        [Fact]
+        public void DismissErrorToast_RemovesToast()
+        {
+            var vm = CreateVm();
+            vm.ErrorToastText = "boom";
+
+            vm.DismissErrorToastCommand.Execute(null);
+
+            vm.HasErrorToast.Should().BeFalse();
+        }
+
+        /// <summary>流式抛异常的假会话，用于验证错误 toast</summary>
+        private sealed class ThrowingSession : JoinCode.Gui.Hosting.IJccChatSession
+        {
+            public Func<PermissionConfirmationRequest, Task<PermissionConfirmationDecision>>? PermissionConfirmationHandler { get; set; }
+
+            public bool IsReady => true;
+            public string CurrentProvider => "fake";
+            public string CurrentModelId => "fake-model";
+            public IReadOnlyList<string> AvailableModels => ["fake-model"];
+            public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public async IAsyncEnumerable<ChatStreamEvent> StreamAsync(string message, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+            {
+                yield return ChatStreamEvent.Done();
+                throw new InvalidOperationException("引擎连接失败");
+#pragma warning disable CS0162
+                await Task.CompletedTask;
+#pragma warning restore CS0162
+            }
+            public Task<IReadOnlyList<ApiMessageRecord>> GetMessagesAsync(CancellationToken cancellationToken = default)
+                => Task.FromResult<IReadOnlyList<ApiMessageRecord>>([]);
+            public Task ClearHistoryAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public Task<RewindResult> RewindLastTurnAsync(CancellationToken cancellationToken = default)
+                => Task.FromResult(new RewindResult());
+            public Task SetModelAsync(string modelId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        }
+
+        /// <summary>记录 VM 注入权限处理器的假会话，用于验证回调接线</summary>
+        private sealed class FakeSession : JoinCode.Gui.Hosting.IJccChatSession        {
             public Func<PermissionConfirmationRequest, Task<PermissionConfirmationDecision>>? Handler { get; private set; }
 
             public Func<PermissionConfirmationRequest, Task<PermissionConfirmationDecision>>? PermissionConfirmationHandler

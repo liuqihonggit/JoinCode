@@ -7,7 +7,8 @@ using JoinCode.Gui.ViewModels;
 namespace JoinCode.Gui.Views;
 
 /// <summary>
-/// 主窗口 code-behind — 仅承载视图逻辑（输入回车发送、新消息自动滚动到底），业务均走 ViewModel。
+/// 主窗口 code-behind — 仅承载视图逻辑（输入回车发送、新消息自动滚动到底、错误 toast 显示）。
+/// 业务均走 ViewModel。
 /// </summary>
 public sealed partial class MainWindow : Window
 {
@@ -15,11 +16,33 @@ public sealed partial class MainWindow : Window
 
     private System.Threading.CancellationTokenSource? _toastCts;
 
+    private System.Threading.CancellationTokenSource? _errorToastFadeCts;
+
     private bool _autoScrollEnabled = true;
+
+    private static readonly TimeSpan ErrorToastDuration = TimeSpan.FromSeconds(5);
+
+    private readonly Avalonia.Threading.DispatcherTimer _errorToastTimer = new()
+    {
+        Interval = TimeSpan.FromMilliseconds(100)
+    };
+
+    private int _errorToastRemainingMs;
 
     public MainWindow()
     {
         InitializeComponent();
+        _errorToastTimer.Tick += OnErrorToastTimerTick;
+        Closed += OnWindowClosed;
+    }
+
+    private void OnWindowClosed(object? sender, EventArgs e)
+    {
+        _errorToastTimer.Stop();
+        _errorToastTimer.Tick -= OnErrorToastTimerTick;
+        _toastCts?.Cancel();
+        _errorToastFadeCts?.Cancel();
+        Closed -= OnWindowClosed;
     }
 
     protected override void OnDataContextChanged(EventArgs e)
@@ -105,6 +128,19 @@ public sealed partial class MainWindow : Window
             _vm.ClearSessionExport();
             ScheduleCopyToastHide();
         }
+        else if (e.PropertyName == nameof(MainViewModel.ErrorToastText))
+        {
+            if (_vm!.HasErrorToast)
+                ShowErrorToast();
+            else
+                HideErrorToast();
+        }
+        else if (e.PropertyName == nameof(MainViewModel.ErrorToastCopy) && !string.IsNullOrEmpty(_vm!.ErrorToastCopy))
+        {
+            Clipboard?.SetTextAsync(_vm.ErrorToastCopy);
+            _vm.ClearErrorToastCopy();
+            ScheduleCopyToastHide();
+        }
     }
 
     /// <summary>1.5s 后自动隐藏"已复制" toast（每次复制重置计时）</summary>
@@ -118,6 +154,67 @@ public sealed partial class MainWindow : Window
             token,
             TaskContinuationOptions.OnlyOnRanToCompletion | TaskContinuationOptions.ExecuteSynchronously,
             TaskScheduler.FromCurrentSynchronizationContext());
+    }
+
+    /// <summary>显示错误 toast：淡入并启动 5s 自动隐藏计时（hover 暂停）</summary>
+    private void ShowErrorToast()
+    {
+        _errorToastFadeCts?.Cancel();
+        ErrorToast.Opacity = 1;
+        _errorToastRemainingMs = (int)ErrorToastDuration.TotalMilliseconds;
+        _errorToastTimer.Start();
+    }
+
+    /// <summary>隐藏错误 toast：立即停止计时并清除状态（✕/复制按钮走此路径）</summary>
+    private void HideErrorToast()
+    {
+        _errorToastTimer.Stop();
+        _errorToastFadeCts?.Cancel();
+    }
+
+    /// <summary>错误 toast 计时 tick：倒计时结束则淡出（0.45s 过渡后清除状态）</summary>
+    private void OnErrorToastTimerTick(object? sender, EventArgs e)
+    {
+        _errorToastRemainingMs -= (int)_errorToastTimer.Interval.TotalMilliseconds;
+        if (_errorToastRemainingMs <= 0)
+        {
+            _errorToastTimer.Stop();
+            StartErrorToastFadeOut();
+        }
+    }
+
+    /// <summary>淡出错误 toast：透明度动画结束后清除 VM 状态（触发 IsVisible=false）</summary>
+    private void StartErrorToastFadeOut()
+    {
+        _errorToastFadeCts?.Cancel();
+        _errorToastFadeCts = new System.Threading.CancellationTokenSource();
+        var token = _errorToastFadeCts.Token;
+        ErrorToast.Opacity = 0;
+        _ = Task.Delay(500, token).ContinueWith(
+            _ => _vm?.DismissErrorToastCommand.Execute(null),
+            token,
+            TaskContinuationOptions.OnlyOnRanToCompletion | TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.FromCurrentSynchronizationContext());
+    }
+
+    /// <summary>鼠标悬停在 toast 上：暂停自动隐藏计时并取消淡出（维持显示）</summary>
+    private void OnErrorToastPointerEnter(object? sender, Avalonia.Input.PointerEventArgs e)
+    {
+        _errorToastTimer.Stop();
+        _errorToastFadeCts?.Cancel();
+        ErrorToast.Opacity = 1;
+    }
+
+    /// <summary>鼠标离开 toast：恢复自动隐藏计时（已到期的立即淡出）</summary>
+    private void OnErrorToastPointerLeave(object? sender, Avalonia.Input.PointerEventArgs e)
+    {
+        if (_vm is { HasErrorToast: true })
+        {
+            if (_errorToastRemainingMs <= 0)
+                StartErrorToastFadeOut();
+            else
+                _errorToastTimer.Start();
+        }
     }
 
     /// <summary>新消息加入时，若未上滑浏览则自动滚动到底部</summary>
@@ -157,9 +254,22 @@ public sealed partial class MainWindow : Window
             return;
         if (e.Key == Key.Enter)
         {
-            e.Handled = true;
-            if (!vm.IsBusy)
+            var isShift = (e.KeyModifiers & KeyModifiers.Shift) != 0;
+            if (isShift)
+            {
+                e.Handled = true;
+                if (sender is TextBox textBox)
+                {
+                    var caret = textBox.CaretIndex;
+                    vm.InputText = textBox.Text!.Insert(caret, "\n");
+                    textBox.CaretIndex = caret + 1;
+                }
+            }
+            else if (!vm.IsBusy)
+            {
+                e.Handled = true;
                 vm.SendCommand.Execute(null);
+            }
         }
         else if (e.Key == Key.Up)
         {

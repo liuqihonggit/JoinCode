@@ -91,15 +91,24 @@ internal sealed class JccChatSession : IJccChatSession
         }
     }
 
-    /// <summary>切换当前模型 — 直接回写共享 WorkflowConfig.Provider（DI 单例，QueryService 请求期读取同一实例）</summary>
-    public Task SetModelAsync(string modelId, CancellationToken cancellationToken = default)
+    /// <summary>
+    /// 切换当前模型 — 直接回写共享 WorkflowConfig.Provider（DI 单例，QueryService 请求期读取同一实例），
+    /// 并持久化 modelId 到 settings.json（对齐 CLI ModelCommand.ApplyModelSwitchAsync，
+    /// 键 "model" 与 SettingsJson 生成器 jsonName 一致），保证 GUI 重启后保留所选模型。
+    /// </summary>
+    public async Task SetModelAsync(string modelId, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(modelId))
         {
             throw new System.ArgumentException("模型 ID 不能为空", nameof(modelId));
         }
         _config.Provider.ModelId = modelId;
-        return Task.CompletedTask;
+
+        var configService = _services.GetService<IConfigurationService>();
+        if (configService is not null)
+        {
+            await configService.SetAsync("model", modelId, cancellationToken).ConfigureAwait(false);
+        }
     }
 
     public Task InitializeAsync(CancellationToken cancellationToken = default)

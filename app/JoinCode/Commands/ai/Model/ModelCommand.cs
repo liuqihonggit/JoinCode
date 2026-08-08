@@ -212,10 +212,11 @@ public sealed class ModelCommand : ChatCommandBase
         }
 
         // 2. 持久化到 settings.json — 对齐 TS userSettings
+        // 键 "model" 与 SettingsJson 生成器 jsonName 一致（"modelId" 会落 UpdateSettingByKey 默认分支不生效）
         var configService = ChatCommandBase.GetService<IConfigurationService>(context, typeof(IConfigurationService));
         if (configService is not null)
         {
-            await configService.SetAsync("modelId", modelId, context.CancellationToken).ConfigureAwait(false);
+            await configService.SetAsync("model", modelId, context.CancellationToken).ConfigureAwait(false);
         }
 
         // 3. Fast Mode 自动关闭检查 — 对齐 TS handleFastModeAutoOff

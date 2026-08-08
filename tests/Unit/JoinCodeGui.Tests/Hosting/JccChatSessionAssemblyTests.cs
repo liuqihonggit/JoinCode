@@ -1,5 +1,6 @@
 using FluentAssertions;
 
+using IO.FileSystem;
 using JoinCode.Abstractions.LLM.Chat;
 using JoinCode.Abstractions.Configuration;
 using JoinCode.Abstractions.Configuration.Providers;
@@ -154,5 +155,34 @@ public class JccChatSessionAssemblyTests
             config);
 
         session.AvailableModels.Count(m => m == "gpt-4o").Should().Be(1);
+    }
+
+    [Fact]
+    public async Task SetModelAsync_PersistsModelToSettingsJson()
+    {
+        // 对齐 CLI ModelCommand.ApplyModelSwitchAsync：切换模型需持久化 modelId
+        // 到 settings.json（键 "model"，与 SettingsJson 生成器 jsonName 一致），
+        // 否则 GUI 重启后回到默认模型再次触发 404。
+        var fs = new InMemoryFileSystem();
+        var services = new ServiceCollection();
+        services.AddSingleton<IFileSystem>(fs);
+        services.AddSingleton<IConfigurationService, Core.Configuration.ConfigurationService>();
+        var sp = services.BuildServiceProvider();
+
+        var config = new WorkflowConfig
+        {
+            Provider = new ProviderConfig
+            {
+                Provider = "openai",
+                ModelId = "gpt-4o"
+            }
+        };
+        var session = new JccChatSession(sp, null!, config);
+
+        await session.SetModelAsync("sensenova-6.7-flash-lite");
+
+        var value = await sp.GetRequiredService<IConfigurationService>()
+            .GetAsync("model");
+        value.Should().Be("sensenova-6.7-flash-lite");
     }
 }

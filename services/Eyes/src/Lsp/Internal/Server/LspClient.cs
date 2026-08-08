@@ -213,9 +213,6 @@ public sealed partial class LspClient : ILspClient
             {
                 FileName = config.Command,
                 ArgumentList = config.Arguments,
-                StandardOutputEncoding = System.Text.Encoding.UTF8,
-                StandardErrorEncoding = System.Text.Encoding.UTF8,
-                StandardInputEncoding = System.Text.Encoding.UTF8
             };
 
             _process = await _processService.StartInteractiveAsync(options, cancellationToken).ConfigureAwait(false);

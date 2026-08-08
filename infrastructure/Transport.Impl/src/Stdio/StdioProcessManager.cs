@@ -42,37 +42,15 @@ public sealed partial class StdioProcessManager : IAsyncDisposable
             : config.Arguments;
         _logger?.LogInformation("[StdioManager] 启动进程: {Path} {Args}", config.ExecutablePath, argsDisplay);
 
-        var startInfo = new System.Diagnostics.ProcessStartInfo
+        var builder = new IO.ProcessService.ProcessStartInfoBuilder(new IO.ProcessService.ProcessEncodingProvider());
+        var startInfo = builder.BuildInteractive(new InteractiveProcessOptions
         {
             FileName = config.ExecutablePath,
-            RedirectStandardInput = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            StandardOutputEncoding = Encoding.UTF8,
-            StandardErrorEncoding = Encoding.UTF8,
-            StandardInputEncoding = Encoding.UTF8,
-            WorkingDirectory = config.WorkingDirectory ?? Path.GetDirectoryName(config.ExecutablePath) ?? Environment.CurrentDirectory
-        };
-
-        if (config.ArgumentList is { Count: > 0 })
-        {
-            foreach (var arg in config.ArgumentList)
-                startInfo.ArgumentList.Add(arg);
-        }
-        else
-        {
-            startInfo.Arguments = config.Arguments;
-        }
-
-        if (config.EnvironmentVariables != null)
-        {
-            foreach (var (key, value) in config.EnvironmentVariables)
-            {
-                startInfo.EnvironmentVariables[key] = value;
-            }
-        }
+            ArgumentList = config.ArgumentList,
+            Arguments = config.Arguments,
+            WorkingDirectory = config.WorkingDirectory ?? Path.GetDirectoryName(config.ExecutablePath) ?? Environment.CurrentDirectory,
+            EnvironmentVariables = config.EnvironmentVariables,
+        });
 
         _process = new System.Diagnostics.Process { StartInfo = startInfo };
         _process.Start();

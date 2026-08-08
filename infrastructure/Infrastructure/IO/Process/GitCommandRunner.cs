@@ -27,8 +27,6 @@ public sealed partial class GitCommandRunner : ServiceEntity, IGitCommandRunner
                 FileName = "git",
                 Arguments = arguments,
                 WorkingDirectory = workingDirectory,
-                StandardOutputEncoding = System.Text.Encoding.UTF8,
-                StandardErrorEncoding = System.Text.Encoding.UTF8,
                 EnvironmentVariables = CreateGitEnvironment()
             };
 

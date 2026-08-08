@@ -138,8 +138,6 @@ public sealed partial class BashCommandHookExecutor : HookExecutorBase<BashComma
                 ArgumentList = argumentList,
                 SkipArgumentValidation = true,
                 WorkingDirectory = Environment.CurrentDirectory,
-                StandardOutputEncoding = System.Text.Encoding.UTF8,
-                StandardErrorEncoding = System.Text.Encoding.UTF8,
                 EnvironmentVariables = envVars
             };
 

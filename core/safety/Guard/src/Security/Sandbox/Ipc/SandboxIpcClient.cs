@@ -44,9 +44,6 @@ public sealed class SandboxIpcClient : IAsyncDisposable
             {
                 FileName = exePath,
                 Arguments = "",
-                StandardOutputEncoding = Encoding.UTF8,
-                StandardInputEncoding = Encoding.UTF8,
-                StandardErrorEncoding = Encoding.UTF8
             }, ct).ConfigureAwait(false);
 
             _readLoopTask = ReadLoopAsync(_readCts.Token);

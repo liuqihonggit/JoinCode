@@ -7,9 +7,13 @@ namespace IO.ProcessService;
 public sealed class PhysicalProcessService : IProcessService
 {
     private readonly ILogger<PhysicalProcessService>? _logger;
+    private readonly ProcessStartInfoBuilder _builder;
 
-    public PhysicalProcessService(ILogger<PhysicalProcessService>? logger = null)
+    public PhysicalProcessService(
+        ProcessStartInfoBuilder builder,
+        ILogger<PhysicalProcessService>? logger = null)
     {
+        _builder = builder ?? throw new ArgumentNullException(nameof(builder));
         _logger = logger;
     }
 
@@ -17,41 +21,7 @@ public sealed class PhysicalProcessService : IProcessService
     {
         ArgumentNullException.ThrowIfNull(options);
 
-        if (!options.SkipArgumentValidation)
-        {
-            CommandArgumentValidator.ValidateList(options.ArgumentList);
-            if (options.ArgumentList is null)
-                CommandArgumentValidator.ValidateString(options.Arguments);
-        }
-
-        var psi = new ProcessStartInfo
-        {
-            FileName = options.FileName,
-            WorkingDirectory = options.WorkingDirectory ?? string.Empty,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            RedirectStandardOutput = options.RedirectStandardOutput,
-            RedirectStandardError = options.RedirectStandardError
-        };
-
-        if (options.ArgumentList is { Count: > 0 })
-        {
-            foreach (var arg in options.ArgumentList)
-                psi.ArgumentList.Add(arg);
-        }
-        else
-        {
-            psi.Arguments = options.Arguments;
-        }
-
-        if (options.StandardOutputEncoding != null) psi.StandardOutputEncoding = options.StandardOutputEncoding;
-        if (options.StandardErrorEncoding != null) psi.StandardErrorEncoding = options.StandardErrorEncoding;
-
-        if (options.EnvironmentVariables != null)
-        {
-            foreach (var (key, value) in options.EnvironmentVariables)
-                psi.EnvironmentVariables[key] = value;
-        }
+        var psi = _builder.Build(options);
 
         var argsDisplay = options.ArgumentList is { Count: > 0 }
             ? string.Join(' ', options.ArgumentList)
@@ -109,43 +79,7 @@ public sealed class PhysicalProcessService : IProcessService
     {
         ArgumentNullException.ThrowIfNull(options);
 
-        if (!options.SkipArgumentValidation)
-        {
-            CommandArgumentValidator.ValidateList(options.ArgumentList);
-            if (options.ArgumentList is null)
-                CommandArgumentValidator.ValidateString(options.Arguments);
-        }
-
-        var psi = new ProcessStartInfo
-        {
-            FileName = options.FileName,
-            WorkingDirectory = options.WorkingDirectory ?? string.Empty,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            RedirectStandardOutput = true,
-            RedirectStandardInput = true,
-            RedirectStandardError = options.RedirectStandardError
-        };
-
-        if (options.ArgumentList is { Count: > 0 })
-        {
-            foreach (var arg in options.ArgumentList)
-                psi.ArgumentList.Add(arg);
-        }
-        else
-        {
-            psi.Arguments = options.Arguments;
-        }
-
-        if (options.StandardOutputEncoding != null) psi.StandardOutputEncoding = options.StandardOutputEncoding;
-        if (options.StandardErrorEncoding != null) psi.StandardErrorEncoding = options.StandardErrorEncoding;
-        if (options.StandardInputEncoding != null) psi.StandardInputEncoding = options.StandardInputEncoding;
-
-        if (options.EnvironmentVariables != null)
-        {
-            foreach (var (key, value) in options.EnvironmentVariables)
-                psi.EnvironmentVariables[key] = value;
-        }
+        var psi = _builder.BuildInteractive(options);
 
         var argsDisplay = options.ArgumentList is { Count: > 0 }
             ? string.Join(' ', options.ArgumentList)
@@ -168,11 +102,7 @@ public sealed class PhysicalProcessService : IProcessService
 
         try
         {
-            using var process = System.Diagnostics.Process.Start(new ProcessStartInfo
-            {
-                FileName = path,
-                UseShellExecute = true
-            });
+            using var process = System.Diagnostics.Process.Start(_builder.BuildShellOpen(path));
             return process != null;
         }
         catch (Exception ex)

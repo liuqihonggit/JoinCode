@@ -3,7 +3,7 @@ namespace Infra.Tests.Process;
 [Trait("Category", "Integration")]
 public sealed class GitCommandRunnerTests
 {
-    private readonly GitCommandRunner _runner = new(new PhysicalProcessService(), null);
+    private readonly GitCommandRunner _runner = new(new PhysicalProcessService(new ProcessStartInfoBuilder(new ProcessEncodingProvider())), null);
     private readonly PhysicalFileSystem _fs = new();
 
     [Fact(Timeout = 15000)]

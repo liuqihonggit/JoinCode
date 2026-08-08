@@ -164,12 +164,21 @@ public static partial class ServiceRegistration
             _ => new Infrastructure.Time.FakeClockService(),
             sp => sp.GetRequiredService<Infrastructure.Time.PhysicalClockService>());
 
+        // IProcessEncodingProvider — 进程编码统一管理（单例，支持 UTF8/本地编码随时切换）
+        services.TryAddSingleton<IO.ProcessService.ProcessEncodingProvider>();
+        services.TryAddSingleton<IProcessEncodingProvider>(sp => sp.GetRequiredService<IO.ProcessService.ProcessEncodingProvider>());
+
+        // ProcessStartInfoBuilder — 统一构建器，强制三道防线 + 统一编码
+        services.TryAddSingleton<IO.ProcessService.ProcessStartInfoBuilder>();
+
         // IProcessService — 根据 JCC_PROCESS_MODE 环境变量决定后端
         // 默认 Physical（真实进程），NoOp=禁止所有进程操作（调试/E2E测试用）
         services.AddEnvSwitch<IProcessService>(
             JccEnvVar.ProcessMode, "NoOp",
             _ => new IO.ProcessService.NoOpProcessService(),
-            sp => new IO.ProcessService.PhysicalProcessService(sp.GetService<ILogger<IO.ProcessService.PhysicalProcessService>>()));
+            sp => new IO.ProcessService.PhysicalProcessService(
+                sp.GetRequiredService<IO.ProcessService.ProcessStartInfoBuilder>(),
+                sp.GetService<ILogger<IO.ProcessService.PhysicalProcessService>>()));
 
         // IConsoleOutput — 根据 JCC_CONSOLE_MODE 环境变量决定后端
         // 默认 Physical（真实控制台），NoOp=静默所有输出（E2E测试/CI用）

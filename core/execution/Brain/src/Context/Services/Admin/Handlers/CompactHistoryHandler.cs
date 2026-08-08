@@ -11,15 +11,21 @@ public sealed partial class CompactHistoryHandler : ServiceEntity, IChatAdminOpe
     private readonly IChatPromptManager _promptManager;
     private readonly SessionHookHelper _hookHelper;
     private readonly IFileSystem? _fs;
+    private readonly ITodoService? _todoService;
+    private readonly ILogger<CompactHistoryHandler>? _logger;
 
     public CompactHistoryHandler(
         IChatPromptManager promptManager,
         SessionHookHelper hookHelper,
-        IFileSystem? fs = null)
+        IFileSystem? fs = null,
+        ITodoService? todoService = null,
+        ILogger<CompactHistoryHandler>? logger = null)
     {
         _promptManager = promptManager;
         _hookHelper = hookHelper;
         _fs = fs;
+        _todoService = todoService;
+        _logger = logger;
     }
 
     public ChatAdminOperation Operation => ChatAdminOperation.CompactHistory;
@@ -60,6 +66,11 @@ public sealed partial class CompactHistoryHandler : ServiceEntity, IChatAdminOpe
                 }
             }
 
+            if (_todoService is not null)
+            {
+                await RestoreTodoProgressAsync(context.ContextManager, ct).ConfigureAwait(false);
+            }
+
             _promptManager.ClearCache();
             await _promptManager.ClearRemindersAsync(ct).ConfigureAwait(false);
 
@@ -69,6 +80,36 @@ public sealed partial class CompactHistoryHandler : ServiceEntity, IChatAdminOpe
         catch (Exception ex)
         {
             context.Error = ex;
+        }
+    }
+
+    /// <summary>
+    /// 压缩后恢复 TODO 任务进度 — 避免压缩导致任务追踪丢失
+    /// </summary>
+    private async Task RestoreTodoProgressAsync(IChatContextManager contextManager, CancellationToken ct)
+    {
+        try
+        {
+            var result = await _todoService!.ListTodosAsync(includeCompleted: true, cancellationToken: ct).ConfigureAwait(false);
+            if (!result.Success || result.TotalCount == 0)
+                return;
+
+            var completedValue = TodoStatus.Completed.ToValue();
+            var sb = new StringBuilder();
+            sb.AppendLine($"[任务进度恢复] 共 {result.TotalCount} 项（已完成 {result.CompletedCount}，待处理 {result.PendingCount}）：");
+
+            foreach (var todo in result.Todos)
+            {
+                var statusMarker = todo.Status.Equals(completedValue, StringComparison.OrdinalIgnoreCase) ? "[x]" : "[ ]";
+                var content = todo.Content.Length > 100 ? todo.Content[..100] + "..." : todo.Content;
+                sb.AppendLine($"  {statusMarker} {content} (优先级: {todo.Priority})");
+            }
+
+            await contextManager.AddSystemMessageAsync(sb.ToString(), ct).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "[CompactHistoryHandler] TODO 任务进度恢复失败，不影响压缩主流程");
         }
     }
 }

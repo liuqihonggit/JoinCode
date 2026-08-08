@@ -48,6 +48,7 @@ public sealed partial class SessionMemoryCompactService : ServiceEntity, ISessio
     public async Task<CompactResult?> TrySessionMemoryCompactAsync(
         IReadOnlyList<ApiMessage> messages,
         int autoCompactThreshold = 0,
+        string? transcriptPath = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(messages);
@@ -73,7 +74,7 @@ public sealed partial class SessionMemoryCompactService : ServiceEntity, ISessio
         var summaryContent = CompactPromptTemplate.GetCompactUserSummaryMessage(
             truncatedContent,
             suppressFollowUpQuestions: true,
-            transcriptPath: null,
+            transcriptPath: transcriptPath,
             recentMessagesPreserved: true);
 
         var postCompactTokens = _microcompactService.EstimateMessageTokens(

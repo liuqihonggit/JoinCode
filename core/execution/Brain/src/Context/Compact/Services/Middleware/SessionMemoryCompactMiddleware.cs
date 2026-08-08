@@ -28,7 +28,7 @@ public sealed partial class SessionMemoryCompactMiddleware : ServiceEntity, ICom
             try
             {
                 var result = await _sessionMemoryCompactService.TrySessionMemoryCompactAsync(
-                    context.Request.Messages, context.PreCompactTokens, ct).ConfigureAwait(false);
+                    context.Request.Messages, context.PreCompactTokens, context.Request.TranscriptPath, ct).ConfigureAwait(false);
 
                 if (result is not null)
                 {

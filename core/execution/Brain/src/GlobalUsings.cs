@@ -34,6 +34,7 @@ global using JoinCode.Abstractions.Models.Search;
 global using JoinCode.Abstractions.Models.Skill;
 global using JoinCode.Abstractions.Models.Features;
 global using JoinCode.Abstractions.Models.Telemetry;
+global using JoinCode.Abstractions.Models.Todo;
 global using JoinCode.Abstractions.Pipeline;
 global using JoinCode.Abstractions.Prompts;
 global using JoinCode.Abstractions.Prompts.ToolPrompts;

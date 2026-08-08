@@ -6,6 +6,7 @@ public interface ISessionMemoryCompactService
     Task<CompactResult?> TrySessionMemoryCompactAsync(
         IReadOnlyList<ApiMessage> messages,
         int autoCompactThreshold = 0,
+        string? transcriptPath = null,
         CancellationToken cancellationToken = default);
     Task<bool> IsSessionMemoryAvailableAsync();
     Task<string?> GetSessionMemoryContentAsync();

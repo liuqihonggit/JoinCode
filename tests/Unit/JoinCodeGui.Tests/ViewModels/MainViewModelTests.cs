@@ -76,6 +76,15 @@ public class MainViewModelTests
     }
 
     [Fact]
+    public void ModelOptions_AreBoundToSessionRealModels()
+    {
+        var vm = new MainViewModel();
+
+        vm.ModelOptions.Should().BeEquivalentTo(["deepseek-chat", "deepseek-reasoner"]);
+        vm.SelectedModel.Should().Be("deepseek-chat");
+    }
+
+    [Fact]
     public async Task RemoveMessage_DeletesSingleMessage()
     {
         var vm = new MainViewModel();

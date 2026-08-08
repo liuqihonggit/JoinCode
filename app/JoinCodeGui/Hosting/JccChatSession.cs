@@ -1,3 +1,4 @@
+using JoinCode.Abstractions.Configuration.Llm;
 using JoinCode.Abstractions.Interfaces;
 using JoinCode.Abstractions.LLM.Chat;
 
@@ -12,13 +13,16 @@ internal sealed class JccChatSession : IJccChatSession
 {
     private readonly Microsoft.Extensions.DependencyInjection.ServiceProvider _services;
     private readonly IChatService _chat;
+    private readonly JoinCode.Abstractions.Configuration.WorkflowConfig _config;
 
-    private JccChatSession(
+    internal JccChatSession(
         Microsoft.Extensions.DependencyInjection.ServiceProvider services,
-        IChatService chat)
+        IChatService chat,
+        JoinCode.Abstractions.Configuration.WorkflowConfig config)
     {
         _services = services;
         _chat = chat;
+        _config = config;
     }
 
     /// <summary>
@@ -39,10 +43,22 @@ internal sealed class JccChatSession : IJccChatSession
 
         var sp = services.BuildServiceProvider();
         var chat = sp.GetRequiredService<IChatService>();
-        return new JccChatSession(sp, chat);
+        return new JccChatSession(sp, chat, config);
     }
 
     public bool IsReady => true;
+
+    /// <summary>当前 Provider 名称（deepseek/openai/azure/anthropic/agnes）</summary>
+    public string CurrentProvider => _config.Provider.Provider;
+
+    /// <summary>当前启用的模型 ID</summary>
+    public string CurrentModelId => _config.Provider.ModelId;
+
+    /// <summary>当前 Provider 可选真实模型 ID 列表（绑定共享 ModelConfigLoader）</summary>
+    public IReadOnlyList<string> AvailableModels =>
+        ModelConfigLoader.GetModels(_config.Provider.Provider)
+            .Select(m => m.Id)
+            .ToArray();
 
     public Task InitializeAsync(CancellationToken cancellationToken = default)
         => Task.CompletedTask;

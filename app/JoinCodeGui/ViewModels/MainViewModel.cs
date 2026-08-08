@@ -99,8 +99,8 @@ public sealed partial class MainViewModel : ViewModelBase
     partial void OnSearchTextChanged(string value)
         => OnPropertyChanged(nameof(FilteredMessages));
 
-    /// <summary>模型下拉选项（占位阶段，P1 接入引擎后改为枚举/真实模型）</summary>
-    public IReadOnlyList<string> ModelOptions { get; } = ["gpt-4o", "deepseek-chat", "claude-sonnet"];
+    /// <summary>模型下拉选项（绑定引擎共享配置的真实模型列表）</summary>
+    public IReadOnlyList<string> ModelOptions => _session.AvailableModels;
 
     /// <summary>空状态建议提问（点击填充输入框）</summary>
     public IReadOnlyList<string> SuggestedPrompts { get; } =
@@ -189,7 +189,7 @@ public sealed partial class MainViewModel : ViewModelBase
     public MainViewModel(IJccChatSession? session = null)
     {
         _session = session ?? new Hosting.PlaceholderChatSession();
-        _selectedModel = ModelOptions[0];
+        _selectedModel = _session.CurrentModelId;
         Messages.CollectionChanged += OnMessagesChanged;
         NewConversation();
     }

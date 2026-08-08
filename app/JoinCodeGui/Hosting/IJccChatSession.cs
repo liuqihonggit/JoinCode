@@ -26,4 +26,13 @@ public interface IJccChatSession : IAsyncDisposable
 
     /// <summary>撤回最近一轮对话</summary>
     Task<RewindResult> RewindLastTurnAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>当前启用 Provider 名称（如 deepseek/openai，驱动模型下拉分组成员）</summary>
+    string CurrentProvider { get; }
+
+    /// <summary>当前启用的模型 ID</summary>
+    string CurrentModelId { get; }
+
+    /// <summary>当前 Provider 可选真实模型 ID 列表（来自共享配置 ModelConfigLoader）</summary>
+    IReadOnlyList<string> AvailableModels { get; }
 }

@@ -11,6 +11,7 @@ using Microsoft.Extensions.Configuration;
 using Core.DependencyInjection;
 using JoinCode.Pipelines;
 using Api.Chat;
+using JoinCode.Gui.Hosting;
 
 namespace JoinCode.Gui.Tests.Hosting;
 
@@ -68,5 +69,48 @@ public class JccChatSessionAssemblyTests
 
         impl.Should().NotBe(typeof(Api.Chat.PipeQueryService),
             "PipeEndpoint=null 时应注册标准 HTTP QueryService，而非命名管道服务");
+    }
+
+    [Fact]
+    public void ModelSurface_ExposesProviderAndCurrentModelFromSharedConfig()
+    {
+        var config = new WorkflowConfig
+        {
+            Provider = new ProviderConfig
+            {
+                Provider = "openai",
+                ModelId = "gpt-4o"
+            }
+        };
+        var session = new JccChatSession(
+            new ServiceCollection().BuildServiceProvider(),
+            null!,
+            config);
+
+        session.CurrentProvider.Should().Be("openai");
+        session.CurrentModelId.Should().Be("gpt-4o");
+    }
+
+    [Fact]
+    public void ModelSurface_AvailableModels_ComesFromSharedModelConfigLoader()
+    {
+        var config = new WorkflowConfig
+        {
+            Provider = new ProviderConfig
+            {
+                Provider = "openai",
+                ModelId = "gpt-4o"
+            }
+        };
+        var session = new JccChatSession(
+            new ServiceCollection().BuildServiceProvider(),
+            null!,
+            config);
+
+        var expected = JoinCode.Abstractions.Configuration.Llm.ModelConfigLoader
+            .GetModels("openai").Select(m => m.Id).ToArray();
+
+        session.AvailableModels.Should().BeEquivalentTo(expected);
+        session.AvailableModels.Should().Contain("gpt-4o");
     }
 }

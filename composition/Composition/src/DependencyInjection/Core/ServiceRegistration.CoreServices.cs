@@ -78,10 +78,21 @@ public static partial class ServiceRegistration
 
         // ShellExecutionConfig — 直接注册供 SystemActuatorBase 构造函数使用
         // （SystemActuatorBase 构造函数取 ShellExecutionConfig 而非 IOptions<>）
+        // 支持环境变量覆盖: JCC_ABSOLUTE_TIMEOUT_SECONDS, JCC_RESUME_TIMEOUT_SECONDS
         services.AddSingleton(sp =>
         {
             var options = sp.GetRequiredService<IOptions<ShellExecutionConfig>>();
-            return options.Value;
+            var config = options.Value;
+
+            var envAbsolute = Environment.GetEnvironmentVariable("JCC_ABSOLUTE_TIMEOUT_SECONDS");
+            if (int.TryParse(envAbsolute, out var absSeconds) && absSeconds >= 0)
+                config.AbsoluteTimeoutSeconds = absSeconds;
+
+            var envResume = Environment.GetEnvironmentVariable("JCC_RESUME_TIMEOUT_SECONDS");
+            if (int.TryParse(envResume, out var resumeSeconds) && resumeSeconds >= 60)
+                config.ResumeTimeoutSeconds = resumeSeconds;
+
+            return config;
         });
 
         // SystemActuatorBase — 已改为静态缓存，不再 DI 注册

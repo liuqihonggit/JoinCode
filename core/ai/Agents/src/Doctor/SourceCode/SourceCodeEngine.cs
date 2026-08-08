@@ -89,22 +89,26 @@ public sealed class SourceCodeEngine : ISourceCodeEngine
             }
 
             var sw = System.Diagnostics.Stopwatch.StartNew();
-            var buildArgs = configuration == "Release"
-                ? $"build \"{slnxPath}\" -c {configuration} --no-incremental"
-                : $"build \"{slnxPath}\" -c {configuration}";
 
             try
             {
                 var startInfo = new System.Diagnostics.ProcessStartInfo
                 {
                     FileName = "dotnet",
-                    Arguments = buildArgs,
                     WorkingDirectory = worktreePath,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     UseShellExecute = false,
                     CreateNoWindow = true
                 };
+                startInfo.ArgumentList.Add("build");
+                startInfo.ArgumentList.Add(slnxPath);
+                startInfo.ArgumentList.Add("-c");
+                startInfo.ArgumentList.Add(configuration);
+                if (configuration == "Release")
+                {
+                    startInfo.ArgumentList.Add("--no-incremental");
+                }
 
                 using var process = System.Diagnostics.Process.Start(startInfo);
                 if (process is null)

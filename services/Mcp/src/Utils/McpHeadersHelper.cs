@@ -42,7 +42,6 @@ public static class McpHeadersHelper
                 var startInfo = new ProcessStartInfo
                 {
                     FileName = "cmd.exe",
-                    Arguments = "/c " + headersHelper,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     UseShellExecute = false,
@@ -50,6 +49,8 @@ public static class McpHeadersHelper
                     StandardOutputEncoding = System.Text.Encoding.UTF8,
                     StandardErrorEncoding = System.Text.Encoding.UTF8
                 };
+                startInfo.ArgumentList.Add("/c");
+                startInfo.ArgumentList.Add(headersHelper);
 
                 startInfo.EnvironmentVariables["CLAUDE_CODE_MCP_SERVER_NAME"] = serverName;
                 startInfo.EnvironmentVariables["CLAUDE_CODE_MCP_SERVER_URL"] = serverUrl;

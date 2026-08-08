@@ -36,43 +36,45 @@ public sealed class SshForwardedPort : ISshForwardedPort
     {
         DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
 
-        var forwardArg = ForwardType switch
+        var startInfo = new ProcessStartInfo
         {
-            SshForwardType.Local => $"-L {LocalEndpoint} {RemoteEndpoint}",
-            SshForwardType.Remote => $"-R {RemoteEndpoint} {LocalEndpoint}",
-            _ => throw new ArgumentOutOfRangeException(nameof(ForwardType))
+            FileName = "ssh",
+            UseShellExecute = false,
+            CreateNoWindow = true
         };
-
-        var args = new StringBuilder();
-        args.Append(" -N");
-        args.Append($" -o ConnectTimeout={_config.ConnectionTimeoutMs / 1000}");
-        args.Append(_config.KnownHostsPolicy switch
+        startInfo.ArgumentList.Add("-N");
+        startInfo.ArgumentList.Add("-o");
+        startInfo.ArgumentList.Add($"ConnectTimeout={_config.ConnectionTimeoutMs / 1000}");
+        startInfo.ArgumentList.Add("-o");
+        startInfo.ArgumentList.Add("StrictHostKeyChecking=" + (_config.KnownHostsPolicy switch
         {
-            SshKnownHostsPolicy.Strict => " -o StrictHostKeyChecking=yes",
-            SshKnownHostsPolicy.AcceptNew => " -o StrictHostKeyChecking=accept-new",
-            SshKnownHostsPolicy.Ignore => " -o StrictHostKeyChecking=no",
-            _ => " -o StrictHostKeyChecking=accept-new"
-        });
+            SshKnownHostsPolicy.Strict => "yes",
+            SshKnownHostsPolicy.AcceptNew => "accept-new",
+            SshKnownHostsPolicy.Ignore => "no",
+            _ => "accept-new"
+        }));
 
         if (_config.AuthMethod == SshAuthMethod.PrivateKey && _config.PrivateKey != null)
         {
             var keyFile = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
                 AppDataConstants.AppDataFolder, "ssh", $"key_{_sessionId}");
-            args.Append($" -i \"{keyFile}\"");
+            startInfo.ArgumentList.Add("-i");
+            startInfo.ArgumentList.Add(keyFile);
         }
 
-        args.Append($" {forwardArg}");
-        args.Append($" -p {_config.Port}");
-        args.Append($" {_config.Username}@{_config.Host}");
-
-        var startInfo = new ProcessStartInfo
+        startInfo.ArgumentList.Add(ForwardType switch
         {
-            FileName = "ssh",
-            Arguments = args.ToString(),
-            UseShellExecute = false,
-            CreateNoWindow = true
-        };
+            SshForwardType.Local => "-L",
+            SshForwardType.Remote => "-R",
+            _ => throw new ArgumentOutOfRangeException(nameof(ForwardType))
+        });
+        startInfo.ArgumentList.Add(ForwardType == SshForwardType.Local ? LocalEndpoint : RemoteEndpoint);
+        startInfo.ArgumentList.Add(ForwardType == SshForwardType.Local ? RemoteEndpoint : LocalEndpoint);
+
+        startInfo.ArgumentList.Add("-p");
+        startInfo.ArgumentList.Add(_config.Port.ToString());
+        startInfo.ArgumentList.Add($"{_config.Username}@{_config.Host}");
 
         _forwardProcess = Process.Start(startInfo);
         IsForwarding = _forwardProcess != null && !_forwardProcess.HasExited;

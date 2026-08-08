@@ -28,7 +28,7 @@ public sealed class DoctorCommand : ChatCommandBase
         sb.AppendLine($"  架构: {System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture}");
 
         sb.AppendLine("\n[Git]");
-        var gitCheck = await RunCommandAsync("git", "--version", context.CancellationToken).ConfigureAwait(false);
+        var gitCheck = await RunCommandAsync("git", ["--version"], context.CancellationToken).ConfigureAwait(false);
         if (gitCheck.success)
         {
             sb.AppendLine($"{TerminalColors.Success}  {gitCheck.output}{AnsiStyleConstants.Reset}");
@@ -40,16 +40,16 @@ public sealed class DoctorCommand : ChatCommandBase
 
         sb.AppendLine("\n[常用工具]");
         var toolResults = new StringBuilder();
-        await AppendToolCheckAsync(toolResults, "dotnet", "--version", "dotnet CLI", context.CancellationToken).ConfigureAwait(false);
-        await AppendToolCheckAsync(toolResults, "node", "--version", "Node.js", context.CancellationToken).ConfigureAwait(false);
-        await AppendToolCheckAsync(toolResults, "npm", "--version", "npm", context.CancellationToken).ConfigureAwait(false);
-        await AppendToolCheckAsync(toolResults, "python", "--version", "Python", context.CancellationToken).ConfigureAwait(false);
+        await AppendToolCheckAsync(toolResults, "dotnet", ["--version"], "dotnet CLI", context.CancellationToken).ConfigureAwait(false);
+        await AppendToolCheckAsync(toolResults, "node", ["--version"], "Node.js", context.CancellationToken).ConfigureAwait(false);
+        await AppendToolCheckAsync(toolResults, "npm", ["--version"], "npm", context.CancellationToken).ConfigureAwait(false);
+        await AppendToolCheckAsync(toolResults, "python", ["--version"], "Python", context.CancellationToken).ConfigureAwait(false);
         sb.Append(toolResults);
 
         // 搜索工具状态 — 对齐 TS DiagnosticInfo.ripgrepStatus
         sb.AppendLine("\n[搜索工具]");
         var searchResults = new StringBuilder();
-        await AppendToolCheckAsync(searchResults, "rg", "--version", "ripgrep", context.CancellationToken).ConfigureAwait(false);
+        await AppendToolCheckAsync(searchResults, "rg", ["--version"], "ripgrep", context.CancellationToken).ConfigureAwait(false);
         sb.Append(searchResults);
 
         sb.AppendLine("\n[环境变量]");
@@ -84,7 +84,7 @@ public sealed class DoctorCommand : ChatCommandBase
         return ChatCommandResult.Continue();
     }
 
-    private async Task AppendToolCheckAsync(StringBuilder sb, string command, string args, string name, CancellationToken cancellationToken)
+    private async Task AppendToolCheckAsync(StringBuilder sb, string command, string[] args, string name, CancellationToken cancellationToken)
     {
         var result = await RunCommandAsync(command, args, cancellationToken).ConfigureAwait(false);
         if (result.success)
@@ -110,7 +110,7 @@ public sealed class DoctorCommand : ChatCommandBase
         }
     }
 
-    private static async Task<(bool success, string output)> RunCommandAsync(string command, string args, CancellationToken cancellationToken, IProcessService? processService = null)
+    private static async Task<(bool success, string output)> RunCommandAsync(string command, string[] args, CancellationToken cancellationToken, IProcessService? processService = null)
     {
         try
         {
@@ -119,7 +119,7 @@ public sealed class DoctorCommand : ChatCommandBase
                 var options = new ProcessOptions
                 {
                     FileName = command,
-                    Arguments = args
+                    ArgumentList = args
                 };
 
                 var result = await processService.ExecuteAsync(options, cancellationToken).ConfigureAwait(false);
@@ -129,12 +129,13 @@ public sealed class DoctorCommand : ChatCommandBase
             var psi = new ProcessStartInfo
             {
                 FileName = command,
-                Arguments = args,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = true
             };
+            foreach (var a in args)
+                psi.ArgumentList.Add(a);
 
             using var process = new Process { StartInfo = psi };
             process.Start();

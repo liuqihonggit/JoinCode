@@ -590,12 +590,13 @@ jobs:
             var psi = new System.Diagnostics.ProcessStartInfo
             {
                 FileName = "cmd.exe",
-                Arguments = $"/c {command}",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = true,
             };
+            psi.ArgumentList.Add("/c");
+            psi.ArgumentList.Add(command);
 
             using var process = System.Diagnostics.Process.Start(psi);
             if (process is null) return ShellResult.Fail("无法启动进程");

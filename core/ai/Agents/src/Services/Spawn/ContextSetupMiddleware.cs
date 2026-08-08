@@ -1,4 +1,4 @@
-namespace Core.Agents;
+﻿namespace Core.Agents;
 
 /// <summary>
 /// 上下文构建中间件 — 构建 SubAgentOptions 并 Spawn 子智能体
@@ -60,7 +60,7 @@ public sealed partial class ContextSetupMiddleware : ServiceEntity, IAgentSpawnM
 
         var subAgent = await _lifecycleManager.SpawnSubAgentAsync(context.Options.Description, subOptions, ct).ConfigureAwait(false);
 
-        var concreteAgent = (Agent)subAgent;
+        var concreteAgent = (AgentBase)subAgent;
         if (concreteAgent.Context is not null)
         {
             concreteAgent.Context.ParentAgentId = _subAgentContextAccessor.Current?.AgentId;

@@ -7,7 +7,7 @@ namespace JoinCode.Reasoning.Engine;
 public sealed class ReasoningEngine : IReasoningEngine
 {
     private readonly Dag<ReasoningPayload> _dag = new();
-    private readonly Dictionary<AgentRole, IReasoningAgent> _agents;
+    private readonly Dictionary<AgentRole, ReasoningAgent> _agents;
     private readonly ILogger<ReasoningEngine> _logger;
     private readonly ReasoningOptions _options;
     private DateTime? _lastRunAt;
@@ -19,19 +19,16 @@ public sealed class ReasoningEngine : IReasoningEngine
 
     private readonly ConeOrchestrator _coneOrchestrator = new();
     private readonly BayesianEvidenceUpdater _bayesianUpdater = new();
-    private readonly IReasoningContextCompressor? _contextCompressor;
     private EvidenceUrlVerifier? _urlVerifier;
 
     public ReasoningEngine(
-        IEnumerable<IReasoningAgent> agents,
+        IEnumerable<ReasoningAgent> agents,
         ILogger<ReasoningEngine> logger,
-        ReasoningOptions? options = null,
-        IReasoningContextCompressor? contextCompressor = null)
+        ReasoningOptions? options = null)
     {
         _logger = logger;
         _options = options ?? ReasoningOptions.Panda;
         _agents = agents.ToDictionary(a => a.Role, a => a);
-        _contextCompressor = contextCompressor;
         _roundsBudget = _options.MaxAdversarialRounds;
         _tokensBudget = _options.MaxTokens;
 
@@ -226,7 +223,7 @@ public sealed class ReasoningEngine : IReasoningEngine
             Dag = _dag,
             Options = _options,
             ConeOrchestrator = _coneOrchestrator,
-            ContextCompressor = _contextCompressor,
+
         };
 
         if (_agents.TryGetValue(AgentRole.Prosecutor, out var prosecutor))
@@ -252,7 +249,7 @@ public sealed class ReasoningEngine : IReasoningEngine
             Dag = _dag,
             Options = _options,
             ConeOrchestrator = _coneOrchestrator,
-            ContextCompressor = _contextCompressor,
+
         };
 
         if (_agents.TryGetValue(AgentRole.Defender, out var defender))
@@ -278,7 +275,7 @@ public sealed class ReasoningEngine : IReasoningEngine
             Dag = _dag,
             Options = _options,
             ConeOrchestrator = _coneOrchestrator,
-            ContextCompressor = _contextCompressor,
+
         };
 
         if (_agents.TryGetValue(AgentRole.Judge, out var judge))
@@ -290,11 +287,6 @@ public sealed class ReasoningEngine : IReasoningEngine
         if (_urlVerifier is not null)
         {
             await VerifyAllEvidenceLinksAsync().ConfigureAwait(false);
-        }
-
-        if (_contextCompressor is not null)
-        {
-            await _contextCompressor.SummarizeResolvedNodesAsync(_dag, _options.DagSummarizationThreshold, ct).ConfigureAwait(false);
         }
 
         _lastRunAt = DateTime.UtcNow;

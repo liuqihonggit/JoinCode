@@ -1,4 +1,4 @@
-using JoinCode.Abstractions.Attributes;
+﻿using JoinCode.Abstractions.Attributes;
 
 namespace Core.Agents;
 
@@ -301,7 +301,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         var description = $"Resume: {metadata.Description}";
         var subAgent = await _lifecycleManager.SpawnSubAgentAsync(description, subOptions, cancellationToken).ConfigureAwait(false);
 
-        var concreteAgent = (Agent)subAgent;
+        var concreteAgent = (AgentBase)subAgent;
         if (concreteAgent.Context is not null)
         {
             concreteAgent.Context.ParentAgentId = _subAgentContextAccessor.Current?.AgentId;
@@ -457,7 +457,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
 
     private async Task RunBackgroundAgentAsync(IAgent subAgent, TaskCompletionSource<JoinCode.Abstractions.Interfaces.AgentResult> tcs, CancellationToken cancellationToken)
     {
-        var concreteAgent = (Agent)subAgent;
+        var concreteAgent = (AgentBase)subAgent;
         using var scope = concreteAgent.Context?.EnterScopeWithCwd(concreteAgent.Options.WorktreePath);
         try
         {
@@ -505,7 +505,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     {
         try
         {
-            var concreteAgent = (Agent)subAgent;
+            var concreteAgent = (AgentBase)subAgent;
             var status = result.Success ? AgentStatus.Completed : AgentStatus.Failed;
 
             if (_progressTrackers.TryGetValue(subAgent.ObjectId.UniqueId, out var tracker))
@@ -571,7 +571,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
 
         try
         {
-            var concreteAgent = (Agent)subAgent;
+            var concreteAgent = (AgentBase)subAgent;
             var role = result.Success ? "assistant" : "error";
             var content = result.Success ? result.Output : $"ERROR: {result.Error}";
             await AppendTranscriptEntryAsync(subAgent.ObjectId.UniqueId, role, content, cancellationToken).ConfigureAwait(false);
@@ -638,7 +638,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
 
     private static JoinCode.Abstractions.Interfaces.AgentInfo MapToAgentInfo(IAgent subAgent, SubAgentResult? result = null)
     {
-        var concreteAgent = (Agent)subAgent;
+        var concreteAgent = (AgentBase)subAgent;
         return new JoinCode.Abstractions.Interfaces.AgentInfo
         {
             Id = subAgent.ObjectId.UniqueId,

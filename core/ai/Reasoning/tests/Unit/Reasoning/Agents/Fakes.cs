@@ -3,6 +3,22 @@ namespace JoinCode.Reasoning.Tests.Agents;
 /// <summary>
 /// 用于推理 Agent 测试的伪造实现集合
 /// </summary>
+internal sealed class FakeQueryEngine : IQueryEngine
+{
+    public Task<string> ExecuteQueryAsync(string query, CancellationToken cancellationToken = default)
+        => Task.FromResult(string.Empty);
+
+    public IAsyncEnumerable<QueryStreamChunk> QueryAsync(string userInput, MessageList chatHistory, CancellationToken cancellationToken = default)
+        => AsyncEnumerable.Empty<QueryStreamChunk>();
+
+    public IAsyncEnumerable<QueryStreamChunk> QueryAsync(string userInput, MessageList chatHistory, QueryOptions? options, CancellationToken cancellationToken = default)
+        => AsyncEnumerable.Empty<QueryStreamChunk>();
+
+    public IQueryService GetChatCompletionService() => new FakeQueryService((string?)null);
+
+    public IChatClient GetKernel() => new FakeChatClient((string?)null);
+}
+
 internal sealed class FakeQueryService : IQueryService
 {
     private readonly Func<MessageList, string?>? _responseFactory;
@@ -117,32 +133,4 @@ internal sealed class FakeMessageBroker : IAgentMessageBroker
     public IReadOnlyCollection<string> GetRegisteredAgents() => [];
 
     public string? GetSessionId(string agentId) => null;
-}
-
-internal sealed class FakeCompressor : IReasoningContextCompressor
-{
-    public string CompressedUserPrompt { get; set; } = string.Empty;
-
-    public Task<CompressedPrompt> CompressForRoleAsync(
-        ReasoningContext context,
-        AgentRole role,
-        int maxTokens,
-        CancellationToken ct = default)
-    {
-        return Task.FromResult(new CompressedPrompt
-        {
-            UserPrompt = CompressedUserPrompt,
-            EstimatedTokens = 10,
-            Method = CompressionMethod.None,
-            OriginalTokenEstimate = 100,
-        });
-    }
-
-    public Task SummarizeResolvedNodesAsync(
-        Dag<ReasoningPayload> dag,
-        int threshold,
-        CancellationToken ct = default)
-    {
-        return Task.CompletedTask;
-    }
 }

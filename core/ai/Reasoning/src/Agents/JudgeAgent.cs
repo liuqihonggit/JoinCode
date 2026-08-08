@@ -3,11 +3,8 @@ namespace JoinCode.Reasoning.Agents;
 /// <summary>
 /// 法官Agent — 最终裁决，基于 DAG 证据链 + 5维客观权重 + 链式传播
 /// </summary>
-public sealed class JudgeAgent : ReasoningAgentBase
+public sealed class JudgeAgent : ReasoningAgent
 {
-    public override AgentRole Role => AgentRole.Judge;
-    public override string Name => "法官Agent";
-
     public override string SystemPrompt =>
         "你是一个公正的法官。你的职责是基于控辩双方的证据链做出裁决。" +
         "对每个假定，根据证据权重和信任度，做出接受(Accept)、驳回(Reject)、部分接受(PartiallyAccept)或待补充(Pending)的裁决。" +
@@ -15,8 +12,8 @@ public sealed class JudgeAgent : ReasoningAgentBase
 
     private readonly WeightedDecisionSystem _decisionSystem = new();
 
-    public JudgeAgent(ILogger<JudgeAgent> logger, IChatClient? chatClient = null, IAgentMessageBroker? messageBroker = null)
-        : base(logger, chatClient, messageBroker) { }
+    public JudgeAgent(IQueryEngine queryEngine, ILogger<JudgeAgent> logger, IChatClient? chatClient = null, IAgentMessageBroker? messageBroker = null)
+        : base(queryEngine, logger, AgentRole.Judge, "法官Agent", chatClient, messageBroker) { }
 
     public override async Task<AgentAction> ReasonAsync(ReasoningContext context, CancellationToken ct)
     {

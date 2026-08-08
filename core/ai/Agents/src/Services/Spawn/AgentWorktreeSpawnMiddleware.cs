@@ -1,4 +1,4 @@
-namespace Core.Agents;
+﻿namespace Core.Agents;
 
 /// <summary>
 /// Worktree 创建中间件 — 当 IsolationMode = Worktree 时，为子智能体创建隔离的 Git Worktree
@@ -51,7 +51,7 @@ public sealed partial class AgentWorktreeSpawnMiddleware : ServiceEntity, IAgent
             _logger?.LogInformation("[AgentWorktreeSpawn] Agent {AgentId} Worktree 创建成功: {Path}", agentId, worktreePath);
 
             // 设置 SubAgent 的 WorktreePath，使其在 ExecuteAsync 中使用 worktree 作为 CWD
-            var agent = (Agent)context.SubAgent;
+            var agent = (AgentBase)context.SubAgent;
             agent.Options.WorktreePath = worktreePath;
             agent.Options.WorktreeBranch = result.Session.BranchName;
 

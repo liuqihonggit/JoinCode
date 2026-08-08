@@ -74,7 +74,7 @@ public sealed class ModelCoordinator : IModelCoordinator
             SessionId = $"planner-{Guid.NewGuid():N}"[..24],
         };
 
-        var planner = new Agent(
+        var planner = AgentFactory.Create(
             objective,
             plannerOptions,
             _queryEngine,
@@ -125,7 +125,7 @@ public sealed class ModelCoordinator : IModelCoordinator
             SessionId = $"executor-{Guid.NewGuid():N}"[..24],
         };
 
-        var executor = new Agent(
+        var executor = AgentFactory.Create(
             handoff,
             executorOptions,
             _queryEngine,

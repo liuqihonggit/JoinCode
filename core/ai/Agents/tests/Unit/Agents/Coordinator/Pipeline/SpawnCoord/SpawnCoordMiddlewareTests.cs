@@ -211,7 +211,7 @@ public sealed class SpawnCoordMiddlewareTests
         ctx.MessageRegistered.Should().BeFalse();
     }
 
-    private static Agent CreateAgent(string id) => new("test task", null, new Mock<IQueryEngine>().Object, null);
+    private static CodeAgent CreateAgent(string id) => new("test task", null, new Mock<IQueryEngine>().Object, null);
 
     private static AgentSpawnCoordContext CreateContextWithAgent()
     {

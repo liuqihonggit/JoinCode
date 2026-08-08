@@ -3,18 +3,15 @@ namespace JoinCode.Reasoning.Agents;
 /// <summary>
 /// 辩方Agent — 质疑证据，寻找反驳
 /// </summary>
-public sealed class DefenderAgent : ReasoningAgentBase
+public sealed class DefenderAgent : ReasoningAgent
 {
-    public override AgentRole Role => AgentRole.Defender;
-    public override string Name => "辩方Agent";
-
     public override string SystemPrompt =>
         "你是一个犀利的辩护律师。你的职责是质疑控方证据的可靠性，寻找反驳证据。" +
         "审查所有已验证项和假定，如果控方证据不足或存在漏洞，提出质疑和反驳证据。" +
         "输出JSON格式：{\"counterEvidence\":[{\"content\":\"...\",\"source\":\"...\",\"trustLevel\":\"Moderate\",\"weight\":1.0}],\"doubts\":[\"质疑1\",\"质疑2\"]}";
 
-    public DefenderAgent(ILogger<DefenderAgent> logger, IChatClient? chatClient = null, IAgentMessageBroker? messageBroker = null)
-        : base(logger, chatClient, messageBroker) { }
+    public DefenderAgent(IQueryEngine queryEngine, ILogger<DefenderAgent> logger, IChatClient? chatClient = null, IAgentMessageBroker? messageBroker = null)
+        : base(queryEngine, logger, AgentRole.Defender, "辩方Agent", chatClient, messageBroker) { }
 
     public override async Task<AgentAction> ReasonAsync(ReasoningContext context, CancellationToken ct)
     {

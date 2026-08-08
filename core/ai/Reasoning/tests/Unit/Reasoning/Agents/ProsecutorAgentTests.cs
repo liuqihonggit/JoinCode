@@ -1,11 +1,11 @@
-namespace JoinCode.Reasoning.Tests.Agents;
+﻿namespace JoinCode.Reasoning.Tests.Agents;
 
 public sealed class ProsecutorAgentTests
 {
     [Fact]
     public async Task ReasonAsync_WithNoAssumptions_ReturnsEmptyAction()
     {
-        var agent = new ProsecutorAgent(NullLogger<ProsecutorAgent>.Instance);
+        var agent = new ProsecutorAgent(new FakeQueryEngine(), NullLogger<ProsecutorAgent>.Instance);
         var context = CreateContext([]);
 
         var action = await agent.ReasonAsync(context, CancellationToken.None);
@@ -19,7 +19,7 @@ public sealed class ProsecutorAgentTests
     [Fact]
     public async Task ReasonAsync_WithAssumptionsButNoChatClient_ReturnsActionWithAffectedClaims()
     {
-        var agent = new ProsecutorAgent(NullLogger<ProsecutorAgent>.Instance);
+        var agent = new ProsecutorAgent(new FakeQueryEngine(), NullLogger<ProsecutorAgent>.Instance);
         var item = new DataItem { Content = "假定1", State = DataState.Assumption };
         var context = CreateContext([item]);
 
@@ -36,6 +36,7 @@ public sealed class ProsecutorAgentTests
     {
         var json = "{\"evidence\":[{\"content\":\"DNA匹配\",\"source\":\"实验室\",\"trustLevel\":\"DirectEvidence\",\"weight\":5.0}]}";
         var agent = new ProsecutorAgent(
+            new FakeQueryEngine(),
             NullLogger<ProsecutorAgent>.Instance,
             new FakeChatClient(json));
         var item = new DataItem { Content = "假定1", State = DataState.Assumption };
@@ -57,6 +58,7 @@ public sealed class ProsecutorAgentTests
     public async Task ReasonAsync_WithMalformedJson_LogsWarningAndReturnsEmptyEvidence()
     {
         var agent = new ProsecutorAgent(
+            new FakeQueryEngine(),
             NullLogger<ProsecutorAgent>.Instance,
             new FakeChatClient("这不是json"));
         var item = new DataItem { Content = "假定1", State = DataState.Assumption };
@@ -72,6 +74,7 @@ public sealed class ProsecutorAgentTests
     public async Task ReasonAsync_WithMissingEvidenceArray_ReturnsEmptyEvidence()
     {
         var agent = new ProsecutorAgent(
+            new FakeQueryEngine(),
             NullLogger<ProsecutorAgent>.Instance,
             new FakeChatClient("{\"other\":\"value\"}"));
         var item = new DataItem { Content = "假定1", State = DataState.Assumption };
@@ -87,6 +90,7 @@ public sealed class ProsecutorAgentTests
     {
         var broker = new FakeMessageBroker();
         var agent = new ProsecutorAgent(
+            new FakeQueryEngine(),
             NullLogger<ProsecutorAgent>.Instance,
             new FakeChatClient("{\"evidence\":[]}"),
             broker);
@@ -105,6 +109,7 @@ public sealed class ProsecutorAgentTests
     {
         var json = "{\"evidence\":[{\"content\":\"仅内容\"}]}";
         var agent = new ProsecutorAgent(
+            new FakeQueryEngine(),
             NullLogger<ProsecutorAgent>.Instance,
             new FakeChatClient(json));
         var item = new DataItem { Content = "假定1", State = DataState.Assumption };

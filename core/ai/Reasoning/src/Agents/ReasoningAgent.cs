@@ -1,29 +1,40 @@
+
 namespace JoinCode.Reasoning.Agents;
 
 /// <summary>
-/// 推理Agent基类 — 提供LLM调用 + 消息通信的通用能力
+/// 推理智能体基类 — 继承 AgentBase，自动获得 Entity 身份 + IChatContextManager 压缩管线
+/// 额外提供 LLM 调用 + 消息通信能力
+/// 子类: ProsecutorAgent, JudgeAgent, DefenderAgent
 /// </summary>
-public abstract class ReasoningAgentBase : IReasoningAgent
+public abstract class ReasoningAgent : AgentBase
 {
-    protected readonly ILogger _logger;
-    private readonly IChatClient? _chatClient;
-    private readonly IAgentMessageBroker? _messageBroker;
+    protected new readonly ILogger _logger;
+    protected readonly IChatClient? _chatClient;
+    protected readonly IAgentMessageBroker? _messageBroker;
 
-    public abstract AgentRole Role { get; }
-    public abstract string Name { get; }
-    public abstract string SystemPrompt { get; }
+    /// <summary>
+    /// 人格提示词 — 定义 Agent 的行为准则和推理策略
+    /// </summary>
+    public new abstract string SystemPrompt { get; }
 
-    protected ReasoningAgentBase(
+    /// <summary>
+    /// 执行推理 — 接收完整上下文，返回动作
+    /// </summary>
+    public abstract Task<AgentAction> ReasonAsync(ReasoningContext context, CancellationToken ct);
+
+    protected ReasoningAgent(
+        IQueryEngine queryEngine,
         ILogger logger,
+        AgentRole role,
+        string name,
         IChatClient? chatClient = null,
         IAgentMessageBroker? messageBroker = null)
+        : base(string.Empty, null, queryEngine, logger, name: name, role: role)
     {
         _logger = logger;
         _chatClient = chatClient;
         _messageBroker = messageBroker;
     }
-
-    public abstract Task<AgentAction> ReasonAsync(ReasoningContext context, CancellationToken ct);
 
     /// <summary>
     /// 调用LLM获取结构化响应
@@ -51,7 +62,7 @@ public abstract class ReasoningAgentBase : IReasoningAgent
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "[{AgentName}] LLM调用失败", Name);
+            _logger?.LogWarning(ex, "[{AgentName}] LLM调用失败", Name);
             return (null, null, estimatedPromptTokens);
         }
     }
@@ -72,7 +83,7 @@ public abstract class ReasoningAgentBase : IReasoningAgent
         };
 
         await _messageBroker.SendMessageAsync(toAgentId, message, ct).ConfigureAwait(false);
-        _logger.LogDebug("[{AgentName}] 发送消息 → {ToAgent}: {Type}", Name, toAgentId, messageType);
+        _logger?.LogDebug("[{AgentName}] 发送消息 → {ToAgent}: {Type}", Name, toAgentId, messageType);
     }
 
     /// <summary>
@@ -91,12 +102,11 @@ public abstract class ReasoningAgentBase : IReasoningAgent
         };
 
         await _messageBroker.BroadcastAsync(message, ct).ConfigureAwait(false);
-        _logger.LogDebug("[{AgentName}] 广播消息: {Type}", Name, messageType);
+        _logger?.LogDebug("[{AgentName}] 广播消息: {Type}", Name, messageType);
     }
 
     /// <summary>
     /// 从 LLM 输出中提取 JSON 对象
-    /// 优先提取 ```json 代码块，回退到大括号截取，并通过 RepairJson 修复格式
     /// </summary>
     protected static string? ExtractJsonObject(string content, ILogger? logger = null)
     {
@@ -118,19 +128,22 @@ public abstract class ReasoningAgentBase : IReasoningAgent
     }
 
     /// <summary>
-    /// 如果 ReasoningContext 中有 IReasoningContextCompressor，则压缩 prompt
+    /// 如果 ContextManager 可用且 prompt 超预算，则压缩
     /// </summary>
-    protected static async Task<string> CompressPromptIfNeededAsync(ReasoningContext context, AgentRole role, string userPrompt, CancellationToken ct)
+    protected async Task<string> CompressPromptIfNeededAsync(ReasoningContext context, AgentRole role, string userPrompt, CancellationToken ct)
     {
-        if (context.ContextCompressor is null) return userPrompt;
+        if (ContextManager is null) return userPrompt;
 
         var estimatedTokens = PromptBudgetEstimator.Estimate(userPrompt);
         if (estimatedTokens <= context.Options.MaxPromptTokens) return userPrompt;
 
-        var compressed = await context.ContextCompressor.CompressForRoleAsync(
-            context, role, context.Options.MaxPromptTokens, ct).ConfigureAwait(false);
+        var decision = ContextManager.DecideAfterUsage(new TokenUsage(estimatedTokens, 0));
+        if (decision is ContextFoldDecision.None) return userPrompt;
 
-        return compressed.UserPrompt;
+        await ContextManager.FoldIfNeededAsync(decision, ct).ConfigureAwait(false);
+        var messages = await ContextManager.GetMessageListAsync(ct).ConfigureAwait(false);
+        var lastUser = messages.LastOrDefault(m => m.Role == MessageRole.User);
+        return lastUser?.Content ?? userPrompt;
     }
 
     /// <summary>

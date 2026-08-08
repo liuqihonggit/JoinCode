@@ -15,9 +15,9 @@ public static class ReasoningServiceExtensions
         var opts = options ?? ReasoningOptions.Panda;
         services.AddSingleton(opts);
         services.AddSingleton<IReasoningEngine, ReasoningEngine>();
-        services.AddSingleton<IReasoningAgent, ProsecutorAgent>();
-        services.AddSingleton<IReasoningAgent, DefenderAgent>();
-        services.AddSingleton<IReasoningAgent, JudgeAgent>();
+        services.AddSingleton<ReasoningAgent, ProsecutorAgent>();
+        services.AddSingleton<ReasoningAgent, DefenderAgent>();
+        services.AddSingleton<ReasoningAgent, JudgeAgent>();
         services.AddSingleton<EvidenceWeightCalculator>();
         services.AddSingleton<ChainWeightPropagator>();
         services.AddSingleton<BayesianEvidenceUpdater>();
@@ -27,7 +27,6 @@ public static class ReasoningServiceExtensions
         services.AddSingleton<ConeOrchestrator>();
         services.AddSingleton<EvidenceUrlVerifier>();
         services.AddSingleton<DagNodeSummarizer>();
-        services.AddSingleton<IReasoningContextCompressor, ReasoningContextCompressor>();
 
         return services;
     }

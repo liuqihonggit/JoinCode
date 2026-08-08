@@ -1,4 +1,4 @@
-using JoinCode.Abstractions.Attributes;
+﻿using JoinCode.Abstractions.Attributes;
 
 namespace Core.Agents.Coordinator;
 
@@ -240,7 +240,7 @@ public sealed partial class AgentCoordinator : ServiceEntity, IAgentCoordinator,
     /// <summary>
     /// 执行Agent并在失败时自动重试
     /// </summary>
-    public async Task<SubAgentResult> ExecuteWithRetryAsync(Agent agent, RetryPolicy? policy = null, CancellationToken cancellationToken = default)
+    public async Task<SubAgentResult> ExecuteWithRetryAsync(AgentBase agent, RetryPolicy? policy = null, CancellationToken cancellationToken = default)
     {
         policy ??= RetryPolicy.Default;
         var result = await ExecuteAsync(agent, cancellationToken).ConfigureAwait(false);
@@ -403,7 +403,7 @@ public sealed partial class AgentCoordinator : ServiceEntity, IAgentCoordinator,
             return false;
         }
 
-        if (((Agent)agent).State.IsTerminal())
+        if (((AgentBase)agent).State.IsTerminal())
         {
             _logger?.LogWarning("[AgentCoordinator] Agent {AgentId} 已结束，无法接收消息", agentId);
             return false;
@@ -415,7 +415,7 @@ public sealed partial class AgentCoordinator : ServiceEntity, IAgentCoordinator,
     public async Task BroadcastAsync(CoordinatorAgentMessage message, CancellationToken cancellationToken = default)
     {
         var allAgents = await _lifecycleManager.GetAllAgentsAsync(cancellationToken).ConfigureAwait(false);
-        var activeAgentCount = allAgents?.Count(a => !((Agent)a).State.IsTerminal()) ?? 0;
+        var activeAgentCount = allAgents?.Count(a => !((AgentBase)a).State.IsTerminal()) ?? 0;
 
         _logger?.LogInformation("[AgentCoordinator] 广播消息给 {Count} 个活跃Agent", activeAgentCount);
 
@@ -525,16 +525,16 @@ public sealed partial class AgentCoordinator : ServiceEntity, IAgentCoordinator,
             return false;
         }
 
-        if (((Agent)agent).State != TaskExecutionStatus.Running && ((Agent)agent).State != TaskExecutionStatus.Pending)
+        if (((AgentBase)agent).State != TaskExecutionStatus.Running && ((AgentBase)agent).State != TaskExecutionStatus.Pending)
         {
-            _logger?.LogWarning("[AgentCoordinator] Agent {AgentId} 状态为 {State}，无法停止", agentId, ((Agent)agent).State);
+            _logger?.LogWarning("[AgentCoordinator] Agent {AgentId} 状态为 {State}，无法停止", agentId, ((AgentBase)agent).State);
             return false;
         }
 
         _logger?.LogInformation("[AgentCoordinator] 停止Agent {AgentId}", agentId);
 
-        ((Agent)agent).CancellationTokenSource?.Cancel();
-        ((Agent)agent).State = TaskExecutionStatus.Cancelled;
+        ((AgentBase)agent).CancellationTokenSource?.Cancel();
+        ((AgentBase)agent).State = TaskExecutionStatus.Cancelled;
 
         if (_executionContexts.TryGetValue(agentId, out var context))
         {

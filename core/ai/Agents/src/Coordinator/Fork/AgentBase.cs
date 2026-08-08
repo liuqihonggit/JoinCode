@@ -2,21 +2,21 @@
 namespace Core.Agents.Coordinator;
 
 /// <summary>
-/// 统一 Agent — 派生自 Entity，共享 ObjectId/CreatedAt/惰性释放
-/// mainAgent 和 subAgent 共用此类
-/// LLM对话循环内聚，外部只通过 IAgent 控制生命周期
+/// Agent 抽象基类 — 持有 LLM 对话循环、生命周期控制、任务/上下文/预算/输出
+/// 子类（CoordinatorAgent、ExecutorAgent、ReasoningAgent）继承此类，自动获得对话能力
+/// 压缩管线在阶段2 通过 IChatContextManager 内聚到此
 /// </summary>
-public sealed class Agent : Entity, IAgent
+public abstract class AgentBase : Entity, IAgent
 {
-    private readonly IQueryEngine _queryEngine;
-    private readonly ILogger? _logger;
-    private readonly IClockService _clock;
-    private readonly List<string> _context;
-    private readonly CancellationTokenSource _cts;
+    protected readonly IQueryEngine _queryEngine;
+    protected readonly ILogger? _logger;
+    protected readonly IClockService _clock;
+    protected readonly List<string> _context;
+    protected readonly CancellationTokenSource _cts;
 #pragma warning disable JCC4005 // SemaphoreSlim 在 OnDispose() 中释放，分析器无法追踪间接调用路径
-    private readonly SemaphoreSlim _pauseLock;
+    protected readonly SemaphoreSlim _pauseLock;
 #pragma warning restore JCC4005
-    private JoinCode.Abstractions.LLM.Chat.CacheSafeParams? _lastCacheSafeParams;
+    protected JoinCode.Abstractions.LLM.Chat.CacheSafeParams? _lastCacheSafeParams;
 
     // === 身份（ObjectId/UniqueId/CreatedAt 继承自 Entity）===
     public string Name { get; }
@@ -54,10 +54,20 @@ public sealed class Agent : Entity, IAgent
     public string? ErrorMessage { get; set; }
     public string[]? Routes { get; set; }
 
-    private bool _isPaused;
-    private int _executionCount;
+    protected bool _isPaused;
+    protected int _executionCount;
 
-    public Agent(
+    /// <summary>
+    /// 对话上下文管理器 — 每个 Agent 实例独立持有，包含压缩管线
+    /// null 表示使用裸 MessageList（兼容旧行为），非 null 表示通过 ContextManager 管理对话
+    /// 子类继承 AgentBase 自动获得此字段和压缩能力
+    /// </summary>
+    protected IChatContextManager? ContextManager;
+
+    /// <summary>
+    /// AgentBase 构造函数 — 子类通过 base(...) 委托
+    /// </summary>
+    protected AgentBase(
         string task,
         SubAgentOptions? options,
         IQueryEngine queryEngine,
@@ -73,7 +83,8 @@ public sealed class Agent : Entity, IAgent
         int? tokenBudget = null,
         string? goalId = null,
         string? graphNodeId = null,
-        ObjectId sessionId = default)
+        ObjectId sessionId = default,
+        IChatContextManager? contextManager = null)
         : base(ObjectType.Agent, sessionId)
     {
         Task = task;
@@ -97,6 +108,7 @@ public sealed class Agent : Entity, IAgent
         Status = TaskExecutionStatus.Pending;
         _isPaused = false;
         _executionCount = 0;
+        ContextManager = contextManager;
         Context = new SubAgentContext
         {
             AgentId = UniqueId,
@@ -110,7 +122,6 @@ public sealed class Agent : Entity, IAgent
             DisplayName = Options.DisplayName,
             PermissionMode = Options.PermissionMode
         };
-
     }
 
     /// <summary>
@@ -123,128 +134,17 @@ public sealed class Agent : Entity, IAgent
     }
 
     /// <summary>
-    /// 生成唯一 Agent Id
-    /// </summary>
-    public static string GenerateId() => $"agent-{Guid.NewGuid():N}"[..20];
-
-    /// <summary>
-    /// 获取当前会话作用域 — 通过 SessionContext.AsyncLocal 隐式定位
-    /// </summary>
-    private static SessionScope? GetCurrentScope()
-    {
-        var sessionId = SessionContext.Current;
-        if (sessionId is null) return null;
-        return SessionRouter.GetScope(sessionId.Value);
-    }
-
-    /// <summary>
-    /// 获取当前会话的所有主 Agent (Role=Coordinator) — 替代 AgentRegistry.GetMainAgents
-    /// </summary>
-    public static IReadOnlyList<Agent> GetMainAgents()
-    {
-        var scope = GetCurrentScope();
-        if (scope is null) return [];
-        return scope.GetAll<Agent>().Where(a => a.Role == AgentRole.Coordinator).ToList();
-    }
-
-    /// <summary>
-    /// 按 ObjectId 获取 Agent — 仅在当前会话作用域内查找, 替代 AgentRegistry.Get
-    /// </summary>
-    public static Agent? GetById(ObjectId id)
-    {
-        var scope = GetCurrentScope();
-        return scope?.Resolve<Agent>(id);
-    }
-
-    /// <summary>
-    /// 获取指定主 Agent 的所有子 Agent — 通过 ParentObjectId 过滤, 替代 AgentRegistry.GetSubAgents
-    /// </summary>
-    public static IReadOnlyList<Agent> GetSubAgents(ObjectId mainAgentId)
-    {
-        var scope = GetCurrentScope();
-        if (scope is null) return [];
-        return scope.GetAll<Agent>().Where(a => a.ParentObjectId == mainAgentId).ToList();
-    }
-
-    /// <summary>
-    /// 按 GoalId 获取 Agent — 替代 AgentRegistry.GetByGoalId
-    /// </summary>
-    public static IReadOnlyList<Agent> GetByGoalId(string goalId)
-    {
-        var scope = GetCurrentScope();
-        if (scope is null) return [];
-        return scope.GetAll<Agent>().Where(a => a.GoalId == goalId).ToList();
-    }
-
-    /// <summary>
-    /// 按状态获取 Agent — 替代 AgentRegistry.GetByStatus
-    /// </summary>
-    public static IReadOnlyList<Agent> GetByStatus(TaskExecutionStatus status)
-    {
-        var scope = GetCurrentScope();
-        if (scope is null) return [];
-        return scope.GetAll<Agent>().Where(a => a.Status == status).ToList();
-    }
-
-    /// <summary>
-    /// 暂停当前会话的指定主 Agent 的所有子 Agent
-    /// </summary>
-    public static void PauseAll(ObjectId mainAgentId)
-    {
-        foreach (var agent in GetSubAgents(mainAgentId))
-            agent.Pause();
-    }
-
-    /// <summary>
-    /// 恢复当前会话的指定主 Agent 的所有子 Agent
-    /// </summary>
-    public static void ResumeAll(ObjectId mainAgentId)
-    {
-        foreach (var agent in GetSubAgents(mainAgentId))
-            agent.Resume();
-    }
-
-    /// <summary>
-    /// 取消当前会话的指定主 Agent 的所有子 Agent
-    /// </summary>
-    public static void CancelAll(ObjectId mainAgentId)
-    {
-        foreach (var agent in GetSubAgents(mainAgentId))
-            agent.Cancel();
-    }
-
-    /// <summary>
-    /// 暂停所有会话的所有 Agent — 跨会话操作, 替代 AgentRegistry.PauseGlobal
-    /// </summary>
-    public static void PauseGlobal()
-    {
-        foreach (var scope in SessionRouter.GetAllScopes())
-            foreach (var agent in scope.GetAll<Agent>())
-                agent.Pause();
-    }
-
-    /// <summary>
-    /// 恢复所有会话的所有 Agent — 跨会话操作, 替代 AgentRegistry.ResumeGlobal
-    /// </summary>
-    public static void ResumeGlobal()
-    {
-        foreach (var scope in SessionRouter.GetAllScopes())
-            foreach (var agent in scope.GetAll<Agent>())
-                agent.Resume();
-    }
-
-    /// <summary>
     /// 添加上下文信息
     /// </summary>
-    public void AddContext(string context)
+    public virtual void AddContext(string context)
     {
         _context.Add(context);
     }
 
     /// <summary>
-    /// 执行Agent任务
+    /// 执行Agent任务 — 子类可重写以定制执行逻辑
     /// </summary>
-    public async System.Threading.Tasks.Task<SubAgentResult> ExecuteAsync(CancellationToken cancellationToken = default)
+    public virtual async System.Threading.Tasks.Task<SubAgentResult> ExecuteAsync(CancellationToken cancellationToken = default)
     {
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token, cancellationToken);
         var linkedToken = linkedCts.Token;
@@ -290,7 +190,7 @@ public sealed class Agent : Entity, IAgent
             {
                 if (_isPaused)
                 {
-                    _logger?.LogInformation("[{AgentType} {AgentId}] 进入暂停等待状态", nameof(Agent), UniqueId);
+                    _logger?.LogInformation("[{AgentType} {AgentId}] 进入暂停等待状态", GetType().Name, UniqueId);
                     var pauseStart = _clock.GetUtcNow();
 
                     try
@@ -299,11 +199,11 @@ public sealed class Agent : Entity, IAgent
                         _pauseLock.Release();
 
                         var pauseDuration = _clock.GetUtcNow() - pauseStart;
-                        _logger?.LogInformation("[{AgentType} {AgentId}] 暂停结束，等待时长 {PauseDurationMs}ms", nameof(Agent), UniqueId, pauseDuration.TotalMilliseconds);
+                        _logger?.LogInformation("[{AgentType} {AgentId}] 暂停结束，等待时长 {PauseDurationMs}ms", GetType().Name, UniqueId, pauseDuration.TotalMilliseconds);
                     }
                     catch (TimeoutException)
                     {
-                        _logger?.LogWarning("[{AgentType} {AgentId}] 暂停等待超时（30秒），自动恢复执行", nameof(Agent), UniqueId);
+                        _logger?.LogWarning("[{AgentType} {AgentId}] 暂停等待超时（30秒），自动恢复执行", GetType().Name, UniqueId);
                         _isPaused = false;
                         Status = TaskExecutionStatus.Running;
                     }
@@ -385,9 +285,9 @@ public sealed class Agent : Entity, IAgent
     }
 
     /// <summary>
-    /// 流式执行Agent任务 — 对齐 TS runAgent AsyncGenerator
+    /// 流式执行Agent任务 — 子类可重写以定制流式逻辑
     /// </summary>
-    public async IAsyncEnumerable<AgentStreamChunk> ExecuteStreamAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
+    public virtual async IAsyncEnumerable<AgentStreamChunk> ExecuteStreamAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token, cancellationToken);
         var linkedToken = linkedCts.Token;
@@ -499,35 +399,35 @@ public sealed class Agent : Entity, IAgent
     }
 
     /// <summary>
-    /// 暂停LLM循环
+    /// 暂停LLM循环 — 子类可重写以扩展暂停逻辑
     /// </summary>
-    public void Pause()
+    public virtual void Pause()
     {
         if (Status == TaskExecutionStatus.Running)
         {
             _isPaused = true;
             Status = TaskExecutionStatus.Paused;
-            _logger?.LogInformation("[{AgentType} {AgentId}] 任务已暂停，等待恢复信号", nameof(Agent), UniqueId);
+            _logger?.LogInformation("[{AgentType} {AgentId}] 任务已暂停，等待恢复信号", GetType().Name, UniqueId);
         }
     }
 
     /// <summary>
-    /// 恢复LLM循环
+    /// 恢复LLM循环 — 子类可重写以扩展恢复逻辑
     /// </summary>
-    public void Resume()
+    public virtual void Resume()
     {
         if (Status == TaskExecutionStatus.Paused)
         {
             _isPaused = false;
             Status = TaskExecutionStatus.Running;
-            _logger?.LogInformation("[{AgentType} {AgentId}] 任务已恢复，释放暂停锁", nameof(Agent), UniqueId);
+            _logger?.LogInformation("[{AgentType} {AgentId}] 任务已恢复，释放暂停锁", GetType().Name, UniqueId);
         }
     }
 
     /// <summary>
-    /// 取消LLM循环
+    /// 取消LLM循环 — 子类可重写以扩展取消逻辑
     /// </summary>
-    public void Cancel()
+    public virtual void Cancel()
     {
         _cts.Cancel();
         Status = TaskExecutionStatus.Cancelled;
@@ -535,9 +435,9 @@ public sealed class Agent : Entity, IAgent
     }
 
     /// <summary>
-    /// 重置Agent状态（用于重试）
+    /// 重置Agent状态（用于重试）— 子类可重写以扩展重置逻辑
     /// </summary>
-    public void Reset()
+    public virtual void Reset()
     {
         _isPaused = false;
         Status = TaskExecutionStatus.Pending;
@@ -546,7 +446,10 @@ public sealed class Agent : Entity, IAgent
         _logger?.LogInformation("[Agent {AgentId}] 状态已重置", UniqueId);
     }
 
-    private string BuildPrompt()
+    /// <summary>
+    /// 构建提示词 — 子类可重写以定制提示词
+    /// </summary>
+    protected virtual string BuildPrompt()
     {
         var sb = new StringBuilder();
         sb.AppendLine($"任务: {Task}");
@@ -570,7 +473,10 @@ public sealed class Agent : Entity, IAgent
         return sb.ToString();
     }
 
-    private QueryOptions? BuildChatOptions()
+    /// <summary>
+    /// 构建聊天选项 — 子类可重写以定制选项
+    /// </summary>
+    protected virtual QueryOptions? BuildChatOptions()
     {
         var hasAllowed = Options.AllowedTools is not null && Options.AllowedTools.Count > 0;
         var hasDenied = Options.DeniedTools is not null && Options.DeniedTools.Count > 0;
@@ -593,5 +499,116 @@ public sealed class Agent : Entity, IAgent
             EffortLevel = effortLevel,
             ModelId = Options.ModelName,
         };
+    }
+
+    /// <summary>
+    /// 生成唯一 Agent Id
+    /// </summary>
+    public static string GenerateId() => $"agent-{Guid.NewGuid():N}"[..20];
+
+    /// <summary>
+    /// 获取当前会话作用域 — 通过 SessionContext.AsyncLocal 隐式定位
+    /// </summary>
+    private static SessionScope? GetCurrentScope()
+    {
+        var sessionId = SessionContext.Current;
+        if (sessionId is null) return null;
+        return SessionRouter.GetScope(sessionId.Value);
+    }
+
+    /// <summary>
+    /// 获取当前会话的所有主 Agent (Role=Coordinator) — 替代 AgentRegistry.GetMainAgents
+    /// </summary>
+    public static IReadOnlyList<AgentBase> GetMainAgents()
+    {
+        var scope = GetCurrentScope();
+        if (scope is null) return [];
+        return scope.GetAll<AgentBase>().Where(a => a.Role == AgentRole.Coordinator).ToList();
+    }
+
+    /// <summary>
+    /// 按 ObjectId 获取 Agent — 仅在当前会话作用域内查找, 替代 AgentRegistry.Get
+    /// </summary>
+    public static AgentBase? GetById(ObjectId id)
+    {
+        var scope = GetCurrentScope();
+        return scope?.Resolve<AgentBase>(id);
+    }
+
+    /// <summary>
+    /// 获取指定主 Agent 的所有子 Agent — 通过 ParentObjectId 过滤, 替代 AgentRegistry.GetSubAgents
+    /// </summary>
+    public static IReadOnlyList<AgentBase> GetSubAgents(ObjectId mainAgentId)
+    {
+        var scope = GetCurrentScope();
+        if (scope is null) return [];
+        return scope.GetAll<AgentBase>().Where(a => a.ParentObjectId == mainAgentId).ToList();
+    }
+
+    /// <summary>
+    /// 按 GoalId 获取 Agent — 替代 AgentRegistry.GetByGoalId
+    /// </summary>
+    public static IReadOnlyList<AgentBase> GetByGoalId(string goalId)
+    {
+        var scope = GetCurrentScope();
+        if (scope is null) return [];
+        return scope.GetAll<AgentBase>().Where(a => a.GoalId == goalId).ToList();
+    }
+
+    /// <summary>
+    /// 按状态获取 Agent — 替代 AgentRegistry.GetByStatus
+    /// </summary>
+    public static IReadOnlyList<AgentBase> GetByStatus(TaskExecutionStatus status)
+    {
+        var scope = GetCurrentScope();
+        if (scope is null) return [];
+        return scope.GetAll<AgentBase>().Where(a => a.Status == status).ToList();
+    }
+
+    /// <summary>
+    /// 暂停当前会话的指定主 Agent 的所有子 Agent
+    /// </summary>
+    public static void PauseAll(ObjectId mainAgentId)
+    {
+        foreach (var agent in GetSubAgents(mainAgentId))
+            agent.Pause();
+    }
+
+    /// <summary>
+    /// 恢复当前会话的指定主 Agent 的所有子 Agent
+    /// </summary>
+    public static void ResumeAll(ObjectId mainAgentId)
+    {
+        foreach (var agent in GetSubAgents(mainAgentId))
+            agent.Resume();
+    }
+
+    /// <summary>
+    /// 取消当前会话的指定主 Agent 的所有子 Agent
+    /// </summary>
+    public static void CancelAll(ObjectId mainAgentId)
+    {
+        foreach (var agent in GetSubAgents(mainAgentId))
+            agent.Cancel();
+    }
+
+    /// <summary>
+    /// 暂停所有会话的所有 Agent — 跨会话操作, 替代 AgentRegistry.PauseGlobal
+    /// </summary>
+    public static void PauseGlobal()
+    {
+        foreach (var scope in SessionRouter.GetAllScopes())
+            foreach (var agent in scope.GetAll<AgentBase>())
+                agent.Pause();
+    }
+
+    /// <summary>
+    /// 恢复所有会话的所有 Agent — 跨会话操作, 替代 AgentRegistry.ResumeGlobal
+    /// </summary>
+    public static void ResumeGlobal()
+    {
+        foreach (var scope in SessionRouter.GetAllScopes())
+            foreach (var agent in scope.GetAll<AgentBase>())
+                agent.Resume();
     }
 }

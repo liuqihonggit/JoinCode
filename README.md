@@ -601,7 +601,7 @@ L5:
   McpToolDispatch      → Abstractions, Infrastructure
   Scheduling           → Abstractions, Infrastructure, Structura
   Agents               → Abstractions, Infrastructure
-  Reasoning            → Abstractions, Infrastructure, Structura
+  Reasoning            → Abstractions, Infrastructure, Structura, Agents
 
 L6 组合根:
   Composition          → Bridge, Mcp, Brain, Guard, Hands, Eyes, Vault, Scheduling, McpToolDispatch, Agents, Reasoning, Transport.Contracts, Transport.Impl
@@ -721,10 +721,10 @@ Registration/   注册服务
 
 #### Reasoning (`10-reasoning/Reasoning/src/`)
 ```
-Agents/         三权Agent（控方/辩方/法官）
+Agents/         推理Agent基类(ReasoningAgent)+三权实现(控方/辩方/法官)
 Engine/         推理引擎+配置+预算状态+摘要
 Evidence/       数据项+证据+裁决
-State/          枚举（角色/状态/信任度/预设/续费方式）
+State/          枚举（状态/信任度/预设/续费方式）
 DependencyInjection/ DI注册
 ```
 

@@ -1006,7 +1006,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
 
     private void RegisterMainAgent(string goalId, string objective, int? tokenBudget)
     {
-        var mainAgents = Core.Agents.Coordinator.Agent.GetMainAgents();
+        var mainAgents = Core.Agents.Coordinator.AgentBase.GetMainAgents();
         if (mainAgents.Count > 0)
         {
             _logger?.LogInformation("[GoalEngine] mainAgent 已存在: {AgentId}, 跳过注册", mainAgents[0].Id);
@@ -1026,14 +1026,13 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
             return;
         }
 
-        var mainAgent = new Core.Agents.Coordinator.Agent(
+        var mainAgent = new Core.Agents.Coordinator.CoordinatorAgent(
             task: objective,
             options: new SubAgentOptions { DisplayName = "mainAgent", Role = AgentRole.Coordinator },
             queryEngine: queryEngine,
             logger: _logger,
             clock: _clock,
             name: "mainAgent",
-            role: AgentRole.Coordinator,
             goalId: goalId,
             tokenBudget: tokenBudget);
 

@@ -1,4 +1,4 @@
-namespace JoinCode.Reasoning.Tests;
+﻿namespace JoinCode.Reasoning.Tests;
 
 public sealed class ReasoningEngineTests
 {
@@ -538,11 +538,11 @@ public sealed class ReasoningEngineTests
 
     private static ReasoningEngine CreateEngine(ReasoningOptions? options = null)
     {
-        var agents = new IReasoningAgent[]
+        var agents = new ReasoningAgent[]
         {
-            new ProsecutorAgent(NullLogger<ProsecutorAgent>.Instance),
-            new DefenderAgent(NullLogger<DefenderAgent>.Instance),
-            new JudgeAgent(NullLogger<JudgeAgent>.Instance),
+            new ProsecutorAgent(new FakeQueryEngine(), NullLogger<ProsecutorAgent>.Instance),
+            new DefenderAgent(new FakeQueryEngine(), NullLogger<DefenderAgent>.Instance),
+            new JudgeAgent(new FakeQueryEngine(), NullLogger<JudgeAgent>.Instance),
         };
         return new ReasoningEngine(agents, NullLogger<ReasoningEngine>.Instance, options);
     }
@@ -603,7 +603,7 @@ public sealed class ReasoningEngineTests
         var item = new DataItem { Content = "假定1", State = DataState.Assumption, Source = "测试" };
         await engine.AddAssumptionsAsync([item], CancellationToken.None);
 
-        foreach (AgentRole role in Enum.GetValues<AgentRole>())
+        foreach (AgentRole role in new[] { AgentRole.Prosecutor, AgentRole.Defender, AgentRole.Judge })
         {
             var cone = engine.ConeOrchestrator.GetRole(role);
             Assert.NotNull(cone);

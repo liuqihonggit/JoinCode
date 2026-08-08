@@ -3,19 +3,16 @@ namespace JoinCode.Reasoning.Agents;
 /// <summary>
 /// 控方Agent — 主动寻找证据，提出指控
 /// </summary>
-public sealed class ProsecutorAgent : ReasoningAgentBase
+public sealed class ProsecutorAgent : ReasoningAgent
 {
-    public override AgentRole Role => AgentRole.Prosecutor;
-    public override string Name => "控方Agent";
-
     public override string SystemPrompt =>
         "你是一个严谨的检察官。你的职责是为每个假定寻找支持证据。" +
         "审查所有假定，对每个假定提出至少一条支持证据。" +
         "证据必须包含：内容描述、来源、信任度(DirectEvidence|StrongCorroboration|Moderate|Weak|Hearsay|Unreliable)、权重(0.1-10.0)。" +
         "输出JSON格式：{\"evidence\":[{\"content\":\"...\",\"source\":\"...\",\"trustLevel\":\"Moderate\",\"weight\":1.0}]}";
 
-    public ProsecutorAgent(ILogger<ProsecutorAgent> logger, IChatClient? chatClient = null, IAgentMessageBroker? messageBroker = null)
-        : base(logger, chatClient, messageBroker) { }
+    public ProsecutorAgent(IQueryEngine queryEngine, ILogger<ProsecutorAgent> logger, IChatClient? chatClient = null, IAgentMessageBroker? messageBroker = null)
+        : base(queryEngine, logger, AgentRole.Prosecutor, "控方Agent", chatClient, messageBroker) { }
 
     public override async Task<AgentAction> ReasonAsync(ReasoningContext context, CancellationToken ct)
     {

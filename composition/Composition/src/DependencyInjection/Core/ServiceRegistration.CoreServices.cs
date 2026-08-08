@@ -87,6 +87,9 @@ public static partial class ServiceRegistration
         // SystemActuatorBase — 已改为静态缓存，不再 DI 注册
         // SystemActuatorRegistry 在 SystemActuatorInitializer 中初始化（替代原 SystemActuatorRegistry + SystemActuatorRegistry）
 
+        // LongRunningTaskRegistry — 超时续期任务注册表（单例，跟踪 resume/continue/stop 任务）
+        services.AddSingleton<LongRunningTaskRegistry>();
+
         return services;
     }
 

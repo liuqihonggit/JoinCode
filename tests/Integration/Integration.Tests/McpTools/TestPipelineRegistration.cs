@@ -123,6 +123,7 @@ public static class TestPipelineRegistration
 
         services.AddSingleton<MiddlewarePipeline<ShellPipelineContext>>(sp =>
             new PipelineBuilder<ShellPipelineContext>()
+                .Use(sp.GetRequiredService<AbsoluteTimeoutMiddleware>())
                 .Use(sp.GetRequiredService<ShellValidationMiddleware>())
                 .Use(sp.GetRequiredService<ShellPathGateMiddleware>())
                 .Use(sp.GetRequiredService<ShellClassificationMiddleware>())

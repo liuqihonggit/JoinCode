@@ -120,7 +120,7 @@ public sealed partial class BashCommandHookExecutor : HookExecutorBase<BashComma
         CancellationToken cancellationToken)
     {
         var shell = hook.Shell ?? DefaultShell;
-        var (fileName, arguments) = GetShellCommand(shell, command);
+        var (fileName, argumentList) = GetShellCommand(shell, command);
 
         var envVars = new Dictionary<string, string>
         {
@@ -135,7 +135,8 @@ public sealed partial class BashCommandHookExecutor : HookExecutorBase<BashComma
             var options = new ProcessOptions
             {
                 FileName = fileName,
-                Arguments = arguments,
+                ArgumentList = argumentList,
+                SkipArgumentValidation = true,
                 WorkingDirectory = Environment.CurrentDirectory,
                 StandardOutputEncoding = System.Text.Encoding.UTF8,
                 StandardErrorEncoding = System.Text.Encoding.UTF8,
@@ -157,13 +158,13 @@ public sealed partial class BashCommandHookExecutor : HookExecutorBase<BashComma
         }
     }
 
-    private static (string FileName, string Arguments) GetShellCommand(string shell, string command)
+    private static (string FileName, IReadOnlyList<string> ArgumentList) GetShellCommand(string shell, string command)
     {
         var kind = SystemActuatorKind.FromId(shell) ?? SystemActuatorKind.Bash;
         if (kind == SystemActuatorKind.PowerShell)
-            return ("pwsh", $"-Command \"{command.Replace("\"", "\"\"")}\"");
+            return ("pwsh", new[] { "-Command", command });
         if (kind == SystemActuatorKind.Cmd)
-            return ("cmd.exe", $"/c \"{command.Replace("\"", "\"\"")}\"");
-        return ("bash", $"-c \"{command.Replace("\"", "\\\"")}\"");
+            return ("cmd.exe", new[] { "/c", command });
+        return ("bash", new[] { "-c", command });
     }
 }

@@ -191,11 +191,24 @@ public sealed partial class MainViewModel : ViewModelBase
     {
         _session = session ?? new Hosting.PlaceholderChatSession();
         _sessionStore = store ?? new Persistence.GuiSessionStore(new IO.FileSystem.PhysicalFileSystem());
+        _session.PermissionConfirmationHandler = OnPermissionConfirmationRequestedAsync;
         _selectedModel = _session.CurrentModelId;
         Messages.CollectionChanged += OnMessagesChanged;
         LoadPersistedSessions();
         NewConversation();
     }
+
+    /// <summary>
+    /// 权限确认回调 — 由 View 层注入（弹窗实现），引擎权限待确认时调用。
+    /// 未注入时默认拒绝（等价于 Deny），保证无弹窗环境下引擎行为可预期。
+    /// </summary>
+    public Func<PermissionConfirmationRequest, Task<PermissionConfirmationDecision>>? PermissionConfirmCallback { get; set; }
+
+    /// <summary>网关权限确认请求 → 委托给 View 层弹窗回调；未注入回调时默认拒绝</summary>
+    private Task<PermissionConfirmationDecision> OnPermissionConfirmationRequestedAsync(PermissionConfirmationRequest request)
+        => PermissionConfirmCallback is not null
+            ? PermissionConfirmCallback(request)
+            : Task.FromResult(PermissionConfirmationDecision.Deny);
 
     /// <summary>启动时从同一 sessions 目录恢复历史会话到侧边栏（CLI 与 GUI 共享会话文件）</summary>
     private void LoadPersistedSessions()

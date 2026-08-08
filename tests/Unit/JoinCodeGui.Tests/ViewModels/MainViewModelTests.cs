@@ -706,4 +706,65 @@ public class MainViewModelTests
             msg.ThinkingSummary.Should().Contain("3");
             msg.ThinkingSummary.Should().Contain("展开");
         }
+
+        [Fact]
+        public async Task PermissionConfirmation_NoCallback_DefaultsToDeny()
+        {
+            var fake = new FakeSession();
+            var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"));
+
+            var decision = await fake.Handler!(new PermissionConfirmationRequest("bash", "运行命令?", "req-1", "rule"));
+
+            decision.Should().Be(PermissionConfirmationDecision.Deny);
+        }
+
+        [Fact]
+        public async Task PermissionConfirmation_WithCallback_DelegatesToView()
+        {
+            var fake = new FakeSession();
+            var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"));
+            PermissionConfirmationRequest? received = null;
+            vm.PermissionConfirmCallback = req =>
+            {
+                received = req;
+                return Task.FromResult(PermissionConfirmationDecision.Allow);
+            };
+
+            var decision = await fake.Handler!(new PermissionConfirmationRequest("bash", "运行命令?", "req-2", "rule"));
+
+            decision.Should().Be(PermissionConfirmationDecision.Allow);
+            received!.ToolName.Should().Be("bash");
+            received!.ConfirmationPrompt.Should().Be("运行命令?");
+            received!.RequestId.Should().Be("req-2");
+        }
+
+        /// <summary>记录 VM 注入权限处理器的假会话，用于验证回调接线</summary>
+        private sealed class FakeSession : JoinCode.Gui.Hosting.IJccChatSession
+        {
+            public Func<PermissionConfirmationRequest, Task<PermissionConfirmationDecision>>? Handler { get; private set; }
+
+            public Func<PermissionConfirmationRequest, Task<PermissionConfirmationDecision>>? PermissionConfirmationHandler
+            {
+                get => Handler;
+                set => Handler = value;
+            }
+
+            public bool IsReady => true;
+            public string CurrentProvider => "fake";
+            public string CurrentModelId => "fake-model";
+            public IReadOnlyList<string> AvailableModels => ["fake-model"];
+            public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public async IAsyncEnumerable<ChatStreamEvent> StreamAsync(string message, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+            {
+                yield return ChatStreamEvent.Done();
+                await Task.CompletedTask;
+            }
+            public Task<IReadOnlyList<ApiMessageRecord>> GetMessagesAsync(CancellationToken cancellationToken = default)
+                => Task.FromResult<IReadOnlyList<ApiMessageRecord>>([]);
+            public Task ClearHistoryAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public Task<RewindResult> RewindLastTurnAsync(CancellationToken cancellationToken = default)
+                => Task.FromResult(new RewindResult());
+            public Task SetModelAsync(string modelId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        }
     }

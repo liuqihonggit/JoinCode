@@ -36,43 +36,51 @@ public sealed class SshForwardedPort : ISshForwardedPort
     {
         DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
 
-        var forwardArg = ForwardType switch
+        var args = new List<string>
         {
-            SshForwardType.Local => $"-L {LocalEndpoint} {RemoteEndpoint}",
-            SshForwardType.Remote => $"-R {RemoteEndpoint} {LocalEndpoint}",
-            _ => throw new ArgumentOutOfRangeException(nameof(ForwardType))
+            "-N",
+            "-o",
+            $"ConnectTimeout={_config.ConnectionTimeoutMs / 1000}",
+            "-o",
+            "StrictHostKeyChecking=" + (_config.KnownHostsPolicy switch
+            {
+                SshKnownHostsPolicy.Strict => "yes",
+                SshKnownHostsPolicy.AcceptNew => "accept-new",
+                SshKnownHostsPolicy.Ignore => "no",
+                _ => "accept-new"
+            }),
         };
-
-        var args = new StringBuilder();
-        args.Append(" -N");
-        args.Append($" -o ConnectTimeout={_config.ConnectionTimeoutMs / 1000}");
-        args.Append(_config.KnownHostsPolicy switch
-        {
-            SshKnownHostsPolicy.Strict => " -o StrictHostKeyChecking=yes",
-            SshKnownHostsPolicy.AcceptNew => " -o StrictHostKeyChecking=accept-new",
-            SshKnownHostsPolicy.Ignore => " -o StrictHostKeyChecking=no",
-            _ => " -o StrictHostKeyChecking=accept-new"
-        });
 
         if (_config.AuthMethod == SshAuthMethod.PrivateKey && _config.PrivateKey != null)
         {
             var keyFile = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
                 AppDataConstants.AppDataFolder, "ssh", $"key_{_sessionId}");
-            args.Append($" -i \"{keyFile}\"");
+            args.Add("-i");
+            args.Add(keyFile);
         }
 
-        args.Append($" {forwardArg}");
-        args.Append($" -p {_config.Port}");
-        args.Append($" {_config.Username}@{_config.Host}");
+        args.Add(ForwardType switch
+        {
+            SshForwardType.Local => "-L",
+            SshForwardType.Remote => "-R",
+            _ => throw new ArgumentOutOfRangeException(nameof(ForwardType))
+        });
+        args.Add(ForwardType == SshForwardType.Local ? LocalEndpoint : RemoteEndpoint);
+        args.Add(ForwardType == SshForwardType.Local ? RemoteEndpoint : LocalEndpoint);
 
-        var startInfo = new ProcessStartInfo
+        args.Add("-p");
+        args.Add(_config.Port.ToString());
+        args.Add($"{_config.Username}@{_config.Host}");
+
+        var builder = new IO.ProcessService.ProcessStartInfoBuilder(new IO.ProcessService.ProcessEncodingProvider());
+        var startInfo = builder.Build(new ProcessOptions
         {
             FileName = "ssh",
-            Arguments = args.ToString(),
-            UseShellExecute = false,
-            CreateNoWindow = true
-        };
+            ArgumentList = args,
+            RedirectStandardOutput = false,
+            RedirectStandardError = false,
+        });
 
         _forwardProcess = Process.Start(startInfo);
         IsForwarding = _forwardProcess != null && !_forwardProcess.HasExited;

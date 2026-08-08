@@ -46,15 +46,12 @@ public sealed class PythonSystemActuator : SystemActuatorBase
 
         try
         {
-            var psi = new ProcessStartInfo
+            var psi = SystemActuatorBase.SharedBuilder.Build(new ProcessOptions
             {
                 FileName = "where.exe",
-                Arguments = "python3.exe",
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                StandardOutputEncoding = Encoding.UTF8
-            };
+                ArgumentList = ["python3.exe"],
+                RedirectStandardError = false,
+            });
             using var p = Process.Start(psi);
             if (p is not null)
             {
@@ -81,15 +78,12 @@ public sealed class PythonSystemActuator : SystemActuatorBase
     {
         try
         {
-            var psi = new ProcessStartInfo
+            var psi = SystemActuatorBase.SharedBuilder.Build(new ProcessOptions
             {
                 FileName = shellPath,
-                Arguments = "--version",
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                StandardOutputEncoding = Encoding.UTF8
-            };
+                ArgumentList = ["--version"],
+                RedirectStandardError = false,
+            });
             using var p = Process.Start(psi);
             if (p is null) return "unknown";
             var output = p.StandardOutput.ReadToEnd();
@@ -100,15 +94,12 @@ public sealed class PythonSystemActuator : SystemActuatorBase
 
         try
         {
-            var psi = new ProcessStartInfo
+            var psi = SystemActuatorBase.SharedBuilder.Build(new ProcessOptions
             {
                 FileName = "python",
-                Arguments = "--version",
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                StandardOutputEncoding = Encoding.UTF8
-            };
+                ArgumentList = ["--version"],
+                RedirectStandardError = false,
+            });
             using var p = Process.Start(psi);
             if (p is not null)
             {

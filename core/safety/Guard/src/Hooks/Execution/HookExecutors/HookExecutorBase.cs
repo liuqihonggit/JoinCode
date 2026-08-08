@@ -2,9 +2,9 @@
 namespace Core.Hooks.Execution;
 
 /// <summary>
-/// 钩子执行器基类
+/// 钩子执行器基类 — 继承 OneShotCommandGroup: 2分钟绝对超时 + kill + 可续期
 /// </summary>
-public abstract class HookExecutorBase<THook> : IHookExecutor<THook> where THook : HookCommand
+public abstract class HookExecutorBase<THook> : OneShotCommandGroup, IHookExecutor<THook> where THook : HookCommand
 {
     protected readonly ILogger? Logger;
 

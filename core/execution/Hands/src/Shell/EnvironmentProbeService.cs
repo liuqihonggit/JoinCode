@@ -32,13 +32,13 @@ public sealed class EnvironmentProbeService : ServiceEntity, IEnvironmentProbeSe
 
             var components = new List<ComponentScore>
             {
-                await ProbeComponentAsync("git", "Git", "--version", "git version"),
-                await ProbeComponentAsync("powershell", "PowerShell", "-Command $PSVersionTable.PSVersion.ToString()", null),
-                await ProbeComponentAsync("python", "Python", "--version", "Python"),
-                await ProbeComponentAsync("dotnet", ".NET SDK", "--version", null),
-                await ProbeComponentAsync("node", "Node.js", "--version", null),
-                await ProbeComponentAsync("wsl", "WSL2", "--status", null),
-                await ProbeComponentAsync("docker", "Docker", "--version", "Docker version"),
+                await ProbeComponentAsync("git", "Git", ["--version"], "git version"),
+                await ProbeComponentAsync("powershell", "PowerShell", ["-Command", "$PSVersionTable.PSVersion.ToString()"], null),
+                await ProbeComponentAsync("python", "Python", ["--version"], "Python"),
+                await ProbeComponentAsync("dotnet", ".NET SDK", ["--version"], null),
+                await ProbeComponentAsync("node", "Node.js", ["--version"], null),
+                await ProbeComponentAsync("wsl", "WSL2", ["--status"], null),
+                await ProbeComponentAsync("docker", "Docker", ["--version"], "Docker version"),
             };
 
             var report = new EnvironmentReport
@@ -185,19 +185,20 @@ public sealed class EnvironmentProbeService : ServiceEntity, IEnvironmentProbeSe
         return scores.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
     }
 
-    private async Task<ComponentScore> ProbeComponentAsync(string command, string name, string args, string? versionPrefix)
+    private async Task<ComponentScore> ProbeComponentAsync(string command, string name, string[] args, string? versionPrefix)
     {
         try
         {
             var psi = new System.Diagnostics.ProcessStartInfo
             {
                 FileName = command,
-                Arguments = args,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = true
             };
+            foreach (var a in args)
+                psi.ArgumentList.Add(a);
 
             using var process = System.Diagnostics.Process.Start(psi);
             if (process is null)

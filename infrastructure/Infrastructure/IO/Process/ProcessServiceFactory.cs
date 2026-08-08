@@ -16,6 +16,8 @@ public static class ProcessServiceFactory
         var mode = EnvHelper.Get(JccEnvVar.ProcessMode);
         if (string.Equals(mode, "NoOp", StringComparison.OrdinalIgnoreCase))
             return new NoOpProcessService();
-        return new PhysicalProcessService();
+        var encodingProvider = new ProcessEncodingProvider();
+        var builder = new ProcessStartInfoBuilder(encodingProvider);
+        return new PhysicalProcessService(builder);
     }
 }

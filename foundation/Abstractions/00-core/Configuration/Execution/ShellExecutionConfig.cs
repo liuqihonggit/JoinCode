@@ -29,6 +29,21 @@ public sealed class ShellExecutionConfig
     public int SearchCommandTimeoutSeconds { get; set; } = 30;
 
     /// <summary>
+    /// 绝对超时上限（秒，默认 120）— OneShotCommandGroup 工具的硬性超时上限
+    /// 0 = 禁用绝对超时（回退到原有行为）
+    /// 可通过环境变量 JCC_ABSOLUTE_TIMEOUT_SECONDS 覆盖
+    /// </summary>
+    [Range(0, 3600, ErrorMessage = "AbsoluteTimeoutSeconds 必须在 0 秒到 1 小时之间")]
+    public int AbsoluteTimeoutSeconds { get; set; } = 120;
+
+    /// <summary>
+    /// 续期默认超时（秒，默认 600=10分钟）— resume_timed_out_task 的默认超时
+    /// 可通过环境变量 JCC_RESUME_TIMEOUT_SECONDS 覆盖
+    /// </summary>
+    [Range(60, 3600, ErrorMessage = "ResumeTimeoutSeconds 必须在 1 分钟到 1 小时之间")]
+    public int ResumeTimeoutSeconds { get; set; } = 600;
+
+    /// <summary>
     /// 是否启用命令执行日志
     /// </summary>
     public bool EnableExecutionLogging { get; set; } = true;

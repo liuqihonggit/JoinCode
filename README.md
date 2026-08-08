@@ -199,7 +199,7 @@ jcc -p "你好"
 ### 2.6 原生性能
 
 - NativeAOT 编译为单文件原生二进制，零运行时依赖
-- 11 个源码生成器消除运行时反射：枚举元数据、构造函数注入、MCP 工具分发、AOT 安全分析……
+- 9 个源码生成器消除运行时反射：枚举元数据、MCP 工具分发（含 [Register] DI 注册）、提示词段落/模板、工具提示、AOT 安全分析……
 - 七层 slnx 隔离架构，严格按依赖顺序编译，零循环依赖
 - 14 条中间件管道（Chat/Permission/Shell/Web/Skill……），洋葱模型 + 手动注册强调顺序
 
@@ -547,26 +547,32 @@ A：纵深防御工程处理 LLM 失败
 
 ```
 JoinCode/
-├── components/          ★ 16 个业务组件源码（按层分目录）
 ├── generators/          ★ 9 个源码生成器（netstandard2.0）
-├── sdk/                 ★ Abstractions（纯接口）+ Sdk（聚合包）
-├── src/                 ★ JoinCode Host（jcc.exe）+ Infrastructure
-├── tests/               ★ 单元/集成/MockServer/基准测试
-├── tools/               ★ 辅助工具（AST审计/跨进程/注入迁移）
+├── foundation/          ★ 基础抽象（Abstractions + Structura + Transport.Contracts）
+├── infrastructure/      ★ 基础设施（Infrastructure + Transport.Impl）
+├── core/                ★ 核心组件（ai/execution/safety/search 四个子域）
+├── services/            ★ 服务组件（Mcp + Dream + Eyes + Bridge + SandboxSatellite）
+├── composition/         ★ 组合层（Composition + Clock）
+├── app/                 ★ 主工程（JoinCode.exe + Sdk）
+├── tests/               ★ 单元/集成/MockServer/基准/AOT兼容测试
+├── tools/               ★ 辅助工具（AST审计）
+├── docs/                ★ 文档
 ├── build.ps1            主构建脚本
-├── JoinCode.slnx         主解决方案（Host + tests + MockServers）
-├── Components.slnx      组件解决方案（全部组件源码 + 组件测试）
-├── generators.slnx      生成器解决方案
-├── Sdk.slnx             基础层解决方案（generators + Abstractions + Sdk + Structura + Infrastructure）
-└── tools.slnx           工具解决方案
+├── Generators.slnx      ① 生成器解决方案
+├── Foundation.slnx      ② 基础抽象解决方案
+├── Infrastructure.slnx  ③ 基础设施解决方案
+├── Core.slnx            ④ 核心组件解决方案
+├── Services.slnx        ⑤ 服务组件解决方案
+├── Composition.slnx     ⑥ 组合层解决方案
+└── App.slnx             ⑦ 主工程解决方案（Host + tests + MockServers）
 ```
 
 ### 6.2 基础层（所有组件的公共依赖）
 
 | 项目 | 路径 | 职责 | 关键 NuGet |
 |------|------|------|-----------|
-| **Abstractions** | `sdk/Abstractions/` | 纯接口 + DTO + 管道契约 + 特性标记（零实现） | Microsoft.Extensions.DI |
-| **Infrastructure** | `src/Infrastructure/` | 管道核心/缓存/IO/遥测/本地化/SSH/插件 | YamlDotNet, Microsoft.Extensions.Hosting |
+| **Abstractions** | `foundation/Abstractions/` | 纯接口 + DTO + 管道契约 + 特性标记（零实现） | Microsoft.Extensions.DI |
+| **Infrastructure** | `infrastructure/Infrastructure/` | 管道核心/缓存/IO/遥测/本地化/SSH/插件 | YamlDotNet, Microsoft.Extensions.Hosting |
 
 > **Abstractions** 内部按层分区：`00-core/`（Attributes, Configuration, Models, Pipeline, State...）、`01-ai/`（LLM, Mcp, Prompts）、`02-brain/`（Chat, Context, Query）、`03-hands/`（Shell, Skill, Tools）、`04-guard/`（Security）、`05-memory/`（Conversation, FileIO）、`06-perception/`（CodeIndex, Lsp, Web）、`07-agents/`（Agent, Team）、`08-transport/`（Bridge, Build）、`09-composition/`（Mode, Presentation）
 
@@ -619,28 +625,29 @@ Host:
 
 | 组件 | 路径 | 层 | 职责 | 关键 NuGet | 源码生成器 |
 |------|------|----|------|-----------|-----------|
-| Transport.Contracts | `08-transport/Contracts/` | L0 | 传输协议契约 | — | Enum, CI |
-| Transport.Impl | `08-transport/Impl/` | L0 | 传输实现 | — | CI |
-| Structura | `src/Structura/` | L0 | 通用DAG数据结构（拓扑排序/环检测/增量重算/线程安全） | — | — |
-| Llm | `01-ai/Llm/` | L0 | LLM 适配器（OpenAI/Anthropic/Azure/Pipe） | Microsoft.Extensions.DI, Options | Enum, CI |
-| CodeIndex | `06-perception/CodeIndex/` | L0 | 代码索引引擎（TreeSitter） | TreeSitter.DotNet | CI |
-| Browser | `06-perception/Browser/` | L0 | 浏览器自动化（卫星包） | PuppeteerSharp | CI |
-| Bridge | `08-transport/Bridge/` | L1 | 进程桥接服务 | Microsoft.Extensions.Hosting, QRCoder | Enum, CI, CliOption |
-| Mcp | `01-ai/Mcp/` | L1 | MCP 协议客户端 | ModelContextProtocol, Microsoft.Extensions.DI | Enum, CI |
-| Dream | `01-ai/Dream/` | L1 | 记忆整合插件 | Microsoft.Extensions.Hosting | Enum, CI, CliOption, McpTool |
-| Guard | `04-guard/Guard/` | L2 | 权限/安全/Hook/OAuth | Microsoft.Extensions.Http, TreeSitter.DotNet | Enum, CI |
-| Eyes | `06-perception/Eyes/` | L2 | 代码索引服务/LSP | Microsoft.Extensions.Hosting | Enum, CI |
-| Vault | `05-memory/Vault/` | L2 | 记忆目录/状态/待办/通知 | Microsoft.Data.Sqlite, SQLitePCLRaw | CI |
-| Brain | `02-brain/Brain/` | L3 | 查询引擎/上下文/提示词/计划/成本 | Microsoft.Extensions.Options | Enum, CI, PromptSection |
-| Hands | `03-hands/Hands/` | L4 | 工具执行/Shell/Web/Notebook/API/缓存 | ImageSharp, Docnet.Core, ReverseMarkdown.Aot | CI |
-| McpToolDispatch | `03-hands/McpToolDispatch/` | L5 | MCP 工具处理器 | ModelContextProtocol | McpTool, Enum, CI |
-| Scheduling | `03-hands/Scheduling/` | L5 | 任务调度/Cron/持久化 | Microsoft.Extensions.DI | Enum, CI |
-| Agents | `07-agents/Agents/` | L5 | Agent 协调/生命周期/Fork/Team | Microsoft.Extensions.Caching.Memory | McpTool, Enum, CI |
-| Reasoning | `10-reasoning/Reasoning/` | L5 | 结构化推理/三权分立/双预算 | Microsoft.Extensions.Logging | Enum, CI |
-| Composition | `09-composition/Composition/` | L6 | 依赖注入集成层（组合根） | ModelContextProtocol | Enum, CI, McpTool |
-| Clock | `09-composition/Clock/` | L7 | 目标引擎/工作流宿主 | Microsoft.Extensions.Logging | CI |
+| Transport.Contracts | `foundation/Transport.Contracts/` | L0 | 传输协议契约 | — | Enum, CI |
+| Transport.Impl | `infrastructure/Transport.Impl/` | L0 | 传输实现 | — | CI |
+| Structura | `foundation/Structura/` | L0 | 通用DAG数据结构（拓扑排序/环检测/增量重算/线程安全） | — | — |
+| Llm | `core/ai/Llm/` | L0 | LLM 适配器（OpenAI/Anthropic/Azure/Pipe） | Microsoft.Extensions.DI, Options | Enum, CI |
+| CodeIndex | `core/search/CodeIndex/` | L0 | 代码索引引擎（TreeSitter） | TreeSitter.DotNet | CI |
+| Browser | `core/search/Browser/` | L0 | 浏览器自动化（卫星包） | PuppeteerSharp | CI |
+| Bridge | `services/Bridge/` | L1 | 进程桥接服务 | Microsoft.Extensions.Hosting, QRCoder | Enum, CI, CliOption |
+| Mcp | `services/Mcp/` | L1 | MCP 协议客户端 | ModelContextProtocol, Microsoft.Extensions.DI | Enum, CI |
+| Dream | `services/Dream/` | L1 | 记忆整合插件 | Microsoft.Extensions.Hosting | Enum, CI, CliOption, McpTool |
+| Guard | `core/safety/Guard/` | L2 | 权限/安全/Hook/OAuth | Microsoft.Extensions.Http, TreeSitter.DotNet | Enum, CI |
+| Eyes | `services/Eyes/` | L2 | 代码索引服务/LSP | Microsoft.Extensions.Hosting | Enum, CI |
+| Vault | `core/safety/Vault/` | L2 | 记忆目录/状态/待办/通知 | Microsoft.Data.Sqlite, SQLitePCLRaw | CI |
+| Brain | `core/execution/Brain/` | L3 | 查询引擎/上下文/提示词/计划/成本 | Microsoft.Extensions.Options | Enum, CI, PromptSection |
+| Hands | `core/execution/Hands/` | L4 | 工具执行/Shell/Web/Notebook/API/缓存 | ImageSharp, Docnet.Core, ReverseMarkdown.Aot | CI |
+| McpToolDispatch | `core/execution/McpToolDispatch/` | L5 | MCP 工具处理器 | ModelContextProtocol | McpTool, Enum, CI |
+| Scheduling | `core/execution/Scheduling/` | L5 | 任务调度/Cron/持久化 | Microsoft.Extensions.DI | Enum, CI |
+| Agents | `core/ai/Agents/` | L5 | Agent 协调/生命周期/Fork/Team | Microsoft.Extensions.Caching.Memory | McpTool, Enum, CI |
+| Reasoning | `core/ai/Reasoning/` | L5 | 结构化推理/三权分立/双预算 | Microsoft.Extensions.Logging | Enum, CI |
+| SandboxSatellite | `services/SandboxSatellite/` | L1 | 沙箱卫星进程 | — | CI |
+| Composition | `composition/Composition/` | L6 | 依赖注入集成层（组合根） | ModelContextProtocol | Enum, CI, McpTool |
+| Clock | `composition/Clock/` | L7 | 目标引擎/工作流宿主 | Microsoft.Extensions.Logging | CI |
 
-> **Enum** = EnumMetadata.Generator, **CI** = ConstructorInjection.Generator, **McpTool** = McpToolDispatch.Generator, **PromptSection** = PromptSection.Generator, **CliOption** = CliOption.Generator
+> **Enum** = EnumMetadata.Generator, **CI** = McpToolDispatch.Generator（[Register] DI 注册）, **McpTool** = McpToolDispatch.Generator, **PromptSection** = PromptSection.Generator, **CliOption** = CliOption.Generator
 
 ### 6.5 组件内部结构
 
@@ -733,16 +740,16 @@ DependencyInjection/ DI注册
 | 生成器 | 路径 | 用途 | 使用范围 |
 |--------|------|------|---------|
 | AotSafety.Generator | `generators/AotSafety.Generator/` | AOT 安全分析器 | 全局（根 Directory.Build.props） |
-| JccCodeFixes | `generators/JccCodeFixes/` | JCC 代码修复 | 全局（根 Directory.Build.props） |
-| EnumMetadata.Generator | `generators/EnumMetadata.Generator/` | 枚举元数据（[EnumValue] → XxxConstants + XxxExtensions） | 几乎所有组件 |
-| ConstructorInjection.Generator | `generators/ConstructorInjection.Generator/` | 构造函数注入（[Register] → DI 注册代码） | 几乎所有组件 |
-| McpToolDispatch.Generator | `generators/McpToolDispatch.Generator/` | MCP 工具处理器注册 | McpToolDispatch, Agents, Composition, Dream, JoinCode |
+| CodeFixes | `generators/CodeFixes/` | JCC 代码修复 | 全局（根 Directory.Build.props） |
+| EnumMetadata.Generator | `generators/EnumMetadata.Generator/` | 枚举元数据（[EnumValue] → XxxConstants + XxxExtensions）+ SettingsMerge | 几乎所有组件 |
+| McpToolDispatch.Generator | `generators/McpToolDispatch.Generator/` | MCP 工具处理器注册 + [Register] DI 注册 + Command 注册 | McpToolDispatch, Agents, Composition, Dream, JoinCode 及所有用 [Register] 的组件 |
 | PromptSection.Generator | `generators/PromptSection.Generator/` | 提示词段落生成 | Brain |
+| PromptTemplate.Generator | `generators/PromptTemplate.Generator/` | 提示词模板生成 | Brain |
+| ToolPrompt.Generator | `generators/ToolPrompt.Generator/` | 工具提示生成 | Hands |
 | CliOption.Generator | `generators/CliOption.Generator/` | CLI 选项绑定 | Bridge, Dream, JoinCode |
 | AppModule.Generator | `generators/AppModule.Generator/` | 应用模块注册 | JoinCode |
-| MiddlewareOrder.Generator | `generators/MiddlewareOrder.Generator/` | 中间件顺序验证 | — |
 
-### 6.7 Host 项目 (`src/JoinCode/`)
+### 6.7 Host 项目 (`app/JoinCode/`)
 
 ```
 Adapters/       适配器
@@ -763,9 +770,14 @@ Program.cs      主入口
 
 ```
 tests/
+├── AotCompatibility/            AOT 兼容性测试
 ├── Unit/
+│   ├── Abs.Tests/               Abstractions 单元测试
+│   ├── Hands.Tests/             Hands 单元测试
 │   ├── Host.Tests/              Host 单元测试
 │   ├── Infra.Tests/             Infrastructure 单元测试
+│   ├── Mcp.Tests/               Mcp 单元测试
+│   ├── McpToolDispatch.Tests/   McpToolDispatch 单元测试
 │   └── Testing.Common/          测试公共库
 ├── Integration/
 │   └── Integration.Tests/       集成测试
@@ -777,16 +789,17 @@ tests/
 │   ├── Mcp.MockServer/          MCP 模拟服务
 │   ├── MockServer.Core.Tests/   Mock 核心测试
 │   ├── MockServer.E2E.Tests/    E2E 测试
-│   └── Sync.Integration.Tests/  同步集成测试
+│   ├── Sync.Integration.Tests/  同步集成测试
+│   └── scripts/                 测试脚本
 └── Benchmarks/
     └── Eyes.Benchmarks/         性能基准
 ```
 
-**组件测试**：每个组件有 `tests/Unit/` 子目录，如 `components/01-ai/Mcp/tests/Unit/Mcp.Tests.csproj`
+**组件测试**：每个组件有 `tests/` 子目录，如 `services/Mcp/tests/Unit/Mcp.Tests.csproj`
 
-### 6.9 SDK 聚合包 (`sdk/Sdk/`)
+### 6.9 SDK 聚合包 (`app/Sdk/`)
 
-一行代码引用所有组件：`JoinCode.Sdk` 引用 Abstractions + Infrastructure + 全部 14 个组件
+一行代码引用所有组件：`JoinCode.Sdk` 引用 Abstractions + Infrastructure + 全部组件
 
 ### 6.10 中间件管道清单
 
@@ -813,16 +826,19 @@ tests/
 |------|------|------|
 | 根 Directory.Build.props | `Directory.Build.props` | 全局：net10.0, AOT, 版本变量, 全局 Analyzer |
 | 根 Directory.Build.targets | `Directory.Build.targets` | IsPackable/GenerateDocumentationFile 条件逻辑 |
-| components Directory.Build.props | `components/Directory.Build.props` | 组件：测试框架 |
+| foundation Directory.Build.props | `foundation/Directory.Build.props` | 基础层配置 |
+| infrastructure Directory.Build.props | `infrastructure/Directory.Build.props` | 基础设施层配置 |
+| core Directory.Build.props | `core/Directory.Build.props` | 核心组件层配置 |
+| services Directory.Build.props | `services/Directory.Build.props` | 服务组件层配置 |
+| composition Directory.Build.props | `composition/Directory.Build.props` | 组合层配置 |
+| app Directory.Build.props | `app/Directory.Build.props` | 主工程配置 |
 | generators Directory.Build.props | `generators/Directory.Build.props` | 生成器：netstandard2.0 |
-| sdk Directory.Build.props | `sdk/Directory.Build.props` | SDK：全局 Using |
-| src Directory.Build.props | `src/Directory.Build.props` | 源码：全局 Using |
 | tests Directory.Build.props | `tests/Directory.Build.props` | 测试：xUnit, Moq, FluentAssertions |
 | global.json | `global.json` | .NET SDK 10.0.301 |
 | nuget.config | `nuget.config` | NuGet 源 + 本地包目录 |
-| src/GlobalUsings.cs | `src/GlobalUsings.cs` | Host 全局 Using |
-| Abstractions/GlobalUsings.cs | `sdk/Abstractions/GlobalUsings.cs` | 73 行全局 Using |
-| Infrastructure/GlobalUsings.cs | `src/Infrastructure/GlobalUsings.cs` | 73 行全局 Using |
+| Host GlobalUsings.cs | `app/JoinCode/GlobalUsings.cs` | Host 全局 Using |
+| Abstractions/GlobalUsings.cs | `foundation/Abstractions/GlobalUsings.cs` | 全局 Using |
+| Infrastructure/GlobalUsings.cs | `infrastructure/Infrastructure/GlobalUsings.cs` | 全局 Using |
 
 ### 6.12 构建命令速查
 
@@ -831,7 +847,7 @@ tests/
 .\build.ps1 -Fast -SkipTests -Component Mcp
 
 # 单组件单元测试
-dotnet test "components/01-ai/Mcp/tests/Unit/Mcp.Tests.csproj" -c Debug --filter "Category!=Integration"
+dotnet test "services/Mcp/tests/Unit/Mcp.Tests.csproj" -c Debug --filter "Category!=Integration"
 
 # 全量编译+测试（提交前）
 .\build.ps1 -Fast
@@ -847,26 +863,31 @@ dotnet test "components/01-ai/Mcp/tests/Unit/Mcp.Tests.csproj" -c Debug --filter
 
 | 组件名 | 路径 |
 |--------|------|
-| Llm | `components/01-ai/Llm/` |
-| Mcp | `components/01-ai/Mcp/` |
-| Dream | `components/01-ai/Dream/` |
-| Brain | `components/02-brain/Brain/` |
-| Hands | `components/03-hands/Hands/` |
-| McpToolDispatch | `components/03-hands/McpToolDispatch/` |
-| Scheduling | `components/03-hands/Scheduling/` |
-| Guard | `components/04-guard/Guard/` |
-| Vault | `components/05-memory/Vault/` |
-| Eyes | `components/06-perception/Eyes/` |
-| CodeIndex | `components/06-perception/CodeIndex/` |
-| Browser | `components/06-perception/Browser/` |
-| Agents | `components/07-agents/Agents/` |
-| Bridge | `components/08-transport/Bridge/` |
-| Transport.Contracts | `components/08-transport/Contracts/` |
-| Transport.Impl | `components/08-transport/Impl/` |
-| Composition | `components/09-composition/Composition/` |
-| Clock | `components/09-composition/Clock/` |
-| Reasoning | `components/10-reasoning/Reasoning/` |
-| Structura | `src/Structura/` |
+| Abstractions | `foundation/Abstractions/` |
+| Structura | `foundation/Structura/` |
+| Transport.Contracts | `foundation/Transport.Contracts/` |
+| Infrastructure | `infrastructure/Infrastructure/` |
+| Transport.Impl | `infrastructure/Transport.Impl/` |
+| Llm | `core/ai/Llm/` |
+| Agents | `core/ai/Agents/` |
+| Reasoning | `core/ai/Reasoning/` |
+| Brain | `core/execution/Brain/` |
+| Hands | `core/execution/Hands/` |
+| McpToolDispatch | `core/execution/McpToolDispatch/` |
+| Scheduling | `core/execution/Scheduling/` |
+| Guard | `core/safety/Guard/` |
+| Vault | `core/safety/Vault/` |
+| CodeIndex | `core/search/CodeIndex/` |
+| Browser | `core/search/Browser/` |
+| Mcp | `services/Mcp/` |
+| Dream | `services/Dream/` |
+| Eyes | `services/Eyes/` |
+| Bridge | `services/Bridge/` |
+| SandboxSatellite | `services/SandboxSatellite/` |
+| Composition | `composition/Composition/` |
+| Clock | `composition/Clock/` |
+| JoinCode | `app/JoinCode/` |
+| Sdk | `app/Sdk/` |
 
 ---
 

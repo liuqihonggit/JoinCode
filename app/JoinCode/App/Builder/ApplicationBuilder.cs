@@ -132,7 +132,8 @@ public sealed class ApplicationBuilder
         if (subCommand is CliSubCommand.RemoteControl or CliSubCommand.Rc or CliSubCommand.Remote)
         {
             var bridgeFs = IO.FileSystem.FileSystemFactory.Create();
-            var bridgeProcessService = new IO.ProcessService.PhysicalProcessService();
+            var bridgeProcessService = new IO.ProcessService.PhysicalProcessService(
+                new IO.ProcessService.ProcessStartInfoBuilder(new IO.ProcessService.ProcessEncodingProvider()));
 
             // 构建 Bridge Guard 服务容器 — 让生产环境真正启用 Guard 检查
             // 决策: 独立 DI 容器+手动注册最小服务集，避免引入完整 Host 初始化开销

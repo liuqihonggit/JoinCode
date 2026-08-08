@@ -34,7 +34,7 @@ public sealed partial class ITerm2PaneBackend : ServiceEntity, JoinCode.Abstract
             _processService.ExecuteAsync(new ProcessOptions
             {
                 FileName = "it2",
-                Arguments = $"split-pane --horizontal --percent 70 {command}",
+                ArgumentList = new[] { "split-pane", "--horizontal", "--percent", "70", command },
                 TimeoutMs = 10000,
                 RedirectStandardOutput = false,
                 RedirectStandardError = false
@@ -61,7 +61,7 @@ public sealed partial class ITerm2PaneBackend : ServiceEntity, JoinCode.Abstract
             _processService.ExecuteAsync(new ProcessOptions
             {
                 FileName = "it2",
-                Arguments = $"send-text --no-newline \"{command}\" --pane {paneId}",
+                ArgumentList = new[] { "send-text", "--no-newline", command, "--pane", paneId },
                 TimeoutMs = 5000,
                 RedirectStandardOutput = false,
                 RedirectStandardError = false
@@ -88,7 +88,7 @@ public sealed partial class ITerm2PaneBackend : ServiceEntity, JoinCode.Abstract
             _processService.ExecuteAsync(new ProcessOptions
             {
                 FileName = "it2",
-                Arguments = $"set-title \"{title}\" --pane {paneId}",
+                ArgumentList = new[] { "set-title", title, "--pane", paneId },
                 TimeoutMs = 5000,
                 RedirectStandardOutput = false,
                 RedirectStandardError = false
@@ -109,7 +109,7 @@ public sealed partial class ITerm2PaneBackend : ServiceEntity, JoinCode.Abstract
             _processService.ExecuteAsync(new ProcessOptions
             {
                 FileName = "it2",
-                Arguments = $"close-pane --pane {paneId}",
+                ArgumentList = new[] { "close-pane", "--pane", paneId },
                 TimeoutMs = 5000,
                 RedirectStandardOutput = false,
                 RedirectStandardError = false
@@ -140,7 +140,7 @@ public sealed partial class ITerm2PaneBackend : ServiceEntity, JoinCode.Abstract
             var result = _processService.ExecuteAsync(new ProcessOptions
             {
                 FileName = "it2",
-                Arguments = "--version",
+                ArgumentList = new[] { "--version" },
                 TimeoutMs = 5000
             }).GetAwaiter().GetResult();
             return result.Success;

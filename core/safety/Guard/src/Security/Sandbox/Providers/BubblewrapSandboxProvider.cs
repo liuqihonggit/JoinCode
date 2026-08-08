@@ -60,24 +60,24 @@ public sealed partial class BubblewrapSandboxProvider : SandboxProviderBase
 
         var rootPath = Path.GetFullPath(info.RootPath);
 
-        var bwrapArgs = new StringBuilder(512);
-        bwrapArgs.Append("--unshare-all");
-        bwrapArgs.Append(" --die-with-parent");
+        var bwrapArgs = new List<string> { "--unshare-all", "--die-with-parent" };
 
         if (!info.RestrictNetwork)
         {
-            bwrapArgs.Append(" --share-net");
+            bwrapArgs.Add("--share-net");
         }
 
-        bwrapArgs.Append($" --bind {rootPath} /workspace");
-        bwrapArgs.Append(" --proc /proc");
-        bwrapArgs.Append(" --dev /dev");
-        bwrapArgs.Append(" --tmpfs /tmp");
-        bwrapArgs.Append(" --ro-bind /usr /usr");
-        bwrapArgs.Append(" --ro-bind /lib /lib");
-        bwrapArgs.Append(" --ro-bind /lib64 /lib64 2>/dev/null");
-        bwrapArgs.Append(" --ro-bind /bin /bin");
-        bwrapArgs.Append(" --ro-bind /sbin /sbin 2>/dev/null");
+        bwrapArgs.AddRange(new[] { "--bind", rootPath, "/workspace" });
+        bwrapArgs.AddRange(new[] { "--proc", "/proc" });
+        bwrapArgs.AddRange(new[] { "--dev", "/dev" });
+        bwrapArgs.AddRange(new[] { "--tmpfs", "/tmp" });
+        bwrapArgs.AddRange(new[] { "--ro-bind", "/usr", "/usr" });
+        bwrapArgs.AddRange(new[] { "--ro-bind", "/lib", "/lib" });
+        if (Fs.DirectoryExists("/lib64"))
+            bwrapArgs.AddRange(new[] { "--ro-bind", "/lib64", "/lib64" });
+        bwrapArgs.AddRange(new[] { "--ro-bind", "/bin", "/bin" });
+        if (Fs.DirectoryExists("/sbin"))
+            bwrapArgs.AddRange(new[] { "--ro-bind", "/sbin", "/sbin" });
 
         if (info.AllowedPaths is not null)
         {
@@ -86,21 +86,21 @@ public sealed partial class BubblewrapSandboxProvider : SandboxProviderBase
                 var fullAllowed = Path.GetFullPath(allowed);
                 if (Fs.DirectoryExists(fullAllowed))
                 {
-                    bwrapArgs.Append($" --bind {fullAllowed} {fullAllowed}");
+                    bwrapArgs.AddRange(new[] { "--bind", fullAllowed, fullAllowed });
                 }
                 else if (Fs.FileExists(fullAllowed))
                 {
-                    bwrapArgs.Append($" --ro-bind {fullAllowed} {fullAllowed}");
+                    bwrapArgs.AddRange(new[] { "--ro-bind", fullAllowed, fullAllowed });
                 }
             }
         }
 
-        bwrapArgs.Append($" -- /bin/sh -c {ShellCommandEscape.EscapeForSingleQuotedShell(command)}");
+        bwrapArgs.AddRange(new[] { "--", "/bin/sh", "-c", ShellCommandEscape.EscapeForSingleQuotedShell(command) });
 
         var result = await _processService.ExecuteAsync(new ProcessOptions
         {
             FileName = "bwrap",
-            Arguments = bwrapArgs.ToString(),
+            ArgumentList = bwrapArgs,
             TimeoutMs = timeoutMs
         }, ct).ConfigureAwait(false);
 

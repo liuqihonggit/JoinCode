@@ -83,7 +83,7 @@ public static partial class PsAstParser
                 var options = new ProcessOptions
                 {
                     FileName = pwshPath,
-                    Arguments = $"-NoProfile -NonInteractive -NoLogo -EncodedCommand {scriptEncoded}",
+                    ArgumentList = new[] { "-NoProfile", "-NonInteractive", "-NoLogo", "-EncodedCommand", scriptEncoded },
                     TimeoutMs = 5000,
                     EnvironmentVariables = new Dictionary<string, string>
                     {
@@ -119,12 +119,16 @@ public static partial class PsAstParser
             var startInfo = new System.Diagnostics.ProcessStartInfo
             {
                 FileName = pwshPath,
-                Arguments = $"-NoProfile -NonInteractive -NoLogo -EncodedCommand {scriptEncoded}",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = true,
             };
+            startInfo.ArgumentList.Add("-NoProfile");
+            startInfo.ArgumentList.Add("-NonInteractive");
+            startInfo.ArgumentList.Add("-NoLogo");
+            startInfo.ArgumentList.Add("-EncodedCommand");
+            startInfo.ArgumentList.Add(scriptEncoded);
 
             startInfo.EnvironmentVariables["EncodedCommand"] = encodedCommand;
 

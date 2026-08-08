@@ -44,9 +44,16 @@ public sealed class PatientProcessManager : IAsyncDisposable
     /// <summary>
     /// 启动病人进程 — spawn jcc.exe 子进程
     /// </summary>
+    /// <param name="patientId">病人标识</param>
+    /// <param name="arguments">命令行参数字符串（回退模式，<paramref name="argumentList"/> 优先）</param>
+    /// <param name="argumentList">参数化启动列表 — 优先于 <paramref name="arguments"/>，消除字符串拼接注入风险</param>
+    /// <param name="workingDirectory">工作目录</param>
+    /// <param name="environmentVariables">环境变量</param>
+    /// <param name="cancellationToken">取消令牌</param>
     public async Task<PatientInfo> SpawnAsync(
         string patientId,
         string arguments,
+        IReadOnlyList<string>? argumentList = null,
         string? workingDirectory = null,
         IReadOnlyDictionary<string, string>? environmentVariables = null,
         CancellationToken cancellationToken = default)
@@ -67,11 +74,9 @@ public sealed class PatientProcessManager : IAsyncDisposable
         {
             FileName = execPath,
             Arguments = arguments,
+            ArgumentList = argumentList,
             WorkingDirectory = workingDirectory,
             EnvironmentVariables = environmentVariables,
-            StandardOutputEncoding = System.Text.Encoding.UTF8,
-            StandardErrorEncoding = System.Text.Encoding.UTF8,
-            StandardInputEncoding = System.Text.Encoding.UTF8,
             RedirectStandardError = true
         };
 

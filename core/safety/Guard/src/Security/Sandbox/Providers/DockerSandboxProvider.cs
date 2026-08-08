@@ -51,34 +51,45 @@ public sealed partial class DockerSandboxProvider : SandboxProviderBase
     {
         var image = options.DockerImage ?? "mcr.microsoft.com/dotnet/sdk:10.0";
 
-        var args = new StringBuilder(512);
-        args.Append("run -d");
-        args.Append($" -v \"{Path.GetFullPath(info.RootPath)}:/workspace\"");
-        args.Append(" -e HOME=/home/agent");
-        args.Append(" -e JCC_SANDBOX=1");
+        var args = new List<string> { "run", "-d" };
+        args.Add("-v");
+        args.Add($"{Path.GetFullPath(info.RootPath)}:/workspace");
+        args.Add("-e");
+        args.Add("HOME=/home/agent");
+        args.Add("-e");
+        args.Add("JCC_SANDBOX=1");
 
         if (info.RestrictNetwork)
         {
-            args.Append(" --network none");
+            args.Add("--network");
+            args.Add("none");
         }
 
         if (options.MemoryLimitMb > 0)
         {
-            args.Append($" --memory {options.MemoryLimitMb}m");
+            args.Add("--memory");
+            args.Add($"{options.MemoryLimitMb}m");
         }
 
         if (options.CpuLimitPercent > 0 && options.CpuLimitPercent <= 100)
         {
             var cpuQuota = options.CpuLimitPercent * 1000 / 100;
-            args.Append($" --cpu-quota {cpuQuota} --cpu-period 100000");
+            args.Add("--cpu-quota");
+            args.Add(cpuQuota.ToString());
+            args.Add("--cpu-period");
+            args.Add("100000");
         }
 
-        args.Append($" -w /workspace {image} sleep infinity");
+        args.Add("-w");
+        args.Add("/workspace");
+        args.Add(image);
+        args.Add("sleep");
+        args.Add("infinity");
 
         var result = await _processService.ExecuteAsync(new ProcessOptions
         {
             FileName = "docker",
-            Arguments = args.ToString(),
+            ArgumentList = args,
             TimeoutMs = 30000
         }, ct).ConfigureAwait(false);
 
@@ -104,7 +115,7 @@ public sealed partial class DockerSandboxProvider : SandboxProviderBase
                 await _processService.ExecuteAsync(new ProcessOptions
                 {
                     FileName = "docker",
-                    Arguments = $"rm -f {containerId}",
+                    ArgumentList = new[] { "rm", "-f", containerId },
                     TimeoutMs = 10000
                 }, ct).ConfigureAwait(false);
 
@@ -133,7 +144,7 @@ public sealed partial class DockerSandboxProvider : SandboxProviderBase
         var result = await _processService.ExecuteAsync(new ProcessOptions
         {
             FileName = "docker",
-            Arguments = $"exec {containerId} /bin/sh -c {ShellCommandEscape.EscapeForSingleQuotedShell(command)}",
+            ArgumentList = new[] { "exec", containerId, "/bin/sh", "-c", ShellCommandEscape.EscapeForSingleQuotedShell(command) },
             TimeoutMs = timeoutMs
         }, ct).ConfigureAwait(false);
 

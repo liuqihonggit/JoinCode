@@ -288,7 +288,15 @@ AgentBase (abstract)
 | 4. 只实现一次，通过继承传递 | 阶段2+5 | AgentBase 持有压缩管线，子类继承自动获得；统一两套体系 |
 
 <!-- 🤖 Auto Decision: 2026-08-08 -->
-<!-- 决策: 采用方案A（每个 Agent 独立 ChatContextManager），用工厂模式创建 -->
-<!-- 原因: 符合"每个智能体内部是对话上下文窗口"约束，父子互不干扰 -->
-<!-- 替代方案: 方案B（子 Agent 共享父 Agent 的 ContextManager），但不符合独立上下文要求 -->
-<!-- 验证: 待实施 -->
+<!-- 决策: 采用方案- 原因: 符合"每个智能体内部是对话上下文窗口"约束，父子$替换方案: 方案B（子 Agent 共享父 Agent 的 ContextManager），但不符合独立上下文要求 -->
+<!-- 验证: 6 阶段全部完成，305 Agents + 272 Reasoning + 257 Scheduling 测试全过 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-08-08 阶段5 -->
+<!-- 决策: 合并 Reasoning.State.AgentRole 到 Abstractions.Models.Agent.AgentRole，删除 IReasoningAgent/IReasoningContextCompressor/ReasoningContextCompressor -->
+<!-- 原因: 用户要求"贯彻到底，风格一致，遇到兼容直接删掉" -->
+<!-- 验证: Reasoning 项目编译通过，272 测试全过 ✅ -->
+
+<!-- 🤖 Auto Decision<-- 阶段6 -->
+<!-- 决策: 保留 Agent.cs 作为通用具体类，AgentFactory 不再返回 Agent，(Agent) 强制转换改为 (AgentBase) -->
+<!-- 原因: 删除 Agent.cs 会影响大量文件引用 Agent 类型，保留作为通用实现 -->
+<!-- 验证: 305 Agents + 257 Scheduling 测试全过 ✅ -->

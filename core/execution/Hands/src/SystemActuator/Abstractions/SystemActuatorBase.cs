@@ -287,12 +287,12 @@ public abstract class SystemActuatorBase : ToolExecutionEntity, ISystemActuator
             var psi = new ProcessStartInfo
             {
                 FileName = "where.exe",
-                Arguments = executable,
                 RedirectStandardOutput = true,
                 UseShellExecute = false,
                 CreateNoWindow = true,
                 StandardOutputEncoding = Encoding.UTF8
             };
+            psi.ArgumentList.Add(executable);
 
             using var process = Process.Start(psi);
             if (process is null) return null;
@@ -369,19 +369,20 @@ public abstract class SystemActuatorBase : ToolExecutionEntity, ISystemActuator
     /// <summary>
     /// 执行命令行并返回输出
     /// </summary>
-    protected string? ExecuteShellCommand(string fileName, string arguments, int timeoutMs = 5000)
+    protected string? ExecuteShellCommand(string fileName, IReadOnlyList<string> args, int timeoutMs = 5000)
     {
         try
         {
             var psi = new ProcessStartInfo
             {
                 FileName = fileName,
-                Arguments = arguments,
                 RedirectStandardOutput = true,
                 UseShellExecute = false,
                 CreateNoWindow = true,
                 StandardOutputEncoding = Encoding.UTF8
             };
+            foreach (var arg in args)
+                psi.ArgumentList.Add(arg);
 
             using var process = Process.Start(psi);
             if (process is null) return null;

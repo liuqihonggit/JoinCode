@@ -49,12 +49,12 @@ public sealed class PythonSystemActuator : SystemActuatorBase
             var psi = new ProcessStartInfo
             {
                 FileName = "where.exe",
-                Arguments = "python3.exe",
                 RedirectStandardOutput = true,
                 UseShellExecute = false,
                 CreateNoWindow = true,
                 StandardOutputEncoding = Encoding.UTF8
             };
+            psi.ArgumentList.Add("python3.exe");
             using var p = Process.Start(psi);
             if (p is not null)
             {
@@ -84,12 +84,12 @@ public sealed class PythonSystemActuator : SystemActuatorBase
             var psi = new ProcessStartInfo
             {
                 FileName = shellPath,
-                Arguments = "--version",
                 RedirectStandardOutput = true,
                 UseShellExecute = false,
                 CreateNoWindow = true,
                 StandardOutputEncoding = Encoding.UTF8
             };
+            psi.ArgumentList.Add("--version");
             using var p = Process.Start(psi);
             if (p is null) return "unknown";
             var output = p.StandardOutput.ReadToEnd();
@@ -103,12 +103,12 @@ public sealed class PythonSystemActuator : SystemActuatorBase
             var psi = new ProcessStartInfo
             {
                 FileName = "python",
-                Arguments = "--version",
                 RedirectStandardOutput = true,
                 UseShellExecute = false,
                 CreateNoWindow = true,
                 StandardOutputEncoding = Encoding.UTF8
             };
+            psi.ArgumentList.Add("--version");
             using var p = Process.Start(psi);
             if (p is not null)
             {

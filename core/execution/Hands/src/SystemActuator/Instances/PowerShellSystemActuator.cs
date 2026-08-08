@@ -56,12 +56,12 @@ public sealed class PowerShellSystemActuator : SystemActuatorBase
             var psi = new ProcessStartInfo
             {
                 FileName = "where.exe",
-                Arguments = "pwsh.exe",
                 RedirectStandardOutput = true,
                 UseShellExecute = false,
                 CreateNoWindow = true,
                 StandardOutputEncoding = Encoding.UTF8
             };
+            psi.ArgumentList.Add("pwsh.exe");
             using var p = Process.Start(psi);
             if (p is not null)
             {
@@ -90,12 +90,15 @@ public sealed class PowerShellSystemActuator : SystemActuatorBase
             var psi = new ProcessStartInfo
             {
                 FileName = shellPath,
-                Arguments = "-NoProfile -NonInteractive -Command \"$PSVersionTable.PSVersion.ToString()\"",
                 RedirectStandardOutput = true,
                 UseShellExecute = false,
                 CreateNoWindow = true,
                 StandardOutputEncoding = Encoding.UTF8
             };
+            psi.ArgumentList.Add("-NoProfile");
+            psi.ArgumentList.Add("-NonInteractive");
+            psi.ArgumentList.Add("-Command");
+            psi.ArgumentList.Add("$PSVersionTable.PSVersion.ToString()");
             using var p = Process.Start(psi);
             if (p is null) return "unknown";
             var output = p.StandardOutput.ReadToEnd();

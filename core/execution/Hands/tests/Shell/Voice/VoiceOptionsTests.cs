@@ -18,6 +18,14 @@ public sealed class VoiceOptionsTests
         options.SilenceDetectionInterval.Should().Be(TimeSpan.FromSeconds(1));
         options.SilenceThreshold.Should().Be(0.01);
         options.SilenceTimeout.Should().Be(TimeSpan.FromSeconds(3));
-        options.LocalModelPath.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void SttBackend_ShouldOnlyHaveWhisperApi()
+    {
+        var values = Enum.GetValues<SttBackend>();
+
+        values.Should().HaveCount(1);
+        values.Should().BeEquivalentTo(new[] { SttBackend.WhisperApi });
     }
 }

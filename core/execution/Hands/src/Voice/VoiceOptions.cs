@@ -15,11 +15,9 @@ public sealed partial class VoiceOptions : ServiceEntity
     public TimeSpan SilenceDetectionInterval { get; init; } = TimeSpan.FromSeconds(1);
     public double SilenceThreshold { get; init; } = 0.01;
     public TimeSpan SilenceTimeout { get; init; } = TimeSpan.FromSeconds(3);
-    public string LocalModelPath { get; init; } = string.Empty;
 }
 
 public enum SttBackend
 {
-    [EnumValue("whisperApi")] WhisperApi,
-    [EnumValue("localModel")] LocalModel
+    [EnumValue("whisperApi")] WhisperApi
 }

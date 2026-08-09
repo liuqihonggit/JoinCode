@@ -54,8 +54,6 @@ public static partial class StringKey
     public const string VoiceAudioFileNotFound = "VoiceAudioFileNotFound";
     public const string VoiceWhisperApiFailed = "VoiceWhisperApiFailed";
     public const string VoiceWhisperApiCallFailed = "VoiceWhisperApiCallFailed";
-    public const string VoiceLocalModelPathInvalid = "VoiceLocalModelPathInvalid";
-    public const string VoiceLocalSttNotImplemented = "VoiceLocalSttNotImplemented";
     public const string VoiceRecordLoopError = "VoiceRecordLoopError";
 
     // === SimpleJsonSchemaValidator ===

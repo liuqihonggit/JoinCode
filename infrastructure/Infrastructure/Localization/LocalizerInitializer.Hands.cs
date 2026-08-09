@@ -98,8 +98,6 @@ public static partial class LocalizerInitializer
         defaultEntries[StringKey.VoiceAudioFileNotFound] = "Audio file not found";
         defaultEntries[StringKey.VoiceWhisperApiFailed] = "Whisper API call failed: {0}";
         defaultEntries[StringKey.VoiceWhisperApiCallFailed] = "Whisper API call failed: {0}";
-        defaultEntries[StringKey.VoiceLocalModelPathInvalid] = "Local model path invalid or model file does not exist";
-        defaultEntries[StringKey.VoiceLocalSttNotImplemented] = "Local model STT not yet implemented";
         defaultEntries[StringKey.VoiceRecordLoopError] = "Recording loop error";
 
         zhEntries[StringKey.VoiceStartRecording] = "开始录音";
@@ -109,8 +107,6 @@ public static partial class LocalizerInitializer
         zhEntries[StringKey.VoiceAudioFileNotFound] = "音频文件未找到";
         zhEntries[StringKey.VoiceWhisperApiFailed] = "Whisper API 调用失败: {0}";
         zhEntries[StringKey.VoiceWhisperApiCallFailed] = "Whisper API 调用失败: {0}";
-        zhEntries[StringKey.VoiceLocalModelPathInvalid] = "本地模型路径无效或模型文件不存在";
-        zhEntries[StringKey.VoiceLocalSttNotImplemented] = "本地模型 STT 尚未实现";
         zhEntries[StringKey.VoiceRecordLoopError] = "录音循环异常";
 
         // === SimpleJsonSchemaValidator ===

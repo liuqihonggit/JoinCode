@@ -15,3 +15,9 @@ global using JoinCode.Pipelines.Middlewares;
 // Diff 模型（工具调用结果渲染）
 global using JoinCode.Abstractions.Models.Diff;
 global using JoinCode.Abstractions.Interfaces;
+
+// GUI ViewModel 层 DTO（SlashCommandItem 等）
+global using JoinCode.Gui.ViewModels;
+
+// GUI 斜杠命令核心逻辑（Trie 前缀树、光标解析、匹配排序）
+global using JoinCode.Gui.SlashCommands;

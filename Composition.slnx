@@ -6,4 +6,13 @@
     <Project Path="composition/Clock/tests/Unit/Clock.Tests.csproj" />
     <Project Path="composition/Pipelines/src/Pipelines.csproj" />
   </Folder>
+  <Folder Name="/foundation/">
+    <Project Path="foundation/Abstractions/Abstractions.csproj" />
+    <Project Path="foundation/Structura/Structura.csproj" />
+    <Project Path="foundation/Transport.Contracts/Transport.Contracts.csproj" />
+  </Folder>
+  <Folder Name="/infrastructure/">
+    <Project Path="infrastructure/Infrastructure/Infrastructure.csproj" />
+    <Project Path="infrastructure/Transport.Impl/Transport.Impl.csproj" />
+  </Folder>
 </Solution>

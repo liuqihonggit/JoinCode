@@ -52,6 +52,7 @@ public partial class ShellToolHandlers : ShellToolBase
             Provider = actuator,
             Description = description,
             Timeout = timeout,
+            TimeoutPolicy = TimeoutPolicy,
             WorkingDirectory = working_directory,
             Background = background,
             AutoBackground = auto_background,

@@ -10,7 +10,7 @@ public sealed class ReplServiceTests
     public ReplServiceTests()
     {
         _loggerMock = new Mock<ILogger<ReplService>>();
-        _processService = new IO.ProcessService.PhysicalProcessService();
+        _processService = IO.ProcessService.ProcessServiceFactory.Create();
         _service = new ReplService(new IO.FileSystem.PhysicalFileSystem(), _processService, _loggerMock.Object);
     }
 

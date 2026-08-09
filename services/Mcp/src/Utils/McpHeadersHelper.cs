@@ -18,62 +18,20 @@ public static class McpHeadersHelper
         {
             logger?.LogDebug("执行 headersHelper 获取动态请求头: {ServerName}", serverName);
 
-            ProcessResult result;
-            if (processService is not null)
+            var effectiveProcessService = processService ?? IO.ProcessService.ProcessServiceFactory.Create();
+            var options = new ProcessOptions
             {
-                var options = new ProcessOptions
+                FileName = "cmd.exe",
+                ArgumentList = ["/c", headersHelper],
+                TimeoutMs = (int)Timeout.TotalMilliseconds,
+                EnvironmentVariables = new Dictionary<string, string>
                 {
-                    FileName = "cmd.exe",
-                    Arguments = "/c " + headersHelper,
-                    StandardOutputEncoding = System.Text.Encoding.UTF8,
-                    StandardErrorEncoding = System.Text.Encoding.UTF8,
-                    TimeoutMs = (int)Timeout.TotalMilliseconds,
-                    EnvironmentVariables = new Dictionary<string, string>
-                    {
-                        ["CLAUDE_CODE_MCP_SERVER_NAME"] = serverName,
-                        ["CLAUDE_CODE_MCP_SERVER_URL"] = serverUrl
-                    }
-                };
+                    ["CLAUDE_CODE_MCP_SERVER_NAME"] = serverName,
+                    ["CLAUDE_CODE_MCP_SERVER_URL"] = serverUrl
+                }
+            };
 
-                result = await processService.ExecuteAsync(options, cancellationToken).ConfigureAwait(false);
-            }
-            else
-            {
-                var startInfo = new ProcessStartInfo
-                {
-                    FileName = "cmd.exe",
-                    Arguments = "/c " + headersHelper,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                    StandardOutputEncoding = System.Text.Encoding.UTF8,
-                    StandardErrorEncoding = System.Text.Encoding.UTF8
-                };
-
-                startInfo.EnvironmentVariables["CLAUDE_CODE_MCP_SERVER_NAME"] = serverName;
-                startInfo.EnvironmentVariables["CLAUDE_CODE_MCP_SERVER_URL"] = serverUrl;
-
-                using var process = new Process { StartInfo = startInfo };
-                process.Start();
-
-                using var cts = TimeoutHelper.CreateLinkedTimeout(cancellationToken, Timeout);
-
-                var outputTask = process.StandardOutput.ReadToEndAsync(cts.Token);
-                var errorTask = process.StandardError.ReadToEndAsync(cts.Token);
-                await process.WaitForExitAsync(cts.Token).ConfigureAwait(false);
-
-                var output = await outputTask.ConfigureAwait(false);
-                var stderr = await errorTask.ConfigureAwait(false);
-
-                result = new ProcessResult
-                {
-                    ExitCode = process.ExitCode,
-                    StandardOutput = output,
-                    StandardError = stderr,
-                    ExecutionTime = TimeSpan.Zero
-                };
-            }
+            var result = await effectiveProcessService.ExecuteAsync(options, cancellationToken).ConfigureAwait(false);
 
             if (!string.IsNullOrWhiteSpace(result.StandardError))
             {

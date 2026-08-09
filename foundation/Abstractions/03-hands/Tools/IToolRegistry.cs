@@ -8,7 +8,7 @@ public interface IToolRegistry : IAsyncDisposable
 {
     Task RegisterToolAsync(IToolHandler handler, CancellationToken cancellationToken = default);
 
-    Task RegisterToolAsync(string name, string description, ToolSchema inputSchema, ToolHandler handler, CancellationToken cancellationToken = default, ToolKind kind = ToolKind.System, string? groupName = null);
+    Task RegisterToolAsync(string name, string description, ToolSchema inputSchema, ToolHandler handler, CancellationToken cancellationToken = default, ToolKind kind = ToolKind.System, string? groupName = null, ToolTimeoutPolicy? timeoutPolicy = null);
 
     Task<bool> UnregisterToolAsync(string toolName, CancellationToken cancellationToken = default);
 

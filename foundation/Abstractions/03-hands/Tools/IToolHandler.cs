@@ -41,6 +41,12 @@ public interface IToolHandler
     string? GroupName { get; }
 
     /// <summary>
+    /// 超时策略 — 由源码生成器从 ToolHandlerGroupBase 继承链读取
+    /// 决定绝对超时上限、是否 kill、是否支持续期
+    /// </summary>
+    ToolTimeoutPolicy TimeoutPolicy { get; }
+
+    /// <summary>
     /// 执行工具 — 对齐 TS Tool.call(input, context, canUseTool, parentMsg, onProgress)
     /// </summary>
     Task<ToolResult> ExecuteAsync(

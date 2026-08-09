@@ -30,6 +30,9 @@ public sealed class SlashCommandItem
     /// <summary>显示文本（命令名 + 描述，供面板列表渲染）</summary>
     public string DisplayText => $"{Name}  —  {Description}";
 
+    /// <summary>悬停提示文本（有用法时返回 Usage，否则返回 null 不显示气泡）</summary>
+    public string? ToolTipText => HasUsage ? Usage : null;
+
     /// <summary>
     /// GUI 端常用斜杠命令列表 — 从 CLI 80+ 命令中选取高频子集。
     /// 后续可改为从 ChatCommandRegistry 动态拉取。

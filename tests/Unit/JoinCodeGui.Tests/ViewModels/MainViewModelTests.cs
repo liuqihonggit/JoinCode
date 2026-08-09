@@ -1,4 +1,4 @@
-﻿using FluentAssertions;
+using FluentAssertions;
 
 using IO.FileSystem;
 using JoinCode.Abstractions.LLM;
@@ -889,6 +889,10 @@ public class MainViewModelTests
             public EffortLevel EffortLevel => EffortLevel.Auto;
             public Task SetEffortLevelAsync(EffortLevel effortLevel, CancellationToken cancellationToken = default) => Task.CompletedTask;
             public Task SetSystemPromptAsync(string systemPrompt, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public float? Temperature => null;
+            public int? MaxTokens => null;
+            public Task SetTemperatureAsync(float temperature, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public Task SetMaxTokensAsync(int maxTokens, CancellationToken cancellationToken = default) => Task.CompletedTask;
             public ValueTask DisposeAsync() => ValueTask.CompletedTask;
         }
 
@@ -921,6 +925,10 @@ public class MainViewModelTests
             public EffortLevel EffortLevel => EffortLevel.Auto;
             public Task SetEffortLevelAsync(EffortLevel effortLevel, CancellationToken cancellationToken = default) => Task.CompletedTask;
             public Task SetSystemPromptAsync(string systemPrompt, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public float? Temperature => null;
+            public int? MaxTokens => null;
+            public Task SetTemperatureAsync(float temperature, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public Task SetMaxTokensAsync(int maxTokens, CancellationToken cancellationToken = default) => Task.CompletedTask;
             public ValueTask DisposeAsync() => ValueTask.CompletedTask;
         }
     }

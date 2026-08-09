@@ -33,6 +33,15 @@ internal sealed class PlaceholderChatSession : IJccChatSession
     public Task SetSystemPromptAsync(string systemPrompt, CancellationToken cancellationToken = default)
         => Task.CompletedTask;
 
+    public float? Temperature => null;
+    public int? MaxTokens => null;
+
+    public Task SetTemperatureAsync(float temperature, CancellationToken cancellationToken = default)
+        => Task.CompletedTask;
+
+    public Task SetMaxTokensAsync(int maxTokens, CancellationToken cancellationToken = default)
+        => Task.CompletedTask;
+
     public Task InitializeAsync(CancellationToken cancellationToken = default)
         => Task.CompletedTask;
 

@@ -289,6 +289,39 @@ public class JccChatSessionAssemblyTests
     }
 
     [Fact]
+    public async Task SetTemperatureAndMaxTokens_WritesBackToSharedProvider()
+    {
+        // GUI 滑块写回：门面 SetTemperature/SetMaxTokens 应写入共享 IExecutionSettingsProvider，
+        // 使 ChatOptionsFactory 下次创建时覆盖 LlmParameters.Chat 默认值。
+        var provider = new ExecutionSettingsProvider(
+            new WorkflowConfig
+            {
+                Provider = new ProviderConfig { Provider = "openai", ModelId = "gpt-4o" }
+            },
+            new InMemoryFileSystem(),
+            null!);
+        var session = new JccChatSession(
+            new ServiceCollection().BuildServiceProvider(),
+            null!,
+            new WorkflowConfig
+            {
+                Provider = new ProviderConfig { Provider = "openai", ModelId = "gpt-4o" }
+            },
+            provider);
+
+        session.Temperature.Should().BeNull();
+        session.MaxTokens.Should().BeNull();
+
+        await session.SetTemperatureAsync(0.9f);
+        await session.SetMaxTokensAsync(6000);
+
+        provider.Temperature.Should().Be(0.9f);
+        provider.MaxTokens.Should().Be(6000);
+        session.Temperature.Should().Be(0.9f);
+        session.MaxTokens.Should().Be(6000);
+    }
+
+    [Fact]
     public async Task SetSystemPromptAsync_ForwardsToChatService()
     {
         // 对齐 CLI SystemPromptApplyStep：GUI 编辑系统提示词后应经 IChatService.SetSystemPromptAsync

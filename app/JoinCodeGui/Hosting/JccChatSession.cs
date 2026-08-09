@@ -151,6 +151,40 @@ internal sealed class JccChatSession : IJccChatSession
     public Task InitializeAsync(CancellationToken cancellationToken = default)
         => Task.CompletedTask;
 
+    /// <summary>
+    /// 当前温度 — 经共享 IExecutionSettingsProvider 读取（未设置返回 null → 引擎回退 LlmParameters.Chat）。
+    /// </summary>
+    public float? Temperature => _executionSettings?.Temperature;
+
+    /// <summary>
+    /// 当前最大长度 — 经共享 IExecutionSettingsProvider 读取（未设置返回 null → 引擎回退 LlmParameters.Chat）。
+    /// </summary>
+    public int? MaxTokens => _executionSettings?.MaxTokens;
+
+    /// <summary>
+    /// 设置温度并即时生效 — 写入共享 ExecutionSettingsProvider，ChatOptionsFactory 下次创建即覆盖默认值。
+    /// </summary>
+    public Task SetTemperatureAsync(float temperature, CancellationToken cancellationToken = default)
+    {
+        if (_executionSettings is not null)
+        {
+            _executionSettings.Temperature = temperature;
+        }
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// 设置最大长度并即时生效 — 写入共享 ExecutionSettingsProvider，ChatOptionsFactory 下次创建即覆盖默认值。
+    /// </summary>
+    public Task SetMaxTokensAsync(int maxTokens, CancellationToken cancellationToken = default)
+    {
+        if (_executionSettings is not null)
+        {
+            _executionSettings.MaxTokens = maxTokens;
+        }
+        return Task.CompletedTask;
+    }
+
     public IAsyncEnumerable<ChatStreamEvent> StreamAsync(
         string message,
         CancellationToken cancellationToken = default)

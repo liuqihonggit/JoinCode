@@ -64,4 +64,24 @@ public interface IJccChatSession : IAsyncDisposable
     /// 对齐 CLI SystemPromptApplyStep 的 --system-prompt 语义。下次请求即生效。
     /// </summary>
     Task SetSystemPromptAsync(string systemPrompt, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 当前温度 — 未设置返回 null，引擎回退 LlmParameters.Chat（默认 0.7）。
+    /// </summary>
+    float? Temperature { get; }
+
+    /// <summary>
+    /// 当前最大长度 — 未设置返回 null，引擎回退 LlmParameters.Chat（默认 2000）。
+    /// </summary>
+    int? MaxTokens { get; }
+
+    /// <summary>
+    /// 设置温度并即时生效 — 经共享 ExecutionSettingsProvider 覆盖引擎默认值。
+    /// </summary>
+    Task SetTemperatureAsync(float temperature, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 设置最大长度并即时生效 — 经共享 ExecutionSettingsProvider 覆盖引擎默认值。
+    /// </summary>
+    Task SetMaxTokensAsync(int maxTokens, CancellationToken cancellationToken = default);
 }

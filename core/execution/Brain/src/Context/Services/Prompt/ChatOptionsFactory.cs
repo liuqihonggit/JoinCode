@@ -39,8 +39,8 @@ public sealed partial class ChatOptionsFactory : ServiceEntity, IChatOptionsFact
 
         return new ChatOptions
         {
-            Temperature = chatParams.Temperature,
-            MaxTokens = chatParams.MaxTokens,
+            Temperature = _executionSettingsProvider?.Temperature ?? chatParams.Temperature,
+            MaxTokens = _executionSettingsProvider?.MaxTokens ?? chatParams.MaxTokens,
             TopP = chatParams.TopP,
             FrequencyPenalty = chatParams.FrequencyPenalty,
             PresencePenalty = chatParams.PresencePenalty,

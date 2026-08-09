@@ -326,7 +326,6 @@ public static partial class LocalizerInitializer
         zhEntries[StringKey.AgentNoRunningAgents] = "没有正在运行的代理。";
 
         // === WebService ===
-        // 注: WebSearchNotImplemented 已不再使用 — WebSearchAsync 通过 Anthropic API 的 web_search_20250305 实现
         defaultEntries[StringKey.WebInvalidUrl] = "Invalid URL: {0}";
         defaultEntries[StringKey.WebRedirectLimitExceeded] = "Redirect limit exceeded ({0})";
         defaultEntries[StringKey.WebRedirectMissingLocation] = "Redirect missing Location header";

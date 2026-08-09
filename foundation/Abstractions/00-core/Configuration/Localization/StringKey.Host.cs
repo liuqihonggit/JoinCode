@@ -378,7 +378,6 @@ public static partial class StringKey
     public const string HostUltraplanGoalLabel = "HostUltraplanGoalLabel";
     public const string HostUltraplanMaxStepsLabel = "HostUltraplanMaxStepsLabel";
     public const string HostUltraplanAutoExecuteLabel = "HostUltraplanAutoExecuteLabel";
-    public const string HostUltraplanAutoExecuteNotImplemented = "HostUltraplanAutoExecuteNotImplemented";
     public const string HostUltraplanCancelled = "HostUltraplanCancelled";
     public const string HostUltraplanHelpHeader = "HostUltraplanHelpHeader";
     public const string HostUltraplanHelpUsage = "HostUltraplanHelpUsage";

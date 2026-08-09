@@ -369,21 +369,6 @@ public sealed partial class MainViewModel : ViewModelBase
     [ObservableProperty]
     private int _slashSelectedIndex = -1;
 
-    /// <summary>补全预览文本（显示"Tab → 补全结果"，驱动输入栏内联提示）</summary>
-    [ObservableProperty]
-    private string _completionPreviewText = string.Empty;
-
-    /// <summary>选中索引变化时更新内联预览文本</summary>
-    partial void OnSlashSelectedIndexChanged(int value)
-    {
-        if (value < 0 || value >= SlashSuggestions.Count)
-        {
-            CompletionPreviewText = string.Empty;
-            return;
-        }
-        CompletionPreviewText = $"Tab → {SlashSuggestions[value].Name}";
-    }
-
     /// <summary>刷新斜杠命令建议 — 由 View 层防抖后调用，用光标解析 + Trie 匹配 + 排序</summary>
     public void RefreshSlashSuggestions()
     {

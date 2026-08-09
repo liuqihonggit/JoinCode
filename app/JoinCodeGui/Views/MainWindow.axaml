@@ -331,11 +331,6 @@
             </StackPanel>
           </Grid>
 
-          <TextBlock Text="{Binding CompletionPreviewText}"
-                     Foreground="{DynamicResource GuiAccentText}" Opacity="0.6"
-                     FontSize="11" Margin="2,0" FontFamily="Consolas"
-                     IsVisible="{Binding IsSlashPopupOpen}" />
-
           <!-- 斜杠命令补全面板（Placement=Top 上方弹出贴边，SharedSizeGroup 跨项对齐命令名列） -->
           <Popup x:Name="SlashPopup"
                  PlacementTarget="{Binding ElementName=InputTextBox}"

@@ -30,6 +30,9 @@ internal sealed class PlaceholderChatSession : IJccChatSession
     public Task SetEffortLevelAsync(EffortLevel effortLevel, CancellationToken cancellationToken = default)
         => Task.CompletedTask;
 
+    public Task SetSystemPromptAsync(string systemPrompt, CancellationToken cancellationToken = default)
+        => Task.CompletedTask;
+
     public Task InitializeAsync(CancellationToken cancellationToken = default)
         => Task.CompletedTask;
 

@@ -289,6 +289,25 @@ public class JccChatSessionAssemblyTests
     }
 
     [Fact]
+    public async Task SetSystemPromptAsync_ForwardsToChatService()
+    {
+        // 对齐 CLI SystemPromptApplyStep：GUI 编辑系统提示词后应经 IChatService.SetSystemPromptAsync
+        // 应用（admin 管道，替换静态系统提示词），而非仅本地存储占位。
+        var fakeChat = new RecordingChatService();
+        var session = new JccChatSession(
+            new ServiceCollection().BuildServiceProvider(),
+            fakeChat,
+            new WorkflowConfig
+            {
+                Provider = new ProviderConfig { Provider = "openai", ModelId = "gpt-4o" }
+            });
+
+        await session.SetSystemPromptAsync("你是测试助手，请简洁回答");
+
+        fakeChat.LastSystemPrompt.Should().Be("你是测试助手，请简洁回答");
+    }
+
+    [Fact]
     public async Task SetModelAsync_PersistsModelToSettingsJson()
     {
         // 对齐 CLI ModelCommand.ApplyModelSwitchAsync：切换模型需持久化 modelId
@@ -315,5 +334,56 @@ public class JccChatSessionAssemblyTests
         var value = await sp.GetRequiredService<IConfigurationService>()
             .GetAsync("model");
         value.Should().Be("sensenova-6.7-flash-lite");
+    }
+
+    /// <summary>
+    /// 记录 SetSystemPromptAsync 调用的假 ChatService — 验证门面转发。
+    /// </summary>
+    private sealed class RecordingChatService : IChatService
+    {
+        public string? LastSystemPrompt { get; private set; }
+
+        public Task<string> SendMessageAsync(string message, CancellationToken cancellationToken = default)
+            => Task.FromResult(string.Empty);
+
+        public async IAsyncEnumerable<string> SendMessageStreamAsync(string message, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            await Task.CompletedTask;
+            yield break;
+        }
+
+        public async IAsyncEnumerable<ChatStreamEvent> StreamWithEventsAsync(string message, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            await Task.CompletedTask;
+            yield break;
+        }
+
+        public Task ClearHistoryAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task<IReadOnlyList<ApiMessageRecord>> GetMessageListAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult((IReadOnlyList<ApiMessageRecord>)[]);
+
+        public Task SetSystemPromptAsync(string systemPrompt, CancellationToken cancellationToken = default)
+        {
+            LastSystemPrompt = systemPrompt;
+            return Task.CompletedTask;
+        }
+
+        public Task<RewindResult> RewindLastTurnAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult(RewindResult.Ok(RewindKind.TrimLastTurn, 2, 5));
+
+        public Task<RewindResult> RewindToMessageIndexAsync(int messageIndex, CancellationToken cancellationToken = default)
+            => Task.FromResult(RewindResult.Ok(RewindKind.TruncateToIndex, 1, 0));
+
+        public Task<RewindResult> RewindToStartAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult(RewindResult.Ok(RewindKind.ClearHistory, 0, 0));
+
+        public Task LoadSessionMessagesAsync(IReadOnlyList<ApiMessageRecord> messages, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+
+        public Task CompactHistoryAsync(string summary, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 }

@@ -128,6 +128,7 @@ public class JccChatSessionPermissionTests
 
         public int StreamInvokeCount { get; private set; }
         public int RewindInvokeCount { get; private set; }
+        public string? LastSystemPrompt { get; private set; }
 
         public async IAsyncEnumerable<ChatStreamEvent> StreamWithEventsAsync(
             string message,
@@ -160,7 +161,10 @@ public class JccChatSessionPermissionTests
             => Task.FromResult((IReadOnlyList<ApiMessageRecord>)[]);
 
         public Task SetSystemPromptAsync(string systemPrompt, CancellationToken cancellationToken = default)
-            => Task.CompletedTask;
+        {
+            LastSystemPrompt = systemPrompt;
+            return Task.CompletedTask;
+        }
 
         public Task<RewindResult> RewindLastTurnAsync(CancellationToken cancellationToken = default)
         {

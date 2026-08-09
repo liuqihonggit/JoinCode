@@ -238,6 +238,13 @@ internal sealed class JccChatSession : IJccChatSession
     public Task<IReadOnlyList<ApiMessageRecord>> GetMessagesAsync(CancellationToken cancellationToken = default)
         => _chat.GetMessageListAsync(cancellationToken);
 
+    /// <summary>
+    /// 应用系统提示词 — 转发到引擎 IChatService.SetSystemPromptAsync（admin 管道替换静态提示词），
+    /// 对齐 CLI SystemPromptApplyStep 的 --system-prompt 语义。
+    /// </summary>
+    public Task SetSystemPromptAsync(string systemPrompt, CancellationToken cancellationToken = default)
+        => _chat.SetSystemPromptAsync(systemPrompt, cancellationToken);
+
     public Task ClearHistoryAsync(CancellationToken cancellationToken = default)
         => _chat.ClearHistoryAsync(cancellationToken);
 

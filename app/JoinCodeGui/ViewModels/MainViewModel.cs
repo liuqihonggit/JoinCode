@@ -423,6 +423,12 @@ public sealed partial class MainViewModel : ViewModelBase
         OnPropertyChanged(nameof(CanStop));
         try
         {
+            // 应用编辑后的系统提示词（对齐 CLI --system-prompt：经 IChatService.SetSystemPromptAsync）
+            if (!string.IsNullOrWhiteSpace(SystemPrompt))
+            {
+                await _session.SetSystemPromptAsync(SystemPrompt, _sendCts.Token);
+            }
+
             Messages.Add(new ChatUiMessage
             {
                 Role = MessageRole.User,

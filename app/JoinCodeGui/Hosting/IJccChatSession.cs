@@ -58,4 +58,10 @@ public interface IJccChatSession : IAsyncDisposable
     /// auto → 移除持久化键，其它级别 → 写 effortLevel 键）。
     /// </summary>
     Task SetEffortLevelAsync(EffortLevel effortLevel, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 应用系统提示词 — 经 <c>IChatService.SetSystemPromptAsync</c>（admin 管道）替换静态系统提示词，
+    /// 对齐 CLI SystemPromptApplyStep 的 --system-prompt 语义。下次请求即生效。
+    /// </summary>
+    Task SetSystemPromptAsync(string systemPrompt, CancellationToken cancellationToken = default);
 }

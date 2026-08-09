@@ -84,4 +84,10 @@ public interface IJccChatSession : IAsyncDisposable
     /// 设置最大长度并即时生效 — 经共享 ExecutionSettingsProvider 覆盖引擎默认值。
     /// </summary>
     Task SetMaxTokensAsync(int maxTokens, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 获取可用斜杠命令清单 — 由源码生成器从 [ChatCommand] 特性自动提取，
+    /// 供 GUI 命令面板消费。不包含隐藏命令。
+    /// </summary>
+    IReadOnlyList<SlashCommandMetadata> GetAvailableSlashCommands();
 }

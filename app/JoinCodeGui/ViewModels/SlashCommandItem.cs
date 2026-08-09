@@ -42,12 +42,29 @@ public sealed class SlashCommandItem
         new() { Name = "/exit",     Description = "退出程序",                     Usage = "/exit" }
     ];
 
-    /// <summary>按输入前缀过滤命令（如 "/c" 匹配 /clear、/compact、/copy、/config）</summary>
-    public static IReadOnlyList<SlashCommandItem> Filter(string prefix)
+    /// <summary>
+    /// 从 <see cref="SlashCommandMetadata"/> 列表创建 <see cref="SlashCommandItem"/> 列表。
+    /// 由源码生成器从 [ChatCommand] 特性自动提取，替代硬编码 BuiltInCommands。
+    /// </summary>
+    public static IReadOnlyList<SlashCommandItem> FromMetadata(IReadOnlyList<SlashCommandMetadata> commands)
     {
+        return commands
+            .Select(c => new SlashCommandItem
+            {
+                Name = "/" + c.Name,
+                Description = c.Description,
+                Usage = c.Usage
+            })
+            .ToList();
+    }
+
+    /// <summary>按输入前缀过滤命令（如 "/c" 匹配 /clear、/compact、/copy、/config）</summary>
+    public static IReadOnlyList<SlashCommandItem> Filter(string prefix, IReadOnlyList<SlashCommandItem>? commands = null)
+    {
+        var source = commands ?? BuiltInCommands;
         if (string.IsNullOrWhiteSpace(prefix))
-            return BuiltInCommands;
-        return BuiltInCommands
+            return source;
+        return source
             .Where(c => c.Name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
             .ToList();
     }

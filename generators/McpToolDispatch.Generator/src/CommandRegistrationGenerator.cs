@@ -41,6 +41,9 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator
                 VisitNamespaces(childNamespace, chatCommandAttr, results);
             else if (member is INamedTypeSymbol typeSymbol && chatCommandAttr is not null)
             {
+                if (!typeSymbol.Locations.Any(static loc => loc.IsInSource))
+                    continue;
+
                 var attr = typeSymbol.GetAttributes()
                     .FirstOrDefault(a => SymbolEqualityComparer.Default.Equals(a.AttributeClass, chatCommandAttr));
                 if (attr is not null)

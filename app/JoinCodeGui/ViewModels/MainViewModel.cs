@@ -289,6 +289,10 @@ public sealed partial class MainViewModel : ViewModelBase
         NewConversation();
     }
 
+    /// <summary>获取可用斜杠命令清单 — 委托到引擎 session，由源码生成器自动提取</summary>
+    public IReadOnlyList<SlashCommandMetadata> GetAvailableSlashCommands()
+        => _session.GetAvailableSlashCommands();
+
     /// <summary>
     /// 权限确认回调 — 由 View 层注入（弹窗实现），引擎权限待确认时调用。
     /// 未注入时默认拒绝（等价于 Deny），保证无弹窗环境下引擎行为可预期。

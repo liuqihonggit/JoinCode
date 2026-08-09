@@ -107,5 +107,7 @@ internal sealed class PlaceholderChatSession : IJccChatSession
     public Task<RewindResult> RewindLastTurnAsync(CancellationToken cancellationToken = default)
         => Task.FromResult(new RewindResult { Success = true });
 
+    public IReadOnlyList<SlashCommandMetadata> GetAvailableSlashCommands() => [];
+
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 }

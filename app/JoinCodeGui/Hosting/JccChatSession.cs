@@ -59,6 +59,7 @@ internal sealed class JccChatSession : IJccChatSession
         services.AddLogging(b => b.AddConsole());
         services.AddAiWorkflowServices(config);
         services.AddAllPipelines();
+        services.AddSingleton<JoinCode.Abstractions.Interfaces.ISlashCommandCatalog, JoinCode.ChatCommands.GeneratedSlashCommandCatalog>();
 
         var sp = services.BuildServiceProvider();
         var chat = sp.GetRequiredService<IChatService>();
@@ -284,6 +285,18 @@ internal sealed class JccChatSession : IJccChatSession
 
     public Task<RewindResult> RewindLastTurnAsync(CancellationToken cancellationToken = default)
         => _chat.RewindLastTurnAsync(cancellationToken);
+
+    /// <summary>
+    /// 获取可用斜杠命令清单 — 从 DI 解析 <c>ISlashCommandCatalog</c>（源码生成器在 Composition 中生成）。
+    /// 未注册时返回空列表（兜底）。
+    /// </summary>
+    public IReadOnlyList<SlashCommandMetadata> GetAvailableSlashCommands()
+    {
+        var catalog = _services.GetService<ISlashCommandCatalog>();
+        if (catalog is null)
+            return [];
+        return catalog.Commands.Where(c => !c.IsHidden).ToList();
+    }
 
     public async ValueTask DisposeAsync()
     {

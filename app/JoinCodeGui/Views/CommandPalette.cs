@@ -18,7 +18,8 @@ public sealed class CommandPalette : Window
     private readonly IReadOnlyList<SlashCommandItem> _filtered;
 
     /// <param name="prefix">当前输入前缀（如 "/c"），据此过滤命令列表</param>
-    public CommandPalette(string prefix)
+    /// <param name="commands">命令列表（从引擎获取）；为 null 时回退到 BuiltInCommands</param>
+    public CommandPalette(string prefix, IReadOnlyList<SlashCommandItem>? commands = null)
     {
         Title = "斜杠命令";
         Width = 440;
@@ -29,7 +30,7 @@ public sealed class CommandPalette : Window
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         CanResize = false;
 
-        _filtered = SlashCommandItem.Filter(prefix);
+        _filtered = SlashCommandItem.Filter(prefix, commands);
 
         _listBox = new ListBox
         {

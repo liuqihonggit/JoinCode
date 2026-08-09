@@ -420,7 +420,11 @@ public sealed partial class MainWindow : Window
     /// <summary>弹出斜杠命令面板；用户选择后将命令名填入输入框并聚焦</summary>
     private async Task ShowCommandPaletteAsync(MainViewModel vm)
     {
-        var dialog = new CommandPalette("/");
+        var metadata = vm.GetAvailableSlashCommands();
+        var commands = metadata.Count > 0
+            ? SlashCommandItem.FromMetadata(metadata)
+            : null;
+        var dialog = new CommandPalette("/", commands);
         var selected = await dialog.ShowDialog<string?>(this);
         if (selected is not null)
         {

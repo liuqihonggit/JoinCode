@@ -49,7 +49,7 @@ public sealed class CostCommand : ChatCommandBase
         }
 
         var sb = new StringBuilder();
-        sb.Append($"{TerminalColors.Inactive.ToAnsiFg()}");
+        sb.Append($"{TerminalColors.Inactive}");
         sb.AppendLine($"Total cost:            {costDisplay}");
         sb.AppendLine($"Total duration (API):  {DurationFormatter.Format(stats.ApiDuration)}");
         sb.AppendLine($"Total duration (wall): {DurationFormatter.Format(stats.WallDuration)}");

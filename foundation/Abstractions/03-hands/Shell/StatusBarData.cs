@@ -1,4 +1,4 @@
-namespace JoinCode.Cli;
+namespace JoinCode.Abstractions.Shell;
 
 /// <summary>
 /// 状态栏数据 — 对齐 TS StatusBar 组件数据模型
@@ -12,7 +12,7 @@ public sealed class StatusBarData
     public int OutputTokens { get; set; }
     public int ContextWindowSize { get; set; }
     public decimal TotalCostUsd { get; set; }
-    public EffortLevel EffortLevel { get; set; } = EffortLevel.Auto;
+    public JoinCode.Abstractions.LLM.EffortLevel EffortLevel { get; set; } = JoinCode.Abstractions.LLM.EffortLevel.Auto;
     public string? SessionName { get; set; }
     public string? WorktreeSession { get; set; }
     public double? RateLimitUsedPercentage { get; set; }

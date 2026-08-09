@@ -1,9 +1,5 @@
 namespace JoinCode.Cli;
 
-/// <summary>
-/// CLI 交互组件 — TUI 组件的 CLI 简化替代
-/// </summary>
-
 // ─── Selector ───
 
 /// <summary>

@@ -1,4 +1,4 @@
-namespace JoinCode.Cli;
+namespace JoinCode.Abstractions.Shell;
 
 /// <summary>
 /// RGB 颜色值 — 简化版，用于 CLI 模式下的 ANSI 24位颜色输出

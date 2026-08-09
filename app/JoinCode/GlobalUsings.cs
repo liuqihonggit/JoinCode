@@ -75,6 +75,7 @@ global using IO.FileSystem;
 global using Services.Api;
 global using Services.Shell;
 global using JoinCode.ChatCommands;
+global using JoinCode.Abstractions.Shell;
 global using JoinCode.Cli;
 global using JoinCode.Cli.Interaction;
 global using JoinCode.CliCommands;

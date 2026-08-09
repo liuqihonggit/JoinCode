@@ -44,12 +44,19 @@ public sealed partial class MainWindow : Window
         Interval = TimeSpan.FromMilliseconds(100)
     };
 
+    /// <summary>斜杠命令补全防抖计时器 — 30ms 内多次输入/光标变化合并为一次刷新</summary>
+    private readonly Avalonia.Threading.DispatcherTimer _slashDebounceTimer = new()
+    {
+        Interval = TimeSpan.FromMilliseconds(30)
+    };
+
     public MainWindow()
     {
         InitializeComponent();
         _errorToastTimer.Tick += OnErrorToastTimerTick;
         _statusBlinkTimer.Tick += OnStatusBlinkTick;
         _toolTimer.Tick += OnToolTimerTick;
+        _slashDebounceTimer.Tick += OnSlashDebounceTick;
         Closed += OnWindowClosed;
     }
 
@@ -61,6 +68,8 @@ public sealed partial class MainWindow : Window
         _statusBlinkTimer.Tick -= OnStatusBlinkTick;
         _toolTimer.Stop();
         _toolTimer.Tick -= OnToolTimerTick;
+        _slashDebounceTimer.Stop();
+        _slashDebounceTimer.Tick -= OnSlashDebounceTick;
         _toastCts?.Cancel();
         _errorToastFadeCts?.Cancel();
         Closed -= OnWindowClosed;
@@ -179,6 +188,27 @@ public sealed partial class MainWindow : Window
             else
                 _toolTimer.Stop();
         }
+        else if (e.PropertyName == nameof(MainViewModel.InputText))
+        {
+            StartSlashDebounce();
+        }
+    }
+
+    /// <summary>启动斜杠补全防抖（30ms 后合并刷新）</summary>
+    private void StartSlashDebounce()
+    {
+        _slashDebounceTimer.Stop();
+        _slashDebounceTimer.Start();
+    }
+
+    /// <summary>防抖到期：同步光标位置并刷新斜杠建议</summary>
+    private void OnSlashDebounceTick(object? sender, EventArgs e)
+    {
+        _slashDebounceTimer.Stop();
+        if (_vm is null || InputTextBox is null)
+            return;
+        _vm.InputCaretIndex = InputTextBox.CaretIndex;
+        _vm.RefreshSlashSuggestions();
     }
 
     /// <summary>根据当前 StatusKind 启停状态点闪烁：Busy 闪烁，Ready/Error 停止并恢复不透明</summary>
@@ -348,7 +378,7 @@ public sealed partial class MainWindow : Window
                 vm.SlashNavigate(-1);
                 return;
             }
-            if (e.Key == Key.Enter)
+            if (e.Key == Key.Enter || e.Key == Key.Tab)
             {
                 e.Handled = true;
                 vm.CompleteSlashSuggestion();
@@ -358,7 +388,7 @@ public sealed partial class MainWindow : Window
             if (e.Key == Key.Escape)
             {
                 e.Handled = true;
-                vm.InputText = string.Empty;
+                vm.CloseSlashPopup();
                 return;
             }
         }
@@ -391,6 +421,10 @@ public sealed partial class MainWindow : Window
         {
             e.Handled = true;
             vm.NavigateHistoryCommand.Execute(1);
+        }
+        else if (e.Key == Key.Left || e.Key == Key.Right)
+        {
+            StartSlashDebounce();
         }
     }
 

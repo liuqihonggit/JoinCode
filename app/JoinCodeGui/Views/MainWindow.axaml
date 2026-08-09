@@ -142,7 +142,7 @@
       <StackPanel Spacing="6">
         <Grid ColumnDefinitions="*,Auto,Auto">
           <TextBox x:Name="InputTextBox" Text="{Binding InputText}" Watermark="输入消息，Enter 发送 / Shift+Enter 换行…"
-                   IsEnabled="{Binding !IsBusy}" AcceptsReturn="False" MaxLines="5"
+                   IsEnabled="{Binding !IsBusy}" AcceptsReturn="True" MaxLines="5"
                    TextWrapping="Wrap"
                    KeyDown="OnInputKeyDown" />
           <TextBlock Grid.Column="1" Foreground="{Binding IsInputTooLong, Converter={StaticResource BoolToWarnBrush}}"
@@ -161,14 +161,14 @@
           </StackPanel>
         </Grid>
 
-        <!-- 斜杠命令内联补全下拉（输入 / 后实时过滤，↑↓ 选择 Enter 补全） -->
+        <!-- 斜杠命令无边悬浮下拉面板（输入 / 后实时过滤，↑↓ 选择 Enter/Tab 补全） -->
         <Popup x:Name="SlashPopup"
                PlacementTarget="{Binding ElementName=InputTextBox}"
-               Placement="Top" IsOpen="{Binding IsSlashPopupOpen}"
-               HorizontalOffset="-2" VerticalOffset="-4" IsLightDismissEnabled="True">
+               Placement="Bottom" IsOpen="{Binding IsSlashPopupOpen}"
+               VerticalOffset="4" IsLightDismissEnabled="True">
           <Border MinWidth="380" MaxHeight="320" CornerRadius="6" Padding="4"
                   Background="{DynamicResource GuiWindowBackground}"
-                  BorderBrush="{DynamicResource GuiDivider}" BorderThickness="1">
+                  BoxShadow="0 4 12 0 #80000000">
             <ListBox x:Name="SlashListBox"
                      ItemsSource="{Binding SlashSuggestions}"
                      SelectedIndex="{Binding SlashSelectedIndex}"

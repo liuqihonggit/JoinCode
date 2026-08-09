@@ -25,6 +25,14 @@ public class MainViewModelTests
         null,
         new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"));
 
+    /// <summary>设置斜杠输入并手动触发刷新（模拟 View 层防抖后调用）</summary>
+    private static void SetSlashInput(MainViewModel vm, string text)
+    {
+        vm.InputText = text;
+        vm.InputCaretIndex = text.Length;
+        vm.RefreshSlashSuggestions();
+    }
+
     [Fact]
     public async Task Send_WithValidInput_BuildsUserAndAssistantMessages()
     {
@@ -455,7 +463,7 @@ public class MainViewModelTests
     {
         var vm = CreateVm();
 
-        vm.InputText = "/";
+        SetSlashInput(vm, "/");
 
         vm.IsSlashPopupOpen.Should().BeTrue();
         vm.SlashSuggestions.Should().NotBeEmpty();
@@ -467,7 +475,7 @@ public class MainViewModelTests
     {
         var vm = CreateVm();
 
-        vm.InputText = "/c";
+        SetSlashInput(vm, "/c");
 
         vm.IsSlashPopupOpen.Should().BeTrue();
         vm.SlashSuggestions.Should().NotBeEmpty();
@@ -479,7 +487,7 @@ public class MainViewModelTests
     {
         var vm = CreateVm();
 
-        vm.InputText = "/zzz-not-a-command";
+        SetSlashInput(vm, "/zzz-not-a-command");
 
         vm.IsSlashPopupOpen.Should().BeFalse();
         vm.SlashSuggestions.Should().BeEmpty();
@@ -489,9 +497,9 @@ public class MainViewModelTests
     public void NonSlashInput_ClosesPopup()
     {
         var vm = CreateVm();
-        vm.InputText = "/";
+        SetSlashInput(vm, "/");
 
-        vm.InputText = "hello";
+        SetSlashInput(vm, "hello");
 
         vm.IsSlashPopupOpen.Should().BeFalse();
         vm.SlashSuggestions.Should().BeEmpty();
@@ -501,7 +509,7 @@ public class MainViewModelTests
     public void CompleteSlashSuggestion_SetsInputToCommandName()
     {
         var vm = CreateVm();
-        vm.InputText = "/cle";
+        SetSlashInput(vm, "/cle");
 
         vm.CompleteSlashSuggestion();
 
@@ -513,7 +521,7 @@ public class MainViewModelTests
     public void SlashNavigate_MovesSelection()
     {
         var vm = CreateVm();
-        vm.InputText = "/c";
+        SetSlashInput(vm, "/c");
 
         var first = vm.SlashSelectedIndex;
         vm.SlashNavigate(1);

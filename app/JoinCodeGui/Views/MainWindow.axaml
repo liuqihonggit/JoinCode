@@ -182,50 +182,11 @@
             </StackPanel>
             <ScrollViewer x:Name="MessageScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
                           ScrollChanged="OnMessageScrollChanged">
-              <ItemsControl ItemsSource="{Binding FilteredMessages}" Margin="10,6">
-                <ItemsControl.ItemTemplate>
-                  <DataTemplate x:DataType="vm:ChatUiMessage">
-                    <StackPanel Margin="0,4">
-                      <StackPanel Orientation="Horizontal" Spacing="8">
-                        <SelectableTextBlock Text="{Binding RoleLabel}" FontWeight="SemiBold" SelectionBrush="#6680c0"
-                                   Foreground="{Binding IsUser, Converter={StaticResource BoolToRoleBrush}}" />
-                        <TextBlock Text="{Binding KindLabel}" FontSize="11" Foreground="{DynamicResource GuiThinkingLabel}"
-                                   IsVisible="{Binding IsThinking}" />
-                        <TextBlock Text="{Binding KindLabel}" FontSize="11" Foreground="{DynamicResource GuiToolLabel}"
-                                   IsVisible="{Binding IsToolCall}" />
-                        <SelectableTextBlock Text="{Binding Timestamp, StringFormat='{}{0:HH:mm:ss}'}" SelectionBrush="#6680c0"
-                                   Foreground="{DynamicResource GuiMutedText}" FontSize="11" />
-                        <TextBlock Text="●" Foreground="{DynamicResource GuiBusyText}" FontSize="10"
-                                   IsVisible="{Binding IsStreaming}" ToolTip.Tip="输出中" />
-                        <Button Content="⧉" FontSize="10" Padding="3,1" Background="Transparent"
-                                BorderThickness="0" Foreground="{DynamicResource GuiMutedText}"
-                                Command="{Binding DataContext.CopyMessageCommand, ElementName=Root}"
-                                CommandParameter="{Binding}" />
-                        <Button Content="✕" FontSize="10" Padding="3,1" Background="Transparent"
-                                BorderThickness="0" Foreground="{DynamicResource GuiErrorText}"
-                                Tag="{Binding}"
-                                Click="OnRemoveClick" />
-                      </StackPanel>
-                      <md:MarkdownView Markdown="{Binding DisplayText}"
-                                       BaseFontSize="{Binding DataContext.FontSize, ElementName=Root}"
-                                       IsVisible="{Binding ShowBody}"
-                                       Opacity="{Binding IsThinking, Converter={StaticResource BoolToThinkingOpacity}}" />
-                      <StackPanel IsVisible="{Binding IsToolCall}" Spacing="2">
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                          <SelectableTextBlock Text="{Binding ToolName}" SelectionBrush="#6680c0" FontWeight="SemiBold" Foreground="{DynamicResource GuiToolLabel}" FontSize="12" />
-                          <TextBlock Text="{Binding ToolElapsedText}" Foreground="{DynamicResource GuiBusyText}" FontSize="11"
-                                     IsVisible="{Binding IsToolRunning}" />
-                        </StackPanel>
-                        <SelectableTextBlock Text="{Binding ToolArguments}" SelectionBrush="#6680c0" Foreground="{DynamicResource GuiToolArgument}" FontSize="11" FontFamily="Consolas"
-                                   TextWrapping="Wrap" IsVisible="{Binding IsToolCallStart}" />
-                        <SelectableTextBlock Text="{Binding ToolResultText}" SelectionBrush="#6680c0" Foreground="{DynamicResource GuiToolResult}" FontSize="11"
-                                   TextWrapping="Wrap" IsVisible="{Binding IsToolResultMessage}" />
-                        <md:DiffViewer Hunks="{Binding StructuredPatch}" IsVisible="{Binding HasDiff}" Margin="0,4,0,0" />
-                      </StackPanel>
-                    </StackPanel>
-                  </DataTemplate>
-                </ItemsControl.ItemTemplate>
-              </ItemsControl>
+              <TextBox Text="{Binding AllMessagesText}" IsReadOnly="True" AcceptsReturn="True"
+                       TextWrapping="Wrap" BorderThickness="0" Background="Transparent"
+                       Padding="10,6" FontFamily="Consolas" FontSize="13"
+                       ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                       ScrollViewer.HorizontalScrollBarVisibility="Disabled" />
             </ScrollViewer>
             <Border VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,10" CornerRadius="12"
                     Padding="14,6" Background="#4a9eff" IsVisible="{Binding HasCopied}">

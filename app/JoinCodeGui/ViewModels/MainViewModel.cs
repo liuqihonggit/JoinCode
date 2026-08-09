@@ -165,8 +165,32 @@ public sealed partial class MainViewModel : ViewModelBase
         ? Messages.Where(m => (m.Content ?? string.Empty).Contains(SearchText, StringComparison.OrdinalIgnoreCase))
         : Messages;
 
+    /// <summary>全部消息的终端式纯文本（角色标签+时间戳+内容），供 TextBox 跨行选择</summary>
+    public string AllMessagesText
+    {
+        get
+        {
+            if (Messages.Count == 0)
+                return string.Empty;
+            var sb = new System.Text.StringBuilder();
+            foreach (var msg in FilteredMessages)
+            {
+                var text = msg.CopyAllText;
+                if (text.Length > 0)
+                {
+                    sb.AppendLine(text);
+                    sb.AppendLine();
+                }
+            }
+            return sb.Length == 0 ? string.Empty : sb.ToString(0, sb.Length - 2);
+        }
+    }
+
     partial void OnSearchTextChanged(string value)
-        => OnPropertyChanged(nameof(FilteredMessages));
+    {
+        OnPropertyChanged(nameof(FilteredMessages));
+        OnPropertyChanged(nameof(AllMessagesText));
+    }
 
     /// <summary>模型下拉选项缓存 — session 切换时失效重建，避免每次访问重建数组导致 ComboBox 选中项引用失效闪现</summary>
     private IReadOnlyList<ModelOptionItem>? _modelOptionsCache;
@@ -582,6 +606,20 @@ public sealed partial class MainViewModel : ViewModelBase
         OnPropertyChanged(nameof(TotalChars));
         OnPropertyChanged(nameof(EstimatedTokens));
         OnPropertyChanged(nameof(FilteredMessages));
+        OnPropertyChanged(nameof(AllMessagesText));
+        if (e.NewItems is not null)
+            foreach (ChatUiMessage m in e.NewItems)
+                m.PropertyChanged += OnMessagePropertyChanged;
+        if (e.OldItems is not null)
+            foreach (ChatUiMessage m in e.OldItems)
+                m.PropertyChanged -= OnMessagePropertyChanged;
+    }
+
+    /// <summary>单条消息属性变化（流式输出 Content 变化）时刷新 AllMessagesText</summary>
+    private void OnMessagePropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(ChatUiMessage.Content) or nameof(ChatUiMessage.ToolResultText))
+            OnPropertyChanged(nameof(AllMessagesText));
     }
 
     /// <summary>输入字符数上限（超过即警示）</summary>

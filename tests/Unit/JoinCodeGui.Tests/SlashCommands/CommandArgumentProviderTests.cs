@@ -19,7 +19,7 @@ public class CommandArgumentProviderTests
         var session = CreateSession();
         var args = CommandArgumentProvider.GetArguments("/model", "", session);
         args.Should().NotBeEmpty();
-        args.All(a => a.Name == "deepseek-chat" || a.Name == "deepseek-reasoner").Should().BeTrue();
+        args.All(a => a.Name == "deepseek-v4-flash" || a.Name == "deepseek-v4-pro").Should().BeTrue();
     }
 
     [Fact]

@@ -828,6 +828,32 @@ Get-ChildItem "D:\project\w1\tests\MockServers\MockServer.Core\dumps\OpenAI" -Fi
 - **放弃条件**：必须用户明确同意，AI不得自行放弃
 - **验证**：每次重构后编译+测试，确保不破坏现有功能
 
+### 规则7：文件驱动界面 — 配置文件是界面数据的唯一数据源
+
+- **核心原则**：任何界面下拉/列表/表格的数据源必须绑定配置文件（如 `models.json`、`settings.json`），禁止硬编码枚举遍历或固定列表。改配置文件 → 自动驱动界面更新，无需改代码重新编译。
+- **适用范围**：
+  1. 供应商下拉 → 绑定 `ModelConfigLoader.Config.Providers`（`models.json` 的 `providers` 节点）
+  2. 模型下拉 → 绑定 `IJccChatSession.AvailableModels`（从 `ModelConfigLoader` 按当前供应商读取）
+  3. 工具补全 → 绑定 `IJccChatSession.GetAvailableToolsAsync()`（从引擎 `IToolRegistry` 读取）
+  4. 斜杠命令 → 绑定 `IJccChatSession.GetAvailableSlashCommands()`（从源码生成器 `[ChatCommand]` 提取）
+  5. 任何未来新增的界面列表数据 → 必须有对应配置文件或引擎数据源，禁止硬编码
+- **实现模式**：
+  ```
+  配置文件 (models.json / settings.json)
+    ↓ ModelConfigLoader / IConfigChangeNotifier 加载
+  Abstractions 层门面 (IProviderDefinitionRegistry / ModelConfigLoader)
+    ↓ IJccChatSession 接口暴露
+  GUI ViewModel 属性 (ConnectionOptions / ModelOptions)
+    ↓ OnPropertyChanged 驱动
+  XAML ComboBox / ListBox 双向绑定
+  ```
+- **禁止行为**：
+  - **⛔ 禁止硬编码枚举遍历构建下拉列表** — 如 `Enum.GetValues<ProviderKind>()` 填充 ComboBox，改枚举要重新编译
+  - **⛔ 禁止在 ViewModel 中写固定列表** — 如 `new[] { "openai", "deepseek" }`，改列表要改代码
+  - **✅ 正确做法**：通过 `IJccChatSession` 接口从配置读取，配置文件是唯一数据源
+- **热重载**：配置文件变更时通过 `IConfigChangeNotifier` 触发 `OnPropertyChanged(nameof(XxxOptions))` 驱动界面刷新（见规则3双变量切换模式）
+- **测试桩**：测试 mock session 实现 `AvailableProviders` 返回固定列表（如 `["fake"]`），不依赖真实配置文件
+
 ## ⚠️ 反例清单（踩过的坑，禁止再犯）
 
 ### 反例1：不优先查阅 AGENTS.md 已有文档

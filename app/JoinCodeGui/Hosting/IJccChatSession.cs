@@ -44,8 +44,8 @@ public interface IJccChatSession : IAsyncDisposable
     /// <summary>当前启用的模型 ID</summary>
     string CurrentModelId { get; }
 
-    /// <summary>当前 Provider 可选真实模型 ID 列表（来自共享配置 ModelConfigLoader）</summary>
-    IReadOnlyList<string> AvailableModels { get; }
+    /// <summary>配置文件 models.json 驱动的供应商→模型列表映射（改 config 自动驱动下拉）</summary>
+    IReadOnlyDictionary<string, IReadOnlyList<string>> ProviderModelMap { get; }
 
     /// <summary>切换当前模型（回写共享 WorkflowConfig.Provider.ModelId，下次请求引擎即生效）</summary>
     Task SetModelAsync(string modelId, CancellationToken cancellationToken = default);

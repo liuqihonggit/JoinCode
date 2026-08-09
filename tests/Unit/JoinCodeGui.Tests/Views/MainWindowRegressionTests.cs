@@ -175,7 +175,11 @@ public sealed class MainWindowRegressionTests
         public bool IsReady => true;
         public string CurrentProvider => "fake";
         public string CurrentModelId => "fake-model";
-        public IReadOnlyList<string> AvailableModels => ["fake-model"];
+        public IReadOnlyDictionary<string, IReadOnlyList<string>> ProviderModelMap { get; }
+            = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["fake"] = ["fake-model"]
+            };
         public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
         public async IAsyncEnumerable<ChatStreamEvent> StreamAsync(string message, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
         {

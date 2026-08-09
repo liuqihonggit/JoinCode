@@ -83,27 +83,17 @@ internal sealed class JccChatSession : IJccChatSession
     /// <summary>当前启用的模型 ID</summary>
     public string CurrentModelId => _config.Provider.ModelId;
 
-    /// <summary>
-    /// 当前 Provider 可选真实模型 ID 列表（绑定共享 ModelConfigLoader）。
-    /// 对齐 CLI <c>ModelCatalog.EnsureCurrentModelInList</c>：即使当前配置的模型
-    /// 不在内置 models.json（如 OpenAI 兼容的自定义 endpoint），也追加到列表，
-    /// 保证下拉框默认选中当前模型，切换前不触发 404。
-    /// </summary>
-    public IReadOnlyList<string> AvailableModels
+    /// <summary>配置文件 models.json 驱动的供应商→模型列表映射（改 config 自动驱动下拉）</summary>
+    public IReadOnlyDictionary<string, IReadOnlyList<string>> ProviderModelMap { get; } = BuildProviderModelMap();
+
+    private static IReadOnlyDictionary<string, IReadOnlyList<string>> BuildProviderModelMap()
     {
-        get
+        var map = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var kvp in ModelConfigLoader.Config.Providers)
         {
-            var catalog = ModelConfigLoader.GetModels(_config.Provider.Provider)
-                .Select(m => m.Id)
-                .ToList();
-            var current = _config.Provider.ModelId;
-            if (!string.IsNullOrWhiteSpace(current)
-                && catalog.All(id => !string.Equals(id, current, StringComparison.OrdinalIgnoreCase)))
-            {
-                catalog.Add(current);
-            }
-            return catalog;
+            map[kvp.Key] = kvp.Value.Models.Select(m => m.Id).ToArray();
         }
+        return map;
     }
 
     /// <summary>

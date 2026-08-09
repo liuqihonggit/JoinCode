@@ -183,15 +183,26 @@ public sealed partial class MainViewModel : ViewModelBase
         }
     }
 
-    /// <summary>重建模型选项缓存 — 按"供应商:模型ID"格式构建；Mock 会话供应商显示为 Mock</summary>
+    /// <summary>重建模型选项缓存 — 从 ProviderModelMap 取选中供应商的模型列表；当前模型不在 catalog 时追加</summary>
     private void RebuildModelOptionsCache()
     {
-        var provider = _session.CurrentProvider;
         var isMock = _session is Hosting.PlaceholderChatSession;
+        var provider = isMock
+            ? _session.CurrentProvider
+            : (SelectedConnection?.Id ?? _session.CurrentProvider);
         var providerDisplay = isMock
             ? "Mock"
             : (ProviderKindExtensions.FromValue(provider)?.ToString() ?? provider);
-        var source = _session.AvailableModels;
+        var map = _session.ProviderModelMap;
+        var source = map.TryGetValue(provider, out var models) && models is not null
+            ? models.ToList()
+            : new List<string>();
+        var current = _session.CurrentModelId;
+        if (!string.IsNullOrWhiteSpace(current)
+            && source.All(id => !string.Equals(id, current, StringComparison.OrdinalIgnoreCase)))
+        {
+            source.Add(current);
+        }
         var items = new ModelOptionItem[source.Count];
         for (var i = 0; i < source.Count; i++)
         {
@@ -298,7 +309,11 @@ public sealed partial class MainViewModel : ViewModelBase
         _selectedModel = _session.CurrentModelId;
         _selectedModelOption = ModelOptions.FirstOrDefault(m => m.Id == _session.CurrentModelId);
         _selectedEffort = _session.EffortLevel.ToValue();
-        _selectedConnection = session is null ? MockConnection : BuildRealConnection(session);
+        _selectedConnection = session is null
+            ? MockConnection
+            : ConnectionOptions.FirstOrDefault(c => !c.IsMock && c.Id == session.CurrentProvider)
+              ?? ConnectionOptions.FirstOrDefault(c => !c.IsMock)
+              ?? MockConnection;
         Messages.CollectionChanged += OnMessagesChanged;
         LoadPersistedSessions();
         NewConversation();
@@ -322,7 +337,9 @@ public sealed partial class MainViewModel : ViewModelBase
         SelectedModel = _session.CurrentModelId;
         SelectedModelOption = ModelOptions.FirstOrDefault(m => m.Id == _session.CurrentModelId);
         SelectedEffort = _session.EffortLevel.ToValue();
-        SelectedConnection = BuildRealConnection(session);
+        SelectedConnection = ConnectionOptions.FirstOrDefault(c => c.Id == session.CurrentProvider)
+            ?? ConnectionOptions.FirstOrDefault(c => !c.IsMock)
+            ?? MockConnection;
 
         // 清空延迟构建的斜杠命令缓存，改用真实引擎的命令清单
         _slashCommandCache = null;
@@ -628,28 +645,23 @@ public sealed partial class MainViewModel : ViewModelBase
         IsMock = true
     };
 
-    /// <summary>真实供应商连接候选（由注入会话的 CurrentProvider 派生展示文本）</summary>
-    private static ConnectionOptionItem BuildRealConnection(IJccChatSession session)
-    {
-        var provider = session.CurrentProvider;
-        var display = ProviderKindExtensions.FromValue(provider)?.ToString() ?? provider;
-        return new ConnectionOptionItem
-        {
-            Id = provider,
-            DisplayText = $"{display}（真实）",
-            IsMock = false
-        };
-    }
-
-    /// <summary>连接下拉候选（Mock 引擎 + 真实供应商；无真实会话时仅展示 Mock）</summary>
+    /// <summary>连接下拉候选 — Mock 引擎 + 配置文件驱动的全部供应商（改 config 自动更新）</summary>
     public IReadOnlyList<ConnectionOptionItem> ConnectionOptions
     {
         get
         {
-            var options = new List<ConnectionOptionItem> { MockConnection };
-            if (_realSession is not null)
-                options.Add(BuildRealConnection(_realSession));
-            return options;
+            var list = new List<ConnectionOptionItem> { MockConnection };
+            foreach (var provider in _session.ProviderModelMap.Keys)
+            {
+                var display = ProviderKindExtensions.FromValue(provider)?.ToString() ?? provider;
+                list.Add(new ConnectionOptionItem
+                {
+                    Id = provider,
+                    DisplayText = $"{display}（真实）",
+                    IsMock = false
+                });
+            }
+            return list;
         }
     }
 
@@ -667,7 +679,8 @@ public sealed partial class MainViewModel : ViewModelBase
 
         var wantMock = value.IsMock;
         var isMock = _session is PlaceholderChatSession;
-        if (wantMock == isMock)
+
+        if (wantMock && isMock)
             return;
 
         if (wantMock)
@@ -678,7 +691,8 @@ public sealed partial class MainViewModel : ViewModelBase
         }
         else if (_realSession is not null)
         {
-            _session = _realSession;
+            if (isMock)
+                _session = _realSession;
             StatusText = $"已连接真实引擎 {value.DisplayText}";
         }
         else
@@ -689,8 +703,9 @@ public sealed partial class MainViewModel : ViewModelBase
         _modelOptionsCache = null;
         OnPropertyChanged(nameof(ModelOptions));
         OnPropertyChanged(nameof(IsMockConnection));
-        SelectedModel = _session.CurrentModelId;
-        SelectedModelOption = ModelOptions.FirstOrDefault(m => m.Id == _session.CurrentModelId);
+        SelectedModelOption = ModelOptions.FirstOrDefault();
+        if (SelectedModelOption is not null)
+            SelectedModel = SelectedModelOption.Id;
         SelectedEffort = _session.EffortLevel.ToValue();
     }
 

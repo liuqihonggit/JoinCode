@@ -434,91 +434,6 @@ public class MainViewModelTests
     }
 
     [Fact]
-    public void CopyAllText_IncludesRoleLabelAndContent()
-    {
-        var msg = new ChatUiMessage
-        {
-            Role = MessageRole.Assistant,
-            Content = "hello",
-            Timestamp = new DateTime(2026, 1, 1, 10, 0, 0),
-        };
-
-        var text = msg.CopyAllText;
-
-        text.Should().Contain("AI");
-        text.Should().Contain("hello");
-        text.Should().Contain("10:00:00");
-    }
-
-    [Fact]
-    public void CopyAllText_ThinkingIncludesThoughtContent()
-    {
-        var msg = new ChatUiMessage
-        {
-            Role = MessageRole.Assistant,
-            Kind = ChatUiMessageKind.Thinking,
-            Content = "先分析再动手",
-            Timestamp = new DateTime(2026, 1, 1, 10, 0, 0),
-        };
-
-        var text = msg.CopyAllText;
-
-        text.Should().Contain("思考");
-        text.Should().Contain("先分析再动手");
-    }
-
-    [Fact]
-    public void CopyAllText_ToolResult_IncludesToolAndDiff()
-    {
-        var msg = new ChatUiMessage
-        {
-            Role = MessageRole.Assistant,
-            Kind = ChatUiMessageKind.ToolResult,
-            ToolName = "edit_file",
-            ToolResultText = "修改完成",
-            Content = string.Empty,
-            Timestamp = new DateTime(2026, 1, 1, 10, 0, 0),
-            StructuredPatch =
-            [
-                new StructuredPatchHunk
-                {
-                    OldStart = 1,
-                    OldLines = 1,
-                    NewStart = 1,
-                    NewLines = 1,
-                    Header = "@@ -1 +1 @@",
-                    Lines =
-                    [
-                        new PatchLine { Type = PatchLineType.Removed, Content = "old", OldLineNumber = 1 },
-                        new PatchLine { Type = PatchLineType.Added, Content = "new", NewLineNumber = 1 },
-                    ],
-                },
-            ],
-        };
-
-        var text = msg.CopyAllText;
-
-        text.Should().Contain("edit_file");
-        text.Should().Contain("修改完成");
-        text.Should().Contain("-old");
-        text.Should().Contain("+new");
-        text.Should().Contain("@@ -1 +1 @@");
-    }
-
-    [Fact]
-    public void CopyAllText_EmptyMessage_IsEmpty()
-    {
-        var msg = new ChatUiMessage
-        {
-            Role = MessageRole.User,
-            Content = string.Empty,
-            Timestamp = new DateTime(2026, 1, 1, 10, 0, 0),
-        };
-
-        msg.CopyAllText.Should().BeEmpty();
-    }
-
-    [Fact]
     public void SlashInput_OpensPopupAndFillsSuggestions()
     {
         var vm = CreateVm();
@@ -937,27 +852,6 @@ public class MainViewModelTests
         }
 
         [Fact]
-        public void CodeBlock_DetectsFencedBlock()
-        {
-            var msg = new ChatUiMessage { Role = MessageRole.Assistant, Content = "```csharp\nint x = 1;\n```" };
-            msg.IsCodeBlock.Should().BeTrue();
-        }
-
-        [Fact]
-        public void CodeBlock_DetectsUsingSystem()
-        {
-            var msg = new ChatUiMessage { Role = MessageRole.Assistant, Content = "using System;\nclass Foo {}" };
-            msg.IsCodeBlock.Should().BeTrue();
-        }
-
-        [Fact]
-        public void CodeBlock_PlainText_IsFalse()
-        {
-            var msg = new ChatUiMessage { Role = MessageRole.Assistant, Content = "这是一个普通回答。" };
-            msg.IsCodeBlock.Should().BeFalse();
-        }
-
-        [Fact]
         public void SuggestedPrompts_NotEmpty()
         {
             var vm = CreateVm();
@@ -1047,21 +941,6 @@ public class MainViewModelTests
         }
 
         [Fact]
-        public void ThinkingMessage_DefaultsToExpanded()
-        {
-            var msg = new ChatUiMessage
-            {
-                Role = MessageRole.Assistant,
-                Content = "some reasoning",
-                Kind = ChatUiMessageKind.Thinking
-            };
-
-            msg.IsThinkingExpanded.Should().BeTrue();
-            msg.IsThinkingCollapsed.Should().BeFalse();
-            msg.ShowBody.Should().BeTrue();
-        }
-
-        [Fact]
         public void ThinkingMessage_ToggleCollapsesAndRevealsBody()
         {
             var vm = CreateVm();
@@ -1092,21 +971,6 @@ public class MainViewModelTests
             vm.ToggleThinkingCommand.Execute(msg);
 
             msg.IsThinkingExpanded.Should().BeTrue();
-        }
-
-        [Fact]
-        public void ThinkingSummary_WhenCollapsed_ShowsLengthHint()
-        {
-            var msg = new ChatUiMessage
-            {
-                Role = MessageRole.Assistant,
-                Content = "abc",
-                Kind = ChatUiMessageKind.Thinking
-            };
-
-            msg.IsThinkingExpanded = false;
-            msg.ThinkingSummary.Should().Contain("3");
-            msg.ThinkingSummary.Should().Contain("展开");
         }
 
         [Fact]

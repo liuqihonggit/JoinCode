@@ -29,10 +29,27 @@ public sealed partial class MainWindow : Window
 
     private int _errorToastRemainingMs;
 
+    /// <summary>状态点闪烁计时器 — Busy 态每 500ms 切换透明度，提示用户引擎仍在工作</summary>
+    private readonly Avalonia.Threading.DispatcherTimer _statusBlinkTimer = new()
+    {
+        Interval = TimeSpan.FromMilliseconds(500)
+    };
+
+    /// <summary>闪烁亮暗切换标志（true=亮，false=暗）</summary>
+    private bool _statusBlinkBright = true;
+
+    /// <summary>工具调用倒计时刷新计时器 — 每 100ms 更新正在运行的工具的已运行时长</summary>
+    private readonly Avalonia.Threading.DispatcherTimer _toolTimer = new()
+    {
+        Interval = TimeSpan.FromMilliseconds(100)
+    };
+
     public MainWindow()
     {
         InitializeComponent();
         _errorToastTimer.Tick += OnErrorToastTimerTick;
+        _statusBlinkTimer.Tick += OnStatusBlinkTick;
+        _toolTimer.Tick += OnToolTimerTick;
         Closed += OnWindowClosed;
     }
 
@@ -40,6 +57,10 @@ public sealed partial class MainWindow : Window
     {
         _errorToastTimer.Stop();
         _errorToastTimer.Tick -= OnErrorToastTimerTick;
+        _statusBlinkTimer.Stop();
+        _statusBlinkTimer.Tick -= OnStatusBlinkTick;
+        _toolTimer.Stop();
+        _toolTimer.Tick -= OnToolTimerTick;
         _toastCts?.Cancel();
         _errorToastFadeCts?.Cancel();
         Closed -= OnWindowClosed;
@@ -140,6 +161,59 @@ public sealed partial class MainWindow : Window
             Clipboard?.SetTextAsync(_vm.ErrorToastCopy);
             _vm.ClearErrorToastCopy();
             ScheduleCopyToastHide();
+        }
+        else if (e.PropertyName == nameof(MainViewModel.StatusText))
+        {
+            UpdateStatusBlink();
+        }
+        else if (e.PropertyName == nameof(MainViewModel.IsBusy))
+        {
+            if (_vm!.IsBusy)
+                _toolTimer.Start();
+            else
+                _toolTimer.Stop();
+        }
+    }
+
+    /// <summary>根据当前 StatusKind 启停状态点闪烁：Busy 闪烁，Ready/Error 停止并恢复不透明</summary>
+    private void UpdateStatusBlink()
+    {
+        if (_vm is null || StatusDot is null)
+            return;
+        if (_vm.StatusKind == ViewModels.StatusKind.Busy)
+        {
+            if (!_statusBlinkTimer.IsEnabled)
+            {
+                _statusBlinkBright = true;
+                StatusDot.Opacity = 1;
+                _statusBlinkTimer.Start();
+            }
+        }
+        else
+        {
+            _statusBlinkTimer.Stop();
+            StatusDot.Opacity = 1;
+        }
+    }
+
+    /// <summary>状态点闪烁 tick：亮暗交替（1.0 ↔ 0.3），让用户感知引擎仍在工作</summary>
+    private void OnStatusBlinkTick(object? sender, EventArgs e)
+    {
+        if (StatusDot is null)
+            return;
+        _statusBlinkBright = !_statusBlinkBright;
+        StatusDot.Opacity = _statusBlinkBright ? 1.0 : 0.3;
+    }
+
+    /// <summary>工具倒计时 tick：刷新所有正在运行工具消息的已运行时长</summary>
+    private void OnToolTimerTick(object? sender, EventArgs e)
+    {
+        if (_vm is null)
+            return;
+        foreach (var m in _vm.Messages)
+        {
+            if (m.IsToolRunning)
+                m.RefreshElapsed();
         }
     }
 
@@ -252,6 +326,12 @@ public sealed partial class MainWindow : Window
     {
         if (DataContext is not MainViewModel vm)
             return;
+        if (e.Key == Key.Oem2 && string.IsNullOrEmpty(vm.InputText) && !vm.IsBusy)
+        {
+            e.Handled = true;
+            _ = ShowCommandPaletteAsync(vm);
+            return;
+        }
         if (e.Key == Key.Enter)
         {
             var isShift = (e.KeyModifiers & KeyModifiers.Shift) != 0;
@@ -333,6 +413,22 @@ public sealed partial class MainWindow : Window
             {
                 e.Handled = true;
                 session.IsRenaming = false;
+            }
+        }
+    }
+
+    /// <summary>弹出斜杠命令面板；用户选择后将命令名填入输入框并聚焦</summary>
+    private async Task ShowCommandPaletteAsync(MainViewModel vm)
+    {
+        var dialog = new CommandPalette("/");
+        var selected = await dialog.ShowDialog<string?>(this);
+        if (selected is not null)
+        {
+            vm.InputText = selected + " ";
+            if (InputTextBox is not null)
+            {
+                InputTextBox.Focus();
+                InputTextBox.CaretIndex = vm.InputText.Length;
             }
         }
     }

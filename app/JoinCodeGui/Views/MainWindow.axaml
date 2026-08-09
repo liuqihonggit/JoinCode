@@ -102,7 +102,7 @@
       <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="10">
         <ToggleButton Content="🌙" Command="{Binding ToggleThemeCommand}" ToolTip.Tip="切换深浅主题" />
         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-          <TextBlock Text="●" FontSize="12" Foreground="{Binding StatusKind, Converter={StaticResource StatusToBrush}}"
+          <TextBlock x:Name="StatusDot" Text="●" FontSize="12" Foreground="{Binding StatusKind, Converter={StaticResource StatusToBrush}}"
                      VerticalAlignment="Center" />
           <TextBlock Text="{Binding StatusText}" Foreground="{DynamicResource GuiSecondaryText}" FontSize="12" VerticalAlignment="Center"
                      TextTrimming="CharacterEllipsis" MaxWidth="280" />
@@ -294,11 +294,16 @@
                                      IsVisible="{Binding ShowBody}"
                                      Opacity="{Binding IsThinking, Converter={StaticResource BoolToThinkingOpacity}}" />
                     <StackPanel IsVisible="{Binding IsToolCall}" Spacing="2">
-                      <TextBlock Text="{Binding ToolName}" FontWeight="SemiBold" Foreground="{DynamicResource GuiToolLabel}" FontSize="12" />
+                      <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="{Binding ToolName}" FontWeight="SemiBold" Foreground="{DynamicResource GuiToolLabel}" FontSize="12" />
+                        <TextBlock Text="{Binding ToolElapsedText}" Foreground="{DynamicResource GuiBusyText}" FontSize="11"
+                                   IsVisible="{Binding IsToolRunning}" />
+                      </StackPanel>
                       <TextBlock Text="{Binding ToolArguments}" Foreground="{DynamicResource GuiToolArgument}" FontSize="11" FontFamily="Consolas"
                                  TextWrapping="Wrap" IsVisible="{Binding IsToolCallStart}" />
                       <TextBlock Text="{Binding ToolResultText}" Foreground="{DynamicResource GuiToolResult}" FontSize="11"
                                  TextWrapping="Wrap" IsVisible="{Binding IsToolResultMessage}" />
+                      <md:DiffViewer Hunks="{Binding StructuredPatch}" IsVisible="{Binding HasDiff}" Margin="0,4,0,0" />
                     </StackPanel>
                   </StackPanel>
                 </Border>

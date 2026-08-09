@@ -73,7 +73,7 @@ public sealed class MarkdownView : StackPanel
         switch (block)
         {
             case MarkdownHeading heading:
-                return new TextBlock
+                return new SelectableTextBlock
                 {
                     Text = PlainText(heading.Inlines),
                     FontSize = HeadingFontSize(heading.Level, BaseFontSize),
@@ -115,7 +115,7 @@ public sealed class MarkdownView : StackPanel
     /// <summary>段落/内联构建为 TextBlock（含粗体/斜体/行内代码/链接/删除线 Run）</summary>
     private static TextBlock BuildInlineText(IReadOnlyList<MarkdownInline> inlines, GuiPalette.Scheme scheme, double baseSize, bool wrap)
     {
-        var tb = new TextBlock
+        var tb = new SelectableTextBlock
         {
             TextWrapping = wrap ? TextWrapping.Wrap : TextWrapping.NoWrap,
             Foreground = ToBrush(scheme.PrimaryText),
@@ -173,7 +173,7 @@ public sealed class MarkdownView : StackPanel
     private static Control BuildCodeBlock(MarkdownCodeBlock code, GuiPalette.Scheme scheme)
     {
         var lang = string.IsNullOrWhiteSpace(code.Language) ? "code" : code.Language;
-        var header = new TextBlock
+        var header = new SelectableTextBlock
         {
             Text = lang,
             FontSize = 11,
@@ -181,7 +181,7 @@ public sealed class MarkdownView : StackPanel
             Foreground = ToBrush(scheme.MutedText),
             Margin = new Thickness(8, 6, 8, 0)
         };
-        var body = new TextBlock
+        var body = new SelectableTextBlock
         {
             Text = code.Code.TrimEnd('\n'),
             FontFamily = MonoFont,
@@ -209,7 +209,7 @@ public sealed class MarkdownView : StackPanel
         for (int i = 0; i < list.Items.Count; i++)
         {
             var prefix = list.Ordered ? $"{i + 1}. " : "• ";
-            var item = new TextBlock
+            var item = new SelectableTextBlock
             {
                 FontSize = baseSize,
                 Foreground = ToBrush(scheme.PrimaryText),
@@ -247,7 +247,7 @@ public sealed class MarkdownView : StackPanel
 
         for (int c = 0; c < colCount; c++)
         {
-            var cell = new TextBlock
+            var cell = new SelectableTextBlock
             {
                 Text = table.Header[c],
                 FontWeight = FontWeight.Bold,
@@ -265,7 +265,7 @@ public sealed class MarkdownView : StackPanel
         {
             for (int c = 0; c < Math.Min(colCount, table.Rows[r].Count); c++)
             {
-                var cell = new TextBlock
+                var cell = new SelectableTextBlock
                 {
                     Text = table.Rows[r][c],
                     FontSize = 12,
@@ -291,7 +291,7 @@ public sealed class MarkdownView : StackPanel
     /// <summary>引用块 → 左侧竖条 + 次级文本</summary>
     private static Control BuildQuote(MarkdownQuote quote, GuiPalette.Scheme scheme, double baseSize)
     {
-        var text = new TextBlock
+        var text = new SelectableTextBlock
         {
             Inlines = BuildInlines(quote.Inlines, scheme),
             FontSize = baseSize,

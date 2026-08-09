@@ -484,10 +484,7 @@ public sealed partial class MainViewModel : ViewModelBase
                         if (evt.Content is not null)
                         {
                             builder.Append(evt.Content);
-                            if (builder.Length >= 16 || (builder.Length > 0 && builder[^1] == '\n'))
-                            {
-                                assistant.Content = builder.ToString();
-                            }
+                            assistant.Content = builder.ToString();
                         }
                         break;
                     case ChatStreamEventType.Thinking:
@@ -513,8 +510,11 @@ public sealed partial class MainViewModel : ViewModelBase
                             Timestamp = DateTime.Now,
                             Kind = ChatUiMessageKind.ToolCall,
                             ToolName = evt.ToolName,
-                            ToolArguments = evt.ToolArguments
+                            ToolArguments = evt.ToolArguments,
+                            ToolStartTime = DateTime.Now,
+                            IsToolRunning = true
                         };
+                        currentToolCall.RefreshElapsed();
                         Messages.Add(currentToolCall);
                         break;
                     case ChatStreamEventType.ToolProgress:
@@ -524,6 +524,11 @@ public sealed partial class MainViewModel : ViewModelBase
                         }
                         break;
                     case ChatStreamEventType.ToolCallEnd:
+                        if (currentToolCall is not null)
+                        {
+                            currentToolCall.IsToolRunning = false;
+                            currentToolCall.RefreshElapsed();
+                        }
                         Messages.Add(new ChatUiMessage
                         {
                             Role = MessageRole.Assistant,
@@ -532,7 +537,8 @@ public sealed partial class MainViewModel : ViewModelBase
                             Kind = ChatUiMessageKind.ToolResult,
                             ToolName = evt.ToolName,
                             ToolResultText = evt.ToolResultText,
-                            IsToolError = evt.IsToolError
+                            IsToolError = evt.IsToolError,
+                            StructuredPatch = evt.StructuredPatch
                         });
                         currentToolCall = null;
                         break;

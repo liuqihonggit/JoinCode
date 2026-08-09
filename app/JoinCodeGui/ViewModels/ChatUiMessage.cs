@@ -1,6 +1,7 @@
 using System.ComponentModel;
 
 using JoinCode.Abstractions.LLM.Chat;
+using JoinCode.Abstractions.Models.Diff;
 
 namespace JoinCode.Gui.ViewModels;
 
@@ -59,6 +60,55 @@ public sealed class ChatUiMessage : INotifyPropertyChanged
 
     /// <summary>工具执行是否出错（Kind=ToolResult 时携带，驱动红色提示）</summary>
     public bool IsToolError { get; set; }
+
+    /// <summary>工具调用开始时间（Kind=ToolCall 时记录，用于计算已运行时长）</summary>
+    public DateTime? ToolStartTime { get; set; }
+
+    /// <summary>工具是否仍在运行（驱动倒计时显示；ToolCallEnd 后置 false）</summary>
+    private bool _isToolRunning;
+    public bool IsToolRunning
+    {
+        get => _isToolRunning;
+        set
+        {
+            if (_isToolRunning == value)
+                return;
+            _isToolRunning = value;
+            Raise(nameof(IsToolRunning));
+        }
+    }
+
+    /// <summary>已运行时长展示文本（如 "⏱ 1.2s"，由 View 层计时器定期刷新）</summary>
+    private string _toolElapsedText = string.Empty;
+    public string ToolElapsedText
+    {
+        get => _toolElapsedText;
+        set
+        {
+            if (_toolElapsedText == value)
+                return;
+            _toolElapsedText = value;
+            Raise(nameof(ToolElapsedText));
+        }
+    }
+
+    /// <summary>根据 ToolStartTime 刷新已运行时长文本（由 View 层计时器调用）</summary>
+    public void RefreshElapsed()
+    {
+        if (ToolStartTime is { } start)
+        {
+            var elapsed = DateTime.Now - start;
+            ToolElapsedText = elapsed.TotalSeconds < 60
+                ? $"⏱ {elapsed.TotalSeconds:F1}s"
+                : $"⏱ {(int)elapsed.TotalMinutes}:{elapsed.Seconds:D2}";
+        }
+    }
+
+    /// <summary>结构化 Patch（ToolCallEnd 携带，驱动 Diff 渲染；仅文件编辑类工具填充）</summary>
+    public StructuredPatchHunk[]? StructuredPatch { get; set; }
+
+    /// <summary>是否有 Diff 可渲染</summary>
+    public bool HasDiff => StructuredPatch is { Length: > 0 };
 
     /// <summary>是否为一条工具调用消息</summary>
     public bool IsToolCall => Kind is ChatUiMessageKind.ToolCall or ChatUiMessageKind.ToolResult;

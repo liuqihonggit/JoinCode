@@ -62,7 +62,7 @@
 | 5 | 实现 SlashCommandTrie + 接入 SlashCommandItem.Filter | ✅ 测试绿 |
 | 6 | 绿测试 + 编译验证 | ✅ GUI 161 + Infra 588 |
 | 7 | 差评大师 + 修复 | ✅ 修复 hunk 头 0 基对齐 jsdiff |
-| 8 | git 提交 | ⬜ |
+| 8 | git 提交 | ✅ 三次提交 |
 
 ## 涉及文件
 - `infrastructure/Infrastructure/IO/Services/Diff/StructuredPatchGenerator.cs`：上下文行数 3→4

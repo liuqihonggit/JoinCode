@@ -25,7 +25,7 @@ public sealed class MainWindowRegressionTests
     {
         var win = new MainWindow();
         var field = typeof(MainWindow).GetField(
-            "MessageScroll",
+            "MessageTextEditor",
             System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
         Assert.NotNull(field!.GetValue(win));
     }

@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.VisualTree;
 
 using JoinCode.Gui.Theming;
 using JoinCode.Gui.ViewModels;
@@ -19,6 +20,9 @@ public sealed partial class MainWindow : Window
     private System.Threading.CancellationTokenSource? _errorToastFadeCts;
 
     private bool _autoScrollEnabled = true;
+
+    /// <summary>TextEditor 内部 ScrollViewer 引用 — 延迟到模板应用后查找</summary>
+    private ScrollViewer? _textEditorScroll;
 
     private static readonly TimeSpan ErrorToastDuration = TimeSpan.FromSeconds(5);
 
@@ -66,6 +70,18 @@ public sealed partial class MainWindow : Window
         }
         SizeChanged += OnWindowSizeChanged;
         Closed += OnWindowClosed;
+        if (MessageTextEditor is not null)
+        {
+            MessageTextEditor.TemplateApplied += OnTextEditorTemplateApplied;
+        }
+    }
+
+    /// <summary>TextEditor 模板应用后查找内部 ScrollViewer 并订阅滚动事件</summary>
+    private void OnTextEditorTemplateApplied(object? sender, Avalonia.Controls.Primitives.TemplateAppliedEventArgs e)
+    {
+        _textEditorScroll = MessageTextEditor?.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault();
+        if (_textEditorScroll is not null)
+            _textEditorScroll.ScrollChanged += OnMessageScrollChanged;
     }
 
     private void OnWindowClosed(object? sender, EventArgs e)
@@ -79,6 +95,10 @@ public sealed partial class MainWindow : Window
         _slashDebounceTimer.Stop();
         _slashDebounceTimer.Tick -= OnSlashDebounceTick;
         SizeChanged -= OnWindowSizeChanged;
+        if (_textEditorScroll is not null)
+            _textEditorScroll.ScrollChanged -= OnMessageScrollChanged;
+        if (MessageTextEditor is not null)
+            MessageTextEditor.TemplateApplied -= OnTextEditorTemplateApplied;
         _toastCts?.Cancel();
         _errorToastFadeCts?.Cancel();
         Closed -= OnWindowClosed;
@@ -98,6 +118,8 @@ public sealed partial class MainWindow : Window
             _vm.PermissionConfirmCallback = ShowPermissionDialogAsync;
             _vm.Messages.CollectionChanged += OnMessagesChanged;
             _vm.PropertyChanged += OnVmPropertyChanged;
+            if (MessageTextEditor is not null)
+                MessageTextEditor.Document.Text = _vm.AllMessagesText;
         }
     }
 
@@ -200,6 +222,11 @@ public sealed partial class MainWindow : Window
         else if (e.PropertyName == nameof(MainViewModel.InputText))
         {
             StartSlashDebounce();
+        }
+        else if (e.PropertyName == nameof(MainViewModel.AllMessagesText))
+        {
+            if (MessageTextEditor is not null)
+                MessageTextEditor.Document.Text = _vm!.AllMessagesText;
         }
     }
 
@@ -368,9 +395,9 @@ public sealed partial class MainWindow : Window
     {
         if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Add
             && _autoScrollEnabled
-            && MessageScroll is not null)
+            && MessageTextEditor is not null)
         {
-            MessageScroll.ScrollToEnd();
+            MessageTextEditor.ScrollToLine(MessageTextEditor.Document.LineCount);
         }
     }
 
@@ -389,7 +416,8 @@ public sealed partial class MainWindow : Window
     /// <summary>点击浮钮：跳到底部并恢复自动滚动</summary>
     private void OnBackToBottomClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
-        MessageScroll.ScrollToEnd();
+        if (MessageTextEditor is not null)
+            MessageTextEditor.ScrollToLine(MessageTextEditor.Document.LineCount);
         BackToBottomButton.IsVisible = false;
         _autoScrollEnabled = true;
     }

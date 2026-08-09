@@ -24,6 +24,7 @@
     <PackageReference Include="Avalonia.ReactiveUI" Version="$(AvaloniaVersion)" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="$(CommunityToolkitMvvmVersion)" />
     <PackageReference Include="Markdig" Version="$(MarkdigVersion)" />
+    <PackageReference Include="OneWare.AvaloniaEdit" Version="11.3.3" />
   </ItemGroup>
 
   <ItemGroup>

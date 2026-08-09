@@ -243,7 +243,11 @@ public sealed partial class MainWindow : Window
         else if (e.PropertyName == nameof(MainViewModel.AllMessagesText))
         {
             if (MessageTextEditor is not null)
-                MessageTextEditor.Document.Text = _vm!.AllMessagesText;
+            {
+                var text = _vm!.AllMessagesText;
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                    MessageTextEditor.Document.Text = text);
+            }
         }
     }
 

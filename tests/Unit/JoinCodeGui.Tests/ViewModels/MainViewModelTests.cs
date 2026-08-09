@@ -1161,3 +1161,41 @@ public class MainViewModelTests
             public ValueTask DisposeAsync() => ValueTask.CompletedTask;
         }
     }
+
+    /// <summary>
+    /// AllMessagesText 工具返回值显示测试 — 验证工具调用后 ToolResultText 出现在纯文本输出中。
+    /// </summary>
+    public sealed class AllMessagesTextToolResultTests
+    {
+        [Fact]
+        public void ToolResultText_AppearsInAllMessagesText()
+        {
+            var vm = new MainViewModel(null, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"));
+            vm.Messages.Add(new ChatUiMessage
+            {
+                Role = MessageRole.User,
+                Content = "帮我运行 echo hello",
+                Timestamp = DateTime.Now
+            });
+            vm.Messages.Add(new ChatUiMessage
+            {
+                Role = MessageRole.Assistant,
+                Content = "",
+                Timestamp = DateTime.Now,
+                Kind = ChatUiMessageKind.ToolCall,
+                ToolName = "bash",
+                ToolArguments = "echo hello"
+            });
+            vm.Messages.Add(new ChatUiMessage
+            {
+                Role = MessageRole.Assistant,
+                Content = "",
+                Timestamp = DateTime.Now,
+                Kind = ChatUiMessageKind.ToolResult,
+                ToolName = "bash",
+                ToolResultText = "hello"
+            });
+            vm.AllMessagesText.Should().Contain("hello");
+            vm.AllMessagesText.Should().Contain("bash");
+        }
+    }

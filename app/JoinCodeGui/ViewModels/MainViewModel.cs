@@ -15,7 +15,9 @@ namespace JoinCode.Gui.ViewModels;
 /// </summary>
 public sealed partial class MainViewModel : ViewModelBase
 {
-    private readonly IJccChatSession _session;
+    private readonly IJccChatSession? _realSession;
+    private IJccChatSession? _mockSession;
+    private IJccChatSession _session;
     private readonly Persistence.GuiSessionStore _sessionStore;
 
     /// <summary>异步操作硬超时（防止命令续体在单线程上下文死锁）</summary>
@@ -278,12 +280,14 @@ public sealed partial class MainViewModel : ViewModelBase
 
     public MainViewModel(IJccChatSession? session = null, Persistence.GuiSessionStore? store = null)
     {
+        _realSession = session;
         _session = session ?? new Hosting.PlaceholderChatSession();
         _sessionStore = store ?? new Persistence.GuiSessionStore(new IO.FileSystem.PhysicalFileSystem());
         _session.PermissionConfirmationHandler = OnPermissionConfirmationRequestedAsync;
         _selectedModel = _session.CurrentModelId;
         _selectedModelOption = ModelOptions.FirstOrDefault(m => m.Id == _session.CurrentModelId);
         _selectedEffort = _session.EffortLevel.ToValue();
+        _selectedConnection = session is null ? MockConnection : BuildRealConnection(session);
         Messages.CollectionChanged += OnMessagesChanged;
         LoadPersistedSessions();
         NewConversation();
@@ -382,6 +386,79 @@ public sealed partial class MainViewModel : ViewModelBase
         }
     }
 
+    /// <summary>Mock 引擎连接候选（始终存在于下拉列表，用于演示/本地验证）</summary>
+    private static readonly ConnectionOptionItem MockConnection = new()
+    {
+        Id = "mock",
+        DisplayText = "🧪 Mock 引擎（演示）",
+        IsMock = true
+    };
+
+    /// <summary>真实供应商连接候选（由注入会话的 CurrentProvider 派生展示文本）</summary>
+    private static ConnectionOptionItem BuildRealConnection(IJccChatSession session)
+    {
+        var provider = session.CurrentProvider;
+        var display = ProviderKindExtensions.FromValue(provider)?.ToString() ?? provider;
+        return new ConnectionOptionItem
+        {
+            Id = provider,
+            DisplayText = $"{display}（真实）",
+            IsMock = false
+        };
+    }
+
+    /// <summary>连接下拉候选（Mock 引擎 + 真实供应商；无真实会话时仅展示 Mock）</summary>
+    public IReadOnlyList<ConnectionOptionItem> ConnectionOptions
+    {
+        get
+        {
+            var options = new List<ConnectionOptionItem> { MockConnection };
+            if (_realSession is not null)
+                options.Add(BuildRealConnection(_realSession));
+            return options;
+        }
+    }
+
+    /// <summary>当前选中的连接项（切换时替换活动会话，不销毁任何会话）</summary>
+    [ObservableProperty]
+    private ConnectionOptionItem? _selectedConnection;
+
+    /// <summary>当前是否连接 Mock 引擎（驱动状态提示与 Mock 徽标显隐）</summary>
+    public bool IsMockConnection => _session is PlaceholderChatSession;
+
+    partial void OnSelectedConnectionChanged(ConnectionOptionItem? value)
+    {
+        if (value is null)
+            return;
+
+        var wantMock = value.IsMock;
+        var isMock = _session is PlaceholderChatSession;
+        if (wantMock == isMock)
+            return;
+
+        if (wantMock)
+        {
+            _session = _mockSession ??= new Hosting.PlaceholderChatSession();
+            _session.PermissionConfirmationHandler = OnPermissionConfirmationRequestedAsync;
+            StatusText = $"已切换到 Mock 引擎（演示），模型 {_session.CurrentModelId}";
+        }
+        else if (_realSession is not null)
+        {
+            _session = _realSession;
+            StatusText = $"已连接真实引擎 {value.DisplayText}";
+        }
+        else
+        {
+            return;
+        }
+
+        OnPropertyChanged(nameof(ModelOptions));
+        OnPropertyChanged(nameof(IsMockConnection));
+        SelectedModel = _session.CurrentModelId;
+        SelectedModelOption = ModelOptions.FirstOrDefault(m => m.Id == _session.CurrentModelId);
+        SelectedEffort = _session.EffortLevel.ToValue();
+    }
+
     /// <summary>输入框变化时同步字符计数，并退出历史回看游标</summary>
     partial void OnInputTextChanged(string value)
     {
@@ -415,15 +492,23 @@ public sealed partial class MainViewModel : ViewModelBase
     /// <summary>当前选中的会话（供视图侧边栏选中/删除定位）</summary>
     public SessionItem? SelectedSession => Sessions.FirstOrDefault(s => s.IsSelected);
 
-    /// <summary>复制指定消息内容到剪贴板并标记反馈状态</summary>
+    /// <summary>复制指定消息的完整终端式文本（含思考/工具/diff，穿透容器标签）到剪贴板并标记反馈状态</summary>
     [RelayCommand]
     private void CopyMessage(ChatUiMessage? message)
     {
-        if (message is null || string.IsNullOrEmpty(message.Content))
+        if (message is null || string.IsNullOrEmpty(message.CopyAllText))
             return;
+        CopiedMessageCopy = message.CopyAllText;
         CopiedMessage = message.Timestamp.GetHashCode();
-        // 剪贴板实际写入由 View 层完成，此处仅驱动状态提示（占位阶段）
+        // 剪贴板实际写入由 View 层完成（消费 CopiedMessageCopy），此处仅驱动状态提示
     }
+
+    /// <summary>最近一次待复制消息的完整文本（View 层读取后写剪贴板，随后清除）</summary>
+    [ObservableProperty]
+    private string? _copiedMessageCopy;
+
+    /// <summary>清除待复制消息文本（View 写入剪贴板后调用）</summary>
+    public void ClearCopiedMessageCopy() => CopiedMessageCopy = null;
 
     /// <summary>删除单条消息</summary>
     [RelayCommand]

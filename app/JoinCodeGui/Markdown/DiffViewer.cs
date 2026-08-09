@@ -69,9 +69,10 @@ public sealed class DiffViewer : StackPanel
         var headerText = string.IsNullOrEmpty(hunk.Header)
             ? $"@@ -{hunk.OldStart},{hunk.OldLines} +{hunk.NewStart},{hunk.NewLines} @@"
             : hunk.Header;
-        var header = new TextBlock
+        var header = new SelectableTextBlock
         {
             Text = headerText,
+            SelectionBrush = ToBrush("#6680c0"),
             FontFamily = MonoFont,
             FontSize = 11,
             Foreground = ToBrush(scheme.AccentText),
@@ -120,9 +121,10 @@ public sealed class DiffViewer : StackPanel
         };
 
         // 行号
-        var numBlock = new TextBlock
+        var numBlock = new SelectableTextBlock
         {
             Text = lineNum,
+            SelectionBrush = ToBrush("#6680c0"),
             FontFamily = MonoFont,
             FontSize = 11,
             Foreground = ToBrush(scheme.MutedText),
@@ -133,9 +135,10 @@ public sealed class DiffViewer : StackPanel
         row.Children.Add(numBlock);
 
         // 前缀 (+/-/space)
-        var prefixBlock = new TextBlock
+        var prefixBlock = new SelectableTextBlock
         {
             Text = prefix,
+            SelectionBrush = ToBrush("#6680c0"),
             FontFamily = MonoFont,
             FontSize = 12,
             Foreground = foreground,
@@ -146,9 +149,10 @@ public sealed class DiffViewer : StackPanel
         row.Children.Add(prefixBlock);
 
         // 内容
-        var contentBlock = new TextBlock
+        var contentBlock = new SelectableTextBlock
         {
             Text = line.Content,
+            SelectionBrush = ToBrush("#6680c0"),
             FontFamily = MonoFont,
             FontSize = 12,
             Foreground = foreground,

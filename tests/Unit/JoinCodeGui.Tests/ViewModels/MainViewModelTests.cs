@@ -4,6 +4,7 @@ using IO.FileSystem;
 using JoinCode.Abstractions.LLM;
 using JoinCode.Abstractions.LLM.Chat;
 using JoinCode.Abstractions.Interfaces;
+using JoinCode.Abstractions.Models.Diff;
 using JoinCode.Gui.Hosting;
 using JoinCode.Gui.Persistence;
 using JoinCode.Gui.ViewModels;
@@ -171,6 +172,51 @@ public class MainViewModelTests
     }
 
     [Fact]
+    public void ConnectionOptions_IncludeMockAndRealProvider()
+    {
+        var fake = new FakeSession();
+        var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"));
+
+        var options = vm.ConnectionOptions;
+        options.Should().Contain(o => o.IsMock && o.DisplayText.Contains("Mock"));
+        options.Should().Contain(o => !o.IsMock && o.Id == "fake");
+        vm.SelectedConnection.Should().NotBeNull();
+        vm.SelectedConnection!.IsMock.Should().BeFalse("真实引擎存在时默认连接真实引擎");
+        vm.IsMockConnection.Should().BeFalse();
+    }
+
+    [Fact]
+    public void SwitchToMockConnection_UpdatesStatusAndModels()
+    {
+        var fake = new FakeSession();
+        var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"));
+
+        var mock = vm.ConnectionOptions.First(o => o.IsMock);
+        vm.SelectedConnection = mock;
+
+        vm.IsMockConnection.Should().BeTrue();
+        vm.StatusText.Should().Contain("Mock");
+        vm.ModelOptions.Select(m => m.Id).Should().BeEquivalentTo(["deepseek-chat", "deepseek-reasoner"]);
+        vm.SelectedModel.Should().Be("deepseek-chat");
+    }
+
+    [Fact]
+    public void SwitchToRealConnection_RestoresRealSession()
+    {
+        var fake = new FakeSession();
+        var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"));
+        var mock = vm.ConnectionOptions.First(o => o.IsMock);
+        var real = vm.ConnectionOptions.First(o => !o.IsMock);
+
+        vm.SelectedConnection = mock;
+        vm.SelectedConnection = real;
+
+        vm.IsMockConnection.Should().BeFalse();
+        vm.StatusText.Should().Contain("真实");
+        vm.ModelOptions.Select(m => m.Id).Should().BeEquivalentTo(["fake-model"]);
+    }
+
+    [Fact]
     public void EffortOptions_IncludeCliLevels()
     {
         // 对齐 CLI /effort 全部级别：low/medium/high/max/auto
@@ -297,10 +343,113 @@ public class MainViewModelTests
             var msg = new ChatUiMessage { Role = MessageRole.Assistant, Content = "sample" };
             vm.Messages.Add(msg);
 
-            vm.CopyMessageCommand.Execute(msg);
+        vm.CopyMessageCommand.Execute(msg);
 
-            vm.HasCopied.Should().BeTrue();
-        }
+        vm.HasCopied.Should().BeTrue();
+    }
+
+    [Fact]
+    public void CopyMessage_SetsFullCopyText()
+    {
+        var vm = CreateVm();
+        var msg = new ChatUiMessage
+        {
+            Role = MessageRole.Assistant,
+            Content = "sample",
+            Timestamp = new DateTime(2026, 1, 1, 10, 0, 0),
+        };
+        vm.Messages.Add(msg);
+
+        vm.CopyMessageCommand.Execute(msg);
+
+        vm.CopiedMessageCopy.Should().Contain("sample");
+    }
+
+    [Fact]
+    public void CopyAllText_IncludesRoleLabelAndContent()
+    {
+        var msg = new ChatUiMessage
+        {
+            Role = MessageRole.Assistant,
+            Content = "hello",
+            Timestamp = new DateTime(2026, 1, 1, 10, 0, 0),
+        };
+
+        var text = msg.CopyAllText;
+
+        text.Should().Contain("AI");
+        text.Should().Contain("hello");
+        text.Should().Contain("10:00:00");
+    }
+
+    [Fact]
+    public void CopyAllText_ThinkingIncludesThoughtContent()
+    {
+        var msg = new ChatUiMessage
+        {
+            Role = MessageRole.Assistant,
+            Kind = ChatUiMessageKind.Thinking,
+            Content = "先分析再动手",
+            Timestamp = new DateTime(2026, 1, 1, 10, 0, 0),
+        };
+
+        var text = msg.CopyAllText;
+
+        text.Should().Contain("思考");
+        text.Should().Contain("先分析再动手");
+    }
+
+    [Fact]
+    public void CopyAllText_ToolResult_IncludesToolAndDiff()
+    {
+        var msg = new ChatUiMessage
+        {
+            Role = MessageRole.Assistant,
+            Kind = ChatUiMessageKind.ToolResult,
+            ToolName = "edit_file",
+            ToolResultText = "修改完成",
+            Content = string.Empty,
+            Timestamp = new DateTime(2026, 1, 1, 10, 0, 0),
+            StructuredPatch =
+            [
+                new StructuredPatchHunk
+                {
+                    OldStart = 1,
+                    OldLines = 1,
+                    NewStart = 1,
+                    NewLines = 1,
+                    Header = "@@ -1 +1 @@",
+                    Lines =
+                    [
+                        new PatchLine { Type = PatchLineType.Removed, Content = "old", OldLineNumber = 1 },
+                        new PatchLine { Type = PatchLineType.Added, Content = "new", NewLineNumber = 1 },
+                    ],
+                },
+            ],
+        };
+
+        var text = msg.CopyAllText;
+
+        text.Should().Contain("edit_file");
+        text.Should().Contain("修改完成");
+        text.Should().Contain("-old");
+        text.Should().Contain("+new");
+        text.Should().Contain("@@ -1 +1 @@");
+    }
+
+    [Fact]
+    public void CopyAllText_EmptyMessage_IsEmpty()
+    {
+        var msg = new ChatUiMessage
+        {
+            Role = MessageRole.User,
+            Content = string.Empty,
+            Timestamp = new DateTime(2026, 1, 1, 10, 0, 0),
+        };
+
+        msg.CopyAllText.Should().BeEmpty();
+    }
+
 
         [Fact]
         public void CopyEmptyMessage_DoesNotSetFeedback()

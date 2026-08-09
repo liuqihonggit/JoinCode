@@ -143,6 +143,12 @@ public sealed partial class MainWindow : Window
         {
             ScheduleCopyToastHide();
         }
+        else if (e.PropertyName == nameof(MainViewModel.CopiedMessageCopy) && !string.IsNullOrEmpty(_vm!.CopiedMessageCopy))
+        {
+            Clipboard?.SetTextAsync(_vm.CopiedMessageCopy);
+            _vm.ClearCopiedMessageCopy();
+            ScheduleCopyToastHide();
+        }
         else if (e.PropertyName == nameof(MainViewModel.ExportedSessionCopy) && !string.IsNullOrEmpty(_vm!.ExportedSessionCopy))
         {
             Clipboard?.SetTextAsync(_vm.ExportedSessionCopy);

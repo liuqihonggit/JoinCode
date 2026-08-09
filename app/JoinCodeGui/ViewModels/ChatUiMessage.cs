@@ -164,4 +164,69 @@ public sealed class ChatUiMessage : INotifyPropertyChanged
     public bool IsCodeBlock => Content.TrimStart().StartsWith("```", StringComparison.Ordinal)
         || Content.TrimStart().StartsWith("#include", StringComparison.Ordinal)
         || Content.TrimStart().StartsWith("using System", StringComparison.Ordinal);
+
+    /// <summary>完整终端式纯文本（穿透容器：角色标签+时间 → 思考 → 工具名/参数/结果 → diff 行 → 正文），供整块复制</summary>
+    public string CopyAllText
+    {
+        get
+        {
+            var sb = new System.Text.StringBuilder();
+
+            if (IsThinking)
+            {
+                AppendHeader(sb);
+                sb.AppendLine(KindLabel);
+                if (!string.IsNullOrWhiteSpace(Content))
+                    sb.AppendLine(Content);
+            }
+            else if (IsToolCall)
+            {
+                AppendHeader(sb);
+                sb.Append(KindLabel).Append(": ").AppendLine(ToolName ?? string.Empty);
+                if (IsToolCallStart && !string.IsNullOrWhiteSpace(ToolArguments))
+                    sb.AppendLine(ToolArguments);
+                if (IsToolResultMessage)
+                {
+                    if (!string.IsNullOrWhiteSpace(ToolResultText))
+                        sb.AppendLine(ToolResultText);
+                    AppendDiff(sb);
+                }
+            }
+            else if (!string.IsNullOrWhiteSpace(Content))
+            {
+                AppendHeader(sb);
+                sb.AppendLine(Content);
+            }
+
+            return sb.Length == 0 ? string.Empty : sb.ToString().TrimEnd();
+        }
+    }
+
+    /// <summary>追加角色+时间头行（仅在有实际内容时调用）</summary>
+    private void AppendHeader(System.Text.StringBuilder sb)
+    {
+        sb.Append('[').Append(RoleLabel).Append(" · ")
+          .Append(Timestamp.ToString("yyyy-MM-dd HH:mm:ss")).AppendLine("]");
+    }
+
+    /// <summary>追加结构化 diff 到纯文本（带 +/- 前缀与 hunk 头），终端式可整体复制</summary>
+    private void AppendDiff(System.Text.StringBuilder sb)
+    {
+        if (StructuredPatch is not { Length: > 0 })
+            return;
+        foreach (var hunk in StructuredPatch)
+        {
+            sb.AppendLine(hunk.Header);
+            foreach (var line in hunk.Lines)
+            {
+                var prefix = line.Type switch
+                {
+                    PatchLineType.Added => "+",
+                    PatchLineType.Removed => "-",
+                    _ => " "
+                };
+                sb.Append(prefix).AppendLine(line.Content);
+            }
+        }
+    }
 }

@@ -99,7 +99,7 @@
 
     <!-- 顶部工具栏 -->
     <Border DockPanel.Dock="Top" Padding="10,8" Background="{DynamicResource GuiTopBarBackground}" ClipToBounds="True">
-      <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="10">
+      <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="10">
         <ToggleButton Content="🌙" Command="{Binding ToggleThemeCommand}" ToolTip.Tip="切换深浅主题" />
         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
           <TextBlock x:Name="StatusDot" Text="●" FontSize="12" Foreground="{Binding StatusKind, Converter={StaticResource StatusToBrush}}"
@@ -113,15 +113,27 @@
                 IsEnabled="{Binding HasMessages}" />
         <Button Grid.Column="4" Content="⊘ 全部重置" Command="{Binding ClearAllSessionsCommand}"
                 FontSize="11" />
-        <ComboBox Grid.Column="5" ItemsSource="{Binding ModelOptions}" SelectedItem="{Binding SelectedModelOption}"
-                  PlaceholderText="选择模型" MinWidth="180">
+        <ComboBox Grid.Column="5" ItemsSource="{Binding ConnectionOptions}" SelectedItem="{Binding SelectedConnection}"
+                  MinWidth="170" ToolTip.Tip="当前连接的引擎（Mock 为演示/本地验证环境）">
+          <ComboBox.ItemTemplate>
+            <DataTemplate x:DataType="vm:ConnectionOptionItem">
+              <TextBlock Text="{Binding DisplayText}" TextTrimming="CharacterEllipsis" />
+            </DataTemplate>
+          </ComboBox.ItemTemplate>
+        </ComboBox>
+        <Border Grid.Column="6" VerticalAlignment="Center" CornerRadius="4" Padding="6,2"
+                Background="#e8930c" IsVisible="{Binding IsMockConnection}">
+          <TextBlock Text="🧪 Mock" Foreground="White" FontSize="11" FontWeight="SemiBold" />
+        </Border>
+        <ComboBox Grid.Column="6" Margin="0,0,10,0" ItemsSource="{Binding ModelOptions}" SelectedItem="{Binding SelectedModelOption}"
+                  PlaceholderText="选择模型" MinWidth="180" IsVisible="{Binding !IsMockConnection}">
           <ComboBox.ItemTemplate>
             <DataTemplate x:DataType="vm:ModelOptionItem">
               <TextBlock Text="{Binding DisplayText}" TextTrimming="CharacterEllipsis" />
             </DataTemplate>
           </ComboBox.ItemTemplate>
         </ComboBox>
-        <Button Grid.Column="6" Content="⛭" ToolTip.Tip="设置面板" Command="{Binding ToggleSettingsPanelCommand}" />
+        <Button Grid.Column="7" Content="⛭" ToolTip.Tip="设置面板" Command="{Binding ToggleSettingsPanelCommand}" />
       </Grid>
     </Border>
 
@@ -257,13 +269,13 @@
               <DataTemplate x:DataType="vm:ChatUiMessage">
                 <StackPanel Margin="0,4">
                   <StackPanel Orientation="Horizontal" Spacing="8">
-                    <TextBlock Text="{Binding RoleLabel}" FontWeight="SemiBold"
+                    <SelectableTextBlock Text="{Binding RoleLabel}" FontWeight="SemiBold" SelectionBrush="#6680c0"
                                Foreground="{Binding IsUser, Converter={StaticResource BoolToRoleBrush}}" />
                     <TextBlock Text="{Binding KindLabel}" FontSize="11" Foreground="{DynamicResource GuiThinkingLabel}"
                                IsVisible="{Binding IsThinking}" />
                     <TextBlock Text="{Binding KindLabel}" FontSize="11" Foreground="{DynamicResource GuiToolLabel}"
                                IsVisible="{Binding IsToolCall}" />
-                    <TextBlock Text="{Binding Timestamp, StringFormat='{}{0:HH:mm:ss}'}"
+                    <SelectableTextBlock Text="{Binding Timestamp, StringFormat='{}{0:HH:mm:ss}'}" SelectionBrush="#6680c0"
                                Foreground="{DynamicResource GuiMutedText}" FontSize="11" />
                     <TextBlock Text="●" Foreground="{DynamicResource GuiBusyText}" FontSize="10"
                                IsVisible="{Binding IsStreaming}" ToolTip.Tip="输出中" />
@@ -282,13 +294,13 @@
                                    Opacity="{Binding IsThinking, Converter={StaticResource BoolToThinkingOpacity}}" />
                   <StackPanel IsVisible="{Binding IsToolCall}" Spacing="2">
                     <StackPanel Orientation="Horizontal" Spacing="8">
-                      <TextBlock Text="{Binding ToolName}" FontWeight="SemiBold" Foreground="{DynamicResource GuiToolLabel}" FontSize="12" />
+                      <SelectableTextBlock Text="{Binding ToolName}" SelectionBrush="#6680c0" FontWeight="SemiBold" Foreground="{DynamicResource GuiToolLabel}" FontSize="12" />
                       <TextBlock Text="{Binding ToolElapsedText}" Foreground="{DynamicResource GuiBusyText}" FontSize="11"
                                  IsVisible="{Binding IsToolRunning}" />
                     </StackPanel>
-                    <TextBlock Text="{Binding ToolArguments}" Foreground="{DynamicResource GuiToolArgument}" FontSize="11" FontFamily="Consolas"
+                    <SelectableTextBlock Text="{Binding ToolArguments}" SelectionBrush="#6680c0" Foreground="{DynamicResource GuiToolArgument}" FontSize="11" FontFamily="Consolas"
                                TextWrapping="Wrap" IsVisible="{Binding IsToolCallStart}" />
-                    <TextBlock Text="{Binding ToolResultText}" Foreground="{DynamicResource GuiToolResult}" FontSize="11"
+                    <SelectableTextBlock Text="{Binding ToolResultText}" SelectionBrush="#6680c0" Foreground="{DynamicResource GuiToolResult}" FontSize="11"
                                TextWrapping="Wrap" IsVisible="{Binding IsToolResultMessage}" />
                     <md:DiffViewer Hunks="{Binding StructuredPatch}" IsVisible="{Binding HasDiff}" Margin="0,4,0,0" />
                   </StackPanel>

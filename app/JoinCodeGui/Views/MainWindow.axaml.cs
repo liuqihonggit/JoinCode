@@ -61,6 +61,7 @@ public sealed partial class MainWindow : Window
         _slashDebounceTimer.Tick += OnSlashDebounceTick;
         if (InputTextBox is not null)
             InputTextBox.AddHandler(InputElement.KeyDownEvent, OnInputKeyDown, Avalonia.Interactivity.RoutingStrategies.Tunnel);
+        SizeChanged += OnWindowSizeChanged;
         Closed += OnWindowClosed;
     }
 
@@ -74,6 +75,7 @@ public sealed partial class MainWindow : Window
         _toolTimer.Tick -= OnToolTimerTick;
         _slashDebounceTimer.Stop();
         _slashDebounceTimer.Tick -= OnSlashDebounceTick;
+        SizeChanged -= OnWindowSizeChanged;
         _toastCts?.Cancel();
         _errorToastFadeCts?.Cancel();
         Closed -= OnWindowClosed;
@@ -213,6 +215,19 @@ public sealed partial class MainWindow : Window
             return;
         _vm.InputCaretIndex = InputTextBox.CaretIndex;
         _vm.RefreshSlashSuggestions();
+    }
+
+    /// <summary>窗口尺寸变化时重算斜杠面板位置（微调 VerticalOffset 触发 Popup 重新定位）</summary>
+    private void OnWindowSizeChanged(object? sender, Avalonia.Controls.SizeChangedEventArgs e) => RepositionSlashPopup();
+
+    /// <summary>强制 Popup 重新计算位置 — 通过微调 VerticalOffset 触发内部位置更新</summary>
+    private void RepositionSlashPopup()
+    {
+        if (SlashPopup is not { IsOpen: true } popup)
+            return;
+        var offset = popup.VerticalOffset;
+        popup.VerticalOffset = offset + 0.1;
+        popup.VerticalOffset = offset;
     }
 
     /// <summary>根据当前 StatusKind 启停状态点闪烁：Busy 闪烁，Ready/Error 停止并恢复不透明</summary>

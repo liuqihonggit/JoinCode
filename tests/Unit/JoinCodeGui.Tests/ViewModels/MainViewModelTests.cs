@@ -140,11 +140,10 @@ public class MainViewModelTests
     {
         var vm = CreateVm();
 
-        vm.ModelOptions.Select(m => m.Id).Should().BeEquivalentTo(["deepseek-v4-flash", "deepseek-v4-pro", "deepseek-chat"]);
-        vm.ModelOptions.Should().Contain(m => m.Id == "deepseek-chat" && m.DisplayText == "Mock:deepseek-chat");
-        vm.SelectedModel.Should().Be("deepseek-chat");
+        vm.ModelOptions.Select(m => m.Id).Should().BeEquivalentTo(["deepseek-v4-flash", "deepseek-v4-pro"]);
+        vm.SelectedModel.Should().Be("deepseek-v4-flash");
         vm.SelectedModelOption.Should().NotBeNull();
-        vm.SelectedModelOption!.Id.Should().Be("deepseek-chat");
+        vm.SelectedModelOption!.Id.Should().Be("deepseek-v4-flash");
     }
 
     [Fact]
@@ -204,7 +203,7 @@ public class MainViewModelTests
 
         vm.IsMockConnection.Should().BeTrue();
         vm.StatusText.Should().Contain("Mock");
-        vm.ModelOptions.Select(m => m.Id).Should().BeEquivalentTo(["deepseek-v4-flash", "deepseek-v4-pro", "deepseek-chat"]);
+        vm.ModelOptions.Select(m => m.Id).Should().BeEquivalentTo(["deepseek-v4-flash", "deepseek-v4-pro"]);
         vm.SelectedModel.Should().Be("deepseek-v4-flash");
     }
 
@@ -282,6 +281,15 @@ public class MainViewModelTests
         vm.SelectedModel.Should().Be("fake-model");
         vm.StatusText.Should().Contain("已连接真实引擎");
         vm.ModelOptions.Select(m => m.Id).Should().BeEquivalentTo(["fake-model"]);
+    }
+
+    /// <summary>占位模式（session is null）时状态栏应显示加载提示，让用户知道引擎正在后台组装</summary>
+    [Fact]
+    public void PlaceholderMode_ShowsLoadingStatus()
+    {
+        var vm = CreateVm();
+        vm.IsMockConnection.Should().BeTrue("未注入会话时处于 Mock 占位");
+        vm.StatusText.Should().Be("正在加载引擎…");
     }
 
     [Fact]

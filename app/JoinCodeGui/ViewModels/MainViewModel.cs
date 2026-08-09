@@ -342,6 +342,8 @@ public sealed partial class MainViewModel : ViewModelBase
         Messages.CollectionChanged += OnMessagesChanged;
         LoadPersistedSessions();
         NewConversation();
+        if (session is null)
+            StatusText = "正在加载引擎…";
     }
 
     /// <summary>获取可用斜杠命令清单 — 委托到引擎 session，由源码生成器自动提取</summary>

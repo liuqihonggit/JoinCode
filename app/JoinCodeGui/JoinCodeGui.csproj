@@ -12,7 +12,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <AvaloniaResource Include="Assets\**" />
+    <AvaloniaResource Include="Assets\**" Exclude="Assets\*.xshd" />
+    <EmbeddedResource Include="Assets\ChatHighlighting.xshd" />
   </ItemGroup>
 
   <ItemGroup>

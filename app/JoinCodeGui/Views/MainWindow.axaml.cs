@@ -1,6 +1,8 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.VisualTree;
+using AvaloniaEdit.Highlighting;
+using AvaloniaEdit.Highlighting.Xshd;
 
 using JoinCode.Gui.Theming;
 using JoinCode.Gui.ViewModels;
@@ -73,6 +75,21 @@ public sealed partial class MainWindow : Window
         if (MessageTextEditor is not null)
         {
             MessageTextEditor.TemplateApplied += OnTextEditorTemplateApplied;
+            LoadChatHighlighting();
+        }
+    }
+
+    /// <summary>从嵌入资源加载聊天消息语法高亮定义（角色头行/工具标签/diff着色）</summary>
+    private void LoadChatHighlighting()
+    {
+        var assembly = System.Reflection.Assembly.GetExecutingAssembly();
+        using var stream = assembly.GetManifestResourceStream("JoinCode.Gui.Assets.ChatHighlighting.xshd");
+        if (stream is not null)
+        {
+            var definition = HighlightingLoader.Load(
+                System.Xml.XmlReader.Create(stream),
+                HighlightingManager.Instance);
+            MessageTextEditor!.SyntaxHighlighting = definition;
         }
     }
 

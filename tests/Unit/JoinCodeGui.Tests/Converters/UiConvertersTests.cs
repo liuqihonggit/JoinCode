@@ -1,5 +1,6 @@
 using System.Globalization;
 
+using Avalonia.Headless.XUnit;
 using Avalonia.Media;
 
 using JoinCode.Gui.Converters;
@@ -24,7 +25,7 @@ public sealed class UiConvertersTests
 
     // ── BoolToRoleBrushConverter ──
 
-    [Fact]
+    [AvaloniaFact]
     public void BoolToRoleBrush_True_ReturnsRoleUserBrush()
     {
         var conv = new BoolToRoleBrushConverter();
@@ -35,7 +36,7 @@ public sealed class UiConvertersTests
         brush.Color.ToString().Should().Be(GuiPalette.ToBrush(scheme.RoleUser).Color.ToString());
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void BoolToRoleBrush_False_ReturnsRoleAssistantBrush()
     {
         var conv = new BoolToRoleBrushConverter();
@@ -46,7 +47,7 @@ public sealed class UiConvertersTests
         brush.Color.ToString().Should().Be(GuiPalette.ToBrush(scheme.RoleAssistant).Color.ToString());
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void BoolToRoleBrush_NonBool_ReturnsRoleAssistantBrush()
     {
         var conv = new BoolToRoleBrushConverter();
@@ -57,7 +58,7 @@ public sealed class UiConvertersTests
         brush.Color.ToString().Should().Be(GuiPalette.ToBrush(scheme.RoleAssistant).Color.ToString());
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void BoolToRoleBrush_ConvertBack_Throws()
     {
         var conv = new BoolToRoleBrushConverter();
@@ -69,7 +70,7 @@ public sealed class UiConvertersTests
 
     // ── StatusToBrushConverter ──
 
-    [Fact]
+    [AvaloniaFact]
     public void StatusToBrush_Busy_ReturnsBusyTextBrush()
     {
         var conv = new StatusToBrushConverter();
@@ -80,7 +81,7 @@ public sealed class UiConvertersTests
         brush.Color.ToString().Should().Be(GuiPalette.ToBrush(scheme.BusyText).Color.ToString());
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void StatusToBrush_Error_ReturnsErrorTextBrush()
     {
         var conv = new StatusToBrushConverter();
@@ -91,7 +92,7 @@ public sealed class UiConvertersTests
         brush.Color.ToString().Should().Be(GuiPalette.ToBrush(scheme.ErrorText).Color.ToString());
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void StatusToBrush_Ready_ReturnsSuccessTextBrush()
     {
         var conv = new StatusToBrushConverter();
@@ -102,7 +103,7 @@ public sealed class UiConvertersTests
         brush.Color.ToString().Should().Be(GuiPalette.ToBrush(scheme.SuccessText).Color.ToString());
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void StatusToBrush_UnknownValue_ReturnsSuccessTextBrush()
     {
         var conv = new StatusToBrushConverter();
@@ -113,7 +114,7 @@ public sealed class UiConvertersTests
         brush.Color.ToString().Should().Be(GuiPalette.ToBrush(scheme.SuccessText).Color.ToString());
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void StatusToBrush_ConvertBack_Throws()
     {
         var conv = new StatusToBrushConverter();
@@ -125,7 +126,7 @@ public sealed class UiConvertersTests
 
     // ── BoolToWarnBrushConverter ──
 
-    [Fact]
+    [AvaloniaFact]
     public void BoolToWarnBrush_True_ReturnsErrorTextBrush()
     {
         var conv = new BoolToWarnBrushConverter();
@@ -136,7 +137,7 @@ public sealed class UiConvertersTests
         brush.Color.ToString().Should().Be(GuiPalette.ToBrush(scheme.ErrorText).Color.ToString());
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void BoolToWarnBrush_False_ReturnsMutedTextBrush()
     {
         var conv = new BoolToWarnBrushConverter();
@@ -147,7 +148,7 @@ public sealed class UiConvertersTests
         brush.Color.ToString().Should().Be(GuiPalette.ToBrush(scheme.MutedText).Color.ToString());
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void BoolToWarnBrush_ConvertBack_Throws()
     {
         var conv = new BoolToWarnBrushConverter();
@@ -159,7 +160,7 @@ public sealed class UiConvertersTests
 
     // ── BoolToThinkingOpacityConverter ──
 
-    [Fact]
+    [AvaloniaFact]
     public void BoolToThinkingOpacity_True_Returns082()
     {
         var conv = new BoolToThinkingOpacityConverter();
@@ -169,7 +170,7 @@ public sealed class UiConvertersTests
         result.Should().Be(0.82);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void BoolToThinkingOpacity_False_Returns1()
     {
         var conv = new BoolToThinkingOpacityConverter();
@@ -179,7 +180,7 @@ public sealed class UiConvertersTests
         result.Should().Be(1.0);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void BoolToThinkingOpacity_ConvertBack_Throws()
     {
         var conv = new BoolToThinkingOpacityConverter();
@@ -191,7 +192,7 @@ public sealed class UiConvertersTests
 
     // ── BoolToSessionHighlightConverter ──
 
-    [Fact]
+    [AvaloniaFact]
     public void BoolToSessionHighlight_True_ReturnsSessionHighlightBrush()
     {
         var conv = new BoolToSessionHighlightConverter();
@@ -202,7 +203,7 @@ public sealed class UiConvertersTests
         brush.Color.ToString().Should().Be(GuiPalette.ToBrush(scheme.SessionHighlight).Color.ToString());
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void BoolToSessionHighlight_False_ReturnsTransparent()
     {
         var conv = new BoolToSessionHighlightConverter();
@@ -212,7 +213,7 @@ public sealed class UiConvertersTests
         brush.Color.ToString().Should().Be(Brushes.Transparent.Color.ToString());
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void BoolToSessionHighlight_ConvertBack_Throws()
     {
         var conv = new BoolToSessionHighlightConverter();

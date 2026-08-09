@@ -331,11 +331,26 @@ public sealed partial class MainViewModel : ViewModelBase
         OnPropertyChanged(nameof(ModelOptions));
         OnPropertyChanged(nameof(ConnectionOptions));
         OnPropertyChanged(nameof(IsMockConnection));
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var tools = await session.GetAvailableToolsAsync().WaitAsync(Timeout);
+                Avalonia.Threading.Dispatcher.UIThread.Post(() => _availableToolsCache = tools);
+            }
+            catch (Exception ex)
+            {
+                WriteErrorLog(ex);
+            }
+        });
         StatusText = $"已连接真实引擎 {session.CurrentProvider}";
     }
 
     /// <summary>斜杠命令缓存（懒加载；空命令时回退内置高频命令列表）</summary>
     private IReadOnlyList<SlashCommandItem>? _slashCommandCache;
+
+    /// <summary>引擎可用工具缓存 — AttachRealSession 时异步加载，#工具补全消费</summary>
+    private IReadOnlyList<ToolSummary>? _availableToolsCache;
 
     /// <summary>当前光标位置（由 View 层同步，用于解析斜杠命令前缀）</summary>
     [ObservableProperty]
@@ -353,6 +368,21 @@ public sealed partial class MainViewModel : ViewModelBase
     /// <summary>斜杠建议当前选中索引（↑↓ 导航）</summary>
     [ObservableProperty]
     private int _slashSelectedIndex = -1;
+
+    /// <summary>补全预览文本（显示"Tab → 补全结果"，驱动输入栏内联提示）</summary>
+    [ObservableProperty]
+    private string _completionPreviewText = string.Empty;
+
+    /// <summary>选中索引变化时更新内联预览文本</summary>
+    partial void OnSlashSelectedIndexChanged(int value)
+    {
+        if (value < 0 || value >= SlashSuggestions.Count)
+        {
+            CompletionPreviewText = string.Empty;
+            return;
+        }
+        CompletionPreviewText = $"Tab → {SlashSuggestions[value].Name}";
+    }
 
     /// <summary>刷新斜杠命令建议 — 由 View 层防抖后调用，用光标解析 + Trie 匹配 + 排序</summary>
     public void RefreshSlashSuggestions()
@@ -432,7 +462,7 @@ public sealed partial class MainViewModel : ViewModelBase
     /// <summary>刷新工具补全候选 — 由 ToolCompletionProvider 提供工具列表</summary>
     private void RefreshToolSuggestions()
     {
-        var tools = ToolCompletionProvider.GetTools(_slashParseResult.Prefix);
+        var tools = ToolCompletionProvider.GetTools(_slashParseResult.Prefix, _availableToolsCache);
         PopulateSuggestions(tools, _slashParseResult.Prefix);
     }
 

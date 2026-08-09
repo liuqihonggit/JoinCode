@@ -4,6 +4,9 @@ using JoinCode.Abstractions.LLM.Chat;
 
 namespace JoinCode.Gui.Hosting;
 
+/// <summary>工具摘要 — 名称与描述，供 GUI #工具补全展示</summary>
+public sealed record ToolSummary(string Name, string Description);
+
 /// <summary>
 /// JCC 引擎宿主门面 — UI 与引擎解耦的唯一边界。
 /// ViewModel 只允许依赖此接口与 Abstractions 门面类型，禁止直接触碰引擎内部实现。
@@ -90,4 +93,10 @@ public interface IJccChatSession : IAsyncDisposable
     /// 供 GUI 命令面板消费。不包含隐藏命令。
     /// </summary>
     IReadOnlyList<SlashCommandMetadata> GetAvailableSlashCommands();
+
+    /// <summary>
+    /// 获取可用工具清单 — 从引擎 IToolRegistry 提取工具名与描述，
+    /// 供 GUI #工具补全消费。引擎未注册时返回空列表。
+    /// </summary>
+    Task<IReadOnlyList<ToolSummary>> GetAvailableToolsAsync(CancellationToken cancellationToken = default);
 }

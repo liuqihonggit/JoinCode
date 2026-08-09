@@ -141,7 +141,7 @@ public class MainViewModelTests
         var vm = CreateVm();
 
         vm.ModelOptions.Select(m => m.Id).Should().BeEquivalentTo(["deepseek-chat", "deepseek-reasoner"]);
-        vm.ModelOptions.Should().Contain(m => m.Id == "deepseek-chat" && m.DisplayText == "DeepSeek · deepseek-chat");
+        vm.ModelOptions.Should().Contain(m => m.Id == "deepseek-chat" && m.DisplayText == "Mock:deepseek-chat");
         vm.SelectedModel.Should().Be("deepseek-chat");
         vm.SelectedModelOption.Should().NotBeNull();
         vm.SelectedModelOption!.Id.Should().Be("deepseek-chat");
@@ -154,7 +154,7 @@ public class MainViewModelTests
 
         foreach (var item in vm.ModelOptions)
         {
-            item.DisplayText.Should().Contain("·", "展示文本应区分供应商与模型：如 'DeepSeek · deepseek-chat'");
+            item.DisplayText.Should().Contain(":", "展示文本应区分供应商与模型：如 'DeepSeek:deepseek-chat'");
         }
     }
 
@@ -1187,6 +1187,8 @@ public class MainViewModelTests
             public Task SetTemperatureAsync(float temperature, CancellationToken cancellationToken = default) => Task.CompletedTask;
             public Task SetMaxTokensAsync(int maxTokens, CancellationToken cancellationToken = default) => Task.CompletedTask;
             public IReadOnlyList<SlashCommandMetadata> GetAvailableSlashCommands() => [];
+            public Task<IReadOnlyList<ToolSummary>> GetAvailableToolsAsync(CancellationToken cancellationToken = default)
+                => Task.FromResult<IReadOnlyList<ToolSummary>>([]);
             public ValueTask DisposeAsync() => ValueTask.CompletedTask;
         }
 
@@ -1239,6 +1241,8 @@ public class MainViewModelTests
                 return Task.CompletedTask;
             }
             public IReadOnlyList<SlashCommandMetadata> GetAvailableSlashCommands() => [];
+            public Task<IReadOnlyList<ToolSummary>> GetAvailableToolsAsync(CancellationToken cancellationToken = default)
+                => Task.FromResult<IReadOnlyList<ToolSummary>>([]);
             public ValueTask DisposeAsync() => ValueTask.CompletedTask;
         }
     }

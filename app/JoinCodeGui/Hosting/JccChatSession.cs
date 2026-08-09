@@ -5,6 +5,7 @@ using JoinCode.Abstractions.LLM;
 using JoinCode.Abstractions.LLM.Chat;
 using JoinCode.Abstractions.Security;
 using JoinCode.Abstractions.Security.Permission;
+using JoinCode.Abstractions.Tools;
 
 namespace JoinCode.Gui.Hosting;
 
@@ -303,6 +304,22 @@ internal sealed class JccChatSession : IJccChatSession
         if (catalog is null)
             return [];
         return catalog.Commands.Where(c => !c.IsHidden).ToList();
+    }
+
+    /// <summary>
+    /// 获取可用工具清单 — 从 DI 解析 IToolRegistry，提取全部工具名与描述。
+    /// 未注册时返回空列表（兜底）。
+    /// </summary>
+    public async Task<IReadOnlyList<ToolSummary>> GetAvailableToolsAsync(CancellationToken cancellationToken = default)
+    {
+        var registry = _services.GetService<IToolRegistry>();
+        if (registry is null)
+            return [];
+        var tools = await registry.GetAllToolsAsync(cancellationToken).ConfigureAwait(false);
+        var list = new List<ToolSummary>(tools.Count);
+        foreach (var handler in tools.Values)
+            list.Add(new ToolSummary(handler.Name, handler.Description));
+        return list;
     }
 
     public async ValueTask DisposeAsync()

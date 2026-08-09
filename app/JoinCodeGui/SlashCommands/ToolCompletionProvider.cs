@@ -1,24 +1,41 @@
+using JoinCode.Gui.Hosting;
 using JoinCode.Gui.ViewModels;
 
 namespace JoinCode.Gui.SlashCommands;
 
 /// <summary>
 /// 工具补全提供器 — # 触发符调用，提供引擎可用工具列表。
-/// 当前为高频工具占位列表，后续可接入引擎 IToolRegistry 动态获取。
+/// 优先使用引擎 IToolRegistry 动态工具列表，引擎未就绪时回退高频工具占位列表。
 /// </summary>
 public static class ToolCompletionProvider
 {
-    /// <summary>获取工具补全候选（按前缀过滤）</summary>
-    public static IReadOnlyList<SlashCommandItem> GetTools(string prefix)
+    /// <summary>获取工具补全候选（按前缀过滤；优先引擎真实工具，回退占位列表）</summary>
+    public static IReadOnlyList<SlashCommandItem> GetTools(
+        string prefix, IReadOnlyList<ToolSummary>? availableTools = null)
     {
+        var source = BuildSource(availableTools);
         if (string.IsNullOrEmpty(prefix))
-            return BuiltInTools;
-        return BuiltInTools
+            return source;
+        return source
             .Where(t => t.Name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
             .ToList();
     }
 
-    /// <summary>高频工具占位列表 — 后续接入引擎动态工具注册表</summary>
+    /// <summary>构建工具源 — 引擎工具非空时用引擎列表，否则回退占位</summary>
+    private static IReadOnlyList<SlashCommandItem> BuildSource(IReadOnlyList<ToolSummary>? availableTools)
+    {
+        if (availableTools is null || availableTools.Count == 0)
+            return BuiltInTools;
+        var items = new SlashCommandItem[availableTools.Count];
+        for (var i = 0; i < availableTools.Count; i++)
+        {
+            var t = availableTools[i];
+            items[i] = new SlashCommandItem { Name = t.Name, Description = t.Description };
+        }
+        return items;
+    }
+
+    /// <summary>高频工具占位列表 — 引擎未就绪时的回退</summary>
     private static readonly IReadOnlyList<SlashCommandItem> BuiltInTools =
     [
         new() { Name = "ReadFile",      Description = "读取文件内容" },

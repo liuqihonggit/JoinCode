@@ -156,6 +156,11 @@
           </StackPanel>
         </Grid>
 
+        <TextBlock Text="{Binding CompletionPreviewText}"
+                   Foreground="{DynamicResource GuiAccentText}" Opacity="0.6"
+                   FontSize="11" Margin="2,0" FontFamily="Consolas"
+                   IsVisible="{Binding IsSlashPopupOpen}" />
+
         <!-- 斜杠命令无边悬浮下拉面板（输入 / 后实时过滤，↑↓ 选择 Enter/Tab 补全） -->
         <Popup x:Name="SlashPopup"
                PlacementTarget="{Binding ElementName=InputTextBox}"
@@ -163,27 +168,32 @@
                VerticalOffset="4" IsLightDismissEnabled="True">
           <Border x:Name="SlashPopupBorder" MinWidth="300" MaxHeight="340" CornerRadius="8" Padding="4"
                   Background="{DynamicResource GuiWindowBackground}"
-                  BoxShadow="0 6 16 0 #90000000">
+                  BoxShadow="0 6 16 0 #90000000" ClipToBounds="True">
             <ListBox x:Name="SlashListBox"
                      ItemsSource="{Binding SlashSuggestions}"
                      SelectedIndex="{Binding SlashSelectedIndex}"
-                     Background="Transparent" Padding="2">
+                     Background="Transparent" Padding="2"
+                     ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                     Grid.IsSharedSizeScope="True">
               <ListBox.ItemTemplate>
                 <DataTemplate x:DataType="vm:SlashCommandItem">
-                  <StackPanel Margin="10,5" Spacing="2">
-                    <StackPanel Orientation="Horizontal" Spacing="0">
+                  <Grid Margin="10,4">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="Auto" SharedSizeGroup="CmdNameCol" />
+                      <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Orientation="Horizontal" Spacing="0" Grid.Column="0">
                       <TextBlock Text="{Binding MatchedPart}" FontFamily="Consolas" FontSize="13" FontWeight="Bold"
                                  Foreground="{DynamicResource GuiAccentText}" />
                       <TextBlock Text="{Binding RemainingPart}" FontFamily="Consolas" FontSize="13"
                                  Foreground="{DynamicResource GuiSecondaryText}" />
                     </StackPanel>
-                    <TextBlock Text="{Binding Description}" FontSize="11"
+                    <TextBlock Grid.Column="1" Text="{Binding Description}" FontSize="11"
                                Foreground="{DynamicResource GuiMutedText}"
-                               TextTrimming="CharacterEllipsis" />
-                    <TextBlock Text="{Binding Usage}" FontSize="10" FontFamily="Consolas"
-                               Foreground="{DynamicResource GuiMutedText}" Opacity="0.7"
-                               IsVisible="{Binding HasUsage}" Margin="0,1,0,0" />
-                  </StackPanel>
+                               TextTrimming="CharacterEllipsis" Margin="12,0,0,0"
+                               ToolTip.Tip="{Binding Usage}" />
+                  </Grid>
                 </DataTemplate>
               </ListBox.ItemTemplate>
             </ListBox>

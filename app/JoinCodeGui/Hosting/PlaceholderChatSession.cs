@@ -109,5 +109,8 @@ internal sealed class PlaceholderChatSession : IJccChatSession
 
     public IReadOnlyList<SlashCommandMetadata> GetAvailableSlashCommands() => [];
 
+    public Task<IReadOnlyList<ToolSummary>> GetAvailableToolsAsync(CancellationToken cancellationToken = default)
+        => Task.FromResult<IReadOnlyList<ToolSummary>>([]);
+
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 }

@@ -162,6 +162,25 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable
     }
 
     /// <summary>
+    /// 恢复记忆
+    /// </summary>
+    public bool RestoreMemory(string id)
+    {
+        if (!_memories.TryGetValue(id, out var memory))
+        {
+            return false;
+        }
+
+        var restored = memory.WithUnarchived();
+        _memories[id] = restored;
+
+        _logger?.LogInformation(L.T(StringKey.VaultLogStoreRestoreMemory), id);
+        _ = SaveMemoriesAsync(_disposeCts.Token).WaitAsync(TimeSpan.FromSeconds(10), _disposeCts.Token).ConfigureAwait(false);
+
+        return true;
+    }
+
+    /// <summary>
     /// 获取所有记忆类型
     /// </summary>
     public IEnumerable<MemoryType> GetTypes()

@@ -250,6 +250,34 @@ public class MemoryStoreTests : IDisposable
     }
 
     [Fact]
+    public void RestoreMemory_Archived_ShouldUnarchiveMemory()
+    {
+        // Arrange
+        _store.AddMemory("Memory to restore");
+        var memory = _store.Search("Memory to restore").First();
+        _store.ArchiveMemory(memory.Id);
+
+        // Act
+        var result = _store.RestoreMemory(memory.Id);
+
+        // Assert
+        result.Should().BeTrue();
+        var restored = _store.GetMemory(memory.Id);
+        restored!.IsArchived.Should().BeFalse();
+        restored.ArchivedAt.Should().BeNull();
+    }
+
+    [Fact]
+    public void RestoreMemory_NonExistent_ShouldReturnFalse()
+    {
+        // Act
+        var result = _store.RestoreMemory("nonexistent_id");
+
+        // Assert
+        result.Should().BeFalse();
+    }
+
+    [Fact]
     public void GetTypes_ShouldReturnAllTypes()
     {
         // Arrange

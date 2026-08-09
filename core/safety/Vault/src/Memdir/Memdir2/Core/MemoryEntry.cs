@@ -154,6 +154,18 @@ public sealed record MemoryEntry
     }
 
     /// <summary>
+    /// 取消归档记忆
+    /// </summary>
+    public MemoryEntry WithUnarchived()
+    {
+        return this with
+        {
+            IsArchived = false,
+            ArchivedAt = null
+        };
+    }
+
+    /// <summary>
     /// 检查是否已过期
     /// </summary>
     public bool IsExpired(DateTime? now = null)

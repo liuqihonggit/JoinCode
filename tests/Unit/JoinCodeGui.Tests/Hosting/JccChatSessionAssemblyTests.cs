@@ -58,6 +58,23 @@ public class JccChatSessionAssemblyTests
         map["agnes"].Count.Should().Be(5);
     }
 
+    [Fact]
+    public void ProviderModelMap_MultipleInstances_AreIdentical()
+    {
+        var s1 = new PlaceholderChatSession();
+        var s2 = new PlaceholderChatSession();
+        var s3 = new PlaceholderChatSession();
+
+        s1.ProviderModelMap.Keys.Should().BeEquivalentTo(s2.ProviderModelMap.Keys);
+        s2.ProviderModelMap.Keys.Should().BeEquivalentTo(s3.ProviderModelMap.Keys);
+
+        foreach (var key in s1.ProviderModelMap.Keys)
+        {
+            s1.ProviderModelMap[key].Should().BeEquivalentTo(s2.ProviderModelMap[key]);
+            s2.ProviderModelMap[key].Should().BeEquivalentTo(s3.ProviderModelMap[key]);
+        }
+    }
+
     /// <summary>
     /// 组装引擎会话所需的完整 DI（与 Jcc 一致）：AiWorkflowServices + 共享管道 + ChatService 注册。
     /// </summary>

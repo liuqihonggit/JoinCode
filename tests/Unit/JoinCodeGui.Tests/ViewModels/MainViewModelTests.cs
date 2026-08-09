@@ -247,6 +247,27 @@ public class MainViewModelTests
     }
 
     [Fact]
+    public void ConnectionOptions_NoDuplicateProviders()
+    {
+        var vm = CreateVm();
+        var options = vm.ConnectionOptions;
+
+        var ids = options.Select(o => o.Id).ToArray();
+        ids.Distinct().Count().Should().Be(ids.Length, "供应商ID不应重复");
+
+        var displays = options.Select(o => o.DisplayText).ToArray();
+        displays.Distinct().Count().Should().Be(displays.Length, "显示文本不应重复");
+    }
+
+    [Fact]
+    public void ModelOptions_NoDuplicateModels()
+    {
+        var vm = CreateVm();
+        var ids = vm.ModelOptions.Select(o => o.Id).ToArray();
+        ids.Distinct().Count().Should().Be(ids.Length, "模型ID不应重复");
+    }
+
+    [Fact]
     public void AttachRealSession_HotSwapsPlaceholderToRealEngine()
     {
         // 异步启动路径：VM 先以占位会话显示，引擎组装完成后再热切换

@@ -168,26 +168,37 @@ public sealed partial class MainViewModel : ViewModelBase
     partial void OnSearchTextChanged(string value)
         => OnPropertyChanged(nameof(FilteredMessages));
 
-    /// <summary>模型下拉选项（绑定引擎共享配置的真实模型列表，展示"供应商 · 模型显示名"）</summary>
+    /// <summary>模型下拉选项缓存 — session 切换时失效重建，避免每次访问重建数组导致 ComboBox 选中项引用失效闪现</summary>
+    private IReadOnlyList<ModelOptionItem>? _modelOptionsCache;
+
+    /// <summary>模型下拉选项（展示"供应商:模型ID"，如 OpenAI:gpt-4o、Mock:deepseek-chat）</summary>
     public IReadOnlyList<ModelOptionItem> ModelOptions
     {
         get
         {
-            var provider = _session.CurrentProvider;
-            var providerDisplay = ProviderKindExtensions.FromValue(provider)?.ToString() ?? provider;
-            var catalog = ModelConfigLoader.GetModels(provider);
-
-            var source = _session.AvailableModels;
-            var items = new ModelOptionItem[source.Count];
-            for (var i = 0; i < source.Count; i++)
-            {
-                var id = source[i];
-                var entry = catalog.FirstOrDefault(m => m.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
-                var modelDisplay = entry?.DisplayName ?? id;
-                items[i] = new ModelOptionItem(id, $"{providerDisplay} · {modelDisplay}");
-            }
-            return items;
+            if (_modelOptionsCache is not null)
+                return _modelOptionsCache;
+            RebuildModelOptionsCache();
+            return _modelOptionsCache!;
         }
+    }
+
+    /// <summary>重建模型选项缓存 — 按"供应商:模型ID"格式构建；Mock 会话供应商显示为 Mock</summary>
+    private void RebuildModelOptionsCache()
+    {
+        var provider = _session.CurrentProvider;
+        var isMock = _session is Hosting.PlaceholderChatSession;
+        var providerDisplay = isMock
+            ? "Mock"
+            : (ProviderKindExtensions.FromValue(provider)?.ToString() ?? provider);
+        var source = _session.AvailableModels;
+        var items = new ModelOptionItem[source.Count];
+        for (var i = 0; i < source.Count; i++)
+        {
+            var id = source[i];
+            items[i] = new ModelOptionItem(id, $"{providerDisplay}:{id}");
+        }
+        _modelOptionsCache = items;
     }
 
     /// <summary>当前选中的模型下拉项（View 层绑定 ComboBox.SelectedItem）</summary>
@@ -307,6 +318,7 @@ public sealed partial class MainViewModel : ViewModelBase
         _session = session;
         _session.PermissionConfirmationHandler = OnPermissionConfirmationRequestedAsync;
 
+        _modelOptionsCache = null;
         SelectedModel = _session.CurrentModelId;
         SelectedModelOption = ModelOptions.FirstOrDefault(m => m.Id == _session.CurrentModelId);
         SelectedEffort = _session.EffortLevel.ToValue();
@@ -358,6 +370,24 @@ public sealed partial class MainViewModel : ViewModelBase
             return;
         }
 
+        if (_slashParseResult.Mode == SlashCompletionMode.Argument)
+        {
+            RefreshArgumentSuggestions();
+            return;
+        }
+
+        if (_slashParseResult.Mode == SlashCompletionMode.File)
+        {
+            RefreshFileSuggestions();
+            return;
+        }
+
+        if (_slashParseResult.Mode == SlashCompletionMode.Tool)
+        {
+            RefreshToolSuggestions();
+            return;
+        }
+
         var cache = _slashCommandCache ??= BuildSlashCommandCache();
         var matched = SlashCommandItem.Filter(_slashParseResult.Prefix, cache);
         var ranked = SlashCommandRanker.Rank(matched, _slashParseResult.Prefix);
@@ -365,6 +395,53 @@ public sealed partial class MainViewModel : ViewModelBase
         SlashSuggestions.Clear();
         var prefixLen = _slashParseResult.Prefix.Length;
         foreach (var item in ranked)
+        {
+            item.MatchedPart = item.Name.Length >= prefixLen ? item.Name[..prefixLen] : item.Name;
+            item.RemainingPart = item.Name.Length >= prefixLen ? item.Name[prefixLen..] : string.Empty;
+            SlashSuggestions.Add(item);
+        }
+        SlashSelectedIndex = SlashSuggestions.Count > 0 ? 0 : -1;
+        OnPropertyChanged(nameof(IsSlashPopupOpen));
+    }
+
+    /// <summary>刷新命令参数补全候选 — 由 CommandArgumentProvider 按命令名提供参数列表</summary>
+    private void RefreshArgumentSuggestions()
+    {
+        var args = CommandArgumentProvider.GetArguments(
+            _slashParseResult.CommandName, _slashParseResult.ArgumentPrefix, _session);
+
+        SlashSuggestions.Clear();
+        var prefixLen = _slashParseResult.ArgumentPrefix.Length;
+        foreach (var item in args)
+        {
+            item.MatchedPart = item.Name.Length >= prefixLen ? item.Name[..prefixLen] : item.Name;
+            item.RemainingPart = item.Name.Length >= prefixLen ? item.Name[prefixLen..] : string.Empty;
+            SlashSuggestions.Add(item);
+        }
+        SlashSelectedIndex = SlashSuggestions.Count > 0 ? 0 : -1;
+        OnPropertyChanged(nameof(IsSlashPopupOpen));
+    }
+
+    /// <summary>刷新文件补全候选 — 由 FileCompletionProvider 扫描当前工作目录</summary>
+    private void RefreshFileSuggestions()
+    {
+        var files = FileCompletionProvider.GetFiles(_slashParseResult.Prefix);
+        PopulateSuggestions(files, _slashParseResult.Prefix);
+    }
+
+    /// <summary>刷新工具补全候选 — 由 ToolCompletionProvider 提供工具列表</summary>
+    private void RefreshToolSuggestions()
+    {
+        var tools = ToolCompletionProvider.GetTools(_slashParseResult.Prefix);
+        PopulateSuggestions(tools, _slashParseResult.Prefix);
+    }
+
+    /// <summary>填充补全候选列表（高亮匹配前缀）</summary>
+    private void PopulateSuggestions(IReadOnlyList<SlashCommandItem> candidates, string prefix)
+    {
+        SlashSuggestions.Clear();
+        var prefixLen = prefix.Length;
+        foreach (var item in candidates)
         {
             item.MatchedPart = item.Name.Length >= prefixLen ? item.Name[..prefixLen] : item.Name;
             item.RemainingPart = item.Name.Length >= prefixLen ? item.Name[prefixLen..] : string.Empty;
@@ -405,11 +482,29 @@ public sealed partial class MainViewModel : ViewModelBase
             return;
 
         var item = SlashSuggestions[SlashSelectedIndex];
-        var slashIndex = _slashParseResult.SlashIndex;
-        var prefixEnd = _slashParseResult.PrefixEnd;
 
-        InputText = InputText[..slashIndex] + item.Name + " " + InputText[prefixEnd..];
-        InputCaretIndex = slashIndex + item.Name.Length + 1;
+        if (_slashParseResult.Mode == SlashCompletionMode.Argument)
+        {
+            var argStart = _slashParseResult.ArgumentStart;
+            var prefixEnd = _slashParseResult.PrefixEnd;
+            InputText = InputText[..argStart] + item.Name + InputText[prefixEnd..];
+            InputCaretIndex = argStart + item.Name.Length;
+        }
+        else if (_slashParseResult.Mode == SlashCompletionMode.File ||
+                 _slashParseResult.Mode == SlashCompletionMode.Tool)
+        {
+            var triggerEnd = _slashParseResult.SlashIndex + 1;
+            var prefixEnd = _slashParseResult.PrefixEnd;
+            InputText = InputText[..triggerEnd] + item.Name + " " + InputText[prefixEnd..];
+            InputCaretIndex = triggerEnd + item.Name.Length + 1;
+        }
+        else
+        {
+            var slashIndex = _slashParseResult.SlashIndex;
+            var prefixEnd = _slashParseResult.PrefixEnd;
+            InputText = InputText[..slashIndex] + item.Name + " " + InputText[prefixEnd..];
+            InputCaretIndex = slashIndex + item.Name.Length + 1;
+        }
         ClearSlashSuggestions();
     }
 
@@ -576,6 +671,7 @@ public sealed partial class MainViewModel : ViewModelBase
             return;
         }
 
+        _modelOptionsCache = null;
         OnPropertyChanged(nameof(ModelOptions));
         OnPropertyChanged(nameof(IsMockConnection));
         SelectedModel = _session.CurrentModelId;

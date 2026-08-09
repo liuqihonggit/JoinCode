@@ -162,4 +162,81 @@ public class SlashCommandParserTests
         var result = SlashCommandParser.Parse("line1\n/cmd\nline3", 12);
         result.ShouldComplete.Should().BeFalse();
     }
+
+    [Fact]
+    public void Parse_ModelCommandWithArgument_ReturnsArgumentMode()
+    {
+        var result = SlashCommandParser.Parse("/model gp", 9);
+        result.ShouldComplete.Should().BeTrue();
+        result.Mode.Should().Be(SlashCompletionMode.Argument);
+        result.CommandName.Should().Be("/model");
+        result.ArgumentPrefix.Should().Be("gp");
+        result.ArgumentStart.Should().Be(7);
+    }
+
+    [Fact]
+    public void Parse_ModelCommandSpaceOnly_ReturnsArgumentModeEmptyPrefix()
+    {
+        var result = SlashCommandParser.Parse("/model ", 7);
+        result.ShouldComplete.Should().BeTrue();
+        result.Mode.Should().Be(SlashCompletionMode.Argument);
+        result.CommandName.Should().Be("/model");
+        result.ArgumentPrefix.Should().Be("");
+        result.ArgumentStart.Should().Be(7);
+    }
+
+    [Fact]
+    public void Parse_ThemeCommandWithArgument_ReturnsArgumentMode()
+    {
+        var result = SlashCommandParser.Parse("/theme da", 9);
+        result.ShouldComplete.Should().BeTrue();
+        result.Mode.Should().Be(SlashCompletionMode.Argument);
+        result.CommandName.Should().Be("/theme");
+        result.ArgumentPrefix.Should().Be("da");
+    }
+
+    [Fact]
+    public void Parse_AtTrigger_ReturnsFileMode()
+    {
+        var result = SlashCommandParser.Parse("@src", 4);
+        result.ShouldComplete.Should().BeTrue();
+        result.Mode.Should().Be(SlashCompletionMode.File);
+        result.TriggerChar.Should().Be('@');
+        result.Prefix.Should().Be("src");
+        result.SlashIndex.Should().Be(0);
+    }
+
+    [Fact]
+    public void Parse_HashTrigger_ReturnsToolMode()
+    {
+        var result = SlashCommandParser.Parse("#Read", 5);
+        result.ShouldComplete.Should().BeTrue();
+        result.Mode.Should().Be(SlashCompletionMode.Tool);
+        result.TriggerChar.Should().Be('#');
+        result.Prefix.Should().Be("Read");
+        result.SlashIndex.Should().Be(0);
+    }
+
+    [Fact]
+    public void Parse_AtWithSpace_Terminates()
+    {
+        var result = SlashCommandParser.Parse("@src file", 9);
+        result.ShouldComplete.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Parse_NearestTriggerWins_AtOverSlash()
+    {
+        var result = SlashCommandParser.Parse("/model @src", 11);
+        result.ShouldComplete.Should().BeTrue();
+        result.Mode.Should().Be(SlashCompletionMode.File);
+        result.Prefix.Should().Be("src");
+    }
+
+    [Fact]
+    public void Parse_ArgumentWithSpace_Terminates()
+    {
+        var result = SlashCommandParser.Parse("/model gpt 4o", 13);
+        result.ShouldComplete.Should().BeFalse();
+    }
 }

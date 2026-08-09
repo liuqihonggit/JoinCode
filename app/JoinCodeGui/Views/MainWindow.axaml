@@ -121,12 +121,8 @@
             </DataTemplate>
           </ComboBox.ItemTemplate>
         </ComboBox>
-        <Border Grid.Column="6" VerticalAlignment="Center" CornerRadius="4" Padding="6,2"
-                Background="#e8930c" IsVisible="{Binding IsMockConnection}">
-          <TextBlock Text="🧪 Mock" Foreground="White" FontSize="11" FontWeight="SemiBold" />
-        </Border>
         <ComboBox Grid.Column="6" Margin="0,0,10,0" ItemsSource="{Binding ModelOptions}" SelectedItem="{Binding SelectedModelOption}"
-                  PlaceholderText="选择模型" MinWidth="180" IsVisible="{Binding !IsMockConnection}">
+                   PlaceholderText="选择模型" MinWidth="180">
           <ComboBox.ItemTemplate>
             <DataTemplate x:DataType="vm:ModelOptionItem">
               <TextBlock Text="{Binding DisplayText}" TextTrimming="CharacterEllipsis" />
@@ -165,32 +161,29 @@
                PlacementTarget="{Binding ElementName=InputTextBox}"
                Placement="Bottom" IsOpen="{Binding IsSlashPopupOpen}"
                VerticalOffset="4" IsLightDismissEnabled="True">
-          <Border MinWidth="380" MaxHeight="320" CornerRadius="6" Padding="4"
+          <Border x:Name="SlashPopupBorder" MinWidth="300" MaxHeight="340" CornerRadius="8" Padding="4"
                   Background="{DynamicResource GuiWindowBackground}"
-                  BoxShadow="0 4 12 0 #80000000">
+                  BoxShadow="0 6 16 0 #90000000">
             <ListBox x:Name="SlashListBox"
                      ItemsSource="{Binding SlashSuggestions}"
                      SelectedIndex="{Binding SlashSelectedIndex}"
-                     Background="Transparent"
-                     Grid.IsSharedSizeScope="True">
+                     Background="Transparent" Padding="2">
               <ListBox.ItemTemplate>
                 <DataTemplate x:DataType="vm:SlashCommandItem">
-                  <Grid Margin="8,3">
-                    <Grid.ColumnDefinitions>
-                      <ColumnDefinition Width="Auto" SharedSizeGroup="SlashNameCol" />
-                      <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-                    <StackPanel Orientation="Horizontal" Grid.Column="0">
+                  <StackPanel Margin="10,5" Spacing="2">
+                    <StackPanel Orientation="Horizontal" Spacing="0">
                       <TextBlock Text="{Binding MatchedPart}" FontFamily="Consolas" FontSize="13" FontWeight="Bold"
                                  Foreground="{DynamicResource GuiAccentText}" />
-                      <TextBlock Text="{Binding RemainingPart}" FontFamily="Consolas" FontSize="13" FontWeight="SemiBold"
+                      <TextBlock Text="{Binding RemainingPart}" FontFamily="Consolas" FontSize="13"
                                  Foreground="{DynamicResource GuiSecondaryText}" />
                     </StackPanel>
-                    <TextBlock Grid.Column="1" Text="{Binding Description}" FontSize="11"
+                    <TextBlock Text="{Binding Description}" FontSize="11"
                                Foreground="{DynamicResource GuiMutedText}"
-                               TextTrimming="CharacterEllipsis" Margin="12,0,0,0"
-                               ToolTip.Tip="{Binding ToolTipText}" />
-                  </Grid>
+                               TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text="{Binding Usage}" FontSize="10" FontFamily="Consolas"
+                               Foreground="{DynamicResource GuiMutedText}" Opacity="0.7"
+                               IsVisible="{Binding HasUsage}" Margin="0,1,0,0" />
+                  </StackPanel>
                 </DataTemplate>
               </ListBox.ItemTemplate>
             </ListBox>

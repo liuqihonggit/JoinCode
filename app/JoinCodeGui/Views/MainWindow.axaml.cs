@@ -60,7 +60,10 @@ public sealed partial class MainWindow : Window
         _toolTimer.Tick += OnToolTimerTick;
         _slashDebounceTimer.Tick += OnSlashDebounceTick;
         if (InputTextBox is not null)
+        {
             InputTextBox.AddHandler(InputElement.KeyDownEvent, OnInputKeyDown, Avalonia.Interactivity.RoutingStrategies.Tunnel);
+            InputTextBox.SizeChanged += OnInputSizeChanged;
+        }
         SizeChanged += OnWindowSizeChanged;
         Closed += OnWindowClosed;
     }
@@ -215,6 +218,7 @@ public sealed partial class MainWindow : Window
             return;
         _vm.InputCaretIndex = InputTextBox.CaretIndex;
         _vm.RefreshSlashSuggestions();
+        UpdateSlashPopupWidth();
     }
 
     /// <summary>窗口尺寸变化时重算斜杠面板位置（微调 VerticalOffset 触发 Popup 重新定位）</summary>
@@ -228,6 +232,19 @@ public sealed partial class MainWindow : Window
         var offset = popup.VerticalOffset;
         popup.VerticalOffset = offset + 0.1;
         popup.VerticalOffset = offset;
+    }
+
+    /// <summary>输入框尺寸变化时同步补全面板宽度，使其与输入栏对齐</summary>
+    private void OnInputSizeChanged(object? sender, Avalonia.Controls.SizeChangedEventArgs e) => UpdateSlashPopupWidth();
+
+    /// <summary>补全面板宽度对齐输入框实际宽度（CAD 风格：候选列表与命令栏等宽）</summary>
+    private void UpdateSlashPopupWidth()
+    {
+        if (SlashPopupBorder is null || InputTextBox is null)
+            return;
+        var width = InputTextBox.Bounds.Width;
+        if (width > 0)
+            SlashPopupBorder.Width = width;
     }
 
     /// <summary>根据当前 StatusKind 启停状态点闪烁：Busy 闪烁，Ready/Error 停止并恢复不透明</summary>

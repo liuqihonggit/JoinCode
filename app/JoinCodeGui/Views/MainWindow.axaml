@@ -255,58 +255,44 @@
           <ItemsControl ItemsSource="{Binding FilteredMessages}" Margin="10,6">
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="vm:ChatUiMessage">
-                <Border CornerRadius="8" Padding="10,8" Margin="0,4" MaxWidth="640"
-                        HorizontalAlignment="{Binding IsUser, Converter={StaticResource BoolToAlign}}"
-                        Background="{Binding, Converter={StaticResource KindToBubbleBg}}">
-                  <StackPanel Spacing="4">
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                      <TextBlock Text="{Binding RoleLabel}" FontWeight="SemiBold"
-                                 Foreground="{Binding IsUser, Converter={StaticResource BoolToRoleBrush}}" />
-                      <TextBlock Text="{Binding KindLabel}" FontSize="11" Foreground="{DynamicResource GuiThinkingLabel}"
-                                 IsVisible="{Binding IsThinking}" />
-                      <TextBlock Text="{Binding KindLabel}" FontSize="11" Foreground="{DynamicResource GuiToolLabel}"
-                                 IsVisible="{Binding IsToolCall}" />
-                      <TextBlock Text="{Binding Timestamp, StringFormat='{}{0:HH:mm:ss}'}"
-                                 Foreground="{DynamicResource GuiMutedText}" FontSize="11" />
-                      <TextBlock Text="●" Foreground="{DynamicResource GuiBusyText}" FontSize="10"
-                                 IsVisible="{Binding IsStreaming}" ToolTip.Tip="输出中" />
-                      <Button Content="⧉" FontSize="10" Padding="3,1" Background="Transparent"
-                              BorderThickness="0" Foreground="{DynamicResource GuiMutedText}"
-                              Command="{Binding DataContext.CopyMessageCommand, ElementName=Root}"
-                              CommandParameter="{Binding}" />
-                      <Button Content="✕" FontSize="10" Padding="3,1" Background="Transparent"
-                              BorderThickness="0" Foreground="{DynamicResource GuiErrorText}"
-                              Tag="{Binding}"
-                              Click="OnRemoveClick" />
-                    </StackPanel>
-                    <Button IsVisible="{Binding IsThinkingCollapsed}" Padding="0" Background="Transparent"
-                            BorderThickness="0" HorizontalContentAlignment="Stretch"
-                            Command="{Binding DataContext.ToggleThinkingCommand, ElementName=Root}"
-                            CommandParameter="{Binding}">
-                      <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,2">
-                        <TextBlock Text="▶" Foreground="{DynamicResource GuiThinkingLabel}" FontSize="11" VerticalAlignment="Center" />
-                        <TextBlock Text="{Binding ThinkingSummary}" Foreground="{DynamicResource GuiThinkingLabel}" FontSize="11"
-                                   FontStyle="Italic" VerticalAlignment="Center" />
-                      </StackPanel>
-                    </Button>
-                    <md:MarkdownView Markdown="{Binding DisplayText}"
-                                     BaseFontSize="{Binding DataContext.FontSize, ElementName=Root}"
-                                     IsVisible="{Binding ShowBody}"
-                                     Opacity="{Binding IsThinking, Converter={StaticResource BoolToThinkingOpacity}}" />
-                    <StackPanel IsVisible="{Binding IsToolCall}" Spacing="2">
-                      <StackPanel Orientation="Horizontal" Spacing="8">
-                        <TextBlock Text="{Binding ToolName}" FontWeight="SemiBold" Foreground="{DynamicResource GuiToolLabel}" FontSize="12" />
-                        <TextBlock Text="{Binding ToolElapsedText}" Foreground="{DynamicResource GuiBusyText}" FontSize="11"
-                                   IsVisible="{Binding IsToolRunning}" />
-                      </StackPanel>
-                      <TextBlock Text="{Binding ToolArguments}" Foreground="{DynamicResource GuiToolArgument}" FontSize="11" FontFamily="Consolas"
-                                 TextWrapping="Wrap" IsVisible="{Binding IsToolCallStart}" />
-                      <TextBlock Text="{Binding ToolResultText}" Foreground="{DynamicResource GuiToolResult}" FontSize="11"
-                                 TextWrapping="Wrap" IsVisible="{Binding IsToolResultMessage}" />
-                      <md:DiffViewer Hunks="{Binding StructuredPatch}" IsVisible="{Binding HasDiff}" Margin="0,4,0,0" />
-                    </StackPanel>
+                <StackPanel Margin="0,4">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="{Binding RoleLabel}" FontWeight="SemiBold"
+                               Foreground="{Binding IsUser, Converter={StaticResource BoolToRoleBrush}}" />
+                    <TextBlock Text="{Binding KindLabel}" FontSize="11" Foreground="{DynamicResource GuiThinkingLabel}"
+                               IsVisible="{Binding IsThinking}" />
+                    <TextBlock Text="{Binding KindLabel}" FontSize="11" Foreground="{DynamicResource GuiToolLabel}"
+                               IsVisible="{Binding IsToolCall}" />
+                    <TextBlock Text="{Binding Timestamp, StringFormat='{}{0:HH:mm:ss}'}"
+                               Foreground="{DynamicResource GuiMutedText}" FontSize="11" />
+                    <TextBlock Text="●" Foreground="{DynamicResource GuiBusyText}" FontSize="10"
+                               IsVisible="{Binding IsStreaming}" ToolTip.Tip="输出中" />
+                    <Button Content="⧉" FontSize="10" Padding="3,1" Background="Transparent"
+                            BorderThickness="0" Foreground="{DynamicResource GuiMutedText}"
+                            Command="{Binding DataContext.CopyMessageCommand, ElementName=Root}"
+                            CommandParameter="{Binding}" />
+                    <Button Content="✕" FontSize="10" Padding="3,1" Background="Transparent"
+                            BorderThickness="0" Foreground="{DynamicResource GuiErrorText}"
+                            Tag="{Binding}"
+                            Click="OnRemoveClick" />
                   </StackPanel>
-                </Border>
+                  <md:MarkdownView Markdown="{Binding DisplayText}"
+                                   BaseFontSize="{Binding DataContext.FontSize, ElementName=Root}"
+                                   IsVisible="{Binding ShowBody}"
+                                   Opacity="{Binding IsThinking, Converter={StaticResource BoolToThinkingOpacity}}" />
+                  <StackPanel IsVisible="{Binding IsToolCall}" Spacing="2">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                      <TextBlock Text="{Binding ToolName}" FontWeight="SemiBold" Foreground="{DynamicResource GuiToolLabel}" FontSize="12" />
+                      <TextBlock Text="{Binding ToolElapsedText}" Foreground="{DynamicResource GuiBusyText}" FontSize="11"
+                                 IsVisible="{Binding IsToolRunning}" />
+                    </StackPanel>
+                    <TextBlock Text="{Binding ToolArguments}" Foreground="{DynamicResource GuiToolArgument}" FontSize="11" FontFamily="Consolas"
+                               TextWrapping="Wrap" IsVisible="{Binding IsToolCallStart}" />
+                    <TextBlock Text="{Binding ToolResultText}" Foreground="{DynamicResource GuiToolResult}" FontSize="11"
+                               TextWrapping="Wrap" IsVisible="{Binding IsToolResultMessage}" />
+                    <md:DiffViewer Hunks="{Binding StructuredPatch}" IsVisible="{Binding HasDiff}" Margin="0,4,0,0" />
+                  </StackPanel>
+                </StackPanel>
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>

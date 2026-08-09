@@ -110,13 +110,14 @@ public class MainViewModelTests
     }
 
     [Fact]
-    public void RemoveSession_DeletesPersistedFile()
+    public async Task RemoveSession_DeletesPersistedFile()
     {
         var store = new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions");
         var vm = new MainViewModel(null, store);
 
         vm.InputText = "hello";
-        vm.SendCommand.Execute(null);
+        // 等 SendAsync 的 finally SaveActiveSession() 完成后再删除，避免异步写回竞态
+        await Task.Run(() => vm.SendCommand.ExecuteAsync(null)).WaitAsync(Timeout);
         var target = vm.Sessions.First(s => s.IsSelected);
 
         vm.RemoveSessionCommand.Execute(target);
@@ -730,7 +731,7 @@ public class MainViewModelTests
         }
 
         [Fact]
-        public void ThinkingMessage_DefaultsToCollapsed()
+        public void ThinkingMessage_DefaultsToExpanded()
         {
             var msg = new ChatUiMessage
             {
@@ -739,13 +740,13 @@ public class MainViewModelTests
                 Kind = ChatUiMessageKind.Thinking
             };
 
-            msg.IsThinkingExpanded.Should().BeFalse();
-            msg.IsThinkingCollapsed.Should().BeTrue();
-            msg.ShowBody.Should().BeFalse();
+            msg.IsThinkingExpanded.Should().BeTrue();
+            msg.IsThinkingCollapsed.Should().BeFalse();
+            msg.ShowBody.Should().BeTrue();
         }
 
         [Fact]
-        public void ThinkingMessage_ToggleExpandsAndRevealsBody()
+        public void ThinkingMessage_ToggleCollapsesAndRevealsBody()
         {
             var vm = CreateVm();
             var msg = new ChatUiMessage
@@ -757,12 +758,13 @@ public class MainViewModelTests
 
             vm.ToggleThinkingCommand.Execute(msg);
 
-            msg.IsThinkingExpanded.Should().BeTrue();
-            msg.IsThinkingCollapsed.Should().BeFalse();
-            msg.ShowBody.Should().BeTrue();
+            msg.IsThinkingExpanded.Should().BeFalse();
+            msg.IsThinkingCollapsed.Should().BeTrue();
+            msg.ShowBody.Should().BeFalse();
 
             vm.ToggleThinkingCommand.Execute(msg);
-            msg.IsThinkingExpanded.Should().BeFalse();
+            msg.IsThinkingExpanded.Should().BeTrue();
+            msg.ShowBody.Should().BeTrue();
         }
 
         [Fact]
@@ -773,7 +775,7 @@ public class MainViewModelTests
 
             vm.ToggleThinkingCommand.Execute(msg);
 
-            msg.IsThinkingExpanded.Should().BeFalse();
+            msg.IsThinkingExpanded.Should().BeTrue();
         }
 
         [Fact]
@@ -786,6 +788,7 @@ public class MainViewModelTests
                 Kind = ChatUiMessageKind.Thinking
             };
 
+            msg.IsThinkingExpanded = false;
             msg.ThinkingSummary.Should().Contain("3");
             msg.ThinkingSummary.Should().Contain("展开");
         }

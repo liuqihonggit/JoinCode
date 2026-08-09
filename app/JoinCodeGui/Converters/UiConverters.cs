@@ -1,41 +1,10 @@
 using Avalonia.Controls;
 using Avalonia.Data.Converters;
-using Avalonia.Layout;
 using Avalonia.Media;
 
 using JoinCode.Gui.Theming;
 
 namespace JoinCode.Gui.Converters;
-
-/// <summary>
-/// 布尔 → 横向对齐：User 居右（End），Assistant 居左（Start）。
-/// </summary>
-public sealed class BoolToHorizontalAlignmentConverter : IValueConverter
-{
-    /// <summary>IsUser=true → End（右侧）</summary>
-    public object Convert(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture)
-        => value is true ? HorizontalAlignment.Right : HorizontalAlignment.Left;
-
-    public object ConvertBack(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture)
-        => value is HorizontalAlignment.Right;
-}
-
-/// <summary>
-/// 布尔 → 气泡背景色：User 用户蓝，Assistant 深灰。颜色取自身份配色，随主题切换。
-/// </summary>
-public sealed class BoolToBubbleBackgroundConverter : IValueConverter
-{
-    public object Convert(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture)
-    {
-        var s = GuiPalette.Current;
-        return value is true
-            ? GuiPalette.ToBrush(s.BubbleUser)
-            : GuiPalette.ToBrush(s.BubbleText);
-    }
-
-    public object ConvertBack(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture)
-        => throw new NotSupportedException();
-}
 
 /// <summary>
 /// 布尔 → 角色标签色：User 蓝色，Assistant 淡青。颜色取自身份配色，随主题切换。
@@ -92,33 +61,7 @@ public sealed class BoolToWarnBrushConverter : IValueConverter
 }
 
 /// <summary>
-/// 消息类型 → 气泡底色：User / 思考 / 工具 / 工具结果 / 正文。取自身份配色，随主题切换。
-/// </summary>
-public sealed class KindToBubbleBackgroundConverter : IValueConverter
-{
-    public object Convert(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture)
-    {
-        if (value is not ViewModels.ChatUiMessage m)
-            return Brushes.Transparent;
-        var s = GuiPalette.Current;
-        return m.IsUser
-            ? GuiPalette.ToBrush(s.BubbleUser)
-            : m.IsThinking
-                ? GuiPalette.ToBrush(s.BubbleThinking)
-                : m.Kind switch
-                {
-                    ViewModels.ChatUiMessageKind.ToolCall => GuiPalette.ToBrush(s.BubbleToolCall),
-                    ViewModels.ChatUiMessageKind.ToolResult => GuiPalette.ToBrush(s.BubbleToolResult),
-                    _ => GuiPalette.ToBrush(s.BubbleText)
-                };
-    }
-
-    public object ConvertBack(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture)
-        => throw new NotSupportedException();
-}
-
-/// <summary>
-/// 布尔(是否思考消息) → 不透明度：思考内容轻微半透明呈现淡出感，正文不透明。
+/// 布尔 → 警示前景色：超限用错误色，否则次要文字色。取自身份配色，随主题切换。
 /// </summary>
 public sealed class BoolToThinkingOpacityConverter : IValueConverter
 {

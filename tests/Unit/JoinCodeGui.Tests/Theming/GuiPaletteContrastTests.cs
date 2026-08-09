@@ -122,32 +122,6 @@ public class GuiPaletteContrastTests
     }
 
     [AvaloniaFact]
-    public void KindToBubbleConverter_UnderLight_ReturnsLightSchemeColors()
-    {
-        var light = GuiPalette.SchemeFor(GuiPalette.GuiThemeVariant.Light);
-        var converter = new KindToBubbleBackgroundConverter();
-
-        try
-        {
-            GuiPalette.CurrentVariant = GuiPalette.GuiThemeVariant.Light;
-            var thinking = new ChatUiMessage { Role = MessageRole.Assistant, Content = "r", Kind = ChatUiMessageKind.Thinking };
-            var tool = new ChatUiMessage { Role = MessageRole.Assistant, Content = "r", Kind = ChatUiMessageKind.ToolCall };
-            var result = new ChatUiMessage { Role = MessageRole.Assistant, Content = "r", Kind = ChatUiMessageKind.ToolResult };
-
-            BrushColor(converter.Convert(thinking, typeof(ISolidColorBrush), null, null!))
-                .ToString().Should().Be(Color.Parse(light.BubbleThinking).ToString());
-            BrushColor(converter.Convert(tool, typeof(ISolidColorBrush), null, null!))
-                .ToString().Should().Be(Color.Parse(light.BubbleToolCall).ToString());
-            BrushColor(converter.Convert(result, typeof(ISolidColorBrush), null, null!))
-                .ToString().Should().Be(Color.Parse(light.BubbleToolResult).ToString());
-        }
-        finally
-        {
-            GuiPalette.CurrentVariant = GuiPalette.GuiThemeVariant.Dark;
-        }
-    }
-
-    [AvaloniaFact]
     public void RoleAndStatusConverters_UnderLight_ReturnLightColors()
     {
         var light = GuiPalette.SchemeFor(GuiPalette.GuiThemeVariant.Light);

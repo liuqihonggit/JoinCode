@@ -122,8 +122,8 @@ public sealed class ChatUiMessage : INotifyPropertyChanged
     /// <summary>是否为思考过程消息</summary>
     public bool IsThinking => Kind == ChatUiMessageKind.Thinking;
 
-    /// <summary>思考消息是否已展开（默认折叠，点开查看全文）</summary>
-    private bool _isThinkingExpanded;
+    /// <summary>思考消息是否已展开（终端式默认全展开，实时可见思考流；可手动收起）</summary>
+    private bool _isThinkingExpanded = true;
     public bool IsThinkingExpanded
     {
         get => _isThinkingExpanded;

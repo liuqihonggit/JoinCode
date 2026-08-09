@@ -32,13 +32,10 @@ public static class GuiAppResources
     {
         var dict = new ResourceDictionary
         {
-            ["BoolToAlign"] = new Converters.BoolToHorizontalAlignmentConverter(),
-            ["BoolToBubbleBg"] = new Converters.BoolToBubbleBackgroundConverter(),
             ["BoolToRoleBrush"] = new Converters.BoolToRoleBrushConverter(),
             ["BoolToSessHighlight"] = new Converters.BoolToSessionHighlightConverter(),
             ["StatusToBrush"] = new Converters.StatusToBrushConverter(),
             ["BoolToWarnBrush"] = new Converters.BoolToWarnBrushConverter(),
-            ["KindToBubbleBg"] = new Converters.KindToBubbleBackgroundConverter(),
             ["BoolToThinkingOpacity"] = new Converters.BoolToThinkingOpacityConverter()
         };
         return dict;

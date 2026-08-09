@@ -97,7 +97,7 @@ public sealed class DiffViewer : StackPanel
         };
     }
 
-    /// <summary>渲染单行 Diff：前缀 + 行号 + 内容，按增删类型着色</summary>
+    /// <summary>渲染单行 Diff：旧行号 + 新行号 + 前缀 + 内容，按增删类型着色</summary>
     private static Control BuildDiffLine(PatchLine line, GuiPalette.Scheme scheme)
     {
         var (prefix, foreground, background) = line.Type switch
@@ -107,32 +107,24 @@ public sealed class DiffViewer : StackPanel
             _ => (" ", ToBrush(scheme.SecondaryText), Brushes.Transparent)
         };
 
-        var lineNum = line.Type switch
-        {
-            PatchLineType.Added => line.NewLineNumber?.ToString() ?? "",
-            PatchLineType.Removed => line.OldLineNumber?.ToString() ?? "",
-            _ => line.NewLineNumber?.ToString() ?? line.OldLineNumber?.ToString() ?? ""
-        };
+        var oldLineNum = line.OldLineNumber?.ToString() ?? "";
+        var newLineNum = line.NewLineNumber?.ToString() ?? "";
 
         var row = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("Auto,Auto,*"),
+            ColumnDefinitions = new ColumnDefinitions("Auto,Auto,Auto,*"),
             Background = background
         };
 
-        // 行号
-        var numBlock = new SelectableTextBlock
-        {
-            Text = lineNum,
-            SelectionBrush = ToBrush("#6680c0"),
-            FontFamily = MonoFont,
-            FontSize = 11,
-            Foreground = ToBrush(scheme.MutedText),
-            Padding = new Thickness(4, 1, 8, 1),
-            VerticalAlignment = VerticalAlignment.Top
-        };
-        Grid.SetColumn(numBlock, 0);
-        row.Children.Add(numBlock);
+        // 旧行号（左列）
+        var oldNumBlock = BuildLineNumberBlock(oldLineNum, scheme);
+        Grid.SetColumn(oldNumBlock, 0);
+        row.Children.Add(oldNumBlock);
+
+        // 新行号（右列）
+        var newNumBlock = BuildLineNumberBlock(newLineNum, scheme);
+        Grid.SetColumn(newNumBlock, 1);
+        row.Children.Add(newNumBlock);
 
         // 前缀 (+/-/space)
         var prefixBlock = new SelectableTextBlock
@@ -145,7 +137,7 @@ public sealed class DiffViewer : StackPanel
             Padding = new Thickness(2, 1, 2, 1),
             VerticalAlignment = VerticalAlignment.Top
         };
-        Grid.SetColumn(prefixBlock, 1);
+        Grid.SetColumn(prefixBlock, 2);
         row.Children.Add(prefixBlock);
 
         // 内容
@@ -160,11 +152,24 @@ public sealed class DiffViewer : StackPanel
             Padding = new Thickness(2, 1, 4, 1),
             VerticalAlignment = VerticalAlignment.Top
         };
-        Grid.SetColumn(contentBlock, 2);
+        Grid.SetColumn(contentBlock, 3);
         row.Children.Add(contentBlock);
 
         return row;
     }
+
+    /// <summary>构建行号单元格</summary>
+    private static SelectableTextBlock BuildLineNumberBlock(string text, GuiPalette.Scheme scheme)
+        => new()
+        {
+            Text = text,
+            SelectionBrush = ToBrush("#6680c0"),
+            FontFamily = MonoFont,
+            FontSize = 11,
+            Foreground = ToBrush(scheme.MutedText),
+            Padding = new Thickness(4, 1, 8, 1),
+            VerticalAlignment = VerticalAlignment.Top
+        };
 
     private static ISolidColorBrush ToBrush(string hex) => GuiPalette.ToBrush(hex);
 }

@@ -58,9 +58,9 @@
 | 1 | 写红测试（上述 6 条） | ✅ 1/2/3 已写并验证红 |
 | 2 | 修复 BuildHunk 直接消费 EditOp（root cause） | ✅ 编译0错 + 3绿测试 |
 | 3 | 实现 StructuredPatchGenerator.DefaultContextLines 3→4 | ✅ |
-| 4 | 实现 DiffViewer 双列行号（Grid 四列） | ⬜ |
-| 5 | 实现 SlashCommandTrie + 接入 SlashCommandItem.Filter | ⬜ |
-| 6 | 绿测试 + 编译验证 | ⬜ |
+| 4 | 实现 DiffViewer 双列行号（Grid 四列） | ✅ 测试绿 |
+| 5 | 实现 SlashCommandTrie + 接入 SlashCommandItem.Filter | ✅ 测试绿 |
+| 6 | 绿测试 + 编译验证 | ✅ GUI 161 + Infra 588 |
 | 7 | 差评大师 + 修复 | ⬜ |
 | 8 | git 提交 | ⬜ |
 
@@ -84,3 +84,9 @@
 <!-- 原因: 红测试 1/2 暴露隐藏 bug — 插入/删除导致行错位时，按内容比对会误判整段为全量替换 -->
 <!-- 替代方案: 仅改 DefaultContextLines 3→4（治标，变更仍会错位/被吞，不采纳） -->
 <!-- 验证: 编译0错，3个红测试转绿，diffdbg 验证 5 种边界场景输出正确 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-08-09 -->
+<!-- 决策: SlashCommandTrie 用 SortedDictionary<char,Node> + 小写折叠大小写，ConditionalWeakTable 按命令列表实例缓存 -->
+<!-- 原因: 前缀匹配 O(前缀长)，优于线性 StartsWith；CWT 让不同缓存列表各持一棵树，GC 安全 -->
+<!-- 替代方案: 每次重建 trie（列表小，性能差异可忽略，但失去 trie 意义）；普通 Dictionary 缓存（强引用泄漏） -->
+<!-- 验证: 6 trie 测试 + 6 MainViewModel slash 测试全绿 ✅ -->

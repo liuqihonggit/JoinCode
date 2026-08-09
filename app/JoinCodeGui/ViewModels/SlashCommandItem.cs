@@ -65,10 +65,9 @@ public sealed class SlashCommandItem
     public static IReadOnlyList<SlashCommandItem> Filter(string prefix, IReadOnlyList<SlashCommandItem>? commands = null)
     {
         var source = commands ?? BuiltInCommands;
-        if (string.IsNullOrWhiteSpace(prefix))
-            return source;
-        return source
-            .Where(c => c.Name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-            .ToList();
+        return TrieCache.GetValue(source, list => new SlashCommandTrie(list)).Match(prefix);
     }
+
+    /// <summary>命令列表 → 前缀树缓存（同列表实例复用同一棵树）</summary>
+    private static readonly ConditionalWeakTable<IReadOnlyList<SlashCommandItem>, SlashCommandTrie> TrieCache = new();
 }

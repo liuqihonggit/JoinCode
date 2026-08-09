@@ -450,6 +450,78 @@ public class MainViewModelTests
         msg.CopyAllText.Should().BeEmpty();
     }
 
+    [Fact]
+    public void SlashInput_OpensPopupAndFillsSuggestions()
+    {
+        var vm = CreateVm();
+
+        vm.InputText = "/";
+
+        vm.IsSlashPopupOpen.Should().BeTrue();
+        vm.SlashSuggestions.Should().NotBeEmpty();
+        vm.SlashSuggestions.Should().OnlyContain(s => s.Name.StartsWith("/"));
+    }
+
+    [Fact]
+    public void SlashInput_PrefixFiltersSuggestions()
+    {
+        var vm = CreateVm();
+
+        vm.InputText = "/c";
+
+        vm.IsSlashPopupOpen.Should().BeTrue();
+        vm.SlashSuggestions.Should().NotBeEmpty();
+        vm.SlashSuggestions.Should().OnlyContain(s => s.Name.StartsWith("/c", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void SlashInput_EmptySuggestion_ClosesPopup()
+    {
+        var vm = CreateVm();
+
+        vm.InputText = "/zzz-not-a-command";
+
+        vm.IsSlashPopupOpen.Should().BeFalse();
+        vm.SlashSuggestions.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void NonSlashInput_ClosesPopup()
+    {
+        var vm = CreateVm();
+        vm.InputText = "/";
+
+        vm.InputText = "hello";
+
+        vm.IsSlashPopupOpen.Should().BeFalse();
+        vm.SlashSuggestions.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void CompleteSlashSuggestion_SetsInputToCommandName()
+    {
+        var vm = CreateVm();
+        vm.InputText = "/cle";
+
+        vm.CompleteSlashSuggestion();
+
+        vm.InputText.Should().StartWith("/clear");
+        vm.IsSlashPopupOpen.Should().BeFalse();
+    }
+
+    [Fact]
+    public void SlashNavigate_MovesSelection()
+    {
+        var vm = CreateVm();
+        vm.InputText = "/c";
+
+        var first = vm.SlashSelectedIndex;
+        vm.SlashNavigate(1);
+        vm.SlashSelectedIndex.Should().Be(first + 1);
+        vm.SlashNavigate(-1);
+        vm.SlashSelectedIndex.Should().Be(first);
+    }
+
 
         [Fact]
         public void CopyEmptyMessage_DoesNotSetFeedback()
@@ -1062,6 +1134,7 @@ public class MainViewModelTests
             public int? MaxTokens => null;
             public Task SetTemperatureAsync(float temperature, CancellationToken cancellationToken = default) => Task.CompletedTask;
             public Task SetMaxTokensAsync(int maxTokens, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public IReadOnlyList<SlashCommandMetadata> GetAvailableSlashCommands() => [];
             public ValueTask DisposeAsync() => ValueTask.CompletedTask;
         }
 
@@ -1113,6 +1186,7 @@ public class MainViewModelTests
                 WrittenMaxTokens = maxTokens;
                 return Task.CompletedTask;
             }
+            public IReadOnlyList<SlashCommandMetadata> GetAvailableSlashCommands() => [];
             public ValueTask DisposeAsync() => ValueTask.CompletedTask;
         }
     }

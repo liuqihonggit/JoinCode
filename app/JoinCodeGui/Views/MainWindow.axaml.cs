@@ -332,12 +332,37 @@ public sealed partial class MainWindow : Window
     {
         if (DataContext is not MainViewModel vm)
             return;
-        if (e.Key == Key.Oem2 && string.IsNullOrEmpty(vm.InputText) && !vm.IsBusy)
+
+        // 斜杠命令补全下拉打开时优先响应导航/补全/关闭
+        if (vm.IsSlashPopupOpen)
         {
-            e.Handled = true;
-            _ = ShowCommandPaletteAsync(vm);
-            return;
+            if (e.Key == Key.Down)
+            {
+                e.Handled = true;
+                vm.SlashNavigate(1);
+                return;
+            }
+            if (e.Key == Key.Up)
+            {
+                e.Handled = true;
+                vm.SlashNavigate(-1);
+                return;
+            }
+            if (e.Key == Key.Enter)
+            {
+                e.Handled = true;
+                vm.CompleteSlashSuggestion();
+                FocusInputEnd();
+                return;
+            }
+            if (e.Key == Key.Escape)
+            {
+                e.Handled = true;
+                vm.InputText = string.Empty;
+                return;
+            }
         }
+
         if (e.Key == Key.Enter)
         {
             var isShift = (e.KeyModifiers & KeyModifiers.Shift) != 0;
@@ -357,16 +382,25 @@ public sealed partial class MainWindow : Window
                 vm.SendCommand.Execute(null);
             }
         }
-        else if (e.Key == Key.Up)
+        else if (e.Key == Key.Up && !vm.IsSlashPopupOpen)
         {
             e.Handled = true;
             vm.NavigateHistoryCommand.Execute(-1);
         }
-        else if (e.Key == Key.Down)
+        else if (e.Key == Key.Down && !vm.IsSlashPopupOpen)
         {
             e.Handled = true;
             vm.NavigateHistoryCommand.Execute(1);
         }
+    }
+
+    /// <summary>聚焦输入框并把光标移到末尾（命令补全后调用）</summary>
+    private void FocusInputEnd()
+    {
+        if (InputTextBox is null)
+            return;
+        InputTextBox.Focus();
+        InputTextBox.CaretIndex = InputTextBox.Text?.Length ?? 0;
     }
 
     /// <summary>点击删除按钮：从会话中移除该消息</summary>
@@ -419,26 +453,6 @@ public sealed partial class MainWindow : Window
             {
                 e.Handled = true;
                 session.IsRenaming = false;
-            }
-        }
-    }
-
-    /// <summary>弹出斜杠命令面板；用户选择后将命令名填入输入框并聚焦</summary>
-    private async Task ShowCommandPaletteAsync(MainViewModel vm)
-    {
-        var metadata = vm.GetAvailableSlashCommands();
-        var commands = metadata.Count > 0
-            ? SlashCommandItem.FromMetadata(metadata)
-            : null;
-        var dialog = new CommandPalette("/", commands);
-        var selected = await dialog.ShowDialog<string?>(this);
-        if (selected is not null)
-        {
-            vm.InputText = selected + " ";
-            if (InputTextBox is not null)
-            {
-                InputTextBox.Focus();
-                InputTextBox.CaretIndex = vm.InputText.Length;
             }
         }
     }

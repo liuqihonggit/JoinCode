@@ -297,6 +297,65 @@ public sealed partial class MainViewModel : ViewModelBase
     public IReadOnlyList<SlashCommandMetadata> GetAvailableSlashCommands()
         => _session.GetAvailableSlashCommands();
 
+    /// <summary>斜杠命令缓存（懒加载；空命令时回退内置高频命令列表）</summary>
+    private IReadOnlyList<SlashCommandItem>? _slashCommandCache;
+
+    /// <summary>当前输入的斜杠命令过滤建议（驱动内联补全下拉）</summary>
+    public ObservableCollection<SlashCommandItem> SlashSuggestions { get; } = [];
+
+    /// <summary>斜杠命令补全下拉是否打开（输入以 / 开头且有匹配命令时）</summary>
+    public bool IsSlashPopupOpen => InputText.StartsWith("/", StringComparison.Ordinal) && SlashSuggestions.Count > 0;
+
+    /// <summary>斜杠建议当前选中索引（↑↓ 导航）</summary>
+    [ObservableProperty]
+    private int _slashSelectedIndex = -1;
+
+    /// <summary>刷新斜杠命令建议 — 输入以 / 开头时按前缀过滤并打开下拉，否则清空关闭</summary>
+    private void RefreshSlashSuggestions()
+    {
+        var prefix = InputText;
+        if (prefix.StartsWith("/", StringComparison.Ordinal) && !IsBusy)
+        {
+            var cache = _slashCommandCache ??= BuildSlashCommandCache();
+            SlashSuggestions.Clear();
+            foreach (var item in SlashCommandItem.Filter(prefix, cache))
+                SlashSuggestions.Add(item);
+            SlashSelectedIndex = SlashSuggestions.Count > 0 ? 0 : -1;
+        }
+        else
+        {
+            SlashSuggestions.Clear();
+            SlashSelectedIndex = -1;
+        }
+        OnPropertyChanged(nameof(IsSlashPopupOpen));
+    }
+
+    /// <summary>构建斜杠命令缓存 — 引擎命令为空时回退内置高频子集</summary>
+    private IReadOnlyList<SlashCommandItem> BuildSlashCommandCache()
+    {
+        var metadata = GetAvailableSlashCommands();
+        return metadata.Count > 0 ? SlashCommandItem.FromMetadata(metadata) : SlashCommandItem.BuiltInCommands;
+    }
+
+    /// <summary>完成斜杠命令补全 — 选中项命令名填入输入框并关闭下拉</summary>
+    public void CompleteSlashSuggestion()
+    {
+        if (SlashSelectedIndex < 0 || SlashSelectedIndex >= SlashSuggestions.Count)
+            return;
+        var item = SlashSuggestions[SlashSelectedIndex];
+        InputText = item.Name + " ";
+        RefreshSlashSuggestions();
+    }
+
+    /// <summary>斜杠建议导航（↑ 传 -1，↓ 传 1），超出范围循环回绕</summary>
+    public void SlashNavigate(int delta)
+    {
+        if (SlashSuggestions.Count == 0)
+            return;
+        var count = SlashSuggestions.Count;
+        SlashSelectedIndex = (SlashSelectedIndex + delta + count) % count;
+    }
+
     /// <summary>
     /// 权限确认回调 — 由 View 层注入（弹窗实现），引擎权限待确认时调用。
     /// 未注入时默认拒绝（等价于 Deny），保证无弹窗环境下引擎行为可预期。
@@ -459,13 +518,14 @@ public sealed partial class MainViewModel : ViewModelBase
         SelectedEffort = _session.EffortLevel.ToValue();
     }
 
-    /// <summary>输入框变化时同步字符计数，并退出历史回看游标</summary>
+    /// <summary>输入框变化时同步字符计数、刷新斜杠命令建议，并退出历史回看游标</summary>
     partial void OnInputTextChanged(string value)
     {
         CharsCount = value.Length;
         OnPropertyChanged(nameof(IsInputTooLong));
         if (!_isNavigating)
             _historyIndex = -1;
+        RefreshSlashSuggestions();
     }
 
     /// <summary>新建一个会话（加入侧边栏并选中）</summary>

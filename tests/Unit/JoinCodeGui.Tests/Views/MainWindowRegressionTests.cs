@@ -198,6 +198,7 @@ public sealed class MainWindowRegressionTests
         public int? MaxTokens => null;
         public Task SetTemperatureAsync(float temperature, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task SetMaxTokensAsync(int maxTokens, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public IReadOnlyList<SlashCommandMetadata> GetAvailableSlashCommands() => [];
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 }

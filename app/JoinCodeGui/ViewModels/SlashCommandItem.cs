@@ -15,6 +15,9 @@ public sealed class SlashCommandItem
     /// <summary>用法提示（如 "/clear" 或 "/model [model-id]"）</summary>
     public string Usage { get; init; } = string.Empty;
 
+    /// <summary>是否展示用法提示（有非空 Usage 时）</summary>
+    public bool HasUsage => !string.IsNullOrWhiteSpace(Usage);
+
     /// <summary>显示文本（命令名 + 描述，供面板列表渲染）</summary>
     public string DisplayText => $"{Name}  —  {Description}";
 

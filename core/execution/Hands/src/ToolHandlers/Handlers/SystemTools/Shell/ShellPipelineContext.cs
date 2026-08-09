@@ -35,6 +35,12 @@ public sealed class ShellPipelineContext
     public int? OverrideTimeout { get; set; }
 
     /// <summary>
+    /// 超时策略 — 由工具处理组基类（OneShotCommandGroup/LongRunningGroup）决定
+    /// AbsoluteTimeoutMiddleware 读取此值强制截断超时上限
+    /// </summary>
+    public ToolTimeoutPolicy TimeoutPolicy { get; init; } = ToolTimeoutPolicy.None;
+
+    /// <summary>
     /// 工作目录 — 可由 ShellPathGateMiddleware 等中间件修改路径格式
     /// </summary>
     public string? WorkingDirectory { get; set; }

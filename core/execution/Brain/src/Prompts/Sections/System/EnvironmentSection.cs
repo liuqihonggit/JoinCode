@@ -64,19 +64,19 @@ public static class EnvironmentSection {
 
         foreach (var (name, cmd, arg) in detectors)
         {
-            var version = TryDetectTool(cmd, arg);
+            var version = TryDetectTool(cmd, [arg]);
             if (version is not null)
                 tools.Add($"{name} {version}");
         }
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            var psVersion = TryDetectTool("pwsh", "-Command \"$PSVersionTable.PSVersion.ToString()\"");
+            var psVersion = TryDetectTool("pwsh", ["-Command", "$PSVersionTable.PSVersion.ToString()"]);
             if (psVersion is not null)
                 tools.Add($"PowerShell 7+ {psVersion}");
             else
             {
-                var ps5 = TryDetectTool("powershell", "-Command \"$PSVersionTable.PSVersion.ToString()\"");
+                var ps5 = TryDetectTool("powershell", ["-Command", "$PSVersionTable.PSVersion.ToString()"]);
                 if (ps5 is not null)
                     tools.Add($"Windows PowerShell {ps5}");
             }
@@ -85,7 +85,7 @@ public static class EnvironmentSection {
         return tools;
     }
 
-    private static string? TryDetectTool(string fileName, string args, IProcessService? processService = null)
+    private static string? TryDetectTool(string fileName, string[] args, IProcessService? processService = null)
     {
         try
         {
@@ -94,7 +94,7 @@ public static class EnvironmentSection {
                 var options = new ProcessOptions
                 {
                     FileName = fileName,
-                    Arguments = args,
+                    ArgumentList = args,
                     TimeoutMs = 3000
                 };
 
@@ -103,15 +103,17 @@ public static class EnvironmentSection {
                 return string.IsNullOrWhiteSpace(procOutput) ? null : procOutput.Trim();
             }
 
-            using var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            var psi = new System.Diagnostics.ProcessStartInfo
             {
                 FileName = fileName,
-                Arguments = args,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = true
-            });
+            };
+            foreach (var a in args)
+                psi.ArgumentList.Add(a);
+            using var process = System.Diagnostics.Process.Start(psi);
             if (process is null) return null;
             var stdout = process.StandardOutput.ReadToEnd();
             var errOutput = process.StandardError.ReadToEnd();

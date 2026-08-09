@@ -56,15 +56,12 @@ public sealed class CmdSystemActuator : SystemActuatorBase
     {
         try
         {
-            var psi = new ProcessStartInfo
+            var psi = SystemActuatorBase.SharedBuilder.Build(new ProcessOptions
             {
                 FileName = shellPath,
-                Arguments = "/c ver",
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                StandardOutputEncoding = Encoding.UTF8
-            };
+                ArgumentList = ["/c", "ver"],
+                RedirectStandardError = false,
+            });
             using var p = Process.Start(psi);
             if (p is null) return "unknown";
             var output = p.StandardOutput.ReadToEnd();

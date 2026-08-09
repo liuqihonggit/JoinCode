@@ -160,9 +160,16 @@ public sealed class BootstrapAgent : IAsyncDisposable
     /// <summary>
     /// 启动病人进程并运行自举监控主循环
     /// </summary>
+    /// <param name="patientId">病人标识</param>
+    /// <param name="patientArguments">命令行参数字符串（回退模式，<paramref name="patientArgumentList"/> 优先）</param>
+    /// <param name="patientArgumentList">参数化启动列表 — 优先于 <paramref name="patientArguments"/></param>
+    /// <param name="workingDirectory">工作目录</param>
+    /// <param name="environmentVariables">环境变量</param>
+    /// <param name="ct">取消令牌</param>
     public async Task<DoctorReport> RunWithPatientAsync(
         string patientId,
         string patientArguments,
+        IReadOnlyList<string>? patientArgumentList = null,
         string? workingDirectory = null,
         IReadOnlyDictionary<string, string>? environmentVariables = null,
         CancellationToken ct = default)
@@ -171,7 +178,7 @@ public sealed class BootstrapAgent : IAsyncDisposable
         DoctorDiag.Write($"[Bootstrap] 病人参数: {patientArguments}");
 
         var patient = await _patientManager.SpawnAsync(
-            patientId, patientArguments, workingDirectory, environmentVariables, ct).ConfigureAwait(false);
+            patientId, patientArguments, patientArgumentList, workingDirectory, environmentVariables, ct).ConfigureAwait(false);
 
         DoctorDiag.Write($"[Bootstrap] 病人已启动: PID={patient.ProcessId}, 等待遥测事件...");
 

@@ -215,11 +215,11 @@ public static class PipelineComposition
                 .WithHooks(sp)
                 .Build());
 
-        // Shell 命令管道 — 超时120s
+        // Shell 命令管道 — 绝对超时由 TimeoutPolicy 驱动（OneShotCommandGroup=2min, LongRunningGroup=无限制）
         services.AddSingleton<MiddlewarePipeline<ShellPipelineContext>>(sp =>
             new PipelineBuilder<ShellPipelineContext>()
                 .WithLoggingScope(sp.GetRequiredService<ILoggerFactory>())
-                .Use(new FixedTimeoutMiddleware<ShellPipelineContext>(TimeSpan.FromSeconds(120)))
+                .Use(sp.GetRequiredService<AbsoluteTimeoutMiddleware>())
                 .Use(sp.GetRequiredService<ShellValidationMiddleware>())
                 .Use(sp.GetRequiredService<ShellPathGateMiddleware>())
                 .Use(sp.GetRequiredService<ShellClassificationMiddleware>())

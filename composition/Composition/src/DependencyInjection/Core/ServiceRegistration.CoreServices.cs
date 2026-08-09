@@ -78,14 +78,28 @@ public static partial class ServiceRegistration
 
         // ShellExecutionConfig — 直接注册供 SystemActuatorBase 构造函数使用
         // （SystemActuatorBase 构造函数取 ShellExecutionConfig 而非 IOptions<>）
+        // 支持环境变量覆盖: JCC_ABSOLUTE_TIMEOUT_SECONDS, JCC_RESUME_TIMEOUT_SECONDS
         services.AddSingleton(sp =>
         {
             var options = sp.GetRequiredService<IOptions<ShellExecutionConfig>>();
-            return options.Value;
+            var config = options.Value;
+
+            var envAbsolute = Environment.GetEnvironmentVariable("JCC_ABSOLUTE_TIMEOUT_SECONDS");
+            if (int.TryParse(envAbsolute, out var absSeconds) && absSeconds >= 0)
+                config.AbsoluteTimeoutSeconds = absSeconds;
+
+            var envResume = Environment.GetEnvironmentVariable("JCC_RESUME_TIMEOUT_SECONDS");
+            if (int.TryParse(envResume, out var resumeSeconds) && resumeSeconds >= 60)
+                config.ResumeTimeoutSeconds = resumeSeconds;
+
+            return config;
         });
 
         // SystemActuatorBase — 已改为静态缓存，不再 DI 注册
         // SystemActuatorRegistry 在 SystemActuatorInitializer 中初始化（替代原 SystemActuatorRegistry + SystemActuatorRegistry）
+
+        // LongRunningTaskRegistry — 超时续期任务注册表（单例，跟踪 resume/continue/stop 任务）
+        services.AddSingleton<LongRunningTaskRegistry>();
 
         return services;
     }
@@ -164,12 +178,22 @@ public static partial class ServiceRegistration
             _ => new Infrastructure.Time.FakeClockService(),
             sp => sp.GetRequiredService<Infrastructure.Time.PhysicalClockService>());
 
+        // IProcessEncodingProvider — 进程编码统一管理（单例，支持 UTF8/本地编码随时切换）
+        services.TryAddSingleton<IO.ProcessService.ProcessEncodingProvider>();
+        services.TryAddSingleton<IProcessEncodingProvider>(sp => sp.GetRequiredService<IO.ProcessService.ProcessEncodingProvider>());
+
+        // ProcessStartInfoBuilder — 统一构建器，强制三道防线 + 统一编码
+        services.TryAddSingleton<IO.ProcessService.ProcessStartInfoBuilder>();
+        services.TryAddSingleton<IProcessStartInfoBuilder>(sp => sp.GetRequiredService<IO.ProcessService.ProcessStartInfoBuilder>());
+
         // IProcessService — 根据 JCC_PROCESS_MODE 环境变量决定后端
         // 默认 Physical（真实进程），NoOp=禁止所有进程操作（调试/E2E测试用）
         services.AddEnvSwitch<IProcessService>(
             JccEnvVar.ProcessMode, "NoOp",
             _ => new IO.ProcessService.NoOpProcessService(),
-            sp => new IO.ProcessService.PhysicalProcessService(sp.GetService<ILogger<IO.ProcessService.PhysicalProcessService>>()));
+            sp => new IO.ProcessService.PhysicalProcessService(
+                sp.GetRequiredService<IO.ProcessService.ProcessStartInfoBuilder>(),
+                sp.GetService<ILogger<IO.ProcessService.PhysicalProcessService>>()));
 
         // IConsoleOutput — 根据 JCC_CONSOLE_MODE 环境变量决定后端
         // 默认 Physical（真实控制台），NoOp=静默所有输出（E2E测试/CI用）

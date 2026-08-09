@@ -129,14 +129,12 @@ public sealed partial class IdeIntegrationService : ServiceEntity, IIdeIntegrati
                 return false;
             }
 
-            var args = $"--goto \"{filePath}\"";
-            if (line.HasValue)
-                args += $":{line.Value}";
+            var gotoArg = line.HasValue ? $"{filePath}:{line.Value}" : filePath;
 
             await _processService.ExecuteAsync(new ProcessOptions
             {
                 FileName = command,
-                Arguments = args,
+                ArgumentList = new[] { "--goto", gotoArg },
                 TimeoutMs = 5000,
                 RedirectStandardOutput = false,
                 RedirectStandardError = false
@@ -189,14 +187,14 @@ public sealed partial class IdeIntegrationService : ServiceEntity, IIdeIntegrati
 
             // VSCode/Cursor/Windsurf 支持 --goto file:line:col
             // JetBrains 仅支持 --line N（不支持列）
-            var args = _currentConnection.Type == IdeType.JetBrains
-                ? $"--line {startLine} \"{filePath}\""
-                : $"--goto \"{filePath}:{startLine}:{startCol}\"";
+            IReadOnlyList<string> argList = _currentConnection.Type == IdeType.JetBrains
+                ? new[] { "--line", startLine.ToString(), filePath }
+                : new[] { "--goto", $"{filePath}:{startLine}:{startCol}" };
 
             await _processService.ExecuteAsync(new ProcessOptions
             {
                 FileName = command,
-                Arguments = args,
+                ArgumentList = argList,
                 TimeoutMs = 5000,
                 RedirectStandardOutput = false,
                 RedirectStandardError = false

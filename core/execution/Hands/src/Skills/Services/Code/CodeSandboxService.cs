@@ -47,7 +47,7 @@ public sealed partial class CodeSandboxService : ServiceEntity, ICodeSandboxServ
             var buildResult = await _processService.ExecuteAsync(new ProcessOptions
             {
                 FileName = "dotnet",
-                Arguments = "build --configuration Release --nologo",
+                ArgumentList = new[] { "build", "--configuration", "Release", "--nologo" },
                 WorkingDirectory = tempDir,
                 TimeoutMs = 30000
             }, cancellationToken).ConfigureAwait(false);
@@ -74,7 +74,7 @@ public sealed partial class CodeSandboxService : ServiceEntity, ICodeSandboxServ
                 runResult = await _processService.ExecuteAsync(new ProcessOptions
                 {
                     FileName = "dotnet",
-                    Arguments = $"\"{exePath}\"",
+                    ArgumentList = new[] { exePath },
                     WorkingDirectory = tempDir,
                     TimeoutMs = timeoutMs
                 }, cancellationToken).ConfigureAwait(false);

@@ -185,16 +185,16 @@ public sealed partial class ReplService : ServiceEntity, IReplService
     }
 
     private async Task<ReplResult> ExecuteCSharpAsync(string code, int timeoutSeconds, CancellationToken ct)
-        => await ExecuteScriptLanguageAsync("csharp", "dotnet-script", ".csx", $"\"{{0}}\"", "dotnet-script 未安装。请执行: dotnet tool install -g dotnet-script", "dotnet-script", code, timeoutSeconds, ct).ConfigureAwait(false);
+        => await ExecuteScriptLanguageAsync("csharp", "dotnet-script", ".csx", static f => new[] { f }, "dotnet-script 未安装。请执行: dotnet tool install -g dotnet-script", "dotnet-script", code, timeoutSeconds, ct).ConfigureAwait(false);
 
     private async Task<ReplResult> ExecutePowerShellAsync(string code, int timeoutSeconds, CancellationToken ct)
-        => await ExecuteScriptLanguageAsync("powershell", "pwsh", ".ps1", "-NoProfile -NonInteractive -File \"{0}\"", "PowerShell 未安装。请访问: https://github.com/PowerShell/PowerShell", "powershell", code, timeoutSeconds, ct).ConfigureAwait(false);
+        => await ExecuteScriptLanguageAsync("powershell", "pwsh", ".ps1", static f => new[] { "-NoProfile", "-NonInteractive", "-File", f }, "PowerShell 未安装。请访问: https://github.com/PowerShell/PowerShell", "powershell", code, timeoutSeconds, ct).ConfigureAwait(false);
 
     private async Task<ReplResult> ExecutePythonAsync(string code, int timeoutSeconds, CancellationToken ct)
-        => await ExecuteScriptLanguageAsync("python", "python3", ".py", $"\"{{0}}\"", "Python 未安装。请访问: https://www.python.org/downloads/", "python", code, timeoutSeconds, ct).ConfigureAwait(false);
+        => await ExecuteScriptLanguageAsync("python", "python3", ".py", static f => new[] { f }, "Python 未安装。请访问: https://www.python.org/downloads/", "python", code, timeoutSeconds, ct).ConfigureAwait(false);
 
     private async Task<ReplResult> ExecuteScriptLanguageAsync(
-        string language, string exeName, string extension, string argumentsTemplate,
+        string language, string exeName, string extension, Func<string, IReadOnlyList<string>> buildArgs,
         string installHint, string resolveKey, string code, int timeoutSeconds, CancellationToken ct)
     {
         var executable = ResolveExecutable(exeName, resolveKey);
@@ -219,7 +219,7 @@ public sealed partial class ReplService : ServiceEntity, IReplService
             var result = await _processService.ExecuteAsync(new ProcessOptions
             {
                 FileName = executable,
-                Arguments = string.Format(argumentsTemplate, scriptFile),
+                ArgumentList = buildArgs(scriptFile),
                 TimeoutMs = timeoutSeconds * 1000
             }, ct).ConfigureAwait(false);
 

@@ -9,6 +9,12 @@ public abstract class SystemActuatorBase : ToolExecutionEntity, ISystemActuator
 {
     private static readonly ConcurrentDictionary<SystemActuatorKind, SystemActuatorCapability> _capabilityCache = new();
 
+    /// <summary>
+    /// 静态 ProcessStartInfo 构建器 — 供静态方法使用，强制三道防线 + 统一编码
+    /// </summary>
+    internal static readonly ProcessStartInfoBuilder SharedBuilder =
+        new(new ProcessEncodingProvider());
+
     private readonly SystemActuatorKind _kind;
     private readonly IFileSystem _fs;
     private readonly ILogger? _logger;
@@ -284,15 +290,12 @@ public abstract class SystemActuatorBase : ToolExecutionEntity, ISystemActuator
     {
         try
         {
-            var psi = new ProcessStartInfo
+            var psi = SharedBuilder.Build(new ProcessOptions
             {
                 FileName = "where.exe",
-                Arguments = executable,
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                StandardOutputEncoding = Encoding.UTF8
-            };
+                ArgumentList = [executable],
+                RedirectStandardError = false,
+            });
 
             using var process = Process.Start(psi);
             if (process is null) return null;
@@ -369,19 +372,16 @@ public abstract class SystemActuatorBase : ToolExecutionEntity, ISystemActuator
     /// <summary>
     /// 执行命令行并返回输出
     /// </summary>
-    protected string? ExecuteShellCommand(string fileName, string arguments, int timeoutMs = 5000)
+    protected string? ExecuteShellCommand(string fileName, IReadOnlyList<string> args, int timeoutMs = 5000)
     {
         try
         {
-            var psi = new ProcessStartInfo
+            var psi = SharedBuilder.Build(new ProcessOptions
             {
                 FileName = fileName,
-                Arguments = arguments,
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                StandardOutputEncoding = Encoding.UTF8
-            };
+                ArgumentList = args,
+                RedirectStandardError = false,
+            });
 
             using var process = Process.Start(psi);
             if (process is null) return null;

@@ -117,10 +117,8 @@ public sealed class BridgeSubprocessHandle : IAsyncDisposable
         {
             FileName = options.ExecPath,
             Arguments = options.Arguments ?? string.Empty,
+            ArgumentList = options.ArgumentList,
             WorkingDirectory = options.Dir,
-            StandardOutputEncoding = System.Text.Encoding.UTF8,
-            StandardErrorEncoding = System.Text.Encoding.UTF8,
-            StandardInputEncoding = System.Text.Encoding.UTF8,
             EnvironmentVariables = options.EnvironmentVariables
         };
 
@@ -589,7 +587,7 @@ public sealed class BridgeSubprocessSpawner
         }
 
         // 构建带 transcript 的路径
-        var args = BuildArguments(new BridgeSubprocessOptions
+        var argList = BuildArgumentList(new BridgeSubprocessOptions
         {
             SessionId = options.SessionId,
             SdkUrl = options.SdkUrl,
@@ -608,7 +606,8 @@ public sealed class BridgeSubprocessSpawner
 
         var workDir = options.Dir ?? WorkingDirectory ?? _fs.GetCurrentDirectory();
 
-        _logger?.LogInformation("[SubprocessSpawner] 生成子进程: {ExecPath} {Args}", ExecPath, args);
+        var argsDisplay = string.Join(' ', argList);
+        _logger?.LogInformation("[SubprocessSpawner] 生成子进程: {ExecPath} {Args}", ExecPath, argsDisplay);
 
         if (!string.IsNullOrEmpty(debugFile))
         {
@@ -620,7 +619,7 @@ public sealed class BridgeSubprocessSpawner
         {
             SessionId = options.SessionId,
             ExecPath = ExecPath,
-            Arguments = args,
+            ArgumentList = argList,
             EnvironmentVariables = envVars,
             Dir = workDir,
             SdkUrl = options.SdkUrl,
@@ -750,64 +749,70 @@ public sealed class BridgeSubprocessSpawner
     }
 
     /// <summary>
-    /// 构建命令行参数 — 对齐 TS 端子进程参数
+    /// 构建命令行参数列表 — 对齐 TS 端子进程参数，使用 ArgumentList 消除字符串拼接注入风险
     /// </summary>
-    private static string BuildArguments(BridgeSubprocessOptions options)
+    private static IReadOnlyList<string> BuildArgumentList(BridgeSubprocessOptions options)
     {
-        var sb = new StringBuilder();
+        var args = new List<string>();
 
         // 额外脚本参数 — 对齐 TS 端: [...deps.scriptArgs, ...]
         if (options.ScriptArgs is not null)
         {
             foreach (var arg in options.ScriptArgs)
             {
-                sb.Append('"').Append(arg).Append("\" ").Append(' ');
+                args.Add(arg);
             }
         }
 
         // --print 模式（非交互）
-        sb.Append("--print");
+        args.Add("--print");
 
         // --sdk-url
         if (options.SdkUrl is not null)
         {
-            sb.Append(" --sdk-url \"").Append(options.SdkUrl).Append('"');
+            args.Add("--sdk-url");
+            args.Add(options.SdkUrl);
         }
 
         // --session-id
         if (options.SessionId is not null)
         {
-            sb.Append(" --session-id \"").Append(options.SessionId).Append('"');
+            args.Add("--session-id");
+            args.Add(options.SessionId);
         }
 
         // --input-format stream-json
-        sb.Append(" --input-format stream-json");
+        args.Add("--input-format");
+        args.Add("stream-json");
 
         // --output-format stream-json
-        sb.Append(" --output-format stream-json");
+        args.Add("--output-format");
+        args.Add("stream-json");
 
         // --replay-user-messages — 对齐 TS 端
-        sb.Append(" --replay-user-messages");
+        args.Add("--replay-user-messages");
 
         // --verbose
         if (options.Verbose)
         {
-            sb.Append(" --verbose");
+            args.Add("--verbose");
         }
 
         // --debug-file — 对齐 TS 端: 当 debugFile 提供时写入
         if (!string.IsNullOrEmpty(options.DebugFile))
         {
-            sb.Append(" --debug-file \"").Append(options.DebugFile).Append('"');
+            args.Add("--debug-file");
+            args.Add(options.DebugFile);
         }
 
         // --permission-mode
         if (!string.IsNullOrEmpty(options.PermissionMode))
         {
-            sb.Append(" --permission-mode \"").Append(options.PermissionMode).Append('"');
+            args.Add("--permission-mode");
+            args.Add(options.PermissionMode);
         }
 
-        return sb.ToString();
+        return args;
     }
 
     /// <summary>
@@ -860,8 +865,11 @@ public sealed class BridgeSubprocessOptions
     /// <summary>可执行文件路径 — 由 Spawner 填充</summary>
     public string? ExecPath { get; init; }
 
-    /// <summary>命令行参数 — 由 Spawner 填充</summary>
+    /// <summary>命令行参数 — 由 Spawner 填充（回退模式，<see cref="ArgumentList"/> 优先）</summary>
     public string? Arguments { get; init; }
+
+    /// <summary>参数化启动列表 — 由 Spawner 填充，优先于 <see cref="Arguments"/>，消除字符串拼接注入风险</summary>
+    public IReadOnlyList<string>? ArgumentList { get; init; }
 
     /// <summary>环境变量 — 由 Spawner 填充</summary>
     public Dictionary<string, string>? EnvironmentVariables { get; init; }

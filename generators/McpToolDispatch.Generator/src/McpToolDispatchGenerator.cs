@@ -228,6 +228,7 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
                         optional,
                         kind,
                         groupName,
+                        DetectTimeoutPolicy(typeSymbol),
                         tools));
                 }
             }
@@ -237,6 +238,23 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
     private static bool IsCancellationToken(string typeName)
         => typeName == "System.Threading.CancellationToken"
         || typeName == "global::System.Threading.CancellationToken";
+
+    /// <summary>
+    /// 检测工具处理组的超时策略 — 遍历基类链查找 OneShotCommandGroup / LongRunningGroup
+    /// </summary>
+    private static string DetectTimeoutPolicy(INamedTypeSymbol typeSymbol)
+    {
+        var baseType = typeSymbol.BaseType;
+        while (baseType is not null)
+        {
+            if (baseType.Name == "OneShotCommandGroup")
+                return "AbsoluteTwoMinutes";
+            if (baseType.Name == "LongRunningGroup")
+                return "None";
+            baseType = baseType.BaseType;
+        }
+        return "None";
+    }
 
     /// <summary>
     /// 检测是否为 ToolProgressCallback? 类型 — 对齐 TS onProgress 参数
@@ -675,7 +693,8 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         var effectiveKind = tool.Kind ?? handler.Kind;
         var effectiveGroupName = tool.GroupName ?? handler.GroupName;
         var groupNameArg = effectiveGroupName is not null ? $"\"{EscapeString(effectiveGroupName)}\"" : "null";
-        sb.AppendLine($"                cancellationToken, kind: ToolKindExtensions.FromValue(\"{EscapeString(effectiveKind)}\") ?? ToolKind.System, groupName: {groupNameArg});");
+        var timeoutPolicyArg = handler.TimeoutPolicy;
+        sb.AppendLine($"                cancellationToken, kind: ToolKindExtensions.FromValue(\"{EscapeString(effectiveKind)}\") ?? ToolKind.System, groupName: {groupNameArg}, timeoutPolicy: ToolTimeoutPolicy.{timeoutPolicyArg});");
         sb.AppendLine("        }");
     }
 
@@ -770,9 +789,10 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         public bool Optional { get; }
         public string Kind { get; }
         public string? GroupName { get; }
+        public string TimeoutPolicy { get; }
         public List<ToolMethodInfo> Tools { get; }
 
-        public HandlerInfo(string fullyQualifiedName, string typeName, string displayName, bool optional, string kind, string? groupName, List<ToolMethodInfo> tools)
+        public HandlerInfo(string fullyQualifiedName, string typeName, string displayName, bool optional, string kind, string? groupName, string timeoutPolicy, List<ToolMethodInfo> tools)
         {
             FullyQualifiedName = fullyQualifiedName;
             TypeName = typeName;
@@ -780,6 +800,7 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
             Optional = optional;
             Kind = kind;
             GroupName = groupName;
+            TimeoutPolicy = timeoutPolicy;
             Tools = tools;
         }
     }

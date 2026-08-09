@@ -85,7 +85,7 @@ public sealed class BashSystemActuator : SystemActuatorBase
         if (shellPath.Equals("cmd.exe", StringComparison.OrdinalIgnoreCase))
             return "cmd-fallback";
 
-        var output = ExecuteShellCommandStatic(shellPath, "--version");
+        var output = ExecuteShellCommandStatic(shellPath, ["--version"]);
         if (output is null) return "unknown";
 
         var match = Regex.Match(output, @"version\s+(\S+)", RegexOptions.IgnoreCase);
@@ -96,15 +96,12 @@ public sealed class BashSystemActuator : SystemActuatorBase
     {
         try
         {
-            var psi = new ProcessStartInfo
+            var psi = SystemActuatorBase.SharedBuilder.Build(new ProcessOptions
             {
                 FileName = "where.exe",
-                Arguments = executable,
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                StandardOutputEncoding = Encoding.UTF8
-            };
+                ArgumentList = [executable],
+                RedirectStandardError = false,
+            });
 
             using var process = Process.Start(psi);
             if (process is null) return null;
@@ -132,19 +129,16 @@ public sealed class BashSystemActuator : SystemActuatorBase
         catch { return null; }
     }
 
-    private static string? ExecuteShellCommandStatic(string fileName, string arguments, int timeoutMs = 5000)
+    private static string? ExecuteShellCommandStatic(string fileName, IReadOnlyList<string> args, int timeoutMs = 5000)
     {
         try
         {
-            var psi = new ProcessStartInfo
+            var psi = SystemActuatorBase.SharedBuilder.Build(new ProcessOptions
             {
                 FileName = fileName,
-                Arguments = arguments,
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                StandardOutputEncoding = Encoding.UTF8
-            };
+                ArgumentList = args,
+                RedirectStandardError = false,
+            });
             using var process = Process.Start(psi);
             if (process is null) return null;
             var output = process.StandardOutput.ReadToEnd();
@@ -244,7 +238,7 @@ public sealed class BashSystemActuator : SystemActuatorBase
                 fs.CreateDirectory(SnapshotDir);
 
             var snapshotScript = "declare -f 2>/dev/null; shopt -p 2>/dev/null; set -o 2>/dev/null; alias 2>/dev/null; echo \"PATH=$PATH\"";
-            var output = ExecuteShellCommand(ShellPath, $"-c -l {ShellQuote(snapshotScript)}", 10_000);
+            var output = ExecuteShellCommand(ShellPath, ["-c", "-l", ShellQuote(snapshotScript)], 10_000);
             if (output is null || string.IsNullOrWhiteSpace(output)) return null;
 
             var snapshotPath = Path.Combine(SnapshotDir, $"snapshot-bash-{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}.sh");

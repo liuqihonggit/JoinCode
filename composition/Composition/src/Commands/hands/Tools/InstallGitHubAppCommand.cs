@@ -578,7 +578,7 @@ jobs:
                 var options = new ProcessOptions
                 {
                     FileName = "cmd.exe",
-                    Arguments = $"/c {command}"
+                    ArgumentList = new[] { "/c", command }
                 };
 
                 var result = await processService.ExecuteAsync(options, ct).ConfigureAwait(false);
@@ -590,12 +590,13 @@ jobs:
             var psi = new System.Diagnostics.ProcessStartInfo
             {
                 FileName = "cmd.exe",
-                Arguments = $"/c {command}",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = true,
             };
+            psi.ArgumentList.Add("/c");
+            psi.ArgumentList.Add(command);
 
             using var process = System.Diagnostics.Process.Start(psi);
             if (process is null) return ShellResult.Fail("无法启动进程");

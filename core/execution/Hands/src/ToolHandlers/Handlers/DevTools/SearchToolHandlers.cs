@@ -122,7 +122,7 @@ public sealed record SymbolSearchOptions
 /// Aligned with Claude Code's GlobTool and GrepTool
 /// </summary>
 [McpToolDispatch(ToolCategory.Search)]
-public class SearchToolHandlers
+public class SearchToolHandlers : OneShotCommandGroup
 {
     private readonly ISearchService _searchService;
     private readonly IFileOperationService _fileOperationService;

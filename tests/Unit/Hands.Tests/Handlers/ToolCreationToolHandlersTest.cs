@@ -229,10 +229,10 @@ public sealed class ToolCreationToolHandlersTest : IAsyncLifetime
             return Task.CompletedTask;
         }
 
-        public Task RegisterToolAsync(string name, string description, ToolSchema inputSchema, ToolHandler handler, CancellationToken cancellationToken = default, ToolKind kind = ToolKind.System, string? groupName = null)
+        public Task RegisterToolAsync(string name, string description, ToolSchema inputSchema, ToolHandler handler, CancellationToken cancellationToken = default, ToolKind kind = ToolKind.System, string? groupName = null, ToolTimeoutPolicy? timeoutPolicy = null)
         {
             if (ShouldFailRegistration) throw new InvalidOperationException("Mock registration failure");
-            var toolHandler = new DelegateToolHandler(name, description, inputSchema, handler, kind, groupName);
+            var toolHandler = new DelegateToolHandler(name, description, inputSchema, handler, kind, groupName, timeoutPolicy);
             RegisteredHandlers[name] = toolHandler;
             return Task.CompletedTask;
         }

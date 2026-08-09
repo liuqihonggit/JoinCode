@@ -241,18 +241,22 @@ public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCap
     {
         try
         {
-            var args = historyLines.HasValue
-                ? $"capture-pane -p -J -S -{historyLines.Value}"
-                : "capture-pane -p -J";
-
-            using var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            var psi = new System.Diagnostics.ProcessStartInfo
             {
                 FileName = "tmux",
-                Arguments = args,
                 RedirectStandardOutput = true,
                 UseShellExecute = false,
                 CreateNoWindow = true
-            });
+            };
+            psi.ArgumentList.Add("capture-pane");
+            psi.ArgumentList.Add("-p");
+            psi.ArgumentList.Add("-J");
+            if (historyLines.HasValue)
+            {
+                psi.ArgumentList.Add("-S");
+                psi.ArgumentList.Add($"-{historyLines.Value}");
+            }
+            using var process = System.Diagnostics.Process.Start(psi);
 
             if (process == null) return null;
 
@@ -275,13 +279,16 @@ public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCap
         {
             var tmpFile = fs.CombinePath(Path.GetTempPath(), $"jcc_screen_{Guid.NewGuid():N}.txt");
 
-            using var hardcopyProcess = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            var hardcopyPsi = new System.Diagnostics.ProcessStartInfo
             {
                 FileName = "screen",
-                Arguments = $"-X hardcopy {tmpFile}",
                 UseShellExecute = false,
                 CreateNoWindow = true
-            });
+            };
+            hardcopyPsi.ArgumentList.Add("-X");
+            hardcopyPsi.ArgumentList.Add("hardcopy");
+            hardcopyPsi.ArgumentList.Add(tmpFile);
+            using var hardcopyProcess = System.Diagnostics.Process.Start(hardcopyPsi);
 
             if (hardcopyProcess == null) return null;
             hardcopyProcess.WaitForExit(3000);

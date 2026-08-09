@@ -37,30 +37,20 @@ public sealed partial class StdioProcessManager : IAsyncDisposable
     /// </summary>
     public async Task StartAsync(StdioProcessConfig config, CancellationToken ct = default)
     {
-        _logger?.LogInformation("[StdioManager] 启动进程: {Path} {Args}", config.ExecutablePath, config.Arguments);
+        var argsDisplay = config.ArgumentList is { Count: > 0 }
+            ? string.Join(' ', config.ArgumentList)
+            : config.Arguments;
+        _logger?.LogInformation("[StdioManager] 启动进程: {Path} {Args}", config.ExecutablePath, argsDisplay);
 
-        var startInfo = new System.Diagnostics.ProcessStartInfo
+        var builder = new IO.ProcessService.ProcessStartInfoBuilder(new IO.ProcessService.ProcessEncodingProvider());
+        var startInfo = builder.BuildInteractive(new InteractiveProcessOptions
         {
             FileName = config.ExecutablePath,
+            ArgumentList = config.ArgumentList,
             Arguments = config.Arguments,
-            RedirectStandardInput = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            StandardOutputEncoding = Encoding.UTF8,
-            StandardErrorEncoding = Encoding.UTF8,
-            StandardInputEncoding = Encoding.UTF8,
-            WorkingDirectory = config.WorkingDirectory ?? Path.GetDirectoryName(config.ExecutablePath) ?? Environment.CurrentDirectory
-        };
-
-        if (config.EnvironmentVariables != null)
-        {
-            foreach (var (key, value) in config.EnvironmentVariables)
-            {
-                startInfo.EnvironmentVariables[key] = value;
-            }
-        }
+            WorkingDirectory = config.WorkingDirectory ?? Path.GetDirectoryName(config.ExecutablePath) ?? Environment.CurrentDirectory,
+            EnvironmentVariables = config.EnvironmentVariables,
+        });
 
         _process = new System.Diagnostics.Process { StartInfo = startInfo };
         _process.Start();
@@ -275,6 +265,10 @@ public sealed record StdioProcessConfig
 {
     public required string ExecutablePath { get; init; }
     public string Arguments { get; init; } = "";
+    /// <summary>
+    /// 参数化启动列表 — 优先于 <see cref="Arguments"/>，消除字符串拼接注入风险
+    /// </summary>
+    public IReadOnlyList<string>? ArgumentList { get; init; }
     public string? WorkingDirectory { get; init; }
     public Dictionary<string, string>? EnvironmentVariables { get; init; }
 }

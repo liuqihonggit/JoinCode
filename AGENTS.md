@@ -437,7 +437,7 @@ nuget包: 拒绝全部微软的AI包，因为大部分不支持NativeAOT。
 
 | 编译顺序 | 解决方案 | 职责 | 目录 | 关键内容 |
 |----------|----------|------|------|----------|
-| ① | `Generators.slnx` | 源码生成器 | `generators/` | 11 个 Generator + 测试 |
+| ① | `Generators.slnx` | 源码生成器 | `generators/` | 9 个 Generator + 测试 |
 | ② | `Foundation.slnx` | 基础抽象 | `foundation/` | Abstractions + Structura + Transport.Contracts |
 | ③ | `Infrastructure.slnx` | 基础设施 | `infrastructure/` | Infrastructure + Transport.Impl |
 | ④ | `Core.slnx` | 核心组件 | `core/` | ai/(Llm,Agents,Reasoning) + execution/(Brain,Hands,Scheduling,McpToolDispatch) + safety/(Guard,Vault) + search/(CodeIndex,Browser) |
@@ -448,7 +448,7 @@ nuget包: 拒绝全部微软的AI包，因为大部分不支持NativeAOT。
 **依赖链**：`Generators` → `Foundation` → `Infrastructure` → `Core` → `Services` → `Composition` → `App`
 
 **为什么必须按顺序？**
-- `Generators.slnx` 包含源码生成器（EnumMetadata.Generator、ConstructorInjection.Generator 等），它们生成 `XxxConstants` 静态类
+- `Generators.slnx` 包含源码生成器（EnumMetadata.Generator、McpToolDispatch.Generator 等），它们生成 `XxxConstants` 静态类
 - `Foundation.slnx` 中的 Abstractions 需要生成器才能编译出枚举常量
 - 如果跳层编译，依赖的 DLL 不存在，编译会失败
 
@@ -512,7 +512,7 @@ dotnet build Generators.slnx -c Release --no-incremental; dotnet build Foundatio
 ## 测试
 
 ```powershell
-dotnet test JoinCode.slnx -c Release /p:SkipLocalPack=true --filter "Category!=Integration"
+dotnet test App.slnx -c Release /p:SkipLocalPack=true --filter "Category!=Integration"
 ```
 
 1. 每个测试都加入一个限时10s，再去找到高耗时。
@@ -588,11 +588,11 @@ Start-Process -FilePath "{当前项目}\artifacts\bin\JoinCode\Release\net10.0\j
 
 ```powershell
 # ✅ 方式A：Start-Process（推荐，最简单）
-Start-Process -FilePath "D:\project\w3\artifacts\bin\OpenAI.MockServer\Release\net10.0\JoinCode.OpenAI.MockServer.exe" -ArgumentList "--port","9901"
+Start-Process -FilePath "D:\project\w1\artifacts\bin\OpenAI.MockServer\Release\net10.0\JoinCode.OpenAI.MockServer.exe" -ArgumentList "--port","9901"
 
 # ✅ 方式B：ProcessStartInfo（需要捕获输出时用）
 $psi = [System.Diagnostics.ProcessStartInfo]::new()
-$psi.FileName = "D:\project\w3\artifacts\bin\OpenAI.MockServer\Release\net10.0\JoinCode.OpenAI.MockServer.exe"
+$psi.FileName = "D:\project\w1\artifacts\bin\OpenAI.MockServer\Release\net10.0\JoinCode.OpenAI.MockServer.exe"
 $psi.Arguments = "--port 9901"
 $psi.UseShellExecute = $false
 [System.Diagnostics.Process]::Start($psi)
@@ -624,14 +624,14 @@ Invoke-RestMethod -Uri "http://localhost:9901/shutdown" -Method Get
 
 ```powershell
 $psi = [System.Diagnostics.ProcessStartInfo]::new()
-$psi.FileName = "D:\project\w3\artifacts\bin\JoinCode\Release\net10.0\jcc.exe"
+$psi.FileName = "D:\project\w1\artifacts\bin\JoinCode\Release\net10.0\jcc.exe"
 $psi.Arguments = "--trust --await 20 -p `"echo hello`""
 $psi.EnvironmentVariables["JCC_ENDPOINT"] = "http://localhost:9901"
 $psi.EnvironmentVariables["JCC_API_KEY"] = "sk-test-1234567890"
 $psi.EnvironmentVariables["JCC_PROVIDER"] = "openai"
 $psi.EnvironmentVariables["JCC_MODEL_ID"] = "gpt-4o"
 $psi.UseShellExecute = $false
-$psi.WorkingDirectory = "D:\project\w3"
+$psi.WorkingDirectory = "D:\project\w1"
 [System.Diagnostics.Process]::Start($psi)
 # --await 20: 20秒超时自动关闭（超时返回1234，正常完成不受影响）
 # --verbose: 启用诊断输出（[WIRE] [STEP] [READY] 等）
@@ -650,7 +650,7 @@ $psi.WorkingDirectory = "D:\project\w3"
 
 ```powershell
 # dump 目录包含每个请求的完整记录
-Get-ChildItem "D:\project\w3\tests\MockServers\MockServer.Core\dumps\OpenAI" -File | Sort-Object LastWriteTime -Descending | Select-Object -First 5 Name,LastWriteTime
+Get-ChildItem "D:\project\w1\tests\MockServers\MockServer.Core\dumps\OpenAI" -File | Sort-Object LastWriteTime -Descending | Select-Object -First 5 Name,LastWriteTime
 ```
 
 ***

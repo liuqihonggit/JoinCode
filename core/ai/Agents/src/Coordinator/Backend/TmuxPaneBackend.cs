@@ -206,7 +206,7 @@ public sealed partial class TmuxPaneBackend : ServiceEntity, JoinCode.Abstractio
             var result = _processService.ExecuteAsync(new ProcessOptions
             {
                 FileName = "tmux",
-                Arguments = "-V",
+                ArgumentList = new[] { "-V" },
                 TimeoutMs = 5000
             }).GetAwaiter().GetResult();
             return result.Success;
@@ -222,7 +222,7 @@ public sealed partial class TmuxPaneBackend : ServiceEntity, JoinCode.Abstractio
         var result = await _processService.ExecuteAsync(new ProcessOptions
         {
             FileName = "tmux",
-            Arguments = string.Join(" ", args.Select(a => a.Contains(' ') ? $"\"{a}\"" : a))
+            ArgumentList = args
         }, cancellationToken).ConfigureAwait(false);
 
         return (result.ExitCode, result.StandardOutput, result.StandardError);

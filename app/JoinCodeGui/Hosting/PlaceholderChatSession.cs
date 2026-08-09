@@ -1,4 +1,5 @@
 using JoinCode.Abstractions.Interfaces;
+using JoinCode.Abstractions.LLM;
 using JoinCode.Abstractions.LLM.Chat;
 
 namespace JoinCode.Gui.Hosting;
@@ -21,6 +22,12 @@ internal sealed class PlaceholderChatSession : IJccChatSession
     public Func<PermissionConfirmationRequest, Task<PermissionConfirmationDecision>>? PermissionConfirmationHandler { get; set; }
 
     public Task SetModelAsync(string modelId, CancellationToken cancellationToken = default)
+        => Task.CompletedTask;
+
+    /// <summary>占位会话固定返回 Auto，不持久化</summary>
+    public EffortLevel EffortLevel => EffortLevel.Auto;
+
+    public Task SetEffortLevelAsync(EffortLevel effortLevel, CancellationToken cancellationToken = default)
         => Task.CompletedTask;
 
     public Task InitializeAsync(CancellationToken cancellationToken = default)

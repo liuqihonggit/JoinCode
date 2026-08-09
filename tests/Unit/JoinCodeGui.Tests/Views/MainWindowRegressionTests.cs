@@ -2,6 +2,7 @@
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
+using JoinCode.Abstractions.LLM;
 using JoinCode.Abstractions.LLM.Chat;
 using JoinCode.Abstractions.Interfaces;
 using JoinCode.Gui.Hosting;
@@ -190,6 +191,8 @@ public sealed class MainWindowRegressionTests
         public Task<RewindResult> RewindLastTurnAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(new RewindResult());
         public Task SetModelAsync(string modelId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public EffortLevel EffortLevel => EffortLevel.Auto;
+        public Task SetEffortLevelAsync(EffortLevel effortLevel, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 }

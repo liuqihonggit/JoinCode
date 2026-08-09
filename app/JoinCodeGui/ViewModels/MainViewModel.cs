@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 
 using JoinCode.Abstractions.Configuration.Llm;
 using JoinCode.Abstractions.Configuration.Providers;
+using JoinCode.Abstractions.LLM;
 using JoinCode.Abstractions.LLM.Chat;
 using JoinCode.Gui.Hosting;
 
@@ -16,6 +17,9 @@ public sealed partial class MainViewModel : ViewModelBase
 {
     private readonly IJccChatSession _session;
     private readonly Persistence.GuiSessionStore _sessionStore;
+
+    /// <summary>异步操作硬超时（防止命令续体在单线程上下文死锁）</summary>
+    private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(5);
 
     [ObservableProperty]
     private string _inputText = string.Empty;
@@ -43,6 +47,34 @@ public sealed partial class MainViewModel : ViewModelBase
     /// <summary>是否流式输出（设置面板开关）</summary>
     [ObservableProperty]
     private bool _streamingEnabled = true;
+
+    /// <summary>推理力度选项（对齐 CLI /effort：low/medium/high/max/auto）</summary>
+    public IReadOnlyList<string> EffortOptions { get; } =
+        [EffortLevel.Low.ToValue(), EffortLevel.Medium.ToValue(), EffortLevel.High.ToValue(), EffortLevel.Max.ToValue(), EffortLevel.Auto.ToValue()];
+
+    /// <summary>当前推理力度（ComboBox 显示值；变更时持久化对齐 CLI /effort）</summary>
+    [ObservableProperty]
+    private string _selectedEffort;
+
+    partial void OnSelectedEffortChanged(string value)
+    {
+        var effort = EffortLevelHelper.ParseEffortLevel(value) ?? EffortLevel.Auto;
+        if (_session.EffortLevel == effort)
+            return;
+
+        StatusText = $"推理力度: {value}";
+        Task.Run(async () =>
+        {
+            try
+            {
+                await _session.SetEffortLevelAsync(effort).WaitAsync(Timeout);
+            }
+            catch (Exception ex)
+            {
+                StatusText = $"设置推理力度失败: {ex.Message}";
+            }
+        });
+    }
 
     /// <summary>设置面板是否展开</summary>
     [ObservableProperty]
@@ -251,6 +283,7 @@ public sealed partial class MainViewModel : ViewModelBase
         _session.PermissionConfirmationHandler = OnPermissionConfirmationRequestedAsync;
         _selectedModel = _session.CurrentModelId;
         _selectedModelOption = ModelOptions.FirstOrDefault(m => m.Id == _session.CurrentModelId);
+        _selectedEffort = _session.EffortLevel.ToValue();
         Messages.CollectionChanged += OnMessagesChanged;
         LoadPersistedSessions();
         NewConversation();
@@ -655,6 +688,7 @@ public sealed partial class MainViewModel : ViewModelBase
         StreamingEnabled = true;
         SystemPrompt = "你是 JoinCode 助手，请用简洁清晰的中文回答。";
         FontSize = 14;
+        SelectedEffort = EffortLevel.Auto.ToValue();
         StatusText = "已恢复默认设置";
     }
 

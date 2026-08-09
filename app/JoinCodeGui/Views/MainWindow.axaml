@@ -190,6 +190,11 @@
             <ToggleButton IsChecked="{Binding StreamingEnabled}" />
           </StackPanel>
           <StackPanel Spacing="4">
+            <TextBlock Text="推理力度" Foreground="{DynamicResource GuiSecondaryText}" FontSize="12" />
+            <ComboBox ItemsSource="{Binding EffortOptions}" SelectedItem="{Binding SelectedEffort}"
+                      HorizontalAlignment="Stretch" FontSize="12" />
+          </StackPanel>
+          <StackPanel Spacing="4">
             <TextBlock Text="系统提示词" Foreground="{DynamicResource GuiSecondaryText}" FontSize="12" />
             <TextBox Text="{Binding SystemPrompt}" AcceptsReturn="True" MaxLines="4"
                      TextWrapping="Wrap" FontSize="11" MinHeight="70" />

@@ -1,4 +1,5 @@
 using JoinCode.Abstractions.Interfaces;
+using JoinCode.Abstractions.LLM;
 using JoinCode.Abstractions.LLM.Chat;
 
 namespace JoinCode.Gui.Hosting;
@@ -45,4 +46,16 @@ public interface IJccChatSession : IAsyncDisposable
 
     /// <summary>切换当前模型（回写共享 WorkflowConfig.Provider.ModelId，下次请求引擎即生效）</summary>
     Task SetModelAsync(string modelId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 当前推理力度（默认 Auto；对齐 CLI /effort current 语义）。
+    /// 进程内引擎经 <c>IExecutionSettingsProvider.EffortLevel</c> 实时消费。
+    /// </summary>
+    EffortLevel EffortLevel { get; }
+
+    /// <summary>
+    /// 设置推理力度并持久化到 settings.json（对齐 CLI /effort：
+    /// auto → 移除持久化键，其它级别 → 写 effortLevel 键）。
+    /// </summary>
+    Task SetEffortLevelAsync(EffortLevel effortLevel, CancellationToken cancellationToken = default);
 }

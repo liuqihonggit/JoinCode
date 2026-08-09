@@ -52,13 +52,43 @@ public EffortLevel EffortLevel
 ## 涉及改动
 | 文件 | 改动 |
 |------|------|
-| `composition/Composition/src/**/ExecutionSettingsProvider.cs` | 新增：下沉版（`[Register]`，composition 命名空间） |
+| `composition/Composition/src/DependencyInjection/Core/ExecutionSettingsProvider.cs` | 新增：下沉版（`[Register]`，composition 命名空间），修复 EffortLevel 默认值/Set 丢失 bug |
 | `app/JoinCode/Services/Core/ExecutionSettingsProvider.cs` | 删除（移到 `.xxx/`） |
-| `app/JoinCodeGui/Hosting/IJccChatSession.cs` | 加 EffortLevel 读写 |
-| `app/JoinCodeGui/Hosting/JccChatSession.cs` | 解析 `IExecutionSettingsProvider` + 持久化 |
-| `app/JoinCodeGui/ViewModels/MainViewModel.cs` | 加 EffortLevel 选择属性/命令 |
-| `app/JoinCodeGui/Views/MainWindow.axaml` | 设置面板加 Effort 选择器 |
-| 测试 | GUI DI 解析、Effort 读写/持久化 |
+| `app/JoinCodeGui/Hosting/IJccChatSession.cs` | 加 `EffortLevel` 读 + `SetEffortLevelAsync`（持久化对齐 CLI /effort） |
+| `app/JoinCodeGui/Hosting/JccChatSession.cs` | 解析 `IExecutionSettingsProvider` + 持久化（auto→Remove，其它→Set） |
+| `app/JoinCodeGui/Hosting/PlaceholderChatSession.cs` | 补接口成员（Effort=Auto 占位） |
+| `app/JoinCodeGui/ViewModels/MainViewModel.cs` | 加 `EffortOptions`/`SelectedEffort` 选择属性，变更持久化 + 状态栏反馈 |
+| `app/JoinCodeGui/Views/MainWindow.axaml` | 设置面板加"推理力度"ComboBox |
+| 测试 | GUI DI 解析、Effort 默认 Auto、门面读写/持久化、VM 选择/重置 |
 
 ## 里程碑记录
 （每步：红测试 → 实现 → 编译 → 绿测试 → 文档 → git 提交）
+
+### M1 ✅ 下沉 ExecutionSettingsProvider + 修复 bug（提交 `4de8bace1`）
+- 红测试：`EngineAssembly_ResolvesExecutionSettingsProvider`、`EngineAssembly_ExecutionSettings_DefaultsToAuto`
+- 下沉到 composition（`[Register(typeof(IExecutionSettingsProvider))]`），CLI 的 `AddJccAutoRegisteredServices` 与 GUI 的 `AddAiWorkflowServices` 同时自动注册
+- 发现并修复原实现 2 个 bug：Lazy 未求值时默认返回 `Low`；Lazy 已求值后 `set` 不生效
+- 验证：JoinCodeGui.Tests 9 绿；Host.Tests 735 绿；composition/JoinCode Debug 零警告
+
+### M2 ✅ GUI 门面 EffortLevel 读写 + 持久化
+- `IJccChatSession` 加 `EffortLevel` 读 + `SetEffortLevelAsync`（auto→`RemoveAsync`，其它→`SetAsync`，键 `ConfigKeyConstants.EffortLevel`，对齐 CLI `EffortCommand.PersistEffortAsync`）
+- `JccChatSession.CreateAsync` 解析 `IExecutionSettingsProvider`；`PlaceholderChatSession`/测试桩补接口成员
+- 验证：JccChatSessionAssemblyTests 13 绿（含持久化 high/auto 移除、门面回退 Auto、注册后反映值）
+
+### M3 ✅ GUI 设置面板 Effort 选择器
+- `MainViewModel` 加 `EffortOptions`（low/medium/high/max/auto）+ `SelectedEffort`（构造时从会话初始化），变更写回会话并持久化 + 状态栏反馈
+- `MainWindow.axaml` 设置面板加"推理力度"ComboBox；`ResetSettings` 恢复 auto
+- 验证：MainViewModelTests 68 绿；JoinCodeGui.Tests 全量 138 绿
+
+<!-- 🤖 Auto Decision: 2026-08-09 -->
+<!-- 决策: ExecutionSettingsProvider 下沉到 composition 共享层 -->
+<!-- 原因: CLI 经 AddJccAutoRegisteredServices、GUI 经 AddAiWorkflowServices 同时自动注册，消除两套实现；GUI 此前缺注册导致 EffortLevel 永不生效 -->
+<!-- 替代方案: GUI 单独实现 IExecutionSettingsProvider（会形成两套实现，违反消除冗余原则） -->
+<!-- 验证: composition/JoinCode/GUI Debug 编译零警告，JoinCodeGui.Tests 138 全绿，Host.Tests 735 全绿 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-08-09 -->
+<!-- 决策: GUI Effort 选择器用 ComboBox 字符串值 + ParseEffortLevel，变更即持久化 -->
+<!-- 原因: 与 CLI /effort 的 low|medium|high|max|auto 同源枚举，避免为 GUI 造新类型；对齐 CLI 的 auto→Remove 语义 -->
+<!-- 替代方案: 枚举直接绑定（ComboBox 需 ValueConverter，字符串更简单） -->
+<!-- 验证: MainViewModelTests 68 绿，JoinCodeGui.Tests 全量 138 绿 ✅ -->
+

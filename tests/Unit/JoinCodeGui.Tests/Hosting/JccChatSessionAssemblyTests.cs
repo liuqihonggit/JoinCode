@@ -4,6 +4,7 @@ using IO.FileSystem;
 using JoinCode.Abstractions.LLM.Chat;
 using JoinCode.Abstractions.Configuration;
 using JoinCode.Abstractions.Configuration.Providers;
+using JoinCode.Abstractions.Configuration.Settings;
 using JoinCode.Abstractions.Interfaces;
 using JoinCode.Abstractions.LLM;
 
@@ -184,6 +185,107 @@ public class JccChatSessionAssemblyTests
             null!);
 
         provider.EffortLevel.Should().Be(EffortLevel.Auto);
+    }
+
+    [Fact]
+    public async Task SetEffortLevelAsync_PersistsHighToSettingsJson()
+    {
+        // 对齐 CLI EffortCommand.PersistEffortAsync：非 auto 级别写入 settings.json（键 effortLevel）
+        var fs = new InMemoryFileSystem();
+        var services = new ServiceCollection();
+        services.AddSingleton<IFileSystem>(fs);
+        services.AddSingleton<IConfigurationService, Core.Configuration.ConfigurationService>();
+        var sp = services.BuildServiceProvider();
+
+        var config = new WorkflowConfig
+        {
+            Provider = new ProviderConfig
+            {
+                Provider = "openai",
+                ModelId = "gpt-4o"
+            }
+        };
+        var session = new JccChatSession(sp, null!, config);
+
+        await session.SetEffortLevelAsync(EffortLevel.High);
+
+        var value = await sp.GetRequiredService<IConfigurationService>()
+            .GetAsync(ConfigKeyConstants.EffortLevel);
+        value.Should().Be("high");
+    }
+
+    [Fact]
+    public async Task SetEffortLevelAsync_AutoRemovesPersistedKey()
+    {
+        // 对齐 CLI EffortCommand：auto → 移除 effortLevel 键（恢复模型默认）
+        var fs = new InMemoryFileSystem();
+        var services = new ServiceCollection();
+        services.AddSingleton<IFileSystem>(fs);
+        services.AddSingleton<IConfigurationService, Core.Configuration.ConfigurationService>();
+        var sp = services.BuildServiceProvider();
+
+        var config = new WorkflowConfig
+        {
+            Provider = new ProviderConfig
+            {
+                Provider = "openai",
+                ModelId = "gpt-4o"
+            }
+        };
+        var session = new JccChatSession(sp, null!, config);
+
+        await session.SetEffortLevelAsync(EffortLevel.High);
+        await session.SetEffortLevelAsync(EffortLevel.Auto);
+
+        var value = await sp.GetRequiredService<IConfigurationService>()
+            .GetAsync(ConfigKeyConstants.EffortLevel);
+        value.Should().BeNull();
+    }
+
+    [Fact]
+    public void Session_EffortLevel_DefaultsToAuto_WithoutRegisteredProvider()
+    {
+        // 未注册 IExecutionSettingsProvider 时，门面回退 Auto（对齐 CLI ShowCurrentEffort fallback）
+        var config = new WorkflowConfig
+        {
+            Provider = new ProviderConfig
+            {
+                Provider = "openai",
+                ModelId = "gpt-4o"
+            }
+        };
+        var session = new JccChatSession(
+            new ServiceCollection().BuildServiceProvider(),
+            null!,
+            config);
+
+        session.EffortLevel.Should().Be(EffortLevel.Auto);
+    }
+
+    [Fact]
+    public void Session_EffortLevel_ReflectsRegisteredProviderValue()
+    {
+        // 注册 IExecutionSettingsProvider 后，门面读取其当前 EffortLevel
+        var provider = new ExecutionSettingsProvider(
+            new WorkflowConfig
+            {
+                Provider = new ProviderConfig { Provider = "openai", ModelId = "gpt-4o" }
+            },
+            new InMemoryFileSystem(),
+            null!)
+        {
+            EffortLevel = EffortLevel.Medium
+        };
+        var session = new JccChatSession(
+            new ServiceCollection().BuildServiceProvider(),
+            null!,
+            new WorkflowConfig
+            {
+                Provider = new ProviderConfig { Provider = "openai", ModelId = "gpt-4o" }
+            },
+            provider);
+
+        session.EffortLevel.Should().Be(EffortLevel.Medium);
     }
 
     [Fact]

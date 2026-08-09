@@ -1,6 +1,7 @@
 ﻿using FluentAssertions;
 
 using IO.FileSystem;
+using JoinCode.Abstractions.LLM;
 using JoinCode.Abstractions.LLM.Chat;
 using JoinCode.Abstractions.Interfaces;
 using JoinCode.Gui.Hosting;
@@ -166,6 +167,46 @@ public class MainViewModelTests
         vm.SelectedModelOption = target;
 
         vm.SelectedModel.Should().Be("deepseek-reasoner");
+    }
+
+    [Fact]
+    public void EffortOptions_IncludeCliLevels()
+    {
+        // 对齐 CLI /effort 全部级别：low/medium/high/max/auto
+        var vm = CreateVm();
+
+        vm.EffortOptions.Should().BeEquivalentTo(["low", "medium", "high", "max", "auto"], o => o.WithStrictOrdering());
+    }
+
+    [Fact]
+    public void SelectedEffort_InitializedFromSession()
+    {
+        // Placeholder 会话 EffortLevel = Auto → 下拉默认显示 auto
+        var vm = CreateVm();
+
+        vm.SelectedEffort.Should().Be("auto");
+    }
+
+    [Fact]
+    public void SelectedEffortChange_UpdatesStatusText()
+    {
+        // 切换推理力度 → VM 状态栏立即反馈（对齐 CLI /effort 的终端提示）
+        var vm = CreateVm();
+
+        vm.SelectedEffort = "high";
+
+        vm.StatusText.Should().Be("推理力度: high");
+    }
+
+    [Fact]
+    public async Task ResetSettings_RestoresAutoEffort()
+    {
+        var vm = CreateVm();
+
+        vm.SelectedEffort = "max";
+        vm.ResetSettingsCommand.Execute(null);
+
+        vm.SelectedEffort.Should().Be("auto");
     }
 
     [Fact]
@@ -845,6 +886,8 @@ public class MainViewModelTests
             public Task<RewindResult> RewindLastTurnAsync(CancellationToken cancellationToken = default)
                 => Task.FromResult(new RewindResult());
             public Task SetModelAsync(string modelId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public EffortLevel EffortLevel => EffortLevel.Auto;
+            public Task SetEffortLevelAsync(EffortLevel effortLevel, CancellationToken cancellationToken = default) => Task.CompletedTask;
             public ValueTask DisposeAsync() => ValueTask.CompletedTask;
         }
 
@@ -874,6 +917,8 @@ public class MainViewModelTests
             public Task<RewindResult> RewindLastTurnAsync(CancellationToken cancellationToken = default)
                 => Task.FromResult(new RewindResult());
             public Task SetModelAsync(string modelId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public EffortLevel EffortLevel => EffortLevel.Auto;
+            public Task SetEffortLevelAsync(EffortLevel effortLevel, CancellationToken cancellationToken = default) => Task.CompletedTask;
             public ValueTask DisposeAsync() => ValueTask.CompletedTask;
         }
     }

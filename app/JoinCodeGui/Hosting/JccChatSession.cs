@@ -1,5 +1,7 @@
 using JoinCode.Abstractions.Configuration.Llm;
+using JoinCode.Abstractions.Configuration.Settings;
 using JoinCode.Abstractions.Interfaces;
+using JoinCode.Abstractions.LLM;
 using JoinCode.Abstractions.LLM.Chat;
 using JoinCode.Abstractions.Security;
 using JoinCode.Abstractions.Security.Permission;
@@ -25,6 +27,7 @@ internal sealed class JccChatSession : IJccChatSession
     private readonly Microsoft.Extensions.DependencyInjection.ServiceProvider _services;
     private readonly IChatService _chat;
     private readonly JoinCode.Abstractions.Configuration.WorkflowConfig _config;
+    private readonly IExecutionSettingsProvider? _executionSettings;
 
     /// <inheritdoc />
     public Func<PermissionConfirmationRequest, Task<PermissionConfirmationDecision>>? PermissionConfirmationHandler { get; set; }
@@ -32,11 +35,13 @@ internal sealed class JccChatSession : IJccChatSession
     internal JccChatSession(
         Microsoft.Extensions.DependencyInjection.ServiceProvider services,
         IChatService chat,
-        JoinCode.Abstractions.Configuration.WorkflowConfig config)
+        JoinCode.Abstractions.Configuration.WorkflowConfig config,
+        IExecutionSettingsProvider? executionSettings = null)
     {
         _services = services;
         _chat = chat;
         _config = config;
+        _executionSettings = executionSettings;
     }
 
     /// <summary>
@@ -57,7 +62,8 @@ internal sealed class JccChatSession : IJccChatSession
 
         var sp = services.BuildServiceProvider();
         var chat = sp.GetRequiredService<IChatService>();
-        return new JccChatSession(sp, chat, config);
+        var executionSettings = sp.GetService<IExecutionSettingsProvider>();
+        return new JccChatSession(sp, chat, config, executionSettings);
     }
 
     public bool IsReady => true;
@@ -108,6 +114,37 @@ internal sealed class JccChatSession : IJccChatSession
         if (configService is not null)
         {
             await configService.SetAsync("model", modelId, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// 当前推理力度 — 经共享 IExecutionSettingsProvider 读取（默认 Auto）。
+    /// 未注册时回退 Auto（对齐 CLI ShowCurrentEffort 的 fallback 语义）。
+    /// </summary>
+    public EffortLevel EffortLevel => _executionSettings?.EffortLevel ?? EffortLevel.Auto;
+
+    /// <summary>
+    /// 设置推理力度并持久化 — 对齐 CLI EffortCommand.PersistEffortAsync：
+    /// auto 移除 effortLevel 键，其它级别写入 settings.json。
+    /// </summary>
+    public async Task SetEffortLevelAsync(EffortLevel effortLevel, CancellationToken cancellationToken = default)
+    {
+        if (_executionSettings is not null)
+        {
+            _executionSettings.EffortLevel = effortLevel;
+        }
+
+        var configService = _services.GetService<IConfigurationService>();
+        if (configService is not null)
+        {
+            if (effortLevel is EffortLevel.Auto)
+            {
+                await configService.RemoveAsync(ConfigKeyConstants.EffortLevel, cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                await configService.SetAsync(ConfigKeyConstants.EffortLevel, effortLevel.ToValue(), cancellationToken).ConfigureAwait(false);
+            }
         }
     }
 

@@ -25,6 +25,39 @@ namespace JoinCode.Gui.Tests.Hosting;
 /// </summary>
 public class JccChatSessionAssemblyTests
 {
+    [Fact]
+    public void ProviderModelMap_DumpAllData()
+    {
+        var session = new PlaceholderChatSession();
+        var map = session.ProviderModelMap;
+
+        map.Keys.Should().BeEquivalentTo(["anthropic", "openai", "deepseek", "agnes"]);
+        map.Count.Should().Be(4);
+
+        map["deepseek"].Should().BeEquivalentTo(["deepseek-v4-flash", "deepseek-v4-pro"]);
+        map["deepseek"].Count.Should().Be(2);
+
+        map["openai"].Should().BeEquivalentTo([
+            "gpt-4o-mini", "gpt-4o", "gpt-4-turbo", "gpt-4", "gpt-3.5-turbo",
+            "gpt-4.1-nano", "gpt-4.1-mini", "gpt-4.1", "o4-mini", "o3-mini", "o3", "o1-mini", "o1"
+        ]);
+        map["openai"].Count.Should().Be(13);
+
+        map["anthropic"].Should().BeEquivalentTo([
+            "claude-opus-4-7-20250701", "claude-opus-4-6-20250514", "claude-opus-4-5-20251101",
+            "claude-opus-4-1-20250805", "claude-opus-4-20250514", "claude-sonnet-4-6-20250514",
+            "claude-sonnet-4-5-20250514", "claude-sonnet-4-20250514", "claude-haiku-4-5-20251001",
+            "claude-3-7-sonnet-20250219", "claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022",
+            "claude-3-opus-20240229", "claude-3-sonnet-20240229", "claude-3-haiku-20240307"
+        ]);
+        map["anthropic"].Count.Should().Be(15);
+
+        map["agnes"].Should().BeEquivalentTo([
+            "agnes-1.5-flash", "agnes-2.0-flash", "agnes-image-2.0-flash", "agnes-image-2.1-flash", "agnes-video-v2.0"
+        ]);
+        map["agnes"].Count.Should().Be(5);
+    }
+
     /// <summary>
     /// 组装引擎会话所需的完整 DI（与 Jcc 一致）：AiWorkflowServices + 共享管道 + ChatService 注册。
     /// </summary>

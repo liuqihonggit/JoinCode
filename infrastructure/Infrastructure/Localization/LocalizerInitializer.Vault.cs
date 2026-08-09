@@ -365,8 +365,6 @@ public static partial class LocalizerInitializer
         defaultEntries[StringKey.VaultLogDeleteMemory] = "Deleted memory: {0}";
         defaultEntries[StringKey.VaultLogArchiveMemory] = "Archived memory: {0}";
         defaultEntries[StringKey.VaultLogCleanupComplete] = "Memory cleanup complete: checked {0}, archived {1}, deleted {2}, retained {3}";
-        defaultEntries[StringKey.VaultLogArchiveNotImplemented] = "Archive feature not implemented, memory {0} not archived";
-        defaultEntries[StringKey.VaultLogRestoreNotImplemented] = "Restore feature not implemented, memory {0} not restored";
         defaultEntries[StringKey.VaultLogSearchHistoryNotRegistered] = "Search history service not registered, cannot search past conversations";
         defaultEntries[StringKey.VaultLogSearchHistoryNotRegisteredContext] = "Search history service not registered, cannot build past context";
         defaultEntries[StringKey.VaultLogDailyLogNotRegistered] = "Daily log service not registered, cannot append log entry";
@@ -392,8 +390,6 @@ public static partial class LocalizerInitializer
         zhEntries[StringKey.VaultLogDeleteMemory] = "删除记忆: {0}";
         zhEntries[StringKey.VaultLogArchiveMemory] = "归档记忆: {0}";
         zhEntries[StringKey.VaultLogCleanupComplete] = "内存清理完成: 检查 {0}, 归档 {1}, 删除 {2}, 保留 {3}";
-        zhEntries[StringKey.VaultLogArchiveNotImplemented] = "归档功能尚未实现，记忆 {0} 未被归档";
-        zhEntries[StringKey.VaultLogRestoreNotImplemented] = "恢复功能尚未实现，记忆 {0} 未被恢复";
         zhEntries[StringKey.VaultLogSearchHistoryNotRegistered] = "搜索历史服务未注册，无法搜索过往对话";
         zhEntries[StringKey.VaultLogSearchHistoryNotRegisteredContext] = "搜索历史服务未注册，无法构建过往上下文";
         zhEntries[StringKey.VaultLogDailyLogNotRegistered] = "助手日志服务未注册，无法追加日志条目";
@@ -505,6 +501,7 @@ public static partial class LocalizerInitializer
         defaultEntries[StringKey.VaultLogStoreAddMemory] = "[MemoryStore] Added memory: {0} [{1}]";
         defaultEntries[StringKey.VaultLogStoreDeleteMemory] = "[MemoryStore] Deleted memory: {0}";
         defaultEntries[StringKey.VaultLogStoreArchiveMemory] = "[MemoryStore] Archived memory: {0}";
+        defaultEntries[StringKey.VaultLogStoreRestoreMemory] = "[MemoryStore] Restored memory: {0}";
         defaultEntries[StringKey.VaultLogStoreCleanedExpired] = "[MemoryStore] Cleaned {0} expired memories";
         defaultEntries[StringKey.VaultLogStoreLoadedMemories] = "[MemoryStore] Loaded {0} memories";
         defaultEntries[StringKey.VaultLogStoreLoadFailed] = "[MemoryStore] Failed to load memories";
@@ -515,6 +512,7 @@ public static partial class LocalizerInitializer
         zhEntries[StringKey.VaultLogStoreAddMemory] = "[MemoryStore] 添加记忆: {0} [{1}]";
         zhEntries[StringKey.VaultLogStoreDeleteMemory] = "[MemoryStore] 删除记忆: {0}";
         zhEntries[StringKey.VaultLogStoreArchiveMemory] = "[MemoryStore] 归档记忆: {0}";
+        zhEntries[StringKey.VaultLogStoreRestoreMemory] = "[MemoryStore] 恢复记忆: {0}";
         zhEntries[StringKey.VaultLogStoreCleanedExpired] = "[MemoryStore] 清理了 {0} 条过期记忆";
         zhEntries[StringKey.VaultLogStoreLoadedMemories] = "[MemoryStore] 加载了 {0} 条记忆";
         zhEntries[StringKey.VaultLogStoreLoadFailed] = "[MemoryStore] 加载记忆失败";

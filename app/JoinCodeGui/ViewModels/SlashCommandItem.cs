@@ -21,6 +21,12 @@ public sealed class SlashCommandItem
     /// <summary>是否启用（禁用命令视为无权限，从候选面板过滤）</summary>
     public bool IsEnabled { get; init; } = true;
 
+    /// <summary>命令名中匹配当前输入前缀的部分（高亮显示用，由 ViewModel 设置）</summary>
+    public string MatchedPart { get; set; } = string.Empty;
+
+    /// <summary>命令名中未匹配前缀的剩余部分（正常显示用，由 ViewModel 设置）</summary>
+    public string RemainingPart { get; set; } = string.Empty;
+
     /// <summary>显示文本（命令名 + 描述，供面板列表渲染）</summary>
     public string DisplayText => $"{Name}  —  {Description}";
 

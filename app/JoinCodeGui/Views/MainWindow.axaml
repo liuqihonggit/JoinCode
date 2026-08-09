@@ -176,9 +176,13 @@
                 <DataTemplate x:DataType="vm:SlashCommandItem">
                   <StackPanel Spacing="2" Margin="6,4">
                     <StackPanel Orientation="Horizontal" Spacing="8">
-                      <TextBlock Text="{Binding Name}" FontFamily="Consolas" FontSize="13" FontWeight="SemiBold"
-                                 Foreground="{DynamicResource GuiAccentText}" />
-                      <TextBlock Text="{Binding Description}" FontSize="11" Foreground="{DynamicResource GuiSecondaryText}"
+                      <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="{Binding MatchedPart}" FontFamily="Consolas" FontSize="13" FontWeight="Bold"
+                                   Foreground="{DynamicResource GuiAccentText}" />
+                        <TextBlock Text="{Binding RemainingPart}" FontFamily="Consolas" FontSize="13" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource GuiSecondaryText}" />
+                      </StackPanel>
+                      <TextBlock Text="{Binding Description}" FontSize="11" Foreground="{DynamicResource GuiMutedText}"
                                  TextTrimming="CharacterEllipsis" MaxWidth="240" />
                     </StackPanel>
                     <TextBlock Text="{Binding Usage}" FontFamily="Consolas" FontSize="10"

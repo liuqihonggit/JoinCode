@@ -547,6 +547,33 @@ public class MainViewModelTests
         vm.SlashSelectedIndex.Should().Be(first);
     }
 
+    [Fact]
+    public void SlashHighlight_SplitsMatchedAndRemainingPart()
+    {
+        var vm = CreateVm();
+        SetSlashInput(vm, "/cle");
+
+        vm.IsSlashPopupOpen.Should().BeTrue();
+        vm.SlashSuggestions.Should().NotBeEmpty();
+        vm.SlashSuggestions.Should().OnlyContain(s => s.MatchedPart + s.RemainingPart == s.Name);
+        vm.SlashSuggestions.Should().OnlyContain(s => s.MatchedPart == "/cle");
+    }
+
+    [Fact]
+    public void SlashHighlight_SingleSlash_MatchesEntireSlashPrefix()
+    {
+        var vm = CreateVm();
+        SetSlashInput(vm, "/");
+
+        vm.IsSlashPopupOpen.Should().BeTrue();
+        vm.SlashSuggestions.Should().NotBeEmpty();
+        foreach (var s in vm.SlashSuggestions)
+        {
+            s.MatchedPart.Should().Be("/");
+            s.RemainingPart.Should().Be(s.Name[1..]);
+        }
+    }
+
 
         [Fact]
         public void CopyEmptyMessage_DoesNotSetFeedback()

@@ -363,8 +363,13 @@ public sealed partial class MainViewModel : ViewModelBase
         var ranked = SlashCommandRanker.Rank(matched, _slashParseResult.Prefix);
 
         SlashSuggestions.Clear();
+        var prefixLen = _slashParseResult.Prefix.Length;
         foreach (var item in ranked)
+        {
+            item.MatchedPart = item.Name.Length >= prefixLen ? item.Name[..prefixLen] : item.Name;
+            item.RemainingPart = item.Name.Length >= prefixLen ? item.Name[prefixLen..] : string.Empty;
             SlashSuggestions.Add(item);
+        }
         SlashSelectedIndex = SlashSuggestions.Count > 0 ? 0 : -1;
         OnPropertyChanged(nameof(IsSlashPopupOpen));
     }

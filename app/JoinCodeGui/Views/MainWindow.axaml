@@ -164,21 +164,21 @@
         <!-- 斜杠命令无边悬浮下拉面板（输入 / 后实时过滤，↑↓ 选择 Enter/Tab 补全） -->
         <Popup x:Name="SlashPopup"
                PlacementTarget="{Binding ElementName=InputTextBox}"
-               Placement="Bottom" IsOpen="{Binding IsSlashPopupOpen}"
-               VerticalOffset="4" IsLightDismissEnabled="True">
-          <Border x:Name="SlashPopupBorder" MinWidth="300" MaxHeight="340" CornerRadius="8" Padding="4"
-                  Background="{DynamicResource GuiWindowBackground}"
-                  BoxShadow="0 6 16 0 #90000000" ClipToBounds="True">
+               Placement="Top" IsOpen="{Binding IsSlashPopupOpen}"
+               VerticalOffset="0" IsLightDismissEnabled="True">
+          <Border x:Name="SlashPopupBorder" MinWidth="300" MaxHeight="340" CornerRadius="6" Padding="2"
+                   Background="{DynamicResource GuiWindowBackground}"
+                   BoxShadow="0 6 16 0 #90000000" ClipToBounds="True">
             <ListBox x:Name="SlashListBox"
                      ItemsSource="{Binding SlashSuggestions}"
                      SelectedIndex="{Binding SlashSelectedIndex}"
-                     Background="Transparent" Padding="2"
+                     Background="Transparent" Padding="1"
                      ScrollViewer.VerticalScrollBarVisibility="Disabled"
                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                      Grid.IsSharedSizeScope="True">
               <ListBox.ItemTemplate>
                 <DataTemplate x:DataType="vm:SlashCommandItem">
-                  <Grid Margin="10,4">
+                  <Grid Margin="8,1">
                     <Grid.ColumnDefinitions>
                       <ColumnDefinition Width="Auto" SharedSizeGroup="CmdNameCol" />
                       <ColumnDefinition Width="*" />

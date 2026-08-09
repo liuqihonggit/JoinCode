@@ -26,17 +26,17 @@ public sealed class Selector<T>
     {
         await Task.CompletedTask.ConfigureAwait(false);
 
-        TerminalHelper.WriteLine();
-        TerminalHelper.WriteLine($"{AnsiStyleConstants.Bold}{_title}{AnsiStyleConstants.Reset}");
-        TerminalHelper.NewLine();
+        TerminalHelper.WriteLineReal();
+        TerminalHelper.WriteLineReal($"{AnsiStyleConstants.Bold}{_title}{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLineReal();
 
         for (var i = 0; i < _items.Length; i++)
         {
-            TerminalHelper.WriteLine($"  {TerminalColors.Muted}{i + 1}.{AnsiStyleConstants.Reset} {_items[i].DisplayText}");
+            TerminalHelper.WriteLineReal($"  {TerminalColors.Muted}{i + 1}.{AnsiStyleConstants.Reset} {_items[i].DisplayText}");
         }
 
-        TerminalHelper.NewLine();
-        TerminalHelper.WriteRaw($"请输入选择 (1-{_items.Length}, Esc 取消): ");
+        TerminalHelper.WriteLineReal();
+        TerminalHelper.WriteRawReal($"请输入选择 (1-{_items.Length}, Esc 取消): ");
 
         if (Core.Utils.TestEnvironmentDetector.IsNonInteractive)
         {
@@ -140,8 +140,8 @@ public sealed class Dialog
     {
         await Task.CompletedTask.ConfigureAwait(false);
 
-        TerminalHelper.WriteLine();
-        TerminalHelper.WriteRaw($"{message} (y/N): ");
+        TerminalHelper.WriteLineReal();
+        TerminalHelper.WriteRawReal($"{message} (y/N): ");
 
         if (Core.Utils.TestEnvironmentDetector.IsNonInteractive) return false;
 
@@ -160,8 +160,8 @@ public sealed class Dialog
     {
         await Task.CompletedTask.ConfigureAwait(false);
 
-        TerminalHelper.WriteLine();
-        TerminalHelper.WriteRaw($"{message}: ");
+        TerminalHelper.WriteLineReal();
+        TerminalHelper.WriteRawReal($"{message}: ");
 
         if (Core.Utils.TestEnvironmentDetector.IsNonInteractive) return null;
 

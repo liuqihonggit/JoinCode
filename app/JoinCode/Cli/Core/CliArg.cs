@@ -23,6 +23,9 @@ public enum CliArg
     [CliOption("--non-interactive", "", "强制非交互模式")]
     NonInteractive,
 
+    [CliOption("--no-confirm", "", "跳过所有确认提示（AI 驱动用，走交互模式但不弹确认框）")]
+    NoConfirm,
+
     [CliOption("--trust", "", "自动信任工作目录")]
     Trust,
 

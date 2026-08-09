@@ -10,6 +10,12 @@ public static class TestEnvironmentDetector
     private static readonly Lazy<bool> _cachedResult = new(Detect);
 
     /// <summary>
+    /// 外部强制非交互模式 — 由 --no-confirm 参数设置。
+    /// 用于 AI 通过 PTY 驱动交互模式时跳过所有确认提示，避免阻塞。
+    /// </summary>
+    public static bool ForceNonInteractive { get; set; }
+
+    /// <summary>
     /// Gets whether the current process is running in a test environment.
     /// Result is cached after first evaluation for performance.
     /// </summary>
@@ -17,10 +23,10 @@ public static class TestEnvironmentDetector
 
     /// <summary>
     /// Gets whether the current process is in non-interactive mode (input redirected or test environment).
-    /// Combines Console.IsInputRedirected and IsTestEnvironment into a single check.
+    /// Combines Console.IsInputRedirected, IsTestEnvironment, and ForceNonInteractive into a single check.
     /// Use this as the standard guard for all interactive input operations (ReadLine/ReadKey/Read).
     /// </summary>
-    public static bool IsNonInteractive => System.Console.IsInputRedirected || IsTestEnvironment;
+    public static bool IsNonInteractive => System.Console.IsInputRedirected || IsTestEnvironment || ForceNonInteractive;
 
     private static bool Detect()
     {

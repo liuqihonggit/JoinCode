@@ -79,6 +79,7 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator
                     var description = attr.NamedArguments.FirstOrDefault(n => n.Key == "Description").Value.Value as string ?? "";
                     var usage = attr.NamedArguments.FirstOrDefault(n => n.Key == "Usage").Value.Value as string ?? "";
                     var isHidden = attr.NamedArguments.FirstOrDefault(n => n.Key == "IsHidden").Value.Value is bool hiddenVal && hiddenVal;
+                    var isEnabled = attr.NamedArguments.FirstOrDefault(n => n.Key == "IsEnabled").Value.Value is bool enabledVal ? enabledVal : true;
                     var aliases = new List<string>();
                     var aliasesValue = attr.NamedArguments.FirstOrDefault(n => n.Key == "Aliases").Value;
                     if (!aliasesValue.IsNull && aliasesValue.Kind == TypedConstantKind.Array)
@@ -98,7 +99,8 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator
                         description,
                         usage,
                         aliases.ToArray(),
-                        isHidden));
+                        isHidden,
+                        isEnabled));
                 }
             }
         }
@@ -181,7 +183,7 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator
         foreach (var cmd in chatCommands)
         {
             var aliases = string.Join(", ", cmd.Aliases.Select(a => $"\"{EscapeString(a)}\""));
-            sb.AppendLine($"        new SlashCommandMetadata {{ Name = \"/{EscapeString(cmd.Name)}\", Description = \"{EscapeString(cmd.Description)}\", Usage = \"{EscapeString(cmd.Usage)}\", Aliases = [{aliases}], IsHidden = {cmd.IsHidden.ToString().ToLowerInvariant()} }},");
+            sb.AppendLine($"        new SlashCommandMetadata {{ Name = \"/{EscapeString(cmd.Name)}\", Description = \"{EscapeString(cmd.Description)}\", Usage = \"{EscapeString(cmd.Usage)}\", Aliases = [{aliases}], IsHidden = {cmd.IsHidden.ToString().ToLowerInvariant()}, IsEnabled = {cmd.IsEnabled.ToString().ToLowerInvariant()} }},");
         }
 
         sb.AppendLine("    ];");
@@ -207,6 +209,7 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator
         public string Usage { get; }
         public string[] Aliases { get; }
         public bool IsHidden { get; }
+        public bool IsEnabled { get; }
 
         public CommandInfo(
             string fullyQualifiedName,
@@ -216,7 +219,8 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator
             string description = "",
             string usage = "",
             string[]? aliases = null,
-            bool isHidden = false)
+            bool isHidden = false,
+            bool isEnabled = true)
         {
             FullyQualifiedName = fullyQualifiedName;
             Name = name;
@@ -226,6 +230,7 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator
             Usage = usage;
             Aliases = aliases ?? [];
             IsHidden = isHidden;
+            IsEnabled = isEnabled;
         }
     }
 }

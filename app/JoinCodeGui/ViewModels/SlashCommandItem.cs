@@ -18,6 +18,9 @@ public sealed class SlashCommandItem
     /// <summary>是否展示用法提示（有非空 Usage 时）</summary>
     public bool HasUsage => !string.IsNullOrWhiteSpace(Usage);
 
+    /// <summary>是否启用（禁用命令视为无权限，从候选面板过滤）</summary>
+    public bool IsEnabled { get; init; } = true;
+
     /// <summary>显示文本（命令名 + 描述，供面板列表渲染）</summary>
     public string DisplayText => $"{Name}  —  {Description}";
 
@@ -56,16 +59,18 @@ public sealed class SlashCommandItem
             {
                 Name = "/" + c.Name,
                 Description = c.Description,
-                Usage = c.Usage
+                Usage = c.Usage,
+                IsEnabled = c.IsEnabled
             })
             .ToList();
     }
 
-    /// <summary>按输入前缀过滤命令（如 "/c" 匹配 /clear、/compact、/copy、/config）</summary>
+    /// <summary>按输入前缀过滤命令（如 "/c" 匹配 /clear、/compact、/copy、/config），并排除禁用命令</summary>
     public static IReadOnlyList<SlashCommandItem> Filter(string prefix, IReadOnlyList<SlashCommandItem>? commands = null)
     {
         var source = commands ?? BuiltInCommands;
-        return TrieCache.GetValue(source, list => new SlashCommandTrie(list)).Match(prefix);
+        var matched = TrieCache.GetValue(source, list => new SlashCommandTrie(list)).Match(prefix);
+        return matched.All(c => c.IsEnabled) ? matched : matched.Where(c => c.IsEnabled).ToList();
     }
 
     /// <summary>命令列表 → 前缀树缓存（同列表实例复用同一棵树）</summary>

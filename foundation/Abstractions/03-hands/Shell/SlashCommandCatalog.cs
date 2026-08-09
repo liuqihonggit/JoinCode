@@ -20,6 +20,9 @@ public sealed record SlashCommandMetadata
 
     /// <summary>是否隐藏（隐藏命令不在面板展示）</summary>
     public bool IsHidden { get; init; }
+
+    /// <summary>是否启用（禁用命令视为无权限，从候选面板过滤）</summary>
+    public bool IsEnabled { get; init; } = true;
 }
 
 /// <summary>

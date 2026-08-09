@@ -489,6 +489,23 @@ public class MainViewModelTests
         }
 
         [Fact]
+        public async Task TemperatureAndMaxTokens_SliderChange_WritesBackToSession()
+        {
+            var session = new FakeSession();
+            var vm = new MainViewModel(session, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"));
+
+            vm.Temperature = 1.2;
+            vm.MaxTokens = 3000;
+
+            System.Threading.SpinWait.SpinUntil(
+                () => session.WrittenTemperature is not null && session.WrittenMaxTokens is not null,
+                TimeSpan.FromSeconds(2));
+
+            session.WrittenTemperature.Should().Be(1.2f);
+            session.WrittenMaxTokens.Should().Be(3000);
+        }
+
+        [Fact]
         public void FontSize_HasDefaultValue()
         {
             var vm = CreateVm();
@@ -899,6 +916,9 @@ public class MainViewModelTests
         /// <summary>记录 VM 注入权限处理器的假会话，用于验证回调接线</summary>
         private sealed class FakeSession : JoinCode.Gui.Hosting.IJccChatSession        {
             public Func<PermissionConfirmationRequest, Task<PermissionConfirmationDecision>>? Handler { get; private set; }
+            public float? WrittenTemperature { get; private set; }
+            public int? WrittenMaxTokens { get; private set; }
+            public string? WrittenSystemPrompt { get; private set; }
 
             public Func<PermissionConfirmationRequest, Task<PermissionConfirmationDecision>>? PermissionConfirmationHandler
             {
@@ -924,11 +944,23 @@ public class MainViewModelTests
             public Task SetModelAsync(string modelId, CancellationToken cancellationToken = default) => Task.CompletedTask;
             public EffortLevel EffortLevel => EffortLevel.Auto;
             public Task SetEffortLevelAsync(EffortLevel effortLevel, CancellationToken cancellationToken = default) => Task.CompletedTask;
-            public Task SetSystemPromptAsync(string systemPrompt, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public Task SetSystemPromptAsync(string systemPrompt, CancellationToken cancellationToken = default)
+            {
+                WrittenSystemPrompt = systemPrompt;
+                return Task.CompletedTask;
+            }
             public float? Temperature => null;
             public int? MaxTokens => null;
-            public Task SetTemperatureAsync(float temperature, CancellationToken cancellationToken = default) => Task.CompletedTask;
-            public Task SetMaxTokensAsync(int maxTokens, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public Task SetTemperatureAsync(float temperature, CancellationToken cancellationToken = default)
+            {
+                WrittenTemperature = temperature;
+                return Task.CompletedTask;
+            }
+            public Task SetMaxTokensAsync(int maxTokens, CancellationToken cancellationToken = default)
+            {
+                WrittenMaxTokens = maxTokens;
+                return Task.CompletedTask;
+            }
             public ValueTask DisposeAsync() => ValueTask.CompletedTask;
         }
     }

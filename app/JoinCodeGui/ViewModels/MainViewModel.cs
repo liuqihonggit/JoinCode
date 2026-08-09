@@ -331,7 +331,34 @@ public sealed partial class MainViewModel : ViewModelBase
     public bool IsInputTooLong => CharsCount > MaxInputChars;
 
     partial void OnMaxTokensChanged(int value)
-        => OnPropertyChanged(nameof(IsInputTooLong));
+    {
+        OnPropertyChanged(nameof(IsInputTooLong));
+        WriteBackTemperatureAndMaxTokens();
+    }
+
+    partial void OnTemperatureChanged(double value)
+        => WriteBackTemperatureAndMaxTokens();
+
+    /// <summary>
+    /// 滑块变更写回引擎会话 — 经门面 SetTemperatureAsync/SetMaxTokensAsync 写入共享
+    /// ExecutionSettingsProvider，ChatOptionsFactory 下次创建即覆盖默认值（对齐 CLI 语义：不持久化）。
+    /// </summary>
+    private void WriteBackTemperatureAndMaxTokens()
+    {
+        Task.Run(async () =>
+        {
+            try
+            {
+                await _session.SetTemperatureAsync((float)Temperature).WaitAsync(Timeout);
+                await _session.SetMaxTokensAsync(MaxTokens).WaitAsync(Timeout);
+                StatusText = $"采样参数: 温度 {Temperature:0.00}, 最大 {MaxTokens} tokens";
+            }
+            catch (Exception ex)
+            {
+                StatusText = $"设置采样参数失败: {ex.Message}";
+            }
+        });
+    }
 
     /// <summary>用户切换模型下拉项时回写共享配置（绑定同一个配置源，下次请求引擎生效）</summary>
     partial void OnSelectedModelOptionChanged(ModelOptionItem? value)

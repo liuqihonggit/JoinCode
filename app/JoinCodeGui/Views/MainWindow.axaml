@@ -105,21 +105,15 @@
 
       <!-- Row 0：顶部工具栏 -->
       <Border Grid.Row="0" Padding="10,8" Background="{DynamicResource GuiTopBarBackground}" ClipToBounds="True">
-        <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,*,*,Auto" ColumnSpacing="10">
+        <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,*,*,Auto" ColumnSpacing="10">
           <ToggleButton Content="🌙" Command="{Binding ToggleThemeCommand}" ToolTip.Tip="切换深浅主题" />
-          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-            <TextBlock x:Name="StatusDot" Text="●" FontSize="12" Foreground="{Binding StatusKind, Converter={StaticResource StatusToBrush}}"
-                       VerticalAlignment="Center" />
-            <TextBlock Text="{Binding StatusText}" Foreground="{DynamicResource GuiSecondaryText}" FontSize="12" VerticalAlignment="Center"
-                       TextTrimming="CharacterEllipsis" />
-          </StackPanel>
-          <Button Grid.Column="2" Content="↻ 重新生成" Command="{Binding RegenerateLastReplyCommand}"
+          <Button Grid.Column="1" Content="↻ 重新生成" Command="{Binding RegenerateLastReplyCommand}"
                   IsEnabled="{Binding CanRegenerate}" FontSize="11" ToolTip.Tip="撤回上一轮并重新生成" />
-          <Button Grid.Column="3" Content="🗑 清空" Command="{Binding ClearHistoryCommand}"
+          <Button Grid.Column="2" Content="🗑 清空" Command="{Binding ClearHistoryCommand}"
                   IsEnabled="{Binding HasMessages}" />
-          <Button Grid.Column="4" Content="⊘ 全部重置" Command="{Binding ClearAllSessionsCommand}"
+          <Button Grid.Column="3" Content="⊘ 全部重置" Command="{Binding ClearAllSessionsCommand}"
                   FontSize="11" />
-          <ComboBox Grid.Column="5" ItemsSource="{Binding ConnectionOptions}" SelectedItem="{Binding SelectedConnection}"
+          <ComboBox Grid.Column="4" ItemsSource="{Binding ConnectionOptions}" SelectedItem="{Binding SelectedConnection}"
                     HorizontalAlignment="Stretch" ToolTip.Tip="当前连接的引擎（Mock 为演示/本地验证环境）">
             <ComboBox.ItemTemplate>
               <DataTemplate x:DataType="vm:ConnectionOptionItem">
@@ -127,7 +121,7 @@
               </DataTemplate>
             </ComboBox.ItemTemplate>
           </ComboBox>
-          <ComboBox Grid.Column="6" ItemsSource="{Binding ModelOptions}" SelectedItem="{Binding SelectedModelOption}"
+          <ComboBox Grid.Column="5" ItemsSource="{Binding ModelOptions}" SelectedItem="{Binding SelectedModelOption}"
                     PlaceholderText="选择模型" HorizontalAlignment="Stretch">
             <ComboBox.ItemTemplate>
               <DataTemplate x:DataType="vm:ModelOptionItem">
@@ -135,7 +129,7 @@
               </DataTemplate>
             </ComboBox.ItemTemplate>
           </ComboBox>
-          <Button Grid.Column="7" Content="⛭" ToolTip.Tip="设置面板" Command="{Binding ToggleSettingsPanelCommand}" />
+          <Button Grid.Column="6" Content="⛭" ToolTip.Tip="设置面板" Command="{Binding ToggleSettingsPanelCommand}" />
         </Grid>
       </Border>
 
@@ -143,7 +137,7 @@
       <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ClipToBounds="True">
 
         <!-- Column 0：消息内容（搜索栏 + 消息列表） -->
-        <Grid Grid.Column="0" RowDefinitions="Auto,*">
+        <Grid Grid.Column="0" RowDefinitions="Auto,*,Auto">
           <!-- 搜索栏 -->
           <Border Grid.Row="0" Padding="10,6" Background="{DynamicResource GuiSearchBarBackground}">
             <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto">
@@ -258,10 +252,10 @@
                 </StackPanel>
               </Grid>
             </Border>
-            <Button x:Name="BackToBottomButton" Content="↓ 跳到最新" VerticalAlignment="Bottom"
-                    HorizontalAlignment="Center" Margin="0,0,0,12" FontSize="11" Padding="12,6"
-                    IsVisible="False" Background="{DynamicResource GuiSessionHighlight}" Click="OnBackToBottomClick" />
           </Panel>
+          <Button Grid.Row="2" x:Name="BackToBottomButton" Content="↓ 跳到最新"
+                  HorizontalAlignment="Center" FontSize="11" Padding="12,6"
+                  IsVisible="False" Background="{DynamicResource GuiSessionHighlight}" Click="OnBackToBottomClick" />
         </Grid>
 
         <!-- Column 1：设置面板 -->
@@ -378,12 +372,18 @@
 
       <!-- Row 3：状态栏 -->
       <Border Grid.Row="3" Padding="12,4" Background="{DynamicResource GuiStatusBarBackground}">
-        <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+        <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto">
           <TextBlock Text="{Binding Sessions.Count, StringFormat='{}会话 {0}'}" Foreground="{DynamicResource GuiMutedText}" FontSize="11" />
           <TextBlock Grid.Column="1" Text="{Binding MessageCount, StringFormat='{}  · 消息 {0}'}"
                      Foreground="{DynamicResource GuiMutedText}" FontSize="11" Margin="10,0" />
-          <TextBlock Grid.Column="3" Text="{Binding SelectedModel}" Foreground="{DynamicResource GuiAccentText}" FontSize="11"
-                     TextTrimming="CharacterEllipsis" />
+          <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" HorizontalAlignment="Right">
+            <TextBlock x:Name="StatusDot" Text="●" FontSize="12" Foreground="{Binding StatusKind, Converter={StaticResource StatusToBrush}}"
+                       VerticalAlignment="Center" />
+            <TextBlock Text="{Binding StatusText}" Foreground="{DynamicResource GuiSecondaryText}" FontSize="11" VerticalAlignment="Center"
+                       TextTrimming="CharacterEllipsis" />
+          </StackPanel>
+          <TextBlock Grid.Column="4" Text="{Binding SelectedModel}" Foreground="{DynamicResource GuiAccentText}" FontSize="11"
+                     TextTrimming="CharacterEllipsis" Margin="10,0,0,0" />
         </Grid>
       </Border>
     </Grid>

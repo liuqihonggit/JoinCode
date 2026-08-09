@@ -363,6 +363,9 @@ public sealed partial class MainViewModel : ViewModelBase
         return metadata.Count > 0 ? SlashCommandItem.FromMetadata(metadata) : SlashCommandItem.BuiltInCommands;
     }
 
+    /// <summary>使斜杠命令缓存失效 — 运行时动态增删命令后调用，下次刷新时重建 Trie</summary>
+    public void InvalidateSlashCommandCache() => _slashCommandCache = null;
+
     /// <summary>完成斜杠命令补全 — 将选中命令回填到光标位置（替换 / 到前缀结束区间），不破坏其他文本</summary>
     public void CompleteSlashSuggestion()
     {

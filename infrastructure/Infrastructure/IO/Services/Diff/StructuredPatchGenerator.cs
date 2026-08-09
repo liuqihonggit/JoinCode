@@ -35,7 +35,7 @@ public static class StructuredPatchGenerator
     /// <param name="filePath">文件路径（同时用作旧/新文件名）</param>
     /// <param name="oldContent">旧文件内容</param>
     /// <param name="newContent">新文件内容</param>
-    /// <param name="contextLines">上下文行数，默认3</param>
+    /// <param name="contextLines">上下文行数，默认4</param>
     /// <param name="cancellationToken">取消令牌（超时 5s，对齐 TS DIFF_TIMEOUT_MS）</param>
     /// <returns>结构化 Patch Hunk 数组；超时或取消时返回空数组</returns>
     public static StructuredPatchHunk[] Generate(
@@ -415,16 +415,20 @@ public static class StructuredPatchGenerator
         }
 
         // 计算 hunk 头：起始行号 = 区间前已消费的旧/新行数 + 1
-        var oldStart = 1;
-        var newStart = 1;
+        // 纯插入/纯删除（count=0）时用 0 基位置对齐 jsdiff（@@ -0,0 +1,1 @@）
+        var oldConsumed = 0;
+        var newConsumed = 0;
         for (var i = 0; i < start; i++)
         {
-            if (edits[i].Type != EditType.Insert) oldStart++;
-            if (edits[i].Type != EditType.Delete) newStart++;
+            if (edits[i].Type != EditType.Insert) oldConsumed++;
+            if (edits[i].Type != EditType.Delete) newConsumed++;
         }
 
         var oldCount = lines.Count(l => l.OldLineNumber is not null);
         var newCount = lines.Count(l => l.NewLineNumber is not null);
+
+        var oldStart = oldCount > 0 ? oldConsumed + 1 : oldConsumed;
+        var newStart = newCount > 0 ? newConsumed + 1 : newConsumed;
 
         return new StructuredPatchHunk
         {

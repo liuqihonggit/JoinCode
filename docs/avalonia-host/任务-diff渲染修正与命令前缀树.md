@@ -61,7 +61,7 @@
 | 4 | 实现 DiffViewer 双列行号（Grid 四列） | ✅ 测试绿 |
 | 5 | 实现 SlashCommandTrie + 接入 SlashCommandItem.Filter | ✅ 测试绿 |
 | 6 | 绿测试 + 编译验证 | ✅ GUI 161 + Infra 588 |
-| 7 | 差评大师 + 修复 | ⬜ |
+| 7 | 差评大师 + 修复 | ✅ 修复 hunk 头 0 基对齐 jsdiff |
 | 8 | git 提交 | ⬜ |
 
 ## 涉及文件

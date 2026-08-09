@@ -94,7 +94,7 @@ public class JccChatSessionAssemblyTests
     }
 
     [Fact]
-    public void ModelSurface_AvailableModels_ComesFromSharedModelConfigLoader()
+    public void ModelSurface_ProviderModelMap_ComesFromSharedModelConfigLoader()
     {
         var config = new WorkflowConfig
         {
@@ -112,17 +112,14 @@ public class JccChatSessionAssemblyTests
         var expected = JoinCode.Abstractions.Configuration.Llm.ModelConfigLoader
             .GetModels("openai").Select(m => m.Id).ToArray();
 
-        session.AvailableModels.Should().BeEquivalentTo(expected);
-        session.AvailableModels.Should().Contain("gpt-4o");
+        session.ProviderModelMap["openai"].Should().BeEquivalentTo(expected);
+        session.ProviderModelMap["openai"].Should().Contain("gpt-4o");
     }
 
     [Fact]
-    public void ModelSurface_AvailableModels_IncludesCurrentModelWhenNotInCatalog()
+    public void ModelSurface_ProviderModelMap_DoesNotIncludeCustomModel()
     {
-        // 用户场景：provider=openai 但 endpoint 是商汤 senseNova（OpenAI 兼容），
-        // 模型 sensenova-6.7-flash-lite 不在内置 models.json 的 openai 组。
-        // 对齐 CLI ModelCatalog.EnsureCurrentModelInList：当前模型必须出现在列表中，
-        // 否则下拉切换模型会把请求发往错误 endpoint 导致 404。
+        // ProviderModelMap 是纯配置数据，不追加当前模型（追加逻辑在 MainViewModel.RebuildModelOptionsCache）
         var config = new WorkflowConfig
         {
             Provider = new ProviderConfig
@@ -136,11 +133,11 @@ public class JccChatSessionAssemblyTests
             null!,
             config);
 
-        session.AvailableModels.Should().Contain("sensenova-6.7-flash-lite");
+        session.ProviderModelMap["openai"].Should().NotContain("sensenova-6.7-flash-lite");
     }
 
     [Fact]
-    public void ModelSurface_AvailableModels_DoesNotDuplicateCatalogModel()
+    public void ModelSurface_ProviderModelMap_DoesNotDuplicateCatalogModel()
     {
         var config = new WorkflowConfig
         {
@@ -155,7 +152,7 @@ public class JccChatSessionAssemblyTests
             null!,
             config);
 
-        session.AvailableModels.Count(m => m == "gpt-4o").Should().Be(1);
+        session.ProviderModelMap["openai"].Count(m => m == "gpt-4o").Should().Be(1);
     }
 
     [Fact]

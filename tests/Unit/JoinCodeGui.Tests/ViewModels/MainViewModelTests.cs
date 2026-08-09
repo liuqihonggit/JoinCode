@@ -140,7 +140,7 @@ public class MainViewModelTests
     {
         var vm = CreateVm();
 
-        vm.ModelOptions.Select(m => m.Id).Should().BeEquivalentTo(["deepseek-chat", "deepseek-reasoner"]);
+        vm.ModelOptions.Select(m => m.Id).Should().BeEquivalentTo(["deepseek-v4-flash", "deepseek-v4-pro", "deepseek-chat"]);
         vm.ModelOptions.Should().Contain(m => m.Id == "deepseek-chat" && m.DisplayText == "Mock:deepseek-chat");
         vm.SelectedModel.Should().Be("deepseek-chat");
         vm.SelectedModelOption.Should().NotBeNull();
@@ -173,10 +173,10 @@ public class MainViewModelTests
     {
         var vm = CreateVm();
 
-        var target = vm.ModelOptions.First(m => m.Id == "deepseek-reasoner");
+        var target = vm.ModelOptions.First(m => m.Id == "deepseek-v4-pro");
         vm.SelectedModelOption = target;
 
-        vm.SelectedModel.Should().Be("deepseek-reasoner");
+        vm.SelectedModel.Should().Be("deepseek-v4-pro");
     }
 
     [Fact]
@@ -204,8 +204,8 @@ public class MainViewModelTests
 
         vm.IsMockConnection.Should().BeTrue();
         vm.StatusText.Should().Contain("Mock");
-        vm.ModelOptions.Select(m => m.Id).Should().BeEquivalentTo(["deepseek-chat", "deepseek-reasoner"]);
-        vm.SelectedModel.Should().Be("deepseek-chat");
+        vm.ModelOptions.Select(m => m.Id).Should().BeEquivalentTo(["deepseek-v4-flash", "deepseek-v4-pro", "deepseek-chat"]);
+        vm.SelectedModel.Should().Be("deepseek-v4-flash");
     }
 
     [Fact]
@@ -221,6 +221,28 @@ public class MainViewModelTests
 
         vm.IsMockConnection.Should().BeFalse();
         vm.StatusText.Should().Contain("真实");
+        vm.ModelOptions.Select(m => m.Id).Should().BeEquivalentTo(["fake-model"]);
+    }
+
+    [Fact]
+    public void SwitchProvider_UpdatesModelListFromProviderModelMap()
+    {
+        var fake = new FakeSession();
+        var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"));
+
+        // 初始默认选 "fake" 真实供应商
+        vm.SelectedConnection!.Id.Should().Be("fake");
+        vm.ModelOptions.Select(m => m.Id).Should().BeEquivalentTo(["fake-model"]);
+
+        // 切换到 Mock — 模型列表应从 PlaceholderChatSession.ProviderModelMap["deepseek"] 读取
+        var mock = vm.ConnectionOptions.First(o => o.IsMock);
+        vm.SelectedConnection = mock;
+        vm.ModelOptions.Select(m => m.Id).Should().Contain("deepseek-v4-flash");
+        vm.ModelOptions.Select(m => m.Id).Should().Contain("deepseek-v4-pro");
+
+        // 切换回 "fake" — 模型列表应恢复为 fake 的模型
+        var fakeConn = vm.ConnectionOptions.First(o => !o.IsMock);
+        vm.SelectedConnection = fakeConn;
         vm.ModelOptions.Select(m => m.Id).Should().BeEquivalentTo(["fake-model"]);
     }
 
@@ -1163,7 +1185,11 @@ public class MainViewModelTests
             public bool IsReady => true;
             public string CurrentProvider => "fake";
             public string CurrentModelId => "fake-model";
-            public IReadOnlyList<string> AvailableModels => ["fake-model"];
+            public IReadOnlyDictionary<string, IReadOnlyList<string>> ProviderModelMap { get; }
+                = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["fake"] = ["fake-model"]
+                };
             public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
             public async IAsyncEnumerable<ChatStreamEvent> StreamAsync(string message, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
             {
@@ -1208,7 +1234,11 @@ public class MainViewModelTests
             public bool IsReady => true;
             public string CurrentProvider => "fake";
             public string CurrentModelId => "fake-model";
-            public IReadOnlyList<string> AvailableModels => ["fake-model"];
+            public IReadOnlyDictionary<string, IReadOnlyList<string>> ProviderModelMap { get; }
+                = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["fake"] = ["fake-model"]
+                };
             public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
             public async IAsyncEnumerable<ChatStreamEvent> StreamAsync(string message, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
             {

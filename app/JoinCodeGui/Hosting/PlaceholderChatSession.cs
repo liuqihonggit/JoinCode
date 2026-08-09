@@ -1,3 +1,4 @@
+using JoinCode.Abstractions.Configuration.Llm;
 using JoinCode.Abstractions.Interfaces;
 using JoinCode.Abstractions.LLM;
 using JoinCode.Abstractions.LLM.Chat;
@@ -16,7 +17,17 @@ internal sealed class PlaceholderChatSession : IJccChatSession
 
     public string CurrentModelId => "deepseek-chat";
 
-    public IReadOnlyList<string> AvailableModels { get; } = ["deepseek-chat", "deepseek-reasoner"];
+    public IReadOnlyDictionary<string, IReadOnlyList<string>> ProviderModelMap { get; } = BuildProviderModelMap();
+
+    private static IReadOnlyDictionary<string, IReadOnlyList<string>> BuildProviderModelMap()
+    {
+        var map = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var kvp in ModelConfigLoader.Config.Providers)
+        {
+            map[kvp.Key] = kvp.Value.Models.Select(m => m.Id).ToArray();
+        }
+        return map;
+    }
 
     /// <summary>占位会话不触发引擎权限异常，保留回调供 UI 注入（无实际效果）</summary>
     public Func<PermissionConfirmationRequest, Task<PermissionConfirmationDecision>>? PermissionConfirmationHandler { get; set; }

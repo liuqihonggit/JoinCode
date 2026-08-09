@@ -57,6 +57,8 @@ public sealed partial class MainWindow : Window
         _statusBlinkTimer.Tick += OnStatusBlinkTick;
         _toolTimer.Tick += OnToolTimerTick;
         _slashDebounceTimer.Tick += OnSlashDebounceTick;
+        if (InputTextBox is not null)
+            InputTextBox.AddHandler(InputElement.KeyDownEvent, OnInputKeyDown, Avalonia.Interactivity.RoutingStrategies.Tunnel);
         Closed += OnWindowClosed;
     }
 

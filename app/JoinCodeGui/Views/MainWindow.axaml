@@ -143,8 +143,7 @@
         <Grid ColumnDefinitions="*,Auto,Auto">
           <TextBox x:Name="InputTextBox" Text="{Binding InputText}" Watermark="输入消息，Enter 发送 / Shift+Enter 换行…"
                    IsEnabled="{Binding !IsBusy}" AcceptsReturn="True" MaxLines="5"
-                   TextWrapping="Wrap"
-                   KeyDown="OnInputKeyDown" />
+                   TextWrapping="Wrap" />
           <TextBlock Grid.Column="1" Foreground="{Binding IsInputTooLong, Converter={StaticResource BoolToWarnBrush}}"
                    FontSize="11" VerticalAlignment="Bottom" Margin="8,0"
                    ToolTip.Tip="{Binding MaxInputChars, StringFormat='{}建议上限 {0} 字符'}">

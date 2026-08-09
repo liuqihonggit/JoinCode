@@ -306,13 +306,14 @@ public sealed partial class MainViewModel : ViewModelBase
         _session = session ?? new Hosting.PlaceholderChatSession();
         _sessionStore = store ?? new Persistence.GuiSessionStore(new IO.FileSystem.PhysicalFileSystem());
         _session.PermissionConfirmationHandler = OnPermissionConfirmationRequestedAsync;
+        RebuildConnectionOptions();
         _selectedModel = _session.CurrentModelId;
         _selectedModelOption = ModelOptions.FirstOrDefault(m => m.Id == _session.CurrentModelId);
         _selectedEffort = _session.EffortLevel.ToValue();
         _selectedConnection = session is null
             ? MockConnection
-            : ConnectionOptions.FirstOrDefault(c => !c.IsMock && c.Id == session.CurrentProvider)
-              ?? ConnectionOptions.FirstOrDefault(c => !c.IsMock)
+            : _connectionOptions.FirstOrDefault(c => !c.IsMock && c.Id == session.CurrentProvider)
+              ?? _connectionOptions.FirstOrDefault(c => !c.IsMock)
               ?? MockConnection;
         Messages.CollectionChanged += OnMessagesChanged;
         LoadPersistedSessions();
@@ -334,11 +335,12 @@ public sealed partial class MainViewModel : ViewModelBase
         _session.PermissionConfirmationHandler = OnPermissionConfirmationRequestedAsync;
 
         _modelOptionsCache = null;
+        RebuildConnectionOptions();
         SelectedModel = _session.CurrentModelId;
         SelectedModelOption = ModelOptions.FirstOrDefault(m => m.Id == _session.CurrentModelId);
         SelectedEffort = _session.EffortLevel.ToValue();
-        SelectedConnection = ConnectionOptions.FirstOrDefault(c => c.Id == session.CurrentProvider)
-            ?? ConnectionOptions.FirstOrDefault(c => !c.IsMock)
+        SelectedConnection = _connectionOptions.FirstOrDefault(c => c.Id == session.CurrentProvider)
+            ?? _connectionOptions.FirstOrDefault(c => !c.IsMock)
             ?? MockConnection;
 
         // 清空延迟构建的斜杠命令缓存，改用真实引擎的命令清单
@@ -346,7 +348,6 @@ public sealed partial class MainViewModel : ViewModelBase
         RefreshSlashSuggestions();
 
         OnPropertyChanged(nameof(ModelOptions));
-        OnPropertyChanged(nameof(ConnectionOptions));
         OnPropertyChanged(nameof(IsMockConnection));
         _ = Task.Run(async () =>
         {
@@ -645,23 +646,26 @@ public sealed partial class MainViewModel : ViewModelBase
         IsMock = true
     };
 
+    /// <summary>连接下拉候选 — ObservableCollection 绑定 ComboBox，引用固定不丢失选中项</summary>
+    private readonly ObservableCollection<ConnectionOptionItem> _connectionOptions = [];
+
     /// <summary>连接下拉候选 — Mock 引擎 + 配置文件驱动的全部供应商（改 config 自动更新）</summary>
-    public IReadOnlyList<ConnectionOptionItem> ConnectionOptions
+    public IReadOnlyList<ConnectionOptionItem> ConnectionOptions => _connectionOptions;
+
+    /// <summary>重建连接选项 — 从 ProviderModelMap.Keys 填充 ObservableCollection（通知 UI）</summary>
+    private void RebuildConnectionOptions()
     {
-        get
+        _connectionOptions.Clear();
+        _connectionOptions.Add(MockConnection);
+        foreach (var provider in _session.ProviderModelMap.Keys)
         {
-            var list = new List<ConnectionOptionItem> { MockConnection };
-            foreach (var provider in _session.ProviderModelMap.Keys)
+            var display = ProviderKindExtensions.FromValue(provider)?.ToString() ?? provider;
+            _connectionOptions.Add(new ConnectionOptionItem
             {
-                var display = ProviderKindExtensions.FromValue(provider)?.ToString() ?? provider;
-                list.Add(new ConnectionOptionItem
-                {
-                    Id = provider,
-                    DisplayText = $"{display}（真实）",
-                    IsMock = false
-                });
-            }
-            return list;
+                Id = provider,
+                DisplayText = $"{display}（真实）",
+                IsMock = false
+            });
         }
     }
 

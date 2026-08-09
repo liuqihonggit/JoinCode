@@ -158,6 +158,35 @@ public class JccChatSessionAssemblyTests
     }
 
     [Fact]
+    public void EngineAssembly_ResolvesExecutionSettingsProvider()
+    {
+        // 对齐 CLI /effort：GUI 的 AddAiWorkflowServices 必须能解析 IExecutionSettingsProvider，
+        // 否则 ChatOptionsFactory._executionSettingsProvider 为 null，EffortLevel 永不生效。
+        var sp = BuildEngineProvider();
+
+        var settings = sp.GetService<IExecutionSettingsProvider>();
+
+        settings.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void EngineAssembly_ExecutionSettings_DefaultsToAuto()
+    {
+        // 无持久化设置时，EffortLevel 默认 Auto（模型默认级别）— 对齐 CLI ShowCurrentEffort。
+        // 直接构造 ExecutionSettingsProvider + InMemoryFileSystem，隔离真实磁盘，保证确定性
+        // （物理磁盘 ~/.jcc/settings.json 可能含用户 effortLevel=low）。
+        var provider = new ExecutionSettingsProvider(
+            new WorkflowConfig
+            {
+                Provider = new ProviderConfig { Provider = "openai", ModelId = "gpt-4o" }
+            },
+            new InMemoryFileSystem(),
+            null!);
+
+        provider.EffortLevel.Should().Be(EffortLevel.Auto);
+    }
+
+    [Fact]
     public async Task SetModelAsync_PersistsModelToSettingsJson()
     {
         // 对齐 CLI ModelCommand.ApplyModelSwitchAsync：切换模型需持久化 modelId

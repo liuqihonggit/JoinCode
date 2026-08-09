@@ -1,13 +1,18 @@
-namespace JoinCode.Services;
+using JoinCode.Abstractions.Configuration.Providers;
 
-[Register]
+namespace Core.DependencyInjection;
+
+/// <summary>
+/// 执行设置提供者 — 对齐 CLI JoinCode.Services.ExecutionSettingsProvider（已下沉共享层）。
+/// 从 settings.json 懒加载持久化的 effortLevel，供 ChatOptionsFactory / EffortLevelMiddleware 消费。
+/// </summary>
+[Register(typeof(IExecutionSettingsProvider))]
 public sealed partial class ExecutionSettingsProvider : ServiceEntity, IExecutionSettingsProvider
 {
     private readonly WorkflowConfig _config;
     private readonly ITelemetryService? _telemetryService;
     private readonly IFileSystem _fs;
     private readonly IProviderDefinitionRegistry _registry;
-    private readonly Lazy<EffortLevel> _effortLevelLazy;
 
     public ExecutionSettingsProvider(WorkflowConfig config, IFileSystem fs, IProviderDefinitionRegistry registry, ITelemetryService? telemetryService = null)
     {
@@ -15,22 +20,31 @@ public sealed partial class ExecutionSettingsProvider : ServiceEntity, IExecutio
         _telemetryService = telemetryService;
         _fs = fs;
         _registry = registry;
-        // 延迟加载 effortLevel — 避免构造函数中阻塞调用 async 方法
-        _effortLevelLazy = new Lazy<EffortLevel>(LoadPersistedEffort, LazyThreadSafetyMode.ExecutionAndPublication);
     }
 
     private EffortLevel LoadPersistedEffort()
     {
         // 从 settings.json 读取持久化的 effortLevel — 对齐 TS getUserSpecifiedModelSetting
-        // P1-3: 改用同步 API，避免 Lazy<T> 中 sync-over-async 阻塞
         var persistedEffort = ConfigLoader.LoadSettingFromSettingsJson("effortLevel", _fs);
         return EffortLevelHelper.ParseEffortLevel(persistedEffort) ?? EffortLevel.Auto;
     }
 
-    private EffortLevel _effortLevel;
+    // 双变量模式（规则3）：首次读取触发持久化加载；set 立即生效并标记已加载。
+    // 修复原实现 bug：Lazy 未求值时 getter 返回字段默认 Low，且 set 后 Lazy 已求值导致 getter 返回旧值。
+    private EffortLevel _effortLevel = EffortLevel.Auto;
+    private bool _isLoaded;
+
     public EffortLevel EffortLevel
     {
-        get => _effortLevelLazy.IsValueCreated ? _effortLevelLazy.Value : _effortLevel;
+        get
+        {
+            if (!_isLoaded)
+            {
+                _effortLevel = LoadPersistedEffort();
+                _isLoaded = true;
+            }
+            return _effortLevel;
+        }
         set
         {
             if (_effortLevel != value)
@@ -38,6 +52,7 @@ public sealed partial class ExecutionSettingsProvider : ServiceEntity, IExecutio
                 _telemetryService?.RecordCount("host.settings.change.count", new Dictionary<string, string> { ["setting"] = "effortLevel", ["old"] = _effortLevel.ToValue(), ["new"] = value.ToValue() }, "count", "Execution settings change count");
             }
             _effortLevel = value;
+            _isLoaded = true;
         }
     }
     public bool FastMode => _config.FastMode;

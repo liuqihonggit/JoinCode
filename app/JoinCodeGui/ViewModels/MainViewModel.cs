@@ -15,7 +15,7 @@ namespace JoinCode.Gui.ViewModels;
 /// </summary>
 public sealed partial class MainViewModel : ViewModelBase
 {
-    private readonly IJccChatSession? _realSession;
+    private IJccChatSession? _realSession;
     private IJccChatSession? _mockSession;
     private IJccChatSession _session;
     private readonly Persistence.GuiSessionStore _sessionStore;
@@ -296,6 +296,31 @@ public sealed partial class MainViewModel : ViewModelBase
     /// <summary>获取可用斜杠命令清单 — 委托到引擎 session，由源码生成器自动提取</summary>
     public IReadOnlyList<SlashCommandMetadata> GetAvailableSlashCommands()
         => _session.GetAvailableSlashCommands();
+
+    /// <summary>
+    /// 后台引擎组装完成后热切换 — 将占位会话替换为真实引擎会话并刷新全部派生状态。
+    /// 由 App 在后台线程完成 <see cref="JccChatSession.CreateAsync"/> 后调用（UI 线程）。
+    /// </summary>
+    public void AttachRealSession(IJccChatSession session)
+    {
+        _realSession = session;
+        _session = session;
+        _session.PermissionConfirmationHandler = OnPermissionConfirmationRequestedAsync;
+
+        SelectedModel = _session.CurrentModelId;
+        SelectedModelOption = ModelOptions.FirstOrDefault(m => m.Id == _session.CurrentModelId);
+        SelectedEffort = _session.EffortLevel.ToValue();
+        SelectedConnection = BuildRealConnection(session);
+
+        // 清空延迟构建的斜杠命令缓存，改用真实引擎的命令清单
+        _slashCommandCache = null;
+        RefreshSlashSuggestions();
+
+        OnPropertyChanged(nameof(ModelOptions));
+        OnPropertyChanged(nameof(ConnectionOptions));
+        OnPropertyChanged(nameof(IsMockConnection));
+        StatusText = $"已连接真实引擎 {session.CurrentProvider}";
+    }
 
     /// <summary>斜杠命令缓存（懒加载；空命令时回退内置高频命令列表）</summary>
     private IReadOnlyList<SlashCommandItem>? _slashCommandCache;

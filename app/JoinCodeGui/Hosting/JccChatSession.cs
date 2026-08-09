@@ -51,19 +51,26 @@ internal sealed class JccChatSession : IJccChatSession
     public static async Task<IJccChatSession> CreateAsync(
         CancellationToken cancellationToken = default)
     {
+        var swTotal = System.Diagnostics.Stopwatch.StartNew();
+        var sw = System.Diagnostics.Stopwatch.StartNew();
         var config = await LoadConfigFallbackAsync(cancellationToken).ConfigureAwait(false);
+        App.LogDiag($"[JccChatSession] LoadConfigFallback: {sw.ElapsedMilliseconds}ms"); sw.Restart();
 
         var services = new Microsoft.Extensions.DependencyInjection.ServiceCollection();
         services.AddSingleton<Microsoft.Extensions.Configuration.IConfiguration>(
             new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build());
         services.AddLogging(b => b.AddConsole());
         services.AddAiWorkflowServices(config);
+        App.LogDiag($"[JccChatSession] AddAiWorkflowServices: {sw.ElapsedMilliseconds}ms"); sw.Restart();
         services.AddAllPipelines();
-        services.AddSingleton<JoinCode.Abstractions.Interfaces.ISlashCommandCatalog, JoinCode.ChatCommands.GeneratedSlashCommandCatalog>();
+        App.LogDiag($"[JccChatSession] AddAllPipelines: {sw.ElapsedMilliseconds}ms"); sw.Restart();
 
         var sp = services.BuildServiceProvider();
+        App.LogDiag($"[JccChatSession] BuildServiceProvider: {sw.ElapsedMilliseconds}ms"); sw.Restart();
         var chat = sp.GetRequiredService<IChatService>();
+        App.LogDiag($"[JccChatSession] GetRequiredService<IChatService>: {sw.ElapsedMilliseconds}ms"); sw.Restart();
         var executionSettings = sp.GetService<IExecutionSettingsProvider>();
+        App.LogDiag($"[JccChatSession] TOTAL CreateAsync: {swTotal.ElapsedMilliseconds}ms");
         return new JccChatSession(sp, chat, config, executionSettings);
     }
 

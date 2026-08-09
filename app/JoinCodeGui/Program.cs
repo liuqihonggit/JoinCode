@@ -10,7 +10,9 @@ internal static class Program
     [STAThread]
     public static void Main(string[] args)
     {
+        App.LogDiag($"[Main] entry");
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+        App.LogDiag($"[Main] exit");
     }
 
     /// <summary>

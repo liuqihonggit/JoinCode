@@ -225,6 +225,23 @@ public class MainViewModelTests
     }
 
     [Fact]
+    public void AttachRealSession_HotSwapsPlaceholderToRealEngine()
+    {
+        // 异步启动路径：VM 先以占位会话显示，引擎组装完成后再热切换
+        var vm = new MainViewModel(null, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"));
+        vm.IsMockConnection.Should().BeTrue("未注入会话时处于 Mock 占位");
+
+        var fake = new FakeSession();
+        vm.AttachRealSession(fake);
+
+        vm.IsMockConnection.Should().BeFalse("热切换后应替换为真实引擎会话");
+        vm.SelectedConnection!.IsMock.Should().BeFalse();
+        vm.SelectedModel.Should().Be("fake-model");
+        vm.StatusText.Should().Contain("已连接真实引擎");
+        vm.ModelOptions.Select(m => m.Id).Should().BeEquivalentTo(["fake-model"]);
+    }
+
+    [Fact]
     public void EffortOptions_IncludeCliLevels()
     {
         // 对齐 CLI /effort 全部级别：low/medium/high/max/auto

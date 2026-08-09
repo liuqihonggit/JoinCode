@@ -52,7 +52,9 @@ public sealed partial class MainWindow : Window
 
     public MainWindow()
     {
+        App.LogDiag("[MainWindow] ctor begin");
         InitializeComponent();
+        App.LogDiag("[MainWindow] ctor end");
         _errorToastTimer.Tick += OnErrorToastTimerTick;
         _statusBlinkTimer.Tick += OnStatusBlinkTick;
         _toolTimer.Tick += OnToolTimerTick;

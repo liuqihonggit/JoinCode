@@ -16,12 +16,15 @@ public sealed partial class App : Application
 {
     public override void Initialize()
     {
+        App.LogDiag("[App] Initialize begin");
         AvaloniaXamlLoader.Load(this);
         GuiAppResources.Register(this);
+        App.LogDiag("[App] Initialize end");
     }
 
     public override void OnFrameworkInitializationCompleted()
     {
+        App.LogDiag("[App] OnFrameworkInitializationCompleted begin");
         AppDomain.CurrentDomain.UnhandledException += (_, e) =>
             WriteCrashLog(e.ExceptionObject as Exception ?? new Exception("未知异常"));
         TaskScheduler.UnobservedTaskException += (_, e) =>
@@ -32,27 +35,57 @@ public sealed partial class App : Application
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
+            // 先显示窗口（占位会话），引擎在后台渐进式组装，完成后热切换，避免启动阻塞
             desktop.MainWindow = new MainWindow
             {
                 DataContext = CreateViewModel()
             };
+            App.LogDiag("[App] MainWindow created");
         }
 
         base.OnFrameworkInitializationCompleted();
+        App.LogDiag("[App] OnFrameworkInitializationCompleted end");
     }
 
-    /// <summary>组装真实的引擎会话并注入 ViewModel，失败时回退到占位会话以保证 UI 可启动</summary>
+    /// <summary>
+    /// 创建 ViewModel — 立即以占位会话返回（窗口快速显示），同时后台异步组装真实引擎，
+    /// 组装完成后在 UI 线程热切换。引擎失败时占位会话兜底，UI 保持可用。
+    /// </summary>
     private static MainViewModel CreateViewModel()
+    {
+        var viewModel = new MainViewModel();
+        _ = Task.Run(() => Hosting.JccChatSession.CreateAsync())
+            .ContinueWith(t =>
+            {
+                try
+                {
+                    var session = t.GetAwaiter().GetResult();
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() => viewModel.AttachRealSession(session));
+                }
+                catch (Exception ex)
+                {
+                    WriteCrashLog(ex);
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                        viewModel.StatusText = $"引擎加载失败，已回退到 Mock 引擎: {ex.Message}");
+                }
+            }, TaskContinuationOptions.ExecuteSynchronously);
+        return viewModel;
+    }
+
+    /// <summary>临时诊断日志：写入 dumps 目录，用于定位启动耗时</summary>
+    internal static void LogDiag(string message)
     {
         try
         {
-            var session = Hosting.JccChatSession.CreateAsync().GetAwaiter().GetResult();
-            return new MainViewModel(session);
+            var dir = Path.Combine(AppContext.BaseDirectory, "dumps");
+            Directory.CreateDirectory(dir);
+            System.IO.File.AppendAllText(
+                Path.Combine(dir, "startup_timing.log"),
+                $"{DateTime.Now:HH:mm:ss.fff} {message}\n");
         }
-        catch (Exception ex)
+        catch (Exception logEx)
         {
-            WriteCrashLog(ex);
-            return new MainViewModel();
+            Console.Error.WriteLine($"[diag] timing log failed: {logEx.Message}");
         }
     }
 

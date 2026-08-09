@@ -10,9 +10,21 @@ public static class CommandTerminal
 {
     private static Interfaces.ICommandConsole? _console;
 
+    /// <summary>
+    /// 真实标准输出 — 在 SetConsole 时捕获，不受 SetOut 重定向影响。
+    /// 交互式提示（确认框/密码输入等）用此输出，避免被命令输出重定向吞掉。
+    /// </summary>
+    private static System.IO.TextWriter? _realOut;
+
+    /// <summary>真实标准输出 — SetConsole 时捕获的原始 Console.Out，不受 SetOut 重定向影响</summary>
+    public static System.IO.TextWriter RealOut => _realOut ?? System.Console.Out;
+
     /// <summary>设置当前控制台实现（CLI 启动时调用）</summary>
-    public static void SetConsole(Interfaces.ICommandConsole? console) =>
+    public static void SetConsole(Interfaces.ICommandConsole? console)
+    {
+        Interlocked.CompareExchange(ref _realOut, System.Console.Out, null);
         Interlocked.Exchange(ref _console, console);
+    }
 
     /// <summary>当前控制台 — 未设置时回退到 System.Console</summary>
     private static Interfaces.ICommandConsole Console =>
@@ -73,6 +85,25 @@ public static class CommandTerminal
     public static void SetCursorPosition(int left, int top) => Console.SetCursorPosition(left, top);
 
     public static void SetOut(System.IO.TextWriter writer) => System.Console.SetOut(writer);
+
+    /// <summary>
+    /// 输出到真实 stdout（绕过 SetOut 重定向）— 用于交互式提示
+    /// </summary>
+    public static void WriteLineReal(string? text = null)
+    {
+        if (text is null) RealOut.WriteLine();
+        else RealOut.WriteLine(text);
+        RealOut.Flush();
+    }
+
+    /// <summary>
+    /// 输出到真实 stdout（绕过 SetOut 重定向）— 用于交互式提示
+    /// </summary>
+    public static void WriteRawReal(string text)
+    {
+        RealOut.Write(text);
+        RealOut.Flush();
+    }
 
     public static System.IO.TextWriter Out => Console.Out;
     public static System.IO.TextReader In => Console.In;

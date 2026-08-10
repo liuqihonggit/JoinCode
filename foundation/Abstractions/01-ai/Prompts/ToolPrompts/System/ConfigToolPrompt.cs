@@ -3,7 +3,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 /// <summary>
 /// ConfigTool 提示词
 /// </summary>
-[ToolPrompt(ToolName = "Config", Category = ToolPromptCategory.System)]
+[ToolPrompt(ToolName = InteractionToolName.Config, Category = ToolPromptCategory.System)]
 public static class ConfigToolPrompt
 {
     public const string Description = "获取或设置配置设置。";

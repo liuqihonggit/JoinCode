@@ -35,6 +35,7 @@ public enum CodeToolName
     [EnumValue("lsp_prepare_call_hierarchy")] LspPrepareCallHierarchy,
     [EnumValue("lsp_incoming_calls")] LspIncomingCalls,
     [EnumValue("lsp_outgoing_calls")] LspOutgoingCalls,
+    [EnumValue("LSP")] LSP,
     [EnumValue("execute_csharp_code")] ExecuteCsharpCode,
     [EnumValue("evaluate_expression")] EvaluateExpression,
     [EnumValue("test_code_snippet")] TestCodeSnippet,

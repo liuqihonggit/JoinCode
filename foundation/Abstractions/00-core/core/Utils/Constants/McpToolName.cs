@@ -26,4 +26,5 @@ public enum McpToolName
     [EnumValue("mcp_auth_status")] McpAuthStatus,
     [EnumValue("mcp_auth_remove")] McpAuthRemove,
     [EnumValue("RemoteTrigger")] McpRemoteTrigger,
+    [EnumValue("MCP")] MCP,
 }

@@ -3,7 +3,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 /// <summary>
 /// EnterWorktreeTool 提示词
 /// </summary>
-[ToolPrompt(ToolName = "EnterWorktree", Category = ToolPromptCategory.Agent)]
+[ToolPrompt(ToolName = WorktreeToolName.EnterWorktree, Category = ToolPromptCategory.Agent)]
 public static class EnterWorktreeToolPrompt
 {
     public const string ToolName = "EnterWorktree";
@@ -42,7 +42,7 @@ public static class EnterWorktreeToolPrompt
 /// <summary>
 /// ExitWorktreeTool 提示词
 /// </summary>
-[ToolPrompt(ToolName = "ExitWorktree", Category = ToolPromptCategory.Agent)]
+[ToolPrompt(ToolName = WorktreeToolName.ExitWorktree, Category = ToolPromptCategory.Agent)]
 public static class ExitWorktreeToolPrompt
 {
     public const string ToolName = WorktreeToolNameConstants.ExitWorktree;

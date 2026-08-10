@@ -3,7 +3,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 /// <summary>
 /// MCP工具提示词
 /// </summary>
-[ToolPrompt(ToolName = "MCP", Category = ToolPromptCategory.System)]
+[ToolPrompt(ToolName = McpToolName.MCP, Category = ToolPromptCategory.System)]
 public static class MCPToolPrompt
 {
     public static string GetDescription() => """

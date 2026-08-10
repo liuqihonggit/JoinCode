@@ -5,7 +5,7 @@ using JoinCode.Abstractions.Models.Agent;
 /// <summary>
 /// AgentTool 提示词
 /// </summary>
-[ToolPrompt(ToolName = "Agent", Category = ToolPromptCategory.Agent)]
+[ToolPrompt(ToolName = AgentToolName.Agent, Category = ToolPromptCategory.Agent)]
 public static class AgentToolPrompt
 {
     public const string ToolName = AgentToolNameConstants.Agent;

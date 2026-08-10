@@ -3,7 +3,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 /// <summary>
 /// SleepTool 提示词
 /// </summary>
-[ToolPrompt(ToolName = "Sleep", Category = ToolPromptCategory.Shell)]
+[ToolPrompt(ToolName = SystemToolName.Sleep, Category = ToolPromptCategory.Shell)]
 public static class SleepToolPrompt
 {
     public const string ToolName = SystemToolNameConstants.Sleep;

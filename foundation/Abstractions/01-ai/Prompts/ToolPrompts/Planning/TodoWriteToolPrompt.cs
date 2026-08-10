@@ -3,7 +3,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 /// <summary>
 /// TodoWriteTool 提示词
 /// </summary>
-[ToolPrompt(ToolName = "TodoWrite", Category = ToolPromptCategory.Planning)]
+[ToolPrompt(ToolName = TodoToolName.TodoWrite, Category = ToolPromptCategory.Planning)]
 public static class TodoWriteToolPrompt
 {
     public const string ToolName = TodoToolNameConstants.TodoWrite;

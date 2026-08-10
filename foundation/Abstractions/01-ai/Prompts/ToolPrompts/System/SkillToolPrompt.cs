@@ -4,7 +4,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 /// SkillTool 提示词
 /// 预算控制常量和 GetCharBudget 已统一到 SkillDescriptionTruncator
 /// </summary>
-[ToolPrompt(ToolName = "Skill", Category = ToolPromptCategory.System)]
+[ToolPrompt(ToolName = SkillToolName.Skill, Category = ToolPromptCategory.System)]
 public static class SkillToolPrompt
 {
     public const string ToolName = SkillToolNameConstants.Skill;

@@ -3,7 +3,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 /// <summary>
 /// Grep工具提示词
 /// </summary>
-[ToolPrompt(ToolName = "Grep", Category = ToolPromptCategory.Search)]
+[ToolPrompt(ToolName = SearchToolName.Grep, Category = ToolPromptCategory.Search)]
 public static class GrepToolPrompt
 {
     public static string GetDescription() => """

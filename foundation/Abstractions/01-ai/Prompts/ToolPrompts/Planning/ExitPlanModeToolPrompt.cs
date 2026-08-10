@@ -3,7 +3,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 /// <summary>
 /// ExitPlanModeTool 提示词
 /// </summary>
-[ToolPrompt(ToolName = "ExitPlanMode", Category = ToolPromptCategory.Planning)]
+[ToolPrompt(ToolName = PlanToolName.ExitPlanMode, Category = ToolPromptCategory.Planning)]
 public static class ExitPlanModeToolPrompt
 {
     public const string ToolName = PlanToolNameConstants.ExitPlanMode;

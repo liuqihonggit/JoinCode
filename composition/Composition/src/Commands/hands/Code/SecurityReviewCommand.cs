@@ -7,8 +7,13 @@ public sealed class SecurityReviewCommand : ChatCommandBase
     {
         Diag.WriteLifecycle("[DIAG-SEC-REVIEW] ExecuteAsync entry");
         var fs = context.Services.FileSystem;
-        var gitRunner = ChatCommandBase.GetService<IGitCommandRunner>(context)
-            ?? throw new InvalidOperationException("[DIAG-SEC-REVIEW] IGitCommandRunner not registered");
+        var gitRunner = ChatCommandBase.GetService<IGitCommandRunner>(context);
+        if (gitRunner is null)
+        {
+            TerminalHelper.WriteLine("Git 命令执行器未注册，无法执行 /security-review");
+            Diag.WriteLifecycle("[DIAG-SEC-REVIEW] gitRunner is null, returning early");
+            return ChatCommandResult.Continue();
+        }
         Diag.WriteLifecycle("[DIAG-SEC-REVIEW] gitRunner resolved");
 
         Diag.WriteLifecycle("[DIAG-SEC-REVIEW] git status --porcelain start");

@@ -5,21 +5,39 @@ public sealed class SecurityReviewCommand : ChatCommandBase
 {
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
+        Diag.WriteLifecycle("[DIAG-SEC-REVIEW] ExecuteAsync entry");
         var fs = context.Services.FileSystem;
-        var gitRunner = ChatCommandBase.GetService<IGitCommandRunner>(context)!;
+        var gitRunner = ChatCommandBase.GetService<IGitCommandRunner>(context)
+            ?? throw new InvalidOperationException("[DIAG-SEC-REVIEW] IGitCommandRunner not registered");
+        Diag.WriteLifecycle("[DIAG-SEC-REVIEW] gitRunner resolved");
+
+        Diag.WriteLifecycle("[DIAG-SEC-REVIEW] git status --porcelain start");
         var gitStatus = await RunGitCommandAsync($"{GitSubCommand.Status.ToValue()} --porcelain", context.CancellationToken, fs, gitRunner).ConfigureAwait(false);
+        Diag.WriteLifecycle($"[DIAG-SEC-REVIEW] git status --porcelain end, len={gitStatus.Length}");
+
+        Diag.WriteLifecycle("[DIAG-SEC-REVIEW] git diff --name-only start");
         var gitDiffNames = await RunGitCommandAsync($"{GitSubCommand.Diff.ToValue()} --name-only", context.CancellationToken, fs, gitRunner).ConfigureAwait(false);
+        Diag.WriteLifecycle($"[DIAG-SEC-REVIEW] git diff --name-only end, len={gitDiffNames.Length}");
+
+        Diag.WriteLifecycle("[DIAG-SEC-REVIEW] git log --oneline -10 start");
         var gitLog = await RunGitCommandAsync($"{GitSubCommand.Log.ToValue()} --oneline -10", context.CancellationToken, fs, gitRunner).ConfigureAwait(false);
+        Diag.WriteLifecycle($"[DIAG-SEC-REVIEW] git log --oneline -10 end, len={gitLog.Length}");
+
+        Diag.WriteLifecycle("[DIAG-SEC-REVIEW] git diff start");
         var gitDiff = await RunGitCommandAsync(GitSubCommand.Diff.ToValue(), context.CancellationToken, fs, gitRunner).ConfigureAwait(false);
+        Diag.WriteLifecycle($"[DIAG-SEC-REVIEW] git diff end, len={gitDiff.Length}");
 
         if (string.IsNullOrWhiteSpace(gitDiff))
         {
+            Diag.WriteLifecycle("[DIAG-SEC-REVIEW] git diff --cached start");
             gitDiff = await RunGitCommandAsync($"{GitSubCommand.Diff.ToValue()} --cached", context.CancellationToken, fs, gitRunner).ConfigureAwait(false);
+            Diag.WriteLifecycle($"[DIAG-SEC-REVIEW] git diff --cached end, len={gitDiff.Length}");
         }
 
         if (string.IsNullOrWhiteSpace(gitStatus) && string.IsNullOrWhiteSpace(gitDiff))
         {
             TerminalHelper.WriteLine("没有要审查的变更");
+            Diag.WriteLifecycle("[DIAG-SEC-REVIEW] no changes, returning early");
             return ChatCommandResult.Continue();
         }
 
@@ -28,14 +46,18 @@ public sealed class SecurityReviewCommand : ChatCommandBase
         try
         {
             TerminalHelper.WriteLine($"{TerminalColors.Primary}正在执行安全审查...{AnsiStyleConstants.Reset}");
+            Diag.WriteLifecycle("[DIAG-SEC-REVIEW] SendMessageAsync start (LLM call)");
             var result = await context.Services.ChatService.SendMessageAsync(prompt, context.CancellationToken).ConfigureAwait(false);
+            Diag.WriteLifecycle($"[DIAG-SEC-REVIEW] SendMessageAsync end, resultLen={result.Length}");
             TerminalHelper.WriteLine(result);
         }
         catch (Exception ex)
         {
+            Diag.WriteLifecycle($"[DIAG-SEC-REVIEW] SendMessageAsync EXCEPTION: {ex.GetType().Name}: {ex.Message}");
             ChatCommandBase.HandleError("安全审查", ex);
         }
 
+        Diag.WriteLifecycle("[DIAG-SEC-REVIEW] ExecuteAsync returning Continue");
         return ChatCommandResult.Continue();
     }
 
@@ -126,11 +148,14 @@ If no high-confidence vulnerabilities are found, state: "No high-confidence secu
     {
         try
         {
+            Diag.WriteLifecycle($"[DIAG-SEC-REVIEW] RunGitCommandAsync start: git {arguments}");
             var result = await gitRunner.ExecuteAsync(arguments, fs.GetCurrentDirectory(), cancellationToken).ConfigureAwait(false);
+            Diag.WriteLifecycle($"[DIAG-SEC-REVIEW] RunGitCommandAsync end: git {arguments}, exitCode={result.ExitCode}, outputLen={result.Output.Length}");
             return result.Output;
         }
-        catch
+        catch (Exception ex)
         {
+            Diag.WriteLifecycle($"[DIAG-SEC-REVIEW] RunGitCommandAsync EXCEPTION: git {arguments}, {ex.GetType().Name}: {ex.Message}");
             return string.Empty;
         }
     }

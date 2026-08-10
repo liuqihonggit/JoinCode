@@ -236,9 +236,14 @@ public sealed class CliSession
         ChatCommandResult result;
         try
         {
-            Diag.WriteLine($"[CliSession] HandleCommandAsync: executing command '{command.Name}'");
+            Diag.WriteLifecycle($"[DIAG-CLI] HandleCommandAsync: executing command '{command.Name}'");
             result = await command.ExecuteAsync(context);
-            Diag.WriteLine($"[CliSession] HandleCommandAsync: command '{command.Name}' returned ShouldContinue={result.ShouldContinue}");
+            Diag.WriteLifecycle($"[DIAG-CLI] HandleCommandAsync: command '{command.Name}' returned ShouldContinue={result.ShouldContinue}");
+        }
+        catch (Exception ex)
+        {
+            Diag.WriteLifecycle($"[DIAG-CLI] HandleCommandAsync: command '{command.Name}' THREW {ex.GetType().Name}: {ex.Message}");
+            throw;
         }
         finally
         {

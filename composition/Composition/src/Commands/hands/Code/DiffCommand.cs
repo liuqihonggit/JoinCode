@@ -11,9 +11,14 @@ public sealed class DiffCommand : ChatCommandBase
         Diag.WriteLifecycle("[DIAG-DIFF] ExecuteAsync entry");
         try
         {
-            var gitRunner = ChatCommandBase.GetService<IGitCommandRunner>(context)
-                ?? throw new InvalidOperationException("[DIAG-DIFF] IGitCommandRunner not registered");
-            Diag.WriteLifecycle($"[DIAG-DIFF] gitRunner resolved");
+            var gitRunner = ChatCommandBase.GetService<IGitCommandRunner>(context);
+            if (gitRunner is null)
+            {
+                TerminalHelper.WriteLine("Git 命令执行器未注册，无法执行 /diff");
+                Diag.WriteLifecycle("[DIAG-DIFF] gitRunner is null, returning early");
+                return ChatCommandResult.Continue();
+            }
+
             var subCommand = !string.IsNullOrWhiteSpace(context.Arguments)
                 ? ChatCommandBase.GetSplitArgs(context).FirstOrDefault()?.ToLowerInvariant() ?? "default"
                 : "default";

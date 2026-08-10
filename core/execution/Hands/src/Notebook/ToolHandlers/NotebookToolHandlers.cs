@@ -185,7 +185,7 @@ public class NotebookToolHandlers
     /// cell 未找到时的诊断消息 — 列出可用的 cell ID 和合法格式提示。
     /// 仅在失败路径调用，不影响正常操作性能。
     /// </summary>
-    private static string BuildCellNotFoundMessage(NotebookDocument notebook, string cellId)
+    internal static string BuildCellNotFoundMessage(NotebookDocument notebook, string cellId)
     {
         var sb = new StringBuilder(256);
         sb.Append($"Cell with ID \"{cellId}\" not found in notebook.");

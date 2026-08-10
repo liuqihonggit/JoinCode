@@ -209,7 +209,7 @@ public sealed partial class ConfigToolHandlers
     /// 未知设置项的诊断消息 — 列出所有支持的设置 + 模糊匹配建议。
     /// 仅在失败路径调用，不影响正常操作性能。
     /// </summary>
-    private static string BuildUnknownSettingMessage(string setting)
+    internal static string BuildUnknownSettingMessage(string setting)
     {
         var sb = new StringBuilder(256);
         sb.Append($"Unknown setting: \"{setting}\"");

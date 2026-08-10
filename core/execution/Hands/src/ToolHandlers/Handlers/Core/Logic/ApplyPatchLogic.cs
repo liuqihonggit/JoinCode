@@ -153,7 +153,7 @@ public sealed partial class ApplyPatchLogic : ServiceEntity
     /// 构建 context mismatch 的诊断消息 — 展示期望行 vs 实际文件行的差异。
     /// 仅在匹配失败路径调用，不影响正常 patch 性能。
     /// </summary>
-    private static string BuildContextMismatchMessage(
+    internal static string BuildContextMismatchMessage(
         string filePath, PatchHunk hunk, List<string> fileLines, int adjustedStart)
     {
         var sb = new StringBuilder(256);

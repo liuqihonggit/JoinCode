@@ -612,7 +612,7 @@ public class SearchToolHandlers : OneShotCommandGroup
     /// Glob 无结果时的诊断消息 — 检查 pattern 是否缺少通配符、提示递归搜索。
     /// 仅在无结果路径调用，不影响搜索性能。
     /// </summary>
-    private static string BuildGlobNoResultMessage(string pattern, string? path)
+    internal static string BuildGlobNoResultMessage(string pattern, string? path)
     {
         var sb = new StringBuilder(256);
         sb.Append("No files found");
@@ -634,7 +634,7 @@ public class SearchToolHandlers : OneShotCommandGroup
     /// Grep 无结果时的诊断消息 — 检查大小写、提示搜索范围。
     /// 仅在无结果路径调用，不影响搜索性能。
     /// </summary>
-    private static string BuildGrepNoResultMessage(string pattern, string? path, bool caseInsensitive)
+    internal static string BuildGrepNoResultMessage(string pattern, string? path, bool caseInsensitive)
     {
         var sb = new StringBuilder(256);
         sb.Append("No files found");

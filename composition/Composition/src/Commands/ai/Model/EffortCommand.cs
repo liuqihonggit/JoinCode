@@ -55,9 +55,9 @@ public sealed class EffortCommand : ChatCommandBase
             var currentModel = fastModeService?.PrimaryModelId
                 ?? Environment.GetEnvironmentVariable(JccEnvVar.ModelId.ToValue())
                 ?? "unknown";
-            var provider = context.Services.WorkflowConfig?.Provider?.Provider
+            var provider = context.Services.WorkflowConfig?.Provider?.Vendor
                 ?? Environment.GetEnvironmentVariable(JccEnvVar.Provider.ToValue())
-                ?? ProviderKind.OpenAI.ToValue();
+                ?? VendorKind.OpenAi.ToValue();
 
             if (!ResolveModelCatalog(context).SupportsMaxEffort(currentModel, provider))
             {

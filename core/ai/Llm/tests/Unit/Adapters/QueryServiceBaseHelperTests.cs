@@ -127,7 +127,7 @@ public sealed class QueryServiceBaseHelperTests
     {
         var definition = new Mock<IProviderDefinition>();
         definition.Setup(d => d.GetBaseUrl(It.IsAny<ProviderConfig>())).Returns("https://custom.example.com/");
-        var config = new ProviderConfig { Provider = "openai", Definition = definition.Object };
+        var config = new ProviderConfig { Vendor = "openai", Definition = definition.Object };
 
         var url = TestableQueryService.GetBaseUrl(config);
 
@@ -137,7 +137,7 @@ public sealed class QueryServiceBaseHelperTests
     [Fact]
     public void GetBaseUrl_WithoutDefinition_ThrowsInvalidOperationException()
     {
-        var config = new ProviderConfig { Provider = "openai", Definition = null };
+        var config = new ProviderConfig { Vendor = "openai", Definition = null };
 
         var act = () => TestableQueryService.GetBaseUrl(config);
 
@@ -149,7 +149,7 @@ public sealed class QueryServiceBaseHelperTests
     {
         var definition = new Mock<IProviderDefinition>();
         definition.Setup(d => d.GetChatEndpoint(It.IsAny<ProviderConfig>())).Returns("chat/completions");
-        var config = new ProviderConfig { Provider = "openai", Definition = definition.Object };
+        var config = new ProviderConfig { Vendor = "openai", Definition = definition.Object };
 
         var endpoint = TestableQueryService.GetChatEndpoint(config);
 
@@ -159,7 +159,7 @@ public sealed class QueryServiceBaseHelperTests
     [Fact]
     public void GetChatEndpoint_WithoutDefinition_ThrowsInvalidOperationException()
     {
-        var config = new ProviderConfig { Provider = "openai", Definition = null };
+        var config = new ProviderConfig { Vendor = "openai", Definition = null };
 
         var act = () => TestableQueryService.GetChatEndpoint(config);
 
@@ -248,7 +248,7 @@ public sealed class QueryServiceBaseHelperTests
     [Fact]
     public void Constructor_ConfigWithoutDefinition_ThrowsInvalidOperationException()
     {
-        var config = new ProviderConfig { Provider = "openai", Definition = null };
+        var config = new ProviderConfig { Vendor = "openai", Definition = null };
 
         var act = () => CreateTestableService(config);
 
@@ -265,7 +265,7 @@ public sealed class QueryServiceBaseHelperTests
 
         config ??= new ProviderConfig
         {
-            Provider = "openai",
+            Vendor = "openai",
             ApiKey = "sk-test",
             Definition = definition.Object
         };

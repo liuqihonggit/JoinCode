@@ -76,7 +76,7 @@ public static class CommandArgumentProvider
 
     private static IReadOnlyList<SlashCommandItem> GetProviderArguments()
     {
-        var providers = Enum.GetValues<ProviderKind>();
+        var providers = Enum.GetValues<VendorKind>();
         var items = new SlashCommandItem[providers.Length];
         for (var i = 0; i < providers.Length; i++)
         {

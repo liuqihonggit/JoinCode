@@ -6,8 +6,8 @@ public sealed class DeepSeekProviderDefinition : OpenAICompatibleProviderDefinit
     protected override string ProviderConfigKey => "deepseek";
     protected override string DefaultBaseUrl => "https://api.deepseek.com/";
 
-    public override ProviderKind Kind => ProviderKind.DeepSeek;
-    public override string ProviderName => ProviderKind.DeepSeek.ToValue();
+    public override VendorKind Vendor => VendorKind.DeepSeek;
+    public override string ProviderName => VendorKind.DeepSeek.ToValue();
     public override string DisplayName => "DeepSeek";
     public override string DefaultModelId => ModelConfigLoader.GetDefaultModelId("deepseek");
     public override string DefaultFastModelId => ModelConfigLoader.GetDefaultFastModelId("deepseek");

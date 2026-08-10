@@ -192,4 +192,5 @@ public enum ProviderEnvVar
     [EnumValue("ANTHROPIC_API_KEY")] AnthropicApiKey,
     [EnumValue("AGNES_API_KEY")] AgnesApiKey,
     [EnumValue("DEEPSEEK_API_KEY")] DeepSeekApiKey,
+    [EnumValue("SENSENOVA_API_KEY")] SenseNovaApiKey,
 }

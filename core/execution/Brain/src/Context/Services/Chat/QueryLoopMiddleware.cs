@@ -66,6 +66,11 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
         TokenUsage? finalUsage = null;
         string? finalModelId = null;
 
+
+#if DEBUG
+        if (System.Diagnostics.Debugger.IsAttached) System.Diagnostics.Debugger.Break();
+#endif
+
         while (totalToolCalls < MaxToolCallIterations) {
             ct.ThrowIfCancellationRequested();
 
@@ -92,9 +97,6 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
                     streamingToolExecution: true, ct: ct).ConfigureAwait(false)) {
                     yield return evt;
                 }
-#if DEBUG
-                if (System.Diagnostics.Debugger.IsAttached) System.Diagnostics.Debugger.Break();
-#endif
 
                 if (iterState.ToolCallName is null) {
                     var (pureEvents, pureResponse) = BuildPureTextResponse(iterState, context);
@@ -171,9 +173,6 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
                     .ConfigureAwait(false)) {
                     yield return evt;
                 }
-#if DEBUG
-                if (System.Diagnostics.Debugger.IsAttached) System.Diagnostics.Debugger.Break();
-#endif
 
                 if (iterState.StreamUsage is not null) finalUsage = iterState.StreamUsage;
                 if (iterState.StreamModelId is not null) finalModelId = iterState.StreamModelId;
@@ -288,7 +287,7 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
         var events = new List<ChatStreamEvent>();
         var aiResponse = iterState.FullResponse.ToString();
         if (string.IsNullOrEmpty(aiResponse)) {
-            aiResponse = "抱歉，我无法生成回复。";
+            aiResponse = "[QueryLoopMiddleware:BuildPureTextResponse] 抱歉，我无法生成回复。";
             events.Add(ChatStreamEvent.Text(aiResponse));
         }
 

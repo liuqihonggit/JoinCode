@@ -16,7 +16,7 @@ public class ServiceRegistrationTests
     public void AddLlmServices_RegistersQueryService()
     {
         var services = new ServiceCollection();
-        var config = new ProviderConfig { Provider = "openai", ApiKey = "sk-test", ModelId = "gpt-4o" };
+        var config = new ProviderConfig { Vendor = "openai", ApiKey = "sk-test", ModelId = "gpt-4o" };
 
         services.AddLlmServices(config);
 
@@ -51,7 +51,7 @@ public class ServiceRegistrationTests
     {
         var services = new ServiceCollection();
         var pipeConfig = new PipeTransportConfig { PipeName = "test-pipe" };
-        var config = new ProviderConfig { Provider = "openai", ApiKey = "sk-test" };
+        var config = new ProviderConfig { Vendor = "openai", ApiKey = "sk-test" };
 
         services.AddPipeQueryService(pipeConfig, config.ApiKey);
 
@@ -64,7 +64,7 @@ public class ServiceRegistrationTests
     public void AddKernelWithPlugins_WithPipeEndpoint_RegistersPipeQueryService()
     {
         var services = new ServiceCollection();
-        var providerConfig = new ProviderConfig { Provider = "openai", ApiKey = "sk-test", ModelId = "gpt-4o" };
+        var providerConfig = new ProviderConfig { Vendor = "openai", ApiKey = "sk-test", ModelId = "gpt-4o" };
         var pipeConfig = new PipeTransportConfig { PipeName = "pipe" };
 
         services.AddKernelWithPlugins(providerConfig, pipeConfig);
@@ -77,7 +77,7 @@ public class ServiceRegistrationTests
     public void AddKernelWithPlugins_WithoutPipeEndpoint_RegistersStandardQueryService()
     {
         var services = new ServiceCollection();
-        var providerConfig = new ProviderConfig { Provider = "openai", ApiKey = "sk-test", ModelId = "gpt-4o" };
+        var providerConfig = new ProviderConfig { Vendor = "openai", ApiKey = "sk-test", ModelId = "gpt-4o" };
 
         services.AddKernelWithPlugins(providerConfig);
 
@@ -89,7 +89,7 @@ public class ServiceRegistrationTests
     public void AddKernelWithDynamicPlugins_DoesNotThrow()
     {
         var services = new ServiceCollection();
-        var providerConfig = new ProviderConfig { Provider = "openai", ApiKey = "sk-test", ModelId = "gpt-4o" };
+        var providerConfig = new ProviderConfig { Vendor = "openai", ApiKey = "sk-test", ModelId = "gpt-4o" };
 
         var act = () => services.AddKernelWithDynamicPlugins(providerConfig);
 

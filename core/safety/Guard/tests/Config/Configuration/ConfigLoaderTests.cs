@@ -40,7 +40,7 @@ public class ConfigLoaderTests : IDisposable {
         AppDataConstants.Paths = AppDataPaths.FromEnvironment();
 
         // 覆盖用户级环境变量（JCC_PROVIDER 可能存在于用户级环境变量中）
-        Environment.SetEnvironmentVariable(JccEnvVarConstants.Provider, ProviderKind.OpenAI.ToValue());
+        Environment.SetEnvironmentVariable(JccEnvVarConstants.Provider, VendorKind.OpenAi.ToValue());
         Environment.SetEnvironmentVariable(JccEnvVarConstants.ModelId, null);
     }
 
@@ -71,7 +71,7 @@ public class ConfigLoaderTests : IDisposable {
         var config = await _loader.LoadConfigAsync(_fs).ConfigureAwait(true);
 
         Assert.False(string.IsNullOrWhiteSpace(config.Provider.ApiKey),
-            $"API Key 应从环境变量加载，但为空。Provider={config.Provider.Provider}");
+            $"API Key 应从环境变量加载，但为空。Provider={config.Provider.Vendor}");
     }
 
     [Fact]
@@ -83,7 +83,7 @@ public class ConfigLoaderTests : IDisposable {
 
         var config = await _loader.LoadConfigAsync(_fs).ConfigureAwait(true);
 
-        Assert.False(string.IsNullOrWhiteSpace(config.Provider.Provider));
+        Assert.False(string.IsNullOrWhiteSpace(config.Provider.Vendor));
         Assert.False(string.IsNullOrWhiteSpace(config.Provider.ModelId));
     }
 
@@ -141,7 +141,7 @@ public class ConfigLoaderTests : IDisposable {
 
         var config = await _loader.LoadConfigAsync(_fs).ConfigureAwait(true);
 
-        Assert.Equal("anthropic", config.Provider.Provider);
+        Assert.Equal("anthropic", config.Provider.Vendor);
         Assert.Equal("claude-3-opus", config.Provider.ModelId);
         Assert.Equal(realKey, config.Provider.ApiKey);
     }

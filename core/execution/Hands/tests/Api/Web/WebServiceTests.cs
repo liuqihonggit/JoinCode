@@ -16,7 +16,7 @@ public sealed class WebServiceTests
         var definitionMock = new Mock<IProviderDefinition>();
         definitionMock.SetupGet(d => d.SupportsWebSearch).Returns(supportsWebSearch);
         definitionMock.SetupGet(d => d.DefaultFastModelId).Returns(DefaultAnthropicFastModelId);
-        definitionMock.SetupGet(d => d.Kind).Returns(ProviderKind.Anthropic);
+        definitionMock.SetupGet(d => d.Vendor).Returns(VendorKind.Anthropic);
         definitionMock.SetupGet(d => d.ProviderName).Returns("anthropic");
         definitionMock.SetupGet(d => d.DisplayName).Returns("Anthropic");
         definitionMock.SetupGet(d => d.DefaultModelId).Returns(DefaultAnthropicModelId);
@@ -27,7 +27,7 @@ public sealed class WebServiceTests
 
         return new ProviderConfig
         {
-            Provider = ProviderKind.Anthropic.ToValue(),
+            Vendor = VendorKind.Anthropic.ToValue(),
             Definition = definitionMock.Object
         };
     }

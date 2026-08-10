@@ -176,7 +176,7 @@ internal static class StartupWorkflow
         // 保存配置到内存
         if (config is not null)
         {
-            config.Provider.Provider = provider;
+            config.Provider.Vendor = provider;
 
             // 多态：通过 IProviderDefinition.IsCompoundAuthFormat + ExtractApiKeyFromCompound 解析复合格式
             if (definition is not null && definition.IsCompoundAuthFormat(credentials))

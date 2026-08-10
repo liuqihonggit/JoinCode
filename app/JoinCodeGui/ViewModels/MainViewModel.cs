@@ -216,7 +216,7 @@ public sealed partial class MainViewModel : ViewModelBase
             : (SelectedConnection?.Id ?? _session.CurrentProvider);
         var providerDisplay = isMock
             ? "Mock"
-            : (ProviderKindExtensions.FromValue(provider)?.ToString() ?? provider);
+            : (VendorKindExtensions.FromValue(provider)?.ToString() ?? provider);
         var map = _session.ProviderModelMap;
         var source = map.TryGetValue(provider, out var models) && models is not null
             ? models.ToList()
@@ -699,7 +699,7 @@ public sealed partial class MainViewModel : ViewModelBase
         _connectionOptions.Add(MockConnection);
         foreach (var provider in _session.ProviderModelMap.Keys)
         {
-            var display = ProviderKindExtensions.FromValue(provider)?.ToString() ?? provider;
+            var display = VendorKindExtensions.FromValue(provider)?.ToString() ?? provider;
             _connectionOptions.Add(new ConnectionOptionItem
             {
                 Id = provider,

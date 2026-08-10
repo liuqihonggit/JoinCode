@@ -65,7 +65,7 @@ public sealed partial class ContextWindowResolver : ServiceEntity, IContextWindo
 
     private string ResolveCurrentProvider()
     {
-        return _config?.Provider?.Provider
+        return _config?.Provider?.Vendor
             ?? Environment.GetEnvironmentVariable("JCC_PROVIDER")
             ?? "openai";
     }

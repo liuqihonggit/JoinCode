@@ -5,8 +5,9 @@ public sealed class AzureProviderDefinition : OpenAICompatibleProviderDefinition
 {
     protected override string ProviderConfigKey => "openai";
 
-    public override ProviderKind Kind => ProviderKind.Azure;
-    public override string ProviderName => ProviderKind.Azure.ToValue();
+    public override VendorKind Vendor => VendorKind.Azure;
+    public override ProtocolKind Protocol => ProtocolKind.Azure;
+    public override string ProviderName => VendorKind.Azure.ToValue();
     public override string DisplayName => "Azure OpenAI";
     public override string DefaultModelId => ModelConfigLoader.GetDefaultModelId("openai");
     public override string DefaultFastModelId => ModelConfigLoader.GetDefaultFastModelId("openai");

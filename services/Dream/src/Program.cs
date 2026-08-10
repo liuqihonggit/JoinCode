@@ -36,7 +36,7 @@ internal static class DreamEntryPoint
             var envModelId = Environment.GetEnvironmentVariable(JccEnvVar.ModelId.ToValue());
             var envEndpoint = Environment.GetEnvironmentVariable(JccEnvVar.Endpoint.ToValue());
 
-            if (!string.IsNullOrEmpty(envProvider)) config.Provider = envProvider;
+            if (!string.IsNullOrEmpty(envProvider)) config.Vendor = envProvider;
             if (!string.IsNullOrEmpty(envApiKey)) config.ApiKey = envApiKey;
             if (!string.IsNullOrEmpty(envModelId)) config.ModelId = envModelId;
             if (!string.IsNullOrEmpty(envEndpoint)) config.Endpoint = envEndpoint;

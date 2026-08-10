@@ -83,7 +83,7 @@ public class SettingsMapperTests
     {
         // Given
         var config = new WorkflowConfig();
-        config.Provider.Provider = ProviderKind.DeepSeek.ToValue();
+        config.Provider.Vendor = VendorKind.DeepSeek.ToValue();
         Environment.SetEnvironmentVariable(JccEnvVar.Provider.ToValue(), "anthropic");
         try
         {
@@ -91,7 +91,7 @@ public class SettingsMapperTests
             _mapper.ApplyEnvOverrides(config);
 
             // Then
-            config.Provider.Provider.Should().Be("anthropic");
+            config.Provider.Vendor.Should().Be("anthropic");
         }
         finally
         {
@@ -146,7 +146,7 @@ public class SettingsMapperTests
     {
         // Given
         var config = new WorkflowConfig();
-        config.Provider.Provider = ProviderKind.DeepSeek.ToValue();
+        config.Provider.Vendor = VendorKind.DeepSeek.ToValue();
         var testModelId = "deepseek-v4-flash";
         config.Provider.ModelId = testModelId;
         // 清除可能存在的环境变量
@@ -159,7 +159,7 @@ public class SettingsMapperTests
         _mapper.ApplyEnvOverrides(config);
 
         // Then
-        config.Provider.Provider.Should().Be(ProviderKind.DeepSeek.ToValue());
+        config.Provider.Vendor.Should().Be(VendorKind.DeepSeek.ToValue());
         config.Provider.ModelId.Should().Be(testModelId);
     }
 

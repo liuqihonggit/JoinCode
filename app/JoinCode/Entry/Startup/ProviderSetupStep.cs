@@ -126,7 +126,7 @@ internal sealed partial class ProviderSetupStep : ServiceEntity, IMiddleware<Sta
             config.Provider.Endpoint = endpoint.Trim();
         }
 
-        config.Provider.Provider = provider;
+        config.Provider.Vendor = provider;
         config.Provider.ApiKey = apiKey;
         if (definition is not null)
         {

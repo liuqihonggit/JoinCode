@@ -49,9 +49,9 @@ public sealed partial class SettingsMapper : ServiceEntity
     {
         // Provider 环境变量覆盖
         var envProvider = Environment.GetEnvironmentVariable(JccEnvVar.Provider.ToValue());
-        if (!string.IsNullOrEmpty(envProvider) && config.Provider.Provider != envProvider)
+        if (!string.IsNullOrEmpty(envProvider) && config.Provider.Vendor != envProvider)
         {
-            config.Provider.Provider = envProvider;
+            config.Provider.Vendor = envProvider;
 
             // Provider 变更时，重新应用 Provider 定义的默认值
             var newDefinition = _registry.TryGet(envProvider)
@@ -138,7 +138,7 @@ public sealed partial class SettingsMapper : ServiceEntity
         // Provider 优先级: settings.provider > 默认值
         if (!string.IsNullOrEmpty(settings?.Provider))
         {
-            config.Provider.Provider = settings.Provider;
+            config.Provider.Vendor = settings.Provider;
         }
 
         // Endpoint 优先级: settings.endpoint > 默认值
@@ -148,7 +148,7 @@ public sealed partial class SettingsMapper : ServiceEntity
         }
 
         // Provider 定义自动配置默认值
-        var definition = _registry.TryGet(config.Provider.Provider);
+        var definition = _registry.TryGet(config.Provider.Vendor);
         if (definition is not null)
         {
             config.Provider.Endpoint ??= definition.DefaultEndpoint;
@@ -169,7 +169,7 @@ public sealed partial class SettingsMapper : ServiceEntity
         else
         {
             throw new ConfigurationException(
-                $"未知的 Provider '{config.Provider.Provider}'，可用值: {string.Join(", ", _registry.RegisteredProviders)}。" +
+                $"未知的 Provider '{config.Provider.Vendor}'，可用值: {string.Join(", ", _registry.RegisteredProviders)}。" +
                 $"请通过 {JccEnvVar.Provider.ToValue()} 环境变量指定正确的 Provider。");
         }
 

@@ -8,10 +8,10 @@ public class OpenAIQueryServiceTests
 {
     private static OpenAIQueryService CreateService(string provider = "openai")
     {
-        var kind = ProviderKindExtensions.FromValue(provider) ?? ProviderKind.OpenAI;
+        var kind = ProtocolKind.OpenAiCompatible;
         var config = new ProviderConfig
         {
-            Provider = provider,
+            Vendor = provider,
             ApiKey = "sk-test",
             ModelId = "gpt-4o",
             Definition = new FallbackProviderDefinition(kind)

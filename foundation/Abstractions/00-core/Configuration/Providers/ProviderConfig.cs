@@ -7,10 +7,18 @@ namespace JoinCode.Abstractions.Configuration.Providers;
 public class ProviderConfig
 {
     /// <summary>
-    /// Provider 类型: deepseek, openai, azure, anthropic, agnes
+    /// 供应商身份 — openai/anthropic/deepseek/azure/agnes/sensenova
+    /// 决定 auth key/模型列表/显示名
     /// </summary>
     [Required]
-    public string Provider { get; set; } = ProviderKind.DeepSeek.ToValue();
+    public string Vendor { get; set; } = VendorKind.DeepSeek.ToValue();
+
+    /// <summary>
+    /// 协议 — openai-compatible/anthropic/azure/agnes
+    /// 决定 API 格式/认证/端点路径/QueryService 分派
+    /// </summary>
+    [Required]
+    public string Protocol { get; set; } = ProtocolKind.OpenAiCompatible.ToValue();
 
     /// <summary>
     /// API Key
@@ -23,7 +31,7 @@ public class ProviderConfig
     public string ModelId { get; set; } = ModelConfigLoader.GetDefaultModelId("deepseek");
 
     /// <summary>
-    /// API 端点（Azure 需要）
+    /// API 端点（Azure/商汤等需要）
     /// </summary>
     public string? Endpoint { get; set; }
 
@@ -43,9 +51,14 @@ public class ProviderConfig
     public string? ApiVersion { get; set; } = "2024-02-01";
 
     /// <summary>
-    /// 从 Provider 字符串推导的 ProviderKind 枚举 — 替代字符串比较，编译时类型安全
+    /// 供应商枚举 — 从 Vendor 字符串推导
     /// </summary>
-    public ProviderKind Kind => ProviderKindExtensions.FromValue(Provider) ?? ProviderKind.DeepSeek;
+    public VendorKind VendorKind => VendorKindExtensions.FromValue(Vendor) ?? VendorKind.DeepSeek;
+
+    /// <summary>
+    /// 协议枚举 — 从 Protocol 字符串推导，决定 QueryService 分派
+    /// </summary>
+    public ProtocolKind ProtocolKind => ProtocolKindExtensions.FromValue(Protocol) ?? ProtocolKind.OpenAiCompatible;
 
     /// <summary>
     /// Provider 完整定义 — 由 ConfigLoader 在加载时注入，QueryService 等消费者通过此属性访问 Provider 知识

@@ -3,8 +3,8 @@ namespace Core.Configuration.Providers;
 
 public sealed class OpenAIProviderDefinition : OpenAICompatibleProviderDefinitionBase
 {
-    public override ProviderKind Kind => ProviderKind.OpenAI;
-    public override string ProviderName => ProviderKind.OpenAI.ToValue();
+    public override VendorKind Vendor => VendorKind.OpenAi;
+    public override string ProviderName => VendorKind.OpenAi.ToValue();
     public override string DisplayName => "OpenAI";
     public override string DefaultModelId => ModelConfigLoader.GetDefaultModelId("openai");
     public override string DefaultFastModelId => ModelConfigLoader.GetDefaultFastModelId("openai");

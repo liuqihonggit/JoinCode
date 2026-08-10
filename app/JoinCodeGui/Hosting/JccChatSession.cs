@@ -78,7 +78,7 @@ internal sealed class JccChatSession : IJccChatSession
     public bool IsReady => true;
 
     /// <summary>当前 Provider 名称（deepseek/openai/azure/anthropic/agnes）</summary>
-    public string CurrentProvider => _config.Provider.Provider;
+    public string CurrentProvider => _config.Provider.Vendor;
 
     /// <summary>当前启用的模型 ID</summary>
     public string CurrentModelId => _config.Provider.ModelId;

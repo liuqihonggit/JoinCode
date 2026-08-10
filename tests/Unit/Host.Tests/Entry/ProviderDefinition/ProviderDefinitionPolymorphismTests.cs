@@ -216,19 +216,19 @@ public sealed class ProviderDefinitionPolymorphismTests
     {
         var openai = Registry.TryGet("openai");
         openai.Should().NotBeNull();
-        openai!.Kind.Should().Be(ProviderKind.OpenAI);
+        openai!.Vendor.Should().Be(VendorKind.OpenAi);
 
         var azure = Registry.TryGet("azure");
         azure.Should().NotBeNull();
-        azure!.Kind.Should().Be(ProviderKind.Azure);
+        azure!.Vendor.Should().Be(VendorKind.Azure);
 
         var anthropic = Registry.TryGet("anthropic");
         anthropic.Should().NotBeNull();
-        anthropic!.Kind.Should().Be(ProviderKind.Anthropic);
+        anthropic!.Vendor.Should().Be(VendorKind.Anthropic);
 
         var agnes = Registry.TryGet("agnes");
         agnes.Should().NotBeNull();
-        agnes!.Kind.Should().Be(ProviderKind.Agnes);
+        agnes!.Vendor.Should().Be(VendorKind.Agnes);
     }
 
     [Fact]

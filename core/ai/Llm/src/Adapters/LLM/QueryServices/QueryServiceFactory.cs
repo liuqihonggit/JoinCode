@@ -28,16 +28,16 @@ public sealed class QueryServiceFactory : IQueryServiceFactory
         // 正常路径由 SettingsMapper / DotEnvConfig / ProviderSetupStep 注入完整 Definition
         if (config.Definition is null)
         {
-            config.Definition = new FallbackProviderDefinition(config.Kind);
+            config.Definition = new FallbackProviderDefinition(config.ProtocolKind);
         }
 
-        // 单一构造分派点 — ProviderKind 由 ProviderConfig.Kind 派生，不再依赖字符串比较
-        return config.Kind switch
+        // 单一构造分派点 — 按 ProtocolKind 分派，供应商身份由 Vendor 区分
+        return config.ProtocolKind switch
         {
-            ProviderKind.Anthropic => new AnthropicQueryService(config, httpClient, logger, fileSystem, resilientExecutor),
-            ProviderKind.Azure => new AzureQueryService(config, httpClient, logger, fileSystem, resilientExecutor),
-            ProviderKind.Agnes => new AgnesQueryService(config, httpClient, logger, fileSystem, resilientExecutor),
-            // OpenAI / 未知 — 默认走 OpenAI 兼容协议
+            ProtocolKind.Anthropic => new AnthropicQueryService(config, httpClient, logger, fileSystem, resilientExecutor),
+            ProtocolKind.Azure => new AzureQueryService(config, httpClient, logger, fileSystem, resilientExecutor),
+            ProtocolKind.Agnes => new AgnesQueryService(config, httpClient, logger, fileSystem, resilientExecutor),
+            // OpenAiCompatible / 未知 — 默认走 OpenAI 兼容协议
             _ => new OpenAIQueryService(config, httpClient, logger, fileSystem, resilientExecutor)
         };
     }

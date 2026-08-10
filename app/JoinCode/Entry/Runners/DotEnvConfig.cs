@@ -158,7 +158,7 @@ internal sealed class DotEnvConfig
             config.Provider.ApiKey = ApiKey;
 
         if (Provider is not null)
-            config.Provider.Provider = Provider;
+            config.Provider.Vendor = Provider;
 
         if (Endpoint is not null)
             config.Provider.Endpoint = Endpoint;

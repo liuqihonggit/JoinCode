@@ -5,7 +5,8 @@ public abstract class OpenAICompatibleProviderDefinitionBase : IProviderDefiniti
 {
     protected virtual string ProviderConfigKey => "openai";
 
-    public abstract ProviderKind Kind { get; }
+    public abstract VendorKind Vendor { get; }
+    public virtual ProtocolKind Protocol => ProtocolKind.OpenAiCompatible;
     public abstract string ProviderName { get; }
     public abstract string DisplayName { get; }
     public abstract string DefaultModelId { get; }

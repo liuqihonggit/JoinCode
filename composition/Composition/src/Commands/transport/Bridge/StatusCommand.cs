@@ -25,12 +25,12 @@ public sealed class StatusCommand : ChatCommandBase
             currentModel = fastModeService.FastModelId;
         }
 
-        var provider = context.Services.WorkflowConfig?.Provider?.Provider
+        var provider = context.Services.WorkflowConfig?.Provider?.Vendor
             ?? Environment.GetEnvironmentVariable(JccEnvVar.Provider.ToValue())
-            ?? ProviderKind.OpenAI.ToValue();
+            ?? VendorKind.OpenAi.ToValue();
         var providerName = ResolveModelCatalog(context).GetProviderDisplayName(provider);
 
-        // 多态：通过 IProviderDefinition.ResolveApiKeyFromEnv 消除 ProviderKind switch
+        // 多态：通过 IProviderDefinition.ResolveApiKeyFromEnv 消除 VendorKind switch
         // 优先级：JccEnvVar.ApiKey 全局 > Provider 专属 env var（由各 ProviderDefinition 自己决定）
         var providerDefinition = ResolveProviderDefinition(context, provider);
         var apiKey = Environment.GetEnvironmentVariable(JccEnvVar.ApiKey.ToValue())

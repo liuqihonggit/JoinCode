@@ -9,8 +9,9 @@ public sealed class AnthropicProviderDefinition : OpenAICompatibleProviderDefini
     protected override string AuthHeaderName => "x-api-key";
     protected override string AuthHeaderValuePrefix => "";
 
-    public override ProviderKind Kind => ProviderKind.Anthropic;
-    public override string ProviderName => ProviderKind.Anthropic.ToValue();
+    public override VendorKind Vendor => VendorKind.Anthropic;
+    public override ProtocolKind Protocol => ProtocolKind.Anthropic;
+    public override string ProviderName => VendorKind.Anthropic.ToValue();
     public override string DisplayName => "Anthropic";
     public override string DefaultModelId => ModelConfigLoader.GetDefaultModelId("anthropic");
     public override string DefaultFastModelId => ModelConfigLoader.GetDefaultFastModelId("anthropic");

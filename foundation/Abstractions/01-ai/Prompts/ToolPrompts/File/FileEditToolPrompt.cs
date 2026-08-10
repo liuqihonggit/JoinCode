@@ -3,7 +3,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 /// <summary>
 /// 文件编辑工具提示词
 /// </summary>
-[ToolPrompt(ToolName = "Edit", Category = ToolPromptCategory.File)]
+[ToolPrompt(ToolName = FileToolName.FileEdit, Category = ToolPromptCategory.File)]
 public static class FileEditToolPrompt
 {
     public static string GetDescription() => """

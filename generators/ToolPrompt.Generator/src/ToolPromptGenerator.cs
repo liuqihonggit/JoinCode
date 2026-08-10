@@ -7,7 +7,7 @@ internal sealed class ToolPromptGenerator : AttributeRegistrationGeneratorBase<T
 
     internal override ToolPromptInfo? ExtractInfo(INamedTypeSymbol typeSymbol, AttributeData attr, Compilation compilation)
     {
-        var toolName = AttributeScanner.GetStringNamedArg(attr, "ToolName");
+        var toolName = AttributeScanner.GetToolNameNamedArg(attr, "ToolName");
         var category = AttributeScanner.GetIntNamedArg(attr, "Category");
         var hasParameters = AttributeScanner.GetBoolNamedArg(attr, "HasParameters");
 

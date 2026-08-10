@@ -3,7 +3,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 /// <summary>
 /// FileWriteTool 提示词
 /// </summary>
-[ToolPrompt(ToolName = "Write", Category = ToolPromptCategory.File)]
+[ToolPrompt(ToolName = FileToolName.FileWrite, Category = ToolPromptCategory.File)]
 public static class FileWriteToolPrompt {
     public const string ToolName = FileToolNameConstants.FileWrite;
     public const string Description = "将文件写入本地文件系统。";

@@ -65,12 +65,20 @@ public class CodeExecutionToolHandlers
         catch (TimeoutException)
         {
             RecordCodeExecutionMetrics("execute", "timeout");
-            return ToolResultBuilder.Error().WithText($"Code execution timed out (exceeded {timeout_ms}ms)").Build();
+            var timeoutMsg = $"Code execution timed out (exceeded {timeout_ms}ms)\n[诊断] 代码摘要: {TruncateCode(code)}";
+            return ToolResultBuilder.Error().WithText(timeoutMsg)
+                .WithDiagnostic(ToolDiagnostic.Create("Timeout", timeoutMsg,
+                    [new DiagnosticDetail("timeoutMs", timeout_ms.ToString()), new DiagnosticDetail("codePreview", TruncateCode(code))],
+                    ["检查代码是否有死循环或无限等待，或增大 timeout_ms。"])).Build();
         }
         catch (Exception ex)
         {
             RecordCodeExecutionMetrics("execute", "error");
-            return ToolResultBuilder.Error().WithText($"Code execution failed: {ex.Message}").Build();
+            var errorMsg = $"Code execution failed: {ex.Message}\n[诊断] 代码摘要: {TruncateCode(code)}";
+            return ToolResultBuilder.Error().WithText(errorMsg)
+                .WithDiagnostic(ToolDiagnostic.Create("ExecutionError", errorMsg,
+                    [new DiagnosticDetail("exception", ex.Message), new DiagnosticDetail("codePreview", TruncateCode(code))],
+                    ["检查代码语法和运行时错误。"])).Build();
         }
     }
 
@@ -211,5 +219,12 @@ public class CodeExecutionToolHandlers
             .Replace("\n", "\\n")
             .Replace("\r", "\\r")
             .Replace("\t", "\\t");
+    }
+
+    private static string TruncateCode(string code, int maxLength = 200)
+    {
+        if (code.Length <= maxLength)
+            return code;
+        return string.Concat(code.AsSpan(0, maxLength), "...[truncated]");
     }
 }

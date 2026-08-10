@@ -64,7 +64,11 @@ public sealed class FileWriter
         catch (Exception ex)
         {
             _logger?.LogError(ex, "写入文件失败: {FilePath}", normalizedPath);
-            return FileWriteResult.FailureResult(normalizedPath, ex.Message);
+            var diagnostic = ToolDiagnostic.Create("WriteFailed",
+                $"写入文件失败: {ex.Message}",
+                [new DiagnosticDetail("filePath", normalizedPath), new DiagnosticDetail("exceptionType", ex.GetType().Name)],
+                ["检查文件权限、是否被其他进程锁定、磁盘空间是否充足。"]);
+            return FileWriteResult.FailureResult(normalizedPath, diagnostic);
         }
     }
 
@@ -192,10 +196,10 @@ public sealed class FileWriter
     {
         if (Path.IsPathFullyQualified(path))
         {
-            return Path.GetFullPath(path);
+            return _fs.GetFullPath(path);
         }
 
-        return Path.GetFullPath(Path.Combine(_fs.GetCurrentDirectory(), path));
+        return _fs.GetFullPath(_fs.CombinePath(_fs.GetCurrentDirectory(), path));
     }
 
     private async Task<(string Content, Encoding Encoding)> ReadFileWithEncodingAsync(string path, CancellationToken ct)

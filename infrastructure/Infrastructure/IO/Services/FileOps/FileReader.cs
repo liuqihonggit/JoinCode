@@ -30,30 +30,44 @@ public sealed class FileReader
         {
             if (_fs.DirectoryExists(normalizedPath))
             {
-                return FileReadResult.FailureResult(normalizedPath, $"Cannot read '{normalizedPath}': it is a directory, not a file");
+                var dirDiagnostic = ToolDiagnostic.Create(
+                    "IsDirectoryNotFile",
+                    $"Cannot read '{normalizedPath}': it is a directory, not a file.",
+                    [new DiagnosticDetail("filePath", normalizedPath), new DiagnosticDetail("type", "directory")],
+                    ["使用 ListDir 工具列出目录内容，或指定一个文件路径。"]);
+                return FileReadResult.FailureResult(normalizedPath, dirDiagnostic);
             }
 
             if (!_fs.FileExists(normalizedPath))
             {
-                var suggestion = FindSimilarFile(normalizedPath) ?? SuggestPathUnderCwd(normalizedPath);
-                var message = $"File does not exist. Note: your current working directory is {_fs.GetCurrentDirectory()}.";
-                if (suggestion is not null)
-                {
-                    message += $" Did you mean {suggestion}?";
-                }
-                return FileReadResult.FailureResult(normalizedPath, message);
+                var diagnostic = FileSuggestionHelper.BuildFileNotFoundDiagnostic(normalizedPath, _fs);
+                return FileReadResult.FailureResult(normalizedPath, diagnostic);
             }
 
             var fileLength = _fs.GetFileLength(normalizedPath);
             if (fileLength > _config.MaxReadSize)
             {
-                return FileReadResult.FailureResult(normalizedPath,
-                    $"File content ({fileLength} bytes) exceeds maximum allowed size ({_config.MaxReadSize} bytes). Use offset and limit parameters to read specific portions of the file.");
+                var sizeDiagnostic = ToolDiagnostic.Create(
+                    "FileTooLarge",
+                    $"File content ({fileLength} bytes) exceeds maximum allowed size ({_config.MaxReadSize} bytes).",
+                    [
+                        new DiagnosticDetail("filePath", normalizedPath),
+                        new DiagnosticDetail("fileSize", fileLength.ToString()),
+                        new DiagnosticDetail("maxSize", _config.MaxReadSize.ToString()),
+                    ],
+                    ["使用 offset 和 limit 参数读取文件的部分内容。", "使用 Grep 工具搜索特定内容而非读取整个文件。"]);
+                return FileReadResult.FailureResult(normalizedPath, sizeDiagnostic);
             }
 
-            if (await IsBinaryFileAsync(normalizedPath, cancellationToken).ConfigureAwait(false))
+            var (isBinary, binaryReason) = await IsBinaryFileAsync(normalizedPath, cancellationToken).ConfigureAwait(false);
+            if (isBinary)
             {
-                return FileReadResult.FailureResult(normalizedPath, "Cannot read binary file. The file appears to be a binary file.");
+                var binaryDiagnostic = ToolDiagnostic.Create(
+                    "BinaryFileDetected",
+                    binaryReason,
+                    [new DiagnosticDetail("filePath", normalizedPath)],
+                    ["使用适当的工具分析二进制文件（如 ReadImage 读取图片、ReadPdf 读取 PDF）。"]);
+                return FileReadResult.FailureResult(normalizedPath, binaryDiagnostic);
             }
 
             var (selectedContent, numLines, startLine, totalLines) = await ReadFileRangeAsync(
@@ -66,10 +80,22 @@ public sealed class FileReader
                 startLine,
                 totalLines);
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Failed to read file: {FilePath}", normalizedPath);
-            return FileReadResult.FailureResult(normalizedPath, ex.Message);
+            var exDiagnostic = ToolDiagnostic.Create(
+                "ReadFailed",
+                $"读取文件失败: {ex.Message}",
+                [
+                    new DiagnosticDetail("filePath", normalizedPath),
+                    new DiagnosticDetail("exceptionType", ex.GetType().Name),
+                ],
+                ["检查文件权限、是否被其他进程锁定。"]);
+            return FileReadResult.FailureResult(normalizedPath, exDiagnostic);
         }
     }
 
@@ -89,7 +115,9 @@ public sealed class FileReader
         bool isFirstLine = true;
 
         using var stream = _fs.CreateStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-        using var reader = new StreamReader(stream, Encoding.UTF8);
+        // 接入编码检测 — 对齐 FileOperationService.ReadFileWithMetadataAsync
+        var encoding = await FileEncodingDetector.DetectFromFileAsync(filePath, _fs, cancellationToken, _logger).ConfigureAwait(false);
+        using var reader = new StreamReader(stream, encoding);
 
         string? line;
         while ((line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) != null)
@@ -161,7 +189,12 @@ public sealed class FileReader
         return Task.FromResult(File.Exists(normalizedPath));
     }
 
-    private async Task<bool> IsBinaryFileAsync(string filePath, CancellationToken cancellationToken)
+    /// <summary>
+    /// 检测文件是否为二进制文件。
+    /// 返回 (isBinary, reason) — reason 描述检测结论或失败原因。
+    /// 不再吞异常：IO 失败时返回 (false, reason) 让上层报告真正的 IO 错误，而非误报为二进制。
+    /// </summary>
+    private async Task<(bool IsBinary, string Reason)> IsBinaryFileAsync(string filePath, CancellationToken cancellationToken)
     {
         try
         {
@@ -169,14 +202,14 @@ public sealed class FileReader
             var buffer = new byte[_config.BinaryDetectionBufferSize];
             var bytesRead = await stream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
 
-            if (bytesRead == 0) return false;
+            if (bytesRead == 0) return (false, "Empty file");
 
             int nonPrintableCount = 0;
             for (var i = 0; i < bytesRead; i++)
             {
                 var b = buffer[i];
                 // Null byte is always binary
-                if (b == 0) return true;
+                if (b == 0) return (true, $"Null byte detected at offset {i} (checked {bytesRead} bytes).");
                 // Count non-printable characters (excluding common whitespace: TAB=9, LF=10, CR=13)
                 if (b < 0x20 && b is not (9 or 10 or 13))
                 {
@@ -185,11 +218,23 @@ public sealed class FileReader
             }
 
             // If more than 10% non-printable characters, treat as binary
-            return nonPrintableCount > bytesRead / 10;
+            if (nonPrintableCount > bytesRead / 10)
+            {
+                var ratio = (double)nonPrintableCount / bytesRead * 100;
+                return (true, $"High non-printable ratio: {ratio:F1}% ({nonPrintableCount}/{bytesRead} bytes in first {bytesRead} bytes).");
+            }
+
+            return (false, $"Text file (0 non-printable bytes in first {bytesRead} bytes).");
         }
-        catch
+        catch (OperationCanceledException)
         {
-            return true;
+            throw;
+        }
+        catch (Exception ex)
+        {
+            // 不再吞异常误报为二进制 — 让上层报告真正的 IO 错误
+            _logger?.LogWarning(ex, "二进制检测读取失败，跳过检测: {FilePath}", filePath);
+            return (false, $"Binary detection skipped due to IO error: {ex.Message}");
         }
     }
 
@@ -197,10 +242,10 @@ public sealed class FileReader
     {
         if (Path.IsPathFullyQualified(path))
         {
-            return Path.GetFullPath(path);
+            return _fs.GetFullPath(path);
         }
 
-        return Path.GetFullPath(Path.Combine(_fs.GetCurrentDirectory(), path));
+        return _fs.GetFullPath(_fs.CombinePath(_fs.GetCurrentDirectory(), path));
     }
 
     /// <summary>

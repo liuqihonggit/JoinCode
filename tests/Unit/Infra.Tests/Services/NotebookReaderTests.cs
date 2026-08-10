@@ -47,7 +47,7 @@ public sealed class NotebookReaderTests
         await Fs.WriteAllTextAsync(path, "not valid json").ConfigureAwait(true);
         var result = await NotebookReader.ReadNotebookAsync(path, Fs).ConfigureAwait(true);
         result.Success.Should().BeFalse();
-        result.ErrorMessage.Should().StartWith("Failed to parse notebook:");
+        result.ErrorMessage.Should().StartWith("Failed to parse notebook");
     }
 
     [Fact]

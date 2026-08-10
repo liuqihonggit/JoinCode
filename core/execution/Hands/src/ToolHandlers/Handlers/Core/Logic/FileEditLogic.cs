@@ -21,7 +21,7 @@ public sealed partial class FileEditLogic : ServiceEntity
         CancellationToken cancellationToken = default)
     {
         if (!_fs.FileExists(filePath))
-            return FileEditResult.FailureResult(filePath, pattern, replacement, L.T(StringKey.FileEditFileNotExist));
+            return FileEditResult.FailureResult(filePath, pattern, replacement, FileSuggestionHelper.BuildFileNotFoundDiagnostic(filePath, _fs));
 
         Regex regex;
         try
@@ -50,7 +50,22 @@ public sealed partial class FileEditLogic : ServiceEntity
             updatedContent = regex.Replace(originalContent, replacement, 1);
         }
 
-        await WriteFileWithEncodingAsync(filePath, updatedContent, cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await WriteFileWithEncodingAsync(filePath, updatedContent, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            var diagnostic = ToolDiagnostic.Create("EditRegexWriteFailed",
+                $"正则编辑写入失败: {ex.Message}",
+                [new DiagnosticDetail("filePath", filePath), new DiagnosticDetail("exceptionType", ex.GetType().Name)],
+                ["检查文件权限、是否被其他进程锁定。"]);
+            return FileEditResult.FailureResult(filePath, pattern, replacement, diagnostic);
+        }
 
         return FileEditResult.SuccessResult(filePath, pattern, replacement, originalContent, updatedContent, count);
     }
@@ -62,7 +77,7 @@ public sealed partial class FileEditLogic : ServiceEntity
         CancellationToken cancellationToken = default)
     {
         if (!_fs.FileExists(filePath))
-            return FileLineEditResult.FailureResult(filePath, afterLine, afterLine, L.T(StringKey.FileEditFileNotExist));
+            return FileLineEditResult.FailureResult(filePath, afterLine, afterLine, FileSuggestionHelper.BuildFileNotFoundDiagnostic(filePath, _fs));
 
         var allLines = new List<string>();
         var fileEncoding = await FileEncodingDetector.DetectFromFileAsync(filePath, _fs, cancellationToken).ConfigureAwait(false);
@@ -90,7 +105,22 @@ public sealed partial class FileEditLogic : ServiceEntity
             resultLines.AddRange(newLines);
 
         var updatedFileContent = string.Join("\n", resultLines);
-        await WriteFileWithEncodingAsync(filePath, updatedFileContent, cancellationToken, fileEncoding).ConfigureAwait(false);
+        try
+        {
+            await WriteFileWithEncodingAsync(filePath, updatedFileContent, cancellationToken, fileEncoding).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            var diagnostic = ToolDiagnostic.Create("InsertLinesWriteFailed",
+                $"插入行写入失败: {ex.Message}",
+                [new DiagnosticDetail("filePath", filePath), new DiagnosticDetail("exceptionType", ex.GetType().Name)],
+                ["检查文件权限、是否被其他进程锁定。"]);
+            return FileLineEditResult.FailureResult(filePath, afterLine, afterLine, diagnostic);
+        }
 
         return FileLineEditResult.SuccessResult(filePath, afterLine, afterLine + newLines.Length, string.Empty, newContent, updatedFileContent, newLines.Length);
     }
@@ -102,7 +132,7 @@ public sealed partial class FileEditLogic : ServiceEntity
         CancellationToken cancellationToken = default)
     {
         if (!_fs.FileExists(filePath))
-            return FileLineEditResult.FailureResult(filePath, startLine, endLine, L.T(StringKey.FileEditFileNotExist));
+            return FileLineEditResult.FailureResult(filePath, startLine, endLine, FileSuggestionHelper.BuildFileNotFoundDiagnostic(filePath, _fs));
 
         if (startLine > endLine)
             return FileLineEditResult.FailureResult(filePath, startLine, endLine, L.T(StringKey.FileEditStartLineGreaterThanEnd));
@@ -131,7 +161,22 @@ public sealed partial class FileEditLogic : ServiceEntity
         }
 
         var updatedFileContent = string.Join("\n", resultLines);
-        await WriteFileWithEncodingAsync(filePath, updatedFileContent, cancellationToken, fileEncoding).ConfigureAwait(false);
+        try
+        {
+            await WriteFileWithEncodingAsync(filePath, updatedFileContent, cancellationToken, fileEncoding).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            var diagnostic = ToolDiagnostic.Create("DeleteLinesWriteFailed",
+                $"删除行写入失败: {ex.Message}",
+                [new DiagnosticDetail("filePath", filePath), new DiagnosticDetail("exceptionType", ex.GetType().Name)],
+                ["检查文件权限、是否被其他进程锁定。"]);
+            return FileLineEditResult.FailureResult(filePath, startLine, endLine, diagnostic);
+        }
 
         var deletedCount = actualEndLine - startLine + 1;
         return FileLineEditResult.SuccessResult(filePath, startLine, actualEndLine, originalContent, string.Empty, updatedFileContent, deletedCount);
@@ -151,7 +196,7 @@ public sealed partial class FileEditLogic : ServiceEntity
             {
                 if (!_fs.FileExists(filePath))
                 {
-                    results.Add(new BatchEditResult(filePath, FileEditResult.FailureResult(filePath, oldString, newString, L.T(StringKey.FileEditFileNotExist))));
+                    results.Add(new BatchEditResult(filePath, FileEditResult.FailureResult(filePath, oldString, newString, FileSuggestionHelper.BuildFileNotFoundDiagnostic(filePath, _fs))));
                     continue;
                 }
 
@@ -159,7 +204,8 @@ public sealed partial class FileEditLogic : ServiceEntity
 
                 if (!originalContent.Contains(oldString))
                 {
-                    results.Add(new BatchEditResult(filePath, FileEditResult.FailureResult(filePath, oldString, newString, L.T(StringKey.FileEditStringNotFound))));
+                    var diagnostic = EditDiagnosticBuilder.BuildDiagnostic(originalContent, oldString);
+                    results.Add(new BatchEditResult(filePath, FileEditResult.FailureResult(filePath, oldString, newString, diagnostic.ToToolDiagnostic())));
                     continue;
                 }
 

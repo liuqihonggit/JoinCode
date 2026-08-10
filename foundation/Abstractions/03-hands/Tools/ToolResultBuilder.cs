@@ -5,6 +5,7 @@ public sealed class ToolResultBuilder
     private readonly List<ToolContent> _content = new();
     private bool _isError;
     private List<EntityMetadataEntry>? _entityMetadata;
+    private ToolDiagnostic? _diagnostic;
 
     public static ToolResultBuilder Success() => new();
 
@@ -102,13 +103,23 @@ public sealed class ToolResultBuilder
         return this;
     }
 
+    /// <summary>
+    /// 附加结构化诊断信息 — 工具失败时调用，GUI 可根据 Reason/Details/Suggestions 分区域渲染。
+    /// </summary>
+    public ToolResultBuilder WithDiagnostic(ToolDiagnostic diagnostic)
+    {
+        _diagnostic = diagnostic;
+        return this;
+    }
+
     public ToolResult Build()
     {
         return new ToolResult
         {
             Content = _content,
             IsError = _isError,
-            EntityMetadata = _entityMetadata
+            EntityMetadata = _entityMetadata,
+            Diagnostic = _diagnostic
         };
     }
 }

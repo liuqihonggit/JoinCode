@@ -135,6 +135,11 @@ public sealed record FileReadResult
     public bool Success { get; init; }
     public string? ErrorMessage { get; init; }
 
+    /// <summary>
+    /// 结构化诊断信息 — 读取失败时填充，GUI 可分区域渲染。
+    /// </summary>
+    public ToolDiagnostic? Diagnostic { get; init; }
+
     public static FileReadResult SuccessResult(string filePath, string content, int numLines, int startLine, int totalLines)
         => new()
         {
@@ -157,6 +162,19 @@ public sealed record FileReadResult
             Success = false,
             ErrorMessage = errorMessage
         };
+
+    public static FileReadResult FailureResult(string filePath, ToolDiagnostic diagnostic)
+        => new()
+        {
+            FilePath = filePath,
+            Content = string.Empty,
+            NumLines = 0,
+            StartLine = 0,
+            TotalLines = 0,
+            Success = false,
+            ErrorMessage = diagnostic.FormattedMessage,
+            Diagnostic = diagnostic
+        };
 }
 
 public sealed record FileWriteResult
@@ -167,6 +185,11 @@ public sealed record FileWriteResult
     public string? OriginalContent { get; init; }
     public bool Success { get; init; }
     public string? ErrorMessage { get; init; }
+
+    /// <summary>
+    /// 结构化诊断信息 — 写入失败时填充。
+    /// </summary>
+    public ToolDiagnostic? Diagnostic { get; init; }
 
     /// <summary>
     /// 结构化 Patch — 对齐 TS FileWriteOutput.structuredPatch
@@ -199,6 +222,17 @@ public sealed record FileWriteResult
             Success = false,
             ErrorMessage = errorMessage
         };
+
+    public static FileWriteResult FailureResult(string filePath, ToolDiagnostic diagnostic)
+        => new()
+        {
+            FilePath = filePath,
+            Content = string.Empty,
+            Operation = string.Empty,
+            Success = false,
+            ErrorMessage = diagnostic.FormattedMessage,
+            Diagnostic = diagnostic
+        };
 }
 
 public sealed record FileEditResult
@@ -211,6 +245,11 @@ public sealed record FileEditResult
     public required int ReplaceCount { get; init; }
     public bool Success { get; init; }
     public string? ErrorMessage { get; init; }
+
+    /// <summary>
+    /// 结构化诊断信息 — 匹配失败时填充，GUI 可分区域渲染。
+    /// </summary>
+    public ToolDiagnostic? Diagnostic { get; init; }
 
     /// <summary>
     /// 结构化 Patch — 对齐 TS FileEditOutput.structuredPatch
@@ -250,6 +289,20 @@ public sealed record FileEditResult
             Success = false,
             ErrorMessage = errorMessage
         };
+
+    public static FileEditResult FailureResult(string filePath, string oldString, string newString, ToolDiagnostic diagnostic)
+        => new()
+        {
+            FilePath = filePath,
+            OldString = oldString,
+            NewString = newString,
+            OriginalContent = string.Empty,
+            UpdatedContent = string.Empty,
+            ReplaceCount = 0,
+            Success = false,
+            ErrorMessage = diagnostic.FormattedMessage,
+            Diagnostic = diagnostic
+        };
 }
 
 public sealed record LineRangeEditRequest
@@ -279,6 +332,11 @@ public sealed record FileLineEditResult
     public required int ReplacedLinesCount { get; init; }
     public bool Success { get; init; }
     public string? ErrorMessage { get; init; }
+
+    /// <summary>
+    /// 结构化诊断信息 — 失败时填充。
+    /// </summary>
+    public ToolDiagnostic? Diagnostic { get; init; }
 
     public static FileLineEditResult SuccessResult(
         string filePath,
@@ -317,6 +375,25 @@ public sealed record FileLineEditResult
             Success = false,
             ErrorMessage = errorMessage
         };
+
+    public static FileLineEditResult FailureResult(
+        string filePath,
+        int startLine,
+        int endLine,
+        ToolDiagnostic diagnostic)
+        => new()
+        {
+            FilePath = filePath,
+            StartLine = startLine,
+            EndLine = endLine,
+            OriginalContent = string.Empty,
+            NewContent = string.Empty,
+            UpdatedFileContent = string.Empty,
+            ReplacedLinesCount = 0,
+            Success = false,
+            ErrorMessage = diagnostic.FormattedMessage,
+            Diagnostic = diagnostic
+        };
 }
 
 public sealed record DirectoryListResult
@@ -326,6 +403,11 @@ public sealed record DirectoryListResult
     public required IReadOnlyList<DirectoryEntry> Directories { get; init; }
     public bool Success { get; init; }
     public string? ErrorMessage { get; init; }
+
+    /// <summary>
+    /// 结构化诊断信息 — 列目录失败时填充。
+    /// </summary>
+    public ToolDiagnostic? Diagnostic { get; init; }
 
     public static DirectoryListResult SuccessResult(
         string directoryPath,
@@ -347,6 +429,17 @@ public sealed record DirectoryListResult
             Directories = Array.Empty<DirectoryEntry>(),
             Success = false,
             ErrorMessage = errorMessage
+        };
+
+    public static DirectoryListResult FailureResult(string directoryPath, ToolDiagnostic diagnostic)
+        => new()
+        {
+            DirectoryPath = directoryPath,
+            Files = Array.Empty<FileEntry>(),
+            Directories = Array.Empty<DirectoryEntry>(),
+            Success = false,
+            ErrorMessage = diagnostic.FormattedMessage,
+            Diagnostic = diagnostic
         };
 }
 
@@ -383,6 +476,11 @@ public sealed record FileMetadataResult
     public bool Success { get; init; }
     public string? ErrorMessage { get; init; }
 
+    /// <summary>
+    /// 结构化诊断信息 — 读取失败时填充。
+    /// </summary>
+    public ToolDiagnostic? Diagnostic { get; init; }
+
     public static FileMetadataResult SuccessResult(
         string filePath,
         string content,
@@ -406,5 +504,17 @@ public sealed record FileMetadataResult
             LineEndings = "LF",
             Success = false,
             ErrorMessage = errorMessage
+        };
+
+    public static FileMetadataResult FailureResult(string filePath, ToolDiagnostic diagnostic)
+        => new()
+        {
+            FilePath = filePath,
+            Content = string.Empty,
+            Encoding = System.Text.Encoding.UTF8,
+            LineEndings = "LF",
+            Success = false,
+            ErrorMessage = diagnostic.FormattedMessage,
+            Diagnostic = diagnostic
         };
 }

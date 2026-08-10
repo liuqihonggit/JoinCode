@@ -73,7 +73,8 @@ public sealed partial class FileOperationService : ServiceEntity, IFileOperation
         {
             if (!_fs.DirectoryExists(normalizedPath))
             {
-                return DirectoryListResult.FailureResult(normalizedPath, "目录不存在");
+                var message = $"Directory does not exist: {normalizedPath}\n[诊断] cwd: {_fs.GetCurrentDirectory()}";
+                return DirectoryListResult.FailureResult(normalizedPath, message);
             }
 
             var searchOption = recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
@@ -117,7 +118,11 @@ public sealed partial class FileOperationService : ServiceEntity, IFileOperation
         catch (Exception ex)
         {
             _logger?.LogError(ex, "列出目录失败: {DirectoryPath}", normalizedPath);
-            return DirectoryListResult.FailureResult(normalizedPath, ex.Message);
+            var diagnostic = ToolDiagnostic.Create("ListDirectoryFailed",
+                $"列出目录失败: {ex.Message}",
+                [new DiagnosticDetail("directoryPath", normalizedPath), new DiagnosticDetail("exceptionType", ex.GetType().Name)],
+                ["检查目录是否存在、是否有读取权限。"]);
+            return DirectoryListResult.FailureResult(normalizedPath, diagnostic);
         }
     }
 
@@ -264,10 +269,13 @@ public sealed partial class FileOperationService : ServiceEntity, IFileOperation
         try
         {
             if (!_fs.FileExists(normalizedPath))
-                return FileMetadataResult.FailureResult(normalizedPath, "File does not exist");
+            {
+                var diagnostic = FileSuggestionHelper.BuildFileNotFoundDiagnostic(normalizedPath, _fs);
+                return FileMetadataResult.FailureResult(normalizedPath, diagnostic);
+            }
 
             // 对齐 TS: readFileSyncWithMetadata — 检测编码 + 换行符
-            var encoding = await FileEncodingDetector.DetectFromFileAsync(normalizedPath, _fs, cancellationToken).ConfigureAwait(false);
+            var encoding = await FileEncodingDetector.DetectFromFileAsync(normalizedPath, _fs, cancellationToken, _logger).ConfigureAwait(false);
 
             using var stream = _fs.OpenRead(normalizedPath);
             using var reader = new StreamReader(stream, encoding);
@@ -286,7 +294,15 @@ public sealed partial class FileOperationService : ServiceEntity, IFileOperation
         catch (Exception ex)
         {
             _logger?.LogError(ex, "读取文件元数据失败: {FilePath}", normalizedPath);
-            return FileMetadataResult.FailureResult(normalizedPath, ex.Message);
+            var diagnostic = ToolDiagnostic.Create(
+                "ReadMetadataFailed",
+                $"读取文件元数据失败: {ex.Message}",
+                [
+                    new DiagnosticDetail("filePath", normalizedPath),
+                    new DiagnosticDetail("exceptionType", ex.GetType().Name),
+                ],
+                ["检查文件权限、是否被其他进程锁定。"]);
+            return FileMetadataResult.FailureResult(normalizedPath, diagnostic);
         }
     }
 
@@ -301,7 +317,13 @@ public sealed partial class FileOperationService : ServiceEntity, IFileOperation
         var normalizedPath = NormalizePath(filePath);
         try
         {
-            var effectiveEncoding = encoding ?? Encoding.UTF8;
+            // 编码检测：优先用传入编码，其次检测文件原有编码，最后默认 UTF-8
+            var effectiveEncoding = encoding;
+            if (effectiveEncoding is null && _fs.FileExists(normalizedPath))
+            {
+                effectiveEncoding = await FileEncodingDetector.DetectFromFileAsync(normalizedPath, _fs, cancellationToken, _logger).ConfigureAwait(false);
+            }
+            effectiveEncoding ??= Encoding.UTF8;
 
             // 对齐 TS: writeTextContent — 恢复换行符
             var contentToWrite = content;
@@ -336,7 +358,11 @@ public sealed partial class FileOperationService : ServiceEntity, IFileOperation
         catch (Exception ex)
         {
             _logger?.LogError(ex, "写入文件失败(带编码): {FilePath}", normalizedPath);
-            return FileWriteResult.FailureResult(normalizedPath, ex.Message);
+            var diagnostic = ToolDiagnostic.Create("WriteFailed",
+                $"写入文件失败: {ex.Message}",
+                [new DiagnosticDetail("filePath", normalizedPath), new DiagnosticDetail("exceptionType", ex.GetType().Name)],
+                ["检查文件权限、是否被其他进程锁定、磁盘空间是否充足。"]);
+            return FileWriteResult.FailureResult(normalizedPath, diagnostic);
         }
     }
 

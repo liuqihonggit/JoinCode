@@ -51,7 +51,7 @@ public sealed partial class ApplyPatchLogic : ServiceEntity
 
                 if (!VerifyContext(modifiedLines, adjustedStart, hunk))
                 {
-                    details.Add($"FAIL {filePath}:{hunk.StartLine}: context mismatch");
+                    details.Add(BuildContextMismatchMessage(filePath, hunk, modifiedLines, adjustedStart));
                     hunkFailed = true;
                     break;
                 }
@@ -147,6 +147,49 @@ public sealed partial class ApplyPatchLogic : ServiceEntity
             }
         }
         return true;
+    }
+
+    /// <summary>
+    /// 构建 context mismatch 的诊断消息 — 展示期望行 vs 实际文件行的差异。
+    /// 仅在匹配失败路径调用，不影响正常 patch 性能。
+    /// </summary>
+    internal static string BuildContextMismatchMessage(
+        string filePath, PatchHunk hunk, List<string> fileLines, int adjustedStart)
+    {
+        var sb = new StringBuilder(256);
+        sb.Append($"FAIL {filePath}:{hunk.StartLine}: context mismatch");
+        sb.Append("\n[诊断] 期望的 context 行 vs 文件实际内容:");
+
+        var fileIdx = adjustedStart;
+        var maxDiffLines = 0;
+        foreach (var line in hunk.Lines)
+        {
+            if (line.StartsWith(' ') || line.StartsWith('-'))
+            {
+                var expected = line[1..];
+                var actual = fileIdx >= 0 && fileIdx < fileLines.Count ? fileLines[fileIdx] : "<EOF>";
+                var marker = expected == actual ? " " : "!";
+                sb.Append($"\n  {marker} 期望: {TruncateLine(expected)}");
+                if (expected != actual)
+                {
+                    sb.Append($"\n    实际: {TruncateLine(actual)}");
+                    maxDiffLines++;
+                    if (maxDiffLines >= 5)
+                    {
+                        sb.Append("\n  ... (后续差异行省略)");
+                        break;
+                    }
+                }
+                fileIdx++;
+            }
+        }
+
+        return sb.ToString();
+    }
+
+    private static string TruncateLine(string line, int maxLength = 120)
+    {
+        return line.Length <= maxLength ? line : string.Concat(line.AsSpan(0, maxLength), "...[truncated]");
     }
 
     private static (List<string> Result, int Removed, int Added) ApplyHunk(

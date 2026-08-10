@@ -146,7 +146,6 @@ public sealed partial class VoiceService : ServiceEntity, IVoiceService, JoinCod
         return _options.Backend switch
         {
             SttBackend.WhisperApi => await TranscribeWithWhisperApiAsync(audioData, language, cancellationToken).ConfigureAwait(false),
-            SttBackend.LocalModel => await TranscribeWithLocalModelAsync(audioData, language, cancellationToken).ConfigureAwait(false),
             _ => throw new NotSupportedException(L.T(StringKey.VoiceUnsupportedSttBackend, _options.Backend))
         };
     }
@@ -197,19 +196,6 @@ public sealed partial class VoiceService : ServiceEntity, IVoiceService, JoinCod
 
         var result = JsonSerializer.Deserialize(responseBody, VoiceJsonContext.Default.WhisperTranscriptionResponse);
         return result?.Text ?? string.Empty;
-    }
-
-    private async Task<string> TranscribeWithLocalModelAsync(byte[] audioData, string? language, CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrEmpty(_options.LocalModelPath) || !_fs.FileExists(_options.LocalModelPath))
-        {
-            throw new InvalidOperationException(L.T(StringKey.VoiceLocalModelPathInvalid));
-        }
-
-        await Task.CompletedTask.ConfigureAwait(false);
-        // P2-4: LocalModel STT 未实现，返回空字符串并记录警告，避免抛出 NotImplementedException 导致进程崩溃
-        _logger?.LogWarning(L.T(StringKey.VoiceLocalSttNotImplemented));
-        return string.Empty;
     }
 
     private async Task RecordLoopAsync(CancellationToken cancellationToken)

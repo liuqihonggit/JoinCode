@@ -51,6 +51,20 @@ public interface IToolPermissionManager
     Task RestoreDangerousRulesAsync(int ruleCount, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// 临时批准工具 — 在指定时长内 CheckPermissionAsync 对该工具直接返回 Granted
+    /// GUI/CLI 权限确认弹窗"允许本次"时调用，关闭权限确认闭环
+    /// </summary>
+    /// <param name="toolName">工具名称</param>
+    /// <param name="duration">批准持续时间</param>
+    void ApproveToolTemporarily(string toolName, TimeSpan duration);
+
+    /// <summary>
+    /// 移除工具的临时批准
+    /// </summary>
+    /// <param name="toolName">工具名称</param>
+    void RemoveTemporaryApproval(string toolName);
+
+    /// <summary>
     /// 清除权限缓存 — 对齐 TS: IToolPermissionManager.ClearCache
     /// </summary>
     void ClearCache();

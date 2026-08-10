@@ -250,6 +250,7 @@ public sealed class ApplicationBuilder
             Prompt = result.Prompt,
             Model = result.Model,
             NonInteractive = result.NonInteractive,
+            NoConfirm = result.NoConfirm,
             TrustWorkspace = result.Trust,
             Brief = result.Brief,
             ForceInteractive = result.ForceInteractive,
@@ -301,6 +302,11 @@ public sealed class ApplicationBuilder
         {
             Cli.TerminalHelper.ForceInteractive = true;
             options.NonInteractive = false;
+        }
+
+        if (options.NoConfirm)
+        {
+            Core.Utils.TestEnvironmentDetector.ForceNonInteractive = true;
         }
 
         options.DetectedHeadlessMode = Cli.TerminalHelper.IsHeadless ? HeadlessMode.NoTty : HeadlessMode.Interactive;
@@ -390,6 +396,7 @@ public sealed class ApplicationBuilder
         Cli.TerminalHelper.WriteLine("  -m, --model <模型ID>    指定模型");
         Cli.TerminalHelper.WriteLine("  --trust                 自动信任当前工作目录");
         Cli.TerminalHelper.WriteLine("  --non-interactive       强制非交互模式");
+        Cli.TerminalHelper.WriteLine("  --no-confirm            跳过所有确认提示（AI 驱动用，走交互模式但不弹确认框）");
         Cli.TerminalHelper.WriteLine("  --pipe <管道名>         命名管道通信模式");
         Cli.TerminalHelper.WriteLine("  --brief                 启动时激活简要模式");
         Cli.TerminalHelper.WriteLine("  --force-interactive     强制交互模式（即使 stdin 重定向也启用 REPL，用于 E2E 测试）");

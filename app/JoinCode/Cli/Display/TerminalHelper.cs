@@ -8,6 +8,17 @@ public static class TerminalHelper
     private static bool _isInitialized;
 
     /// <summary>
+    /// 真实标准输出 — 在 Init() 时捕获，不受 SetOut 重定向影响。
+    /// 交互式提示（确认框/密码输入等）用此输出，避免被命令输出重定向吞掉。
+    /// </summary>
+    private static TextWriter? _realOut;
+
+    /// <summary>
+    /// 真实标准输出 — Init() 时捕获的原始 Console.Out，不受 SetOut 重定向影响
+    /// </summary>
+    public static TextWriter RealOut => _realOut ?? System.Console.Out;
+
+    /// <summary>
     /// 强制交互模式 — 即使 stdin 重定向也从 Console.In 读取输入，用于 E2E 测试
     /// </summary>
     public static bool ForceInteractive { get; set; }
@@ -21,6 +32,8 @@ public static class TerminalHelper
     public static void Init()
     {
         if (_isInitialized) return;
+
+        _realOut = System.Console.Out;
 
         if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(
             System.Runtime.InteropServices.OSPlatform.Windows))
@@ -128,6 +141,25 @@ public static class TerminalHelper
     public static void SetCursorPosition(int left, int top) => System.Console.SetCursorPosition(left, top);
 
     public static void SetOut(System.IO.TextWriter writer) => System.Console.SetOut(writer);
+
+    /// <summary>
+    /// 输出到真实 stdout（绕过 SetOut 重定向）— 用于交互式提示
+    /// </summary>
+    public static void WriteLineReal(string? text = null)
+    {
+        if (text is null) RealOut.WriteLine();
+        else RealOut.WriteLine(text);
+        RealOut.Flush();
+    }
+
+    /// <summary>
+    /// 输出到真实 stdout（绕过 SetOut 重定向）— 用于交互式提示
+    /// </summary>
+    public static void WriteRawReal(string text)
+    {
+        RealOut.Write(text);
+        RealOut.Flush();
+    }
 
     public static System.IO.TextWriter Out => System.Console.Out;
     public static System.IO.TextReader In => System.Console.In;

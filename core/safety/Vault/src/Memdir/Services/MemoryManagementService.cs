@@ -761,15 +761,15 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
     /// <inheritdoc />
     public Task<bool> ArchiveMemoryAsync(string memoryId, CancellationToken ct = default)
     {
-        _logger?.LogWarning(L.T(StringKey.VaultLogArchiveNotImplemented), memoryId);
-        return Task.FromResult(false);
+        ct.ThrowIfCancellationRequested();
+        return Task.FromResult(_memoryStore.ArchiveMemory(memoryId));
     }
 
     /// <inheritdoc />
     public Task<bool> RestoreMemoryAsync(string memoryId, CancellationToken ct = default)
     {
-        _logger?.LogWarning(L.T(StringKey.VaultLogRestoreNotImplemented), memoryId);
-        return Task.FromResult(false);
+        ct.ThrowIfCancellationRequested();
+        return Task.FromResult(_memoryStore.RestoreMemory(memoryId));
     }
 
     /// <inheritdoc />

@@ -4,6 +4,7 @@
     <Project Path="composition/Composition/tests/Unit/Composition.Tests.csproj" />
     <Project Path="composition/Clock/src/Clock.csproj" />
     <Project Path="composition/Clock/tests/Unit/Clock.Tests.csproj" />
+    <Project Path="composition/Pipelines/src/Pipelines.csproj" />
   </Folder>
   <Folder Name="/foundation/">
     <Project Path="foundation/Abstractions/Abstractions.csproj" />

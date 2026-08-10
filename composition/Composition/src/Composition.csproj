@@ -9,7 +9,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)foundation\Abstractions\Abstractions.csproj" />
     <ProjectReference Include="$(RepoRoot)infrastructure\Infrastructure\Infrastructure.csproj" />
     <ProjectReference Include="$(RepoRoot)services\Bridge\src\Bridge.csproj" />
     <ProjectReference Include="$(RepoRoot)services\Mcp\src\Mcp.csproj" />
@@ -21,7 +20,6 @@
     <ProjectReference Include="$(RepoRoot)core\execution\Scheduling\src\Scheduling.csproj" />
     <ProjectReference Include="$(RepoRoot)core\execution\McpToolDispatch\src\McpToolDispatch.csproj" />
     <ProjectReference Include="$(RepoRoot)core\ai\Agents\src\Agents.csproj" />
-    <ProjectReference Include="$(RepoRoot)foundation\Transport.Contracts\Transport.Contracts.csproj" />
     <ProjectReference Include="$(RepoRoot)infrastructure\Transport.Impl\Transport.Impl.csproj" />
     <ProjectReference Include="$(RepoRoot)core\ai\Reasoning\src\Reasoning.csproj" />
   </ItemGroup>
@@ -47,6 +45,8 @@
     <InternalsVisibleTo Include="JoinCode.Core.Tests.Agents" />
     <InternalsVisibleTo Include="JoinCode.Core.Tests.Context" />
     <InternalsVisibleTo Include="JoinCode.Composition.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Host.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Integration.Tests" />
   </ItemGroup>
 
 </Project>

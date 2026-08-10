@@ -8,6 +8,7 @@ class Program
     static async Task<int> Main(string[] args)
     {
         Cli.TerminalHelper.Init();
+        JoinCode.Abstractions.Shell.CommandTerminal.SetConsole(new CliCommandConsole());
         ILogger<Program>? logger = null;
         try
         {

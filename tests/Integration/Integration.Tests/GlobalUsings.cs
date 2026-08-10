@@ -106,3 +106,4 @@ global using Services.Web;
 global using SkillContext = Core.Skills.SkillContext;
 global using AgentRestrictionMiddleware = Core.Permission.AgentRestrictionMiddleware;
 global using Tools.Shell;
+global using JoinCode.Pipelines;

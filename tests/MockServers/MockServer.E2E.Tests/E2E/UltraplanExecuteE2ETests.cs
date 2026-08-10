@@ -42,7 +42,7 @@ public sealed class UltraplanExecuteE2ETests : CoverageTestBase
                         {
                             Type = AssertType.NotContainsText,
                             Expected = "自动执行模式尚未实现",
-                            Description = "不应再显示'未实现'警告 — P0-A 修复目标"
+                            Description = "已实现自动执行,不应显示'未实现'警告"
                         },
                     ]
                 }
@@ -84,7 +84,7 @@ public sealed class UltraplanExecuteE2ETests : CoverageTestBase
                         {
                             Type = AssertType.NotContainsText,
                             Expected = "自动执行模式尚未实现",
-                            Description = "不带 --execute 也不应显示未实现警告（保持现状）"
+                            Description = "不带 --execute 不应显示未实现警告"
                         },
                     ]
                 }

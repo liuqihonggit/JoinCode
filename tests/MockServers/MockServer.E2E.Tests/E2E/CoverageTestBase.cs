@@ -79,6 +79,12 @@ public abstract class CoverageTestBase : IAsyncLifetime
                 }
                 throw new TimeoutException($"[GEN035] 测试超时(>60s): {script.Name} (provider={provider})");
             }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("GEN019", StringComparison.Ordinal) && attempt < maxAttempts)
+            {
+                sw.Stop();
+                Output.WriteLine($"[Coverage] ⚠ 第{attempt}次尝试进程退出无输出(GEN019)，自动重试: {script.Name} (provider={provider})");
+                continue;
+            }
             finally
             {
                 await runner.DisposeAsync().ConfigureAwait(true);

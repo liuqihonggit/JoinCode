@@ -91,6 +91,9 @@
     <QRCoderVersion>1.8.0</QRCoderVersion>
     <JccComponentPackageVersion>1.0.0</JccComponentPackageVersion>
     <MicrosoftExtensionsTimeProviderTestingVersion>10.1.0</MicrosoftExtensionsTimeProviderTestingVersion>
+    <AvaloniaVersion>11.3.3</AvaloniaVersion>
+    <CommunityToolkitMvvmVersion>8.4.0</CommunityToolkitMvvmVersion>
+    <MarkdigVersion>1.3.2</MarkdigVersion>
   </PropertyGroup>
 
 

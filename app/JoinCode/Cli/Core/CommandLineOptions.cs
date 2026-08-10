@@ -27,6 +27,11 @@ public class CommandLineOptions {
     public bool NonInteractive { get; set; }
 
     /// <summary>
+    /// 跳过所有确认提示（--no-confirm 参数）— AI 驱动用，走交互模式但不弹确认框
+    /// </summary>
+    public bool NoConfirm { get; set; }
+
+    /// <summary>
     /// 自动信任工作目录（--trust 参数），跳过信任目录确认弹窗。
     /// 用于 E2E 测试和 CI/CD 环境。
     /// </summary>

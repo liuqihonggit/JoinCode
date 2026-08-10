@@ -1,0 +1,61 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <RootNamespace>JoinCode.Gui</RootNamespace>
+    <AssemblyName>JoinCode.Gui</AssemblyName>
+    <Description>JoinCode Ava GUI</Description>
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <NoWarn>$(NoWarn);JCC9001;CS8604;CS1573;CS1587</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\**" Exclude="Assets\*.xshd" />
+    <EmbeddedResource Include="Assets\ChatHighlighting.xshd" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="$(AvaloniaVersion)" />
+    <PackageReference Include="Avalonia.Desktop" Version="$(AvaloniaVersion)" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="$(AvaloniaVersion)" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="$(AvaloniaVersion)" />
+    <PackageReference Include="Avalonia.Diagnostics" Version="$(AvaloniaVersion)" />
+    <PackageReference Include="Avalonia.ReactiveUI" Version="$(AvaloniaVersion)" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="$(CommunityToolkitMvvmVersion)" />
+    <PackageReference Include="Markdig" Version="$(MarkdigVersion)" />
+    <PackageReference Include="OneWare.AvaloniaEdit" Version="11.3.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 解耦边界：Views/ViewModels 只依赖 Abstractions 门面接口与 DTO，不引 Core.Brain/Hands 实现
+         引擎组装收敛在 Hosting/ 触碰处，故此处引入 Composition + Pipelines 仅供 Hosting 使用 -->
+    <ProjectReference Include="$(RepoRoot)foundation\Abstractions\Abstractions.csproj" />
+    <ProjectReference Include="$(RepoRoot)composition\Composition\src\Composition.csproj" />
+    <ProjectReference Include="$(RepoRoot)composition\Pipelines\src\Pipelines.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="JoinCode.Gui.Tests" />
+  </ItemGroup>
+
+  <!-- R2R 发布时排除 Abstractions（直接+传递引用导致 SDK 重复项 bug MSB4094，门面程序集保持 JIT） -->
+  <ItemGroup>
+    <PublishReadyToRunExclude Include="Abstractions.dll" />
+  </ItemGroup>
+
+  <!-- 修复: AppendRuntimeIdentifierToOutputPath=false + 全局 RID 导致 ResolvedFileToPublish 出现同一路径重复项，
+        crossgen2 报 "Multiple input files matching same simple name"。发布前按路径去重。 -->
+  <Target Name="DeduplicateResolvedFilesForR2R" BeforeTargets="_PrepareForReadyToRunCompilation" Condition="'$(PublishReadyToRun)' == 'true'">
+    <ItemGroup>
+      <_ResolvedFileDedup Remove="@(_ResolvedFileDedup)" />
+      <_ResolvedFileDedup Include="@(ResolvedFileToPublish->Distinct())" />
+    </ItemGroup>
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" />
+      <ResolvedFileToPublish Include="@(_ResolvedFileDedup)" />
+    </ItemGroup>
+  </Target>
+
+</Project>

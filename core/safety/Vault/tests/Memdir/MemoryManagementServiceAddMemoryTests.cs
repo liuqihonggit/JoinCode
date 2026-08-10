@@ -77,4 +77,44 @@ public class MemoryManagementServiceAddMemoryTests : IDisposable
 
         await act.Should().ThrowAsync<ArgumentException>().ConfigureAwait(true);
     }
+
+    [Fact]
+    public async Task ArchiveMemoryAsync_Existing_ShouldArchiveInStore()
+    {
+        var memoryId = await _sut.AddMemoryAsync("Memory to archive via service").ConfigureAwait(true);
+
+        var result = await _sut.ArchiveMemoryAsync(memoryId).ConfigureAwait(true);
+
+        result.Should().BeTrue();
+        var memory = _store.GetMemory(memoryId);
+        memory!.IsArchived.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task RestoreMemoryAsync_Archived_ShouldRestoreInStore()
+    {
+        var memoryId = await _sut.AddMemoryAsync("Memory to restore via service").ConfigureAwait(true);
+        await _sut.ArchiveMemoryAsync(memoryId).ConfigureAwait(true);
+
+        var result = await _sut.RestoreMemoryAsync(memoryId).ConfigureAwait(true);
+
+        result.Should().BeTrue();
+        var memory = _store.GetMemory(memoryId);
+        memory!.IsArchived.Should().BeFalse();
+        memory.ArchivedAt.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task ArchiveMemoryAsync_NonExistent_ShouldReturnFalse()
+    {
+        var result = await _sut.ArchiveMemoryAsync("nonexistent_id").ConfigureAwait(true);
+        result.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task RestoreMemoryAsync_NonExistent_ShouldReturnFalse()
+    {
+        var result = await _sut.RestoreMemoryAsync("nonexistent_id").ConfigureAwait(true);
+        result.Should().BeFalse();
+    }
 }

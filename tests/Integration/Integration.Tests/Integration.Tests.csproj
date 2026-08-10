@@ -12,6 +12,7 @@
     <ProjectReference Include="$(RepoRoot)core\execution\Brain\src\Brain.csproj" />
     <ProjectReference Include="$(RepoRoot)core\execution\Hands\src\Hands.csproj" />
     <ProjectReference Include="$(RepoRoot)composition\Composition\src\Composition.csproj" />
+    <ProjectReference Include="$(RepoRoot)composition\Pipelines\src\Pipelines.csproj" />
     <ProjectReference Include="$(RepoRoot)core\safety\Guard\src\Guard.csproj" />
     <ProjectReference Include="$(RepoRoot)composition\Clock\src\Clock.csproj" />
     <ProjectReference Include="$(RepoRoot)core\safety\Vault\src\Vault.csproj" />

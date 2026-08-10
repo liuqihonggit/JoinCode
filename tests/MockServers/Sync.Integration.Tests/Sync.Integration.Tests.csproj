@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="$(RepoRoot)composition\Composition\src\Composition.csproj" />
+    <ProjectReference Include="$(RepoRoot)composition\Pipelines\src\Pipelines.csproj" />
     <ProjectReference Include="$(RepoRoot)services\Dream\src\Dream.csproj" />
     <ProjectReference Include="$(RepoRoot)tests\Unit\Testing.Common\Testing.Common.csproj" />
   </ItemGroup>

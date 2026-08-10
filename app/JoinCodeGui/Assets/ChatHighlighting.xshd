@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+<SyntaxDefinition name="ChatMessages" xmlns="http://icsharpcode.net/sharpdevelop/syntaxdefinition/2008">
+  <Color name="UserHeader" foreground="#4A9EFF" fontWeight="bold" />
+  <Color name="AiHeader" foreground="#50C878" fontWeight="bold" />
+  <Color name="SystemHeader" foreground="#FFD700" fontWeight="bold" />
+  <Color name="ThinkingLabel" foreground="#888888" />
+  <Color name="ToolLabel" foreground="#E89A3C" />
+  <Color name="ResultLabel" foreground="#50C878" />
+  <Color name="DiffAdded" foreground="#50C878" />
+  <Color name="DiffRemoved" foreground="#D43A3A" />
+
+  <RuleSet>
+    <Rule color="UserHeader">
+      \[你[^\]]*\]
+    </Rule>
+    <Rule color="AiHeader">
+      \[AI[^\]]*\]
+    </Rule>
+    <Rule color="SystemHeader">
+      \[系统[^\]]*\]
+    </Rule>
+    <Rule color="ThinkingLabel">
+      🧠 思考
+    </Rule>
+    <Rule color="ToolLabel">
+      🛠 工具调用
+    </Rule>
+    <Rule color="ResultLabel">
+      ✅ 工具结果
+    </Rule>
+    <Rule color="DiffAdded">
+      ^\+.*
+    </Rule>
+    <Rule color="DiffRemoved">
+      ^-.*
+    </Rule>
+  </RuleSet>
+</SyntaxDefinition>

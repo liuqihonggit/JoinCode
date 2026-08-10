@@ -178,6 +178,16 @@ public sealed class ToolCreationToolHandlersTest : IAsyncLifetime
         GetText(result).Should().Contain("search_tool");
     }
 
+    [Fact]
+    public async Task ExecuteToolAsync_UnknownTool_ShouldReturnErrorNotThrow()
+    {
+        var act = async () => await _registry.ExecuteToolAsync("unknown", new Dictionary<string, JsonElement>(), default).ConfigureAwait(true);
+
+        await act.Should().NotThrowAsync().ConfigureAwait(true);
+        var result = await _registry.ExecuteToolAsync("unknown", new Dictionary<string, JsonElement>(), default).ConfigureAwait(true);
+        result.IsError.Should().BeTrue();
+    }
+
     private sealed class MockTemplateService : IToolTemplateService
     {
         public Dictionary<string, ToolTemplate> SavedTemplates { get; } = new(StringComparer.OrdinalIgnoreCase);
@@ -246,8 +256,18 @@ public sealed class ToolCreationToolHandlersTest : IAsyncLifetime
         public Task<IReadOnlyDictionary<string, IToolHandler>> GetAllToolsAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyDictionary<string, IToolHandler>>(RegisteredHandlers);
 
-        public Task<ToolResult> ExecuteToolAsync(string toolName, Dictionary<string, JsonElement> arguments, CancellationToken cancellationToken = default, ToolProgressCallback? onProgress = null) =>
-            throw new NotImplementedException();
+        public async Task<ToolResult> ExecuteToolAsync(string toolName, Dictionary<string, JsonElement> arguments, CancellationToken cancellationToken = default, ToolProgressCallback? onProgress = null)
+        {
+            if (RegisteredHandlers.TryGetValue(toolName, out var handler))
+            {
+                return await handler.ExecuteAsync(arguments, cancellationToken, onProgress);
+            }
+            return new ToolResult
+            {
+                IsError = true,
+                Content = [new() { Type = ToolContentType.Text, Text = $"Tool '{toolName}' not found" }]
+            };
+        }
 
         public Task<ToolInfo?> GetToolInfoAsync(string toolName, CancellationToken cancellationToken = default) =>
             Task.FromResult<ToolInfo?>(null);

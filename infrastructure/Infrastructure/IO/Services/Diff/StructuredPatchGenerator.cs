@@ -7,9 +7,9 @@ namespace Infrastructure.IO.Services.Diff;
 public static class StructuredPatchGenerator
 {
     /// <summary>
-    /// 默认上下文行数 — 对齐 TS CONTEXT_LINES = 3
+    /// 默认上下文行数 — 需求要求 diff 窗口上下各留 4 行上下文
     /// </summary>
-    private const int DefaultContextLines = 3;
+    private const int DefaultContextLines = 4;
 
     /// <summary>
     /// Diff 超时时间 — 对齐 TS DIFF_TIMEOUT_MS = 5000
@@ -35,7 +35,7 @@ public static class StructuredPatchGenerator
     /// <param name="filePath">文件路径（同时用作旧/新文件名）</param>
     /// <param name="oldContent">旧文件内容</param>
     /// <param name="newContent">新文件内容</param>
-    /// <param name="contextLines">上下文行数，默认3</param>
+    /// <param name="contextLines">上下文行数，默认4</param>
     /// <param name="cancellationToken">取消令牌（超时 5s，对齐 TS DIFF_TIMEOUT_MS）</param>
     /// <returns>结构化 Patch Hunk 数组；超时或取消时返回空数组</returns>
     public static StructuredPatchHunk[] Generate(
@@ -234,12 +234,14 @@ public static class StructuredPatchGenerator
 
         for (var d = trace.Count - 1; d > 0; d--)
         {
+            // 注意：trace 在每轮 d 开始时快照 v，故 trace[d] 即经典 Myers 的 V[d-1]。
+            // 回溯必须基于当前快照 v 判定 prevK/prevX，使用 trace[d-1] 会导致 off-by-one，
+            // 使靠近文件末尾的变更被错误吞掉（仅剩首段上下文）。
             var v = trace[d];
-            var prevV = trace[d - 1];
             var k = x - y;
 
             int prevK;
-            if (k == -d || (k != d && prevV.GetValueOrDefault(k - 1, 0) < prevV.GetValueOrDefault(k + 1, 0)))
+            if (k == -d || (k != d && v.GetValueOrDefault(k - 1, 0) < v.GetValueOrDefault(k + 1, 0)))
             {
                 prevK = k + 1; // 向下移动来的（插入）
             }
@@ -248,7 +250,7 @@ public static class StructuredPatchGenerator
                 prevK = k - 1; // 向右移动来的（删除）
             }
 
-            var prevX = prevV.GetValueOrDefault(prevK, 0);
+            var prevX = v.GetValueOrDefault(prevK, 0);
             var prevY = prevX - prevK;
 
             // 沿对角线回溯（相等行）
@@ -292,6 +294,7 @@ public static class StructuredPatchGenerator
 
     /// <summary>
     /// 从编辑脚本构建 Hunk 数组
+    /// 基于 EditOp 直接构建，避免因插入/删除导致行错位后按内容比对失效的问题
     /// </summary>
     private static StructuredPatchHunk[] BuildHunks(
         List<EditOp> edits, string[] oldLines, string[] newLines, int contextLines)
@@ -299,17 +302,20 @@ public static class StructuredPatchGenerator
         if (edits.Count == 0)
             return [];
 
-        // 找出所有变更区域（包含上下文）
-        var changeRanges = FindChangeRanges(edits, oldLines, newLines, contextLines);
+        // 找出所有变更区段（连续非 Equal 的 EditOp 区间）
+        var changeSpans = FindChangeSpans(edits);
 
-        // 合并重叠的区域
-        var mergedRanges = MergeRanges(changeRanges, oldLines.Length, newLines.Length);
+        if (changeSpans.Count == 0)
+            return [];
 
-        // 为每个区域生成 hunk
-        var hunks = new List<StructuredPatchHunk>(mergedRanges.Count);
-        foreach (var range in mergedRanges)
+        // 扩展上下文（前后各 contextLines 个 Equal op），合并重叠/相邻
+        var ranges = ExpandAndMergeSpans(changeSpans, edits.Count, contextLines);
+
+        // 为每个区间生成 hunk — 直接遍历 EditOp 输出
+        var hunks = new List<StructuredPatchHunk>(ranges.Count);
+        foreach (var (start, end) in ranges)
         {
-            var hunk = BuildHunk(range, oldLines, newLines);
+            var hunk = BuildHunkFromOps(edits, start, end, oldLines, newLines);
             if (hunk.Lines.Any())
                 hunks.Add(hunk);
         }
@@ -318,174 +324,119 @@ public static class StructuredPatchGenerator
     }
 
     /// <summary>
-    /// 找出所有变更区域（含上下文）
+    /// 找出所有变更区段（连续非 Equal 的 EditOp 起止索引）
     /// </summary>
-    private static List<ChangeRange> FindChangeRanges(
-        List<EditOp> edits, string[] oldLines, string[] newLines, int contextLines)
+    private static List<(int Start, int End)> FindChangeSpans(List<EditOp> edits)
     {
-        var ranges = new List<ChangeRange>();
-        ChangeRange? current = null;
+        var spans = new List<(int Start, int End)>();
 
         for (var i = 0; i < edits.Count; i++)
         {
-            var edit = edits[i];
-            if (edit.Type == EditType.Equal)
+            if (edits[i].Type == EditType.Equal)
                 continue;
 
-            // 变更行
-            var oldStart = Math.Max(0, (edit.OldIndex >= 0 ? edit.OldIndex : 0) - contextLines);
-            var newStart = Math.Max(0, (edit.NewIndex >= 0 ? edit.NewIndex : 0) - contextLines);
+            var start = i;
+            while (i + 1 < edits.Count && edits[i + 1].Type != EditType.Equal)
+                i++;
 
-            // 扩展到包含连续的变更行
-            var oldEnd = edit.OldIndex >= 0 ? edit.OldIndex + 1 : 0;
-            var newEnd = edit.NewIndex >= 0 ? edit.NewIndex + 1 : 0;
+            spans.Add((start, i));
+        }
 
-            // 向后扫描连续变更
-            for (var j = i + 1; j < edits.Count; j++)
+        return spans;
+    }
+
+    /// <summary>
+    /// 扩展上下文并合并重叠/相邻区段
+    /// </summary>
+    private static List<(int Start, int End)> ExpandAndMergeSpans(
+        List<(int Start, int End)> spans, int totalOps, int contextLines)
+    {
+        var ranges = new List<(int Start, int End)>();
+
+        foreach (var (start, end) in spans)
+        {
+            var expandedStart = Math.Max(0, start - contextLines);
+            var expandedEnd = Math.Min(totalOps - 1, end + contextLines);
+
+            if (ranges.Count > 0 && expandedStart <= ranges[^1].End + 1)
             {
-                if (edits[j].Type == EditType.Equal)
-                    break;
-                if (edits[j].OldIndex >= 0)
-                    oldEnd = edits[j].OldIndex + 1;
-                if (edits[j].NewIndex >= 0)
-                    newEnd = edits[j].NewIndex + 1;
-                i = j;
-            }
-
-            // 添加上下文
-            oldEnd = Math.Min(oldLines.Length, oldEnd + contextLines);
-            newEnd = Math.Min(newLines.Length, newEnd + contextLines);
-            oldStart = Math.Max(0, oldStart);
-            newStart = Math.Max(0, newStart);
-
-            if (current is not null && oldStart <= current.OldEnd)
-            {
-                // 合并到当前区域
-                current = current with
-                {
-                    OldEnd = Math.Max(current.OldEnd, oldEnd),
-                    NewEnd = Math.Max(current.NewEnd, newEnd)
-                };
+                ranges[^1] = (ranges[^1].Start, Math.Max(ranges[^1].End, expandedEnd));
             }
             else
             {
-                if (current is not null)
-                    ranges.Add(current);
-                current = new ChangeRange(oldStart, oldEnd, newStart, newEnd);
+                ranges.Add((expandedStart, expandedEnd));
             }
         }
-
-        if (current is not null)
-            ranges.Add(current);
 
         return ranges;
     }
 
     /// <summary>
-    /// 合并重叠或相邻的区域
+    /// 根据 EditOp 区间构建单个 Hunk（直接按 op 类型输出，不做内容比对）
     /// </summary>
-    private static List<ChangeRange> MergeRanges(List<ChangeRange> ranges, int oldTotal, int newTotal)
-    {
-        if (ranges.Count <= 1)
-            return ranges;
-
-        var merged = new List<ChangeRange> { ranges[0] };
-
-        for (var i = 1; i < ranges.Count; i++)
-        {
-            var last = merged[^1];
-            var current = ranges[i];
-
-            if (current.OldStart <= last.OldEnd)
-            {
-                merged[^1] = last with
-                {
-                    OldEnd = Math.Max(last.OldEnd, current.OldEnd),
-                    NewEnd = Math.Max(last.NewEnd, current.NewEnd)
-                };
-            }
-            else
-            {
-                merged.Add(current);
-            }
-        }
-
-        return merged;
-    }
-
-    /// <summary>
-    /// 为单个区域构建 Hunk
-    /// </summary>
-    private static StructuredPatchHunk BuildHunk(ChangeRange range, string[] oldLines, string[] newLines)
+    private static StructuredPatchHunk BuildHunkFromOps(
+        List<EditOp> edits, int start, int end, string[] oldLines, string[] newLines)
     {
         var lines = new List<PatchLine>();
-        var oldLine = range.OldStart;
-        var newLine = range.NewStart;
 
-        // 使用双指针遍历 old 和 new 的行
-        var oi = range.OldStart;
-        var ni = range.NewStart;
-
-        while (oi < range.OldEnd || ni < range.NewEnd)
+        for (var i = start; i <= end; i++)
         {
-            // 检查是否是相等的行（对角线移动）
-            if (oi < range.OldEnd && ni < range.NewEnd && oldLines[oi] == newLines[ni])
+            var edit = edits[i];
+            switch (edit.Type)
             {
-                lines.Add(new PatchLine
-                {
-                    Type = PatchLineType.Context,
-                    Content = oldLines[oi],
-                    OldLineNumber = oi + 1,
-                    NewLineNumber = ni + 1
-                });
-                oi++;
-                ni++;
-                oldLine++;
-                newLine++;
-            }
-            else
-            {
-                // 先输出删除行
-                if (oi < range.OldEnd && (ni >= range.NewEnd || oldLines[oi] != newLines[ni]))
-                {
-                    // 检查是否是纯删除（old 有但 new 没有）
+                case EditType.Equal:
+                    lines.Add(new PatchLine
+                    {
+                        Type = PatchLineType.Context,
+                        Content = oldLines[edit.OldIndex],
+                        OldLineNumber = edit.OldIndex + 1,
+                        NewLineNumber = edit.NewIndex + 1
+                    });
+                    break;
+                case EditType.Delete:
                     lines.Add(new PatchLine
                     {
                         Type = PatchLineType.Removed,
-                        Content = oldLines[oi],
-                        OldLineNumber = oi + 1,
+                        Content = oldLines[edit.OldIndex],
+                        OldLineNumber = edit.OldIndex + 1,
                         NewLineNumber = null
                     });
-                    oi++;
-                    oldLine++;
-                }
-
-                // 再输出添加行
-                if (ni < range.NewEnd && (oi >= range.OldEnd || (oi < range.OldEnd && oldLines[oi] != newLines[ni])))
-                {
+                    break;
+                case EditType.Insert:
                     lines.Add(new PatchLine
                     {
                         Type = PatchLineType.Added,
-                        Content = newLines[ni],
+                        Content = newLines[edit.NewIndex],
                         OldLineNumber = null,
-                        NewLineNumber = ni + 1
+                        NewLineNumber = edit.NewIndex + 1
                     });
-                    ni++;
-                    newLine++;
-                }
+                    break;
             }
         }
 
-        var oldCount = range.OldEnd - range.OldStart;
-        var newCount = range.NewEnd - range.NewStart;
+        // 计算 hunk 头：起始行号 = 区间前已消费的旧/新行数 + 1
+        // 纯插入/纯删除（count=0）时用 0 基位置对齐 jsdiff（@@ -0,0 +1,1 @@）
+        var oldConsumed = 0;
+        var newConsumed = 0;
+        for (var i = 0; i < start; i++)
+        {
+            if (edits[i].Type != EditType.Insert) oldConsumed++;
+            if (edits[i].Type != EditType.Delete) newConsumed++;
+        }
+
+        var oldCount = lines.Count(l => l.OldLineNumber is not null);
+        var newCount = lines.Count(l => l.NewLineNumber is not null);
+
+        var oldStart = oldCount > 0 ? oldConsumed + 1 : oldConsumed;
+        var newStart = newCount > 0 ? newConsumed + 1 : newConsumed;
 
         return new StructuredPatchHunk
         {
-            OldStart = range.OldStart + 1, // 1-based
+            OldStart = oldStart,
             OldLines = oldCount,
-            NewStart = range.NewStart + 1, // 1-based
+            NewStart = newStart,
             NewLines = newCount,
-            Header = $"@@ -{range.OldStart + 1},{oldCount} +{range.NewStart + 1},{newCount} @@",
+            Header = $"@@ -{oldStart},{oldCount} +{newStart},{newCount} @@",
             Lines = lines.ToArray()
         };
     }
@@ -498,8 +449,6 @@ public static class StructuredPatchGenerator
     }
 
     private readonly record struct EditOp(EditType Type, int OldIndex, int NewIndex);
-
-    private sealed record ChangeRange(int OldStart, int OldEnd, int NewStart, int NewEnd);
 
     /// <summary>
     /// 转义 &amp; 和 $ 字符 — 对齐 TS escapeForDiff

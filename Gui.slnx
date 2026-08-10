@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/app/JoinCodeGui/">
+    <Project Path="app/JoinCodeGui/JoinCodeGui.csproj" />
+  </Folder>
+  <Folder Name="/tests/JoinCodeGui.Tests/">
+    <Project Path="tests/Unit/JoinCodeGui.Tests/JoinCodeGui.Tests.csproj" />
+  </Folder>
+</Solution>

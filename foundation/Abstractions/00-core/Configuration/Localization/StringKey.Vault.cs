@@ -192,8 +192,6 @@ public static partial class StringKey
     public const string VaultLogDeleteMemory = "VaultLogDeleteMemory";
     public const string VaultLogArchiveMemory = "VaultLogArchiveMemory";
     public const string VaultLogCleanupComplete = "VaultLogCleanupComplete";
-    public const string VaultLogArchiveNotImplemented = "VaultLogArchiveNotImplemented";
-    public const string VaultLogRestoreNotImplemented = "VaultLogRestoreNotImplemented";
     public const string VaultLogSearchHistoryNotRegistered = "VaultLogSearchHistoryNotRegistered";
     public const string VaultLogSearchHistoryNotRegisteredContext = "VaultLogSearchHistoryNotRegisteredContext";
     public const string VaultLogDailyLogNotRegistered = "VaultLogDailyLogNotRegistered";
@@ -263,6 +261,7 @@ public static partial class StringKey
     public const string VaultLogStoreAddMemory = "VaultLogStoreAddMemory";
     public const string VaultLogStoreDeleteMemory = "VaultLogStoreDeleteMemory";
     public const string VaultLogStoreArchiveMemory = "VaultLogStoreArchiveMemory";
+    public const string VaultLogStoreRestoreMemory = "VaultLogStoreRestoreMemory";
     public const string VaultLogStoreCleanedExpired = "VaultLogStoreCleanedExpired";
     public const string VaultLogStoreLoadedMemories = "VaultLogStoreLoadedMemories";
     public const string VaultLogStoreLoadFailed = "VaultLogStoreLoadFailed";

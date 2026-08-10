@@ -1,4 +1,4 @@
-namespace Host.Tests.App;
+﻿namespace Host.Tests.App;
 
 /// <summary>
 /// ChatErrorHandlingMiddleware 错误分类测试 — 验证纵深防御的多级报错
@@ -11,7 +11,7 @@ public sealed class ChatErrorHandlingMiddlewareTests
         var original = new JoinCode.Abstractions.Exceptions.PermissionDeniedException(
             JoinCode.Abstractions.Exceptions.PermissionResourceType.Tool, "bash", "not allowed");
 
-        var result = JoinCode.App.Middlewares.ChatErrorHandlingMiddleware.ClassifyException(original);
+        var result = JoinCode.Pipelines.Middlewares.ChatErrorHandlingMiddleware.ClassifyException(original);
 
         Assert.Same(original, result);
         Assert.IsType<JoinCode.Abstractions.Exceptions.PermissionDeniedException>(result);
@@ -22,7 +22,7 @@ public sealed class ChatErrorHandlingMiddlewareTests
     {
         var original = JoinCode.Abstractions.Exceptions.ConfigurationException.Missing("JCC_API_KEY");
 
-        var result = JoinCode.App.Middlewares.ChatErrorHandlingMiddleware.ClassifyException(original);
+        var result = JoinCode.Pipelines.Middlewares.ChatErrorHandlingMiddleware.ClassifyException(original);
 
         Assert.Same(original, result);
         Assert.IsType<JoinCode.Abstractions.Exceptions.ConfigurationException>(result);
@@ -33,7 +33,7 @@ public sealed class ChatErrorHandlingMiddlewareTests
     {
         var original = new System.Net.Http.HttpRequestException("Rate limited", null, System.Net.HttpStatusCode.TooManyRequests);
 
-        var result = JoinCode.App.Middlewares.ChatErrorHandlingMiddleware.ClassifyException(original);
+        var result = JoinCode.Pipelines.Middlewares.ChatErrorHandlingMiddleware.ClassifyException(original);
 
         var apiEx = Assert.IsType<JoinCode.Abstractions.Exceptions.ApiException>(result);
         Assert.Equal(429, apiEx.StatusCode);
@@ -45,7 +45,7 @@ public sealed class ChatErrorHandlingMiddlewareTests
     {
         var original = new System.Net.Http.HttpRequestException("Unauthorized", null, System.Net.HttpStatusCode.Unauthorized);
 
-        var result = JoinCode.App.Middlewares.ChatErrorHandlingMiddleware.ClassifyException(original);
+        var result = JoinCode.Pipelines.Middlewares.ChatErrorHandlingMiddleware.ClassifyException(original);
 
         var apiEx = Assert.IsType<JoinCode.Abstractions.Exceptions.ApiException>(result);
         Assert.Equal(401, apiEx.StatusCode);
@@ -57,7 +57,7 @@ public sealed class ChatErrorHandlingMiddlewareTests
     {
         var original = new InvalidOperationException("something broke");
 
-        var result = JoinCode.App.Middlewares.ChatErrorHandlingMiddleware.ClassifyException(original);
+        var result = JoinCode.Pipelines.Middlewares.ChatErrorHandlingMiddleware.ClassifyException(original);
 
         var apiEx = Assert.IsType<JoinCode.Abstractions.Exceptions.ApiException>(result);
         Assert.Equal("WF003", apiEx.ErrorCode);

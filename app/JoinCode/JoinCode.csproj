@@ -9,20 +9,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)core\execution\Brain\src\Brain.csproj" />
-    <ProjectReference Include="$(RepoRoot)core\execution\Hands\src\Hands.csproj" />
-    <ProjectReference Include="$(RepoRoot)services\Eyes\src\Eyes.csproj" />
-    <ProjectReference Include="$(RepoRoot)core\safety\Vault\src\Vault.csproj" />
     <ProjectReference Include="$(RepoRoot)composition\Composition\src\Composition.csproj" />
-    <ProjectReference Include="$(RepoRoot)core\safety\Guard\src\Guard.csproj" />
     <ProjectReference Include="$(RepoRoot)composition\Clock\src\Clock.csproj" />
-    <ProjectReference Include="$(RepoRoot)services\Bridge\src\Bridge.csproj" />
     <ProjectReference Include="$(RepoRoot)services\Dream\src\Dream.csproj" />
     <ProjectReference Include="$(RepoRoot)core\search\Browser\src\Browser.csproj" />
-    <ProjectReference Include="$(RepoRoot)foundation\Transport.Contracts\Transport.Contracts.csproj" />
-    <ProjectReference Include="$(RepoRoot)infrastructure\Transport.Impl\Transport.Impl.csproj" />
-    <ProjectReference Include="$(RepoRoot)core\ai\Reasoning\src\Reasoning.csproj" />
-    <ProjectReference Include="$(RepoRoot)core\ai\Agents\src\Agents.csproj" />
+    <ProjectReference Include="$(RepoRoot)composition\Pipelines\src\Pipelines.csproj" />
   </ItemGroup>
 
   <ItemGroup>

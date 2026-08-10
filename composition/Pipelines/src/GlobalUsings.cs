@@ -1,0 +1,26 @@
+global using Core.Agents;
+global using Core.Agents.Coordinator;
+global using Core.Agents.Doctor;
+global using Core.Configuration;
+global using Core.Context;
+global using Core.Context.Compact;
+global using Core.DependencyInjection;
+global using Core.Permission;
+global using Core.Query;
+global using Core.Skills;
+global using Infrastructure.Pipeline;
+global using Infrastructure.Pipeline.Middlewares;
+global using JoinCode.Abstractions.Entity;
+global using JoinCode.Abstractions.Exceptions;
+global using JoinCode.Abstractions.Interfaces;
+global using JoinCode.Abstractions.LLM.Chat;
+global using JoinCode.Abstractions.Pipeline;
+global using JoinCode.Abstractions.Utils.Diagnostics;
+global using Microsoft.Extensions.DependencyInjection;
+global using Microsoft.Extensions.Logging;
+global using Services.Web;
+global using Tools.Shell;
+
+global using SkillContext = Core.Skills.SkillContext;
+global using AgentRestrictionMiddleware = Core.Permission.AgentRestrictionMiddleware;
+global using QueryTokenBudgetMiddleware = Core.Query.TokenBudgetMiddleware;

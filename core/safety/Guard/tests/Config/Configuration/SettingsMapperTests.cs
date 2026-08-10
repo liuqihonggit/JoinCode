@@ -100,6 +100,65 @@ public class SettingsMapperTests
     }
 
     [Fact]
+    public void Given_环境变量JCC_VENDOR为anthropic_When_ApplyEnvOverrides_Then_Protocol同步为anthropic()
+    {
+        // Given
+        var config = new WorkflowConfig();
+        config.Provider.Vendor = VendorKind.DeepSeek.ToValue();
+        config.Provider.Protocol = ProtocolKind.OpenAiCompatible.ToValue();
+        Environment.SetEnvironmentVariable(JccEnvVar.Vendor.ToValue(), "anthropic");
+        try
+        {
+            // When
+            _mapper.ApplyEnvOverrides(config);
+
+            // Then: Vendor 切换为 anthropic 时，Protocol 应同步为 anthropic 协议
+            config.Provider.Vendor.Should().Be("anthropic");
+            config.Provider.Protocol.Should().Be(ProtocolKind.Anthropic.ToValue());
+            config.Provider.ProtocolKind.Should().Be(ProtocolKind.Anthropic);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(JccEnvVar.Vendor.ToValue(), null);
+        }
+    }
+
+    [Fact]
+    public void Given_环境变量JCC_PROTOCOL_When_ApplyEnvOverrides_Then_Protocol被覆盖()
+    {
+        // Given
+        var config = new WorkflowConfig();
+        config.Provider.Protocol = ProtocolKind.OpenAiCompatible.ToValue();
+        Environment.SetEnvironmentVariable(JccEnvVar.Protocol.ToValue(), "anthropic");
+        try
+        {
+            // When
+            _mapper.ApplyEnvOverrides(config);
+
+            // Then
+            config.Provider.Protocol.Should().Be("anthropic");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(JccEnvVar.Protocol.ToValue(), null);
+        }
+    }
+
+    [Fact]
+    public void Given_SettingsJson的provider为anthropic_When_ToWorkflowConfig_Then_Protocol同步为anthropic()
+    {
+        // Given
+        var settings = new SettingsJson { Provider = "anthropic" };
+
+        // When
+        var config = _mapper.ToWorkflowConfig(settings);
+
+        // Then
+        config.Provider.Vendor.Should().Be("anthropic");
+        config.Provider.Protocol.Should().Be(ProtocolKind.Anthropic.ToValue());
+    }
+
+    [Fact]
     public void Given_环境变量JCC_API_KEY_When_ApplyEnvOverrides_Then_ApiKey不被覆盖()
     {
         // API Key 由 ConfigLoader.ResolveApiKeyAsync 统一解析，ApplyEnvOverrides 不再处理 API Key

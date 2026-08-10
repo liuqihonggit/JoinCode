@@ -197,6 +197,7 @@ internal static class StartupWorkflow
             if (definition is not null)
             {
                 config.Provider.Definition = definition;
+                config.Provider.Protocol = definition.Protocol.ToValue();
                 config.Provider.ModelId = definition.DefaultModelId;
                 config.Provider.Endpoint ??= definition.DefaultEndpoint;
             }

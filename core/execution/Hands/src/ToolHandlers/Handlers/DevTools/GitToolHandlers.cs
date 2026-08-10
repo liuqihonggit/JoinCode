@@ -268,8 +268,12 @@ public partial class GitToolHandlers
 
         if (string.IsNullOrWhiteSpace(result.Output))
         {
+            var diffMsg = $"No differences\n[诊断] mode: {mode}, path: {path ?? "(all files)"}";
             return ToolResultBuilder.Success()
-                .WithText($"No differences\n[诊断] mode: {mode}, path: {path ?? "(all files)"}")
+                .WithText(diffMsg)
+                .WithDiagnostic(ToolDiagnostic.Create("NoDifferences", diffMsg,
+                    [new DiagnosticDetail("mode", mode ?? "worktree"), new DiagnosticDetail("path", path ?? "(all files)")],
+                    ["工作区与比较基准无差异，可能已经是最新状态。"]))
                 .Build();
         }
 

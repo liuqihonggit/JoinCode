@@ -60,17 +60,17 @@ jobs:
             for part in "${PARTS[@]}"; do
               trimmed=$(echo "$part" | xargs)
               if [ "$trimmed" = "Guard" ]; then
-                EXPANDED="$EXPANDED,\"Guard-Config\",\"Guard-Security\",\"Guard-Hooks\""
+                EXPANDED="$EXPANDED,{\"project\":\"Guard-Config\"},{\"project\":\"Guard-Security\"},{\"project\":\"Guard-Hooks\"}"
               elif [ "$trimmed" = "Vault" ]; then
-                EXPANDED="$EXPANDED,\"Vault-Memdir\",\"Vault-Other\""
+                EXPANDED="$EXPANDED,{\"project\":\"Vault-Memdir\"},{\"project\":\"Vault-Other\"}"
               elif [ "$trimmed" = "Brain" ]; then
-                EXPANDED="$EXPANDED,\"Brain-CtxAdmin\",\"Brain-CtxChat\",\"Brain-CtxOther\",\"Brain-CtxNonServices\",\"Brain-PromptsSections\",\"Brain-PromptsOther\",\"Brain-Other\""
+                EXPANDED="$EXPANDED,{\"project\":\"Brain-CtxAdmin\"},{\"project\":\"Brain-CtxChat\"},{\"project\":\"Brain-CtxOther\"},{\"project\":\"Brain-CtxNonServices\"},{\"project\":\"Brain-PromptsSections\"},{\"project\":\"Brain-PromptsOther\"},{\"project\":\"Brain-Other\"}"
               elif [ "$trimmed" = "Hands" ]; then
-                EXPANDED="$EXPANDED,\"Hands-SysTools\",\"Hands-CoreHandlers\",\"Hands-DevTools\",\"Hands-SkillServices\",\"Hands-SkillBuiltIn\",\"Hands-SkillOther\",\"Hands-Api\",\"Hands-Shell\""
+                EXPANDED="$EXPANDED,{\"project\":\"Hands-SysTools\"},{\"project\":\"Hands-CoreHandlers\"},{\"project\":\"Hands-DevTools\"},{\"project\":\"Hands-SkillServices\"},{\"project\":\"Hands-SkillBuiltIn\"},{\"project\":\"Hands-SkillOther\"},{\"project\":\"Hands-Api\"},{\"project\":\"Hands-Shell\"}"
               elif [ "$trimmed" = "Host" ]; then
-                EXPANDED="$EXPANDED,\"Host-Commands\",\"Host-Other\""
+                EXPANDED="$EXPANDED,{\"project\":\"Host-Commands\"},{\"project\":\"Host-Other\"}"
               else
-                EXPANDED="$EXPANDED,\"$trimmed\""
+                EXPANDED="$EXPANDED,{\"project\":\"$trimmed\"}"
               fi
             done
             EXPANDED="${EXPANDED#,}"

@@ -31,14 +31,16 @@ public class PermissionToolHandlers
     {
         if (string.IsNullOrWhiteSpace(agent_pattern))
         {
-            return ToolResultBuilder.Error().WithText("agent_pattern 不能为空").Build();
+            var diag = BuildAgentPatternEmptyDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var permissionMode = PermissionModeExtensions.FromValue(mode);
         if (permissionMode is null)
         {
+            var modeDiag = BuildInvalidPermissionModeDiagnostic(mode);
             return ToolResultBuilder.Error()
-                .WithText($"无效的权限模式: {mode}。有效值: auto, plan, ask, deny").Build();
+                .WithText(modeDiag.FormattedMessage).WithDiagnostic(modeDiag).Build();
         }
 
         var permissionLevel = PermissionLevel.Read;
@@ -47,8 +49,9 @@ public class PermissionToolHandlers
             var parsedLevel = PermissionLevelExtensions.FromValue(level);
             if (parsedLevel is null)
             {
+                var levelDiag = BuildInvalidPermissionLevelDiagnostic(level);
                 return ToolResultBuilder.Error()
-                    .WithText($"无效的权限级别: {level}。有效值: none, read, write, execute, admin").Build();
+                    .WithText(levelDiag.FormattedMessage).WithDiagnostic(levelDiag).Build();
             }
             permissionLevel = parsedLevel.Value;
         }
@@ -94,14 +97,16 @@ public class PermissionToolHandlers
     {
         if (string.IsNullOrWhiteSpace(agent_pattern))
         {
-            return ToolResultBuilder.Error().WithText("agent_pattern 不能为空").Build();
+            var diag = BuildAgentPatternEmptyDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var removed = await _permissionManager.RemoveRuleAsync(agent_pattern, cancellationToken).ConfigureAwait(false);
 
         if (!removed)
         {
-            return ToolResultBuilder.Error().WithText($"未找到规则: {agent_pattern}").Build();
+            var nfDiag = BuildRuleNotFoundDiagnostic(agent_pattern);
+            return ToolResultBuilder.Error().WithText(nfDiag.FormattedMessage).WithDiagnostic(nfDiag).Build();
         }
 
         return ToolResultBuilder.Success()
@@ -150,12 +155,14 @@ public class PermissionToolHandlers
     {
         if (string.IsNullOrWhiteSpace(agent_name))
         {
-            return ToolResultBuilder.Error().WithText("agent_name 不能为空").Build();
+            var diag = BuildAgentNameEmptyDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         if (string.IsNullOrWhiteSpace(tool_name))
         {
-            return ToolResultBuilder.Error().WithText("tool_name 不能为空").Build();
+            var diag = BuildToolNameEmptyDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var result = await _permissionManager.CheckToolPermissionAsync(agent_name, tool_name, null, cancellationToken).ConfigureAwait(false);
@@ -202,12 +209,14 @@ public class PermissionToolHandlers
     {
         if (string.IsNullOrWhiteSpace(agent_name))
         {
-            return ToolResultBuilder.Error().WithText("agent_name 不能为空").Build();
+            var diag = BuildAgentNameEmptyDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         if (string.IsNullOrWhiteSpace(path))
         {
-            return ToolResultBuilder.Error().WithText("path 不能为空").Build();
+            var diag = BuildPathEmptyDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var result = await _permissionManager.CheckPathPermissionAsync(agent_name, path, cancellationToken).ConfigureAwait(false);
@@ -243,7 +252,8 @@ public class PermissionToolHandlers
     {
         if (string.IsNullOrWhiteSpace(agent_name))
         {
-            return ToolResultBuilder.Error().WithText("agent_name 不能为空").Build();
+            var diag = BuildAgentNameEmptyDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var rule = await _permissionManager.GetRuleForAgentAsync(agent_name, cancellationToken).ConfigureAwait(false);
@@ -273,9 +283,9 @@ public class PermissionToolHandlers
     {
         if (confirm != "yes")
         {
+            var diag = BuildClearConfirmInvalidDiagnostic();
             return ToolResultBuilder.Error()
-                .WithText("请输入 'yes' 确认清除所有规则")
-                .Build();
+                .WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         await _permissionManager.ClearRulesAsync(cancellationToken).ConfigureAwait(false);
@@ -284,6 +294,134 @@ public class PermissionToolHandlers
             .WithText($"{StatusSymbol.Tick.ToValue()} 所有权限规则已清除")
             .Build();
     }
+
+    #region Diagnostic Builders
+
+    internal static ToolDiagnostic BuildAgentPatternEmptyDiagnostic()
+    {
+        return ToolDiagnostic.Create(
+            reason: "PermissionAgentPatternEmpty",
+            formattedMessage: "agent_pattern 不能为空",
+            details:
+            [
+                new DiagnosticDetail("Field", "agent_pattern"),
+                new DiagnosticDetail("Requirement", "Non-empty agent name or pattern (supports wildcard *)"),
+            ],
+            suggestions:
+            [
+                "Provide a valid agent name or pattern.",
+            ]);
+    }
+
+    internal static ToolDiagnostic BuildInvalidPermissionModeDiagnostic(string mode)
+    {
+        return ToolDiagnostic.Create(
+            reason: "PermissionInvalidMode",
+            formattedMessage: $"无效的权限模式: {mode}。有效值: auto, plan, ask, deny",
+            details:
+            [
+                new DiagnosticDetail("ProvidedMode", mode),
+                new DiagnosticDetail("ValidValues", "auto, plan, ask, deny"),
+            ],
+            suggestions:
+            [
+                "Choose one of: auto, plan, ask, deny.",
+            ]);
+    }
+
+    internal static ToolDiagnostic BuildInvalidPermissionLevelDiagnostic(string level)
+    {
+        return ToolDiagnostic.Create(
+            reason: "PermissionInvalidLevel",
+            formattedMessage: $"无效的权限级别: {level}。有效值: none, read, write, execute, admin",
+            details:
+            [
+                new DiagnosticDetail("ProvidedLevel", level),
+                new DiagnosticDetail("ValidValues", "none, read, write, execute, admin"),
+            ],
+            suggestions:
+            [
+                "Choose one of: none, read, write, execute, admin.",
+            ]);
+    }
+
+    internal static ToolDiagnostic BuildRuleNotFoundDiagnostic(string agentPattern)
+    {
+        return ToolDiagnostic.Create(
+            reason: "PermissionRuleNotFound",
+            formattedMessage: $"未找到规则: {agentPattern}",
+            details:
+            [
+                new DiagnosticDetail("AgentPattern", agentPattern),
+            ],
+            suggestions:
+            [
+                "Use permission_list_rules to see existing rules.",
+                "Verify the agent pattern is correct.",
+            ]);
+    }
+
+    internal static ToolDiagnostic BuildAgentNameEmptyDiagnostic()
+    {
+        return ToolDiagnostic.Create(
+            reason: "PermissionAgentNameEmpty",
+            formattedMessage: "agent_name 不能为空",
+            details:
+            [
+                new DiagnosticDetail("Field", "agent_name"),
+            ],
+            suggestions:
+            [
+                "Provide a valid agent name.",
+            ]);
+    }
+
+    internal static ToolDiagnostic BuildToolNameEmptyDiagnostic()
+    {
+        return ToolDiagnostic.Create(
+            reason: "PermissionToolNameEmpty",
+            formattedMessage: "tool_name 不能为空",
+            details:
+            [
+                new DiagnosticDetail("Field", "tool_name"),
+            ],
+            suggestions:
+            [
+                "Provide a valid tool name.",
+            ]);
+    }
+
+    internal static ToolDiagnostic BuildPathEmptyDiagnostic()
+    {
+        return ToolDiagnostic.Create(
+            reason: "PermissionPathEmpty",
+            formattedMessage: "path 不能为空",
+            details:
+            [
+                new DiagnosticDetail("Field", "path"),
+            ],
+            suggestions:
+            [
+                "Provide a valid file system path.",
+            ]);
+    }
+
+    internal static ToolDiagnostic BuildClearConfirmInvalidDiagnostic()
+    {
+        return ToolDiagnostic.Create(
+            reason: "PermissionClearConfirmInvalid",
+            formattedMessage: "请输入 'yes' 确认清除所有规则",
+            details:
+            [
+                new DiagnosticDetail("RequiredValue", "yes"),
+            ],
+            suggestions:
+            [
+                "Type 'yes' to confirm clearing all permission rules.",
+            ]);
+    }
+
+    #endregion
 
     #region Private Methods
 

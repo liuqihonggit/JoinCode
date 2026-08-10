@@ -61,7 +61,8 @@ public sealed partial class ShellSedInterceptMiddleware : ServiceEntity, IShellM
     {
         if (_fs is null)
         {
-            return ToolResultBuilder.Error().WithText("sed -i requires file system access but IFileSystem is not available").Build();
+            var diag = BuildFileSystemUnavailableDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var filePath = sedInfo.FilePath;
@@ -96,7 +97,8 @@ public sealed partial class ShellSedInterceptMiddleware : ServiceEntity, IShellM
                 }
                 catch (Exception ex)
                 {
-                    return ToolResultBuilder.Error().WithText($"Failed to write file: {ex.Message}").Build();
+                    var diag = BuildWriteFailedDiagnostic(filePath, ex.Message);
+                    return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
                 }
 
                 return ToolResultBuilder.Success().WithText($"Applied sed substitution to {sedInfo.FilePath}").Build();
@@ -110,7 +112,8 @@ public sealed partial class ShellSedInterceptMiddleware : ServiceEntity, IShellM
         // 首次调用：读取文件→模拟替换→返回预览
         if (!_fs.FileExists(filePath))
         {
-            return ToolResultBuilder.Error().WithText($"File not found: {sedInfo.FilePath}").Build();
+            var diag = BuildFileNotFoundDiagnostic(sedInfo.FilePath);
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         string oldContent;
@@ -123,7 +126,8 @@ public sealed partial class ShellSedInterceptMiddleware : ServiceEntity, IShellM
         }
         catch (Exception ex)
         {
-            return ToolResultBuilder.Error().WithText($"Failed to read file: {ex.Message}").Build();
+            var diag = BuildReadFailedDiagnostic(filePath, ex.Message);
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         // 模拟替换
@@ -185,6 +189,38 @@ public sealed partial class ShellSedInterceptMiddleware : ServiceEntity, IShellM
 
         return ToolResultBuilder.Success().WithText(preview.ToString()).Build();
     }
+
+    internal static ToolDiagnostic BuildFileSystemUnavailableDiagnostic() =>
+        ToolDiagnostic.Create(
+            reason: "服务不可用",
+            formattedMessage: "sed -i requires file system access but IFileSystem is not available");
+
+    internal static ToolDiagnostic BuildWriteFailedDiagnostic(string filePath, string errorMessage) =>
+        ToolDiagnostic.Create(
+            reason: "写入文件失败",
+            formattedMessage: $"Failed to write file: {errorMessage}",
+            details:
+            [
+                new DiagnosticDetail("file_path", filePath),
+                new DiagnosticDetail("error", errorMessage)
+            ]);
+
+    internal static ToolDiagnostic BuildFileNotFoundDiagnostic(string filePath) =>
+        ToolDiagnostic.Create(
+            reason: "文件未找到",
+            formattedMessage: $"File not found: {filePath}",
+            details: [new DiagnosticDetail("file_path", filePath)],
+            suggestions: ["确认文件路径是否正确", "使用绝对路径或检查工作目录"]);
+
+    internal static ToolDiagnostic BuildReadFailedDiagnostic(string filePath, string errorMessage) =>
+        ToolDiagnostic.Create(
+            reason: "读取文件失败",
+            formattedMessage: $"Failed to read file: {errorMessage}",
+            details:
+            [
+                new DiagnosticDetail("file_path", filePath),
+                new DiagnosticDetail("error", errorMessage)
+            ]);
 
     /// <summary>
     /// 待确认的 sed 编辑 — 对齐 TS _simulatedSedEdit

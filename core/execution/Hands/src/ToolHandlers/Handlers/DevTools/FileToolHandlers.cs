@@ -3,7 +3,7 @@
 namespace Tools.Handlers;
 
 [McpToolDispatch(ToolCategory.File)]
-public class FileToolHandlers : IDisposable
+public partial class FileToolHandlers : IDisposable
 {
     private static readonly FrozenSet<string> BinaryExtensions = CreateBinaryExtensionSet();
     private static readonly FrozenSet<string> BlockedDevicePaths = CreateBlockedDevicePathSet();
@@ -90,7 +90,8 @@ public class FileToolHandlers : IDisposable
             ValidationHelper.ValidateRange(limit, 1, int.MaxValue, "limit"));
         if (validationError != null)
         {
-            return ToolResultBuilder.Error().WithText(validationError).Build();
+            var validationDiag = BuildValidationErrorDiagnostic(validationError);
+            return ToolResultBuilder.Error().WithText(validationDiag.FormattedMessage).WithDiagnostic(validationDiag).Build();
         }
 
         if (IsUncPath(file_path))
@@ -308,12 +309,14 @@ public class FileToolHandlers : IDisposable
             ValidationHelper.ValidateStringLength(file_path, 4096, "file_path"));
         if (validationError != null)
         {
-            return ToolResultBuilder.Error().WithText(validationError).Build();
+            var validationDiag = BuildValidationErrorDiagnostic(validationError);
+            return ToolResultBuilder.Error().WithText(validationDiag.FormattedMessage).WithDiagnostic(validationDiag).Build();
         }
 
         if (IsUncPath(file_path))
         {
-            return ToolResultBuilder.Error().WithText("Cannot write UNC path files (starting with \\\\), this may lead to credential leakage").Build();
+            var uncDiag = BuildUncPathWriteRejectedDiagnostic();
+            return ToolResultBuilder.Error().WithText(uncDiag.FormattedMessage).WithDiagnostic(uncDiag).Build();
         }
 
         file_path = await ResolveSandboxPathAsync(file_path, cancellationToken).ConfigureAwait(false);
@@ -324,7 +327,8 @@ public class FileToolHandlers : IDisposable
             var secretError = _teamMemSecretGuard.CheckTeamMemSecrets(file_path, content);
             if (secretError is not null)
             {
-                return ToolResultBuilder.Error().WithText(secretError).Build();
+                var secretDiag = BuildTeamMemSecretRejectedDiagnostic(secretError);
+                return ToolResultBuilder.Error().WithText(secretDiag.FormattedMessage).WithDiagnostic(secretDiag).Build();
             }
         }
 
@@ -334,7 +338,8 @@ public class FileToolHandlers : IDisposable
             if (!_fileStateCache.HasBeenRead(file_path))
             {
                 RecordFileMetrics(FileOperationType.Write, FileOperationResult.Rejected);
-                return ToolResultBuilder.Error().WithText("File has not been read yet. Read it first before writing to it. Use the Read tool to examine the file, then write your changes.").Build();
+                var notReadDiag = BuildFileNotReadBeforeWriteDiagnostic();
+                return ToolResultBuilder.Error().WithText(notReadDiag.FormattedMessage).WithDiagnostic(notReadDiag).Build();
             }
 
             // Stale-write guard: check if file was modified after we read it
@@ -360,14 +365,16 @@ public class FileToolHandlers : IDisposable
                         }
                         else
                         {
-                            RecordFileMetrics(FileOperationType.Write, FileOperationResult.Stale);
-                            return ToolResultBuilder.Error().WithText("File has been modified since it was last read. The file may have been changed by another process. Read it again before writing to ensure you have the latest content.").Build();
+                        RecordFileMetrics(FileOperationType.Write, FileOperationResult.Stale);
+                        var staleWriteDiag2 = BuildFileModifiedSinceReadDiagnostic("writing");
+                        return ToolResultBuilder.Error().WithText(staleWriteDiag2.FormattedMessage).WithDiagnostic(staleWriteDiag2).Build();
                         }
                     }
                     else
                     {
                         RecordFileMetrics(FileOperationType.Write, FileOperationResult.Stale);
-                        return ToolResultBuilder.Error().WithText("File has been modified since it was last read. The file may have been changed by another process. Read it again before writing to ensure you have the latest content.").Build();
+                        var staleWriteDiag = BuildFileModifiedSinceReadDiagnostic("writing");
+                        return ToolResultBuilder.Error().WithText(staleWriteDiag.FormattedMessage).WithDiagnostic(staleWriteDiag).Build();
                     }
                 }
             }
@@ -446,22 +453,26 @@ public class FileToolHandlers : IDisposable
             ValidationHelper.ValidateStringLength(file_path, 4096, "file_path"));
         if (validationError != null)
         {
-            return ToolResultBuilder.Error().WithText(validationError).Build();
+            var validationDiag = BuildValidationErrorDiagnostic(validationError);
+            return ToolResultBuilder.Error().WithText(validationDiag.FormattedMessage).WithDiagnostic(validationDiag).Build();
         }
 
         if (IsUncPath(file_path))
         {
-            return ToolResultBuilder.Error().WithText("Cannot edit UNC path files (starting with \\\\), this may lead to credential leakage").Build();
+            var uncDiag = BuildUncPathEditRejectedDiagnostic();
+            return ToolResultBuilder.Error().WithText(uncDiag.FormattedMessage).WithDiagnostic(uncDiag).Build();
         }
 
         if (file_path.EndsWith(".ipynb", StringComparison.OrdinalIgnoreCase))
         {
-            return ToolResultBuilder.Error().WithText("This is a Jupyter Notebook file. Use the notebook_edit tool to edit this file.").Build();
+            var notebookDiag = BuildNotebookEditRejectedDiagnostic();
+            return ToolResultBuilder.Error().WithText(notebookDiag.FormattedMessage).WithDiagnostic(notebookDiag).Build();
         }
 
         if (old_string == new_string)
         {
-            return ToolResultBuilder.Error().WithText("old_string and new_string are identical, no changes needed").Build();
+            var identicalDiag = BuildIdenticalStringsDiagnostic();
+            return ToolResultBuilder.Error().WithText(identicalDiag.FormattedMessage).WithDiagnostic(identicalDiag).Build();
         }
 
         file_path = await ResolveSandboxPathAsync(file_path, cancellationToken).ConfigureAwait(false);
@@ -472,7 +483,8 @@ public class FileToolHandlers : IDisposable
             var secretError = _teamMemSecretGuard.CheckTeamMemSecrets(file_path, new_string);
             if (secretError is not null)
             {
-                return ToolResultBuilder.Error().WithText(secretError).Build();
+                var secretDiag = BuildTeamMemSecretRejectedDiagnostic(secretError);
+                return ToolResultBuilder.Error().WithText(secretDiag.FormattedMessage).WithDiagnostic(secretDiag).Build();
             }
         }
 
@@ -490,7 +502,8 @@ public class FileToolHandlers : IDisposable
             if (settingsError is not null)
             {
                 RecordFileMetrics(FileOperationType.Edit, FileOperationResult.Rejected);
-                return ToolResultBuilder.Error().WithText(settingsError).Build();
+                var settingsDiag = BuildSettingsEditRejectedDiagnostic(settingsError);
+                return ToolResultBuilder.Error().WithText(settingsDiag.FormattedMessage).WithDiagnostic(settingsDiag).Build();
             }
         }
 
@@ -501,7 +514,8 @@ public class FileToolHandlers : IDisposable
             if (currentAgentType is not null && !currentAgentType.Equals("keywordMaintenance", StringComparison.OrdinalIgnoreCase))
             {
                 RecordFileMetrics(FileOperationType.Edit, FileOperationResult.Rejected);
-                return ToolResultBuilder.Error().WithText("keyword-sections.json 只能由 keywordMaintenance Agent 编辑").Build();
+                var keywordDiag = BuildKeywordSectionsEditRejectedDiagnostic();
+                return ToolResultBuilder.Error().WithText(keywordDiag.FormattedMessage).WithDiagnostic(keywordDiag).Build();
             }
         }
 
@@ -512,7 +526,8 @@ public class FileToolHandlers : IDisposable
             if (!IsDoctorAllowedEditPath(file_path))
             {
                 RecordFileMetrics(FileOperationType.Edit, FileOperationResult.Rejected);
-                return ToolResultBuilder.Error().WithText("doctor Agent 只能编辑 .jcc/diag/、.jcc/reflexion/ 和 worktree 内文件").Build();
+                var doctorDiag = BuildDoctorAgentEditRejectedDiagnostic();
+                return ToolResultBuilder.Error().WithText(doctorDiag.FormattedMessage).WithDiagnostic(doctorDiag).Build();
             }
         }
 
@@ -522,7 +537,8 @@ public class FileToolHandlers : IDisposable
             if (!_fileStateCache.HasBeenRead(file_path))
             {
                 RecordFileMetrics(FileOperationType.Edit, FileOperationResult.Rejected);
-                return ToolResultBuilder.Error().WithText("File has not been read yet. Read it first before editing it. Use the Read tool to examine the file, then make your edits.").Build();
+                var notReadDiag = BuildFileNotReadBeforeEditDiagnostic();
+                return ToolResultBuilder.Error().WithText(notReadDiag.FormattedMessage).WithDiagnostic(notReadDiag).Build();
             }
 
             var readTimestamp = _fileStateCache.GetReadTimestampMs(file_path);
@@ -547,14 +563,16 @@ public class FileToolHandlers : IDisposable
                         }
                         else
                         {
-                            RecordFileMetrics(FileOperationType.Edit, FileOperationResult.Stale);
-                            return ToolResultBuilder.Error().WithText("File has been modified since it was last read. The file may have been changed by another process. Read it again before editing to ensure you have the latest content.").Build();
+                        RecordFileMetrics(FileOperationType.Edit, FileOperationResult.Stale);
+                        var staleEditDiag2 = BuildFileModifiedSinceReadDiagnostic("editing");
+                        return ToolResultBuilder.Error().WithText(staleEditDiag2.FormattedMessage).WithDiagnostic(staleEditDiag2).Build();
                         }
                     }
                     else
                     {
                         RecordFileMetrics(FileOperationType.Edit, FileOperationResult.Stale);
-                        return ToolResultBuilder.Error().WithText("File has been modified since it was last read. The file may have been changed by another process. Read it again before editing to ensure you have the latest content.").Build();
+                        var staleEditDiag = BuildFileModifiedSinceReadDiagnostic("editing");
+                        return ToolResultBuilder.Error().WithText(staleEditDiag.FormattedMessage).WithDiagnostic(staleEditDiag).Build();
                     }
                 }
             }
@@ -632,7 +650,8 @@ public class FileToolHandlers : IDisposable
             ValidationHelper.ValidateStringLength(file_path, 4096, "file_path"));
         if (validationError != null)
         {
-            return ToolResultBuilder.Error().WithText(validationError).Build();
+            var validationDiag = BuildValidationErrorDiagnostic(validationError);
+            return ToolResultBuilder.Error().WithText(validationDiag.FormattedMessage).WithDiagnostic(validationDiag).Build();
         }
 
         file_path = await ResolveSandboxPathAsync(file_path, cancellationToken).ConfigureAwait(false);
@@ -673,7 +692,8 @@ public class FileToolHandlers : IDisposable
             ValidationHelper.ValidateStringLength(directory_path, 4096, "directory_path"));
         if (validationError != null)
         {
-            return ToolResultBuilder.Error().WithText(validationError).Build();
+            var validationDiag = BuildValidationErrorDiagnostic(validationError);
+            return ToolResultBuilder.Error().WithText(validationDiag.FormattedMessage).WithDiagnostic(validationDiag).Build();
         }
 
         directory_path = await ResolveSandboxPathAsync(directory_path, cancellationToken).ConfigureAwait(false);
@@ -686,7 +706,8 @@ public class FileToolHandlers : IDisposable
         if (!result.Success)
         {
             RecordFileMetrics(FileOperationType.List, FileOperationResult.Failed);
-            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to list directory").Build();
+            var listDiag = BuildListDirectoryFailedDiagnostic(result.ErrorMessage ?? "Failed to list directory");
+            return ToolResultBuilder.Error().WithText(listDiag.FormattedMessage).WithDiagnostic(listDiag).Build();
         }
 
         var response = new StringBuilder(512);
@@ -736,13 +757,19 @@ public class FileToolHandlers : IDisposable
         CancellationToken cancellationToken = default)
     {
         if (_fileEditLogic == null)
-            return ToolResultBuilder.Error().WithText("File edit service is not initialized").Build();
+        {
+            var notInitDiag = BuildFileEditServiceNotInitializedDiagnostic();
+            return ToolResultBuilder.Error().WithText(notInitDiag.FormattedMessage).WithDiagnostic(notInitDiag).Build();
+        }
 
         var validationError = ValidationHelper.CombineErrors(
             ValidationHelper.ValidateRequired(file_path, "file_path"),
             ValidationHelper.ValidateRequired(pattern, "pattern"));
         if (validationError != null)
-            return ToolResultBuilder.Error().WithText(validationError).Build();
+        {
+            var validationDiag = BuildValidationErrorDiagnostic(validationError);
+            return ToolResultBuilder.Error().WithText(validationDiag.FormattedMessage).WithDiagnostic(validationDiag).Build();
+        }
 
         file_path = await ResolveSandboxPathAsync(file_path, cancellationToken).ConfigureAwait(false);
 
@@ -791,14 +818,20 @@ public class FileToolHandlers : IDisposable
         CancellationToken cancellationToken = default)
     {
         if (_fileEditLogic == null)
-            return ToolResultBuilder.Error().WithText("File edit service is not initialized").Build();
+        {
+            var notInitDiag = BuildFileEditServiceNotInitializedDiagnostic();
+            return ToolResultBuilder.Error().WithText(notInitDiag.FormattedMessage).WithDiagnostic(notInitDiag).Build();
+        }
 
         var validationError = ValidationHelper.CombineErrors(
             ValidationHelper.ValidateRequired(file_path, "file_path"),
             ValidationHelper.ValidateRequired(new_content, "new_content"),
             ValidationHelper.ValidateRange(after_line, 0, int.MaxValue, "after_line"));
         if (validationError != null)
-            return ToolResultBuilder.Error().WithText(validationError).Build();
+        {
+            var validationDiag = BuildValidationErrorDiagnostic(validationError);
+            return ToolResultBuilder.Error().WithText(validationDiag.FormattedMessage).WithDiagnostic(validationDiag).Build();
+        }
 
         file_path = await ResolveSandboxPathAsync(file_path, cancellationToken).ConfigureAwait(false);
 
@@ -847,14 +880,20 @@ public class FileToolHandlers : IDisposable
         CancellationToken cancellationToken = default)
     {
         if (_fileEditLogic == null)
-            return ToolResultBuilder.Error().WithText("File edit service is not initialized").Build();
+        {
+            var notInitDiag = BuildFileEditServiceNotInitializedDiagnostic();
+            return ToolResultBuilder.Error().WithText(notInitDiag.FormattedMessage).WithDiagnostic(notInitDiag).Build();
+        }
 
         var validationError = ValidationHelper.CombineErrors(
             ValidationHelper.ValidateRequired(file_path, "file_path"),
             ValidationHelper.ValidateRange(start_line, 1, int.MaxValue, "start_line"),
             ValidationHelper.ValidateRange(end_line, 1, int.MaxValue, "end_line"));
         if (validationError != null)
-            return ToolResultBuilder.Error().WithText(validationError).Build();
+        {
+            var validationDiag = BuildValidationErrorDiagnostic(validationError);
+            return ToolResultBuilder.Error().WithText(validationDiag.FormattedMessage).WithDiagnostic(validationDiag).Build();
+        }
 
         file_path = await ResolveSandboxPathAsync(file_path, cancellationToken).ConfigureAwait(false);
 
@@ -904,15 +943,24 @@ public class FileToolHandlers : IDisposable
         CancellationToken cancellationToken = default)
     {
         if (_fileEditLogic == null)
-            return ToolResultBuilder.Error().WithText("File edit service is not initialized").Build();
+        {
+            var notInitDiag = BuildFileEditServiceNotInitializedDiagnostic();
+            return ToolResultBuilder.Error().WithText(notInitDiag.FormattedMessage).WithDiagnostic(notInitDiag).Build();
+        }
 
         var validationError = ValidationHelper.CombineErrors(
             ValidationHelper.ValidateRequired(old_string, "old_string"));
         if (validationError != null)
-            return ToolResultBuilder.Error().WithText(validationError).Build();
+        {
+            var validationDiag = BuildValidationErrorDiagnostic(validationError);
+            return ToolResultBuilder.Error().WithText(validationDiag.FormattedMessage).WithDiagnostic(validationDiag).Build();
+        }
 
         if (file_paths == null || file_paths.Length == 0)
-            return ToolResultBuilder.Error().WithText("At least one file path is required").Build();
+        {
+            var noPathsDiag = BuildFilePathRequiredDiagnostic();
+            return ToolResultBuilder.Error().WithText(noPathsDiag.FormattedMessage).WithDiagnostic(noPathsDiag).Build();
+        }
 
         var resolvedPaths = await Task.WhenAll(
             file_paths.Select(path => ResolveSandboxPathAsync(path, cancellationToken))).ConfigureAwait(false);
@@ -972,14 +1020,20 @@ public class FileToolHandlers : IDisposable
         CancellationToken cancellationToken = default)
     {
         if (_snipLogic == null)
-            return ToolResultBuilder.Error().WithText("File chunking service is not initialized").Build();
+        {
+            var notInitDiag = BuildFileChunkingServiceNotInitializedDiagnostic();
+            return ToolResultBuilder.Error().WithText(notInitDiag.FormattedMessage).WithDiagnostic(notInitDiag).Build();
+        }
 
         var validationError = ValidationHelper.CombineErrors(
             ValidationHelper.ValidateRequired(file_path, "file_path"),
             ValidationHelper.ValidateRange(start_line, 0, int.MaxValue, "start_line"),
             ValidationHelper.ValidateRange(line_count, 1, int.MaxValue, "line_count"));
         if (validationError != null)
-            return ToolResultBuilder.Error().WithText(validationError).Build();
+        {
+            var validationDiag = BuildValidationErrorDiagnostic(validationError);
+            return ToolResultBuilder.Error().WithText(validationDiag.FormattedMessage).WithDiagnostic(validationDiag).Build();
+        }
 
         file_path = await ResolveSandboxPathAsync(file_path, cancellationToken).ConfigureAwait(false);
 
@@ -1029,13 +1083,19 @@ public class FileToolHandlers : IDisposable
         CancellationToken cancellationToken = default)
     {
         if (_snipLogic == null)
-            return ToolResultBuilder.Error().WithText("File chunking service is not initialized").Build();
+        {
+            var notInitDiag = BuildFileChunkingServiceNotInitializedDiagnostic();
+            return ToolResultBuilder.Error().WithText(notInitDiag.FormattedMessage).WithDiagnostic(notInitDiag).Build();
+        }
 
         var validationError = ValidationHelper.CombineErrors(
             ValidationHelper.ValidateRequired(file_path, "file_path"),
             ValidationHelper.ValidateRange(max_preview_lines, 1, int.MaxValue, "max_preview_lines"));
         if (validationError != null)
-            return ToolResultBuilder.Error().WithText(validationError).Build();
+        {
+            var validationDiag = BuildValidationErrorDiagnostic(validationError);
+            return ToolResultBuilder.Error().WithText(validationDiag.FormattedMessage).WithDiagnostic(validationDiag).Build();
+        }
 
         file_path = await ResolveSandboxPathAsync(file_path, cancellationToken).ConfigureAwait(false);
 
@@ -1079,7 +1139,7 @@ public class FileToolHandlers : IDisposable
         return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
-    #region Private Methods
+    #region Diagnostics
 
     /// <summary>
     /// 通知 LSP 服务器文件变更（fire-and-forget）
@@ -1489,9 +1549,8 @@ public class FileToolHandlers : IDisposable
         if (base64Data.Length > FileOperationConfig.ApiImageMaxBase64Size)
         {
             RecordFileMetrics(FileOperationType.Read, FileOperationResult.ApiLimitExceeded);
-            return ToolResultBuilder.Error().WithText(
-                $"Image base64 size ({base64Data.Length} bytes) exceeds API limit ({FileOperationConfig.ApiImageMaxBase64Size} bytes). " +
-                "Please use a smaller image.").Build();
+            var base64Diag = BuildImageBase64TooLargeDiagnostic(base64Data.Length, FileOperationConfig.ApiImageMaxBase64Size);
+            return ToolResultBuilder.Error().WithText(base64Diag.FormattedMessage).WithDiagnostic(base64Diag).Build();
         }
 
         // Token 预算检查（对齐 TS: base64.length * 0.125）
@@ -1516,9 +1575,8 @@ public class FileToolHandlers : IDisposable
             {
                 // 所有压缩策略都无法满足预算
                 RecordFileMetrics(FileOperationType.Read, FileOperationResult.TokenExceeded);
-                return ToolResultBuilder.Error().WithText(
-                    $"Image content ({estimatedTokens} tokens, {resizeResult.Buffer.Length} bytes) exceeds maximum allowed tokens ({maxTokens}). " +
-                    "Try reading a smaller image or use offset/limit on text files instead.").Build();
+                var imgTokenDiag = BuildImageTokenExceededDiagnostic(estimatedTokens, resizeResult.Buffer.Length, maxTokens);
+                return ToolResultBuilder.Error().WithText(imgTokenDiag.FormattedMessage).WithDiagnostic(imgTokenDiag).Build();
             }
         }
 
@@ -1568,8 +1626,10 @@ public class FileToolHandlers : IDisposable
             parsedRange = PdfReader.ParsePageRange(pages);
             if (parsedRange is null)
             {
+                var invalidPagesDiag = BuildPdfInvalidPagesDiagnostic(pages);
                 return ToolResultBuilder.Error()
-                    .WithText($"Invalid pages parameter: \"{pages}\". Use formats like \"1-5\", \"3\", or \"10-20\". Pages are 1-indexed.")
+                    .WithText(invalidPagesDiag.FormattedMessage)
+                    .WithDiagnostic(invalidPagesDiag)
                     .Build();
             }
 
@@ -1578,8 +1638,10 @@ public class FileToolHandlers : IDisposable
                 : parsedRange.LastPage - parsedRange.FirstPage + 1;
             if (rangePageCount > FileOperationConfig.PdfMaxPagesPerRead)
             {
+                var rangeExceedDiag = BuildPdfPageRangeExceedsMaxDiagnostic(pages, FileOperationConfig.PdfMaxPagesPerRead);
                 return ToolResultBuilder.Error()
-                    .WithText($"Page range \"{pages}\" exceeds maximum of {FileOperationConfig.PdfMaxPagesPerRead} pages per request. Please use a smaller range.")
+                    .WithText(rangeExceedDiag.FormattedMessage)
+                    .WithDiagnostic(rangeExceedDiag)
                     .Build();
             }
         }
@@ -1667,7 +1729,8 @@ public class FileToolHandlers : IDisposable
             if (!fallbackResult.Success)
             {
                 RecordFileMetrics(FileOperationType.Read, FileOperationResult.PdfFailed);
-                return ToolResultBuilder.Error().WithText(fallbackResult.ErrorMessage ?? "Failed to read PDF file").Build();
+                var fallbackDiag = BuildPdfFallbackReadFailedDiagnostic(fallbackResult.ErrorMessage ?? "Failed to read PDF file");
+                return ToolResultBuilder.Error().WithText(fallbackDiag.FormattedMessage).WithDiagnostic(fallbackDiag).Build();
             }
 
             RecordFileMetrics(FileOperationType.Read, FileOperationResult.Ok);
@@ -1687,7 +1750,8 @@ public class FileToolHandlers : IDisposable
         if (!extractResult.Success)
         {
             RecordFileMetrics(FileOperationType.Read, FileOperationResult.PdfFailed);
-            return ToolResultBuilder.Error().WithText(extractResult.ErrorMessage ?? "Failed to extract PDF pages").Build();
+            var extractDiag = BuildPdfExtractFailedDiagnostic(extractResult.ErrorMessage ?? "Failed to extract PDF pages");
+            return ToolResultBuilder.Error().WithText(extractDiag.FormattedMessage).WithDiagnostic(extractDiag).Build();
         }
 
         // 记录读取状态
@@ -1839,11 +1903,17 @@ public class FileToolHandlers : IDisposable
         CancellationToken cancellationToken = default)
     {
         if (_applyPatchLogic is null)
-            return ToolResultBuilder.Error().WithText("ApplyPatchLogic is not available").Build();
+        {
+            var notAvailDiag = BuildApplyPatchNotAvailableDiagnostic();
+            return ToolResultBuilder.Error().WithText(notAvailDiag.FormattedMessage).WithDiagnostic(notAvailDiag).Build();
+        }
 
         var validationError = ValidationHelper.ValidateRequired(patch, "patch");
         if (validationError != null)
-            return ToolResultBuilder.Error().WithText(validationError).Build();
+        {
+            var validationDiag = BuildValidationErrorDiagnostic(validationError);
+            return ToolResultBuilder.Error().WithText(validationDiag.FormattedMessage).WithDiagnostic(validationDiag).Build();
+        }
 
         var result = await _applyPatchLogic.ApplyAsync(patch, dry_run, workingDirectory: null, cancellationToken).ConfigureAwait(false);
 
@@ -1852,7 +1922,8 @@ public class FileToolHandlers : IDisposable
             var errorText = result.ErrorMessage ?? "Patch did not apply";
             if (result.Details.Count > 0)
                 errorText += "\n" + string.Join("\n", result.Details);
-            return ToolResultBuilder.Error().WithText(errorText).Build();
+            var patchDiag = BuildApplyPatchFailedDiagnostic(errorText);
+            return ToolResultBuilder.Error().WithText(patchDiag.FormattedMessage).WithDiagnostic(patchDiag).Build();
         }
 
         var summary = result.DryRun

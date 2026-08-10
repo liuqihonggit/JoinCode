@@ -33,7 +33,8 @@ public class MemoryExtensionToolHandlers
     {
         if (string.IsNullOrWhiteSpace(content))
         {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.VaultContentCannotBeEmpty)).Build();
+            var diag = BuildEmptyContentDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var categoryValue = DailyLogCategoryExtensions.FromValue(category) ?? DailyLogCategory.Observation;
@@ -89,7 +90,8 @@ public class MemoryExtensionToolHandlers
     {
         if (string.IsNullOrWhiteSpace(query))
         {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.VaultQueryCannotBeEmpty)).Build();
+            var diag = BuildEmptyQueryDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var results = await _memoryManagementService.SearchPastConversationsAsync(
@@ -146,13 +148,16 @@ public class MemoryExtensionToolHandlers
     {
         if (string.IsNullOrWhiteSpace(team_id))
         {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.VaultTeamIdCannotBeEmpty)).Build();
+            var diag = BuildEmptyTeamIdDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         if (_teamMemorySyncService is null)
         {
+            var diag = BuildSyncServiceNotRegisteredDiagnostic();
             return ToolResultBuilder.Error()
-                .WithText(L.T(StringKey.VaultTeamSyncServiceNotRegistered))
+                .WithText(diag.FormattedMessage)
+                .WithDiagnostic(diag)
                 .Build();
         }
 
@@ -202,13 +207,16 @@ public class MemoryExtensionToolHandlers
     {
         if (string.IsNullOrWhiteSpace(team_id))
         {
-            return Task.FromResult(ToolResultBuilder.Error().WithText(L.T(StringKey.VaultTeamIdCannotBeEmpty)).Build());
+            var diag = BuildEmptyTeamIdDiagnostic();
+            return Task.FromResult(ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build());
         }
 
         if (_teamMemorySyncService is null)
         {
+            var diag = BuildSyncServiceNotRegisteredStatusDiagnostic();
             return Task.FromResult(ToolResultBuilder.Error()
-                .WithText(L.T(StringKey.VaultTeamSyncServiceNotRegisteredStatus))
+                .WithText(diag.FormattedMessage)
+                .WithDiagnostic(diag)
                 .Build());
         }
 
@@ -231,4 +239,35 @@ public class MemoryExtensionToolHandlers
 
         return Task.FromResult(ToolResultBuilder.Success().WithText(response.ToString()).Build());
     }
+
+    internal static ToolDiagnostic BuildEmptyContentDiagnostic() =>
+        ToolDiagnostic.Create(
+            reason: "参数验证失败",
+            formattedMessage: L.T(StringKey.VaultContentCannotBeEmpty),
+            details: [new DiagnosticDetail("field", "content")],
+            suggestions: ["提供非空的日志内容"]);
+
+    internal static ToolDiagnostic BuildEmptyQueryDiagnostic() =>
+        ToolDiagnostic.Create(
+            reason: "参数验证失败",
+            formattedMessage: L.T(StringKey.VaultQueryCannotBeEmpty),
+            details: [new DiagnosticDetail("field", "query")],
+            suggestions: ["提供非空的搜索查询"]);
+
+    internal static ToolDiagnostic BuildEmptyTeamIdDiagnostic() =>
+        ToolDiagnostic.Create(
+            reason: "参数验证失败",
+            formattedMessage: L.T(StringKey.VaultTeamIdCannotBeEmpty),
+            details: [new DiagnosticDetail("field", "team_id")],
+            suggestions: ["提供非空的团队 ID"]);
+
+    internal static ToolDiagnostic BuildSyncServiceNotRegisteredDiagnostic() =>
+        ToolDiagnostic.Create(
+            reason: "服务不可用",
+            formattedMessage: L.T(StringKey.VaultTeamSyncServiceNotRegistered));
+
+    internal static ToolDiagnostic BuildSyncServiceNotRegisteredStatusDiagnostic() =>
+        ToolDiagnostic.Create(
+            reason: "服务不可用",
+            formattedMessage: L.T(StringKey.VaultTeamSyncServiceNotRegisteredStatus));
 }

@@ -35,7 +35,8 @@ public class WebToolHandlers
             ValidationHelper.ValidateStringLength(url, 2048, "URL"));
         if (validationError != null)
         {
-            return ToolResultBuilder.Error().WithText(validationError).Build();
+            var diag = BuildValidationErrorDiagnostic(validationError);
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         // 域名级权限检查已移入全局权限链路 PermissionChecker.CheckWebFetchPermission
@@ -122,7 +123,8 @@ public class WebToolHandlers
             ValidationHelper.ValidateRange(max_length, 1, int.MaxValue, "max_length"));
         if (validationError != null)
         {
-            return ToolResultBuilder.Error().WithText(validationError).Build();
+            var diag = BuildValidationErrorDiagnostic(validationError);
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var result = await _webService.FetchAsync(url, cancellationToken).ConfigureAwait(false);
@@ -130,8 +132,10 @@ public class WebToolHandlers
         if (!result.Success)
         {
             RecordWebMetrics("to_markdown", "failed");
+            var diag = BuildFetchFailedDiagnostic(url, result.StatusCode, result.ErrorMessage);
             return ToolResultBuilder.Error()
-                .WithText(result.ErrorMessage ?? "Failed to fetch web content")
+                .WithText(diag.FormattedMessage)
+                .WithDiagnostic(diag)
                 .WithEntityMetadata(EntityMetadataEntry.Int("http_status_code", result.StatusCode))
                 .Build();
         }
@@ -139,8 +143,10 @@ public class WebToolHandlers
         if (result.RedirectUrl != null)
         {
             RecordWebMetrics("to_markdown", "redirect");
+            var diag = BuildRedirectDiagnostic(url, result.RedirectUrl, result.RedirectStatusCode);
             return ToolResultBuilder.Error()
-                .WithText($"URL redirects to {result.RedirectUrl} (status {result.RedirectStatusCode}). Please use the redirect URL directly.")
+                .WithText(diag.FormattedMessage)
+                .WithDiagnostic(diag)
                 .WithEntityMetadata(EntityMetadataEntry.Int("http_status_code", result.RedirectStatusCode))
                 .Build();
         }
@@ -173,7 +179,8 @@ public class WebToolHandlers
             ValidationHelper.ValidateStringLength(query, 500, "search query"));
         if (validationError != null)
         {
-            return ToolResultBuilder.Error().WithText(validationError).Build();
+            var diag = BuildValidationErrorDiagnostic(validationError);
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var result = await _webService.SearchAsync(
@@ -294,4 +301,33 @@ public class WebToolHandlers
         ToolTelemetryHelper.RecordToolCount(_telemetryService, "web.operation.count", operation, result);
         if (size > 0) ToolTelemetryHelper.RecordToolHistogram(_telemetryService, "web.operation.size", size, new Dictionary<string, string> { ["operation"] = operation }, "bytes", "Web operation response size");
     }
+
+    internal static ToolDiagnostic BuildValidationErrorDiagnostic(string validationError) =>
+        ToolDiagnostic.Create(
+            reason: "参数验证失败",
+            formattedMessage: validationError,
+            details: [new DiagnosticDetail("validation_error", validationError)]);
+
+    internal static ToolDiagnostic BuildFetchFailedDiagnostic(string url, int statusCode, string? errorMessage) =>
+        ToolDiagnostic.Create(
+            reason: "FetchFailed",
+            formattedMessage: errorMessage ?? "Failed to fetch web content",
+            details:
+            [
+                new DiagnosticDetail("url", url),
+                new DiagnosticDetail("statusCode", statusCode.ToString())
+            ],
+            suggestions: ["检查 URL 是否正确", "检查网络是否可用", "检查目标服务器是否正常"]);
+
+    internal static ToolDiagnostic BuildRedirectDiagnostic(string originalUrl, string redirectUrl, int redirectStatusCode) =>
+        ToolDiagnostic.Create(
+            reason: "重定向",
+            formattedMessage: $"URL redirects to {redirectUrl} (status {redirectStatusCode}). Please use the redirect URL directly.",
+            details:
+            [
+                new DiagnosticDetail("original_url", originalUrl),
+                new DiagnosticDetail("redirect_url", redirectUrl),
+                new DiagnosticDetail("status_code", redirectStatusCode.ToString())
+            ],
+            suggestions: [$"使用重定向 URL 重新请求: {redirectUrl}"]);
 }

@@ -259,7 +259,9 @@ public sealed class DiffCommand : ChatCommandBase
     {
         try
         {
-            var result = await gitRunner.ExecuteAsync(arguments, fs.GetCurrentDirectory(), cancellationToken).ConfigureAwait(false);
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(TimeSpan.FromSeconds(15));
+            var result = await gitRunner.ExecuteAsync(arguments, fs.GetCurrentDirectory(), cts.Token).ConfigureAwait(false);
             return result.Output;
         }
         catch (Exception ex)

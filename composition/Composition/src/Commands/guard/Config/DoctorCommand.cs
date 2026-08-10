@@ -118,7 +118,8 @@ public sealed class DoctorCommand : ChatCommandBase
             var options = new ProcessOptions
             {
                 FileName = command,
-                ArgumentList = args
+                ArgumentList = args,
+                TimeoutMs = 10000
             };
 
             var result = await effectiveProcessService.ExecuteAsync(options, cancellationToken).ConfigureAwait(false);
@@ -275,7 +276,9 @@ public sealed class DoctorCommand : ChatCommandBase
                 {
                     try
                     {
-                        var toolsResult = await client.ListToolsAsync(context.CancellationToken).ConfigureAwait(false);
+                        using var mcpCts = CancellationTokenSource.CreateLinkedTokenSource(context.CancellationToken);
+                        mcpCts.CancelAfter(TimeSpan.FromSeconds(10));
+                        var toolsResult = await client.ListToolsAsync(mcpCts.Token).ConfigureAwait(false);
                         if (toolsResult.Success)
                             sb.AppendLine($"      工具: {toolsResult.GetData().Count} 个");
                     }

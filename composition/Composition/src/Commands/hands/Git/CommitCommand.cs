@@ -159,7 +159,9 @@ public sealed class CommitCommand : ChatCommandBase
     {
         try
         {
-            var result = await gitRunner.ExecuteAsync(arguments, fs.GetCurrentDirectory(), cancellationToken).ConfigureAwait(false);
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(TimeSpan.FromSeconds(15));
+            var result = await gitRunner.ExecuteAsync(arguments, fs.GetCurrentDirectory(), cts.Token).ConfigureAwait(false);
             return string.IsNullOrEmpty(result.Output) ? result.Error : result.Output;
         }
         catch (Exception ex)

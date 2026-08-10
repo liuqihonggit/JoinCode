@@ -33,47 +33,54 @@ public sealed class StructuredOutputToolHandler
         [McpToolParameter("Strict mode (disallow additional properties), defaults to true", Required = false, DefaultValue = "true")] bool strict = true,
         CancellationToken cancellationToken = default)
     {
-        var validationError = ValidationHelper.CombineErrors(
-            ValidationHelper.ValidateRequired(schema_name, "schema_name"),
-            ValidationHelper.ValidateRequired(schema_json, "schema_json"),
-            ValidationHelper.ValidateStringLength(schema_name, 128, "schema_name"));
-        if (validationError != null)
+        try
         {
-            var diag = BuildValidationErrorDiagnostic(validationError);
-            return Task.FromResult(ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build());
+            var validationError = ValidationHelper.CombineErrors(
+                ValidationHelper.ValidateRequired(schema_name, "schema_name"),
+                ValidationHelper.ValidateRequired(schema_json, "schema_json"),
+                ValidationHelper.ValidateStringLength(schema_name, 128, "schema_name"));
+            if (validationError != null)
+            {
+                var diag = BuildValidationErrorDiagnostic(validationError);
+                return Task.FromResult(ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build());
+            }
+
+            // 对齐 TS ajv.validateSchema(): 验证Schema结构合法性（不仅语法检查）
+            var schemaValidation = _validator.ValidateSchema(schema_json);
+            if (!schemaValidation.IsValid)
+            {
+                var errorMessages = string.Join("; ", schemaValidation.Errors.Select(e => $"{e.Path}: {e.Message}"));
+                var diag = BuildInvalidSchemaDiagnostic(errorMessages);
+                return Task.FromResult(ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build());
+            }
+
+            var schema = new StructuredOutputSchema
+            {
+                Name = schema_name,
+                Description = description ?? string.Empty,
+                SchemaJson = schema_json,
+                Strict = strict
+            };
+
+            _schemas[schema_name] = schema;
+
+            // 注册新 Schema 时清除该名称的缓存
+            _validationCache.TryRemove(schema_name, out _);
+
+            var response = new StringBuilder(256);
+            response.AppendLine($"Schema registered: {schema_name}");
+            if (!string.IsNullOrEmpty(description))
+            {
+                response.AppendLine($"Description: {description}");
+            }
+            response.AppendLine($"Strict mode: {(strict ? "Yes" : "No")}");
+
+            return Task.FromResult(ToolResultBuilder.Success().WithText(response.ToString()).Build());
         }
-
-        // 对齐 TS ajv.validateSchema(): 验证Schema结构合法性（不仅语法检查）
-        var schemaValidation = _validator.ValidateSchema(schema_json);
-        if (!schemaValidation.IsValid)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            var errorMessages = string.Join("; ", schemaValidation.Errors.Select(e => $"{e.Path}: {e.Message}"));
-            var diag = BuildInvalidSchemaDiagnostic(errorMessages);
-            return Task.FromResult(ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build());
+            return Task.FromResult(ToolExceptionDiagnosticHelper.BuildErrorResult("structured_output_register", ex, null, "schema_name", schema_name));
         }
-
-        var schema = new StructuredOutputSchema
-        {
-            Name = schema_name,
-            Description = description ?? string.Empty,
-            SchemaJson = schema_json,
-            Strict = strict
-        };
-
-        _schemas[schema_name] = schema;
-
-        // 注册新 Schema 时清除该名称的缓存
-        _validationCache.TryRemove(schema_name, out _);
-
-        var response = new StringBuilder(256);
-        response.AppendLine($"Schema registered: {schema_name}");
-        if (!string.IsNullOrEmpty(description))
-        {
-            response.AppendLine($"Description: {description}");
-        }
-        response.AppendLine($"Strict mode: {(strict ? "Yes" : "No")}");
-
-        return Task.FromResult(ToolResultBuilder.Success().WithText(response.ToString()).Build());
     }
 
     /// <summary>
@@ -86,84 +93,91 @@ public sealed class StructuredOutputToolHandler
         [McpToolParameter("Validate only without formatting, defaults to false", Required = false, DefaultValue = "false")] bool validate_only = false,
         CancellationToken cancellationToken = default)
     {
-        var validationError = ValidationHelper.CombineErrors(
-            ValidationHelper.ValidateRequired(schema_name, "schema_name"),
-            ValidationHelper.ValidateRequired(content, "content"));
-        if (validationError != null)
+        try
         {
-            var diag = BuildValidationErrorDiagnostic(validationError);
-            return Task.FromResult(ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build());
-        }
-
-        StructuredOutputSchema schema;
-        if (!_schemas.TryGetValue(schema_name, out var found))
-        {
-            var diag = BuildSchemaNotFoundDiagnostic(schema_name);
-            return Task.FromResult(ToolResultBuilder.Error()
-                .WithText(diag.FormattedMessage)
-                .WithDiagnostic(diag)
-                .Build());
-        }
-        schema = found;
-
-        // 对齐 TS WeakMap toolCache: 使用缓存避免重复验证同一内容
-        var cacheKey = $"{schema_name}:{content.GetHashCode(StringComparison.Ordinal)}";
-        var result = _validationCache.GetOrAdd(cacheKey, _ => _validator.Validate(content, schema.SchemaJson));
-
-        var response = new StringBuilder(512);
-        response.AppendLine($"Schema: {schema_name}");
-        response.AppendLine($"Validation result: {(result.IsValid ? "Passed" : "Failed")}");
-
-        if (result.IsValid)
-        {
-            if (!validate_only)
+            var validationError = ValidationHelper.CombineErrors(
+                ValidationHelper.ValidateRequired(schema_name, "schema_name"),
+                ValidationHelper.ValidateRequired(content, "content"));
+            if (validationError != null)
             {
-                // 格式化输出
-                try
+                var diag = BuildValidationErrorDiagnostic(validationError);
+                return Task.FromResult(ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build());
+            }
+
+            StructuredOutputSchema schema;
+            if (!_schemas.TryGetValue(schema_name, out var found))
+            {
+                var diag = BuildSchemaNotFoundDiagnostic(schema_name);
+                return Task.FromResult(ToolResultBuilder.Error()
+                    .WithText(diag.FormattedMessage)
+                    .WithDiagnostic(diag)
+                    .Build());
+            }
+            schema = found;
+
+            // 对齐 TS WeakMap toolCache: 使用缓存避免重复验证同一内容
+            var cacheKey = $"{schema_name}:{content.GetHashCode(StringComparison.Ordinal)}";
+            var result = _validationCache.GetOrAdd(cacheKey, _ => _validator.Validate(content, schema.SchemaJson));
+
+            var response = new StringBuilder(512);
+            response.AppendLine($"Schema: {schema_name}");
+            response.AppendLine($"Validation result: {(result.IsValid ? "Passed" : "Failed")}");
+
+            if (result.IsValid)
+            {
+                if (!validate_only)
                 {
-                    var jsonNode = JsonNode.Parse(content);
-                    string formattedJson;
-                    if (jsonNode is not null)
+                    // 格式化输出
+                    try
                     {
-                        using var stream = new MemoryStream();
-                        using var writer = new Utf8JsonWriter(stream, s_indentedWriterOptions);
-                        jsonNode.WriteTo(writer);
-                        writer.Flush();
-                        formattedJson = System.Text.Encoding.UTF8.GetString(stream.ToArray());
+                        var jsonNode = JsonNode.Parse(content);
+                        string formattedJson;
+                        if (jsonNode is not null)
+                        {
+                            using var stream = new MemoryStream();
+                            using var writer = new Utf8JsonWriter(stream, s_indentedWriterOptions);
+                            jsonNode.WriteTo(writer);
+                            writer.Flush();
+                            formattedJson = System.Text.Encoding.UTF8.GetString(stream.ToArray());
+                        }
+                        else
+                        {
+                            formattedJson = content;
+                        }
+                        response.AppendLine();
+                        response.AppendLine("[Formatted output]");
+                        response.AppendLine(formattedJson);
                     }
-                    else
+                    catch (JsonException)
                     {
-                        formattedJson = content;
+                        response.AppendLine("[Formatting failed, returning raw content]");
+                        response.AppendLine(content);
                     }
-                    response.AppendLine();
-                    response.AppendLine("[Formatted output]");
-                    response.AppendLine(formattedJson);
-                }
-                catch (JsonException)
-                {
-                    response.AppendLine("[Formatting failed, returning raw content]");
-                    response.AppendLine(content);
                 }
             }
-        }
-        else
-        {
-            response.AppendLine();
-            response.AppendLine($"[Validation errors] ({result.Errors.Count})");
-            foreach (var error in result.Errors)
+            else
             {
-                response.AppendLine($"  Path: {error.Path} - {error.Message}");
+                response.AppendLine();
+                response.AppendLine($"[Validation errors] ({result.Errors.Count})");
+                foreach (var error in result.Errors)
+                {
+                    response.AppendLine($"  Path: {error.Path} - {error.Message}");
+                }
+            }
+
+            if (result.IsValid)
+            {
+                return Task.FromResult(ToolResultBuilder.Success().WithText(response.ToString()).Build());
+            }
+            else
+            {
+                var diag = BuildValidationFailedDiagnostic(schema_name, result.Errors.Count);
+                return Task.FromResult(ToolResultBuilder.Error().WithText(response.ToString()).WithDiagnostic(diag).Build());
             }
         }
-
-        if (result.IsValid)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            return Task.FromResult(ToolResultBuilder.Success().WithText(response.ToString()).Build());
-        }
-        else
-        {
-            var diag = BuildValidationFailedDiagnostic(schema_name, result.Errors.Count);
-            return Task.FromResult(ToolResultBuilder.Error().WithText(response.ToString()).WithDiagnostic(diag).Build());
+            return Task.FromResult(ToolExceptionDiagnosticHelper.BuildErrorResult("structured_output_validate", ex, null, "schema_name", schema_name));
         }
     }
 

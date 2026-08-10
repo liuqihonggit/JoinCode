@@ -30,13 +30,20 @@ public class TimeoutRecoveryToolHandlers
         [McpToolParameter("工作目录", Required = false)] string? working_directory = null,
         CancellationToken ct = default)
     {
-        var timeoutMin = timeout_minutes is null or <= 0 ? 10 : timeout_minutes.Value;
+        try
+        {
+            var timeoutMin = timeout_minutes is null or <= 0 ? 10 : timeout_minutes.Value;
 
-        _logger?.LogInformation("恢复超时任务: tool={Tool}, timeout={Min}min, command={Cmd}", original_tool, timeoutMin, original_command);
+            _logger?.LogInformation("恢复超时任务: tool={Tool}, timeout={Min}min, command={Cmd}", original_tool, timeoutMin, original_command);
 
-        var result = await _taskRegistry.StartTaskAsync(original_command, original_tool, working_directory, timeoutMin, ct).ConfigureAwait(false);
+            var result = await _taskRegistry.StartTaskAsync(original_command, original_tool, working_directory, timeoutMin, ct).ConfigureAwait(false);
 
-        return BuildResult(result, original_command);
+            return BuildResult(result, original_command);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return ToolExceptionDiagnosticHelper.BuildErrorResult("resume_timed_out_task", ex, _logger, "original_command", original_command, "original_tool", original_tool);
+        }
     }
 
     /// <summary>
@@ -49,14 +56,21 @@ public class TimeoutRecoveryToolHandlers
         [McpToolParameter("额外等待分钟数 (默认10)", Required = false, DefaultValue = "10")] int? additional_minutes = 10,
         CancellationToken ct = default)
     {
-        var additionalMin = additional_minutes is null or <= 0 ? 10 : additional_minutes.Value;
+        try
+        {
+            var additionalMin = additional_minutes is null or <= 0 ? 10 : additional_minutes.Value;
 
-        _logger?.LogInformation("继续长期任务: taskId={Id}, additional={Min}min", task_id, additionalMin);
+            _logger?.LogInformation("继续长期任务: taskId={Id}, additional={Min}min", task_id, additionalMin);
 
-        var result = await _taskRegistry.ContinueTaskAsync(task_id, additionalMin, ct).ConfigureAwait(false);
+            var result = await _taskRegistry.ContinueTaskAsync(task_id, additionalMin, ct).ConfigureAwait(false);
 
-        var task = _taskRegistry.GetTask(task_id);
-        return BuildResult(result, task?.Command ?? "(unknown)");
+            var task = _taskRegistry.GetTask(task_id);
+            return BuildResult(result, task?.Command ?? "(unknown)");
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return ToolExceptionDiagnosticHelper.BuildErrorResult("continue_long_running_task", ex, _logger, "task_id", task_id);
+        }
     }
 
     /// <summary>
@@ -68,13 +82,20 @@ public class TimeoutRecoveryToolHandlers
         [McpToolParameter("任务ID", Required = true)] string task_id,
         CancellationToken ct = default)
     {
-        var stopped = _taskRegistry.StopTask(task_id);
+        try
+        {
+            var stopped = _taskRegistry.StopTask(task_id);
 
-        var text = stopped
-            ? $"任务 {task_id} 已终止。"
-            : $"任务 {task_id} 不存在或已完成。";
+            var text = stopped
+                ? $"任务 {task_id} 已终止。"
+                : $"任务 {task_id} 不存在或已完成。";
 
-        return Task.FromResult(ToolResultBuilder.Success().WithText(text).Build());
+            return Task.FromResult(ToolResultBuilder.Success().WithText(text).Build());
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return Task.FromResult(ToolExceptionDiagnosticHelper.BuildErrorResult("stop_long_running_task", ex, _logger, "task_id", task_id));
+        }
     }
 
     private static ToolResult BuildResult(LongRunningTaskResult result, string command)

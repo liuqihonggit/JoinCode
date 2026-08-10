@@ -58,70 +58,77 @@ public class PowerShellToolHandlers : ShellToolBase
         CancellationToken cancellationToken = default,
         ToolProgressCallback? onProgress = null)
     {
-        var gateResult = CheckGate(SystemActuatorKind.PowerShell);
-        if (gateResult is not null) return gateResult;
-
-        if (string.IsNullOrWhiteSpace(command))
+        try
         {
-            return ToolResultBuilder.Error().WithText("command cannot be empty").Build();
-        }
+            var gateResult = CheckGate(SystemActuatorKind.PowerShell);
+            if (gateResult is not null) return gateResult;
 
-        var workDir = string.IsNullOrEmpty(working_directory) ? _fs.GetCurrentDirectory() : working_directory;
-        if (_psPermissionChecker is not null)
-        {
-            var permResult = _psPermissionChecker.CheckPermission(
-                command, workDir, [], [], [], [], [], false);
-            if (permResult.Behavior == PermissionBehavior.Deny
-                || permResult.Behavior == PermissionBehavior.Ask)
+            if (string.IsNullOrWhiteSpace(command))
             {
-                var permWarning = new StringBuilder();
-                permWarning.AppendLine($"{StatusSymbol.Warning.ToValue()} {(permResult.Behavior == PermissionBehavior.Deny ? "Operation denied" : "User approval required")}");
-                permWarning.AppendLine();
-                if (!string.IsNullOrEmpty(permResult.Message)) permWarning.AppendLine(permResult.Message);
-                if (!string.IsNullOrEmpty(permResult.Suggestions)) { permWarning.AppendLine(); permWarning.AppendLine(permResult.Suggestions); }
-
-                RecordPsmetrics("ps_enhanced", permResult.Behavior == PermissionBehavior.Deny ? "denied" : "ask");
-                return ToolResultBuilder.Error().WithText(permWarning.ToString()).Build();
+                return ToolResultBuilder.Error().WithText("command cannot be empty").Build();
             }
-        }
 
-        if (_psDestructiveCommandChecker is not null)
-        {
-            var psWarning = _psDestructiveCommandChecker.GetDestructiveCommandWarning(command);
-            if (psWarning != null)
+            var workDir = string.IsNullOrEmpty(working_directory) ? _fs.GetCurrentDirectory() : working_directory;
+            if (_psPermissionChecker is not null)
             {
-                var warning = new StringBuilder();
-                warning.AppendLine($"{StatusSymbol.Warning.ToValue()} Potentially dangerous command detected");
-                warning.AppendLine();
-                warning.AppendLine(psWarning);
-                warning.AppendLine();
-                warning.AppendLine("If you are sure you want to execute this command, re-invoke and confirm you understand the risks.");
+                var permResult = _psPermissionChecker.CheckPermission(
+                    command, workDir, [], [], [], [], [], false);
+                if (permResult.Behavior == PermissionBehavior.Deny
+                    || permResult.Behavior == PermissionBehavior.Ask)
+                {
+                    var permWarning = new StringBuilder();
+                    permWarning.AppendLine($"{StatusSymbol.Warning.ToValue()} {(permResult.Behavior == PermissionBehavior.Deny ? "Operation denied" : "User approval required")}");
+                    permWarning.AppendLine();
+                    if (!string.IsNullOrEmpty(permResult.Message)) permWarning.AppendLine(permResult.Message);
+                    if (!string.IsNullOrEmpty(permResult.Suggestions)) { permWarning.AppendLine(); permWarning.AppendLine(permResult.Suggestions); }
 
-                RecordPsmetrics("ps_enhanced", "dangerous");
-                return ToolResultBuilder.Error().WithText(warning.ToString()).Build();
+                    RecordPsmetrics("ps_enhanced", permResult.Behavior == PermissionBehavior.Deny ? "denied" : "ask");
+                    return ToolResultBuilder.Error().WithText(permWarning.ToString()).Build();
+                }
             }
+
+            if (_psDestructiveCommandChecker is not null)
+            {
+                var psWarning = _psDestructiveCommandChecker.GetDestructiveCommandWarning(command);
+                if (psWarning != null)
+                {
+                    var warning = new StringBuilder();
+                    warning.AppendLine($"{StatusSymbol.Warning.ToValue()} Potentially dangerous command detected");
+                    warning.AppendLine();
+                    warning.AppendLine(psWarning);
+                    warning.AppendLine();
+                    warning.AppendLine("If you are sure you want to execute this command, re-invoke and confirm you understand the risks.");
+
+                    RecordPsmetrics("ps_enhanced", "dangerous");
+                    return ToolResultBuilder.Error().WithText(warning.ToString()).Build();
+                }
+            }
+
+            var actuator = _registry.Get(SystemActuatorKind.PowerShell);
+
+            var context = new ShellPipelineContext
+            {
+                Command = command,
+                Provider = actuator,
+                Description = description,
+                Timeout = timeout,
+                TimeoutPolicy = TimeoutPolicy,
+                WorkingDirectory = working_directory,
+                Background = background,
+                AutoBackground = auto_background,
+                DangerouslyDisableSandbox = dangerously_disable_sandbox,
+                CancellationToken = cancellationToken,
+                OnProgress = onProgress,
+            };
+
+            await _pipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false);
+
+            return context.Result ?? ToolResultBuilder.PipelineNoResult();
         }
-
-        var actuator = _registry.Get(SystemActuatorKind.PowerShell);
-
-        var context = new ShellPipelineContext
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            Command = command,
-            Provider = actuator,
-            Description = description,
-            Timeout = timeout,
-            TimeoutPolicy = TimeoutPolicy,
-            WorkingDirectory = working_directory,
-            Background = background,
-            AutoBackground = auto_background,
-            DangerouslyDisableSandbox = dangerously_disable_sandbox,
-            CancellationToken = cancellationToken,
-            OnProgress = onProgress,
-        };
-
-        await _pipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false);
-
-        return context.Result ?? ToolResultBuilder.PipelineNoResult();
+            return ToolExceptionDiagnosticHelper.BuildErrorResult("powershell", ex, _logger, "command", command);
+        }
     }
 
     /// <summary>
@@ -137,70 +144,77 @@ public class PowerShellToolHandlers : ShellToolBase
         [McpToolParameter("Working directory", Required = false)] string? working_directory = null,
         CancellationToken cancellationToken = default)
     {
-        var gateResult = CheckGate(SystemActuatorKind.PowerShell);
-        if (gateResult is not null) return gateResult;
-
-        if (string.IsNullOrWhiteSpace(script_path))
+        try
         {
-            return ToolResultBuilder.Error().WithText("script_path cannot be empty").Build();
-        }
+            var gateResult = CheckGate(SystemActuatorKind.PowerShell);
+            if (gateResult is not null) return gateResult;
 
-        // 检查文件扩展名
-        if (!script_path.EndsWith(".ps1", StringComparison.OrdinalIgnoreCase))
+            if (string.IsNullOrWhiteSpace(script_path))
+            {
+                return ToolResultBuilder.Error().WithText("script_path cannot be empty").Build();
+            }
+
+            // 检查文件扩展名
+            if (!script_path.EndsWith(".ps1", StringComparison.OrdinalIgnoreCase))
+            {
+                return ToolResultBuilder.Error().WithText("File must be a .ps1 PowerShell script").Build();
+            }
+
+            var fileResult = await _fileOperationService.ReadFileAsync(script_path, cancellationToken: cancellationToken).ConfigureAwait(false);
+            if (!fileResult.Success)
+            {
+                return ToolResultBuilder.Error().WithText($"Script file does not exist: {script_path}").Build();
+            }
+
+            // 构建PowerShell参数
+            var psArgs = new StringBuilder();
+
+            if (no_profile != false)
+            {
+                psArgs.Append("-NoProfile ");
+            }
+
+            if (!string.IsNullOrEmpty(execution_policy))
+            {
+                psArgs.Append($"-ExecutionPolicy {execution_policy} ");
+            }
+
+            psArgs.Append($"-File \"{script_path}\"");
+
+            if (!string.IsNullOrEmpty(arguments))
+            {
+                psArgs.Append($" {arguments}");
+            }
+
+            var fullCommand = $"powershell.exe {psArgs}";
+
+            var result = await _registry.Get(SystemActuatorKind.PowerShell).ExecuteAsync(
+                fullCommand,
+                timeout ?? 60000,
+                working_directory,
+                cancellationToken: cancellationToken).ConfigureAwait(false);
+
+            if (result.Interrupted)
+            {
+                RecordPsmetrics("ps_script", "interrupted");
+                return ToolResultBuilder.Error().WithText(result.Stderr).Build();
+            }
+
+            var output = ShellOutputMiddleware.BuildOutputResponse(result);
+
+            if (!result.Success)
+            {
+                RecordPsmetrics("ps_script", "failed");
+                return ToolResultBuilder.Error().WithText(output).Build();
+            }
+
+            RecordPsmetrics("ps_script", "ok");
+            return ToolResultBuilder.Success().WithText(output).Build();
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            return ToolResultBuilder.Error().WithText("File must be a .ps1 PowerShell script").Build();
+            return ToolExceptionDiagnosticHelper.BuildErrorResult("powershell_script", ex, _logger, "script_path", script_path ?? "(null)");
         }
-
-        var fileResult = await _fileOperationService.ReadFileAsync(script_path, cancellationToken: cancellationToken).ConfigureAwait(false);
-        if (!fileResult.Success)
-        {
-            return ToolResultBuilder.Error().WithText($"Script file does not exist: {script_path}").Build();
-        }
-
-        // 构建PowerShell参数
-        var psArgs = new StringBuilder();
-
-        if (no_profile != false)
-        {
-            psArgs.Append("-NoProfile ");
-        }
-
-        if (!string.IsNullOrEmpty(execution_policy))
-        {
-            psArgs.Append($"-ExecutionPolicy {execution_policy} ");
-        }
-
-        psArgs.Append($"-File \"{script_path}\"");
-
-        if (!string.IsNullOrEmpty(arguments))
-        {
-            psArgs.Append($" {arguments}");
-        }
-
-        var fullCommand = $"powershell.exe {psArgs}";
-
-        var result = await _registry.Get(SystemActuatorKind.PowerShell).ExecuteAsync(
-            fullCommand,
-            timeout ?? 60000,
-            working_directory,
-            cancellationToken: cancellationToken).ConfigureAwait(false);
-
-        if (result.Interrupted)
-        {
-            RecordPsmetrics("ps_script", "interrupted");
-            return ToolResultBuilder.Error().WithText(result.Stderr).Build();
-        }
-
-        var output = ShellOutputMiddleware.BuildOutputResponse(result);
-
-        if (!result.Success)
-        {
-            RecordPsmetrics("ps_script", "failed");
-            return ToolResultBuilder.Error().WithText(output).Build();
-        }
-
-        RecordPsmetrics("ps_script", "ok");
-        return ToolResultBuilder.Success().WithText(output).Build();
     }
 
     /// <summary>
@@ -210,56 +224,63 @@ public class PowerShellToolHandlers : ShellToolBase
     public async Task<ToolResult> PowerShellVersionAsync(
         CancellationToken cancellationToken = default)
     {
-        var gateResult = CheckGate(SystemActuatorKind.PowerShell);
-        if (gateResult is not null) return gateResult;
-
-        var command = "$PSVersionTable | ConvertTo-Json";
-        var fullCommand = $"powershell.exe -NoProfile -Command \"{command}\"";
-
-        var result = await _registry.Get(SystemActuatorKind.PowerShell).ExecuteAsync(
-            fullCommand,
-            10000,
-            null,
-            cancellationToken: cancellationToken).ConfigureAwait(false);
-
-        var response = new StringBuilder();
-        response.AppendLine($"{ObjectSymbol.List.ToValue()} PowerShell Version Information");
-        response.AppendLine();
-
-        if (result.Success && !string.IsNullOrEmpty(result.Stdout))
+        try
         {
-            response.AppendLine(result.Stdout);
-        }
-        else
-        {
-            var simpleResult = await _registry.Get(SystemActuatorKind.PowerShell).ExecuteAsync(
-                "powershell.exe -NoProfile -Command \"$PSVersionTable.PSVersion\"",
+            var gateResult = CheckGate(SystemActuatorKind.PowerShell);
+            if (gateResult is not null) return gateResult;
+
+            var command = "$PSVersionTable | ConvertTo-Json";
+            var fullCommand = $"powershell.exe -NoProfile -Command \"{command}\"";
+
+            var result = await _registry.Get(SystemActuatorKind.PowerShell).ExecuteAsync(
+                fullCommand,
                 10000,
                 null,
                 cancellationToken: cancellationToken).ConfigureAwait(false);
 
-            if (simpleResult.Success)
+            var response = new StringBuilder();
+            response.AppendLine($"{ObjectSymbol.List.ToValue()} PowerShell Version Information");
+            response.AppendLine();
+
+            if (result.Success && !string.IsNullOrEmpty(result.Stdout))
             {
-                response.AppendLine($"PowerShell version: {simpleResult.Stdout}");
+                response.AppendLine(result.Stdout);
             }
             else
             {
-                response.AppendLine("Unable to get PowerShell version information");
+                var simpleResult = await _registry.Get(SystemActuatorKind.PowerShell).ExecuteAsync(
+                    "powershell.exe -NoProfile -Command \"$PSVersionTable.PSVersion\"",
+                    10000,
+                    null,
+                    cancellationToken: cancellationToken).ConfigureAwait(false);
+
+                if (simpleResult.Success)
+                {
+                    response.AppendLine($"PowerShell version: {simpleResult.Stdout}");
+                }
+                else
+                {
+                    response.AppendLine("Unable to get PowerShell version information");
+                }
             }
+
+            // 检查CLM状态
+            var clmCheck = await CheckConstrainedLanguageModeAsync(cancellationToken).ConfigureAwait(false);
+            response.AppendLine();
+            response.AppendLine($"{ObjectSymbol.DiamondFilled.ToValue()} Constrained Language Mode (CLM):");
+            response.AppendLine(clmCheck.IsConstrained ? "Enabled (restricted)" : "Disabled (full functionality)");
+
+            if (!string.IsNullOrEmpty(clmCheck.Warning))
+            {
+                response.AppendLine($"{StatusSymbol.Warning.ToValue()} {clmCheck.Warning}");
+            }
+
+            return ToolResultBuilder.Success().WithText(response.ToString()).Build();
         }
-
-        // 检查CLM状态
-        var clmCheck = await CheckConstrainedLanguageModeAsync(cancellationToken).ConfigureAwait(false);
-        response.AppendLine();
-        response.AppendLine($"{ObjectSymbol.DiamondFilled.ToValue()} Constrained Language Mode (CLM):");
-        response.AppendLine(clmCheck.IsConstrained ? "Enabled (restricted)" : "Disabled (full functionality)");
-
-        if (!string.IsNullOrEmpty(clmCheck.Warning))
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            response.AppendLine($"{StatusSymbol.Warning.ToValue()} {clmCheck.Warning}");
+            return ToolExceptionDiagnosticHelper.BuildErrorResult("powershell_version", ex, _logger);
         }
-
-        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     /// <summary>
@@ -270,48 +291,55 @@ public class PowerShellToolHandlers : ShellToolBase
         [McpToolParameter("Scope (e.g. Process, CurrentUser, LocalMachine)", Required = false)] string? scope = null,
         CancellationToken cancellationToken = default)
     {
-        var gateResult = CheckGate(SystemActuatorKind.PowerShell);
-        if (gateResult is not null) return gateResult;
-
-        var command = string.IsNullOrEmpty(scope)
-            ? "Get-ExecutionPolicy -List | Format-Table -AutoSize"
-            : $"Get-ExecutionPolicy -Scope {scope}";
-
-        var fullCommand = $"powershell.exe -NoProfile -Command \"{command}\"";
-
-        var result = await _registry.Get(SystemActuatorKind.PowerShell).ExecuteAsync(
-            fullCommand,
-            10000,
-            null,
-            cancellationToken: cancellationToken).ConfigureAwait(false);
-
-        var response = new StringBuilder();
-        response.AppendLine($"{ObjectSymbol.DiamondFilled.ToValue()} PowerShell Execution Policy");
-        response.AppendLine();
-
-        if (!string.IsNullOrEmpty(scope))
+        try
         {
-            response.AppendLine($"Scope: {scope}");
-        }
+            var gateResult = CheckGate(SystemActuatorKind.PowerShell);
+            if (gateResult is not null) return gateResult;
 
-        if (result.Success)
+            var command = string.IsNullOrEmpty(scope)
+                ? "Get-ExecutionPolicy -List | Format-Table -AutoSize"
+                : $"Get-ExecutionPolicy -Scope {scope}";
+
+            var fullCommand = $"powershell.exe -NoProfile -Command \"{command}\"";
+
+            var result = await _registry.Get(SystemActuatorKind.PowerShell).ExecuteAsync(
+                fullCommand,
+                10000,
+                null,
+                cancellationToken: cancellationToken).ConfigureAwait(false);
+
+            var response = new StringBuilder();
+            response.AppendLine($"{ObjectSymbol.DiamondFilled.ToValue()} PowerShell Execution Policy");
+            response.AppendLine();
+
+            if (!string.IsNullOrEmpty(scope))
+            {
+                response.AppendLine($"Scope: {scope}");
+            }
+
+            if (result.Success)
+            {
+                response.AppendLine(result.Stdout);
+            }
+            else
+            {
+                response.AppendLine($"Failed to get execution policy: {result.Stderr}");
+            }
+
+            response.AppendLine();
+            response.AppendLine($"{ObjectSymbol.DiamondFilled.ToValue()} Notes:");
+            response.AppendLine("  - Restricted: No scripts allowed");
+            response.AppendLine("  - AllSigned: Only signed scripts allowed");
+            response.AppendLine("  - RemoteSigned: Local scripts allowed, remote scripts must be signed");
+            response.AppendLine("  - Unrestricted: All scripts allowed");
+            response.AppendLine("  - Bypass: No restrictions");
+
+            return ToolResultBuilder.Success().WithText(response.ToString()).Build();
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            response.AppendLine(result.Stdout);
+            return ToolExceptionDiagnosticHelper.BuildErrorResult("powershell_execution_policy", ex, _logger, "scope", scope ?? "(default)");
         }
-        else
-        {
-            response.AppendLine($"Failed to get execution policy: {result.Stderr}");
-        }
-
-        response.AppendLine();
-        response.AppendLine($"{ObjectSymbol.DiamondFilled.ToValue()} Notes:");
-        response.AppendLine("  - Restricted: No scripts allowed");
-        response.AppendLine("  - AllSigned: Only signed scripts allowed");
-        response.AppendLine("  - RemoteSigned: Local scripts allowed, remote scripts must be signed");
-        response.AppendLine("  - Unrestricted: All scripts allowed");
-        response.AppendLine("  - Bypass: No restrictions");
-
-        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     /// <summary>
@@ -324,50 +352,57 @@ public class PowerShellToolHandlers : ShellToolBase
         [McpToolParameter("Force setting without confirmation prompt", Required = false, DefaultValue = "true")] bool? force = null,
         CancellationToken cancellationToken = default)
     {
-        var gateResult = CheckGate(SystemActuatorKind.PowerShell);
-        if (gateResult is not null) return gateResult;
-
-        if (string.IsNullOrWhiteSpace(policy))
+        try
         {
-            return ToolResultBuilder.Error().WithText("policy cannot be empty").Build();
-        }
+            var gateResult = CheckGate(SystemActuatorKind.PowerShell);
+            if (gateResult is not null) return gateResult;
 
-        var validPolicies = new[] { "Restricted", "AllSigned", "RemoteSigned", "Unrestricted", "Bypass", "Undefined" };
-        if (!validPolicies.Contains(policy, StringComparer.OrdinalIgnoreCase))
-        {
-            return ToolResultBuilder.Error()
-                .WithText($"Invalid execution policy: {policy}. Valid values: {string.Join(", ", validPolicies)}")
-                .Build();
-        }
-
-        var scopeParam = string.IsNullOrEmpty(scope) ? "Process" : scope;
-        var forceParam = force != false ? "-Force" : "";
-
-        var command = $"Set-ExecutionPolicy -ExecutionPolicy {policy} -Scope {scopeParam} {forceParam}";
-        var fullCommand = $"powershell.exe -NoProfile -Command \"{command}\"";
-
-        var result = await _registry.Get(SystemActuatorKind.PowerShell).ExecuteAsync(
-            fullCommand,
-            30000,
-            null,
-            cancellationToken: cancellationToken).ConfigureAwait(false);
-
-        if (result.Success)
-        {
-            return ToolResultBuilder.Success()
-                .WithText($"{StatusSymbol.Tick.ToValue()} Execution policy set to '{policy}' (scope: {scopeParam})")
-                .Build();
-        }
-        else
-        {
-            var error = result.Stderr ?? "Unknown error";
-
-            if (error.Contains("Access is denied") || error.Contains("权限"))
+            if (string.IsNullOrWhiteSpace(policy))
             {
-                error = $"{error}\n\n{StatusSymbol.Warning.ToValue()} Administrator privileges are required to change the execution policy for this scope.\nSuggestion: Use scope=\"Process\" to change the execution policy for the current process only.";
+                return ToolResultBuilder.Error().WithText("policy cannot be empty").Build();
             }
 
-            return ToolResultBuilder.Error().WithText(error).Build();
+            var validPolicies = new[] { "Restricted", "AllSigned", "RemoteSigned", "Unrestricted", "Bypass", "Undefined" };
+            if (!validPolicies.Contains(policy, StringComparer.OrdinalIgnoreCase))
+            {
+                return ToolResultBuilder.Error()
+                    .WithText($"Invalid execution policy: {policy}. Valid values: {string.Join(", ", validPolicies)}")
+                    .Build();
+            }
+
+            var scopeParam = string.IsNullOrEmpty(scope) ? "Process" : scope;
+            var forceParam = force != false ? "-Force" : "";
+
+            var command = $"Set-ExecutionPolicy -ExecutionPolicy {policy} -Scope {scopeParam} {forceParam}";
+            var fullCommand = $"powershell.exe -NoProfile -Command \"{command}\"";
+
+            var result = await _registry.Get(SystemActuatorKind.PowerShell).ExecuteAsync(
+                fullCommand,
+                30000,
+                null,
+                cancellationToken: cancellationToken).ConfigureAwait(false);
+
+            if (result.Success)
+            {
+                return ToolResultBuilder.Success()
+                    .WithText($"{StatusSymbol.Tick.ToValue()} Execution policy set to '{policy}' (scope: {scopeParam})")
+                    .Build();
+            }
+            else
+            {
+                var error = result.Stderr ?? "Unknown error";
+
+                if (error.Contains("Access is denied") || error.Contains("权限"))
+                {
+                    error = $"{error}\n\n{StatusSymbol.Warning.ToValue()} Administrator privileges are required to change the execution policy for this scope.\nSuggestion: Use scope=\"Process\" to change the execution policy for the current process only.";
+                }
+
+                return ToolResultBuilder.Error().WithText(error).Build();
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return ToolExceptionDiagnosticHelper.BuildErrorResult("powershell_set_execution_policy", ex, _logger, "policy", policy ?? "(null)", "scope", scope ?? "(default)");
         }
     }
 

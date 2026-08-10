@@ -27,29 +27,36 @@ public sealed partial class ConfigToolHandlers
         [McpToolParameter("The setting key (e.g., \"theme\", \"model\", \"permissions.defaultMode\")")] string setting,
         CancellationToken cancellationToken = default)
     {
-        // 对齐 TS: isSupported — 未知 key 拒绝
-        if (!SupportedSettings.IsSupported(setting))
+        try
         {
-            var diagnostic = BuildUnknownSettingDiagnostic(setting);
-            return ToolResultBuilder.Error()
-                .WithText(diagnostic.FormattedMessage)
-                .WithDiagnostic(diagnostic)
+            // 对齐 TS: isSupported — 未知 key 拒绝
+            if (!SupportedSettings.IsSupported(setting))
+            {
+                var diagnostic = BuildUnknownSettingDiagnostic(setting);
+                return ToolResultBuilder.Error()
+                    .WithText(diagnostic.FormattedMessage)
+                    .WithDiagnostic(diagnostic)
+                    .Build();
+            }
+
+            var config = SupportedSettings.GetConfig(setting)!;
+            // 对齐 TS: source 分流 — global 走 ~/.jcc/global.json, settings 走 ~/.jcc/settings.json
+            var source = config.Source == "global" ? SettingSource.GlobalConfig : SettingSource.UserSettings;
+            var currentValue = await _configService.GetAsync(setting, source, cancellationToken).ConfigureAwait(false);
+
+            // 对齐 TS: formatOnRead — 读取时格式化
+            var displayValue = config.FormatOnRead is not null
+                ? config.FormatOnRead(currentValue)
+                : currentValue;
+
+            return ToolResultBuilder.Success()
+                .WithText($"{setting} = {FormatValue(displayValue)}")
                 .Build();
         }
-
-        var config = SupportedSettings.GetConfig(setting)!;
-        // 对齐 TS: source 分流 — global 走 ~/.jcc/global.json, settings 走 ~/.jcc/settings.json
-        var source = config.Source == "global" ? SettingSource.GlobalConfig : SettingSource.UserSettings;
-        var currentValue = await _configService.GetAsync(setting, source, cancellationToken).ConfigureAwait(false);
-
-        // 对齐 TS: formatOnRead — 读取时格式化
-        var displayValue = config.FormatOnRead is not null
-            ? config.FormatOnRead(currentValue)
-            : currentValue;
-
-        return ToolResultBuilder.Success()
-            .WithText($"{setting} = {FormatValue(displayValue)}")
-            .Build();
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return ToolExceptionDiagnosticHelper.BuildErrorResult("config_get", ex, _logger, "setting", setting);
+        }
     }
 
     /// <summary>
@@ -63,75 +70,82 @@ public sealed partial class ConfigToolHandlers
         [McpToolParameter("The new value")] string value,
         CancellationToken cancellationToken = default)
     {
-        // 对齐 TS: isSupported — 未知 key 拒绝
-        if (!SupportedSettings.IsSupported(setting))
+        try
         {
-            var diagnostic = BuildUnknownSettingDiagnostic(setting);
-            return ToolResultBuilder.Error()
-                .WithText(diagnostic.FormattedMessage)
-                .WithDiagnostic(diagnostic)
-                .Build();
-        }
-
-        var config = SupportedSettings.GetConfig(setting)!;
-        var finalValue = value;
-
-        // 对齐 TS: boolean 强转
-        if (config.Type == "boolean")
-        {
-            var lower = value.ToLowerInvariant().Trim();
-            if (lower is "true")
-                finalValue = "true";
-            else if (lower is "false")
-                finalValue = "false";
-            else
-                return ToolResultBuilder.Error()
-                    .WithText($"{setting} requires true or false.")
-                    .Build();
-        }
-
-        // 对齐 TS: options 校验
-        var options = SupportedSettings.GetOptionsForSetting(setting);
-        if (options is not null && !options.Contains(finalValue))
-        {
-            return ToolResultBuilder.Error()
-                .WithText($"Invalid value \"{value}\". Options: {string.Join(", ", options)}")
-                .Build();
-        }
-
-        // 对齐 TS: validateOnWrite — 异步验证
-        if (config.ValidateOnWrite is not null)
-        {
-            var (valid, error) = await config.ValidateOnWrite(finalValue).ConfigureAwait(false);
-            if (!valid)
+            // 对齐 TS: isSupported — 未知 key 拒绝
+            if (!SupportedSettings.IsSupported(setting))
             {
+                var diagnostic = BuildUnknownSettingDiagnostic(setting);
                 return ToolResultBuilder.Error()
-                    .WithText(error ?? "Validation failed")
+                    .WithText(diagnostic.FormattedMessage)
+                    .WithDiagnostic(diagnostic)
                     .Build();
             }
-        }
 
-        // 写入 — 对齐 TS: global → saveGlobalConfig, settings → updateSettingsForSource
-        var source = config.Source == "global" ? SettingSource.GlobalConfig : SettingSource.UserSettings;
-        var previousValue = await _configService.GetAsync(setting, source, cancellationToken).ConfigureAwait(false);
+            var config = SupportedSettings.GetConfig(setting)!;
+            var finalValue = value;
 
-        var success = await _configService.SetAsync(setting, finalValue, source, config.AppStateKey, cancellationToken).ConfigureAwait(false);
+            // 对齐 TS: boolean 强转
+            if (config.Type == "boolean")
+            {
+                var lower = value.ToLowerInvariant().Trim();
+                if (lower is "true")
+                    finalValue = "true";
+                else if (lower is "false")
+                    finalValue = "false";
+                else
+                    return ToolResultBuilder.Error()
+                        .WithText($"{setting} requires true or false.")
+                        .Build();
+            }
 
-        if (!success)
-        {
-            return ToolResultBuilder.Error()
-                .WithText($"Failed to set {setting}")
+            // 对齐 TS: options 校验
+            var options = SupportedSettings.GetOptionsForSetting(setting);
+            if (options is not null && !options.Contains(finalValue))
+            {
+                return ToolResultBuilder.Error()
+                    .WithText($"Invalid value \"{value}\". Options: {string.Join(", ", options)}")
+                    .Build();
+            }
+
+            // 对齐 TS: validateOnWrite — 异步验证
+            if (config.ValidateOnWrite is not null)
+            {
+                var (valid, error) = await config.ValidateOnWrite(finalValue).ConfigureAwait(false);
+                if (!valid)
+                {
+                    return ToolResultBuilder.Error()
+                        .WithText(error ?? "Validation failed")
+                        .Build();
+                }
+            }
+
+            // 写入 — 对齐 TS: global → saveGlobalConfig, settings → updateSettingsForSource
+            var source = config.Source == "global" ? SettingSource.GlobalConfig : SettingSource.UserSettings;
+            var previousValue = await _configService.GetAsync(setting, source, cancellationToken).ConfigureAwait(false);
+
+            var success = await _configService.SetAsync(setting, finalValue, source, config.AppStateKey, cancellationToken).ConfigureAwait(false);
+
+            if (!success)
+            {
+                return ToolResultBuilder.Error()
+                    .WithText($"Failed to set {setting}")
+                    .Build();
+            }
+
+            _logger?.LogInformation("Config changed: {Setting} = {Value} (was {Previous})", setting, finalValue, previousValue);
+
+            // 对齐 TS: logEvent('tengu_config_tool_changed', { setting, value })
+            _telemetryService?.RecordCount("config.tool.changed", new Dictionary<string, string> { ["setting"] = setting, ["value"] = finalValue }, description: "Config tool setting changed");
+
+            return ToolResultBuilder.Success()
+                .WithText($"Set {setting} to {FormatValue(finalValue)}")
                 .Build();
         }
-
-        _logger?.LogInformation("Config changed: {Setting} = {Value} (was {Previous})", setting, finalValue, previousValue);
-
-        // 对齐 TS: logEvent('tengu_config_tool_changed', { setting, value })
-        _telemetryService?.RecordCount("config.tool.changed", new Dictionary<string, string> { ["setting"] = setting, ["value"] = finalValue }, description: "Config tool setting changed");
-
-        return ToolResultBuilder.Success()
-            .WithText($"Set {setting} to {FormatValue(finalValue)}")
-            .Build();
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return ToolExceptionDiagnosticHelper.BuildErrorResult("config_set", ex, _logger, "setting", setting, new DiagnosticDetail("value", value));
+        }
     }
 
     /// <summary>
@@ -141,43 +155,50 @@ public sealed partial class ConfigToolHandlers
     [McpTool(InteractionToolNameConstants.ConfigList, "List all configurable settings", "config", ConcurrencySafe = true)]
     public Task<ToolResult> ConfigListAsync(CancellationToken cancellationToken = default)
     {
-        var sb = new StringBuilder();
-        sb.AppendLine("Available settings:");
-        sb.AppendLine();
-
-        var globalSettings = new List<(string Key, ConfigSetting Config)>();
-        var projectSettings = new List<(string Key, ConfigSetting Config)>();
-
-        foreach (var (key, config) in SupportedSettings.All)
+        try
         {
-            if (config.Source == "global")
-                globalSettings.Add((key, config));
-            else
-                projectSettings.Add((key, config));
-        }
-
-        if (globalSettings.Count > 0)
-        {
-            sb.AppendLine("Global settings:");
-            foreach (var (key, config) in globalSettings)
-            {
-                AppendSettingLine(sb, key, config);
-            }
+            var sb = new StringBuilder();
+            sb.AppendLine("Available settings:");
             sb.AppendLine();
-        }
 
-        if (projectSettings.Count > 0)
-        {
-            sb.AppendLine("Project settings:");
-            foreach (var (key, config) in projectSettings)
+            var globalSettings = new List<(string Key, ConfigSetting Config)>();
+            var projectSettings = new List<(string Key, ConfigSetting Config)>();
+
+            foreach (var (key, config) in SupportedSettings.All)
             {
-                AppendSettingLine(sb, key, config);
+                if (config.Source == "global")
+                    globalSettings.Add((key, config));
+                else
+                    projectSettings.Add((key, config));
             }
-        }
 
-        return Task.FromResult(ToolResultBuilder.Success()
-            .WithText(sb.ToString())
-            .Build());
+            if (globalSettings.Count > 0)
+            {
+                sb.AppendLine("Global settings:");
+                foreach (var (key, config) in globalSettings)
+                {
+                    AppendSettingLine(sb, key, config);
+                }
+                sb.AppendLine();
+            }
+
+            if (projectSettings.Count > 0)
+            {
+                sb.AppendLine("Project settings:");
+                foreach (var (key, config) in projectSettings)
+                {
+                    AppendSettingLine(sb, key, config);
+                }
+            }
+
+            return Task.FromResult(ToolResultBuilder.Success()
+                .WithText(sb.ToString())
+                .Build());
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return Task.FromResult(ToolExceptionDiagnosticHelper.BuildErrorResult("config_list", ex, _logger));
+        }
     }
 
     private static void AppendSettingLine(StringBuilder sb, string key, ConfigSetting config)

@@ -44,26 +44,33 @@ public partial class ShellToolHandlers : ShellToolBase
         CancellationToken cancellationToken = default,
         ToolProgressCallback? onProgress = null)
     {
-        var actuator = _registry.Get(SystemActuatorKind.Bash);
-
-        var context = new ShellPipelineContext
+        try
         {
-            Command = command,
-            Provider = actuator,
-            Description = description,
-            Timeout = timeout,
-            TimeoutPolicy = TimeoutPolicy,
-            WorkingDirectory = working_directory,
-            Background = background,
-            AutoBackground = auto_background,
-            DangerouslyDisableSandbox = dangerously_disable_sandbox,
-            CancellationToken = cancellationToken,
-            OnProgress = onProgress,
-        };
+            var actuator = _registry.Get(SystemActuatorKind.Bash);
 
-        await _pipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false);
+            var context = new ShellPipelineContext
+            {
+                Command = command,
+                Provider = actuator,
+                Description = description,
+                Timeout = timeout,
+                TimeoutPolicy = TimeoutPolicy,
+                WorkingDirectory = working_directory,
+                Background = background,
+                AutoBackground = auto_background,
+                DangerouslyDisableSandbox = dangerously_disable_sandbox,
+                CancellationToken = cancellationToken,
+                OnProgress = onProgress,
+            };
 
-        return context.Result ?? ToolResultBuilder.PipelineNoResult();
+            await _pipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false);
+
+            return context.Result ?? ToolResultBuilder.PipelineNoResult();
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return ToolExceptionDiagnosticHelper.BuildErrorResult("bash", ex, _logger, "command", command);
+        }
     }
 
     /// <summary>
@@ -74,41 +81,48 @@ public partial class ShellToolHandlers : ShellToolBase
         [McpToolParameter("Task ID")] string task_id,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(task_id))
+        try
         {
-            var diag = BuildEmptyTaskIdDiagnostic();
-            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
+            if (string.IsNullOrWhiteSpace(task_id))
+            {
+                var diag = BuildEmptyTaskIdDiagnostic();
+                return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
+            }
+
+            var task = await _registry.GetTaskAsync(task_id, cancellationToken).ConfigureAwait(false);
+
+            if (task == null)
+            {
+                var diag = BuildTaskNotFoundDiagnostic(task_id);
+                return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
+            }
+
+            var response = new StringBuilder();
+            response.AppendLine("Background task status");
+            response.AppendLine();
+            response.AppendLine($"Task ID: {task.TaskId}");
+            response.AppendLine($"Command: {task.Command}");
+            response.AppendLine($"Status: {FormatStatus(task.Status)}");
+            response.AppendLine($"Created: {task.CreatedAt:yyyy-MM-dd HH:mm:ss}");
+
+            if (task.StartedAt.HasValue)
+                response.AppendLine($"Started: {task.StartedAt.Value:yyyy-MM-dd HH:mm:ss}");
+
+            if (task.CompletedAt.HasValue)
+                response.AppendLine($"Completed: {task.CompletedAt.Value:yyyy-MM-dd HH:mm:ss}");
+
+            if (task.ExitCode.HasValue)
+                response.AppendLine($"Exit code: {task.ExitCode}");
+
+            if (!string.IsNullOrEmpty(task.ErrorMessage))
+                response.AppendLine($"Error: {task.ErrorMessage}");
+
+            return ToolResultBuilder.Success().WithText(response.ToString()).Build();
         }
-
-        var task = await _registry.GetTaskAsync(task_id, cancellationToken).ConfigureAwait(false);
-
-        if (task == null)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            var diag = BuildTaskNotFoundDiagnostic(task_id);
-            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
+            return ToolExceptionDiagnosticHelper.BuildErrorResult("shell_background_get", ex, _logger, "task_id", task_id ?? "(null)");
         }
-
-        var response = new StringBuilder();
-        response.AppendLine("Background task status");
-        response.AppendLine();
-        response.AppendLine($"Task ID: {task.TaskId}");
-        response.AppendLine($"Command: {task.Command}");
-        response.AppendLine($"Status: {FormatStatus(task.Status)}");
-        response.AppendLine($"Created: {task.CreatedAt:yyyy-MM-dd HH:mm:ss}");
-
-        if (task.StartedAt.HasValue)
-            response.AppendLine($"Started: {task.StartedAt.Value:yyyy-MM-dd HH:mm:ss}");
-
-        if (task.CompletedAt.HasValue)
-            response.AppendLine($"Completed: {task.CompletedAt.Value:yyyy-MM-dd HH:mm:ss}");
-
-        if (task.ExitCode.HasValue)
-            response.AppendLine($"Exit code: {task.ExitCode}");
-
-        if (!string.IsNullOrEmpty(task.ErrorMessage))
-            response.AppendLine($"Error: {task.ErrorMessage}");
-
-        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
     /// <summary>
@@ -118,28 +132,35 @@ public partial class ShellToolHandlers : ShellToolBase
     public async Task<ToolResult> ShellBackgroundListAsync(
         CancellationToken cancellationToken = default)
     {
-        var tasks = await _registry.ListTasksAsync(cancellationToken).ConfigureAwait(false);
-
-        var response = new StringBuilder();
-        response.AppendLine($"Background tasks ({tasks.Count} total)");
-        response.AppendLine();
-
-        if (tasks.Count == 0)
+        try
         {
-            response.AppendLine("No background tasks");
-        }
-        else
-        {
-            foreach (var task in tasks)
+            var tasks = await _registry.ListTasksAsync(cancellationToken).ConfigureAwait(false);
+
+            var response = new StringBuilder();
+            response.AppendLine($"Background tasks ({tasks.Count} total)");
+            response.AppendLine();
+
+            if (tasks.Count == 0)
             {
-                var statusIcon = task.Status.ToStatusSymbol().ToValue();
-
-                response.AppendLine($"{statusIcon} [{task.TaskId}] {task.Command[..Math.Min(40, task.Command.Length)]}...");
-                response.AppendLine($"   Status: {FormatStatus(task.Status)} | Created: {task.CreatedAt:MM-dd HH:mm}");
+                response.AppendLine("No background tasks");
             }
-        }
+            else
+            {
+                foreach (var task in tasks)
+                {
+                    var statusIcon = task.Status.ToStatusSymbol().ToValue();
 
-        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
+                    response.AppendLine($"{statusIcon} [{task.TaskId}] {task.Command[..Math.Min(40, task.Command.Length)]}...");
+                    response.AppendLine($"   Status: {FormatStatus(task.Status)} | Created: {task.CreatedAt:MM-dd HH:mm}");
+                }
+            }
+
+            return ToolResultBuilder.Success().WithText(response.ToString()).Build();
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return ToolExceptionDiagnosticHelper.BuildErrorResult("shell_background_list", ex, _logger);
+        }
     }
 
     /// <summary>
@@ -150,18 +171,25 @@ public partial class ShellToolHandlers : ShellToolBase
         [McpToolParameter("Task ID")] string task_id,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(task_id))
+        try
         {
-            var diag = BuildEmptyTaskIdDiagnostic();
-            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
+            if (string.IsNullOrWhiteSpace(task_id))
+            {
+                var diag = BuildEmptyTaskIdDiagnostic();
+                return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
+            }
+
+            var output = await _registry.GetTaskOutputAsync(task_id, cancellationToken).ConfigureAwait(false);
+
+            if (string.IsNullOrEmpty(output))
+                return ToolResultBuilder.Success().WithText("(No output yet)").Build();
+
+            return ToolResultBuilder.Success().WithText(output).Build();
         }
-
-        var output = await _registry.GetTaskOutputAsync(task_id, cancellationToken).ConfigureAwait(false);
-
-        if (string.IsNullOrEmpty(output))
-            return ToolResultBuilder.Success().WithText("(No output yet)").Build();
-
-        return ToolResultBuilder.Success().WithText(output).Build();
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return ToolExceptionDiagnosticHelper.BuildErrorResult("shell_background_output", ex, _logger, "task_id", task_id ?? "(null)");
+        }
     }
 
     /// <summary>
@@ -172,21 +200,28 @@ public partial class ShellToolHandlers : ShellToolBase
         [McpToolParameter("Task ID")] string task_id,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(task_id))
+        try
         {
-            var diag = BuildEmptyTaskIdDiagnostic();
-            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
+            if (string.IsNullOrWhiteSpace(task_id))
+            {
+                var diag = BuildEmptyTaskIdDiagnostic();
+                return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
+            }
+
+            var cancelled = await _registry.CancelTaskAsync(task_id, cancellationToken).ConfigureAwait(false);
+
+            if (!cancelled)
+            {
+                var diag = BuildCancelFailedDiagnostic(task_id);
+                return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
+            }
+
+            return ToolResultBuilder.Success().WithText($"Task {task_id} cancelled").Build();
         }
-
-        var cancelled = await _registry.CancelTaskAsync(task_id, cancellationToken).ConfigureAwait(false);
-
-        if (!cancelled)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            var diag = BuildCancelFailedDiagnostic(task_id);
-            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
+            return ToolExceptionDiagnosticHelper.BuildErrorResult("shell_background_cancel", ex, _logger, "task_id", task_id ?? "(null)");
         }
-
-        return ToolResultBuilder.Success().WithText($"Task {task_id} cancelled").Build();
     }
 
     /// <summary>
@@ -196,11 +231,18 @@ public partial class ShellToolHandlers : ShellToolBase
     public async Task<ToolResult> ShellBackgroundKillAllAsync(
         CancellationToken cancellationToken = default)
     {
-        var killedCount = await _registry.KillAllRunningAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            var killedCount = await _registry.KillAllRunningAsync(cancellationToken).ConfigureAwait(false);
 
-        return ToolResultBuilder.Success().WithText(killedCount > 0
-            ? $"Killed {killedCount} running background task(s)"
-            : "No running background tasks to kill").Build();
+            return ToolResultBuilder.Success().WithText(killedCount > 0
+                ? $"Killed {killedCount} running background task(s)"
+                : "No running background tasks to kill").Build();
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return ToolExceptionDiagnosticHelper.BuildErrorResult("shell_background_kill_all", ex, _logger);
+        }
     }
 
     #region Private Methods

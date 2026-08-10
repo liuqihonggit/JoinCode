@@ -104,6 +104,11 @@ public sealed class FileEditor
             var normalizedNew = newString.Replace("\r\n", "\n");
             var normalizedContent = originalContent.Replace("\r\n", "\n");
 
+            // 对齐 TS: stripLineNumberPrefix — LLM 从 Read 输出复制 old_string 时可能带入行号前缀
+            // 在匹配前自动剥离，兼容紧凑(行号+\t)和宽(空格填充+行号+→)两种格式
+            normalizedOld = StripLineNumberPrefixes(normalizedOld);
+            normalizedNew = StripLineNumberPrefixes(normalizedNew);
+
             // Step 1: Try exact match, then findActualString (quote normalization), then desanitize
             var actualOldString = FindActualString(normalizedContent, normalizedOld);
 
@@ -460,6 +465,59 @@ public sealed class FileEditor
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// 剥离多行文本中每行的行号前缀（^\s*\d+[\u2192\t]）。
+    /// 对齐 TS: stripLineNumberPrefix — 兼容紧凑(行号+\t)和宽(空格填充+行号+→)两种格式。
+    /// 若没有任何行被剥离，返回原 text 避免无谓分配。
+    /// </summary>
+    internal static string StripLineNumberPrefixes(string text)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return text;
+        }
+
+        var lines = text.Split('\n');
+        var anyStripped = false;
+        for (var i = 0; i < lines.Length; i++)
+        {
+            var stripped = StripPrefixFromLine(lines[i]);
+            if (stripped.Length != lines[i].Length)
+            {
+                anyStripped = true;
+                lines[i] = stripped.ToString();
+            }
+        }
+
+        return anyStripped ? string.Join('\n', lines) : text;
+    }
+
+    /// <summary>
+    /// 剥离单行行号前缀：^\s*\d+[\u2192\t]，返回前缀之后的内容。无前缀则原样返回。
+    /// </summary>
+    private static ReadOnlySpan<char> StripPrefixFromLine(ReadOnlySpan<char> line)
+    {
+        var i = 0;
+        while (i < line.Length && line[i] == ' ')
+        {
+            i++;
+        }
+
+        var digitStart = i;
+        while (i < line.Length && char.IsDigit(line[i]))
+        {
+            i++;
+        }
+
+        if (i == digitStart || i >= line.Length)
+        {
+            return line;
+        }
+
+        var sep = line[i];
+        return sep == '\u2192' || sep == '\t' ? line.Slice(i + 1) : line;
     }
 
     /// <summary>

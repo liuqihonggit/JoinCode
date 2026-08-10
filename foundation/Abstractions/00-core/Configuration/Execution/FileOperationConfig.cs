@@ -40,6 +40,15 @@ public sealed class FileOperationConfig
     [Range(1024, 64 * 1024, ErrorMessage = "BinaryDetectionBufferSize must be between 1KB and 64KB")]
     public int BinaryDetectionBufferSize { get; set; } = 8 * 1024;
 
+    /// <summary>
+    /// 是否启用紧凑行号前缀格式（行号 + 制表符 + 内容，如 "1\tcontent"）。
+    /// 对齐 TS: isCompactLinePrefixEnabled / getFeatureValue_CACHED_MAY_BE_STALE('tengu_compact_line_prefix_killswitch', false)。
+    /// 默认启用（true）：cat -n 风格，LLM 训练数据匹配度高，每行省 ~5 空格 token。
+    /// 关闭（false）时使用宽格式：行号右对齐到 ≥6 位 + 箭头 → + 内容（如 "     1→content"）。
+    /// 官方实测：宽格式每行 9 字节开销，占未缓存输入 2.18%；compact 无 Edit 错误回归（6.29% vs 6.86%）。
+    /// </summary>
+    public bool CompactLinePrefix { get; set; } = true;
+
     #region 图像限制（对齐 TS: constants/apiLimits.ts）
 
     /// <summary>

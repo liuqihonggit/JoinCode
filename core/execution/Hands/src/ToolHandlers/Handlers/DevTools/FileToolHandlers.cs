@@ -247,7 +247,7 @@ public partial class FileToolHandlers : IDisposable
             return ToolResultBuilder.Error().WithText(tokenDiagnostic.FormattedMessage).WithDiagnostic(tokenDiagnostic).Build();
         }
 
-        var numberedContent = AddLineNumbers(result.Content, result.StartLine);
+        var numberedContent = AddLineNumbers(result.Content, result.StartLine, _fileOperationConfig.CompactLinePrefix);
 
         var response = new StringBuilder(256);
         response.Append(numberedContent);
@@ -1307,7 +1307,7 @@ public partial class FileToolHandlers : IDisposable
         return string.Concat(text.AsSpan(0, index), replace, text.AsSpan(index + search.Length));
     }
 
-    private static string AddLineNumbers(string content, int startLine)
+    internal static string AddLineNumbers(string content, int startLine, bool compact)
     {
         if (string.IsNullOrEmpty(content))
         {
@@ -1315,6 +1315,23 @@ public partial class FileToolHandlers : IDisposable
         }
 
         var lines = content.Split(['\n'], StringSplitOptions.None);
+
+        // 紧凑格式：行号 + 制表符 + 内容（cat -n 风格）
+        // 对齐 TS: isCompactLinePrefixEnabled — LLM 训练数据匹配度高，每行省 ~5 空格 token
+        if (compact)
+        {
+            var compactSb = new StringBuilder(content.Length + lines.Length * 4);
+            for (var i = 0; i < lines.Length; i++)
+            {
+                compactSb.Append(startLine + i);
+                compactSb.Append('\t');
+                compactSb.AppendLine(lines[i]);
+            }
+
+            return compactSb.ToString();
+        }
+
+        // 宽格式：行号右对齐到 ≥6 位 + 管头 → + 内容
         var maxLineNum = startLine + lines.Length - 1;
         var maxDigits = maxLineNum.ToString().Length;
         var padWidth = Math.Max(maxDigits, 6);

@@ -37,13 +37,42 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
                 {
                     using var _ = Cli.TerminalHelper.SetColor(ConsoleColor.Green);
                     Cli.TerminalHelper.WriteRaw("> ");
-                    var input = Cli.TerminalHelper.ReadLine();
+
+                    if (System.Console.IsInputRedirected && !Cli.TerminalHelper.ForceInteractive)
+                    {
+                        Diag.WriteLifecycle("[DIAG-REPL] stdin redirected, ForceInteractive=false, returning empty");
+                        inputChannel.Writer.TryWrite(string.Empty);
+                        return;
+                    }
+
+                    Diag.WriteLifecycle("[DIAG-REPL] ReadLineAsync calling...");
+                    string? input;
+                    try
+                    {
+                        input = await System.Console.In.ReadLineAsync(ct).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        Diag.WriteLifecycle("[DIAG-REPL] ReadLineAsync canceled");
+                        break;
+                    }
+
+                    Diag.WriteLifecycle($"[DIAG-REPL] ReadLineAsync returned: '{(input is not null && input.Length > 60 ? input[..60] + "..." : input)}', IsNull={input is null}");
+
+                    if (input is null)
+                    {
+                        Diag.WriteLifecycle("[DIAG-REPL] ReadLineAsync returned null (EOF), exiting read loop");
+                        break;
+                    }
+
                     if (string.IsNullOrWhiteSpace(input))
                     {
-                        if (Cli.TerminalHelper.IsInputRedirected && !Cli.TerminalHelper.ForceInteractive) return;
                         continue;
                     }
+
+                    Diag.WriteLifecycle("[DIAG-REPL] TryWrite to channel");
                     if (!inputChannel.Writer.TryWrite(input)) return;
+                    Diag.WriteLifecycle("[DIAG-REPL] TryWrite succeeded");
                 }
             }
             catch (OperationCanceledException) { }

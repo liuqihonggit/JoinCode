@@ -74,9 +74,19 @@ public sealed class PhysicalProcessService : IProcessService
         {
             Console.Error.WriteLine($"[DIAG-PROC] WaitForExitAsync start (no timeout, ct.CanCancel={ct.CanBeCanceled}), pid={process.Id}");
             Console.Error.Flush();
-            await process.WaitForExitAsync(ct).ConfigureAwait(false);
-            Console.Error.WriteLine($"[DIAG-PROC] WaitForExitAsync end, pid={process.Id}, exitCode={process.ExitCode}");
-            Console.Error.Flush();
+            try
+            {
+                await process.WaitForExitAsync(ct).ConfigureAwait(false);
+                Console.Error.WriteLine($"[DIAG-PROC] WaitForExitAsync end, pid={process.Id}, exitCode={process.ExitCode}");
+                Console.Error.Flush();
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                Console.Error.WriteLine($"[DIAG-PROC] WaitForExitAsync CANCELED, killing pid={process.Id}");
+                Console.Error.Flush();
+                try { process.Kill(); } catch (Exception killEx) { _logger?.LogDebug(killEx, "[Process] 取消后杀进程失败: PID={Id}", process.Id); }
+                throw;
+            }
         }
 
         await Task.WhenAll(stdoutTask, stderrTask).ConfigureAwait(false);

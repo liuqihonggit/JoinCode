@@ -746,12 +746,33 @@ public class FileToolHandlers : IDisposable
 
         file_path = await ResolveSandboxPathAsync(file_path, cancellationToken).ConfigureAwait(false);
 
-        var result = await _fileEditLogic.EditWithRegexAsync(file_path, pattern, replacement, replace_all, cancellationToken).ConfigureAwait(false);
+        FileEditResult result;
+        try
+        {
+            result = await _fileEditLogic.EditWithRegexAsync(file_path, pattern, replacement, replace_all, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            RecordFileMetrics(FileOperationType.EditRegex, FileOperationResult.Failed);
+            _logger?.LogError(ex, "FileEditRegex 调用抛出异常: {FilePath}", file_path);
+            var exDiagnostic = ToolDiagnostic.Create("EditRegexFailed",
+                $"正则编辑失败: {ex.Message}",
+                [new DiagnosticDetail("filePath", file_path), new DiagnosticDetail("exceptionType", ex.GetType().Name)],
+                ["检查正则表达式语法、文件权限。"]);
+            return ToolResultBuilder.Error().WithText(exDiagnostic.FormattedMessage).WithDiagnostic(exDiagnostic).Build();
+        }
 
         if (!result.Success)
         {
             RecordFileMetrics(FileOperationType.EditRegex, FileOperationResult.Failed);
-            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "Regex edit failed").Build();
+            var builder = ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "Regex edit failed");
+            if (result.Diagnostic is not null)
+                builder = builder.WithDiagnostic(result.Diagnostic);
+            return builder.Build();
         }
 
         var response = new StringBuilder(128);
@@ -781,12 +802,33 @@ public class FileToolHandlers : IDisposable
 
         file_path = await ResolveSandboxPathAsync(file_path, cancellationToken).ConfigureAwait(false);
 
-        var result = await _fileEditLogic.InsertLinesAfterAsync(file_path, after_line, new_content, cancellationToken).ConfigureAwait(false);
+        FileLineEditResult result;
+        try
+        {
+            result = await _fileEditLogic.InsertLinesAfterAsync(file_path, after_line, new_content, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            RecordFileMetrics(FileOperationType.InsertLines, FileOperationResult.Failed);
+            _logger?.LogError(ex, "FileInsertLines 调用抛出异常: {FilePath}", file_path);
+            var exDiagnostic = ToolDiagnostic.Create("InsertLinesFailed",
+                $"插入行失败: {ex.Message}",
+                [new DiagnosticDetail("filePath", file_path), new DiagnosticDetail("exceptionType", ex.GetType().Name)],
+                ["检查文件权限、是否被其他进程锁定。"]);
+            return ToolResultBuilder.Error().WithText(exDiagnostic.FormattedMessage).WithDiagnostic(exDiagnostic).Build();
+        }
 
         if (!result.Success)
         {
             RecordFileMetrics(FileOperationType.InsertLines, FileOperationResult.Failed);
-            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to insert lines").Build();
+            var builder = ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to insert lines");
+            if (result.Diagnostic is not null)
+                builder = builder.WithDiagnostic(result.Diagnostic);
+            return builder.Build();
         }
 
         var response = new StringBuilder(128);
@@ -816,12 +858,33 @@ public class FileToolHandlers : IDisposable
 
         file_path = await ResolveSandboxPathAsync(file_path, cancellationToken).ConfigureAwait(false);
 
-        var result = await _fileEditLogic.DeleteLinesAsync(file_path, start_line, end_line, cancellationToken).ConfigureAwait(false);
+        FileLineEditResult result;
+        try
+        {
+            result = await _fileEditLogic.DeleteLinesAsync(file_path, start_line, end_line, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            RecordFileMetrics(FileOperationType.DeleteLines, FileOperationResult.Failed);
+            _logger?.LogError(ex, "FileDeleteLines 调用抛出异常: {FilePath}", file_path);
+            var exDiagnostic = ToolDiagnostic.Create("DeleteLinesFailed",
+                $"删除行失败: {ex.Message}",
+                [new DiagnosticDetail("filePath", file_path), new DiagnosticDetail("exceptionType", ex.GetType().Name)],
+                ["检查文件权限、是否被其他进程锁定。"]);
+            return ToolResultBuilder.Error().WithText(exDiagnostic.FormattedMessage).WithDiagnostic(exDiagnostic).Build();
+        }
 
         if (!result.Success)
         {
             RecordFileMetrics(FileOperationType.DeleteLines, FileOperationResult.Failed);
-            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to delete lines").Build();
+            var builder = ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to delete lines");
+            if (result.Diagnostic is not null)
+                builder = builder.WithDiagnostic(result.Diagnostic);
+            return builder.Build();
         }
 
         var response = new StringBuilder(128);
@@ -854,7 +917,25 @@ public class FileToolHandlers : IDisposable
         var resolvedPaths = await Task.WhenAll(
             file_paths.Select(path => ResolveSandboxPathAsync(path, cancellationToken))).ConfigureAwait(false);
 
-        var results = await _fileEditLogic.BatchEditAsync(resolvedPaths, old_string, new_string, replace_all, cancellationToken).ConfigureAwait(false);
+        List<BatchEditResult> results;
+        try
+        {
+            results = [.. await _fileEditLogic.BatchEditAsync(resolvedPaths, old_string, new_string, replace_all, cancellationToken).ConfigureAwait(false)];
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            RecordFileMetrics(FileOperationType.BatchEdit, FileOperationResult.Failed);
+            _logger?.LogError(ex, "FileBatchEdit 调用抛出异常");
+            var exDiagnostic = ToolDiagnostic.Create("BatchEditFailed",
+                $"批量编辑失败: {ex.Message}",
+                [new DiagnosticDetail("exceptionType", ex.GetType().Name)],
+                ["检查文件权限、是否被其他进程锁定。"]);
+            return ToolResultBuilder.Error().WithText(exDiagnostic.FormattedMessage).WithDiagnostic(exDiagnostic).Build();
+        }
 
         var response = new StringBuilder(512);
         response.AppendLine($"Batch edit completed: {results.Count} file(s)");

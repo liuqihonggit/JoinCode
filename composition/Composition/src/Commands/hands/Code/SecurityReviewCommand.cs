@@ -153,8 +153,10 @@ If no high-confidence vulnerabilities are found, state: "No high-confidence secu
     {
         try
         {
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(TimeSpan.FromSeconds(15));
             Diag.WriteLifecycle($"[DIAG-SEC-REVIEW] RunGitCommandAsync start: git {arguments}");
-            var result = await gitRunner.ExecuteAsync(arguments, fs.GetCurrentDirectory(), cancellationToken).ConfigureAwait(false);
+            var result = await gitRunner.ExecuteAsync(arguments, fs.GetCurrentDirectory(), cts.Token).ConfigureAwait(false);
             Diag.WriteLifecycle($"[DIAG-SEC-REVIEW] RunGitCommandAsync end: git {arguments}, exitCode={result.ExitCode}, outputLen={result.Output.Length}");
             return result.Output;
         }

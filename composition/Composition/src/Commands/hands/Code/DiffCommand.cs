@@ -8,32 +8,48 @@ public sealed class DiffCommand : ChatCommandBase
 {
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
+        Diag.WriteLifecycle("[DIAG-DIFF] ExecuteAsync entry");
         try
         {
-            var gitRunner = ChatCommandBase.GetService<IGitCommandRunner>(context)!;
+            var gitRunner = ChatCommandBase.GetService<IGitCommandRunner>(context)
+                ?? throw new InvalidOperationException("[DIAG-DIFF] IGitCommandRunner not registered");
+            Diag.WriteLifecycle($"[DIAG-DIFF] gitRunner resolved");
             var subCommand = !string.IsNullOrWhiteSpace(context.Arguments)
                 ? ChatCommandBase.GetSplitArgs(context).FirstOrDefault()?.ToLowerInvariant() ?? "default"
                 : "default";
+            Diag.WriteLifecycle($"[DIAG-DIFF] subCommand={subCommand}");
 
             switch (subCommand)
             {
                 case DiffModeConstants.Files:
+                    Diag.WriteLifecycle("[DIAG-DIFF] ShowChangedFilesAsync start");
                     await ShowChangedFilesAsync(context.CancellationToken, context.Services.FileSystem, gitRunner).ConfigureAwait(false);
+                    Diag.WriteLifecycle("[DIAG-DIFF] ShowChangedFilesAsync end");
                     break;
                 case DiffModeConstants.Cached:
                 case DiffModeConstants.Staged:
+                    Diag.WriteLifecycle("[DIAG-DIFF] ShowStagedDiffAsync start");
                     await ShowStagedDiffAsync(context.CancellationToken, context.Services.FileSystem, gitRunner).ConfigureAwait(false);
+                    Diag.WriteLifecycle("[DIAG-DIFF] ShowStagedDiffAsync end");
                     break;
                 default:
+                    Diag.WriteLifecycle("[DIAG-DIFF] ShowInteractiveDiffAsync start");
                     await ShowInteractiveDiffAsync(context.Services.TurnDiffProvider, context.CancellationToken, context.Services.FileSystem, gitRunner).ConfigureAwait(false);
+                    Diag.WriteLifecycle("[DIAG-DIFF] ShowInteractiveDiffAsync end");
                     break;
             }
         }
         catch (OperationCanceledException)
         {
-            // 取消时正常退出
+            Diag.WriteLifecycle("[DIAG-DIFF] OperationCanceledException caught");
+        }
+        catch (Exception ex)
+        {
+            Diag.WriteLifecycle($"[DIAG-DIFF] UNEXPECTED Exception: {ex.GetType().Name}: {ex.Message}");
+            throw;
         }
 
+        Diag.WriteLifecycle("[DIAG-DIFF] ExecuteAsync returning Continue");
         return ChatCommandResult.Continue();
     }
 
@@ -219,7 +235,10 @@ public sealed class DiffCommand : ChatCommandBase
     {
         TerminalHelper.WriteLine("=== Changed Files ===\n");
 
+        Diag.WriteLifecycle("[DIAG-DIFF] git diff --name-only start");
         var modified = await RunGitCommandAsync("diff --name-only", cancellationToken, fs, gitRunner).ConfigureAwait(false);
+        Diag.WriteLifecycle($"[DIAG-DIFF] git diff --name-only end, len={modified.Length}");
+
         if (!string.IsNullOrWhiteSpace(modified))
         {
             TerminalHelper.WriteLine("[Modified but not staged]");
@@ -229,7 +248,10 @@ public sealed class DiffCommand : ChatCommandBase
             }
         }
 
+        Diag.WriteLifecycle("[DIAG-DIFF] git diff --cached --name-only start");
         var staged = await RunGitCommandAsync($"{GitSubCommand.Diff.ToValue()} --cached --name-only", cancellationToken, fs, gitRunner).ConfigureAwait(false);
+        Diag.WriteLifecycle($"[DIAG-DIFF] git diff --cached --name-only end, len={staged.Length}");
+
         if (!string.IsNullOrWhiteSpace(staged))
         {
             TerminalHelper.WriteLine("\n[Staged]");
@@ -239,7 +261,10 @@ public sealed class DiffCommand : ChatCommandBase
             }
         }
 
+        Diag.WriteLifecycle("[DIAG-DIFF] git ls-files --others --exclude-standard start");
         var untracked = await RunGitCommandAsync("ls-files --others --exclude-standard", cancellationToken, fs, gitRunner).ConfigureAwait(false);
+        Diag.WriteLifecycle($"[DIAG-DIFF] git ls-files --others --exclude-standard end, len={untracked.Length}");
+
         if (!string.IsNullOrWhiteSpace(untracked))
         {
             TerminalHelper.WriteLine("\n[Untracked]");
@@ -261,11 +286,14 @@ public sealed class DiffCommand : ChatCommandBase
         {
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             cts.CancelAfter(TimeSpan.FromSeconds(15));
+            Diag.WriteLifecycle($"[DIAG-DIFF] RunGitCommandAsync start: git {arguments}");
             var result = await gitRunner.ExecuteAsync(arguments, fs.GetCurrentDirectory(), cts.Token).ConfigureAwait(false);
+            Diag.WriteLifecycle($"[DIAG-DIFF] RunGitCommandAsync end: git {arguments}, exitCode={result.ExitCode}, outputLen={result.Output.Length}");
             return result.Output;
         }
         catch (Exception ex)
         {
+            Diag.WriteLifecycle($"[DIAG-DIFF] RunGitCommandAsync EXCEPTION: git {arguments}, {ex.GetType().Name}: {ex.Message}");
             ChatCommandBase.HandleError("执行diff命令", ex);
             return string.Empty;
         }

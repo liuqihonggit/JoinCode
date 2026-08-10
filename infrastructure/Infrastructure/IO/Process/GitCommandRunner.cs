@@ -22,6 +22,8 @@ public sealed partial class GitCommandRunner : ServiceEntity, IGitCommandRunner
     {
         try
         {
+            Console.Error.WriteLine($"[DIAG-GIT] ExecuteAsync start: git {arguments}, cwd={workingDirectory}, ct.CanCancel={ct.CanBeCanceled}");
+            Console.Error.Flush();
             var options = new ProcessOptions
             {
                 FileName = "git",
@@ -32,6 +34,9 @@ public sealed partial class GitCommandRunner : ServiceEntity, IGitCommandRunner
 
             var result = await _processService.ExecuteAsync(options, ct).ConfigureAwait(false);
 
+            Console.Error.WriteLine($"[DIAG-GIT] ExecuteAsync end: git {arguments}, exitCode={result.ExitCode}, stdoutLen={result.StandardOutput.Length}, time={result.ExecutionTime.TotalMilliseconds:F0}ms");
+            Console.Error.Flush();
+
             return new GitCommandResult
             {
                 Success = result.Success,
@@ -40,12 +45,16 @@ public sealed partial class GitCommandRunner : ServiceEntity, IGitCommandRunner
                 ExitCode = result.ExitCode
             };
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
+            Console.Error.WriteLine($"[DIAG-GIT] ExecuteAsync CANCELED: git {arguments}, {ex.GetType().Name}");
+            Console.Error.Flush();
             throw;
         }
         catch (Exception ex)
         {
+            Console.Error.WriteLine($"[DIAG-GIT] ExecuteAsync EXCEPTION: git {arguments}, {ex.GetType().Name}: {ex.Message}");
+            Console.Error.Flush();
             _logger?.LogError(ex, "执行 Git 命令失败: git {Arguments}", arguments);
             return new GitCommandResult
             {

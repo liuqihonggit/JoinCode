@@ -13,6 +13,7 @@ global using JoinCode.Abstractions.Execution;
 global using ExecutionContext = JoinCode.Abstractions.Execution.ExecutionContext;
 global using JoinCode.Abstractions.Hooks;
 global using JoinCode.Abstractions.Interfaces;
+global using JoinCode.Abstractions.Localization;
 global using JoinCode.Abstractions.LLM;
 global using JoinCode.Abstractions.LLM.Chat;
 global using JoinCode.Abstractions.Models;

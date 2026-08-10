@@ -152,8 +152,10 @@ public partial class AgentToolHandlers
     {
         if (string.IsNullOrWhiteSpace(agent_id))
         {
+            var idDiag = BuildAgentIdEmptyDiagnostic();
             return ToolResultBuilder.Error()
-                .WithText("agent_id cannot be empty")
+                .WithText(idDiag.FormattedMessage)
+                .WithDiagnostic(idDiag)
                 .Build();
         }
 
@@ -161,8 +163,10 @@ public partial class AgentToolHandlers
 
         if (agent == null)
         {
+            var notFoundDiag = BuildAgentNotFoundDiagnostic(agent_id);
             return ToolResultBuilder.Error()
-                .WithText($"Agent not found: {agent_id}")
+                .WithText(notFoundDiag.FormattedMessage)
+                .WithDiagnostic(notFoundDiag)
                 .Build();
         }
 
@@ -208,8 +212,10 @@ public partial class AgentToolHandlers
     {
         if (string.IsNullOrWhiteSpace(agent_id))
         {
+            var idDiag = BuildAgentIdEmptyDiagnostic();
             return ToolResultBuilder.Error()
-                .WithText("agent_id cannot be empty")
+                .WithText(idDiag.FormattedMessage)
+                .WithDiagnostic(idDiag)
                 .Build();
         }
 
@@ -218,8 +224,10 @@ public partial class AgentToolHandlers
         if (!success)
         {
             ToolTelemetryHelper.RecordToolCount(_telemetryService, "agent.handler.count", "stop", false);
+            var stopDiag = BuildStopAgentFailedDiagnostic(agent_id);
             return ToolResultBuilder.Error()
-                .WithText($"Failed to stop agent or agent not found: {agent_id}")
+                .WithText(stopDiag.FormattedMessage)
+                .WithDiagnostic(stopDiag)
                 .Build();
         }
 
@@ -234,9 +242,13 @@ public partial class AgentToolHandlers
         CancellationToken cancellationToken = default)
     {
         if (_coordinator == null)
+        {
+            var coordDiag = BuildCoordinatorNotInitializedDiagnostic();
             return ToolResultBuilder.Error()
-                .WithText(L.T(StringKey.AgentCoordinatorNotInitialized))
+                .WithText(coordDiag.FormattedMessage)
+                .WithDiagnostic(coordDiag)
                 .Build();
+        }
 
         try
         {
@@ -293,15 +305,19 @@ public partial class AgentToolHandlers
     {
         if (string.IsNullOrWhiteSpace(to))
         {
+            var recipientDiag = BuildRecipientEmptyDiagnostic();
             return ToolResultBuilder.Error()
-                .WithText("Recipient (to) cannot be empty")
+                .WithText(recipientDiag.FormattedMessage)
+                .WithDiagnostic(recipientDiag)
                 .Build();
         }
 
         if (string.IsNullOrWhiteSpace(message))
         {
+            var msgDiag = BuildMessageEmptyDiagnostic();
             return ToolResultBuilder.Error()
-                .WithText("message cannot be empty")
+                .WithText(msgDiag.FormattedMessage)
+                .WithDiagnostic(msgDiag)
                 .Build();
         }
 
@@ -316,8 +332,10 @@ public partial class AgentToolHandlers
                 // 结构化消息不能广播
                 if (to == "*")
                 {
+                    var broadcastDiag = BuildBroadcastStructuredMessageDiagnostic(structuredData.Type.ToValue());
                     return ToolResultBuilder.Error()
-                        .WithText($"Cannot broadcast structured message (type: {structuredData.Type.ToValue()}). Send to a specific teammate instead.")
+                        .WithText(broadcastDiag.FormattedMessage)
+                        .WithDiagnostic(broadcastDiag)
                         .Build();
                 }
 
@@ -355,8 +373,10 @@ public partial class AgentToolHandlers
             if (!sent)
             {
                 ToolTelemetryHelper.RecordToolCount(_telemetryService, "agent.handler.count", "send_message", false);
+                var sendDiag = BuildSendMessageFailedDiagnostic(to);
                 return ToolResultBuilder.Error()
-                    .WithText($"Failed to send message: agent '{to}' not found or messaging service unavailable")
+                    .WithText(sendDiag.FormattedMessage)
+                    .WithDiagnostic(sendDiag)
                     .Build();
             }
 
@@ -420,16 +440,20 @@ public partial class AgentToolHandlers
         var teamManager = _serviceProvider?.GetService(typeof(ITeamManager)) as ITeamManager;
         if (teamManager is null)
         {
+            var svcDiag = BuildBroadcastServiceUnavailableDiagnostic();
             return ToolResultBuilder.Error()
-                .WithText("Broadcast failed: team service not available")
+                .WithText(svcDiag.FormattedMessage)
+                .WithDiagnostic(svcDiag)
                 .Build();
         }
 
         var teams = await teamManager.ListTeamsAsync(cancellationToken).ConfigureAwait(false);
         if (teams.Count == 0)
         {
+            var noTeamsDiag = BuildBroadcastNoTeamsDiagnostic();
             return ToolResultBuilder.Error()
-                .WithText("Broadcast failed: no teams exist")
+                .WithText(noTeamsDiag.FormattedMessage)
+                .WithDiagnostic(noTeamsDiag)
                 .Build();
         }
 
@@ -459,8 +483,10 @@ public partial class AgentToolHandlers
     {
         if (string.IsNullOrWhiteSpace(agent_id))
         {
+            var idDiag = BuildAgentIdEmptyDiagnostic();
             return ToolResultBuilder.Error()
-                .WithText("agent_id cannot be empty")
+                .WithText(idDiag.FormattedMessage)
+                .WithDiagnostic(idDiag)
                 .Build();
         }
 
@@ -501,5 +527,193 @@ public partial class AgentToolHandlers
             return ToolExceptionDiagnosticHelper.BuildErrorResult("agent_get_messages", ex, _logger);
         }
     }
+
+    #region Diagnostic Builders
+
+    /// <summary>
+    /// 构建 agent_id 为空的结构化诊断。
+    /// 适用于 GetAgentStatusAsync、StopAgentAsync、GetMessagesAsync 的参数验证。
+    /// </summary>
+    internal static ToolDiagnostic BuildAgentIdEmptyDiagnostic()
+    {
+        return ToolDiagnostic.Create(
+            reason: "AgentIdEmpty",
+            formattedMessage: "agent_id cannot be empty",
+            details:
+            [
+                new DiagnosticDetail("Param", "agent_id"),
+            ],
+            suggestions:
+            [
+                "提供有效的代理 ID 或名称。",
+            ]);
+    }
+
+    /// <summary>
+    /// 构建代理未找到的结构化诊断。
+    /// </summary>
+    internal static ToolDiagnostic BuildAgentNotFoundDiagnostic(string agentId)
+    {
+        return ToolDiagnostic.Create(
+            reason: "AgentNotFound",
+            formattedMessage: $"Agent not found: {agentId}",
+            details:
+            [
+                new DiagnosticDetail("AgentId", agentId),
+            ],
+            suggestions:
+            [
+                "使用 agent_list 查看运行中的代理。",
+                "确认代理 ID 或名称拼写正确。",
+            ]);
+    }
+
+    /// <summary>
+    /// 构建停止代理失败的结构化诊断。
+    /// </summary>
+    internal static ToolDiagnostic BuildStopAgentFailedDiagnostic(string agentId)
+    {
+        return ToolDiagnostic.Create(
+            reason: "AgentStopFailed",
+            formattedMessage: $"Failed to stop agent or agent not found: {agentId}",
+            details:
+            [
+                new DiagnosticDetail("AgentId", agentId),
+            ],
+            suggestions:
+            [
+                "使用 agent_list 查看运行中的代理。",
+                "确认代理 ID 或名称拼写正确。",
+                "代理可能已完成或已停止。",
+            ]);
+    }
+
+    /// <summary>
+    /// 构建代理协调器未初始化的结构化诊断。
+    /// </summary>
+    internal static ToolDiagnostic BuildCoordinatorNotInitializedDiagnostic()
+    {
+        return ToolDiagnostic.Create(
+            reason: "AgentCoordinatorNotInitialized",
+            formattedMessage: L.T(StringKey.AgentCoordinatorNotInitialized),
+            details:
+            [
+                new DiagnosticDetail("Component", "IAgentCoordinator"),
+            ],
+            suggestions:
+            [
+                "确认 AgentToolHandlers 构造时传入了 IAgentCoordinator 实例。",
+            ]);
+    }
+
+    /// <summary>
+    /// 构建消息接收者为空的结构化诊断。
+    /// </summary>
+    internal static ToolDiagnostic BuildRecipientEmptyDiagnostic()
+    {
+        return ToolDiagnostic.Create(
+            reason: "AgentRecipientEmpty",
+            formattedMessage: "Recipient (to) cannot be empty",
+            details:
+            [
+                new DiagnosticDetail("Param", "to"),
+            ],
+            suggestions:
+            [
+                "提供接收者名称、代理 ID 或 * 进行广播。",
+            ]);
+    }
+
+    /// <summary>
+    /// 构建消息内容为空的结构化诊断。
+    /// </summary>
+    internal static ToolDiagnostic BuildMessageEmptyDiagnostic()
+    {
+        return ToolDiagnostic.Create(
+            reason: "AgentMessageEmpty",
+            formattedMessage: "message cannot be empty",
+            details:
+            [
+                new DiagnosticDetail("Param", "message"),
+            ],
+            suggestions:
+            [
+                "提供要发送的消息内容。",
+            ]);
+    }
+
+    /// <summary>
+    /// 构建结构化消息不支持广播的结构化诊断。
+    /// </summary>
+    internal static ToolDiagnostic BuildBroadcastStructuredMessageDiagnostic(string messageType)
+    {
+        return ToolDiagnostic.Create(
+            reason: "AgentBroadcastStructuredMessage",
+            formattedMessage: $"Cannot broadcast structured message (type: {messageType}). Send to a specific teammate instead.",
+            details:
+            [
+                new DiagnosticDetail("MessageType", messageType),
+                new DiagnosticDetail("Recipient", "*"),
+            ],
+            suggestions:
+            [
+                "将结构化消息发送给特定的 teammate，而非使用 * 广播。",
+            ]);
+    }
+
+    /// <summary>
+    /// 构建发送消息失败的结构化诊断。
+    /// </summary>
+    internal static ToolDiagnostic BuildSendMessageFailedDiagnostic(string recipient)
+    {
+        return ToolDiagnostic.Create(
+            reason: "AgentSendMessageFailed",
+            formattedMessage: $"Failed to send message: agent '{recipient}' not found or messaging service unavailable",
+            details:
+            [
+                new DiagnosticDetail("Recipient", recipient),
+            ],
+            suggestions:
+            [
+                "使用 agent_list 查看运行中的代理。",
+                "确认接收者名称或代理 ID 正确。",
+                "检查消息服务是否可用。",
+            ]);
+    }
+
+    /// <summary>
+    /// 构建广播服务不可用的结构化诊断。
+    /// </summary>
+    internal static ToolDiagnostic BuildBroadcastServiceUnavailableDiagnostic()
+    {
+        return ToolDiagnostic.Create(
+            reason: "AgentBroadcastServiceUnavailable",
+            formattedMessage: "Broadcast failed: team service not available",
+            details:
+            [
+                new DiagnosticDetail("Component", "ITeamManager"),
+            ],
+            suggestions:
+            [
+                "确认 ITeamManager 已在 DI 容器中注册。",
+            ]);
+    }
+
+    /// <summary>
+    /// 构建广播无团队的结构化诊断。
+    /// </summary>
+    internal static ToolDiagnostic BuildBroadcastNoTeamsDiagnostic()
+    {
+        return ToolDiagnostic.Create(
+            reason: "AgentBroadcastNoTeams",
+            formattedMessage: "Broadcast failed: no teams exist",
+            details: [],
+            suggestions:
+            [
+                "先创建团队后再发送广播消息。",
+            ]);
+    }
+
+    #endregion
 
 }

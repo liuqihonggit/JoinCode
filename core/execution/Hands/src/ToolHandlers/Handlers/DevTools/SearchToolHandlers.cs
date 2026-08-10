@@ -168,7 +168,8 @@ public class SearchToolHandlers : OneShotCommandGroup
                 }
                 else if (_fileOperationService.FileExists(fullPath))
                 {
-                    return ToolResultBuilder.Error().WithText($"Path is not a directory: {path}").Build();
+                    var diag = BuildPathNotDirectoryDiagnostic(path);
+                    return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
                 }
                 else
                 {
@@ -178,7 +179,8 @@ public class SearchToolHandlers : OneShotCommandGroup
                     {
                         message += $" Did you mean {suggestion}?";
                     }
-                    return ToolResultBuilder.Error().WithText(message).Build();
+                    var diag = BuildDirectoryNotFoundDiagnostic(path, message, suggestion);
+                    return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
                 }
             }
 
@@ -197,13 +199,15 @@ public class SearchToolHandlers : OneShotCommandGroup
             {
                 // 超时（非用户主动取消），对齐 TS RipgrepTimeoutError
                 RecordSearchMetrics("glob", "timeout");
-                return ToolResultBuilder.Error().WithText($"Glob search timed out after {WorkflowConstants.Limits.SearchTimeoutSeconds}s. Consider using a more specific path or pattern.").Build();
+                var diag = BuildGlobTimeoutDiagnostic();
+                return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
             }
 
             if (!result.Success)
             {
                 RecordSearchMetrics("glob", "failed");
-                return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "Search failed").Build();
+                var failDiag = BuildSearchFailedDiagnostic("glob", result.ErrorMessage);
+                return ToolResultBuilder.Error().WithText(failDiag.FormattedMessage).WithDiagnostic(failDiag).Build();
             }
 
             // 过滤 deny 模式匹配的文件 — 对齐 TS: ripgrep --glob !pattern
@@ -265,7 +269,8 @@ public class SearchToolHandlers : OneShotCommandGroup
                 ValidationHelper.ValidateRange(offset, 0, 100000, "offset"));
             if (validationError != null)
             {
-                return ToolResultBuilder.Error().WithText(validationError).Build();
+                var diag = BuildGrepValidationErrorDiagnostic(validationError);
+                return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
             }
 
             // 路径权限检查 — 对齐 TS checkReadPermissionForTool 9步决策链
@@ -285,7 +290,8 @@ public class SearchToolHandlers : OneShotCommandGroup
                     {
                         message += $" Did you mean {suggestion}?";
                     }
-                    return ToolResultBuilder.Error().WithText(message).Build();
+                    var diag = BuildGrepPathNotFoundDiagnostic(path, message, suggestion);
+                    return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
                 }
             }
 
@@ -322,13 +328,15 @@ public class SearchToolHandlers : OneShotCommandGroup
             {
                 // 超时（非用户主动取消），对齐 TS RipgrepTimeoutError
                 RecordSearchMetrics("grep", "timeout");
-                return ToolResultBuilder.Error().WithText($"Grep search timed out after {WorkflowConstants.Limits.SearchTimeoutSeconds}s. Consider using a more specific path or pattern.").Build();
+                var diag = BuildGrepTimeoutDiagnostic();
+                return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
             }
 
             if (!result.Success)
             {
                 RecordSearchMetrics("grep", "failed");
-                return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "Search failed").Build();
+                var failDiag = BuildSearchFailedDiagnostic("grep", result.ErrorMessage);
+                return ToolResultBuilder.Error().WithText(failDiag.FormattedMessage).WithDiagnostic(failDiag).Build();
             }
 
             if (result.NumFiles == 0)
@@ -545,26 +553,33 @@ public class SearchToolHandlers : OneShotCommandGroup
         if (_pathPermissionChecker is not null)
         {
             var result = _pathPermissionChecker.CheckReadPermission(path);
-            return result.Decision switch
+            if (result.Decision == PermissionBehavior.Deny)
             {
-                PermissionBehavior.Deny => ToolResultBuilder.Error()
-                    .WithText(result.Reason ?? $"Access denied for path: {path}").Build(),
-                // Ask 在工具层面转为 Error（搜索工具无交互式权限确认流程）
-                PermissionBehavior.Ask => ToolResultBuilder.Error()
-                    .WithText(result.Reason ?? $"Access to path requires confirmation: {path}").Build(),
-                _ => null // Allow: 继续执行
-            };
+                var diag = BuildPathPermissionDeniedDiagnostic(path, result.Reason);
+                return ToolResultBuilder.Error()
+                    .WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
+            }
+            // Ask 在工具层面转为 Error（搜索工具无交互式权限确认流程）
+            if (result.Decision == PermissionBehavior.Ask)
+            {
+                var diag = BuildPathPermissionAskDiagnostic(path, result.Reason);
+                return ToolResultBuilder.Error()
+                    .WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
+            }
+            // Allow: 继续执行
         }
 
         // 无 PathPermissionChecker 时，保留硬编码安全检查作为兜底
         if (path.StartsWith("\\\\", StringComparison.Ordinal) || path.StartsWith("//", StringComparison.Ordinal))
         {
-            return ToolResultBuilder.Error().WithText("Cannot search UNC path directories (starting with \\\\), this may lead to credential leakage").Build();
+            var uncDiag = BuildUncPathDeniedDiagnostic(path);
+            return ToolResultBuilder.Error().WithText(uncDiag.FormattedMessage).WithDiagnostic(uncDiag).Build();
         }
 
         if (SecurityPatterns.HasSuspiciousWindowsPathPattern(path))
         {
-            return ToolResultBuilder.Error().WithText($"Cannot search path with suspicious pattern: {path}. This may be a security risk.").Build();
+            var suspDiag = BuildSuspiciousPathDiagnostic(path);
+            return ToolResultBuilder.Error().WithText(suspDiag.FormattedMessage).WithDiagnostic(suspDiag).Build();
         }
 
         return null;
@@ -696,5 +711,200 @@ public class SearchToolHandlers : OneShotCommandGroup
     /// </summary>
     internal static string BuildGrepNoResultMessage(string pattern, string? path, bool caseInsensitive)
         => BuildGrepNoResultDiagnostic(pattern, path, caseInsensitive).FormattedMessage;
+
+    #region Error Diagnostics
+
+    internal static ToolDiagnostic BuildPathNotDirectoryDiagnostic(string path)
+    {
+        return ToolDiagnostic.Create(
+            reason: "SearchPathNotDirectory",
+            formattedMessage: $"Path is not a directory: {path}",
+            details:
+            [
+                new DiagnosticDetail("Path", path),
+            ],
+            suggestions:
+            [
+                "Provide a directory path, not a file path.",
+            ]);
+    }
+
+    internal static ToolDiagnostic BuildDirectoryNotFoundDiagnostic(
+        string path, string formattedMessage, string? suggestion)
+    {
+        var details = new List<DiagnosticDetail>(2)
+        {
+            new("Path", path),
+        };
+        if (suggestion is not null)
+            details.Add(new DiagnosticDetail("Suggestion", suggestion));
+
+        return ToolDiagnostic.Create(
+            reason: "SearchDirectoryNotFound",
+            formattedMessage: formattedMessage,
+            details: details,
+            suggestions:
+            [
+                "Verify the directory path is correct.",
+                suggestion is not null ? $"Did you mean {suggestion}?" : "Use the current working directory if unsure.",
+            ]);
+    }
+
+    internal static ToolDiagnostic BuildGlobTimeoutDiagnostic()
+    {
+        return ToolDiagnostic.Create(
+            reason: "GlobSearchTimeout",
+            formattedMessage: $"Glob search timed out after {WorkflowConstants.Limits.SearchTimeoutSeconds}s. Consider using a more specific path or pattern.",
+            details:
+            [
+                new DiagnosticDetail("TimeoutSeconds", WorkflowConstants.Limits.SearchTimeoutSeconds.ToString()),
+            ],
+            suggestions:
+            [
+                "Use a more specific path or pattern.",
+                "Reduce the search scope to a subdirectory.",
+            ]);
+    }
+
+    internal static ToolDiagnostic BuildGrepTimeoutDiagnostic()
+    {
+        return ToolDiagnostic.Create(
+            reason: "GrepSearchTimeout",
+            formattedMessage: $"Grep search timed out after {WorkflowConstants.Limits.SearchTimeoutSeconds}s. Consider using a more specific path or pattern.",
+            details:
+            [
+                new DiagnosticDetail("TimeoutSeconds", WorkflowConstants.Limits.SearchTimeoutSeconds.ToString()),
+            ],
+            suggestions:
+            [
+                "Use a more specific path or pattern.",
+                "Reduce the search scope or use file type filters.",
+            ]);
+    }
+
+    internal static ToolDiagnostic BuildSearchFailedDiagnostic(
+        string operation, string? errorMessage)
+    {
+        var msg = errorMessage ?? "Search failed";
+        return ToolDiagnostic.Create(
+            reason: $"Search{operation}Failed",
+            formattedMessage: msg,
+            details:
+            [
+                new DiagnosticDetail("Operation", operation),
+                new DiagnosticDetail("Error", msg),
+            ],
+            suggestions:
+            [
+                "Check the search service configuration.",
+                "Verify the search parameters are valid.",
+            ]);
+    }
+
+    internal static ToolDiagnostic BuildGrepValidationErrorDiagnostic(string validationError)
+    {
+        return ToolDiagnostic.Create(
+            reason: "GrepValidationError",
+            formattedMessage: validationError,
+            details:
+            [
+                new DiagnosticDetail("Error", validationError),
+            ],
+            suggestions:
+            [
+                "Fix the validation error and retry.",
+            ]);
+    }
+
+    internal static ToolDiagnostic BuildGrepPathNotFoundDiagnostic(
+        string path, string formattedMessage, string? suggestion)
+    {
+        var details = new List<DiagnosticDetail>(2)
+        {
+            new("Path", path),
+        };
+        if (suggestion is not null)
+            details.Add(new DiagnosticDetail("Suggestion", suggestion));
+
+        return ToolDiagnostic.Create(
+            reason: "GrepPathNotFound",
+            formattedMessage: formattedMessage,
+            details: details,
+            suggestions:
+            [
+                "Verify the path is correct.",
+                suggestion is not null ? $"Did you mean {suggestion}?" : "Use the current working directory if unsure.",
+            ]);
+    }
+
+    internal static ToolDiagnostic BuildPathPermissionDeniedDiagnostic(
+        string path, string? reason)
+    {
+        var msg = reason ?? $"Access denied for path: {path}";
+        return ToolDiagnostic.Create(
+            reason: "SearchPathPermissionDenied",
+            formattedMessage: msg,
+            details:
+            [
+                new DiagnosticDetail("Path", path),
+                new DiagnosticDetail("Reason", reason ?? "(default)"),
+            ],
+            suggestions:
+            [
+                "Check the path permission configuration.",
+                "Use a different path that is allowed.",
+            ]);
+    }
+
+    internal static ToolDiagnostic BuildPathPermissionAskDiagnostic(
+        string path, string? reason)
+    {
+        var msg = reason ?? $"Access to path requires confirmation: {path}";
+        return ToolDiagnostic.Create(
+            reason: "SearchPathPermissionAsk",
+            formattedMessage: msg,
+            details:
+            [
+                new DiagnosticDetail("Path", path),
+                new DiagnosticDetail("Reason", reason ?? "(default)"),
+            ],
+            suggestions:
+            [
+                "Confirm the path access in the permission configuration.",
+            ]);
+    }
+
+    internal static ToolDiagnostic BuildUncPathDeniedDiagnostic(string path)
+    {
+        return ToolDiagnostic.Create(
+            reason: "SearchUncPathDenied",
+            formattedMessage: "Cannot search UNC path directories (starting with \\\\), this may lead to credential leakage",
+            details:
+            [
+                new DiagnosticDetail("Path", path),
+            ],
+            suggestions:
+            [
+                "Use a local path instead of a UNC path.",
+            ]);
+    }
+
+    internal static ToolDiagnostic BuildSuspiciousPathDiagnostic(string path)
+    {
+        return ToolDiagnostic.Create(
+            reason: "SearchSuspiciousPath",
+            formattedMessage: $"Cannot search path with suspicious pattern: {path}. This may be a security risk.",
+            details:
+            [
+                new DiagnosticDetail("Path", path),
+            ],
+            suggestions:
+            [
+                "Avoid path traversal patterns.",
+                "Use a safe path within the working directory.",
+            ]);
+    }
+
+    #endregion
 
 }

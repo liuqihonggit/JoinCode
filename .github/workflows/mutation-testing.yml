@@ -180,21 +180,7 @@ jobs:
           $concurrency = [int]$env:STRYKER_CONCURRENCY
           $breakThreshold = [int]$env:STRYKER_BREAK
 
-          $slnxMap = @{
-            'Guard-Config' = 'Core.slnx'; 'Guard-Security' = 'Core.slnx'; 'Guard-Hooks' = 'Core.slnx'
-            'Vault-Memdir' = 'Core.slnx'; 'Vault-Other' = 'Core.slnx'
-            'Brain-CtxAdmin' = 'Core.slnx'; 'Brain-CtxChat' = 'Core.slnx'; 'Brain-CtxOther' = 'Core.slnx'; 'Brain-CtxNonServices' = 'Core.slnx'
-            'Brain-PromptsSections' = 'Core.slnx'; 'Brain-PromptsOther' = 'Core.slnx'; 'Brain-Other' = 'Core.slnx'
-            'Hands-SysTools' = 'Core.slnx'; 'Hands-CoreHandlers' = 'Core.slnx'; 'Hands-DevTools' = 'Core.slnx'
-            'Hands-SkillServices' = 'Core.slnx'; 'Hands-SkillBuiltIn' = 'Core.slnx'; 'Hands-SkillOther' = 'Core.slnx'
-            'Hands-Api' = 'Core.slnx'; 'Hands-Shell' = 'Core.slnx'
-            'Scheduling' = 'Core.slnx'; 'McpToolDispatch' = 'Core.slnx'; 'Llm' = 'Core.slnx'; 'Agents' = 'Core.slnx'; 'Reasoning' = 'Core.slnx'
-            'CodeIndex' = 'Core.slnx'; 'Browser' = 'Core.slnx'
-            'Mcp' = 'Services.slnx'; 'Eyes' = 'Services.slnx'; 'Dream' = 'Services.slnx'; 'Bridge' = 'Services.slnx'
-            'Composition' = 'Composition.slnx'; 'Clock' = 'Composition.slnx'
-            'Infra' = 'App.slnx'; 'Host-Commands' = 'App.slnx'; 'Host-Other' = 'App.slnx'
-          }
-          $slnx = $slnxMap[$name]
+          $slnx = 'JoinCode.slnx'
           $slnxPath = Join-Path $env:GITHUB_WORKSPACE $slnx
 
           $strykerArgs = @("-p", $info.Src, "-s", $slnxPath, "-c", $concurrency, "-b", $breakThreshold, "--configuration", "Debug", "--threshold-low", "60", "--threshold-high", "80", "-r", "progress", "-r", "html", "-r", "json", "-r", "markdown")

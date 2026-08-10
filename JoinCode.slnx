@@ -89,8 +89,6 @@
     <Project Path="tests/Unit/Infra.Tests/Infra.Tests.csproj" />
     <Project Path="tests/Unit/Testing.Common/Testing.Common.csproj" />
     <Project Path="tests/Unit/JoinCodeGui.Tests/JoinCodeGui.Tests.csproj" />
-    <Project Path="tests/Unit/McpToolDispatch.Tests/McpToolDispatch.Tests.csproj" />
-    <Project Path="tests/Unit/Mcp.Tests/Mcp.Tests.csproj" />
     <Project Path="tests/Unit/Hands.Tests/Hands.Tests.csproj" />
     <Project Path="tests/Unit/Abs.Tests/Abs.Tests.csproj" />
   </Folder>

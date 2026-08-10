@@ -94,17 +94,23 @@ public sealed partial class ConfigToolHandlers
                 else if (lower is "false")
                     finalValue = "false";
                 else
+                {
+                    var boolDiag = BuildInvalidBooleanValueDiagnostic(setting, value);
                     return ToolResultBuilder.Error()
-                        .WithText($"{setting} requires true or false.")
+                        .WithText(boolDiag.FormattedMessage)
+                        .WithDiagnostic(boolDiag)
                         .Build();
+                }
             }
 
             // 对齐 TS: options 校验
             var options = SupportedSettings.GetOptionsForSetting(setting);
             if (options is not null && !options.Contains(finalValue))
             {
+                var optionsDiag = BuildInvalidOptionValueDiagnostic(setting, value, options);
                 return ToolResultBuilder.Error()
-                    .WithText($"Invalid value \"{value}\". Options: {string.Join(", ", options)}")
+                    .WithText(optionsDiag.FormattedMessage)
+                    .WithDiagnostic(optionsDiag)
                     .Build();
             }
 
@@ -114,8 +120,10 @@ public sealed partial class ConfigToolHandlers
                 var (valid, error) = await config.ValidateOnWrite(finalValue).ConfigureAwait(false);
                 if (!valid)
                 {
+                    var validateDiag = BuildValidateOnWriteFailedDiagnostic(setting, finalValue, error);
                     return ToolResultBuilder.Error()
-                        .WithText(error ?? "Validation failed")
+                        .WithText(validateDiag.FormattedMessage)
+                        .WithDiagnostic(validateDiag)
                         .Build();
                 }
             }
@@ -128,8 +136,10 @@ public sealed partial class ConfigToolHandlers
 
             if (!success)
             {
+                var setFailedDiag = BuildSetFailedDiagnostic(setting, finalValue);
                 return ToolResultBuilder.Error()
-                    .WithText($"Failed to set {setting}")
+                    .WithText(setFailedDiag.FormattedMessage)
+                    .WithDiagnostic(setFailedDiag)
                     .Build();
             }
 
@@ -274,5 +284,94 @@ public sealed partial class ConfigToolHandlers
         }
 
         return ToolDiagnostic.Create("UnknownSetting", sb.ToString(), details, suggestions);
+    }
+
+    /// <summary>
+    /// boolean 类型设置项值无效的诊断。
+    /// </summary>
+    internal static ToolDiagnostic BuildInvalidBooleanValueDiagnostic(string setting, string value)
+    {
+        var sb = new StringBuilder(128);
+        sb.Append($"{setting} requires true or false.");
+        sb.Append($"\n[诊断] 提供的值: \"{value}\"");
+        sb.Append($"\n[诊断] 设置项类型: boolean");
+
+        var details = new List<DiagnosticDetail>(3)
+        {
+            new("setting", setting),
+            new("providedValue", value),
+            new("expectedType", "boolean"),
+        };
+        var suggestions = new List<string>(1) { "使用 \"true\" 或 \"false\"" };
+
+        return ToolDiagnostic.Create("InvalidBooleanValue", sb.ToString(), details, suggestions);
+    }
+
+    /// <summary>
+    /// 选项校验失败的诊断 — 值不在允许的选项列表中。
+    /// </summary>
+    internal static ToolDiagnostic BuildInvalidOptionValueDiagnostic(string setting, string value, string[] options)
+    {
+        var sb = new StringBuilder(128);
+        sb.Append($"Invalid value \"{value}\". Options: {string.Join(", ", options)}");
+        sb.Append($"\n[诊断] 设置项: {setting}");
+        sb.Append($"\n[诊断] 提供的值: \"{value}\"");
+        sb.Append($"\n[诊断] 允许的选项 ({options.Length} 个): {string.Join(", ", options)}");
+
+        var details = new List<DiagnosticDetail>(3)
+        {
+            new("setting", setting),
+            new("providedValue", value),
+            new("allowedOptions", string.Join(", ", options)),
+        };
+        var suggestions = new List<string>(1) { $"从以下选项中选择: {string.Join(", ", options)}" };
+
+        return ToolDiagnostic.Create("InvalidOptionValue", sb.ToString(), details, suggestions);
+    }
+
+    /// <summary>
+    /// validateOnWrite 异步验证失败的诊断。
+    /// </summary>
+    internal static ToolDiagnostic BuildValidateOnWriteFailedDiagnostic(string setting, string value, string? error)
+    {
+        var errorMessage = error ?? "Validation failed";
+        var sb = new StringBuilder(128);
+        sb.Append(errorMessage);
+        sb.Append($"\n[诊断] 设置项: {setting}");
+        sb.Append($"\n[诊断] 提供的值: \"{value}\"");
+
+        var details = new List<DiagnosticDetail>(3)
+        {
+            new("setting", setting),
+            new("value", value),
+            new("validationError", errorMessage),
+        };
+        var suggestions = new List<string>(1) { "检查值是否满足验证规则" };
+
+        return ToolDiagnostic.Create("ValidateOnWriteFailed", sb.ToString(), details, suggestions);
+    }
+
+    /// <summary>
+    /// 配置写入失败的诊断 — SetAsync 返回 false。
+    /// </summary>
+    internal static ToolDiagnostic BuildSetFailedDiagnostic(string setting, string value)
+    {
+        var sb = new StringBuilder(128);
+        sb.Append($"Failed to set {setting}");
+        sb.Append($"\n[诊断] 设置项: {setting}");
+        sb.Append($"\n[诊断] 尝试写入的值: \"{value}\"");
+
+        var details = new List<DiagnosticDetail>(2)
+        {
+            new("setting", setting),
+            new("value", value),
+        };
+        var suggestions = new List<string>(2)
+        {
+            "检查配置文件权限",
+            "确认设置项的来源（global/user）是否可写",
+        };
+
+        return ToolDiagnostic.Create("SetFailed", sb.ToString(), details, suggestions);
     }
 }

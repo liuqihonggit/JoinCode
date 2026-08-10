@@ -21,16 +21,40 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
 
         var session = context.Session ?? throw new InvalidOperationException("Session not initialized");
 
+        var inputChannel = System.Threading.Channels.Channel.CreateUnbounded<string>();
+
+        var readTask = Task.Run(async () =>
+        {
+            try
+            {
+                while (!ct.IsCancellationRequested)
+                {
+                    using var _ = Cli.TerminalHelper.SetColor(ConsoleColor.Green);
+                    Cli.TerminalHelper.WriteRaw("> ");
+                    var input = Cli.TerminalHelper.ReadLine();
+                    if (string.IsNullOrWhiteSpace(input))
+                    {
+                        if (Cli.TerminalHelper.IsInputRedirected && !Cli.TerminalHelper.ForceInteractive) return;
+                        continue;
+                    }
+                    if (!inputChannel.Writer.TryWrite(input)) return;
+                }
+            }
+            catch (OperationCanceledException) { }
+            finally { inputChannel.Writer.TryComplete(); }
+        }, ct);
+
         while (session.IsRunning && !ct.IsCancellationRequested)
         {
-            Cli.TerminalHelper.WriteRaw("> ");
-            var input = Cli.TerminalHelper.ReadLine();
-
-            if (string.IsNullOrWhiteSpace(input))
+            string combined;
+            try
             {
-                if (Cli.TerminalHelper.IsInputRedirected && !Cli.TerminalHelper.ForceInteractive) break;
-                continue;
+                combined = await inputChannel.Reader.ReadAsync(ct).ConfigureAwait(false);
             }
+            catch (System.Threading.Channels.ChannelClosedException) { break; }
+
+            while (inputChannel.Reader.TryRead(out var more))
+                combined = string.Concat(combined, "\n", more);
 
             using var stepCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             using var aliveCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -47,7 +71,7 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
             var aliveTask = RunAliveLoopAsync(aliveCts.Token);
             try
             {
-                await session.ProcessUserInputAsync(input, stepCts.Token);
+                await session.ProcessUserInputAsync(combined, stepCts.Token);
             }
             catch (OperationCanceledException) when (stepCts.IsCancellationRequested && !ct.IsCancellationRequested)
             {
@@ -59,6 +83,7 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
             {
                 // 单轮失败不应杀死 REPL — 记录错误日志 + 分类提示后继续循环
                 WriteErrorLog(ex);
+                using var _ = Cli.TerminalHelper.SetColor(ConsoleColor.Red);
                 Cli.TerminalHelper.WriteLine($"错误: {ex.Message}");
                 if (ex is JoinCode.Abstractions.Exceptions.ApiException apiEx && apiEx.IsRetryable)
                     Cli.TerminalHelper.WriteLine("  此错误通常可重试，请稍后再试。");
@@ -72,6 +97,9 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
                 Diag.WriteLifecycle("[DONE]");
             }
         }
+
+        inputChannel.Writer.TryComplete();
+        await Task.WhenAny(readTask, Task.Delay(TimeSpan.FromSeconds(2))).ConfigureAwait(false);
 
         Diag.WriteLifecycle("[EXIT]");
         await next(context, ct);
@@ -87,7 +115,7 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
         {
             while (await timer.WaitForNextTickAsync(ct).ConfigureAwait(false))
             {
-                Diag.WriteLifecycle("[ALIVE]");
+                if (Diag.IsVerbose) Diag.WriteLifecycle("[ALIVE]");
             }
         }
         catch (OperationCanceledException) { }

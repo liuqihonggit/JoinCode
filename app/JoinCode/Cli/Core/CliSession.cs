@@ -287,6 +287,7 @@ public sealed class CliSession
         else if (result.TimedOut)
         {
             Diag.WriteLine($"[CliSession] API timeout ({result.TimeoutMs}ms no response)");
+            using var _ = TerminalHelper.SetColor(ConsoleColor.Yellow);
             TerminalHelper.WriteLine();
             TerminalHelper.WriteLine($"API 请求超时（{result.TimeoutMs / 1000}s 无响应）。请检查：");
             TerminalHelper.WriteLine("  1. 是否已配置 API Key");

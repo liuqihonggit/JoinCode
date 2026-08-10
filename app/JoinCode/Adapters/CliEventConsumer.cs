@@ -33,6 +33,7 @@ public sealed class CliEventConsumer : IResettableEventConsumer
         if (content.Length > 0)
         {
             _fullResponse.Append(content);
+            using var _ = TerminalHelper.SetColor(ConsoleColor.Cyan);
             TerminalHelper.WriteRaw(content);
         }
     }
@@ -46,6 +47,7 @@ public sealed class CliEventConsumer : IResettableEventConsumer
     /// <summary>工具调用开始</summary>
     public void OnToolStart(string toolName, string? toolCallId, string? arguments)
     {
+        using var _ = TerminalHelper.SetColor(ConsoleColor.DarkGray);
         TerminalHelper.NewLine();
         if (string.IsNullOrEmpty(arguments))
             TerminalHelper.WriteLine($"[Tool] {toolName}");
@@ -59,6 +61,7 @@ public sealed class CliEventConsumer : IResettableEventConsumer
     /// <summary>工具调用结束</summary>
     public void OnToolEnd(string toolName, string? resultText, string? toolCallId, bool isError, StructuredPatchHunk[]? patch)
     {
+        using var _ = TerminalHelper.SetColor(isError ? ConsoleColor.Red : ConsoleColor.DarkGray);
         var glyph = isError ? "FAIL" : "OK";
         TerminalHelper.WriteLine($"[{glyph}] {toolName}");
         if (!string.IsNullOrEmpty(resultText) && isError)

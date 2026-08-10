@@ -127,6 +127,19 @@ public static class TerminalHelper
 
     public static void ResetColor() => System.Console.ResetColor();
 
+    public static IDisposable SetColor(ConsoleColor color) => new ColorScope(color);
+
+    private sealed class ColorScope : IDisposable
+    {
+        private readonly ConsoleColor _prev;
+        public ColorScope(ConsoleColor color)
+        {
+            _prev = System.Console.ForegroundColor;
+            System.Console.ForegroundColor = color;
+        }
+        public void Dispose() => System.Console.ForegroundColor = _prev;
+    }
+
     public static void ClearScreen()
     {
         if (!System.Console.IsOutputRedirected)

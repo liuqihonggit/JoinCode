@@ -65,7 +65,8 @@ public class PowerShellToolHandlers : ShellToolBase
 
             if (string.IsNullOrWhiteSpace(command))
             {
-                return ToolResultBuilder.Error().WithText("command cannot be empty").Build();
+                var diag = BuildCommandEmptyDiagnostic();
+                return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
             }
 
             var workDir = string.IsNullOrEmpty(working_directory) ? _fs.GetCurrentDirectory() : working_directory;
@@ -83,7 +84,8 @@ public class PowerShellToolHandlers : ShellToolBase
                     if (!string.IsNullOrEmpty(permResult.Suggestions)) { permWarning.AppendLine(); permWarning.AppendLine(permResult.Suggestions); }
 
                     RecordPsmetrics("ps_enhanced", permResult.Behavior == PermissionBehavior.Deny ? "denied" : "ask");
-                    return ToolResultBuilder.Error().WithText(permWarning.ToString()).Build();
+                    var permDiag = BuildPermissionDeniedDiagnostic(permResult, permWarning.ToString());
+                    return ToolResultBuilder.Error().WithText(permDiag.FormattedMessage).WithDiagnostic(permDiag).Build();
                 }
             }
 
@@ -100,7 +102,8 @@ public class PowerShellToolHandlers : ShellToolBase
                     warning.AppendLine("If you are sure you want to execute this command, re-invoke and confirm you understand the risks.");
 
                     RecordPsmetrics("ps_enhanced", "dangerous");
-                    return ToolResultBuilder.Error().WithText(warning.ToString()).Build();
+                    var dangerDiag = BuildDestructiveCommandDiagnostic(command, psWarning, warning.ToString());
+                    return ToolResultBuilder.Error().WithText(dangerDiag.FormattedMessage).WithDiagnostic(dangerDiag).Build();
                 }
             }
 
@@ -151,19 +154,22 @@ public class PowerShellToolHandlers : ShellToolBase
 
             if (string.IsNullOrWhiteSpace(script_path))
             {
-                return ToolResultBuilder.Error().WithText("script_path cannot be empty").Build();
+                var diag = BuildScriptPathEmptyDiagnostic();
+                return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
             }
 
             // 检查文件扩展名
             if (!script_path.EndsWith(".ps1", StringComparison.OrdinalIgnoreCase))
             {
-                return ToolResultBuilder.Error().WithText("File must be a .ps1 PowerShell script").Build();
+                var extDiag = BuildInvalidScriptExtensionDiagnostic(script_path);
+                return ToolResultBuilder.Error().WithText(extDiag.FormattedMessage).WithDiagnostic(extDiag).Build();
             }
 
             var fileResult = await _fileOperationService.ReadFileAsync(script_path, cancellationToken: cancellationToken).ConfigureAwait(false);
             if (!fileResult.Success)
             {
-                return ToolResultBuilder.Error().WithText($"Script file does not exist: {script_path}").Build();
+                var nfDiag = BuildScriptNotFoundDiagnostic(script_path);
+                return ToolResultBuilder.Error().WithText(nfDiag.FormattedMessage).WithDiagnostic(nfDiag).Build();
             }
 
             // 构建PowerShell参数
@@ -197,7 +203,8 @@ public class PowerShellToolHandlers : ShellToolBase
             if (result.Interrupted)
             {
                 RecordPsmetrics("ps_script", "interrupted");
-                return ToolResultBuilder.Error().WithText(result.Stderr).Build();
+                var intDiag = BuildScriptInterruptedDiagnostic(script_path, result.Stderr);
+                return ToolResultBuilder.Error().WithText(intDiag.FormattedMessage).WithDiagnostic(intDiag).Build();
             }
 
             var output = ShellOutputMiddleware.BuildOutputResponse(result);
@@ -205,7 +212,8 @@ public class PowerShellToolHandlers : ShellToolBase
             if (!result.Success)
             {
                 RecordPsmetrics("ps_script", "failed");
-                return ToolResultBuilder.Error().WithText(output).Build();
+                var failDiag = BuildScriptFailedDiagnostic(script_path, output);
+                return ToolResultBuilder.Error().WithText(failDiag.FormattedMessage).WithDiagnostic(failDiag).Build();
             }
 
             RecordPsmetrics("ps_script", "ok");
@@ -359,14 +367,17 @@ public class PowerShellToolHandlers : ShellToolBase
 
             if (string.IsNullOrWhiteSpace(policy))
             {
-                return ToolResultBuilder.Error().WithText("policy cannot be empty").Build();
+                var diag = BuildPolicyEmptyDiagnostic();
+                return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
             }
 
             var validPolicies = new[] { "Restricted", "AllSigned", "RemoteSigned", "Unrestricted", "Bypass", "Undefined" };
             if (!validPolicies.Contains(policy, StringComparer.OrdinalIgnoreCase))
             {
+                var invDiag = BuildInvalidPolicyDiagnostic(policy, validPolicies);
                 return ToolResultBuilder.Error()
-                    .WithText($"Invalid execution policy: {policy}. Valid values: {string.Join(", ", validPolicies)}")
+                    .WithText(invDiag.FormattedMessage)
+                    .WithDiagnostic(invDiag)
                     .Build();
             }
 
@@ -397,7 +408,8 @@ public class PowerShellToolHandlers : ShellToolBase
                     error = $"{error}\n\n{StatusSymbol.Warning.ToValue()} Administrator privileges are required to change the execution policy for this scope.\nSuggestion: Use scope=\"Process\" to change the execution policy for the current process only.";
                 }
 
-                return ToolResultBuilder.Error().WithText(error).Build();
+                var setFailDiag = BuildSetExecutionPolicyFailedDiagnostic(policy, scopeParam, error);
+                return ToolResultBuilder.Error().WithText(setFailDiag.FormattedMessage).WithDiagnostic(setFailDiag).Build();
             }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -406,7 +418,199 @@ public class PowerShellToolHandlers : ShellToolBase
         }
     }
 
-    #region Private Methods
+    #region Diagnostic Builders
+
+    internal static ToolDiagnostic BuildCommandEmptyDiagnostic()
+    {
+        return ToolDiagnostic.Create(
+            reason: "PowerShellCommandEmpty",
+            formattedMessage: "command cannot be empty",
+            details:
+            [
+                new DiagnosticDetail("Field", "command"),
+                new DiagnosticDetail("Requirement", "Non-empty command string"),
+            ],
+            suggestions:
+            [
+                "Provide a valid PowerShell command to execute.",
+            ]);
+    }
+
+    internal static ToolDiagnostic BuildPermissionDeniedDiagnostic(
+        PsSecurityResult permResult, string formattedMessage)
+    {
+        var behavior = permResult.Behavior == PermissionBehavior.Deny ? "Denied" : "Ask";
+        return ToolDiagnostic.Create(
+            reason: $"PowerShellPermission{behavior}",
+            formattedMessage: formattedMessage,
+            details:
+            [
+                new DiagnosticDetail("Behavior", behavior),
+                new DiagnosticDetail("Message", permResult.Message ?? "(empty)"),
+                new DiagnosticDetail("Suggestions", permResult.Suggestions ?? "(empty)"),
+            ],
+            suggestions:
+            [
+                "Review the permission policy configuration.",
+                "Adjust the command to comply with permission rules.",
+            ]);
+    }
+
+    internal static ToolDiagnostic BuildDestructiveCommandDiagnostic(
+        string command, string psWarning, string formattedMessage)
+    {
+        return ToolDiagnostic.Create(
+            reason: "PowerShellDestructiveCommand",
+            formattedMessage: formattedMessage,
+            details:
+            [
+                new DiagnosticDetail("Command", command),
+                new DiagnosticDetail("Warning", psWarning),
+            ],
+            suggestions:
+            [
+                "If you are sure you want to execute this command, re-invoke and confirm you understand the risks.",
+                "Consider using a less destructive alternative.",
+            ]);
+    }
+
+    internal static ToolDiagnostic BuildScriptPathEmptyDiagnostic()
+    {
+        return ToolDiagnostic.Create(
+            reason: "PowerShellScriptPathEmpty",
+            formattedMessage: "script_path cannot be empty",
+            details:
+            [
+                new DiagnosticDetail("Field", "script_path"),
+                new DiagnosticDetail("Requirement", "Non-empty script file path"),
+            ],
+            suggestions:
+            [
+                "Provide a valid .ps1 script file path.",
+            ]);
+    }
+
+    internal static ToolDiagnostic BuildInvalidScriptExtensionDiagnostic(string scriptPath)
+    {
+        return ToolDiagnostic.Create(
+            reason: "PowerShellInvalidScriptExtension",
+            formattedMessage: "File must be a .ps1 PowerShell script",
+            details:
+            [
+                new DiagnosticDetail("ProvidedPath", scriptPath),
+                new DiagnosticDetail("RequiredExtension", ".ps1"),
+            ],
+            suggestions:
+            [
+                "Ensure the file has a .ps1 extension.",
+            ]);
+    }
+
+    internal static ToolDiagnostic BuildScriptNotFoundDiagnostic(string scriptPath)
+    {
+        return ToolDiagnostic.Create(
+            reason: "PowerShellScriptNotFound",
+            formattedMessage: $"Script file does not exist: {scriptPath}",
+            details:
+            [
+                new DiagnosticDetail("ScriptPath", scriptPath),
+            ],
+            suggestions:
+            [
+                "Verify the file path is correct.",
+                "Ensure the script file exists at the specified location.",
+            ]);
+    }
+
+    internal static ToolDiagnostic BuildScriptInterruptedDiagnostic(
+        string scriptPath, string stderr)
+    {
+        return ToolDiagnostic.Create(
+            reason: "PowerShellScriptInterrupted",
+            formattedMessage: stderr,
+            details:
+            [
+                new DiagnosticDetail("ScriptPath", scriptPath),
+                new DiagnosticDetail("Stderr", stderr),
+            ],
+            suggestions:
+            [
+                "Check if the script was terminated by a signal or timeout.",
+                "Review the script for infinite loops or blocking operations.",
+            ]);
+    }
+
+    internal static ToolDiagnostic BuildScriptFailedDiagnostic(
+        string scriptPath, string output)
+    {
+        return ToolDiagnostic.Create(
+            reason: "PowerShellScriptFailed",
+            formattedMessage: output,
+            details:
+            [
+                new DiagnosticDetail("ScriptPath", scriptPath),
+                new DiagnosticDetail("Output", output),
+            ],
+            suggestions:
+            [
+                "Review the script output for error details.",
+                "Check the script syntax and runtime errors.",
+            ]);
+    }
+
+    internal static ToolDiagnostic BuildPolicyEmptyDiagnostic()
+    {
+        return ToolDiagnostic.Create(
+            reason: "PowerShellPolicyEmpty",
+            formattedMessage: "policy cannot be empty",
+            details:
+            [
+                new DiagnosticDetail("Field", "policy"),
+                new DiagnosticDetail("ValidValues", "Restricted, AllSigned, RemoteSigned, Unrestricted, Bypass, Undefined"),
+            ],
+            suggestions:
+            [
+                "Provide a valid execution policy name.",
+            ]);
+    }
+
+    internal static ToolDiagnostic BuildInvalidPolicyDiagnostic(
+        string policy, string[] validPolicies)
+    {
+        return ToolDiagnostic.Create(
+            reason: "PowerShellInvalidPolicy",
+            formattedMessage: $"Invalid execution policy: {policy}. Valid values: {string.Join(", ", validPolicies)}",
+            details:
+            [
+                new DiagnosticDetail("ProvidedPolicy", policy),
+                new DiagnosticDetail("ValidValues", string.Join(", ", validPolicies)),
+            ],
+            suggestions:
+            [
+                "Choose one of the valid execution policy values.",
+            ]);
+    }
+
+    internal static ToolDiagnostic BuildSetExecutionPolicyFailedDiagnostic(
+        string policy, string scope, string error)
+    {
+        return ToolDiagnostic.Create(
+            reason: "PowerShellSetExecutionPolicyFailed",
+            formattedMessage: error,
+            details:
+            [
+                new DiagnosticDetail("Policy", policy),
+                new DiagnosticDetail("Scope", scope),
+                new DiagnosticDetail("Error", error),
+            ],
+            suggestions:
+            [
+                "Use scope=\"Process\" to change the execution policy for the current process only.",
+                "Run as administrator for system-wide scope changes.",
+            ]);
+    }
+
+    #endregion
 
     private void RecordPsmetrics(string operation, string result)
         => ToolTelemetryHelper.RecordToolCount(_telemetryService, "powershell.handler.count", operation, result);
@@ -446,6 +650,4 @@ public class PowerShellToolHandlers : ShellToolBase
         public bool IsConstrained { get; init; }
         public string? Warning { get; init; }
     }
-
-    #endregion
 }

@@ -30,6 +30,7 @@ global using JoinCode.Abstractions.Models.Voice;
 global using JoinCode.Abstractions.Prompts;
 global using JoinCode.Abstractions.Security;
 global using JoinCode.Abstractions.Security.Shell;
+global using JoinCode.Abstractions.Security.Shell.PowerShell;
 global using JoinCode.Abstractions.State;
 global using JoinCode.Abstractions.Tools;
 global using JoinCode.Abstractions.Utils;

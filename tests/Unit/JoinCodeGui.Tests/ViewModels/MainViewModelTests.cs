@@ -224,7 +224,7 @@ public class MainViewModelTests
     }
 
     [Fact]
-    public void SwitchProvider_UpdatesModelListFromProviderModelMap()
+    public void SwitchProvider_UpdatesModelListFromVendorModelMap()
     {
         var fake = new FakeSession();
         var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"));
@@ -233,7 +233,7 @@ public class MainViewModelTests
         vm.SelectedConnection!.Id.Should().Be("fake");
         vm.ModelOptions.Select(m => m.Id).Should().BeEquivalentTo(["fake-model"]);
 
-        // 切换到 Mock — 模型列表应从 PlaceholderChatSession.ProviderModelMap["deepseek"] 读取
+        // 切换到 Mock — 模型列表应从 PlaceholderChatSession.VendorModelMap["deepseek"] 读取
         var mock = vm.ConnectionOptions.First(o => o.IsMock);
         vm.SelectedConnection = mock;
         vm.ModelOptions.Select(m => m.Id).Should().Contain("deepseek-v4-flash");
@@ -1076,9 +1076,9 @@ public class MainViewModelTests
             public Func<PermissionConfirmationRequest, Task<PermissionConfirmationDecision>>? PermissionConfirmationHandler { get; set; }
 
             public bool IsReady => true;
-            public string CurrentProvider => "fake";
+            public string CurrentVendor => "fake";
             public string CurrentModelId => "fake-model";
-            public IReadOnlyDictionary<string, IReadOnlyList<string>> ProviderModelMap { get; }
+            public IReadOnlyDictionary<string, IReadOnlyList<string>> VendorModelMap { get; }
                 = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase)
                 {
                     ["fake"] = ["fake-model"]
@@ -1125,9 +1125,9 @@ public class MainViewModelTests
             }
 
             public bool IsReady => true;
-            public string CurrentProvider => "fake";
+            public string CurrentVendor => "fake";
             public string CurrentModelId => "fake-model";
-            public IReadOnlyDictionary<string, IReadOnlyList<string>> ProviderModelMap { get; }
+            public IReadOnlyDictionary<string, IReadOnlyList<string>> VendorModelMap { get; }
                 = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase)
                 {
                     ["fake"] = ["fake-model"]

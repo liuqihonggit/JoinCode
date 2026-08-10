@@ -13,8 +13,8 @@ internal sealed class PlaceholderChatSession : IJccChatSession
 {
     public bool IsReady => true;
 
-    /// <summary>占位会话默认 Provider — 对齐真实引擎 ProviderConfig 默认值（deepseek）</summary>
-    public string CurrentProvider { get; } = "deepseek";
+    /// <summary>占位会话默认供应商 — 对齐真实引擎 ProviderConfig 默认值（deepseek）</summary>
+    public string CurrentVendor { get; } = "deepseek";
 
     /// <summary>占位会话默认模型 — 从 ModelConfigLoader 读取 deepseek 的 DefaultModelId，与真实引擎默认值对齐，避免热切换闪烁</summary>
     public string CurrentModelId { get; } = ResolveDefaultModelId();
@@ -25,9 +25,9 @@ internal sealed class PlaceholderChatSession : IJccChatSession
         return !string.IsNullOrEmpty(id) ? id : "deepseek-chat";
     }
 
-    public IReadOnlyDictionary<string, IReadOnlyList<string>> ProviderModelMap { get; } = BuildProviderModelMap();
+    public IReadOnlyDictionary<string, IReadOnlyList<string>> VendorModelMap { get; } = BuildVendorModelMap();
 
-    private static IReadOnlyDictionary<string, IReadOnlyList<string>> BuildProviderModelMap()
+    private static IReadOnlyDictionary<string, IReadOnlyList<string>> BuildVendorModelMap()
     {
         var map = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase);
         foreach (var kvp in ModelConfigLoader.Config.Providers)

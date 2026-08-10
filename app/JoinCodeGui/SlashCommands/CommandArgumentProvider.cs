@@ -34,7 +34,7 @@ public static class CommandArgumentProvider
 
     private static IReadOnlyList<SlashCommandItem> GetModelArguments(IJccChatSession session)
     {
-        var models = session.ProviderModelMap.TryGetValue(session.CurrentProvider, out var list) && list is not null
+        var models = session.VendorModelMap.TryGetValue(session.CurrentVendor, out var list) && list is not null
             ? list
             : Array.Empty<string>();
         var items = new SlashCommandItem[models.Count];

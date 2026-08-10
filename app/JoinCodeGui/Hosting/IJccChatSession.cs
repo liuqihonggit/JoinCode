@@ -38,14 +38,14 @@ public interface IJccChatSession : IAsyncDisposable
     /// <summary>撤回最近一轮对话</summary>
     Task<RewindResult> RewindLastTurnAsync(CancellationToken cancellationToken = default);
 
-    /// <summary>当前启用 Provider 名称（如 deepseek/openai，驱动模型下拉分组成员）</summary>
-    string CurrentProvider { get; }
+    /// <summary>当前启用供应商名称（如 deepseek/openai/sensenova，驱动模型下拉分组成员）</summary>
+    string CurrentVendor { get; }
 
     /// <summary>当前启用的模型 ID</summary>
     string CurrentModelId { get; }
 
     /// <summary>配置文件 models.json 驱动的供应商→模型列表映射（改 config 自动驱动下拉）</summary>
-    IReadOnlyDictionary<string, IReadOnlyList<string>> ProviderModelMap { get; }
+    IReadOnlyDictionary<string, IReadOnlyList<string>> VendorModelMap { get; }
 
     /// <summary>切换当前模型（回写共享 WorkflowConfig.Provider.ModelId，下次请求引擎即生效）</summary>
     Task SetModelAsync(string modelId, CancellationToken cancellationToken = default);

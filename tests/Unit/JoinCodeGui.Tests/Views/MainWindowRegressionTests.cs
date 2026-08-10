@@ -173,9 +173,9 @@ public sealed class MainWindowRegressionTests
         public Func<PermissionConfirmationRequest, Task<PermissionConfirmationDecision>>? PermissionConfirmationHandler { get; set; }
 
         public bool IsReady => true;
-        public string CurrentProvider => "fake";
+        public string CurrentVendor => "fake";
         public string CurrentModelId => "fake-model";
-        public IReadOnlyDictionary<string, IReadOnlyList<string>> ProviderModelMap { get; }
+        public IReadOnlyDictionary<string, IReadOnlyList<string>> VendorModelMap { get; }
             = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase)
             {
                 ["fake"] = ["fake-model"]

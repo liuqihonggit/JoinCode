@@ -207,17 +207,17 @@ public sealed partial class MainViewModel : ViewModelBase
         }
     }
 
-    /// <summary>重建模型选项缓存 — 从 ProviderModelMap 取选中供应商的模型列表；当前模型不在 catalog 时追加</summary>
+    /// <summary>重建模型选项缓存 — 从 VendorModelMap 取选中供应商的模型列表；当前模型不在 catalog 时追加</summary>
     private void RebuildModelOptionsCache()
     {
         var isMock = _session is Hosting.PlaceholderChatSession;
         var provider = isMock
-            ? _session.CurrentProvider
-            : (SelectedConnection?.Id ?? _session.CurrentProvider);
+            ? _session.CurrentVendor
+            : (SelectedConnection?.Id ?? _session.CurrentVendor);
         var providerDisplay = isMock
             ? "Mock"
             : (VendorKindExtensions.FromValue(provider)?.ToString() ?? provider);
-        var map = _session.ProviderModelMap;
+        var map = _session.VendorModelMap;
         var source = map.TryGetValue(provider, out var models) && models is not null
             ? models.ToList()
             : new List<string>();
@@ -336,7 +336,7 @@ public sealed partial class MainViewModel : ViewModelBase
         _selectedEffort = _session.EffortLevel.ToValue();
         _selectedConnection = session is null
             ? MockConnection
-            : _connectionOptions.FirstOrDefault(c => !c.IsMock && c.Id == session.CurrentProvider)
+            : _connectionOptions.FirstOrDefault(c => !c.IsMock && c.Id == session.CurrentVendor)
               ?? _connectionOptions.FirstOrDefault(c => !c.IsMock)
               ?? MockConnection;
         Messages.CollectionChanged += OnMessagesChanged;
@@ -365,7 +365,7 @@ public sealed partial class MainViewModel : ViewModelBase
         SelectedModel = _session.CurrentModelId;
         SelectedModelOption = ModelOptions.FirstOrDefault(m => m.Id == _session.CurrentModelId);
         SelectedEffort = _session.EffortLevel.ToValue();
-        SelectedConnection = _connectionOptions.FirstOrDefault(c => c.Id == session.CurrentProvider)
+        SelectedConnection = _connectionOptions.FirstOrDefault(c => c.Id == session.CurrentVendor)
             ?? _connectionOptions.FirstOrDefault(c => !c.IsMock)
             ?? MockConnection;
 
@@ -387,7 +387,7 @@ public sealed partial class MainViewModel : ViewModelBase
                 WriteErrorLog(ex);
             }
         });
-        StatusText = $"已连接真实引擎 {session.CurrentProvider}";
+        StatusText = $"已连接真实引擎 {session.CurrentVendor}";
     }
 
     /// <summary>斜杠命令缓存（懒加载；空命令时回退内置高频命令列表）</summary>
@@ -692,12 +692,12 @@ public sealed partial class MainViewModel : ViewModelBase
     /// <summary>连接下拉候选 — Mock 引擎 + 配置文件驱动的全部供应商（改 config 自动更新）</summary>
     public IReadOnlyList<ConnectionOptionItem> ConnectionOptions => _connectionOptions;
 
-    /// <summary>重建连接选项 — 从 ProviderModelMap.Keys 填充 ObservableCollection（通知 UI）</summary>
+    /// <summary>重建连接选项 — 从 VendorModelMap.Keys 填充 ObservableCollection（通知 UI）</summary>
     private void RebuildConnectionOptions()
     {
         _connectionOptions.Clear();
         _connectionOptions.Add(MockConnection);
-        foreach (var provider in _session.ProviderModelMap.Keys)
+        foreach (var provider in _session.VendorModelMap.Keys)
         {
             var display = VendorKindExtensions.FromValue(provider)?.ToString() ?? provider;
             _connectionOptions.Add(new ConnectionOptionItem

@@ -30,8 +30,10 @@ public sealed partial class ConfigToolHandlers
         // 对齐 TS: isSupported — 未知 key 拒绝
         if (!SupportedSettings.IsSupported(setting))
         {
+            var diagnostic = BuildUnknownSettingDiagnostic(setting);
             return ToolResultBuilder.Error()
-                .WithText(BuildUnknownSettingMessage(setting))
+                .WithText(diagnostic.FormattedMessage)
+                .WithDiagnostic(diagnostic)
                 .Build();
         }
 
@@ -64,8 +66,10 @@ public sealed partial class ConfigToolHandlers
         // 对齐 TS: isSupported — 未知 key 拒绝
         if (!SupportedSettings.IsSupported(setting))
         {
+            var diagnostic = BuildUnknownSettingDiagnostic(setting);
             return ToolResultBuilder.Error()
-                .WithText(BuildUnknownSettingMessage(setting))
+                .WithText(diagnostic.FormattedMessage)
+                .WithDiagnostic(diagnostic)
                 .Build();
         }
 
@@ -211,10 +215,20 @@ public sealed partial class ConfigToolHandlers
     /// </summary>
     internal static string BuildUnknownSettingMessage(string setting)
     {
+        return BuildUnknownSettingDiagnostic(setting).FormattedMessage;
+    }
+
+    /// <summary>
+    /// 未知设置项的结构化诊断 — 列出所有支持的设置 + 模糊匹配建议。
+    /// </summary>
+    internal static ToolDiagnostic BuildUnknownSettingDiagnostic(string setting)
+    {
         var sb = new StringBuilder(256);
         sb.Append($"Unknown setting: \"{setting}\"");
 
-        // 模糊匹配：找包含关系或前缀匹配的候选
+        var details = new List<DiagnosticDetail>(2) { new("setting", setting) };
+        var suggestions = new List<string>(1);
+
         var candidates = new List<string>();
         foreach (var key in SupportedSettings.All.Keys)
         {
@@ -228,6 +242,8 @@ public sealed partial class ConfigToolHandlers
         if (candidates.Count > 0)
         {
             sb.Append($"\n[诊断] 你是不是想用: {string.Join(", ", candidates)}");
+            details.Add(new DiagnosticDetail("candidates", string.Join(", ", candidates)));
+            suggestions.Add($"你是不是想用: {string.Join(", ", candidates)}");
         }
 
         sb.Append($"\n[诊断] 支持的设置项 ({SupportedSettings.All.Count} 个):");
@@ -236,6 +252,6 @@ public sealed partial class ConfigToolHandlers
             sb.Append($"\n  - {key}");
         }
 
-        return sb.ToString();
+        return ToolDiagnostic.Create("UnknownSetting", sb.ToString(), details, suggestions);
     }
 }

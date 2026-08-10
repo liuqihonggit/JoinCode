@@ -85,7 +85,10 @@ public class NotebookToolHandlers
 
         var fileResult = await _fileOperationService.ReadFileAsync(notebook_path, cancellationToken: cancellationToken).ConfigureAwait(false);
         if (!fileResult.Success)
-            return ToolResultBuilder.Error().WithText($"Notebook file does not exist: {notebook_path}").Build();
+            return ToolResultBuilder.Error().WithText($"Notebook file does not exist: {notebook_path}")
+                .WithDiagnostic(ToolDiagnostic.Create("FileNotFound", $"Notebook file does not exist: {notebook_path}",
+                    [new DiagnosticDetail("filePath", notebook_path)],
+                    ["检查路径拼写、大小写，或使用 Read 工具确认文件是否存在。"])).Build();
 
         var notebook = await _notebookService.LoadAsync(notebook_path, cancellationToken).ConfigureAwait(false);
         if (notebook == null)
@@ -100,7 +103,13 @@ public class NotebookToolHandlers
         {
             cellIndex = ResolveCellIndex(notebook, cell_id);
             if (cellIndex < 0)
-                return ToolResultBuilder.Error().WithText(BuildCellNotFoundMessage(notebook, cell_id)).Build();
+            {
+                var cellMsg = BuildCellNotFoundMessage(notebook, cell_id);
+                return ToolResultBuilder.Error().WithText(cellMsg)
+                    .WithDiagnostic(ToolDiagnostic.Create("CellNotFound", cellMsg,
+                        [new DiagnosticDetail("cellId", cell_id), new DiagnosticDetail("cellCount", notebook.Cells.Count.ToString())],
+                        ["cell_id 支持三种格式 — 自定义 ID、\"cell-N\" 格式、数字索引。"])).Build();
+            }
         }
 
         if (mode == NotebookEditMode.Insert)

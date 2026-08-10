@@ -552,7 +552,8 @@ public class FileToolHandlers : IDisposable
         if (!_fs.FileExists(file_path))
         {
             RecordFileMetrics(FileOperationType.Delete, FileOperationResult.Failed);
-            return ToolResultBuilder.Error().WithText(FileSuggestionHelper.BuildFileNotFoundMessage(file_path, _fs)).Build();
+            var diagnostic = FileSuggestionHelper.BuildFileNotFoundDiagnostic(file_path, _fs);
+            return ToolResultBuilder.Error().WithText(diagnostic.FormattedMessage).WithDiagnostic(diagnostic).Build();
         }
 
         var success = await _fileOperationService.DeleteFileAsync(
@@ -562,7 +563,11 @@ public class FileToolHandlers : IDisposable
         if (!success)
         {
             RecordFileMetrics(FileOperationType.Delete, FileOperationResult.Failed);
-            return ToolResultBuilder.Error().WithText($"Failed to delete file: {file_path}\n[诊断] 文件存在但删除失败，可能被其他进程锁定或无删除权限。").Build();
+            var deleteMsg = $"Failed to delete file: {file_path}\n[诊断] 文件存在但删除失败，可能被其他进程锁定或无删除权限。";
+            return ToolResultBuilder.Error().WithText(deleteMsg)
+                .WithDiagnostic(ToolDiagnostic.Create("DeleteFailed", deleteMsg,
+                    [new DiagnosticDetail("filePath", file_path)],
+                    ["文件可能被其他进程锁定或无删除权限。"])).Build();
         }
 
         RecordFileMetrics(FileOperationType.Delete, FileOperationResult.Ok);
@@ -817,7 +822,8 @@ public class FileToolHandlers : IDisposable
         catch (FileNotFoundException)
         {
             RecordFileMetrics(FileOperationType.SnipLines, FileOperationResult.Failed);
-            return ToolResultBuilder.Error().WithText(FileSuggestionHelper.BuildFileNotFoundMessage(file_path, _fs)).Build();
+            var diagnostic = FileSuggestionHelper.BuildFileNotFoundDiagnostic(file_path, _fs);
+            return ToolResultBuilder.Error().WithText(diagnostic.FormattedMessage).WithDiagnostic(diagnostic).Build();
         }
 
         var response = new StringBuilder(256);
@@ -858,7 +864,8 @@ public class FileToolHandlers : IDisposable
         catch (FileNotFoundException)
         {
             RecordFileMetrics(FileOperationType.SnipPreview, FileOperationResult.Failed);
-            return ToolResultBuilder.Error().WithText(FileSuggestionHelper.BuildFileNotFoundMessage(file_path, _fs)).Build();
+            var diagnostic = FileSuggestionHelper.BuildFileNotFoundDiagnostic(file_path, _fs);
+            return ToolResultBuilder.Error().WithText(diagnostic.FormattedMessage).WithDiagnostic(diagnostic).Build();
         }
 
         var response = new StringBuilder(256);

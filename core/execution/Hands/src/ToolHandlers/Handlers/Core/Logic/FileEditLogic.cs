@@ -21,7 +21,7 @@ public sealed partial class FileEditLogic : ServiceEntity
         CancellationToken cancellationToken = default)
     {
         if (!_fs.FileExists(filePath))
-            return FileEditResult.FailureResult(filePath, pattern, replacement, FileSuggestionHelper.BuildFileNotFoundMessage(filePath, _fs));
+            return FileEditResult.FailureResult(filePath, pattern, replacement, FileSuggestionHelper.BuildFileNotFoundDiagnostic(filePath, _fs));
 
         Regex regex;
         try
@@ -62,7 +62,7 @@ public sealed partial class FileEditLogic : ServiceEntity
         CancellationToken cancellationToken = default)
     {
         if (!_fs.FileExists(filePath))
-            return FileLineEditResult.FailureResult(filePath, afterLine, afterLine, FileSuggestionHelper.BuildFileNotFoundMessage(filePath, _fs));
+            return FileLineEditResult.FailureResult(filePath, afterLine, afterLine, FileSuggestionHelper.BuildFileNotFoundDiagnostic(filePath, _fs));
 
         var allLines = new List<string>();
         var fileEncoding = await FileEncodingDetector.DetectFromFileAsync(filePath, _fs, cancellationToken).ConfigureAwait(false);
@@ -102,7 +102,7 @@ public sealed partial class FileEditLogic : ServiceEntity
         CancellationToken cancellationToken = default)
     {
         if (!_fs.FileExists(filePath))
-            return FileLineEditResult.FailureResult(filePath, startLine, endLine, FileSuggestionHelper.BuildFileNotFoundMessage(filePath, _fs));
+            return FileLineEditResult.FailureResult(filePath, startLine, endLine, FileSuggestionHelper.BuildFileNotFoundDiagnostic(filePath, _fs));
 
         if (startLine > endLine)
             return FileLineEditResult.FailureResult(filePath, startLine, endLine, L.T(StringKey.FileEditStartLineGreaterThanEnd));
@@ -151,7 +151,7 @@ public sealed partial class FileEditLogic : ServiceEntity
             {
                 if (!_fs.FileExists(filePath))
                 {
-                    results.Add(new BatchEditResult(filePath, FileEditResult.FailureResult(filePath, oldString, newString, FileSuggestionHelper.BuildFileNotFoundMessage(filePath, _fs))));
+                    results.Add(new BatchEditResult(filePath, FileEditResult.FailureResult(filePath, oldString, newString, FileSuggestionHelper.BuildFileNotFoundDiagnostic(filePath, _fs))));
                     continue;
                 }
 
@@ -160,7 +160,7 @@ public sealed partial class FileEditLogic : ServiceEntity
                 if (!originalContent.Contains(oldString))
                 {
                     var diagnostic = EditDiagnosticBuilder.BuildDiagnostic(originalContent, oldString);
-                    results.Add(new BatchEditResult(filePath, FileEditResult.FailureResult(filePath, oldString, newString, diagnostic.FormattedMessage)));
+                    results.Add(new BatchEditResult(filePath, FileEditResult.FailureResult(filePath, oldString, newString, diagnostic.ToToolDiagnostic())));
                     continue;
                 }
 

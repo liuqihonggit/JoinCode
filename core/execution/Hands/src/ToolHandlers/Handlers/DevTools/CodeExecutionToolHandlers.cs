@@ -38,7 +38,8 @@ public class CodeExecutionToolHandlers
             ValidationHelper.ValidateRange(timeout_ms, 1, 300000, "timeout_ms"));
         if (validationError != null)
         {
-            return ToolResultBuilder.Error().WithText(validationError).Build();
+            var diag = BuildValidationErrorDiagnostic(validationError);
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         // 安全检查
@@ -46,9 +47,8 @@ public class CodeExecutionToolHandlers
         if (!securityCheck.IsValid)
         {
             RecordCodeExecutionMetrics("execute", "security_fail");
-            return ToolResultBuilder.Error()
-                .WithText($"Security warning: {securityCheck.Message}")
-                .Build();
+            var diag = BuildSecurityFailDiagnostic(securityCheck.Message);
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         try
@@ -226,5 +226,21 @@ public class CodeExecutionToolHandlers
         if (code.Length <= maxLength)
             return code;
         return string.Concat(code.AsSpan(0, maxLength), "...[truncated]");
+    }
+
+    internal static ToolDiagnostic BuildValidationErrorDiagnostic(string validationError) =>
+        ToolDiagnostic.Create(
+            reason: "参数验证失败",
+            formattedMessage: validationError,
+            details: [new DiagnosticDetail("validation_error", validationError)]);
+
+    internal static ToolDiagnostic BuildSecurityFailDiagnostic(string? message)
+    {
+        var safeMessage = message ?? string.Empty;
+        return ToolDiagnostic.Create(
+            reason: "安全检查失败",
+            formattedMessage: $"Security warning: {safeMessage}",
+            details: [new DiagnosticDetail("security_message", safeMessage)],
+            suggestions: ["检查代码是否包含危险操作", "如需使用外部库，设置 allow_external_libs = true"]);
     }
 }

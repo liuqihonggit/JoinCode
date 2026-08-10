@@ -60,6 +60,7 @@ public sealed partial class SettingsMapper : ServiceEntity
 
             config.Provider.Endpoint ??= newDefinition.DefaultEndpoint;
             config.Provider.Definition = newDefinition;
+            config.Provider.Protocol = newDefinition.Protocol.ToValue();
 
             // 仅当 ModelId 未被显式设置时，使用新 Provider 的默认模型
             if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable(JccEnvVar.ModelId.ToValue())))
@@ -69,6 +70,11 @@ public sealed partial class SettingsMapper : ServiceEntity
                         $"Provider '{newDefinition.ProviderName}' 没有定义默认模型，请通过 {JccEnvVar.ModelId.ToValue()} 环境变量指定模型。");
             }
         }
+
+        // JCC_PROTOCOL 环境变量覆盖 — 允许显式指定协议，覆盖从 Vendor 定义推导的协议
+        var envProtocol = Environment.GetEnvironmentVariable(JccEnvVar.Protocol.ToValue());
+        if (!string.IsNullOrEmpty(envProtocol))
+            config.Provider.Protocol = envProtocol;
 
         var envModelId = Environment.GetEnvironmentVariable(JccEnvVar.ModelId.ToValue());
         if (!string.IsNullOrEmpty(envModelId))
@@ -153,6 +159,7 @@ public sealed partial class SettingsMapper : ServiceEntity
         {
             config.Provider.Endpoint ??= definition.DefaultEndpoint;
             config.Provider.Definition = definition;
+            config.Provider.Protocol = definition.Protocol.ToValue();
         }
 
         // 模型 ID 优先级: settings.model > Provider 定义默认模型

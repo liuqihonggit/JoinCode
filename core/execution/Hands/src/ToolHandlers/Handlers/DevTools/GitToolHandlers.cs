@@ -269,7 +269,7 @@ public partial class GitToolHandlers
         if (string.IsNullOrWhiteSpace(result.Output))
         {
             return ToolResultBuilder.Success()
-                .WithText("No differences")
+                .WithText($"No differences\n[诊断] mode: {mode}, path: {path ?? "(all files)"}")
                 .Build();
         }
 

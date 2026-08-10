@@ -73,7 +73,8 @@ public sealed partial class FileOperationService : ServiceEntity, IFileOperation
         {
             if (!_fs.DirectoryExists(normalizedPath))
             {
-                return DirectoryListResult.FailureResult(normalizedPath, "目录不存在");
+                var message = $"Directory does not exist: {normalizedPath}\n[诊断] cwd: {_fs.GetCurrentDirectory()}";
+                return DirectoryListResult.FailureResult(normalizedPath, message);
             }
 
             var searchOption = recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
@@ -264,7 +265,8 @@ public sealed partial class FileOperationService : ServiceEntity, IFileOperation
         try
         {
             if (!_fs.FileExists(normalizedPath))
-                return FileMetadataResult.FailureResult(normalizedPath, "File does not exist");
+                return FileMetadataResult.FailureResult(normalizedPath,
+                    FileSuggestionHelper.BuildFileNotFoundMessage(normalizedPath, _fs));
 
             // 对齐 TS: readFileSyncWithMetadata — 检测编码 + 换行符
             var encoding = await FileEncodingDetector.DetectFromFileAsync(normalizedPath, _fs, cancellationToken).ConfigureAwait(false);

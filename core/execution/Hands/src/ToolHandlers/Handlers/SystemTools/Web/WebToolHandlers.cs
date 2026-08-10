@@ -46,8 +46,10 @@ public class WebToolHandlers
         if (!result.Success)
         {
             RecordWebMetrics("fetch", "failed");
+            var errorMsg = result.ErrorMessage ?? "Failed to fetch web content";
+            errorMsg += $"\n[诊断] URL: {url}, HTTP 状态码: {result.StatusCode}";
             return ToolResultBuilder.Error()
-                .WithText(result.ErrorMessage ?? "Failed to fetch web content")
+                .WithText(errorMsg)
                 .WithEntityMetadata(EntityMetadataEntry.Int("http_status_code", result.StatusCode))
                 .Build();
         }
@@ -180,7 +182,9 @@ public class WebToolHandlers
         if (!result.Success)
         {
             RecordWebMetrics("search", "failed");
-            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "Search failed").Build();
+            var errorMsg = result.ErrorMessage ?? "Search failed";
+            errorMsg += $"\n[诊断] query: \"{query}\"";
+            return ToolResultBuilder.Error().WithText(errorMsg).Build();
         }
 
         var response = new StringBuilder();

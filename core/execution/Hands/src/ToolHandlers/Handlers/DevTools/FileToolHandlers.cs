@@ -549,6 +549,12 @@ public class FileToolHandlers : IDisposable
 
         file_path = await ResolveSandboxPathAsync(file_path, cancellationToken).ConfigureAwait(false);
 
+        if (!_fs.FileExists(file_path))
+        {
+            RecordFileMetrics(FileOperationType.Delete, FileOperationResult.Failed);
+            return ToolResultBuilder.Error().WithText(FileSuggestionHelper.BuildFileNotFoundMessage(file_path, _fs)).Build();
+        }
+
         var success = await _fileOperationService.DeleteFileAsync(
             file_path,
             cancellationToken).ConfigureAwait(false);
@@ -556,7 +562,7 @@ public class FileToolHandlers : IDisposable
         if (!success)
         {
             RecordFileMetrics(FileOperationType.Delete, FileOperationResult.Failed);
-            return ToolResultBuilder.Error().WithText("Failed to delete file, file may not exist").Build();
+            return ToolResultBuilder.Error().WithText($"Failed to delete file: {file_path}\n[诊断] 文件存在但删除失败，可能被其他进程锁定或无删除权限。").Build();
         }
 
         RecordFileMetrics(FileOperationType.Delete, FileOperationResult.Ok);
@@ -808,10 +814,10 @@ public class FileToolHandlers : IDisposable
         {
             content = await _snipLogic.SnipLinesAsync(file_path, start_line, line_count, cancellationToken).ConfigureAwait(false);
         }
-        catch (FileNotFoundException ex)
+        catch (FileNotFoundException)
         {
             RecordFileMetrics(FileOperationType.SnipLines, FileOperationResult.Failed);
-            return ToolResultBuilder.Error().WithText(ex.Message).Build();
+            return ToolResultBuilder.Error().WithText(FileSuggestionHelper.BuildFileNotFoundMessage(file_path, _fs)).Build();
         }
 
         var response = new StringBuilder(256);
@@ -849,10 +855,10 @@ public class FileToolHandlers : IDisposable
         {
             preview = await _snipLogic.GetPreviewAsync(file_path, max_preview_lines, cancellationToken).ConfigureAwait(false);
         }
-        catch (FileNotFoundException ex)
+        catch (FileNotFoundException)
         {
             RecordFileMetrics(FileOperationType.SnipPreview, FileOperationResult.Failed);
-            return ToolResultBuilder.Error().WithText(ex.Message).Build();
+            return ToolResultBuilder.Error().WithText(FileSuggestionHelper.BuildFileNotFoundMessage(file_path, _fs)).Build();
         }
 
         var response = new StringBuilder(256);

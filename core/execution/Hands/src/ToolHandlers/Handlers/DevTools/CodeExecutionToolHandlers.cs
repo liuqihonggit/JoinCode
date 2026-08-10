@@ -65,12 +65,12 @@ public class CodeExecutionToolHandlers
         catch (TimeoutException)
         {
             RecordCodeExecutionMetrics("execute", "timeout");
-            return ToolResultBuilder.Error().WithText($"Code execution timed out (exceeded {timeout_ms}ms)").Build();
+            return ToolResultBuilder.Error().WithText($"Code execution timed out (exceeded {timeout_ms}ms)\n[诊断] 代码摘要: {TruncateCode(code)}").Build();
         }
         catch (Exception ex)
         {
             RecordCodeExecutionMetrics("execute", "error");
-            return ToolResultBuilder.Error().WithText($"Code execution failed: {ex.Message}").Build();
+            return ToolResultBuilder.Error().WithText($"Code execution failed: {ex.Message}\n[诊断] 代码摘要: {TruncateCode(code)}").Build();
         }
     }
 
@@ -211,5 +211,12 @@ public class CodeExecutionToolHandlers
             .Replace("\n", "\\n")
             .Replace("\r", "\\r")
             .Replace("\t", "\\t");
+    }
+
+    private static string TruncateCode(string code, int maxLength = 200)
+    {
+        if (code.Length <= maxLength)
+            return code;
+        return string.Concat(code.AsSpan(0, maxLength), "...[truncated]");
     }
 }

@@ -421,7 +421,7 @@ public sealed class ApplicationBuilder
         Cli.TerminalHelper.WriteLine("  code                    代码操作");
         Cli.TerminalHelper.NewLine();
         Cli.TerminalHelper.WriteLine("环境变量:");
-        Cli.TerminalHelper.WriteLine("  JCC_PROVIDER           LLM 提供商 (openai/azure/anthropic)");
+        Cli.TerminalHelper.WriteLine("  JCC_VENDOR            LLM 供应商 (openai/azure/anthropic/deepseek/sensenova)");
         Cli.TerminalHelper.WriteLine("  JCC_MODEL_ID           模型 ID");
         Cli.TerminalHelper.WriteLine("  JCC_API_KEY            API Key");
         Cli.TerminalHelper.WriteLine("  JCC_ENDPOINT           API 端点");

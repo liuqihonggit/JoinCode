@@ -79,12 +79,12 @@ public class SettingsMapperTests
     #region 场景2: 环境变量覆盖
 
     [Fact]
-    public void Given_环境变量JCC_PROVIDER_When_ApplyEnvOverrides_Then_Provider被覆盖()
+    public void Given_环境变量JCC_VENDOR_When_ApplyEnvOverrides_Then_Provider被覆盖()
     {
         // Given
         var config = new WorkflowConfig();
         config.Provider.Vendor = VendorKind.DeepSeek.ToValue();
-        Environment.SetEnvironmentVariable(JccEnvVar.Provider.ToValue(), "anthropic");
+        Environment.SetEnvironmentVariable(JccEnvVar.Vendor.ToValue(), "anthropic");
         try
         {
             // When
@@ -95,7 +95,7 @@ public class SettingsMapperTests
         }
         finally
         {
-            Environment.SetEnvironmentVariable(JccEnvVar.Provider.ToValue(), null);
+            Environment.SetEnvironmentVariable(JccEnvVar.Vendor.ToValue(), null);
         }
     }
 
@@ -150,7 +150,7 @@ public class SettingsMapperTests
         var testModelId = "deepseek-v4-flash";
         config.Provider.ModelId = testModelId;
         // 清除可能存在的环境变量
-        Environment.SetEnvironmentVariable(JccEnvVar.Provider.ToValue(), null);
+        Environment.SetEnvironmentVariable(JccEnvVar.Vendor.ToValue(), null);
         Environment.SetEnvironmentVariable(JccEnvVar.ModelId.ToValue(), null);
         Environment.SetEnvironmentVariable(JccEnvVar.ApiKey.ToValue(), null);
         Environment.SetEnvironmentVariable(JccEnvVar.Endpoint.ToValue(), null);

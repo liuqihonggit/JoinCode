@@ -285,7 +285,7 @@ public sealed class DualRoleConversationTests : IAsyncLifetime
             using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             try
             {
-                var result = await runner.RunAsync(script, ProviderKind.OpenAI, timeoutCts.Token).ConfigureAwait(true);
+                var result = await runner.RunAsync(script, VendorKind.OpenAi, timeoutCts.Token).ConfigureAwait(true);
 
                 LogResult(result);
 
@@ -331,7 +331,7 @@ public sealed class DualRoleConversationTests : IAsyncLifetime
             using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             try
             {
-                var result = await runner.RunAsync(script, ProviderKind.OpenAI, timeoutCts.Token).ConfigureAwait(true);
+                var result = await runner.RunAsync(script, VendorKind.OpenAi, timeoutCts.Token).ConfigureAwait(true);
 
                 LogResult(result);
 

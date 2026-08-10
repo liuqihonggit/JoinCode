@@ -742,7 +742,7 @@ jobs:
             $psi.Arguments = "--trust -p `"hello`" --await $awaitSec"
             $psi.EnvironmentVariables["JCC_ENDPOINT"] = "http://localhost:$port"
             $psi.EnvironmentVariables["JCC_API_KEY"] = "sk-test-ci-key"
-            $psi.EnvironmentVariables["JCC_PROVIDER"] = "openai"
+            $psi.EnvironmentVariables["JCC_VENDOR"] = "openai"
             $psi.EnvironmentVariables["JCC_MODEL_ID"] = "gpt-4o"
             $psi.EnvironmentVariables["JCC_SKIP_MCP_INIT"] = "1"
             $psi.EnvironmentVariables["JCC_SKIP_PLUGIN_SKILLS"] = "1"
@@ -844,7 +844,7 @@ jobs:
             $psi.Arguments = "--trust -p `"hello`" --await $awaitSec"
             $psi.EnvironmentVariables["JCC_ENDPOINT"] = "http://localhost:$port"
             $psi.EnvironmentVariables["JCC_API_KEY"] = "sk-test-ci-key"
-            $psi.EnvironmentVariables["JCC_PROVIDER"] = "openai"
+            $psi.EnvironmentVariables["JCC_VENDOR"] = "openai"
             $psi.EnvironmentVariables["JCC_MODEL_ID"] = "gpt-4o"
             $psi.UseShellExecute = $false
             $psi.RedirectStandardOutput = $true

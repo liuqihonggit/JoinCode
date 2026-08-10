@@ -7,7 +7,7 @@ namespace JoinCode.Entry;
 internal sealed class DotEnvConfig
 {
     public string? ApiKey { get; set; }
-    public string? Provider { get; set; }
+    public string? Vendor { get; set; }
     public string? Endpoint { get; set; }
     public string? ModelId { get; set; }
     public string? EffortLevel { get; set; }
@@ -37,16 +37,16 @@ internal sealed class DotEnvConfig
                 var def = registry.TryGet(providerName);
                 if (def?.ApiKeyEnvironmentVariable is not null && envObj.TryGetProperty(def.ApiKeyEnvironmentVariable, out var keyVal) && keyVal.ValueKind == System.Text.Json.JsonValueKind.String)
                 {
-                    config.Provider = providerName;
+                    config.Vendor = providerName;
                     config.ApiKey = keyVal.GetString();
                     break;
                 }
             }
 
             // ANTHROPIC_AUTH_TOKEN 兼容（Anthropic 旧版环境变量名，不在 ApiKeyEnvironmentVariable 中）
-            if (config.Provider is null && envObj.TryGetProperty("ANTHROPIC_AUTH_TOKEN", out var authTokenVal) && authTokenVal.ValueKind == System.Text.Json.JsonValueKind.String)
+            if (config.Vendor is null && envObj.TryGetProperty("ANTHROPIC_AUTH_TOKEN", out var authTokenVal) && authTokenVal.ValueKind == System.Text.Json.JsonValueKind.String)
             {
-                config.Provider = "anthropic";
+                config.Vendor = "anthropic";
                 config.ApiKey = authTokenVal.GetString();
             }
 
@@ -56,9 +56,9 @@ internal sealed class DotEnvConfig
                 config.ApiKey = jccKeyVal.GetString();
             }
 
-            // JCC_PROVIDER 显式指定
-            if (envObj.TryGetProperty("JCC_PROVIDER", out var providerVal) && providerVal.ValueKind == System.Text.Json.JsonValueKind.String)
-                config.Provider = providerVal.GetString();
+            // JCC_VENDOR 显式指定
+            if (envObj.TryGetProperty("JCC_VENDOR", out var providerVal) && providerVal.ValueKind == System.Text.Json.JsonValueKind.String)
+                config.Vendor = providerVal.GetString();
 
             // 多态：遍历注册表匹配 Endpoint 环境变量，替代硬编码 ANTHROPIC_BASE_URL
             var rawEndpoint = envObj.EnumerateObject()
@@ -67,9 +67,9 @@ internal sealed class DotEnvConfig
                 : null;
 
             // 各 Provider 的 Endpoint 环境变量匹配
-            if (rawEndpoint is null && config.Provider is not null)
+            if (rawEndpoint is null && config.Vendor is not null)
             {
-                var def = registry.TryGet(config.Provider);
+                var def = registry.TryGet(config.Vendor);
                 if (def?.EndpointEnvironmentVariable is not null && envObj.TryGetProperty(def.EndpointEnvironmentVariable, out var epVal) && epVal.ValueKind == System.Text.Json.JsonValueKind.String)
                 {
                     rawEndpoint = epVal.GetString();
@@ -118,14 +118,14 @@ internal sealed class DotEnvConfig
     /// </summary>
     public async Task ApplyToConfigAsync(JoinCode.Abstractions.Interfaces.IFileSystem fs)
     {
-        if (ApiKey is not null && Provider is not null)
+        if (ApiKey is not null && Vendor is not null)
         {
-            await ConfigLoader.SaveApiKeyToJccAsync(Provider, ApiKey, fs);
+            await ConfigLoader.SaveApiKeyToJccAsync(Vendor, ApiKey, fs);
         }
 
-        if (Provider is not null)
+        if (Vendor is not null)
         {
-            await ConfigLoader.SaveSettingToSettingsJsonAsync("provider", Provider, fs);
+            await ConfigLoader.SaveSettingToSettingsJsonAsync("provider", Vendor, fs);
         }
 
         if (Endpoint is not null)
@@ -157,8 +157,8 @@ internal sealed class DotEnvConfig
         if (ApiKey is not null)
             config.Provider.ApiKey = ApiKey;
 
-        if (Provider is not null)
-            config.Provider.Vendor = Provider;
+        if (Vendor is not null)
+            config.Provider.Vendor = Vendor;
 
         if (Endpoint is not null)
             config.Provider.Endpoint = Endpoint;
@@ -166,9 +166,9 @@ internal sealed class DotEnvConfig
         if (ModelId is not null)
             config.Provider.ModelId = ModelId;
 
-        if (Provider is not null)
+        if (Vendor is not null)
         {
-            var definition = registry.TryGet(Provider);
+            var definition = registry.TryGet(Vendor);
             if (definition is not null)
             {
                 config.Provider.Definition = definition;

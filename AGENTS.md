@@ -628,7 +628,7 @@ $psi.FileName = "D:\project\w1\artifacts\bin\JoinCode\Release\net10.0\jcc.exe"
 $psi.Arguments = "--trust --await 20 -p `"echo hello`""
 $psi.EnvironmentVariables["JCC_ENDPOINT"] = "http://localhost:9901"
 $psi.EnvironmentVariables["JCC_API_KEY"] = "sk-test-1234567890"
-$psi.EnvironmentVariables["JCC_PROVIDER"] = "openai"
+$psi.EnvironmentVariables["JCC_VENDOR"] = "openai"
 $psi.EnvironmentVariables["JCC_MODEL_ID"] = "gpt-4o"
 $psi.UseShellExecute = $false
 $psi.WorkingDirectory = "D:\project\w1"
@@ -643,7 +643,7 @@ $psi.WorkingDirectory = "D:\project\w1"
 |----------|--------|------|
 | `JCC_ENDPOINT` | `http://localhost:9901` | API 端点（⚠️ 不要带 `/v1`，jcc 内部会自动拼接 `chat/completions`） |
 | `JCC_API_KEY` | `sk-test-1234567890` | API 密钥（MockServer 不校验，任意值即可） |
-| `JCC_PROVIDER` | `openai` | LLM 提供商（openai/anthropic/deepseek） |
+| `JCC_VENDOR` | `openai` | LLM 供应商（openai/anthropic/deepseek/sensenova） |
 | `JCC_MODEL_ID` | `gpt-4o` | 模型 ID（MockServer 不校验，任意值即可） |
 
 **3. 诊断：查看 MockServer 请求记录**

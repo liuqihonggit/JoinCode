@@ -145,7 +145,7 @@ public sealed class DoctorCommand : ChatCommandBase
             return;
         }
 
-        var provider = Environment.GetEnvironmentVariable(JccEnvVarConstants.Provider)
+        var provider = Environment.GetEnvironmentVariable(JccEnvVarConstants.Vendor)
             ?? await configService.GetAsync(ConfigKeyConstants.Provider, context.CancellationToken).ConfigureAwait(false)
             ?? VendorKind.OpenAi.ToValue();
 

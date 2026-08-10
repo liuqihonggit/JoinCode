@@ -5,7 +5,8 @@ namespace JoinCode.Abstractions.Configuration.AppData;
 /// </summary>
 public enum JccEnvVar
 {
-    [EnumValue("JCC_PROVIDER")] Provider,
+    [EnumValue("JCC_VENDOR")] Vendor,
+    [EnumValue("JCC_PROTOCOL")] Protocol,
     [EnumValue("JCC_MODEL_ID")] ModelId,
     [EnumValue("JCC_ENDPOINT")] Endpoint,
     [EnumValue("JCC_API_KEY")] ApiKey,

@@ -279,7 +279,7 @@ function Run-SingleTest {
             $psi.Arguments = "--trust --force-interactive --await 30"
             $psi.EnvironmentVariables["JCC_ENDPOINT"] = "http://localhost:$Port"
             $psi.EnvironmentVariables["JCC_API_KEY"] = "sk-test-1234567890"
-            $psi.EnvironmentVariables["JCC_PROVIDER"] = "openai"
+            $psi.EnvironmentVariables["JCC_VENDOR"] = "openai"
             $psi.EnvironmentVariables["JCC_MODEL_ID"] = "gpt-4o"
             $psi.UseShellExecute = $false
             $psi.WorkingDirectory = $projectRoot.Path
@@ -343,7 +343,7 @@ function Run-SingleTest {
             $psi.Arguments = "--trust -p `"$($testConfig.Input)`" --await 30"
             $psi.EnvironmentVariables["JCC_ENDPOINT"] = "http://localhost:$Port"
             $psi.EnvironmentVariables["JCC_API_KEY"] = "sk-test-1234567890"
-            $psi.EnvironmentVariables["JCC_PROVIDER"] = "openai"
+            $psi.EnvironmentVariables["JCC_VENDOR"] = "openai"
             $psi.EnvironmentVariables["JCC_MODEL_ID"] = "gpt-4o"
             $psi.UseShellExecute = $false
             $psi.WorkingDirectory = $projectRoot.Path

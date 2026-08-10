@@ -3,7 +3,7 @@ namespace Guard.Tests.Configuration;
 /// <summary>
 /// DeepSeek Provider 定义单元测试 — TDD 红绿循环驱动 P4-1 修复
 ///
-/// 背景: P4-1 发现 jcc.exe 不支持 JCC_PROVIDER=deepseek，报错"未知的 Provider 'deepseek'"。
+/// 背景: P4-1 发现 jcc.exe 不支持 JCC_VENDOR=deepseek，报错"未知的 Provider 'deepseek'"。
 /// 修复目标: 新增 VendorKind.DeepSeek + DeepSeekProviderDefinition + ProviderDefinitionRegistry 注册。
 ///
 /// DeepSeek 协议特性:
@@ -64,7 +64,7 @@ public class DeepSeekProviderDefinitionTests
         var definition = Registry.TryGet("deepseek");
 
         // Then
-        definition.Should().NotBeNull("JCC_PROVIDER=deepseek 时应能从注册表解析到 DeepSeekProviderDefinition");
+        definition.Should().NotBeNull("JCC_VENDOR=deepseek 时应能从注册表解析到 DeepSeekProviderDefinition");
     }
 
     [Fact]
@@ -75,7 +75,7 @@ public class DeepSeekProviderDefinitionTests
 
         // Then
         providers.Should().Contain("deepseek",
-            "注册表必须包含 deepseek，否则 JCC_PROVIDER=deepseek 会抛 ConfigurationException");
+            "注册表必须包含 deepseek，否则 JCC_VENDOR=deepseek 会抛 ConfigurationException");
     }
 
     #endregion

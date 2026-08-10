@@ -26,7 +26,7 @@ public sealed class StatusCommand : ChatCommandBase
         }
 
         var provider = context.Services.WorkflowConfig?.Provider?.Vendor
-            ?? Environment.GetEnvironmentVariable(JccEnvVar.Provider.ToValue())
+            ?? Environment.GetEnvironmentVariable(JccEnvVar.Vendor.ToValue())
             ?? VendorKind.OpenAi.ToValue();
         var providerName = ResolveModelCatalog(context).GetProviderDisplayName(provider);
 

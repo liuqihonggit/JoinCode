@@ -48,7 +48,7 @@ public sealed partial class SettingsMapper : ServiceEntity
     public void ApplyEnvOverrides(WorkflowConfig config)
     {
         // Provider 环境变量覆盖
-        var envProvider = Environment.GetEnvironmentVariable(JccEnvVar.Provider.ToValue());
+        var envProvider = Environment.GetEnvironmentVariable(JccEnvVar.Vendor.ToValue());
         if (!string.IsNullOrEmpty(envProvider) && config.Provider.Vendor != envProvider)
         {
             config.Provider.Vendor = envProvider;
@@ -170,7 +170,7 @@ public sealed partial class SettingsMapper : ServiceEntity
         {
             throw new ConfigurationException(
                 $"未知的 Provider '{config.Provider.Vendor}'，可用值: {string.Join(", ", _registry.RegisteredProviders)}。" +
-                $"请通过 {JccEnvVar.Provider.ToValue()} 环境变量指定正确的 Provider。");
+                $"请通过 {JccEnvVar.Vendor.ToValue()} 环境变量指定正确的 Provider。");
         }
 
         // API Version

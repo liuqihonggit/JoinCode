@@ -35,12 +35,12 @@ public abstract class CoverageTestBase : IAsyncLifetime
     /// 全局超时 60s，防止 jcc.exe 卡死导致整个测试套件挂起
     /// 偶发性失败自动重试5次（E2E测试受CI环境资源竞争影响）
     /// </summary>
-    protected async Task RunScriptAsync(ConversationScript script, ProviderKind provider = ProviderKind.OpenAI)
+    protected async Task RunScriptAsync(ConversationScript script, VendorKind provider = VendorKind.OpenAi)
     {
         await RunScriptWithRetryAsync(script, provider, maxAttempts: 5).ConfigureAwait(true);
     }
 
-    private async Task RunScriptWithRetryAsync(ConversationScript script, ProviderKind provider, int maxAttempts)
+    private async Task RunScriptWithRetryAsync(ConversationScript script, VendorKind provider, int maxAttempts)
     {
         for (var attempt = 1; attempt <= maxAttempts; attempt++)
         {

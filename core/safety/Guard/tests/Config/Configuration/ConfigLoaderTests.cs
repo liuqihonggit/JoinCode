@@ -23,7 +23,7 @@ public class ConfigLoaderTests : IDisposable {
 
     public ConfigLoaderTests() {
         _originalAppDataFolder = Environment.GetEnvironmentVariable(JccEnvVarConstants.AppDataFolder);
-        _originalProvider = Environment.GetEnvironmentVariable(JccEnvVarConstants.Provider);
+        _originalProvider = Environment.GetEnvironmentVariable(JccEnvVarConstants.Vendor);
         _originalModelId = Environment.GetEnvironmentVariable(JccEnvVarConstants.ModelId);
         _originalApiKey = Environment.GetEnvironmentVariable(JccEnvVarConstants.ApiKey);
         _originalAgnesApiKey = Environment.GetEnvironmentVariable(ProviderEnvVarConstants.AgnesApiKey);
@@ -39,14 +39,14 @@ public class ConfigLoaderTests : IDisposable {
         // 刷新 AppDataConstants.Paths 以反映新的环境变量
         AppDataConstants.Paths = AppDataPaths.FromEnvironment();
 
-        // 覆盖用户级环境变量（JCC_PROVIDER 可能存在于用户级环境变量中）
-        Environment.SetEnvironmentVariable(JccEnvVarConstants.Provider, VendorKind.OpenAi.ToValue());
+        // 覆盖用户级环境变量（JCC_VENDOR 可能存在于用户级环境变量中）
+        Environment.SetEnvironmentVariable(JccEnvVarConstants.Vendor, VendorKind.OpenAi.ToValue());
         Environment.SetEnvironmentVariable(JccEnvVarConstants.ModelId, null);
     }
 
     public void Dispose() {
         Environment.SetEnvironmentVariable(JccEnvVarConstants.AppDataFolder, _originalAppDataFolder);
-        Environment.SetEnvironmentVariable(JccEnvVarConstants.Provider, _originalProvider);
+        Environment.SetEnvironmentVariable(JccEnvVarConstants.Vendor, _originalProvider);
         Environment.SetEnvironmentVariable(JccEnvVarConstants.ModelId, _originalModelId);
         Environment.SetEnvironmentVariable(JccEnvVarConstants.ApiKey, _originalApiKey);
         Environment.SetEnvironmentVariable(ProviderEnvVarConstants.AgnesApiKey, _originalAgnesApiKey);
@@ -130,7 +130,7 @@ public class ConfigLoaderTests : IDisposable {
     public async Task LoadConfig_JccEnvVarsOverrideDefaults()
     {
         // 设置环境变量覆盖 Provider 和 ModelId
-        Environment.SetEnvironmentVariable(JccEnvVarConstants.Provider, "anthropic");
+        Environment.SetEnvironmentVariable(JccEnvVarConstants.Vendor, "anthropic");
         Environment.SetEnvironmentVariable(JccEnvVarConstants.ModelId, "claude-3-opus");
         // 清除 Provider 专属环境变量，让 JCC_API_KEY 生效
         Environment.SetEnvironmentVariable(ProviderEnvVarConstants.AnthropicApiKey, null);

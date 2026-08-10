@@ -67,7 +67,11 @@ public sealed class FileEditor
             catch (Exception ex)
             {
                 _logger?.LogError(ex, "Create file via edit failed: {FilePath}", normalizedPath);
-                return FileEditResult.FailureResult(normalizedPath, oldString, newString, ex.Message);
+                var diagnostic = ToolDiagnostic.Create("EditFailed",
+                    $"创建文件失败: {ex.Message}",
+                    [new DiagnosticDetail("filePath", normalizedPath), new DiagnosticDetail("exceptionType", ex.GetType().Name)],
+                    ["检查文件路径是否有效、目录是否存在、是否有写入权限。"]);
+                return FileEditResult.FailureResult(normalizedPath, oldString, newString, diagnostic);
             }
         }
 
@@ -203,7 +207,11 @@ public sealed class FileEditor
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Edit file failed: {FilePath}", normalizedPath2);
-            return FileEditResult.FailureResult(normalizedPath2, oldString, newString, ex.Message);
+            var diagnostic = ToolDiagnostic.Create("EditFailed",
+                $"编辑文件失败: {ex.Message}",
+                [new DiagnosticDetail("filePath", normalizedPath2), new DiagnosticDetail("exceptionType", ex.GetType().Name)],
+                ["检查文件权限、是否被其他进程锁定。"]);
+            return FileEditResult.FailureResult(normalizedPath2, oldString, newString, diagnostic);
         }
     }
 
@@ -312,7 +320,11 @@ public sealed class FileEditor
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Edit file by line range failed: {FilePath}", normalizedPath);
-            return FileLineEditResult.FailureResult(normalizedPath, startLine, endLine, ex.Message);
+            var diagnostic = ToolDiagnostic.Create("LineEditFailed",
+                $"按行范围编辑失败: {ex.Message}",
+                [new DiagnosticDetail("filePath", normalizedPath), new DiagnosticDetail("exceptionType", ex.GetType().Name)],
+                ["检查文件权限、是否被其他进程锁定。"]);
+            return FileLineEditResult.FailureResult(normalizedPath, startLine, endLine, diagnostic);
         }
     }
 
@@ -337,10 +349,10 @@ public sealed class FileEditor
     {
         if (Path.IsPathFullyQualified(path))
         {
-            return Path.GetFullPath(path);
+            return _fs.GetFullPath(path);
         }
 
-        return Path.GetFullPath(Path.Combine(_fs.GetCurrentDirectory(), path));
+        return _fs.GetFullPath(_fs.CombinePath(_fs.GetCurrentDirectory(), path));
     }
 
     private async Task<(string Content, bool HasCrlf, Encoding Encoding)> ReadFileWithLineEndingDetectionAsync(string path, CancellationToken ct)

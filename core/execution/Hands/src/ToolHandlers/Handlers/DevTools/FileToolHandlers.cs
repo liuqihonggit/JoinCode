@@ -379,15 +379,36 @@ public class FileToolHandlers : IDisposable
             await _fileHistoryService.BackupBeforeWriteAsync(file_path, cancellationToken).ConfigureAwait(false);
         }
 
-        var result = await _fileOperationService.WriteFileAsync(
-            file_path,
-            content,
-            cancellationToken).ConfigureAwait(false);
+        FileWriteResult result;
+        try
+        {
+            result = await _fileOperationService.WriteFileAsync(
+                file_path,
+                content,
+                cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            RecordFileMetrics(FileOperationType.Write, FileOperationResult.Failed);
+            _logger?.LogError(ex, "FileWrite 调用抛出异常: {FilePath}", file_path);
+            var exDiagnostic = ToolDiagnostic.Create("WriteFailed",
+                $"写入文件失败: {ex.Message}",
+                [new DiagnosticDetail("filePath", file_path), new DiagnosticDetail("exceptionType", ex.GetType().Name)],
+                ["检查文件权限、是否被其他进程锁定、磁盘空间是否充足。"]);
+            return ToolResultBuilder.Error().WithText(exDiagnostic.FormattedMessage).WithDiagnostic(exDiagnostic).Build();
+        }
 
         if (!result.Success)
         {
             RecordFileMetrics(FileOperationType.Write, FileOperationResult.Failed);
-            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to write file").Build();
+            var builder = ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to write file");
+            if (result.Diagnostic is not null)
+                builder = builder.WithDiagnostic(result.Diagnostic);
+            return builder.Build();
         }
 
         var response = result.Operation == FileOperationTypeConstants.Create
@@ -545,17 +566,38 @@ public class FileToolHandlers : IDisposable
             await _fileHistoryService.BackupBeforeWriteAsync(file_path, cancellationToken).ConfigureAwait(false);
         }
 
-        var result = await _fileOperationService.EditFileAsync(
-            file_path,
-            old_string,
-            new_string,
-            replace_all,
-            cancellationToken).ConfigureAwait(false);
+        FileEditResult result;
+        try
+        {
+            result = await _fileOperationService.EditFileAsync(
+                file_path,
+                old_string,
+                new_string,
+                replace_all,
+                cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            RecordFileMetrics(FileOperationType.Edit, FileOperationResult.Failed);
+            _logger?.LogError(ex, "FileEdit 调用抛出异常: {FilePath}", file_path);
+            var exDiagnostic = ToolDiagnostic.Create("EditFailed",
+                $"编辑文件失败: {ex.Message}",
+                [new DiagnosticDetail("filePath", file_path), new DiagnosticDetail("exceptionType", ex.GetType().Name)],
+                ["检查文件权限、是否被其他进程锁定。"]);
+            return ToolResultBuilder.Error().WithText(exDiagnostic.FormattedMessage).WithDiagnostic(exDiagnostic).Build();
+        }
 
         if (!result.Success)
         {
             RecordFileMetrics(FileOperationType.Edit, FileOperationResult.Failed);
-            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to edit file").Build();
+            var builder = ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to edit file");
+            if (result.Diagnostic is not null)
+                builder = builder.WithDiagnostic(result.Diagnostic);
+            return builder.Build();
         }
 
         var response = replace_all
@@ -871,6 +913,20 @@ public class FileToolHandlers : IDisposable
             var diagnostic = FileSuggestionHelper.BuildFileNotFoundDiagnostic(file_path, _fs);
             return ToolResultBuilder.Error().WithText(diagnostic.FormattedMessage).WithDiagnostic(diagnostic).Build();
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            RecordFileMetrics(FileOperationType.SnipLines, FileOperationResult.Failed);
+            _logger?.LogError(ex, "SnipLines 调用抛出异常: {FilePath}", file_path);
+            var exDiagnostic = ToolDiagnostic.Create("SnipLinesFailed",
+                $"截取行失败: {ex.Message}",
+                [new DiagnosticDetail("filePath", file_path), new DiagnosticDetail("exceptionType", ex.GetType().Name)],
+                ["检查文件权限、是否被其他进程锁定。"]);
+            return ToolResultBuilder.Error().WithText(exDiagnostic.FormattedMessage).WithDiagnostic(exDiagnostic).Build();
+        }
 
         var response = new StringBuilder(256);
         response.AppendLine($"File: {file_path}");
@@ -912,6 +968,20 @@ public class FileToolHandlers : IDisposable
             RecordFileMetrics(FileOperationType.SnipPreview, FileOperationResult.Failed);
             var diagnostic = FileSuggestionHelper.BuildFileNotFoundDiagnostic(file_path, _fs);
             return ToolResultBuilder.Error().WithText(diagnostic.FormattedMessage).WithDiagnostic(diagnostic).Build();
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            RecordFileMetrics(FileOperationType.SnipPreview, FileOperationResult.Failed);
+            _logger?.LogError(ex, "SnipPreview 调用抛出异常: {FilePath}", file_path);
+            var exDiagnostic = ToolDiagnostic.Create("SnipPreviewFailed",
+                $"获取预览失败: {ex.Message}",
+                [new DiagnosticDetail("filePath", file_path), new DiagnosticDetail("exceptionType", ex.GetType().Name)],
+                ["检查文件权限、是否被其他进程锁定。"]);
+            return ToolResultBuilder.Error().WithText(exDiagnostic.FormattedMessage).WithDiagnostic(exDiagnostic).Build();
         }
 
         var response = new StringBuilder(256);

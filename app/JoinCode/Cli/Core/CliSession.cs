@@ -135,12 +135,19 @@ public sealed class CliSession
 
     private async Task HandleCommandAsync(string input, CancellationToken cancellationToken)
     {
+        Diag.WriteLifecycle($"[DIAG-CLI] HandleCommandAsync entry: input='{(input.Length > 60 ? input[..60] + "..." : input)}'");
         var parseResult = _commandRegistry.Parse(input);
-        if (!parseResult.IsSuccess) return;
+        if (!parseResult.IsSuccess)
+        {
+            Diag.WriteLifecycle($"[DIAG-CLI] Parse FAILED for: '{input}'");
+            return;
+        }
 
+        Diag.WriteLifecycle($"[DIAG-CLI] Parse OK, commandName={parseResult.CommandName}");
         var command = _commandRegistry.GetCommand(parseResult.CommandName ?? throw new InvalidOperationException("CommandName should not be null after successful parse"));
         if (command == null)
         {
+            Diag.WriteLifecycle($"[DIAG-CLI] Command NOT FOUND: {parseResult.CommandName}");
             ShowUnknownCommandHelp();
             return;
         }

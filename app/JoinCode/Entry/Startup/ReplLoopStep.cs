@@ -55,7 +55,9 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
             string combined;
             try
             {
+                Diag.WriteLifecycle("[DIAG-REPL] waiting for input...");
                 combined = await inputChannel.Reader.ReadAsync(ct).ConfigureAwait(false);
+                Diag.WriteLifecycle($"[DIAG-REPL] received input: '{(combined.Length > 80 ? combined[..80] + "..." : combined)}'");
             }
             catch (System.Threading.Channels.ChannelClosedException) { break; }
 
@@ -65,30 +67,30 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
             using var stepCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             using var aliveCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
-            // Ctrl+C 中断当前 LLM 调用而非终止进程
-            // 仅在处理期间注册，提示符状态下 Ctrl+C 保持默认退出行为
             void OnCancelKeyPress(object? sender, ConsoleCancelEventArgs e)
             {
-                e.Cancel = true; // 阻止默认进程终止
-                stepCts.Cancel(); // 中断当前处理
+                e.Cancel = true;
+                stepCts.Cancel();
             }
             Console.CancelKeyPress += OnCancelKeyPress;
 
             var aliveTask = RunAliveLoopAsync(aliveCts.Token);
             try
             {
+                Diag.WriteLifecycle("[DIAG-REPL] calling ProcessUserInputAsync");
                 await session.ProcessUserInputAsync(combined, stepCts.Token);
+                Diag.WriteLifecycle("[DIAG-REPL] ProcessUserInputAsync returned");
             }
             catch (OperationCanceledException) when (stepCts.IsCancellationRequested && !ct.IsCancellationRequested)
             {
-                // Ctrl+C 中断 — 返回提示符继续 REPL 循环
                 Cli.TerminalHelper.WriteLine();
                 Cli.TerminalHelper.WriteLine("(已中断)");
+                Diag.WriteLifecycle("[DIAG-REPL] OperationCanceledException (Ctrl+C)");
             }
             catch (Exception ex)
             {
-                // 单轮失败不应杀死 REPL — 记录错误日志 + 分类提示后继续循环
                 WriteErrorLog(ex);
+                Diag.WriteLifecycle($"[DIAG-REPL] Exception: {ex.GetType().Name}: {ex.Message}");
                 using var _ = Cli.TerminalHelper.SetColor(ConsoleColor.Red);
                 Cli.TerminalHelper.WriteLine($"错误: {ex.Message}");
                 if (ex is JoinCode.Abstractions.Exceptions.ApiException apiEx && apiEx.IsRetryable)

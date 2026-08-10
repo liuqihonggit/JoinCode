@@ -59,7 +59,8 @@ public sealed partial class ShellClassificationMiddleware : ServiceEntity, IShel
                 warning.AppendLine();
                 warning.AppendLine("If you are sure you want to execute this command, re-invoke and confirm you understand the risks.");
 
-                return ToolResultBuilder.Error().WithText(warning.ToString()).Build();
+                var diag = BuildDestructiveCommandDiagnostic(command, classification.Details, classification.Risks.Select(r => r.ToString()).ToList());
+                return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
             }
 
             if (classification.Category == CommandCategory.PathViolation)
@@ -70,7 +71,8 @@ public sealed partial class ShellClassificationMiddleware : ServiceEntity, IShel
                 {
                     warning.AppendLine(classification.Details);
                 }
-                return ToolResultBuilder.Error().WithText(warning.ToString()).Build();
+                var diag = BuildPathViolationDiagnostic(command, classification.Details);
+                return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
             }
 
             if (classification.Category == CommandCategory.ExcessiveSearchScope)
@@ -87,7 +89,8 @@ public sealed partial class ShellClassificationMiddleware : ServiceEntity, IShel
                 warning.AppendLine("Avoid flags like --no-ignore/-u (rg) that bypass .gitignore rules.");
                 warning.AppendLine("Avoid searching system root paths like C:\\, /, /home, etc.");
 
-                return ToolResultBuilder.Error().WithText(warning.ToString()).Build();
+                var diag = BuildExcessiveSearchScopeDiagnostic(command, classification.Details);
+                return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
             }
 
             return null; // 安全命令
@@ -113,9 +116,56 @@ public sealed partial class ShellClassificationMiddleware : ServiceEntity, IShel
             warning.AppendLine("Danger level: " + dangerAnalysis.Level);
             warning.AppendLine("If you are sure you want to execute this command, re-invoke and confirm you understand the risks.");
 
-            return ToolResultBuilder.Error().WithText(warning.ToString()).Build();
+            var fallbackDiag = BuildDestructiveCommandFallbackDiagnostic(command, dangerAnalysis.WarningMessage, dangerAnalysis.Level.ToString());
+            return ToolResultBuilder.Error().WithText(fallbackDiag.FormattedMessage).WithDiagnostic(fallbackDiag).Build();
         }
 
         return null;
+    }
+
+    internal static ToolDiagnostic BuildDestructiveCommandDiagnostic(string command, string? details, IReadOnlyList<string> risks) =>
+        ToolDiagnostic.Create(
+            reason: "危险命令检测",
+            formattedMessage: $"{StatusSymbol.Warning.ToValue()} Potentially dangerous command detected",
+            details: BuildClassificationDetails(command, details, risks),
+            suggestions: ["确认命令安全性后重新执行"]);
+
+    internal static ToolDiagnostic BuildPathViolationDiagnostic(string command, string? details) =>
+        ToolDiagnostic.Create(
+            reason: "路径违规",
+            formattedMessage: $"{StatusSymbol.Warning.ToValue()} Path violation detected",
+            details: BuildClassificationDetails(command, details, []),
+            suggestions: ["使用项目目录内的路径"]);
+
+    internal static ToolDiagnostic BuildExcessiveSearchScopeDiagnostic(string command, string? details) =>
+        ToolDiagnostic.Create(
+            reason: "搜索范围过大",
+            formattedMessage: $"{StatusSymbol.Warning.ToValue()} Search scope too large — command may hang or take very long",
+            details: BuildClassificationDetails(command, details, []),
+            suggestions:
+            [
+                "限制搜索范围到具体项目目录",
+                "避免使用 --no-ignore/-u 等绕过 .gitignore 的标志",
+                "避免搜索系统根路径如 C:\\, /, /home"
+            ]);
+
+    internal static ToolDiagnostic BuildDestructiveCommandFallbackDiagnostic(string command, string? warningMessage, string dangerLevel) =>
+        ToolDiagnostic.Create(
+            reason: "危险命令检测",
+            formattedMessage: $"{StatusSymbol.Warning.ToValue()} Potentially dangerous command detected",
+            details:
+            [
+                new DiagnosticDetail("command", command),
+                new DiagnosticDetail("warning", warningMessage ?? string.Empty),
+                new DiagnosticDetail("danger_level", dangerLevel)
+            ],
+            suggestions: ["确认命令安全性后重新执行"]);
+
+    private static IReadOnlyList<DiagnosticDetail> BuildClassificationDetails(string command, string? details, IReadOnlyList<string> risks)
+    {
+        var list = new List<DiagnosticDetail> { new("command", command) };
+        if (!string.IsNullOrEmpty(details)) list.Add(new DiagnosticDetail("details", details));
+        if (risks.Count > 0) list.Add(new DiagnosticDetail("risks", string.Join(", ", risks)));
+        return list;
     }
 }

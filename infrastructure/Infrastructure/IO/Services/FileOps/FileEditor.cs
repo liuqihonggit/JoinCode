@@ -82,7 +82,8 @@ public sealed class FileEditor
         {
             if (!_fs.FileExists(normalizedPath2))
             {
-                return FileEditResult.FailureResult(normalizedPath2, oldString, newString, "File not found");
+                return FileEditResult.FailureResult(normalizedPath2, oldString, newString,
+                    FileSuggestionHelper.BuildFileNotFoundMessage(normalizedPath2, _fs));
             }
 
             var fileLength = _fs.GetFileLength(normalizedPath2);
@@ -233,7 +234,8 @@ public sealed class FileEditor
         {
             if (!_fs.FileExists(normalizedPath))
             {
-                return FileLineEditResult.FailureResult(normalizedPath, startLine, endLine, "File not found");
+                return FileLineEditResult.FailureResult(normalizedPath, startLine, endLine,
+                    FileSuggestionHelper.BuildFileNotFoundMessage(normalizedPath, _fs));
             }
 
             // 对齐 TS: 检测 BOM 编码

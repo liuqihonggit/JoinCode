@@ -94,12 +94,14 @@ public static class NotebookReader
         {
             doc = JsonSerializer.Deserialize(json, NotebookDocumentJsonContext.Default.NotebookDocument);
         }
-        catch (JsonException)
+        catch (JsonException ex)
         {
-            return NotebookReadResult.Fail($"Failed to parse notebook: {filePath}");
+            var line = ex.LineNumber.HasValue ? ex.LineNumber.Value + 1 : 0;
+            var col = ex.BytePositionInLine.HasValue ? ex.BytePositionInLine.Value + 1 : 0;
+            return NotebookReadResult.Fail($"Failed to parse notebook JSON: {filePath} (line {line}, col {col}): {ex.Message}");
         }
         if (doc is null)
-            return NotebookReadResult.Fail($"Failed to parse notebook: {filePath}");
+            return NotebookReadResult.Fail($"Failed to parse notebook: {filePath} (deserialized to null)");
 
         var language = doc.Metadata?.LanguageInfo?.Name ?? "python";
         var sb = new StringBuilder();

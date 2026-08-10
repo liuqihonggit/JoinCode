@@ -31,7 +31,7 @@ public sealed partial class ConfigToolHandlers
         if (!SupportedSettings.IsSupported(setting))
         {
             return ToolResultBuilder.Error()
-                .WithText($"Unknown setting: \"{setting}\"")
+                .WithText(BuildUnknownSettingMessage(setting))
                 .Build();
         }
 
@@ -65,7 +65,7 @@ public sealed partial class ConfigToolHandlers
         if (!SupportedSettings.IsSupported(setting))
         {
             return ToolResultBuilder.Error()
-                .WithText($"Unknown setting: \"{setting}\"")
+                .WithText(BuildUnknownSettingMessage(setting))
                 .Build();
         }
 
@@ -203,5 +203,39 @@ public sealed partial class ConfigToolHandlers
         if (bool.TryParse(value, out var b))
             return b ? "true" : "false";
         return value;
+    }
+
+    /// <summary>
+    /// 未知设置项的诊断消息 — 列出所有支持的设置 + 模糊匹配建议。
+    /// 仅在失败路径调用，不影响正常操作性能。
+    /// </summary>
+    private static string BuildUnknownSettingMessage(string setting)
+    {
+        var sb = new StringBuilder(256);
+        sb.Append($"Unknown setting: \"{setting}\"");
+
+        // 模糊匹配：找包含关系或前缀匹配的候选
+        var candidates = new List<string>();
+        foreach (var key in SupportedSettings.All.Keys)
+        {
+            if (key.Contains(setting, StringComparison.OrdinalIgnoreCase) ||
+                setting.Contains(key, StringComparison.OrdinalIgnoreCase))
+            {
+                candidates.Add(key);
+            }
+        }
+
+        if (candidates.Count > 0)
+        {
+            sb.Append($"\n[诊断] 你是不是想用: {string.Join(", ", candidates)}");
+        }
+
+        sb.Append($"\n[诊断] 支持的设置项 ({SupportedSettings.All.Count} 个):");
+        foreach (var key in SupportedSettings.All.Keys)
+        {
+            sb.Append($"\n  - {key}");
+        }
+
+        return sb.ToString();
     }
 }

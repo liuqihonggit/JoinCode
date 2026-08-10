@@ -85,7 +85,7 @@ public class NotebookToolHandlers
 
         var fileResult = await _fileOperationService.ReadFileAsync(notebook_path, cancellationToken: cancellationToken).ConfigureAwait(false);
         if (!fileResult.Success)
-            return ToolResultBuilder.Error().WithText("Notebook file does not exist").Build();
+            return ToolResultBuilder.Error().WithText($"Notebook file does not exist: {notebook_path}").Build();
 
         var notebook = await _notebookService.LoadAsync(notebook_path, cancellationToken).ConfigureAwait(false);
         if (notebook == null)
@@ -100,7 +100,7 @@ public class NotebookToolHandlers
         {
             cellIndex = ResolveCellIndex(notebook, cell_id);
             if (cellIndex < 0)
-                return ToolResultBuilder.Error().WithText($"Cell with ID \"{cell_id}\" not found in notebook").Build();
+                return ToolResultBuilder.Error().WithText(BuildCellNotFoundMessage(notebook, cell_id)).Build();
         }
 
         if (mode == NotebookEditMode.Insert)
@@ -179,6 +179,31 @@ public class NotebookToolHandlers
         }
 
         return -1;
+    }
+
+    /// <summary>
+    /// cell 未找到时的诊断消息 — 列出可用的 cell ID 和合法格式提示。
+    /// 仅在失败路径调用，不影响正常操作性能。
+    /// </summary>
+    private static string BuildCellNotFoundMessage(NotebookDocument notebook, string cellId)
+    {
+        var sb = new StringBuilder(256);
+        sb.Append($"Cell with ID \"{cellId}\" not found in notebook.");
+        sb.Append($"\n[诊断] notebook 共 {notebook.Cells.Count} 个 cell，可用 ID:");
+
+        var maxList = Math.Min(notebook.Cells.Count, 20);
+        for (int i = 0; i < maxList; i++)
+        {
+            var id = notebook.Cells[i].Id ?? $"cell-{i}";
+            sb.Append($"\n  - \"{id}\" (index {i})");
+        }
+        if (notebook.Cells.Count > maxList)
+        {
+            sb.Append($"\n  ... 还有 {notebook.Cells.Count - maxList} 个 cell");
+        }
+
+        sb.Append("\n提示: cell_id 支持三种格式 — 自定义 ID、\"cell-N\" 格式、数字索引。");
+        return sb.ToString();
     }
 
     [McpTool(NotebookToolNameConstants.NotebookCreate, "Create a new Jupyter Notebook file", "notebook")]

@@ -210,7 +210,7 @@ public class SearchToolHandlers : OneShotCommandGroup
         if (filteredFilenames.Count == 0)
         {
             RecordSearchMetrics("glob", "ok", 0);
-            return ToolResultBuilder.Success().WithText("No files found").Build();
+            return ToolResultBuilder.Success().WithText(BuildGlobNoResultMessage(pattern, path)).Build();
         }
 
         var cwd = _fileOperationService.GetCurrentDirectory();
@@ -324,7 +324,7 @@ public class SearchToolHandlers : OneShotCommandGroup
         if (result.NumFiles == 0)
         {
             RecordSearchMetrics("grep", "ok", 0);
-            return ToolResultBuilder.Success().WithText("No files found").Build();
+            return ToolResultBuilder.Success().WithText(BuildGrepNoResultMessage(pattern, path, case_insensitive)).Build();
         }
 
         var response = new StringBuilder(256);
@@ -606,6 +606,47 @@ public class SearchToolHandlers : OneShotCommandGroup
     {
         ToolTelemetryHelper.RecordToolCount(_telemetryService, "search.handler.count", operation, result);
         if (fileCount > 0) ToolTelemetryHelper.RecordToolHistogram(_telemetryService, "search.handler.files", fileCount, new Dictionary<string, string> { ["operation"] = operation }, "count", "Search handler file count");
+    }
+
+    /// <summary>
+    /// Glob 无结果时的诊断消息 — 检查 pattern 是否缺少通配符、提示递归搜索。
+    /// 仅在无结果路径调用，不影响搜索性能。
+    /// </summary>
+    private static string BuildGlobNoResultMessage(string pattern, string? path)
+    {
+        var sb = new StringBuilder(256);
+        sb.Append("No files found");
+        sb.Append($"\n[诊断] pattern: \"{pattern}\", path: \"{path ?? "."}\"");
+
+        if (!pattern.Contains('*') && !pattern.Contains('?'))
+        {
+            sb.Append("\n[诊断] pattern 不含通配符，确切的文件名匹配失败。");
+        }
+        if (!pattern.Contains("**"))
+        {
+            sb.Append("\n提示: 使用 **/ 前缀递归搜索子目录（如 **/*.cs）。");
+        }
+
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Grep 无结果时的诊断消息 — 检查大小写、提示搜索范围。
+    /// 仅在无结果路径调用，不影响搜索性能。
+    /// </summary>
+    private static string BuildGrepNoResultMessage(string pattern, string? path, bool caseInsensitive)
+    {
+        var sb = new StringBuilder(256);
+        sb.Append("No files found");
+        sb.Append($"\n[诊断] pattern: \"{pattern}\", path: \"{path ?? "."}\", case_insensitive: {caseInsensitive}");
+
+        if (!caseInsensitive && pattern.Any(char.IsUpper))
+        {
+            sb.Append("\n提示: pattern 含大写字母但未启用 case_insensitive，可能需要 -i 选项。");
+        }
+
+        sb.Append("\n提示: 检查正则语法、搜索路径、文件类型过滤(glob/file_type)。");
+        return sb.ToString();
     }
 
 }

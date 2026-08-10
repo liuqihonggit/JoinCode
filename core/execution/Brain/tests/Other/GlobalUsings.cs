@@ -55,6 +55,7 @@ global using CostTracker = Core.CostTracking.CostTracker;
 global using RetryConfig = Core.Configuration.RetryConfig;
 global using Api.LLM;
 global using Core.Planning;
+global using Core.Planning.ToolHandlers;
 global using Core.Plugins;
 global using Core.Prompts;
 global using Core.Prompts.Sections;

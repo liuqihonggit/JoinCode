@@ -59,12 +59,43 @@ public class FileEncodingDetectorTests
     }
 
     [Fact]
-    public void DetectFromBOM_Utf16BE_BOM_ReturnsUtf8()
+    public void DetectFromBOM_Utf16BE_BOM_ReturnsUtf16BE()
     {
-        // TS 不检测 UTF-16BE（0xFE 0xFF），只检测 UTF-16LE（0xFF 0xFE）
+        // C# 增强：检测 UTF-16BE（0xFE 0xFF），TS 原版不检测
         var bytes = new byte[] { 0xFE, 0xFF, 0x00, 0x41 }; // UTF-16BE BOM
         var encoding = FileEncodingDetector.DetectFromBOM(bytes);
-        encoding.Should().BeSameAs(Encoding.UTF8); // TS 行为：不识别 UTF-16BE，默认 UTF-8
+        encoding.Should().BeSameAs(Encoding.BigEndianUnicode); // UTF-16BE
+    }
+
+    [Fact]
+    public void DetectFromBOM_Utf32LE_BOM_ReturnsUtf32LE()
+    {
+        // UTF-32LE BOM: FF FE 00 00
+        var bytes = new byte[] { 0xFF, 0xFE, 0x00, 0x00, 0x41, 0x00, 0x00, 0x00 };
+        var encoding = FileEncodingDetector.DetectFromBOM(bytes);
+        encoding.Should().BeSameAs(Encoding.UTF32); // UTF-32LE in .NET
+    }
+
+    [Fact]
+    public void DetectFromBOM_Utf32BE_BOM_ReturnsUtf32BE()
+    {
+        // UTF-32BE BOM: 00 00 FE FF
+        var bytes = new byte[] { 0x00, 0x00, 0xFE, 0xFF, 0x00, 0x00, 0x00, 0x41 };
+        var encoding = FileEncodingDetector.DetectFromBOM(bytes);
+        encoding.Should().BeOfType<UTF32Encoding>();
+        encoding.Should().NotBeSameAs(Encoding.UTF32); // UTF32 = LE, this should be BE
+    }
+
+    [Fact]
+    public void DetectFromBOM_Utf16LE_BOM_NotConfusedWith_Utf32LE()
+    {
+        // UTF-32LE BOM 前2字节与 UTF-16LE 相同（FF FE），但第3-4字节为 00 00
+        // 必须优先检测 UTF-32LE（4字节BOM）再检测 UTF-16LE（2字节BOM）
+        var utf32le = new byte[] { 0xFF, 0xFE, 0x00, 0x00 };
+        FileEncodingDetector.DetectFromBOM(utf32le).Should().BeSameAs(Encoding.UTF32);
+
+        var utf16le = new byte[] { 0xFF, 0xFE, 0x41, 0x00 };
+        FileEncodingDetector.DetectFromBOM(utf16le).Should().BeSameAs(Encoding.Unicode);
     }
 
     #endregion

@@ -95,12 +95,22 @@ public class FileToolHandlers : IDisposable
 
         if (IsUncPath(file_path))
         {
-            return ToolResultBuilder.Error().WithText("Cannot read UNC path files (starting with \\\\), this may lead to credential leakage").Build();
+            var uncDiagnostic = ToolDiagnostic.Create(
+                "UncPathRejected",
+                "Cannot read UNC path files (starting with \\\\), this may lead to credential leakage.",
+                [new DiagnosticDetail("filePath", file_path)],
+                ["使用本地文件路径替代 UNC 路径。"]);
+            return ToolResultBuilder.Error().WithText(uncDiagnostic.FormattedMessage).WithDiagnostic(uncDiagnostic).Build();
         }
 
         if (IsBlockedDevicePath(file_path))
         {
-            return ToolResultBuilder.Error().WithText($"Cannot read '{file_path}': this device file would block or produce infinite output.").Build();
+            var devDiagnostic = ToolDiagnostic.Create(
+                "DevicePathRejected",
+                $"Cannot read '{file_path}': this device file would block or produce infinite output.",
+                [new DiagnosticDetail("filePath", file_path)],
+                ["使用常规文件路径，避免读取设备文件（如 CON、PRN、NUL、COM1-9、LPT1-9）。"]);
+            return ToolResultBuilder.Error().WithText(devDiagnostic.FormattedMessage).WithDiagnostic(devDiagnostic).Build();
         }
 
         var ext = Path.GetExtension(file_path).ToLowerInvariant();
@@ -126,7 +136,12 @@ public class FileToolHandlers : IDisposable
 
         if (HasBinaryExtension(ext))
         {
-            return ToolResultBuilder.Error().WithText($"This tool cannot read binary files. The file appears to be a binary {ext} file. Use an appropriate tool for analysis.").Build();
+            var binExtDiagnostic = ToolDiagnostic.Create(
+                "BinaryExtensionRejected",
+                $"This tool cannot read binary files. The file appears to be a binary {ext} file.",
+                [new DiagnosticDetail("filePath", file_path), new DiagnosticDetail("extension", ext)],
+                ["使用适当的工具分析二进制文件（如 ReadImage 读取图片、ReadPdf 读取 PDF）。"]);
+            return ToolResultBuilder.Error().WithText(binExtDiagnostic.FormattedMessage).WithDiagnostic(binExtDiagnostic).Build();
         }
 
         file_path = await ResolveSandboxPathAsync(file_path, cancellationToken).ConfigureAwait(false);
@@ -161,16 +176,41 @@ public class FileToolHandlers : IDisposable
 
         var fileOffset = offset.HasValue ? offset.Value - 1 : (int?)null;
 
-        var result = await _fileOperationService.ReadFileAsync(
-            file_path,
-            fileOffset,
-            limit,
-            cancellationToken).ConfigureAwait(false);
+        FileReadResult result;
+        try
+        {
+            result = await _fileOperationService.ReadFileAsync(
+                file_path,
+                fileOffset,
+                limit,
+                cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            RecordFileMetrics(FileOperationType.Read, FileOperationResult.Failed);
+            _logger?.LogError(ex, "FileRead 调用抛出异常: {FilePath}", file_path);
+            var exDiagnostic = ToolDiagnostic.Create(
+                "ReadFailed",
+                $"读取文件失败: {ex.Message}",
+                [
+                    new DiagnosticDetail("filePath", file_path),
+                    new DiagnosticDetail("exceptionType", ex.GetType().Name),
+                ],
+                ["检查文件权限、是否被其他进程锁定。"]);
+            return ToolResultBuilder.Error().WithText(exDiagnostic.FormattedMessage).WithDiagnostic(exDiagnostic).Build();
+        }
 
         if (!result.Success)
         {
             RecordFileMetrics(FileOperationType.Read, FileOperationResult.Failed);
-            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to read file").Build();
+            var builder = ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to read file");
+            if (result.Diagnostic is not null)
+                builder = builder.WithDiagnostic(result.Diagnostic);
+            return builder.Build();
         }
 
         if (result.TotalLines == 0)
@@ -194,10 +234,16 @@ public class FileToolHandlers : IDisposable
         if (estimatedTokens > maxTokens)
         {
             RecordFileMetrics(FileOperationType.Read, FileOperationResult.TokenExceeded);
-            return ToolResultBuilder.Error().WithText(
-                $"File content ({estimatedTokens} tokens) exceeds maximum allowed tokens ({maxTokens}). " +
-                "Use offset and limit parameters to read specific portions of the file, " +
-                "or search for specific content instead of reading the whole file.").Build();
+            var tokenDiagnostic = ToolDiagnostic.Create(
+                "TokenLimitExceeded",
+                $"File content ({estimatedTokens} tokens) exceeds maximum allowed tokens ({maxTokens}).",
+                [
+                    new DiagnosticDetail("filePath", file_path),
+                    new DiagnosticDetail("estimatedTokens", estimatedTokens.ToString()),
+                    new DiagnosticDetail("maxTokens", maxTokens.ToString()),
+                ],
+                ["使用 offset 和 limit 参数读取文件的部分内容。", "使用 Grep 工具搜索特定内容而非读取整个文件。"]);
+            return ToolResultBuilder.Error().WithText(tokenDiagnostic.FormattedMessage).WithDiagnostic(tokenDiagnostic).Build();
         }
 
         var numberedContent = AddLineNumbers(result.Content, result.StartLine);
@@ -1230,15 +1276,20 @@ public class FileToolHandlers : IDisposable
         if (!_fs.FileExists(filePath))
         {
             // 对齐 TS: findSimilarFile + suggestPathUnderCwd — 文件未找到时建议相似文件
-            var message = FileSuggestionHelper.BuildFileNotFoundMessage(filePath, _fs);
-            return ToolResultBuilder.Error().WithText(message).Build();
+            var diagnostic = FileSuggestionHelper.BuildFileNotFoundDiagnostic(filePath, _fs);
+            return ToolResultBuilder.Error().WithText(diagnostic.FormattedMessage).WithDiagnostic(diagnostic).Build();
         }
 
         var originalSize = _fs.GetFileLength(filePath);
 
         if (originalSize == 0)
         {
-            return ToolResultBuilder.Error().WithText($"Image file is empty: {filePath}").Build();
+            var emptyDiagnostic = ToolDiagnostic.Create(
+                "EmptyImageFile",
+                $"Image file is empty: {filePath}",
+                [new DiagnosticDetail("filePath", filePath), new DiagnosticDetail("size", "0")],
+                ["检查文件是否正确写入或下载。"]);
+            return ToolResultBuilder.Error().WithText(emptyDiagnostic.FormattedMessage).WithDiagnostic(emptyDiagnostic).Build();
         }
 
         // 读取原始图像字节
@@ -1249,7 +1300,12 @@ public class FileToolHandlers : IDisposable
         }
         catch (Exception ex)
         {
-            return ToolResultBuilder.Error().WithText($"Failed to read image file: {ex.Message}").Build();
+            var readDiagnostic = ToolDiagnostic.Create(
+                "ImageReadFailed",
+                $"Failed to read image file: {ex.Message}",
+                [new DiagnosticDetail("filePath", filePath), new DiagnosticDetail("exceptionType", ex.GetType().Name)],
+                ["检查文件权限、是否被其他进程锁定。"]);
+            return ToolResultBuilder.Error().WithText(readDiagnostic.FormattedMessage).WithDiagnostic(readDiagnostic).Build();
         }
 
         // 用 magic bytes 检测实际格式（对齐 TS: detectImageFormatFromBuffer）
@@ -1267,7 +1323,12 @@ public class FileToolHandlers : IDisposable
         catch (InvalidOperationException ex)
         {
             RecordFileMetrics(FileOperationType.Read, FileOperationResult.ResizeFailed);
-            return ToolResultBuilder.Error().WithText(ex.Message).Build();
+            var resizeDiagnostic = ToolDiagnostic.Create(
+                "ImageResizeFailed",
+                ex.Message,
+                [new DiagnosticDetail("filePath", filePath), new DiagnosticDetail("exceptionType", ex.GetType().Name)],
+                ["检查图像格式是否受支持，或使用更小的图像。"]);
+            return ToolResultBuilder.Error().WithText(resizeDiagnostic.FormattedMessage).WithDiagnostic(resizeDiagnostic).Build();
         }
 
         // Base64 编码
@@ -1386,7 +1447,12 @@ public class FileToolHandlers : IDisposable
         if (!result.Success)
         {
             RecordFileMetrics(FileOperationType.Read, FileOperationResult.PdfFailed);
-            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to read PDF file").Build();
+            var pdfDiagnostic = ToolDiagnostic.Create(
+                "PdfReadFailed",
+                result.ErrorMessage ?? "Failed to read PDF file",
+                [new DiagnosticDetail("filePath", filePath)],
+                ["检查文件是否为有效的 PDF，或使用 pages 参数读取特定页面。"]);
+            return ToolResultBuilder.Error().WithText(pdfDiagnostic.FormattedMessage).WithDiagnostic(pdfDiagnostic).Build();
         }
 
         // 对齐 TS: 决策2 — 超过 PdfMaxInlinePageCount 页必须使用 pages 参数
@@ -1394,11 +1460,17 @@ public class FileToolHandlers : IDisposable
             result.PageCount > FileOperationConfig.PdfMaxInlinePageCount)
         {
             RecordFileMetrics(FileOperationType.Read, FileOperationResult.Failed);
-            return ToolResultBuilder.Error()
-                .WithText($"This PDF has {result.PageCount} pages, which is too many to read at once. " +
-                          $"Use the pages parameter to read specific page ranges (e.g., pages: \"1-5\"). " +
-                          $"Maximum {FileOperationConfig.PdfMaxPagesPerRead} pages per request.")
-                .Build();
+            var pageDiagnostic = ToolDiagnostic.Create(
+                "PdfTooManyPages",
+                $"This PDF has {result.PageCount} pages, which is too many to read at once.",
+                [
+                    new DiagnosticDetail("filePath", filePath),
+                    new DiagnosticDetail("pageCount", result.PageCount.Value.ToString()),
+                    new DiagnosticDetail("maxInlinePages", FileOperationConfig.PdfMaxInlinePageCount.ToString()),
+                    new DiagnosticDetail("maxPagesPerRead", FileOperationConfig.PdfMaxPagesPerRead.ToString()),
+                ],
+                [$"使用 pages 参数读取特定页面范围（如 pages: \"1-5\"），每次最多 {FileOperationConfig.PdfMaxPagesPerRead} 页。"]);
+            return ToolResultBuilder.Error().WithText(pageDiagnostic.FormattedMessage).WithDiagnostic(pageDiagnostic).Build();
         }
 
         // 对齐 TS: 决策3 — shouldExtractPages: 文件 > 3MB 时提取页面为图片
@@ -1575,7 +1647,12 @@ public class FileToolHandlers : IDisposable
         if (!result.Success)
         {
             RecordFileMetrics(FileOperationType.Read, FileOperationResult.NotebookFailed);
-            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to read notebook file").Build();
+            var nbDiagnostic = ToolDiagnostic.Create(
+                "NotebookReadFailed",
+                result.ErrorMessage ?? "Failed to read notebook file",
+                [new DiagnosticDetail("filePath", filePath)],
+                ["检查文件是否为有效的 Jupyter Notebook（.ipynb）格式。"]);
+            return ToolResultBuilder.Error().WithText(nbDiagnostic.FormattedMessage).WithDiagnostic(nbDiagnostic).Build();
         }
 
         // 记录读取状态

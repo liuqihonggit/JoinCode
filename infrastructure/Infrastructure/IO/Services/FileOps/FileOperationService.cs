@@ -265,11 +265,13 @@ public sealed partial class FileOperationService : ServiceEntity, IFileOperation
         try
         {
             if (!_fs.FileExists(normalizedPath))
-                return FileMetadataResult.FailureResult(normalizedPath,
-                    FileSuggestionHelper.BuildFileNotFoundMessage(normalizedPath, _fs));
+            {
+                var diagnostic = FileSuggestionHelper.BuildFileNotFoundDiagnostic(normalizedPath, _fs);
+                return FileMetadataResult.FailureResult(normalizedPath, diagnostic);
+            }
 
             // 对齐 TS: readFileSyncWithMetadata — 检测编码 + 换行符
-            var encoding = await FileEncodingDetector.DetectFromFileAsync(normalizedPath, _fs, cancellationToken).ConfigureAwait(false);
+            var encoding = await FileEncodingDetector.DetectFromFileAsync(normalizedPath, _fs, cancellationToken, _logger).ConfigureAwait(false);
 
             using var stream = _fs.OpenRead(normalizedPath);
             using var reader = new StreamReader(stream, encoding);
@@ -288,7 +290,15 @@ public sealed partial class FileOperationService : ServiceEntity, IFileOperation
         catch (Exception ex)
         {
             _logger?.LogError(ex, "读取文件元数据失败: {FilePath}", normalizedPath);
-            return FileMetadataResult.FailureResult(normalizedPath, ex.Message);
+            var diagnostic = ToolDiagnostic.Create(
+                "ReadMetadataFailed",
+                $"读取文件元数据失败: {ex.Message}",
+                [
+                    new DiagnosticDetail("filePath", normalizedPath),
+                    new DiagnosticDetail("exceptionType", ex.GetType().Name),
+                ],
+                ["检查文件权限、是否被其他进程锁定。"]);
+            return FileMetadataResult.FailureResult(normalizedPath, diagnostic);
         }
     }
 

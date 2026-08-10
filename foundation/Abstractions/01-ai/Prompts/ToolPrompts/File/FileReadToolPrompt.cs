@@ -3,7 +3,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 /// <summary>
 /// 文件读取工具提示词
 /// </summary>
-[ToolPrompt(ToolName = "FileRead", Category = ToolPromptCategory.File)]
+[ToolPrompt(ToolName = "Read", Category = ToolPromptCategory.File)]
 public static class FileReadToolPrompt
 {
     public const int MaxLinesToRead = 2000;

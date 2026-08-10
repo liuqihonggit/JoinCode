@@ -180,7 +180,7 @@ jobs:
           $concurrency = [int]$env:STRYKER_CONCURRENCY
           $breakThreshold = [int]$env:STRYKER_BREAK
 
-          $slnx = 'JoinCode.slnx'
+          $slnx = 'Stryker.slnx'
           $slnxPath = Join-Path $env:GITHUB_WORKSPACE $slnx
 
           $strykerArgs = @("-p", $info.Src, "-s", $slnxPath, "-c", $concurrency, "-b", $breakThreshold, "--configuration", "Debug", "--threshold-low", "60", "--threshold-high", "80", "-r", "progress", "-r", "html", "-r", "json", "-r", "markdown")

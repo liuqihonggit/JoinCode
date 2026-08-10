@@ -28,7 +28,10 @@ public class NotebookToolHandlers
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(notebook_path))
-            return ToolResultBuilder.Error().WithText("notebook_path cannot be empty").Build();
+        {
+            var diag = BuildNotebookPathEmptyDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
+        }
 
         // 对齐 TS: 相对路径自动转绝对路径
         if (!Path.IsPathRooted(notebook_path))
@@ -38,24 +41,38 @@ public class NotebookToolHandlers
         if (notebook_path.StartsWith(@"\\", StringComparison.Ordinal) ||
             (notebook_path.Length >= 2 && notebook_path[0] == '/' && notebook_path[1] == '/'))
         {
+            var diag = BuildUncPathNotAllowedDiagnostic();
             return ToolResultBuilder.Error()
-                .WithText("UNC paths are not allowed for security reasons (potential NTLM credential leakage). Use a local path instead.")
+                .WithText(diag.FormattedMessage)
+                .WithDiagnostic(diag)
                 .Build();
         }
 
         if (!notebook_path.EndsWith(".ipynb", StringComparison.OrdinalIgnoreCase))
-            return ToolResultBuilder.Error().WithText("File must be a Jupyter notebook (.ipynb file). For editing other file types, use the FileEdit tool.").Build();
+        {
+            var diag = BuildNotIpynbFileDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
+        }
 
         var modeStr = edit_mode ?? NotebookEditModeConstants.Replace;
         var mode = NotebookEditModeExtensions.FromValue(modeStr) ?? NotebookEditMode.Replace;
         if (!NotebookEditModeExtensions.IsDefined(mode))
-            return ToolResultBuilder.Error().WithText("edit_mode must be replace, insert, or delete").Build();
+        {
+            var diag = BuildEditModeInvalidDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
+        }
 
         if (mode == NotebookEditMode.Insert && string.IsNullOrWhiteSpace(cell_type))
-            return ToolResultBuilder.Error().WithText("cell_type is required when using edit_mode=insert").Build();
+        {
+            var diag = BuildCellTypeRequiredForInsertDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
+        }
 
         if (mode != NotebookEditMode.Insert && string.IsNullOrWhiteSpace(cell_id))
-            return ToolResultBuilder.Error().WithText("cell_id must be specified when not inserting a new cell").Build();
+        {
+            var diag = BuildCellIdRequiredDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
+        }
 
         // 对齐 TS checkPermissions: 写入权限检查
         // Plan 模式下写入操作需要确认，Ask 模式下每个操作都需要确认
@@ -64,15 +81,20 @@ public class NotebookToolHandlers
             var currentMode = await _permissionManager.GetCurrentModeAsync(cancellationToken).ConfigureAwait(false);
             if (currentMode == PermissionMode.Plan)
             {
+                var diag = BuildPlanModeForbiddenDiagnostic();
                 return ToolResultBuilder.Error()
-                    .WithText("Cannot edit notebook in plan mode. Exit plan mode first before editing files.")
+                    .WithText(diag.FormattedMessage)
+                    .WithDiagnostic(diag)
                     .Build();
             }
         }
 
         // Read-before-Edit 校验：必须先读取文件才能编辑，防止模型编辑从未见过的文件
         if (!_fileStateCache.HasBeenRead(notebook_path))
-            return ToolResultBuilder.Error().WithText("File has not been read yet. Read it first before writing to it.").Build();
+        {
+            var diag = BuildFileNotReadDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
+        }
 
         // 并发修改检测：检查文件是否在读取后被外部修改
         var readTimestamp = _fileStateCache.GetReadTimestampMs(notebook_path);
@@ -80,7 +102,10 @@ public class NotebookToolHandlers
         {
             var lastWriteMs = new DateTimeOffset(_fs.GetLastWriteTimeUtc(notebook_path)).ToUnixTimeMilliseconds();
             if (lastWriteMs > readTimestamp.Value + 1000) // 1s tolerance
-                return ToolResultBuilder.Error().WithText("File has been modified since read, either by the user or by a linter. Read it again before attempting to write it.").Build();
+            {
+                var diag = BuildFileModifiedSinceReadDiagnostic();
+                return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
+            }
         }
 
         var fileResult = await _fileOperationService.ReadFileAsync(notebook_path, cancellationToken: cancellationToken).ConfigureAwait(false);
@@ -92,7 +117,10 @@ public class NotebookToolHandlers
 
         var notebook = await _notebookService.LoadAsync(notebook_path, cancellationToken).ConfigureAwait(false);
         if (notebook == null)
-            return ToolResultBuilder.Error().WithText("Notebook is not valid JSON").Build();
+        {
+            var diag = BuildNotebookInvalidJsonDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
+        }
 
         int cellIndex;
         if (string.IsNullOrWhiteSpace(cell_id))
@@ -125,7 +153,10 @@ public class NotebookToolHandlers
         {
             var deleteResult = _notebookService.DeleteCell(notebook, cellIndex);
             if (!deleteResult.Success)
-                return ToolResultBuilder.Error().WithText(deleteResult.ErrorMessage ?? "Failed to delete cell").Build();
+            {
+                var diag = BuildCellOperationFailedDiagnostic("DeleteCell", deleteResult.ErrorMessage, "Failed to delete cell");
+                return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
+            }
             notebook = deleteResult.GetNotebook();
         }
         else if (mode == NotebookEditMode.Insert)
@@ -133,7 +164,10 @@ public class NotebookToolHandlers
             var ct = NotebookCellTypeExtensions.FromValue(cell_type) ?? NotebookCellType.Code;
             var addResult = _notebookService.AddCell(notebook, ct, new_source, cellIndex);
             if (!addResult.Success)
-                return ToolResultBuilder.Error().WithText(addResult.ErrorMessage ?? "Failed to insert cell").Build();
+            {
+                var diag = BuildCellOperationFailedDiagnostic("InsertCell", addResult.ErrorMessage, "Failed to insert cell");
+                return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
+            }
             notebook = addResult.GetNotebook();
         }
         else
@@ -141,13 +175,19 @@ public class NotebookToolHandlers
             // 对齐 TS: replace 模式下支持修改 cell_type
             var editResult = _notebookService.EditCell(notebook, cellIndex, new_source, cell_type);
             if (!editResult.Success)
-                return ToolResultBuilder.Error().WithText(editResult.ErrorMessage ?? "Failed to edit cell").Build();
+            {
+                var diag = BuildCellOperationFailedDiagnostic("EditCell", editResult.ErrorMessage, "Failed to edit cell");
+                return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
+            }
             notebook = editResult.GetNotebook();
         }
 
         var saved = await _notebookService.SaveAsync(notebook_path, notebook, cancellationToken).ConfigureAwait(false);
         if (!saved)
-            return ToolResultBuilder.Error().WithText("Failed to save notebook").Build();
+        {
+            var diag = BuildSaveNotebookFailedDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
+        }
 
         // 写入后更新 FileStateCache，确保后续读取不会返回过时的缓存内容
         if (_fs.FileExists(notebook_path))
@@ -224,7 +264,8 @@ public class NotebookToolHandlers
     {
         if (string.IsNullOrWhiteSpace(file_path))
         {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookFilePathCannotBeEmpty)).Build();
+            var diag = BuildFilePathEmptyDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         if (!file_path.EndsWith(".ipynb", StringComparison.OrdinalIgnoreCase))
@@ -235,7 +276,8 @@ public class NotebookToolHandlers
         var fileResult = await _fileOperationService.ReadFileAsync(file_path, cancellationToken: cancellationToken).ConfigureAwait(false);
         if (fileResult.Success)
         {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookFileAlreadyExists, file_path)).Build();
+            var diag = BuildFileAlreadyExistsDiagnostic(file_path);
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var notebook = _notebookService.Create(kernel_name, language);
@@ -243,7 +285,8 @@ public class NotebookToolHandlers
 
         if (!saved)
         {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookSaveFailed)).Build();
+            var diag = BuildNotebookSaveFailedDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var response = new System.Text.StringBuilder();
@@ -270,13 +313,15 @@ public class NotebookToolHandlers
     {
         if (string.IsNullOrWhiteSpace(file_path))
         {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookFilePathCannotBeEmpty)).Build();
+            var diag = BuildFilePathEmptyDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var fileResult = await _fileOperationService.ReadFileAsync(file_path, cancellationToken: cancellationToken).ConfigureAwait(false);
         if (!fileResult.Success)
         {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookFileNotExist, file_path)).Build();
+            var diag = BuildFileNotExistDiagnostic(file_path);
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         // 对齐 TS: 读取后记录到 FileStateCache，确保后续 Edit 的 Read-before-Edit 检查能通过
@@ -290,7 +335,8 @@ public class NotebookToolHandlers
 
         if (notebook == null)
         {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookParseFailed)).Build();
+            var diag = BuildNotebookParseFailedDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var response = new System.Text.StringBuilder();
@@ -346,40 +392,46 @@ public class NotebookToolHandlers
     {
         if (string.IsNullOrWhiteSpace(file_path))
         {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookFilePathCannotBeEmpty)).Build();
+            var diag = BuildFilePathEmptyDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var fileResult = await _fileOperationService.ReadFileAsync(file_path, cancellationToken: cancellationToken).ConfigureAwait(false);
         if (!fileResult.Success)
         {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookFileNotExist, file_path)).Build();
+            var diag = BuildFileNotExistDiagnostic(file_path);
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var cellType = NotebookCellTypeExtensions.FromValue(cell_type);
         if (cellType is null)
         {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookInvalidCellType, cell_type)).Build();
+            var diag = BuildInvalidCellTypeDiagnostic(cell_type);
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var notebook = await _notebookService.LoadAsync(file_path, cancellationToken).ConfigureAwait(false);
 
         if (notebook == null)
         {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookParseFailed)).Build();
+            var diag = BuildNotebookParseFailedDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var result = _notebookService.AddCell(notebook, cellType.Value, content, index);
 
         if (!result.Success)
         {
-            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.NotebookAddCellFailed)).Build();
+            var diag = BuildCellOperationFailedDiagnostic("AddCell", result.ErrorMessage, L.T(StringKey.NotebookAddCellFailed));
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var saved = await _notebookService.SaveAsync(file_path, result.GetNotebook(), cancellationToken).ConfigureAwait(false);
 
         if (!saved)
         {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookSaveFailed)).Build();
+            var diag = BuildNotebookSaveFailedDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         return ToolResultBuilder.Success()
@@ -398,34 +450,39 @@ public class NotebookToolHandlers
     {
         if (string.IsNullOrWhiteSpace(file_path))
         {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookFilePathCannotBeEmpty)).Build();
+            var diag = BuildFilePathEmptyDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var fileResult = await _fileOperationService.ReadFileAsync(file_path, cancellationToken: cancellationToken).ConfigureAwait(false);
         if (!fileResult.Success)
         {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookFileNotExist, file_path)).Build();
+            var diag = BuildFileNotExistDiagnostic(file_path);
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var notebook = await _notebookService.LoadAsync(file_path, cancellationToken).ConfigureAwait(false);
 
         if (notebook == null)
         {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookParseFailed)).Build();
+            var diag = BuildNotebookParseFailedDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var result = _notebookService.DeleteCell(notebook, index);
 
         if (!result.Success)
         {
-            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.NotebookDeleteCellFailed)).Build();
+            var diag = BuildCellOperationFailedDiagnostic("DeleteCell", result.ErrorMessage, L.T(StringKey.NotebookDeleteCellFailed));
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var saved = await _notebookService.SaveAsync(file_path, result.GetNotebook(), cancellationToken).ConfigureAwait(false);
 
         if (!saved)
         {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookSaveFailed)).Build();
+            var diag = BuildNotebookSaveFailedDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         return ToolResultBuilder.Success()
@@ -445,34 +502,39 @@ public class NotebookToolHandlers
     {
         if (string.IsNullOrWhiteSpace(file_path))
         {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookFilePathCannotBeEmpty)).Build();
+            var diag = BuildFilePathEmptyDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var fileResult = await _fileOperationService.ReadFileAsync(file_path, cancellationToken: cancellationToken).ConfigureAwait(false);
         if (!fileResult.Success)
         {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookFileNotExist, file_path)).Build();
+            var diag = BuildFileNotExistDiagnostic(file_path);
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var notebook = await _notebookService.LoadAsync(file_path, cancellationToken).ConfigureAwait(false);
 
         if (notebook == null)
         {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookParseFailed)).Build();
+            var diag = BuildNotebookParseFailedDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var result = _notebookService.EditCell(notebook, index, content, null);
 
         if (!result.Success)
         {
-            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.NotebookEditCellFailed)).Build();
+            var diag = BuildCellOperationFailedDiagnostic("EditCell", result.ErrorMessage, L.T(StringKey.NotebookEditCellFailed));
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var saved = await _notebookService.SaveAsync(file_path, result.GetNotebook(), cancellationToken).ConfigureAwait(false);
 
         if (!saved)
         {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookSaveFailed)).Build();
+            var diag = BuildNotebookSaveFailedDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         return ToolResultBuilder.Success()
@@ -492,34 +554,39 @@ public class NotebookToolHandlers
     {
         if (string.IsNullOrWhiteSpace(file_path))
         {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookFilePathCannotBeEmpty)).Build();
+            var diag = BuildFilePathEmptyDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var fileResult = await _fileOperationService.ReadFileAsync(file_path, cancellationToken: cancellationToken).ConfigureAwait(false);
         if (!fileResult.Success)
         {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookFileNotExist, file_path)).Build();
+            var diag = BuildFileNotExistDiagnostic(file_path);
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var notebook = await _notebookService.LoadAsync(file_path, cancellationToken).ConfigureAwait(false);
 
         if (notebook == null)
         {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookParseFailed)).Build();
+            var diag = BuildNotebookParseFailedDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var result = _notebookService.MoveCell(notebook, from_index, to_index);
 
         if (!result.Success)
         {
-            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.NotebookMoveCellFailed)).Build();
+            var diag = BuildCellOperationFailedDiagnostic("MoveCell", result.ErrorMessage, L.T(StringKey.NotebookMoveCellFailed));
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var saved = await _notebookService.SaveAsync(file_path, result.GetNotebook(), cancellationToken).ConfigureAwait(false);
 
         if (!saved)
         {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookSaveFailed)).Build();
+            var diag = BuildNotebookSaveFailedDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         return ToolResultBuilder.Success()
@@ -539,40 +606,46 @@ public class NotebookToolHandlers
     {
         if (string.IsNullOrWhiteSpace(file_path))
         {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookFilePathCannotBeEmpty)).Build();
+            var diag = BuildFilePathEmptyDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var fileResult = await _fileOperationService.ReadFileAsync(file_path, cancellationToken: cancellationToken).ConfigureAwait(false);
         if (!fileResult.Success)
         {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookFileNotExist, file_path)).Build();
+            var diag = BuildFileNotExistDiagnostic(file_path);
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var newType = NotebookCellTypeExtensions.FromValue(new_type);
         if (newType is null)
         {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookInvalidType, new_type)).Build();
+            var diag = BuildInvalidTypeDiagnostic(new_type);
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var notebook = await _notebookService.LoadAsync(file_path, cancellationToken).ConfigureAwait(false);
 
         if (notebook == null)
         {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookParseFailed)).Build();
+            var diag = BuildNotebookParseFailedDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var result = _notebookService.ChangeCellType(notebook, index, newType.Value);
 
         if (!result.Success)
         {
-            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.NotebookChangeCellTypeFailed)).Build();
+            var diag = BuildCellOperationFailedDiagnostic("ChangeCellType", result.ErrorMessage, L.T(StringKey.NotebookChangeCellTypeFailed));
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var saved = await _notebookService.SaveAsync(file_path, result.GetNotebook(), cancellationToken).ConfigureAwait(false);
 
         if (!saved)
         {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookSaveFailed)).Build();
+            var diag = BuildNotebookSaveFailedDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         return ToolResultBuilder.Success()
@@ -590,34 +663,39 @@ public class NotebookToolHandlers
     {
         if (string.IsNullOrWhiteSpace(file_path))
         {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookFilePathCannotBeEmpty)).Build();
+            var diag = BuildFilePathEmptyDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var fileResult = await _fileOperationService.ReadFileAsync(file_path, cancellationToken: cancellationToken).ConfigureAwait(false);
         if (!fileResult.Success)
         {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookFileNotExist, file_path)).Build();
+            var diag = BuildFileNotExistDiagnostic(file_path);
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var notebook = await _notebookService.LoadAsync(file_path, cancellationToken).ConfigureAwait(false);
 
         if (notebook == null)
         {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookParseFailed)).Build();
+            var diag = BuildNotebookParseFailedDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var result = _notebookService.ClearAllOutputs(notebook);
 
         if (!result.Success)
         {
-            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.NotebookClearOutputsFailed)).Build();
+            var diag = BuildCellOperationFailedDiagnostic("ClearAllOutputs", result.ErrorMessage, L.T(StringKey.NotebookClearOutputsFailed));
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var saved = await _notebookService.SaveAsync(file_path, result.GetNotebook(), cancellationToken).ConfigureAwait(false);
 
         if (!saved)
         {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookSaveFailed)).Build();
+            var diag = BuildNotebookSaveFailedDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         return ToolResultBuilder.Success()
@@ -636,25 +714,29 @@ public class NotebookToolHandlers
     {
         if (string.IsNullOrWhiteSpace(file_path))
         {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookFilePathCannotBeEmpty)).Build();
+            var diag = BuildFilePathEmptyDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var fileResult = await _fileOperationService.ReadFileAsync(file_path, cancellationToken: cancellationToken).ConfigureAwait(false);
         if (!fileResult.Success)
         {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookFileNotExist, file_path)).Build();
+            var diag = BuildFileNotExistDiagnostic(file_path);
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var notebook = await _notebookService.LoadAsync(file_path, cancellationToken).ConfigureAwait(false);
 
         if (notebook == null)
         {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookParseFailed)).Build();
+            var diag = BuildNotebookParseFailedDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         if (index < 0 || index >= notebook.Cells.Count)
         {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.NotebookInvalidCellIndex, index)).Build();
+            var diag = BuildInvalidCellIndexDiagnostic(index);
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var cell = notebook.Cells[index];
@@ -686,4 +768,388 @@ public class NotebookToolHandlers
 
         return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
+
+    #region Diagnostics
+
+    /// <summary>
+    /// 构建 notebook_path 为空的结构化诊断。
+    /// </summary>
+    internal static ToolDiagnostic BuildNotebookPathEmptyDiagnostic()
+    {
+        return ToolDiagnostic.Create(
+            reason: "NotebookPathEmpty",
+            formattedMessage: "notebook_path cannot be empty",
+            details:
+            [
+                new DiagnosticDetail("Param", "notebook_path"),
+            ],
+            suggestions:
+            [
+                "提供 Jupyter notebook 文件的绝对路径。",
+            ]);
+    }
+
+    /// <summary>
+    /// 构建 UNC 路径不允许的结构化诊断。
+    /// </summary>
+    internal static ToolDiagnostic BuildUncPathNotAllowedDiagnostic()
+    {
+        return ToolDiagnostic.Create(
+            reason: "UncPathNotAllowed",
+            formattedMessage: "UNC paths are not allowed for security reasons (potential NTLM credential leakage). Use a local path instead.",
+            details:
+            [
+                new DiagnosticDetail("Reason", "NTLM credential leakage risk"),
+            ],
+            suggestions:
+            [
+                "使用本地路径（如 C:\\path\\to\\notebook.ipynb）替代 UNC 路径。",
+            ]);
+    }
+
+    /// <summary>
+    /// 构建非 .ipynb 文件的结构化诊断。
+    /// </summary>
+    internal static ToolDiagnostic BuildNotIpynbFileDiagnostic()
+    {
+        return ToolDiagnostic.Create(
+            reason: "NotIpynbFile",
+            formattedMessage: "File must be a Jupyter notebook (.ipynb file). For editing other file types, use the FileEdit tool.",
+            details:
+            [
+                new DiagnosticDetail("ExpectedExtension", ".ipynb"),
+            ],
+            suggestions:
+            [
+                "确认文件扩展名为 .ipynb。",
+                "如需编辑其他文件类型，使用 FileEdit 工具。",
+            ]);
+    }
+
+    /// <summary>
+    /// 构建 edit_mode 无效的结构化诊断。
+    /// </summary>
+    internal static ToolDiagnostic BuildEditModeInvalidDiagnostic()
+    {
+        return ToolDiagnostic.Create(
+            reason: "EditModeInvalid",
+            formattedMessage: "edit_mode must be replace, insert, or delete",
+            details:
+            [
+                new DiagnosticDetail("Param", "edit_mode"),
+                new DiagnosticDetail("ValidValues", "replace, insert, delete"),
+            ],
+            suggestions:
+            [
+                "将 edit_mode 设置为 replace、insert 或 delete 之一。",
+            ]);
+    }
+
+    /// <summary>
+    /// 构建 insert 模式缺少 cell_type 的结构化诊断。
+    /// </summary>
+    internal static ToolDiagnostic BuildCellTypeRequiredForInsertDiagnostic()
+    {
+        return ToolDiagnostic.Create(
+            reason: "CellTypeRequiredForInsert",
+            formattedMessage: "cell_type is required when using edit_mode=insert",
+            details:
+            [
+                new DiagnosticDetail("Param", "cell_type"),
+                new DiagnosticDetail("EditMode", "insert"),
+            ],
+            suggestions:
+            [
+                "插入新 cell 时必须指定 cell_type（code 或 markdown）。",
+            ]);
+    }
+
+    /// <summary>
+    /// 构建非 insert 模式缺少 cell_id 的结构化诊断。
+    /// </summary>
+    internal static ToolDiagnostic BuildCellIdRequiredDiagnostic()
+    {
+        return ToolDiagnostic.Create(
+            reason: "CellIdRequired",
+            formattedMessage: "cell_id must be specified when not inserting a new cell",
+            details:
+            [
+                new DiagnosticDetail("Param", "cell_id"),
+            ],
+            suggestions:
+            [
+                "replace 或 delete 模式下必须指定要操作的 cell_id。",
+            ]);
+    }
+
+    /// <summary>
+    /// 构建 Plan 模式禁止编辑的结构化诊断。
+    /// </summary>
+    internal static ToolDiagnostic BuildPlanModeForbiddenDiagnostic()
+    {
+        return ToolDiagnostic.Create(
+            reason: "PlanModeForbidden",
+            formattedMessage: "Cannot edit notebook in plan mode. Exit plan mode first before editing files.",
+            details:
+            [
+                new DiagnosticDetail("CurrentMode", "Plan"),
+            ],
+            suggestions:
+            [
+                "退出 Plan 模式后再执行编辑操作。",
+            ]);
+    }
+
+    /// <summary>
+    /// 构建文件未读取的结构化诊断。
+    /// </summary>
+    internal static ToolDiagnostic BuildFileNotReadDiagnostic()
+    {
+        return ToolDiagnostic.Create(
+            reason: "FileNotRead",
+            formattedMessage: "File has not been read yet. Read it first before writing to it.",
+            details:
+            [
+                new DiagnosticDetail("Requirement", "Read-before-Edit"),
+            ],
+            suggestions:
+            [
+                "先使用 NotebookRead 读取文件，再执行编辑操作。",
+            ]);
+    }
+
+    /// <summary>
+    /// 构建文件已被外部修改的结构化诊断。
+    /// </summary>
+    internal static ToolDiagnostic BuildFileModifiedSinceReadDiagnostic()
+    {
+        return ToolDiagnostic.Create(
+            reason: "FileModifiedSinceRead",
+            formattedMessage: "File has been modified since read, either by the user or by a linter. Read it again before attempting to write it.",
+            details:
+            [
+                new DiagnosticDetail("Tolerance", "1s"),
+            ],
+            suggestions:
+            [
+                "重新读取文件以获取最新内容后再编辑。",
+            ]);
+    }
+
+    /// <summary>
+    /// 构建 notebook JSON 解析失败的结构化诊断（NotebookEditAsync 内硬编码英文消息）。
+    /// </summary>
+    internal static ToolDiagnostic BuildNotebookInvalidJsonDiagnostic()
+    {
+        return ToolDiagnostic.Create(
+            reason: "NotebookInvalidJson",
+            formattedMessage: "Notebook is not valid JSON",
+            details:
+            [
+                new DiagnosticDetail("Expectation", "Valid .ipynb JSON structure"),
+            ],
+            suggestions:
+            [
+                "确认文件是有效的 Jupyter notebook JSON 格式。",
+                "使用 NotebookCreate 创建新的 notebook。",
+            ]);
+    }
+
+    /// <summary>
+    /// 构建 cell 操作失败的通用结构化诊断。
+    /// </summary>
+    internal static ToolDiagnostic BuildCellOperationFailedDiagnostic(string operation, string? errorMessage, string fallbackMessage)
+    {
+        var message = errorMessage ?? fallbackMessage;
+        return ToolDiagnostic.Create(
+            reason: $"{operation}Failed",
+            formattedMessage: message,
+            details:
+            [
+                new DiagnosticDetail("Operation", operation),
+                new DiagnosticDetail("ErrorMessage", message),
+            ],
+            suggestions:
+            [
+                "检查错误消息以获取详细信息后重试。",
+            ]);
+    }
+
+    /// <summary>
+    /// 构建 notebook 保存失败的结构化诊断（NotebookEditAsync 内硬编码英文消息）。
+    /// </summary>
+    internal static ToolDiagnostic BuildSaveNotebookFailedDiagnostic()
+    {
+        return ToolDiagnostic.Create(
+            reason: "SaveNotebookFailed",
+            formattedMessage: "Failed to save notebook",
+            details:
+            [
+                new DiagnosticDetail("Operation", "SaveAsync"),
+            ],
+            suggestions:
+            [
+                "检查文件路径是否有写入权限。",
+                "确认磁盘空间充足。",
+            ]);
+    }
+
+    /// <summary>
+    /// 构建 file_path 为空的结构化诊断（多方法共享）。
+    /// </summary>
+    internal static ToolDiagnostic BuildFilePathEmptyDiagnostic()
+    {
+        var message = L.T(StringKey.NotebookFilePathCannotBeEmpty);
+        return ToolDiagnostic.Create(
+            reason: "NotebookFilePathEmpty",
+            formattedMessage: message,
+            details:
+            [
+                new DiagnosticDetail("Param", "file_path"),
+            ],
+            suggestions:
+            [
+                "提供 notebook 文件路径。",
+            ]);
+    }
+
+    /// <summary>
+    /// 构建文件不存在的结构化诊断（多方法共享）。
+    /// </summary>
+    internal static ToolDiagnostic BuildFileNotExistDiagnostic(string filePath)
+    {
+        var message = L.T(StringKey.NotebookFileNotExist, filePath);
+        return ToolDiagnostic.Create(
+            reason: "NotebookFileNotExist",
+            formattedMessage: message,
+            details:
+            [
+                new DiagnosticDetail("FilePath", filePath),
+            ],
+            suggestions:
+            [
+                "检查路径拼写和大小写。",
+                "使用 NotebookCreate 创建新的 notebook 文件。",
+            ]);
+    }
+
+    /// <summary>
+    /// 构建 notebook 解析失败的结构化诊断（多方法共享，本地化消息）。
+    /// </summary>
+    internal static ToolDiagnostic BuildNotebookParseFailedDiagnostic()
+    {
+        var message = L.T(StringKey.NotebookParseFailed);
+        return ToolDiagnostic.Create(
+            reason: "NotebookParseFailed",
+            formattedMessage: message,
+            details:
+            [
+                new DiagnosticDetail("Expectation", "Valid .ipynb JSON structure"),
+            ],
+            suggestions:
+            [
+                "确认文件是有效的 Jupyter notebook JSON 格式。",
+            ]);
+    }
+
+    /// <summary>
+    /// 构建 notebook 保存失败的结构化诊断（多方法共享，本地化消息）。
+    /// </summary>
+    internal static ToolDiagnostic BuildNotebookSaveFailedDiagnostic()
+    {
+        var message = L.T(StringKey.NotebookSaveFailed);
+        return ToolDiagnostic.Create(
+            reason: "NotebookSaveFailed",
+            formattedMessage: message,
+            details:
+            [
+                new DiagnosticDetail("Operation", "SaveAsync"),
+            ],
+            suggestions:
+            [
+                "检查文件路径是否有写入权限。",
+                "确认磁盘空间充足。",
+            ]);
+    }
+
+    /// <summary>
+    /// 构建文件已存在的结构化诊断。
+    /// </summary>
+    internal static ToolDiagnostic BuildFileAlreadyExistsDiagnostic(string filePath)
+    {
+        var message = L.T(StringKey.NotebookFileAlreadyExists, filePath);
+        return ToolDiagnostic.Create(
+            reason: "NotebookFileAlreadyExists",
+            formattedMessage: message,
+            details:
+            [
+                new DiagnosticDetail("FilePath", filePath),
+            ],
+            suggestions:
+            [
+                "使用不同的文件名创建新的 notebook。",
+                "如需编辑已有文件，使用 NotebookEdit 工具。",
+            ]);
+    }
+
+    /// <summary>
+    /// 构建无效 cell 类型的结构化诊断（NotebookAddCellAsync）。
+    /// </summary>
+    internal static ToolDiagnostic BuildInvalidCellTypeDiagnostic(string cellType)
+    {
+        var message = L.T(StringKey.NotebookInvalidCellType, cellType);
+        return ToolDiagnostic.Create(
+            reason: "NotebookInvalidCellType",
+            formattedMessage: message,
+            details:
+            [
+                new DiagnosticDetail("CellType", cellType),
+                new DiagnosticDetail("ValidValues", "code, markdown, raw"),
+            ],
+            suggestions:
+            [
+                "将 cell_type 设置为 code、markdown 或 raw 之一。",
+            ]);
+    }
+
+    /// <summary>
+    /// 构建无效类型的结构化诊断（NotebookChangeCellTypeAsync）。
+    /// </summary>
+    internal static ToolDiagnostic BuildInvalidTypeDiagnostic(string newType)
+    {
+        var message = L.T(StringKey.NotebookInvalidType, newType);
+        return ToolDiagnostic.Create(
+            reason: "NotebookInvalidType",
+            formattedMessage: message,
+            details:
+            [
+                new DiagnosticDetail("NewType", newType),
+                new DiagnosticDetail("ValidValues", "code, markdown, raw"),
+            ],
+            suggestions:
+            [
+                "将 new_type 设置为 code、markdown 或 raw 之一。",
+            ]);
+    }
+
+    /// <summary>
+    /// 构建无效 cell 索引的结构化诊断。
+    /// </summary>
+    internal static ToolDiagnostic BuildInvalidCellIndexDiagnostic(int index)
+    {
+        var message = L.T(StringKey.NotebookInvalidCellIndex, index);
+        return ToolDiagnostic.Create(
+            reason: "NotebookInvalidCellIndex",
+            formattedMessage: message,
+            details:
+            [
+                new DiagnosticDetail("Index", index.ToString()),
+            ],
+            suggestions:
+            [
+                "使用 NotebookRead 查看有效的 cell 索引范围。",
+            ]);
+    }
+
+    #endregion
 }

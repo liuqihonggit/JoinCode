@@ -213,6 +213,11 @@ public sealed record FileEditResult
     public string? ErrorMessage { get; init; }
 
     /// <summary>
+    /// 结构化诊断信息 — 匹配失败时填充，GUI 可分区域渲染。
+    /// </summary>
+    public ToolDiagnostic? Diagnostic { get; init; }
+
+    /// <summary>
     /// 结构化 Patch — 对齐 TS FileEditOutput.structuredPatch
     /// 由 StructuredPatchGenerator 从 OriginalContent/UpdatedContent 生成
     /// </summary>
@@ -250,6 +255,20 @@ public sealed record FileEditResult
             Success = false,
             ErrorMessage = errorMessage
         };
+
+    public static FileEditResult FailureResult(string filePath, string oldString, string newString, ToolDiagnostic diagnostic)
+        => new()
+        {
+            FilePath = filePath,
+            OldString = oldString,
+            NewString = newString,
+            OriginalContent = string.Empty,
+            UpdatedContent = string.Empty,
+            ReplaceCount = 0,
+            Success = false,
+            ErrorMessage = diagnostic.FormattedMessage,
+            Diagnostic = diagnostic
+        };
 }
 
 public sealed record LineRangeEditRequest
@@ -279,6 +298,11 @@ public sealed record FileLineEditResult
     public required int ReplacedLinesCount { get; init; }
     public bool Success { get; init; }
     public string? ErrorMessage { get; init; }
+
+    /// <summary>
+    /// 结构化诊断信息 — 失败时填充。
+    /// </summary>
+    public ToolDiagnostic? Diagnostic { get; init; }
 
     public static FileLineEditResult SuccessResult(
         string filePath,
@@ -316,6 +340,25 @@ public sealed record FileLineEditResult
             ReplacedLinesCount = 0,
             Success = false,
             ErrorMessage = errorMessage
+        };
+
+    public static FileLineEditResult FailureResult(
+        string filePath,
+        int startLine,
+        int endLine,
+        ToolDiagnostic diagnostic)
+        => new()
+        {
+            FilePath = filePath,
+            StartLine = startLine,
+            EndLine = endLine,
+            OriginalContent = string.Empty,
+            NewContent = string.Empty,
+            UpdatedFileContent = string.Empty,
+            ReplacedLinesCount = 0,
+            Success = false,
+            ErrorMessage = diagnostic.FormattedMessage,
+            Diagnostic = diagnostic
         };
 }
 

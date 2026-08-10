@@ -121,4 +121,42 @@ public static class FileSuggestionHelper
 
         return message;
     }
+
+    /// <summary>
+    /// 构建文件未找到的结构化诊断信息 — 包含路径、cwd、建议。
+    /// GUI 可根据 Details/Suggestions 分区域渲染。
+    /// </summary>
+    public static ToolDiagnostic BuildFileNotFoundDiagnostic(string filePath, IFileSystem fs)
+    {
+        var message = BuildFileNotFoundMessage(filePath, fs);
+        var details = new List<DiagnosticDetail>(3)
+        {
+            new("filePath", filePath),
+            new("cwd", fs.GetCurrentDirectory()),
+        };
+
+        var suggestions = new List<string>(1);
+        var cwdSuggestion = SuggestPathUnderCwd(filePath, fs);
+        if (cwdSuggestion is not null)
+        {
+            suggestions.Add($"Did you mean {cwdSuggestion}?");
+            details.Add(new DiagnosticDetail("suggestion", cwdSuggestion));
+        }
+        else
+        {
+            var similarFile = FindSimilarFile(filePath, fs);
+            if (similarFile is not null)
+            {
+                suggestions.Add($"Did you mean {similarFile}?");
+                details.Add(new DiagnosticDetail("suggestion", similarFile));
+            }
+        }
+
+        if (suggestions.Count == 0)
+        {
+            suggestions.Add("检查路径拼写、大小写，或使用 Read 工具确认文件是否存在。");
+        }
+
+        return ToolDiagnostic.Create("FileNotFound", message, details, suggestions);
+    }
 }

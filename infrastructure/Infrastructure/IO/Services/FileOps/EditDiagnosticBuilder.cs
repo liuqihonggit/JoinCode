@@ -55,6 +55,37 @@ public sealed record EditDiagnostic
 
     /// <summary>格式化后的完整诊断消息（可直接拼接到错误信息中）。</summary>
     public required string FormattedMessage { get; init; }
+
+    /// <summary>
+    /// 转换为 Abstractions 层的通用 ToolDiagnostic，供 FileEditResult.Diagnostic 和 GUI 使用。
+    /// </summary>
+    public ToolDiagnostic ToToolDiagnostic()
+    {
+        var details = new List<DiagnosticDetail>(8);
+        if (MatchedLine.HasValue) details.Add(new DiagnosticDetail("matchedLine", MatchedLine.Value.ToString()));
+        if (MatchedLineCount.HasValue) details.Add(new DiagnosticDetail("matchedLineCount", MatchedLineCount.Value.ToString()));
+        if (DivergeLine.HasValue) details.Add(new DiagnosticDetail("divergeLine", DivergeLine.Value.ToString()));
+        if (FileLineAtDiverge is not null) details.Add(new DiagnosticDetail("fileLineAtDiverge", FileLineAtDiverge));
+        if (OldStringLineAtDiverge is not null) details.Add(new DiagnosticDetail("oldStringLineAtDiverge", OldStringLineAtDiverge));
+        if (SimilarStartLine.HasValue) details.Add(new DiagnosticDetail("similarStartLine", SimilarStartLine.Value.ToString()));
+        if (SimilarEndLine.HasValue) details.Add(new DiagnosticDetail("similarEndLine", SimilarEndLine.Value.ToString()));
+        if (SimilarityScore.HasValue) details.Add(new DiagnosticDetail("similarityScore", $"{SimilarityScore.Value:P1}"));
+
+        var suggestions = Reason switch
+        {
+            EditMismatchReason.StringNotFound => new[] { "检查拼写、大小写、编码(BOM/UTF-16)，或先 Read 文件确认当前内容。" },
+            EditMismatchReason.PartialMatch => new[] { "检查分叉处的空白/缩进/大小写差异，或扩大上下文范围使匹配唯一。" },
+            EditMismatchReason.WhitespaceMismatch => new[] { "先 Read 文件查看实际缩进（空格 vs Tab），复制精确文本作为 oldString。" },
+            EditMismatchReason.SimilarFound => new[] { "此片段与 oldString 高度相似但不完全相同，检查差异行。" },
+            _ => Array.Empty<string>(),
+        };
+
+        return ToolDiagnostic.Create(
+            Reason.ToString(),
+            FormattedMessage,
+            details,
+            suggestions);
+    }
 }
 
 /// <summary>

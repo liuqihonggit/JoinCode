@@ -83,7 +83,7 @@ public sealed class FileEditor
             if (!_fs.FileExists(normalizedPath2))
             {
                 return FileEditResult.FailureResult(normalizedPath2, oldString, newString,
-                    FileSuggestionHelper.BuildFileNotFoundMessage(normalizedPath2, _fs));
+                    FileSuggestionHelper.BuildFileNotFoundDiagnostic(normalizedPath2, _fs));
             }
 
             var fileLength = _fs.GetFileLength(normalizedPath2);
@@ -126,7 +126,7 @@ public sealed class FileEditor
             {
                 var diagnostic = EditDiagnosticBuilder.BuildDiagnostic(normalizedContent, normalizedOld);
                 return FileEditResult.FailureResult(normalizedPath2, oldString, newString,
-                    diagnostic.FormattedMessage);
+                    diagnostic.ToToolDiagnostic());
             }
 
             // Step 2: Preserve quote style - if file uses curly quotes, apply them to new_string
@@ -235,7 +235,7 @@ public sealed class FileEditor
             if (!_fs.FileExists(normalizedPath))
             {
                 return FileLineEditResult.FailureResult(normalizedPath, startLine, endLine,
-                    FileSuggestionHelper.BuildFileNotFoundMessage(normalizedPath, _fs));
+                    FileSuggestionHelper.BuildFileNotFoundDiagnostic(normalizedPath, _fs));
             }
 
             // 对齐 TS: 检测 BOM 编码

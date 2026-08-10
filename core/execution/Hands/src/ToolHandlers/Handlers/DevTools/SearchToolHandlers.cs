@@ -210,7 +210,8 @@ public class SearchToolHandlers : OneShotCommandGroup
         if (filteredFilenames.Count == 0)
         {
             RecordSearchMetrics("glob", "ok", 0);
-            return ToolResultBuilder.Success().WithText(BuildGlobNoResultMessage(pattern, path)).Build();
+            var diagnostic = BuildGlobNoResultDiagnostic(pattern, path);
+            return ToolResultBuilder.Success().WithText(diagnostic.FormattedMessage).WithDiagnostic(diagnostic).Build();
         }
 
         var cwd = _fileOperationService.GetCurrentDirectory();
@@ -324,7 +325,8 @@ public class SearchToolHandlers : OneShotCommandGroup
         if (result.NumFiles == 0)
         {
             RecordSearchMetrics("grep", "ok", 0);
-            return ToolResultBuilder.Success().WithText(BuildGrepNoResultMessage(pattern, path, case_insensitive)).Build();
+            var diagnostic = BuildGrepNoResultDiagnostic(pattern, path, case_insensitive);
+            return ToolResultBuilder.Success().WithText(diagnostic.FormattedMessage).WithDiagnostic(diagnostic).Build();
         }
 
         var response = new StringBuilder(256);
@@ -609,44 +611,76 @@ public class SearchToolHandlers : OneShotCommandGroup
     }
 
     /// <summary>
-    /// Glob 无结果时的诊断消息 — 检查 pattern 是否缺少通配符、提示递归搜索。
+    /// Glob 无结果时的结构化诊断 — 检查 pattern 是否缺少通配符、提示递归搜索。
     /// 仅在无结果路径调用，不影响搜索性能。
     /// </summary>
-    internal static string BuildGlobNoResultMessage(string pattern, string? path)
+    internal static ToolDiagnostic BuildGlobNoResultDiagnostic(string pattern, string? path)
     {
         var sb = new StringBuilder(256);
         sb.Append("No files found");
         sb.Append($"\n[诊断] pattern: \"{pattern}\", path: \"{path ?? "."}\"");
 
+        var suggestions = new List<string>(2);
+        var details = new List<DiagnosticDetail>(2)
+        {
+            new("pattern", pattern),
+            new("path", path ?? "."),
+        };
+
         if (!pattern.Contains('*') && !pattern.Contains('?'))
         {
             sb.Append("\n[诊断] pattern 不含通配符，确切的文件名匹配失败。");
+            details.Add(new DiagnosticDetail("hasWildcard", "false"));
         }
         if (!pattern.Contains("**"))
         {
             sb.Append("\n提示: 使用 **/ 前缀递归搜索子目录（如 **/*.cs）。");
+            suggestions.Add("使用 **/ 前缀递归搜索子目录（如 **/*.cs）。");
         }
 
-        return sb.ToString();
+        return ToolDiagnostic.Create("NoResults", sb.ToString(), details, suggestions);
     }
 
     /// <summary>
-    /// Grep 无结果时的诊断消息 — 检查大小写、提示搜索范围。
+    /// Grep 无结果时的结构化诊断 — 检查大小写、提示搜索范围。
     /// 仅在无结果路径调用，不影响搜索性能。
     /// </summary>
-    internal static string BuildGrepNoResultMessage(string pattern, string? path, bool caseInsensitive)
+    internal static ToolDiagnostic BuildGrepNoResultDiagnostic(string pattern, string? path, bool caseInsensitive)
     {
         var sb = new StringBuilder(256);
         sb.Append("No files found");
         sb.Append($"\n[诊断] pattern: \"{pattern}\", path: \"{path ?? "."}\", case_insensitive: {caseInsensitive}");
 
+        var suggestions = new List<string>(2);
+        var details = new List<DiagnosticDetail>(3)
+        {
+            new("pattern", pattern),
+            new("path", path ?? "."),
+            new("caseInsensitive", caseInsensitive.ToString()),
+        };
+
         if (!caseInsensitive && pattern.Any(char.IsUpper))
         {
             sb.Append("\n提示: pattern 含大写字母但未启用 case_insensitive，可能需要 -i 选项。");
+            suggestions.Add("pattern 含大写字母但未启用 case_insensitive，可能需要 -i 选项。");
         }
 
         sb.Append("\n提示: 检查正则语法、搜索路径、文件类型过滤(glob/file_type)。");
-        return sb.ToString();
+        suggestions.Add("检查正则语法、搜索路径、文件类型过滤(glob/file_type)。");
+
+        return ToolDiagnostic.Create("NoResults", sb.ToString(), details, suggestions);
     }
+
+    /// <summary>
+    /// Glob 无结果时的诊断消息（向后兼容测试）。
+    /// </summary>
+    internal static string BuildGlobNoResultMessage(string pattern, string? path)
+        => BuildGlobNoResultDiagnostic(pattern, path).FormattedMessage;
+
+    /// <summary>
+    /// Grep 无结果时的诊断消息（向后兼容测试）。
+    /// </summary>
+    internal static string BuildGrepNoResultMessage(string pattern, string? path, bool caseInsensitive)
+        => BuildGrepNoResultDiagnostic(pattern, path, caseInsensitive).FormattedMessage;
 
 }

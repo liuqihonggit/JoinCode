@@ -3,7 +3,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 /// <summary>
 /// AskUserQuestionTool 提示词
 /// </summary>
-[ToolPrompt(ToolName = "AskUserQuestion", Category = ToolPromptCategory.System)]
+[ToolPrompt(ToolName = InteractionToolName.AskUserQuestion, Category = ToolPromptCategory.System)]
 public static class AskUserQuestionToolPrompt
 {
     public const string ToolName = InteractionToolNameConstants.AskUserQuestion;

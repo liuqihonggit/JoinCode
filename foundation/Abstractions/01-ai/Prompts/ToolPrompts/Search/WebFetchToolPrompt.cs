@@ -3,7 +3,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 /// <summary>
 /// WebFetch工具提示词
 /// </summary>
-[ToolPrompt(ToolName = "WebFetch", Category = ToolPromptCategory.Search, HasParameters = true)]
+[ToolPrompt(ToolName = WebToolName.WebFetch, Category = ToolPromptCategory.Search, HasParameters = true)]
 public static class WebFetchToolPrompt
 {
     public static string GetDescription() => """

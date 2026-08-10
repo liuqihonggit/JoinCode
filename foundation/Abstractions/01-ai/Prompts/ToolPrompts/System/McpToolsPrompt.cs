@@ -3,7 +3,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 /// <summary>
 /// ListMcpResourcesTool 提示词
 /// </summary>
-[ToolPrompt(ToolName = "ListMcpResourcesTool", Category = ToolPromptCategory.System)]
+[ToolPrompt(ToolName = McpToolName.McpListResources, Category = ToolPromptCategory.System)]
 public static class ListMcpResourcesToolPrompt
 {
     public const string ToolName = McpToolNameConstants.McpListResources;
@@ -31,7 +31,7 @@ public static class ListMcpResourcesToolPrompt
 /// <summary>
 /// ReadMcpResourceTool 提示词
 /// </summary>
-[ToolPrompt(ToolName = "ReadMcpResourceTool", Category = ToolPromptCategory.System)]
+[ToolPrompt(ToolName = McpToolName.McpReadResource, Category = ToolPromptCategory.System)]
 public static class ReadMcpResourceToolPrompt
 {
     public const string ToolName = McpToolNameConstants.McpReadResource;
@@ -57,7 +57,7 @@ public static class ReadMcpResourceToolPrompt
 /// <summary>
 /// RemoteTriggerTool 提示词
 /// </summary>
-[ToolPrompt(ToolName = "RemoteTrigger", Category = ToolPromptCategory.System)]
+[ToolPrompt(ToolName = McpToolName.McpRemoteTrigger, Category = ToolPromptCategory.System)]
 public static class RemoteTriggerToolPrompt
 {
     public const string ToolName = McpToolNameConstants.McpRemoteTrigger;
@@ -84,7 +84,7 @@ public static class RemoteTriggerToolPrompt
 /// <summary>
 /// NotebookEditTool 提示词
 /// </summary>
-[ToolPrompt(ToolName = "NotebookEdit", Category = ToolPromptCategory.System)]
+[ToolPrompt(ToolName = NotebookToolName.NotebookEdit, Category = ToolPromptCategory.System)]
 public static class NotebookEditToolPrompt
 {
     public const string ToolName = NotebookToolNameConstants.NotebookEdit;

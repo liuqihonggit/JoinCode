@@ -3,7 +3,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 /// <summary>
 /// Glob工具提示词
 /// </summary>
-[ToolPrompt(ToolName = "Glob", Category = ToolPromptCategory.Search)]
+[ToolPrompt(ToolName = SearchToolName.Glob, Category = ToolPromptCategory.Search)]
 public static class GlobToolPrompt
 {
     public static string GetDescription() => """

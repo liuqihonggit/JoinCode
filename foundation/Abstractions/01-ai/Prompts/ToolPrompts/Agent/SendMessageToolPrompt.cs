@@ -3,7 +3,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 /// <summary>
 /// SendMessageTool 提示词
 /// </summary>
-[ToolPrompt(ToolName = "SendMessage", Category = ToolPromptCategory.Agent, HasParameters = true)]
+[ToolPrompt(ToolName = AgentToolName.AgentSendMessage, Category = ToolPromptCategory.Agent, HasParameters = true)]
 public static class SendMessageToolPrompt
 {
     public const string ToolName = AgentToolNameConstants.AgentSendMessage;

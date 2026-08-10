@@ -3,7 +3,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 /// <summary>
 /// BriefTool (SendUserMessage) 提示词
 /// </summary>
-[ToolPrompt(ToolName = "SendUserMessage", Category = ToolPromptCategory.Planning)]
+[ToolPrompt(ToolName = SystemToolName.SendUserMessage, Category = ToolPromptCategory.Planning)]
 public static class BriefToolPrompt
 {
     public const string ToolName = SystemToolNameConstants.SendUserMessage;

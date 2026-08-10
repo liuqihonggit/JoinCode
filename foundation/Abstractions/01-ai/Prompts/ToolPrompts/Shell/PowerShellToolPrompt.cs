@@ -4,7 +4,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 /// <summary>
 /// PowerShellTool 提示词
 /// </summary>
-[ToolPrompt(ToolName = "PowerShell", Category = ToolPromptCategory.Shell)]
+[ToolPrompt(ToolName = ShellToolName.Powershell, Category = ToolPromptCategory.Shell)]
 public static class PowerShellToolPrompt {
     public const string ToolName = ShellToolNameConstants.Powershell;
 

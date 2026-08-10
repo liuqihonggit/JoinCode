@@ -90,6 +90,47 @@ public static class AttributeScanner
     }
 
     /// <summary>
+    /// 获取工具名称命名参数 — 支持 string 字面量和枚举值（从 [EnumValue] 取字符串）。
+    /// 用枚举值实现 SSOT：[ToolPrompt(ToolName = FileToolName.FileRead)] 与 [McpTool] 共享同一枚举。
+    /// </summary>
+    public static string? GetToolNameNamedArg(AttributeData attr, string name)
+    {
+        foreach (var kvp in attr.NamedArguments)
+        {
+            if (kvp.Key != name)
+                continue;
+
+            var tc = kvp.Value;
+            // string 字面量
+            if (tc.Value is string s)
+                return s;
+
+            // 枚举值 — 查找 [EnumValue] 特性取字符串
+            if (tc.Kind == TypedConstantKind.Enum && tc.Type is INamedTypeSymbol enumType && tc.Value is int enumInt)
+            {
+                return GetEnumValueName(enumType, enumInt);
+            }
+        }
+        return null;
+    }
+
+    private static string? GetEnumValueName(INamedTypeSymbol enumType, int enumValue)
+    {
+        foreach (var member in enumType.GetMembers())
+        {
+            if (member is IFieldSymbol { HasConstantValue: true } field && (int)field.ConstantValue! == enumValue)
+            {
+                var enumValueAttr = field.GetAttributes().FirstOrDefault(a => a.AttributeClass?.Name == "EnumValueAttribute");
+                if (enumValueAttr is not null && enumValueAttr.ConstructorArguments.Length > 0 && enumValueAttr.ConstructorArguments[0].Value is string val)
+                    return val;
+                // fallback: 枚举字段名
+                return field.Name;
+            }
+        }
+        return null;
+    }
+
+    /// <summary>
     /// 获取特性的命名参数值（int 类型）
     /// </summary>
     public static int GetIntNamedArg(AttributeData attr, string name, int defaultValue = 0)

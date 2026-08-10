@@ -47,8 +47,10 @@ public partial class GitToolHandlers
 
             if (!result.Success)
             {
+                var diag = BuildGitStatusFailedDiagnostic(result.Error);
                 return ToolResultBuilder.Error()
-                    .WithText($"Git status failed:\n{result.Error}")
+                    .WithText(diag.FormattedMessage)
+                    .WithDiagnostic(diag)
                     .Build();
             }
 
@@ -85,8 +87,10 @@ public partial class GitToolHandlers
         {
             if (string.IsNullOrWhiteSpace(path))
             {
+                var pathDiag = BuildPathEmptyDiagnostic();
                 return ToolResultBuilder.Error()
-                    .WithText("path cannot be empty")
+                    .WithText(pathDiag.FormattedMessage)
+                    .WithDiagnostic(pathDiag)
                     .Build();
             }
 
@@ -95,8 +99,10 @@ public partial class GitToolHandlers
 
             if (!result.Success)
             {
+                var diag = BuildGitAddFailedDiagnostic(result.Error);
                 return ToolResultBuilder.Error()
-                    .WithText($"Git add failed:\n{result.Error}")
+                    .WithText(diag.FormattedMessage)
+                    .WithDiagnostic(diag)
                     .Build();
             }
 
@@ -125,8 +131,10 @@ public partial class GitToolHandlers
         {
             if (string.IsNullOrWhiteSpace(message))
             {
+                var msgDiag = BuildMessageEmptyDiagnostic();
                 return ToolResultBuilder.Error()
-                    .WithText("message cannot be empty")
+                    .WithText(msgDiag.FormattedMessage)
+                    .WithDiagnostic(msgDiag)
                     .Build();
             }
 
@@ -145,8 +153,10 @@ public partial class GitToolHandlers
 
             if (!result.Success)
             {
+                var diag = BuildGitCommitFailedDiagnostic(result.Error);
                 return ToolResultBuilder.Error()
-                    .WithText($"Git commit failed:\n{result.Error}")
+                    .WithText(diag.FormattedMessage)
+                    .WithDiagnostic(diag)
                     .Build();
             }
 
@@ -184,8 +194,10 @@ public partial class GitToolHandlers
 
             if (!result.Success)
             {
+                var diag = BuildGitPushFailedDiagnostic(result.Error);
                 return ToolResultBuilder.Error()
-                    .WithText($"Git push failed:\n{result.Error}")
+                    .WithText(diag.FormattedMessage)
+                    .WithDiagnostic(diag)
                     .Build();
             }
 
@@ -219,8 +231,10 @@ public partial class GitToolHandlers
 
             if (!result.Success)
             {
+                var diag = BuildGitPullFailedDiagnostic(result.Error);
                 return ToolResultBuilder.Error()
-                    .WithText($"Git pull failed:\n{result.Error}")
+                    .WithText(diag.FormattedMessage)
+                    .WithDiagnostic(diag)
                     .Build();
             }
 
@@ -246,7 +260,11 @@ public partial class GitToolHandlers
             var validationError = ValidationHelper.ValidateRange(count, 1, 1000, "count");
             if (validationError != null)
             {
-                return ToolResultBuilder.Error().WithText(validationError).Build();
+                var validationDiag = BuildGitLogValidationDiagnostic(validationError);
+                return ToolResultBuilder.Error()
+                    .WithText(validationDiag.FormattedMessage)
+                    .WithDiagnostic(validationDiag)
+                    .Build();
             }
 
             var formatArg = format?.ToLowerInvariant() switch
@@ -262,8 +280,10 @@ public partial class GitToolHandlers
 
             if (!result.Success)
             {
+                var diag = BuildGitLogFailedDiagnostic(result.Error);
                 return ToolResultBuilder.Error()
-                    .WithText($"Git log failed:\n{result.Error}")
+                    .WithText(diag.FormattedMessage)
+                    .WithDiagnostic(diag)
                     .Build();
             }
 
@@ -305,8 +325,10 @@ public partial class GitToolHandlers
 
             if (!result.Success)
             {
+                var diag = BuildGitDiffFailedDiagnostic(result.Error);
                 return ToolResultBuilder.Error()
-                    .WithText($"Git diff failed:\n{result.Error}")
+                    .WithText(diag.FormattedMessage)
+                    .WithDiagnostic(diag)
                     .Build();
             }
 
@@ -343,8 +365,10 @@ public partial class GitToolHandlers
         {
             if (string.IsNullOrWhiteSpace(branch_name))
             {
+                var nameDiag = BuildBranchNameEmptyDiagnostic();
                 return ToolResultBuilder.Error()
-                    .WithText("branch_name cannot be empty")
+                    .WithText(nameDiag.FormattedMessage)
+                    .WithDiagnostic(nameDiag)
                     .Build();
             }
 
@@ -371,17 +395,23 @@ public partial class GitToolHandlers
                     args = $"{GitSubCommand.Branch.ToValue()} -d \"{branch_name}\"";
                     break;
                 default:
+                {
+                    var opDiag = BuildUnsupportedBranchOperationDiagnostic(operation);
                     return ToolResultBuilder.Error()
-                        .WithText($"Unsupported operation: {operation}")
+                        .WithText(opDiag.FormattedMessage)
+                        .WithDiagnostic(opDiag)
                         .Build();
+                }
             }
 
             var result = await ExecuteGitCommandAsync(op == GitBranchOperation.Switch ? GitSubCommand.Switch : GitSubCommand.Branch, args, working_dir, cancellationToken).ConfigureAwait(false);
 
             if (!result.Success)
             {
+                var diag = BuildGitBranchFailedDiagnostic(op.ToValue(), result.Error);
                 return ToolResultBuilder.Error()
-                    .WithText($"Git branch {op.ToValue()} failed:\n{result.Error}")
+                    .WithText(diag.FormattedMessage)
+                    .WithDiagnostic(diag)
                     .Build();
             }
 
@@ -407,8 +437,10 @@ public partial class GitToolHandlers
         {
             if (string.IsNullOrWhiteSpace(url))
             {
+                var urlDiag = BuildUrlEmptyDiagnostic();
                 return ToolResultBuilder.Error()
-                    .WithText("url cannot be empty")
+                    .WithText(urlDiag.FormattedMessage)
+                    .WithDiagnostic(urlDiag)
                     .Build();
             }
 
@@ -427,8 +459,10 @@ public partial class GitToolHandlers
 
             if (!result.Success)
             {
+                var diag = BuildGitCloneFailedDiagnostic(result.Error);
                 return ToolResultBuilder.Error()
-                    .WithText($"Git clone failed:\n{result.Error}")
+                    .WithText(diag.FormattedMessage)
+                    .WithDiagnostic(diag)
                     .Build();
             }
 
@@ -456,8 +490,10 @@ public partial class GitToolHandlers
         if (!scanResult.IsBlocked)
             return null;
 
+        var scanDiag = BuildSecurityScanBlockedDiagnostic(scanResult.FormatReport());
         return ToolResultBuilder.Error()
-            .WithText(scanResult.FormatReport())
+            .WithText(scanDiag.FormattedMessage)
+            .WithDiagnostic(scanDiag)
             .Build();
     }
 
@@ -481,4 +517,306 @@ public partial class GitToolHandlers
             ExitCode = result.ExitCode
         };
     }
+
+    #region Diagnostic Builders
+
+    /// <summary>
+    /// 构建 git status 命令失败的结构化诊断。
+    /// </summary>
+    internal static ToolDiagnostic BuildGitStatusFailedDiagnostic(string error)
+    {
+        return ToolDiagnostic.Create(
+            reason: "GitStatusFailed",
+            formattedMessage: $"Git status failed:\n{error}",
+            details:
+            [
+                new DiagnosticDetail("Error", error),
+            ],
+            suggestions:
+            [
+                "确认当前目录是 Git 仓库（存在 .git 目录）。",
+                "检查 Git 是否已安装并可用。",
+            ]);
+    }
+
+    /// <summary>
+    /// 构建 git add 路径为空的结构化诊断。
+    /// </summary>
+    internal static ToolDiagnostic BuildPathEmptyDiagnostic()
+    {
+        return ToolDiagnostic.Create(
+            reason: "GitPathEmpty",
+            formattedMessage: "path cannot be empty",
+            details:
+            [
+                new DiagnosticDetail("Param", "path"),
+            ],
+            suggestions:
+            [
+                "提供要添加的文件路径，使用 . 表示所有文件。",
+            ]);
+    }
+
+    /// <summary>
+    /// 构建 git add 命令失败的结构化诊断。
+    /// </summary>
+    internal static ToolDiagnostic BuildGitAddFailedDiagnostic(string error)
+    {
+        return ToolDiagnostic.Create(
+            reason: "GitAddFailed",
+            formattedMessage: $"Git add failed:\n{error}",
+            details:
+            [
+                new DiagnosticDetail("Error", error),
+            ],
+            suggestions:
+            [
+                "确认文件路径存在且可访问。",
+                "检查是否有权限写入暂存区。",
+            ]);
+    }
+
+    /// <summary>
+    /// 构建 git commit 消息为空的结构化诊断。
+    /// </summary>
+    internal static ToolDiagnostic BuildMessageEmptyDiagnostic()
+    {
+        return ToolDiagnostic.Create(
+            reason: "GitMessageEmpty",
+            formattedMessage: "message cannot be empty",
+            details:
+            [
+                new DiagnosticDetail("Param", "message"),
+            ],
+            suggestions:
+            [
+                "提供有意义的提交消息描述本次变更。",
+            ]);
+    }
+
+    /// <summary>
+    /// 构建 git commit 命令失败的结构化诊断。
+    /// </summary>
+    internal static ToolDiagnostic BuildGitCommitFailedDiagnostic(string error)
+    {
+        return ToolDiagnostic.Create(
+            reason: "GitCommitFailed",
+            formattedMessage: $"Git commit failed:\n{error}",
+            details:
+            [
+                new DiagnosticDetail("Error", error),
+            ],
+            suggestions:
+            [
+                "确认暂存区有内容（先执行 git add）。",
+                "检查是否有 pre-commit 钩子阻止提交。",
+            ]);
+    }
+
+    /// <summary>
+    /// 构建 git push 命令失败的结构化诊断。
+    /// </summary>
+    internal static ToolDiagnostic BuildGitPushFailedDiagnostic(string error)
+    {
+        return ToolDiagnostic.Create(
+            reason: "GitPushFailed",
+            formattedMessage: $"Git push failed:\n{error}",
+            details:
+            [
+                new DiagnosticDetail("Error", error),
+            ],
+            suggestions:
+            [
+                "确认远程仓库配置正确且有推送权限。",
+                "先执行 git pull 同步远程变更后再重试。",
+            ]);
+    }
+
+    /// <summary>
+    /// 构建 git pull 命令失败的结构化诊断。
+    /// </summary>
+    internal static ToolDiagnostic BuildGitPullFailedDiagnostic(string error)
+    {
+        return ToolDiagnostic.Create(
+            reason: "GitPullFailed",
+            formattedMessage: $"Git pull failed:\n{error}",
+            details:
+            [
+                new DiagnosticDetail("Error", error),
+            ],
+            suggestions:
+            [
+                "确认远程仓库配置正确且有拉取权限。",
+                "检查本地是否有未提交的冲突变更。",
+            ]);
+    }
+
+    /// <summary>
+    /// 构建 git log 参数校验失败的结构化诊断。
+    /// </summary>
+    internal static ToolDiagnostic BuildGitLogValidationDiagnostic(string validationError)
+    {
+        return ToolDiagnostic.Create(
+            reason: "GitLogValidationError",
+            formattedMessage: validationError,
+            details:
+            [
+                new DiagnosticDetail("Error", validationError),
+            ],
+            suggestions:
+            [
+                "修正 count 参数使其落在合法范围内。",
+            ]);
+    }
+
+    /// <summary>
+    /// 构建 git log 命令失败的结构化诊断。
+    /// </summary>
+    internal static ToolDiagnostic BuildGitLogFailedDiagnostic(string error)
+    {
+        return ToolDiagnostic.Create(
+            reason: "GitLogFailed",
+            formattedMessage: $"Git log failed:\n{error}",
+            details:
+            [
+                new DiagnosticDetail("Error", error),
+            ],
+            suggestions:
+            [
+                "确认当前目录是 Git 仓库且存在提交历史。",
+            ]);
+    }
+
+    /// <summary>
+    /// 构建 git diff 命令失败的结构化诊断。
+    /// </summary>
+    internal static ToolDiagnostic BuildGitDiffFailedDiagnostic(string error)
+    {
+        return ToolDiagnostic.Create(
+            reason: "GitDiffFailed",
+            formattedMessage: $"Git diff failed:\n{error}",
+            details:
+            [
+                new DiagnosticDetail("Error", error),
+            ],
+            suggestions:
+            [
+                "确认当前目录是 Git 仓库。",
+                "检查指定的比较模式和文件路径是否有效。",
+            ]);
+    }
+
+    /// <summary>
+    /// 构建 git branch 分支名为空的结构化诊断。
+    /// </summary>
+    internal static ToolDiagnostic BuildBranchNameEmptyDiagnostic()
+    {
+        return ToolDiagnostic.Create(
+            reason: "GitBranchNameEmpty",
+            formattedMessage: "branch_name cannot be empty",
+            details:
+            [
+                new DiagnosticDetail("Param", "branch_name"),
+            ],
+            suggestions:
+            [
+                "提供有效的分支名称。",
+            ]);
+    }
+
+    /// <summary>
+    /// 构建 git branch 不支持操作的结构化诊断。
+    /// </summary>
+    internal static ToolDiagnostic BuildUnsupportedBranchOperationDiagnostic(string? operation)
+    {
+        return ToolDiagnostic.Create(
+            reason: "GitUnsupportedOperation",
+            formattedMessage: $"Unsupported operation: {operation}",
+            details:
+            [
+                new DiagnosticDetail("Operation", operation ?? "(null)"),
+            ],
+            suggestions:
+            [
+                "使用 create、switch 或 delete 操作之一。",
+            ]);
+    }
+
+    /// <summary>
+    /// 构建 git branch 命令失败的结构化诊断。
+    /// </summary>
+    internal static ToolDiagnostic BuildGitBranchFailedDiagnostic(string operation, string error)
+    {
+        return ToolDiagnostic.Create(
+            reason: "GitBranchFailed",
+            formattedMessage: $"Git branch {operation} failed:\n{error}",
+            details:
+            [
+                new DiagnosticDetail("Operation", operation),
+                new DiagnosticDetail("Error", error),
+            ],
+            suggestions:
+            [
+                "确认分支名称合法且不存在命名冲突。",
+                "检查目标分支是否存在（switch/delete 场景）。",
+            ]);
+    }
+
+    /// <summary>
+    /// 构建 git clone URL 为空的结构化诊断。
+    /// </summary>
+    internal static ToolDiagnostic BuildUrlEmptyDiagnostic()
+    {
+        return ToolDiagnostic.Create(
+            reason: "GitUrlEmpty",
+            formattedMessage: "url cannot be empty",
+            details:
+            [
+                new DiagnosticDetail("Param", "url"),
+            ],
+            suggestions:
+            [
+                "提供有效的仓库 URL（HTTPS 或 SSH）。",
+            ]);
+    }
+
+    /// <summary>
+    /// 构建 git clone 命令失败的结构化诊断。
+    /// </summary>
+    internal static ToolDiagnostic BuildGitCloneFailedDiagnostic(string error)
+    {
+        return ToolDiagnostic.Create(
+            reason: "GitCloneFailed",
+            formattedMessage: $"Git clone failed:\n{error}",
+            details:
+            [
+                new DiagnosticDetail("Error", error),
+            ],
+            suggestions:
+            [
+                "确认 URL 可访问且具有克隆权限。",
+                "检查本地目标目录是否已存在同名目录。",
+            ]);
+    }
+
+    /// <summary>
+    /// 构建提交前安全扫描被阻止的结构化诊断。
+    /// </summary>
+    internal static ToolDiagnostic BuildSecurityScanBlockedDiagnostic(string report)
+    {
+        return ToolDiagnostic.Create(
+            reason: "GitSecurityScanBlocked",
+            formattedMessage: report,
+            details:
+            [
+                new DiagnosticDetail("Report", report),
+            ],
+            suggestions:
+            [
+                "从暂存区移除被阻止的敏感文件后重试。",
+                "确认安全拦截器的策略是否需要调整。",
+            ]);
+    }
+
+    #endregion
 }

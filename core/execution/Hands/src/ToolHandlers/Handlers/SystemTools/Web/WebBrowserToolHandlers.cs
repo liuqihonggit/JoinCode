@@ -30,15 +30,24 @@ public partial class WebBrowserToolHandlers
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(target))
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.BrowserTargetCannotBeEmpty)).Build();
+        {
+            var diag = BuildEmptyTargetDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
+        }
 
         var validationError = ValidationHelper.ValidateRange(wait_ms, 0, 60000, "wait_ms");
         if (validationError != null)
-            return ToolResultBuilder.Error().WithText(validationError).Build();
+        {
+            var diag = BuildInvalidWaitMsDiagnostic(validationError);
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
+        }
 
         var browserAction = BrowserActionExtensions.FromValue(action);
         if (browserAction == null)
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.BrowserUnknownAction, action)).Build();
+        {
+            var diag = BuildUnknownActionDiagnostic(action);
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
+        }
 
         try
         {
@@ -118,7 +127,10 @@ public partial class WebBrowserToolHandlers
                     break;
 
                 default:
-                    return ToolResultBuilder.Error().WithText(L.T(StringKey.BrowserUnknownAction, action)).Build();
+                    {
+                        var diag = BuildUnknownActionDiagnostic(action);
+                        return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
+                    }
             }
 
             return ToolResultBuilder.Success().WithText(response.ToString()).Build();
@@ -127,7 +139,34 @@ public partial class WebBrowserToolHandlers
         catch (Exception ex)
         {
             _logger?.LogError(ex, L.T(StringKey.BrowserFailedLog));
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.BrowserFailed, ex.Message)).Build();
+            var failedDiag = BuildOperationFailedDiagnostic(ex.Message);
+            return ToolResultBuilder.Error().WithText(failedDiag.FormattedMessage).WithDiagnostic(failedDiag).Build();
         }
     }
+
+    internal static ToolDiagnostic BuildEmptyTargetDiagnostic() =>
+        ToolDiagnostic.Create(
+            reason: "参数验证失败",
+            formattedMessage: L.T(StringKey.BrowserTargetCannotBeEmpty),
+            details: [new DiagnosticDetail("field", "target")],
+            suggestions: ["提供非空的 URL 或 JavaScript 表达式"]);
+
+    internal static ToolDiagnostic BuildInvalidWaitMsDiagnostic(string validationError) =>
+        ToolDiagnostic.Create(
+            reason: "参数验证失败",
+            formattedMessage: validationError,
+            details: [new DiagnosticDetail("field", "wait_ms")]);
+
+    internal static ToolDiagnostic BuildUnknownActionDiagnostic(string action) =>
+        ToolDiagnostic.Create(
+            reason: "未知操作",
+            formattedMessage: L.T(StringKey.BrowserUnknownAction, action),
+            details: [new DiagnosticDetail("action", action)],
+            suggestions: ["使用 open、screenshot 或 evaluate 操作"]);
+
+    internal static ToolDiagnostic BuildOperationFailedDiagnostic(string errorMessage) =>
+        ToolDiagnostic.Create(
+            reason: "操作失败",
+            formattedMessage: L.T(StringKey.BrowserFailed, errorMessage),
+            details: [new DiagnosticDetail("error", errorMessage)]);
 }

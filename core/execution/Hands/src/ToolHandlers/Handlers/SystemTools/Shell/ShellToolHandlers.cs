@@ -75,12 +75,18 @@ public partial class ShellToolHandlers : ShellToolBase
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(task_id))
-            return ToolResultBuilder.Error().WithText("task_id is required").Build();
+        {
+            var diag = BuildEmptyTaskIdDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
+        }
 
         var task = await _registry.GetTaskAsync(task_id, cancellationToken).ConfigureAwait(false);
 
         if (task == null)
-            return ToolResultBuilder.Error().WithText($"Task not found: {task_id}").Build();
+        {
+            var diag = BuildTaskNotFoundDiagnostic(task_id);
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
+        }
 
         var response = new StringBuilder();
         response.AppendLine("Background task status");
@@ -145,7 +151,10 @@ public partial class ShellToolHandlers : ShellToolBase
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(task_id))
-            return ToolResultBuilder.Error().WithText("task_id is required").Build();
+        {
+            var diag = BuildEmptyTaskIdDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
+        }
 
         var output = await _registry.GetTaskOutputAsync(task_id, cancellationToken).ConfigureAwait(false);
 
@@ -164,12 +173,18 @@ public partial class ShellToolHandlers : ShellToolBase
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(task_id))
-            return ToolResultBuilder.Error().WithText("task_id is required").Build();
+        {
+            var diag = BuildEmptyTaskIdDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
+        }
 
         var cancelled = await _registry.CancelTaskAsync(task_id, cancellationToken).ConfigureAwait(false);
 
         if (!cancelled)
-            return ToolResultBuilder.Error().WithText($"Cannot cancel task {task_id} — task may not exist or already completed").Build();
+        {
+            var diag = BuildCancelFailedDiagnostic(task_id);
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
+        }
 
         return ToolResultBuilder.Success().WithText($"Task {task_id} cancelled").Build();
     }
@@ -202,6 +217,27 @@ public partial class ShellToolHandlers : ShellToolBase
             _ => status.ToString()
         };
     }
+
+    internal static ToolDiagnostic BuildEmptyTaskIdDiagnostic() =>
+        ToolDiagnostic.Create(
+            reason: "参数验证失败",
+            formattedMessage: "task_id is required",
+            details: [new DiagnosticDetail("field", "task_id")],
+            suggestions: ["提供非空的 task_id 参数"]);
+
+    internal static ToolDiagnostic BuildTaskNotFoundDiagnostic(string taskId) =>
+        ToolDiagnostic.Create(
+            reason: "任务未找到",
+            formattedMessage: $"Task not found: {taskId}",
+            details: [new DiagnosticDetail("task_id", taskId)],
+            suggestions: ["使用 shell_background_list 查看所有后台任务"]);
+
+    internal static ToolDiagnostic BuildCancelFailedDiagnostic(string taskId) =>
+        ToolDiagnostic.Create(
+            reason: "取消任务失败",
+            formattedMessage: $"Cannot cancel task {taskId} — task may not exist or already completed",
+            details: [new DiagnosticDetail("task_id", taskId)],
+            suggestions: ["确认任务 ID 是否正确", "任务可能已完成或不存在"]);
 
     #endregion
 }

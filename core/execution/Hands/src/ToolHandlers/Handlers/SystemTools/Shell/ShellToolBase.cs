@@ -39,20 +39,38 @@ public abstract class ShellToolBase : OneShotCommandGroup
     {
         if (kind == SystemActuatorKind.PowerShell && _gateService is not null && !_gateService.IsPowerShellToolEnabled())
         {
+            var diag = BuildPowerShellUnavailableDiagnostic();
             return ToolResultBuilder.Error()
-                .WithText("PowerShell tool is not available on this platform. Set JCC_USE_POWERSHELL_TOOL=1 to enable.")
+                .WithText(diag.FormattedMessage)
+                .WithDiagnostic(diag)
                 .Build();
         }
 
         if (kind == SystemActuatorKind.PowerShell && IsWindowsSandboxPolicyViolation())
         {
+            var diag = BuildSandboxPolicyViolationDiagnostic();
             return ToolResultBuilder.Error()
-                .WithText("Enterprise policy requires sandboxing, but sandboxing is not available on native Windows. PowerShell commands cannot be executed in this configuration.")
+                .WithText(diag.FormattedMessage)
+                .WithDiagnostic(diag)
                 .Build();
         }
 
         return null;
     }
+
+    internal static ToolDiagnostic BuildPowerShellUnavailableDiagnostic() =>
+        ToolDiagnostic.Create(
+            reason: "平台限制",
+            formattedMessage: "PowerShell tool is not available on this platform. Set JCC_USE_POWERSHELL_TOOL=1 to enable.",
+            details: [new DiagnosticDetail("tool", "PowerShell")],
+            suggestions: ["设置环境变量 JCC_USE_POWERSHELL_TOOL=1 启用 PowerShell 工具"]);
+
+    internal static ToolDiagnostic BuildSandboxPolicyViolationDiagnostic() =>
+        ToolDiagnostic.Create(
+            reason: "安全策略冲突",
+            formattedMessage: "Enterprise policy requires sandboxing, but sandboxing is not available on native Windows. PowerShell commands cannot be executed in this configuration.",
+            details: [new DiagnosticDetail("platform", "Windows")],
+            suggestions: ["设置 JCC_ALLOW_UNSANDBOXED=true 允许非沙箱命令"]);
 
     /// <summary>
     /// 检查 Windows 沙箱策略冲突 — 对齐 TS isWindowsSandboxPolicyViolation

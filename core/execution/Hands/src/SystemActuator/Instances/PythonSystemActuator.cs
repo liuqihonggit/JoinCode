@@ -70,7 +70,7 @@ public sealed class PythonSystemActuator : SystemActuatorBase
         foreach (var cp in commonPaths)
             if (fs.FileExists(cp)) return cp;
 
-        logger?.LogWarning("Python not found, falling back to python3. Set {EnvVar} to specify path.", PythonPathEnvVar);
+        logger?.LogWarning("未找到 Python, 回退到 python3. 可设置环境变量 {EnvVar} 指定路径.", PythonPathEnvVar);
         return "python3";
     }
 

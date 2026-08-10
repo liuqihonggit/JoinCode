@@ -76,7 +76,7 @@ public sealed class PowerShellSystemActuator : SystemActuatorBase
         var commonPath = @"C:\Program Files\PowerShell\7\pwsh.exe";
         if (fs.FileExists(commonPath)) return commonPath;
 
-        logger?.LogWarning("PowerShell not found, falling back to powershell.exe. Set {EnvVar} to specify path.", PowerShellPathEnvVar);
+        logger?.LogWarning("未找到 PowerShell(pwsh), 回退到 powershell.exe. 可设置环境变量 {EnvVar} 指定路径.", PowerShellPathEnvVar);
         return "powershell.exe";
     }
 

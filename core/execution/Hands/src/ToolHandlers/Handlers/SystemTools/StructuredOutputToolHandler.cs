@@ -39,7 +39,8 @@ public sealed class StructuredOutputToolHandler
             ValidationHelper.ValidateStringLength(schema_name, 128, "schema_name"));
         if (validationError != null)
         {
-            return Task.FromResult(ToolResultBuilder.Error().WithText(validationError).Build());
+            var diag = BuildValidationErrorDiagnostic(validationError);
+            return Task.FromResult(ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build());
         }
 
         // 对齐 TS ajv.validateSchema(): 验证Schema结构合法性（不仅语法检查）
@@ -47,7 +48,8 @@ public sealed class StructuredOutputToolHandler
         if (!schemaValidation.IsValid)
         {
             var errorMessages = string.Join("; ", schemaValidation.Errors.Select(e => $"{e.Path}: {e.Message}"));
-            return Task.FromResult(ToolResultBuilder.Error().WithText($"Invalid JSON Schema: {errorMessages}").Build());
+            var diag = BuildInvalidSchemaDiagnostic(errorMessages);
+            return Task.FromResult(ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build());
         }
 
         var schema = new StructuredOutputSchema
@@ -89,14 +91,17 @@ public sealed class StructuredOutputToolHandler
             ValidationHelper.ValidateRequired(content, "content"));
         if (validationError != null)
         {
-            return Task.FromResult(ToolResultBuilder.Error().WithText(validationError).Build());
+            var diag = BuildValidationErrorDiagnostic(validationError);
+            return Task.FromResult(ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build());
         }
 
         StructuredOutputSchema schema;
         if (!_schemas.TryGetValue(schema_name, out var found))
         {
+            var diag = BuildSchemaNotFoundDiagnostic(schema_name);
             return Task.FromResult(ToolResultBuilder.Error()
-                .WithText($"Registered Schema not found: {schema_name}. Please register a Schema using structured_output_register first.")
+                .WithText(diag.FormattedMessage)
+                .WithDiagnostic(diag)
                 .Build());
         }
         schema = found;
@@ -151,9 +156,44 @@ public sealed class StructuredOutputToolHandler
             }
         }
 
-        return Task.FromResult(
-            result.IsValid
-                ? ToolResultBuilder.Success().WithText(response.ToString()).Build()
-                : ToolResultBuilder.Error().WithText(response.ToString()).Build());
+        if (result.IsValid)
+        {
+            return Task.FromResult(ToolResultBuilder.Success().WithText(response.ToString()).Build());
+        }
+        else
+        {
+            var diag = BuildValidationFailedDiagnostic(schema_name, result.Errors.Count);
+            return Task.FromResult(ToolResultBuilder.Error().WithText(response.ToString()).WithDiagnostic(diag).Build());
+        }
     }
+
+    internal static ToolDiagnostic BuildValidationErrorDiagnostic(string validationError) =>
+        ToolDiagnostic.Create(
+            reason: "参数验证失败",
+            formattedMessage: validationError,
+            details: [new DiagnosticDetail("validation_error", validationError)]);
+
+    internal static ToolDiagnostic BuildInvalidSchemaDiagnostic(string errorMessages) =>
+        ToolDiagnostic.Create(
+            reason: "Schema验证失败",
+            formattedMessage: $"Invalid JSON Schema: {errorMessages}",
+            details: [new DiagnosticDetail("errors", errorMessages)],
+            suggestions: ["检查 JSON Schema 语法是否正确"]);
+
+    internal static ToolDiagnostic BuildSchemaNotFoundDiagnostic(string schemaName) =>
+        ToolDiagnostic.Create(
+            reason: "Schema未找到",
+            formattedMessage: $"Registered Schema not found: {schemaName}. Please register a Schema using structured_output_register first.",
+            details: [new DiagnosticDetail("schema_name", schemaName)],
+            suggestions: ["使用 structured_output_register 注册 Schema"]);
+
+    internal static ToolDiagnostic BuildValidationFailedDiagnostic(string schemaName, int errorCount) =>
+        ToolDiagnostic.Create(
+            reason: "内容验证失败",
+            formattedMessage: $"Validation failed against schema '{schemaName}' with {errorCount} error(s)",
+            details:
+            [
+                new DiagnosticDetail("schema_name", schemaName),
+                new DiagnosticDetail("error_count", errorCount.ToString())
+            ]);
 }

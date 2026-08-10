@@ -123,8 +123,9 @@ public sealed class FileEditor
 
             if (actualOldString is null)
             {
+                var diagnostic = EditDiagnosticBuilder.BuildDiagnostic(normalizedContent, normalizedOld);
                 return FileEditResult.FailureResult(normalizedPath2, oldString, newString,
-                    "String to replace not found in file. Check that the string exists exactly as provided, including whitespace and indentation.");
+                    diagnostic.FormattedMessage);
             }
 
             // Step 2: Preserve quote style - if file uses curly quotes, apply them to new_string

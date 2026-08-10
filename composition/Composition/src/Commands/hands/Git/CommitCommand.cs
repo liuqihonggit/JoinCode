@@ -6,8 +6,9 @@
 [ChatCommand(Name = ChatCommandNameConstants.Commit, Description = "创建 Git 提交", Usage = "/commit [message]", Category = ChatCommandCategory.Code, ArgumentHint = "[message]")]
 public sealed class CommitCommand : ChatCommandBase
 {
-    // 对齐 TS: Git Safety Protocol — 禁止提交的文件模式
-    private static readonly string[] SecretFilePatterns = new[] { ".env", "credentials", "secret", "password", "apikey", "token" };
+    // 对齐 TS: Git Safety Protocol — 禁止提交的文件模式（FrozenSet 类型规范，子串匹配仍需遍历）
+    private static readonly FrozenSet<string> SecretFilePatterns = FrozenSet.Create(
+        ".env", "credentials", "secret", "password", "apikey", "token");
 
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {

@@ -143,17 +143,19 @@ public static class BridgeInboundAttachments
         return PrependPathRefs(content, prefix);
     }
 
+    /// <summary>文件名非法字符集（缓存避免每次调用 Path.GetInvalidFileNameChars + Array.IndexOf 的 O(n²) 开销）</summary>
+    private static readonly FrozenSet<char> InvalidFileNameChars = FrozenSet.Create(Path.GetInvalidFileNameChars());
+
     /// <summary>
     /// 清理文件名中的非法字符
     /// </summary>
     private static string SanitizeFileName(string fileName)
     {
-        var invalid = Path.GetInvalidFileNameChars();
         var result = new char[fileName.Length];
         var len = 0;
         foreach (var c in fileName)
         {
-            if (Array.IndexOf(invalid, c) < 0)
+            if (!InvalidFileNameChars.Contains(c))
             {
                 result[len++] = c;
             }

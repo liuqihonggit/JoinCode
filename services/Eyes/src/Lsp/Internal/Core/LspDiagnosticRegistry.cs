@@ -196,6 +196,7 @@ public sealed partial class LspDiagnosticRegistry : ServiceEntity, ILspDiagnosti
     private List<LspDiagnosticFile> DeduplicateDiagnosticFiles(List<LspDiagnosticFile> allFiles)
     {
         var fileMap = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+        var dedupedFileMap = new Dictionary<string, LspDiagnosticFile>(StringComparer.OrdinalIgnoreCase);
         var dedupedFiles = new List<LspDiagnosticFile>();
 
         lock (_lock)
@@ -205,11 +206,13 @@ public sealed partial class LspDiagnosticRegistry : ServiceEntity, ILspDiagnosti
                 if (!fileMap.ContainsKey(file.Uri))
                 {
                     fileMap[file.Uri] = new HashSet<string>(StringComparer.Ordinal);
-                    dedupedFiles.Add(new LspDiagnosticFile { Uri = file.Uri, Diagnostics = [] });
+                    var newDedupedFile = new LspDiagnosticFile { Uri = file.Uri, Diagnostics = [] };
+                    dedupedFiles.Add(newDedupedFile);
+                    dedupedFileMap[file.Uri] = newDedupedFile;
                 }
 
                 var seenDiagnostics = fileMap[file.Uri];
-                var dedupedFile = dedupedFiles.First(f => f.Uri == file.Uri);
+                var dedupedFile = dedupedFileMap[file.Uri];
 
                 _delivered.TryGetValue(file.Uri, out var previouslyDelivered);
                 previouslyDelivered ??= new HashSet<string>(StringComparer.Ordinal);

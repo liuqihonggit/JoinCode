@@ -13,9 +13,10 @@ namespace JoinCode.Guard.Security.PowerShell;
 public static partial class PsGitSafety
 {
     /// <summary>
-    /// Git 内部路径前缀（bare-repo 攻击向量）
+    /// Git 内部路径前缀（bare-repo 攻击向量）— FrozenSet 精确匹配 O(1) + 前缀匹配 O(n)
     /// </summary>
-    private static readonly string[] GitInternalPrefixes = new[] { "head", "objects", "refs", "hooks" };
+    private static readonly FrozenSet<string> GitInternalPrefixes = FrozenSet.Create(
+        "head", "objects", "refs", "hooks");
 
     /// <summary>
     /// 判断参数（原始 PS 参数文本）是否解析为 cwd 中的 git-internal 路径。
@@ -184,10 +185,11 @@ public static partial class PsGitSafety
         if (n == "head" || SecurityPatterns.MatchesVcsInternalPath(n)) return true;
         if (n.StartsWith(".git/") || GitShortNameRegex().IsMatch(n)) return true;
 
+        if (GitInternalPrefixes.Contains(n)) return true;
         foreach (var p in GitInternalPrefixes)
         {
             if (p == "head") continue;
-            if (n == p || n.StartsWith(p + "/")) return true;
+            if (n.StartsWith(p + "/")) return true;
         }
 
         return false;

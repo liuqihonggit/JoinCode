@@ -71,6 +71,7 @@ global using Services.Api;
 global using Services.Api.Vcr;
 global using Services.Cache;
 global using Services.Notebook;
+global using Services.Notebook.ToolHandlers;
 global using Services.Shell;
 global using Services.SystemPower;
 global using Services.Build;

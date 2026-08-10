@@ -284,6 +284,9 @@ public sealed partial class MainViewModel : ViewModelBase
     /// <summary>UI 对话消息集合（角色化气泡）</summary>
     public ObservableCollection<ChatUiMessage> Messages { get; } = [];
 
+    /// <summary>Assistant 消息计数器（CanRegenerate O(1) 查找，由 OnMessagesChanged 维护）</summary>
+    private int _assistantMessageCount;
+
     /// <summary>消息条数（随集合变化更新，驱动 UI 计数显示）</summary>
     public int MessageCount => Messages.Count;
 
@@ -602,6 +605,18 @@ public sealed partial class MainViewModel : ViewModelBase
 
     private void OnMessagesChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
     {
+        if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Reset)
+            _assistantMessageCount = Messages.Count(m => m.Role == MessageRole.Assistant);
+        else
+        {
+            if (e.OldItems is not null)
+                foreach (ChatUiMessage m in e.OldItems)
+                    if (m.Role == MessageRole.Assistant) _assistantMessageCount--;
+            if (e.NewItems is not null)
+                foreach (ChatUiMessage m in e.NewItems)
+                    if (m.Role == MessageRole.Assistant) _assistantMessageCount++;
+        }
+
         OnPropertyChanged(nameof(MessageCount));
         OnPropertyChanged(nameof(HasMessages));
         OnPropertyChanged(nameof(CanRegenerate));
@@ -1063,8 +1078,8 @@ public sealed partial class MainViewModel : ViewModelBase
         await SendAsync();
     }
 
-    /// <summary>是否有可重新生成的上一轮回复</summary>
-    public bool CanRegenerate => Messages.Any(m => m.Role == MessageRole.Assistant);
+    /// <summary>是否有可重新生成的上一轮回复（O(1) 计数器查找）</summary>
+    public bool CanRegenerate => _assistantMessageCount > 0;
 
     [RelayCommand]
     private Task ClearHistoryAsync()

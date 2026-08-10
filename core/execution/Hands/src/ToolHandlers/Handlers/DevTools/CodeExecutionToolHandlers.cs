@@ -105,7 +105,7 @@ public class CodeExecutionToolHandlers
         catch (Exception ex)
         {
             RecordCodeExecutionMetrics("evaluate", "error");
-            return ToolResultBuilder.Error().WithText($"Expression evaluation failed: {ex.Message}").Build();
+            return ToolExceptionDiagnosticHelper.BuildErrorResult("evaluate_expression", ex, null, "expression", expression);
         }
     }
 
@@ -173,7 +173,7 @@ public class CodeExecutionToolHandlers
         catch (Exception ex)
         {
             RecordCodeExecutionMetrics("test_snippet", "error");
-            return ToolResultBuilder.Error().WithText($"Code test failed: {ex.Message}").Build();
+            return ToolExceptionDiagnosticHelper.BuildErrorResult("test_code_snippet", ex, null, "code", TruncateCode(code));
         }
     }
 

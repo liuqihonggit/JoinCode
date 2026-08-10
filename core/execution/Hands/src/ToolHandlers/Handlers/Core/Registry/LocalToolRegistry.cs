@@ -193,13 +193,9 @@ public sealed partial class LocalToolRegistry : IToolRegistry
                 IsError = true
             };
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            return new ToolResult
-            {
-                Content = [new() { Type = ToolContentType.Text, Text = $"Error executing tool '{toolName}': {ex.Message}" }],
-                IsError = true
-            };
+            return ToolExceptionDiagnosticHelper.BuildErrorResult(toolName, ex, null);
         }
     }
 

@@ -367,9 +367,9 @@ public class McpResourceToolHandlers
 
             return ToolResultBuilder.Success().WithText(response.ToString()).Build();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            return ToolResultBuilder.Error().WithText($"Failed to read resource: {ex.Message}").Build();
+            return ToolExceptionDiagnosticHelper.BuildErrorResult("mcp_read_resource", ex, _logger, "uri", uri);
         }
     }
 
@@ -433,9 +433,9 @@ public class McpResourceToolHandlers
 
             return ToolResultBuilder.Success().WithText(response.ToString()).Build();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            return ToolResultBuilder.Error().WithText($"Failed to get prompt: {ex.Message}").Build();
+            return ToolExceptionDiagnosticHelper.BuildErrorResult("mcp_get_prompt", ex, _logger, "promptName", promptName, "clientId", clientId);
         }
     }
 

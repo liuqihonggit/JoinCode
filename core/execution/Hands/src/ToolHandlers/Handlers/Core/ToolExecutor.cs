@@ -53,17 +53,10 @@ public sealed partial class ToolExecutor
             _logger?.LogInformation("Tool execution canceled: {ToolName}", toolName);
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger?.LogError(ex, "Error executing tool: {ToolName}", toolName);
-            return new ToolResult
-            {
-                IsError = true,
-                Content = new List<ToolContent>
-                {
-                    new() { Type = ToolContentType.Text, Text = $"Error executing tool '{toolName}': {ex.Message}" }
-                }
-            };
+            return ToolExceptionDiagnosticHelper.BuildErrorResult(toolName, ex, _logger);
         }
     }
 

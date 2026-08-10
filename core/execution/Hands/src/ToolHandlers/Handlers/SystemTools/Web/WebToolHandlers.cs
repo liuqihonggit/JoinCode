@@ -283,10 +283,10 @@ public class WebToolHandlers
             var responseText = results.FirstOrDefault()?.Content;
             return !string.IsNullOrEmpty(responseText) ? responseText : "No response from model";
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             return markdownContent.Length > 5000
-                ? markdownContent[..5000] + $"\n\n[LLM processing failed: {ex.Message}]"
+                ? markdownContent[..5000] + $"\n\n[LLM processing failed: [{ex.GetType().Name}] {ex.Message}]"
                 : markdownContent;
         }
     }

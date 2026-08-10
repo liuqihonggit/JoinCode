@@ -31,9 +31,9 @@ public class UserInteractionToolHandlers
             if (!string.IsNullOrEmpty(repairHint))
                 _logger?.LogInformation("[AskUserQuestion] questions JSON 已修复: {RepairHint}", repairHint);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            return ToolResultBuilder.Error().WithText($"Invalid questions JSON: {ex.Message}").Build();
+            return ToolExceptionDiagnosticHelper.BuildErrorResult("ask_user_question", ex, _logger, "questions", questions ?? "(null)");
         }
 
         if (questionItems.Count == 0)

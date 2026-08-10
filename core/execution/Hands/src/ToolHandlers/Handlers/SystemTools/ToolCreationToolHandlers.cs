@@ -77,12 +77,12 @@ public class ToolCreationToolHandlers
         {
             await _templateService.CreateAndRegisterAsync(template, _registry, ct).ConfigureAwait(false);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger?.LogWarning(ex, "动态注册工具 {ToolName} 失败，但模板已保存", toolName);
             return ToolResultBuilder.Success().WithText(
                 $"工具模板 '{toolName}' 已保存到 ~/.jcc/tool-templates/{templateId}.json，" +
-                $"但注册到当前会话失败: {ex.Message}。下次启动时将自动加载。").Build();
+                $"但注册到当前会话失败: [{ex.GetType().Name}] {ex.Message}。下次启动时将自动加载。").Build();
         }
 
         var paramList = parameters.Length > 0

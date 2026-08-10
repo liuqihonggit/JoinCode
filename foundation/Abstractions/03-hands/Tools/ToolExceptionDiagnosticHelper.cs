@@ -1,10 +1,10 @@
-namespace Tools.Handlers;
+namespace JoinCode.Abstractions.Tools;
 
 /// <summary>
 /// 工具异常诊断辅助类 — 将未处理异常转换为结构化 ToolDiagnostic。
-/// 供所有工具处理器在顶层 catch 中复用，确保异常类型、上下文细节不丢失。
+/// 公共版本，供所有项目（Hands、Mcp、Services 等）在顶层 catch 中复用。
 /// </summary>
-internal static class ToolExceptionDiagnosticHelper
+public static class ToolExceptionDiagnosticHelper
 {
     /// <summary>
     /// 从异常构建结构化诊断信息。
@@ -13,7 +13,7 @@ internal static class ToolExceptionDiagnosticHelper
     /// <param name="ex">未处理异常</param>
     /// <param name="extraDetails">额外上下文详情（如参数值）</param>
     /// <returns>结构化诊断</returns>
-    internal static ToolDiagnostic BuildExceptionDiagnostic(string toolName, Exception ex, params DiagnosticDetail[] extraDetails)
+    public static ToolDiagnostic BuildExceptionDiagnostic(string toolName, Exception ex, params DiagnosticDetail[] extraDetails)
     {
         var sb = new StringBuilder(256);
         sb.Append($"{toolName} 执行失败: {ex.Message}");
@@ -34,9 +34,8 @@ internal static class ToolExceptionDiagnosticHelper
 
     /// <summary>
     /// 构建错误 ToolResult，同时记录日志。
-    /// 典型用法：catch (Exception ex) when (ex is not OperationCanceledException) { return ToolExceptionDiagnosticHelper.BuildErrorResult("tool_name", ex, _logger); }
     /// </summary>
-    internal static ToolResult BuildErrorResult(string toolName, Exception ex, ILogger? logger = null, params DiagnosticDetail[] extraDetails)
+    public static ToolResult BuildErrorResult(string toolName, Exception ex, ILogger? logger = null, params DiagnosticDetail[] extraDetails)
     {
         logger?.LogError(ex, "{ToolName} 执行异常", toolName);
         var diagnostic = BuildExceptionDiagnostic(toolName, ex, extraDetails);
@@ -47,9 +46,9 @@ internal static class ToolExceptionDiagnosticHelper
     }
 
     /// <summary>
-    /// 构建错误 ToolResult，带工具特定上下文字符串（如命令、文件路径）。
+    /// 构建错误 ToolResult，带一组上下文键值对。
     /// </summary>
-    internal static ToolResult BuildErrorResult(string toolName, Exception ex, ILogger? logger, string contextKey, string contextValue, params DiagnosticDetail[] extraDetails)
+    public static ToolResult BuildErrorResult(string toolName, Exception ex, ILogger? logger, string contextKey, string contextValue, params DiagnosticDetail[] extraDetails)
     {
         logger?.LogError(ex, "{ToolName} 执行异常, {ContextKey}: {ContextValue}", toolName, contextKey, contextValue);
         var allDetails = new List<DiagnosticDetail>(extraDetails.Length + 1);
@@ -65,7 +64,7 @@ internal static class ToolExceptionDiagnosticHelper
     /// <summary>
     /// 构建错误 ToolResult，带两组上下文键值对。
     /// </summary>
-    internal static ToolResult BuildErrorResult(string toolName, Exception ex, ILogger? logger, string contextKey1, string contextValue1, string contextKey2, string contextValue2, params DiagnosticDetail[] extraDetails)
+    public static ToolResult BuildErrorResult(string toolName, Exception ex, ILogger? logger, string contextKey1, string contextValue1, string contextKey2, string contextValue2, params DiagnosticDetail[] extraDetails)
     {
         logger?.LogError(ex, "{ToolName} 执行异常, {ContextKey1}: {ContextValue1}, {ContextKey2}: {ContextValue2}", toolName, contextKey1, contextValue1, contextKey2, contextValue2);
         var allDetails = new List<DiagnosticDetail>(extraDetails.Length + 2);

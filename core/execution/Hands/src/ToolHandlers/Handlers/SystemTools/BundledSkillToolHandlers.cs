@@ -296,9 +296,9 @@ public partial class BundledSkillToolHandlers
                 var result = await ExecuteBatchOperationAsync(file, operation, search, replace, cancellationToken).ConfigureAwait(false);
                 return (file, result.Success, result.Message);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                return (file, false, ex.Message);
+                return (file, false, $"[{ex.GetType().Name}] {ex.Message}");
             }
         });
         results.AddRange(await Task.WhenAll(tasks).ConfigureAwait(false));

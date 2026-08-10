@@ -102,7 +102,7 @@ public partial class ReplToolHandlers : LongRunningGroup
         catch (Exception ex)
         {
             _logger?.LogError(ex, L.T(StringKey.ReplExecutionFailedLog));
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.ReplExecutionFailed, ex.Message)).Build();
+            return ToolExceptionDiagnosticHelper.BuildErrorResult("repl", ex, _logger);
         }
     }
 }

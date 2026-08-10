@@ -103,9 +103,7 @@ public partial class AgentToolHandlers
         {
             _logger?.LogError(ex, L.T(StringKey.AgentCreateFailed));
             ToolTelemetryHelper.RecordToolCount(_telemetryService, "agent.handler.count", "spawn", false);
-            return ToolResultBuilder.Error()
-                .WithText($"Failed to create agent: {ex.Message}")
-                .Build();
+            return ToolExceptionDiagnosticHelper.BuildErrorResult("agent", ex, _logger);
         }
     }
 
@@ -278,9 +276,7 @@ public partial class AgentToolHandlers
         {
             _logger?.LogError(ex, L.T(StringKey.AgentListFailed));
             ToolTelemetryHelper.RecordToolCount(_telemetryService, "agent.handler.count", "list", false);
-            return ToolResultBuilder.Error()
-                .WithText($"Failed to list agents: {ex.Message}")
-                .Build();
+            return ToolExceptionDiagnosticHelper.BuildErrorResult("agent_list", ex, _logger);
         }
     }
 
@@ -411,9 +407,7 @@ public partial class AgentToolHandlers
         {
             _logger?.LogError(ex, L.T(StringKey.AgentSendMessageFailed));
             ToolTelemetryHelper.RecordToolCount(_telemetryService, "agent.handler.count", "send_message", false);
-            return ToolResultBuilder.Error()
-                .WithText($"Failed to send message: {ex.Message}")
-                .Build();
+            return ToolExceptionDiagnosticHelper.BuildErrorResult("agent_send_message", ex, _logger, "to", to);
         }
     }
 
@@ -504,9 +498,7 @@ public partial class AgentToolHandlers
         {
             _logger?.LogError(ex, L.T(StringKey.AgentGetMessagesFailed));
             ToolTelemetryHelper.RecordToolCount(_telemetryService, "agent.handler.count", "get_messages", false);
-            return ToolResultBuilder.Error()
-                .WithText($"Failed to get messages: {ex.Message}")
-                .Build();
+            return ToolExceptionDiagnosticHelper.BuildErrorResult("agent_get_messages", ex, _logger);
         }
     }
 

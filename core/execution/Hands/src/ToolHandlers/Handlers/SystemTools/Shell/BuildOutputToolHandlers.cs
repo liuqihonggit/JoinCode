@@ -71,11 +71,7 @@ public partial class BuildOutputToolHandlers
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Failed to get build output for {BuildId}", build_id);
-            var diag = BuildGetOutputFailedDiagnostic(build_id, ex.Message);
-            return Task.FromResult(ToolResultBuilder.Error()
-                .WithText(diag.FormattedMessage)
-                .WithDiagnostic(diag)
-                .Build());
+            return Task.FromResult(ToolExceptionDiagnosticHelper.BuildErrorResult("build_output", ex, _logger, "build_id", build_id));
         }
     }
 
@@ -125,11 +121,7 @@ public partial class BuildOutputToolHandlers
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Failed to get build queue status");
-            var diag = BuildGetStatusFailedDiagnostic(ex.Message);
-            return Task.FromResult(ToolResultBuilder.Error()
-                .WithText(diag.FormattedMessage)
-                .WithDiagnostic(diag)
-                .Build());
+            return Task.FromResult(ToolExceptionDiagnosticHelper.BuildErrorResult("build_queue_status", ex, _logger));
         }
     }
 
@@ -178,11 +170,7 @@ public partial class BuildOutputToolHandlers
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Failed to cancel build {BuildId}", build_id);
-            var diag = BuildCancelFailedDiagnostic(build_id, ex.Message);
-            return ToolResultBuilder.Error()
-                .WithText(diag.FormattedMessage)
-                .WithDiagnostic(diag)
-                .Build();
+            return ToolExceptionDiagnosticHelper.BuildErrorResult("build_cancel", ex, _logger, "build_id", build_id);
         }
     }
 

@@ -567,6 +567,20 @@ JoinCode/
 └── App.slnx             ⑦ 主工程解决方案（Host + tests + MockServers）
 ```
 
+> **💡 `JoinCode.slnx`（全量聚合解决方案）**
+>
+> 根目录还有 `JoinCode.slnx`，聚合了上述七层的**全部 89 个项目**（含 src + tests + tools + MockServers + Benchmarks + AotCompatibility）。
+>
+> | 用途 | 说明 |
+> |------|------|
+> | **VS / Rider 一站式浏览** | 用 Visual Studio 或 JetBrains Rider 打开此文件，可在同一解决方案树中查看所有组件，无需分别加载 7 个 slnx |
+> | **全量重构/查找引用** | 跨组件全局重命名、查找引用、调用链分析时，一个窗口覆盖全部代码 |
+> | **不参与 CI** | CI 仍按七层顺序编译各自的 slnx（`Generators → Foundation → ... → App`），`JoinCode.slnx` 仅供 IDE 浏览，不用于构建/测试流水线 |
+>
+> **何时用哪个？**
+> - 日常开发改单个组件 → 用对应层级的 slnx（如改 Llm 用 `Core.slnx`）
+> - 需要全局鸟瞰/跨层重构 → 用 `JoinCode.slnx`
+
 ### 6.2 基础层（所有组件的公共依赖）
 
 | 项目 | 路径 | 职责 | 关键 NuGet |

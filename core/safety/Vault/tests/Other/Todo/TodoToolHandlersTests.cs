@@ -45,6 +45,9 @@ public sealed class TodoToolHandlersTests
 
         result.IsError.Should().BeTrue();
         result.GetTextContent().Should().Contain("content cannot be empty");
+        result.Diagnostic.Should().NotBeNull();
+        result.Diagnostic!.Reason.Should().Be("EmptyContent");
+        result.Diagnostic!.Details.Should().Contain(d => d.Key == "itemIndex" && d.Value == "0");
     }
 
     [Fact]
@@ -60,6 +63,10 @@ public sealed class TodoToolHandlersTests
 
         result.IsError.Should().BeTrue();
         result.GetTextContent().Should().Contain("Invalid status");
+        result.Diagnostic.Should().NotBeNull();
+        result.Diagnostic!.Reason.Should().Be("InvalidStatus");
+        result.Diagnostic!.Details.Should().Contain(d => d.Key == "input" && d.Value == "blocked");
+        result.Diagnostic!.Details.Should().Contain(d => d.Key == "itemIndex" && d.Value == "0");
     }
 
     [Fact]
@@ -75,6 +82,10 @@ public sealed class TodoToolHandlersTests
 
         result.IsError.Should().BeTrue();
         result.GetTextContent().Should().Contain("Invalid priority");
+        result.Diagnostic.Should().NotBeNull();
+        result.Diagnostic!.Reason.Should().Be("InvalidPriority");
+        result.Diagnostic!.Details.Should().Contain(d => d.Key == "input" && d.Value == "urgent");
+        result.Diagnostic!.Details.Should().Contain(d => d.Key == "itemIndex" && d.Value == "0");
     }
 
     [Fact]
@@ -113,6 +124,8 @@ public sealed class TodoToolHandlersTests
 
         result.IsError.Should().BeTrue();
         result.GetTextContent().Should().Contain("boom");
+        result.Diagnostic.Should().NotBeNull();
+        result.Diagnostic!.Reason.Should().Be("ServiceFailure");
     }
 
     [Fact]
@@ -174,6 +187,8 @@ public sealed class TodoToolHandlersTests
 
         result.IsError.Should().BeTrue();
         result.GetTextContent().Should().Contain("Invalid status filter");
+        result.Diagnostic.Should().NotBeNull();
+        result.Diagnostic!.Reason.Should().Be("InvalidStatusFilter");
     }
 
     [Fact]
@@ -185,6 +200,8 @@ public sealed class TodoToolHandlersTests
 
         result.IsError.Should().BeTrue();
         result.GetTextContent().Should().Contain("Invalid priority filter");
+        result.Diagnostic.Should().NotBeNull();
+        result.Diagnostic!.Reason.Should().Be("InvalidPriorityFilter");
     }
 
     [Fact]
@@ -198,6 +215,8 @@ public sealed class TodoToolHandlersTests
 
         result.IsError.Should().BeTrue();
         result.GetTextContent().Should().Contain("fail");
+        result.Diagnostic.Should().NotBeNull();
+        result.Diagnostic!.Reason.Should().Be("ServiceFailure");
     }
 
     [Fact]
@@ -245,6 +264,8 @@ public sealed class TodoToolHandlersTests
 
         result.IsError.Should().BeTrue();
         result.GetTextContent().Should().Contain("cannot be empty");
+        result.Diagnostic.Should().NotBeNull();
+        result.Diagnostic!.Reason.Should().Be("EmptyTodoId");
     }
 
     [Fact]
@@ -256,6 +277,9 @@ public sealed class TodoToolHandlersTests
 
         result.IsError.Should().BeTrue();
         result.GetTextContent().Should().Contain("Invalid status");
+        result.Diagnostic.Should().NotBeNull();
+        result.Diagnostic!.Reason.Should().Be("InvalidStatus");
+        result.Diagnostic!.Details.Should().Contain(d => d.Key == "input" && d.Value == "unknown");
     }
 
     [Fact]
@@ -267,6 +291,9 @@ public sealed class TodoToolHandlersTests
 
         result.IsError.Should().BeTrue();
         result.GetTextContent().Should().Contain("Invalid priority");
+        result.Diagnostic.Should().NotBeNull();
+        result.Diagnostic!.Reason.Should().Be("InvalidPriority");
+        result.Diagnostic!.Details.Should().Contain(d => d.Key == "input" && d.Value == "unknown");
     }
 
     [Fact]
@@ -280,6 +307,9 @@ public sealed class TodoToolHandlersTests
 
         result.IsError.Should().BeTrue();
         result.GetTextContent().Should().Contain("not found");
+        result.Diagnostic.Should().NotBeNull();
+        result.Diagnostic!.Reason.Should().Be("ServiceFailure");
+        result.Diagnostic!.Details.Should().Contain(d => d.Key == "todoId" && d.Value == "id");
     }
 
     [Fact]
@@ -297,5 +327,82 @@ public sealed class TodoToolHandlersTests
         text.Should().Contain("updated successfully");
         text.Should().Contain("[id]");
         text.Should().Contain("New content");
+    }
+
+    [Fact]
+    public void BuildEmptyContentDiagnostic_ReturnsCorrectReasonAndDetails()
+    {
+        var diagnostic = TodoToolHandlers.BuildEmptyContentDiagnostic(2);
+
+        diagnostic.Reason.Should().Be("EmptyContent");
+        diagnostic.Details.Should().Contain(d => d.Key == "itemIndex" && d.Value == "2");
+        diagnostic.Suggestions.Should().NotBeEmpty();
+        diagnostic.FormattedMessage.Should().Contain("content cannot be empty");
+        diagnostic.FormattedMessage.Should().Contain("todos[2]");
+    }
+
+    [Fact]
+    public void BuildInvalidStatusDiagnostic_PartialMatch_SuggestsCandidate()
+    {
+        var diagnostic = TodoToolHandlers.BuildInvalidStatusDiagnostic("comp");
+
+        diagnostic.Reason.Should().Be("InvalidStatus");
+        diagnostic.Details.Should().Contain(d => d.Key == "candidate" && d.Value == "completed");
+        diagnostic.FormattedMessage.Should().Contain("你是不是想用: completed");
+    }
+
+    [Fact]
+    public void BuildInvalidStatusDiagnostic_NoMatch_HasNoCandidate()
+    {
+        var diagnostic = TodoToolHandlers.BuildInvalidStatusDiagnostic("blocked");
+
+        diagnostic.Details.Should().NotContain(d => d.Key == "candidate");
+        diagnostic.FormattedMessage.Should().NotContain("你是不是想用");
+    }
+
+    [Fact]
+    public void BuildInvalidPriorityDiagnostic_PartialMatch_SuggestsCandidate()
+    {
+        var diagnostic = TodoToolHandlers.BuildInvalidPriorityDiagnostic("hi");
+
+        diagnostic.Reason.Should().Be("InvalidPriority");
+        diagnostic.Details.Should().Contain(d => d.Key == "candidate" && d.Value == "high");
+    }
+
+    [Fact]
+    public void BuildInvalidStatusDiagnostic_WithItemIndex_IncludesIndexInDetails()
+    {
+        var diagnostic = TodoToolHandlers.BuildInvalidStatusDiagnostic("bad", itemIndex: 3);
+
+        diagnostic.Details.Should().Contain(d => d.Key == "itemIndex" && d.Value == "3");
+        diagnostic.FormattedMessage.Should().Contain("todos[3]");
+    }
+
+    [Fact]
+    public void BuildInvalidStatusFilterDiagnostic_ReturnsFilterReason()
+    {
+        var diagnostic = TodoToolHandlers.BuildInvalidStatusFilterDiagnostic("done");
+
+        diagnostic.Reason.Should().Be("InvalidStatusFilter");
+        diagnostic.FormattedMessage.Should().Contain("Invalid status filter");
+    }
+
+    [Fact]
+    public void BuildInvalidPriorityFilterDiagnostic_ReturnsFilterReason()
+    {
+        var diagnostic = TodoToolHandlers.BuildInvalidPriorityFilterDiagnostic("urgent");
+
+        diagnostic.Reason.Should().Be("InvalidPriorityFilter");
+        diagnostic.FormattedMessage.Should().Contain("Invalid priority filter");
+    }
+
+    [Fact]
+    public void BuildEmptyTodoIdDiagnostic_ReturnsCorrectReason()
+    {
+        var diagnostic = TodoToolHandlers.BuildEmptyTodoIdDiagnostic();
+
+        diagnostic.Reason.Should().Be("EmptyTodoId");
+        diagnostic.FormattedMessage.Should().Contain("cannot be empty");
+        diagnostic.Suggestions.Should().Contain(s => s.Contains("TodoList"));
     }
 }

@@ -18,21 +18,25 @@ public class TodoToolHandlers
     {
         var todoInputs = todos ?? [];
 
-        foreach (var item in todoInputs)
+        for (var i = 0; i < todoInputs.Count; i++)
         {
+            var item = todoInputs[i];
             if (string.IsNullOrWhiteSpace(item.Content))
             {
-                return ToolResultBuilder.Error().WithText("Todo item content cannot be empty").Build();
+                var diagnostic = BuildEmptyContentDiagnostic(i);
+                return ToolResultBuilder.Error().WithText(diagnostic.FormattedMessage).WithDiagnostic(diagnostic).Build();
             }
 
             if (!TodoIcons.ValidTodoStatuses.Contains(item.Status))
             {
-                return ToolResultBuilder.Error().WithText($"Invalid status '{item.Status}'. Must be one of: pending, in_progress, completed").Build();
+                var diagnostic = BuildInvalidStatusDiagnostic(item.Status, i);
+                return ToolResultBuilder.Error().WithText(diagnostic.FormattedMessage).WithDiagnostic(diagnostic).Build();
             }
 
             if (!string.IsNullOrEmpty(item.Priority) && TodoPriorityExtensions.FromValue(item.Priority) is null)
             {
-                return ToolResultBuilder.Error().WithText($"Invalid priority '{item.Priority}'. Must be one of: high, medium, low").Build();
+                var diagnostic = BuildInvalidPriorityDiagnostic(item.Priority, i);
+                return ToolResultBuilder.Error().WithText(diagnostic.FormattedMessage).WithDiagnostic(diagnostic).Build();
             }
         }
 
@@ -65,7 +69,11 @@ public class TodoToolHandlers
 
             if (!result.Success)
             {
-                return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to write todos").Build();
+                var errorMsg = result.ErrorMessage ?? "Failed to write todos";
+                var diagnostic = ToolDiagnostic.Create("ServiceFailure", errorMsg,
+                    [new DiagnosticDetail("operation", "WriteTodos")],
+                    ["检查 ITodoService 实现的日志以获取详细错误。"]);
+                return ToolResultBuilder.Error().WithText(errorMsg).WithDiagnostic(diagnostic).Build();
             }
         }
 
@@ -94,12 +102,14 @@ public class TodoToolHandlers
     {
         if (!string.IsNullOrEmpty(status) && !TodoIcons.ValidTodoStatuses.Contains(status))
         {
-            return ToolResultBuilder.Error().WithText($"Invalid status filter '{status}'. Must be one of: pending, in_progress, completed").Build();
+            var diagnostic = BuildInvalidStatusFilterDiagnostic(status);
+            return ToolResultBuilder.Error().WithText(diagnostic.FormattedMessage).WithDiagnostic(diagnostic).Build();
         }
 
         if (!string.IsNullOrEmpty(priority) && TodoPriorityExtensions.FromValue(priority) is null)
         {
-            return ToolResultBuilder.Error().WithText($"Invalid priority filter '{priority}'. Must be one of: high, medium, low").Build();
+            var diagnostic = BuildInvalidPriorityFilterDiagnostic(priority);
+            return ToolResultBuilder.Error().WithText(diagnostic.FormattedMessage).WithDiagnostic(diagnostic).Build();
         }
 
         var result = await _todoService.ListTodosAsync(
@@ -110,7 +120,11 @@ public class TodoToolHandlers
 
         if (!result.Success)
         {
-            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to list todos").Build();
+            var errorMsg = result.ErrorMessage ?? "Failed to list todos";
+            var diagnostic = ToolDiagnostic.Create("ServiceFailure", errorMsg,
+                [new DiagnosticDetail("operation", "ListTodos")],
+                ["检查 ITodoService 实现的日志以获取详细错误。"]);
+            return ToolResultBuilder.Error().WithText(errorMsg).WithDiagnostic(diagnostic).Build();
         }
 
         var response = new StringBuilder();
@@ -145,17 +159,20 @@ public class TodoToolHandlers
     {
         if (string.IsNullOrWhiteSpace(todo_id))
         {
-            return ToolResultBuilder.Error().WithText("todo_id cannot be empty").Build();
+            var diagnostic = BuildEmptyTodoIdDiagnostic();
+            return ToolResultBuilder.Error().WithText(diagnostic.FormattedMessage).WithDiagnostic(diagnostic).Build();
         }
 
         if (!string.IsNullOrEmpty(status) && !TodoIcons.ValidTodoStatuses.Contains(status))
         {
-            return ToolResultBuilder.Error().WithText($"Invalid status '{status}'. Must be one of: pending, in_progress, completed").Build();
+            var diagnostic = BuildInvalidStatusDiagnostic(status);
+            return ToolResultBuilder.Error().WithText(diagnostic.FormattedMessage).WithDiagnostic(diagnostic).Build();
         }
 
         if (!string.IsNullOrEmpty(priority) && TodoPriorityExtensions.FromValue(priority) is null)
         {
-            return ToolResultBuilder.Error().WithText($"Invalid priority '{priority}'. Must be one of: high, medium, low").Build();
+            var diagnostic = BuildInvalidPriorityDiagnostic(priority);
+            return ToolResultBuilder.Error().WithText(diagnostic.FormattedMessage).WithDiagnostic(diagnostic).Build();
         }
 
         var result = await _todoService.UpdateTodoAsync(
@@ -167,7 +184,11 @@ public class TodoToolHandlers
 
         if (!result.Success)
         {
-            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to update todo").Build();
+            var errorMsg = result.ErrorMessage ?? "Failed to update todo";
+            var diagnostic = ToolDiagnostic.Create("ServiceFailure", errorMsg,
+                [new DiagnosticDetail("operation", "UpdateTodo"), new DiagnosticDetail("todoId", todo_id)],
+                ["确认 todo_id 是否存在，可先调用 TodoList 获取已有 todo 的 ID。"]);
+            return ToolResultBuilder.Error().WithText(errorMsg).WithDiagnostic(diagnostic).Build();
         }
 
         var response = new StringBuilder();
@@ -180,6 +201,125 @@ public class TodoToolHandlers
 
         return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
+
+    #region Diagnostic Builders
+
+    /// <summary>
+    /// content 为空的结构化诊断。
+    /// </summary>
+    internal static ToolDiagnostic BuildEmptyContentDiagnostic(int itemIndex)
+    {
+        var sb = new StringBuilder(128);
+        sb.Append("Todo item content cannot be empty");
+        sb.Append($"\n[诊断] 出错位置: todos[{itemIndex}]");
+        return ToolDiagnostic.Create("EmptyContent", sb.ToString(),
+            [new DiagnosticDetail("itemIndex", itemIndex.ToString())],
+            ["为每个 todo 项提供非空的 content 字段。"]);
+    }
+
+    /// <summary>
+    /// 无效 status 的结构化诊断（TodoWrite/TodoUpdate 场景，itemIndex 仅 TodoWrite 有）。
+    /// </summary>
+    internal static ToolDiagnostic BuildInvalidStatusDiagnostic(string status, int? itemIndex = null)
+    {
+        const string validValues = "pending, in_progress, completed";
+        var sb = new StringBuilder(160);
+        sb.Append($"Invalid status '{status}'. Must be one of: {validValues}");
+        return FinishInvalidEnumDiagnostic(sb, "InvalidStatus", status, validValues,
+            TodoIcons.ValidTodoStatuses, itemIndex,
+            "有效状态: pending（待开始）、in_progress（进行中）、completed（已完成）。");
+    }
+
+    /// <summary>
+    /// 无效 priority 的结构化诊断（TodoWrite/TodoUpdate 场景，itemIndex 仅 TodoWrite 有）。
+    /// </summary>
+    internal static ToolDiagnostic BuildInvalidPriorityDiagnostic(string priority, int? itemIndex = null)
+    {
+        const string validValues = "high, medium, low";
+        var sb = new StringBuilder(160);
+        sb.Append($"Invalid priority '{priority}'. Must be one of: {validValues}");
+        return FinishInvalidEnumDiagnostic(sb, "InvalidPriority", priority, validValues,
+            TodoIcons.ValidPriorities, itemIndex,
+            "有效优先级: low（低）、medium（中）、high（高）。");
+    }
+
+    /// <summary>
+    /// 无效 status 筛选器的结构化诊断（TodoList 场景）。
+    /// </summary>
+    internal static ToolDiagnostic BuildInvalidStatusFilterDiagnostic(string status)
+    {
+        const string validValues = "pending, in_progress, completed";
+        var sb = new StringBuilder(160);
+        sb.Append($"Invalid status filter '{status}'. Must be one of: {validValues}");
+        return FinishInvalidEnumDiagnostic(sb, "InvalidStatusFilter", status, validValues,
+            TodoIcons.ValidTodoStatuses, null,
+            "有效状态: pending（待开始）、in_progress（进行中）、completed（已完成）。");
+    }
+
+    /// <summary>
+    /// 无效 priority 筛选器的结构化诊断（TodoList 场景）。
+    /// </summary>
+    internal static ToolDiagnostic BuildInvalidPriorityFilterDiagnostic(string priority)
+    {
+        const string validValues = "high, medium, low";
+        var sb = new StringBuilder(160);
+        sb.Append($"Invalid priority filter '{priority}'. Must be one of: {validValues}");
+        return FinishInvalidEnumDiagnostic(sb, "InvalidPriorityFilter", priority, validValues,
+            TodoIcons.ValidPriorities, null,
+            "有效优先级: low（低）、medium（中）、high（高）。");
+    }
+
+    /// <summary>
+    /// todo_id 为空的结构化诊断（TodoUpdate 场景）。
+    /// </summary>
+    internal static ToolDiagnostic BuildEmptyTodoIdDiagnostic()
+    {
+        return ToolDiagnostic.Create("EmptyTodoId", "todo_id cannot be empty",
+            [],
+            ["提供非空的 todo_id，可先调用 TodoList 获取已有 todo 的 ID。"]);
+    }
+
+    private static ToolDiagnostic FinishInvalidEnumDiagnostic(
+        StringBuilder sb, string reason, string input, string validValuesDisplay,
+        FrozenSet<string> validValues, int? itemIndex, string validValuesDescription)
+    {
+        var details = new List<DiagnosticDetail>(4)
+        {
+            new("input", input),
+            new("validValues", validValuesDisplay),
+        };
+        var suggestions = new List<string>(2);
+        if (itemIndex.HasValue)
+        {
+            details.Add(new DiagnosticDetail("itemIndex", itemIndex.Value.ToString()));
+            sb.Append($"\n[诊断] 出错位置: todos[{itemIndex.Value}]");
+        }
+        var candidate = SuggestValue(input, validValues);
+        if (candidate is not null)
+        {
+            sb.Append($"\n[诊断] 你是不是想用: {candidate}");
+            details.Add(new DiagnosticDetail("candidate", candidate));
+            suggestions.Add($"你是不是想用: {candidate}");
+        }
+        suggestions.Add(validValuesDescription);
+        return ToolDiagnostic.Create(reason, sb.ToString(), details, suggestions);
+    }
+
+    private static string? SuggestValue(string input, FrozenSet<string> validValues)
+    {
+        if (string.IsNullOrEmpty(input)) return null;
+        foreach (var valid in validValues)
+        {
+            if (valid.Contains(input, StringComparison.OrdinalIgnoreCase) ||
+                input.Contains(valid, StringComparison.OrdinalIgnoreCase))
+            {
+                return valid;
+            }
+        }
+        return null;
+    }
+
+    #endregion
 
     #region Private Methods
 

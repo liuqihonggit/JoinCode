@@ -32,6 +32,7 @@ global using Core.Hooks.ToolPermission;
 global using Core.Hooks;
 global using Core.Hooks.Lifecycle;
 global using Core.Permission;
+global using Core.Permission.ToolHandlers;
 global using Core.Plugins;
 global using Core.Policy;
 global using Core.Security.Constants;

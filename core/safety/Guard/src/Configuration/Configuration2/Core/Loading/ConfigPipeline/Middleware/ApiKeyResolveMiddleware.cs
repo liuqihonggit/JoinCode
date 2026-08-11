@@ -18,7 +18,7 @@ public sealed partial class ApiKeyResolveMiddleware : ServiceEntity, IConfigLoad
     {
         var config = context.Config;
         config.Provider.ApiKey = await _loader.ResolveApiKeyAsync(
-            config.Provider.Provider, config.Provider.Definition, _fs, ct).ConfigureAwait(false);
+            config.Provider.Vendor, config.Provider.Definition, _fs, ct).ConfigureAwait(false);
 
         context.ResolvedApiKey = config.Provider.ApiKey;
 

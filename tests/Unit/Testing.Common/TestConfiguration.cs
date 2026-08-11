@@ -55,7 +55,7 @@ public static class TestConfiguration
                 return _cachedApiKey = MockServer.MockServerOptions.DefaultApiKey;
 
             // 优先读取当前 Provider 对应的 Key
-            var provider = Environment.GetEnvironmentVariable("JCC_PROVIDER") ?? "openai";
+            var provider = Environment.GetEnvironmentVariable("JCC_VENDOR") ?? "openai";
             if (authData.TryGetValue(provider, out var providerKey) && !string.IsNullOrWhiteSpace(providerKey))
                 return _cachedApiKey = providerKey;
 

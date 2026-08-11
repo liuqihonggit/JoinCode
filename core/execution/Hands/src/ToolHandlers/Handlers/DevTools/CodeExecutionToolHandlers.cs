@@ -38,7 +38,8 @@ public class CodeExecutionToolHandlers
             ValidationHelper.ValidateRange(timeout_ms, 1, 300000, "timeout_ms"));
         if (validationError != null)
         {
-            return ToolResultBuilder.Error().WithText(validationError).Build();
+            var diag = BuildValidationErrorDiagnostic(validationError);
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         // 安全检查
@@ -46,9 +47,8 @@ public class CodeExecutionToolHandlers
         if (!securityCheck.IsValid)
         {
             RecordCodeExecutionMetrics("execute", "security_fail");
-            return ToolResultBuilder.Error()
-                .WithText($"Security warning: {securityCheck.Message}")
-                .Build();
+            var diag = BuildSecurityFailDiagnostic(securityCheck.Message);
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         try
@@ -65,12 +65,20 @@ public class CodeExecutionToolHandlers
         catch (TimeoutException)
         {
             RecordCodeExecutionMetrics("execute", "timeout");
-            return ToolResultBuilder.Error().WithText($"Code execution timed out (exceeded {timeout_ms}ms)").Build();
+            var timeoutMsg = $"Code execution timed out (exceeded {timeout_ms}ms)\n[诊断] 代码摘要: {TruncateCode(code)}";
+            return ToolResultBuilder.Error().WithText(timeoutMsg)
+                .WithDiagnostic(ToolDiagnostic.Create("Timeout", timeoutMsg,
+                    [new DiagnosticDetail("timeoutMs", timeout_ms.ToString()), new DiagnosticDetail("codePreview", TruncateCode(code))],
+                    ["检查代码是否有死循环或无限等待，或增大 timeout_ms。"])).Build();
         }
         catch (Exception ex)
         {
             RecordCodeExecutionMetrics("execute", "error");
-            return ToolResultBuilder.Error().WithText($"Code execution failed: {ex.Message}").Build();
+            var errorMsg = $"Code execution failed: {ex.Message}\n[诊断] 代码摘要: {TruncateCode(code)}";
+            return ToolResultBuilder.Error().WithText(errorMsg)
+                .WithDiagnostic(ToolDiagnostic.Create("ExecutionError", errorMsg,
+                    [new DiagnosticDetail("exception", ex.Message), new DiagnosticDetail("codePreview", TruncateCode(code))],
+                    ["检查代码语法和运行时错误。"])).Build();
         }
     }
 
@@ -97,7 +105,7 @@ public class CodeExecutionToolHandlers
         catch (Exception ex)
         {
             RecordCodeExecutionMetrics("evaluate", "error");
-            return ToolResultBuilder.Error().WithText($"Expression evaluation failed: {ex.Message}").Build();
+            return ToolExceptionDiagnosticHelper.BuildErrorResult("evaluate_expression", ex, null, "expression", expression);
         }
     }
 
@@ -165,7 +173,7 @@ public class CodeExecutionToolHandlers
         catch (Exception ex)
         {
             RecordCodeExecutionMetrics("test_snippet", "error");
-            return ToolResultBuilder.Error().WithText($"Code test failed: {ex.Message}").Build();
+            return ToolExceptionDiagnosticHelper.BuildErrorResult("test_code_snippet", ex, null, "code", TruncateCode(code));
         }
     }
 
@@ -211,5 +219,28 @@ public class CodeExecutionToolHandlers
             .Replace("\n", "\\n")
             .Replace("\r", "\\r")
             .Replace("\t", "\\t");
+    }
+
+    private static string TruncateCode(string code, int maxLength = 200)
+    {
+        if (code.Length <= maxLength)
+            return code;
+        return string.Concat(code.AsSpan(0, maxLength), "...[truncated]");
+    }
+
+    internal static ToolDiagnostic BuildValidationErrorDiagnostic(string validationError) =>
+        ToolDiagnostic.Create(
+            reason: "参数验证失败",
+            formattedMessage: validationError,
+            details: [new DiagnosticDetail("validation_error", validationError)]);
+
+    internal static ToolDiagnostic BuildSecurityFailDiagnostic(string? message)
+    {
+        var safeMessage = message ?? string.Empty;
+        return ToolDiagnostic.Create(
+            reason: "安全检查失败",
+            formattedMessage: $"Security warning: {safeMessage}",
+            details: [new DiagnosticDetail("security_message", safeMessage)],
+            suggestions: ["检查代码是否包含危险操作", "如需使用外部库，设置 allow_external_libs = true"]);
     }
 }

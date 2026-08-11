@@ -11,7 +11,6 @@ public sealed class StreamingConcurrentToolE2ETests : CoverageTestBase
         var script = new ConversationScript
         {
             Name = "流式并发: Read + Grep 并行执行",
-            Mode = ConversationMode.NonInteractive,
             Turns =
             [
                 new ConversationTurn
@@ -56,7 +55,6 @@ public sealed class StreamingConcurrentToolE2ETests : CoverageTestBase
         var script = new ConversationScript
         {
             Name = "流式并发: 两个 Write 应顺序执行",
-            Mode = ConversationMode.NonInteractive,
             Turns =
             [
                 new ConversationTurn

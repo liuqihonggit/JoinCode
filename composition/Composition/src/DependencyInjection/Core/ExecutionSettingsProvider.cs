@@ -56,7 +56,7 @@ public sealed partial class ExecutionSettingsProvider : ServiceEntity, IExecutio
         }
     }
     public bool FastMode => _config.FastMode;
-    public string? FastModelId => _registry.TryGet(_config.Provider?.Provider ?? string.Empty)?.DefaultFastModelId;
+    public string? FastModelId => _registry.TryGet(_config.Provider?.Vendor ?? string.Empty)?.DefaultFastModelId;
 
     // 温度/最大长度 — CLI 不设置（null）→ ChatOptionsFactory 回退 LlmParameters.Chat，行为不变。
     // GUI 滑块变更时经会话写回此属性（双变量模式无需 staging：值是瞬时覆盖，不持久化）。

@@ -161,10 +161,10 @@ public partial class McpClientToolHandlers : IAsyncDisposable
 
             return ToolResultBuilder.Success().WithText(response.ToString()).Build();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger?.LogError(ex, L.T(StringKey.ConnectMcpServerFailedLog), connection_name);
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionFailed, ex.Message)).Build();
+            return ToolExceptionDiagnosticHelper.BuildErrorResult("mcp_connect", ex, _logger, "connection_name", connection_name, "endpoint", endpoint);
         }
         finally
         {
@@ -205,10 +205,10 @@ public partial class McpClientToolHandlers : IAsyncDisposable
                 .WithText(L.T(StringKey.Disconnected, connection_name))
                 .Build();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger?.LogError(ex, L.T(StringKey.DisconnectFailedLog), connection_name);
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.DisconnectFailed, ex.Message)).Build();
+            return ToolExceptionDiagnosticHelper.BuildErrorResult("mcp_disconnect", ex, _logger, "connection_name", connection_name);
         }
         finally
         {

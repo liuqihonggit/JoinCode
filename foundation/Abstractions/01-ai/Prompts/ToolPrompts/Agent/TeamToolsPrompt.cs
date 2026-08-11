@@ -1,6 +1,6 @@
 namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 
-[ToolPrompt(ToolName = "TeamCreate", Category = ToolPromptCategory.Agent)]
+[ToolPrompt(ToolName = TeamToolName.TeamCreate, Category = ToolPromptCategory.Agent)]
 public static class TeamCreateToolPrompt
 {
     public const string ToolName = TeamToolNameConstants.TeamCreate;
@@ -117,7 +117,7 @@ public static class TeamCreateToolPrompt
         """;
 }
 
-[ToolPrompt(ToolName = "TeamDelete", Category = ToolPromptCategory.Agent)]
+[ToolPrompt(ToolName = TeamToolName.TeamDelete, Category = ToolPromptCategory.Agent)]
 public static class TeamDeleteToolPrompt
 {
     public const string ToolName = TeamToolNameConstants.TeamDelete;
@@ -138,7 +138,7 @@ public static class TeamDeleteToolPrompt
         """;
 }
 
-[ToolPrompt(ToolName = "ToolSearch", Category = ToolPromptCategory.Agent)]
+[ToolPrompt(ToolName = SystemToolName.ToolSearch, Category = ToolPromptCategory.Agent)]
 public static class ToolSearchToolPrompt
 {
     public const string ToolName = SystemToolNameConstants.ToolSearch;

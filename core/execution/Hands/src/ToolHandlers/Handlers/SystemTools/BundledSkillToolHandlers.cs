@@ -37,13 +37,15 @@ public partial class BundledSkillToolHandlers
     {
         if (string.IsNullOrWhiteSpace(file_path))
         {
-            return ToolResultBuilder.Error().WithText("file_path cannot be empty").Build();
+            var diag = BuildEmptyFilePathDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var readResult = await _fileOperationService.ReadFileAsync(file_path, cancellationToken: cancellationToken).ConfigureAwait(false);
         if (!readResult.Success)
         {
-            return ToolResultBuilder.Error().WithText($"File does not exist or read failed: {file_path}").Build();
+            var diag = BuildFileReadFailedDiagnostic(file_path);
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var content = readResult.Content;
@@ -95,7 +97,8 @@ public partial class BundledSkillToolHandlers
     {
         if (string.IsNullOrWhiteSpace(path))
         {
-            return ToolResultBuilder.Error().WithText("path cannot be empty").Build();
+            var diag = BuildEmptyPathDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var response = new System.Text.StringBuilder();
@@ -112,7 +115,8 @@ public partial class BundledSkillToolHandlers
             var fileResult = await _fileOperationService.ReadFileAsync(path, cancellationToken: cancellationToken).ConfigureAwait(false);
             if (!fileResult.Success)
             {
-                return ToolResultBuilder.Error().WithText($"Path does not exist: {path}").Build();
+                var diag = BuildPathNotExistDiagnostic(path);
+                return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
             }
             isFile = true;
         }
@@ -152,7 +156,8 @@ public partial class BundledSkillToolHandlers
 
         if (failed > 0)
         {
-            return ToolResultBuilder.Error().WithText(response.ToString()).Build();
+            var diag = BuildVerificationFailedDiagnostic(failed);
+            return ToolResultBuilder.Error().WithText(response.ToString()).WithDiagnostic(diag).Build();
         }
 
         return ToolResultBuilder.Success().WithText(response.ToString()).Build();
@@ -174,7 +179,8 @@ public partial class BundledSkillToolHandlers
     {
         if (string.IsNullOrWhiteSpace(path))
         {
-            return ToolResultBuilder.Error().WithText("path cannot be empty").Build();
+            var diag = BuildEmptyPathDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var isDirectory = _fs.DirectoryExists(path);
@@ -183,7 +189,8 @@ public partial class BundledSkillToolHandlers
             var fileResult = await _fileOperationService.ReadFileAsync(path, cancellationToken: cancellationToken).ConfigureAwait(false);
             if (!fileResult.Success)
             {
-                return ToolResultBuilder.Error().WithText($"Path does not exist: {path}").Build();
+                var diag = BuildPathNotExistDiagnostic(path);
+                return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
             }
         }
 
@@ -257,7 +264,8 @@ public partial class BundledSkillToolHandlers
     {
         if (string.IsNullOrWhiteSpace(pattern))
         {
-            return ToolResultBuilder.Error().WithText("pattern cannot be empty").Build();
+            var diag = BuildEmptyPatternDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var response = new System.Text.StringBuilder();
@@ -288,9 +296,9 @@ public partial class BundledSkillToolHandlers
                 var result = await ExecuteBatchOperationAsync(file, operation, search, replace, cancellationToken).ConfigureAwait(false);
                 return (file, result.Success, result.Message);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                return (file, false, ex.Message);
+                return (file, false, $"[{ex.GetType().Name}] {ex.Message}");
             }
         });
         results.AddRange(await Task.WhenAll(tasks).ConfigureAwait(false));
@@ -400,6 +408,44 @@ public partial class BundledSkillToolHandlers
     #endregion
 
     #region Private Methods
+
+    internal static ToolDiagnostic BuildEmptyFilePathDiagnostic() =>
+        ToolDiagnostic.Create(
+            reason: "参数验证失败",
+            formattedMessage: "file_path cannot be empty",
+            details: [new DiagnosticDetail("field", "file_path")]);
+
+    internal static ToolDiagnostic BuildFileReadFailedDiagnostic(string filePath) =>
+        ToolDiagnostic.Create(
+            reason: "文件读取失败",
+            formattedMessage: $"File does not exist or read failed: {filePath}",
+            details: [new DiagnosticDetail("file_path", filePath)],
+            suggestions: ["确认文件路径是否正确"]);
+
+    internal static ToolDiagnostic BuildEmptyPathDiagnostic() =>
+        ToolDiagnostic.Create(
+            reason: "参数验证失败",
+            formattedMessage: "path cannot be empty",
+            details: [new DiagnosticDetail("field", "path")]);
+
+    internal static ToolDiagnostic BuildPathNotExistDiagnostic(string path) =>
+        ToolDiagnostic.Create(
+            reason: "路径不存在",
+            formattedMessage: $"Path does not exist: {path}",
+            details: [new DiagnosticDetail("path", path)],
+            suggestions: ["确认路径是否正确"]);
+
+    internal static ToolDiagnostic BuildVerificationFailedDiagnostic(int failedCount) =>
+        ToolDiagnostic.Create(
+            reason: "验证失败",
+            formattedMessage: $"{failedCount} verification check(s) failed",
+            details: [new DiagnosticDetail("failed_count", failedCount.ToString())]);
+
+    internal static ToolDiagnostic BuildEmptyPatternDiagnostic() =>
+        ToolDiagnostic.Create(
+            reason: "参数验证失败",
+            formattedMessage: "pattern cannot be empty",
+            details: [new DiagnosticDetail("field", "pattern")]);
 
     private IReadOnlyList<(string Category, int Line, string Suggestion)> AnalyzeCodeForSimplification(string content, string extension, CodeSimplifyType type)
     {

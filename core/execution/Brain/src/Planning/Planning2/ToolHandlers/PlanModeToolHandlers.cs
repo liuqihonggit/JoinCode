@@ -25,7 +25,8 @@ public class PlanModeToolHandlers
         // 原因: 退出审批对话框需要终端交互，channels 用户不在终端前会导致对话框挂起
         if (_channelStateService?.IsChannelsEnabled == true)
         {
-            return ToolResultBuilder.Error().WithText("Plan mode is disabled when channels are active. The plan-approval dialog requires terminal interaction, which is not available when the user is on an external channel (Telegram/Discord/etc.).").Build();
+            var diag = BuildChannelsDisabledDiagnostic("enter");
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var result = await _planModeManager.EnterPlanModeAsync(
@@ -33,7 +34,10 @@ public class PlanModeToolHandlers
             cancellationToken: cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
-            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to enter plan mode").Build();
+        {
+            var failDiag = BuildEnterPlanModeFailedDiagnostic(result.ErrorMessage);
+            return ToolResultBuilder.Error().WithText(failDiag.FormattedMessage).WithDiagnostic(failDiag).Build();
+        }
 
         var sb = new System.Text.StringBuilder();
         sb.AppendLine("Entered plan mode. You should now focus on exploring the codebase and designing an implementation approach.");
@@ -71,7 +75,8 @@ public class PlanModeToolHandlers
         // 原因: 与 EnterPlanMode 配对，防止模型进入 PlanMode 后无法退出
         if (_channelStateService?.IsChannelsEnabled == true)
         {
-            return ToolResultBuilder.Error().WithText("Plan mode exit is disabled when channels are active. The plan-approval dialog requires terminal interaction.").Build();
+            var diag = BuildChannelsDisabledDiagnostic("exit");
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         // 对齐 TS AllowedPrompt: 将 Dictionary[] 转换为结构化 AllowedPrompt[]
@@ -87,7 +92,10 @@ public class PlanModeToolHandlers
             cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
-            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to exit plan mode").Build();
+        {
+            var failDiag = BuildExitPlanModeFailedDiagnostic(result.ErrorMessage);
+            return ToolResultBuilder.Error().WithText(failDiag.FormattedMessage).WithDiagnostic(failDiag).Build();
+        }
 
         // 对齐 TS: teammate 退出 PlanMode 时等待 leader 审批
         // TS 返回 { awaitingLeaderApproval: true, requestId, plan, filePath }
@@ -168,7 +176,8 @@ public class PlanModeToolHandlers
         var validationError = ValidateCommand(command);
         if (validationError != null)
         {
-            return ToolResultBuilder.Error().WithText(validationError).Build();
+            var diag = BuildValidationErrorDiagnostic("add_step", validationError);
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var result = await _planModeManager.AddStepAsync(
@@ -179,7 +188,8 @@ public class PlanModeToolHandlers
 
         if (!result.Success)
         {
-            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "添加步骤失败").Build();
+            var failDiag = BuildOperationFailedDiagnostic("add_step", "添加步骤失败", result.ErrorMessage);
+            return ToolResultBuilder.Error().WithText(failDiag.FormattedMessage).WithDiagnostic(failDiag).Build();
         }
 
         var response = new System.Text.StringBuilder();
@@ -203,14 +213,16 @@ public class PlanModeToolHandlers
         var validationError = ValidateCommand(command);
         if (validationError != null)
         {
-            return ToolResultBuilder.Error().WithText(validationError).Build();
+            var diag = BuildValidationErrorDiagnostic("approve_step", validationError);
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var result = await _planModeManager.ApproveStepAsync(command.StepIndex, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
-            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "批准步骤失败").Build();
+            var failDiag = BuildOperationFailedDiagnostic("approve_step", "批准步骤失败", result.ErrorMessage);
+            return ToolResultBuilder.Error().WithText(failDiag.FormattedMessage).WithDiagnostic(failDiag).Build();
         }
 
         var response = $"步骤 {command.StepIndex} 已批准";
@@ -230,14 +242,16 @@ public class PlanModeToolHandlers
         var validationError = ValidateCommand(command);
         if (validationError != null)
         {
-            return ToolResultBuilder.Error().WithText(validationError).Build();
+            var diag = BuildValidationErrorDiagnostic("reject_step", validationError);
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var result = await _planModeManager.RejectStepAsync(command.StepIndex, command.Reason, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
-            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "拒绝步骤失败").Build();
+            var failDiag = BuildOperationFailedDiagnostic("reject_step", "拒绝步骤失败", result.ErrorMessage);
+            return ToolResultBuilder.Error().WithText(failDiag.FormattedMessage).WithDiagnostic(failDiag).Build();
         }
 
         var response = new System.Text.StringBuilder();
@@ -261,7 +275,8 @@ public class PlanModeToolHandlers
 
         if (!result.Success)
         {
-            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "执行步骤失败").Build();
+            var failDiag = BuildOperationFailedDiagnostic("execute_steps", "执行步骤失败", result.ErrorMessage);
+            return ToolResultBuilder.Error().WithText(failDiag.FormattedMessage).WithDiagnostic(failDiag).Build();
         }
 
         var response = new System.Text.StringBuilder();
@@ -297,7 +312,8 @@ public class PlanModeToolHandlers
         var validationError = ValidateCommand(command);
         if (validationError != null)
         {
-            return ToolResultBuilder.Error().WithText(validationError).Build();
+            var diag = BuildValidationErrorDiagnostic("modify_step", validationError);
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var result = await _planModeManager.ModifyStepAsync(
@@ -309,7 +325,8 @@ public class PlanModeToolHandlers
 
         if (!result.Success)
         {
-            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "修改步骤失败").Build();
+            var failDiag = BuildOperationFailedDiagnostic("modify_step", "修改步骤失败", result.ErrorMessage);
+            return ToolResultBuilder.Error().WithText(failDiag.FormattedMessage).WithDiagnostic(failDiag).Build();
         }
 
         var response = $"步骤 {command.StepIndex} 已修改";
@@ -328,14 +345,16 @@ public class PlanModeToolHandlers
         var validationError = ValidateCommand(command);
         if (validationError != null)
         {
-            return ToolResultBuilder.Error().WithText(validationError).Build();
+            var diag = BuildValidationErrorDiagnostic("remove_step", validationError);
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var result = await _planModeManager.RemoveStepAsync(command.StepIndex, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
-            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "删除步骤失败").Build();
+            var failDiag = BuildOperationFailedDiagnostic("remove_step", "删除步骤失败", result.ErrorMessage);
+            return ToolResultBuilder.Error().WithText(failDiag.FormattedMessage).WithDiagnostic(failDiag).Build();
         }
 
         var response = $"步骤 {command.StepIndex} 已删除";
@@ -376,6 +395,95 @@ public class PlanModeToolHandlers
 
         return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
+
+    #region Diagnostic Builders
+
+    internal static ToolDiagnostic BuildChannelsDisabledDiagnostic(string operation)
+    {
+        var msg = operation == "enter"
+            ? "Plan mode is disabled when channels are active. The plan-approval dialog requires terminal interaction, which is not available when the user is on an external channel (Telegram/Discord/etc.)."
+            : "Plan mode exit is disabled when channels are active. The plan-approval dialog requires terminal interaction.";
+        return ToolDiagnostic.Create(
+            reason: $"PlanModeChannelsDisabled_{operation}",
+            formattedMessage: msg,
+            details:
+            [
+                new DiagnosticDetail("Operation", operation),
+                new DiagnosticDetail("Reason", "Channels are active, terminal interaction unavailable"),
+            ],
+            suggestions:
+            [
+                "Disable channels before using plan mode.",
+            ]);
+    }
+
+    internal static ToolDiagnostic BuildEnterPlanModeFailedDiagnostic(string? errorMessage)
+    {
+        var msg = errorMessage ?? "Failed to enter plan mode";
+        return ToolDiagnostic.Create(
+            reason: "EnterPlanModeFailed",
+            formattedMessage: msg,
+            details:
+            [
+                new DiagnosticDetail("Error", msg),
+            ],
+            suggestions:
+            [
+                "Check if plan mode is already active.",
+            ]);
+    }
+
+    internal static ToolDiagnostic BuildExitPlanModeFailedDiagnostic(string? errorMessage)
+    {
+        var msg = errorMessage ?? "Failed to exit plan mode";
+        return ToolDiagnostic.Create(
+            reason: "ExitPlanModeFailed",
+            formattedMessage: msg,
+            details:
+            [
+                new DiagnosticDetail("Error", msg),
+            ],
+            suggestions:
+            [
+                "Ensure a plan exists before exiting plan mode.",
+            ]);
+    }
+
+    internal static ToolDiagnostic BuildValidationErrorDiagnostic(string operation, string validationError)
+    {
+        return ToolDiagnostic.Create(
+            reason: $"PlanValidation_{operation}",
+            formattedMessage: validationError,
+            details:
+            [
+                new DiagnosticDetail("Operation", operation),
+                new DiagnosticDetail("Error", validationError),
+            ],
+            suggestions:
+            [
+                "Fix the validation error and retry.",
+            ]);
+    }
+
+    internal static ToolDiagnostic BuildOperationFailedDiagnostic(
+        string operation, string defaultMessage, string? errorMessage)
+    {
+        var msg = errorMessage ?? defaultMessage;
+        return ToolDiagnostic.Create(
+            reason: $"PlanOperationFailed_{operation}",
+            formattedMessage: msg,
+            details:
+            [
+                new DiagnosticDetail("Operation", operation),
+                new DiagnosticDetail("Error", msg),
+            ],
+            suggestions:
+            [
+                "Check the plan state and retry.",
+            ]);
+    }
+
+    #endregion
 
     #region Private Methods
 

@@ -26,13 +26,13 @@ namespace JoinCode.Gui.Tests.Hosting;
 public class JccChatSessionAssemblyTests
 {
     [Fact]
-    public void ProviderModelMap_DumpAllData()
+    public void VendorModelMap_DumpAllData()
     {
         var session = new PlaceholderChatSession();
-        var map = session.ProviderModelMap;
+        var map = session.VendorModelMap;
 
-        map.Keys.Should().BeEquivalentTo(["anthropic", "openai", "deepseek", "agnes"]);
-        map.Count.Should().Be(4);
+        map.Keys.Should().BeEquivalentTo(["anthropic", "openai", "deepseek", "agnes", "sensenova"]);
+        map.Count.Should().Be(5);
 
         map["deepseek"].Should().BeEquivalentTo(["deepseek-v4-flash", "deepseek-v4-pro"]);
         map["deepseek"].Count.Should().Be(2);
@@ -56,22 +56,27 @@ public class JccChatSessionAssemblyTests
             "agnes-1.5-flash", "agnes-2.0-flash", "agnes-image-2.0-flash", "agnes-image-2.1-flash", "agnes-video-v2.0"
         ]);
         map["agnes"].Count.Should().Be(5);
+
+        map["sensenova"].Should().BeEquivalentTo([
+            "sensenova-6.7-flash-lite", "sensenova-u1-fast", "deepseek-v4-flash"
+        ]);
+        map["sensenova"].Count.Should().Be(3);
     }
 
     [Fact]
-    public void ProviderModelMap_MultipleInstances_AreIdentical()
+    public void VendorModelMap_MultipleInstances_AreIdentical()
     {
         var s1 = new PlaceholderChatSession();
         var s2 = new PlaceholderChatSession();
         var s3 = new PlaceholderChatSession();
 
-        s1.ProviderModelMap.Keys.Should().BeEquivalentTo(s2.ProviderModelMap.Keys);
-        s2.ProviderModelMap.Keys.Should().BeEquivalentTo(s3.ProviderModelMap.Keys);
+        s1.VendorModelMap.Keys.Should().BeEquivalentTo(s2.VendorModelMap.Keys);
+        s2.VendorModelMap.Keys.Should().BeEquivalentTo(s3.VendorModelMap.Keys);
 
-        foreach (var key in s1.ProviderModelMap.Keys)
+        foreach (var key in s1.VendorModelMap.Keys)
         {
-            s1.ProviderModelMap[key].Should().BeEquivalentTo(s2.ProviderModelMap[key]);
-            s2.ProviderModelMap[key].Should().BeEquivalentTo(s3.ProviderModelMap[key]);
+            s1.VendorModelMap[key].Should().BeEquivalentTo(s2.VendorModelMap[key]);
+            s2.VendorModelMap[key].Should().BeEquivalentTo(s3.VendorModelMap[key]);
         }
     }
 
@@ -88,7 +93,7 @@ public class JccChatSessionAssemblyTests
         {
             Provider = new ProviderConfig
             {
-                Provider = "openai",
+                Vendor = "openai",
                 ApiKey = "sk-test-non-pipe",
                 ModelId = "gpt-4o"
             },
@@ -130,7 +135,7 @@ public class JccChatSessionAssemblyTests
         {
             Provider = new ProviderConfig
             {
-                Provider = "openai",
+                Vendor = "openai",
                 ModelId = "gpt-4o"
             }
         };
@@ -139,18 +144,18 @@ public class JccChatSessionAssemblyTests
             null!,
             config);
 
-        session.CurrentProvider.Should().Be("openai");
+        session.CurrentVendor.Should().Be("openai");
         session.CurrentModelId.Should().Be("gpt-4o");
     }
 
     [Fact]
-    public void ModelSurface_ProviderModelMap_ComesFromSharedModelConfigLoader()
+    public void ModelSurface_VendorModelMap_ComesFromSharedModelConfigLoader()
     {
         var config = new WorkflowConfig
         {
             Provider = new ProviderConfig
             {
-                Provider = "openai",
+                Vendor = "openai",
                 ModelId = "gpt-4o"
             }
         };
@@ -162,19 +167,19 @@ public class JccChatSessionAssemblyTests
         var expected = JoinCode.Abstractions.Configuration.Llm.ModelConfigLoader
             .GetModels("openai").Select(m => m.Id).ToArray();
 
-        session.ProviderModelMap["openai"].Should().BeEquivalentTo(expected);
-        session.ProviderModelMap["openai"].Should().Contain("gpt-4o");
+        session.VendorModelMap["openai"].Should().BeEquivalentTo(expected);
+        session.VendorModelMap["openai"].Should().Contain("gpt-4o");
     }
 
     [Fact]
-    public void ModelSurface_ProviderModelMap_DoesNotIncludeCustomModel()
+    public void ModelSurface_VendorModelMap_DoesNotIncludeCustomModel()
     {
-        // ProviderModelMap 是纯配置数据，不追加当前模型（追加逻辑在 MainViewModel.RebuildModelOptionsCache）
+        // VendorModelMap 是纯配置数据，不追加当前模型（追加逻辑在 MainViewModel.RebuildModelOptionsCache）
         var config = new WorkflowConfig
         {
             Provider = new ProviderConfig
             {
-                Provider = "openai",
+                Vendor = "openai",
                 ModelId = "sensenova-6.7-flash-lite"
             }
         };
@@ -183,17 +188,17 @@ public class JccChatSessionAssemblyTests
             null!,
             config);
 
-        session.ProviderModelMap["openai"].Should().NotContain("sensenova-6.7-flash-lite");
+        session.VendorModelMap["openai"].Should().NotContain("sensenova-6.7-flash-lite");
     }
 
     [Fact]
-    public void ModelSurface_ProviderModelMap_DoesNotDuplicateCatalogModel()
+    public void ModelSurface_VendorModelMap_DoesNotDuplicateCatalogModel()
     {
         var config = new WorkflowConfig
         {
             Provider = new ProviderConfig
             {
-                Provider = "openai",
+                Vendor = "openai",
                 ModelId = "gpt-4o"
             }
         };
@@ -202,7 +207,7 @@ public class JccChatSessionAssemblyTests
             null!,
             config);
 
-        session.ProviderModelMap["openai"].Count(m => m == "gpt-4o").Should().Be(1);
+        session.VendorModelMap["openai"].Count(m => m == "gpt-4o").Should().Be(1);
     }
 
     [Fact]
@@ -226,7 +231,7 @@ public class JccChatSessionAssemblyTests
         var provider = new ExecutionSettingsProvider(
             new WorkflowConfig
             {
-                Provider = new ProviderConfig { Provider = "openai", ModelId = "gpt-4o" }
+                Provider = new ProviderConfig { Vendor = "openai", ModelId = "gpt-4o" }
             },
             new InMemoryFileSystem(),
             null!);
@@ -248,7 +253,7 @@ public class JccChatSessionAssemblyTests
         {
             Provider = new ProviderConfig
             {
-                Provider = "openai",
+                Vendor = "openai",
                 ModelId = "gpt-4o"
             }
         };
@@ -275,7 +280,7 @@ public class JccChatSessionAssemblyTests
         {
             Provider = new ProviderConfig
             {
-                Provider = "openai",
+                Vendor = "openai",
                 ModelId = "gpt-4o"
             }
         };
@@ -297,7 +302,7 @@ public class JccChatSessionAssemblyTests
         {
             Provider = new ProviderConfig
             {
-                Provider = "openai",
+                Vendor = "openai",
                 ModelId = "gpt-4o"
             }
         };
@@ -316,7 +321,7 @@ public class JccChatSessionAssemblyTests
         var provider = new ExecutionSettingsProvider(
             new WorkflowConfig
             {
-                Provider = new ProviderConfig { Provider = "openai", ModelId = "gpt-4o" }
+                Provider = new ProviderConfig { Vendor = "openai", ModelId = "gpt-4o" }
             },
             new InMemoryFileSystem(),
             null!)
@@ -328,7 +333,7 @@ public class JccChatSessionAssemblyTests
             null!,
             new WorkflowConfig
             {
-                Provider = new ProviderConfig { Provider = "openai", ModelId = "gpt-4o" }
+                Provider = new ProviderConfig { Vendor = "openai", ModelId = "gpt-4o" }
             },
             provider);
 
@@ -343,7 +348,7 @@ public class JccChatSessionAssemblyTests
         var provider = new ExecutionSettingsProvider(
             new WorkflowConfig
             {
-                Provider = new ProviderConfig { Provider = "openai", ModelId = "gpt-4o" }
+                Provider = new ProviderConfig { Vendor = "openai", ModelId = "gpt-4o" }
             },
             new InMemoryFileSystem(),
             null!);
@@ -352,7 +357,7 @@ public class JccChatSessionAssemblyTests
             null!,
             new WorkflowConfig
             {
-                Provider = new ProviderConfig { Provider = "openai", ModelId = "gpt-4o" }
+                Provider = new ProviderConfig { Vendor = "openai", ModelId = "gpt-4o" }
             },
             provider);
 
@@ -379,7 +384,7 @@ public class JccChatSessionAssemblyTests
             fakeChat,
             new WorkflowConfig
             {
-                Provider = new ProviderConfig { Provider = "openai", ModelId = "gpt-4o" }
+                Provider = new ProviderConfig { Vendor = "openai", ModelId = "gpt-4o" }
             });
 
         await session.SetSystemPromptAsync("你是测试助手，请简洁回答");
@@ -403,7 +408,7 @@ public class JccChatSessionAssemblyTests
         {
             Provider = new ProviderConfig
             {
-                Provider = "openai",
+                Vendor = "openai",
                 ModelId = "gpt-4o"
             }
         };

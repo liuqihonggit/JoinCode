@@ -25,6 +25,7 @@ global using JoinCode.Abstractions.Security.Shell;
 global using JoinCode.Abstractions.State;
 global using JoinCode.Abstractions.Utils;
 global using Core.Memdir;
+global using Core.Memdir.ToolHandlers;
 global using JoinCode.Vault.DependencyInjection;
 
 global using IO;

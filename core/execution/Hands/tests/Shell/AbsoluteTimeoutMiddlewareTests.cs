@@ -50,6 +50,10 @@ public class AbsoluteTimeoutMiddlewareTests
         text.Should().Contain("超时");
         text.Should().Contain("resume_timed_out_task");
         text.Should().Contain(context.Command);
+        context.Result.Diagnostic.Should().NotBeNull();
+        context.Result.Diagnostic!.Reason.Should().Be("命令执行超时");
+        context.Result.Diagnostic.Details.Should().Contain(d => d.Key == "command" && d.Value == context.Command);
+        context.Result.Diagnostic.Suggestions.Should().Contain(s => s.Contains("resume_timed_out_task"));
     }
 
     [Fact]
@@ -81,6 +85,9 @@ public class AbsoluteTimeoutMiddlewareTests
         context.Result!.IsError.Should().BeTrue();
         var text = context.Result.GetFirstText();
         text.Should().Contain("1秒");
+        context.Result.Diagnostic.Should().NotBeNull();
+        context.Result.Diagnostic!.Reason.Should().Be("命令执行超时");
+        context.Result.Diagnostic.Details.Should().Contain(d => d.Key == "timeout_seconds" && d.Value == "1");
     }
 
     [Fact]
@@ -109,6 +116,20 @@ public class AbsoluteTimeoutMiddlewareTests
             Provider = provider.Object,
             TimeoutPolicy = policy,
         };
+    }
+
+    [Fact]
+    public void BuildTimeoutDiagnostic_ReturnsCorrectStructure()
+    {
+        var diagnostic = AbsoluteTimeoutMiddleware.BuildTimeoutDiagnostic("msg", "cmd", 30, "Bash");
+
+        diagnostic.Reason.Should().Be("命令执行超时");
+        diagnostic.FormattedMessage.Should().Be("msg");
+        diagnostic.Details.Should().HaveCount(3);
+        diagnostic.Details.Should().Contain(d => d.Key == "command" && d.Value == "cmd");
+        diagnostic.Details.Should().Contain(d => d.Key == "timeout_seconds" && d.Value == "30");
+        diagnostic.Details.Should().Contain(d => d.Key == "tool" && d.Value == "Bash");
+        diagnostic.Suggestions.Should().ContainSingle();
     }
 }
 

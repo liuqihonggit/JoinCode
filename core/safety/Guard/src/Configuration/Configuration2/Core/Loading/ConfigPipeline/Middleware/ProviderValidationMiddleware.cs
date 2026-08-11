@@ -17,13 +17,13 @@ public sealed partial class ProviderValidationMiddleware : ServiceEntity, IConfi
     public Task InvokeAsync(ConfigLoadContext context, MiddlewareDelegate<ConfigLoadContext> next, CancellationToken ct)
     {
         var config = context.Config;
-        var definition = _registry.TryGet(config.Provider.Provider);
+        var definition = _registry.TryGet(config.Provider.Vendor);
         if (definition is not null && !definition.IsValid(config.Provider))
         {
             throw new ConfigurationException(
-                $"Provider '{config.Provider.Provider}' 配置无效: 缺少 API Key。" +
+                $"Provider '{config.Provider.Vendor}' 配置无效: 缺少 API Key。" +
                 $"请设置环境变量 {definition.ApiKeyEnvironmentVariable ?? "JCC_API_KEY"}" +
-                $" 或在 {WorkflowConstants.Paths.AuthFilePath} 中添加 '{config.Provider.Provider}' 键。");
+                $" 或在 {WorkflowConstants.Paths.AuthFilePath} 中添加 '{config.Provider.Vendor}' 键。");
         }
 
         context.Result = config;

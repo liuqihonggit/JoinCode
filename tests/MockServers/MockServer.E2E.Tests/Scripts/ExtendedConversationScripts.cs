@@ -1,11 +1,10 @@
-namespace MockServer.E2E.Tests.Scripts;
+﻿namespace MockServer.E2E.Tests.Scripts;
 
 public static class ToolCallScripts
 {
     public static ConversationScript BashToolCall => new()
     {
         Name = "Bash工具调用对话",
-        Mode = ConversationMode.Interactive,
         Turns =
         [
             new ConversationTurn
@@ -37,7 +36,6 @@ public static class ToolCallScripts
     public static ConversationScript ReadFileToolCall => new()
     {
         Name = "ReadFile工具调用对话",
-        Mode = ConversationMode.Interactive,
         Turns =
         [
             new ConversationTurn
@@ -69,7 +67,6 @@ public static class ToolCallScripts
     public static ConversationScript MultiToolCalls => new()
     {
         Name = "多工具调用对话",
-        Mode = ConversationMode.Interactive,
         Turns =
         [
             new ConversationTurn
@@ -107,7 +104,6 @@ public static class ToolCallScripts
     public static ConversationScript UnknownToolCall => new()
     {
         Name = "未知工具调用",
-        Mode = ConversationMode.Interactive,
         Turns =
         [
             new ConversationTurn
@@ -140,7 +136,6 @@ public static class ToolCallScripts
     public static ConversationScript ThinkingThenResponse => new()
     {
         Name = "思考后回复",
-        Mode = ConversationMode.Interactive,
         Turns =
         [
             new ConversationTurn
@@ -164,7 +159,6 @@ public static class ToolCallScripts
     public static ConversationScript ToolCallWithFollowUpText => new()
     {
         Name = "工具调用后文本回复",
-        Mode = ConversationMode.Interactive,
         Turns =
         [
             new ConversationTurn
@@ -199,7 +193,6 @@ public static class MultiTurnScripts
     public static ConversationScript FiveRoundMemory => new()
     {
         Name = "五轮对话记忆",
-        Mode = ConversationMode.Interactive,
         Turns =
         [
             new ConversationTurn
@@ -238,7 +231,6 @@ public static class MultiTurnScripts
     public static ConversationScript ToolCallThenFollowUp => new()
     {
         Name = "工具调用后追问",
-        Mode = ConversationMode.Interactive,
         Turns =
         [
             new ConversationTurn
@@ -275,7 +267,6 @@ public static class PromptInjectionScripts
     public static ConversationScript NegativeKeyword => new()
     {
         Name = "负面关键词触发适应性提示词",
-        Mode = ConversationMode.Interactive,
         Turns =
         [
             new ConversationTurn
@@ -294,7 +285,6 @@ public static class PromptInjectionScripts
     public static ConversationScript KeepGoingKeyword => new()
     {
         Name = "继续关键词触发延续提示词",
-        Mode = ConversationMode.Interactive,
         Turns =
         [
             new ConversationTurn
@@ -315,7 +305,6 @@ public static class PromptInjectionScripts
     public static ConversationScript NormalInputNoInjection => new()
     {
         Name = "正常输入不触发注入",
-        Mode = ConversationMode.Interactive,
         Turns =
         [
             new ConversationTurn
@@ -337,7 +326,6 @@ public static class EdgeCaseScripts
     public static ConversationScript EmptyInput => new()
     {
         Name = "空输入处理",
-        Mode = ConversationMode.Interactive,
         Turns =
         [
             new ConversationTurn
@@ -352,7 +340,6 @@ public static class EdgeCaseScripts
     public static ConversationScript ExitCommand => new()
     {
         Name = "退出命令",
-        Mode = ConversationMode.Interactive,
         Turns =
         [
             new ConversationTurn
@@ -367,7 +354,6 @@ public static class EdgeCaseScripts
     public static ConversationScript TokenUsageNoError => new()
     {
         Name = "TokenUsage反序列化无错误",
-        Mode = ConversationMode.Interactive,
         Turns =
         [
             new ConversationTurn
@@ -387,7 +373,6 @@ public static class EdgeCaseScripts
     public static ConversationScript LongStreamingResponse => new()
     {
         Name = "长流式响应",
-        Mode = ConversationMode.Interactive,
         Turns =
         [
             new ConversationTurn
@@ -413,7 +398,6 @@ public static class PrefixCacheScripts
     public static ConversationScript ThreeTurnPrefixStable => new()
     {
         Name = "三轮对话前缀缓存稳定",
-        Mode = ConversationMode.Interactive,
         DumpMessages = true,
         Turns =
         [
@@ -441,7 +425,6 @@ public static class PrefixCacheScripts
     public static ConversationScript FiveTurnPrefixStable => new()
     {
         Name = "五轮对话前缀缓存稳定",
-        Mode = ConversationMode.Interactive,
         DumpMessages = true,
         Turns =
         [
@@ -481,7 +464,6 @@ public static class PrefixCacheScripts
     public static ConversationScript ToolCallPrefixStable => new()
     {
         Name = "工具调用后前缀缓存稳定",
-        Mode = ConversationMode.Interactive,
         DumpMessages = true,
         Turns =
         [
@@ -518,7 +500,6 @@ public static class ToolIterationScripts
     public static ConversationScript SequentialToolCalls => new()
     {
         Name = "连续工具调用迭代",
-        Mode = ConversationMode.Interactive,
         Turns =
         [
             new ConversationTurn
@@ -565,7 +546,6 @@ public static class ToolIterationScripts
     public static ConversationScript ToolCallThenErrorRecovery => new()
     {
         Name = "工具调用后错误恢复",
-        Mode = ConversationMode.Interactive,
         Turns =
         [
             new ConversationTurn
@@ -607,7 +587,6 @@ public static class ToolIterationScripts
     public static ConversationScript ThreeRoundToolIteration => new()
     {
         Name = "三轮工具调用迭代",
-        Mode = ConversationMode.Interactive,
         Turns =
         [
             new ConversationTurn
@@ -668,7 +647,6 @@ public static class ToolIterationScripts
     public static ConversationScript ToolCallContextPreservation => new()
     {
         Name = "工具调用后上下文保持",
-        Mode = ConversationMode.Interactive,
         Turns =
         [
             new ConversationTurn
@@ -720,7 +698,6 @@ public static class ToolIterationScripts
     public static ConversationScript MixedToolAndTextConversation => new()
     {
         Name = "混合工具和文本对话",
-        Mode = ConversationMode.Interactive,
         Turns =
         [
             new ConversationTurn

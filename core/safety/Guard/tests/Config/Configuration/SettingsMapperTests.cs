@@ -79,24 +79,83 @@ public class SettingsMapperTests
     #region 场景2: 环境变量覆盖
 
     [Fact]
-    public void Given_环境变量JCC_PROVIDER_When_ApplyEnvOverrides_Then_Provider被覆盖()
+    public void Given_环境变量JCC_VENDOR_When_ApplyEnvOverrides_Then_Provider被覆盖()
     {
         // Given
         var config = new WorkflowConfig();
-        config.Provider.Provider = ProviderKind.DeepSeek.ToValue();
-        Environment.SetEnvironmentVariable(JccEnvVar.Provider.ToValue(), "anthropic");
+        config.Provider.Vendor = VendorKind.DeepSeek.ToValue();
+        Environment.SetEnvironmentVariable(JccEnvVar.Vendor.ToValue(), "anthropic");
         try
         {
             // When
             _mapper.ApplyEnvOverrides(config);
 
             // Then
-            config.Provider.Provider.Should().Be("anthropic");
+            config.Provider.Vendor.Should().Be("anthropic");
         }
         finally
         {
-            Environment.SetEnvironmentVariable(JccEnvVar.Provider.ToValue(), null);
+            Environment.SetEnvironmentVariable(JccEnvVar.Vendor.ToValue(), null);
         }
+    }
+
+    [Fact]
+    public void Given_环境变量JCC_VENDOR为anthropic_When_ApplyEnvOverrides_Then_Protocol同步为anthropic()
+    {
+        // Given
+        var config = new WorkflowConfig();
+        config.Provider.Vendor = VendorKind.DeepSeek.ToValue();
+        config.Provider.Protocol = ProtocolKind.OpenAiCompatible.ToValue();
+        Environment.SetEnvironmentVariable(JccEnvVar.Vendor.ToValue(), "anthropic");
+        try
+        {
+            // When
+            _mapper.ApplyEnvOverrides(config);
+
+            // Then: Vendor 切换为 anthropic 时，Protocol 应同步为 anthropic 协议
+            config.Provider.Vendor.Should().Be("anthropic");
+            config.Provider.Protocol.Should().Be(ProtocolKind.Anthropic.ToValue());
+            config.Provider.ProtocolKind.Should().Be(ProtocolKind.Anthropic);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(JccEnvVar.Vendor.ToValue(), null);
+        }
+    }
+
+    [Fact]
+    public void Given_环境变量JCC_PROTOCOL_When_ApplyEnvOverrides_Then_Protocol被覆盖()
+    {
+        // Given
+        var config = new WorkflowConfig();
+        config.Provider.Protocol = ProtocolKind.OpenAiCompatible.ToValue();
+        Environment.SetEnvironmentVariable(JccEnvVar.Protocol.ToValue(), "anthropic");
+        try
+        {
+            // When
+            _mapper.ApplyEnvOverrides(config);
+
+            // Then
+            config.Provider.Protocol.Should().Be("anthropic");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(JccEnvVar.Protocol.ToValue(), null);
+        }
+    }
+
+    [Fact]
+    public void Given_SettingsJson的provider为anthropic_When_ToWorkflowConfig_Then_Protocol同步为anthropic()
+    {
+        // Given
+        var settings = new SettingsJson { Provider = "anthropic" };
+
+        // When
+        var config = _mapper.ToWorkflowConfig(settings);
+
+        // Then
+        config.Provider.Vendor.Should().Be("anthropic");
+        config.Provider.Protocol.Should().Be(ProtocolKind.Anthropic.ToValue());
     }
 
     [Fact]
@@ -146,11 +205,11 @@ public class SettingsMapperTests
     {
         // Given
         var config = new WorkflowConfig();
-        config.Provider.Provider = ProviderKind.DeepSeek.ToValue();
+        config.Provider.Vendor = VendorKind.DeepSeek.ToValue();
         var testModelId = "deepseek-v4-flash";
         config.Provider.ModelId = testModelId;
         // 清除可能存在的环境变量
-        Environment.SetEnvironmentVariable(JccEnvVar.Provider.ToValue(), null);
+        Environment.SetEnvironmentVariable(JccEnvVar.Vendor.ToValue(), null);
         Environment.SetEnvironmentVariable(JccEnvVar.ModelId.ToValue(), null);
         Environment.SetEnvironmentVariable(JccEnvVar.ApiKey.ToValue(), null);
         Environment.SetEnvironmentVariable(JccEnvVar.Endpoint.ToValue(), null);
@@ -159,7 +218,7 @@ public class SettingsMapperTests
         _mapper.ApplyEnvOverrides(config);
 
         // Then
-        config.Provider.Provider.Should().Be(ProviderKind.DeepSeek.ToValue());
+        config.Provider.Vendor.Should().Be(VendorKind.DeepSeek.ToValue());
         config.Provider.ModelId.Should().Be(testModelId);
     }
 

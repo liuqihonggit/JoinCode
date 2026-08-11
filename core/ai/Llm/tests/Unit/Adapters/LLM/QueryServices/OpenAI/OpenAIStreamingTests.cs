@@ -13,10 +13,10 @@ public class OpenAIStreamingTests
 {
     private static OpenAIQueryService CreateServiceWithMockResponse(string sseBody)
     {
-        var kind = ProviderKindExtensions.FromValue("openai") ?? ProviderKind.OpenAI;
+        var kind = ProtocolKind.OpenAiCompatible;
         var config = new ProviderConfig
         {
-            Provider = "openai",
+            Vendor = "openai",
             ApiKey = "sk-test",
             ModelId = "gpt-4o",
             Definition = new FallbackProviderDefinition(kind)

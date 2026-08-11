@@ -260,6 +260,9 @@ public class ShellBuildInterceptMiddlewareTests
         context.ExecutionResult.Should().NotBeNull();
         context.ExecutionResult!.ExitCode.Should().Be(1);
         context.Result!.GetTextContent().Should().Contain("error CS0001");
+        context.Result.Diagnostic.Should().NotBeNull();
+        context.Result.Diagnostic!.Reason.Should().Be("构建失败");
+        context.Result.Diagnostic.Details.Should().Contain(d => d.Key == "exit_code" && d.Value == "1");
     }
 
     [Fact]
@@ -283,6 +286,32 @@ public class ShellBuildInterceptMiddlewareTests
 
         context.Result.Should().NotBeNull();
         context.Result!.GetTextContent().Should().Contain("cancelled");
+        context.Result.Diagnostic.Should().NotBeNull();
+        context.Result.Diagnostic!.Reason.Should().Be("构建已取消");
+        context.Result.Diagnostic.Details.Should().Contain(d => d.Key == "build_id" && d.Value == "b-0001");
+    }
+
+    [Fact]
+    public void BuildCancelledDiagnostic_ReturnsCorrectStructure()
+    {
+        var diagnostic = ShellBuildInterceptMiddleware.BuildCancelledDiagnostic("b-002");
+
+        diagnostic.Reason.Should().Be("构建已取消");
+        diagnostic.FormattedMessage.Should().Be("Build was cancelled");
+        diagnostic.Details.Should().ContainSingle(d => d.Key == "build_id" && d.Value == "b-002");
+    }
+
+    [Fact]
+    public void BuildFailedDiagnostic_ReturnsCorrectStructure()
+    {
+        var diagnostic = ShellBuildInterceptMiddleware.BuildFailedDiagnostic("b-003", 42);
+
+        diagnostic.Reason.Should().Be("构建失败");
+        diagnostic.FormattedMessage.Should().Contain("b-003");
+        diagnostic.FormattedMessage.Should().Contain("42");
+        diagnostic.Details.Should().Contain(d => d.Key == "build_id" && d.Value == "b-003");
+        diagnostic.Details.Should().Contain(d => d.Key == "exit_code" && d.Value == "42");
+        diagnostic.Suggestions.Should().HaveCount(2);
     }
 
     private static ShellBuildInterceptMiddleware CreateSut(

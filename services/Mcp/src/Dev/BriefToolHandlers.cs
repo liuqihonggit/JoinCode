@@ -98,9 +98,9 @@ public class BriefToolHandlers
                 .WithText($"Message delivered to user.{suffix}")
                 .Build());
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            return Task.FromResult(ToolResultBuilder.Error().WithText($"Failed to send message: {ex.Message}").Build());
+            return Task.FromResult(ToolExceptionDiagnosticHelper.BuildErrorResult("brief", ex, null));
         }
     }
 }

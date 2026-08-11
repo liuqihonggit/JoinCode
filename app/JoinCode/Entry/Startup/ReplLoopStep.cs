@@ -15,50 +15,112 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
 
     public async Task InvokeAsync(StartupContext context, MiddlewareDelegate<StartupContext> next, CancellationToken ct)
     {
+        var p = context.Config.Provider;
+        using (Cli.TerminalHelper.SetColor(ConsoleColor.DarkGray))
+        {
+            Cli.TerminalHelper.WriteLine($"当前配置: 供应商={p.Vendor}, 模型={p.ModelId}");
+            Cli.TerminalHelper.WriteLine($"  端点={p.Endpoint ?? "(默认)"}, API Key={(string.IsNullOrEmpty(p.ApiKey) ? "未配置" : "已配置")}");
+        }
         Cli.TerminalHelper.WriteLine("JoinCode CLI - 输入消息或 /help 查看命令");
         Cli.TerminalHelper.WriteLine();
         Diag.WriteLifecycle("[READY]");
 
         var session = context.Session ?? throw new InvalidOperationException("Session not initialized");
 
+        var inputChannel = System.Threading.Channels.Channel.CreateUnbounded<string>();
+
+        var readTask = Task.Run(async () =>
+        {
+            try
+            {
+                while (!ct.IsCancellationRequested)
+                {
+                    using var _ = Cli.TerminalHelper.SetColor(ConsoleColor.Green);
+                    Cli.TerminalHelper.WriteRaw("> ");
+
+                    if (System.Console.IsInputRedirected && !Cli.TerminalHelper.ForceInteractive)
+                    {
+                        Diag.WriteLifecycle("[DIAG-REPL] stdin redirected, ForceInteractive=false, returning empty");
+                        inputChannel.Writer.TryWrite(string.Empty);
+                        return;
+                    }
+
+                    Diag.WriteLifecycle("[DIAG-REPL] ReadLineAsync calling...");
+                    string? input;
+                    try
+                    {
+                        input = await System.Console.In.ReadLineAsync(ct).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        Diag.WriteLifecycle("[DIAG-REPL] ReadLineAsync canceled");
+                        break;
+                    }
+
+                    Diag.WriteLifecycle($"[DIAG-REPL] ReadLineAsync returned: '{(input is not null && input.Length > 60 ? input[..60] + "..." : input)}', IsNull={input is null}");
+
+                    if (input is null)
+                    {
+                        Diag.WriteLifecycle("[DIAG-REPL] ReadLineAsync returned null (EOF), exiting read loop");
+                        break;
+                    }
+
+                    if (string.IsNullOrWhiteSpace(input))
+                    {
+                        continue;
+                    }
+
+                    Diag.WriteLifecycle("[DIAG-REPL] TryWrite to channel");
+                    if (!inputChannel.Writer.TryWrite(input)) return;
+                    Diag.WriteLifecycle("[DIAG-REPL] TryWrite succeeded");
+                }
+            }
+            catch (OperationCanceledException) { }
+            finally { inputChannel.Writer.TryComplete(); }
+        }, ct);
+
         while (session.IsRunning && !ct.IsCancellationRequested)
         {
-            Cli.TerminalHelper.WriteRaw("> ");
-            var input = Cli.TerminalHelper.ReadLine();
-
-            if (string.IsNullOrWhiteSpace(input))
+            string combined;
+            try
             {
-                if (Cli.TerminalHelper.IsInputRedirected && !Cli.TerminalHelper.ForceInteractive) break;
-                continue;
+                Diag.WriteLifecycle("[DIAG-REPL] waiting for input...");
+                combined = await inputChannel.Reader.ReadAsync(ct).ConfigureAwait(false);
+                Diag.WriteLifecycle($"[DIAG-REPL] received input: '{(combined.Length > 80 ? combined[..80] + "..." : combined)}'");
             }
+            catch (System.Threading.Channels.ChannelClosedException) { break; }
+
+            while (inputChannel.Reader.TryRead(out var more))
+                combined = string.Concat(combined, "\n", more);
 
             using var stepCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             using var aliveCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
-            // Ctrl+C 中断当前 LLM 调用而非终止进程
-            // 仅在处理期间注册，提示符状态下 Ctrl+C 保持默认退出行为
             void OnCancelKeyPress(object? sender, ConsoleCancelEventArgs e)
             {
-                e.Cancel = true; // 阻止默认进程终止
-                stepCts.Cancel(); // 中断当前处理
+                e.Cancel = true;
+                stepCts.Cancel();
             }
             Console.CancelKeyPress += OnCancelKeyPress;
 
             var aliveTask = RunAliveLoopAsync(aliveCts.Token);
             try
             {
-                await session.ProcessUserInputAsync(input, stepCts.Token);
+                Diag.WriteLifecycle("[DIAG-REPL] calling ProcessUserInputAsync");
+                await session.ProcessUserInputAsync(combined, stepCts.Token);
+                Diag.WriteLifecycle("[DIAG-REPL] ProcessUserInputAsync returned");
             }
             catch (OperationCanceledException) when (stepCts.IsCancellationRequested && !ct.IsCancellationRequested)
             {
-                // Ctrl+C 中断 — 返回提示符继续 REPL 循环
                 Cli.TerminalHelper.WriteLine();
                 Cli.TerminalHelper.WriteLine("(已中断)");
+                Diag.WriteLifecycle("[DIAG-REPL] OperationCanceledException (Ctrl+C)");
             }
             catch (Exception ex)
             {
-                // 单轮失败不应杀死 REPL — 记录错误日志 + 分类提示后继续循环
                 WriteErrorLog(ex);
+                Diag.WriteLifecycle($"[DIAG-REPL] Exception: {ex.GetType().Name}: {ex.Message}");
+                using var _ = Cli.TerminalHelper.SetColor(ConsoleColor.Red);
                 Cli.TerminalHelper.WriteLine($"错误: {ex.Message}");
                 if (ex is JoinCode.Abstractions.Exceptions.ApiException apiEx && apiEx.IsRetryable)
                     Cli.TerminalHelper.WriteLine("  此错误通常可重试，请稍后再试。");
@@ -72,6 +134,9 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
                 Diag.WriteLifecycle("[DONE]");
             }
         }
+
+        inputChannel.Writer.TryComplete();
+        await Task.WhenAny(readTask, Task.Delay(TimeSpan.FromSeconds(2))).ConfigureAwait(false);
 
         Diag.WriteLifecycle("[EXIT]");
         await next(context, ct);
@@ -87,7 +152,7 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
         {
             while (await timer.WaitForNextTickAsync(ct).ConfigureAwait(false))
             {
-                Diag.WriteLifecycle("[ALIVE]");
+                if (Diag.IsVerbose) Diag.WriteLifecycle("[ALIVE]");
             }
         }
         catch (OperationCanceledException) { }

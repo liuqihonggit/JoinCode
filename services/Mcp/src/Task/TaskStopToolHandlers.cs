@@ -76,7 +76,7 @@ public partial class TaskStopToolHandlers
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Failed to stop task {TaskId}", id);
-            return ToolResultBuilder.Error().WithText($"Failed to stop task: {ex.Message}").Build();
+            return ToolExceptionDiagnosticHelper.BuildErrorResult("task_stop", ex, _logger, "task_id", id);
         }
     }
 
@@ -104,9 +104,9 @@ public partial class TaskStopToolHandlers
                 var agentStopped = await _agentCoordinator.StopAgentAsync(id, cancellationToken).ConfigureAwait(false);
                 return (Id: id, Success: taskStopped || agentStopped, Detail: taskStopped || agentStopped ? "stopped" : "not found");
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                return (Id: id, Success: false, Detail: $"error: {ex.Message}");
+                return (Id: id, Success: false, Detail: $"error: [{ex.GetType().Name}] {ex.Message}");
             }
         });
         var results = (await Task.WhenAll(tasks).ConfigureAwait(false)).ToList();

@@ -3,7 +3,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 /// <summary>
 /// LSP工具提示词
 /// </summary>
-[ToolPrompt(ToolName = "LSP", Category = ToolPromptCategory.System)]
+[ToolPrompt(ToolName = CodeToolName.LSP, Category = ToolPromptCategory.System)]
 public static class LSPToolPrompt
 {
     public static string GetDescription() => """

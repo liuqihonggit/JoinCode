@@ -197,12 +197,11 @@ public sealed partial class DestructiveCommandDetector : ServiceEntity, IDestruc
             details.Count > 0 ? string.Join("; ", details) : null);
     }
 
-    private static readonly string[] DangerousPaths =
-    new[] { 
+    private static readonly FrozenSet<string> DangerousPaths = FrozenSet.Create(
+        StringComparer.OrdinalIgnoreCase,
         "/", "C:\\", "C:/", "/*", "C:\\*", "C:/*",
         "/home", "/root", "/etc", "/usr", "/var",
-        "~", "~/", "..", "../", "..\\"
-     };
+        "~", "~/", "..", "../", "..\\");
 
     private static bool IsDangerousPath(string arg)
     {
@@ -211,10 +210,14 @@ public sealed partial class DestructiveCommandDetector : ServiceEntity, IDestruc
             return false;
         }
 
-        return DangerousPaths.Any(dp =>
-            arg.Equals(dp, StringComparison.OrdinalIgnoreCase) ||
-            arg.StartsWith(dp + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
-            arg.StartsWith(dp + "/", StringComparison.OrdinalIgnoreCase) ||
-            arg.StartsWith(dp + "\\", StringComparison.OrdinalIgnoreCase));
+        if (DangerousPaths.Contains(arg)) return true;
+        foreach (var dp in DangerousPaths)
+        {
+            if (arg.StartsWith(dp + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
+                arg.StartsWith(dp + "/", StringComparison.OrdinalIgnoreCase) ||
+                arg.StartsWith(dp + "\\", StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+        return false;
     }
 }

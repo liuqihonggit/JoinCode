@@ -20,9 +20,9 @@ public sealed class ContextCommand : ChatCommandBase
             currentModel = fastModeService.FastModelId;
         }
 
-        var provider = context.Services.WorkflowConfig?.Provider?.Provider
-            ?? Environment.GetEnvironmentVariable(JccEnvVar.Provider.ToValue())
-            ?? ProviderKind.OpenAI.ToValue();
+        var provider = context.Services.WorkflowConfig?.Provider?.Vendor
+            ?? Environment.GetEnvironmentVariable(JccEnvVar.Vendor.ToValue())
+            ?? VendorKind.OpenAi.ToValue();
         var maxTokens = ResolveModelCatalog(context).GetModelsForProvider(provider)
             .FirstOrDefault(m => m.Id.Equals(currentModel, StringComparison.OrdinalIgnoreCase))?.ContextWindow
             ?? 128_000;

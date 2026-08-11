@@ -77,16 +77,16 @@ internal sealed class JccChatSession : IJccChatSession
 
     public bool IsReady => true;
 
-    /// <summary>当前 Provider 名称（deepseek/openai/azure/anthropic/agnes）</summary>
-    public string CurrentProvider => _config.Provider.Provider;
+    /// <summary>当前供应商名称（deepseek/openai/azure/anthropic/agnes/sensenova）</summary>
+    public string CurrentVendor => _config.Provider.Vendor;
 
     /// <summary>当前启用的模型 ID</summary>
     public string CurrentModelId => _config.Provider.ModelId;
 
     /// <summary>配置文件 models.json 驱动的供应商→模型列表映射（改 config 自动驱动下拉）</summary>
-    public IReadOnlyDictionary<string, IReadOnlyList<string>> ProviderModelMap { get; } = BuildProviderModelMap();
+    public IReadOnlyDictionary<string, IReadOnlyList<string>> VendorModelMap { get; } = BuildVendorModelMap();
 
-    private static IReadOnlyDictionary<string, IReadOnlyList<string>> BuildProviderModelMap()
+    private static IReadOnlyDictionary<string, IReadOnlyList<string>> BuildVendorModelMap()
     {
         var map = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase);
         foreach (var kvp in ModelConfigLoader.Config.Providers)

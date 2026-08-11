@@ -39,10 +39,16 @@ public class ToolCreationToolHandlers
         CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(toolName) || string.IsNullOrWhiteSpace(description))
-            return ToolResultBuilder.Error().WithText("工具名称和描述不能为空").Build();
+        {
+            var diag = BuildEmptyNameOrDescriptionDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
+        }
 
         if (toolName.Any(c => !char.IsLetterOrDigit(c) && c != '_' && c != '-'))
-            return ToolResultBuilder.Error().WithText("工具名称只能包含字母、数字、下划线和连字符").Build();
+        {
+            var diag = BuildInvalidToolNameDiagnostic(toolName);
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
+        }
 
         var parameters = ParseParameters(parametersJson);
         var templateId = toolName.Replace("-", "_");
@@ -71,12 +77,12 @@ public class ToolCreationToolHandlers
         {
             await _templateService.CreateAndRegisterAsync(template, _registry, ct).ConfigureAwait(false);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger?.LogWarning(ex, "动态注册工具 {ToolName} 失败，但模板已保存", toolName);
             return ToolResultBuilder.Success().WithText(
                 $"工具模板 '{toolName}' 已保存到 ~/.jcc/tool-templates/{templateId}.json，" +
-                $"但注册到当前会话失败: {ex.Message}。下次启动时将自动加载。").Build();
+                $"但注册到当前会话失败: [{ex.GetType().Name}] {ex.Message}。下次启动时将自动加载。").Build();
         }
 
         var paramList = parameters.Length > 0
@@ -130,7 +136,10 @@ public class ToolCreationToolHandlers
             string.Equals(t.ToolName, templateId, StringComparison.OrdinalIgnoreCase));
 
         if (template is null)
-            return ToolResultBuilder.Error().WithText($"模板 '{templateId}' 不存在").Build();
+        {
+            var diag = BuildTemplateNotFoundDiagnostic(templateId);
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
+        }
 
         var sb = new StringBuilder(512);
         sb.AppendLine($"## 工具模板: {template.ToolName}");
@@ -200,4 +209,25 @@ public class ToolCreationToolHandlers
         if (string.IsNullOrWhiteSpace(argsTemplate)) return null;
         return argsTemplate.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
     }
+
+    internal static ToolDiagnostic BuildEmptyNameOrDescriptionDiagnostic() =>
+        ToolDiagnostic.Create(
+            reason: "参数验证失败",
+            formattedMessage: "工具名称和描述不能为空",
+            details: [new DiagnosticDetail("fields", "toolName, description")],
+            suggestions: ["提供非空的工具名称和描述"]);
+
+    internal static ToolDiagnostic BuildInvalidToolNameDiagnostic(string toolName) =>
+        ToolDiagnostic.Create(
+            reason: "参数验证失败",
+            formattedMessage: "工具名称只能包含字母、数字、下划线和连字符",
+            details: [new DiagnosticDetail("tool_name", toolName)],
+            suggestions: ["使用小写字母、数字、下划线和连字符命名工具"]);
+
+    internal static ToolDiagnostic BuildTemplateNotFoundDiagnostic(string templateId) =>
+        ToolDiagnostic.Create(
+            reason: "模板未找到",
+            formattedMessage: $"模板 '{templateId}' 不存在",
+            details: [new DiagnosticDetail("template_id", templateId)],
+            suggestions: ["使用 tool_list_templates 查看所有可用模板"]);
 }

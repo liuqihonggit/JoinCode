@@ -3,7 +3,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 /// <summary>
 /// TaskCreateTool 提示词
 /// </summary>
-[ToolPrompt(ToolName = "TaskCreate", Category = ToolPromptCategory.Planning)]
+[ToolPrompt(ToolName = TaskToolName.TaskCreate, Category = ToolPromptCategory.Planning)]
 public static class TaskCreateToolPrompt {
     public const string ToolName = "TaskCreate";
     public const string Description = "在任务列表中创建新任务";
@@ -67,7 +67,7 @@ public static class TaskCreateToolPrompt {
 /// <summary>
 /// TaskGetTool 提示词
 /// </summary>
-[ToolPrompt(ToolName = "TaskGet", Category = ToolPromptCategory.Planning)]
+[ToolPrompt(ToolName = TaskToolName.TaskGet, Category = ToolPromptCategory.Planning)]
 public static class TaskGetToolPrompt {
     public const string ToolName = TaskToolNameConstants.TaskGet;
     public const string Description = "通过 ID 从任务列表获取任务";
@@ -100,7 +100,7 @@ public static class TaskGetToolPrompt {
 /// <summary>
 /// TaskListTool 提示词
 /// </summary>
-[ToolPrompt(ToolName = "TaskList", Category = ToolPromptCategory.Planning)]
+[ToolPrompt(ToolName = TaskToolName.TaskList, Category = ToolPromptCategory.Planning)]
 public static class TaskListToolPrompt {
     public const string ToolName = TaskToolNameConstants.TaskList;
     public const string Description = "列出任务列表中的所有任务";
@@ -155,7 +155,7 @@ public static class TaskListToolPrompt {
 /// <summary>
 /// TaskUpdateTool 提示词
 /// </summary>
-[ToolPrompt(ToolName = "TaskUpdate", Category = ToolPromptCategory.Planning)]
+[ToolPrompt(ToolName = TaskToolName.TaskUpdate, Category = ToolPromptCategory.Planning)]
 public static class TaskUpdateToolPrompt {
     public const string ToolName = TaskToolNameConstants.TaskUpdate;
     public const string Description = "更新任务列表中的任务";
@@ -241,7 +241,7 @@ public static class TaskUpdateToolPrompt {
 /// <summary>
 /// TaskStopTool 提示词
 /// </summary>
-[ToolPrompt(ToolName = "TaskStop", Category = ToolPromptCategory.Planning)]
+[ToolPrompt(ToolName = TaskToolName.TaskStop, Category = ToolPromptCategory.Planning)]
 public static class TaskStopToolPrompt {
     public const string ToolName = TaskToolNameConstants.TaskStop;
 

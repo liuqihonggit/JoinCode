@@ -58,6 +58,15 @@
         { "id": "agnes-image-2.1-flash", "canonicalId": "agnes-image-2.1-flash", "displayName": "Agnes Image 2.1 Flash", "contextWindow": 128000, "description": "新一代图像模型", "capabilities": { "fastMode": true, "effort": false, "maxEffort": false } },
         { "id": "agnes-video-v2.0", "canonicalId": "agnes-video-v2.0", "displayName": "Agnes Video 2.0", "contextWindow": 128000, "description": "视频理解模型", "aliases": [ "video" ], "capabilities": { "fastMode": true, "effort": false, "maxEffort": false } }
       ]
+    },
+    "sensenova": {
+      "defaultModelId": "sensenova-6.7-flash-lite",
+      "defaultFastModelId": "sensenova-6.7-flash-lite",
+      "models": [
+        { "id": "sensenova-6.7-flash-lite", "canonicalId": "sensenova-6.7-flash-lite", "displayName": "SenseNova 6.7 Flash-Lite", "contextWindow": 128000, "description": "轻量多模态智能体模型，支持文本对话与图像输入理解", "aliases": [ "flash-lite", "6.7" ], "capabilities": { "fastMode": true, "effort": false, "maxEffort": false } },
+        { "id": "sensenova-u1-fast", "canonicalId": "sensenova-u1-fast", "displayName": "SenseNova U1 Fast", "contextWindow": 128000, "description": "信息图（Infographics）生成模型", "aliases": [ "u1", "infographics" ], "capabilities": { "fastMode": true, "effort": false, "maxEffort": false } },
+        { "id": "deepseek-v4-flash", "canonicalId": "deepseek-v4-flash", "displayName": "DeepSeek V4 Flash（商汤）", "contextWindow": 1048576, "description": "通过商汤平台调用 DeepSeek，支持思考模式、1M 上下文、工具调用", "aliases": [ "ds", "v4" ], "capabilities": { "fastMode": true, "effort": false, "maxEffort": false, "thinkingMode": true } }
+      ]
     }
   }
 }

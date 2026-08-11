@@ -42,6 +42,8 @@ global using Core.Agents.Doctor;
 global using Core.Agents.DualModel;
 global using Core.Agents.Interfaces;
 global using Core.Agents;
+global using Core.Agents.ToolHandlers;
+global using JoinCode.Abstractions.Localization;
 global using Core.Configuration;
 global using Core.Context.Compression;
 global using Core.Context.Resolution;

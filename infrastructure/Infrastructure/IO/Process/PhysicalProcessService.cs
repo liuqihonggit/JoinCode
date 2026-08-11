@@ -27,9 +27,30 @@ public sealed class PhysicalProcessService : IProcessService
             ? string.Join(' ', options.ArgumentList)
             : options.Arguments;
         _logger?.LogDebug("[Process] 执行: {FileName} {Arguments}", options.FileName, argsDisplay);
+        Console.Error.WriteLine($"[DIAG-PROC] ExecuteAsync start: {options.FileName} {argsDisplay}");
+        Console.Error.Flush();
 
-        using var process = System.Diagnostics.Process.Start(psi)
-            ?? throw new InvalidOperationException($"[INF014] 无法启动进程: {options.FileName}");
+        System.Diagnostics.Process? startedProcess;
+        try
+        {
+            startedProcess = System.Diagnostics.Process.Start(psi);
+        }
+        catch (Exception startEx)
+        {
+            Console.Error.WriteLine($"[DIAG-PROC] Process.Start THREW: {startEx.GetType().Name}: {startEx.Message}");
+            Console.Error.Flush();
+            throw;
+        }
+        if (startedProcess is null)
+        {
+            Console.Error.WriteLine($"[DIAG-PROC] Process.Start returned null");
+            Console.Error.Flush();
+            throw new InvalidOperationException($"[INF014] 无法启动进程: {options.FileName}");
+        }
+        using var process = startedProcess;
+
+        Console.Error.WriteLine($"[DIAG-PROC] process started, pid={process.Id}");
+        Console.Error.Flush();
 
         var sw = Stopwatch.StartNew();
 
@@ -45,10 +66,16 @@ public sealed class PhysicalProcessService : IProcessService
             using var cts = TimeoutHelper.CreateLinkedTimeout(ct, TimeSpan.FromMilliseconds(options.TimeoutMs.Value));
             try
             {
+                Console.Error.WriteLine($"[DIAG-PROC] WaitForExitAsync start (timeout={options.TimeoutMs}ms), pid={process.Id}");
+                Console.Error.Flush();
                 await process.WaitForExitAsync(cts.Token).ConfigureAwait(false);
+                Console.Error.WriteLine($"[DIAG-PROC] WaitForExitAsync end, pid={process.Id}, exitCode={process.ExitCode}");
+                Console.Error.Flush();
             }
             catch (OperationCanceledException) when (!ct.IsCancellationRequested)
             {
+                Console.Error.WriteLine($"[DIAG-PROC] WaitForExitAsync TIMEOUT, killing pid={process.Id}");
+                Console.Error.Flush();
                 process.Kill();
                 return new ProcessResult
                 {
@@ -61,10 +88,27 @@ public sealed class PhysicalProcessService : IProcessService
         }
         else
         {
-            await process.WaitForExitAsync(ct).ConfigureAwait(false);
+            Console.Error.WriteLine($"[DIAG-PROC] WaitForExitAsync start (no timeout, ct.CanCancel={ct.CanBeCanceled}), pid={process.Id}");
+            Console.Error.Flush();
+            try
+            {
+                await process.WaitForExitAsync(ct).ConfigureAwait(false);
+                Console.Error.WriteLine($"[DIAG-PROC] WaitForExitAsync end, pid={process.Id}, exitCode={process.ExitCode}");
+                Console.Error.Flush();
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                Console.Error.WriteLine($"[DIAG-PROC] WaitForExitAsync CANCELED, killing pid={process.Id}");
+                Console.Error.Flush();
+                try { process.Kill(); } catch (Exception killEx) { _logger?.LogDebug(killEx, "[Process] 取消后杀进程失败: PID={Id}", process.Id); }
+                throw;
+            }
         }
 
         await Task.WhenAll(stdoutTask, stderrTask).ConfigureAwait(false);
+
+        Console.Error.WriteLine($"[DIAG-PROC] ExecuteAsync complete, pid={process.Id}, exitCode={process.ExitCode}, time={sw.ElapsedMilliseconds}ms");
+        Console.Error.Flush();
 
         return new ProcessResult
         {

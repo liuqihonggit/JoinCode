@@ -60,8 +60,10 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
 
             if (!result.Success)
             {
+                var diag = BuildPlanCreationFailedDiagnostic(result.Error);
                 return ToolResultBuilder.Error()
-                    .WithText(L.T(StringKey.PlanCreationFailed, result.Error))
+                    .WithText(diag.FormattedMessage)
+                    .WithDiagnostic(diag)
                     .Build();
             }
 
@@ -72,7 +74,8 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
         {
             _logger?.LogError(ex, L.T(StringKey.PlanAgentErrorLog));
             RecordAgentToolMetrics("plan", false);
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.AgentCallFailed, ex.Message)).Build();
+            var planExDiag = BuildPlanAgentExceptionDiagnostic(ex.Message);
+            return ToolResultBuilder.Error().WithText(planExDiag.FormattedMessage).WithDiagnostic(planExDiag).Build();
         }
     }
 
@@ -101,8 +104,10 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
 
             if (!result.Success)
             {
+                var diag = BuildExploreFailedDiagnostic(result.Error);
                 return ToolResultBuilder.Error()
-                    .WithText(L.T(StringKey.ExploreFailed, result.Error))
+                    .WithText(diag.FormattedMessage)
+                    .WithDiagnostic(diag)
                     .Build();
             }
 
@@ -113,7 +118,8 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
         {
             _logger?.LogError(ex, L.T(StringKey.ExploreAgentErrorLog));
             RecordAgentToolMetrics("explore", false);
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.AgentCallFailed, ex.Message)).Build();
+            var exploreExDiag = BuildExploreAgentExceptionDiagnostic(ex.Message);
+            return ToolResultBuilder.Error().WithText(exploreExDiag.FormattedMessage).WithDiagnostic(exploreExDiag).Build();
         }
     }
 
@@ -142,8 +148,10 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
 
             if (!result.Success)
             {
+                var diag = BuildVerificationFailedDiagnostic(result.Error);
                 return ToolResultBuilder.Error()
-                    .WithText(L.T(StringKey.VerificationFailed, result.Error))
+                    .WithText(diag.FormattedMessage)
+                    .WithDiagnostic(diag)
                     .Build();
             }
 
@@ -154,7 +162,8 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
         {
             _logger?.LogError(ex, L.T(StringKey.VerificationAgentErrorLog));
             RecordAgentToolMetrics("verification", false);
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.AgentCallFailed, ex.Message)).Build();
+            var verificationExDiag = BuildVerificationAgentExceptionDiagnostic(ex.Message);
+            return ToolResultBuilder.Error().WithText(verificationExDiag.FormattedMessage).WithDiagnostic(verificationExDiag).Build();
         }
     }
 
@@ -182,8 +191,10 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
 
             if (!result.Success)
             {
+                var diag = BuildGeneralTaskFailedDiagnostic(result.Error);
                 return ToolResultBuilder.Error()
-                    .WithText(L.T(StringKey.GeneralTaskFailed, result.Error))
+                    .WithText(diag.FormattedMessage)
+                    .WithDiagnostic(diag)
                     .Build();
             }
 
@@ -194,7 +205,8 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
         {
             _logger?.LogError(ex, L.T(StringKey.GeneralAgentErrorLog));
             RecordAgentToolMetrics("general", false);
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.AgentCallFailed, ex.Message)).Build();
+            var generalExDiag = BuildGeneralAgentExceptionDiagnostic(ex.Message);
+            return ToolResultBuilder.Error().WithText(generalExDiag.FormattedMessage).WithDiagnostic(generalExDiag).Build();
         }
     }
 
@@ -222,8 +234,10 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
 
             if (!result.Success)
             {
+                var diag = BuildGuideFailedDiagnostic(result.Error);
                 return ToolResultBuilder.Error()
-                    .WithText(L.T(StringKey.GuideFailed, result.Error))
+                    .WithText(diag.FormattedMessage)
+                    .WithDiagnostic(diag)
                     .Build();
             }
 
@@ -234,7 +248,8 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
         {
             _logger?.LogError(ex, L.T(StringKey.GuideAgentErrorLog));
             RecordAgentToolMetrics("guide", false);
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.AgentCallFailed, ex.Message)).Build();
+            var guideExDiag = BuildGuideAgentExceptionDiagnostic(ex.Message);
+            return ToolResultBuilder.Error().WithText(guideExDiag.FormattedMessage).WithDiagnostic(guideExDiag).Build();
         }
     }
 
@@ -398,6 +413,110 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
         }
 
         return $"请回答以下关于 Claude Code 使用的问题：\n\n## 问题\n{question}\n\n请提供直接回答、相关背景和具体示例。";
+    }
+
+    #endregion
+
+    #region Diagnostic Builders
+
+    /// <summary>
+    /// Plan Agent 创建计划失败的结构化诊断。
+    /// </summary>
+    internal static ToolDiagnostic BuildPlanCreationFailedDiagnostic(string? error)
+    {
+        return ToolDiagnostic.Create("PlanCreationFailed", L.T(StringKey.PlanCreationFailed, error),
+            [new DiagnosticDetail("error", error ?? string.Empty)],
+            ["检查计划目标是否清晰，约束条件是否合理，必要时简化目标后重试。"]);
+    }
+
+    /// <summary>
+    /// Plan Agent 执行抛出异常的结构化诊断。
+    /// </summary>
+    internal static ToolDiagnostic BuildPlanAgentExceptionDiagnostic(string errorMessage)
+    {
+        return ToolDiagnostic.Create("PlanAgentException", L.T(StringKey.AgentCallFailed, errorMessage),
+            [new DiagnosticDetail("exception", errorMessage)],
+            ["查看日志获取完整异常堆栈，确认 AgentService 可用后重试计划生成。"]);
+    }
+
+    /// <summary>
+    /// Explore Agent 探索失败的结构化诊断。
+    /// </summary>
+    internal static ToolDiagnostic BuildExploreFailedDiagnostic(string? error)
+    {
+        return ToolDiagnostic.Create("ExploreFailed", L.T(StringKey.ExploreFailed, error),
+            [new DiagnosticDetail("error", error ?? string.Empty)],
+            ["确认目标路径存在且可访问，调整探索深度或关注领域后重试。"]);
+    }
+
+    /// <summary>
+    /// Explore Agent 执行抛出异常的结构化诊断。
+    /// </summary>
+    internal static ToolDiagnostic BuildExploreAgentExceptionDiagnostic(string errorMessage)
+    {
+        return ToolDiagnostic.Create("ExploreAgentException", L.T(StringKey.AgentCallFailed, errorMessage),
+            [new DiagnosticDetail("exception", errorMessage)],
+            ["查看日志获取完整异常堆栈，确认 AgentService 可用后重试代码库探索。"]);
+    }
+
+    /// <summary>
+    /// Verification Agent 验证失败的结构化诊断。
+    /// </summary>
+    internal static ToolDiagnostic BuildVerificationFailedDiagnostic(string? error)
+    {
+        return ToolDiagnostic.Create("VerificationFailed", L.T(StringKey.VerificationFailed, error),
+            [new DiagnosticDetail("error", error ?? string.Empty)],
+            ["检查代码语法是否正确，确认验证方面适用，必要时调整 language 或 aspect 参数。"]);
+    }
+
+    /// <summary>
+    /// Verification Agent 执行抛出异常的结构化诊断。
+    /// </summary>
+    internal static ToolDiagnostic BuildVerificationAgentExceptionDiagnostic(string errorMessage)
+    {
+        return ToolDiagnostic.Create("VerificationAgentException", L.T(StringKey.AgentCallFailed, errorMessage),
+            [new DiagnosticDetail("exception", errorMessage)],
+            ["查看日志获取完整异常堆栈，确认 AgentService 可用后重试代码验证。"]);
+    }
+
+    /// <summary>
+    /// General Agent 任务失败的结构化诊断。
+    /// </summary>
+    internal static ToolDiagnostic BuildGeneralTaskFailedDiagnostic(string? error)
+    {
+        return ToolDiagnostic.Create("GeneralTaskFailed", L.T(StringKey.GeneralTaskFailed, error),
+            [new DiagnosticDetail("error", error ?? string.Empty)],
+            ["检查任务描述是否清晰，输入内容是否完整，必要时补充上下文后重试。"]);
+    }
+
+    /// <summary>
+    /// General Agent 执行抛出异常的结构化诊断。
+    /// </summary>
+    internal static ToolDiagnostic BuildGeneralAgentExceptionDiagnostic(string errorMessage)
+    {
+        return ToolDiagnostic.Create("GeneralAgentException", L.T(StringKey.AgentCallFailed, errorMessage),
+            [new DiagnosticDetail("exception", errorMessage)],
+            ["查看日志获取完整异常堆栈，确认 AgentService 可用后重试通用任务。"]);
+    }
+
+    /// <summary>
+    /// Guide Agent 获取帮助失败的结构化诊断。
+    /// </summary>
+    internal static ToolDiagnostic BuildGuideFailedDiagnostic(string? error)
+    {
+        return ToolDiagnostic.Create("GuideFailed", L.T(StringKey.GuideFailed, error),
+            [new DiagnosticDetail("error", error ?? string.Empty)],
+            ["确认问题表述清晰，可尝试提供更具体的 feature 参数后重试。"]);
+    }
+
+    /// <summary>
+    /// Guide Agent 执行抛出异常的结构化诊断。
+    /// </summary>
+    internal static ToolDiagnostic BuildGuideAgentExceptionDiagnostic(string errorMessage)
+    {
+        return ToolDiagnostic.Create("GuideAgentException", L.T(StringKey.AgentCallFailed, errorMessage),
+            [new DiagnosticDetail("exception", errorMessage)],
+            ["查看日志获取完整异常堆栈，确认 AgentService 可用后重试获取使用帮助。"]);
     }
 
     #endregion

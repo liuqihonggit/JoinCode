@@ -49,7 +49,8 @@ public sealed partial class ShellBuildInterceptMiddleware : ServiceEntity, IShel
                 ExitCode = -1,
                 Interrupted = true,
             };
-                context.Result = ToolResultBuilder.Error().WithText("Build was cancelled").Build();
+                var cancelDiag = BuildCancelledDiagnostic(buildId);
+                context.Result = ToolResultBuilder.Error().WithText(cancelDiag.FormattedMessage).WithDiagnostic(cancelDiag).Build();
                 return;
             }
 
@@ -107,8 +108,25 @@ public sealed partial class ShellBuildInterceptMiddleware : ServiceEntity, IShel
         };
         context.Result = r.ExitCode == 0
             ? ToolResultBuilder.Success().WithText(displayOutput).Build()
-            : ToolResultBuilder.Error().WithText(displayOutput).Build();
+            : ToolResultBuilder.Error().WithText(displayOutput).WithDiagnostic(BuildFailedDiagnostic(r.BuildId, r.ExitCode)).Build();
     }
+
+    internal static ToolDiagnostic BuildCancelledDiagnostic(string buildId) =>
+        ToolDiagnostic.Create(
+            reason: "构建已取消",
+            formattedMessage: "Build was cancelled",
+            details: [new DiagnosticDetail("build_id", buildId)]);
+
+    internal static ToolDiagnostic BuildFailedDiagnostic(string buildId, int exitCode) =>
+        ToolDiagnostic.Create(
+            reason: "构建失败",
+            formattedMessage: $"Build {buildId} failed with exit code {exitCode}",
+            details:
+            [
+                new DiagnosticDetail("build_id", buildId),
+                new DiagnosticDetail("exit_code", exitCode.ToString())
+            ],
+            suggestions: ["检查编译输出中的错误信息", "使用 build_output 工具查看完整编译日志"]);
 
     private const int MaxTailLines = 15;
 

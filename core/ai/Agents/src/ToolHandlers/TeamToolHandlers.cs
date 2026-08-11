@@ -31,7 +31,8 @@ public class TeamToolHandlers
         var validationError = ValidateCommand(command);
         if (validationError != null)
         {
-            return ToolResultBuilder.Error().WithText(validationError).Build();
+            var diag = BuildValidationDiagnostic("team_create", validationError);
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var result = await _teamManager.CreateTeamAsync(
@@ -43,7 +44,9 @@ public class TeamToolHandlers
         if (!result.Success)
         {
             RecordTeamMetrics("create", "failed");
-            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.TeamCreateFailed)).Build();
+            var errorMessage = result.ErrorMessage ?? L.T(StringKey.TeamCreateFailed);
+            var diag = BuildOperationFailedDiagnostic("team_create", errorMessage);
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var response = FormatTeamResponse(result.Data ?? throw new InvalidOperationException("Team creation succeeded but no data was returned."), L.T(StringKey.TeamCreated));
@@ -63,14 +66,17 @@ public class TeamToolHandlers
         var validationError = ValidateCommand(command);
         if (validationError != null)
         {
-            return ToolResultBuilder.Error().WithText(validationError).Build();
+            var diag = BuildValidationDiagnostic("team_delete", validationError);
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var result = await _teamManager.DeleteTeamAsync(command.TeamId, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
-            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.TeamDeleteFailed)).Build();
+            var errorMessage = result.ErrorMessage ?? L.T(StringKey.TeamDeleteFailed);
+            var diag = BuildOperationFailedDiagnostic("team_delete", errorMessage);
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var response = L.T(StringKey.TeamDeleted, command.TeamId);
@@ -89,14 +95,16 @@ public class TeamToolHandlers
         var validationError = ValidateCommand(command);
         if (validationError != null)
         {
-            return ToolResultBuilder.Error().WithText(validationError).Build();
+            var diag = BuildValidationDiagnostic("team_get", validationError);
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var team = await _teamManager.GetTeamAsync(command.TeamId, cancellationToken).ConfigureAwait(false);
 
         if (team == null)
         {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.TeamNotFound, command.TeamId)).Build();
+            var diag = BuildTeamNotFoundDiagnostic(command.TeamId);
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var response = FormatTeamResponse(team, L.T(StringKey.TeamInfo));
@@ -144,7 +152,8 @@ public class TeamToolHandlers
         var validationError = ValidateCommand(command);
         if (validationError != null)
         {
-            return ToolResultBuilder.Error().WithText(validationError).Build();
+            var diag = BuildValidationDiagnostic("team_add_member", validationError);
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var result = await _teamManager.AddTeamMemberAsync(
@@ -154,7 +163,9 @@ public class TeamToolHandlers
 
         if (!result.Success)
         {
-            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.AddMemberFailed)).Build();
+            var errorMessage = result.ErrorMessage ?? L.T(StringKey.AddMemberFailed);
+            var diag = BuildOperationFailedDiagnostic("team_add_member", errorMessage);
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var response = L.T(StringKey.MemberAdded, command.TeamId, command.AgentId);
@@ -174,7 +185,8 @@ public class TeamToolHandlers
         var validationError = ValidateCommand(command);
         if (validationError != null)
         {
-            return ToolResultBuilder.Error().WithText(validationError).Build();
+            var diag = BuildValidationDiagnostic("team_remove_member", validationError);
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var result = await _teamManager.RemoveTeamMemberAsync(
@@ -184,7 +196,9 @@ public class TeamToolHandlers
 
         if (!result.Success)
         {
-            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.RemoveMemberFailed)).Build();
+            var errorMessage = result.ErrorMessage ?? L.T(StringKey.RemoveMemberFailed);
+            var diag = BuildOperationFailedDiagnostic("team_remove_member", errorMessage);
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var response = L.T(StringKey.MemberRemoved, command.TeamId, command.AgentId);
@@ -206,7 +220,8 @@ public class TeamToolHandlers
         var validationError = ValidateCommand(command);
         if (validationError != null)
         {
-            return ToolResultBuilder.Error().WithText(validationError).Build();
+            var diag = BuildValidationDiagnostic("team_send_message", validationError);
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var result = await _teamManager.SendMessageAsync(
@@ -219,7 +234,9 @@ public class TeamToolHandlers
         if (!result.Success)
         {
             RecordTeamMetrics("send_message", "failed");
-            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.SendMessageFailed)).Build();
+            var errorMessage = result.ErrorMessage ?? L.T(StringKey.SendMessageFailed);
+            var diag = BuildOperationFailedDiagnostic("team_send_message", errorMessage);
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var response = L.T(StringKey.MessageSentToTeam, command.TeamId, command.SenderId);
@@ -242,7 +259,8 @@ public class TeamToolHandlers
         var validationError = ValidateCommand(command);
         if (validationError != null)
         {
-            return ToolResultBuilder.Error().WithText(validationError).Build();
+            var diag = BuildValidationDiagnostic("team_send_direct_message", validationError);
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var result = await _teamManager.SendMessageToAgentAsync(
@@ -254,7 +272,9 @@ public class TeamToolHandlers
 
         if (!result.Success)
         {
-            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.DirectMessageFailed)).Build();
+            var errorMessage = result.ErrorMessage ?? L.T(StringKey.DirectMessageFailed);
+            var diag = BuildOperationFailedDiagnostic("team_send_direct_message", errorMessage);
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var response = L.T(StringKey.DirectMessageSent, command.TargetAgentId, command.SenderId);
@@ -276,7 +296,8 @@ public class TeamToolHandlers
         var validationError = ValidateCommand(command);
         if (validationError != null)
         {
-            return ToolResultBuilder.Error().WithText(validationError).Build();
+            var diag = BuildValidationDiagnostic("team_broadcast", validationError);
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var result = await _teamManager.BroadcastMessageAsync(
@@ -288,7 +309,9 @@ public class TeamToolHandlers
 
         if (!result.Success)
         {
-            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.BroadcastFailed)).Build();
+            var errorMessage = result.ErrorMessage ?? L.T(StringKey.BroadcastFailed);
+            var diag = BuildOperationFailedDiagnostic("team_broadcast", errorMessage);
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var response = L.T(StringKey.BroadcastSent, command.TeamId, command.SenderId);
@@ -308,7 +331,8 @@ public class TeamToolHandlers
         var validationError = ValidateCommand(command);
         if (validationError != null)
         {
-            return ToolResultBuilder.Error().WithText(validationError).Build();
+            var diag = BuildValidationDiagnostic("team_get_messages", validationError);
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var messages = await _teamManager.GetTeamMessagesAsync(
@@ -335,6 +359,59 @@ public class TeamToolHandlers
 
         return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
+
+    #region Diagnostics
+
+    internal static ToolDiagnostic BuildValidationDiagnostic(string toolName, string validationError)
+    {
+        return ToolDiagnostic.Create(
+            reason: $"Validation failed for {toolName}",
+            formattedMessage: validationError,
+            details:
+            [
+                new("ToolName", toolName),
+                new("ValidationError", validationError)
+            ],
+            suggestions:
+            [
+                "Check the input parameters and try again"
+            ]);
+    }
+
+    internal static ToolDiagnostic BuildOperationFailedDiagnostic(string toolName, string errorMessage)
+    {
+        return ToolDiagnostic.Create(
+            reason: $"{toolName} operation failed",
+            formattedMessage: errorMessage,
+            details:
+            [
+                new("ToolName", toolName),
+                new("ErrorMessage", errorMessage)
+            ],
+            suggestions:
+            [
+                "Check the error message for details and try again"
+            ]);
+    }
+
+    internal static ToolDiagnostic BuildTeamNotFoundDiagnostic(string teamId)
+    {
+        var message = L.T(StringKey.TeamNotFound, teamId);
+        return ToolDiagnostic.Create(
+            reason: "Team not found",
+            formattedMessage: message,
+            details:
+            [
+                new("TeamId", teamId)
+            ],
+            suggestions:
+            [
+                "Verify the team ID is correct",
+                "Use team_list to see available teams"
+            ]);
+    }
+
+    #endregion
 
     #region Private Methods
 

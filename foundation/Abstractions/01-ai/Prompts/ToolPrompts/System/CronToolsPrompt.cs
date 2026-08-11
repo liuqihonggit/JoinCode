@@ -4,7 +4,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 /// <summary>
 /// CronCreateTool 提示词
 /// </summary>
-[ToolPrompt(ToolName = "CronCreate", Category = ToolPromptCategory.System)]
+[ToolPrompt(ToolName = CronToolName.CronCreate, Category = ToolPromptCategory.System)]
 public static class CronCreateToolPrompt
 {
     public const string ToolName = CronToolNameConstants.CronCreate;
@@ -76,7 +76,7 @@ public static class CronCreateToolPrompt
 /// <summary>
 /// CronDeleteTool 提示词
 /// </summary>
-[ToolPrompt(ToolName = "CronDelete", Category = ToolPromptCategory.System)]
+[ToolPrompt(ToolName = CronToolName.CronDelete, Category = ToolPromptCategory.System)]
 public static class CronDeleteToolPrompt
 {
     public const string ToolName = CronToolNameConstants.CronDelete;
@@ -96,7 +96,7 @@ public static class CronDeleteToolPrompt
 /// <summary>
 /// CronListTool 提示词
 /// </summary>
-[ToolPrompt(ToolName = "CronList", Category = ToolPromptCategory.System)]
+[ToolPrompt(ToolName = CronToolName.CronList, Category = ToolPromptCategory.System)]
 public static class CronListToolPrompt
 {
     public const string ToolName = CronToolNameConstants.CronList;

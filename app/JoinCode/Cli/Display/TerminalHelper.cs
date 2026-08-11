@@ -101,8 +101,15 @@ public static class TerminalHelper
 
     public static string ReadLine()
     {
-        if (System.Console.IsInputRedirected && !ForceInteractive) return string.Empty;
-        return System.Console.ReadLine() ?? string.Empty;
+        if (System.Console.IsInputRedirected && !ForceInteractive)
+        {
+            Diag.WriteLifecycle("[DIAG-TERM] ReadLine: input redirected, ForceInteractive=false, returning empty");
+            return string.Empty;
+        }
+        Diag.WriteLifecycle("[DIAG-TERM] ReadLine: calling Console.ReadLine()...");
+        var result = System.Console.ReadLine() ?? string.Empty;
+        Diag.WriteLifecycle($"[DIAG-TERM] ReadLine: returned '{(result.Length > 60 ? result[..60] + "..." : result)}'");
+        return result;
     }
 
     public static ConsoleKeyInfo ReadKey(bool intercept = false)
@@ -126,6 +133,19 @@ public static class TerminalHelper
     }
 
     public static void ResetColor() => System.Console.ResetColor();
+
+    public static IDisposable SetColor(ConsoleColor color) => new ColorScope(color);
+
+    private sealed class ColorScope : IDisposable
+    {
+        private readonly ConsoleColor _prev;
+        public ColorScope(ConsoleColor color)
+        {
+            _prev = System.Console.ForegroundColor;
+            System.Console.ForegroundColor = color;
+        }
+        public void Dispose() => System.Console.ForegroundColor = _prev;
+    }
 
     public static void ClearScreen()
     {

@@ -151,78 +151,90 @@ public class SearchToolHandlers : OneShotCommandGroup
         [McpToolParameter("The directory to search in. If not specified, the current working directory will be used. Do not enter \"undefined\" or \"null\", just omit it to use the default behavior", Required = false)] string? path = null,
         CancellationToken cancellationToken = default)
     {
-        // 路径权限检查 — 对齐 TS checkReadPermissionForTool 9步决策链
-        var pathCheckResult = CheckSearchPathPermission(path);
-        if (pathCheckResult is not null)
-            return pathCheckResult;
-
-        // 输入验证: 路径必须是目录
-        if (path is not null)
-        {
-            var fullPath = _fileOperationService.GetFullPath(path);
-            if (_fileOperationService.DirectoryExists(fullPath))
-            {
-                // 有效目录，继续
-            }
-            else if (_fileOperationService.FileExists(fullPath))
-            {
-                return ToolResultBuilder.Error().WithText($"Path is not a directory: {path}").Build();
-            }
-            else
-            {
-                var suggestion = _fileOperationService.SuggestPathUnderCwd(fullPath);
-                var message = $"Directory does not exist: {path}. Note: Current working directory is {_fileOperationService.GetCurrentDirectory()}.";
-                if (suggestion is not null)
-                {
-                    message += $" Did you mean {suggestion}?";
-                }
-                return ToolResultBuilder.Error().WithText(message).Build();
-            }
-        }
-
-        // 获取 Read deny 排除模式 — 对齐 TS getFileReadIgnorePatterns
-        var denyPatterns = GetReadDenyPatterns();
-
-        using var timeoutCts = TimeoutHelper.CreateLinkedTimeout(cancellationToken, TimeSpan.FromSeconds(WorkflowConstants.Limits.SearchTimeoutSeconds));
-        var timeoutToken = timeoutCts.Token;
-
-        GlobSearchResult result;
         try
         {
-            result = await _searchService.GlobSearchAsync(pattern, path, timeoutToken).ConfigureAwait(false);
+            // 路径权限检查 — 对齐 TS checkReadPermissionForTool 9步决策链
+            var pathCheckResult = CheckSearchPathPermission(path);
+            if (pathCheckResult is not null)
+                return pathCheckResult;
+
+            // 输入验证: 路径必须是目录
+            if (path is not null)
+            {
+                var fullPath = _fileOperationService.GetFullPath(path);
+                if (_fileOperationService.DirectoryExists(fullPath))
+                {
+                    // 有效目录，继续
+                }
+                else if (_fileOperationService.FileExists(fullPath))
+                {
+                    var diag = BuildPathNotDirectoryDiagnostic(path);
+                    return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
+                }
+                else
+                {
+                    var suggestion = _fileOperationService.SuggestPathUnderCwd(fullPath);
+                    var message = $"Directory does not exist: {path}. Note: Current working directory is {_fileOperationService.GetCurrentDirectory()}.";
+                    if (suggestion is not null)
+                    {
+                        message += $" Did you mean {suggestion}?";
+                    }
+                    var diag = BuildDirectoryNotFoundDiagnostic(path, message, suggestion);
+                    return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
+                }
+            }
+
+            // 获取 Read deny 排除模式 — 对齐 TS getFileReadIgnorePatterns
+            var denyPatterns = GetReadDenyPatterns();
+
+            using var timeoutCts = TimeoutHelper.CreateLinkedTimeout(cancellationToken, TimeSpan.FromSeconds(WorkflowConstants.Limits.SearchTimeoutSeconds));
+            var timeoutToken = timeoutCts.Token;
+
+            GlobSearchResult result;
+            try
+            {
+                result = await _searchService.GlobSearchAsync(pattern, path, timeoutToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                // 超时（非用户主动取消），对齐 TS RipgrepTimeoutError
+                RecordSearchMetrics("glob", "timeout");
+                var diag = BuildGlobTimeoutDiagnostic();
+                return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
+            }
+
+            if (!result.Success)
+            {
+                RecordSearchMetrics("glob", "failed");
+                var failDiag = BuildSearchFailedDiagnostic("glob", result.ErrorMessage);
+                return ToolResultBuilder.Error().WithText(failDiag.FormattedMessage).WithDiagnostic(failDiag).Build();
+            }
+
+            // 过滤 deny 模式匹配的文件 — 对齐 TS: ripgrep --glob !pattern
+            var filteredFilenames = FilterDeniedFiles(result.Filenames, denyPatterns);
+
+            if (filteredFilenames.Count == 0)
+            {
+                RecordSearchMetrics("glob", "ok", 0);
+                var diagnostic = BuildGlobNoResultDiagnostic(pattern, path);
+                return ToolResultBuilder.Success().WithText(diagnostic.FormattedMessage).WithDiagnostic(diagnostic).Build();
+            }
+
+            var cwd = _fileOperationService.GetCurrentDirectory();
+            var response = new StringBuilder(filteredFilenames.Count * 64);
+            foreach (var filename in filteredFilenames)
+            {
+                var rel = DirectoryHelper.GetRelativePath(cwd, filename);
+                response.AppendLine(rel.StartsWith("..", StringComparison.Ordinal) ? filename : rel);
+            }
+
+            RecordSearchMetrics("glob", "ok", filteredFilenames.Count);
+            return ToolResultTruncator.BuildWithSizeLimit(response, WorkflowConstants.Limits.GlobMaxResultSizeChars);
         }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            // 超时（非用户主动取消），对齐 TS RipgrepTimeoutError
-            RecordSearchMetrics("glob", "timeout");
-            return ToolResultBuilder.Error().WithText($"Glob search timed out after {WorkflowConstants.Limits.SearchTimeoutSeconds}s. Consider using a more specific path or pattern.").Build();
+            return ToolExceptionDiagnosticHelper.BuildErrorResult("glob", ex, null, "pattern", pattern, "path", path ?? "(cwd)");
         }
-
-        if (!result.Success)
-        {
-            RecordSearchMetrics("glob", "failed");
-            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "Search failed").Build();
-        }
-
-        // 过滤 deny 模式匹配的文件 — 对齐 TS: ripgrep --glob !pattern
-        var filteredFilenames = FilterDeniedFiles(result.Filenames, denyPatterns);
-
-        if (filteredFilenames.Count == 0)
-        {
-            RecordSearchMetrics("glob", "ok", 0);
-            return ToolResultBuilder.Success().WithText("No files found").Build();
-        }
-
-        var cwd = _fileOperationService.GetCurrentDirectory();
-        var response = new StringBuilder(filteredFilenames.Count * 64);
-        foreach (var filename in filteredFilenames)
-        {
-            var rel = DirectoryHelper.GetRelativePath(cwd, filename);
-            response.AppendLine(rel.StartsWith("..", StringComparison.Ordinal) ? filename : rel);
-        }
-
-        RecordSearchMetrics("glob", "ok", filteredFilenames.Count);
-        return ToolResultTruncator.BuildWithSizeLimit(response, WorkflowConstants.Limits.GlobMaxResultSizeChars);
     }
 
     /// <summary>
@@ -233,141 +245,114 @@ public class SearchToolHandlers : OneShotCommandGroup
         [McpToolOptions] GrepSearchOptions options,
         CancellationToken cancellationToken = default)
     {
-        var pattern = options.Pattern;
-        var path = options.Path;
-        var glob = options.Glob;
-        var output_mode = options.OutputMode;
-        var case_insensitive = options.CaseInsensitive;
-        var multiline = options.Multiline;
-        var file_type = options.FileType;
-        var before = options.Before;
-        var after = options.After;
-        var context = options.Context;
-        var line_numbers = options.LineNumbers;
-        var head_limit = options.HeadLimit;
-        var offset = options.Offset;
-
-        var validationError = ValidationHelper.CombineErrors(
-            ValidationHelper.ValidateRange(before, 0, 500, "before"),
-            ValidationHelper.ValidateRange(after, 0, 500, "after"),
-            ValidationHelper.ValidateRange(context, 0, 500, "context"),
-            ValidationHelper.ValidateRange(head_limit, 0, 10000, "head_limit"),
-            ValidationHelper.ValidateRange(offset, 0, 100000, "offset"));
-        if (validationError != null)
-        {
-            return ToolResultBuilder.Error().WithText(validationError).Build();
-        }
-
-        // 路径权限检查 — 对齐 TS checkReadPermissionForTool 9步决策链
-        var pathCheckResult = CheckSearchPathPermission(path);
-        if (pathCheckResult is not null)
-            return pathCheckResult;
-
-        // 输入验证: 路径存在性检查（对齐 TS GrepTool validateInput）
-        if (path is not null)
-        {
-            var fullPath = _fileOperationService.GetFullPath(path);
-            if (!_fileOperationService.DirectoryExists(fullPath) && !_fileOperationService.FileExists(fullPath))
-            {
-                var suggestion = _fileOperationService.SuggestPathUnderCwd(fullPath);
-                var message = $"Path does not exist: {path}. Note: Current working directory is {_fileOperationService.GetCurrentDirectory()}.";
-                if (suggestion is not null)
-                {
-                    message += $" Did you mean {suggestion}?";
-                }
-                return ToolResultBuilder.Error().WithText(message).Build();
-            }
-        }
-
-        // 获取 Read deny 排除模式 — 对齐 TS getFileReadIgnorePatterns
-        var denyPatterns = GetReadDenyPatterns();
-
-        var input = new GrepSearchInput
-        {
-            Pattern = pattern,
-            Path = path,
-            Glob = glob,
-            OutputMode = SearchOutputModeExtensions.FromValue(output_mode) ?? SearchOutputMode.Files,
-            CaseInsensitive = case_insensitive,
-            FileType = file_type,
-            Multiline = multiline,
-            Before = before,
-            After = after,
-            Context = context,
-            LineNumbers = line_numbers,
-            HeadLimit = head_limit,
-            Offset = offset,
-            DenyPatterns = denyPatterns
-        };
-
-        using var timeoutCts = TimeoutHelper.CreateLinkedTimeout(cancellationToken, TimeSpan.FromSeconds(WorkflowConstants.Limits.SearchTimeoutSeconds));
-        var timeoutToken = timeoutCts.Token;
-
-        GrepSearchResult result;
         try
         {
-            result = await _searchService.GrepSearchAsync(input, timeoutToken).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
-        {
-            // 超时（非用户主动取消），对齐 TS RipgrepTimeoutError
-            RecordSearchMetrics("grep", "timeout");
-            return ToolResultBuilder.Error().WithText($"Grep search timed out after {WorkflowConstants.Limits.SearchTimeoutSeconds}s. Consider using a more specific path or pattern.").Build();
-        }
+            var pattern = options.Pattern;
+            var path = options.Path;
+            var glob = options.Glob;
+            var output_mode = options.OutputMode;
+            var case_insensitive = options.CaseInsensitive;
+            var multiline = options.Multiline;
+            var file_type = options.FileType;
+            var before = options.Before;
+            var after = options.After;
+            var context = options.Context;
+            var line_numbers = options.LineNumbers;
+            var head_limit = options.HeadLimit;
+            var offset = options.Offset;
 
-        if (!result.Success)
-        {
-            RecordSearchMetrics("grep", "failed");
-            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "Search failed").Build();
-        }
-
-        if (result.NumFiles == 0)
-        {
-            RecordSearchMetrics("grep", "ok", 0);
-            return ToolResultBuilder.Success().WithText("No files found").Build();
-        }
-
-        var response = new StringBuilder(256);
-        var cwd = _fileOperationService.GetCurrentDirectory();
-
-        if (output_mode == "content" && !string.IsNullOrEmpty(result.Content))
-        {
-            response.Append(result.Content);
-
-            var paginationParts = new List<string>(2);
-            if (result.AppliedLimit.HasValue)
+            var validationError = ValidationHelper.CombineErrors(
+                ValidationHelper.ValidateRange(before, 0, 500, "before"),
+                ValidationHelper.ValidateRange(after, 0, 500, "after"),
+                ValidationHelper.ValidateRange(context, 0, 500, "context"),
+                ValidationHelper.ValidateRange(head_limit, 0, 10000, "head_limit"),
+                ValidationHelper.ValidateRange(offset, 0, 100000, "offset"));
+            if (validationError != null)
             {
-                paginationParts.Add($"limit: {result.AppliedLimit.Value}");
-            }
-            if (result.AppliedOffset.HasValue && result.AppliedOffset.Value > 0)
-            {
-                paginationParts.Add($"offset: {result.AppliedOffset.Value}");
+                var diag = BuildGrepValidationErrorDiagnostic(validationError);
+                return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
             }
 
-            if (paginationParts.Count > 0)
+            // 路径权限检查 — 对齐 TS checkReadPermissionForTool 9步决策链
+            var pathCheckResult = CheckSearchPathPermission(path);
+            if (pathCheckResult is not null)
+                return pathCheckResult;
+
+            // 输入验证: 路径存在性检查（对齐 TS GrepTool validateInput）
+            if (path is not null)
             {
-                response.AppendLine();
-                response.AppendLine();
-                response.Append($"[Showing results with pagination = {string.Join(", ", paginationParts)}]");
+                var fullPath = _fileOperationService.GetFullPath(path);
+                if (!_fileOperationService.DirectoryExists(fullPath) && !_fileOperationService.FileExists(fullPath))
+                {
+                    var suggestion = _fileOperationService.SuggestPathUnderCwd(fullPath);
+                    var message = $"Path does not exist: {path}. Note: Current working directory is {_fileOperationService.GetCurrentDirectory()}.";
+                    if (suggestion is not null)
+                    {
+                        message += $" Did you mean {suggestion}?";
+                    }
+                    var diag = BuildGrepPathNotFoundDiagnostic(path, message, suggestion);
+                    return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
+                }
             }
-        }
-        else if (output_mode == "count")
-        {
-            var occurrences = result.NumMatches ?? 0;
-            var files = result.NumFiles;
-            var occurrenceWord = occurrences == 1 ? "occurrence" : "occurrences";
-            var fileWord = files == 1 ? "file" : "files";
 
-            if (!string.IsNullOrEmpty(result.Content))
+            // 获取 Read deny 排除模式 — 对齐 TS getFileReadIgnorePatterns
+            var denyPatterns = GetReadDenyPatterns();
+
+            var input = new GrepSearchInput
             {
-                response.AppendLine(result.Content);
-                response.AppendLine();
+                Pattern = pattern,
+                Path = path,
+                Glob = glob,
+                OutputMode = SearchOutputModeExtensions.FromValue(output_mode) ?? SearchOutputMode.Files,
+                CaseInsensitive = case_insensitive,
+                FileType = file_type,
+                Multiline = multiline,
+                Before = before,
+                After = after,
+                Context = context,
+                LineNumbers = line_numbers,
+                HeadLimit = head_limit,
+                Offset = offset,
+                DenyPatterns = denyPatterns
+            };
+
+            using var timeoutCts = TimeoutHelper.CreateLinkedTimeout(cancellationToken, TimeSpan.FromSeconds(WorkflowConstants.Limits.SearchTimeoutSeconds));
+            var timeoutToken = timeoutCts.Token;
+
+            GrepSearchResult result;
+            try
+            {
+                result = await _searchService.GrepSearchAsync(input, timeoutToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                // 超时（非用户主动取消），对齐 TS RipgrepTimeoutError
+                RecordSearchMetrics("grep", "timeout");
+                var diag = BuildGrepTimeoutDiagnostic();
+                return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
             }
 
-            response.Append($"Found {occurrences} total {occurrenceWord} across {files} {fileWord}.");
-
-            if (result.AppliedLimit.HasValue || (result.AppliedOffset.HasValue && result.AppliedOffset.Value > 0))
+            if (!result.Success)
             {
+                RecordSearchMetrics("grep", "failed");
+                var failDiag = BuildSearchFailedDiagnostic("grep", result.ErrorMessage);
+                return ToolResultBuilder.Error().WithText(failDiag.FormattedMessage).WithDiagnostic(failDiag).Build();
+            }
+
+            if (result.NumFiles == 0)
+            {
+                RecordSearchMetrics("grep", "ok", 0);
+                var diagnostic = BuildGrepNoResultDiagnostic(pattern, path, case_insensitive);
+                return ToolResultBuilder.Success().WithText(diagnostic.FormattedMessage).WithDiagnostic(diagnostic).Build();
+            }
+
+            var response = new StringBuilder(256);
+            var cwd = _fileOperationService.GetCurrentDirectory();
+
+            if (output_mode == "content" && !string.IsNullOrEmpty(result.Content))
+            {
+                response.Append(result.Content);
+
                 var paginationParts = new List<string>(2);
                 if (result.AppliedLimit.HasValue)
                 {
@@ -377,39 +362,78 @@ public class SearchToolHandlers : OneShotCommandGroup
                 {
                     paginationParts.Add($"offset: {result.AppliedOffset.Value}");
                 }
-                response.Append($" with pagination = {string.Join(", ", paginationParts)}");
+
+                if (paginationParts.Count > 0)
+                {
+                    response.AppendLine();
+                    response.AppendLine();
+                    response.Append($"[Showing results with pagination = {string.Join(", ", paginationParts)}]");
+                }
             }
+            else if (output_mode == "count")
+            {
+                var occurrences = result.NumMatches ?? 0;
+                var files = result.NumFiles;
+                var occurrenceWord = occurrences == 1 ? "occurrence" : "occurrences";
+                var fileWord = files == 1 ? "file" : "files";
+
+                if (!string.IsNullOrEmpty(result.Content))
+                {
+                    response.AppendLine(result.Content);
+                    response.AppendLine();
+                }
+
+                response.Append($"Found {occurrences} total {occurrenceWord} across {files} {fileWord}.");
+
+                if (result.AppliedLimit.HasValue || (result.AppliedOffset.HasValue && result.AppliedOffset.Value > 0))
+                {
+                    var paginationParts = new List<string>(2);
+                    if (result.AppliedLimit.HasValue)
+                    {
+                        paginationParts.Add($"limit: {result.AppliedLimit.Value}");
+                    }
+                    if (result.AppliedOffset.HasValue && result.AppliedOffset.Value > 0)
+                    {
+                        paginationParts.Add($"offset: {result.AppliedOffset.Value}");
+                    }
+                    response.Append($" with pagination = {string.Join(", ", paginationParts)}");
+                }
+            }
+            else
+            {
+                var fileWord = result.NumFiles == 1 ? "file" : "files";
+                response.Append($"Found {result.NumFiles} {fileWord}");
+
+                var paginationParts = new List<string>(2);
+                if (result.AppliedLimit.HasValue)
+                {
+                    paginationParts.Add($"limit: {result.AppliedLimit.Value}");
+                }
+                if (result.AppliedOffset.HasValue && result.AppliedOffset.Value > 0)
+                {
+                    paginationParts.Add($"offset: {result.AppliedOffset.Value}");
+                }
+
+                if (paginationParts.Count > 0)
+                {
+                    response.Append($" {string.Join(", ", paginationParts)}");
+                }
+
+                response.AppendLine();
+                foreach (var filename in result.Filenames)
+                {
+                    var rel = DirectoryHelper.GetRelativePath(cwd, filename);
+                    response.AppendLine(rel.StartsWith("..", StringComparison.Ordinal) ? filename : rel);
+                }
+            }
+
+            RecordSearchMetrics("grep", "ok", result.NumFiles);
+            return ToolResultTruncator.BuildWithSizeLimit(response, WorkflowConstants.Limits.GrepMaxResultSizeChars);
         }
-        else
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            var fileWord = result.NumFiles == 1 ? "file" : "files";
-            response.Append($"Found {result.NumFiles} {fileWord}");
-
-            var paginationParts = new List<string>(2);
-            if (result.AppliedLimit.HasValue)
-            {
-                paginationParts.Add($"limit: {result.AppliedLimit.Value}");
-            }
-            if (result.AppliedOffset.HasValue && result.AppliedOffset.Value > 0)
-            {
-                paginationParts.Add($"offset: {result.AppliedOffset.Value}");
-            }
-
-            if (paginationParts.Count > 0)
-            {
-                response.Append($" {string.Join(", ", paginationParts)}");
-            }
-
-            response.AppendLine();
-            foreach (var filename in result.Filenames)
-            {
-                var rel = DirectoryHelper.GetRelativePath(cwd, filename);
-                response.AppendLine(rel.StartsWith("..", StringComparison.Ordinal) ? filename : rel);
-            }
+            return ToolExceptionDiagnosticHelper.BuildErrorResult("grep", ex, null, "pattern", options.Pattern, "path", options.Path ?? "(cwd)");
         }
-
-        RecordSearchMetrics("grep", "ok", result.NumFiles);
-        return ToolResultTruncator.BuildWithSizeLimit(response, WorkflowConstants.Limits.GrepMaxResultSizeChars);
     }
 
     /// <summary>
@@ -529,26 +553,33 @@ public class SearchToolHandlers : OneShotCommandGroup
         if (_pathPermissionChecker is not null)
         {
             var result = _pathPermissionChecker.CheckReadPermission(path);
-            return result.Decision switch
+            if (result.Decision == PermissionBehavior.Deny)
             {
-                PermissionBehavior.Deny => ToolResultBuilder.Error()
-                    .WithText(result.Reason ?? $"Access denied for path: {path}").Build(),
-                // Ask 在工具层面转为 Error（搜索工具无交互式权限确认流程）
-                PermissionBehavior.Ask => ToolResultBuilder.Error()
-                    .WithText(result.Reason ?? $"Access to path requires confirmation: {path}").Build(),
-                _ => null // Allow: 继续执行
-            };
+                var diag = BuildPathPermissionDeniedDiagnostic(path, result.Reason);
+                return ToolResultBuilder.Error()
+                    .WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
+            }
+            // Ask 在工具层面转为 Error（搜索工具无交互式权限确认流程）
+            if (result.Decision == PermissionBehavior.Ask)
+            {
+                var diag = BuildPathPermissionAskDiagnostic(path, result.Reason);
+                return ToolResultBuilder.Error()
+                    .WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
+            }
+            // Allow: 继续执行
         }
 
         // 无 PathPermissionChecker 时，保留硬编码安全检查作为兜底
         if (path.StartsWith("\\\\", StringComparison.Ordinal) || path.StartsWith("//", StringComparison.Ordinal))
         {
-            return ToolResultBuilder.Error().WithText("Cannot search UNC path directories (starting with \\\\), this may lead to credential leakage").Build();
+            var uncDiag = BuildUncPathDeniedDiagnostic(path);
+            return ToolResultBuilder.Error().WithText(uncDiag.FormattedMessage).WithDiagnostic(uncDiag).Build();
         }
 
         if (SecurityPatterns.HasSuspiciousWindowsPathPattern(path))
         {
-            return ToolResultBuilder.Error().WithText($"Cannot search path with suspicious pattern: {path}. This may be a security risk.").Build();
+            var suspDiag = BuildSuspiciousPathDiagnostic(path);
+            return ToolResultBuilder.Error().WithText(suspDiag.FormattedMessage).WithDiagnostic(suspDiag).Build();
         }
 
         return null;
@@ -607,5 +638,273 @@ public class SearchToolHandlers : OneShotCommandGroup
         ToolTelemetryHelper.RecordToolCount(_telemetryService, "search.handler.count", operation, result);
         if (fileCount > 0) ToolTelemetryHelper.RecordToolHistogram(_telemetryService, "search.handler.files", fileCount, new Dictionary<string, string> { ["operation"] = operation }, "count", "Search handler file count");
     }
+
+    /// <summary>
+    /// Glob 无结果时的结构化诊断 — 检查 pattern 是否缺少通配符、提示递归搜索。
+    /// 仅在无结果路径调用，不影响搜索性能。
+    /// </summary>
+    internal static ToolDiagnostic BuildGlobNoResultDiagnostic(string pattern, string? path)
+    {
+        var sb = new StringBuilder(256);
+        sb.Append("No files found");
+        sb.Append($"\n[诊断] pattern: \"{pattern}\", path: \"{path ?? "."}\"");
+
+        var suggestions = new List<string>(2);
+        var details = new List<DiagnosticDetail>(2)
+        {
+            new("pattern", pattern),
+            new("path", path ?? "."),
+        };
+
+        if (!pattern.Contains('*') && !pattern.Contains('?'))
+        {
+            sb.Append("\n[诊断] pattern 不含通配符，确切的文件名匹配失败。");
+            details.Add(new DiagnosticDetail("hasWildcard", "false"));
+        }
+        if (!pattern.Contains("**"))
+        {
+            sb.Append("\n提示: 使用 **/ 前缀递归搜索子目录（如 **/*.cs）。");
+            suggestions.Add("使用 **/ 前缀递归搜索子目录（如 **/*.cs）。");
+        }
+
+        return ToolDiagnostic.Create("NoResults", sb.ToString(), details, suggestions);
+    }
+
+    /// <summary>
+    /// Grep 无结果时的结构化诊断 — 检查大小写、提示搜索范围。
+    /// 仅在无结果路径调用，不影响搜索性能。
+    /// </summary>
+    internal static ToolDiagnostic BuildGrepNoResultDiagnostic(string pattern, string? path, bool caseInsensitive)
+    {
+        var sb = new StringBuilder(256);
+        sb.Append("No files found");
+        sb.Append($"\n[诊断] pattern: \"{pattern}\", path: \"{path ?? "."}\", case_insensitive: {caseInsensitive}");
+
+        var suggestions = new List<string>(2);
+        var details = new List<DiagnosticDetail>(3)
+        {
+            new("pattern", pattern),
+            new("path", path ?? "."),
+            new("caseInsensitive", caseInsensitive.ToString()),
+        };
+
+        if (!caseInsensitive && pattern.Any(char.IsUpper))
+        {
+            sb.Append("\n提示: pattern 含大写字母但未启用 case_insensitive，可能需要 -i 选项。");
+            suggestions.Add("pattern 含大写字母但未启用 case_insensitive，可能需要 -i 选项。");
+        }
+
+        sb.Append("\n提示: 检查正则语法、搜索路径、文件类型过滤(glob/file_type)。");
+        suggestions.Add("检查正则语法、搜索路径、文件类型过滤(glob/file_type)。");
+
+        return ToolDiagnostic.Create("NoResults", sb.ToString(), details, suggestions);
+    }
+
+    /// <summary>
+    /// Glob 无结果时的诊断消息（向后兼容测试）。
+    /// </summary>
+    internal static string BuildGlobNoResultMessage(string pattern, string? path)
+        => BuildGlobNoResultDiagnostic(pattern, path).FormattedMessage;
+
+    /// <summary>
+    /// Grep 无结果时的诊断消息（向后兼容测试）。
+    /// </summary>
+    internal static string BuildGrepNoResultMessage(string pattern, string? path, bool caseInsensitive)
+        => BuildGrepNoResultDiagnostic(pattern, path, caseInsensitive).FormattedMessage;
+
+    #region Error Diagnostics
+
+    internal static ToolDiagnostic BuildPathNotDirectoryDiagnostic(string path)
+    {
+        return ToolDiagnostic.Create(
+            reason: "SearchPathNotDirectory",
+            formattedMessage: $"Path is not a directory: {path}",
+            details:
+            [
+                new DiagnosticDetail("Path", path),
+            ],
+            suggestions:
+            [
+                "Provide a directory path, not a file path.",
+            ]);
+    }
+
+    internal static ToolDiagnostic BuildDirectoryNotFoundDiagnostic(
+        string path, string formattedMessage, string? suggestion)
+    {
+        var details = new List<DiagnosticDetail>(2)
+        {
+            new("Path", path),
+        };
+        if (suggestion is not null)
+            details.Add(new DiagnosticDetail("Suggestion", suggestion));
+
+        return ToolDiagnostic.Create(
+            reason: "SearchDirectoryNotFound",
+            formattedMessage: formattedMessage,
+            details: details,
+            suggestions:
+            [
+                "Verify the directory path is correct.",
+                suggestion is not null ? $"Did you mean {suggestion}?" : "Use the current working directory if unsure.",
+            ]);
+    }
+
+    internal static ToolDiagnostic BuildGlobTimeoutDiagnostic()
+    {
+        return ToolDiagnostic.Create(
+            reason: "GlobSearchTimeout",
+            formattedMessage: $"Glob search timed out after {WorkflowConstants.Limits.SearchTimeoutSeconds}s. Consider using a more specific path or pattern.",
+            details:
+            [
+                new DiagnosticDetail("TimeoutSeconds", WorkflowConstants.Limits.SearchTimeoutSeconds.ToString()),
+            ],
+            suggestions:
+            [
+                "Use a more specific path or pattern.",
+                "Reduce the search scope to a subdirectory.",
+            ]);
+    }
+
+    internal static ToolDiagnostic BuildGrepTimeoutDiagnostic()
+    {
+        return ToolDiagnostic.Create(
+            reason: "GrepSearchTimeout",
+            formattedMessage: $"Grep search timed out after {WorkflowConstants.Limits.SearchTimeoutSeconds}s. Consider using a more specific path or pattern.",
+            details:
+            [
+                new DiagnosticDetail("TimeoutSeconds", WorkflowConstants.Limits.SearchTimeoutSeconds.ToString()),
+            ],
+            suggestions:
+            [
+                "Use a more specific path or pattern.",
+                "Reduce the search scope or use file type filters.",
+            ]);
+    }
+
+    internal static ToolDiagnostic BuildSearchFailedDiagnostic(
+        string operation, string? errorMessage)
+    {
+        var msg = errorMessage ?? "Search failed";
+        return ToolDiagnostic.Create(
+            reason: $"Search{operation}Failed",
+            formattedMessage: msg,
+            details:
+            [
+                new DiagnosticDetail("Operation", operation),
+                new DiagnosticDetail("Error", msg),
+            ],
+            suggestions:
+            [
+                "Check the search service configuration.",
+                "Verify the search parameters are valid.",
+            ]);
+    }
+
+    internal static ToolDiagnostic BuildGrepValidationErrorDiagnostic(string validationError)
+    {
+        return ToolDiagnostic.Create(
+            reason: "GrepValidationError",
+            formattedMessage: validationError,
+            details:
+            [
+                new DiagnosticDetail("Error", validationError),
+            ],
+            suggestions:
+            [
+                "Fix the validation error and retry.",
+            ]);
+    }
+
+    internal static ToolDiagnostic BuildGrepPathNotFoundDiagnostic(
+        string path, string formattedMessage, string? suggestion)
+    {
+        var details = new List<DiagnosticDetail>(2)
+        {
+            new("Path", path),
+        };
+        if (suggestion is not null)
+            details.Add(new DiagnosticDetail("Suggestion", suggestion));
+
+        return ToolDiagnostic.Create(
+            reason: "GrepPathNotFound",
+            formattedMessage: formattedMessage,
+            details: details,
+            suggestions:
+            [
+                "Verify the path is correct.",
+                suggestion is not null ? $"Did you mean {suggestion}?" : "Use the current working directory if unsure.",
+            ]);
+    }
+
+    internal static ToolDiagnostic BuildPathPermissionDeniedDiagnostic(
+        string path, string? reason)
+    {
+        var msg = reason ?? $"Access denied for path: {path}";
+        return ToolDiagnostic.Create(
+            reason: "SearchPathPermissionDenied",
+            formattedMessage: msg,
+            details:
+            [
+                new DiagnosticDetail("Path", path),
+                new DiagnosticDetail("Reason", reason ?? "(default)"),
+            ],
+            suggestions:
+            [
+                "Check the path permission configuration.",
+                "Use a different path that is allowed.",
+            ]);
+    }
+
+    internal static ToolDiagnostic BuildPathPermissionAskDiagnostic(
+        string path, string? reason)
+    {
+        var msg = reason ?? $"Access to path requires confirmation: {path}";
+        return ToolDiagnostic.Create(
+            reason: "SearchPathPermissionAsk",
+            formattedMessage: msg,
+            details:
+            [
+                new DiagnosticDetail("Path", path),
+                new DiagnosticDetail("Reason", reason ?? "(default)"),
+            ],
+            suggestions:
+            [
+                "Confirm the path access in the permission configuration.",
+            ]);
+    }
+
+    internal static ToolDiagnostic BuildUncPathDeniedDiagnostic(string path)
+    {
+        return ToolDiagnostic.Create(
+            reason: "SearchUncPathDenied",
+            formattedMessage: "Cannot search UNC path directories (starting with \\\\), this may lead to credential leakage",
+            details:
+            [
+                new DiagnosticDetail("Path", path),
+            ],
+            suggestions:
+            [
+                "Use a local path instead of a UNC path.",
+            ]);
+    }
+
+    internal static ToolDiagnostic BuildSuspiciousPathDiagnostic(string path)
+    {
+        return ToolDiagnostic.Create(
+            reason: "SearchSuspiciousPath",
+            formattedMessage: $"Cannot search path with suspicious pattern: {path}. This may be a security risk.",
+            details:
+            [
+                new DiagnosticDetail("Path", path),
+            ],
+            suggestions:
+            [
+                "Avoid path traversal patterns.",
+                "Use a safe path within the working directory.",
+            ]);
+    }
+
+    #endregion
 
 }

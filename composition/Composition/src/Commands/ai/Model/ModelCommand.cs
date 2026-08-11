@@ -192,9 +192,9 @@ public sealed class ModelCommand : ChatCommandBase
 
     private static string GetCurrentProvider(ChatCommandContext context)
     {
-        return context.Services.WorkflowConfig?.Provider?.Provider
-            ?? Environment.GetEnvironmentVariable(JccEnvVar.Provider.ToValue())
-            ?? ProviderKind.OpenAI.ToValue();
+        return context.Services.WorkflowConfig?.Provider?.Vendor
+            ?? Environment.GetEnvironmentVariable(JccEnvVar.Vendor.ToValue())
+            ?? VendorKind.OpenAi.ToValue();
     }
 
     private static async Task ApplyModelSwitchAsync(ChatCommandContext context, string modelId)

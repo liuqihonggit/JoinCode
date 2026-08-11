@@ -1,4 +1,4 @@
-namespace MockServer.E2E.Tests.Scripts;
+﻿namespace MockServer.E2E.Tests.Scripts;
 
 /// <summary>
 /// AST/CodeIndex E2E 测试脚本 — 验证 jcc 启动时构造 AST 的性能和查询链路
@@ -11,7 +11,6 @@ public static class AstIntegrationScripts
     public static ConversationScript AstStartupAndQueryLinks => new()
     {
         Name = "AST启动构造并验证查询链路",
-        Mode = ConversationMode.Interactive,
         WorkingDirectory = ResolveAstWorkingDirectory(),
         Turns =
         [

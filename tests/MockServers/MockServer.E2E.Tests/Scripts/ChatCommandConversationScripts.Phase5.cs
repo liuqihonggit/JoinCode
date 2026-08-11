@@ -1,4 +1,4 @@
-namespace MockServer.E2E.Tests.Scripts;
+﻿namespace MockServer.E2E.Tests.Scripts;
 
 /// <summary>
 /// Phase 5 E2E 脚本 — 补齐剩余未覆盖命令
@@ -13,7 +13,6 @@ public static partial class ChatCommandConversationScripts
     public static ConversationScript GenerateCommand => new()
     {
         Name = "/generate 命令",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -39,7 +38,6 @@ public static partial class ChatCommandConversationScripts
     public static ConversationScript PeersCommand => new()
     {
         Name = "/peers 命令",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -66,7 +64,6 @@ public static partial class ChatCommandConversationScripts
     public static ConversationScript InstallGitHubAppCommand => new()
     {
         Name = "/install-github-app 命令",
-        Mode = ConversationMode.Interactive,
         Turns =
         [
             new ConversationTurn

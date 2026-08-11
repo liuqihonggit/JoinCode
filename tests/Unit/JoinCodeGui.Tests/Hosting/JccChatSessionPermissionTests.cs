@@ -107,7 +107,7 @@ public class JccChatSessionPermissionTests
     {
         Provider = new ProviderConfig
         {
-            Provider = "openai",
+            Vendor = "openai",
             ApiKey = "sk-test",
             ModelId = "gpt-4o"
         },

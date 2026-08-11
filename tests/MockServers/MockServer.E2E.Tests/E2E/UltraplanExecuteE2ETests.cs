@@ -19,7 +19,6 @@ public sealed class UltraplanExecuteE2ETests : CoverageTestBase
         var script = new ConversationScript
         {
             Name = "/ultraplan --execute 自动执行",
-            Mode = ConversationMode.NonInteractive,
             Turns =
             [
                 new ConversationTurn
@@ -61,7 +60,6 @@ public sealed class UltraplanExecuteE2ETests : CoverageTestBase
         var script = new ConversationScript
         {
             Name = "/ultraplan 仅展示计划",
-            Mode = ConversationMode.NonInteractive,
             Turns =
             [
                 new ConversationTurn
@@ -103,7 +101,6 @@ public sealed class UltraplanExecuteE2ETests : CoverageTestBase
         var script = new ConversationScript
         {
             Name = "/ultraplan -e 简写别名",
-            Mode = ConversationMode.NonInteractive,
             Turns =
             [
                 new ConversationTurn

@@ -6,8 +6,9 @@ public sealed class AgnesProviderDefinition : OpenAICompatibleProviderDefinition
     protected override string ProviderConfigKey => "agnes";
     protected override string DefaultBaseUrl => "https://apihub.agnes-ai.com/v1/";
 
-    public override ProviderKind Kind => ProviderKind.Agnes;
-    public override string ProviderName => ProviderKind.Agnes.ToValue();
+    public override VendorKind Vendor => VendorKind.Agnes;
+    public override ProtocolKind Protocol => ProtocolKind.Agnes;
+    public override string ProviderName => VendorKind.Agnes.ToValue();
     public override string DisplayName => "Agnes";
     public override string DefaultModelId => ModelConfigLoader.GetDefaultModelId("agnes");
     public override string DefaultFastModelId => ModelConfigLoader.GetDefaultFastModelId("agnes");

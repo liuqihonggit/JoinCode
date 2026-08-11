@@ -48,10 +48,10 @@ public sealed partial class SettingsMapper : ServiceEntity
     public void ApplyEnvOverrides(WorkflowConfig config)
     {
         // Provider 环境变量覆盖
-        var envProvider = Environment.GetEnvironmentVariable(JccEnvVar.Provider.ToValue());
-        if (!string.IsNullOrEmpty(envProvider) && config.Provider.Provider != envProvider)
+        var envProvider = Environment.GetEnvironmentVariable(JccEnvVar.Vendor.ToValue());
+        if (!string.IsNullOrEmpty(envProvider) && config.Provider.Vendor != envProvider)
         {
-            config.Provider.Provider = envProvider;
+            config.Provider.Vendor = envProvider;
 
             // Provider 变更时，重新应用 Provider 定义的默认值
             var newDefinition = _registry.TryGet(envProvider)
@@ -60,6 +60,7 @@ public sealed partial class SettingsMapper : ServiceEntity
 
             config.Provider.Endpoint ??= newDefinition.DefaultEndpoint;
             config.Provider.Definition = newDefinition;
+            config.Provider.Protocol = newDefinition.Protocol.ToValue();
 
             // 仅当 ModelId 未被显式设置时，使用新 Provider 的默认模型
             if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable(JccEnvVar.ModelId.ToValue())))
@@ -69,6 +70,11 @@ public sealed partial class SettingsMapper : ServiceEntity
                         $"Provider '{newDefinition.ProviderName}' 没有定义默认模型，请通过 {JccEnvVar.ModelId.ToValue()} 环境变量指定模型。");
             }
         }
+
+        // JCC_PROTOCOL 环境变量覆盖 — 允许显式指定协议，覆盖从 Vendor 定义推导的协议
+        var envProtocol = Environment.GetEnvironmentVariable(JccEnvVar.Protocol.ToValue());
+        if (!string.IsNullOrEmpty(envProtocol))
+            config.Provider.Protocol = envProtocol;
 
         var envModelId = Environment.GetEnvironmentVariable(JccEnvVar.ModelId.ToValue());
         if (!string.IsNullOrEmpty(envModelId))
@@ -138,7 +144,7 @@ public sealed partial class SettingsMapper : ServiceEntity
         // Provider 优先级: settings.provider > 默认值
         if (!string.IsNullOrEmpty(settings?.Provider))
         {
-            config.Provider.Provider = settings.Provider;
+            config.Provider.Vendor = settings.Provider;
         }
 
         // Endpoint 优先级: settings.endpoint > 默认值
@@ -148,11 +154,12 @@ public sealed partial class SettingsMapper : ServiceEntity
         }
 
         // Provider 定义自动配置默认值
-        var definition = _registry.TryGet(config.Provider.Provider);
+        var definition = _registry.TryGet(config.Provider.Vendor);
         if (definition is not null)
         {
             config.Provider.Endpoint ??= definition.DefaultEndpoint;
             config.Provider.Definition = definition;
+            config.Provider.Protocol = definition.Protocol.ToValue();
         }
 
         // 模型 ID 优先级: settings.model > Provider 定义默认模型
@@ -169,8 +176,8 @@ public sealed partial class SettingsMapper : ServiceEntity
         else
         {
             throw new ConfigurationException(
-                $"未知的 Provider '{config.Provider.Provider}'，可用值: {string.Join(", ", _registry.RegisteredProviders)}。" +
-                $"请通过 {JccEnvVar.Provider.ToValue()} 环境变量指定正确的 Provider。");
+                $"未知的 Provider '{config.Provider.Vendor}'，可用值: {string.Join(", ", _registry.RegisteredProviders)}。" +
+                $"请通过 {JccEnvVar.Vendor.ToValue()} 环境变量指定正确的 Provider。");
         }
 
         // API Version

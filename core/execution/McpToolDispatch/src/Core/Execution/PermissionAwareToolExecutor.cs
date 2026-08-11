@@ -166,28 +166,27 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
     {
         if (metadata is null || metadata.Count == 0) return;
 
+        var dict = new Dictionary<string, EntityMetadataEntry>(metadata.Count, StringComparer.Ordinal);
+        foreach (var m in metadata)
+            dict.TryAdd(m.Key, m);
+
         switch (entity)
         {
             case BashProcessEntity bash:
-                var exitCodeEntry = metadata.Find(m => m.Key == "exit_code");
-                if (exitCodeEntry?.IntValue is int exitCode)
+                if (dict.TryGetValue("exit_code", out var exitCodeEntry) && exitCodeEntry.IntValue is int exitCode)
                     bash.ExitCode = exitCode;
-                var processIdEntry = metadata.Find(m => m.Key == "process_id");
-                if (processIdEntry?.IntValue is int processId)
+                if (dict.TryGetValue("process_id", out var processIdEntry) && processIdEntry.IntValue is int processId)
                     bash.ProcessId = processId;
-                var interruptedEntry = metadata.Find(m => m.Key == "interrupted");
-                if (interruptedEntry?.BoolValue == true)
+                if (dict.TryGetValue("interrupted", out var interruptedEntry) && interruptedEntry.BoolValue == true)
                     bash.Status = BashProcessStatus.TimedOut;
                 else if (bash.ExitCode.HasValue)
                     bash.Status = BashProcessStatus.Exited;
                 break;
 
             case WebFetchEntity web:
-                var httpStatusEntry = metadata.Find(m => m.Key == "http_status_code");
-                if (httpStatusEntry?.IntValue is int statusCode)
+                if (dict.TryGetValue("http_status_code", out var httpStatusEntry) && httpStatusEntry.IntValue is int statusCode)
                     web.HttpStatusCode = statusCode;
-                var contentLengthEntry = metadata.Find(m => m.Key == "content_length");
-                if (contentLengthEntry?.LongValue is long contentLength)
+                if (dict.TryGetValue("content_length", out var contentLengthEntry) && contentLengthEntry.LongValue is long contentLength)
                     web.ContentLength = contentLength;
                 break;
         }

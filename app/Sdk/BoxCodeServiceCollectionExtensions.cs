@@ -33,7 +33,7 @@ public static class JoinCodeServiceCollectionExtensions
     {
         var providerConfig = new ProviderConfig
         {
-            Provider = options.Provider.ToValue(),
+            Vendor = options.Vendor.ToValue(),
             ModelId = options.ModelId,
             ApiKey = options.ApiKey ?? string.Empty,
             Endpoint = options.BaseUrl,

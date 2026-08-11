@@ -15,7 +15,7 @@ public sealed class DotEnvConfigTests
         var config = DotEnvConfig.LoadFrom(path);
 
         config.Should().NotBeNull();
-        config!.Provider.Should().Be("openai");
+        config!.Vendor.Should().Be("openai");
         config.ApiKey.Should().Be("sk-test123");
         Cleanup();
     }
@@ -29,7 +29,7 @@ public sealed class DotEnvConfigTests
         var config = DotEnvConfig.LoadFrom(path);
 
         config.Should().NotBeNull();
-        config!.Provider.Should().Be("anthropic");
+        config!.Vendor.Should().Be("anthropic");
         config.ApiKey.Should().Be("sk-ant-test");
         Cleanup();
     }
@@ -43,7 +43,7 @@ public sealed class DotEnvConfigTests
         var config = DotEnvConfig.LoadFrom(path);
 
         config.Should().NotBeNull();
-        config!.Provider.Should().Be("azure");
+        config!.Vendor.Should().Be("azure");
         config.ApiKey.Should().Be("azure-key");
         Cleanup();
     }
@@ -57,7 +57,7 @@ public sealed class DotEnvConfigTests
         var config = DotEnvConfig.LoadFrom(path);
 
         config.Should().NotBeNull();
-        config!.Provider.Should().Be("agnes");
+        config!.Vendor.Should().Be("agnes");
         config.ApiKey.Should().Be("agnes-key");
         Cleanup();
     }
@@ -71,21 +71,21 @@ public sealed class DotEnvConfigTests
         var config = DotEnvConfig.LoadFrom(path);
 
         config.Should().NotBeNull();
-        config!.Provider.Should().Be("anthropic");
+        config!.Vendor.Should().Be("anthropic");
         config.ApiKey.Should().Be("auth-token-123");
         Cleanup();
     }
 
     [Fact]
-    public void LoadFrom_JccProvider_OverridesInferredProvider()
+    public void LoadFrom_JccVendor_OverridesInferredProvider()
     {
-        var json = """{"env":{"OPENAI_API_KEY":"sk-test","JCC_PROVIDER":"anthropic"}}""";
+        var json = """{"env":{"OPENAI_API_KEY":"sk-test","JCC_VENDOR":"anthropic"}}""";
         var path = WriteTempFile(json);
 
         var config = DotEnvConfig.LoadFrom(path);
 
         config.Should().NotBeNull();
-        config!.Provider.Should().Be("anthropic");
+        config!.Vendor.Should().Be("anthropic");
         Cleanup();
     }
 
@@ -99,7 +99,7 @@ public sealed class DotEnvConfigTests
 
         config.Should().NotBeNull();
         config!.ApiKey.Should().Be("jcc-key");
-        config!.Provider.Should().BeNull();
+        config!.Vendor.Should().BeNull();
         Cleanup();
     }
 

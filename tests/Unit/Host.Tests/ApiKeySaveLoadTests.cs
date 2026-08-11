@@ -44,7 +44,7 @@ public class ApiKeySaveLoadTests
                 config = new WorkflowConfig();
             }
             
-            config.Provider.Provider = provider;
+            config.Provider.Vendor = provider;
             config.Provider.ApiKey = apiKey;
             
             var definition = Registry.TryGet(provider);
@@ -54,7 +54,7 @@ public class ApiKeySaveLoadTests
                 config.Provider.ModelId = definition.DefaultModelId;
             }
             
-            config.Provider.Provider.Should().Be(provider);
+            config.Provider.Vendor.Should().Be(provider);
             config.Provider.ApiKey.Should().Be(apiKey);
             config.Provider.Definition.Should().NotBeNull();
         }
@@ -182,7 +182,7 @@ public class ApiKeySaveLoadTests
                 config = new WorkflowConfig();
             }
             
-            config.Provider.Provider = provider;
+            config.Provider.Vendor = provider;
             config.Provider.ApiKey = apiKey;
             
             var definition = Registry.TryGet(provider);
@@ -192,7 +192,7 @@ public class ApiKeySaveLoadTests
                 config.Provider.ModelId = definition.DefaultModelId;
             }
             
-            config.Provider.Provider.Should().Be(provider);
+            config.Provider.Vendor.Should().Be(provider);
             config.Provider.ApiKey.Should().Be(apiKey);
         }
         finally

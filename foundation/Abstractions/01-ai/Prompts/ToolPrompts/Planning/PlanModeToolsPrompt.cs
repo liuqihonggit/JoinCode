@@ -3,7 +3,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 /// <summary>
 /// EnterPlanModeTool 提示词
 /// </summary>
-[ToolPrompt(ToolName = "EnterPlanMode", Category = ToolPromptCategory.Planning)]
+[ToolPrompt(ToolName = PlanToolName.EnterPlanMode, Category = ToolPromptCategory.Planning)]
 public static class EnterPlanModeToolPrompt
 {
     public const string ToolName = PlanToolNameConstants.EnterPlanMode;

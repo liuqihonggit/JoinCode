@@ -68,6 +68,19 @@ public sealed partial class AbsoluteTimeoutMiddleware : ServiceEntity, IShellMid
         sb.AppendLine($"- original_tool: \"{toolName}\"");
         sb.AppendLine("- timeout_minutes: 10 (默认10分钟续期)");
 
-        context.Result = ToolResultBuilder.Error().WithText(sb.ToString()).Build();
+        var diagnostic = BuildTimeoutDiagnostic(sb.ToString(), context.Command, seconds, toolName);
+        context.Result = ToolResultBuilder.Error().WithText(diagnostic.FormattedMessage).WithDiagnostic(diagnostic).Build();
     }
+
+    internal static ToolDiagnostic BuildTimeoutDiagnostic(string formattedMessage, string command, int seconds, string toolName) =>
+        ToolDiagnostic.Create(
+            reason: "命令执行超时",
+            formattedMessage: formattedMessage,
+            details:
+            [
+                new DiagnosticDetail("command", command),
+                new DiagnosticDetail("timeout_seconds", seconds.ToString()),
+                new DiagnosticDetail("tool", toolName)
+            ],
+            suggestions: ["调用 resume_timed_out_task 工具续期执行"]);
 }

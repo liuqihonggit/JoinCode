@@ -3,7 +3,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 /// <summary>
 /// 文件编辑工具提示词
 /// </summary>
-[ToolPrompt(ToolName = "FileEdit", Category = ToolPromptCategory.File)]
+[ToolPrompt(ToolName = FileToolName.FileEdit, Category = ToolPromptCategory.File)]
 public static class FileEditToolPrompt
 {
     public static string GetDescription() => """
@@ -17,8 +17,8 @@ public static class FileEditToolPrompt
 
         重要提示：
         - 在编辑之前，必须在对话中至少使用过一次Read工具
-        - 当编辑Read工具输出中的文本时，确保保留精确的缩进（制表符/空格）
-        - 行号前缀格式：行号 + 制表符（或空格 + 箭头，取决于配置）
+        - 当编辑Read工具输出中的文本时，确保保留精确的缩进（制表符/空格），取行号前缀之后的内容
+        - 行号前缀格式：紧凑模式为行号+制表符，宽模式为空格填充+行号+→。绝不要在old_str或new_str中包含行号前缀的任何部分，前缀之后才是要匹配的实际文件内容
         - 始终优先编辑代码库中的现有文件。除非明确要求，否则不要写新文件
         - 只有在用户明确要求时才使用表情符号
         - 如果old_str在文件中不唯一，编辑将失败。需要提供更多上下文使其唯一

@@ -35,12 +35,37 @@ public abstract class CoverageTestBase : IAsyncLifetime
     /// 全局超时 60s，防止 jcc.exe 卡死导致整个测试套件挂起
     /// 偶发性失败自动重试5次（E2E测试受CI环境资源竞争影响）
     /// </summary>
-    protected async Task RunScriptAsync(ConversationScript script, ProviderKind provider = ProviderKind.OpenAI)
+    protected async Task RunScriptAsync(ConversationScript script, VendorKind provider = VendorKind.OpenAi)
     {
+        ValidateScriptMode(script);
         await RunScriptWithRetryAsync(script, provider, maxAttempts: 5).ConfigureAwait(true);
     }
 
-    private async Task RunScriptWithRetryAsync(ConversationScript script, ProviderKind provider, int maxAttempts)
+    /// <summary>
+    /// 校验脚本模式不变量 — Mode 现为计算属性，此方法断言推断逻辑正确。
+    /// 不变量1: 单轮(Turns.Count==1) → NonInteractive
+    /// 不变量2: 多轮(Turns.Count>1) → Interactive
+    /// 如果此处抛异常，说明 ConversationScript.Mode 计算属性推断逻辑有 bug。
+    /// </summary>
+    private static void ValidateScriptMode(ConversationScript script)
+    {
+        if (script.Turns.Count == 1 && script.Mode != ConversationMode.NonInteractive)
+        {
+            throw new InvalidOperationException(
+                $"[GEN036] 不变量违反: 单轮脚本(Turns.Count==1)的 Mode 应为 NonInteractive，实际为 {script.Mode}。" +
+                $"脚本: {script.Name}。请检查 ConversationScript.Mode 计算属性推断逻辑。");
+        }
+
+        if (script.Turns.Count > 1 && script.Mode != ConversationMode.Interactive)
+        {
+            throw new InvalidOperationException(
+                $"[GEN037] 不变量违反: 多轮脚本(Turns.Count>1)的 Mode 应为 Interactive，实际为 {script.Mode}。" +
+                $"脚本: {script.Name}。多轮脚本必须用 Interactive 模式，NonInteractive 只处理第一轮。" +
+                $"请检查 ConversationScript.Mode 计算属性推断逻辑。");
+        }
+    }
+
+    private async Task RunScriptWithRetryAsync(ConversationScript script, VendorKind provider, int maxAttempts)
     {
         for (var attempt = 1; attempt <= maxAttempts; attempt++)
         {

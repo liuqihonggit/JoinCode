@@ -3,7 +3,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 /// <summary>
 /// Bash工具提示词 — 对齐 TS BashTool prompt.ts
 /// </summary>
-[ToolPrompt(ToolName = "Bash", Category = ToolPromptCategory.Shell)]
+[ToolPrompt(ToolName = ShellToolName.Bash, Category = ToolPromptCategory.Shell)]
 public static class BashToolPrompt
 {
     public static string GetDescription() => """

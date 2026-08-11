@@ -13,7 +13,6 @@ public static partial class ChatCommandConversationScripts
     public static ConversationScript ChromeCommand => new()
     {
         Name = "/chrome 命令",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -39,7 +38,6 @@ public static partial class ChatCommandConversationScripts
     public static ConversationScript IdeCommand => new()
     {
         Name = "/ide 命令",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -65,7 +63,6 @@ public static partial class ChatCommandConversationScripts
     public static ConversationScript DesktopCommand => new()
     {
         Name = "/desktop 命令",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -91,7 +88,6 @@ public static partial class ChatCommandConversationScripts
     public static ConversationScript MobileCommand => new()
     {
         Name = "/mobile 命令",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -117,7 +113,6 @@ public static partial class ChatCommandConversationScripts
     public static ConversationScript BtwCommand => new()
     {
         Name = "/btw 命令",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -144,7 +139,6 @@ public static partial class ChatCommandConversationScripts
     public static ConversationScript FeedbackCommand => new()
     {
         Name = "/feedback 命令",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -171,7 +165,6 @@ public static partial class ChatCommandConversationScripts
     public static ConversationScript ShareCommand => new()
     {
         Name = "/share 命令",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -198,7 +191,6 @@ public static partial class ChatCommandConversationScripts
     public static ConversationScript VoiceCommand => new()
     {
         Name = "/voice 命令",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -224,7 +216,6 @@ public static partial class ChatCommandConversationScripts
     public static ConversationScript StickersCommand => new()
     {
         Name = "/stickers 命令",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -250,7 +241,6 @@ public static partial class ChatCommandConversationScripts
     public static ConversationScript SimpleCommand => new()
     {
         Name = "/simple 命令",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn

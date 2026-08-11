@@ -14,6 +14,13 @@ public static class Diag
     private static bool _runtimeEnabled;
 
     /// <summary>
+    /// 诊断输出目标 — JCC_DIAG_TARGET 环境变量控制（stderr/stdout/both）
+    /// 默认 stderr，debug 阶段可设为 stdout 或 both 避免管道缓冲问题
+    /// </summary>
+    private static readonly string _diagTarget =
+        (Environment.GetEnvironmentVariable("JCC_DIAG_TARGET") ?? "stderr").ToLowerInvariant();
+
+    /// <summary>
     /// 诊断行输出事件 — 每次 WriteLine/WriteLifecycle 输出时触发
     /// 用于外部订阅者（如 DoctorSseClient）捕获诊断行并转发
     /// </summary>
@@ -25,8 +32,7 @@ public static class Diag
 
     public static void WriteLifecycle(string message)
     {
-        Console.Error.WriteLine(message);
-        Console.Error.Flush();
+        WriteToTargets(message);
         DiagnosticLineWritten?.Invoke(null, message);
     }
 
@@ -34,10 +40,10 @@ public static class Diag
     {
         if (!IsVerbose) return;
         if (message is null)
-            Console.Error.WriteLine();
+            WriteToTargets(string.Empty);
         else
         {
-            Console.Error.WriteLine(message);
+            WriteToTargets(message);
             DiagnosticLineWritten?.Invoke(null, message);
         }
     }
@@ -46,14 +52,35 @@ public static class Diag
     {
         if (!IsVerbose) return;
         var formatted = message.ToString();
-        Console.Error.WriteLine(formatted);
+        WriteToTargets(formatted);
         DiagnosticLineWritten?.Invoke(null, formatted);
     }
 
     public static void WriteDiTrace(string message)
     {
         if (!_diTraceEnabled) return;
-        Console.Error.WriteLine(message);
+        WriteToTargets(message);
+    }
+
+    private static void WriteToTargets(string message)
+    {
+        switch (_diagTarget)
+        {
+            case "stdout":
+                Console.Out.WriteLine(message);
+                Console.Out.Flush();
+                break;
+            case "both":
+                Console.Error.WriteLine(message);
+                Console.Error.Flush();
+                Console.Out.WriteLine(message);
+                Console.Out.Flush();
+                break;
+            default:
+                Console.Error.WriteLine(message);
+                Console.Error.Flush();
+                break;
+        }
     }
 
     private static bool IsTruthy(string? value)

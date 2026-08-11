@@ -15,7 +15,7 @@ public class SystemPromptApplyStepTests
             Provider = new ProviderConfig
             {
                 ApiKey = "sk-test",
-                Provider = "openai",
+                Vendor = "openai",
                 ModelId = "gpt-4o"
             }
         };

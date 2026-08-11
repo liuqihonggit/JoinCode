@@ -26,7 +26,8 @@ public class MemoryManagementToolHandlers
     {
         if (string.IsNullOrWhiteSpace(query))
         {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.VaultQueryCannotBeEmpty)).Build();
+            var diag = BuildEmptyQueryDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var result = await _memoryManagementService.ScanMemoriesAsync(query, category, limit ?? 10, cancellationToken).ConfigureAwait(false);
@@ -133,8 +134,10 @@ public class MemoryManagementToolHandlers
     {
         if (confirm != "yes")
         {
+            var diag = BuildCleanupConfirmRequiredDiagnostic();
             return ToolResultBuilder.Error()
-                .WithText(L.T(StringKey.VaultCleanupConfirmRequired))
+                .WithText(diag.FormattedMessage)
+                .WithDiagnostic(diag)
                 .Build();
         }
 
@@ -229,12 +232,14 @@ public class MemoryManagementToolHandlers
     {
         if (string.IsNullOrWhiteSpace(team_id))
         {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.VaultTeamIdCannotBeEmpty)).Build();
+            var diag = BuildEmptyTeamIdDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         if (string.IsNullOrWhiteSpace(path))
         {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.VaultPathCannotBeEmpty)).Build();
+            var diag = BuildEmptyPathDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var agents = !string.IsNullOrEmpty(allowed_agents)
@@ -320,19 +325,22 @@ public class MemoryManagementToolHandlers
     {
         if (string.IsNullOrWhiteSpace(team_id))
         {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.VaultTeamIdCannotBeEmpty)).Build();
+            var diag = BuildEmptyTeamIdDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         if (string.IsNullOrWhiteSpace(path))
         {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.VaultPathCannotBeEmpty)).Build();
+            var diag = BuildEmptyPathDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var removed = await _memoryManagementService.RemoveTeamMemoryPathAsync(team_id, path, cancellationToken).ConfigureAwait(false);
 
         if (!removed)
         {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.VaultTeamNotFound)).Build();
+            var diag = BuildTeamNotFoundDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         return ToolResultBuilder.Success()
@@ -352,12 +360,14 @@ public class MemoryManagementToolHandlers
     {
         if (string.IsNullOrWhiteSpace(team_id))
         {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.VaultTeamIdCannotBeEmpty)).Build();
+            var diag = BuildEmptyTeamIdDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         if (string.IsNullOrWhiteSpace(query))
         {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.VaultQueryCannotBeEmpty)).Build();
+            var diag = BuildEmptyQueryDiagnostic();
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var result = await _memoryManagementService.ScanTeamMemoriesAsync(team_id, query, limit ?? 10, cancellationToken).ConfigureAwait(false);
@@ -388,6 +398,41 @@ public class MemoryManagementToolHandlers
 
         return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
+
+    internal static ToolDiagnostic BuildEmptyQueryDiagnostic() =>
+        ToolDiagnostic.Create(
+            reason: "参数验证失败",
+            formattedMessage: L.T(StringKey.VaultQueryCannotBeEmpty),
+            details: [new DiagnosticDetail("field", "query")],
+            suggestions: ["提供非空的搜索查询"]);
+
+    internal static ToolDiagnostic BuildCleanupConfirmRequiredDiagnostic() =>
+        ToolDiagnostic.Create(
+            reason: "参数验证失败",
+            formattedMessage: L.T(StringKey.VaultCleanupConfirmRequired),
+            details: [new DiagnosticDetail("field", "confirm")],
+            suggestions: ["传入 confirm=\"yes\" 以确认执行清理"]);
+
+    internal static ToolDiagnostic BuildEmptyTeamIdDiagnostic() =>
+        ToolDiagnostic.Create(
+            reason: "参数验证失败",
+            formattedMessage: L.T(StringKey.VaultTeamIdCannotBeEmpty),
+            details: [new DiagnosticDetail("field", "team_id")],
+            suggestions: ["提供非空的团队 ID"]);
+
+    internal static ToolDiagnostic BuildEmptyPathDiagnostic() =>
+        ToolDiagnostic.Create(
+            reason: "参数验证失败",
+            formattedMessage: L.T(StringKey.VaultPathCannotBeEmpty),
+            details: [new DiagnosticDetail("field", "path")],
+            suggestions: ["提供非空的内存路径"]);
+
+    internal static ToolDiagnostic BuildTeamNotFoundDiagnostic() =>
+        ToolDiagnostic.Create(
+            reason: "团队未找到",
+            formattedMessage: L.T(StringKey.VaultTeamNotFound),
+            details: [new DiagnosticDetail("field", "team_id")],
+            suggestions: ["确认团队 ID 存在后再执行操作"]);
 
     #region Private Methods
 

@@ -9,22 +9,22 @@ public class QueryServiceBaseTests
     {
         var config = new ProviderConfig
         {
-            Provider = ProviderKind.OpenAI.ToValue(),
+            Vendor = VendorKind.OpenAi.ToValue(),
             ModelId = "gpt-4o",
             ApiKey = "sk-test"
         };
 
-        config.Kind.Should().Be(ProviderKind.OpenAI);
+        config.VendorKind.Should().Be(VendorKind.OpenAi);
         config.ModelId.Should().Be("gpt-4o");
         config.ApiKey.Should().Be("sk-test");
     }
 
     [Fact]
-    public void ProviderKind_EnumValues_MatchExpected()
+    public void VendorKind_EnumValues_MatchExpected()
     {
-        var values = Enum.GetValues<ProviderKind>();
-        values.Should().Contain(ProviderKind.OpenAI);
-        values.Should().Contain(ProviderKind.Anthropic);
-        values.Should().Contain(ProviderKind.Azure);
+        var values = Enum.GetValues<VendorKind>();
+        values.Should().Contain(VendorKind.OpenAi);
+        values.Should().Contain(VendorKind.Anthropic);
+        values.Should().Contain(VendorKind.Azure);
     }
 }

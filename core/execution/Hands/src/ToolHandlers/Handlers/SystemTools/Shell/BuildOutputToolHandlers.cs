@@ -29,22 +29,28 @@ public partial class BuildOutputToolHandlers
     {
         if (_buildQueueService is null)
         {
+            var diag = BuildQueueServiceUnavailableDiagnostic();
             return Task.FromResult(ToolResultBuilder.Error()
-                .WithText("Build queue service is not available")
+                .WithText(diag.FormattedMessage)
+                .WithDiagnostic(diag)
                 .Build());
         }
 
         if (string.IsNullOrWhiteSpace(build_id))
         {
+            var diag = BuildEmptyBuildIdDiagnostic();
             return Task.FromResult(ToolResultBuilder.Error()
-                .WithText("build_id is required")
+                .WithText(diag.FormattedMessage)
+                .WithDiagnostic(diag)
                 .Build());
         }
 
         if (start_line < 1)
         {
+            var diag = BuildInvalidStartLineDiagnostic(start_line);
             return Task.FromResult(ToolResultBuilder.Error()
-                .WithText("start_line must be >= 1")
+                .WithText(diag.FormattedMessage)
+                .WithDiagnostic(diag)
                 .Build());
         }
 
@@ -65,9 +71,7 @@ public partial class BuildOutputToolHandlers
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Failed to get build output for {BuildId}", build_id);
-            return Task.FromResult(ToolResultBuilder.Error()
-                .WithText($"Failed: {ex.Message}")
-                .Build());
+            return Task.FromResult(ToolExceptionDiagnosticHelper.BuildErrorResult("build_output", ex, _logger, "build_id", build_id));
         }
     }
 
@@ -80,8 +84,10 @@ public partial class BuildOutputToolHandlers
     {
         if (_buildQueueService is null)
         {
+            var diag = BuildQueueServiceUnavailableDiagnostic();
             return Task.FromResult(ToolResultBuilder.Error()
-                .WithText("Build queue service is not available")
+                .WithText(diag.FormattedMessage)
+                .WithDiagnostic(diag)
                 .Build());
         }
 
@@ -115,9 +121,7 @@ public partial class BuildOutputToolHandlers
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Failed to get build queue status");
-            return Task.FromResult(ToolResultBuilder.Error()
-                .WithText($"Failed: {ex.Message}")
-                .Build());
+            return Task.FromResult(ToolExceptionDiagnosticHelper.BuildErrorResult("build_queue_status", ex, _logger));
         }
     }
 
@@ -131,15 +135,19 @@ public partial class BuildOutputToolHandlers
     {
         if (_buildQueueService is null)
         {
+            var diag = BuildQueueServiceUnavailableDiagnostic();
             return ToolResultBuilder.Error()
-                .WithText("Build queue service is not available")
+                .WithText(diag.FormattedMessage)
+                .WithDiagnostic(diag)
                 .Build();
         }
 
         if (string.IsNullOrWhiteSpace(build_id))
         {
+            var diag = BuildEmptyBuildIdDiagnostic();
             return ToolResultBuilder.Error()
-                .WithText("build_id is required")
+                .WithText(diag.FormattedMessage)
+                .WithDiagnostic(diag)
                 .Build();
         }
 
@@ -147,17 +155,87 @@ public partial class BuildOutputToolHandlers
         {
             var cancelled = await _buildQueueService.CancelAsync(build_id, cancellationToken).ConfigureAwait(false);
 
-            return cancelled
-                ? ToolResultBuilder.Success().WithText($"Build {build_id} cancelled").Build()
-                : ToolResultBuilder.Error().WithText($"Build {build_id} not found or already completed").Build();
+            if (cancelled)
+            {
+                return ToolResultBuilder.Success().WithText($"Build {build_id} cancelled").Build();
+            }
+
+            var notFoundDiag = BuildBuildNotFoundDiagnostic(build_id);
+            return ToolResultBuilder.Error()
+                .WithText(notFoundDiag.FormattedMessage)
+                .WithDiagnostic(notFoundDiag)
+                .Build();
         }
         catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Failed to cancel build {BuildId}", build_id);
-            return ToolResultBuilder.Error()
-                .WithText($"Failed: {ex.Message}")
-                .Build();
+            return ToolExceptionDiagnosticHelper.BuildErrorResult("build_cancel", ex, _logger, "build_id", build_id);
         }
     }
+
+    #region Diagnostics
+
+    internal static ToolDiagnostic BuildQueueServiceUnavailableDiagnostic() =>
+        ToolDiagnostic.Create(
+            reason: "构建队列服务不可用",
+            formattedMessage: "Build queue service is not available",
+            details: [new DiagnosticDetail("service", "IBuildQueueService")],
+            suggestions: ["确认构建队列服务已正确注册"]);
+
+    internal static ToolDiagnostic BuildEmptyBuildIdDiagnostic() =>
+        ToolDiagnostic.Create(
+            reason: "参数验证失败",
+            formattedMessage: "build_id is required",
+            details: [new DiagnosticDetail("field", "build_id")],
+            suggestions: ["提供非空的 build_id 参数"]);
+
+    internal static ToolDiagnostic BuildInvalidStartLineDiagnostic(int startLine) =>
+        ToolDiagnostic.Create(
+            reason: "参数验证失败",
+            formattedMessage: "start_line must be >= 1",
+            details:
+            [
+                new DiagnosticDetail("field", "start_line"),
+                new DiagnosticDetail("actual_value", startLine.ToString())
+            ],
+            suggestions: ["start_line 从 1 开始计数，请提供 >= 1 的值"]);
+
+    internal static ToolDiagnostic BuildGetOutputFailedDiagnostic(string buildId, string errorMessage) =>
+        ToolDiagnostic.Create(
+            reason: "获取编译输出失败",
+            formattedMessage: $"Failed: {errorMessage}",
+            details:
+            [
+                new DiagnosticDetail("build_id", buildId),
+                new DiagnosticDetail("error", errorMessage)
+            ],
+            suggestions: ["检查 build_id 是否正确", "使用 build_queue_status 查看队列状态"]);
+
+    internal static ToolDiagnostic BuildGetStatusFailedDiagnostic(string errorMessage) =>
+        ToolDiagnostic.Create(
+            reason: "查询编译队列状态失败",
+            formattedMessage: $"Failed: {errorMessage}",
+            details: [new DiagnosticDetail("error", errorMessage)],
+            suggestions: ["检查构建队列服务状态"]);
+
+    internal static ToolDiagnostic BuildBuildNotFoundDiagnostic(string buildId) =>
+        ToolDiagnostic.Create(
+            reason: "构建未找到或已完成",
+            formattedMessage: $"Build {buildId} not found or already completed",
+            details: [new DiagnosticDetail("build_id", buildId)],
+            suggestions: ["使用 build_queue_status 查看当前队列状态", "确认 build_id 是否正确"]);
+
+    internal static ToolDiagnostic BuildCancelFailedDiagnostic(string buildId, string errorMessage) =>
+        ToolDiagnostic.Create(
+            reason: "取消构建失败",
+            formattedMessage: $"Failed: {errorMessage}",
+            details:
+            [
+                new DiagnosticDetail("build_id", buildId),
+                new DiagnosticDetail("error", errorMessage)
+            ],
+            suggestions: ["检查 build_id 是否正确", "使用 build_queue_status 查看队列状态"]);
+
+    #endregion
 }

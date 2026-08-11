@@ -135,15 +135,25 @@ public sealed class CliSession
 
     private async Task HandleCommandAsync(string input, CancellationToken cancellationToken)
     {
+        Diag.WriteLifecycle($"[DIAG-CLI] HandleCommandAsync entry: input='{(input.Length > 60 ? input[..60] + "..." : input)}'");
         var parseResult = _commandRegistry.Parse(input);
-        if (!parseResult.IsSuccess) return;
+        if (!parseResult.IsSuccess)
+        {
+            Diag.WriteLifecycle($"[DIAG-CLI] Parse FAILED for: '{input}', error={parseResult.ErrorMessage}");
+            return;
+        }
 
+        Diag.WriteLifecycle($"[DIAG-CLI] Parse OK, commandName={parseResult.CommandName}, arguments={parseResult.Arguments}");
         var command = _commandRegistry.GetCommand(parseResult.CommandName ?? throw new InvalidOperationException("CommandName should not be null after successful parse"));
         if (command == null)
         {
+            var allCommands = _commandRegistry.GetAllCommands().Keys.OrderBy(k => k).ToArray();
+            Diag.WriteLifecycle($"[DIAG-CLI] Command NOT FOUND: '{parseResult.CommandName}', registeredCount={allCommands.Length}, registered=[{string.Join(", ", allCommands)}]");
             ShowUnknownCommandHelp();
             return;
         }
+
+        Diag.WriteLifecycle($"[DIAG-CLI] Command resolved: name={command.Name}, type={command.GetType().FullName}");
 
         var context = new ChatCommandContext
         {
@@ -236,9 +246,14 @@ public sealed class CliSession
         ChatCommandResult result;
         try
         {
-            Diag.WriteLine($"[CliSession] HandleCommandAsync: executing command '{command.Name}'");
+            Diag.WriteLifecycle($"[DIAG-CLI] executing command '{command.Name}', args='{parseResult.Arguments}'");
             result = await command.ExecuteAsync(context);
-            Diag.WriteLine($"[CliSession] HandleCommandAsync: command '{command.Name}' returned ShouldContinue={result.ShouldContinue}");
+            Diag.WriteLifecycle($"[DIAG-CLI] command '{command.Name}' returned: ShouldContinue={result.ShouldContinue}, resultType={result.GetType().FullName}");
+        }
+        catch (Exception ex)
+        {
+            Diag.WriteLifecycle($"[DIAG-CLI] command '{command.Name}' THREW {ex.GetType().Name}: {ex.Message}");
+            throw;
         }
         finally
         {
@@ -247,7 +262,7 @@ public sealed class CliSession
         }
 
         var outputText = commandOutput.ToString();
-        Diag.WriteLine($"[CliSession] HandleCommandAsync: outputText.Length={outputText.Length}");
+        Diag.WriteLifecycle($"[DIAG-CLI] command '{command.Name}' outputLen={outputText.Length}, outputPreview='{(outputText.Length > 200 ? outputText[..200] + "..." : outputText)}'");
         if (!string.IsNullOrWhiteSpace(outputText))
         {
             TerminalHelper.WriteLine(outputText.TrimEnd());
@@ -255,7 +270,7 @@ public sealed class CliSession
 
         if (!result.ShouldContinue)
         {
-            Diag.WriteLine("[CliSession] HandleCommandAsync: ShouldContinue=false, calling Stop()");
+            Diag.WriteLifecycle($"[DIAG-CLI] command '{command.Name}' ShouldContinue=false, calling Stop()");
             Stop();
         }
     }
@@ -287,6 +302,7 @@ public sealed class CliSession
         else if (result.TimedOut)
         {
             Diag.WriteLine($"[CliSession] API timeout ({result.TimeoutMs}ms no response)");
+            using var _ = TerminalHelper.SetColor(ConsoleColor.Yellow);
             TerminalHelper.WriteLine();
             TerminalHelper.WriteLine($"API 请求超时（{result.TimeoutMs / 1000}s 无响应）。请检查：");
             TerminalHelper.WriteLine("  1. 是否已配置 API Key");

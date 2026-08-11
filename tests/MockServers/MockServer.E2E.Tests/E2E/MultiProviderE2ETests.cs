@@ -34,49 +34,49 @@ public sealed class MultiProviderE2ETests : IAsyncLifetime
     [Fact]
     public async Task Anthropic_SingleTurn_TextOnly_ShouldGetResponse()
     {
-        await RunScriptWithProviderAsync(BasicConversationScripts.SingleTurnTextOnly, ProviderKind.Anthropic).ConfigureAwait(true);
+        await RunScriptWithProviderAsync(BasicConversationScripts.SingleTurnTextOnly, VendorKind.Anthropic).ConfigureAwait(true);
     }
 
     [Fact]
     public async Task Anthropic_SingleTurn_WithToolCall_ShouldShowToolExecution()
     {
-        await RunScriptWithProviderAsync(BasicConversationScripts.SingleTurnWithToolCall, ProviderKind.Anthropic).ConfigureAwait(true);
+        await RunScriptWithProviderAsync(BasicConversationScripts.SingleTurnWithToolCall, VendorKind.Anthropic).ConfigureAwait(true);
     }
 
     [Fact]
     public async Task Anthropic_NonInteractive_SinglePrompt_ShouldGetResponse()
     {
-        await RunScriptWithProviderAsync(BasicConversationScripts.SingleTurnNonInteractive, ProviderKind.Anthropic).ConfigureAwait(true);
+        await RunScriptWithProviderAsync(BasicConversationScripts.SingleTurnNonInteractive, VendorKind.Anthropic).ConfigureAwait(true);
     }
 
     [Fact]
     public async Task Anthropic_StreamingResponse_ShouldReceiveChunks()
     {
-        await RunScriptWithProviderAsync(BasicConversationScripts.StreamingResponse, ProviderKind.Anthropic).ConfigureAwait(true);
+        await RunScriptWithProviderAsync(BasicConversationScripts.StreamingResponse, VendorKind.Anthropic).ConfigureAwait(true);
     }
 
     [Fact]
     public async Task Anthropic_MultiTurn_ThreeRounds_ShouldMaintainMemory()
     {
-        await RunScriptWithProviderAsync(BasicConversationScripts.MultiTurnMemory, ProviderKind.Anthropic).ConfigureAwait(true);
+        await RunScriptWithProviderAsync(BasicConversationScripts.MultiTurnMemory, VendorKind.Anthropic).ConfigureAwait(true);
     }
 
     [Fact]
     public async Task Anthropic_ThinkingThenResponse_ShouldShowBoth()
     {
-        await RunScriptWithProviderAsync(ToolCallScripts.ThinkingThenResponse, ProviderKind.Anthropic).ConfigureAwait(true);
+        await RunScriptWithProviderAsync(ToolCallScripts.ThinkingThenResponse, VendorKind.Anthropic).ConfigureAwait(true);
     }
 
     [Fact]
     public async Task Anthropic_ToolCallThenFollowUp_ShouldMaintainContext()
     {
-        await RunScriptWithProviderAsync(MultiTurnScripts.ToolCallThenFollowUp, ProviderKind.Anthropic).ConfigureAwait(true);
+        await RunScriptWithProviderAsync(MultiTurnScripts.ToolCallThenFollowUp, VendorKind.Anthropic).ConfigureAwait(true);
     }
 
     [Fact]
     public async Task Anthropic_ToolCallWithFollowUpText_ShouldShowBoth()
     {
-        await RunScriptWithProviderAsync(ToolCallScripts.ToolCallWithFollowUpText, ProviderKind.Anthropic).ConfigureAwait(true);
+        await RunScriptWithProviderAsync(ToolCallScripts.ToolCallWithFollowUpText, VendorKind.Anthropic).ConfigureAwait(true);
     }
 
     // ============================================================
@@ -86,43 +86,43 @@ public sealed class MultiProviderE2ETests : IAsyncLifetime
     [Fact]
     public async Task DeepSeek_SingleTurn_TextOnly_ShouldGetResponse()
     {
-        await RunScriptWithProviderAsync(BasicConversationScripts.SingleTurnTextOnly, ProviderKind.DeepSeek).ConfigureAwait(true);
+        await RunScriptWithProviderAsync(BasicConversationScripts.SingleTurnTextOnly, VendorKind.DeepSeek).ConfigureAwait(true);
     }
 
     [Fact]
     public async Task DeepSeek_SingleTurn_WithToolCall_ShouldShowToolExecution()
     {
-        await RunScriptWithProviderAsync(BasicConversationScripts.SingleTurnWithToolCall, ProviderKind.DeepSeek).ConfigureAwait(true);
+        await RunScriptWithProviderAsync(BasicConversationScripts.SingleTurnWithToolCall, VendorKind.DeepSeek).ConfigureAwait(true);
     }
 
     [Fact]
     public async Task DeepSeek_NonInteractive_SinglePrompt_ShouldGetResponse()
     {
-        await RunScriptWithProviderAsync(BasicConversationScripts.SingleTurnNonInteractive, ProviderKind.DeepSeek).ConfigureAwait(true);
+        await RunScriptWithProviderAsync(BasicConversationScripts.SingleTurnNonInteractive, VendorKind.DeepSeek).ConfigureAwait(true);
     }
 
     [Fact]
     public async Task DeepSeek_StreamingResponse_ShouldReceiveChunks()
     {
-        await RunScriptWithProviderAsync(BasicConversationScripts.StreamingResponse, ProviderKind.DeepSeek).ConfigureAwait(true);
+        await RunScriptWithProviderAsync(BasicConversationScripts.StreamingResponse, VendorKind.DeepSeek).ConfigureAwait(true);
     }
 
     [Fact]
     public async Task DeepSeek_MultiTurn_ThreeRounds_ShouldMaintainMemory()
     {
-        await RunScriptWithProviderAsync(BasicConversationScripts.MultiTurnMemory, ProviderKind.DeepSeek).ConfigureAwait(true);
+        await RunScriptWithProviderAsync(BasicConversationScripts.MultiTurnMemory, VendorKind.DeepSeek).ConfigureAwait(true);
     }
 
     [Fact]
     public async Task DeepSeek_ToolCallThenFollowUp_ShouldMaintainContext()
     {
-        await RunScriptWithProviderAsync(MultiTurnScripts.ToolCallThenFollowUp, ProviderKind.DeepSeek).ConfigureAwait(true);
+        await RunScriptWithProviderAsync(MultiTurnScripts.ToolCallThenFollowUp, VendorKind.DeepSeek).ConfigureAwait(true);
     }
 
     [Fact]
     public async Task DeepSeek_ToolCallWithFollowUpText_ShouldShowBoth()
     {
-        await RunScriptWithProviderAsync(ToolCallScripts.ToolCallWithFollowUpText, ProviderKind.DeepSeek).ConfigureAwait(true);
+        await RunScriptWithProviderAsync(ToolCallScripts.ToolCallWithFollowUpText, VendorKind.DeepSeek).ConfigureAwait(true);
     }
 
     // ============================================================
@@ -132,26 +132,26 @@ public sealed class MultiProviderE2ETests : IAsyncLifetime
     [Fact]
     public async Task DualModel_ToolCallThenAnalysis_ShouldWork_WithAnthropic()
     {
-        await RunScriptWithProviderAsync(DualModelScripts.ToolCallThenAnalysis, ProviderKind.Anthropic).ConfigureAwait(true);
+        await RunScriptWithProviderAsync(DualModelScripts.ToolCallThenAnalysis, VendorKind.Anthropic).ConfigureAwait(true);
     }
 
     [Fact]
     public async Task DualModel_DirectTextNoPlan_ShouldWork_WithDeepSeek()
     {
-        await RunScriptWithProviderAsync(DualModelScripts.DirectTextNoPlan, ProviderKind.DeepSeek).ConfigureAwait(true);
+        await RunScriptWithProviderAsync(DualModelScripts.DirectTextNoPlan, VendorKind.DeepSeek).ConfigureAwait(true);
     }
 
     [Fact]
     public async Task EventStream_ThreeTurnContextPreservation_ShouldWork_WithAnthropic()
     {
-        await RunScriptWithProviderAsync(EventStreamScripts.ThreeTurnContextPreservation, ProviderKind.Anthropic).ConfigureAwait(true);
+        await RunScriptWithProviderAsync(EventStreamScripts.ThreeTurnContextPreservation, VendorKind.Anthropic).ConfigureAwait(true);
     }
 
     // ============================================================
     // 测试辅助方法 — 带计时和日志记录
     // ============================================================
 
-    private async Task RunScriptWithProviderAsync(ConversationScript script, ProviderKind provider)
+    private async Task RunScriptWithProviderAsync(ConversationScript script, VendorKind provider)
     {
         const int maxAttempts = 3;
         var attemptDurations = new List<TimeSpan>();
@@ -236,7 +236,7 @@ public sealed class MultiProviderE2ETests : IAsyncLifetime
         }
     }
 
-    private void LogResult(ConversationResult result, ProviderKind provider, TimeSpan elapsed)
+    private void LogResult(ConversationResult result, VendorKind provider, TimeSpan elapsed)
     {
         var elapsedMs = elapsed.TotalMilliseconds;
         _output.WriteLine($"[{provider}] 脚本: {result.ScriptName}");

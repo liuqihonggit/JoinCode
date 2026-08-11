@@ -364,11 +364,9 @@ public class SkillToolHandlers
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            return ToolResultBuilder.Error()
-                .WithText($"Forked skill execution failed for '{skillName}': {ex.Message}")
-                .Build();
+            return ToolExceptionDiagnosticHelper.BuildErrorResult("skill_fork", ex, null, "skillName", skillName);
         }
     }
 

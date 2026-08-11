@@ -92,20 +92,20 @@ public class ConfigLoader {
 
             // Step 5: 统一 API Key 解析（auth.json → JCC_API_KEY → Provider 专属变量）
             config.Provider.ApiKey = await ResolveApiKeyAsync(
-                config.Provider.Provider, config.Provider.Definition, fs, cancellationToken).ConfigureAwait(false);
+                config.Provider.Vendor, config.Provider.Definition, fs, cancellationToken).ConfigureAwait(false);
 
             // Step 6: 规则赋值
             config.ProjectRules = await projectRulesTask.ConfigureAwait(false);
             config.ExternalRules = await externalRulesTask.ConfigureAwait(false);
 
             // Step 7: 验证 Provider 配置 — Provider 必须有 API Key
-            var definition = _registry.TryGet(config.Provider.Provider);
+            var definition = _registry.TryGet(config.Provider.Vendor);
             if (definition is not null && !definition.IsValid(config.Provider))
             {
                 throw new ConfigurationException(
-                    $"Provider '{config.Provider.Provider}' 配置无效: 缺少 API Key。" +
+                    $"Provider '{config.Provider.Vendor}' 配置无效: 缺少 API Key。" +
                     $"请设置环境变量 {definition.ApiKeyEnvironmentVariable ?? "JCC_API_KEY"}" +
-                    $" 或在 {WorkflowConstants.Paths.AuthFilePath} 中添加 '{config.Provider.Provider}' 键。");
+                    $" 或在 {WorkflowConstants.Paths.AuthFilePath} 中添加 '{config.Provider.Vendor}' 键。");
             }
 
             return config;

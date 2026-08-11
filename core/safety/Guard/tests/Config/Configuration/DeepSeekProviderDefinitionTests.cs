@@ -3,8 +3,8 @@ namespace Guard.Tests.Configuration;
 /// <summary>
 /// DeepSeek Provider 定义单元测试 — TDD 红绿循环驱动 P4-1 修复
 ///
-/// 背景: P4-1 发现 jcc.exe 不支持 JCC_PROVIDER=deepseek，报错"未知的 Provider 'deepseek'"。
-/// 修复目标: 新增 ProviderKind.DeepSeek + DeepSeekProviderDefinition + ProviderDefinitionRegistry 注册。
+/// 背景: P4-1 发现 jcc.exe 不支持 JCC_VENDOR=deepseek，报错"未知的 Provider 'deepseek'"。
+/// 修复目标: 新增 VendorKind.DeepSeek + DeepSeekProviderDefinition + ProviderDefinitionRegistry 注册。
 ///
 /// DeepSeek 协议特性:
 /// - OpenAI 兼容协议（chat/completions 端点 + Bearer Token）
@@ -18,36 +18,36 @@ public class DeepSeekProviderDefinitionTests
 {
     private static readonly Core.Configuration.Providers.ProviderDefinitionRegistry Registry = new();
 
-    #region ProviderKind 枚举验证
+    #region VendorKind 枚举验证
 
     [Fact]
-    public void ProviderKind_DeepSeek_ToValue_ShouldReturnDeepSeekString()
+    public void VendorKind_DeepSeek_ToValue_ShouldReturnDeepSeekString()
     {
         // Act
-        var value = ProviderKind.DeepSeek.ToValue();
+        var value = VendorKind.DeepSeek.ToValue();
 
         // Then
         value.Should().Be("deepseek");
     }
 
     [Fact]
-    public void ProviderKindExtensions_FromDeepSeekString_ShouldReturnDeepSeekEnum()
+    public void VendorKindExtensions_FromDeepSeekString_ShouldReturnDeepSeekEnum()
     {
         // Act
-        var kind = ProviderKindExtensions.FromValue("deepseek");
+        var kind = VendorKindExtensions.FromValue("deepseek");
 
         // Then
-        kind.Should().Be(ProviderKind.DeepSeek);
+        kind.Should().Be(VendorKind.DeepSeek);
     }
 
     [Fact]
-    public void ProviderKindExtensions_FromDeepSeekString_UpperCase_ShouldReturnDeepSeekEnum()
+    public void VendorKindExtensions_FromDeepSeekString_UpperCase_ShouldReturnDeepSeekEnum()
     {
         // Act — 大小写不敏感
-        var kind = ProviderKindExtensions.FromValue("DeepSeek");
+        var kind = VendorKindExtensions.FromValue("DeepSeek");
 
         // Then
-        kind.Should().Be(ProviderKind.DeepSeek);
+        kind.Should().Be(VendorKind.DeepSeek);
     }
 
     #endregion
@@ -64,7 +64,7 @@ public class DeepSeekProviderDefinitionTests
         var definition = Registry.TryGet("deepseek");
 
         // Then
-        definition.Should().NotBeNull("JCC_PROVIDER=deepseek 时应能从注册表解析到 DeepSeekProviderDefinition");
+        definition.Should().NotBeNull("JCC_VENDOR=deepseek 时应能从注册表解析到 DeepSeekProviderDefinition");
     }
 
     [Fact]
@@ -75,7 +75,7 @@ public class DeepSeekProviderDefinitionTests
 
         // Then
         providers.Should().Contain("deepseek",
-            "注册表必须包含 deepseek，否则 JCC_PROVIDER=deepseek 会抛 ConfigurationException");
+            "注册表必须包含 deepseek，否则 JCC_VENDOR=deepseek 会抛 ConfigurationException");
     }
 
     #endregion
@@ -89,7 +89,7 @@ public class DeepSeekProviderDefinitionTests
         var definition = GetDeepSeekDefinition();
 
         // Then
-        definition!.Kind.Should().Be(ProviderKind.DeepSeek);
+        definition!.Vendor.Should().Be(VendorKind.DeepSeek);
     }
 
     [Fact]

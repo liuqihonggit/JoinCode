@@ -2,7 +2,7 @@ namespace JoinCode.Sdk;
 
 public sealed class JoinCodeOptions
 {
-    public ProviderKind Provider { get; set; } = ProviderKind.OpenAI;
+    public VendorKind Vendor { get; set; } = VendorKind.OpenAi;
     public string ModelId { get; set; } = string.Empty;
     public string? ApiKey { get; set; }
     public string? BaseUrl { get; set; }

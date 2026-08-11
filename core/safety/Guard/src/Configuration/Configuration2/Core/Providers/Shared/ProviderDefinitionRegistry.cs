@@ -14,6 +14,7 @@ public sealed class ProviderDefinitionRegistry : IProviderDefinitionRegistry
             new AnthropicProviderDefinition(),
             new AgnesProviderDefinition(),
             new DeepSeekProviderDefinition(),
+            new SenseNovaProviderDefinition(),
         }.ToFrozenDictionary(d => d.ProviderName, StringComparer.OrdinalIgnoreCase);
     }
 

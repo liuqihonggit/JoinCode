@@ -28,7 +28,8 @@ public sealed partial class SnipLogic : ServiceEntity
         var currentLine = 0;
 
         using var stream = _fs.OpenRead(filePath);
-        using var reader = new StreamReader(stream, Encoding.UTF8);
+        var encoding = await FileEncodingDetector.DetectFromFileAsync(filePath, _fs, cancellationToken).ConfigureAwait(false);
+        using var reader = new StreamReader(stream, encoding);
         while (await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false) is { } line)
         {
             if (currentLine >= startLine)
@@ -65,7 +66,8 @@ public sealed partial class SnipLogic : ServiceEntity
         var previewLinesCollected = 0;
 
         using var stream = _fs.OpenRead(filePath);
-        using var reader = new StreamReader(stream, Encoding.UTF8);
+        var encoding = await FileEncodingDetector.DetectFromFileAsync(filePath, _fs, cancellationToken).ConfigureAwait(false);
+        using var reader = new StreamReader(stream, encoding);
         while (await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false) is { } line)
         {
             totalLines++;

@@ -48,7 +48,7 @@ public class PlaceholderChatSessionTests
         await using var session = new PlaceholderChatSession();
         var configDefault = ModelConfigLoader.GetDefaultModelId("deepseek");
 
-        session.CurrentProvider.Should().Be("deepseek");
+        session.CurrentVendor.Should().Be("deepseek");
         if (!string.IsNullOrEmpty(configDefault))
             session.CurrentModelId.Should().Be(configDefault, "占位会话模型应与配置默认值对齐");
         else

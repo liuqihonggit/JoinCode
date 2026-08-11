@@ -63,7 +63,7 @@ public class ChatServiceTests : IAsyncLifetime
         {
             Provider = new ProviderConfig
             {
-                Provider = "openai",
+                Vendor = "openai",
                 ApiKey = MockServerOptions.DefaultApiKey,
                 ModelId = MockServerOptions.DefaultModel
             },

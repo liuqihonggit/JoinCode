@@ -27,10 +27,17 @@ public sealed partial class ShellValidationMiddleware : ServiceEntity, IShellMid
         if (validationError != null)
         {
             context.ValidationError = validationError;
-            context.Result = ToolResultBuilder.Error().WithText(validationError).Build();
+            var diagnostic = BuildValidationErrorDiagnostic(validationError);
+            context.Result = ToolResultBuilder.Error().WithText(diagnostic.FormattedMessage).WithDiagnostic(diagnostic).Build();
             return Task.CompletedTask; // 短路
         }
 
         return next(context, ct);
     }
+
+    internal static ToolDiagnostic BuildValidationErrorDiagnostic(string validationError) =>
+        ToolDiagnostic.Create(
+            reason: "参数验证失败",
+            formattedMessage: validationError,
+            details: [new DiagnosticDetail("validation_error", validationError)]);
 }

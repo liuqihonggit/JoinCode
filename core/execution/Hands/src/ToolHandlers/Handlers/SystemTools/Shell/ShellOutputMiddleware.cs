@@ -25,7 +25,8 @@ public sealed partial class ShellOutputMiddleware : ServiceEntity, IShellMiddlew
         var result = context.ExecutionResult;
         if (result is null)
         {
-            context.Result = ToolResultBuilder.Error().WithText("No execution result available").Build();
+            var diag = BuildNoExecutionResultDiagnostic();
+            context.Result = ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
             return Task.CompletedTask;
         }
 
@@ -34,8 +35,10 @@ public sealed partial class ShellOutputMiddleware : ServiceEntity, IShellMiddlew
         if (result.Interrupted)
         {
             ToolTelemetryHelper.RecordToolCount(_telemetryService, "shell.execution.count", new Dictionary<string, string> { ["shell"] = shellType, ["operation"] = "execute", ["result"] = "interrupted" });
+            var interruptDiag = BuildInterruptedDiagnostic(context.Command, result.ExitCode ?? -1);
             context.Result = ToolResultBuilder.Error()
                 .WithText(BuildOutputResponse(result, context.Command))
+                .WithDiagnostic(interruptDiag)
                 .WithEntityMetadata(EntityMetadataEntry.Int("exit_code", result.ExitCode ?? -1))
                 .WithEntityMetadata(EntityMetadataEntry.Bool("interrupted", true))
                 .Build();
@@ -72,8 +75,10 @@ public sealed partial class ShellOutputMiddleware : ServiceEntity, IShellMiddlew
         if (interpretation.IsError)
         {
             ToolTelemetryHelper.RecordToolCount(_telemetryService, "shell.execution.count", new Dictionary<string, string> { ["shell"] = shellType, ["operation"] = "execute", ["result"] = "failed" });
+            var failedDiag = BuildCommandFailedDiagnostic(context.Command, result.ExitCode ?? -1);
             context.Result = ToolResultBuilder.Error()
                 .WithText(output)
+                .WithDiagnostic(failedDiag)
                 .WithEntityMetadata(EntityMetadataEntry.Int("exit_code", result.ExitCode ?? -1))
                 .Build();
             return Task.CompletedTask;
@@ -232,4 +237,30 @@ public sealed partial class ShellOutputMiddleware : ServiceEntity, IShellMiddlew
 
     [GeneratedRegex(@"^(\s*\n)+")]
     private static partial Regex LeadingBlankLineRegex();
+
+    internal static ToolDiagnostic BuildNoExecutionResultDiagnostic() =>
+        ToolDiagnostic.Create(
+            reason: "无执行结果",
+            formattedMessage: "No execution result available");
+
+    internal static ToolDiagnostic BuildInterruptedDiagnostic(string? command, int exitCode) =>
+        ToolDiagnostic.Create(
+            reason: "命令中断",
+            formattedMessage: "Command was aborted before completion",
+            details:
+            [
+                new DiagnosticDetail("command", command ?? string.Empty),
+                new DiagnosticDetail("exit_code", exitCode.ToString())
+            ]);
+
+    internal static ToolDiagnostic BuildCommandFailedDiagnostic(string? command, int exitCode) =>
+        ToolDiagnostic.Create(
+            reason: "命令执行失败",
+            formattedMessage: $"Command failed with exit code {exitCode}",
+            details:
+            [
+                new DiagnosticDetail("command", command ?? string.Empty),
+                new DiagnosticDetail("exit_code", exitCode.ToString())
+            ],
+            suggestions: ["检查命令语法和参数", "查看 stderr 输出获取详细错误信息"]);
 }

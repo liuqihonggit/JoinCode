@@ -60,9 +60,9 @@ public readonly record struct SlashParseResult
 /// </summary>
 public static class SlashCommandParser
 {
-    /// <summary>支持参数补全的命令集</summary>
-    private static readonly string[] ArgumentCompletableCommands =
-        ["/model", "/theme", "/config", "/effort", "/provider"];
+    /// <summary>支持参数补全的命令集（FrozenSet O(1) 查找）</summary>
+    private static readonly FrozenSet<string> ArgumentCompletableCommands = FrozenSet.Create(
+        StringComparer.OrdinalIgnoreCase, "/model", "/theme", "/config", "/effort", "/provider");
 
     /// <summary>
     /// 解析文本中光标位置的补全上下文。
@@ -159,5 +159,5 @@ public static class SlashCommandParser
     }
 
     private static bool IsArgumentCompletable(string commandName)
-        => ArgumentCompletableCommands.Contains(commandName, StringComparer.OrdinalIgnoreCase);
+        => ArgumentCompletableCommands.Contains(commandName);
 }

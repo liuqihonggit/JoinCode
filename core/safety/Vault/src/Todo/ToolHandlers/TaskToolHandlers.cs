@@ -29,9 +29,9 @@ public class TaskToolHandlers
     {
         var command = new TaskCreateCommand(title, description, assignee, due_date, priority, tags);
         var validationError = ValidateCommand(command);
-        if (validationError != null)
+        if (validationError is not null)
         {
-            return ToolResultBuilder.Error().WithText(validationError).Build();
+            return ToolResultBuilder.Error().WithText(validationError.FormattedMessage).WithDiagnostic(validationError).Build();
         }
 
         var result = await _taskService.CreateTaskAsync(
@@ -45,7 +45,11 @@ public class TaskToolHandlers
 
         if (!result.Success)
         {
-            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.VaultCreateTaskFailed)).Build();
+            var errorMsg = result.ErrorMessage ?? L.T(StringKey.VaultCreateTaskFailed);
+            var diagnostic = ToolDiagnostic.Create("ServiceFailure", errorMsg,
+                [new DiagnosticDetail("operation", "CreateTask")],
+                ["检查 ITaskService 实现的日志以获取详细错误。"]);
+            return ToolResultBuilder.Error().WithText(errorMsg).WithDiagnostic(diagnostic).Build();
         }
 
         var response = FormatTaskResponse(result.GetData() ?? throw new InvalidOperationException("Task data is null."), L.T(StringKey.VaultTaskCreated));
@@ -76,7 +80,11 @@ public class TaskToolHandlers
 
         if (!result.Success)
         {
-            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.VaultListTaskFailed)).Build();
+            var errorMsg = result.ErrorMessage ?? L.T(StringKey.VaultListTaskFailed);
+            var diagnostic = ToolDiagnostic.Create("ServiceFailure", errorMsg,
+                [new DiagnosticDetail("operation", "ListTask")],
+                ["检查 ITaskService 实现的日志以获取详细错误。"]);
+            return ToolResultBuilder.Error().WithText(errorMsg).WithDiagnostic(diagnostic).Build();
         }
 
         var response = new System.Text.StringBuilder();
@@ -102,9 +110,9 @@ public class TaskToolHandlers
     {
         var command = new TaskUpdateCommand(options.TaskId, options.Title, options.Description, options.Status, options.Assignee, options.DueDate, options.Priority, options.Tags);
         var validationError = ValidateCommand(command);
-        if (validationError != null)
+        if (validationError is not null)
         {
-            return ToolResultBuilder.Error().WithText(validationError).Build();
+            return ToolResultBuilder.Error().WithText(validationError.FormattedMessage).WithDiagnostic(validationError).Build();
         }
 
         var result = await _taskService.UpdateTaskAsync(
@@ -123,7 +131,11 @@ public class TaskToolHandlers
 
         if (!result.Success)
         {
-            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.VaultUpdateTaskFailed)).Build();
+            var errorMsg = result.ErrorMessage ?? L.T(StringKey.VaultUpdateTaskFailed);
+            var diagnostic = ToolDiagnostic.Create("ServiceFailure", errorMsg,
+                [new DiagnosticDetail("operation", "UpdateTask"), new DiagnosticDetail("taskId", command.TaskId)],
+                ["确认 task_id 是否存在，可先调用 TaskList 获取已有任务的 ID。"]);
+            return ToolResultBuilder.Error().WithText(errorMsg).WithDiagnostic(diagnostic).Build();
         }
 
         var response = FormatTaskResponse(result.GetData() ?? throw new InvalidOperationException("Task data is null."), L.T(StringKey.VaultTaskUpdated));
@@ -141,9 +153,9 @@ public class TaskToolHandlers
     {
         var command = new TaskStopCommand(task_id, reason);
         var validationError = ValidateCommand(command);
-        if (validationError != null)
+        if (validationError is not null)
         {
-            return ToolResultBuilder.Error().WithText(validationError).Build();
+            return ToolResultBuilder.Error().WithText(validationError.FormattedMessage).WithDiagnostic(validationError).Build();
         }
 
         var result = await _taskService.StopTaskAsync(
@@ -153,7 +165,11 @@ public class TaskToolHandlers
 
         if (!result.Success)
         {
-            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.VaultStopTaskFailed)).Build();
+            var errorMsg = result.ErrorMessage ?? L.T(StringKey.VaultStopTaskFailed);
+            var diagnostic = ToolDiagnostic.Create("ServiceFailure", errorMsg,
+                [new DiagnosticDetail("operation", "StopTask"), new DiagnosticDetail("taskId", command.TaskId)],
+                ["确认 task_id 是否存在，可先调用 TaskList 获取已有任务的 ID。"]);
+            return ToolResultBuilder.Error().WithText(errorMsg).WithDiagnostic(diagnostic).Build();
         }
 
         var response = new System.Text.StringBuilder();
@@ -177,16 +193,20 @@ public class TaskToolHandlers
     {
         var command = new TaskGetCommand(task_id);
         var validationError = ValidateCommand(command);
-        if (validationError != null)
+        if (validationError is not null)
         {
-            return ToolResultBuilder.Error().WithText(validationError).Build();
+            return ToolResultBuilder.Error().WithText(validationError.FormattedMessage).WithDiagnostic(validationError).Build();
         }
 
         var task = await _taskService.GetTaskAsync(command.TaskId, cancellationToken).ConfigureAwait(false);
 
         if (task == null)
         {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.VaultTaskNotFound, command.TaskId)).Build();
+            var errorMsg = L.T(StringKey.VaultTaskNotFound, command.TaskId);
+            var diagnostic = ToolDiagnostic.Create("TaskNotFound", errorMsg,
+                [new DiagnosticDetail("taskId", command.TaskId)],
+                ["确认 task_id 是否存在，可先调用 TaskList 获取已有任务的 ID。"]);
+            return ToolResultBuilder.Error().WithText(errorMsg).WithDiagnostic(diagnostic).Build();
         }
 
         var response = FormatTaskResponse(task, L.T(StringKey.VaultTaskDetails));
@@ -205,9 +225,9 @@ public class TaskToolHandlers
     {
         var command = new TaskSetDependencyCommand(task_id, depends_on_task_id, dependency_type);
         var validationError = ValidateCommand(command);
-        if (validationError != null)
+        if (validationError is not null)
         {
-            return ToolResultBuilder.Error().WithText(validationError).Build();
+            return ToolResultBuilder.Error().WithText(validationError.FormattedMessage).WithDiagnostic(validationError).Build();
         }
 
         var dependencyType = ParseDependencyType(command.DependencyType);
@@ -220,7 +240,11 @@ public class TaskToolHandlers
 
         if (!result.Success)
         {
-            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.VaultSetDependencyFailed)).Build();
+            var errorMsg = result.ErrorMessage ?? L.T(StringKey.VaultSetDependencyFailed);
+            var diagnostic = ToolDiagnostic.Create("ServiceFailure", errorMsg,
+                [new DiagnosticDetail("operation", "SetTaskDependency"), new DiagnosticDetail("taskId", command.TaskId), new DiagnosticDetail("dependsOnTaskId", command.DependsOnTaskId)],
+                ["确认两个 task_id 是否存在，或检查是否已存在相同依赖关系。"]);
+            return ToolResultBuilder.Error().WithText(errorMsg).WithDiagnostic(diagnostic).Build();
         }
 
         var response = new System.Text.StringBuilder();
@@ -243,9 +267,9 @@ public class TaskToolHandlers
     {
         var command = new TaskRemoveDependencyCommand(task_id, depends_on_task_id);
         var validationError = ValidateCommand(command);
-        if (validationError != null)
+        if (validationError is not null)
         {
-            return ToolResultBuilder.Error().WithText(validationError).Build();
+            return ToolResultBuilder.Error().WithText(validationError.FormattedMessage).WithDiagnostic(validationError).Build();
         }
 
         var result = await _taskService.RemoveTaskDependencyAsync(
@@ -255,7 +279,11 @@ public class TaskToolHandlers
 
         if (!result.Success)
         {
-            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? L.T(StringKey.VaultRemoveDependencyFailed)).Build();
+            var errorMsg = result.ErrorMessage ?? L.T(StringKey.VaultRemoveDependencyFailed);
+            var diagnostic = ToolDiagnostic.Create("ServiceFailure", errorMsg,
+                [new DiagnosticDetail("operation", "RemoveTaskDependency"), new DiagnosticDetail("taskId", command.TaskId), new DiagnosticDetail("dependsOnTaskId", command.DependsOnTaskId)],
+                ["确认两个 task_id 是否存在，或检查依赖关系是否已建立。"]);
+            return ToolResultBuilder.Error().WithText(errorMsg).WithDiagnostic(diagnostic).Build();
         }
 
         var response = new System.Text.StringBuilder();
@@ -276,9 +304,9 @@ public class TaskToolHandlers
     {
         var command = new TaskGetDependenciesCommand(task_id);
         var validationError = ValidateCommand(command);
-        if (validationError != null)
+        if (validationError is not null)
         {
-            return ToolResultBuilder.Error().WithText(validationError).Build();
+            return ToolResultBuilder.Error().WithText(validationError.FormattedMessage).WithDiagnostic(validationError).Build();
         }
 
         var dependencies = await _taskService.GetTaskDependenciesAsync(command.TaskId, cancellationToken).ConfigureAwait(false);
@@ -312,9 +340,9 @@ public class TaskToolHandlers
     {
         var command = new TaskCanExecuteCommand(task_id);
         var validationError = ValidateCommand(command);
-        if (validationError != null)
+        if (validationError is not null)
         {
-            return ToolResultBuilder.Error().WithText(validationError).Build();
+            return ToolResultBuilder.Error().WithText(validationError.FormattedMessage).WithDiagnostic(validationError).Build();
         }
 
         var canExecute = await _taskService.CanExecuteTaskAsync(command.TaskId, cancellationToken).ConfigureAwait(false);
@@ -340,22 +368,46 @@ public class TaskToolHandlers
         return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
+    #region Diagnostic Builders
+
+    /// <summary>
+    /// task_id 为空的结构化诊断。
+    /// </summary>
+    internal static ToolDiagnostic BuildEmptyTaskIdDiagnostic()
+    {
+        return ToolDiagnostic.Create("EmptyTaskId", L.T(StringKey.VaultTaskIdCannotBeEmpty),
+            [new DiagnosticDetail("field", "task_id")],
+            ["提供非空的 task_id，可先调用 TaskList 获取已有任务的 ID。"]);
+    }
+
+    /// <summary>
+    /// 通用字段为空的结构化诊断。
+    /// </summary>
+    internal static ToolDiagnostic BuildEmptyFieldDiagnostic(string reason, string fieldName, string message)
+    {
+        return ToolDiagnostic.Create(reason, message,
+            [new DiagnosticDetail("field", fieldName)],
+            [$"提供非空的 {fieldName} 字段。"]);
+    }
+
+    #endregion
+
     #region Private Methods
 
-    private static string? ValidateCommand<TCommand>(TCommand command)
+    private static ToolDiagnostic? ValidateCommand<TCommand>(TCommand command)
     {
         return command switch
         {
-            TaskCreateCommand cmd => string.IsNullOrWhiteSpace(cmd.Title) ? L.T(StringKey.VaultTitleCannotBeEmpty) : null,
-            TaskUpdateCommand cmd => string.IsNullOrWhiteSpace(cmd.TaskId) ? L.T(StringKey.VaultTaskIdCannotBeEmpty) : null,
-            TaskStopCommand cmd => string.IsNullOrWhiteSpace(cmd.TaskId) ? L.T(StringKey.VaultTaskIdCannotBeEmpty) : null,
-            TaskGetCommand cmd => string.IsNullOrWhiteSpace(cmd.TaskId) ? L.T(StringKey.VaultTaskIdCannotBeEmpty) : null,
-            TaskSetDependencyCommand cmd => string.IsNullOrWhiteSpace(cmd.TaskId) ? L.T(StringKey.VaultTaskIdCannotBeEmpty)
-                : string.IsNullOrWhiteSpace(cmd.DependsOnTaskId) ? L.T(StringKey.VaultDependsOnTaskIdCannotBeEmpty) : null,
-            TaskRemoveDependencyCommand cmd => string.IsNullOrWhiteSpace(cmd.TaskId) ? L.T(StringKey.VaultTaskIdCannotBeEmpty)
-                : string.IsNullOrWhiteSpace(cmd.DependsOnTaskId) ? L.T(StringKey.VaultDependsOnTaskIdCannotBeEmpty) : null,
-            TaskGetDependenciesCommand cmd => string.IsNullOrWhiteSpace(cmd.TaskId) ? L.T(StringKey.VaultTaskIdCannotBeEmpty) : null,
-            TaskCanExecuteCommand cmd => string.IsNullOrWhiteSpace(cmd.TaskId) ? L.T(StringKey.VaultTaskIdCannotBeEmpty) : null,
+            TaskCreateCommand cmd => string.IsNullOrWhiteSpace(cmd.Title) ? BuildEmptyFieldDiagnostic("EmptyTitle", "title", L.T(StringKey.VaultTitleCannotBeEmpty)) : null,
+            TaskUpdateCommand cmd => string.IsNullOrWhiteSpace(cmd.TaskId) ? BuildEmptyTaskIdDiagnostic() : null,
+            TaskStopCommand cmd => string.IsNullOrWhiteSpace(cmd.TaskId) ? BuildEmptyTaskIdDiagnostic() : null,
+            TaskGetCommand cmd => string.IsNullOrWhiteSpace(cmd.TaskId) ? BuildEmptyTaskIdDiagnostic() : null,
+            TaskSetDependencyCommand cmd => string.IsNullOrWhiteSpace(cmd.TaskId) ? BuildEmptyTaskIdDiagnostic()
+                : string.IsNullOrWhiteSpace(cmd.DependsOnTaskId) ? BuildEmptyFieldDiagnostic("EmptyDependsOnTaskId", "depends_on_task_id", L.T(StringKey.VaultDependsOnTaskIdCannotBeEmpty)) : null,
+            TaskRemoveDependencyCommand cmd => string.IsNullOrWhiteSpace(cmd.TaskId) ? BuildEmptyTaskIdDiagnostic()
+                : string.IsNullOrWhiteSpace(cmd.DependsOnTaskId) ? BuildEmptyFieldDiagnostic("EmptyDependsOnTaskId", "depends_on_task_id", L.T(StringKey.VaultDependsOnTaskIdCannotBeEmpty)) : null,
+            TaskGetDependenciesCommand cmd => string.IsNullOrWhiteSpace(cmd.TaskId) ? BuildEmptyTaskIdDiagnostic() : null,
+            TaskCanExecuteCommand cmd => string.IsNullOrWhiteSpace(cmd.TaskId) ? BuildEmptyTaskIdDiagnostic() : null,
             _ => null
         };
     }

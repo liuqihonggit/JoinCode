@@ -145,13 +145,9 @@ public sealed class McpCommand : ChatCommandBase
         {
             TerminalHelper.WriteLine("已注册工具:");
             var tools = await context.Services.ToolRegistry.GetAllToolsAsync(context.CancellationToken).ConfigureAwait(false);
-            foreach (var tool in tools.Take(20))
+            foreach (var tool in tools)
             {
                 TerminalHelper.WriteLine($"  - {tool.Key}");
-            }
-            if (tools.Count > 20)
-            {
-                TerminalHelper.WriteLine($"  ... 还有 {tools.Count - 20} 个工具");
             }
             TerminalHelper.WriteLine($"  总计: {tools.Count} 个工具");
         }

@@ -15,7 +15,7 @@ public class NonInteractiveApiKeyCheckStepTests
             Provider = new ProviderConfig
             {
                 ApiKey = apiKey,
-                Provider = "openai",
+                Vendor = "openai",
                 ModelId = "gpt-4o"
             }
         };

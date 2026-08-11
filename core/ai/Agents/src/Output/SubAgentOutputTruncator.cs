@@ -74,12 +74,14 @@ public sealed partial class SubAgentOutputTruncator : ServiceEntity
         return fullPath;
     }
 
+    /// <summary>文件名非法字符集（缓存避免每次调用 Path.GetInvalidFileNameChars + Array.IndexOf 的 O(n²) 开销）</summary>
+    private static readonly FrozenSet<char> InvalidFileNameChars = FrozenSet.Create(Path.GetInvalidFileNameChars());
+
     private static string SanitizeAgentId(string agentId)
     {
-        var invalid = Path.GetInvalidFileNameChars();
         var sb = new StringBuilder(agentId.Length);
         foreach (var c in agentId)
-            sb.Append(Array.IndexOf(invalid, c) >= 0 ? '_' : c);
+            sb.Append(InvalidFileNameChars.Contains(c) ? '_' : c);
         return sb.ToString();
     }
 }

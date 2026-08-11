@@ -15,7 +15,7 @@ public sealed class LoginCommand : ChatCommandBase
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetSplitArgs(context);
-        var providerName = args.Length > 0 ? args[0].ToLowerInvariant() : ProviderKind.OpenAI.ToValue();
+        var providerName = args.Length > 0 ? args[0].ToLowerInvariant() : VendorKind.OpenAi.ToValue();
         var useOAuth = args.Contains("--oauth") || args.Contains("-o");
 
         var definition = ResolveProviderDefinition(context, providerName);
@@ -97,7 +97,7 @@ public sealed class LoginCommand : ChatCommandBase
             return false;
         }
 
-        // 多态：通过 IProviderDefinition.RequiresInteractiveEndpoint + SerializeAuthCredentials 消除 `if (definition.Kind == ProviderKind.Azure)` 硬编码
+        // 多态：通过 IProviderDefinition.RequiresInteractiveEndpoint + SerializeAuthCredentials 消除 `if (definition.Kind == VendorKind.Azure)` 硬编码
         // Azure 覆写为收集 Endpoint + 返回 JSON 对象；其余 Provider 默认直接返回 apiKey
         string? endpoint = null;
         if (definition.RequiresInteractiveEndpoint)

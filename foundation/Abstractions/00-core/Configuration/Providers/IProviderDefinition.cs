@@ -8,9 +8,14 @@ namespace JoinCode.Abstractions.Configuration.Providers;
 public interface IProviderDefinition
 {
     /// <summary>
-    /// Provider 枚举类型
+    /// 供应商枚举类型 — openai/anthropic/deepseek/azure/agnes/sensenova
     /// </summary>
-    ProviderKind Kind { get; }
+    VendorKind Vendor { get; }
+
+    /// <summary>
+    /// 协议枚举类型 — 决定 QueryService 分派和 API 格式
+    /// </summary>
+    ProtocolKind Protocol { get; }
 
     /// <summary>
     /// Provider 标识名（小写，如 "openai", "agnes"）

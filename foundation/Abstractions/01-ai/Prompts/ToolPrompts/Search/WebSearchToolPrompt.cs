@@ -3,7 +3,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 /// <summary>
 /// WebSearch工具提示词
 /// </summary>
-[ToolPrompt(ToolName = "WebSearch", Category = ToolPromptCategory.Search)]
+[ToolPrompt(ToolName = WebToolName.WebSearch, Category = ToolPromptCategory.Search)]
 public static class WebSearchToolPrompt
 {
     public static string GetDescription(string currentMonthYear) => $"""

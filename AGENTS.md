@@ -628,7 +628,7 @@ $psi.FileName = "D:\project\w1\artifacts\bin\JoinCode\Release\net10.0\jcc.exe"
 $psi.Arguments = "--trust --await 20 -p `"echo hello`""
 $psi.EnvironmentVariables["JCC_ENDPOINT"] = "http://localhost:9901"
 $psi.EnvironmentVariables["JCC_API_KEY"] = "sk-test-1234567890"
-$psi.EnvironmentVariables["JCC_PROVIDER"] = "openai"
+$psi.EnvironmentVariables["JCC_VENDOR"] = "openai"
 $psi.EnvironmentVariables["JCC_MODEL_ID"] = "gpt-4o"
 $psi.UseShellExecute = $false
 $psi.WorkingDirectory = "D:\project\w1"
@@ -643,7 +643,7 @@ $psi.WorkingDirectory = "D:\project\w1"
 |----------|--------|------|
 | `JCC_ENDPOINT` | `http://localhost:9901` | API 端点（⚠️ 不要带 `/v1`，jcc 内部会自动拼接 `chat/completions`） |
 | `JCC_API_KEY` | `sk-test-1234567890` | API 密钥（MockServer 不校验，任意值即可） |
-| `JCC_PROVIDER` | `openai` | LLM 提供商（openai/anthropic/deepseek） |
+| `JCC_VENDOR` | `openai` | LLM 供应商（openai/anthropic/deepseek/sensenova） |
 | `JCC_MODEL_ID` | `gpt-4o` | 模型 ID（MockServer 不校验，任意值即可） |
 
 **3. 诊断：查看 MockServer 请求记录**
@@ -665,6 +665,51 @@ Get-ChildItem "D:\project\w1\tests\MockServers\MockServer.Core\dumps\OpenAI" -Fi
 | `git show REV:path \| Out-File` | `git show REV:path > local_path`（重定向） |
 
 **原因**: Out-File 写 UTF-8 带 BOM → CS0234；WriteAllText 可能清空文件；`$1` 被 PowerShell 展开为空
+
+## E2E 测试脚本模式规范
+
+### 问题背景
+
+Interactive 模式下 `Console.In.ReadLineAsync` 从重定向 stdin 管道读取存在竞争条件，偶发卡死60s超时。单轮命令尤其容易触发。
+
+### 架构防护：Mode 为计算属性（不可手动设置）
+
+`ConversationScript.Mode` 是**只读计算属性**，根据 `Turns.Count` 自动推断：
+
+```csharp
+public ConversationMode Mode => Turns.Count == 1
+    ? ConversationMode.NonInteractive   // 单轮 → NonInteractive
+    : ConversationMode.Interactive;     // 多轮 → Interactive
+```
+
+**开发者无需（也无法）手动设置 Mode**。删除所有 `Mode = ConversationMode.xxx` 赋值，约束编码进类型系统，从架构层面消除模式误用。
+
+### 推断规则
+
+| 脚本类型 | 自动推断为 | 原因 |
+|----------|-----------|------|
+| **单轮(Turns.Count==1)** | `NonInteractive` | `-p` 参数直接传命令，不经过 stdin 管道，无竞争条件 |
+| **多轮(Turns.Count>1)** | `Interactive` | 需要根据上一轮输出发送下一轮输入，无法用 `-p` |
+
+### 运行时不变量断言
+
+`DualRoleConversationRunner.ValidateScriptMode` 和 `CoverageTestBase.ValidateScriptMode` 在运行时断言计算属性推断正确：
+- 单轮 + 非 NonInteractive → `[GEN036]` 报错
+- 多轮 + 非 Interactive → `[GEN037]` 报错
+
+### 新增 E2E 脚本时的检查清单
+
+1. **不要设置 Mode** — 它是计算属性，赋值会编译失败
+2. 单轮命令 → 只写1个 Turn，Mode 自动推断为 NonInteractive
+3. 多轮交互 → 写多个 Turn，Mode 自动推断为 Interactive
+4. 运行测试确认无 `[GEN036]`/`[GEN037]` 报错
+
+### 定位 E2E 卡死问题的快速方法
+
+1. **先用 `jcc.exe -p "/命令"` 非交互模式验证命令本身** — 不需要 MockServer，1秒出结果
+2. **用 `dotnet test --filter "单个测试"` 本地跑** — E2E 框架自己管 MockServer
+3. **检查 jcc.exe 时间戳** — E2E 用 `Host.Tests\Debug` 路径，改代码后必须重编译 Host.Tests
+4. **同步 `ReadToEnd` 读 stderr** — `BeginErrorReadLine` 在进程被Kill时不flush
 
 # 同义词
 

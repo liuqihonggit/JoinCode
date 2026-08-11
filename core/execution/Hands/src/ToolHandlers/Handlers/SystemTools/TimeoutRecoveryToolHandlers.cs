@@ -30,13 +30,20 @@ public class TimeoutRecoveryToolHandlers
         [McpToolParameter("工作目录", Required = false)] string? working_directory = null,
         CancellationToken ct = default)
     {
-        var timeoutMin = timeout_minutes is null or <= 0 ? 10 : timeout_minutes.Value;
+        try
+        {
+            var timeoutMin = timeout_minutes is null or <= 0 ? 10 : timeout_minutes.Value;
 
-        _logger?.LogInformation("恢复超时任务: tool={Tool}, timeout={Min}min, command={Cmd}", original_tool, timeoutMin, original_command);
+            _logger?.LogInformation("恢复超时任务: tool={Tool}, timeout={Min}min, command={Cmd}", original_tool, timeoutMin, original_command);
 
-        var result = await _taskRegistry.StartTaskAsync(original_command, original_tool, working_directory, timeoutMin, ct).ConfigureAwait(false);
+            var result = await _taskRegistry.StartTaskAsync(original_command, original_tool, working_directory, timeoutMin, ct).ConfigureAwait(false);
 
-        return BuildResult(result, original_command);
+            return BuildResult(result, original_command);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return ToolExceptionDiagnosticHelper.BuildErrorResult("resume_timed_out_task", ex, _logger, "original_command", original_command, "original_tool", original_tool);
+        }
     }
 
     /// <summary>
@@ -49,14 +56,21 @@ public class TimeoutRecoveryToolHandlers
         [McpToolParameter("额外等待分钟数 (默认10)", Required = false, DefaultValue = "10")] int? additional_minutes = 10,
         CancellationToken ct = default)
     {
-        var additionalMin = additional_minutes is null or <= 0 ? 10 : additional_minutes.Value;
+        try
+        {
+            var additionalMin = additional_minutes is null or <= 0 ? 10 : additional_minutes.Value;
 
-        _logger?.LogInformation("继续长期任务: taskId={Id}, additional={Min}min", task_id, additionalMin);
+            _logger?.LogInformation("继续长期任务: taskId={Id}, additional={Min}min", task_id, additionalMin);
 
-        var result = await _taskRegistry.ContinueTaskAsync(task_id, additionalMin, ct).ConfigureAwait(false);
+            var result = await _taskRegistry.ContinueTaskAsync(task_id, additionalMin, ct).ConfigureAwait(false);
 
-        var task = _taskRegistry.GetTask(task_id);
-        return BuildResult(result, task?.Command ?? "(unknown)");
+            var task = _taskRegistry.GetTask(task_id);
+            return BuildResult(result, task?.Command ?? "(unknown)");
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return ToolExceptionDiagnosticHelper.BuildErrorResult("continue_long_running_task", ex, _logger, "task_id", task_id);
+        }
     }
 
     /// <summary>
@@ -68,13 +82,20 @@ public class TimeoutRecoveryToolHandlers
         [McpToolParameter("任务ID", Required = true)] string task_id,
         CancellationToken ct = default)
     {
-        var stopped = _taskRegistry.StopTask(task_id);
+        try
+        {
+            var stopped = _taskRegistry.StopTask(task_id);
 
-        var text = stopped
-            ? $"任务 {task_id} 已终止。"
-            : $"任务 {task_id} 不存在或已完成。";
+            var text = stopped
+                ? $"任务 {task_id} 已终止。"
+                : $"任务 {task_id} 不存在或已完成。";
 
-        return Task.FromResult(ToolResultBuilder.Success().WithText(text).Build());
+            return Task.FromResult(ToolResultBuilder.Success().WithText(text).Build());
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return Task.FromResult(ToolExceptionDiagnosticHelper.BuildErrorResult("stop_long_running_task", ex, _logger, "task_id", task_id));
+        }
     }
 
     private static ToolResult BuildResult(LongRunningTaskResult result, string command)
@@ -105,7 +126,8 @@ public class TimeoutRecoveryToolHandlers
                     sb.AppendLine();
                     sb.AppendLine(result.Stderr);
                 }
-                return ToolResultBuilder.Error().WithText(sb.ToString()).Build();
+                return ToolResultBuilder.Error().WithText(sb.ToString())
+                    .WithDiagnostic(BuildTaskFailedDiagnostic(command, result.ExitCode ?? -1)).Build();
 
             case LongRunningTaskState.TimedOut:
                 sb.AppendLine($"## 任务再次超时 (已运行 {result.Elapsed.TotalMinutes:F1}min, 第 {result.RetryCount} 次续期)");
@@ -116,12 +138,14 @@ public class TimeoutRecoveryToolHandlers
                 sb.AppendLine($"- 调用 `continue_long_running_task` 继续等待（task_id: {result.TaskId}）");
                 sb.AppendLine($"- 调用 `stop_long_running_task` 放弃此任务（task_id: {result.TaskId}）");
                 sb.AppendLine($"- 检查命令是否正确，或拆分为更小的步骤");
-                return ToolResultBuilder.Error().WithText(sb.ToString()).Build();
+                return ToolResultBuilder.Error().WithText(sb.ToString())
+                    .WithDiagnostic(BuildTimedOutDiagnostic(command, result.TaskId, result.RetryCount)).Build();
 
             case LongRunningTaskState.NotFound:
                 sb.AppendLine($"## 任务不存在");
                 sb.AppendLine(result.Stderr);
-                return ToolResultBuilder.Error().WithText(sb.ToString()).Build();
+                return ToolResultBuilder.Error().WithText(sb.ToString())
+                    .WithDiagnostic(BuildTaskNotFoundDiagnostic()).Build();
 
             case LongRunningTaskState.MaxRetriesExceeded:
                 sb.AppendLine($"## 已达到最大续期次数 ({result.RetryCount})");
@@ -132,10 +156,66 @@ public class TimeoutRecoveryToolHandlers
                 sb.AppendLine("- 检查命令是否可以优化");
                 sb.AppendLine("- 拆分为更小的步骤分别执行");
                 sb.AppendLine("- 考虑在后台运行此任务");
-                return ToolResultBuilder.Error().WithText(sb.ToString()).Build();
+                return ToolResultBuilder.Error().WithText(sb.ToString())
+                    .WithDiagnostic(BuildMaxRetriesExceededDiagnostic(command, result.RetryCount)).Build();
 
             default:
-                return ToolResultBuilder.Error().WithText($"未知状态: {result.State}").Build();
+                var unknownDiag = BuildUnknownStateDiagnostic(result.State.ToString());
+                return ToolResultBuilder.Error().WithText(unknownDiag.FormattedMessage).WithDiagnostic(unknownDiag).Build();
         }
     }
+
+    internal static ToolDiagnostic BuildTaskFailedDiagnostic(string command, int exitCode) =>
+        ToolDiagnostic.Create(
+            reason: "任务失败",
+            formattedMessage: $"Task failed with exit code {exitCode}",
+            details:
+            [
+                new DiagnosticDetail("command", command),
+                new DiagnosticDetail("exit_code", exitCode.ToString())
+            ]);
+
+    internal static ToolDiagnostic BuildTimedOutDiagnostic(string command, string taskId, int retryCount) =>
+        ToolDiagnostic.Create(
+            reason: "任务超时",
+            formattedMessage: $"Task timed out (retry #{retryCount})",
+            details:
+            [
+                new DiagnosticDetail("command", command),
+                new DiagnosticDetail("task_id", taskId),
+                new DiagnosticDetail("retry_count", retryCount.ToString())
+            ],
+            suggestions:
+            [
+                "调用 continue_long_running_task 继续等待",
+                "调用 stop_long_running_task 放弃任务",
+                "检查命令是否正确或拆分为更小步骤"
+            ]);
+
+    internal static ToolDiagnostic BuildTaskNotFoundDiagnostic() =>
+        ToolDiagnostic.Create(
+            reason: "任务不存在",
+            formattedMessage: "Task not found");
+
+    internal static ToolDiagnostic BuildMaxRetriesExceededDiagnostic(string command, int retryCount) =>
+        ToolDiagnostic.Create(
+            reason: "最大重试次数超出",
+            formattedMessage: $"Max retries ({retryCount}) exceeded",
+            details:
+            [
+                new DiagnosticDetail("command", command),
+                new DiagnosticDetail("retry_count", retryCount.ToString())
+            ],
+            suggestions:
+            [
+                "检查命令是否可以优化",
+                "拆分为更小的步骤分别执行",
+                "考虑在后台运行此任务"
+            ]);
+
+    internal static ToolDiagnostic BuildUnknownStateDiagnostic(string state) =>
+        ToolDiagnostic.Create(
+            reason: "未知状态",
+            formattedMessage: $"未知状态: {state}",
+            details: [new DiagnosticDetail("state", state)]);
 }

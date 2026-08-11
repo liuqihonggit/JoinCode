@@ -5,7 +5,8 @@ namespace JoinCode.Abstractions.Configuration.AppData;
 /// </summary>
 public enum JccEnvVar
 {
-    [EnumValue("JCC_PROVIDER")] Provider,
+    [EnumValue("JCC_VENDOR")] Vendor,
+    [EnumValue("JCC_PROTOCOL")] Protocol,
     [EnumValue("JCC_MODEL_ID")] ModelId,
     [EnumValue("JCC_ENDPOINT")] Endpoint,
     [EnumValue("JCC_API_KEY")] ApiKey,
@@ -192,4 +193,5 @@ public enum ProviderEnvVar
     [EnumValue("ANTHROPIC_API_KEY")] AnthropicApiKey,
     [EnumValue("AGNES_API_KEY")] AgnesApiKey,
     [EnumValue("DEEPSEEK_API_KEY")] DeepSeekApiKey,
+    [EnumValue("SENSENOVA_API_KEY")] SenseNovaApiKey,
 }

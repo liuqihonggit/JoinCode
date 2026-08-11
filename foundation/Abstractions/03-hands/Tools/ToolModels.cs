@@ -188,6 +188,13 @@ public sealed record ToolResult
     public List<EntityMetadataEntry>? EntityMetadata { get; set; }
 
     /// <summary>
+    /// 结构化诊断信息 — 工具失败时填充，GUI 可根据 Reason/Details/Suggestions 分区域渲染。
+    /// 成功时为 null。不序列化到 LLM（LLM 通过 Content 文本接收错误信息）。
+    /// </summary>
+    [JsonIgnore]
+    public ToolDiagnostic? Diagnostic { get; set; }
+
+    /// <summary>
     /// 获取文本内容
     /// </summary>
     public string GetTextContent()

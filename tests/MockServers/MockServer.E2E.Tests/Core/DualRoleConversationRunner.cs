@@ -14,7 +14,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
     private Process? _mockServerProcess;
     private int _mockServerPort;
     private string? _mockServerConfigDir;
-    private ProviderKind _activeProvider = ProviderKind.OpenAI;
+    private VendorKind _activeProvider = VendorKind.OpenAi;
     private Process? _mcpMockServerProcess;
     private int _mcpMockServerPort;
 
@@ -26,14 +26,35 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
     }
 
     /// <summary>
+    /// 校验脚本模式不变量 — Mode 为计算属性，此方法断言推断逻辑正确。
+    /// 不变量1: 单轮(Turns.Count==1) → NonInteractive
+    /// 不变量2: 多轮(Turns.Count>1) → Interactive
+    /// </summary>
+    private static void ValidateScriptMode(ConversationScript script)
+    {
+        if (script.Turns.Count == 1 && script.Mode != ConversationMode.NonInteractive)
+        {
+            throw new InvalidOperationException(
+                $"[GEN036] 不变量违反: 单轮脚本 Mode 应为 NonInteractive，实际为 {script.Mode}。脚本: {script.Name}。");
+        }
+
+        if (script.Turns.Count > 1 && script.Mode != ConversationMode.Interactive)
+        {
+            throw new InvalidOperationException(
+                $"[GEN037] 不变量违反: 多轮脚本 Mode 应为 Interactive，实际为 {script.Mode}。脚本: {script.Name}。");
+        }
+    }
+
+    /// <summary>
     /// 运行对话脚本 — 支持多供应商 MockServer
     /// </summary>
     /// <param name="script">对话脚本</param>
     /// <param name="provider">供应商类型，默认 OpenAI</param>
     /// <param name="ct">取消令牌</param>
-    public async Task<ConversationResult> RunAsync(ConversationScript script, ProviderKind provider = ProviderKind.OpenAI, CancellationToken ct = default)
+    public async Task<ConversationResult> RunAsync(ConversationScript script, VendorKind provider = VendorKind.OpenAi, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(script);
+        ValidateScriptMode(script);
         _activeProvider = provider;
 
         _logger.LogInformation("[DualRoleRunner] 开始执行脚本: {Script}, 供应商: {Provider}, 轮次: {Turns}",
@@ -59,23 +80,23 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
 
         var providerValue = _activeProvider switch
         {
-            ProviderKind.OpenAI => "openai",
-            ProviderKind.Anthropic => "anthropic",
-            ProviderKind.DeepSeek => "deepseek",
+            VendorKind.OpenAi => "openai",
+            VendorKind.Anthropic => "anthropic",
+            VendorKind.DeepSeek => "deepseek",
             _ => "openai"
         };
         var modelId = _activeProvider switch
         {
-            ProviderKind.OpenAI => "gpt-4o",
-            ProviderKind.Anthropic => "claude-sonnet-4-20250514",
-            ProviderKind.DeepSeek => "deepseek-v4-flash",
+            VendorKind.OpenAi => "gpt-4o",
+            VendorKind.Anthropic => "claude-sonnet-4-20250514",
+            VendorKind.DeepSeek => "deepseek-v4-flash",
             _ => "gpt-4o"
         };
         var apiKeyEnvVar = _activeProvider switch
         {
-            ProviderKind.OpenAI => "OPENAI_API_KEY",
-            ProviderKind.Anthropic => "ANTHROPIC_API_KEY",
-            ProviderKind.DeepSeek => "DEEPSEEK_API_KEY",
+            VendorKind.OpenAi => "OPENAI_API_KEY",
+            VendorKind.Anthropic => "ANTHROPIC_API_KEY",
+            VendorKind.DeepSeek => "DEEPSEEK_API_KEY",
             _ => "OPENAI_API_KEY"
         };
 
@@ -83,7 +104,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
         {
             ["JCC_ENDPOINT"] = $"http://localhost:{_mockServerPort}",
             ["JCC_API_KEY"] = "sk-test-1234567890",
-            ["JCC_PROVIDER"] = providerValue,
+            ["JCC_VENDOR"] = providerValue,
             ["JCC_MODEL_ID"] = modelId,
             [apiKeyEnvVar] = "sk-test-1234567890",
             ["JCC_STATE_FILE_PATH"] = _stateFilePath,
@@ -164,6 +185,12 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
         var turnRecords = new List<ConversationTurnRecord>();
         var assertResults = new List<AssertResult>();
 
+        if (script.DumpMessages)
+        {
+            _dumpDir = _fs.CombinePath(Path.GetTempPath(), $"jcc_dump_{Guid.NewGuid():N}");
+            _fs.CreateDirectory(_dumpDir);
+        }
+
         var turn = script.Turns[0];
 
         var output = await WaitForNonInteractiveOutputAsync(turn.ResponseTimeout, ct).ConfigureAwait(true);
@@ -186,30 +213,30 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
             var exePath = ResolveExecutablePath();
             var providerValue = _activeProvider switch
             {
-                ProviderKind.OpenAI => "openai",
-                ProviderKind.Anthropic => "anthropic",
-                ProviderKind.DeepSeek => "deepseek",
+                VendorKind.OpenAi => "openai",
+                VendorKind.Anthropic => "anthropic",
+                VendorKind.DeepSeek => "deepseek",
                 _ => "openai"
             };
             var modelId = _activeProvider switch
             {
-                ProviderKind.OpenAI => "gpt-4o",
-                ProviderKind.Anthropic => "claude-sonnet-4-20250514",
-                ProviderKind.DeepSeek => "deepseek-v4-flash",
+                VendorKind.OpenAi => "gpt-4o",
+                VendorKind.Anthropic => "claude-sonnet-4-20250514",
+                VendorKind.DeepSeek => "deepseek-v4-flash",
                 _ => "gpt-4o"
             };
             var apiKeyEnvVar = _activeProvider switch
             {
-                ProviderKind.OpenAI => "OPENAI_API_KEY",
-                ProviderKind.Anthropic => "ANTHROPIC_API_KEY",
-                ProviderKind.DeepSeek => "DEEPSEEK_API_KEY",
+                VendorKind.OpenAi => "OPENAI_API_KEY",
+                VendorKind.Anthropic => "ANTHROPIC_API_KEY",
+                VendorKind.DeepSeek => "DEEPSEEK_API_KEY",
                 _ => "OPENAI_API_KEY"
             };
             var envVars = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 ["JCC_ENDPOINT"] = $"http://localhost:{_mockServerPort}",
                 ["JCC_API_KEY"] = "sk-test-1234567890",
-                ["JCC_PROVIDER"] = providerValue,
+                ["JCC_VENDOR"] = providerValue,
                 ["JCC_MODEL_ID"] = modelId,
                 [apiKeyEnvVar] = "sk-test-1234567890",
                 ["JCC_STATE_FILE_PATH"] = _stateFilePath!,
@@ -915,9 +942,9 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
         // 根据供应商类型计算就绪标记
         var serverName = _activeProvider switch
         {
-            ProviderKind.OpenAI => "OpenAI",
-            ProviderKind.Anthropic => "Anthropic",
-            ProviderKind.DeepSeek => "DeepSeek",
+            VendorKind.OpenAi => "OpenAI",
+            VendorKind.Anthropic => "Anthropic",
+            VendorKind.DeepSeek => "DeepSeek",
             _ => "OpenAI"
         };
         var readyMarker = $"[{serverName}]   URL:";
@@ -1117,8 +1144,8 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
     {
         var (_, exeName) = _activeProvider switch
         {
-            ProviderKind.Anthropic => ("Anthropic.MockServer", "JoinCode.Anthropic.MockServer.exe"),
-            ProviderKind.DeepSeek => ("DeepSeek.MockServer", "JoinCode.DeepSeek.MockServer.exe"),
+            VendorKind.Anthropic => ("Anthropic.MockServer", "JoinCode.Anthropic.MockServer.exe"),
+            VendorKind.DeepSeek => ("DeepSeek.MockServer", "JoinCode.DeepSeek.MockServer.exe"),
             _ => ("OpenAI.MockServer", "JoinCode.OpenAI.MockServer.exe")
         };
 

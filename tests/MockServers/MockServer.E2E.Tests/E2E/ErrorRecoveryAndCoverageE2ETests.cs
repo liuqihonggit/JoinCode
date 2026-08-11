@@ -116,52 +116,52 @@ public sealed class AnthropicDeepCoverageE2ETests : IAsyncLifetime
     [Fact]
     public async Task Anthropic_MultiToolCalls_ShouldExecuteBoth()
     {
-        await RunScriptWithProviderAsync(AnthropicDeepCoverageScripts.AnthropicMultiToolCalls, ProviderKind.Anthropic);
+        await RunScriptWithProviderAsync(AnthropicDeepCoverageScripts.AnthropicMultiToolCalls, VendorKind.Anthropic);
     }
 
     [Fact]
     public async Task Anthropic_ThinkingThenToolCall_ShouldShowBoth()
     {
-        await RunScriptWithProviderAsync(AnthropicDeepCoverageScripts.AnthropicThinkingThenToolCall, ProviderKind.Anthropic);
+        await RunScriptWithProviderAsync(AnthropicDeepCoverageScripts.AnthropicThinkingThenToolCall, VendorKind.Anthropic);
     }
 
     [Fact]
     public async Task Anthropic_FiveRoundMemory_ShouldMaintainContext()
     {
-        await RunScriptWithProviderAsync(AnthropicDeepCoverageScripts.AnthropicFiveRoundMemory, ProviderKind.Anthropic);
+        await RunScriptWithProviderAsync(AnthropicDeepCoverageScripts.AnthropicFiveRoundMemory, VendorKind.Anthropic);
     }
 
     [Fact]
     public async Task Anthropic_Error429ThenRecover_ShouldRecover()
     {
-        await RunScriptWithProviderAsync(AnthropicDeepCoverageScripts.AnthropicError429ThenRecover, ProviderKind.Anthropic);
+        await RunScriptWithProviderAsync(AnthropicDeepCoverageScripts.AnthropicError429ThenRecover, VendorKind.Anthropic);
     }
 
     [Fact]
     public async Task DeepSeek_ReasoningThenToolCall_ShouldShowBoth()
     {
-        await RunScriptWithProviderAsync(AnthropicDeepCoverageScripts.DeepSeekReasoningThenToolCall, ProviderKind.DeepSeek);
+        await RunScriptWithProviderAsync(AnthropicDeepCoverageScripts.DeepSeekReasoningThenToolCall, VendorKind.DeepSeek);
     }
 
     [Fact]
     public async Task DeepSeek_MultiToolCalls_ShouldExecuteBoth()
     {
-        await RunScriptWithProviderAsync(AnthropicDeepCoverageScripts.DeepSeekMultiToolCalls, ProviderKind.DeepSeek);
+        await RunScriptWithProviderAsync(AnthropicDeepCoverageScripts.DeepSeekMultiToolCalls, VendorKind.DeepSeek);
     }
 
     [Fact]
     public async Task DeepSeek_FiveRoundMemory_ShouldMaintainContext()
     {
-        await RunScriptWithProviderAsync(AnthropicDeepCoverageScripts.DeepSeekFiveRoundMemory, ProviderKind.DeepSeek);
+        await RunScriptWithProviderAsync(AnthropicDeepCoverageScripts.DeepSeekFiveRoundMemory, VendorKind.DeepSeek);
     }
 
     [Fact]
     public async Task DeepSeek_Error500ThenRecover_ShouldRecover()
     {
-        await RunScriptWithProviderAsync(AnthropicDeepCoverageScripts.DeepSeekError500ThenRecover, ProviderKind.DeepSeek);
+        await RunScriptWithProviderAsync(AnthropicDeepCoverageScripts.DeepSeekError500ThenRecover, VendorKind.DeepSeek);
     }
 
-    private async Task RunScriptWithProviderAsync(ConversationScript script, ProviderKind provider)
+    private async Task RunScriptWithProviderAsync(ConversationScript script, VendorKind provider)
     {
         var sw = Stopwatch.StartNew();
         var runner = new DualRoleConversationRunner(

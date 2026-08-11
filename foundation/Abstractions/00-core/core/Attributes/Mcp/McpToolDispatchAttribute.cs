@@ -20,7 +20,7 @@ public sealed class McpToolDispatchAttribute : Attribute
 
     /// <summary>
     /// 二级分组名 — MCP工具必填，系统工具可选
-    /// 同组工具在系统提示词中合并展示，>20组时用省略号
+    /// 同组工具在系统提示词中合并展示
     /// </summary>
     public string? GroupName { get; set; }
 

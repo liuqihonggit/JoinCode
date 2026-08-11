@@ -10,7 +10,6 @@ public static class BatchCodeToolScripts
     public static ConversationScript CodeToolsBatch => new()
     {
         Name = "代码搜索工具批量测试",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -54,7 +53,6 @@ public static class BatchNotebookToolScripts
     public static ConversationScript NotebookToolsBatch => new()
     {
         Name = "Notebook工具批量测试",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -96,7 +94,6 @@ public static class BatchWorktreeToolScripts
     public static ConversationScript WorktreeToolsBatch => new()
     {
         Name = "Worktree工具批量测试",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -136,7 +133,6 @@ public static class BatchWorkflowToolScripts
     public static ConversationScript WorkflowToolsBatch => new()
     {
         Name = "Workflow工具批量测试",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -174,7 +170,6 @@ public static class BatchSkillToolScripts
     public static ConversationScript SkillToolsBatch => new()
     {
         Name = "Skill工具批量测试",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -212,7 +207,6 @@ public static class BatchTeamToolScripts
     public static ConversationScript TeamToolsBatch => new()
     {
         Name = "Team工具批量测试",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -254,7 +248,6 @@ public static class BatchMemoryToolScripts
     public static ConversationScript MemoryToolsBatch => new()
     {
         Name = "Memory工具批量测试",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -296,7 +289,6 @@ public static class BatchTodoToolScripts
     public static ConversationScript TodoToolsBatch => new()
     {
         Name = "Todo工具批量测试",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -338,7 +330,6 @@ public static class BatchMcpToolScripts
     public static ConversationScript McpToolsBatch => new()
     {
         Name = "MCP工具批量测试",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn

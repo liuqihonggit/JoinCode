@@ -14,7 +14,6 @@ public static class McpIntegrationScripts
     public static ConversationScript McpConnectAndCallEcho => new()
     {
         Name = "MCP连接并调用echo工具",
-        Mode = ConversationMode.NonInteractive,
         RequiresMcpMockServer = true,
         Turns =
         [

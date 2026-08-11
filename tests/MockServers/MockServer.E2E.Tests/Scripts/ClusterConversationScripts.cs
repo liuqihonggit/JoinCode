@@ -5,7 +5,6 @@ public static class ClusterConversationScripts
     public static ConversationScript ClusterNonInteractive => new()
     {
         Name = "集群非交互模式",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn

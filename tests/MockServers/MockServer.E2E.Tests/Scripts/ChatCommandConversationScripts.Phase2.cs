@@ -17,7 +17,6 @@ public static partial class ChatCommandConversationScripts
     public static ConversationScript LoginCommand => new()
     {
         Name = "/login 命令",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -44,7 +43,6 @@ public static partial class ChatCommandConversationScripts
     public static ConversationScript LogoutCommand => new()
     {
         Name = "/logout 命令",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -70,7 +68,6 @@ public static partial class ChatCommandConversationScripts
     public static ConversationScript TrustCommand => new()
     {
         Name = "/trust 命令",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -97,7 +94,6 @@ public static partial class ChatCommandConversationScripts
     public static ConversationScript OauthRefreshCommand => new()
     {
         Name = "/oauth-refresh 命令",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -123,7 +119,6 @@ public static partial class ChatCommandConversationScripts
     public static ConversationScript PrivacySettingsCommand => new()
     {
         Name = "/privacy-settings 命令",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -154,7 +149,6 @@ public static partial class ChatCommandConversationScripts
     public static ConversationScript PlanCommand => new()
     {
         Name = "/plan 命令",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -181,7 +175,6 @@ public static partial class ChatCommandConversationScripts
     public static ConversationScript UltraplanCommand => new()
     {
         Name = "/ultraplan 命令",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -206,7 +199,6 @@ public static partial class ChatCommandConversationScripts
     public static ConversationScript MemoryCommand => new()
     {
         Name = "/memory 命令",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -232,7 +224,6 @@ public static partial class ChatCommandConversationScripts
     public static ConversationScript AgentsCommand => new()
     {
         Name = "/agents 命令",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -259,7 +250,6 @@ public static partial class ChatCommandConversationScripts
     public static ConversationScript AdvisorCommand => new()
     {
         Name = "/advisor 命令",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -285,7 +275,6 @@ public static partial class ChatCommandConversationScripts
     public static ConversationScript BuddyCommand => new()
     {
         Name = "/buddy 命令",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -311,7 +300,6 @@ public static partial class ChatCommandConversationScripts
     public static ConversationScript AssistantCommand => new()
     {
         Name = "/assistant 命令",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -341,7 +329,6 @@ public static partial class ChatCommandConversationScripts
     public static ConversationScript GoalCommand => new()
     {
         Name = "/goal 命令",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -367,7 +354,6 @@ public static partial class ChatCommandConversationScripts
     public static ConversationScript ProactiveCommand => new()
     {
         Name = "/proactive 命令",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -396,7 +382,6 @@ public static partial class ChatCommandConversationScripts
     public static ConversationScript McpCommand => new()
     {
         Name = "/mcp 命令",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -422,7 +407,6 @@ public static partial class ChatCommandConversationScripts
     public static ConversationScript HooksCommand => new()
     {
         Name = "/hooks 命令",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -448,7 +432,6 @@ public static partial class ChatCommandConversationScripts
     public static ConversationScript SkillsCommand => new()
     {
         Name = "/skills 命令",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -474,7 +457,6 @@ public static partial class ChatCommandConversationScripts
     public static ConversationScript PluginCommand => new()
     {
         Name = "/plugin 命令",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -501,7 +483,6 @@ public static partial class ChatCommandConversationScripts
     public static ConversationScript InstallCommand => new()
     {
         Name = "/install 命令",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -531,7 +512,6 @@ public static partial class ChatCommandConversationScripts
     public static ConversationScript BridgeCommand => new()
     {
         Name = "/bridge 命令",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -558,7 +538,6 @@ public static partial class ChatCommandConversationScripts
     public static ConversationScript BridgeKickCommand => new()
     {
         Name = "/bridge-kick 命令",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn

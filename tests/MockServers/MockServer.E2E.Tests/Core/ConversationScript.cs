@@ -29,7 +29,17 @@ public sealed class ConversationScript
 {
     public required string Name { get; init; }
     public required IReadOnlyList<ConversationTurn> Turns { get; init; }
-    public ConversationMode Mode { get; init; } = ConversationMode.Interactive;
+
+    /// <summary>
+    /// 对话模式 — 根据 Turns 数量自动推断，不可手动设置。
+    /// 单轮(Turns.Count==1) → NonInteractive：用 -p 参数直接传命令，避免 stdin 管道竞争条件。
+    /// 多轮(Turns.Count>1) → Interactive：用 --force-interactive 进入 REPL 循环，逐轮通过 stdin 发送。
+    /// 此属性为计算属性，从架构层面消除模式误用导致的卡死/数据丢失问题。
+    /// </summary>
+    public ConversationMode Mode => Turns.Count == 1
+        ? ConversationMode.NonInteractive
+        : ConversationMode.Interactive;
+
     public string? AdditionalArgs { get; init; }
     public Dictionary<string, string>? ExtraEnvVars { get; init; }
     public bool DumpMessages { get; init; }

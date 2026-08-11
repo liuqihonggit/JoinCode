@@ -26,6 +26,26 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
     }
 
     /// <summary>
+    /// 校验脚本模式不变量 — Mode 为计算属性，此方法断言推断逻辑正确。
+    /// 不变量1: 单轮(Turns.Count==1) → NonInteractive
+    /// 不变量2: 多轮(Turns.Count>1) → Interactive
+    /// </summary>
+    private static void ValidateScriptMode(ConversationScript script)
+    {
+        if (script.Turns.Count == 1 && script.Mode != ConversationMode.NonInteractive)
+        {
+            throw new InvalidOperationException(
+                $"[GEN036] 不变量违反: 单轮脚本 Mode 应为 NonInteractive，实际为 {script.Mode}。脚本: {script.Name}。");
+        }
+
+        if (script.Turns.Count > 1 && script.Mode != ConversationMode.Interactive)
+        {
+            throw new InvalidOperationException(
+                $"[GEN037] 不变量违反: 多轮脚本 Mode 应为 Interactive，实际为 {script.Mode}。脚本: {script.Name}。");
+        }
+    }
+
+    /// <summary>
     /// 运行对话脚本 — 支持多供应商 MockServer
     /// </summary>
     /// <param name="script">对话脚本</param>
@@ -34,6 +54,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
     public async Task<ConversationResult> RunAsync(ConversationScript script, VendorKind provider = VendorKind.OpenAi, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(script);
+        ValidateScriptMode(script);
         _activeProvider = provider;
 
         _logger.LogInformation("[DualRoleRunner] 开始执行脚本: {Script}, 供应商: {Provider}, 轮次: {Turns}",
@@ -163,6 +184,12 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
     {
         var turnRecords = new List<ConversationTurnRecord>();
         var assertResults = new List<AssertResult>();
+
+        if (script.DumpMessages)
+        {
+            _dumpDir = _fs.CombinePath(Path.GetTempPath(), $"jcc_dump_{Guid.NewGuid():N}");
+            _fs.CreateDirectory(_dumpDir);
+        }
 
         var turn = script.Turns[0];
 

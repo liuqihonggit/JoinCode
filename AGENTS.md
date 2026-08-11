@@ -672,23 +672,37 @@ Get-ChildItem "D:\project\w1\tests\MockServers\MockServer.Core\dumps\OpenAI" -Fi
 
 Interactive 模式下 `Console.In.ReadLineAsync` 从重定向 stdin 管道读取存在竞争条件，偶发卡死60s超时。单轮命令尤其容易触发。
 
-### 强制规则
+### 架构防护：Mode 为计算属性（不可手动设置）
 
-| 脚本类型 | 必须用 | 原因 |
-|----------|--------|------|
-| **单轮无工具调用** | `NonInteractive` | `-p` 参数直接传命令，不经过 stdin 管道，无竞争条件 |
-| **单轮有工具调用** | `NonInteractive` 或 `Interactive` | NonInteractive 也可，jcc 内部自动处理工具调用链 |
-| **多轮（Turns > 1）** | `Interactive` | 需要根据上一轮输出发送下一轮输入，无法用 `-p` |
+`ConversationScript.Mode` 是**只读计算属性**，根据 `Turns.Count` 自动推断：
 
-### 架构层面防护
+```csharp
+public ConversationMode Mode => Turns.Count == 1
+    ? ConversationMode.NonInteractive   // 单轮 → NonInteractive
+    : ConversationMode.Interactive;     // 多轮 → Interactive
+```
 
-`CoverageTestBase.ValidateScriptMode` 在运行时校验：单轮无工具调用 + Interactive → 抛 `[GEN036]` 报错，**不会卡死60s**，立即给出修复提示。
+**开发者无需（也无法）手动设置 Mode**。删除所有 `Mode = ConversationMode.xxx` 赋值，约束编码进类型系统，从架构层面消除模式误用。
+
+### 推断规则
+
+| 脚本类型 | 自动推断为 | 原因 |
+|----------|-----------|------|
+| **单轮(Turns.Count==1)** | `NonInteractive` | `-p` 参数直接传命令，不经过 stdin 管道，无竞争条件 |
+| **多轮(Turns.Count>1)** | `Interactive` | 需要根据上一轮输出发送下一轮输入，无法用 `-p` |
+
+### 运行时不变量断言
+
+`DualRoleConversationRunner.ValidateScriptMode` 和 `CoverageTestBase.ValidateScriptMode` 在运行时断言计算属性推断正确：
+- 单轮 + 非 NonInteractive → `[GEN036]` 报错
+- 多轮 + 非 Interactive → `[GEN037]` 报错
 
 ### 新增 E2E 脚本时的检查清单
 
-1. 单轮命令 → `Mode = ConversationMode.NonInteractive`
-2. 多轮交互 → `Mode = ConversationMode.Interactive`
-3. 运行测试确认无 `[GEN036]` 报错
+1. **不要设置 Mode** — 它是计算属性，赋值会编译失败
+2. 单轮命令 → 只写1个 Turn，Mode 自动推断为 NonInteractive
+3. 多轮交互 → 写多个 Turn，Mode 自动推断为 Interactive
+4. 运行测试确认无 `[GEN036]`/`[GEN037]` 报错
 
 ### 定位 E2E 卡死问题的快速方法
 

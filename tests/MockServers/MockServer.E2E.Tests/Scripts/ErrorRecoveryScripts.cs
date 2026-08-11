@@ -5,7 +5,6 @@ public static class ApiErrorRecoveryScripts
     public static ConversationScript RateLimit429ThenRecover => new()
     {
         Name = "429限流后恢复",
-        Mode = ConversationMode.NonInteractive,
         ExtraEnvVars = new Dictionary<string, string>
         {
             ["JCC_DISABLE_STREAMING_FALLBACK"] = "true"
@@ -46,7 +45,6 @@ public static class ApiErrorRecoveryScripts
     public static ConversationScript ServerError500ThenRecover => new()
     {
         Name = "500服务器错误后恢复",
-        Mode = ConversationMode.NonInteractive,
         ExtraEnvVars = new Dictionary<string, string>
         {
             ["JCC_DISABLE_STREAMING_FALLBACK"] = "true"
@@ -87,7 +85,6 @@ public static class ApiErrorRecoveryScripts
     public static ConversationScript ServiceUnavailable503ThenRecover => new()
     {
         Name = "503服务不可用后恢复",
-        Mode = ConversationMode.NonInteractive,
         ExtraEnvVars = new Dictionary<string, string>
         {
             ["JCC_DISABLE_STREAMING_FALLBACK"] = "true"
@@ -128,7 +125,6 @@ public static class ApiErrorRecoveryScripts
     public static ConversationScript ErrorThenToolCallThenRecover => new()
     {
         Name = "错误后工具调用恢复",
-        Mode = ConversationMode.NonInteractive,
         ExtraEnvVars = new Dictionary<string, string>
         {
             ["JCC_DISABLE_STREAMING_FALLBACK"] = "true"
@@ -178,7 +174,6 @@ public static class ApiErrorRecoveryScripts
     public static ConversationScript AuthError401NoRetry => new()
     {
         Name = "401认证错误不重试",
-        Mode = ConversationMode.NonInteractive,
         ExtraEnvVars = new Dictionary<string, string>
         {
             ["JCC_DISABLE_STREAMING_FALLBACK"] = "true"
@@ -208,7 +203,6 @@ public static class StreamInterruptionScripts
     public static ConversationScript ToolCallFailureThenRecover => new()
     {
         Name = "工具调用失败后恢复",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -254,7 +248,6 @@ public static class StreamInterruptionScripts
     public static ConversationScript UnknownToolThenFallback => new()
     {
         Name = "未知工具后降级回复",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -287,7 +280,6 @@ public static class StreamInterruptionScripts
     public static ConversationScript MultiToolPartialFailure => new()
     {
         Name = "多工具部分失败",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -328,7 +320,6 @@ public static class PermissionDenialScripts
     public static ConversationScript AskPermissionMode => new()
     {
         Name = "ask权限模式对话",
-        Mode = ConversationMode.NonInteractive,
         ExtraEnvVars = new Dictionary<string, string>
         {
             ["JCC_PERMISSION_MODE"] = "ask"
@@ -354,7 +345,6 @@ public static class PermissionDenialScripts
     public static ConversationScript DenyPermissionMode => new()
     {
         Name = "deny权限模式对话",
-        Mode = ConversationMode.NonInteractive,
         ExtraEnvVars = new Dictionary<string, string>
         {
             ["JCC_PERMISSION_MODE"] = "deny"
@@ -380,7 +370,6 @@ public static class PermissionDenialScripts
     public static ConversationScript DenyModeToolCallBlocked => new()
     {
         Name = "deny模式下工具调用被阻止",
-        Mode = ConversationMode.NonInteractive,
         ExtraEnvVars = new Dictionary<string, string>
         {
             ["JCC_PERMISSION_MODE"] = "deny"
@@ -416,7 +405,6 @@ public static class PermissionDenialScripts
     public static ConversationScript AutoPermissionModeToolCall => new()
     {
         Name = "auto权限模式工具调用",
-        Mode = ConversationMode.NonInteractive,
         ExtraEnvVars = new Dictionary<string, string>
         {
             ["JCC_PERMISSION_MODE"] = "auto"
@@ -455,7 +443,6 @@ public static class AnthropicDeepCoverageScripts
     public static ConversationScript AnthropicMultiToolCalls => new()
     {
         Name = "Anthropic多工具调用",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -493,7 +480,6 @@ public static class AnthropicDeepCoverageScripts
     public static ConversationScript AnthropicThinkingThenToolCall => new()
     {
         Name = "Anthropic思考后工具调用",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -526,7 +512,6 @@ public static class AnthropicDeepCoverageScripts
     public static ConversationScript AnthropicFiveRoundMemory => new()
     {
         Name = "Anthropic五轮对话记忆",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -565,7 +550,6 @@ public static class AnthropicDeepCoverageScripts
     public static ConversationScript DeepSeekReasoningThenToolCall => new()
     {
         Name = "DeepSeek推理后工具调用",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -598,7 +582,6 @@ public static class AnthropicDeepCoverageScripts
     public static ConversationScript DeepSeekMultiToolCalls => new()
     {
         Name = "DeepSeek多工具调用",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -636,7 +619,6 @@ public static class AnthropicDeepCoverageScripts
     public static ConversationScript DeepSeekFiveRoundMemory => new()
     {
         Name = "DeepSeek五轮对话记忆",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -675,7 +657,6 @@ public static class AnthropicDeepCoverageScripts
     public static ConversationScript AnthropicError429ThenRecover => new()
     {
         Name = "Anthropic 429限流后恢复",
-        Mode = ConversationMode.NonInteractive,
         ExtraEnvVars = new Dictionary<string, string>
         {
             ["JCC_DISABLE_STREAMING_FALLBACK"] = "true"
@@ -716,7 +697,6 @@ public static class AnthropicDeepCoverageScripts
     public static ConversationScript DeepSeekError500ThenRecover => new()
     {
         Name = "DeepSeek 500服务器错误后恢复",
-        Mode = ConversationMode.NonInteractive,
         ExtraEnvVars = new Dictionary<string, string>
         {
             ["JCC_DISABLE_STREAMING_FALLBACK"] = "true"
@@ -760,7 +740,6 @@ public static class McpProtocolScripts
     public static ConversationScript McpToolListThenCall => new()
     {
         Name = "MCP工具列表后调用",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -792,7 +771,6 @@ public static class McpProtocolScripts
     public static ConversationScript McpClientCall => new()
     {
         Name = "MCP客户端调用",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -824,7 +802,6 @@ public static class McpProtocolScripts
     public static ConversationScript McpToolCallThenFollowUp => new()
     {
         Name = "MCP工具调用后追问",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -872,7 +849,6 @@ public static class ConcurrentRequestScripts
     public static ConversationScript RapidSequentialRequests => new()
     {
         Name = "快速连续请求",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -920,7 +896,6 @@ public static class ConcurrentRequestScripts
     public static ConversationScript InterleavedToolCallsAndText => new()
     {
         Name = "交替工具调用和文本",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn

@@ -14,7 +14,6 @@ public static class MissingCoverageScripts
     public static ConversationScript WriteToolCall => new()
     {
         Name = "Write工具调用",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -49,7 +48,6 @@ public static class MissingCoverageScripts
     public static ConversationScript EditToolCall => new()
     {
         Name = "Edit工具调用",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -84,7 +82,6 @@ public static class MissingCoverageScripts
     public static ConversationScript GrepToolCall => new()
     {
         Name = "Grep工具调用",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -119,7 +116,6 @@ public static class MissingCoverageScripts
     public static ConversationScript GlobToolCall => new()
     {
         Name = "Glob工具调用",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -154,7 +150,6 @@ public static class MissingCoverageScripts
     public static ConversationScript AgentSpawnToolCall => new()
     {
         Name = "Agent工具调用（spawn 子代理）",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -197,7 +192,6 @@ public static class MissingCoverageScripts
     public static ConversationScript AgentSpawnViaTool => new()
     {
         Name = "agent_spawn 工具调用",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -237,7 +231,6 @@ public static class MissingCoverageScripts
     public static ConversationScript AgentWorktreeIsolation => new()
     {
         Name = "Agent工具调用（worktree隔离）",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -284,7 +277,6 @@ public static class ChatCommandScripts
     public static ConversationScript HelpCommand => new()
     {
         Name = "/help 命令",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -311,7 +303,6 @@ public static class ChatCommandScripts
     public static ConversationScript ClearCommand => new()
     {
         Name = "/clear 命令",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -340,7 +331,6 @@ public static class TaskToolScripts
     public static ConversationScript TaskCreateTest => new()
     {
         Name = "TaskCreate 工具调用",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -378,7 +368,6 @@ public static class InfrastructureToolScripts
     public static ConversationScript StructuredOutputRegisterTest => new()
     {
         Name = "structured_output_register 工具调用",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -416,7 +405,6 @@ public static class SchedulingToolScripts
     public static ConversationScript CronListTest => new()
     {
         Name = "CronList 工具调用",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -454,7 +442,6 @@ public static class WebToolScripts
     public static ConversationScript WebSearchTest => new()
     {
         Name = "WebSearch 工具调用",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn

@@ -19,7 +19,6 @@ public static class ToolCoverageScripts
     public static ConversationScript McpListClientsTest => new()
     {
         Name = "mcp_list_clients 工具调用",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -55,7 +54,6 @@ public static class ToolCoverageScripts
     public static ConversationScript ExecuteCsharpCodeTest => new()
     {
         Name = "execute_csharp_code 工具调用",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -95,7 +93,6 @@ public static class ToolCoverageScripts
     public static ConversationScript SnipTest => new()
     {
         Name = "snip 工具调用",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -131,7 +128,6 @@ public static class ToolCoverageScripts
     public static ConversationScript MonitorTest => new()
     {
         Name = "monitor 工具调用",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -167,7 +163,6 @@ public static class ToolCoverageScripts
     public static ConversationScript CtxInspectTest => new()
     {
         Name = "ctx_inspect 工具调用",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -203,7 +198,6 @@ public static class ToolCoverageScripts
     public static ConversationScript AnalyticsReportTest => new()
     {
         Name = "analytics_report 工具调用",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -239,7 +233,6 @@ public static class ToolCoverageScripts
     public static ConversationScript PolicyListTest => new()
     {
         Name = "policy_list 工具调用",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -279,7 +272,6 @@ public static class ToolCoverageScripts
     public static ConversationScript LspDocumentSymbolsTest => new()
     {
         Name = "lsp_document_symbols 工具调用",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -315,7 +307,6 @@ public static class ToolCoverageScripts
     public static ConversationScript GenerateCsharpCodeTest => new()
     {
         Name = "generate_csharp_code 工具调用",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -351,7 +342,6 @@ public static class ToolCoverageScripts
     public static ConversationScript AnalyzeCsharpCodeTest => new()
     {
         Name = "analyze_csharp_code 工具调用",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -391,7 +381,6 @@ public static class ToolCoverageScripts
     public static ConversationScript VcrStatusTest => new()
     {
         Name = "vcr_status 工具调用",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -427,7 +416,6 @@ public static class ToolCoverageScripts
     public static ConversationScript TerminalCaptureTest => new()
     {
         Name = "terminal_capture 工具调用",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -463,7 +451,6 @@ public static class ToolCoverageScripts
     public static ConversationScript ReplTest => new()
     {
         Name = "REPL 工具调用",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -503,7 +490,6 @@ public static class ToolCoverageScripts
     public static ConversationScript SubscribePrTest => new()
     {
         Name = "subscribe_pr 工具调用",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -539,7 +525,6 @@ public static class ToolCoverageScripts
     public static ConversationScript ListPeersTest => new()
     {
         Name = "list_peers 工具调用",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -575,7 +560,6 @@ public static class ToolCoverageScripts
     public static ConversationScript WebBrowserTest => new()
     {
         Name = "web_browser 工具调用",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -611,7 +595,6 @@ public static class ToolCoverageScripts
     public static ConversationScript VoiceStatusTest => new()
     {
         Name = "voice_status 工具调用",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -647,7 +630,6 @@ public static class ToolCoverageScripts
     public static ConversationScript RemoteTriggerTest => new()
     {
         Name = "RemoteTrigger 工具调用",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -683,7 +665,6 @@ public static class ToolCoverageScripts
     public static ConversationScript PushNotificationTest => new()
     {
         Name = "push_notification 工具调用",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -723,7 +704,6 @@ public static class ToolCoverageScripts
     public static ConversationScript PermissionListRulesTest => new()
     {
         Name = "permission_list_rules 工具调用",
-        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn

@@ -11,7 +11,6 @@ public static class AstIntegrationScripts
     public static ConversationScript AstStartupAndQueryLinks => new()
     {
         Name = "AST启动构造并验证查询链路",
-        Mode = ConversationMode.NonInteractive,
         WorkingDirectory = ResolveAstWorkingDirectory(),
         Turns =
         [

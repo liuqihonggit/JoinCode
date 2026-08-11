@@ -1,4 +1,4 @@
-namespace MockServer.E2E.Tests.Scripts;
+﻿namespace MockServer.E2E.Tests.Scripts;
 
 /// <summary>
 /// DeepSeek-Reasonix 亮点移植功能的 E2E 测试脚本
@@ -14,7 +14,7 @@ public static class CompleteStepScripts
     public static ConversationScript CompleteStepToolCall => new()
     {
         Name = "complete_step 工具调用",
-        Mode = ConversationMode.Interactive,
+        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -50,7 +50,7 @@ public static class CompleteStepScripts
     public static ConversationScript CompleteStepMultiRound => new()
     {
         Name = "complete_step 多步骤完成",
-        Mode = ConversationMode.Interactive,
+        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -113,7 +113,7 @@ public static class SsrfGuardScripts
     public static ConversationScript WebFetchToolCall => new()
     {
         Name = "web_fetch 工具调用（SSRF 防护链路）",
-        Mode = ConversationMode.Interactive,
+        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -151,7 +151,7 @@ public static class SessionControllerScripts
     public static ConversationScript StreamingTextViaController => new()
     {
         Name = "流式文本响应（SessionController 统一消费）",
-        Mode = ConversationMode.Interactive,
+        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -179,7 +179,7 @@ public static class SessionControllerScripts
     public static ConversationScript ToolCallViaController => new()
     {
         Name = "工具调用事件（SessionController 统一消费）",
-        Mode = ConversationMode.Interactive,
+        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -240,7 +240,7 @@ public static class SessionControllerScripts
     public static ConversationScript ThinkingAndTextViaController => new()
     {
         Name = "思考+文本响应（SessionController 统一消费）",
-        Mode = ConversationMode.Interactive,
+        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -271,7 +271,7 @@ public static class TruncatedJsonScripts
     public static ConversationScript StreamingWithComplexResponse => new()
     {
         Name = "流式复杂响应（截断 JSON 修复链路）",
-        Mode = ConversationMode.Interactive,
+        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -304,7 +304,7 @@ public static class DualModelScripts
     public static ConversationScript ToolCallThenAnalysis => new()
     {
         Name = "工具调用后分析回复（双模型链路）",
-        Mode = ConversationMode.Interactive,
+        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -341,7 +341,7 @@ public static class DualModelScripts
     public static ConversationScript MultiToolCallThenSynthesis => new()
     {
         Name = "多工具调用后综合回复（双模型链路）",
-        Mode = ConversationMode.Interactive,
+        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -384,7 +384,7 @@ public static class DualModelScripts
     public static ConversationScript DirectTextNoPlan => new()
     {
         Name = "直接文本回复（空计划检测链路）",
-        Mode = ConversationMode.Interactive,
+        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -415,7 +415,7 @@ public static class EventStreamScripts
     public static ConversationScript ThreeTurnContextPreservation => new()
     {
         Name = "三轮上下文保持（事件流链路）",
-        Mode = ConversationMode.Interactive,
+        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -477,7 +477,7 @@ public static class EventStreamScripts
     public static ConversationScript ToolProgressEventStream => new()
     {
         Name = "工具进度事件流",
-        Mode = ConversationMode.Interactive,
+        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn

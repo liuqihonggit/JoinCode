@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 
 namespace MockServer.E2E.Tests.Scripts;
 
@@ -13,7 +13,7 @@ public static class ExtendedToolScripts
     public static ConversationScript TaskListTest => new()
     {
         Name = "TaskList 工具调用",
-        Mode = ConversationMode.Interactive,
+        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -48,7 +48,7 @@ public static class ExtendedToolScripts
     public static ConversationScript TaskGetTest => new()
     {
         Name = "TaskGet 工具调用",
-        Mode = ConversationMode.Interactive,
+        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -83,7 +83,7 @@ public static class ExtendedToolScripts
     public static ConversationScript TaskStopTest => new()
     {
         Name = "TaskStop 工具调用",
-        Mode = ConversationMode.Interactive,
+        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -118,7 +118,7 @@ public static class ExtendedToolScripts
     public static ConversationScript TaskUpdateTest => new()
     {
         Name = "TaskUpdate 工具调用",
-        Mode = ConversationMode.Interactive,
+        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -153,7 +153,7 @@ public static class ExtendedToolScripts
     public static ConversationScript CronCreateTest => new()
     {
         Name = "CronCreate 工具调用",
-        Mode = ConversationMode.Interactive,
+        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -188,7 +188,7 @@ public static class ExtendedToolScripts
     public static ConversationScript CronDeleteTest => new()
     {
         Name = "CronDelete 工具调用",
-        Mode = ConversationMode.Interactive,
+        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -223,7 +223,7 @@ public static class ExtendedToolScripts
     public static ConversationScript AskUserQuestionTest => new()
     {
         Name = "AskUserQuestion 工具调用",
-        Mode = ConversationMode.Interactive,
+        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -258,7 +258,7 @@ public static class ExtendedToolScripts
     public static ConversationScript WebFetchToolCall => new()
     {
         Name = "web_fetch 工具调用（SSRF 防护）",
-        Mode = ConversationMode.Interactive,
+        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -293,7 +293,7 @@ public static class ExtendedToolScripts
     public static ConversationScript CompleteStepToolTest => new()
     {
         Name = "complete_step 工具调用",
-        Mode = ConversationMode.Interactive,
+        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -329,7 +329,7 @@ public static class ExtendedToolScripts
     public static ConversationScript TaskOutputTest => new()
     {
         Name = "TaskOutput 工具调用",
-        Mode = ConversationMode.Interactive,
+        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn

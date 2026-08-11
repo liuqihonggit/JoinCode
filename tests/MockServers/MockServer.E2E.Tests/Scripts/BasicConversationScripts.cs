@@ -1,11 +1,11 @@
-namespace MockServer.E2E.Tests.Scripts;
+﻿namespace MockServer.E2E.Tests.Scripts;
 
 public static class BasicConversationScripts
 {
     public static ConversationScript SingleTurnTextOnly => new()
     {
         Name = "单轮纯文本对话",
-        Mode = ConversationMode.Interactive,
+        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -51,7 +51,7 @@ public static class BasicConversationScripts
     public static ConversationScript SingleTurnWithToolCall => new()
     {
         Name = "单轮工具调用对话",
-        Mode = ConversationMode.Interactive,
+        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -85,7 +85,7 @@ public static class BasicConversationScripts
     public static ConversationScript MultiTurnMemory => new()
     {
         Name = "多轮对话记忆",
-        Mode = ConversationMode.Interactive,
+        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -133,7 +133,7 @@ public static class BasicConversationScripts
     public static ConversationScript StreamingResponse => new()
     {
         Name = "流式响应测试",
-        Mode = ConversationMode.Interactive,
+        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn

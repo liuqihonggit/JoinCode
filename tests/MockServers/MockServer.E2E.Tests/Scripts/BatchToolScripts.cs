@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 
 namespace MockServer.E2E.Tests.Scripts;
 
@@ -10,7 +10,7 @@ public static class BatchFileToolScripts
     public static ConversationScript FileToolsBatch => new()
     {
         Name = "文件工具批量测试",
-        Mode = ConversationMode.Interactive,
+        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -62,7 +62,7 @@ public static class BatchShellToolScripts
     public static ConversationScript ShellToolsBatch => new()
     {
         Name = "Shell工具批量测试",
-        Mode = ConversationMode.Interactive,
+        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -106,7 +106,7 @@ public static class BatchGitToolScripts
     public static ConversationScript GitToolsBatch => new()
     {
         Name = "Git工具批量测试",
-        Mode = ConversationMode.Interactive,
+        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -152,7 +152,7 @@ public static class BatchInteractionToolScripts
     public static ConversationScript InteractionToolsBatch => new()
     {
         Name = "交互工具批量测试",
-        Mode = ConversationMode.Interactive,
+        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -192,7 +192,7 @@ public static class BatchAgentToolScripts
     public static ConversationScript AgentToolsBatch => new()
     {
         Name = "Agent工具批量测试",
-        Mode = ConversationMode.Interactive,
+        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -240,7 +240,7 @@ public static class BatchSearchToolScripts
     public static ConversationScript SearchToolsBatch => new()
     {
         Name = "搜索工具批量测试",
-        Mode = ConversationMode.Interactive,
+        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -284,7 +284,7 @@ public static class BatchPlanToolScripts
     public static ConversationScript PlanToolsBatch => new()
     {
         Name = "Plan工具批量测试",
-        Mode = ConversationMode.Interactive,
+        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -324,7 +324,7 @@ public static class BatchSystemToolScripts
     public static ConversationScript SystemToolsBatch => new()
     {
         Name = "System工具批量测试",
-        Mode = ConversationMode.Interactive,
+        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn

@@ -1,4 +1,4 @@
-namespace MockServer.E2E.Tests.Scripts;
+﻿namespace MockServer.E2E.Tests.Scripts;
 
 /// <summary>
 /// MCP 集成 E2E 测试脚本 — 验证 jcc 作为 MCP 客户端连接外部 MCP 服务器并调用工具的正向链路
@@ -14,7 +14,7 @@ public static class McpIntegrationScripts
     public static ConversationScript McpConnectAndCallEcho => new()
     {
         Name = "MCP连接并调用echo工具",
-        Mode = ConversationMode.Interactive,
+        Mode = ConversationMode.NonInteractive,
         RequiresMcpMockServer = true,
         Turns =
         [

@@ -1,4 +1,4 @@
-namespace MockServer.E2E.Tests.Scripts;
+﻿namespace MockServer.E2E.Tests.Scripts;
 
 /// <summary>
 /// /falv 结构化推理 E2E 测试脚本
@@ -11,7 +11,7 @@ public static class FalvConversationScripts
     public static ConversationScript FalvStatusEmpty => new()
     {
         Name = "/falv --status 空引擎",
-        Mode = ConversationMode.Interactive,
+        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -39,7 +39,7 @@ public static class FalvConversationScripts
     public static ConversationScript FalvAddAssumption => new()
     {
         Name = "/falv 添加假定",
-        Mode = ConversationMode.Interactive,
+        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -81,7 +81,7 @@ public static class FalvConversationScripts
     public static ConversationScript FalvJudgeWithBudget => new()
     {
         Name = "/falv --judge 裁决+预算",
-        Mode = ConversationMode.Interactive,
+        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -121,7 +121,7 @@ public static class FalvConversationScripts
     public static ConversationScript FalvBudgetExhaustAndRefill => new()
     {
         Name = "/falv 轮次耗尽+续费",
-        Mode = ConversationMode.Interactive,
+        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -194,7 +194,7 @@ public static class FalvConversationScripts
     public static ConversationScript FalvEvidenceEmpty => new()
     {
         Name = "/falv --evidence 空证据链",
-        Mode = ConversationMode.Interactive,
+        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -217,7 +217,7 @@ public static class FalvConversationScripts
     public static ConversationScript FalvHelp => new()
     {
         Name = "/falv --help 帮助",
-        Mode = ConversationMode.Interactive,
+        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -246,7 +246,7 @@ public static class FalvConversationScripts
     public static ConversationScript FalvCone => new()
     {
         Name = "/falv --cone 有限视锥",
-        Mode = ConversationMode.Interactive,
+        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -274,7 +274,7 @@ public static class FalvConversationScripts
     public static ConversationScript FalvConflict => new()
     {
         Name = "/falv --conflict 视锥冲突",
-        Mode = ConversationMode.Interactive,
+        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn

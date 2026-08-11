@@ -139,18 +139,21 @@ public sealed class CliSession
         var parseResult = _commandRegistry.Parse(input);
         if (!parseResult.IsSuccess)
         {
-            Diag.WriteLifecycle($"[DIAG-CLI] Parse FAILED for: '{input}'");
+            Diag.WriteLifecycle($"[DIAG-CLI] Parse FAILED for: '{input}', error={parseResult.ErrorMessage}");
             return;
         }
 
-        Diag.WriteLifecycle($"[DIAG-CLI] Parse OK, commandName={parseResult.CommandName}");
+        Diag.WriteLifecycle($"[DIAG-CLI] Parse OK, commandName={parseResult.CommandName}, arguments={parseResult.Arguments}");
         var command = _commandRegistry.GetCommand(parseResult.CommandName ?? throw new InvalidOperationException("CommandName should not be null after successful parse"));
         if (command == null)
         {
-            Diag.WriteLifecycle($"[DIAG-CLI] Command NOT FOUND: {parseResult.CommandName}");
+            var allCommands = _commandRegistry.GetAllCommands().Keys.OrderBy(k => k).ToArray();
+            Diag.WriteLifecycle($"[DIAG-CLI] Command NOT FOUND: '{parseResult.CommandName}', registeredCount={allCommands.Length}, registered=[{string.Join(", ", allCommands)}]");
             ShowUnknownCommandHelp();
             return;
         }
+
+        Diag.WriteLifecycle($"[DIAG-CLI] Command resolved: name={command.Name}, type={command.GetType().FullName}");
 
         var context = new ChatCommandContext
         {
@@ -243,13 +246,13 @@ public sealed class CliSession
         ChatCommandResult result;
         try
         {
-            Diag.WriteLifecycle($"[DIAG-CLI] HandleCommandAsync: executing command '{command.Name}'");
+            Diag.WriteLifecycle($"[DIAG-CLI] executing command '{command.Name}', args='{parseResult.Arguments}'");
             result = await command.ExecuteAsync(context);
-            Diag.WriteLifecycle($"[DIAG-CLI] HandleCommandAsync: command '{command.Name}' returned ShouldContinue={result.ShouldContinue}");
+            Diag.WriteLifecycle($"[DIAG-CLI] command '{command.Name}' returned: ShouldContinue={result.ShouldContinue}, resultType={result.GetType().FullName}");
         }
         catch (Exception ex)
         {
-            Diag.WriteLifecycle($"[DIAG-CLI] HandleCommandAsync: command '{command.Name}' THREW {ex.GetType().Name}: {ex.Message}");
+            Diag.WriteLifecycle($"[DIAG-CLI] command '{command.Name}' THREW {ex.GetType().Name}: {ex.Message}");
             throw;
         }
         finally
@@ -259,7 +262,7 @@ public sealed class CliSession
         }
 
         var outputText = commandOutput.ToString();
-        Diag.WriteLine($"[CliSession] HandleCommandAsync: outputText.Length={outputText.Length}");
+        Diag.WriteLifecycle($"[DIAG-CLI] command '{command.Name}' outputLen={outputText.Length}, outputPreview='{(outputText.Length > 200 ? outputText[..200] + "..." : outputText)}'");
         if (!string.IsNullOrWhiteSpace(outputText))
         {
             TerminalHelper.WriteLine(outputText.TrimEnd());
@@ -267,7 +270,7 @@ public sealed class CliSession
 
         if (!result.ShouldContinue)
         {
-            Diag.WriteLine("[CliSession] HandleCommandAsync: ShouldContinue=false, calling Stop()");
+            Diag.WriteLifecycle($"[DIAG-CLI] command '{command.Name}' ShouldContinue=false, calling Stop()");
             Stop();
         }
     }

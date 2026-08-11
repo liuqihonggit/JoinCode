@@ -30,8 +30,24 @@ public sealed class PhysicalProcessService : IProcessService
         Console.Error.WriteLine($"[DIAG-PROC] ExecuteAsync start: {options.FileName} {argsDisplay}");
         Console.Error.Flush();
 
-        using var process = System.Diagnostics.Process.Start(psi)
-            ?? throw new InvalidOperationException($"[INF014] 无法启动进程: {options.FileName}");
+        System.Diagnostics.Process? startedProcess;
+        try
+        {
+            startedProcess = System.Diagnostics.Process.Start(psi);
+        }
+        catch (Exception startEx)
+        {
+            Console.Error.WriteLine($"[DIAG-PROC] Process.Start THREW: {startEx.GetType().Name}: {startEx.Message}");
+            Console.Error.Flush();
+            throw;
+        }
+        if (startedProcess is null)
+        {
+            Console.Error.WriteLine($"[DIAG-PROC] Process.Start returned null");
+            Console.Error.Flush();
+            throw new InvalidOperationException($"[INF014] 无法启动进程: {options.FileName}");
+        }
+        using var process = startedProcess;
 
         Console.Error.WriteLine($"[DIAG-PROC] process started, pid={process.Id}");
         Console.Error.Flush();

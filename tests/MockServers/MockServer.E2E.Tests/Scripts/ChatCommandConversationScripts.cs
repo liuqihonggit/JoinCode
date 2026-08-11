@@ -777,7 +777,7 @@ public static partial class ChatCommandConversationScripts
     public static ConversationScript DiffFilesCommand => new()
     {
         Name = "/diff files 命令",
-        Mode = ConversationMode.Interactive,
+        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn
@@ -910,7 +910,7 @@ public static partial class ChatCommandConversationScripts
     public static ConversationScript SecurityReviewCommand => new()
     {
         Name = "/security-review 命令",
-        Mode = ConversationMode.Interactive,
+        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn

@@ -666,6 +666,37 @@ Get-ChildItem "D:\project\w1\tests\MockServers\MockServer.Core\dumps\OpenAI" -Fi
 
 **原因**: Out-File 写 UTF-8 带 BOM → CS0234；WriteAllText 可能清空文件；`$1` 被 PowerShell 展开为空
 
+## E2E 测试脚本模式规范
+
+### 问题背景
+
+Interactive 模式下 `Console.In.ReadLineAsync` 从重定向 stdin 管道读取存在竞争条件，偶发卡死60s超时。单轮命令尤其容易触发。
+
+### 强制规则
+
+| 脚本类型 | 必须用 | 原因 |
+|----------|--------|------|
+| **单轮无工具调用** | `NonInteractive` | `-p` 参数直接传命令，不经过 stdin 管道，无竞争条件 |
+| **单轮有工具调用** | `NonInteractive` 或 `Interactive` | NonInteractive 也可，jcc 内部自动处理工具调用链 |
+| **多轮（Turns > 1）** | `Interactive` | 需要根据上一轮输出发送下一轮输入，无法用 `-p` |
+
+### 架构层面防护
+
+`CoverageTestBase.ValidateScriptMode` 在运行时校验：单轮无工具调用 + Interactive → 抛 `[GEN036]` 报错，**不会卡死60s**，立即给出修复提示。
+
+### 新增 E2E 脚本时的检查清单
+
+1. 单轮命令 → `Mode = ConversationMode.NonInteractive`
+2. 多轮交互 → `Mode = ConversationMode.Interactive`
+3. 运行测试确认无 `[GEN036]` 报错
+
+### 定位 E2E 卡死问题的快速方法
+
+1. **先用 `jcc.exe -p "/命令"` 非交互模式验证命令本身** — 不需要 MockServer，1秒出结果
+2. **用 `dotnet test --filter "单个测试"` 本地跑** — E2E 框架自己管 MockServer
+3. **检查 jcc.exe 时间戳** — E2E 用 `Host.Tests\Debug` 路径，改代码后必须重编译 Host.Tests
+4. **同步 `ReadToEnd` 读 stderr** — `BeginErrorReadLine` 在进程被Kill时不flush
+
 # 同义词
 
 ## 用户说的"合并"

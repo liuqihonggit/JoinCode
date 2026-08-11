@@ -37,7 +37,29 @@ public abstract class CoverageTestBase : IAsyncLifetime
     /// </summary>
     protected async Task RunScriptAsync(ConversationScript script, VendorKind provider = VendorKind.OpenAi)
     {
+        ValidateScriptMode(script);
         await RunScriptWithRetryAsync(script, provider, maxAttempts: 5).ConfigureAwait(true);
+    }
+
+    /// <summary>
+    /// 校验脚本模式 — 单轮无工具调用的命令必须用 NonInteractive 模式。
+    /// Interactive 模式下 stdin 管道存在竞争条件，单轮命令会卡死60s超时。
+    /// 此校验在架构层面防止误用，避免开发者踩坑。
+    /// </summary>
+    private static void ValidateScriptMode(ConversationScript script)
+    {
+        if (script.Mode != ConversationMode.Interactive) return;
+        if (script.Turns.Count != 1) return;
+
+        var turn = script.Turns[0];
+        var hasToolCalls = turn.AiResponse.ToolCalls is { Count: > 0 };
+        if (hasToolCalls) return;
+
+        throw new ArgumentException(
+            $"[GEN036] 单轮无工具调用的命令必须用 NonInteractive 模式，当前用了 Interactive 模式。" +
+            $"脚本: {script.Name}。原因: Interactive 模式下 Console.In.ReadLineAsync 从重定向 stdin 管道读取存在竞争条件，" +
+            $"会导致命令卡死60s超时。修复: 将 Mode = ConversationMode.Interactive 改为 Mode = ConversationMode.NonInteractive。" +
+            $"只有多轮交互或需要工具调用链的脚本才用 Interactive 模式。");
     }
 
     private async Task RunScriptWithRetryAsync(ConversationScript script, VendorKind provider, int maxAttempts)

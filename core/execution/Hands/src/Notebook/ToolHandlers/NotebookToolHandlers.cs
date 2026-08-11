@@ -103,7 +103,7 @@ public class NotebookToolHandlers
             var lastWriteMs = new DateTimeOffset(_fs.GetLastWriteTimeUtc(notebook_path)).ToUnixTimeMilliseconds();
             if (lastWriteMs > readTimestamp.Value + 1000) // 1s tolerance
             {
-                var diag = BuildFileModifiedSinceReadDiagnostic();
+                var diag = BuildFileModifiedSinceReadDiagnostic(notebook_path, lastWriteMs, readTimestamp.Value);
                 return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
             }
         }
@@ -920,14 +920,20 @@ public class NotebookToolHandlers
 
     /// <summary>
     /// 构建文件已被外部修改的结构化诊断。
+    /// 对齐 openCode 报错格式：包含具体文件路径与 Last modification/Last read ISO 时间戳，便于排查并发修改。
     /// </summary>
-    internal static ToolDiagnostic BuildFileModifiedSinceReadDiagnostic()
+    internal static ToolDiagnostic BuildFileModifiedSinceReadDiagnostic(string filePath, long lastWriteMs, long readTimestampMs)
     {
+        var lastModification = FormatIsoUtc(lastWriteMs);
+        var lastRead = FormatIsoUtc(readTimestampMs);
         return ToolDiagnostic.Create(
             reason: "FileModifiedSinceRead",
-            formattedMessage: "File has been modified since read, either by the user or by a linter. Read it again before attempting to write it.",
+            formattedMessage: $"File {filePath} has been modified since it was last read.\nLast modification: {lastModification}\nLast read: {lastRead}\nPlease read the file again before modifying it.",
             details:
             [
+                new DiagnosticDetail("filePath", filePath),
+                new DiagnosticDetail("lastModification", lastModification),
+                new DiagnosticDetail("lastRead", lastRead),
                 new DiagnosticDetail("Tolerance", "1s"),
             ],
             suggestions:
@@ -935,6 +941,12 @@ public class NotebookToolHandlers
                 "重新读取文件以获取最新内容后再编辑。",
             ]);
     }
+
+    /// <summary>
+    /// 将 Unix 毫秒时间戳格式化为 ISO 8601 UTC 字符串（毫秒精度，Z 后缀），例如 2026-08-11T12:03:09.950Z。
+    /// </summary>
+    private static string FormatIsoUtc(long ms) =>
+        DateTimeOffset.FromUnixTimeMilliseconds(ms).UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'", CultureInfo.InvariantCulture);
 
     /// <summary>
     /// 构建 notebook JSON 解析失败的结构化诊断（NotebookEditAsync 内硬编码英文消息）。

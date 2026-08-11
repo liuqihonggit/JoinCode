@@ -84,9 +84,15 @@ public class NotebookToolHandlersErrorDiagnosticTests
     [Fact]
     public void BuildFileModifiedSinceReadDiagnostic_ReturnsCorrectStructure()
     {
-        var diag = NotebookToolHandlers.BuildFileModifiedSinceReadDiagnostic();
+        var filePath = @"/tmp/sample.md";
+        var lastWriteMs = DateTimeOffset.Parse("2026-08-11T12:03:09.950Z", System.Globalization.CultureInfo.InvariantCulture).ToUnixTimeMilliseconds();
+        var readTimestampMs = DateTimeOffset.Parse("2026-08-11T12:02:04.486Z", System.Globalization.CultureInfo.InvariantCulture).ToUnixTimeMilliseconds();
+        var diag = NotebookToolHandlers.BuildFileModifiedSinceReadDiagnostic(filePath, lastWriteMs, readTimestampMs);
         diag.Reason.Should().Be("FileModifiedSinceRead");
-        diag.FormattedMessage.Should().Be("File has been modified since read, either by the user or by a linter. Read it again before attempting to write it.");
+        diag.FormattedMessage.Should().Be($"File {filePath} has been modified since it was last read.\nLast modification: 2026-08-11T12:03:09.950Z\nLast read: 2026-08-11T12:02:04.486Z\nPlease read the file again before modifying it.");
+        diag.Details.Should().Contain(d => d.Key == "filePath" && d.Value == filePath);
+        diag.Details.Should().Contain(d => d.Key == "lastModification" && d.Value == "2026-08-11T12:03:09.950Z");
+        diag.Details.Should().Contain(d => d.Key == "lastRead" && d.Value == "2026-08-11T12:02:04.486Z");
         diag.Details.Should().Contain(d => d.Key == "Tolerance" && d.Value == "1s");
     }
 

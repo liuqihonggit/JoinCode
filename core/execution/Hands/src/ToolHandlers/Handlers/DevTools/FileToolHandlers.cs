@@ -366,14 +366,14 @@ public partial class FileToolHandlers : IDisposable
                         else
                         {
                         RecordFileMetrics(FileOperationType.Write, FileOperationResult.Stale);
-                        var staleWriteDiag2 = BuildFileModifiedSinceReadDiagnostic("writing");
+                        var staleWriteDiag2 = BuildFileModifiedSinceReadDiagnostic("writing", file_path, lastWriteMs, readTimestamp.Value);
                         return ToolResultBuilder.Error().WithText(staleWriteDiag2.FormattedMessage).WithDiagnostic(staleWriteDiag2).Build();
                         }
                     }
                     else
                     {
                         RecordFileMetrics(FileOperationType.Write, FileOperationResult.Stale);
-                        var staleWriteDiag = BuildFileModifiedSinceReadDiagnostic("writing");
+                        var staleWriteDiag = BuildFileModifiedSinceReadDiagnostic("writing", file_path, lastWriteMs, readTimestamp.Value);
                         return ToolResultBuilder.Error().WithText(staleWriteDiag.FormattedMessage).WithDiagnostic(staleWriteDiag).Build();
                     }
                 }
@@ -564,14 +564,14 @@ public partial class FileToolHandlers : IDisposable
                         else
                         {
                         RecordFileMetrics(FileOperationType.Edit, FileOperationResult.Stale);
-                        var staleEditDiag2 = BuildFileModifiedSinceReadDiagnostic("editing");
+                        var staleEditDiag2 = BuildFileModifiedSinceReadDiagnostic("editing", file_path, lastWriteMs, readTimestamp.Value);
                         return ToolResultBuilder.Error().WithText(staleEditDiag2.FormattedMessage).WithDiagnostic(staleEditDiag2).Build();
                         }
                     }
                     else
                     {
                         RecordFileMetrics(FileOperationType.Edit, FileOperationResult.Stale);
-                        var staleEditDiag = BuildFileModifiedSinceReadDiagnostic("editing");
+                        var staleEditDiag = BuildFileModifiedSinceReadDiagnostic("editing", file_path, lastWriteMs, readTimestamp.Value);
                         return ToolResultBuilder.Error().WithText(staleEditDiag.FormattedMessage).WithDiagnostic(staleEditDiag).Build();
                     }
                 }

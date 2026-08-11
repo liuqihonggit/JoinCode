@@ -65,19 +65,31 @@ public class FileToolHandlersErrorDiagnosticTests
     [Fact]
     public void BuildFileModifiedSinceReadDiagnostic_ForWriting_ReturnsCorrectStructure()
     {
-        var diag = FileToolHandlers.BuildFileModifiedSinceReadDiagnostic("writing");
+        var filePath = @"/tmp/sample.md";
+        var lastWriteMs = DateTimeOffset.Parse("2026-08-11T12:03:09.950Z", System.Globalization.CultureInfo.InvariantCulture).ToUnixTimeMilliseconds();
+        var readTimestampMs = DateTimeOffset.Parse("2026-08-11T12:02:04.486Z", System.Globalization.CultureInfo.InvariantCulture).ToUnixTimeMilliseconds();
+        var diag = FileToolHandlers.BuildFileModifiedSinceReadDiagnostic("writing", filePath, lastWriteMs, readTimestampMs);
         diag.Reason.Should().Be("FileModifiedSinceRead");
-        diag.FormattedMessage.Should().Be("File has been modified since it was last read. The file may have been changed by another process. Read it again before writing to ensure you have the latest content.");
+        diag.FormattedMessage.Should().Be($"File {filePath} has been modified since it was last read.\nLast modification: 2026-08-11T12:03:09.950Z\nLast read: 2026-08-11T12:02:04.486Z\nPlease read the file again before modifying it.");
         diag.Details.Should().Contain(d => d.Key == "operation" && d.Value == "writing");
+        diag.Details.Should().Contain(d => d.Key == "filePath" && d.Value == filePath);
+        diag.Details.Should().Contain(d => d.Key == "lastModification" && d.Value == "2026-08-11T12:03:09.950Z");
+        diag.Details.Should().Contain(d => d.Key == "lastRead" && d.Value == "2026-08-11T12:02:04.486Z");
     }
 
     [Fact]
     public void BuildFileModifiedSinceReadDiagnostic_ForEditing_ReturnsCorrectStructure()
     {
-        var diag = FileToolHandlers.BuildFileModifiedSinceReadDiagnostic("editing");
+        var filePath = @"/tmp/sample.md";
+        var lastWriteMs = DateTimeOffset.Parse("2026-08-11T12:03:09.950Z", System.Globalization.CultureInfo.InvariantCulture).ToUnixTimeMilliseconds();
+        var readTimestampMs = DateTimeOffset.Parse("2026-08-11T12:02:04.486Z", System.Globalization.CultureInfo.InvariantCulture).ToUnixTimeMilliseconds();
+        var diag = FileToolHandlers.BuildFileModifiedSinceReadDiagnostic("editing", filePath, lastWriteMs, readTimestampMs);
         diag.Reason.Should().Be("FileModifiedSinceRead");
-        diag.FormattedMessage.Should().Be("File has been modified since it was last read. The file may have been changed by another process. Read it again before editing to ensure you have the latest content.");
+        diag.FormattedMessage.Should().Be($"File {filePath} has been modified since it was last read.\nLast modification: 2026-08-11T12:03:09.950Z\nLast read: 2026-08-11T12:02:04.486Z\nPlease read the file again before modifying it.");
         diag.Details.Should().Contain(d => d.Key == "operation" && d.Value == "editing");
+        diag.Details.Should().Contain(d => d.Key == "filePath" && d.Value == filePath);
+        diag.Details.Should().Contain(d => d.Key == "lastModification" && d.Value == "2026-08-11T12:03:09.950Z");
+        diag.Details.Should().Contain(d => d.Key == "lastRead" && d.Value == "2026-08-11T12:02:04.486Z");
     }
 
     [Fact]

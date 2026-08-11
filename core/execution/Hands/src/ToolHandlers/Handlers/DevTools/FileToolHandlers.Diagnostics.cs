@@ -79,15 +79,24 @@ public partial class FileToolHandlers
 
     /// <summary>
     /// 构建文件自上次读取后已被修改的脏写保护诊断。
+    /// 对齐 openCode 报错格式：包含具体文件路径与 Last modification/Last read ISO 时间戳，便于排查并发修改。
     /// </summary>
-    internal static ToolDiagnostic BuildFileModifiedSinceReadDiagnostic(string operation)
+    internal static ToolDiagnostic BuildFileModifiedSinceReadDiagnostic(string operation, string filePath, long lastWriteMs, long readTimestampMs)
     {
+        var lastModification = FormatIsoUtc(lastWriteMs);
+        var lastRead = FormatIsoUtc(readTimestampMs);
         return ToolDiagnostic.Create(
             reason: "FileModifiedSinceRead",
-            formattedMessage: $"File has been modified since it was last read. The file may have been changed by another process. Read it again before {operation} to ensure you have the latest content.",
-            details: [new DiagnosticDetail("operation", operation)],
+            formattedMessage: $"File {filePath} has been modified since it was last read.\nLast modification: {lastModification}\nLast read: {lastRead}\nPlease read the file again before modifying it.",
+            details: [new DiagnosticDetail("operation", operation), new DiagnosticDetail("filePath", filePath), new DiagnosticDetail("lastModification", lastModification), new DiagnosticDetail("lastRead", lastRead)],
             suggestions: ["重新读取文件以获取最新内容后再操作。"]);
     }
+
+    /// <summary>
+    /// 将 Unix 毫秒时间戳格式化为 ISO 8601 UTC 字符串（毫秒精度，Z 后缀），例如 2026-08-11T12:03:09.950Z。
+    /// </summary>
+    private static string FormatIsoUtc(long ms) =>
+        DateTimeOffset.FromUnixTimeMilliseconds(ms).UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'", CultureInfo.InvariantCulture);
 
     /// <summary>
     /// 构建 Notebook 文件编辑拒绝的结构化诊断。

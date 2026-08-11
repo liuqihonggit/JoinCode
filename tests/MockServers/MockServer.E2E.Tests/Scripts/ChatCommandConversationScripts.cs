@@ -962,7 +962,7 @@ public static partial class ChatCommandConversationScripts
     public static ConversationScript WorktreeCommand => new()
     {
         Name = "/worktree list 命令",
-        Mode = ConversationMode.Interactive,
+        Mode = ConversationMode.NonInteractive,
         Turns =
         [
             new ConversationTurn

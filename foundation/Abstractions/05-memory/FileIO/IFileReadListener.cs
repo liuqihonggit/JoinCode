@@ -1,3 +1,5 @@
+﻿using JoinCode.Abstractions.Utils;
+
 namespace JoinCode.Abstractions.Interfaces;
 
 /// <summary>
@@ -37,7 +39,7 @@ public interface IFileReadListener
 /// 对齐 TS FileReadTool: registerFileReadListener / fileReadListeners
 /// 支持注册/取消订阅，线程安全。
 /// </summary>
-public interface IFileReadListenerRegistry
+public interface IFileReadListenerRegistry : IRegistry
 {
     /// <summary>
     /// 注册文件读取监听器，返回取消订阅的 token。

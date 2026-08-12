@@ -1,3 +1,5 @@
+﻿using JoinCode.Abstractions.Utils;
+
 namespace JoinCode.Abstractions.CodeIndex;
 
 /// <summary>
@@ -5,7 +7,7 @@ namespace JoinCode.Abstractions.CodeIndex;
 /// 支持多仓库图查询: 每个仓库拥有独立的 InMemoryIndexStore + CodeIndexer
 /// 对齐 code-review-graph 的 register/unregister/repos 命令
 /// </summary>
-public interface ICodeIndexerRegistry
+public interface ICodeIndexerRegistry : IRegistry
 {
     /// <summary>
     /// 注册一个仓库 — 为该仓库创建独立的 ICodeIndexer 实例

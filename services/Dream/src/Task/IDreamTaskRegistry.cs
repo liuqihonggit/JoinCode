@@ -1,10 +1,12 @@
+﻿
+using JoinCode.Abstractions.Utils;
 
 namespace JoinCode.Dream.Persistence;
 
 /// <summary>
 /// 做梦任务注册表接口
 /// </summary>
-public interface IDreamTaskRegistry
+public interface IDreamTaskRegistry : IRegistry
 {
     /// <summary>
     /// 注册新的做梦任务

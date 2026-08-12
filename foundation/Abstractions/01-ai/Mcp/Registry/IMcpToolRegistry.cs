@@ -1,6 +1,8 @@
+﻿using JoinCode.Abstractions.Utils;
+
 namespace JoinCode.Abstractions.Mcp.Registry;
 
-public interface IMcpToolRegistry : IToolRegistry
+public interface IMcpToolRegistry : IToolRegistry, IRegistry
 {
     void RegisterRemoteClient(string clientId, IMcpClient client);
 

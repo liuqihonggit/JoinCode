@@ -1,7 +1,9 @@
+﻿
+using JoinCode.Abstractions.Utils;
 
 namespace JoinCode.Abstractions.Configuration.Providers;
 
-public interface IProviderDefinitionRegistry
+public interface IProviderDefinitionRegistry : IRegistry
 {
     IProviderDefinition? TryGet(string providerName);
     IReadOnlyCollection<string> RegisteredProviders { get; }

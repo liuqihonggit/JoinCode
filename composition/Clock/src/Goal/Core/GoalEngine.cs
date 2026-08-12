@@ -663,11 +663,55 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
             return;
         try
         {
+            _state.PersistedHistory = [.. _chatHistory.Select(m => new ApiMessageDocument
+            {
+                Role = m.Role.ToString().ToLowerInvariant(),
+                Content = m.Content ?? string.Empty
+            })];
             await _stateStore.SaveAsync(_state, ct).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
             _logger?.LogWarning(ex, "[GoalEngine] 状态持久化失败: {GoalId}", _state.GoalId);
+        }
+    }
+
+    /// <summary>
+    /// 从持久化存储恢复活跃目标状态 — 进程重启后调用以恢复未完成的目标。
+    /// 当多个活跃目标存在时恢复第一个（多 goal 管理由 PersistentGoalRegistry 负责）。
+    /// </summary>
+    public async Task RehydrateAsync(CancellationToken cancellationToken = default)
+    {
+        if (_stateStore is null) return;
+        try
+        {
+            var activeGoals = await _stateStore.GetActiveGoalsAsync(cancellationToken).ConfigureAwait(false);
+            if (activeGoals.Count == 0) return;
+
+            var first = activeGoals[0];
+            await _stateLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                _state = first;
+                _chatHistory.Clear();
+                if (first.PersistedHistory is not null)
+                {
+                    foreach (var doc in first.PersistedHistory)
+                    {
+                        var role = Enum.TryParse<MessageRole>(doc.Role, ignoreCase: true, out var r) ? r : MessageRole.User;
+                        _chatHistory.Add(new ApiMessage(role, doc.Content));
+                    }
+                }
+            }
+            finally
+            {
+                _stateLock.Release();
+            }
+            _logger?.LogInformation("[GoalEngine] 从持久化恢复目标: {GoalId} (状态: {Status})", first.GoalId, first.Status);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "[GoalEngine] 恢复目标状态失败");
         }
     }
 

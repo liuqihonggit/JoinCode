@@ -4,10 +4,15 @@ namespace JoinCode.Abstractions.Hooks;
 /// SubagentStop 钩子管理器 — SubagentStop 事件的单一事件源。
 /// 所有 SubagentStop 触发必须走此接口，禁止直接调 IHookOrchestrator.ExecuteHooksAsync(HookEvent.SubagentStop)。
 /// </summary>
-public interface ISubagentStopHookManager
+public interface ISubagentStopHookManager : IHookManager, IHookHandler<SubagentStopHookContext, SubagentStopHookResult>
 {
     /// <summary>触发 SubagentStop 钩子 — 返回 ShouldProceed=false 表示阻塞</summary>
     Task<SubagentStopHookResult> OnSubagentStopAsync(SubagentStopHookContext context, CancellationToken ct = default);
+
+    /// <summary>IHookHandler.ExecuteAsync → 委托到 OnSubagentStopAsync</summary>
+    Task<SubagentStopHookResult> IHookHandler<SubagentStopHookContext, SubagentStopHookResult>.ExecuteAsync(
+        SubagentStopHookContext context, CancellationToken cancellationToken)
+        => OnSubagentStopAsync(context, cancellationToken);
 }
 
 /// <summary>SubagentStop 钩子上下文</summary>

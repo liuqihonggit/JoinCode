@@ -1,8 +1,13 @@
 namespace JoinCode.Abstractions.Hooks;
 
-public interface ISessionStartHookManager
+public interface ISessionStartHookManager : IHookManager, IHookHandler<SessionStartHookContext, SessionStartHookResult>
 {
     Task<SessionStartHookResult> OnSessionStartAsync(SessionStartHookContext context, CancellationToken ct = default);
+
+    /// <summary>IHookHandler.ExecuteAsync → 委托到 OnSessionStartAsync</summary>
+    Task<SessionStartHookResult> IHookHandler<SessionStartHookContext, SessionStartHookResult>.ExecuteAsync(
+        SessionStartHookContext context, CancellationToken cancellationToken)
+        => OnSessionStartAsync(context, cancellationToken);
 }
 
 public sealed partial class SessionStartHookContext

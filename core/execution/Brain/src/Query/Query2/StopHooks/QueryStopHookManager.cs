@@ -1,6 +1,6 @@
 namespace Core.Query.StopHooks;
 
-public interface IQueryStopHookManager
+public interface IQueryStopHookManager : IHookManager
 {
     Task<StopHookResult> ExecuteStopHooksAsync(string sessionId, string reason, CancellationToken ct = default);
     void RegisterStopHook(IQueryStopHook hook);

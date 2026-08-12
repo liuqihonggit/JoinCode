@@ -57,6 +57,7 @@ internal sealed partial class ChatErrorHandlingMiddleware : ServiceEntity, Core.
             var errorCode = classified is WorkflowException wfEx ? wfEx.ErrorCode : ErrorCode.WorkflowExecution.ToValue();
             _logger.LogError(error, "[ChatErrorHandling] 管道异常: Turn={Turn}, DryRun={DryRun}, Code={Code}",
                 context.ConversationTurn, context.IsDryRun, errorCode);
+            Diag.WriteError($"[ChatErrorHandling] Turn={context.ConversationTurn}, DryRun={context.IsDryRun}, Code={errorCode}", error);
             throw classified;
         }
     }

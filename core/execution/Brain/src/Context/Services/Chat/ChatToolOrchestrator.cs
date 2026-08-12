@@ -230,6 +230,7 @@ public sealed partial class ChatToolOrchestrator : ServiceEntity, IChatToolOrche
             }
 
             _logger?.LogError(ex, "[ChatToolOrchestrator] 工具调用失败: {ToolName}", toolCallName);
+            Diag.WriteError($"[ChatToolOrchestrator] Tool={toolCallName}", ex);
             return new ToolCallResult { ResultText = FormatToolError($"工具调用失败: {ex.Message}"), IsError = true };
         }
     }

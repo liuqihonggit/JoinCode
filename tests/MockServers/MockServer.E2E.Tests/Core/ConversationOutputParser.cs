@@ -338,7 +338,7 @@ public static class ConversationOutputParser
         return false;
     }
 
-    private static readonly string[] ILoggerPrefixes = ["crit:", "error:", "warn:", "info:", "dbug:", "trce:"];
+    private static readonly string[] ILoggerPrefixes = ["crit:", "fail:", "error:", "warn:", "info:", "dbug:", "trce:"];
 
     /// <summary>
     /// 检测 .NET ILogger simple console 格式的日志行
@@ -347,11 +347,17 @@ public static class ConversationOutputParser
     /// </summary>
     private static bool IsDotNetILoggerLine(string line)
     {
+        // 去掉 jcc AI 回复前缀 "> " 或 "> > " 后再检测
+        var stripped = line.AsSpan().TrimStart();
+        while (stripped.Length > 2 && stripped[0] == '>' && stripped[1] == ' ')
+            stripped = stripped[2..].TrimStart();
+        var normalized = stripped.ToString();
+
         foreach (var prefix in ILoggerPrefixes)
         {
-            if (line.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            if (normalized.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
             {
-                var rest = line[prefix.Length..].TrimStart();
+                var rest = normalized[prefix.Length..].TrimStart();
                 if (rest.Contains('[', StringComparison.Ordinal) &&
                     rest.Contains(']', StringComparison.Ordinal) &&
                     rest.IndexOf('[') > 0)

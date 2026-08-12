@@ -1,7 +1,7 @@
 ﻿
 namespace JoinCode.ChatCommands;
 
-[ChatCommand(Name = ChatCommandNameConstants.Goal, Description = "目标自主循环引擎（持续工作直到条件满足）", Usage = "/goal <目标描述> [--constraint '约束'] [--budget <token数>] | /goal | /goal pause | /goal resume | /goal clear | /goal --cron <表达式> <描述>", Category = ChatCommandCategory.Task, ArgumentHint = "<目标描述|子命令>")]
+[ChatCommand(Name = ChatCommandNameConstants.Goal, Description = "目标自主循环引擎 — GoalSpec 收集模式（LLM 询问 6 字段后自主工作）", Usage = "/goal [初始提示] [--constraint '约束'] [--budget <token数>] | /goal pause | /goal resume | /goal clear | /goal --cron <表达式> <描述>", Category = ChatCommandCategory.Task, ArgumentHint = "[初始提示|子命令]")]
 public sealed partial class GoalCommand : ChatCommandBase
 {
     [Inject] private readonly ILogger<GoalCommand>? _logger;

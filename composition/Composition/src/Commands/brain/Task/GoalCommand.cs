@@ -23,7 +23,15 @@ public sealed partial class GoalCommand : ChatCommandBase
 
         if (string.IsNullOrEmpty(args))
         {
-            await StartGoalSpecCollectionAsync(goalEngine, context, null, null, null).ConfigureAwait(false);
+            await goalEngine.RehydrateAsync(context.CancellationToken).ConfigureAwait(false);
+            if (goalEngine.CurrentState is not null)
+            {
+                ShowStatus(goalEngine);
+            }
+            else
+            {
+                await StartGoalSpecCollectionAsync(goalEngine, context, null, null, null).ConfigureAwait(false);
+            }
             return ChatCommandResult.Continue();
         }
 
@@ -38,6 +46,10 @@ public sealed partial class GoalCommand : ChatCommandBase
                 break;
 
             case ResumeLifecycleConstants.Resume:
+                if (goalEngine.CurrentState is null)
+                {
+                    await goalEngine.RehydrateAsync(context.CancellationToken).ConfigureAwait(false);
+                }
                 await goalEngine.ResumeAsync(context.CancellationToken).ConfigureAwait(false);
                 TerminalHelper.WriteLine($"{TerminalColors.Success}◎ /goal 已恢复{AnsiStyleConstants.Reset}");
                 break;

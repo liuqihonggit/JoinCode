@@ -71,6 +71,7 @@ public static class TestPipelineRegistration
         services.AddSingleton<MiddlewarePipeline<CompactContext>>(sp =>
             new PipelineBuilder<CompactContext>()
                 .Use(sp.GetRequiredService<CompactHookMiddleware>())
+                .Use(sp.GetRequiredService<CompactTelemetryMiddleware>())
                 .Use(sp.GetRequiredService<ContextCollapseMiddleware>())
                 .Use(sp.GetRequiredService<MicrocompactMiddleware>())
                 .Use(sp.GetRequiredService<SessionMemoryCompactMiddleware>())
@@ -119,6 +120,7 @@ public static class TestPipelineRegistration
                 .Use(sp.GetRequiredService<EffortLevelMiddleware>())
                 .Use(sp.GetRequiredService<HookRefreshMiddleware>())
                 .Use(sp.GetRequiredService<PermissionCacheMiddleware>())
+                .Use(sp.GetRequiredService<ToolScoreSettingsMiddleware>())
                 .WithHooks(sp)
                 .Build());
 
@@ -133,6 +135,29 @@ public static class TestPipelineRegistration
                 .Use(sp.GetRequiredService<McpSetupMiddleware>())
                 .Use(sp.GetRequiredService<MetadataMiddleware>())
                 .Use(sp.GetRequiredService<TranscriptMiddleware>())
+                .WithHooks(sp)
+                .Build());
+
+        // AgentSpawnCoord 协调层生成管道
+        services.AddSingleton<MiddlewarePipeline<AgentSpawnCoordContext>>(sp =>
+            new PipelineBuilder<AgentSpawnCoordContext>()
+                .Use(sp.GetRequiredService<SpawnCoordLifecycleMiddleware>())
+                .Use(sp.GetRequiredService<SpawnCoordWorktreeMiddleware>())
+                .Use(sp.GetRequiredService<SpawnCoordRegisterMessageMiddleware>())
+                .Use(sp.GetRequiredService<SpawnCoordRecordContextMiddleware>())
+                .Use(sp.GetRequiredService<SpawnCoordPermissionRoutingMiddleware>())
+                .Use(sp.GetRequiredService<SpawnCoordTeammatePaneMiddleware>())
+                .WithHooks(sp)
+                .Build());
+
+        // AgentDispose 协调层释放管道
+        services.AddSingleton<MiddlewarePipeline<AgentDisposeContext>>(sp =>
+            new PipelineBuilder<AgentDisposeContext>()
+                .Use(sp.GetRequiredService<DisposeUnregisterMessageMiddleware>())
+                .Use(sp.GetRequiredService<DisposeWorktreeCleanupMiddleware>())
+                .Use(sp.GetRequiredService<DisposeShellTasksMiddleware>())
+                .Use(sp.GetRequiredService<DisposePaneMiddleware>())
+                .Use(sp.GetRequiredService<DisposeLifecycleMiddleware>())
                 .WithHooks(sp)
                 .Build());
 
@@ -193,6 +218,19 @@ public static class TestPipelineRegistration
                 .Use(sp.GetRequiredService<CodeLlmMiddleware>())
                 .Use(sp.GetRequiredService<CodeSandboxMiddleware>())
                 .Use(sp.GetRequiredService<MetricsMiddleware<CodeContext>>())
+                .WithHooks(sp)
+                .Build());
+
+        // Dream 记忆整合管道
+        services.AddSingleton<MiddlewarePipeline<JoinCode.Dream.Pipeline.DreamContext>>(sp =>
+            new PipelineBuilder<JoinCode.Dream.Pipeline.DreamContext>()
+                .WithShortCircuit(ctx => ctx.Result is not null)
+                .Use(sp.GetRequiredService<JoinCode.Dream.Pipeline.DreamGateCheckMiddleware>())
+                .Use(sp.GetRequiredService<JoinCode.Dream.Pipeline.DreamSessionScanMiddleware>())
+                .Use(sp.GetRequiredService<JoinCode.Dream.Pipeline.DreamTaskRegisterMiddleware>())
+                .Use(sp.GetRequiredService<JoinCode.Dream.Pipeline.DreamPromptBuildMiddleware>())
+                .Use(sp.GetRequiredService<JoinCode.Dream.Pipeline.DreamLlmConsolidateMiddleware>())
+                .Use(sp.GetRequiredService<JoinCode.Dream.Pipeline.DreamRecordTurnMiddleware>())
                 .WithHooks(sp)
                 .Build());
 

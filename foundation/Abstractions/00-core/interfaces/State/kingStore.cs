@@ -1,3 +1,5 @@
+﻿using JoinCode.Abstractions.State;
+
 namespace JoinCode.Abstractions.Interfaces;
 
 public sealed class ThinkingEntry
@@ -8,7 +10,7 @@ public sealed class ThinkingEntry
     public DateTime Timestamp { get; init; } = DateTime.UtcNow;
 }
 
-public interface IThinkingStore
+public interface IThinkingStore : IStore
 {
     Task StoreAsync(string sessionId, string content, string? modelId, CancellationToken cancellationToken = default);
 

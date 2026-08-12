@@ -1,6 +1,8 @@
+﻿using JoinCode.Abstractions.State;
+
 namespace JoinCode.Abstractions.LLM.Chat;
 
-public interface ISessionMetaStore
+public interface ISessionMetaStore : IStore
 {
     Task<SessionMeta?> LoadAsync(string sessionId, CancellationToken cancellationToken = default);
     Task SaveAsync(string sessionId, SessionMeta meta, CancellationToken cancellationToken = default);

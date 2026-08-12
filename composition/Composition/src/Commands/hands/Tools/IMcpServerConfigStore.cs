@@ -1,9 +1,11 @@
+﻿using JoinCode.Abstractions.State;
+
 namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// MCP 服务器配置存储接口 - 管理MCP服务器配置的增删查
 /// </summary>
-public interface IMcpServerConfigStore
+public interface IMcpServerConfigStore : IStore
 {
     /// <summary>
     /// 获取配置文件路径

@@ -1,3 +1,5 @@
+﻿
+using JoinCode.Abstractions.State;
 
 namespace Core.Bridge;
 
@@ -53,7 +55,7 @@ public sealed partial class TrustedDeviceEntry
 /// <summary>
 /// 受信任设备存储接口 - 设备信任管理抽象
 /// </summary>
-public interface ITrustedDeviceStore
+public interface ITrustedDeviceStore : IStore
 {
     /// <summary>添加受信任设备</summary>
     ValueTask<TrustedDeviceEntry> AddAsync(TrustedDeviceEntry entry, CancellationToken ct = default);

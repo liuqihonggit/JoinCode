@@ -288,7 +288,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
             }
 
             if (_fileOperationService.FileExists(gitDir)) {
-                var canonicalRoot = ResolveCanonicalGitRootFromGitdirFile(gitDir, currentPath);
+                var canonicalRoot = await ResolveCanonicalGitRootFromGitdirFile(gitDir, currentPath).ConfigureAwait(false);
                 if (canonicalRoot is not null) {
                     return canonicalRoot;
                 }
@@ -305,9 +305,9 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
         return null;
     }
 
-    private string? ResolveCanonicalGitRootFromGitdirFile(string gitdirFilePath, string worktreePath) {
+    private async Task<string?> ResolveCanonicalGitRootFromGitdirFile(string gitdirFilePath, string worktreePath) {
         try {
-            var readResult = _fileOperationService.ReadFileAsync(gitdirFilePath).GetAwaiter().GetResult();
+            var readResult = await _fileOperationService.ReadFileAsync(gitdirFilePath).ConfigureAwait(false);
             if (!readResult.Success) return null;
 
             var content = readResult.Content.Trim();

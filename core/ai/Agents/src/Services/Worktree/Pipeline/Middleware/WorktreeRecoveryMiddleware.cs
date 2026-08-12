@@ -27,7 +27,7 @@ public sealed partial class WorktreeRecoveryMiddleware : ServiceEntity, IWorktre
         var worktreePath = AgentWorktreeSession.GenerateWorktreePath(context.GitRoot, context.AgentId);
         var branchName = AgentWorktreeSession.GenerateBranchName(context.AgentId);
 
-        var existingHeadSha = ReadWorktreeHeadSha(worktreePath);
+        var existingHeadSha = await ReadWorktreeHeadSha(worktreePath).ConfigureAwait(false);
         if (existingHeadSha is not null)
         {
             _logger?.LogInformation("恢复现有 worktree: {WorktreePath}, Agent: {AgentId}", worktreePath, context.AgentId);
@@ -70,14 +70,14 @@ public sealed partial class WorktreeRecoveryMiddleware : ServiceEntity, IWorktre
         await next(context, ct).ConfigureAwait(false);
     }
 
-    private string? ReadWorktreeHeadSha(string worktreePath)
+    private async Task<string?> ReadWorktreeHeadSha(string worktreePath)
     {
         try
         {
             var gitFile = _fs.CombinePath(worktreePath, ".git");
             if (!_fs.FileExists(gitFile)) return null;
 
-            var readResult = _fs.ReadFileAsync(gitFile).GetAwaiter().GetResult();
+            var readResult = await _fs.ReadFileAsync(gitFile).ConfigureAwait(false);
             if (!readResult.Success) return null;
 
             var content = readResult.Content.Trim();
@@ -90,7 +90,7 @@ public sealed partial class WorktreeRecoveryMiddleware : ServiceEntity, IWorktre
             var headFile = _fs.CombinePath(normalizedGitdir, "HEAD");
             if (!_fs.FileExists(headFile)) return null;
 
-            var headReadResult = _fs.ReadFileAsync(headFile).GetAwaiter().GetResult();
+            var headReadResult = await _fs.ReadFileAsync(headFile).ConfigureAwait(false);
             if (!headReadResult.Success) return null;
 
             var headContent = headReadResult.Content.Trim();
@@ -101,7 +101,7 @@ public sealed partial class WorktreeRecoveryMiddleware : ServiceEntity, IWorktre
                 var refFile = _fs.CombinePath(normalizedGitdir, refPath);
                 if (!_fs.FileExists(refFile)) return null;
 
-                var refReadResult = _fs.ReadFileAsync(refFile).GetAwaiter().GetResult();
+                var refReadResult = await _fs.ReadFileAsync(refFile).ConfigureAwait(false);
                 return refReadResult.Success ? refReadResult.Content.Trim() : null;
             }
 

@@ -11,6 +11,7 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
 {
     private readonly IToolRegistry _toolRegistry;
     private readonly ITelemetryService? _telemetryService;
+    private readonly ICrashSnapshotStore? _crashStore;
     [Inject] private readonly ILogger<PermissionAwareToolExecutor> _logger;
     private readonly MiddlewarePipeline<ToolExecutionContext> _pipeline;
     private PermissionMode _currentAgentMode = PermissionMode.Auto;
@@ -30,11 +31,13 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
         IToolRegistry toolRegistry,
         MiddlewarePipeline<ToolExecutionContext> pipeline,
         ITelemetryService? telemetryService = null,
+        ICrashSnapshotStore? crashStore = null,
         ILogger<PermissionAwareToolExecutor>? logger = null)
     {
         _toolRegistry = toolRegistry ?? throw new ArgumentNullException(nameof(toolRegistry));
         _pipeline = pipeline ?? throw new ArgumentNullException(nameof(pipeline));
         _telemetryService = telemetryService;
+        _crashStore = crashStore;
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -129,6 +132,11 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
             _logger.LogError(ex, L.T(StringKey.ToolExecFailedLog, toolName));
             span?.RecordException(ex);
             Diag.WriteError($"[ToolExec] Tool={toolName}", ex);
+            if (_crashStore is not null)
+            {
+                _crashStore.Add(new CrashSnapshot("ToolExecution", CrashSeverity.Error, ex,
+                    new CrashExecutionContext { ToolName = toolName, OperationName = "ExecuteAsync" }));
+            }
             var exceptionError = CreateErrorResult($"Error executing tool '{toolName}': {ex.Message}");
             executionEntity.LifecycleState = EntityLifecycle.Completed;
             executionEntity.CompletedAt = DateTime.UtcNow;

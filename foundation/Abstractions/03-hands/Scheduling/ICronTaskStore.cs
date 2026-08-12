@@ -94,4 +94,7 @@ public interface ICronTaskStore
     /// 根据 AgentId 获取该 Agent 创建的所有任务
     /// </summary>
     Task<IReadOnlyList<CronTask>> GetTasksByAgentIdAsync(string agentId, CancellationToken cancellationToken = default);
+
+    /// <summary>设置会话隔离标识 — 持久化按 {baseDir}/{sessionId}/ 隔离</summary>
+    void SetSessionId(string sessionId);
 }

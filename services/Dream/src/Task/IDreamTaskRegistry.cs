@@ -40,6 +40,9 @@ public interface IDreamTaskRegistry
     /// 获取所有任务
     /// </summary>
     Task<IReadOnlyDictionary<string, DreamTaskState>> GetAllTasksAsync(CancellationToken ct = default);
+
+    /// <summary>设置会话隔离标识 — 持久化按 {storageDir}/{sessionId}/ 隔离</summary>
+    void SetSessionId(string sessionId);
 }
 
 /// <summary>
@@ -63,6 +66,9 @@ public sealed partial class InMemoryDreamTaskRegistry : IDreamTaskRegistry, IAsy
     public InMemoryDreamTaskRegistry()
     {
     }
+
+    /// <inheritdoc />
+    public void SetSessionId(string sessionId) { }
 
     /// <inheritdoc />
     public async Task<string> RegisterDreamTaskAsync(DreamTaskRegistrationRequest request, CancellationToken ct = default)

@@ -30,6 +30,9 @@ public interface IDreamTaskPersistence
     /// 清理已完成的任务（保留最近N个）
     /// </summary>
     Task CleanupCompletedAsync(int keepCount, CancellationToken ct = default);
+
+    /// <summary>设置会话隔离标识 — 路径变为 {storageDir}/{sessionId}/</summary>
+    void SetSessionId(string sessionId);
 }
 
 /// <summary>
@@ -39,7 +42,8 @@ public interface IDreamTaskPersistence
 [AllowSkipEntity("实现 IAsyncDisposable，与 ServiceEntity 的 IDisposable 冲突，保留异步释放模式")]
 public sealed partial class JsonFileDreamTaskPersistence : IDreamTaskPersistence, IAsyncDisposable
 {
-    private readonly string _storageDir;
+    private string _storageDir;
+    private readonly string _baseStorageDir;
     [Inject] private readonly ILogger<JsonFileDreamTaskPersistence>? _logger;
     private readonly IFileOperationService _fileOperationService;
 
@@ -52,9 +56,17 @@ public sealed partial class JsonFileDreamTaskPersistence : IDreamTaskPersistence
         var storageDir = Path.Combine(
             config?.AutoMemoryPath ?? WorkflowConstants.Paths.JccDirectory,
             "tasks");
-        _storageDir = storageDir ?? throw new ArgumentNullException(nameof(storageDir));
+        _baseStorageDir = storageDir ?? throw new ArgumentNullException(nameof(storageDir));
+        _storageDir = _baseStorageDir;
         _fileOperationService = fileOperationService ?? throw new ArgumentNullException(nameof(fileOperationService));
         _logger = logger;
+    }
+
+    /// <inheritdoc />
+    public void SetSessionId(string sessionId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+        _storageDir = Path.Combine(_baseStorageDir, sessionId);
     }
 
     /// <inheritdoc />

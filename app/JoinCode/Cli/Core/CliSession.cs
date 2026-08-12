@@ -71,6 +71,8 @@ public sealed class CliSession
 
         _optionalServices?.GoalEngine?.SetSessionId(_sessionId);
         _optionalServices?.GoalRegistry?.SetSessionId(_sessionId);
+        _optionalServices?.CronTaskStore?.SetSessionId(_sessionId);
+        _optionalServices?.DreamTaskRegistry?.SetSessionId(_sessionId);
 
         _controller = new SessionController(
             chatService,
@@ -90,6 +92,8 @@ public sealed class CliSession
         _sessionId = sessionId;
         _optionalServices?.GoalEngine?.SetSessionId(sessionId);
         _optionalServices?.GoalRegistry?.SetSessionId(sessionId);
+        _optionalServices?.CronTaskStore?.SetSessionId(sessionId);
+        _optionalServices?.DreamTaskRegistry?.SetSessionId(sessionId);
     }
 
     /// <summary>

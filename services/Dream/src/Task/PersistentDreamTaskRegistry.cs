@@ -25,6 +25,13 @@ public sealed partial class PersistentDreamTaskRegistry : IDreamTaskRegistry, IA
     }
 
     /// <inheritdoc />
+    public void SetSessionId(string sessionId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+        _persistence.SetSessionId(sessionId);
+    }
+
+    /// <inheritdoc />
     public async Task<string> RegisterDreamTaskAsync(DreamTaskRegistrationRequest request, CancellationToken ct = default)
     {
         var taskId = TaskIdGenerator.GenerateTaskId(TaskType.Dream);

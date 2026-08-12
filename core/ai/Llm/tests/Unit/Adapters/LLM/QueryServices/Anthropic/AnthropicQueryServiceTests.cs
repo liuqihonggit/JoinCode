@@ -39,7 +39,7 @@ public sealed class AnthropicQueryServiceTests
 
         messages.Should().ContainSingle();
         messages[0].Role.Should().Be("assistant");
-        messages[0].Content.Should().Be("hello");
+        messages[0].Content?.Text.Should().Be("hello");
     }
 
     [Fact]
@@ -55,8 +55,9 @@ public sealed class AnthropicQueryServiceTests
         var (_, messages) = AnthropicQueryService.ConvertToAnthropicMessagesPublic(history);
 
         messages.Should().ContainSingle();
-        var blocks = messages[0].Content.Should().BeOfType<List<AnthropicContentBlock>>().Subject;
-        blocks.Should().HaveCount(2);
+        var blocks = messages[0].Content?.Blocks;
+        blocks.Should().NotBeNull();
+        blocks!.Should().HaveCount(2);
         blocks[0].Should().BeOfType<AnthropicTextBlock>();
         blocks[1].Should().BeOfType<AnthropicToolUseBlock>();
         ((AnthropicToolUseBlock)blocks[1]).Name.Should().Be("ToolA");
@@ -75,8 +76,9 @@ public sealed class AnthropicQueryServiceTests
 
         messages.Should().ContainSingle();
         messages[0].Role.Should().Be("user");
-        var blocks = messages[0].Content.Should().BeOfType<List<AnthropicContentBlock>>().Subject;
-        blocks[0].Should().BeOfType<AnthropicToolResultBlock>();
+        var blocks = messages[0].Content?.Blocks;
+        blocks.Should().NotBeNull();
+        blocks![0].Should().BeOfType<AnthropicToolResultBlock>();
     }
 
     [Fact]
@@ -92,8 +94,9 @@ public sealed class AnthropicQueryServiceTests
         var (_, messages) = AnthropicQueryService.ConvertToAnthropicMessagesPublic(history);
 
         messages.Should().ContainSingle();
-        var blocks = messages[0].Content.Should().BeOfType<List<AnthropicContentBlock>>().Subject;
-        blocks.Should().HaveCount(2);
+        var blocks = messages[0].Content?.Blocks;
+        blocks.Should().NotBeNull();
+        blocks!.Should().HaveCount(2);
         blocks[0].Should().BeOfType<AnthropicToolResultBlock>();
         blocks[1].Should().BeOfType<AnthropicToolResultBlock>();
     }
@@ -155,7 +158,7 @@ public sealed class AnthropicQueryServiceTests
                     Type = AnthropicContentBlockType.ToolUse,
                     Id = "call-1",
                     Name = "ToolA",
-                    Input = "{\"x\":1}"
+                    Input = JsonElementHelper.FromJson("{\"x\":1}")
                 }
             ]
         };

@@ -37,4 +37,6 @@ namespace Api.LLM;
 [JsonSerializable(typeof(AnthropicClearToolUsesStrategy))]
 [JsonSerializable(typeof(AnthropicClearThinkingStrategy))]
 [JsonSerializable(typeof(List<AnthropicContextEditStrategy>))]
+[JsonSerializable(typeof(AnthropicToolChoice))]
+[JsonSerializable(typeof(AnthropicMessageContent))]
 internal partial class AnthropicJsonContext : JsonSerializerContext;

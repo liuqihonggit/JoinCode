@@ -137,7 +137,7 @@ public sealed class AnthropicQueryService : QueryServiceBase
                     request.Tools = allTools;
                 }
 
-                request.ToolChoice = new { type = "auto" };
+                request.ToolChoice = AnthropicToolChoice.Auto;
             }
         }
 
@@ -179,7 +179,9 @@ public sealed class AnthropicQueryService : QueryServiceBase
                     Keep = s.Keep is not null
                         ? new AnthropicContextKeep { Type = s.Keep.Type, Value = s.Keep.Value }
                         : null,
-                    ClearToolInputs = s.ClearToolInputs,
+                    ClearToolInputs = s.ClearToolInputs is not null
+                        ? JsonElementHelper.FromPrimitives(s.ClearToolInputs)
+                        : null,
                     ExcludeTools = s.ExcludeTools is not null
                         ? new List<string>(s.ExcludeTools)
                         : null,
@@ -189,7 +191,7 @@ public sealed class AnthropicQueryService : QueryServiceBase
                 },
                 ClearThinkingStrategy s => new AnthropicClearThinkingStrategy
                 {
-                    Keep = s.Keep,
+                    Keep = JsonElementHelper.FromPrimitives(s.Keep),
                 },
                 _ => throw new InvalidOperationException($"Unknown ContextEditStrategy type: {strategy.Type}")
             });
@@ -259,7 +261,9 @@ public sealed class AnthropicQueryService : QueryServiceBase
                                 {
                                     Id = tc.Id ?? "",
                                     Name = tc.Function?.Name ?? "",
-                                    Input = tc.Function?.Arguments
+                                    Input = tc.Function?.Arguments is not null
+                                        ? JsonElementHelper.FromJson(tc.Function.Arguments)
+                                        : null
                                 });
                             }
                         }
@@ -280,7 +284,7 @@ public sealed class AnthropicQueryService : QueryServiceBase
                         pendingToolResults.Add(new AnthropicToolResultBlock
                         {
                             ToolUseId = toolCallId ?? string.Empty,
-                            Content = msg.Content
+                            Content = JsonElementHelper.FromString(msg.Content)
                         });
                     }
                     break;
@@ -316,7 +320,7 @@ public sealed class AnthropicQueryService : QueryServiceBase
             toolUseId = tid;
         }
 
-        object? content;
+        JsonElement? content;
         if (msg.ContentBlocks is { Count: > 0 })
         {
             var blocks = new List<Dictionary<string, JsonElement>>();
@@ -345,11 +349,13 @@ public sealed class AnthropicQueryService : QueryServiceBase
                     });
                 }
             }
-            content = blocks.Count > 0 ? blocks : msg.Content;
+            content = blocks.Count > 0
+                ? JsonElementHelper.FromObject(blocks, ContractsJsonContext.Default.ListDictionaryStringJsonElement)
+                : JsonElementHelper.FromString(msg.Content);
         }
         else
         {
-            content = msg.Content;
+            content = JsonElementHelper.FromString(msg.Content);
         }
 
         return new AnthropicToolResultBlock
@@ -492,7 +498,6 @@ public sealed class AnthropicQueryService : QueryServiceBase
                 case AnthropicContentBlockType.ToolUse:
                     var inputJson = block.Input switch
                     {
-                        string s => s,
                         JsonElement je => je.GetRawText(),
                         _ => "{}"
                     };

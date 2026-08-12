@@ -1,6 +1,7 @@
 namespace JoinCode.Abstractions.Utils;
 
 [JsonSerializable(typeof(Dictionary<string, JsonElement>))]
+[JsonSerializable(typeof(List<Dictionary<string, JsonElement>>))]
 [JsonSerializable(typeof(Tools.StructuredOutputSchema))]
 [JsonSerializable(typeof(Tools.StructuredOutputResult))]
 [JsonSerializable(typeof(Tools.ValidationError))]

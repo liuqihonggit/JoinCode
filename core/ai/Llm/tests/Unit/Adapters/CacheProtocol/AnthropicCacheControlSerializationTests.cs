@@ -65,8 +65,9 @@ public sealed class AnthropicCacheControlSerializationTests
         tools[0].CacheControl.Should().NotBeNull("last tool should have cache_control");
 
         var lastUserMsg = anthropicMessages.Last(m => m.Role == "user");
-        if (lastUserMsg.Content is List<AnthropicContentBlock> blocks)
+        if (lastUserMsg.Content?.Blocks is not null)
         {
+            var blocks = lastUserMsg.Content.Blocks;
             var toolResults = blocks.OfType<AnthropicToolResultBlock>().ToList();
             if (toolResults.Count > 0)
             {

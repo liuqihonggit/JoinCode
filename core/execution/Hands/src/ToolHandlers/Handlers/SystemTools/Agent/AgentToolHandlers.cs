@@ -47,6 +47,7 @@ public partial class AgentToolHandlers
     [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
     private readonly ITelemetryService? _telemetryService;
     private readonly IServiceProvider? _serviceProvider;
+    private readonly ITeamManager? _teamManager;
     private readonly IClockService _clock;
 
     public AgentToolHandlers(
@@ -57,7 +58,8 @@ public partial class AgentToolHandlers
         ITelemetryService? telemetryService = null,
         IServiceProvider? serviceProvider = null,
         ISubAgentContextAccessor? subAgentContextAccessor = null,
-        IClockService? clock = null)
+        IClockService? clock = null,
+        ITeamManager? teamManager = null)
     {
         _pipeline = pipeline ?? throw new ArgumentNullException(nameof(pipeline));
         _agentService = agentService ?? throw new ArgumentNullException(nameof(agentService));
@@ -67,6 +69,7 @@ public partial class AgentToolHandlers
         _serviceProvider = serviceProvider;
         _subAgentContextAccessor = subAgentContextAccessor ?? new SubAgentContextAccessor();
         _clock = clock ?? SystemClockService.Instance;
+        _teamManager = teamManager;
     }
 
     /// <summary>
@@ -437,7 +440,7 @@ public partial class AgentToolHandlers
     private async Task<ToolResult> HandleBroadcastAsync(string message, string? summary, CancellationToken cancellationToken)
     {
         // 通过 TeamManager 广播
-        var teamManager = _serviceProvider?.GetService(typeof(ITeamManager)) as ITeamManager;
+        var teamManager = _teamManager ?? _serviceProvider?.GetService(typeof(ITeamManager)) as ITeamManager;
         if (teamManager is null)
         {
             var svcDiag = BuildBroadcastServiceUnavailableDiagnostic();

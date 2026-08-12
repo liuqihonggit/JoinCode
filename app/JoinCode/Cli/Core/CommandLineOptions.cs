@@ -63,7 +63,7 @@ public class CommandLineOptions {
     public bool ForceInteractive { get; set; }
 
     /// <summary>
-    /// 超时自动关闭秒数（--await N 参数）— 超时后进程强制退出并返回 1234
+    /// 超时自动关闭秒数（--await N 参数）— 超时后进程强制退出并返回 ExitCode.AwaitTimeout (=1234)
     /// 用于测试诊断卡死问题，正常完成不受影响
     /// </summary>
     public int? AwaitTimeoutSeconds { get; set; }

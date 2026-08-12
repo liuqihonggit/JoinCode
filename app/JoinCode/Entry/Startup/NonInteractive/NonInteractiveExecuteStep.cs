@@ -11,7 +11,7 @@ internal sealed partial class NonInteractiveExecuteStep : ServiceEntity, IMiddle
         if (session is null)
         {
             Diag.WriteLine("[STEP] ExecuteStep ERROR: context.Session is null!");
-            context.ExitCode = 1;
+            context.ExitCode = (int)ExitCode.GeneralError;
             return;
         }
         Diag.WriteLine($"[STEP] ExecuteStep session={session.GetType().Name}");
@@ -24,7 +24,7 @@ internal sealed partial class NonInteractiveExecuteStep : ServiceEntity, IMiddle
             if (string.IsNullOrEmpty(prompt))
             {
                 Diag.WriteLine("[STEP] ExecuteStep ERROR: NonInteractivePrompt is null/empty!");
-                context.ExitCode = 1;
+                context.ExitCode = (int)ExitCode.GeneralError;
                 return;
             }
             await session.ProcessUserInputAsync(prompt, ct);
@@ -35,7 +35,14 @@ internal sealed partial class NonInteractiveExecuteStep : ServiceEntity, IMiddle
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
             Diag.WriteLine("[STEP] ExecuteStep cancelled");
-            context.ExitCode = 130;
+            context.ExitCode = (int)ExitCode.Interrupted;
+            return;
+        }
+        catch (TimeoutException ex)
+        {
+            Diag.WriteLine($"[STEP] ExecuteStep timeout: {ex.Message}");
+            Cli.TerminalHelper.WriteLine($"错误: 请求超时 — {ex.Message}");
+            context.ExitCode = (int)ExitCode.LlmCallTimeout;
             return;
         }
         catch (Exception ex)
@@ -46,7 +53,7 @@ internal sealed partial class NonInteractiveExecuteStep : ServiceEntity, IMiddle
             if (ex is JoinCode.Abstractions.Exceptions.ApiException apiEx && apiEx.IsRetryable)
                 Cli.TerminalHelper.WriteLine("  此错误通常可重试，请稍后重试。");
             Cli.TerminalHelper.WriteLine($"  详细日志: {errorLog}");
-            context.ExitCode = 1;
+            context.ExitCode = (int)ExitCode.GeneralError;
             return;
         }
 

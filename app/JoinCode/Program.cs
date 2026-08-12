@@ -83,7 +83,7 @@ class Program
                 Diag.WriteLine($"[MAIN] Doctor SSE 客户端已连接: {options.DoctorEndpoint}");
             }
 
-            // 3.5 --await N: 启动超时计时器，N秒后强制退出返回1234（用于诊断卡死）
+            // 3.5 --await N: 启动超时计时器，N秒后强制退出返回 ExitCode.AwaitTimeout（用于诊断卡死）
             using var awaitTimer = StartAwaitTimer(options, logger);
 
             var fs = IO.FileSystem.FileSystemFactory.Create();
@@ -148,7 +148,7 @@ class Program
         {
             // P2-7: 用户取消（Ctrl+C）或网络请求取消 — 静默退出，不写 error.log（非程序 bug）
             // 退出码 130 = POSIX 标准（128 + SIGINT=2），便于 shell 脚本区分中断与正常错误
-            return 130;
+            return (int)ExitCode.Interrupted;
         }
         catch (ConfigurationException ex)
         {
@@ -162,7 +162,7 @@ class Program
             if (!string.IsNullOrEmpty(ex.ConfigurationFilePath))
                 Cli.TerminalHelper.WriteError($"  配置文件: {ex.ConfigurationFilePath}");
             Cli.TerminalHelper.WriteError("  请检查配置文件或环境变量后重试。");
-            return 2;
+            return (int)ExitCode.ConfigurationError;
         }
         catch (Exception ex) when (ex is OutOfMemoryException or TypeInitializationException)
         {
@@ -180,7 +180,7 @@ class Program
             App.ErrorConsole.Fatal(ex.Message);
             Cli.TerminalHelper.WriteError($"  详细日志: {errorLog}");
 
-            return 1;
+            return (int)ExitCode.GeneralError;
         }
     }
 
@@ -209,7 +209,7 @@ class Program
 
     /// <summary>
     /// 启动 --await N 超时计时器。
-    /// N 秒后强制退出进程并返回 1234，用于诊断卡死问题。
+    /// N 秒后强制退出进程并返回 ExitCode.AwaitTimeout (=1234)，用于诊断卡死问题。
     /// 正常完成时 using 释放计时器，不影响返回值。
     /// </summary>
     /// <remarks>
@@ -217,14 +217,14 @@ class Program
     /// 当 stderr 被重定向到未读取的 pipe（如 PowerShell <c>Start-Process -RedirectStandardError</c>）时，
     /// Console.Error.WriteLine 会阻塞，导致 <see cref="Environment.Exit(int)"/> 永远不执行，
     /// 进程卡死。详见 <c>docs/AI交互文档/MockServer测试问题清单.md</c> P2-1。
-    /// 启动时的日志 + ExitCode=1234 已足够诊断超时触发。
+    /// 启动时的日志 + ExitCode=AwaitTimeout 已足够诊断超时触发。
     /// </remarks>
     private static System.Threading.Timer? StartAwaitTimer(CommandLineOptions options, ILogger? logger = null)
     {
         if (options.AwaitTimeoutSeconds is not { } seconds || seconds <= 0)
             return null;
 
-        Diag.WriteLine($"[MAIN] --await {seconds}s 计时器已启动（超时返回1234）");
+        Diag.WriteLine($"[MAIN] --await {seconds}s 计时器已启动（超时返回{(int)ExitCode.AwaitTimeout}）");
 
         return new System.Threading.Timer(
             callback: _ =>
@@ -236,7 +236,7 @@ class Program
                     var timeoutLog = System.IO.Path.Combine(
                         System.IO.Path.GetTempPath(), "jcc_await_timeout.log");
                     System.IO.File.AppendAllText(timeoutLog,
-                        $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] --await {seconds}s 超时, 进程强制退出(1234)\n");
+                        $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] --await {seconds}s 超时, 进程强制退出({(int)ExitCode.AwaitTimeout})\n");
                 }
                 catch (Exception logEx)
                 {
@@ -244,7 +244,7 @@ class Program
                     logger?.LogWarning(logEx, "写入 --await 超时日志失败");
                 }
 
-                Environment.Exit(1234);
+                Environment.Exit((int)ExitCode.AwaitTimeout);
             },
             state: null,
             dueTime: TimeSpan.FromSeconds(seconds),

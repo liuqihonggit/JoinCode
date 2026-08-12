@@ -18,7 +18,7 @@ internal sealed partial class NonInteractivePromptStep : ServiceEntity, IMiddlew
         if (string.IsNullOrWhiteSpace(prompt))
         {
             Cli.TerminalHelper.WriteLine("错误: 未提供提示词。");
-            context.ExitCode = 1;
+            context.ExitCode = (int)ExitCode.ArgumentParseError;
             Diag.WriteLine("[STEP] PromptStep empty, short-circuit");
             return;
         }

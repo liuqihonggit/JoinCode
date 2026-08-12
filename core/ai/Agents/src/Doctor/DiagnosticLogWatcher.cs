@@ -161,7 +161,7 @@ public sealed class DiagnosticLogWatcher : IAsyncDisposable
             return "api_error";
         if (line.Contains("[TOOL_ERROR]", StringComparison.OrdinalIgnoreCase) || line.Contains("ToolError", StringComparison.OrdinalIgnoreCase))
             return "tool_error";
-        if (line.Contains("[HUNG]", StringComparison.OrdinalIgnoreCase) || line.Contains("ExitCode=1234", StringComparison.OrdinalIgnoreCase))
+        if (line.Contains("[HUNG]", StringComparison.OrdinalIgnoreCase) || line.Contains($"ExitCode={(int)ExitCode.AwaitTimeout}", StringComparison.OrdinalIgnoreCase))
             return "process_hung";
         if (line.Contains("[CTX_OVERFLOW]", StringComparison.OrdinalIgnoreCase) || line.Contains("ContextOverflow", StringComparison.OrdinalIgnoreCase))
             return "context_overflow";

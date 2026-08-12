@@ -4,7 +4,7 @@ namespace JoinCode.ChatCommands;
 /// <summary>
 /// /history 命令 - 查看聊天历史
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.History, Description = "查看聊天历史", Usage = "/history", Category = ChatCommandCategory.Session, Aliases = ["hist"])]
+[ChatCommand(Name = ChatCommandNameConstants.History, Description = "查看聊天历史", Usage = "/history", Category = ChatCommandCategory.Session, Aliases = ["hist"], ExposeToMcp = true)]
 public sealed class HistoryCommand : ChatCommandBase
 {
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)

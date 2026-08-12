@@ -3,7 +3,7 @@
 /// <summary>
 /// /help 命令 - 显示所有可用命令帮助
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Help, Description = "显示可用命令帮助", Usage = "/help", Category = ChatCommandCategory.Info, Aliases = ["?"])]
+[ChatCommand(Name = ChatCommandNameConstants.Help, Description = "显示可用命令帮助", Usage = "/help", Category = ChatCommandCategory.Info, Aliases = ["?"], ExposeToMcp = true)]
 public sealed class HelpCommand : ChatCommandBase
 {
     public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)

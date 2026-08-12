@@ -40,6 +40,16 @@ public abstract class ChatCommandBase : IChatCommand
     public virtual bool IsHidden => _attr?.IsHidden ?? false;
 
     /// <summary>
+    /// 是否暴露给 MCP（AI 可调用）— 从特性读取
+    /// </summary>
+    public virtual bool ExposeToMcp => _attr?.ExposeToMcp ?? false;
+
+    /// <summary>
+    /// ToolKind — 从特性读取，决定注入策略
+    /// </summary>
+    public virtual ToolKind Kind => _attr?.Kind ?? ToolKind.Slash;
+
+    /// <summary>
     /// 命令是否当前可用 — 对齐 TS CommandBase.isEnabled()
     /// 默认从特性读取，子类可 override 实现动态门控
     /// </summary>

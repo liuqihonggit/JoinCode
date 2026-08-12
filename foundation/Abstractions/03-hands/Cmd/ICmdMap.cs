@@ -9,8 +9,9 @@ public interface ICmdMap
     /// 解析命令名称 — 先查斜杠，再查 MCP（斜杠优先，避免重名时 MCP 覆盖用户命令）
     /// </summary>
     /// <param name="name">命令名称（不带 /）</param>
+    /// <param name="cancellationToken">取消令牌</param>
     /// <returns>命令描述符，未找到时 null</returns>
-    CmdDescriptor? Resolve(string name);
+    Task<CmdDescriptor?> ResolveAsync(string name, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 获取 LLM 可见的工具定义列表 — MCP 全部工具 + 斜杠中 ExposeToMcp=true 的

@@ -27,6 +27,11 @@ public sealed class CliSession
     /// </summary>
     private readonly ObjectId _sessionObjectId;
 
+    /// <summary>
+    /// 会话 ID 字符串 — 用于持久化隔离，可被 OverrideSessionId 覆盖以恢复原会话
+    /// </summary>
+    private string _sessionId;
+
     /// <summary>会话是否正在运行</summary>
     public bool IsRunning { get; private set; } = true;
 
@@ -62,13 +67,33 @@ public sealed class CliSession
 
         _sessionEntity = new Session();
         _sessionObjectId = _sessionEntity.ObjectId;
+        _sessionId = _sessionObjectId.UniqueId;
+
+        _optionalServices?.GoalEngine?.SetSessionId(_sessionId);
+        _optionalServices?.GoalRegistry?.SetSessionId(_sessionId);
+        _optionalServices?.CronTaskStore?.SetSessionId(_sessionId);
+        _optionalServices?.DreamTaskRegistry?.SetSessionId(_sessionId);
 
         _controller = new SessionController(
             chatService,
             new CliEventConsumer(),
             _turnDiffService,
-            _sessionObjectId.UniqueId,
+            _sessionId,
             optionalServices?.ServiceProvider);
+    }
+
+    /// <summary>
+    /// 覆盖会话 ID — 恢复历史会话时调用，将 sessionId 设为原会话 ID，
+    /// 同步更新 GoalEngine/GoalRegistry 的会话隔离标识，使持久化状态关联到原会话。
+    /// </summary>
+    public void OverrideSessionId(string sessionId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+        _sessionId = sessionId;
+        _optionalServices?.GoalEngine?.SetSessionId(sessionId);
+        _optionalServices?.GoalRegistry?.SetSessionId(sessionId);
+        _optionalServices?.CronTaskStore?.SetSessionId(sessionId);
+        _optionalServices?.DreamTaskRegistry?.SetSessionId(sessionId);
     }
 
     /// <summary>
@@ -111,7 +136,7 @@ public sealed class CliSession
             input.StartsWith('/') ? $"cli.command{input.Split(' ')[0]}" : "cli.chat",
             TelemetrySpanKind.Server);
         span?.SetTag("input.length", input.Length);
-        span?.SetTag("session.id", _sessionObjectId.UniqueId);
+        span?.SetTag("session.id", _sessionId);
 
         try
         {
@@ -160,7 +185,7 @@ public sealed class CliSession
             Arguments = parseResult.Arguments,
             CancellationToken = cancellationToken,
             SessionStartedAt = _sessionStartedAt,
-            SessionId = _sessionObjectId.UniqueId,
+            SessionId = _sessionId,
             Services = new CommandServices
             {
                 ChatService = _controller.ChatService,
@@ -170,6 +195,7 @@ public sealed class CliSession
                 ToolRegistry = _toolRegistry,
                 CommandRegistry = _commandRegistry,
                 GoalEngine = _optionalServices?.GoalEngine,
+                GoalRegistry = _optionalServices?.GoalRegistry,
                 CronTaskStore = _optionalServices?.CronTaskStore,
                 SimpleModeService = _optionalServices?.SimpleModeService,
                 BriefModeService = _optionalServices?.BriefModeService ?? _optionalServices?.ServiceProvider?.GetService<IBriefModeService>(),
@@ -350,10 +376,10 @@ public sealed class CliSession
         {
             var entries = new TranscriptEntry[]
             {
-                new() { SessionId = _sessionObjectId.UniqueId, Role = "user", Content = userInput, Timestamp = timestamp },
-                new() { SessionId = _sessionObjectId.UniqueId, Role = "assistant", Content = assistantResponse, Timestamp = _clock.GetUtcNow() }
+                new() { SessionId = _sessionId, Role = "user", Content = userInput, Timestamp = timestamp },
+                new() { SessionId = _sessionId, Role = "assistant", Content = assistantResponse, Timestamp = _clock.GetUtcNow() }
             };
-            await _optionalServices.TranscriptService.AppendEntriesAsync(_sessionObjectId.UniqueId, entries, cancellationToken).ConfigureAwait(false);
+            await _optionalServices.TranscriptService.AppendEntriesAsync(_sessionId, entries, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {

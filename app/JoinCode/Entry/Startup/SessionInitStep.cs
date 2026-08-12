@@ -55,7 +55,7 @@ internal sealed partial class SessionInitStep : ServiceEntity, IMiddleware<Start
         // 可剥离: 通过 GetService 获取,失败不阻塞启动;性能差时删除此段即可完全剥离
         await StartCodeIndexServiceAsync(host.Services, ct);
 
-        var services = Cli.CliServiceContext.FromServiceProvider(host.Services, goalEngine, cronTaskStore, workflowConfig: context.Config);
+        var services = Cli.CliServiceContext.FromServiceProvider(host.Services, goalEngine, cronTaskStore: cronTaskStore, workflowConfig: context.Config);
         var session = new CliSession(chatService, codeService, planService, toolRegistry, host.Services.GetRequiredService<IFileSystem>(), services);
         await session.InitializeAsync(ct);
 

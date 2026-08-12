@@ -6,7 +6,9 @@ namespace JoinCode.Cli;
 public sealed record CliServiceContext
 {
     public IGoalEngine? GoalEngine { get; init; }
+    public IGoalRegistry? GoalRegistry { get; init; }
     public ICronTaskStore? CronTaskStore { get; init; }
+    public JoinCode.Dream.Persistence.IDreamTaskRegistry? DreamTaskRegistry { get; init; }
     public BridgeClient? BridgeClient { get; init; }
     public WorkflowConfig? WorkflowConfig { get; init; }
     public ISimpleModeService? SimpleModeService { get; init; }
@@ -36,12 +38,15 @@ public sealed record CliServiceContext
     public static CliServiceContext FromServiceProvider(
         IServiceProvider? sp,
         IGoalEngine? goalEngine = null,
+        IGoalRegistry? goalRegistry = null,
         ICronTaskStore? cronTaskStore = null,
         BridgeClient? bridgeClient = null,
         WorkflowConfig? workflowConfig = null) => new()
         {
             GoalEngine = goalEngine,
+            GoalRegistry = goalRegistry ?? sp?.GetService<IGoalRegistry>(),
             CronTaskStore = cronTaskStore,
+            DreamTaskRegistry = sp?.GetService<JoinCode.Dream.Persistence.IDreamTaskRegistry>(),
             BridgeClient = bridgeClient,
             WorkflowConfig = workflowConfig,
             SimpleModeService = sp?.GetService<ISimpleModeService>(),

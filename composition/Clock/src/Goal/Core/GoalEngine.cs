@@ -29,10 +29,20 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
     private GoalGraph? _goalGraph;
     private GoalGraphEngine? _graphEngine;
     [Inject] private readonly IGoalStateStore? _stateStore = null;
+    private string? _sessionId;
 
     public GoalState? CurrentState => _state;
     public bool IsRunning => _state?.Status == GoalStatus.Pursuing;
     public bool HasGraphDefinition => _goalGraph is not null;
+
+    /// <summary>
+    /// 设置会话隔离标识 — 由 CliSession 启动时调用，持久化按 {baseDir}/{sessionId}/{goalId}.json 隔离。
+    /// </summary>
+    public void SetSessionId(string sessionId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+        _sessionId = sessionId;
+    }
 
     /// <summary>
     /// 等待目标引擎循环退出（完成、预算耗尽、暂停、清除等）。
@@ -663,11 +673,67 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
             return;
         try
         {
+            if (_sessionId is not null)
+                _state.SessionId = _sessionId;
+            _state.PersistedHistory = [.. _chatHistory.Select(m => new ApiMessageDocument
+            {
+                Role = m.Role.ToString().ToLowerInvariant(),
+                Content = m.Content ?? string.Empty
+            })];
             await _stateStore.SaveAsync(_state, ct).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
             _logger?.LogWarning(ex, "[GoalEngine] 状态持久化失败: {GoalId}", _state.GoalId);
+        }
+    }
+
+    /// <summary>
+    /// 从持久化存储恢复活跃目标状态 — 进程重启后调用以恢复未完成的目标。
+    /// 指定 goalId 时恢复该特定目标；未指定时恢复第一个活跃目标（单 goal 场景）。
+    /// </summary>
+    public async Task RehydrateAsync(CancellationToken cancellationToken = default, string? goalId = null)
+    {
+        if (_stateStore is null || _sessionId is null) return;
+        try
+        {
+            GoalState? target;
+            if (goalId is not null)
+            {
+                target = await _stateStore.LoadAsync(_sessionId, goalId, cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                var activeGoals = await _stateStore.GetActiveGoalsAsync(_sessionId, cancellationToken).ConfigureAwait(false);
+                target = activeGoals.Count > 0 ? activeGoals[0] : null;
+            }
+
+            if (target is null) return;
+
+            var first = target;
+            await _stateLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                _state = first;
+                _chatHistory.Clear();
+                if (first.PersistedHistory is not null)
+                {
+                    foreach (var doc in first.PersistedHistory)
+                    {
+                        var role = Enum.TryParse<MessageRole>(doc.Role, ignoreCase: true, out var r) ? r : MessageRole.User;
+                        _chatHistory.Add(new ApiMessage(role, doc.Content));
+                    }
+                }
+            }
+            finally
+            {
+                _stateLock.Release();
+            }
+            _logger?.LogInformation("[GoalEngine] 从持久化恢复目标: {GoalId} (状态: {Status})", first.GoalId, first.Status);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "[GoalEngine] 恢复目标状态失败");
         }
     }
 

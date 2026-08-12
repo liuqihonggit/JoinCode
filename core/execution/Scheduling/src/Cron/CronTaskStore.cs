@@ -10,7 +10,8 @@ using JoinCode.Abstractions.Attributes;
 [Register]
 public sealed partial class FileCronTaskStore : ServiceEntity, ICronTaskStore, IDisposable
 {
-    private readonly string _filePath;
+    private string _filePath;
+    private readonly string _baseDir;
     private readonly IFileOperationService _fileOperationService;
     private readonly IFileSystem _fs;
     private readonly IClockService _clock;
@@ -32,6 +33,7 @@ public sealed partial class FileCronTaskStore : ServiceEntity, ICronTaskStore, I
         if (string.IsNullOrWhiteSpace(dir))
             throw new ArgumentException("Directory cannot be null or empty", nameof(directory));
 
+        _baseDir = dir;
         _filePath = Path.Combine(dir, AppDataConstants.ScheduledTasksFileName);
         _fileOperationService = fileOperationService ?? throw new ArgumentNullException(nameof(fileOperationService));
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
@@ -40,6 +42,20 @@ public sealed partial class FileCronTaskStore : ServiceEntity, ICronTaskStore, I
         Diag.WriteLine("[DI] FileCronTaskStore.ctor calling InitializeWatcher...");
         InitializeWatcher();
         Diag.WriteLine("[DI] FileCronTaskStore.ctor done");
+    }
+
+    /// <summary>
+    /// 设置会话隔离标识 — 重新计算文件路径并重新初始化 watcher。
+    /// 路径变为 {_baseDir}/{sessionId}/{ScheduledTasksFileName}。
+    /// </summary>
+    public void SetSessionId(string sessionId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+        _watcher?.Dispose();
+        _watcher = null;
+        var sessionDir = Path.Combine(_baseDir, sessionId);
+        _filePath = Path.Combine(sessionDir, AppDataConstants.ScheduledTasksFileName);
+        InitializeWatcher();
     }
 
     private void InitializeWatcher()

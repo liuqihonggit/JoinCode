@@ -5,6 +5,8 @@ using Testing.Common.Services;
 
 public sealed class GoalStateStoreTests
 {
+    private const string SessionId = "test-session";
+
     private static GoalStateStore CreateStore(InMemoryFileSystem? fs = null, string? baseDir = null)
     {
         fs ??= new InMemoryFileSystem();
@@ -21,12 +23,13 @@ public sealed class GoalStateStoreTests
             GoalId = "g1",
             Objective = "test objective",
             Status = GoalStatus.Pursuing,
+            SessionId = SessionId,
             TokensUsed = 100,
             TurnsCompleted = 5,
         };
 
         await store.SaveAsync(state);
-        var loaded = await store.LoadAsync("g1");
+        var loaded = await store.LoadAsync(SessionId, "g1");
 
         Assert.NotNull(loaded);
         Assert.Equal("g1", loaded!.GoalId);
@@ -40,7 +43,7 @@ public sealed class GoalStateStoreTests
     public async Task Load_NonExistent_Should_ReturnNull()
     {
         var store = CreateStore();
-        var loaded = await store.LoadAsync("non-existent");
+        var loaded = await store.LoadAsync(SessionId, "non-existent");
         Assert.Null(loaded);
     }
 
@@ -48,25 +51,25 @@ public sealed class GoalStateStoreTests
     public async Task Delete_Should_RemoveState()
     {
         var store = CreateStore();
-        var state = new GoalState { GoalId = "g2", Objective = "to delete", Status = GoalStatus.Pursuing };
+        var state = new GoalState { GoalId = "g2", Objective = "to delete", Status = GoalStatus.Pursuing, SessionId = SessionId };
 
         await store.SaveAsync(state);
-        Assert.NotNull(await store.LoadAsync("g2"));
+        Assert.NotNull(await store.LoadAsync(SessionId, "g2"));
 
-        await store.DeleteAsync("g2");
-        Assert.Null(await store.LoadAsync("g2"));
+        await store.DeleteAsync(SessionId, "g2");
+        Assert.Null(await store.LoadAsync(SessionId, "g2"));
     }
 
     [Fact]
     public async Task GetActiveGoals_Should_FilterPursuingAndPaused()
     {
         var store = CreateStore();
-        await store.SaveAsync(new GoalState { GoalId = "pursuing", Objective = "a", Status = GoalStatus.Pursuing });
-        await store.SaveAsync(new GoalState { GoalId = "paused", Objective = "b", Status = GoalStatus.Paused });
-        await store.SaveAsync(new GoalState { GoalId = "achieved", Objective = "c", Status = GoalStatus.Achieved });
-        await store.SaveAsync(new GoalState { GoalId = "unmet", Objective = "d", Status = GoalStatus.Unmet });
+        await store.SaveAsync(new GoalState { GoalId = "pursuing", Objective = "a", Status = GoalStatus.Pursuing, SessionId = SessionId });
+        await store.SaveAsync(new GoalState { GoalId = "paused", Objective = "b", Status = GoalStatus.Paused, SessionId = SessionId });
+        await store.SaveAsync(new GoalState { GoalId = "achieved", Objective = "c", Status = GoalStatus.Achieved, SessionId = SessionId });
+        await store.SaveAsync(new GoalState { GoalId = "unmet", Objective = "d", Status = GoalStatus.Unmet, SessionId = SessionId });
 
-        var active = await store.GetActiveGoalsAsync();
+        var active = await store.GetActiveGoalsAsync(SessionId);
 
         Assert.Equal(2, active.Count);
         Assert.Contains(active, s => s.GoalId == "pursuing");
@@ -78,10 +81,10 @@ public sealed class GoalStateStoreTests
     {
         var store = CreateStore();
 
-        await store.SaveAsync(new GoalState { GoalId = "g3", Objective = "v1", Status = GoalStatus.Pursuing, TokensUsed = 10 });
-        await store.SaveAsync(new GoalState { GoalId = "g3", Objective = "v2", Status = GoalStatus.Achieved, TokensUsed = 20 });
+        await store.SaveAsync(new GoalState { GoalId = "g3", Objective = "v1", Status = GoalStatus.Pursuing, SessionId = SessionId, TokensUsed = 10 });
+        await store.SaveAsync(new GoalState { GoalId = "g3", Objective = "v2", Status = GoalStatus.Achieved, SessionId = SessionId, TokensUsed = 20 });
 
-        var loaded = await store.LoadAsync("g3");
+        var loaded = await store.LoadAsync(SessionId, "g3");
         Assert.NotNull(loaded);
         Assert.Equal("v2", loaded!.Objective);
         Assert.Equal(GoalStatus.Achieved, loaded.Status);

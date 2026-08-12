@@ -1,7 +1,7 @@
 ﻿
 namespace JoinCode.ChatCommands;
 
-[ChatCommand(Name = ChatCommandNameConstants.Goal, Description = "目标自主循环引擎（持续工作直到条件满足）", Usage = "/goal <目标描述> [--constraint '约束'] [--budget <token数>] | /goal | /goal pause | /goal resume | /goal clear | /goal --cron <表达式> <描述>", Category = ChatCommandCategory.Task, ArgumentHint = "<目标描述|子命令>")]
+[ChatCommand(Name = ChatCommandNameConstants.Goal, Description = "目标自主循环引擎 — GoalSpec 收集模式（LLM 询问 6 字段后自主工作）", Usage = "/goal [初始提示] [--constraint '约束'] [--budget <token数>] | /goal pause | /goal resume | /goal clear | /goal --cron <表达式> <描述>", Category = ChatCommandCategory.Task, ArgumentHint = "[初始提示|子命令]")]
 public sealed partial class GoalCommand : ChatCommandBase
 {
     [Inject] private readonly ILogger<GoalCommand>? _logger;
@@ -12,6 +12,12 @@ public sealed partial class GoalCommand : ChatCommandBase
 
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
+        var registry = context.Services.GoalRegistry;
+        if (registry is not null)
+        {
+            return await ExecuteViaRegistryAsync(registry, context).ConfigureAwait(false);
+        }
+
         var goalEngine = context.Services.GoalEngine;
         if (goalEngine is null)
         {
@@ -23,7 +29,15 @@ public sealed partial class GoalCommand : ChatCommandBase
 
         if (string.IsNullOrEmpty(args))
         {
-            ShowStatus(goalEngine);
+            await goalEngine.RehydrateAsync(context.CancellationToken).ConfigureAwait(false);
+            if (goalEngine.CurrentState is not null)
+            {
+                ShowStatus(goalEngine);
+            }
+            else
+            {
+                await StartGoalSpecCollectionAsync(goalEngine, context, null, null, null).ConfigureAwait(false);
+            }
             return ChatCommandResult.Continue();
         }
 
@@ -38,6 +52,10 @@ public sealed partial class GoalCommand : ChatCommandBase
                 break;
 
             case ResumeLifecycleConstants.Resume:
+                if (goalEngine.CurrentState is null)
+                {
+                    await goalEngine.RehydrateAsync(context.CancellationToken).ConfigureAwait(false);
+                }
                 await goalEngine.ResumeAsync(context.CancellationToken).ConfigureAwait(false);
                 TerminalHelper.WriteLine($"{TerminalColors.Success}◎ /goal 已恢复{AnsiStyleConstants.Reset}");
                 break;
@@ -59,7 +77,11 @@ public sealed partial class GoalCommand : ChatCommandBase
                 }
                 else
                 {
-                    await ExecuteGoalAsync(goalEngine, context, parsed).ConfigureAwait(false);
+                    await StartGoalSpecCollectionAsync(
+                        goalEngine, context,
+                        parsed.Objective,
+                        parsed.Constraints,
+                        parsed.TokenBudget).ConfigureAwait(false);
                 }
                 break;
         }
@@ -67,30 +89,153 @@ public sealed partial class GoalCommand : ChatCommandBase
         return ChatCommandResult.Continue();
     }
 
-    private async Task ExecuteGoalAsync(IGoalEngine goalEngine, ChatCommandContext context, GoalParseResult parsed)
+    private async Task<ChatCommandResult> ExecuteViaRegistryAsync(IGoalRegistry registry, ChatCommandContext context)
     {
-        _logger?.LogInformation("启动目标引擎: {Objective} (约束: {Constraints}, 预算: {Budget})",
-            parsed.Objective, parsed.Constraints.Count, parsed.TokenBudget?.ToString() ?? "无限制");
+        var args = ChatCommandBase.GetNormalizedArgs(context);
 
-        TerminalHelper.WriteLine($"{TerminalColors.Info}◎ /goal active{AnsiStyleConstants.Reset}");
-        TerminalHelper.WriteLine($"  目标: {parsed.Objective}");
-
-        if (parsed.Constraints.Count > 0)
+        if (string.IsNullOrEmpty(args))
         {
-            TerminalHelper.WriteLine($"  约束: {string.Join(", ", parsed.Constraints)}");
+            await registry.RehydrateAllAsync(context.CancellationToken).ConfigureAwait(false);
+            var goals = await registry.ListActiveGoalsAsync(context.CancellationToken).ConfigureAwait(false);
+            if (goals.Count > 0)
+            {
+                ShowGoalsList(goals);
+            }
+            else
+            {
+                await StartGoalSpecCollectionViaRegistryAsync(registry, context, null, null, null).ConfigureAwait(false);
+            }
+            return ChatCommandResult.Continue();
         }
 
-        if (parsed.TokenBudget.HasValue)
+        var parts = args.Split(' ', 2);
+        var subCommand = parts[0].ToLowerInvariant();
+
+        switch (subCommand)
         {
-            TerminalHelper.WriteLine($"  预算: {parsed.TokenBudget.Value} Token");
+            case ResumeLifecycleConstants.Pause:
+                await registry.PauseAsync(context.CancellationToken).ConfigureAwait(false);
+                TerminalHelper.WriteLine($"{TerminalColors.Warning}◎ /goal 已暂停{AnsiStyleConstants.Reset}");
+                break;
+
+            case ResumeLifecycleConstants.Resume:
+                await registry.ResumeAsync(context.CancellationToken).ConfigureAwait(false);
+                TerminalHelper.WriteLine($"{TerminalColors.Success}◎ /goal 已恢复{AnsiStyleConstants.Reset}");
+                break;
+
+            case ResumeLifecycleConstants.Clear:
+            case ResumeLifecycleConstants.Stop:
+            case ResumeLifecycleConstants.Off:
+            case ResumeLifecycleConstants.Reset:
+            case ResumeLifecycleConstants.Cancel:
+                await registry.ClearAsync(context.CancellationToken).ConfigureAwait(false);
+                TerminalHelper.WriteLine("目标已清除");
+                break;
+
+            default:
+                var parsed = ParseGoalArgs(args);
+                if (parsed.IsCron)
+                {
+                    var goalEngine = context.Services.GoalEngine;
+                    if (goalEngine is not null)
+                        await ExecuteCronGoalAsync(goalEngine, context, parsed).ConfigureAwait(false);
+                }
+                else
+                {
+                    await StartGoalSpecCollectionViaRegistryAsync(
+                        registry, context,
+                        parsed.Objective,
+                        parsed.Constraints,
+                        parsed.TokenBudget).ConfigureAwait(false);
+                }
+                break;
+        }
+
+        return ChatCommandResult.Continue();
+    }
+
+    private async Task StartGoalSpecCollectionViaRegistryAsync(
+        IGoalRegistry registry,
+        ChatCommandContext context,
+        string? initialHint,
+        List<string>? presetConstraints,
+        int? tokenBudget)
+    {
+        var prompt = GoalSpecPromptBuilder.Build(initialHint, presetConstraints);
+
+        _logger?.LogInformation("启动 GoalSpec 收集流程 via Registry (初始提示: {Hint}, 预填约束: {Count}, 预算: {Budget})",
+            initialHint ?? "无", presetConstraints?.Count ?? 0, tokenBudget?.ToString() ?? "无限制");
+
+        TerminalHelper.WriteLine($"{TerminalColors.Info}◎ /goal active — GoalSpec 收集模式{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine("  LLM 将逐个询问目标规格字段，收集完成后开始自主工作。");
+
+        if (!string.IsNullOrWhiteSpace(initialHint))
+            TerminalHelper.WriteLine($"  初始提示: {initialHint}");
+        if (presetConstraints is { Count: > 0 })
+            TerminalHelper.WriteLine($"  预填约束: {string.Join(", ", presetConstraints)}");
+        if (tokenBudget.HasValue)
+            TerminalHelper.WriteLine($"  预算: {tokenBudget.Value} Token");
+
+        try
+        {
+            var state = await registry.StartAsync(
+                prompt,
+                tokenBudget: tokenBudget,
+                cancellationToken: context.CancellationToken).ConfigureAwait(false);
+            ShowGoalState(state);
+        }
+        catch (InvalidOperationException ex)
+        {
+            ChatCommandBase.HandleError("目标执行", ex);
+        }
+    }
+
+    private static void ShowGoalsList(IReadOnlyList<GoalState> goals)
+    {
+        TerminalHelper.NewLine();
+        TerminalHelper.WriteLine($"{TerminalColors.Info}◎ 活跃目标列表 ({goals.Count}){AnsiStyleConstants.Reset}");
+        foreach (var state in goals)
+        {
+            TerminalHelper.WriteLine($"  [{state.GoalId}] {state.Objective} — {FormatStatus(state.Status)}");
+        }
+        TerminalHelper.NewLine();
+    }
+
+    private async Task StartGoalSpecCollectionAsync(
+        IGoalEngine goalEngine,
+        ChatCommandContext context,
+        string? initialHint,
+        List<string>? presetConstraints,
+        int? tokenBudget)
+    {
+        var prompt = GoalSpecPromptBuilder.Build(initialHint, presetConstraints);
+
+        _logger?.LogInformation("启动 GoalSpec 收集流程 (初始提示: {Hint}, 预填约束: {Count}, 预算: {Budget})",
+            initialHint ?? "无", presetConstraints?.Count ?? 0, tokenBudget?.ToString() ?? "无限制");
+
+        TerminalHelper.WriteLine($"{TerminalColors.Info}◎ /goal active — GoalSpec 收集模式{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine("  LLM 将逐个询问目标规格字段，收集完成后开始自主工作。");
+
+        if (!string.IsNullOrWhiteSpace(initialHint))
+        {
+            TerminalHelper.WriteLine($"  初始提示: {initialHint}");
+        }
+
+        if (presetConstraints is { Count: > 0 })
+        {
+            TerminalHelper.WriteLine($"  预填约束: {string.Join(", ", presetConstraints)}");
+        }
+
+        if (tokenBudget.HasValue)
+        {
+            TerminalHelper.WriteLine($"  预算: {tokenBudget.Value} Token");
         }
 
         try
         {
             var state = await goalEngine.StartAsync(
-                parsed.Objective,
-                parsed.Constraints,
-                parsed.TokenBudget,
+                prompt,
+                tokenBudget: tokenBudget,
                 cancellationToken: context.CancellationToken).ConfigureAwait(false);
             ShowGoalState(state);
         }

@@ -38,6 +38,9 @@ public sealed class CommandServices
     /// <summary>目标引擎</summary>
     public IGoalEngine? GoalEngine { get; init; }
 
+    /// <summary>多目标注册表 — 管理多个 GoalEngine 实例</summary>
+    public IGoalRegistry? GoalRegistry { get; init; }
+
     /// <summary>Cron 任务存储</summary>
     public ICronTaskStore? CronTaskStore { get; init; }
 

@@ -678,17 +678,27 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
 
     /// <summary>
     /// 从持久化存储恢复活跃目标状态 — 进程重启后调用以恢复未完成的目标。
-    /// 当多个活跃目标存在时恢复第一个（多 goal 管理由 PersistentGoalRegistry 负责）。
+    /// 指定 goalId 时恢复该特定目标；未指定时恢复第一个活跃目标（单 goal 场景）。
     /// </summary>
-    public async Task RehydrateAsync(CancellationToken cancellationToken = default)
+    public async Task RehydrateAsync(CancellationToken cancellationToken = default, string? goalId = null)
     {
         if (_stateStore is null) return;
         try
         {
-            var activeGoals = await _stateStore.GetActiveGoalsAsync(cancellationToken).ConfigureAwait(false);
-            if (activeGoals.Count == 0) return;
+            GoalState? target;
+            if (goalId is not null)
+            {
+                target = await _stateStore.LoadAsync(goalId, cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                var activeGoals = await _stateStore.GetActiveGoalsAsync(cancellationToken).ConfigureAwait(false);
+                target = activeGoals.Count > 0 ? activeGoals[0] : null;
+            }
 
-            var first = activeGoals[0];
+            if (target is null) return;
+
+            var first = target;
             await _stateLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {

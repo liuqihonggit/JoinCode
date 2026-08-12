@@ -23,8 +23,11 @@ public interface IGoalEngine
     /// <summary>清除目标</summary>
     Task ClearAsync(CancellationToken cancellationToken = default);
 
-    /// <summary>从持久化存储恢复活跃目标状态 — 进程重启后调用以恢复未完成的目标</summary>
-    Task RehydrateAsync(CancellationToken cancellationToken = default);
+    /// <summary>
+    /// 从持久化存储恢复活跃目标状态 — 进程重启后调用以恢复未完成的目标。
+    /// 指定 goalId 时恢复该特定目标；未指定时恢复第一个活跃目标（单 goal 场景）。
+    /// </summary>
+    Task RehydrateAsync(CancellationToken cancellationToken = default, string? goalId = null);
 
     /// <summary>标记目标为已完成（模型可调用，线程安全）</summary>
     Task MarkCompletedAsync(string reason, CancellationToken cancellationToken = default);

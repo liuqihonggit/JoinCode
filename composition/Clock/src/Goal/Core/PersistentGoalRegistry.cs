@@ -96,7 +96,7 @@ public sealed partial class PersistentGoalRegistry : IGoalRegistry
                 {
                     if (_engines.ContainsKey(state.GoalId)) continue;
                     var engine = CreateEngine();
-                    await engine.RehydrateAsync(cancellationToken).ConfigureAwait(false);
+                    await engine.RehydrateAsync(cancellationToken, state.GoalId).ConfigureAwait(false);
                     _engines[state.GoalId] = engine;
                 }
                 _currentGoalId ??= activeGoals[0].GoalId;

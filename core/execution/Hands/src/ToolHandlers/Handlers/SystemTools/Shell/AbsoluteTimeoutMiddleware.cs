@@ -57,13 +57,13 @@ public sealed partial class AbsoluteTimeoutMiddleware : ServiceEntity, IShellMid
 
     private static void SetTimeoutResult(ShellPipelineContext context, int seconds)
     {
-        var toolName = context.Provider.Kind == SystemActuatorKind.PowerShell ? "PowerShell" : "Bash";
+        var toolName = context.Provider.Kind == SystemActuatorKind.PowerShell ? ShellToolNameConstants.Powershell : ShellToolNameConstants.Bash;
         var sb = new StringBuilder(512);
         sb.AppendLine($"命令执行超时（{seconds}秒）。");
         sb.AppendLine();
         sb.AppendLine($"**命令**: `{context.Command}`");
         sb.AppendLine();
-        sb.AppendLine("如果需要继续执行此命令，请调用 `resume_timed_out_task` 工具：");
+        sb.AppendLine($"如果需要继续执行此命令，请调用 `{SystemToolNameConstants.ResumeTimedOutTask}` 工具：");
         sb.AppendLine($"- original_command: \"{context.Command}\"");
         sb.AppendLine($"- original_tool: \"{toolName}\"");
         sb.AppendLine("- timeout_minutes: 10 (默认10分钟续期)");
@@ -82,5 +82,5 @@ public sealed partial class AbsoluteTimeoutMiddleware : ServiceEntity, IShellMid
                 new DiagnosticDetail("timeout_seconds", seconds.ToString()),
                 new DiagnosticDetail("tool", toolName)
             ],
-            suggestions: ["调用 resume_timed_out_task 工具续期执行"]);
+            suggestions: [$"调用 {SystemToolNameConstants.ResumeTimedOutTask} 工具续期执行"]);
 }

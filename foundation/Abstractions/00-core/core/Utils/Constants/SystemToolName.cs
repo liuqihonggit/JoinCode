@@ -37,4 +37,6 @@ public enum SystemToolName
     [EnumValue("goal_get")] GoalGet,
     [EnumValue("goal_update")] GoalUpdate,
     [EnumValue("goal_graph_define")] GoalGraphDefine,
+    [EnumValue("resume_timed_out_task")] ResumeTimedOutTask,
+    [EnumValue("build_output")] BuildOutput,
 }

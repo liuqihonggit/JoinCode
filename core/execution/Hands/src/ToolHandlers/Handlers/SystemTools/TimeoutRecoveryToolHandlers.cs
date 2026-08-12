@@ -21,7 +21,7 @@ public class TimeoutRecoveryToolHandlers
     /// 恢复超时任务 — 以10分钟（可配置）超时重新执行命令
     /// GroupName="Bash" 和 "PowerShell" 表示当 Bash/PowerShell 工具超时时精准推荐
     /// </summary>
-    [McpTool("resume_timed_out_task", "恢复因超时被终止的命令，以更长超时重新执行", "error_recovery",
+    [McpTool(SystemToolNameConstants.ResumeTimedOutTask, "恢复因超时被终止的命令，以更长超时重新执行", "error_recovery",
         Kind = JoinCode.Abstractions.Attributes.ToolKindConstants.OnError, GroupName = "Bash")]
     public async Task<ToolResult> ResumeTimedOutTaskAsync(
         [McpToolParameter("原始命令", Required = true)] string original_command,
@@ -42,7 +42,7 @@ public class TimeoutRecoveryToolHandlers
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            return ToolExceptionDiagnosticHelper.BuildErrorResult("resume_timed_out_task", ex, _logger, "original_command", original_command, "original_tool", original_tool);
+            return ToolExceptionDiagnosticHelper.BuildErrorResult(SystemToolNameConstants.ResumeTimedOutTask, ex, _logger, "original_command", original_command, "original_tool", original_tool);
         }
     }
 

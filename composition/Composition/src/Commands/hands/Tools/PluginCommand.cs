@@ -12,7 +12,7 @@ public sealed class PluginCommand : ChatCommandBase
 {
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
-        var pluginManager = context.Services.PluginManager;
+        var pluginManager = context.GetCommandServices().PluginManager;
         var args = ChatCommandBase.GetNormalizedArgs(context);
 
         if (string.IsNullOrEmpty(args) || args.Equals("list", StringComparison.OrdinalIgnoreCase))
@@ -130,7 +130,7 @@ public sealed class PluginCommand : ChatCommandBase
             return ChatCommandResult.Continue();
         }
 
-        if (!context.Services.FileSystem.FileExists(exePath))
+        if (!context.GetCommandServices().FileSystem.FileExists(exePath))
         {
             TerminalHelper.WriteLine($"{TerminalColors.Error}插件路径不存在: {exePath}{AnsiStyleConstants.Reset}");
             return ChatCommandResult.Continue();

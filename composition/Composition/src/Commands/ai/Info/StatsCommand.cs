@@ -22,7 +22,7 @@ public sealed class StatsCommand : ChatCommandBase
         }
 
         // 回退到 UsageTracker 模式
-        var usageTracker = context.Services.UsageTracker;
+        var usageTracker = context.GetCommandServices().UsageTracker;
 
         if (usageTracker is null)
         {

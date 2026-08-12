@@ -1,4 +1,4 @@
-namespace Host.Tests.ChatCommands;
+﻿namespace Host.Tests.ChatCommands;
 
 public sealed class ResumeCommandTests
 {
@@ -51,13 +51,13 @@ public sealed class ResumeCommandTests
         var context = new ChatCommandContext {
             Arguments = "",
             CancellationToken = CancellationToken.None,
-             Services = new CommandServices
+             Services = new CommandServiceProvider(new CommandServices
              {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
              FileSystem = TestFileSystem.Current,
-             },
+             }),
         };
 
         var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
@@ -73,13 +73,13 @@ public sealed class ResumeCommandTests
         var context = new ChatCommandContext {
             Arguments = "test-session",
             CancellationToken = CancellationToken.None,
-             Services = new CommandServices
+             Services = new CommandServiceProvider(new CommandServices
              {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
              FileSystem = TestFileSystem.Current,
-             },
+             }),
         };
 
         var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);

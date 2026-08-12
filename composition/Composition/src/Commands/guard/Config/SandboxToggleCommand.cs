@@ -1,4 +1,4 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 using JoinCode.Abstractions.Security.Sandbox;
@@ -181,7 +181,7 @@ public sealed class SandboxToggleCommand : ChatCommandBase
         }
 
         var pathToAdd = string.Join(' ', parts[1..]);
-        if (!context.Services.FileSystem.DirectoryExists(pathToAdd) && !context.Services.FileSystem.FileExists(pathToAdd))
+        if (!context.GetCommandServices().FileSystem.DirectoryExists(pathToAdd) && !context.GetCommandServices().FileSystem.FileExists(pathToAdd))
         {
             TerminalHelper.WriteLine(string.Format(L.T(StringKey.HostSandboxPathNotFound), pathToAdd));
             return;

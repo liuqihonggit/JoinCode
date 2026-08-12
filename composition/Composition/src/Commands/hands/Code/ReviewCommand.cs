@@ -9,7 +9,7 @@ public sealed class ReviewCommand : ChatCommandBase
 
         // 无参数时：交互式选择审查方式
         // 对齐 TS: UltrareviewOverageDialog — 审查选项选择
-        if (string.IsNullOrEmpty(args) && !Core.Utils.TestEnvironmentDetector.IsNonInteractive && context.Services?.ChatService is not null)
+        if (string.IsNullOrEmpty(args) && !Core.Utils.TestEnvironmentDetector.IsNonInteractive && context.TryGetCommandServices()?.ChatService is not null)
         {
             var dialog = new Dialog("代码审查", "选择审查方式:", ["审查本地变更", "审查 Pull Request", "取消"]);
             var result = await dialog.ShowAsync(context.CancellationToken).ConfigureAwait(false);
@@ -34,7 +34,7 @@ public sealed class ReviewCommand : ChatCommandBase
     {
         try
         {
-            if (context.Services?.ChatService is null)
+            if (context.TryGetCommandServices()?.ChatService is null)
             {
                 TerminalHelper.WriteLine("ChatService 不可用，无法执行审查。");
                 return;
@@ -45,7 +45,7 @@ public sealed class ReviewCommand : ChatCommandBase
 
             // 对齐 TS: type='prompt'，结果直接进入对话上下文
             // 使用 SendMessageStreamAsync 让 LLM 回复流式输出到终端
-            await foreach (var _ in context.Services.ChatService.SendMessageStreamAsync(prompt, context.CancellationToken).ConfigureAwait(false))
+            await foreach (var _ in context.GetCommandServices().ChatService.SendMessageStreamAsync(prompt, context.CancellationToken).ConfigureAwait(false))
             {
                 // 流式输出由 ChatService 内部处理
             }

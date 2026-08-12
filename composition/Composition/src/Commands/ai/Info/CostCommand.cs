@@ -9,7 +9,8 @@ public sealed class CostCommand : ChatCommandBase
 {
     public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
-        if (context.Services.CostTracker is null)
+        var services = context.GetCommandServices();
+        if (services.CostTracker is null)
         {
             TerminalHelper.WriteLine($"{TerminalColors.Error}成本追踪器不可用。{AnsiStyleConstants.Reset}");
             return Task.FromResult(ChatCommandResult.Continue());
@@ -23,14 +24,14 @@ public sealed class CostCommand : ChatCommandBase
         switch (scope)
         {
             case CostScopeConstants.Today:
-                stats = context.Services.CostTracker.GetTodayStatistics();
+                stats = services.CostTracker.GetTodayStatistics();
                 break;
             case CostScopeConstants.Total:
-                stats = context.Services.CostTracker.GetTotalStatistics();
+                stats = services.CostTracker.GetTotalStatistics();
                 break;
             case CostScopeConstants.Session:
             default:
-                stats = context.Services.CostTracker.GetSessionStatistics(context.SessionId);
+                stats = services.CostTracker.GetSessionStatistics(context.SessionId);
                 break;
         }
 

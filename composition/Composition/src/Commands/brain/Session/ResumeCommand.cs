@@ -1,4 +1,4 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
@@ -21,7 +21,7 @@ public sealed class ResumeCommand : ChatCommandBase
 
     public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
-        var fs = context.Services.FileSystem;
+        var fs = context.GetCommandServices().FileSystem;
         if (!fs.DirectoryExists(SessionsPath))
         {
             DirectoryHelper.EnsureDirectoryExists(fs, SessionsPath);
@@ -49,7 +49,7 @@ public sealed class ResumeCommand : ChatCommandBase
     {
         // L3.1: 先尝试 UUID 精确匹配
         var sessionPath = Path.Combine(SessionsPath, $"{searchTerm}.json");
-        var fs = context.Services.FileSystem;
+        var fs = context.GetCommandServices().FileSystem;
         if (fs.FileExists(sessionPath))
         {
             await ResumeSessionAsync(searchTerm, context, ResumeEntrypoint.SlashCommandSessionId);
@@ -58,7 +58,7 @@ public sealed class ResumeCommand : ChatCommandBase
 
         // L3.1: 尝试自定义标题搜索
         // 对齐 TS: searchSessionsByCustomTitle — 大小写不敏感匹配
-        var titleMatches = await SearchByCustomTitleAsync(searchTerm, context.CancellationToken, context.Services.FileSystem, context.Services.ServiceProvider?.GetService<ILogger<ResumeCommand>>()).ConfigureAwait(false);
+        var titleMatches = await SearchByCustomTitleAsync(searchTerm, context.CancellationToken, context.GetCommandServices().FileSystem, context.Services?.GetService<ILogger<ResumeCommand>>()).ConfigureAwait(false);
 
         if (titleMatches.Count == 0)
         {
@@ -159,7 +159,7 @@ public sealed class ResumeCommand : ChatCommandBase
         var currentSessionId = context.SessionId;
 
         // L3.3: Lite 日志加载 — 只读取文件 stat 信息，不读内容
-        var liteEntries = LoadLiteSessions(showAllProjects, context.Services.FileSystem, context.Services.ServiceProvider?.GetService<ILogger<ResumeCommand>>());
+        var liteEntries = LoadLiteSessions(showAllProjects, context.GetCommandServices().FileSystem, context.Services?.GetService<ILogger<ResumeCommand>>());
 
         // 过滤可恢复会话：排除当前会话
         // 对齐 TS: filterResumableSessions — 排除 sidechain + 当前会话
@@ -343,7 +343,7 @@ public sealed class ResumeCommand : ChatCommandBase
     {
         var sessionPath = Path.Combine(SessionsPath, $"{sessionId}.json");
 
-        var fs = context.Services.FileSystem;
+        var fs = context.GetCommandServices().FileSystem;
         if (!fs.FileExists(sessionPath))
         {
             // 对齐 TS: ResumeResult.sessionNotFound
@@ -374,12 +374,12 @@ public sealed class ResumeCommand : ChatCommandBase
 
             // 跨项目恢复检查
             // 对齐 TS: checkCrossProjectResume
-            var crossProjectResult = await CheckCrossProjectResumeAsync(session, context, context.Services.ServiceProvider?.GetService<ILogger<ResumeCommand>>());
+            var crossProjectResult = await CheckCrossProjectResumeAsync(session, context, context.Services?.GetService<ILogger<ResumeCommand>>());
             if (crossProjectResult.IsCrossProject && !crossProjectResult.IsSameRepoWorktree)
             {
                 // 不同项目 — 生成命令并复制到剪贴板
                 var command = $"cd {crossProjectResult.ProjectPath} && jcc --resume {sessionId}";
-                var clipboardService = context.Services.ClipboardService;
+                var clipboardService = context.GetCommandServices().ClipboardService;
                 if (clipboardService is not null)
                 {
                     await clipboardService.SetTextAsync(command, context.CancellationToken).ConfigureAwait(false);
@@ -405,7 +405,7 @@ public sealed class ResumeCommand : ChatCommandBase
                 Content = m.Content
             }).ToList();
 
-            await context.Services.ChatService.LoadSessionMessagesAsync(messages, context.CancellationToken).ConfigureAwait(false);
+            await context.GetCommandServices().ChatService.LoadSessionMessagesAsync(messages, context.CancellationToken).ConfigureAwait(false);
 
             var title = string.IsNullOrEmpty(session.CustomTitle) ? sessionId : session.CustomTitle;
             TerminalHelper.WriteLine($"{TerminalColors.Success}{string.Format(L.T(StringKey.HostResumeRestored), title)}{AnsiStyleConstants.Reset}");
@@ -461,7 +461,7 @@ public sealed class ResumeCommand : ChatCommandBase
         }
 
         // 检查是否是同仓库 worktree
-        var worktreeService = context.Services.WorktreeService;
+        var worktreeService = context.GetCommandServices().WorktreeService;
         if (worktreeService is not null)
         {
             try

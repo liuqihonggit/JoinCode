@@ -6,7 +6,7 @@ public sealed class PeersCommand : ChatCommandBase
 {
     public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
-        var sp = context.Services.ServiceProvider;
+        var sp = context.Services;
         var peerService = sp?.GetService<JoinCode.Abstractions.Interfaces.IPeerDiscoveryService>();
 
         if (peerService is null)

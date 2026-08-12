@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Tests.Commands;
 
 public class DoctorCommandTests
@@ -15,13 +15,13 @@ public class DoctorCommandTests
         return new ChatCommandContext {
             Arguments = "",
             CancellationToken = CancellationToken.None,
-             Services = new CommandServices
+             Services = new CommandServiceProvider(new CommandServices
              {
                 ChatService = null!,
                 CodeService = null!,
                 PlanService = null!,
              FileSystem = TestFileSystem.Current,
-             },
+             }),
         };
     }
 

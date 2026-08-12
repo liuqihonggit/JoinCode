@@ -6,7 +6,7 @@ public sealed class SecurityReviewCommand : ChatCommandBase
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         Diag.WriteLifecycle("[DIAG-SEC-REVIEW] ExecuteAsync entry");
-        var fs = context.Services.FileSystem;
+        var fs = context.GetCommandServices().FileSystem;
         var gitRunner = ChatCommandBase.GetService<IGitCommandRunner>(context);
         if (gitRunner is null)
         {
@@ -52,7 +52,7 @@ public sealed class SecurityReviewCommand : ChatCommandBase
         {
             TerminalHelper.WriteLine($"{TerminalColors.Primary}正在执行安全审查...{AnsiStyleConstants.Reset}");
             Diag.WriteLifecycle("[DIAG-SEC-REVIEW] SendMessageAsync start (LLM call)");
-            var result = await context.Services.ChatService.SendMessageAsync(prompt, context.CancellationToken).ConfigureAwait(false);
+            var result = await context.GetCommandServices().ChatService.SendMessageAsync(prompt, context.CancellationToken).ConfigureAwait(false);
             Diag.WriteLifecycle($"[DIAG-SEC-REVIEW] SendMessageAsync end, resultLen={result.Length}");
             TerminalHelper.WriteLine(result);
         }

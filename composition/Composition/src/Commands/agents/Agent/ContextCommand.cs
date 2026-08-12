@@ -7,7 +7,7 @@ public sealed class ContextCommand : ChatCommandBase
     private readonly IClockService _clock = SystemClockService.Instance;
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
-        var history = await context.Services.ChatService.GetMessageListAsync(context.CancellationToken);
+        var history = await context.GetCommandServices().ChatService.GetMessageListAsync(context.CancellationToken);
         var sessionDuration = _clock.GetUtcNow() - context.SessionStartedAt;
 
         TerminalHelper.NewLine();
@@ -20,7 +20,7 @@ public sealed class ContextCommand : ChatCommandBase
             currentModel = fastModeService.FastModelId;
         }
 
-        var provider = context.Services.WorkflowConfig?.Provider?.Vendor
+        var provider = context.GetCommandServices().WorkflowConfig?.Provider?.Vendor
             ?? Environment.GetEnvironmentVariable(JccEnvVar.Vendor.ToValue())
             ?? VendorKind.OpenAi.ToValue();
         var maxTokens = ResolveModelCatalog(context).GetModelsForProvider(provider)

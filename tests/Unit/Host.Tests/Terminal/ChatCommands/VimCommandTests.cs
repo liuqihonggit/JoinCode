@@ -1,4 +1,4 @@
-
+﻿
 namespace JoinCode.ChatCommands.Tests;
 
 public class VimCommandTests
@@ -52,14 +52,14 @@ public class VimCommandTests
         return new ChatCommandContext {
             Arguments = arguments,
             CancellationToken = CancellationToken.None,
-             Services = new CommandServices
+             Services = new CommandServiceProvider(new CommandServices
              {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
                 ServiceProvider = serviceProviderMock.Object,
              FileSystem = TestFileSystem.Current,
-             },
+             }),
         };
     }
 }

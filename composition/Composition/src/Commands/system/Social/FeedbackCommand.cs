@@ -21,7 +21,7 @@ public sealed class FeedbackCommand : ChatCommandBase
 
         var appDataPath = WorkflowConstants.Paths.JccDirectory;
         var feedbackDir = Path.Combine(appDataPath, "feedback");
-        var fs = context.Services.FileSystem;
+        var fs = context.GetCommandServices().FileSystem;
         DirectoryHelper.EnsureDirectoryExists(fs, feedbackDir);
 
         var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");

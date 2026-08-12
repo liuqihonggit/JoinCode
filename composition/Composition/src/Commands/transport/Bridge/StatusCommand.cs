@@ -12,9 +12,10 @@ public sealed class StatusCommand : ChatCommandBase
     private readonly IClockService _clock = SystemClockService.Instance;
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
+        var services = context.GetCommandServices();
         // 预收集数据
         var version = GetType().Assembly.GetName().Version?.ToString() ?? "unknown";
-        var cwd = context.Services.FileSystem.GetCurrentDirectory();
+        var cwd = services.FileSystem.GetCurrentDirectory();
         var duration = _clock.GetUtcNow() - context.SessionStartedAt;
 
         var fastModeService = ChatCommandBase.GetService<IFastModeService>(context, typeof(IFastModeService));
@@ -25,7 +26,7 @@ public sealed class StatusCommand : ChatCommandBase
             currentModel = fastModeService.FastModelId;
         }
 
-        var provider = context.Services.WorkflowConfig?.Provider?.Vendor
+        var provider = services.WorkflowConfig?.Provider?.Vendor
             ?? Environment.GetEnvironmentVariable(JccEnvVar.Vendor.ToValue())
             ?? VendorKind.OpenAi.ToValue();
         var providerName = ResolveModelCatalog(context).GetProviderDisplayName(provider);
@@ -36,10 +37,9 @@ public sealed class StatusCommand : ChatCommandBase
         var apiKey = Environment.GetEnvironmentVariable(JccEnvVar.ApiKey.ToValue())
             ?? providerDefinition?.ResolveApiKeyFromEnv();
 
-        var executionSettings = context.Services.ExecutionSettingsProvider;
+        var executionSettings = services.ExecutionSettingsProvider;
         var effortLevel = executionSettings?.EffortLevel.ToValue() ?? "";
 
-        var services = context.Services ?? throw new InvalidOperationException("Services not available.");
         var hasMcpTools = services.ToolRegistry is not null;
 
         // 获取消息历史
@@ -82,9 +82,9 @@ public sealed class StatusCommand : ChatCommandBase
         }
 
         // 获取费用
-        if (context.Services.CostTracker is not null)
+        if (services.CostTracker is not null)
         {
-            var costStats = context.Services.CostTracker.GetTotalStatistics();
+            var costStats = services.CostTracker.GetTotalStatistics();
             if (costStats.TotalCostUsd > 0)
             {
                 tokenInfo += $"\n  费用: ${costStats.TotalCostUsd:F4} USD";

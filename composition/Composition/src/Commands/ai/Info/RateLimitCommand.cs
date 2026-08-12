@@ -7,7 +7,7 @@ public sealed class RateLimitCommand : ChatCommandBase
     public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetNormalizedArgs(context);
-        var tracker = context.Services.RateLimitTracker;
+        var tracker = context.GetCommandServices().RateLimitTracker;
 
         if (string.IsNullOrEmpty(args) || args.Equals("show", StringComparison.OrdinalIgnoreCase))
         {

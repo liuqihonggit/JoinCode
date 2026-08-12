@@ -6,7 +6,7 @@ public sealed class FilesCommand : ChatCommandBase
 {
     public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
-        var tracker = context.Services.FileOperationTracker;
+        var tracker = context.GetCommandServices().FileOperationTracker;
 
         if (tracker is null)
         {
@@ -22,7 +22,7 @@ public sealed class FilesCommand : ChatCommandBase
         }
 
         var filePaths = tracker.GetOperatedFilePaths();
-        var cwd = context.Services.FileSystem.GetCurrentDirectory();
+        var cwd = context.GetCommandServices().FileSystem.GetCurrentDirectory();
 
         TerminalHelper.WriteLine($"上下文中的文件 ({filePaths.Count()} 个):");
         TerminalHelper.NewLine();

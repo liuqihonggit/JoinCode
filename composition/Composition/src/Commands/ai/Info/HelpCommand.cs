@@ -8,13 +8,14 @@ public sealed class HelpCommand : ChatCommandBase
 {
     public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
-        if (context.Services.CommandRegistry is null)
+        var services = context.GetCommandServices();
+        if (services.CommandRegistry is null)
         {
             TerminalHelper.WriteLine("命令注册表不可用。");
             return Task.FromResult(ChatCommandResult.Continue());
         }
 
-        var commands = context.Services.CommandRegistry.GetCommandInfos().ToList();
+        var commands = services.CommandRegistry.GetCommandInfos().ToList();
 
         // 按分类分组 — 直接使用 ChatCommandInfo.Category（特性解耦，无需中央映射表）
         var categories = CategorizeCommands(commands);

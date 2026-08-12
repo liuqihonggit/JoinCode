@@ -28,18 +28,18 @@ public sealed class DiffCommand : ChatCommandBase
             {
                 case DiffModeConstants.Files:
                     Diag.WriteLifecycle("[DIAG-DIFF] ShowChangedFilesAsync start");
-                    await ShowChangedFilesAsync(context.CancellationToken, context.Services.FileSystem, gitRunner).ConfigureAwait(false);
+                    await ShowChangedFilesAsync(context.CancellationToken, context.GetCommandServices().FileSystem, gitRunner).ConfigureAwait(false);
                     Diag.WriteLifecycle("[DIAG-DIFF] ShowChangedFilesAsync end");
                     break;
                 case DiffModeConstants.Cached:
                 case DiffModeConstants.Staged:
                     Diag.WriteLifecycle("[DIAG-DIFF] ShowStagedDiffAsync start");
-                    await ShowStagedDiffAsync(context.CancellationToken, context.Services.FileSystem, gitRunner).ConfigureAwait(false);
+                    await ShowStagedDiffAsync(context.CancellationToken, context.GetCommandServices().FileSystem, gitRunner).ConfigureAwait(false);
                     Diag.WriteLifecycle("[DIAG-DIFF] ShowStagedDiffAsync end");
                     break;
                 default:
                     Diag.WriteLifecycle("[DIAG-DIFF] ShowInteractiveDiffAsync start");
-                    await ShowInteractiveDiffAsync(context.Services.TurnDiffProvider, context.CancellationToken, context.Services.FileSystem, gitRunner).ConfigureAwait(false);
+                    await ShowInteractiveDiffAsync(context.GetCommandServices().TurnDiffProvider, context.CancellationToken, context.GetCommandServices().FileSystem, gitRunner).ConfigureAwait(false);
                     Diag.WriteLifecycle("[DIAG-DIFF] ShowInteractiveDiffAsync end");
                     break;
             }

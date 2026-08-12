@@ -1,4 +1,4 @@
-namespace Host.Tests.ChatCommands;
+﻿namespace Host.Tests.ChatCommands;
 
 using JoinCode.Abstractions.Models;
 using JoinCode.Abstractions.Models.Task;
@@ -182,7 +182,7 @@ public sealed class TasksCommandTests
         {
             Arguments = arguments,
             CancellationToken = CancellationToken.None,
-            Services = services,
+            Services = new CommandServiceProvider(services),
         };
     }
 

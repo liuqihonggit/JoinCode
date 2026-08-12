@@ -34,7 +34,7 @@ public sealed class ModelCommand : ChatCommandBase
         var models = catalog.GetModelsForProvider(provider);
         models = catalog.EnsureCurrentModelInList(models, currentModelId);
         var providerName = catalog.GetProviderDisplayName(provider);
-        var effortLevel = context.Services.ExecutionSettingsProvider?.EffortLevel ?? EffortLevel.Auto;
+        var effortLevel = context.GetCommandServices().ExecutionSettingsProvider?.EffortLevel ?? EffortLevel.Auto;
         var isFastModeActive = fastModeService?.IsFastModeActive ?? false;
 
         // 非交互模式或测试环境回退到文本列表模式
@@ -72,6 +72,8 @@ public sealed class ModelCommand : ChatCommandBase
             return count;
         }
 
+        var cmdServices = context.GetCommandServices();
+
         while (!context.CancellationToken.IsCancellationRequested)
         {
             var output = picker.Render(models, selectedIndex, currentModelId, providerName, effortLevel, isFastModeActive);
@@ -102,14 +104,14 @@ public sealed class ModelCommand : ChatCommandBase
                     case ConsoleKey.LeftArrow:
                         // ← 切换 effort 等级 — 对齐 TS effort cycling
                         effortLevel = ModelPicker.CycleEffort(effortLevel == EffortLevel.Auto ? EffortLevel.Medium : effortLevel, forward: false);
-                        if (context.Services.ExecutionSettingsProvider is not null)
-                            context.Services.ExecutionSettingsProvider.EffortLevel = effortLevel;
+                        if (cmdServices.ExecutionSettingsProvider is not null)
+                            cmdServices.ExecutionSettingsProvider.EffortLevel = effortLevel;
                         break;
                     case ConsoleKey.RightArrow:
                         // → 切换 effort 等级 — 对齐 TS effort cycling
                         effortLevel = ModelPicker.CycleEffort(effortLevel == EffortLevel.Auto ? EffortLevel.Medium : effortLevel, forward: true);
-                        if (context.Services.ExecutionSettingsProvider is not null)
-                            context.Services.ExecutionSettingsProvider.EffortLevel = effortLevel;
+                        if (cmdServices.ExecutionSettingsProvider is not null)
+                            cmdServices.ExecutionSettingsProvider.EffortLevel = effortLevel;
                         break;
                     case ConsoleKey.Enter:
                         await ApplyModelSwitchAsync(context, models[selectedIndex].Id).ConfigureAwait(false);
@@ -136,7 +138,7 @@ public sealed class ModelCommand : ChatCommandBase
     private Task<ChatCommandResult> ShowModelInfoAsync(ChatCommandContext context)
     {
         var fastModeService = ChatCommandBase.GetService<IFastModeService>(context, typeof(IFastModeService));
-        var executionSettings = context.Services.ExecutionSettingsProvider;
+        var executionSettings = context.GetCommandServices().ExecutionSettingsProvider;
         var provider = GetCurrentProvider(context);
         var catalog = ResolveModelCatalog(context);
         var providerName = catalog.GetProviderDisplayName(provider);
@@ -192,7 +194,7 @@ public sealed class ModelCommand : ChatCommandBase
 
     private static string GetCurrentProvider(ChatCommandContext context)
     {
-        return context.Services.WorkflowConfig?.Provider?.Vendor
+        return context.GetCommandServices().WorkflowConfig?.Provider?.Vendor
             ?? Environment.GetEnvironmentVariable(JccEnvVar.Vendor.ToValue())
             ?? VendorKind.OpenAi.ToValue();
     }
@@ -231,7 +233,7 @@ public sealed class ModelCommand : ChatCommandBase
         }
 
         // 4. Effort 自动降级检查 — 对齐 TS effortAutoDowngrade
-        var settingsProvider = context.Services.ExecutionSettingsProvider;
+        var settingsProvider = context.GetCommandServices().ExecutionSettingsProvider;
         if (settingsProvider is not null)
         {
             var currentEffort = settingsProvider.EffortLevel;

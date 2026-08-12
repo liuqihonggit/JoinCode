@@ -6,14 +6,14 @@ public sealed class ExportCommand : ChatCommandBase
 {
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
-        var history = await context.Services.ChatService.GetMessageListAsync(context.CancellationToken).ConfigureAwait(false);
+        var history = await context.GetCommandServices().ChatService.GetMessageListAsync(context.CancellationToken).ConfigureAwait(false);
         var content = BuildExportContent(history);
         var args = ChatCommandBase.GetNormalizedArgs(context);
 
         // 对齐 TS: --clipboard 参数 → 复制到剪贴板
         if (args.Equals("--clipboard", StringComparison.OrdinalIgnoreCase))
         {
-            var clipboard = context.Services.ClipboardService;
+            var clipboard = context.GetCommandServices().ClipboardService;
             if (clipboard is not null)
             {
                 await clipboard.SetTextAsync(content, context.CancellationToken).ConfigureAwait(false);
@@ -30,7 +30,7 @@ public sealed class ExportCommand : ChatCommandBase
         // 有文件名参数时直接写文件
         if (!string.IsNullOrEmpty(args) && !args.StartsWith("-"))
         {
-            await WriteToFileAsync(args, content, context.CancellationToken, context.Services.FileSystem).ConfigureAwait(false);
+            await WriteToFileAsync(args, content, context.CancellationToken, context.GetCommandServices().FileSystem).ConfigureAwait(false);
             return ChatCommandResult.Continue();
         }
 
@@ -49,7 +49,7 @@ public sealed class ExportCommand : ChatCommandBase
 
             if (result.SelectedIndex == 1)
             {
-                var clipboard = context.Services.ClipboardService;
+                var clipboard = context.GetCommandServices().ClipboardService;
                 if (clipboard is not null)
                 {
                     await clipboard.SetTextAsync(content, context.CancellationToken).ConfigureAwait(false);
@@ -64,13 +64,13 @@ public sealed class ExportCommand : ChatCommandBase
 
             // 保存到文件
             var defaultFilename = ExtractSmartFilename(history);
-            await WriteToFileAsync(defaultFilename, content, context.CancellationToken, context.Services.FileSystem).ConfigureAwait(false);
+            await WriteToFileAsync(defaultFilename, content, context.CancellationToken, context.GetCommandServices().FileSystem).ConfigureAwait(false);
             return ChatCommandResult.Continue();
         }
 
         // 非交互模式回退：自动保存到文件
         var fallbackFilename = ExtractSmartFilename(history);
-        await WriteToFileAsync(fallbackFilename, content, context.CancellationToken, context.Services.FileSystem).ConfigureAwait(false);
+        await WriteToFileAsync(fallbackFilename, content, context.CancellationToken, context.GetCommandServices().FileSystem).ConfigureAwait(false);
         return ChatCommandResult.Continue();
     }
 

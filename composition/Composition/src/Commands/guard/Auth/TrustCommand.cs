@@ -9,7 +9,7 @@ public sealed class TrustCommand : ChatCommandBase
         if (manager is null)
             return Task.FromResult(ChatCommandResult.Continue());
 
-        var workspacePath = context.Services.FileSystem.GetCurrentDirectory();
+        var workspacePath = context.GetCommandServices().FileSystem.GetCurrentDirectory();
         var args = ChatCommandBase.GetNormalizedArgs(context);
 
         if (string.IsNullOrEmpty(args) || args.Equals("status", StringComparison.OrdinalIgnoreCase))
@@ -28,7 +28,7 @@ public sealed class TrustCommand : ChatCommandBase
         }
         else if (args.Equals("list", StringComparison.OrdinalIgnoreCase))
         {
-            ListAll(manager, context.Services.FileSystem);
+            ListAll(manager, context.GetCommandServices().FileSystem);
         }
         else if (args.Equals("clear", StringComparison.OrdinalIgnoreCase))
         {

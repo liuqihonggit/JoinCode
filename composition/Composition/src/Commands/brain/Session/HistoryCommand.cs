@@ -9,7 +9,7 @@ public sealed class HistoryCommand : ChatCommandBase
 {
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
-        await DisplayMessageListAsync(context.Services.ChatService).ConfigureAwait(false);
+        await DisplayMessageListAsync(context.GetCommandServices().ChatService).ConfigureAwait(false);
         return ChatCommandResult.Continue();
     }
 

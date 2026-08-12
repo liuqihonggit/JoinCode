@@ -25,7 +25,7 @@ public sealed partial class ExecuteCommand : ChatCommandBase
         }
 
         _logger?.LogInformation("正在执行代码...");
-        var result = await context.Services.CodeService.ExecuteCodeAsync(context.Arguments, context.CancellationToken);
+        var result = await context.GetCommandServices().CodeService.ExecuteCodeAsync(context.Arguments, context.CancellationToken);
 
         _logger?.LogInformation("执行结果:\n==============\n{Result}", result);
 

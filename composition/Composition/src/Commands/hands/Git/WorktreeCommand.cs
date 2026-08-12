@@ -6,7 +6,7 @@ public sealed class WorktreeCommand : ChatCommandBase
 {
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
-        if (context.Services.WorktreeService is not { } worktreeService)
+        if (context.GetCommandServices().WorktreeService is not { } worktreeService)
         {
             if (!Core.Utils.TestEnvironmentDetector.IsNonInteractive)
             {
@@ -59,7 +59,7 @@ public sealed class WorktreeCommand : ChatCommandBase
             return;
         }
 
-        var currentDir = context.Services.FileSystem.GetCurrentDirectory();
+        var currentDir = context.GetCommandServices().FileSystem.GetCurrentDirectory();
 
         foreach (var worktreePath in worktrees)
         {
@@ -80,7 +80,7 @@ public sealed class WorktreeCommand : ChatCommandBase
                 }
             }
 
-            if (context.Services.FileSystem.DirectoryExists(worktreePath))
+            if (context.GetCommandServices().FileSystem.DirectoryExists(worktreePath))
             {
                 var hasChanges = await worktreeService.HasUncommittedChangesAsync(worktreePath, context.CancellationToken);
                 if (hasChanges)
@@ -99,7 +99,7 @@ public sealed class WorktreeCommand : ChatCommandBase
     {
         TerminalHelper.WriteLine("=== 清理过期 Worktree ===\n");
 
-        var gitRoot = await worktreeService.FindGitRootAsync(context.Services.FileSystem.GetCurrentDirectory());
+        var gitRoot = await worktreeService.FindGitRootAsync(context.GetCommandServices().FileSystem.GetCurrentDirectory());
         if (string.IsNullOrEmpty(gitRoot))
         {
             TerminalHelper.WriteLine($"{TerminalColors.Error}未找到 Git 仓库根目录{AnsiStyleConstants.Reset}");
@@ -107,7 +107,7 @@ public sealed class WorktreeCommand : ChatCommandBase
         }
 
         var worktreesDir = WorkflowConstants.Paths.GetProjectWorktreesDir(gitRoot);
-        var fs = context.Services.FileSystem;
+        var fs = context.GetCommandServices().FileSystem;
         if (!fs.DirectoryExists(worktreesDir))
         {
             TerminalHelper.WriteLine("没有 worktree 需要清理");
@@ -175,16 +175,16 @@ public sealed class WorktreeCommand : ChatCommandBase
         var session = await worktreeService.GetSessionAsync(agentId);
         if (session is null)
         {
-            var gitRoot = await worktreeService.FindGitRootAsync(context.Services.FileSystem.GetCurrentDirectory());
+            var gitRoot = await worktreeService.FindGitRootAsync(context.GetCommandServices().FileSystem.GetCurrentDirectory());
             if (!string.IsNullOrEmpty(gitRoot))
             {
                 var worktreePath = AgentWorktreeSession.GenerateWorktreePath(gitRoot, agentId);
-                if (context.Services.FileSystem.DirectoryExists(worktreePath))
+                if (context.GetCommandServices().FileSystem.DirectoryExists(worktreePath))
                 {
                     TerminalHelper.WriteLine($"{TerminalColors.Warning}找到未记录的 worktree 目录: {worktreePath}{AnsiStyleConstants.Reset}");
                     if (context.Confirm?.Invoke("是否强制移除？") ?? false)
                     {
-                        context.Services.FileSystem.DeleteDirectory(worktreePath, true);
+                        context.GetCommandServices().FileSystem.DeleteDirectory(worktreePath, true);
                         TerminalHelper.WriteLine($"{TerminalColors.Success}已移除 worktree 目录{AnsiStyleConstants.Reset}");
                         return;
                     }
@@ -311,7 +311,7 @@ public sealed class WorktreeCommand : ChatCommandBase
         TerminalHelper.WriteLine($"  原始目录: {session.OriginalCwd}");
         TerminalHelper.WriteLine($"  创建时间: {session.CreatedAt:yyyy-MM-dd HH:mm:ss}");
 
-        if (context.Services.FileSystem.DirectoryExists(session.WorktreePath))
+        if (context.GetCommandServices().FileSystem.DirectoryExists(session.WorktreePath))
         {
             var hasChanges = await worktreeService.HasUncommittedChangesAsync(session.WorktreePath, context.CancellationToken);
             TerminalHelper.WriteLine($"  未提交更改: {(hasChanges ? "是" : "否")}");

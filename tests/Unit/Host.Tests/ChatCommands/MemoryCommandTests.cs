@@ -1,4 +1,4 @@
-namespace Host.Tests.ChatCommands;
+﻿namespace Host.Tests.ChatCommands;
 
 /// <summary>
 /// MemoryCommand 取值范围测试 — 验证 MemorySubCommand 枚举字面量正确路由
@@ -185,14 +185,14 @@ public sealed class MemoryCommandTests
         {
             Arguments = arguments,
             CancellationToken = CancellationToken.None,
-            Services = new CommandServices
+            Services = new CommandServiceProvider(new CommandServices
             {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
                 // MemoryManagementService 故意保持 null,验证 null 服务兜底
             FileSystem = TestFileSystem.Current,
-            },
+            }),
         };
     }
 }

@@ -23,7 +23,7 @@ public sealed class PlanCommand : ChatCommandBase
                 await ShowPlanStatusAsync(context);
                 break;
                 case PlanSubCommandConstants.Open:
-                await OpenPlanFileAsync(context, context.Services.FileSystem).ConfigureAwait(false);
+                await OpenPlanFileAsync(context, context.GetCommandServices().FileSystem).ConfigureAwait(false);
                 break;
             case PlanSubCommandConstants.Toggle:
             default:
@@ -191,7 +191,7 @@ public sealed class PlanCommand : ChatCommandBase
 
     private static async Task FallbackExecutePlanAsync(ChatCommandContext context, string description)
     {
-        if (context.Services.PlanService is null)
+        if (context.GetCommandServices().PlanService is null)
         {
             TerminalHelper.WriteLine("PlanService 不可用");
             return;
@@ -203,7 +203,7 @@ public sealed class PlanCommand : ChatCommandBase
             return;
         }
 
-        var result = await context.Services.PlanService.ExecutePlanAsync(description, context.CancellationToken).ConfigureAwait(false);
+        var result = await context.GetCommandServices().PlanService.ExecutePlanAsync(description, context.CancellationToken).ConfigureAwait(false);
         TerminalHelper.WriteLine(result);
     }
 

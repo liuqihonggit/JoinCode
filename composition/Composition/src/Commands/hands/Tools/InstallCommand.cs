@@ -45,7 +45,7 @@ public sealed class InstallCommand : ChatCommandBase
 
         try
         {
-            var result = await context.Services.ChatService.SendMessageAsync(prompt, context.CancellationToken).ConfigureAwait(false);
+            var result = await context.GetCommandServices().ChatService.SendMessageAsync(prompt, context.CancellationToken).ConfigureAwait(false);
             TerminalHelper.WriteLine(result);
         }
         catch (OperationCanceledException)

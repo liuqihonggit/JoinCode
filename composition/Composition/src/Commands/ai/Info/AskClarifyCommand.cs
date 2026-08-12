@@ -1,4 +1,4 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /?? 命令 (别名 /ask) — 需求澄清模式
@@ -27,7 +27,7 @@ public sealed class AskClarifyCommand : ChatCommandBase
     /// <inheritdoc/>
     public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
-        var chatService = context.Services.ChatService;
+        var chatService = context.GetCommandServices().ChatService;
 
         var bufferedOut = TerminalHelper.Out;
         var realStdout = new StreamWriter(Console.OpenStandardOutput(), Console.OutputEncoding) { AutoFlush = true };

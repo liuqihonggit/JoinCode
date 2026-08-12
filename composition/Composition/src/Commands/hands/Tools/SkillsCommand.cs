@@ -1,4 +1,4 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Skills, Description = "查看可用技能（自定义命令）", Usage = "/skills [info <skill-name>]", Category = ChatCommandCategory.Tools)]
 public sealed class SkillsCommand : IChatCommand
@@ -136,7 +136,7 @@ public sealed class SkillsCommand : IChatCommand
     private static List<CustomCommand> GetCustomCommands(ChatCommandContext context)
     {
         var commands = new List<CustomCommand>();
-        var registry = context.Services.CommandRegistry;
+        var registry = context.GetCommandServices().CommandRegistry;
         if (registry is null) return commands;
 
         foreach (var (_, cmd) in registry.GetAllCommands())

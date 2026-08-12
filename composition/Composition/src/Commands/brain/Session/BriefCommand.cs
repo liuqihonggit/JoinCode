@@ -1,4 +1,4 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Brief, Description = "切换简要消息模式", Usage = "/brief [on|off]", Category = ChatCommandCategory.Session)]
 public sealed class BriefCommand : ToggleCommandBase
@@ -23,7 +23,7 @@ public sealed class BriefCommand : ToggleCommandBase
 
     protected override async Task OnEnabledAsync(ChatCommandContext context)
     {
-        var briefModeService = context.Services.BriefModeService;
+        var briefModeService = context.GetCommandServices().BriefModeService;
         if (briefModeService is null) return;
 
         var entitlementService = GetService<IEntitlementService>(context, typeof(IEntitlementService));
@@ -45,7 +45,7 @@ public sealed class BriefCommand : ToggleCommandBase
 
     protected override async Task OnDisabledAsync(ChatCommandContext context)
     {
-        var briefModeService = context.Services.BriefModeService;
+        var briefModeService = context.GetCommandServices().BriefModeService;
         if (briefModeService is null) return;
 
         var previousState = briefModeService.IsEnabled;
@@ -60,7 +60,7 @@ public sealed class BriefCommand : ToggleCommandBase
 
     protected override async Task OnToggleAsync(ChatCommandContext context)
     {
-        var briefModeService = context.Services.BriefModeService;
+        var briefModeService = context.GetCommandServices().BriefModeService;
         if (briefModeService is null) return;
 
         var entitlementService = GetService<IEntitlementService>(context, typeof(IEntitlementService));
@@ -86,7 +86,7 @@ public sealed class BriefCommand : ToggleCommandBase
 
     protected override Task PrintStatusAsync(ChatCommandContext context)
     {
-        var service = context.Services.BriefModeService;
+        var service = context.GetCommandServices().BriefModeService;
         if (service is null) return Task.CompletedTask;
 
         if (service.IsEnabled)

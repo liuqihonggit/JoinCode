@@ -7,7 +7,7 @@ public sealed class TagCommand : ChatCommandBase
     public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetNormalizedArgs(context);
-        var tagService = context.Services.SessionTagService;
+        var tagService = context.GetCommandServices().SessionTagService;
 
         if (string.IsNullOrEmpty(args) || args.Equals("list", StringComparison.OrdinalIgnoreCase))
         {

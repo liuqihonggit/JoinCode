@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Tests.ChatCommands;
 
 public class GenerateCommandTests
@@ -21,13 +21,13 @@ public class GenerateCommandTests
         var context = new ChatCommandContext {
             Arguments = "",
             CancellationToken = CancellationToken.None,
-             Services = new CommandServices
+             Services = new CommandServiceProvider(new CommandServices
              {
                 ChatService = null!,
                 CodeService = _codeServiceMock.Object,
                 PlanService = null!,
              FileSystem = TestFileSystem.Current,
-             },
+             }),
         };
 
         // Act
@@ -59,13 +59,13 @@ public class GenerateCommandTests
         var context = new ChatCommandContext {
             Arguments = arguments,
             CancellationToken = CancellationToken.None,
-             Services = new CommandServices
+             Services = new CommandServiceProvider(new CommandServices
              {
                 ChatService = null!,
                 CodeService = _codeServiceMock.Object,
                 PlanService = null!,
              FileSystem = TestFileSystem.Current,
-             },
+             }),
         };
 
         // Act

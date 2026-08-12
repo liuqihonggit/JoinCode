@@ -33,4 +33,7 @@ public interface IGoalRegistry
 
     /// <summary>清除当前目标</summary>
     Task ClearAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>设置会话隔离标识 — 持久化按 {baseDir}/{sessionId}/{goalId}.json 隔离</summary>
+    void SetSessionId(string sessionId);
 }

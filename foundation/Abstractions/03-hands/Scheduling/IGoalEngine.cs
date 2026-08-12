@@ -49,4 +49,7 @@ public interface IGoalEngine
 
     /// <summary>是否已有 Graph 定义</summary>
     bool HasGraphDefinition { get; }
+
+    /// <summary>设置会话隔离标识 — 持久化按 {baseDir}/{sessionId}/{goalId}.json 隔离</summary>
+    void SetSessionId(string sessionId);
 }

@@ -63,6 +63,9 @@ public sealed class CliSession
         _sessionEntity = new Session();
         _sessionObjectId = _sessionEntity.ObjectId;
 
+        _optionalServices?.GoalEngine?.SetSessionId(_sessionObjectId.UniqueId);
+        _optionalServices?.GoalRegistry?.SetSessionId(_sessionObjectId.UniqueId);
+
         _controller = new SessionController(
             chatService,
             new CliEventConsumer(),

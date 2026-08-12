@@ -11,6 +11,7 @@ public sealed class GoalRegistryTests : IDisposable
     private readonly string _tempDir = Path.Combine(Path.GetTempPath(), "jcc-goal-registry-" + Guid.NewGuid().ToString("N")[..8]);
     private readonly ServiceProvider _serviceProvider;
     private readonly GoalStateStore _store;
+    private const string SessionId = "test-session-registry";
 
     public GoalRegistryTests()
     {
@@ -37,6 +38,7 @@ public sealed class GoalRegistryTests : IDisposable
             GoalId = goalId,
             Objective = objective,
             Status = GoalStatus.Pursuing,
+            SessionId = SessionId,
             PersistedHistory =
             [
                 new ApiMessageDocument { Role = "user", Content = objective }
@@ -46,13 +48,23 @@ public sealed class GoalRegistryTests : IDisposable
         return state;
     }
 
+    /// <summary>
+    /// 创建已设置 sessionId 的 PersistentGoalRegistry。
+    /// </summary>
+    private PersistentGoalRegistry CreateRegistry()
+    {
+        var registry = new PersistentGoalRegistry(_serviceProvider, _store);
+        registry.SetSessionId(SessionId);
+        return registry;
+    }
+
     [Fact]
     public async Task RehydrateAllAsync_TwoActiveGoals_RestoresBoth()
     {
         await SeedGoalAsync("goal-a", "实现功能A");
         await SeedGoalAsync("goal-b", "实现功能B");
 
-        var registry = new PersistentGoalRegistry(_serviceProvider, _store);
+        var registry = CreateRegistry();
         await registry.RehydrateAllAsync(CancellationToken.None);
 
         var active = await registry.ListActiveGoalsAsync(CancellationToken.None);
@@ -66,7 +78,7 @@ public sealed class GoalRegistryTests : IDisposable
         await SeedGoalAsync("goal-first", "第一个目标");
         await SeedGoalAsync("goal-second", "第二个目标");
 
-        var registry = new PersistentGoalRegistry(_serviceProvider, _store);
+        var registry = CreateRegistry();
         await registry.RehydrateAllAsync(CancellationToken.None);
 
         registry.CurrentEngine.Should().NotBeNull();
@@ -79,7 +91,7 @@ public sealed class GoalRegistryTests : IDisposable
         await SeedGoalAsync("goal-x", "目标X");
         await SeedGoalAsync("goal-y", "目标Y");
 
-        var registry = new PersistentGoalRegistry(_serviceProvider, _store);
+        var registry = CreateRegistry();
         await registry.RehydrateAllAsync(CancellationToken.None);
 
         var switched = registry.SetCurrent("goal-y");
@@ -96,7 +108,7 @@ public sealed class GoalRegistryTests : IDisposable
     {
         await SeedGoalAsync("goal-real", "真实目标");
 
-        var registry = new PersistentGoalRegistry(_serviceProvider, _store);
+        var registry = CreateRegistry();
         await registry.RehydrateAllAsync(CancellationToken.None);
 
         registry.SetCurrent("goal-nonexistent").Should().BeFalse();
@@ -108,7 +120,7 @@ public sealed class GoalRegistryTests : IDisposable
         await SeedGoalAsync("goal-get-1", "目标1");
         await SeedGoalAsync("goal-get-2", "目标2");
 
-        var registry = new PersistentGoalRegistry(_serviceProvider, _store);
+        var registry = CreateRegistry();
         await registry.RehydrateAllAsync(CancellationToken.None);
 
         var engine1 = registry.GetEngine("goal-get-1");
@@ -122,7 +134,7 @@ public sealed class GoalRegistryTests : IDisposable
     [Fact]
     public async Task RehydrateAllAsync_EmptyStore_NoOp()
     {
-        var registry = new PersistentGoalRegistry(_serviceProvider, _store);
+        var registry = CreateRegistry();
         await registry.RehydrateAllAsync(CancellationToken.None);
 
         registry.CurrentEngine.Should().BeNull();
@@ -133,6 +145,7 @@ public sealed class GoalRegistryTests : IDisposable
     public async Task RehydrateAllAsync_NoStore_NoOp()
     {
         var registry = new PersistentGoalRegistry(_serviceProvider, stateStore: null);
+        registry.SetSessionId(SessionId);
         await registry.RehydrateAllAsync(CancellationToken.None);
 
         registry.CurrentEngine.Should().BeNull();

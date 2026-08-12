@@ -29,10 +29,20 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
     private GoalGraph? _goalGraph;
     private GoalGraphEngine? _graphEngine;
     [Inject] private readonly IGoalStateStore? _stateStore = null;
+    private string? _sessionId;
 
     public GoalState? CurrentState => _state;
     public bool IsRunning => _state?.Status == GoalStatus.Pursuing;
     public bool HasGraphDefinition => _goalGraph is not null;
+
+    /// <summary>
+    /// 设置会话隔离标识 — 由 CliSession 启动时调用，持久化按 {baseDir}/{sessionId}/{goalId}.json 隔离。
+    /// </summary>
+    public void SetSessionId(string sessionId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+        _sessionId = sessionId;
+    }
 
     /// <summary>
     /// 等待目标引擎循环退出（完成、预算耗尽、暂停、清除等）。
@@ -663,6 +673,8 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
             return;
         try
         {
+            if (_sessionId is not null)
+                _state.SessionId = _sessionId;
             _state.PersistedHistory = [.. _chatHistory.Select(m => new ApiMessageDocument
             {
                 Role = m.Role.ToString().ToLowerInvariant(),
@@ -682,17 +694,17 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
     /// </summary>
     public async Task RehydrateAsync(CancellationToken cancellationToken = default, string? goalId = null)
     {
-        if (_stateStore is null) return;
+        if (_stateStore is null || _sessionId is null) return;
         try
         {
             GoalState? target;
             if (goalId is not null)
             {
-                target = await _stateStore.LoadAsync(goalId, cancellationToken).ConfigureAwait(false);
+                target = await _stateStore.LoadAsync(_sessionId, goalId, cancellationToken).ConfigureAwait(false);
             }
             else
             {
-                var activeGoals = await _stateStore.GetActiveGoalsAsync(cancellationToken).ConfigureAwait(false);
+                var activeGoals = await _stateStore.GetActiveGoalsAsync(_sessionId, cancellationToken).ConfigureAwait(false);
                 target = activeGoals.Count > 0 ? activeGoals[0] : null;
             }
 

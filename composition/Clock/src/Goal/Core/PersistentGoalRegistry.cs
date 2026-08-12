@@ -14,6 +14,7 @@ public sealed partial class PersistentGoalRegistry : IGoalRegistry
     [Inject] private readonly ILogger<PersistentGoalRegistry>? _logger;
     private readonly SemaphoreSlim _lock = new(1, 1);
     private string? _currentGoalId;
+    private string? _sessionId;
 
     public PersistentGoalRegistry(
         IServiceProvider serviceProvider,
@@ -26,12 +27,21 @@ public sealed partial class PersistentGoalRegistry : IGoalRegistry
     }
 
     /// <inheritdoc />
+    public void SetSessionId(string sessionId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+        _sessionId = sessionId;
+    }
+
+    /// <inheritdoc />
     public IGoalEngine? CurrentEngine => _currentGoalId is not null && _engines.TryGetValue(_currentGoalId, out var e) ? e : null;
 
     /// <inheritdoc />
     public async Task<GoalState> StartAsync(string objective, List<string>? constraints = null, int? tokenBudget = null, CancellationToken cancellationToken = default)
     {
         var engine = CreateEngine();
+        if (_sessionId is not null)
+            engine.SetSessionId(_sessionId);
         var state = await engine.StartAsync(objective, constraints, tokenBudget, cancellationToken: cancellationToken).ConfigureAwait(false);
 
         await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -83,10 +93,10 @@ public sealed partial class PersistentGoalRegistry : IGoalRegistry
     /// <inheritdoc />
     public async Task RehydrateAllAsync(CancellationToken cancellationToken = default)
     {
-        if (_stateStore is null) return;
+        if (_stateStore is null || _sessionId is null) return;
         try
         {
-            var activeGoals = await _stateStore.GetActiveGoalsAsync(cancellationToken).ConfigureAwait(false);
+            var activeGoals = await _stateStore.GetActiveGoalsAsync(_sessionId, cancellationToken).ConfigureAwait(false);
             if (activeGoals.Count == 0) return;
 
             await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -96,6 +106,7 @@ public sealed partial class PersistentGoalRegistry : IGoalRegistry
                 {
                     if (_engines.ContainsKey(state.GoalId)) continue;
                     var engine = CreateEngine();
+                    engine.SetSessionId(_sessionId);
                     await engine.RehydrateAsync(cancellationToken, state.GoalId).ConfigureAwait(false);
                     _engines[state.GoalId] = engine;
                 }

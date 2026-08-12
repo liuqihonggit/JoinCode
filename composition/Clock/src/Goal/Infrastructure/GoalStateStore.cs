@@ -5,8 +5,8 @@ using JoinCode.Abstractions.Interfaces.Scheduling;
 using JoinCode.Abstractions.Models.Goal;
 
 /// <summary>
-/// 目标状态持久化存储 — JSON 文件实现，原子写入，AOT 兼容。
-/// 路径: {baseDir}/{goalId}.json
+/// 目标状态持久化存储 — JSON 文件实现，按 sessionId 隔离，原子写入，AOT 兼容。
+/// 路径: {baseDir}/{sessionId}/{goalId}.json
 /// </summary>
 [Register]
 public sealed class GoalStateStore : IGoalStateStore
@@ -25,9 +25,9 @@ public sealed class GoalStateStore : IGoalStateStore
     /// <summary>
     /// 加载目标状态（不存在返回 null）
     /// </summary>
-    public async Task<GoalState?> LoadAsync(string goalId, CancellationToken cancellationToken = default)
+    public async Task<GoalState?> LoadAsync(string sessionId, string goalId, CancellationToken cancellationToken = default)
     {
-        var path = GetPath(goalId);
+        var path = GetPath(sessionId, goalId);
         if (!_fs.FileExists(path))
             return null;
 
@@ -36,42 +36,44 @@ public sealed class GoalStateStore : IGoalStateStore
     }
 
     /// <summary>
-    /// 保存目标状态（原子写入：临时文件 + 重命名）
+    /// 保存目标状态（原子写入：临时文件 + 重命名）。state.SessionId 确定隔离目录。
     /// </summary>
     public async Task SaveAsync(GoalState state, CancellationToken cancellationToken = default)
     {
-        _fs.CreateDirectory(_baseDir);
-        var path = GetPath(state.GoalId);
+        var sessionDir = GetSessionDir(state.SessionId);
+        _fs.CreateDirectory(sessionDir);
+        var path = _fs.CombinePath(sessionDir, $"{state.GoalId}.json");
         var json = JsonSerializer.Serialize(state, GoalJsonContext.Default.GoalState);
 
         var tempPath = path + ".tmp";
         await _fs.WriteAllTextAsync(tempPath, json, cancellationToken).ConfigureAwait(false);
         _fs.MoveFile(tempPath, path, overwrite: true);
 
-        _logger?.LogDebug("[GoalStateStore] 保存目标状态: {GoalId} ({Status})", state.GoalId, state.Status);
+        _logger?.LogDebug("[GoalStateStore] 保存目标状态: {GoalId} (会话: {SessionId}, 状态: {Status})", state.GoalId, state.SessionId, state.Status);
     }
 
     /// <summary>
     /// 删除目标状态
     /// </summary>
-    public Task DeleteAsync(string goalId, CancellationToken cancellationToken = default)
+    public Task DeleteAsync(string sessionId, string goalId, CancellationToken cancellationToken = default)
     {
-        var path = GetPath(goalId);
+        var path = GetPath(sessionId, goalId);
         if (_fs.FileExists(path))
             _fs.DeleteFile(path);
         return Task.CompletedTask;
     }
 
     /// <summary>
-    /// 获取所有未完成的目标（Status=Pursuing 或 Paused）
+    /// 获取指定会话的所有未完成目标（Status=Pursuing 或 Paused）
     /// </summary>
-    public async Task<IReadOnlyList<GoalState>> GetActiveGoalsAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<GoalState>> GetActiveGoalsAsync(string sessionId, CancellationToken cancellationToken = default)
     {
-        if (!_fs.DirectoryExists(_baseDir))
+        var sessionDir = GetSessionDir(sessionId);
+        if (!_fs.DirectoryExists(sessionDir))
             return [];
 
         var result = new List<GoalState>();
-        foreach (var file in _fs.EnumerateFiles(_baseDir, "*.json", SearchOption.TopDirectoryOnly))
+        foreach (var file in _fs.EnumerateFiles(sessionDir, "*.json", SearchOption.TopDirectoryOnly))
         {
             cancellationToken.ThrowIfCancellationRequested();
             try
@@ -89,5 +91,6 @@ public sealed class GoalStateStore : IGoalStateStore
         return result;
     }
 
-    private string GetPath(string goalId) => _fs.CombinePath(_baseDir, $"{goalId}.json");
+    private string GetSessionDir(string sessionId) => _fs.CombinePath(_baseDir, sessionId);
+    private string GetPath(string sessionId, string goalId) => _fs.CombinePath(GetSessionDir(sessionId), $"{goalId}.json");
 }

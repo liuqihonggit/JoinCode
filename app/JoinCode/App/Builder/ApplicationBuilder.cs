@@ -284,6 +284,7 @@ public sealed class ApplicationBuilder
             DryRun = result.DryRun,
             Yes = result.Yes,
             Force = result.Force,
+            Quiet = result.Quiet,
         };
 
         // --await N: 超时自动关闭秒数

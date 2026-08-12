@@ -91,4 +91,7 @@ public enum CliArg
 
     [CliOption("--force", "", "强制执行：跳过权限检查和确认（等价于 --dangerously-skip-permissions 的轻量版）", Category = "权限", RiskLevel = "dangerous")]
     Force,
+
+    [CliOption("--quiet", "-q", "静默模式：只输出错误信息，抑制正常输出", Category = "输出")]
+    Quiet,
 }

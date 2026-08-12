@@ -7,6 +7,15 @@ class Program
 {
     static async Task<int> Main(string[] args)
     {
+        // 密钥红线检查 — 禁止在命令行参数中传递 API Key
+        var secretWarning = Cli.Output.ApiKeyRedLine.CheckArgsForSecrets(args);
+        if (secretWarning is not null)
+        {
+            Cli.TerminalHelper.Init();
+            App.ErrorConsole.Warning(secretWarning);
+            return (int)ExitCode.ArgumentParseError;
+        }
+
         Cli.TerminalHelper.Init();
         JoinCode.Abstractions.Shell.CommandTerminal.SetConsole(new CliCommandConsole());
         ILogger<Program>? logger = null;

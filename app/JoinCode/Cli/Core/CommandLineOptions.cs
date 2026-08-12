@@ -204,4 +204,10 @@ public class CommandLineOptions {
     /// 对齐架构指南安全设计：dangerous 级操作需复核，--force 跳过复核
     /// </summary>
     public bool Force { get; set; }
+
+    /// <summary>
+    /// 静默模式（--quiet / -q 参数）— 只输出错误信息，抑制正常输出
+    /// 对齐架构指南 AX 模式：最小化输出
+    /// </summary>
+    public bool Quiet { get; set; }
 }

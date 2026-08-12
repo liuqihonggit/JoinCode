@@ -59,14 +59,27 @@ public sealed class CmdContext
     // === 转换到原上下文 ===
 
     /// <summary>转换为 ChatCommandContext（斜杠命令执行用）</summary>
-    public ChatCommandContext ToSlashContext() => new()
+    public ChatCommandContext ToSlashContext()
     {
-        Arguments = Arguments,
-        CancellationToken = CancellationToken,
-        Services = Services ?? throw new InvalidOperationException("CmdContext.Services 未设置，无法执行斜杠命令"),
-        SessionId = SessionId,
-        SessionStartedAt = SessionStartedAt,
-    };
+        // 如果 Arguments 为空但 JsonArgs 有 "arguments" 字段，从中提取（LLM 调斜杠命令时参数是 JSON）
+        var arguments = Arguments;
+        if (string.IsNullOrEmpty(arguments)
+            && JsonArgs is not null
+            && JsonArgs.TryGetValue("arguments", out var argElement)
+            && argElement.ValueKind == JsonValueKind.String)
+        {
+            arguments = argElement.GetString() ?? "";
+        }
+
+        return new ChatCommandContext
+        {
+            Arguments = arguments,
+            CancellationToken = CancellationToken,
+            Services = Services ?? throw new InvalidOperationException("CmdContext.Services 未设置，无法执行斜杠命令"),
+            SessionId = SessionId,
+            SessionStartedAt = SessionStartedAt,
+        };
+    }
 
     /// <summary>获取 MCP 参数</summary>
     public Dictionary<string, JsonElement> ToMcpArgs() => JsonArgs ?? [];

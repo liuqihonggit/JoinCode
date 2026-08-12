@@ -39,6 +39,8 @@ public sealed partial class ChatToolOrchestrator : ServiceEntity, IChatToolOrche
 {
     private readonly IToolRegistry? _toolRegistry;
     private readonly IToolExecutionGateway? _toolExecutionGateway;
+    private readonly ICmdMap? _cmdMap;
+    private readonly IServiceProvider? _serviceProvider;
     [Inject] private readonly ILogger<ChatToolOrchestrator>? _logger;
 
     /// <summary>
@@ -47,10 +49,14 @@ public sealed partial class ChatToolOrchestrator : ServiceEntity, IChatToolOrche
     public ChatToolOrchestrator(
         IToolRegistry? toolRegistry = null,
         IToolExecutionGateway? toolExecutionGateway = null,
+        ICmdMap? cmdMap = null,
+        IServiceProvider? serviceProvider = null,
         ILogger<ChatToolOrchestrator>? logger = null)
     {
         _toolRegistry = toolRegistry;
         _toolExecutionGateway = toolExecutionGateway;
+        _cmdMap = cmdMap;
+        _serviceProvider = serviceProvider;
         _logger = logger;
     }
 
@@ -71,7 +77,7 @@ public sealed partial class ChatToolOrchestrator : ServiceEntity, IChatToolOrche
         Dictionary<string, JsonElement>? toolCallArguments,
         CancellationToken ct)
     {
-        if (_toolExecutionGateway is null)
+        if (_toolExecutionGateway is null && _cmdMap is null)
         {
             return new ToolCallResult
             {
@@ -83,6 +89,40 @@ public sealed partial class ChatToolOrchestrator : ServiceEntity, IChatToolOrche
         try
         {
             var arguments = toolCallArguments ?? new Dictionary<string, JsonElement>();
+
+            // 先检查是否是斜杠命令（通过 CmdMap）— AI 调 ExposeToMcp=true 的斜杠命令时走此路径
+            if (_cmdMap is not null && _serviceProvider is not null)
+            {
+                var descriptor = await _cmdMap.ResolveAsync(toolCallName, ct).ConfigureAwait(false);
+                if (descriptor is { Source: CmdSource.Slash })
+                {
+                    var cmdCtx = new CmdContext
+                    {
+                        CancellationToken = ct,
+                        TriggerSource = CmdSource.Mcp,
+                        JsonArgs = arguments,
+                        Services = _serviceProvider,
+                    };
+                    var cmdResult = await descriptor.ExecuteAsync(cmdCtx).ConfigureAwait(false);
+
+                    var sb = new StringBuilder();
+                    foreach (var c in cmdResult.Content)
+                    {
+                        if (string.IsNullOrEmpty(c.Text)) continue;
+                        if (sb.Length > 0) sb.Append('\n');
+                        sb.Append(c.Text);
+                    }
+
+                    _logger?.LogInformation("[ChatToolOrchestrator] 斜杠命令调用: {ToolName} → {Result}",
+                        toolCallName, cmdResult.IsError ? "ERROR" : "OK");
+
+                    return new ToolCallResult
+                    {
+                        ResultText = sb.ToString(),
+                        IsError = cmdResult.IsError,
+                    };
+                }
+            }
 
             string? argumentRepairHint = null;
             if (arguments.Count > 0 && _toolRegistry is not null)
@@ -100,6 +140,15 @@ public sealed partial class ChatToolOrchestrator : ServiceEntity, IChatToolOrche
             }
 
             var combinedRepairHint = argumentRepairHint;
+
+            if (_toolExecutionGateway is null)
+            {
+                return new ToolCallResult
+                {
+                    ResultText = FormatToolError($"工具执行网关不可用: {toolCallName}"),
+                    IsError = true
+                };
+            }
 
             var toolResult = await _toolExecutionGateway.ExecuteAsync(toolCallName, arguments ?? new Dictionary<string, JsonElement>(), ct).ConfigureAwait(false);
 

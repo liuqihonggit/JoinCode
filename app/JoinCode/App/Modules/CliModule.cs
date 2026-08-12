@@ -29,6 +29,22 @@ public sealed class CliModule : IAppModule
         });
     }
 
-    public Task ConfigureAsync(IServiceProvider services, CancellationToken ct)
-        => Task.CompletedTask;
+    public async Task ConfigureAsync(IServiceProvider services, CancellationToken ct)
+    {
+        // 将 ExposeToMcp=true 的斜杠命令注册为 MCP 工具（通过 SlashToMcpAdapter 包装）
+        // 这样 LLM 能通过现有 MCP 管线发现和调用斜杠命令
+        var commandRegistry = services.GetService<ChatCommandRegistry>();
+        var toolRegistry = services.GetService<IToolRegistry>();
+        if (commandRegistry is not null && toolRegistry is not null)
+        {
+            foreach (var kvp in commandRegistry.GetAllCommands())
+            {
+                if (kvp.Value is ChatCommandBase { ExposeToMcp: true } cmd)
+                {
+                    var adapter = new SlashToMcpAdapter(cmd, services, cmd.Kind);
+                    await toolRegistry.RegisterToolAsync(adapter, ct).ConfigureAwait(false);
+                }
+            }
+        }
+    }
 }

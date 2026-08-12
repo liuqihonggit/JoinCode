@@ -14,4 +14,7 @@ public enum ToolKind
 
     /// <summary>报错时动态注入 — 不出现在首次提示词，仅留函数名；首次报错时自动弹出工具说明</summary>
     [EnumValue("on_error")] OnError,
+
+    /// <summary>斜杠命令 — 用户日常操作，默认不注入 AI 提示词，AI 可通过 tool_search 动态发现</summary>
+    [EnumValue("slash")] Slash,
 }

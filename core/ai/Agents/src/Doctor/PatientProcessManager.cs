@@ -328,7 +328,7 @@ public sealed class PatientProcessManager : IAsyncDisposable
             var state = exitCode switch
             {
                 0 => PatientState.Completed,
-                1234 => PatientState.Hung,
+                (int)ExitCode.AwaitTimeout => PatientState.Hung,
                 _ => PatientState.Failed
             };
 
@@ -385,7 +385,7 @@ public sealed class PatientProcessManager : IAsyncDisposable
                 var state = exitCode switch
                 {
                     0 => PatientState.Completed,
-                    1234 => PatientState.Hung,
+                    (int)ExitCode.AwaitTimeout => PatientState.Hung,
                     _ => PatientState.Failed
                 };
 

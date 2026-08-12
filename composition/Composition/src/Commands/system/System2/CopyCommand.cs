@@ -6,7 +6,7 @@ public sealed class CopyCommand : ChatCommandBase
 {
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
-        var clipboardService = context.Services.ClipboardService;
+        var clipboardService = context.GetCommandServices().ClipboardService;
         if (clipboardService is null)
         {
             if (!Core.Utils.TestEnvironmentDetector.IsNonInteractive)
@@ -20,7 +20,7 @@ public sealed class CopyCommand : ChatCommandBase
 
         try
         {
-            var history = await context.Services.ChatService.GetMessageListAsync(context.CancellationToken).ConfigureAwait(false);
+            var history = await context.GetCommandServices().ChatService.GetMessageListAsync(context.CancellationToken).ConfigureAwait(false);
             // 对齐 TS: 只收集有文本内容的助手消息（跳过纯工具调用轮次）
             var assistantMessages = history.Where(m =>
                 m.Role.Equals(MessageRoleConstants.Assistant, StringComparison.OrdinalIgnoreCase) &&
@@ -47,13 +47,13 @@ public sealed class CopyCommand : ChatCommandBase
                 }
 
                 var message = assistantMessages[^n];
-                await CopyWithFallbackAsync(clipboardService, message.Content, "response.md", context.CancellationToken, context.Services.FileSystem).ConfigureAwait(false);
+                await CopyWithFallbackAsync(clipboardService, message.Content, "response.md", context.CancellationToken, context.GetCommandServices().FileSystem).ConfigureAwait(false);
             }
             else
             {
                 // 默认复制最新助手消息
                 var lastMessage = assistantMessages[^1];
-                await CopyWithFallbackAsync(clipboardService, lastMessage.Content, "response.md", context.CancellationToken, context.Services.FileSystem).ConfigureAwait(false);
+                await CopyWithFallbackAsync(clipboardService, lastMessage.Content, "response.md", context.CancellationToken, context.GetCommandServices().FileSystem).ConfigureAwait(false);
             }
         }
         catch (PlatformNotSupportedException)
@@ -97,7 +97,7 @@ public sealed class CopyCommand : ChatCommandBase
 
     private static async Task CopyCodeBlockAsync(ChatCommandContext context, List<ApiMessageRecord> assistantMessages)
     {
-        var clipboardService = context.Services.ClipboardService ?? throw new InvalidOperationException("ClipboardService not available");
+        var clipboardService = context.GetCommandServices().ClipboardService ?? throw new InvalidOperationException("ClipboardService not available");
 
         foreach (var message in assistantMessages.AsEnumerable().Reverse())
         {
@@ -118,7 +118,7 @@ public sealed class CopyCommand : ChatCommandBase
             var ext = GetFileExtension(langSpan);
             var filename = $"copy{ext}";
 
-            await CopyWithFallbackAsync(clipboardService, code, filename, context.CancellationToken, context.Services.FileSystem).ConfigureAwait(false);
+            await CopyWithFallbackAsync(clipboardService, code, filename, context.CancellationToken, context.GetCommandServices().FileSystem).ConfigureAwait(false);
             return;
         }
 

@@ -22,7 +22,7 @@ public sealed class AddDirCommand : ChatCommandBase
             pathPart = args[..^11].Trim();
         }
 
-        if (!context.Services.FileSystem.DirectoryExists(pathPart))
+        if (!context.GetCommandServices().FileSystem.DirectoryExists(pathPart))
         {
             TerminalHelper.WriteLine($"目录不存在: {pathPart}");
             return ChatCommandResult.Continue();
@@ -30,7 +30,7 @@ public sealed class AddDirCommand : ChatCommandBase
 
         var fullPath = Path.GetFullPath(pathPart);
 
-        var workspaceService = context.Services.WorkspaceService;
+        var workspaceService = context.GetCommandServices().WorkspaceService;
         if (workspaceService is null)
         {
             if (!Core.Utils.TestEnvironmentDetector.IsNonInteractive)
@@ -105,7 +105,7 @@ public sealed class AddDirCommand : ChatCommandBase
 
     private static void ShowCurrentDirectories(ChatCommandContext context)
     {
-        var workspaceService = context.Services.WorkspaceService;
+        var workspaceService = context.GetCommandServices().WorkspaceService;
         if (workspaceService is null) return;
 
         var dirs = workspaceService.GetAdditionalDirectories();

@@ -1,4 +1,4 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /rewind 命令 - 撤回对话历史
@@ -21,17 +21,17 @@ public sealed class RewindCommand : ChatCommandBase
 
         if (string.IsNullOrEmpty(arg) || arg == "last")
         {
-            result = await context.Services.ChatService.RewindLastTurnAsync(context.CancellationToken).ConfigureAwait(false);
+            result = await context.GetCommandServices().ChatService.RewindLastTurnAsync(context.CancellationToken).ConfigureAwait(false);
             PrintResult("最后一轮对话 (SP-3)", result);
         }
         else if (arg == "all")
         {
-            result = await context.Services.ChatService.RewindToStartAsync(context.CancellationToken).ConfigureAwait(false);
+            result = await context.GetCommandServices().ChatService.RewindToStartAsync(context.CancellationToken).ConfigureAwait(false);
             PrintResult("会话初始状态 (SP-0)", result);
         }
         else if (int.TryParse(arg, out var index))
         {
-            result = await context.Services.ChatService.RewindToMessageIndexAsync(index, context.CancellationToken).ConfigureAwait(false);
+            result = await context.GetCommandServices().ChatService.RewindToMessageIndexAsync(index, context.CancellationToken).ConfigureAwait(false);
             PrintResult($"消息索引 {index} (SP-5)", result);
         }
         else

@@ -1,4 +1,4 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Simple, Description = "切换精简模式", Usage = "/simple", Category = ChatCommandCategory.Other)]
 public sealed class SimpleCommand : ToggleCommandBase
@@ -10,25 +10,25 @@ public sealed class SimpleCommand : ToggleCommandBase
 
     protected override Task OnEnabledAsync(ChatCommandContext context)
     {
-        context.Services.SimpleModeService?.Enable();
+        context.GetCommandServices().SimpleModeService?.Enable();
         return Task.CompletedTask;
     }
 
     protected override Task OnDisabledAsync(ChatCommandContext context)
     {
-        context.Services.SimpleModeService?.Disable();
+        context.GetCommandServices().SimpleModeService?.Disable();
         return Task.CompletedTask;
     }
 
     protected override Task OnToggleAsync(ChatCommandContext context)
     {
-        context.Services.SimpleModeService?.Toggle();
+        context.GetCommandServices().SimpleModeService?.Toggle();
         return Task.CompletedTask;
     }
 
     protected override Task PrintStatusAsync(ChatCommandContext context)
     {
-        var service = context.Services.SimpleModeService;
+        var service = context.GetCommandServices().SimpleModeService;
         if (service is null) return Task.CompletedTask;
 
         if (service.IsSimpleMode)

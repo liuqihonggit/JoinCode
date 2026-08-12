@@ -4,18 +4,19 @@ namespace JoinCode.ChatCommands;
 /// <summary>
 /// /tools 命令 - 显示可用工具列表及参数
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Tools, Description = "显示可用工具列表", Usage = "/tools", Category = ChatCommandCategory.Tools)]
+[ChatCommand(Name = ChatCommandNameConstants.Tools, Description = "显示可用工具列表", Usage = "/tools", Category = ChatCommandCategory.Tools, ExposeToMcp = true)]
 public sealed class ToolsCommand : ChatCommandBase
 {
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
-        if (context.Services.ToolRegistry is null)
+        var services = context.GetCommandServices();
+        if (services.ToolRegistry is null)
         {
             TerminalHelper.WriteLine("工具注册表不可用。");
             return ChatCommandResult.Continue();
         }
 
-        var tools = await context.Services.ToolRegistry.GetAllToolInfosAsync(context.CancellationToken);
+        var tools = await services.ToolRegistry.GetAllToolInfosAsync(context.CancellationToken);
 
         if (tools.Count == 0)
         {

@@ -19,14 +19,14 @@ internal sealed partial class StartupLoggingMiddleware : ServiceEntity, IMiddlew
         catch (OperationCanceledException)
         {
             // 用户取消 — 设置中断退出码，避免误报为成功（对齐 Program.cs 的 130 = 128+SIGINT）
-            context.ExitCode = 130;
+            context.ExitCode = (int)ExitCode.Interrupted;
             return;
         }
         catch (Exception ex)
         {
             sw.Stop();
             Cli.TerminalHelper.WriteLine($"[启动失败] {ex.GetType().Name}: {ex.Message} ({sw.ElapsedMilliseconds}ms)");
-            context.ExitCode = 1;
+            context.ExitCode = (int)ExitCode.GeneralError;
             throw;
         }
 

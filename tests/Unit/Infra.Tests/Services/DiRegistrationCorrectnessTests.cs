@@ -21,6 +21,10 @@ public sealed class DiRegistrationCorrectnessTests
         "System.ICloneable",
         "System.IEquatable`1",
         "JoinCode.Abstractions.Entity.ICloneableEntity",
+        // 标记接口 — 不用于 DI 服务注册，仅提供共同类型
+        "JoinCode.Abstractions.Utils.IRegistry",
+        "JoinCode.Abstractions.State.IStore",
+        "JoinCode.Abstractions.Hooks.IHookManager",
     }.ToFrozenSet();
 
     /// <summary>

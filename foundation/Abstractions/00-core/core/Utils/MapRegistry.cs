@@ -3,18 +3,23 @@ namespace JoinCode.Abstractions.Utils;
 /// <summary>
 /// 通用字典注册器基类 — 内部 ConcurrentDictionary，对外暴露 IEnumerable（遍历器）+ IReadOnlyDictionary（字典视图）
 /// 脏标记缓存 FrozenDictionary，仅在增删时重建，避免每次调用分配新集合
+/// 可选 Canonical/Alias 跟踪 — 子类需要区分正式名和别名时启用
 /// </summary>
 public class MapRegistry<TKey, TValue> where TKey : notnull
 {
     private readonly ConcurrentDictionary<TKey, TValue> _items;
+    private readonly HashSet<TKey>? _canonicalKeys;
     private IReadOnlyDictionary<TKey, TValue>? _cachedDict;
+    private IReadOnlyDictionary<TKey, TValue>? _cachedCanonical;
 
     /// <summary>当前注册项总数</summary>
     public int Count => _items.Count;
 
-    public MapRegistry(IEqualityComparer<TKey>? comparer = null)
+    public MapRegistry(IEqualityComparer<TKey>? comparer = null, bool trackCanonical = false)
     {
-        _items = new ConcurrentDictionary<TKey, TValue>(comparer ?? EqualityComparer<TKey>.Default);
+        var c = comparer ?? EqualityComparer<TKey>.Default;
+        _items = new ConcurrentDictionary<TKey, TValue>(c);
+        _canonicalKeys = trackCanonical ? new HashSet<TKey>(c) : null;
     }
 
     /// <summary>注册项（已存在则不覆盖）</summary>
@@ -82,6 +87,7 @@ public class MapRegistry<TKey, TValue> where TKey : notnull
     public void Clear()
     {
         _items.Clear();
+        _canonicalKeys?.Clear();
         InvalidateCache();
     }
 
@@ -90,9 +96,58 @@ public class MapRegistry<TKey, TValue> where TKey : notnull
     {
         var snapshot = new List<KeyValuePair<TKey, TValue>>(_items);
         _items.Clear();
+        _canonicalKeys?.Clear();
         InvalidateCache();
         return snapshot;
     }
 
-    private void InvalidateCache() => _cachedDict = null;
+    // === Canonical/Alias 支持（trackCanonical=true 时启用）===
+
+    /// <summary>注册项（含 Canonical 标记）</summary>
+    public void Register(TKey key, TValue value, bool isCanonical = true)
+    {
+        _items[key] = value;
+        if (isCanonical && _canonicalKeys is not null)
+            _canonicalKeys.Add(key);
+        InvalidateCache();
+    }
+
+    /// <summary>注册别名（不覆盖已存在的项，不标记为 Canonical）</summary>
+    public void RegisterAlias(TKey alias, TValue value)
+    {
+        _items.TryAdd(alias, value);
+    }
+
+    /// <summary>注销项（公开方法，同时移除 Canonical 标记）</summary>
+    public bool Unregister(TKey key)
+    {
+        var removed = _items.TryRemove(key, out _);
+        _canonicalKeys?.Remove(key);
+        if (removed) InvalidateCache();
+        return removed;
+    }
+
+    /// <summary>获取所有 Canonical 项的字典视图 — 脏标记缓存 FrozenDictionary</summary>
+    public IReadOnlyDictionary<TKey, TValue> GetAllCanonical()
+    {
+        if (_canonicalKeys is null)
+            return AsDictionary();
+        return _cachedCanonical ??= _canonicalKeys
+            .ToDictionary(n => n, n => _items[n])
+            .ToFrozenDictionary();
+    }
+
+    /// <summary>获取所有 Canonical 项的键值对遍历器</summary>
+    public IEnumerable<KeyValuePair<TKey, TValue>> GetCanonicalEntries()
+    {
+        if (_canonicalKeys is null)
+            return _items;
+        return _canonicalKeys.Select(n => new KeyValuePair<TKey, TValue>(n, _items[n]));
+    }
+
+    private void InvalidateCache()
+    {
+        _cachedDict = null;
+        _cachedCanonical = null;
+    }
 }

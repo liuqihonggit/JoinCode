@@ -116,6 +116,16 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
                 Cli.TerminalHelper.WriteLine("(已中断)");
                 Diag.WriteLifecycle("[DIAG-REPL] OperationCanceledException (Ctrl+C)");
             }
+            catch (TimeoutException ex)
+            {
+                Diag.WriteLifecycle($"[DIAG-REPL] TimeoutException: {ex.Message}");
+                using var _ = Cli.TerminalHelper.SetColor(ConsoleColor.Yellow);
+                Cli.TerminalHelper.WriteLine();
+                Cli.TerminalHelper.WriteLine($"{ex.Message}。请检查：");
+                Cli.TerminalHelper.WriteLine("  1. 是否已配置 API Key");
+                Cli.TerminalHelper.WriteLine("  2. 网络连接是否正常");
+                Cli.TerminalHelper.WriteLine("  3. API 服务是否可用");
+            }
             catch (Exception ex)
             {
                 WriteErrorLog(ex);

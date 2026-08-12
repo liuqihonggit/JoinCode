@@ -1,4 +1,4 @@
-namespace Host.Tests.ChatCommands;
+﻿namespace Host.Tests.ChatCommands;
 
 public sealed class IdeCommandTests
 {
@@ -44,13 +44,13 @@ public sealed class IdeCommandTests
         var context = new ChatCommandContext {
             Arguments = "",
             CancellationToken = CancellationToken.None,
-             Services = new CommandServices
+             Services = new CommandServiceProvider(new CommandServices
              {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
              FileSystem = TestFileSystem.Current,
-             },
+             }),
         };
 
         var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
@@ -76,14 +76,14 @@ public sealed class IdeCommandTests
         var context = new ChatCommandContext {
             Arguments = "detect",
             CancellationToken = CancellationToken.None,
-             Services = new CommandServices
+             Services = new CommandServiceProvider(new CommandServices
              {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
                 ServiceProvider = sp.Object,
              FileSystem = TestFileSystem.Current,
-             },
+             }),
         };
 
         var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
@@ -108,14 +108,14 @@ public sealed class IdeCommandTests
         var context = new ChatCommandContext {
             Arguments = "status",
             CancellationToken = CancellationToken.None,
-             Services = new CommandServices
+             Services = new CommandServiceProvider(new CommandServices
              {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
                 ServiceProvider = sp.Object,
              FileSystem = TestFileSystem.Current,
-             },
+             }),
         };
 
         var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
@@ -150,14 +150,14 @@ public sealed class IdeCommandTests
         {
             Arguments = subCommand,
             CancellationToken = CancellationToken.None,
-            Services = new CommandServices
+            Services = new CommandServiceProvider(new CommandServices
             {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
                 ServiceProvider = sp.Object,
             FileSystem = TestFileSystem.Current,
-            },
+            }),
         };
 
         var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
@@ -186,14 +186,14 @@ public sealed class IdeCommandTests
         {
             Arguments = alias,
             CancellationToken = CancellationToken.None,
-            Services = new CommandServices
+            Services = new CommandServiceProvider(new CommandServices
             {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
                 ServiceProvider = sp.Object,
             FileSystem = TestFileSystem.Current,
-            },
+            }),
         };
 
         var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
@@ -218,14 +218,14 @@ public sealed class IdeCommandTests
         {
             Arguments = "",
             CancellationToken = CancellationToken.None,
-            Services = new CommandServices
+            Services = new CommandServiceProvider(new CommandServices
             {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
                 ServiceProvider = sp.Object,
             FileSystem = TestFileSystem.Current,
-            },
+            }),
         };
 
         var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
@@ -256,14 +256,14 @@ public sealed class IdeCommandTests
         {
             Arguments = subCommand,
             CancellationToken = CancellationToken.None,
-            Services = new CommandServices
+            Services = new CommandServiceProvider(new CommandServices
             {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
                 ServiceProvider = sp.Object,
             FileSystem = TestFileSystem.Current,
-            },
+            }),
         };
 
         var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
@@ -287,14 +287,14 @@ public sealed class IdeCommandTests
         {
             Arguments = "unknown-action",
             CancellationToken = CancellationToken.None,
-            Services = new CommandServices
+            Services = new CommandServiceProvider(new CommandServices
             {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
                 ServiceProvider = sp.Object,
             FileSystem = TestFileSystem.Current,
-            },
+            }),
         };
 
         var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);

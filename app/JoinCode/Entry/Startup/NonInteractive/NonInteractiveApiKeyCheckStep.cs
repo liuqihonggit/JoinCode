@@ -16,7 +16,7 @@ internal sealed partial class NonInteractiveApiKeyCheckStep : ServiceEntity, IMi
             Cli.TerminalHelper.WriteError("    2. 配置文件: .env/api.json");
             Cli.TerminalHelper.WriteError("    3. 交互模式运行 /init 命令");
             Cli.TerminalHelper.WriteError("  支持的环境变量: JCC_API_KEY / OPENAI_API_KEY / ANTHROPIC_API_KEY / AZURE_OPENAI_API_KEY");
-            context.ExitCode = 1;
+            context.ExitCode = (int)ExitCode.ApiKeyMissing;
             Diag.WriteLine("[STEP] ApiKeyCheck failed: missing API key, aborting pipeline");
             return;
         }

@@ -62,6 +62,48 @@ public static class Diag
         WriteToTargets(message);
     }
 
+    /// <summary>
+    /// 错误诊断日志 — 无条件输出到 stderr，确保 E2E 测试和 CI 能捕获完整错误信息
+    /// 用于关键错误处理点（ChatErrorHandlingMiddleware、PermissionAwareToolExecutor 等）
+    /// 不受 JCC_VERBOSE 控制，因为错误必须始终可见
+    /// </summary>
+    /// <param name="context">错误上下文描述（如 "[ChatErrorHandling] Turn=1"）</param>
+    /// <param name="exception">异常对象（null 时只输出 context）</param>
+    public static void WriteError(string context, Exception? exception = null)
+    {
+        var timestamp = DateTime.UtcNow.ToString("HH:mm:ss.fff");
+        if (exception is null)
+        {
+            var line = $"[DIAG-ERR] {timestamp} {context}";
+            WriteToTargets(line);
+            DiagnosticLineWritten?.Invoke(null, line);
+            return;
+        }
+
+        // 主异常
+        var mainLine = $"[DIAG-ERR] {timestamp} {context}: {exception.GetType().Name}: {exception.Message}";
+        WriteToTargets(mainLine);
+        DiagnosticLineWritten?.Invoke(null, mainLine);
+
+        // 堆栈（截断到 2000 字符避免 stderr 爆炸）
+        var stack = exception.StackTrace;
+        if (!string.IsNullOrEmpty(stack))
+        {
+            var stackPreview = stack.Length > 2000 ? stack[..2000] + "...(truncated)" : stack;
+            WriteToTargets($"[DIAG-ERR-STACK] {stackPreview}");
+        }
+
+        // 内部异常链（最多 5 层）
+        var inner = exception.InnerException;
+        var depth = 0;
+        while (inner is not null && depth < 5)
+        {
+            depth++;
+            WriteToTargets($"[DIAG-ERR-INNER-{depth}] {inner.GetType().Name}: {inner.Message}");
+            inner = inner.InnerException;
+        }
+    }
+
     private static void WriteToTargets(string message)
     {
         switch (_diagTarget)

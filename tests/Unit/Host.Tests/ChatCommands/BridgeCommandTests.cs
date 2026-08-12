@@ -1,4 +1,4 @@
-namespace Host.Tests.ChatCommands;
+﻿namespace Host.Tests.ChatCommands;
 
 /// <summary>
 /// BridgeCommand 取值范围测试 — 验证 BridgeAction 枚举字面量正确路由
@@ -54,7 +54,7 @@ public sealed class BridgeCommandTests
         {
             Arguments = "",
             CancellationToken = CancellationToken.None,
-            Services = CreateServices(),
+            Services = new CommandServiceProvider(CreateServices()),
         };
 
         var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
@@ -76,7 +76,7 @@ public sealed class BridgeCommandTests
         {
             Arguments = subCommand,
             CancellationToken = CancellationToken.None,
-            Services = CreateServices(),
+            Services = new CommandServiceProvider(CreateServices()),
         };
 
         var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
@@ -97,7 +97,7 @@ public sealed class BridgeCommandTests
         {
             Arguments = subCommand,
             CancellationToken = CancellationToken.None,
-            Services = CreateServices(),
+            Services = new CommandServiceProvider(CreateServices()),
         };
 
         var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
@@ -113,7 +113,7 @@ public sealed class BridgeCommandTests
         {
             Arguments = "unknown-action",
             CancellationToken = CancellationToken.None,
-            Services = CreateServices(),
+            Services = new CommandServiceProvider(CreateServices()),
         };
 
         var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);

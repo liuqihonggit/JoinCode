@@ -1,6 +1,6 @@
 ﻿namespace JoinCode.ChatCommands;
 
-[ChatCommand(Name = ChatCommandNameConstants.Plan, Description = "计划模式管理", Usage = "/plan [on|off|status|open] [描述]", Category = ChatCommandCategory.Agent, ArgumentHint = "[on|off|status|open]")]
+[ChatCommand(Name = ChatCommandNameConstants.Plan, Description = "计划模式管理", Usage = "/plan [on|off|status|open] [描述]", Category = ChatCommandCategory.Agent, ArgumentHint = "[on|off|status|open]", ExposeToMcp = true)]
 public sealed class PlanCommand : ChatCommandBase
 {
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
@@ -23,7 +23,7 @@ public sealed class PlanCommand : ChatCommandBase
                 await ShowPlanStatusAsync(context);
                 break;
                 case PlanSubCommandConstants.Open:
-                await OpenPlanFileAsync(context, context.Services.FileSystem).ConfigureAwait(false);
+                await OpenPlanFileAsync(context, context.GetCommandServices().FileSystem).ConfigureAwait(false);
                 break;
             case PlanSubCommandConstants.Toggle:
             default:
@@ -191,7 +191,7 @@ public sealed class PlanCommand : ChatCommandBase
 
     private static async Task FallbackExecutePlanAsync(ChatCommandContext context, string description)
     {
-        if (context.Services.PlanService is null)
+        if (context.GetCommandServices().PlanService is null)
         {
             TerminalHelper.WriteLine("PlanService 不可用");
             return;
@@ -203,7 +203,7 @@ public sealed class PlanCommand : ChatCommandBase
             return;
         }
 
-        var result = await context.Services.PlanService.ExecutePlanAsync(description, context.CancellationToken).ConfigureAwait(false);
+        var result = await context.GetCommandServices().PlanService.ExecutePlanAsync(description, context.CancellationToken).ConfigureAwait(false);
         TerminalHelper.WriteLine(result);
     }
 

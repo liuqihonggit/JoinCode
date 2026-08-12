@@ -1,4 +1,4 @@
-// 测试使用真实文件系统创建临时工作目录
+﻿// 测试使用真实文件系统创建临时工作目录
 #pragma warning disable JCC9001, JCC9002
 namespace Host.Tests.ChatCommands;
 
@@ -53,13 +53,13 @@ public sealed class AddDirCommandTests : FileSystemTestBase
         var context = new ChatCommandContext {
             Arguments = "",
             CancellationToken = CancellationToken.None,
-             Services = new CommandServices
+             Services = new CommandServiceProvider(new CommandServices
              {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
              FileSystem = GetFileSystem(),
-             },
+             }),
         };
 
         var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
@@ -75,13 +75,13 @@ public sealed class AddDirCommandTests : FileSystemTestBase
         var context = new ChatCommandContext {
             Arguments = "Z:\\nonexistent\\path",
             CancellationToken = CancellationToken.None,
-             Services = new CommandServices
+             Services = new CommandServiceProvider(new CommandServices
              {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
              FileSystem = GetFileSystem(),
-             },
+             }),
         };
 
         var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
@@ -104,14 +104,14 @@ public sealed class AddDirCommandTests : FileSystemTestBase
             var context = new ChatCommandContext {
                 Arguments = tempDir,
                 CancellationToken = CancellationToken.None,
-                 Services = new CommandServices
+                 Services = new CommandServiceProvider(new CommandServices
                  {
                     ChatService = Mock.Of<IChatService>(),
                     CodeService = Mock.Of<ICodeService>(),
                     PlanService = Mock.Of<IPlanService>(),
                     WorkspaceService = null,
                  FileSystem = GetFileSystem(),
-                 },
+                 }),
             };
 
             var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
@@ -144,14 +144,14 @@ public sealed class AddDirCommandTests : FileSystemTestBase
             var context = new ChatCommandContext {
                 Arguments = tempDir,
                 CancellationToken = CancellationToken.None,
-                 Services = new CommandServices
+                 Services = new CommandServiceProvider(new CommandServices
                  {
                     ChatService = Mock.Of<IChatService>(),
                     CodeService = Mock.Of<ICodeService>(),
                     PlanService = Mock.Of<IPlanService>(),
                     WorkspaceService = workspaceService.Object,
                  FileSystem = GetFileSystem(),
-                 },
+                 }),
             };
 
             var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);

@@ -32,4 +32,14 @@ public sealed class ChatCommandAttribute : Attribute
     /// 命令分类 — 每个命令自己声明，源码生成器自动提取，无需中央映射表
     /// </summary>
     public ChatCommandCategory Category { get; init; } = ChatCommandCategory.Other;
+
+    /// <summary>
+    /// 是否暴露给 LLM/MCP — true 时斜杠命令也可被 AI 调用
+    /// </summary>
+    public bool ExposeToMcp { get; init; }
+
+    /// <summary>
+    /// 注入策略 — 控制命令对 AI 的可见性。默认 Slash（不注入 AI 提示词，AI 可通过 tool_search 发现）
+    /// </summary>
+    public ToolKind Kind { get; init; } = ToolKind.Slash;
 }

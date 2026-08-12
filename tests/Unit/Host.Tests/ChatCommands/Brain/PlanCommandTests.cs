@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Tests.ChatCommands;
 
 public class PlanCommandTests
@@ -18,13 +18,13 @@ public class PlanCommandTests
         var context = new ChatCommandContext {
             Arguments = "",
             CancellationToken = CancellationToken.None,
-             Services = new CommandServices
+             Services = new CommandServiceProvider(new CommandServices
              {
                 ChatService = null!,
                 CodeService = null!,
                 PlanService = null!,
              FileSystem = TestFileSystem.Current,
-             },
+             }),
         };
 
         var result = await _planCommand.ExecuteAsync(context).ConfigureAwait(true);
@@ -38,13 +38,13 @@ public class PlanCommandTests
         var context = new ChatCommandContext {
             Arguments = "on test task",
             CancellationToken = CancellationToken.None,
-             Services = new CommandServices
+             Services = new CommandServiceProvider(new CommandServices
              {
                 ChatService = null!,
                 CodeService = null!,
                 PlanService = null!,
              FileSystem = TestFileSystem.Current,
-             },
+             }),
         };
 
         var result = await _planCommand.ExecuteAsync(context).ConfigureAwait(true);
@@ -86,13 +86,13 @@ public class PlanCommandTests
         {
             Arguments = subCommand,
             CancellationToken = CancellationToken.None,
-            Services = new CommandServices
+            Services = new CommandServiceProvider(new CommandServices
             {
                 ChatService = null!,
                 CodeService = null!,
                 PlanService = null!,
             FileSystem = TestFileSystem.Current,
-            },
+            }),
         };
 
         var result = await _planCommand.ExecuteAsync(context).ConfigureAwait(true);
@@ -114,13 +114,13 @@ public class PlanCommandTests
         {
             Arguments = subCommand,
             CancellationToken = CancellationToken.None,
-            Services = new CommandServices
+            Services = new CommandServiceProvider(new CommandServices
             {
                 ChatService = null!,
                 CodeService = null!,
                 PlanService = null!,
             FileSystem = TestFileSystem.Current,
-            },
+            }),
         };
 
         var result = await _planCommand.ExecuteAsync(context).ConfigureAwait(true);

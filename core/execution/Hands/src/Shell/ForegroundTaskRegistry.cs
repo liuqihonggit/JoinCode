@@ -22,7 +22,7 @@ public sealed partial class ForegroundTaskRegistry : MapRegistry<string, ISystem
     }
 
     /// <inheritdoc />
-    public void Unregister(string taskId)
+    public new void Unregister(string taskId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(taskId);
         RemoveCore(taskId);

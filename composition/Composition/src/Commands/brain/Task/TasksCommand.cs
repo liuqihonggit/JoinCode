@@ -1,6 +1,6 @@
 ﻿namespace JoinCode.ChatCommands;
 
-[ChatCommand(Name = ChatCommandNameConstants.Tasks, Description = "列出和管理后台任务", Usage = "/tasks [kill|detail|create|update|complete|todo]", Category = ChatCommandCategory.Task, Aliases = ["task", "bashes"])]
+[ChatCommand(Name = ChatCommandNameConstants.Tasks, Description = "列出和管理后台任务", Usage = "/tasks [kill|detail|create|update|complete|todo]", Category = ChatCommandCategory.Task, Aliases = ["task", "bashes"], ExposeToMcp = true)]
 public sealed class TasksCommand : ChatCommandBase
 {
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
@@ -60,7 +60,7 @@ public sealed class TasksCommand : ChatCommandBase
             }
         }
 
-        var agentCoordinator = ChatCommandBase.GetService<IAgentCoordinator>(context, typeof(IAgentCoordinator));
+        var agentCoordinator = ChatCommandBase.GetService<IAgentService>(context, typeof(IAgentService));
         if (agentCoordinator is not null)
         {
             var agents = await agentCoordinator.GetRunningAgentsAsync(context.CancellationToken).ConfigureAwait(false);
@@ -120,7 +120,7 @@ public sealed class TasksCommand : ChatCommandBase
             }
         }
 
-        var agentCoordinator = ChatCommandBase.GetService<IAgentCoordinator>(context, typeof(IAgentCoordinator));
+        var agentCoordinator = ChatCommandBase.GetService<IAgentService>(context, typeof(IAgentService));
         if (agentCoordinator is not null)
         {
             var stopped = await agentCoordinator.StopAgentAsync(taskId, context.CancellationToken).ConfigureAwait(false);
@@ -131,7 +131,7 @@ public sealed class TasksCommand : ChatCommandBase
             }
         }
 
-        var taskService = context.Services.TaskService;
+        var taskService = context.GetCommandServices().TaskService;
         if (taskService is not null)
         {
             var result = await taskService.StopTaskAsync(taskId, reason: "Killed by /tasks kill", cancellationToken: context.CancellationToken).ConfigureAwait(false);
@@ -186,7 +186,7 @@ public sealed class TasksCommand : ChatCommandBase
             }
         }
 
-        var taskService = context.Services.TaskService;
+        var taskService = context.GetCommandServices().TaskService;
         if (taskService is not null)
         {
             var task = await taskService.GetTaskAsync(taskId, context.CancellationToken).ConfigureAwait(false);
@@ -208,7 +208,7 @@ public sealed class TasksCommand : ChatCommandBase
 
     private static async Task CreateTaskAsync(ChatCommandContext context, string[] args)
     {
-        var taskService = context.Services.TaskService;
+        var taskService = context.GetCommandServices().TaskService;
         if (taskService is null)
         {
             TerminalHelper.WriteLine($"{TerminalColors.Warning}任务服务不可用{AnsiStyleConstants.Reset}");
@@ -271,7 +271,7 @@ public sealed class TasksCommand : ChatCommandBase
 
     private static async Task UpdateTaskAsync(ChatCommandContext context, string[] args)
     {
-        var taskService = context.Services.TaskService;
+        var taskService = context.GetCommandServices().TaskService;
         if (taskService is null)
         {
             TerminalHelper.WriteLine($"{TerminalColors.Warning}任务服务不可用{AnsiStyleConstants.Reset}");
@@ -330,7 +330,7 @@ public sealed class TasksCommand : ChatCommandBase
 
     private static async Task CompleteTaskAsync(ChatCommandContext context, string[] args)
     {
-        var taskService = context.Services.TaskService;
+        var taskService = context.GetCommandServices().TaskService;
         if (taskService is null)
         {
             TerminalHelper.WriteLine($"{TerminalColors.Warning}任务服务不可用{AnsiStyleConstants.Reset}");
@@ -365,7 +365,7 @@ public sealed class TasksCommand : ChatCommandBase
 
     private static async Task ListTodosAsync(ChatCommandContext context, string[] args)
     {
-        var todoService = context.Services.TodoService;
+        var todoService = context.GetCommandServices().TodoService;
         if (todoService is null)
         {
             TerminalHelper.WriteLine($"{TerminalColors.Warning}待办服务不可用{AnsiStyleConstants.Reset}");

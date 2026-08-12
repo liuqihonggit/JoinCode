@@ -1,11 +1,11 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /compact 命令 - 上下文压缩
 /// 对齐 TS: src/commands/compact/compact.ts
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Compact, Description = "压缩对话上下文以节省 Token，可选自定义摘要指令", Usage = "/compact [自定义摘要指令]", Aliases = ["comp"], ArgumentHint = "<optional custom summarization instructions>", Category = ChatCommandCategory.Session)]
+[ChatCommand(Name = ChatCommandNameConstants.Compact, Description = "压缩对话上下文以节省 Token，可选自定义摘要指令", Usage = "/compact [自定义摘要指令]", Aliases = ["comp"], ArgumentHint = "<optional custom summarization instructions>", Category = ChatCommandCategory.Session, ExposeToMcp = true)]
 public sealed class CompactCommand : ChatCommandBase
 {
     public override string Name => ChatCommandNameConstants.Compact;
@@ -21,7 +21,7 @@ public sealed class CompactCommand : ChatCommandBase
 
         TerminalHelper.WriteLine("正在压缩上下文...");
 
-        var history = await context.Services.ChatService.GetMessageListAsync(context.CancellationToken).ConfigureAwait(false);
+        var history = await context.GetCommandServices().ChatService.GetMessageListAsync(context.CancellationToken).ConfigureAwait(false);
         var (messageCount, originalTokens) = CalculateOriginalMetrics(history);
 
         if (messageCount == 0)
@@ -32,7 +32,7 @@ public sealed class CompactCommand : ChatCommandBase
 
         // 对齐 TS: truncateHeadForPTLRetry — compact 自身 PTL 时丢弃最旧消息重试（最多 3 次）
         const int maxPtRetries = 3;
-        var contextManager = context.Services.ServiceProvider?.GetService(typeof(IChatContextManager)) as IChatContextManager;
+        var contextManager = context.Services?.GetService(typeof(IChatContextManager)) as IChatContextManager;
 
         for (var attempt = 0; attempt < maxPtRetries; attempt++)
         {
@@ -41,7 +41,7 @@ public sealed class CompactCommand : ChatCommandBase
                 var summary = await GenerateSummaryFromHistoryAsync(history, context, customInstructions).ConfigureAwait(false);
                 var compressedTokens = (summary?.Length ?? 0) / 4;
 
-                await context.Services.ChatService.CompactHistoryAsync(summary ?? "[无摘要]", context.CancellationToken).ConfigureAwait(false);
+                await context.GetCommandServices().ChatService.CompactHistoryAsync(summary ?? "[无摘要]", context.CancellationToken).ConfigureAwait(false);
 
                 var fallbackData = new CompactSummaryData
                 {
@@ -67,7 +67,7 @@ public sealed class CompactCommand : ChatCommandBase
         try
         {
             var summary = await GenerateSummaryFromHistoryAsync(history, context, customInstructions).ConfigureAwait(false);
-            await context.Services.ChatService.CompactHistoryAsync(summary ?? "[无摘要]", context.CancellationToken).ConfigureAwait(false);
+            await context.GetCommandServices().ChatService.CompactHistoryAsync(summary ?? "[无摘要]", context.CancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -104,7 +104,7 @@ public sealed class CompactCommand : ChatCommandBase
 
         try
         {
-            var rawSummary = await context.Services.ChatService.SendMessageAsync(compactPrompt, context.CancellationToken).ConfigureAwait(false);
+            var rawSummary = await context.GetCommandServices().ChatService.SendMessageAsync(compactPrompt, context.CancellationToken).ConfigureAwait(false);
             return Core.Prompts.Templates.Memory.CompactPromptTemplate.FormatCompactSummary(rawSummary ?? "[无摘要]");
         }
         catch (Exception ex)

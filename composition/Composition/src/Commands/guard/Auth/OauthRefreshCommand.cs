@@ -6,7 +6,8 @@ public sealed class OauthRefreshCommand : ChatCommandBase
 {
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
-        if (context.Services.TokenStorage is null)
+        var services = context.GetCommandServices();
+        if (services.TokenStorage is null)
         {
             TerminalHelper.WriteLine($"{TerminalColors.Error}OAuth Token 存储不可用{AnsiStyleConstants.Reset}");
             return ChatCommandResult.Continue();
@@ -29,7 +30,7 @@ public sealed class OauthRefreshCommand : ChatCommandBase
         var provider = ChatCommandBase.GetNormalizedArgs(context);
         if (string.IsNullOrEmpty(provider))
         {
-            var providers = await context.Services.TokenStorage.GetStoredProvidersAsync(context.CancellationToken).ConfigureAwait(false);
+            var providers = await services.TokenStorage.GetStoredProvidersAsync(context.CancellationToken).ConfigureAwait(false);
             if (providers.Count == 0)
             {
                 TerminalHelper.WriteLine("无已存储的 OAuth Token，请先使用 /login --oauth 登录");
@@ -46,7 +47,7 @@ public sealed class OauthRefreshCommand : ChatCommandBase
 
         try
         {
-            var existingToken = await context.Services.TokenStorage.LoadTokenAsync(provider, context.CancellationToken).ConfigureAwait(false);
+            var existingToken = await services.TokenStorage.LoadTokenAsync(provider, context.CancellationToken).ConfigureAwait(false);
             if (existingToken is null)
             {
                 TerminalHelper.WriteLine($"Provider '{provider}' 无已存储的 Token");
@@ -65,7 +66,7 @@ public sealed class OauthRefreshCommand : ChatCommandBase
             var config = optionsFactory.Value.ToOAuthConfig(provider);
             var newToken = await oauthClient.RefreshTokenAsync(config, existingToken.RefreshToken, context.CancellationToken).ConfigureAwait(false);
 
-            await context.Services.TokenStorage.SaveTokenAsync(provider, newToken, context.CancellationToken).ConfigureAwait(false);
+            await services.TokenStorage.SaveTokenAsync(provider, newToken, context.CancellationToken).ConfigureAwait(false);
 
             TerminalHelper.WriteLine($"{TerminalColors.Success}Token 刷新成功{AnsiStyleConstants.Reset}");
             TerminalHelper.WriteLine($"  Provider: {provider}");

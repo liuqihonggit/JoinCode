@@ -235,6 +235,12 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         return await _lifecycleManager.CancelAgentAsync(agentId, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 获取所有正在运行的代理 — 委托到 IAgentLifecycleManager
+    /// </summary>
+    public Task<IEnumerable<RunningAgentInfo>> GetRunningAgentsAsync(CancellationToken cancellationToken = default)
+        => _lifecycleManager.GetRunningAgentsAsync(cancellationToken);
+
     public Task<JoinCode.Abstractions.Interfaces.AgentProgress?> GetAgentProgressAsync(string agentId, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);

@@ -92,7 +92,7 @@ public sealed class ConfigStateDocument
 /// <summary>
 /// Store 持久化接口
 /// </summary>
-public interface IStorePersistence<TState> where TState : notnull
+public interface IStorePersistence<TState> : IStore where TState : notnull
 {
     /// <summary>
     /// 保存状态

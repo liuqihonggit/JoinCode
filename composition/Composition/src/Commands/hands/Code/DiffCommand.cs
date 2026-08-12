@@ -3,7 +3,7 @@
 /// <summary>
 /// /diff 命令 - 交互式 diff 浏览器 — 对齐 TS DiffDialog
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Diff, Description = "View uncommitted changes and per-turn diffs", Usage = "/diff [files|cached]", Category = ChatCommandCategory.Code, ArgumentHint = "[files|cached]")]
+[ChatCommand(Name = ChatCommandNameConstants.Diff, Description = "View uncommitted changes and per-turn diffs", Usage = "/diff [files|cached]", Category = ChatCommandCategory.Code, ArgumentHint = "[files|cached]", ExposeToMcp = true)]
 public sealed class DiffCommand : ChatCommandBase
 {
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
@@ -28,18 +28,18 @@ public sealed class DiffCommand : ChatCommandBase
             {
                 case DiffModeConstants.Files:
                     Diag.WriteLifecycle("[DIAG-DIFF] ShowChangedFilesAsync start");
-                    await ShowChangedFilesAsync(context.CancellationToken, context.Services.FileSystem, gitRunner).ConfigureAwait(false);
+                    await ShowChangedFilesAsync(context.CancellationToken, context.GetCommandServices().FileSystem, gitRunner).ConfigureAwait(false);
                     Diag.WriteLifecycle("[DIAG-DIFF] ShowChangedFilesAsync end");
                     break;
                 case DiffModeConstants.Cached:
                 case DiffModeConstants.Staged:
                     Diag.WriteLifecycle("[DIAG-DIFF] ShowStagedDiffAsync start");
-                    await ShowStagedDiffAsync(context.CancellationToken, context.Services.FileSystem, gitRunner).ConfigureAwait(false);
+                    await ShowStagedDiffAsync(context.CancellationToken, context.GetCommandServices().FileSystem, gitRunner).ConfigureAwait(false);
                     Diag.WriteLifecycle("[DIAG-DIFF] ShowStagedDiffAsync end");
                     break;
                 default:
                     Diag.WriteLifecycle("[DIAG-DIFF] ShowInteractiveDiffAsync start");
-                    await ShowInteractiveDiffAsync(context.Services.TurnDiffProvider, context.CancellationToken, context.Services.FileSystem, gitRunner).ConfigureAwait(false);
+                    await ShowInteractiveDiffAsync(context.GetCommandServices().TurnDiffProvider, context.CancellationToken, context.GetCommandServices().FileSystem, gitRunner).ConfigureAwait(false);
                     Diag.WriteLifecycle("[DIAG-DIFF] ShowInteractiveDiffAsync end");
                     break;
             }

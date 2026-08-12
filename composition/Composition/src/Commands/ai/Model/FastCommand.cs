@@ -1,4 +1,4 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Fast, Description = "切换快速模式（使用更小/更快的模型）", Usage = "/fast [on|off]", Category = ChatCommandCategory.Model)]
 public sealed class FastCommand : ToggleCommandBase
@@ -23,7 +23,7 @@ public sealed class FastCommand : ToggleCommandBase
     protected override Task OnEnabledAsync(ChatCommandContext context)
     {
         var fastModeService = GetService<IFastModeService>(context, typeof(IFastModeService));
-        var config = context.Services.WorkflowConfig;
+        var config = context.GetCommandServices().WorkflowConfig;
 
         if (fastModeService is not null)
         {
@@ -43,7 +43,7 @@ public sealed class FastCommand : ToggleCommandBase
     protected override Task OnDisabledAsync(ChatCommandContext context)
     {
         var fastModeService = GetService<IFastModeService>(context, typeof(IFastModeService));
-        var config = context.Services.WorkflowConfig;
+        var config = context.GetCommandServices().WorkflowConfig;
 
         if (fastModeService is not null)
         {
@@ -63,7 +63,7 @@ public sealed class FastCommand : ToggleCommandBase
     protected override Task PrintStatusAsync(ChatCommandContext context)
     {
         var fastModeService = GetService<IFastModeService>(context, typeof(IFastModeService));
-        var config = context.Services.WorkflowConfig;
+        var config = context.GetCommandServices().WorkflowConfig;
         var isFast = fastModeService?.IsFastModeActive ?? config?.FastMode ?? false;
         var currentModel = isFast
             ? fastModeService?.FastModelId ?? "unknown"

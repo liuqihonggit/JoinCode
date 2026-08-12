@@ -1,4 +1,4 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
@@ -47,7 +47,7 @@ public sealed partial class ClearCommand : ChatCommandBase
         }
 
         // 2. 清空聊天历史
-        await context.Services.ChatService.ClearHistoryAsync(context.CancellationToken).ConfigureAwait(false);
+        await context.GetCommandServices().ChatService.ClearHistoryAsync(context.CancellationToken).ConfigureAwait(false);
         _logger?.LogInformation("聊天历史已清空");
 
         // 3. 清屏
@@ -58,7 +58,7 @@ public sealed partial class ClearCommand : ChatCommandBase
         ClearSessionCaches(context);
 
         // 5. 异步清除思考存储
-        var thinkingStore = context.Services.ThinkingStore;
+        var thinkingStore = context.GetCommandServices().ThinkingStore;
         if (thinkingStore is not null)
         {
             try
@@ -72,7 +72,7 @@ public sealed partial class ClearCommand : ChatCommandBase
         }
 
         // 6. 清除 Hook 配置缓存
-        var hookConfigManager = context.Services.HookConfigurationManager;
+        var hookConfigManager = context.GetCommandServices().HookConfigurationManager;
         if (hookConfigManager is not null)
         {
             try
@@ -86,7 +86,7 @@ public sealed partial class ClearCommand : ChatCommandBase
         }
 
         // 7. 清除文件操作追踪
-        var fileOpTracker = context.Services.FileOperationTracker;
+        var fileOpTracker = context.GetCommandServices().FileOperationTracker;
         if (fileOpTracker is not null)
         {
             try
@@ -124,13 +124,13 @@ public sealed partial class ClearCommand : ChatCommandBase
         lspProvider?.ClearDeliveredForFile("*");
 
         // 4. 速率限制快照缓存
-        context.Services.RateLimitTracker?.Clear();
+        context.GetCommandServices().RateLimitTracker?.Clear();
 
         // 5. 工作区目录缓存
-        context.Services.WorkspaceService?.Clear();
+        context.GetCommandServices().WorkspaceService?.Clear();
 
         // 6. Turn Diff 记录缓存
-        context.Services.TurnDiffProvider?.Clear();
+        context.GetCommandServices().TurnDiffProvider?.Clear();
 
         // 7. 工具空闲提醒状态
         var idleReminder = GetService<IToolIdleReminderService>(context);
@@ -171,7 +171,7 @@ public sealed partial class ClearCommand : ChatCommandBase
         sessionEnvVars?.Clear();
 
         // 17. WebFetch 缓存 — 对齐 TS: clearWebFetchCache
-        context.Services.WebService?.ClearCache();
+        context.GetCommandServices().WebService?.ClearCache();
 
         // 18. Agent 定义缓存 — 对齐 TS: clearAgentDefinitionsCache
         var agentDefProvider = GetService<JoinCode.Abstractions.Interfaces.IAgentDefinitionProvider>(context);

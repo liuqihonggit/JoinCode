@@ -30,7 +30,7 @@ internal static class NonInteractiveModeRunner
             {
                 Diag.WriteLine($"[RUN] OnError: {ex.GetType().Name}: {ex.Message}");
                 Cli.TerminalHelper.WriteLine($"错误: {ex.Message}");
-                ctx.ExitCode = 1;
+                ctx.ExitCode = (int)ExitCode.GeneralError;
             })
             .Build();
 

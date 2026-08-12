@@ -1,6 +1,6 @@
 namespace JoinCode.Abstractions.Hooks;
 
-public interface ICompactHookManager
+public interface ICompactHookManager : IHookManager
 {
     Task<CompactHookResult> OnPreCompactAsync(CompactHookContext context, CancellationToken ct = default);
 

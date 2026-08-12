@@ -23,7 +23,7 @@ public sealed class InitCommand : ChatCommandBase
 
     private static async Task AiDrivenInitAsync(ChatCommandContext context)
     {
-        var fs = context.Services.FileSystem;
+        var fs = context.GetCommandServices().FileSystem;
         var cwd = fs.GetCurrentDirectory();
         // 修复: 统一使用 AppDataConstants.AppDataFolder,避免硬编码 ".jcc" 与 EnsureJccDirectory 路径不一致
         var rulesFile = Path.Combine(cwd, AppDataConstants.AppDataFolder, "project_rules.md");
@@ -41,7 +41,7 @@ public sealed class InitCommand : ChatCommandBase
 
         var prompt = BuildInitPrompt(cwd, existingContent);
 
-        var result = await context.Services.ChatService.SendMessageAsync(prompt, context.CancellationToken).ConfigureAwait(false);
+        var result = await context.GetCommandServices().ChatService.SendMessageAsync(prompt, context.CancellationToken).ConfigureAwait(false);
 
         if (result is not null)
         {
@@ -54,7 +54,7 @@ public sealed class InitCommand : ChatCommandBase
 
     private static async Task QuickInitAsync(ChatCommandContext context)
     {
-        var fs = context.Services.FileSystem;
+        var fs = context.GetCommandServices().FileSystem;
         var cwd = fs.GetCurrentDirectory();
         // 修复: 统一使用 AppDataConstants.AppDataFolder,避免硬编码 ".jcc" 与 EnsureJccDirectory 路径不一致
         var jccDir = Path.Combine(cwd, AppDataConstants.AppDataFolder);
@@ -114,7 +114,7 @@ public sealed class InitCommand : ChatCommandBase
 
     private static async Task RegisterProjectConfigAsync(ChatCommandContext context, string cwd)
     {
-        var configService = context.Services?.ServiceProvider?.GetService<IConfigurationService>();
+        var configService = context.Services.GetService<IConfigurationService>();
         if (configService is not null)
         {
             try

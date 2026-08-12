@@ -1,4 +1,4 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /share 命令 — 对齐 TS share/
@@ -16,7 +16,7 @@ public sealed class ShareCommand : ChatCommandBase
 
         try
         {
-            var history = await context.Services.ChatService.GetMessageListAsync(context.CancellationToken);
+            var history = await context.GetCommandServices().ChatService.GetMessageListAsync(context.CancellationToken);
 
             if (history.Count == 0)
             {
@@ -58,7 +58,7 @@ public sealed class ShareCommand : ChatCommandBase
                     $"share-{DateTime.Now:yyyyMMdd-HHmmss}.md");
 
                 var dir = Path.GetDirectoryName(sharePath);
-                var fs = context.Services.FileSystem;
+                var fs = context.GetCommandServices().FileSystem;
                 if (!string.IsNullOrEmpty(dir) && !fs.DirectoryExists(dir))
                     DirectoryHelper.EnsureDirectoryExists(fs, dir);
 

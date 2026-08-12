@@ -103,7 +103,7 @@ public sealed class DiagnosticEngine
             RuleId = DiagnosticRuleId.ProcessHung,
             PatientId = patientInfo.PatientId,
             Severity = DiagnosticSeverity.Critical,
-            Description = $"病人进程卡死（退出码 1234），PID={patientInfo.ProcessId}",
+            Description = $"病人进程卡死（退出码 {(int)ExitCode.AwaitTimeout}），PID={patientInfo.ProcessId}",
             SuggestedFixType = HotFixActionType.RestartProcess,
             SuggestedFixDescription = "重启病人进程，检查是否存在死锁或无限循环"
         };

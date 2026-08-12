@@ -1,113 +1,26 @@
-﻿
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
-/// 聊天命令上下文
+/// 命令服务容器扩展 — 从 ChatCommandContext.Services (IServiceProvider) 获取强类型 CommandServices
 /// </summary>
-public sealed class ChatCommandContext
+public static class ChatCommandContextExtensions
 {
     /// <summary>
-    /// 命令参数
+    /// 从 DI 容器获取 CommandServices 强类型服务包
     /// </summary>
-    public required string Arguments { get; init; }
+    public static CommandServices GetCommandServices(this ChatCommandContext context)
+    {
+        return context.Services.GetService<CommandServices>()
+            ?? throw new InvalidOperationException("CommandServices 未注册到 DI 容器");
+    }
 
     /// <summary>
-    /// 取消令牌
+    /// 尝试获取 CommandServices — 未注册时返回 null（用于 ?. 模式）
     /// </summary>
-    public required CancellationToken CancellationToken { get; init; }
-
-    /// <summary>
-    /// 会话开始时间
-    /// </summary>
-    public DateTime SessionStartedAt { get; init; } = DateTime.UtcNow;
-
-    /// <summary>
-    /// 会话ID
-    /// </summary>
-    public string SessionId { get; init; } = string.Empty;
-
-    /// <summary>
-    /// 清屏回调（可选，由REPL循环注入）
-    /// </summary>
-    public Action? ClearScreen { get; init; }
-
-    /// <summary>
-    /// 用户确认回调（可选，用于 /commit 等需要确认的命令）
-    /// </summary>
-    public Func<string, bool>? Confirm { get; init; }
-
-    /// <summary>
-    /// 用户输入回调（可选，用于 /commit 等需要输入的命令）
-    /// </summary>
-    public Func<string, string?>? Prompt { get; init; }
-
-    /// <summary>
-    /// 密码输入回调（可选，用于 /login 等需要安全输入的命令）
-    /// </summary>
-    public Func<string, string?>? ReadPassword { get; init; }
-
-    /// <summary>
-    /// 服务容器 — 聚合所有服务引用
-    /// </summary>
-    public required CommandServices Services { get; init; }
-}
-
-/// <summary>
-/// 聊天命令执行结果
-/// </summary>
-public sealed class ChatCommandResult
-{
-    /// <summary>
-    /// 是否继续聊天循环
-    /// </summary>
-    public bool ShouldContinue { get; init; } = true;
-
-    /// <summary>
-    /// 是否成功处理命令
-    /// </summary>
-    public bool IsHandled { get; init; } = true;
-
-    /// <summary>
-    /// 创建继续执行的结果
-    /// </summary>
-    public static ChatCommandResult Continue() => new() { ShouldContinue = true, IsHandled = true };
-
-    /// <summary>
-    /// 创建退出聊天的结果
-    /// </summary>
-    public static ChatCommandResult Exit() => new() { ShouldContinue = false, IsHandled = true };
-
-    /// <summary>
-    /// 创建未处理的结果（命令不存在）
-    /// </summary>
-    public static ChatCommandResult NotHandled() => new() { ShouldContinue = true, IsHandled = false };
-}
-
-/// <summary>
-/// 聊天命令接口
-/// </summary>
-public interface IChatCommand
-{
-    string Name { get; }
-
-    string Description { get; }
-
-    string Usage { get; }
-
-    string[] Aliases { get; }
-
-    string ArgumentHint { get; }
-
-    bool IsHidden { get; }
-
-    /// <summary>
-    /// 命令是否当前可用 — 对齐 TS CommandBase.isEnabled()
-    /// 返回 false 时命令不可见且不可执行，用于动态门控（如 entitlement 检查）
-    /// 默认 true（始终可用）
-    /// </summary>
-    bool IsEnabled => true;
-
-    Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context);
+    public static CommandServices? TryGetCommandServices(this ChatCommandContext context)
+    {
+        return context.Services.GetService<CommandServices>();
+    }
 }
 
 public abstract class ChatCommandBase : IChatCommand
@@ -127,6 +40,16 @@ public abstract class ChatCommandBase : IChatCommand
     public virtual bool IsHidden => _attr?.IsHidden ?? false;
 
     /// <summary>
+    /// 是否暴露给 MCP（AI 可调用）— 从特性读取
+    /// </summary>
+    public virtual bool ExposeToMcp => _attr?.ExposeToMcp ?? false;
+
+    /// <summary>
+    /// ToolKind — 从特性读取，决定注入策略
+    /// </summary>
+    public virtual ToolKind Kind => _attr?.Kind ?? ToolKind.Slash;
+
+    /// <summary>
     /// 命令是否当前可用 — 对齐 TS CommandBase.isEnabled()
     /// 默认从特性读取，子类可 override 实现动态门控
     /// </summary>
@@ -139,7 +62,7 @@ public abstract class ChatCommandBase : IChatCommand
     /// </summary>
     internal static T? GetService<T>(ChatCommandContext context) where T : class
     {
-        var service = context.Services.ServiceProvider?.GetService<T>();
+        var service = context.Services.GetService<T>();
         if (service is null && !TerminalHelper.IsInputRedirected)
         {
             TerminalHelper.WriteLine($"{TerminalColors.Error}{typeof(T).Name} 服务未初始化{AnsiStyleConstants.Reset}");
@@ -152,7 +75,7 @@ public abstract class ChatCommandBase : IChatCommand
     /// </summary>
     internal static T? GetService<T>(ChatCommandContext context, Type serviceType) where T : class
     {
-        var service = context.Services.ServiceProvider?.GetService(serviceType) as T;
+        var service = context.Services.GetService(serviceType) as T;
         if (service is null && !TerminalHelper.IsInputRedirected)
         {
             TerminalHelper.WriteLine($"{TerminalColors.Error}{serviceType.Name} 服务未初始化{AnsiStyleConstants.Reset}");

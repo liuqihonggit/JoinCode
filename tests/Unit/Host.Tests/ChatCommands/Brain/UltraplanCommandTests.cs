@@ -1,4 +1,4 @@
-namespace Core.Tests.ChatCommands;
+﻿namespace Core.Tests.ChatCommands;
 
 using JoinCode.Abstractions.Models;
 
@@ -35,13 +35,13 @@ public class UltraplanCommandTests
     {
         Arguments = args,
         CancellationToken = CancellationToken.None,
-        Services = new CommandServices
+        Services = new CommandServiceProvider(new CommandServices
         {
             ChatService = _chatServiceMock.Object,
             CodeService = Mock.Of<ICodeService>(),
             PlanService = _planServiceMock.Object,
             FileSystem = TestFileSystem.Current,
-        },
+        }),
     };
 
     [Fact]

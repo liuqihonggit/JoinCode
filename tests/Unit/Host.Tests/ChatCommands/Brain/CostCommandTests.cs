@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Tests.Commands;
 
 public class CostCommandTests : IDisposable
@@ -24,14 +24,14 @@ public class CostCommandTests : IDisposable
             Arguments = arguments,
             CancellationToken = CancellationToken.None,
             SessionId = sessionId,
-             Services = new CommandServices
+             Services = new CommandServiceProvider(new CommandServices
              {
                 ChatService = null!,
                 CodeService = null!,
                 PlanService = null!,
                 CostTracker = _costTracker,
              FileSystem = TestFileSystem.Current,
-             },
+             }),
         };
     }
 
@@ -59,13 +59,13 @@ public class CostCommandTests : IDisposable
         var context = new ChatCommandContext {
             Arguments = "",
             CancellationToken = CancellationToken.None,
-             Services = new CommandServices
+             Services = new CommandServiceProvider(new CommandServices
              {
                 ChatService = null!,
                 CodeService = null!,
                 PlanService = null!,
              FileSystem = TestFileSystem.Current,
-             },
+             }),
         };
 
         var result = await _command.ExecuteAsync(context).ConfigureAwait(true);

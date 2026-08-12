@@ -1,7 +1,7 @@
 
 namespace JoinCode.ChatCommands;
 
-public sealed partial class ChatCommandRegistry : JoinCode.Abstractions.Interfaces.ICommandRegistry
+public sealed partial class ChatCommandRegistry : JoinCode.Abstractions.Interfaces.ICommandRegistry, ISlashCommandRegistry
 {
     private readonly CategorizedRegistry<string, IChatCommand, ChatCommandCategory> _registry;
     [Inject] private readonly ILogger<ChatCommandRegistry>? _logger;

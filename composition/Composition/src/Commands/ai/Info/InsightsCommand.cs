@@ -80,7 +80,7 @@ public sealed class InsightsCommand : ChatCommandBase
     private void ShowCurrentSessionStats(ChatCommandContext context)
     {
         var sessionDuration = _clock.GetUtcNow() - context.SessionStartedAt;
-        var costTracker = context.Services.CostTracker;
+        var costTracker = context.GetCommandServices().CostTracker;
 
         TerminalHelper.WriteLine("当前会话统计:");
         TerminalHelper.NewLine();
@@ -155,7 +155,7 @@ public sealed class InsightsCommand : ChatCommandBase
         TerminalHelper.WriteLine("正在生成会话洞察...");
         TerminalHelper.NewLine();
 
-        await context.Services.ChatService.SendMessageAsync(dataContext, context.CancellationToken).ConfigureAwait(false);
+        await context.GetCommandServices().ChatService.SendMessageAsync(dataContext, context.CancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -193,7 +193,7 @@ public sealed class InsightsCommand : ChatCommandBase
 
             // Step 3: Facet 提取（带缓存）
             TerminalHelper.WriteLine("正在提取会话 Facet...");
-            var facets = await ExtractFacetsAsync(sessions, facetCache, context, context.Services.ServiceProvider?.GetService<ILogger<InsightsCommand>>()).ConfigureAwait(false);
+            var facets = await ExtractFacetsAsync(sessions, facetCache, context, context.Services?.GetService<ILogger<InsightsCommand>>()).ConfigureAwait(false);
 
             // Step 4: 聚合 Facet
             var facetSummary = facets.Count > 0 ? FacetAggregator.Aggregate(facets) : null;
@@ -209,7 +209,7 @@ public sealed class InsightsCommand : ChatCommandBase
             TerminalHelper.NewLine();
 
             var deepPrompt = BuildDeepInsightPrompt(dataContext, aggregated, facetSummary, multiClauding);
-            await context.Services.ChatService.SendMessageAsync(deepPrompt, context.CancellationToken).ConfigureAwait(false);
+            await context.GetCommandServices().ChatService.SendMessageAsync(deepPrompt, context.CancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -257,7 +257,7 @@ public sealed class InsightsCommand : ChatCommandBase
 
             // Step 3: Facet 提取（带缓存）
             TerminalHelper.WriteLine("正在提取会话 Facet...");
-            var facets = await ExtractFacetsAsync(sessions, facetCache, context, context.Services.ServiceProvider?.GetService<ILogger<InsightsCommand>>()).ConfigureAwait(false);
+            var facets = await ExtractFacetsAsync(sessions, facetCache, context, context.Services?.GetService<ILogger<InsightsCommand>>()).ConfigureAwait(false);
             var facetSummary = facets.Count > 0 ? FacetAggregator.Aggregate(facets) : null;
 
             // Step 4: Multi-Clauding 检测
@@ -267,7 +267,7 @@ public sealed class InsightsCommand : ChatCommandBase
             TerminalHelper.WriteLine("正在生成洞察文本...");
             var dataContext = InsightPrompts.BuildInsightDataContext(aggregated, facetSummary, multiClauding);
             var deepPrompt = BuildDeepInsightPrompt(dataContext, aggregated, facetSummary, multiClauding);
-            var insightsText = await context.Services.ChatService.SendMessageAsync(deepPrompt, context.CancellationToken).ConfigureAwait(false);
+            var insightsText = await context.GetCommandServices().ChatService.SendMessageAsync(deepPrompt, context.CancellationToken).ConfigureAwait(false);
 
             // Step 6: 生成 HTML 报告
             TerminalHelper.WriteLine("正在生成 HTML 报告...");
@@ -277,7 +277,7 @@ public sealed class InsightsCommand : ChatCommandBase
             var reportDir = Path.Combine(
                 WorkflowConstants.Paths.JccDirectory,
                 "usage-data");
-            var fs = context.Services.FileSystem;
+            var fs = context.GetCommandServices().FileSystem;
             DirectoryHelper.EnsureDirectoryExists(fs, reportDir);
 
             var reportPath = Path.Combine(reportDir, "report.html");
@@ -311,7 +311,7 @@ public sealed class InsightsCommand : ChatCommandBase
         ILogger? logger = null)
     {
         var facets = new List<SessionFacets>();
-        var chatService = context.Services.ChatService;
+        var chatService = context.GetCommandServices().ChatService;
 
         foreach (var session in sessions)
         {
@@ -634,7 +634,7 @@ public sealed class InsightsCommand : ChatCommandBase
 
     private static string GetTokenInfo(ChatCommandContext context)
     {
-        var costTracker = context.Services.CostTracker;
+        var costTracker = context.GetCommandServices().CostTracker;
         if (costTracker is null) return "- Token data: unavailable";
 
         try

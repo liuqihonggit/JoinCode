@@ -9,8 +9,8 @@ public sealed class EffortCommand : ChatCommandBase
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetNormalizedArgs(context).ToLowerInvariant();
-        var statusBar = context.Services.StatusBarData;
-        var settingsProvider = context.Services.ExecutionSettingsProvider;
+        var statusBar = context.GetCommandServices().StatusBarData;
+        var settingsProvider = context.GetCommandServices().ExecutionSettingsProvider;
         var fastModeService = ChatCommandBase.GetService<IFastModeService>(context, typeof(IFastModeService));
 
         // 对齐 TS: help/-h/--help 显示详细帮助
@@ -55,7 +55,7 @@ public sealed class EffortCommand : ChatCommandBase
             var currentModel = fastModeService?.PrimaryModelId
                 ?? Environment.GetEnvironmentVariable(JccEnvVar.ModelId.ToValue())
                 ?? "unknown";
-            var provider = context.Services.WorkflowConfig?.Provider?.Vendor
+            var provider = context.GetCommandServices().WorkflowConfig?.Provider?.Vendor
                 ?? Environment.GetEnvironmentVariable(JccEnvVar.Vendor.ToValue())
                 ?? VendorKind.OpenAi.ToValue();
 

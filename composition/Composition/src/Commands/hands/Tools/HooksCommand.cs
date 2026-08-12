@@ -6,7 +6,7 @@ public sealed class HooksCommand : ChatCommandBase
 {
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
-        var hookManager = context.Services.HookConfigurationManager;
+        var hookManager = context.GetCommandServices().HookConfigurationManager;
         var args = ChatCommandBase.GetNormalizedArgs(context);
 
         if (string.IsNullOrEmpty(args) || args.Equals("list", StringComparison.OrdinalIgnoreCase))

@@ -1,4 +1,4 @@
-namespace Host.Tests.ChatCommands;
+﻿namespace Host.Tests.ChatCommands;
 
 using Testing.Common.Services;
 
@@ -121,14 +121,14 @@ public sealed class InitCommandTests
         {
             Arguments = "quick",
             CancellationToken = CancellationToken.None,
-            Services = new CommandServices
+            Services = new CommandServiceProvider(new CommandServices
             {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
                 FileSystem = fs,
                 // ServiceProvider 故意留 null
-            },
+            }),
         };
 
         // Act
@@ -169,13 +169,13 @@ public sealed class InitCommandTests
         {
             Arguments = arguments,
             CancellationToken = CancellationToken.None,
-            Services = new CommandServices
+            Services = new CommandServiceProvider(new CommandServices
             {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
                 FileSystem = fs,
-            },
+            }),
         };
     }
 }

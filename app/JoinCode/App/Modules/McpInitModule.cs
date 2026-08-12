@@ -22,7 +22,11 @@ public sealed class McpInitModule : IAppModule
         // async void 事件处理器必须 try/catch — 否则异常逃逸到同步上下文导致进程崩溃
         remoteClientManager.ToolsListChanged += async (_, _) =>
         {
-            try { await syncBridge.OnToolsListChangedAsync().ConfigureAwait(false); }
+            try
+            {
+                await syncBridge.OnToolsListChangedAsync().ConfigureAwait(false);
+                await RefreshKernelPluginsAsync(services, logger).ConfigureAwait(false);
+            }
             catch (Exception ex) { logger?.LogError(ex, "[MCP] OnToolsListChanged handler failed"); }
         };
 
@@ -66,6 +70,37 @@ public sealed class McpInitModule : IAppModule
         catch (Exception ex)
         {
             logger?.LogError(ex, "[MCP] InitializeAsync failed");
+        }
+
+        // 把 IToolRegistry 中的工具挂载到 kernel.Plugins — 修复断裂的工具管线
+        // McpToolBridge.CreatePluginAsync 从 IToolRegistry 提取所有工具（含 SlashToMcpAdapter 注册的斜杠命令）
+        // 挂载到 IChatClient.Plugins 后，AnthropicQueryService/OpenAIQueryService 能通过 BuildXxxToolsFromKernel 构建工具列表发送给 LLM
+        await RefreshKernelPluginsAsync(services, logger).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 从 IToolRegistry 刷新 kernel.Plugins — 把所有注册的工具（MCP + 斜杠）挂载到 IChatClient
+    /// </summary>
+    private static async Task RefreshKernelPluginsAsync(IServiceProvider services, ILogger? logger, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var chatClient = services.GetService<IChatClient>();
+            var toolRegistry = services.GetService<IToolRegistry>();
+            if (chatClient is null || toolRegistry is null)
+                return;
+
+            var bridge = new McpToolBridge(toolRegistry);
+            var plugin = await bridge.CreatePluginAsync(cancellationToken).ConfigureAwait(false);
+
+            chatClient.Plugins.Remove("mcp_tools");
+            chatClient.Plugins.Add(plugin);
+
+            logger?.LogDebug("[MCP] kernel.Plugins 已刷新，{Count} 个工具", plugin.Functions.Count());
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "[MCP] 刷新 kernel.Plugins 失败");
         }
     }
 }

@@ -128,6 +128,7 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
         {
             _logger.LogError(ex, L.T(StringKey.ToolExecFailedLog, toolName));
             span?.RecordException(ex);
+            Diag.WriteError($"[ToolExec] Tool={toolName}", ex);
             var exceptionError = CreateErrorResult($"Error executing tool '{toolName}': {ex.Message}");
             executionEntity.LifecycleState = EntityLifecycle.Completed;
             executionEntity.CompletedAt = DateTime.UtcNow;

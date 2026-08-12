@@ -1,10 +1,12 @@
+﻿using JoinCode.Abstractions.Utils;
+
 namespace JoinCode.Abstractions.Interfaces;
 
 /// <summary>
 /// 前台任务注册表 — 对齐 TS registerForeground/backgroundAll
 /// 管理当前前台运行的 Shell 命令上下文，支持 Ctrl+B 后台化
 /// </summary>
-public interface IForegroundTaskRegistry
+public interface IForegroundTaskRegistry : IRegistry
 {
     /// <summary>
     /// 注册前台任务 — 对齐 TS registerForeground

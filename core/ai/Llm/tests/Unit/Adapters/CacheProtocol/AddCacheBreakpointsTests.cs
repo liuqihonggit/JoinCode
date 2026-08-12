@@ -1,4 +1,6 @@
+using Api.LLM;
 using Api.LLM.CacheProtocol;
+using JoinCode.Abstractions.Utils;
 
 namespace Llm.Tests.Adapters.CacheProtocol;
 
@@ -58,15 +60,15 @@ public sealed class AddCacheBreakpointsTests
                 Role = "user",
                 Content = new List<AnthropicContentBlock>
                 {
-                    new AnthropicToolResultBlock { ToolUseId = "id1", Content = "result1" },
-                    new AnthropicToolResultBlock { ToolUseId = "id2", Content = "result2" }
+                    new AnthropicToolResultBlock { ToolUseId = "id1", Content = JsonElementHelper.FromString("result1") },
+                    new AnthropicToolResultBlock { ToolUseId = "id2", Content = JsonElementHelper.FromString("result2") }
                 }
             }
         };
 
         _protocol.AddCacheBreakpoints(systemBlocks, tools, messages, hasMcpTools: false);
 
-        var blocks = (List<AnthropicContentBlock>)messages[0].Content!;
+        var blocks = messages[0].Content?.Blocks!;
         blocks[0].CacheControl.Should().BeNull("only last tool result gets cache_control");
         blocks[1].CacheControl.Should().NotBeNull("last tool result gets cache_control");
     }
@@ -145,7 +147,7 @@ public sealed class AddCacheBreakpointsTests
                 Role = "user",
                 Content = new List<AnthropicContentBlock>
                 {
-                    new AnthropicToolResultBlock { ToolUseId = "id1", Content = "result1" }
+                    new AnthropicToolResultBlock { ToolUseId = "id1", Content = JsonElementHelper.FromString("result1") }
                 }
             },
             new()
@@ -153,15 +155,15 @@ public sealed class AddCacheBreakpointsTests
                 Role = "user",
                 Content = new List<AnthropicContentBlock>
                 {
-                    new AnthropicToolResultBlock { ToolUseId = "id2", Content = "result2" }
+                    new AnthropicToolResultBlock { ToolUseId = "id2", Content = JsonElementHelper.FromString("result2") }
                 }
             }
         };
 
         _protocol.AddCacheBreakpoints(systemBlocks, tools, messages, hasMcpTools: false);
 
-        var blocks1 = (List<AnthropicContentBlock>)messages[0].Content!;
-        var blocks2 = (List<AnthropicContentBlock>)messages[1].Content!;
+        var blocks1 = messages[0].Content?.Blocks!;
+        var blocks2 = messages[1].Content?.Blocks!;
         blocks1[0].CacheControl.Should().BeNull("only last tool result across all messages gets cache_control");
         blocks2[0].CacheControl.Should().NotBeNull("last tool result gets cache_control");
     }

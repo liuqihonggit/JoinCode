@@ -12,12 +12,13 @@ public sealed class UsageCommand : ChatCommandBase
     private readonly IClockService _clock = SystemClockService.Instance;
     public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
+        var services = context.GetCommandServices();
         // 预收集 Rate Limits 数据
         string rateLimitsContent;
 
-        if (context.Services.RateLimitTracker is not null)
+        if (services.RateLimitTracker is not null)
         {
-            var snapshot = context.Services.RateLimitTracker.GetLatestSnapshot();
+            var snapshot = services.RateLimitTracker.GetLatestSnapshot();
             if (snapshot is not null)
             {
                 var sb = new StringBuilder();
@@ -52,9 +53,9 @@ public sealed class UsageCommand : ChatCommandBase
 
         // 预收集 Token Usage 数据
         string tokenUsageContent;
-        if (context.Services.UsageTracker is not null)
+        if (services.UsageTracker is not null)
         {
-            var stats = context.Services.UsageTracker.GetTodayStatistics();
+            var stats = services.UsageTracker.GetTodayStatistics();
             if (stats.TotalTokens > 0)
             {
                 var sb = new StringBuilder();

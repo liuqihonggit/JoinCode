@@ -6,7 +6,8 @@ public sealed class ThinkbackCommand : ChatCommandBase
 {
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
-        if (context.Services.ThinkingStore is null)
+        var services = context.GetCommandServices();
+        if (services.ThinkingStore is null)
         {
             TerminalHelper.WriteLine($"{TerminalColors.Error}思考存储不可用{AnsiStyleConstants.Reset}");
             return ChatCommandResult.Continue();
@@ -18,7 +19,7 @@ public sealed class ThinkbackCommand : ChatCommandBase
             count = Math.Max(1, n);
         }
 
-        var entries = await context.Services.ThinkingStore.GetRecentAsync(context.SessionId, count, context.CancellationToken).ConfigureAwait(false);
+        var entries = await services.ThinkingStore.GetRecentAsync(context.SessionId, count, context.CancellationToken).ConfigureAwait(false);
 
         TerminalHelper.WriteLine("思考回放:");
         TerminalHelper.NewLine();

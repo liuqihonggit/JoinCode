@@ -234,7 +234,7 @@ public sealed class ApplicationBuilder
         {
             Cli.TerminalHelper.WriteLine($"错误: {result.Error}");
             Cli.TerminalHelper.WriteLine("使用 --help 查看可用选项。");
-            Environment.Exit(1);
+            Environment.Exit((int)ExitCode.ArgumentParseError);
         }
 
         // --verbose: 尽早启用诊断输出，确保后续所有 Diag.WriteLine 都能输出
@@ -400,7 +400,7 @@ public sealed class ApplicationBuilder
         Cli.TerminalHelper.WriteLine("  --pipe <管道名>         命名管道通信模式");
         Cli.TerminalHelper.WriteLine("  --brief                 启动时激活简要模式");
         Cli.TerminalHelper.WriteLine("  --force-interactive     强制交互模式（即使 stdin 重定向也启用 REPL，用于 E2E 测试）");
-        Cli.TerminalHelper.WriteLine("  --await <秒数>         超时自动关闭（超时返回 1234，用于诊断卡死，正常完成不受影响）");
+        Cli.TerminalHelper.WriteLine($"  --await <秒数>         超时自动关闭（超时返回 {(int)ExitCode.AwaitTimeout}，用于诊断卡死，正常完成不受影响）");
         Cli.TerminalHelper.WriteLine("  --verbose              启用诊断输出（[WIRE] [STEP] [READY] 等，等效于 JCC_VERBOSE=1）");
         Cli.TerminalHelper.WriteLine("  -c, --continue          继续最近的会话（自动恢复上次会话）");
         Cli.TerminalHelper.WriteLine("  -r, --resume <会话ID>   恢复指定会话（按 session-id 或标题关键字模糊匹配）");

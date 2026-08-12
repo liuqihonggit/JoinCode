@@ -1,4 +1,4 @@
-namespace Host.Tests.ChatCommands;
+﻿namespace Host.Tests.ChatCommands;
 
 /// <summary>
 /// McpCommand 取值范围测试 — 验证 CrudAction + McpAction 枚举字面量正确路由
@@ -231,7 +231,7 @@ public sealed class McpCommandTests
         {
             Arguments = arguments,
             CancellationToken = CancellationToken.None,
-            Services = new CommandServices
+            Services = new CommandServiceProvider(new CommandServices
             {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
@@ -239,7 +239,7 @@ public sealed class McpCommandTests
                 ServiceProvider = serviceProviderMock.Object,
                 ToolRegistry = mcpRegistryMock.Object,
             FileSystem = TestFileSystem.Current,
-            },
+            }),
         };
     }
 }

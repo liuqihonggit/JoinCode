@@ -6,7 +6,7 @@ public sealed class ExtraUsageCommand : ChatCommandBase
 {
     public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
-        var usageTracker = context.Services.UsageTracker;
+        var usageTracker = context.GetCommandServices().UsageTracker;
 
         TerminalHelper.WriteLine("额外用量:");
         TerminalHelper.NewLine();

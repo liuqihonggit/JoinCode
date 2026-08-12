@@ -1,4 +1,4 @@
-namespace Host.Tests.ChatCommands;
+﻿namespace Host.Tests.ChatCommands;
 
 /// <summary>
 /// MobileCommand 取值范围测试 — 验证 PlatformAction 枚举字面量正确路由
@@ -45,7 +45,7 @@ public sealed class MobileCommandTests
         {
             Arguments = "start",
             CancellationToken = CancellationToken.None,
-            Services = CreateServices(),
+            Services = new CommandServiceProvider(CreateServices()),
         };
 
         var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
@@ -203,7 +203,7 @@ public sealed class MobileCommandTests
         {
             Arguments = arguments ?? "",
             CancellationToken = CancellationToken.None,
-            Services = services,
+            Services = new CommandServiceProvider(services),
         };
     }
 

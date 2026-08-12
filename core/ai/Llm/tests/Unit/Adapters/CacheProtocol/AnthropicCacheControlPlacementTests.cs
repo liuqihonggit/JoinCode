@@ -1,4 +1,5 @@
 using Api.LLM.CacheProtocol;
+using JoinCode.Abstractions.Utils;
 
 namespace Llm.Tests.Adapters.CacheProtocol;
 
@@ -91,8 +92,8 @@ public sealed class AnthropicCacheControlPlacementTests
     {
         var toolResults = new List<AnthropicToolResultBlock>
         {
-            new() { ToolUseId = "id1", Content = "result1" },
-            new() { ToolUseId = "id2", Content = "result2" }
+            new() { ToolUseId = "id1", Content = JsonElementHelper.FromString("result1") },
+            new() { ToolUseId = "id2", Content = JsonElementHelper.FromString("result2") }
         };
 
         _protocol.PlaceCacheControlOnToolResults(toolResults, hasMcpTools: false);
@@ -108,7 +109,7 @@ public sealed class AnthropicCacheControlPlacementTests
     {
         var toolResults = new List<AnthropicToolResultBlock>
         {
-            new() { ToolUseId = "id1", Content = "result" }
+            new() { ToolUseId = "id1", Content = JsonElementHelper.FromString("result") }
         };
 
         _protocol.PlaceCacheControlOnToolResults(toolResults, hasMcpTools: true);
@@ -124,7 +125,7 @@ public sealed class AnthropicCacheControlPlacementTests
     {
         var toolResults = new List<AnthropicToolResultBlock>
         {
-            new() { ToolUseId = "id1", Content = "result" }
+            new() { ToolUseId = "id1", Content = JsonElementHelper.FromString("result") }
         };
 
         _protocol.PlaceCacheControlOnToolResults(toolResults, hasMcpTools: false);

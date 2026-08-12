@@ -1,4 +1,4 @@
-namespace Host.Tests.ChatCommands;
+﻿namespace Host.Tests.ChatCommands;
 
 public sealed class DiffCommandTests
 {
@@ -76,7 +76,7 @@ public sealed class DiffCommandTests
         {
             Arguments = "",
             CancellationToken = cts.Token,
-            Services = CreateCommandServices(CreateMockGitRunner()),
+            Services = new CommandServiceProvider(CreateCommandServices(CreateMockGitRunner())),
         };
 
         var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
@@ -93,7 +93,7 @@ public sealed class DiffCommandTests
         {
             Arguments = "files",
             CancellationToken = CancellationToken.None,
-            Services = CreateCommandServices(CreateMockGitRunner()),
+            Services = new CommandServiceProvider(CreateCommandServices(CreateMockGitRunner())),
         };
 
         var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
@@ -110,7 +110,7 @@ public sealed class DiffCommandTests
         {
             Arguments = "cached",
             CancellationToken = CancellationToken.None,
-            Services = CreateCommandServices(CreateMockGitRunner()),
+            Services = new CommandServiceProvider(CreateCommandServices(CreateMockGitRunner())),
         };
 
         var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
@@ -127,7 +127,7 @@ public sealed class DiffCommandTests
         {
             Arguments = "staged",
             CancellationToken = CancellationToken.None,
-            Services = CreateCommandServices(CreateMockGitRunner()),
+            Services = new CommandServiceProvider(CreateCommandServices(CreateMockGitRunner())),
         };
 
         var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
@@ -147,7 +147,7 @@ public sealed class DiffCommandTests
         {
             Arguments = subCommand,
             CancellationToken = CancellationToken.None,
-            Services = CreateCommandServices(CreateMockGitRunner()),
+            Services = new CommandServiceProvider(CreateCommandServices(CreateMockGitRunner())),
         };
 
         var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
@@ -165,7 +165,7 @@ public sealed class DiffCommandTests
         {
             Arguments = "unknown-mode",
             CancellationToken = cts.Token,
-            Services = CreateCommandServices(CreateMockGitRunner()),
+            Services = new CommandServiceProvider(CreateCommandServices(CreateMockGitRunner())),
         };
 
         var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);

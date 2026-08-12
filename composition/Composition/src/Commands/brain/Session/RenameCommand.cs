@@ -50,7 +50,7 @@ public sealed class RenameCommand : ChatCommandBase
             "sessions");
 
         var sessionFile = Path.Combine(sessionsDir, $"{context.SessionId}.json");
-        var fs = context.Services.FileSystem;
+        var fs = context.GetCommandServices().FileSystem;
 
         if (!fs.FileExists(sessionFile))
         {

@@ -5,7 +5,7 @@
 /// TS 是全屏交互式 TUI（React），C# 是终端文本输出
 /// 对齐内容：活动热力图、Streaks、PeakActivity、FunFactoid、FavoriteModel、日期范围
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Stats, Description = "查看会话统计", Usage = "/stats [--today|--total|--7d|--30d|--all|--session]", Category = ChatCommandCategory.Info, Aliases = ["stat"])]
+[ChatCommand(Name = ChatCommandNameConstants.Stats, Description = "查看会话统计", Usage = "/stats [--today|--total|--7d|--30d|--all|--session]", Category = ChatCommandCategory.Info, Aliases = ["stat"], ExposeToMcp = true)]
 public sealed class StatsCommand : ChatCommandBase
 {
     private readonly IClockService _clock = SystemClockService.Instance;
@@ -22,7 +22,7 @@ public sealed class StatsCommand : ChatCommandBase
         }
 
         // 回退到 UsageTracker 模式
-        var usageTracker = context.Services.UsageTracker;
+        var usageTracker = context.GetCommandServices().UsageTracker;
 
         if (usageTracker is null)
         {

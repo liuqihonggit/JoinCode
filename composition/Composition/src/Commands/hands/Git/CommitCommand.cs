@@ -14,7 +14,7 @@ public sealed class CommitCommand : ChatCommandBase
     {
         TerminalHelper.WriteLine($"{TerminalColors.Muted}正在创建提交...{AnsiStyleConstants.Reset}");
 
-        var fs = context.Services.FileSystem;
+        var fs = context.GetCommandServices().FileSystem;
         var gitRunner = ChatCommandBase.GetService<IGitCommandRunner>(context)!;
         var status = await RunGitCommandAsync("status --porcelain", context.CancellationToken, fs, gitRunner).ConfigureAwait(false);
         if (string.IsNullOrWhiteSpace(status))

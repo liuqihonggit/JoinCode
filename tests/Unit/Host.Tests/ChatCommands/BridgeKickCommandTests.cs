@@ -1,4 +1,4 @@
-namespace Host.Tests.ChatCommands;
+﻿namespace Host.Tests.ChatCommands;
 
 public sealed class BridgeKickCommandTests
 {
@@ -30,13 +30,13 @@ public sealed class BridgeKickCommandTests
         var context = new ChatCommandContext {
             Arguments = "",
             CancellationToken = CancellationToken.None,
-             Services = new CommandServices
+             Services = new CommandServiceProvider(new CommandServices
              {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
              FileSystem = TestFileSystem.Current,
-             },
+             }),
         };
 
         var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
@@ -52,13 +52,13 @@ public sealed class BridgeKickCommandTests
         var context = new ChatCommandContext {
             Arguments = "session-123",
             CancellationToken = CancellationToken.None,
-             Services = new CommandServices
+             Services = new CommandServiceProvider(new CommandServices
              {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
              FileSystem = TestFileSystem.Current,
-             },
+             }),
         };
 
         var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);

@@ -1,4 +1,4 @@
-namespace Host.Tests.ChatCommands;
+﻿namespace Host.Tests.ChatCommands;
 
 using JoinCode.Abstractions.Interfaces;
 using JoinCode.Abstractions.Configuration.Settings; // SettingSource 命名空间
@@ -165,7 +165,7 @@ public sealed class ConfigCommandTests
         {
             Arguments = arguments,
             CancellationToken = CancellationToken.None,
-            Services = services,
+            Services = new CommandServiceProvider(services),
         };
     }
 

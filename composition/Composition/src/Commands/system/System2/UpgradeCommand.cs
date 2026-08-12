@@ -12,7 +12,7 @@ public sealed class UpgradeCommand : ChatCommandBase
 {
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
-        var upgradeService = context.Services.ServiceProvider?.GetService<IUpgradeService>();
+        var upgradeService = context.Services?.GetService<IUpgradeService>();
         var args = ChatCommandBase.GetNormalizedArgs(context).ToLowerInvariant();
 
         var currentVersion = upgradeService?.GetCurrentVersion() ?? GetFallbackVersion();

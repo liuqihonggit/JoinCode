@@ -1,3 +1,5 @@
+﻿using JoinCode.Abstractions.State;
+
 namespace JoinCode.Abstractions.Interfaces.Scheduling;
 
 /// <summary>
@@ -63,7 +65,7 @@ public sealed record CronTask
 /// <summary>
 /// Cron 任务存储接口
 /// </summary>
-public interface ICronTaskStore
+public interface ICronTaskStore : IStore
 {
     /// <summary>
     /// 获取所有任务

@@ -12,13 +12,13 @@ public sealed partial class GoalCommand : ChatCommandBase
 
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
-        var registry = context.Services.GoalRegistry;
+        var registry = context.GetCommandServices().GoalRegistry;
         if (registry is not null)
         {
             return await ExecuteViaRegistryAsync(registry, context).ConfigureAwait(false);
         }
 
-        var goalEngine = context.Services.GoalEngine;
+        var goalEngine = context.GetCommandServices().GoalEngine;
         if (goalEngine is null)
         {
             TerminalHelper.WriteLine($"{TerminalColors.Error}错误: 目标引擎未注册{AnsiStyleConstants.Reset}");
@@ -136,7 +136,7 @@ public sealed partial class GoalCommand : ChatCommandBase
                 var parsed = ParseGoalArgs(args);
                 if (parsed.IsCron)
                 {
-                    var goalEngine = context.Services.GoalEngine;
+                    var goalEngine = context.GetCommandServices().GoalEngine;
                     if (goalEngine is not null)
                         await ExecuteCronGoalAsync(goalEngine, context, parsed).ConfigureAwait(false);
                 }
@@ -253,7 +253,7 @@ public sealed partial class GoalCommand : ChatCommandBase
             return;
         }
 
-        var cronTaskStore = context.Services.CronTaskStore;
+        var cronTaskStore = context.GetCommandServices().CronTaskStore;
         if (cronTaskStore is null)
         {
             TerminalHelper.WriteLine($"{TerminalColors.Error}错误: Cron 任务存储未注册{AnsiStyleConstants.Reset}");

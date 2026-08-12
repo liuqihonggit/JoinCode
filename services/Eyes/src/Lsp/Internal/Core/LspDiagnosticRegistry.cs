@@ -1,3 +1,5 @@
+﻿using JoinCode.Abstractions.Utils;
+
 namespace Services.Lsp.Internal;
 
 public sealed class LspDiagnosticItem
@@ -23,7 +25,7 @@ public sealed class LspPendingDiagnostic
     public bool AttachmentSent { get; set; }
 }
 
-public interface ILspDiagnosticRegistry
+public interface ILspDiagnosticRegistry : IRegistry
 {
     void RegisterPending(string serverName, List<LspDiagnosticFile> files);
     List<(string ServerName, List<LspDiagnosticFile> Files)> CheckPending();

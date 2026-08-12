@@ -1,4 +1,4 @@
-namespace Host.Tests.ChatCommands;
+﻿namespace Host.Tests.ChatCommands;
 
 using JoinCode.Abstractions.Models;
 
@@ -187,14 +187,14 @@ public sealed class WorktreeCommandTests
         {
             Arguments = arguments,
             CancellationToken = CancellationToken.None,
-            Services = new CommandServices
+            Services = new CommandServiceProvider(new CommandServices
             {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
                 WorktreeService = worktreeService,
             FileSystem = TestFileSystem.Current,
-            },
+            }),
         };
     }
 

@@ -6,7 +6,7 @@ public sealed class PassesCommand : ChatCommandBase
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         // 对齐 TS: /passes 直接重定向到 /permissions 执行
-        var registry = context.Services.CommandRegistry;
+        var registry = context.GetCommandServices().CommandRegistry;
         if (registry is not null)
         {
             var permissionsCommand = registry.GetCommand("permissions");

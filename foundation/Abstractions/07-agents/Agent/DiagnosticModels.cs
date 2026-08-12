@@ -25,7 +25,7 @@ public enum DiagnosticRuleId
     /// <summary>上下文溢出：token 使用量 > 80% 窗口</summary>
     [EnumValue("D003")] ContextOverflow,
 
-    /// <summary>进程卡死：子进程 --await 返回 1234</summary>
+    /// <summary>进程卡死：子进程 --await 返回 ExitCode.AwaitTimeout (=1234)</summary>
     [EnumValue("D004")] ProcessHung,
 
     /// <summary>API 错误：API 调用连续失败 ≥ 3次</summary>

@@ -253,11 +253,26 @@ public sealed class MultiProviderE2ETests : IAsyncLifetime
                 : turn.AssistantResponse;
             _output.WriteLine($"    AssistantResponse: {respPreview}");
             _output.WriteLine($"    Errors: {turn.Errors.Count}");
+            if (!result.AllPassed)
+            {
+                _output.WriteLine($"    RawOutput: {turn.RawOutput}");
+                foreach (var err in turn.Errors)
+                    _output.WriteLine($"    Error: {err}");
+            }
         }
 
         foreach (var assert in result.AssertResults.Where(a => !a.IsPassed))
         {
             _output.WriteLine($"FAIL: {assert.Type} Expected=\"{assert.Expected}\" Desc=\"{assert.Description}\"");
+        }
+
+        if (!result.AllPassed && !string.IsNullOrWhiteSpace(result.StderrOutput))
+        {
+            var stderrPreview = result.StderrOutput.Length > 3000
+                ? result.StderrOutput[..3000] + "...(truncated)"
+                : result.StderrOutput;
+            _output.WriteLine($"--- StderrOutput (len={result.StderrOutput.Length}):");
+            _output.WriteLine(stderrPreview);
         }
     }
 

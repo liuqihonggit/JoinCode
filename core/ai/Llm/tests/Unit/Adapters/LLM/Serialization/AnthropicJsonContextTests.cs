@@ -105,7 +105,7 @@ public class AnthropicJsonContextTests
         {
             Edits =
             [
-                new AnthropicClearThinkingStrategy { Keep = 10 }
+                new AnthropicClearThinkingStrategy { Keep = JsonElementHelper.FromInt32(10) }
             ]
         };
 

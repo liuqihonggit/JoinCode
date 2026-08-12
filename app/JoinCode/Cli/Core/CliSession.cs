@@ -16,6 +16,8 @@ public sealed class CliSession
     private readonly SessionController _controller;
     private readonly IClockService _clock;
     private readonly ILogger<CliSession>? _logger;
+    private readonly CommandServices _commandServices;
+    private readonly ICmdMap _cmdMap;
 
     /// <summary>
     /// 会话实体 — 派生自 Entity，自动注册到 Session.Registry + ObjectIdManager
@@ -62,8 +64,12 @@ public sealed class CliSession
         _toolRegistry = toolRegistry;
         _fs = fs;
         _optionalServices = optionalServices;
-        _commandRegistry = new ChatCommandRegistry();
-        GeneratedCommandRegistration.RegisterAllChatCommands(_commandRegistry);
+        _commandRegistry = optionalServices?.ServiceProvider?.GetService<ChatCommandRegistry>()
+            ?? new ChatCommandRegistry();
+        if (optionalServices?.ServiceProvider?.GetService<ChatCommandRegistry>() is null)
+        {
+            GeneratedCommandRegistration.RegisterAllChatCommands(_commandRegistry);
+        }
 
         _sessionEntity = new Session();
         _sessionObjectId = _sessionEntity.ObjectId;
@@ -80,6 +86,47 @@ public sealed class CliSession
             _turnDiffService,
             _sessionId,
             optionalServices?.ServiceProvider);
+
+        _commandServices = new CommandServices
+        {
+            ChatService = chatService,
+            CodeService = _codeService,
+            PlanService = _planService,
+            ServiceProvider = optionalServices?.ServiceProvider,
+            ToolRegistry = _toolRegistry,
+            CommandRegistry = _commandRegistry,
+            GoalEngine = optionalServices?.GoalEngine,
+            GoalRegistry = optionalServices?.GoalRegistry,
+            CronTaskStore = optionalServices?.CronTaskStore,
+            SimpleModeService = optionalServices?.SimpleModeService,
+            BriefModeService = optionalServices?.BriefModeService ?? optionalServices?.ServiceProvider?.GetService<IBriefModeService>(),
+            HookConfigurationManager = optionalServices?.HookConfigurationManager,
+            PluginManager = optionalServices?.PluginManager,
+            BridgeClient = optionalServices?.BridgeClient,
+            WorkflowConfig = optionalServices?.WorkflowConfig,
+            ExecutionSettingsProvider = optionalServices?.ExecutionSettingsProvider,
+            MemoryManagementService = optionalServices?.MemoryManagementService,
+            TaskService = optionalServices?.TaskService,
+            TodoService = optionalServices?.TodoService,
+            UsageTracker = optionalServices?.UsageTracker,
+            PermissionManager = optionalServices?.PermissionManager,
+            ThinkingStore = optionalServices?.ThinkingStore ?? optionalServices?.ServiceProvider?.GetService<IThinkingStore>(),
+            RateLimitTracker = optionalServices?.RateLimitTracker ?? optionalServices?.ServiceProvider?.GetService<IRateLimitTracker>(),
+            WorkflowTaskExecutor = optionalServices?.WorkflowTaskExecutor ?? optionalServices?.ServiceProvider?.GetService<IWorkflowTaskExecutor>(),
+            CostTracker = optionalServices?.ServiceProvider?.GetService<Core.CostTracking.CostTracker>(),
+            TokenStorage = optionalServices?.ServiceProvider?.GetService<ITokenStorage>(),
+            PkceGenerator = optionalServices?.ServiceProvider?.GetService<IPkceGenerator>(),
+            WorktreeService = optionalServices?.ServiceProvider?.GetService<IAgentWorktreeService>(),
+            ClipboardService = optionalServices?.ClipboardService ?? optionalServices?.ServiceProvider?.GetService<IClipboardService>(),
+            WorkspaceService = optionalServices?.WorkspaceService ?? optionalServices?.ServiceProvider?.GetService<IWorkspaceService>(),
+            FileOperationTracker = optionalServices?.FileOperationTracker ?? optionalServices?.ServiceProvider?.GetService<IFileOperationTracker>(),
+            TurnDiffProvider = _turnDiffService,
+            SessionTagService = optionalServices?.SessionTagService ?? optionalServices?.ServiceProvider?.GetService<ISessionTagService>(),
+            WebService = optionalServices?.ServiceProvider?.GetService<IWebService>(),
+            FileSystem = _fs,
+        };
+
+        _cmdMap = new CmdMap(_commandRegistry, _toolRegistry);
     }
 
     /// <summary>
@@ -169,7 +216,8 @@ public sealed class CliSession
         }
 
         Diag.WriteLifecycle($"[DIAG-CLI] Parse OK, commandName={parseResult.CommandName}, arguments={parseResult.Arguments}");
-        var command = _commandRegistry.GetCommand(parseResult.CommandName ?? throw new InvalidOperationException("CommandName should not be null after successful parse"));
+        var descriptor = await _cmdMap.ResolveAsync(parseResult.CommandName ?? throw new InvalidOperationException("CommandName should not be null after successful parse"), cancellationToken).ConfigureAwait(false);
+        var command = descriptor?.SlashCommand;
         if (command == null)
         {
             var allCommands = _commandRegistry.GetAllCommands().Keys.OrderBy(k => k).ToArray();
@@ -186,44 +234,7 @@ public sealed class CliSession
             CancellationToken = cancellationToken,
             SessionStartedAt = _sessionStartedAt,
             SessionId = _sessionId,
-            Services = new CommandServices
-            {
-                ChatService = _controller.ChatService,
-                CodeService = _codeService,
-                PlanService = _planService,
-                ServiceProvider = _optionalServices?.ServiceProvider,
-                ToolRegistry = _toolRegistry,
-                CommandRegistry = _commandRegistry,
-                GoalEngine = _optionalServices?.GoalEngine,
-                GoalRegistry = _optionalServices?.GoalRegistry,
-                CronTaskStore = _optionalServices?.CronTaskStore,
-                SimpleModeService = _optionalServices?.SimpleModeService,
-                BriefModeService = _optionalServices?.BriefModeService ?? _optionalServices?.ServiceProvider?.GetService<IBriefModeService>(),
-                HookConfigurationManager = _optionalServices?.HookConfigurationManager,
-                PluginManager = _optionalServices?.PluginManager,
-                BridgeClient = _optionalServices?.BridgeClient,
-                WorkflowConfig = _optionalServices?.WorkflowConfig,
-                ExecutionSettingsProvider = _optionalServices?.ExecutionSettingsProvider,
-                MemoryManagementService = _optionalServices?.MemoryManagementService,
-                TaskService = _optionalServices?.TaskService,
-                TodoService = _optionalServices?.TodoService,
-                UsageTracker = _optionalServices?.UsageTracker,
-                PermissionManager = _optionalServices?.PermissionManager,
-                ThinkingStore = _optionalServices?.ThinkingStore ?? _optionalServices?.ServiceProvider?.GetService<IThinkingStore>(),
-                RateLimitTracker = _optionalServices?.RateLimitTracker ?? _optionalServices?.ServiceProvider?.GetService<IRateLimitTracker>(),
-                WorkflowTaskExecutor = _optionalServices?.WorkflowTaskExecutor ?? _optionalServices?.ServiceProvider?.GetService<IWorkflowTaskExecutor>(),
-                CostTracker = _optionalServices?.ServiceProvider?.GetService<Core.CostTracking.CostTracker>(),
-                TokenStorage = _optionalServices?.ServiceProvider?.GetService<ITokenStorage>(),
-                PkceGenerator = _optionalServices?.ServiceProvider?.GetService<IPkceGenerator>(),
-                WorktreeService = _optionalServices?.ServiceProvider?.GetService<IAgentWorktreeService>(),
-                ClipboardService = _optionalServices?.ClipboardService ?? _optionalServices?.ServiceProvider?.GetService<IClipboardService>(),
-                WorkspaceService = _optionalServices?.WorkspaceService ?? _optionalServices?.ServiceProvider?.GetService<IWorkspaceService>(),
-                FileOperationTracker = _optionalServices?.FileOperationTracker ?? _optionalServices?.ServiceProvider?.GetService<IFileOperationTracker>(),
-                TurnDiffProvider = _turnDiffService,
-                SessionTagService = _optionalServices?.SessionTagService ?? _optionalServices?.ServiceProvider?.GetService<ISessionTagService>(),
-                WebService = _optionalServices?.ServiceProvider?.GetService<IWebService>(),
-                FileSystem = _fs,
-            },
+            Services = new CommandServiceProvider(_commandServices, _optionalServices?.ServiceProvider),
             ClearScreen = () =>
             {
                 try { System.Console.Clear(); } catch (IOException ex) { _logger?.LogWarning(ex, "清屏失败"); }
@@ -328,12 +339,7 @@ public sealed class CliSession
         else if (result.TimedOut)
         {
             Diag.WriteLine($"[CliSession] API timeout ({result.TimeoutMs}ms no response)");
-            using var _ = TerminalHelper.SetColor(ConsoleColor.Yellow);
-            TerminalHelper.WriteLine();
-            TerminalHelper.WriteLine($"API 请求超时（{result.TimeoutMs / 1000}s 无响应）。请检查：");
-            TerminalHelper.WriteLine("  1. 是否已配置 API Key");
-            TerminalHelper.WriteLine("  2. 网络连接是否正常");
-            TerminalHelper.WriteLine("  3. API 服务是否可用");
+            throw new TimeoutException($"API 请求超时（{result.TimeoutMs / 1000}s 无响应）");
         }
         else if (result.WasCancelled)
         {

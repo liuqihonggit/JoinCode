@@ -4,7 +4,7 @@ namespace JoinCode.Abstractions.Hooks;
 /// <summary>
 /// Post-sampling 回调管理器 — 管理和触发 IPostSamplingCallback 集合
 /// </summary>
-public interface IPostSamplingCallbackManager
+public interface IPostSamplingCallbackManager : IHookManager
 {
     /// <summary>
     /// 注册回调

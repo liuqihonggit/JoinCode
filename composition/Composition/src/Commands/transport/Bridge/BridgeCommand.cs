@@ -43,7 +43,7 @@ public sealed class BridgeCommand : ChatCommandBase
 
     private static async Task ShowQrCodeAsync(ChatCommandContext context)
     {
-        var serviceProvider = context.Services.ServiceProvider;
+        var serviceProvider = context.Services;
         if (serviceProvider is null)
         {
             TerminalHelper.WriteLine($"{TerminalColors.Error}服务提供者不可用，无法生成 QR 码{AnsiStyleConstants.Reset}");
@@ -69,7 +69,7 @@ public sealed class BridgeCommand : ChatCommandBase
 
     private static async Task ShowSessionsAsync(ChatCommandContext context)
     {
-        var serviceProvider = context.Services.ServiceProvider;
+        var serviceProvider = context.Services;
         if (serviceProvider is null)
         {
             TerminalHelper.WriteLine($"{TerminalColors.Error}服务提供者不可用，无法获取会话列表{AnsiStyleConstants.Reset}");
@@ -112,7 +112,7 @@ public sealed class BridgeCommand : ChatCommandBase
     {
         TerminalHelper.WriteLine("=== Bridge 状态 ===\n");
 
-        var serviceProvider = context.Services.ServiceProvider;
+        var serviceProvider = context.Services;
         if (serviceProvider is null)
         {
             TerminalHelper.WriteLine($"{TerminalColors.Warning}服务提供者不可用{AnsiStyleConstants.Reset}");
@@ -136,7 +136,7 @@ public sealed class BridgeCommand : ChatCommandBase
 
     private static async Task ToggleConnectionAsync(ChatCommandContext context, ToggleAction action)
     {
-        var bridgeClient = context.Services.BridgeClient;
+        var bridgeClient = context.GetCommandServices().BridgeClient;
         if (bridgeClient is null)
         {
             TerminalHelper.WriteLine($"{TerminalColors.Warning}Bridge 客户端未配置{AnsiStyleConstants.Reset}");

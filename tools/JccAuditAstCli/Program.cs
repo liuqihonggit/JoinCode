@@ -41,6 +41,11 @@ public static class Program
             return await RunTopFilesCommand(args[1..]);
         }
 
+        if (args[0] == "layer-audit")
+        {
+            return await RunLayerAuditCommand(args[1..]);
+        }
+
         // 默认: 审计模式（直接传 slnx/csproj 路径）
         return await RunAuditCommand(args);
     }
@@ -311,6 +316,7 @@ public static class Program
         Console.WriteLine("  jcc-audit replace <csproj-or-slnx-path> [选项]  替换模式");
         Console.WriteLine("  jcc-audit ctor-audit <csproj-or-slnx-path> [选项]  构造函数参数审计");
         Console.WriteLine("  jcc-audit top-files <directory> [选项]            大文件排行");
+        Console.WriteLine("  jcc-audit layer-audit <slnx-path> [选项]          层依赖审计");
         Console.WriteLine();
         Console.WriteLine("审计选项:");
         Console.WriteLine("  --analyzer-dir <dir>   分析器 DLL 目录（默认自动搜索）");
@@ -335,6 +341,11 @@ public static class Program
         Console.WriteLine("大文件排行选项:");
         Console.WriteLine("  --top <N>              返回前 N 个大文件（默认 10）");
         Console.WriteLine("  --threshold <N>        最低行数阈值（默认 200）");
+        Console.WriteLine("  --output <file>        输出 JSON 报告到文件");
+        Console.WriteLine("  --format <json|text>   输出格式（默认 text）");
+        Console.WriteLine("  --skip-tests           跳过测试/基准/Mock 项目");
+        Console.WriteLine();
+        Console.WriteLine("层依赖审计选项:");
         Console.WriteLine("  --output <file>        输出 JSON 报告到文件");
         Console.WriteLine("  --format <json|text>   输出格式（默认 text）");
         Console.WriteLine("  --skip-tests           跳过测试/基准/Mock 项目");
@@ -495,6 +506,93 @@ public static class Program
         {
             Console.Error.WriteLine(ex.Message);
             return 1;
+        }
+    }
+
+    /// <summary>
+    /// 层依赖审计模式：检测七层架构违规引用
+    /// </summary>
+    private static async Task<int> RunLayerAuditCommand(string[] args)
+    {
+        if (args.Length == 0 || args.Contains("--help", StringComparer.Ordinal) || args.Contains("-h", StringComparer.Ordinal))
+        {
+            Console.WriteLine("用法: jcc-audit layer-audit <slnx-path> [--format json|text] [--output <file>] [--skip-tests]");
+            return 0;
+        }
+
+        var targetPath = args[0];
+        var outputPath = GetArgValue(args, "--output") ?? string.Empty;
+        var format = GetArgValue(args, "--format") ?? "text";
+        var skipTests = args.Contains("--skip-tests", StringComparer.Ordinal);
+
+        if (string.IsNullOrEmpty(targetPath))
+        {
+            Console.Error.WriteLine("必须指定解决方案路径。");
+            return 1;
+        }
+
+        Console.WriteLine("=== JccAuditCli 层依赖审计 ===");
+        Console.WriteLine($"目标: {targetPath}");
+        Console.WriteLine($"跳过测试: {skipTests}");
+
+        var engine = new AuditEngine([]);
+        using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(10));
+
+        try
+        {
+            var report = await engine.AuditLayersAsync(targetPath, skipTests, cts.Token);
+
+            var json = JsonSerializer.Serialize(report, AuditReportContext.Default.LayerAuditReport);
+
+            if (!string.IsNullOrEmpty(outputPath))
+            {
+                await File.WriteAllTextAsync(outputPath, json);
+                Console.WriteLine($"报告已写入: {outputPath}");
+            }
+
+            if (format == "json")
+            {
+                Console.WriteLine();
+                Console.WriteLine(json);
+            }
+            else
+            {
+                PrintLayerAuditTextReport(report);
+            }
+
+            return report.ErrorCount > 0 ? 4 : report.TotalViolations > 0 ? 3 : 0;
+        }
+        catch (OperationCanceledException)
+        {
+            Console.Error.WriteLine("审计超时（10 分钟限制）。");
+            return 2;
+        }
+        catch (ArgumentException ex)
+        {
+            Console.Error.WriteLine(ex.Message);
+            return 1;
+        }
+    }
+
+    private static void PrintLayerAuditTextReport(LayerAuditReport report)
+    {
+        Console.WriteLine();
+        Console.WriteLine("=== 层依赖审计报告 ===");
+        Console.WriteLine($"目标: {report.TargetPath}");
+        Console.WriteLine($"时间: {report.Timestamp:yyyy-MM-dd HH:mm:ss}");
+        Console.WriteLine($"总项目: {report.TotalProjects}");
+        Console.WriteLine($"违规数: {report.TotalViolations}（{report.ErrorCount} Error）");
+        Console.WriteLine();
+
+        if (report.Violations.Count == 0)
+        {
+            Console.WriteLine("未发现层依赖违规，七层架构隔离良好。");
+            return;
+        }
+
+        foreach (var v in report.Violations)
+        {
+            Console.WriteLine($"[{v.RuleId}] {v.Severity}: {v.Message}");
         }
     }
 

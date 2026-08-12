@@ -15,7 +15,7 @@ public sealed class RegisterAttributeAnalyzer : DiagnosticAnalyzer
     private const string ServiceEntityFullName = "JoinCode.Abstractions.Entity.ServiceEntity";
 
     private static readonly DiagnosticDescriptor RuleMultiInterfaceWithoutExplicitType = new(
-        "JCC4001",
+        "JCC4010",
         "[Register] 缺少显式接口类型",
         "类 '{0}' 实现了 {1} 个业务接口，但 [Register] 未显式指定接口类型。请使用 [Register(typeof(IFoo), typeof(IBar))] 显式指定。",
         "DIServiceRegistration",
@@ -24,7 +24,7 @@ public sealed class RegisterAttributeAnalyzer : DiagnosticAnalyzer
         "When a class implements multiple business interfaces (excluding IDisposable/IAsyncDisposable), you must explicitly specify the interface types in [Register] to avoid unintended auto-registration.");
 
     private static readonly DiagnosticDescriptor RuleMustInheritEntity = new(
-        "JCC4003",
+        "JCC4012",
         "[Register] 类必须继承 ServiceEntity",
         "类 '{0}' 标记了 [Register] 但未继承 ServiceEntity/Entity. 请继承 ServiceEntity 获得 ObjectId 生命周期追踪, 或用 [AllowSkipEntity(\"原因\")] 豁免.",
         "DIServiceRegistration",
@@ -92,7 +92,7 @@ public sealed class RegisterAttributeAnalyzer : DiagnosticAnalyzer
             context.ReportDiagnostic(diagnostic);
         }
 
-        // JCC4003: [Register] 类必须继承 ServiceEntity/Entity（除非 [AllowSkipEntity] 豁免）
+        // JCC4012: [Register] 类必须继承 ServiceEntity/Entity（除非 [AllowSkipEntity] 豁免）
         var hasAllowSkip = typeSymbol.GetAttributes()
             .Any(a => a.AttributeClass?.ToDisplayString() == AllowSkipEntityAttributeFullName);
         if (hasAllowSkip)

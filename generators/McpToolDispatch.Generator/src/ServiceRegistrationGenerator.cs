@@ -10,7 +10,7 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
     private const string IHostedServiceFullName = "global::Microsoft.Extensions.Hosting.IHostedService";
 
     private static readonly DiagnosticDescriptor DiCycleRule = new(
-        "JCC4002",
+        "JCC4011",
         "DI 循环依赖",
         "检测到 DI 循环依赖: {0}。请用延迟解析打破循环，或用 [AllowCycle(\"原因\")] 标记已知合法循环。",
         "DIServiceRegistration",

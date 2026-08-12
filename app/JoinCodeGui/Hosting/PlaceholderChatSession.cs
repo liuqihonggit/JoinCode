@@ -6,8 +6,8 @@ using JoinCode.Abstractions.LLM.Chat;
 namespace JoinCode.Gui.Hosting;
 
 /// <summary>
-/// 占位引擎会话实现 — 骨架阶段无真实引擎引用，返回固定回显供 UI 运行验证。
-/// 正式接入引擎时由 <c>JccChatSession</c> 替换，本类保留作测试桩或删除。
+/// 占位引擎会话实现 — 无真实引擎连接时作为 mock 占位，返回固定回显供 UI 运行验证。
+/// 被 MainViewModel 用作 mock 连接（IsMockConnection），同时用于单元测试桩。
 /// </summary>
 internal sealed class PlaceholderChatSession : IJccChatSession
 {

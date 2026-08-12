@@ -56,6 +56,9 @@ public sealed record AuditReport
 [JsonSerializable(typeof(FileLineReport))]
 [JsonSerializable(typeof(DisposableConsistencyInfo))]
 [JsonSerializable(typeof(List<DisposableConsistencyInfo>))]
+[JsonSerializable(typeof(LayerViolationInfo))]
+[JsonSerializable(typeof(List<LayerViolationInfo>))]
+[JsonSerializable(typeof(LayerAuditReport))]
 public sealed partial class AuditReportContext : JsonSerializerContext;
 
 /// <summary>

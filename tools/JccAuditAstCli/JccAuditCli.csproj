@@ -10,8 +10,8 @@
     <AssemblyName>jcc-audit</AssemblyName>
     <RootNamespace>JccAuditCli</RootNamespace>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
-    <!-- 分析器加载器使用反射，抑制 trim 警告 -->
-    <NoWarn>$(NoWarn);IL2026;IL2072;IL2075;JCC9001;JCC9002</NoWarn>
+    <!-- 分析器加载器使用反射，抑制 trim 警告和反射 API 规则 -->
+    <NoWarn>$(NoWarn);IL2026;IL2072;IL2075;JCC9001;JCC9002;JCC1007;JCC1013;JCC1014;JCC1015;JCC1016</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

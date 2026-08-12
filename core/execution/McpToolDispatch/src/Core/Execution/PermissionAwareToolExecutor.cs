@@ -6,7 +6,7 @@ namespace McpToolRegistry;
 /// 权限感知的工具执行器 — 通过标准中间件管道执行工具调用
 /// 管道: 参数修复 → 必填参数校验 → Schema校验 → Agent限制 → 权限检查 → 远程策略 → FeatureFlag → 执行
 /// </summary>
-[Register]
+[Register(typeof(IToolExecutionGateway))]
 public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolExecutionGateway
 {
     private readonly IToolRegistry _toolRegistry;

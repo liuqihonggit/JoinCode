@@ -222,6 +222,67 @@ public sealed class AuditEngine
     }
 
     /// <summary>
+    /// 层依赖审计：检测七层架构违规引用（反向依赖、循环依赖）
+    /// 返回 LayerAuditReport，用于独立 layer-audit 子命令
+    /// </summary>
+    public async Task<LayerAuditReport> AuditLayersAsync(
+        string solutionPath, bool skipTests = false, CancellationToken ct = default)
+    {
+        Console.WriteLine($"正在加载解决方案（层依赖审计）: {solutionPath}");
+
+        var msbuildProps = CreateMsBuildProps();
+        using var workspace = MSBuildWorkspace.Create(msbuildProps);
+        workspace.SkipUnrecognizedProjects = true;
+        workspace.LoadMetadataForReferencedProjects = false;
+
+        var projectPaths = SlnxParser.ParseProjectPaths(solutionPath);
+        var filteredPaths = projectPaths
+            .Where(p => !skipTests || !IsTestProjectPath(p))
+            .ToList();
+
+        var projects = new List<Project>();
+        var loadedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var projectPath in filteredPaths)
+        {
+            if (ct.IsCancellationRequested) break;
+            var fullPath = Path.GetFullPath(projectPath);
+            if (loadedPaths.Contains(fullPath)) continue;
+
+            try
+            {
+                var project = await workspace.OpenProjectAsync(projectPath, cancellationToken: ct);
+                projects.Add(project);
+                foreach (var p in workspace.CurrentSolution.Projects)
+                {
+                    if (p.FilePath is not null)
+                        loadedPaths.Add(Path.GetFullPath(p.FilePath));
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"  加载项目失败: {Path.GetFileName(projectPath)} - {ex.Message}");
+            }
+        }
+
+        Console.WriteLine($"  项目加载完成 ({projects.Count}/{filteredPaths.Count})");
+
+        var violations = LayerDependencyAuditor.Audit(projects);
+        var errorCount = violations.Count(v => v.Severity == "Error");
+
+        Console.WriteLine($"  发现 {violations.Count} 个层依赖违规（{errorCount} Error）");
+
+        return new LayerAuditReport
+        {
+            TargetPath = solutionPath,
+            TotalProjects = projects.Count,
+            TotalViolations = violations.Count,
+            ErrorCount = errorCount,
+            Violations = violations,
+        };
+    }
+
+    /// <summary>
     /// 构造函数参数审计：扫描解决方案中所有胖构造函数（参数 > 阈值）
     /// 返回 ConstructorParamReport，用于独立 ctor-audit 子命令
     /// </summary>

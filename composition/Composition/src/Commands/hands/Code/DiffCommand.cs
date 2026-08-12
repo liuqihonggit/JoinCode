@@ -3,7 +3,7 @@
 /// <summary>
 /// /diff 命令 - 交互式 diff 浏览器 — 对齐 TS DiffDialog
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Diff, Description = "View uncommitted changes and per-turn diffs", Usage = "/diff [files|cached]", Category = ChatCommandCategory.Code, ArgumentHint = "[files|cached]")]
+[ChatCommand(Name = ChatCommandNameConstants.Diff, Description = "View uncommitted changes and per-turn diffs", Usage = "/diff [files|cached]", Category = ChatCommandCategory.Code, ArgumentHint = "[files|cached]", ExposeToMcp = true)]
 public sealed class DiffCommand : ChatCommandBase
 {
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)

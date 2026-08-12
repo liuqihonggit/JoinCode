@@ -6,7 +6,7 @@ internal record class RenderOverviewContext(
     string ProviderName, string CurrentModel, bool IsFastMode, string EffortLevel,
     string ApiStatus, string McpStatus, string MessageInfo);
 
-[ChatCommand(Name = ChatCommandNameConstants.Status, Description = "显示版本、模型、账户、API连接和工具状态", Usage = "/status", Category = ChatCommandCategory.Info)]
+[ChatCommand(Name = ChatCommandNameConstants.Status, Description = "显示版本、模型、账户、API连接和工具状态", Usage = "/status", Category = ChatCommandCategory.Info, ExposeToMcp = true)]
 public sealed class StatusCommand : ChatCommandBase
 {
     private readonly IClockService _clock = SystemClockService.Instance;

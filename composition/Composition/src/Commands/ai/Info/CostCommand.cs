@@ -4,7 +4,7 @@ namespace JoinCode.ChatCommands;
 /// <summary>
 /// /cost 命令 - 显示成本统计
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Cost, Description = "显示使用成本统计", Usage = "/cost [today|session|total]", Category = ChatCommandCategory.Model, ArgumentHint = "[today|session|total]")]
+[ChatCommand(Name = ChatCommandNameConstants.Cost, Description = "显示使用成本统计", Usage = "/cost [today|session|total]", Category = ChatCommandCategory.Model, ArgumentHint = "[today|session|total]", ExposeToMcp = true)]
 public sealed class CostCommand : ChatCommandBase
 {
     public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)

@@ -44,10 +44,10 @@ internal static class DoctorModeRunner
             var finalState = runner.CurrentState;
             var exitCode = finalState?.Status switch
             {
-                GoalStatus.Achieved => 0,
-                GoalStatus.Unmet => 1,
-                GoalStatus.BudgetLimited => 1,
-                _ => 2
+                GoalStatus.Achieved => (int)ExitCode.Success,
+                GoalStatus.Unmet => (int)ExitCode.GeneralError,
+                GoalStatus.BudgetLimited => (int)ExitCode.GeneralError,
+                _ => (int)ExitCode.ConfigurationError
             };
 
             PrintGoalReport(finalState);
@@ -56,14 +56,14 @@ internal static class DoctorModeRunner
         catch (InvalidOperationException ex) when (ex.Message.Contains("已有目标正在运行"))
         {
             Diag.WriteLifecycle($"[DOCTOR] 目标引擎已被占用: {ex.Message}");
-            return 2;
+            return (int)ExitCode.ConfigurationError;
         }
         catch (Exception ex)
         {
             Diag.WriteLifecycle($"[DOCTOR] 运行异常: {ex.GetType().Name}: {ex.Message}");
             if (ex.InnerException is not null)
                 Diag.WriteLifecycle($"[DOCTOR] 内部异常: {ex.InnerException.GetType().Name}: {ex.InnerException.Message}");
-            return 2;
+            return (int)ExitCode.ConfigurationError;
         }
     }
 

@@ -150,6 +150,13 @@ class Program
             // 退出码 130 = POSIX 标准（128 + SIGINT=2），便于 shell 脚本区分中断与正常错误
             return (int)ExitCode.Interrupted;
         }
+        catch (TimeoutException ex)
+        {
+            // 超时兜底 — NonInteractiveExecuteStep 已先捕获，此处处理管道其他步骤的超时
+            Cli.TerminalHelper.Init();
+            App.ErrorConsole.Warning($"请求超时: {ex.Message}");
+            return (int)ExitCode.LlmCallTimeout;
+        }
         catch (ConfigurationException ex)
         {
             // P2-7: 配置问题 — 友好提示，不写入 error.log（非程序 bug，用户可自行修复）

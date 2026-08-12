@@ -23,7 +23,7 @@ public sealed partial class GoalCommand : ChatCommandBase
 
         if (string.IsNullOrEmpty(args))
         {
-            ShowStatus(goalEngine);
+            await StartGoalSpecCollectionAsync(goalEngine, context, null, null, null).ConfigureAwait(false);
             return ChatCommandResult.Continue();
         }
 
@@ -59,7 +59,11 @@ public sealed partial class GoalCommand : ChatCommandBase
                 }
                 else
                 {
-                    await ExecuteGoalAsync(goalEngine, context, parsed).ConfigureAwait(false);
+                    await StartGoalSpecCollectionAsync(
+                        goalEngine, context,
+                        parsed.Objective,
+                        parsed.Constraints,
+                        parsed.TokenBudget).ConfigureAwait(false);
                 }
                 break;
         }
@@ -67,30 +71,41 @@ public sealed partial class GoalCommand : ChatCommandBase
         return ChatCommandResult.Continue();
     }
 
-    private async Task ExecuteGoalAsync(IGoalEngine goalEngine, ChatCommandContext context, GoalParseResult parsed)
+    private async Task StartGoalSpecCollectionAsync(
+        IGoalEngine goalEngine,
+        ChatCommandContext context,
+        string? initialHint,
+        List<string>? presetConstraints,
+        int? tokenBudget)
     {
-        _logger?.LogInformation("启动目标引擎: {Objective} (约束: {Constraints}, 预算: {Budget})",
-            parsed.Objective, parsed.Constraints.Count, parsed.TokenBudget?.ToString() ?? "无限制");
+        var prompt = GoalSpecPromptBuilder.Build(initialHint, presetConstraints);
 
-        TerminalHelper.WriteLine($"{TerminalColors.Info}◎ /goal active{AnsiStyleConstants.Reset}");
-        TerminalHelper.WriteLine($"  目标: {parsed.Objective}");
+        _logger?.LogInformation("启动 GoalSpec 收集流程 (初始提示: {Hint}, 预填约束: {Count}, 预算: {Budget})",
+            initialHint ?? "无", presetConstraints?.Count ?? 0, tokenBudget?.ToString() ?? "无限制");
 
-        if (parsed.Constraints.Count > 0)
+        TerminalHelper.WriteLine($"{TerminalColors.Info}◎ /goal active — GoalSpec 收集模式{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine("  LLM 将逐个询问目标规格字段，收集完成后开始自主工作。");
+
+        if (!string.IsNullOrWhiteSpace(initialHint))
         {
-            TerminalHelper.WriteLine($"  约束: {string.Join(", ", parsed.Constraints)}");
+            TerminalHelper.WriteLine($"  初始提示: {initialHint}");
         }
 
-        if (parsed.TokenBudget.HasValue)
+        if (presetConstraints is { Count: > 0 })
         {
-            TerminalHelper.WriteLine($"  预算: {parsed.TokenBudget.Value} Token");
+            TerminalHelper.WriteLine($"  预填约束: {string.Join(", ", presetConstraints)}");
+        }
+
+        if (tokenBudget.HasValue)
+        {
+            TerminalHelper.WriteLine($"  预算: {tokenBudget.Value} Token");
         }
 
         try
         {
             var state = await goalEngine.StartAsync(
-                parsed.Objective,
-                parsed.Constraints,
-                parsed.TokenBudget,
+                prompt,
+                tokenBudget: tokenBudget,
                 cancellationToken: context.CancellationToken).ConfigureAwait(false);
             ShowGoalState(state);
         }

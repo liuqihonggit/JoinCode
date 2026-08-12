@@ -1,4 +1,4 @@
-namespace Hands.Tests.ToolHandlers;
+﻿namespace Hands.Tests.ToolHandlers;
 
 /// <summary>
 /// AgentToolHandlers 错误诊断方法单元测试
@@ -41,7 +41,7 @@ public class AgentToolHandlersErrorDiagnosticTests
         var diag = AgentToolHandlers.BuildCoordinatorNotInitializedDiagnostic();
         diag.Reason.Should().Be("AgentCoordinatorNotInitialized");
         diag.FormattedMessage.Should().Be(L.T(StringKey.AgentCoordinatorNotInitialized));
-        diag.Details.Should().Contain(d => d.Key == "Component" && d.Value == "IAgentCoordinator");
+        diag.Details.Should().Contain(d => d.Key == "Component" && d.Value == "IAgentService");
         diag.Suggestions.Should().NotBeEmpty();
     }
 

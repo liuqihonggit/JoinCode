@@ -1,4 +1,4 @@
-
+﻿
 using JoinCode.Abstractions.Models.Agent;
 
 
@@ -8,12 +8,12 @@ namespace McpToolDispatch;
 public partial class TaskStopToolHandlers
 {
     private readonly ITaskService _taskService;
-    private readonly IAgentCoordinator _agentCoordinator;
+    private readonly IAgentService _agentCoordinator;
     [Inject] private readonly ILogger<TaskStopToolHandlers>? _logger;
 
     public TaskStopToolHandlers(
         ITaskService taskService,
-        IAgentCoordinator agentCoordinator,
+        IAgentService agentCoordinator,
         ILogger<TaskStopToolHandlers>? logger = null)
     {
         _taskService = taskService ?? throw new ArgumentNullException(nameof(taskService));

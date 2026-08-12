@@ -1,9 +1,9 @@
-namespace Sync.Tests.ToolHandlers;
+﻿namespace Sync.Tests.ToolHandlers;
 
 public class AgentToolHandlersTests
 {
     private readonly Mock<IAgentService> _agentService = new();
-    private readonly Mock<IAgentCoordinator> _coordinator = new();
+    private readonly Mock<IAgentService> _coordinator = new();
     private readonly AgentToolHandlers _handler;
 
     public AgentToolHandlersTests()

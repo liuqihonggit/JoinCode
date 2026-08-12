@@ -66,17 +66,6 @@ public interface IAgentService
     /// 前台模式：调用方通过 await foreach 实时消费
     /// </summary>
     IAsyncEnumerable<AgentStreamChunk> RunAgentStreamAsync(AgentSpawnOptions options, CancellationToken cancellationToken = default);
-}
-
-/// <summary>
-/// 代理协调器接口
-/// </summary>
-public interface IAgentCoordinator
-{
-    /// <summary>
-    /// 停止代理
-    /// </summary>
-    Task<bool> StopAgentAsync(string agentId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 获取所有正在运行的代理

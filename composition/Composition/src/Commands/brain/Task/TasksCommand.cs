@@ -60,7 +60,7 @@ public sealed class TasksCommand : ChatCommandBase
             }
         }
 
-        var agentCoordinator = ChatCommandBase.GetService<IAgentCoordinator>(context, typeof(IAgentCoordinator));
+        var agentCoordinator = ChatCommandBase.GetService<IAgentService>(context, typeof(IAgentService));
         if (agentCoordinator is not null)
         {
             var agents = await agentCoordinator.GetRunningAgentsAsync(context.CancellationToken).ConfigureAwait(false);
@@ -120,7 +120,7 @@ public sealed class TasksCommand : ChatCommandBase
             }
         }
 
-        var agentCoordinator = ChatCommandBase.GetService<IAgentCoordinator>(context, typeof(IAgentCoordinator));
+        var agentCoordinator = ChatCommandBase.GetService<IAgentService>(context, typeof(IAgentService));
         if (agentCoordinator is not null)
         {
             var stopped = await agentCoordinator.StopAgentAsync(taskId, context.CancellationToken).ConfigureAwait(false);

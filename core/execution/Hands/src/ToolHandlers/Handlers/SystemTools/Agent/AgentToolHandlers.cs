@@ -1,4 +1,4 @@
-namespace Tools.Handlers;
+﻿namespace Tools.Handlers;
 
 /// <summary>
 /// 创建子代理的选项参数
@@ -42,7 +42,7 @@ public partial class AgentToolHandlers
 {
     private readonly MiddlewarePipeline<AgentToolContext> _pipeline;
     private readonly IAgentService _agentService;
-    private readonly IAgentCoordinator? _coordinator;
+    private readonly IAgentService? _coordinator;
     [Inject] private readonly ILogger<AgentToolHandlers>? _logger;
     [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
     private readonly ITelemetryService? _telemetryService;
@@ -53,7 +53,7 @@ public partial class AgentToolHandlers
     public AgentToolHandlers(
         MiddlewarePipeline<AgentToolContext> pipeline,
         IAgentService agentService,
-        IAgentCoordinator? coordinator = null,
+        IAgentService? coordinator = null,
         ILogger<AgentToolHandlers>? logger = null,
         ITelemetryService? telemetryService = null,
         IServiceProvider? serviceProvider = null,
@@ -601,11 +601,11 @@ public partial class AgentToolHandlers
             formattedMessage: L.T(StringKey.AgentCoordinatorNotInitialized),
             details:
             [
-                new DiagnosticDetail("Component", "IAgentCoordinator"),
+                new DiagnosticDetail("Component", "IAgentService"),
             ],
             suggestions:
             [
-                "确认 AgentToolHandlers 构造时传入了 IAgentCoordinator 实例。",
+                "确认 AgentToolHandlers 构造时传入了 IAgentService 实例。",
             ]);
     }
 

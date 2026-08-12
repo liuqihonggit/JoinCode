@@ -170,6 +170,7 @@ public sealed class CliSession
                 ToolRegistry = _toolRegistry,
                 CommandRegistry = _commandRegistry,
                 GoalEngine = _optionalServices?.GoalEngine,
+                GoalRegistry = _optionalServices?.GoalRegistry,
                 CronTaskStore = _optionalServices?.CronTaskStore,
                 SimpleModeService = _optionalServices?.SimpleModeService,
                 BriefModeService = _optionalServices?.BriefModeService ?? _optionalServices?.ServiceProvider?.GetService<IBriefModeService>(),

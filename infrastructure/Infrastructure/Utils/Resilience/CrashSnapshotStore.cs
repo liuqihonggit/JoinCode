@@ -1,6 +1,6 @@
 namespace Infrastructure.Utils.Resilience;
 
-[Register]
+[Register(typeof(ICrashSnapshotStore))]
 public sealed partial class CrashSnapshotStore : ICrashSnapshotStore
 {
     private readonly ConcurrentQueue<CrashSnapshot> _snapshots = new();

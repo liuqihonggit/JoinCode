@@ -35,6 +35,7 @@ global using Infrastructure.Http;
 global using Infrastructure.Pipeline;
 global using Infrastructure.Subprocess;
 global using Infrastructure.Utils.Resilience;
+global using JoinCode.Abstractions.Models.ErrorRecovery;
 global using System.Net;
 global using System.Runtime.CompilerServices;
 global using Xunit.Abstractions;

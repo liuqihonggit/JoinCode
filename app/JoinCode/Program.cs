@@ -16,6 +16,8 @@ class Program
             return (int)ExitCode.ArgumentParseError;
         }
 
+        InstallGlobalExceptionHandlers();
+
         Cli.TerminalHelper.Init();
         JoinCode.Abstractions.Shell.CommandTerminal.SetConsole(new CliCommandConsole());
         ILogger<Program>? logger = null;
@@ -236,7 +238,7 @@ class Program
     /// <returns>错误日志文件路径</returns>
     private static string WriteErrorLog(Exception ex, bool fatal = false, ILogger? logger = null)
     {
-        var errorLog = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "jcc_error.log");
+        var errorLog = Cli.Output.XdgPathResolver.GetErrorLogPath();
         var prefix = fatal ? "[FATAL] " : string.Empty;
         var errorContent = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {prefix}{ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}";
         try
@@ -245,7 +247,6 @@ class Program
         }
         catch (Exception logEx)
         {
-            // 写入日志失败不应影响主流程 — 记录到跟踪监听器
             logger?.LogWarning(logEx, "写入错误日志失败");
         }
         return errorLog;
@@ -288,8 +289,7 @@ class Program
                 // 超时诊断降级：写时间戳文件留审计轨迹（文件写不依赖 Console，不会因 pipe 阻塞）
                 try
                 {
-                    var timeoutLog = System.IO.Path.Combine(
-                        System.IO.Path.GetTempPath(), "jcc_await_timeout.log");
+                    var timeoutLog = Cli.Output.XdgPathResolver.GetAwaitTimeoutLogPath();
                     System.IO.File.AppendAllText(timeoutLog,
                         $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] --await {seconds}s 超时, 进程强制退出({(int)ExitCode.AwaitTimeout})\n");
                 }
@@ -304,5 +304,134 @@ class Program
             state: null,
             dueTime: TimeSpan.FromSeconds(seconds),
             period: System.Threading.Timeout.InfiniteTimeSpan);
+    }
+
+    /// <summary>
+    /// 安装全局异常钩子 — 捕获未处理异常和未观察的 Task 异常，写入崩溃快照和结构化日志
+    /// </summary>
+    private static void InstallGlobalExceptionHandlers()
+    {
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+        {
+            var ex = e.ExceptionObject as Exception ?? new Exception("未知异常");
+            WriteCrashDump(ex, source: "UnhandledException");
+        };
+
+        TaskScheduler.UnobservedTaskException += (_, e) =>
+        {
+            WriteCrashDump(e.Exception, source: "UnobservedTaskException");
+            e.SetObserved();
+        };
+    }
+
+    /// <summary>
+    /// 写入崩溃快照到临时目录 — 结构化 JSON + 人类可读文本
+    /// 路径由 XdgPathResolver.GetCrashDumpsDirectory() 统一管理
+    /// </summary>
+    private static void WriteCrashDump(Exception exception, string source)
+    {
+        var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+        var dumpDir = Cli.Output.XdgPathResolver.GetCrashDumpsDirectory();
+        try { System.IO.Directory.CreateDirectory(dumpDir); } catch (Exception dirEx) { Diag.WriteError("[CrashDump] 创建目录失败", dirEx); }
+
+        var snapshot = new CrashSnapshot(
+            fenceName: $"Global.{source}",
+            severity: CrashSeverity.Fatal,
+            exception: exception,
+            executionContext: new CrashExecutionContext
+            {
+                OperationName = source,
+                Extra = { ["processId"] = Environment.ProcessId.ToString() }
+            });
+
+        // 1. 结构化 JSON 快照（AOT 安全 — 手动拼接 JSON 字符串）
+        try
+        {
+            var jsonPath = System.IO.Path.Combine(dumpDir, $"crash_{timestamp}_{snapshot.Id:N8}.json");
+            var sb = new StringBuilder();
+            sb.AppendLine("{");
+            sb.AppendLine($"  \"id\": \"{snapshot.Id}\",");
+            sb.AppendLine($"  \"capturedAt\": \"{snapshot.CapturedAt:O}\",");
+            sb.AppendLine($"  \"fenceName\": \"{EscapeJson(snapshot.FenceName)}\",");
+            sb.AppendLine($"  \"severity\": \"{snapshot.Severity.ToValue()}\",");
+            sb.AppendLine($"  \"exceptionType\": \"{EscapeJson(snapshot.ExceptionType)}\",");
+            sb.AppendLine($"  \"exceptionMessage\": \"{EscapeJson(snapshot.ExceptionMessage)}\",");
+            sb.AppendLine($"  \"errorCode\": \"{EscapeJson(snapshot.ErrorCode)}\",");
+            sb.AppendLine($"  \"stackTrace\": \"{EscapeJson(snapshot.StackTrace)}\",");
+            sb.AppendLine($"  \"source\": \"{EscapeJson(source)}\",");
+            sb.AppendLine("  \"exceptionChain\": [");
+            for (var i = 0; i < snapshot.ExceptionChain.Frames.Length; i++)
+            {
+                var f = snapshot.ExceptionChain.Frames[i];
+                sb.AppendLine("    {");
+                sb.AppendLine($"      \"depth\": {f.Depth},");
+                sb.AppendLine($"      \"type\": \"{EscapeJson(f.ExceptionType)}\",");
+                sb.AppendLine($"      \"message\": \"{EscapeJson(f.Message)}\",");
+                sb.AppendLine($"      \"errorCode\": \"{EscapeJson(f.ErrorCode)}\"");
+                sb.Append("    }");
+                if (i < snapshot.ExceptionChain.Frames.Length - 1) sb.AppendLine(",");
+                else sb.AppendLine();
+            }
+            sb.AppendLine("  ],");
+            sb.AppendLine("  \"executionContext\": {");
+            sb.AppendLine($"    \"operationName\": \"{EscapeJson(snapshot.ExecutionContext.OperationName)}\",");
+            sb.AppendLine($"    \"toolName\": \"{EscapeJson(snapshot.ExecutionContext.ToolName)}\",");
+            sb.AppendLine($"    \"turnIndex\": \"{snapshot.ExecutionContext.TurnIndex}\",");
+            sb.AppendLine($"    \"requestId\": \"{EscapeJson(snapshot.ExecutionContext.RequestId)}\",");
+            sb.AppendLine($"    \"processId\": \"{Environment.ProcessId}\"");
+            sb.AppendLine("  }");
+            sb.AppendLine("}");
+
+            System.IO.File.WriteAllText(jsonPath, sb.ToString());
+        }
+        catch (Exception jsonEx) { Diag.WriteError("[CrashDump] 写入 JSON 快照失败", jsonEx); }
+
+        // 2. 人类可读文本快照
+        try
+        {
+            var txtPath = System.IO.Path.Combine(dumpDir, $"crash_{timestamp}_{snapshot.Id:N8}.log");
+            var txt = new StringBuilder();
+            txt.AppendLine("═══ 崩溃快照 ═══");
+            txt.AppendLine($"ID:      {snapshot.Id}");
+            txt.AppendLine($"时间:    {snapshot.CapturedAt:yyyy-MM-dd HH:mm:ss.fff}");
+            txt.AppendLine($"来源:    {source}");
+            txt.AppendLine($"围栏:    {snapshot.FenceName}");
+            txt.AppendLine($"严重度:  {snapshot.Severity.ToValue()}");
+            txt.AppendLine($"异常:    {snapshot.ExceptionType}: {snapshot.ExceptionMessage}");
+            if (snapshot.ErrorCode is not null)
+                txt.AppendLine($"错误码:  {snapshot.ErrorCode}");
+            txt.AppendLine();
+            txt.AppendLine("堆栈:");
+            txt.AppendLine(snapshot.StackTrace ?? "(无堆栈)");
+            txt.AppendLine();
+
+            if (snapshot.ExceptionChain.Depth > 1)
+            {
+                txt.AppendLine($"异常链 (深度 {snapshot.ExceptionChain.Depth}):");
+                foreach (var frame in snapshot.ExceptionChain.Frames)
+                    txt.AppendLine($"  [{frame.Depth}] {frame.ExceptionType}: {frame.Message}");
+                txt.AppendLine();
+            }
+
+            System.IO.File.WriteAllText(txtPath, txt.ToString());
+        }
+        catch (Exception txtEx) { Diag.WriteError("[CrashDump] 写入文本快照失败", txtEx); }
+
+        // 3. stderr 输出（仅 UnhandledException，避免 pipe 阻塞）
+        if (source == "UnhandledException")
+        {
+            try
+            {
+                Console.Error.WriteLine($"[CRASH] {snapshot.ExceptionType}: {snapshot.ExceptionMessage}");
+                Console.Error.WriteLine($"[CRASH] 快照已保存到 {dumpDir}");
+            }
+            catch (Exception stderrEx) { Diag.WriteError("[CrashDump] stderr 输出失败", stderrEx); }
+        }
+    }
+
+    private static string EscapeJson(string? value)
+    {
+        if (value is null) return "";
+        return value.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r").Replace("\t", "\\t");
     }
 }

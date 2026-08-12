@@ -86,4 +86,38 @@ public static class XdgPathResolver
     /// </summary>
     public static string GetTrustedFoldersPath() =>
         System.IO.Path.Combine(GetConfigDirectory(), "trusted_folders.json");
+
+    // ── 运行时 / 临时路径（XDG_RUNTIME_DIR 或 %TEMP%） ──
+
+    /// <summary>
+    /// 获取运行时目录 — XDG_RUNTIME_DIR/jcc/ 或 %TEMP%/jcc/
+    /// XDG_RUNTIME_DIR 要求: 属于当前用户、存在、权限 0700
+    /// 回退: %TEMP% (Windows) 或 /tmp (Linux)
+    /// </summary>
+    public static string GetRuntimeDirectory()
+    {
+        var xdgRuntimeDir = Environment.GetEnvironmentVariable("XDG_RUNTIME_DIR");
+        if (!string.IsNullOrEmpty(xdgRuntimeDir))
+            return System.IO.Path.Combine(xdgRuntimeDir, AppName);
+
+        return System.IO.Path.Combine(System.IO.Path.GetTempPath(), AppName);
+    }
+
+    /// <summary>
+    /// 获取崩溃快照目录 — %TEMP%/jcc/crash-dumps/
+    /// </summary>
+    public static string GetCrashDumpsDirectory() =>
+        System.IO.Path.Combine(GetRuntimeDirectory(), "crash-dumps");
+
+    /// <summary>
+    /// 获取错误日志路径 — %TEMP%/jcc_error.log
+    /// </summary>
+    public static string GetErrorLogPath() =>
+        System.IO.Path.Combine(System.IO.Path.GetTempPath(), "jcc_error.log");
+
+    /// <summary>
+    /// 获取 --await 超时日志路径 — %TEMP%/jcc_await_timeout.log
+    /// </summary>
+    public static string GetAwaitTimeoutLogPath() =>
+        System.IO.Path.Combine(System.IO.Path.GetTempPath(), "jcc_await_timeout.log");
 }

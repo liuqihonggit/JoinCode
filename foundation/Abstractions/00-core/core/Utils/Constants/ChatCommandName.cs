@@ -80,6 +80,7 @@ public enum ChatCommandName
     [EnumValue("summary")] Summary,
     [EnumValue("statusline")] Statusline,
     [EnumValue("heapdump")] Heapdump,
+    [EnumValue("diag")] Diag,
     [EnumValue("tag")] Tag,
     [EnumValue("workflows")] Workflows,
     [EnumValue("upgrade")] Upgrade,

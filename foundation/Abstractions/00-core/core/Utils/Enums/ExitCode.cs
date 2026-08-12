@@ -5,6 +5,37 @@ namespace JoinCode.Abstractions.Utils;
 /// 遵循 POSIX 约定：0=成功，1-125=自定义错误，128+N=信号终止。
 /// 新增退出码时挑选对应分段的空位，禁止复用已有值。
 /// </summary>
+/// <remarks>
+/// <b>分段速查表</b>
+/// <code>
+/// ┌──────────┬────────┬──────────────────────────────────┬──────────┐
+/// │  段      │  值    │  语义                            │  状态    │
+/// ├──────────┼────────┼──────────────────────────────────┼──────────┤
+/// │ 0        │ 0      │ Success                          │ 已接线   │
+/// │ 1-9      │ 1      │ GeneralError 通用错误            │ 已接线   │
+/// │          │ 2      │ ConfigurationError 配置错误      │ 已接线   │
+/// │          │ 3      │ ArgumentParseError 参数错误      │ 已接线   │
+/// │          │ 4      │ ApiKeyMissing                    │ 已接线   │
+/// │          │ 5      │ SessionResumeFailed              │ 已接线   │
+/// │ 10-19    │ 10     │ LlmCallFailed                    │ 已接线   │
+/// │          │ 11     │ ToolExecutionFailed              │ 已接线   │
+/// │          │ 12     │ McpConnectionFailed              │ 已接线   │
+/// │          │ 13     │ SubprocessCrashed                │ 已接线   │
+/// │ 12xx     │ 1234   │ AwaitTimeout --await诊断超时     │ 已接线   │
+/// │          │ 1240   │ LlmCallTimeout API超时           │ 已接线   │
+/// │          │ 1241   │ ToolExecutionTimeout             │ 预留     │
+/// │          │ 1242   │ McpConnectionTimeout             │ 预留     │
+/// │          │ 1243   │ SubprocessTimeout                │ 预留     │
+/// │          │ 1244   │ StreamResponseTimeout            │ 预留     │
+/// │ 128+N    │ 130    │ Interrupted Ctrl+C (POSIX)       │ 已接线   │
+/// └──────────┴────────┴──────────────────────────────────┴──────────┘
+/// </code>
+/// <b>超时接线链路</b>：CliSession API 超时 → 抛 TimeoutException →
+/// 交互模式 ReplLoopStep catch（友好提示）／
+/// 非交互模式 NonInteractiveExecuteStep catch → LlmCallTimeout(1240)／
+/// 兜底 Program.cs Main catch → LlmCallTimeout(1240)。
+/// 预留值(1241-1244)对应场景在内部处理不退出进程，未来如需退出可直接引用。
+/// </remarks>
 public enum ExitCode
 {
     /// <summary>成功</summary>

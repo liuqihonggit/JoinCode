@@ -113,7 +113,7 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
         // 对齐 TS: 禁止在 Agent 上下文中进入计划模式
         if (_subAgentContextAccessor.Current != null)
         {
-            return new PlanOperationResult(false, null, "EnterPlanMode tool cannot be used in agent contexts");
+            return new PlanOperationResult(false, null, $"{PlanToolNameConstants.EnterPlanMode} tool cannot be used in agent contexts");
         }
 
         // 如果已经在计划模式，先退出当前计划
@@ -185,7 +185,7 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
         if (CurrentPlanId == null || !_plans.TryGetValue(CurrentPlanId, out var plan))
         {
             // 对齐 TS 遥测: 记录在非plan模式下调用ExitPlanMode
-            _telemetryService?.RecordCount("plan.exit_called_outside_plan", description: "ExitPlanMode called outside plan mode");
+            _telemetryService?.RecordCount("plan.exit_called_outside_plan", description: $"{PlanToolNameConstants.ExitPlanMode} called outside plan mode");
             return new PlanOperationResult(false, null, "Not currently in plan mode. Enter plan mode first before exiting.");
         }
 

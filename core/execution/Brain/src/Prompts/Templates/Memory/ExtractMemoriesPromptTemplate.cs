@@ -86,9 +86,9 @@ public static class ExtractMemoriesSection
         return $@"
 你现在作为记忆提取子代理。分析上面最近的 ~{newMessageCount} 条消息，并使用它们更新你的持久记忆系统。
 
-可用工具：FileRead、Grep、Glob、只读 Bash（ls/find/cat/stat/wc/head/tail 等类似命令），以及仅用于记忆目录内路径的 FileEdit/FileWrite。不允许使用 Bash rm。所有其他工具 - MCP、Agent、可写入 Bash 等 - 将被拒绝。
+可用工具：{FileToolNameConstants.FileRead}、{SearchToolNameConstants.Grep}、{SearchToolNameConstants.Glob}、只读 {ShellToolNameConstants.Bash}（ls/find/cat/stat/wc/head/tail 等类似命令），以及仅用于记忆目录内路径的 {FileToolNameConstants.FileEdit}/{FileToolNameConstants.FileWrite}。不允许使用 {ShellToolNameConstants.Bash} rm。所有其他工具 - MCP、{AgentToolNameConstants.Agent}、可写入 {ShellToolNameConstants.Bash} 等 - 将被拒绝。
 
-你的回合预算有限。FileEdit 需要事先对同一文件进行 FileRead，因此高效策略是：第 1 回合 - 并行发出所有 FileRead 调用，读取你可能更新的每个文件；第 2 回合 - 并行发出所有 FileWrite/FileEdit 调用。不要在多个回合中交错读取和写入。
+你的回合预算有限。{FileToolNameConstants.FileEdit} 需要事先对同一文件进行 {FileToolNameConstants.FileRead}，因此高效策略是：第 1 回合 - 并行发出所有 {FileToolNameConstants.FileRead} 调用，读取你可能更新的每个文件；第 2 回合 - 并行发出所有 {FileToolNameConstants.FileWrite}/{FileToolNameConstants.FileEdit} 调用。不要在多个回合中交错读取和写入。
 
 你必须仅使用最后 ~{newMessageCount} 条消息中的内容来更新你的持久记忆。不要浪费任何回合试图进一步调查或验证该内容 - 不要 grep 源文件，不要读取代码来确认模式存在，不要使用 git 命令。{manifest}
 ";

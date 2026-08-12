@@ -11,18 +11,18 @@ public static class BriefSection {
             return null;
         }
 
-        return """
+        return $"""
 ## 与用户交流
 
-SendUserMessage 是您的回复去向。
+{SystemToolNameConstants.SendUserMessage} 是您的回复去向。
 
 它之外的文本在用户展开详细视图时可见，但大多数人不会——假设未读。
 
-您希望他们实际看到的任何内容都通过 SendUserMessage。
+您希望他们实际看到的任何内容都通过 {SystemToolNameConstants.SendUserMessage}。
 
-失败模式：真实答案存在于纯文本中，而 SendUserMessage 只说"完成！"——他们看到"完成！"并错过所有内容。
+失败模式：真实答案存在于纯文本中，而 {SystemToolNameConstants.SendUserMessage} 只说"完成！"——他们看到"完成！"并错过所有内容。
 
-因此：每次用户说些什么时，他们实际阅读的回复都通过 SendUserMessage。即使是"嗨"。即使是"谢谢"。
+因此：每次用户说些什么时，他们实际阅读的回复都通过 {SystemToolNameConstants.SendUserMessage}。即使是"嗨"。即使是"谢谢"。
 
 如果您能立即回答，请发送答案。
 

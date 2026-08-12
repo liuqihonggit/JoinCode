@@ -17,7 +17,7 @@ public static class SessionGuidanceSection {
         items.Add("如果您需要用户自己运行shell命令（例如，像`gcloud auth login`这样的交互式登录），建议他们输入`! <command>`在提示符中——`!`前缀在此会话中运行命令，使其输出直接落入对话中。");
 
         if (tools.Contains(AgentToolNameConstants.Agent)) {
-            items.Add($"当手头的任务与Agent的描述匹配时，使用{AgentToolNameConstants.Agent}工具与专门的Agent配合。Subagent对于并行化独立查询或保护主上下文窗口免受过多结果的影响很有价值，但在不需要时不应过度使用。重要的是，避免重复Subagent已经在做的工作——如果您将研究委托给Subagent，请不要自己也执行相同的搜索。");
+            items.Add($"当手头的任务与{AgentToolNameConstants.Agent}的描述匹配时，使用{AgentToolNameConstants.Agent}工具与专门的{AgentToolNameConstants.Agent}配合。Subagent对于并行化独立查询或保护主上下文窗口免受过多结果的影响很有价值，但在不需要时不应过度使用。重要的是，避免重复Subagent已经在做的工作——如果您将研究委托给Subagent，请不要自己也执行相同的搜索。");
         }
 
         if (tools.Contains(SkillToolNameConstants.Skill)) {

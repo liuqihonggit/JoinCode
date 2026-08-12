@@ -9,7 +9,6 @@ namespace Core.Context.Compact;
 [Register]
 public sealed partial class SessionMemoryExtractionCallback : ServiceEntity, IPostSamplingCallback
 {
-    private const string EditToolName = "Edit";
 
     private readonly ISessionMemoryExtractionService _extractionService;
     private readonly IForkSubAgentManager? _forkManager;
@@ -50,13 +49,13 @@ public sealed partial class SessionMemoryExtractionCallback : ServiceEntity, IPo
                 {
                     ParentSessionId = context.SessionId,
                     TaskDescription = "session_memory",
-                    AllowedTools = [EditToolName],
+                    AllowedTools = [FileToolNameConstants.FileEdit],
                     UseExactTools = true,
                     RunInBackground = true,
                     ShareCache = false,
                     ShareContext = false,
                     MaxIterations = 3,
-                    SystemPrompt = "你是一个会话记忆更新助手。你的唯一任务是使用 Edit 工具更新会话记忆文件，然后停止。不要调用任何其他工具。"
+                    SystemPrompt = $"你是一个会话记忆更新助手。你的唯一任务是使用 {FileToolNameConstants.FileEdit} 工具更新会话记忆文件，然后停止。不要调用任何其他工具。"
                 };
 
                 var result = await _forkManager.ForkAsync(forkOptions, context.CancellationToken).ConfigureAwait(false);

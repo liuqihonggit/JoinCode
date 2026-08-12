@@ -9,10 +9,6 @@ namespace Core.Context.Compact;
 [Register]
 public sealed partial class ExtractMemoriesCallback : ServiceEntity, IPostSamplingCallback
 {
-    private const string EditToolName = "Edit";
-    private const string ReadToolName = "Read";
-    private const string GrepToolName = "Grep";
-    private const string GlobToolName = "Glob";
 
     private readonly IFileSystem _fileSystem;
     private readonly IForkSubAgentManager? _forkManager;
@@ -61,7 +57,7 @@ public sealed partial class ExtractMemoriesCallback : ServiceEntity, IPostSampli
                 {
                     ParentSessionId = context.SessionId,
                     TaskDescription = "extract_memories",
-                    AllowedTools = [ReadToolName, GrepToolName, GlobToolName, EditToolName],
+                    AllowedTools = [FileToolNameConstants.FileRead, SearchToolNameConstants.Grep, SearchToolNameConstants.Glob, FileToolNameConstants.FileEdit],
                     UseExactTools = true,
                     RunInBackground = true,
                     ShareCache = false,

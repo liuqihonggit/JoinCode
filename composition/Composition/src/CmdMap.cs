@@ -6,13 +6,13 @@ namespace JoinCode.ChatCommands;
 /// </summary>
 public sealed class CmdMap : ICmdMap
 {
-    private readonly ChatCommandRegistry _slash;
+    private readonly ISlashCommandRegistry _slash;
     private readonly IToolRegistry _mcp;
 
     /// <summary>
     /// 构造 — 注入两个已填好数据的注册表
     /// </summary>
-    public CmdMap(ChatCommandRegistry slash, IToolRegistry mcp)
+    public CmdMap(ISlashCommandRegistry slash, IToolRegistry mcp)
     {
         _slash = slash;
         _mcp = mcp;

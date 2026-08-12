@@ -13,17 +13,18 @@ public sealed class CliModule : IAppModule
         services.AddSingleton<IInteractiveService, TerminalInteractiveService>();
 
         // 注册 ChatCommandRegistry — 工厂内完成命令注册
-        services.AddSingleton(sp =>
+        services.AddSingleton<ChatCommandRegistry>(sp =>
         {
             var registry = new ChatCommandRegistry();
             GeneratedCommandRegistration.RegisterAllChatCommands(registry);
             return registry;
         });
+        services.AddSingleton<ISlashCommandRegistry>(sp => sp.GetRequiredService<ChatCommandRegistry>());
 
-        // 注册 ICmdMap 门面 — 解析 ChatCommandRegistry + IToolRegistry
+        // 注册 ICmdMap 门面 — 解析 ISlashCommandRegistry + IToolRegistry
         services.AddSingleton<ICmdMap>(sp =>
         {
-            var slash = sp.GetRequiredService<ChatCommandRegistry>();
+            var slash = sp.GetRequiredService<ISlashCommandRegistry>();
             var mcp = sp.GetRequiredService<IToolRegistry>();
             return new CmdMap(slash, mcp);
         });
@@ -33,7 +34,7 @@ public sealed class CliModule : IAppModule
     {
         // 将 ExposeToMcp=true 的斜杠命令注册为 MCP 工具（通过 SlashToMcpAdapter 包装）
         // 这样 LLM 能通过现有 MCP 管线发现和调用斜杠命令
-        var commandRegistry = services.GetService<ChatCommandRegistry>();
+        var commandRegistry = services.GetService<ISlashCommandRegistry>();
         var toolRegistry = services.GetService<IToolRegistry>();
         if (commandRegistry is not null && toolRegistry is not null)
         {

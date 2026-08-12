@@ -11,6 +11,7 @@ namespace Core.Goal;
 [JsonSerializable(typeof(GradingAnalysisJson))]
 [JsonSerializable(typeof(JoinCode.Abstractions.Models.Goal.GoalState))]
 [JsonSerializable(typeof(JoinCode.Abstractions.Models.Goal.GoalEvaluationResult))]
+[JsonSerializable(typeof(ApiMessageDocument))]
 [JsonSourceGenerationOptions(AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
 public partial class GoalJsonContext : JsonSerializerContext;
 

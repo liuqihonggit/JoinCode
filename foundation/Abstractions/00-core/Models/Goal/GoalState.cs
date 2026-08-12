@@ -20,6 +20,9 @@ public sealed class GoalState
     public GoalEvaluationResult? LastEvaluation { get; set; }
     public DateTime? StagnationAlertedAt { get; set; }
 
+    /// <summary>持久化的对话历史 — 进程重启后可恢复 ChatHistory 上下文</summary>
+    public List<ApiMessageDocument>? PersistedHistory { get; set; }
+
     public TimeSpan Elapsed => AchievedAt.HasValue
         ? AchievedAt.Value - CreatedAt
         : DateTime.UtcNow - CreatedAt;

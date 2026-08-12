@@ -3,25 +3,65 @@ namespace JoinCode.ChatCommands;
 /// <summary>
 /// 目标规格 — 结构化目标定义，由 LLM 向用户收集 6 个字段后生成。
 /// </summary>
-internal sealed record GoalSpec
+public sealed record GoalSpec
 {
     /// <summary>目标 (Outcome)：最终要达成的具体状态，最好有数字指标。</summary>
+    [JsonPropertyName("outcome")]
     public string Outcome { get; init; } = string.Empty;
 
     /// <summary>验证方式 (Verification)：用什么命令或指标来证明完成。</summary>
+    [JsonPropertyName("verification")]
     public string Verification { get; init; } = string.Empty;
 
     /// <summary>硬性约束 (Constraints)：整个过程中绝不能打破的底线。</summary>
+    [JsonPropertyName("constraints")]
     public string Constraints { get; init; } = string.Empty;
 
     /// <summary>工作边界 (Boundaries)：允许修改的文件或工具范围。</summary>
+    [JsonPropertyName("boundaries")]
     public string Boundaries { get; init; } = string.Empty;
 
     /// <summary>迭代与记录 (IterationLog)：每次尝试后记录改动和结果。</summary>
+    [JsonPropertyName("iterationLog")]
     public string IterationLog { get; init; } = string.Empty;
 
     /// <summary>失败熔断 (FailureCircuit)：遇到特定障碍无法推进时停止并报告。</summary>
+    [JsonPropertyName("failureCircuit")]
     public string FailureCircuit { get; init; } = string.Empty;
+}
+
+/// <summary>
+/// GoalSpec JSON 序列化上下文 — NativeAOT 兼容，复用 LlmJsonHelper 宽容反序列化。
+/// </summary>
+[JsonSerializable(typeof(GoalSpec))]
+[JsonSourceGenerationOptions(AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
+public partial class GoalSpecJsonContext : JsonSerializerContext;
+
+/// <summary>
+/// 解析 LLM 输出的 GoalSpec JSON — 复用 LlmJsonHelper 统一门控（ExtractJsonBlock + RepairJson + 宽容反序列化）。
+/// </summary>
+internal static class GoalSpecParser
+{
+    /// <summary>
+    /// 尝试从 LLM 输出文本中解析 GoalSpec，失败返回 null。
+    /// </summary>
+    /// <param name="llmOutput">LLM 输出文本（可能包含 ```json 代码块或内联 JSON）。</param>
+    /// <param name="logger">可选日志器。</param>
+    /// <returns>解析成功的 GoalSpec，失败返回 null。</returns>
+    public static GoalSpec? TryParse(string? llmOutput, ILogger? logger = null)
+    {
+        var result = LlmJsonHelper.Deserialize(llmOutput, GoalSpecJsonContext.Default.GoalSpec, out _, logger);
+        if (result is null) return null;
+        return result with
+        {
+            Outcome = result.Outcome ?? string.Empty,
+            Verification = result.Verification ?? string.Empty,
+            Constraints = result.Constraints ?? string.Empty,
+            Boundaries = result.Boundaries ?? string.Empty,
+            IterationLog = result.IterationLog ?? string.Empty,
+            FailureCircuit = result.FailureCircuit ?? string.Empty,
+        };
+    }
 }
 
 /// <summary>

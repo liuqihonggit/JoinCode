@@ -17,6 +17,7 @@ public sealed class CliSession
     private readonly IClockService _clock;
     private readonly ILogger<CliSession>? _logger;
     private readonly CommandServices _commandServices;
+    private readonly ICmdMap _cmdMap;
 
     /// <summary>
     /// 会话实体 — 派生自 Entity，自动注册到 Session.Registry + ObjectIdManager
@@ -120,6 +121,8 @@ public sealed class CliSession
             WebService = optionalServices?.ServiceProvider?.GetService<IWebService>(),
             FileSystem = _fs,
         };
+
+        _cmdMap = new CmdMap(_commandRegistry, _toolRegistry);
     }
 
     /// <summary>
@@ -209,7 +212,8 @@ public sealed class CliSession
         }
 
         Diag.WriteLifecycle($"[DIAG-CLI] Parse OK, commandName={parseResult.CommandName}, arguments={parseResult.Arguments}");
-        var command = _commandRegistry.GetCommand(parseResult.CommandName ?? throw new InvalidOperationException("CommandName should not be null after successful parse"));
+        var descriptor = await _cmdMap.ResolveAsync(parseResult.CommandName ?? throw new InvalidOperationException("CommandName should not be null after successful parse"), cancellationToken).ConfigureAwait(false);
+        var command = descriptor?.SlashCommand;
         if (command == null)
         {
             var allCommands = _commandRegistry.GetAllCommands().Keys.OrderBy(k => k).ToArray();

@@ -1,4 +1,5 @@
 global using JoinCode.Transport;
+global using JoinCode.Abstractions.Cmd;
 global using JoinCode.Abstractions.Transport;
 global using JoinCode.Transport.Bridge;
 global using JoinCode.Browser.DependencyInjection;

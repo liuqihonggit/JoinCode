@@ -2,7 +2,7 @@ namespace JoinCode.Abstractions.Utils;
 
 /// <summary>
 /// CLI 入口级子命令 — 源码生成器自动生成 CliSubCommandConstants + CliSubCommandExtensions
-/// 适用范围: jcc [tool|agent|code|remote-control|rc|remote] [子参数]
+/// 适用范围: jcc [tool|agent|code|schema|remote-control|rc|remote] [子参数]
 ///
 /// 使用示例:
 /// - FromValue("tool")           → CliSubCommand.Tool
@@ -19,6 +19,9 @@ public enum CliSubCommand
 
     /// <summary>代码操作</summary>
     [EnumValue("code")] Code,
+
+    /// <summary>Schema 自省 — 输出 CLI 参数定义 JSON，供 Agent 动态查询</summary>
+    [EnumValue("schema")] Schema,
 
     /// <summary>远程控制（主名称）</summary>
     [EnumValue("remote-control")] RemoteControl,

@@ -152,6 +152,19 @@ public sealed class ApplicationBuilder
             return await command.ExecuteAsync(bridgeArgs);
         }
 
+        // schema 子命令 — 输出 CLI 参数定义 JSON（对齐架构指南可发现性：Schema 自省）
+        if (subCommand == CliSubCommand.Schema)
+        {
+            var schemaProps = CliArgSchema.Properties;
+            var envelope = Cli.Output.CliOutputEnvelope.Success(schemaProps, new Cli.Output.CliOutputMeta
+            {
+                Version = typeof(ApplicationBuilder).Assembly.GetName().Version?.ToString(),
+            });
+            var json = System.Text.Json.JsonSerializer.Serialize(envelope, Cli.Output.CliOutputJsonContext.Default.CliOutputEnvelope);
+            System.Console.WriteLine(json);
+            return 0;
+        }
+
         var rootCommand = new RootCommand("JoinCode CLI");
             var cliFs = IO.FileSystem.FileSystemFactory.Create();
         rootCommand.Add(new ToolCommand());
@@ -266,6 +279,11 @@ public sealed class ApplicationBuilder
             DoctorMode = result.Doctor,
             DoctorServerMode = result.DoctorServer,
             DoctorEndpoint = result.DoctorEndpoint,
+            JsonOutput = result.Json,
+            OutputFormat = result.Format,
+            DryRun = result.DryRun,
+            Yes = result.Yes,
+            Force = result.Force,
         };
 
         // --await N: 超时自动关闭秒数
@@ -307,6 +325,19 @@ public sealed class ApplicationBuilder
         if (options.NoConfirm)
         {
             Core.Utils.TestEnvironmentDetector.ForceNonInteractive = true;
+        }
+
+        // --yes 等价于 --no-confirm（对齐架构指南 AX 模式）
+        if (options.Yes)
+        {
+            options.NoConfirm = true;
+            Core.Utils.TestEnvironmentDetector.ForceNonInteractive = true;
+        }
+
+        // --force 等价于 --dangerously-skip-permissions（对齐架构指南安全设计）
+        if (options.Force)
+        {
+            options.DangerouslySkipPermissions = true;
         }
 
         options.DetectedHeadlessMode = Cli.TerminalHelper.IsHeadless ? HeadlessMode.NoTty : HeadlessMode.Interactive;
@@ -381,44 +412,20 @@ public sealed class ApplicationBuilder
     }
 
     /// <summary>
-    /// 显示帮助信息
+    /// 显示帮助信息 — 使用生成器自动生成的分类帮助
     /// </summary>
     public static void ShowHelp()
     {
         Cli.TerminalHelper.WriteLine("JoinCode - AI 智能体命令行工具");
         Cli.TerminalHelper.NewLine();
-        Cli.TerminalHelper.WriteLine("用法: jcc [选项] [提示词]");
-        Cli.TerminalHelper.NewLine();
-        Cli.TerminalHelper.WriteLine("选项:");
-        Cli.TerminalHelper.WriteLine("  -h, --help              显示帮助信息");
-        Cli.TerminalHelper.WriteLine("  -v, --version           显示版本信息");
-        Cli.TerminalHelper.WriteLine("  -p, --prompt <文本>     非交互模式：直接传入提示词");
-        Cli.TerminalHelper.WriteLine("  -m, --model <模型ID>    指定模型");
-        Cli.TerminalHelper.WriteLine("  --trust                 自动信任当前工作目录");
-        Cli.TerminalHelper.WriteLine("  --non-interactive       强制非交互模式");
-        Cli.TerminalHelper.WriteLine("  --no-confirm            跳过所有确认提示（AI 驱动用，走交互模式但不弹确认框）");
-        Cli.TerminalHelper.WriteLine("  --pipe <管道名>         命名管道通信模式");
-        Cli.TerminalHelper.WriteLine("  --brief                 启动时激活简要模式");
-        Cli.TerminalHelper.WriteLine("  --force-interactive     强制交互模式（即使 stdin 重定向也启用 REPL，用于 E2E 测试）");
-        Cli.TerminalHelper.WriteLine($"  --await <秒数>         超时自动关闭（超时返回 {(int)ExitCode.AwaitTimeout}，用于诊断卡死，正常完成不受影响）");
-        Cli.TerminalHelper.WriteLine("  --verbose              启用诊断输出（[WIRE] [STEP] [READY] 等，等效于 JCC_VERBOSE=1）");
-        Cli.TerminalHelper.WriteLine("  -c, --continue          继续最近的会话（自动恢复上次会话）");
-        Cli.TerminalHelper.WriteLine("  -r, --resume <会话ID>   恢复指定会话（按 session-id 或标题关键字模糊匹配）");
-        Cli.TerminalHelper.WriteLine("  --permission-mode <模式>  设置权限模式 (default/plan/auto/ask/deny/acceptEdits/bypassPermissions)");
-        Cli.TerminalHelper.WriteLine("  --dangerously-skip-permissions  跳过所有权限检查（等价于 --permission-mode bypassPermissions）");
-        Cli.TerminalHelper.WriteLine("  --allowed-tools <工具列表>    工具白名单（逗号分隔，如 'Read,Edit,Bash(git:*)'）");
-        Cli.TerminalHelper.WriteLine("  --disallowed-tools <工具列表> 工具黑名单（逗号分隔，这些工具被禁用）");
-        Cli.TerminalHelper.WriteLine("  --system-prompt <文本>       替换系统提示词（完全覆盖默认系统提示词）");
-        Cli.TerminalHelper.WriteLine("  --append-system-prompt <文本> 追加系统提示词（在默认/已加载系统提示词后附加，不覆盖）");
-        Cli.TerminalHelper.WriteLine("  --doctor                    医生模式：spawn jcc.exe 子进程作为病人，监控运行状态并自动修复问题");
-        Cli.TerminalHelper.WriteLine("  --doctor-server             医生服务器模式（监听病人连接，需配合 --doctor）");
-        Cli.TerminalHelper.WriteLine("  --doctor-endpoint <URL>     医生 SSE 端点（病人端使用，连接到医生，如 http://localhost:9902）");
-        Cli.TerminalHelper.WriteLine("  --doctor-port <端口>        医生 SSE 服务器端口（医生端使用，默认 9902）");
+        // 使用 CliOptionGenerator 自动生成的分类帮助文本
+        Cli.TerminalHelper.WriteLine(CliArgParser.GetHelpText("categorized"));
         Cli.TerminalHelper.NewLine();
         Cli.TerminalHelper.WriteLine("子命令:");
         Cli.TerminalHelper.WriteLine("  tool                    MCP 工具管理");
         Cli.TerminalHelper.WriteLine("  agent                   智能体管理");
         Cli.TerminalHelper.WriteLine("  code                    代码操作");
+        Cli.TerminalHelper.WriteLine("  schema                  输出 CLI 参数定义 JSON（供 Agent 动态查询）");
         Cli.TerminalHelper.NewLine();
         Cli.TerminalHelper.WriteLine("环境变量:");
         Cli.TerminalHelper.WriteLine("  JCC_VENDOR            LLM 供应商 (openai/azure/anthropic/deepseek/sensenova)");
@@ -436,6 +443,23 @@ public sealed class ApplicationBuilder
         Cli.TerminalHelper.WriteLine("  JCC_CONFIG_PATH        自定义配置文件路径");
         Cli.TerminalHelper.WriteLine("  JCC_PERMISSION_MODE    权限模式 (auto/plan/ask/deny/bypassPermissions)");
         Cli.TerminalHelper.WriteLine("  JCC_CLOCK_MODE         时钟模式 (Physical/Fake，调试用)");
+        Cli.TerminalHelper.WriteLine("  NO_COLOR               禁用颜色输出（https://no-color.org/ 标准）");
+        Cli.TerminalHelper.WriteLine("  APP_NO_TUI             禁用 TUI 交互");
+        Cli.TerminalHelper.NewLine();
+        Cli.TerminalHelper.WriteLine("退出码:");
+        Cli.TerminalHelper.WriteLine("  0     成功");
+        Cli.TerminalHelper.WriteLine("  1     通用错误");
+        Cli.TerminalHelper.WriteLine("  2     配置错误");
+        Cli.TerminalHelper.WriteLine("  3     参数错误");
+        Cli.TerminalHelper.WriteLine("  4     API Key 缺失");
+        Cli.TerminalHelper.WriteLine("  10    LLM 调用失败");
+        Cli.TerminalHelper.WriteLine("  11    工具执行失败");
+        Cli.TerminalHelper.WriteLine("  12    MCP 连接失败");
+        Cli.TerminalHelper.WriteLine("  130   用户中断 (Ctrl+C)");
+        Cli.TerminalHelper.WriteLine("  1234  --await 超时");
+        Cli.TerminalHelper.NewLine();
+        Cli.TerminalHelper.WriteLine("示例:");
+        Cli.TerminalHelper.WriteLine(CliArgParser.GetHelpText("examples"));
     }
 
     /// <summary>

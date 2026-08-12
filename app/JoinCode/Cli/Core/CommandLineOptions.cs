@@ -166,4 +166,42 @@ public class CommandLineOptions {
         && (NonInteractive
             || !string.IsNullOrWhiteSpace(Prompt)
             || DetectedHeadlessMode != HeadlessMode.Interactive);
+
+    /// <summary>
+    /// 结构化 JSON 输出模式（--json 参数）
+    /// 子命令和非交互模式下生效：stdout 输出 {ok,data,meta} 结构化 JSON
+    /// 交互模式保持彩色输出不变
+    /// </summary>
+    public bool JsonOutput { get; set; }
+
+    /// <summary>
+    /// 输出格式（--format 参数）— text/json/ndjson
+    /// --json 等价于 --format json
+    /// 默认 text（人类可读彩色输出）
+    /// </summary>
+    public string? OutputFormat { get; set; }
+
+    /// <summary>
+    /// 是否启用 JSON 输出模式（综合 JsonOutput 和 OutputFormat 判断）
+    /// </summary>
+    public bool IsJsonMode => JsonOutput || string.Equals(OutputFormat, "json", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// 试跑模式（--dry-run 参数）— 只显示将要执行的操作，不实际执行
+    /// 对齐架构指南安全设计：Agent 安全网，先试跑确认无误后再执行
+    /// </summary>
+    public bool DryRun { get; set; }
+
+    /// <summary>
+    /// 跳过确认提示（--yes / -y 参数）— 等价于 --no-confirm
+    /// 对齐架构指南 AX 模式：--yes 跳过确认
+    /// </summary>
+    public bool Yes { get; set; }
+
+    /// <summary>
+    /// 强制执行（--force 参数）— 跳过权限检查和确认
+    /// 等价于 --dangerously-skip-permissions 的轻量版
+    /// 对齐架构指南安全设计：dangerous 级操作需复核，--force 跳过复核
+    /// </summary>
+    public bool Force { get; set; }
 }

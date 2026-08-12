@@ -58,6 +58,8 @@ internal sealed partial class SessionResumeStep : ServiceEntity, IMiddleware<Sta
 
         await chatService.LoadSessionMessagesAsync(messages, ct).ConfigureAwait(false);
 
+        session.OverrideSessionId(sessionData.Id);
+
         var title = string.IsNullOrEmpty(sessionData.CustomTitle) ? sessionData.Id : sessionData.CustomTitle;
         Cli.TerminalHelper.WriteLine($"已恢复会话: {title} ({sessionData.Messages.Count} 条消息)");
         Diag.WriteLine($"[STEP] SessionResume: restored {sessionData.Id} with {sessionData.Messages.Count} messages");

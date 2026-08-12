@@ -62,7 +62,7 @@ public partial class FileToolHandlers
             reason: "FileNotReadBeforeWrite",
             formattedMessage: "File has not been read yet. Read it first before writing to it. Use the Read tool to examine the file, then write your changes.",
             details: [new DiagnosticDetail("operation", "write")],
-            suggestions: ["先使用 Read 工具读取文件内容，再执行写入。"]);
+            suggestions: [$"先使用 {FileToolNameConstants.FileRead} 工具读取文件内容，再执行写入。"]);
     }
 
     /// <summary>
@@ -74,7 +74,7 @@ public partial class FileToolHandlers
             reason: "FileNotReadBeforeEdit",
             formattedMessage: "File has not been read yet. Read it first before editing it. Use the Read tool to examine the file, then make your edits.",
             details: [new DiagnosticDetail("operation", "edit")],
-            suggestions: ["先使用 Read 工具读取文件内容，再执行编辑。"]);
+            suggestions: [$"先使用 {FileToolNameConstants.FileRead} 工具读取文件内容，再执行编辑。"]);
     }
 
     /// <summary>
@@ -107,7 +107,7 @@ public partial class FileToolHandlers
             reason: "NotebookEditRejected",
             formattedMessage: "This is a Jupyter Notebook file. Use the notebook_edit tool to edit this file.",
             details: [new DiagnosticDetail("reason", "NotebookFile")],
-            suggestions: ["使用 notebook_edit 工具编辑 .ipynb 文件。"]);
+            suggestions: [$"使用 {NotebookToolNameConstants.NotebookEdit} 工具编辑 .ipynb 文件。"]);
     }
 
     /// <summary>

@@ -8,7 +8,7 @@ public static class TodoWriteToolPrompt
 {
     public const string ToolName = TodoToolNameConstants.TodoWrite;
 
-    public const string Prompt = """
+    public static string Prompt = $"""
         使用此工具为当前编码会话创建和管理结构化任务列表。这有助于你跟踪进度、组织复杂任务，并向用户展示彻底性。
         它还有助于用户理解任务进度和整体请求进度。
 
@@ -129,7 +129,7 @@ public static class TodoWriteToolPrompt
         User: 你能给 calculateTotal 函数添加一个注释来解释它是做什么的吗？
         Assistant: 当然，让我给 calculateTotal 函数添加一个注释来解释它的功能。
 
-        *使用 Edit 工具给 calculateTotal 函数添加注释 *
+        *使用 {FileToolNameConstants.FileEdit} 工具给 calculateTotal 函数添加注释 *
 
         <reasoning>
         助手没有使用待办列表，因为这是一个单一的、直接的任务，仅限于代码中的一个位置。添加单个注释不需要跟踪多个步骤或系统组织。

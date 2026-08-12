@@ -14,7 +14,7 @@ public static class SkillToolPrompt
     /// </summary>
     public static string GetPrompt()
     {
-        return """
+        return $"""
             在主对话中执行技能
 
             当用户要求你执行任务时，检查是否有任何可用技能匹配。技能提供专门的能力和领域知识。
@@ -31,7 +31,7 @@ public static class SkillToolPrompt
 
             重要：
             - 可用技能列在对话中的 system-reminder 消息中
-            - 当技能匹配用户请求时，这是一个阻塞要求：在生成关于任务的任何其他响应之前，先调用相关 Skill 工具
+            - 当技能匹配用户请求时，这是一个阻塞要求：在生成关于任务的任何其他响应之前，先调用相关 {SkillToolNameConstants.Skill} 工具
             - 永远不要提及技能而不实际调用此工具
             - 不要调用已在运行的技能
             - 不要将此工具用于内置 JoinCode 命令（如 /help、/clear 等）

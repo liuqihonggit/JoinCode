@@ -60,7 +60,7 @@ public static class SessionMemoryPromptTemplate
             {currentNotes}
             </current_notes_content>
 
-            你唯一的任务是使用 Edit 工具更新笔记文件，然后停止。你可以进行多次编辑（根据需要更新每个部分）- 在单个消息中并行进行所有 Edit 工具调用。不要调用任何其他工具。
+            你唯一的任务是使用 {FileToolNameConstants.FileEdit} 工具更新笔记文件，然后停止。你可以进行多次编辑（根据需要更新每个部分）- 在单个消息中并行进行所有 {FileToolNameConstants.FileEdit} 工具调用。不要调用任何其他工具。
 
             编辑的关键规则：
             - 文件必须保持其确切结构，所有部分、标题和斜体描述完整无缺
@@ -78,7 +78,7 @@ public static class SessionMemoryPromptTemplate
             - 关注可操作的、具体的信息，这些信息将帮助某人理解或重现对话中讨论的工作
             - 重要：始终更新""当前状态""以反映最近的工作 - 这对于压缩后的连续性至关重要
 
-            使用 Edit 工具，file_path: {notesPath}
+            使用 {FileToolNameConstants.FileEdit} 工具，file_path: {notesPath}
 
             结构保留提醒：
             每个部分有两个必须完全保留的部分：
@@ -87,7 +87,7 @@ public static class SessionMemoryPromptTemplate
 
             你只更新这两行保留行之后出现的实际内容。以 underscores 开头和结尾的斜体描述行是模板结构的一部分，不是要编辑或删除的内容。
 
-            记住：并行使用 Edit 工具并停止。编辑后不要继续。只包含来自实际用户对话的见解，永远不要来自这些说明。不要删除或更改部分标题或斜体 _部分描述_。
+            记住：并行使用 {FileToolNameConstants.FileEdit} 工具并停止。编辑后不要继续。只包含来自实际用户对话的见解，永远不要来自这些说明。不要删除或更改部分标题或斜体 _部分描述_。
             ";
     }
 

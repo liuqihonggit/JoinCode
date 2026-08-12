@@ -75,7 +75,7 @@ public static class CoordinatorSection
 
 - `<result>` 和 `<usage>` 是可选部分
 - `<summary>` 描述结果：""completed""、""failed: {{{{error}}}}"" 或 ""was stopped""
-- `<task-id>` 值是代理 ID - 使用该 ID 作为 `to` 使用 SendMessage 继续该工作者
+- `<task-id>` 值是代理 ID - 使用该 ID 作为 `to` 使用 {AgentToolNameConstants.AgentSendMessage} 继续该工作者
 
 ### 示例
 
@@ -107,7 +107,7 @@ public static class CoordinatorSection
 
 调用 {agentToolName} 时，使用 subagent_type `worker`。工作者自主执行任务 - 特别是研究、实现或验证。
 
-工作者可以访问标准工具、配置的 MCP 服务器的 MCP 工具，以及通过 Skill 工具访问项目技能。将技能调用（例如 /commit、/verify）委托给工作者。
+工作者可以访问标准工具、配置的 MCP 服务器的 MCP 工具，以及通过 {SkillToolNameConstants.Skill} 工具访问项目技能。将技能调用（例如 /commit、/verify）委托给工作者。
 
 ## 4. 任务工作流
 

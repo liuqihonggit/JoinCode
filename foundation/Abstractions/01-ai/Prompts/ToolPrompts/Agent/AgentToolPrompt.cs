@@ -118,7 +118,7 @@ Agent({{
 
 <example>
 user: ""请编写一个检查数字是否为质数的函数""
-assistant: 我将使用 FileWrite 工具编写以下代码：
+assistant: 我将使用 {FileToolNameConstants.FileWrite} 工具编写以下代码：
 <code>
 function isPrime(n) {{
   if (n <= 1) return false
@@ -131,7 +131,7 @@ function isPrime(n) {{
 <commentary>
 由于编写了重要的代码片段并且任务已完成，现在使用 test-runner 代理运行测试
 </commentary>
-assistant: 使用 Agent 工具启动 test-runner 代理
+assistant: 使用 {AgentToolNameConstants.Agent} 工具启动 test-runner 代理
 </example>
 
 <example>
@@ -139,7 +139,7 @@ user: ""Hello""
 <commentary>
 由于用户在问候，使用 greeting-responder 代理以友好的笑话回应
 </commentary>
-assistant: ""我将使用 Agent 工具启动 greeting-responder 代理""
+assistant: ""我将使用 {AgentToolNameConstants.Agent} 工具启动 greeting-responder 代理""
 </example>
 ";
 
@@ -149,13 +149,13 @@ assistant: ""我将使用 Agent 工具启动 greeting-responder 代理""
         // 共享核心提示词
         var shared = $@"启动新代理自主处理复杂的多步骤任务。
 
-Agent 工具启动专门处理复杂任务的代理（子进程）。每种代理类型都有特定的能力和可用工具。
+{AgentToolNameConstants.Agent} 工具启动专门处理复杂任务的代理（子进程）。每种代理类型都有特定的能力和可用工具。
 
 {agentListSection}
 
 " + (forkEnabled
-    ? $@"使用 Agent 工具时，指定 subagent_type 以使用专门代理，或省略它以分叉自己 —— 分叉继承你的完整对话上下文。"
-    : $@"使用 Agent 工具时，指定 subagent_type 参数以选择要使用的代理类型。如果省略，则使用通用代理。");
+    ? $@"使用 {AgentToolNameConstants.Agent} 工具时，指定 subagent_type 以使用专门代理，或省略它以分叉自己 —— 分叉继承你的完整对话上下文。"
+    : $@"使用 {AgentToolNameConstants.Agent} 工具时，指定 subagent_type 参数以选择要使用的代理类型。如果省略，则使用通用代理。");
 
         // 协调器模式获得精简提示词
         if (isCoordinator)
@@ -166,20 +166,20 @@ Agent 工具启动专门处理复杂任务的代理（子进程）。每种代�
         // 非协调器获得完整提示词
         return $@"{shared}
 
-何时不使用 Agent 工具：
-- 如果你想读取特定文件路径，使用 FileRead 工具或 Glob 工具，而不是 Agent 工具，以更快地找到匹配
-- 如果你正在搜索特定类定义如 ""class Foo""，使用 Glob 工具，以更快地找到匹配
-- 如果你在特定文件或 2-3 个文件集合中搜索代码，使用 FileRead 工具，而不是 Agent 工具，以更快地找到匹配
+何时不使用 {AgentToolNameConstants.Agent} 工具：
+- 如果你想读取特定文件路径，使用 {FileToolNameConstants.FileRead} 工具或 {SearchToolNameConstants.Glob} 工具，而不是 {AgentToolNameConstants.Agent} 工具，以更快地找到匹配
+- 如果你正在搜索特定类定义如 ""class Foo""，使用 {SearchToolNameConstants.Glob} 工具，以更快地找到匹配
+- 如果你在特定文件或 2-3 个文件集合中搜索代码，使用 {FileToolNameConstants.FileRead} 工具，而不是 {AgentToolNameConstants.Agent} 工具，以更快地找到匹配
 - 其他与上述代理描述无关的任务
 
 用法说明：
 - 始终包含简短描述（3-5 个词）总结代理将做什么
 - 当代理完成时，它会返回一条消息给你。代理返回的结果对用户不可见。要向用户显示结果，你应该发送一条文本消息给用户，并附上结果的简洁摘要。
-- 你可以使用 SendMessage 继续先前生成的代理，使用代理的 ID 或名称作为 `to` 字段。代理以其完整上下文恢复。" + (forkEnabled ? "每个带有 subagent_type 的新 Agent 调用都从零上下文开始 —— 提供完整的任务描述。" : "每个 Agent 调用都从头开始 —— 提供完整的任务描述。") + $@"
+- 你可以使用 {AgentToolNameConstants.AgentSendMessage} 继续先前生成的代理，使用代理的 ID 或名称作为 `to` 字段。代理以其完整上下文恢复。" + (forkEnabled ? $"每个带有 subagent_type 的新 {AgentToolNameConstants.Agent} 调用都从零上下文开始 —— 提供完整的任务描述。" : $"每个 {AgentToolNameConstants.Agent} 调用都从头开始 —— 提供完整的任务描述。") + $@"
 - 代理的输出通常应该被信任
 - 清楚地告诉代理你期望它编写代码还是只做研究（搜索、文件读取、网络获取等），因为它不知道用户的意图
 - 如果代理描述提到应该主动使用，那么你应该尽力在用户不必先要求的情况下使用它。使用你的判断。
-- 如果用户指定他们想要你""并行""运行代理，你必须发送一条包含多个 Agent 工具使用内容块的单一消息。例如，如果你需要并行启动 build-validator 代理和 test-runner 代理，发送一条包含两个工具调用的单一消息。
+- 如果用户指定他们想要你""并行""运行代理，你必须发送一条包含多个 {AgentToolNameConstants.Agent} 工具使用内容块的单一消息。例如，如果你需要并行启动 build-validator 代理和 test-runner 代理，发送一条包含两个工具调用的单一消息。
 - 你可以将 `isolation: ""worktree""` 设置为在临时 git 工作树中运行代理，给它一个孤立的仓库副本。如果代理没有进行更改，工作树会自动清理；如果进行了更改，工作树路径和分支会在结果中返回。{whenToForkSection}{writingThePromptSection}
 
 {(forkEnabled ? forkExamples : currentExamples)}";

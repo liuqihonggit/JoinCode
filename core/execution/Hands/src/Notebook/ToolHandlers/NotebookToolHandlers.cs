@@ -113,7 +113,7 @@ public class NotebookToolHandlers
             return ToolResultBuilder.Error().WithText($"Notebook file does not exist: {notebook_path}")
                 .WithDiagnostic(ToolDiagnostic.Create("FileNotFound", $"Notebook file does not exist: {notebook_path}",
                     [new DiagnosticDetail("filePath", notebook_path)],
-                    ["检查路径拼写、大小写，或使用 Read 工具确认文件是否存在。"])).Build();
+                    [$"检查路径拼写、大小写，或使用 {FileToolNameConstants.FileRead} 工具确认文件是否存在。"])).Build();
 
         var notebook = await _notebookService.LoadAsync(notebook_path, cancellationToken).ConfigureAwait(false);
         if (notebook == null)
@@ -822,7 +822,7 @@ public class NotebookToolHandlers
             suggestions:
             [
                 "确认文件扩展名为 .ipynb。",
-                "如需编辑其他文件类型，使用 FileEdit 工具。",
+                $"如需编辑其他文件类型，使用 {FileToolNameConstants.FileEdit} 工具。",
             ]);
     }
 
@@ -1100,7 +1100,7 @@ public class NotebookToolHandlers
             suggestions:
             [
                 "使用不同的文件名创建新的 notebook。",
-                "如需编辑已有文件，使用 NotebookEdit 工具。",
+                $"如需编辑已有文件，使用 {NotebookToolNameConstants.NotebookEdit} 工具。",
             ]);
     }
 

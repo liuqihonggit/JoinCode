@@ -17,7 +17,7 @@ public static class FileWriteToolPrompt {
 
 用法：
 - 此工具将覆盖现有文件（如果提供的路径上有一个）。{preReadInstruction}
-- 优先使用 Edit 工具修改现有文件 - 它只发送差异。仅使用此工具创建新文件或完全重写。
+- 优先使用 {FileToolNameConstants.FileEdit} 工具修改现有文件 - 它只发送差异。仅使用此工具创建新文件或完全重写。
 - 永远不要创建文档文件 (*.md) 或 README 文件，除非用户明确要求。
 - 仅当用户明确要求时使用表情符号。避免在文件中写入表情符号，除非被要求。
 ";

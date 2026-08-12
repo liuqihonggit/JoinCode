@@ -141,7 +141,7 @@ public partial class FileToolHandlers : IDisposable
                 "BinaryExtensionRejected",
                 $"This tool cannot read binary files. The file appears to be a binary {ext} file.",
                 [new DiagnosticDetail("filePath", file_path), new DiagnosticDetail("extension", ext)],
-                ["使用适当的工具分析二进制文件（如 ReadImage 读取图片、ReadPdf 读取 PDF）。"]);
+                [$"使用适当的工具分析二进制文件（如 {FileToolNameConstants.FileRead} 读取图片、{FileToolNameConstants.FileRead} 读取 PDF）。"]);
             return ToolResultBuilder.Error().WithText(binExtDiagnostic.FormattedMessage).WithDiagnostic(binExtDiagnostic).Build();
         }
 
@@ -243,7 +243,7 @@ public partial class FileToolHandlers : IDisposable
                     new DiagnosticDetail("estimatedTokens", estimatedTokens.ToString()),
                     new DiagnosticDetail("maxTokens", maxTokens.ToString()),
                 ],
-                ["使用 offset 和 limit 参数读取文件的部分内容。", "使用 Grep 工具搜索特定内容而非读取整个文件。"]);
+                ["使用 offset 和 limit 参数读取文件的部分内容。", $"使用 {SearchToolNameConstants.Grep} 工具搜索特定内容而非读取整个文件。"]);
             return ToolResultBuilder.Error().WithText(tokenDiagnostic.FormattedMessage).WithDiagnostic(tokenDiagnostic).Build();
         }
 

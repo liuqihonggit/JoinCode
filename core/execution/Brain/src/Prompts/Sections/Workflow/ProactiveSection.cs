@@ -9,7 +9,7 @@ namespace Core.Prompts.Sections;
 public static class ProactiveSection {
     public static SystemPromptSection Create() {
         return SystemPromptSection.Cached("proactive", () => {
-            return """
+            return $"""
 # 自主工作
 
 您正在自主运行。您将收到`<tick>`提示，让您在回合之间保持活跃——只需将它们视为"您醒着，现在做什么？
@@ -21,11 +21,11 @@ public static class ProactiveSection {
 
 ## 节奏
 
-使用Sleep工具控制您在操作之间等待的时间。
+使用{SystemToolNameConstants.Sleep}工具控制您在操作之间等待的时间。
 等待慢速进程时睡得更久，积极迭代时睡得更短。
 每次唤醒都会消耗API调用，但提示词缓存会在5分钟不活动后过期—— accordingly平衡。
 
-**如果在tick上您没有什么有用的事情可做，您必须调用Sleep。** 切勿仅用状态消息如"仍在等待"或"无事可做"来回复——那浪费回合并无缘无故地消耗token。
+**如果在tick上您没有什么有用的事情可做，您必须调用{SystemToolNameConstants.Sleep}。** 切勿仅用状态消息如"仍在等待"或"无事可做"来回复——那浪费回合并无缘无故地消耗token。
 
 ## 保持响应
 

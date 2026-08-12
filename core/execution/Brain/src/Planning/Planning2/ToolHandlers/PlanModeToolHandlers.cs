@@ -48,7 +48,7 @@ public class PlanModeToolHandlers
         {
             sb.AppendLine($"## Plan File");
             sb.AppendLine($"You should write your plan to: {result.PlanState.PlanFilePath}");
-            sb.AppendLine($"Use the FileWriteTool to create and update this plan file as you explore.");
+            sb.AppendLine($"Use the {FileToolNameConstants.FileWrite} to create and update this plan file as you explore.");
             sb.AppendLine();
         }
 
@@ -56,9 +56,9 @@ public class PlanModeToolHandlers
         sb.AppendLine("1. Thoroughly explore the codebase to understand existing patterns");
         sb.AppendLine("2. Identify similar features and architectural approaches");
         sb.AppendLine("3. Consider multiple approaches and their trade-offs");
-        sb.AppendLine("4. Use AskUserQuestion if you need to clarify the approach");
+        sb.AppendLine($"4. Use {InteractionToolNameConstants.AskUserQuestion} if you need to clarify the approach");
         sb.AppendLine("5. Design a concrete implementation strategy");
-        sb.AppendLine("6. When ready, use ExitPlanMode to present your plan for approval");
+        sb.AppendLine($"6. When ready, use {PlanToolNameConstants.ExitPlanMode} to present your plan for approval");
         sb.AppendLine();
         sb.AppendLine("Remember: DO NOT write or edit any files yet. This is a read-only exploration and planning phase.");
 

@@ -21,8 +21,8 @@ public class TimeoutRecoveryToolHandlers
     /// 恢复超时任务 — 以10分钟（可配置）超时重新执行命令
     /// GroupName="Bash" 和 "PowerShell" 表示当 Bash/PowerShell 工具超时时精准推荐
     /// </summary>
-    [McpTool("resume_timed_out_task", "恢复因超时被终止的命令，以更长超时重新执行", "error_recovery",
-        Kind = JoinCode.Abstractions.Attributes.ToolKindConstants.OnError, GroupName = "Bash")]
+    [McpTool(SystemToolNameConstants.ResumeTimedOutTask, "恢复因超时被终止的命令，以更长超时重新执行", "error_recovery",
+        Kind = JoinCode.Abstractions.Attributes.ToolKindConstants.OnError, GroupName = ShellToolNameConstants.Bash)]
     public async Task<ToolResult> ResumeTimedOutTaskAsync(
         [McpToolParameter("原始命令", Required = true)] string original_command,
         [McpToolParameter("原始工具名称 (Bash/PowerShell)", Required = true)] string original_tool,
@@ -42,7 +42,7 @@ public class TimeoutRecoveryToolHandlers
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            return ToolExceptionDiagnosticHelper.BuildErrorResult("resume_timed_out_task", ex, _logger, "original_command", original_command, "original_tool", original_tool);
+            return ToolExceptionDiagnosticHelper.BuildErrorResult(SystemToolNameConstants.ResumeTimedOutTask, ex, _logger, "original_command", original_command, "original_tool", original_tool);
         }
     }
 
@@ -50,7 +50,7 @@ public class TimeoutRecoveryToolHandlers
     /// 继续等待运行中的任务 — 以10分钟（可配置）超时再次执行同一命令
     /// </summary>
     [McpTool("continue_long_running_task", "继续等待长时间运行的任务，以指定超时再次执行", "error_recovery",
-        Kind = JoinCode.Abstractions.Attributes.ToolKindConstants.OnError, GroupName = "Bash")]
+        Kind = JoinCode.Abstractions.Attributes.ToolKindConstants.OnError, GroupName = ShellToolNameConstants.Bash)]
     public async Task<ToolResult> ContinueLongRunningTaskAsync(
         [McpToolParameter("任务ID", Required = true)] string task_id,
         [McpToolParameter("额外等待分钟数 (默认10)", Required = false, DefaultValue = "10")] int? additional_minutes = 10,
@@ -77,7 +77,7 @@ public class TimeoutRecoveryToolHandlers
     /// 终止运行中的任务
     /// </summary>
     [McpTool("stop_long_running_task", "终止长时间运行的任务", "error_recovery",
-        Kind = JoinCode.Abstractions.Attributes.ToolKindConstants.OnError, GroupName = "Bash")]
+        Kind = JoinCode.Abstractions.Attributes.ToolKindConstants.OnError, GroupName = ShellToolNameConstants.Bash)]
     public Task<ToolResult> StopLongRunningTaskAsync(
         [McpToolParameter("任务ID", Required = true)] string task_id,
         CancellationToken ct = default)

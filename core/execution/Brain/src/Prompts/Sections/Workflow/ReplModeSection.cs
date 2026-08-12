@@ -15,7 +15,7 @@ public static class ReplModeSection
             return null;
         }
 
-        return """
+        return $"""
 # REPL模式
 
 您正在REPL（交互式编程环境）中运行。在此模式下：
@@ -25,7 +25,7 @@ public static class ReplModeSection
 - 变量和状态在会话之间保持
 - 可以使用特殊的REPL命令
 
-使用Read、Write、Edit、Glob、Grep、Bash、Agent等工具时，请遵循REPL环境的特定用法。
+使用{FileToolNameConstants.FileRead}、{FileToolNameConstants.FileWrite}、{FileToolNameConstants.FileEdit}、{SearchToolNameConstants.Glob}、{SearchToolNameConstants.Grep}、{ShellToolNameConstants.Bash}、{AgentToolNameConstants.Agent}等工具时，请遵循REPL环境的特定用法。
 """;
     }
 

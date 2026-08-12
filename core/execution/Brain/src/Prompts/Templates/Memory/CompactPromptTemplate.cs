@@ -4,10 +4,10 @@ namespace Core.Prompts.Templates.Memory;
 [PromptTemplate(Name = "compact", Category = PromptTemplateCategory.Memory, Description = "上下文压缩提示词模板，生成对话摘要", HasParameters = true)]
 public static class CompactPromptTemplate
 {
-    private const string NoToolsPreamble = @"
+    private static string NoToolsPreamble = $@"
 重要：仅用文本回复。不要调用任何工具。
 
-- 不要使用 Read、Bash、Grep、Glob、Edit、Write 或任何其他工具。
+- 不要使用 {FileToolNameConstants.FileRead}、{ShellToolNameConstants.Bash}、{SearchToolNameConstants.Grep}、{SearchToolNameConstants.Glob}、{FileToolNameConstants.FileEdit}、{FileToolNameConstants.FileWrite} 或任何其他工具。
 - 你在上面的对话中已经拥有所需的所有上下文。
 - 工具调用将被拒绝，会浪费你唯一的机会 - 你会失败。
 - 你的整个回复必须是纯文本：一个 <analysis> 块后跟一个 <summary> 块。

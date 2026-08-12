@@ -130,13 +130,13 @@ public sealed partial class MagicDocsManager : ServiceEntity, IFileReadListener,
             {
                 ParentSessionId = context.SessionId,
                 TaskDescription = "magic_docs",
-                AllowedTools = ["Edit"],
+                AllowedTools = [FileToolNameConstants.FileEdit],
                 UseExactTools = true,
                 RunInBackground = true,
                 ShareCache = false,
                 ShareContext = false,
                 MaxIterations = 3,
-                SystemPrompt = "你是一个文档更新助手。你的唯一任务是使用 Edit 工具更新 Magic Doc 文件，然后停止。不要调用任何其他工具。"
+                SystemPrompt = $"你是一个文档更新助手。你的唯一任务是使用 {FileToolNameConstants.FileEdit} 工具更新 Magic Doc 文件，然后停止。不要调用任何其他工具。"
             };
 
             await _forkManager.ForkAsync(forkOptions, context.CancellationToken).ConfigureAwait(false);

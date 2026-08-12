@@ -18,7 +18,7 @@ public static class EnterPlanModeToolPrompt
             : $@"## 计划模式中会发生什么
 
 在计划模式中，你将：
-1. 使用 Glob、Grep 和 Read 工具彻底探索代码库
+1. 使用 {SearchToolNameConstants.Glob}、{SearchToolNameConstants.Grep} 和 {FileToolNameConstants.FileRead} 工具彻底探索代码库
 2. 理解现有模式和架构
 3. 设计实现方法
 4. 向用户展示你的计划以获得批准
@@ -67,7 +67,7 @@ public static class EnterPlanModeToolPrompt
 - 单行或几行修复（拼写错误、明显错误、小调整）
 - 添加具有明确要求的一个函数
 - 用户给出了非常具体、详细说明的任务
-- 纯研究/探索任务（改用 Agent 工具并选择 explore 代理）
+- 纯研究/探索任务（改用 {AgentToolNameConstants.Agent} 工具并选择 explore 代理）
 
 {whatHappensSection}## 示例
 
@@ -115,7 +115,7 @@ public static class EnterPlanModeToolPrompt
             : $@"## 计划模式中会发生什么
 
 在计划模式中，你将：
-1. 使用 Glob、Grep 和 Read 工具彻底探索代码库
+1. 使用 {SearchToolNameConstants.Glob}、{SearchToolNameConstants.Grep} 和 {FileToolNameConstants.FileRead} 工具彻底探索代码库
 2. 理解现有模式和架构
 3. 设计实现方法
 4. 向用户展示你的计划以获得批准
@@ -149,7 +149,7 @@ public static class EnterPlanModeToolPrompt
 - 用户的请求足够具体，实现路径是明确的
 - 你正在添加具有明显实现模式的功能（例如，添加按钮、遵循现有约定的新端点）
 - 一旦理解错误，修复就很清楚的错误修复
-- 研究/探索任务（改用 Agent 工具）
+- 研究/探索任务（改用 {AgentToolNameConstants.Agent} 工具）
 - 用户说类似""我们能做 X 吗""或""让我们做 X""的话 —— 直接开始
 
 如有疑问，优先开始工作并使用 {askUserQuestionToolName} 提出具体问题，而不是进入完整的规划阶段。

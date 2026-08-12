@@ -12,10 +12,10 @@ public sealed partial class ReplService : ServiceEntity, IReplService
     [Inject] private readonly IClockService _clock;
 
     private static readonly string[] s_hiddenTools =
-    new[] { 
+    new[] {
         FileToolNameConstants.FileRead, FileToolNameConstants.FileWrite, FileToolNameConstants.FileEdit,
         SearchToolNameConstants.Glob, SearchToolNameConstants.Grep, ShellToolNameConstants.Bash,
-        "notebook_edit", "agent"
+        NotebookToolNameConstants.NotebookEdit, AgentToolNameConstants.Agent
      };
 
     private static readonly (string Language, string DisplayName, string Executable, string InstallHint)[] s_languageDefinitions =

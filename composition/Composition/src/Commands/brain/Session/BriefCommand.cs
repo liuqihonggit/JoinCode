@@ -92,7 +92,7 @@ public sealed class BriefCommand : ToggleCommandBase
         if (service.IsEnabled)
         {
             TerminalHelper.WriteLine($"{TerminalColors.Primary}简要消息模式已启用{AnsiStyleConstants.Reset}");
-            TerminalHelper.WriteLine($"  LLM 将通过 SendUserMessage 工具回复用户");
+            TerminalHelper.WriteLine($"  LLM 将通过 {SystemToolNameConstants.SendUserMessage} 工具回复用户");
             if (service.EnabledAt.HasValue)
             {
                 TerminalHelper.WriteLine($"  启用时间: {service.EnabledAt.Value:yyyy-MM-dd HH:mm:ss}");

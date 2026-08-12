@@ -21,7 +21,7 @@ public static class FileReadToolPrompt
         - 如果文件不存在，读取会返回错误
         - 此工具可以读取图像文件（如PNG、JPG等），以视觉方式呈现
         - 此工具可以读取Jupyter notebooks（.ipynb文件），返回所有单元格及其输出
-        - 此工具只能读取文件，不能读取目录。读取目录使用Bash工具的ls命令
+        - 此工具只能读取文件，不能读取目录。读取目录使用{ShellToolNameConstants.Bash}工具的ls命令
         - 您可能需要定期阅读截图。如果用户提供截图路径，始终使用此工具查看
         - 如果文件存在但为空，您将收到系统提醒警告
         """;

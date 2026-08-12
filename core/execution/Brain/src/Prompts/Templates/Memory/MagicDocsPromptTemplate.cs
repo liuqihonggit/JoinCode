@@ -36,7 +36,7 @@ public static class MagicDocsPromptTemplate
 文档标题：{docTitle}
 {customInstructionsSection}
 
-你唯一的任务是使用 Edit 工具更新文档文件（如果有大量新信息要添加），然后停止。你可以进行多次编辑（根据需要更新多个部分）- 在单个消息中并行进行所有 Edit 工具调用。如果没有大量内容要添加，只需用简要说明回复，不要调用任何工具。
+你唯一的任务是使用 {FileToolNameConstants.FileEdit} 工具更新文档文件（如果有大量新信息要添加），然后停止。你可以进行多次编辑（根据需要更新多个部分）- 在单个消息中并行进行所有 {FileToolNameConstants.FileEdit} 工具调用。如果没有大量内容要添加，只需用简要说明回复，不要调用任何工具。
 
 编辑的关键规则：
 - 完全保留 Magic Doc 标题：# MAGIC DOC: {docTitle}
@@ -71,7 +71,7 @@ public static class MagicDocsPromptTemplate
 - 低级代码机制
 - 已在 CLAUDE.md 或其他项目文档中的信息
 
-使用 Edit 工具，file_path: {docPath}
+使用 {FileToolNameConstants.FileEdit} 工具，file_path: {docPath}
 
 记住：仅在有大量新信息时才更新。Magic Doc 标题（# MAGIC DOC: {docTitle}）必须保持不变。
 ";

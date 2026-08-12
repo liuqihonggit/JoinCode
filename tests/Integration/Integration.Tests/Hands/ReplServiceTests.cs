@@ -163,9 +163,8 @@ public sealed class ReplServiceTests
         Assert.Contains(SearchToolNameConstants.Glob, tools);
         Assert.Contains(SearchToolNameConstants.Grep, tools);
         Assert.Contains(ShellToolNameConstants.Bash, tools);
-        Assert.Contains("notebook_edit", tools);
-        // ReplService 中 s_hiddenTools 使用小写 "agent"
-        Assert.Contains("agent", tools);
+        Assert.Contains(NotebookToolNameConstants.NotebookEdit, tools);
+        Assert.Contains(AgentToolNameConstants.Agent, tools);
     }
 
     [Fact]

@@ -20,7 +20,7 @@ public partial class BuildOutputToolHandlers
     /// <summary>
     /// 获取编译输出的指定行范围 — 渐进式阅读编译结果
     /// </summary>
-    [McpTool("build_output", "Get build output lines by range for incremental reading", "execution", ConcurrencySafe = true)]
+    [McpTool(SystemToolNameConstants.BuildOutput, "Get build output lines by range for incremental reading", "execution", ConcurrencySafe = true)]
     public Task<ToolResult> BuildOutputAsync(
         [McpToolParameter("Build ID (e.g. b-0001)")] string build_id,
         [McpToolParameter("Start line number (1-based)")] int start_line,
@@ -71,7 +71,7 @@ public partial class BuildOutputToolHandlers
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Failed to get build output for {BuildId}", build_id);
-            return Task.FromResult(ToolExceptionDiagnosticHelper.BuildErrorResult("build_output", ex, _logger, "build_id", build_id));
+            return Task.FromResult(ToolExceptionDiagnosticHelper.BuildErrorResult(SystemToolNameConstants.BuildOutput, ex, _logger, "build_id", build_id));
         }
     }
 

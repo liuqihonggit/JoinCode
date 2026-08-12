@@ -5,7 +5,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 /// </summary>
 [ToolPrompt(ToolName = TaskToolName.TaskCreate, Category = ToolPromptCategory.Planning)]
 public static class TaskCreateToolPrompt {
-    public const string ToolName = "TaskCreate";
+    public const string ToolName = TaskToolNameConstants.TaskCreate;
     public const string Description = "在任务列表中创建新任务";
 
     /// <summary>

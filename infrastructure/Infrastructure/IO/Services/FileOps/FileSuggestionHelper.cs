@@ -154,7 +154,7 @@ public static class FileSuggestionHelper
 
         if (suggestions.Count == 0)
         {
-            suggestions.Add("检查路径拼写、大小写，或使用 Read 工具确认文件是否存在。");
+            suggestions.Add($"检查路径拼写、大小写，或使用 {FileToolNameConstants.FileRead} 工具确认文件是否存在。");
         }
 
         return ToolDiagnostic.Create("FileNotFound", message, details, suggestions);

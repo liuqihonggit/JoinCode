@@ -19,13 +19,13 @@ public static class TeamCreateToolPrompt
 
         ## 为队友选择代理类型
 
-        当通过 Agent 工具生成队友时，根据代理完成任务所需的工具选择 `subagent_type`。每种代理类型都有不同的可用工具集 —— 将代理与工作匹配：
+        当通过 {{AgentToolNameConstants.Agent}} 工具生成队友时，根据代理完成任务所需的工具选择 `subagent_type`。每种代理类型都有不同的可用工具集 —— 将代理与工作匹配：
 
         - **只读代理**（例如，Explore、Plan）不能编辑或写入文件。只分配给他们研究、搜索或规划任务。永远不要分配给他们实施工作。
         - **全功能代理**（例如，通用）可以访问所有工具，包括文件编辑、写入和 bash。将这些用于需要进行更改的任务。
         - **自定义代理** 在 `~/{{AppDataConstants.AppDataFolder}}/{{AppDataConstants.AgentsFolderName}}/` 中定义可能有自己的工具限制。检查他们的描述以了解他们能做什么和不能做什么。
 
-        在为队友选择 `subagent_type` 之前，始终查看 Agent 工具提示中列出的代理类型描述及其可用工具。
+        在为队友选择 `subagent_type` 之前，始终查看 {{AgentToolNameConstants.Agent}} 工具提示中列出的代理类型描述及其可用工具。
 
         创建一个新团队来协调多个代理在一个项目上的工作。团队与任务列表有 1:1 的对应关系（Team = TaskList）。
 
@@ -44,11 +44,11 @@ public static class TeamCreateToolPrompt
 
         1. **使用 TeamCreate 创建团队** - 这会同时创建团队及其任务列表
         2. **使用 Task 工具创建任务**（TaskCreate、TaskList 等）- 它们自动使用团队的任务列表
-        3. **使用 Agent 工具生成队友**，带上 `team_name` 和 `name` 参数来创建加入团队的队友
+        3. **使用 {{AgentToolNameConstants.Agent}} 工具生成队友**，带上 `team_name` 和 `name` 参数来创建加入团队的队友
         4. **使用 TaskUpdate 并设置 `owner` 分配任务** 给空闲的队友
         5. **队友处理分配的任务** 并通过 TaskUpdate 标记完成
         6. **队友在回合之间进入空闲状态** - 每次回合后，队友自动进入空闲状态并发送通知。重要：对空闲队友要有耐心！不要评论他们的空闲状态，直到它实际影响你的工作。
-        7. **关闭你的团队** - 当任务完成时，通过 SendMessage 并设置 `message: {type: "shutdown_request"}` 优雅地关闭你的队友。
+        7. **关闭你的团队** - 当任务完成时，通过 {{AgentToolNameConstants.AgentSendMessage}} 并设置 `message: {type: "shutdown_request"}` 优雅地关闭你的队友。
 
         ## 任务所有权
 
@@ -93,7 +93,7 @@ public static class TeamCreateToolPrompt
 
         读取团队配置的示例：
         ```
-        使用 Read 工具读取 ~/{{AppDataConstants.AppDataFolder}}/{{AppDataConstants.TeamsFolderName}}/{team-name}/config.json
+        使用 {{FileToolNameConstants.FileRead}} 工具读取 ~/{{AppDataConstants.AppDataFolder}}/{{AppDataConstants.TeamsFolderName}}/{team-name}/config.json
         ```
 
         ## 任务列表协调
@@ -110,7 +110,7 @@ public static class TeamCreateToolPrompt
 
         **与团队通信的重要说明**：
         - 不要使用终端工具查看团队的活动；始终向队友发送消息（记住，通过名称引用他们）。
-        - 如果你不使用 SendMessage 工具，你的团队听不到你的声音。如果你正在响应他们，始终向队友发送消息。
+        - 如果你不使用 {{AgentToolNameConstants.AgentSendMessage}} 工具，你的团队听不到你的声音。如果你正在响应他们，始终向队友发送消息。
         - 不要发送结构化 JSON 状态消息，如 `{"type":"idle",...}` 或 `{"type":"task_completed",...}`。当你需要向队友发送消息时，只需用纯文本通信。
         - 使用 TaskUpdate 标记任务完成。
         - 如果你是团队中的代理，当你停止时，系统会自动向团队负责人发送空闲通知。

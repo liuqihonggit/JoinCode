@@ -11,6 +11,22 @@ public sealed class CliModule : IAppModule
     public void ConfigureServices(IServiceCollection services, AppModuleContext context)
     {
         services.AddSingleton<IInteractiveService, TerminalInteractiveService>();
+
+        // 注册 ChatCommandRegistry — 工厂内完成命令注册
+        services.AddSingleton(sp =>
+        {
+            var registry = new ChatCommandRegistry();
+            GeneratedCommandRegistration.RegisterAllChatCommands(registry);
+            return registry;
+        });
+
+        // 注册 ICmdMap 门面 — 解析 ChatCommandRegistry + IToolRegistry
+        services.AddSingleton<ICmdMap>(sp =>
+        {
+            var slash = sp.GetRequiredService<ChatCommandRegistry>();
+            var mcp = sp.GetRequiredService<IToolRegistry>();
+            return new CmdMap(slash, mcp);
+        });
     }
 
     public Task ConfigureAsync(IServiceProvider services, CancellationToken ct)

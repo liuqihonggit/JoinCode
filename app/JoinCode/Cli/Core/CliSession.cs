@@ -64,8 +64,12 @@ public sealed class CliSession
         _toolRegistry = toolRegistry;
         _fs = fs;
         _optionalServices = optionalServices;
-        _commandRegistry = new ChatCommandRegistry();
-        GeneratedCommandRegistration.RegisterAllChatCommands(_commandRegistry);
+        _commandRegistry = optionalServices?.ServiceProvider?.GetService<ChatCommandRegistry>()
+            ?? new ChatCommandRegistry();
+        if (optionalServices?.ServiceProvider?.GetService<ChatCommandRegistry>() is null)
+        {
+            GeneratedCommandRegistration.RegisterAllChatCommands(_commandRegistry);
+        }
 
         _sessionEntity = new Session();
         _sessionObjectId = _sessionEntity.ObjectId;

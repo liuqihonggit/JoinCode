@@ -45,7 +45,7 @@ public sealed partial class WorktreeGitRootMiddleware : ServiceEntity, IWorktree
 
             if (_fs.FileExists(gitDir))
             {
-                var canonicalRoot = ResolveCanonicalGitRootFromGitdirFile(gitDir, currentPath);
+                var canonicalRoot = await ResolveCanonicalGitRootFromGitdirFile(gitDir, currentPath).ConfigureAwait(false);
                 return canonicalRoot ?? currentPath;
             }
 
@@ -60,11 +60,11 @@ public sealed partial class WorktreeGitRootMiddleware : ServiceEntity, IWorktree
         return null;
     }
 
-    private string? ResolveCanonicalGitRootFromGitdirFile(string gitdirFilePath, string worktreePath)
+    private async Task<string?> ResolveCanonicalGitRootFromGitdirFile(string gitdirFilePath, string worktreePath)
     {
         try
         {
-            var readResult = _fs.ReadFileAsync(gitdirFilePath).GetAwaiter().GetResult();
+            var readResult = await _fs.ReadFileAsync(gitdirFilePath).ConfigureAwait(false);
             if (!readResult.Success) return null;
 
             var content = readResult.Content.Trim();

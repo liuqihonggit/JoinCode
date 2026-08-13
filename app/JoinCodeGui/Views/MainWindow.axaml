@@ -111,36 +111,7 @@
     <Grid Grid.Column="1" RowDefinitions="Auto,*,Auto,Auto">
 
       <!-- Row 0：顶部工具栏 -->
-      <Border Grid.Row="0" Padding="10,8" Background="{DynamicResource GuiTopBarBackground}" ClipToBounds="True">
-        <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,*,*,Auto" ColumnSpacing="10">
-          <ToggleButton Content="🌙" Command="{Binding ToggleThemeCommand}" ToolTip.Tip="切换深浅主题" />
-          <Button Grid.Column="1" Content="↻ 重新生成" Command="{Binding RegenerateLastReplyCommand}"
-                  IsEnabled="{Binding CanRegenerate}" FontSize="11" ToolTip.Tip="撤回上一轮并重新生成" />
-          <Button Grid.Column="2" Content="🗑 清空" Command="{Binding ClearHistoryCommand}"
-                  IsEnabled="{Binding HasMessages}" />
-          <Button Grid.Column="3" Content="⊘ 全部重置" Command="{Binding ClearAllSessionsCommand}"
-                  FontSize="11" />
-          <ComboBox Grid.Column="4" ItemsSource="{Binding ConnectionOptions}" SelectedItem="{Binding SelectedConnection}"
-                    IsEnabled="{Binding !IsMockConnection}"
-                    HorizontalAlignment="Stretch" ToolTip.Tip="当前连接的引擎（Mock 为演示/本地验证环境）">
-            <ComboBox.ItemTemplate>
-              <DataTemplate x:DataType="vm:ConnectionOptionItem">
-                <TextBlock Text="{Binding DisplayText}" TextTrimming="CharacterEllipsis" />
-              </DataTemplate>
-            </ComboBox.ItemTemplate>
-          </ComboBox>
-          <ComboBox Grid.Column="5" ItemsSource="{Binding ModelOptions}" SelectedItem="{Binding SelectedModelOption}"
-                    IsEnabled="{Binding !IsMockConnection}"
-                    PlaceholderText="选择模型" HorizontalAlignment="Stretch">
-            <ComboBox.ItemTemplate>
-              <DataTemplate x:DataType="vm:ModelOptionItem">
-                <TextBlock Text="{Binding DisplayText}" TextTrimming="CharacterEllipsis" />
-              </DataTemplate>
-            </ComboBox.ItemTemplate>
-          </ComboBox>
-          <Button Grid.Column="6" Content="⛭" ToolTip.Tip="设置面板" Command="{Binding ToggleSettingsPanelCommand}" />
-        </Grid>
-      </Border>
+      <local:TopBarView Grid.Row="0" />
 
       <!-- Row 1：消息区（消息内容(*) : 设置面板(Auto)） -->
       <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ClipToBounds="True">

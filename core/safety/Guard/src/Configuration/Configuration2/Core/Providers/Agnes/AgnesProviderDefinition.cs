@@ -16,6 +16,8 @@ public sealed class AgnesProviderDefinition : OpenAICompatibleProviderDefinition
     public override string? ApiKeyEnvironmentVariable => ProviderEnvVar.AgnesApiKey.ToValue();
     public override string? EndpointEnvironmentVariable => null;
 
+    public override bool SupportsStreamOptions => false;
+
     public override string? ResolveApiKeyFromEnv()
     {
         return Environment.GetEnvironmentVariable(ProviderEnvVar.AgnesApiKey.ToValue())

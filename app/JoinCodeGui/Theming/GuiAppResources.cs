@@ -15,6 +15,7 @@ public static class GuiAppResources
     public static void Register(Application app)
     {
         app.Styles.Add(new FluentTheme());
+        app.Resources["GuiMonoFont"] = new Avalonia.Media.FontFamily("Consolas,Cascadia Mono,Menlo,monospace");
         var themeHost = new ResourceDictionary();
         foreach (var (variant, scheme) in GuiPalette.BuildResourceDictionaries())
         {

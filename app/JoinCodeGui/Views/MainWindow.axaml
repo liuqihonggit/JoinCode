@@ -6,13 +6,14 @@
         xmlns:vm="using:JoinCode.Gui.ViewModels"
         xmlns:md="using:JoinCode.Gui.Markdown"
         xmlns:edit="using:AvaloniaEdit"
+        xmlns:local="using:JoinCode.Gui.Views"
         x:Class="JoinCode.Gui.Views.MainWindow"
         x:Name="Root"
         x:DataType="vm:MainViewModel"
-        Width="980" Height="680"
+        MinWidth="800" MinHeight="600"
         Title="JoinCode Ava">
   <Window.Styles>
-    <Style Selector="Button">
+    <Style Selector="local|MainWindow Button">
       <Setter Property="Background" Value="{DynamicResource GuiButtonBackground}" />
       <Setter Property="BorderBrush" Value="{DynamicResource GuiButtonBorder}" />
       <Setter Property="BorderThickness" Value="1" />
@@ -36,13 +37,13 @@
         </ControlTemplate>
       </Setter>
     </Style>
-    <Style Selector="Button:pointerover">
+    <Style Selector="local|MainWindow Button:pointerover">
       <Setter Property="Background" Value="{DynamicResource GuiButtonHover}" />
     </Style>
-    <Style Selector="Button:pressed">
+    <Style Selector="local|MainWindow Button:pressed">
       <Setter Property="Background" Value="{DynamicResource GuiButtonPressed}" />
     </Style>
-    <Style Selector="Button:disabled">
+    <Style Selector="local|MainWindow Button:disabled">
       <Setter Property="Opacity" Value="0.5" />
     </Style>
   </Window.Styles>
@@ -185,7 +186,7 @@
             </StackPanel>
             <edit:TextEditor x:Name="MessageTextEditor"
                              IsReadOnly="True" ShowLineNumbers="False" WordWrap="True"
-                             FontFamily="Consolas" FontSize="13"
+                             FontFamily="{DynamicResource GuiMonoFont}" FontSize="13"
                              Foreground="#D4D4D4" Background="Transparent" BorderThickness="0"
                              Padding="10,6" />
             <Border VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,10" CornerRadius="12"
@@ -309,9 +310,9 @@
                         <ColumnDefinition Width="*" />
                       </Grid.ColumnDefinitions>
                       <StackPanel Orientation="Horizontal" Spacing="0" Grid.Column="0">
-                        <TextBlock Text="{Binding MatchedPart}" FontFamily="Consolas" FontSize="13" FontWeight="Bold"
+                        <TextBlock Text="{Binding MatchedPart}" FontFamily="{DynamicResource GuiMonoFont}" FontSize="13" FontWeight="Bold"
                                    Foreground="#E89A3C" />
-                        <TextBlock Text="{Binding RemainingPart}" FontFamily="Consolas" FontSize="13"
+                        <TextBlock Text="{Binding RemainingPart}" FontFamily="{DynamicResource GuiMonoFont}" FontSize="13"
                                    Foreground="{DynamicResource GuiSecondaryText}" />
                       </StackPanel>
                       <TextBlock Grid.Column="1" Text="{Binding Description}" FontSize="11"

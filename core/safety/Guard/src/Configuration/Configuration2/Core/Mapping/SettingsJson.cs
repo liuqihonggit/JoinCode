@@ -49,6 +49,13 @@ public sealed partial class SettingsJson
     public string? EffortLevel { get; init; }
 
     /// <summary>
+    /// UI 主题 (dark/light/auto/daltonized/ansi) — 对齐 CLI /theme、ConfigKey.Theme
+    /// </summary>
+    [JsonPropertyName("theme")]
+    [SettingsProperty(SettingsMergeStrategy.Override)]
+    public string? Theme { get; init; }
+
+    /// <summary>
     /// 默认 Shell: bash, powershell
     /// </summary>
     [JsonPropertyName("defaultShell")]

@@ -154,16 +154,16 @@
       <!-- Row 3：状态栏 -->
       <Border Grid.Row="3" Padding="12,4" Background="{DynamicResource GuiStatusBarBackground}">
         <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto">
-          <TextBlock Text="{Binding Sessions.Count, StringFormat='{}会话 {0}'}" Foreground="{DynamicResource GuiMutedText}" FontSize="11" />
-          <TextBlock Grid.Column="1" Text="{Binding MessageCount, StringFormat='{}  · 消息 {0}'}"
+          <TextBlock Text="{Binding Sessions.Count, StringFormat='{}会话 {0}', FallbackValue='会话 0'}" Foreground="{DynamicResource GuiMutedText}" FontSize="11" />
+          <TextBlock Grid.Column="1" Text="{Binding MessageCount, StringFormat='{}  · 消息 {0}', FallbackValue='  · 消息 0'}"
                      Foreground="{DynamicResource GuiMutedText}" FontSize="11" Margin="10,0" />
           <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" HorizontalAlignment="Right">
             <TextBlock x:Name="StatusDot" Text="●" FontSize="12" Foreground="{Binding StatusKind, Converter={StaticResource StatusToBrush}}"
                        VerticalAlignment="Center" />
-            <TextBlock Text="{Binding StatusText}" Foreground="{DynamicResource GuiSecondaryText}" FontSize="11" VerticalAlignment="Center"
+            <TextBlock Text="{Binding StatusText, FallbackValue='未连接'}" Foreground="{DynamicResource GuiSecondaryText}" FontSize="11" VerticalAlignment="Center"
                        TextTrimming="CharacterEllipsis" />
           </StackPanel>
-          <TextBlock Grid.Column="4" Text="{Binding SelectedModel}" Foreground="{DynamicResource GuiAccentText}" FontSize="11"
+          <TextBlock Grid.Column="4" Text="{Binding SelectedModel, FallbackValue=''}" Foreground="{DynamicResource GuiAccentText}" FontSize="11"
                      TextTrimming="CharacterEllipsis" Margin="10,0,0,0" />
         </Grid>
       </Border>

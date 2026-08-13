@@ -61,6 +61,7 @@ public static partial class ServiceRegistration
             var lf = sp.GetRequiredService<ILoggerFactory>();
             return new PipelineBuilder<ToolExecutionContext>()
                 .WithLoggingScope(lf)
+                .Use(sp.GetRequiredService<McpToolRegistry.CrashSnapshotMiddleware>())
                 .Use(sp.GetRequiredService<McpToolRegistry.ArgumentRepairMiddleware>())
                 .Use(sp.GetRequiredService<McpToolRegistry.RequiredParamsMiddleware>())
                 .Use(sp.GetRequiredService<McpToolRegistry.SchemaValidationMiddleware>())

@@ -25,6 +25,24 @@ public static class PipelineComposition
         services.AddSingleton(sp => new MetricsMiddleware<WebContext>(sp.GetService<ITelemetryService>()));
         services.AddSingleton(sp => new MetricsMiddleware<SkillContext>(sp.GetService<ITelemetryService>()));
         services.AddSingleton(sp => new MetricsMiddleware<CodeContext>(sp.GetService<ITelemetryService>()));
+
+        // CrashSnapshot 泛型中间件 — 每条 Task 管道最外层，捕获异常自动记录快照
+        services.AddSingleton(sp => new CrashSnapshotMiddleware<PreprocessContext>(sp.GetRequiredService<ICrashSnapshotStore>(), "Preprocess"));
+        services.AddSingleton(sp => new CrashSnapshotMiddleware<ChatInitContext>(sp.GetRequiredService<ICrashSnapshotStore>(), "ChatInit"));
+        services.AddSingleton(sp => new CrashSnapshotMiddleware<ChatAdminContext>(sp.GetRequiredService<ICrashSnapshotStore>(), "ChatAdmin"));
+        services.AddSingleton(sp => new CrashSnapshotMiddleware<CompactContext>(sp.GetRequiredService<ICrashSnapshotStore>(), "Compact"));
+        services.AddSingleton(sp => new CrashSnapshotMiddleware<QueryMiddlewareContext>(sp.GetRequiredService<ICrashSnapshotStore>(), "Query"));
+        services.AddSingleton(sp => new CrashSnapshotMiddleware<PermissionCheckContext>(sp.GetRequiredService<ICrashSnapshotStore>(), "Permission"));
+        services.AddSingleton(sp => new CrashSnapshotMiddleware<SettingsContext>(sp.GetRequiredService<ICrashSnapshotStore>(), "Settings"));
+        services.AddSingleton(sp => new CrashSnapshotMiddleware<AgentSpawnContext>(sp.GetRequiredService<ICrashSnapshotStore>(), "AgentSpawn"));
+        services.AddSingleton(sp => new CrashSnapshotMiddleware<AgentSpawnCoordContext>(sp.GetRequiredService<ICrashSnapshotStore>(), "AgentSpawnCoord"));
+        services.AddSingleton(sp => new CrashSnapshotMiddleware<AgentDisposeContext>(sp.GetRequiredService<ICrashSnapshotStore>(), "AgentDispose"));
+        services.AddSingleton(sp => new CrashSnapshotMiddleware<ForkContext>(sp.GetRequiredService<ICrashSnapshotStore>(), "Fork"));
+        services.AddSingleton(sp => new CrashSnapshotMiddleware<WebContext>(sp.GetRequiredService<ICrashSnapshotStore>(), "Web"));
+        services.AddSingleton(sp => new CrashSnapshotMiddleware<ShellPipelineContext>(sp.GetRequiredService<ICrashSnapshotStore>(), "Shell"));
+        services.AddSingleton(sp => new CrashSnapshotMiddleware<SkillContext>(sp.GetRequiredService<ICrashSnapshotStore>(), "Skill"));
+        services.AddSingleton(sp => new CrashSnapshotMiddleware<CodeContext>(sp.GetRequiredService<ICrashSnapshotStore>(), "Code"));
+        services.AddSingleton(sp => new CrashSnapshotMiddleware<JoinCode.Dream.Pipeline.DreamContext>(sp.GetRequiredService<ICrashSnapshotStore>(), "Dream"));
         // ═══════════════════════════════════════════════════════════
         // Stream 管道
         // ═══════════════════════════════════════════════════════════
@@ -34,6 +52,7 @@ public static class PipelineComposition
             new StreamPipelineBuilder<ChatMiddlewareContext, ChatStreamEvent>()
                 .WithLoggingScope(sp.GetRequiredService<ILoggerFactory>())
                 .Use(new FixedStreamRateLimitMiddleware<ChatMiddlewareContext, ChatStreamEvent>(30, TimeSpan.FromSeconds(60)))
+                .Use(sp.GetRequiredService<StreamCrashSnapshotMiddleware>())
                 .Use(sp.GetRequiredService<ChatTimingMiddleware>())
                 .Use(sp.GetRequiredService<ChatErrorHandlingMiddleware>())
                 .Use(sp.GetRequiredService<AuditLogMiddleware>())
@@ -55,6 +74,7 @@ public static class PipelineComposition
         services.AddSingleton<MiddlewarePipeline<PreprocessContext>>(sp =>
             new PipelineBuilder<PreprocessContext>()
                 .WithLoggingScope(sp.GetRequiredService<ILoggerFactory>())
+                .Use(sp.GetRequiredService<CrashSnapshotMiddleware<PreprocessContext>>())
                 .Use(sp.GetRequiredService<KeywordInjectionMiddleware>())
                 .Use(sp.GetRequiredService<SynonymInjectionMiddleware>())
                 .Use(sp.GetRequiredService<SystemPromptMiddleware>())
@@ -68,6 +88,7 @@ public static class PipelineComposition
         services.AddSingleton<MiddlewarePipeline<ChatInitContext>>(sp =>
             new PipelineBuilder<ChatInitContext>()
                 .WithLoggingScope(sp.GetRequiredService<ILoggerFactory>())
+                .Use(sp.GetRequiredService<CrashSnapshotMiddleware<ChatInitContext>>())
                 .Use(sp.GetRequiredService<ContextLoadMiddleware>())
                 .Use(sp.GetRequiredService<CostRestoreMiddleware>())
                 .Use(sp.GetRequiredService<ConfigChangeStartMiddleware>())
@@ -79,6 +100,7 @@ public static class PipelineComposition
         services.AddSingleton<MiddlewarePipeline<ChatAdminContext>>(sp =>
             new PipelineBuilder<ChatAdminContext>()
                 .WithLoggingScope(sp.GetRequiredService<ILoggerFactory>())
+                .Use(sp.GetRequiredService<CrashSnapshotMiddleware<ChatAdminContext>>())
                 .Use(sp.GetRequiredService<SessionAdminMiddleware>())
                 .Use(sp.GetRequiredService<SessionSaveMiddleware>())
                 .WithHooks(sp)
@@ -88,6 +110,7 @@ public static class PipelineComposition
         services.AddSingleton<MiddlewarePipeline<CompactContext>>(sp =>
             new PipelineBuilder<CompactContext>()
                 .WithLoggingScope(sp.GetRequiredService<ILoggerFactory>())
+                .Use(sp.GetRequiredService<CrashSnapshotMiddleware<CompactContext>>())
                 .Use(sp.GetRequiredService<CompactHookMiddleware>())
                 .Use(sp.GetRequiredService<CompactTelemetryMiddleware>())
                 .Use(sp.GetRequiredService<ContextCollapseMiddleware>())
@@ -101,6 +124,7 @@ public static class PipelineComposition
         services.AddSingleton<MiddlewarePipeline<QueryMiddlewareContext>>(sp =>
             new PipelineBuilder<QueryMiddlewareContext>()
                 .WithLoggingScope(sp.GetRequiredService<ILoggerFactory>())
+                .Use(sp.GetRequiredService<CrashSnapshotMiddleware<QueryMiddlewareContext>>())
                 .Use(new FixedRateLimitMiddleware<QueryMiddlewareContext>(60, TimeSpan.FromSeconds(60)))
                 .Use(sp.GetRequiredService<UsdBudgetMiddleware>())
                 .Use(sp.GetRequiredService<QueryTokenBudgetMiddleware>())
@@ -119,6 +143,7 @@ public static class PipelineComposition
             new PipelineBuilder<PermissionCheckContext>()
                 .WithLoggingScope(sp.GetRequiredService<ILoggerFactory>())
                 .WithShortCircuit(ctx => ctx.Result is not null)
+                .Use(sp.GetRequiredService<CrashSnapshotMiddleware<PermissionCheckContext>>())
                 .Use(sp.GetRequiredService<BypassPermissionMiddleware>())
                 .Use(sp.GetRequiredService<AgentRestrictionMiddleware>())
                 .Use(sp.GetRequiredService<DangerousCommandProtectionMiddleware>())
@@ -138,6 +163,7 @@ public static class PipelineComposition
         services.AddSingleton<MiddlewarePipeline<SettingsContext>>(sp =>
             new PipelineBuilder<SettingsContext>()
                 .WithLoggingScope(sp.GetRequiredService<ILoggerFactory>())
+                .Use(sp.GetRequiredService<CrashSnapshotMiddleware<SettingsContext>>())
                 .Use(sp.GetRequiredService<SettingsReloadMiddleware>())
                 .Use(sp.GetRequiredService<EffortLevelMiddleware>())
                 .Use(sp.GetRequiredService<HookRefreshMiddleware>())
@@ -150,6 +176,7 @@ public static class PipelineComposition
         services.AddSingleton<MiddlewarePipeline<AgentSpawnContext>>(sp =>
             new PipelineBuilder<AgentSpawnContext>()
                 .WithLoggingScope(ctx => ctx.SubAgent?.ObjectId ?? ObjectId.Empty, sp.GetRequiredService<ILoggerFactory>())
+                .Use(sp.GetRequiredService<CrashSnapshotMiddleware<AgentSpawnContext>>())
                 .Use(sp.GetRequiredService<DefinitionResolutionMiddleware>())
                 .Use(sp.GetRequiredService<PromptBuildingMiddleware>())
                 .Use(sp.GetRequiredService<ContextSetupMiddleware>())
@@ -165,6 +192,7 @@ public static class PipelineComposition
         services.AddSingleton<MiddlewarePipeline<AgentSpawnCoordContext>>(sp =>
             new PipelineBuilder<AgentSpawnCoordContext>()
                 .WithLoggingScope(ctx => ctx.Agent?.ObjectId ?? ObjectId.Empty, sp.GetRequiredService<ILoggerFactory>())
+                .Use(sp.GetRequiredService<CrashSnapshotMiddleware<AgentSpawnCoordContext>>())
                 .Use(sp.GetRequiredService<SpawnCoordLifecycleMiddleware>())
                 .Use(sp.GetRequiredService<SpawnCoordWorktreeMiddleware>())
                 .Use(sp.GetRequiredService<SpawnCoordRegisterMessageMiddleware>())
@@ -178,6 +206,7 @@ public static class PipelineComposition
         services.AddSingleton<MiddlewarePipeline<AgentDisposeContext>>(sp =>
             new PipelineBuilder<AgentDisposeContext>()
                 .WithLoggingScope(sp.GetRequiredService<ILoggerFactory>())
+                .Use(sp.GetRequiredService<CrashSnapshotMiddleware<AgentDisposeContext>>())
                 .Use(sp.GetRequiredService<DisposeUnregisterMessageMiddleware>())
                 .Use(sp.GetRequiredService<DisposeWorktreeCleanupMiddleware>())
                 .Use(sp.GetRequiredService<DisposeShellTasksMiddleware>())
@@ -190,6 +219,7 @@ public static class PipelineComposition
         services.AddSingleton<MiddlewarePipeline<ForkContext>>(sp =>
             new PipelineBuilder<ForkContext>()
                 .WithLoggingScope(ctx => ctx.Agent?.ObjectId ?? ObjectId.Empty, sp.GetRequiredService<ILoggerFactory>())
+                .Use(sp.GetRequiredService<CrashSnapshotMiddleware<ForkContext>>())
                 .Use(sp.GetRequiredService<ForkValidationMiddleware>())
                 .Use(sp.GetRequiredService<ForkSpawnMiddleware>())
                 .Use(sp.GetRequiredService<ForkPermissionMiddleware>())
@@ -201,6 +231,7 @@ public static class PipelineComposition
         services.AddSingleton<MiddlewarePipeline<WebContext>>(sp =>
             new PipelineBuilder<WebContext>()
                 .WithLoggingScope(sp.GetRequiredService<ILoggerFactory>())
+                .Use(sp.GetRequiredService<CrashSnapshotMiddleware<WebContext>>())
                 .Use(new FixedTimeoutMiddleware<WebContext>(TimeSpan.FromSeconds(30)))
                 .Use(new FixedRetryMiddleware<WebContext>(2, ex => ex is HttpRequestException or TimeoutException))
                 .Use(new FixedCircuitBreakerMiddleware<WebContext>(5, TimeSpan.FromSeconds(30)))
@@ -219,6 +250,7 @@ public static class PipelineComposition
         services.AddSingleton<MiddlewarePipeline<ShellPipelineContext>>(sp =>
             new PipelineBuilder<ShellPipelineContext>()
                 .WithLoggingScope(sp.GetRequiredService<ILoggerFactory>())
+                .Use(sp.GetRequiredService<CrashSnapshotMiddleware<ShellPipelineContext>>())
                 .Use(sp.GetRequiredService<AbsoluteTimeoutMiddleware>())
                 .Use(sp.GetRequiredService<ShellValidationMiddleware>())
                 .Use(sp.GetRequiredService<ShellPathGateMiddleware>())
@@ -235,6 +267,7 @@ public static class PipelineComposition
         services.AddSingleton<MiddlewarePipeline<SkillContext>>(sp =>
             new PipelineBuilder<SkillContext>()
                 .WithLoggingScope(sp.GetRequiredService<ILoggerFactory>())
+                .Use(sp.GetRequiredService<CrashSnapshotMiddleware<SkillContext>>())
                 .Use(new FixedTimeoutMiddleware<SkillContext>(TimeSpan.FromSeconds(60)))
                 .Use(sp.GetRequiredService<MetricsMiddleware<SkillContext>>())
                 .Use(sp.GetRequiredService<SkillValidationMiddleware>())
@@ -247,6 +280,7 @@ public static class PipelineComposition
         services.AddSingleton<MiddlewarePipeline<CodeContext>>(sp =>
             new PipelineBuilder<CodeContext>()
                 .WithLoggingScope(sp.GetRequiredService<ILoggerFactory>())
+                .Use(sp.GetRequiredService<CrashSnapshotMiddleware<CodeContext>>())
                 .Use(new FixedTimeoutMiddleware<CodeContext>(TimeSpan.FromSeconds(120)))
                 .Use(sp.GetRequiredService<CodeCacheMiddleware>())
                 .Use(sp.GetRequiredService<CodeSecurityMiddleware>())
@@ -260,6 +294,7 @@ public static class PipelineComposition
         services.AddSingleton<MiddlewarePipeline<JoinCode.Dream.Pipeline.DreamContext>>(sp =>
             new PipelineBuilder<JoinCode.Dream.Pipeline.DreamContext>()
                 .WithLoggingScope(sp.GetRequiredService<ILoggerFactory>())
+                .Use(sp.GetRequiredService<CrashSnapshotMiddleware<JoinCode.Dream.Pipeline.DreamContext>>())
                 .WithShortCircuit(ctx => ctx.Result is not null)
                 .Use(sp.GetRequiredService<JoinCode.Dream.Pipeline.DreamGateCheckMiddleware>())
                 .Use(sp.GetRequiredService<JoinCode.Dream.Pipeline.DreamSessionScanMiddleware>())

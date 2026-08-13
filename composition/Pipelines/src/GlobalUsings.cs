@@ -16,6 +16,7 @@ global using JoinCode.Abstractions.Interfaces;
 global using JoinCode.Abstractions.LLM.Chat;
 global using JoinCode.Abstractions.Pipeline;
 global using JoinCode.Abstractions.Utils.Diagnostics;
+global using JoinCode.Abstractions.Models.ErrorRecovery;
 global using Microsoft.Extensions.DependencyInjection;
 global using Microsoft.Extensions.Logging;
 global using Services.Web;

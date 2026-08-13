@@ -36,7 +36,7 @@ public sealed partial class MainViewModel : ViewModelBase
     private bool _isDarkTheme = true;
 
     [ObservableProperty]
-    private string _selectedModel;
+    private string? _selectedModel;
 
     /// <summary>采样温度（设置面板滑块）</summary>
     [ObservableProperty]
@@ -85,6 +85,10 @@ public sealed partial class MainViewModel : ViewModelBase
     /// <summary>回底按钮是否可见（上滑浏览时显示，贴底时隐藏）</summary>
     [ObservableProperty]
     private bool _isBackToBottomVisible;
+
+    /// <summary>引擎是否已加载完成（驱动连接/模型下拉框显隐，避免热切换闪烁）</summary>
+    [ObservableProperty]
+    private bool _isEngineLoaded;
 
     /// <summary>系统提示词（占位阶段仅编辑，P1 传入引擎）</summary>
     [ObservableProperty]
@@ -337,20 +341,25 @@ public sealed partial class MainViewModel : ViewModelBase
         _session = session ?? new Hosting.PlaceholderChatSession();
         _sessionStore = store ?? new Persistence.GuiSessionStore(new IO.FileSystem.PhysicalFileSystem());
         _session.PermissionConfirmationHandler = OnPermissionConfirmationRequestedAsync;
-        RebuildConnectionOptions();
-        _selectedModel = _session.CurrentModelId;
-        _selectedModelOption = ModelOptions.FirstOrDefault(m => m.Id == _session.CurrentModelId);
         _selectedEffort = _session.EffortLevel.ToValue();
-        _selectedConnection = session is null
-            ? MockConnection
-            : _connectionOptions.FirstOrDefault(c => !c.IsMock && c.Id == session.CurrentVendor)
-              ?? _connectionOptions.FirstOrDefault(c => !c.IsMock)
-              ?? MockConnection;
         Messages.CollectionChanged += OnMessagesChanged;
         LoadPersistedSessions();
         NewConversation();
-        if (session is null)
+
+        if (session is not null)
+        {
+            RebuildConnectionOptions();
+            _selectedModel = _session.CurrentModelId;
+            _selectedModelOption = ModelOptions.FirstOrDefault(m => m.Id == _session.CurrentModelId);
+            _selectedConnection = _connectionOptions.FirstOrDefault(c => !c.IsMock && c.Id == session.CurrentVendor)
+                ?? _connectionOptions.FirstOrDefault(c => !c.IsMock)
+                ?? MockConnection;
+            IsEngineLoaded = true;
+        }
+        else
+        {
             StatusText = "正在加载引擎…";
+        }
     }
 
     /// <summary>获取可用斜杠命令清单 — 委托到引擎 session，由源码生成器自动提取</summary>
@@ -382,6 +391,7 @@ public sealed partial class MainViewModel : ViewModelBase
 
         OnPropertyChanged(nameof(ModelOptions));
         OnPropertyChanged(nameof(IsMockConnection));
+        IsEngineLoaded = true;
         _ = Task.Run(async () =>
         {
             try
@@ -395,6 +405,18 @@ public sealed partial class MainViewModel : ViewModelBase
             }
         });
         StatusText = $"已连接真实引擎 {session.CurrentVendor}";
+    }
+
+    /// <summary>引擎加载失败时回退到 Mock 连接（填充连接列表供用户使用）</summary>
+    public void FallbackToMock()
+    {
+        _session = _mockSession ??= new Hosting.PlaceholderChatSession();
+        _session.PermissionConfirmationHandler = OnPermissionConfirmationRequestedAsync;
+        RebuildConnectionOptions();
+        SelectedConnection = MockConnection;
+        SelectedModel = _session.CurrentModelId;
+        SelectedModelOption = ModelOptions.FirstOrDefault(m => m.Id == _session.CurrentModelId);
+        IsEngineLoaded = true;
     }
 
     /// <summary>斜杠命令缓存（懒加载；空命令时回退内置高频命令列表）</summary>
@@ -689,7 +711,7 @@ public sealed partial class MainViewModel : ViewModelBase
     }
 
     /// <summary>用户切换模型时回写共享配置（绑定同一个配置源，下次请求引擎生效）</summary>
-    partial void OnSelectedModelChanged(string value)
+    partial void OnSelectedModelChanged(string? value)
     {
         if (!string.IsNullOrWhiteSpace(value) && value != _session.CurrentModelId)
         {

@@ -16,6 +16,7 @@
       <Button Grid.Column="3" Content="⊘ 全部重置" Command="{Binding ClearAllSessionsCommand}"
               FontSize="11" />
       <ComboBox Grid.Column="4" ItemsSource="{Binding ConnectionOptions}" SelectedItem="{Binding SelectedConnection}"
+                IsVisible="{Binding IsEngineLoaded}"
                 HorizontalAlignment="Stretch" ToolTip.Tip="当前连接的引擎（Mock 为演示/本地验证环境）">
         <ComboBox.ItemTemplate>
           <DataTemplate x:DataType="vm:ConnectionOptionItem">
@@ -24,6 +25,7 @@
         </ComboBox.ItemTemplate>
       </ComboBox>
       <ComboBox Grid.Column="5" ItemsSource="{Binding ModelOptions}" SelectedItem="{Binding SelectedModelOption}"
+                IsVisible="{Binding IsEngineLoaded}"
                 PlaceholderText="选择模型" HorizontalAlignment="Stretch">
         <ComboBox.ItemTemplate>
           <DataTemplate x:DataType="vm:ModelOptionItem">

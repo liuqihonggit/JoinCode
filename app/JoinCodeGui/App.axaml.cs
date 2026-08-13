@@ -66,7 +66,10 @@ public sealed partial class App : Application
                 {
                     WriteCrashLog(ex);
                     Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-                        viewModel.StatusText = $"引擎加载失败，已回退到 Mock 引擎: {ex.Message}");
+                    {
+                        viewModel.FallbackToMock();
+                        viewModel.StatusText = $"引擎加载失败，已回退到 Mock 引擎: {ex.Message}";
+                    });
                 }
             }, TaskContinuationOptions.ExecuteSynchronously);
         return viewModel;

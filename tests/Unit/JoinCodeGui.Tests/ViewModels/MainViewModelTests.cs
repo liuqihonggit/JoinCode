@@ -20,9 +20,10 @@ public class MainViewModelTests
 {
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(5);
 
-    /// <summary>创建注入 InMemoryFileSystem 会话存储的 ViewModel — 避免测试污染真实 ~/.jcc/sessions</summary>
+    /// <summary>创建注入 InMemoryFileSystem 会话存储的 ViewModel — 避免测试污染真实 ~/.jcc/sessions。
+    /// 传入 PlaceholderChatSession 使构造函数走初始化路径（填充连接/模型列表），对齐真实引擎加载完成后的状态。</summary>
     private static MainViewModel CreateVm() => new(
-        null,
+        new JoinCode.Gui.Hosting.PlaceholderChatSession(),
         new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"));
 
     /// <summary>设置斜杠输入并手动触发刷新（模拟 View 层防抖后调用）</summary>
@@ -287,9 +288,11 @@ public class MainViewModelTests
     [Fact]
     public void PlaceholderMode_ShowsLoadingStatus()
     {
-        var vm = CreateVm();
+        var vm = new MainViewModel(null, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"));
         vm.IsMockConnection.Should().BeTrue("未注入会话时处于 Mock 占位");
         vm.StatusText.Should().Be("正在加载引擎…");
+        vm.IsEngineLoaded.Should().BeFalse("引擎未加载完成");
+        vm.ConnectionOptions.Should().BeEmpty("引擎未加载时不填充连接列表");
     }
 
     [Fact]

@@ -143,7 +143,7 @@ public class OpenAIQueryService : QueryServiceBase
 
     #region 请求构建
 
-    internal OpenAIChatRequest CreateRequest(MessageList chatHistory, ChatOptions? settings, bool stream, IChatClient? kernel)
+    internal virtual OpenAIChatRequest CreateRequest(MessageList chatHistory, ChatOptions? settings, bool stream, IChatClient? kernel)
     {
         var messages = chatHistory.Select(ConvertToOpenAIMessage).ToList();
 
@@ -244,9 +244,9 @@ public class OpenAIQueryService : QueryServiceBase
             .ToList();
     }
 
-    private static OpenAIFunctionParameters? BuildParameters(IReadOnlyList<IToolParam> parameters)
+    private static OpenAIFunctionParameters BuildParameters(IReadOnlyList<IToolParam> parameters)
     {
-        if (parameters.Count == 0) return null;
+        if (parameters.Count == 0) return new OpenAIFunctionParameters();
 
         var props = new Dictionary<string, OpenAIParameterProperty>();
 

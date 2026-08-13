@@ -82,6 +82,10 @@ public sealed partial class MainViewModel : ViewModelBase
     [ObservableProperty]
     private bool _isSettingsPanelOpen;
 
+    /// <summary>回底按钮是否可见（上滑浏览时显示，贴底时隐藏）</summary>
+    [ObservableProperty]
+    private bool _isBackToBottomVisible;
+
     /// <summary>系统提示词（占位阶段仅编辑，P1 传入引擎）</summary>
     [ObservableProperty]
     private string _systemPrompt = "你是 JoinCode 助手，请用简洁清晰的中文回答。";
@@ -1244,5 +1248,16 @@ public sealed partial class MainViewModel : ViewModelBase
             : message.Trim();
         if (title.Length > 0)
             _activeSession.Title = title;
+    }
+
+    /// <summary>请求滚动到底部（由 View 订阅执行实际 ScrollToLine UI 操作）</summary>
+    public event Action? ScrollToBottomRequested;
+
+    /// <summary>跳到最新消息（回底按钮命令）</summary>
+    [RelayCommand]
+    private void ScrollToBottom()
+    {
+        IsBackToBottomVisible = false;
+        ScrollToBottomRequested?.Invoke();
     }
 }

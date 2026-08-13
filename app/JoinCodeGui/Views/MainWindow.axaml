@@ -222,7 +222,8 @@
           </Panel>
           <Button Grid.Row="2" x:Name="BackToBottomButton" Content="↓ 跳到最新"
                   HorizontalAlignment="Center" FontSize="11" Padding="12,6"
-                  IsVisible="False" Background="{DynamicResource GuiSessionHighlight}" Click="OnBackToBottomClick" />
+                  IsVisible="{Binding IsBackToBottomVisible}" Background="{DynamicResource GuiSessionHighlight}"
+                  Command="{Binding ScrollToBottomCommand}" />
         </Grid>
 
         <!-- Column 1：设置面板 -->

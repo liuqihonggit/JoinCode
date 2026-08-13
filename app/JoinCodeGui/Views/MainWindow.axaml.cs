@@ -118,6 +118,8 @@ public sealed partial class MainWindow : Window
             MessageTextEditor.TemplateApplied -= OnTextEditorTemplateApplied;
         _toastCts?.Cancel();
         _errorToastFadeCts?.Cancel();
+        if (_vm is not null)
+            _vm.ScrollToBottomRequested -= OnScrollToBottomRequested;
         Closed -= OnWindowClosed;
     }
 
@@ -128,6 +130,7 @@ public sealed partial class MainWindow : Window
         {
             _vm.Messages.CollectionChanged -= OnMessagesChanged;
             _vm.PropertyChanged -= OnVmPropertyChanged;
+            _vm.ScrollToBottomRequested -= OnScrollToBottomRequested;
         }
         _vm = DataContext as MainViewModel;
         if (_vm is not null)
@@ -135,6 +138,7 @@ public sealed partial class MainWindow : Window
             _vm.PermissionConfirmCallback = ShowPermissionDialogAsync;
             _vm.Messages.CollectionChanged += OnMessagesChanged;
             _vm.PropertyChanged += OnVmPropertyChanged;
+            _vm.ScrollToBottomRequested += OnScrollToBottomRequested;
             if (MessageTextEditor is not null)
                 MessageTextEditor.Document.Text = _vm.AllMessagesText;
         }
@@ -430,16 +434,15 @@ public sealed partial class MainWindow : Window
             return;
         var isNearBottom = scroll.Offset.Y >= scroll.Extent.Height - scroll.Viewport.Height - 40;
         _autoScrollEnabled = isNearBottom;
-        if (BackToBottomButton is not null)
-            BackToBottomButton.IsVisible = !isNearBottom;
+        if (_vm is not null)
+            _vm.IsBackToBottomVisible = !isNearBottom;
     }
 
-    /// <summary>点击浮钮：跳到底部并恢复自动滚动</summary>
-    private void OnBackToBottomClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    /// <summary>VM 请求滚动到底部时执行 UI 滚动操作</summary>
+    private void OnScrollToBottomRequested()
     {
         if (MessageTextEditor is not null)
             MessageTextEditor.ScrollToLine(MessageTextEditor.Document.LineCount);
-        BackToBottomButton.IsVisible = false;
         _autoScrollEnabled = true;
     }
 

@@ -1,0 +1,39 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        xmlns:hosting="using:JoinCode.Gui.Hosting"
+        xmlns:local="using:JoinCode.Gui.Views"
+        x:Class="JoinCode.Gui.Views.PermissionDialog"
+        x:DataType="hosting:PermissionConfirmationRequest"
+        Title="权限确认"
+        MinWidth="400" MaxWidth="560"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False">
+  <StackPanel Margin="20" Spacing="14">
+    <TextBlock Text="{Binding ToolName, StringFormat='工具「{0}」请求执行权限'}"
+               FontSize="15" FontWeight="SemiBold"
+               Foreground="{DynamicResource GuiPrimaryText}"
+               TextWrapping="Wrap" />
+    <TextBlock Text="{Binding ConfirmationPrompt}"
+               FontSize="13"
+               Foreground="{DynamicResource GuiSecondaryText}"
+               TextWrapping="Wrap" />
+    <TextBlock Text="{Binding RuleContent}"
+               FontSize="11"
+               Foreground="{DynamicResource GuiMutedText}"
+               TextWrapping="Wrap"
+               FontFamily="{DynamicResource GuiMonoFont}"
+               IsVisible="{Binding HasRuleContent}" />
+    <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
+      <Button Content="拒绝" MinWidth="88"
+              Command="{Binding DenyCommand, RelativeSource={RelativeSource AncestorType=local:PermissionDialog}}" />
+      <Button Content="允许本次" MinWidth="88"
+              Command="{Binding AllowCommand, RelativeSource={RelativeSource AncestorType=local:PermissionDialog}}" />
+      <Button Content="始终允许" MinWidth="88"
+              Command="{Binding AlwaysAllowCommand, RelativeSource={RelativeSource AncestorType=local:PermissionDialog}}" />
+    </StackPanel>
+  </StackPanel>
+</Window>

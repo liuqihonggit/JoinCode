@@ -8,12 +8,12 @@ public static class InputSanitizer
 {
     /// <summary>路径穿越模式 AC 自动机 — 一次扫描检测所有穿越模式。</summary>
     private static readonly AhoCorasick<string> PathTraversalAc = AhoCorasick.Create(
-        new[] { "../", "..\\", "..", "%2e%2e", "%2E%2E", "..%2f", "..%5c" },
+        new[] { "../", "..\\", "..", "%2e%2e", "%2E%2E", "..%2f", "..%5c", "....//", "..;/" },
         ignoreCase: true);
 
     /// <summary>shell 注入模式 AC 自动机 — 检测 $(()) `${ 等注入模式。</summary>
     private static readonly AhoCorasick<string> ShellInjectionAc = AhoCorasick.Create(
-        new[] { "$((", "))", "`", "${" },
+        new[] { "$((", "))", "`", "${", "$(" },
         ignoreCase: false);
 
     /// <summary>危险控制字符 — 防止终端注入和日志注入</summary>

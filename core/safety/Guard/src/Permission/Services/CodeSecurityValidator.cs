@@ -32,7 +32,13 @@ public sealed partial class CodeSecurityValidator : ServiceEntity, ICodeSecurity
         "GCHandle",
         "Thread.Abort",
         "Thread.Suspend",
-        "Thread.Resume");
+        "Thread.Resume",
+        "Activator.CreateInstance",
+        "MethodInfo.Invoke",
+        "Type.InvokeMember",
+        "DynamicMethod",
+        "NativeLibrary.Load",
+        "Socket.");
 
     /// <summary>危险模式 AC 自动机 — 一次扫描检测所有危险代码模式。</summary>
     private static readonly AhoCorasick<string> DangerousPatternAc = AhoCorasick.Create(

@@ -64,6 +64,24 @@ public sealed partial class DestructiveCommandDetector : ServiceEntity, IDestruc
         ["xcopy"] = CommandRisk.DataModification,
         ["robocopy"] = CommandRisk.DataModification,
         ["Copy-Item"] = CommandRisk.DataModification,
+
+        // 系统关机/重启
+        ["shutdown"] = CommandRisk.SystemModification,
+        ["reboot"] = CommandRisk.SystemModification,
+        ["halt"] = CommandRisk.SystemModification,
+
+        // 进程终止
+        ["kill"] = CommandRisk.DataModification,
+        ["killall"] = CommandRisk.DataModification,
+        ["taskkill"] = CommandRisk.DataModification,
+
+        // 服务/网络/计划任务管理
+        ["systemctl"] = CommandRisk.SystemModification,
+        ["iptables"] = CommandRisk.SystemModification,
+        ["sc"] = CommandRisk.SystemModification,
+        ["netsh"] = CommandRisk.SystemModification,
+        ["schtasks"] = CommandRisk.SystemModification,
+        ["crontab"] = CommandRisk.SystemModification,
     };
 
     // 危险参数模式
@@ -111,6 +129,12 @@ public sealed partial class DestructiveCommandDetector : ServiceEntity, IDestruc
         (new[] { "|", "sh" }, CommandRisk.RemoteExecution, "Piped to shell"),
         (new[] { "|", "bash" }, CommandRisk.RemoteExecution, "Piped to bash"),
         (new[] { "|", "powershell" }, CommandRisk.RemoteExecution, "Piped to PowerShell"),
+        (new[] { "git", "reset", "--hard" }, CommandRisk.DataModification, "Destructive git reset"),
+        (new[] { "git", "clean", "-f" }, CommandRisk.DataModification, "Force git clean"),
+        (new[] { "chmod", "777" }, CommandRisk.SystemModification, "World-writable permission"),
+        (new[] { "shutdown", "/s" }, CommandRisk.SystemModification, "System shutdown"),
+        (new[] { "taskkill", "/f" }, CommandRisk.DataModification, "Force kill process"),
+        (new[] { "kill", "-9" }, CommandRisk.DataModification, "Force kill process"),
     };
 
     /// <summary>

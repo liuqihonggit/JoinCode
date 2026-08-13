@@ -66,6 +66,13 @@ public interface IJccChatSession : IAsyncDisposable
     Task SetModelAsync(string modelId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// 切换当前供应商并持久化到 settings.json（对齐 CLI ProviderCommand 语义，
+    /// 键 "provider" 与 SettingsJson 生成器 jsonName 一致），保证 GUI 重启后保留所选供应商。
+    /// 切换后引擎按新供应商的 DefaultModelId 重置 ModelId 并持久化，避免旧模型不属于新供应商。
+    /// </summary>
+    Task SetVendorAsync(string vendor, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// 当前推理力度（默认 Auto；对齐 CLI /effort current 语义）。
     /// 进程内引擎经 <c>IExecutionSettingsProvider.EffortLevel</c> 实时消费。
     /// </summary>

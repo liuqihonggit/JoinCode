@@ -57,6 +57,10 @@ internal sealed class PlaceholderChatSession : IJccChatSession
     public Task SetModelAsync(string modelId, CancellationToken cancellationToken = default)
         => Task.CompletedTask;
 
+    /// <summary>占位会话不连接真实引擎，供应商切换空实现（不持久化）</summary>
+    public Task SetVendorAsync(string vendor, CancellationToken cancellationToken = default)
+        => Task.CompletedTask;
+
     /// <summary>占位会话固定返回 Auto，不持久化</summary>
     public EffortLevel EffortLevel => EffortLevel.Auto;
 

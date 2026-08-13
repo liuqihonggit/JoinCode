@@ -34,7 +34,7 @@ public sealed class MainWindowRegressionTests
     [AvaloniaFact]
     public void SendOnRealWindow_NoNre_AndCompletes()
     {
-        var vm = new MainViewModel(null, new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"));
+        var vm = new MainViewModel(null, new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
         var win = new MainWindow { DataContext = vm };
         win.Show();
         Avalonia.Threading.Dispatcher.UIThread.RunJobs();
@@ -49,7 +49,7 @@ public sealed class MainWindowRegressionTests
     [AvaloniaFact]
     public void EnterKey_SendsMessage()
     {
-        var vm = new MainViewModel(null, new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"));
+        var vm = new MainViewModel(null, new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
         var win = new MainWindow { DataContext = vm };
         win.Show();
         Avalonia.Threading.Dispatcher.UIThread.RunJobs();
@@ -65,7 +65,7 @@ public sealed class MainWindowRegressionTests
     [AvaloniaFact]
     public void ShiftEnterKey_InsertsNewline_DoesNotSend()
     {
-        var vm = new MainViewModel(null, new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"));
+        var vm = new MainViewModel(null, new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
         var win = new MainWindow { DataContext = vm };
         win.Show();
         Avalonia.Threading.Dispatcher.UIThread.RunJobs();
@@ -88,7 +88,7 @@ public sealed class MainWindowRegressionTests
     [AvaloniaFact]
     public void SessionError_ShowsErrorToast_OnRealWindow()
     {
-        var vm = new MainViewModel(new ThrowingSession(), new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"));
+        var vm = new MainViewModel(new ThrowingSession(), new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
         var win = new MainWindow { DataContext = vm };
         win.Show();
         Avalonia.Threading.Dispatcher.UIThread.RunJobs();
@@ -105,7 +105,7 @@ public sealed class MainWindowRegressionTests
     [AvaloniaFact]
     public void ToastAutoHide_AfterFiveSeconds_StopsTimer()
     {
-        var vm = new MainViewModel(new ThrowingSession(), new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"));
+        var vm = new MainViewModel(new ThrowingSession(), new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
         var win = new MainWindow { DataContext = vm };
         win.Show();
         Avalonia.Threading.Dispatcher.UIThread.RunJobs();
@@ -138,7 +138,7 @@ public sealed class MainWindowRegressionTests
     [AvaloniaFact]
     public void ToastHover_PausesTimer_LeaveResumes()
     {
-        var vm = new MainViewModel(new ThrowingSession(), new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"));
+        var vm = new MainViewModel(new ThrowingSession(), new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
         var win = new MainWindow { DataContext = vm };
         win.Show();
         Avalonia.Threading.Dispatcher.UIThread.RunJobs();
@@ -196,6 +196,7 @@ public sealed class MainWindowRegressionTests
         public Task<RewindResult> RewindLastTurnAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(new RewindResult());
         public Task SetModelAsync(string modelId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task SetVendorAsync(string vendor, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public void RefreshVendorModelMap() { }
         public void SwitchSession(string sessionId) { }
         public Task LoadHistoryAsync(IReadOnlyList<(MessageRole Role, string Content)> messages, CancellationToken cancellationToken = default) => Task.CompletedTask;

@@ -191,6 +191,36 @@ internal sealed class JccChatSession : IJccChatSession
     }
 
     /// <summary>
+    /// 切换当前供应商 — 回写共享 WorkflowConfig.Provider.Vendor 并持久化到 settings.json
+    /// （对齐 CLI ProviderCommand，键 ConfigKeyConstants.Provider），保证 GUI 重启后保留。
+    /// 同时按新供应商的 DefaultModelId 重置 ModelId 并持久化，避免旧模型不属于新供应商导致请求失败。
+    /// </summary>
+    public async Task SetVendorAsync(string vendor, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(vendor))
+            throw new System.ArgumentException("供应商名称不能为空", nameof(vendor));
+
+        _config.Provider.Vendor = vendor;
+
+        // 按新供应商的默认模型重置 ModelId，避免旧模型不属于新供应商
+        var defaultModelId = ModelConfigLoader.GetDefaultModelId(vendor);
+        if (!string.IsNullOrEmpty(defaultModelId))
+        {
+            _config.Provider.ModelId = defaultModelId;
+        }
+
+        var configService = _services.GetService<IConfigurationService>();
+        if (configService is not null)
+        {
+            await configService.SetAsync(ConfigKeyConstants.Provider, vendor, cancellationToken).ConfigureAwait(false);
+            if (!string.IsNullOrEmpty(defaultModelId))
+            {
+                await configService.SetAsync("model", defaultModelId, cancellationToken).ConfigureAwait(false);
+            }
+        }
+    }
+
+    /// <summary>
     /// 当前推理力度 — 经共享 IExecutionSettingsProvider 读取（默认 Auto）。
     /// 未注册时回退 Auto（对齐 CLI ShowCurrentEffort 的 fallback 语义）。
     /// </summary>

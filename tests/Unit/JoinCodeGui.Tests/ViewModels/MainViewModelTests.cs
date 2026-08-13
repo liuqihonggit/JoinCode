@@ -24,7 +24,8 @@ public class MainViewModelTests
     /// 传入 PlaceholderChatSession 使构造函数走初始化路径（填充连接/模型列表），对齐真实引擎加载完成后的状态。</summary>
     private static MainViewModel CreateVm() => new(
         new JoinCode.Gui.Hosting.PlaceholderChatSession(),
-        new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"));
+        new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"),
+        new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
 
     /// <summary>设置斜杠输入并手动触发刷新（模拟 View 层防抖后调用）</summary>
     private static void SetSlashInput(MainViewModel vm, string text)
@@ -165,7 +166,7 @@ public class MainViewModelTests
     public void ModelOptions_AreBoundToSessionRealModels()
     {
         var fake = new FakeSession();
-        var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"));
+        var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
 
         vm.ModelOptions.Select(m => m.Id).Should().BeEquivalentTo(["fake-model"]);
         vm.SelectedModel.Should().Be("fake-model");
@@ -198,7 +199,7 @@ public class MainViewModelTests
     public void SelectedModelOptionChange_SyncsSelectedModel()
     {
         var session = new CrossContaminationSession();
-        var vm = new MainViewModel(session, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"));
+        var vm = new MainViewModel(session, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
 
         var target = vm.ModelOptions.First(m => m.Id == "sensenova-u1-fast");
         vm.SelectedModelOption = target;
@@ -210,7 +211,7 @@ public class MainViewModelTests
     public void ConnectionOptions_IncludeMockAndRealProvider()
     {
         var fake = new FakeSession();
-        var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"));
+        var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
 
         var options = vm.ConnectionOptions;
         options.Should().Contain(o => o.IsMock && o.DisplayText.Contains("Mock"));
@@ -224,7 +225,7 @@ public class MainViewModelTests
     public void SwitchToMockConnection_UpdatesStatusAndModels()
     {
         var fake = new FakeSession();
-        var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"));
+        var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
 
         var mock = vm.ConnectionOptions.First(o => o.IsMock);
         vm.SelectedConnection = mock;
@@ -239,7 +240,7 @@ public class MainViewModelTests
     public void SwitchToRealConnection_RestoresRealSession()
     {
         var fake = new FakeSession();
-        var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"));
+        var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
         var mock = vm.ConnectionOptions.First(o => o.IsMock);
         var real = vm.ConnectionOptions.First(o => !o.IsMock);
 
@@ -255,7 +256,7 @@ public class MainViewModelTests
     public void SwitchProvider_UpdatesModelListFromVendorModelMap()
     {
         var fake = new FakeSession();
-        var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"));
+        var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
 
         // 初始默认选 "fake" 真实供应商
         vm.SelectedConnection!.Id.Should().Be("fake");
@@ -277,7 +278,7 @@ public class MainViewModelTests
     public void ModelOptions_DoesNotCrossContaminateModelsFromOtherProviders()
     {
         var session = new CrossContaminationSession();
-        var vm = new MainViewModel(session, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"));
+        var vm = new MainViewModel(session, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
 
         // 初始选 sensenova，模型列表应包含 sensenova 模型
         vm.SelectedConnection!.Id.Should().Be("sensenova");
@@ -318,7 +319,7 @@ public class MainViewModelTests
     public void AttachRealSession_HotSwapsPlaceholderToRealEngine()
     {
         // 异步启动路径：VM 先以占位会话显示，引擎组装完成后再热切换
-        var vm = new MainViewModel(null, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"));
+        var vm = new MainViewModel(null, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
         vm.IsMockConnection.Should().BeTrue("未注入会话时处于 Mock 占位");
 
         var fake = new FakeSession();
@@ -335,7 +336,7 @@ public class MainViewModelTests
     [Fact]
     public void PlaceholderMode_ShowsLoadingStatus()
     {
-        var vm = new MainViewModel(null, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"));
+        var vm = new MainViewModel(null, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
         vm.IsMockConnection.Should().BeTrue("未注入会话时处于 Mock 占位");
         vm.StatusText.Should().Be("正在加载引擎…");
         vm.IsEngineLoaded.Should().BeFalse("引擎未加载完成");
@@ -782,7 +783,7 @@ public class MainViewModelTests
         public async Task TemperatureAndMaxTokens_SliderChange_WritesBackToSession()
         {
             var session = new FakeSession();
-            var vm = new MainViewModel(session, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"));
+            var vm = new MainViewModel(session, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
 
             vm.Temperature = 1.2;
             vm.MaxTokens = 3000;
@@ -1035,7 +1036,7 @@ public class MainViewModelTests
         public async Task PermissionConfirmation_NoCallback_DefaultsToDeny()
         {
             var fake = new FakeSession();
-            var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"));
+            var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
 
             var decision = await fake.Handler!(new PermissionConfirmationRequest("bash", "运行命令?", "req-1", "rule"));
 
@@ -1046,7 +1047,7 @@ public class MainViewModelTests
         public async Task PermissionConfirmation_WithCallback_DelegatesToView()
         {
             var fake = new FakeSession();
-            var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"));
+            var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
             PermissionConfirmationRequest? received = null;
             vm.PermissionConfirmCallback = req =>
             {
@@ -1074,7 +1075,7 @@ public class MainViewModelTests
         public async Task Send_WhenSessionThrows_SetsErrorToast()
         {
             var fake = new ThrowingSession();
-            var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"));
+            var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
 
             vm.InputText = "hello";
             await Task.Run(() => vm.SendCommand.ExecuteAsync(null)).WaitAsync(Timeout);
@@ -1087,7 +1088,7 @@ public class MainViewModelTests
         public async Task Send_WhenSessionThrows_KeepsStatusReady()
         {
             var fake = new ThrowingSession();
-            var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"));
+            var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
 
             vm.InputText = "hello";
             await Task.Run(() => vm.SendCommand.ExecuteAsync(null)).WaitAsync(Timeout);
@@ -1148,6 +1149,7 @@ public class MainViewModelTests
             public Task<RewindResult> RewindLastTurnAsync(CancellationToken cancellationToken = default)
                 => Task.FromResult(new RewindResult());
             public Task SetModelAsync(string modelId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public Task SetVendorAsync(string vendor, CancellationToken cancellationToken = default) => Task.CompletedTask;
             public void RefreshVendorModelMap() { }
             public void SwitchSession(string sessionId) { }
             public Task LoadHistoryAsync(IReadOnlyList<(MessageRole Role, string Content)> messages, CancellationToken cancellationToken = default) => Task.CompletedTask;
@@ -1197,6 +1199,7 @@ public class MainViewModelTests
             public Task<RewindResult> RewindLastTurnAsync(CancellationToken cancellationToken = default)
                 => Task.FromResult(new RewindResult());
             public Task SetModelAsync(string modelId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public Task SetVendorAsync(string vendor, CancellationToken cancellationToken = default) => Task.CompletedTask;
             public void RefreshVendorModelMap() { }
             public void SwitchSession(string sessionId) { }
             public Task LoadHistoryAsync(IReadOnlyList<(MessageRole Role, string Content)> messages, CancellationToken cancellationToken = default) => Task.CompletedTask;
@@ -1250,6 +1253,7 @@ public class MainViewModelTests
             public Task<RewindResult> RewindLastTurnAsync(CancellationToken cancellationToken = default)
                 => Task.FromResult(new RewindResult());
             public Task SetModelAsync(string modelId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public Task SetVendorAsync(string vendor, CancellationToken cancellationToken = default) => Task.CompletedTask;
             public void RefreshVendorModelMap() { }
             public void SwitchSession(string sessionId) { }
             public Task LoadHistoryAsync(IReadOnlyList<(MessageRole Role, string Content)> messages, CancellationToken cancellationToken = default) => Task.CompletedTask;
@@ -1293,6 +1297,7 @@ public class MainViewModelTests
             public Task<RewindResult> RewindLastTurnAsync(CancellationToken cancellationToken = default)
                 => Task.FromResult(new RewindResult());
             public Task SetModelAsync(string modelId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public Task SetVendorAsync(string vendor, CancellationToken cancellationToken = default) => Task.CompletedTask;
             public void RefreshVendorModelMap() { }
             public void SwitchSession(string sessionId) { }
             public Task LoadHistoryAsync(IReadOnlyList<(MessageRole Role, string Content)> messages, CancellationToken cancellationToken = default)
@@ -1322,7 +1327,7 @@ public class MainViewModelTests
         [Fact]
         public void ToolResultText_AppearsInAllMessagesText()
         {
-            var vm = new MainViewModel(null, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"));
+            var vm = new MainViewModel(null, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
             vm.Messages.Add(new ChatUiMessage
             {
                 Role = MessageRole.User,

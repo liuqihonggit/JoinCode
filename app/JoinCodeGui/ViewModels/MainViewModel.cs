@@ -19,6 +19,9 @@ public sealed partial class MainViewModel : ViewModelBase
     private IJccChatSession? _mockSession;
     private IJccChatSession _session;
     private readonly Persistence.GuiSessionStore _sessionStore;
+    private readonly Persistence.GuiPreferencesStore _preferencesStore;
+    private bool _isPreferencesLoaded;
+    private bool _isRefreshingConfig;
     private System.IO.FileSystemWatcher? _modelConfigWatcher;
     private DateTime _lastConfigReload = DateTime.MinValue;
 
@@ -344,16 +347,20 @@ public sealed partial class MainViewModel : ViewModelBase
     /// <summary>估算 token 数（中文约 1.6 字符/token，英文约 4 字符/token，取保守下限 4）</summary>
     public int EstimatedTokens => TotalChars / 4;
 
-    public MainViewModel(IJccChatSession? session = null, Persistence.GuiSessionStore? store = null)
+    public MainViewModel(IJccChatSession? session = null, Persistence.GuiSessionStore? store = null, Persistence.GuiPreferencesStore? preferencesStore = null)
     {
         _realSession = session;
         _session = session ?? new Hosting.PlaceholderChatSession();
         _sessionStore = store ?? new Persistence.GuiSessionStore(new IO.FileSystem.PhysicalFileSystem());
+        _preferencesStore = preferencesStore ?? new Persistence.GuiPreferencesStore(new IO.FileSystem.PhysicalFileSystem());
         _session.PermissionConfirmationHandler = OnPermissionConfirmationRequestedAsync;
         _selectedEffort = _session.EffortLevel.ToValue();
         Messages.CollectionChanged += OnMessagesChanged;
         LoadPersistedSessions();
         NewConversation();
+
+        // 加载 GUI 偏好并应用到 UI 属性（启动时恢复上次显示的内容）
+        LoadPreferences();
 
         if (session is not null)
         {
@@ -365,6 +372,8 @@ public sealed partial class MainViewModel : ViewModelBase
                 ?? MockConnection;
             IsEngineLoaded = true;
             StartModelConfigWatch();
+            // 引擎就绪后把偏好里的采样参数应用到引擎
+            ApplyPreferencesToEngine();
         }
         else
         {
@@ -416,6 +425,8 @@ public sealed partial class MainViewModel : ViewModelBase
         });
         StatusText = $"已连接真实引擎 {session.CurrentVendor}";
         StartModelConfigWatch();
+        // 引擎热切换后把偏好里的采样参数应用到引擎
+        ApplyPreferencesToEngine();
     }
 
     /// <summary>启动 models.json 用户覆盖文件监控（热重载）— 文件变更时自动刷新供应商/模型列表</summary>
@@ -453,11 +464,28 @@ public sealed partial class MainViewModel : ViewModelBase
     {
         try
         {
+            // 记住热重载前的选择，重载后尽量保留（避免下拉跳回第一项）
+            var previousModelId = SelectedModelOption?.Id;
+            var previousConnectionId = SelectedConnection?.Id;
+
             _session.RefreshVendorModelMap();
             RebuildConnectionOptions();
             _modelOptionsCache = null;
             OnPropertyChanged(nameof(ModelOptions));
-            SelectedModelOption = ModelOptions.FirstOrDefault();
+
+            // 恢复连接选择（RebuildConnectionOptions 重建了对象引用），用标志位绕过 OnSelectedConnectionChanged 持久化副作用避免循环
+            _isRefreshingConfig = true;
+            SelectedConnection = _connectionOptions.FirstOrDefault(c => c.Id == previousConnectionId)
+                ?? _connectionOptions.FirstOrDefault(c => !c.IsMock && c.Id == _session.CurrentVendor)
+                ?? _connectionOptions.FirstOrDefault(c => !c.IsMock)
+                ?? MockConnection;
+            _isRefreshingConfig = false;
+            OnPropertyChanged(nameof(IsMockConnection));
+
+            // 保留当前模型选择（若仍属于当前供应商模型列表），否则取引擎当前模型，再否则取第一个
+            SelectedModelOption = ModelOptions.FirstOrDefault(m => string.Equals(m.Id, previousModelId, StringComparison.OrdinalIgnoreCase))
+                ?? ModelOptions.FirstOrDefault(m => string.Equals(m.Id, _session.CurrentModelId, StringComparison.OrdinalIgnoreCase))
+                ?? ModelOptions.FirstOrDefault();
             SelectedModel = SelectedModelOption?.Id;
             StatusText = "配置已热重载";
         }
@@ -735,10 +763,37 @@ public sealed partial class MainViewModel : ViewModelBase
     {
         OnPropertyChanged(nameof(IsInputTooLong));
         WriteBackTemperatureAndMaxTokens();
+        SavePreferences();
     }
 
     partial void OnTemperatureChanged(double value)
-        => WriteBackTemperatureAndMaxTokens();
+    {
+        WriteBackTemperatureAndMaxTokens();
+        SavePreferences();
+    }
+
+    /// <summary>深色主题变更时持久化 GUI 偏好</summary>
+    partial void OnIsDarkThemeChanged(bool value) => SavePreferences();
+
+    /// <summary>字号变更时持久化 GUI 偏好</summary>
+    partial void OnFontSizeChanged(double value) => SavePreferences();
+
+    /// <summary>流式输出开关变更时持久化 GUI 偏好</summary>
+    partial void OnStreamingEnabledChanged(bool value) => SavePreferences();
+
+    /// <summary>系统提示词变更时持久化 GUI 偏好并应用到引擎</summary>
+    partial void OnSystemPromptChanged(string value)
+    {
+        SavePreferences();
+        if (_isPreferencesLoaded && !string.IsNullOrWhiteSpace(value))
+        {
+            _ = Task.Run(async () =>
+            {
+                try { await _session.SetSystemPromptAsync(value).WaitAsync(Timeout); }
+                catch (Exception ex) { WriteErrorLog(ex); }
+            });
+        }
+    }
 
     /// <summary>
     /// 滑块变更写回引擎会话 — 经门面 SetTemperatureAsync/SetMaxTokensAsync 写入共享
@@ -759,6 +814,73 @@ public sealed partial class MainViewModel : ViewModelBase
                 StatusText = $"设置采样参数失败: {ex.Message}";
             }
         });
+    }
+
+    /// <summary>
+    /// 加载 GUI 偏好并应用到 UI 属性 — 启动时恢复上次显示的内容。
+    /// 加载期间置 _isPreferencesLoaded=false 防止 OnXxxChanged 回写磁盘。
+    /// </summary>
+    private void LoadPreferences()
+    {
+        try
+        {
+            var prefs = _preferencesStore.Load();
+            _isPreferencesLoaded = false;
+            Temperature = prefs.Temperature;
+            MaxTokens = prefs.MaxTokens;
+            SystemPrompt = prefs.SystemPrompt;
+            IsDarkTheme = prefs.IsDarkTheme;
+            FontSize = prefs.FontSize;
+            StreamingEnabled = prefs.StreamingEnabled;
+            _isPreferencesLoaded = true;
+        }
+        catch (Exception ex)
+        {
+            _isPreferencesLoaded = true;
+            WriteErrorLog(ex);
+        }
+    }
+
+    /// <summary>把偏好里的采样参数应用到引擎（构造函数引擎就绪后 / AttachRealSession 热切换后调用）</summary>
+    private void ApplyPreferencesToEngine()
+    {
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _session.SetTemperatureAsync((float)Temperature).WaitAsync(Timeout);
+                await _session.SetMaxTokensAsync(MaxTokens).WaitAsync(Timeout);
+                if (!string.IsNullOrWhiteSpace(SystemPrompt))
+                    await _session.SetSystemPromptAsync(SystemPrompt).WaitAsync(Timeout);
+            }
+            catch (Exception ex)
+            {
+                WriteErrorLog(ex);
+            }
+        });
+    }
+
+    /// <summary>保存当前 UI 偏好到磁盘 — 各 OnXxxChanged 调用，_isPreferencesLoaded 防止初始化时回写</summary>
+    private void SavePreferences()
+    {
+        if (!_isPreferencesLoaded)
+            return;
+        try
+        {
+            _preferencesStore.Save(new Persistence.GuiPreferences
+            {
+                Temperature = Temperature,
+                MaxTokens = MaxTokens,
+                SystemPrompt = SystemPrompt,
+                IsDarkTheme = IsDarkTheme,
+                FontSize = FontSize,
+                StreamingEnabled = StreamingEnabled
+            });
+        }
+        catch (Exception ex)
+        {
+            WriteErrorLog(ex);
+        }
     }
 
     /// <summary>用户切换模型下拉项时回写共享配置（绑定同一个配置源，下次请求引擎生效）</summary>
@@ -819,7 +941,7 @@ public sealed partial class MainViewModel : ViewModelBase
 
     partial void OnSelectedConnectionChanged(ConnectionOptionItem? value)
     {
-        if (value is null)
+        if (value is null || _isRefreshingConfig)
             return;
 
         var wantMock = value.IsMock;
@@ -839,6 +961,9 @@ public sealed partial class MainViewModel : ViewModelBase
             if (isMock)
                 _session = _realSession;
             StatusText = $"已连接真实引擎 {value.DisplayText}";
+            // 持久化供应商到 settings.json（对齐 CLI ProviderCommand），同步更新内存 _config 使 CurrentModelId 立即生效
+            try { _ = _session.SetVendorAsync(value.Id); }
+            catch (Exception ex) { WriteErrorLog(ex); }
         }
         else
         {
@@ -848,7 +973,9 @@ public sealed partial class MainViewModel : ViewModelBase
         _modelOptionsCache = null;
         OnPropertyChanged(nameof(ModelOptions));
         OnPropertyChanged(nameof(IsMockConnection));
-        SelectedModelOption = ModelOptions.FirstOrDefault();
+        // 供应商切换后 SetVendorAsync 已把 CurrentModelId 重置为新供应商默认模型，优先匹配它；找不到才取第一个
+        SelectedModelOption = ModelOptions.FirstOrDefault(m => string.Equals(m.Id, _session.CurrentModelId, StringComparison.OrdinalIgnoreCase))
+            ?? ModelOptions.FirstOrDefault();
         SelectedModel = SelectedModelOption?.Id;
         SelectedEffort = _session.EffortLevel.ToValue();
     }

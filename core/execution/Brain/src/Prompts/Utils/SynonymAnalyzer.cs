@@ -17,10 +17,10 @@ public static class SynonymAnalyzer
             return [];
         }
 
-        var ac = AhoCorasick<string>.Create(
+        var ac = AhoCorasick<(string Key, string Content)>.Create(
             synonymMap.Entries
                 .Where(static kv => !string.IsNullOrEmpty(kv.Key))
-                .Select(static kv => new KeyValuePair<string, string>(kv.Key, kv.Value)),
+                .Select(static kv => new KeyValuePair<string, (string, string)>(kv.Key, (kv.Key, kv.Value))),
             ignoreCase: true);
 
         var matches = ac.FindAll(input.AsSpan());
@@ -34,8 +34,8 @@ public static class SynonymAnalyzer
         {
             results.Add(new SynonymMatchResult
             {
-                MatchedKey = input.AsSpan().Slice(m.StartIndex, m.Length).ToString(),
-                SupplementaryContent = m.Value
+                MatchedKey = m.Value.Key,
+                SupplementaryContent = m.Value.Content
             });
         }
 

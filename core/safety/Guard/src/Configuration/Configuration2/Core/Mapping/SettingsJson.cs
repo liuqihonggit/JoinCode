@@ -56,6 +56,48 @@ public sealed partial class SettingsJson
     public string? Theme { get; init; }
 
     /// <summary>
+    /// 按键绑定模式 (vim/emacs/default) — 对齐 ConfigKey.EditorMode
+    /// </summary>
+    [JsonPropertyName("editorMode")]
+    [SettingsProperty(SettingsMergeStrategy.Override)]
+    public string? EditorMode { get; init; }
+
+    /// <summary>
+    /// 详细调试输出 — 对齐 ConfigKey.Verbose
+    /// </summary>
+    [JsonPropertyName("verbose")]
+    [SettingsProperty(SettingsMergeStrategy.Override)]
+    public bool? Verbose { get; init; }
+
+    /// <summary>
+    /// 自动压缩上下文 — 对齐 ConfigKey.AutoCompactEnabled
+    /// </summary>
+    [JsonPropertyName("autoCompactEnabled")]
+    [SettingsProperty(SettingsMergeStrategy.Override)]
+    public bool? AutoCompactEnabled { get; init; }
+
+    /// <summary>
+    /// 文件检查点 — 对齐 ConfigKey.FileCheckpointingEnabled
+    /// </summary>
+    [JsonPropertyName("fileCheckpointingEnabled")]
+    [SettingsProperty(SettingsMergeStrategy.Override)]
+    public bool? FileCheckpointingEnabled { get; init; }
+
+    /// <summary>
+    /// 显示轮次耗时 — 对齐 ConfigKey.ShowTurnDuration
+    /// </summary>
+    [JsonPropertyName("showTurnDuration")]
+    [SettingsProperty(SettingsMergeStrategy.Override)]
+    public bool? ShowTurnDuration { get; init; }
+
+    /// <summary>
+    /// 扩展思考 — 对齐 ConfigKey.AlwaysThinkingEnabled
+    /// </summary>
+    [JsonPropertyName("alwaysThinkingEnabled")]
+    [SettingsProperty(SettingsMergeStrategy.Override)]
+    public bool? AlwaysThinkingEnabled { get; init; }
+
+    /// <summary>
     /// 默认 Shell: bash, powershell
     /// </summary>
     [JsonPropertyName("defaultShell")]

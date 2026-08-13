@@ -80,12 +80,17 @@
                       <TextBlock Text="{Binding Title}" Foreground="{DynamicResource GuiPrimaryText}" FontSize="12" VerticalAlignment="Center"
                                  IsVisible="{Binding !IsRenaming}" />
                       <TextBox Text="{Binding RenameDraft}" FontSize="12" Padding="2,0"
-                               IsVisible="{Binding IsRenaming}"
-                               KeyDown="OnRenameKeyDown" />
+                               IsVisible="{Binding IsRenaming}">
+                        <TextBox.KeyBindings>
+                          <KeyBinding Gesture="Enter" Command="{Binding DataContext.CommitRenameSessionCommand, ElementName=Root}" CommandParameter="{Binding}" />
+                          <KeyBinding Gesture="Escape" Command="{Binding DataContext.CancelRenameSessionCommand, ElementName=Root}" CommandParameter="{Binding}" />
+                        </TextBox.KeyBindings>
+                      </TextBox>
                     </StackPanel>
                     <Button Grid.Column="1" Content="✕" FontSize="9" Padding="2,0" Background="Transparent"
                             BorderThickness="0" Foreground="{DynamicResource GuiMutedText}"
-                            Tag="{Binding}" Click="OnSessionRemoveClick" />
+                            Command="{Binding DataContext.RemoveSessionCommand, ElementName=Root}"
+                            CommandParameter="{Binding}" />
                   </Grid>
                 </Border>
               </DataTemplate>

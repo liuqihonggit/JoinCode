@@ -1223,6 +1223,14 @@ public sealed partial class MainViewModel : ViewModelBase
             session.Title = session.RenameDraft.Trim();
     }
 
+    /// <summary>取消重命名（Esc 触发），恢复原标题</summary>
+    [RelayCommand]
+    private void CancelRenameSession(SessionItem? session)
+    {
+        if (session is not null)
+            session.IsRenaming = false;
+    }
+
     /// <summary>向输入框追加文本（光标定位到内容尾部）</summary>
     private void ConcatInput(string text) => InputText += text;
 

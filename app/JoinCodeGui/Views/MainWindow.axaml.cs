@@ -531,15 +531,6 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    /// <summary>点击会话删除按钮：移除该会话</summary>
-    private void OnSessionRemoveClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        if (sender is Button { Tag: SessionItem session } && DataContext is MainViewModel vm)
-        {
-            vm.RemoveSessionCommand.Execute(session);
-        }
-    }
-
     /// <summary>单击会话条目：切换选中态（高亮当前会话）</summary>
     private void OnSessionSingleTapped(object? sender, Avalonia.Input.TappedEventArgs e)
     {
@@ -553,26 +544,6 @@ public sealed partial class MainWindow : Window
         if (sender is Avalonia.StyledElement { DataContext: SessionItem session } && DataContext is MainViewModel vm)
         {
             vm.BeginRenameSessionCommand.Execute(session);
-        }
-    }
-
-    /// <summary>重命名编辑框按 Enter 提交，Esc 取消</summary>
-    private void OnRenameKeyDown(object? sender, KeyEventArgs e)
-    {
-        if (DataContext is not MainViewModel vm)
-            return;
-        if (sender is Avalonia.StyledElement { DataContext: SessionItem session })
-        {
-            if (e.Key == Key.Enter)
-            {
-                e.Handled = true;
-                vm.CommitRenameSessionCommand.Execute(session);
-            }
-            else if (e.Key == Key.Escape)
-            {
-                e.Handled = true;
-                session.IsRenaming = false;
-            }
         }
     }
 }

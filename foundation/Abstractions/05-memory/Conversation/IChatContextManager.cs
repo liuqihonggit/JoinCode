@@ -8,6 +8,9 @@ public interface IChatContextManager
     /// </summary>
     string SessionId { get; }
 
+    /// <summary>切换会话 — 按 sessionId 隔离对话历史，切回时自动恢复对应桶</summary>
+    void SwitchSession(string sessionId);
+
     Task LoadContextAsync(CancellationToken cancellationToken = default);
     Task AddUserMessageAsync(string content, CancellationToken cancellationToken = default);
     Task AddCompactSummaryMessageAsync(string content, CancellationToken cancellationToken = default);

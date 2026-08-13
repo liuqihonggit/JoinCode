@@ -119,6 +119,13 @@ internal sealed class JccChatSession : IJccChatSession
         VendorModelMap = BuildVendorModelMap();
     }
 
+    /// <summary>切换会话 — 通过 IChatContextManager.SwitchSession 按 sessionId 隔离对话历史</summary>
+    public void SwitchSession(string sessionId)
+    {
+        var ctxMgr = _services.GetService<IChatContextManager>();
+        ctxMgr?.SwitchSession(sessionId);
+    }
+
     private static IReadOnlyDictionary<string, IReadOnlyList<string>> BuildVendorModelMap()
     {
         var map = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase);

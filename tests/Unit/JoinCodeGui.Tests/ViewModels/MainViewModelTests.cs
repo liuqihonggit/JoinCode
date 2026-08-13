@@ -1124,6 +1124,7 @@ public class MainViewModelTests
                 => Task.FromResult(new RewindResult());
             public Task SetModelAsync(string modelId, CancellationToken cancellationToken = default) => Task.CompletedTask;
             public void RefreshVendorModelMap() { }
+            public void SwitchSession(string sessionId) { }
             public EffortLevel EffortLevel => EffortLevel.Auto;
             public Task SetEffortLevelAsync(EffortLevel effortLevel, CancellationToken cancellationToken = default) => Task.CompletedTask;
             public Task SetSystemPromptAsync(string systemPrompt, CancellationToken cancellationToken = default) => Task.CompletedTask;
@@ -1171,6 +1172,7 @@ public class MainViewModelTests
                 => Task.FromResult(new RewindResult());
             public Task SetModelAsync(string modelId, CancellationToken cancellationToken = default) => Task.CompletedTask;
             public void RefreshVendorModelMap() { }
+            public void SwitchSession(string sessionId) { }
             public EffortLevel EffortLevel => EffortLevel.Auto;
             public Task SetEffortLevelAsync(EffortLevel effortLevel, CancellationToken cancellationToken = default) => Task.CompletedTask;
             public Task SetSystemPromptAsync(string systemPrompt, CancellationToken cancellationToken = default)
@@ -1222,6 +1224,7 @@ public class MainViewModelTests
                 => Task.FromResult(new RewindResult());
             public Task SetModelAsync(string modelId, CancellationToken cancellationToken = default) => Task.CompletedTask;
             public void RefreshVendorModelMap() { }
+            public void SwitchSession(string sessionId) { }
             public EffortLevel EffortLevel => EffortLevel.Auto;
             public Task SetEffortLevelAsync(EffortLevel effortLevel, CancellationToken cancellationToken = default) => Task.CompletedTask;
             public Task SetSystemPromptAsync(string systemPrompt, CancellationToken cancellationToken = default) => Task.CompletedTask;

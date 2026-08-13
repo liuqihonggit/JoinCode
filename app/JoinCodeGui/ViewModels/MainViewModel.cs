@@ -876,6 +876,7 @@ public sealed partial class MainViewModel : ViewModelBase
         Sessions.Add(item);
         _activeSession = item;
         Messages.Clear();
+        _session.SwitchSession(item.Id);
         OnPropertyChanged(nameof(Sessions));
     }
 
@@ -1253,6 +1254,7 @@ public sealed partial class MainViewModel : ViewModelBase
         foreach (var s in Sessions)
             s.IsSelected = s == session;
         _activeSession = session;
+        _session.SwitchSession(session.Id);
 
         // 切换会话时从持久化恢复该会话消息到消息区（空会话则清空）
         var data = _sessionStore.Load(session.Id);

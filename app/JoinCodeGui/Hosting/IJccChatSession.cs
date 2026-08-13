@@ -50,6 +50,9 @@ public interface IJccChatSession : IAsyncDisposable
     /// <summary>重新加载 models.json 并刷新 VendorModelMap（热重载入口，由 GUI 配置变更监控调用）</summary>
     void RefreshVendorModelMap();
 
+    /// <summary>切换会话 — 引擎按 sessionId 隔离对话历史，切回时自动恢复</summary>
+    void SwitchSession(string sessionId);
+
     /// <summary>切换当前模型（回写共享 WorkflowConfig.Provider.ModelId，下次请求引擎即生效）</summary>
     Task SetModelAsync(string modelId, CancellationToken cancellationToken = default);
 

@@ -39,7 +39,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     private readonly IContextWindowResolver _contextWindowResolver;
     private readonly ISessionMetaStore? _metaStore;
     private readonly SessionStats? _sessionStats;
-    private readonly string _sessionId;
+    private string _sessionId;
     private readonly ITelemetryService? _telemetryService;
     private readonly IClockService _clock;
     private readonly string? _providerBaseUrl;
@@ -49,10 +49,19 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     /// </summary>
     public string SessionId => _sessionId;
 
+    /// <summary>切换会话 — 按 sessionId 隔离对话历史，切回时自动恢复对应桶</summary>
+    public void SwitchSession(string sessionId)
+    {
+        _sessionId = sessionId ?? "default";
+    }
+
     private string _staticSystemPrompt = string.Empty;
     private readonly List<string> _dynamicSystemMessages = [];
     private readonly List<ToolSpec> _currentToolSpecs = [];
-    private readonly AppendOnlyLog _conversationLog = new();
+    private readonly ConcurrentDictionary<string, AppendOnlyLog> Logs = new();
+
+    /// <summary>当前会话的对话日志 — 按 SessionId 隔离，切换会话时自动分桶</summary>
+    private AppendOnlyLog Log => Logs.GetOrAdd(_sessionId, _ => new AppendOnlyLog());
     private readonly CacheBreakDetector _cacheBreakDetector = new();
     private readonly DiscoveredToolSet _discoveredTools = new();
     private readonly List<DeferredToolInfo> _deferredTools = [];
@@ -96,7 +105,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
                 _staticSystemPrompt = systemPrompt ?? string.Empty;
                 _dynamicSystemMessages.Clear();
                 _cachedSystemMessages = null;
-                _conversationLog.CompactInPlace([]);
+                Log.CompactInPlace([]);
 
                 if (chatHistory is { Count: > 0 })
                 {
@@ -112,7 +121,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
                             continue;
                         }
 
-                        _conversationLog.Append(new ApiMessage(msg.Role, msg.Content, msg.Metadata));
+                        Log.Append(new ApiMessage(msg.Role, msg.Content, msg.Metadata));
                     }
                 }
             }
@@ -122,9 +131,9 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
             }
 
             _logger.LogInformation("聊天上下文已加载，静态前缀长度: {Len}, 对话消息数: {Count}",
-                _staticSystemPrompt.Length, _conversationLog.Count);
+                _staticSystemPrompt.Length, Log.Count);
 
-            span?.SetTag("context.message_count", _conversationLog.Count);
+            span?.SetTag("context.message_count", Log.Count);
             span?.SetStatus(TelemetryStatusCode.Ok);
 
             if (_metaStore is not null && _sessionStats is not null)
@@ -174,7 +183,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         try
         {
             snip = ContextFoldDecider.SnipStaleToolResults(
-                _conversationLog,
+                Log,
                 _contextWindowResolver.ResolveCurrentContextWindow(),
                 _thresholds);
         }
@@ -214,8 +223,8 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            _conversationLog.Append(new ApiMessage(MessageRole.User, content));
-            _logger.LogDebug("已添加用户消息，当前对话数: {Count}", _conversationLog.Count);
+            Log.Append(new ApiMessage(MessageRole.User, content));
+            _logger.LogDebug("已添加用户消息，当前对话数: {Count}", Log.Count);
         }
         finally
         {
@@ -230,11 +239,11 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            _conversationLog.Append(new ApiMessage(MessageRole.User, content, new Dictionary<string, JsonElement>
+            Log.Append(new ApiMessage(MessageRole.User, content, new Dictionary<string, JsonElement>
             {
                 ["isCompactSummary"] = JsonElementHelper.FromBoolean(true)
             }));
-            _logger.LogDebug("已添加压缩摘要消息，当前对话数: {Count}", _conversationLog.Count);
+            _logger.LogDebug("已添加压缩摘要消息，当前对话数: {Count}", Log.Count);
         }
         finally
         {
@@ -252,8 +261,8 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            _conversationLog.Append(new ApiMessage(MessageRole.Assistant, content));
-            _logger.LogDebug("已添加助手消息，当前对话数: {Count}", _conversationLog.Count);
+            Log.Append(new ApiMessage(MessageRole.Assistant, content));
+            _logger.LogDebug("已添加助手消息，当前对话数: {Count}", Log.Count);
         }
         finally
         {
@@ -269,8 +278,8 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            _conversationLog.Append(new ApiMessage(MessageRole.Assistant, content, metadata));
-            _logger.LogDebug("已添加助手工具调用消息，当前对话数: {Count}", _conversationLog.Count);
+            Log.Append(new ApiMessage(MessageRole.Assistant, content, metadata));
+            _logger.LogDebug("已添加助手工具调用消息，当前对话数: {Count}", Log.Count);
         }
         finally
         {
@@ -286,8 +295,8 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            _conversationLog.Append(new ApiMessage(MessageRole.Tool, content, metadata));
-            _logger.LogDebug("已添加工具结果消息，当前对话数: {Count}", _conversationLog.Count);
+            Log.Append(new ApiMessage(MessageRole.Tool, content, metadata));
+            _logger.LogDebug("已添加工具结果消息，当前对话数: {Count}", Log.Count);
         }
         finally
         {
@@ -303,8 +312,8 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            _conversationLog.Append(new ApiMessage(MessageRole.Tool, content, metadata) { ContentBlocks = contentBlocks });
-            _logger.LogDebug("已添加工具结果消息(含多模态)，当前对话数: {Count}", _conversationLog.Count);
+            Log.Append(new ApiMessage(MessageRole.Tool, content, metadata) { ContentBlocks = contentBlocks });
+            _logger.LogDebug("已添加工具结果消息(含多模态)，当前对话数: {Count}", Log.Count);
         }
         finally
         {
@@ -322,8 +331,8 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            _conversationLog.Append(new ApiMessage(MessageRole.System, content));
-            _logger.LogDebug("已添加系统消息，当前对话数: {Count}", _conversationLog.Count);
+            Log.Append(new ApiMessage(MessageRole.System, content));
+            _logger.LogDebug("已添加系统消息，当前对话数: {Count}", Log.Count);
         }
         finally
         {
@@ -377,7 +386,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            _conversationLog.CompactInPlace([]);
+            Log.CompactInPlace([]);
             _dynamicSystemMessages.Clear();
             _cachedSystemMessages = null;
 
@@ -441,7 +450,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
             try
             {
                 staticPrefix = _staticSystemPrompt;
-                conversationSnapshot = new MessageList(_conversationLog.ToMessages());
+                conversationSnapshot = new MessageList(Log.ToMessages());
             }
             finally
             {
@@ -526,7 +535,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
             {
                 Folded = false,
                 Decision = decision,
-                OriginalMessageCount = _conversationLog.Count
+                OriginalMessageCount = Log.Count
             };
         }
 
@@ -540,7 +549,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
             // 若剪裁本身已把前缀压回阈值以下，则跳过本轮昂贵的摘要折叠（对齐 Reasonix Go 版
             // maybeCompact 的 prune-before-fold：裁剪省一轮 summarize）。
             var snip = ContextFoldDecider.SnipStaleToolResults(
-                _conversationLog,
+                Log,
                 _contextWindowResolver.ResolveCurrentContextWindow(),
                 _thresholds);
 
@@ -556,7 +565,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
                     unit: "chars", description: "Chars saved by context fold pre-snip");
 
                 var postSnipRatio = (double)ContextFoldDecider.EstimateTokenCount(
-                    _conversationLog.ToMessages(), _currentToolSpecs, _thresholds)
+                    Log.ToMessages(), _currentToolSpecs, _thresholds)
                     / _contextWindowResolver.ResolveCurrentContextWindow();
 
                 var clearedBySnip = decision switch
@@ -576,17 +585,17 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
                         Folded = false,
                         Decision = decision,
                         Snip = snip,
-                        OriginalMessageCount = _conversationLog.Count
+                        OriginalMessageCount = Log.Count
                     };
                 }
             }
 
             var foldResult = decision switch
             {
-                ContextFoldDecision.FoldNormal => await _foldExecutor.FoldAsync(_conversationLog, _contextWindowResolver.ResolveCurrentContextWindow(), aggressive: false, _thresholds, cancellationToken).ConfigureAwait(false),
-                ContextFoldDecision.FoldAggressive => await _foldExecutor.FoldAsync(_conversationLog, _contextWindowResolver.ResolveCurrentContextWindow(), aggressive: true, _thresholds, cancellationToken).ConfigureAwait(false),
-                ContextFoldDecision.ExitWithSummary => _foldExecutor.TrimTrailingAndPrepareExit(_conversationLog),
-                _ => new ContextFoldResult { Folded = false, Decision = decision, OriginalMessageCount = _conversationLog.Count }
+                ContextFoldDecision.FoldNormal => await _foldExecutor.FoldAsync(Log, _contextWindowResolver.ResolveCurrentContextWindow(), aggressive: false, _thresholds, cancellationToken).ConfigureAwait(false),
+                ContextFoldDecision.FoldAggressive => await _foldExecutor.FoldAsync(Log, _contextWindowResolver.ResolveCurrentContextWindow(), aggressive: true, _thresholds, cancellationToken).ConfigureAwait(false),
+                ContextFoldDecision.ExitWithSummary => _foldExecutor.TrimTrailingAndPrepareExit(Log),
+                _ => new ContextFoldResult { Folded = false, Decision = decision, OriginalMessageCount = Log.Count }
             };
 
             if (snip.Results > 0)
@@ -620,7 +629,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
             if ((foldResult.Folded || snip.Results > 0) && decision is not ContextFoldDecision.None)
             {
                 var postFoldTokens = ContextFoldDecider.EstimateTokenCount(
-                    _conversationLog.ToMessages(), _currentToolSpecs, _thresholds);
+                    Log.ToMessages(), _currentToolSpecs, _thresholds);
                 var ctxMax = _contextWindowResolver.ResolveCurrentContextWindow();
                 if (postFoldTokens > ctxMax * _thresholds.EmergencyThreshold)
                 {
@@ -655,13 +664,13 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            var removed = _conversationLog.TrimLastTurn();
+            var removed = Log.TrimLastTurn();
             _logger.LogInformation("撤回最后一轮对话 (SP-3)，移除 {Count} 条消息，剩余 {Remaining} 条",
-                removed, _conversationLog.Count);
+                removed, Log.Count);
 
             _telemetryService?.RecordCount("context.rewind.count", new() { ["kind"] = "last_turn" }, "count", "Context rewind count");
 
-            return RewindResult.Ok(RewindKind.TrimLastTurn, removed, _conversationLog.Count);
+            return RewindResult.Ok(RewindKind.TrimLastTurn, removed, Log.Count);
         }
         finally
         {
@@ -677,17 +686,17 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            if (messageIndex < 0 || messageIndex > _conversationLog.Count)
+            if (messageIndex < 0 || messageIndex > Log.Count)
             {
                 return RewindResult.Fail(
-                    $"消息索引 {messageIndex} 超出范围 [0, {_conversationLog.Count}]");
+                    $"消息索引 {messageIndex} 超出范围 [0, {Log.Count}]");
             }
 
-            var removed = _conversationLog.TruncateTo(messageIndex);
+            var removed = Log.TruncateTo(messageIndex);
             _logger.LogInformation("撤回到消息索引 {Index} (SP-5)，移除 {Count} 条消息，剩余 {Remaining} 条",
-                messageIndex, removed, _conversationLog.Count);
+                messageIndex, removed, Log.Count);
 
-            return RewindResult.Ok(RewindKind.TruncateToIndex, removed, _conversationLog.Count);
+            return RewindResult.Ok(RewindKind.TruncateToIndex, removed, Log.Count);
         }
         finally
         {
@@ -703,8 +712,8 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            var removed = _conversationLog.Count;
-            _conversationLog.CompactInPlace([]);
+            var removed = Log.Count;
+            Log.CompactInPlace([]);
             _dynamicSystemMessages.Clear();
             _cachedSystemMessages = null;
 
@@ -760,7 +769,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         {
             var prefix = new ImmutablePrefix(_staticSystemPrompt, _currentToolSpecs, []);
             var dynamicContent = string.Join("\n", _dynamicSystemMessages);
-            var snapshot = _cacheBreakDetector.RecordPromptState(prefix, dynamicContent, _conversationLog.ToMessages());
+            var snapshot = _cacheBreakDetector.RecordPromptState(prefix, dynamicContent, Log.ToMessages());
 
             var toolSpecsBytes = _currentToolSpecs.Sum(t =>
                 System.Text.Encoding.UTF8.GetByteCount(t.Name) +
@@ -796,7 +805,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         {
             var currentPrefix = new ImmutablePrefix(_staticSystemPrompt, _currentToolSpecs, []);
             var currentDynamicContent = string.Join("\n", _dynamicSystemMessages);
-            var result = _cacheBreakDetector.CheckCacheBreak(snapshot, currentPrefix, currentDynamicContent, usage, _conversationLog.ToMessages());
+            var result = _cacheBreakDetector.CheckCacheBreak(snapshot, currentPrefix, currentDynamicContent, usage, Log.ToMessages());
 
             if (result.BreakDetected)
             {
@@ -867,7 +876,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         var systemMessages = GetOrCreateCachedSystemMessages();
         messages.AddRange(systemMessages);
 
-        foreach (var msg in _conversationLog.ToMessages())
+        foreach (var msg in Log.ToMessages())
         {
             messages.Add(msg);
         }

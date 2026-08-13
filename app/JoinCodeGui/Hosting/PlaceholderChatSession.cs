@@ -34,6 +34,9 @@ internal sealed class PlaceholderChatSession : IJccChatSession
         VendorModelMap = BuildVendorModelMap();
     }
 
+    /// <summary>占位会话切换 — 无真实引擎历史，空实现</summary>
+    public void SwitchSession(string sessionId) { }
+
     private static IReadOnlyDictionary<string, IReadOnlyList<string>> BuildVendorModelMap()
     {
         var map = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase);

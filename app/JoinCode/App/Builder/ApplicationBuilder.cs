@@ -389,7 +389,7 @@ public sealed class ApplicationBuilder
             }
             else
             {
-                config = new WorkflowConfig();
+                throw;
             }
         }
 

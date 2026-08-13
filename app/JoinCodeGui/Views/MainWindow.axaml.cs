@@ -533,20 +533,4 @@ public sealed partial class MainWindow : Window
             vm.RemoveMessageCommand.Execute(message);
         }
     }
-
-    /// <summary>单击会话条目：切换选中态（高亮当前会话）</summary>
-    private void OnSessionSingleTapped(object? sender, Avalonia.Input.TappedEventArgs e)
-    {
-        if (sender is Avalonia.StyledElement { DataContext: SessionItem session } && DataContext is MainViewModel vm)
-            vm.SelectSessionCommand.Execute(session);
-    }
-
-    /// <summary>双击会话条目：请求重命名（实际由 VM 状态驱动内联编辑）</summary>
-    private void OnSessionDoubleTapped(object? sender, Avalonia.Input.TappedEventArgs e)
-    {
-        if (sender is Avalonia.StyledElement { DataContext: SessionItem session } && DataContext is MainViewModel vm)
-        {
-            vm.BeginRenameSessionCommand.Execute(session);
-        }
-    }
 }

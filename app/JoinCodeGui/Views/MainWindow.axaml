@@ -52,60 +52,7 @@
   <Grid ColumnDefinitions="*,4*">
 
     <!-- ===== Column 0：侧边栏 ===== -->
-    <Grid Grid.Column="0" RowDefinitions="Auto,*,Auto"
-          Background="{DynamicResource GuiSidebarBackground}" ClipToBounds="True">
-      <!-- 头部 -->
-      <StackPanel Grid.Row="0" Spacing="10" Margin="12,14,12,0">
-        <StackPanel Orientation="Horizontal" Spacing="8">
-          <TextBlock Text="◆" FontSize="18" Foreground="{DynamicResource GuiAccentText}" />
-          <TextBlock Text="JoinCode Ava" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource GuiSidebarTitle}" />
-        </StackPanel>
-        <Button Content="＋ 新建对话" Command="{Binding NewConversationCommand}"
-                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="8,5" />
-      </StackPanel>
-      <!-- 会话列表 -->
-      <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,6">
-        <StackPanel DataContext="{Binding}">
-          <TextBlock Text="会话列表" Foreground="{DynamicResource GuiMutedText}" FontSize="11" Margin="4,0,0,6" />
-          <ItemsControl ItemsSource="{Binding Sessions}" Margin="6,0">
-            <ItemsControl.ItemTemplate>
-              <DataTemplate x:DataType="vm:SessionItem">
-                <Border Padding="10,9" CornerRadius="5" Background="{Binding IsSelected, Converter={StaticResource BoolToSessHighlight}}"
-                        DoubleTapped="OnSessionDoubleTapped"
-                        Tapped="OnSessionSingleTapped"
-                        Cursor="Hand">
-                  <Grid ColumnDefinitions="*,Auto">
-                    <StackPanel Orientation="Horizontal" Spacing="7">
-                      <TextBlock Text="💬" FontSize="12" />
-                      <TextBlock Text="{Binding Title}" Foreground="{DynamicResource GuiPrimaryText}" FontSize="12" VerticalAlignment="Center"
-                                 IsVisible="{Binding !IsRenaming}" />
-                      <TextBox Text="{Binding RenameDraft}" FontSize="12" Padding="2,0"
-                               IsVisible="{Binding IsRenaming}">
-                        <TextBox.KeyBindings>
-                          <KeyBinding Gesture="Enter" Command="{Binding DataContext.CommitRenameSessionCommand, ElementName=Root}" CommandParameter="{Binding}" />
-                          <KeyBinding Gesture="Escape" Command="{Binding DataContext.CancelRenameSessionCommand, ElementName=Root}" CommandParameter="{Binding}" />
-                        </TextBox.KeyBindings>
-                      </TextBox>
-                    </StackPanel>
-                    <Button Grid.Column="1" Content="✕" FontSize="9" Padding="2,0" Background="Transparent"
-                            BorderThickness="0" Foreground="{DynamicResource GuiMutedText}"
-                            Command="{Binding DataContext.RemoveSessionCommand, ElementName=Root}"
-                            CommandParameter="{Binding}" />
-                  </Grid>
-                </Border>
-              </DataTemplate>
-            </ItemsControl.ItemTemplate>
-          </ItemsControl>
-        </StackPanel>
-      </ScrollViewer>
-      <!-- 底部状态 -->
-      <Border Grid.Row="2" Padding="14,10" Background="{DynamicResource GuiStatusBarBackground}">
-        <StackPanel Orientation="Horizontal" Spacing="6">
-          <TextBlock Text="●" Foreground="{DynamicResource GuiAccentText}" />
-          <TextBlock Text="本地引擎待接入" FontSize="11" Foreground="{DynamicResource GuiMutedText}" />
-        </StackPanel>
-      </Border>
-    </Grid>
+    <local:SidebarView Grid.Column="0" />
 
     <!-- ===== Column 1：主区 ===== -->
     <Grid Grid.Column="1" RowDefinitions="Auto,*,Auto,Auto">

@@ -1,0 +1,50 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             xmlns:vm="using:JoinCode.Gui.ViewModels"
+             x:Class="JoinCode.Gui.Views.SettingsPanelView"
+             x:DataType="vm:MainViewModel">
+  <Border Background="{DynamicResource GuiSettingsBackground}" Padding="12"
+          ClipToBounds="True">
+    <StackPanel Spacing="12">
+      <TextBlock Text="对话设置" FontWeight="SemiBold" Foreground="{DynamicResource GuiPrimaryText}" />
+      <StackPanel Spacing="4">
+        <TextBlock Text="{Binding Temperature, StringFormat='{}温度 {0:0.0}'}" Foreground="{DynamicResource GuiSecondaryText}" FontSize="12" />
+        <Slider Minimum="0" Maximum="2" Value="{Binding Temperature}" TickFrequency="0.1" />
+      </StackPanel>
+      <StackPanel Spacing="4">
+        <TextBlock Text="{Binding MaxTokens, StringFormat='{}最大长度 {0}'}" Foreground="{DynamicResource GuiSecondaryText}" FontSize="12" />
+        <Slider Minimum="256" Maximum="32768" Value="{Binding MaxTokens}" TickFrequency="256" />
+      </StackPanel>
+      <StackPanel Spacing="4">
+        <TextBlock Text="{Binding FontSize, StringFormat='{}消息字号 {0:0}'}" Foreground="{DynamicResource GuiSecondaryText}" FontSize="12" />
+        <Slider Minimum="11" Maximum="20" Value="{Binding FontSize}" TickFrequency="1" />
+      </StackPanel>
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <TextBlock Text="流式输出" Foreground="{DynamicResource GuiSecondaryText}" FontSize="12" VerticalAlignment="Center" />
+        <ToggleButton IsChecked="{Binding StreamingEnabled}" />
+      </StackPanel>
+      <StackPanel Spacing="4">
+        <TextBlock Text="推理力度" Foreground="{DynamicResource GuiSecondaryText}" FontSize="12" />
+        <ComboBox ItemsSource="{Binding EffortOptions}" SelectedItem="{Binding SelectedEffort}"
+                  HorizontalAlignment="Stretch" FontSize="12" />
+      </StackPanel>
+      <StackPanel Spacing="4">
+        <TextBlock Text="系统提示词" Foreground="{DynamicResource GuiSecondaryText}" FontSize="12" />
+        <TextBox Text="{Binding SystemPrompt}" AcceptsReturn="True" MaxLines="4"
+                 TextWrapping="Wrap" FontSize="11" />
+      </StackPanel>
+      <Border Height="1" Background="{DynamicResource GuiDivider}" />
+      <TextBlock Text="快捷操作" FontWeight="SemiBold" Foreground="{DynamicResource GuiPrimaryText}" />
+      <Button Content="插入分隔线" Command="{Binding InsertDividerCommand}" />
+      <Button Content="插入时间戳" Command="{Binding InsertTimestampCommand}" />
+      <Button Content="↺ 恢复默认" Command="{Binding ResetSettingsCommand}" FontSize="11" />
+      <Border Height="1" Background="{DynamicResource GuiDivider}" />
+      <TextBlock Text="快捷键" FontWeight="SemiBold" Foreground="{DynamicResource GuiPrimaryText}" />
+      <TextBlock Text="Ctrl+N 新建 · Ctrl+L 清空 · Esc 收起/停止"
+                 Foreground="{DynamicResource GuiMutedText}" FontSize="11" TextWrapping="Wrap" />
+    </StackPanel>
+  </Border>
+</UserControl>

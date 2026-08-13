@@ -6,6 +6,7 @@ using JoinCode.Abstractions.LLM.Chat;
 using JoinCode.Abstractions.Security;
 using JoinCode.Abstractions.Security.Permission;
 using JoinCode.Abstractions.Tools;
+using JoinCode.App.Builder;
 
 namespace JoinCode.Gui.Hosting;
 
@@ -25,80 +26,47 @@ internal sealed class JccChatSession : IJccChatSession
     /// <summary>临时批准时长 — 选择"始终允许"（较长窗口，视为会话级始终允许）</summary>
     private static readonly TimeSpan AlwaysAllowDuration = TimeSpan.FromHours(24);
 
-    private readonly Microsoft.Extensions.DependencyInjection.ServiceProvider _services;
+    private readonly IServiceProvider _services;
     private readonly IChatService _chat;
     private readonly JoinCode.Abstractions.Configuration.WorkflowConfig _config;
     private readonly IExecutionSettingsProvider? _executionSettings;
+    private readonly Func<ValueTask>? _disposeAsync;
 
     /// <inheritdoc />
     public Func<PermissionConfirmationRequest, Task<PermissionConfirmationDecision>>? PermissionConfirmationHandler { get; set; }
 
     internal JccChatSession(
-        Microsoft.Extensions.DependencyInjection.ServiceProvider services,
+        IServiceProvider services,
         IChatService chat,
         JoinCode.Abstractions.Configuration.WorkflowConfig config,
-        IExecutionSettingsProvider? executionSettings = null)
+        IExecutionSettingsProvider? executionSettings = null,
+        Func<ValueTask>? disposeAsync = null)
     {
         _services = services;
         _chat = chat;
         _config = config;
         _executionSettings = executionSettings;
+        _disposeAsync = disposeAsync;
     }
 
     /// <summary>
-    /// 创建引擎会话：加载配置 → 组装 DI（Composition + 共享管道）→ 解析 IChatService。
-    /// provider 为 null 时回退到环境变量 / 默认 deepseek 配置。
+    /// 创建引擎会话：调用 CLI 侧 GuiSessionFactory 一行完成 LoadConfig+BuildHost+ConfigureModules，
+    /// 消除 GUI 和 CLI 的双引擎初始化差异。
     /// </summary>
     public static async Task<IJccChatSession> CreateAsync(
         CancellationToken cancellationToken = default)
     {
         var swTotal = System.Diagnostics.Stopwatch.StartNew();
-        var sw = System.Diagnostics.Stopwatch.StartNew();
-        var config = await LoadConfigFallbackAsync(cancellationToken).ConfigureAwait(false);
-        App.LogDiag($"[JccChatSession] LoadConfigFallback: {sw.ElapsedMilliseconds}ms"); sw.Restart();
+        var result = await GuiSessionFactory.CreateSessionAsync(cancellationToken).ConfigureAwait(false);
+        App.LogDiag($"[JccChatSession] GuiSessionFactory.CreateSessionAsync: {swTotal.ElapsedMilliseconds}ms");
 
-        var services = new Microsoft.Extensions.DependencyInjection.ServiceCollection();
-        services.AddSingleton<Microsoft.Extensions.Configuration.IConfiguration>(
-            new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build());
-        services.AddLogging(b => b.AddConsole());
-        services.AddAiWorkflowServices(config);
-        App.LogDiag($"[JccChatSession] AddAiWorkflowServices: {sw.ElapsedMilliseconds}ms"); sw.Restart();
-        services.AddAllPipelines();
-        App.LogDiag($"[JccChatSession] AddAllPipelines: {sw.ElapsedMilliseconds}ms"); sw.Restart();
+        var executionSettings = result.Services.GetService<IExecutionSettingsProvider>();
 
-        var sp = services.BuildServiceProvider();
-        App.LogDiag($"[JccChatSession] BuildServiceProvider: {sw.ElapsedMilliseconds}ms"); sw.Restart();
-        var chat = sp.GetRequiredService<IChatService>();
-        App.LogDiag($"[JccChatSession] GetRequiredService<IChatService>: {sw.ElapsedMilliseconds}ms"); sw.Restart();
+        Func<ValueTask> disposeAsync = result.Host is IAsyncDisposable ad
+            ? () => ad.DisposeAsync()
+            : () => { result.Host.Dispose(); return ValueTask.CompletedTask; };
 
-        await MountToolsToKernelAsync(sp, cancellationToken).ConfigureAwait(false);
-        App.LogDiag($"[JccChatSession] MountToolsToKernel: {sw.ElapsedMilliseconds}ms"); sw.Restart();
-
-        var executionSettings = sp.GetService<IExecutionSettingsProvider>();
-        App.LogDiag($"[JccChatSession] TOTAL CreateAsync: {swTotal.ElapsedMilliseconds}ms");
-        return new JccChatSession(sp, chat, config, executionSettings);
-    }
-
-    /// <summary>把 IToolRegistry 中的工具挂载到 IChatClient.Plugins — 对齐 CLI McpInitModule.RefreshKernelPluginsAsync</summary>
-    private static async Task MountToolsToKernelAsync(Microsoft.Extensions.DependencyInjection.ServiceProvider sp, CancellationToken cancellationToken)
-    {
-        try
-        {
-            var chatClient = sp.GetService<IChatClient>();
-            var toolRegistry = sp.GetService<IToolRegistry>();
-            if (chatClient is null || toolRegistry is null)
-                return;
-
-            var bridge = new McpToolBridge(toolRegistry);
-            var plugin = await bridge.CreatePluginAsync(cancellationToken).ConfigureAwait(false);
-            chatClient.Plugins.Remove("mcp_tools");
-            chatClient.Plugins.Add(plugin);
-            App.LogDiag($"[JccChatSession] Tools mounted: {plugin.Functions.Count()} tools");
-        }
-        catch (Exception ex)
-        {
-            App.LogDiag($"[JccChatSession] MountToolsToKernel failed: {ex.Message}");
-        }
+        return new JccChatSession(result.Services, result.ChatService, result.Config, executionSettings, disposeAsync);
     }
 
     public bool IsReady => true;
@@ -418,22 +386,10 @@ internal sealed class JccChatSession : IJccChatSession
 
     public async ValueTask DisposeAsync()
     {
-        if (_chat is IAsyncDisposable chatDisposable)
+        if (_disposeAsync is not null)
         {
-            await chatDisposable.DisposeAsync().ConfigureAwait(false);
+            await _disposeAsync().ConfigureAwait(false);
         }
-        await _services.DisposeAsync().ConfigureAwait(false);
     }
 
-    private static async Task<JoinCode.Abstractions.Configuration.WorkflowConfig> LoadConfigFallbackAsync(
-        CancellationToken cancellationToken)
-    {
-        var config = await new Core.Configuration.ConfigLoader().LoadAsync(
-                new IO.FileSystem.PhysicalFileSystem(), cancellationToken)
-            .ConfigureAwait(false);
-
-        // 进程内 GUI：不连接命名管道服务，标准 HTTP QueryService（PipeEndpoint 置 null）
-        config.PipeEndpoint = null;
-        return config;
-    }
 }

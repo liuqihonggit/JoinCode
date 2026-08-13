@@ -70,9 +70,35 @@ internal sealed class JccChatSession : IJccChatSession
         App.LogDiag($"[JccChatSession] BuildServiceProvider: {sw.ElapsedMilliseconds}ms"); sw.Restart();
         var chat = sp.GetRequiredService<IChatService>();
         App.LogDiag($"[JccChatSession] GetRequiredService<IChatService>: {sw.ElapsedMilliseconds}ms"); sw.Restart();
+
+        await MountToolsToKernelAsync(sp, cancellationToken).ConfigureAwait(false);
+        App.LogDiag($"[JccChatSession] MountToolsToKernel: {sw.ElapsedMilliseconds}ms"); sw.Restart();
+
         var executionSettings = sp.GetService<IExecutionSettingsProvider>();
         App.LogDiag($"[JccChatSession] TOTAL CreateAsync: {swTotal.ElapsedMilliseconds}ms");
         return new JccChatSession(sp, chat, config, executionSettings);
+    }
+
+    /// <summary>把 IToolRegistry 中的工具挂载到 IChatClient.Plugins — 对齐 CLI McpInitModule.RefreshKernelPluginsAsync</summary>
+    private static async Task MountToolsToKernelAsync(Microsoft.Extensions.DependencyInjection.ServiceProvider sp, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var chatClient = sp.GetService<IChatClient>();
+            var toolRegistry = sp.GetService<IToolRegistry>();
+            if (chatClient is null || toolRegistry is null)
+                return;
+
+            var bridge = new McpToolBridge(toolRegistry);
+            var plugin = await bridge.CreatePluginAsync(cancellationToken).ConfigureAwait(false);
+            chatClient.Plugins.Remove("mcp_tools");
+            chatClient.Plugins.Add(plugin);
+            App.LogDiag($"[JccChatSession] Tools mounted: {plugin.Functions.Count()} tools");
+        }
+        catch (Exception ex)
+        {
+            App.LogDiag($"[JccChatSession] MountToolsToKernel failed: {ex.Message}");
+        }
     }
 
     public bool IsReady => true;

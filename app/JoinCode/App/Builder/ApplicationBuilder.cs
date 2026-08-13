@@ -320,6 +320,13 @@ public sealed class ApplicationBuilder
             Diag.WriteLine($"[MAIN] CLI vendor={options.Vendor} → JCC_VENDOR 环境变量已设置");
         }
 
+        // --model: CLI 参数 → JCC_MODEL_ID 环境变量（统一走环境变量覆盖链，与 --vendor 一致）
+        if (!string.IsNullOrEmpty(options.Model))
+        {
+            Environment.SetEnvironmentVariable(JccEnvVar.ModelId.ToValue(), options.Model);
+            Diag.WriteLine($"[MAIN] CLI model={options.Model} → JCC_MODEL_ID 环境变量已设置");
+        }
+
         if (Cli.TerminalHelper.IsHeadless)
         {
             options.NonInteractive = true;
@@ -411,9 +418,7 @@ public sealed class ApplicationBuilder
         // 导致无 .env/api.json 时 JCC_ENDPOINT/JCC_MODEL_ID 等环境变量不生效
         new Core.Configuration.SettingsMapper(new Core.Configuration.Providers.ProviderDefinitionRegistry()).ApplyEnvOverrides(config);
 
-        if (!string.IsNullOrWhiteSpace(options.Model))
-            config.Provider.ModelId = options.Model;
-
+        // --model 已在 ParseArgs 阶段转为 JCC_MODEL_ID 环境变量，由 EnvOverrideApplier + ApplyEnvOverrides 统一处理
         if (options.IsPipeMode)
             config.PipeEndpoint = new PipeTransportConfig { PipeName = options.PipeName ?? throw new InvalidOperationException("PipeName required in pipe mode") };
 

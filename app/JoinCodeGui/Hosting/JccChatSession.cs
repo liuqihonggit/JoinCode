@@ -7,6 +7,7 @@ using JoinCode.Abstractions.Security;
 using JoinCode.Abstractions.Security.Permission;
 using JoinCode.Abstractions.Tools;
 using JoinCode.App.Builder;
+using JoinCode.Abstractions.UI;
 namespace JoinCode.Gui.Hosting;
 
 /// <summary>
@@ -46,6 +47,24 @@ internal sealed class JccChatSession : IJccChatSession
         _config = config;
         _executionSettings = executionSettings;
         _disposeAsync = disposeAsync;
+
+        // 订阅 settings.json 变更 — theme 键变更时触发 ThemeChanged 驱动 GUI 热重载（双向绑定）
+        var configService = services.GetService<IConfigurationService>();
+        if (configService is not null)
+            configService.SettingChanged += OnSettingChanged;
+    }
+
+    /// <inheritdoc />
+    public event EventHandler<ThemeKind>? ThemeChanged;
+
+    /// <summary>settings.json 变更转发 — theme 键变更时解析为 ThemeKind 并触发 ThemeChanged</summary>
+    private void OnSettingChanged(object? sender, SettingChangeEventArgs e)
+    {
+        if (e.Key == ConfigKeyConstants.Theme && e.NewValue is not null)
+        {
+            var theme = ThemeKindExtensions.FromValue(e.NewValue) ?? ThemeKind.Auto;
+            ThemeChanged?.Invoke(this, theme);
+        }
     }
 
     /// <summary>
@@ -348,6 +367,30 @@ internal sealed class JccChatSession : IJccChatSession
     /// </summary>
     public Task SetSystemPromptAsync(string systemPrompt, CancellationToken cancellationToken = default)
         => _chat.SetSystemPromptAsync(systemPrompt, cancellationToken);
+
+    /// <summary>
+    /// 当前主题 — 从 settings.json 读取（键 ConfigKeyConstants.Theme），对齐 CLI ThemeCommand。
+    /// 未设置或损坏返回 <see cref="ThemeKind.Auto"/>（对齐 CLI GetCurrentThemeAsync 默认回退）。
+    /// </summary>
+    public async Task<ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default)
+    {
+        var configService = _services.GetService<IConfigurationService>();
+        if (configService is null)
+            return ThemeKind.Auto;
+
+        var value = await configService.GetAsync(ConfigKeyConstants.Theme, cancellationToken).ConfigureAwait(false);
+        return string.IsNullOrEmpty(value) ? ThemeKind.Auto : (ThemeKindExtensions.FromValue(value) ?? ThemeKind.Auto);
+    }
+
+    /// <summary>
+    /// 设置主题并持久化到 settings.json（键 ConfigKeyConstants.Theme），对齐 CLI ThemeCommand。
+    /// </summary>
+    public async Task SetThemeAsync(ThemeKind theme, CancellationToken cancellationToken = default)
+    {
+        var configService = _services.GetService<IConfigurationService>();
+        if (configService is not null)
+            await configService.SetAsync(ConfigKeyConstants.Theme, theme.ToValue(), cancellationToken).ConfigureAwait(false);
+    }
 
     public Task ClearHistoryAsync(CancellationToken cancellationToken = default)
         => _chat.ClearHistoryAsync(cancellationToken);

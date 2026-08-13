@@ -17,9 +17,6 @@ public sealed class GuiPreferences
     /// <summary>系统提示词（设置面板输入框）</summary>
     public string SystemPrompt { get; set; } = "你是 JoinCode 助手，请用简洁清晰的中文回答。";
 
-    /// <summary>深色主题开关（默认 true）</summary>
-    public bool IsDarkTheme { get; set; } = true;
-
     /// <summary>消息区字号（设置面板滑块，默认 14）</summary>
     public double FontSize { get; set; } = 14;
 

@@ -5,6 +5,7 @@ using JoinCode.Abstractions.Configuration.Llm;
 using JoinCode.Abstractions.Configuration.Providers;
 using JoinCode.Abstractions.LLM;
 using JoinCode.Abstractions.LLM.Chat;
+using JoinCode.Abstractions.UI;
 using JoinCode.Gui.Hosting;
 
 namespace JoinCode.Gui.ViewModels;
@@ -22,6 +23,7 @@ public sealed partial class MainViewModel : ViewModelBase
     private readonly Persistence.GuiPreferencesStore _preferencesStore;
     private bool _isPreferencesLoaded;
     private bool _isRefreshingConfig;
+    private bool _isApplyingExternalTheme;
     private System.IO.FileSystemWatcher? _modelConfigWatcher;
     private DateTime _lastConfigReload = DateTime.MinValue;
 
@@ -374,6 +376,9 @@ public sealed partial class MainViewModel : ViewModelBase
             StartModelConfigWatch();
             // 引擎就绪后把偏好里的采样参数应用到引擎
             ApplyPreferencesToEngine();
+            // 订阅 settings.json theme 变更 + 从 settings.json 读主题（唯一数据源，对齐 CLI /theme）
+            session.ThemeChanged += OnThemeChanged;
+            LoadThemeFromSettings();
         }
         else
         {
@@ -427,6 +432,9 @@ public sealed partial class MainViewModel : ViewModelBase
         StartModelConfigWatch();
         // 引擎热切换后把偏好里的采样参数应用到引擎
         ApplyPreferencesToEngine();
+        // 订阅 settings.json theme 变更（外部 CLI /theme 驱动 GUI 热重载）+ 从 settings.json 读主题
+        session.ThemeChanged += OnThemeChanged;
+        LoadThemeFromSettings();
     }
 
     /// <summary>启动 models.json 用户覆盖文件监控（热重载）— 文件变更时自动刷新供应商/模型列表</summary>
@@ -772,8 +780,17 @@ public sealed partial class MainViewModel : ViewModelBase
         SavePreferences();
     }
 
-    /// <summary>深色主题变更时持久化 GUI 偏好</summary>
-    partial void OnIsDarkThemeChanged(bool value) => SavePreferences();
+    /// <summary>主题变更时写回 settings.json（双向绑定，对齐 CLI /theme）；外部变更触发的跳过写回避免循环</summary>
+    partial void OnIsDarkThemeChanged(bool value)
+    {
+        if (!_isPreferencesLoaded || _isApplyingExternalTheme)
+            return;
+        _ = Task.Run(async () =>
+        {
+            try { await _session.SetThemeAsync(IsDarkToTheme(value)).WaitAsync(Timeout); }
+            catch (Exception ex) { WriteErrorLog(ex); }
+        });
+    }
 
     /// <summary>字号变更时持久化 GUI 偏好</summary>
     partial void OnFontSizeChanged(double value) => SavePreferences();
@@ -829,7 +846,6 @@ public sealed partial class MainViewModel : ViewModelBase
             Temperature = prefs.Temperature;
             MaxTokens = prefs.MaxTokens;
             SystemPrompt = prefs.SystemPrompt;
-            IsDarkTheme = prefs.IsDarkTheme;
             FontSize = prefs.FontSize;
             StreamingEnabled = prefs.StreamingEnabled;
             _isPreferencesLoaded = true;
@@ -872,7 +888,6 @@ public sealed partial class MainViewModel : ViewModelBase
                 Temperature = Temperature,
                 MaxTokens = MaxTokens,
                 SystemPrompt = SystemPrompt,
-                IsDarkTheme = IsDarkTheme,
                 FontSize = FontSize,
                 StreamingEnabled = StreamingEnabled
             });
@@ -881,6 +896,57 @@ public sealed partial class MainViewModel : ViewModelBase
         {
             WriteErrorLog(ex);
         }
+    }
+
+    /// <summary>
+    /// ThemeKind → bool IsDarkTheme 映射 — auto 按时间（6-18 点 light，否则 dark），
+    /// daltonized/ansi 降级为基础明暗（GUI 调色板暂不支持色盲友好变体）。
+    /// </summary>
+    private static bool ThemeToIsDark(ThemeKind theme)
+    {
+        return theme switch
+        {
+            ThemeKind.Dark or ThemeKind.DarkDaltonized or ThemeKind.DarkAnsi => true,
+            ThemeKind.Light or ThemeKind.LightDaltonized or ThemeKind.LightAnsi => false,
+            ThemeKind.Auto => DateTime.Now.Hour is < 6 or >= 18,
+            _ => true
+        };
+    }
+
+    /// <summary>bool IsDarkTheme → ThemeKind 映射 — GUI 仅暴露 dark/light 二态</summary>
+    private static ThemeKind IsDarkToTheme(bool isDark) => isDark ? ThemeKind.Dark : ThemeKind.Light;
+
+    /// <summary>从 settings.json 异步加载主题并应用到 IsDarkTheme（启动 / 引擎热切换后调用）</summary>
+    private void LoadThemeFromSettings()
+    {
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var theme = await _session.GetThemeAsync().WaitAsync(Timeout);
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    _isApplyingExternalTheme = true;
+                    IsDarkTheme = ThemeToIsDark(theme);
+                    _isApplyingExternalTheme = false;
+                });
+            }
+            catch (Exception ex)
+            {
+                WriteErrorLog(ex);
+            }
+        });
+    }
+
+    /// <summary>settings.json theme 外部变更事件处理 — 驱动 GUI 热重载（双向绑定）</summary>
+    private void OnThemeChanged(object? sender, ThemeKind theme)
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            _isApplyingExternalTheme = true;
+            IsDarkTheme = ThemeToIsDark(theme);
+            _isApplyingExternalTheme = false;
+        });
     }
 
     /// <summary>用户切换模型下拉项时回写共享配置（绑定同一个配置源，下次请求引擎生效）</summary>

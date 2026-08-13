@@ -210,6 +210,10 @@ public sealed class MainWindowRegressionTests
         public IReadOnlyList<SlashCommandMetadata> GetAvailableSlashCommands() => [];
         public Task<IReadOnlyList<ToolSummary>> GetAvailableToolsAsync(CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<ToolSummary>>([]);
+        public Task<JoinCode.Abstractions.UI.ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult(JoinCode.Abstractions.UI.ThemeKind.Auto);
+        public Task SetThemeAsync(JoinCode.Abstractions.UI.ThemeKind theme, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public event EventHandler<JoinCode.Abstractions.UI.ThemeKind>? ThemeChanged { add { } remove { } }
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 }

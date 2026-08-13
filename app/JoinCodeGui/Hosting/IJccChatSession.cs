@@ -1,6 +1,7 @@
 using JoinCode.Abstractions.Interfaces;
 using JoinCode.Abstractions.LLM;
 using JoinCode.Abstractions.LLM.Chat;
+using JoinCode.Abstractions.UI;
 
 namespace JoinCode.Gui.Hosting;
 
@@ -121,4 +122,22 @@ public interface IJccChatSession : IAsyncDisposable
     /// 供 GUI #工具补全消费。引擎未注册时返回空列表。
     /// </summary>
     Task<IReadOnlyList<ToolSummary>> GetAvailableToolsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 当前主题 — 从 settings.json 读取（键 ConfigKeyConstants.Theme），对齐 CLI /theme。
+    /// 未设置或损坏返回 <see cref="ThemeKind.Auto"/>（对齐 CLI GetCurrentThemeAsync 默认回退）。
+    /// </summary>
+    Task<ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 设置主题并持久化到 settings.json（键 ConfigKeyConstants.Theme），对齐 CLI ThemeCommand，
+    /// 保证 GUI 重启后保留，且 CLI /theme 与 GUI 主题双向联动。
+    /// </summary>
+    Task SetThemeAsync(ThemeKind theme, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// settings.json theme 变更事件 — 外部（如 CLI /theme）改 theme 时驱动 GUI 热重载，
+    /// 实现主题双向绑定。参数为解析后的 <see cref="ThemeKind"/>。
+    /// </summary>
+    event EventHandler<ThemeKind>? ThemeChanged;
 }

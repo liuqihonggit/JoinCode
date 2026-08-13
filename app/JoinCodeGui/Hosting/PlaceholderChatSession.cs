@@ -2,6 +2,7 @@ using JoinCode.Abstractions.Configuration.Llm;
 using JoinCode.Abstractions.Interfaces;
 using JoinCode.Abstractions.LLM;
 using JoinCode.Abstractions.LLM.Chat;
+using JoinCode.Abstractions.UI;
 
 namespace JoinCode.Gui.Hosting;
 
@@ -69,6 +70,21 @@ internal sealed class PlaceholderChatSession : IJccChatSession
 
     public Task SetSystemPromptAsync(string systemPrompt, CancellationToken cancellationToken = default)
         => Task.CompletedTask;
+
+    /// <summary>占位会话默认 Auto 主题，不读 settings.json</summary>
+    public Task<ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default)
+        => Task.FromResult(ThemeKind.Auto);
+
+    /// <summary>占位会话不持久化主题</summary>
+    public Task SetThemeAsync(ThemeKind theme, CancellationToken cancellationToken = default)
+        => Task.CompletedTask;
+
+    /// <summary>占位会话无 settings.json 变更，事件永不触发（空 add/remove 避免 CS0067）</summary>
+    public event EventHandler<ThemeKind>? ThemeChanged
+    {
+        add { }
+        remove { }
+    }
 
     public float? Temperature => null;
     public int? MaxTokens => null;

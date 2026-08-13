@@ -1,3 +1,4 @@
+using JoinCode.Abstractions.Configuration.AppData;
 using JoinCode.Abstractions.Configuration.Llm;
 using JoinCode.Abstractions.Configuration.Settings;
 using JoinCode.Abstractions.Interfaces;
@@ -174,6 +175,8 @@ internal sealed class JccChatSession : IJccChatSession
         {
             await configService.SetAsync("model", modelId, cancellationToken).ConfigureAwait(false);
         }
+        // 同步更新 vendor.{currentProfile}.model — ApplyProfileOverride 读 profile 覆盖顶层，需保持一致
+        await UpdateVendorProfileModelAsync(modelId, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -199,11 +202,70 @@ internal sealed class JccChatSession : IJccChatSession
         if (configService is not null)
         {
             await configService.SetAsync(ConfigKeyConstants.Provider, vendor, cancellationToken).ConfigureAwait(false);
+            // 切换 currentProfile = 新供应商 — ApplyProfileOverride 用 currentProfile 从 vendor 字典读预设
+            await configService.SetAsync("currentProfile", vendor, cancellationToken).ConfigureAwait(false);
             if (!string.IsNullOrEmpty(defaultModelId))
             {
                 await configService.SetAsync("model", defaultModelId, cancellationToken).ConfigureAwait(false);
             }
         }
+        // 同步更新 vendor.{vendor}.model — 新供应商预设的 model 保持一致
+        if (!string.IsNullOrEmpty(defaultModelId))
+        {
+            await UpdateVendorProfileModelAsync(vendor, defaultModelId, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// 更新 settings.json 的 vendor.{profile}.model — ApplyProfileOverride 用 profile 覆盖顶层 model，
+    /// GUI 切换模型/供应商时需同步更新 profile 节点，否则重启后被旧 profile 覆盖。
+    /// 直接用 JsonNode 操作嵌套键（ConfigurationService.SetAsync 只支持顶层键）。
+    /// </summary>
+    private async Task UpdateVendorProfileModelAsync(string profileName, string modelId, CancellationToken ct)
+    {
+        var fs = _services.GetService<IFileSystem>() ?? new IO.FileSystem.PhysicalFileSystem();
+        var path = System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            AppDataConstants.AppDataFolder,
+            AppDataConstants.SettingsFileName);
+        if (!fs.FileExists(path)) return;
+        try
+        {
+            var json = await fs.ReadAllTextAsync(path, ct).ConfigureAwait(false);
+            var node = System.Text.Json.Nodes.JsonNode.Parse(json);
+            if (node is null) return;
+            var vendorNode = node["vendor"];
+            if (vendorNode is null)
+            {
+                vendorNode = new System.Text.Json.Nodes.JsonObject();
+                node["vendor"] = vendorNode;
+            }
+            var profileNode = vendorNode[profileName];
+            if (profileNode is null)
+            {
+                profileNode = new System.Text.Json.Nodes.JsonObject();
+                vendorNode[profileName] = profileNode;
+            }
+            profileNode["model"] = modelId;
+            await fs.WriteAllTextAsync(path, node.ToJsonString(), ct).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            System.Console.Error.WriteLine($"更新 vendor profile model 失败: {profileName} - {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 更新当前 currentProfile 的 model — 重载，用 _config.CurrentProfile 推导 profile 名。
+    /// </summary>
+    private Task UpdateVendorProfileModelAsync(string modelId, CancellationToken ct)
+    {
+        var profile = _config.CurrentProfile;
+        if (string.IsNullOrEmpty(profile))
+            profile = _config.Provider.Vendor;
+        if (string.IsNullOrEmpty(profile))
+            return Task.CompletedTask;
+        return UpdateVendorProfileModelAsync(profile, modelId, ct);
     }
 
     /// <summary>

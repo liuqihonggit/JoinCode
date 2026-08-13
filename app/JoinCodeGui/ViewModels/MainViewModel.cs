@@ -21,6 +21,8 @@ public sealed partial class MainViewModel : ViewModelBase
     private IJccChatSession _session;
     private readonly Persistence.GuiSessionStore _sessionStore;
     private readonly Persistence.GuiPreferencesStore _preferencesStore;
+    /// <summary>独立配置服务 — 引擎加载失败时仍可持久化 settings.json（主题/供应商/模型/推理力度）</summary>
+    private readonly IConfigurationService _configService;
     private bool _isPreferencesLoaded;
     private bool _isRefreshingConfig;
     private bool _isApplyingExternalTheme;
@@ -345,7 +347,8 @@ public sealed partial class MainViewModel : ViewModelBase
     public MainViewModel(IJccChatSession? session = null, Persistence.GuiSessionStore? store = null, Persistence.GuiPreferencesStore? preferencesStore = null)
     {
         _realSession = session;
-        _session = session ?? new Hosting.PlaceholderChatSession();
+        _configService = new Core.Configuration.ConfigurationService(new IO.FileSystem.PhysicalFileSystem());
+        _session = session ?? new Hosting.PlaceholderChatSession(_configService);
         _sessionStore = store ?? new Persistence.GuiSessionStore(new IO.FileSystem.PhysicalFileSystem());
         _preferencesStore = preferencesStore ?? new Persistence.GuiPreferencesStore(new IO.FileSystem.PhysicalFileSystem());
         _session.PermissionConfirmationHandler = OnPermissionConfirmationRequestedAsync;
@@ -379,6 +382,8 @@ public sealed partial class MainViewModel : ViewModelBase
         else
         {
             StatusText = "正在加载引擎…";
+            // 引擎未就绪时仍从 settings.json 读主题（PlaceholderChatSession 持有 _configService 可读）
+            LoadThemeFromSettings();
         }
     }
 
@@ -502,13 +507,15 @@ public sealed partial class MainViewModel : ViewModelBase
     /// <summary>引擎加载失败时回退到 Mock 连接（填充连接列表供用户使用）</summary>
     public void FallbackToMock()
     {
-        _session = _mockSession ??= new Hosting.PlaceholderChatSession();
+        _session = _mockSession ??= new Hosting.PlaceholderChatSession(_configService);
         _session.PermissionConfirmationHandler = OnPermissionConfirmationRequestedAsync;
         RebuildConnectionOptions();
         SelectedConnection = MockConnection;
         SelectedModel = _session.CurrentModelId;
         SelectedModelOption = ModelOptions.FirstOrDefault(m => m.Id == _session.CurrentModelId);
         IsEngineLoaded = true;
+        // 引擎失败回退后仍从 settings.json 读主题（PlaceholderChatSession 可读写 settings.json）
+        LoadThemeFromSettings();
     }
 
     /// <summary>斜杠命令缓存（懒加载；空命令时回退内置高频命令列表）</summary>
@@ -857,8 +864,29 @@ public sealed partial class MainViewModel : ViewModelBase
     /// </summary>
     private void PersistSync(Func<Task> action)
     {
-        try { Task.Run(action).Wait(Timeout); }
-        catch (Exception ex) { WriteErrorLog(ex); }
+        try
+        {
+            Task.Run(action).Wait(Timeout);
+            WriteDebugLog($"PersistSync ok");
+        }
+        catch (Exception ex) { WriteErrorLog(ex); WriteDebugLog($"PersistSync FAIL: {ex.Message}"); }
+    }
+
+    /// <summary>写诊断日志到 dumps/persist_debug.log（定位持久化路由问题）</summary>
+    private static void WriteDebugLog(string message)
+    {
+        try
+        {
+            var dir = System.IO.Path.Combine(AppContext.BaseDirectory, "dumps");
+            System.IO.Directory.CreateDirectory(dir);
+            System.IO.File.AppendAllText(
+                System.IO.Path.Combine(dir, "persist_debug.log"),
+                $"[{DateTime.Now:HH:mm:ss.fff}] {message}{Environment.NewLine}");
+        }
+        catch (Exception writeEx)
+        {
+            System.Console.Error.WriteLine($"无法写入诊断日志: {writeEx.Message}");
+        }
     }
 
     /// <summary>
@@ -891,7 +919,11 @@ public sealed partial class MainViewModel : ViewModelBase
     {
         base.OnPropertyChanged(e);
         var propertyName = e.PropertyName;
-        if (propertyName is null || !_isPreferencesLoaded || _isRefreshingConfig || _isApplyingExternalTheme)
+        if (propertyName is null)
+            return;
+        if (_persistActions.ContainsKey(propertyName))
+            WriteDebugLog($"OnPropertyChanged: {propertyName} | loaded={_isPreferencesLoaded} refresh={_isRefreshingConfig} extTheme={_isApplyingExternalTheme} | session={_session.GetType().Name}");
+        if (!_isPreferencesLoaded || _isRefreshingConfig || _isApplyingExternalTheme)
             return;
         if (_persistActions.TryGetValue(propertyName, out var action))
             action();
@@ -945,6 +977,9 @@ public sealed partial class MainViewModel : ViewModelBase
             try
             {
                 var theme = await _session.GetThemeAsync().WaitAsync(Timeout);
+                // Auto 保持默认 IsDarkTheme（GUI 无 Auto 选项，避免按时间覆盖用户上次明确选择）
+                if (theme is ThemeKind.Auto)
+                    return;
                 Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                 {
                     _isApplyingExternalTheme = true;
@@ -1032,7 +1067,7 @@ public sealed partial class MainViewModel : ViewModelBase
 
         if (wantMock)
         {
-            _session = _mockSession ??= new Hosting.PlaceholderChatSession();
+            _session = _mockSession ??= new Hosting.PlaceholderChatSession(_configService);
             _session.PermissionConfirmationHandler = OnPermissionConfirmationRequestedAsync;
             StatusText = $"已切换到 Mock 引擎（演示），模型 {_session.CurrentModelId}";
         }

@@ -1,4 +1,5 @@
 using JoinCode.Abstractions.Configuration.Llm;
+using JoinCode.Abstractions.Configuration.Settings;
 using JoinCode.Abstractions.Interfaces;
 using JoinCode.Abstractions.LLM;
 using JoinCode.Abstractions.LLM.Chat;
@@ -12,6 +13,13 @@ namespace JoinCode.Gui.Hosting;
 /// </summary>
 internal sealed class PlaceholderChatSession : IJccChatSession
 {
+    private readonly IConfigurationService? _configService;
+
+    public PlaceholderChatSession(IConfigurationService? configService = null)
+    {
+        _configService = configService;
+    }
+
     public bool IsReady => true;
 
     /// <summary>占位会话默认供应商 — 对齐真实引擎 ProviderConfig 默认值（deepseek）</summary>
@@ -55,29 +63,49 @@ internal sealed class PlaceholderChatSession : IJccChatSession
     /// <summary>占位会话不触发引擎权限异常，保留回调供 UI 注入（无实际效果）</summary>
     public Func<PermissionConfirmationRequest, Task<PermissionConfirmationDecision>>? PermissionConfirmationHandler { get; set; }
 
-    public Task SetModelAsync(string modelId, CancellationToken cancellationToken = default)
-        => Task.CompletedTask;
+    public async Task SetModelAsync(string modelId, CancellationToken cancellationToken = default)
+    {
+        if (_configService is not null)
+            await _configService.SetAsync("model", modelId, cancellationToken).ConfigureAwait(false);
+    }
 
-    /// <summary>占位会话不连接真实引擎，供应商切换空实现（不持久化）</summary>
-    public Task SetVendorAsync(string vendor, CancellationToken cancellationToken = default)
-        => Task.CompletedTask;
+    /// <summary>占位会话供应商切换 — 引擎不可用时仍持久化到 settings.json，引擎可用后重启生效</summary>
+    public async Task SetVendorAsync(string vendor, CancellationToken cancellationToken = default)
+    {
+        if (_configService is not null)
+            await _configService.SetAsync(ConfigKeyConstants.Provider, vendor, cancellationToken).ConfigureAwait(false);
+    }
 
     /// <summary>占位会话固定返回 Auto，不持久化</summary>
     public EffortLevel EffortLevel => EffortLevel.Auto;
 
-    public Task SetEffortLevelAsync(EffortLevel effortLevel, CancellationToken cancellationToken = default)
-        => Task.CompletedTask;
+    public async Task SetEffortLevelAsync(EffortLevel effortLevel, CancellationToken cancellationToken = default)
+    {
+        if (_configService is null) return;
+        if (effortLevel is EffortLevel.Auto)
+            await _configService.RemoveAsync(ConfigKeyConstants.EffortLevel, cancellationToken).ConfigureAwait(false);
+        else
+            await _configService.SetAsync(ConfigKeyConstants.EffortLevel, effortLevel.ToValue(), cancellationToken).ConfigureAwait(false);
+    }
 
     public Task SetSystemPromptAsync(string systemPrompt, CancellationToken cancellationToken = default)
         => Task.CompletedTask;
 
-    /// <summary>占位会话默认 Auto 主题，不读 settings.json</summary>
-    public Task<ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default)
-        => Task.FromResult(ThemeKind.Auto);
+    /// <summary>占位会话从 settings.json 读主题 — 引擎不可用时仍恢复上次选择</summary>
+    public async Task<ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default)
+    {
+        if (_configService is null)
+            return ThemeKind.Auto;
+        var value = await _configService.GetAsync(ConfigKeyConstants.Theme, cancellationToken).ConfigureAwait(false);
+        return string.IsNullOrEmpty(value) ? ThemeKind.Auto : (ThemeKindExtensions.FromValue(value) ?? ThemeKind.Auto);
+    }
 
-    /// <summary>占位会话不持久化主题</summary>
-    public Task SetThemeAsync(ThemeKind theme, CancellationToken cancellationToken = default)
-        => Task.CompletedTask;
+    /// <summary>占位会话不持久化主题 — 引擎不可用时仍写 settings.json，对齐 CLI /theme</summary>
+    public async Task SetThemeAsync(ThemeKind theme, CancellationToken cancellationToken = default)
+    {
+        if (_configService is not null)
+            await _configService.SetAsync(ConfigKeyConstants.Theme, theme.ToValue(), cancellationToken).ConfigureAwait(false);
+    }
 
     /// <summary>占位会话无 settings.json 变更，事件永不触发（空 add/remove 避免 CS0067）</summary>
     public event EventHandler<ThemeKind>? ThemeChanged

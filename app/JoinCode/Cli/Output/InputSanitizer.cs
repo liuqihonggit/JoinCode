@@ -6,10 +6,15 @@ namespace JoinCode.Cli.Output;
 /// </summary>
 public static class InputSanitizer
 {
-    /// <summary>路径穿越模式 — 检测 ../ 和 ..\ 等目录遍历尝试</summary>
-    private static readonly FrozenSet<string> PathTraversalPatterns = FrozenSet.Create(
-        StringComparer.OrdinalIgnoreCase,
-        "../", "..\\", "..", "%2e%2e", "%2E%2E", "..%2f", "..%5c");
+    /// <summary>路径穿越模式 AC 自动机 — 一次扫描检测所有穿越模式。</summary>
+    private static readonly AhoCorasick<string> PathTraversalAc = AhoCorasick.Create(
+        new[] { "../", "..\\", "..", "%2e%2e", "%2E%2E", "..%2f", "..%5c" },
+        ignoreCase: true);
+
+    /// <summary>shell 注入模式 AC 自动机 — 检测 $(()) `${ 等注入模式。</summary>
+    private static readonly AhoCorasick<string> ShellInjectionAc = AhoCorasick.Create(
+        new[] { "$((", "))", "`", "${" },
+        ignoreCase: false);
 
     /// <summary>危险控制字符 — 防止终端注入和日志注入</summary>
     private static readonly FrozenSet<char> ControlChars = FrozenSet.Create(
@@ -28,11 +33,9 @@ public static class InputSanitizer
         if (string.IsNullOrWhiteSpace(path))
             return "路径不能为空";
 
-        foreach (var pattern in PathTraversalPatterns)
-        {
-            if (path.Contains(pattern, StringComparison.OrdinalIgnoreCase))
-                return $"路径包含非法穿越模式: {pattern}";
-        }
+        var match = PathTraversalAc.FindFirst(path.AsSpan());
+        if (match is not null)
+            return $"路径包含非法穿越模式: {match!.Value.Value}";
 
         return null;
     }
@@ -87,12 +90,9 @@ public static class InputSanitizer
             return controlError;
 
         // 检查明显的 shell 注入模式（仅警告，不阻止 — 因为有些参数合法包含这些字符）
-        var dangerousPatterns = new[] { "$((", "))", "`", "${" };
-        foreach (var pattern in dangerousPatterns)
-        {
-            if (argument.Contains(pattern, StringComparison.Ordinal))
-                return $"参数可能包含 shell 注入模式: {pattern}";
-        }
+        var match = ShellInjectionAc.FindFirst(argument.AsSpan());
+        if (match is not null)
+            return $"参数可能包含 shell 注入模式: {match!.Value.Value}";
 
         return null;
     }

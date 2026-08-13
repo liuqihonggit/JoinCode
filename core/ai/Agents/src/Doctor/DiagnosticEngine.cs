@@ -57,6 +57,30 @@ public sealed class DiagnosticEngine
         return report;
     }
 
+    /// <summary>诊断关键词 AC 自动机 — 模式 → 事件类型,一次扫描命中所有关键词。</summary>
+    private static readonly AhoCorasick<string> DiagKeywordAc = AhoCorasick<string>.Create(
+        new[]
+        {
+            new KeyValuePair<string, string>("LoopDetected", "loop_detected"),
+            new KeyValuePair<string, string>("循环检测", "loop_detected"),
+            new KeyValuePair<string, string>("PermissionDenied", "permission_denied"),
+            new KeyValuePair<string, string>("权限被拒绝", "permission_denied"),
+            new KeyValuePair<string, string>("ContextOverflow", "context_overflow"),
+            new KeyValuePair<string, string>("上下文溢出", "context_overflow"),
+            new KeyValuePair<string, string>("token_usage_ratio", "context_overflow"),
+            new KeyValuePair<string, string>("ApiError", "api_error"),
+            new KeyValuePair<string, string>("api_timeout", "api_error"),
+            new KeyValuePair<string, string>("API错误", "api_error"),
+            new KeyValuePair<string, string>("ToolError", "tool_error"),
+            new KeyValuePair<string, string>("tool_error", "tool_error"),
+            new KeyValuePair<string, string>("工具执行失败", "tool_error"),
+            new KeyValuePair<string, string>("Error executing tool", "tool_error"),
+        }, ignoreCase: true);
+
+    /// <summary>诊断事件优先级 — 保持原有 if 顺序语义。</summary>
+    private static readonly string[] DiagEventPriority =
+        ["loop_detected", "permission_denied", "context_overflow", "api_error", "tool_error"];
+
     /// <summary>
     /// 从 diag_output 的原始文本中分类出实际事件类型
     /// 匹配 jcc 诊断日志前缀 [WIRE]/[STEP]/[MAIN] 中的关键字
@@ -65,30 +89,15 @@ public sealed class DiagnosticEngine
     {
         if (string.IsNullOrWhiteSpace(rawData)) return null;
 
-        if (rawData.Contains("LoopDetected", StringComparison.OrdinalIgnoreCase)
-            || rawData.Contains("循环检测", StringComparison.OrdinalIgnoreCase))
-            return "loop_detected";
+        var matches = DiagKeywordAc.FindAll(rawData.AsSpan());
+        if (matches.Count == 0) return null;
 
-        if (rawData.Contains("PermissionDenied", StringComparison.OrdinalIgnoreCase)
-            || rawData.Contains("权限被拒绝", StringComparison.OrdinalIgnoreCase))
-            return "permission_denied";
-
-        if (rawData.Contains("ContextOverflow", StringComparison.OrdinalIgnoreCase)
-            || rawData.Contains("上下文溢出", StringComparison.OrdinalIgnoreCase)
-            || rawData.Contains("token_usage_ratio", StringComparison.OrdinalIgnoreCase))
-            return "context_overflow";
-
-        if (rawData.Contains("ApiError", StringComparison.OrdinalIgnoreCase)
-            || rawData.Contains("api_timeout", StringComparison.OrdinalIgnoreCase)
-            || rawData.Contains("API错误", StringComparison.OrdinalIgnoreCase))
-            return "api_error";
-
-        if (rawData.Contains("ToolError", StringComparison.OrdinalIgnoreCase)
-            || rawData.Contains("tool_error", StringComparison.OrdinalIgnoreCase)
-            || rawData.Contains("工具执行失败", StringComparison.OrdinalIgnoreCase)
-            || rawData.Contains("Error executing tool", StringComparison.OrdinalIgnoreCase))
-            return "tool_error";
-
+        var hitTypes = new HashSet<string>(matches.Select(static m => m.Value));
+        foreach (var eventType in DiagEventPriority)
+        {
+            if (hitTypes.Contains(eventType))
+                return eventType;
+        }
         return null;
     }
 

@@ -205,10 +205,13 @@ public sealed partial class AgentPermissionManager : IAgentPermissionManager, IA
     private static bool IsWildcardMatch(string input, string pattern)
         => GlobMatcher.IsMatch(input, pattern);
 
+    private static readonly AhoCorasick<string> AgentDestructiveToolAc = AhoCorasick.Create(
+        ToolClassification.AgentDestructiveTools, ignoreCase: true);
+
     private static bool IsDestructiveTool(string toolName)
     {
         return ToolClassification.AgentDestructiveTools.Contains(toolName) ||
-               ToolClassification.AgentDestructiveTools.Any(t => toolName.Contains(t, StringComparison.OrdinalIgnoreCase));
+               AgentDestructiveToolAc.ContainsAny(toolName.AsSpan());
     }
 
     #endregion

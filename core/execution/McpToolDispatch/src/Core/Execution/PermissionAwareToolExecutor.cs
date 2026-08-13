@@ -36,6 +36,13 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
         _pipeline = pipeline ?? throw new ArgumentNullException(nameof(pipeline));
         _telemetryService = telemetryService;
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        var envMode = Environment.GetEnvironmentVariable(JccEnvVar.PermissionMode.ToValue());
+        if (!string.IsNullOrWhiteSpace(envMode))
+        {
+            var parsed = PermissionModeExtensions.FromValue(envMode);
+            if (parsed is not null)
+                _currentAgentMode = parsed.Value;
+        }
     }
 
     /// <summary>

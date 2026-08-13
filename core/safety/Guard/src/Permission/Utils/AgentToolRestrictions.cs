@@ -122,6 +122,7 @@ public sealed partial class AgentToolRestrictions : ServiceEntity, IAgentToolRes
             PermissionMode.Plan => PlanDeniedTools,
             PermissionMode.Ask => AskDeniedTools,
             PermissionMode.Deny => DenyDeniedTools,
+            PermissionMode.BypassPermissions or PermissionMode.DontAsk => FrozenSet<string>.Empty,
             _ => AutoDeniedTools
         };
     }

@@ -958,12 +958,12 @@ public sealed partial class MainViewModel : ViewModelBase
         }
     }
 
-    /// <summary>用户切换模型时回写共享配置并持久化到 settings.json（await 确保落盘，避免关闭 GUI 竞态丢失）</summary>
-    async partial void OnSelectedModelChanged(string? value)
+    /// <summary>用户切换模型时回写共享配置并同步持久化到 settings.json（Task.Run.Wait 避免死锁，确保落盘后再返回）</summary>
+    partial void OnSelectedModelChanged(string? value)
     {
         if (!string.IsNullOrWhiteSpace(value) && value != _session.CurrentModelId)
         {
-            try { await _session.SetModelAsync(value).WaitAsync(Timeout); }
+            try { Task.Run(() => _session.SetModelAsync(value)).Wait(Timeout); }
             catch (Exception ex) { WriteErrorLog(ex); }
         }
     }
@@ -1006,7 +1006,7 @@ public sealed partial class MainViewModel : ViewModelBase
     /// <summary>当前是否连接 Mock 引擎（驱动状态提示与 Mock 徽标显隐）</summary>
     public bool IsMockConnection => _session is PlaceholderChatSession;
 
-    async partial void OnSelectedConnectionChanged(ConnectionOptionItem? value)
+    partial void OnSelectedConnectionChanged(ConnectionOptionItem? value)
     {
         if (value is null || _isRefreshingConfig)
             return;
@@ -1028,8 +1028,8 @@ public sealed partial class MainViewModel : ViewModelBase
             if (isMock)
                 _session = _realSession;
             StatusText = $"已连接真实引擎 {value.DisplayText}";
-            // 持久化供应商到 settings.json（对齐 CLI ProviderCommand），await 确保写入落盘后再更新 UI（避免关闭 GUI 竞态丢失）
-            try { await _session.SetVendorAsync(value.Id).WaitAsync(Timeout); }
+            // 同步等待持久化落盘 — Task.Run 避免 UI 线程 SynchronizationContext 死锁，Wait 阻塞至写入完成再更新 UI
+            try { Task.Run(() => _session.SetVendorAsync(value.Id)).Wait(Timeout); }
             catch (Exception ex) { WriteErrorLog(ex); }
         }
         else

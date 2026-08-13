@@ -84,6 +84,9 @@ public class ConfigLoader {
             // Step 2: 注入 settings.env 到环境变量（低优先级，不覆盖已有环境变量）
             SettingsMapper.InjectEnvFromSettings(settings);
 
+            // Step 2.5: 环境变量覆盖 SettingsJson — 集中启动参数解析（JCC_VENDOR/MODEL_ID/ENDPOINT/PROFILE）
+            settings = EnvOverrideApplier.Apply(settings);
+
             // Step 3: SettingsJson → WorkflowConfig（JSON 反序列化映射）
             var config = _settingsMapper.ToWorkflowConfig(settings);
 

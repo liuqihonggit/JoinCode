@@ -180,19 +180,18 @@ public class SettingsMapperTests
     }
 
     [Fact]
-    public void Given_环境变量JCC_MODEL_ID_When_ApplyEnvOverrides_Then_ModelId被覆盖()
+    public void Given_环境变量JCC_MODEL_ID_When_EnvOverrideApplier_Then_Model被覆盖()
     {
         // Given
-        var config = new WorkflowConfig();
-        config.Provider.ModelId = OpenAiModelId;
+        var settings = new SettingsJson { Model = OpenAiModelId };
         Environment.SetEnvironmentVariable(JccEnvVar.ModelId.ToValue(), "gpt-4o-mini");
         try
         {
-            // When
-            _mapper.ApplyEnvOverrides(config);
+            // When: EnvOverrideApplier 在 SettingsJson 层(覆盖 Model
+            var result = EnvOverrideApplier.Apply(settings);
 
             // Then
-            config.Provider.ModelId.Should().Be("gpt-4o-mini");
+            result.Model.Should().Be("gpt-4o-mini");
         }
         finally
         {
@@ -380,16 +379,16 @@ public class SettingsMapperTests
     #region 场景5: 完整优先级链
 
     [Fact]
-    public void Given_SettingsJson和环境变量_When_先映射再覆盖_Then_环境变量优先()
+    public void Given_SettingsJson和环境变量_When_先EnvOverride再映射_Then_环境变量优先()
     {
         // Given
         var settings = new SettingsJson { Model = OpenAiModelId };
         Environment.SetEnvironmentVariable(JccEnvVar.ModelId.ToValue(), "gpt-4o-mini");
         try
         {
-            // When: 先映射 SettingsJson，再应用环境变量覆盖
-            var config = _mapper.ToWorkflowConfig(settings);
-            _mapper.ApplyEnvOverrides(config);
+            // When: 先 EnvOverrideApplier 覆盖 SettingsJson，再 ToWorkflowConfig 映射
+            var overridden = EnvOverrideApplier.Apply(settings);
+            var config = _mapper.ToWorkflowConfig(overridden);
 
             // Then: 环境变量优先
             config.Provider.ModelId.Should().Be("gpt-4o-mini");

@@ -42,34 +42,18 @@ class Program
             if (options.DoctorMode)
             {
                 var doctorFs = IO.FileSystem.FileSystemFactory.Create();
-                await Entry.StartupWorkflow.EnsureConfigFilesExistAsync(doctorFs);
-                var doctorConfig = await App.Builder.ApplicationBuilder.LoadConfigAsync(options, doctorFs);
-
-                var doctorBuilder = new App.Builder.ApplicationBuilder()
-                    .UseModule<App.Modules.CoreModule>()
-                    .UseModule<App.Modules.ClockModule>()
-                    .UseModule<App.Modules.BrowserModule>()
-                    .UseModule<App.Modules.PipeModule>()
-                    .UseModule<App.Modules.CliModule>()
-                    .UseModule<App.Modules.McpInitModule>();
-
-                var doctorHost = doctorBuilder.BuildHost(doctorConfig, options);
-                await doctorBuilder.ConfigureModulesAsync(doctorHost.Services);
-
-                // Shell 能力缓存初始化（doctor 模式）
-                Core.DependencyInjection.ShellCapabilityInitializer.Initialize(
-                    doctorFs, doctorHost.Services.GetService<ILogger<Program>>());
+                var doctorResult = await App.Builder.EngineSessionFactory.CreateCliSessionAsync(options, doctorFs);
 
                 try
                 {
-                    return await Entry.DoctorModeRunner.RunAsync(options, doctorHost.Services);
+                    return await Entry.DoctorModeRunner.RunAsync(options, doctorResult.Host.Services);
                 }
                 finally
                 {
-                    if (doctorHost is IAsyncDisposable asyncDoc)
+                    if (doctorResult.Host is IAsyncDisposable asyncDoc)
                         await asyncDoc.DisposeAsync();
                     else
-                        doctorHost.Dispose();
+                        doctorResult.Host.Dispose();
                 }
             }
 
@@ -100,28 +84,12 @@ class Program
 
             var fs = IO.FileSystem.FileSystemFactory.Create();
 
-            // 首次启动时确保全局配置文件存在（带注释模板）
-            await Entry.StartupWorkflow.EnsureConfigFilesExistAsync(fs);
+            var engineResult = await App.Builder.EngineSessionFactory.CreateCliSessionAsync(options, fs);
 
-            var config = await App.Builder.ApplicationBuilder.LoadConfigAsync(options, fs);
-
-            var builder = new App.Builder.ApplicationBuilder()
-                .UseModule<App.Modules.CoreModule>()
-                .UseModule<App.Modules.ClockModule>()
-                .UseModule<App.Modules.BrowserModule>()
-                .UseModule<App.Modules.PipeModule>()
-                .UseModule<App.Modules.CliModule>()
-                .UseModule<App.Modules.McpInitModule>();
-
-            var host = builder.BuildHost(config, options);
+            var config = engineResult.Config;
+            var host = engineResult.Host;
 
             logger = host.Services.GetService<ILogger<Program>>();
-
-            await builder.ConfigureModulesAsync(host.Services);
-
-            // Shell 能力缓存初始化 — 检测 Shell 路径/版本并冻结到全局缓存
-            Core.DependencyInjection.ShellCapabilityInitializer.Initialize(
-                fs, host.Services.GetService<ILogger<Program>>());
 
             // 3.3 工具执行遥测：订阅 PermissionAwareToolExecutor.ToolExecutionCompleted，转发给医生
             if (doctorClient is not null)

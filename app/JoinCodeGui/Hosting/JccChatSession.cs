@@ -7,7 +7,6 @@ using JoinCode.Abstractions.Security;
 using JoinCode.Abstractions.Security.Permission;
 using JoinCode.Abstractions.Tools;
 using JoinCode.App.Builder;
-
 namespace JoinCode.Gui.Hosting;
 
 /// <summary>
@@ -50,15 +49,15 @@ internal sealed class JccChatSession : IJccChatSession
     }
 
     /// <summary>
-    /// 创建引擎会话：调用 CLI 侧 GuiSessionFactory 一行完成 LoadConfig+BuildHost+ConfigureModules，
+    /// 创建引擎会话：调用 CLI 侧 EngineSessionFactory 一行完成 LoadConfig+BuildHost+ConfigureModules，
     /// 消除 GUI 和 CLI 的双引擎初始化差异。
     /// </summary>
     public static async Task<IJccChatSession> CreateAsync(
         CancellationToken cancellationToken = default)
     {
         var swTotal = System.Diagnostics.Stopwatch.StartNew();
-        var result = await GuiSessionFactory.CreateSessionAsync(cancellationToken).ConfigureAwait(false);
-        App.LogDiag($"[JccChatSession] GuiSessionFactory.CreateSessionAsync: {swTotal.ElapsedMilliseconds}ms");
+        var result = await EngineSessionFactory.CreateGuiSessionAsync(cancellationToken).ConfigureAwait(false);
+        App.LogDiag($"[JccChatSession] EngineSessionFactory.CreateGuiSessionAsync: {swTotal.ElapsedMilliseconds}ms");
 
         var executionSettings = result.Services.GetService<IExecutionSettingsProvider>();
 

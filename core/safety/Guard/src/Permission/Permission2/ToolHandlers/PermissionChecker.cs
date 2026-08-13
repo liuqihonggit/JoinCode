@@ -31,7 +31,7 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
         _pipeline = pipeline;
         _logger = logger;
         _config = configOptions.Value;
-        _currentMode = TryGetPermissionModeFromEnv(fs) ?? PermissionMode.Default;
+        _currentMode = TryGetPermissionModeFromEnv(fs) ?? PermissionMode.Auto;
         _fs = fs;
 
         // 确保列表不为 null
@@ -69,7 +69,7 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
             return null;
 
         // 安全闸: settings.json 显式禁用 bypass 模式时，忽略 bypassPermissions 环境变量
-        if (parsed.Value == PermissionMode.BypassPermissions && IsDisableBypassPermissionsMode(fs))
+        if (parsed.Value == PermissionMode.Bypass && IsDisableBypassPermissionsMode(fs))
         {
             return null;
         }

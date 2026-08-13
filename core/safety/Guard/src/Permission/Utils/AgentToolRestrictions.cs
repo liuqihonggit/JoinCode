@@ -78,8 +78,6 @@ public sealed partial class AgentToolRestrictions : ServiceEntity, IAgentToolRes
         McpToolNameConstants.McpListServers, McpToolNameConstants.McpListClients
     }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 
-    private static readonly FrozenSet<string> DenyAllowedTools = FrozenSet<string>.Empty;
-
     private static readonly FrozenSet<string> AutoDeniedTools = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
         ShellToolNameConstants.Bash, ShellToolNameConstants.Powershell,
@@ -97,11 +95,6 @@ public sealed partial class AgentToolRestrictions : ServiceEntity, IAgentToolRes
 
     private static readonly FrozenSet<string> AskDeniedTools = FrozenSet<string>.Empty;
 
-    private static readonly FrozenSet<string> DenyDeniedTools = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-    {
-        "*"
-    }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
-
     public IReadOnlySet<string> GetAllowedTools(PermissionMode mode)
     {
         return mode switch
@@ -109,7 +102,7 @@ public sealed partial class AgentToolRestrictions : ServiceEntity, IAgentToolRes
             PermissionMode.Auto => AutoAllowedTools,
             PermissionMode.Plan => PlanAllowedTools,
             PermissionMode.Ask => AskAllowedTools,
-            PermissionMode.Deny => DenyAllowedTools,
+            PermissionMode.Bypass => AutoAllowedTools,
             _ => AutoAllowedTools
         };
     }
@@ -121,18 +114,17 @@ public sealed partial class AgentToolRestrictions : ServiceEntity, IAgentToolRes
             PermissionMode.Auto => AutoDeniedTools,
             PermissionMode.Plan => PlanDeniedTools,
             PermissionMode.Ask => AskDeniedTools,
-            PermissionMode.Deny => DenyDeniedTools,
-            PermissionMode.BypassPermissions or PermissionMode.DontAsk => FrozenSet<string>.Empty,
+            PermissionMode.Bypass => FrozenSet<string>.Empty,
             _ => AutoDeniedTools
         };
     }
 
     public bool IsToolAllowedForMode(string toolName, PermissionMode mode)
     {
-        if (mode == PermissionMode.Deny)
+        if (mode == PermissionMode.Bypass)
         {
-            RecordPermissionCheckMetrics(toolName, mode, false);
-            return false;
+            RecordPermissionCheckMetrics(toolName, mode, true);
+            return true;
         }
 
         var denied = GetDeniedTools(mode);
@@ -151,9 +143,8 @@ public sealed partial class AgentToolRestrictions : ServiceEntity, IAgentToolRes
         var allowed = GetAllowedTools(mode);
         if (allowed.Count == 0)
         {
-            var result = mode != PermissionMode.Deny;
-            RecordPermissionCheckMetrics(toolName, mode, result);
-            return result;
+            RecordPermissionCheckMetrics(toolName, mode, true);
+            return true;
         }
 
         var allowedResult = allowed.Contains(toolName);

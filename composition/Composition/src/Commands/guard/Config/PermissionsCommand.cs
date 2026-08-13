@@ -79,7 +79,6 @@ public sealed class PermissionsCommand : ChatCommandBase
         {
             var allowRules = rules.Where(r => r.Mode == PermissionMode.Auto).ToList();
             var askRules = rules.Where(r => r.Mode == PermissionMode.Ask).ToList();
-            var denyRules = rules.Where(r => r.Mode == PermissionMode.Deny).ToList();
             var planRules = rules.Where(r => r.Mode == PermissionMode.Plan).ToList();
 
             if (allowRules.Count > 0)
@@ -92,12 +91,6 @@ public sealed class PermissionsCommand : ChatCommandBase
             {
                 sb.AppendLine($"\n  {L.T(StringKey.PermissionsModeAskLabel)} ({askRules.Count})");
                 foreach (var rule in askRules) RenderRule(sb, rule);
-            }
-
-            if (denyRules.Count > 0)
-            {
-                sb.AppendLine($"\n  {L.T(StringKey.PermissionsModeDenyLabel)} ({denyRules.Count})");
-                foreach (var rule in denyRules) RenderRule(sb, rule);
             }
 
             if (planRules.Count > 0)
@@ -164,8 +157,8 @@ public sealed class PermissionsCommand : ChatCommandBase
         {
             PermissionMode.Auto => TerminalColors.Success,
             PermissionMode.Ask => TerminalColors.Warning,
-            PermissionMode.Deny => TerminalColors.Error,
             PermissionMode.Plan => TerminalColors.Primary,
+            PermissionMode.Bypass => TerminalColors.Success,
             _ => TerminalColors.Muted
         };
 

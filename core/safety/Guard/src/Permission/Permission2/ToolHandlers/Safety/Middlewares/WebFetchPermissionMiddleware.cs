@@ -16,7 +16,7 @@ public sealed partial class WebFetchPermissionMiddleware : ServiceEntity, IPermi
     /// <inheritdoc />
     public Task InvokeAsync(PermissionCheckContext context, MiddlewareDelegate<PermissionCheckContext> next, CancellationToken ct)
     {
-        if (context.CurrentMode != PermissionMode.Default || !PermissionCheckContext.IsWebFetchTool(context.ToolName))
+        if (context.CurrentMode != PermissionMode.Auto || !PermissionCheckContext.IsWebFetchTool(context.ToolName))
             return next(context, ct);
 
         var webFetchResult = CheckWebFetchPermission(context);

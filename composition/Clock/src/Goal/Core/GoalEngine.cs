@@ -1034,7 +1034,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
         try
         {
             var currentMode = await _permissionManager.GetCurrentModeAsync(cancellationToken).ConfigureAwait(false);
-            if (currentMode == PermissionMode.BypassPermissions || currentMode == PermissionMode.DontAsk)
+            if (currentMode == PermissionMode.Bypass)
             {
                 _logger?.LogInformation("[GoalEngine] 当前权限模式为 {Mode}，跳过切换到 Auto", currentMode);
                 return;

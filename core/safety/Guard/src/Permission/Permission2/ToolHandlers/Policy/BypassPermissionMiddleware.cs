@@ -14,7 +14,7 @@ public sealed partial class BypassPermissionMiddleware : ServiceEntity, IPermiss
     /// <inheritdoc />
     public Task InvokeAsync(PermissionCheckContext context, MiddlewareDelegate<PermissionCheckContext> next, CancellationToken ct)
     {
-        if (context.CurrentMode == PermissionMode.BypassPermissions)
+        if (context.CurrentMode == PermissionMode.Bypass)
         {
             context.Result = ToolPermissionCheckResult.Approved();
             return Task.CompletedTask;

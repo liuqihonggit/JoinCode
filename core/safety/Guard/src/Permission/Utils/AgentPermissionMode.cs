@@ -61,7 +61,7 @@ public sealed partial class AgentPermissionManager : IAgentPermissionManager, IA
             return new PermissionCheckResult
             {
                 IsAllowed = false,
-                Mode = PermissionMode.Deny,
+                Mode = PermissionMode.Ask,
                 Reason = $"工具 '{toolName}' 在拒绝列表中",
                 MatchedRule = rule
             };
@@ -73,7 +73,7 @@ public sealed partial class AgentPermissionManager : IAgentPermissionManager, IA
             return new PermissionCheckResult
             {
                 IsAllowed = false,
-                Mode = PermissionMode.Deny,
+                Mode = PermissionMode.Ask,
                 Reason = $"工具 '{toolName}' 不在允许列表中",
                 MatchedRule = rule
             };
@@ -88,7 +88,7 @@ public sealed partial class AgentPermissionManager : IAgentPermissionManager, IA
             return new PermissionCheckResult
             {
                 IsAllowed = false,
-                Mode = PermissionMode.Deny,
+                Mode = PermissionMode.Ask,
                 Reason = $"权限级别不足，当前级别: {rule.Level}",
                 MatchedRule = rule
             };
@@ -96,7 +96,7 @@ public sealed partial class AgentPermissionManager : IAgentPermissionManager, IA
 
         return new PermissionCheckResult
         {
-            IsAllowed = rule.Mode != PermissionMode.Deny,
+            IsAllowed = rule.Mode != PermissionMode.Ask,
             Mode = rule.Mode,
             Reason = $"匹配规则: {rule.Description ?? rule.AgentPattern}",
             MatchedRule = rule
@@ -125,7 +125,7 @@ public sealed partial class AgentPermissionManager : IAgentPermissionManager, IA
             return new PermissionCheckResult
             {
                 IsAllowed = false,
-                Mode = PermissionMode.Deny,
+                Mode = PermissionMode.Ask,
                 Reason = $"路径在拒绝列表中",
                 MatchedRule = rule
             };
@@ -137,7 +137,7 @@ public sealed partial class AgentPermissionManager : IAgentPermissionManager, IA
             return new PermissionCheckResult
             {
                 IsAllowed = false,
-                Mode = PermissionMode.Deny,
+                Mode = PermissionMode.Ask,
                 Reason = $"路径不在允许列表中",
                 MatchedRule = rule
             };
@@ -145,7 +145,7 @@ public sealed partial class AgentPermissionManager : IAgentPermissionManager, IA
 
         return new PermissionCheckResult
         {
-            IsAllowed = rule.Mode != PermissionMode.Deny,
+            IsAllowed = rule.Mode != PermissionMode.Ask,
             Mode = rule.Mode,
             Reason = $"匹配规则: {rule.Description ?? rule.AgentPattern}",
             MatchedRule = rule
@@ -237,7 +237,7 @@ public static class PermissionFilters
         foreach (var name in agentNames)
         {
             var rule = await permissionManager.GetRuleForAgentAsync(name, ct).ConfigureAwait(false);
-            if (rule?.Mode != PermissionMode.Deny)
+            if (rule?.Mode != PermissionMode.Ask)
             {
                 result.Add(name);
             }
@@ -251,7 +251,7 @@ public static class PermissionFilters
     public static async Task<AgentPermissionRule?> GetDenyRuleForAgentAsync(IAgentPermissionManager permissionManager, string agentName, CancellationToken ct = default)
     {
         var rule = await permissionManager.GetRuleForAgentAsync(agentName, ct).ConfigureAwait(false);
-        return rule?.Mode == PermissionMode.Deny ? rule : null;
+        return rule?.Mode == PermissionMode.Ask ? rule : null;
     }
 
     /// <summary>

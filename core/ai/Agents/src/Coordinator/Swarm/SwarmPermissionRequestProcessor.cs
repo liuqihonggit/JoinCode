@@ -104,7 +104,7 @@ public sealed partial class SwarmPermissionRequestProcessor : ServiceEntity, ISw
                 return (true, fullRequest?.Input, updates);
             }
 
-            if (checkResult.Mode == PermissionMode.Deny)
+            if (checkResult.Mode == PermissionMode.Ask && !checkResult.IsAllowed)
             {
                 _logger?.LogDebug("权限由规则拒绝: Tool={ToolName}", toolName);
                 return (false, null, null);

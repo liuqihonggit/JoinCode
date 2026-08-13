@@ -291,7 +291,7 @@ public sealed class AppStateSelectorsTests : IDisposable
     {
         var selector = _selectors.SelectPermissionMode();
 
-        selector.CurrentValue.Should().Be(PermissionMode.Default);
+        selector.CurrentValue.Should().Be(PermissionMode.Auto);
     }
 
     [Fact]
@@ -406,7 +406,7 @@ public sealed class AppStateSelectorsTests : IDisposable
             Bridge = new BridgeState { IsConnected = true, IsEnabled = true },
             Permission = new PermissionState
             {
-                PermissionMode = PermissionMode.Default,
+                PermissionMode = PermissionMode.Auto,
                 PendingRequests = ImmutableList.Create(new PermissionRequestState { ToolName = "read_file" })
             }
         };

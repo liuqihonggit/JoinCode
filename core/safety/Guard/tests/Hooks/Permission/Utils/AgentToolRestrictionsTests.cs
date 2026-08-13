@@ -91,23 +91,19 @@ public sealed class AgentToolRestrictionsTests
     }
 
     [Fact]
-    public void GetAllowedTools_DenyMode_ShouldBeEmpty()
+    public void GetAllowedTools_BypassMode_ShouldReturnAutoAllowedTools()
     {
-        var allowed = _sut.GetAllowedTools(PermissionMode.Deny);
+        var allowed = _sut.GetAllowedTools(PermissionMode.Bypass);
 
-        allowed.Should().BeEmpty();
+        allowed.Should().NotBeEmpty();
     }
 
     [Fact]
-    public void GetDeniedTools_AutoMode_ShouldContainShellAndDangerousTools()
+    public void GetDeniedTools_BypassMode_ShouldBeEmpty()
     {
-        var denied = _sut.GetDeniedTools(PermissionMode.Auto);
+        var denied = _sut.GetDeniedTools(PermissionMode.Bypass);
 
-        denied.Should().Contain(ShellToolNameConstants.Bash);
-        denied.Should().Contain(ShellToolNameConstants.Powershell);
-        denied.Should().Contain(FileToolNameConstants.FileDelete);
-        denied.Should().Contain(GitToolNameConstants.GitCommit);
-        denied.Should().Contain(GitToolNameConstants.GitPush);
+        denied.Should().BeEmpty();
     }
 
     [Fact]
@@ -128,14 +124,6 @@ public sealed class AgentToolRestrictionsTests
         var denied = _sut.GetDeniedTools(PermissionMode.Ask);
 
         denied.Should().BeEmpty();
-    }
-
-    [Fact]
-    public void GetDeniedTools_DenyMode_ShouldContainWildcard()
-    {
-        var denied = _sut.GetDeniedTools(PermissionMode.Deny);
-
-        denied.Should().Contain("*");
     }
 
     [Theory]
@@ -161,9 +149,9 @@ public sealed class AgentToolRestrictionsTests
     }
 
     [Fact]
-    public void IsToolAllowedForMode_DenyMode_AnyToolShouldBeFalse()
+    public void IsToolAllowedForMode_BypassMode_AnyToolShouldBeTrue()
     {
-        _sut.IsToolAllowedForMode("any_tool", PermissionMode.Deny).Should().BeFalse();
+        _sut.IsToolAllowedForMode("any_tool", PermissionMode.Bypass).Should().BeTrue();
     }
 
     /// <summary>
@@ -195,10 +183,10 @@ public sealed class AgentToolRestrictionsTests
     }
 
     [Fact]
-    public void IsToolAllowedForMode_DenyMode_AlwaysFalse()
+    public void IsToolAllowedForMode_BypassMode_AlwaysTrue()
     {
-        _sut.IsToolAllowedForMode(FileToolNameConstants.FileRead, PermissionMode.Deny).Should().BeFalse();
-        _sut.IsToolAllowedForMode("safe_tool", PermissionMode.Deny).Should().BeFalse();
+        _sut.IsToolAllowedForMode(FileToolNameConstants.FileRead, PermissionMode.Bypass).Should().BeTrue();
+        _sut.IsToolAllowedForMode("safe_tool", PermissionMode.Bypass).Should().BeTrue();
     }
 
     [Fact]

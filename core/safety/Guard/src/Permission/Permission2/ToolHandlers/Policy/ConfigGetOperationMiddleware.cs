@@ -15,7 +15,7 @@ public sealed partial class ConfigGetOperationMiddleware : ServiceEntity, IPermi
     /// <inheritdoc />
     public Task InvokeAsync(PermissionCheckContext context, MiddlewareDelegate<PermissionCheckContext> next, CancellationToken ct)
     {
-        if (context.CurrentMode == PermissionMode.Default &&
+        if (context.CurrentMode == PermissionMode.Auto &&
             PermissionCheckContext.IsConfigGetOperation(context.ToolName, context.Arguments))
         {
             context.Result = ToolPermissionCheckResult.Approved();

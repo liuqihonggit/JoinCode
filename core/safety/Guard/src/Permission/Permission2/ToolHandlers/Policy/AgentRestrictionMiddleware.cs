@@ -24,7 +24,7 @@ public sealed partial class AgentRestrictionMiddleware : ServiceEntity, IPermiss
     /// <inheritdoc />
     public Task InvokeAsync(PermissionCheckContext context, MiddlewareDelegate<PermissionCheckContext> next, CancellationToken ct)
     {
-        if (context.CurrentMode != PermissionMode.Default || _agentToolRestrictions is null)
+        if (context.CurrentMode == PermissionMode.Bypass || _agentToolRestrictions is null)
             return next(context, ct);
 
         // 用户显式 allow 列表优先 — 绕过硬编码 Agent 限制
@@ -34,7 +34,7 @@ public sealed partial class AgentRestrictionMiddleware : ServiceEntity, IPermiss
         if (context.AutoApprovedTools.Contains(context.ToolName))
             return next(context, ct);
 
-        var agentMode = MapToPermissionMode(context.CurrentMode);
+        var agentMode = context.CurrentMode;
         if (!_agentToolRestrictions.IsToolAllowedForMode(context.ToolName, agentMode))
         {
             var deniedTools = _agentToolRestrictions.GetDeniedTools(agentMode);
@@ -46,17 +46,5 @@ public sealed partial class AgentRestrictionMiddleware : ServiceEntity, IPermiss
         }
 
         return next(context, ct);
-    }
-
-    private static PermissionMode MapToPermissionMode(PermissionMode mode)
-    {
-        return mode switch
-        {
-            PermissionMode.Auto => PermissionMode.Auto,
-            PermissionMode.Plan => PermissionMode.Plan,
-            PermissionMode.Ask => PermissionMode.Ask,
-            PermissionMode.BypassPermissions => PermissionMode.Ask,
-            _ => PermissionMode.Auto
-        };
     }
 }

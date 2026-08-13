@@ -150,7 +150,7 @@ public static class PsModeValidation
             return new ShellPermissionCheckResult(PermissionBehavior.Passthrough, "Mode is handled in main permission flow");
         }
 
-        if (mode != PermissionModeConstants.AcceptEdits)
+        if (mode != PermissionModeConstants.Auto)
         {
             return new ShellPermissionCheckResult(PermissionBehavior.Passthrough, "No mode-specific validation required");
         }

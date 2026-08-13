@@ -37,7 +37,7 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
         _logger = logger;
         _timeProvider = timeProvider ?? TimeProvider.System;
         _approvedTools = new ConcurrentDictionary<string, DateTimeOffset>();
-        _currentMode = PermissionChecker.TryGetPermissionModeFromEnv(fs) ?? PermissionMode.Default;
+        _currentMode = PermissionChecker.TryGetPermissionModeFromEnv(fs) ?? PermissionMode.Auto;
     }
 
     /// <inheritdoc />

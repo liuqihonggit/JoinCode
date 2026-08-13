@@ -627,7 +627,7 @@ public sealed record PermissionState
     /// <summary>
     /// 当前权限模式
     /// </summary>
-    public PermissionMode PermissionMode { get; init; } = PermissionMode.Default;
+    public PermissionMode PermissionMode { get; init; } = PermissionMode.Auto;
 
     /// <summary>
     /// 进入 Plan 模式前保存的权限模式，退出时恢复

@@ -113,6 +113,55 @@ public class DynamicKeywordMatchingTests
         result!.SectionName.Should().Be("fact_inquiry");
     }
 
+    [Fact]
+    public void TryMatch_RepeatedCalls_SameConfig_ReturnsConsistentResult()
+    {
+        var config = CreateConfig("test", ["分析", "总结", "规划"]);
+        var input = "帮我分析一下数据";
+
+        var result1 = DynamicKeywordMatcher.TryMatch(input, config);
+        var result2 = DynamicKeywordMatcher.TryMatch(input, config);
+        var result3 = DynamicKeywordMatcher.TryMatch(input, config);
+
+        result1.Should().NotBeNull();
+        result2.Should().NotBeNull();
+        result3.Should().NotBeNull();
+        result1!.MatchedKeyword.Should().Be(result2!.MatchedKeyword).And.Be(result3!.MatchedKeyword);
+        result1.SectionName.Should().Be(result2.SectionName).And.Be(result3.SectionName);
+    }
+
+    [Fact]
+    public void TryMatch_DifferentConfigs_CacheIsolation()
+    {
+        var config1 = CreateConfig("section_a", ["分析"]);
+        var config2 = CreateConfig("section_b", ["睡觉"]);
+
+        var result1 = DynamicKeywordMatcher.TryMatch("帮我分析", config1);
+        var result2 = DynamicKeywordMatcher.TryMatch("我去睡觉", config2);
+
+        result1.Should().NotBeNull();
+        result1!.SectionName.Should().Be("section_a");
+        result1.MatchedKeyword.Should().Be("分析");
+
+        result2.Should().NotBeNull();
+        result2!.SectionName.Should().Be("section_b");
+        result2.MatchedKeyword.Should().Be("睡觉");
+    }
+
+    [Fact]
+    public void TryMatch_LargeConfig_RepeatedCalls_PreserveCorrectness()
+    {
+        var keywords = new List<string> { "写一", "做一", "分析", "总结", "规划", "生成", "重构", "修复", "添加", "修改", "实现", "替换", "归纳", "合并", "整理" };
+        var config = CreateConfig("large_section", keywords);
+
+        for (var i = 0; i < 5; i++)
+        {
+            var result = DynamicKeywordMatcher.TryMatch("帮我分析并总结数据", config);
+            result.Should().NotBeNull();
+            result!.SectionName.Should().Be("large_section");
+        }
+    }
+
     private static DynamicKeywordConfig CreateConfig(string sectionName, List<string> keywords) => new()
     {
         Sections = new Dictionary<string, DynamicKeywordSection>(StringComparer.OrdinalIgnoreCase)

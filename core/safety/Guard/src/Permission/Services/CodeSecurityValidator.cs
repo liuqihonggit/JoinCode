@@ -32,7 +32,17 @@ public sealed partial class CodeSecurityValidator : ServiceEntity, ICodeSecurity
         "GCHandle",
         "Thread.Abort",
         "Thread.Suspend",
-        "Thread.Resume");
+        "Thread.Resume",
+        "Activator.CreateInstance",
+        "MethodInfo.Invoke",
+        "Type.InvokeMember",
+        "DynamicMethod",
+        "NativeLibrary.Load",
+        "Socket.");
+
+    /// <summary>危险模式 AC 自动机 — 一次扫描检测所有危险代码模式。</summary>
+    private static readonly AhoCorasick<string> DangerousPatternAc = AhoCorasick.Create(
+        DangerousPatterns, ignoreCase: true);
 
     private static readonly FrozenSet<string> AllowedExternalLibs = FrozenSet.Create(
         StringComparer.OrdinalIgnoreCase,
@@ -160,12 +170,10 @@ public sealed partial class CodeSecurityValidator : ServiceEntity, ICodeSecurity
 
     private static ValidationResult ValidateCodeContent(string code, bool allowExternalLibs)
     {
-        foreach (var pattern in DangerousPatterns)
+        var dangerMatch = DangerousPatternAc.FindFirst(code.AsSpan());
+        if (dangerMatch is not null)
         {
-            if (code.Contains(pattern, StringComparison.OrdinalIgnoreCase))
-            {
-                return ValidationResult.Invalid($"代码包含危险操作: {pattern}");
-            }
+            return ValidationResult.Invalid($"代码包含危险操作: {dangerMatch!.Value.Value}");
         }
 
         if (!allowExternalLibs)

@@ -196,4 +196,65 @@ public class InputTokenizerTests
         tokens.Should().Contain("merge");
         tokens.Should().Contain("PR");
     }
+
+    [Fact]
+    public void Tokenize_RepeatedCalls_SameDictionary_ReturnsConsistentResult()
+    {
+        var dict = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "写一", "分析", "总结", "规划" };
+        var input = "帮我写一份周报，然后分析数据";
+
+        var tokens1 = InputTokenizer.Tokenize(input, dict);
+        var tokens2 = InputTokenizer.Tokenize(input, dict);
+        var tokens3 = InputTokenizer.Tokenize(input, dict);
+
+        tokens1.Should().Equal(tokens2);
+        tokens2.Should().Equal(tokens3);
+    }
+
+    [Fact]
+    public void Tokenize_DifferentDictionaries_CacheIsolation()
+    {
+        var dict1 = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "分析" };
+        var dict2 = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "睡觉" };
+
+        var tokens1 = InputTokenizer.Tokenize("帮我分析数据", dict1);
+        var tokens2 = InputTokenizer.Tokenize("我去睡觉了", dict2);
+
+        tokens1.Should().Contain("分析");
+        tokens1.Should().NotContain("睡觉");
+        tokens2.Should().Contain("睡觉");
+        tokens2.Should().NotContain("分析");
+    }
+
+    [Fact]
+    public void Tokenize_MultiWordKeyword_CacheHit_PreservesAcAutomaton()
+    {
+        var dict = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "flaky test", "keep going", "go hard" };
+        var input = "遇到flaky test怎么办，需要keep going，go hard";
+
+        var tokens1 = InputTokenizer.Tokenize(input, dict);
+        var tokens2 = InputTokenizer.Tokenize(input, dict);
+
+        tokens1.Should().Contain("flaky test");
+        tokens1.Should().Contain("keep going");
+        tokens1.Should().Contain("go hard");
+        tokens2.Should().Equal(tokens1);
+    }
+
+    [Fact]
+    public void Tokenize_MixedDict_RepeatedCalls_MultiWordAndFmmBothCorrect()
+    {
+        var dict = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        { "GC压力", "Task.WhenAll", "死锁", "flaky test", "性能优化", "Span" };
+        var input = "这里GC压力很大，改用Task.WhenAll并行，避免死锁和flaky test";
+
+        var tokens1 = InputTokenizer.Tokenize(input, dict);
+        var tokens2 = InputTokenizer.Tokenize(input, dict);
+
+        tokens1.Should().Contain("GC压力");
+        tokens1.Should().Contain("Task.WhenAll");
+        tokens1.Should().Contain("死锁");
+        tokens1.Should().Contain("flaky test");
+        tokens2.Should().Equal(tokens1);
+    }
 }

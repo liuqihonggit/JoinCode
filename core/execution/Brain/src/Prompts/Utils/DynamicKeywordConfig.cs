@@ -47,6 +47,10 @@ public static class InputTokenizer
     private static readonly SearchValues<char> SegmentSeparators = SearchValues.Create(
         " \t\n\r，。！？、；：\u201C\u201D\u2018\u2019（）【】《》—…·~`!@#$%^&*()-_=+[]{}|\\;:'\",.<>?/");
 
+    private sealed record TokenizerCache(int MaxLen, AhoCorasick<string>? MultiWordAc);
+
+    private static readonly ConditionalWeakTable<IReadOnlySet<string>, TokenizerCache> MetadataCache = new();
+
     /// <summary>
     /// 对用户输入做切词，返回词序列
     /// </summary>
@@ -64,27 +68,42 @@ public static class InputTokenizer
         if (dictionary.Count == 0)
             return [.. segments];
 
-        var tokens = new List<string>(segments.Count * 2);
-        var maxLen = 0;
-        var hasMultiWordKeywords = false;
-        foreach (var kw in dictionary)
+        var cache = MetadataCache.GetValue(dictionary, static dict =>
         {
-            if (kw.Length > maxLen)
-                maxLen = kw.Length;
-            if (!hasMultiWordKeywords && ContainsSeparator(kw.AsSpan()))
-                hasMultiWordKeywords = true;
-        }
-
-        if (hasMultiWordKeywords)
-        {
-            foreach (var kw in dictionary)
+            var maxLen = 0;
+            var hasMulti = false;
+            foreach (var kw in dict)
             {
-                if (!ContainsSeparator(kw.AsSpan()))
-                    continue;
-
-                if (input.Contains(kw, StringComparison.OrdinalIgnoreCase))
-                    tokens.Add(kw);
+                if (kw.Length > maxLen)
+                    maxLen = kw.Length;
+                if (!hasMulti && ContainsSeparator(kw.AsSpan()))
+                    hasMulti = true;
             }
+
+            AhoCorasick<string>? multiAc = null;
+            if (hasMulti)
+            {
+                var multiWordKws = new List<string>();
+                foreach (var kw in dict)
+                {
+                    if (ContainsSeparator(kw.AsSpan()))
+                        multiWordKws.Add(kw);
+                }
+                if (multiWordKws.Count > 0)
+                    multiAc = AhoCorasick.Create(multiWordKws, ignoreCase: true);
+            }
+
+            return new TokenizerCache(maxLen, multiAc);
+        });
+
+        var tokens = new List<string>(segments.Count * 2);
+
+        if (cache.MultiWordAc is not null)
+        {
+            var matched = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var match in cache.MultiWordAc.FindAll(input.AsSpan()))
+                matched.Add(match.Value);
+            tokens.AddRange(matched);
         }
 
         foreach (var seg in segments)
@@ -92,7 +111,7 @@ public static class InputTokenizer
             if (seg.Length == 0)
                 continue;
 
-            FmmTokenize(seg.AsSpan(), dictionary, maxLen, tokens);
+            FmmTokenize(seg.AsSpan(), dictionary, cache.MaxLen, tokens);
         }
 
         return tokens.ToArray();
@@ -189,6 +208,8 @@ public static class InputTokenizer
 /// </summary>
 public static class DynamicKeywordMatcher
 {
+    private static readonly ConditionalWeakTable<DynamicKeywordConfig, HashSet<string>> DictionaryCache = new();
+
     /// <summary>
     /// 在给定配置中匹配用户输入的关键词
     /// </summary>
@@ -235,24 +256,24 @@ public static class DynamicKeywordMatcher
     }
 
     /// <summary>
-    /// 从配置构建词典（用于 FMM 切词）
+    /// 从配置构建词典（用于 FMM 切词）— 按配置引用缓存，配置热重载后旧引用被 GC 回收自动失效
     /// </summary>
     internal static HashSet<string> BuildDictionary(DynamicKeywordConfig config)
     {
-        var dict = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var section in config.Sections.Values)
+        return DictionaryCache.GetValue(config, static c =>
         {
-            if (!section.Enabled)
-                continue;
-
-            foreach (var keyword in section.Keywords)
+            var dict = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var section in c.Sections.Values)
             {
-                if (!string.IsNullOrEmpty(keyword))
-                    dict.Add(keyword);
+                if (!section.Enabled)
+                    continue;
+                foreach (var keyword in section.Keywords)
+                {
+                    if (!string.IsNullOrEmpty(keyword))
+                        dict.Add(keyword);
+                }
             }
-        }
-
-        return dict;
+            return dict;
+        });
     }
 }

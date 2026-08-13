@@ -4,7 +4,7 @@ namespace Core.Prompts.Sections;
 
 [PromptSection(
     Name = "structured_task_workflow",
-    Keywords = new[] { "修改", "实现", "重构", "修复", "添加", "更改", "变更", "改造" },
+    Keywords = new[] { "修改", "实现", "重构", "修复", "添加", "更改", "变更", "改造", "改动", "调整", "modify", "implement", "refactor", "fix", "add", "change" },
     InjectOn = PromptSectionInject.Keyword,
     Order = 64)]
 public static class StructuredTaskWorkflowSection

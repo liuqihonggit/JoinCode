@@ -18,6 +18,8 @@ public sealed partial class HookConditionEvaluator : ServiceEntity, IHookConditi
 {
     [Inject] private readonly ILogger<HookConditionEvaluator>? _logger;
 
+    private static readonly ConcurrentDictionary<string, Regex> ConditionPatternCache = new(StringComparer.Ordinal);
+
     public HookConditionEvaluator(ILogger<HookConditionEvaluator>? logger = null)
     {
         _logger = logger;
@@ -232,7 +234,8 @@ public sealed partial class HookConditionEvaluator : ServiceEntity, IHookConditi
         {
             try
             {
-                return Regex.IsMatch(value, pattern, RegexOptions.IgnoreCase);
+                var regex = ConditionPatternCache.GetOrAdd(pattern, static p => new Regex(p, RegexOptions.IgnoreCase | RegexOptions.Compiled));
+                return regex.IsMatch(value);
             }
             catch (Exception ex)
             {

@@ -151,23 +151,40 @@ public sealed class DiagnosticLogWatcher : IAsyncDisposable
         };
     }
 
+    /// <summary>日志事件类型 AC 自动机 — 模式 → 事件类型,一次扫描命中所有关键词。</summary>
+    private static readonly AhoCorasick<string> LogEventTypeAc = AhoCorasick<string>.Create(
+        new[]
+        {
+            new KeyValuePair<string, string>("[LOOP]", "loop_detected"),
+            new KeyValuePair<string, string>("[PERM_DENIED]", "permission_denied"),
+            new KeyValuePair<string, string>("PermissionDenied", "permission_denied"),
+            new KeyValuePair<string, string>("[API_ERROR]", "api_error"),
+            new KeyValuePair<string, string>("ApiError", "api_error"),
+            new KeyValuePair<string, string>("[TOOL_ERROR]", "tool_error"),
+            new KeyValuePair<string, string>("ToolError", "tool_error"),
+            new KeyValuePair<string, string>("[HUNG]", "process_hung"),
+            new KeyValuePair<string, string>($"ExitCode={(int)ExitCode.AwaitTimeout}", "process_hung"),
+            new KeyValuePair<string, string>("[CTX_OVERFLOW]", "context_overflow"),
+            new KeyValuePair<string, string>("ContextOverflow", "context_overflow"),
+            new KeyValuePair<string, string>("[WIRE]", "diag_output"),
+            new KeyValuePair<string, string>("[STEP]", "diag_output"),
+        }, ignoreCase: true);
+
+    /// <summary>日志事件优先级 — 保持原有 if 顺序语义。</summary>
+    private static readonly string[] LogEventPriority =
+        ["loop_detected", "permission_denied", "api_error", "tool_error", "process_hung", "context_overflow", "diag_output"];
+
     private static string? DetectEventType(string line)
     {
-        if (line.Contains("[LOOP]", StringComparison.OrdinalIgnoreCase))
-            return "loop_detected";
-        if (line.Contains("[PERM_DENIED]", StringComparison.OrdinalIgnoreCase) || line.Contains("PermissionDenied", StringComparison.OrdinalIgnoreCase))
-            return "permission_denied";
-        if (line.Contains("[API_ERROR]", StringComparison.OrdinalIgnoreCase) || line.Contains("ApiError", StringComparison.OrdinalIgnoreCase))
-            return "api_error";
-        if (line.Contains("[TOOL_ERROR]", StringComparison.OrdinalIgnoreCase) || line.Contains("ToolError", StringComparison.OrdinalIgnoreCase))
-            return "tool_error";
-        if (line.Contains("[HUNG]", StringComparison.OrdinalIgnoreCase) || line.Contains($"ExitCode={(int)ExitCode.AwaitTimeout}", StringComparison.OrdinalIgnoreCase))
-            return "process_hung";
-        if (line.Contains("[CTX_OVERFLOW]", StringComparison.OrdinalIgnoreCase) || line.Contains("ContextOverflow", StringComparison.OrdinalIgnoreCase))
-            return "context_overflow";
-        if (line.Contains("[WIRE]", StringComparison.OrdinalIgnoreCase) || line.Contains("[STEP]", StringComparison.OrdinalIgnoreCase))
-            return "diag_output";
+        var matches = LogEventTypeAc.FindAll(line.AsSpan());
+        if (matches.Count == 0) return null;
 
+        var hitTypes = new HashSet<string>(matches.Select(static m => m.Value));
+        foreach (var eventType in LogEventPriority)
+        {
+            if (hitTypes.Contains(eventType))
+                return eventType;
+        }
         return null;
     }
 

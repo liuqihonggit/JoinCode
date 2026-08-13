@@ -6,7 +6,7 @@ namespace Core.Prompts.Sections;
 /// 用户委托模式 — 当用户表示离开/委托时注入，授权 Agent 自主决策不再追问
 /// 关键词触发：睡觉/离开/你看着办/不要问了/你直接做完/你全权负责
 /// </summary>
-[PromptSection(Name = "user_delegation", Keywords = new[] { "睡觉", "离开", "走了", "看着办", "不要问", "别问", "直接做", "全权", "不用等", "自己处理", "回来再", "先忙", "忙去了" }, InjectOn = PromptSectionInject.Keyword, Order = 83)]
+[PromptSection(Name = "user_delegation", Keywords = new[] { "睡觉", "离开", "走了", "看着办", "不要问", "别问", "直接做", "全权", "不用等", "自己处理", "回来再", "先忙", "忙去了", "sleep", "away", "you decide", "交给你", "你决定" }, InjectOn = PromptSectionInject.Keyword, Order = 83)]
 public static class UserDelegationSection
 {
     /// <summary>

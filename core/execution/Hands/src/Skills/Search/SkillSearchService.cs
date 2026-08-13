@@ -219,17 +219,14 @@ public sealed partial class SkillSearchService : ServiceEntity, ISkillSearchServ
 
     private static double CalculateContextRelevance(SkillDefinition skill, IReadOnlyList<string> contextKeywords)
     {
-        var score = 0.0;
         var skillText = $"{skill.Name} {skill.Description} {string.Join(" ", skill.Tags)}".ToLowerInvariant();
 
-        foreach (var keyword in contextKeywords)
-        {
-            if (skillText.Contains(keyword, StringComparison.OrdinalIgnoreCase))
-            {
-                score += 0.2;
-            }
-        }
+        var ac = AhoCorasick.Create(contextKeywords, ignoreCase: true);
+        var matchedKeywords = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var match in ac.FindAll(skillText.AsSpan()))
+            matchedKeywords.Add(match.Value);
 
+        var score = matchedKeywords.Count * 0.2;
         return Math.Min(1.0, score / Math.Max(1, contextKeywords.Count) * 2);
     }
 

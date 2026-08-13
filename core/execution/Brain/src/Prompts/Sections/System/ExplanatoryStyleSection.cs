@@ -5,7 +5,7 @@ namespace Core.Prompts.Sections;
 /// <summary>
 /// 输出样式：解释性模式
 /// </summary>
-[PromptSection(Name = "output_style_explanatory", Keywords = new[] { "解释", "explanatory", "教学", "educational" }, InjectOn = PromptSectionInject.Keyword, Order = 80)]
+[PromptSection(Name = "output_style_explanatory", Keywords = new[] { "解释", "explanatory", "教学", "educational", "说明", "详解", "讲解", "explain", "tutorial" }, InjectOn = PromptSectionInject.Keyword, Order = 80)]
 public static class ExplanatoryStyleSection
 {
     public static string GetContent()

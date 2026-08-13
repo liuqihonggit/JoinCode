@@ -423,21 +423,21 @@ public sealed partial class ContextCollapseService : ServiceEntity, IContextColl
         return ranges;
     }
 
+    private static readonly Regex[] KeyReferencePatterns =
+    [
+        new(@"class\s+(\w+)"),
+        new(@"interface\s+I(\w+)"),
+        new(@"(\w+)\s*\("),
+        new(@"using\s+([\w.]+)"),
+        new(@"namespace\s+([\w.]+)"),
+    ];
+
     private static IReadOnlyList<string> ExtractKeyReferences(string content)
     {
         var refs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var patterns = new[]
-        {
-            @"class\s+(\w+)",
-            @"interface\s+I(\w+)",
-            @"(\w+)\s*\(",
-            @"using\s+([\w.]+)",
-            @"namespace\s+([\w.]+)"
-        };
 
-        foreach (var pattern in patterns)
+        foreach (var regex in KeyReferencePatterns)
         {
-            var regex = new Regex(pattern);
             var matches = regex.Matches(content);
             foreach (Match match in matches)
             {

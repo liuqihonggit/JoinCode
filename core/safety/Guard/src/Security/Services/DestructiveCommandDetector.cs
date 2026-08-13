@@ -64,6 +64,24 @@ public sealed partial class DestructiveCommandDetector : ServiceEntity, IDestruc
         ["xcopy"] = CommandRisk.DataModification,
         ["robocopy"] = CommandRisk.DataModification,
         ["Copy-Item"] = CommandRisk.DataModification,
+
+        // 系统关机/重启
+        ["shutdown"] = CommandRisk.SystemModification,
+        ["reboot"] = CommandRisk.SystemModification,
+        ["halt"] = CommandRisk.SystemModification,
+
+        // 进程终止
+        ["kill"] = CommandRisk.DataModification,
+        ["killall"] = CommandRisk.DataModification,
+        ["taskkill"] = CommandRisk.DataModification,
+
+        // 服务/网络/计划任务管理
+        ["systemctl"] = CommandRisk.SystemModification,
+        ["iptables"] = CommandRisk.SystemModification,
+        ["sc"] = CommandRisk.SystemModification,
+        ["netsh"] = CommandRisk.SystemModification,
+        ["schtasks"] = CommandRisk.SystemModification,
+        ["crontab"] = CommandRisk.SystemModification,
     };
 
     // 危险参数模式
@@ -111,7 +129,21 @@ public sealed partial class DestructiveCommandDetector : ServiceEntity, IDestruc
         (new[] { "|", "sh" }, CommandRisk.RemoteExecution, "Piped to shell"),
         (new[] { "|", "bash" }, CommandRisk.RemoteExecution, "Piped to bash"),
         (new[] { "|", "powershell" }, CommandRisk.RemoteExecution, "Piped to PowerShell"),
+        (new[] { "git", "reset", "--hard" }, CommandRisk.DataModification, "Destructive git reset"),
+        (new[] { "git", "clean", "-f" }, CommandRisk.DataModification, "Force git clean"),
+        (new[] { "chmod", "777" }, CommandRisk.SystemModification, "World-writable permission"),
+        (new[] { "shutdown", "/s" }, CommandRisk.SystemModification, "System shutdown"),
+        (new[] { "taskkill", "/f" }, CommandRisk.DataModification, "Force kill process"),
+        (new[] { "kill", "-9" }, CommandRisk.DataModification, "Force kill process"),
     };
+
+    /// <summary>
+    /// AC 自动机 — 展平所有危险组合模式,一次扫描命中全部模式串。
+    /// 替代原来的 O(组合数 × 模式数 × 文本长度) Contains 遍历,降为 O(文本长度 + 组合数 × 模式数)。
+    /// </summary>
+    private static readonly AhoCorasick<string> CombinationPatternAc = AhoCorasick.Create(
+        DangerousCombinations.SelectMany(static c => c.LowerPatterns).Distinct(),
+        ignoreCase: false);
 
     public DestructiveCommandResult Detect(ShellCommand command)
     {
@@ -148,10 +180,13 @@ public sealed partial class DestructiveCommandDetector : ServiceEntity, IDestruc
             }
         }
 
-        // 3. 检查危险模式组合
+        // 3. 检查危险模式组合 — AC 自动机一次扫描命中所有模式,再检查组合
         var rawLower = command.RawCommand.ToLowerInvariant();
+        var hitPatterns = new HashSet<string>(
+            CombinationPatternAc.FindAll(rawLower.AsSpan()).Select(static m => m.Value),
+            StringComparer.Ordinal);
         var matchedCombos = DangerousCombinations
-            .Where(c => c.LowerPatterns.All(p => rawLower.Contains(p)))
+            .Where(c => c.LowerPatterns.All(p => hitPatterns.Contains(p)))
             .ToList();
         risks.AddRange(matchedCombos.Select(c => c.Risk).ToList());
         details.AddRange(matchedCombos.Select(c => $"Dangerous pattern: {c.Description}").ToList());

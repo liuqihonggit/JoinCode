@@ -4,7 +4,7 @@ namespace Core.Prompts.Sections;
 
 [PromptSection(
     Name = "performance_audit",
-    Keywords = new[] { "GC压力", "字符串GC", "性能优化", "性能问题", "零分配", "技术债", "LINQ链式", "字符串拼接", "AsParallel", "Task.WhenAll", "GC", "Span" },
+    Keywords = new[] { "GC压力", "字符串GC", "性能优化", "性能问题", "零分配", "技术债", "LINQ链式", "字符串拼接", "AsParallel", "Task.WhenAll", "GC", "Span", "性能瓶颈", "内存泄漏", "基准测试", "performance", "benchmark", "memory leak", "optimize" },
     InjectOn = PromptSectionInject.Keyword,
     Order = 60)]
 public static class PerformanceAuditSection

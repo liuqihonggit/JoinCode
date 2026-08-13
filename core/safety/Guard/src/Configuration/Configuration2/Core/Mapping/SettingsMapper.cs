@@ -79,13 +79,8 @@ public sealed partial class SettingsMapper : ServiceEntity
         if (!string.IsNullOrEmpty(envProtocol))
             config.Provider.Protocol = envProtocol;
 
-        var envModelId = Environment.GetEnvironmentVariable(JccEnvVar.ModelId.ToValue());
-        if (!string.IsNullOrEmpty(envModelId))
-            config.Provider.ModelId = envModelId;
-
-        var envEndpoint = Environment.GetEnvironmentVariable(JccEnvVar.Endpoint.ToValue());
-        if (!string.IsNullOrEmpty(envEndpoint))
-            config.Provider.Endpoint = envEndpoint;
+        // JCC_MODEL_ID / JCC_ENDPOINT / JCC_PROFILE 已由 EnvOverrideApplier 在 SettingsJson 层覆盖，
+        // ToWorkflowConfig 映射时已生效，此处不再重复处理
 
         var envOrgId = Environment.GetEnvironmentVariable(JccEnvVar.OrganizationId.ToValue());
         if (!string.IsNullOrEmpty(envOrgId))
@@ -95,12 +90,7 @@ public sealed partial class SettingsMapper : ServiceEntity
         if (!string.IsNullOrEmpty(envApiVersion))
             config.Provider.ApiVersion = envApiVersion;
 
-        // JCC_PROFILE 环境变量覆盖 currentProfile — 切换配置档案
-        var envProfile = Environment.GetEnvironmentVariable(JccEnvVar.Profile.ToValue());
-        if (!string.IsNullOrEmpty(envProfile))
-        {
-            config.CurrentProfile = envProfile;
-        }
+        // JCC_PROFILE 已由 EnvOverrideApplier 在 SettingsJson 层覆盖 CurrentProfile
 
         var envOAuth = Environment.GetEnvironmentVariable(JccEnvVar.EnableOAuth.ToValue());
         if (bool.TryParse(envOAuth, out var enableOAuth))

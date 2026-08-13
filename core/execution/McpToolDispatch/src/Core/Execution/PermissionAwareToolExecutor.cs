@@ -5,44 +5,34 @@ namespace McpToolRegistry;
 /// <summary>
 /// 权限感知的工具执行器 — 通过标准中间件管道执行工具调用
 /// 管道: 参数修复 → 必填参数校验 → Schema校验 → Agent限制 → 权限检查 → 远程策略 → FeatureFlag → 执行
+/// 权限模式统一从 IToolPermissionManager 获取，不再自行维护
 /// </summary>
 [Register(typeof(IToolExecutionGateway))]
 public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolExecutionGateway
 {
     private readonly IToolRegistry _toolRegistry;
     private readonly ITelemetryService? _telemetryService;
+    private readonly IToolPermissionManager _permissionManager;
     [Inject] private readonly ILogger<PermissionAwareToolExecutor> _logger;
     private readonly MiddlewarePipeline<ToolExecutionContext> _pipeline;
-    private PermissionMode _currentAgentMode = PermissionMode.Auto;
 
     /// <summary>
     /// 工具执行完成事件 — 无论成功或失败都会触发，用于遥测和诊断
     /// </summary>
     public event EventHandler<ToolExecutionCompletedEventArgs>? ToolExecutionCompleted;
 
-    public PermissionMode CurrentAgentMode
-    {
-        get => _currentAgentMode;
-        set => _currentAgentMode = value;
-    }
-
     public PermissionAwareToolExecutor(
         IToolRegistry toolRegistry,
         MiddlewarePipeline<ToolExecutionContext> pipeline,
+        IToolPermissionManager permissionManager,
         ITelemetryService? telemetryService = null,
         ILogger<PermissionAwareToolExecutor>? logger = null)
     {
         _toolRegistry = toolRegistry ?? throw new ArgumentNullException(nameof(toolRegistry));
         _pipeline = pipeline ?? throw new ArgumentNullException(nameof(pipeline));
+        _permissionManager = permissionManager ?? throw new ArgumentNullException(nameof(permissionManager));
         _telemetryService = telemetryService;
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        var envMode = Environment.GetEnvironmentVariable(JccEnvVar.PermissionMode.ToValue());
-        if (!string.IsNullOrWhiteSpace(envMode))
-        {
-            var parsed = PermissionModeExtensions.FromValue(envMode);
-            if (parsed is not null)
-                _currentAgentMode = parsed.Value;
-        }
     }
 
     /// <summary>
@@ -77,13 +67,15 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
         executionEntity.StartedAt = DateTime.UtcNow;
         span?.SetTag("entity.object_id", executionEntity.UniqueId);
 
+        var currentMode = await _permissionManager.GetCurrentModeAsync(cancellationToken).ConfigureAwait(false);
+
         var context = new ToolExecutionContext
         {
             ToolName = toolName,
             Arguments = arguments,
             Handler = handler,
             OnProgress = onProgress,
-            AgentMode = _currentAgentMode,
+            AgentMode = currentMode,
             Span = span,
             ExecutionEntity = executionEntity,
         };

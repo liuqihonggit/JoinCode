@@ -28,6 +28,7 @@ public class PermissionIntegrationTests : IAsyncDisposable
         _permissionExecutor = new PermissionAwareToolExecutor(
             _registryWithPermission,
             new MiddlewarePipeline<ToolExecutionContext>(BuildToolExecutionMiddlewares(_permissionManager)),
+            _permissionManager,
             logger: NullLogger<PermissionAwareToolExecutor>.Instance);
     }
 

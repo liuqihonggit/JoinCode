@@ -81,7 +81,6 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
     [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
     private readonly IClockService _clock;
     private readonly ITelemetryService? _telemetryService;
-    private readonly ICrashSnapshotStore? _crashStore;
     private readonly ConcurrentDictionary<string, WorkflowRunState> _activeWorkflows = new();
     private readonly SemaphoreSlim _stateLock = new(1, 1);
 
@@ -91,8 +90,7 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
         ILogger<WorkflowTaskExecutor>? logger = null,
         ITelemetryService? telemetryService = null,
         ISubAgentContextAccessor? subAgentContextAccessor = null,
-        IClockService? clock = null,
-        ICrashSnapshotStore? crashStore = null)
+        IClockService? clock = null)
     {
         _toolExecutionGateway = toolExecutionGateway;
         _agentLifecycleManager = agentLifecycleManager;
@@ -100,7 +98,6 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
         _telemetryService = telemetryService;
         _subAgentContextAccessor = subAgentContextAccessor ?? new SubAgentContextAccessor();
         _clock = clock ?? SystemClockService.Instance;
-        _crashStore = crashStore;
     }
 
     public async Task<WorkflowResult> ExecuteWorkflowAsync(WorkflowDefinition definition, CancellationToken ct = default)
@@ -326,12 +323,6 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
         catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
-            if (_crashStore is not null)
-            {
-                _crashStore.Add(new CrashSnapshot("WorkflowStep", CrashSeverity.Error, ex,
-                    new CrashExecutionContext { OperationName = step.Name, ToolName = step.ToolName }));
-            }
-
             var failedStatus = new StepStatus
             {
                 StepId = step.StepId,

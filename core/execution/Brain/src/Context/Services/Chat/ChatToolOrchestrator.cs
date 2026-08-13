@@ -41,7 +41,6 @@ public sealed partial class ChatToolOrchestrator : ServiceEntity, IChatToolOrche
     private readonly IToolExecutionGateway? _toolExecutionGateway;
     private readonly ICmdMap? _cmdMap;
     private readonly IServiceProvider? _serviceProvider;
-    private readonly ICrashSnapshotStore? _crashStore;
     [Inject] private readonly ILogger<ChatToolOrchestrator>? _logger;
 
     /// <summary>
@@ -52,14 +51,12 @@ public sealed partial class ChatToolOrchestrator : ServiceEntity, IChatToolOrche
         IToolExecutionGateway? toolExecutionGateway = null,
         ICmdMap? cmdMap = null,
         IServiceProvider? serviceProvider = null,
-        ICrashSnapshotStore? crashStore = null,
         ILogger<ChatToolOrchestrator>? logger = null)
     {
         _toolRegistry = toolRegistry;
         _toolExecutionGateway = toolExecutionGateway;
         _cmdMap = cmdMap;
         _serviceProvider = serviceProvider;
-        _crashStore = crashStore;
         _logger = logger;
     }
 
@@ -234,17 +231,6 @@ public sealed partial class ChatToolOrchestrator : ServiceEntity, IChatToolOrche
 
             _logger?.LogError(ex, "[ChatToolOrchestrator] 工具调用失败: {ToolName}", toolCallName);
             Diag.WriteError($"[ChatToolOrchestrator] Tool={toolCallName}", ex);
-
-            if (_crashStore is not null)
-            {
-                var crashCtx = new CrashExecutionContext
-                {
-                    ToolName = toolCallName,
-                    OperationName = "ExecuteToolCall",
-                };
-                _crashStore.Add(new CrashSnapshot("ChatToolOrchestrator", CrashSeverity.Error, ex, crashCtx));
-            }
-
             return new ToolCallResult { ResultText = FormatToolError($"工具调用失败: {ex.Message}"), IsError = true };
         }
     }

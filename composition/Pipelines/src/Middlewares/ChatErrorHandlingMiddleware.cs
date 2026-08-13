@@ -8,12 +8,10 @@ namespace JoinCode.Pipelines.Middlewares;
 internal sealed partial class ChatErrorHandlingMiddleware : ServiceEntity, Core.Context.IChatMiddleware
 {
     private readonly ILogger<ChatErrorHandlingMiddleware> _logger;
-    private readonly ICrashSnapshotStore? _crashStore;
 
-    public ChatErrorHandlingMiddleware(ILogger<ChatErrorHandlingMiddleware> logger, ICrashSnapshotStore? crashStore = null)
+    public ChatErrorHandlingMiddleware(ILogger<ChatErrorHandlingMiddleware> logger)
     {
         _logger = logger;
-        _crashStore = crashStore;
     }
 
     public async IAsyncEnumerable<JoinCode.Abstractions.LLM.Chat.ChatStreamEvent> InvokeAsync(
@@ -60,20 +58,6 @@ internal sealed partial class ChatErrorHandlingMiddleware : ServiceEntity, Core.
             _logger.LogError(error, "[ChatErrorHandling] 管道异常: Turn={Turn}, DryRun={DryRun}, Code={Code}",
                 context.ConversationTurn, context.IsDryRun, errorCode);
             Diag.WriteError($"[ChatErrorHandling] Turn={context.ConversationTurn}, DryRun={context.IsDryRun}, Code={errorCode}", error);
-
-            if (_crashStore is not null)
-            {
-                _crashStore.Add(new CrashSnapshot(
-                    "ChatErrorHandling",
-                    CrashSeverity.Error,
-                    error,
-                    new CrashExecutionContext
-                    {
-                        OperationName = "ChatPipeline",
-                        TurnIndex = context.ConversationTurn,
-                    }));
-            }
-
             throw classified;
         }
     }

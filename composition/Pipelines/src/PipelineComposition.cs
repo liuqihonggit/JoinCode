@@ -34,6 +34,7 @@ public static class PipelineComposition
             new StreamPipelineBuilder<ChatMiddlewareContext, ChatStreamEvent>()
                 .WithLoggingScope(sp.GetRequiredService<ILoggerFactory>())
                 .Use(new FixedStreamRateLimitMiddleware<ChatMiddlewareContext, ChatStreamEvent>(30, TimeSpan.FromSeconds(60)))
+                .Use(sp.GetRequiredService<StreamCrashSnapshotMiddleware>())
                 .Use(sp.GetRequiredService<ChatTimingMiddleware>())
                 .Use(sp.GetRequiredService<ChatErrorHandlingMiddleware>())
                 .Use(sp.GetRequiredService<AuditLogMiddleware>())

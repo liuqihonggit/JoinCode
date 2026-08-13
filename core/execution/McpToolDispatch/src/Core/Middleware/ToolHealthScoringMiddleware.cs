@@ -10,19 +10,16 @@ public sealed partial class ToolHealthScoringMiddleware : ServiceEntity, IToolEx
 {
     private readonly ToolHealthMonitor _monitor;
     private readonly ToolHypergraphScorer _scorer;
-    private readonly ICrashSnapshotStore? _crashStore;
     private readonly ILogger<ToolHealthScoringMiddleware> _logger;
 
     public ToolHealthScoringMiddleware(
         ToolHealthMonitor monitor,
         ToolHypergraphScorer scorer,
-        ILogger<ToolHealthScoringMiddleware> logger,
-        ICrashSnapshotStore? crashStore = null)
+        ILogger<ToolHealthScoringMiddleware> logger)
     {
         _monitor = monitor;
         _scorer = scorer;
         _logger = logger;
-        _crashStore = crashStore;
     }
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;
@@ -70,13 +67,6 @@ public sealed partial class ToolHealthScoringMiddleware : ServiceEntity, IToolEx
             var effectiveScore = _scorer.CalculateFinalScore(context.ToolName, recordBefore?.Score ?? 0);
             _logger.LogWarning("工具 {ToolName} 连续失败{Count}次（评分{EffectiveScore}），注入提示词",
                 context.ToolName, consecutiveFailuresBefore, effectiveScore);
-
-            if (_crashStore is not null)
-            {
-                _crashStore.Add(new CrashSnapshot("ToolHealthWarning", CrashSeverity.Warning,
-                    new InvalidOperationException($"工具 '{context.ToolName}' 连续失败 {consecutiveFailuresBefore} 次"),
-                    new CrashExecutionContext { ToolName = context.ToolName, OperationName = "ToolHealthScoring" }));
-            }
 
             var warning = new JoinCode.Abstractions.LLM.Chat.ApiMessage(
                 JoinCode.Abstractions.LLM.Chat.MessageRole.User,

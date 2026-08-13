@@ -1,0 +1,74 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             xmlns:vm="using:JoinCode.Gui.ViewModels"
+             x:Class="JoinCode.Gui.Views.InputBarView"
+             x:DataType="vm:MainViewModel">
+  <Border Padding="10" Background="{DynamicResource GuiInputBarBackground}" ClipToBounds="True">
+    <StackPanel Spacing="6">
+      <Grid ColumnDefinitions="*,Auto,Auto">
+        <TextBox x:Name="InputTextBox" Text="{Binding InputText}" Watermark="输入消息，Enter 发送 / Shift+Enter 换行…"
+                 IsEnabled="{Binding !IsBusy}" AcceptsReturn="True" MaxLines="5"
+                 TextWrapping="Wrap" />
+        <TextBlock Grid.Column="1" Foreground="{Binding IsInputTooLong, Converter={StaticResource BoolToWarnBrush}}"
+                   FontSize="11" VerticalAlignment="Bottom" Margin="8,0"
+                   ToolTip.Tip="{Binding MaxInputChars, StringFormat='{}建议上限 {0} 字符'}">
+          <TextBlock.Text>
+            <MultiBinding StringFormat="{} {0} / {1}">
+              <Binding Path="CharsCount" />
+              <Binding Path="MaxInputChars" />
+            </MultiBinding>
+          </TextBlock.Text>
+        </TextBlock>
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4">
+          <Button Content="停止" Command="{Binding StopGeneratingCommand}" IsVisible="{Binding CanStop}" />
+          <Button Content="发送" Command="{Binding SendCommand}" IsEnabled="{Binding !IsBusy}" />
+        </StackPanel>
+      </Grid>
+
+      <Popup x:Name="SlashPopup"
+             PlacementTarget="{Binding ElementName=InputTextBox}"
+             Placement="Top" IsOpen="{Binding IsSlashPopupOpen}"
+             VerticalOffset="0" IsLightDismissEnabled="True">
+        <Border x:Name="SlashPopupBorder" MinWidth="300" MaxHeight="340" CornerRadius="6" Padding="2"
+                Background="{DynamicResource GuiWindowBackground}"
+                BoxShadow="{DynamicResource GuiPopupShadow}" ClipToBounds="True">
+          <ListBox x:Name="SlashListBox"
+                   ItemsSource="{Binding SlashSuggestions}"
+                   SelectedIndex="{Binding SlashSelectedIndex}"
+                   Background="Transparent" Padding="1"
+                   ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                   ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                   Grid.IsSharedSizeScope="True">
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="vm:SlashCommandItem">
+                <Grid Margin="8,1">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="CmdNameCol" />
+                    <ColumnDefinition Width="*" />
+                  </Grid.ColumnDefinitions>
+                  <StackPanel Orientation="Horizontal" Spacing="0" Grid.Column="0">
+                    <TextBlock Text="{Binding MatchedPart}" FontFamily="{DynamicResource GuiMonoFont}" FontSize="13" FontWeight="Bold"
+                               Foreground="{DynamicResource GuiSlashMatched}" />
+                    <TextBlock Text="{Binding RemainingPart}" FontFamily="{DynamicResource GuiMonoFont}" FontSize="13"
+                               Foreground="{DynamicResource GuiSecondaryText}" />
+                  </StackPanel>
+                  <TextBlock Grid.Column="1" Text="{Binding Description}" FontSize="11"
+                             Foreground="{DynamicResource GuiMutedText}"
+                             TextTrimming="CharacterEllipsis" Margin="12,0,0,0"
+                             ToolTip.Tip="{Binding Usage}" />
+                </Grid>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </Border>
+      </Popup>
+      <StackPanel Orientation="Horizontal" Spacing="4">
+        <Button Content="─ 分隔线" Command="{Binding InsertDividerCommand}" FontSize="11" Padding="8,3" />
+        <Button Content="⏱ 时间戳" Command="{Binding InsertTimestampCommand}" FontSize="11" Padding="8,3" />
+      </StackPanel>
+    </StackPanel>
+  </Border>
+</UserControl>

@@ -2,6 +2,7 @@ using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
+using Avalonia.VisualTree;
 using JoinCode.Abstractions.LLM;
 using JoinCode.Abstractions.LLM.Chat;
 using JoinCode.Abstractions.Interfaces;
@@ -54,7 +55,7 @@ public sealed class MainWindowRegressionTests
         Avalonia.Threading.Dispatcher.UIThread.RunJobs();
 
         vm.InputText = "enter-test";
-        var input = win.FindControl<TextBox>("InputTextBox")!;
+        var input = win.GetVisualDescendants().OfType<TextBox>().First(t => t.Name == "InputTextBox");
         input.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Enter });
         Avalonia.Threading.Dispatcher.UIThread.RunJobs();
 
@@ -70,7 +71,7 @@ public sealed class MainWindowRegressionTests
         Avalonia.Threading.Dispatcher.UIThread.RunJobs();
 
         vm.InputText = "abc";
-        var input = win.FindControl<TextBox>("InputTextBox")!;
+        var input = win.GetVisualDescendants().OfType<TextBox>().First(t => t.Name == "InputTextBox");
         input.CaretIndex = 1;
         input.RaiseEvent(new KeyEventArgs
         {

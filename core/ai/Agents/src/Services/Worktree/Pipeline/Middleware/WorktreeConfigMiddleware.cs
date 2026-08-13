@@ -265,14 +265,17 @@ public sealed partial class WorktreeConfigMiddleware : ServiceEntity, IWorktreeC
         }
     }
 
+    private static readonly ConcurrentDictionary<string, Regex> WorktreePatternCache = new(StringComparer.Ordinal);
+
     private static bool MatchesWorktreeIncludePattern(string filePath, string pattern)
     {
         if (pattern.Contains('*'))
         {
             var regexStr = "^" + Regex.Escape(pattern).Replace("\\*\\*", ".*").Replace("\\*", "[^/]*") + "$";
+            var regex = WorktreePatternCache.GetOrAdd(regexStr, static r => new Regex(r, RegexOptions.IgnoreCase | RegexOptions.Compiled));
             try
             {
-                return Regex.IsMatch(filePath, regexStr, RegexOptions.IgnoreCase);
+                return regex.IsMatch(filePath);
             }
             catch
             {

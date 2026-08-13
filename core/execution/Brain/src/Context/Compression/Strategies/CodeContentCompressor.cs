@@ -13,6 +13,30 @@ public sealed partial class CodeContentCompressor : CompressionStrategyBase
 
     private static readonly FrozenSet<ContentType> _supportedTypes = FrozenSet.Create(ContentType.Code);
 
+    private static readonly Regex[] TypePatternRegexes =
+    [
+        new(@"^\s*(public|private|protected|internal|static|abstract|sealed|partial)?\s*(class|interface|struct|record)\s+\w+", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+        new(@"^\s*(export\s+)?(class|interface|type)\s+\w+", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+        new(@"^\s*@?interface\s+\w+", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+    ];
+
+    private static readonly Regex EnumDefinitionRegex =
+        new(@"^\s*(public|private|protected|internal)?\s*enum\s+\w+", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    private static readonly Regex ConstantDefinitionRegex =
+        new(@"^\s*(public|private|protected|internal|const|readonly|static\s+readonly|final)\s+\w+", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    private static readonly Regex[] MethodPatternRegexes =
+    [
+        new(@"^\s*(public|private|protected|internal|static|virtual|abstract|override|async)?\s*\w+\s+\w+\s*\([^)]*\)\s*\{", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+        new(@"^\s*(public|private|protected|internal|static|virtual|abstract|override|async)?\s*\w+\s+\w+\s*\([^)]*\)\s*$", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+        new(@"^\s*(public|private|protected|internal|static|virtual|abstract|override)?\s*\w+\s+\w+\s*\{", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+        new(@"^\s*(function|def|async\s+def)\s+\w+\s*\(", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+        new(@"^\s*\w+\s+\w+\s*\([^)]*\)\s*\{", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+        new(@"^\s*\w+\s+\w+\s*\([^)]*\)\s*$", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+        new(@"^\s*(get|set|async)\s+\w+\s*\(", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+    ];
+
     public override IReadOnlySet<ContentType> SupportedContentTypes => _supportedTypes;
 
     public override Task<string> CompressAsync(
@@ -251,27 +275,17 @@ public sealed partial class CodeContentCompressor : CompressionStrategyBase
 
     private static bool IsTypeDefinition(string line)
     {
-        var typePatterns = new[]
-        {
-            @"^\s*(public|private|protected|internal|static|abstract|sealed|partial)?\s*(class|interface|struct|record)\s+\w+",
-            @"^\s*(export\s+)?(class|interface|type)\s+\w+",
-            @"^\s*@?interface\s+\w+"
-        };
-
-        return typePatterns.Any(pattern =>
-            Regex.IsMatch(line, pattern, RegexOptions.IgnoreCase));
+        return TypePatternRegexes.Any(regex => regex.IsMatch(line));
     }
 
     private static bool IsEnumDefinition(string line)
     {
-        return Regex.IsMatch(line, @"^\s*(public|private|protected|internal)?\s*enum\s+\w+",
-            RegexOptions.IgnoreCase);
+        return EnumDefinitionRegex.IsMatch(line);
     }
 
     private static bool IsConstantDefinition(string line)
     {
-        return Regex.IsMatch(line, @"^\s*(public|private|protected|internal|const|readonly|static\s+readonly|final)\s+\w+",
-            RegexOptions.IgnoreCase) ||
+        return ConstantDefinitionRegex.IsMatch(line) ||
                line.Contains("=", StringComparison.Ordinal) &&
                (line.Contains("const", StringComparison.OrdinalIgnoreCase) ||
                 line.Contains("readonly", StringComparison.OrdinalIgnoreCase));
@@ -279,25 +293,7 @@ public sealed partial class CodeContentCompressor : CompressionStrategyBase
 
     private static bool IsMethodOrPropertySignature(string line)
     {
-        var methodPatterns = new[]
-        {
-            // C# style: public void Method() {
-            @"^\s*(public|private|protected|internal|static|virtual|abstract|override|async)?\s*\w+\s+\w+\s*\([^)]*\)\s*\{",
-            // C# style: public void Method()
-            @"^\s*(public|private|protected|internal|static|virtual|abstract|override|async)?\s*\w+\s+\w+\s*\([^)]*\)\s*$",
-            // C# property: public string Name {
-            @"^\s*(public|private|protected|internal|static|virtual|abstract|override)?\s*\w+\s+\w+\s*\{",
-            // JavaScript/Python style
-            @"^\s*(function|def|async\s+def)\s+\w+\s*\(",
-            // Simple method detection
-            @"^\s*\w+\s+\w+\s*\([^)]*\)\s*\{",
-            @"^\s*\w+\s+\w+\s*\([^)]*\)\s*$",
-            // Getter/Setter
-            @"^\s*(get|set|async)\s+\w+\s*\("
-        };
-
-        return methodPatterns.Any(pattern =>
-            Regex.IsMatch(line, pattern, RegexOptions.IgnoreCase));
+        return MethodPatternRegexes.Any(regex => regex.IsMatch(line));
     }
 
     private static bool IsExpressionBodiedMember(string line)

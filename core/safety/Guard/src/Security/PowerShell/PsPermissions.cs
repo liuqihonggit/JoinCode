@@ -2,6 +2,7 @@ namespace JoinCode.Guard.Security.PowerShell;
 
 public static partial class PsPermissions
 {
+    private static readonly ConcurrentDictionary<string, Regex> PrefixPatternCache = new(StringComparer.Ordinal);
     public static PsSecurityResult CheckPermission(
         string command,
         string workingDirectory,
@@ -321,15 +322,16 @@ public static partial class PsPermissions
             // 通配符匹配（简单 * 匹配）
             if (ruleLower.Contains('*'))
             {
-                var pattern = "^" + System.Text.RegularExpressions.Regex.Escape(ruleLower).Replace("\\*", ".*") + "$";
+                var pattern = "^" + Regex.Escape(ruleLower).Replace("\\*", ".*") + "$";
                 try
                 {
-                    if (System.Text.RegularExpressions.Regex.IsMatch(cmdLower, pattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+                    var regex = PrefixPatternCache.GetOrAdd(pattern, static p => new Regex(p, RegexOptions.IgnoreCase | RegexOptions.Compiled));
+                    if (regex.IsMatch(cmdLower))
                     {
                         return rule;
                     }
                 }
-                catch (System.Text.RegularExpressions.RegexParseException ex)
+                catch (RegexParseException ex)
                 {
                     // 无效模式，跳过
                     logger?.LogWarning(ex, "Invalid regex pattern '{Pattern}' for rule '{Rule}'", pattern, ruleLower);

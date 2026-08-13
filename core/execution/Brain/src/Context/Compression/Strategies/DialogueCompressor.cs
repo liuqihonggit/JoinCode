@@ -16,6 +16,48 @@ public sealed partial class DialogueCompressor : CompressionStrategyBase
         ContentType.Dialogue
     };
 
+    private static readonly Regex[] MessagePatterns =
+    [
+        new(@"(User|Assistant|System|Human|AI|Bot):\s*", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+        new(@"<(user|assistant|system|human|ai|bot)>", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+        new(@"\[?(User|Assistant|System|Human|AI|Bot)\]?:?\s*", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+        new(@"^\s*(>{1,3})\s*", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+    ];
+
+    private static readonly Regex[] UserMessagePatterns =
+    [
+        new(@"^(User|Human):\s*", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+        new(@"^<(user|human)>", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+        new(@"^\[?(User|Human)\]?:?\s*", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+    ];
+
+    private static readonly Regex[] DecisionPatterns =
+    [
+        new(@"(?i)(决定|decided?|decision)\s*[:：]\s*(.+?)(?:\n|$)", RegexOptions.Compiled),
+        new(@"(?i)(选择|chose|choice|selected?)\s*[:：]\s*(.+?)(?:\n|$)", RegexOptions.Compiled),
+        new(@"(?i)(同意|agreed?|approved?)\s*[:：]\s*(.+?)(?:\n|$)", RegexOptions.Compiled),
+        new(@"(?i)(确认|confirmed?)\s*[:：]\s*(.+?)(?:\n|$)", RegexOptions.Compiled),
+        new(@"(?i)(结论|conclusion)\s*[:：]\s*(.+?)(?:\n|$)", RegexOptions.Compiled),
+        new(@"(?i)(方案|solution|plan)\s*[:：]\s*(.+?)(?:\n|$)", RegexOptions.Compiled),
+    ];
+
+    private static readonly Regex[] TopicPatterns =
+    [
+        new(@"(?i)(关于|regarding|about|topic|主题)\s*[:：]\s*(.+?)(?:\n|$)", RegexOptions.Compiled),
+        new(@"(?i)(讨论|discussing?)\s*(.+?)(?:\n|$)", RegexOptions.Compiled),
+        new(@"(?i)(问题|issue|problem|question)\s*[:：]\s*(.+?)(?:\n|$)", RegexOptions.Compiled),
+    ];
+
+    private static readonly Regex[] ActionPatterns =
+    [
+        new(@"(?i)(创建|created?|create)\s+(.+?)(?:\n|$)", RegexOptions.Compiled),
+        new(@"(?i)(修改|modified?|updated?|changed?)\s+(.+?)(?:\n|$)", RegexOptions.Compiled),
+        new(@"(?i)(删除|deleted?|removed?)\s+(.+?)(?:\n|$)", RegexOptions.Compiled),
+        new(@"(?i)(添加|added?)\s+(.+?)(?:\n|$)", RegexOptions.Compiled),
+        new(@"(?i)(实现|implemented?)\s+(.+?)(?:\n|$)", RegexOptions.Compiled),
+        new(@"(?i)(修复|fixed?)\s+(.+?)(?:\n|$)", RegexOptions.Compiled),
+    ];
+
     public override IReadOnlySet<ContentType> SupportedContentTypes => _supportedTypes;
 
     public override Task<string> CompressAsync(
@@ -120,13 +162,6 @@ public sealed partial class DialogueCompressor : CompressionStrategyBase
     private static List<string> ParseMessages(string content)
     {
         var messages = new List<string>();
-        var messagePatterns = new[]
-        {
-            @"(User|Assistant|System|Human|AI|Bot):\s*",
-            @"<(user|assistant|system|human|ai|bot)>",
-            @"\[?(User|Assistant|System|Human|AI|Bot)\]?:?\s*",
-            @"^\s*(>{1,3})\s*"
-        };
 
         var currentMessage = new StringBuilder();
         var lines = content.Split(["\r\n", "\n", "\r"], StringSplitOptions.None);
@@ -134,9 +169,9 @@ public sealed partial class DialogueCompressor : CompressionStrategyBase
         foreach (var line in lines)
         {
             var isNewMessage = false;
-            foreach (var pattern in messagePatterns)
+            foreach (var regex in MessagePatterns)
             {
-                if (Regex.IsMatch(line, pattern, RegexOptions.IgnoreCase))
+                if (regex.IsMatch(line))
                 {
                     isNewMessage = true;
                     break;
@@ -168,20 +203,14 @@ public sealed partial class DialogueCompressor : CompressionStrategyBase
     private static List<DialogueRound> GroupIntoRounds(List<string> messages)
     {
         var rounds = new List<DialogueRound>();
-        var userMessagePatterns = new[]
-        {
-            @"^(User|Human):\s*",
-            @"^<(user|human)>",
-            @"^\[?(User|Human)\]?:?\s*"
-        };
 
         DialogueRound? currentRound = null;
         foreach (var message in messages)
         {
             var isUserMessage = false;
-            foreach (var pattern in userMessagePatterns)
+            foreach (var regex in UserMessagePatterns)
             {
-                if (Regex.IsMatch(message, pattern, RegexOptions.IgnoreCase))
+                if (regex.IsMatch(message))
                 {
                     isUserMessage = true;
                     break;
@@ -250,21 +279,12 @@ public sealed partial class DialogueCompressor : CompressionStrategyBase
     private static List<string> ExtractKeyDecisions(List<string> messages)
     {
         var decisions = new List<string>();
-        var decisionPatterns = new[]
-        {
-            @"(?i)(决定|decided?|decision)\s*[:：]\s*(.+?)(?:\n|$)",
-            @"(?i)(选择|chose|choice|selected?)\s*[:：]\s*(.+?)(?:\n|$)",
-            @"(?i)(同意|agreed?|approved?)\s*[:：]\s*(.+?)(?:\n|$)",
-            @"(?i)(确认|confirmed?)\s*[:：]\s*(.+?)(?:\n|$)",
-            @"(?i)(结论|conclusion)\s*[:：]\s*(.+?)(?:\n|$)",
-            @"(?i)(方案|solution|plan)\s*[:：]\s*(.+?)(?:\n|$)"
-        };
 
         foreach (var message in messages)
         {
-            foreach (var pattern in decisionPatterns)
+            foreach (var regex in DecisionPatterns)
             {
-                var matches = Regex.Matches(message, pattern);
+                var matches = regex.Matches(message);
                 foreach (Match match in matches)
                 {
                     if (match.Groups.Count > 1)
@@ -285,18 +305,12 @@ public sealed partial class DialogueCompressor : CompressionStrategyBase
     private static List<string> ExtractTopics(List<string> messages)
     {
         var topics = new List<string>();
-        var topicPatterns = new[]
-        {
-            @"(?i)(关于|regarding|about|topic|主题)\s*[:：]\s*(.+?)(?:\n|$)",
-            @"(?i)(讨论|discussing?)\s*(.+?)(?:\n|$)",
-            @"(?i)(问题|issue|problem|question)\s*[:：]\s*(.+?)(?:\n|$)"
-        };
 
         foreach (var message in messages)
         {
-            foreach (var pattern in topicPatterns)
+            foreach (var regex in TopicPatterns)
             {
-                var match = Regex.Match(message, pattern);
+                var match = regex.Match(message);
                 if (match.Success && match.Groups.Count > 1)
                 {
                     var topic = match.Groups[match.Groups.Count - 1].Value.Trim();
@@ -314,21 +328,12 @@ public sealed partial class DialogueCompressor : CompressionStrategyBase
     private static List<string> ExtractActions(List<string> messages)
     {
         var actions = new List<string>();
-        var actionPatterns = new[]
-        {
-            @"(?i)(创建|created?|create)\s+(.+?)(?:\n|$)",
-            @"(?i)(修改|modified?|updated?|changed?)\s+(.+?)(?:\n|$)",
-            @"(?i)(删除|deleted?|removed?)\s+(.+?)(?:\n|$)",
-            @"(?i)(添加|added?)\s+(.+?)(?:\n|$)",
-            @"(?i)(实现|implemented?)\s+(.+?)(?:\n|$)",
-            @"(?i)(修复|fixed?)\s+(.+?)(?:\n|$)"
-        };
 
         foreach (var message in messages)
         {
-            foreach (var pattern in actionPatterns)
+            foreach (var regex in ActionPatterns)
             {
-                var matches = Regex.Matches(message, pattern);
+                var matches = regex.Matches(message);
                 foreach (Match match in matches)
                 {
                     if (match.Groups.Count > 1)

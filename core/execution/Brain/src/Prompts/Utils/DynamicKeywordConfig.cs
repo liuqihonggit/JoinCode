@@ -77,13 +77,20 @@ public static class InputTokenizer
 
         if (hasMultiWordKeywords)
         {
+            var multiWordKws = new List<string>();
             foreach (var kw in dictionary)
             {
-                if (!ContainsSeparator(kw.AsSpan()))
-                    continue;
+                if (ContainsSeparator(kw.AsSpan()))
+                    multiWordKws.Add(kw);
+            }
 
-                if (input.Contains(kw, StringComparison.OrdinalIgnoreCase))
-                    tokens.Add(kw);
+            if (multiWordKws.Count > 0)
+            {
+                var ac = AhoCorasick.Create(multiWordKws, ignoreCase: true);
+                var matched = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var match in ac.FindAll(input.AsSpan()))
+                    matched.Add(match.Value);
+                tokens.AddRange(matched);
             }
         }
 

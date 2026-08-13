@@ -4,7 +4,7 @@ namespace Core.Prompts.Sections;
 
 [PromptSection(
     Name = "consolidation",
-    Keywords = new[] { "归纳", "合并", "整理", "整合", "统一", "合并到", "归类", "收拢" },
+    Keywords = new[] { "归纳", "合并", "整理", "整合", "统一", "合并到", "归类", "收拢", "consolidate", "merge", "unify", "integrate" },
     InjectOn = PromptSectionInject.Keyword,
     Order = 63)]
 public static class ConsolidationSection

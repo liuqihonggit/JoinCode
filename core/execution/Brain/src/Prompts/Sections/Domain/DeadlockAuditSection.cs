@@ -4,7 +4,7 @@ namespace Core.Prompts.Sections;
 
 [PromptSection(
     Name = "deadlock_audit",
-    Keywords = new[] { "死锁", "卡死", "卡住了", "竞态条件", "分片锁", "锁排序", "并发安全", "flaky test" },
+    Keywords = new[] { "死锁", "卡死", "卡住了", "竞态条件", "分片锁", "锁排序", "并发安全", "flaky test", "线程安全", "互斥锁", "阻塞", "deadlock", "thread safety", "race condition", "concurrent" },
     InjectOn = PromptSectionInject.Keyword,
     Order = 61)]
 public static class DeadlockAuditSection

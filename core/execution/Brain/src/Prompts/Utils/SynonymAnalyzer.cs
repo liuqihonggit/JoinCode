@@ -17,24 +17,26 @@ public static class SynonymAnalyzer
             return [];
         }
 
-        var results = new List<SynonymMatchResult>();
-        var lowerInput = input.ToLowerInvariant();
+        var ac = AhoCorasick<string>.Create(
+            synonymMap.Entries
+                .Where(static kv => !string.IsNullOrEmpty(kv.Key))
+                .Select(static kv => new KeyValuePair<string, string>(kv.Key, kv.Value)),
+            ignoreCase: true);
 
-        foreach (var (key, supplementaryContent) in synonymMap.Entries)
+        var matches = ac.FindAll(input.AsSpan());
+        if (matches.Count == 0)
         {
-            if (string.IsNullOrEmpty(key))
-            {
-                continue;
-            }
+            return [];
+        }
 
-            if (lowerInput.Contains(key.ToLowerInvariant(), StringComparison.OrdinalIgnoreCase))
+        var results = new List<SynonymMatchResult>(matches.Count);
+        foreach (var m in matches)
+        {
+            results.Add(new SynonymMatchResult
             {
-                results.Add(new SynonymMatchResult
-                {
-                    MatchedKey = key,
-                    SupplementaryContent = supplementaryContent
-                });
-            }
+                MatchedKey = input.AsSpan().Slice(m.StartIndex, m.Length).ToString(),
+                SupplementaryContent = m.Value
+            });
         }
 
         return results;

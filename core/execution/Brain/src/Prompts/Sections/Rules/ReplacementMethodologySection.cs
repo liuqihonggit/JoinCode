@@ -4,7 +4,7 @@ namespace Core.Prompts.Sections;
 
 [PromptSection(
     Name = "replacement_methodology",
-    Keywords = new[] { "替换", "批量替换", "全局命名空间", "using迁移", "AST替换", "机械化替换" },
+    Keywords = new[] { "替换", "批量替换", "全局命名空间", "using迁移", "AST替换", "机械化替换", "全局替换", "replace", "batch replace" },
     InjectOn = PromptSectionInject.Keyword,
     Order = 62)]
 public static class ReplacementMethodologySection

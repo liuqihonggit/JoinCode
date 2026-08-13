@@ -16,6 +16,14 @@ internal static class NonInteractiveModeRunner
             FileSystem = IO.FileSystem.FileSystemFactory.Create()
         };
 
+        // JSON 输出模式: 非交互模式下 --json 生效，注册 CliOutputContract 到上下文
+        if (options.IsJsonMode)
+        {
+            var jsonContext = Cli.Output.CliOutputJsonContext.Default;
+            context.OutputContract = new Cli.Output.CliOutputContract(jsonMode: true, jsonContext: jsonContext);
+            Diag.WriteLine("[RUN] JSON output mode enabled (--json or --format json)");
+        }
+
         var sp = host.Services;
         var pipeline = new PipelineBuilder<StartupContext>()
             .Use(sp.GetRequiredService<StartupLoggingMiddleware>())
@@ -29,7 +37,18 @@ internal static class NonInteractiveModeRunner
             .OnError((ctx, ex) =>
             {
                 Diag.WriteLine($"[RUN] OnError: {ex.GetType().Name}: {ex.Message}");
-                Cli.TerminalHelper.WriteLine($"错误: {ex.Message}");
+                if (ctx.OutputContract is not null)
+                {
+                    var error = new Cli.Output.CliStructuredError(
+                        "RUNTIME_ERROR", ex.Message,
+                        hint: "请检查错误日志获取详细信息",
+                        retryable: false);
+                    ctx.OutputContract.WriteError(error);
+                }
+                else
+                {
+                    Cli.TerminalHelper.WriteLine($"错误: {ex.Message}");
+                }
                 ctx.ExitCode = (int)ExitCode.GeneralError;
             })
             .Build();
@@ -37,6 +56,21 @@ internal static class NonInteractiveModeRunner
         Diag.WriteLine("[RUN] pipeline built, executing...");
         await pipeline.ExecuteAsync(context, CancellationToken.None);
         Diag.WriteLine($"[RUN] pipeline done, exitCode={context.ExitCode}");
+
+        // JSON 模式: 输出最终结果信封
+        if (options.IsJsonMode && context.OutputContract is not null)
+        {
+            var result = new
+            {
+                exitCode = context.ExitCode,
+                response = context.FullResponse ?? string.Empty,
+            };
+            context.OutputContract.WriteData(result, new Cli.Output.CliOutputMeta
+            {
+                DurationMs = context.ElapsedMs,
+            });
+        }
+
         return context.ExitCode;
     }
 }

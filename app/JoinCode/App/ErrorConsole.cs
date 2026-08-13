@@ -76,6 +76,35 @@ public static class ErrorConsole
         }
     }
 
+    /// <summary>
+    /// 渲染结构化错误 — 对齐架构指南4字段规范(code/message/hint/retryable)
+    /// </summary>
+    public static void StructuredError(Cli.Output.CliStructuredError error)
+    {
+        lock (Lock)
+        {
+            Err();
+            Colored($"  ✖ [{error.Code}]", System.ConsoleColor.Red);
+            Err($"  {error.Message}");
+
+            if (!string.IsNullOrEmpty(error.Hint))
+            {
+                Err();
+                Colored("  💡 ", System.ConsoleColor.Cyan);
+                Err(error.Hint);
+            }
+
+            if (error.Retryable)
+            {
+                Err();
+                Colored("  ↻ ", System.ConsoleColor.DarkGray);
+                Err("此错误可重试");
+            }
+
+            Err();
+        }
+    }
+
     private static void Err(string? text = null)
     {
         if (text is null) TerminalHelper.WriteError();
@@ -84,6 +113,11 @@ public static class ErrorConsole
 
     private static void Colored(string text, System.ConsoleColor color)
     {
+        if (TerminalHelper.NoColor)
+        {
+            TerminalHelper.WriteErrorRaw(text);
+            return;
+        }
         var prev = TerminalHelper.ForegroundColor;
         try
         {

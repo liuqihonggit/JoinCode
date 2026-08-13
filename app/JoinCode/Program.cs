@@ -7,9 +7,19 @@ class Program
 {
     static async Task<int> Main(string[] args)
     {
+        // 密钥红线检查 — 禁止在命令行参数中传递 API Key
+        var secretWarning = Cli.Output.ApiKeyRedLine.CheckArgsForSecrets(args);
+        if (secretWarning is not null)
+        {
+            Cli.TerminalHelper.Init();
+            App.ErrorConsole.Warning(secretWarning);
+            return (int)ExitCode.ArgumentParseError;
+        }
+
         Cli.TerminalHelper.Init();
         JoinCode.Abstractions.Shell.CommandTerminal.SetConsole(new CliCommandConsole());
         ILogger<Program>? logger = null;
+        CommandLineOptions? options = null;
         try
         {
             // 1. 本地化
@@ -21,7 +31,7 @@ class Program
                 return await App.Builder.ApplicationBuilder.RunSubCommandAsync(args);
 
             // 3. 参数解析 → CommandLineOptions（后续全部使用 options，不再传递原始 args）
-            var options = App.Builder.ApplicationBuilder.ParseArgs(args);
+            options = App.Builder.ApplicationBuilder.ParseArgs(args);
             if (options.ShowHelp) { App.Builder.ApplicationBuilder.ShowHelp(); return 0; }
             if (options.ShowVersion) { App.Builder.ApplicationBuilder.ShowVersion(); return 0; }
 
@@ -154,21 +164,38 @@ class Program
         {
             // 超时兜底 — NonInteractiveExecuteStep 已先捕获，此处处理管道其他步骤的超时
             Cli.TerminalHelper.Init();
-            App.ErrorConsole.Warning($"请求超时: {ex.Message}");
+            if (options?.IsJsonMode == true)
+            {
+                WriteJsonError(Cli.Output.CliErrorCatalog.NetTimeout(ex.Message));
+            }
+            else
+            {
+                App.ErrorConsole.Warning($"请求超时: {ex.Message}");
+            }
             return (int)ExitCode.LlmCallTimeout;
         }
         catch (ConfigurationException ex)
         {
             // P2-7: 配置问题 — 友好提示，不写入 error.log（非程序 bug，用户可自行修复）
             // 退出码 2 = 配置错误专用，便于 CI/脚本区分配置问题与运行时错误
-            // 视角2 #27: 使用 ErrorConsole.Warning 渲染（黄色警告 + 图标）
             Cli.TerminalHelper.Init();
-            App.ErrorConsole.Warning(ex.Message);
-            if (!string.IsNullOrEmpty(ex.ConfigurationKey))
-                Cli.TerminalHelper.WriteError($"  配置项: {ex.ConfigurationKey}");
-            if (!string.IsNullOrEmpty(ex.ConfigurationFilePath))
-                Cli.TerminalHelper.WriteError($"  配置文件: {ex.ConfigurationFilePath}");
-            Cli.TerminalHelper.WriteError("  请检查配置文件或环境变量后重试。");
+            if (options?.IsJsonMode == true)
+            {
+                var error = Cli.Output.CliErrorCatalog.ConfigInvalidValue(
+                    ex.ConfigurationKey ?? "unknown",
+                    ex.Message,
+                    "请检查配置文件或环境变量后重试");
+                WriteJsonError(error);
+            }
+            else
+            {
+                App.ErrorConsole.Warning(ex.Message);
+                if (!string.IsNullOrEmpty(ex.ConfigurationKey))
+                    Cli.TerminalHelper.WriteError($"  配置项: {ex.ConfigurationKey}");
+                if (!string.IsNullOrEmpty(ex.ConfigurationFilePath))
+                    Cli.TerminalHelper.WriteError($"  配置文件: {ex.ConfigurationFilePath}");
+                Cli.TerminalHelper.WriteError("  请检查配置文件或环境变量后重试。");
+            }
             return (int)ExitCode.ConfigurationError;
         }
         catch (Exception ex) when (ex is OutOfMemoryException or TypeInitializationException)
@@ -184,8 +211,18 @@ class Program
             var errorLog = WriteErrorLog(ex, logger: logger);
 
             Cli.TerminalHelper.Init();
-            App.ErrorConsole.Fatal(ex.Message);
-            Cli.TerminalHelper.WriteError($"  详细日志: {errorLog}");
+            if (options?.IsJsonMode == true)
+            {
+                WriteJsonError(new Cli.Output.CliStructuredError(
+                    "RUNTIME_ERROR", ex.Message,
+                    hint: $"详细日志: {errorLog}",
+                    retryable: false));
+            }
+            else
+            {
+                App.ErrorConsole.Fatal(ex.Message);
+                Cli.TerminalHelper.WriteError($"  详细日志: {errorLog}");
+            }
 
             return (int)ExitCode.GeneralError;
         }
@@ -212,6 +249,17 @@ class Program
             logger?.LogWarning(logEx, "写入错误日志失败");
         }
         return errorLog;
+    }
+
+    /// <summary>
+    /// 写入结构化 JSON 错误到 stderr — 供 JSON 模式下的异常捕获链使用
+    /// </summary>
+    private static void WriteJsonError(Cli.Output.CliStructuredError error)
+    {
+        var contract = new Cli.Output.CliOutputContract(
+            jsonMode: true,
+            jsonContext: Cli.Output.CliOutputJsonContext.Default);
+        contract.WriteError(error);
     }
 
     /// <summary>

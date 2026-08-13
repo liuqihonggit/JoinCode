@@ -8,6 +8,12 @@ public static class TerminalHelper
     private static bool _isInitialized;
 
     /// <summary>
+    /// 是否禁用颜色输出 — 由 NO_COLOR 环境变量或 CliModeDetector 控制
+    /// 对齐架构指南：检测到 NO_COLOR 时自动降级为零着色模式
+    /// </summary>
+    private static bool _noColor;
+
+    /// <summary>
     /// 真实标准输出 — 在 Init() 时捕获，不受 SetOut 重定向影响。
     /// 交互式提示（确认框/密码输入等）用此输出，避免被命令输出重定向吞掉。
     /// </summary>
@@ -35,6 +41,10 @@ public static class TerminalHelper
 
         _realOut = System.Console.Out;
 
+        // NO_COLOR 标准 — https://no-color.org/
+        // 检测到 NO_COLOR 环境变量时禁用所有颜色输出
+        _noColor = System.Environment.GetEnvironmentVariable("NO_COLOR") is not null;
+
         if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(
             System.Runtime.InteropServices.OSPlatform.Windows))
         {
@@ -45,6 +55,11 @@ public static class TerminalHelper
         System.Console.InputEncoding = System.Text.Encoding.UTF8;
         _isInitialized = true;
     }
+
+    /// <summary>
+    /// 是否禁用颜色输出 — 遵循 NO_COLOR 标准
+    /// </summary>
+    public static bool NoColor => _noColor;
 
     public static int GetWidth()
     {
@@ -134,7 +149,7 @@ public static class TerminalHelper
 
     public static void ResetColor() => System.Console.ResetColor();
 
-    public static IDisposable SetColor(ConsoleColor color) => new ColorScope(color);
+    public static IDisposable SetColor(ConsoleColor color) => _noColor ? NoOpDisposable.Instance : new ColorScope(color);
 
     private sealed class ColorScope : IDisposable
     {
@@ -145,6 +160,12 @@ public static class TerminalHelper
             System.Console.ForegroundColor = color;
         }
         public void Dispose() => System.Console.ForegroundColor = _prev;
+    }
+
+    private sealed class NoOpDisposable : IDisposable
+    {
+        public static readonly NoOpDisposable Instance = new();
+        public void Dispose() { }
     }
 
     public static void ClearScreen()

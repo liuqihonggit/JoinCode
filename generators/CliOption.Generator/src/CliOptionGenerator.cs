@@ -60,10 +60,16 @@ public sealed class CliOptionGenerator : IIncrementalGenerator
 
                     var acceptsValue = false;
                     var isNegation = false;
+                    string? riskLevel = null;
+                    string? category = null;
+                    string? example = null;
                     foreach (var named in attr.NamedArguments)
                     {
                         if (named.Key == "AcceptsValue") acceptsValue = (bool)(named.Value.Value ?? false);
                         if (named.Key == "IsNegation") isNegation = (bool)(named.Value.Value ?? false);
+                        if (named.Key == "RiskLevel") riskLevel = named.Value.Value as string;
+                        if (named.Key == "Category") category = named.Value.Value as string;
+                        if (named.Key == "Example") example = named.Value.Value as string;
                     }
 
                     options.Add(new CliOptionInfo(
@@ -72,7 +78,10 @@ public sealed class CliOptionGenerator : IIncrementalGenerator
                         shortName,
                         description,
                         acceptsValue,
-                        isNegation));
+                        isNegation,
+                        riskLevel,
+                        category,
+                        example));
                 }
 
                 if (options.Count > 0)
@@ -95,6 +104,7 @@ public sealed class CliOptionGenerator : IIncrementalGenerator
         sb.AppendLine("using System;");
         sb.AppendLine("using System.Collections.Frozen;");
         sb.AppendLine("using System.Collections.Generic;");
+        sb.AppendLine("using System.Text.Json.Serialization;");
         sb.AppendLine();
         sb.AppendLine($"namespace {enumInfo.Namespace};");
         sb.AppendLine();
@@ -102,6 +112,8 @@ public sealed class CliOptionGenerator : IIncrementalGenerator
         GenerateResultClass(sb, enumInfo);
         sb.AppendLine();
         GenerateParserClass(sb, enumInfo);
+        sb.AppendLine();
+        GenerateSchemaClass(sb, enumInfo);
 
         context.AddSource($"{enumInfo.Name}Parser.g.cs", SourceText.From(sb.ToString(), Encoding.UTF8));
     }
@@ -258,27 +270,90 @@ public sealed class CliOptionGenerator : IIncrementalGenerator
 
     private static void GenerateHelpTextMethod(StringBuilder sb, CliEnumInfo enumInfo)
     {
+        // 分层 Help: Short / Categorized / Examples
         sb.AppendLine("    /// <summary>");
-        sb.AppendLine("    /// 生成帮助文本");
+        sb.AppendLine("    /// 生成分层帮助文本");
         sb.AppendLine("    /// </summary>");
-        sb.AppendLine("    public static string GetHelpText()");
+        sb.AppendLine("    /// <param name=\"level\">帮助级别: short/categorized/examples</param>");
+        sb.AppendLine("    public static string GetHelpText(string level = \"categorized\")");
         sb.AppendLine("    {");
+        sb.AppendLine("        return level switch");
+        sb.AppendLine("        {");
+        sb.AppendLine("            \"short\" => GetShortHelp(),");
+        sb.AppendLine("            \"examples\" => GetExamplesHelp(),");
+        sb.AppendLine("            _ => GetCategorizedHelp()");
+        sb.AppendLine("        };");
+        sb.AppendLine("    }");
+        sb.AppendLine();
 
-        var sb2 = new StringBuilder();
-        sb2.AppendLine($"Usage: {enumInfo.Name.ToLowerInvariant()} [options]");
-        sb2.AppendLine();
-        sb2.AppendLine("Options:");
-        foreach (var opt in enumInfo.Options)
+        // Short Help — 5-10词，动词开头
+        sb.AppendLine("    private static string GetShortHelp()");
+        sb.AppendLine("    {");
+        var shortSb = new StringBuilder();
+        shortSb.AppendLine($"Usage: {enumInfo.Name.ToLowerInvariant()} [options]");
+        shortSb.AppendLine();
+        foreach (var opt in enumInfo.Options.Where(o => !o.IsNegation))
         {
             var label = string.IsNullOrEmpty(opt.ShortName)
-                ? $"  {opt.LongName}"
-                : $"  {opt.ShortName}, {opt.LongName}";
+                ? $"{opt.LongName}"
+                : $"{opt.ShortName}/{opt.LongName}";
             if (opt.AcceptsValue) label += " <value>";
-            label = label.PadRight(36);
-            sb2.AppendLine($"{label}{opt.Description}");
+            shortSb.AppendLine($"  {label,-24} {opt.Description.Split('。')[0].Split(',')[0]}");
         }
+        WriteReturnString(sb, shortSb.ToString());
+        sb.AppendLine("    }");
+        sb.AppendLine();
 
-        var lines = sb2.ToString().Split('\n');
+        // Categorized Help — 按分类分组
+        sb.AppendLine("    private static string GetCategorizedHelp()");
+        sb.AppendLine("    {");
+        var catSb = new StringBuilder();
+        catSb.AppendLine($"Usage: {enumInfo.Name.ToLowerInvariant()} [options]");
+        catSb.AppendLine();
+
+        var categories = enumInfo.Options
+            .Where(o => !o.IsNegation)
+            .GroupBy(o => o.Category ?? "其他")
+            .OrderBy(g => g.Key);
+
+        foreach (var cat in categories)
+        {
+            catSb.AppendLine($"  {cat.Key}:");
+            foreach (var opt in cat)
+            {
+                var label = string.IsNullOrEmpty(opt.ShortName)
+                    ? $"    {opt.LongName}"
+                    : $"    {opt.ShortName}, {opt.LongName}";
+                if (opt.AcceptsValue) label += " <value>";
+                label = label.PadRight(40);
+                var riskTag = !string.IsNullOrEmpty(opt.RiskLevel) ? $" [{opt.RiskLevel}]" : "";
+                catSb.AppendLine($"{label}{opt.Description}{riskTag}");
+            }
+            catSb.AppendLine();
+        }
+        WriteReturnString(sb, catSb.ToString());
+        sb.AppendLine("    }");
+        sb.AppendLine();
+
+        // Examples Help — 展示示例
+        sb.AppendLine("    private static string GetExamplesHelp()");
+        sb.AppendLine("    {");
+        var exSb = new StringBuilder();
+        exSb.AppendLine("示例:");
+        exSb.AppendLine();
+        foreach (var opt in enumInfo.Options.Where(o => !string.IsNullOrEmpty(o.Example)))
+        {
+            exSb.AppendLine($"  # {opt.Description.Split('。')[0].Split(',')[0]}");
+            exSb.AppendLine($"  {opt.Example}");
+            exSb.AppendLine();
+        }
+        WriteReturnString(sb, exSb.ToString());
+        sb.AppendLine("    }");
+    }
+
+    private static void WriteReturnString(StringBuilder sb, string content)
+    {
+        var lines = content.Split('\n');
         sb.AppendLine("        return");
         var isFirst = true;
         foreach (var line in lines)
@@ -291,7 +366,6 @@ public sealed class CliOptionGenerator : IIncrementalGenerator
             }
         }
         sb.AppendLine("            ;");
-        sb.AppendLine("    }");
     }
 
     private static string ToFieldName(string enumMemberName)
@@ -348,6 +422,46 @@ public sealed class CliOptionGenerator : IIncrementalGenerator
 
     private static string EscapeString(string s) => s.Replace("\\", "\\\\").Replace("\"", "\\\"");
 
+    /// <summary>
+    /// 生成 Schema 类 — 自动从 [CliOption] 特性生成 CLI 参数定义
+    /// 对齐架构指南可发现性：Agent 可动态查询参数定义、类型、权限
+    /// </summary>
+    private static void GenerateSchemaClass(StringBuilder sb, CliEnumInfo enumInfo)
+    {
+        sb.AppendLine($"public sealed class {enumInfo.Name}SchemaProperty");
+        sb.AppendLine("{");
+        sb.AppendLine("    public string Name { get; init; } = \"\";");
+        sb.AppendLine("    public string ShortName { get; init; } = \"\";");
+        sb.AppendLine("    public string Description { get; init; } = \"\";");
+        sb.AppendLine("    public string Type { get; init; } = \"boolean\";");
+        sb.AppendLine("    public bool AcceptsValue { get; init; }");
+        sb.AppendLine("    public string? RiskLevel { get; init; }");
+        sb.AppendLine("    public string? Category { get; init; }");
+        sb.AppendLine("    public string? Example { get; init; }");
+        sb.AppendLine("}");
+        sb.AppendLine();
+
+        sb.AppendLine($"public static class {enumInfo.Name}Schema");
+        sb.AppendLine("{");
+
+        // 生成 Properties 数组
+        sb.AppendLine($"    public static readonly {enumInfo.Name}SchemaProperty[] Properties =");
+        sb.AppendLine("    {");
+        foreach (var opt in enumInfo.Options.Where(o => !o.IsNegation))
+        {
+            var type = opt.AcceptsValue ? "\"string\"" : "\"boolean\"";
+            var riskLevelStr = !string.IsNullOrEmpty(opt.RiskLevel) ? $"\"{EscapeString(opt.RiskLevel!)}\"" : "null";
+            var categoryStr = !string.IsNullOrEmpty(opt.Category) ? $"\"{EscapeString(opt.Category!)}\"" : "null";
+            var exampleStr = !string.IsNullOrEmpty(opt.Example) ? $"\"{EscapeString(opt.Example!)}\"" : "null";
+            var shortNameStr = !string.IsNullOrEmpty(opt.ShortName) ? $"\"{EscapeString(opt.ShortName!)}\"" : "\"\"";
+
+            sb.AppendLine($"        new() {{ Name = \"{EscapeString(opt.LongName)}\", ShortName = {shortNameStr}, Description = \"{EscapeString(opt.Description)}\", Type = {type}, AcceptsValue = {opt.AcceptsValue.ToString().ToLowerInvariant()}, RiskLevel = {riskLevelStr}, Category = {categoryStr}, Example = {exampleStr} }},");
+        }
+        sb.AppendLine("    };");
+
+        sb.AppendLine("}");
+    }
+
     private sealed class CliEnumInfo
     {
         public string FullyQualifiedName { get; }
@@ -372,8 +486,11 @@ public sealed class CliOptionGenerator : IIncrementalGenerator
         public string Description { get; }
         public bool AcceptsValue { get; }
         public bool IsNegation { get; }
+        public string? RiskLevel { get; }
+        public string? Category { get; }
+        public string? Example { get; }
 
-        public CliOptionInfo(string name, string longName, string shortName, string description, bool acceptsValue, bool isNegation)
+        public CliOptionInfo(string name, string longName, string shortName, string description, bool acceptsValue, bool isNegation, string? riskLevel = null, string? category = null, string? example = null)
         {
             Name = name;
             LongName = longName;
@@ -381,6 +498,9 @@ public sealed class CliOptionGenerator : IIncrementalGenerator
             Description = description;
             AcceptsValue = acceptsValue;
             IsNegation = isNegation;
+            RiskLevel = riskLevel;
+            Category = category;
+            Example = example;
         }
     }
 }

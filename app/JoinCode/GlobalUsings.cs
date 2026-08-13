@@ -79,6 +79,7 @@ global using JoinCode.ChatCommands;
 global using JoinCode.Abstractions.Shell;
 global using JoinCode.Cli;
 global using JoinCode.Cli.Interaction;
+global using JoinCode.Cli.Output;
 global using JoinCode.CliCommands;
 global using JoinCode.Services;
 global using JoinCode.Adapters;

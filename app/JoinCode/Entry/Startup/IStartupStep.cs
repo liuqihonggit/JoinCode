@@ -21,4 +21,19 @@ public sealed class StartupContext
     /// 退出码 — 非交互模式由中间件设置，0 表示成功
     /// </summary>
     public int ExitCode { get; set; }
+
+    /// <summary>
+    /// CLI 输出契约 — JSON 模式下由 NonInteractiveModeRunner 创建，中间件可用来写结构化输出
+    /// </summary>
+    public Cli.Output.CliOutputContract? OutputContract { get; set; }
+
+    /// <summary>
+    /// 非交互模式的完整响应文本 — 由 ExecuteStep 设置
+    /// </summary>
+    public string? FullResponse { get; set; }
+
+    /// <summary>
+    /// 执行耗时（毫秒）— 由 ExecuteStep 设置
+    /// </summary>
+    public long? ElapsedMs { get; set; }
 }

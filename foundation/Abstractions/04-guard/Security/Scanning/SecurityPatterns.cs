@@ -164,6 +164,38 @@ public static partial class SecurityPatterns
     ];
 
     /// <summary>
+    /// 密钥前缀快速预筛集合 — 从 gitleaks 规则中提取的必须包含子串。
+    /// 如果文本不包含任何前缀,可直接跳过全部正则检查(O(前缀数 × 文本长度) Contains 远快于 O(正则数 × 文本长度) Regex.IsMatch)。
+    /// </summary>
+    private static readonly string[] SecretPrefixes =
+    [
+        "AKIA", "ASIA", "ABIA", "ACCA", "A3T",
+        "AIza", "dop_v1_", "doo_v1_",
+        "sk-ant-api03-", "sk-ant-admin01-", "sk-",
+        "hf_", "ghp_", "github_pat_", "ghu_", "ghs_", "gho_", "ghr_",
+        "glpat-", "gldt-",
+        "xoxb-", "xoxp-", "xoxe-", "xapp-",
+        "SG.", "npm_", "pypi-AgEIcHlwaS5vcmc", "dapi",
+        "pul-", "PMAK-", "eyJrIjoi", "glc_", "glsa_", "sntryu_",
+        "sk_", "rk_", "shpat_", "shpss_",
+        "-----BEGIN",
+    ];
+
+    /// <summary>
+    /// 快速预筛 — 检查文本是否包含任何密钥前缀。
+    /// 不包含则直接跳过全部正则检查。
+    /// </summary>
+    private static bool ContainsAnySecretPrefix(string content)
+    {
+        foreach (var prefix in SecretPrefixes)
+        {
+            if (content.Contains(prefix, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
     /// 规则 ID 到人类可读标签的映射
     /// 对齐 TS: secretScanner.ts ruleIdToLabel
     /// </summary>
@@ -245,6 +277,9 @@ public static partial class SecurityPatterns
         if (string.IsNullOrWhiteSpace(content))
             return matches;
 
+        if (!ContainsAnySecretPrefix(content))
+            return matches;
+
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var (id, re) in GetCompiledGitleaksRules())
         {
@@ -266,6 +301,9 @@ public static partial class SecurityPatterns
     public static string RedactSecrets(string content)
     {
         if (string.IsNullOrWhiteSpace(content))
+            return content;
+
+        if (!ContainsAnySecretPrefix(content))
             return content;
 
         foreach (var (_, re) in GetCompiledGitleaksRules())

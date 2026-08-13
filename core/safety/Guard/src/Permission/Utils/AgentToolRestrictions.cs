@@ -3,14 +3,30 @@ namespace Core.Utils;
 [Register]
 public sealed partial class AgentToolRestrictions : ServiceEntity, IAgentToolRestrictions
 {
+    private readonly FrozenSet<string> _autoAllowed;
+    private readonly FrozenSet<string> _planAllowed;
+    private readonly FrozenSet<string> _askAllowed;
+    private readonly FrozenSet<string> _autoDenied;
+    private readonly FrozenSet<string> _planDenied;
+    private readonly FrozenSet<string> _askDenied;
 
-    public AgentToolRestrictions(ITelemetryService? telemetryService = null)
+    public AgentToolRestrictions(
+        IOptions<PermissionConfig>? configOptions = null,
+        ITelemetryService? telemetryService = null)
     {
         _telemetryService = telemetryService;
+        var overrides = configOptions?.Value?.ToolOverrides;
+        _autoAllowed = MergeWithOverrides(AutoAllowedToolsDefault, overrides, "auto", allow: true);
+        _planAllowed = MergeWithOverrides(PlanAllowedToolsDefault, overrides, "plan", allow: true);
+        _askAllowed = MergeWithOverrides(AskAllowedToolsDefault, overrides, "ask", allow: true);
+        _autoDenied = MergeWithOverrides(AutoDeniedToolsDefault, overrides, "auto", allow: false);
+        _planDenied = MergeWithOverrides(PlanDeniedToolsDefault, overrides, "plan", allow: false);
+        _askDenied = MergeWithOverrides(AskDeniedToolsDefault, overrides, "ask", allow: false);
     }
+
     [Inject] private readonly ITelemetryService? _telemetryService;
 
-    private static readonly FrozenSet<string> AutoAllowedTools = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    private static readonly FrozenSet<string> AutoAllowedToolsDefault = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
         FileToolNameConstants.FileRead, FileToolNameConstants.DirectoryList, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep,
         SearchToolNameConstants.SearchCode, SearchToolNameConstants.SearchText,
@@ -37,7 +53,7 @@ public sealed partial class AgentToolRestrictions : ServiceEntity, IAgentToolRes
         AgentToolNameConstants.AgentSendMessage
     }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 
-    private static readonly FrozenSet<string> PlanAllowedTools = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    private static readonly FrozenSet<string> PlanAllowedToolsDefault = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
         FileToolNameConstants.FileRead, FileToolNameConstants.DirectoryList, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep,
         SearchToolNameConstants.SearchCode, SearchToolNameConstants.SearchText,
@@ -56,7 +72,7 @@ public sealed partial class AgentToolRestrictions : ServiceEntity, IAgentToolRes
         McpToolNameConstants.McpListClients
     }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 
-    private static readonly FrozenSet<string> AskAllowedTools = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    private static readonly FrozenSet<string> AskAllowedToolsDefault = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
         FileToolNameConstants.FileRead, FileToolNameConstants.DirectoryList, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep,
         SearchToolNameConstants.SearchCode, SearchToolNameConstants.SearchText,
@@ -78,14 +94,14 @@ public sealed partial class AgentToolRestrictions : ServiceEntity, IAgentToolRes
         McpToolNameConstants.McpListServers, McpToolNameConstants.McpListClients
     }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 
-    private static readonly FrozenSet<string> AutoDeniedTools = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    private static readonly FrozenSet<string> AutoDeniedToolsDefault = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
         ShellToolNameConstants.Bash, ShellToolNameConstants.Powershell,
         FileToolNameConstants.FileDelete,
         GitToolNameConstants.GitCommit, GitToolNameConstants.GitPush
     }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 
-    private static readonly FrozenSet<string> PlanDeniedTools = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    private static readonly FrozenSet<string> PlanDeniedToolsDefault = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
         FileToolNameConstants.FileWrite, FileToolNameConstants.FileEdit,
         FileToolNameConstants.FileDelete,
@@ -93,17 +109,17 @@ public sealed partial class AgentToolRestrictions : ServiceEntity, IAgentToolRes
         GitToolNameConstants.GitCommit, GitToolNameConstants.GitPush
     }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 
-    private static readonly FrozenSet<string> AskDeniedTools = FrozenSet<string>.Empty;
+    private static readonly FrozenSet<string> AskDeniedToolsDefault = FrozenSet<string>.Empty;
 
     public IReadOnlySet<string> GetAllowedTools(PermissionMode mode)
     {
         return mode switch
         {
-            PermissionMode.Auto => AutoAllowedTools,
-            PermissionMode.Plan => PlanAllowedTools,
-            PermissionMode.Ask => AskAllowedTools,
-            PermissionMode.Bypass => AutoAllowedTools,
-            _ => AutoAllowedTools
+            PermissionMode.Auto => _autoAllowed,
+            PermissionMode.Plan => _planAllowed,
+            PermissionMode.Ask => _askAllowed,
+            PermissionMode.Bypass => _autoAllowed,
+            _ => _autoAllowed
         };
     }
 
@@ -111,11 +127,11 @@ public sealed partial class AgentToolRestrictions : ServiceEntity, IAgentToolRes
     {
         return mode switch
         {
-            PermissionMode.Auto => AutoDeniedTools,
-            PermissionMode.Plan => PlanDeniedTools,
-            PermissionMode.Ask => AskDeniedTools,
+            PermissionMode.Auto => _autoDenied,
+            PermissionMode.Plan => _planDenied,
+            PermissionMode.Ask => _askDenied,
             PermissionMode.Bypass => FrozenSet<string>.Empty,
-            _ => AutoDeniedTools
+            _ => _autoDenied
         };
     }
 
@@ -154,4 +170,22 @@ public sealed partial class AgentToolRestrictions : ServiceEntity, IAgentToolRes
 
     private void RecordPermissionCheckMetrics(string toolName, PermissionMode mode, bool isAllowed)
         => _telemetryService?.RecordCount("guard.permission.check.count", new() { ["tool"] = toolName, ["mode"] = mode.ToString(), ["allowed"] = isAllowed.ToString() }, description: "Permission check count");
+
+    private static FrozenSet<string> MergeWithOverrides(
+        FrozenSet<string> defaults,
+        Dictionary<string, ToolOverrideEntry>? overrides,
+        string modeKey,
+        bool allow)
+    {
+        if (overrides is null || !overrides.TryGetValue(modeKey, out var entry))
+            return defaults;
+
+        var list = allow ? entry.Allow : entry.Deny;
+        if (list is null or { Count: 0 })
+            return defaults;
+
+        var merged = new HashSet<string>(defaults, StringComparer.OrdinalIgnoreCase);
+        merged.UnionWith(list);
+        return merged.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
+    }
 }

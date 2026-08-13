@@ -361,6 +361,7 @@ public sealed partial class SettingsJson
             DefaultMode = overridePerms.DefaultMode ?? basePerms.DefaultMode,
             AdditionalDirectories = MergeLists(basePerms.AdditionalDirectories, overridePerms.AdditionalDirectories),
             DisableBypassPermissionsMode = overridePerms.DisableBypassPermissionsMode ?? basePerms.DisableBypassPermissionsMode,
+            ToolOverrides = MergeToolOverrides(basePerms.ToolOverrides, overridePerms.ToolOverrides),
         };
     }
 
@@ -381,6 +382,37 @@ public sealed partial class SettingsJson
             if (result.TryGetValue(key, out var existing))
             {
                 result[key] = existing.Concat(value).ToList();
+            }
+            else
+            {
+                result[key] = value;
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// 合并 ToolOverrides 字典 — 拼接同键的 allow/deny 列表
+    /// </summary>
+    private static Dictionary<string, ToolOverrideEntry>? MergeToolOverrides(
+        Dictionary<string, ToolOverrideEntry>? baseOverrides,
+        Dictionary<string, ToolOverrideEntry>? overrideOverrides)
+    {
+        if (baseOverrides is null && overrideOverrides is null) return null;
+        if (baseOverrides is null) return overrideOverrides;
+        if (overrideOverrides is null) return baseOverrides;
+
+        var result = new Dictionary<string, ToolOverrideEntry>(baseOverrides, StringComparer.OrdinalIgnoreCase);
+        foreach (var (key, value) in overrideOverrides)
+        {
+            if (result.TryGetValue(key, out var existing))
+            {
+                result[key] = new ToolOverrideEntry
+                {
+                    Allow = MergeLists(existing.Allow, value.Allow),
+                    Deny = MergeLists(existing.Deny, value.Deny),
+                };
             }
             else
             {
@@ -425,6 +457,25 @@ public sealed class PermissionsSettings
     /// </summary>
     [JsonPropertyName("disableBypassPermissionsMode")]
     public string? DisableBypassPermissionsMode { get; init; }
+
+    /// <summary>
+    /// 工具白名单/黑名单覆盖 — 增量合并到硬编码默认值
+    /// 格式: { "auto": { "allow": ["bash"], "deny": [] }, "plan": { "deny": ["web_fetch"] } }
+    /// </summary>
+    [JsonPropertyName("toolOverrides")]
+    public Dictionary<string, ToolOverrideEntry>? ToolOverrides { get; init; }
+}
+
+/// <summary>
+/// 单个模式的工具覆盖 — 增量合并到硬编码默认值
+/// </summary>
+public sealed class ToolOverrideEntry
+{
+    [JsonPropertyName("allow")]
+    public List<string>? Allow { get; init; }
+
+    [JsonPropertyName("deny")]
+    public List<string>? Deny { get; init; }
 }
 
 /// <summary>

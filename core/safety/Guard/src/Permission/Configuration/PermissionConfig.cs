@@ -59,6 +59,12 @@ public class PermissionConfig
     public List<string> AdditionalDirectories { get; set; } = new();
 
     /// <summary>
+    /// 工具白名单/黑名单覆盖 — 增量合并到 AgentToolRestrictions 硬编码默认值
+    /// 键为模式名（"auto"/"plan"/"ask"），值为允许/拒绝的工具列表
+    /// </summary>
+    public Dictionary<string, ToolOverrideEntry> ToolOverrides { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
     /// 创建默认配置
     /// </summary>
     public static PermissionConfig CreateDefault()

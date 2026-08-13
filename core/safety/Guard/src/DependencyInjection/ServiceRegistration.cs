@@ -133,6 +133,14 @@ public static partial class ServiceRegistration
                         options.AskRules.Add(parsed);
                 }
             }
+
+            if (settings.Permissions.ToolOverrides is { Count: > 0 })
+            {
+                foreach (var (mode, entry) in settings.Permissions.ToolOverrides)
+                {
+                    options.ToolOverrides[mode] = entry;
+                }
+            }
         }
         catch (Exception ex)
         {

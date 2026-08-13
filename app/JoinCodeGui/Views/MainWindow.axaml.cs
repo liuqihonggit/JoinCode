@@ -231,8 +231,13 @@ public sealed partial class MainWindow : Window
             if (MessageTextEditor is not null)
             {
                 var text = _vm!.AllMessagesText;
+                var shouldScroll = _autoScrollEnabled;
                 Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-                    MessageTextEditor.Document.Text = text);
+                {
+                    MessageTextEditor.Document.Text = text;
+                    if (shouldScroll)
+                        MessageTextEditor.ScrollToLine(MessageTextEditor.Document.LineCount);
+                });
             }
         }
     }

@@ -172,7 +172,8 @@ public sealed partial class MainViewModel : ViewModelBase
 
     /// <summary>已过滤消息集合（按 SearchText 关键词；空搜索返回全部）</summary>
     public IEnumerable<ChatUiMessage> FilteredMessages => IsSearching
-        ? Messages.Where(m => (m.Content ?? string.Empty).Contains(SearchText, StringComparison.OrdinalIgnoreCase))
+        ? Messages.Where(m => (m.Content ?? string.Empty).Contains(SearchText, StringComparison.OrdinalIgnoreCase)
+            || (m.ToolResultText ?? string.Empty).Contains(SearchText, StringComparison.OrdinalIgnoreCase))
         : Messages;
 
     /// <summary>全部消息的终端式纯文本（角色标签+时间戳+内容），供 TextBox 跨行选择</summary>

@@ -3,34 +3,59 @@ namespace JoinCode.Abstractions.Configuration.Llm;
 
 public static class ModelConfigLoader
 {
-    private static readonly Lazy<ModelConfigRoot> LazyConfig = new(LoadCore, LazyThreadSafetyMode.ExecutionAndPublication);
-
-    private static readonly FrozenDictionary<string, ModelItemConfig> ModelById;
-    private static readonly FrozenDictionary<string, string> AliasToModelId;
+    private static volatile ModelConfigRoot _config;
+    private static FrozenDictionary<string, ModelItemConfig> _modelById;
+    private static FrozenDictionary<string, string> _aliasToModelId;
 
     static ModelConfigLoader()
     {
-        var config = LazyConfig.Value;
-        var idDict = new Dictionary<string, ModelItemConfig>(StringComparer.OrdinalIgnoreCase);
-        var aliasDict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var config = LoadCore();
+        _config = config;
+        _modelById = BuildModelById(config);
+        _aliasToModelId = BuildAliasToModelId(config);
+    }
 
+    public static ModelConfigRoot Config => _config;
+
+    /// <summary>重新加载配置（热重载）— 从嵌入资源 + 用户覆盖文件重新读取，原子替换所有静态缓存</summary>
+    public static void Reload()
+    {
+        var newConfig = LoadCore();
+        var newModelById = BuildModelById(newConfig);
+        var newAliasToModelId = BuildAliasToModelId(newConfig);
+        _config = newConfig;
+        _modelById = newModelById;
+        _aliasToModelId = newAliasToModelId;
+    }
+
+    private static FrozenDictionary<string, ModelItemConfig> BuildModelById(ModelConfigRoot config)
+    {
+        var idDict = new Dictionary<string, ModelItemConfig>(StringComparer.OrdinalIgnoreCase);
         foreach (var provider in config.Providers)
         {
             foreach (var model in provider.Value.Models)
             {
                 idDict[model.Id] = model;
+            }
+        }
+        return idDict.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static FrozenDictionary<string, string> BuildAliasToModelId(ModelConfigRoot config)
+    {
+        var aliasDict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var provider in config.Providers)
+        {
+            foreach (var model in provider.Value.Models)
+            {
                 foreach (var alias in model.Aliases)
                 {
                     aliasDict[alias] = model.Id;
                 }
             }
         }
-
-        ModelById = idDict.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
-        AliasToModelId = aliasDict.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+        return aliasDict.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
     }
-
-    public static ModelConfigRoot Config => LazyConfig.Value;
 
     public static ModelProviderConfig? GetProviderConfig(string providerName)
     {
@@ -108,7 +133,7 @@ public static class ModelConfigLoader
     {
         var name = fullModelName.ToLowerInvariant();
 
-        foreach (var model in ModelById.Values)
+        foreach (var model in _modelById.Values)
         {
             if (name.Contains(model.Id.ToLowerInvariant(), StringComparison.Ordinal))
             {
@@ -136,7 +161,7 @@ public static class ModelConfigLoader
 
     public static IReadOnlyCollection<string> GetAllModelIds()
     {
-        return ModelById.Keys;
+        return _modelById.Keys;
     }
 
     public static string? FindProviderByModelId(string modelId)
@@ -166,6 +191,14 @@ public static class ModelConfigLoader
         return null;
     }
 
+    /// <summary>用户覆盖文件路径 — ~/AppData/JoinCode/models.json</summary>
+    public static string GetUserOverridePath()
+    {
+        return System.IO.Path.Combine(
+            System.Environment.GetFolderPath(System.Environment.SpecialFolder.UserProfile),
+            AppData.AppDataConstants.AppDataFolder, "models.json");
+    }
+
     private static ModelConfigRoot LoadCore()
     {
         var assembly = typeof(ModelConfigLoader).Assembly;
@@ -187,9 +220,7 @@ public static class ModelConfigLoader
 #pragma warning disable JCC9001
     private static void ApplyUserOverride(ModelConfigRoot config)
     {
-        var userConfigPath = System.IO.Path.Combine(
-            System.Environment.GetFolderPath(System.Environment.SpecialFolder.UserProfile),
-            AppData.AppDataConstants.AppDataFolder, "models.json");
+        var userConfigPath = GetUserOverridePath();
 
         if (!System.IO.File.Exists(userConfigPath))
             return;

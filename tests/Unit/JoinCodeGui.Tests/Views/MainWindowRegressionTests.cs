@@ -196,6 +196,7 @@ public sealed class MainWindowRegressionTests
         public Task<RewindResult> RewindLastTurnAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(new RewindResult());
         public Task SetModelAsync(string modelId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public void RefreshVendorModelMap() { }
         public EffortLevel EffortLevel => EffortLevel.Auto;
         public Task SetEffortLevelAsync(EffortLevel effortLevel, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task SetSystemPromptAsync(string systemPrompt, CancellationToken cancellationToken = default) => Task.CompletedTask;

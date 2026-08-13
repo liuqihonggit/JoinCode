@@ -84,7 +84,14 @@ internal sealed class JccChatSession : IJccChatSession
     public string CurrentModelId => _config.Provider.ModelId;
 
     /// <summary>配置文件 models.json 驱动的供应商→模型列表映射（改 config 自动驱动下拉）</summary>
-    public IReadOnlyDictionary<string, IReadOnlyList<string>> VendorModelMap { get; } = BuildVendorModelMap();
+    public IReadOnlyDictionary<string, IReadOnlyList<string>> VendorModelMap { get; private set; } = BuildVendorModelMap();
+
+    /// <summary>重新加载 models.json 并刷新 VendorModelMap（热重载入口）</summary>
+    public void RefreshVendorModelMap()
+    {
+        ModelConfigLoader.Reload();
+        VendorModelMap = BuildVendorModelMap();
+    }
 
     private static IReadOnlyDictionary<string, IReadOnlyList<string>> BuildVendorModelMap()
     {

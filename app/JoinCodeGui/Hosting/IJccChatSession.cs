@@ -47,6 +47,9 @@ public interface IJccChatSession : IAsyncDisposable
     /// <summary>配置文件 models.json 驱动的供应商→模型列表映射（改 config 自动驱动下拉）</summary>
     IReadOnlyDictionary<string, IReadOnlyList<string>> VendorModelMap { get; }
 
+    /// <summary>重新加载 models.json 并刷新 VendorModelMap（热重载入口，由 GUI 配置变更监控调用）</summary>
+    void RefreshVendorModelMap();
+
     /// <summary>切换当前模型（回写共享 WorkflowConfig.Provider.ModelId，下次请求引擎即生效）</summary>
     Task SetModelAsync(string modelId, CancellationToken cancellationToken = default);
 

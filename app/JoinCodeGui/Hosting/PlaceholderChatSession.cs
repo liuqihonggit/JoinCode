@@ -25,7 +25,14 @@ internal sealed class PlaceholderChatSession : IJccChatSession
         return !string.IsNullOrEmpty(id) ? id : "deepseek-chat";
     }
 
-    public IReadOnlyDictionary<string, IReadOnlyList<string>> VendorModelMap { get; } = BuildVendorModelMap();
+    public IReadOnlyDictionary<string, IReadOnlyList<string>> VendorModelMap { get; private set; } = BuildVendorModelMap();
+
+    /// <summary>重新加载 models.json 并刷新 VendorModelMap（热重载入口）</summary>
+    public void RefreshVendorModelMap()
+    {
+        ModelConfigLoader.Reload();
+        VendorModelMap = BuildVendorModelMap();
+    }
 
     private static IReadOnlyDictionary<string, IReadOnlyList<string>> BuildVendorModelMap()
     {

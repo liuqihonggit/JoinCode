@@ -19,6 +19,8 @@ public sealed partial class MainViewModel : ViewModelBase
     private IJccChatSession? _mockSession;
     private IJccChatSession _session;
     private readonly Persistence.GuiSessionStore _sessionStore;
+    private System.IO.FileSystemWatcher? _modelConfigWatcher;
+    private DateTime _lastConfigReload = DateTime.MinValue;
 
     /// <summary>异步操作硬超时（防止命令续体在单线程上下文死锁）</summary>
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(5);
@@ -361,6 +363,7 @@ public sealed partial class MainViewModel : ViewModelBase
                 ?? _connectionOptions.FirstOrDefault(c => !c.IsMock)
                 ?? MockConnection;
             IsEngineLoaded = true;
+            StartModelConfigWatch();
         }
         else
         {
@@ -411,6 +414,56 @@ public sealed partial class MainViewModel : ViewModelBase
             }
         });
         StatusText = $"已连接真实引擎 {session.CurrentVendor}";
+        StartModelConfigWatch();
+    }
+
+    /// <summary>启动 models.json 用户覆盖文件监控（热重载）— 文件变更时自动刷新供应商/模型列表</summary>
+    private void StartModelConfigWatch()
+    {
+        var path = ModelConfigLoader.GetUserOverridePath();
+        var dir = System.IO.Path.GetDirectoryName(path);
+        if (string.IsNullOrEmpty(dir) || !System.IO.Directory.Exists(dir))
+            return;
+
+        _modelConfigWatcher?.Dispose();
+#pragma warning disable JCC9005
+        _modelConfigWatcher = new System.IO.FileSystemWatcher(dir, System.IO.Path.GetFileName(path))
+        {
+            NotifyFilter = System.IO.NotifyFilters.FileName | System.IO.NotifyFilters.LastWrite,
+            EnableRaisingEvents = true
+        };
+#pragma warning restore JCC9005
+        _modelConfigWatcher.Changed += OnModelConfigChanged;
+        _modelConfigWatcher.Created += OnModelConfigChanged;
+    }
+
+    /// <summary>models.json 变更事件 — 防抖 1s 后在 UI 线程刷新配置</summary>
+    private void OnModelConfigChanged(object sender, System.IO.FileSystemEventArgs e)
+    {
+        var now = DateTime.UtcNow;
+        if ((now - _lastConfigReload).TotalMilliseconds < 1000)
+            return;
+        _lastConfigReload = now;
+        Avalonia.Threading.Dispatcher.UIThread.Post(RefreshModelOptionsFromConfig);
+    }
+
+    /// <summary>从 models.json 重新加载配置并刷新连接/模型列表</summary>
+    private void RefreshModelOptionsFromConfig()
+    {
+        try
+        {
+            _session.RefreshVendorModelMap();
+            RebuildConnectionOptions();
+            _modelOptionsCache = null;
+            OnPropertyChanged(nameof(ModelOptions));
+            SelectedModelOption = ModelOptions.FirstOrDefault();
+            SelectedModel = SelectedModelOption?.Id;
+            StatusText = "配置已热重载";
+        }
+        catch (Exception ex)
+        {
+            WriteErrorLog(ex);
+        }
     }
 
     /// <summary>引擎加载失败时回退到 Mock 连接（填充连接列表供用户使用）</summary>

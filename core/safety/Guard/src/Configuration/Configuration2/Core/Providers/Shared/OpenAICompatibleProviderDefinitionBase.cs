@@ -20,8 +20,6 @@ public abstract class OpenAICompatibleProviderDefinitionBase : IProviderDefiniti
     protected virtual string AuthHeaderName => "Authorization";
     protected virtual string AuthHeaderValuePrefix => "Bearer ";
 
-    public virtual bool SupportsStreamOptions => true;
-
     public virtual string GetBaseUrl(ProviderConfig config)
     {
         return !string.IsNullOrEmpty(config.Endpoint) ? config.Endpoint.TrimEnd('/') + "/" : DefaultBaseUrl;

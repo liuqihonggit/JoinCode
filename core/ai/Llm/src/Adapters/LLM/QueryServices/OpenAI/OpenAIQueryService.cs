@@ -165,8 +165,7 @@ public class OpenAIQueryService : QueryServiceBase
 
         // 流式请求时显式要求 API 返回 usage(含 cached_tokens) —
         // 真实 OpenAI API 在最后一个 chunk(choices 为空)返回 usage 字段
-        // 部分 OpenAI 兼容供应商（如 Agnes）不支持 stream_options，发送会导致 400 Bad Request
-        if (stream && (Config.Definition?.SupportsStreamOptions ?? true))
+        if (stream)
         {
             request.StreamOptions = new OpenAIStreamOptions { IncludeUsage = true };
         }

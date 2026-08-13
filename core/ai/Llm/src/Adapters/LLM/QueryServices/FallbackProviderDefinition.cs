@@ -29,7 +29,6 @@ internal sealed class FallbackProviderDefinition : IProviderDefinition
     public IEnumerable<ModelEntry> AvailableModels => _inner?.AvailableModels ?? [];
     public string? ResolveApiKeyFromEnv() => _inner?.ResolveApiKeyFromEnv();
     public bool IsValid(ProviderConfig config) => _inner?.IsValid(config) ?? !string.IsNullOrWhiteSpace(config.ApiKey);
-    public bool SupportsStreamOptions => _inner?.SupportsStreamOptions ?? true;
 
     public string GetBaseUrl(ProviderConfig config) => _inner?.GetBaseUrl(config) ?? _protocol switch
     {

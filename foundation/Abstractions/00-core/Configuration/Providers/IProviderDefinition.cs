@@ -98,12 +98,6 @@ public interface IProviderDefinition
     bool SupportsMaxEffort(string modelId) => false;
 
     /// <summary>
-    /// 是否支持 stream_options.include_usage — 部分 OpenAI 兼容供应商（如 Agnes）不支持此字段，
-    /// 发送会导致 400 Bad Request
-    /// </summary>
-    bool SupportsStreamOptions => true;
-
-    /// <summary>
     /// 构建 API 基础 URL（责任链：每个 Provider 自己决定 URL 格式）
     /// </summary>
     string GetBaseUrl(ProviderConfig config);

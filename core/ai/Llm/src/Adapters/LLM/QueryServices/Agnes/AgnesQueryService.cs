@@ -13,9 +13,8 @@ using Api.LLM.QueryServices.OpenAI;
 ///   而非 null。此修复已在基类 BuildParameters 中完成，AgnesQueryService 额外做防御性后处理。
 ///
 /// 【踩坑2】stream_options 字段
-///   Agnes 文档未列出 stream_options 为支持参数，但实测发送 stream_options 不会报错。
-///   为安全起见，通过 IProviderDefinition.SupportsStreamOptions 能力标记控制，
-///   AgnesProviderDefinition 覆写为 false，基类据此跳过发送。
+///   Agnes 文档未列出 stream_options，但实测发送 stream_options 不会报错，
+///   且能正常返回 usage 字段。因此不需要跳过，基类统一发送即可。
 ///
 /// 【踩坑3】frequency_penalty / presence_penalty / reasoning_effort
 ///   Agnes 文档未列出这些参数，但它们有 JsonIgnore(WhenWritingNull) 保护，

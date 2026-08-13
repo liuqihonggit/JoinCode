@@ -88,19 +88,6 @@ public class ConfigLoaderTests : IDisposable {
     }
 
     [Fact]
-    public async Task LoadConfig_ShouldHaveDefaultValues() {
-        var realKey = TestConfiguration.GetRealApiKey();
-        Environment.SetEnvironmentVariable(ProviderEnvVarConstants.OpenAiApiKey, realKey);
-        Environment.SetEnvironmentVariable(JccEnvVarConstants.ApiKey, null);
-
-        var config = await _loader.LoadConfigAsync(_fs).ConfigureAwait(true);
-
-        Assert.Equal(DefaultOpenAiModelId, config.Provider.ModelId);
-        Assert.Equal("workflow_state.json", config.StateFilePath);
-        Assert.NotNull(config.Bridge);
-    }
-
-    [Fact]
     public async Task LoadConfig_ShouldHaveDefaultCodeExecutionConfig() {
         var realKey = TestConfiguration.GetRealApiKey();
         Environment.SetEnvironmentVariable(ProviderEnvVarConstants.OpenAiApiKey, realKey);

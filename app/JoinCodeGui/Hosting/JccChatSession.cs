@@ -126,6 +126,40 @@ internal sealed class JccChatSession : IJccChatSession
         ctxMgr?.SwitchSession(sessionId);
     }
 
+    /// <summary>
+    /// 从持久化历史灌入底层对话上下文 — GUI 新进程 StateService 内存为空，
+    /// 先 ClearMessagesAsync 清空当前桶，再逐条灌入历史消息到 IChatContextManager。
+    /// 对齐 CLI /resume 的 LoadContextAsync 语义。
+    /// </summary>
+    public async Task LoadHistoryAsync(IReadOnlyList<(MessageRole Role, string Content)> messages, CancellationToken cancellationToken = default)
+    {
+        var ctxMgr = _services.GetService<IChatContextManager>();
+        if (ctxMgr is null)
+            return;
+
+        await ctxMgr.ClearMessagesAsync(cancellationToken).ConfigureAwait(false);
+        foreach (var (role, content) in messages)
+        {
+            if (string.IsNullOrWhiteSpace(content))
+                continue;
+            switch (role)
+            {
+                case MessageRole.User:
+                    await ctxMgr.AddUserMessageAsync(content, cancellationToken).ConfigureAwait(false);
+                    break;
+                case MessageRole.Assistant:
+                    await ctxMgr.AddAssistantMessageAsync(content, cancellationToken).ConfigureAwait(false);
+                    break;
+                case MessageRole.System:
+                    await ctxMgr.AddSystemMessageAsync(content, cancellationToken).ConfigureAwait(false);
+                    break;
+                case MessageRole.Tool:
+                    await ctxMgr.AddToolResultMessageAsync(content, new Dictionary<string, JsonElement>(), cancellationToken).ConfigureAwait(false);
+                    break;
+            }
+        }
+    }
+
     private static IReadOnlyDictionary<string, IReadOnlyList<string>> BuildVendorModelMap()
     {
         var map = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase);

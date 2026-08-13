@@ -120,6 +120,31 @@ public class MainViewModelTests
     }
 
     [Fact]
+    public async Task SelectSession_LoadsHistoryIntoUnderlyingSession_EngineReceivesFullHistory()
+    {
+        var store = new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions");
+        var session1 = new HistoryRecordingSession();
+        var vm = new MainViewModel(session1, store);
+
+        vm.InputText = "你好，帮我写个 hello world";
+        await Task.Run(() => vm.SendCommand.ExecuteAsync(null)).WaitAsync(Timeout);
+        var sessionId = vm.Sessions.First(s => s.IsSelected).Id;
+
+        var session2 = new HistoryRecordingSession();
+        var vm2 = new MainViewModel(session2, store);
+        var restored = vm2.Sessions.First(s => s.Id == sessionId);
+
+        await Task.Run(() => vm2.SelectSessionCommand.ExecuteAsync(restored)).WaitAsync(Timeout);
+
+        session2.LoadHistoryCalls.Should().HaveCount(1, "SelectSession 应把持久化历史灌入底层 session");
+        var loaded = session2.LoadHistoryCalls[0];
+        loaded.Should().Contain(m => m.Role == MessageRole.User && m.Content.Contains("hello world"),
+            "灌入的历史应包含已持久化的用户消息");
+        loaded.Should().Contain(m => m.Role == MessageRole.Assistant,
+            "灌入的历史应包含已持久化的助手回复");
+    }
+
+    [Fact]
     public async Task RemoveSession_DeletesPersistedFile()
     {
         var store = new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions");
@@ -1125,6 +1150,7 @@ public class MainViewModelTests
             public Task SetModelAsync(string modelId, CancellationToken cancellationToken = default) => Task.CompletedTask;
             public void RefreshVendorModelMap() { }
             public void SwitchSession(string sessionId) { }
+            public Task LoadHistoryAsync(IReadOnlyList<(MessageRole Role, string Content)> messages, CancellationToken cancellationToken = default) => Task.CompletedTask;
             public EffortLevel EffortLevel => EffortLevel.Auto;
             public Task SetEffortLevelAsync(EffortLevel effortLevel, CancellationToken cancellationToken = default) => Task.CompletedTask;
             public Task SetSystemPromptAsync(string systemPrompt, CancellationToken cancellationToken = default) => Task.CompletedTask;
@@ -1173,6 +1199,7 @@ public class MainViewModelTests
             public Task SetModelAsync(string modelId, CancellationToken cancellationToken = default) => Task.CompletedTask;
             public void RefreshVendorModelMap() { }
             public void SwitchSession(string sessionId) { }
+            public Task LoadHistoryAsync(IReadOnlyList<(MessageRole Role, string Content)> messages, CancellationToken cancellationToken = default) => Task.CompletedTask;
             public EffortLevel EffortLevel => EffortLevel.Auto;
             public Task SetEffortLevelAsync(EffortLevel effortLevel, CancellationToken cancellationToken = default) => Task.CompletedTask;
             public Task SetSystemPromptAsync(string systemPrompt, CancellationToken cancellationToken = default)
@@ -1225,6 +1252,54 @@ public class MainViewModelTests
             public Task SetModelAsync(string modelId, CancellationToken cancellationToken = default) => Task.CompletedTask;
             public void RefreshVendorModelMap() { }
             public void SwitchSession(string sessionId) { }
+            public Task LoadHistoryAsync(IReadOnlyList<(MessageRole Role, string Content)> messages, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public EffortLevel EffortLevel => EffortLevel.Auto;
+            public Task SetEffortLevelAsync(EffortLevel effortLevel, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public Task SetSystemPromptAsync(string systemPrompt, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public float? Temperature => null;
+            public int? MaxTokens => null;
+            public Task SetTemperatureAsync(float temperature, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public Task SetMaxTokensAsync(int maxTokens, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public IReadOnlyList<SlashCommandMetadata> GetAvailableSlashCommands() => [];
+            public Task<IReadOnlyList<ToolSummary>> GetAvailableToolsAsync(CancellationToken cancellationToken = default)
+                => Task.FromResult<IReadOnlyList<ToolSummary>>([]);
+            public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        }
+
+        /// <summary>记录 LoadHistoryAsync 调用的假会话，用于验证 SelectSession 把历史灌入底层引擎</summary>
+        private sealed class HistoryRecordingSession : IJccChatSession
+        {
+            public List<IReadOnlyList<(MessageRole Role, string Content)>> LoadHistoryCalls { get; } = [];
+
+            public Func<PermissionConfirmationRequest, Task<PermissionConfirmationDecision>>? PermissionConfirmationHandler { get; set; }
+            public bool IsReady => true;
+            public string CurrentVendor => "fake";
+            public string CurrentModelId => "fake-model";
+            public IReadOnlyDictionary<string, IReadOnlyList<string>> VendorModelMap { get; }
+                = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["fake"] = ["fake-model"]
+                };
+            public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public async IAsyncEnumerable<ChatStreamEvent> StreamAsync(string message, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+            {
+                yield return ChatStreamEvent.Text("收到：" + message);
+                yield return ChatStreamEvent.Done();
+                await Task.CompletedTask;
+            }
+            public Task<IReadOnlyList<ApiMessageRecord>> GetMessagesAsync(CancellationToken cancellationToken = default)
+                => Task.FromResult<IReadOnlyList<ApiMessageRecord>>([]);
+            public Task ClearHistoryAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public Task<RewindResult> RewindLastTurnAsync(CancellationToken cancellationToken = default)
+                => Task.FromResult(new RewindResult());
+            public Task SetModelAsync(string modelId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public void RefreshVendorModelMap() { }
+            public void SwitchSession(string sessionId) { }
+            public Task LoadHistoryAsync(IReadOnlyList<(MessageRole Role, string Content)> messages, CancellationToken cancellationToken = default)
+            {
+                LoadHistoryCalls.Add(messages);
+                return Task.CompletedTask;
+            }
             public EffortLevel EffortLevel => EffortLevel.Auto;
             public Task SetEffortLevelAsync(EffortLevel effortLevel, CancellationToken cancellationToken = default) => Task.CompletedTask;
             public Task SetSystemPromptAsync(string systemPrompt, CancellationToken cancellationToken = default) => Task.CompletedTask;

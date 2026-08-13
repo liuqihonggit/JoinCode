@@ -53,6 +53,15 @@ public interface IJccChatSession : IAsyncDisposable
     /// <summary>切换会话 — 引擎按 sessionId 隔离对话历史，切回时自动恢复</summary>
     void SwitchSession(string sessionId);
 
+    /// <summary>
+    /// 从持久化历史灌入底层对话上下文 — GUI 新进程时 <c>StateService</c> 内存为空，
+    /// <see cref="SwitchSession"/> 仅切换 sessionId 不加载历史。此方法把磁盘恢复的
+    /// 历史消息逐条灌入 <c>IChatContextManager</c>，使后续 <see cref="StreamAsync"/>
+    /// 发送时 LLM 能收到完整历史。对齐 CLI /resume 的 <c>LoadContextAsync</c> 语义。
+    /// </summary>
+    /// <param name="messages">按时间顺序的历史消息（Role + Content），不含当前轮新消息</param>
+    Task LoadHistoryAsync(IReadOnlyList<(MessageRole Role, string Content)> messages, CancellationToken cancellationToken = default);
+
     /// <summary>切换当前模型（回写共享 WorkflowConfig.Provider.ModelId，下次请求引擎即生效）</summary>
     Task SetModelAsync(string modelId, CancellationToken cancellationToken = default);
 

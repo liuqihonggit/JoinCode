@@ -1244,7 +1244,7 @@ public sealed partial class MainViewModel : ViewModelBase
 
     /// <summary>选中指定会话（单击切换当前会话，同一时刻仅一个选中；未选中态用作未可选区分）</summary>
     [RelayCommand]
-    private void SelectSession(SessionItem? session)
+    private async Task SelectSession(SessionItem? session)
     {
         if (session is null)
             return;
@@ -1259,6 +1259,7 @@ public sealed partial class MainViewModel : ViewModelBase
         // 切换会话时从持久化恢复该会话消息到消息区（空会话则清空）
         var data = _sessionStore.Load(session.Id);
         Messages.Clear();
+        var historyForEngine = new List<(MessageRole Role, string Content)>();
         if (data is not null)
         {
             foreach (var msg in data.Messages)
@@ -1272,8 +1273,13 @@ public sealed partial class MainViewModel : ViewModelBase
                     Content = msg.Content,
                     Timestamp = msg.Timestamp
                 });
+                historyForEngine.Add((role, msg.Content));
             }
         }
+
+        // 把持久化历史灌入底层引擎上下文 — GUI 新进程 StateService 内存为空，
+        // SwitchSession 仅切换 sessionId 不加载历史，需显式灌入否则发送时 LLM 收不到历史
+        await _session.LoadHistoryAsync(historyForEngine).ConfigureAwait(false);
     }
 
     /// <summary>重命名指定会话（标题由视图双击触发，空标题忽略）</summary>

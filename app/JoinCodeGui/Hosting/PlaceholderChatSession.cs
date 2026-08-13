@@ -37,6 +37,10 @@ internal sealed class PlaceholderChatSession : IJccChatSession
     /// <summary>占位会话切换 — 无真实引擎历史，空实现</summary>
     public void SwitchSession(string sessionId) { }
 
+    /// <summary>占位会话无真实引擎上下文，灌入历史空实现</summary>
+    public Task LoadHistoryAsync(IReadOnlyList<(MessageRole Role, string Content)> messages, CancellationToken cancellationToken = default)
+        => Task.CompletedTask;
+
     private static IReadOnlyDictionary<string, IReadOnlyList<string>> BuildVendorModelMap()
     {
         var map = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase);

@@ -187,14 +187,14 @@
             <edit:TextEditor x:Name="MessageTextEditor"
                              IsReadOnly="True" ShowLineNumbers="False" WordWrap="True"
                              FontFamily="{DynamicResource GuiMonoFont}" FontSize="13"
-                             Foreground="#D4D4D4" Background="Transparent" BorderThickness="0"
+                             Foreground="{DynamicResource GuiEditorForeground}" Background="Transparent" BorderThickness="0"
                              Padding="10,6" />
             <Border VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,10" CornerRadius="12"
-                    Padding="14,6" Background="#4a9eff" IsVisible="{Binding HasCopied}">
-              <TextBlock Text="已复制到剪贴板" Foreground="White" FontSize="12" />
+                    Padding="14,6" Background="{DynamicResource GuiToastSuccess}" IsVisible="{Binding HasCopied}">
+              <TextBlock Text="已复制到剪贴板" Foreground="{DynamicResource GuiToastForeground}" FontSize="12" />
             </Border>
             <Border x:Name="ErrorToast" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,52"
-                    CornerRadius="10" Padding="14,8" Background="#d43a3a" Opacity="0"
+                    CornerRadius="10" Padding="14,8" Background="{DynamicResource GuiToastError}" Opacity="0"
                     IsVisible="{Binding HasErrorToast}" ZIndex="10"
                     PointerEntered="OnErrorToastPointerEnter" PointerExited="OnErrorToastPointerLeave">
               <Border.Transitions>
@@ -203,13 +203,13 @@
                 </Transitions>
               </Border.Transitions>
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
-                <TextBlock x:Name="ErrorToastTextBlock" Text="{Binding ErrorToastText}" Foreground="White"
+                <TextBlock x:Name="ErrorToastTextBlock" Text="{Binding ErrorToastText}" Foreground="{DynamicResource GuiToastForeground}"
                            FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center" />
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                   <Button Content="📋 复制" FontSize="11" Padding="8,3"
                           Command="{Binding CopyErrorToastCommand}" />
                   <Button Content="✕" FontSize="10" Padding="5,2" Background="Transparent"
-                          BorderThickness="0" Foreground="White"
+                          BorderThickness="0" Foreground="{DynamicResource GuiToastForeground}"
                           Command="{Binding DismissErrorToastCommand}" />
                 </StackPanel>
               </Grid>
@@ -294,7 +294,7 @@
                  VerticalOffset="0" IsLightDismissEnabled="True">
             <Border x:Name="SlashPopupBorder" MinWidth="300" MaxHeight="340" CornerRadius="6" Padding="2"
                     Background="{DynamicResource GuiWindowBackground}"
-                    BoxShadow="0 6 16 0 #90000000" ClipToBounds="True">
+                    BoxShadow="{DynamicResource GuiPopupShadow}" ClipToBounds="True">
               <ListBox x:Name="SlashListBox"
                        ItemsSource="{Binding SlashSuggestions}"
                        SelectedIndex="{Binding SlashSelectedIndex}"
@@ -311,7 +311,7 @@
                       </Grid.ColumnDefinitions>
                       <StackPanel Orientation="Horizontal" Spacing="0" Grid.Column="0">
                         <TextBlock Text="{Binding MatchedPart}" FontFamily="{DynamicResource GuiMonoFont}" FontSize="13" FontWeight="Bold"
-                                   Foreground="#E89A3C" />
+                                   Foreground="{DynamicResource GuiSlashMatched}" />
                         <TextBlock Text="{Binding RemainingPart}" FontFamily="{DynamicResource GuiMonoFont}" FontSize="13"
                                    Foreground="{DynamicResource GuiSecondaryText}" />
                       </StackPanel>

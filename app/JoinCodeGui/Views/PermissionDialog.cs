@@ -3,6 +3,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 
 using JoinCode.Gui.Hosting;
+using JoinCode.Gui.Theming;
 
 namespace JoinCode.Gui.Views;
 
@@ -37,7 +38,7 @@ public sealed class PermissionDialog : Window
             Text = $"工具「{_request.ToolName}」请求执行权限",
             FontSize = 15,
             FontWeight = FontWeight.SemiBold,
-            Foreground = Brushes.DarkSlateGray,
+            Foreground = GuiPalette.ToBrush(GuiPalette.Current.PrimaryText),
             TextWrapping = TextWrapping.Wrap
         };
 
@@ -45,7 +46,7 @@ public sealed class PermissionDialog : Window
         {
             Text = _request.ConfirmationPrompt,
             FontSize = 13,
-            Foreground = Brushes.DimGray,
+            Foreground = GuiPalette.ToBrush(GuiPalette.Current.SecondaryText),
             TextWrapping = TextWrapping.Wrap
         };
 
@@ -55,7 +56,7 @@ public sealed class PermissionDialog : Window
             {
                 Text = _request.RuleContent,
                 FontSize = 11,
-                Foreground = Brushes.Gray,
+                Foreground = GuiPalette.ToBrush(GuiPalette.Current.MutedText),
                 TextWrapping = TextWrapping.Wrap,
                 FontFamily = new FontFamily("Consolas")
             };

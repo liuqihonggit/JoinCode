@@ -16,6 +16,7 @@ public static class GuiAppResources
     {
         app.Styles.Add(new FluentTheme());
         app.Resources["GuiMonoFont"] = new Avalonia.Media.FontFamily("Consolas,Cascadia Mono,Menlo,monospace");
+        app.Resources["GuiPopupShadow"] = Avalonia.Media.BoxShadow.Parse("0 6 16 0 #90000000");
         var themeHost = new ResourceDictionary();
         foreach (var (variant, scheme) in GuiPalette.BuildResourceDictionaries())
         {

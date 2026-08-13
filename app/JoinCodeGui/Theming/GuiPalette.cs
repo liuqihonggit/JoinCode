@@ -51,6 +51,12 @@ public static class GuiPalette
         public string ButtonPressed { get; init; } = "#3d3d3d";
         public string ButtonBorder { get; init; } = "#3a3a3a";
         public string ButtonForeground { get; init; } = "#e0e0e0";
+        public string EditorForeground { get; init; } = "#D4D4D4";
+        public string ToastSuccess { get; init; } = "#4a9eff";
+        public string ToastError { get; init; } = "#d43a3a";
+        public string ToastShadow { get; init; } = "#90000000";
+        public string SlashMatched { get; init; } = "#E89A3C";
+        public string ToastForeground { get; init; } = "#FFFFFF";
 
         /// <summary>遍历全部 token 值，供对比度校验与资源注入使用。</summary>
         public IEnumerable<string> AllTokens()
@@ -89,6 +95,12 @@ public static class GuiPalette
             yield return ButtonPressed;
             yield return ButtonBorder;
             yield return ButtonForeground;
+            yield return EditorForeground;
+            yield return ToastSuccess;
+            yield return ToastError;
+            yield return ToastShadow;
+            yield return SlashMatched;
+            yield return ToastForeground;
         }
     }
 
@@ -128,7 +140,13 @@ public static class GuiPalette
         ButtonHover = "#eef1f5",
         ButtonPressed = "#e3e7ec",
         ButtonBorder = "#c9c9c9",
-        ButtonForeground = "#1c1c1c"
+        ButtonForeground = "#1c1c1c",
+        EditorForeground = "#1c1c1c",
+        ToastSuccess = "#1a6bc0",
+        ToastError = "#c62828",
+        ToastShadow = "#90000000",
+        SlashMatched = "#B35C00",
+        ToastForeground = "#FFFFFF"
     };
 
     /// <summary>获取指定主题的配色方案。</summary>
@@ -202,6 +220,12 @@ public static class GuiPalette
         yield return ("GuiButtonPressed", s.ButtonPressed);
         yield return ("GuiButtonBorder", s.ButtonBorder);
         yield return ("GuiButtonForeground", s.ButtonForeground);
+        yield return ("GuiEditorForeground", s.EditorForeground);
+        yield return ("GuiToastSuccess", s.ToastSuccess);
+        yield return ("GuiToastError", s.ToastError);
+        yield return ("GuiToastShadow", s.ToastShadow);
+        yield return ("GuiSlashMatched", s.SlashMatched);
+        yield return ("GuiToastForeground", s.ToastForeground);
     }
 
     /// <summary>解析十六进制色为不可变画刷（供资源和转换器共用）。</summary>

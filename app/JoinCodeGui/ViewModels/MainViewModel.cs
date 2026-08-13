@@ -215,12 +215,12 @@ public sealed partial class MainViewModel : ViewModelBase
         }
     }
 
-    /// <summary>重建模型选项缓存 — 从 VendorModelMap 取选中供应商的模型列表；当前模型不在 catalog 时追加</summary>
+    /// <summary>重建模型选项缓存 — 从 VendorModelMap 取选中供应商的模型列表；当前模型不在 catalog 时追加（仅限同供应商）</summary>
     private void RebuildModelOptionsCache()
     {
         var isMock = _session is Hosting.PlaceholderChatSession;
         var provider = isMock
-            ? _session.CurrentVendor
+            ? "mock"
             : (SelectedConnection?.Id ?? _session.CurrentVendor);
         var providerDisplay = isMock
             ? "Mock"
@@ -233,7 +233,13 @@ public sealed partial class MainViewModel : ViewModelBase
         if (!string.IsNullOrWhiteSpace(current)
             && source.All(id => !string.Equals(id, current, StringComparison.OrdinalIgnoreCase)))
         {
-            source.Add(current);
+            // 校验当前模型是否属于当前供应商 — 跨供应商切换时旧模型不追加（避免污染）
+            // 模型不在配置中（自定义模型）时仍追加，兼容测试桩
+            var modelProvider = ModelConfigLoader.FindProviderByModelId(current);
+            if (modelProvider is null || string.Equals(modelProvider, provider, StringComparison.OrdinalIgnoreCase))
+            {
+                source.Add(current);
+            }
         }
         var items = new ModelOptionItem[source.Count];
         for (var i = 0; i < source.Count; i++)
@@ -789,8 +795,7 @@ public sealed partial class MainViewModel : ViewModelBase
         OnPropertyChanged(nameof(ModelOptions));
         OnPropertyChanged(nameof(IsMockConnection));
         SelectedModelOption = ModelOptions.FirstOrDefault();
-        if (SelectedModelOption is not null)
-            SelectedModel = SelectedModelOption.Id;
+        SelectedModel = SelectedModelOption?.Id;
         SelectedEffort = _session.EffortLevel.ToValue();
     }
 

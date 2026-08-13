@@ -139,12 +139,13 @@ public class MainViewModelTests
     [Fact]
     public void ModelOptions_AreBoundToSessionRealModels()
     {
-        var vm = CreateVm();
+        var fake = new FakeSession();
+        var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"));
 
-        vm.ModelOptions.Select(m => m.Id).Should().BeEquivalentTo(["deepseek-v4-flash", "deepseek-v4-pro"]);
-        vm.SelectedModel.Should().Be("deepseek-v4-flash");
+        vm.ModelOptions.Select(m => m.Id).Should().BeEquivalentTo(["fake-model"]);
+        vm.SelectedModel.Should().Be("fake-model");
         vm.SelectedModelOption.Should().NotBeNull();
-        vm.SelectedModelOption!.Id.Should().Be("deepseek-v4-flash");
+        vm.SelectedModelOption!.Id.Should().Be("fake-model");
     }
 
     [Fact]
@@ -171,12 +172,13 @@ public class MainViewModelTests
     [Fact]
     public void SelectedModelOptionChange_SyncsSelectedModel()
     {
-        var vm = CreateVm();
+        var session = new CrossContaminationSession();
+        var vm = new MainViewModel(session, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"));
 
-        var target = vm.ModelOptions.First(m => m.Id == "deepseek-v4-pro");
+        var target = vm.ModelOptions.First(m => m.Id == "sensenova-u1-fast");
         vm.SelectedModelOption = target;
 
-        vm.SelectedModel.Should().Be("deepseek-v4-pro");
+        vm.SelectedModel.Should().Be("sensenova-u1-fast");
     }
 
     [Fact]
@@ -204,8 +206,8 @@ public class MainViewModelTests
 
         vm.IsMockConnection.Should().BeTrue();
         vm.StatusText.Should().Contain("Mock");
-        vm.ModelOptions.Select(m => m.Id).Should().BeEquivalentTo(["deepseek-v4-flash", "deepseek-v4-pro"]);
-        vm.SelectedModel.Should().Be("deepseek-v4-flash");
+        vm.ModelOptions.Should().BeEmpty();
+        vm.SelectedModel.Should().BeNull();
     }
 
     [Fact]
@@ -234,16 +236,36 @@ public class MainViewModelTests
         vm.SelectedConnection!.Id.Should().Be("fake");
         vm.ModelOptions.Select(m => m.Id).Should().BeEquivalentTo(["fake-model"]);
 
-        // 切换到 Mock — 模型列表应从 PlaceholderChatSession.VendorModelMap["deepseek"] 读取
+        // 切换到 Mock — Mock 不关联真实供应商，模型列表应为空
         var mock = vm.ConnectionOptions.First(o => o.IsMock);
         vm.SelectedConnection = mock;
-        vm.ModelOptions.Select(m => m.Id).Should().Contain("deepseek-v4-flash");
-        vm.ModelOptions.Select(m => m.Id).Should().Contain("deepseek-v4-pro");
+        vm.ModelOptions.Should().BeEmpty();
 
         // 切换回 "fake" — 模型列表应恢复为 fake 的模型
         var fakeConn = vm.ConnectionOptions.First(o => !o.IsMock);
         vm.SelectedConnection = fakeConn;
         vm.ModelOptions.Select(m => m.Id).Should().BeEquivalentTo(["fake-model"]);
+    }
+
+    /// <summary>跨供应商切换时，旧供应商的 CurrentModelId 不应污染新供应商的模型列表</summary>
+    [Fact]
+    public void ModelOptions_DoesNotCrossContaminateModelsFromOtherProviders()
+    {
+        var session = new CrossContaminationSession();
+        var vm = new MainViewModel(session, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"));
+
+        // 初始选 sensenova，模型列表应包含 sensenova 模型
+        vm.SelectedConnection!.Id.Should().Be("sensenova");
+        vm.ModelOptions.Select(m => m.Id).Should().Contain("sensenova-6.7-flash-lite");
+
+        // 切换到 anthropic
+        var anthropic = vm.ConnectionOptions.First(o => o.Id == "anthropic");
+        vm.SelectedConnection = anthropic;
+
+        // anthropic 模型列表不应混入 sensenova 模型
+        vm.ModelOptions.Select(m => m.Id).Should().NotContain("sensenova-6.7-flash-lite");
+        vm.ModelOptions.Select(m => m.Id).Should().OnlyContain(
+            id => !id.StartsWith("sensenova", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -1166,6 +1188,44 @@ public class MainViewModelTests
                 WrittenMaxTokens = maxTokens;
                 return Task.CompletedTask;
             }
+            public IReadOnlyList<SlashCommandMetadata> GetAvailableSlashCommands() => [];
+            public Task<IReadOnlyList<ToolSummary>> GetAvailableToolsAsync(CancellationToken cancellationToken = default)
+                => Task.FromResult<IReadOnlyList<ToolSummary>>([]);
+            public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        }
+
+        /// <summary>跨供应商污染测试桩 — CurrentModelId 是 sensenova 的模型，VendorModelMap 包含 anthropic 和 sensenova</summary>
+        private sealed class CrossContaminationSession : IJccChatSession
+        {
+            public bool IsReady => true;
+            public string CurrentVendor => "sensenova";
+            public string CurrentModelId => "sensenova-6.7-flash-lite";
+            public IReadOnlyDictionary<string, IReadOnlyList<string>> VendorModelMap { get; }
+                = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["anthropic"] = ["claude-sonnet-4-20250514", "claude-opus-4-20250514"],
+                    ["sensenova"] = ["sensenova-6.7-flash-lite", "sensenova-u1-fast"]
+                };
+            public Func<PermissionConfirmationRequest, Task<PermissionConfirmationDecision>>? PermissionConfirmationHandler { get; set; }
+            public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public async IAsyncEnumerable<ChatStreamEvent> StreamAsync(string message, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+            {
+                yield return ChatStreamEvent.Done();
+                await Task.CompletedTask;
+            }
+            public Task<IReadOnlyList<ApiMessageRecord>> GetMessagesAsync(CancellationToken cancellationToken = default)
+                => Task.FromResult<IReadOnlyList<ApiMessageRecord>>([]);
+            public Task ClearHistoryAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public Task<RewindResult> RewindLastTurnAsync(CancellationToken cancellationToken = default)
+                => Task.FromResult(new RewindResult());
+            public Task SetModelAsync(string modelId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public EffortLevel EffortLevel => EffortLevel.Auto;
+            public Task SetEffortLevelAsync(EffortLevel effortLevel, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public Task SetSystemPromptAsync(string systemPrompt, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public float? Temperature => null;
+            public int? MaxTokens => null;
+            public Task SetTemperatureAsync(float temperature, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public Task SetMaxTokensAsync(int maxTokens, CancellationToken cancellationToken = default) => Task.CompletedTask;
             public IReadOnlyList<SlashCommandMetadata> GetAvailableSlashCommands() => [];
             public Task<IReadOnlyList<ToolSummary>> GetAvailableToolsAsync(CancellationToken cancellationToken = default)
                 => Task.FromResult<IReadOnlyList<ToolSummary>>([]);

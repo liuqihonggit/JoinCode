@@ -34,6 +34,7 @@ global using Core.Memdir;
 global using Infrastructure.Configuration;
 global using Infrastructure.Pipeline;
 global using Infrastructure.Utils.IO;
+global using Infrastructure.Utils.Text;
 global using IO;
 global using Memdir.Sync;
 global using Microsoft.Extensions.DependencyInjection;

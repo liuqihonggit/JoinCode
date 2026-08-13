@@ -58,10 +58,11 @@ public sealed partial class MemoryRelevanceSelector : ServiceEntity, IMemoryRele
     {
         var now = _clock.GetUtcNow();
         var queryWords = QueryWordHelper.ExtractWords(query, minLength: 2);
+        var queryWordAc = AhoCorasick.CreateBool(queryWords, ignoreCase: true);
 
         var scoredMemories = memories
             .Where(m => !m.IsArchived && !m.IsExpired(now))
-            .Select(m => ScoreMemory(m, queryWords, now))
+            .Select(m => ScoreMemory(m, queryWords, queryWordAc, now))
             .Where(sm => sm.RelevanceScore > 0)
             .OrderByDescending(sm => sm.RelevanceScore)
             .Take(maxResults)
@@ -79,7 +80,7 @@ public sealed partial class MemoryRelevanceSelector : ServiceEntity, IMemoryRele
     /// <summary>
     /// 为单个记忆打分
     /// </summary>
-    private ScoredMemory ScoreMemory(MemoryEntry memory, HashSet<string> queryWords, DateTime now)
+    private ScoredMemory ScoreMemory(MemoryEntry memory, HashSet<string> queryWords, AhoCorasick<bool> queryWordAc, DateTime now)
     {
         var score = 0.0;
 
@@ -91,9 +92,9 @@ public sealed partial class MemoryRelevanceSelector : ServiceEntity, IMemoryRele
             : 0;
         score += keywordScore;
 
-        // 2. 标签匹配分数
+        // 2. 标签匹配分数 — AC 自动机一次扫描判断标签是否包含任意查询词
         var tagMatches = memory.Tags
-            .Count(tag => queryWords.Any(qw => tag.Contains(qw, StringComparison.OrdinalIgnoreCase)));
+            .Count(tag => queryWordAc.ContainsAny(tag.AsSpan()));
         score += tagMatches * 0.15;
 
         // 3. 标题匹配分数

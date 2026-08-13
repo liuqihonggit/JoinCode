@@ -882,17 +882,18 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
             }
         }
 
-        // 标签匹配（权重更高）
+        // 标签匹配（权重更高）— AC 自动机一次扫描
+        var queryWordAc = AhoCorasick.CreateBool(queryWords, ignoreCase: true);
         foreach (var tag in memory.Tags)
         {
-            if (queryWords.Any(w => tag.Contains(w, StringComparison.OrdinalIgnoreCase)))
+            if (queryWordAc.ContainsAny(tag.AsSpan()))
             {
                 score += 2.0;
             }
         }
 
         // 类型匹配
-        if (queryWords.Any(w => memory.Type.ToString().Contains(w, StringComparison.OrdinalIgnoreCase)))
+        if (queryWordAc.ContainsAny(memory.Type.ToString().AsSpan()))
         {
             score += 1.5;
         }
@@ -911,20 +912,21 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
     {
         var reasons = new List<string>();
         var queryWords = QueryWordHelper.ExtractQueryWords(query);
+        var queryWordAc = AhoCorasick.CreateBool(queryWords, ignoreCase: true);
 
-        if (queryWords.Any(w => memory.Content.Contains(w, StringComparison.OrdinalIgnoreCase)))
+        if (queryWordAc.ContainsAny(memory.Content.AsSpan()))
         {
             reasons.Add(L.T(StringKey.VaultMatchReasonContent));
         }
 
         // 检查标签匹配
-        if (memory.Tags.Any(t => queryWords.Any(w => t.Contains(w, StringComparison.OrdinalIgnoreCase))))
+        if (memory.Tags.Any(t => queryWordAc.ContainsAny(t.AsSpan())))
         {
             reasons.Add(L.T(StringKey.VaultMatchReasonTag));
         }
 
         // 检查类型匹配
-        if (queryWords.Any(w => memory.Type.ToString().Contains(w, StringComparison.OrdinalIgnoreCase)))
+        if (queryWordAc.ContainsAny(memory.Type.ToString().AsSpan()))
         {
             reasons.Add(L.T(StringKey.VaultMatchReasonType));
         }

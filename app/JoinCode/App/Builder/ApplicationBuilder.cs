@@ -262,6 +262,7 @@ public sealed class ApplicationBuilder
             PipeName = result.Pipe,
             Prompt = result.Prompt,
             Model = result.Model,
+            Vendor = result.Vendor,
             NonInteractive = result.NonInteractive,
             NoConfirm = result.NoConfirm,
             TrustWorkspace = result.Trust,
@@ -310,6 +311,13 @@ public sealed class ApplicationBuilder
         {
             Environment.SetEnvironmentVariable(JccEnvVar.PermissionMode.ToValue(), permissionModeFromCli);
             Diag.WriteLine($"[MAIN] CLI permission-mode={permissionModeFromCli} → JCC_PERMISSION_MODE 环境变量已设置");
+        }
+
+        // --vendor: CLI 参数 → JCC_VENDOR 环境变量（自动匹配 profiles 中的同名预设）
+        if (!string.IsNullOrEmpty(options.Vendor))
+        {
+            Environment.SetEnvironmentVariable(JccEnvVar.Vendor.ToValue(), options.Vendor);
+            Diag.WriteLine($"[MAIN] CLI vendor={options.Vendor} → JCC_VENDOR 环境变量已设置");
         }
 
         if (Cli.TerminalHelper.IsHeadless)

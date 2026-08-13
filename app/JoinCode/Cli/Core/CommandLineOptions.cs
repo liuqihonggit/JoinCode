@@ -48,6 +48,11 @@ public class CommandLineOptions {
     public string? Model { get; set; }
 
     /// <summary>
+    /// 切换供应商（--vendor 参数，自动匹配 profiles 中的同名预设）
+    /// </summary>
+    public string? Vendor { get; set; }
+
+    /// <summary>
     /// 检测到的无头模式原因（由 ParseArgs 设置）
     /// </summary>
     public HeadlessMode DetectedHeadlessMode { get; set; } = HeadlessMode.Interactive;

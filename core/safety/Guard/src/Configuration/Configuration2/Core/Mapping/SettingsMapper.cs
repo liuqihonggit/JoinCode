@@ -53,6 +53,9 @@ public sealed partial class SettingsMapper : ServiceEntity
         {
             config.Provider.Vendor = envProvider;
 
+            // --vendor 自动匹配 profiles 中的同名预设，应用其 model/endpoint
+            ApplyProfileFromVendor(envProvider, config);
+
             // Provider 变更时，重新应用 Provider 定义的默认值
             var newDefinition = _registry.TryGet(envProvider)
                 ?? throw new ConfigurationException(
@@ -65,7 +68,7 @@ public sealed partial class SettingsMapper : ServiceEntity
             // 仅当 ModelId 未被显式设置时，使用新 Provider 的默认模型
             if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable(JccEnvVar.ModelId.ToValue())))
             {
-                config.Provider.ModelId = newDefinition.DefaultModelId
+                config.Provider.ModelId ??= newDefinition.DefaultModelId
                     ?? throw new ConfigurationException(
                         $"Provider '{newDefinition.ProviderName}' 没有定义默认模型，请通过 {JccEnvVar.ModelId.ToValue()} 环境变量指定模型。");
             }
@@ -91,6 +94,13 @@ public sealed partial class SettingsMapper : ServiceEntity
         var envApiVersion = Environment.GetEnvironmentVariable(JccEnvVar.ApiVersion.ToValue());
         if (!string.IsNullOrEmpty(envApiVersion))
             config.Provider.ApiVersion = envApiVersion;
+
+        // JCC_PROFILE 环境变量覆盖 currentProfile — 切换配置档案
+        var envProfile = Environment.GetEnvironmentVariable(JccEnvVar.Profile.ToValue());
+        if (!string.IsNullOrEmpty(envProfile))
+        {
+            config.CurrentProfile = envProfile;
+        }
 
         var envOAuth = Environment.GetEnvironmentVariable(JccEnvVar.EnableOAuth.ToValue());
         if (bool.TryParse(envOAuth, out var enableOAuth))
@@ -141,16 +151,19 @@ public sealed partial class SettingsMapper : ServiceEntity
 
     private void ApplyProviderSettings(WorkflowConfig config, SettingsJson? settings)
     {
+        // Profile 覆盖 — currentProfile 指向 profiles 字典中的档案，其 provider/model/endpoint 覆盖顶层字段
+        var effectiveSettings = ApplyProfileOverride(settings);
+
         // Provider 优先级: settings.provider > 默认值
-        if (!string.IsNullOrEmpty(settings?.Provider))
+        if (!string.IsNullOrEmpty(effectiveSettings?.Provider))
         {
-            config.Provider.Vendor = settings.Provider;
+            config.Provider.Vendor = effectiveSettings.Provider;
         }
 
         // Endpoint 优先级: settings.endpoint > 默认值
-        if (!string.IsNullOrEmpty(settings?.Endpoint))
+        if (!string.IsNullOrEmpty(effectiveSettings?.Endpoint))
         {
-            config.Provider.Endpoint = settings.Endpoint;
+            config.Provider.Endpoint = effectiveSettings.Endpoint;
         }
 
         // Provider 定义自动配置默认值
@@ -163,9 +176,9 @@ public sealed partial class SettingsMapper : ServiceEntity
         }
 
         // 模型 ID 优先级: settings.model > Provider 定义默认模型
-        if (!string.IsNullOrEmpty(settings?.Model))
+        if (!string.IsNullOrEmpty(effectiveSettings?.Model))
         {
-            config.Provider.ModelId = settings.Model;
+            config.Provider.ModelId = effectiveSettings.Model;
         }
         else if (definition is not null)
         {
@@ -182,6 +195,63 @@ public sealed partial class SettingsMapper : ServiceEntity
 
         // API Version
         config.Provider.ApiVersion ??= definition?.DefaultApiVersion ?? "2024-02-01";
+    }
+
+    /// <summary>
+    /// 应用 Profile 覆盖 — 如果 currentProfile 指向 profiles 中的档案，
+    /// 用档案的 provider/model/endpoint 覆盖顶层字段（Profile 优先级高于顶层字段）
+    /// </summary>
+    private static SettingsJson? ApplyProfileOverride(SettingsJson? settings)
+    {
+        if (settings is null || string.IsNullOrEmpty(settings.CurrentProfile))
+            return settings;
+
+        if (settings.Vendor is null || !settings.Vendor.TryGetValue(settings.CurrentProfile, out var profile))
+            return settings;
+
+        // Profile 中的字段覆盖顶层字段（非 null 的才覆盖）
+        return new SettingsJson
+        {
+            Schema = settings.Schema,
+            Provider = profile.Provider ?? settings.Provider,
+            Model = profile.Model ?? settings.Model,
+            Endpoint = profile.Endpoint ?? settings.Endpoint,
+            EffortLevel = settings.EffortLevel,
+            DefaultShell = settings.DefaultShell,
+            FastMode = settings.FastMode,
+            Language = settings.Language,
+            AutoMemoryEnabled = settings.AutoMemoryEnabled,
+            AutoDreamEnabled = settings.AutoDreamEnabled,
+            ShowThinkingSummaries = settings.ShowThinkingSummaries,
+            Env = settings.Env,
+            Permissions = settings.Permissions,
+            Hooks = settings.Hooks,
+            McpServers = settings.McpServers,
+            Sandbox = settings.Sandbox,
+            EnabledPlugins = settings.EnabledPlugins,
+            ApiKeyHelper = settings.ApiKeyHelper,
+            RespectGitignore = settings.RespectGitignore,
+            CleanupPeriodDays = settings.CleanupPeriodDays,
+            IncludeCoAuthoredBy = settings.IncludeCoAuthoredBy,
+            IncludeGitInstructions = settings.IncludeGitInstructions,
+            AvailableModels = settings.AvailableModels,
+            ModelOverrides = settings.ModelOverrides,
+            EnableAllProjectMcpServers = settings.EnableAllProjectMcpServers,
+            EnabledMcpjsonServers = settings.EnabledMcpjsonServers,
+            DisabledMcpjsonServers = settings.DisabledMcpjsonServers,
+            DisableAllHooks = settings.DisableAllHooks,
+            Worktree = settings.Worktree,
+            ActiveWorktreeSession = settings.ActiveWorktreeSession,
+            StatusLine = settings.StatusLine,
+            OutputStyle = settings.OutputStyle,
+            ToolScore = settings.ToolScore,
+            BlacklistedTools = settings.BlacklistedTools,
+            ToolPenalties = settings.ToolPenalties,
+            CustomHyperedges = settings.CustomHyperedges,
+            SearchScope = settings.SearchScope,
+            Vendor = settings.Vendor,
+            CurrentProfile = settings.CurrentProfile,
+        };
     }
 
     private static void ApplyCodeExecutionSettings(WorkflowConfig config, SettingsJson? settings)
@@ -219,6 +289,26 @@ public sealed partial class SettingsMapper : ServiceEntity
         var envEndpoint = definition.ResolveEndpointFromEnv();
         if (!string.IsNullOrEmpty(envEndpoint))
             config.Provider.Endpoint = envEndpoint;
+    }
+
+    /// <summary>
+    /// --vendor 自动匹配 profiles 中的同名预设 — 从 settings.json 读取 profiles，
+    /// 找到与 vendor 同名的 profile 时，应用其 model/endpoint（仅覆盖未显式设置的值）
+    /// </summary>
+    private static void ApplyProfileFromVendor(string vendor, WorkflowConfig config)
+    {
+        var fs = new IO.FileSystem.PhysicalFileSystem();
+        var settings = ConfigLoader.LoadSettingsJsonAsync(fs).GetAwaiter().GetResult();
+        if (settings?.Vendor is null || !settings.Vendor.TryGetValue(vendor, out var profile))
+            return;
+
+        if (!string.IsNullOrEmpty(profile.Model) && string.IsNullOrEmpty(Environment.GetEnvironmentVariable(JccEnvVar.ModelId.ToValue())))
+            config.Provider.ModelId = profile.Model;
+
+        if (!string.IsNullOrEmpty(profile.Endpoint))
+            config.Provider.Endpoint = profile.Endpoint;
+
+        config.CurrentProfile = vendor;
     }
 
     private static void ApplyToolScoreSettings(WorkflowConfig config, SettingsJson? settings)

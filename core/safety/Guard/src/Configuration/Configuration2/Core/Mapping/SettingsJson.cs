@@ -277,6 +277,22 @@ public sealed partial class SettingsJson
     [SettingsProperty(SettingsMergeStrategy.Override, SkipKeyAccess = true)]
     public SearchScopeSettings? SearchScope { get; init; }
 
+    /// <summary>
+    /// 供应商预设 — 命名的供应商/模型/端点组合，用户通过 currentProfile 或 --vendor 切换
+    /// 键: 供应商名（如 "sensenova"、"agnes"），值: 预设配置
+    /// </summary>
+    [JsonPropertyName("vendor")]
+    [SettingsProperty(SettingsMergeStrategy.DictionaryMerge, DictionaryValueType = "ProfileSettings", SkipKeyAccess = true)]
+    public Dictionary<string, ProfileSettings>? Vendor { get; init; }
+
+    /// <summary>
+    /// 当前激活的配置档案名 — 对应 profiles 字典中的键
+    /// 设置后，档案中的 provider/model/endpoint 覆盖顶层同名字段
+    /// </summary>
+    [JsonPropertyName("currentProfile")]
+    [SettingsProperty(SettingsMergeStrategy.Override)]
+    public string? CurrentProfile { get; init; }
+
     #region 自定义合并方法
 
     /// <summary>
@@ -534,4 +550,22 @@ public sealed class ToolScoreSettingsJson
 
     [JsonPropertyName("decayRecoveryScore")]
     public int? DecayRecoveryScore { get; init; }
+}
+
+/// <summary>
+/// 配置档案 — 命名的供应商/模型/端点预设，用户通过 currentProfile 切换
+/// </summary>
+public sealed class ProfileSettings
+{
+    /// <summary>供应商名称（如 openai/sensenova/agnes/deepseek/anthropic）</summary>
+    [JsonPropertyName("provider")]
+    public string? Provider { get; init; }
+
+    /// <summary>模型 ID（如 gpt-4o、deepseek-v4-flash）</summary>
+    [JsonPropertyName("model")]
+    public string? Model { get; init; }
+
+    /// <summary>API 端点（如 https://token.sensenova.cn/v1）</summary>
+    [JsonPropertyName("endpoint")]
+    public string? Endpoint { get; init; }
 }

@@ -20,6 +20,9 @@ public enum CliArg
     [CliOption("--model", "-m", "指定模型", AcceptsValue = true, Category = "基础", Example = "jcc -m gpt-4o -p \"hello\"")]
     Model,
 
+    [CliOption("--vendor", "", "切换供应商（自动匹配 settings.json vendor 预设中的同名配置）", AcceptsValue = true, Category = "基础", Example = "jcc --vendor agnes -p \"hello\"")]
+    Vendor,
+
     [CliOption("--non-interactive", "", "强制非交互模式", Category = "输出")]
     NonInteractive,
 

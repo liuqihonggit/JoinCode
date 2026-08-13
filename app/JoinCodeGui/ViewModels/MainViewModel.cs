@@ -30,6 +30,9 @@ public sealed partial class MainViewModel : ViewModelBase
     /// <summary>异步操作硬超时（防止命令续体在单线程上下文死锁）</summary>
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(5);
 
+    /// <summary>属性名→持久化操作映射 — OnPropertyChanged 自动路由统一持久化（新增可持久化属性只需 RegisterPersist 一行）</summary>
+    private readonly Dictionary<string, Action> _persistActions = new(StringComparer.Ordinal);
+
     [ObservableProperty]
     private string _inputText = string.Empty;
 
@@ -72,17 +75,7 @@ public sealed partial class MainViewModel : ViewModelBase
             return;
 
         StatusText = $"推理力度: {value}";
-        Task.Run(async () =>
-        {
-            try
-            {
-                await _session.SetEffortLevelAsync(effort).WaitAsync(Timeout);
-            }
-            catch (Exception ex)
-            {
-                StatusText = $"设置推理力度失败: {ex.Message}";
-            }
-        });
+        PersistSync(() => _session.SetEffortLevelAsync(effort));
     }
 
     /// <summary>设置面板是否展开</summary>
@@ -360,6 +353,9 @@ public sealed partial class MainViewModel : ViewModelBase
         Messages.CollectionChanged += OnMessagesChanged;
         LoadPersistedSessions();
         NewConversation();
+
+        // 注册持久化路由（在 LoadPreferences 之前，加载期 _isPreferencesLoaded=false 不触发）
+        RegisterPersistActions();
 
         // 加载 GUI 偏好并应用到 UI 属性（启动时恢复上次显示的内容）
         LoadPreferences();
@@ -771,37 +767,16 @@ public sealed partial class MainViewModel : ViewModelBase
     {
         OnPropertyChanged(nameof(IsInputTooLong));
         WriteBackTemperatureAndMaxTokens();
-        SavePreferences();
     }
 
     partial void OnTemperatureChanged(double value)
     {
         WriteBackTemperatureAndMaxTokens();
-        SavePreferences();
     }
 
-    /// <summary>主题变更时写回 settings.json（双向绑定，对齐 CLI /theme）；外部变更触发的跳过写回避免循环</summary>
-    partial void OnIsDarkThemeChanged(bool value)
-    {
-        if (!_isPreferencesLoaded || _isApplyingExternalTheme)
-            return;
-        _ = Task.Run(async () =>
-        {
-            try { await _session.SetThemeAsync(IsDarkToTheme(value)).WaitAsync(Timeout); }
-            catch (Exception ex) { WriteErrorLog(ex); }
-        });
-    }
-
-    /// <summary>字号变更时持久化 GUI 偏好</summary>
-    partial void OnFontSizeChanged(double value) => SavePreferences();
-
-    /// <summary>流式输出开关变更时持久化 GUI 偏好</summary>
-    partial void OnStreamingEnabledChanged(bool value) => SavePreferences();
-
-    /// <summary>系统提示词变更时持久化 GUI 偏好并应用到引擎</summary>
+    /// <summary>系统提示词变更时应用到引擎（持久化由 OnPropertyChanged 自动路由处理）</summary>
     partial void OnSystemPromptChanged(string value)
     {
-        SavePreferences();
         if (_isPreferencesLoaded && !string.IsNullOrWhiteSpace(value))
         {
             _ = Task.Run(async () =>
@@ -874,6 +849,52 @@ public sealed partial class MainViewModel : ViewModelBase
                 WriteErrorLog(ex);
             }
         });
+    }
+
+    /// <summary>
+    /// 同步阻塞 UI 线程至异步持久化操作完成 — Task.Run 避免 UI 线程 SynchronizationContext 死锁，
+    /// Wait(Timeout) 确保点击时立即落盘，关闭 GUI 不丢失。失败写错误日志不抛出。
+    /// </summary>
+    private void PersistSync(Func<Task> action)
+    {
+        try { Task.Run(action).Wait(Timeout); }
+        catch (Exception ex) { WriteErrorLog(ex); }
+    }
+
+    /// <summary>
+    /// 注册属性名→持久化操作映射 — 构造函数调用一次。简单属性全走路由，
+    /// 复杂属性（SelectedConnection/SelectedEffort）保留 OnXxxChanged 手动调 PersistSync。
+    /// </summary>
+    private void RegisterPersistActions()
+    {
+        _persistActions[nameof(IsDarkTheme)] = () =>
+            PersistSync(() => _session.SetThemeAsync(IsDarkToTheme(IsDarkTheme)));
+        _persistActions[nameof(SelectedModel)] = () =>
+        {
+            var m = SelectedModel;
+            if (!string.IsNullOrWhiteSpace(m) && !string.Equals(m, _session.CurrentModelId, StringComparison.Ordinal))
+                PersistSync(() => _session.SetModelAsync(m!));
+        };
+        _persistActions[nameof(Temperature)] = SavePreferences;
+        _persistActions[nameof(MaxTokens)] = SavePreferences;
+        _persistActions[nameof(SystemPrompt)] = SavePreferences;
+        _persistActions[nameof(FontSize)] = SavePreferences;
+        _persistActions[nameof(StreamingEnabled)] = SavePreferences;
+    }
+
+    /// <summary>
+    /// PropertyChanged 自动路由 — 拦截所有属性变更，查 _persistActions 字典统一持久化。
+    /// 标志位过滤：_isPreferencesLoaded（加载期不回写）、_isRefreshingConfig（热重载期不回写）、
+    /// _isApplyingExternalTheme（外部主题变更不回写避免循环）。
+    /// </summary>
+    protected override void OnPropertyChanged(System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        base.OnPropertyChanged(e);
+        var propertyName = e.PropertyName;
+        if (propertyName is null || !_isPreferencesLoaded || _isRefreshingConfig || _isApplyingExternalTheme)
+            return;
+        if (_persistActions.TryGetValue(propertyName, out var action))
+            action();
     }
 
     /// <summary>保存当前 UI 偏好到磁盘 — 各 OnXxxChanged 调用，_isPreferencesLoaded 防止初始化时回写</summary>
@@ -958,15 +979,7 @@ public sealed partial class MainViewModel : ViewModelBase
         }
     }
 
-    /// <summary>用户切换模型时回写共享配置并同步持久化到 settings.json（Task.Run.Wait 避免死锁，确保落盘后再返回）</summary>
-    partial void OnSelectedModelChanged(string? value)
-    {
-        if (!string.IsNullOrWhiteSpace(value) && value != _session.CurrentModelId)
-        {
-            try { Task.Run(() => _session.SetModelAsync(value)).Wait(Timeout); }
-            catch (Exception ex) { WriteErrorLog(ex); }
-        }
-    }
+    /// <summary>用户切换模型时持久化由 OnPropertyChanged 自动路由处理（SelectedModel 映射 SetModelAsync）</summary>
 
     /// <summary>Mock 引擎连接候选（始终存在于下拉列表，用于演示/本地验证）</summary>
     private static readonly ConnectionOptionItem MockConnection = new()

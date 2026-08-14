@@ -59,6 +59,7 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
         StreamMiddlewareDelegate<ChatMiddlewareContext, ChatStreamEvent> next,
         [EnumeratorCancellation] CancellationToken ct) {
         var totalToolCalls = 0;
+        var emptyAfterToolCount = 0;
         TokenUsage? finalUsage = null;
         string? finalModelId = null;
 
@@ -106,9 +107,18 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
             }
 
             if (totalToolCalls > 0) {
-                Diag.WriteLine($"[LOOP {iterState.CallId}] 工具调用后空白响应, 结束本轮对话");
-                yield return ChatStreamEvent.Text("⚠ 模型在工具调用后返回了空白响应，本轮对话已结束。");
-                break;
+                emptyAfterToolCount++;
+                if (emptyAfterToolCount > 5) {
+                    Diag.WriteLine($"[LOOP {iterState.CallId}] 工具调用后空白响应已达5次, 结束本轮对话");
+                    yield return ChatStreamEvent.Text("⚠ 模型在工具调用后连续5次返回空白响应，本轮对话已结束。");
+                    break;
+                }
+                Diag.WriteLine($"[LOOP {iterState.CallId}] 工具调用后空白响应({emptyAfterToolCount}/5), 注入系统提示词让AI继续");
+                if (!context.IsDryRun)
+                    await _contextManager.AddSystemMessageAsync(
+                        $"<system-reminder>你是否已经完成对应的操作？系统检测到你进行了空白回复（第{emptyAfterToolCount}次，最多5次）。请根据工具执行结果继续回复用户，不要进行无声退出。</system-reminder>",
+                        ct).ConfigureAwait(false);
+                continue;
             }
 
             Diag.WriteLine($"[LOOP {iterState.CallId}] LLM 空响应, 结束本轮对话");

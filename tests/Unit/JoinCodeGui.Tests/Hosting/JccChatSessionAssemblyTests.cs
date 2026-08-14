@@ -53,9 +53,9 @@ public class JccChatSessionAssemblyTests
         map["anthropic"].Count.Should().Be(15);
 
         map["agnes"].Should().BeEquivalentTo([
-            "agnes-1.5-flash", "agnes-2.0-flash", "agnes-image-2.0-flash", "agnes-image-2.1-flash", "agnes-video-v2.0"
+            "agnes-2.0-flash", "agnes-image-2.0-flash", "agnes-image-2.1-flash", "agnes-video-v2.0"
         ]);
-        map["agnes"].Count.Should().Be(5);
+        map["agnes"].Count.Should().Be(4);
 
         map["sensenova"].Should().BeEquivalentTo([
             "sensenova-6.7-flash-lite", "sensenova-u1-fast", "deepseek-v4-flash"
@@ -164,8 +164,8 @@ public class JccChatSessionAssemblyTests
             null!,
             config);
 
-        var expected = JoinCode.Abstractions.Configuration.Llm.ModelConfigLoader
-            .GetModels("openai").Select(m => m.Id).ToArray();
+        var loader = new JoinCode.Abstractions.Configuration.Llm.ModelConfigLoader();
+        var expected = loader.GetModels("openai").Select(m => m.Id).ToArray();
 
         session.VendorModelMap["openai"].Should().BeEquivalentTo(expected);
         session.VendorModelMap["openai"].Should().Contain("gpt-4o");

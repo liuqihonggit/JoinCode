@@ -94,16 +94,17 @@ public sealed class ResilientHttpExecutor
                 attempt++;
                 var delay = CalculateDelay(attempt, retry);
 
-                _logger?.LogWarning(ex,
-                    "[{Policy}] {Operation} 失败 (尝试 {Attempt}/{Max}), {Delay}ms 后重试",
-                    _policy.Name, operationName, attempt, retry.MaxRetries, delay.TotalMilliseconds);
+                _logger?.LogWarning("[{Policy}:RETRY:97] {Operation} 失败 (尝试 {Attempt}/{Max}), {Delay}ms 后重试 | {ExType}: {Message}",
+                    _policy.Name, operationName, attempt, retry.MaxRetries, delay.TotalMilliseconds,
+                    ex.GetType().Name, ex.InnerException?.Message ?? ex.Message);
 
                 await Task.Delay(delay, ct).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
                 _circuitBreaker?.RecordFailure();
-                _logger?.LogError(ex, "[{Policy}] {Operation} 最终失败 (尝试 {Attempt})", _policy.Name, operationName, attempt + 1);
+                _logger?.LogError("[{Policy}:RETRY:106] {Operation} 最终失败 (尝试 {Attempt}) | {ExType}: {Message}",
+                    _policy.Name, operationName, attempt + 1, ex.GetType().Name, ex.Message);
                 throw;
             }
         }
@@ -176,16 +177,17 @@ public sealed class ResilientHttpExecutor
                 attempt++;
                 var delay = CalculateDelay(attempt, retry);
 
-                _logger?.LogWarning(ex,
-                    "[{Policy}] {Operation} 失败 (尝试 {Attempt}/{Max}), {Delay}ms 后重试",
-                    _policy.Name, operationName, attempt, retry.MaxRetries, delay.TotalMilliseconds);
+                _logger?.LogWarning("[{Policy}:RETRY:179] {Operation} 失败 (尝试 {Attempt}/{Max}), {Delay}ms 后重试 | {ExType}: {Message}",
+                    _policy.Name, operationName, attempt, retry.MaxRetries, delay.TotalMilliseconds,
+                    ex.GetType().Name, ex.InnerException?.Message ?? ex.Message);
 
                 await Task.Delay(delay, ct).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
                 _circuitBreaker?.RecordFailure();
-                _logger?.LogError(ex, "[{Policy}] {Operation} 最终失败 (尝试 {Attempt})", _policy.Name, operationName, attempt + 1);
+                _logger?.LogError("[{Policy}:RETRY:188] {Operation} 最终失败 (尝试 {Attempt}) | {ExType}: {Message}",
+                    _policy.Name, operationName, attempt + 1, ex.GetType().Name, ex.Message);
                 throw;
             }
         }

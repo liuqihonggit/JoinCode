@@ -397,6 +397,7 @@ public sealed partial class MainViewModel : ViewModelBase
     /// </summary>
     public void AttachRealSession(IJccChatSession session)
     {
+        WriteDebugLog($"AttachRealSession: currentVendor={session.CurrentVendor} currentModel={session.CurrentModelId}");
         _realSession = session;
         _session = session;
         _session.PermissionConfirmationHandler = OnPermissionConfirmationRequestedAsync;
@@ -406,9 +407,12 @@ public sealed partial class MainViewModel : ViewModelBase
         SelectedModel = _session.CurrentModelId;
         SelectedModelOption = ModelOptions.FirstOrDefault(m => m.Id == _session.CurrentModelId);
         SelectedEffort = _session.EffortLevel.ToValue();
+        _isRefreshingConfig = true;
         SelectedConnection = _connectionOptions.FirstOrDefault(c => c.Id == session.CurrentVendor)
             ?? _connectionOptions.FirstOrDefault(c => !c.IsMock)
             ?? MockConnection;
+        _isRefreshingConfig = false;
+        WriteDebugLog($"AttachRealSession: SelectedConnection={SelectedConnection?.Id}");
 
         // 清空延迟构建的斜杠命令缓存，改用真实引擎的命令清单
         _slashCommandCache = null;
@@ -1056,6 +1060,7 @@ public sealed partial class MainViewModel : ViewModelBase
 
     partial void OnSelectedConnectionChanged(ConnectionOptionItem? value)
     {
+        WriteDebugLog($"OnSelectedConnectionChanged: id={value?.Id} mock={value?.IsMock} refresh={_isRefreshingConfig} realSession={_realSession is not null} session={_session.GetType().Name} currentVendor={_session.CurrentVendor}");
         if (value is null || _isRefreshingConfig)
             return;
 
@@ -1077,11 +1082,12 @@ public sealed partial class MainViewModel : ViewModelBase
                 _session = _realSession;
             StatusText = $"已连接真实引擎 {value.DisplayText}";
             // 同步等待持久化落盘 — Task.Run 避免 UI 线程 SynchronizationContext 死锁，Wait 阻塞至写入完成再更新 UI
-            try { Task.Run(() => _session.SetVendorAsync(value.Id)).Wait(Timeout); }
-            catch (Exception ex) { WriteErrorLog(ex); }
+            try { Task.Run(() => _session.SetVendorAsync(value.Id)).Wait(Timeout); WriteDebugLog($"SetVendorAsync ok: id={value.Id}"); }
+            catch (Exception ex) { WriteErrorLog(ex); WriteDebugLog($"SetVendorAsync FAIL: {ex.Message}"); }
         }
         else
         {
+            WriteDebugLog($"OnSelectedConnectionChanged: 引擎未就绪,跳过持久化");
             return;
         }
 

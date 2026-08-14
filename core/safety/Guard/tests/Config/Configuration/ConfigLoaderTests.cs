@@ -20,7 +20,7 @@ public class ConfigLoaderTests : IDisposable {
     private readonly string? _originalCodeExecutionMaxMemory;
     private readonly string _tempAppDataDir;
     private readonly IFileSystem _fs = TestFileSystem.Current;
-    private readonly ConfigLoader _loader = new();
+    private readonly ConfigLoader _loader;
 
     public ConfigLoaderTests() {
         _originalAppDataFolder = Environment.GetEnvironmentVariable(JccEnvVarConstants.AppDataFolder);
@@ -47,6 +47,10 @@ public class ConfigLoaderTests : IDisposable {
         // 覆盖用户级环境变量（JCC_VENDOR 可能存在于用户级环境变量中）
         Environment.SetEnvironmentVariable(JccEnvVarConstants.Vendor, VendorKind.OpenAi.ToValue());
         Environment.SetEnvironmentVariable(JccEnvVarConstants.ModelId, null);
+
+        // 在临时目录和 settings.json 准备好之后创建 ConfigLoader，
+        // 传入自定义 ProviderDefinitionRegistry，确保 CI 环境也能找到 openai/anthropic 等 Provider
+        _loader = new ConfigLoader(registry: new TestProviderDefinitionRegistry());
     }
 
     public void Dispose() {
@@ -165,5 +169,28 @@ public class ConfigLoaderTests : IDisposable {
 
         // Provider 专属环境变量应覆盖 JCC_API_KEY
         Assert.Equal(realKey, config.Provider.ApiKey);
+    }
+
+    /// <summary>
+    /// 测试专用 Provider 注册表 — 不依赖全局 settings.json，注册所有测试需要的 Provider
+    /// </summary>
+    private sealed class TestProviderDefinitionRegistry : IProviderDefinitionRegistry
+    {
+        private readonly Dictionary<string, IProviderDefinition> _definitions;
+
+        public TestProviderDefinitionRegistry()
+        {
+            var loader = new ModelConfigLoader();
+            _definitions = new Dictionary<string, IProviderDefinition>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["openai"] = new OpenAiCompatibleProviderDefinition(loader, "openai", "OPENAI_API_KEY"),
+                ["anthropic"] = new AnthropicProviderDefinition(loader, "anthropic", "ANTHROPIC_API_KEY"),
+                ["deepseek"] = new OpenAiCompatibleProviderDefinition(loader, "deepseek", "DEEPSEEK_API_KEY"),
+                ["azure"] = new AzureProviderDefinition(loader),
+            };
+        }
+
+        public IProviderDefinition? TryGet(string providerName) => _definitions.GetValueOrDefault(providerName);
+        public IReadOnlyCollection<string> RegisteredProviders => _definitions.Keys;
     }
 }

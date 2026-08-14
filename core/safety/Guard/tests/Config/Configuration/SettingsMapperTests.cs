@@ -10,7 +10,7 @@ public class SettingsMapperTests
     private static readonly string OpenAiModelId = Loader.GetDefaultModelId("openai");
     private static readonly string DefaultAnthropicModelId = Loader.GetDefaultModelId("anthropic");
 
-    private readonly SettingsMapper _mapper = new(new ProviderDefinitionRegistry(new ModelConfigLoader()));
+    private readonly SettingsMapper _mapper = new(new TestProviderDefinitionRegistry());
 
     #region 场景1: SettingsJson 映射到 WorkflowConfig
 
@@ -331,4 +331,27 @@ public class SettingsMapperTests
     }
 
     #endregion
+
+    /// <summary>
+    /// 测试专用 Provider 注册表 — 不依赖全局 settings.json，注册所有测试需要的 Provider
+    /// </summary>
+    private sealed class TestProviderDefinitionRegistry : IProviderDefinitionRegistry
+    {
+        private readonly Dictionary<string, IProviderDefinition> _definitions;
+
+        public TestProviderDefinitionRegistry()
+        {
+            var loader = new ModelConfigLoader();
+            _definitions = new Dictionary<string, IProviderDefinition>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["openai"] = new OpenAiCompatibleProviderDefinition(loader, "openai", "OPENAI_API_KEY"),
+                ["anthropic"] = new AnthropicProviderDefinition(loader, "anthropic", "ANTHROPIC_API_KEY"),
+                ["deepseek"] = new OpenAiCompatibleProviderDefinition(loader, "deepseek", "DEEPSEEK_API_KEY"),
+                ["azure"] = new AzureProviderDefinition(loader),
+            };
+        }
+
+        public IProviderDefinition? TryGet(string providerName) => _definitions.GetValueOrDefault(providerName);
+        public IReadOnlyCollection<string> RegisteredProviders => _definitions.Keys;
+    }
 }

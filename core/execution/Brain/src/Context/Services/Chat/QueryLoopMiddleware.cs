@@ -9,8 +9,6 @@ namespace Core.Context;
 [Register]
 public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware {
     private const int MaxToolCallIterations = 128;
-    private const int MaxEmptyResponseRetries = 16;
-    private static readonly TimeSpan EmptyResponseRetryDelay = TimeSpan.FromSeconds(1);
 
     private readonly IBackgroundNotificationHandler _notificationHandler;
     private readonly ILLMInvocationHandler _llmHandler;
@@ -59,7 +57,6 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
         StreamMiddlewareDelegate<ChatMiddlewareContext, ChatStreamEvent> next,
         [EnumeratorCancellation] CancellationToken ct) {
         var totalToolCalls = 0;
-        var emptyRetryCount = 0;
         TokenUsage? finalUsage = null;
         string? finalModelId = null;
 
@@ -73,7 +70,7 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
             await _notificationHandler.ProcessPendingNotificationsAsync(ct).ConfigureAwait(false);
 
             var historySnapshot = await _contextManager.GetMessageListAsync(ct).ConfigureAwait(false);
-            _logger?.LogInformation("[LOOP] 迭代 #{Iter} | 消息={MsgCount}, 空响应重试={Retry}", totalToolCalls, historySnapshot.Count, emptyRetryCount);
+            _logger?.LogInformation("[LOOP] 迭代 #{Iter} | 消息={MsgCount}", totalToolCalls, historySnapshot.Count);
 #if DEBUG
             if (System.Diagnostics.Debugger.IsAttached) System.Diagnostics.Debugger.Break();
 #endif
@@ -98,32 +95,23 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
             if (iterState.StreamModelId is not null) finalModelId = iterState.StreamModelId;
 
             if (iterState.ToolCallName is not null) {
-                emptyRetryCount = 0;
                 totalToolCalls += iterState.ToolCalls.Count;
-                if (totalToolCalls > 0 && emptyRetryCount > 0) emptyRetryCount = 0;
                 continue;
             }
 
-            if (iterState.FullResponse.Length > 0) {
-                emptyRetryCount = 0;
+            if (!string.IsNullOrWhiteSpace(iterState.FullResponse.ToString())) {
                 break;
             }
 
-            emptyRetryCount++;
-            if (emptyRetryCount > MaxEmptyResponseRetries) {
-                _logger?.LogWarning("[LOOP] 空响应重试耗尽({Max}次), 给出友好提示", MaxEmptyResponseRetries);
-                var (retryEvents, retryResponse) = BuildEmptyResponseMessage(emptyRetryCount);
-                foreach (var evt in retryEvents)
-                    yield return evt;
-                if (!context.IsDryRun)
-                    await _contextManager.AddAssistantMessageAsync(retryResponse, ct).ConfigureAwait(false);
+            if (totalToolCalls > 0) {
+                _logger?.LogInformation("[LOOP {CallId}] 工具调用后空白响应, 结束本轮对话", iterState.CallId);
+                yield return ChatStreamEvent.Text("⚠ 模型在工具调用后返回了空白响应，本轮对话已结束。");
                 break;
             }
 
-            _logger?.LogWarning("[LOOP {CallId}] LLM 空响应, {Delay}s 后第 {Retry}/{Max} 次重试",
-                iterState.CallId, EmptyResponseRetryDelay.TotalSeconds, emptyRetryCount, MaxEmptyResponseRetries);
-            yield return ChatStreamEvent.Text($"[重试 {emptyRetryCount}/{MaxEmptyResponseRetries}] 模型返回空响应，正在重试...");
-            await Task.Delay(EmptyResponseRetryDelay, ct).ConfigureAwait(false);
+            _logger?.LogWarning("[LOOP {CallId}] LLM 空响应, 结束本轮对话", iterState.CallId);
+            yield return ChatStreamEvent.Text("⚠ 模型返回了空白响应，本轮对话已结束。");
+            break;
         }
 
         if (totalToolCalls >= MaxToolCallIterations) {
@@ -180,7 +168,7 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
                 var (pureEvents, pureResponse) = BuildPureTextResponse(iterState, context);
                 foreach (var evt in pureEvents)
                     yield return evt;
-                if (!context.IsDryRun)
+                if (!context.IsDryRun && !string.IsNullOrWhiteSpace(pureResponse))
                     await _contextManager.AddAssistantMessageAsync(pureResponse, ct).ConfigureAwait(false);
             }
             yield break;
@@ -258,7 +246,7 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
                 var (pureEvents, pureResponse) = BuildPureTextResponse(iterState, context);
                 foreach (var evt in pureEvents)
                     yield return evt;
-                if (!context.IsDryRun)
+                if (!context.IsDryRun && !string.IsNullOrWhiteSpace(pureResponse))
                     await _contextManager.AddAssistantMessageAsync(pureResponse, ct).ConfigureAwait(false);
             }
             yield break;
@@ -329,14 +317,5 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
         }
 
         return (events, aiResponse);
-    }
-
-    private (List<ChatStreamEvent> Events, string FinalResponse) BuildEmptyResponseMessage(int retryCount) {
-        var events = new List<ChatStreamEvent>();
-        var msg = retryCount > 1
-            ? $"模型连续返回空响应（已重试 {retryCount} 次），可能是服务端临时问题。请稍后重试或换一个模型。"
-            : "模型返回空响应，可能是服务端临时问题。请稍后重试。";
-        events.Add(ChatStreamEvent.Text(msg));
-        return (events, msg);
     }
 }

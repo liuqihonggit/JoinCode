@@ -2,44 +2,86 @@
 namespace Core.Configuration;
 
 /// <summary>
-/// settings.json 强类型 — 直接映射 JSON 文件结构，对齐 TS 版 SettingsSchema
-/// 所有字段 nullable + init，因为 JSON 中字段可能缺失
-/// [SettingsMerge] 源码生成器自动生成: 拷贝构造函数、Merge、GetSettingByKey、UpdateSettingByKey
+/// settings.json 强类型 — 顶层只有 vendor 和 current 两个分支
+/// vendor: 供应商预设字典（键为供应商名，值为 provider/model/endpoint 组合）
+/// current: 当前正在使用的运行时配置（包含 profile 指针 + 所有偏好设置）
 /// </summary>
-[SettingsMerge]
-public sealed partial class SettingsJson
+public sealed class SettingsJson
 {
-    /// <summary>
-    /// 默认构造函数
-    /// </summary>
     public SettingsJson() { }
 
     /// <summary>
-    /// JSON Schema URL（可选，用于 IDE 智能提示）
+    /// 供应商预设 — 命名的供应商/模型/端点组合，用户通过 current.profile 或 --vendor 切换
+    /// 键: 供应商名（如 "sensenova"、"agnes"），值: 预设配置
     /// </summary>
-    [SettingsProperty(SettingsMergeStrategy.Override, SkipCopy = true, SkipMerge = true, SkipKeyAccess = true)]
-    public string? Schema { get; init; }
+    [JsonPropertyName("vendor")]
+    public Dictionary<string, ProfileSettings>? Vendor { get; init; }
 
     /// <summary>
-    /// 默认模型 ID（如 "gpt-4o"、"claude-sonnet-4-20250514"）
+    /// 当前正在使用的运行时配置 — 包含 profile 指针和所有偏好设置
     /// </summary>
-    [JsonPropertyName("model")]
-    [SettingsProperty(SettingsMergeStrategy.Override)]
-    public string? Model { get; init; }
+    [JsonPropertyName("current")]
+    public CurrentSettings? Current { get; init; }
 
     /// <summary>
-    /// 默认 Provider（如 "openai"、"anthropic"）
+    /// 合并两个 SettingsJson（低优先级 + 高优先级）
+    /// vendor 字典合并（高优先级覆盖同键），current 递归合并
     /// </summary>
-    [JsonPropertyName("provider")]
-    [SettingsProperty(SettingsMergeStrategy.Override)]
-    public string? Provider { get; init; }
+    public static SettingsJson Merge(SettingsJson? baseSettings, SettingsJson? overrideSettings)
+    {
+        if (baseSettings is null) return overrideSettings ?? new SettingsJson();
+        if (overrideSettings is null) return baseSettings;
+
+        return new SettingsJson
+        {
+            Vendor = MergeVendorDictionaries(baseSettings.Vendor, overrideSettings.Vendor),
+            Current = CurrentSettings.Merge(baseSettings.Current, overrideSettings.Current),
+        };
+    }
 
     /// <summary>
-    /// Provider Endpoint（如 Azure OpenAI 的 https://your-resource.openai.azure.com）
+    /// 获取当前激活的供应商预设 — 从 current.profile 指向 vendor 字典的键
     /// </summary>
-    [JsonPropertyName("endpoint")]
+    public ProfileSettings? GetActiveProfile()
+    {
+        if (Current is null || string.IsNullOrEmpty(Current.Profile)) return null;
+        if (Vendor is null || !Vendor.TryGetValue(Current.Profile, out var profile)) return null;
+        return profile;
+    }
+
+    private static Dictionary<string, ProfileSettings>? MergeVendorDictionaries(
+        Dictionary<string, ProfileSettings>? baseDict,
+        Dictionary<string, ProfileSettings>? overrideDict)
+    {
+        if (baseDict is null && overrideDict is null) return null;
+        if (baseDict is null) return overrideDict;
+        if (overrideDict is null) return baseDict;
+
+        var result = new Dictionary<string, ProfileSettings>(baseDict, StringComparer.OrdinalIgnoreCase);
+        foreach (var (key, value) in overrideDict)
+            result[key] = value;
+
+        return result;
+    }
+}
+
+/// <summary>
+/// 当前运行时配置 — settings.json 的 current 分支
+/// 包含 profile 指针（指向 vendor 字典中的键）和所有偏好设置
+/// [SettingsMerge] 源码生成器自动生成: 拷贝构造函数、Merge、GetSettingByKey、UpdateSettingByKey
+/// </summary>
+[SettingsMerge]
+public sealed partial class CurrentSettings
+{
+    public CurrentSettings() { }
+
+    /// <summary>
+    /// 当前激活的供应商预设名 — 对应 vendor 字典中的键
+    /// 设置后，vendor[profile] 中的 provider/model/endpoint 作为当前连接配置
+    /// </summary>
+    [JsonPropertyName("profile")]
     [SettingsProperty(SettingsMergeStrategy.Override)]
-    public string? Endpoint { get; init; }
+    public string? Profile { get; init; }
 
     /// <summary>
     /// 推理努力级别: low, medium, high
@@ -326,27 +368,8 @@ public sealed partial class SettingsJson
     [SettingsProperty(SettingsMergeStrategy.Override, SkipKeyAccess = true)]
     public SearchScopeSettings? SearchScope { get; init; }
 
-    /// <summary>
-    /// 供应商预设 — 命名的供应商/模型/端点组合，用户通过 currentProfile 或 --vendor 切换
-    /// 键: 供应商名（如 "sensenova"、"agnes"），值: 预设配置
-    /// </summary>
-    [JsonPropertyName("vendor")]
-    [SettingsProperty(SettingsMergeStrategy.DictionaryMerge, DictionaryValueType = "ProfileSettings", SkipKeyAccess = true)]
-    public Dictionary<string, ProfileSettings>? Vendor { get; init; }
-
-    /// <summary>
-    /// 当前激活的配置档案名 — 对应 profiles 字典中的键
-    /// 设置后，档案中的 provider/model/endpoint 覆盖顶层同名字段
-    /// </summary>
-    [JsonPropertyName("currentProfile")]
-    [SettingsProperty(SettingsMergeStrategy.Override)]
-    public string? CurrentProfile { get; init; }
-
     #region 自定义合并方法
 
-    /// <summary>
-    /// 合并权限配置 — 递归合并 Allow/Deny/Ask 列表
-    /// </summary>
     private static PermissionsSettings? MergePermissions(PermissionsSettings? basePerms, PermissionsSettings? overridePerms)
     {
         if (basePerms is null && overridePerms is null) return null;
@@ -365,9 +388,6 @@ public sealed partial class SettingsJson
         };
     }
 
-    /// <summary>
-    /// 合并 Hook 字典 — 拼接同键的 Hook 列表
-    /// </summary>
     private static Dictionary<string, List<HookSettings>>? MergeHookDictionaries(
         Dictionary<string, List<HookSettings>>? baseHooks,
         Dictionary<string, List<HookSettings>>? overrideHooks)
@@ -392,9 +412,6 @@ public sealed partial class SettingsJson
         return result;
     }
 
-    /// <summary>
-    /// 合并 ToolOverrides 字典 — 拼接同键的 allow/deny 列表
-    /// </summary>
     private static Dictionary<string, ToolOverrideEntry>? MergeToolOverrides(
         Dictionary<string, ToolOverrideEntry>? baseOverrides,
         Dictionary<string, ToolOverrideEntry>? overrideOverrides)
@@ -653,7 +670,7 @@ public sealed class ToolScoreSettingsJson
 }
 
 /// <summary>
-/// 配置档案 — 命名的供应商/模型/端点预设，用户通过 currentProfile 切换
+/// 供应商预设 — vendor 字典的值，命名的供应商/模型/端点组合
 /// </summary>
 public sealed class ProfileSettings
 {

@@ -88,7 +88,7 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
         try
         {
             var settings = SettingsLoader.LoadUserSettings(fs);
-            var flag = settings?.Permissions?.DisableBypassPermissionsMode;
+            var flag = settings?.Current?.Permissions?.DisableBypassPermissionsMode;
             if (string.IsNullOrWhiteSpace(flag))
                 return false;
 
@@ -185,25 +185,27 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
             var settings = await SettingsLoader.LoadUserSettingsAsync(_fs, cancellationToken).ConfigureAwait(false) ?? new SettingsJson();
 
             // 构建新的 allow 列表
-            var existingAllow = settings.Permissions?.Allow ?? [];
+            var existingAllow = settings.Current?.Permissions?.Allow ?? [];
             if (existingAllow.Contains(permissionValue, StringComparer.OrdinalIgnoreCase))
-                return; // 已存在，无需重复
+                return;
 
             var updatedAllow = new List<string>(existingAllow) { permissionValue };
 
-            // 创建新的 PermissionsSettings（sealed class 不支持 with 表达式，手动构建）
             var updatedPermissions = new PermissionsSettings
             {
                 Allow = updatedAllow,
-                Deny = settings.Permissions?.Deny,
-                Ask = settings.Permissions?.Ask,
-                DefaultMode = settings.Permissions?.DefaultMode,
-                AdditionalDirectories = settings.Permissions?.AdditionalDirectories,
-                DisableBypassPermissionsMode = settings.Permissions?.DisableBypassPermissionsMode,
+                Deny = settings.Current?.Permissions?.Deny,
+                Ask = settings.Current?.Permissions?.Ask,
+                DefaultMode = settings.Current?.Permissions?.DefaultMode,
+                AdditionalDirectories = settings.Current?.Permissions?.AdditionalDirectories,
+                DisableBypassPermissionsMode = settings.Current?.Permissions?.DisableBypassPermissionsMode,
             };
 
-            // 创建新的 SettingsJson 并保存
-            var updatedSettings = new SettingsJson(settings) { Permissions = updatedPermissions };
+            var updatedSettings = new SettingsJson
+            {
+                Vendor = settings.Vendor,
+                Current = new CurrentSettings(settings.Current ?? new CurrentSettings()) { Permissions = updatedPermissions },
+            };
             await SettingsLoader.SaveSettingsAsync(_fs, SettingSource.UserSettings, updatedSettings, cancellationToken: cancellationToken).ConfigureAwait(false);
 
             _logger?.LogInformation("已持久化权限规则: {PermissionValue}", permissionValue);

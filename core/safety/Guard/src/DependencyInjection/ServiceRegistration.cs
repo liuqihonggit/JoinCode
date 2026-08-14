@@ -97,12 +97,12 @@ public static partial class ServiceRegistration
         try
         {
             var settings = SettingsLoader.LoadUserSettings(fs);
-            if (settings?.Permissions is null)
+            if (settings?.Current?.Permissions is null)
                 return;
 
-            if (settings.Permissions.Allow is { Count: > 0 })
+            if (settings.Current.Permissions.Allow is { Count: > 0 })
             {
-                foreach (var rule in settings.Permissions.Allow)
+                foreach (var rule in settings.Current.Permissions.Allow)
                 {
                     var parsed = ParsePermissionRuleValue(rule);
                     if (parsed is not null && !options.AutoApprovedTools.Values.Any(r =>
@@ -114,9 +114,9 @@ public static partial class ServiceRegistration
                 }
             }
 
-            if (settings.Permissions.Deny is { Count: > 0 })
+            if (settings.Current.Permissions.Deny is { Count: > 0 })
             {
-                foreach (var rule in settings.Permissions.Deny)
+                foreach (var rule in settings.Current.Permissions.Deny)
                 {
                     var parsed = ParsePermissionRuleValue(rule);
                     if (parsed is not null)
@@ -124,9 +124,9 @@ public static partial class ServiceRegistration
                 }
             }
 
-            if (settings.Permissions.Ask is { Count: > 0 })
+            if (settings.Current.Permissions.Ask is { Count: > 0 })
             {
-                foreach (var rule in settings.Permissions.Ask)
+                foreach (var rule in settings.Current.Permissions.Ask)
                 {
                     var parsed = ParsePermissionRuleValue(rule);
                     if (parsed is not null)
@@ -134,9 +134,9 @@ public static partial class ServiceRegistration
                 }
             }
 
-            if (settings.Permissions.ToolOverrides is { Count: > 0 })
+            if (settings.Current.Permissions.ToolOverrides is { Count: > 0 })
             {
-                foreach (var (mode, entry) in settings.Permissions.ToolOverrides)
+                foreach (var (mode, entry) in settings.Current.Permissions.ToolOverrides)
                 {
                     options.ToolOverrides[mode] = entry;
                 }

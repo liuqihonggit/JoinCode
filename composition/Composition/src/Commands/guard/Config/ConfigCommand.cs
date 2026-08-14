@@ -9,6 +9,7 @@ public sealed class ConfigCommand : ChatCommandBase
     /// </summary>
     private static readonly FrozenDictionary<ConfigKey, string> KnownSettings = new Dictionary<ConfigKey, string>
     {
+        [ConfigKey.Profile]                  = "当前供应商预设名 (openai/anthropic/deepseek/...)",
         [ConfigKey.Theme]                    = "UI 主题 (dark/light/auto)",
         [ConfigKey.EditorMode]               = "按键绑定模式 (vim/emacs/default)",
         [ConfigKey.Verbose]                  = "详细调试输出 (true/false)",
@@ -16,7 +17,6 @@ public sealed class ConfigCommand : ChatCommandBase
         [ConfigKey.AutoMemoryEnabled]        = "自动记忆 (true/false)",
         [ConfigKey.FileCheckpointingEnabled] = "文件检查点 (true/false)",
         [ConfigKey.ShowTurnDuration]         = "显示轮次耗时 (true/false)",
-        [ConfigKey.Model]                    = "覆盖默认模型 (模型 ID)",
         [ConfigKey.AlwaysThinkingEnabled]    = "扩展思考 (true/false)",
         [ConfigKey.PermissionsDefaultMode]   = "默认权限模式 (allow/ask/deny)",
         [ConfigKey.Language]                 = "首选语言 (zh/en/ja/...)",

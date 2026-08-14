@@ -36,11 +36,11 @@ internal sealed class PlaceholderChatSession : IJccChatSession
         {
             try
             {
-                var provider = configService.GetAsync(ConfigKeyConstants.Provider, CancellationToken.None).GetAwaiter().GetResult();
-                if (!string.IsNullOrWhiteSpace(provider))
-                    return provider;
+                var profile = configService.GetAsync("profile", CancellationToken.None).GetAwaiter().GetResult();
+                if (!string.IsNullOrWhiteSpace(profile))
+                    return profile;
             }
-            catch (Exception ex) { System.Console.Error.WriteLine($"[PlaceholderChatSession] 读取 settings.json provider 失败: {ex.Message}"); }
+            catch (Exception ex) { System.Console.Error.WriteLine($"[PlaceholderChatSession] 读取 settings.json profile 失败: {ex.Message}"); }
         }
         return "";
     }
@@ -88,15 +88,11 @@ internal sealed class PlaceholderChatSession : IJccChatSession
             await _configService.SetAsync("model", modelId, cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>占位会话供应商切换 — 引擎不可用时仍持久化到 settings.json(provider+currentProfile+model),引擎可用后重启生效</summary>
+    /// <summary>占位会话供应商切换 — 持久化 profile 到 settings.json，引擎可用后重启生效</summary>
     public async Task SetVendorAsync(string vendor, CancellationToken cancellationToken = default)
     {
         if (_configService is null) return;
-        await _configService.SetAsync(ConfigKeyConstants.Provider, vendor, cancellationToken).ConfigureAwait(false);
-        await _configService.SetAsync("currentProfile", vendor, cancellationToken).ConfigureAwait(false);
-        var defaultModelId = ModelConfigLoader.GetDefaultModelId(vendor);
-        if (!string.IsNullOrEmpty(defaultModelId))
-            await _configService.SetAsync("model", defaultModelId, cancellationToken).ConfigureAwait(false);
+        await _configService.SetAsync("profile", vendor, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>占位会话固定返回 Auto，不持久化</summary>

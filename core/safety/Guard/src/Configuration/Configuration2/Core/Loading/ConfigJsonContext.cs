@@ -5,6 +5,7 @@ namespace Core.Configuration;
 [JsonSerializable(typeof(Dictionary<string, string>))]
 [JsonSerializable(typeof(Dictionary<string, JsonElement>))]
 [JsonSerializable(typeof(SettingsJson))]
+[JsonSerializable(typeof(CurrentSettings))]
 [JsonSerializable(typeof(PermissionsSettings))]
 [JsonSerializable(typeof(HookSettings))]
 [JsonSerializable(typeof(McpServerSettings))]
@@ -12,12 +13,14 @@ namespace Core.Configuration;
 [JsonSerializable(typeof(PluginSettings))]
 [JsonSerializable(typeof(WorktreeSettings))]
 [JsonSerializable(typeof(StatusLineSettings))]
+[JsonSerializable(typeof(ProfileSettings))]
 public partial class ConfigJsonContext : JsonSerializerContext;
 
 [JsonSourceGenerationOptions(WriteIndented = true, ReadCommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true, PropertyNameCaseInsensitive = true)]
 [JsonSerializable(typeof(Dictionary<string, string>))]
 [JsonSerializable(typeof(Dictionary<string, JsonElement>))]
 [JsonSerializable(typeof(SettingsJson))]
+[JsonSerializable(typeof(CurrentSettings))]
 [JsonSerializable(typeof(PermissionsSettings))]
 [JsonSerializable(typeof(HookSettings))]
 [JsonSerializable(typeof(McpServerSettings))]
@@ -25,4 +28,5 @@ public partial class ConfigJsonContext : JsonSerializerContext;
 [JsonSerializable(typeof(PluginSettings))]
 [JsonSerializable(typeof(WorktreeSettings))]
 [JsonSerializable(typeof(StatusLineSettings))]
+[JsonSerializable(typeof(ProfileSettings))]
 public partial class ConfigIndentedJsonContext : JsonSerializerContext;

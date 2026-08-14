@@ -23,7 +23,7 @@ public sealed partial class EffortLevelMiddleware : ServiceEntity, ISettingsMidd
     {
         if (_executionSettingsProvider is not null && context.NewSettings is not null)
         {
-            var newEffort = EffortLevelHelper.ParseEffortLevel(context.NewSettings.EffortLevel);
+            var newEffort = EffortLevelHelper.ParseEffortLevel(context.NewSettings.Current?.EffortLevel);
             if (newEffort is not null && _executionSettingsProvider.EffortLevel != newEffort)
             {
                 _executionSettingsProvider.EffortLevel = newEffort.Value;

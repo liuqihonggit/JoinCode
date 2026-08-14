@@ -482,16 +482,26 @@ public class ConfigLoader {
     }
 
     /// <summary>
-    /// 从强类型 SettingsJson 中按键名获取值 — 委托给源码生成器自动生成的 GetSettingByKey
+    /// 从强类型 SettingsJson 中按键名获取值 — 路由到 CurrentSettings.GetSettingByKey
     /// </summary>
     private static string? GetSettingByKey(SettingsJson settings, string key)
-        => settings.GetSettingByKey(key);
+        => settings.Current?.GetSettingByKey(key);
 
     /// <summary>
-    /// 更新强类型 SettingsJson 中指定键的值，返回新对象（不可变）— 委托给源码生成器自动生成的 UpdateSettingByKey
+    /// 更新强类型 SettingsJson 中指定键的值，返回新对象（不可变）— 路由到 CurrentSettings.UpdateSettingByKey
     /// </summary>
     private static SettingsJson UpdateSettingByKey(SettingsJson settings, string key, string? value)
-        => settings.UpdateSettingByKey(key, value);
+    {
+        var updatedCurrent = settings.Current is not null
+            ? settings.Current.UpdateSettingByKey(key, value)
+            : new CurrentSettings().UpdateSettingByKey(key, value);
+
+        return new SettingsJson
+        {
+            Vendor = settings.Vendor,
+            Current = updatedCurrent,
+        };
+    }
 
     #endregion
 }

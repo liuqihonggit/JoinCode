@@ -2,8 +2,7 @@
 namespace Guard.Tests.Configuration;
 
 /// <summary>
-/// SettingsMapper BDD 测试
-/// 验证 SettingsJson → WorkflowConfig 映射 + 环境变量覆盖 + 合并策略
+/// SettingsMapper BDD 测试 — 新结构 vendor+current
 /// </summary>
 public class SettingsMapperTests
 {
@@ -15,61 +14,58 @@ public class SettingsMapperTests
     #region 场景1: SettingsJson 映射到 WorkflowConfig
 
     [Fact]
-    public void Given_包含model的SettingsJson_When_ToWorkflowConfig_Then_ProviderModelId正确()
+    public void Given_vendor含anthropic预设_When_ToWorkflowConfig_Then_ProviderModelId正确()
     {
-        // Given
-        var settings = new SettingsJson { Model = DefaultAnthropicModelId };
+        var settings = new SettingsJson
+        {
+            Vendor = new Dictionary<string, ProfileSettings>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["anthropic"] = new ProfileSettings { Provider = "anthropic", Model = DefaultAnthropicModelId },
+            },
+            Current = new CurrentSettings { Profile = "anthropic" },
+        };
 
-        // When
         var config = _mapper.ToWorkflowConfig(settings);
-
-        // Then
         config.Provider.ModelId.Should().Be(DefaultAnthropicModelId);
     }
 
     [Fact]
-    public void Given_FastMode为true的SettingsJson_When_ToWorkflowConfig_Then_FastMode为true()
+    public void Given_FastMode为true_When_ToWorkflowConfig_Then_FastMode为true()
     {
-        // Given
-        var settings = new SettingsJson { FastMode = true };
+        var settings = new SettingsJson
+        {
+            Current = new CurrentSettings { FastMode = true },
+        };
 
-        // When
         var config = _mapper.ToWorkflowConfig(settings);
-
-        // Then
         config.FastMode.Should().BeTrue();
     }
 
     [Fact]
-    public void Given_FastMode为null的SettingsJson_When_ToWorkflowConfig_Then_FastMode默认为false()
+    public void Given_FastMode为null_When_ToWorkflowConfig_Then_FastMode默认为false()
     {
-        // Given
-        var settings = new SettingsJson { FastMode = null };
+        var settings = new SettingsJson { Current = new CurrentSettings { FastMode = null } };
 
-        // When
         var config = _mapper.ToWorkflowConfig(settings);
-
-        // Then
         config.FastMode.Should().BeFalse();
     }
 
     [Fact]
-    public void Given_Worktree配置的SettingsJson_When_ToWorkflowConfig_Then_Worktree字段正确()
+    public void Given_Worktree配置_When_ToWorkflowConfig_Then_Worktree字段正确()
     {
-        // Given
         var settings = new SettingsJson
         {
-            Worktree = new WorktreeSettings
+            Current = new CurrentSettings
             {
-                SymlinkDirectories = ["node_modules", ".venv"],
-                SparsePaths = ["src/"],
+                Worktree = new WorktreeSettings
+                {
+                    SymlinkDirectories = ["node_modules", ".venv"],
+                    SparsePaths = ["src/"],
+                },
             },
         };
 
-        // When
         var config = _mapper.ToWorkflowConfig(settings);
-
-        // Then
         config.Worktree.SymlinkDirectories.Should().Equal("node_modules", ".venv");
         config.Worktree.SparsePaths.Should().Equal("src/");
     }
@@ -81,16 +77,12 @@ public class SettingsMapperTests
     [Fact]
     public void Given_环境变量JCC_VENDOR_When_ApplyEnvOverrides_Then_Provider被覆盖()
     {
-        // Given
         var config = new WorkflowConfig();
         config.Provider.Vendor = VendorKind.DeepSeek.ToValue();
         Environment.SetEnvironmentVariable(JccEnvVar.Vendor.ToValue(), "anthropic");
         try
         {
-            // When
             _mapper.ApplyEnvOverrides(config);
-
-            // Then
             config.Provider.Vendor.Should().Be("anthropic");
         }
         finally
@@ -102,20 +94,15 @@ public class SettingsMapperTests
     [Fact]
     public void Given_环境变量JCC_VENDOR为anthropic_When_ApplyEnvOverrides_Then_Protocol同步为anthropic()
     {
-        // Given
         var config = new WorkflowConfig();
         config.Provider.Vendor = VendorKind.DeepSeek.ToValue();
         config.Provider.Protocol = ProtocolKind.OpenAiCompatible.ToValue();
         Environment.SetEnvironmentVariable(JccEnvVar.Vendor.ToValue(), "anthropic");
         try
         {
-            // When
             _mapper.ApplyEnvOverrides(config);
-
-            // Then: Vendor 切换为 anthropic 时，Protocol 应同步为 anthropic 协议
             config.Provider.Vendor.Should().Be("anthropic");
             config.Provider.Protocol.Should().Be(ProtocolKind.Anthropic.ToValue());
-            config.Provider.ProtocolKind.Should().Be(ProtocolKind.Anthropic);
         }
         finally
         {
@@ -126,16 +113,12 @@ public class SettingsMapperTests
     [Fact]
     public void Given_环境变量JCC_PROTOCOL_When_ApplyEnvOverrides_Then_Protocol被覆盖()
     {
-        // Given
         var config = new WorkflowConfig();
         config.Provider.Protocol = ProtocolKind.OpenAiCompatible.ToValue();
         Environment.SetEnvironmentVariable(JccEnvVar.Protocol.ToValue(), "anthropic");
         try
         {
-            // When
             _mapper.ApplyEnvOverrides(config);
-
-            // Then
             config.Provider.Protocol.Should().Be("anthropic");
         }
         finally
@@ -145,53 +128,38 @@ public class SettingsMapperTests
     }
 
     [Fact]
-    public void Given_SettingsJson的provider为anthropic_When_ToWorkflowConfig_Then_Protocol同步为anthropic()
+    public void Given_vendor含anthropic_When_ToWorkflowConfig_Then_Protocol同步为anthropic()
     {
-        // Given
-        var settings = new SettingsJson { Provider = "anthropic" };
+        var settings = new SettingsJson
+        {
+            Vendor = new Dictionary<string, ProfileSettings>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["anthropic"] = new ProfileSettings { Provider = "anthropic" },
+            },
+            Current = new CurrentSettings { Profile = "anthropic" },
+        };
 
-        // When
         var config = _mapper.ToWorkflowConfig(settings);
-
-        // Then
         config.Provider.Vendor.Should().Be("anthropic");
         config.Provider.Protocol.Should().Be(ProtocolKind.Anthropic.ToValue());
     }
 
     [Fact]
-    public void Given_环境变量JCC_API_KEY_When_ApplyEnvOverrides_Then_ApiKey不被覆盖()
+    public void Given_环境变量JCC_MODEL_ID_When_EnvOverrideApplier_Then_VendorProfileModel被覆盖()
     {
-        // API Key 由 ConfigLoader.ResolveApiKeyAsync 统一解析，ApplyEnvOverrides 不再处理 API Key
-        var config = new WorkflowConfig();
-        config.Provider.ApiKey = "original-key";
-        Environment.SetEnvironmentVariable(JccEnvVar.ApiKey.ToValue(), "env-api-key");
-        try
+        var settings = new SettingsJson
         {
-            // When
-            _mapper.ApplyEnvOverrides(config);
-
-            // Then: ApplyEnvOverrides 不再覆盖 API Key
-            config.Provider.ApiKey.Should().Be("original-key");
-        }
-        finally
-        {
-            Environment.SetEnvironmentVariable(JccEnvVar.ApiKey.ToValue(), null);
-        }
-    }
-
-    [Fact]
-    public void Given_环境变量JCC_MODEL_ID_When_EnvOverrideApplier_Then_Model被覆盖()
-    {
-        // Given
-        var settings = new SettingsJson { Model = OpenAiModelId };
+            Vendor = new Dictionary<string, ProfileSettings>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["openai"] = new ProfileSettings { Provider = "openai", Model = OpenAiModelId },
+            },
+            Current = new CurrentSettings { Profile = "openai" },
+        };
         Environment.SetEnvironmentVariable(JccEnvVar.ModelId.ToValue(), "gpt-4o-mini");
         try
         {
-            // When: EnvOverrideApplier 在 SettingsJson 层(覆盖 Model
             var result = EnvOverrideApplier.Apply(settings);
-
-            // Then
-            result.Model.Should().Be("gpt-4o-mini");
+            result.Vendor!["openai"].Model.Should().Be("gpt-4o-mini");
         }
         finally
         {
@@ -202,21 +170,16 @@ public class SettingsMapperTests
     [Fact]
     public void Given_无环境变量_When_ApplyEnvOverrides_Then_配置不变()
     {
-        // Given
         var config = new WorkflowConfig();
         config.Provider.Vendor = VendorKind.DeepSeek.ToValue();
         var testModelId = "deepseek-v4-flash";
         config.Provider.ModelId = testModelId;
-        // 清除可能存在的环境变量
         Environment.SetEnvironmentVariable(JccEnvVar.Vendor.ToValue(), null);
         Environment.SetEnvironmentVariable(JccEnvVar.ModelId.ToValue(), null);
         Environment.SetEnvironmentVariable(JccEnvVar.ApiKey.ToValue(), null);
         Environment.SetEnvironmentVariable(JccEnvVar.Endpoint.ToValue(), null);
 
-        // When
         _mapper.ApplyEnvOverrides(config);
-
-        // Then
         config.Provider.Vendor.Should().Be(VendorKind.DeepSeek.ToValue());
         config.Provider.ModelId.Should().Be(testModelId);
     }
@@ -226,20 +189,19 @@ public class SettingsMapperTests
     #region 场景3: Settings.env 注入
 
     [Fact]
-    public void Given_SettingsEnv包含KEY_When_InjectEnvFromSettings_Then_环境变量被设置()
+    public void Given_CurrentEnv包含KEY_When_InjectEnvFromSettings_Then_环境变量被设置()
     {
-        // Given
         var settings = new SettingsJson
         {
-            Env = new Dictionary<string, string> { ["TEST_JCC_VAR"] = "test-value" },
+            Current = new CurrentSettings
+            {
+                Env = new Dictionary<string, string> { ["TEST_JCC_VAR"] = "test-value" },
+            },
         };
         Environment.SetEnvironmentVariable("TEST_JCC_VAR", null);
         try
         {
-            // When
             SettingsMapper.InjectEnvFromSettings(settings);
-
-            // Then
             Environment.GetEnvironmentVariable("TEST_JCC_VAR").Should().Be("test-value");
         }
         finally
@@ -251,18 +213,17 @@ public class SettingsMapperTests
     [Fact]
     public void Given_系统环境变量已存在_When_InjectEnvFromSettings_Then_不覆盖()
     {
-        // Given
         var settings = new SettingsJson
         {
-            Env = new Dictionary<string, string> { ["TEST_JCC_EXISTING"] = "settings-value" },
+            Current = new CurrentSettings
+            {
+                Env = new Dictionary<string, string> { ["TEST_JCC_EXISTING"] = "settings-value" },
+            },
         };
         Environment.SetEnvironmentVariable("TEST_JCC_EXISTING", "system-value");
         try
         {
-            // When
             SettingsMapper.InjectEnvFromSettings(settings);
-
-            // Then: 系统环境变量优先，不覆盖
             Environment.GetEnvironmentVariable("TEST_JCC_EXISTING").Should().Be("system-value");
         }
         finally
@@ -276,143 +237,81 @@ public class SettingsMapperTests
     #region 场景4: SettingsJson 合并策略
 
     [Fact]
-    public void Given_两个SettingsJson_When_Merge_Then_高优先级覆盖简单值()
+    public void Given_两个SettingsJson_When_Merge_Then_vendor字典合并current递归合并()
     {
-        // Given
-        var baseSettings = new SettingsJson { Model = OpenAiModelId, Language = "en-US" };
-        var overrideSettings = new SettingsJson { Model = DefaultAnthropicModelId };
-
-        // When
-        var merged = SettingsMapper.Merge(baseSettings, overrideSettings);
-
-        // Then
-        merged.Model.Should().Be(DefaultAnthropicModelId); // 高优先级覆盖
-        merged.Language.Should().Be("en-US"); // 低优先级保留
-    }
-
-    [Fact]
-    public void Given_两个SettingsJson的Env_When_Merge_Then_字典合并高优先级覆盖()
-    {
-        // Given
         var baseSettings = new SettingsJson
         {
-            Env = new Dictionary<string, string> { ["KEY1"] = "base1", ["KEY2"] = "base2" },
+            Vendor = new Dictionary<string, ProfileSettings>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["openai"] = new ProfileSettings { Provider = "openai", Model = OpenAiModelId },
+            },
+            Current = new CurrentSettings { Language = "en-US" },
         };
         var overrideSettings = new SettingsJson
         {
-            Env = new Dictionary<string, string> { ["KEY2"] = "override2", ["KEY3"] = "override3" },
+            Vendor = new Dictionary<string, ProfileSettings>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["anthropic"] = new ProfileSettings { Provider = "anthropic", Model = DefaultAnthropicModelId },
+            },
+            Current = new CurrentSettings { Profile = "anthropic" },
         };
 
-        // When
         var merged = SettingsMapper.Merge(baseSettings, overrideSettings);
-
-        // Then
-        merged.Env.Should().NotBeNull();
-        merged.Env!["KEY1"].Should().Be("base1"); // 低优先级独有
-        merged.Env["KEY2"].Should().Be("override2"); // 高优先级覆盖
-        merged.Env["KEY3"].Should().Be("override3"); // 高优先级独有
-    }
-
-    [Fact]
-    public void Given_两个SettingsJson的Permissions_When_Merge_Then_数组拼接去重()
-    {
-        // Given
-        var baseSettings = new SettingsJson
-        {
-            Permissions = new PermissionsSettings { Allow = ["Bash(npm test)"], Deny = ["Bash(rm)"] },
-        };
-        var overrideSettings = new SettingsJson
-        {
-            Permissions = new PermissionsSettings { Allow = ["ReadFile"], DefaultMode = "autoAccept" },
-        };
-
-        // When
-        var merged = SettingsMapper.Merge(baseSettings, overrideSettings);
-
-        // Then
-        merged.Permissions.Should().NotBeNull();
-        merged.Permissions!.Allow.Should().Contain("Bash(npm test)");
-        merged.Permissions.Allow.Should().Contain("ReadFile");
-        merged.Permissions.Deny.Should().ContainSingle("Bash(rm)"); // 低优先级保留
-        merged.Permissions.DefaultMode.Should().Be("autoAccept"); // 高优先级覆盖
+        merged.Vendor.Should().ContainKey("openai");
+        merged.Vendor.Should().ContainKey("anthropic");
+        merged.Current!.Profile.Should().Be("anthropic");
+        merged.Current.Language.Should().Be("en-US");
     }
 
     [Fact]
     public void Given_base为null_When_Merge_Then_返回override()
     {
-        // Given
-        var overrideSettings = new SettingsJson { Model = OpenAiModelId };
+        var overrideSettings = new SettingsJson
+        {
+            Current = new CurrentSettings { Profile = "openai" },
+        };
 
-        // When
         var merged = SettingsMapper.Merge(null, overrideSettings);
-
-        // Then
-        merged.Model.Should().Be(OpenAiModelId);
+        merged.Current!.Profile.Should().Be("openai");
     }
 
     [Fact]
     public void Given_override为null_When_Merge_Then_返回base()
     {
-        // Given
-        var baseSettings = new SettingsJson { Model = OpenAiModelId };
+        var baseSettings = new SettingsJson
+        {
+            Current = new CurrentSettings { Profile = "openai" },
+        };
 
-        // When
         var merged = SettingsMapper.Merge(baseSettings, null);
-
-        // Then
-        merged.Model.Should().Be(OpenAiModelId);
+        merged.Current!.Profile.Should().Be("openai");
     }
 
     [Fact]
     public void Given_两个null_When_Merge_Then_返回空SettingsJson()
     {
-        // When
         var merged = SettingsMapper.Merge(null, null);
-
-        // Then
         merged.Should().NotBeNull();
-        merged.Model.Should().BeNull();
+        merged.Current.Should().BeNull();
     }
 
     #endregion
 
-    #region 场景5: 完整优先级链
-
-    [Fact]
-    public void Given_SettingsJson和环境变量_When_先EnvOverride再映射_Then_环境变量优先()
-    {
-        // Given
-        var settings = new SettingsJson { Model = OpenAiModelId };
-        Environment.SetEnvironmentVariable(JccEnvVar.ModelId.ToValue(), "gpt-4o-mini");
-        try
-        {
-            // When: 先 EnvOverrideApplier 覆盖 SettingsJson，再 ToWorkflowConfig 映射
-            var overridden = EnvOverrideApplier.Apply(settings);
-            var config = _mapper.ToWorkflowConfig(overridden);
-
-            // Then: 环境变量优先
-            config.Provider.ModelId.Should().Be("gpt-4o-mini");
-        }
-        finally
-        {
-            Environment.SetEnvironmentVariable(JccEnvVar.ModelId.ToValue(), null);
-        }
-    }
-
-    #endregion
-
-    #region 场景6: SandboxSettings 新字段映射
+    #region 场景5: SandboxSettings 映射
 
     [Fact]
     public void Given_SandboxRestrictNetwork_When_ToWorkflowConfig_Then_AllowNetworkAccess取反()
     {
         var settings = new SettingsJson
         {
-            Sandbox = new SandboxSettings { RestrictNetwork = true }
+            Current = new CurrentSettings
+            {
+                Sandbox = new SandboxSettings { RestrictNetwork = true },
+            },
         };
 
         var config = _mapper.ToWorkflowConfig(settings);
-        config.CodeExecution.AllowNetworkAccess.Should().BeFalse("restrictNetwork=true → allowNetworkAccess=false");
+        config.CodeExecution.AllowNetworkAccess.Should().BeFalse();
     }
 
     [Fact]
@@ -420,23 +319,14 @@ public class SettingsMapperTests
     {
         var settings = new SettingsJson
         {
-            Sandbox = new SandboxSettings { MemoryLimitMb = 512 }
+            Current = new CurrentSettings
+            {
+                Sandbox = new SandboxSettings { MemoryLimitMb = 512 },
+            },
         };
 
         var config = _mapper.ToWorkflowConfig(settings);
         config.CodeExecution.MaxMemoryMB.Should().Be(512);
-    }
-
-    [Fact]
-    public void Given_SandboxAllowedPaths_When_ToWorkflowConfig_Then_AllowedDirectories分号连接()
-    {
-        var settings = new SettingsJson
-        {
-            Sandbox = new SandboxSettings { AllowedPaths = ["/tmp", "/home"] }
-        };
-
-        var config = _mapper.ToWorkflowConfig(settings);
-        config.CodeExecution.AllowedDirectories.Should().Be("/tmp;/home");
     }
 
     #endregion

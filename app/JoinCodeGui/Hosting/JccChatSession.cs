@@ -158,31 +158,20 @@ internal sealed class JccChatSession : IJccChatSession
     }
 
     /// <summary>
-    /// 切换当前模型 — 直接回写共享 WorkflowConfig.Provider（DI 单例，QueryService 请求期读取同一实例），
-    /// 并持久化 modelId 到 settings.json（对齐 CLI ModelCommand.ApplyModelSwitchAsync，
-    /// 键 "model" 与 SettingsJson 生成器 jsonName 一致），保证 GUI 重启后保留所选模型。
+    /// 切换当前模型 — 回写 WorkflowConfig + 持久化 vendor[profile].model 到 settings.json
     /// </summary>
     public async Task SetModelAsync(string modelId, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(modelId))
-        {
             throw new System.ArgumentException("模型 ID 不能为空", nameof(modelId));
-        }
         _config.Provider.ModelId = modelId;
 
-        var configService = _services.GetService<IConfigurationService>();
-        if (configService is not null)
-        {
-            await configService.SetAsync("model", modelId, cancellationToken).ConfigureAwait(false);
-        }
-        // 同步更新 vendor.{currentProfile}.model — ApplyProfileOverride 读 profile 覆盖顶层，需保持一致
+        // 持久化 vendor[profile].model
         await UpdateVendorProfileModelAsync(modelId, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
-    /// 切换当前供应商 — 回写共享 WorkflowConfig.Provider.Vendor 并持久化到 settings.json
-    /// （对齐 CLI ProviderCommand，键 ConfigKeyConstants.Provider），保证 GUI 重启后保留。
-    /// 同时按新供应商的 DefaultModelId 重置 ModelId 并持久化，避免旧模型不属于新供应商导致请求失败。
+    /// 切换当前供应商 — 回写 WorkflowConfig + 持久化 profile 到 settings.json
     /// </summary>
     public async Task SetVendorAsync(string vendor, CancellationToken cancellationToken = default)
     {
@@ -191,35 +180,22 @@ internal sealed class JccChatSession : IJccChatSession
 
         _config.Provider.Vendor = vendor;
 
-        // 按新供应商的默认模型重置 ModelId，避免旧模型不属于新供应商
         var defaultModelId = ModelConfigLoader.GetDefaultModelId(vendor);
         if (!string.IsNullOrEmpty(defaultModelId))
-        {
             _config.Provider.ModelId = defaultModelId;
-        }
 
         var configService = _services.GetService<IConfigurationService>();
         if (configService is not null)
         {
-            await configService.SetAsync(ConfigKeyConstants.Provider, vendor, cancellationToken).ConfigureAwait(false);
-            // 切换 currentProfile = 新供应商 — ApplyProfileOverride 用 currentProfile 从 vendor 字典读预设
-            await configService.SetAsync("currentProfile", vendor, cancellationToken).ConfigureAwait(false);
-            if (!string.IsNullOrEmpty(defaultModelId))
-            {
-                await configService.SetAsync("model", defaultModelId, cancellationToken).ConfigureAwait(false);
-            }
+            await configService.SetAsync("profile", vendor, cancellationToken).ConfigureAwait(false);
         }
-        // 同步更新 vendor.{vendor}.model — 新供应商预设的 model 保持一致
+
         if (!string.IsNullOrEmpty(defaultModelId))
-        {
             await UpdateVendorProfileModelAsync(vendor, defaultModelId, cancellationToken).ConfigureAwait(false);
-        }
     }
 
     /// <summary>
-    /// 更新 settings.json 的 vendor.{profile}.model — ApplyProfileOverride 用 profile 覆盖顶层 model，
-    /// GUI 切换模型/供应商时需同步更新 profile 节点，否则重启后被旧 profile 覆盖。
-    /// 直接用 JsonNode 操作嵌套键（ConfigurationService.SetAsync 只支持顶层键）。
+    /// 更新 settings.json 的 vendor[profile].model — 直接用 JsonNode 操作嵌套键
     /// </summary>
     private async Task UpdateVendorProfileModelAsync(string profileName, string modelId, CancellationToken ct)
     {
@@ -256,7 +232,7 @@ internal sealed class JccChatSession : IJccChatSession
     }
 
     /// <summary>
-    /// 更新当前 currentProfile 的 model — 重载，用 _config.CurrentProfile 推导 profile 名。
+    /// 更新当前 profile 的 model — 用 _config.CurrentProfile 推导 profile 名
     /// </summary>
     private Task UpdateVendorProfileModelAsync(string modelId, CancellationToken ct)
     {

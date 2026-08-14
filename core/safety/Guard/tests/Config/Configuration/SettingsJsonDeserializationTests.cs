@@ -3,7 +3,7 @@ namespace Guard.Tests.Configuration;
 
 /// <summary>
 /// SettingsJson 反序列化 BDD 测试
-/// 对齐 TS 版 SettingsSchema 的 JSON 结构
+/// 新结构: 顶层只有 vendor + current 两个分支
 /// </summary>
 public class SettingsJsonDeserializationTests
 {
@@ -15,123 +15,133 @@ public class SettingsJsonDeserializationTests
     [Fact]
     public void Given_完整SettingsJson_When_反序列化_Then_所有字段正确映射()
     {
-        // Given: 完整的 settings.json 内容
         var json = $$"""
             {
-              "model": "{{DefaultAnthropicModelId}}",
-              "effortLevel": "high",
-              "defaultShell": "powershell",
-              "fastMode": true,
-              "language": "zh-CN",
-              "autoMemoryEnabled": true,
-              "autoDreamEnabled": false,
-              "showThinkingSummaries": true,
-              "env": {
-                "AGNES_API_KEY": "sk-agnes-api-key-value"
-              },
-              "permissions": {
-                "allow": ["Bash(npm test)", "ReadFile"],
-                "deny": ["Bash(rm -rf)"],
-                "defaultMode": "autoAccept"
-              },
-              "hooks": {
-                "PreToolUse": [
-                  { "type": "command", "command": "echo before", "matcher": "Bash" }
-                ]
-              },
-              "mcpServers": {
-                "my-server": {
-                  "type": "stdio",
-                  "command": "node",
-                  "args": ["server.js"]
+              "vendor": {
+                "anthropic": {
+                  "provider": "anthropic",
+                  "model": "{{DefaultAnthropicModelId}}",
+                  "endpoint": null
                 }
               },
-              "sandbox": {
-                "enabled": true,
-                "mode": "docker"
-              },
-              "enabledPlugins": {
-                "dream": { "enabled": true }
-              },
-              "worktree": {
-                "symlinkDirectories": ["node_modules"],
-                "sparsePaths": ["src/"]
+              "current": {
+                "profile": "anthropic",
+                "effortLevel": "high",
+                "defaultShell": "powershell",
+                "fastMode": true,
+                "language": "zh-CN",
+                "autoMemoryEnabled": true,
+                "autoDreamEnabled": false,
+                "showThinkingSummaries": true,
+                "env": {
+                  "AGNES_API_KEY": "sk-agnes-api-key-value"
+                },
+                "permissions": {
+                  "allow": ["Bash(npm test)", "ReadFile"],
+                  "deny": ["Bash(rm -rf)"],
+                  "defaultMode": "autoAccept"
+                },
+                "hooks": {
+                  "PreToolUse": [
+                    { "type": "command", "command": "echo before", "matcher": "Bash" }
+                  ]
+                },
+                "mcpServers": {
+                  "my-server": {
+                    "type": "stdio",
+                    "command": "node",
+                    "args": ["server.js"]
+                  }
+                },
+                "sandbox": {
+                  "enabled": true,
+                  "mode": "docker"
+                },
+                "enabledPlugins": {
+                  "dream": { "enabled": true }
+                },
+                "worktree": {
+                  "symlinkDirectories": ["node_modules"],
+                  "sparsePaths": ["src/"]
+                }
               }
             }
             """;
 
-        // When: 反序列化
         var settings = JsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson);
 
-        // Then: 所有字段正确映射
         settings.Should().NotBeNull();
-        settings!.Model.Should().Be(DefaultAnthropicModelId);
-        settings.EffortLevel.Should().Be("high");
-        settings.DefaultShell.Should().Be("powershell");
-        settings.FastMode.Should().BeTrue();
-        settings.Language.Should().Be("zh-CN");
-        settings.AutoMemoryEnabled.Should().BeTrue();
-        settings.AutoDreamEnabled.Should().BeFalse();
-        settings.ShowThinkingSummaries.Should().BeTrue();
+        // vendor
+        settings!.Vendor.Should().NotBeNull();
+        settings.Vendor!["anthropic"].Provider.Should().Be("anthropic");
+        settings.Vendor["anthropic"].Model.Should().Be(DefaultAnthropicModelId);
 
-        // env
-        settings.Env.Should().NotBeNull();
-        settings.Env!["AGNES_API_KEY"].Should().Be("sk-agnes-api-key-value");
+        // current
+        settings.Current.Should().NotBeNull();
+        settings.Current!.Profile.Should().Be("anthropic");
+        settings.Current.EffortLevel.Should().Be("high");
+        settings.Current.DefaultShell.Should().Be("powershell");
+        settings.Current.FastMode.Should().BeTrue();
+        settings.Current.Language.Should().Be("zh-CN");
+        settings.Current.AutoMemoryEnabled.Should().BeTrue();
+        settings.Current.AutoDreamEnabled.Should().BeFalse();
+        settings.Current.ShowThinkingSummaries.Should().BeTrue();
 
-        // permissions
-        settings.Permissions.Should().NotBeNull();
-        settings.Permissions!.Allow.Should().Contain("Bash(npm test)");
-        settings.Permissions.Deny.Should().Contain("Bash(rm -rf)");
-        settings.Permissions.DefaultMode.Should().Be("autoAccept");
+        settings.Current.Env.Should().NotBeNull();
+        settings.Current.Env!["AGNES_API_KEY"].Should().Be("sk-agnes-api-key-value");
 
-        // hooks
-        settings.Hooks.Should().NotBeNull();
-        settings.Hooks!.Should().ContainKey("PreToolUse");
-        settings.Hooks!["PreToolUse"][0].Command.Should().Be("echo before");
+        settings.Current.Permissions.Should().NotBeNull();
+        settings.Current.Permissions!.Allow.Should().Contain("Bash(npm test)");
+        settings.Current.Permissions.Deny.Should().Contain("Bash(rm -rf)");
+        settings.Current.Permissions.DefaultMode.Should().Be("autoAccept");
 
-        // mcpServers
-        settings.McpServers.Should().NotBeNull();
-        settings.McpServers!["my-server"].Command.Should().Be("node");
+        settings.Current.Hooks.Should().NotBeNull();
+        settings.Current.Hooks!.Should().ContainKey("PreToolUse");
+        settings.Current.Hooks!["PreToolUse"][0].Command.Should().Be("echo before");
 
-        // sandbox
-        settings.Sandbox.Should().NotBeNull();
-        settings.Sandbox!.Enabled.Should().BeTrue();
-        settings.Sandbox.Mode.Should().Be("docker");
+        settings.Current.McpServers.Should().NotBeNull();
+        settings.Current.McpServers!["my-server"].Command.Should().Be("node");
 
-        // enabledPlugins
-        settings.EnabledPlugins.Should().NotBeNull();
-        settings.EnabledPlugins!["dream"].Enabled.Should().BeTrue();
+        settings.Current.Sandbox.Should().NotBeNull();
+        settings.Current.Sandbox!.Enabled.Should().BeTrue();
+        settings.Current.Sandbox.Mode.Should().Be("docker");
 
-        // worktree
-        settings.Worktree.Should().NotBeNull();
-        settings.Worktree!.SymlinkDirectories.Should().Contain("node_modules");
-        settings.Worktree.SparsePaths.Should().Contain("src/");
+        settings.Current.EnabledPlugins.Should().NotBeNull();
+        settings.Current.EnabledPlugins!["dream"].Enabled.Should().BeTrue();
+
+        settings.Current.Worktree.Should().NotBeNull();
+        settings.Current.Worktree!.SymlinkDirectories.Should().Contain("node_modules");
+        settings.Current.Worktree.SparsePaths.Should().Contain("src/");
     }
 
     #endregion
 
-    #region 场景2: 最小 settings.json（仅部分字段）
+    #region 场景2: 最小 settings.json
 
     [Fact]
-    public void Given_仅包含model字段的SettingsJson_When_反序列化_Then_其余字段为null()
+    public void Given_仅包含vendor和profile的SettingsJson_When_反序列化_Then_其余字段为null()
     {
-        // Given
-        var json = $$"""{ "model": "{{DefaultOpenAiModelId}}" }""";
+        var json = $$"""
+            {
+              "vendor": {
+                "openai": { "provider": "openai", "model": "{{DefaultOpenAiModelId}}" }
+              },
+              "current": { "profile": "openai" }
+            }
+            """;
 
-        // When
         var settings = JsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson);
 
-        // Then
         settings.Should().NotBeNull();
-        settings!.Model.Should().Be(DefaultOpenAiModelId);
-        settings.EffortLevel.Should().BeNull();
-        settings.DefaultShell.Should().BeNull();
-        settings.FastMode.Should().BeNull();
-        settings.Env.Should().BeNull();
-        settings.Permissions.Should().BeNull();
-        settings.Hooks.Should().BeNull();
-        settings.McpServers.Should().BeNull();
-        settings.Sandbox.Should().BeNull();
+        settings!.Current!.Profile.Should().Be("openai");
+        settings.Current.EffortLevel.Should().BeNull();
+        settings.Current.DefaultShell.Should().BeNull();
+        settings.Current.FastMode.Should().BeNull();
+        settings.Current.Env.Should().BeNull();
+        settings.Current.Permissions.Should().BeNull();
+        settings.Current.Hooks.Should().BeNull();
+        settings.Current.McpServers.Should().BeNull();
+        settings.Current.Sandbox.Should().BeNull();
     }
 
     #endregion
@@ -139,19 +149,15 @@ public class SettingsJsonDeserializationTests
     #region 场景3: 空 settings.json
 
     [Fact]
-    public void Given_空对象SettingsJson_When_反序列化_Then_所有字段为null或默认值()
+    public void Given_空对象SettingsJson_When_反序列化_Then_vendor和current为null()
     {
-        // Given
         var json = "{}";
 
-        // When
         var settings = JsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson);
 
-        // Then
         settings.Should().NotBeNull();
-        settings!.Model.Should().BeNull();
-        settings.FastMode.Should().BeNull();
-        settings.Env.Should().BeNull();
+        settings!.Vendor.Should().BeNull();
+        settings.Current.Should().BeNull();
     }
 
     #endregion
@@ -161,10 +167,8 @@ public class SettingsJsonDeserializationTests
     [Fact]
     public void Given_损坏的JSON_When_反序列化_Then_抛出JsonException()
     {
-        // Given
         var json = "{ invalid json }";
 
-        // When/Then
         var act = () => JsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson);
         act.Should().Throw<JsonException>();
     }
@@ -176,59 +180,70 @@ public class SettingsJsonDeserializationTests
     [Fact]
     public void Given_SettingsJson对象_When_序列化再反序列化_Then_数据一致()
     {
-        // Given
         var original = new SettingsJson
         {
-            Model = DefaultOpenAiModelId,
-            FastMode = true,
-            Env = new Dictionary<string, string> { ["KEY"] = "value" },
-            Permissions = new PermissionsSettings
+            Vendor = new Dictionary<string, ProfileSettings>(StringComparer.OrdinalIgnoreCase)
             {
-                Allow = ["Bash(npm test)"],
-                DefaultMode = "default",
+                ["openai"] = new ProfileSettings
+                {
+                    Provider = "openai",
+                    Model = DefaultOpenAiModelId,
+                },
+            },
+            Current = new CurrentSettings
+            {
+                Profile = "openai",
+                FastMode = true,
+                Env = new Dictionary<string, string> { ["KEY"] = "value" },
+                Permissions = new PermissionsSettings
+                {
+                    Allow = ["Bash(npm test)"],
+                    DefaultMode = "default",
+                },
             },
         };
 
-        // When
         var json = JsonSerializer.Serialize(original, ConfigIndentedJsonContext.Default.SettingsJson);
         var deserialized = JsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson);
 
-        // Then
         deserialized.Should().NotBeNull();
-        deserialized!.Model.Should().Be(DefaultOpenAiModelId);
-        deserialized.FastMode.Should().BeTrue();
-        deserialized.Env!["KEY"].Should().Be("value");
-        deserialized.Permissions!.Allow.Should().ContainSingle("Bash(npm test)");
-        deserialized.Permissions.DefaultMode.Should().Be("default");
+        deserialized!.Vendor!["openai"].Model.Should().Be(DefaultOpenAiModelId);
+        deserialized.Current!.Profile.Should().Be("openai");
+        deserialized.Current.FastMode.Should().BeTrue();
+        deserialized.Current.Env!["KEY"].Should().Be("value");
+        deserialized.Current.Permissions!.Allow.Should().ContainSingle("Bash(npm test)");
+        deserialized.Current.Permissions.DefaultMode.Should().Be("default");
     }
 
     #endregion
 
-    #region 场景4: SandboxSettings 新字段反序列化
+    #region 场景6: SandboxSettings 新字段反序列化
 
     [Fact]
     public void Given_SandboxSettings含新字段_When_反序列化_Then_AllowedPathsRestrictNetworkMemoryLimitMb正确映射()
     {
         var json = """
             {
+              "current": {
                 "sandbox": {
-                    "enabled": true,
-                    "mode": "process",
-                    "allowedPaths": ["/tmp", "/home"],
-                    "restrictNetwork": true,
-                    "memoryLimitMb": 512
+                  "enabled": true,
+                  "mode": "process",
+                  "allowedPaths": ["/tmp", "/home"],
+                  "restrictNetwork": true,
+                  "memoryLimitMb": 512
                 }
+              }
             }
             """;
 
         var settings = JsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson);
         settings.Should().NotBeNull();
-        settings!.Sandbox.Should().NotBeNull();
-        settings.Sandbox!.Enabled.Should().BeTrue();
-        settings.Sandbox.Mode.Should().Be("process");
-        settings.Sandbox.AllowedPaths.Should().Equal("/tmp", "/home");
-        settings.Sandbox.RestrictNetwork.Should().BeTrue();
-        settings.Sandbox.MemoryLimitMb.Should().Be(512);
+        settings!.Current!.Sandbox.Should().NotBeNull();
+        settings.Current.Sandbox!.Enabled.Should().BeTrue();
+        settings.Current.Sandbox.Mode.Should().Be("process");
+        settings.Current.Sandbox.AllowedPaths.Should().Equal("/tmp", "/home");
+        settings.Current.Sandbox.RestrictNetwork.Should().BeTrue();
+        settings.Current.Sandbox.MemoryLimitMb.Should().Be(512);
     }
 
     [Fact]
@@ -236,21 +251,60 @@ public class SettingsJsonDeserializationTests
     {
         var json = """
             {
+              "current": {
                 "sandbox": {
-                    "enabled": false,
-                    "mode": "soft"
+                  "enabled": false,
+                  "mode": "soft"
                 }
+              }
             }
             """;
 
         var settings = JsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson);
         settings.Should().NotBeNull();
-        settings!.Sandbox.Should().NotBeNull();
-        settings.Sandbox!.Enabled.Should().BeFalse();
-        settings.Sandbox.Mode.Should().Be("soft");
-        settings.Sandbox.AllowedPaths.Should().BeNull();
-        settings.Sandbox.RestrictNetwork.Should().BeNull();
-        settings.Sandbox.MemoryLimitMb.Should().BeNull();
+        settings!.Current!.Sandbox.Should().NotBeNull();
+        settings.Current.Sandbox!.Enabled.Should().BeFalse();
+        settings.Current.Sandbox.Mode.Should().Be("soft");
+        settings.Current.Sandbox.AllowedPaths.Should().BeNull();
+        settings.Current.Sandbox.RestrictNetwork.Should().BeNull();
+        settings.Current.Sandbox.MemoryLimitMb.Should().BeNull();
+    }
+
+    #endregion
+
+    #region 场景7: GetActiveProfile 辅助方法
+
+    [Fact]
+    public void Given_CurrentProfile指向Vendor键_When_GetActiveProfile_Then_返回对应预设()
+    {
+        var settings = new SettingsJson
+        {
+            Vendor = new Dictionary<string, ProfileSettings>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["sensenova"] = new ProfileSettings { Provider = "sensenova", Model = "sensenova-6.7-flash-lite" },
+            },
+            Current = new CurrentSettings { Profile = "sensenova" },
+        };
+
+        var profile = settings.GetActiveProfile();
+        profile.Should().NotBeNull();
+        profile!.Provider.Should().Be("sensenova");
+        profile.Model.Should().Be("sensenova-6.7-flash-lite");
+    }
+
+    [Fact]
+    public void Given_CurrentProfile不存在于Vendor_When_GetActiveProfile_Then_返回null()
+    {
+        var settings = new SettingsJson
+        {
+            Vendor = new Dictionary<string, ProfileSettings>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["openai"] = new ProfileSettings { Provider = "openai" },
+            },
+            Current = new CurrentSettings { Profile = "nonexistent" },
+        };
+
+        settings.GetActiveProfile().Should().BeNull();
     }
 
     #endregion

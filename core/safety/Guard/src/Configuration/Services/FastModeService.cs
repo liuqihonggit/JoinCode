@@ -34,10 +34,12 @@ public sealed partial class FastModeService : ServiceEntity, IFastModeService, I
         WorkflowConfig? config = null,
         string? fastModelId = null,
         TimeSpan? cooldownDuration = null,
-        ILogger<FastModeService>? logger = null)
+        ILogger<FastModeService>? logger = null,
+        IModelConfigLoader? modelConfigLoader = null)
     {
-        _primaryModelId = config?.Provider?.ModelId ?? ModelConfigLoader.GetDefaultModelId("openai");
-        _fastModelId = fastModelId ?? ModelConfigLoader.GetDefaultFastModelId("openai");
+        var loader = modelConfigLoader ?? new ModelConfigLoader();
+        _primaryModelId = config?.Provider?.ModelId ?? loader.GetDefaultModelId("openai");
+        _fastModelId = fastModelId ?? loader.GetDefaultFastModelId("openai");
         _cooldownDuration = cooldownDuration ?? TimeSpan.FromMinutes(5);
         _logger = logger;
     }

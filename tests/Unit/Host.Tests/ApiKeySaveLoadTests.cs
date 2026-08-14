@@ -7,7 +7,23 @@ using JoinCode.Abstractions.Exceptions;
 public class ApiKeySaveLoadTests
 {
     private static ConfigLoader Loader => new();
-    private static readonly Core.Configuration.Providers.ProviderDefinitionRegistry Registry = new();
+    private static readonly IModelConfigLoader ModelLoader = new JoinCode.Abstractions.Configuration.Llm.ModelConfigLoader();
+
+    private static IProviderDefinition GetDefinitionFor(string provider)
+    {
+        if (string.Equals(provider, "azure", StringComparison.OrdinalIgnoreCase))
+            return new AzureProviderDefinition(ModelLoader);
+        if (string.Equals(provider, "anthropic", StringComparison.OrdinalIgnoreCase))
+            return new AnthropicProviderDefinition(ModelLoader, provider, "ANTHROPIC_API_KEY");
+        return new OpenAiCompatibleProviderDefinition(ModelLoader, provider,
+            provider.ToLowerInvariant() switch
+            {
+                "openai" => "OPENAI_API_KEY",
+                "deepseek" => "DEEPSEEK_API_KEY",
+                "agnes" => "AGNES_API_KEY",
+                _ => null
+            });
+    }
 
     [Fact]
     public async Task SaveApiKey_AndLoad_ShouldUpdateProviderConfig()
@@ -47,7 +63,7 @@ public class ApiKeySaveLoadTests
             config.Provider.Vendor = provider;
             config.Provider.ApiKey = apiKey;
             
-            var definition = Registry.TryGet(provider);
+            var definition = GetDefinitionFor(provider);
             if (definition is not null)
             {
                 config.Provider.Definition = definition;
@@ -185,7 +201,7 @@ public class ApiKeySaveLoadTests
             config.Provider.Vendor = provider;
             config.Provider.ApiKey = apiKey;
             
-            var definition = Registry.TryGet(provider);
+            var definition = GetDefinitionFor(provider);
             if (definition is not null)
             {
                 config.Provider.Definition = definition;

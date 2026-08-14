@@ -31,6 +31,7 @@ internal sealed class JccChatSession : IJccChatSession
     private readonly IChatService _chat;
     private readonly JoinCode.Abstractions.Configuration.WorkflowConfig _config;
     private readonly IExecutionSettingsProvider? _executionSettings;
+    private readonly IModelConfigLoader _modelConfigLoader;
     private readonly Func<ValueTask>? _disposeAsync;
 
     /// <inheritdoc />
@@ -41,18 +42,22 @@ internal sealed class JccChatSession : IJccChatSession
         IChatService chat,
         JoinCode.Abstractions.Configuration.WorkflowConfig config,
         IExecutionSettingsProvider? executionSettings = null,
+        IModelConfigLoader? modelConfigLoader = null,
         Func<ValueTask>? disposeAsync = null)
     {
         _services = services;
         _chat = chat;
         _config = config;
         _executionSettings = executionSettings;
+        _modelConfigLoader = modelConfigLoader ?? services.GetService<IModelConfigLoader>() ?? new ModelConfigLoader();
         _disposeAsync = disposeAsync;
 
         // 订阅 settings.json 变更 — theme 键变更时触发 ThemeChanged 驱动 GUI 热重载（双向绑定）
         var configService = services.GetService<IConfigurationService>();
         if (configService is not null)
             configService.SettingChanged += OnSettingChanged;
+
+        VendorModelMap = BuildVendorModelMap();
     }
 
     /// <inheritdoc />
@@ -85,7 +90,7 @@ internal sealed class JccChatSession : IJccChatSession
             ? () => ad.DisposeAsync()
             : () => { result.Host.Dispose(); return ValueTask.CompletedTask; };
 
-        return new JccChatSession(result.Services, result.ChatService, result.Config, executionSettings, disposeAsync);
+        return new JccChatSession(result.Services, result.ChatService, result.Config, executionSettings, disposeAsync: disposeAsync);
     }
 
     public bool IsReady => true;
@@ -97,12 +102,11 @@ internal sealed class JccChatSession : IJccChatSession
     public string CurrentModelId => _config.Provider.ModelId;
 
     /// <summary>配置文件 models.json 驱动的供应商→模型列表映射（改 config 自动驱动下拉）</summary>
-    public IReadOnlyDictionary<string, IReadOnlyList<string>> VendorModelMap { get; private set; } = BuildVendorModelMap();
+    public IReadOnlyDictionary<string, IReadOnlyList<string>> VendorModelMap { get; private set; }
 
-    /// <summary>重新加载 models.json 并刷新 VendorModelMap（热重载入口）</summary>
+    /// <summary>刷新 VendorModelMap（热重载入口）</summary>
     public void RefreshVendorModelMap()
     {
-        ModelConfigLoader.Reload();
         VendorModelMap = BuildVendorModelMap();
     }
 
@@ -147,10 +151,10 @@ internal sealed class JccChatSession : IJccChatSession
         }
     }
 
-    private static IReadOnlyDictionary<string, IReadOnlyList<string>> BuildVendorModelMap()
+    private IReadOnlyDictionary<string, IReadOnlyList<string>> BuildVendorModelMap()
     {
         var map = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase);
-        foreach (var kvp in ModelConfigLoader.Config.Providers)
+        foreach (var kvp in _modelConfigLoader.Config.Providers)
         {
             map[kvp.Key] = kvp.Value.Models.Select(m => m.Id).ToArray();
         }
@@ -180,7 +184,7 @@ internal sealed class JccChatSession : IJccChatSession
 
         _config.Provider.Vendor = vendor;
 
-        var defaultModelId = ModelConfigLoader.GetDefaultModelId(vendor);
+        var defaultModelId = _modelConfigLoader.GetDefaultModelId(vendor);
         if (!string.IsNullOrEmpty(defaultModelId))
             _config.Provider.ModelId = defaultModelId;
 

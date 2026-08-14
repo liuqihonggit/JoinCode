@@ -678,11 +678,23 @@ public sealed class ProfileSettings
     [JsonPropertyName("provider")]
     public string? Provider { get; init; }
 
-    /// <summary>模型 ID（如 gpt-4o、deepseek-v4-flash）</summary>
+    /// <summary>协议类型（openai-compatible / anthropic / azure）— 决定 API 格式和认证方式</summary>
+    [JsonPropertyName("protocol")]
+    public string? Protocol { get; init; }
+
+    /// <summary>首选模型 ID（如 gpt-4o、deepseek-v4-flash）— 该供应商的默认模型</summary>
     [JsonPropertyName("model")]
     public string? Model { get; init; }
 
     /// <summary>API 端点（如 https://token.sensenova.cn/v1）</summary>
     [JsonPropertyName("endpoint")]
     public string? Endpoint { get; init; }
+
+    /// <summary>API Key 环境变量名（如 OPENAI_API_KEY、ANTHROPIC_API_KEY）</summary>
+    [JsonPropertyName("apiKeyEnvVar")]
+    public string? ApiKeyEnvVar { get; init; }
+
+    /// <summary>该供应商可用的模型列表 — 配置大于内置，GUI 下拉由此驱动</summary>
+    [JsonPropertyName("models")]
+    public List<ModelItemConfig>? Models { get; init; }
 }

@@ -1,31 +1,35 @@
 
 namespace JoinCode.Abstractions.Configuration.Llm;
 
-public static class ModelConfigLoader
+/// <summary>
+/// 模型配置查询服务 — 数据从 SettingsJson.Vendor 流入，不碰文件
+/// 通过 ApplyProviders 接收数据，所有查询方法操作内存索引
+/// </summary>
+public sealed class ModelConfigLoader : IModelConfigLoader
 {
-    private static volatile ModelConfigRoot _config;
-    private static FrozenDictionary<string, ModelItemConfig> _modelById;
-    private static FrozenDictionary<string, string> _aliasToModelId;
+    private volatile ModelConfigRoot _config;
+    private FrozenDictionary<string, ModelItemConfig> _modelById;
+    private FrozenDictionary<string, string> _aliasToModelId;
 
-    static ModelConfigLoader()
+    public ModelConfigLoader()
     {
-        var config = LoadCore();
+        _config = new ModelConfigRoot();
+        _modelById = FrozenDictionary<string, ModelItemConfig>.Empty;
+        _aliasToModelId = FrozenDictionary<string, string>.Empty;
+    }
+
+    public ModelConfigRoot Config => _config;
+
+    /// <summary>
+    /// 从 SettingsJson.Vendor 构建的 providers 数据灌入 — 唯一的数据入口
+    /// 由 Core 层在加载 settings.json 后调用，热重载时再次调用
+    /// </summary>
+    public void ApplyProviders(Dictionary<string, ModelProviderConfig> providers)
+    {
+        var config = new ModelConfigRoot { Providers = providers };
         _config = config;
         _modelById = BuildModelById(config);
         _aliasToModelId = BuildAliasToModelId(config);
-    }
-
-    public static ModelConfigRoot Config => _config;
-
-    /// <summary>重新加载配置（热重载）— 从嵌入资源 + 用户覆盖文件重新读取，原子替换所有静态缓存</summary>
-    public static void Reload()
-    {
-        var newConfig = LoadCore();
-        var newModelById = BuildModelById(newConfig);
-        var newAliasToModelId = BuildAliasToModelId(newConfig);
-        _config = newConfig;
-        _modelById = newModelById;
-        _aliasToModelId = newAliasToModelId;
     }
 
     private static FrozenDictionary<string, ModelItemConfig> BuildModelById(ModelConfigRoot config)
@@ -57,22 +61,22 @@ public static class ModelConfigLoader
         return aliasDict.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
     }
 
-    public static ModelProviderConfig? GetProviderConfig(string providerName)
+    public ModelProviderConfig? GetProviderConfig(string providerName)
     {
         return Config.Providers.GetValueOrDefault(providerName);
     }
 
-    public static string GetDefaultModelId(string providerName)
+    public string GetDefaultModelId(string providerName)
     {
         return GetProviderConfig(providerName)?.DefaultModelId ?? string.Empty;
     }
 
-    public static string GetDefaultFastModelId(string providerName)
+    public string GetDefaultFastModelId(string providerName)
     {
         return GetProviderConfig(providerName)?.DefaultFastModelId ?? string.Empty;
     }
 
-    public static ModelEntry[] GetModels(string providerName)
+    public ModelEntry[] GetModels(string providerName)
     {
         var providerConfig = GetProviderConfig(providerName);
         if (providerConfig is null)
@@ -87,7 +91,7 @@ public static class ModelConfigLoader
         return entries;
     }
 
-    public static string? ResolveAlias(string providerName, string input)
+    public string? ResolveAlias(string providerName, string input)
     {
         var providerConfig = GetProviderConfig(providerName);
         if (providerConfig is null)
@@ -105,31 +109,31 @@ public static class ModelConfigLoader
         return null;
     }
 
-    public static bool SupportsFastMode(string providerName, string modelId)
+    public bool SupportsFastMode(string providerName, string modelId)
     {
         var model = FindModel(providerName, modelId);
         return model?.Capabilities.FastMode ?? true;
     }
 
-    public static bool SupportsEffort(string providerName, string modelId)
+    public bool SupportsEffort(string providerName, string modelId)
     {
         var model = FindModel(providerName, modelId);
         return model?.Capabilities.Effort ?? false;
     }
 
-    public static bool SupportsMaxEffort(string providerName, string modelId)
+    public bool SupportsMaxEffort(string providerName, string modelId)
     {
         var model = FindModel(providerName, modelId);
         return model?.Capabilities.MaxEffort ?? false;
     }
 
-    public static bool SupportsThinkingMode(string providerName, string modelId)
+    public bool SupportsThinkingMode(string providerName, string modelId)
     {
         var model = FindModel(providerName, modelId);
         return model?.Capabilities.ThinkingMode ?? false;
     }
 
-    public static string GetCanonicalName(string fullModelName)
+    public string GetCanonicalName(string fullModelName)
     {
         var name = fullModelName.ToLowerInvariant();
 
@@ -144,7 +148,7 @@ public static class ModelConfigLoader
         return fullModelName;
     }
 
-    public static ModelItemConfig? FindModel(string providerName, string modelId)
+    public ModelItemConfig? FindModel(string providerName, string modelId)
     {
         var providerConfig = GetProviderConfig(providerName);
         if (providerConfig is null)
@@ -159,12 +163,12 @@ public static class ModelConfigLoader
         return null;
     }
 
-    public static IReadOnlyCollection<string> GetAllModelIds()
+    public IReadOnlyCollection<string> GetAllModelIds()
     {
         return _modelById.Keys;
     }
 
-    public static string? FindProviderByModelId(string modelId)
+    public string? FindProviderByModelId(string modelId)
     {
         foreach (var provider in Config.Providers)
         {
@@ -177,7 +181,7 @@ public static class ModelConfigLoader
         return null;
     }
 
-    public static ModelItemConfig? FindModelByModelId(string modelId)
+    public ModelItemConfig? FindModelByModelId(string modelId)
     {
         var lower = modelId.ToLowerInvariant();
         foreach (var provider in Config.Providers)
@@ -190,57 +194,4 @@ public static class ModelConfigLoader
         }
         return null;
     }
-
-    /// <summary>用户覆盖文件路径 — ~/AppData/JoinCode/models.json</summary>
-    public static string GetUserOverridePath()
-    {
-        return System.IO.Path.Combine(
-            System.Environment.GetFolderPath(System.Environment.SpecialFolder.UserProfile),
-            AppData.AppDataConstants.AppDataFolder, "models.json");
-    }
-
-    private static ModelConfigRoot LoadCore()
-    {
-        var assembly = typeof(ModelConfigLoader).Assembly;
-        var resourceName = assembly.GetManifestResourceNames()
-            .First(n => n.EndsWith("models.json", StringComparison.OrdinalIgnoreCase));
-
-        using var stream = assembly.GetManifestResourceStream(resourceName)!;
-        using var reader = new StreamReader(stream, System.Text.Encoding.UTF8);
-        var json = reader.ReadToEnd();
-
-        var config = System.Text.Json.JsonSerializer.Deserialize(json, ModelConfigJsonContext.Default.ModelConfigRoot)
-            ?? new ModelConfigRoot();
-
-        ApplyUserOverride(config);
-
-        return config;
-    }
-
-#pragma warning disable JCC9001
-    private static void ApplyUserOverride(ModelConfigRoot config)
-    {
-        var userConfigPath = GetUserOverridePath();
-
-        if (!System.IO.File.Exists(userConfigPath))
-            return;
-
-        try
-        {
-            var userJson = System.IO.File.ReadAllText(userConfigPath);
-            var userConfig = System.Text.Json.JsonSerializer.Deserialize(userJson, ModelConfigJsonContext.Default.ModelConfigRoot);
-            if (userConfig is null)
-                return;
-
-            foreach (var kvp in userConfig.Providers)
-            {
-                config.Providers[kvp.Key] = kvp.Value;
-            }
-        }
-        catch (System.Exception ex) when (ex is System.IO.IOException or System.Text.Json.JsonException)
-        {
-            System.Diagnostics.Debug.WriteLine($"ModelConfigLoader: 用户覆盖文件加载失败: {ex.Message}");
-        }
-    }
-#pragma warning restore JCC9001
 }

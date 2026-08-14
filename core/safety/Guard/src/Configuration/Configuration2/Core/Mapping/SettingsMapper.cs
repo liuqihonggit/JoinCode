@@ -45,7 +45,7 @@ public sealed partial class SettingsMapper : ServiceEntity
     /// 环境变量优先级最高，覆盖所有文件配置
     /// 注意: API Key 不在此处理，由 ConfigLoader.ResolveApiKeyAsync 统一解析
     /// </summary>
-    public void ApplyEnvOverrides(WorkflowConfig config)
+    public void ApplyEnvOverrides(WorkflowConfig config, SettingsJson? settings = null)
     {
         // Provider 环境变量覆盖
         var envProvider = Environment.GetEnvironmentVariable(JccEnvVar.Vendor.ToValue());
@@ -54,7 +54,7 @@ public sealed partial class SettingsMapper : ServiceEntity
             config.Provider.Vendor = envProvider;
 
             // --vendor 自动匹配 vendor 字典中的同名预设
-            ApplyProfileFromVendor(envProvider, config);
+            ApplyProfileFromVendor(envProvider, config, settings);
 
             // Provider 变更时，重新应用 Provider 定义的默认值
             var newDefinition = _registry.TryGet(envProvider)
@@ -236,10 +236,14 @@ public sealed partial class SettingsMapper : ServiceEntity
     /// <summary>
     /// --vendor 自动匹配 vendor 字典中的同名预设
     /// </summary>
-    private static void ApplyProfileFromVendor(string vendor, WorkflowConfig config)
+    private static void ApplyProfileFromVendor(string vendor, WorkflowConfig config, SettingsJson? settings)
     {
-        var fs = new IO.FileSystem.PhysicalFileSystem();
-        var settings = ConfigLoader.LoadSettingsJsonAsync(fs).GetAwaiter().GetResult();
+        if (settings is null)
+        {
+            var fs = new IO.FileSystem.PhysicalFileSystem();
+            settings = ConfigLoader.LoadSettingsJsonAsync(fs).GetAwaiter().GetResult();
+        }
+
         if (settings?.Vendor is null || !settings.Vendor.TryGetValue(vendor, out var profile))
             return;
 

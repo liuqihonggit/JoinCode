@@ -5,8 +5,9 @@ using ChatMessageRole = JoinCode.Abstractions.LLM.Chat.MessageRole;
 
 public sealed class WebServiceTests
 {
-    private static readonly string DefaultAnthropicModelId = ModelConfigLoader.GetDefaultModelId("anthropic");
-    private static readonly string DefaultAnthropicFastModelId = ModelConfigLoader.GetDefaultFastModelId("anthropic");
+    private static readonly IModelConfigLoader Loader = new ModelConfigLoader();
+    private static readonly string DefaultAnthropicModelId = Loader.GetDefaultModelId("anthropic");
+    private static readonly string DefaultAnthropicFastModelId = Loader.GetDefaultFastModelId("anthropic");
 
     private readonly Mock<IApiClient> _apiClientMock = new();
     private readonly Mock<IQueryService> _queryServiceMock = new();

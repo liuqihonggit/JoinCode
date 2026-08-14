@@ -14,12 +14,15 @@ namespace JoinCode.Gui.Hosting;
 internal sealed class PlaceholderChatSession : IJccChatSession
 {
     private readonly IConfigurationService? _configService;
+    private readonly IModelConfigLoader _modelConfigLoader;
 
-    public PlaceholderChatSession(IConfigurationService? configService = null)
+    public PlaceholderChatSession(IConfigurationService? configService = null, IModelConfigLoader? modelConfigLoader = null)
     {
         _configService = configService;
+        _modelConfigLoader = modelConfigLoader ?? new ModelConfigLoader();
         CurrentVendor = ResolveCurrentVendor(configService);
         CurrentModelId = ResolveCurrentModelId(CurrentVendor);
+        VendorModelMap = BuildVendorModelMap();
     }
 
     public bool IsReady => true;
@@ -45,20 +48,18 @@ internal sealed class PlaceholderChatSession : IJccChatSession
         return "";
     }
 
-    private static string ResolveCurrentModelId(string vendor)
+    private string ResolveCurrentModelId(string vendor)
     {
         if (string.IsNullOrEmpty(vendor))
             return "";
-        var id = ModelConfigLoader.GetDefaultModelId(vendor);
+        var id = _modelConfigLoader.GetDefaultModelId(vendor);
         return !string.IsNullOrEmpty(id) ? id : "";
     }
 
-    public IReadOnlyDictionary<string, IReadOnlyList<string>> VendorModelMap { get; private set; } = BuildVendorModelMap();
+    public IReadOnlyDictionary<string, IReadOnlyList<string>> VendorModelMap { get; private set; }
 
-    /// <summary>重新加载 models.json 并刷新 VendorModelMap（热重载入口）</summary>
     public void RefreshVendorModelMap()
     {
-        ModelConfigLoader.Reload();
         VendorModelMap = BuildVendorModelMap();
     }
 
@@ -69,10 +70,10 @@ internal sealed class PlaceholderChatSession : IJccChatSession
     public Task LoadHistoryAsync(IReadOnlyList<(MessageRole Role, string Content)> messages, CancellationToken cancellationToken = default)
         => Task.CompletedTask;
 
-    private static IReadOnlyDictionary<string, IReadOnlyList<string>> BuildVendorModelMap()
+    private IReadOnlyDictionary<string, IReadOnlyList<string>> BuildVendorModelMap()
     {
         var map = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase);
-        foreach (var kvp in ModelConfigLoader.Config.Providers)
+        foreach (var kvp in _modelConfigLoader.Config.Providers)
         {
             map[kvp.Key] = kvp.Value.Models.Select(m => m.Id).ToArray();
         }

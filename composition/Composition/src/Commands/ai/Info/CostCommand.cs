@@ -5,8 +5,9 @@ namespace JoinCode.ChatCommands;
 /// /cost 命令 - 显示成本统计
 /// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Cost, Description = "显示使用成本统计", Usage = "/cost [today|session|total]", Category = ChatCommandCategory.Model, ArgumentHint = "[today|session|total]", ExposeToMcp = true)]
-public sealed class CostCommand : ChatCommandBase
+public sealed class CostCommand(IModelConfigLoader? modelConfigLoader = null) : ChatCommandBase
 {
+    private readonly IModelConfigLoader? _modelConfigLoader = modelConfigLoader;
     public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var services = context.GetCommandServices();
@@ -41,7 +42,7 @@ public sealed class CostCommand : ChatCommandBase
         return Task.FromResult(ChatCommandResult.Continue());
     }
 
-    internal static string FormatTotalCost(CostStatistics stats)
+    internal string FormatTotalCost(CostStatistics stats)
     {
         var costDisplay = FormatCost(stats.TotalCostUsd);
         if (stats.HasUnknownModelCost)
@@ -74,12 +75,12 @@ public sealed class CostCommand : ChatCommandBase
         return cost >= 0.5m ? $"${Math.Round((double)cost, 2):F2}" : $"${cost:F4}";
     }
 
-    internal static string FormatModelUsage(List<ModelCostStatistics> modelBreakdown)
+    internal string FormatModelUsage(List<ModelCostStatistics> modelBreakdown)
     {
         var usageByShortName = new Dictionary<string, ModelCostStatistics>(StringComparer.OrdinalIgnoreCase);
         foreach (var model in modelBreakdown)
         {
-            var shortName = ModelNameHelper.GetCanonicalName(model.Model);
+            var shortName = new ModelNameHelper(_modelConfigLoader).GetCanonicalName(model.Model);
             if (!usageByShortName.TryGetValue(shortName, out var existing))
             {
                 usageByShortName[shortName] = new ModelCostStatistics

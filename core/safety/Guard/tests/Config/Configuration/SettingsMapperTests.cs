@@ -6,10 +6,11 @@ namespace Guard.Tests.Configuration;
 /// </summary>
 public class SettingsMapperTests
 {
-    private static readonly string OpenAiModelId = ModelConfigLoader.GetDefaultModelId("openai");
-    private static readonly string DefaultAnthropicModelId = ModelConfigLoader.GetDefaultModelId("anthropic");
+    private static readonly IModelConfigLoader Loader = new ModelConfigLoader();
+    private static readonly string OpenAiModelId = Loader.GetDefaultModelId("openai");
+    private static readonly string DefaultAnthropicModelId = Loader.GetDefaultModelId("anthropic");
 
-    private readonly SettingsMapper _mapper = new(new ProviderDefinitionRegistry());
+    private readonly SettingsMapper _mapper = new(new ProviderDefinitionRegistry(new ModelConfigLoader()));
 
     #region 场景1: SettingsJson 映射到 WorkflowConfig
 

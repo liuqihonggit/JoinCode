@@ -1,15 +1,17 @@
 
 namespace JoinCode.ChatCommands;
 
-public static class ModelNameHelper
+public sealed class ModelNameHelper(IModelConfigLoader? modelConfigLoader = null)
 {
-    public static string GetCanonicalName(string fullModelName)
+    private readonly IModelConfigLoader? _modelConfigLoader = modelConfigLoader;
+
+    public string GetCanonicalName(string fullModelName)
     {
-        return ModelConfigLoader.GetCanonicalName(fullModelName);
+        return _modelConfigLoader?.GetCanonicalName(fullModelName) ?? fullModelName;
     }
 
-    internal static string FirstPartyNameToCanonical(string fullModelName)
+    internal string FirstPartyNameToCanonical(string fullModelName)
     {
-        return ModelConfigLoader.GetCanonicalName(fullModelName);
+        return _modelConfigLoader?.GetCanonicalName(fullModelName) ?? fullModelName;
     }
 }

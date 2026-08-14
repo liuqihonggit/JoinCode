@@ -28,7 +28,7 @@ public class ProviderConfig
     /// <summary>
     /// 模型 ID
     /// </summary>
-    public string ModelId { get; set; } = ModelConfigLoader.GetDefaultModelId("deepseek");
+    public string ModelId { get; set; } = string.Empty;
 
     /// <summary>
     /// API 端点（Azure/商汤等需要）

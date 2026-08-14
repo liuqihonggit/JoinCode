@@ -1,12 +1,19 @@
 namespace JoinCode.Entry;
 
-internal static class StartupWorkflow
+internal sealed class StartupWorkflow
 {
+    private readonly IModelConfigLoader? _modelConfigLoader;
+
+    public StartupWorkflow(IModelConfigLoader? modelConfigLoader = null)
+    {
+        _modelConfigLoader = modelConfigLoader;
+    }
+
     /// <summary>
     /// 确保全局配置文件存在 — 首次启动时自动创建带注释的模板，不覆盖已有文件
     /// 必须在 LoadConfigAsync 之前调用，确保配置文件可供加载
     /// </summary>
-    internal static async Task EnsureConfigFilesExistAsync(IFileSystem fs)
+    internal async Task EnsureConfigFilesExistAsync(IFileSystem fs)
     {
         var appDataPath = WorkflowConstants.Paths.JccDirectory;
         var settingsPath = Path.Combine(appDataPath, AppDataConstants.SettingsFileName);
@@ -259,9 +266,9 @@ internal static class StartupWorkflow
         return false;
     }
 
-    private static string BuildDefaultSettingsTemplate()
+    private string BuildDefaultSettingsTemplate()
     {
-        var defaultModel = JoinCode.Abstractions.Configuration.Llm.ModelConfigLoader.GetDefaultModelId("deepseek");
+        var defaultModel = _modelConfigLoader?.GetDefaultModelId("deepseek") ?? "deepseek-chat";
         var sb = new StringBuilder();
         sb.AppendLine("{");
         sb.AppendLine("  // LLM Provider: deepseek | openai | anthropic | azure | agnes");

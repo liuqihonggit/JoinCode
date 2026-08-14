@@ -4,11 +4,13 @@ public class ConfigLoader {
     private readonly MiddlewarePipeline<ConfigLoadContext>? _pipeline;
     private readonly IProviderDefinitionRegistry _registry;
     private readonly SettingsMapper _settingsMapper;
+    private readonly IModelConfigLoader? _modelConfigLoader;
 
-    public ConfigLoader(IEnumerable<IConfigLoadMiddleware>? middlewares = null, ILoggerFactory? loggerFactory = null, IProviderDefinitionRegistry? registry = null, SettingsMapper? settingsMapper = null)
+    public ConfigLoader(IEnumerable<IConfigLoadMiddleware>? middlewares = null, ILoggerFactory? loggerFactory = null, IProviderDefinitionRegistry? registry = null, SettingsMapper? settingsMapper = null, IModelConfigLoader? modelConfigLoader = null)
     {
-        _registry = registry ?? new ProviderDefinitionRegistry();
+        _registry = registry ?? new ProviderDefinitionRegistry(modelConfigLoader ?? new ModelConfigLoader());
         _settingsMapper = settingsMapper ?? new SettingsMapper(_registry);
+        _modelConfigLoader = modelConfigLoader;
         if (middlewares is not null && loggerFactory is not null)
         {
             _pipeline = new PipelineBuilder<ConfigLoadContext>()
@@ -81,6 +83,13 @@ public class ConfigLoader {
 
             var settings = await settingsTask.ConfigureAwait(false);
 
+            // Step 1.5: 将 SettingsJson.Vendor 模型数据灌入 ModelConfigLoader（唯一数据入口）
+            if (_modelConfigLoader is not null)
+            {
+                var providers = VendorModelMapper.BuildProviders(settings);
+                _modelConfigLoader.ApplyProviders(providers);
+            }
+
             // Step 2: 注入 settings.env 到环境变量（低优先级，不覆盖已有环境变量）
             SettingsMapper.InjectEnvFromSettings(settings);
 
@@ -91,7 +100,7 @@ public class ConfigLoader {
             var config = _settingsMapper.ToWorkflowConfig(settings);
 
             // Step 4: 环境变量覆盖（Provider/Model/Endpoint 等，不含 API Key）
-            _settingsMapper.ApplyEnvOverrides(config);
+            _settingsMapper.ApplyEnvOverrides(config, settings);
 
             // Step 5: 统一 API Key 解析（auth.json → JCC_API_KEY → Provider 专属变量）
             config.Provider.ApiKey = await ResolveApiKeyAsync(

@@ -4,11 +4,21 @@ namespace Core.Prompts.Sections;
 /// 模型信息部分 - 关于当前使用的AI模型
 /// </summary>
 [PromptSection(Name = "model_info", Order = 67, IsDynamic = true)]
-public static class ModelInfoSection {
-    public static string? GetContent() {
+public sealed class ModelInfoSection
+{
+    private readonly IModelConfigLoader _modelConfigLoader;
+
+    public ModelInfoSection(IModelConfigLoader modelConfigLoader)
+    {
+        _modelConfigLoader = modelConfigLoader;
+    }
+
+    public string? GetContent()
+    {
         var modelId = PromptConfigSnapshot.Current.ModelId;
         var modelName = PromptConfigSnapshot.Current.ModelName;
-        if (string.IsNullOrWhiteSpace(modelId)) {
+        if (string.IsNullOrWhiteSpace(modelId))
+        {
             return null;
         }
 
@@ -27,9 +37,10 @@ public static class ModelInfoSection {
     }
 
     public static SystemPromptSection Create() =>
-        SystemPromptSection.Dynamic("model_info", GetContent);
+        SystemPromptSection.Dynamic("model_info", () => new ModelInfoSection(new ModelConfigLoader()).GetContent());
 
-    private static string? GetKnowledgeCutoff(string modelId) {
-        return JoinCode.Abstractions.Configuration.Llm.ModelConfigLoader.FindModelByModelId(modelId)?.KnowledgeCutoff;
+    private string? GetKnowledgeCutoff(string modelId)
+    {
+        return _modelConfigLoader.FindModelByModelId(modelId)?.KnowledgeCutoff;
     }
 }

@@ -70,7 +70,7 @@ public class StartupWorkflowTests
     [Fact]
     public void Azure_ProviderDefinition_IsValid_Should_RequireBoth()
     {
-        var definition = new Core.Configuration.Providers.AzureProviderDefinition();
+        var definition = new Core.Configuration.Providers.AzureProviderDefinition(new JoinCode.Abstractions.Configuration.Llm.ModelConfigLoader());
         
         var configWithBoth = new JoinCode.Abstractions.Configuration.Providers.ProviderConfig
         {

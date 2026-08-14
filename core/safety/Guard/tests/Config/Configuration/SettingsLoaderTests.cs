@@ -9,8 +9,9 @@ namespace Guard.Tests.Configuration;
 [Collection("AppDataConstantsCollection")]
 public class SettingsLoaderTests : IDisposable
 {
-    private static readonly string DefaultOpenAiModelId = ModelConfigLoader.GetDefaultModelId("openai");
-    private static readonly string DefaultAnthropicModelId = ModelConfigLoader.GetDefaultModelId("anthropic");
+    private static readonly IModelConfigLoader Loader = new ModelConfigLoader();
+    private static readonly string DefaultOpenAiModelId = Loader.GetDefaultModelId("openai");
+    private static readonly string DefaultAnthropicModelId = Loader.GetDefaultModelId("anthropic");
 
     private readonly string _tempDir;
     private readonly string _projectAppDataDir;

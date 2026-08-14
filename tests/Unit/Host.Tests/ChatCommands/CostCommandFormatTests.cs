@@ -2,6 +2,9 @@ namespace JoinCode.ChatCommands.Tests;
 
 public class CostCommandFormatTests
 {
+    private readonly CostCommand _costCommand = new();
+    private readonly ModelNameHelper _modelNameHelper = new();
+
     [Fact]
     public void FormatCost_SmallAmount_ShouldUse4Decimals()
     {
@@ -65,7 +68,7 @@ public class CostCommandFormatTests
     [Fact]
     public void GetCanonicalName_UnknownModel_ShouldReturnOriginal()
     {
-        ModelNameHelper.GetCanonicalName("my-custom-model").Should().Be("my-custom-model");
+        _modelNameHelper.GetCanonicalName("my-custom-model").Should().Be("my-custom-model");
     }
 
     [Fact]
@@ -97,7 +100,7 @@ public class CostCommandFormatTests
             ]
         };
 
-        var output = CostCommand.FormatTotalCost(stats);
+        var output = _costCommand.FormatTotalCost(stats);
 
         output.Should().Contain("Total cost:");
         output.Should().Contain("$0.1234");
@@ -121,7 +124,7 @@ public class CostCommandFormatTests
             ModelBreakdown = []
         };
 
-        var output = CostCommand.FormatTotalCost(stats);
+        var output = _costCommand.FormatTotalCost(stats);
 
         output.Should().Contain("costs may be inaccurate due to usage of unknown models");
     }
@@ -135,7 +138,7 @@ public class CostCommandFormatTests
             ModelBreakdown = []
         };
 
-        var output = CostCommand.FormatTotalCost(stats);
+        var output = _costCommand.FormatTotalCost(stats);
 
         output.Should().Contain("0 input, 0 output, 0 cache read, 0 cache write");
     }
@@ -150,7 +153,7 @@ public class CostCommandFormatTests
             ModelBreakdown = []
         };
 
-        var output = CostCommand.FormatTotalCost(stats);
+        var output = _costCommand.FormatTotalCost(stats);
 
         output.Should().Contain("1 line added");
         output.Should().Contain("1 line removed");

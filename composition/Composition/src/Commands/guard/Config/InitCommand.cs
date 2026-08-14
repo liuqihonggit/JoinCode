@@ -2,8 +2,9 @@
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Init, Description = "AI驱动初始化项目配置文件", Usage = "/init [quick]", Category = ChatCommandCategory.Config, ArgumentHint = "[quick]")]
-public sealed class InitCommand : ChatCommandBase
+public sealed class InitCommand(IModelConfigLoader? modelConfigLoader = null) : ChatCommandBase
 {
+    private readonly IModelConfigLoader? _modelConfigLoader = modelConfigLoader;
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetNormalizedArgs(context).ToLowerInvariant();
@@ -52,7 +53,7 @@ public sealed class InitCommand : ChatCommandBase
         await RegisterProjectConfigAsync(context, cwd).ConfigureAwait(false);
     }
 
-    private static async Task QuickInitAsync(ChatCommandContext context)
+    private async Task QuickInitAsync(ChatCommandContext context)
     {
         var fs = context.GetCommandServices().FileSystem;
         var cwd = fs.GetCurrentDirectory();
@@ -78,7 +79,7 @@ public sealed class InitCommand : ChatCommandBase
 
         if (!fs.FileExists(settingsFile))
         {
-            var defaultModel = JoinCode.Abstractions.Configuration.Llm.ModelConfigLoader.GetDefaultModelId("deepseek");
+            var defaultModel = _modelConfigLoader?.GetDefaultModelId("deepseek") ?? "deepseek-chat";
             var sb = new StringBuilder();
             sb.AppendLine("{");
             sb.AppendLine("  // 项目级 Provider（覆盖全局配置）");

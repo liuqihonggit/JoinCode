@@ -7,7 +7,8 @@ namespace Core.Tests.Configuration;
 /// </summary>
 [Collection("AppDataConstantsCollection")]
 public class ConfigLoaderTests : IDisposable {
-    private static readonly string DefaultOpenAiModelId = ModelConfigLoader.GetDefaultModelId("openai");
+    private static readonly IModelConfigLoader Loader = new ModelConfigLoader();
+    private static readonly string DefaultOpenAiModelId = Loader.GetDefaultModelId("openai");
 
     private readonly string? _originalAppDataFolder;
     private readonly string? _originalProvider;
@@ -38,6 +39,10 @@ public class ConfigLoaderTests : IDisposable {
 
         // 刷新 AppDataConstants.Paths 以反映新的环境变量
         AppDataConstants.Paths = AppDataPaths.FromEnvironment();
+
+        // 在临时目录写入 settings.json，提供 vendor 和 model 配置
+        var settingsJson = """{"vendor":{"openai":{"protocol":"openai-compatible","apiKeyEnvVar":"OPENAI_API_KEY","model":"gpt-4o","models":[{"id":"gpt-4o","displayName":"GPT-4o","contextWindow":128000,"aliases":["4o","default"],"capabilities":{"fastMode":true}},{"id":"gpt-4o-mini","displayName":"GPT-4o Mini","contextWindow":128000,"aliases":["mini","fast"],"capabilities":{"fastMode":true}}]},"anthropic":{"protocol":"anthropic","apiKeyEnvVar":"ANTHROPIC_API_KEY","model":"claude-3-opus","models":[{"id":"claude-3-opus","displayName":"Claude 3 Opus","contextWindow":200000,"aliases":["opus"],"capabilities":{"thinkingMode":true}},{"id":"claude-3-sonnet","displayName":"Claude 3 Sonnet","contextWindow":200000,"aliases":["sonnet"],"capabilities":{"fastMode":true}}]}},"current":{"vendor":"openai","model":"gpt-4o"}}""";
+        _fs.WriteAllText(AppDataConstants.Paths.SettingsFilePath, settingsJson);
 
         // 覆盖用户级环境变量（JCC_VENDOR 可能存在于用户级环境变量中）
         Environment.SetEnvironmentVariable(JccEnvVarConstants.Vendor, VendorKind.OpenAi.ToValue());

@@ -78,7 +78,7 @@ public sealed class EngineSessionFactory
         CancellationToken cancellationToken,
         bool clearPipeEndpoint = false)
     {
-        await Entry.StartupWorkflow.EnsureConfigFilesExistAsync(fs).ConfigureAwait(false);
+        await new Entry.StartupWorkflow().EnsureConfigFilesExistAsync(fs).ConfigureAwait(false);
 
         var config = await ApplicationBuilder.LoadConfigAsync(options, fs).ConfigureAwait(false);
 

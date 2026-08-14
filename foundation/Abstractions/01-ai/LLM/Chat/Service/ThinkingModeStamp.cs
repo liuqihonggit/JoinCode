@@ -6,9 +6,16 @@ public sealed class ThinkingModeStampResult
     public int StampedCount { get; init; }
 }
 
-public static class ThinkingModeStamp
+public sealed class ThinkingModeStamp
 {
-    public static ThinkingModeStampResult Stamp(IReadOnlyList<ApiMessage> messages, bool isThinkingMode)
+    private readonly IModelConfigLoader _modelConfigLoader;
+
+    public ThinkingModeStamp(IModelConfigLoader modelConfigLoader)
+    {
+        _modelConfigLoader = modelConfigLoader;
+    }
+
+    public ThinkingModeStampResult Stamp(IReadOnlyList<ApiMessage> messages, bool isThinkingMode)
     {
         ArgumentNullException.ThrowIfNull(messages);
 
@@ -53,16 +60,16 @@ public static class ThinkingModeStamp
         return new ThinkingModeStampResult { Messages = result, StampedCount = stampedCount };
     }
 
-    public static ThinkingModeStampResult Stamp(IReadOnlyList<ApiMessage> messages, string modelId)
+    public ThinkingModeStampResult Stamp(IReadOnlyList<ApiMessage> messages, string modelId)
     {
         return Stamp(messages, IsThinkingModeModel(modelId));
     }
 
-    public static bool IsThinkingModeModel(string modelId)
+    public bool IsThinkingModeModel(string modelId)
     {
         if (string.IsNullOrWhiteSpace(modelId)) return false;
 
-        var model = Configuration.Llm.ModelConfigLoader.FindModelByModelId(modelId);
+        var model = _modelConfigLoader.FindModelByModelId(modelId);
         return model?.Capabilities.ThinkingMode ?? false;
     }
 }

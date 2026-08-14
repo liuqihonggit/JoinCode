@@ -21,6 +21,7 @@ public sealed partial class MainViewModel : ViewModelBase
     private IJccChatSession _session;
     private readonly Persistence.GuiSessionStore _sessionStore;
     private readonly Persistence.GuiPreferencesStore _preferencesStore;
+    private readonly IModelConfigLoader _modelConfigLoader;
     /// <summary>独立配置服务 — 引擎加载失败时仍可持久化 settings.json（主题/供应商/模型/推理力度）</summary>
     private readonly IConfigurationService _configService;
     private bool _isPreferencesLoaded;
@@ -220,7 +221,7 @@ public sealed partial class MainViewModel : ViewModelBase
         if (!string.IsNullOrWhiteSpace(current)
             && source.All(id => !string.Equals(id, current, StringComparison.OrdinalIgnoreCase)))
         {
-            var modelProvider = ModelConfigLoader.FindProviderByModelId(current);
+            var modelProvider = _modelConfigLoader.FindProviderByModelId(current);
             if (modelProvider is null || string.Equals(modelProvider, provider, StringComparison.OrdinalIgnoreCase))
             {
                 source.Add(current);
@@ -322,11 +323,12 @@ public sealed partial class MainViewModel : ViewModelBase
     /// <summary>估算 token 数（中文约 1.6 字符/token，英文约 4 字符/token，取保守下限 4）</summary>
     public int EstimatedTokens => TotalChars / 4;
 
-    public MainViewModel(IJccChatSession? session = null, Persistence.GuiSessionStore? store = null, Persistence.GuiPreferencesStore? preferencesStore = null)
+    public MainViewModel(IJccChatSession? session = null, Persistence.GuiSessionStore? store = null, Persistence.GuiPreferencesStore? preferencesStore = null, IModelConfigLoader? modelConfigLoader = null)
     {
+        _modelConfigLoader = modelConfigLoader ?? new ModelConfigLoader();
         _realSession = session;
         _configService = new Core.Configuration.ConfigurationService(new IO.FileSystem.PhysicalFileSystem());
-        _session = session ?? new Hosting.PlaceholderChatSession(_configService);
+        _session = session ?? new Hosting.PlaceholderChatSession(_configService, _modelConfigLoader);
         _sessionStore = store ?? new Persistence.GuiSessionStore(new IO.FileSystem.PhysicalFileSystem());
         _preferencesStore = preferencesStore ?? new Persistence.GuiPreferencesStore(new IO.FileSystem.PhysicalFileSystem());
         _session.PermissionConfirmationHandler = OnPermissionConfirmationRequestedAsync;
@@ -431,10 +433,10 @@ public sealed partial class MainViewModel : ViewModelBase
         LoadThemeFromSettings();
     }
 
-    /// <summary>启动 models.json 用户覆盖文件监控（热重载）— 文件变更时自动刷新供应商/模型列表</summary>
+    /// <summary>启动 settings.json 文件监控（热重载）— 文件变更时自动刷新供应商/模型列表</summary>
     private void StartModelConfigWatch()
     {
-        var path = ModelConfigLoader.GetUserOverridePath();
+        var path = AppDataConstants.Paths.SettingsFilePath;
         var dir = System.IO.Path.GetDirectoryName(path);
         if (string.IsNullOrEmpty(dir) || !System.IO.Directory.Exists(dir))
             return;
@@ -451,7 +453,7 @@ public sealed partial class MainViewModel : ViewModelBase
         _modelConfigWatcher.Created += OnModelConfigChanged;
     }
 
-    /// <summary>models.json 变更事件 — 防抖 1s 后在 UI 线程刷新配置</summary>
+    /// <summary>settings.json 变更事件 — 防抖 1s 后在 UI 线程刷新配置</summary>
     private void OnModelConfigChanged(object sender, System.IO.FileSystemEventArgs e)
     {
         var now = DateTime.UtcNow;
@@ -461,7 +463,7 @@ public sealed partial class MainViewModel : ViewModelBase
         Avalonia.Threading.Dispatcher.UIThread.Post(RefreshModelOptionsFromConfig);
     }
 
-    /// <summary>从 models.json 重新加载配置并刷新连接/模型列表</summary>
+    /// <summary>从 settings.json 重新加载配置并刷新连接/模型列表</summary>
     private void RefreshModelOptionsFromConfig()
     {
         try

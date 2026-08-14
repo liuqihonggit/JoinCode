@@ -7,8 +7,9 @@ namespace Guard.Tests.Configuration;
 /// </summary>
 public class SettingsJsonDeserializationTests
 {
-    private static readonly string DefaultAnthropicModelId = ModelConfigLoader.GetDefaultModelId("anthropic");
-    private static readonly string DefaultOpenAiModelId = ModelConfigLoader.GetDefaultModelId("openai");
+    private static readonly IModelConfigLoader Loader = new ModelConfigLoader();
+    private static readonly string DefaultAnthropicModelId = Loader.GetDefaultModelId("anthropic");
+    private static readonly string DefaultOpenAiModelId = Loader.GetDefaultModelId("openai");
 
     #region 场景1: 完整 settings.json 反序列化
 

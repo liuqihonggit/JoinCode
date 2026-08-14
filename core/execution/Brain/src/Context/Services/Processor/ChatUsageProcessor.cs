@@ -11,6 +11,7 @@ public sealed partial class ChatUsageProcessor : ServiceEntity, IChatUsageProces
     private readonly IChatContextManager _contextManager;
     private readonly ICostTracker? _costTracker;
     private readonly IRateLimitTracker? _rateLimitTracker;
+    private readonly ModelPricingTable _pricingTable;
     [Inject] private readonly ILogger<ChatUsageProcessor>? _logger;
 
     /// <summary>
@@ -21,12 +22,14 @@ public sealed partial class ChatUsageProcessor : ServiceEntity, IChatUsageProces
         IChatContextManager contextManager,
         ICostTracker? costTracker = null,
         IRateLimitTracker? rateLimitTracker = null,
+        IModelConfigLoader? modelConfigLoader = null,
         ILogger<ChatUsageProcessor>? logger = null)
     {
         _sessionStats = sessionStats;
         _contextManager = contextManager;
         _costTracker = costTracker;
         _rateLimitTracker = rateLimitTracker;
+        _pricingTable = new ModelPricingTable(modelConfigLoader ?? new ModelConfigLoader());
         _logger = logger;
     }
 
@@ -120,8 +123,8 @@ public sealed partial class ChatUsageProcessor : ServiceEntity, IChatUsageProces
                 usage.CacheReadInputTokens);
         }
 
-        var promptCostPer1K = ModelPricingTable.GetPromptCostPer1K(modelId);
-        var completionCostPer1K = ModelPricingTable.GetCompletionCostPer1K(modelId);
+        var promptCostPer1K = _pricingTable.GetPromptCostPer1K(modelId);
+        var completionCostPer1K = _pricingTable.GetCompletionCostPer1K(modelId);
         var promptCost = usage.PromptTokens / 1000m * promptCostPer1K;
         var completionCost = usage.CompletionTokens / 1000m * completionCostPer1K;
         var cacheCreationCost = usage.CacheCreationInputTokens / 1000m * promptCostPer1K * 1.25m;

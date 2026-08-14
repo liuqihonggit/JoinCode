@@ -14,6 +14,9 @@ namespace Core.Configuration;
 [JsonSerializable(typeof(WorktreeSettings))]
 [JsonSerializable(typeof(StatusLineSettings))]
 [JsonSerializable(typeof(ProfileSettings))]
+[JsonSerializable(typeof(ModelItemConfig))]
+[JsonSerializable(typeof(ModelCapabilitiesConfig))]
+[JsonSerializable(typeof(ModelPricingConfig))]
 public partial class ConfigJsonContext : JsonSerializerContext;
 
 [JsonSourceGenerationOptions(WriteIndented = true, ReadCommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true, PropertyNameCaseInsensitive = true)]
@@ -29,4 +32,7 @@ public partial class ConfigJsonContext : JsonSerializerContext;
 [JsonSerializable(typeof(WorktreeSettings))]
 [JsonSerializable(typeof(StatusLineSettings))]
 [JsonSerializable(typeof(ProfileSettings))]
+[JsonSerializable(typeof(ModelItemConfig))]
+[JsonSerializable(typeof(ModelCapabilitiesConfig))]
+[JsonSerializable(typeof(ModelPricingConfig))]
 public partial class ConfigIndentedJsonContext : JsonSerializerContext;

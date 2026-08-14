@@ -2,8 +2,9 @@ namespace Sync.Tests.Unit.Agents.DualModel;
 
 public sealed class ModelCoordinatorTests
 {
-    private static readonly string DefaultFastModelId = ModelConfigLoader.GetDefaultFastModelId("openai");
-    private static readonly string DefaultModelId = ModelConfigLoader.GetDefaultModelId("openai");
+    private static readonly IModelConfigLoader Loader = new ModelConfigLoader();
+    private static readonly string DefaultFastModelId = Loader.GetDefaultFastModelId("openai");
+    private static readonly string DefaultModelId = Loader.GetDefaultModelId("openai");
 
     [Fact]
     public async Task PlanAsync_Success_ReturnsPlanResult()

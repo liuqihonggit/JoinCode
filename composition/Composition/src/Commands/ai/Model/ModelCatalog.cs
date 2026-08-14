@@ -2,9 +2,10 @@
 namespace JoinCode.ChatCommands;
 
 [Register]
-public sealed partial class ModelCatalog(IProviderDefinitionRegistry registry) : ServiceEntity, IModelCatalog
+public sealed partial class ModelCatalog(IProviderDefinitionRegistry registry, IModelConfigLoader? modelConfigLoader = null) : ServiceEntity, IModelCatalog
 {
     private readonly IProviderDefinitionRegistry _registry = registry;
+    private readonly IModelConfigLoader? _modelConfigLoader = modelConfigLoader;
 
     public ModelEntry[] GetModelsForProvider(string provider)
     {
@@ -53,12 +54,12 @@ public sealed partial class ModelCatalog(IProviderDefinitionRegistry registry) :
 
     public string GetDefaultModelForProvider(string provider)
     {
-        return _registry.TryGet(provider)?.DefaultModelId ?? ModelConfigLoader.GetDefaultModelId("openai");
+        return _registry.TryGet(provider)?.DefaultModelId ?? _modelConfigLoader?.GetDefaultModelId("openai") ?? "gpt-4o";
     }
 
     public string GetDefaultFastModelForProvider(string provider)
     {
-        return _registry.TryGet(provider)?.DefaultFastModelId ?? ModelConfigLoader.GetDefaultFastModelId("openai");
+        return _registry.TryGet(provider)?.DefaultFastModelId ?? _modelConfigLoader?.GetDefaultFastModelId("openai") ?? "gpt-4o-mini";
     }
 
     public ModelEntry[] EnsureCurrentModelInList(ModelEntry[] models, string currentModelId)

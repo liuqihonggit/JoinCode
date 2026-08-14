@@ -1,3 +1,5 @@
+using JoinCode.Abstractions.Utils.Diagnostics;
+
 namespace Infrastructure.Http;
 
 public sealed class ResilientHttpExecutor
@@ -94,9 +96,7 @@ public sealed class ResilientHttpExecutor
                 attempt++;
                 var delay = CalculateDelay(attempt, retry);
 
-                _logger?.LogWarning("[{Policy}:RETRY:97] {Operation} 失败 (尝试 {Attempt}/{Max}), {Delay}ms 后重试 | {ExType}: {Message}",
-                    _policy.Name, operationName, attempt, retry.MaxRetries, delay.TotalMilliseconds,
-                    ex.GetType().Name, ex.InnerException?.Message ?? ex.Message);
+                Diag.WriteLine($"[{_policy.Name}:RETRY] {operationName} 失败 (尝试 {attempt}/{retry.MaxRetries}), {delay.TotalMilliseconds}ms 后重试 | {ex.GetType().Name}: {ex.InnerException?.Message ?? ex.Message}");
 
                 await Task.Delay(delay, ct).ConfigureAwait(false);
             }
@@ -177,9 +177,7 @@ public sealed class ResilientHttpExecutor
                 attempt++;
                 var delay = CalculateDelay(attempt, retry);
 
-                _logger?.LogWarning("[{Policy}:RETRY:179] {Operation} 失败 (尝试 {Attempt}/{Max}), {Delay}ms 后重试 | {ExType}: {Message}",
-                    _policy.Name, operationName, attempt, retry.MaxRetries, delay.TotalMilliseconds,
-                    ex.GetType().Name, ex.InnerException?.Message ?? ex.Message);
+                Diag.WriteLine($"[{_policy.Name}:RETRY] {operationName} 失败 (尝试 {attempt}/{retry.MaxRetries}), {delay.TotalMilliseconds}ms 后重试 | {ex.GetType().Name}: {ex.InnerException?.Message ?? ex.Message}");
 
                 await Task.Delay(delay, ct).ConfigureAwait(false);
             }

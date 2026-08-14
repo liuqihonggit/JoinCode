@@ -115,10 +115,6 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
             }
             Console.CancelKeyPress += OnCancelKeyPress;
 
-            Cli.TerminalHelper.WriteLine();
-            using (Cli.TerminalHelper.SetColor(ConsoleColor.DarkGray))
-                Cli.TerminalHelper.WriteLine("----------------------------");
-
             var aliveTask = RunAliveLoopAsync(aliveCts.Token);
             try
             {
@@ -157,6 +153,8 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
                 aliveCts.Cancel();
                 try { await aliveTask.ConfigureAwait(false); } catch (OperationCanceledException) { }
                 await Console.Out.FlushAsync().ConfigureAwait(false);
+                using (Cli.TerminalHelper.SetColor(ConsoleColor.Red))
+                    Cli.TerminalHelper.WriteLine("AI输出已经结束");
                 using (Cli.TerminalHelper.SetColor(ConsoleColor.DarkGray))
                     Cli.TerminalHelper.WriteLine("----------------------------");
                 Cli.TerminalHelper.WriteLine();

@@ -15,7 +15,7 @@ internal sealed class DotEnvConfig
     /// <summary>
     /// 从 .env/api.json 文件解析配置
     /// </summary>
-    public static DotEnvConfig? LoadFrom(string filePath, ILogger? logger = null)
+    public static DotEnvConfig? LoadFrom(string filePath, ILogger? logger = null, IProviderDefinitionRegistry? registry = null)
     {
         if (!System.IO.File.Exists(filePath)) return null;
 
@@ -28,7 +28,7 @@ internal sealed class DotEnvConfig
                 return null;
 
             var config = new DotEnvConfig();
-            var registry = new Core.Configuration.Providers.ProviderDefinitionRegistry(new ModelConfigLoader());
+            registry ??= new Core.Configuration.Providers.ProviderDefinitionRegistry(new ModelConfigLoader());
 
             // 多态：遍历 ProviderDefinitionRegistry 注册表匹配环境变量，替代 if-else 链硬编码
             // 新增供应商时无需修改此文件，只需在 ProviderDefinitionRegistry 注册即可

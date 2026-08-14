@@ -45,11 +45,16 @@ public static class EnvOverrideApplier
             var existingProfile = settings.Vendor is not null && settings.Vendor.TryGetValue(profileName, out var ep)
                 ? ep : null;
 
+            var inferredProtocol = InferProtocol(envVendor ?? existingProfile?.Provider);
+            var inferredApiKeyEnvVar = InferApiKeyEnvVar(envVendor ?? existingProfile?.Provider);
+
             overrideVendor = new Dictionary<string, ProfileSettings>(StringComparer.OrdinalIgnoreCase)
             {
                 [profileName] = new ProfileSettings
                 {
                     Provider = !string.IsNullOrEmpty(envVendor) ? envVendor : existingProfile?.Provider,
+                    Protocol = inferredProtocol ?? existingProfile?.Protocol,
+                    ApiKeyEnvVar = inferredApiKeyEnvVar ?? existingProfile?.ApiKeyEnvVar,
                     Model = !string.IsNullOrEmpty(envModelId) ? envModelId : existingProfile?.Model,
                     Endpoint = !string.IsNullOrEmpty(envEndpoint) ? envEndpoint : existingProfile?.Endpoint,
                 },
@@ -69,5 +74,39 @@ public static class EnvOverrideApplier
         };
 
         return SettingsJson.Merge(settings, overrideSettings);
+    }
+
+    /// <summary>
+    /// 根据 vendor 名推断协议 — anthropic 用专属协议，azure 用 azure 协议，其余 openai-compatible
+    /// </summary>
+    private static string? InferProtocol(string? vendor)
+    {
+        if (string.IsNullOrEmpty(vendor)) return null;
+        if (string.Equals(vendor, "anthropic", StringComparison.OrdinalIgnoreCase))
+            return ProtocolKind.Anthropic.ToValue();
+        if (string.Equals(vendor, "azure", StringComparison.OrdinalIgnoreCase))
+            return ProtocolKind.Azure.ToValue();
+        return ProtocolKind.OpenAiCompatible.ToValue();
+    }
+
+    /// <summary>
+    /// 根据 vendor 名推断 API Key 环境变量名 — 让 ProviderDefinitionRegistry 能匹配环境变量
+    /// </summary>
+    private static string? InferApiKeyEnvVar(string? vendor)
+    {
+        if (string.IsNullOrEmpty(vendor)) return null;
+        if (string.Equals(vendor, "openai", StringComparison.OrdinalIgnoreCase))
+            return ProviderEnvVar.OpenAiApiKey.ToValue();
+        if (string.Equals(vendor, "anthropic", StringComparison.OrdinalIgnoreCase))
+            return ProviderEnvVar.AnthropicApiKey.ToValue();
+        if (string.Equals(vendor, "azure", StringComparison.OrdinalIgnoreCase))
+            return ProviderEnvVar.AzureOpenAiApiKey.ToValue();
+        if (string.Equals(vendor, "deepseek", StringComparison.OrdinalIgnoreCase))
+            return ProviderEnvVar.DeepSeekApiKey.ToValue();
+        if (string.Equals(vendor, "agnes", StringComparison.OrdinalIgnoreCase))
+            return ProviderEnvVar.AgnesApiKey.ToValue();
+        if (string.Equals(vendor, "sensenova", StringComparison.OrdinalIgnoreCase))
+            return ProviderEnvVar.SenseNovaApiKey.ToValue();
+        return null;
     }
 }

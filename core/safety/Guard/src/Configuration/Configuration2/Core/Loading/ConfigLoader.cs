@@ -351,9 +351,8 @@ public class ConfigLoader {
         var directory = Path.GetDirectoryName(settingsPath);
         DirectoryHelper.EnsureDirectoryExists(fs, directory);
 
-        // 读取现有 settings
+        // 读取现有 settings — 统一用强类型 SettingsJson，不再回退到扁平 KV 格式
         SettingsJson? existingSettings = null;
-        Dictionary<string, string>? flatData = null;
 
         if (fs.FileExists(settingsPath))
         {
@@ -361,7 +360,6 @@ public class ConfigLoader {
             {
                 var json = await fs.ReadAllTextAsync(settingsPath, cancellationToken).ConfigureAwait(false);
                 existingSettings = JsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson);
-                flatData = JsonSerializer.Deserialize(json, ConfigJsonContext.Default.DictionaryStringString);
             }
             catch (Exception ex)
             {
@@ -370,24 +368,10 @@ public class ConfigLoader {
             }
         }
 
-        // 如果已有强类型数据，更新强类型字段
-        if (existingSettings is not null)
-        {
-            var updatedSettings = UpdateSettingByKey(existingSettings, key, value);
-            var outputJson = JsonSerializer.Serialize(updatedSettings, ConfigIndentedJsonContext.Default.SettingsJson);
-            await fs.WriteAllTextAsync(settingsPath, outputJson, cancellationToken).ConfigureAwait(false);
-            return;
-        }
-
-        // 回退到扁平 KV 格式（兼容旧版）
-        flatData ??= [];
-        if (value is not null)
-            flatData[key] = value;
-        else
-            flatData.Remove(key);
-
-        var flatJson = JsonSerializer.Serialize(flatData, ConfigIndentedJsonContext.Default.DictionaryStringString);
-        await fs.WriteAllTextAsync(settingsPath, flatJson, cancellationToken).ConfigureAwait(false);
+        existingSettings ??= new SettingsJson();
+        var updatedSettings2 = UpdateSettingByKey(existingSettings, key, value);
+        var outputJson2 = JsonSerializer.Serialize(updatedSettings2, ConfigIndentedJsonContext.Default.SettingsJson);
+        await fs.WriteAllTextAsync(settingsPath, outputJson2, cancellationToken).ConfigureAwait(false);
     }
 
     #region 内部辅助方法

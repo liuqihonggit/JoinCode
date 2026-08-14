@@ -322,18 +322,12 @@ public class ConfigLoader {
     /// </summary>
     private static string? TryGetSettingFromJson(string json, string key)
     {
-        // 优先尝试强类型反序列化
         var settings = JsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson);
         if (settings is not null)
         {
             var value = GetSettingByKey(settings, key);
             if (value is not null) return value;
         }
-
-        // 回退到扁平 KV 格式（兼容旧版）
-        var data = JsonSerializer.Deserialize(json, ConfigJsonContext.Default.DictionaryStringString);
-        if (data is not null && data.TryGetValue(key, out var flatValue))
-            return flatValue;
 
         return null;
     }

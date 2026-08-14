@@ -539,7 +539,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
         var steps = new List<string>();
         var timings = new List<string>();
 
-        foreach (var line in stderrOutput.Split('[AI对话结束]'))
+        foreach (var line in stderrOutput.Split('\n'))
         {
             var trimmed = line.TrimEnd('\r');
             if (trimmed.Contains("[STEP]", StringComparison.Ordinal))
@@ -712,7 +712,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
     {
         var toolStartCount = 0;
         var toolEndCount = 0;
-        foreach (var line in output.Split('[AI对话结束]'))
+        foreach (var line in output.Split('\n'))
         {
             var trimmed = line.TrimEnd('\r');
             if (trimmed.Contains("[Tool] ", StringComparison.Ordinal))
@@ -960,7 +960,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
             {
                 var urlPart = e.Data[(idx + readyMarker.Length)..].Trim();
                 // 解析 http://localhost:{port}/ 中的端口
-                var match = Regex.Match(urlPart, @":([AI对话结束]+)/?");
+                var match = Regex.Match(urlPart, @":(\d+)/?");
                 if (match.Success && int.TryParse(match.Groups[1].Value, out var port))
                 {
                     readyTcs.TrySetResult(port);
@@ -1130,11 +1130,11 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
         {
             switch (c)
             {
-                case '"': sb.Append("[AI对话结束]\""); break;
-                case '[AI对话结束]': sb.Append("[AI对话结束][AI对话结束]"); break;
-                case '[AI对话结束]': sb.Append("[AI对话结束]n"); break;
-                case '\r': sb.Append("[AI对话结束]r"); break;
-                case '\t': sb.Append("[AI对话结束]t"); break;
+                case '"': sb.Append("\\\""); break;
+                case '\\': sb.Append("\\\\"); break;
+                case '\n': sb.Append("\\n"); break;
+                case '\r': sb.Append("\\r"); break;
+                case '\t': sb.Append("\\t"); break;
                 default: sb.Append(c); break;
             }
         }

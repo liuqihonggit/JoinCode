@@ -4,11 +4,13 @@ public class ConfigLoader {
     private readonly MiddlewarePipeline<ConfigLoadContext>? _pipeline;
     private readonly IProviderDefinitionRegistry _registry;
     private readonly SettingsMapper _settingsMapper;
+    private readonly IModelConfigLoader? _modelConfigLoader;
 
-    public ConfigLoader(IEnumerable<IConfigLoadMiddleware>? middlewares = null, ILoggerFactory? loggerFactory = null, IProviderDefinitionRegistry? registry = null, SettingsMapper? settingsMapper = null)
+    public ConfigLoader(IEnumerable<IConfigLoadMiddleware>? middlewares = null, ILoggerFactory? loggerFactory = null, IProviderDefinitionRegistry? registry = null, SettingsMapper? settingsMapper = null, IModelConfigLoader? modelConfigLoader = null)
     {
-        _registry = registry ?? new ProviderDefinitionRegistry();
+        _registry = registry ?? new ProviderDefinitionRegistry(modelConfigLoader ?? new ModelConfigLoader());
         _settingsMapper = settingsMapper ?? new SettingsMapper(_registry);
+        _modelConfigLoader = modelConfigLoader;
         if (middlewares is not null && loggerFactory is not null)
         {
             _pipeline = new PipelineBuilder<ConfigLoadContext>()
@@ -81,14 +83,24 @@ public class ConfigLoader {
 
             var settings = await settingsTask.ConfigureAwait(false);
 
+            // Step 1.5: 将 SettingsJson.Vendor 模型数据灌入 ModelConfigLoader（唯一数据入口）
+            if (_modelConfigLoader is not null)
+            {
+                var providers = VendorModelMapper.BuildProviders(settings);
+                _modelConfigLoader.ApplyProviders(providers);
+            }
+
             // Step 2: 注入 settings.env 到环境变量（低优先级，不覆盖已有环境变量）
             SettingsMapper.InjectEnvFromSettings(settings);
+
+            // Step 2.5: 环境变量覆盖 SettingsJson — 集中启动参数解析（JCC_VENDOR/MODEL_ID/ENDPOINT/PROFILE）
+            settings = EnvOverrideApplier.Apply(settings);
 
             // Step 3: SettingsJson → WorkflowConfig（JSON 反序列化映射）
             var config = _settingsMapper.ToWorkflowConfig(settings);
 
             // Step 4: 环境变量覆盖（Provider/Model/Endpoint 等，不含 API Key）
-            _settingsMapper.ApplyEnvOverrides(config);
+            _settingsMapper.ApplyEnvOverrides(config, settings);
 
             // Step 5: 统一 API Key 解析（auth.json → JCC_API_KEY → Provider 专属变量）
             config.Provider.ApiKey = await ResolveApiKeyAsync(
@@ -310,18 +322,12 @@ public class ConfigLoader {
     /// </summary>
     private static string? TryGetSettingFromJson(string json, string key)
     {
-        // 优先尝试强类型反序列化
         var settings = JsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson);
         if (settings is not null)
         {
             var value = GetSettingByKey(settings, key);
             if (value is not null) return value;
         }
-
-        // 回退到扁平 KV 格式（兼容旧版）
-        var data = JsonSerializer.Deserialize(json, ConfigJsonContext.Default.DictionaryStringString);
-        if (data is not null && data.TryGetValue(key, out var flatValue))
-            return flatValue;
 
         return null;
     }
@@ -339,9 +345,8 @@ public class ConfigLoader {
         var directory = Path.GetDirectoryName(settingsPath);
         DirectoryHelper.EnsureDirectoryExists(fs, directory);
 
-        // 读取现有 settings
+        // 读取现有 settings — 统一用强类型 SettingsJson，不再回退到扁平 KV 格式
         SettingsJson? existingSettings = null;
-        Dictionary<string, string>? flatData = null;
 
         if (fs.FileExists(settingsPath))
         {
@@ -349,7 +354,6 @@ public class ConfigLoader {
             {
                 var json = await fs.ReadAllTextAsync(settingsPath, cancellationToken).ConfigureAwait(false);
                 existingSettings = JsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson);
-                flatData = JsonSerializer.Deserialize(json, ConfigJsonContext.Default.DictionaryStringString);
             }
             catch (Exception ex)
             {
@@ -358,24 +362,10 @@ public class ConfigLoader {
             }
         }
 
-        // 如果已有强类型数据，更新强类型字段
-        if (existingSettings is not null)
-        {
-            var updatedSettings = UpdateSettingByKey(existingSettings, key, value);
-            var outputJson = JsonSerializer.Serialize(updatedSettings, ConfigIndentedJsonContext.Default.SettingsJson);
-            await fs.WriteAllTextAsync(settingsPath, outputJson, cancellationToken).ConfigureAwait(false);
-            return;
-        }
-
-        // 回退到扁平 KV 格式（兼容旧版）
-        flatData ??= [];
-        if (value is not null)
-            flatData[key] = value;
-        else
-            flatData.Remove(key);
-
-        var flatJson = JsonSerializer.Serialize(flatData, ConfigIndentedJsonContext.Default.DictionaryStringString);
-        await fs.WriteAllTextAsync(settingsPath, flatJson, cancellationToken).ConfigureAwait(false);
+        existingSettings ??= new SettingsJson();
+        var updatedSettings2 = UpdateSettingByKey(existingSettings, key, value);
+        var outputJson2 = JsonSerializer.Serialize(updatedSettings2, ConfigIndentedJsonContext.Default.SettingsJson);
+        await fs.WriteAllTextAsync(settingsPath, outputJson2, cancellationToken).ConfigureAwait(false);
     }
 
     #region 内部辅助方法
@@ -479,16 +469,26 @@ public class ConfigLoader {
     }
 
     /// <summary>
-    /// 从强类型 SettingsJson 中按键名获取值 — 委托给源码生成器自动生成的 GetSettingByKey
+    /// 从强类型 SettingsJson 中按键名获取值 — 路由到 CurrentSettings.GetSettingByKey
     /// </summary>
     private static string? GetSettingByKey(SettingsJson settings, string key)
-        => settings.GetSettingByKey(key);
+        => settings.Current?.GetSettingByKey(key);
 
     /// <summary>
-    /// 更新强类型 SettingsJson 中指定键的值，返回新对象（不可变）— 委托给源码生成器自动生成的 UpdateSettingByKey
+    /// 更新强类型 SettingsJson 中指定键的值，返回新对象（不可变）— 路由到 CurrentSettings.UpdateSettingByKey
     /// </summary>
     private static SettingsJson UpdateSettingByKey(SettingsJson settings, string key, string? value)
-        => settings.UpdateSettingByKey(key, value);
+    {
+        var updatedCurrent = settings.Current is not null
+            ? settings.Current.UpdateSettingByKey(key, value)
+            : new CurrentSettings().UpdateSettingByKey(key, value);
+
+        return new SettingsJson
+        {
+            Vendor = settings.Vendor,
+            Current = updatedCurrent,
+        };
+    }
 
     #endregion
 }

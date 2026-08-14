@@ -11,7 +11,7 @@ public class CostTrackerTests : IDisposable, IAsyncLifetime
     {
         _tempStoragePath = "/test/costs.json";
         _fileOperationServiceMock = new Mock<IFileOperationService>();
-        _costTracker = new Core.CostTracking.CostTracker(_fileOperationServiceMock.Object, storagePath: _tempStoragePath, NullLogger<Core.CostTracking.CostTracker>.Instance);
+        _costTracker = new Core.CostTracking.CostTracker(_fileOperationServiceMock.Object, storagePath: _tempStoragePath, NullLogger<Core.CostTracking.CostTracker>.Instance, modelConfigLoader: Testing.Common.Services.TestModelConfigLoaderFactory.CreateWithDefaultPricing());
         return Task.CompletedTask;
     }
 

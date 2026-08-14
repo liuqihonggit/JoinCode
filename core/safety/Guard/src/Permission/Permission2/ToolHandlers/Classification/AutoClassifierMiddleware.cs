@@ -30,7 +30,7 @@ public sealed partial class AutoClassifierMiddleware : ServiceEntity, IPermissio
     public async Task InvokeAsync(PermissionCheckContext context, MiddlewareDelegate<PermissionCheckContext> next, CancellationToken ct)
     {
         // Auto 和 Default 模式均使用分类器 — Default 模式下只读/安全写入工具自动批准，其余仍需确认
-        if (context.CurrentMode != PermissionMode.Auto && context.CurrentMode != PermissionMode.Default)
+        if (context.CurrentMode != PermissionMode.Auto)
         {
             await next(context, ct).ConfigureAwait(false);
             return;

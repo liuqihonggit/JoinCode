@@ -77,6 +77,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
         var stateDir = _fs.CombinePath(Path.GetTempPath(), $"jcc_test_{Guid.NewGuid():N}");
         _fs.CreateDirectory(stateDir);
         _stateFilePath = _fs.CombinePath(stateDir, "workflow_state.json");
+        WriteSettingsJsonToStateDir(stateDir);
 
         var providerValue = _activeProvider switch
         {
@@ -108,8 +109,8 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
             ["JCC_MODEL_ID"] = modelId,
             [apiKeyEnvVar] = "sk-test-1234567890",
             ["JCC_STATE_FILE_PATH"] = _stateFilePath,
-            // E2E 测试自动升级权限到 bypassPermissions，避免 100+ 工具被权限拒绝阻塞
-            ["JCC_PERMISSION_MODE"] = "bypassPermissions",
+            // E2E 测试自动升级权限到 bypass，避免 100+ 工具被权限拒绝阻塞
+            ["JCC_PERMISSION_MODE"] = "bypass",
             // 隔离 AppData 目录，避免并发测试共享 onboarding_complete.json 导致文件锁冲突
             ["JCC_APP_DATA_FOLDER"] = stateDir,
             // CI 环境 MockServer 响应可能较慢，30s 超时避免误判
@@ -240,7 +241,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
                 ["JCC_MODEL_ID"] = modelId,
                 [apiKeyEnvVar] = "sk-test-1234567890",
                 ["JCC_STATE_FILE_PATH"] = _stateFilePath!,
-                ["JCC_PERMISSION_MODE"] = "bypassPermissions",
+                ["JCC_PERMISSION_MODE"] = "bypass",
                 ["JCC_APP_DATA_FOLDER"] = Path.GetDirectoryName(_stateFilePath)!,
             };
 
@@ -306,7 +307,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
     }
 
     /// <summary>
-    /// 等待 NonInteractive 模式输出 — 监听 [DONE] 标记或进程退出
+    /// 等待 NonInteractive 模式输出 — 监听 [AI对话结束] 标记或进程退出
     /// </summary>
     private async Task<string> WaitForNonInteractiveOutputAsync(TimeSpan timeout, CancellationToken ct)
     {
@@ -328,9 +329,9 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
                     return exitOutput;
                 }
                 var exitError = await CaptureStderrAsync().ConfigureAwait(true);
-                if (exitError.Contains("[DONE]", StringComparison.Ordinal))
+                if (exitError.Contains("[AI对话结束]", StringComparison.Ordinal))
                 {
-                    _logger.LogInformation("[DualRoleRunner] jcc.exe 进程已退出，stderr含[DONE]，视为成功");
+                    _logger.LogInformation("[DualRoleRunner] jcc.exe 进程已退出，stderr含[AI对话结束]，视为成功");
                     return string.Empty;
                 }
                 _logger.LogError("[DualRoleRunner] jcc.exe 进程已退出且无输出，stderr={Stderr}", exitError);
@@ -338,7 +339,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
             }
 
             var incrementalStderr = await CaptureStderrIncrementalAsync().ConfigureAwait(true);
-            if (incrementalStderr.Contains("[DONE]", StringComparison.Ordinal))
+            if (incrementalStderr.Contains("[AI对话结束]", StringComparison.Ordinal))
                 seenDone = true;
             if (incrementalStderr.Contains("[ALIVE]", StringComparison.Ordinal))
                 seenAlive = true;
@@ -348,7 +349,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
                 var doneOutput = await _processManager!.GetOutputAsync().ConfigureAwait(true);
                 if (doneOutput.Length > 0)
                 {
-                    _logger.LogInformation("[DualRoleRunner] 检测到 [DONE] 标记（NonInteractive），输出长度={Len}", doneOutput.Length);
+                    _logger.LogInformation("[DualRoleRunner] 检测到 [AI对话结束] 标记（NonInteractive），输出长度={Len}", doneOutput.Length);
                     return doneOutput;
                 }
             }
@@ -376,9 +377,9 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
                 return exitOutput;
             }
             var exitError = await CaptureStderrAsync().ConfigureAwait(true);
-            if (exitError.Contains("[DONE]", StringComparison.Ordinal))
+            if (exitError.Contains("[AI对话结束]", StringComparison.Ordinal))
             {
-                _logger.LogInformation("[DualRoleRunner] jcc.exe 进程已退出（超时后），stderr含[DONE]，视为成功");
+                _logger.LogInformation("[DualRoleRunner] jcc.exe 进程已退出（超时后），stderr含[AI对话结束]，视为成功");
                 return string.Empty;
             }
             throw new InvalidOperationException($"[GEN020] jcc.exe 进程已退出且无输出, stderr={exitError}");
@@ -585,7 +586,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
         var pollCount = 0;
 
         var stderrBaseline = await CaptureStderrAsync().ConfigureAwait(true);
-        var baselineDoneCount = CountMarker(stderrBaseline, "[DONE]");
+        var baselineDoneCount = CountMarker(stderrBaseline, "[AI对话结束]");
         var cumulativeDoneCount = baselineDoneCount;
 
         while (DateTime.UtcNow - startTime < timeout)
@@ -623,13 +624,13 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
             {
                 lastAliveTime = DateTime.UtcNow;
             }
-            cumulativeDoneCount += CountMarker(incrementalStderr, "[DONE]");
+            cumulativeDoneCount += CountMarker(incrementalStderr, "[AI对话结束]");
             if (cumulativeDoneCount > baselineDoneCount)
             {
                 seenDone = true;
             }
 
-            // 优先级1: [DONE] 标记 — jcc.exe 明确表示处理完成
+            // 优先级1: [AI对话结束] 标记 — jcc.exe 明确表示处理完成
             if (seenDone && currentOutput.Length >= 2)
             {
                 if (HasUnfinishedToolCall(currentOutput))
@@ -638,14 +639,14 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
                     await Task.Delay(100, ct).ConfigureAwait(true);
                     continue;
                 }
-                // 等待 stdout 完全刷新 — stderr [DONE] 可能先于 stdout [Tool]/[FAIL] 到达
+                // 等待 stdout 完全刷新 — stderr [AI对话结束] 可能先于 stdout [Tool]/[FAIL] 到达
                 await Task.Delay(200, ct).ConfigureAwait(true);
                 currentOutput = await _processManager!.GetOutputAsync().ConfigureAwait(true);
-                _logger.LogInformation("[DualRoleRunner] 检测到 [DONE] 标记，输出长度={Len}，轮询次数={Polls}", currentOutput.Length, pollCount);
+                _logger.LogInformation("[DualRoleRunner] 检测到 [AI对话结束] 标记，输出长度={Len}，轮询次数={Polls}", currentOutput.Length, pollCount);
                 return currentOutput;
             }
 
-            // 优先级2: 输出稳定 + 心跳已停止 — 兜底逻辑（兼容旧版本无 [DONE] 标记）
+            // 优先级2: 输出稳定 + 心跳已停止 — 兜底逻辑（兼容旧版本无 [AI对话结束] 标记）
             var elapsed = DateTime.UtcNow - startTime;
             if (elapsed >= TimeSpan.FromSeconds(3)
                 && currentOutput.Length >= 2
@@ -743,9 +744,9 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
             }
 
             var incrementalStderr = await CaptureStderrIncrementalAsync().ConfigureAwait(true);
-            if (incrementalStderr.Contains("[READY]", StringComparison.Ordinal))
+            if (incrementalStderr.Contains("[AI助手] 就绪", StringComparison.Ordinal))
             {
-                _logger.LogInformation("[DualRoleRunner] 检测到 [READY] 标记，进程就绪");
+                _logger.LogInformation("[DualRoleRunner] 检测到 [AI助手] 就绪标记，进程就绪");
                 return;
             }
 
@@ -1155,6 +1156,26 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
     private string ResolveExecutablePath()
     {
         return ResolveExeFromArtifactsBin("jcc.exe");
+    }
+
+    /// <summary>
+    /// 在 stateDir 写入含完整 vendor 节点的 settings.json — 让 ProviderDefinitionRegistry 能注册所有供应商
+    /// E2E 隔离的 AppData 目录无用户 settings.json，需测试 setup 提供，否则 registry 只有 azure
+    /// </summary>
+    private static void WriteSettingsJsonToStateDir(string stateDir)
+    {
+        var settingsJson = """
+        {
+          "vendor": {
+            "openai": { "protocol": "openai-compatible", "apiKeyEnvVar": "OPENAI_API_KEY" },
+            "anthropic": { "protocol": "anthropic", "apiKeyEnvVar": "ANTHROPIC_API_KEY" },
+            "deepseek": { "protocol": "openai-compatible", "apiKeyEnvVar": "DEEPSEEK_API_KEY" },
+            "agnes": { "protocol": "openai-compatible", "apiKeyEnvVar": "AGNES_API_KEY" },
+            "sensenova": { "protocol": "openai-compatible", "apiKeyEnvVar": "SENSENOVA_API_KEY" }
+          }
+        }
+        """;
+        System.IO.File.WriteAllText(System.IO.Path.Combine(stateDir, "settings.json"), settingsJson);
     }
 
     private string ResolveExeFromArtifactsBin(string exeName)

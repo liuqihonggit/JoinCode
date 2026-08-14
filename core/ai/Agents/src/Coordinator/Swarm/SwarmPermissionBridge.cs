@@ -161,7 +161,7 @@ public sealed partial class SwarmPermissionBridge : ServiceEntity, ISwarmPermiss
                 ChangeType = "revoke",
                 Changes = new Dictionary<string, JsonElement>
                 {
-                    ["mode"] = JsonElementHelper.FromString(PermissionMode.Deny.ToString()),
+                    ["mode"] = JsonElementHelper.FromString(PermissionMode.Ask.ToString()),
                     ["allowedTools"] = JsonElementHelper.FromJson("[]"),
                     ["deniedTools"] = JsonElementHelper.FromJson("[]")
                 },

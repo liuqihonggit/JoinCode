@@ -9,8 +9,9 @@ namespace Guard.Tests.Configuration;
 [Collection("AppDataConstantsCollection")]
 public class SettingsLoaderTests : IDisposable
 {
-    private static readonly string DefaultOpenAiModelId = ModelConfigLoader.GetDefaultModelId("openai");
-    private static readonly string DefaultAnthropicModelId = ModelConfigLoader.GetDefaultModelId("anthropic");
+    private static readonly IModelConfigLoader Loader = new ModelConfigLoader();
+    private static readonly string DefaultOpenAiModelId = Loader.GetDefaultModelId("openai");
+    private static readonly string DefaultAnthropicModelId = Loader.GetDefaultModelId("anthropic");
 
     private readonly string _tempDir;
     private readonly string _projectAppDataDir;
@@ -58,9 +59,23 @@ public class SettingsLoaderTests : IDisposable
     [Fact]
     public async Task Given_用户设置和项目设置_When_加载全部_Then_项目设置覆盖用户设置()
     {
-        // Given: 用户设置 model=gpt-4o, 项目设置 model=claude-sonnet
-        var userSettings = new SettingsJson { Model = DefaultOpenAiModelId };
-        var projectSettings = new SettingsJson { Model = DefaultAnthropicModelId };
+        // Given: 用户设置 profile 指向 openai, 项目设置 profile 指向 anthropic
+        var userSettings = new SettingsJson
+        {
+            Vendor = new Dictionary<string, ProfileSettings>
+            {
+                ["openai"] = new ProfileSettings { Model = DefaultOpenAiModelId },
+            },
+            Current = new CurrentSettings { Profile = "openai" },
+        };
+        var projectSettings = new SettingsJson
+        {
+            Vendor = new Dictionary<string, ProfileSettings>
+            {
+                ["anthropic"] = new ProfileSettings { Model = DefaultAnthropicModelId },
+            },
+            Current = new CurrentSettings { Profile = "anthropic" },
+        };
 
         await WriteSettingsAsync(GetUserSettingsPath(), userSettings).ConfigureAwait(true);
         await WriteProjectSettingsAsync(projectSettings).ConfigureAwait(true);
@@ -68,16 +83,20 @@ public class SettingsLoaderTests : IDisposable
         // When: 加载全部来源
         var result = await SettingsLoader.LoadAllSourcesAsync(_fs, projectDir: _tempDir).ConfigureAwait(true);
 
-        // Then: 项目设置覆盖用户设置
-        result.Model.Should().Be(DefaultAnthropicModelId);
+        // Then: 项目设置覆盖用户设置 — profile 指向 anthropic
+        result.Current.Should().NotBeNull();
+        result.Current!.Profile.Should().Be("anthropic");
+        var activeProfile = result.GetActiveProfile();
+        activeProfile.Should().NotBeNull();
+        activeProfile!.Model.Should().Be(DefaultAnthropicModelId);
     }
 
     [Fact]
     public async Task Given_用户设置和本地设置_When_加载全部_Then_本地设置覆盖用户设置()
     {
         // Given: 用户设置 language=en-US, 本地设置 language=zh-CN
-        var userSettings = new SettingsJson { Language = "en-US" };
-        var localSettings = new SettingsJson { Language = "zh-CN" };
+        var userSettings = new SettingsJson { Current = new CurrentSettings { Language = "en-US" } };
+        var localSettings = new SettingsJson { Current = new CurrentSettings { Language = "zh-CN" } };
 
         await WriteSettingsAsync(GetUserSettingsPath(), userSettings).ConfigureAwait(true);
         await WriteLocalSettingsAsync(localSettings).ConfigureAwait(true);
@@ -86,15 +105,16 @@ public class SettingsLoaderTests : IDisposable
         var result = await SettingsLoader.LoadAllSourcesAsync(_fs, projectDir: _tempDir).ConfigureAwait(true);
 
         // Then
-        result.Language.Should().Be("zh-CN");
+        result.Current.Should().NotBeNull();
+        result.Current!.Language.Should().Be("zh-CN");
     }
 
     [Fact]
     public async Task Given_用户设置有env_项目设置也有env_When_加载全部_Then_env字典合并()
     {
         // Given
-        var userSettings = new SettingsJson { Env = new Dictionary<string, string> { ["KEY1"] = "user1", ["KEY2"] = "user2" } };
-        var projectSettings = new SettingsJson { Env = new Dictionary<string, string> { ["KEY2"] = "project2", ["KEY3"] = "project3" } };
+        var userSettings = new SettingsJson { Current = new CurrentSettings { Env = new Dictionary<string, string> { ["KEY1"] = "user1", ["KEY2"] = "user2" } } };
+        var projectSettings = new SettingsJson { Current = new CurrentSettings { Env = new Dictionary<string, string> { ["KEY2"] = "project2", ["KEY3"] = "project3" } } };
 
         await WriteSettingsAsync(GetUserSettingsPath(), userSettings).ConfigureAwait(true);
         await WriteProjectSettingsAsync(projectSettings).ConfigureAwait(true);
@@ -103,10 +123,11 @@ public class SettingsLoaderTests : IDisposable
         var result = await SettingsLoader.LoadAllSourcesAsync(_fs, projectDir: _tempDir).ConfigureAwait(true);
 
         // Then: 字典合并，高优先级覆盖
-        result.Env.Should().NotBeNull();
-        result.Env!["KEY1"].Should().Be("user1");
-        result.Env["KEY2"].Should().Be("project2"); // 项目覆盖用户
-        result.Env["KEY3"].Should().Be("project3");
+        result.Current.Should().NotBeNull();
+        result.Current!.Env.Should().NotBeNull();
+        result.Current.Env!["KEY1"].Should().Be("user1");
+        result.Current.Env["KEY2"].Should().Be("project2"); // 项目覆盖用户
+        result.Current.Env["KEY3"].Should().Be("project3");
     }
 
     #endregion
@@ -123,7 +144,7 @@ public class SettingsLoaderTests : IDisposable
 
         // Then
         result.Should().NotBeNull();
-        result.Model.Should().BeNull();
+        result.Current.Should().BeNull();
     }
 
     #endregion
@@ -138,14 +159,25 @@ public class SettingsLoaderTests : IDisposable
         var dir = Path.GetDirectoryName(userPath);
         if (!string.IsNullOrEmpty(dir)) _fs.CreateDirectory(dir);
         await _fs.WriteAllTextAsync(userPath, "{ invalid json }").ConfigureAwait(true);
-        var projectSettings = new SettingsJson { Model = DefaultAnthropicModelId };
+        var projectSettings = new SettingsJson
+        {
+            Vendor = new Dictionary<string, ProfileSettings>
+            {
+                ["anthropic"] = new ProfileSettings { Model = DefaultAnthropicModelId },
+            },
+            Current = new CurrentSettings { Profile = "anthropic" },
+        };
         await WriteProjectSettingsAsync(projectSettings).ConfigureAwait(true);
 
         // When
         var result = await SettingsLoader.LoadAllSourcesAsync(_fs, projectDir: _tempDir).ConfigureAwait(true);
 
         // Then: 项目设置仍可用
-        result.Model.Should().Be(DefaultAnthropicModelId);
+        result.Current.Should().NotBeNull();
+        result.Current!.Profile.Should().Be("anthropic");
+        var activeProfile = result.GetActiveProfile();
+        activeProfile.Should().NotBeNull();
+        activeProfile!.Model.Should().Be(DefaultAnthropicModelId);
     }
 
     #endregion
@@ -156,7 +188,14 @@ public class SettingsLoaderTests : IDisposable
     public async Task Given_保存到UserSettings_When_重新加载_Then_数据一致()
     {
         // Given
-        var settings = new SettingsJson { Model = DefaultOpenAiModelId, FastMode = true };
+        var settings = new SettingsJson
+        {
+            Vendor = new Dictionary<string, ProfileSettings>
+            {
+                ["openai"] = new ProfileSettings { Model = DefaultOpenAiModelId },
+            },
+            Current = new CurrentSettings { Profile = "openai", FastMode = true },
+        };
 
         // When: 保存到用户设置
         await SettingsLoader.SaveSettingsAsync(_fs, SettingSource.UserSettings, settings, cancellationToken: CancellationToken.None).ConfigureAwait(true);
@@ -164,8 +203,12 @@ public class SettingsLoaderTests : IDisposable
         // Then: 重新加载能读到
         var loaded = await SettingsLoader.LoadUserSettingsAsync(_fs).ConfigureAwait(true);
         loaded.Should().NotBeNull();
-        loaded!.Model.Should().Be(DefaultOpenAiModelId);
-        loaded.FastMode.Should().BeTrue();
+        loaded!.Current.Should().NotBeNull();
+        loaded.Current!.Profile.Should().Be("openai");
+        loaded.Current.FastMode.Should().BeTrue();
+        var activeProfile = loaded.GetActiveProfile();
+        activeProfile.Should().NotBeNull();
+        activeProfile!.Model.Should().Be(DefaultOpenAiModelId);
     }
 
     #endregion
@@ -178,11 +221,17 @@ public class SettingsLoaderTests : IDisposable
         // Given
         var userSettings = new SettingsJson
         {
-            Permissions = new PermissionsSettings { Allow = ["Bash(npm test)"], Deny = ["Bash(rm)"] },
+            Current = new CurrentSettings
+            {
+                Permissions = new PermissionsSettings { Allow = ["Bash(npm test)"], Deny = ["Bash(rm)"] },
+            },
         };
         var projectSettings = new SettingsJson
         {
-            Permissions = new PermissionsSettings { Allow = ["ReadFile"], DefaultMode = "autoAccept" },
+            Current = new CurrentSettings
+            {
+                Permissions = new PermissionsSettings { Allow = ["ReadFile"], DefaultMode = "autoAccept" },
+            },
         };
 
         await WriteSettingsAsync(GetUserSettingsPath(), userSettings).ConfigureAwait(true);
@@ -192,10 +241,11 @@ public class SettingsLoaderTests : IDisposable
         var result = await SettingsLoader.LoadAllSourcesAsync(_fs, projectDir: _tempDir).ConfigureAwait(true);
 
         // Then: 数组拼接
-        result.Permissions.Should().NotBeNull();
-        result.Permissions!.Allow.Should().Contain("Bash(npm test)");
-        result.Permissions.Allow.Should().Contain("ReadFile");
-        result.Permissions.DefaultMode.Should().Be("autoAccept");
+        result.Current.Should().NotBeNull();
+        result.Current!.Permissions.Should().NotBeNull();
+        result.Current.Permissions!.Allow.Should().Contain("Bash(npm test)");
+        result.Current.Permissions.Allow.Should().Contain("ReadFile");
+        result.Current.Permissions.DefaultMode.Should().Be("autoAccept");
     }
 
     #endregion

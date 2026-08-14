@@ -18,12 +18,13 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
         var p = context.Config.Provider;
         using (Cli.TerminalHelper.SetColor(ConsoleColor.DarkGray))
         {
-            Cli.TerminalHelper.WriteLine($"当前配置: 供应商={p.Vendor}, 模型={p.ModelId}");
-            Cli.TerminalHelper.WriteLine($"  端点={p.Endpoint ?? "(默认)"}, API Key={(string.IsNullOrEmpty(p.ApiKey) ? "未配置" : "已配置")}");
+            Cli.TerminalHelper.WriteLine($"供应商: {p.Vendor} | 模型: {p.ModelId} | 流式: {(context.Config.ToolExecution.UseStreamingToolExecution ? "是" : "否")}" +
+                (context.Config.CurrentProfile is not null ? $" | 预设: {context.Config.CurrentProfile}" : ""));
+            Cli.TerminalHelper.WriteLine($"  端点: {p.Endpoint ?? "(默认)"} | API Key: {(string.IsNullOrEmpty(p.ApiKey) ? "未配置" : "已配置")}");
         }
         Cli.TerminalHelper.WriteLine("JoinCode CLI - 输入消息或 /help 查看命令");
         Cli.TerminalHelper.WriteLine();
-        Diag.WriteLifecycle("[READY]");
+        Diag.WriteLifecycle("[AI助手] 就绪");
 
         var session = context.Session ?? throw new InvalidOperationException("Session not initialized");
 
@@ -35,17 +36,14 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
             {
                 while (!ct.IsCancellationRequested)
                 {
-                    using var _ = Cli.TerminalHelper.SetColor(ConsoleColor.Green);
-                    Cli.TerminalHelper.WriteRaw("> ");
-
                     if (System.Console.IsInputRedirected && !Cli.TerminalHelper.ForceInteractive)
                     {
-                        Diag.WriteLifecycle("[DIAG-REPL] stdin redirected, ForceInteractive=false, returning empty");
+                        Diag.WriteLine("[DIAG-REPL] stdin redirected, ForceInteractive=false, returning empty");
                         inputChannel.Writer.TryWrite(string.Empty);
                         return;
                     }
 
-                    Diag.WriteLifecycle("[DIAG-REPL] ReadLineAsync calling...");
+                    Diag.WriteLine("[DIAG-REPL] ReadLineAsync calling...");
                     string? input;
                     try
                     {
@@ -53,26 +51,34 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
                     }
                     catch (OperationCanceledException)
                     {
-                        Diag.WriteLifecycle("[DIAG-REPL] ReadLineAsync canceled");
+                        Diag.WriteLine("[DIAG-REPL] ReadLineAsync canceled");
                         break;
                     }
 
-                    Diag.WriteLifecycle($"[DIAG-REPL] ReadLineAsync returned: '{(input is not null && input.Length > 60 ? input[..60] + "..." : input)}', IsNull={input is null}");
+                    Diag.WriteLine($"[DIAG-REPL] ReadLineAsync returned: '{(input is not null && input.Length > 60 ? input[..60] + "..." : input)}', IsNull={input is null}");
 
                     if (input is null)
                     {
-                        Diag.WriteLifecycle("[DIAG-REPL] ReadLineAsync returned null (EOF), exiting read loop");
+                        Diag.WriteLine("[DIAG-REPL] ReadLineAsync returned null (EOF), exiting read loop");
                         break;
+                    }
+
+                    if (ConfirmationGate.Pending && ConfirmationGate.Source is not null)
+                    {
+                        Diag.WriteLine($"[DIAG-REPL] routing input to confirmation: '{input}'");
+                        ConfirmationGate.Source.TrySetResult(input);
+                        continue;
                     }
 
                     if (string.IsNullOrWhiteSpace(input))
                     {
+                        inputChannel.Writer.TryWrite(input);
                         continue;
                     }
 
-                    Diag.WriteLifecycle("[DIAG-REPL] TryWrite to channel");
+                    Diag.WriteLine("[DIAG-REPL] TryWrite to channel");
                     if (!inputChannel.Writer.TryWrite(input)) return;
-                    Diag.WriteLifecycle("[DIAG-REPL] TryWrite succeeded");
+                    Diag.WriteLine("[DIAG-REPL] TryWrite succeeded");
                 }
             }
             catch (OperationCanceledException) { }
@@ -81,14 +87,20 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
 
         while (session.IsRunning && !ct.IsCancellationRequested)
         {
+            using (Cli.TerminalHelper.SetColor(ConsoleColor.Green))
+                Cli.TerminalHelper.WriteRaw("[用户] ");
+
             string combined;
             try
             {
-                Diag.WriteLifecycle("[DIAG-REPL] waiting for input...");
+                Diag.WriteLine("[DIAG-REPL] waiting for input...");
                 combined = await inputChannel.Reader.ReadAsync(ct).ConfigureAwait(false);
-                Diag.WriteLifecycle($"[DIAG-REPL] received input: '{(combined.Length > 80 ? combined[..80] + "..." : combined)}'");
+                Diag.WriteLine($"[DIAG-REPL] received input: '{(combined.Length > 80 ? combined[..80] + "..." : combined)}'");
             }
             catch (System.Threading.Channels.ChannelClosedException) { break; }
+
+            if (string.IsNullOrWhiteSpace(combined))
+                continue;
 
             while (inputChannel.Reader.TryRead(out var more))
                 combined = string.Concat(combined, "\n", more);
@@ -106,19 +118,19 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
             var aliveTask = RunAliveLoopAsync(aliveCts.Token);
             try
             {
-                Diag.WriteLifecycle("[DIAG-REPL] calling ProcessUserInputAsync");
+                Diag.WriteLine("[DIAG-REPL] calling ProcessUserInputAsync");
                 await session.ProcessUserInputAsync(combined, stepCts.Token);
-                Diag.WriteLifecycle("[DIAG-REPL] ProcessUserInputAsync returned");
+                Diag.WriteLine("[DIAG-REPL] ProcessUserInputAsync returned");
             }
             catch (OperationCanceledException) when (stepCts.IsCancellationRequested && !ct.IsCancellationRequested)
             {
                 Cli.TerminalHelper.WriteLine();
                 Cli.TerminalHelper.WriteLine("(已中断)");
-                Diag.WriteLifecycle("[DIAG-REPL] OperationCanceledException (Ctrl+C)");
+                    Diag.WriteLine("[DIAG-REPL] OperationCanceledException (Ctrl+C)");
             }
             catch (TimeoutException ex)
             {
-                Diag.WriteLifecycle($"[DIAG-REPL] TimeoutException: {ex.Message}");
+                Diag.WriteLine($"[DIAG-REPL] TimeoutException: {ex.Message}");
                 using var _ = Cli.TerminalHelper.SetColor(ConsoleColor.Yellow);
                 Cli.TerminalHelper.WriteLine();
                 Cli.TerminalHelper.WriteLine($"{ex.Message}。请检查：");
@@ -129,7 +141,7 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
             catch (Exception ex)
             {
                 WriteErrorLog(ex);
-                Diag.WriteLifecycle($"[DIAG-REPL] Exception: {ex.GetType().Name}: {ex.Message}");
+                Diag.WriteLine($"[DIAG-REPL] Exception: {ex.GetType().Name}: {ex.Message}");
                 using var _ = Cli.TerminalHelper.SetColor(ConsoleColor.Red);
                 Cli.TerminalHelper.WriteLine($"错误: {ex.Message}");
                 if (ex is JoinCode.Abstractions.Exceptions.ApiException apiEx && apiEx.IsRetryable)
@@ -141,7 +153,10 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
                 aliveCts.Cancel();
                 try { await aliveTask.ConfigureAwait(false); } catch (OperationCanceledException) { }
                 await Console.Out.FlushAsync().ConfigureAwait(false);
-                Diag.WriteLifecycle("[DONE]");
+                Cli.TerminalHelper.WriteLine();
+                Diag.WriteLifecycle("[AI对话结束]");
+                using (Cli.TerminalHelper.SetColor(ConsoleColor.DarkGray))
+                    Cli.TerminalHelper.WriteLine(new string('─', Cli.TerminalHelper.GetWidth()));
             }
         }
 

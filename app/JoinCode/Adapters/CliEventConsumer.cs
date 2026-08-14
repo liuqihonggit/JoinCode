@@ -43,7 +43,15 @@ public sealed class CliEventConsumer : IResettableEventConsumer
     /// <summary>收到文本内容</summary>
     public void OnText(string content)
     {
-        if (_isFirstToken) _isFirstToken = false;
+        if (_isFirstToken)
+        {
+            _isFirstToken = false;
+            if (!_agentMode)
+            {
+                using var _label = TerminalHelper.SetColor(ConsoleColor.Cyan);
+                TerminalHelper.WriteLine("[AI助手]");
+            }
+        }
         if (content.Length > 0)
         {
             _fullResponse.Append(content);
@@ -105,14 +113,15 @@ public sealed class CliEventConsumer : IResettableEventConsumer
             using var _ = TerminalHelper.SetColor(isError ? ConsoleColor.Red : ConsoleColor.DarkGray);
             var glyph = isError ? "FAIL" : "OK";
             TerminalHelper.WriteLine($"[{glyph}] {toolName}");
-            if (!string.IsNullOrEmpty(resultText) && isError)
+            if (!string.IsNullOrEmpty(resultText))
             {
                 var lines = resultText.Split('\n');
-                var displayCount = Math.Min(lines.Length, 5);
+                var maxLines = isError ? 5 : 20;
+                var displayCount = Math.Min(lines.Length, maxLines);
                 for (var i = 0; i < displayCount; i++)
                     TerminalHelper.WriteLine($"  {lines[i].TrimEnd('\r')}");
-                if (lines.Length > 5)
-                    TerminalHelper.WriteLine($"  ... ({lines.Length} lines)");
+                if (lines.Length > maxLines)
+                    TerminalHelper.WriteLine($"  ... ({lines.Length} lines total, showing first {maxLines})");
             }
         }
     }
@@ -163,6 +172,11 @@ public sealed class CliEventConsumer : IResettableEventConsumer
         if (_agentMode)
         {
             WriteNdJsonEvent("done", new Cli.Output.CliStreamEventData { Usage = usage, ModelId = modelId });
+        }
+        else
+        {
+            TerminalHelper.WriteLine();
+            try { System.Console.Out.Flush(); } catch (IOException) { System.Diagnostics.Debug.WriteLine("[CliEventConsumer] stdout flush failed"); }
         }
     }
 

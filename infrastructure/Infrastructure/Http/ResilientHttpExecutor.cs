@@ -1,3 +1,5 @@
+using JoinCode.Abstractions.Utils.Diagnostics;
+
 namespace Infrastructure.Http;
 
 public sealed class ResilientHttpExecutor
@@ -18,6 +20,14 @@ public sealed class ResilientHttpExecutor
     }
 
     public UnifiedCircuitBreaker? CircuitBreaker => _circuitBreaker;
+
+    /// <summary>
+    /// 判断 OperationCanceledException 是否由用户主动取消触发（非连接中断）
+    /// TaskCanceledException 继承 OperationCanceledException，但连接中断时 ct.IsCancellationRequested=false
+    /// 只有当异常的 CancellationToken 精确匹配用户传入的 ct 时，才是真正的用户取消
+    /// </summary>
+    private static bool IsUserCancellation(OperationCanceledException ex, CancellationToken ct) =>
+        ct.IsCancellationRequested && (ex.CancellationToken == ct || ex.CancellationToken == CancellationToken.None);
 
     public async Task<HttpResponseMessage> ExecuteAsync(
         Func<CancellationToken, Task<HttpResponseMessage>> operation,
@@ -51,7 +61,7 @@ public sealed class ResilientHttpExecutor
                 _circuitBreaker?.RecordSuccess();
                 return response;
             }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            catch (OperationCanceledException ex) when (IsUserCancellation(ex, ct))
             {
                 throw;
             }
@@ -77,7 +87,7 @@ public sealed class ResilientHttpExecutor
                 _circuitBreaker?.RecordSuccess();
                 return response;
             }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            catch (OperationCanceledException ex) when (IsUserCancellation(ex, ct))
             {
                 throw;
             }
@@ -86,16 +96,15 @@ public sealed class ResilientHttpExecutor
                 attempt++;
                 var delay = CalculateDelay(attempt, retry);
 
-                _logger?.LogWarning(ex,
-                    "[{Policy}] {Operation} 失败 (尝试 {Attempt}/{Max}), {Delay}ms 后重试",
-                    _policy.Name, operationName, attempt, retry.MaxRetries, delay.TotalMilliseconds);
+                Diag.WriteLine($"[{_policy.Name}:RETRY] {operationName} 失败 (尝试 {attempt}/{retry.MaxRetries}), {delay.TotalMilliseconds}ms 后重试 | {ex.GetType().Name}: {ex.InnerException?.Message ?? ex.Message}");
 
                 await Task.Delay(delay, ct).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
                 _circuitBreaker?.RecordFailure();
-                _logger?.LogError(ex, "[{Policy}] {Operation} 最终失败 (尝试 {Attempt})", _policy.Name, operationName, attempt + 1);
+                _logger?.LogError("[{Policy}:RETRY:106] {Operation} 最终失败 (尝试 {Attempt}) | {ExType}: {Message}",
+                    _policy.Name, operationName, attempt + 1, ex.GetType().Name, ex.Message);
                 throw;
             }
         }
@@ -133,7 +142,7 @@ public sealed class ResilientHttpExecutor
                 _circuitBreaker?.RecordSuccess();
                 return result;
             }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            catch (OperationCanceledException ex) when (IsUserCancellation(ex, ct))
             {
                 throw;
             }
@@ -159,7 +168,7 @@ public sealed class ResilientHttpExecutor
                 _circuitBreaker?.RecordSuccess();
                 return result;
             }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            catch (OperationCanceledException ex) when (IsUserCancellation(ex, ct))
             {
                 throw;
             }
@@ -168,16 +177,15 @@ public sealed class ResilientHttpExecutor
                 attempt++;
                 var delay = CalculateDelay(attempt, retry);
 
-                _logger?.LogWarning(ex,
-                    "[{Policy}] {Operation} 失败 (尝试 {Attempt}/{Max}), {Delay}ms 后重试",
-                    _policy.Name, operationName, attempt, retry.MaxRetries, delay.TotalMilliseconds);
+                Diag.WriteLine($"[{_policy.Name}:RETRY] {operationName} 失败 (尝试 {attempt}/{retry.MaxRetries}), {delay.TotalMilliseconds}ms 后重试 | {ex.GetType().Name}: {ex.InnerException?.Message ?? ex.Message}");
 
                 await Task.Delay(delay, ct).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
                 _circuitBreaker?.RecordFailure();
-                _logger?.LogError(ex, "[{Policy}] {Operation} 最终失败 (尝试 {Attempt})", _policy.Name, operationName, attempt + 1);
+                _logger?.LogError("[{Policy}:RETRY:188] {Operation} 最终失败 (尝试 {Attempt}) | {ExType}: {Message}",
+                    _policy.Name, operationName, attempt + 1, ex.GetType().Name, ex.Message);
                 throw;
             }
         }

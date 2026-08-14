@@ -14,7 +14,7 @@ public sealed partial class DangerousOperationMiddleware : ServiceEntity, IPermi
     /// <inheritdoc />
     public Task InvokeAsync(PermissionCheckContext context, MiddlewareDelegate<PermissionCheckContext> next, CancellationToken ct)
     {
-        if (context.CurrentMode != PermissionMode.Default)
+        if (context.CurrentMode != PermissionMode.Auto)
             return next(context, ct);
 
         if (IsDangerousOperation(context))

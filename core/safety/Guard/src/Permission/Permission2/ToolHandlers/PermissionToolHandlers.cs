@@ -434,7 +434,7 @@ public class PermissionToolHandlers
             PermissionMode.Auto => ObjectSymbol.Lightning.ToValue(),
             PermissionMode.Plan => ObjectSymbol.Pencil.ToValue(),
             PermissionMode.Ask => StatusSymbol.Circle.ToValue(),
-            PermissionMode.Deny => StatusSymbol.Prohibited.ToValue(),
+            PermissionMode.Bypass => ObjectSymbol.Lightning.ToValue(),
             _ => StatusSymbol.Circle.ToValue()
         };
 

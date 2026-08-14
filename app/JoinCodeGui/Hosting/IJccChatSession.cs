@@ -1,6 +1,7 @@
 using JoinCode.Abstractions.Interfaces;
 using JoinCode.Abstractions.LLM;
 using JoinCode.Abstractions.LLM.Chat;
+using JoinCode.Abstractions.UI;
 
 namespace JoinCode.Gui.Hosting;
 
@@ -44,11 +45,33 @@ public interface IJccChatSession : IAsyncDisposable
     /// <summary>当前启用的模型 ID</summary>
     string CurrentModelId { get; }
 
-    /// <summary>配置文件 models.json 驱动的供应商→模型列表映射（改 config 自动驱动下拉）</summary>
+    /// <summary>配置文件驱动的供应商→模型列表映射（改 settings.json vendor 自动驱动下拉）</summary>
     IReadOnlyDictionary<string, IReadOnlyList<string>> VendorModelMap { get; }
+
+    /// <summary>刷新 VendorModelMap（热重载入口，由 GUI 配置变更监控调用）</summary>
+    void RefreshVendorModelMap();
+
+    /// <summary>切换会话 — 引擎按 sessionId 隔离对话历史，切回时自动恢复</summary>
+    void SwitchSession(string sessionId);
+
+    /// <summary>
+    /// 从持久化历史灌入底层对话上下文 — GUI 新进程时 <c>StateService</c> 内存为空，
+    /// <see cref="SwitchSession"/> 仅切换 sessionId 不加载历史。此方法把磁盘恢复的
+    /// 历史消息逐条灌入 <c>IChatContextManager</c>，使后续 <see cref="StreamAsync"/>
+    /// 发送时 LLM 能收到完整历史。对齐 CLI /resume 的 <c>LoadContextAsync</c> 语义。
+    /// </summary>
+    /// <param name="messages">按时间顺序的历史消息（Role + Content），不含当前轮新消息</param>
+    Task LoadHistoryAsync(IReadOnlyList<(MessageRole Role, string Content)> messages, CancellationToken cancellationToken = default);
 
     /// <summary>切换当前模型（回写共享 WorkflowConfig.Provider.ModelId，下次请求引擎即生效）</summary>
     Task SetModelAsync(string modelId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 切换当前供应商并持久化到 settings.json（对齐 CLI ProviderCommand 语义，
+    /// 键 "provider" 与 SettingsJson 生成器 jsonName 一致），保证 GUI 重启后保留所选供应商。
+    /// 切换后引擎按新供应商的 DefaultModelId 重置 ModelId 并持久化，避免旧模型不属于新供应商。
+    /// </summary>
+    Task SetVendorAsync(string vendor, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 当前推理力度（默认 Auto；对齐 CLI /effort current 语义）。
@@ -99,4 +122,22 @@ public interface IJccChatSession : IAsyncDisposable
     /// 供 GUI #工具补全消费。引擎未注册时返回空列表。
     /// </summary>
     Task<IReadOnlyList<ToolSummary>> GetAvailableToolsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 当前主题 — 从 settings.json 读取（键 ConfigKeyConstants.Theme），对齐 CLI /theme。
+    /// 未设置或损坏返回 <see cref="ThemeKind.Auto"/>（对齐 CLI GetCurrentThemeAsync 默认回退）。
+    /// </summary>
+    Task<ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 设置主题并持久化到 settings.json（键 ConfigKeyConstants.Theme），对齐 CLI ThemeCommand，
+    /// 保证 GUI 重启后保留，且 CLI /theme 与 GUI 主题双向联动。
+    /// </summary>
+    Task SetThemeAsync(ThemeKind theme, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// settings.json theme 变更事件 — 外部（如 CLI /theme）改 theme 时驱动 GUI 热重载，
+    /// 实现主题双向绑定。参数为解析后的 <see cref="ThemeKind"/>。
+    /// </summary>
+    event EventHandler<ThemeKind>? ThemeChanged;
 }

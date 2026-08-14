@@ -22,7 +22,7 @@ public sealed partial class SettingsMapper : ServiceEntity
     {
         var config = new WorkflowConfig();
 
-        // Provider 配置
+        // Provider 配置 — 从 vendor[current.profile] + current 偏好映射
         ApplyProviderSettings(config, settings);
 
         // 代码执行配置
@@ -32,7 +32,7 @@ public sealed partial class SettingsMapper : ServiceEntity
         ApplyWorktreeSettings(config, settings);
 
         // 快速模式
-        config.FastMode = settings?.FastMode ?? false;
+        config.FastMode = settings?.Current?.FastMode ?? false;
 
         // 工具评分配置
         ApplyToolScoreSettings(config, settings);
@@ -45,13 +45,16 @@ public sealed partial class SettingsMapper : ServiceEntity
     /// 环境变量优先级最高，覆盖所有文件配置
     /// 注意: API Key 不在此处理，由 ConfigLoader.ResolveApiKeyAsync 统一解析
     /// </summary>
-    public void ApplyEnvOverrides(WorkflowConfig config)
+    public void ApplyEnvOverrides(WorkflowConfig config, SettingsJson? settings = null)
     {
         // Provider 环境变量覆盖
         var envProvider = Environment.GetEnvironmentVariable(JccEnvVar.Vendor.ToValue());
         if (!string.IsNullOrEmpty(envProvider) && config.Provider.Vendor != envProvider)
         {
             config.Provider.Vendor = envProvider;
+
+            // --vendor 自动匹配 vendor 字典中的同名预设
+            ApplyProfileFromVendor(envProvider, config, settings);
 
             // Provider 变更时，重新应用 Provider 定义的默认值
             var newDefinition = _registry.TryGet(envProvider)
@@ -65,24 +68,19 @@ public sealed partial class SettingsMapper : ServiceEntity
             // 仅当 ModelId 未被显式设置时，使用新 Provider 的默认模型
             if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable(JccEnvVar.ModelId.ToValue())))
             {
-                config.Provider.ModelId = newDefinition.DefaultModelId
+                config.Provider.ModelId ??= newDefinition.DefaultModelId
                     ?? throw new ConfigurationException(
                         $"Provider '{newDefinition.ProviderName}' 没有定义默认模型，请通过 {JccEnvVar.ModelId.ToValue()} 环境变量指定模型。");
             }
         }
 
-        // JCC_PROTOCOL 环境变量覆盖 — 允许显式指定协议，覆盖从 Vendor 定义推导的协议
+        // JCC_PROTOCOL 环境变量覆盖
         var envProtocol = Environment.GetEnvironmentVariable(JccEnvVar.Protocol.ToValue());
         if (!string.IsNullOrEmpty(envProtocol))
             config.Provider.Protocol = envProtocol;
 
-        var envModelId = Environment.GetEnvironmentVariable(JccEnvVar.ModelId.ToValue());
-        if (!string.IsNullOrEmpty(envModelId))
-            config.Provider.ModelId = envModelId;
-
-        var envEndpoint = Environment.GetEnvironmentVariable(JccEnvVar.Endpoint.ToValue());
-        if (!string.IsNullOrEmpty(envEndpoint))
-            config.Provider.Endpoint = envEndpoint;
+        // JCC_MODEL_ID / JCC_ENDPOINT / JCC_PROFILE 已由 EnvOverrideApplier 在 SettingsJson 层覆盖，
+        // ToWorkflowConfig 映射时已生效，此处不再重复处理
 
         var envOrgId = Environment.GetEnvironmentVariable(JccEnvVar.OrganizationId.ToValue());
         if (!string.IsNullOrEmpty(envOrgId))
@@ -105,7 +103,7 @@ public sealed partial class SettingsMapper : ServiceEntity
         if (int.TryParse(envMaxMemory, out var maxMemory))
             config.CodeExecution.MaxMemoryMB = maxMemory;
 
-        // Provider 定义的端点环境变量覆盖（API Key 由 ResolveApiKeyAsync 统一处理）
+        // Provider 定义的端点环境变量覆盖
         ApplyProviderDefinitionEndpointEnvOverrides(config);
 
         var envStateFilePath = Environment.GetEnvironmentVariable(JccEnvVar.StateFilePath.ToValue());
@@ -115,15 +113,13 @@ public sealed partial class SettingsMapper : ServiceEntity
 
     /// <summary>
     /// 从 SettingsJson 的 env 字段注入环境变量到当前进程
-    /// 对齐 TS 版: settings.env 中的键值对会注入到子进程环境变量
     /// </summary>
     public static void InjectEnvFromSettings(SettingsJson? settings)
     {
-        if (settings?.Env is null) return;
+        if (settings?.Current?.Env is null) return;
 
-        foreach (var (key, value) in settings.Env)
+        foreach (var (key, value) in settings.Current.Env)
         {
-            // 不覆盖已存在的环境变量（优先级: 系统环境变量 > settings.env）
             if (Environment.GetEnvironmentVariable(key) is null)
             {
                 Environment.SetEnvironmentVariable(key, value);
@@ -132,7 +128,7 @@ public sealed partial class SettingsMapper : ServiceEntity
     }
 
     /// <summary>
-    /// 合并两个 SettingsJson（低优先级 + 高优先级）— 委托给源码生成器自动生成的 SettingsJson.Merge
+    /// 合并两个 SettingsJson（低优先级 + 高优先级）— 委托给 SettingsJson.Merge
     /// </summary>
     public static SettingsJson Merge(SettingsJson? baseSettings, SettingsJson? overrideSettings)
         => SettingsJson.Merge(baseSettings, overrideSettings);
@@ -141,16 +137,26 @@ public sealed partial class SettingsMapper : ServiceEntity
 
     private void ApplyProviderSettings(WorkflowConfig config, SettingsJson? settings)
     {
-        // Provider 优先级: settings.provider > 默认值
-        if (!string.IsNullOrEmpty(settings?.Provider))
+        var current = settings?.Current;
+        var profile = settings?.GetActiveProfile();
+
+        // Provider — 优先从 profile 读取，回退到 profile 名本身
+        if (profile is not null)
         {
-            config.Provider.Vendor = settings.Provider;
+            if (!string.IsNullOrEmpty(profile.Provider))
+                config.Provider.Vendor = profile.Provider;
+            else if (!string.IsNullOrEmpty(current?.Profile))
+                config.Provider.Vendor = current.Profile;
+        }
+        else if (!string.IsNullOrEmpty(current?.Profile))
+        {
+            config.Provider.Vendor = current.Profile;
         }
 
-        // Endpoint 优先级: settings.endpoint > 默认值
-        if (!string.IsNullOrEmpty(settings?.Endpoint))
+        // Endpoint — 从 profile 读取
+        if (!string.IsNullOrEmpty(profile?.Endpoint))
         {
-            config.Provider.Endpoint = settings.Endpoint;
+            config.Provider.Endpoint = profile.Endpoint;
         }
 
         // Provider 定义自动配置默认值
@@ -162,16 +168,16 @@ public sealed partial class SettingsMapper : ServiceEntity
             config.Provider.Protocol = definition.Protocol.ToValue();
         }
 
-        // 模型 ID 优先级: settings.model > Provider 定义默认模型
-        if (!string.IsNullOrEmpty(settings?.Model))
+        // Model ID — 优先从 profile 读取，回退到 Provider 定义默认模型
+        if (!string.IsNullOrEmpty(profile?.Model))
         {
-            config.Provider.ModelId = settings.Model;
+            config.Provider.ModelId = profile.Model;
         }
         else if (definition is not null)
         {
             config.Provider.ModelId = definition.DefaultModelId
                 ?? throw new ConfigurationException(
-                    $"Provider '{definition.ProviderName}' 没有定义默认模型，请通过 settings.model 或 {JccEnvVar.ModelId.ToValue()} 环境变量指定模型。");
+                    $"Provider '{definition.ProviderName}' 没有定义默认模型，请通过 vendor[current.profile].model 或 {JccEnvVar.ModelId.ToValue()} 环境变量指定模型。");
         }
         else
         {
@@ -180,36 +186,42 @@ public sealed partial class SettingsMapper : ServiceEntity
                 $"请通过 {JccEnvVar.Vendor.ToValue()} 环境变量指定正确的 Provider。");
         }
 
+        // CurrentProfile — 从 current.profile 读取
+        if (!string.IsNullOrEmpty(current?.Profile))
+            config.CurrentProfile = current.Profile;
+
         // API Version
         config.Provider.ApiVersion ??= definition?.DefaultApiVersion ?? "2024-02-01";
     }
 
     private static void ApplyCodeExecutionSettings(WorkflowConfig config, SettingsJson? settings)
     {
-        if (settings?.Sandbox is null) return;
+        var sandbox = settings?.Current?.Sandbox;
+        if (sandbox is null) return;
 
-        if (settings.Sandbox.Enabled.HasValue)
-            config.CodeExecution.ReadOnlyFilesystem = settings.Sandbox.Enabled.Value;
+        if (sandbox.Enabled.HasValue)
+            config.CodeExecution.ReadOnlyFilesystem = sandbox.Enabled.Value;
 
-        if (settings.Sandbox.RestrictNetwork.HasValue)
-            config.CodeExecution.AllowNetworkAccess = !settings.Sandbox.RestrictNetwork.Value;
+        if (sandbox.RestrictNetwork.HasValue)
+            config.CodeExecution.AllowNetworkAccess = !sandbox.RestrictNetwork.Value;
 
-        if (settings.Sandbox.MemoryLimitMb.HasValue && settings.Sandbox.MemoryLimitMb.Value > 0)
-            config.CodeExecution.MaxMemoryMB = settings.Sandbox.MemoryLimitMb.Value;
+        if (sandbox.MemoryLimitMb.HasValue && sandbox.MemoryLimitMb.Value > 0)
+            config.CodeExecution.MaxMemoryMB = sandbox.MemoryLimitMb.Value;
 
-        if (settings.Sandbox.AllowedPaths is not null && settings.Sandbox.AllowedPaths.Count > 0)
-            config.CodeExecution.AllowedDirectories = string.Join(";", settings.Sandbox.AllowedPaths);
+        if (sandbox.AllowedPaths is not null && sandbox.AllowedPaths.Count > 0)
+            config.CodeExecution.AllowedDirectories = string.Join(";", sandbox.AllowedPaths);
     }
 
     private static void ApplyWorktreeSettings(WorkflowConfig config, SettingsJson? settings)
     {
-        if (settings?.Worktree is null) return;
+        var worktree = settings?.Current?.Worktree;
+        if (worktree is null) return;
 
-        if (settings.Worktree.SparsePaths is not null)
-            config.Worktree.SparsePaths = settings.Worktree.SparsePaths;
+        if (worktree.SparsePaths is not null)
+            config.Worktree.SparsePaths = worktree.SparsePaths;
 
-        if (settings.Worktree.SymlinkDirectories is not null)
-            config.Worktree.SymlinkDirectories = settings.Worktree.SymlinkDirectories;
+        if (worktree.SymlinkDirectories is not null)
+            config.Worktree.SymlinkDirectories = worktree.SymlinkDirectories;
     }
 
     private static void ApplyProviderDefinitionEndpointEnvOverrides(WorkflowConfig config)
@@ -221,26 +233,53 @@ public sealed partial class SettingsMapper : ServiceEntity
             config.Provider.Endpoint = envEndpoint;
     }
 
+    /// <summary>
+    /// --vendor 自动匹配 vendor 字典中的同名预设
+    /// </summary>
+    private static void ApplyProfileFromVendor(string vendor, WorkflowConfig config, SettingsJson? settings)
+    {
+        if (settings is null)
+        {
+            var fs = new IO.FileSystem.PhysicalFileSystem();
+            settings = ConfigLoader.LoadSettingsJsonAsync(fs).GetAwaiter().GetResult();
+        }
+
+        if (settings?.Vendor is null || !settings.Vendor.TryGetValue(vendor, out var profile))
+            return;
+
+        if (!string.IsNullOrEmpty(profile.Model) && string.IsNullOrEmpty(Environment.GetEnvironmentVariable(JccEnvVar.ModelId.ToValue())))
+            config.Provider.ModelId = profile.Model;
+
+        if (!string.IsNullOrEmpty(profile.Endpoint))
+            config.Provider.Endpoint = profile.Endpoint;
+
+        config.CurrentProfile = vendor;
+    }
+
     private static void ApplyToolScoreSettings(WorkflowConfig config, SettingsJson? settings)
     {
-        if (settings?.ToolScore is null) return;
+        var current = settings?.Current;
+        if (current is null) return;
 
-        var ts = settings.ToolScore;
-        var target = config.ToolExecution.ToolScore;
+        if (current.ToolScore is not null)
+        {
+            var ts = current.ToolScore;
+            var target = config.ToolExecution.ToolScore;
 
-        if (ts.SuccessDelta.HasValue) target.SuccessDelta = ts.SuccessDelta.Value;
-        if (ts.FailDelta.HasValue) target.FailDelta = ts.FailDelta.Value;
-        if (ts.WarningThreshold.HasValue) target.WarningThreshold = ts.WarningThreshold.Value;
-        if (ts.ScoreMin.HasValue) target.ScoreMin = ts.ScoreMin.Value;
-        if (ts.ScoreMax.HasValue) target.ScoreMax = ts.ScoreMax.Value;
-        if (ts.DecayRatePerHour.HasValue) target.DecayRatePerHour = ts.DecayRatePerHour.Value;
-        if (ts.DecayRecoveryScore.HasValue) target.DecayRecoveryScore = ts.DecayRecoveryScore.Value;
+            if (ts.SuccessDelta.HasValue) target.SuccessDelta = ts.SuccessDelta.Value;
+            if (ts.FailDelta.HasValue) target.FailDelta = ts.FailDelta.Value;
+            if (ts.WarningThreshold.HasValue) target.WarningThreshold = ts.WarningThreshold.Value;
+            if (ts.ScoreMin.HasValue) target.ScoreMin = ts.ScoreMin.Value;
+            if (ts.ScoreMax.HasValue) target.ScoreMax = ts.ScoreMax.Value;
+            if (ts.DecayRatePerHour.HasValue) target.DecayRatePerHour = ts.DecayRatePerHour.Value;
+            if (ts.DecayRecoveryScore.HasValue) target.DecayRecoveryScore = ts.DecayRecoveryScore.Value;
+        }
 
-        if (settings.BlacklistedTools is not null)
-            config.ToolExecution.BlacklistedTools = settings.BlacklistedTools;
+        if (current.BlacklistedTools is not null)
+            config.ToolExecution.BlacklistedTools = current.BlacklistedTools;
 
-        if (settings.ToolPenalties is not null)
-            config.ToolExecution.ToolPenalties = new Dictionary<string, int>(settings.ToolPenalties, StringComparer.OrdinalIgnoreCase);
+        if (current.ToolPenalties is not null)
+            config.ToolExecution.ToolPenalties = new Dictionary<string, int>(current.ToolPenalties, StringComparer.OrdinalIgnoreCase);
     }
 
     #endregion

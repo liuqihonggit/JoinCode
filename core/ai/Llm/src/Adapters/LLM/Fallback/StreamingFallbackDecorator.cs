@@ -1,5 +1,7 @@
 namespace Api.LLM.Fallback;
 
+using JoinCode.Abstractions.Diagnostics;
+
 /// <summary>
 /// 流式→非流式 fallback 装饰器 — 对齐 TS claude.ts 的 executeNonStreamingRequest + withRetry fallback 逻辑
 /// 当流式请求失败（529过载/超时/不完整流/看门狗超时）时，自动降级为非流式请求
@@ -66,7 +68,7 @@ public sealed class StreamingFallbackDecorator : IQueryService
 
         if (!_config.Enabled)
         {
-            _logger?.LogWarning("[DIAG-BYPASS] StreamingFallback bypassed, Enabled=false");
+            _logger?.LogInformation("[FALLBACK {CallId}] bypassed, Enabled=false", CallTrace.CurrentId);
             await foreach (var evt in _inner.GetStreamEventContentsAsync(chatHistory, executionSettings, kernel, cancellationToken).ConfigureAwait(false))
             {
                 yield return evt;
@@ -156,7 +158,7 @@ public sealed class StreamingFallbackDecorator : IQueryService
         Exception originalError,
         List<StreamEvent> partialEvents)
     {
-        _logger?.LogWarning(originalError, "Streaming request failed, falling back to non-streaming mode");
+        _logger?.LogWarning("[FALLBACK {CallId}:161] 流式失败, 降级为非流式 | {ExType}: {Message}", CallTrace.CurrentId, originalError.GetType().Name, originalError.Message);
 
         LastRequestFellBack = true;
         OnStreamingFallback?.Invoke();
@@ -174,7 +176,7 @@ public sealed class StreamingFallbackDecorator : IQueryService
         }
         catch (Exception fallbackEx)
         {
-            _logger?.LogError(fallbackEx, "Non-streaming fallback also failed");
+            _logger?.LogError("[FALLBACK {CallId}:179] 非流式降级也失败 | {ExType}: {Message}", CallTrace.CurrentId, fallbackEx.GetType().Name, fallbackEx.Message);
             throw new AggregateException("Both streaming and non-streaming fallback failed", originalError, fallbackEx);
         }
 

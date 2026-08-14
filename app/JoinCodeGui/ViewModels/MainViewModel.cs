@@ -5,6 +5,7 @@ using JoinCode.Abstractions.Configuration.Llm;
 using JoinCode.Abstractions.Configuration.Providers;
 using JoinCode.Abstractions.LLM;
 using JoinCode.Abstractions.LLM.Chat;
+using JoinCode.Abstractions.UI;
 using JoinCode.Gui.Hosting;
 
 namespace JoinCode.Gui.ViewModels;
@@ -19,9 +20,21 @@ public sealed partial class MainViewModel : ViewModelBase
     private IJccChatSession? _mockSession;
     private IJccChatSession _session;
     private readonly Persistence.GuiSessionStore _sessionStore;
+    private readonly Persistence.GuiPreferencesStore _preferencesStore;
+    private readonly IModelConfigLoader _modelConfigLoader;
+    /// <summary>独立配置服务 — 引擎加载失败时仍可持久化 settings.json（主题/供应商/模型/推理力度）</summary>
+    private readonly IConfigurationService _configService;
+    private bool _isPreferencesLoaded;
+    private bool _isRefreshingConfig;
+    private bool _isApplyingExternalTheme;
+    private System.IO.FileSystemWatcher? _modelConfigWatcher;
+    private DateTime _lastConfigReload = DateTime.MinValue;
 
     /// <summary>异步操作硬超时（防止命令续体在单线程上下文死锁）</summary>
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(5);
+
+    /// <summary>属性名→持久化操作映射 — OnPropertyChanged 自动路由统一持久化（新增可持久化属性只需 RegisterPersist 一行）</summary>
+    private readonly Dictionary<string, Action> _persistActions = new(StringComparer.Ordinal);
 
     [ObservableProperty]
     private string _inputText = string.Empty;
@@ -36,7 +49,7 @@ public sealed partial class MainViewModel : ViewModelBase
     private bool _isDarkTheme = true;
 
     [ObservableProperty]
-    private string _selectedModel;
+    private string? _selectedModel;
 
     /// <summary>采样温度（设置面板滑块）</summary>
     [ObservableProperty]
@@ -65,22 +78,20 @@ public sealed partial class MainViewModel : ViewModelBase
             return;
 
         StatusText = $"推理力度: {value}";
-        Task.Run(async () =>
-        {
-            try
-            {
-                await _session.SetEffortLevelAsync(effort).WaitAsync(Timeout);
-            }
-            catch (Exception ex)
-            {
-                StatusText = $"设置推理力度失败: {ex.Message}";
-            }
-        });
+        PersistSync(() => _session.SetEffortLevelAsync(effort));
     }
 
     /// <summary>设置面板是否展开</summary>
     [ObservableProperty]
     private bool _isSettingsPanelOpen;
+
+    /// <summary>回底按钮是否可见（上滑浏览时显示，贴底时隐藏）</summary>
+    [ObservableProperty]
+    private bool _isBackToBottomVisible;
+
+    /// <summary>引擎是否已加载完成（驱动连接/模型下拉框显隐，避免热切换闪烁）</summary>
+    [ObservableProperty]
+    private bool _isEngineLoaded;
 
     /// <summary>系统提示词（占位阶段仅编辑，P1 传入引擎）</summary>
     [ObservableProperty]
@@ -162,7 +173,8 @@ public sealed partial class MainViewModel : ViewModelBase
 
     /// <summary>已过滤消息集合（按 SearchText 关键词；空搜索返回全部）</summary>
     public IEnumerable<ChatUiMessage> FilteredMessages => IsSearching
-        ? Messages.Where(m => (m.Content ?? string.Empty).Contains(SearchText, StringComparison.OrdinalIgnoreCase))
+        ? Messages.Where(m => (m.Content ?? string.Empty).Contains(SearchText, StringComparison.OrdinalIgnoreCase)
+            || (m.ToolResultText ?? string.Empty).Contains(SearchText, StringComparison.OrdinalIgnoreCase))
         : Messages;
 
     /// <summary>全部消息的终端式纯文本（角色标签+时间戳+内容），供 TextBox 跨行选择</summary>
@@ -193,30 +205,14 @@ public sealed partial class MainViewModel : ViewModelBase
     }
 
     /// <summary>模型下拉选项缓存 — session 切换时失效重建，避免每次访问重建数组导致 ComboBox 选中项引用失效闪现</summary>
-    private IReadOnlyList<ModelOptionItem>? _modelOptionsCache;
+    /// <summary>模型下拉选项 — ObservableCollection 双向绑定，供应商切换时清空重填</summary>
+    public ObservableCollection<ModelOptionItem> ModelOptions { get; } = [];
 
-    /// <summary>模型下拉选项（展示"供应商:模型ID"，如 OpenAI:gpt-4o、Mock:deepseek-chat）</summary>
-    public IReadOnlyList<ModelOptionItem> ModelOptions
+    /// <summary>刷新模型下拉 — 从 VendorModelMap 取当前供应商模型列表填充 ObservableCollection</summary>
+    private void RefreshModelOptions()
     {
-        get
-        {
-            if (_modelOptionsCache is not null)
-                return _modelOptionsCache;
-            RebuildModelOptionsCache();
-            return _modelOptionsCache!;
-        }
-    }
-
-    /// <summary>重建模型选项缓存 — 从 VendorModelMap 取选中供应商的模型列表；当前模型不在 catalog 时追加</summary>
-    private void RebuildModelOptionsCache()
-    {
-        var isMock = _session is Hosting.PlaceholderChatSession;
-        var provider = isMock
-            ? _session.CurrentVendor
-            : (SelectedConnection?.Id ?? _session.CurrentVendor);
-        var providerDisplay = isMock
-            ? "Mock"
-            : (VendorKindExtensions.FromValue(provider)?.ToString() ?? provider);
+        var provider = SelectedConnection?.Id ?? _session.CurrentVendor;
+        var providerDisplay = VendorKindExtensions.FromValue(provider)?.ToString() ?? provider;
         var map = _session.VendorModelMap;
         var source = map.TryGetValue(provider, out var models) && models is not null
             ? models.ToList()
@@ -225,15 +221,15 @@ public sealed partial class MainViewModel : ViewModelBase
         if (!string.IsNullOrWhiteSpace(current)
             && source.All(id => !string.Equals(id, current, StringComparison.OrdinalIgnoreCase)))
         {
-            source.Add(current);
+            var modelProvider = _modelConfigLoader.FindProviderByModelId(current);
+            if (modelProvider is null || string.Equals(modelProvider, provider, StringComparison.OrdinalIgnoreCase))
+            {
+                source.Add(current);
+            }
         }
-        var items = new ModelOptionItem[source.Count];
-        for (var i = 0; i < source.Count; i++)
-        {
-            var id = source[i];
-            items[i] = new ModelOptionItem(id, $"{providerDisplay}:{id}");
-        }
-        _modelOptionsCache = items;
+        ModelOptions.Clear();
+        foreach (var id in source)
+            ModelOptions.Add(new ModelOptionItem(id, $"{providerDisplay}:{id}"));
     }
 
     /// <summary>当前选中的模型下拉项（View 层绑定 ComboBox.SelectedItem）</summary>
@@ -327,26 +323,61 @@ public sealed partial class MainViewModel : ViewModelBase
     /// <summary>估算 token 数（中文约 1.6 字符/token，英文约 4 字符/token，取保守下限 4）</summary>
     public int EstimatedTokens => TotalChars / 4;
 
-    public MainViewModel(IJccChatSession? session = null, Persistence.GuiSessionStore? store = null)
+    public MainViewModel(IJccChatSession? session = null, Persistence.GuiSessionStore? store = null, Persistence.GuiPreferencesStore? preferencesStore = null, IModelConfigLoader? modelConfigLoader = null)
     {
+        _modelConfigLoader = modelConfigLoader ?? new ModelConfigLoader();
         _realSession = session;
-        _session = session ?? new Hosting.PlaceholderChatSession();
+        _configService = new Core.Configuration.ConfigurationService(new IO.FileSystem.PhysicalFileSystem());
+        _session = session ?? new Hosting.PlaceholderChatSession(_configService, _modelConfigLoader);
         _sessionStore = store ?? new Persistence.GuiSessionStore(new IO.FileSystem.PhysicalFileSystem());
+        _preferencesStore = preferencesStore ?? new Persistence.GuiPreferencesStore(new IO.FileSystem.PhysicalFileSystem());
         _session.PermissionConfirmationHandler = OnPermissionConfirmationRequestedAsync;
-        RebuildConnectionOptions();
-        _selectedModel = _session.CurrentModelId;
-        _selectedModelOption = ModelOptions.FirstOrDefault(m => m.Id == _session.CurrentModelId);
         _selectedEffort = _session.EffortLevel.ToValue();
-        _selectedConnection = session is null
-            ? MockConnection
-            : _connectionOptions.FirstOrDefault(c => !c.IsMock && c.Id == session.CurrentVendor)
-              ?? _connectionOptions.FirstOrDefault(c => !c.IsMock)
-              ?? MockConnection;
         Messages.CollectionChanged += OnMessagesChanged;
         LoadPersistedSessions();
         NewConversation();
-        if (session is null)
+
+        // 注册持久化路由（在 LoadPreferences 之前，加载期 _isPreferencesLoaded=false 不触发）
+        RegisterPersistActions();
+
+        // 加载 GUI 偏好并应用到 UI 属性（启动时恢复上次显示的内容）
+        LoadPreferences();
+
+        if (session is not null)
+        {
+            RebuildConnectionOptions();
+            RefreshModelOptions();
+            _selectedModel = _session.CurrentModelId;
+            _selectedModelOption = ModelOptions.FirstOrDefault(m => m.Id == _session.CurrentModelId);
+            _isRefreshingConfig = true;
+            SelectedConnection = _connectionOptions.FirstOrDefault(c => c.Id == session.CurrentVendor)
+                ?? _connectionOptions.FirstOrDefault();
+            _isRefreshingConfig = false;
+            IsEngineLoaded = true;
+            StartModelConfigWatch();
+            // 引擎就绪后把偏好里的采样参数应用到引擎
+            ApplyPreferencesToEngine();
+            // 订阅 settings.json theme 变更 + 从 settings.json 读主题（唯一数据源，对齐 CLI /theme）
+            session.ThemeChanged += OnThemeChanged;
+            LoadThemeFromSettings();
+        }
+        else
+        {
             StatusText = "正在加载引擎…";
+            RebuildConnectionOptions();
+            WriteDebugLog($"Constructor else: currentVendor={_session.CurrentVendor} connectionCount={_connectionOptions.Count} ids=[{string.Join(",", _connectionOptions.Select(c => c.Id))}]");
+            _isRefreshingConfig = true;
+            SelectedConnection = _connectionOptions.FirstOrDefault(c => c.Id == _session.CurrentVendor)
+                ?? _connectionOptions.FirstOrDefault();
+            _isRefreshingConfig = false;
+            WriteDebugLog($"Constructor else: SelectedConnection={SelectedConnection?.Id}");
+            RefreshModelOptions();
+            _selectedModelOption = ModelOptions.FirstOrDefault(m => m.Id == _session.CurrentModelId)
+                ?? ModelOptions.FirstOrDefault();
+            _selectedModel = _selectedModelOption?.Id ?? _session.CurrentModelId;
+            // 引擎未就绪时仍从 settings.json 读主题（PlaceholderChatSession 持有 _configService 可读）
+            LoadThemeFromSettings();
+        }
     }
 
     /// <summary>获取可用斜杠命令清单 — 委托到引擎 session，由源码生成器自动提取</summary>
@@ -359,25 +390,28 @@ public sealed partial class MainViewModel : ViewModelBase
     /// </summary>
     public void AttachRealSession(IJccChatSession session)
     {
+        WriteDebugLog($"AttachRealSession: currentVendor={session.CurrentVendor} currentModel={session.CurrentModelId}");
         _realSession = session;
         _session = session;
         _session.PermissionConfirmationHandler = OnPermissionConfirmationRequestedAsync;
 
-        _modelOptionsCache = null;
         RebuildConnectionOptions();
+        RefreshModelOptions();
         SelectedModel = _session.CurrentModelId;
         SelectedModelOption = ModelOptions.FirstOrDefault(m => m.Id == _session.CurrentModelId);
         SelectedEffort = _session.EffortLevel.ToValue();
+        _isRefreshingConfig = true;
         SelectedConnection = _connectionOptions.FirstOrDefault(c => c.Id == session.CurrentVendor)
-            ?? _connectionOptions.FirstOrDefault(c => !c.IsMock)
-            ?? MockConnection;
+            ?? _connectionOptions.FirstOrDefault();
+        _isRefreshingConfig = false;
+        WriteDebugLog($"AttachRealSession: SelectedConnection={SelectedConnection?.Id}");
 
         // 清空延迟构建的斜杠命令缓存，改用真实引擎的命令清单
         _slashCommandCache = null;
         RefreshSlashSuggestions();
 
-        OnPropertyChanged(nameof(ModelOptions));
         OnPropertyChanged(nameof(IsMockConnection));
+        IsEngineLoaded = true;
         _ = Task.Run(async () =>
         {
             try
@@ -391,6 +425,91 @@ public sealed partial class MainViewModel : ViewModelBase
             }
         });
         StatusText = $"已连接真实引擎 {session.CurrentVendor}";
+        StartModelConfigWatch();
+        // 引擎热切换后把偏好里的采样参数应用到引擎
+        ApplyPreferencesToEngine();
+        // 订阅 settings.json theme 变更（外部 CLI /theme 驱动 GUI 热重载）+ 从 settings.json 读主题
+        session.ThemeChanged += OnThemeChanged;
+        LoadThemeFromSettings();
+    }
+
+    /// <summary>启动 settings.json 文件监控（热重载）— 文件变更时自动刷新供应商/模型列表</summary>
+    private void StartModelConfigWatch()
+    {
+        var path = AppDataConstants.Paths.SettingsFilePath;
+        var dir = System.IO.Path.GetDirectoryName(path);
+        if (string.IsNullOrEmpty(dir) || !System.IO.Directory.Exists(dir))
+            return;
+
+        _modelConfigWatcher?.Dispose();
+#pragma warning disable JCC9005
+        _modelConfigWatcher = new System.IO.FileSystemWatcher(dir, System.IO.Path.GetFileName(path))
+        {
+            NotifyFilter = System.IO.NotifyFilters.FileName | System.IO.NotifyFilters.LastWrite,
+            EnableRaisingEvents = true
+        };
+#pragma warning restore JCC9005
+        _modelConfigWatcher.Changed += OnModelConfigChanged;
+        _modelConfigWatcher.Created += OnModelConfigChanged;
+    }
+
+    /// <summary>settings.json 变更事件 — 防抖 1s 后在 UI 线程刷新配置</summary>
+    private void OnModelConfigChanged(object sender, System.IO.FileSystemEventArgs e)
+    {
+        var now = DateTime.UtcNow;
+        if ((now - _lastConfigReload).TotalMilliseconds < 1000)
+            return;
+        _lastConfigReload = now;
+        Avalonia.Threading.Dispatcher.UIThread.Post(RefreshModelOptionsFromConfig);
+    }
+
+    /// <summary>从 settings.json 重新加载配置并刷新连接/模型列表</summary>
+    private void RefreshModelOptionsFromConfig()
+    {
+        try
+        {
+            // 记住热重载前的选择，重载后尽量保留（避免下拉跳回第一项）
+            var previousModelId = SelectedModelOption?.Id;
+            var previousConnectionId = SelectedConnection?.Id;
+
+            _session.RefreshVendorModelMap();
+            RebuildConnectionOptions();
+            RefreshModelOptions();
+
+            // 恢复连接选择（RebuildConnectionOptions 重建了对象引用），用标志位绕过 OnSelectedConnectionChanged 持久化副作用避免循环
+            _isRefreshingConfig = true;
+            SelectedConnection = _connectionOptions.FirstOrDefault(c => c.Id == previousConnectionId)
+                ?? _connectionOptions.FirstOrDefault(c => c.Id == _session.CurrentVendor)
+                ?? _connectionOptions.FirstOrDefault();
+            _isRefreshingConfig = false;
+            OnPropertyChanged(nameof(IsMockConnection));
+
+            // 保留当前模型选择（若仍属于当前供应商模型列表），否则取引擎当前模型，再否则取第一个
+            SelectedModelOption = ModelOptions.FirstOrDefault(m => string.Equals(m.Id, previousModelId, StringComparison.OrdinalIgnoreCase))
+                ?? ModelOptions.FirstOrDefault(m => string.Equals(m.Id, _session.CurrentModelId, StringComparison.OrdinalIgnoreCase))
+                ?? ModelOptions.FirstOrDefault();
+            SelectedModel = SelectedModelOption?.Id;
+            StatusText = "配置已热重载";
+        }
+        catch (Exception ex)
+        {
+            WriteErrorLog(ex);
+        }
+    }
+
+    /// <summary>引擎加载失败时回退到 Mock 引擎（IsMockConnection 驱动按钮状态，供应商下拉保持真实列表）</summary>
+    public void FallbackToMock()
+    {
+        _session = _mockSession ??= new Hosting.PlaceholderChatSession(_configService);
+        _session.PermissionConfirmationHandler = OnPermissionConfirmationRequestedAsync;
+        RebuildConnectionOptions();
+        SelectedConnection = _connectionOptions.FirstOrDefault();
+        RefreshModelOptions();
+        SelectedModel = _session.CurrentModelId;
+        SelectedModelOption = ModelOptions.FirstOrDefault(m => m.Id == _session.CurrentModelId);
+        IsEngineLoaded = true;
+        // 引擎失败回退后仍从 settings.json 读主题（PlaceholderChatSession 可读写 settings.json）
+        LoadThemeFromSettings();
     }
 
     /// <summary>斜杠命令缓存（懒加载；空命令时回退内置高频命令列表）</summary>
@@ -652,7 +771,22 @@ public sealed partial class MainViewModel : ViewModelBase
     }
 
     partial void OnTemperatureChanged(double value)
-        => WriteBackTemperatureAndMaxTokens();
+    {
+        WriteBackTemperatureAndMaxTokens();
+    }
+
+    /// <summary>系统提示词变更时应用到引擎（持久化由 OnPropertyChanged 自动路由处理）</summary>
+    partial void OnSystemPromptChanged(string value)
+    {
+        if (_isPreferencesLoaded && !string.IsNullOrWhiteSpace(value))
+        {
+            _ = Task.Run(async () =>
+            {
+                try { await _session.SetSystemPromptAsync(value).WaitAsync(Timeout); }
+                catch (Exception ex) { WriteErrorLog(ex); }
+            });
+        }
+    }
 
     /// <summary>
     /// 滑块变更写回引擎会话 — 经门面 SetTemperatureAsync/SetMaxTokensAsync 写入共享
@@ -675,6 +809,196 @@ public sealed partial class MainViewModel : ViewModelBase
         });
     }
 
+    /// <summary>
+    /// 加载 GUI 偏好并应用到 UI 属性 — 启动时恢复上次显示的内容。
+    /// 加载期间置 _isPreferencesLoaded=false 防止 OnXxxChanged 回写磁盘。
+    /// </summary>
+    private void LoadPreferences()
+    {
+        try
+        {
+            var prefs = _preferencesStore.Load();
+            _isPreferencesLoaded = false;
+            Temperature = prefs.Temperature;
+            MaxTokens = prefs.MaxTokens;
+            SystemPrompt = prefs.SystemPrompt;
+            FontSize = prefs.FontSize;
+            StreamingEnabled = prefs.StreamingEnabled;
+            _isPreferencesLoaded = true;
+        }
+        catch (Exception ex)
+        {
+            _isPreferencesLoaded = true;
+            WriteErrorLog(ex);
+        }
+    }
+
+    /// <summary>把偏好里的采样参数应用到引擎（构造函数引擎就绪后 / AttachRealSession 热切换后调用）</summary>
+    private void ApplyPreferencesToEngine()
+    {
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _session.SetTemperatureAsync((float)Temperature).WaitAsync(Timeout);
+                await _session.SetMaxTokensAsync(MaxTokens).WaitAsync(Timeout);
+                if (!string.IsNullOrWhiteSpace(SystemPrompt))
+                    await _session.SetSystemPromptAsync(SystemPrompt).WaitAsync(Timeout);
+            }
+            catch (Exception ex)
+            {
+                WriteErrorLog(ex);
+            }
+        });
+    }
+
+    /// <summary>
+    /// 同步阻塞 UI 线程至异步持久化操作完成 — Task.Run 避免 UI 线程 SynchronizationContext 死锁，
+    /// Wait(Timeout) 确保点击时立即落盘，关闭 GUI 不丢失。失败写错误日志不抛出。
+    /// </summary>
+    private void PersistSync(Func<Task> action)
+    {
+        try
+        {
+            Task.Run(action).Wait(Timeout);
+            WriteDebugLog($"PersistSync ok");
+        }
+        catch (Exception ex) { WriteErrorLog(ex); WriteDebugLog($"PersistSync FAIL: {ex.Message}"); }
+    }
+
+    /// <summary>写诊断日志到 dumps/persist_debug.log（定位持久化路由问题）</summary>
+    private static void WriteDebugLog(string message)
+    {
+        try
+        {
+            var dir = System.IO.Path.Combine(AppContext.BaseDirectory, "dumps");
+            System.IO.Directory.CreateDirectory(dir);
+            System.IO.File.AppendAllText(
+                System.IO.Path.Combine(dir, "persist_debug.log"),
+                $"[{DateTime.Now:HH:mm:ss.fff}] {message}{Environment.NewLine}");
+        }
+        catch (Exception writeEx)
+        {
+            System.Console.Error.WriteLine($"无法写入诊断日志: {writeEx.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 注册属性名→持久化操作映射 — 构造函数调用一次。简单属性全走路由，
+    /// 复杂属性（SelectedConnection/SelectedEffort）保留 OnXxxChanged 手动调 PersistSync。
+    /// </summary>
+    private void RegisterPersistActions()
+    {
+        _persistActions[nameof(IsDarkTheme)] = () =>
+            PersistSync(() => _session.SetThemeAsync(IsDarkToTheme(IsDarkTheme)));
+        _persistActions[nameof(SelectedModel)] = () =>
+        {
+            var m = SelectedModel;
+            if (!string.IsNullOrWhiteSpace(m) && !string.Equals(m, _session.CurrentModelId, StringComparison.Ordinal))
+                PersistSync(() => _session.SetModelAsync(m!));
+        };
+        _persistActions[nameof(Temperature)] = SavePreferences;
+        _persistActions[nameof(MaxTokens)] = SavePreferences;
+        _persistActions[nameof(SystemPrompt)] = SavePreferences;
+        _persistActions[nameof(FontSize)] = SavePreferences;
+        _persistActions[nameof(StreamingEnabled)] = SavePreferences;
+    }
+
+    /// <summary>
+    /// PropertyChanged 自动路由 — 拦截所有属性变更，查 _persistActions 字典统一持久化。
+    /// 标志位过滤：_isPreferencesLoaded（加载期不回写）、_isRefreshingConfig（热重载期不回写）、
+    /// _isApplyingExternalTheme（外部主题变更不回写避免循环）。
+    /// </summary>
+    protected override void OnPropertyChanged(System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        base.OnPropertyChanged(e);
+        var propertyName = e.PropertyName;
+        if (propertyName is null)
+            return;
+        if (_persistActions.ContainsKey(propertyName))
+            WriteDebugLog($"OnPropertyChanged: {propertyName} | loaded={_isPreferencesLoaded} refresh={_isRefreshingConfig} extTheme={_isApplyingExternalTheme} | session={_session.GetType().Name}");
+        if (!_isPreferencesLoaded || _isRefreshingConfig || _isApplyingExternalTheme)
+            return;
+        if (_persistActions.TryGetValue(propertyName, out var action))
+            action();
+    }
+
+    /// <summary>保存当前 UI 偏好到磁盘 — 各 OnXxxChanged 调用，_isPreferencesLoaded 防止初始化时回写</summary>
+    private void SavePreferences()
+    {
+        if (!_isPreferencesLoaded)
+            return;
+        try
+        {
+            _preferencesStore.Save(new Persistence.GuiPreferences
+            {
+                Temperature = Temperature,
+                MaxTokens = MaxTokens,
+                SystemPrompt = SystemPrompt,
+                FontSize = FontSize,
+                StreamingEnabled = StreamingEnabled
+            });
+        }
+        catch (Exception ex)
+        {
+            WriteErrorLog(ex);
+        }
+    }
+
+    /// <summary>
+    /// ThemeKind → bool IsDarkTheme 映射 — auto 按时间（6-18 点 light，否则 dark），
+    /// daltonized/ansi 降级为基础明暗（GUI 调色板暂不支持色盲友好变体）。
+    /// </summary>
+    private static bool ThemeToIsDark(ThemeKind theme)
+    {
+        return theme switch
+        {
+            ThemeKind.Dark or ThemeKind.DarkDaltonized or ThemeKind.DarkAnsi => true,
+            ThemeKind.Light or ThemeKind.LightDaltonized or ThemeKind.LightAnsi => false,
+            ThemeKind.Auto => DateTime.Now.Hour is < 6 or >= 18,
+            _ => true
+        };
+    }
+
+    /// <summary>bool IsDarkTheme → ThemeKind 映射 — GUI 仅暴露 dark/light 二态</summary>
+    private static ThemeKind IsDarkToTheme(bool isDark) => isDark ? ThemeKind.Dark : ThemeKind.Light;
+
+    /// <summary>从 settings.json 异步加载主题并应用到 IsDarkTheme（启动 / 引擎热切换后调用）</summary>
+    private void LoadThemeFromSettings()
+    {
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var theme = await _session.GetThemeAsync().WaitAsync(Timeout);
+                // Auto 保持默认 IsDarkTheme（GUI 无 Auto 选项，避免按时间覆盖用户上次明确选择）
+                if (theme is ThemeKind.Auto)
+                    return;
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    _isApplyingExternalTheme = true;
+                    IsDarkTheme = ThemeToIsDark(theme);
+                    _isApplyingExternalTheme = false;
+                });
+            }
+            catch (Exception ex)
+            {
+                WriteErrorLog(ex);
+            }
+        });
+    }
+
+    /// <summary>settings.json theme 外部变更事件处理 — 驱动 GUI 热重载（双向绑定）</summary>
+    private void OnThemeChanged(object? sender, ThemeKind theme)
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            _isApplyingExternalTheme = true;
+            IsDarkTheme = ThemeToIsDark(theme);
+            _isApplyingExternalTheme = false;
+        });
+    }
+
     /// <summary>用户切换模型下拉项时回写共享配置（绑定同一个配置源，下次请求引擎生效）</summary>
     partial void OnSelectedModelOptionChanged(ModelOptionItem? value)
     {
@@ -684,14 +1008,7 @@ public sealed partial class MainViewModel : ViewModelBase
         }
     }
 
-    /// <summary>用户切换模型时回写共享配置（绑定同一个配置源，下次请求引擎生效）</summary>
-    partial void OnSelectedModelChanged(string value)
-    {
-        if (!string.IsNullOrWhiteSpace(value) && value != _session.CurrentModelId)
-        {
-            _session.SetModelAsync(value);
-        }
-    }
+    /// <summary>用户切换模型时持久化由 OnPropertyChanged 自动路由处理（SelectedModel 映射 SetModelAsync）</summary>
 
     /// <summary>Mock 引擎连接候选（始终存在于下拉列表，用于演示/本地验证）</summary>
     private static readonly ConnectionOptionItem MockConnection = new()
@@ -707,18 +1024,17 @@ public sealed partial class MainViewModel : ViewModelBase
     /// <summary>连接下拉候选 — Mock 引擎 + 配置文件驱动的全部供应商（改 config 自动更新）</summary>
     public IReadOnlyList<ConnectionOptionItem> ConnectionOptions => _connectionOptions;
 
-    /// <summary>重建连接选项 — 从 VendorModelMap.Keys 填充 ObservableCollection（通知 UI）</summary>
+    /// <summary>重建连接选项 — 从 VendorModelMap.Keys 填充 ObservableCollection（纯真实供应商，Mock 由独立按钮切换）</summary>
     private void RebuildConnectionOptions()
     {
         _connectionOptions.Clear();
-        _connectionOptions.Add(MockConnection);
         foreach (var provider in _session.VendorModelMap.Keys)
         {
             var display = VendorKindExtensions.FromValue(provider)?.ToString() ?? provider;
             _connectionOptions.Add(new ConnectionOptionItem
             {
                 Id = provider,
-                DisplayText = $"{display}（真实）",
+                DisplayText = display,
                 IsMock = false
             });
         }
@@ -733,39 +1049,47 @@ public sealed partial class MainViewModel : ViewModelBase
 
     partial void OnSelectedConnectionChanged(ConnectionOptionItem? value)
     {
-        if (value is null)
+        WriteDebugLog($"OnSelectedConnectionChanged: id={value?.Id} refresh={_isRefreshingConfig} realSession={_realSession is not null} session={_session.GetType().Name} currentVendor={_session.CurrentVendor}");
+        if (value is null || _isRefreshingConfig)
             return;
 
-        var wantMock = value.IsMock;
-        var isMock = _session is PlaceholderChatSession;
+        // 无论引擎是否就绪,都持久化供应商切换到 settings.json(PlaceholderChatSession 也能写)
+        // 并刷新模型列表供预览
+        StatusText = _realSession is not null
+            ? $"已连接真实引擎 {value.DisplayText}"
+            : $"已选择供应商 {value.DisplayText}（引擎加载中…）";
+        try { Task.Run(() => _session.SetVendorAsync(value.Id)).Wait(Timeout); WriteDebugLog($"SetVendorAsync ok: id={value.Id}"); }
+        catch (Exception ex) { WriteErrorLog(ex); WriteDebugLog($"SetVendorAsync FAIL: {ex.Message}"); }
 
-        if (wantMock && isMock)
-            return;
+        RefreshModelOptions();
+        OnPropertyChanged(nameof(IsMockConnection));
+        // 供应商切换后 SetVendorAsync 已把 CurrentModelId 重置为新供应商默认模型，优先匹配它；找不到才取第一个
+        SelectedModelOption = ModelOptions.FirstOrDefault(m => string.Equals(m.Id, _session.CurrentModelId, StringComparison.OrdinalIgnoreCase))
+            ?? ModelOptions.FirstOrDefault();
+        SelectedModel = SelectedModelOption?.Id;
+        SelectedEffort = _session.EffortLevel.ToValue();
+    }
 
-        if (wantMock)
+    /// <summary>切换 Mock 引擎模式 — 独立按钮命令，按下进入 Mock 演示，再按切回真实引擎</summary>
+    [RelayCommand]
+    private void ToggleMock()
+    {
+        if (_session is PlaceholderChatSession && _realSession is not null)
         {
-            _session = _mockSession ??= new Hosting.PlaceholderChatSession();
-            _session.PermissionConfirmationHandler = OnPermissionConfirmationRequestedAsync;
-            StatusText = $"已切换到 Mock 引擎（演示），模型 {_session.CurrentModelId}";
-        }
-        else if (_realSession is not null)
-        {
-            if (isMock)
-                _session = _realSession;
-            StatusText = $"已连接真实引擎 {value.DisplayText}";
+            _session = _realSession;
+            StatusText = $"已切回真实引擎 {_session.CurrentVendor}";
         }
         else
         {
-            return;
+            _session = _mockSession ??= new Hosting.PlaceholderChatSession(_configService);
+            _session.PermissionConfirmationHandler = OnPermissionConfirmationRequestedAsync;
+            StatusText = $"已切换到 Mock 引擎（演示），模型 {_session.CurrentModelId}";
         }
-
-        _modelOptionsCache = null;
-        OnPropertyChanged(nameof(ModelOptions));
+        RefreshModelOptions();
         OnPropertyChanged(nameof(IsMockConnection));
-        SelectedModelOption = ModelOptions.FirstOrDefault();
-        if (SelectedModelOption is not null)
-            SelectedModel = SelectedModelOption.Id;
-        SelectedEffort = _session.EffortLevel.ToValue();
+        SelectedModelOption = ModelOptions.FirstOrDefault(m => string.Equals(m.Id, _session.CurrentModelId, StringComparison.OrdinalIgnoreCase))
+            ?? ModelOptions.FirstOrDefault();
+        SelectedModel = SelectedModelOption?.Id;
     }
 
     /// <summary>输入框变化时同步字符计数并退出历史回看游标（斜杠刷新由 View 层防抖触发）</summary>
@@ -791,6 +1115,7 @@ public sealed partial class MainViewModel : ViewModelBase
         Sessions.Add(item);
         _activeSession = item;
         Messages.Clear();
+        _session.SwitchSession(item.Id);
         OnPropertyChanged(nameof(Sessions));
     }
 
@@ -1158,7 +1483,7 @@ public sealed partial class MainViewModel : ViewModelBase
 
     /// <summary>选中指定会话（单击切换当前会话，同一时刻仅一个选中；未选中态用作未可选区分）</summary>
     [RelayCommand]
-    private void SelectSession(SessionItem? session)
+    private async Task SelectSession(SessionItem? session)
     {
         if (session is null)
             return;
@@ -1168,10 +1493,12 @@ public sealed partial class MainViewModel : ViewModelBase
         foreach (var s in Sessions)
             s.IsSelected = s == session;
         _activeSession = session;
+        _session.SwitchSession(session.Id);
 
         // 切换会话时从持久化恢复该会话消息到消息区（空会话则清空）
         var data = _sessionStore.Load(session.Id);
         Messages.Clear();
+        var historyForEngine = new List<(MessageRole Role, string Content)>();
         if (data is not null)
         {
             foreach (var msg in data.Messages)
@@ -1185,8 +1512,13 @@ public sealed partial class MainViewModel : ViewModelBase
                     Content = msg.Content,
                     Timestamp = msg.Timestamp
                 });
+                historyForEngine.Add((role, msg.Content));
             }
         }
+
+        // 把持久化历史灌入底层引擎上下文 — GUI 新进程 StateService 内存为空，
+        // SwitchSession 仅切换 sessionId 不加载历史，需显式灌入否则发送时 LLM 收不到历史
+        await _session.LoadHistoryAsync(historyForEngine).ConfigureAwait(false);
     }
 
     /// <summary>重命名指定会话（标题由视图双击触发，空标题忽略）</summary>
@@ -1223,6 +1555,14 @@ public sealed partial class MainViewModel : ViewModelBase
             session.Title = session.RenameDraft.Trim();
     }
 
+    /// <summary>取消重命名（Esc 触发），恢复原标题</summary>
+    [RelayCommand]
+    private void CancelRenameSession(SessionItem? session)
+    {
+        if (session is not null)
+            session.IsRenaming = false;
+    }
+
     /// <summary>向输入框追加文本（光标定位到内容尾部）</summary>
     private void ConcatInput(string text) => InputText += text;
 
@@ -1236,5 +1576,16 @@ public sealed partial class MainViewModel : ViewModelBase
             : message.Trim();
         if (title.Length > 0)
             _activeSession.Title = title;
+    }
+
+    /// <summary>请求滚动到底部（由 View 订阅执行实际 ScrollToLine UI 操作）</summary>
+    public event Action? ScrollToBottomRequested;
+
+    /// <summary>跳到最新消息（回底按钮命令）</summary>
+    [RelayCommand]
+    private void ScrollToBottom()
+    {
+        IsBackToBottomVisible = false;
+        ScrollToBottomRequested?.Invoke();
     }
 }

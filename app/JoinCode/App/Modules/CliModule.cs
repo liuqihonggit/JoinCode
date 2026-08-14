@@ -28,6 +28,47 @@ public sealed class CliModule : IAppModule
             var mcp = sp.GetRequiredService<IToolRegistry>();
             return new CmdMap(slash, mcp);
         });
+
+        services.AddSingleton<CommandServices>(sp =>
+        {
+            return new CommandServices
+            {
+                ChatService = sp.GetRequiredService<IChatService>(),
+                CodeService = sp.GetRequiredService<ICodeService>(),
+                PlanService = sp.GetRequiredService<IPlanService>(),
+                FileSystem = sp.GetRequiredService<IFileSystem>(),
+                ServiceProvider = sp,
+                ToolRegistry = sp.GetService<IToolRegistry>(),
+                CommandRegistry = sp.GetService<ChatCommandRegistry>(),
+                GoalEngine = sp.GetService<IGoalEngine>(),
+                GoalRegistry = sp.GetService<IGoalRegistry>(),
+                CronTaskStore = sp.GetService<ICronTaskStore>(),
+                SimpleModeService = sp.GetService<ISimpleModeService>(),
+                BriefModeService = sp.GetService<IBriefModeService>(),
+                HookConfigurationManager = sp.GetService<IHookConfigurationManager>(),
+                PluginManager = sp.GetService<IPluginManager>(),
+                BridgeClient = sp.GetService<BridgeClient>(),
+                WorkflowConfig = sp.GetService<WorkflowConfig>(),
+                ExecutionSettingsProvider = sp.GetService<IExecutionSettingsProvider>(),
+                MemoryManagementService = sp.GetService<IMemoryManagementService>(),
+                TaskService = sp.GetService<ITaskService>(),
+                TodoService = sp.GetService<ITodoService>(),
+                UsageTracker = sp.GetService<IUsageTracker>(),
+                PermissionManager = sp.GetService<IAgentPermissionManager>(),
+                ThinkingStore = sp.GetService<IThinkingStore>(),
+                RateLimitTracker = sp.GetService<IRateLimitTracker>(),
+                WorkflowTaskExecutor = sp.GetService<IWorkflowTaskExecutor>(),
+                CostTracker = sp.GetService<Core.CostTracking.CostTracker>(),
+                TokenStorage = sp.GetService<ITokenStorage>(),
+                PkceGenerator = sp.GetService<IPkceGenerator>(),
+                WorktreeService = sp.GetService<IAgentWorktreeService>(),
+                ClipboardService = sp.GetService<IClipboardService>(),
+                WorkspaceService = sp.GetService<IWorkspaceService>(),
+                FileOperationTracker = sp.GetService<IFileOperationTracker>(),
+                SessionTagService = sp.GetService<ISessionTagService>(),
+                WebService = sp.GetService<IWebService>(),
+            };
+        });
     }
 
     public async Task ConfigureAsync(IServiceProvider services, CancellationToken ct)

@@ -2,11 +2,14 @@ namespace JoinCode.Abstractions.Configuration.Settings;
 
 /// <summary>
 /// 核心配置键名 — 用于 /config 命令、配置服务 GetAsync/SetAsync 调用
-/// 对齐 TS SettingsManager 已知设置键 + ConfigCommand KnownSettings 字典
 /// 枚举值即存储键(单数据源),消费方通过 ToValue() 获取
+/// 所有键对应 settings.json 的 current 分支内部字段
 /// </summary>
 public enum ConfigKey
 {
+    /// <summary>当前供应商预设名（指向 vendor 字典的键）</summary>
+    [EnumValue("profile")] Profile,
+
     /// <summary>UI 主题 (dark/light/auto/daltonized/ansi)</summary>
     [EnumValue("theme")] Theme,
 
@@ -28,9 +31,6 @@ public enum ConfigKey
     /// <summary>显示轮次耗时 (true/false)</summary>
     [EnumValue("showTurnDuration")] ShowTurnDuration,
 
-    /// <summary>覆盖默认模型 (模型 ID)</summary>
-    [EnumValue("model")] Model,
-
     /// <summary>扩展思考 (true/false)</summary>
     [EnumValue("alwaysThinkingEnabled")] AlwaysThinkingEnabled,
 
@@ -48,12 +48,6 @@ public enum ConfigKey
 
     /// <summary>输出风格 (concise/verbose/normal)</summary>
     [EnumValue("outputStyle")] OutputStyle,
-
-    /// <summary>LLM Provider (openai/azure/anthropic)</summary>
-    [EnumValue("provider")] Provider,
-
-    /// <summary>LLM API 端点</summary>
-    [EnumValue("endpoint")] Endpoint,
 
     /// <summary>API Key(明文存储,优先用 ProviderEnvVar 环境变量)</summary>
     [EnumValue("apiKey")] ApiKey,

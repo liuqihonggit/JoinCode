@@ -28,6 +28,7 @@ public class PermissionIntegrationTests : IAsyncDisposable
         _permissionExecutor = new PermissionAwareToolExecutor(
             _registryWithPermission,
             new MiddlewarePipeline<ToolExecutionContext>(BuildToolExecutionMiddlewares(_permissionManager)),
+            _permissionManager,
             logger: NullLogger<PermissionAwareToolExecutor>.Instance);
     }
 
@@ -107,7 +108,7 @@ public class PermissionIntegrationTests : IAsyncDisposable
     [Fact]
     public async Task ExecuteToolAsync_WithPermissionManager_BypassMode_ShouldExecuteDangerousTool()
     {
-        await _permissionManager.SetPermissionModeAsync(PermissionMode.BypassPermissions).ConfigureAwait(true);
+        await _permissionManager.SetPermissionModeAsync(PermissionMode.Bypass).ConfigureAwait(true);
 
         var mockHandler = CreateMockToolHandler("file_delete", "Delete file tool");
         mockHandler
@@ -169,7 +170,7 @@ public class PermissionIntegrationTests : IAsyncDisposable
     [Fact]
     public async Task ExecuteToolAsync_WithPermissionManager_ExpiredTemporaryApproval_ShouldRequireConfirmation()
     {
-        // 使用 FakeTimeProvider 推进时间使权限过期，替代 Task.Delay
+        await _permissionManager.SetPermissionModeAsync(PermissionMode.Ask).ConfigureAwait(true);
         _permissionManager.ApproveToolTemporarily("expired_tool", TimeSpan.FromMilliseconds(5));
         _fakeTime.Advance(TimeSpan.FromMilliseconds(10));
 
@@ -220,7 +221,7 @@ public class PermissionIntegrationTests : IAsyncDisposable
     [Fact]
     public async Task EndToEnd_DefaultMode_ReadOperation_ShouldAutoApprove()
     {
-        await _permissionManager.SetPermissionModeAsync(PermissionMode.Default).ConfigureAwait(true);
+        await _permissionManager.SetPermissionModeAsync(PermissionMode.Auto).ConfigureAwait(true);
 
         var mockHandler = CreateMockToolHandler(SearchToolName.Glob.ToValue(), "Glob tool");
         mockHandler
@@ -344,15 +345,15 @@ public class PermissionIntegrationTests : IAsyncDisposable
 
         await _registryWithPermission.RegisterToolAsync(mockHandler.Object).ConfigureAwait(true);
 
-        await _permissionManager.SetPermissionModeAsync(PermissionMode.Auto).ConfigureAwait(true);
+        await _permissionManager.SetPermissionModeAsync(PermissionMode.Bypass).ConfigureAwait(true);
         var result1 = await _permissionExecutor.ExecuteAsync("custom_test_tool", new Dictionary<string, JsonElement>()).ConfigureAwait(true);
         result1.IsError.Should().BeFalse();
 
-        await _permissionManager.SetPermissionModeAsync(PermissionMode.Default).ConfigureAwait(true);
+        await _permissionManager.SetPermissionModeAsync(PermissionMode.Ask).ConfigureAwait(true);
         var act = async () => await _permissionExecutor.ExecuteAsync("custom_test_tool", new Dictionary<string, JsonElement>()).ConfigureAwait(true);
         await act.Should().ThrowAsync<PermissionPendingConfirmationException>().ConfigureAwait(true);
 
-        await _permissionManager.SetPermissionModeAsync(PermissionMode.BypassPermissions).ConfigureAwait(true);
+        await _permissionManager.SetPermissionModeAsync(PermissionMode.Bypass).ConfigureAwait(true);
         var result3 = await _permissionExecutor.ExecuteAsync("custom_test_tool", new Dictionary<string, JsonElement>()).ConfigureAwait(true);
         result3.IsError.Should().BeFalse();
     }
@@ -509,11 +510,11 @@ public class PermissionIntegrationTests : IAsyncDisposable
 
         await _registryWithPermission.RegisterToolAsync(mockHandler.Object).ConfigureAwait(true);
 
-        await _permissionManager.SetPermissionModeAsync(PermissionMode.Auto).ConfigureAwait(true);
+        await _permissionManager.SetPermissionModeAsync(PermissionMode.Bypass).ConfigureAwait(true);
         var result1 = await _permissionExecutor.ExecuteAsync("reevaluated_tool", new Dictionary<string, JsonElement>()).ConfigureAwait(true);
         result1.IsError.Should().BeFalse();
 
-        await _permissionManager.SetPermissionModeAsync(PermissionMode.Default).ConfigureAwait(true);
+        await _permissionManager.SetPermissionModeAsync(PermissionMode.Ask).ConfigureAwait(true);
         var act = async () => await _permissionExecutor.ExecuteAsync("reevaluated_tool", new Dictionary<string, JsonElement>()).ConfigureAwait(true);
         await act.Should().ThrowAsync<PermissionPendingConfirmationException>().ConfigureAwait(true);
     }

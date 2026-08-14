@@ -297,8 +297,8 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
                 var autoModeEnabled = await IsAutoModeGateEnabledAsync(cancellationToken).ConfigureAwait(false);
                 if (!autoModeEnabled)
                 {
-                    restoreMode = PermissionMode.Default;
-                    _logger?.LogWarning("计划模式期间 auto mode gate 被禁用，回退到 Default 模式");
+                    restoreMode = PermissionMode.Auto;
+                    _logger?.LogWarning("计划模式期间 auto mode gate 被禁用，回退到 Auto 模式");
                 }
             }
 

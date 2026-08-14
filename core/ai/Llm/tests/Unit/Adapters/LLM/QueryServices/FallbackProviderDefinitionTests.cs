@@ -34,7 +34,8 @@ public class FallbackProviderDefinitionTests
     public void ProtocolConstructor_UnknownProtocol_FallsBackToOpenAIDefaultModelIds()
     {
         // 未知 ProtocolKind 回退到 OpenAI 默认值（ProtocolToConfigKey 的 _ => "openai" 分支）
-        var definition = new FallbackProviderDefinition((ProtocolKind)999);
+        var loader = Testing.Common.Services.TestModelConfigLoaderFactory.CreateWithDefaultPricing();
+        var definition = new FallbackProviderDefinition((ProtocolKind)999, loader);
 
         definition.DefaultModelId.Should().NotBeEmpty();
         definition.DefaultFastModelId.Should().NotBeEmpty();

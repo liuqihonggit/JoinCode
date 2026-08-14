@@ -3,7 +3,8 @@ namespace Tests;
 [Trait("Category", "Integration")]
 public class ServiceRegistrationIntegrationTests
 {
-    private static readonly string DefaultModelId = ModelConfigLoader.GetDefaultModelId("deepseek");
+    private static readonly IModelConfigLoader Loader = new ModelConfigLoader();
+    private static readonly string DefaultModelId = Loader.GetDefaultModelId("deepseek");
 
     [Fact]
     public void AddWorkflowServices_ShouldRegisterITranscriptService()

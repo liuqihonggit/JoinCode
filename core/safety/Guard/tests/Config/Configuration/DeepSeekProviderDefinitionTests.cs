@@ -1,235 +1,175 @@
 namespace Guard.Tests.Configuration;
 
 /// <summary>
-/// DeepSeek Provider 定义单元测试 — TDD 红绿循环驱动 P4-1 修复
-///
-/// 背景: P4-1 发现 jcc.exe 不支持 JCC_VENDOR=deepseek，报错"未知的 Provider 'deepseek'"。
-/// 修复目标: 新增 VendorKind.DeepSeek + DeepSeekProviderDefinition + ProviderDefinitionRegistry 注册。
-///
-/// DeepSeek 协议特性:
-/// - OpenAI 兼容协议（chat/completions 端点 + Bearer Token）
-/// - 默认端点: https://api.deepseek.com（无 /v1 前缀，DeepSeek 官方端点）
-/// - 默认模型和快速模型从 models.json 动态读取
-/// - 缓存统计字段: prompt_cache_hit_tokens + prompt_cache_miss_tokens
-///   （OpenAIQueryService 已支持解析，无需修改 QueryService 层）
-/// - API Key 环境变量: DEEPSEEK_API_KEY，回退到 JCC_API_KEY
+/// DeepSeek 供应商定义单元测试 — 新架构下 deepseek 是 OpenAiCompatibleProviderDefinition 实例
+/// 
+/// 新架构要点:
+/// - 不再有 DeepSeekProviderDefinition 独立类，deepseek 使用 OpenAiCompatibleProviderDefinition
+/// - 端点从 settings.json 配置读取，不硬编码默认端点
+/// - API Key 环境变量从 settings.json 的 apiKeyEnvVar 字段读取
+/// - 模型列表从 ModelConfigLoader 读取（数据从 settings.json vendor.models 流入）
 /// </summary>
-public class DeepSeekProviderDefinitionTests
+public class DeepSeekProviderDefinitionTests : IDisposable
 {
-    private static readonly Core.Configuration.Providers.ProviderDefinitionRegistry Registry = new();
+    private readonly ModelConfigLoader _modelConfigLoader;
+    private readonly IProviderDefinition _definition;
 
-    #region VendorKind 枚举验证
+    public DeepSeekProviderDefinitionTests()
+    {
+        _modelConfigLoader = new ModelConfigLoader();
+        _modelConfigLoader.ApplyProviders(new Dictionary<string, ModelProviderConfig>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["deepseek"] = new ModelProviderConfig
+            {
+                DefaultModelId = "deepseek-chat",
+                DefaultFastModelId = "deepseek-chat",
+                Models =
+                [
+                    new ModelItemConfig
+                    {
+                        Id = "deepseek-chat",
+                        DisplayName = "DeepSeek Chat",
+                        ContextWindow = 64000,
+                        Description = "DeepSeek Chat",
+                        Aliases = ["chat", "default"],
+                        Capabilities = new ModelCapabilitiesConfig { FastMode = true }
+                    },
+                    new ModelItemConfig
+                    {
+                        Id = "deepseek-reasoner",
+                        DisplayName = "DeepSeek Reasoner",
+                        ContextWindow = 64000,
+                        Description = "DeepSeek Reasoner",
+                        Aliases = ["reasoner", "thinking"],
+                        Capabilities = new ModelCapabilitiesConfig { ThinkingMode = true }
+                    }
+                ]
+            }
+        });
+
+        _definition = new OpenAiCompatibleProviderDefinition(_modelConfigLoader, "deepseek", "DEEPSEEK_API_KEY");
+    }
+
+    public void Dispose()
+    {
+        GC.SuppressFinalize(this);
+    }
+
+    #region ProviderDefinition 属性验证
 
     [Fact]
-    public void VendorKind_DeepSeek_ToValue_ShouldReturnDeepSeekString()
+    public void DeepSeek_Kind_ShouldBeDeepSeek()
     {
-        // Act
-        var value = VendorKind.DeepSeek.ToValue();
-
-        // Then
-        value.Should().Be("deepseek");
+        _definition.Vendor.Should().Be(VendorKind.DeepSeek);
     }
 
     [Fact]
-    public void VendorKindExtensions_FromDeepSeekString_ShouldReturnDeepSeekEnum()
+    public void DeepSeek_ProviderName_ShouldBeDeepSeek()
     {
-        // Act
-        var kind = VendorKindExtensions.FromValue("deepseek");
-
-        // Then
-        kind.Should().Be(VendorKind.DeepSeek);
+        _definition.ProviderName.Should().Be("deepseek");
     }
 
     [Fact]
-    public void VendorKindExtensions_FromDeepSeekString_UpperCase_ShouldReturnDeepSeekEnum()
+    public void DeepSeek_DisplayName_ShouldBeDeepSeek()
     {
-        // Act — 大小写不敏感
-        var kind = VendorKindExtensions.FromValue("DeepSeek");
-
-        // Then
-        kind.Should().Be(VendorKind.DeepSeek);
-    }
-
-    #endregion
-
-    #region ProviderDefinitionRegistry 注册验证
-
-    private IProviderDefinition? GetDeepSeekDefinition()
-        => Registry.TryGet("deepseek");
-
-    [Fact]
-    public void ProviderDefinitionRegistry_TryGet_DeepSeek_ShouldReturnNonNullOrchestrator()
-    {
-        // Act
-        var definition = Registry.TryGet("deepseek");
-
-        // Then
-        definition.Should().NotBeNull("JCC_VENDOR=deepseek 时应能从注册表解析到 DeepSeekProviderDefinition");
+        _definition.DisplayName.Should().Be("deepseek");
     }
 
     [Fact]
-    public void ProviderDefinitionRegistry_RegisteredProviders_ShouldIncludeDeepSeek()
+    public void DeepSeek_DefaultModelId_ShouldBeDeepSeekChat()
     {
-        // Act
-        var providers = Registry.RegisteredProviders;
-
-        // Then
-        providers.Should().Contain("deepseek",
-            "注册表必须包含 deepseek，否则 JCC_VENDOR=deepseek 会抛 ConfigurationException");
-    }
-
-    #endregion
-
-    #region DeepSeekProviderDefinition 属性验证
-
-    [Fact]
-    public void DeepSeekProviderDefinition_Kind_ShouldBeDeepSeek()
-    {
-        // Act
-        var definition = GetDeepSeekDefinition();
-
-        // Then
-        definition!.Vendor.Should().Be(VendorKind.DeepSeek);
+        _definition.DefaultModelId.Should().Be("deepseek-chat");
     }
 
     [Fact]
-    public void DeepSeekProviderDefinition_ProviderName_ShouldBeDeepSeek()
+    public void DeepSeek_DefaultFastModelId_ShouldBeDeepSeekChat()
     {
-        var definition = GetDeepSeekDefinition();
-
-        definition!.ProviderName.Should().Be("deepseek");
+        _definition.DefaultFastModelId.Should().Be("deepseek-chat");
     }
 
     [Fact]
-    public void DeepSeekProviderDefinition_DisplayName_ShouldBeDeepSeek()
+    public void DeepSeek_DefaultEndpoint_ShouldBeNull()
     {
-        var definition = GetDeepSeekDefinition();
-
-        definition!.DisplayName.Should().Be("DeepSeek");
+        _definition.DefaultEndpoint.Should().BeNull("新架构下端点从配置读取，不硬编码");
     }
 
     [Fact]
-    public void DeepSeekProviderDefinition_DefaultModelId_ShouldNotBeEmpty()
+    public void DeepSeek_ApiKeyEnvironmentVariable_ShouldBeDeepSeekApiKey()
     {
-        var definition = GetDeepSeekDefinition();
-
-        definition!.DefaultModelId.Should().NotBeEmpty();
+        _definition.ApiKeyEnvironmentVariable.Should().Be("DEEPSEEK_API_KEY");
     }
 
     [Fact]
-    public void DeepSeekProviderDefinition_DefaultFastModelId_ShouldNotBeEmpty()
+    public void DeepSeek_AvailableModels_ShouldNotBeEmpty()
     {
-        var definition = GetDeepSeekDefinition();
-
-        definition!.DefaultFastModelId.Should().NotBeEmpty();
-    }
-
-    [Fact]
-    public void DeepSeekProviderDefinition_DefaultEndpoint_ShouldBeDeepSeekApiUrl()
-    {
-        var definition = GetDeepSeekDefinition();
-
-        // DeepSeek 官方端点（无 /v1 前缀）
-        definition!.DefaultEndpoint.Should().Be("https://api.deepseek.com");
-    }
-
-    [Fact]
-    public void DeepSeekProviderDefinition_ApiKeyEnvironmentVariable_ShouldBeDeepSeekApiKey()
-    {
-        var definition = GetDeepSeekDefinition();
-
-        definition!.ApiKeyEnvironmentVariable.Should().Be("DEEPSEEK_API_KEY");
-    }
-
-    [Fact]
-    public void DeepSeekProviderDefinition_AvailableModels_ShouldNotBeEmpty()
-    {
-        var definition = GetDeepSeekDefinition();
-
-        definition!.AvailableModels.Should().NotBeEmpty();
+        _definition.AvailableModels.Should().NotBeEmpty();
     }
 
     #endregion
 
-    #region URL 构建验证（端点路径差异处理）
+    #region URL 构建验证
 
     [Fact]
-    public void DeepSeekProviderDefinition_GetBaseUrl_WithNullEndpoint_ShouldReturnDeepSeekApiUrlWithTrailingSlash()
+    public void DeepSeek_GetBaseUrl_WithEndpoint_ShouldUseConfiguredEndpoint()
     {
-        var definition = GetDeepSeekDefinition();
-        var config = new ProviderConfig { Endpoint = null };
+        var config = new ProviderConfig { Endpoint = "https://api.deepseek.com" };
 
-        // Act — DeepSeek 官方端点（无 /v1 前缀，与 OpenAI 不同）
-        var baseUrl = definition!.GetBaseUrl(config);
+        var baseUrl = _definition.GetBaseUrl(config);
 
-        // Then
         baseUrl.Should().Be("https://api.deepseek.com/",
-            "DeepSeek 官方端点无 /v1 前缀，与 OpenAI 的 https://api.openai.com/v1/ 不同");
+            "端点从 settings.json 配置读取");
     }
 
     [Fact]
-    public void DeepSeekProviderDefinition_GetBaseUrl_WithCustomEndpoint_ShouldUseCustomEndpointWithTrailingSlash()
+    public void DeepSeek_GetBaseUrl_WithCustomEndpoint_ShouldUseCustomEndpoint()
     {
-        var definition = GetDeepSeekDefinition();
         var config = new ProviderConfig { Endpoint = "https://custom.deepseek.example.com" };
 
-        var baseUrl = definition!.GetBaseUrl(config);
+        var baseUrl = _definition.GetBaseUrl(config);
 
         baseUrl.Should().Be("https://custom.deepseek.example.com/");
     }
 
     [Fact]
-    public void DeepSeekProviderDefinition_GetBaseUrl_WithCustomEndpointTrailingSlash_ShouldNotDoubleSlash()
+    public void DeepSeek_GetBaseUrl_WithCustomEndpointTrailingSlash_ShouldNotDoubleSlash()
     {
-        var definition = GetDeepSeekDefinition();
         var config = new ProviderConfig { Endpoint = "https://custom.deepseek.example.com/" };
 
-        var baseUrl = definition!.GetBaseUrl(config);
+        var baseUrl = _definition.GetBaseUrl(config);
 
         baseUrl.Should().Be("https://custom.deepseek.example.com/");
     }
 
     [Fact]
-    public void DeepSeekProviderDefinition_GetChatEndpoint_ShouldReturnChatCompletionsRelativePath()
+    public void DeepSeek_GetChatEndpoint_ShouldReturnChatCompletionsRelativePath()
     {
-        var definition = GetDeepSeekDefinition();
-        var config = new ProviderConfig { Endpoint = null };
+        var config = new ProviderConfig { Endpoint = "https://api.deepseek.com" };
 
-        // Act — OpenAI 兼容协议的相对路径
-        var chatEndpoint = definition!.GetChatEndpoint(config);
+        var chatEndpoint = _definition.GetChatEndpoint(config);
 
-        // Then — 与 OpenAI 一致的相对路径
         chatEndpoint.Should().Be("chat/completions");
     }
 
     [Fact]
-    public void DeepSeekProviderDefinition_GetChatEndpoint_WithEndpointContainingChatCompletions_ShouldReturnEmpty()
+    public void DeepSeek_GetChatEndpoint_WithEndpointContainingChatCompletions_ShouldReturnEmpty()
     {
-        var definition = GetDeepSeekDefinition();
         var config = new ProviderConfig { Endpoint = "https://api.deepseek.com/chat/completions" };
 
-        // Act — Endpoint 已包含完整路径时返回空字符串（与 OpenAI 逻辑一致）
-        var chatEndpoint = definition!.GetChatEndpoint(config);
+        var chatEndpoint = _definition.GetChatEndpoint(config);
 
         chatEndpoint.Should().BeEmpty();
     }
 
-    /// <summary>
-    /// 端到端 URL 拼接验证：BaseAddress + 相对路径 = 完整 URL
-    /// </summary>
     [Fact]
-    public void DeepSeekProviderDefinition_FullUrl_Composition_ShouldBeDeepSeekApiChatCompletions()
+    public void DeepSeek_FullUrl_Composition_ShouldBeDeepSeekApiChatCompletions()
     {
-        var definition = GetDeepSeekDefinition();
-        var config = new ProviderConfig { Endpoint = null };
+        var config = new ProviderConfig { Endpoint = "https://api.deepseek.com" };
 
-        var baseUrl = definition!.GetBaseUrl(config);
-        var chatEndpoint = definition.GetChatEndpoint(config);
+        var baseUrl = _definition.GetBaseUrl(config);
+        var chatEndpoint = _definition.GetChatEndpoint(config);
 
         var fullUrl = new Uri(new Uri(baseUrl), chatEndpoint).AbsoluteUri;
 
-        // DeepSeek 完整 URL: https://api.deepseek.com/chat/completions
-        // 注意与 OpenAI https://api.openai.com/v1/chat/completions 的差异（无 /v1 前缀）
         fullUrl.Should().Be("https://api.deepseek.com/chat/completions");
     }
 
@@ -238,30 +178,26 @@ public class DeepSeekProviderDefinitionTests
     #region HttpClient 配置验证
 
     [Fact]
-    public void DeepSeekProviderDefinition_ConfigureHttpClient_ShouldAddBearerTokenAuthorizationHeader()
+    public void DeepSeek_ConfigureHttpClient_ShouldAddBearerTokenAuthorizationHeader()
     {
-        var definition = GetDeepSeekDefinition();
         var config = new ProviderConfig { ApiKey = "sk-deepseek-test-key" };
         using var client = new HttpClient();
 
-        // Act — DeepSeek 用 Bearer Token 认证（OpenAI 兼容）
-        definition!.ConfigureHttpClient(client, config);
+        _definition.ConfigureHttpClient(client, config);
 
-        // Then
-        client.DefaultRequestHeaders.Authorization!.Scheme.Should().Be("Bearer");
-        client.DefaultRequestHeaders.Authorization!.Parameter.Should().Be("sk-deepseek-test-key");
+        client.DefaultRequestHeaders.TryGetValues("Authorization", out var values).Should().BeTrue();
+        values!.First().Should().Be("Bearer sk-deepseek-test-key");
     }
 
     [Fact]
-    public void DeepSeekProviderDefinition_ConfigureHttpClient_WithEmptyApiKey_ShouldNotAddAuthorizationHeader()
+    public void DeepSeek_ConfigureHttpClient_WithEmptyApiKey_ShouldNotAddAuthorizationHeader()
     {
-        var definition = GetDeepSeekDefinition();
         var config = new ProviderConfig { ApiKey = "" };
         using var client = new HttpClient();
 
-        definition!.ConfigureHttpClient(client, config);
+        _definition.ConfigureHttpClient(client, config);
 
-        client.DefaultRequestHeaders.Authorization.Should().BeNull();
+        client.DefaultRequestHeaders.Contains("Authorization").Should().BeFalse();
     }
 
     #endregion
@@ -269,15 +205,14 @@ public class DeepSeekProviderDefinitionTests
     #region API Key 解析验证
 
     [Fact]
-    public void DeepSeekProviderDefinition_ResolveApiKeyFromEnv_WithDeepSeekApiKey_ShouldReturnIt()
+    public void DeepSeek_ResolveApiKeyFromEnv_WithDeepSeekApiKey_ShouldReturnIt()
     {
-        var definition = GetDeepSeekDefinition();
         var oldValue = Environment.GetEnvironmentVariable("DEEPSEEK_API_KEY");
         try
         {
             Environment.SetEnvironmentVariable("DEEPSEEK_API_KEY", "sk-from-deepseek-env");
 
-            var apiKey = definition!.ResolveApiKeyFromEnv();
+            var apiKey = _definition.ResolveApiKeyFromEnv();
 
             apiKey.Should().Be("sk-from-deepseek-env");
         }
@@ -288,21 +223,23 @@ public class DeepSeekProviderDefinitionTests
     }
 
     [Fact]
-    public void DeepSeekProviderDefinition_ResolveApiKeyFromEnv_WithoutEnvVar_ShouldReturnNull()
+    public void DeepSeek_ResolveApiKeyFromEnv_WithoutEnvVar_ShouldReturnNull()
     {
-        var definition = GetDeepSeekDefinition();
         var oldValue = Environment.GetEnvironmentVariable("DEEPSEEK_API_KEY");
+        var oldOpenAiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
         try
         {
             Environment.SetEnvironmentVariable("DEEPSEEK_API_KEY", null);
+            Environment.SetEnvironmentVariable("OPENAI_API_KEY", null);
 
-            var apiKey = definition!.ResolveApiKeyFromEnv();
+            var apiKey = _definition.ResolveApiKeyFromEnv();
 
             apiKey.Should().BeNull();
         }
         finally
         {
             Environment.SetEnvironmentVariable("DEEPSEEK_API_KEY", oldValue);
+            Environment.SetEnvironmentVariable("OPENAI_API_KEY", oldOpenAiKey);
         }
     }
 
@@ -311,23 +248,21 @@ public class DeepSeekProviderDefinitionTests
     #region 配置有效性验证
 
     [Fact]
-    public void DeepSeekProviderDefinition_IsValid_WithApiKey_ShouldReturnTrue()
+    public void DeepSeek_IsValid_WithApiKey_ShouldReturnTrue()
     {
-        var definition = GetDeepSeekDefinition();
         var config = new ProviderConfig { ApiKey = "sk-test" };
 
-        var isValid = definition!.IsValid(config);
+        var isValid = _definition.IsValid(config);
 
         isValid.Should().BeTrue();
     }
 
     [Fact]
-    public void DeepSeekProviderDefinition_IsValid_WithEmptyApiKey_ShouldReturnFalse()
+    public void DeepSeek_IsValid_WithEmptyApiKey_ShouldReturnFalse()
     {
-        var definition = GetDeepSeekDefinition();
         var config = new ProviderConfig { ApiKey = "" };
 
-        var isValid = definition!.IsValid(config);
+        var isValid = _definition.IsValid(config);
 
         isValid.Should().BeFalse();
     }
@@ -337,23 +272,43 @@ public class DeepSeekProviderDefinitionTests
     #region 模型别名验证
 
     [Fact]
-    public void DeepSeekProviderDefinition_ResolveAlias_KnownAlias_ShouldNotReturnNull()
+    public void DeepSeek_ResolveAlias_KnownAlias_ShouldNotReturnNull()
     {
-        var definition = GetDeepSeekDefinition();
-
-        var resolved = definition!.ResolveAlias("chat");
+        var resolved = _definition.ResolveAlias("chat");
 
         resolved.Should().NotBeNull();
     }
 
     [Fact]
-    public void DeepSeekProviderDefinition_ResolveAlias_UnknownInput_ShouldReturnNull()
+    public void DeepSeek_ResolveAlias_UnknownInput_ShouldReturnNull()
     {
-        var definition = GetDeepSeekDefinition();
-
-        var resolved = definition!.ResolveAlias("unknown-model");
+        var resolved = _definition.ResolveAlias("unknown-model");
 
         resolved.Should().BeNull();
+    }
+
+    #endregion
+
+    #region Registry 注册验证
+
+    [Fact]
+    public void OpenAiCompatibleProviderDefinition_CanBeConstructedForDeepSeek()
+    {
+        var definition = new OpenAiCompatibleProviderDefinition(_modelConfigLoader, "deepseek", "DEEPSEEK_API_KEY");
+
+        definition.Should().NotBeNull();
+        definition.ProviderName.Should().Be("deepseek");
+        definition.ApiKeyEnvironmentVariable.Should().Be("DEEPSEEK_API_KEY");
+    }
+
+    [Fact]
+    public void AnthropicProviderDefinition_CanBeConstructedForAnthropic()
+    {
+        var definition = new AnthropicProviderDefinition(_modelConfigLoader, "anthropic", "ANTHROPIC_API_KEY");
+
+        definition.Should().NotBeNull();
+        definition.ProviderName.Should().Be("anthropic");
+        definition.ApiKeyEnvironmentVariable.Should().Be("ANTHROPIC_API_KEY");
     }
 
     #endregion

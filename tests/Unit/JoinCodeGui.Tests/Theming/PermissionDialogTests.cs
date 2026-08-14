@@ -30,7 +30,7 @@ public sealed class PermissionDialogTests
             // 等弹窗挂载后从可视树定位目标按钮
             var button = await FindButtonAsync(dialog, buttonText)
                 ?? throw new InvalidOperationException($"未找到按钮: {buttonText}");
-            button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            button.Command?.Execute(null);
 
             return await resultTask;
         }

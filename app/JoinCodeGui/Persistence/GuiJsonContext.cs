@@ -18,4 +18,5 @@ namespace JoinCode.Gui.Persistence;
 [JsonSerializable(typeof(List<GuiSessionMessage>))]
 [JsonSerializable(typeof(GuiSessionSummary))]
 [JsonSerializable(typeof(List<GuiSessionSummary>))]
+[JsonSerializable(typeof(GuiPreferences))]
 public partial class GuiJsonContext : JsonSerializerContext;

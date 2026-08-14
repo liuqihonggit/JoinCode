@@ -20,10 +20,12 @@ public class MainViewModelTests
 {
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(5);
 
-    /// <summary>创建注入 InMemoryFileSystem 会话存储的 ViewModel — 避免测试污染真实 ~/.jcc/sessions</summary>
+    /// <summary>创建注入 InMemoryFileSystem 会话存储的 ViewModel — 避免测试污染真实 ~/.jcc/sessions。
+    /// 传入 PlaceholderChatSession 使构造函数走初始化路径（填充连接/模型列表），对齐真实引擎加载完成后的状态。</summary>
     private static MainViewModel CreateVm() => new(
-        null,
-        new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"));
+        new JoinCode.Gui.Hosting.PlaceholderChatSession(),
+        new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"),
+        new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
 
     /// <summary>设置斜杠输入并手动触发刷新（模拟 View 层防抖后调用）</summary>
     private static void SetSlashInput(MainViewModel vm, string text)
@@ -119,6 +121,31 @@ public class MainViewModelTests
     }
 
     [Fact]
+    public async Task SelectSession_LoadsHistoryIntoUnderlyingSession_EngineReceivesFullHistory()
+    {
+        var store = new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions");
+        var session1 = new HistoryRecordingSession();
+        var vm = new MainViewModel(session1, store);
+
+        vm.InputText = "你好，帮我写个 hello world";
+        await Task.Run(() => vm.SendCommand.ExecuteAsync(null)).WaitAsync(Timeout);
+        var sessionId = vm.Sessions.First(s => s.IsSelected).Id;
+
+        var session2 = new HistoryRecordingSession();
+        var vm2 = new MainViewModel(session2, store);
+        var restored = vm2.Sessions.First(s => s.Id == sessionId);
+
+        await Task.Run(() => vm2.SelectSessionCommand.ExecuteAsync(restored)).WaitAsync(Timeout);
+
+        session2.LoadHistoryCalls.Should().HaveCount(1, "SelectSession 应把持久化历史灌入底层 session");
+        var loaded = session2.LoadHistoryCalls[0];
+        loaded.Should().Contain(m => m.Role == MessageRole.User && m.Content.Contains("hello world"),
+            "灌入的历史应包含已持久化的用户消息");
+        loaded.Should().Contain(m => m.Role == MessageRole.Assistant,
+            "灌入的历史应包含已持久化的助手回复");
+    }
+
+    [Fact]
     public async Task RemoveSession_DeletesPersistedFile()
     {
         var store = new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions");
@@ -138,12 +165,13 @@ public class MainViewModelTests
     [Fact]
     public void ModelOptions_AreBoundToSessionRealModels()
     {
-        var vm = CreateVm();
+        var fake = new FakeSession();
+        var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
 
-        vm.ModelOptions.Select(m => m.Id).Should().BeEquivalentTo(["deepseek-v4-flash", "deepseek-v4-pro"]);
-        vm.SelectedModel.Should().Be("deepseek-v4-flash");
+        vm.ModelOptions.Select(m => m.Id).Should().BeEquivalentTo(["fake-model"]);
+        vm.SelectedModel.Should().Be("fake-model");
         vm.SelectedModelOption.Should().NotBeNull();
-        vm.SelectedModelOption!.Id.Should().Be("deepseek-v4-flash");
+        vm.SelectedModelOption!.Id.Should().Be("fake-model");
     }
 
     [Fact]
@@ -170,22 +198,23 @@ public class MainViewModelTests
     [Fact]
     public void SelectedModelOptionChange_SyncsSelectedModel()
     {
-        var vm = CreateVm();
+        var session = new CrossContaminationSession();
+        var vm = new MainViewModel(session, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
 
-        var target = vm.ModelOptions.First(m => m.Id == "deepseek-v4-pro");
+        var target = vm.ModelOptions.First(m => m.Id == "sensenova-u1-fast");
         vm.SelectedModelOption = target;
 
-        vm.SelectedModel.Should().Be("deepseek-v4-pro");
+        vm.SelectedModel.Should().Be("sensenova-u1-fast");
     }
 
     [Fact]
-    public void ConnectionOptions_IncludeMockAndRealProvider()
+    public void ConnectionOptions_OnlyRealProviders()
     {
         var fake = new FakeSession();
-        var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"));
+        var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
 
         var options = vm.ConnectionOptions;
-        options.Should().Contain(o => o.IsMock && o.DisplayText.Contains("Mock"));
+        options.Should().NotContain(o => o.IsMock);
         options.Should().Contain(o => !o.IsMock && o.Id == "fake");
         vm.SelectedConnection.Should().NotBeNull();
         vm.SelectedConnection!.IsMock.Should().BeFalse("真实引擎存在时默认连接真实引擎");
@@ -193,30 +222,25 @@ public class MainViewModelTests
     }
 
     [Fact]
-    public void SwitchToMockConnection_UpdatesStatusAndModels()
+    public void ToggleMock_UpdatesStatusAndModels()
     {
         var fake = new FakeSession();
-        var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"));
+        var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
 
-        var mock = vm.ConnectionOptions.First(o => o.IsMock);
-        vm.SelectedConnection = mock;
+        vm.ToggleMockCommand.Execute(null);
 
         vm.IsMockConnection.Should().BeTrue();
         vm.StatusText.Should().Contain("Mock");
-        vm.ModelOptions.Select(m => m.Id).Should().BeEquivalentTo(["deepseek-v4-flash", "deepseek-v4-pro"]);
-        vm.SelectedModel.Should().Be("deepseek-v4-flash");
     }
 
     [Fact]
-    public void SwitchToRealConnection_RestoresRealSession()
+    public void ToggleMock_ToggleBackRestoresRealSession()
     {
         var fake = new FakeSession();
-        var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"));
-        var mock = vm.ConnectionOptions.First(o => o.IsMock);
-        var real = vm.ConnectionOptions.First(o => !o.IsMock);
+        var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
 
-        vm.SelectedConnection = mock;
-        vm.SelectedConnection = real;
+        vm.ToggleMockCommand.Execute(null);
+        vm.ToggleMockCommand.Execute(null);
 
         vm.IsMockConnection.Should().BeFalse();
         vm.StatusText.Should().Contain("真实");
@@ -227,22 +251,32 @@ public class MainViewModelTests
     public void SwitchProvider_UpdatesModelListFromVendorModelMap()
     {
         var fake = new FakeSession();
-        var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"));
+        var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
 
         // 初始默认选 "fake" 真实供应商
         vm.SelectedConnection!.Id.Should().Be("fake");
         vm.ModelOptions.Select(m => m.Id).Should().BeEquivalentTo(["fake-model"]);
+    }
 
-        // 切换到 Mock — 模型列表应从 PlaceholderChatSession.VendorModelMap["deepseek"] 读取
-        var mock = vm.ConnectionOptions.First(o => o.IsMock);
-        vm.SelectedConnection = mock;
-        vm.ModelOptions.Select(m => m.Id).Should().Contain("deepseek-v4-flash");
-        vm.ModelOptions.Select(m => m.Id).Should().Contain("deepseek-v4-pro");
+    /// <summary>跨供应商切换时，旧供应商的 CurrentModelId 不应污染新供应商的模型列表</summary>
+    [Fact]
+    public void ModelOptions_DoesNotCrossContaminateModelsFromOtherProviders()
+    {
+        var session = new CrossContaminationSession();
+        var vm = new MainViewModel(session, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
 
-        // 切换回 "fake" — 模型列表应恢复为 fake 的模型
-        var fakeConn = vm.ConnectionOptions.First(o => !o.IsMock);
-        vm.SelectedConnection = fakeConn;
-        vm.ModelOptions.Select(m => m.Id).Should().BeEquivalentTo(["fake-model"]);
+        // 初始选 sensenova，模型列表应包含 sensenova 模型
+        vm.SelectedConnection!.Id.Should().Be("sensenova");
+        vm.ModelOptions.Select(m => m.Id).Should().Contain("sensenova-6.7-flash-lite");
+
+        // 切换到 anthropic
+        var anthropic = vm.ConnectionOptions.First(o => o.Id == "anthropic");
+        vm.SelectedConnection = anthropic;
+
+        // anthropic 模型列表不应混入 sensenova 模型
+        vm.ModelOptions.Select(m => m.Id).Should().NotContain("sensenova-6.7-flash-lite");
+        vm.ModelOptions.Select(m => m.Id).Should().OnlyContain(
+            id => !id.StartsWith("sensenova", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -270,7 +304,7 @@ public class MainViewModelTests
     public void AttachRealSession_HotSwapsPlaceholderToRealEngine()
     {
         // 异步启动路径：VM 先以占位会话显示，引擎组装完成后再热切换
-        var vm = new MainViewModel(null, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"));
+        var vm = new MainViewModel(null, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
         vm.IsMockConnection.Should().BeTrue("未注入会话时处于 Mock 占位");
 
         var fake = new FakeSession();
@@ -283,13 +317,15 @@ public class MainViewModelTests
         vm.ModelOptions.Select(m => m.Id).Should().BeEquivalentTo(["fake-model"]);
     }
 
-    /// <summary>占位模式（session is null）时状态栏应显示加载提示，让用户知道引擎正在后台组装</summary>
+    /// <summary>占位模式（session is null）时状态栏应显示加载提示，但供应商/模型列表仍从 models.json 填充供预览</summary>
     [Fact]
     public void PlaceholderMode_ShowsLoadingStatus()
     {
-        var vm = CreateVm();
+        var vm = new MainViewModel(null, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
         vm.IsMockConnection.Should().BeTrue("未注入会话时处于 Mock 占位");
         vm.StatusText.Should().Be("正在加载引擎…");
+        vm.IsEngineLoaded.Should().BeFalse("引擎未加载完成");
+        vm.ConnectionOptions.Should().NotBeEmpty("引擎未就绪时仍从 models.json 填充供应商列表供预览");
     }
 
     [Fact]
@@ -732,7 +768,7 @@ public class MainViewModelTests
         public async Task TemperatureAndMaxTokens_SliderChange_WritesBackToSession()
         {
             var session = new FakeSession();
-            var vm = new MainViewModel(session, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"));
+            var vm = new MainViewModel(session, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
 
             vm.Temperature = 1.2;
             vm.MaxTokens = 3000;
@@ -985,7 +1021,7 @@ public class MainViewModelTests
         public async Task PermissionConfirmation_NoCallback_DefaultsToDeny()
         {
             var fake = new FakeSession();
-            var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"));
+            var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
 
             var decision = await fake.Handler!(new PermissionConfirmationRequest("bash", "运行命令?", "req-1", "rule"));
 
@@ -996,7 +1032,7 @@ public class MainViewModelTests
         public async Task PermissionConfirmation_WithCallback_DelegatesToView()
         {
             var fake = new FakeSession();
-            var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"));
+            var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
             PermissionConfirmationRequest? received = null;
             vm.PermissionConfirmCallback = req =>
             {
@@ -1024,7 +1060,7 @@ public class MainViewModelTests
         public async Task Send_WhenSessionThrows_SetsErrorToast()
         {
             var fake = new ThrowingSession();
-            var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"));
+            var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
 
             vm.InputText = "hello";
             await Task.Run(() => vm.SendCommand.ExecuteAsync(null)).WaitAsync(Timeout);
@@ -1037,7 +1073,7 @@ public class MainViewModelTests
         public async Task Send_WhenSessionThrows_KeepsStatusReady()
         {
             var fake = new ThrowingSession();
-            var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"));
+            var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
 
             vm.InputText = "hello";
             await Task.Run(() => vm.SendCommand.ExecuteAsync(null)).WaitAsync(Timeout);
@@ -1098,6 +1134,10 @@ public class MainViewModelTests
             public Task<RewindResult> RewindLastTurnAsync(CancellationToken cancellationToken = default)
                 => Task.FromResult(new RewindResult());
             public Task SetModelAsync(string modelId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public Task SetVendorAsync(string vendor, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public void RefreshVendorModelMap() { }
+            public void SwitchSession(string sessionId) { }
+            public Task LoadHistoryAsync(IReadOnlyList<(MessageRole Role, string Content)> messages, CancellationToken cancellationToken = default) => Task.CompletedTask;
             public EffortLevel EffortLevel => EffortLevel.Auto;
             public Task SetEffortLevelAsync(EffortLevel effortLevel, CancellationToken cancellationToken = default) => Task.CompletedTask;
             public Task SetSystemPromptAsync(string systemPrompt, CancellationToken cancellationToken = default) => Task.CompletedTask;
@@ -1108,6 +1148,10 @@ public class MainViewModelTests
             public IReadOnlyList<SlashCommandMetadata> GetAvailableSlashCommands() => [];
             public Task<IReadOnlyList<ToolSummary>> GetAvailableToolsAsync(CancellationToken cancellationToken = default)
                 => Task.FromResult<IReadOnlyList<ToolSummary>>([]);
+            public Task<JoinCode.Abstractions.UI.ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default)
+                => Task.FromResult(JoinCode.Abstractions.UI.ThemeKind.Auto);
+            public Task SetThemeAsync(JoinCode.Abstractions.UI.ThemeKind theme, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public event EventHandler<JoinCode.Abstractions.UI.ThemeKind>? ThemeChanged { add { } remove { } }
             public ValueTask DisposeAsync() => ValueTask.CompletedTask;
         }
 
@@ -1144,6 +1188,10 @@ public class MainViewModelTests
             public Task<RewindResult> RewindLastTurnAsync(CancellationToken cancellationToken = default)
                 => Task.FromResult(new RewindResult());
             public Task SetModelAsync(string modelId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public Task SetVendorAsync(string vendor, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public void RefreshVendorModelMap() { }
+            public void SwitchSession(string sessionId) { }
+            public Task LoadHistoryAsync(IReadOnlyList<(MessageRole Role, string Content)> messages, CancellationToken cancellationToken = default) => Task.CompletedTask;
             public EffortLevel EffortLevel => EffortLevel.Auto;
             public Task SetEffortLevelAsync(EffortLevel effortLevel, CancellationToken cancellationToken = default) => Task.CompletedTask;
             public Task SetSystemPromptAsync(string systemPrompt, CancellationToken cancellationToken = default)
@@ -1166,6 +1214,108 @@ public class MainViewModelTests
             public IReadOnlyList<SlashCommandMetadata> GetAvailableSlashCommands() => [];
             public Task<IReadOnlyList<ToolSummary>> GetAvailableToolsAsync(CancellationToken cancellationToken = default)
                 => Task.FromResult<IReadOnlyList<ToolSummary>>([]);
+            public Task<JoinCode.Abstractions.UI.ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default)
+                => Task.FromResult(JoinCode.Abstractions.UI.ThemeKind.Auto);
+            public Task SetThemeAsync(JoinCode.Abstractions.UI.ThemeKind theme, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public event EventHandler<JoinCode.Abstractions.UI.ThemeKind>? ThemeChanged { add { } remove { } }
+            public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        }
+
+        /// <summary>跨供应商污染测试桩 — CurrentModelId 是 sensenova 的模型，VendorModelMap 包含 anthropic 和 sensenova</summary>
+        private sealed class CrossContaminationSession : IJccChatSession
+        {
+            public bool IsReady => true;
+            public string CurrentVendor => "sensenova";
+            public string CurrentModelId => "sensenova-6.7-flash-lite";
+            public IReadOnlyDictionary<string, IReadOnlyList<string>> VendorModelMap { get; }
+                = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["anthropic"] = ["claude-sonnet-4-20250514", "claude-opus-4-20250514"],
+                    ["sensenova"] = ["sensenova-6.7-flash-lite", "sensenova-u1-fast"]
+                };
+            public Func<PermissionConfirmationRequest, Task<PermissionConfirmationDecision>>? PermissionConfirmationHandler { get; set; }
+            public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public async IAsyncEnumerable<ChatStreamEvent> StreamAsync(string message, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+            {
+                yield return ChatStreamEvent.Done();
+                await Task.CompletedTask;
+            }
+            public Task<IReadOnlyList<ApiMessageRecord>> GetMessagesAsync(CancellationToken cancellationToken = default)
+                => Task.FromResult<IReadOnlyList<ApiMessageRecord>>([]);
+            public Task ClearHistoryAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public Task<RewindResult> RewindLastTurnAsync(CancellationToken cancellationToken = default)
+                => Task.FromResult(new RewindResult());
+            public Task SetModelAsync(string modelId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public Task SetVendorAsync(string vendor, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public void RefreshVendorModelMap() { }
+            public void SwitchSession(string sessionId) { }
+            public Task LoadHistoryAsync(IReadOnlyList<(MessageRole Role, string Content)> messages, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public EffortLevel EffortLevel => EffortLevel.Auto;
+            public Task SetEffortLevelAsync(EffortLevel effortLevel, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public Task SetSystemPromptAsync(string systemPrompt, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public float? Temperature => null;
+            public int? MaxTokens => null;
+            public Task SetTemperatureAsync(float temperature, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public Task SetMaxTokensAsync(int maxTokens, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public IReadOnlyList<SlashCommandMetadata> GetAvailableSlashCommands() => [];
+            public Task<IReadOnlyList<ToolSummary>> GetAvailableToolsAsync(CancellationToken cancellationToken = default)
+                => Task.FromResult<IReadOnlyList<ToolSummary>>([]);
+            public Task<JoinCode.Abstractions.UI.ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default)
+                => Task.FromResult(JoinCode.Abstractions.UI.ThemeKind.Auto);
+            public Task SetThemeAsync(JoinCode.Abstractions.UI.ThemeKind theme, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public event EventHandler<JoinCode.Abstractions.UI.ThemeKind>? ThemeChanged { add { } remove { } }
+            public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        }
+
+        /// <summary>记录 LoadHistoryAsync 调用的假会话，用于验证 SelectSession 把历史灌入底层引擎</summary>
+        private sealed class HistoryRecordingSession : IJccChatSession
+        {
+            public List<IReadOnlyList<(MessageRole Role, string Content)>> LoadHistoryCalls { get; } = [];
+
+            public Func<PermissionConfirmationRequest, Task<PermissionConfirmationDecision>>? PermissionConfirmationHandler { get; set; }
+            public bool IsReady => true;
+            public string CurrentVendor => "fake";
+            public string CurrentModelId => "fake-model";
+            public IReadOnlyDictionary<string, IReadOnlyList<string>> VendorModelMap { get; }
+                = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["fake"] = ["fake-model"]
+                };
+            public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public async IAsyncEnumerable<ChatStreamEvent> StreamAsync(string message, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+            {
+                yield return ChatStreamEvent.Text("收到：" + message);
+                yield return ChatStreamEvent.Done();
+                await Task.CompletedTask;
+            }
+            public Task<IReadOnlyList<ApiMessageRecord>> GetMessagesAsync(CancellationToken cancellationToken = default)
+                => Task.FromResult<IReadOnlyList<ApiMessageRecord>>([]);
+            public Task ClearHistoryAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public Task<RewindResult> RewindLastTurnAsync(CancellationToken cancellationToken = default)
+                => Task.FromResult(new RewindResult());
+            public Task SetModelAsync(string modelId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public Task SetVendorAsync(string vendor, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public void RefreshVendorModelMap() { }
+            public void SwitchSession(string sessionId) { }
+            public Task LoadHistoryAsync(IReadOnlyList<(MessageRole Role, string Content)> messages, CancellationToken cancellationToken = default)
+            {
+                LoadHistoryCalls.Add(messages);
+                return Task.CompletedTask;
+            }
+            public EffortLevel EffortLevel => EffortLevel.Auto;
+            public Task SetEffortLevelAsync(EffortLevel effortLevel, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public Task SetSystemPromptAsync(string systemPrompt, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public float? Temperature => null;
+            public int? MaxTokens => null;
+            public Task SetTemperatureAsync(float temperature, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public Task SetMaxTokensAsync(int maxTokens, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public IReadOnlyList<SlashCommandMetadata> GetAvailableSlashCommands() => [];
+            public Task<IReadOnlyList<ToolSummary>> GetAvailableToolsAsync(CancellationToken cancellationToken = default)
+                => Task.FromResult<IReadOnlyList<ToolSummary>>([]);
+            public Task<JoinCode.Abstractions.UI.ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default)
+                => Task.FromResult(JoinCode.Abstractions.UI.ThemeKind.Auto);
+            public Task SetThemeAsync(JoinCode.Abstractions.UI.ThemeKind theme, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public event EventHandler<JoinCode.Abstractions.UI.ThemeKind>? ThemeChanged { add { } remove { } }
             public ValueTask DisposeAsync() => ValueTask.CompletedTask;
         }
     }
@@ -1178,7 +1328,7 @@ public class MainViewModelTests
         [Fact]
         public void ToolResultText_AppearsInAllMessagesText()
         {
-            var vm = new MainViewModel(null, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"));
+            var vm = new MainViewModel(null, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
             vm.Messages.Add(new ChatUiMessage
             {
                 Role = MessageRole.User,

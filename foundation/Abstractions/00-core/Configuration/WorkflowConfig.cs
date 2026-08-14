@@ -98,4 +98,9 @@ public class WorkflowConfig {
     /// 子智能体输出防护配置 — L0-L3 炸窗防护
     /// </summary>
     public SubAgentConfig SubAgent { get; set; } = new();
+
+    /// <summary>
+    /// 当前激活的配置档案名 — 对应 settings.json 中 profiles 字典的键
+    /// </summary>
+    public string? CurrentProfile { get; set; }
 }

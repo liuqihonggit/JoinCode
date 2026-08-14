@@ -4,7 +4,7 @@ namespace JoinCode.Guard.Security.PowerShell;
 /// <summary>
 /// PowerShell 权限模式验证。
 /// 检查命令是否应基于当前权限模式自动允许。
-/// 在 acceptEdits 模式下，文件系统修改的 PS cmdlet 自动允许。
+/// 在 Auto 模式下，文件系统修改的 PS cmdlet 自动允许。
 /// 对齐 TS: src/tools/PowerShellTool/modeValidation.ts
 /// </summary>
 public static class PsModeValidation
@@ -145,12 +145,12 @@ public static class PsModeValidation
     /// <returns>验证结果</returns>
     public static ShellPermissionCheckResult CheckPermissionMode(string command, string mode)
     {
-        if (mode is "bypassPermissions" or "dontAsk")
+        if (mode is not null && (mode.Equals(PermissionMode.Bypass.ToValue(), StringComparison.OrdinalIgnoreCase)))
         {
             return new ShellPermissionCheckResult(PermissionBehavior.Passthrough, "Mode is handled in main permission flow");
         }
 
-        if (mode != PermissionModeConstants.AcceptEdits)
+        if (mode != PermissionMode.Auto.ToValue())
         {
             return new ShellPermissionCheckResult(PermissionBehavior.Passthrough, "No mode-specific validation required");
         }

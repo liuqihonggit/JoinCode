@@ -9,13 +9,16 @@ namespace Core.Hooks.Execution;
 public sealed partial class AgentHookExecutor : HookExecutorBase<AgentHook>
 {
     private readonly IAgentService? _agentService;
+    private readonly IModelConfigLoader _modelConfigLoader;
 
     public AgentHookExecutor(
         IAgentService? agentService = null,
+        IModelConfigLoader? modelConfigLoader = null,
         ILogger<AgentHookExecutor>? logger = null)
         : base(logger)
     {
         _agentService = agentService;
+        _modelConfigLoader = modelConfigLoader ?? new ModelConfigLoader();
     }
 
     /// <inheritdoc />
@@ -72,7 +75,7 @@ public sealed partial class AgentHookExecutor : HookExecutorBase<AgentHook>
         var fullPrompt = BuildAgentPrompt(prompt, input);
 
         // 使用小型快速模型（如果未指定）
-        var model = hook.Model ?? JoinCode.Abstractions.Configuration.Llm.ModelConfigLoader.GetDefaultModelId("anthropic");
+        var model = hook.Model ?? _modelConfigLoader.GetDefaultModelId("anthropic");
 
         // 调用代理服务 — 未注册时返回非阻塞错误（不阻断 DI 链路）
         if (_agentService is null)

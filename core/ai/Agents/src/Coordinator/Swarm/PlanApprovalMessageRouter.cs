@@ -154,7 +154,7 @@ public sealed partial class PlanApprovalMessageRouter : ServiceEntity
             // 对齐 TS: Leader 自动批准 — 构造 plan_approval_response
             var currentMode = _permissionManager != null
                 ? await _permissionManager.GetCurrentModeAsync(ct).ConfigureAwait(false)
-                : PermissionMode.Default;
+                : PermissionMode.Auto;
 
             var response = new PlanApprovalResponseMessage
             {

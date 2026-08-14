@@ -262,6 +262,7 @@ public sealed class ApplicationBuilder
             PipeName = result.Pipe,
             Prompt = result.Prompt,
             Model = result.Model,
+            Vendor = result.Vendor,
             NonInteractive = result.NonInteractive,
             NoConfirm = result.NoConfirm,
             TrustWorkspace = result.Trust,
@@ -301,15 +302,29 @@ public sealed class ApplicationBuilder
 
         // 视角1 #6 + #9: CLI 参数 → JCC_PERMISSION_MODE 环境变量
         // 决策: 复用 PermissionChecker.TryGetPermissionModeFromEnv 现有逻辑，不修改 PermissionChecker 构造函数
-        // --dangerously-skip-permissions 等价于 --permission-mode bypassPermissions
+        // --dangerously-skip-permissions 等价于 --permission-mode bypass
         // 两者同时存在时 --permission-mode 优先（更具体）
         var permissionModeFromCli = !string.IsNullOrEmpty(options.PermissionMode)
             ? options.PermissionMode
-            : options.DangerouslySkipPermissions ? "bypassPermissions" : null;
+            : options.DangerouslySkipPermissions ? "bypass" : null;
         if (!string.IsNullOrEmpty(permissionModeFromCli))
         {
             Environment.SetEnvironmentVariable(JccEnvVar.PermissionMode.ToValue(), permissionModeFromCli);
             Diag.WriteLine($"[MAIN] CLI permission-mode={permissionModeFromCli} → JCC_PERMISSION_MODE 环境变量已设置");
+        }
+
+        // --vendor: CLI 参数 → JCC_VENDOR 环境变量（自动匹配 profiles 中的同名预设）
+        if (!string.IsNullOrEmpty(options.Vendor))
+        {
+            Environment.SetEnvironmentVariable(JccEnvVar.Vendor.ToValue(), options.Vendor);
+            Diag.WriteLine($"[MAIN] CLI vendor={options.Vendor} → JCC_VENDOR 环境变量已设置");
+        }
+
+        // --model: CLI 参数 → JCC_MODEL_ID 环境变量（统一走环境变量覆盖链，与 --vendor 一致）
+        if (!string.IsNullOrEmpty(options.Model))
+        {
+            Environment.SetEnvironmentVariable(JccEnvVar.ModelId.ToValue(), options.Model);
+            Diag.WriteLine($"[MAIN] CLI model={options.Model} → JCC_MODEL_ID 环境变量已设置");
         }
 
         if (Cli.TerminalHelper.IsHeadless)
@@ -389,23 +404,21 @@ public sealed class ApplicationBuilder
             }
             else
             {
-                config = new WorkflowConfig();
+                throw;
             }
         }
 
         if (dotEnv is not null)
         {
-            dotEnv.ApplyToMemory(config, new Core.Configuration.Providers.ProviderDefinitionRegistry());
+            dotEnv.ApplyToMemory(config, new Core.Configuration.Providers.ProviderDefinitionRegistry(new ModelConfigLoader()));
         }
 
         // 环境变量优先级最高 — 无论 dotEnv 是否存在，都必须应用环境变量覆盖
         // 修复: 之前 ApplyEnvOverrides 只在 dotEnv != null 时调用，
         // 导致无 .env/api.json 时 JCC_ENDPOINT/JCC_MODEL_ID 等环境变量不生效
-        new Core.Configuration.SettingsMapper(new Core.Configuration.Providers.ProviderDefinitionRegistry()).ApplyEnvOverrides(config);
+        new Core.Configuration.SettingsMapper(new Core.Configuration.Providers.ProviderDefinitionRegistry(new ModelConfigLoader())).ApplyEnvOverrides(config);
 
-        if (!string.IsNullOrWhiteSpace(options.Model))
-            config.Provider.ModelId = options.Model;
-
+        // --model 已在 ParseArgs 阶段转为 JCC_MODEL_ID 环境变量，由 EnvOverrideApplier + ApplyEnvOverrides 统一处理
         if (options.IsPipeMode)
             config.PipeEndpoint = new PipeTransportConfig { PipeName = options.PipeName ?? throw new InvalidOperationException("PipeName required in pipe mode") };
 
@@ -442,7 +455,7 @@ public sealed class ApplicationBuilder
         Cli.TerminalHelper.WriteLine("  JCC_LOG_LEVEL          日志级别 (Trace/Debug/Information/Warning/Error)");
         Cli.TerminalHelper.WriteLine("  JCC_LANGUAGE           界面语言 (zh/en)");
         Cli.TerminalHelper.WriteLine("  JCC_CONFIG_PATH        自定义配置文件路径");
-        Cli.TerminalHelper.WriteLine("  JCC_PERMISSION_MODE    权限模式 (auto/plan/ask/deny/bypassPermissions)");
+        Cli.TerminalHelper.WriteLine("  JCC_PERMISSION_MODE    权限模式 (plan/auto/ask/bypass)");
         Cli.TerminalHelper.WriteLine("  JCC_CLOCK_MODE         时钟模式 (Physical/Fake，调试用)");
         Cli.TerminalHelper.WriteLine("  NO_COLOR               禁用颜色输出（https://no-color.org/ 标准）");
         Cli.TerminalHelper.WriteLine("  APP_NO_TUI             禁用 TUI 交互");

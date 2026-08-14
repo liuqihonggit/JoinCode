@@ -1,0 +1,73 @@
+namespace JoinCode.Adapters;
+
+/// <summary>
+/// CLI 权限确认处理器 — ^ 提示符交互式确认
+/// 输入通过 ReplLoopStep 的 readTask 单通道路由，避免 stdin 竞争
+/// </summary>
+[Register(typeof(IPermissionConfirmationHandler))]
+public sealed class CliPermissionConfirmationHandler : IPermissionConfirmationHandler
+{
+    private readonly IToolPermissionManager? _permissionManager;
+
+    public CliPermissionConfirmationHandler(IToolPermissionManager? permissionManager = null)
+    {
+        _permissionManager = permissionManager;
+    }
+
+    public PermissionConfirmAction Confirm(string toolName, string confirmationPrompt)
+    {
+        Cli.TerminalHelper.WriteLine();
+        using (Cli.TerminalHelper.SetColor(ConsoleColor.Cyan))
+            Cli.TerminalHelper.WriteRaw("^ ");
+        using (Cli.TerminalHelper.SetColor(ConsoleColor.Yellow))
+            Cli.TerminalHelper.WriteLine($"权限确认: {confirmationPrompt}");
+
+        using (Cli.TerminalHelper.SetColor(ConsoleColor.Cyan))
+            Cli.TerminalHelper.WriteRaw("^ ");
+        using (Cli.TerminalHelper.SetColor(ConsoleColor.DarkGray))
+            Cli.TerminalHelper.WriteRaw("(y)允许 / (a)始终允许 / (n)拒绝 [n]: ");
+
+        if (Cli.TerminalHelper.IsInputRedirected || Core.Utils.TestEnvironmentDetector.IsNonInteractive)
+        {
+            Cli.TerminalHelper.WriteLine("非交互环境，自动拒绝");
+            return PermissionConfirmAction.Deny;
+        }
+
+        try
+        {
+            var tcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+            ConfirmationGate.Source = tcs;
+            ConfirmationGate.Pending = true;
+
+            var input = tcs.Task.GetAwaiter().GetResult();
+
+            ConfirmationGate.Pending = false;
+            ConfirmationGate.Source = null;
+
+            Cli.TerminalHelper.NewLine();
+
+            var action = input.Trim().ToLowerInvariant() switch
+            {
+                "y" or "yes" => PermissionConfirmAction.Allow,
+                "a" or "always" => PermissionConfirmAction.AlwaysAllow,
+                _ => PermissionConfirmAction.Deny
+            };
+
+            if (_permissionManager is not null)
+            {
+                if (action == PermissionConfirmAction.Allow)
+                    _permissionManager.ApproveToolTemporarily(toolName, TimeSpan.FromMinutes(1));
+                else if (action == PermissionConfirmAction.AlwaysAllow)
+                    _permissionManager.ApproveToolTemporarily(toolName, TimeSpan.FromMinutes(30));
+            }
+
+            return action;
+        }
+        catch
+        {
+            ConfirmationGate.Pending = false;
+            ConfirmationGate.Source = null;
+            return PermissionConfirmAction.Deny;
+        }
+    }
+}

@@ -29,27 +29,14 @@ public sealed partial class PathPermissionMiddleware : ServiceEntity, IPermissio
             return next(context, ct);
 
         // 仅 Default 和 Auto 模式需要路径权限检查
-        if (context.CurrentMode != PermissionMode.Default && context.CurrentMode != PermissionMode.Auto)
+        if (context.CurrentMode != PermissionMode.Auto)
             return next(context, ct);
 
         if (PermissionCheckContext.ExtractPathFromArguments(context.Arguments) is not { } path || string.IsNullOrEmpty(path))
             return next(context, ct);
 
-        // Auto 模式仅拦截非批准结果
-        if (context.CurrentMode == PermissionMode.Auto)
-        {
-            var autoPathResult = CheckPathPermission(context);
-            if (autoPathResult is not null && !autoPathResult.IsApproved)
-            {
-                context.Result = autoPathResult;
-                return Task.CompletedTask;
-            }
-            return next(context, ct);
-        }
-
-        // Default 模式：完整路径权限检查
         var pathResult = CheckPathPermission(context);
-        if (pathResult is not null)
+        if (pathResult is not null && !pathResult.IsApproved)
         {
             context.Result = pathResult;
             return Task.CompletedTask;

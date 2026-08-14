@@ -83,7 +83,8 @@ public sealed class StreamingConcurrentToolE2ETests : CoverageTestBase
                     },
                     Asserts =
                     [
-                        new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Write:Write", Description = "应调用 Write 工具" },
+                        new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Write", Description = "应调用第一个 Write 工具" },
+                        new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Write", Description = "应调用第二个 Write 工具" },
                         new OutputAssert { Type = AssertType.NoErrors, Expected = "", Description = "不应有错误" },
                     ]
                 }

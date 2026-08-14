@@ -3,6 +3,13 @@ namespace Core.Configuration.Providers;
 
 public abstract class OpenAICompatibleProviderDefinitionBase : IProviderDefinition
 {
+    protected readonly IModelConfigLoader _modelConfigLoader;
+
+    protected OpenAICompatibleProviderDefinitionBase(IModelConfigLoader modelConfigLoader)
+    {
+        _modelConfigLoader = modelConfigLoader;
+    }
+
     protected virtual string ProviderConfigKey => "openai";
 
     public abstract VendorKind Vendor { get; }
@@ -45,26 +52,26 @@ public abstract class OpenAICompatibleProviderDefinitionBase : IProviderDefiniti
         return !string.IsNullOrWhiteSpace(config.ApiKey);
     }
 
-    public virtual IEnumerable<ModelEntry> AvailableModels => ModelConfigLoader.GetModels(ProviderConfigKey);
+    public virtual IEnumerable<ModelEntry> AvailableModels => _modelConfigLoader.GetModels(ProviderConfigKey);
 
     public virtual string? ResolveAlias(string input)
     {
-        return ModelConfigLoader.ResolveAlias(ProviderConfigKey, input);
+        return _modelConfigLoader.ResolveAlias(ProviderConfigKey, input);
     }
 
     public virtual bool SupportsFastMode(string modelId)
     {
-        return ModelConfigLoader.SupportsFastMode(ProviderConfigKey, modelId);
+        return _modelConfigLoader.SupportsFastMode(ProviderConfigKey, modelId);
     }
 
     public virtual bool SupportsEffort(string modelId)
     {
-        return ModelConfigLoader.SupportsEffort(ProviderConfigKey, modelId);
+        return _modelConfigLoader.SupportsEffort(ProviderConfigKey, modelId);
     }
 
     public virtual bool SupportsMaxEffort(string modelId)
     {
-        return ModelConfigLoader.SupportsMaxEffort(ProviderConfigKey, modelId);
+        return _modelConfigLoader.SupportsMaxEffort(ProviderConfigKey, modelId);
     }
 
     public virtual string? DefaultApiVersion => null;

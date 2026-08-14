@@ -1,6 +1,7 @@
 namespace Api.LLM.QueryServices.OpenAI;
 
 using Api.LLM.CacheProtocol;
+using JoinCode.Abstractions.Diagnostics;
 
 /// <summary>
 /// OpenAI 协议 QueryService 实现 — 覆盖 OpenAI 兼容协议（chat/completions 端点 + Bearer Token）
@@ -23,8 +24,10 @@ public class OpenAIQueryService : QueryServiceBase
         IChatClient? kernel = null,
         CancellationToken cancellationToken = default)
     {
+        Logger?.LogDebug("[WIRE {CallId}] 非流式请求入口 | 消息数={MsgCount}", CallTrace.CurrentId, chatHistory.Count);
         var request = CreateRequest(chatHistory, executionSettings, stream: false, kernel);
         var response = await SendRequestAsync(request, cancellationToken).ConfigureAwait(false);
+        Logger?.LogDebug("[WIRE {CallId}] 非流式响应 | choices={ChoiceCount}", CallTrace.CurrentId, response.Choices.Count);
         return response.Choices.Select(c => ConvertToApiMessage(c, response.Usage)).ToList();
     }
 
@@ -35,6 +38,7 @@ public class OpenAIQueryService : QueryServiceBase
         IChatClient? kernel = null,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
+        Logger?.LogDebug("[WIRE {CallId}] 流式请求入口 | 消息数={MsgCount}", CallTrace.CurrentId, chatHistory.Count);
         var request = CreateRequest(chatHistory, executionSettings, stream: true, kernel);
         var responseStream = SendStreamingRequestAsync(request, cancellationToken);
 
@@ -143,7 +147,7 @@ public class OpenAIQueryService : QueryServiceBase
 
     #region 请求构建
 
-    internal OpenAIChatRequest CreateRequest(MessageList chatHistory, ChatOptions? settings, bool stream, IChatClient? kernel)
+    internal virtual OpenAIChatRequest CreateRequest(MessageList chatHistory, ChatOptions? settings, bool stream, IChatClient? kernel)
     {
         var messages = chatHistory.Select(ConvertToOpenAIMessage).ToList();
 
@@ -243,9 +247,9 @@ public class OpenAIQueryService : QueryServiceBase
             .ToList();
     }
 
-    private static OpenAIFunctionParameters? BuildParameters(IReadOnlyList<IToolParam> parameters)
+    private static OpenAIFunctionParameters BuildParameters(IReadOnlyList<IToolParam> parameters)
     {
-        if (parameters.Count == 0) return null;
+        if (parameters.Count == 0) return new OpenAIFunctionParameters();
 
         var props = new Dictionary<string, OpenAIParameterProperty>();
 
@@ -276,7 +280,8 @@ public class OpenAIQueryService : QueryServiceBase
         var json = JsonSerializer.Serialize(request, NativeJsonContext.Default.OpenAIChatRequest);
         var endpoint = GetChatEndpoint(Config);
 
-        var response = await SendWithResilienceAsync(json, endpoint, "LLM.ChatCompletion", cancellationToken).ConfigureAwait(false);
+        var response = await SendWithResilienceAsync(json, endpoint, "LLM.ChatCompletion", cancellationToken,
+            HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
 
         response.EnsureSuccessStatusCode();
 
@@ -308,14 +313,20 @@ public class OpenAIQueryService : QueryServiceBase
         var json = JsonSerializer.Serialize(request, NativeJsonContext.Default.OpenAIChatRequest);
         var endpoint = GetChatEndpoint(Config);
 
-        var response = await SendWithResilienceAsync(json, endpoint, "LLM.StreamingChatCompletion", cancellationToken).ConfigureAwait(false);
+        var response = await SendWithResilienceAsync(json, endpoint, "LLM.StreamingChatCompletion", cancellationToken,
+            HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
 
         response.EnsureSuccessStatusCode();
 
         ExtractRateLimitHeaders(response);
+        Logger?.LogDebug("[WIRE {CallId}] POST {Endpoint} → {StatusCode}", CallTrace.CurrentId, endpoint, response.StatusCode);
 
         var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
         using var reader = new StreamReader(stream, Encoding.UTF8);
+
+        var chunkCount = 0;
+        var contentChunks = 0;
+        var toolCallChunks = 0;
 
         string? line;
         while ((line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) != null)
@@ -325,7 +336,11 @@ public class OpenAIQueryService : QueryServiceBase
             if (!line.StartsWith("data: ")) continue;
 
             var data = line[6..];
-            if (data == "[DONE]") yield break;
+            if (data == "[DONE]")
+            {
+                Diag.WriteLine($"[WIRE {CallTrace.CurrentId}] 流结束 | chunks={chunkCount}, content={contentChunks}, toolCalls={toolCallChunks}");
+                yield break;
+            }
 
             OpenAIChatChunk? chunk;
             try
@@ -334,18 +349,28 @@ public class OpenAIQueryService : QueryServiceBase
             }
             catch (Exception ex) when (ex is JsonException or FormatException)
             {
-                // FormatException: JSON 源生成器在数字解析失败(如遇到非 ASCII 数字字符)时抛出
-                // JsonException: 标准 JSON 格式错误
-                // 两者都应跳过当前 chunk 而非终止整个流
-                Logger?.LogWarning(ex, "Failed to deserialize streaming chunk, skipping: {Data}", data);
+                Logger?.LogWarning(ex, "[WIRE {CallId}] chunk 反序列化失败, 跳过", CallTrace.CurrentId);
                 continue;
             }
 
             if (chunk != null)
             {
+                chunkCount++;
+                if (chunk.Choices.Count > 0)
+                {
+                    var choice = chunk.Choices[0];
+                    if (!string.IsNullOrEmpty(choice.Delta?.Content)) contentChunks++;
+                    if (choice.Delta?.ToolCalls != null && choice.Delta.ToolCalls.Count > 0) toolCallChunks++;
+                }
                 yield return chunk;
             }
+            else
+            {
+                Logger?.LogWarning("[WIRE {CallId}] chunk 反序列化为 null, data={Data}", CallTrace.CurrentId, data);
+            }
         }
+
+        Diag.WriteLine($"[WIRE {CallTrace.CurrentId}] 流异常结束(无[DONE]) | chunks={chunkCount}, content={contentChunks}, toolCalls={toolCallChunks}");
     }
 
     internal static ApiMessage ConvertToApiMessage(OpenAIChoice choice, OpenAIUsage? usage)

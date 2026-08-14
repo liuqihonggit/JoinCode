@@ -3,8 +3,9 @@ namespace Core.Configuration.Tests;
 
 public sealed class FastModeServiceTests : IDisposable
 {
-    private static readonly string DefaultModelId = ModelConfigLoader.GetDefaultModelId("openai");
-    private static readonly string DefaultFastModelId = ModelConfigLoader.GetDefaultFastModelId("openai");
+    private static readonly IModelConfigLoader Loader = new ModelConfigLoader();
+    private static readonly string DefaultModelId = Loader.GetDefaultModelId("openai");
+    private static readonly string DefaultFastModelId = Loader.GetDefaultFastModelId("openai");
 
     private readonly FastModeService _service;
 

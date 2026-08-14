@@ -208,13 +208,15 @@ public sealed partial class UsageTracker : ServiceEntity, IUsageTracker, IDispos
     private readonly ConcurrentDictionary<string, List<TokenUsageRecord>> _sessionIndex;
     [Inject] private readonly ILogger<UsageTracker>? _logger;
     private readonly ICostTracker? _costTracker;
+    private readonly IModelConfigLoader _modelConfigLoader;
 
-    public UsageTracker(ILogger<UsageTracker>? logger = null, ICostTracker? costTracker = null)
+    public UsageTracker(ILogger<UsageTracker>? logger = null, ICostTracker? costTracker = null, IModelConfigLoader? modelConfigLoader = null)
     {
         _usageRecords = new ConcurrentBag<TokenUsageRecord>();
         _sessionIndex = new ConcurrentDictionary<string, List<TokenUsageRecord>>(StringComparer.OrdinalIgnoreCase);
         _logger = logger;
         _costTracker = costTracker;
+        _modelConfigLoader = modelConfigLoader ?? new ModelConfigLoader();
     }
 
     /// <inheritdoc />
@@ -356,8 +358,9 @@ public sealed partial class UsageTracker : ServiceEntity, IUsageTracker, IDispos
     /// </summary>
     private (decimal InputCostPer1K, decimal OutputCostPer1K) GetModelPricing(string model)
     {
-        var promptCost = JoinCode.Abstractions.LLM.Execution.Pricing.ModelPricingTable.GetPromptCostPer1K(model);
-        var completionCost = JoinCode.Abstractions.LLM.Execution.Pricing.ModelPricingTable.GetCompletionCostPer1K(model);
+        var pricingTable = new JoinCode.Abstractions.LLM.Execution.Pricing.ModelPricingTable(_modelConfigLoader);
+        var promptCost = pricingTable.GetPromptCostPer1K(model);
+        var completionCost = pricingTable.GetCompletionCostPer1K(model);
         return (promptCost, completionCost);
     }
 

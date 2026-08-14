@@ -17,7 +17,7 @@ public sealed class StatusBarData
     public string? WorktreeSession { get; set; }
     public double? RateLimitUsedPercentage { get; set; }
     public DateTime? RateLimitResetsAt { get; set; }
-    public PermissionMode PermissionMode { get; set; } = PermissionMode.Default;
+    public PermissionMode PermissionMode { get; set; } = PermissionMode.Auto;
 
     public int TotalTokens => InputTokens + OutputTokens;
 

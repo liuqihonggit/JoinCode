@@ -109,7 +109,7 @@ public sealed class SettingsEditValidatorTests
     [Fact]
     public void ValidateEdit_InvalidDefaultMode_RejectsEdit()
     {
-        var original = "{\"permissions\": {\"defaultMode\": \"default\"}}";
+        var original = "{\"permissions\": {\"defaultMode\": \"auto\"}}";
         var updated = "{\"permissions\": {\"defaultMode\": \"invalid_mode\"}}";
         var result = SettingsEditValidator.ValidateEdit(
             "/home/user/.jcc/settings.json",
@@ -121,8 +121,8 @@ public sealed class SettingsEditValidatorTests
     [Fact]
     public void ValidateEdit_ValidDefaultMode_AllowsEdit()
     {
-        var original = "{\"permissions\": {\"defaultMode\": \"default\"}}";
-        var updated = "{\"permissions\": {\"defaultMode\": \"acceptEdits\"}}";
+        var original = "{\"permissions\": {\"defaultMode\": \"auto\"}}";
+        var updated = "{\"permissions\": {\"defaultMode\": \"plan\"}}";
         var result = SettingsEditValidator.ValidateEdit(
             "/home/user/.jcc/settings.json",
             original, updated);
@@ -162,7 +162,7 @@ public sealed class SettingsEditValidatorTests
     [Fact]
     public void ValidateEdit_ValidToValidComplex_AllowsEdit()
     {
-        var original = "{\"model\": \"gpt-4o\", \"env\": {\"KEY\": \"val\"}, \"permissions\": {\"defaultMode\": \"default\"}}";
+        var original = "{\"model\": \"gpt-4o\", \"env\": {\"KEY\": \"val\"}, \"permissions\": {\"defaultMode\": \"auto\"}}";
         var updated = "{\"model\": \"claude-3\", \"env\": {\"KEY\": \"new_val\"}, \"permissions\": {\"defaultMode\": \"plan\"}}";
         var result = SettingsEditValidator.ValidateEdit(
             "/home/user/.jcc/settings.json",

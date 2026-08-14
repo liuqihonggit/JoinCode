@@ -3,6 +3,7 @@ namespace McpToolRegistry;
 
 /// <summary>
 /// Agent 工具限制检查中间件 — Order=400 — 检查当前 Agent 模式是否允许使用该工具
+/// Bypass 模式直接放行，其余模式检查 AgentToolRestrictions
 /// </summary>
 [Register]
 public sealed partial class AgentRestrictionMiddleware : ServiceEntity, IToolExecutionMiddleware
@@ -24,6 +25,12 @@ public sealed partial class AgentRestrictionMiddleware : ServiceEntity, IToolExe
         MiddlewareDelegate<ToolExecutionContext> next,
         CancellationToken ct)
     {
+        if (context.AgentMode == PermissionMode.Bypass)
+        {
+            await next(context, ct).ConfigureAwait(false);
+            return;
+        }
+
         if (_agentToolRestrictions is not null)
         {
             if (!_agentToolRestrictions.IsToolAllowedForMode(context.ToolName, context.AgentMode))

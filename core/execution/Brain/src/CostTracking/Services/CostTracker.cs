@@ -14,6 +14,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
     private readonly ITelemetryService? _telemetryService;
     private readonly SemaphoreSlim _budgetLock;
     private readonly IClockService _clock;
+    private readonly ModelPricingTable _pricingTable;
     private CancellationTokenSource? _disposeCts = new();
 
     private BudgetConfig? _budgetConfig;
@@ -22,7 +23,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
     private int _totalLinesRemoved;
     private DateTime _sessionStartTime;
 
-    public CostTracker(IFileOperationService fileOperationService, string? storagePath = null, ILogger<CostTracker>? logger = null, BudgetConfig? budgetConfig = null, ITelemetryService? telemetryService = null, IClockService? clock = null)
+    public CostTracker(IFileOperationService fileOperationService, string? storagePath = null, ILogger<CostTracker>? logger = null, BudgetConfig? budgetConfig = null, ITelemetryService? telemetryService = null, IClockService? clock = null, IModelConfigLoader? modelConfigLoader = null)
     {
         _storagePath = storagePath ?? Path.Combine(AppContext.BaseDirectory, "cost-tracking.json");
         _fileOperationService = fileOperationService ?? throw new ArgumentNullException(nameof(fileOperationService));
@@ -30,6 +31,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
         _budgetConfig = budgetConfig;
         _telemetryService = telemetryService;
         _clock = clock ?? SystemClockService.Instance;
+        _pricingTable = new ModelPricingTable(modelConfigLoader ?? new ModelConfigLoader());
         _sessionStartTime = _clock.GetUtcNow();
         _modelCosts = new ConcurrentDictionary<string, ModelCostInfo>(StringComparer.OrdinalIgnoreCase);
         _usageRecords = new ConcurrentBag<TokenUsageRecord>();
@@ -380,7 +382,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
 
     private void LoadDefaultModelCosts()
     {
-        foreach (var (keyword, promptCost, completionCost) in ModelPricingTable.GetAllEntries())
+        foreach (var (keyword, promptCost, completionCost) in _pricingTable.GetAllEntries())
         {
             SetModelCost(keyword, promptCost, completionCost);
         }

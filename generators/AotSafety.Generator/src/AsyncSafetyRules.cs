@@ -123,11 +123,11 @@ namespace AotSafety.Generator
         private static readonly DiagnosticDescriptor RuleEmptyCatchBlock = new(
             "JCC3013",
             "代码规范: 禁止空 catch 块",
-            "空 catch 块会隐藏异常，导致难以调试的问题。catch 块必须包含实际处理逻辑（记录日志、重新抛出或执行恢复操作）。",
+            "空 catch 块会隐藏异常，导致难以调试的问题。catch 块必须至少写一行日志（如 _logger.LogWarning(ex, \"...\") 或 Console.WriteLine(\"...\")），绝不允许留空。即使异常可以忽略，也必须记录日志以便排查。唯一例外: catch(OperationCanceledException) 或 catch(TaskCanceledException) 允许留空。",
             "CodeStyle",
             DiagnosticSeverity.Warning,
             true,
-            "Empty catch blocks silently swallow exceptions, making bugs impossible to diagnose. Every catch block must contain actual handling logic: logging, rethrowing, or recovery. Exception: catch(OperationCanceledException) in async loops is acceptable when cancellation is the expected exit path.");
+            "Empty catch blocks silently swallow exceptions, making bugs impossible to diagnose. You MUST add at least one logging line (e.g. _logger.LogWarning(ex, \"...\") or Console.WriteLine(\"...\")). Even if the exception is ignorable, logging is mandatory for debugging. Exception: catch(OperationCanceledException) or catch(TaskCanceledException) may be empty.");
 
         private static readonly HashSet<string> InteractiveInputMethods = new(StringComparer.Ordinal)
         {

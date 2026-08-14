@@ -37,8 +37,7 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
     public Task InvokeAsync(PermissionCheckContext context, MiddlewareDelegate<PermissionCheckContext> next, CancellationToken ct)
     {
         // Bypass 模式跳过所有检查
-        if (context.CurrentMode == PermissionMode.BypassPermissions ||
-            context.CurrentMode == PermissionMode.DontAsk)
+        if (context.CurrentMode == PermissionMode.Bypass)
             return next(context, ct);
 
         // 1. 检查非 Shell 工具的删除操作（如 file_delete）
@@ -124,7 +123,6 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
         switch (context.CurrentMode)
         {
             case PermissionMode.Auto:
-            case PermissionMode.Default:
                 var rejection = handler is not null
                     ? handler.BuildRejectionMessage(riskContext)
                     : $"文件删除操作已被阻止（{deleteInfo.SourceDescription}）。请使用 Shell 工具将文件移动到 .xxx/ 目录";
@@ -205,7 +203,6 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
         switch (context.CurrentMode)
         {
             case PermissionMode.Auto:
-            case PermissionMode.Default:
                 var rejection = handler is not null
                     ? handler.BuildRejectionMessage(riskContext)
                     : $"危险操作已被阻止（{riskContext.Details}）。如确需执行请切换到 Ask 模式确认";

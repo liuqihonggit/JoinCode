@@ -97,7 +97,14 @@ public sealed partial class TrustFolderManager : ServiceEntity, ITrustFolderMana
 
         var entries = new TrustFolderEntries { Folders = [.. folders] };
         var json = System.Text.Json.JsonSerializer.Serialize(entries, TrustFoldersContext.Default.TrustFolderEntries);
-        _fs.WriteAllText(_trustedFoldersPath, json);
+        try
+        {
+            _fs.WriteAllText(_trustedFoldersPath, json);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[TrustFolderManager] 无法写入信任目录文件（沙箱环境）: {ex.Message}");
+        }
     }
 
     private static string NormalizePath(string path)

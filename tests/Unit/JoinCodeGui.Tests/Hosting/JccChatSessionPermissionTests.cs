@@ -201,7 +201,7 @@ public class JccChatSessionPermissionTests
             => Task.CompletedTask;
 
         public Task<PermissionMode> GetCurrentModeAsync(CancellationToken cancellationToken = default)
-            => Task.FromResult(PermissionMode.Default);
+            => Task.FromResult(PermissionMode.Auto);
 
         public Task AddAllowedPromptAsync(string prompt, CancellationToken cancellationToken = default)
             => Task.CompletedTask;

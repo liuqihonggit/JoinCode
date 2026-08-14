@@ -5,10 +5,12 @@ internal sealed class FallbackProviderDefinition : IProviderDefinition
 {
     private readonly IProviderDefinition? _inner;
     private readonly ProtocolKind _protocol;
+    private readonly IModelConfigLoader? _modelConfigLoader;
 
-    public FallbackProviderDefinition(ProtocolKind protocol)
+    public FallbackProviderDefinition(ProtocolKind protocol, IModelConfigLoader? modelConfigLoader = null)
     {
         _protocol = protocol;
+        _modelConfigLoader = modelConfigLoader;
     }
 
     public FallbackProviderDefinition(IProviderDefinition inner)
@@ -21,8 +23,8 @@ internal sealed class FallbackProviderDefinition : IProviderDefinition
     public ProtocolKind Protocol => _inner?.Protocol ?? _protocol;
     public string ProviderName => _inner?.ProviderName ?? _protocol.ToValue();
     public string DisplayName => _inner?.DisplayName ?? _protocol.ToValue();
-    public string DefaultModelId => _inner?.DefaultModelId ?? ModelConfigLoader.GetDefaultModelId(ProtocolToConfigKey());
-    public string DefaultFastModelId => _inner?.DefaultFastModelId ?? ModelConfigLoader.GetDefaultFastModelId(ProtocolToConfigKey());
+    public string DefaultModelId => _inner?.DefaultModelId ?? _modelConfigLoader?.GetDefaultModelId(ProtocolToConfigKey()) ?? string.Empty;
+    public string DefaultFastModelId => _inner?.DefaultFastModelId ?? _modelConfigLoader?.GetDefaultFastModelId(ProtocolToConfigKey()) ?? string.Empty;
     public string? DefaultEndpoint => _inner?.DefaultEndpoint;
     public string? ApiKeyEnvironmentVariable => _inner?.ApiKeyEnvironmentVariable;
     public string? EndpointEnvironmentVariable => _inner?.EndpointEnvironmentVariable;

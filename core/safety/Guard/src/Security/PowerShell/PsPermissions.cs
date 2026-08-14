@@ -123,7 +123,7 @@ public static partial class PsPermissions
 
         if (acceptEdits)
         {
-            decisions.Add(new PsSecurityResult { Behavior = PermissionBehavior.Allow, DecisionReason = "acceptEdits" });
+            decisions.Add(new PsSecurityResult { Behavior = PermissionBehavior.Allow, DecisionReason = PermissionMode.Auto.ToValue() });
         }
 
         // ─── 归约：deny > ask > allow > passthrough ───────────────

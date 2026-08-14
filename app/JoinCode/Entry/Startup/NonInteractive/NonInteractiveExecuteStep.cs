@@ -19,7 +19,14 @@ internal sealed partial class NonInteractiveExecuteStep : ServiceEntity, IMiddle
         try
         {
         Diag.WriteLine("[STEP] ExecuteStep calling ProcessUserInputAsync...");
-        Diag.WriteLifecycle("[READY]");
+        Diag.WriteLifecycle("[AI助手] 就绪");
+        var p = context.Config.Provider;
+        using (Cli.TerminalHelper.SetColor(ConsoleColor.DarkGray))
+        {
+            Cli.TerminalHelper.WriteLine($"供应商: {p.Vendor} | 模型: {p.ModelId} | 流式: {(context.Config.ToolExecution.UseStreamingToolExecution ? "是" : "否")}" +
+                (context.Config.CurrentProfile is not null ? $" | 预设: {context.Config.CurrentProfile}" : ""));
+            Cli.TerminalHelper.WriteLine($"  端点: {p.Endpoint ?? "(默认)"} | API Key: {(string.IsNullOrEmpty(p.ApiKey) ? "未配置" : "已配置")}");
+        }
         var prompt = context.NonInteractivePrompt;
             if (string.IsNullOrEmpty(prompt))
             {
@@ -29,7 +36,7 @@ internal sealed partial class NonInteractiveExecuteStep : ServiceEntity, IMiddle
             }
             await session.ProcessUserInputAsync(prompt, ct);
             await Console.Out.FlushAsync().ConfigureAwait(false);
-            Diag.WriteLifecycle("[DONE]");
+            Diag.WriteLifecycle("[AI对话结束]");
             Diag.WriteLine("[STEP] ExecuteStep ProcessUserInputAsync returned, stdout flushed");
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)

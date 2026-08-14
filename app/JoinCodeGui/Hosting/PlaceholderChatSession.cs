@@ -1,7 +1,9 @@
 using JoinCode.Abstractions.Configuration.Llm;
+using JoinCode.Abstractions.Configuration.Settings;
 using JoinCode.Abstractions.Interfaces;
 using JoinCode.Abstractions.LLM;
 using JoinCode.Abstractions.LLM.Chat;
+using JoinCode.Abstractions.UI;
 
 namespace JoinCode.Gui.Hosting;
 
@@ -11,26 +13,67 @@ namespace JoinCode.Gui.Hosting;
 /// </summary>
 internal sealed class PlaceholderChatSession : IJccChatSession
 {
-    public bool IsReady => true;
+    private readonly IConfigurationService? _configService;
+    private readonly IModelConfigLoader _modelConfigLoader;
 
-    /// <summary>占位会话默认供应商 — 对齐真实引擎 ProviderConfig 默认值（deepseek）</summary>
-    public string CurrentVendor { get; } = "deepseek";
-
-    /// <summary>占位会话默认模型 — 从 ModelConfigLoader 读取 deepseek 的 DefaultModelId，与真实引擎默认值对齐，避免热切换闪烁</summary>
-    public string CurrentModelId { get; } = ResolveDefaultModelId();
-
-    private static string ResolveDefaultModelId()
+    public PlaceholderChatSession(IConfigurationService? configService = null, IModelConfigLoader? modelConfigLoader = null)
     {
-        var id = ModelConfigLoader.GetDefaultModelId("deepseek");
-        return !string.IsNullOrEmpty(id) ? id : "deepseek-chat";
+        _configService = configService;
+        _modelConfigLoader = modelConfigLoader ?? new ModelConfigLoader();
+        CurrentVendor = ResolveCurrentVendor(configService);
+        CurrentModelId = ResolveCurrentModelId(CurrentVendor);
+        VendorModelMap = BuildVendorModelMap();
     }
 
-    public IReadOnlyDictionary<string, IReadOnlyList<string>> VendorModelMap { get; } = BuildVendorModelMap();
+    public bool IsReady => true;
 
-    private static IReadOnlyDictionary<string, IReadOnlyList<string>> BuildVendorModelMap()
+    /// <summary>占位会话当前供应商 — 从 settings.json 读取,回退 deepseek</summary>
+    public string CurrentVendor { get; }
+
+    /// <summary>占位会话当前模型 — 从 settings.json 读取,回退供应商默认模型</summary>
+    public string CurrentModelId { get; }
+
+    private static string ResolveCurrentVendor(IConfigurationService? configService)
+    {
+        if (configService is not null)
+        {
+            try
+            {
+                var profile = configService.GetAsync("profile", CancellationToken.None).GetAwaiter().GetResult();
+                if (!string.IsNullOrWhiteSpace(profile))
+                    return profile;
+            }
+            catch (Exception ex) { System.Console.Error.WriteLine($"[PlaceholderChatSession] 读取 settings.json profile 失败: {ex.Message}"); }
+        }
+        return "";
+    }
+
+    private string ResolveCurrentModelId(string vendor)
+    {
+        if (string.IsNullOrEmpty(vendor))
+            return "";
+        var id = _modelConfigLoader.GetDefaultModelId(vendor);
+        return !string.IsNullOrEmpty(id) ? id : "";
+    }
+
+    public IReadOnlyDictionary<string, IReadOnlyList<string>> VendorModelMap { get; private set; }
+
+    public void RefreshVendorModelMap()
+    {
+        VendorModelMap = BuildVendorModelMap();
+    }
+
+    /// <summary>占位会话切换 — 无真实引擎历史，空实现</summary>
+    public void SwitchSession(string sessionId) { }
+
+    /// <summary>占位会话无真实引擎上下文，灌入历史空实现</summary>
+    public Task LoadHistoryAsync(IReadOnlyList<(MessageRole Role, string Content)> messages, CancellationToken cancellationToken = default)
+        => Task.CompletedTask;
+
+    private IReadOnlyDictionary<string, IReadOnlyList<string>> BuildVendorModelMap()
     {
         var map = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase);
-        foreach (var kvp in ModelConfigLoader.Config.Providers)
+        foreach (var kvp in _modelConfigLoader.Config.Providers)
         {
             map[kvp.Key] = kvp.Value.Models.Select(m => m.Id).ToArray();
         }
@@ -40,17 +83,56 @@ internal sealed class PlaceholderChatSession : IJccChatSession
     /// <summary>占位会话不触发引擎权限异常，保留回调供 UI 注入（无实际效果）</summary>
     public Func<PermissionConfirmationRequest, Task<PermissionConfirmationDecision>>? PermissionConfirmationHandler { get; set; }
 
-    public Task SetModelAsync(string modelId, CancellationToken cancellationToken = default)
-        => Task.CompletedTask;
+    public async Task SetModelAsync(string modelId, CancellationToken cancellationToken = default)
+    {
+        if (_configService is not null)
+            await _configService.SetAsync("model", modelId, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>占位会话供应商切换 — 持久化 profile 到 settings.json，引擎可用后重启生效</summary>
+    public async Task SetVendorAsync(string vendor, CancellationToken cancellationToken = default)
+    {
+        if (_configService is null) return;
+        await _configService.SetAsync("profile", vendor, cancellationToken).ConfigureAwait(false);
+    }
 
     /// <summary>占位会话固定返回 Auto，不持久化</summary>
     public EffortLevel EffortLevel => EffortLevel.Auto;
 
-    public Task SetEffortLevelAsync(EffortLevel effortLevel, CancellationToken cancellationToken = default)
-        => Task.CompletedTask;
+    public async Task SetEffortLevelAsync(EffortLevel effortLevel, CancellationToken cancellationToken = default)
+    {
+        if (_configService is null) return;
+        if (effortLevel is EffortLevel.Auto)
+            await _configService.RemoveAsync(ConfigKeyConstants.EffortLevel, cancellationToken).ConfigureAwait(false);
+        else
+            await _configService.SetAsync(ConfigKeyConstants.EffortLevel, effortLevel.ToValue(), cancellationToken).ConfigureAwait(false);
+    }
 
     public Task SetSystemPromptAsync(string systemPrompt, CancellationToken cancellationToken = default)
         => Task.CompletedTask;
+
+    /// <summary>占位会话从 settings.json 读主题 — 引擎不可用时仍恢复上次选择</summary>
+    public async Task<ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default)
+    {
+        if (_configService is null)
+            return ThemeKind.Auto;
+        var value = await _configService.GetAsync(ConfigKeyConstants.Theme, cancellationToken).ConfigureAwait(false);
+        return string.IsNullOrEmpty(value) ? ThemeKind.Auto : (ThemeKindExtensions.FromValue(value) ?? ThemeKind.Auto);
+    }
+
+    /// <summary>占位会话不持久化主题 — 引擎不可用时仍写 settings.json，对齐 CLI /theme</summary>
+    public async Task SetThemeAsync(ThemeKind theme, CancellationToken cancellationToken = default)
+    {
+        if (_configService is not null)
+            await _configService.SetAsync(ConfigKeyConstants.Theme, theme.ToValue(), cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>占位会话无 settings.json 变更，事件永不触发（空 add/remove 避免 CS0067）</summary>
+    public event EventHandler<ThemeKind>? ThemeChanged
+    {
+        add { }
+        remove { }
+    }
 
     public float? Temperature => null;
     public int? MaxTokens => null;

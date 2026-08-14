@@ -25,7 +25,7 @@ public sealed partial class EarlyPathDenyMiddleware : ServiceEntity, IPermission
     /// <inheritdoc />
     public Task InvokeAsync(PermissionCheckContext context, MiddlewareDelegate<PermissionCheckContext> next, CancellationToken ct)
     {
-        if (context.CurrentMode != PermissionMode.Default || _pathPermissionChecker is null || context.Arguments is null)
+        if (context.CurrentMode != PermissionMode.Auto || _pathPermissionChecker is null || context.Arguments is null)
             return next(context, ct);
 
         var path = PermissionCheckContext.ExtractPathFromArguments(context.Arguments);

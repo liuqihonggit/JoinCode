@@ -1,3 +1,4 @@
+using JoinCode.Abstractions.Configuration.AppData;
 using JoinCode.Abstractions.Configuration.Llm;
 using JoinCode.Abstractions.Configuration.Settings;
 using JoinCode.Abstractions.Interfaces;
@@ -6,7 +7,8 @@ using JoinCode.Abstractions.LLM.Chat;
 using JoinCode.Abstractions.Security;
 using JoinCode.Abstractions.Security.Permission;
 using JoinCode.Abstractions.Tools;
-
+using JoinCode.App.Builder;
+using JoinCode.Abstractions.UI;
 namespace JoinCode.Gui.Hosting;
 
 /// <summary>
@@ -25,54 +27,70 @@ internal sealed class JccChatSession : IJccChatSession
     /// <summary>临时批准时长 — 选择"始终允许"（较长窗口，视为会话级始终允许）</summary>
     private static readonly TimeSpan AlwaysAllowDuration = TimeSpan.FromHours(24);
 
-    private readonly Microsoft.Extensions.DependencyInjection.ServiceProvider _services;
+    private readonly IServiceProvider _services;
     private readonly IChatService _chat;
     private readonly JoinCode.Abstractions.Configuration.WorkflowConfig _config;
     private readonly IExecutionSettingsProvider? _executionSettings;
+    private readonly IModelConfigLoader _modelConfigLoader;
+    private readonly Func<ValueTask>? _disposeAsync;
 
     /// <inheritdoc />
     public Func<PermissionConfirmationRequest, Task<PermissionConfirmationDecision>>? PermissionConfirmationHandler { get; set; }
 
     internal JccChatSession(
-        Microsoft.Extensions.DependencyInjection.ServiceProvider services,
+        IServiceProvider services,
         IChatService chat,
         JoinCode.Abstractions.Configuration.WorkflowConfig config,
-        IExecutionSettingsProvider? executionSettings = null)
+        IExecutionSettingsProvider? executionSettings = null,
+        IModelConfigLoader? modelConfigLoader = null,
+        Func<ValueTask>? disposeAsync = null)
     {
         _services = services;
         _chat = chat;
         _config = config;
         _executionSettings = executionSettings;
+        _modelConfigLoader = modelConfigLoader ?? services.GetService<IModelConfigLoader>() ?? new ModelConfigLoader();
+        _disposeAsync = disposeAsync;
+
+        // 订阅 settings.json 变更 — theme 键变更时触发 ThemeChanged 驱动 GUI 热重载（双向绑定）
+        var configService = services.GetService<IConfigurationService>();
+        if (configService is not null)
+            configService.SettingChanged += OnSettingChanged;
+
+        VendorModelMap = BuildVendorModelMap();
+    }
+
+    /// <inheritdoc />
+    public event EventHandler<ThemeKind>? ThemeChanged;
+
+    /// <summary>settings.json 变更转发 — theme 键变更时解析为 ThemeKind 并触发 ThemeChanged</summary>
+    private void OnSettingChanged(object? sender, SettingChangeEventArgs e)
+    {
+        if (e.Key == ConfigKeyConstants.Theme && e.NewValue is not null)
+        {
+            var theme = ThemeKindExtensions.FromValue(e.NewValue) ?? ThemeKind.Auto;
+            ThemeChanged?.Invoke(this, theme);
+        }
     }
 
     /// <summary>
-    /// 创建引擎会话：加载配置 → 组装 DI（Composition + 共享管道）→ 解析 IChatService。
-    /// provider 为 null 时回退到环境变量 / 默认 deepseek 配置。
+    /// 创建引擎会话：调用 CLI 侧 EngineSessionFactory 一行完成 LoadConfig+BuildHost+ConfigureModules，
+    /// 消除 GUI 和 CLI 的双引擎初始化差异。
     /// </summary>
     public static async Task<IJccChatSession> CreateAsync(
         CancellationToken cancellationToken = default)
     {
         var swTotal = System.Diagnostics.Stopwatch.StartNew();
-        var sw = System.Diagnostics.Stopwatch.StartNew();
-        var config = await LoadConfigFallbackAsync(cancellationToken).ConfigureAwait(false);
-        App.LogDiag($"[JccChatSession] LoadConfigFallback: {sw.ElapsedMilliseconds}ms"); sw.Restart();
+        var result = await EngineSessionFactory.CreateGuiSessionAsync(cancellationToken).ConfigureAwait(false);
+        App.LogDiag($"[JccChatSession] EngineSessionFactory.CreateGuiSessionAsync: {swTotal.ElapsedMilliseconds}ms");
 
-        var services = new Microsoft.Extensions.DependencyInjection.ServiceCollection();
-        services.AddSingleton<Microsoft.Extensions.Configuration.IConfiguration>(
-            new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build());
-        services.AddLogging(b => b.AddConsole());
-        services.AddAiWorkflowServices(config);
-        App.LogDiag($"[JccChatSession] AddAiWorkflowServices: {sw.ElapsedMilliseconds}ms"); sw.Restart();
-        services.AddAllPipelines();
-        App.LogDiag($"[JccChatSession] AddAllPipelines: {sw.ElapsedMilliseconds}ms"); sw.Restart();
+        var executionSettings = result.Services.GetService<IExecutionSettingsProvider>();
 
-        var sp = services.BuildServiceProvider();
-        App.LogDiag($"[JccChatSession] BuildServiceProvider: {sw.ElapsedMilliseconds}ms"); sw.Restart();
-        var chat = sp.GetRequiredService<IChatService>();
-        App.LogDiag($"[JccChatSession] GetRequiredService<IChatService>: {sw.ElapsedMilliseconds}ms"); sw.Restart();
-        var executionSettings = sp.GetService<IExecutionSettingsProvider>();
-        App.LogDiag($"[JccChatSession] TOTAL CreateAsync: {swTotal.ElapsedMilliseconds}ms");
-        return new JccChatSession(sp, chat, config, executionSettings);
+        Func<ValueTask> disposeAsync = result.Host is IAsyncDisposable ad
+            ? () => ad.DisposeAsync()
+            : () => { result.Host.Dispose(); return ValueTask.CompletedTask; };
+
+        return new JccChatSession(result.Services, result.ChatService, result.Config, executionSettings, disposeAsync: disposeAsync);
     }
 
     public bool IsReady => true;
@@ -83,13 +101,60 @@ internal sealed class JccChatSession : IJccChatSession
     /// <summary>当前启用的模型 ID</summary>
     public string CurrentModelId => _config.Provider.ModelId;
 
-    /// <summary>配置文件 models.json 驱动的供应商→模型列表映射（改 config 自动驱动下拉）</summary>
-    public IReadOnlyDictionary<string, IReadOnlyList<string>> VendorModelMap { get; } = BuildVendorModelMap();
+    /// <summary>配置文件驱动的供应商→模型列表映射（改 settings.json vendor 自动驱动下拉）</summary>
+    public IReadOnlyDictionary<string, IReadOnlyList<string>> VendorModelMap { get; private set; }
 
-    private static IReadOnlyDictionary<string, IReadOnlyList<string>> BuildVendorModelMap()
+    /// <summary>刷新 VendorModelMap（热重载入口）</summary>
+    public void RefreshVendorModelMap()
+    {
+        VendorModelMap = BuildVendorModelMap();
+    }
+
+    /// <summary>切换会话 — 通过 IChatContextManager.SwitchSession 按 sessionId 隔离对话历史</summary>
+    public void SwitchSession(string sessionId)
+    {
+        var ctxMgr = _services.GetService<IChatContextManager>();
+        ctxMgr?.SwitchSession(sessionId);
+    }
+
+    /// <summary>
+    /// 从持久化历史灌入底层对话上下文 — GUI 新进程 StateService 内存为空，
+    /// 先 ClearMessagesAsync 清空当前桶，再逐条灌入历史消息到 IChatContextManager。
+    /// 对齐 CLI /resume 的 LoadContextAsync 语义。
+    /// </summary>
+    public async Task LoadHistoryAsync(IReadOnlyList<(MessageRole Role, string Content)> messages, CancellationToken cancellationToken = default)
+    {
+        var ctxMgr = _services.GetService<IChatContextManager>();
+        if (ctxMgr is null)
+            return;
+
+        await ctxMgr.ClearMessagesAsync(cancellationToken).ConfigureAwait(false);
+        foreach (var (role, content) in messages)
+        {
+            if (string.IsNullOrWhiteSpace(content))
+                continue;
+            switch (role)
+            {
+                case MessageRole.User:
+                    await ctxMgr.AddUserMessageAsync(content, cancellationToken).ConfigureAwait(false);
+                    break;
+                case MessageRole.Assistant:
+                    await ctxMgr.AddAssistantMessageAsync(content, cancellationToken).ConfigureAwait(false);
+                    break;
+                case MessageRole.System:
+                    await ctxMgr.AddSystemMessageAsync(content, cancellationToken).ConfigureAwait(false);
+                    break;
+                case MessageRole.Tool:
+                    await ctxMgr.AddToolResultMessageAsync(content, new Dictionary<string, JsonElement>(), cancellationToken).ConfigureAwait(false);
+                    break;
+            }
+        }
+    }
+
+    private IReadOnlyDictionary<string, IReadOnlyList<string>> BuildVendorModelMap()
     {
         var map = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase);
-        foreach (var kvp in ModelConfigLoader.Config.Providers)
+        foreach (var kvp in _modelConfigLoader.Config.Providers)
         {
             map[kvp.Key] = kvp.Value.Models.Select(m => m.Id).ToArray();
         }
@@ -97,23 +162,90 @@ internal sealed class JccChatSession : IJccChatSession
     }
 
     /// <summary>
-    /// 切换当前模型 — 直接回写共享 WorkflowConfig.Provider（DI 单例，QueryService 请求期读取同一实例），
-    /// 并持久化 modelId 到 settings.json（对齐 CLI ModelCommand.ApplyModelSwitchAsync，
-    /// 键 "model" 与 SettingsJson 生成器 jsonName 一致），保证 GUI 重启后保留所选模型。
+    /// 切换当前模型 — 回写 WorkflowConfig + 持久化 vendor[profile].model 到 settings.json
     /// </summary>
     public async Task SetModelAsync(string modelId, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(modelId))
-        {
             throw new System.ArgumentException("模型 ID 不能为空", nameof(modelId));
-        }
         _config.Provider.ModelId = modelId;
+
+        // 持久化 vendor[profile].model
+        await UpdateVendorProfileModelAsync(modelId, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 切换当前供应商 — 回写 WorkflowConfig + 持久化 profile 到 settings.json
+    /// </summary>
+    public async Task SetVendorAsync(string vendor, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(vendor))
+            throw new System.ArgumentException("供应商名称不能为空", nameof(vendor));
+
+        _config.Provider.Vendor = vendor;
+
+        var defaultModelId = _modelConfigLoader.GetDefaultModelId(vendor);
+        if (!string.IsNullOrEmpty(defaultModelId))
+            _config.Provider.ModelId = defaultModelId;
 
         var configService = _services.GetService<IConfigurationService>();
         if (configService is not null)
         {
-            await configService.SetAsync("model", modelId, cancellationToken).ConfigureAwait(false);
+            await configService.SetAsync("profile", vendor, cancellationToken).ConfigureAwait(false);
         }
+
+        if (!string.IsNullOrEmpty(defaultModelId))
+            await UpdateVendorProfileModelAsync(vendor, defaultModelId, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 更新 settings.json 的 vendor[profile].model — 直接用 JsonNode 操作嵌套键
+    /// </summary>
+    private async Task UpdateVendorProfileModelAsync(string profileName, string modelId, CancellationToken ct)
+    {
+        var fs = _services.GetService<IFileSystem>() ?? new IO.FileSystem.PhysicalFileSystem();
+        var path = System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            AppDataConstants.AppDataFolder,
+            AppDataConstants.SettingsFileName);
+        if (!fs.FileExists(path)) return;
+        try
+        {
+            var json = await fs.ReadAllTextAsync(path, ct).ConfigureAwait(false);
+            var node = System.Text.Json.Nodes.JsonNode.Parse(json);
+            if (node is null) return;
+            var vendorNode = node["vendor"];
+            if (vendorNode is null)
+            {
+                vendorNode = new System.Text.Json.Nodes.JsonObject();
+                node["vendor"] = vendorNode;
+            }
+            var profileNode = vendorNode[profileName];
+            if (profileNode is null)
+            {
+                profileNode = new System.Text.Json.Nodes.JsonObject();
+                vendorNode[profileName] = profileNode;
+            }
+            profileNode["model"] = modelId;
+            await fs.WriteAllTextAsync(path, node.ToJsonString(), ct).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            System.Console.Error.WriteLine($"更新 vendor profile model 失败: {profileName} - {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 更新当前 profile 的 model — 用 _config.CurrentProfile 推导 profile 名
+    /// </summary>
+    private Task UpdateVendorProfileModelAsync(string modelId, CancellationToken ct)
+    {
+        var profile = _config.CurrentProfile;
+        if (string.IsNullOrEmpty(profile))
+            profile = _config.Provider.Vendor;
+        if (string.IsNullOrEmpty(profile))
+            return Task.CompletedTask;
+        return UpdateVendorProfileModelAsync(profile, modelId, ct);
     }
 
     /// <summary>
@@ -278,6 +410,30 @@ internal sealed class JccChatSession : IJccChatSession
     public Task SetSystemPromptAsync(string systemPrompt, CancellationToken cancellationToken = default)
         => _chat.SetSystemPromptAsync(systemPrompt, cancellationToken);
 
+    /// <summary>
+    /// 当前主题 — 从 settings.json 读取（键 ConfigKeyConstants.Theme），对齐 CLI ThemeCommand。
+    /// 未设置或损坏返回 <see cref="ThemeKind.Auto"/>（对齐 CLI GetCurrentThemeAsync 默认回退）。
+    /// </summary>
+    public async Task<ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default)
+    {
+        var configService = _services.GetService<IConfigurationService>();
+        if (configService is null)
+            return ThemeKind.Auto;
+
+        var value = await configService.GetAsync(ConfigKeyConstants.Theme, cancellationToken).ConfigureAwait(false);
+        return string.IsNullOrEmpty(value) ? ThemeKind.Auto : (ThemeKindExtensions.FromValue(value) ?? ThemeKind.Auto);
+    }
+
+    /// <summary>
+    /// 设置主题并持久化到 settings.json（键 ConfigKeyConstants.Theme），对齐 CLI ThemeCommand。
+    /// </summary>
+    public async Task SetThemeAsync(ThemeKind theme, CancellationToken cancellationToken = default)
+    {
+        var configService = _services.GetService<IConfigurationService>();
+        if (configService is not null)
+            await configService.SetAsync(ConfigKeyConstants.Theme, theme.ToValue(), cancellationToken).ConfigureAwait(false);
+    }
+
     public Task ClearHistoryAsync(CancellationToken cancellationToken = default)
         => _chat.ClearHistoryAsync(cancellationToken);
 
@@ -314,22 +470,10 @@ internal sealed class JccChatSession : IJccChatSession
 
     public async ValueTask DisposeAsync()
     {
-        if (_chat is IAsyncDisposable chatDisposable)
+        if (_disposeAsync is not null)
         {
-            await chatDisposable.DisposeAsync().ConfigureAwait(false);
+            await _disposeAsync().ConfigureAwait(false);
         }
-        await _services.DisposeAsync().ConfigureAwait(false);
     }
 
-    private static async Task<JoinCode.Abstractions.Configuration.WorkflowConfig> LoadConfigFallbackAsync(
-        CancellationToken cancellationToken)
-    {
-        var config = await new Core.Configuration.ConfigLoader().LoadAsync(
-                new IO.FileSystem.PhysicalFileSystem(), cancellationToken)
-            .ConfigureAwait(false);
-
-        // 进程内 GUI：不连接命名管道服务，标准 HTTP QueryService（PipeEndpoint 置 null）
-        config.PipeEndpoint = null;
-        return config;
-    }
 }

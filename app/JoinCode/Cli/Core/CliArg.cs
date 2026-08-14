@@ -20,6 +20,9 @@ public enum CliArg
     [CliOption("--model", "-m", "指定模型", AcceptsValue = true, Category = "基础", Example = "jcc -m gpt-4o -p \"hello\"")]
     Model,
 
+    [CliOption("--vendor", "", "切换供应商（自动匹配 settings.json vendor 预设中的同名配置）", AcceptsValue = true, Category = "基础", Example = "jcc --vendor agnes -p \"hello\"")]
+    Vendor,
+
     [CliOption("--non-interactive", "", "强制非交互模式", Category = "输出")]
     NonInteractive,
 
@@ -47,10 +50,10 @@ public enum CliArg
     [CliOption("--resume", "-r", "恢复指定会话（按 session-id 或标题关键字）", AcceptsValue = true, Category = "会话", Example = "jcc -r abc123")]
     Resume,
 
-    [CliOption("--permission-mode", "", "设置权限模式 (default/plan/auto/ask/deny/acceptEdits/bypassPermissions)", AcceptsValue = true, Category = "权限", RiskLevel = "write")]
+    [CliOption("--permission-mode", "", "设置权限模式 (plan/auto/ask/bypass)", AcceptsValue = true, Category = "权限", RiskLevel = "write")]
     PermissionMode,
 
-    [CliOption("--dangerously-skip-permissions", "", "跳过所有权限检查（等价于 --permission-mode bypassPermissions，仅在受信任环境使用）", Category = "权限", RiskLevel = "dangerous")]
+    [CliOption("--dangerously-skip-permissions", "", "跳过所有权限检查（等价于 --permission-mode bypass，仅在受信任环境使用）", Category = "权限", RiskLevel = "dangerous")]
     DangerouslySkipPermissions,
 
     [CliOption("--allowed-tools", "", "工具白名单（逗号分隔，如 'Read,Edit,Bash(git:*)'），仅这些工具可用", AcceptsValue = true, Category = "权限")]

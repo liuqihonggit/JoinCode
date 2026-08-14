@@ -13,4 +13,9 @@ public sealed class ConnectionOptionItem
 
     /// <summary>是否为 Mock 引擎（驱动状态提示与切换行为）</summary>
     public bool IsMock { get; init; }
+
+    public override bool Equals(object? obj)
+        => obj is ConnectionOptionItem other && string.Equals(Id, other.Id, StringComparison.OrdinalIgnoreCase);
+
+    public override int GetHashCode() => StringComparer.OrdinalIgnoreCase.GetHashCode(Id);
 }

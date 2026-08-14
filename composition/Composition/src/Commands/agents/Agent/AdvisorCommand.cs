@@ -2,8 +2,10 @@
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Advisor, Description = "配置顾问模型", Usage = "/advisor [model|off]", Category = ChatCommandCategory.Agent, ArgumentHint = "[model|off]")]
-public sealed class AdvisorCommand : ChatCommandBase
+public sealed class AdvisorCommand(IModelConfigLoader? modelConfigLoader = null) : ChatCommandBase
 {
+    private readonly IModelConfigLoader? _modelConfigLoader = modelConfigLoader;
+
     public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var advisorService = ChatCommandBase.GetService<IAdvisorService>(context);
@@ -32,7 +34,7 @@ public sealed class AdvisorCommand : ChatCommandBase
         }
         else
         {
-            var allModelIds = ModelConfigLoader.GetAllModelIds();
+            var allModelIds = _modelConfigLoader?.GetAllModelIds() ?? [];
             if (!allModelIds.Any(m => string.Equals(m, args, StringComparison.OrdinalIgnoreCase)))
             {
                 TerminalHelper.WriteLine($"{TerminalColors.Warning}{L.T(StringKey.HostAdvisorModelNotSupported, args)}{AnsiStyleConstants.Reset}");

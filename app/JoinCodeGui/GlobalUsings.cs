@@ -12,10 +12,12 @@ global using System.Threading.Tasks;
 global using Core.DependencyInjection;
 global using JoinCode.Pipelines;
 global using JoinCode.Pipelines.Middlewares;
+global using McpBridge;
 
 // Diff 模型（工具调用结果渲染）
 global using JoinCode.Abstractions.Models.Diff;
 global using JoinCode.Abstractions.Interfaces;
+global using JoinCode.Abstractions.Configuration.AppData;
 
 // GUI ViewModel 层 DTO（SlashCommandItem 等）
 global using JoinCode.Gui.ViewModels;

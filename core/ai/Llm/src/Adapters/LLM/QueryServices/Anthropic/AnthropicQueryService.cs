@@ -452,7 +452,8 @@ public sealed class AnthropicQueryService : QueryServiceBase
         var json = JsonSerializer.Serialize(request, AnthropicJsonContext.Default.AnthropicMessagesRequest);
         var endpoint = GetChatEndpoint(Config);
 
-        var response = await SendWithResilienceAsync(json, endpoint, "LLM.Anthropic.ChatCompletion", cancellationToken).ConfigureAwait(false);
+        var response = await SendWithResilienceAsync(json, endpoint, "LLM.Anthropic.ChatCompletion", cancellationToken,
+            HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
 
         response.EnsureSuccessStatusCode();
 
@@ -587,7 +588,8 @@ public sealed class AnthropicQueryService : QueryServiceBase
         var json = JsonSerializer.Serialize(request, AnthropicJsonContext.Default.AnthropicMessagesRequest);
         var endpoint = GetChatEndpoint(Config);
 
-        var response = await SendWithResilienceAsync(json, endpoint, "LLM.Anthropic.StreamingChatCompletion", cancellationToken).ConfigureAwait(false);
+        var response = await SendWithResilienceAsync(json, endpoint, "LLM.Anthropic.StreamingChatCompletion", cancellationToken,
+            HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
 
         response.EnsureSuccessStatusCode();
 

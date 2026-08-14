@@ -40,15 +40,15 @@ public sealed partial class ToolScoreSettingsMiddleware : ServiceEntity, ISettin
     {
         if (_healthMonitor is null) return;
 
-        if (settings.BlacklistedTools is { Count: > 0 })
+        if (settings.Current?.BlacklistedTools is { Count: > 0 })
         {
-            var newBlacklist = new HashSet<string>(settings.BlacklistedTools, StringComparer.OrdinalIgnoreCase);
+            var newBlacklist = new HashSet<string>(settings.Current.BlacklistedTools, StringComparer.OrdinalIgnoreCase);
             _healthMonitor.UpdateBlacklist(newBlacklist);
         }
 
-        if (settings.ToolPenalties is { Count: > 0 })
+        if (settings.Current?.ToolPenalties is { Count: > 0 })
         {
-            var newPenalties = new Dictionary<string, int>(settings.ToolPenalties, StringComparer.OrdinalIgnoreCase);
+            var newPenalties = new Dictionary<string, int>(settings.Current.ToolPenalties, StringComparer.OrdinalIgnoreCase);
             _healthMonitor.UpdatePenalties(newPenalties);
         }
     }
@@ -57,17 +57,17 @@ public sealed partial class ToolScoreSettingsMiddleware : ServiceEntity, ISettin
     {
         if (_hyperedgeReloadable is null) return;
 
-        if (settings.CustomHyperedges is not { Count: > 0 }) return;
+        if (settings.Current?.CustomHyperedges is not { Count: > 0 }) return;
 
-        _hyperedgeReloadable.LoadCustomHyperedges(settings.CustomHyperedges);
-        _logger?.LogInformation("超图自定义超边已热重载: {Count} 条", settings.CustomHyperedges.Count);
+        _hyperedgeReloadable.LoadCustomHyperedges(settings.Current.CustomHyperedges);
+        _logger?.LogInformation("超图自定义超边已热重载: {Count} 条", settings.Current.CustomHyperedges.Count);
     }
 
     private void ApplySearchScope(SettingsJson settings)
     {
         if (_searchScopeReloadable is null) return;
 
-        var scopeSettings = settings.SearchScope;
+        var scopeSettings = settings.Current?.SearchScope;
         var config = new SearchScopeConfig
         {
             Enabled = scopeSettings?.Enabled ?? true,

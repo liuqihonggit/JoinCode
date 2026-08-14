@@ -31,7 +31,7 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
         _pipeline = pipeline;
         _logger = logger;
         _config = configOptions.Value;
-        _currentMode = TryGetPermissionModeFromEnv(fs) ?? PermissionMode.Default;
+        _currentMode = TryGetPermissionModeFromEnv(fs) ?? PermissionMode.Auto;
         _fs = fs;
 
         // 确保列表不为 null
@@ -55,8 +55,8 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
     /// <remarks>
     /// 解析规则：
     /// 1. 读取 JCC_PERMISSION_MODE 环境变量
-    /// 2. 用 PermissionModeExtensions.FromValue 解析（支持 "bypassPermissions"/"plan"/"auto" 等）
-    /// 3. 若解析结果为 BypassPermissions 且 settings.json 中 disableBypassPermissionsMode 为真，则返回 null（忽略环境变量，回退 Default）
+    /// 2. 用 PermissionModeExtensions.FromValue 解析（支持 "bypass"/"plan"/"auto" 等）
+    /// 3. 若解析结果为 Bypass 且 settings.json 中 disableBypassPermissionsMode 为真，则返回 null（忽略环境变量，回退 Default）
     /// </remarks>
     internal static PermissionMode? TryGetPermissionModeFromEnv(IFileSystem? fs)
     {
@@ -68,8 +68,8 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
         if (parsed is null)
             return null;
 
-        // 安全闸: settings.json 显式禁用 bypass 模式时，忽略 bypassPermissions 环境变量
-        if (parsed.Value == PermissionMode.BypassPermissions && IsDisableBypassPermissionsMode(fs))
+        // 安全闸: settings.json 显式禁用 bypass 模式时，忽略 bypass 环境变量
+        if (parsed.Value == PermissionMode.Bypass && IsDisableBypassPermissionsMode(fs))
         {
             return null;
         }
@@ -88,7 +88,7 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
         try
         {
             var settings = SettingsLoader.LoadUserSettings(fs);
-            var flag = settings?.Permissions?.DisableBypassPermissionsMode;
+            var flag = settings?.Current?.Permissions?.DisableBypassPermissionsMode;
             if (string.IsNullOrWhiteSpace(flag))
                 return false;
 
@@ -185,25 +185,27 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
             var settings = await SettingsLoader.LoadUserSettingsAsync(_fs, cancellationToken).ConfigureAwait(false) ?? new SettingsJson();
 
             // 构建新的 allow 列表
-            var existingAllow = settings.Permissions?.Allow ?? [];
+            var existingAllow = settings.Current?.Permissions?.Allow ?? [];
             if (existingAllow.Contains(permissionValue, StringComparer.OrdinalIgnoreCase))
-                return; // 已存在，无需重复
+                return;
 
             var updatedAllow = new List<string>(existingAllow) { permissionValue };
 
-            // 创建新的 PermissionsSettings（sealed class 不支持 with 表达式，手动构建）
             var updatedPermissions = new PermissionsSettings
             {
                 Allow = updatedAllow,
-                Deny = settings.Permissions?.Deny,
-                Ask = settings.Permissions?.Ask,
-                DefaultMode = settings.Permissions?.DefaultMode,
-                AdditionalDirectories = settings.Permissions?.AdditionalDirectories,
-                DisableBypassPermissionsMode = settings.Permissions?.DisableBypassPermissionsMode,
+                Deny = settings.Current?.Permissions?.Deny,
+                Ask = settings.Current?.Permissions?.Ask,
+                DefaultMode = settings.Current?.Permissions?.DefaultMode,
+                AdditionalDirectories = settings.Current?.Permissions?.AdditionalDirectories,
+                DisableBypassPermissionsMode = settings.Current?.Permissions?.DisableBypassPermissionsMode,
             };
 
-            // 创建新的 SettingsJson 并保存
-            var updatedSettings = new SettingsJson(settings) { Permissions = updatedPermissions };
+            var updatedSettings = new SettingsJson
+            {
+                Vendor = settings.Vendor,
+                Current = new CurrentSettings(settings.Current ?? new CurrentSettings()) { Permissions = updatedPermissions },
+            };
             await SettingsLoader.SaveSettingsAsync(_fs, SettingSource.UserSettings, updatedSettings, cancellationToken: cancellationToken).ConfigureAwait(false);
 
             _logger?.LogInformation("已持久化权限规则: {PermissionValue}", permissionValue);

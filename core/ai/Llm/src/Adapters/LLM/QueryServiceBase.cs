@@ -225,25 +225,33 @@ public abstract partial class QueryServiceBase : IQueryService
     #endregion
 
     protected Task<HttpResponseMessage> SendWithResilienceAsync(
-        string json, string endpoint, string operationName, CancellationToken ct)
-        => SendWithResilienceCoreAsync(HttpClient, ResilientExecutor, json, endpoint, operationName, ct);
+        string json, string endpoint, string operationName, CancellationToken ct,
+        HttpCompletionOption completionOption = HttpCompletionOption.ResponseContentRead)
+        => SendWithResilienceCoreAsync(HttpClient, ResilientExecutor, json, endpoint, operationName, ct, completionOption);
 
     internal static async Task<HttpResponseMessage> SendWithResilienceCoreAsync(
         HttpClient httpClient, ResilientHttpExecutor? resilientExecutor,
-        string json, string endpoint, string operationName, CancellationToken ct)
+        string json, string endpoint, string operationName, CancellationToken ct,
+        HttpCompletionOption completionOption = HttpCompletionOption.ResponseContentRead)
     {
         if (resilientExecutor is not null)
         {
             return await resilientExecutor.ExecuteAsync(
                 async innerCt =>
                 {
-                    var content = new StringContent(json, Encoding.UTF8, "application/json");
-                    return await httpClient.PostAsync(endpoint, content, innerCt).ConfigureAwait(false);
+                    using var request = new HttpRequestMessage(HttpMethod.Post, endpoint)
+                    {
+                        Content = new StringContent(json, Encoding.UTF8, "application/json")
+                    };
+                    return await httpClient.SendAsync(request, completionOption, innerCt).ConfigureAwait(false);
                 },
                 operationName, ct).ConfigureAwait(false);
         }
 
-        var httpContent = new StringContent(json, Encoding.UTF8, "application/json");
-        return await httpClient.PostAsync(endpoint, httpContent, ct).ConfigureAwait(false);
+        using var req = new HttpRequestMessage(HttpMethod.Post, endpoint)
+        {
+            Content = new StringContent(json, Encoding.UTF8, "application/json")
+        };
+        return await httpClient.SendAsync(req, completionOption, ct).ConfigureAwait(false);
     }
 }

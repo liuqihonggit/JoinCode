@@ -5,10 +5,27 @@ namespace JoinCode.Abstractions.Utils;
 /// </summary>
 public enum TodoToolName
 {
-    [EnumValue("todo_create")] TodoCreate,
-    [EnumValue("todo_list")] TodoList,
-    [EnumValue("todo_update")] TodoUpdate,
-    [EnumValue("todo_delete")] TodoDelete,
-    [EnumValue("TodoWrite")] TodoWrite,
-    [EnumValue("todo_read")] TodoRead,
+    [EnumValue("todo_create")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    TodoCreate,
+
+    [EnumValue("todo_list")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    TodoList,
+
+    [EnumValue("todo_update")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    TodoUpdate,
+
+    [EnumValue("todo_delete")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    TodoDelete,
+
+    [EnumValue("TodoWrite")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    TodoWrite,
+
+    [EnumValue("todo_read")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    TodoRead,
 }

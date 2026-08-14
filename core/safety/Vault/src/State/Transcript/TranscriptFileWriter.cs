@@ -17,6 +17,8 @@ internal sealed class TranscriptFileWriter : IDisposable
 
     private const int MaxPastedContentLength = 1024;
 
+    private bool? _isFileSystemRestricted;
+
     public TranscriptFileWriter(IFileSystem fs, string sessionsDirectory, ILogger? logger = null, IPasteStore? pasteStore = null)
     {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
@@ -24,6 +26,29 @@ internal sealed class TranscriptFileWriter : IDisposable
         _logger = logger;
         _pasteStore = pasteStore;
         _writeLock = new AsyncLock();
+    }
+
+    private bool IsFileSystemRestricted
+    {
+        get
+        {
+            if (_isFileSystemRestricted.HasValue) return _isFileSystemRestricted.Value;
+
+            try
+            {
+                var probePath = Path.Combine(_sessionsDirectory, $".probe_{Guid.NewGuid():N}");
+                _fs.WriteAllText(probePath, "p");
+                if (_fs.FileExists(probePath)) _fs.DeleteFile(probePath);
+                _isFileSystemRestricted = false;
+            }
+            catch
+            {
+                _isFileSystemRestricted = true;
+                _logger?.LogInformation("[Transcript] 检测到文件系统受限（沙箱环境），会话记录写入将被跳过");
+            }
+
+            return _isFileSystemRestricted.Value;
+        }
     }
 
     /// <summary>
@@ -43,9 +68,13 @@ internal sealed class TranscriptFileWriter : IDisposable
             var line = JsonSerializer.Serialize(entryToWrite, TranscriptJsonContext.Default.TranscriptEntry);
             await _fs.AppendAllTextAsync(filePath, line + '\n', cancellationToken).ConfigureAwait(false);
         }
+        catch (UnauthorizedAccessException)
+        {
+            LogRestrictedWarning("[Transcript:WRITE:71]", filePath);
+        }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            _logger?.LogError(ex, "Failed to append transcript entry to {FilePath}", filePath);
+            _logger?.LogError("[Transcript:WRITE:75] 追加单条记录失败: {FilePath} | {Message}", filePath, ex.Message);
         }
     }
 
@@ -76,9 +105,13 @@ internal sealed class TranscriptFileWriter : IDisposable
             await _fs.AppendAllTextAsync(filePath, sb.ToString(), cancellationToken).ConfigureAwait(false);
             _logger?.LogDebug("{Count} transcript entries appended to {FilePath}", entries.Count, filePath);
         }
+        catch (UnauthorizedAccessException)
+        {
+            LogRestrictedWarning("[Transcript:WRITE:108]", filePath);
+        }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            _logger?.LogError(ex, "Failed to append transcript entries to {FilePath}", filePath);
+            _logger?.LogError("[Transcript:WRITE:112] 追加多条记录失败: {FilePath} | {Message}", filePath, ex.Message);
         }
     }
 
@@ -187,14 +220,26 @@ internal sealed class TranscriptFileWriter : IDisposable
             {
                 _logger?.LogDebug(ex, "Transcript file already exists (created by another process): {FilePath}", filePath);
             }
-            catch (UnauthorizedAccessException ex)
+            catch (UnauthorizedAccessException)
             {
-                _logger?.LogDebug(ex, "Cannot create transcript file {FilePath}, will retry on append", filePath);
+                LogRestrictedWarning("[Transcript:CREATE:223]", filePath);
             }
         }
     }
 
     public void Dispose() => _writeLock.Dispose();
+
+    private void LogRestrictedWarning(string marker, string filePath)
+    {
+        if (IsFileSystemRestricted)
+        {
+            _logger?.LogDebug("{Marker} 沙箱环境, 跳过: {FilePath}", marker, filePath);
+        }
+        else
+        {
+            _logger?.LogWarning("{Marker} 文件权限不足或沙箱拦截: {FilePath}", marker, filePath);
+        }
+    }
 
     /// <summary>
     /// 序列化前：大文本(>1024字符)存到 paste-cache，Content 置空，设 ContentHash — 对齐 TS addToPromptHistory

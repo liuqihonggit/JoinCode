@@ -5,5 +5,7 @@ namespace JoinCode.Abstractions.Utils;
 /// </summary>
 public enum CompleteStepToolName
 {
-    [EnumValue("complete_step")] CompleteStep,
+    [EnumValue("complete_step")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    CompleteStep,
 }

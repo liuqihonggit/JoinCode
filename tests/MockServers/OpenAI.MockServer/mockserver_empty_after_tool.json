@@ -1,0 +1,24 @@
+{
+  "port": 0,
+  "default_response": "No more scripted turns.",
+  "scripted_turns": [
+    {
+      "text_response": "",
+      "tool_calls": [
+        {
+          "tool_name": "Bash",
+          "arguments": "{\"command\":\"ls\",\"description\":\"List current directory\"}",
+          "tool_call_id": "bash_001"
+        }
+      ]
+    },
+    {
+      "text_response": "",
+      "tool_calls": []
+    },
+    {
+      "text_response": "Done listing directory.",
+      "tool_calls": []
+    }
+  ]
+}

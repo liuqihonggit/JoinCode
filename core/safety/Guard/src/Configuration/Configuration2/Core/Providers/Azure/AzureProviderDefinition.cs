@@ -1,45 +1,53 @@
 
 namespace Core.Configuration.Providers;
 
-public sealed class AzureProviderDefinition : OpenAICompatibleProviderDefinitionBase
+/// <summary>
+/// Azure OpenAI 供应商 — OAuth + 复合认证 + 特殊 URL 格式
+/// </summary>
+public sealed class AzureProviderDefinition : IProviderDefinition
 {
-    protected override string ProviderConfigKey => "openai";
+    private readonly IModelConfigLoader _modelConfigLoader;
 
-    public override VendorKind Vendor => VendorKind.Azure;
-    public override ProtocolKind Protocol => ProtocolKind.Azure;
-    public override string ProviderName => VendorKind.Azure.ToValue();
-    public override string DisplayName => "Azure OpenAI";
-    public override string DefaultModelId => ModelConfigLoader.GetDefaultModelId("openai");
-    public override string DefaultFastModelId => ModelConfigLoader.GetDefaultFastModelId("openai");
-    public override string? DefaultEndpoint => null;
-    public override string? ApiKeyEnvironmentVariable => ProviderEnvVar.AzureOpenAiApiKey.ToValue();
-    public override string? EndpointEnvironmentVariable => ProviderEnvVar.AzureOpenAiEndpoint.ToValue();
-    public override string? DefaultApiVersion => "2024-02-01";
+    public AzureProviderDefinition(IModelConfigLoader modelConfigLoader)
+    {
+        _modelConfigLoader = modelConfigLoader;
+    }
 
-    public override string GetBaseUrl(ProviderConfig config)
+    public VendorKind Vendor => VendorKind.Azure;
+    public ProtocolKind Protocol => ProtocolKind.Azure;
+    public string ProviderName => VendorKind.Azure.ToValue();
+    public string DisplayName => "Azure OpenAI";
+    public string DefaultModelId => _modelConfigLoader.GetDefaultModelId("openai");
+    public string DefaultFastModelId => _modelConfigLoader.GetDefaultFastModelId("openai");
+    public string? DefaultEndpoint => null;
+    public string? ApiKeyEnvironmentVariable => ProviderEnvVar.AzureOpenAiApiKey.ToValue();
+    public string? EndpointEnvironmentVariable => ProviderEnvVar.AzureOpenAiEndpoint.ToValue();
+    public string? DefaultApiVersion => "2024-02-01";
+
+    public string GetBaseUrl(ProviderConfig config)
         => $"{config.Endpoint?.TrimEnd('/')}/openai/deployments/{config.ModelId}";
 
-    public override string GetChatEndpoint(ProviderConfig config)
+    public string GetChatEndpoint(ProviderConfig config)
         => $"chat/completions?api-version={config.ApiVersion}";
 
-    public override void ConfigureHttpClient(HttpClient client, ProviderConfig config)
+    public void ConfigureHttpClient(HttpClient client, ProviderConfig config)
     {
         if (!string.IsNullOrEmpty(config.ApiKey))
             client.DefaultRequestHeaders.Add("api-key", config.ApiKey);
     }
 
-    public override string? ResolveApiKeyFromEnv()
+    public string? ResolveApiKeyFromEnv()
         => Environment.GetEnvironmentVariable(ProviderEnvVar.AzureOpenAiApiKey.ToValue());
 
-    public override string? ResolveEndpointFromEnv()
+    public string? ResolveEndpointFromEnv()
         => Environment.GetEnvironmentVariable(ProviderEnvVar.AzureOpenAiEndpoint.ToValue());
 
-    public override bool IsValid(ProviderConfig config)
+    public bool IsValid(ProviderConfig config)
         => !string.IsNullOrWhiteSpace(config.ApiKey) && !string.IsNullOrWhiteSpace(config.Endpoint);
 
-    public override bool IsCompoundAuthFormat(string apiKey) => apiKey.StartsWith("{");
-    public override bool SupportsOAuth => true;
-    public override OAuthConfig? GetOAuthConfig() => new()
+    public bool IsCompoundAuthFormat(string apiKey) => apiKey.StartsWith("{");
+    public bool SupportsOAuth => true;
+    public OAuthConfig? GetOAuthConfig() => new()
     {
         Provider = "azure",
         ClientId = Environment.GetEnvironmentVariable(JccEnvVar.AzureClientId.ToValue()) ?? "",
@@ -49,7 +57,7 @@ public sealed class AzureProviderDefinition : OpenAICompatibleProviderDefinition
         Scope = new List<string> { "https://cognitiveservices.azure.com/.default" }
     };
 
-    public override string? ExtractApiKeyFromCompound(string apiKey)
+    public string? ExtractApiKeyFromCompound(string apiKey)
     {
         try
         {
@@ -59,11 +67,11 @@ public sealed class AzureProviderDefinition : OpenAICompatibleProviderDefinition
         catch { return null; }
     }
 
-    public override bool RequiresInteractiveEndpoint => true;
-    public override string? EndpointPromptText => "请输入 Azure OpenAI Endpoint（如 https://your-resource.openai.azure.com）";
-    public override string? EndpointRequiredMessage => "Azure OpenAI 必须提供 Endpoint，配置已取消。";
+    public bool RequiresInteractiveEndpoint => true;
+    public string? EndpointPromptText => "请输入 Azure OpenAI Endpoint（如 https://your-resource.openai.azure.com）";
+    public string? EndpointRequiredMessage => "Azure OpenAI 必须提供 Endpoint，配置已取消。";
 
-    public override string SerializeAuthCredentials(string apiKey, string? endpoint)
+    public string SerializeAuthCredentials(string apiKey, string? endpoint)
     {
         var authData = new Dictionary<string, string>
         {
@@ -72,4 +80,11 @@ public sealed class AzureProviderDefinition : OpenAICompatibleProviderDefinition
         };
         return System.Text.Json.JsonSerializer.Serialize(authData, ConfigJsonContext.Default.DictionaryStringString);
     }
+
+    public IEnumerable<ModelEntry> AvailableModels => _modelConfigLoader.GetModels("openai");
+    public string? ResolveAlias(string input) => _modelConfigLoader.ResolveAlias("openai", input);
+    public bool SupportsFastMode(string modelId) => _modelConfigLoader.SupportsFastMode("openai", modelId);
+    public bool SupportsEffort(string modelId) => _modelConfigLoader.SupportsEffort("openai", modelId);
+    public bool SupportsMaxEffort(string modelId) => _modelConfigLoader.SupportsMaxEffort("openai", modelId);
+    public bool SupportsThinkingMode(string modelId) => _modelConfigLoader.SupportsThinkingMode("openai", modelId);
 }

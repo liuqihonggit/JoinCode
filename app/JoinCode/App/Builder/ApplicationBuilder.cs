@@ -455,7 +455,7 @@ public sealed class ApplicationBuilder
         Cli.TerminalHelper.WriteLine("  JCC_LOG_LEVEL          日志级别 (Trace/Debug/Information/Warning/Error)");
         Cli.TerminalHelper.WriteLine("  JCC_LANGUAGE           界面语言 (zh/en)");
         Cli.TerminalHelper.WriteLine("  JCC_CONFIG_PATH        自定义配置文件路径");
-        Cli.TerminalHelper.WriteLine("  JCC_PERMISSION_MODE    权限模式 (auto/plan/ask/deny/bypassPermissions)");
+        Cli.TerminalHelper.WriteLine("  JCC_PERMISSION_MODE    权限模式 (plan/auto/ask/bypass)");
         Cli.TerminalHelper.WriteLine("  JCC_CLOCK_MODE         时钟模式 (Physical/Fake，调试用)");
         Cli.TerminalHelper.WriteLine("  NO_COLOR               禁用颜色输出（https://no-color.org/ 标准）");
         Cli.TerminalHelper.WriteLine("  APP_NO_TUI             禁用 TUI 交互");

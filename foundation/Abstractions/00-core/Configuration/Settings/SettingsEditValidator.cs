@@ -116,10 +116,10 @@ public static class SettingsEditValidator
             {
                 var validModes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
                 {
-                    "default", "acceptEdits", "plan", "bypassPermissions"
+                    "plan", "auto", "ask", "bypass"
                 };
                 if (!validModes.Contains(mode.GetString()!))
-                    errors.Add($"permissions.defaultMode: 无效的模式 '{mode.GetString()}'，有效值: default, acceptEdits, plan, bypassPermissions");
+                    errors.Add($"permissions.defaultMode: 无效的模式 '{mode.GetString()}'，有效值: plan, auto, ask, bypass");
             }
 
             if (errors.Count > 0)

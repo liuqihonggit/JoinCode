@@ -1,8 +1,8 @@
 namespace JoinCode.Abstractions.Security;
 
 /// <summary>
-/// 权限模式枚举 — 精简为4个核心模式
-/// 旧值兼容映射: Default→Auto, AcceptEdits→Auto, DontAsk→Bypass, BypassPermissions→Bypass, Deny→Ask
+/// 权限模式枚举 — 4个核心模式
+/// 旧值已废弃: Default→Auto, AcceptEdits→Auto, DontAsk→Bypass, BypassPermissions→Bypass, Deny→Ask
 /// </summary>
 public enum PermissionMode
 {

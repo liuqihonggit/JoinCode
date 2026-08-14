@@ -80,7 +80,7 @@ public enum JccEnvVar
     [EnumValue("JCC_SESSION_ACCESS_TOKEN")] SessionAccessToken,
     [EnumValue("JCC_BRIDGE_USE_CCR_V2")] BridgeUseCcrV2,
 
-    // 新增: 启动时权限模式覆盖 — 支持 E2E 测试自动升级权限（如 bypassPermissions）
+    // 启动时权限模式覆盖 — 支持 E2E 测试自动升级权限（如 bypass）
     [EnumValue("JCC_PERMISSION_MODE")] PermissionMode,
 
     /// <summary>

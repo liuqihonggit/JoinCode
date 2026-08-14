@@ -140,7 +140,7 @@ public sealed partial class ClusterE2ETests : IAsyncLifetime
         psi.EnvironmentVariables["JCC_VENDOR"] = "openai";
         psi.EnvironmentVariables["JCC_MODEL_ID"] = "gpt-4o";
         psi.EnvironmentVariables["OPENAI_API_KEY"] = "sk-test-1234567890";
-        psi.EnvironmentVariables["JCC_PERMISSION_MODE"] = "bypassPermissions";
+        psi.EnvironmentVariables["JCC_PERMISSION_MODE"] = "bypass";
         psi.EnvironmentVariables["JCC_APP_DATA_FOLDER"] = stateDir;
         psi.EnvironmentVariables["JCC_API_TIMEOUT_MS"] = "30000";
         psi.EnvironmentVariables["JCC_CLUSTER_DECOMPOSITION_OVERRIDE"] = "3";

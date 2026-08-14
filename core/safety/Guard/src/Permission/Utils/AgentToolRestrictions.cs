@@ -16,12 +16,12 @@ public sealed partial class AgentToolRestrictions : ServiceEntity, IAgentToolRes
     {
         _telemetryService = telemetryService;
         var overrides = configOptions?.Value?.ToolOverrides;
-        _autoAllowed = MergeWithOverrides(ToolSecuritySets.AutoAllowedTools, overrides, "auto", allow: true);
-        _planAllowed = MergeWithOverrides(ToolSecuritySets.PlanAllowedTools, overrides, "plan", allow: true);
-        _askAllowed = MergeWithOverrides(ToolSecuritySets.AskAllowedTools, overrides, "ask", allow: true);
-        _autoDenied = MergeWithOverrides(ToolSecuritySets.AutoDeniedTools, overrides, "auto", allow: false);
-        _planDenied = MergeWithOverrides(ToolSecuritySets.PlanDeniedTools, overrides, "plan", allow: false);
-        _askDenied = MergeWithOverrides(ToolSecuritySets.AskDeniedTools, overrides, "ask", allow: false);
+        _autoAllowed = MergeWithOverrides(ToolSecuritySets.AutoAllowedTools, overrides, PermissionMode.Auto.ToValue(), allow: true);
+        _planAllowed = MergeWithOverrides(ToolSecuritySets.PlanAllowedTools, overrides, PermissionMode.Plan.ToValue(), allow: true);
+        _askAllowed = MergeWithOverrides(ToolSecuritySets.AskAllowedTools, overrides, PermissionMode.Ask.ToValue(), allow: true);
+        _autoDenied = MergeWithOverrides(ToolSecuritySets.AutoDeniedTools, overrides, PermissionMode.Auto.ToValue(), allow: false);
+        _planDenied = MergeWithOverrides(ToolSecuritySets.PlanDeniedTools, overrides, PermissionMode.Plan.ToValue(), allow: false);
+        _askDenied = MergeWithOverrides(ToolSecuritySets.AskDeniedTools, overrides, PermissionMode.Ask.ToValue(), allow: false);
     }
 
     [Inject] private readonly ITelemetryService? _telemetryService;

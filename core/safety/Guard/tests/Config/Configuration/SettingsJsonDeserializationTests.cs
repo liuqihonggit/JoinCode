@@ -199,7 +199,7 @@ public class SettingsJsonDeserializationTests
                 Permissions = new PermissionsSettings
                 {
                     Allow = ["Bash(npm test)"],
-                    DefaultMode = "default",
+                    DefaultMode = PermissionMode.Auto.ToValue(),
                 },
             },
         };
@@ -213,7 +213,7 @@ public class SettingsJsonDeserializationTests
         deserialized.Current.FastMode.Should().BeTrue();
         deserialized.Current.Env!["KEY"].Should().Be("value");
         deserialized.Current.Permissions!.Allow.Should().ContainSingle("Bash(npm test)");
-        deserialized.Current.Permissions.DefaultMode.Should().Be("default");
+        deserialized.Current.Permissions.DefaultMode.Should().Be(PermissionMode.Auto.ToValue());
     }
 
     #endregion

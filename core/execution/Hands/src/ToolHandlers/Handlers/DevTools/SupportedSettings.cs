@@ -112,7 +112,7 @@ public static class SupportedSettings
                 Type = "string",
                 Description = "工具使用的默认权限模式",
                 Path = ["permissions", "defaultMode"],
-                Options = ["default", "plan", "acceptEdits", "dontAsk", "auto"],
+                Options = [PermissionMode.Plan.ToValue(), PermissionMode.Auto.ToValue(), PermissionMode.Ask.ToValue(), PermissionMode.Bypass.ToValue()],
             },
             ["language"] = new()
             {

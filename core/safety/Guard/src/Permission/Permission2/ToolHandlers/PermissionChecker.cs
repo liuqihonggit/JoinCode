@@ -55,8 +55,8 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
     /// <remarks>
     /// 解析规则：
     /// 1. 读取 JCC_PERMISSION_MODE 环境变量
-    /// 2. 用 PermissionModeExtensions.FromValue 解析（支持 "bypassPermissions"/"plan"/"auto" 等）
-    /// 3. 若解析结果为 BypassPermissions 且 settings.json 中 disableBypassPermissionsMode 为真，则返回 null（忽略环境变量，回退 Default）
+    /// 2. 用 PermissionModeExtensions.FromValue 解析（支持 "bypass"/"plan"/"auto" 等）
+    /// 3. 若解析结果为 Bypass 且 settings.json 中 disableBypassPermissionsMode 为真，则返回 null（忽略环境变量，回退 Default）
     /// </remarks>
     internal static PermissionMode? TryGetPermissionModeFromEnv(IFileSystem? fs)
     {
@@ -68,7 +68,7 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
         if (parsed is null)
             return null;
 
-        // 安全闸: settings.json 显式禁用 bypass 模式时，忽略 bypassPermissions 环境变量
+        // 安全闸: settings.json 显式禁用 bypass 模式时，忽略 bypass 环境变量
         if (parsed.Value == PermissionMode.Bypass && IsDisableBypassPermissionsMode(fs))
         {
             return null;

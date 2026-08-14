@@ -108,8 +108,8 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
             ["JCC_MODEL_ID"] = modelId,
             [apiKeyEnvVar] = "sk-test-1234567890",
             ["JCC_STATE_FILE_PATH"] = _stateFilePath,
-            // E2E 测试自动升级权限到 bypassPermissions，避免 100+ 工具被权限拒绝阻塞
-            ["JCC_PERMISSION_MODE"] = "bypassPermissions",
+            // E2E 测试自动升级权限到 bypass，避免 100+ 工具被权限拒绝阻塞
+            ["JCC_PERMISSION_MODE"] = "bypass",
             // 隔离 AppData 目录，避免并发测试共享 onboarding_complete.json 导致文件锁冲突
             ["JCC_APP_DATA_FOLDER"] = stateDir,
             // CI 环境 MockServer 响应可能较慢，30s 超时避免误判
@@ -240,7 +240,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
                 ["JCC_MODEL_ID"] = modelId,
                 [apiKeyEnvVar] = "sk-test-1234567890",
                 ["JCC_STATE_FILE_PATH"] = _stateFilePath!,
-                ["JCC_PERMISSION_MODE"] = "bypassPermissions",
+                ["JCC_PERMISSION_MODE"] = "bypass",
                 ["JCC_APP_DATA_FOLDER"] = Path.GetDirectoryName(_stateFilePath)!,
             };
 

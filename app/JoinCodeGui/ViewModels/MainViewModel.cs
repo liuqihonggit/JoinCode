@@ -347,8 +347,10 @@ public sealed partial class MainViewModel : ViewModelBase
             RefreshModelOptions();
             _selectedModel = _session.CurrentModelId;
             _selectedModelOption = ModelOptions.FirstOrDefault(m => m.Id == _session.CurrentModelId);
-            _selectedConnection = _connectionOptions.FirstOrDefault(c => c.Id == session.CurrentVendor)
+            _isRefreshingConfig = true;
+            SelectedConnection = _connectionOptions.FirstOrDefault(c => c.Id == session.CurrentVendor)
                 ?? _connectionOptions.FirstOrDefault();
+            _isRefreshingConfig = false;
             IsEngineLoaded = true;
             StartModelConfigWatch();
             // 引擎就绪后把偏好里的采样参数应用到引擎
@@ -362,9 +364,11 @@ public sealed partial class MainViewModel : ViewModelBase
             StatusText = "正在加载引擎…";
             RebuildConnectionOptions();
             WriteDebugLog($"Constructor else: currentVendor={_session.CurrentVendor} connectionCount={_connectionOptions.Count} ids=[{string.Join(",", _connectionOptions.Select(c => c.Id))}]");
-            _selectedConnection = _connectionOptions.FirstOrDefault(c => c.Id == _session.CurrentVendor)
+            _isRefreshingConfig = true;
+            SelectedConnection = _connectionOptions.FirstOrDefault(c => c.Id == _session.CurrentVendor)
                 ?? _connectionOptions.FirstOrDefault();
-            WriteDebugLog($"Constructor else: _selectedConnection={_selectedConnection?.Id}");
+            _isRefreshingConfig = false;
+            WriteDebugLog($"Constructor else: SelectedConnection={SelectedConnection?.Id}");
             RefreshModelOptions();
             _selectedModelOption = ModelOptions.FirstOrDefault(m => m.Id == _session.CurrentModelId)
                 ?? ModelOptions.FirstOrDefault();

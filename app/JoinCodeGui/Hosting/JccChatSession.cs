@@ -101,7 +101,7 @@ internal sealed class JccChatSession : IJccChatSession
     /// <summary>当前启用的模型 ID</summary>
     public string CurrentModelId => _config.Provider.ModelId;
 
-    /// <summary>配置文件 models.json 驱动的供应商→模型列表映射（改 config 自动驱动下拉）</summary>
+    /// <summary>配置文件驱动的供应商→模型列表映射（改 settings.json vendor 自动驱动下拉）</summary>
     public IReadOnlyDictionary<string, IReadOnlyList<string>> VendorModelMap { get; private set; }
 
     /// <summary>刷新 VendorModelMap（热重载入口）</summary>

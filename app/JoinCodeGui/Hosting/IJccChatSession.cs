@@ -45,10 +45,10 @@ public interface IJccChatSession : IAsyncDisposable
     /// <summary>当前启用的模型 ID</summary>
     string CurrentModelId { get; }
 
-    /// <summary>配置文件 models.json 驱动的供应商→模型列表映射（改 config 自动驱动下拉）</summary>
+    /// <summary>配置文件驱动的供应商→模型列表映射（改 settings.json vendor 自动驱动下拉）</summary>
     IReadOnlyDictionary<string, IReadOnlyList<string>> VendorModelMap { get; }
 
-    /// <summary>重新加载 models.json 并刷新 VendorModelMap（热重载入口，由 GUI 配置变更监控调用）</summary>
+    /// <summary>刷新 VendorModelMap（热重载入口，由 GUI 配置变更监控调用）</summary>
     void RefreshVendorModelMap();
 
     /// <summary>切换会话 — 引擎按 sessionId 隔离对话历史，切回时自动恢复</summary>

@@ -20,6 +20,13 @@ internal sealed partial class NonInteractiveExecuteStep : ServiceEntity, IMiddle
         {
         Diag.WriteLine("[STEP] ExecuteStep calling ProcessUserInputAsync...");
         Diag.WriteLifecycle("[READY]");
+        var p = context.Config.Provider;
+        using (Cli.TerminalHelper.SetColor(ConsoleColor.DarkGray))
+        {
+            Cli.TerminalHelper.WriteLine($"供应商: {p.Vendor} | 模型: {p.ModelId} | 流式: {(context.Config.ToolExecution.UseStreamingToolExecution ? "是" : "否")}" +
+                (context.Config.CurrentProfile is not null ? $" | 预设: {context.Config.CurrentProfile}" : ""));
+            Cli.TerminalHelper.WriteLine($"  端点: {p.Endpoint ?? "(默认)"} | API Key: {(string.IsNullOrEmpty(p.ApiKey) ? "未配置" : "已配置")}");
+        }
         var prompt = context.NonInteractivePrompt;
             if (string.IsNullOrEmpty(prompt))
             {

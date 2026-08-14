@@ -18,9 +18,9 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
         var p = context.Config.Provider;
         using (Cli.TerminalHelper.SetColor(ConsoleColor.DarkGray))
         {
-            Cli.TerminalHelper.WriteLine($"当前配置: 供应商={p.Vendor}, 模型={p.ModelId}" +
-                (context.Config.CurrentProfile is not null ? $", 预设={context.Config.CurrentProfile}" : ""));
-            Cli.TerminalHelper.WriteLine($"  端点={p.Endpoint ?? "(默认)"}, API Key={(string.IsNullOrEmpty(p.ApiKey) ? "未配置" : "已配置")}");
+            Cli.TerminalHelper.WriteLine($"供应商: {p.Vendor} | 模型: {p.ModelId} | 流式: {(context.Config.ToolExecution.UseStreamingToolExecution ? "是" : "否")}" +
+                (context.Config.CurrentProfile is not null ? $" | 预设: {context.Config.CurrentProfile}" : ""));
+            Cli.TerminalHelper.WriteLine($"  端点: {p.Endpoint ?? "(默认)"} | API Key: {(string.IsNullOrEmpty(p.ApiKey) ? "未配置" : "已配置")}");
         }
         Cli.TerminalHelper.WriteLine("JoinCode CLI - 输入消息或 /help 查看命令");
         Cli.TerminalHelper.WriteLine();

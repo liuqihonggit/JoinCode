@@ -77,6 +77,7 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
             await _notificationHandler.ProcessPendingNotificationsAsync(ct).ConfigureAwait(false);
 
             var historySnapshot = await _contextManager.GetMessageListAsync(ct).ConfigureAwait(false);
+            _logger?.LogInformation("[QueryLoopMiddleware] 迭代开始: totalToolCalls={Total}, 消息数={MsgCount}", totalToolCalls, historySnapshot.Count);
 #if DEBUG
             if (System.Diagnostics.Debugger.IsAttached) System.Diagnostics.Debugger.Break();
 #endif
@@ -99,6 +100,7 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
                 }
 
                 if (iterState.ToolCallName is null) {
+                    _logger?.LogInformation("[QueryLoopMiddleware] 无工具调用, FullResponse长度={Len}, 迭代={Iter}", iterState.FullResponse.Length, totalToolCalls);
                     var (pureEvents, pureResponse) = BuildPureTextResponse(iterState, context);
                     foreach (var evt in pureEvents)
                         yield return evt;
@@ -136,8 +138,8 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
                 }
 
                 foreach (var result in allResults) {
-                    _logger?.LogInformation("[QueryLoopMiddleware] 工具调用: {ToolName} → {Result}",
-                        result.ToolName, result.Result.IsError ? "ERROR" : "OK");
+                    _logger?.LogInformation("[QueryLoopMiddleware] 工具调用: {ToolName} → {Result}, 结果长度={ResultLen}",
+                        result.ToolName, result.Result.IsError ? "ERROR" : "OK", result.Result.ResultText?.Length ?? 0);
 
                     yield return result.ToToolEndEvent();
 
@@ -174,10 +176,14 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
                     yield return evt;
                 }
 
+                _logger?.LogInformation("[QueryLoopMiddleware-传统] LLM返回: ToolCallName={ToolCallName}, FullResponse长度={Len}",
+                    iterState.ToolCallName, iterState.FullResponse.Length);
+
                 if (iterState.StreamUsage is not null) finalUsage = iterState.StreamUsage;
                 if (iterState.StreamModelId is not null) finalModelId = iterState.StreamModelId;
 
                 if (iterState.ToolCallName is null) {
+                    _logger?.LogInformation("[QueryLoopMiddleware-传统] 无工具调用, FullResponse长度={Len}, 迭代={Iter}", iterState.FullResponse.Length, totalToolCalls);
                     var (pureEvents, pureResponse) = BuildPureTextResponse(iterState, context);
                     foreach (var evt in pureEvents)
                         yield return evt;
@@ -227,7 +233,6 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
                         await _toolHandler.WriteAbortedToolResultsAsync(toolCalls, idx, CancellationToken.None).ConfigureAwait(false);
                         throw;
                     } catch (Exception applyEx) {
-                        // 纵深防御：单工具结果持久化失败不应中断整个回合
                         _logger?.LogError(applyEx, "[QueryLoopMiddleware] 应用工具结果到上下文失败: {ToolName}", toolCall.Name);
                         try {
                             var placeholderMetadata = ToolCallEntry.BuildToolResultMetadata(toolCall.Id, toolCall.Name);

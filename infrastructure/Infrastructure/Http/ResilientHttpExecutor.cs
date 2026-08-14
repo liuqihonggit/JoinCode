@@ -19,6 +19,14 @@ public sealed class ResilientHttpExecutor
 
     public UnifiedCircuitBreaker? CircuitBreaker => _circuitBreaker;
 
+    /// <summary>
+    /// 判断 OperationCanceledException 是否由用户主动取消触发（非连接中断）
+    /// TaskCanceledException 继承 OperationCanceledException，但连接中断时 ct.IsCancellationRequested=false
+    /// 只有当异常的 CancellationToken 精确匹配用户传入的 ct 时，才是真正的用户取消
+    /// </summary>
+    private static bool IsUserCancellation(OperationCanceledException ex, CancellationToken ct) =>
+        ct.IsCancellationRequested && (ex.CancellationToken == ct || ex.CancellationToken == CancellationToken.None);
+
     public async Task<HttpResponseMessage> ExecuteAsync(
         Func<CancellationToken, Task<HttpResponseMessage>> operation,
         string operationName,
@@ -51,7 +59,7 @@ public sealed class ResilientHttpExecutor
                 _circuitBreaker?.RecordSuccess();
                 return response;
             }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            catch (OperationCanceledException ex) when (IsUserCancellation(ex, ct))
             {
                 throw;
             }
@@ -77,7 +85,7 @@ public sealed class ResilientHttpExecutor
                 _circuitBreaker?.RecordSuccess();
                 return response;
             }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            catch (OperationCanceledException ex) when (IsUserCancellation(ex, ct))
             {
                 throw;
             }
@@ -133,7 +141,7 @@ public sealed class ResilientHttpExecutor
                 _circuitBreaker?.RecordSuccess();
                 return result;
             }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            catch (OperationCanceledException ex) when (IsUserCancellation(ex, ct))
             {
                 throw;
             }
@@ -159,7 +167,7 @@ public sealed class ResilientHttpExecutor
                 _circuitBreaker?.RecordSuccess();
                 return result;
             }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            catch (OperationCanceledException ex) when (IsUserCancellation(ex, ct))
             {
                 throw;
             }

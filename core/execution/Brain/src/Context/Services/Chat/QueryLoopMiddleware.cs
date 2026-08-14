@@ -9,6 +9,8 @@ namespace Core.Context;
 [Register]
 public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware {
     private const int MaxToolCallIterations = 128;
+    private const int MaxEmptyResponseRetries = 16;
+    private static readonly TimeSpan EmptyResponseRetryDelay = TimeSpan.FromSeconds(1);
 
     private readonly IBackgroundNotificationHandler _notificationHandler;
     private readonly ILLMInvocationHandler _llmHandler;
@@ -44,15 +46,9 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
         _loopDetectionStrategy = loopDetectionStrategy ?? new InformationEntropyGuardian(logger: logger);
     }
 
-    /// <summary>
-    /// 是否启用流式工具执行 — 需要 IToolConcurrencyClassifier 已注册且配置开关已启用
-    /// </summary>
     private bool UseStreamingToolExecution =>
         _concurrencyClassifier is not null && (_toolExecutionSettings?.UseStreamingToolExecution ?? false);
 
-    /// <summary>
-    /// 最大并发数 — 对齐 TS CLAUDE_CODE_MAX_TOOL_USE_CONCURRENCY
-    /// </summary>
     private int MaxConcurrency => _toolExecutionSettings?.MaxParallelToolExecution ?? 10;
 
     /// <summary>
@@ -63,9 +59,9 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
         StreamMiddlewareDelegate<ChatMiddlewareContext, ChatStreamEvent> next,
         [EnumeratorCancellation] CancellationToken ct) {
         var totalToolCalls = 0;
+        var emptyRetryCount = 0;
         TokenUsage? finalUsage = null;
         string? finalModelId = null;
-
 
 #if DEBUG
         if (System.Diagnostics.Debugger.IsAttached) System.Diagnostics.Debugger.Break();
@@ -77,7 +73,7 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
             await _notificationHandler.ProcessPendingNotificationsAsync(ct).ConfigureAwait(false);
 
             var historySnapshot = await _contextManager.GetMessageListAsync(ct).ConfigureAwait(false);
-            _logger?.LogInformation("[LOOP] 迭代 #{Iter} | 消息={MsgCount}", totalToolCalls, historySnapshot.Count);
+            _logger?.LogInformation("[LOOP] 迭代 #{Iter} | 消息={MsgCount}, 空响应重试={Retry}", totalToolCalls, historySnapshot.Count, emptyRetryCount);
 #if DEBUG
             if (System.Diagnostics.Debugger.IsAttached) System.Diagnostics.Debugger.Break();
 #endif
@@ -89,168 +85,49 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
                 guardian.SetContext(context.SpanName, context.ConversationTurn, totalToolCalls);
 
             if (UseStreamingToolExecution) {
-                // 流式工具执行模式 — 对齐 TS StreamingToolExecutor
-                var streamingExecutor = new StreamingToolExecutor(
-                    _toolHandler, _concurrencyClassifier!, context, MaxConcurrency, _logger, ct);
-
-                await foreach (var evt in _llmHandler.InvokeLLMAsync(
-                    historySnapshot, context.ExecutionSettings, context, totalToolCalls, iterState,
-                    streamingToolExecution: true, ct: ct).ConfigureAwait(false)) {
+                await foreach (var evt in ProcessStreamingModeAsync(historySnapshot, context, iterState, totalToolCalls, ct).ConfigureAwait(false)) {
                     yield return evt;
                 }
-
-                if (iterState.ToolCallName is null) {
-                    _logger?.LogInformation("[LOOP {CallId}] 纯文本响应, 长度={Len}", iterState.CallId, iterState.FullResponse.Length);
-                    var (pureEvents, pureResponse) = BuildPureTextResponse(iterState, context);
-                    foreach (var evt in pureEvents)
-                        yield return evt;
-                    if (!context.IsDryRun)
-                        await _contextManager.AddAssistantMessageAsync(pureResponse, ct).ConfigureAwait(false);
-                    break;
-                }
-
-                var toolCalls = _toolHandler.PrepareToolCalls(iterState);
-                var assistantContent = iterState.FullResponse.Length > 0 ? iterState.FullResponse.ToString() : null;
-                var assistantMetadata = ToolCallEntry.BuildAssistantMetadata(toolCalls);
-                await _contextManager.AddAssistantToolCallMessageAsync(assistantContent, assistantMetadata, ct).ConfigureAwait(false);
-
-                // 将所有工具调用加入流式执行器
-                for (var idx = 0; idx < toolCalls.Count; idx++) {
-                    var toolCall = toolCalls[idx];
-                    var currentArgs = JsonArgumentParser.Parse(toolCall.Arguments);
-                    var toolLoop = _loopDetectionStrategy.CheckToolCallLoop(toolCall.Name, currentArgs);
-                    if (toolLoop is not null) {
-                        yield return ChatStreamEvent.LoopDetected(toolLoop.TriggerCount, toolLoop.ToolCallCount, toolLoop.Reason);
-                    }
-
-                    yield return ChatStreamEvent.ToolStart(toolCall.Name, toolCall.Id, toolCall.Arguments);
-                    await streamingExecutor.AddToolAsync(toolCall, idx).ConfigureAwait(false);
-                    totalToolCalls++;
-                }
-
-                // 等待所有工具完成并输出结果
-                IReadOnlyList<StreamingToolResult> allResults;
-                try {
-                    allResults = await streamingExecutor.GetRemainingResultsAsync().ConfigureAwait(false);
-                } catch (OperationCanceledException) when (ct.IsCancellationRequested) {
-                    await _toolHandler.WriteAbortedToolResultsAsync(toolCalls, 0, CancellationToken.None).ConfigureAwait(false);
-                    throw;
-                }
-
-                foreach (var result in allResults) {
-                    _logger?.LogInformation("[TOOL {CallId}] #{Num} {ToolName} → {Result} | 长度={Len}",
-                        iterState.CallId, totalToolCalls, result.ToolName, result.Result.IsError ? "ERROR" : "OK", result.Result.ResultText?.Length ?? 0);
-
-                    yield return result.ToToolEndEvent();
-
-                    try {
-                        await _toolHandler.ApplyToolResultToContextAsync(
-                            result.ToolName, result.ToolCallId, result.Result.ResultText,
-                            result.Result.IsError, result.Result.ContentBlocks, context, ct).ConfigureAwait(false);
-                    } catch (OperationCanceledException) when (ct.IsCancellationRequested) {
-                        await _toolHandler.WriteAbortedToolResultsAsync(toolCalls, 0, CancellationToken.None).ConfigureAwait(false);
-                        throw;
-                    } catch (Exception applyEx) {
-                        // 纵深防御：单工具结果持久化失败不应中断整个回合
-                        // 写入占位结果保持上下文一致，避免孤立 tool_call 导致下一轮 LLM 400
-                        _logger?.LogError(applyEx, "[TOOL {CallId}] 应用结果到上下文失败: {ToolName}", iterState.CallId, result.ToolName);
-                        try {
-                            var placeholderMetadata = ToolCallEntry.BuildToolResultMetadata(result.ToolCallId, result.ToolName);
-                            await _contextManager.AddToolResultMessageAsync(
-                                $"(工具结果应用失败: {applyEx.Message})", placeholderMetadata, null, CancellationToken.None)
-                                .ConfigureAwait(false);
-                        } catch (Exception placeholderEx) {
-                            _logger?.LogError(placeholderEx, "[TOOL {CallId}] 写入占位结果也失败，中断回合", iterState.CallId);
-                            throw;
-                        }
-                    }
-                }
-
-                if (iterState.StreamUsage is not null) finalUsage = iterState.StreamUsage;
-                if (iterState.StreamModelId is not null) finalModelId = iterState.StreamModelId;
             } else {
-                // 传统模式 — 流式结束后顺序执行
-                await foreach (var evt in _llmHandler.InvokeLLMAsync(
-                    historySnapshot, context.ExecutionSettings, context, totalToolCalls, iterState, ct: ct)
-                    .ConfigureAwait(false)) {
+                await foreach (var evt in ProcessTraditionalModeAsync(historySnapshot, context, iterState, totalToolCalls, ct).ConfigureAwait(false)) {
                     yield return evt;
-                }
-
-                if (iterState.StreamUsage is not null) finalUsage = iterState.StreamUsage;
-                if (iterState.StreamModelId is not null) finalModelId = iterState.StreamModelId;
-
-                if (iterState.ToolCallName is null) {
-                    _logger?.LogInformation("[LOOP {CallId}] 纯文本响应, 长度={Len}", iterState.CallId, iterState.FullResponse.Length);
-                    var (pureEvents, pureResponse) = BuildPureTextResponse(iterState, context);
-                    foreach (var evt in pureEvents)
-                        yield return evt;
-                    if (!context.IsDryRun)
-                        await _contextManager.AddAssistantMessageAsync(pureResponse, ct).ConfigureAwait(false);
-                    break;
-                }
-
-                var toolCalls = _toolHandler.PrepareToolCalls(iterState);
-                var assistantContent = iterState.FullResponse.Length > 0 ? iterState.FullResponse.ToString() : null;
-                var assistantMetadata = ToolCallEntry.BuildAssistantMetadata(toolCalls);
-                await _contextManager.AddAssistantToolCallMessageAsync(assistantContent, assistantMetadata, ct).ConfigureAwait(false);
-
-                for (var idx = 0; idx < toolCalls.Count; idx++) {
-                    var toolCall = toolCalls[idx];
-                    totalToolCalls++;
-
-                    var currentArgs = JsonArgumentParser.Parse(toolCall.Arguments);
-                    var toolLoop = _loopDetectionStrategy.CheckToolCallLoop(toolCall.Name, currentArgs);
-                    if (toolLoop is not null) {
-                        yield return ChatStreamEvent.LoopDetected(toolLoop.TriggerCount, toolLoop.ToolCallCount, toolLoop.Reason);
-                    }
-
-                    yield return ChatStreamEvent.ToolStart(toolCall.Name, toolCall.Id, toolCall.Arguments);
-
-                    ToolCallResult toolCallResult;
-                    try {
-                        toolCallResult = await _toolHandler.ExecuteToolCallAsync(
-                            toolCall.Name, toolCall.Id, currentArgs, context, ct).ConfigureAwait(false);
-                    } catch (OperationCanceledException) when (ct.IsCancellationRequested) {
-                        await _toolHandler.WriteAbortedToolResultsAsync(toolCalls, idx, CancellationToken.None).ConfigureAwait(false);
-                        throw;
-                    }
-
-                    _logger?.LogInformation("[TOOL {CallId}] #{Num} {ToolName} → {Result}",
-                        iterState.CallId, totalToolCalls, toolCall.Name, toolCallResult.IsError ? "ERROR" : "OK");
-
-                    yield return ChatStreamEvent.ToolEnd(
-                        toolCall.Name, toolCallResult.ResultText, toolCall.Id,
-                        toolCallResult.IsError, toolCallResult.StructuredPatch);
-
-                    try {
-                        await _toolHandler.ApplyToolResultToContextAsync(
-                            toolCall.Name, toolCall.Id, toolCallResult.ResultText,
-                            toolCallResult.IsError, toolCallResult.ContentBlocks, context, ct).ConfigureAwait(false);
-                    } catch (OperationCanceledException) when (ct.IsCancellationRequested) {
-                        await _toolHandler.WriteAbortedToolResultsAsync(toolCalls, idx, CancellationToken.None).ConfigureAwait(false);
-                        throw;
-                    } catch (Exception applyEx) {
-                        _logger?.LogError(applyEx, "[TOOL {CallId}] 应用结果到上下文失败: {ToolName}", iterState.CallId, toolCall.Name);
-                        try {
-                            var placeholderMetadata = ToolCallEntry.BuildToolResultMetadata(toolCall.Id, toolCall.Name);
-                            await _contextManager.AddToolResultMessageAsync(
-                                $"(工具结果应用失败: {applyEx.Message})", placeholderMetadata, null, CancellationToken.None)
-                                .ConfigureAwait(false);
-                        } catch (Exception placeholderEx) {
-                            _logger?.LogError(placeholderEx, "[TOOL {CallId}] 写入占位结果也失败，中断回合", iterState.CallId);
-                            throw;
-                        }
-                    }
                 }
             }
 
             if (iterState.StreamUsage is not null) finalUsage = iterState.StreamUsage;
             if (iterState.StreamModelId is not null) finalModelId = iterState.StreamModelId;
+
+            if (iterState.ToolCallName is not null) {
+                emptyRetryCount = 0;
+                totalToolCalls += iterState.ToolCalls.Count;
+                if (totalToolCalls > 0 && emptyRetryCount > 0) emptyRetryCount = 0;
+                continue;
+            }
+
+            if (iterState.FullResponse.Length > 0) {
+                emptyRetryCount = 0;
+                break;
+            }
+
+            emptyRetryCount++;
+            if (emptyRetryCount > MaxEmptyResponseRetries) {
+                _logger?.LogWarning("[LOOP] 空响应重试耗尽({Max}次), 给出友好提示", MaxEmptyResponseRetries);
+                var (retryEvents, retryResponse) = BuildEmptyResponseMessage(emptyRetryCount);
+                foreach (var evt in retryEvents)
+                    yield return evt;
+                if (!context.IsDryRun)
+                    await _contextManager.AddAssistantMessageAsync(retryResponse, ct).ConfigureAwait(false);
+                break;
+            }
+
+            _logger?.LogWarning("[LOOP {CallId}] LLM 空响应, {Delay}s 后第 {Retry}/{Max} 次重试",
+                iterState.CallId, EmptyResponseRetryDelay.TotalSeconds, emptyRetryCount, MaxEmptyResponseRetries);
+            yield return ChatStreamEvent.Text($"[重试 {emptyRetryCount}/{MaxEmptyResponseRetries}] 模型返回空响应，正在重试...");
+            await Task.Delay(EmptyResponseRetryDelay, ct).ConfigureAwait(false);
         }
 
         if (totalToolCalls >= MaxToolCallIterations) {
             _logger?.LogWarning("[LOOP] 达到最大工具调用次数限制: {Max}", MaxToolCallIterations);
-            // 显式通知用户而非静默截断 — 避免用户误以为任务已完成
             yield return ChatStreamEvent.Text(
                 $"⚠ 已达到最大工具调用次数（{MaxToolCallIterations} 次），为避免死循环本轮对话已被截断。");
         }
@@ -282,23 +159,184 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
     }
 
     /// <summary>
-    /// 构建纯文本响应事件 — 循环检测后返回事件列表和最终响应文本
+    /// 流式工具执行模式 — 对齐 TS StreamingToolExecutor
     /// </summary>
+    private async IAsyncEnumerable<ChatStreamEvent> ProcessStreamingModeAsync(
+        MessageList historySnapshot, ChatMiddlewareContext context, IterationState iterState,
+        int totalToolCalls, [EnumeratorCancellation] CancellationToken ct) {
+
+        var streamingExecutor = new StreamingToolExecutor(
+            _toolHandler, _concurrencyClassifier!, context, MaxConcurrency, _logger, ct);
+
+        await foreach (var evt in _llmHandler.InvokeLLMAsync(
+            historySnapshot, context.ExecutionSettings, context, totalToolCalls, iterState,
+            streamingToolExecution: true, ct: ct).ConfigureAwait(false)) {
+            yield return evt;
+        }
+
+        if (iterState.ToolCallName is null) {
+            _logger?.LogInformation("[LOOP {CallId}] 纯文本响应, 长度={Len}", iterState.CallId, iterState.FullResponse.Length);
+            if (iterState.FullResponse.Length > 0) {
+                var (pureEvents, pureResponse) = BuildPureTextResponse(iterState, context);
+                foreach (var evt in pureEvents)
+                    yield return evt;
+                if (!context.IsDryRun)
+                    await _contextManager.AddAssistantMessageAsync(pureResponse, ct).ConfigureAwait(false);
+            }
+            yield break;
+        }
+
+        var toolCalls = _toolHandler.PrepareToolCalls(iterState);
+        var assistantContent = iterState.FullResponse.Length > 0 ? iterState.FullResponse.ToString() : null;
+        var assistantMetadata = ToolCallEntry.BuildAssistantMetadata(toolCalls);
+        await _contextManager.AddAssistantToolCallMessageAsync(assistantContent, assistantMetadata, ct).ConfigureAwait(false);
+
+        for (var idx = 0; idx < toolCalls.Count; idx++) {
+            var toolCall = toolCalls[idx];
+            var currentArgs = JsonArgumentParser.Parse(toolCall.Arguments);
+            var toolLoop = _loopDetectionStrategy.CheckToolCallLoop(toolCall.Name, currentArgs);
+            if (toolLoop is not null) {
+                yield return ChatStreamEvent.LoopDetected(toolLoop.TriggerCount, toolLoop.ToolCallCount, toolLoop.Reason);
+            }
+
+            yield return ChatStreamEvent.ToolStart(toolCall.Name, toolCall.Id, toolCall.Arguments);
+            await streamingExecutor.AddToolAsync(toolCall, idx).ConfigureAwait(false);
+        }
+
+        IReadOnlyList<StreamingToolResult> allResults;
+        try {
+            allResults = await streamingExecutor.GetRemainingResultsAsync().ConfigureAwait(false);
+        } catch (OperationCanceledException) when (ct.IsCancellationRequested) {
+            await _toolHandler.WriteAbortedToolResultsAsync(toolCalls, 0, CancellationToken.None).ConfigureAwait(false);
+            throw;
+        }
+
+        foreach (var result in allResults) {
+            _logger?.LogInformation("[TOOL {CallId}] {ToolName} → {Result} | 长度={Len}",
+                iterState.CallId, result.ToolName, result.Result.IsError ? "ERROR" : "OK", result.Result.ResultText?.Length ?? 0);
+
+            yield return result.ToToolEndEvent();
+
+            try {
+                await _toolHandler.ApplyToolResultToContextAsync(
+                    result.ToolName, result.ToolCallId, result.Result.ResultText,
+                    result.Result.IsError, result.Result.ContentBlocks, context, ct).ConfigureAwait(false);
+            } catch (OperationCanceledException) when (ct.IsCancellationRequested) {
+                await _toolHandler.WriteAbortedToolResultsAsync(toolCalls, 0, CancellationToken.None).ConfigureAwait(false);
+                throw;
+            } catch (Exception applyEx) {
+                _logger?.LogError(applyEx, "[TOOL {CallId}] 应用结果到上下文失败: {ToolName}", iterState.CallId, result.ToolName);
+                try {
+                    var placeholderMetadata = ToolCallEntry.BuildToolResultMetadata(result.ToolCallId, result.ToolName);
+                    await _contextManager.AddToolResultMessageAsync(
+                        $"(工具结果应用失败: {applyEx.Message})", placeholderMetadata, null, CancellationToken.None)
+                        .ConfigureAwait(false);
+                } catch (Exception placeholderEx) {
+                    _logger?.LogError(placeholderEx, "[TOOL {CallId}] 写入占位结果也失败，中断回合", iterState.CallId);
+                    throw;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// 传统模式 — 流式结束后顺序执行工具
+    /// </summary>
+    private async IAsyncEnumerable<ChatStreamEvent> ProcessTraditionalModeAsync(
+        MessageList historySnapshot, ChatMiddlewareContext context, IterationState iterState,
+        int totalToolCalls, [EnumeratorCancellation] CancellationToken ct) {
+
+        await foreach (var evt in _llmHandler.InvokeLLMAsync(
+            historySnapshot, context.ExecutionSettings, context, totalToolCalls, iterState, ct: ct)
+            .ConfigureAwait(false)) {
+            yield return evt;
+        }
+
+        if (iterState.ToolCallName is null) {
+            _logger?.LogInformation("[LOOP {CallId}] 纯文本响应, 长度={Len}", iterState.CallId, iterState.FullResponse.Length);
+            if (iterState.FullResponse.Length > 0) {
+                var (pureEvents, pureResponse) = BuildPureTextResponse(iterState, context);
+                foreach (var evt in pureEvents)
+                    yield return evt;
+                if (!context.IsDryRun)
+                    await _contextManager.AddAssistantMessageAsync(pureResponse, ct).ConfigureAwait(false);
+            }
+            yield break;
+        }
+
+        var toolCalls = _toolHandler.PrepareToolCalls(iterState);
+        var assistantContent = iterState.FullResponse.Length > 0 ? iterState.FullResponse.ToString() : null;
+        var assistantMetadata = ToolCallEntry.BuildAssistantMetadata(toolCalls);
+        await _contextManager.AddAssistantToolCallMessageAsync(assistantContent, assistantMetadata, ct).ConfigureAwait(false);
+
+        for (var idx = 0; idx < toolCalls.Count; idx++) {
+            var toolCall = toolCalls[idx];
+            var currentArgs = JsonArgumentParser.Parse(toolCall.Arguments);
+            var toolLoop = _loopDetectionStrategy.CheckToolCallLoop(toolCall.Name, currentArgs);
+            if (toolLoop is not null) {
+                yield return ChatStreamEvent.LoopDetected(toolLoop.TriggerCount, toolLoop.ToolCallCount, toolLoop.Reason);
+            }
+
+            yield return ChatStreamEvent.ToolStart(toolCall.Name, toolCall.Id, toolCall.Arguments);
+
+            ToolCallResult toolCallResult;
+            try {
+                toolCallResult = await _toolHandler.ExecuteToolCallAsync(
+                    toolCall.Name, toolCall.Id, currentArgs, context, ct).ConfigureAwait(false);
+            } catch (OperationCanceledException) when (ct.IsCancellationRequested) {
+                await _toolHandler.WriteAbortedToolResultsAsync(toolCalls, idx, CancellationToken.None).ConfigureAwait(false);
+                throw;
+            }
+
+            _logger?.LogInformation("[TOOL {CallId}] {ToolName} → {Result}",
+                iterState.CallId, toolCall.Name, toolCallResult.IsError ? "ERROR" : "OK");
+
+            yield return ChatStreamEvent.ToolEnd(
+                toolCall.Name, toolCallResult.ResultText, toolCall.Id,
+                toolCallResult.IsError, toolCallResult.StructuredPatch);
+
+            try {
+                await _toolHandler.ApplyToolResultToContextAsync(
+                    toolCall.Name, toolCall.Id, toolCallResult.ResultText,
+                    toolCallResult.IsError, toolCallResult.ContentBlocks, context, ct).ConfigureAwait(false);
+            } catch (OperationCanceledException) when (ct.IsCancellationRequested) {
+                await _toolHandler.WriteAbortedToolResultsAsync(toolCalls, idx, CancellationToken.None).ConfigureAwait(false);
+                throw;
+            } catch (Exception applyEx) {
+                _logger?.LogError(applyEx, "[TOOL {CallId}] 应用结果到上下文失败: {ToolName}", iterState.CallId, toolCall.Name);
+                try {
+                    var placeholderMetadata = ToolCallEntry.BuildToolResultMetadata(toolCall.Id, toolCall.Name);
+                    await _contextManager.AddToolResultMessageAsync(
+                        $"(工具结果应用失败: {applyEx.Message})", placeholderMetadata, null, CancellationToken.None)
+                        .ConfigureAwait(false);
+                } catch (Exception placeholderEx) {
+                    _logger?.LogError(placeholderEx, "[TOOL {CallId}] 写入占位结果也失败，中断回合", iterState.CallId);
+                    throw;
+                }
+            }
+        }
+    }
+
     private (List<ChatStreamEvent> Events, string FinalResponse) BuildPureTextResponse(
         IterationState iterState, ChatMiddlewareContext context) {
         var events = new List<ChatStreamEvent>();
         var aiResponse = iterState.FullResponse.ToString();
-        if (string.IsNullOrEmpty(aiResponse)) {
-            aiResponse = "[QueryLoopMiddleware:BuildPureTextResponse] 抱歉，我无法生成回复。";
-            events.Add(ChatStreamEvent.Text(aiResponse));
-        }
 
         var textLoop = _loopDetectionStrategy.CheckTextLoop(aiResponse);
         if (textLoop is not null) {
-            _logger?.LogWarning("[QueryLoopMiddleware] 逻辑指纹循环已触发");
+            _logger?.LogWarning("[LOOP] 逻辑指纹循环已触发");
             events.Add(ChatStreamEvent.LoopDetected(textLoop.TriggerCount, textLoop.ToolCallCount, textLoop.Reason));
         }
 
         return (events, aiResponse);
+    }
+
+    private (List<ChatStreamEvent> Events, string FinalResponse) BuildEmptyResponseMessage(int retryCount) {
+        var events = new List<ChatStreamEvent>();
+        var msg = retryCount > 1
+            ? $"模型连续返回空响应（已重试 {retryCount} 次），可能是服务端临时问题。请稍后重试或换一个模型。"
+            : "模型返回空响应，可能是服务端临时问题。请稍后重试。";
+        events.Add(ChatStreamEvent.Text(msg));
+        return (events, msg);
     }
 }

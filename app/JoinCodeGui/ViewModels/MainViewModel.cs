@@ -26,6 +26,7 @@ public sealed partial class MainViewModel : ViewModelBase
     private bool _isPreferencesLoaded;
     private bool _isRefreshingConfig;
     private bool _isApplyingExternalTheme;
+    private bool _skipNextConnectionChange;
     private System.IO.FileSystemWatcher? _modelConfigWatcher;
     private DateTime _lastConfigReload = DateTime.MinValue;
 
@@ -1047,9 +1048,18 @@ public sealed partial class MainViewModel : ViewModelBase
 
     partial void OnSelectedConnectionChanged(ConnectionOptionItem? value)
     {
-        WriteDebugLog($"OnSelectedConnectionChanged: id={value?.Id} refresh={_isRefreshingConfig} realSession={_realSession is not null} session={_session.GetType().Name} currentVendor={_session.CurrentVendor}");
-        if (value is null || _isRefreshingConfig)
+        WriteDebugLog($"OnSelectedConnectionChanged: id={value?.Id} refresh={_isRefreshingConfig} skip={_skipNextConnectionChange} realSession={_realSession is not null} session={_session.GetType().Name} currentVendor={_session.CurrentVendor}");
+        if (value is null)
+        {
+            // ComboBox 绑定跳变:先设 null 再选第一个,标记跳过下一次
+            _skipNextConnectionChange = true;
             return;
+        }
+        if (_isRefreshingConfig || _skipNextConnectionChange)
+        {
+            _skipNextConnectionChange = false;
+            return;
+        }
 
         // 无论引擎是否就绪,都持久化供应商切换到 settings.json(PlaceholderChatSession 也能写)
         // 并刷新模型列表供预览

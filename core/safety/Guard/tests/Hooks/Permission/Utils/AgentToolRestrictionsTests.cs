@@ -131,8 +131,8 @@ public sealed class AgentToolRestrictionsTests
     [InlineData(FileToolNameConstants.FileWrite, PermissionMode.Auto, true)]
     [InlineData(TodoToolNameConstants.TodoWrite, PermissionMode.Auto, true)]
     [InlineData(TodoToolNameConstants.TodoList, PermissionMode.Auto, true)]
-    [InlineData(ShellToolNameConstants.Bash, PermissionMode.Auto, false)]
-    [InlineData(FileToolNameConstants.FileDelete, PermissionMode.Auto, false)]
+    [InlineData(ShellToolNameConstants.Bash, PermissionMode.Auto, true)]
+    [InlineData(FileToolNameConstants.FileDelete, PermissionMode.Auto, true)]
     [InlineData(FileToolNameConstants.FileRead, PermissionMode.Plan, true)]
     [InlineData(TodoToolNameConstants.TodoWrite, PermissionMode.Plan, true)]
     [InlineData(FileToolNameConstants.FileWrite, PermissionMode.Plan, false)]
@@ -168,10 +168,11 @@ public sealed class AgentToolRestrictionsTests
     }
 
     [Fact]
-    public void IsToolAllowedForMode_AutoMode_DeniedToolShouldBeFalse()
+    public void IsToolAllowedForMode_AutoMode_SensitiveToolsAllowedButNeedConfirmation()
     {
-        _sut.IsToolAllowedForMode(GitToolNameConstants.GitCommit, PermissionMode.Auto).Should().BeFalse();
-        _sut.IsToolAllowedForMode(GitToolNameConstants.GitPush, PermissionMode.Auto).Should().BeFalse();
+        _sut.IsToolAllowedForMode(GitToolNameConstants.GitCommit, PermissionMode.Auto).Should().BeTrue();
+        _sut.IsToolAllowedForMode(GitToolNameConstants.GitPush, PermissionMode.Auto).Should().BeTrue();
+        _sut.IsToolAllowedForMode(ShellToolNameConstants.Bash, PermissionMode.Auto).Should().BeTrue();
     }
 
     [Fact]
@@ -193,7 +194,7 @@ public sealed class AgentToolRestrictionsTests
     public void IsToolAllowedForMode_ExactCaseMatch_ShouldWork()
     {
         _sut.IsToolAllowedForMode(FileToolNameConstants.FileRead, PermissionMode.Auto).Should().BeTrue();
-        _sut.IsToolAllowedForMode(ShellToolNameConstants.Bash, PermissionMode.Auto).Should().BeFalse();
+        _sut.IsToolAllowedForMode(ShellToolNameConstants.Bash, PermissionMode.Auto).Should().BeTrue();
     }
 
     [Theory]
@@ -204,8 +205,8 @@ public sealed class AgentToolRestrictionsTests
     [InlineData("edit", PermissionMode.Auto, true)]
     [InlineData("glob", PermissionMode.Auto, true)]
     [InlineData("grep", PermissionMode.Auto, true)]
-    [InlineData("shell_execute", PermissionMode.Auto, false)]
-    [InlineData("file_delete", PermissionMode.Auto, false)]
+    [InlineData("shell_execute", PermissionMode.Auto, true)]
+    [InlineData("file_delete", PermissionMode.Auto, true)]
     public void IsToolAllowedForMode_CaseInsensitive_ShouldMatch(string toolName, PermissionMode mode, bool expected)
     {
         // LLM 返回的工具名可能是任意大小写（如 read/Read/READ）

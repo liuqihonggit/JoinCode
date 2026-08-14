@@ -58,19 +58,19 @@ public enum McpToolName
     McpListClients,
 
     [EnumValue("mcp_auth_apikey")]
-    [SecurityClass("sensitive", AutoDenied = true, PlanDenied = true, AskAllowed = true)]
+    [SecurityClass("sensitive", AutoAllowed = false, PlanDenied = true, AskAllowed = true)]
     McpAuthApiKey,
 
     [EnumValue("mcp_auth_bearer")]
-    [SecurityClass("sensitive", AutoDenied = true, PlanDenied = true, AskAllowed = true)]
+    [SecurityClass("sensitive", AutoAllowed = false, PlanDenied = true, AskAllowed = true)]
     McpAuthBearer,
 
     [EnumValue("mcp_auth_basic")]
-    [SecurityClass("sensitive", AutoDenied = true, PlanDenied = true, AskAllowed = true)]
+    [SecurityClass("sensitive", AutoAllowed = false, PlanDenied = true, AskAllowed = true)]
     McpAuthBasic,
 
     [EnumValue("mcp_auth_oauth2")]
-    [SecurityClass("sensitive", AutoDenied = true, PlanDenied = true, AskAllowed = true)]
+    [SecurityClass("sensitive", AutoAllowed = false, PlanDenied = true, AskAllowed = true)]
     McpAuthOAuth2,
 
     [EnumValue("mcp_auth_refresh")]
@@ -82,7 +82,7 @@ public enum McpToolName
     McpAuthStatus,
 
     [EnumValue("mcp_auth_remove")]
-    [SecurityClass("sensitive", AutoDenied = true, PlanDenied = true, AskAllowed = true)]
+    [SecurityClass("sensitive", AutoAllowed = false, PlanDenied = true, AskAllowed = true)]
     McpAuthRemove,
 
     [EnumValue("RemoteTrigger")]

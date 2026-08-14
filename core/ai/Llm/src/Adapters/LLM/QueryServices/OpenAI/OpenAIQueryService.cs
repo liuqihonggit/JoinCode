@@ -338,6 +338,10 @@ public class OpenAIQueryService : QueryServiceBase
             var data = line[6..];
             if (data == "[DONE]")
             {
+                System.Console.WriteLine();
+                System.Console.ForegroundColor = System.ConsoleColor.DarkGray;
+                System.Console.WriteLine("----------------------------");
+                System.Console.ResetColor();
                 Logger?.LogWarning("[WIRE {CallId}] 流结束 | chunks={Total}, content={Content}, toolCalls={ToolCalls}",
                     CallTrace.CurrentId, chunkCount, contentChunks, toolCallChunks);
                 yield break;
@@ -371,6 +375,10 @@ public class OpenAIQueryService : QueryServiceBase
             }
         }
 
+        System.Console.WriteLine();
+        System.Console.ForegroundColor = System.ConsoleColor.DarkGray;
+        System.Console.WriteLine("----------------------------");
+        System.Console.ResetColor();
         Logger?.LogWarning("[WIRE {CallId}] 流异常结束(无[DONE]) | chunks={Total}, content={Content}, toolCalls={ToolCalls}",
             CallTrace.CurrentId, chunkCount, contentChunks, toolCallChunks);
     }

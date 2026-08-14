@@ -71,16 +71,8 @@ public sealed partial class AgentToolRestrictions : ServiceEntity, IAgentToolRes
             return false;
         }
 
-        var allowed = GetAllowedTools(mode);
-        if (allowed.Count == 0)
-        {
-            RecordPermissionCheckMetrics(toolName, mode, true);
-            return true;
-        }
-
-        var allowedResult = allowed.Contains(toolName);
-        RecordPermissionCheckMetrics(toolName, mode, allowedResult);
-        return allowedResult;
+        RecordPermissionCheckMetrics(toolName, mode, true);
+        return true;
     }
 
     private void RecordPermissionCheckMetrics(string toolName, PermissionMode mode, bool isAllowed)

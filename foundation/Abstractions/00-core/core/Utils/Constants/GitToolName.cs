@@ -14,11 +14,11 @@ public enum GitToolName
     GitAdd,
 
     [EnumValue("git_commit")]
-    [SecurityClass("sensitive", AutoDenied = true, PlanDenied = true, AskAllowed = true)]
+    [SecurityClass("sensitive", AutoAllowed = false, PlanDenied = true, AskAllowed = true)]
     GitCommit,
 
     [EnumValue("git_push")]
-    [SecurityClass("sensitive", AutoDenied = true, PlanDenied = true, AskAllowed = true, AgentDestructive = true)]
+    [SecurityClass("sensitive", AutoAllowed = false, PlanDenied = true, AskAllowed = true, AgentDestructive = true)]
     GitPush,
 
     [EnumValue("git_pull")]
@@ -42,10 +42,10 @@ public enum GitToolName
     GitClone,
 
     [EnumValue("git_reset")]
-    [SecurityClass("sensitive", AutoDenied = true, PlanDenied = true, AskAllowed = true, AgentDestructive = true)]
+    [SecurityClass("sensitive", AutoAllowed = false, PlanDenied = true, AskAllowed = true, AgentDestructive = true)]
     GitReset,
 
     [EnumValue("git_clean")]
-    [SecurityClass("sensitive", AutoDenied = true, PlanDenied = true, AskAllowed = true, AgentDestructive = true)]
+    [SecurityClass("sensitive", AutoAllowed = false, PlanDenied = true, AskAllowed = true, AgentDestructive = true)]
     GitClean,
 }

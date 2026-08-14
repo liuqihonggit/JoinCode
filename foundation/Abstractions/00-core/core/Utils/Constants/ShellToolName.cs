@@ -6,7 +6,7 @@ namespace JoinCode.Abstractions.Utils;
 public enum ShellToolName
 {
     [EnumValue("Bash")]
-    [SecurityClass("sensitive", AutoDenied = true, PlanDenied = true, AskAllowed = true, AgentDestructive = true)]
+    [SecurityClass("sensitive", AutoAllowed = false, PlanDenied = true, AskAllowed = true, AgentDestructive = true)]
     Bash,
 
     [EnumValue("shell_check")]
@@ -14,7 +14,7 @@ public enum ShellToolName
     ShellCheck,
 
     [EnumValue("PowerShell")]
-    [SecurityClass("sensitive", AutoDenied = true, PlanDenied = true, AskAllowed = true, AgentDestructive = true)]
+    [SecurityClass("sensitive", AutoAllowed = false, PlanDenied = true, AskAllowed = true, AgentDestructive = true)]
     Powershell,
 
     [EnumValue("shell_background_get")]
@@ -34,11 +34,11 @@ public enum ShellToolName
     ShellBackgroundCancel,
 
     [EnumValue("shell_background_kill_all")]
-    [SecurityClass("sensitive", AutoDenied = true, PlanDenied = true, AskAllowed = true)]
+    [SecurityClass("sensitive", AutoAllowed = false, PlanDenied = true, AskAllowed = true)]
     ShellBackgroundKillAll,
 
     [EnumValue("powershell_script")]
-    [SecurityClass("sensitive", AutoDenied = true, PlanDenied = true, AskAllowed = true)]
+    [SecurityClass("sensitive", AutoAllowed = false, PlanDenied = true, AskAllowed = true)]
     PowershellScript,
 
     [EnumValue("powershell_version")]
@@ -50,6 +50,6 @@ public enum ShellToolName
     PowershellExecutionPolicy,
 
     [EnumValue("powershell_set_execution_policy")]
-    [SecurityClass("sensitive", AutoDenied = true, PlanDenied = true, AskAllowed = true)]
+    [SecurityClass("sensitive", AutoAllowed = false, PlanDenied = true, AskAllowed = true)]
     PowershellSetExecutionPolicy,
 }

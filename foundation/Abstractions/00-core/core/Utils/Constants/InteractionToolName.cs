@@ -26,7 +26,7 @@ public enum InteractionToolName
     AuthRefresh,
 
     [EnumValue("auth_logout")]
-    [SecurityClass("sensitive", AutoDenied = true, PlanDenied = true, AskAllowed = true)]
+    [SecurityClass("sensitive", AutoAllowed = false, PlanDenied = true, AskAllowed = true)]
     AuthLogout,
 
     [EnumValue("Config")]
@@ -46,11 +46,11 @@ public enum InteractionToolName
     ConfigList,
 
     [EnumValue("permission_add_rule")]
-    [SecurityClass("sensitive", AutoDenied = true, PlanDenied = true, AskAllowed = true)]
+    [SecurityClass("sensitive", AutoAllowed = false, PlanDenied = true, AskAllowed = true)]
     PermissionAddRule,
 
     [EnumValue("permission_remove_rule")]
-    [SecurityClass("sensitive", AutoDenied = true, PlanDenied = true, AskAllowed = true)]
+    [SecurityClass("sensitive", AutoAllowed = false, PlanDenied = true, AskAllowed = true)]
     PermissionRemoveRule,
 
     [EnumValue("permission_list_rules")]
@@ -70,7 +70,7 @@ public enum InteractionToolName
     PermissionGetAgentRule,
 
     [EnumValue("permission_clear_rules")]
-    [SecurityClass("sensitive", AutoDenied = true, PlanDenied = true, AskAllowed = true)]
+    [SecurityClass("sensitive", AutoAllowed = false, PlanDenied = true, AskAllowed = true)]
     PermissionClearRules,
 
     [EnumValue("analytics_report")]
@@ -90,7 +90,7 @@ public enum InteractionToolName
     AnalyticsExport,
 
     [EnumValue("analytics_clear")]
-    [SecurityClass("sensitive", AutoDenied = true, PlanDenied = true, AskAllowed = true)]
+    [SecurityClass("sensitive", AutoAllowed = false, PlanDenied = true, AskAllowed = true)]
     AnalyticsClear,
 
     [EnumValue("policy_check")]

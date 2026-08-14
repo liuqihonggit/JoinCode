@@ -110,7 +110,7 @@ public enum SystemToolName
     ListPeers,
 
     [EnumValue("REPL")]
-    [SecurityClass("sensitive", AutoDenied = true, PlanDenied = true, AskAllowed = true)]
+    [SecurityClass("sensitive", AutoAllowed = false, PlanDenied = true, AskAllowed = true)]
     Repl,
 
     [EnumValue("structured_output_register")]

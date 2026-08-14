@@ -10,7 +10,7 @@ public enum TeamToolName
     TeamCreate,
 
     [EnumValue("TeamDelete")]
-    [SecurityClass("sensitive", AutoDenied = true, PlanDenied = true, AskAllowed = true)]
+    [SecurityClass("sensitive", AutoAllowed = false, PlanDenied = true, AskAllowed = true)]
     TeamDelete,
 
     [EnumValue("team_get")]

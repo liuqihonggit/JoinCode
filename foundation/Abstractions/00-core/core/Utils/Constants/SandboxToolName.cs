@@ -19,10 +19,10 @@ public enum SandboxToolName
     SandboxStatus,
 
     [EnumValue("sandbox_exec")]
-    [SecurityClass("sensitive", AutoDenied = true, PlanDenied = true, AskAllowed = true)]
+    [SecurityClass("sensitive", AutoAllowed = false, PlanDenied = true, AskAllowed = true)]
     SandboxExec,
 
     [EnumValue("sandbox_exec_continue")]
-    [SecurityClass("sensitive", AutoDenied = true, PlanDenied = true, AskAllowed = true)]
+    [SecurityClass("sensitive", AutoAllowed = false, PlanDenied = true, AskAllowed = true)]
     SandboxExecContinue,
 }

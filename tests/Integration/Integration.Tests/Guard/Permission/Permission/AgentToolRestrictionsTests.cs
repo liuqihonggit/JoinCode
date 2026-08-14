@@ -35,13 +35,14 @@ public sealed class AgentToolRestrictionsTests
     [Theory]
     [InlineData(ShellToolNameConstants.Bash, PermissionMode.Auto)]
     [InlineData(ShellToolNameConstants.Powershell, PermissionMode.Auto)]
-    public void IsToolAllowedForMode_DangerousTools_ShouldBeDeniedInAuto(string toolName, PermissionMode mode)
+    public void IsToolAllowedForMode_SensitiveTools_ShouldBeAllowedInAuto(string toolName, PermissionMode mode)
     {
         // Act
         var isAllowed = _restrictions.IsToolAllowedForMode(toolName, mode);
 
-        // Assert — 危险工具应在 Auto 模式下被拒绝（回归测试）
-        Assert.False(isAllowed, $"危险工具 '{toolName}' 应在 {mode} 模式下被拒绝");
+        // Assert — 敏感工具在 Auto 模式下不再被 AgentRestrictions 直接拒绝，
+        // 而是放行到 AutoClassifierMiddleware 走交互确认路径
+        Assert.True(isAllowed, $"敏感工具 '{toolName}' 在 {mode} 模式下应放行到后续中间件确认");
     }
 
     [Fact]

@@ -36,9 +36,6 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
             {
                 while (!ct.IsCancellationRequested)
                 {
-                    using var _ = Cli.TerminalHelper.SetColor(ConsoleColor.Green);
-                    Cli.TerminalHelper.WriteRaw("> ");
-
                     if (System.Console.IsInputRedirected && !Cli.TerminalHelper.ForceInteractive)
                     {
                         Diag.WriteLine("[DIAG-REPL] stdin redirected, ForceInteractive=false, returning empty");
@@ -66,8 +63,16 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
                         break;
                     }
 
+                    if (ConfirmationGate.Pending && ConfirmationGate.Source is not null)
+                    {
+                        Diag.WriteLine($"[DIAG-REPL] routing input to confirmation: '{input}'");
+                        ConfirmationGate.Source.TrySetResult(input);
+                        continue;
+                    }
+
                     if (string.IsNullOrWhiteSpace(input))
                     {
+                        inputChannel.Writer.TryWrite(input);
                         continue;
                     }
 
@@ -82,6 +87,9 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
 
         while (session.IsRunning && !ct.IsCancellationRequested)
         {
+            using (Cli.TerminalHelper.SetColor(ConsoleColor.Green))
+                Cli.TerminalHelper.WriteRaw("> ");
+
             string combined;
             try
             {
@@ -90,6 +98,9 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
                 Diag.WriteLine($"[DIAG-REPL] received input: '{(combined.Length > 80 ? combined[..80] + "..." : combined)}'");
             }
             catch (System.Threading.Channels.ChannelClosedException) { break; }
+
+            if (string.IsNullOrWhiteSpace(combined))
+                continue;
 
             while (inputChannel.Reader.TryRead(out var more))
                 combined = string.Concat(combined, "\n", more);
@@ -103,6 +114,10 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
                 stepCts.Cancel();
             }
             Console.CancelKeyPress += OnCancelKeyPress;
+
+            Cli.TerminalHelper.WriteLine();
+            using (Cli.TerminalHelper.SetColor(ConsoleColor.DarkGray))
+                Cli.TerminalHelper.WriteLine("----------------------------");
 
             var aliveTask = RunAliveLoopAsync(aliveCts.Token);
             try
@@ -142,6 +157,9 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
                 aliveCts.Cancel();
                 try { await aliveTask.ConfigureAwait(false); } catch (OperationCanceledException) { }
                 await Console.Out.FlushAsync().ConfigureAwait(false);
+                using (Cli.TerminalHelper.SetColor(ConsoleColor.DarkGray))
+                    Cli.TerminalHelper.WriteLine("----------------------------");
+                Cli.TerminalHelper.WriteLine();
                 Diag.WriteLifecycle("[DONE]");
             }
         }

@@ -41,17 +41,20 @@ public sealed partial class ToolExecutionHandler : ServiceEntity, IToolExecution
     private readonly IChatToolOrchestrator _toolOrchestrator;
     private readonly IChatContextManager _contextManager;
     private readonly QueryLoopServices? _services;
+    private readonly IPermissionConfirmationHandler? _confirmationHandler;
     [Inject] private readonly ILogger<ToolExecutionHandler>? _logger;
 
     public ToolExecutionHandler(
         IChatToolOrchestrator toolOrchestrator,
         IChatContextManager contextManager,
         QueryLoopServices? services = null,
+        IPermissionConfirmationHandler? confirmationHandler = null,
         ILogger<ToolExecutionHandler>? logger = null)
     {
         _toolOrchestrator = toolOrchestrator;
         _contextManager = contextManager;
         _services = services;
+        _confirmationHandler = confirmationHandler;
         _logger = logger;
     }
 
@@ -82,8 +85,26 @@ public sealed partial class ToolExecutionHandler : ServiceEntity, IToolExecution
         }
         catch (PermissionPendingConfirmationException ex)
         {
-            _logger?.LogWarning("[ToolExecutionHandler] 工具权限待确认，交互模式下作为拒绝返回给AI: {ToolName}", toolName);
-            toolCallResult = new ToolCallResult { ResultText = $"Error: {ex.Message}", IsError = true };
+            if (_confirmationHandler is not null)
+            {
+                var action = _confirmationHandler.Confirm(toolName, ex.ConfirmationPrompt);
+                if (action == PermissionConfirmAction.Allow || action == PermissionConfirmAction.AlwaysAllow)
+                {
+                    _logger?.LogInformation("[ToolExecutionHandler] 用户确认允许工具执行: {ToolName}", toolName);
+                    toolCallResult = await _toolOrchestrator.ExecuteToolCallAsync(
+                        toolName, toolCallId, arguments, cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    _logger?.LogWarning("[ToolExecutionHandler] 用户拒绝工具执行: {ToolName}", toolName);
+                    toolCallResult = new ToolCallResult { ResultText = $"Error: {ex.Message}", IsError = true };
+                }
+            }
+            else
+            {
+                _logger?.LogWarning("[ToolExecutionHandler] 无确认处理器，工具权限待确认作为拒绝返回: {ToolName}", toolName);
+                toolCallResult = new ToolCallResult { ResultText = $"Error: {ex.Message}", IsError = true };
+            }
         }
 
         // 应用 ContextModifier

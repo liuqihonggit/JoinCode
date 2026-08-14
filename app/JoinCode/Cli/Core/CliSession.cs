@@ -393,42 +393,4 @@ public sealed class CliSession
         }
     }
 
-    private PermissionConfirmResult ShowPermissionConfirmation(PermissionPendingConfirmationException permEx)
-    {
-        TerminalHelper.WriteLine();
-        TerminalHelper.WriteLine($"权限确认: {permEx.ConfirmationPrompt}");
-        TerminalHelper.WriteRaw("(y)允许 / (a)始终允许 / (n)拒绝 [n]: ");
-
-        if (TerminalHelper.IsInputRedirected || Core.Utils.TestEnvironmentDetector.IsNonInteractive)
-        {
-            TerminalHelper.WriteLine(L.T(StringKey.NonInteractivePermissionDenied));
-            return PermissionConfirmResult.Deny;
-        }
-
-        try
-        {
-            var key = TerminalHelper.ReadKey(true);
-            TerminalHelper.NewLine();
-            return key.KeyChar switch
-            {
-                'y' or 'Y' => PermissionConfirmResult.Allow,
-                'a' or 'A' => PermissionConfirmResult.AlwaysAllow,
-                _ => PermissionConfirmResult.Deny
-            };
-        }
-        catch
-        {
-            return PermissionConfirmResult.Deny;
-        }
-    }
-}
-
-/// <summary>
-/// 权限确认结果
-/// </summary>
-internal enum PermissionConfirmResult
-{
-    Deny,
-    Allow,
-    AlwaysAllow
 }

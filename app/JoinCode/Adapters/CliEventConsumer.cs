@@ -165,6 +165,11 @@ public sealed class CliEventConsumer : IResettableEventConsumer
         {
             WriteNdJsonEvent("done", new Cli.Output.CliStreamEventData { Usage = usage, ModelId = modelId });
         }
+        else
+        {
+            TerminalHelper.WriteLine();
+            try { System.Console.Out.Flush(); } catch (IOException) { System.Diagnostics.Debug.WriteLine("[CliEventConsumer] stdout flush failed"); }
+        }
     }
 
     /// <summary>

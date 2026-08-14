@@ -130,15 +130,15 @@ public enum CodeToolName
     LSP,
 
     [EnumValue("execute_csharp_code")]
-    [SecurityClass("sensitive", AutoDenied = true, PlanDenied = true, AskAllowed = true)]
+    [SecurityClass("sensitive", AutoAllowed = false, PlanDenied = true, AskAllowed = true)]
     ExecuteCsharpCode,
 
     [EnumValue("evaluate_expression")]
-    [SecurityClass("sensitive", AutoDenied = true, PlanDenied = true, AskAllowed = true)]
+    [SecurityClass("sensitive", AutoAllowed = false, PlanDenied = true, AskAllowed = true)]
     EvaluateExpression,
 
     [EnumValue("test_code_snippet")]
-    [SecurityClass("sensitive", AutoDenied = true, PlanDenied = true, AskAllowed = true)]
+    [SecurityClass("sensitive", AutoAllowed = false, PlanDenied = true, AskAllowed = true)]
     TestCodeSnippet,
 
     [EnumValue("analyze_csharp_code")]

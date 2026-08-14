@@ -34,11 +34,11 @@ public enum FileToolName
     FileBatchEdit,
 
     [EnumValue("file_delete")]
-    [SecurityClass("sensitive", AutoDenied = true, PlanDenied = true, AskAllowed = true, AgentDestructive = true)]
+    [SecurityClass("sensitive", AutoAllowed = false, PlanDenied = true, AskAllowed = true, AgentDestructive = true)]
     FileDelete,
 
     [EnumValue("file_move")]
-    [SecurityClass("sensitive", AutoDenied = true, PlanDenied = true, AskAllowed = true, AgentDestructive = true)]
+    [SecurityClass("sensitive", AutoAllowed = false, PlanDenied = true, AskAllowed = true, AgentDestructive = true)]
     FileMove,
 
     [EnumValue("directory_list")]

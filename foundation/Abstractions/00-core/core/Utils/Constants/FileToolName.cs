@@ -10,11 +10,11 @@ public enum FileToolName
     FileRead,
 
     [EnumValue("Write")]
-    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanDenied = true, AskAllowed = true)]
     FileWrite,
 
     [EnumValue("Edit")]
-    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanDenied = true, AskAllowed = true)]
     FileEdit,
 
     [EnumValue("file_edit_regex")]

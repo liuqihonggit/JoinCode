@@ -111,7 +111,7 @@ public static partial class ServiceRegistration
         var logger = sp.GetService<ILogger<StreamingFallbackDecorator>>();
 
         var envVal = Environment.GetEnvironmentVariable("JCC_DISABLE_STREAMING_FALLBACK");
-        logger?.LogWarning("[DIAG-WF] 流式回退: 已启用={Enabled}, JCC_DISABLE_STREAMING_FALLBACK={EnvVal}", config.Enabled, envVal ?? "(未设置)");
+        logger?.LogInformation("[FALLBACK] 流式回退配置: 已启用={Enabled}, JCC_DISABLE_STREAMING_FALLBACK={EnvVal}", config.Enabled, envVal ?? "(未设置)");
 
         var withFallback = new StreamingFallbackDecorator(inner, config, logger);
         var withBufferedStreaming = new BufferedStreamingDecorator(withFallback, logger);

@@ -105,14 +105,15 @@ public sealed class CliEventConsumer : IResettableEventConsumer
             using var _ = TerminalHelper.SetColor(isError ? ConsoleColor.Red : ConsoleColor.DarkGray);
             var glyph = isError ? "FAIL" : "OK";
             TerminalHelper.WriteLine($"[{glyph}] {toolName}");
-            if (!string.IsNullOrEmpty(resultText) && isError)
+            if (!string.IsNullOrEmpty(resultText))
             {
                 var lines = resultText.Split('\n');
-                var displayCount = Math.Min(lines.Length, 5);
+                var maxLines = isError ? 5 : 20;
+                var displayCount = Math.Min(lines.Length, maxLines);
                 for (var i = 0; i < displayCount; i++)
                     TerminalHelper.WriteLine($"  {lines[i].TrimEnd('\r')}");
-                if (lines.Length > 5)
-                    TerminalHelper.WriteLine($"  ... ({lines.Length} lines)");
+                if (lines.Length > maxLines)
+                    TerminalHelper.WriteLine($"  ... ({lines.Length} lines total, showing first {maxLines})");
             }
         }
     }

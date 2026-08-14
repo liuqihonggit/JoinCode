@@ -67,6 +67,7 @@ global using JoinCode.Abstractions.Entity;
 global using JoinCode.Abstractions.Models.ErrorRecovery;
 global using JoinCode.Abstractions.Utils.Text;
 global using JoinCode.Abstractions.Utils.Diagnostics;
+global using JoinCode.Abstractions.Diagnostics;
 global using Microsoft.Extensions.DependencyInjection;
 global using System.Collections.Frozen;
 global using System.Collections.Immutable;

@@ -1,6 +1,7 @@
 namespace Api.LLM.QueryServices.OpenAI;
 
 using Api.LLM.CacheProtocol;
+using JoinCode.Abstractions.Diagnostics;
 
 /// <summary>
 /// OpenAI 协议 QueryService 实现 — 覆盖 OpenAI 兼容协议（chat/completions 端点 + Bearer Token）
@@ -313,6 +314,7 @@ public class OpenAIQueryService : QueryServiceBase
         response.EnsureSuccessStatusCode();
 
         ExtractRateLimitHeaders(response);
+        Logger?.LogDebug("[WIRE {CallId}] POST {Endpoint} → {StatusCode}", CallTrace.CurrentId, endpoint, response.StatusCode);
 
         var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
         using var reader = new StreamReader(stream, Encoding.UTF8);
@@ -344,6 +346,10 @@ public class OpenAIQueryService : QueryServiceBase
             if (chunk != null)
             {
                 yield return chunk;
+            }
+            else
+            {
+                Logger?.LogWarning("[WIRE {CallId}] chunk 反序列化为 null, data={Data}", CallTrace.CurrentId, data);
             }
         }
     }

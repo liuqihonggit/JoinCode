@@ -1,3 +1,5 @@
+using JoinCode.Abstractions.Diagnostics;
+
 namespace Core.Context;
 
 /// <summary>
@@ -61,37 +63,52 @@ public sealed partial class LLMInvocationHandler : ServiceEntity, ILLMInvocation
         bool streamingToolExecution = false,
         [EnumeratorCancellation] CancellationToken ct = default)
     {
-        var chatCompletionService = _kernel.GetChatCompletionService();
-
-        // 对话消息列表转储
-        var dumpSessionId = (_contextManager is ChatContextManager c) ? c.SessionId : "default";
-        _services?.FileContextService?.DumpMessageList(historySnapshot, dumpSessionId, context.ConversationTurn, iterationIndex);
-
-        context.Timing.StartLlmCall();
-        var isFirstChunk = true;
-
-        await foreach (var chunk in chatCompletionService.GetStreamEventContentsAsync(
-            historySnapshot, executionSettings, _kernel, ct).ConfigureAwait(false))
+        var callId = _contextManager is ChatContextManager cm ? cm.NextCallId() : $"?.{iterationIndex}";
+        iterState.CallId = callId;
+        CallTrace.SetId(callId);
+        try
         {
-            if (isFirstChunk)
+            var chatCompletionService = _kernel.GetChatCompletionService();
+
+            var dumpSessionId = (_contextManager is ChatContextManager c) ? c.SessionId : "default";
+            _services?.FileContextService?.DumpMessageList(historySnapshot, dumpSessionId, context.ConversationTurn, iterationIndex);
+
+            context.Timing.StartLlmCall();
+            var isFirstChunk = true;
+
+            await foreach (var chunk in chatCompletionService.GetStreamEventContentsAsync(
+                historySnapshot, executionSettings, _kernel, ct).ConfigureAwait(false))
             {
-                isFirstChunk = false;
-                context.Timing.FirstTokenLatencyMs = context.Timing.LlmTotalMs;
+                if (isFirstChunk)
+                {
+                    isFirstChunk = false;
+                    context.Timing.FirstTokenLatencyMs = context.Timing.LlmTotalMs;
+                }
+
+                var result = _chunkProcessor.ProcessChunk(chunk, iterState, streamingToolExecution);
+
+                foreach (var evt in result.Events)
+                {
+                    yield return evt;
+                }
+
+                if (result.Action == ChunkAction.Break) break;
+                if (result.Action == ChunkAction.Continue) continue;
             }
 
-            var result = _chunkProcessor.ProcessChunk(chunk, iterState, streamingToolExecution);
+            context.Timing.StopLlmCall();
+            context.Timing.LlmCallCount++;
 
-            foreach (var evt in result.Events)
-            {
-                yield return evt;
-            }
-
-            if (result.Action == ChunkAction.Break) break;
-            if (result.Action == ChunkAction.Continue) continue;
-            // ChunkAction.ToolUseDetected: 继续流式，由 StreamingToolExecutor 在流式期间执行工具
+            _logger?.LogWarning("[LLM {CallId}] #{Iter} → {ResultType}, 文本={Len}字符, 模型={Model}, tokens={Tokens}",
+                callId, iterationIndex,
+                iterState.ToolCallName is not null ? $"tool_call={iterState.ToolCallName}" : "纯文本",
+                iterState.FullResponse.Length,
+                iterState.StreamModelId ?? "?",
+                iterState.StreamUsage?.TotalTokens);
         }
-
-        context.Timing.StopLlmCall();
-        context.Timing.LlmCallCount++;
+        finally
+        {
+            CallTrace.Clear();
+        }
     }
 }

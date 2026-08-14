@@ -20,6 +20,8 @@ public enum ChunkAction
 /// </summary>
 public sealed partial class IterationState
 {
+    /// <summary>链路调用 ID — 格式: {sessionId短码}.{序号}，由 LLMInvocationHandler 入口设置</summary>
+    public string? CallId { get; set; }
     /// <summary>累积的助手文本响应</summary>
     public StringBuilder FullResponse { get; } = new();
     /// <summary>累积的思考内容</summary>

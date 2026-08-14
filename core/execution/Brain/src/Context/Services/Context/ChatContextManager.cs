@@ -43,6 +43,22 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     private readonly ITelemetryService? _telemetryService;
     private readonly IClockService _clock;
     private readonly string? _providerBaseUrl;
+    private int _callSeq;
+
+    /// <summary>
+    /// 分配下一个链路调用序号 — 线程安全，Interlocked 递增
+    /// </summary>
+    public int NextCallSeq() => Interlocked.Increment(ref _callSeq);
+
+    /// <summary>
+    /// 生成链路调用 ID — 格式: {sessionId短码}.{序号}
+    /// </summary>
+    public string NextCallId()
+    {
+        var seq = NextCallSeq();
+        var shortId = _sessionId.Length > 4 ? _sessionId[..4] : _sessionId;
+        return $"{shortId}.{seq}";
+    }
 
     /// <summary>
     /// 当前会话标识

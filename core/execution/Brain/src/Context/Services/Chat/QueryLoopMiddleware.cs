@@ -77,7 +77,7 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
             await _notificationHandler.ProcessPendingNotificationsAsync(ct).ConfigureAwait(false);
 
             var historySnapshot = await _contextManager.GetMessageListAsync(ct).ConfigureAwait(false);
-            _logger?.LogInformation("[QueryLoopMiddleware] 迭代开始: totalToolCalls={Total}, 消息数={MsgCount}", totalToolCalls, historySnapshot.Count);
+            _logger?.LogInformation("[LOOP] 迭代 #{Iter} | 消息={MsgCount}", totalToolCalls, historySnapshot.Count);
 #if DEBUG
             if (System.Diagnostics.Debugger.IsAttached) System.Diagnostics.Debugger.Break();
 #endif
@@ -100,7 +100,7 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
                 }
 
                 if (iterState.ToolCallName is null) {
-                    _logger?.LogInformation("[QueryLoopMiddleware] 无工具调用, FullResponse长度={Len}, 迭代={Iter}", iterState.FullResponse.Length, totalToolCalls);
+                    _logger?.LogInformation("[LOOP {CallId}] 纯文本响应, 长度={Len}", iterState.CallId, iterState.FullResponse.Length);
                     var (pureEvents, pureResponse) = BuildPureTextResponse(iterState, context);
                     foreach (var evt in pureEvents)
                         yield return evt;
@@ -138,8 +138,8 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
                 }
 
                 foreach (var result in allResults) {
-                    _logger?.LogInformation("[QueryLoopMiddleware] 工具调用: {ToolName} → {Result}, 结果长度={ResultLen}",
-                        result.ToolName, result.Result.IsError ? "ERROR" : "OK", result.Result.ResultText?.Length ?? 0);
+                    _logger?.LogInformation("[TOOL {CallId}] #{Num} {ToolName} → {Result} | 长度={Len}",
+                        iterState.CallId, totalToolCalls, result.ToolName, result.Result.IsError ? "ERROR" : "OK", result.Result.ResultText?.Length ?? 0);
 
                     yield return result.ToToolEndEvent();
 
@@ -153,14 +153,14 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
                     } catch (Exception applyEx) {
                         // 纵深防御：单工具结果持久化失败不应中断整个回合
                         // 写入占位结果保持上下文一致，避免孤立 tool_call 导致下一轮 LLM 400
-                        _logger?.LogError(applyEx, "[QueryLoopMiddleware] 应用工具结果到上下文失败: {ToolName}", result.ToolName);
+                        _logger?.LogError(applyEx, "[TOOL {CallId}] 应用结果到上下文失败: {ToolName}", iterState.CallId, result.ToolName);
                         try {
                             var placeholderMetadata = ToolCallEntry.BuildToolResultMetadata(result.ToolCallId, result.ToolName);
                             await _contextManager.AddToolResultMessageAsync(
                                 $"(工具结果应用失败: {applyEx.Message})", placeholderMetadata, null, CancellationToken.None)
                                 .ConfigureAwait(false);
                         } catch (Exception placeholderEx) {
-                            _logger?.LogError(placeholderEx, "[QueryLoopMiddleware] 写入占位结果也失败，中断回合");
+                            _logger?.LogError(placeholderEx, "[TOOL {CallId}] 写入占位结果也失败，中断回合", iterState.CallId);
                             throw;
                         }
                     }
@@ -176,14 +176,11 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
                     yield return evt;
                 }
 
-                _logger?.LogInformation("[QueryLoopMiddleware-传统] LLM返回: ToolCallName={ToolCallName}, FullResponse长度={Len}",
-                    iterState.ToolCallName, iterState.FullResponse.Length);
-
                 if (iterState.StreamUsage is not null) finalUsage = iterState.StreamUsage;
                 if (iterState.StreamModelId is not null) finalModelId = iterState.StreamModelId;
 
                 if (iterState.ToolCallName is null) {
-                    _logger?.LogInformation("[QueryLoopMiddleware-传统] 无工具调用, FullResponse长度={Len}, 迭代={Iter}", iterState.FullResponse.Length, totalToolCalls);
+                    _logger?.LogInformation("[LOOP {CallId}] 纯文本响应, 长度={Len}", iterState.CallId, iterState.FullResponse.Length);
                     var (pureEvents, pureResponse) = BuildPureTextResponse(iterState, context);
                     foreach (var evt in pureEvents)
                         yield return evt;
@@ -218,8 +215,8 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
                         throw;
                     }
 
-                    _logger?.LogInformation("[QueryLoopMiddleware] 工具调用 #{Num}: {ToolName} → {Result}",
-                        totalToolCalls, toolCall.Name, toolCallResult.IsError ? "ERROR" : "OK");
+                    _logger?.LogInformation("[TOOL {CallId}] #{Num} {ToolName} → {Result}",
+                        iterState.CallId, totalToolCalls, toolCall.Name, toolCallResult.IsError ? "ERROR" : "OK");
 
                     yield return ChatStreamEvent.ToolEnd(
                         toolCall.Name, toolCallResult.ResultText, toolCall.Id,
@@ -233,14 +230,14 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
                         await _toolHandler.WriteAbortedToolResultsAsync(toolCalls, idx, CancellationToken.None).ConfigureAwait(false);
                         throw;
                     } catch (Exception applyEx) {
-                        _logger?.LogError(applyEx, "[QueryLoopMiddleware] 应用工具结果到上下文失败: {ToolName}", toolCall.Name);
+                        _logger?.LogError(applyEx, "[TOOL {CallId}] 应用结果到上下文失败: {ToolName}", iterState.CallId, toolCall.Name);
                         try {
                             var placeholderMetadata = ToolCallEntry.BuildToolResultMetadata(toolCall.Id, toolCall.Name);
                             await _contextManager.AddToolResultMessageAsync(
                                 $"(工具结果应用失败: {applyEx.Message})", placeholderMetadata, null, CancellationToken.None)
                                 .ConfigureAwait(false);
                         } catch (Exception placeholderEx) {
-                            _logger?.LogError(placeholderEx, "[QueryLoopMiddleware] 写入占位结果也失败，中断回合");
+                            _logger?.LogError(placeholderEx, "[TOOL {CallId}] 写入占位结果也失败，中断回合", iterState.CallId);
                             throw;
                         }
                     }
@@ -252,7 +249,7 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
         }
 
         if (totalToolCalls >= MaxToolCallIterations) {
-            _logger?.LogWarning("[QueryLoopMiddleware] 达到最大工具调用次数限制: {Max}", MaxToolCallIterations);
+            _logger?.LogWarning("[LOOP] 达到最大工具调用次数限制: {Max}", MaxToolCallIterations);
             // 显式通知用户而非静默截断 — 避免用户误以为任务已完成
             yield return ChatStreamEvent.Text(
                 $"⚠ 已达到最大工具调用次数（{MaxToolCallIterations} 次），为避免死循环本轮对话已被截断。");

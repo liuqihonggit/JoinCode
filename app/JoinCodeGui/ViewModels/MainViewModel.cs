@@ -368,9 +368,8 @@ public sealed partial class MainViewModel : ViewModelBase
             RebuildConnectionOptions();
             _selectedModel = _session.CurrentModelId;
             _selectedModelOption = ModelOptions.FirstOrDefault(m => m.Id == _session.CurrentModelId);
-            _selectedConnection = _connectionOptions.FirstOrDefault(c => !c.IsMock && c.Id == session.CurrentVendor)
-                ?? _connectionOptions.FirstOrDefault(c => !c.IsMock)
-                ?? MockConnection;
+            _selectedConnection = _connectionOptions.FirstOrDefault(c => c.Id == session.CurrentVendor)
+                ?? _connectionOptions.FirstOrDefault();
             IsEngineLoaded = true;
             StartModelConfigWatch();
             // 引擎就绪后把偏好里的采样参数应用到引擎
@@ -409,8 +408,7 @@ public sealed partial class MainViewModel : ViewModelBase
         SelectedEffort = _session.EffortLevel.ToValue();
         _isRefreshingConfig = true;
         SelectedConnection = _connectionOptions.FirstOrDefault(c => c.Id == session.CurrentVendor)
-            ?? _connectionOptions.FirstOrDefault(c => !c.IsMock)
-            ?? MockConnection;
+            ?? _connectionOptions.FirstOrDefault();
         _isRefreshingConfig = false;
         WriteDebugLog($"AttachRealSession: SelectedConnection={SelectedConnection?.Id}");
 
@@ -489,9 +487,8 @@ public sealed partial class MainViewModel : ViewModelBase
             // 恢复连接选择（RebuildConnectionOptions 重建了对象引用），用标志位绕过 OnSelectedConnectionChanged 持久化副作用避免循环
             _isRefreshingConfig = true;
             SelectedConnection = _connectionOptions.FirstOrDefault(c => c.Id == previousConnectionId)
-                ?? _connectionOptions.FirstOrDefault(c => !c.IsMock && c.Id == _session.CurrentVendor)
-                ?? _connectionOptions.FirstOrDefault(c => !c.IsMock)
-                ?? MockConnection;
+                ?? _connectionOptions.FirstOrDefault(c => c.Id == _session.CurrentVendor)
+                ?? _connectionOptions.FirstOrDefault();
             _isRefreshingConfig = false;
             OnPropertyChanged(nameof(IsMockConnection));
 
@@ -508,13 +505,13 @@ public sealed partial class MainViewModel : ViewModelBase
         }
     }
 
-    /// <summary>引擎加载失败时回退到 Mock 连接（填充连接列表供用户使用）</summary>
+    /// <summary>引擎加载失败时回退到 Mock 引擎（IsMockConnection 驱动按钮状态，供应商下拉保持真实列表）</summary>
     public void FallbackToMock()
     {
         _session = _mockSession ??= new Hosting.PlaceholderChatSession(_configService);
         _session.PermissionConfirmationHandler = OnPermissionConfirmationRequestedAsync;
         RebuildConnectionOptions();
-        SelectedConnection = MockConnection;
+        SelectedConnection = _connectionOptions.FirstOrDefault();
         SelectedModel = _session.CurrentModelId;
         SelectedModelOption = ModelOptions.FirstOrDefault(m => m.Id == _session.CurrentModelId);
         IsEngineLoaded = true;
@@ -1034,18 +1031,17 @@ public sealed partial class MainViewModel : ViewModelBase
     /// <summary>连接下拉候选 — Mock 引擎 + 配置文件驱动的全部供应商（改 config 自动更新）</summary>
     public IReadOnlyList<ConnectionOptionItem> ConnectionOptions => _connectionOptions;
 
-    /// <summary>重建连接选项 — 从 VendorModelMap.Keys 填充 ObservableCollection（通知 UI）</summary>
+    /// <summary>重建连接选项 — 从 VendorModelMap.Keys 填充 ObservableCollection（纯真实供应商，Mock 由独立按钮切换）</summary>
     private void RebuildConnectionOptions()
     {
         _connectionOptions.Clear();
-        _connectionOptions.Add(MockConnection);
         foreach (var provider in _session.VendorModelMap.Keys)
         {
             var display = VendorKindExtensions.FromValue(provider)?.ToString() ?? provider;
             _connectionOptions.Add(new ConnectionOptionItem
             {
                 Id = provider,
-                DisplayText = $"{display}（真实）",
+                DisplayText = display,
                 IsMock = false
             });
         }
@@ -1060,36 +1056,24 @@ public sealed partial class MainViewModel : ViewModelBase
 
     partial void OnSelectedConnectionChanged(ConnectionOptionItem? value)
     {
-        WriteDebugLog($"OnSelectedConnectionChanged: id={value?.Id} mock={value?.IsMock} refresh={_isRefreshingConfig} realSession={_realSession is not null} session={_session.GetType().Name} currentVendor={_session.CurrentVendor}");
+        WriteDebugLog($"OnSelectedConnectionChanged: id={value?.Id} refresh={_isRefreshingConfig} realSession={_realSession is not null} session={_session.GetType().Name} currentVendor={_session.CurrentVendor}");
         if (value is null || _isRefreshingConfig)
             return;
 
-        var wantMock = value.IsMock;
-        var isMock = _session is PlaceholderChatSession;
-
-        if (wantMock && isMock)
+        // Mock 模式下不处理供应商下拉切换（Mock 由独立按钮控制）
+        if (_session is PlaceholderChatSession)
             return;
 
-        if (wantMock)
-        {
-            _session = _mockSession ??= new Hosting.PlaceholderChatSession(_configService);
-            _session.PermissionConfirmationHandler = OnPermissionConfirmationRequestedAsync;
-            StatusText = $"已切换到 Mock 引擎（演示），模型 {_session.CurrentModelId}";
-        }
-        else if (_realSession is not null)
-        {
-            if (isMock)
-                _session = _realSession;
-            StatusText = $"已连接真实引擎 {value.DisplayText}";
-            // 同步等待持久化落盘 — Task.Run 避免 UI 线程 SynchronizationContext 死锁，Wait 阻塞至写入完成再更新 UI
-            try { Task.Run(() => _session.SetVendorAsync(value.Id)).Wait(Timeout); WriteDebugLog($"SetVendorAsync ok: id={value.Id}"); }
-            catch (Exception ex) { WriteErrorLog(ex); WriteDebugLog($"SetVendorAsync FAIL: {ex.Message}"); }
-        }
-        else
+        if (_realSession is null)
         {
             WriteDebugLog($"OnSelectedConnectionChanged: 引擎未就绪,跳过持久化");
             return;
         }
+
+        StatusText = $"已连接真实引擎 {value.DisplayText}";
+        // 同步等待持久化落盘 — Task.Run 避免 UI 线程 SynchronizationContext 死锁，Wait 阻塞至写入完成再更新 UI
+        try { Task.Run(() => _session.SetVendorAsync(value.Id)).Wait(Timeout); WriteDebugLog($"SetVendorAsync ok: id={value.Id}"); }
+        catch (Exception ex) { WriteErrorLog(ex); WriteDebugLog($"SetVendorAsync FAIL: {ex.Message}"); }
 
         _modelOptionsCache = null;
         OnPropertyChanged(nameof(ModelOptions));
@@ -1099,6 +1083,29 @@ public sealed partial class MainViewModel : ViewModelBase
             ?? ModelOptions.FirstOrDefault();
         SelectedModel = SelectedModelOption?.Id;
         SelectedEffort = _session.EffortLevel.ToValue();
+    }
+
+    /// <summary>切换 Mock 引擎模式 — 独立按钮命令，按下进入 Mock 演示，再按切回真实引擎</summary>
+    [RelayCommand]
+    private void ToggleMock()
+    {
+        if (_session is PlaceholderChatSession && _realSession is not null)
+        {
+            _session = _realSession;
+            StatusText = $"已切回真实引擎 {_session.CurrentVendor}";
+        }
+        else
+        {
+            _session = _mockSession ??= new Hosting.PlaceholderChatSession(_configService);
+            _session.PermissionConfirmationHandler = OnPermissionConfirmationRequestedAsync;
+            StatusText = $"已切换到 Mock 引擎（演示），模型 {_session.CurrentModelId}";
+        }
+        _modelOptionsCache = null;
+        OnPropertyChanged(nameof(ModelOptions));
+        OnPropertyChanged(nameof(IsMockConnection));
+        SelectedModelOption = ModelOptions.FirstOrDefault(m => string.Equals(m.Id, _session.CurrentModelId, StringComparison.OrdinalIgnoreCase))
+            ?? ModelOptions.FirstOrDefault();
+        SelectedModel = SelectedModelOption?.Id;
     }
 
     /// <summary>输入框变化时同步字符计数并退出历史回看游标（斜杠刷新由 View 层防抖触发）</summary>

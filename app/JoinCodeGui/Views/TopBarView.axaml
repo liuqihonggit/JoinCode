@@ -7,7 +7,7 @@
              x:Class="JoinCode.Gui.Views.TopBarView"
              x:DataType="vm:MainViewModel">
   <Border Padding="10,8" Background="{DynamicResource GuiTopBarBackground}" ClipToBounds="True">
-    <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,*,*,Auto" ColumnSpacing="10">
+    <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,*,*,Auto,Auto" ColumnSpacing="10">
       <ToggleButton Content="🌙" Command="{Binding ToggleThemeCommand}" ToolTip.Tip="切换深浅主题" />
       <Button Grid.Column="1" Content="↻ 重新生成" Command="{Binding RegenerateLastReplyCommand}"
               IsEnabled="{Binding CanRegenerate}" FontSize="11" ToolTip.Tip="撤回上一轮并重新生成" />
@@ -17,7 +17,7 @@
               FontSize="11" />
       <ComboBox Grid.Column="4" ItemsSource="{Binding ConnectionOptions}" SelectedItem="{Binding SelectedConnection}"
                 IsVisible="{Binding IsEngineLoaded}"
-                HorizontalAlignment="Stretch" ToolTip.Tip="当前连接的引擎（Mock 为演示/本地验证环境）">
+                HorizontalAlignment="Stretch" ToolTip.Tip="当前供应商（从 models.json 读取）">
         <ComboBox.ItemTemplate>
           <DataTemplate x:DataType="vm:ConnectionOptionItem">
             <TextBlock Text="{Binding DisplayText}" TextTrimming="CharacterEllipsis" />
@@ -33,7 +33,10 @@
           </DataTemplate>
         </ComboBox.ItemTemplate>
       </ComboBox>
-      <Button Grid.Column="6" Content="⛭" ToolTip.Tip="设置面板" Command="{Binding ToggleSettingsPanelCommand}" />
+      <ToggleButton Grid.Column="6" Content="🧪" Command="{Binding ToggleMockCommand}"
+                    IsChecked="{Binding IsMockConnection, Mode=OneWay}"
+                    ToolTip.Tip="切换 Mock 演示引擎（本地验证用）" />
+      <Button Grid.Column="7" Content="⛭" ToolTip.Tip="设置面板" Command="{Binding ToggleSettingsPanelCommand}" />
     </Grid>
   </Border>
 </UserControl>

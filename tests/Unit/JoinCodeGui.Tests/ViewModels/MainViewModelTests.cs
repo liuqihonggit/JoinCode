@@ -208,13 +208,13 @@ public class MainViewModelTests
     }
 
     [Fact]
-    public void ConnectionOptions_IncludeMockAndRealProvider()
+    public void ConnectionOptions_OnlyRealProviders()
     {
         var fake = new FakeSession();
         var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
 
         var options = vm.ConnectionOptions;
-        options.Should().Contain(o => o.IsMock && o.DisplayText.Contains("Mock"));
+        options.Should().NotContain(o => o.IsMock);
         options.Should().Contain(o => !o.IsMock && o.Id == "fake");
         vm.SelectedConnection.Should().NotBeNull();
         vm.SelectedConnection!.IsMock.Should().BeFalse("真实引擎存在时默认连接真实引擎");
@@ -222,30 +222,25 @@ public class MainViewModelTests
     }
 
     [Fact]
-    public void SwitchToMockConnection_UpdatesStatusAndModels()
+    public void ToggleMock_UpdatesStatusAndModels()
     {
         var fake = new FakeSession();
         var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
 
-        var mock = vm.ConnectionOptions.First(o => o.IsMock);
-        vm.SelectedConnection = mock;
+        vm.ToggleMockCommand.Execute(null);
 
         vm.IsMockConnection.Should().BeTrue();
         vm.StatusText.Should().Contain("Mock");
-        vm.ModelOptions.Should().BeEmpty();
-        vm.SelectedModel.Should().BeNull();
     }
 
     [Fact]
-    public void SwitchToRealConnection_RestoresRealSession()
+    public void ToggleMock_ToggleBackRestoresRealSession()
     {
         var fake = new FakeSession();
         var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
-        var mock = vm.ConnectionOptions.First(o => o.IsMock);
-        var real = vm.ConnectionOptions.First(o => !o.IsMock);
 
-        vm.SelectedConnection = mock;
-        vm.SelectedConnection = real;
+        vm.ToggleMockCommand.Execute(null);
+        vm.ToggleMockCommand.Execute(null);
 
         vm.IsMockConnection.Should().BeFalse();
         vm.StatusText.Should().Contain("真实");
@@ -260,16 +255,6 @@ public class MainViewModelTests
 
         // 初始默认选 "fake" 真实供应商
         vm.SelectedConnection!.Id.Should().Be("fake");
-        vm.ModelOptions.Select(m => m.Id).Should().BeEquivalentTo(["fake-model"]);
-
-        // 切换到 Mock — Mock 不关联真实供应商，模型列表应为空
-        var mock = vm.ConnectionOptions.First(o => o.IsMock);
-        vm.SelectedConnection = mock;
-        vm.ModelOptions.Should().BeEmpty();
-
-        // 切换回 "fake" — 模型列表应恢复为 fake 的模型
-        var fakeConn = vm.ConnectionOptions.First(o => !o.IsMock);
-        vm.SelectedConnection = fakeConn;
         vm.ModelOptions.Select(m => m.Id).Should().BeEquivalentTo(["fake-model"]);
     }
 

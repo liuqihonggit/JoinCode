@@ -43,6 +43,10 @@ internal sealed class TranscriptFileWriter : IDisposable
             var line = JsonSerializer.Serialize(entryToWrite, TranscriptJsonContext.Default.TranscriptEntry);
             await _fs.AppendAllTextAsync(filePath, line + '\n', cancellationToken).ConfigureAwait(false);
         }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger?.LogWarning(ex, "会话记录写入被拒绝（文件权限不足或沙箱拦截），跳过本次写入: {FilePath}", filePath);
+        }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger?.LogError(ex, "Failed to append transcript entry to {FilePath}", filePath);
@@ -75,6 +79,10 @@ internal sealed class TranscriptFileWriter : IDisposable
 
             await _fs.AppendAllTextAsync(filePath, sb.ToString(), cancellationToken).ConfigureAwait(false);
             _logger?.LogDebug("{Count} transcript entries appended to {FilePath}", entries.Count, filePath);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger?.LogWarning(ex, "会话记录写入被拒绝（文件权限不足或沙箱拦截），跳过本次写入: {FilePath}", filePath);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -189,7 +197,7 @@ internal sealed class TranscriptFileWriter : IDisposable
             }
             catch (UnauthorizedAccessException ex)
             {
-                _logger?.LogDebug(ex, "Cannot create transcript file {FilePath}, will retry on append", filePath);
+                _logger?.LogWarning(ex, "无法创建会话记录文件（文件权限不足或沙箱拦截）: {FilePath}", filePath);
             }
         }
     }

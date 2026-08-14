@@ -160,6 +160,8 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
             SkipArgumentValidation = true,
         });
 
+        psi.RedirectStandardInput = true;
+
         if (actuator.Detached)
         {
             if (OperatingSystem.IsWindows())

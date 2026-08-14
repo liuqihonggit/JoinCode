@@ -156,7 +156,7 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
                 Cli.TerminalHelper.WriteLine();
                 Diag.WriteLifecycle("[AI对话结束]");
                 using (Cli.TerminalHelper.SetColor(ConsoleColor.DarkGray))
-                    Cli.TerminalHelper.WriteLine("----------------------------");
+                    Cli.TerminalHelper.WriteLine(new string('─', Cli.TerminalHelper.GetWidth()));
             }
         }
 

@@ -18,20 +18,39 @@ internal sealed class PlaceholderChatSession : IJccChatSession
     public PlaceholderChatSession(IConfigurationService? configService = null)
     {
         _configService = configService;
+        CurrentVendor = ResolveCurrentVendor(configService);
+        CurrentModelId = ResolveCurrentModelId(CurrentVendor);
     }
 
     public bool IsReady => true;
 
-    /// <summary>占位会话默认供应商 — 对齐真实引擎 ProviderConfig 默认值（deepseek）</summary>
-    public string CurrentVendor { get; } = "deepseek";
+    /// <summary>占位会话当前供应商 — 从 settings.json 读取,回退 deepseek</summary>
+    public string CurrentVendor { get; }
 
-    /// <summary>占位会话默认模型 — 从 ModelConfigLoader 读取 deepseek 的 DefaultModelId，与真实引擎默认值对齐，避免热切换闪烁</summary>
-    public string CurrentModelId { get; } = ResolveDefaultModelId();
+    /// <summary>占位会话当前模型 — 从 settings.json 读取,回退供应商默认模型</summary>
+    public string CurrentModelId { get; }
 
-    private static string ResolveDefaultModelId()
+    private static string ResolveCurrentVendor(IConfigurationService? configService)
     {
-        var id = ModelConfigLoader.GetDefaultModelId("deepseek");
-        return !string.IsNullOrEmpty(id) ? id : "deepseek-chat";
+        if (configService is not null)
+        {
+            try
+            {
+                var provider = configService.GetAsync(ConfigKeyConstants.Provider, CancellationToken.None).GetAwaiter().GetResult();
+                if (!string.IsNullOrWhiteSpace(provider))
+                    return provider;
+            }
+            catch (Exception ex) { System.Console.Error.WriteLine($"[PlaceholderChatSession] 读取 settings.json provider 失败: {ex.Message}"); }
+        }
+        return "";
+    }
+
+    private static string ResolveCurrentModelId(string vendor)
+    {
+        if (string.IsNullOrEmpty(vendor))
+            return "";
+        var id = ModelConfigLoader.GetDefaultModelId(vendor);
+        return !string.IsNullOrEmpty(id) ? id : "";
     }
 
     public IReadOnlyDictionary<string, IReadOnlyList<string>> VendorModelMap { get; private set; } = BuildVendorModelMap();

@@ -361,7 +361,12 @@ public sealed partial class MainViewModel : ViewModelBase
         {
             StatusText = "正在加载引擎…";
             RebuildConnectionOptions();
+            _selectedConnection = _connectionOptions.FirstOrDefault(c => c.Id == _session.CurrentVendor)
+                ?? _connectionOptions.FirstOrDefault();
             RefreshModelOptions();
+            _selectedModelOption = ModelOptions.FirstOrDefault(m => m.Id == _session.CurrentModelId)
+                ?? ModelOptions.FirstOrDefault();
+            _selectedModel = _selectedModelOption?.Id ?? _session.CurrentModelId;
             // 引擎未就绪时仍从 settings.json 读主题（PlaceholderChatSession 持有 _configService 可读）
             LoadThemeFromSettings();
         }

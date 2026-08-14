@@ -18,8 +18,8 @@ public class CommandArgumentProviderTests
     {
         var session = CreateSession();
         var args = CommandArgumentProvider.GetArguments("/model", "", session);
-        args.Should().NotBeEmpty();
-        args.All(a => a.Name == "deepseek-v4-flash" || a.Name == "deepseek-v4-pro").Should().BeTrue();
+        // 无 configService 时 CurrentVendor="" → /model 返回空(不硬编码供应商)
+        args.Should().BeEmpty();
     }
 
     [Fact]
@@ -80,6 +80,7 @@ public class CommandArgumentProviderTests
     {
         var session = CreateSession();
         var args = CommandArgumentProvider.GetArguments("/MODEL", "", session);
-        args.Should().NotBeEmpty();
+        // 无 configService 时 CurrentVendor="" → /model 返回空,但命令仍匹配(不报未知命令)
+        args.Should().BeEmpty();
     }
 }

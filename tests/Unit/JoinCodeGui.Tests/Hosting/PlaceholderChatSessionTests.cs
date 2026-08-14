@@ -41,17 +41,12 @@ public class PlaceholderChatSessionTests
         await session.Invoking(s => s.ClearHistoryAsync()).Should().NotThrowAsync();
     }
 
-    /// <summary>占位会话默认模型应从 ModelConfigLoader 读取，与真实引擎默认值对齐，避免热切换闪烁</summary>
+    /// <summary>占位会话无 configService 时 CurrentVendor/CurrentModelId 回退空字符串(不硬编码供应商)</summary>
     [Fact]
     public async Task CurrentModelId_AlignsWithConfigDefault()
     {
         await using var session = new PlaceholderChatSession();
-        var configDefault = ModelConfigLoader.GetDefaultModelId("deepseek");
-
-        session.CurrentVendor.Should().Be("deepseek");
-        if (!string.IsNullOrEmpty(configDefault))
-            session.CurrentModelId.Should().Be(configDefault, "占位会话模型应与配置默认值对齐");
-        else
-            session.CurrentModelId.Should().Be("deepseek-chat", "配置无默认值时回退硬编码");
+        session.CurrentVendor.Should().BeEmpty("无 configService 时回退空字符串,不硬编码供应商");
+        session.CurrentModelId.Should().BeEmpty("无 configService 时回退空字符串");
     }
 }

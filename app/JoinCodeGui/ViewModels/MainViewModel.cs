@@ -1040,18 +1040,11 @@ public sealed partial class MainViewModel : ViewModelBase
         if (value is null || _isRefreshingConfig)
             return;
 
-        // Mock 模式下不处理供应商下拉切换（Mock 由独立按钮控制）
-        if (_session is PlaceholderChatSession)
-            return;
-
-        if (_realSession is null)
-        {
-            WriteDebugLog($"OnSelectedConnectionChanged: 引擎未就绪,跳过持久化");
-            return;
-        }
-
-        StatusText = $"已连接真实引擎 {value.DisplayText}";
-        // 同步等待持久化落盘 — Task.Run 避免 UI 线程 SynchronizationContext 死锁，Wait 阻塞至写入完成再更新 UI
+        // 无论引擎是否就绪,都持久化供应商切换到 settings.json(PlaceholderChatSession 也能写)
+        // 并刷新模型列表供预览
+        StatusText = _realSession is not null
+            ? $"已连接真实引擎 {value.DisplayText}"
+            : $"已选择供应商 {value.DisplayText}（引擎加载中…）";
         try { Task.Run(() => _session.SetVendorAsync(value.Id)).Wait(Timeout); WriteDebugLog($"SetVendorAsync ok: id={value.Id}"); }
         catch (Exception ex) { WriteErrorLog(ex); WriteDebugLog($"SetVendorAsync FAIL: {ex.Message}"); }
 

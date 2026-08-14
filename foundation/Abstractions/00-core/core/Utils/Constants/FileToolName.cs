@@ -5,18 +5,59 @@ namespace JoinCode.Abstractions.Utils;
 /// </summary>
 public enum FileToolName
 {
-    [EnumValue("Read")] FileRead,
-    [EnumValue("Write")] FileWrite,
-    [EnumValue("Edit")] FileEdit,
-    [EnumValue("file_edit_regex")] FileEditRegex,
-    [EnumValue("file_insert_lines")] FileInsertLines,
-    [EnumValue("file_delete_lines")] FileDeleteLines,
-    [EnumValue("file_batch_edit")] FileBatchEdit,
-    [EnumValue("file_delete")] FileDelete,
-    [EnumValue("file_move")] FileMove,
-    [EnumValue("directory_list")] DirectoryList,
-    [EnumValue("file_list")] FileList,
-    [EnumValue("file_snip_lines")] FileSnipLines,
-    [EnumValue("file_snip_preview")] FileSnipPreview,
-    [EnumValue("apply_patch")] FileApplyPatch,
+    [EnumValue("Read")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    FileRead,
+
+    [EnumValue("Write")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    FileWrite,
+
+    [EnumValue("Edit")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    FileEdit,
+
+    [EnumValue("file_edit_regex")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    FileEditRegex,
+
+    [EnumValue("file_insert_lines")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    FileInsertLines,
+
+    [EnumValue("file_delete_lines")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    FileDeleteLines,
+
+    [EnumValue("file_batch_edit")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    FileBatchEdit,
+
+    [EnumValue("file_delete")]
+    [SecurityClass("sensitive", AutoDenied = true, PlanDenied = true, AskAllowed = true, AgentDestructive = true)]
+    FileDelete,
+
+    [EnumValue("file_move")]
+    [SecurityClass("sensitive", AutoDenied = true, PlanDenied = true, AskAllowed = true, AgentDestructive = true)]
+    FileMove,
+
+    [EnumValue("directory_list")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    DirectoryList,
+
+    [EnumValue("file_list")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    FileList,
+
+    [EnumValue("file_snip_lines")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    FileSnipLines,
+
+    [EnumValue("file_snip_preview")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    FileSnipPreview,
+
+    [EnumValue("apply_patch")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    FileApplyPatch,
 }

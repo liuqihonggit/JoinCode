@@ -5,16 +5,51 @@ namespace JoinCode.Abstractions.Utils;
 /// </summary>
 public enum TaskToolName
 {
-    [EnumValue("TaskCreate")] TaskCreate,
-    [EnumValue("TaskList")] TaskList,
-    [EnumValue("TaskUpdate")] TaskUpdate,
-    [EnumValue("task_delete")] TaskDelete,
-    [EnumValue("TaskStop")] TaskStop,
-    [EnumValue("TaskGet")] TaskGet,
-    [EnumValue("task_set_dependency")] TaskSetDependency,
-    [EnumValue("task_remove_dependency")] TaskRemoveDependency,
-    [EnumValue("task_get_dependencies")] TaskGetDependencies,
-    [EnumValue("task_can_execute")] TaskCanExecute,
-    [EnumValue("task_stop_batch")] TaskStopBatch,
-    [EnumValue("task_list_running")] TaskListRunning,
+    [EnumValue("TaskCreate")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    TaskCreate,
+
+    [EnumValue("TaskList")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    TaskList,
+
+    [EnumValue("TaskUpdate")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    TaskUpdate,
+
+    [EnumValue("task_delete")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    TaskDelete,
+
+    [EnumValue("TaskStop")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    TaskStop,
+
+    [EnumValue("TaskGet")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    TaskGet,
+
+    [EnumValue("task_set_dependency")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    TaskSetDependency,
+
+    [EnumValue("task_remove_dependency")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    TaskRemoveDependency,
+
+    [EnumValue("task_get_dependencies")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    TaskGetDependencies,
+
+    [EnumValue("task_can_execute")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    TaskCanExecute,
+
+    [EnumValue("task_stop_batch")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    TaskStopBatch,
+
+    [EnumValue("task_list_running")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    TaskListRunning,
 }

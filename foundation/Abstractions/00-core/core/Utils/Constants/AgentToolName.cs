@@ -5,27 +5,95 @@ namespace JoinCode.Abstractions.Utils;
 /// </summary>
 public enum AgentToolName
 {
-    [EnumValue("agent_spawn")] AgentSpawn,
-    [EnumValue("agent_list")] AgentList,
-    [EnumValue("agent_status")] AgentStatus,
-    [EnumValue("SendMessage")] AgentSendMessage,
-    [EnumValue("agent_get_messages")] AgentGetMessages,
-    [EnumValue("agent_pause")] AgentPause,
-    [EnumValue("agent_resume")] AgentResume,
-    [EnumValue("agent_stop")] AgentStop,
-    [EnumValue("Agent")] Agent,
-    [EnumValue("plan_agent")] PlanAgent,
-    [EnumValue("explore_agent")] ExploreAgent,
-    [EnumValue("verification_agent")] VerificationAgent,
-    [EnumValue("general_agent")] GeneralAgent,
-    [EnumValue("guide_agent")] GuideAgent,
-    [EnumValue("list_agents")] ListAgents,
-    [EnumValue("agent_system_stats")] AgentSystemStats,
-    [EnumValue("agent_list_stats")] AgentListStats,
-    [EnumValue("agent_stats")] AgentStats,
-    [EnumValue("agent_history")] AgentHistory,
-    [EnumValue("agent_running")] AgentRunning,
-    [EnumValue("agent_running_stats")] AgentRunningStats,
-    [EnumValue("agent_execution_detail")] AgentExecutionDetail,
-    [EnumValue("agent_clear_history")] AgentClearHistory,
+    [EnumValue("agent_spawn")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    AgentSpawn,
+
+    [EnumValue("agent_list")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    AgentList,
+
+    [EnumValue("agent_status")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    AgentStatus,
+
+    [EnumValue("SendMessage")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    AgentSendMessage,
+
+    [EnumValue("agent_get_messages")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    AgentGetMessages,
+
+    [EnumValue("agent_pause")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    AgentPause,
+
+    [EnumValue("agent_resume")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    AgentResume,
+
+    [EnumValue("agent_stop")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    AgentStop,
+
+    [EnumValue("Agent")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    Agent,
+
+    [EnumValue("plan_agent")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    PlanAgent,
+
+    [EnumValue("explore_agent")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    ExploreAgent,
+
+    [EnumValue("verification_agent")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    VerificationAgent,
+
+    [EnumValue("general_agent")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GeneralAgent,
+
+    [EnumValue("guide_agent")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GuideAgent,
+
+    [EnumValue("list_agents")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    ListAgents,
+
+    [EnumValue("agent_system_stats")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    AgentSystemStats,
+
+    [EnumValue("agent_list_stats")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    AgentListStats,
+
+    [EnumValue("agent_stats")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    AgentStats,
+
+    [EnumValue("agent_history")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    AgentHistory,
+
+    [EnumValue("agent_running")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    AgentRunning,
+
+    [EnumValue("agent_running_stats")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    AgentRunningStats,
+
+    [EnumValue("agent_execution_detail")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    AgentExecutionDetail,
+
+    [EnumValue("agent_clear_history")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    AgentClearHistory,
 }

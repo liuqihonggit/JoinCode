@@ -5,38 +5,139 @@ namespace JoinCode.Abstractions.Utils;
 /// </summary>
 public enum SystemToolName
 {
-    [EnumValue("brief_mode")] BriefMode,
-    [EnumValue("brief_status")] BriefStatus,
-    [EnumValue("Brief")] Brief,
-    [EnumValue("SendUserMessage")] SendUserMessage,
-    [EnumValue("Sleep")] Sleep,
-    [EnumValue("sleep_until")] SleepUntil,
-    [EnumValue("TaskOutput")] TaskOutput,
-    [EnumValue("ToolSearch")] ToolSearch,
-    [EnumValue("verify_plan_execution")] VerifyPlanExecution,
-    [EnumValue("ctx_inspect")] CtxInspect,
-    [EnumValue("terminal_capture")] TerminalCapture,
-    [EnumValue("snip")] Snip,
-    [EnumValue("StructuredOutput")] SyntheticOutput,
-    [EnumValue("RemoteTrigger")] RemoteTrigger,
-    [EnumValue("monitor")] Monitor,
-    [EnumValue("send_user_file")] SendUserFile,
-    [EnumValue("push_notification")] PushNotification,
-    [EnumValue("voice_start_recording")] VoiceStartRecording,
-    [EnumValue("voice_stop_recording")] VoiceStopRecording,
-    [EnumValue("voice_transcribe")] VoiceTranscribe,
-    [EnumValue("voice_status")] VoiceStatus,
-    [EnumValue("vcr_record")] VcrRecord,
-    [EnumValue("vcr_playback")] VcrPlayback,
-    [EnumValue("vcr_status")] VcrStatus,
-    [EnumValue("subscribe_pr")] SubscribePR,
-    [EnumValue("list_peers")] ListPeers,
-    [EnumValue("REPL")] Repl,
-    [EnumValue("structured_output_register")] StructuredOutputRegister,
-    [EnumValue("structured_output_validate")] StructuredOutputValidate,
-    [EnumValue("goal_get")] GoalGet,
-    [EnumValue("goal_update")] GoalUpdate,
-    [EnumValue("goal_graph_define")] GoalGraphDefine,
-    [EnumValue("resume_timed_out_task")] ResumeTimedOutTask,
-    [EnumValue("build_output")] BuildOutput,
+    [EnumValue("brief_mode")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    BriefMode,
+
+    [EnumValue("brief_status")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    BriefStatus,
+
+    [EnumValue("Brief")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    Brief,
+
+    [EnumValue("SendUserMessage")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    SendUserMessage,
+
+    [EnumValue("Sleep")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    Sleep,
+
+    [EnumValue("sleep_until")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    SleepUntil,
+
+    [EnumValue("TaskOutput")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    TaskOutput,
+
+    [EnumValue("ToolSearch")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    ToolSearch,
+
+    [EnumValue("verify_plan_execution")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    VerifyPlanExecution,
+
+    [EnumValue("ctx_inspect")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    CtxInspect,
+
+    [EnumValue("terminal_capture")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    TerminalCapture,
+
+    [EnumValue("snip")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    Snip,
+
+    [EnumValue("StructuredOutput")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    SyntheticOutput,
+
+    [EnumValue("RemoteTrigger")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    RemoteTrigger,
+
+    [EnumValue("monitor")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    Monitor,
+
+    [EnumValue("send_user_file")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    SendUserFile,
+
+    [EnumValue("push_notification")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    PushNotification,
+
+    [EnumValue("voice_start_recording")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    VoiceStartRecording,
+
+    [EnumValue("voice_stop_recording")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    VoiceStopRecording,
+
+    [EnumValue("voice_transcribe")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    VoiceTranscribe,
+
+    [EnumValue("voice_status")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    VoiceStatus,
+
+    [EnumValue("vcr_record")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    VcrRecord,
+
+    [EnumValue("vcr_playback")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    VcrPlayback,
+
+    [EnumValue("vcr_status")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    VcrStatus,
+
+    [EnumValue("subscribe_pr")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    SubscribePR,
+
+    [EnumValue("list_peers")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    ListPeers,
+
+    [EnumValue("REPL")]
+    [SecurityClass("sensitive", AutoDenied = true, PlanDenied = true, AskAllowed = true)]
+    Repl,
+
+    [EnumValue("structured_output_register")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    StructuredOutputRegister,
+
+    [EnumValue("structured_output_validate")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    StructuredOutputValidate,
+
+    [EnumValue("goal_get")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GoalGet,
+
+    [EnumValue("goal_update")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GoalUpdate,
+
+    [EnumValue("goal_graph_define")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GoalGraphDefine,
+
+    [EnumValue("resume_timed_out_task")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    ResumeTimedOutTask,
+
+    [EnumValue("build_output")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    BuildOutput,
 }

@@ -342,8 +342,7 @@ public class OpenAIQueryService : QueryServiceBase
                 System.Console.ForegroundColor = System.ConsoleColor.DarkGray;
                 System.Console.WriteLine("----------------------------");
                 System.Console.ResetColor();
-                Logger?.LogWarning("[WIRE {CallId}] 流结束 | chunks={Total}, content={Content}, toolCalls={ToolCalls}",
-                    CallTrace.CurrentId, chunkCount, contentChunks, toolCallChunks);
+                Diag.WriteLine($"[WIRE {CallTrace.CurrentId}] 流结束 | chunks={chunkCount}, content={contentChunks}, toolCalls={toolCallChunks}");
                 yield break;
             }
 
@@ -379,8 +378,7 @@ public class OpenAIQueryService : QueryServiceBase
         System.Console.ForegroundColor = System.ConsoleColor.DarkGray;
         System.Console.WriteLine("----------------------------");
         System.Console.ResetColor();
-        Logger?.LogWarning("[WIRE {CallId}] 流异常结束(无[DONE]) | chunks={Total}, content={Content}, toolCalls={ToolCalls}",
-            CallTrace.CurrentId, chunkCount, contentChunks, toolCallChunks);
+        Diag.WriteLine($"[WIRE {CallTrace.CurrentId}] 流异常结束(无[DONE]) | chunks={chunkCount}, content={contentChunks}, toolCalls={toolCallChunks}");
     }
 
     internal static ApiMessage ConvertToApiMessage(OpenAIChoice choice, OpenAIUsage? usage)

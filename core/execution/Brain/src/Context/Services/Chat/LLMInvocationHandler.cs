@@ -102,13 +102,7 @@ public sealed partial class LLMInvocationHandler : ServiceEntity, ILLMInvocation
             var textPreview = iterState.FullResponse.Length > 0
                 ? $" | 预览={iterState.FullResponse.ToString(0, Math.Min(iterState.FullResponse.Length, 100))}"
                 : "";
-            _logger?.LogWarning("[LLM {CallId}] #{Iter} → {ResultType}, 文本={Len}字符{Preview}, 模型={Model}, tokens={Tokens}",
-                callId, iterationIndex,
-                iterState.ToolCallName is not null ? $"tool_call={iterState.ToolCallName}" : "纯文本",
-                iterState.FullResponse.Length,
-                textPreview,
-                iterState.StreamModelId ?? "?",
-                iterState.StreamUsage?.TotalTokens);
+            Diag.WriteLine($"[LLM {callId}] #{iterationIndex} → {(iterState.ToolCallName is not null ? $"tool_call={iterState.ToolCallName}" : "纯文本")}, 文本={iterState.FullResponse.Length}字符{textPreview}, 模型={iterState.StreamModelId ?? "?"}, tokens={iterState.StreamUsage?.TotalTokens}");
         }
         finally
         {

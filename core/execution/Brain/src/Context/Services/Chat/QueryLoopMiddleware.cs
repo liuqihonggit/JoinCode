@@ -1,3 +1,5 @@
+using JoinCode.Abstractions.Diagnostics;
+
 namespace Core.Context;
 
 /// <summary>
@@ -70,7 +72,7 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
             await _notificationHandler.ProcessPendingNotificationsAsync(ct).ConfigureAwait(false);
 
             var historySnapshot = await _contextManager.GetMessageListAsync(ct).ConfigureAwait(false);
-            _logger?.LogInformation("[LOOP] 迭代 #{Iter} | 消息={MsgCount}", totalToolCalls, historySnapshot.Count);
+            Diag.WriteLine($"[LOOP] 迭代 #{totalToolCalls} | 消息={historySnapshot.Count}");
 #if DEBUG
             if (System.Diagnostics.Debugger.IsAttached) System.Diagnostics.Debugger.Break();
 #endif
@@ -104,18 +106,18 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
             }
 
             if (totalToolCalls > 0) {
-                _logger?.LogInformation("[LOOP {CallId}] 工具调用后空白响应, 结束本轮对话", iterState.CallId);
+                Diag.WriteLine($"[LOOP {iterState.CallId}] 工具调用后空白响应, 结束本轮对话");
                 yield return ChatStreamEvent.Text("⚠ 模型在工具调用后返回了空白响应，本轮对话已结束。");
                 break;
             }
 
-            _logger?.LogWarning("[LOOP {CallId}] LLM 空响应, 结束本轮对话", iterState.CallId);
+            Diag.WriteLine($"[LOOP {iterState.CallId}] LLM 空响应, 结束本轮对话");
             yield return ChatStreamEvent.Text("⚠ 模型返回了空白响应，本轮对话已结束。");
             break;
         }
 
         if (totalToolCalls >= MaxToolCallIterations) {
-            _logger?.LogWarning("[LOOP] 达到最大工具调用次数限制: {Max}", MaxToolCallIterations);
+            Diag.WriteLine($"[LOOP] 达到最大工具调用次数限制: {MaxToolCallIterations}");
             yield return ChatStreamEvent.Text(
                 $"⚠ 已达到最大工具调用次数（{MaxToolCallIterations} 次），为避免死循环本轮对话已被截断。");
         }
@@ -163,7 +165,7 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
         }
 
         if (iterState.ToolCallName is null) {
-            _logger?.LogInformation("[LOOP {CallId}] 纯文本响应, 长度={Len}", iterState.CallId, iterState.FullResponse.Length);
+            Diag.WriteLine($"[LOOP {iterState.CallId}] 纯文本响应, 长度={iterState.FullResponse.Length}");
             if (iterState.FullResponse.Length > 0) {
                 var (pureEvents, pureResponse) = BuildPureTextResponse(iterState, context);
                 foreach (var evt in pureEvents)
@@ -200,8 +202,7 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
         }
 
         foreach (var result in allResults) {
-            _logger?.LogInformation("[TOOL {CallId}] {ToolName} → {Result} | 长度={Len}",
-                iterState.CallId, result.ToolName, result.Result.IsError ? "ERROR" : "OK", result.Result.ResultText?.Length ?? 0);
+            Diag.WriteLine($"[TOOL {iterState.CallId}] {result.ToolName} → {(result.Result.IsError ? "ERROR" : "OK")} | 长度={result.Result.ResultText?.Length ?? 0}");
 
             yield return result.ToToolEndEvent();
 
@@ -241,7 +242,7 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
         }
 
         if (iterState.ToolCallName is null) {
-            _logger?.LogInformation("[LOOP {CallId}] 纯文本响应, 长度={Len}", iterState.CallId, iterState.FullResponse.Length);
+            Diag.WriteLine($"[LOOP {iterState.CallId}] 纯文本响应, 长度={iterState.FullResponse.Length}");
             if (iterState.FullResponse.Length > 0) {
                 var (pureEvents, pureResponse) = BuildPureTextResponse(iterState, context);
                 foreach (var evt in pureEvents)
@@ -276,8 +277,7 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
                 throw;
             }
 
-            _logger?.LogInformation("[TOOL {CallId}] {ToolName} → {Result}",
-                iterState.CallId, toolCall.Name, toolCallResult.IsError ? "ERROR" : "OK");
+            Diag.WriteLine($"[TOOL {iterState.CallId}] {toolCall.Name} → {(toolCallResult.IsError ? "ERROR" : "OK")}");
 
             yield return ChatStreamEvent.ToolEnd(
                 toolCall.Name, toolCallResult.ResultText, toolCall.Id,
@@ -312,7 +312,7 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
 
         var textLoop = _loopDetectionStrategy.CheckTextLoop(aiResponse);
         if (textLoop is not null) {
-            _logger?.LogWarning("[LOOP] 逻辑指纹循环已触发");
+            Diag.WriteLine("[LOOP] 逻辑指纹循环已触发");
             events.Add(ChatStreamEvent.LoopDetected(textLoop.TriggerCount, textLoop.ToolCallCount, textLoop.Reason));
         }
 

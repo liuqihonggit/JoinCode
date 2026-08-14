@@ -26,7 +26,6 @@ public sealed partial class MainViewModel : ViewModelBase
     private bool _isPreferencesLoaded;
     private bool _isRefreshingConfig;
     private bool _isApplyingExternalTheme;
-    private bool _isInitializing;
     private System.IO.FileSystemWatcher? _modelConfigWatcher;
     private DateTime _lastConfigReload = DateTime.MinValue;
 
@@ -376,14 +375,6 @@ public sealed partial class MainViewModel : ViewModelBase
             _selectedModel = _selectedModelOption?.Id ?? _session.CurrentModelId;
             // 引擎未就绪时仍从 settings.json 读主题（PlaceholderChatSession 持有 _configService 可读）
             LoadThemeFromSettings();
-        }
-
-        // Avalonia ComboBox 已知问题(#18635):ItemsSource 变化时 SelectedItem 被重置为 null 再选第一个
-        // 用 _isInitializing 跳过初始化阶段的跳变,下一帧释放(仅 GUI 环境,测试无 Avalonia.Application)
-        if (Avalonia.Application.Current is not null)
-        {
-            _isInitializing = true;
-            Avalonia.Threading.Dispatcher.UIThread.Post(() => _isInitializing = false);
         }
     }
 
@@ -1056,8 +1047,8 @@ public sealed partial class MainViewModel : ViewModelBase
 
     partial void OnSelectedConnectionChanged(ConnectionOptionItem? value)
     {
-        WriteDebugLog($"OnSelectedConnectionChanged: id={value?.Id} refresh={_isRefreshingConfig} init={_isInitializing} realSession={_realSession is not null} session={_session.GetType().Name} currentVendor={_session.CurrentVendor}");
-        if (value is null || _isRefreshingConfig || _isInitializing)
+        WriteDebugLog($"OnSelectedConnectionChanged: id={value?.Id} refresh={_isRefreshingConfig} realSession={_realSession is not null} session={_session.GetType().Name} currentVendor={_session.CurrentVendor}");
+        if (value is null || _isRefreshingConfig)
             return;
 
         // 无论引擎是否就绪,都持久化供应商切换到 settings.json(PlaceholderChatSession 也能写)

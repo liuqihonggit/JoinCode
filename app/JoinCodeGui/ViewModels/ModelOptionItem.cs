@@ -18,4 +18,9 @@ public sealed class ModelOptionItem
         Id = id;
         DisplayText = displayText;
     }
+
+    public override bool Equals(object? obj)
+        => obj is ModelOptionItem other && string.Equals(Id, other.Id, StringComparison.OrdinalIgnoreCase);
+
+    public override int GetHashCode() => StringComparer.OrdinalIgnoreCase.GetHashCode(Id);
 }

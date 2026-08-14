@@ -280,7 +280,8 @@ public class OpenAIQueryService : QueryServiceBase
         var json = JsonSerializer.Serialize(request, NativeJsonContext.Default.OpenAIChatRequest);
         var endpoint = GetChatEndpoint(Config);
 
-        var response = await SendWithResilienceAsync(json, endpoint, "LLM.ChatCompletion", cancellationToken).ConfigureAwait(false);
+        var response = await SendWithResilienceAsync(json, endpoint, "LLM.ChatCompletion", cancellationToken,
+            HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
 
         response.EnsureSuccessStatusCode();
 

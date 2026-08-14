@@ -317,7 +317,7 @@ public class MainViewModelTests
         vm.ModelOptions.Select(m => m.Id).Should().BeEquivalentTo(["fake-model"]);
     }
 
-    /// <summary>占位模式（session is null）时状态栏应显示加载提示，让用户知道引擎正在后台组装</summary>
+    /// <summary>占位模式（session is null）时状态栏应显示加载提示，但供应商/模型列表仍从 models.json 填充供预览</summary>
     [Fact]
     public void PlaceholderMode_ShowsLoadingStatus()
     {
@@ -325,7 +325,7 @@ public class MainViewModelTests
         vm.IsMockConnection.Should().BeTrue("未注入会话时处于 Mock 占位");
         vm.StatusText.Should().Be("正在加载引擎…");
         vm.IsEngineLoaded.Should().BeFalse("引擎未加载完成");
-        vm.ConnectionOptions.Should().BeEmpty("引擎未加载时不填充连接列表");
+        vm.ConnectionOptions.Should().NotBeEmpty("引擎未就绪时仍从 models.json 填充供应商列表供预览");
     }
 
     [Fact]

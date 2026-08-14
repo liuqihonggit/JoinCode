@@ -204,30 +204,14 @@ public sealed partial class MainViewModel : ViewModelBase
     }
 
     /// <summary>模型下拉选项缓存 — session 切换时失效重建，避免每次访问重建数组导致 ComboBox 选中项引用失效闪现</summary>
-    private IReadOnlyList<ModelOptionItem>? _modelOptionsCache;
+    /// <summary>模型下拉选项 — ObservableCollection 双向绑定，供应商切换时清空重填</summary>
+    public ObservableCollection<ModelOptionItem> ModelOptions { get; } = [];
 
-    /// <summary>模型下拉选项（展示"供应商:模型ID"，如 OpenAI:gpt-4o、Mock:deepseek-chat）</summary>
-    public IReadOnlyList<ModelOptionItem> ModelOptions
+    /// <summary>刷新模型下拉 — 从 VendorModelMap 取当前供应商模型列表填充 ObservableCollection</summary>
+    private void RefreshModelOptions()
     {
-        get
-        {
-            if (_modelOptionsCache is not null)
-                return _modelOptionsCache;
-            RebuildModelOptionsCache();
-            return _modelOptionsCache!;
-        }
-    }
-
-    /// <summary>重建模型选项缓存 — 从 VendorModelMap 取选中供应商的模型列表；当前模型不在 catalog 时追加（仅限同供应商）</summary>
-    private void RebuildModelOptionsCache()
-    {
-        var isMock = _session is Hosting.PlaceholderChatSession;
-        var provider = isMock
-            ? "mock"
-            : (SelectedConnection?.Id ?? _session.CurrentVendor);
-        var providerDisplay = isMock
-            ? "Mock"
-            : (VendorKindExtensions.FromValue(provider)?.ToString() ?? provider);
+        var provider = SelectedConnection?.Id ?? _session.CurrentVendor;
+        var providerDisplay = VendorKindExtensions.FromValue(provider)?.ToString() ?? provider;
         var map = _session.VendorModelMap;
         var source = map.TryGetValue(provider, out var models) && models is not null
             ? models.ToList()
@@ -236,21 +220,15 @@ public sealed partial class MainViewModel : ViewModelBase
         if (!string.IsNullOrWhiteSpace(current)
             && source.All(id => !string.Equals(id, current, StringComparison.OrdinalIgnoreCase)))
         {
-            // 校验当前模型是否属于当前供应商 — 跨供应商切换时旧模型不追加（避免污染）
-            // 模型不在配置中（自定义模型）时仍追加，兼容测试桩
             var modelProvider = ModelConfigLoader.FindProviderByModelId(current);
             if (modelProvider is null || string.Equals(modelProvider, provider, StringComparison.OrdinalIgnoreCase))
             {
                 source.Add(current);
             }
         }
-        var items = new ModelOptionItem[source.Count];
-        for (var i = 0; i < source.Count; i++)
-        {
-            var id = source[i];
-            items[i] = new ModelOptionItem(id, $"{providerDisplay}:{id}");
-        }
-        _modelOptionsCache = items;
+        ModelOptions.Clear();
+        foreach (var id in source)
+            ModelOptions.Add(new ModelOptionItem(id, $"{providerDisplay}:{id}"));
     }
 
     /// <summary>当前选中的模型下拉项（View 层绑定 ComboBox.SelectedItem）</summary>
@@ -366,6 +344,7 @@ public sealed partial class MainViewModel : ViewModelBase
         if (session is not null)
         {
             RebuildConnectionOptions();
+            RefreshModelOptions();
             _selectedModel = _session.CurrentModelId;
             _selectedModelOption = ModelOptions.FirstOrDefault(m => m.Id == _session.CurrentModelId);
             _selectedConnection = _connectionOptions.FirstOrDefault(c => c.Id == session.CurrentVendor)
@@ -381,6 +360,8 @@ public sealed partial class MainViewModel : ViewModelBase
         else
         {
             StatusText = "正在加载引擎…";
+            RebuildConnectionOptions();
+            RefreshModelOptions();
             // 引擎未就绪时仍从 settings.json 读主题（PlaceholderChatSession 持有 _configService 可读）
             LoadThemeFromSettings();
         }
@@ -401,8 +382,8 @@ public sealed partial class MainViewModel : ViewModelBase
         _session = session;
         _session.PermissionConfirmationHandler = OnPermissionConfirmationRequestedAsync;
 
-        _modelOptionsCache = null;
         RebuildConnectionOptions();
+        RefreshModelOptions();
         SelectedModel = _session.CurrentModelId;
         SelectedModelOption = ModelOptions.FirstOrDefault(m => m.Id == _session.CurrentModelId);
         SelectedEffort = _session.EffortLevel.ToValue();
@@ -416,7 +397,6 @@ public sealed partial class MainViewModel : ViewModelBase
         _slashCommandCache = null;
         RefreshSlashSuggestions();
 
-        OnPropertyChanged(nameof(ModelOptions));
         OnPropertyChanged(nameof(IsMockConnection));
         IsEngineLoaded = true;
         _ = Task.Run(async () =>
@@ -481,8 +461,7 @@ public sealed partial class MainViewModel : ViewModelBase
 
             _session.RefreshVendorModelMap();
             RebuildConnectionOptions();
-            _modelOptionsCache = null;
-            OnPropertyChanged(nameof(ModelOptions));
+            RefreshModelOptions();
 
             // 恢复连接选择（RebuildConnectionOptions 重建了对象引用），用标志位绕过 OnSelectedConnectionChanged 持久化副作用避免循环
             _isRefreshingConfig = true;
@@ -512,6 +491,7 @@ public sealed partial class MainViewModel : ViewModelBase
         _session.PermissionConfirmationHandler = OnPermissionConfirmationRequestedAsync;
         RebuildConnectionOptions();
         SelectedConnection = _connectionOptions.FirstOrDefault();
+        RefreshModelOptions();
         SelectedModel = _session.CurrentModelId;
         SelectedModelOption = ModelOptions.FirstOrDefault(m => m.Id == _session.CurrentModelId);
         IsEngineLoaded = true;
@@ -1075,8 +1055,7 @@ public sealed partial class MainViewModel : ViewModelBase
         try { Task.Run(() => _session.SetVendorAsync(value.Id)).Wait(Timeout); WriteDebugLog($"SetVendorAsync ok: id={value.Id}"); }
         catch (Exception ex) { WriteErrorLog(ex); WriteDebugLog($"SetVendorAsync FAIL: {ex.Message}"); }
 
-        _modelOptionsCache = null;
-        OnPropertyChanged(nameof(ModelOptions));
+        RefreshModelOptions();
         OnPropertyChanged(nameof(IsMockConnection));
         // 供应商切换后 SetVendorAsync 已把 CurrentModelId 重置为新供应商默认模型，优先匹配它；找不到才取第一个
         SelectedModelOption = ModelOptions.FirstOrDefault(m => string.Equals(m.Id, _session.CurrentModelId, StringComparison.OrdinalIgnoreCase))
@@ -1100,8 +1079,7 @@ public sealed partial class MainViewModel : ViewModelBase
             _session.PermissionConfirmationHandler = OnPermissionConfirmationRequestedAsync;
             StatusText = $"已切换到 Mock 引擎（演示），模型 {_session.CurrentModelId}";
         }
-        _modelOptionsCache = null;
-        OnPropertyChanged(nameof(ModelOptions));
+        RefreshModelOptions();
         OnPropertyChanged(nameof(IsMockConnection));
         SelectedModelOption = ModelOptions.FirstOrDefault(m => string.Equals(m.Id, _session.CurrentModelId, StringComparison.OrdinalIgnoreCase))
             ?? ModelOptions.FirstOrDefault();

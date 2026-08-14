@@ -24,7 +24,7 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
         }
         Cli.TerminalHelper.WriteLine("JoinCode CLI - 输入消息或 /help 查看命令");
         Cli.TerminalHelper.WriteLine();
-        Diag.WriteLifecycle("[READY]");
+        Diag.WriteLifecycle("[AI助手] 就绪");
 
         var session = context.Session ?? throw new InvalidOperationException("Session not initialized");
 
@@ -88,7 +88,7 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
         while (session.IsRunning && !ct.IsCancellationRequested)
         {
             using (Cli.TerminalHelper.SetColor(ConsoleColor.Green))
-                Cli.TerminalHelper.WriteRaw("> ");
+                Cli.TerminalHelper.WriteRaw("[用户] ");
 
             string combined;
             try
@@ -153,12 +153,10 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
                 aliveCts.Cancel();
                 try { await aliveTask.ConfigureAwait(false); } catch (OperationCanceledException) { }
                 await Console.Out.FlushAsync().ConfigureAwait(false);
-                using (Cli.TerminalHelper.SetColor(ConsoleColor.Red))
-                    Cli.TerminalHelper.WriteLine("AI输出已经结束");
                 using (Cli.TerminalHelper.SetColor(ConsoleColor.DarkGray))
                     Cli.TerminalHelper.WriteLine("----------------------------");
                 Cli.TerminalHelper.WriteLine();
-                Diag.WriteLifecycle("[DONE]");
+                Diag.WriteLifecycle("[AI对话结束]");
             }
         }
 

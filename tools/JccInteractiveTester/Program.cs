@@ -58,8 +58,8 @@ internal static class Program
             while ((line = await p.StandardError.ReadLineAsync(cts.Token).ConfigureAwait(false)) is not null)
             {
                 Console.WriteLine(line);
-                if (line.Contains("[READY]")) readyTcs.TrySetResult();
-                if (line.Contains("[DONE]")) doneTcs.TrySetResult();
+                if (line.Contains("[AI助手] 就绪")) readyTcs.TrySetResult();
+                if (line.Contains("[AI对话结束]")) doneTcs.TrySetResult();
             }
         }, cts.Token);
 

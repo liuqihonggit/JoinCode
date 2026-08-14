@@ -43,7 +43,15 @@ public sealed class CliEventConsumer : IResettableEventConsumer
     /// <summary>收到文本内容</summary>
     public void OnText(string content)
     {
-        if (_isFirstToken) _isFirstToken = false;
+        if (_isFirstToken)
+        {
+            _isFirstToken = false;
+            if (!_agentMode)
+            {
+                using var _label = TerminalHelper.SetColor(ConsoleColor.Cyan);
+                TerminalHelper.WriteLine("[AI助手]");
+            }
+        }
         if (content.Length > 0)
         {
             _fullResponse.Append(content);

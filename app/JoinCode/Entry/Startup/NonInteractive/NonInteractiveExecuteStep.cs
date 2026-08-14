@@ -19,7 +19,7 @@ internal sealed partial class NonInteractiveExecuteStep : ServiceEntity, IMiddle
         try
         {
         Diag.WriteLine("[STEP] ExecuteStep calling ProcessUserInputAsync...");
-        Diag.WriteLifecycle("[READY]");
+        Diag.WriteLifecycle("[AI助手] 就绪");
         var p = context.Config.Provider;
         using (Cli.TerminalHelper.SetColor(ConsoleColor.DarkGray))
         {
@@ -36,7 +36,7 @@ internal sealed partial class NonInteractiveExecuteStep : ServiceEntity, IMiddle
             }
             await session.ProcessUserInputAsync(prompt, ct);
             await Console.Out.FlushAsync().ConfigureAwait(false);
-            Diag.WriteLifecycle("[DONE]");
+            Diag.WriteLifecycle("[AI对话结束]");
             Diag.WriteLine("[STEP] ExecuteStep ProcessUserInputAsync returned, stdout flushed");
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)

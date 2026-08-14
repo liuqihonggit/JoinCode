@@ -307,7 +307,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
     }
 
     /// <summary>
-    /// 等待 NonInteractive 模式输出 — 监听 [DONE] 标记或进程退出
+    /// 等待 NonInteractive 模式输出 — 监听 [AI对话结束] 标记或进程退出
     /// </summary>
     private async Task<string> WaitForNonInteractiveOutputAsync(TimeSpan timeout, CancellationToken ct)
     {
@@ -329,9 +329,9 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
                     return exitOutput;
                 }
                 var exitError = await CaptureStderrAsync().ConfigureAwait(true);
-                if (exitError.Contains("[DONE]", StringComparison.Ordinal))
+                if (exitError.Contains("[AI对话结束]", StringComparison.Ordinal))
                 {
-                    _logger.LogInformation("[DualRoleRunner] jcc.exe 进程已退出，stderr含[DONE]，视为成功");
+                    _logger.LogInformation("[DualRoleRunner] jcc.exe 进程已退出，stderr含[AI对话结束]，视为成功");
                     return string.Empty;
                 }
                 _logger.LogError("[DualRoleRunner] jcc.exe 进程已退出且无输出，stderr={Stderr}", exitError);
@@ -339,7 +339,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
             }
 
             var incrementalStderr = await CaptureStderrIncrementalAsync().ConfigureAwait(true);
-            if (incrementalStderr.Contains("[DONE]", StringComparison.Ordinal))
+            if (incrementalStderr.Contains("[AI对话结束]", StringComparison.Ordinal))
                 seenDone = true;
             if (incrementalStderr.Contains("[ALIVE]", StringComparison.Ordinal))
                 seenAlive = true;
@@ -349,7 +349,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
                 var doneOutput = await _processManager!.GetOutputAsync().ConfigureAwait(true);
                 if (doneOutput.Length > 0)
                 {
-                    _logger.LogInformation("[DualRoleRunner] 检测到 [DONE] 标记（NonInteractive），输出长度={Len}", doneOutput.Length);
+                    _logger.LogInformation("[DualRoleRunner] 检测到 [AI对话结束] 标记（NonInteractive），输出长度={Len}", doneOutput.Length);
                     return doneOutput;
                 }
             }
@@ -377,9 +377,9 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
                 return exitOutput;
             }
             var exitError = await CaptureStderrAsync().ConfigureAwait(true);
-            if (exitError.Contains("[DONE]", StringComparison.Ordinal))
+            if (exitError.Contains("[AI对话结束]", StringComparison.Ordinal))
             {
-                _logger.LogInformation("[DualRoleRunner] jcc.exe 进程已退出（超时后），stderr含[DONE]，视为成功");
+                _logger.LogInformation("[DualRoleRunner] jcc.exe 进程已退出（超时后），stderr含[AI对话结束]，视为成功");
                 return string.Empty;
             }
             throw new InvalidOperationException($"[GEN020] jcc.exe 进程已退出且无输出, stderr={exitError}");
@@ -539,7 +539,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
         var steps = new List<string>();
         var timings = new List<string>();
 
-        foreach (var line in stderrOutput.Split('\n'))
+        foreach (var line in stderrOutput.Split('[AI对话结束]'))
         {
             var trimmed = line.TrimEnd('\r');
             if (trimmed.Contains("[STEP]", StringComparison.Ordinal))
@@ -586,7 +586,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
         var pollCount = 0;
 
         var stderrBaseline = await CaptureStderrAsync().ConfigureAwait(true);
-        var baselineDoneCount = CountMarker(stderrBaseline, "[DONE]");
+        var baselineDoneCount = CountMarker(stderrBaseline, "[AI对话结束]");
         var cumulativeDoneCount = baselineDoneCount;
 
         while (DateTime.UtcNow - startTime < timeout)
@@ -624,13 +624,13 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
             {
                 lastAliveTime = DateTime.UtcNow;
             }
-            cumulativeDoneCount += CountMarker(incrementalStderr, "[DONE]");
+            cumulativeDoneCount += CountMarker(incrementalStderr, "[AI对话结束]");
             if (cumulativeDoneCount > baselineDoneCount)
             {
                 seenDone = true;
             }
 
-            // 优先级1: [DONE] 标记 — jcc.exe 明确表示处理完成
+            // 优先级1: [AI对话结束] 标记 — jcc.exe 明确表示处理完成
             if (seenDone && currentOutput.Length >= 2)
             {
                 if (HasUnfinishedToolCall(currentOutput))
@@ -639,14 +639,14 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
                     await Task.Delay(100, ct).ConfigureAwait(true);
                     continue;
                 }
-                // 等待 stdout 完全刷新 — stderr [DONE] 可能先于 stdout [Tool]/[FAIL] 到达
+                // 等待 stdout 完全刷新 — stderr [AI对话结束] 可能先于 stdout [Tool]/[FAIL] 到达
                 await Task.Delay(200, ct).ConfigureAwait(true);
                 currentOutput = await _processManager!.GetOutputAsync().ConfigureAwait(true);
-                _logger.LogInformation("[DualRoleRunner] 检测到 [DONE] 标记，输出长度={Len}，轮询次数={Polls}", currentOutput.Length, pollCount);
+                _logger.LogInformation("[DualRoleRunner] 检测到 [AI对话结束] 标记，输出长度={Len}，轮询次数={Polls}", currentOutput.Length, pollCount);
                 return currentOutput;
             }
 
-            // 优先级2: 输出稳定 + 心跳已停止 — 兜底逻辑（兼容旧版本无 [DONE] 标记）
+            // 优先级2: 输出稳定 + 心跳已停止 — 兜底逻辑（兼容旧版本无 [AI对话结束] 标记）
             var elapsed = DateTime.UtcNow - startTime;
             if (elapsed >= TimeSpan.FromSeconds(3)
                 && currentOutput.Length >= 2
@@ -712,7 +712,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
     {
         var toolStartCount = 0;
         var toolEndCount = 0;
-        foreach (var line in output.Split('\n'))
+        foreach (var line in output.Split('[AI对话结束]'))
         {
             var trimmed = line.TrimEnd('\r');
             if (trimmed.Contains("[Tool] ", StringComparison.Ordinal))
@@ -744,9 +744,9 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
             }
 
             var incrementalStderr = await CaptureStderrIncrementalAsync().ConfigureAwait(true);
-            if (incrementalStderr.Contains("[READY]", StringComparison.Ordinal))
+            if (incrementalStderr.Contains("[AI助手] 就绪", StringComparison.Ordinal))
             {
-                _logger.LogInformation("[DualRoleRunner] 检测到 [READY] 标记，进程就绪");
+                _logger.LogInformation("[DualRoleRunner] 检测到 [AI助手] 就绪标记，进程就绪");
                 return;
             }
 
@@ -960,7 +960,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
             {
                 var urlPart = e.Data[(idx + readyMarker.Length)..].Trim();
                 // 解析 http://localhost:{port}/ 中的端口
-                var match = Regex.Match(urlPart, @":(\d+)/?");
+                var match = Regex.Match(urlPart, @":([AI对话结束]+)/?");
                 if (match.Success && int.TryParse(match.Groups[1].Value, out var port))
                 {
                     readyTcs.TrySetResult(port);
@@ -1130,11 +1130,11 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
         {
             switch (c)
             {
-                case '"': sb.Append("\\\""); break;
-                case '\\': sb.Append("\\\\"); break;
-                case '\n': sb.Append("\\n"); break;
-                case '\r': sb.Append("\\r"); break;
-                case '\t': sb.Append("\\t"); break;
+                case '"': sb.Append("[AI对话结束]\""); break;
+                case '[AI对话结束]': sb.Append("[AI对话结束][AI对话结束]"); break;
+                case '[AI对话结束]': sb.Append("[AI对话结束]n"); break;
+                case '\r': sb.Append("[AI对话结束]r"); break;
+                case '\t': sb.Append("[AI对话结束]t"); break;
                 default: sb.Append(c); break;
             }
         }

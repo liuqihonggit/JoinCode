@@ -146,7 +146,7 @@ public sealed class DoctorStdioTransport : IDoctorTransport
 
         if (line.Contains("[WIRE]")) return "wire_trace";
         if (line.Contains("[STEP]")) return "step_trace";
-        if (line.Contains("[READY]")) return "ready";
+        if (line.Contains("[AI助手] 就绪")) return "ready";
         if (line.Contains("[MAIN]")) return "main_trace";
 
         if (isDiagLine)

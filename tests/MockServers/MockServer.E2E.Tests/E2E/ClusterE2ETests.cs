@@ -50,7 +50,7 @@ public sealed partial class ClusterE2ETests : IAsyncLifetime
 
         if (!string.IsNullOrEmpty(stderr))
         {
-            var stderrLines = stderr.Split('\n').Where(l => l.Contains("[STEP]") || l.Contains("[DONE]") || l.Contains("cluster", StringComparison.OrdinalIgnoreCase)).Take(20);
+            var stderrLines = stderr.Split('\n').Where(l => l.Contains("[STEP]") || l.Contains("[AI对话结束]") || l.Contains("cluster", StringComparison.OrdinalIgnoreCase)).Take(20);
             foreach (var line in stderrLines)
                 _output.WriteLine($"[ClusterE2E:stderr] {line.TrimEnd('\r')}");
         }

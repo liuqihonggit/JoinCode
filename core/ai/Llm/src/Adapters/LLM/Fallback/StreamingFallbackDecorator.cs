@@ -158,7 +158,7 @@ public sealed class StreamingFallbackDecorator : IQueryService
         Exception originalError,
         List<StreamEvent> partialEvents)
     {
-        _logger?.LogWarning(originalError, "[FALLBACK {CallId}] 流式失败, 降级为非流式 | 原因: {Cause}", CallTrace.CurrentId, originalError.Message);
+        _logger?.LogWarning("[FALLBACK {CallId}:161] 流式失败, 降级为非流式 | {ExType}: {Message}", CallTrace.CurrentId, originalError.GetType().Name, originalError.Message);
 
         LastRequestFellBack = true;
         OnStreamingFallback?.Invoke();
@@ -176,7 +176,7 @@ public sealed class StreamingFallbackDecorator : IQueryService
         }
         catch (Exception fallbackEx)
         {
-            _logger?.LogError(fallbackEx, "[FALLBACK {CallId}] 非流式降级也失败", CallTrace.CurrentId);
+            _logger?.LogError("[FALLBACK {CallId}:179] 非流式降级也失败 | {ExType}: {Message}", CallTrace.CurrentId, fallbackEx.GetType().Name, fallbackEx.Message);
             throw new AggregateException("Both streaming and non-streaming fallback failed", originalError, fallbackEx);
         }
 

@@ -70,6 +70,12 @@ public sealed class SessionController
         {
             if (_mainAgent is not null)
             {
+                var preprocessResult = await PreProcessMainAgentAsync(input, timeoutToken).ConfigureAwait(false);
+                if (preprocessResult?.PromptInjectionInfo is { Length: > 0 } injection)
+                {
+                    _consumer.OnText(injection + "\n\n");
+                }
+
                 _mainAgent.CurrentInput = input;
                 await foreach (var chunk in _mainAgent.ExecuteStreamAsync(timeoutToken).ConfigureAwait(false))
                 {
@@ -79,6 +85,8 @@ public sealed class SessionController
                     var mid = ProcessEvent(evt, fullResponse, thinkingContent);
                     if (mid is not null) lastModelId = mid;
                 }
+
+                await PostProcessMainAgentAsync(preprocessResult, cancellationToken).ConfigureAwait(false);
             }
             else
             {
@@ -169,6 +177,78 @@ public sealed class SessionController
                 _consumer.OnDone(usage, mid);
             });
         return modelId;
+    }
+
+    /// <summary>
+    /// 主代理路径预处理 — 对齐 PreChatMiddleware：文件上下文 + prompt injection + context 准备 + prompt 状态记录
+    /// </summary>
+    private async Task<PreprocessResult?> PreProcessMainAgentAsync(string input, CancellationToken ct)
+    {
+        if (_serviceProvider is null) return null;
+
+        var fileContextService = _serviceProvider.GetService<IChatFileContextService>();
+        fileContextService?.UpdateFileContext(input);
+
+        var preprocessor = _serviceProvider.GetService<IChatPreprocessor>();
+        if (preprocessor is null) return null;
+
+        var preprocessResult = await preprocessor.AnalyzeAndInjectAsync(input, ct).ConfigureAwait(false);
+        await preprocessor.PrepareContextAsync(input, false, ct).ConfigureAwait(false);
+
+        var contextManager = _serviceProvider.GetService<IChatContextManager>();
+        if (contextManager is not null)
+        {
+            await contextManager.RecordPromptStateAsync(ct).ConfigureAwait(false);
+        }
+
+        return preprocessResult;
+    }
+
+    /// <summary>
+    /// 主代理路径后处理 — 对齐 SaveContextMiddleware + CleanupInjectionsMiddleware：持久化上下文 + 清理注入
+    /// </summary>
+    private async Task PostProcessMainAgentAsync(PreprocessResult? preprocessResult, CancellationToken ct)
+    {
+        if (_serviceProvider is null) return;
+
+        var contextManager = _serviceProvider.GetService<IChatContextManager>();
+        if (contextManager is not null)
+        {
+            try
+            {
+                await contextManager.SaveContextAsync(ct).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _serviceProvider.GetService<ILogger<SessionController>>()?.LogError(ex, "[SessionController] 上下文保存失败");
+            }
+        }
+
+        if (preprocessResult is not null)
+        {
+            var preprocessor = _serviceProvider.GetService<IChatPreprocessor>();
+            if (preprocessor is not null)
+            {
+                try
+                {
+                    await preprocessor.CleanupInjectionsAsync(
+                        preprocessResult.KeywordResult,
+                        preprocessResult.SynonymInjectionIds, ct).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    _serviceProvider.GetService<ILogger<SessionController>>()?.LogError(ex, "[SessionController] 清理注入失败");
+                }
+            }
+        }
     }
 
     /// <summary>

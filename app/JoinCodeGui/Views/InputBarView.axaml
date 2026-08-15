@@ -6,6 +6,21 @@
              xmlns:vm="using:JoinCode.Gui.ViewModels"
              x:Class="JoinCode.Gui.Views.InputBarView"
              x:DataType="vm:MainViewModel">
+  <UserControl.Styles>
+    <Style Selector="ListBoxItem">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="{DynamicResource GuiPrimaryText}" />
+      <Setter Property="Padding" Value="2,1" />
+      <Setter Property="CornerRadius" Value="4" />
+    </Style>
+    <Style Selector="ListBoxItem:pointerover">
+      <Setter Property="Background" Value="{DynamicResource GuiButtonHover}" />
+    </Style>
+    <Style Selector="ListBoxItem:selected">
+      <Setter Property="Background" Value="{DynamicResource GuiButtonPressed}" />
+      <Setter Property="Foreground" Value="{DynamicResource GuiPrimaryText}" />
+    </Style>
+  </UserControl.Styles>
   <Border Padding="10" Background="{DynamicResource GuiInputBarBackground}" ClipToBounds="True">
     <StackPanel Spacing="6">
       <Grid ColumnDefinitions="*,Auto,Auto">

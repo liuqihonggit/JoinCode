@@ -11,6 +11,7 @@ public sealed partial class AgentOutputChannelManager : ServiceEntity, JoinCode.
     private readonly System.Threading.Channels.Channel<JoinCode.Abstractions.Interfaces.AgentOutputChunk> _outputChannel =
         System.Threading.Channels.Channel.CreateUnbounded<JoinCode.Abstractions.Interfaces.AgentOutputChunk>();
     private readonly ConcurrentDictionary<string, string?> _activeAgents = new();
+    private volatile string? _displayModeTarget;
     private readonly ILogger? _logger;
 
     public AgentOutputChannelManager(ILogger? logger = null)
@@ -72,5 +73,27 @@ public sealed partial class AgentOutputChannelManager : ServiceEntity, JoinCode.
             AgentId = kv.Key,
             DisplayName = kv.Value
         }).ToList();
+    }
+
+    /// <summary>
+    /// 设置输出显示模式
+    /// </summary>
+    public void SetDisplayMode(string? targetAgentId)
+    {
+        _displayModeTarget = targetAgentId;
+    }
+
+    /// <summary>
+    /// 获取当前显示模式
+    /// </summary>
+    public string? GetDisplayMode() => _displayModeTarget;
+
+    /// <summary>
+    /// 判断指定 Agent 的输出是否应显示
+    /// </summary>
+    public bool ShouldDisplay(string agentId)
+    {
+        var target = _displayModeTarget;
+        return target is null || string.Equals(target, agentId, StringComparison.OrdinalIgnoreCase);
     }
 }

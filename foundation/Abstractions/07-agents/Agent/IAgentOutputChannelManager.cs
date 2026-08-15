@@ -75,4 +75,19 @@ public interface IAgentOutputChannelManager
     /// 获取所有活跃 Agent 列表
     /// </summary>
     IReadOnlyList<AgentOutputInfo> GetActiveAgents();
+
+    /// <summary>
+    /// 设置输出显示模式 — null = 显示全部，非 null = 只显示指定 AgentId
+    /// </summary>
+    void SetDisplayMode(string? targetAgentId);
+
+    /// <summary>
+    /// 获取当前显示模式 — null = 全部，非 null = 指定 AgentId
+    /// </summary>
+    string? GetDisplayMode();
+
+    /// <summary>
+    /// 判断指定 Agent 的输出是否应显示（根据当前显示模式）
+    /// </summary>
+    bool ShouldDisplay(string agentId);
 }

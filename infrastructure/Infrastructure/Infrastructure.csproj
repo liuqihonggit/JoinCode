@@ -18,6 +18,9 @@
     <InternalsVisibleTo Include="JoinCode.Brain.Tests" />
     <InternalsVisibleTo Include="JoinCode.Vault.Tests" />
     <InternalsVisibleTo Include="JoinCode.Infra.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Infra.IO.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Infra.Utils.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Infra.Services.Tests" />
     <InternalsVisibleTo Include="JoinCode.Hands.Tests" />
     <InternalsVisibleTo Include="JoinCode.Hands.ToolHandlers.Tests" />
     <InternalsVisibleTo Include="JoinCode.Hands" />

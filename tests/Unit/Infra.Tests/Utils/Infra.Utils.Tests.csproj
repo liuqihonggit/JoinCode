@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Infra.Utils.Tests</RootNamespace>
+    <AssemblyName>JoinCode.Infra.Utils.Tests</AssemblyName>
+    <Description>JoinCode Infrastructure Utils 单元测试</Description>
+    <NoWarn>$(NoWarn);JCC3007;JCC3010;JCC3011;JCC3012</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)infrastructure\Infrastructure\Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)composition\Composition\src\Composition.csproj" />
+    <ProjectReference Include="$(RepoRoot)tests\Unit\Testing.Common\Testing.Common.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="$(MicrosoftExtensionsVersion)" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" Version="$(MicrosoftExtensionsTimeProviderTestingVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\Utils\**\*.cs" />
+    <Compile Include="..\AsyncFileLock\**\*.cs" />
+    <Compile Include="..\Cache\**\*.cs" />
+    <Compile Include="..\Text\**\*.cs" />
+    <Compile Include="..\Resilience\**\*.cs" />
+    <Compile Include="..\Entity\**\*.cs" />
+    <Compile Include="..\GlobalUsings.cs" Link="GlobalUsings.cs" />
+  </ItemGroup>
+
+</Project>

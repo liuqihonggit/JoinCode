@@ -25,6 +25,7 @@
     <InternalsVisibleTo Include="JoinCode.Brain.Tests" />
     <InternalsVisibleTo Include="JoinCode.Brain.Other.Tests" />
     <InternalsVisibleTo Include="JoinCode.Infra.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Infra.Services.Tests" />
     <InternalsVisibleTo Include="JoinCode.Integration.Tests" />
     <InternalsVisibleTo Include="JoinCode.Dream.Tests" />
     <InternalsVisibleTo Include="JoinCode.Llm.Tests" />

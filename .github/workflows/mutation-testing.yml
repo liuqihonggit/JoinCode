@@ -134,6 +134,8 @@ jobs:
           STRYKER_PROJECT: ${{ matrix.project }}
           STRYKER_CONCURRENCY: ${{ github.event.inputs.concurrency || '8' }}
           STRYKER_BREAK: ${{ github.event.inputs.break_threshold || '0' }}
+          VSTEST_CONNECTION_TIMEOUT: 300
+          DOTNET_EnableDiagnostics: 0
         run: |
           $projectMap = @{
             'Guard-Config'         = @{ Dir = 'core\safety\Guard\tests\Config';   Src = 'Guard.csproj';           Mutate = @('Configuration/**','DependencyInjection/**','Policy/**','OAuth/**') }
@@ -169,13 +171,13 @@ jobs:
             'Bridge'               = @{ Dir = 'services\Bridge\tests\Unit';              Src = 'Bridge.csproj';           Mutate = @() }
             'Composition'          = @{ Dir = 'composition\Composition\tests\Unit';      Src = 'Composition.csproj';     Mutate = @() }
             'Clock'                = @{ Dir = 'composition\Clock\tests\Unit';            Src = 'Clock.csproj';           Mutate = @() }
-            'Infra-IO-FileOps'       = @{ Dir = 'tests\Unit\Infra.Tests';                  Src = 'Infrastructure.csproj';  Mutate = @('IO/Services/FileOps/**') }
-            'Infra-IO-FsAndConfig'   = @{ Dir = 'tests\Unit\Infra.Tests';                  Src = 'Infrastructure.csproj';  Mutate = @('IO/FileSystem/**','IO/Configuration/**','IO/Services/Throttle/**') }
-            'Infra-IO-ProcessAndOther' = @{ Dir = 'tests\Unit\Infra.Tests';                Src = 'Infrastructure.csproj';  Mutate = @('IO/Process/**','IO/Console/**','IO/Services/Terminal/**','IO/Services/Diff/**','Http/**','Process/**','Ssh/**','Windows/**','Shell/**') }
-            'Infra-Utils-Text'       = @{ Dir = 'tests\Unit\Infra.Tests';                  Src = 'Infrastructure.csproj';  Mutate = @('Utils/Text/**') }
-            'Infra-Utils-Resilience' = @{ Dir = 'tests\Unit\Infra.Tests';                  Src = 'Infrastructure.csproj';  Mutate = @('Utils/Resilience/**') }
-            'Infra-Utils-Other'      = @{ Dir = 'tests\Unit\Infra.Tests';                  Src = 'Infrastructure.csproj';  Mutate = @('Utils/Validation/**','Utils/State/**','Utils/Services/**','Utils/Throttle/**','Utils/Async/**','Utils/Collections/**','Utils/Pooling/**','Utils/IO/**','Utils/Generation/**','Utils/System/**','Cache/**','Configuration/**','Time/**','AsyncFileLock/**','EntityReaper/**','ReaperScheduler/**','Housekeeping/**') }
-            'Infra-Services'       = @{ Dir = 'tests\Unit\Infra.Tests';                  Src = 'Infrastructure.csproj';  Mutate = @('Localization/**','Pipeline/**','Plugins/**','Telemetry/**') }
+            'Infra-IO-FileOps'       = @{ Dir = 'tests\Unit\Infra.Tests\IO';                 Src = 'Infra.IO.Tests.csproj';  Mutate = @('IO/Services/FileOps/**') }
+            'Infra-IO-FsAndConfig'   = @{ Dir = 'tests\Unit\Infra.Tests\IO';                 Src = 'Infra.IO.Tests.csproj';  Mutate = @('IO/FileSystem/**','IO/Configuration/**','IO/Services/Throttle/**') }
+            'Infra-IO-ProcessAndOther' = @{ Dir = 'tests\Unit\Infra.Tests\IO';               Src = 'Infra.IO.Tests.csproj';  Mutate = @('IO/Process/**','IO/Console/**','IO/Services/Terminal/**','IO/Services/Diff/**','Http/**','Process/**','Ssh/**','Windows/**','Shell/**') }
+            'Infra-Utils-Text'       = @{ Dir = 'tests\Unit\Infra.Tests\Utils';              Src = 'Infra.Utils.Tests.csproj'; Mutate = @('Utils/Text/**') }
+            'Infra-Utils-Resilience' = @{ Dir = 'tests\Unit\Infra.Tests\Utils';              Src = 'Infra.Utils.Tests.csproj'; Mutate = @('Utils/Resilience/**') }
+            'Infra-Utils-Other'      = @{ Dir = 'tests\Unit\Infra.Tests\Utils';              Src = 'Infra.Utils.Tests.csproj'; Mutate = @('Utils/Validation/**','Utils/State/**','Utils/Services/**','Utils/Throttle/**','Utils/Async/**','Utils/Collections/**','Utils/Pooling/**','Utils/IO/**','Utils/Generation/**','Utils/System/**','Cache/**','Configuration/**','Time/**','AsyncFileLock/**','EntityReaper/**','ReaperScheduler/**','Housekeeping/**') }
+            'Infra-Services'         = @{ Dir = 'tests\Unit\Infra.Tests\Services';           Src = 'Infra.Services.Tests.csproj'; Mutate = @('Localization/**','Pipeline/**','Plugins/**','Telemetry/**') }
             'Host-Commands'        = @{ Dir = 'tests\Unit\Host.Tests';                   Src = 'JoinCode.csproj';        Mutate = @('Commands/**') }
             'Host-Other'           = @{ Dir = 'tests\Unit\Host.Tests';                   Src = 'JoinCode.csproj';        Mutate = @('App/**','Cli/**','Entry/**','Pipe/**','Services/**') }
           }

@@ -1,6 +1,34 @@
 namespace JoinCode.ChatCommands;
 
 /// <summary>
+/// /debuglog 子选项标志枚举 — [EnumValue] 由 EnumMetadataGenerator 自动生成 DebugLogFlagConstants + DebugLogFlagExtensions
+/// </summary>
+public enum DebugLogFlag
+{
+    [EnumValue("--error")]
+    [EnumValue("-e")]
+    Error,
+    [EnumValue("--warn")]
+    [EnumValue("-w")]
+    Warn,
+    [EnumValue("--init")]
+    [EnumValue("-i")]
+    Init,
+    [EnumValue("--prompt")]
+    [EnumValue("-p")]
+    Prompt,
+    [EnumValue("--log")]
+    [EnumValue("-l")]
+    Log,
+    [EnumValue("--all")]
+    [EnumValue("-a")]
+    All,
+    [EnumValue("--clear")]
+    [EnumValue("-c")]
+    Clear,
+}
+
+/// <summary>
 /// /debuglog 命令 — 显示运行流程全貌：初始化状态、警告、错误、日志、系统提示词
 /// /debuglog          全部信息（等同 --all）
 /// /debuglog -a       全部信息
@@ -345,15 +373,16 @@ public sealed class DebugLogCommand : ChatCommandBase
 
         foreach (var arg in args)
         {
-            switch (arg.ToLowerInvariant())
+            var flag = DebugLogFlagExtensions.FromValue(arg);
+            switch (flag)
             {
-                case "--error": case "-e": flags |= DebugSection.Error; break;
-                case "--warn": case "-w": flags |= DebugSection.Warn; break;
-                case "--init": case "-i": flags |= DebugSection.Init; break;
-                case "--prompt": case "-p": flags |= DebugSection.Prompt; break;
-                case "--log": case "-l": flags |= DebugSection.Log; break;
-                case "--all": case "-a": flags = DebugSection.All; break;
-                case "--clear": case "-c": clear = true; break;
+                case DebugLogFlag.Error: flags |= DebugSection.Error; break;
+                case DebugLogFlag.Warn: flags |= DebugSection.Warn; break;
+                case DebugLogFlag.Init: flags |= DebugSection.Init; break;
+                case DebugLogFlag.Prompt: flags |= DebugSection.Prompt; break;
+                case DebugLogFlag.Log: flags |= DebugSection.Log; break;
+                case DebugLogFlag.All: flags = DebugSection.All; break;
+                case DebugLogFlag.Clear: clear = true; break;
             }
         }
 

@@ -3,8 +3,8 @@ namespace Core.Context.Modality;
 /// <summary>
 /// 模态验证中间件 — 检查用户消息的媒介意图是否与当前模型的模态能力匹配。
 /// 不匹配时注入系统提示，引导 LLM 调用 AskUserQuestion 工具询问用户处理方式：
-/// a) 自动切换到支持该模态的模型（完成后用 /model 切回）
-/// b) 手工指定模型（用 /model 命令切换）
+/// a) 自动委托 — 用支持该模态的模型创建子代理执行任务，结果返回当前对话
+/// b) 手工指定模型 — 用户选择模型，用该模型创建子代理
 /// c) 不允许（取消操作）
 /// d) 用户输入内容（自由文本）
 /// 管道位置：TokenBudget 之后、PreChat 之前
@@ -141,23 +141,32 @@ public sealed class ModalityValidationMiddleware : IChatMiddleware
         var sb = new StringBuilder();
         sb.AppendLine($"[模态不匹配提示] 当前模型 {currentModelId} 不支持 {missingDesc}（检测到用户意图: {keywordsDesc}）。");
         sb.AppendLine("请立即使用 AskUserQuestion 工具询问用户如何处理，提供以下4个选项：");
-        sb.AppendLine("  选项1: 自动切换 — 系统自动切换到支持该模态的最佳模型，处理完成后自动切回当前模型");
 
+        sb.AppendLine("  选项1: 自动委托 — 用支持该模态的模型创建子代理执行任务，结果返回当前对话");
         if (candidates.Count > 0)
         {
             var best = candidates[0];
-            sb.AppendLine($"    （推荐: {best.DisplayName} ({best.Vendor})）");
+            sb.AppendLine($"    （推荐模型: {best.DisplayName} ({best.Vendor}), ID: {best.ModelId}）");
         }
 
-        sb.AppendLine("  选项2: 手工指定 — 用户从支持该模态的模型列表中选择");
+        sb.AppendLine("  选项2: 手工指定模型 — 用户从支持该模态的模型列表中选择，用该模型创建子代理");
         sb.Append("    可选模型: ");
-        sb.AppendLine(string.Join(", ", candidates.Take(5).Select(c => $"{c.DisplayName}({c.Vendor})")));
+        sb.AppendLine(string.Join(", ", candidates.Take(5).Select(c => $"{c.DisplayName}({c.Vendor}) ID:{c.ModelId}")));
 
         sb.AppendLine("  选项3: 不允许 — 取消操作，不处理此媒介");
         sb.AppendLine("  选项4: 用户输入内容 — 用户自由输入文本说明");
         sb.AppendLine();
-        sb.AppendLine("如果用户选择切换模型，请使用 /model 命令切换到对应模型后再继续处理。");
-        sb.AppendLine("如果用户选择自动切换，切换模型后处理完毕请用 /model 切回原模型。");
+
+        sb.AppendLine("重要：不要使用 /model 切换模型（会丢失当前对话上下文）。正确做法是使用 Agent 工具创建子代理：");
+        sb.AppendLine("  - 调用 Agent 工具，设置 model 参数为目标模型ID，prompt 参数为用户原始请求");
+        sb.AppendLine("  - 子代理会在目标模型上执行任务，完成后将结果返回当前对话");
+        sb.AppendLine("  - 当前对话上下文完整保留，无需切回");
+        sb.AppendLine();
+        sb.AppendLine("示例：用户选择自动委托时，调用 Agent 工具：");
+        if (candidates.Count > 0)
+        {
+            sb.AppendLine($"  {{\"description\": \"处理{missingDesc}\", \"prompt\": \"<用户原始请求>\", \"model\": \"{candidates[0].ModelId}\"}}");
+        }
 
         return sb.ToString();
     }

@@ -11,7 +11,8 @@ public sealed record AgentServiceDependencies(
     IAgentMessageBroker? MessageBroker = null,
     SwarmPermissionCallbackService? PermissionCallbackService = null,
     JoinCode.Abstractions.Interfaces.IAgentMcpServerManager? McpServerManager = null,
-    JoinCode.Abstractions.Interfaces.IAgentInputForwardQueue? InputForwardQueue = null);
+    JoinCode.Abstractions.Interfaces.IAgentInputForwardQueue? InputForwardQueue = null,
+    JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager? OutputChannelManager = null);
 
 [Register(typeof(JoinCode.Abstractions.Interfaces.IAgentService))]
 public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstractions.Interfaces.IAgentService, IDisposable
@@ -23,6 +24,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     private readonly JoinCode.Abstractions.Interfaces.IAgentTranscriptService? _transcriptService;
     private readonly IAgentMessageBroker? _messageBroker;
     private readonly JoinCode.Abstractions.Interfaces.IAgentInputForwardQueue? _inputForwardQueue;
+    private readonly JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager? _outputChannelManager;
     private readonly SwarmPermissionCallbackService? _permissionCallbackService;
     private readonly JoinCode.Abstractions.Interfaces.IAgentMcpServerManager? _mcpServerManager;
     private readonly JoinCode.Abstractions.Interfaces.IAgentNotificationQueue? _notificationQueue;
@@ -58,6 +60,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         _transcriptService = deps?.TranscriptService;
         _messageBroker = deps?.MessageBroker;
         _inputForwardQueue = deps?.InputForwardQueue;
+        _outputChannelManager = deps?.OutputChannelManager;
         _permissionCallbackService = deps?.PermissionCallbackService;
         _mcpServerManager = deps?.McpServerManager;
         _notificationQueue = notificationQueue;
@@ -274,6 +277,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     {
         if (subAgent is not AgentBase baseAgent) return;
         _agentNameIndex.Register(subAgent.ObjectId.UniqueId, baseAgent.Name, baseAgent.Task, baseAgent.Options.DisplayName);
+        _outputChannelManager?.Register(subAgent.ObjectId.UniqueId, baseAgent.Options.DisplayName ?? baseAgent.Name);
     }
 
     /// <summary>
@@ -283,6 +287,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     {
         if (subAgent is not AgentBase baseAgent) return;
         _agentNameIndex.Unregister(subAgent.ObjectId.UniqueId, baseAgent.Name, baseAgent.Task, baseAgent.Options.DisplayName);
+        _outputChannelManager?.Unregister(subAgent.ObjectId.UniqueId);
     }
 
     public Task<JoinCode.Abstractions.Interfaces.AgentProgress?> GetAgentProgressAsync(string agentId, CancellationToken cancellationToken = default)

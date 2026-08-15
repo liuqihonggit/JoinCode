@@ -1,11 +1,14 @@
 using Avalonia.Controls;
+using Avalonia.Media;
 using JoinCode.Abstractions.Models.Interactive;
+using JoinCode.Gui.Theming;
 
 namespace JoinCode.Gui.Views;
 
 /// <summary>
 /// AskUserQuestion 弹窗 — 显示问题和选项列表，支持单选/多选/自由输入。
 /// MCP AskUserQuestion 工具调用时由 AvaloniaInteractiveService 触发弹出。
+/// 颜色全部通过 GuiPalette 语义 token 获取，支持明暗主题切换。
 /// </summary>
 public sealed partial class AskUserQuestionDialog : Window
 {
@@ -28,6 +31,8 @@ public sealed partial class AskUserQuestionDialog : Window
         HeaderBlock.Text = question.Header;
         QuestionBlock.Text = question.Question;
 
+        var palette = GuiPalette.Current;
+
         for (int i = 0; i < question.Options.Count; i++)
         {
             var idx = i;
@@ -36,30 +41,29 @@ public sealed partial class AskUserQuestionDialog : Window
                 ? opt.Label
                 : $"{opt.Label} — {opt.Description}";
 
-            var btn = new Button
-            {
-                Content = display,
-                MinWidth = 360,
-                HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch,
-                HorizontalContentAlignment = Avalonia.Layout.HorizontalAlignment.Left,
-                FontSize = 13,
-                Padding = new Avalonia.Thickness(10, 8)
-            };
+            var btn = CreateOptionButton(display, palette);
             btn.Click += (_, _) => OnOptionSelected(idx);
             OptionsPanel.Children.Add(btn);
         }
 
-        var freeInputBtn = new Button
+        var freeInputBtn = CreateOptionButton("用户输入内容（自由输入）", palette);
+        freeInputBtn.Click += (_, _) => OnFreeInputSelected();
+        OptionsPanel.Children.Add(freeInputBtn);
+    }
+
+    private static Button CreateOptionButton(string text, GuiPalette.Scheme palette)
+    {
+        return new Button
         {
-            Content = "用户输入内容（自由输入）",
+            Content = text,
             MinWidth = 360,
             HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch,
             HorizontalContentAlignment = Avalonia.Layout.HorizontalAlignment.Left,
             FontSize = 13,
-            Padding = new Avalonia.Thickness(10, 8)
+            Padding = new Avalonia.Thickness(10, 8),
+            Foreground = GuiPalette.ToBrush(palette.ButtonForeground),
+            Background = GuiPalette.ToBrush(palette.ButtonBackground),
         };
-        freeInputBtn.Click += (_, _) => OnFreeInputSelected();
-        OptionsPanel.Children.Add(freeInputBtn);
     }
 
     private void OnOptionSelected(int index)

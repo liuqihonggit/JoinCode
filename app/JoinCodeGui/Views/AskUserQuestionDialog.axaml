@@ -8,7 +8,8 @@
         MinWidth="420" MaxWidth="580"
         SizeToContent="Height"
         WindowStartupLocation="CenterOwner"
-        CanResize="False">
+        CanResize="False"
+        Background="{DynamicResource GuiWindowBackground}">
   <StackPanel Margin="20" Spacing="14">
     <TextBlock x:Name="HeaderBlock"
                FontSize="15" FontWeight="SemiBold"
@@ -22,13 +23,19 @@
     <TextBox x:Name="FreeInputBox"
              Watermark="自由输入..."
              IsVisible="False"
-             FontSize="13" />
+             FontSize="13"
+             Foreground="{DynamicResource GuiPrimaryText}"
+             Background="{DynamicResource GuiInputBarBackground}" />
     <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
       <Button Content="取消" MinWidth="88"
-              x:Name="CancelButton" />
+              x:Name="CancelButton"
+              Foreground="{DynamicResource GuiButtonForeground}"
+              Background="{DynamicResource GuiButtonBackground}" />
       <Button Content="确认" MinWidth="88"
               x:Name="ConfirmFreeInputButton"
-              IsVisible="False" />
+              IsVisible="False"
+              Foreground="{DynamicResource GuiAccentText}"
+              Background="{DynamicResource GuiButtonBackground}" />
     </StackPanel>
   </StackPanel>
 </Window>

@@ -5,6 +5,7 @@ using JoinCode.Abstractions.LLM;
 using JoinCode.Abstractions.LLM.Chat;
 using JoinCode.Abstractions.Interfaces;
 using JoinCode.Abstractions.Models.Diff;
+using JoinCode.Abstractions.Models.Interactive;
 using JoinCode.Gui.Hosting;
 using JoinCode.Gui.Persistence;
 using JoinCode.Gui.ViewModels;
@@ -1110,6 +1111,7 @@ public class MainViewModelTests
         private sealed class ThrowingSession : JoinCode.Gui.Hosting.IJccChatSession
         {
             public Func<PermissionConfirmationRequest, Task<PermissionConfirmationDecision>>? PermissionConfirmationHandler { get; set; }
+            public Func<QuestionItem, Task<AskUserQuestionResult>>? AskUserQuestionDialogCallback { get; set; }
 
             public bool IsReady => true;
             public string CurrentVendor => "fake";
@@ -1167,6 +1169,8 @@ public class MainViewModelTests
                 get => Handler;
                 set => Handler = value;
             }
+
+            public Func<QuestionItem, Task<AskUserQuestionResult>>? AskUserQuestionDialogCallback { get; set; }
 
             public bool IsReady => true;
             public string CurrentVendor => "fake";
@@ -1234,6 +1238,7 @@ public class MainViewModelTests
                     ["sensenova"] = ["sensenova-6.7-flash-lite", "sensenova-u1-fast"]
                 };
             public Func<PermissionConfirmationRequest, Task<PermissionConfirmationDecision>>? PermissionConfirmationHandler { get; set; }
+            public Func<QuestionItem, Task<AskUserQuestionResult>>? AskUserQuestionDialogCallback { get; set; }
             public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
             public async IAsyncEnumerable<ChatStreamEvent> StreamAsync(string message, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
             {
@@ -1273,6 +1278,7 @@ public class MainViewModelTests
             public List<IReadOnlyList<(MessageRole Role, string Content)>> LoadHistoryCalls { get; } = [];
 
             public Func<PermissionConfirmationRequest, Task<PermissionConfirmationDecision>>? PermissionConfirmationHandler { get; set; }
+            public Func<QuestionItem, Task<AskUserQuestionResult>>? AskUserQuestionDialogCallback { get; set; }
             public bool IsReady => true;
             public string CurrentVendor => "fake";
             public string CurrentModelId => "fake-model";

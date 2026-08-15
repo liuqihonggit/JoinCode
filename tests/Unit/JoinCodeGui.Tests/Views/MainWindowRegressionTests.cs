@@ -6,6 +6,7 @@ using Avalonia.VisualTree;
 using JoinCode.Abstractions.LLM;
 using JoinCode.Abstractions.LLM.Chat;
 using JoinCode.Abstractions.Interfaces;
+using JoinCode.Abstractions.Models.Interactive;
 using JoinCode.Gui.Hosting;
 using JoinCode.Gui.Persistence;
 using JoinCode.Gui.ViewModels;
@@ -172,6 +173,7 @@ public sealed class MainWindowRegressionTests
     private sealed class ThrowingSession : IJccChatSession
     {
         public Func<PermissionConfirmationRequest, Task<PermissionConfirmationDecision>>? PermissionConfirmationHandler { get; set; }
+        public Func<QuestionItem, Task<AskUserQuestionResult>>? AskUserQuestionDialogCallback { get; set; }
 
         public bool IsReady => true;
         public string CurrentVendor => "fake";

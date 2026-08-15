@@ -114,6 +114,25 @@ public class GuiPaletteContrastTests
         AssertContrast(light.AccentText, light.StatusBarBackground, "浅:强调/状态栏底", 3);
     }
 
+    [Fact]
+    public void Dialog_TextOnWindowBackground_MeetsAAContrast()
+    {
+        var dark = GuiPalette.SchemeFor(GuiPalette.GuiThemeVariant.Dark);
+        var light = GuiPalette.SchemeFor(GuiPalette.GuiThemeVariant.Light);
+
+        AssertContrast(dark.PrimaryText, dark.WindowBackground, "深:弹窗标题/窗口底");
+        AssertContrast(dark.SecondaryText, dark.WindowBackground, "深:弹窗问题/窗口底");
+        AssertContrast(dark.ButtonForeground, dark.ButtonBackground, "深:弹窗按钮文字/按钮底");
+        AssertContrast(dark.AccentText, dark.ButtonBackground, "深:弹窗确认按钮/按钮底", 3);
+        AssertContrast(dark.PrimaryText, dark.InputBarBackground, "深:弹窗输入框文字/输入框底");
+
+        AssertContrast(light.PrimaryText, light.WindowBackground, "浅:弹窗标题/窗口底");
+        AssertContrast(light.SecondaryText, light.WindowBackground, "浅:弹窗问题/窗口底");
+        AssertContrast(light.ButtonForeground, light.ButtonBackground, "浅:弹窗按钮文字/按钮底");
+        AssertContrast(light.AccentText, light.ButtonBackground, "浅:弹窗确认按钮/按钮底", 3);
+        AssertContrast(light.PrimaryText, light.InputBarBackground, "浅:弹窗输入框文字/输入框底");
+    }
+
     /// <summary>取转换器输出的画刷色值。</summary>
     private static Color BrushColor(object result)
     {

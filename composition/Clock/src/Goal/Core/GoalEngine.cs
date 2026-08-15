@@ -1092,13 +1092,14 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
             return;
         }
 
-        var mainAgent = new Core.Agents.Coordinator.CoordinatorAgent(
+        var mainAgent = Core.Agents.Coordinator.AgentFactory.Create(
             task: objective,
             options: new SubAgentOptions { DisplayName = "mainAgent", Role = AgentRole.Coordinator },
             queryEngine: queryEngine,
             logger: _logger,
             clock: _clock,
             name: "mainAgent",
+            role: AgentRole.Coordinator,
             goalId: goalId,
             tokenBudget: tokenBudget);
 

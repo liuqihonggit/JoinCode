@@ -124,3 +124,11 @@
 | TestPipelineRegistration | `composition/Pipelines/src/TestPipelineRegistration.cs:128-142` | 同上 |
 | AgentCoordinatorExtendedTests | `core/ai/Agents/tests/.../AgentCoordinatorExtendedTests.cs:21` | 更新管道构造 |
 | ParallelExecutionEngineTests | `core/execution/Scheduling/tests/.../ParallelExecutionEngineTests.cs:27` | 更新管道构造 |
+
+<!-- 🤖 Auto Decision: 2026-08-16 -->
+<!-- 决策: 阶段一完成 — 子代理两条 Spawn 管道合并为 UnifiedSpawnContext 单管道 -->
+<!-- 原因: 消除 AgentSpawnContext(9中间件) + AgentSpawnCoordContext(7中间件) 两套创建路径，统一为 13 中间件单管道 -->
+<!-- 替代方案: 保留两条管道仅提取公共中间件（改动小但不彻底）-->
+<!-- 验证: Debug 编译 0 错 0 警，全量测试退出码 0 全绿 ✅ -->
+<!-- 关键合并点: LifecycleSpawnMiddleware(合并 A3 Spawn 调用 + B1), WorktreeSpawnMiddleware(合并 A4 + B2, 统一降级策略) -->
+<!-- 旧文件处理: 21 个旧文件移到 .xxx/*.20260816.del, 两个 TelemetryHook 合并为 UnifiedSpawnTelemetryHook -->

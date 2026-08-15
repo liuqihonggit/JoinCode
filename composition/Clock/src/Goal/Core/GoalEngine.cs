@@ -1103,6 +1103,25 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
             goalId: goalId,
             tokenBudget: tokenBudget);
 
+        var spawnPipeline = _serviceProvider.GetService<Infrastructure.Pipeline.MiddlewarePipeline<Core.Agents.UnifiedSpawnContext>>();
+        if (spawnPipeline is not null)
+        {
+            try
+            {
+                var context = new Core.Agents.UnifiedSpawnContext
+                {
+                    Task = objective,
+                    IsMainAgent = true,
+                    Agent = mainAgent,
+                };
+                spawnPipeline.ExecuteAsync(context, default).GetAwaiter().GetResult();
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "[GoalEngine] 主代理走统一管道失败，回退到直接创建");
+            }
+        }
+
         _logger?.LogInformation("[GoalEngine] mainAgent 创建并注册到 SessionScope: {AgentId}, Goal={GoalId}", mainAgent.Id, goalId);
     }
 }

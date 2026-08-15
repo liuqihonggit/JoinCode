@@ -135,7 +135,8 @@ public sealed class CliSession
     }
 
     /// <summary>
-    /// 创建主代理 — AgentBase 实例 + 普通 IQueryEngine，和子代理走同一条管道
+    /// 创建主代理 — 通过统一 Spawn 管道创建，IsMainAgent=true
+    /// 管道各中间件对主代理 no-op（Definition/Prompt/ContextSetup/LifecycleSpawn 等），仅 RecordContext/PermissionRouting/Metadata 生效
     /// 返回 null 表示 DI 中无 IQueryEngine，SessionController 回退到直接调用 ChatService
     /// </summary>
     private AgentBase? CreateMainAgent(IChatService chatService, IServiceProvider? serviceProvider)
@@ -157,6 +158,25 @@ public sealed class CliSession
         if (outputChannelManager is not null)
         {
             mainAgent.OutputChannelManager = outputChannelManager;
+        }
+
+        var spawnPipeline = serviceProvider.GetService<MiddlewarePipeline<UnifiedSpawnContext>>();
+        if (spawnPipeline is not null)
+        {
+            try
+            {
+                var context = new UnifiedSpawnContext
+                {
+                    Task = string.Empty,
+                    IsMainAgent = true,
+                    Agent = mainAgent,
+                };
+                spawnPipeline.ExecuteAsync(context, default).GetAwaiter().GetResult();
+            }
+            catch (Exception ex)
+            {
+                serviceProvider.GetService<ILogger<CliSession>>()?.LogWarning(ex, "[CliSession] 主代理走统一管道失败，回退到直接创建");
+            }
         }
 
         return mainAgent;

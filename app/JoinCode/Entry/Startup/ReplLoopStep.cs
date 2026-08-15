@@ -82,17 +82,17 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
                             var (agentName, message) = parsed.Value;
                             try
                             {
-                                var runningAgents = await agentService.GetRunningAgentsAsync(ct).ConfigureAwait(false);
-                                var match = SubAgentMentionParser.FindAgent(agentName, runningAgents);
-                                if (match is not null)
+                                var agentId = await agentService.FindAgentIdByNameAsync(agentName, ct).ConfigureAwait(false);
+                                if (agentId is not null)
                                 {
-                                    await agentService.ForwardUserInputToAgentAsync(match.Id, message, ct).ConfigureAwait(false);
-                                    Diag.WriteLine($"[DIAG-REPL] forwarded @{agentName} -> agent {match.Id}");
+                                    await agentService.ForwardUserInputToAgentAsync(agentId, message, ct).ConfigureAwait(false);
+                                    Diag.WriteLine($"[DIAG-REPL] forwarded @{agentName} -> agent {agentId}");
                                     using (Cli.TerminalHelper.SetColor(ConsoleColor.Cyan))
-                                        Cli.TerminalHelper.WriteLine($"[已转发给 @{match.DisplayName ?? match.Id}]");
+                                        Cli.TerminalHelper.WriteLine($"[已转发给 @{agentName}]");
                                 }
                                 else
                                 {
+                                    var runningAgents = await agentService.GetRunningAgentsAsync(ct).ConfigureAwait(false);
                                     var list = string.Join(", ", runningAgents.Select(a => a.DisplayName ?? a.Id));
                                     using (Cli.TerminalHelper.SetColor(ConsoleColor.Yellow))
                                         Cli.TerminalHelper.WriteLine($"未找到子代理 @{agentName}，当前运行中: [{list}]");
@@ -104,6 +104,10 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
                             }
                             continue;
                         }
+
+                        using (Cli.TerminalHelper.SetColor(ConsoleColor.Yellow))
+                            Cli.TerminalHelper.WriteLine("@语法格式错误，正确格式: @agentName 消息内容（必须用空格分隔）");
+                        continue;
                     }
 
                     if (Interlocked.CompareExchange(ref isProcessing, 0, 0) == 1 && agentService is not null)

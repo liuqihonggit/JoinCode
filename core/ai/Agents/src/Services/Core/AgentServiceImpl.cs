@@ -34,6 +34,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     private readonly ConcurrentDictionary<string, CancellationTokenSource> _backgroundCts;
     private readonly ConcurrentDictionary<string, DateTime> _agentStartTimes;
     private readonly ConcurrentDictionary<string, ProgressTracker> _progressTrackers;
+    private readonly Coordinator.Core.Messaging.AgentNameIndex _agentNameIndex = new();
     private readonly CancellationTokenSource _disposeCts = new();
     private int _disposed;
 
@@ -110,6 +111,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         {
             baseAgent.InputForwardQueue = _inputForwardQueue;
         }
+        RegisterAgentNameIndex(init.SubAgent);
 
         var runInBackground = options.RunInBackground || (init.Definition?.IsBackground ?? false);
 
@@ -143,6 +145,12 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         var init = await InitializeSubAgentAsync(options, cancellationToken).ConfigureAwait(false);
 
         _agentStartTimes[init.SubAgent.ObjectId.UniqueId] = _clock.GetUtcNow();
+        _inputForwardQueue?.Register(init.SubAgent.ObjectId.UniqueId);
+        if (_inputForwardQueue is not null && init.SubAgent is AgentBase streamBaseAgent)
+        {
+            streamBaseAgent.InputForwardQueue = _inputForwardQueue;
+        }
+        RegisterAgentNameIndex(init.SubAgent);
 
         // 流式消费 SubAgent 的输出 — 对齐 TS for await (const message of runAgent(...))
         var responseBuilder = new StringBuilder();
@@ -248,6 +256,34 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     /// </summary>
     public Task<IEnumerable<RunningAgentInfo>> GetRunningAgentsAsync(CancellationToken cancellationToken = default)
         => _lifecycleManager.GetRunningAgentsAsync(cancellationToken);
+
+    /// <summary>
+    /// 按名称查找运行中子代理的 ID — O(1) 字典查找
+    /// 匹配键: DisplayName → Name → Description → Id（均精确匹配，大小写不敏感）
+    /// </summary>
+    public Task<string?> FindAgentIdByNameAsync(string name, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        return Task.FromResult(_agentNameIndex.Find(name));
+    }
+
+    /// <summary>
+    /// 注册子代理名称索引 — Spawn 时调用，建立 name→agentId 的多键映射
+    /// </summary>
+    private void RegisterAgentNameIndex(IAgent subAgent)
+    {
+        if (subAgent is not AgentBase baseAgent) return;
+        _agentNameIndex.Register(subAgent.ObjectId.UniqueId, baseAgent.Name, baseAgent.Task, baseAgent.Options.DisplayName);
+    }
+
+    /// <summary>
+    /// 注销子代理名称索引 — 完成时调用，仅移除属于该 agentId 的键（同名子代理不误删）
+    /// </summary>
+    private void UnregisterAgentNameIndex(IAgent subAgent)
+    {
+        if (subAgent is not AgentBase baseAgent) return;
+        _agentNameIndex.Unregister(subAgent.ObjectId.UniqueId, baseAgent.Name, baseAgent.Task, baseAgent.Options.DisplayName);
+    }
 
     public Task<JoinCode.Abstractions.Interfaces.AgentProgress?> GetAgentProgressAsync(string agentId, CancellationToken cancellationToken = default)
     {
@@ -544,6 +580,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         {
             var concreteAgent = (AgentBase)subAgent;
             _inputForwardQueue?.Unregister(subAgent.ObjectId.UniqueId);
+            UnregisterAgentNameIndex(subAgent);
             var status = result.Success ? AgentStatus.Completed : AgentStatus.Failed;
 
             if (_progressTrackers.TryGetValue(subAgent.ObjectId.UniqueId, out var tracker))

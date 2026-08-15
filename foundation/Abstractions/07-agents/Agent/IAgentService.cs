@@ -77,6 +77,14 @@ public interface IAgentService
     /// 获取所有正在运行的代理
     /// </summary>
     Task<IEnumerable<RunningAgentInfo>> GetRunningAgentsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 按名称查找运行中子代理的 ID — O(1) 字典查找
+    /// 匹配键: DisplayName → Name → Description → Id（均精确匹配，大小写不敏感）
+    /// 几百个子代理场景下用 map 替代遍历，路由性能 O(1)
+    /// </summary>
+    /// <returns>匹配的 agentId，未找到返回 null</returns>
+    Task<string?> FindAgentIdByNameAsync(string name, CancellationToken cancellationToken = default);
 }
 
 /// <summary>

@@ -82,7 +82,7 @@ public sealed class CliSession
 
         _controller = new SessionController(
             chatService,
-            new CliEventConsumer(),
+            new CliEventConsumer(optionalServices?.ServiceProvider?.GetService<JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager>()),
             _turnDiffService,
             _sessionId,
             optionalServices?.ServiceProvider);

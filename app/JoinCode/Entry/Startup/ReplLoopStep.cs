@@ -234,6 +234,7 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
         }, processingCts.Token);
 
         var outputChannelManager = context.Host.Services.GetService<JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager>();
+        outputChannelManager?.Register("main", "AI助手");
         var outputDisplayTask = Task.Run(async () =>
         {
             if (outputChannelManager is null) return;

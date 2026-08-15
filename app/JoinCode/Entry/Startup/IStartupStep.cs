@@ -36,4 +36,11 @@ public sealed class StartupContext
     /// 执行耗时（毫秒）— 由 ExecuteStep 设置
     /// </summary>
     public long? ElapsedMs { get; set; }
+
+    /// <summary>
+    /// 用户在启动时选择要 dump 的调试信息类别 — 由 DebugDumpPromptStep 设置，由 InitDebugDumpStep 消费
+    /// 决策: 位标志枚举而非 bool，支持用户选择组合（如 Init+Prompt）
+    /// 决策: 询问放在 WorkspaceTrustStep 之后（用户要求），dump 放在 SystemPromptApplyStep 之后（确保 system prompt 已应用）
+    /// </summary>
+    public DebugDumpSection DebugDumpChoice { get; set; } = DebugDumpSection.None;
 }

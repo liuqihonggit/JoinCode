@@ -23,9 +23,11 @@ internal static class InteractiveModeRunner
             .Use(sp.GetRequiredService<StartupLoggingMiddleware>())
             .Use(sp.GetRequiredService<ProviderSetupStep>())
             .Use(sp.GetRequiredService<WorkspaceTrustStep>())
+            .Use(sp.GetRequiredService<DebugDumpPromptStep>())
             .Use(sp.GetRequiredService<SessionInitStep>())
             .Use(sp.GetRequiredService<SessionResumeStep>())
             .Use(sp.GetRequiredService<SystemPromptApplyStep>())
+            .Use(sp.GetRequiredService<InitDebugDumpStep>())
             .Use(sp.GetRequiredService<ReplLoopStep>())
             .Use(sp.GetRequiredService<ExitCleanupStep>())
             .OnError((ctx, ex) =>

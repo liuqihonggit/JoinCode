@@ -60,310 +60,48 @@ public sealed class DebugLogCommand : ChatCommandBase
             return ChatCommandResult.Continue();
         }
 
-        var sb = new StringBuilder();
-
-        if (sectionFlags.HasFlag(DebugSection.Error))
-        {
-            AppendErrors(sb, context);
-        }
-        else if (sectionFlags.HasFlag(DebugSection.Warn))
-        {
-            AppendWarningsAndErrors(sb, context);
-        }
-        else
-        {
-            await AppendInitInfo(sb, context);
-            AppendWarningsAndErrors(sb, context);
-            AppendLogs(sb, context);
-            await AppendSystemPrompt(sb, context);
-        }
-
-        if (sectionFlags.HasFlag(DebugSection.Init) && !sectionFlags.HasFlag(DebugSection.Error) && !sectionFlags.HasFlag(DebugSection.Warn))
-        {
-            sb.Clear();
-            await AppendInitInfo(sb, context);
-        }
-
-        if (sectionFlags.HasFlag(DebugSection.Prompt) && !sectionFlags.HasFlag(DebugSection.Error) && !sectionFlags.HasFlag(DebugSection.Warn))
-        {
-            sb.Clear();
-            await AppendSystemPrompt(sb, context);
-        }
-
-        if (sectionFlags.HasFlag(DebugSection.Log) && !sectionFlags.HasFlag(DebugSection.Error) && !sectionFlags.HasFlag(DebugSection.Warn))
-        {
-            sb.Clear();
-            AppendLogs(sb, context);
-        }
-
-        TerminalHelper.WriteLine(sb.ToString());
+        var content = await RenderSectionsAsync(sectionFlags, context).ConfigureAwait(false);
+        TerminalHelper.WriteLine(content);
         return ChatCommandResult.Continue();
     }
 
-    private static async Task AppendInitInfo(StringBuilder sb, ChatCommandContext context)
+    /// <summary>
+    /// 根据标志位渲染对应的内容 — 委托给 DebugLogRenderer 公共实现
+    /// 决策: 复用 DebugLogRenderer，避免与启动流程（InitDebugDumpStep）代码重复
+    /// 优先级保持与原实现一致: Error > Warn > Log > Prompt > Init > All
+    /// 原逻辑中 Init/Prompt/Log 检查顺序执行且都会 sb.Clear() 覆盖，最终优先级为 Log > Prompt > Init
+    /// </summary>
+    private static async Task<string> RenderSectionsAsync(DebugSection sectionFlags, ChatCommandContext context)
     {
-        sb.AppendLine($"{TerminalColors.Accent}═══ 初始化状态 ═══{AnsiStyleConstants.Reset}");
+        var services = context.Services;
+        var ct = context.CancellationToken;
 
-        var debugLogStatus = Diag.IsDebugLog
-            ? $"{TerminalColors.Success}已启用{AnsiStyleConstants.Reset}"
-            : $"{TerminalColors.Muted}未启用{AnsiStyleConstants.Reset}";
-        sb.AppendLine($"  调试日志: {debugLogStatus}");
-
-        var envVars = new[]
+        if (sectionFlags.HasFlag(DebugSection.Error))
         {
-            JccEnvVar.DebugLog, JccEnvVar.DiTrace, JccEnvVar.DumpMessages, JccEnvVar.LogLevel,
-        };
-
-        sb.AppendLine("  环境变量:");
-        foreach (var envVar in envVars)
-        {
-            var value = Environment.GetEnvironmentVariable(envVar.ToValue());
-            var display = value is not null
-                ? $"{TerminalColors.Warning}{envVar.ToValue()}={value}{AnsiStyleConstants.Reset}"
-                : $"{TerminalColors.Muted}{envVar.ToValue()}=(未设置){AnsiStyleConstants.Reset}";
-            sb.AppendLine($"    {display}");
+            return DebugLogRenderer.RenderErrors(services);
         }
 
-        var crashStore = context.Services.GetService<ICrashSnapshotStore>();
-        if (crashStore is not null)
+        if (sectionFlags.HasFlag(DebugSection.Warn))
         {
-            sb.AppendLine($"  崩溃快照: {TerminalColors.Muted}{crashStore.TotalCount} 条记录, {crashStore.UnacknowledgedCount} 条未确认{AnsiStyleConstants.Reset}");
+            return DebugLogRenderer.RenderWarningsAndErrors(services);
         }
 
-        var debugBuffer = context.Services.GetService<IDebugLogBuffer>();
-        if (debugBuffer is not null)
+        if (sectionFlags.HasFlag(DebugSection.Log))
         {
-            sb.AppendLine($"  日志缓冲区: {TerminalColors.Muted}{debugBuffer.Count} 条{AnsiStyleConstants.Reset}");
+            return DebugLogRenderer.RenderLogs(services);
         }
 
-        var toolRegistry = context.Services.GetService<IToolRegistry>();
-        if (toolRegistry is not null)
+        if (sectionFlags.HasFlag(DebugSection.Prompt))
         {
-            var toolCount = await toolRegistry.GetCountAsync(context.CancellationToken).ConfigureAwait(false);
-            sb.AppendLine($"  MCP 工具: {TerminalColors.Muted}{toolCount} 个已注册{AnsiStyleConstants.Reset}");
+            return await DebugLogRenderer.RenderSystemPromptAsync(services).ConfigureAwait(false);
         }
 
-        var promptProvider = context.Services.GetService<ISystemPromptProvider>();
-        if (promptProvider is not null)
+        if (sectionFlags.HasFlag(DebugSection.Init))
         {
-            var sections = promptProvider.GetSections().ToList();
-            sb.AppendLine($"  系统提示词: {TerminalColors.Muted}{sections.Count} 个部分{AnsiStyleConstants.Reset}");
-            foreach (var section in sections)
-            {
-                var cacheTag = section.CacheBreak ? "动态" : "缓存";
-                sb.AppendLine($"    {TerminalColors.Muted}[{cacheTag}]{AnsiStyleConstants.Reset} {section.Name}");
-            }
+            return await DebugLogRenderer.RenderInitAsync(services, ct).ConfigureAwait(false);
         }
 
-        sb.AppendLine();
-    }
-
-    private static void AppendWarningsAndErrors(StringBuilder sb, ChatCommandContext context)
-    {
-        var crashStore = context.Services.GetService<ICrashSnapshotStore>();
-        var debugBuffer = context.Services.GetService<IDebugLogBuffer>();
-
-        sb.AppendLine($"{TerminalColors.Accent}═══ 警告与错误 ═══{AnsiStyleConstants.Reset}");
-
-        if (crashStore is not null)
-        {
-            var warnings = crashStore.GetRecent(50).Where(s => s.Severity == CrashSeverity.Warning).ToList();
-            var errors = crashStore.GetRecent(50).Where(s => s.Severity is CrashSeverity.Error or CrashSeverity.Fatal).ToList();
-
-            if (warnings.Count > 0)
-            {
-                sb.AppendLine($"  {TerminalColors.Warning}警告 ({warnings.Count}):{AnsiStyleConstants.Reset}");
-                foreach (var w in warnings.Take(20))
-                {
-                    sb.AppendLine($"    [{w.Severity.ToValue()}] {w.FenceName}: {w.ExceptionType}: {w.ExceptionMessage}");
-                }
-            }
-
-            if (errors.Count > 0)
-            {
-                sb.AppendLine($"  {TerminalColors.Error}错误 ({errors.Count}):{AnsiStyleConstants.Reset}");
-                foreach (var e in errors.Take(20))
-                {
-                    sb.AppendLine($"    [{e.Severity.ToValue()}] {e.FenceName}: {e.ExceptionType}: {e.ExceptionMessage}");
-                    if (e.ExecutionContext.ToolName is not null)
-                        sb.AppendLine($"      工具: {e.ExecutionContext.ToolName}  轮次: {e.ExecutionContext.TurnIndex}");
-                    sb.AppendLine($"      时间: {e.CapturedAt:HH:mm:ss.fff}  ID: {e.Id:N}");
-                }
-            }
-
-            if (warnings.Count == 0 && errors.Count == 0)
-            {
-                sb.AppendLine($"  {TerminalColors.Success}无警告或错误{AnsiStyleConstants.Reset}");
-            }
-        }
-        else
-        {
-            sb.AppendLine($"  {TerminalColors.Muted}CrashSnapshotStore 不可用{AnsiStyleConstants.Reset}");
-        }
-
-        if (debugBuffer is not null)
-        {
-            var errorLogs = debugBuffer.GetByLevel(DebugLogLevel.Error, 30);
-            if (errorLogs.Count > 0)
-            {
-                sb.AppendLine($"  {TerminalColors.Error}诊断错误日志 ({errorLogs.Count}):{AnsiStyleConstants.Reset}");
-                foreach (var entry in errorLogs)
-                {
-                    sb.AppendLine($"    {entry.Timestamp:HH:mm:ss.fff} {entry.Message}");
-                }
-            }
-        }
-
-        sb.AppendLine();
-    }
-
-    private static void AppendErrors(StringBuilder sb, ChatCommandContext context)
-    {
-        var crashStore = context.Services.GetService<ICrashSnapshotStore>();
-        var debugBuffer = context.Services.GetService<IDebugLogBuffer>();
-
-        sb.AppendLine($"{TerminalColors.Error}═══ 错误 ═══{AnsiStyleConstants.Reset}");
-
-        var hasErrors = false;
-
-        if (crashStore is not null)
-        {
-            var errors = crashStore.GetRecent(50).Where(s => s.Severity is CrashSeverity.Error or CrashSeverity.Fatal).ToList();
-            if (errors.Count > 0)
-            {
-                hasErrors = true;
-                foreach (var e in errors)
-                {
-                    sb.AppendLine($"  [{e.Severity.ToValue()}] {e.FenceName}");
-                    sb.AppendLine($"    {e.ExceptionType}: {e.ExceptionMessage}");
-                    if (e.ErrorCode is not null)
-                        sb.AppendLine($"    错误码: {e.ErrorCode}");
-                    if (e.ExecutionContext.ToolName is not null)
-                        sb.AppendLine($"    工具: {e.ExecutionContext.ToolName}  轮次: {e.ExecutionContext.TurnIndex}");
-                    sb.AppendLine($"    时间: {e.CapturedAt:HH:mm:ss.fff}  ID: {e.Id:N}");
-                    sb.AppendLine();
-                }
-            }
-        }
-
-        if (debugBuffer is not null)
-        {
-            var errorLogs = debugBuffer.GetByLevel(DebugLogLevel.Error, 50);
-            if (errorLogs.Count > 0)
-            {
-                hasErrors = true;
-                sb.AppendLine("  诊断错误日志:");
-                foreach (var entry in errorLogs)
-                {
-                    sb.AppendLine($"    {entry.Timestamp:HH:mm:ss.fff} {entry.Message}");
-                }
-            }
-        }
-
-        if (!hasErrors)
-        {
-            sb.AppendLine($"  {TerminalColors.Success}无错误记录{AnsiStyleConstants.Reset}");
-        }
-
-        sb.AppendLine();
-    }
-
-    private static void AppendLogs(StringBuilder sb, ChatCommandContext context)
-    {
-        var debugBuffer = context.Services.GetService<IDebugLogBuffer>();
-
-        sb.AppendLine($"{TerminalColors.Accent}═══ 诊断日志 ═══{AnsiStyleConstants.Reset}");
-
-        if (debugBuffer is null)
-        {
-            sb.AppendLine($"  {TerminalColors.Muted}DebugLogBuffer 不可用{AnsiStyleConstants.Reset}");
-            sb.AppendLine();
-            return;
-        }
-
-        var entries = debugBuffer.GetRecent(100);
-        if (entries.Count == 0)
-        {
-            sb.AppendLine($"  {TerminalColors.Muted}无日志记录（启用 --verbose 可捕获更多日志）{AnsiStyleConstants.Reset}");
-            sb.AppendLine();
-            return;
-        }
-
-        var grouped = entries.GroupBy(e => e.Category).OrderByDescending(g => g.Count()).ToList();
-        sb.AppendLine($"  共 {debugBuffer.Count} 条日志，显示最近 {entries.Count} 条");
-        sb.AppendLine($"  分类统计: {string.Join(", ", grouped.Select(g => $"{g.Key}={g.Count()}"))}");
-        sb.AppendLine();
-
-        foreach (var entry in entries.Take(80))
-        {
-            var levelColor = entry.Level switch
-            {
-                DebugLogLevel.Error => TerminalColors.Error,
-                DebugLogLevel.Warn => TerminalColors.Warning,
-                _ => TerminalColors.Muted,
-            };
-            sb.AppendLine($"  {levelColor}{entry.Timestamp:HH:mm:ss.fff} [{entry.Category}]{AnsiStyleConstants.Reset} {Truncate(entry.Message, 200)}");
-        }
-
-        if (entries.Count > 80)
-            sb.AppendLine($"  ... 还有 {entries.Count - 80} 条");
-
-        sb.AppendLine();
-    }
-
-    private static async Task AppendSystemPrompt(StringBuilder sb, ChatCommandContext context)
-    {
-        var promptProvider = context.Services.GetService<ISystemPromptProvider>();
-
-        sb.AppendLine($"{TerminalColors.Accent}═══ 系统提示词 ═══{AnsiStyleConstants.Reset}");
-
-        if (promptProvider is null)
-        {
-            sb.AppendLine($"  {TerminalColors.Muted}ISystemPromptProvider 不可用{AnsiStyleConstants.Reset}");
-            sb.AppendLine();
-            return;
-        }
-
-        var sections = promptProvider.GetSections().ToList();
-        if (sections.Count == 0)
-        {
-            sb.AppendLine($"  {TerminalColors.Muted}无系统提示词部分{AnsiStyleConstants.Reset}");
-            sb.AppendLine();
-            return;
-        }
-
-        var totalLength = 0;
-        foreach (var section in sections)
-        {
-            var cacheTag = section.CacheBreak ? "动态" : "缓存";
-            sb.AppendLine($"  {TerminalColors.Primary}[{cacheTag}] {section.Name}{AnsiStyleConstants.Reset}");
-
-            try
-            {
-                var content = await section.ComputeValueTaskAsync().ConfigureAwait(false);
-                if (content is not null)
-                {
-                    totalLength += content.Length;
-                    var display = content.Length > 500
-                        ? content[..500] + $"... (共 {content.Length} 字符)"
-                        : content;
-                    sb.AppendLine($"    {TerminalColors.Muted}{display}{AnsiStyleConstants.Reset}");
-                }
-                else
-                {
-                    sb.AppendLine($"    {TerminalColors.Muted}(空){AnsiStyleConstants.Reset}");
-                }
-            }
-            catch (Exception ex)
-            {
-                sb.AppendLine($"    {TerminalColors.Error}计算失败: {ex.Message}{AnsiStyleConstants.Reset}");
-            }
-
-            sb.AppendLine();
-        }
-
-        sb.AppendLine($"  总计: {sections.Count} 个部分, {totalLength:N0} 字符");
-        sb.AppendLine();
+        return await DebugLogRenderer.RenderAllAsync(services, ct).ConfigureAwait(false);
     }
 
     private static (DebugSection Flags, bool Clear) ParseFlags(string[] args)
@@ -390,11 +128,6 @@ public sealed class DebugLogCommand : ChatCommandBase
             flags = DebugSection.All;
 
         return (flags, clear);
-    }
-
-    private static string Truncate(string text, int maxLength)
-    {
-        return text.Length <= maxLength ? text : text[..maxLength] + "...";
     }
 
     [Flags]

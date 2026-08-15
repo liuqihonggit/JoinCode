@@ -12,7 +12,7 @@ public sealed class SessionController
     private readonly string _sessionId;
     private readonly IServiceProvider? _serviceProvider;
     private readonly IClockService _clock;
-    private readonly MainAgent? _mainAgent;
+    private readonly AgentBase? _mainAgent;
 
     /// <summary>会话是否正在运行</summary>
     public bool IsRunning { get; private set; } = true;
@@ -30,7 +30,7 @@ public sealed class SessionController
         string sessionId,
         IServiceProvider? serviceProvider = null,
         IClockService? clock = null,
-        MainAgent? mainAgent = null)
+        AgentBase? mainAgent = null)
     {
         _chatService = chatService;
         _consumer = consumer;

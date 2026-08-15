@@ -8,16 +8,6 @@ namespace Core.Agents.Coordinator;
 public sealed class MainAgent : AgentBase
 {
     private readonly IChatService _chatService;
-    private string _currentInput = string.Empty;
-
-    /// <summary>
-    /// 当前用户输入 — 每轮对话前由 SessionController 设置
-    /// </summary>
-    public string CurrentInput
-    {
-        get => _currentInput;
-        set => _currentInput = value;
-    }
 
     /// <summary>
     /// 主代理构造函数
@@ -57,7 +47,7 @@ public sealed class MainAgent : AgentBase
     /// <summary>
     /// 覆写提示词构建 — 返回当前用户输入而非 Task 字段
     /// </summary>
-    protected override string BuildPrompt() => _currentInput;
+    protected override string BuildPrompt() => CurrentInput ?? string.Empty;
 
     /// <summary>
     /// 覆写流式执行 — 委托到 ChatService 13中间件管道，转换为 AgentStreamChunk 统一输出
@@ -84,7 +74,7 @@ public sealed class MainAgent : AgentBase
         TokenUsage? lastUsage = null;
         string? lastModelId = null;
 
-        await foreach (var evt in _chatService.StreamWithEventsAsync(_currentInput, linkedToken).ConfigureAwait(false))
+        await foreach (var evt in _chatService.StreamWithEventsAsync(CurrentInput ?? string.Empty, linkedToken).ConfigureAwait(false))
         {
             var chunk = AgentStreamChunk.FromChatStreamEvent(evt, UniqueId);
             if (chunk is null) continue;

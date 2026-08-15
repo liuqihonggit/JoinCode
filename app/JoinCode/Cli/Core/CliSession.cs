@@ -135,19 +135,22 @@ public sealed class CliSession
     }
 
     /// <summary>
-    /// 创建主代理 — 从 DI 获取 IQueryEngine，包装 ChatService 为 AgentBase 实例
+    /// 创建主代理 — AgentBase 实例 + 普通 IQueryEngine，和子代理走同一条管道
     /// 返回 null 表示 DI 中无 IQueryEngine，SessionController 回退到直接调用 ChatService
     /// </summary>
-    private MainAgent? CreateMainAgent(IChatService chatService, IServiceProvider? serviceProvider)
+    private AgentBase? CreateMainAgent(IChatService chatService, IServiceProvider? serviceProvider)
     {
         if (serviceProvider is null) return null;
         var queryEngine = serviceProvider.GetService<IQueryEngine>();
         if (queryEngine is null) return null;
 
-        var mainAgent = new MainAgent(
-            chatService: chatService,
+        var mainAgent = new AgentBase(
+            task: string.Empty,
+            options: null,
             queryEngine: queryEngine,
+            logger: null,
             name: "main",
+            role: AgentRole.Coordinator,
             sessionId: _sessionObjectId);
 
         var outputChannelManager = serviceProvider.GetService<JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager>();

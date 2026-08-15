@@ -6,7 +6,7 @@ namespace Core.Agents.Coordinator;
 /// 子类（CoordinatorAgent、ExecutorAgent、ReasoningAgent）继承此类，自动获得对话能力
 /// 压缩管线在阶段2 通过 IChatContextManager 内聚到此
 /// </summary>
-public abstract class AgentBase : Entity, IAgent
+public class AgentBase : Entity, IAgent
 {
     protected readonly IQueryEngine _queryEngine;
     protected readonly ILogger? _logger;
@@ -26,6 +26,11 @@ public abstract class AgentBase : Entity, IAgent
 
     // === 任务 ===
     public string Task { get; }
+    /// <summary>
+    /// 当前用户输入 — 主代理每轮对话前设置，优先于 Task 作为 prompt
+    /// 子代理不设置（用 Task）
+    /// </summary>
+    public string? CurrentInput { get; set; }
     public SubAgentOptions Options { get; }
     public SubAgentContext? Context { get; }
     public TaskExecutionStatus Status { get; set; }
@@ -80,7 +85,7 @@ public abstract class AgentBase : Entity, IAgent
     /// <summary>
     /// AgentBase 构造函数 — 子类通过 base(...) 委托
     /// </summary>
-    protected AgentBase(
+    public AgentBase(
         string task,
         SubAgentOptions? options,
         IQueryEngine queryEngine,
@@ -498,10 +503,13 @@ public abstract class AgentBase : Entity, IAgent
     }
 
     /// <summary>
-    /// 构建提示词 — 子类可重写以定制提示词
+    /// 构建提示词 — 主代理优先用 CurrentInput，子代理用 Task
     /// </summary>
     protected virtual string BuildPrompt()
     {
+        if (!string.IsNullOrEmpty(CurrentInput))
+            return CurrentInput;
+
         var sb = new StringBuilder();
         sb.AppendLine($"任务: {Task}");
 

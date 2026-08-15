@@ -67,6 +67,9 @@ jobs:
       - name: Build - Component Tests
         run: |
           $projects = @(
+            'tests/Unit/Infra.Tests/Services/Infra.Services.Tests.csproj',
+            'tests/Unit/Infra.Tests/Utils/Infra.Utils.Tests.csproj',
+            'tests/Unit/Infra.Tests/IO/Infra.IO.Tests.csproj',
             'core/execution/Brain/tests/Prompts/Brain.Prompts.Tests.csproj',
             'core/execution/Brain/tests/Context/Brain.Context.Tests.csproj',
             'core/execution/Brain/tests/Other/Brain.Other.Tests.csproj',
@@ -143,13 +146,27 @@ jobs:
         uses: actions/checkout@v5
 
       - uses: ./.github/actions/setup-test-env
-      - name: Test - Infra
+      - name: Test - Infra (Services)
         run: >
-          dotnet test tests/Unit/Infra.Tests/Infra.Tests.csproj
+          dotnet test tests/Unit/Infra.Tests/Services/Infra.Services.Tests.csproj
           -c Release --no-build --nologo
           --filter "Category!=Integration&Category!=Benchmark"
           --logger "console;verbosity=detailed"
-          --logger "trx;LogFileName=infra-tests.trx"
+          --logger "trx;LogFileName=infra-services-tests.trx"
+      - name: Test - Infra (Utils)
+        run: >
+          dotnet test tests/Unit/Infra.Tests/Utils/Infra.Utils.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "Category!=Integration&Category!=Benchmark"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=infra-utils-tests.trx"
+      - name: Test - Infra (IO)
+        run: >
+          dotnet test tests/Unit/Infra.Tests/IO/Infra.IO.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "Category!=Integration&Category!=Benchmark"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=infra-io-tests.trx"
       - name: Test - Brain (Prompts)
         run: >
           dotnet test core/execution/Brain/tests/Prompts/Brain.Prompts.Tests.csproj

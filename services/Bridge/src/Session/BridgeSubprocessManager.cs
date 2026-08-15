@@ -765,46 +765,42 @@ public sealed class BridgeSubprocessSpawner
         }
 
         // --print 模式（非交互）
-        args.Add(JccCliArgName.Print);
+        args.Add(JccCliArg.Print.ToValue());
 
         if (options.SdkUrl is not null)
         {
-            args.Add(JccCliArgName.SdkUrl);
+            args.Add(JccCliArg.SdkUrl.ToValue());
             args.Add(options.SdkUrl);
         }
 
-        // --session-id
         if (options.SessionId is not null)
         {
-            args.Add(BridgeCliArgConstants.SessionIdLongName);
+            args.Add(JccCliArg.SessionId.ToValue());
             args.Add(options.SessionId);
         }
 
-        // --input-format stream-json
-        args.Add(JccCliArgName.InputFormat);
+        args.Add(JccCliArg.InputFormat.ToValue());
         args.Add("stream-json");
 
-        args.Add(JccCliArgName.OutputFormat);
+        args.Add(JccCliArg.OutputFormat.ToValue());
         args.Add("stream-json");
 
-        args.Add(JccCliArgName.ReplayUserMessages);
+        args.Add(JccCliArg.ReplayUserMessages.ToValue());
 
-        // --verbose
         if (options.DebugLog)
         {
-            args.Add(BridgeCliArgConstants.DebugLogLongName);
+            args.Add(JccCliArg.DebugLog.ToValue());
         }
 
-        // --debug-file — 对齐 TS 端: 当 debugFile 提供时写入
         if (!string.IsNullOrEmpty(options.DebugFile))
         {
-            args.Add(BridgeCliArgConstants.DebugFileLongName);
+            args.Add(JccCliArg.DebugFile.ToValue());
             args.Add(options.DebugFile);
         }
 
         if (!string.IsNullOrEmpty(options.PermissionMode))
         {
-            args.Add(BridgeCliArgConstants.PermissionModeLongName);
+            args.Add(JccCliArg.PermissionMode.ToValue());
             args.Add(options.PermissionMode);
         }
 

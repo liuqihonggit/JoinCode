@@ -24,10 +24,10 @@ public class ParallelExecutionEngineTests
 
     private AgentCoordinator CreateAgentCoordinator()
     {
-        var spawnPipeline = new MiddlewarePipeline<AgentSpawnCoordContext>(
-            [new ActionMiddleware<AgentSpawnCoordContext>(async (ctx, next, ct) =>
+        var spawnPipeline = new MiddlewarePipeline<UnifiedSpawnContext>(
+            [new ActionMiddleware<UnifiedSpawnContext>(async (ctx, next, ct) =>
             {
-                ctx.Agent = await _lifecycleManagerMock.Object.SpawnSubAgentAsync(ctx.Task, ctx.Options, ct);
+                ctx.Agent = await _lifecycleManagerMock.Object.SpawnSubAgentAsync(ctx.Task, ctx.SubOptions, ct);
                 ctx.ExecutionContext = new AgentExecutionContext
                 {
                     AgentId = ctx.AgentId,

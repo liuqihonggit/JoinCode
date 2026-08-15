@@ -31,7 +31,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     [Inject] private readonly ILogger<AgentServiceImpl>? _logger;
     [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
     [Inject] private readonly IClockService _clock;
-    private readonly Infrastructure.Pipeline.MiddlewarePipeline<AgentSpawnContext> _spawnPipeline;
+    private readonly Infrastructure.Pipeline.MiddlewarePipeline<UnifiedSpawnContext> _spawnPipeline;
     private readonly ConcurrentDictionary<string, TaskCompletionSource<JoinCode.Abstractions.Interfaces.AgentResult>> _completionSources;
     private readonly ConcurrentDictionary<string, CancellationTokenSource> _backgroundCts;
     private readonly ConcurrentDictionary<string, DateTime> _agentStartTimes;
@@ -46,7 +46,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         IAgentLifecycleManager lifecycleManager,
         JoinCode.Abstractions.Interfaces.IAgentDefinitionProvider definitionProvider,
         JoinCode.Abstractions.Interfaces.IAgentRoleRegistry roleRegistry,
-        Infrastructure.Pipeline.MiddlewarePipeline<AgentSpawnContext> spawnPipeline,
+        Infrastructure.Pipeline.MiddlewarePipeline<UnifiedSpawnContext> spawnPipeline,
         AgentServiceDependencies? deps = null,
         JoinCode.Abstractions.Interfaces.IAgentNotificationQueue? notificationQueue = null,
         ILogger<AgentServiceImpl>? logger = null,
@@ -83,21 +83,22 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     /// </summary>
     private async Task<SubAgentInitResult> InitializeSubAgentAsync(JoinCode.Abstractions.Interfaces.AgentSpawnOptions options, CancellationToken cancellationToken)
     {
-        var context = new AgentSpawnContext
+        var context = new UnifiedSpawnContext
         {
-            Options = options,
-            CancellationToken = cancellationToken
+            Task = options.Description,
+            SpawnOptions = options,
+            CancellationToken = cancellationToken,
         };
 
         await _spawnPipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false);
 
-        if (context.SubAgent is null)
-            throw new InvalidOperationException("[AGT008] 中间件管道未创建 SubAgent");
+        if (context.Agent is null)
+            throw new InvalidOperationException("[AGT008] 中间件管道未创建 Agent");
 
-        StartWorkerPermissionResponseRouting(context.SubAgent.ObjectId.UniqueId);
-        _progressTrackers[context.SubAgent.ObjectId.UniqueId] = context.ProgressTracker;
+        StartWorkerPermissionResponseRouting(context.Agent.ObjectId.UniqueId);
+        _progressTrackers[context.Agent.ObjectId.UniqueId] = context.ProgressTracker;
 
-        return new SubAgentInitResult(context.SubAgent, context.SystemPrompt, context.Definition);
+        return new SubAgentInitResult(context.Agent, context.SystemPrompt, context.Definition);
     }
 
     public async Task<JoinCode.Abstractions.Interfaces.AgentInfo> SpawnAgentAsync(JoinCode.Abstractions.Interfaces.AgentSpawnOptions options, CancellationToken cancellationToken = default)

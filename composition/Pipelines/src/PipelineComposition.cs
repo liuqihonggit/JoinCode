@@ -38,6 +38,7 @@ public static class PipelineComposition
         services.AddSingleton(sp => new CrashSnapshotMiddleware<SettingsContext>(sp.GetRequiredService<ICrashSnapshotStore>(), "Settings"));
         services.AddSingleton(sp => new CrashSnapshotMiddleware<AgentSpawnContext>(sp.GetRequiredService<ICrashSnapshotStore>(), "AgentSpawn"));
         services.AddSingleton(sp => new CrashSnapshotMiddleware<AgentSpawnCoordContext>(sp.GetRequiredService<ICrashSnapshotStore>(), "AgentSpawnCoord"));
+        services.AddSingleton(sp => new CrashSnapshotMiddleware<UnifiedSpawnContext>(sp.GetRequiredService<ICrashSnapshotStore>(), "UnifiedSpawn"));
         services.AddSingleton(sp => new CrashSnapshotMiddleware<AgentDisposeContext>(sp.GetRequiredService<ICrashSnapshotStore>(), "AgentDispose"));
         services.AddSingleton(sp => new CrashSnapshotMiddleware<ForkContext>(sp.GetRequiredService<ICrashSnapshotStore>(), "Fork"));
         services.AddSingleton(sp => new CrashSnapshotMiddleware<WebContext>(sp.GetRequiredService<ICrashSnapshotStore>(), "Web"));
@@ -202,6 +203,27 @@ public static class PipelineComposition
                 .Use(sp.GetRequiredService<SpawnCoordRecordContextMiddleware>())
                 .Use(sp.GetRequiredService<SpawnCoordPermissionRoutingMiddleware>())
                 .Use(sp.GetRequiredService<SpawnCoordTeammatePaneMiddleware>())
+                .WithHooks(sp)
+                .Build());
+
+        // UnifiedSpawn 统一管道 — 合并 AgentSpawn + AgentSpawnCoord，主代理/子代理/协调层共用
+        services.AddSingleton<MiddlewarePipeline<UnifiedSpawnContext>>(sp =>
+            new PipelineBuilder<UnifiedSpawnContext>()
+                .WithLoggingScope(ctx => ctx.Agent?.ObjectId ?? ObjectId.Empty, sp.GetRequiredService<ILoggerFactory>())
+                .Use(sp.GetRequiredService<CrashSnapshotMiddleware<UnifiedSpawnContext>>())
+                .Use(sp.GetRequiredService<Core.Agents.Unified.DefinitionResolutionMiddleware>())
+                .Use(sp.GetRequiredService<Core.Agents.Unified.PromptBuildingMiddleware>())
+                .Use(sp.GetRequiredService<Core.Agents.Unified.ContextSetupMiddleware>())
+                .Use(sp.GetRequiredService<Core.Agents.Unified.LifecycleSpawnMiddleware>())
+                .Use(sp.GetRequiredService<Core.Agents.Unified.WorktreeSpawnMiddleware>())
+                .Use(sp.GetRequiredService<Core.Agents.Unified.RecordContextMiddleware>())
+                .Use(sp.GetRequiredService<Core.Agents.Unified.RegisterMessageMiddleware>())
+                .Use(sp.GetRequiredService<Core.Agents.Unified.HookSetupMiddleware>())
+                .Use(sp.GetRequiredService<Core.Agents.Unified.McpSetupMiddleware>())
+                .Use(sp.GetRequiredService<Core.Agents.Unified.PermissionRoutingMiddleware>())
+                .Use(sp.GetRequiredService<Core.Agents.Unified.TeammatePaneMiddleware>())
+                .Use(sp.GetRequiredService<Core.Agents.Unified.MetadataMiddleware>())
+                .Use(sp.GetRequiredService<Core.Agents.Unified.TranscriptMiddleware>())
                 .WithHooks(sp)
                 .Build());
 

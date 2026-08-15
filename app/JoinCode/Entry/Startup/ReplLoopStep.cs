@@ -30,6 +30,8 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
 
         var agentService = context.Host.Services.GetService<JoinCode.Abstractions.Interfaces.IAgentService>();
 
+        var isProcessing = 0;
+
         var inputChannel = System.Threading.Channels.Channel.CreateUnbounded<string>();
 
         var readTask = Task.Run(async () =>
@@ -104,6 +106,35 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
                         }
                     }
 
+                    if (Interlocked.CompareExchange(ref isProcessing, 0, 0) == 1 && agentService is not null)
+                    {
+                        try
+                        {
+                            var runningAgents = await agentService.GetRunningAgentsAsync(ct).ConfigureAwait(false);
+                            var runningList = runningAgents.ToList();
+                            if (runningList.Count == 1)
+                            {
+                                var agent = runningList[0];
+                                await agentService.ForwardUserInputToAgentAsync(agent.Id, input, ct).ConfigureAwait(false);
+                                Diag.WriteLine($"[DIAG-REPL] auto-forwarded to single running agent {agent.Id}");
+                                using (Cli.TerminalHelper.SetColor(ConsoleColor.Cyan))
+                                    Cli.TerminalHelper.WriteLine($"[已转发给 @{agent.DisplayName ?? agent.Description ?? agent.Id}]");
+                                continue;
+                            }
+                            else if (runningList.Count > 1)
+                            {
+                                var list = string.Join(", ", runningList.Select(a => a.DisplayName ?? a.Id));
+                                using (Cli.TerminalHelper.SetColor(ConsoleColor.Yellow))
+                                    Cli.TerminalHelper.WriteLine($"多个子代理运行中，请用 @agentName 指定目标。运行中: [{list}]");
+                                continue;
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Diag.WriteLine($"[DIAG-REPL] auto-forward check failed: {ex.Message}");
+                        }
+                    }
+
                     if (string.IsNullOrWhiteSpace(input))
                     {
                         inputChannel.Writer.TryWrite(input);
@@ -153,7 +184,9 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
             try
             {
                 Diag.WriteLine("[DIAG-REPL] calling ProcessUserInputAsync");
+                Interlocked.Exchange(ref isProcessing, 1);
                 await session.ProcessUserInputAsync(combined, stepCts.Token);
+                Interlocked.Exchange(ref isProcessing, 0);
                 Diag.WriteLine("[DIAG-REPL] ProcessUserInputAsync returned");
             }
             catch (OperationCanceledException) when (stepCts.IsCancellationRequested && !ct.IsCancellationRequested)
@@ -183,6 +216,7 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
             }
             finally
             {
+                Interlocked.Exchange(ref isProcessing, 0);
                 Console.CancelKeyPress -= OnCancelKeyPress;
                 aliveCts.Cancel();
                 try { await aliveTask.ConfigureAwait(false); } catch (OperationCanceledException) { }

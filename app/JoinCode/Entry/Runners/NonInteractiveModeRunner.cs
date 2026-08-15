@@ -28,6 +28,7 @@ internal static class NonInteractiveModeRunner
         var pipeline = new PipelineBuilder<StartupContext>()
             .Use(sp.GetRequiredService<StartupLoggingMiddleware>())
             .Use(sp.GetRequiredService<NonInteractiveApiKeyCheckStep>())
+            .Use(sp.GetRequiredService<DebugDumpPromptStep>())
             .Use(sp.GetRequiredService<SessionInitStep>())
             .Use(sp.GetRequiredService<SessionResumeStep>())
             .Use(sp.GetRequiredService<SystemPromptApplyStep>())

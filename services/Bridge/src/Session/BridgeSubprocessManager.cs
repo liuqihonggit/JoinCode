@@ -777,7 +777,7 @@ public sealed class BridgeSubprocessSpawner
         // --session-id
         if (options.SessionId is not null)
         {
-            args.Add("--session-id");
+            args.Add(BridgeCliArgConstants.SessionIdLongName);
             args.Add(options.SessionId);
         }
 
@@ -795,14 +795,20 @@ public sealed class BridgeSubprocessSpawner
         // --verbose
         if (options.DebugLog)
         {
-            args.Add("--verbose");
+            args.Add(BridgeCliArgConstants.DebugLogLongName);
         }
 
         // --debug-file — 对齐 TS 端: 当 debugFile 提供时写入
         if (!string.IsNullOrEmpty(options.DebugFile))
         {
-            args.Add("--debug-file");
+            args.Add(BridgeCliArgConstants.DebugFileLongName);
             args.Add(options.DebugFile);
+        }
+
+        if (!string.IsNullOrEmpty(options.PermissionMode))
+        {
+            args.Add(BridgeCliArgConstants.PermissionModeLongName);
+            args.Add(options.PermissionMode);
         }
 
         // --permission-mode

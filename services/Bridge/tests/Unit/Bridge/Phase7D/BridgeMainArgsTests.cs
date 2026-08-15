@@ -331,9 +331,9 @@ public sealed class BridgeMainArgsTests
         var help = BridgeMainArgsParser.GetHelpText();
         Assert.Contains("Usage:", help);
         Assert.Contains("remote-control", help);
-        Assert.Contains("--debuglog", help);
-        Assert.Contains("--spawn", help);
-        Assert.Contains("--capacity", help);
+        Assert.Contains(BridgeCliArgConstants.DebugLogLongName, help);
+        Assert.Contains(BridgeCliArgConstants.SpawnLongName, help);
+        Assert.Contains(BridgeCliArgConstants.CapacityLongName, help);
     }
 
     #endregion

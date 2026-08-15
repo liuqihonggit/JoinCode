@@ -55,6 +55,8 @@ public sealed partial class AgentStreamExecutionMiddleware : ServiceEntity, IAge
             {
                 case AgentStreamChunkType.Content:
                     context.ContentBuilder.Append(chunk.Content);
+                    if (_outputChannelManager is not null && !string.IsNullOrEmpty(chunk.Content))
+                        _outputChannelManager.Write(chunk.AgentId, context.Name, chunk.Content, JoinCode.Abstractions.Interfaces.AgentOutputChunkType.Text);
                     break;
                 case AgentStreamChunkType.ToolCallStart:
                     // 工具调用开始 — 对齐 TS onProgress({type:'agent_progress'})

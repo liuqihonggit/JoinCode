@@ -32,6 +32,13 @@ public sealed class ModelCapabilitiesConfig
     public bool Effort { get; set; }
     public bool MaxEffort { get; set; }
     public bool ThinkingMode { get; set; }
+
+    /// <summary>
+    /// 模态能力标志 — [Flags] 位标志组合，如 Text | ReadImage | ToolUse
+    /// JSON 中序列化为字符串数组，如 ["text","readImage","toolUse"]
+    /// </summary>
+    [JsonConverter(typeof(ModelModalityKindJsonConverter))]
+    public ModelModalityKind Modalities { get; set; } = ModelModalityKind.Text;
 }
 
 public sealed class ModelPricingConfig

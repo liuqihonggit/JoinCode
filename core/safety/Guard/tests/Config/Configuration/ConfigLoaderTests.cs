@@ -41,7 +41,7 @@ public class ConfigLoaderTests : IDisposable {
         AppDataConstants.Paths = AppDataPaths.FromEnvironment();
 
         // 在临时目录写入 settings.json，提供 vendor 和 model 配置
-        var settingsJson = """{"vendor":{"openai":{"protocol":"openai-compatible","apiKeyEnvVar":"OPENAI_API_KEY","model":"gpt-4o","models":[{"id":"gpt-4o","displayName":"GPT-4o","contextWindow":128000,"aliases":["4o","default"],"capabilities":{"fastMode":true}},{"id":"gpt-4o-mini","displayName":"GPT-4o Mini","contextWindow":128000,"aliases":["mini","fast"],"capabilities":{"fastMode":true}}]},"anthropic":{"protocol":"anthropic","apiKeyEnvVar":"ANTHROPIC_API_KEY","model":"claude-3-opus","models":[{"id":"claude-3-opus","displayName":"Claude 3 Opus","contextWindow":200000,"aliases":["opus"],"capabilities":{"thinkingMode":true}},{"id":"claude-3-sonnet","displayName":"Claude 3 Sonnet","contextWindow":200000,"aliases":["sonnet"],"capabilities":{"fastMode":true}}]}},"current":{"vendor":"openai","model":"gpt-4o"}}""";
+        var settingsJson = """{"vendor":{"openai":{"protocol":"openai-compatible","apiKeyEnvVar":"OPENAI_API_KEY","model":"gpt-4o","models":[{"id":"gpt-4o","displayName":"GPT-4o","contextWindow":128000,"aliases":["4o","default"],"capabilities":{"fastMode":true,"modalities":["text","readImage","readPdf","toolUse"]}},{"id":"gpt-4o-mini","displayName":"GPT-4o Mini","contextWindow":128000,"aliases":["mini","fast"],"capabilities":{"fastMode":true,"modalities":["text","readImage","readPdf","toolUse"]}}]},"anthropic":{"protocol":"anthropic","apiKeyEnvVar":"ANTHROPIC_API_KEY","model":"claude-opus-4-7-20250701","models":[{"id":"claude-opus-4-7-20250701","displayName":"Claude Opus 4.7","contextWindow":1000000,"aliases":["opus"],"capabilities":{"thinkingMode":true,"modalities":["text","readImage","readPdf","thinking","toolUse"]}},{"id":"claude-sonnet-4-6-20250514","displayName":"Claude Sonnet 4.6","contextWindow":1000000,"aliases":["sonnet"],"capabilities":{"fastMode":true,"modalities":["text","readImage","readPdf","thinking","toolUse"]}}]}},"current":{"vendor":"openai","model":"gpt-4o"}}""";
         _fs.WriteAllText(AppDataConstants.Paths.SettingsFilePath, settingsJson);
 
         // 覆盖用户级环境变量（JCC_VENDOR 可能存在于用户级环境变量中）
@@ -127,7 +127,7 @@ public class ConfigLoaderTests : IDisposable {
     {
         // 设置环境变量覆盖 Provider 和 ModelId
         Environment.SetEnvironmentVariable(JccEnvVarConstants.Vendor, "anthropic");
-        Environment.SetEnvironmentVariable(JccEnvVarConstants.ModelId, "claude-3-opus");
+        Environment.SetEnvironmentVariable(JccEnvVarConstants.ModelId, "claude-opus-4-7-20250701");
         // 清除 Provider 专属环境变量，让 JCC_API_KEY 生效
         Environment.SetEnvironmentVariable(ProviderEnvVarConstants.AnthropicApiKey, null);
         Environment.SetEnvironmentVariable(ProviderEnvVarConstants.AgnesApiKey, null);
@@ -138,7 +138,7 @@ public class ConfigLoaderTests : IDisposable {
         var config = await _loader.LoadConfigAsync(_fs).ConfigureAwait(true);
 
         Assert.Equal("anthropic", config.Provider.Vendor);
-        Assert.Equal("claude-3-opus", config.Provider.ModelId);
+        Assert.Equal("claude-opus-4-7-20250701", config.Provider.ModelId);
         Assert.Equal(realKey, config.Provider.ApiKey);
     }
 

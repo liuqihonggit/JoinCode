@@ -35,7 +35,7 @@ public static class TestModelConfigLoaderFactory
                         DisplayName = "GPT-4o",
                         ContextWindow = 128000,
                         Aliases = ["4o", "default"],
-                        Capabilities = new ModelCapabilitiesConfig { FastMode = true },
+                        Capabilities = new ModelCapabilitiesConfig { FastMode = true, Modalities = ModelModalityKind.Text | ModelModalityKind.ReadImage | ModelModalityKind.ReadPdf | ModelModalityKind.ToolUse },
                         Pricing = new ModelPricingConfig { PromptCostPer1K = 0.005m, CompletionCostPer1K = 0.015m }
                     },
                     new ModelItemConfig
@@ -44,34 +44,34 @@ public static class TestModelConfigLoaderFactory
                         DisplayName = "GPT-4o Mini",
                         ContextWindow = 128000,
                         Aliases = ["mini", "fast"],
-                        Capabilities = new ModelCapabilitiesConfig { FastMode = true },
+                        Capabilities = new ModelCapabilitiesConfig { FastMode = true, Modalities = ModelModalityKind.Text | ModelModalityKind.ReadImage | ModelModalityKind.ReadPdf | ModelModalityKind.ToolUse },
                         Pricing = new ModelPricingConfig { PromptCostPer1K = 0.00015m, CompletionCostPer1K = 0.0006m }
                     }
                 ]
             },
             ["anthropic"] = new ModelProviderConfig
             {
-                DefaultModelId = "claude-3-5-sonnet",
-                DefaultFastModelId = "claude-3-5-haiku",
+                DefaultModelId = "claude-opus-4-7-20250701",
+                DefaultFastModelId = "claude-haiku-4-5-20251001",
                 Models =
                 [
                     new ModelItemConfig
                     {
-                        Id = "claude-3-5-sonnet",
-                        DisplayName = "Claude 3.5 Sonnet",
-                        ContextWindow = 200000,
-                        Aliases = ["sonnet", "default"],
-                        Capabilities = new ModelCapabilitiesConfig { ThinkingMode = true },
-                        Pricing = new ModelPricingConfig { PromptCostPer1K = 0.003m, CompletionCostPer1K = 0.015m }
+                        Id = "claude-opus-4-7-20250701",
+                        DisplayName = "Claude Opus 4.7",
+                        ContextWindow = 1000000,
+                        Aliases = ["opus", "default"],
+                        Capabilities = new ModelCapabilitiesConfig { ThinkingMode = true, Modalities = ModelModalityKind.Text | ModelModalityKind.ReadImage | ModelModalityKind.ReadPdf | ModelModalityKind.Thinking | ModelModalityKind.ToolUse },
+                        Pricing = new ModelPricingConfig { PromptCostPer1K = 0.005m, CompletionCostPer1K = 0.025m }
                     },
                     new ModelItemConfig
                     {
-                        Id = "claude-3-5-haiku",
-                        DisplayName = "Claude 3.5 Haiku",
+                        Id = "claude-haiku-4-5-20251001",
+                        DisplayName = "Claude Haiku 4.5",
                         ContextWindow = 200000,
                         Aliases = ["haiku", "fast"],
-                        Capabilities = new ModelCapabilitiesConfig { FastMode = true },
-                        Pricing = new ModelPricingConfig { PromptCostPer1K = 0.0008m, CompletionCostPer1K = 0.004m }
+                        Capabilities = new ModelCapabilitiesConfig { FastMode = true, Modalities = ModelModalityKind.Text | ModelModalityKind.ReadImage | ModelModalityKind.ReadPdf | ModelModalityKind.Thinking | ModelModalityKind.ToolUse },
+                        Pricing = new ModelPricingConfig { PromptCostPer1K = 0.001m, CompletionCostPer1K = 0.005m }
                     }
                 ]
             }

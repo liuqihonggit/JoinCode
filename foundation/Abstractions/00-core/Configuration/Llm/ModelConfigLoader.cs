@@ -133,6 +133,18 @@ public sealed class ModelConfigLoader : IModelConfigLoader
         return model?.Capabilities.ThinkingMode ?? false;
     }
 
+    public bool SupportsModality(string providerName, string modelId, ModelModalityKind modality)
+    {
+        var modalities = GetModalities(providerName, modelId);
+        return modalities.HasFlag(modality);
+    }
+
+    public ModelModalityKind GetModalities(string providerName, string modelId)
+    {
+        var model = FindModel(providerName, modelId);
+        return model?.Capabilities.Modalities ?? ModelModalityKind.Text;
+    }
+
     public string GetCanonicalName(string fullModelName)
     {
         var name = fullModelName.ToLowerInvariant();

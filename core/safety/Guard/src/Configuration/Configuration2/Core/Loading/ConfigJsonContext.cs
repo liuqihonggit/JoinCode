@@ -16,6 +16,7 @@ namespace Core.Configuration;
 [JsonSerializable(typeof(ProfileSettings))]
 [JsonSerializable(typeof(ModelItemConfig))]
 [JsonSerializable(typeof(ModelCapabilitiesConfig))]
+[JsonSerializable(typeof(ModelModalityKind))]
 [JsonSerializable(typeof(ModelPricingConfig))]
 public partial class ConfigJsonContext : JsonSerializerContext;
 
@@ -34,5 +35,6 @@ public partial class ConfigJsonContext : JsonSerializerContext;
 [JsonSerializable(typeof(ProfileSettings))]
 [JsonSerializable(typeof(ModelItemConfig))]
 [JsonSerializable(typeof(ModelCapabilitiesConfig))]
+[JsonSerializable(typeof(ModelModalityKind))]
 [JsonSerializable(typeof(ModelPricingConfig))]
 public partial class ConfigIndentedJsonContext : JsonSerializerContext;

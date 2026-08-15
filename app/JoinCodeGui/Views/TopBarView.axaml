@@ -29,7 +29,11 @@
                 PlaceholderText="选择模型" HorizontalAlignment="Stretch">
         <ComboBox.ItemTemplate>
           <DataTemplate x:DataType="vm:ModelOptionItem">
-            <TextBlock Text="{Binding DisplayText}" TextTrimming="CharacterEllipsis" />
+            <StackPanel Orientation="Horizontal" Spacing="4">
+              <TextBlock Text="{Binding ModalityTags}" FontSize="10" VerticalAlignment="Center"
+                         IsVisible="{Binding ModalityTags, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+              <TextBlock Text="{Binding DisplayText}" TextTrimming="CharacterEllipsis" />
+            </StackPanel>
           </DataTemplate>
         </ComboBox.ItemTemplate>
       </ComboBox>

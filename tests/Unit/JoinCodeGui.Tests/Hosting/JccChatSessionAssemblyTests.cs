@@ -38,19 +38,16 @@ public class JccChatSessionAssemblyTests
         map["deepseek"].Count.Should().Be(2);
 
         map["openai"].Should().BeEquivalentTo([
-            "gpt-4o-mini", "gpt-4o", "gpt-4-turbo", "gpt-4", "gpt-3.5-turbo",
-            "gpt-4.1-nano", "gpt-4.1-mini", "gpt-4.1", "o4-mini", "o3-mini", "o3", "o1-mini", "o1"
+            "gpt-4o-mini", "gpt-4o",
+            "gpt-4.1-nano", "gpt-4.1-mini", "gpt-4.1", "o4-mini", "o3-mini", "o3"
         ]);
-        map["openai"].Count.Should().Be(13);
+        map["openai"].Count.Should().Be(8);
 
         map["anthropic"].Should().BeEquivalentTo([
             "claude-opus-4-7-20250701", "claude-opus-4-6-20250514", "claude-opus-4-5-20251101",
-            "claude-opus-4-1-20250805", "claude-opus-4-20250514", "claude-sonnet-4-6-20250514",
-            "claude-sonnet-4-5-20250514", "claude-sonnet-4-20250514", "claude-haiku-4-5-20251001",
-            "claude-3-7-sonnet-20250219", "claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022",
-            "claude-3-opus-20240229", "claude-3-sonnet-20240229", "claude-3-haiku-20240307"
+            "claude-sonnet-4-6-20250514", "claude-haiku-4-5-20251001"
         ]);
-        map["anthropic"].Count.Should().Be(15);
+        map["anthropic"].Count.Should().Be(5);
 
         map["agnes"].Should().BeEquivalentTo([
             "agnes-2.0-flash", "agnes-image-2.0-flash", "agnes-image-2.1-flash", "agnes-video-v2.0"

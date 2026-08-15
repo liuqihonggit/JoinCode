@@ -98,6 +98,16 @@ public interface IProviderDefinition
     bool SupportsMaxEffort(string modelId) => false;
 
     /// <summary>
+    /// 检查模型是否支持指定模态能力
+    /// </summary>
+    bool SupportsModality(string modelId, ModelModalityKind modality) => false;
+
+    /// <summary>
+    /// 获取模型的全部模态能力标志
+    /// </summary>
+    ModelModalityKind GetModalities(string modelId) => ModelModalityKind.Text;
+
+    /// <summary>
     /// 构建 API 基础 URL（责任链：每个 Provider 自己决定 URL 格式）
     /// </summary>
     string GetBaseUrl(ProviderConfig config);

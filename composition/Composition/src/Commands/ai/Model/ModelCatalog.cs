@@ -93,4 +93,14 @@ public sealed partial class ModelCatalog(IProviderDefinitionRegistry registry, I
     {
         return _registry.TryGet(provider)?.SupportsMaxEffort(modelId) ?? false;
     }
+
+    public bool SupportsModality(string modelId, string provider, ModelModalityKind modality)
+    {
+        return _registry.TryGet(provider)?.SupportsModality(modelId, modality) ?? false;
+    }
+
+    public ModelModalityKind GetModalities(string modelId, string provider)
+    {
+        return _registry.TryGet(provider)?.GetModalities(modelId) ?? ModelModalityKind.Text;
+    }
 }

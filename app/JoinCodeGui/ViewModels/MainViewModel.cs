@@ -229,7 +229,33 @@ public sealed partial class MainViewModel : ViewModelBase
         }
         ModelOptions.Clear();
         foreach (var id in source)
-            ModelOptions.Add(new ModelOptionItem(id, $"{providerDisplay}:{id}"));
+        {
+            var tags = BuildModalityTags(provider, id);
+            ModelOptions.Add(new ModelOptionItem(id, $"{providerDisplay}:{id}", tags));
+        }
+    }
+
+    /// <summary>根据模型模态能力生成标签文本（emoji 缩写）</summary>
+    private string BuildModalityTags(string provider, string modelId)
+    {
+        var modalities = _modelConfigLoader.GetModalities(provider, modelId);
+        if (modalities == ModelModalityKind.None || modalities == ModelModalityKind.Text)
+            return "";
+
+        var sb = new StringBuilder();
+        if (modalities.HasFlag(ModelModalityKind.ReadImage)) sb.Append("\U0001F4F7");
+        if (modalities.HasFlag(ModelModalityKind.ReadGif)) sb.Append("\U0001F3AC");
+        if (modalities.HasFlag(ModelModalityKind.ReadVideo)) sb.Append("\U0001F3A5");
+        if (modalities.HasFlag(ModelModalityKind.ReadAudio)) sb.Append("\U0001F3A7");
+        if (modalities.HasFlag(ModelModalityKind.ReadPdf)) sb.Append("\U0001F4C4");
+        if (modalities.HasFlag(ModelModalityKind.GenerateImage)) sb.Append("\U0001F5BC");
+        if (modalities.HasFlag(ModelModalityKind.GenerateVideo)) sb.Append("\U0001F3EE");
+        if (modalities.HasFlag(ModelModalityKind.GenerateAudio)) sb.Append("\U0001F50A");
+        if (modalities.HasFlag(ModelModalityKind.Thinking)) sb.Append("\U0001F9E0");
+        if (modalities.HasFlag(ModelModalityKind.CodeExecution)) sb.Append("\U0001F4BB");
+        if (modalities.HasFlag(ModelModalityKind.WebSearch)) sb.Append("\U0001F50D");
+        if (modalities.HasFlag(ModelModalityKind.ToolUse)) sb.Append("\U0001F527");
+        return sb.ToString();
     }
 
     /// <summary>当前选中的模型下拉项（View 层绑定 ComboBox.SelectedItem）</summary>

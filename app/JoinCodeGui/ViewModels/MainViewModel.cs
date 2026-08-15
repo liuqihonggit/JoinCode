@@ -358,6 +358,7 @@ public sealed partial class MainViewModel : ViewModelBase
         _sessionStore = store ?? new Persistence.GuiSessionStore(new IO.FileSystem.PhysicalFileSystem());
         _preferencesStore = preferencesStore ?? new Persistence.GuiPreferencesStore(new IO.FileSystem.PhysicalFileSystem());
         _session.PermissionConfirmationHandler = OnPermissionConfirmationRequestedAsync;
+        _session.AskUserQuestionDialogCallback = AskUserQuestionCallback;
         _selectedEffort = _session.EffortLevel.ToValue();
         Messages.CollectionChanged += OnMessagesChanged;
         LoadPersistedSessions();
@@ -420,6 +421,7 @@ public sealed partial class MainViewModel : ViewModelBase
         _realSession = session;
         _session = session;
         _session.PermissionConfirmationHandler = OnPermissionConfirmationRequestedAsync;
+        _session.AskUserQuestionDialogCallback = AskUserQuestionCallback;
 
         RebuildConnectionOptions();
         RefreshModelOptions();
@@ -528,6 +530,7 @@ public sealed partial class MainViewModel : ViewModelBase
     {
         _session = _mockSession ??= new Hosting.PlaceholderChatSession(_configService);
         _session.PermissionConfirmationHandler = OnPermissionConfirmationRequestedAsync;
+        _session.AskUserQuestionDialogCallback = AskUserQuestionCallback;
         RebuildConnectionOptions();
         SelectedConnection = _connectionOptions.FirstOrDefault();
         RefreshModelOptions();
@@ -728,6 +731,12 @@ public sealed partial class MainViewModel : ViewModelBase
     /// 未注入时默认拒绝（等价于 Deny），保证无弹窗环境下引擎行为可预期。
     /// </summary>
     public Func<PermissionConfirmationRequest, Task<PermissionConfirmationDecision>>? PermissionConfirmCallback { get; set; }
+
+    /// <summary>
+    /// AskUserQuestion 弹窗回调 — 由 View 层注入（弹窗实现），AskUserQuestion 工具调用时触发。
+    /// 未注入时回退到自动选择第一项。
+    /// </summary>
+    public Func<QuestionItem, Task<AskUserQuestionResult>>? AskUserQuestionCallback { get; set; }
 
     /// <summary>网关权限确认请求 → 委托给 View 层弹窗回调；未注入回调时默认拒绝</summary>
     private Task<PermissionConfirmationDecision> OnPermissionConfirmationRequestedAsync(PermissionConfirmationRequest request)
@@ -1108,7 +1117,8 @@ public sealed partial class MainViewModel : ViewModelBase
         else
         {
             _session = _mockSession ??= new Hosting.PlaceholderChatSession(_configService);
-            _session.PermissionConfirmationHandler = OnPermissionConfirmationRequestedAsync;
+        _session.PermissionConfirmationHandler = OnPermissionConfirmationRequestedAsync;
+        _session.AskUserQuestionDialogCallback = AskUserQuestionCallback;
             StatusText = $"已切换到 Mock 引擎（演示），模型 {_session.CurrentModelId}";
         }
         RefreshModelOptions();

@@ -83,6 +83,9 @@ internal sealed class PlaceholderChatSession : IJccChatSession
     /// <summary>占位会话不触发引擎权限异常，保留回调供 UI 注入（无实际效果）</summary>
     public Func<PermissionConfirmationRequest, Task<PermissionConfirmationDecision>>? PermissionConfirmationHandler { get; set; }
 
+    /// <summary>占位会话不触发 AskUserQuestion，保留回调供 UI 注入（无实际效果）</summary>
+    public Func<QuestionItem, Task<AskUserQuestionResult>>? AskUserQuestionDialogCallback { get; set; }
+
     public async Task SetModelAsync(string modelId, CancellationToken cancellationToken = default)
     {
         if (_configService is not null)

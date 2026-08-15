@@ -4,6 +4,7 @@ using JoinCode.Abstractions.Configuration.Settings;
 using JoinCode.Abstractions.Interfaces;
 using JoinCode.Abstractions.LLM;
 using JoinCode.Abstractions.LLM.Chat;
+using JoinCode.Abstractions.Models.Interactive;
 using JoinCode.Abstractions.Security;
 using JoinCode.Abstractions.Security.Permission;
 using JoinCode.Abstractions.Tools;
@@ -37,6 +38,18 @@ internal sealed class JccChatSession : IJccChatSession
     /// <inheritdoc />
     public Func<PermissionConfirmationRequest, Task<PermissionConfirmationDecision>>? PermissionConfirmationHandler { get; set; }
 
+    /// <summary>
+    /// AskUserQuestion 弹窗回调 — 由 MainWindow 在初始化时设置。
+    /// AvaloniaInteractiveService 通过此回调在 UI 线程弹出对话框。
+    /// </summary>
+    public Func<QuestionItem, Task<AskUserQuestionResult>>? AskUserQuestionDialogCallback
+    {
+        get => _interactiveService?.ShowDialogCallback;
+        set { if (_interactiveService is not null) _interactiveService.ShowDialogCallback = value; }
+    }
+
+    private readonly AvaloniaInteractiveService? _interactiveService;
+
     internal JccChatSession(
         IServiceProvider services,
         IChatService chat,
@@ -51,6 +64,8 @@ internal sealed class JccChatSession : IJccChatSession
         _executionSettings = executionSettings;
         _modelConfigLoader = modelConfigLoader ?? services.GetService<IModelConfigLoader>() ?? new ModelConfigLoader();
         _disposeAsync = disposeAsync;
+
+        _interactiveService = services.GetService<IInteractiveService>() as AvaloniaInteractiveService;
 
         // 订阅 settings.json 变更 — theme 键变更时触发 ThemeChanged 驱动 GUI 热重载（双向绑定）
         var configService = services.GetService<IConfigurationService>();
@@ -81,7 +96,8 @@ internal sealed class JccChatSession : IJccChatSession
         CancellationToken cancellationToken = default)
     {
         var swTotal = System.Diagnostics.Stopwatch.StartNew();
-        var result = await EngineSessionFactory.CreateGuiSessionAsync(cancellationToken).ConfigureAwait(false);
+        var result = await EngineSessionFactory.CreateGuiSessionAsync(
+            [new GuiInteractionModule()], cancellationToken).ConfigureAwait(false);
         App.LogDiag($"[JccChatSession] EngineSessionFactory.CreateGuiSessionAsync: {swTotal.ElapsedMilliseconds}ms");
 
         var executionSettings = result.Services.GetService<IExecutionSettingsProvider>();

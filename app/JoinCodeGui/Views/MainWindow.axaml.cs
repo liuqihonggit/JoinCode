@@ -4,6 +4,7 @@ using Avalonia.VisualTree;
 using AvaloniaEdit.Highlighting;
 using AvaloniaEdit.Highlighting.Xshd;
 
+using JoinCode.Abstractions.Models.Interactive;
 using JoinCode.Gui.Theming;
 using JoinCode.Gui.ViewModels;
 
@@ -122,6 +123,7 @@ public sealed partial class MainWindow : Window
         if (_vm is not null)
         {
             _vm.PermissionConfirmCallback = ShowPermissionDialogAsync;
+            _vm.AskUserQuestionCallback = ShowAskUserQuestionDialogAsync;
             _vm.Messages.CollectionChanged += OnMessagesChanged;
             _vm.PropertyChanged += OnVmPropertyChanged;
             _vm.ScrollToBottomRequested += OnScrollToBottomRequested;
@@ -136,6 +138,13 @@ public sealed partial class MainWindow : Window
     {
         var dialog = new PermissionDialog(request);
         return await dialog.ShowDialog<Hosting.PermissionConfirmationDecision>(this);
+    }
+
+    /// <summary>AskUserQuestion 回调：弹出多选对话框获取用户选择；关闭窗口等价于取消</summary>
+    private async Task<AskUserQuestionResult> ShowAskUserQuestionDialogAsync(QuestionItem question)
+    {
+        var dialog = new AskUserQuestionDialog(question);
+        return await dialog.ShowDialog<AskUserQuestionResult>(this) ?? AskUserQuestionResult.CancelledResult();
     }
 
     /// <summary>窗口级快捷键：Ctrl+N 新建会话 / Ctrl+L 清空 / Esc 收起设置面板或停止生成</summary>

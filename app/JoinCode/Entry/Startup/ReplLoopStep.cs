@@ -28,6 +28,8 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
 
         var session = context.Session ?? throw new InvalidOperationException("Session not initialized");
 
+        var agentService = context.Host.Services.GetService<JoinCode.Abstractions.Interfaces.IAgentService>();
+
         var inputChannel = System.Threading.Channels.Channel.CreateUnbounded<string>();
 
         var readTask = Task.Run(async () =>
@@ -68,6 +70,38 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
                         Diag.WriteLine($"[DIAG-REPL] routing input to confirmation: '{input}'");
                         ConfirmationGate.Source.TrySetResult(input);
                         continue;
+                    }
+
+                    if (input.Length > 0 && input[0] == '@' && agentService is not null)
+                    {
+                        var parsed = SubAgentMentionParser.Parse(input);
+                        if (parsed is not null)
+                        {
+                            var (agentName, message) = parsed.Value;
+                            try
+                            {
+                                var runningAgents = await agentService.GetRunningAgentsAsync(ct).ConfigureAwait(false);
+                                var match = SubAgentMentionParser.FindAgent(agentName, runningAgents);
+                                if (match is not null)
+                                {
+                                    await agentService.ForwardUserInputToAgentAsync(match.Id, message, ct).ConfigureAwait(false);
+                                    Diag.WriteLine($"[DIAG-REPL] forwarded @{agentName} -> agent {match.Id}");
+                                    using (Cli.TerminalHelper.SetColor(ConsoleColor.Cyan))
+                                        Cli.TerminalHelper.WriteLine($"[已转发给 @{match.DisplayName ?? match.Id}]");
+                                }
+                                else
+                                {
+                                    var list = string.Join(", ", runningAgents.Select(a => a.DisplayName ?? a.Id));
+                                    using (Cli.TerminalHelper.SetColor(ConsoleColor.Yellow))
+                                        Cli.TerminalHelper.WriteLine($"未找到子代理 @{agentName}，当前运行中: [{list}]");
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                Diag.WriteLine($"[DIAG-REPL] @mention forward failed: {ex.Message}");
+                            }
+                            continue;
+                        }
                     }
 
                     if (string.IsNullOrWhiteSpace(input))

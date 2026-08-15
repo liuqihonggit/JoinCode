@@ -71,7 +71,7 @@ public static class BridgeMainArgsParser
         if (result.SessionTimeout is not null)
         {
             if (!int.TryParse(result.SessionTimeout, out var timeoutSec) || timeoutSec <= 0)
-                error ??= "--session-timeout must be a positive integer (seconds)";
+                error ??= $"{JccCliArgConstants.SessionTimeout} must be a positive integer (seconds)";
             else
                 sessionTimeoutMs = timeoutSec * 1000;
         }
@@ -87,27 +87,27 @@ public static class BridgeMainArgsParser
                 _ => null
             };
             if (spawnMode is null)
-                error ??= $"--spawn must be one of: session, same-dir, worktree (got: {result.Spawn})";
+                error ??= $"{JccCliArgConstants.Spawn} must be one of: session, same-dir, worktree (got: {result.Spawn})";
         }
 
         int? capacity = null;
         if (result.Capacity is not null)
         {
             if (!int.TryParse(result.Capacity, out var cap) || cap <= 0)
-                error ??= "--capacity must be a positive integer";
+                error ??= $"{JccCliArgConstants.Capacity} must be a positive integer";
             else
                 capacity = cap;
         }
 
         if (capacity.HasValue && spawnMode == BridgeSpawnMode.SingleSession)
-            error ??= "--capacity cannot be used with --spawn=session";
+            error ??= $"{JccCliArgConstants.Capacity} cannot be used with {JccCliArgConstants.Spawn}=session";
 
         if ((result.SessionId is not null || result.Continue) &&
             (spawnMode.HasValue || capacity.HasValue || result.CreateSessionInDir.GetValueOrDefault()))
-            error ??= "--session-id/--continue cannot be used with --spawn/--capacity/--create-session-in-dir";
+            error ??= $"{JccCliArgConstants.SessionId}/{JccCliArgConstants.Continue} cannot be used with {JccCliArgConstants.Spawn}/{JccCliArgConstants.Capacity}/{JccCliArgConstants.CreateSessionInDir}";
 
         if (result.SessionId is not null && result.Continue)
-            error ??= "--session-id and --continue are mutually exclusive";
+            error ??= $"{JccCliArgConstants.SessionId} and {JccCliArgConstants.Continue} are mutually exclusive";
 
         return new BridgeMainArgs
         {

@@ -390,9 +390,22 @@ public abstract class AgentBase : Entity, IAgent
             {
                 Type = chunk.Type,
                 Content = chunk.Content,
+                ThinkingContent = chunk.ThinkingContent,
                 ToolName = chunk.ToolName,
+                ToolCallId = chunk.ToolCallId,
+                ToolArguments = chunk.ToolArguments,
                 ToolCallNumber = chunk.ToolCallNumber,
                 ToolResult = chunk.ToolResult,
+                ToolResultText = chunk.ToolResultText,
+                IsToolError = chunk.IsToolError,
+                StructuredPatch = chunk.StructuredPatch,
+                ProgressMessage = chunk.ProgressMessage,
+                ProgressType = chunk.ProgressType,
+                LoopTriggerCount = chunk.LoopTriggerCount,
+                LoopStartIndex = chunk.LoopStartIndex,
+                ExecutionTimeMs = chunk.ExecutionTimeMs,
+                Usage = chunk.Usage,
+                ModelId = chunk.ModelId,
                 AgentId = UniqueId
             };
         }

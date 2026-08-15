@@ -21,14 +21,13 @@
   <ItemGroup>
     <Compile Include="..\Pipeline\**\*.cs" />
     <Compile Include="..\Telemetry\**\*.cs" />
-    <Compile Include="..\Services\**\*.cs" />
     <Compile Include="..\LLM\**\*.cs" />
     <Compile Include="..\Housekeeping\**\*.cs" />
     <Compile Include="..\GlobalUsings.cs" Link="GlobalUsings.cs" />
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="..\TestData\**\*">
+    <None Include="..\TestData\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Link>TestData\%(RecursiveDir)%(Filename)%(Extension)</Link>
     </None>

@@ -52,14 +52,24 @@ public sealed class EnumMetadataGenerator : IIncrementalGenerator
                 var members = new List<EnumMemberInfo>();
                 foreach (var field in enumType.GetMembers().OfType<IFieldSymbol>())
                 {
-                    var attr = field.GetAttributes()
-                        .FirstOrDefault(a => SymbolEqualityComparer.Default.Equals(a.AttributeClass, enumValueAttr));
-                    if (attr is not null)
+                    var allAttrs = field.GetAttributes()
+                        .Where(a => SymbolEqualityComparer.Default.Equals(a.AttributeClass, enumValueAttr))
+                        .ToList();
+
+                    if (allAttrs.Count > 0)
                     {
-                        var value = attr.ConstructorArguments.ElementAtOrDefault(0).Value as string ?? field.Name;
+                        var value = allAttrs[0].ConstructorArguments.ElementAtOrDefault(0).Value as string ?? field.Name;
 
                         var aliases = ImmutableArray<string>.Empty;
-                        if (aliasValueAttr is not null)
+                        if (allAttrs.Count > 1)
+                        {
+                            aliases = allAttrs.Skip(1)
+                                .Select(a => a.ConstructorArguments.ElementAtOrDefault(0).Value as string)
+                                .Where(a => a is not null)
+                                .Cast<string>()
+                                .ToImmutableArray();
+                        }
+                        else if (aliasValueAttr is not null)
                         {
                             var aliasAttrs = field.GetAttributes()
                                 .Where(a => SymbolEqualityComparer.Default.Equals(a.AttributeClass, aliasValueAttr))

@@ -14,7 +14,7 @@ public sealed class EffortCommand : ChatCommandBase
         var fastModeService = ChatCommandBase.GetService<IFastModeService>(context, typeof(IFastModeService));
 
         // 对齐 TS: help/-h/--help 显示详细帮助
-        if (args is "help" or "-h" or "--help")
+        if (args is "help" or JccCliArgConstants.HelpAlias__h or JccCliArgConstants.Help)
         {
             ShowHelp();
             return ChatCommandResult.Continue();

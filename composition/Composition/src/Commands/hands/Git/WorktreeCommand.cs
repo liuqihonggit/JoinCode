@@ -166,7 +166,7 @@ public sealed class WorktreeCommand : ChatCommandBase
         }
 
         var agentId = args[1];
-        var force = args.Contains("--force") || args.Contains("-f");
+        var force = args.Contains(JccCliArgConstants.Force) || args.Contains(JccCliArgConstants.ForceAlias__f);
 
         TerminalHelper.WriteLine("=== 移除 Worktree ===");
         TerminalHelper.WriteLine($"智能体: {agentId}");

@@ -10,7 +10,7 @@ public sealed class FalvCommand : ChatCommandBase
     {
         var args = ChatCommandBase.GetNormalizedArgs(context);
 
-        if (string.IsNullOrEmpty(args) || args is "-h" or "--help")
+        if (string.IsNullOrEmpty(args) || args is JccCliArgConstants.HelpAlias__h or JccCliArgConstants.Help)
         {
             ShowHelp();
             return ChatCommandResult.Continue();
@@ -23,9 +23,9 @@ public sealed class FalvCommand : ChatCommandBase
             return ChatCommandResult.Continue();
         }
 
-        if (args.StartsWith("--continue"))
+        if (args.StartsWith(JccCliArgConstants.Continue))
         {
-            var refillArg = args.Length > "--continue".Length ? args["--continue".Length..].Trim() : string.Empty;
+            var refillArg = args.Length > JccCliArgConstants.Continue.Length ? args[JccCliArgConstants.Continue.Length..].Trim() : string.Empty;
             await ContinueReasoningAsync(engine, refillArg, context.CancellationToken).ConfigureAwait(false);
             return ChatCommandResult.Continue();
         }

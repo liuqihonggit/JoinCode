@@ -331,7 +331,7 @@ public sealed class BridgeMainArgsTests
         var help = BridgeMainArgsParser.GetHelpText();
         Assert.Contains("Usage:", help);
         Assert.Contains("remote-control", help);
-        Assert.Contains("--verbose", help);
+        Assert.Contains("--debuglog", help);
         Assert.Contains("--spawn", help);
         Assert.Contains("--capacity", help);
     }

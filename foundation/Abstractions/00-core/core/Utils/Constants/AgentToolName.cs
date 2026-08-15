@@ -96,4 +96,8 @@ public enum AgentToolName
     [EnumValue("agent_clear_history")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     AgentClearHistory,
+
+    [EnumValue("forward_user_input")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    ForwardUserInput,
 }

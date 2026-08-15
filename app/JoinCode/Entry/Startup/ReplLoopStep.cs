@@ -150,6 +150,85 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
             finally { inputChannel.Writer.TryComplete(); }
         }, ct);
 
+        var mainProcessingChannel = System.Threading.Channels.Channel.CreateUnbounded<string>();
+        var processingCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+
+        var mainProcessingTask = Task.Run(async () =>
+        {
+            try
+            {
+                while (session.IsRunning && !processingCts.Token.IsCancellationRequested)
+                {
+                    string msg;
+                    try
+                    {
+                        msg = await mainProcessingChannel.Reader.ReadAsync(processingCts.Token).ConfigureAwait(false);
+                    }
+                    catch (System.Threading.Channels.ChannelClosedException) { break; }
+
+                    if (string.IsNullOrWhiteSpace(msg)) continue;
+
+                    using var stepCts = CancellationTokenSource.CreateLinkedTokenSource(processingCts.Token);
+                    using var aliveCts = CancellationTokenSource.CreateLinkedTokenSource(processingCts.Token);
+
+                    void OnCancelKeyPress(object? sender, ConsoleCancelEventArgs e)
+                    {
+                        e.Cancel = true;
+                        stepCts.Cancel();
+                    }
+                    Console.CancelKeyPress += OnCancelKeyPress;
+
+                    var aliveTask = RunAliveLoopAsync(aliveCts.Token);
+                    try
+                    {
+                        Diag.WriteLine("[DIAG-REPL] calling ProcessUserInputAsync");
+                        Interlocked.Exchange(ref isProcessing, 1);
+                        await session.ProcessUserInputAsync(msg, stepCts.Token);
+                        Interlocked.Exchange(ref isProcessing, 0);
+                        Diag.WriteLine("[DIAG-REPL] ProcessUserInputAsync returned");
+                    }
+                    catch (OperationCanceledException) when (stepCts.IsCancellationRequested && !processingCts.Token.IsCancellationRequested)
+                    {
+                        Cli.TerminalHelper.WriteLine();
+                        Cli.TerminalHelper.WriteLine("(已中断)");
+                        Diag.WriteLine("[DIAG-REPL] OperationCanceledException (Ctrl+C)");
+                    }
+                    catch (TimeoutException ex)
+                    {
+                        Diag.WriteLine($"[DIAG-REPL] TimeoutException: {ex.Message}");
+                        using var _ = Cli.TerminalHelper.SetColor(ConsoleColor.Yellow);
+                        Cli.TerminalHelper.WriteLine();
+                        Cli.TerminalHelper.WriteLine($"{ex.Message}。请检查：");
+                        Cli.TerminalHelper.WriteLine("  1. 是否已配置 API Key");
+                        Cli.TerminalHelper.WriteLine("  2. 网络连接是否正常");
+                        Cli.TerminalHelper.WriteLine("  3. API 服务是否可用");
+                    }
+                    catch (Exception ex)
+                    {
+                        WriteErrorLog(ex);
+                        Diag.WriteLine($"[DIAG-REPL] Exception: {ex.GetType().Name}: {ex.Message}");
+                        using var _ = Cli.TerminalHelper.SetColor(ConsoleColor.Red);
+                        Cli.TerminalHelper.WriteLine($"错误: {ex.Message}");
+                        if (ex is JoinCode.Abstractions.Exceptions.ApiException apiEx && apiEx.IsRetryable)
+                            Cli.TerminalHelper.WriteLine("  此错误通常可重试，请稍后再试。");
+                    }
+                    finally
+                    {
+                        Interlocked.Exchange(ref isProcessing, 0);
+                        Console.CancelKeyPress -= OnCancelKeyPress;
+                        aliveCts.Cancel();
+                        try { await aliveTask.ConfigureAwait(false); } catch (OperationCanceledException) { }
+                        await Console.Out.FlushAsync().ConfigureAwait(false);
+                        Cli.TerminalHelper.WriteLine();
+                        Diag.WriteLifecycle("[AI对话结束]");
+                        using (Cli.TerminalHelper.SetColor(ConsoleColor.DarkGray))
+                            Cli.TerminalHelper.WriteLine(new string('─', Cli.TerminalHelper.GetWidth()));
+                    }
+                }
+            }
+            catch (OperationCanceledException) { }
+        }, processingCts.Token);
+
         while (session.IsRunning && !ct.IsCancellationRequested)
         {
             using (Cli.TerminalHelper.SetColor(ConsoleColor.Green))
@@ -170,66 +249,18 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
             while (inputChannel.Reader.TryRead(out var more))
                 combined = string.Concat(combined, "\n", more);
 
-            using var stepCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            using var aliveCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-
-            void OnCancelKeyPress(object? sender, ConsoleCancelEventArgs e)
-            {
-                e.Cancel = true;
-                stepCts.Cancel();
-            }
-            Console.CancelKeyPress += OnCancelKeyPress;
-
-            var aliveTask = RunAliveLoopAsync(aliveCts.Token);
-            try
-            {
-                Diag.WriteLine("[DIAG-REPL] calling ProcessUserInputAsync");
-                Interlocked.Exchange(ref isProcessing, 1);
-                await session.ProcessUserInputAsync(combined, stepCts.Token);
-                Interlocked.Exchange(ref isProcessing, 0);
-                Diag.WriteLine("[DIAG-REPL] ProcessUserInputAsync returned");
-            }
-            catch (OperationCanceledException) when (stepCts.IsCancellationRequested && !ct.IsCancellationRequested)
-            {
-                Cli.TerminalHelper.WriteLine();
-                Cli.TerminalHelper.WriteLine("(已中断)");
-                    Diag.WriteLine("[DIAG-REPL] OperationCanceledException (Ctrl+C)");
-            }
-            catch (TimeoutException ex)
-            {
-                Diag.WriteLine($"[DIAG-REPL] TimeoutException: {ex.Message}");
-                using var _ = Cli.TerminalHelper.SetColor(ConsoleColor.Yellow);
-                Cli.TerminalHelper.WriteLine();
-                Cli.TerminalHelper.WriteLine($"{ex.Message}。请检查：");
-                Cli.TerminalHelper.WriteLine("  1. 是否已配置 API Key");
-                Cli.TerminalHelper.WriteLine("  2. 网络连接是否正常");
-                Cli.TerminalHelper.WriteLine("  3. API 服务是否可用");
-            }
-            catch (Exception ex)
-            {
-                WriteErrorLog(ex);
-                Diag.WriteLine($"[DIAG-REPL] Exception: {ex.GetType().Name}: {ex.Message}");
-                using var _ = Cli.TerminalHelper.SetColor(ConsoleColor.Red);
-                Cli.TerminalHelper.WriteLine($"错误: {ex.Message}");
-                if (ex is JoinCode.Abstractions.Exceptions.ApiException apiEx && apiEx.IsRetryable)
-                    Cli.TerminalHelper.WriteLine("  此错误通常可重试，请稍后再试。");
-            }
-            finally
-            {
-                Interlocked.Exchange(ref isProcessing, 0);
-                Console.CancelKeyPress -= OnCancelKeyPress;
-                aliveCts.Cancel();
-                try { await aliveTask.ConfigureAwait(false); } catch (OperationCanceledException) { }
-                await Console.Out.FlushAsync().ConfigureAwait(false);
-                Cli.TerminalHelper.WriteLine();
-                Diag.WriteLifecycle("[AI对话结束]");
-                using (Cli.TerminalHelper.SetColor(ConsoleColor.DarkGray))
-                    Cli.TerminalHelper.WriteLine(new string('─', Cli.TerminalHelper.GetWidth()));
-            }
+            Diag.WriteLine("[DIAG-REPL] dispatching to mainProcessingChannel");
+            if (!mainProcessingChannel.Writer.TryWrite(combined)) break;
         }
 
         inputChannel.Writer.TryComplete();
-        await Task.WhenAny(readTask, Task.Delay(TimeSpan.FromSeconds(2))).ConfigureAwait(false);
+        mainProcessingChannel.Writer.TryComplete();
+        processingCts.Cancel();
+        await Task.WhenAll(
+            Task.WhenAny(readTask, Task.Delay(TimeSpan.FromSeconds(2))),
+            Task.WhenAny(mainProcessingTask, Task.Delay(TimeSpan.FromSeconds(5)))
+        ).ConfigureAwait(false);
+        processingCts.Dispose();
 
         Diag.WriteLifecycle("[EXIT]");
         await next(context, ct);

@@ -48,6 +48,7 @@ public enum JccCliArg
     Await,
 
     [EnumValue("--debuglog")]
+    [EnumValue("-d")]
     DebugLog,
 
     [EnumValue("--continue")]

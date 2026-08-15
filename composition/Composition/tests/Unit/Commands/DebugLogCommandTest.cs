@@ -79,7 +79,7 @@ public sealed class DebugLogCommandTest
     [Fact]
     public async Task AllFlag_LongForm_EntersErrorBranch()
     {
-        var context = CreateContext("--all");
+        var context = CreateContext(DebugLogFlagConstants.All);
         var result = await _command.ExecuteAsync(context);
 
         result.ShouldContinue.Should().BeTrue();
@@ -106,7 +106,7 @@ public sealed class DebugLogCommandTest
     [Fact]
     public async Task ErrorFlag_LongForm_ShowsOnlyErrors()
     {
-        var context = CreateContext("--error");
+        var context = CreateContext(DebugLogFlagConstants.Error);
         var result = await _command.ExecuteAsync(context);
 
         result.ShouldContinue.Should().BeTrue();
@@ -131,7 +131,7 @@ public sealed class DebugLogCommandTest
     [Fact]
     public async Task WarnFlag_LongForm_ShowsWarningsAndErrors()
     {
-        var context = CreateContext("--warn");
+        var context = CreateContext(DebugLogFlagConstants.Warn);
         var result = await _command.ExecuteAsync(context);
 
         result.ShouldContinue.Should().BeTrue();
@@ -156,7 +156,7 @@ public sealed class DebugLogCommandTest
     [Fact]
     public async Task InitFlag_LongForm_ShowsInitInfo()
     {
-        var context = CreateContext("--init");
+        var context = CreateContext(DebugLogFlagConstants.Init);
         var result = await _command.ExecuteAsync(context);
 
         result.ShouldContinue.Should().BeTrue();
@@ -180,7 +180,7 @@ public sealed class DebugLogCommandTest
     [Fact]
     public async Task PromptFlag_LongForm_ShowsSystemPrompt()
     {
-        var context = CreateContext("--prompt");
+        var context = CreateContext(DebugLogFlagConstants.Prompt);
         var result = await _command.ExecuteAsync(context);
 
         result.ShouldContinue.Should().BeTrue();
@@ -204,7 +204,7 @@ public sealed class DebugLogCommandTest
     [Fact]
     public async Task LogFlag_LongForm_ShowsDiagnosticLogs()
     {
-        var context = CreateContext("--log");
+        var context = CreateContext(DebugLogFlagConstants.Log);
         var result = await _command.ExecuteAsync(context);
 
         result.ShouldContinue.Should().BeTrue();
@@ -228,7 +228,7 @@ public sealed class DebugLogCommandTest
     [Fact]
     public async Task ClearFlag_LongForm_ClearsBuffer()
     {
-        var context = CreateContext("--clear");
+        var context = CreateContext(DebugLogFlagConstants.Clear);
         var result = await _command.ExecuteAsync(context);
 
         result.ShouldContinue.Should().BeTrue();

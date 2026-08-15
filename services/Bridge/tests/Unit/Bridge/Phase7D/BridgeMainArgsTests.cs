@@ -29,42 +29,42 @@ public sealed class BridgeMainArgsTests
     [Fact]
     public void Parse_DebugLog_ShortFlag()
     {
-        var result = BridgeMainArgsParser.Parse(["-v"]);
+        var result = BridgeMainArgsParser.Parse([JccCliArgConstants.DebugLogAlias__d]);
         Assert.True(result.DebugLog);
     }
 
     [Fact]
     public void Parse_DebugLog_LongFlag()
     {
-        var result = BridgeMainArgsParser.Parse(["--debuglog"]);
+        var result = BridgeMainArgsParser.Parse([JccCliArgConstants.DebugLog]);
         Assert.True(result.DebugLog);
     }
 
     [Fact]
     public void Parse_Sandbox_Enabled()
     {
-        var result = BridgeMainArgsParser.Parse(["--sandbox"]);
+        var result = BridgeMainArgsParser.Parse([JccCliArgConstants.Sandbox]);
         Assert.True(result.Sandbox);
     }
 
     [Fact]
     public void Parse_Sandbox_Disabled()
     {
-        var result = BridgeMainArgsParser.Parse(["--no-sandbox"]);
+        var result = BridgeMainArgsParser.Parse([JccCliArgConstants.NoSandbox]);
         Assert.False(result.Sandbox);
     }
 
     [Fact]
     public void Parse_DebugFile()
     {
-        var result = BridgeMainArgsParser.Parse(["--debug-file", "/tmp/bridge.log"]);
+        var result = BridgeMainArgsParser.Parse([JccCliArgConstants.DebugFile, "/tmp/bridge.log"]);
         Assert.Equal("/tmp/bridge.log", result.DebugFile);
     }
 
     [Fact]
     public void Parse_DebugFile_MissingValue_ReturnsError()
     {
-        var result = BridgeMainArgsParser.Parse(["--debug-file"]);
+        var result = BridgeMainArgsParser.Parse([JccCliArgConstants.DebugFile]);
         Assert.True(result.HasError);
         Assert.Contains("debug-file", result.Error!);
     }
@@ -72,56 +72,56 @@ public sealed class BridgeMainArgsTests
     [Fact]
     public void Parse_SessionTimeout()
     {
-        var result = BridgeMainArgsParser.Parse(["--session-timeout", "3600"]);
+        var result = BridgeMainArgsParser.Parse([JccCliArgConstants.SessionTimeout, "3600"]);
         Assert.Equal(3600000, result.SessionTimeoutMs);
     }
 
     [Fact]
     public void Parse_SessionTimeout_InvalidValue_ReturnsError()
     {
-        var result = BridgeMainArgsParser.Parse(["--session-timeout", "abc"]);
+        var result = BridgeMainArgsParser.Parse([JccCliArgConstants.SessionTimeout, "abc"]);
         Assert.True(result.HasError);
     }
 
     [Fact]
     public void Parse_SessionTimeout_Zero_ReturnsError()
     {
-        var result = BridgeMainArgsParser.Parse(["--session-timeout", "0"]);
+        var result = BridgeMainArgsParser.Parse([JccCliArgConstants.SessionTimeout, "0"]);
         Assert.True(result.HasError);
     }
 
     [Fact]
     public void Parse_SessionTimeout_MissingValue_ReturnsError()
     {
-        var result = BridgeMainArgsParser.Parse(["--session-timeout"]);
+        var result = BridgeMainArgsParser.Parse([JccCliArgConstants.SessionTimeout]);
         Assert.True(result.HasError);
     }
 
     [Fact]
     public void Parse_PermissionMode()
     {
-        var result = BridgeMainArgsParser.Parse(["--permission-mode", "auto-accept"]);
+        var result = BridgeMainArgsParser.Parse([JccCliArgConstants.PermissionMode, "auto-accept"]);
         Assert.Equal("auto-accept", result.PermissionMode);
     }
 
     [Fact]
     public void Parse_PermissionMode_MissingValue_ReturnsError()
     {
-        var result = BridgeMainArgsParser.Parse(["--permission-mode"]);
+        var result = BridgeMainArgsParser.Parse([JccCliArgConstants.PermissionMode]);
         Assert.True(result.HasError);
     }
 
     [Fact]
     public void Parse_Name()
     {
-        var result = BridgeMainArgsParser.Parse(["--name", "my-bridge"]);
+        var result = BridgeMainArgsParser.Parse([JccCliArgConstants.Name, "my-bridge"]);
         Assert.Equal("my-bridge", result.Name);
     }
 
     [Fact]
     public void Parse_Name_MissingValue_ReturnsError()
     {
-        var result = BridgeMainArgsParser.Parse(["--name"]);
+        var result = BridgeMainArgsParser.Parse([JccCliArgConstants.Name]);
         Assert.True(result.HasError);
     }
 
@@ -132,28 +132,28 @@ public sealed class BridgeMainArgsTests
     [Fact]
     public void Parse_SpawnSession()
     {
-        var result = BridgeMainArgsParser.Parse(["--spawn", "session"]);
+        var result = BridgeMainArgsParser.Parse([JccCliArgConstants.Spawn, "session"]);
         Assert.Equal(BridgeSpawnMode.SingleSession, result.SpawnMode);
     }
 
     [Fact]
     public void Parse_SpawnSameDir()
     {
-        var result = BridgeMainArgsParser.Parse(["--spawn", "same-dir"]);
+        var result = BridgeMainArgsParser.Parse([JccCliArgConstants.Spawn, "same-dir"]);
         Assert.Equal(BridgeSpawnMode.SameDir, result.SpawnMode);
     }
 
     [Fact]
     public void Parse_SpawnWorktree()
     {
-        var result = BridgeMainArgsParser.Parse(["--spawn", "worktree"]);
+        var result = BridgeMainArgsParser.Parse([JccCliArgConstants.Spawn, "worktree"]);
         Assert.Equal(BridgeSpawnMode.Worktree, result.SpawnMode);
     }
 
     [Fact]
     public void Parse_SpawnInvalid_ReturnsError()
     {
-        var result = BridgeMainArgsParser.Parse(["--spawn", "invalid"]);
+        var result = BridgeMainArgsParser.Parse([JccCliArgConstants.Spawn, "invalid"]);
         Assert.True(result.HasError);
         Assert.Contains("spawn", result.Error!);
     }
@@ -161,7 +161,7 @@ public sealed class BridgeMainArgsTests
     [Fact]
     public void Parse_SpawnMissingValue_ReturnsError()
     {
-        var result = BridgeMainArgsParser.Parse(["--spawn"]);
+        var result = BridgeMainArgsParser.Parse([JccCliArgConstants.Spawn]);
         Assert.True(result.HasError);
     }
 
@@ -172,35 +172,35 @@ public sealed class BridgeMainArgsTests
     [Fact]
     public void Parse_Capacity()
     {
-        var result = BridgeMainArgsParser.Parse(["--capacity", "5"]);
+        var result = BridgeMainArgsParser.Parse([JccCliArgConstants.Capacity, "5"]);
         Assert.Equal(5, result.Capacity);
     }
 
     [Fact]
     public void Parse_Capacity_InvalidValue_ReturnsError()
     {
-        var result = BridgeMainArgsParser.Parse(["--capacity", "abc"]);
+        var result = BridgeMainArgsParser.Parse([JccCliArgConstants.Capacity, "abc"]);
         Assert.True(result.HasError);
     }
 
     [Fact]
     public void Parse_Capacity_Zero_ReturnsError()
     {
-        var result = BridgeMainArgsParser.Parse(["--capacity", "0"]);
+        var result = BridgeMainArgsParser.Parse([JccCliArgConstants.Capacity, "0"]);
         Assert.True(result.HasError);
     }
 
     [Fact]
     public void Parse_CreateSessionInDir()
     {
-        var result = BridgeMainArgsParser.Parse(["--create-session-in-dir"]);
+        var result = BridgeMainArgsParser.Parse([JccCliArgConstants.CreateSessionInDir]);
         Assert.True(result.CreateSessionInDir);
     }
 
     [Fact]
     public void Parse_NoCreateSessionInDir()
     {
-        var result = BridgeMainArgsParser.Parse(["--no-create-session-in-dir"]);
+        var result = BridgeMainArgsParser.Parse([JccCliArgConstants.NoCreateSessionInDir]);
         Assert.False(result.CreateSessionInDir);
     }
 
@@ -211,28 +211,28 @@ public sealed class BridgeMainArgsTests
     [Fact]
     public void Parse_SessionId()
     {
-        var result = BridgeMainArgsParser.Parse(["--session-id", "cse_123"]);
+        var result = BridgeMainArgsParser.Parse([JccCliArgConstants.SessionId, "cse_123"]);
         Assert.Equal("cse_123", result.SessionId);
     }
 
     [Fact]
     public void Parse_SessionId_MissingValue_ReturnsError()
     {
-        var result = BridgeMainArgsParser.Parse(["--session-id"]);
+        var result = BridgeMainArgsParser.Parse([JccCliArgConstants.SessionId]);
         Assert.True(result.HasError);
     }
 
     [Fact]
     public void Parse_Continue_ShortFlag()
     {
-        var result = BridgeMainArgsParser.Parse(["-c"]);
+        var result = BridgeMainArgsParser.Parse([JccCliArgConstants.ContinueAlias__c]);
         Assert.True(result.ContinueSession);
     }
 
     [Fact]
     public void Parse_Continue_LongFlag()
     {
-        var result = BridgeMainArgsParser.Parse(["--continue"]);
+        var result = BridgeMainArgsParser.Parse([JccCliArgConstants.Continue]);
         Assert.True(result.ContinueSession);
     }
 
@@ -243,14 +243,14 @@ public sealed class BridgeMainArgsTests
     [Fact]
     public void Parse_Help_ShortFlag()
     {
-        var result = BridgeMainArgsParser.Parse(["-h"]);
+        var result = BridgeMainArgsParser.Parse([JccCliArgConstants.HelpAlias__h]);
         Assert.True(result.Help);
     }
 
     [Fact]
     public void Parse_Help_LongFlag()
     {
-        var result = BridgeMainArgsParser.Parse(["--help"]);
+        var result = BridgeMainArgsParser.Parse([JccCliArgConstants.Help]);
         Assert.True(result.Help);
     }
 
@@ -261,7 +261,7 @@ public sealed class BridgeMainArgsTests
     [Fact]
     public void Parse_CapacityWithSpawnSession_ReturnsError()
     {
-        var result = BridgeMainArgsParser.Parse(["--capacity", "3", "--spawn", "session"]);
+        var result = BridgeMainArgsParser.Parse([JccCliArgConstants.Capacity, "3", JccCliArgConstants.Spawn, "session"]);
         Assert.True(result.HasError);
         Assert.Contains("capacity", result.Error!);
     }
@@ -269,7 +269,7 @@ public sealed class BridgeMainArgsTests
     [Fact]
     public void Parse_CapacityWithSpawnSameDir_Ok()
     {
-        var result = BridgeMainArgsParser.Parse(["--capacity", "3", "--spawn", "same-dir"]);
+        var result = BridgeMainArgsParser.Parse([JccCliArgConstants.Capacity, "3", JccCliArgConstants.Spawn, "same-dir"]);
         Assert.False(result.HasError);
         Assert.Equal(3, result.Capacity);
         Assert.Equal(BridgeSpawnMode.SameDir, result.SpawnMode);
@@ -278,7 +278,7 @@ public sealed class BridgeMainArgsTests
     [Fact]
     public void Parse_SessionIdWithSpawn_ReturnsError()
     {
-        var result = BridgeMainArgsParser.Parse(["--session-id", "cse_123", "--spawn", "same-dir"]);
+        var result = BridgeMainArgsParser.Parse([JccCliArgConstants.SessionId, "cse_123", JccCliArgConstants.Spawn, "same-dir"]);
         Assert.True(result.HasError);
         Assert.Contains("session-id", result.Error!);
     }
@@ -286,7 +286,7 @@ public sealed class BridgeMainArgsTests
     [Fact]
     public void Parse_ContinueWithCapacity_ReturnsError()
     {
-        var result = BridgeMainArgsParser.Parse(["--continue", "--capacity", "3"]);
+        var result = BridgeMainArgsParser.Parse([JccCliArgConstants.Continue, JccCliArgConstants.Capacity, "3"]);
         Assert.True(result.HasError);
         Assert.Contains("continue", result.Error!);
     }
@@ -294,7 +294,7 @@ public sealed class BridgeMainArgsTests
     [Fact]
     public void Parse_SessionIdWithContinue_ReturnsError()
     {
-        var result = BridgeMainArgsParser.Parse(["--session-id", "cse_123", "--continue"]);
+        var result = BridgeMainArgsParser.Parse([JccCliArgConstants.SessionId, "cse_123", JccCliArgConstants.Continue]);
         Assert.True(result.HasError);
         Assert.Contains("mutually exclusive", result.Error!);
     }
@@ -306,7 +306,7 @@ public sealed class BridgeMainArgsTests
     [Fact]
     public void Parse_MultipleFlags()
     {
-        var result = BridgeMainArgsParser.Parse(["-v", "--sandbox", "--name", "test", "--spawn", "worktree"]);
+        var result = BridgeMainArgsParser.Parse([JccCliArgConstants.DebugLogAlias__d, JccCliArgConstants.Sandbox, JccCliArgConstants.Name, "test", JccCliArgConstants.Spawn, "worktree"]);
         Assert.True(result.DebugLog);
         Assert.True(result.Sandbox);
         Assert.Equal("test", result.Name);

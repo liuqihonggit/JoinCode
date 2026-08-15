@@ -6,7 +6,7 @@ namespace Core.Bridge;
 /// </summary>
 public enum BridgeCliArg
 {
-    [CliOption(JccCliArgConstants.DebugLog, "-v", "调试日志")]
+    [CliOption(JccCliArgConstants.DebugLog, "-d", "调试日志")]
     DebugLog,
 
     [CliOption(JccCliArgConstants.Sandbox, "", "启用沙箱")]

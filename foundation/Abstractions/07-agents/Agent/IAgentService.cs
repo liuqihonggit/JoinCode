@@ -41,6 +41,12 @@ public interface IAgentService
     Task<bool> SendMessageToAgentAsync(string agentId, string message, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// 将用户输入转发给运行中的子代理 — 用户在子代理运行期间追加的输入
+    /// 与 SendMessageToAgentAsync 区别：消息入 IAgentInputForwardQueue，由子代理每轮 LLM 调用前主动消费
+    /// </summary>
+    Task<bool> ForwardUserInputToAgentAsync(string agentId, string userInput, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// 向运行中的代理发送结构化消息 — 对齐 TS SendMessageTool 结构化消息路由
     /// </summary>
     Task<bool> SendStructuredMessageAsync(string agentId, StructuredMessageData structuredData, string rawMessage, CancellationToken cancellationToken = default);

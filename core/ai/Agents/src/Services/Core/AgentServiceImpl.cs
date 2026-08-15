@@ -10,7 +10,8 @@ public sealed record AgentServiceDependencies(
     JoinCode.Abstractions.Interfaces.IAgentTranscriptService? TranscriptService = null,
     IAgentMessageBroker? MessageBroker = null,
     SwarmPermissionCallbackService? PermissionCallbackService = null,
-    JoinCode.Abstractions.Interfaces.IAgentMcpServerManager? McpServerManager = null);
+    JoinCode.Abstractions.Interfaces.IAgentMcpServerManager? McpServerManager = null,
+    JoinCode.Abstractions.Interfaces.IAgentInputForwardQueue? InputForwardQueue = null);
 
 [Register(typeof(JoinCode.Abstractions.Interfaces.IAgentService))]
 public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstractions.Interfaces.IAgentService, IDisposable
@@ -21,6 +22,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     private readonly JoinCode.Abstractions.Interfaces.IAgentRoleRegistry _roleRegistry;
     private readonly JoinCode.Abstractions.Interfaces.IAgentTranscriptService? _transcriptService;
     private readonly IAgentMessageBroker? _messageBroker;
+    private readonly JoinCode.Abstractions.Interfaces.IAgentInputForwardQueue? _inputForwardQueue;
     private readonly SwarmPermissionCallbackService? _permissionCallbackService;
     private readonly JoinCode.Abstractions.Interfaces.IAgentMcpServerManager? _mcpServerManager;
     private readonly JoinCode.Abstractions.Interfaces.IAgentNotificationQueue? _notificationQueue;
@@ -54,6 +56,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         _spawnPipeline = spawnPipeline ?? throw new ArgumentNullException(nameof(spawnPipeline));
         _transcriptService = deps?.TranscriptService;
         _messageBroker = deps?.MessageBroker;
+        _inputForwardQueue = deps?.InputForwardQueue;
         _permissionCallbackService = deps?.PermissionCallbackService;
         _mcpServerManager = deps?.McpServerManager;
         _notificationQueue = notificationQueue;
@@ -102,6 +105,11 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         var tcs = new TaskCompletionSource<JoinCode.Abstractions.Interfaces.AgentResult>();
         _completionSources[init.SubAgent.ObjectId.UniqueId] = tcs;
         _agentStartTimes[init.SubAgent.ObjectId.UniqueId] = _clock.GetUtcNow();
+        _inputForwardQueue?.Register(init.SubAgent.ObjectId.UniqueId);
+        if (_inputForwardQueue is not null && init.SubAgent is AgentBase baseAgent)
+        {
+            baseAgent.InputForwardQueue = _inputForwardQueue;
+        }
 
         var runInBackground = options.RunInBackground || (init.Definition?.IsBackground ?? false);
 
@@ -374,6 +382,29 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     }
 
     /// <summary>
+    /// 将用户输入转发给运行中的子代理 — 用户在子代理运行期间追加的输入
+    /// 消息入 IAgentInputForwardQueue，由子代理每轮 LLM 调用前主动 TryDrain 消费
+    /// </summary>
+    public async Task<bool> ForwardUserInputToAgentAsync(string agentId, string userInput, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(userInput);
+
+        if (_inputForwardQueue is null)
+        {
+            _logger?.LogWarning("[AgentServiceImpl] IAgentInputForwardQueue 未注册，无法转发用户输入");
+            return false;
+        }
+
+        await _inputForwardQueue.EnqueueAsync(agentId, userInput, cancellationToken).ConfigureAwait(false);
+
+        _logger?.LogInformation("[AgentServiceImpl] 用户输入已转发给子代理 {AgentId}", agentId);
+        await AppendTranscriptEntryAsync(agentId, "user", $"[USER_FORWARD] {userInput}", cancellationToken).ConfigureAwait(false);
+
+        return true;
+    }
+
+    /// <summary>
     /// 向运行中的代理发送结构化消息 — 对齐 TS SendMessageTool 结构化消息路由
     /// 将结构化消息数据包装为 AgentMessage，通过 AgentMessageBroker 路由
     /// </summary>
@@ -512,6 +543,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         try
         {
             var concreteAgent = (AgentBase)subAgent;
+            _inputForwardQueue?.Unregister(subAgent.ObjectId.UniqueId);
             var status = result.Success ? AgentStatus.Completed : AgentStatus.Failed;
 
             if (_progressTrackers.TryGetValue(subAgent.ObjectId.UniqueId, out var tracker))

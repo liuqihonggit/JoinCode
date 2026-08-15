@@ -65,6 +65,12 @@ public abstract class AgentBase : Entity, IAgent
     protected IChatContextManager? ContextManager;
 
     /// <summary>
+    /// 用户输入转发队列 — 子代理运行期间用户追加的输入，每轮 LLM 调用前主动 TryDrain 消费
+    /// null 表示不支持用户转发（默认）；由 ForkSpawnMiddleware 在创建子代理后注入
+    /// </summary>
+    public JoinCode.Abstractions.Interfaces.IAgentInputForwardQueue? InputForwardQueue { get; set; }
+
+    /// <summary>
     /// AgentBase 构造函数 — 子类通过 base(...) 委托
     /// </summary>
     protected AgentBase(
@@ -180,6 +186,8 @@ public abstract class AgentBase : Entity, IAgent
                     : string.Format(AgentCoordinatorConstants.SystemPrompts.SubAgentSystemMessage, Task);
                 chatHistory.AddSystemMessage(systemMessage);
             }
+
+            DrainPendingUserInputs(chatHistory);
 
             var responseBuilder = new StringBuilder();
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
@@ -320,6 +328,8 @@ public abstract class AgentBase : Entity, IAgent
             chatHistory.AddSystemMessage(systemMessage);
         }
 
+        DrainPendingUserInputs(chatHistory);
+
         var responseBuilder = new StringBuilder();
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
         var queryOptions = BuildChatOptions();
@@ -444,6 +454,22 @@ public abstract class AgentBase : Entity, IAgent
         StartedAt = null;
         CompletedAt = null;
         _logger?.LogInformation("[Agent {AgentId}] 状态已重置", UniqueId);
+    }
+
+    /// <summary>
+    /// 消费用户转发输入队列 — 每轮 LLM 调用前调用，将待处理用户输入追加到 ChatHistory
+    /// 用户在子代理运行期间发送的消息，由主代理转发到 IAgentInputForwardQueue，子代理主动消费
+    /// </summary>
+    protected void DrainPendingUserInputs(MessageList chatHistory)
+    {
+        if (InputForwardQueue is null) return;
+        var pendingInputs = InputForwardQueue.TryDrain(UniqueId);
+        if (pendingInputs.Count == 0) return;
+        foreach (var input in pendingInputs)
+        {
+            chatHistory.AddUserMessage($"[用户追加输入] {input}");
+        }
+        _logger?.LogInformation("[Agent {AgentId}] 消费 {Count} 条用户转发输入", UniqueId, pendingInputs.Count);
     }
 
     /// <summary>

@@ -97,4 +97,19 @@ public enum CliArg
 
     [CliOption("--quiet", "-q", "静默模式：只输出错误信息，抑制正常输出", Category = "输出")]
     Quiet,
+
+    [CliOption("--print", "", "非交互模式（从stdin读取，输出到stdout）", Category = "内部")]
+    Print,
+
+    [CliOption("--sdk-url", "", "SDK服务URL", AcceptsValue = true, Category = "内部")]
+    SdkUrl,
+
+    [CliOption("--input-format", "", "输入格式", AcceptsValue = true, Category = "内部")]
+    InputFormat,
+
+    [CliOption("--output-format", "", "输出格式", AcceptsValue = true, Category = "内部")]
+    OutputFormat,
+
+    [CliOption("--replay-user-messages", "", "重放用户消息", Category = "内部")]
+    ReplayUserMessages,
 }

@@ -765,12 +765,11 @@ public sealed class BridgeSubprocessSpawner
         }
 
         // --print 模式（非交互）
-        args.Add("--print");
+        args.Add(JccCliArgName.Print);
 
-        // --sdk-url
         if (options.SdkUrl is not null)
         {
-            args.Add("--sdk-url");
+            args.Add(JccCliArgName.SdkUrl);
             args.Add(options.SdkUrl);
         }
 
@@ -782,15 +781,13 @@ public sealed class BridgeSubprocessSpawner
         }
 
         // --input-format stream-json
-        args.Add("--input-format");
+        args.Add(JccCliArgName.InputFormat);
         args.Add("stream-json");
 
-        // --output-format stream-json
-        args.Add("--output-format");
+        args.Add(JccCliArgName.OutputFormat);
         args.Add("stream-json");
 
-        // --replay-user-messages — 对齐 TS 端
-        args.Add("--replay-user-messages");
+        args.Add(JccCliArgName.ReplayUserMessages);
 
         // --verbose
         if (options.DebugLog)
@@ -808,13 +805,6 @@ public sealed class BridgeSubprocessSpawner
         if (!string.IsNullOrEmpty(options.PermissionMode))
         {
             args.Add(BridgeCliArgConstants.PermissionModeLongName);
-            args.Add(options.PermissionMode);
-        }
-
-        // --permission-mode
-        if (!string.IsNullOrEmpty(options.PermissionMode))
-        {
-            args.Add("--permission-mode");
             args.Add(options.PermissionMode);
         }
 

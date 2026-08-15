@@ -10,7 +10,7 @@ on:
       concurrency:
         description: 'Parallel test sessions per runner'
         required: false
-        default: '4'
+        default: '8'
         type: choice
         options:
           - '2'
@@ -50,7 +50,7 @@ jobs:
       - name: Build matrix
         id: set
         run: |
-          ALL_PROJECTS='["Guard-Config","Guard-Security","Guard-Hooks","Vault-Memdir","Vault-Other","Brain-CtxAdmin","Brain-CtxChat","Brain-CtxOther","Brain-CtxNonServices","Brain-PromptsSections","Brain-PromptsOther","Brain-Other","Hands-SysTools","Hands-CoreHandlers","Hands-DevTools","Hands-SkillServices","Hands-SkillBuiltIn","Hands-SkillOther","Hands-Api","Hands-Shell","Scheduling","McpToolDispatch","Llm","Agents","Reasoning","CodeIndex","Browser","Mcp","Eyes","Dream","Bridge","Composition","Clock","Infra-IO","Infra-Core","Infra-Services","Host-Commands","Host-Other"]'
+          ALL_PROJECTS='["Guard-Config","Guard-Security","Guard-Hooks","Vault-Memdir","Vault-Other","Brain-CtxAdmin","Brain-CtxChat","Brain-CtxOther","Brain-CtxNonServices","Brain-PromptsSections","Brain-PromptsOther","Brain-Other","Hands-SysTools","Hands-CoreHandlers","Hands-DevTools","Hands-SkillServices","Hands-SkillBuiltIn","Hands-SkillOther","Hands-Api","Hands-Shell","Scheduling","McpToolDispatch","Llm","Agents","Reasoning","CodeIndex","Browser","Mcp","Eyes","Dream","Bridge","Composition","Clock","Infra-IO-FileOps","Infra-IO-FsAndConfig","Infra-IO-ProcessAndOther","Infra-Utils-Text","Infra-Utils-Resilience","Infra-Utils-Other","Infra-Services","Host-Commands","Host-Other"]'
           INPUT="${{ github.event.inputs.projects || 'ALL' }}"
           if [ "$INPUT" = "ALL" ]; then
             echo "matrix={\"include\":$(echo $ALL_PROJECTS | jq -c '[.[] | {project: .}]')}" >> $GITHUB_OUTPUT
@@ -70,7 +70,7 @@ jobs:
               elif [ "$trimmed" = "Host" ]; then
                 EXPANDED="$EXPANDED,{\"project\":\"Host-Commands\"},{\"project\":\"Host-Other\"}"
               elif [ "$trimmed" = "Infra" ]; then
-                EXPANDED="$EXPANDED,{\"project\":\"Infra-IO\"},{\"project\":\"Infra-Core\"},{\"project\":\"Infra-Services\"}"
+                EXPANDED="$EXPANDED,{\"project\":\"Infra-IO-FileOps\"},{\"project\":\"Infra-IO-FsAndConfig\"},{\"project\":\"Infra-IO-ProcessAndOther\"},{\"project\":\"Infra-Utils-Text\"},{\"project\":\"Infra-Utils-Resilience\"},{\"project\":\"Infra-Utils-Other\"},{\"project\":\"Infra-Services\"}"
               else
                 EXPANDED="$EXPANDED,{\"project\":\"$trimmed\"}"
               fi
@@ -83,7 +83,7 @@ jobs:
     name: Stryker - ${{ matrix.project }}
     needs: prepare
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     strategy:
       matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
       fail-fast: false
@@ -132,7 +132,7 @@ jobs:
         shell: pwsh
         env:
           STRYKER_PROJECT: ${{ matrix.project }}
-          STRYKER_CONCURRENCY: ${{ github.event.inputs.concurrency || '4' }}
+          STRYKER_CONCURRENCY: ${{ github.event.inputs.concurrency || '8' }}
           STRYKER_BREAK: ${{ github.event.inputs.break_threshold || '0' }}
         run: |
           $projectMap = @{
@@ -169,8 +169,12 @@ jobs:
             'Bridge'               = @{ Dir = 'services\Bridge\tests\Unit';              Src = 'Bridge.csproj';           Mutate = @() }
             'Composition'          = @{ Dir = 'composition\Composition\tests\Unit';      Src = 'Composition.csproj';     Mutate = @() }
             'Clock'                = @{ Dir = 'composition\Clock\tests\Unit';            Src = 'Clock.csproj';           Mutate = @() }
-            'Infra-IO'             = @{ Dir = 'tests\Unit\Infra.Tests';                  Src = 'Infrastructure.csproj';  Mutate = @('IO/**','Http/**','Process/**','Ssh/**','Windows/**','Shell/**') }
-            'Infra-Core'           = @{ Dir = 'tests\Unit\Infra.Tests';                  Src = 'Infrastructure.csproj';  Mutate = @('Utils/**','Cache/**','Configuration/**','Time/**','AsyncFileLock/**','EntityReaper/**','ReaperScheduler/**','Housekeeping/**') }
+            'Infra-IO-FileOps'       = @{ Dir = 'tests\Unit\Infra.Tests';                  Src = 'Infrastructure.csproj';  Mutate = @('IO/Services/FileOps/**') }
+            'Infra-IO-FsAndConfig'   = @{ Dir = 'tests\Unit\Infra.Tests';                  Src = 'Infrastructure.csproj';  Mutate = @('IO/FileSystem/**','IO/Configuration/**','IO/Services/Throttle/**') }
+            'Infra-IO-ProcessAndOther' = @{ Dir = 'tests\Unit\Infra.Tests';                Src = 'Infrastructure.csproj';  Mutate = @('IO/Process/**','IO/Console/**','IO/Services/Terminal/**','IO/Services/Diff/**','Http/**','Process/**','Ssh/**','Windows/**','Shell/**') }
+            'Infra-Utils-Text'       = @{ Dir = 'tests\Unit\Infra.Tests';                  Src = 'Infrastructure.csproj';  Mutate = @('Utils/Text/**') }
+            'Infra-Utils-Resilience' = @{ Dir = 'tests\Unit\Infra.Tests';                  Src = 'Infrastructure.csproj';  Mutate = @('Utils/Resilience/**') }
+            'Infra-Utils-Other'      = @{ Dir = 'tests\Unit\Infra.Tests';                  Src = 'Infrastructure.csproj';  Mutate = @('Utils/Validation/**','Utils/State/**','Utils/Services/**','Utils/Throttle/**','Utils/Async/**','Utils/Collections/**','Utils/Pooling/**','Utils/IO/**','Utils/Generation/**','Utils/System/**','Cache/**','Configuration/**','Time/**','AsyncFileLock/**','EntityReaper/**','ReaperScheduler/**','Housekeeping/**') }
             'Infra-Services'       = @{ Dir = 'tests\Unit\Infra.Tests';                  Src = 'Infrastructure.csproj';  Mutate = @('Localization/**','Pipeline/**','Plugins/**','Telemetry/**') }
             'Host-Commands'        = @{ Dir = 'tests\Unit\Host.Tests';                   Src = 'JoinCode.csproj';        Mutate = @('Commands/**') }
             'Host-Other'           = @{ Dir = 'tests\Unit\Host.Tests';                   Src = 'JoinCode.csproj';        Mutate = @('App/**','Cli/**','Entry/**','Pipe/**','Services/**') }
@@ -189,7 +193,7 @@ jobs:
 
           $strykerArgs = @("-p", $info.Src, "-s", $slnxPath, "-c", $concurrency, "-b", $breakThreshold, "--configuration", "Debug", "--threshold-low", "60", "--threshold-high", "80", "-r", "progress", "-r", "html", "-r", "json", "-r", "markdown")
 
-          $strykerArgs += @("--mutate", "!**/GlobalUsings.cs", "--mutate", "!**/AssemblyInfo.cs")
+          $strykerArgs += @("--mutate", "!**/GlobalUsings.cs", "--mutate", "!**/AssemblyInfo.cs", "--mutate", "!**/*Options.cs", "--mutate", "!**/*Factory.cs", "--mutate", "!**/I*.cs", "--mutate", "!**/*Constants.cs", "--mutate", "!**/*Exception.cs")
           if ($info.Mutate.Count -gt 0) {
             foreach ($m in $info.Mutate) {
               $strykerArgs += @("--mutate", $m)

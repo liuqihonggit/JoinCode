@@ -62,7 +62,7 @@ internal sealed partial class DebugDumpPromptStep : ServiceEntity, IMiddleware<S
     /// 解析用户输入为 DebugDumpSection 位标志
     /// 支持格式: 数字(17)、字母组合(ip)、单词(init prompt)、分隔符(i,p / i+p / i p)
     /// </summary>
-    private static DebugDumpSection ParseDebugDumpInput(string? input)
+    internal static DebugDumpSection ParseDebugDumpInput(string? input)
     {
         if (string.IsNullOrWhiteSpace(input))
             return DebugDumpSection.None;
@@ -72,14 +72,14 @@ internal sealed partial class DebugDumpPromptStep : ServiceEntity, IMiddleware<S
         // 数字 → 直接转换为枚举值
         if (int.TryParse(input, out var num))
         {
-            var result = (DebugDumpSection)num;
-            // 只保留有效位，避免非法数字
-            return result & DebugDumpSection.All;
+            if (num < 0 || num > (int)DebugDumpSection.All)
+                return DebugDumpSection.None;
+            return (DebugDumpSection)num;
         }
 
-        // 单词/字母 → 用 FromValue 匹配
+        // 单词/字母 → 用 FromValue 匹配（匹配到任何值包括 None 都直接返回，避免 "none" 被逐字符误匹配）
         var single = DebugDumpSectionExtensions.FromValue(input);
-        if (single is { } section && section != DebugDumpSection.None)
+        if (single is { } section)
             return section;
 
         // 分隔符拆分 → 逐个 FromValue，位或组合

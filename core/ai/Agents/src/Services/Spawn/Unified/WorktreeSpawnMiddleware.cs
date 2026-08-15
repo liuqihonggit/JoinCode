@@ -1,4 +1,4 @@
-namespace Core.Agents.Unified;
+namespace Core.Agents;
 
 /// <summary>
 /// Worktree 创建中间件 — 合并路径 A 的 AgentWorktreeSpawn + 路径 B 的 SpawnCoordWorktree

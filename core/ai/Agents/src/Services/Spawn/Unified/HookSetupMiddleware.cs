@@ -1,4 +1,4 @@
-namespace Core.Agents.Unified;
+namespace Core.Agents;
 
 /// <summary>
 /// Hook 注册中间件 — 注册 Agent 定义中的 Hooks

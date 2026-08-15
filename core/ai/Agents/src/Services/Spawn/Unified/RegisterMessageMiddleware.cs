@@ -1,4 +1,4 @@
-namespace Core.Agents.Unified;
+namespace Core.Agents;
 
 /// <summary>
 /// 注册消息通道中间件 — 注册 Agent 消息通道 + 初始化 Teammate 钩子

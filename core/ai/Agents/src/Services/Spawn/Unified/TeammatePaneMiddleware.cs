@@ -1,4 +1,4 @@
-namespace Core.Agents.Unified;
+namespace Core.Agents;
 
 /// <summary>
 /// Teammate Pane 创建中间件 — 创建 Teammate UI Pane

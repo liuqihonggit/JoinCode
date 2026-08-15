@@ -1,4 +1,4 @@
-namespace Core.Agents.Unified;
+namespace Core.Agents;
 
 /// <summary>
 /// 转录记录中间件 — 记录系统提示词和用户输入到 Transcript

@@ -1,4 +1,4 @@
-namespace Core.Agents.Unified;
+namespace Core.Agents;
 
 /// <summary>
 /// 上下文构建中间件 — 构建 SubAgentOptions（不含 Spawn 调用，Spawn 移到 LifecycleSpawnMiddleware）

@@ -1,4 +1,4 @@
-namespace Core.Agents.Unified;
+namespace Core.Agents;
 
 /// <summary>
 /// 定义解析中间件 — 从 IAgentRoleRegistry 获取角色档案，回退到 IAgentDefinitionProvider

@@ -1,4 +1,4 @@
-namespace Core.Agents.Unified;
+namespace Core.Agents;
 
 /// <summary>
 /// 生命周期 Spawn 中间件 — 合并路径 A 的 ContextSetup Spawn 调用 + 路径 B 的 SpawnCoordLifecycle

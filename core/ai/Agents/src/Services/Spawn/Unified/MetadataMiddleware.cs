@@ -1,4 +1,4 @@
-namespace Core.Agents.Unified;
+namespace Core.Agents;
 
 /// <summary>
 /// 元数据保存中间件 — 保存 Agent 元数据到 Transcript

@@ -1,4 +1,4 @@
-namespace Core.Agents.Unified;
+namespace Core.Agents;
 
 /// <summary>
 /// 权限路由中间件 — 启动 Leader 权限路由 + Plan 审批路由

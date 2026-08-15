@@ -1,4 +1,4 @@
-namespace Core.Agents.Unified;
+namespace Core.Agents;
 
 /// <summary>
 /// MCP 服务器初始化中间件 — 初始化 Agent 定义中的 MCP 服务器

@@ -1,4 +1,4 @@
-namespace Core.Agents.Unified;
+namespace Core.Agents;
 
 /// <summary>
 /// 记录上下文中间件 — 记录 SpawnedAt 时间戳 + 创建 AgentExecutionContext

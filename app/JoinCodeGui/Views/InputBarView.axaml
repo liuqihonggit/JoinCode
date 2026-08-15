@@ -29,35 +29,36 @@
       </Grid>
 
       <Popup x:Name="SlashPopup"
-             PlacementTarget="{Binding ElementName=InputTextBox}"
-             Placement="Top" IsOpen="{Binding IsSlashPopupOpen}"
-             VerticalOffset="0" IsLightDismissEnabled="True">
-        <Border x:Name="SlashPopupBorder" MinWidth="300" MaxHeight="340" CornerRadius="6" Padding="2"
+              PlacementTarget="{Binding ElementName=InputTextBox}"
+              Placement="Top" IsOpen="{Binding IsSlashPopupOpen}"
+              VerticalOffset="0" IsLightDismissEnabled="True">
+        <Border x:Name="SlashPopupBorder" MinWidth="300" MaxHeight="340" CornerRadius="6" Padding="4,2"
                 Background="{DynamicResource GuiWindowBackground}"
+                BorderBrush="{DynamicResource GuiDivider}" BorderThickness="1"
                 BoxShadow="{DynamicResource GuiPopupShadow}" ClipToBounds="True">
           <ListBox x:Name="SlashListBox"
                    ItemsSource="{Binding SlashSuggestions}"
                    SelectedIndex="{Binding SlashSelectedIndex}"
-                   Background="Transparent" Padding="1"
+                   Background="Transparent" Padding="2"
                    ScrollViewer.VerticalScrollBarVisibility="Disabled"
                    ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                    Grid.IsSharedSizeScope="True">
             <ListBox.ItemTemplate>
               <DataTemplate x:DataType="vm:SlashCommandItem">
-                <Grid Margin="8,1">
+                <Grid Margin="6,3">
                   <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" SharedSizeGroup="CmdNameCol" />
                     <ColumnDefinition Width="*" />
                   </Grid.ColumnDefinitions>
                   <StackPanel Orientation="Horizontal" Spacing="0" Grid.Column="0">
-                    <TextBlock Text="{Binding MatchedPart}" FontFamily="{DynamicResource GuiMonoFont}" FontSize="13" FontWeight="Bold"
+                    <TextBlock Text="{Binding MatchedPart}" FontSize="13" FontWeight="SemiBold"
                                Foreground="{DynamicResource GuiSlashMatched}" />
-                    <TextBlock Text="{Binding RemainingPart}" FontFamily="{DynamicResource GuiMonoFont}" FontSize="13"
+                    <TextBlock Text="{Binding RemainingPart}" FontSize="13"
                                Foreground="{DynamicResource GuiSecondaryText}" />
                   </StackPanel>
-                  <TextBlock Grid.Column="1" Text="{Binding Description}" FontSize="11"
+                  <TextBlock Grid.Column="1" Text="{Binding Description}" FontSize="12"
                              Foreground="{DynamicResource GuiMutedText}"
-                             TextTrimming="CharacterEllipsis" Margin="12,0,0,0"
+                             TextTrimming="CharacterEllipsis" Margin="10,0,0,0"
                              ToolTip.Tip="{Binding Usage}" />
                 </Grid>
               </DataTemplate>

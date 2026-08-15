@@ -71,6 +71,13 @@ public abstract class AgentBase : Entity, IAgent
     public JoinCode.Abstractions.Interfaces.IAgentInputForwardQueue? InputForwardQueue { get; set; }
 
     /// <summary>
+    /// 输出 channel 管理器 — AgentBase.ExecuteStreamAsync 中统一写入，前台拉取显示
+    /// null 表示不支持输出 channel（默认）；由 AgentServiceImpl 在创建子代理后注入
+    /// 主代理和子代理都通过此属性统一输出，在父类 AgentBase 上一处实现
+    /// </summary>
+    public JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager? OutputChannelManager { get; set; }
+
+    /// <summary>
     /// AgentBase 构造函数 — 子类通过 base(...) 委托
     /// </summary>
     protected AgentBase(
@@ -372,6 +379,11 @@ public abstract class AgentBase : Entity, IAgent
             {
                 succeeded = false;
                 errorMessage = chunk.Content;
+            }
+
+            if (OutputChannelManager is not null && chunk.Type == AgentStreamChunkType.Content && !string.IsNullOrEmpty(chunk.Content))
+            {
+                OutputChannelManager.Write(UniqueId, Options.DisplayName ?? Name, chunk.Content, JoinCode.Abstractions.Interfaces.AgentOutputChunkType.Text);
             }
 
             yield return new AgentStreamChunk

@@ -110,9 +110,12 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         _completionSources[init.SubAgent.ObjectId.UniqueId] = tcs;
         _agentStartTimes[init.SubAgent.ObjectId.UniqueId] = _clock.GetUtcNow();
         _inputForwardQueue?.Register(init.SubAgent.ObjectId.UniqueId);
-        if (_inputForwardQueue is not null && init.SubAgent is AgentBase baseAgent)
+        if (init.SubAgent is AgentBase baseAgent)
         {
-            baseAgent.InputForwardQueue = _inputForwardQueue;
+            if (_inputForwardQueue is not null)
+                baseAgent.InputForwardQueue = _inputForwardQueue;
+            if (_outputChannelManager is not null)
+                baseAgent.OutputChannelManager = _outputChannelManager;
         }
         RegisterAgentNameIndex(init.SubAgent);
 
@@ -149,9 +152,12 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
 
         _agentStartTimes[init.SubAgent.ObjectId.UniqueId] = _clock.GetUtcNow();
         _inputForwardQueue?.Register(init.SubAgent.ObjectId.UniqueId);
-        if (_inputForwardQueue is not null && init.SubAgent is AgentBase streamBaseAgent)
+        if (init.SubAgent is AgentBase streamBaseAgent)
         {
-            streamBaseAgent.InputForwardQueue = _inputForwardQueue;
+            if (_inputForwardQueue is not null)
+                streamBaseAgent.InputForwardQueue = _inputForwardQueue;
+            if (_outputChannelManager is not null)
+                streamBaseAgent.OutputChannelManager = _outputChannelManager;
         }
         RegisterAgentNameIndex(init.SubAgent);
 

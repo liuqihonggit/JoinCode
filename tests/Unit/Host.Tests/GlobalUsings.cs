@@ -6,6 +6,7 @@ global using System.Text;
 global using System.Text.RegularExpressions;
 
 global using JoinCode.Abstractions.Interfaces;
+global using JoinCode.Abstractions.Models.Agent;
 global using JoinCode.Abstractions.Models.Diff;
 global using JoinCode.Abstractions.Security;
 global using JoinCode.Abstractions.Security.Shell;

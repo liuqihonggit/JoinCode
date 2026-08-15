@@ -2,12 +2,12 @@ namespace JoinCode.Abstractions.Utils.Diagnostics;
 
 /// <summary>
 /// 诊断日志统一入口 — 控制启动/运行时诊断输出（[WIRE] [STEP] [MAIN] [BRIDGE-CTOR] [SKILL-CTOR] [DI] [READY] [CliSession] [TokenBudget] [RUN] 等）
-/// 默认隐藏，JCC_VERBOSE=1/true/yes 或 --verbose CLI 参数时显示
-/// 对齐 TS 版 verbose 模式，避免污染用户控制台
+/// 默认隐藏，JCC_DEBUGLOG=1/true/yes 或 --debuglog CLI 参数时显示
+/// 对齐 TS 版 debuglog 模式，避免污染用户控制台
 /// </summary>
 public static class Diag
 {
-    private static readonly bool _envEnabled = IsTruthy(Environment.GetEnvironmentVariable(JccEnvVar.Verbose.ToValue()));
+    private static readonly bool _envEnabled = IsTruthy(Environment.GetEnvironmentVariable(JccEnvVar.DebugLog.ToValue()));
 
     private static readonly bool _diTraceEnabled = Environment.GetEnvironmentVariable(JccEnvVar.DiTrace.ToValue()) == "1";
 
@@ -26,9 +26,9 @@ public static class Diag
     /// </summary>
     public static event EventHandler<string>? DiagnosticLineWritten;
 
-    public static bool IsVerbose => _envEnabled || _runtimeEnabled;
+    public static bool IsDebugLog => _envEnabled || _runtimeEnabled;
 
-    public static void EnableVerbose() => _runtimeEnabled = true;
+    public static void EnableDebugLog() => _runtimeEnabled = true;
 
     public static void WriteLifecycle(string message)
     {
@@ -38,21 +38,22 @@ public static class Diag
 
     public static void WriteLine(string? message = null)
     {
-        if (!IsVerbose) return;
         if (message is null)
-            WriteToTargets(string.Empty);
+        {
+            if (IsDebugLog) WriteToTargets(string.Empty);
+            DiagnosticLineWritten?.Invoke(null, string.Empty);
+        }
         else
         {
-            WriteToTargets(message);
+            if (IsDebugLog) WriteToTargets(message);
             DiagnosticLineWritten?.Invoke(null, message);
         }
     }
 
     public static void WriteLine(FormattableString message)
     {
-        if (!IsVerbose) return;
         var formatted = message.ToString();
-        WriteToTargets(formatted);
+        if (IsDebugLog) WriteToTargets(formatted);
         DiagnosticLineWritten?.Invoke(null, formatted);
     }
 
@@ -65,7 +66,7 @@ public static class Diag
     /// <summary>
     /// 错误诊断日志 — 无条件输出到 stderr，确保 E2E 测试和 CI 能捕获完整错误信息
     /// 用于关键错误处理点（ChatErrorHandlingMiddleware、PermissionAwareToolExecutor 等）
-    /// 不受 JCC_VERBOSE 控制，因为错误必须始终可见
+    /// 不受 JCC_DEBUGLOG 控制，因为错误必须始终可见
     /// </summary>
     /// <param name="context">错误上下文描述（如 "[ChatErrorHandling] Turn=1"）</param>
     /// <param name="exception">异常对象（null 时只输出 context）</param>

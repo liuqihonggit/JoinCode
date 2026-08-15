@@ -295,7 +295,7 @@ public sealed class BridgeMainCommandGuardIntegrationTests
             var configMock = new Mock<IConfigurationService>();
             var command = CreateCommand(configService: configMock.Object);
 
-            var deps = await command.BuildDepsForTestAsync(new BridgeMainArgs { Verbose = false });
+            var deps = await command.BuildDepsForTestAsync(new BridgeMainArgs { DebugLog = false });
 
             deps.Should().NotBeNull();
             deps!.MarkRemoteDialogSeen.Should().NotBeNull();

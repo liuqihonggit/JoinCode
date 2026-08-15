@@ -21,7 +21,7 @@ public sealed class CommandLineOptionsTests
         options.Brief.Should().BeFalse();
         options.ForceInteractive.Should().BeFalse();
         options.AwaitTimeoutSeconds.Should().BeNull();
-        options.Verbose.Should().BeFalse();
+        options.DebugLog.Should().BeFalse();
     }
 
     [Fact]
@@ -163,11 +163,11 @@ public sealed class CommandLineOptionsTests
     }
 
     [Fact]
-    public void CliArgParser_ParseVerbose_ShouldSetVerbose()
+    public void CliArgParser_ParseDebugLog_ShouldSetDebugLog()
     {
-        var result = CliArgParser.Parse(new[] { "--verbose" });
+        var result = CliArgParser.Parse(new[] { "--debuglog" });
 
-        result.Verbose.Should().BeTrue();
+        result.DebugLog.Should().BeTrue();
         result.HasError.Should().BeFalse();
     }
 

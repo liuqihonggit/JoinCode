@@ -74,10 +74,10 @@ public class CommandLineOptions {
     public int? AwaitTimeoutSeconds { get; set; }
 
     /// <summary>
-    /// 启用诊断输出（--verbose 参数）— 等效于 JCC_VERBOSE=1 环境变量
+    /// 启用调试日志输出（--debuglog 参数）— 等效于 JCC_DEBUGLOG=1 环境变量
     /// 激活 [WIRE] [STEP] [READY] [MAIN] 等诊断日志输出到 stderr
     /// </summary>
-    public bool Verbose { get; set; }
+    public bool DebugLog { get; set; }
 
     /// <summary>
     /// 继续最近的会话（--continue / -c 参数）— 自动选择最近一次会话恢复

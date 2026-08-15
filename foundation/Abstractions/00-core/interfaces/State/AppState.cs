@@ -353,9 +353,9 @@ public static class TaskExecutionStatusHelper
 public sealed record ConfigState
 {
     /// <summary>
-    /// 是否启用详细日志
+    /// 是否启用调试日志
     /// </summary>
-    public bool Verbose { get; init; }
+    public bool DebugLog { get; init; }
 
     /// <summary>
     /// 是否启用扩展思考

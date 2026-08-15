@@ -533,8 +533,8 @@ public sealed class BridgeSubprocessSpawner
     /// <summary>额外环境变量</summary>
     public Dictionary<string, string>? ExtraEnv { get; init; }
 
-    /// <summary>是否详细日志</summary>
-    public bool Verbose { get; init; }
+    /// <summary>是否调试日志</summary>
+    public bool DebugLog { get; init; }
 
     /// <summary>关闭等待超时（毫秒）</summary>
     public int ShutdownGraceMs { get; init; } = 30000;
@@ -580,7 +580,7 @@ public sealed class BridgeSubprocessSpawner
                 ? $"bridge-transcript-{safeId}.jsonl"
                 : Path.Combine(debugDir, $"bridge-transcript-{safeId}.jsonl");
         }
-        else if (options.Verbose || IsAntBuild())
+        else if (options.DebugLog || IsAntBuild())
         {
             var tempDir = Path.GetTempPath();
             debugFile = Path.Combine(tempDir, AppDataConstants.AppDataFolder, $"bridge-session-{safeId}.log");
@@ -597,7 +597,7 @@ public sealed class BridgeSubprocessSpawner
             WorkerEpoch = options.WorkerEpoch,
             PermissionMode = options.PermissionMode,
             DebugFile = debugFile,
-            Verbose = options.Verbose,
+            DebugLog = options.DebugLog,
             Sandbox = options.Sandbox,
             ScriptArgs = options.ScriptArgs,
         });
@@ -628,7 +628,7 @@ public sealed class BridgeSubprocessSpawner
             WorkerEpoch = options.WorkerEpoch,
             PermissionMode = options.PermissionMode,
             DebugFile = debugFile,
-            Verbose = options.Verbose,
+            DebugLog = options.DebugLog,
             Sandbox = options.Sandbox,
             ScriptArgs = options.ScriptArgs,
             OnFirstUserMessage = options.OnFirstUserMessage,
@@ -793,7 +793,7 @@ public sealed class BridgeSubprocessSpawner
         args.Add("--replay-user-messages");
 
         // --verbose
-        if (options.Verbose)
+        if (options.DebugLog)
         {
             args.Add("--verbose");
         }
@@ -895,8 +895,8 @@ public sealed class BridgeSubprocessOptions
     /// <summary>调试文件路径 — 用于生成 transcript 日志</summary>
     public string? DebugFile { get; init; }
 
-    /// <summary>是否详细日志</summary>
-    public bool Verbose { get; init; }
+    /// <summary>是否调试日志</summary>
+    public bool DebugLog { get; init; }
 
     /// <summary>沙箱模式</summary>
     public bool Sandbox { get; init; }

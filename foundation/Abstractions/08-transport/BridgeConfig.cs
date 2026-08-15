@@ -99,8 +99,8 @@ public class BridgeConfig
     /// <summary>SpawnMode 来源追踪 — 对齐 TS 端 spawnModeSource</summary>
     public BridgeSpawnModeSource SpawnModeSource { get; set; } = BridgeSpawnModeSource.GateDefault;
 
-    /// <summary>详细日志 — 对齐 TS 端 verbose</summary>
-    public bool Verbose { get; set; }
+    /// <summary>调试日志 — 对齐 TS 端 debuglog</summary>
+    public bool DebugLog { get; set; }
 
     /// <summary>沙箱模式 — 对齐 TS 端 sandbox</summary>
     public bool Sandbox { get; set; }

@@ -7,8 +7,8 @@ namespace Core.Bridge;
 /// </summary>
 public sealed class BridgeMainArgs
 {
-    /// <summary>详细日志 — -v/--verbose</summary>
-    public bool Verbose { get; init; }
+    /// <summary>调试日志 — --debuglog</summary>
+    public bool DebugLog { get; init; }
 
     /// <summary>沙箱模式 — --sandbox/--no-sandbox</summary>
     public bool Sandbox { get; init; }
@@ -111,7 +111,7 @@ public static class BridgeMainArgsParser
 
         return new BridgeMainArgs
         {
-            Verbose = result.Verbose,
+            DebugLog = result.DebugLog,
             Sandbox = result.Sandbox ?? false,
             DebugFile = result.DebugFile,
             SessionTimeoutMs = sessionTimeoutMs,

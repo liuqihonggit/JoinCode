@@ -16,8 +16,8 @@ public enum ConfigKey
     /// <summary>按键绑定模式 (vim/emacs/default)</summary>
     [EnumValue("editorMode")] EditorMode,
 
-    /// <summary>详细调试输出 (true/false)</summary>
-    [EnumValue("verbose")] Verbose,
+    /// <summary>调试日志输出 (true/false)</summary>
+    [EnumValue("debuglog")] DebugLog,
 
     /// <summary>自动压缩上下文 (true/false)</summary>
     [EnumValue("autoCompactEnabled")] AutoCompactEnabled,

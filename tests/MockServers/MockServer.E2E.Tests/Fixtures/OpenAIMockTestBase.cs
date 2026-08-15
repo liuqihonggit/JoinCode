@@ -285,7 +285,7 @@ public abstract class OpenAIMockTestBase : IAsyncLifetime
             [nameof(pipeName).ToUpperInvariant()] = pipeName,
             [ProviderEnvVarConstants.OpenAiApiKey] = apiKey,
             ["OPENAI_BASE_URL"] = "http://localhost:8080/v1",
-            ["JCC_VERBOSE"] = "1"
+            ["JCC_DEBUGLOG"] = "1"
         };
     }
 }

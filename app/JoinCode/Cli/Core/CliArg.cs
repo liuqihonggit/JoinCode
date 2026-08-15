@@ -41,8 +41,8 @@ public enum CliArg
     [CliOption("--await", "", "超时自动关闭秒数（超时返回 AwaitTimeout=1234，用于测试诊断卡死）", AcceptsValue = true, Category = "诊断", Example = "jcc --await 20 -p \"hello\"")]
     Await,
 
-    [CliOption("--verbose", "", "启用诊断输出（[WIRE] [STEP] [READY] 等，等效于 JCC_VERBOSE=1）", Category = "诊断")]
-    Verbose,
+    [CliOption("--debuglog", "", "启用调试日志输出（[WIRE] [STEP] [READY] 等，等效于 JCC_DEBUGLOG=1）", Category = "诊断")]
+    DebugLog,
 
     [CliOption("--continue", "-c", "继续最近的会话（自动选择上次会话）", Category = "会话", Example = "jcc -c")]
     Continue,

@@ -1,18 +1,18 @@
 namespace JoinCode.Pipelines.Middlewares;
 
 /// <summary>
-/// 聊天计时中间件 — 管道完成后输出计时摘要，JCC_VERBOSE 环境变量控制输出
+/// 聊天计时中间件 — 管道完成后输出计时摘要，JCC_DEBUGLOG 环境变量控制输出
 /// Order=10 确保包裹全部业务中间件
 /// 注意：StartTotal/StopTotal 由 PreChatMiddleware(100) 和 SaveContextMiddleware(330) 负责，
 /// 本中间件仅负责在管道最外层输出 TimingSummary 事件
 /// </summary>
 internal sealed partial class ChatTimingMiddleware : ServiceEntity, Core.Context.IChatMiddleware
 {
-    private readonly bool _verbose;
+    private readonly bool _debugLog;
 
     public ChatTimingMiddleware()
     {
-        _verbose = Diag.IsVerbose;
+        _debugLog = Diag.IsDebugLog;
     }
 
     public async IAsyncEnumerable<JoinCode.Abstractions.LLM.Chat.ChatStreamEvent> InvokeAsync(
@@ -25,7 +25,7 @@ internal sealed partial class ChatTimingMiddleware : ServiceEntity, Core.Context
             yield return evt;
         }
 
-        if (_verbose)
+        if (_debugLog)
         {
             yield return JoinCode.Abstractions.LLM.Chat.ChatStreamEvent.TimingSummary(context.Timing.FormatSummary(context.FinalUsage));
         }

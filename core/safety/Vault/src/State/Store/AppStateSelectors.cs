@@ -167,12 +167,12 @@ public sealed partial class AppStateSelectors : ServiceEntity
     #region Config Selectors
 
     /// <summary>
-    /// 选择详细日志模式
+    /// 选择调试日志模式
     /// </summary>
-    public IStoreSelector<AppState, bool> SelectVerboseMode()
+    public IStoreSelector<AppState, bool> SelectDebugLogMode()
     {
-        RecordSelectorMetrics("config", "verboseMode");
-        return _store.Select(state => state.Config.Verbose);
+        RecordSelectorMetrics("config", "debugLogMode");
+        return _store.Select(state => state.Config.DebugLog);
     }
 
     /// <summary>

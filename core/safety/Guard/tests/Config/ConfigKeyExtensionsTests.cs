@@ -2,7 +2,7 @@
 
 /// <summary>
 /// ConfigKey 枚举扩展方法测试
-/// 15 个枚举值 (Profile/Theme/EditorMode/Verbose/AutoCompactEnabled/AutoMemoryEnabled/FileCheckpointingEnabled/ShowTurnDuration/AlwaysThinkingEnabled/PermissionsDefaultMode/Language/FastMode/EffortLevel/OutputStyle/ApiKey)
+/// 15 个枚举值 (Profile/Theme/EditorMode/DebugLog/AutoCompactEnabled/AutoMemoryEnabled/FileCheckpointingEnabled/ShowTurnDuration/AlwaysThinkingEnabled/PermissionsDefaultMode/Language/FastMode/EffortLevel/OutputStyle/ApiKey)
 /// </summary>
 public sealed class ConfigKeyExtensionsTests
 {
@@ -25,9 +25,9 @@ public sealed class ConfigKeyExtensionsTests
     }
 
     [Fact]
-    public void ToValue_Verbose_Should_Return_verbose()
+    public void ToValue_DebugLog_Should_Return_debuglog()
     {
-        ConfigKey.Verbose.ToValue().Should().Be("verbose");
+        ConfigKey.DebugLog.ToValue().Should().Be("debuglog");
     }
 
     [Fact]
@@ -46,7 +46,7 @@ public sealed class ConfigKeyExtensionsTests
     [InlineData("profile", ConfigKey.Profile)]
     [InlineData("theme", ConfigKey.Theme)]
     [InlineData("editorMode", ConfigKey.EditorMode)]
-    [InlineData("verbose", ConfigKey.Verbose)]
+    [InlineData("debuglog", ConfigKey.DebugLog)]
     [InlineData("effortLevel", ConfigKey.EffortLevel)]
     [InlineData("apiKey", ConfigKey.ApiKey)]
     public void FromValue_ValidString_Should_Return_CorrectEnum(string input, ConfigKey expected)
@@ -92,7 +92,7 @@ public sealed class ConfigKeyExtensionsTests
     [InlineData(ConfigKey.Profile)]
     [InlineData(ConfigKey.Theme)]
     [InlineData(ConfigKey.EditorMode)]
-    [InlineData(ConfigKey.Verbose)]
+    [InlineData(ConfigKey.DebugLog)]
     [InlineData(ConfigKey.EffortLevel)]
     [InlineData(ConfigKey.ApiKey)]
     public void ToValue_FromValue_RoundTrip_Should_Be_Consistent(ConfigKey value)

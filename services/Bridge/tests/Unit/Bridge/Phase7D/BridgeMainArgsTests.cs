@@ -10,7 +10,7 @@ public sealed class BridgeMainArgsTests
     {
         var result = BridgeMainArgsParser.Parse([]);
 
-        Assert.False(result.Verbose);
+        Assert.False(result.DebugLog);
         Assert.False(result.Sandbox);
         Assert.Null(result.DebugFile);
         Assert.Null(result.SessionTimeoutMs);
@@ -27,17 +27,17 @@ public sealed class BridgeMainArgsTests
     }
 
     [Fact]
-    public void Parse_Verbose_ShortFlag()
+    public void Parse_DebugLog_ShortFlag()
     {
         var result = BridgeMainArgsParser.Parse(["-v"]);
-        Assert.True(result.Verbose);
+        Assert.True(result.DebugLog);
     }
 
     [Fact]
-    public void Parse_Verbose_LongFlag()
+    public void Parse_DebugLog_LongFlag()
     {
-        var result = BridgeMainArgsParser.Parse(["--verbose"]);
-        Assert.True(result.Verbose);
+        var result = BridgeMainArgsParser.Parse(["--debuglog"]);
+        Assert.True(result.DebugLog);
     }
 
     [Fact]
@@ -307,7 +307,7 @@ public sealed class BridgeMainArgsTests
     public void Parse_MultipleFlags()
     {
         var result = BridgeMainArgsParser.Parse(["-v", "--sandbox", "--name", "test", "--spawn", "worktree"]);
-        Assert.True(result.Verbose);
+        Assert.True(result.DebugLog);
         Assert.True(result.Sandbox);
         Assert.Equal("test", result.Name);
         Assert.Equal(BridgeSpawnMode.Worktree, result.SpawnMode);

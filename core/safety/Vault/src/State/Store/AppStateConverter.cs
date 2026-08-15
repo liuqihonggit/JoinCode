@@ -62,7 +62,7 @@ public static class AppStateConverter
                 }),
             Config = new ConfigStateDocument
             {
-                Verbose = state.Config.Verbose,
+                DebugLog = state.Config.DebugLog,
                 IsBriefMode = state.Config.IsBriefMode,
                 Theme = state.Config.Theme,
                 AutoConfirm = state.Config.AutoConfirm,
@@ -133,7 +133,7 @@ public static class AppStateConverter
                 }) ?? ImmutableDictionary<string, TaskState>.Empty,
             Config = new ConfigState
             {
-                Verbose = doc.Config.Verbose,
+                DebugLog = doc.Config.DebugLog,
                 IsBriefMode = doc.Config.IsBriefMode,
                 Theme = doc.Config.Theme,
                 AutoConfirm = doc.Config.AutoConfirm,

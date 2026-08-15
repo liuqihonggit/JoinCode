@@ -345,7 +345,7 @@ public class ToolPortingPlanRunnerTests
         var options = new PlanOptions();
 
         options.SimulatedMode.Should().BeTrue();
-        options.Verbose.Should().BeTrue();
+        options.DebugLog.Should().BeTrue();
     }
 
     /// <summary>
@@ -357,11 +357,11 @@ public class ToolPortingPlanRunnerTests
         var options = new PlanOptions
         {
             SimulatedMode = false,
-            Verbose = false
+            DebugLog = false
         };
 
         options.SimulatedMode.Should().BeFalse();
-        options.Verbose.Should().BeFalse();
+        options.DebugLog.Should().BeFalse();
     }
 
     #endregion

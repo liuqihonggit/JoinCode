@@ -107,7 +107,7 @@ public sealed class ApplicationBuilder
         var ordered = _modules.OrderBy(m => m.Order).ToList();
         foreach (var module in ordered)
         {
-            // P2-5: 迁移到 Diag.WriteLine，统一受 JCC_VERBOSE 控制
+            // P2-5: 迁移到 Diag.WriteLine，统一受 JCC_DEBUGLOG 控制
             Diag.WriteLine($"[MODULE] {module.GetType().Name} start");
             await module.ConfigureAsync(services, CancellationToken.None).ConfigureAwait(false);
             Diag.WriteLine($"[MODULE] {module.GetType().Name} done");
@@ -250,10 +250,10 @@ public sealed class ApplicationBuilder
             Environment.Exit((int)ExitCode.ArgumentParseError);
         }
 
-        // --verbose: 尽早启用诊断输出，确保后续所有 Diag.WriteLine 都能输出
+        // --debuglog: 尽早启用调试日志输出，确保后续所有 Diag.WriteLine 都能输出
         // 决策: 在构造 CommandLineOptions 之前调用，保证最早可能的诊断时机
-        if (result.Verbose)
-            Abstractions.Utils.Diagnostics.Diag.EnableVerbose();
+        if (result.DebugLog)
+            Abstractions.Utils.Diagnostics.Diag.EnableDebugLog();
 
         var options = new CommandLineOptions
         {
@@ -268,7 +268,7 @@ public sealed class ApplicationBuilder
             TrustWorkspace = result.Trust,
             Brief = result.Brief,
             ForceInteractive = result.ForceInteractive,
-            Verbose = result.Verbose,
+            DebugLog = result.DebugLog,
             ContinueSession = result.Continue,
             ResumeSessionId = result.Resume,
             PermissionMode = result.PermissionMode,
@@ -451,7 +451,7 @@ public sealed class ApplicationBuilder
         Cli.TerminalHelper.WriteLine("  ANTHROPIC_API_KEY       Anthropic API Key");
         Cli.TerminalHelper.WriteLine("  AZURE_OPENAI_API_KEY    Azure OpenAI API Key");
         Cli.TerminalHelper.NewLine();
-        Cli.TerminalHelper.WriteLine("  JCC_VERBOSE            启用诊断输出 (1/true/yes)");
+        Cli.TerminalHelper.WriteLine("  JCC_DEBUGLOG           启用调试日志输出 (1/true/yes)");
         Cli.TerminalHelper.WriteLine("  JCC_LOG_LEVEL          日志级别 (Trace/Debug/Information/Warning/Error)");
         Cli.TerminalHelper.WriteLine("  JCC_LANGUAGE           界面语言 (zh/en)");
         Cli.TerminalHelper.WriteLine("  JCC_CONFIG_PATH        自定义配置文件路径");

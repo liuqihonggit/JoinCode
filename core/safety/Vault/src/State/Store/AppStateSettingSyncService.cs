@@ -17,7 +17,7 @@ public sealed partial class AppStateSettingSyncService : ServiceEntity, IDisposa
     /// </summary>
     private static readonly Dictionary<string, Func<AppState, string?, AppState>> s_appStateKeyMappers = new()
     {
-        ["Verbose"] = (state, value) => state with { Config = state.Config with { Verbose = value == "true" } },
+        ["DebugLog"] = (state, value) => state with { Config = state.Config with { DebugLog = value == "true" } },
         ["ThinkingEnabled"] = (state, value) => state with { Config = state.Config with { ThinkingEnabled = value == "true" } },
         ["MainLoopModel"] = (state, value) => state with { Session = state.Session with { CurrentModel = value } },
     };

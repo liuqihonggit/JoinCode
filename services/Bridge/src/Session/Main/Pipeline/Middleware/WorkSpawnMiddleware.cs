@@ -27,7 +27,7 @@ public sealed partial class WorkSpawnMiddleware : ServiceEntity, IHandleWorkMidd
             SdkUrl = ctx.SdkUrl ?? throw new InvalidOperationException("SdkUrl is not set. Ensure CcrV2RegisterMiddleware runs before SpawnMiddleware."),
             AccessToken = accessTokenForSpawn,
             Dir = spawnDir,
-            Verbose = ctx.Config.Verbose,
+            DebugLog = ctx.Config.DebugLog,
             Sandbox = ctx.Config.Sandbox,
             DebugFile = ctx.Config.DebugFile,
             PermissionMode = ctx.PermissionMode,

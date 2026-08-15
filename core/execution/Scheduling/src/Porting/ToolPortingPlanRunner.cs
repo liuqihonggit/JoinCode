@@ -43,7 +43,7 @@ public sealed partial class ToolPortingPlanRunner : ServiceEntity
         {
             SimulatedWorkDurationMs = options.SimulatedMode ? 500 : 0,
             MaxConcurrentTasks = 12,
-            VerboseLogging = options.Verbose
+            VerboseLogging = options.DebugLog
         };
 
         // 执行并行计划
@@ -371,9 +371,9 @@ public sealed partial class PlanOptions
     public bool SimulatedMode { get; init; } = true;
 
     /// <summary>
-    /// 是否启用详细日志
+    /// 是否启用调试日志
     /// </summary>
-    public bool Verbose { get; init; } = true;
+    public bool DebugLog { get; init; } = true;
 }
 
 /// <summary>

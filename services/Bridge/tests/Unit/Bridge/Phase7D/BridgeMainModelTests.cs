@@ -130,7 +130,7 @@ public sealed partial class BridgeMainTests
     public void BridgeMainArgs_Defaults()
     {
         var args = new BridgeMainArgs();
-        Assert.False(args.Verbose);
+        Assert.False(args.DebugLog);
         Assert.False(args.Sandbox);
         Assert.Null(args.DebugFile);
         Assert.Null(args.SessionTimeoutMs);

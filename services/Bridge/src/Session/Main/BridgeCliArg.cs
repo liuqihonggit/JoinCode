@@ -5,8 +5,8 @@ namespace Core.Bridge;
 /// </summary>
 public enum BridgeCliArg
 {
-    [CliOption("--verbose", "-v", "详细日志")]
-    Verbose,
+    [CliOption("--debuglog", "-v", "调试日志")]
+    DebugLog,
 
     [CliOption("--sandbox", "", "启用沙箱")]
     Sandbox,

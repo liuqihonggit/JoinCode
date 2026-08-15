@@ -233,6 +233,25 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
             catch (OperationCanceledException) { }
         }, processingCts.Token);
 
+        var outputChannelManager = context.Host.Services.GetService<JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager>();
+        var outputDisplayTask = Task.Run(async () =>
+        {
+            if (outputChannelManager is null) return;
+            try
+            {
+                await foreach (var chunk in outputChannelManager.ReadAllAsync(ct).ConfigureAwait(false))
+                {
+                    if (!outputChannelManager.ShouldDisplay(chunk.AgentId)) continue;
+                    var prefix = chunk.AgentName is not null ? $"[{chunk.AgentName}] " : $"[{chunk.AgentId}] ";
+                    using (Cli.TerminalHelper.SetColor(ConsoleColor.Magenta))
+                        Cli.TerminalHelper.WriteRaw(prefix);
+                    using (Cli.TerminalHelper.SetColor(ConsoleColor.Cyan))
+                        Cli.TerminalHelper.WriteRaw(chunk.Content);
+                }
+            }
+            catch (OperationCanceledException) { }
+        }, ct);
+
         while (session.IsRunning && !ct.IsCancellationRequested)
         {
             using (Cli.TerminalHelper.SetColor(ConsoleColor.Green))
@@ -262,7 +281,8 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
         processingCts.Cancel();
         await Task.WhenAll(
             Task.WhenAny(readTask, Task.Delay(TimeSpan.FromSeconds(2))),
-            Task.WhenAny(mainProcessingTask, Task.Delay(TimeSpan.FromSeconds(5)))
+            Task.WhenAny(mainProcessingTask, Task.Delay(TimeSpan.FromSeconds(5))),
+            Task.WhenAny(outputDisplayTask, Task.Delay(TimeSpan.FromSeconds(2)))
         ).ConfigureAwait(false);
         processingCts.Dispose();
 

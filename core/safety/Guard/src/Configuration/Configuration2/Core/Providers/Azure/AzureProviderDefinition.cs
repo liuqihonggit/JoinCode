@@ -87,4 +87,6 @@ public sealed class AzureProviderDefinition : IProviderDefinition
     public bool SupportsEffort(string modelId) => _modelConfigLoader.SupportsEffort("openai", modelId);
     public bool SupportsMaxEffort(string modelId) => _modelConfigLoader.SupportsMaxEffort("openai", modelId);
     public bool SupportsThinkingMode(string modelId) => _modelConfigLoader.SupportsThinkingMode("openai", modelId);
+    public bool SupportsModality(string modelId, ModelModalityKind modality) => _modelConfigLoader.SupportsModality("openai", modelId, modality);
+    public ModelModalityKind GetModalities(string modelId) => _modelConfigLoader.GetModalities("openai", modelId);
 }

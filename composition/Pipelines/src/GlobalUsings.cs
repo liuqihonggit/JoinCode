@@ -3,6 +3,7 @@ global using Core.Agents.Coordinator;
 global using Core.Agents.Doctor;
 global using Core.Configuration;
 global using Core.Context;
+global using Core.Context.Modality;
 global using Core.Context.Compact;
 global using Core.DependencyInjection;
 global using Core.Permission;

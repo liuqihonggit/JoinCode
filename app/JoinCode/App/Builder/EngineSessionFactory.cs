@@ -45,8 +45,11 @@ public sealed class EngineSessionFactory
     /// <summary>
     /// 创建 GUI 引擎会话 — 不含 PipeModule/CliModule（GUI 不需要命名管道和终端交互），
     /// 含 HousekeepingModule（后台清理和实体回收）。
+    /// extraModules: GUI 可传入额外模块（如 GuiInteractionModule）覆盖 Core 层默认注册。
     /// </summary>
-    public static Task<Result> CreateGuiSessionAsync(CancellationToken cancellationToken = default)
+    public static Task<Result> CreateGuiSessionAsync(
+        IEnumerable<IAppModule>? extraModules = null,
+        CancellationToken cancellationToken = default)
     {
         var fs = IO.FileSystem.FileSystemFactory.Create();
         var options = new CommandLineOptions
@@ -57,12 +60,21 @@ public sealed class EngineSessionFactory
 
         return CreateCoreAsync(
             options, fs,
-            builder => builder
-                .UseModule<Modules.CoreModule>()
-                .UseModule<Modules.ClockModule>()
-                .UseModule<Modules.BrowserModule>()
-                .UseModule<Modules.HousekeepingModule>()
-                .UseModule<Modules.McpInitModule>(),
+            builder =>
+            {
+                builder = builder
+                    .UseModule<Modules.CoreModule>()
+                    .UseModule<Modules.ClockModule>()
+                    .UseModule<Modules.BrowserModule>()
+                    .UseModule<Modules.HousekeepingModule>()
+                    .UseModule<Modules.McpInitModule>();
+                if (extraModules is not null)
+                {
+                    foreach (var module in extraModules)
+                        builder = builder.UseModule(module);
+                }
+                return builder;
+            },
             cancellationToken,
             clearPipeEndpoint: true);
     }

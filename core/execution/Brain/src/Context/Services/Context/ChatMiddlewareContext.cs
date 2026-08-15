@@ -81,6 +81,12 @@ public sealed class ChatMiddlewareContext
     // === PreChatMiddleware 填充 ===
 
     /// <summary>
+    /// 模态不匹配注入文本 — ModalityValidationMiddleware 检测到模态不匹配时设置，
+    /// PreChatMiddleware 在注入系统提示时追加此内容，引导 LLM 调用 AskUserQuestion
+    /// </summary>
+    public string? ModalityMismatchInjection { get; set; }
+
+    /// <summary>
     /// 预处理结果 — 关键词分析、同义词注入、提示注入信息
     /// </summary>
     public PreprocessResult? PreprocessResult { get; set; }

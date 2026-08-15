@@ -6,6 +6,21 @@
              xmlns:vm="using:JoinCode.Gui.ViewModels"
              x:Class="JoinCode.Gui.Views.InputBarView"
              x:DataType="vm:MainViewModel">
+  <UserControl.Styles>
+    <Style Selector="ListBoxItem">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="{DynamicResource GuiPrimaryText}" />
+      <Setter Property="Padding" Value="2,1" />
+      <Setter Property="CornerRadius" Value="4" />
+    </Style>
+    <Style Selector="ListBoxItem:pointerover">
+      <Setter Property="Background" Value="{DynamicResource GuiButtonHover}" />
+    </Style>
+    <Style Selector="ListBoxItem:selected">
+      <Setter Property="Background" Value="{DynamicResource GuiButtonPressed}" />
+      <Setter Property="Foreground" Value="{DynamicResource GuiPrimaryText}" />
+    </Style>
+  </UserControl.Styles>
   <Border Padding="10" Background="{DynamicResource GuiInputBarBackground}" ClipToBounds="True">
     <StackPanel Spacing="6">
       <Grid ColumnDefinitions="*,Auto,Auto">
@@ -29,35 +44,36 @@
       </Grid>
 
       <Popup x:Name="SlashPopup"
-             PlacementTarget="{Binding ElementName=InputTextBox}"
-             Placement="Top" IsOpen="{Binding IsSlashPopupOpen}"
-             VerticalOffset="0" IsLightDismissEnabled="True">
-        <Border x:Name="SlashPopupBorder" MinWidth="300" MaxHeight="340" CornerRadius="6" Padding="2"
+              PlacementTarget="{Binding ElementName=InputTextBox}"
+              Placement="Top" IsOpen="{Binding IsSlashPopupOpen}"
+              VerticalOffset="0" IsLightDismissEnabled="True">
+        <Border x:Name="SlashPopupBorder" MinWidth="300" MaxHeight="340" CornerRadius="6" Padding="4,2"
                 Background="{DynamicResource GuiWindowBackground}"
+                BorderBrush="{DynamicResource GuiDivider}" BorderThickness="1"
                 BoxShadow="{DynamicResource GuiPopupShadow}" ClipToBounds="True">
           <ListBox x:Name="SlashListBox"
                    ItemsSource="{Binding SlashSuggestions}"
                    SelectedIndex="{Binding SlashSelectedIndex}"
-                   Background="Transparent" Padding="1"
+                   Background="Transparent" Padding="2"
                    ScrollViewer.VerticalScrollBarVisibility="Disabled"
                    ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                    Grid.IsSharedSizeScope="True">
             <ListBox.ItemTemplate>
               <DataTemplate x:DataType="vm:SlashCommandItem">
-                <Grid Margin="8,1">
+                <Grid Margin="6,3">
                   <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" SharedSizeGroup="CmdNameCol" />
                     <ColumnDefinition Width="*" />
                   </Grid.ColumnDefinitions>
                   <StackPanel Orientation="Horizontal" Spacing="0" Grid.Column="0">
-                    <TextBlock Text="{Binding MatchedPart}" FontFamily="{DynamicResource GuiMonoFont}" FontSize="13" FontWeight="Bold"
+                    <TextBlock Text="{Binding MatchedPart}" FontSize="13" FontWeight="SemiBold"
                                Foreground="{DynamicResource GuiSlashMatched}" />
-                    <TextBlock Text="{Binding RemainingPart}" FontFamily="{DynamicResource GuiMonoFont}" FontSize="13"
+                    <TextBlock Text="{Binding RemainingPart}" FontSize="13"
                                Foreground="{DynamicResource GuiSecondaryText}" />
                   </StackPanel>
-                  <TextBlock Grid.Column="1" Text="{Binding Description}" FontSize="11"
+                  <TextBlock Grid.Column="1" Text="{Binding Description}" FontSize="12"
                              Foreground="{DynamicResource GuiMutedText}"
-                             TextTrimming="CharacterEllipsis" Margin="12,0,0,0"
+                             TextTrimming="CharacterEllipsis" Margin="10,0,0,0"
                              ToolTip.Tip="{Binding Usage}" />
                 </Grid>
               </DataTemplate>

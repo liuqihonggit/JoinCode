@@ -49,4 +49,14 @@ public interface IModelCatalog
     /// 检查模型是否支持 max Effort
     /// </summary>
     bool SupportsMaxEffort(string modelId, string provider);
+
+    /// <summary>
+    /// 检查模型是否支持指定模态能力
+    /// </summary>
+    bool SupportsModality(string modelId, string provider, ModelModalityKind modality);
+
+    /// <summary>
+    /// 获取模型的全部模态能力标志
+    /// </summary>
+    ModelModalityKind GetModalities(string modelId, string provider);
 }

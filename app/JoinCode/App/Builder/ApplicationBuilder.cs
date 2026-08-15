@@ -10,11 +10,20 @@ public sealed class ApplicationBuilder
     public ApplicationBuilder() { }
 
     /// <summary>
-    /// 注册模块
+    /// 注册模块（泛型版本）
     /// </summary>
     public ApplicationBuilder UseModule<TModule>() where TModule : IAppModule, new()
     {
         _modules.Add(new TModule());
+        return this;
+    }
+
+    /// <summary>
+    /// 注册模块（实例版本）— 供外部项目（如 GUI）传入跨项目边界的模块
+    /// </summary>
+    public ApplicationBuilder UseModule(IAppModule module)
+    {
+        _modules.Add(module);
         return this;
     }
 

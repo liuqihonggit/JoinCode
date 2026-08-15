@@ -17,6 +17,8 @@ public interface IModelConfigLoader
     bool SupportsEffort(string providerName, string modelId);
     bool SupportsMaxEffort(string providerName, string modelId);
     bool SupportsThinkingMode(string providerName, string modelId);
+    bool SupportsModality(string providerName, string modelId, ModelModalityKind modality);
+    ModelModalityKind GetModalities(string providerName, string modelId);
     string GetCanonicalName(string fullModelName);
     ModelItemConfig? FindModel(string providerName, string modelId);
     IReadOnlyCollection<string> GetAllModelIds();

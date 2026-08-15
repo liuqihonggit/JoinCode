@@ -26,6 +26,7 @@ global using JoinCode.Abstractions.Localization;
 global using JoinCode.Abstractions.Hooks;
 
 global using Core.Configuration;
+global using Core.Context.Modality;
 global using Core.Hooks.Configuration;
 global using Core.Hooks.Events;
 global using Core.Memdir;

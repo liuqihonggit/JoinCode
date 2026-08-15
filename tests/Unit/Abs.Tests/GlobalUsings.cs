@@ -1,6 +1,9 @@
 global using JoinCode.Abstractions.Utils;
 global using JoinCode.Abstractions.Tools;
 global using JoinCode.Abstractions.Entity;
+global using JoinCode.Abstractions.Configuration.Llm;
+global using JoinCode.Abstractions.LLM.Chat;
+global using JoinCode.Abstractions.Exceptions;
 global using FluentAssertions;
 global using Moq;
 global using System.Text.Json;

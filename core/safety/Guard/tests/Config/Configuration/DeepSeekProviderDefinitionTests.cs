@@ -32,7 +32,7 @@ public class DeepSeekProviderDefinitionTests : IDisposable
                         ContextWindow = 64000,
                         Description = "DeepSeek Chat",
                         Aliases = ["chat", "default"],
-                        Capabilities = new ModelCapabilitiesConfig { FastMode = true }
+                        Capabilities = new ModelCapabilitiesConfig { FastMode = true, Modalities = ModelModalityKind.Text | ModelModalityKind.ToolUse }
                     },
                     new ModelItemConfig
                     {
@@ -41,7 +41,7 @@ public class DeepSeekProviderDefinitionTests : IDisposable
                         ContextWindow = 64000,
                         Description = "DeepSeek Reasoner",
                         Aliases = ["reasoner", "thinking"],
-                        Capabilities = new ModelCapabilitiesConfig { ThinkingMode = true }
+                        Capabilities = new ModelCapabilitiesConfig { ThinkingMode = true, Modalities = ModelModalityKind.Text | ModelModalityKind.Thinking | ModelModalityKind.ToolUse }
                     }
                 ]
             }

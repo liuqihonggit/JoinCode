@@ -74,6 +74,16 @@ public abstract class OpenAICompatibleProviderDefinitionBase : IProviderDefiniti
         return _modelConfigLoader.SupportsMaxEffort(ProviderConfigKey, modelId);
     }
 
+    public virtual bool SupportsModality(string modelId, ModelModalityKind modality)
+    {
+        return _modelConfigLoader.SupportsModality(ProviderConfigKey, modelId, modality);
+    }
+
+    public virtual ModelModalityKind GetModalities(string modelId)
+    {
+        return _modelConfigLoader.GetModalities(ProviderConfigKey, modelId);
+    }
+
     public virtual string? DefaultApiVersion => null;
     public virtual string? ResolveEndpointFromEnv() => null;
     public virtual bool IsCompoundAuthFormat(string apiKey) => false;

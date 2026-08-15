@@ -38,19 +38,21 @@ public class JccChatSessionAssemblyTests
         map["deepseek"].Count.Should().Be(2);
 
         map["openai"].Should().BeEquivalentTo([
-            "gpt-4o-mini", "gpt-4o", "gpt-4-turbo", "gpt-4", "gpt-3.5-turbo",
-            "gpt-4.1-nano", "gpt-4.1-mini", "gpt-4.1", "o4-mini", "o3-mini", "o3", "o1-mini", "o1"
+            "gpt-4o-mini", "gpt-4o",
+            "gpt-4.1-nano", "gpt-4.1-mini", "gpt-4.1", "o4-mini", "o3-mini", "o3",
+            "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna",
+            "gpt-5.4", "gpt-5.4-mini", "gpt-5.4-nano", "gpt-5.4-image-2",
+            "gpt-audio", "gpt-audio-mini", "o3-pro"
         ]);
-        map["openai"].Count.Should().Be(13);
+        map["openai"].Count.Should().Be(18);
 
         map["anthropic"].Should().BeEquivalentTo([
             "claude-opus-4-7-20250701", "claude-opus-4-6-20250514", "claude-opus-4-5-20251101",
-            "claude-opus-4-1-20250805", "claude-opus-4-20250514", "claude-sonnet-4-6-20250514",
-            "claude-sonnet-4-5-20250514", "claude-sonnet-4-20250514", "claude-haiku-4-5-20251001",
-            "claude-3-7-sonnet-20250219", "claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022",
-            "claude-3-opus-20240229", "claude-3-sonnet-20240229", "claude-3-haiku-20240307"
+            "claude-sonnet-4-6-20250514", "claude-haiku-4-5-20251001",
+            "claude-opus-5-20250815", "claude-sonnet-5-20250815", "claude-fable-5-20250815",
+            "claude-opus-4-8-20250715"
         ]);
-        map["anthropic"].Count.Should().Be(15);
+        map["anthropic"].Count.Should().Be(9);
 
         map["agnes"].Should().BeEquivalentTo([
             "agnes-2.0-flash", "agnes-image-2.0-flash", "agnes-image-2.1-flash", "agnes-video-v2.0"

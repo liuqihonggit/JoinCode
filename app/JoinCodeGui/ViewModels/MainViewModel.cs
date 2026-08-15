@@ -229,7 +229,33 @@ public sealed partial class MainViewModel : ViewModelBase
         }
         ModelOptions.Clear();
         foreach (var id in source)
-            ModelOptions.Add(new ModelOptionItem(id, $"{providerDisplay}:{id}"));
+        {
+            var tags = BuildModalityTags(provider, id);
+            ModelOptions.Add(new ModelOptionItem(id, $"{providerDisplay}:{id}", tags));
+        }
+    }
+
+    /// <summary>根据模型模态能力生成标签文本（emoji 缩写）</summary>
+    private string BuildModalityTags(string provider, string modelId)
+    {
+        var modalities = _modelConfigLoader.GetModalities(provider, modelId);
+        if (modalities == ModelModalityKind.None || modalities == ModelModalityKind.Text)
+            return "";
+
+        var sb = new StringBuilder();
+        if (modalities.HasFlag(ModelModalityKind.ReadImage)) sb.Append("\U0001F4F7");
+        if (modalities.HasFlag(ModelModalityKind.ReadGif)) sb.Append("\U0001F3AC");
+        if (modalities.HasFlag(ModelModalityKind.ReadVideo)) sb.Append("\U0001F3A5");
+        if (modalities.HasFlag(ModelModalityKind.ReadAudio)) sb.Append("\U0001F3A7");
+        if (modalities.HasFlag(ModelModalityKind.ReadPdf)) sb.Append("\U0001F4C4");
+        if (modalities.HasFlag(ModelModalityKind.GenerateImage)) sb.Append("\U0001F5BC");
+        if (modalities.HasFlag(ModelModalityKind.GenerateVideo)) sb.Append("\U0001F3EE");
+        if (modalities.HasFlag(ModelModalityKind.GenerateAudio)) sb.Append("\U0001F50A");
+        if (modalities.HasFlag(ModelModalityKind.Thinking)) sb.Append("\U0001F9E0");
+        if (modalities.HasFlag(ModelModalityKind.CodeExecution)) sb.Append("\U0001F4BB");
+        if (modalities.HasFlag(ModelModalityKind.WebSearch)) sb.Append("\U0001F50D");
+        if (modalities.HasFlag(ModelModalityKind.ToolUse)) sb.Append("\U0001F527");
+        return sb.ToString();
     }
 
     /// <summary>当前选中的模型下拉项（View 层绑定 ComboBox.SelectedItem）</summary>
@@ -332,6 +358,7 @@ public sealed partial class MainViewModel : ViewModelBase
         _sessionStore = store ?? new Persistence.GuiSessionStore(new IO.FileSystem.PhysicalFileSystem());
         _preferencesStore = preferencesStore ?? new Persistence.GuiPreferencesStore(new IO.FileSystem.PhysicalFileSystem());
         _session.PermissionConfirmationHandler = OnPermissionConfirmationRequestedAsync;
+        _session.AskUserQuestionDialogCallback = AskUserQuestionCallback;
         _selectedEffort = _session.EffortLevel.ToValue();
         Messages.CollectionChanged += OnMessagesChanged;
         LoadPersistedSessions();
@@ -394,6 +421,7 @@ public sealed partial class MainViewModel : ViewModelBase
         _realSession = session;
         _session = session;
         _session.PermissionConfirmationHandler = OnPermissionConfirmationRequestedAsync;
+        _session.AskUserQuestionDialogCallback = AskUserQuestionCallback;
 
         RebuildConnectionOptions();
         RefreshModelOptions();
@@ -502,6 +530,7 @@ public sealed partial class MainViewModel : ViewModelBase
     {
         _session = _mockSession ??= new Hosting.PlaceholderChatSession(_configService);
         _session.PermissionConfirmationHandler = OnPermissionConfirmationRequestedAsync;
+        _session.AskUserQuestionDialogCallback = AskUserQuestionCallback;
         RebuildConnectionOptions();
         SelectedConnection = _connectionOptions.FirstOrDefault();
         RefreshModelOptions();
@@ -702,6 +731,12 @@ public sealed partial class MainViewModel : ViewModelBase
     /// 未注入时默认拒绝（等价于 Deny），保证无弹窗环境下引擎行为可预期。
     /// </summary>
     public Func<PermissionConfirmationRequest, Task<PermissionConfirmationDecision>>? PermissionConfirmCallback { get; set; }
+
+    /// <summary>
+    /// AskUserQuestion 弹窗回调 — 由 View 层注入（弹窗实现），AskUserQuestion 工具调用时触发。
+    /// 未注入时回退到自动选择第一项。
+    /// </summary>
+    public Func<QuestionItem, Task<AskUserQuestionResult>>? AskUserQuestionCallback { get; set; }
 
     /// <summary>网关权限确认请求 → 委托给 View 层弹窗回调；未注入回调时默认拒绝</summary>
     private Task<PermissionConfirmationDecision> OnPermissionConfirmationRequestedAsync(PermissionConfirmationRequest request)
@@ -1082,7 +1117,8 @@ public sealed partial class MainViewModel : ViewModelBase
         else
         {
             _session = _mockSession ??= new Hosting.PlaceholderChatSession(_configService);
-            _session.PermissionConfirmationHandler = OnPermissionConfirmationRequestedAsync;
+        _session.PermissionConfirmationHandler = OnPermissionConfirmationRequestedAsync;
+        _session.AskUserQuestionDialogCallback = AskUserQuestionCallback;
             StatusText = $"已切换到 Mock 引擎（演示），模型 {_session.CurrentModelId}";
         }
         RefreshModelOptions();

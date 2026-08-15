@@ -5,10 +5,6 @@ namespace JoinCode.Abstractions.Utils;
 /// </summary>
 public enum InteractionToolName
 {
-    [EnumValue("ask_user")]
-    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
-    AskUser,
-
     [EnumValue("confirm_action")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     ConfirmAction,

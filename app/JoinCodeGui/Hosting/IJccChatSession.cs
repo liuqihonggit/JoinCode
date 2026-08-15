@@ -1,6 +1,7 @@
 using JoinCode.Abstractions.Interfaces;
 using JoinCode.Abstractions.LLM;
 using JoinCode.Abstractions.LLM.Chat;
+using JoinCode.Abstractions.Models.Interactive;
 using JoinCode.Abstractions.UI;
 
 namespace JoinCode.Gui.Hosting;
@@ -29,6 +30,12 @@ public interface IJccChatSession : IAsyncDisposable
     /// 决策为 Allow/AlwaysAllow 时网关自动批准工具并重发同一条消息完成闭环。
     /// </summary>
     Func<PermissionConfirmationRequest, Task<PermissionConfirmationDecision>>? PermissionConfirmationHandler { get; set; }
+
+    /// <summary>
+    /// AskUserQuestion 弹窗回调 — 引擎调用 AskUserQuestion MCP 工具时，
+    /// 通过此回调在 UI 线程弹出对话框获取用户选择。为 null 时回退到自动选择第一项。
+    /// </summary>
+    Func<QuestionItem, Task<AskUserQuestionResult>>? AskUserQuestionDialogCallback { get; set; }
 
     /// <summary>获取当前会话消息列表</summary>
     Task<IReadOnlyList<ApiMessageRecord>> GetMessagesAsync(CancellationToken cancellationToken = default);

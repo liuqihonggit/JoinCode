@@ -16,6 +16,7 @@ global using McpBridge;
 
 // Diff 模型（工具调用结果渲染）
 global using JoinCode.Abstractions.Models.Diff;
+global using JoinCode.Abstractions.Models.Interactive;
 global using JoinCode.Abstractions.Interfaces;
 global using JoinCode.Abstractions.Configuration.AppData;
 

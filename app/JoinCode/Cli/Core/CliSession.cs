@@ -328,6 +328,7 @@ public sealed class CliSession
     private async Task StreamResponseAsync(string input, CancellationToken cancellationToken)
     {
         Diag.WriteLine($"[CliSession] StreamResponseAsync entry: input='{input}'");
+
         var result = await _controller.StreamResponseAsync(input, cancellationToken).ConfigureAwait(false);
 
         if (result.Succeeded)

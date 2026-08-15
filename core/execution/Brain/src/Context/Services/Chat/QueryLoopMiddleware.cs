@@ -17,6 +17,7 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
     private readonly IToolExecutionHandler _toolHandler;
     private readonly ITelemetryRecorder _telemetryRecorder;
     private readonly IChatContextManager _contextManager;
+    private readonly IEmptyResponseTracker _emptyResponseTracker;
     private readonly QueryLoopServices? _services;
     private readonly ILoopDetectionStrategy _loopDetectionStrategy;
     private readonly IToolConcurrencyClassifier? _concurrencyClassifier;
@@ -29,6 +30,7 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
         IToolExecutionHandler toolHandler,
         ITelemetryRecorder telemetryRecorder,
         IChatContextManager contextManager,
+        IEmptyResponseTracker emptyResponseTracker,
         QueryLoopServices? services = null,
         ILoopDetectionStrategy? loopDetectionStrategy = null,
         IToolConcurrencyClassifier? concurrencyClassifier = null,
@@ -39,6 +41,7 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
         _toolHandler = toolHandler;
         _telemetryRecorder = telemetryRecorder;
         _contextManager = contextManager;
+        _emptyResponseTracker = emptyResponseTracker;
         _services = services;
         _concurrencyClassifier = concurrencyClassifier;
         _toolExecutionSettings = toolExecutionSettings;
@@ -59,7 +62,6 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
         StreamMiddlewareDelegate<ChatMiddlewareContext, ChatStreamEvent> next,
         [EnumeratorCancellation] CancellationToken ct) {
         var totalToolCalls = 0;
-        var emptyAfterToolCount = 0;
         TokenUsage? finalUsage = null;
         string? finalModelId = null;
 
@@ -103,20 +105,21 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
             }
 
             if (!string.IsNullOrWhiteSpace(iterState.FullResponse.ToString())) {
+                _emptyResponseTracker.Reset();
                 break;
             }
 
             if (totalToolCalls > 0) {
-                emptyAfterToolCount++;
-                if (emptyAfterToolCount > 5) {
-                    Diag.WriteLine($"[LOOP {iterState.CallId}] 工具调用后空白响应已达5次, 结束本轮对话");
-                    yield return ChatStreamEvent.Text("⚠ 模型在工具调用后连续5次返回空白响应，本轮对话已结束。");
+                var exceeded = _emptyResponseTracker.RecordEmptyResponse();
+                if (exceeded) {
+                    Diag.WriteLine($"[LOOP {iterState.CallId}] 工具调用后空白响应已达{_emptyResponseTracker.MaxConsecutiveEmpty}次, 结束本轮对话");
+                    yield return ChatStreamEvent.Text($"⚠ 模型在工具调用后连续{_emptyResponseTracker.MaxConsecutiveEmpty}次返回空白响应，本轮对话已结束。");
                     break;
                 }
-                Diag.WriteLine($"[LOOP {iterState.CallId}] 工具调用后空白响应({emptyAfterToolCount}/5), 注入系统提示词让AI继续");
+                Diag.WriteLine($"[LOOP {iterState.CallId}] 工具调用后空白响应({_emptyResponseTracker.ConsecutiveEmptyCount}/{_emptyResponseTracker.MaxConsecutiveEmpty}), 注入系统提示词让AI继续");
                 if (!context.IsDryRun)
                     await _contextManager.AddSystemMessageAsync(
-                        $"<system-reminder>你是否已经完成对应的操作？系统检测到你进行了空白回复（第{emptyAfterToolCount}次，最多5次）。请根据工具执行结果继续回复用户，不要进行无声退出。</system-reminder>",
+                        _emptyResponseTracker.BuildInterventionPrompt(),
                         ct).ConfigureAwait(false);
                 continue;
             }

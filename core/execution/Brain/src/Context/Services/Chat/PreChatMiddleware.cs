@@ -11,18 +11,20 @@ namespace Core.Context;
 public sealed partial class PreChatMiddleware : ServiceEntity, IChatMiddleware
 {
 
-    public PreChatMiddleware(IChatContextManager contextManager, IChatPreprocessor preprocessor, IChatFileContextService fileContextService, IChatOptionsFactory optionsFactory, ILogger<PreChatMiddleware>? logger = null)
+    public PreChatMiddleware(IChatContextManager contextManager, IChatPreprocessor preprocessor, IChatFileContextService fileContextService, IChatOptionsFactory optionsFactory, IEmptyResponseTracker emptyResponseTracker, ILogger<PreChatMiddleware>? logger = null)
     {
         _contextManager = contextManager;
         _preprocessor = preprocessor;
         _fileContextService = fileContextService;
         _optionsFactory = optionsFactory;
+        _emptyResponseTracker = emptyResponseTracker;
         _logger = logger;
     }
     [Inject] private readonly IChatContextManager _contextManager;
     [Inject] private readonly IChatPreprocessor _preprocessor;
     [Inject] private readonly IChatFileContextService _fileContextService;
     [Inject] private readonly IChatOptionsFactory _optionsFactory;
+    [Inject] private readonly IEmptyResponseTracker _emptyResponseTracker;
     [Inject] private readonly ILogger<PreChatMiddleware>? _logger;
 
 
@@ -35,6 +37,9 @@ public sealed partial class PreChatMiddleware : ServiceEntity, IChatMiddleware
         [EnumeratorCancellation] CancellationToken ct)
     {
         _logger?.LogInformation("正在发送聊天消息");
+
+        _emptyResponseTracker.Reset();
+        context.EmptyResponseTracker = _emptyResponseTracker;
 
         context.Timing.StartTotal();
         context.Timing.StartPreprocess();

@@ -180,13 +180,15 @@ public sealed class QueryLoopMiddlewareTests
         var toolHandler = new ToolExecutionHandler(toolOrchestrator.Object, contextManager.Object);
         var notificationHandler = new BackgroundNotificationHandler(contextManager.Object);
         var telemetryRecorder = new TelemetryRecorder();
+        var emptyResponseTracker = new EmptyResponseTracker();
 
         return new QueryLoopMiddleware(
             notificationHandler,
             llmHandler.Object,
             toolHandler,
             telemetryRecorder,
-            contextManager.Object);
+            contextManager.Object,
+            emptyResponseTracker);
     }
 
     private static ChatMiddlewareContext CreateContext() => new()

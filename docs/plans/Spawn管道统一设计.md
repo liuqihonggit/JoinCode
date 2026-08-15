@@ -132,3 +132,11 @@
 <!-- 验证: Debug 编译 0 错 0 警，全量测试退出码 0 全绿 ✅ -->
 <!-- 关键合并点: LifecycleSpawnMiddleware(合并 A3 Spawn 调用 + B1), WorktreeSpawnMiddleware(合并 A4 + B2, 统一降级策略) -->
 <!-- 旧文件处理: 21 个旧文件移到 .xxx/*.20260816.del, 两个 TelemetryHook 合并为 UnifiedSpawnTelemetryHook -->
+
+<!-- 🤖 Auto Decision: 2026-08-16 -->
+<!-- 决策: 阶段二完成 — 主代理也走 UnifiedSpawnContext 统一管道 -->
+<!-- 原因: CliSession.CreateMainAgent + GoalEngine.RegisterMainAgent 改为构造统一上下文(IsMainAgent=true, Agent=预创建)，彻底消除 new AgentBase 直造 -->
+<!-- 替代方案: 主代理保持直造（不统一但风险低）-->
+<!-- 验证: Debug 编译 0 错 0 警，全量测试退出码 0 全绿 ✅ -->
+<!-- 同步执行: 构造函数不能 async，用 .GetAwaiter().GetResult() + try-catch 回退 -->
+<!-- no-op 机制: IsMainAgent 显式标志，LifecycleSpawn 检测 Agent 已存在跳过 Spawn 避免递归 -->

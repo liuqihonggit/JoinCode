@@ -262,14 +262,16 @@ public sealed class DebugLogCommandTest
     }
 
     [Fact]
-    public async Task CombinedInitAndLog_ShowsInitOnly()
+    public async Task CombinedInitAndLog_ShowsLogOnly()
     {
-        // -i -l 组合时，Init 标志先判断，sb.Clear() 后只显示 Init
+        // -i -l 组合时，Log 优先级高于 Init（原逻辑中 Log 检查在 Init 之后执行 sb.Clear() 覆盖）
+        // 重构后 DebugLogCommand 直接返回 Log，跳过"先调用全部再 Clear"的浪费
         var context = CreateContext("-i -l");
         var result = await _command.ExecuteAsync(context);
 
         result.ShouldContinue.Should().BeTrue();
-        _crashSnapshotStore.Verify(s => s.TotalCount, Times.AtLeastOnce);
+        // Log 模式下调用 GetRecent
+        _debugLogBuffer.Verify(b => b.GetRecent(It.IsAny<int>()), Times.AtLeastOnce);
     }
 
     #endregion

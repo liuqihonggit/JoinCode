@@ -38,6 +38,12 @@ public sealed partial class LoopInterventionOptions : ServiceEntity
     /// Level 3 重置前是否保留最近1轮用户消息作为种子 — 避免完全丢失用户需求
     /// </summary>
     public bool PreserveLastUserMessageOnReset { get; set; } = true;
+
+    /// <summary>
+    /// 工具调用后LLM空响应的最大连续次数 — 超过此值强制结束本轮对话
+    /// 默认5：允许5次空响应后注入系统提示词催促，第6次强制结束
+    /// </summary>
+    public int MaxConsecutiveEmptyResponse { get; set; } = 5;
 }
 
 public sealed class LoopInterventionOptionsBuilder
@@ -108,6 +114,12 @@ public sealed class LoopInterventionOptionsBuilder
     public LoopInterventionOptionsBuilder WithPreserveLastUserMessageOnReset(bool enable)
     {
         _options.PreserveLastUserMessageOnReset = enable;
+        return this;
+    }
+
+    public LoopInterventionOptionsBuilder WithMaxConsecutiveEmptyResponse(int max)
+    {
+        _options.MaxConsecutiveEmptyResponse = max;
         return this;
     }
 

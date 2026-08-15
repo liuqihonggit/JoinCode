@@ -153,4 +153,11 @@ public sealed class ChatMiddlewareContext
     /// 由 ChatService 传入共享实例，确保管道各阶段和 ChatService 使用同一状态
     /// </summary>
     public required ToolUseContext ToolUseContext { get; init; }
+
+    /// <summary>
+    /// 空响应追踪器 — 追踪工具调用后LLM空响应的连续次数
+    /// 由 PreChatMiddleware 在用户输入新对话时重置
+    /// 由 QueryLoopMiddleware 在LLM从无声变有声时重置
+    /// </summary>
+    public IEmptyResponseTracker? EmptyResponseTracker { get; set; }
 }

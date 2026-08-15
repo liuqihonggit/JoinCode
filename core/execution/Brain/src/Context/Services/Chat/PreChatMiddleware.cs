@@ -60,6 +60,11 @@ public sealed partial class PreChatMiddleware : ServiceEntity, IChatMiddleware
             yield return ChatStreamEvent.Text(preprocessResult.PromptInjectionInfo + "\n\n");
         }
 
+        if (!string.IsNullOrEmpty(context.ModalityMismatchInjection))
+        {
+            yield return ChatStreamEvent.Text(context.ModalityMismatchInjection + "\n");
+        }
+
         await foreach (var evt in next(context, ct).ConfigureAwait(false))
         {
             yield return evt;

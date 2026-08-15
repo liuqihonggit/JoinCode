@@ -20,6 +20,8 @@ public static class PipelineComposition
         services.AddSingleton<ChatErrorHandlingMiddleware>();
         services.AddSingleton<AuditLogMiddleware>();
         services.AddSingleton<TokenBudgetMiddleware>();
+        services.AddSingleton<MediaIntentDetector>();
+        services.AddSingleton<ModalityValidationMiddleware>();
 
         // 通用泛型中间件注册（工厂方式避免 IL2066）
         services.AddSingleton(sp => new MetricsMiddleware<WebContext>(sp.GetService<ITelemetryService>()));
@@ -57,6 +59,7 @@ public static class PipelineComposition
                 .Use(sp.GetRequiredService<ChatErrorHandlingMiddleware>())
                 .Use(sp.GetRequiredService<AuditLogMiddleware>())
                 .Use(sp.GetRequiredService<TokenBudgetMiddleware>())
+                .Use(sp.GetRequiredService<ModalityValidationMiddleware>())
                 .Use(sp.GetRequiredService<PreChatMiddleware>())
                 .Use(sp.GetRequiredService<QueryLoopMiddleware>())
                 .Use(sp.GetRequiredService<LoopInterventionMiddleware>())

@@ -1,6 +1,6 @@
 ﻿namespace JoinCode.ChatCommands;
 
-[ChatCommand(Name = ChatCommandNameConstants.Model, Description = "切换或查看模型", Usage = "/model [model-id|default|info]", Category = ChatCommandCategory.Model, ArgumentHint = "[model-id|default|info]")]
+[ChatCommand(Name = ChatCommandNameConstants.Model, Description = "切换或查看模型", Usage = "/model [model-id|default|info]", Category = ChatCommandCategory.Model, ArgumentHint = "[model-id|default|info]", ExposeToMcp = true)]
 public sealed class ModelCommand : ChatCommandBase
 {
     public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
@@ -247,5 +247,22 @@ public sealed class ModelCommand : ChatCommandBase
                 }
             }
         }
+
+        // 5. 记录模型选择历史 — 追加到 current.modelHistory 头部（去重），最多20条
+        if (configService is not null)
+        {
+            await RecordModelHistoryAsync(configService, modelId, context.CancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private static async Task RecordModelHistoryAsync(IConfigurationService configService, string modelId, CancellationToken ct)
+    {
+        var existing = await configService.GetAsync("modelHistory", ct).ConfigureAwait(false);
+        var history = string.IsNullOrEmpty(existing) ? [] : existing.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+        history.Remove(modelId);
+        history.Add(modelId);
+        history.Reverse();
+        if (history.Count > 20) history = history.Take(20).ToList();
+        await configService.SetAsync("modelHistory", string.Join(",", history), ct).ConfigureAwait(false);
     }
 }

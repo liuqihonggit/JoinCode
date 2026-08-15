@@ -368,6 +368,15 @@ public sealed partial class CurrentSettings
     [SettingsProperty(SettingsMergeStrategy.Override, SkipKeyAccess = true)]
     public SearchScopeSettings? SearchScope { get; init; }
 
+    /// <summary>
+    /// 模型选择历史 — 按最近使用排序，用于模态不匹配时自动切换的首选依据。
+    /// 每次用户切换模型时，将模型ID追加到列表头部（去重），最多保留20条。
+    /// 格式: ["gpt-5.6-terra", "deepseek-r1", ...]
+    /// </summary>
+    [JsonPropertyName("modelHistory")]
+    [SettingsProperty(SettingsMergeStrategy.ListConcatDistinct)]
+    public List<string>? ModelHistory { get; init; }
+
     #region 自定义合并方法
 
     private static PermissionsSettings? MergePermissions(PermissionsSettings? basePerms, PermissionsSettings? overridePerms)

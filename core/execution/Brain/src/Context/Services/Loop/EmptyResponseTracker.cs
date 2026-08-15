@@ -1,4 +1,5 @@
 using JoinCode.Abstractions.Attributes;
+using Microsoft.Extensions.Options;
 
 namespace Core.Context;
 
@@ -10,16 +11,22 @@ namespace Core.Context;
 [Register]
 public sealed class EmptyResponseTracker : ServiceEntity, IEmptyResponseTracker
 {
+    private readonly int _maxConsecutiveEmpty;
     private int _consecutiveEmptyCount;
+
+    public EmptyResponseTracker(IOptions<LoopInterventionOptions>? options = null)
+    {
+        _maxConsecutiveEmpty = options?.Value.MaxConsecutiveEmptyResponse ?? 5;
+    }
 
     public int ConsecutiveEmptyCount => _consecutiveEmptyCount;
 
-    public int MaxConsecutiveEmpty => 5;
+    public int MaxConsecutiveEmpty => _maxConsecutiveEmpty;
 
     public bool RecordEmptyResponse()
     {
         _consecutiveEmptyCount++;
-        return _consecutiveEmptyCount > MaxConsecutiveEmpty;
+        return _consecutiveEmptyCount > _maxConsecutiveEmpty;
     }
 
     public void Reset()
@@ -31,6 +38,6 @@ public sealed class EmptyResponseTracker : ServiceEntity, IEmptyResponseTracker
 
     public string BuildInterventionPrompt()
     {
-        return $"<system-reminder>你是否已经完成对应的操作？系统检测到你进行了空白回复（第{_consecutiveEmptyCount}次，最多{MaxConsecutiveEmpty}次）。请根据工具执行结果继续回复用户，不要进行无声退出。</system-reminder>";
+        return $"<system-reminder>你是否已经完成对应的操作？系统检测到你进行了空白回复（第{_consecutiveEmptyCount}次，最多{_maxConsecutiveEmpty}次）。请根据工具执行结果继续回复用户，不要进行无声退出。</system-reminder>";
     }
 }

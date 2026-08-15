@@ -73,7 +73,7 @@ public sealed class EmptyResponseTrackerTests
     }
 
     [Fact]
-    public void MaxConsecutiveEmpty_Is5()
+    public void MaxConsecutiveEmpty_DefaultIs5()
     {
         var tracker = new EmptyResponseTracker();
         tracker.MaxConsecutiveEmpty.Should().Be(5);
@@ -90,4 +90,32 @@ public sealed class EmptyResponseTrackerTests
         tracker.RecordEmptyResponse().Should().BeFalse();
         tracker.ConsecutiveEmptyCount.Should().Be(1);
     }
+
+    [Fact]
+    public void CustomMaxConsecutiveEmpty_FromOptions()
+    {
+        var opts = CreateOptions(new LoopInterventionOptions { MaxConsecutiveEmptyResponse = 3 });
+        var tracker = new EmptyResponseTracker(opts);
+
+        tracker.MaxConsecutiveEmpty.Should().Be(3);
+
+        tracker.RecordEmptyResponse().Should().BeFalse();
+        tracker.RecordEmptyResponse().Should().BeFalse();
+        tracker.RecordEmptyResponse().Should().BeFalse();
+        tracker.RecordEmptyResponse().Should().BeTrue();
+    }
+
+    [Fact]
+    public void BuildInterventionPrompt_UsesCustomMax()
+    {
+        var opts = CreateOptions(new LoopInterventionOptions { MaxConsecutiveEmptyResponse = 3 });
+        var tracker = new EmptyResponseTracker(opts);
+        tracker.RecordEmptyResponse();
+
+        var prompt = tracker.BuildInterventionPrompt();
+        prompt.Should().Contain("最多3次");
+    }
+
+    private static Microsoft.Extensions.Options.IOptions<LoopInterventionOptions> CreateOptions(LoopInterventionOptions value)
+        => Microsoft.Extensions.Options.Options.Create(value);
 }

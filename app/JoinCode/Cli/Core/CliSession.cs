@@ -80,12 +80,17 @@ public sealed class CliSession
         _optionalServices?.CronTaskStore?.SetSessionId(_sessionId);
         _optionalServices?.DreamTaskRegistry?.SetSessionId(_sessionId);
 
+        var mainAgent = CreateMainAgent(chatService, optionalServices?.ServiceProvider);
+        var outputChannelManager = optionalServices?.ServiceProvider?.GetService<JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager>();
+        var consumerOutputChannel = mainAgent is null ? outputChannelManager : null;
+
         _controller = new SessionController(
             chatService,
-            new CliEventConsumer(optionalServices?.ServiceProvider?.GetService<JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager>()),
+            new CliEventConsumer(consumerOutputChannel),
             _turnDiffService,
             _sessionId,
-            optionalServices?.ServiceProvider);
+            optionalServices?.ServiceProvider,
+            mainAgent: mainAgent);
 
         _commandServices = new CommandServices
         {
@@ -127,6 +132,31 @@ public sealed class CliSession
         };
 
         _cmdMap = new CmdMap(_commandRegistry, _toolRegistry);
+    }
+
+    /// <summary>
+    /// 创建主代理 — 从 DI 获取 IQueryEngine，包装 ChatService 为 AgentBase 实例
+    /// 返回 null 表示 DI 中无 IQueryEngine，SessionController 回退到直接调用 ChatService
+    /// </summary>
+    private MainAgent? CreateMainAgent(IChatService chatService, IServiceProvider? serviceProvider)
+    {
+        if (serviceProvider is null) return null;
+        var queryEngine = serviceProvider.GetService<IQueryEngine>();
+        if (queryEngine is null) return null;
+
+        var mainAgent = new MainAgent(
+            chatService: chatService,
+            queryEngine: queryEngine,
+            name: "main",
+            sessionId: _sessionObjectId);
+
+        var outputChannelManager = serviceProvider.GetService<JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager>();
+        if (outputChannelManager is not null)
+        {
+            mainAgent.OutputChannelManager = outputChannelManager;
+        }
+
+        return mainAgent;
     }
 
     /// <summary>

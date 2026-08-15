@@ -12,6 +12,7 @@ public sealed class SessionController
     private readonly string _sessionId;
     private readonly IServiceProvider? _serviceProvider;
     private readonly IClockService _clock;
+    private readonly MainAgent? _mainAgent;
 
     /// <summary>会话是否正在运行</summary>
     public bool IsRunning { get; private set; } = true;
@@ -28,7 +29,8 @@ public sealed class SessionController
         TurnDiffService turnDiffService,
         string sessionId,
         IServiceProvider? serviceProvider = null,
-        IClockService? clock = null)
+        IClockService? clock = null,
+        MainAgent? mainAgent = null)
     {
         _chatService = chatService;
         _consumer = consumer;
@@ -36,6 +38,7 @@ public sealed class SessionController
         _sessionId = sessionId;
         _serviceProvider = serviceProvider;
         _clock = clock ?? SystemClockService.Instance;
+        _mainAgent = mainAgent;
     }
 
     /// <summary>
@@ -65,46 +68,26 @@ public sealed class SessionController
 
         try
         {
-            await foreach (var evt in _chatService.StreamWithEventsAsync(input, timeoutToken).ConfigureAwait(false))
+            if (_mainAgent is not null)
             {
-                hasReceivedEvent = true;
-                evt.Switch(
-                    onText: content =>
-                    {
-                        if (content.Length > 0) fullResponse.Append(content);
-                        _consumer.OnText(content);
-                    },
-                    onThinking: thinking =>
-                    {
-                        if (thinking.Length > 0) thinkingContent.Append(thinking);
-                        _consumer.OnThinking(thinking);
-                    },
-                    onToolStart: (toolName, _, arguments) =>
-                    {
-                        _consumer.OnToolStart(toolName, _, arguments);
-                    },
-                    onToolEnd: (toolName, resultText, _, isToolError, structuredPatch) =>
-                    {
-                        _consumer.OnToolEnd(toolName, resultText, _, isToolError, structuredPatch);
-                        RecordToolCallForTurnDiff(toolName, resultText, structuredPatch);
-                    },
-                    onToolProgress: (toolName, progressType, progressMessage) =>
-                    {
-                        _consumer.OnToolProgress(toolName, progressType, progressMessage);
-                    },
-                    onLoopDetected: (triggerCount, loopStartIndex, repeatedPattern) =>
-                    {
-                        _consumer.OnLoopDetected(triggerCount, loopStartIndex, repeatedPattern);
-                    },
-                    onTimingSummary: summary =>
-                    {
-                        _consumer.OnTimingSummary(summary);
-                    },
-                    onDone: (usage, modelId) =>
-                    {
-                        lastModelId = modelId;
-                        _consumer.OnDone(usage, modelId);
-                    });
+                _mainAgent.CurrentInput = input;
+                await foreach (var chunk in _mainAgent.ExecuteStreamAsync(timeoutToken).ConfigureAwait(false))
+                {
+                    hasReceivedEvent = true;
+                    var evt = AgentStreamChunkAdapter.ToChatStreamEvent(chunk);
+                    if (evt is null) continue;
+                    var mid = ProcessEvent(evt, fullResponse, thinkingContent);
+                    if (mid is not null) lastModelId = mid;
+                }
+            }
+            else
+            {
+                await foreach (var evt in _chatService.StreamWithEventsAsync(input, timeoutToken).ConfigureAwait(false))
+                {
+                    hasReceivedEvent = true;
+                    var mid = ProcessEvent(evt, fullResponse, thinkingContent);
+                    if (mid is not null) lastModelId = mid;
+                }
             }
 
             LastResponse = fullResponse.ToString();
@@ -140,6 +123,52 @@ public sealed class SessionController
                 return SessionTurnResult.Error(wfEx.Message, LastResponse, wfEx.ErrorCode);
             return SessionTurnResult.Error(ex.Message, LastResponse);
         }
+    }
+
+    /// <summary>
+    /// 处理单个 ChatStreamEvent — 分发到 IEventConsumer，返回 Done 事件的 modelId（否则 null）
+    /// </summary>
+    private string? ProcessEvent(ChatStreamEvent evt, StringBuilder fullResponse, StringBuilder thinkingContent)
+    {
+        string? modelId = null;
+        evt.Switch(
+            onText: content =>
+            {
+                if (content.Length > 0) fullResponse.Append(content);
+                _consumer.OnText(content);
+            },
+            onThinking: thinking =>
+            {
+                if (thinking.Length > 0) thinkingContent.Append(thinking);
+                _consumer.OnThinking(thinking);
+            },
+            onToolStart: (toolName, callId, arguments) =>
+            {
+                _consumer.OnToolStart(toolName, callId, arguments);
+            },
+            onToolEnd: (toolName, resultText, callId, isToolError, structuredPatch) =>
+            {
+                _consumer.OnToolEnd(toolName, resultText, callId, isToolError, structuredPatch);
+                RecordToolCallForTurnDiff(toolName, resultText, structuredPatch);
+            },
+            onToolProgress: (toolName, progressType, progressMessage) =>
+            {
+                _consumer.OnToolProgress(toolName, progressType, progressMessage);
+            },
+            onLoopDetected: (triggerCount, loopStartIndex, repeatedPattern) =>
+            {
+                _consumer.OnLoopDetected(triggerCount, loopStartIndex, repeatedPattern);
+            },
+            onTimingSummary: summary =>
+            {
+                _consumer.OnTimingSummary(summary);
+            },
+            onDone: (usage, mid) =>
+            {
+                modelId = mid;
+                _consumer.OnDone(usage, mid);
+            });
+        return modelId;
     }
 
     /// <summary>

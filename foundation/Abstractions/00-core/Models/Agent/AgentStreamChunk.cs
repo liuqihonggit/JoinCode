@@ -100,6 +100,78 @@ public sealed class AgentStreamChunk
     /// 智能体 ID
     /// </summary>
     public required string AgentId { get; init; }
+
+    /// <summary>
+    /// 从 ChatStreamEvent 创建 AgentStreamChunk — 主代理走 ChatService 管道时使用此转换
+    /// 返回 null 表示该事件类型无对应 AgentStreamChunk（如 Tombstone），调用方应跳过
+    /// </summary>
+    public static AgentStreamChunk? FromChatStreamEvent(ChatStreamEvent evt, string agentId)
+    {
+        return evt.Type switch
+        {
+            ChatStreamEventType.Content => new AgentStreamChunk
+            {
+                Type = AgentStreamChunkType.Content,
+                Content = evt.Content,
+                AgentId = agentId
+            },
+            ChatStreamEventType.Thinking => new AgentStreamChunk
+            {
+                Type = AgentStreamChunkType.Thinking,
+                ThinkingContent = evt.ThinkingContent,
+                AgentId = agentId
+            },
+            ChatStreamEventType.ToolCallStart => new AgentStreamChunk
+            {
+                Type = AgentStreamChunkType.ToolCallStart,
+                ToolName = evt.ToolName,
+                ToolCallId = evt.ToolCallId,
+                ToolArguments = evt.ToolArguments,
+                AgentId = agentId
+            },
+            ChatStreamEventType.ToolCallEnd => new AgentStreamChunk
+            {
+                Type = AgentStreamChunkType.ToolCallEnd,
+                ToolName = evt.ToolName,
+                ToolCallId = evt.ToolCallId,
+                ToolResultText = evt.ToolResultText,
+                IsToolError = evt.IsToolError,
+                StructuredPatch = evt.StructuredPatch,
+                AgentId = agentId
+            },
+            ChatStreamEventType.ToolProgress => new AgentStreamChunk
+            {
+                Type = AgentStreamChunkType.ToolProgress,
+                ToolName = evt.ToolName,
+                ToolCallId = evt.ToolCallId,
+                ProgressMessage = evt.ProgressMessage,
+                ProgressType = evt.ProgressType,
+                AgentId = agentId
+            },
+            ChatStreamEventType.LoopDetected => new AgentStreamChunk
+            {
+                Type = AgentStreamChunkType.LoopDetected,
+                LoopTriggerCount = evt.LoopTriggerCount,
+                LoopStartIndex = evt.LoopStartIndex,
+                Content = evt.Content,
+                AgentId = agentId
+            },
+            ChatStreamEventType.TimingSummary => new AgentStreamChunk
+            {
+                Type = AgentStreamChunkType.TimingSummary,
+                Content = evt.Content,
+                AgentId = agentId
+            },
+            ChatStreamEventType.Complete => new AgentStreamChunk
+            {
+                Type = AgentStreamChunkType.Complete,
+                Usage = evt.Usage,
+                ModelId = evt.ModelId,
+                AgentId = agentId
+            },
+            _ => null
+        };
+    }
 }
 
 /// <summary>

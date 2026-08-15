@@ -70,12 +70,20 @@ public sealed class SessionController
         {
             if (_mainAgent is not null)
             {
-                var preprocessResult = await PreProcessMainAgentAsync(input, timeoutToken).ConfigureAwait(false);
-                if (preprocessResult?.PromptInjectionInfo is { Length: > 0 } injection)
+                var preprocess = await PreProcessMainAgentAsync(input, timeoutToken).ConfigureAwait(false);
+                if (preprocess.PromptInjection is { Length: > 0 } injection)
                 {
                     _consumer.OnText(injection + "\n\n");
                 }
+                if (preprocess.ModalityInjection is { Length: > 0 } modalityInjection)
+                {
+                    _consumer.OnText(modalityInjection + "\n");
+                }
 
+                var auditLogger = _serviceProvider?.GetService<ILogger<SessionController>>();
+                auditLogger?.LogInformation("[Audit] User: {Message}", input.Length > 200 ? string.Concat(input.AsSpan(0, 200), "...") : input);
+
+                var sw = System.Diagnostics.Stopwatch.StartNew();
                 _mainAgent.CurrentInput = input;
                 await foreach (var chunk in _mainAgent.ExecuteStreamAsync(timeoutToken).ConfigureAwait(false))
                 {
@@ -85,8 +93,16 @@ public sealed class SessionController
                     var mid = ProcessEvent(evt, fullResponse, thinkingContent);
                     if (mid is not null) lastModelId = mid;
                 }
+                sw.Stop();
 
-                await PostProcessMainAgentAsync(preprocessResult, cancellationToken).ConfigureAwait(false);
+                if (Diag.IsDebugLog)
+                {
+                    _consumer.OnTimingSummary($"Total: {sw.ElapsedMilliseconds}ms");
+                }
+
+                auditLogger?.LogInformation("[Audit] Assistant: {Chars} chars, Model={Model}", fullResponse.Length, lastModelId);
+
+                await PostProcessMainAgentAsync(preprocess.PreprocessResult, cancellationToken).ConfigureAwait(false);
             }
             else
             {
@@ -125,6 +141,24 @@ public sealed class SessionController
         {
             LastResponse = fullResponse.ToString();
             await StoreThinkingIfAnyAsync(thinkingContent, lastModelId, CancellationToken.None).ConfigureAwait(false);
+
+            var crashStore = _serviceProvider?.GetService<ICrashSnapshotStore>();
+            if (crashStore is not null && ex is not OperationCanceledException)
+            {
+                try
+                {
+                    crashStore.Add(new CrashSnapshot(
+                        fenceName: "MainAgent",
+                        severity: CrashSeverity.Error,
+                        exception: ex,
+                        executionContext: new CrashExecutionContext { SessionId = _sessionId }));
+                }
+                catch (Exception snapshotEx)
+                {
+                    _serviceProvider?.GetService<ILogger<SessionController>>()?.LogWarning(snapshotEx, "[SessionController] 崩溃快照保存失败");
+                }
+            }
+
             if (ex is JoinCode.Abstractions.Exceptions.ApiException apiEx)
                 return SessionTurnResult.Error(apiEx.Message, LastResponse, apiEx.ErrorCode, apiEx.IsRetryable);
             if (ex is JoinCode.Abstractions.Exceptions.WorkflowException wfEx)
@@ -180,20 +214,31 @@ public sealed class SessionController
     }
 
     /// <summary>
-    /// 主代理路径预处理 — 对齐 PreChatMiddleware：文件上下文 + prompt injection + context 准备 + prompt 状态记录
+    /// 主代理预处理结果 — 包含预处理结果和注入文本
     /// </summary>
-    private async Task<PreprocessResult?> PreProcessMainAgentAsync(string input, CancellationToken ct)
+    private sealed record MainAgentPreprocess(
+        PreprocessResult? PreprocessResult,
+        string? PromptInjection,
+        string? ModalityInjection);
+
+    /// <summary>
+    /// 主代理路径预处理 — 对齐 PreChatMiddleware + ModalityValidationMiddleware：
+    /// 文件上下文 + prompt injection + context 准备 + prompt 状态记录 + 模态验证
+    /// </summary>
+    private async Task<MainAgentPreprocess> PreProcessMainAgentAsync(string input, CancellationToken ct)
     {
-        if (_serviceProvider is null) return null;
+        if (_serviceProvider is null) return new MainAgentPreprocess(null, null, null);
 
         var fileContextService = _serviceProvider.GetService<IChatFileContextService>();
         fileContextService?.UpdateFileContext(input);
 
         var preprocessor = _serviceProvider.GetService<IChatPreprocessor>();
-        if (preprocessor is null) return null;
-
-        var preprocessResult = await preprocessor.AnalyzeAndInjectAsync(input, ct).ConfigureAwait(false);
-        await preprocessor.PrepareContextAsync(input, false, ct).ConfigureAwait(false);
+        PreprocessResult? preprocessResult = null;
+        if (preprocessor is not null)
+        {
+            preprocessResult = await preprocessor.AnalyzeAndInjectAsync(input, ct).ConfigureAwait(false);
+            await preprocessor.PrepareContextAsync(input, false, ct).ConfigureAwait(false);
+        }
 
         var contextManager = _serviceProvider.GetService<IChatContextManager>();
         if (contextManager is not null)
@@ -201,7 +246,53 @@ public sealed class SessionController
             await contextManager.RecordPromptStateAsync(ct).ConfigureAwait(false);
         }
 
-        return preprocessResult;
+        var modalityInjection = DetectModalityMismatch(input);
+
+        return new MainAgentPreprocess(
+            preprocessResult,
+            preprocessResult?.PromptInjectionInfo,
+            modalityInjection);
+    }
+
+    /// <summary>
+    /// 检测模态不匹配 — 对齐 ModalityValidationMiddleware
+    /// </summary>
+    private string? DetectModalityMismatch(string input)
+    {
+        if (_serviceProvider is null) return null;
+
+        var modelConfigLoader = _serviceProvider.GetService<IModelConfigLoader>();
+        var workflowConfig = _serviceProvider.GetService<WorkflowConfig>();
+        if (modelConfigLoader is null || workflowConfig is null) return null;
+
+        var detector = new MediaIntentDetector();
+        var detection = detector.Detect(input);
+        if (detection.DetectedModalities == ModelModalityKind.None) return null;
+
+        var vendor = workflowConfig.Provider.Vendor;
+        var modelId = workflowConfig.Provider.ModelId;
+        var modelModalities = modelConfigLoader.GetModalities(vendor, modelId);
+
+        var missing = detection.DetectedModalities & ~modelModalities;
+        if (missing == ModelModalityKind.None) return null;
+
+        var missingDesc = FormatMissingModalities(missing);
+        var keywordsDesc = string.Join(", ", detection.MatchedKeywords);
+        return $"[模态不匹配提示] 当前模型 {modelId} 不支持 {missingDesc}（检测到用户意图: {keywordsDesc}）。";
+    }
+
+    private static string FormatMissingModalities(ModelModalityKind missing)
+    {
+        var parts = new List<string>();
+        if (missing.HasFlag(ModelModalityKind.ReadImage)) parts.Add("图片识别");
+        if (missing.HasFlag(ModelModalityKind.ReadGif)) parts.Add("动图识别");
+        if (missing.HasFlag(ModelModalityKind.ReadVideo)) parts.Add("视频识别");
+        if (missing.HasFlag(ModelModalityKind.ReadAudio)) parts.Add("音频识别");
+        if (missing.HasFlag(ModelModalityKind.ReadPdf)) parts.Add("PDF识别");
+        if (missing.HasFlag(ModelModalityKind.GenerateImage)) parts.Add("图片生成");
+        if (missing.HasFlag(ModelModalityKind.GenerateVideo)) parts.Add("视频生成");
+        if (missing.HasFlag(ModelModalityKind.GenerateAudio)) parts.Add("音频生成");
+        return string.Join("、", parts);
     }
 
     /// <summary>

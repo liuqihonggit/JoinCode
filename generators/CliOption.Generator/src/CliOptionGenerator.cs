@@ -114,6 +114,8 @@ public sealed class CliOptionGenerator : IIncrementalGenerator
         GenerateParserClass(sb, enumInfo);
         sb.AppendLine();
         GenerateSchemaClass(sb, enumInfo);
+        sb.AppendLine();
+        GenerateConstantsClass(sb, enumInfo);
 
         context.AddSource($"{enumInfo.Name}Parser.g.cs", SourceText.From(sb.ToString(), Encoding.UTF8));
     }
@@ -458,6 +460,26 @@ public sealed class CliOptionGenerator : IIncrementalGenerator
             sb.AppendLine($"        new() {{ Name = \"{EscapeString(opt.LongName)}\", ShortName = {shortNameStr}, Description = \"{EscapeString(opt.Description)}\", Type = {type}, AcceptsValue = {opt.AcceptsValue.ToString().ToLowerInvariant()}, RiskLevel = {riskLevelStr}, Category = {categoryStr}, Example = {exampleStr} }},");
         }
         sb.AppendLine("    };");
+
+        sb.AppendLine("}");
+    }
+
+    private static void GenerateConstantsClass(StringBuilder sb, CliEnumInfo enumInfo)
+    {
+        sb.AppendLine($"public static class {enumInfo.Name}Constants");
+        sb.AppendLine("{");
+
+        foreach (var opt in enumInfo.Options)
+        {
+            var constName = opt.Name + "LongName";
+            sb.AppendLine($"    public const string {constName} = \"{EscapeString(opt.LongName)}\";");
+
+            if (!string.IsNullOrEmpty(opt.ShortName))
+            {
+                var shortConstName = opt.Name + "ShortName";
+                sb.AppendLine($"    public const string {shortConstName} = \"{EscapeString(opt.ShortName)}\";");
+            }
+        }
 
         sb.AppendLine("}");
     }

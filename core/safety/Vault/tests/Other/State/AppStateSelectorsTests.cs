@@ -170,9 +170,9 @@ public sealed class AppStateSelectorsTests : IDisposable
     #region Config Selectors
 
     [Fact]
-    public void SelectVerboseMode_ReturnsVerbose()
+    public void SelectDebugLogMode_ReturnsDebugLog()
     {
-        var selector = _selectors.SelectVerboseMode();
+        var selector = _selectors.SelectDebugLogMode();
 
         selector.CurrentValue.Should().BeTrue();
     }
@@ -384,7 +384,7 @@ public sealed class AppStateSelectorsTests : IDisposable
             }),
             Config = new ConfigState
             {
-                Verbose = true,
+                DebugLog = true,
                 IsBriefMode = false,
                 Theme = "dark",
                 MaxTokenBudget = 100000,

@@ -177,7 +177,7 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
         {
             while (await timer.WaitForNextTickAsync(ct).ConfigureAwait(false))
             {
-                if (Diag.IsVerbose) Diag.WriteLifecycle("[ALIVE]");
+                if (Diag.IsDebugLog) Diag.WriteLifecycle("[ALIVE]");
             }
         }
         catch (OperationCanceledException) { }

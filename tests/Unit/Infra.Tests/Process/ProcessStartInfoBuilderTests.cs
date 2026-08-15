@@ -171,11 +171,11 @@ public sealed class ProcessStartInfoBuilderTests
         var psi = builder.BuildInteractive(new InteractiveProcessOptions
         {
             FileName = "jcc",
-            ArgumentList = ["--print", "--session-id", "abc123"],
+            ArgumentList = [JccCliArgConstants.Print, JccCliArgConstants.SessionId, "abc123"],
         });
 
         psi.ArgumentList.Should().HaveCount(3);
-        psi.ArgumentList[1].Should().Be("--session-id");
+        psi.ArgumentList[1].Should().Be(JccCliArgConstants.SessionId);
     }
 
     [Fact]

@@ -12,7 +12,7 @@ public sealed class ConfigCommand : ChatCommandBase
         [ConfigKey.Profile]                  = "当前供应商预设名 (openai/anthropic/deepseek/...)",
         [ConfigKey.Theme]                    = "UI 主题 (dark/light/auto)",
         [ConfigKey.EditorMode]               = "按键绑定模式 (vim/emacs/default)",
-        [ConfigKey.Verbose]                  = "详细调试输出 (true/false)",
+        [ConfigKey.DebugLog]                 = "调试日志输出 (true/false)",
         [ConfigKey.AutoCompactEnabled]       = "自动压缩上下文 (true/false)",
         [ConfigKey.AutoMemoryEnabled]        = "自动记忆 (true/false)",
         [ConfigKey.FileCheckpointingEnabled] = "文件检查点 (true/false)",

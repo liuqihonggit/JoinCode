@@ -23,7 +23,7 @@ public sealed partial class SaveContextMiddleware : ServiceEntity, IChatMiddlewa
     /// <summary>
     /// 透传下游事件 → 下游完成后保存上下文
     /// 不缓冲事件流，保证流式响应的实时性
-    /// 计时摘要由 ChatTimingMiddleware 统一输出（受 JCC_VERBOSE 控制）
+    /// 计时摘要由 ChatTimingMiddleware 统一输出（受 JCC_DEBUGLOG 控制）
     /// </summary>
     public async IAsyncEnumerable<ChatStreamEvent> InvokeAsync(
         ChatMiddlewareContext context,

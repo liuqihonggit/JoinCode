@@ -13,7 +13,7 @@ public sealed class SettingChangeEventArgs : EventArgs
     /// <summary>
     /// 热更新同步键 — 对齐 TS 版 appStateKey
     /// 当设置项定义了 appStateKey 时，写入成功后消费者应同步到对应 AppState 字段
-    /// 例如: verbose → Verbose, model → MainLoopModel, alwaysThinkingEnabled → ThinkingEnabled
+    /// 例如: debuglog → DebugLog, model → MainLoopModel, alwaysThinkingEnabled → ThinkingEnabled
     /// </summary>
     public string? AppStateKey { get; init; }
 }

@@ -105,11 +105,11 @@ public sealed partial class CurrentSettings
     public string? EditorMode { get; init; }
 
     /// <summary>
-    /// 详细调试输出 — 对齐 ConfigKey.Verbose
+    /// 调试日志输出 — 对齐 ConfigKey.DebugLog
     /// </summary>
-    [JsonPropertyName("verbose")]
+    [JsonPropertyName("debuglog")]
     [SettingsProperty(SettingsMergeStrategy.Override)]
-    public bool? Verbose { get; init; }
+    public bool? DebugLog { get; init; }
 
     /// <summary>
     /// 自动压缩上下文 — 对齐 ConfigKey.AutoCompactEnabled

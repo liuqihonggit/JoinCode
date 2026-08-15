@@ -212,7 +212,7 @@ public sealed class BridgeMainCommand
         {
             ExecPath = GetExecPath(),
             WorkingDirectory = Environment.CurrentDirectory,
-            Verbose = args.Verbose,
+            DebugLog = args.DebugLog,
         };
 
         // 创建指针服务

@@ -1,5 +1,23 @@
 ﻿namespace JoinCode.ChatCommands;
 
+public enum FalvSubOption
+{
+    [EnumValue("--status")]
+    Status,
+    [EnumValue("--judge")]
+    Judge,
+    [EnumValue("--evidence")]
+    Evidence,
+    [EnumValue("--budget")]
+    Budget,
+    [EnumValue("--cone")]
+    Cone,
+    [EnumValue("--conflict")]
+    Conflict,
+    [EnumValue("--reset")]
+    Reset,
+}
+
 /// <summary>
 /// /falv 命令 — 结构化推理（三权分立 + 有限视锥 + 5维客观权重）
 /// </summary>
@@ -10,7 +28,7 @@ public sealed class FalvCommand : ChatCommandBase
     {
         var args = ChatCommandBase.GetNormalizedArgs(context);
 
-        if (string.IsNullOrEmpty(args) || args is "-h" or "--help")
+        if (string.IsNullOrEmpty(args) || args is JccCliArgConstants.HelpAlias__h or JccCliArgConstants.Help)
         {
             ShowHelp();
             return ChatCommandResult.Continue();
@@ -23,36 +41,36 @@ public sealed class FalvCommand : ChatCommandBase
             return ChatCommandResult.Continue();
         }
 
-        if (args.StartsWith("--continue"))
+        if (args.StartsWith(JccCliArgConstants.Continue))
         {
-            var refillArg = args.Length > "--continue".Length ? args["--continue".Length..].Trim() : string.Empty;
+            var refillArg = args.Length > JccCliArgConstants.Continue.Length ? args[JccCliArgConstants.Continue.Length..].Trim() : string.Empty;
             await ContinueReasoningAsync(engine, refillArg, context.CancellationToken).ConfigureAwait(false);
             return ChatCommandResult.Continue();
         }
 
-        switch (args)
+        switch (FalvSubOptionExtensions.FromValue(args))
         {
-            case "--status":
+            case FalvSubOption.Status:
                 ShowStatus(engine);
                 break;
-            case "--judge":
+            case FalvSubOption.Judge:
                 await engine.RunAdversarialProcessAsync(context.CancellationToken).ConfigureAwait(false);
                 ShowVerdicts(engine);
                 ShowBudgetIfExhausted(engine);
                 break;
-            case "--evidence":
+            case FalvSubOption.Evidence:
                 ShowEvidence(engine);
                 break;
-            case "--budget":
+            case FalvSubOption.Budget:
                 ShowBudget(engine);
                 break;
-            case "--cone":
+            case FalvSubOption.Cone:
                 ShowCone(engine);
                 break;
-            case "--conflict":
+            case FalvSubOption.Conflict:
                 ShowConflict(engine);
                 break;
-            case "--reset":
+            case FalvSubOption.Reset:
                 engine.Reset();
                 TerminalHelper.WriteLine("推理引擎已重置 — DAG清空，预算恢复，视锥重置");
                 break;

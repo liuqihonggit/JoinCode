@@ -11,7 +11,7 @@ public sealed class BridgeConfigTests
         Assert.False(config.Enabled);
         Assert.Equal(5, config.MaxSessions);
         Assert.Equal(BridgeSpawnMode.SingleSession, config.SpawnMode);
-        Assert.False(config.Verbose);
+        Assert.False(config.DebugLog);
         Assert.False(config.Sandbox);
         Assert.Equal("bridge", config.WorkerType);
         Assert.Equal(30, config.SessionTimeoutMinutes);

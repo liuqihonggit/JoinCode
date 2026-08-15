@@ -80,7 +80,7 @@ public sealed class TaskStateDocument
 /// </summary>
 public sealed class ConfigStateDocument
 {
-    public bool Verbose { get; set; }
+    public bool DebugLog { get; set; }
     public bool IsBriefMode { get; set; }
     public string Theme { get; set; } = "default";
     public bool AutoConfirm { get; set; }

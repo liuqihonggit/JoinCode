@@ -162,7 +162,7 @@ public enum JccEnvVar
     [EnumValue("JCC_RESILIENCE_ENABLED")] ResilienceEnabled,
 
     // 调试/诊断
-    [EnumValue("JCC_VERBOSE")] Verbose,
+    [EnumValue("JCC_DEBUGLOG")] DebugLog,
     [EnumValue("JCC_DEBUG_MODULES")] DebugModules,
     [EnumValue("JCC_DI_TRACE")] DiTrace,
     [EnumValue("JCC_DUMP_MESSAGES")] DumpMessages,

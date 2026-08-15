@@ -9,8 +9,7 @@ public sealed class ToolCommand : Command
 
     public ToolCommand() : base("tool", "执行本地工具")
     {
-        var jsonOption = new Option<bool>("--json") { Description = "以 JSON 格式输出结果" };
-
+        var jsonOption = new Option<bool>(JccCliArgConstants.Json) { Description = "以 JSON 格式输出结果" };
         var listCommand = new Command("list", "列出所有可用工具");
         listCommand.Add(jsonOption);
         listCommand.SetAction(parseResult =>
@@ -120,8 +119,7 @@ public sealed class AgentCommand : Command
     public AgentCommand(IFileSystem fs) : base("agent", "管理和执行AI智能体")
     {
         _fs = fs;
-        var jsonOption = new Option<bool>("--json") { Description = "以 JSON 格式输出结果" };
-
+        var jsonOption = new Option<bool>(JccCliArgConstants.Json) { Description = "以 JSON 格式输出结果" };
         var runCommand = new Command("run", "运行指定智能体");
         var runAgentArgument = new Argument<string>("agent-name") { Description = "要运行的智能体名称" };
         var runInputOption = new Option<string?>("--input") { Description = "智能体输入/提示词" };
@@ -199,8 +197,7 @@ public sealed class CodeCommand : Command
     public CodeCommand(IFileSystem fs) : base("code", "代码分析、生成和执行工具")
     {
         _fs = fs;
-        var jsonOption = new Option<bool>("--json") { Description = "以 JSON 格式输出结果" };
-
+        var jsonOption = new Option<bool>(JccCliArgConstants.Json) { Description = "以 JSON 格式输出结果" };
         var analyzeCommand = new Command("analyze", "分析代码文件或目录");
         var analyzePathArgument = new Argument<string>("path") { Description = "要分析的代码文件或目录路径" };
         analyzeCommand.Add(analyzePathArgument);

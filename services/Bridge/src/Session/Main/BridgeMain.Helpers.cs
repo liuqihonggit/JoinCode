@@ -274,7 +274,7 @@ public sealed partial class BridgeMain
             MaxSessions = maxSessions,
             SpawnMode = spawnMode,
             SpawnModeSource = spawnModeSource,
-            Verbose = args.Verbose,
+            DebugLog = args.DebugLog,
             Sandbox = args.Sandbox,
             BridgeId = Guid.NewGuid().ToString(),
             WorkerType = "bridge",

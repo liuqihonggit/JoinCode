@@ -32,7 +32,7 @@ internal sealed partial class StartupLoggingMiddleware : ServiceEntity, IMiddlew
 
         sw.Stop();
 
-        // 诊断日志 — 受 JCC_VERBOSE 控制
+        // 诊断日志 — 受 JCC_DEBUGLOG 控制
         Diag.WriteLine($"[启动完成] 总耗时 {sw.ElapsedMilliseconds}ms");
     }
 }

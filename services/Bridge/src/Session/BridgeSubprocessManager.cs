@@ -533,8 +533,8 @@ public sealed class BridgeSubprocessSpawner
     /// <summary>额外环境变量</summary>
     public Dictionary<string, string>? ExtraEnv { get; init; }
 
-    /// <summary>是否详细日志</summary>
-    public bool Verbose { get; init; }
+    /// <summary>是否调试日志</summary>
+    public bool DebugLog { get; init; }
 
     /// <summary>关闭等待超时（毫秒）</summary>
     public int ShutdownGraceMs { get; init; } = 30000;
@@ -580,7 +580,7 @@ public sealed class BridgeSubprocessSpawner
                 ? $"bridge-transcript-{safeId}.jsonl"
                 : Path.Combine(debugDir, $"bridge-transcript-{safeId}.jsonl");
         }
-        else if (options.Verbose || IsAntBuild())
+        else if (options.DebugLog || IsAntBuild())
         {
             var tempDir = Path.GetTempPath();
             debugFile = Path.Combine(tempDir, AppDataConstants.AppDataFolder, $"bridge-session-{safeId}.log");
@@ -597,7 +597,7 @@ public sealed class BridgeSubprocessSpawner
             WorkerEpoch = options.WorkerEpoch,
             PermissionMode = options.PermissionMode,
             DebugFile = debugFile,
-            Verbose = options.Verbose,
+            DebugLog = options.DebugLog,
             Sandbox = options.Sandbox,
             ScriptArgs = options.ScriptArgs,
         });
@@ -628,7 +628,7 @@ public sealed class BridgeSubprocessSpawner
             WorkerEpoch = options.WorkerEpoch,
             PermissionMode = options.PermissionMode,
             DebugFile = debugFile,
-            Verbose = options.Verbose,
+            DebugLog = options.DebugLog,
             Sandbox = options.Sandbox,
             ScriptArgs = options.ScriptArgs,
             OnFirstUserMessage = options.OnFirstUserMessage,
@@ -765,50 +765,42 @@ public sealed class BridgeSubprocessSpawner
         }
 
         // --print 模式（非交互）
-        args.Add("--print");
+        args.Add(JccCliArg.Print.ToValue());
 
-        // --sdk-url
         if (options.SdkUrl is not null)
         {
-            args.Add("--sdk-url");
+            args.Add(JccCliArg.SdkUrl.ToValue());
             args.Add(options.SdkUrl);
         }
 
-        // --session-id
         if (options.SessionId is not null)
         {
-            args.Add("--session-id");
+            args.Add(JccCliArg.SessionId.ToValue());
             args.Add(options.SessionId);
         }
 
-        // --input-format stream-json
-        args.Add("--input-format");
+        args.Add(JccCliArg.InputFormat.ToValue());
         args.Add("stream-json");
 
-        // --output-format stream-json
-        args.Add("--output-format");
+        args.Add(JccCliArg.OutputFormat.ToValue());
         args.Add("stream-json");
 
-        // --replay-user-messages — 对齐 TS 端
-        args.Add("--replay-user-messages");
+        args.Add(JccCliArg.ReplayUserMessages.ToValue());
 
-        // --verbose
-        if (options.Verbose)
+        if (options.DebugLog)
         {
-            args.Add("--verbose");
+            args.Add(JccCliArg.DebugLog.ToValue());
         }
 
-        // --debug-file — 对齐 TS 端: 当 debugFile 提供时写入
         if (!string.IsNullOrEmpty(options.DebugFile))
         {
-            args.Add("--debug-file");
+            args.Add(JccCliArg.DebugFile.ToValue());
             args.Add(options.DebugFile);
         }
 
-        // --permission-mode
         if (!string.IsNullOrEmpty(options.PermissionMode))
         {
-            args.Add("--permission-mode");
+            args.Add(JccCliArg.PermissionMode.ToValue());
             args.Add(options.PermissionMode);
         }
 
@@ -895,8 +887,8 @@ public sealed class BridgeSubprocessOptions
     /// <summary>调试文件路径 — 用于生成 transcript 日志</summary>
     public string? DebugFile { get; init; }
 
-    /// <summary>是否详细日志</summary>
-    public bool Verbose { get; init; }
+    /// <summary>是否调试日志</summary>
+    public bool DebugLog { get; init; }
 
     /// <summary>沙箱模式</summary>
     public bool Sandbox { get; init; }

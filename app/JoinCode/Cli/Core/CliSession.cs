@@ -145,6 +145,8 @@ public sealed class CliSession
         var queryEngine = serviceProvider.GetService<IQueryEngine>();
         if (queryEngine is null) return null;
 
+        var contextManager = serviceProvider.GetService<IChatContextManager>();
+
         var mainAgent = new AgentBase(
             task: string.Empty,
             options: null,
@@ -152,7 +154,8 @@ public sealed class CliSession
             logger: null,
             name: "main",
             role: AgentRole.Coordinator,
-            sessionId: _sessionObjectId);
+            sessionId: _sessionObjectId,
+            contextManager: contextManager);
 
         var outputChannelManager = serviceProvider.GetService<JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager>();
         if (outputChannelManager is not null)

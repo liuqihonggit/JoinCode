@@ -327,7 +327,15 @@ public class AgentBase : Entity, IAgent
         var prompt = BuildPrompt();
 
         MessageList chatHistory;
-        if (Options.InitialMessageList is not null && Options.InitialMessageList.Count > 0)
+        if (ContextManager is not null)
+        {
+            chatHistory = await ContextManager.GetMessageListAsync(linkedToken).ConfigureAwait(false);
+            if (chatHistory.Count > 0 && chatHistory[chatHistory.Count - 1].Role == MessageRole.User)
+            {
+                chatHistory.RemoveAt(chatHistory.Count - 1);
+            }
+        }
+        else if (Options.InitialMessageList is not null && Options.InitialMessageList.Count > 0)
         {
             chatHistory = Options.InitialMessageList;
         }

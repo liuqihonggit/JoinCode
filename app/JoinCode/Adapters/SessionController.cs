@@ -102,7 +102,7 @@ public sealed class SessionController
 
                 auditLogger?.LogInformation("[Audit] Assistant: {Chars} chars, Model={Model}", fullResponse.Length, lastModelId);
 
-                await PostProcessMainAgentAsync(preprocess.PreprocessResult, cancellationToken).ConfigureAwait(false);
+                await PostProcessMainAgentAsync(preprocess.PreprocessResult, fullResponse.ToString(), cancellationToken).ConfigureAwait(false);
             }
             else
             {
@@ -296,9 +296,10 @@ public sealed class SessionController
     }
 
     /// <summary>
-    /// 主代理路径后处理 — 对齐 SaveContextMiddleware + CleanupInjectionsMiddleware：持久化上下文 + 清理注入
+    /// 主代理路径后处理 — 对齐 SaveContextMiddleware + CleanupInjectionsMiddleware：
+    /// 回写 assistant 响应 → 持久化上下文 → 清理注入
     /// </summary>
-    private async Task PostProcessMainAgentAsync(PreprocessResult? preprocessResult, CancellationToken ct)
+    private async Task PostProcessMainAgentAsync(PreprocessResult? preprocessResult, string assistantResponse, CancellationToken ct)
     {
         if (_serviceProvider is null) return;
 
@@ -307,6 +308,10 @@ public sealed class SessionController
         {
             try
             {
+                if (!string.IsNullOrEmpty(assistantResponse))
+                {
+                    await contextManager.AddAssistantMessageAsync(assistantResponse, ct).ConfigureAwait(false);
+                }
                 await contextManager.SaveContextAsync(ct).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)

@@ -588,11 +588,11 @@ Start-Process -FilePath "{当前项目}\artifacts\bin\JoinCode\Release\net10.0\j
 
 ```powershell
 # ✅ 方式A：Start-Process（推荐，最简单）
-Start-Process -FilePath "D:\project\w1\artifacts\bin\OpenAI.MockServer\Release\net10.0\JoinCode.OpenAI.MockServer.exe" -ArgumentList "--port","9901"
+Start-Process -FilePath "D:\project\{当前分支名}\artifacts\bin\OpenAI.MockServer\Release\net10.0\JoinCode.OpenAI.MockServer.exe" -ArgumentList "--port","9901"
 
 # ✅ 方式B：ProcessStartInfo（需要捕获输出时用）
 $psi = [System.Diagnostics.ProcessStartInfo]::new()
-$psi.FileName = "D:\project\w1\artifacts\bin\OpenAI.MockServer\Release\net10.0\JoinCode.OpenAI.MockServer.exe"
+$psi.FileName = "D:\project\{当前分支名}\artifacts\bin\OpenAI.MockServer\Release\net10.0\JoinCode.OpenAI.MockServer.exe"
 $psi.Arguments = "--port 9901"
 $psi.UseShellExecute = $false
 [System.Diagnostics.Process]::Start($psi)
@@ -624,14 +624,14 @@ Invoke-RestMethod -Uri "http://localhost:9901/shutdown" -Method Get
 
 ```powershell
 $psi = [System.Diagnostics.ProcessStartInfo]::new()
-$psi.FileName = "D:\project\w1\artifacts\bin\JoinCode\Release\net10.0\jcc.exe"
+$psi.FileName = "D:\project\{当前分支名}\artifacts\bin\JoinCode\Release\net10.0\jcc.exe"
 $psi.Arguments = "--trust --await 20 -p `"echo hello`""
 $psi.EnvironmentVariables["JCC_ENDPOINT"] = "http://localhost:9901"
 $psi.EnvironmentVariables["JCC_API_KEY"] = "sk-test-1234567890"
 $psi.EnvironmentVariables["JCC_VENDOR"] = "openai"
 $psi.EnvironmentVariables["JCC_MODEL_ID"] = "gpt-4o"
 $psi.UseShellExecute = $false
-$psi.WorkingDirectory = "D:\project\w1"
+$psi.WorkingDirectory = "D:\project\{当前分支名}"
 [System.Diagnostics.Process]::Start($psi)
 # --await 20: 20秒超时自动关闭（超时返回1234，正常完成不受影响）
 # --verbose: 启用诊断输出（[WIRE] [STEP] [READY] 等）
@@ -650,7 +650,7 @@ $psi.WorkingDirectory = "D:\project\w1"
 
 ```powershell
 # dump 目录包含每个请求的完整记录
-Get-ChildItem "D:\project\w1\tests\MockServers\MockServer.Core\dumps\OpenAI" -File | Sort-Object LastWriteTime -Descending | Select-Object -First 5 Name,LastWriteTime
+Get-ChildItem "D:\project\{当前分支名}\tests\MockServers\MockServer.Core\dumps\OpenAI" -File | Sort-Object LastWriteTime -Descending | Select-Object -First 5 Name,LastWriteTime
 ```
 
 ***
@@ -733,7 +733,7 @@ public ConversationMode Mode => Turns.Count == 1
   |------|------|------|
   | 分支有**未合入 main** 的新 commit | `git rebase main` | rebase 会把独有 commit 变基到 main 之上，**不丢失** |
   | PR 已合入 main，分支同步 | `git reset --hard main` | 分支 commit 已在 main 中，reset 只是快进指针，**不丢失** |
-  | main 与开发分支哈希冲突 | `git reset --hard w2`（在 main 上执行） | squash 合并后哈希不同，reset 直接指向，**不丢失** |
+  | main 与开发分支哈希冲突 | `git reset --hard {分支名}`（在 main 上执行） | squash 合并后哈希不同，reset 直接指向，**不丢失** |
 
   - **⛔ 绝对禁止**：分支有未合入 main 的独有 commit 时执行 `git reset --hard main` — 这会**永久丢失**这些 commit
   - **判断方法**：`git log --oneline w3 --not main` — 有输出说明有独有 commit，只能 rebase；无输出说明已全部合入，可以 reset

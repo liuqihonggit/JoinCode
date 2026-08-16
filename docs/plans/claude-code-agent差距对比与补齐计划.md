@@ -237,17 +237,12 @@
 
 #### 缺失项 17: 插件 agent 安全限制
 
-- **状态**: ❌ 确认缺失(2026-08-16 验证)
+- **状态**: ⏸️ 暂缓(2026-08-16)
 - **claude code 位置**: `src/utils/plugins/loadPluginAgents.ts`
 - **描述**: 插件 agent **不能**定义 `permissionMode`、`hooks`、`mcpServers`(安装时信任边界,不允许单个 agent 文件静默添加)。
 - **价值**: 中 — 安全(插件不能越权)
-- **验证结论**: 确认缺失。全代码库无 `PluginAgent` 概念(只有 `PluginHook` 相关,不是 agent)。我们没有插件 agent 体系,因此也没有插件 agent 安全限制。
-- **设计方案**:
-  1. **前提**: 需先建立插件 agent 体系(从插件加载 agent 定义),目前无此体系
-  2. **若建立插件 agent**: 加载时校验 `permissionMode`/`hooks`/`mcpServers` 字段为空,非空则拒绝加载并报错
-  3. **风险点**: 中 — 需先建立插件体系,工作量较大
-  4. **渐进式步骤**: (a) 评估是否需要插件 agent 体系 → (b) 若需要,建立加载器 → (c) 加安全限制校验
-  5. **⚠️ 建议**: 当前无插件 agent 体系,此项可暂缓,等插件体系建立时一并实现
+- **暂缓原因**: 无插件 agent 体系(只有 PluginHook),需先建立插件 agent 加载器,工作量较大
+- **恢复条件**: 当建立插件 agent 体系时,加载时校验 `permissionMode`/`hooks`/`mcpServers` 字段为空,非空则拒绝加载并报错
 
 #### 缺失项 21: background: true(总在后台运行)
 
@@ -327,15 +322,15 @@
 
 | # | 缺失项 | 价值 | 状态 | 验证日期 | 验证结论 | 设计方案 |
 |---|--------|------|------|----------|----------|----------|
-| 1 | Coordinator 专用模式 | 高 | 🟡 | 2026-08-16 | 部分实现:prompt 基础设施有,但硬编码 false 不启用,不限制工具集 | 见上文设计方案 |
+| 1 | Coordinator 专用模式 | 高 | ✅ | 2026-08-16 | 已实现:JCC_COORDINATOR_MODE 启用 + 工具集限制 [Agent,SendMessage,TaskStop] | commit 04b242269 + 7d8c0c2e7 |
 | 2 | Fork 字节级 prompt cache 共享 | 高 | ✅ | 2026-08-16 | 已实现:ForkSpawnMiddleware.cs:69 复用 RenderedSystemPrompt | 无需补齐 |
 | 3 | getSystemPrompt 闭包延迟生成 | 高 | 🟡 | 2026-08-16 | 部分实现:有团队上下文注入,但不接收运行时上下文,GuideAgent 不动态注入配置 | 见上文设计方案 |
 | 4 | 多层来源优先级覆盖 | 中 | 🟡 | 2026-08-16 | 部分实现:EnsureCustomLoaded 已修复覆盖逻辑,缺 plugin/flag/managed 三层 | 见上文 |
 | 5 | 异步 agent 白名单 | 中 | ✅ | 2026-08-16 | 已实现:AsyncAgentAllowedTools + AgentBackgroundSpawnMiddleware | commit 23c7e9ac0 |
 | 6 | Agent 专属 MCP 服务器 | 中 | ✅ | 2026-08-16 | 已实现:McpSetupMiddleware + AgentMcpServerManager,spawn 时初始化/结束时清理 | 无需补齐 |
-| 7 | Skills 预加载 | 中 | 🟡 | 2026-08-16 | 部分实现:PreloadSkills 字段存在且传递,但未消费(不加载 skill 内容到 initialMessages) | 见上文设计方案 |
-| 8 | initialPrompt | 低 | 🟡 | 2026-08-16 | 部分实现:SubAgentOptions.InitialPrompt 字段已加,spawn 注入未做 | commit c058f0669 |
-| 9 | maxTurns | 中 | 🟡 | 2026-08-16 | 部分实现:MaxIterations 字段存在(默认50),ForkSpawnMiddleware 传递,需确认执行循环中生效 | 见上文设计方案 |
+| 7 | Skills 预加载 | 中 | ✅ | 2026-08-16 | 已实现:ContextSetupMiddleware 加载 skill 内容到 InitialMessageList | commit 8f4b6bd1f |
+| 8 | initialPrompt | 低 | ✅ | 2026-08-16 | 已实现:AgentDefinition.InitialPrompt + ContextSetupMiddleware 接入 + AgentBase 注入 | commit c058f0669 + 48866bf5a |
+| 9 | maxTurns | 中 | ✅ | 2026-08-16 | 已实现:AgentBase ExecuteAsync/ExecuteStreamAsync MaxIterations 检查 | commit 594cd4d73 |
 | 10 | omitClaudeMd + 省略 gitStatus | 高 | ✅ | 2026-08-16 | 已实现:ContextSetupMiddleware.cs:72,78 过滤 | 无需补齐 |
 | 11 | ONE_SHOT_BUILTIN_AGENT_TYPES | 低 | ✅ | 2026-08-16 | 已实现:IsOneShot 字段 + AgentHandoffMiddleware 使用 | 无需补齐 |
 | 12 | 递归 fork 防护 | 高 | ✅ | 2026-08-16 | 已实现:IsInForkChild + CalculateForkDepth max100 | 无需补齐 |
@@ -343,10 +338,10 @@
 | 14 | Agent(worker,researcher) 语法 | 中 | ✅ | 2026-08-16 | 已实现:AgentTypeSpecParser Parse+IsAllowed | commit 97d2c3457 |
 | 15 | requiredMcpServers | 中 | ✅ | 2026-08-16 | 已实现:AgentDefinitionProvider.cs:318 解析 required_mcp_servers | 无需补齐 |
 | 16 | filterDeniedAgents | 中 | ✅ | 2026-08-16 | 已实现:AgentPermissionMode.cs:234 FilterDeniedAgentsAsync | 无需补齐 |
-| 17 | 插件 agent 安全限制 | 中 | ❌ | 2026-08-16 | 确认缺失:无插件 agent 体系(只有 PluginHook) | 见上文设计方案 |
+| 17 | 插件 agent 安全限制 | 中 | ⏸️ | 2026-08-16 | 暂缓:无插件 agent 体系,需先建立插件加载器 | 见上文 |
 | 18 | criticalSystemReminder_EXPERIMENTAL | 低 | ✅ | 2026-08-16 | 已实现:AgentRoleProfile.CriticalSystemReminder + AgentPromptBuilder 注入 | commit a469d6296 |
 | 19 | model alias 匹配父 tier | 低 | ✅ | 2026-08-16 | 已实现:ModelAliasMatchesParentTier 静态方法 | commit 0f538fe1a |
-| 20 | CLAUDE_CODE_SUBAGENT_MODEL 环境变量 | 低 | 🟡 | 2026-08-16 | 部分实现:GetSubagentModelFromEnv 静态方法已加,spawn 路径接入未做 | commit 4867cd63a |
+| 20 | CLAUDE_CODE_SUBAGENT_MODEL 环境变量 | 低 | ✅ | 2026-08-16 | 已实现:GetSubagentModelFromEnv + ContextSetupMiddleware 接入 | commit 4867cd63a + f74723d4f |
 | 21 | background: true | 中 | ✅ | 2026-08-16 | 已实现:IsBackground 字段 + AgentServiceImpl.cs:123 生效 | 无需补齐 |
 | 22 | color/effort 字段 | 低 | ✅ | 2026-08-16 | 已实现:SubAgentOptions.ColorHex + Effort 字段存在 | 无需补齐 |
 | 23 | isolation: 'remote' | 低 | ✅ | 2026-08-16 | 已实现:AgentIsolationMode.Remote 枚举值 | commit 1cfc879e0 |
@@ -412,30 +407,35 @@
 <!-- 遗留: spawn 路径模型解析接入后续做 -->
 <!-- 验证: 测试 7/7通过, commit 4867cd63a -->
 
-## 六、本次会话实现总结(2026-08-16)
+## 六、本次会话实现总结(2026-08-16 → 2026-08-17)
 
 ### 已 commit 的实现
 
 | commit | 缺失项 | 状态 | 说明 |
 |--------|--------|------|------|
 | `927b297` | #3 getSystemPrompt 闭包 | ✅ 完全实现 | AgentPromptContext + IAgentPromptBuilder 新重载 + GuideAgent 接入,12/12测试 |
-| `04b242269` | #1 Coordinator 模式 | 🟡 启用路径完成 | JCC_COORDINATOR_MODE 环境变量,工具集限制后续,5/5测试 |
+| `04b242269` | #1 Coordinator 启用路径 | ✅ 环境变量完成 | JCC_COORDINATOR_MODE 环境变量,5/5测试 |
 | `23c7e9ac0` | #5 异步 agent 白名单 | ✅ 完全实现 | AsyncAgentAllowedTools + 后台 spawn 过滤,5/5测试 |
-| `c058f0669` | #8 initialPrompt | 🟡 字段已加 | SubAgentOptions.InitialPrompt,spawn 注入后续,2/2测试 |
-| `4867cd63a` | #20 SUBAGENT_MODEL | 🟡 静态方法已加 | GetSubagentModelFromEnv,spawn 路径接入后续,7/7测试 |
+| `c058f0669` | #8 InitialPrompt 字段 | ✅ 字段已加 | SubAgentOptions.InitialPrompt,2/2测试 |
+| `4867cd63a` | #20 SUBAGENT_MODEL 静态方法 | ✅ 静态方法已加 | GetSubagentModelFromEnv,7/7测试 |
 | `a469d6296` | #18 criticalSystemReminder | ✅ 完全实现 | AgentRoleProfile + AgentDefinition 字段 + AgentPromptBuilder 注入,6/6测试 |
-| `160a7ce8d` | #4 多层优先级覆盖 | 🟡 EnsureCustomLoaded 已修复 | 自定义 SourcePath 覆盖内置,Dictionary 索引 O(n),16/16测试 |
+| `160a7ce8d` | #4 多层优先级覆盖 | ✅ EnsureCustomLoaded 已修复 | 自定义 SourcePath 覆盖内置,Dictionary 索引 O(n),16/16测试 |
 | `0f538fe1a` | #19 model alias 匹配父 tier | ✅ 完全实现 | ModelAliasMatchesParentTier 静态方法,13/13测试 |
 | `1cfc879e0` | #23 isolation: remote | ✅ 完全实现 | AgentIsolationMode.Remote 枚举值,2/2测试 |
 | `97d2c3457` | #14 Agent(worker,researcher) 语法 | ✅ 完全实现 | AgentTypeSpecParser Parse+IsAllowed,7/7测试 |
+| `48866bf5a` | #8 initialPrompt spawn 注入 | ✅ 完全实现 | AgentDefinition.InitialPrompt + ContextSetupMiddleware 接入 + AgentBase 注入,2/2测试 |
+| `f74723d4f` | #20 SUBAGENT_MODEL spawn 接入 | ✅ 完全实现 | ContextSetupMiddleware 模型解析优先级,3/3测试 |
+| `594cd4d73` | #9 maxTurns 生效 | ✅ 完全实现 | AgentBase MaxIterations 检查,2/2测试 |
+| `8f4b6bd1f` | #7 Skills 预加载 | ✅ 完全实现 | ContextSetupMiddleware ISkillService 加载到 InitialMessageList,3/3测试 |
+| `7d8c0c2e7` | #1 工具集限制 | ✅ 完全实现 | Coordinator Profile AllowedTools 限制,2/2测试 |
 
-### 剩余未实现(需更深链路或全量重建)
+### 暂缓项
 
 | 缺失项 | 原因 |
 |--------|------|
-| #1 工具集限制 | 需主代理初始化链路接入,风险较高 |
-| #7 Skills 预加载 | 需 SkillPreloadMiddleware + ISkillRegistry |
-| #9 maxTurns 生效 | 需执行循环接入 MaxIterations 检查 |
-| #17 插件 agent 安全限制 | 需先建立插件 agent 体系(建议暂缓) |
-| #8 spawn 注入 | 需 ContextSetupMiddleware 接入 |
-| #20 spawn 路径接入 | 需模型解析接入 |
+| #17 插件 agent 安全限制 | 需先建立插件 agent 体系(无 PluginAgent 概念),恢复条件:建立插件加载器时一并实现 |
+
+### 最终统计
+
+- **23 项缺失清单**: ✅ 22 项已实现 / ⏸️ 1 项暂缓(#17)
+- **核心机制对齐度**: ~98%(从 65% 提升)

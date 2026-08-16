@@ -27,4 +27,6 @@ public enum ObjectType
     [EnumValue("executor")] Executor = 17,
     [EnumValue("service")] Service = 18,
     [EnumValue("cache")] Cache = 19,
+    [EnumValue("plugin")] Plugin = 20,
+    [EnumValue("resource")] Resource = 21,
 }

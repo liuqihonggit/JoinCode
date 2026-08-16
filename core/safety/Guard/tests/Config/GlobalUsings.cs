@@ -19,6 +19,7 @@ global using JoinCode.Abstractions.Security.Shell;
 global using JoinCode.Abstractions.Tools;
 global using JoinCode.Abstractions.ChatCommands;
 global using JoinCode.Abstractions.Utils;
+global using JoinCode.Abstractions.Entity;
 global using Core.Configuration;
 global using Core.Configuration.Providers;
 global using Core.Configuration.Remote;

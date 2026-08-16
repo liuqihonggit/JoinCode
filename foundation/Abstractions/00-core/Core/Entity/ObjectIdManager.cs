@@ -89,6 +89,11 @@ public static class ObjectIdManager
     public static int Count => _objects.Count;
 
     /// <summary>
+    /// 检查指定 ObjectId 是否已注册 — 用于后台扫描验证资源是否正确卸载
+    /// </summary>
+    public static bool IsRegistered(ObjectId id) => _objects.ContainsKey(id);
+
+    /// <summary>
     /// 清空所有注册（测试用）
     /// </summary>
     public static void Clear()

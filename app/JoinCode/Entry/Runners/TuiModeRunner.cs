@@ -78,6 +78,14 @@ internal static class TuiModeRunner
         };
         window.Add(statusBar, toolbar, outputView, inputField, inputHint, bottomBar);
 
+        window.KeyDown += (sender, key) =>
+        {
+            if (key == TuiKey.F5)
+            {
+                polling.PollOnce();
+            }
+        };
+
         app.Invoke(() => inputField.SetFocus());
 
         polling.Start();

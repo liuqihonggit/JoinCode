@@ -3,16 +3,19 @@ namespace JoinCode.Dream.Commands;
 
 /// <summary>
 /// /dream 命令 - 手动触发记忆整合
+/// <para>继承 PluginResourceBase 获得 ObjectId + 引用计数 + 心跳 — 命令本身就是资源</para>
 /// </summary>
 [Command(Name = "dream", Description = "手动触发记忆整合（做梦）", Usage = "/dream [force]")]
-public sealed partial class DreamCommand : ICommand
+public sealed partial class DreamCommand : PluginResourceBase, ICommand
 {
     private readonly IDreamFeature _dreamFeature;
     [Inject] private readonly ILogger<DreamCommand>? _logger;
 
     public DreamCommand(
+        string ownerPluginName,
         IDreamFeature dreamFeature,
         ILogger<DreamCommand>? logger = null)
+        : base(ownerPluginName, PluginResourceKind.Command, "dream")
     {
         _dreamFeature = dreamFeature ?? throw new ArgumentNullException(nameof(dreamFeature));
         _logger = logger;
@@ -79,16 +82,19 @@ public sealed partial class DreamCommand : ICommand
 
 /// <summary>
 /// 做梦任务管理命令
+/// <para>继承 PluginResourceBase 获得 ObjectId + 引用计数 + 心跳 — 命令本身就是资源</para>
 /// </summary>
 [Command(Name = "dream-tasks", Description = "查看做梦任务状态", Usage = "/dream-tasks [list|kill <taskId>]")]
-public sealed partial class DreamTasksCommand : ICommand
+public sealed partial class DreamTasksCommand : PluginResourceBase, ICommand
 {
     private readonly IDreamFeature _dreamFeature;
     [Inject] private readonly ILogger<DreamTasksCommand>? _logger;
 
     public DreamTasksCommand(
+        string ownerPluginName,
         IDreamFeature dreamFeature,
         ILogger<DreamTasksCommand>? logger = null)
+        : base(ownerPluginName, PluginResourceKind.Command, "dream-tasks")
     {
         _dreamFeature = dreamFeature ?? throw new ArgumentNullException(nameof(dreamFeature));
         _logger = logger;

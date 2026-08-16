@@ -133,6 +133,11 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
             _pluginUndoChain[pluginName] = undoChain;
             AddToLoadOrder(pluginName);
 
+            if (plugin is WorkflowPluginBase pluginBase)
+            {
+                RecordPluginResourceIds(pluginName, pluginBase.Resources.Select(r => r.ObjectId));
+            }
+
             _logger?.LogInformation("内置工作流插件加载成功: {PluginName}", pluginName);
             RecordPluginMetrics("workflow", "load", true);
             return host;

@@ -36,13 +36,18 @@ public sealed partial class DreamPlugin : WorkflowPluginBase, ICommandRegistrati
     public void RegisterCommands(ICommandRegistry registry, IServiceProvider serviceProvider)
     {
         var dreamFeature = serviceProvider.GetRequiredService<IDreamFeature>();
-        var dreamCmd = new DreamCommand(dreamFeature);
+
+        var dreamCmd = new DreamCommand(Name, dreamFeature);
         registry.Register(dreamCmd);
         _registeredCommandNames.Add(dreamCmd.Name);
+        RegisterResource(dreamCmd);
+        UiResources.Register($"menu.{dreamCmd.Name}", new UiResourceEntry($"menu.{dreamCmd.Name}", UiResourceKind.MenuItem, dreamCmd.Name, dreamCmd.Name));
 
-        var dreamTasksCmd = new DreamTasksCommand(dreamFeature);
+        var dreamTasksCmd = new DreamTasksCommand(Name, dreamFeature);
         registry.Register(dreamTasksCmd);
         _registeredCommandNames.Add(dreamTasksCmd.Name);
+        RegisterResource(dreamTasksCmd);
+        UiResources.Register($"menu.{dreamTasksCmd.Name}", new UiResourceEntry($"menu.{dreamTasksCmd.Name}", UiResourceKind.MenuItem, dreamTasksCmd.Name, dreamTasksCmd.Name));
     }
 
     /// <summary>撤销命令注册 — 可逆效应,使用 _registeredCommandNames 精确撤销</summary>

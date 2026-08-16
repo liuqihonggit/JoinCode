@@ -23,20 +23,22 @@ public sealed partial class PluginSkillBridge : ServiceEntity, IPluginSkillBridg
         Diag.WriteLine("[BRIDGE-CTOR] done");
     }
 
-    public async Task RegisterPluginSkillsAsync(string pluginName, CancellationToken cancellationToken = default)
+    public async Task<Action> RegisterPluginSkillsAsync(string pluginName, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(pluginName);
 
         if (_pluginSkillMap.ContainsKey(pluginName))
         {
             _logger?.LogWarning(L.T(StringKey.PluginSkillAlreadyRegistered), pluginName);
-            return;
+            await Task.CompletedTask.ConfigureAwait(false);
+            return () => { };
         }
 
         if (!_pluginManager.IsPluginLoaded(pluginName))
         {
             _logger?.LogWarning(L.T(StringKey.PluginSkillPluginNotLoaded), pluginName);
-            return;
+            await Task.CompletedTask.ConfigureAwait(false);
+            return () => { };
         }
 
         var skills = ExtractPluginSkills(pluginName);
@@ -61,6 +63,18 @@ public sealed partial class PluginSkillBridge : ServiceEntity, IPluginSkillBridg
         _logger?.LogInformation("[PluginSkillBridge] 插件 {Plugin} 注册 {Count} 个技能", pluginName, registeredSkillNames.Count);
 
         await Task.CompletedTask.ConfigureAwait(false);
+
+        var capturedSkillNames = registeredSkillNames;
+        var capturedPluginName = pluginName;
+        return () =>
+        {
+            foreach (var skillName in capturedSkillNames)
+            {
+                try { _skillService.UnregisterSkill(skillName); }
+                catch (Exception ex) { _logger?.LogError(ex, "[PluginSkillBridge] 撤销技能失败: {Plugin}/{Skill}", capturedPluginName, skillName); }
+            }
+            _pluginSkillMap.TryRemove(capturedPluginName, out _);
+        };
     }
 
     public async Task UnregisterPluginSkillsAsync(string pluginName, CancellationToken cancellationToken = default)

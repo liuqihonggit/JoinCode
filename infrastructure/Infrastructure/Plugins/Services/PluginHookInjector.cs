@@ -2,7 +2,8 @@ namespace Core.Plugins;
 
 public interface IPluginHookInjector
 {
-    Task InjectHooksAsync(string pluginName, IReadOnlyList<PluginHookDefinition> hooks, CancellationToken ct = default);
+    /// <summary>注入 Hooks — 返回撤销函数(可逆效应)</summary>
+    Task<Action> InjectHooksAsync(string pluginName, IReadOnlyList<PluginHookDefinition> hooks, CancellationToken ct = default);
     Task RemoveHooksAsync(string pluginName, CancellationToken ct = default);
     IEnumerable<PluginHookDefinition> GetInjectedHooks(string pluginName);
 }
@@ -36,7 +37,7 @@ public sealed partial class PluginHookInjector : ServiceEntity, IPluginHookInjec
         _injectedHooks = new ConcurrentDictionary<string, List<PluginHookDefinition>>();
     }
 
-    public async Task InjectHooksAsync(string pluginName, IReadOnlyList<PluginHookDefinition> hooks, CancellationToken ct = default)
+    public async Task<Action> InjectHooksAsync(string pluginName, IReadOnlyList<PluginHookDefinition> hooks, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(pluginName);
         ArgumentNullException.ThrowIfNull(hooks);
@@ -60,6 +61,14 @@ public sealed partial class PluginHookInjector : ServiceEntity, IPluginHookInjec
         }
 
         await Task.CompletedTask.ConfigureAwait(false);
+
+        return () =>
+        {
+            if (_injectedHooks.TryRemove(pluginName, out var removed))
+            {
+                RecordHookInjectorMetrics("remove", pluginName, removed.Count, true);
+            }
+        };
     }
 
     public async Task RemoveHooksAsync(string pluginName, CancellationToken ct = default)

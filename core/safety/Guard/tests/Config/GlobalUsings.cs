@@ -56,6 +56,8 @@ global using PermissionResult = JoinCode.Abstractions.Security.PermissionResult;
 global using System.ComponentModel.DataAnnotations;
 global using System.Text.Json;
 global using System.Runtime.CompilerServices;
+global using System.Runtime.InteropServices;
+global using Microsoft.Win32.SafeHandles;
 global using Testing.Common;
 global using Infrastructure.Localization;
 global using Infrastructure.Pipeline;

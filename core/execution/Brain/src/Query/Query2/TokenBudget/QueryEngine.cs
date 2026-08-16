@@ -217,7 +217,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
             }
 
             // 处理查询完成（无工具调用）
-            if (iterationResult.ToolCall == null)
+            if (iterationResult.ToolCalls.Count == 0)
             {
                 context.Stopwatch.Stop();
                 context.IsQueryComplete = true;
@@ -243,33 +243,49 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
                 return;
             }
 
-            context.TotalToolCalls++;
-
-            context.OutputChunks.Add(new QueryStreamChunk
+            // 依次执行本轮所有工具调用
+            foreach (var toolCall in iterationResult.ToolCalls)
             {
-                Type = AgentStreamChunkType.ToolCallStart,
-                ToolName = iterationResult.ToolCall.ToolName,
-                ToolCallNumber = context.TotalToolCalls
-            });
+                if (context.TotalToolCalls >= _config.MaxToolCallIterations)
+                {
+                    break;
+                }
 
-            // 执行工具调用
-            var toolResult = await ExecuteToolAsync(iterationResult.ToolCall, context.Options, cancellationToken).ConfigureAwait(false);
+                context.TotalToolCalls++;
+                context.ToolName = toolCall.ToolName;
+                context.HasToolCall = true;
 
-            context.OutputChunks.Add(new QueryStreamChunk
-            {
-                Type = AgentStreamChunkType.ToolCallEnd,
-                ToolName = iterationResult.ToolCall.ToolName,
-                ToolResult = toolResult,
-                ToolCallNumber = context.TotalToolCalls
-            });
+                context.OutputChunks.Add(new QueryStreamChunk
+                {
+                    Type = AgentStreamChunkType.ToolCallStart,
+                    ToolName = toolCall.ToolName,
+                    ToolCallNumber = context.TotalToolCalls
+                });
 
-            // 将工具结果添加到对话历史
-            AddToolResultToHistory(context, iterationResult.ToolCall, toolResult);
+                // 执行工具调用
+                var toolResult = await ExecuteToolAsync(toolCall, context.Options, cancellationToken).ConfigureAwait(false);
 
-            // 工具调用后钩子（内容替换预算检查、递减回报检测、历史裁剪、空闲提醒等）
-            foreach (var hook in context.AfterToolCallHooks)
-            {
-                await hook(context, cancellationToken).ConfigureAwait(false);
+                context.OutputChunks.Add(new QueryStreamChunk
+                {
+                    Type = AgentStreamChunkType.ToolCallEnd,
+                    ToolName = toolCall.ToolName,
+                    ToolResult = toolResult,
+                    ToolCallNumber = context.TotalToolCalls
+                });
+
+                // 将工具结果添加到对话历史
+                AddToolResultToHistory(context, toolCall, toolResult);
+
+                // 工具调用后钩子（内容替换预算检查、递减回报检测、历史裁剪、空闲提醒等）
+                foreach (var hook in context.AfterToolCallHooks)
+                {
+                    await hook(context, cancellationToken).ConfigureAwait(false);
+                }
+
+                if (context.ShouldBreak)
+                {
+                    break;
+                }
             }
 
             if (context.ShouldBreak)
@@ -336,7 +352,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
         var chatCompletionService = _kernel.GetChatCompletionService();
         var responseBuilder = new StringBuilder();
         var chunks = new List<QueryStreamChunk>();
-        ToolCallRequest? pendingToolCall = null;
+        var pendingToolCalls = new List<ToolCallRequest>();
         var inputTokens = 0;
         var outputTokens = 0;
 
@@ -358,14 +374,13 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
                     ? argsEl.GetString()
                     : null;
 
-                pendingToolCall = new ToolCallRequest
+                pendingToolCalls.Add(new ToolCallRequest
                 {
                     ToolName = toolCallName ?? string.Empty,
                     ToolCallId = toolCallId,
                     RawArguments = toolCallArguments,
                     Arguments = ExtractArguments(streamChunk.Metadata, toolCallArguments)
-                };
-                break;
+                });
             }
 
             // 累积内容
@@ -400,7 +415,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
             }
         }
 
-        if (pendingToolCall == null)
+        if (pendingToolCalls.Count == 0)
         {
             var finalContent = responseBuilder.ToString();
             if (!string.IsNullOrEmpty(finalContent))
@@ -418,11 +433,14 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
         }
 
         // 执行工具调用
-        _logger?.LogInformation("[QueryEngine] 执行工具调用 #{Num}: {ToolName}", context.TotalToolCalls + 1, pendingToolCall.ToolName);
+        foreach (var tc in pendingToolCalls)
+        {
+            _logger?.LogInformation("[QueryEngine] 执行工具调用 #{Num}: {ToolName}", context.TotalToolCalls + 1, tc.ToolName);
+        }
 
         return new QueryIterationResult
         {
-            ToolCall = pendingToolCall,
+            ToolCalls = pendingToolCalls,
             Chunks = chunks,
             InputTokens = inputTokens,
             OutputTokens = outputTokens
@@ -633,7 +651,8 @@ internal sealed class ToolCallRequest
 internal sealed class QueryIterationResult
 {
     public string? Content { get; init; }
-    public ToolCallRequest? ToolCall { get; init; }
+    public ToolCallRequest? ToolCall => ToolCalls.Count > 0 ? ToolCalls[0] : null;
+    public List<ToolCallRequest> ToolCalls { get; init; } = new();
     public List<QueryStreamChunk> Chunks { get; init; } = new();
     public int InputTokens { get; init; }
     public int OutputTokens { get; init; }

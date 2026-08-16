@@ -23,7 +23,7 @@ public sealed class PromptView : ITuiComponent
         {
             Width = Dim.Fill(),
             Height = 1,
-            CanFocus = false,
+            CanFocus = true,
         };
 
         _promptLabel = new Label
@@ -41,6 +41,7 @@ public sealed class PromptView : ITuiComponent
             Height = 1,
         };
 
+        _textField.KeyDown += OnKeyDown;
         _container.Add(_promptLabel, _textField);
     }
 

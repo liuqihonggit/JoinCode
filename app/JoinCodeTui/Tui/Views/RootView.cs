@@ -35,6 +35,7 @@ public sealed class RootView : View
             Y = 0,
             Width = Dim.Fill(),
             Height = 1,
+            CanFocus = true,
         };
 
         _toolBarArea = new View
@@ -43,6 +44,7 @@ public sealed class RootView : View
             Y = Pos.Bottom(_statusBarArea),
             Width = Dim.Fill(),
             Height = 1,
+            CanFocus = true,
         };
 
         _contentArea = new View
@@ -51,6 +53,7 @@ public sealed class RootView : View
             Y = Pos.Bottom(_toolBarArea),
             Width = Dim.Fill(),
             Height = Dim.Fill(2),
+            CanFocus = true,
         };
 
         _promptArea = new View
@@ -59,6 +62,7 @@ public sealed class RootView : View
             Y = Pos.Bottom(_contentArea),
             Width = Dim.Fill(),
             Height = 1,
+            CanFocus = true,
         };
 
         _footerArea = new View
@@ -67,6 +71,7 @@ public sealed class RootView : View
             Y = Pos.Bottom(_promptArea),
             Width = Dim.Fill(),
             Height = 1,
+            CanFocus = true,
         };
 
         Add(_statusBarArea, _toolBarArea, _contentArea, _promptArea, _footerArea);

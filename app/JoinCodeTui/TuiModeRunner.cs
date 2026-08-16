@@ -14,38 +14,6 @@ internal static class TuiModeRunner
         app.Init();
         WriteDiag($"[TUI] app.Init done, Initialized={app.Initialized}");
 
-        var container = new View { X = 0, Y = 0, Width = Dim.Fill(), Height = 1, CanFocus = true };
-        var lbl = new Label { Text = "> ", X = 0, Y = 0 };
-        var tf = new TextField { X = Pos.Right(lbl), Y = 0, Width = Dim.Fill(), Height = 1 };
-        container.Add(lbl, tf);
-
-        var top = new Window
-        {
-            Width = Dim.Fill(),
-            Height = Dim.Fill(),
-            BorderStyle = LineStyle.None,
-        };
-        top.Add(container);
-
-        var focusSet = false;
-        app.Iteration += (_, _) =>
-        {
-            if (!focusSet) { focusSet = true; tf.SetFocus(); }
-        };
-
-        using var ctReg = cancellationToken.Register(() => app.RequestStop());
-        WriteDiag("[TUI] app.Run start (root+prompt)");
-        app.Run(top);
-        WriteDiag("[TUI] app.Run returned");
-        await Task.CompletedTask;
-    }
-
-    internal static async Task RunAsyncFull(WorkflowConfig config, IServiceProvider services, CancellationToken cancellationToken = default)
-    {
-        using var app = Application.Create();
-        app.Init();
-        WriteDiag($"[TUI] app.Init done, Initialized={app.Initialized}");
-
         var queue = new CommandQueue();
         var painter = new TerminalPainter(app.Invoke);
         var root = new RootView(painter, queue);
@@ -171,6 +139,15 @@ internal static class TuiModeRunner
             BorderStyle = LineStyle.None,
         };
         top.Add(root);
+
+        root.KeyDown += (_, key) =>
+        {
+            if (key == TuiKey.F1) toolBar.TriggerAction(ToolBarAction.New);
+            else if (key == TuiKey.F2) toolBar.TriggerAction(ToolBarAction.Pause);
+            else if (key == TuiKey.F3) toolBar.TriggerAction(ToolBarAction.Stop);
+            else if (key == TuiKey.F4) toolBar.TriggerAction(ToolBarAction.Chat);
+            else if (key == TuiKey.F5) { toolBar.TriggerAction(ToolBarAction.Stats); polling.PollOnce(); }
+        };
 
         var processingCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var processingTask = ProcessQueueAsync(queue, mainPipe, outputView, queryEngine, chatHistory, app.RequestStop, painter, processingCts.Token);

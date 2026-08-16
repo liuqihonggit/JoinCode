@@ -497,14 +497,17 @@ dotnet publish tools/TerminalGuiAotProbe -c Release
 
 ## 7. 前置任务清单
 
-- [ ] **阶段 0**：Terminal.Gui AOT 卫星项目验证（阻塞后续所有 TUI 工作）
-- [x] **阶段 2 部分**：Bug1 修复（多子代理输入丢弃）+ Bug2 修复（ConfirmationGate 静态串扰）+ CommandQueue 实现（10 单元测试通过）
-- [ ] 阶段 1：TUI 渲染层骨架（依赖阶段 0 AOT 验证，用户暂跳过）
-- [ ] 阶段 2 剩余：QueuedCommandsView（依赖 TUI 层）+ CommandQueue 接入 ReplLoopStep（留到阶段 4）
-- [ ] 阶段 3：邮箱收敛（调研完成，"循环"是跨进程桥接有意设计，需谨慎重构）
-- [x] **阶段 5 部分**：死注释清理（IPresentationAdapter/SessionController/CliSession）+ TuiSymbols 死代码移除
-- [ ] 阶段 4：TUI 模式接入主流程（依赖阶段 1）
-- [ ] 阶段 6：TUI 设为默认（可选，依赖阶段 4）
+- [x] **阶段 0**：Terminal.Gui AOT 卫星项目验证（20MB native exe 生成成功）
+- [x] **阶段 1**：TUI 渲染层骨架（TerminalPainter + ITuiComponent + RootView + --tui 参数）
+- [x] **阶段 2**：Bug1 修复 + Bug2 修复 + CommandQueue（10 单元测试）+ CommandQueue 接入 ReplLoopStep
+- [x] **阶段 2 剩余**：QueuedCommandsView 投递中预览组件
+- [x] **阶段 3 邮箱命名**：IAgentMessageBroker→IMailbox + AgentMessageBroker→InProcessMailbox + SendAsync/ReceiveAsync
+- [x] **阶段 4 部分**：PromptView + OutputView + StatusBarView 基础 TUI 视图
+- [x] **阶段 5 部分**：死注释清理 + TuiSymbols 死代码移除
+- [ ] **阶段 3 剩余**：MailboxHub + FileMailbox + MailboxPoller 断循环 + @mention 走邮箱
+- [ ] **阶段 4 剩余**：AgentPanesView + PermissionDialogView + RootView resize 事件 + TUI 主循环接入
+- [ ] **阶段 5 剩余**：工具过滤 6 层收敛为 3 层
+- [ ] **阶段 6**：TUI 设为默认（可选）
 
 ### 阶段 3 调研结论（2026-08-16）
 
@@ -540,3 +543,42 @@ dotnet publish tools/TerminalGuiAotProbe -c Release
 <!-- 替代方案 B: 保持 CLI+GUI 双路径仅统一抽象（改动小但未解决根本问题） -->
 <!-- 风险: Terminal.Gui 依赖 Markdig/TextMateSharp/Microsoft.Extensions.Configuration.Binder，AOT 兼容性需阶段0卫星项目验证 -->
 <!-- 验证: 待阶段0 AOT 卫星项目验证后确认 -->
+
+---
+
+## 9. 工具过滤 6 层→3 层收敛详细映射（2026-08-16 调研）
+
+### 9.1 当前 6 层清单
+
+| 层 | 文件 | 过滤逻辑 | 输入→输出 |
+|----|------|----------|-----------|
+| 1 CLI 参数 | `ApplicationBuilder.cs:58-84` | `--allowed-tools`/`--disallowed-tools` → `PermissionConfig` | CLI args → AutoApprovedTools/AutoRejectedTools |
+| 2 Agent 定义 | `DefinitionResolutionMiddleware.cs:29-52` + `ContextSetupMiddleware.cs:41-42` | `AgentRoleProfile.AllowedTools/DisallowedTools` → `SubAgentOptions` | 角色注册表 → SubAgentOptions |
+| 3 Fork | `ForkSpawnMiddleware.cs:71-74` | `UseExactTools` → `CacheSafeParams.ToolNames` 精确继承 | ForkOptions → SubAgentOptions |
+| 4 权限模式 | `AgentToolRestrictions.cs` + 2× `AgentRestrictionMiddleware.cs` | `PermissionMode` → 静态 `ToolSecuritySets` 查表 | PermissionMode + ToolName → allow/deny |
+| 5 AgentBase 应用 | `AgentBase.cs:546-569` + `QueryOptions.cs:19-35` + `QueryEngine.cs:461-471` | `SubAgentOptions` → `QueryOptions.IsToolAllowed` | QueryOptions + ToolName → allow/deny |
+| 6 权限规则 | `ToolPermissionFilter.cs` + `AgentPermissionMode.cs:44-104` | 动态 `ToolDenyRule` + `AgentPermissionRule` | 规则集 + ToolName → allow/deny |
+
+### 9.2 目标 3 层
+
+| 目标层 | 职责 | 合并的当前层 | 对应 claude code |
+|--------|------|-------------|-----------------|
+| `AllAgentDisallowedTools` | 所有 subagent 禁用（防递归） | 4（静态集）+ 6（deny 规则防递归部分） | `ALL_AGENT_DISALLOWED_TOOLS` |
+| `AsyncAgentAllowedTools` | 后台 agent 白名单 | 3（Fork UseExactTools）+ 1（CLI --allowed-tools） | `ASYNC_AGENT_ALLOWED_TOOLS` |
+| `AgentDefinition.DisallowedTools` | agent 定义级黑名单 | 2（Agent 定义）+ 5（AgentBase 应用） | `disallowedTools` 字段 |
+
+### 9.3 冗余点
+
+1. **两个同名 `AgentRestrictionMiddleware`**（层 4）在不同管道做相同检查：
+   - `core/safety/Guard/.../Policy/AgentRestrictionMiddleware.cs`（权限检查管道，返回 Rejected 结果）
+   - `core/execution/McpToolDispatch/.../AgentRestrictionMiddleware.cs`（工具执行管道，抛异常）
+2. **层 4 与层 6 语义重叠**：`AgentToolRestrictions`（静态模式集）vs `ToolPermissionFilter`（动态 deny 规则）
+3. **层 5 与层 4 职责重叠**：`QueryOptions.IsToolAllowed`（动态 QueryOptions）vs `AgentRestrictionMiddleware`（静态模式集）
+
+### 9.4 收敛策略（渐进式）
+
+1. **Step 1**：创建 `ToolFilterPolicy` 统一入口，聚合 3 层检查（不删除旧代码）
+2. **Step 2**：切换 `QueryEngine.ExecuteToolAsync` 到 `ToolFilterPolicy`（替代层 5）
+3. **Step 3**：合并两个 `AgentRestrictionMiddleware` 为一个（消除层 4 冗余）
+4. **Step 4**：将 `ToolPermissionFilter` 动态规则合并到 `ToolFilterPolicy`（消除层 6 冗余）
+5. **Step 5**：删除旧中间件，全量测试验证权限不变

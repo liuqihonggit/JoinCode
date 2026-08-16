@@ -28,6 +28,7 @@ public sealed class RootView : View
 
         Width = Dim.Fill();
         Height = Dim.Fill();
+        CanFocus = true;
 
         _statusBarArea = new View
         {

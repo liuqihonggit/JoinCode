@@ -152,16 +152,10 @@ public sealed class CliSession
             options: null,
             queryEngine: queryEngine,
             logger: null,
-            name: "main",
+            name: "mainAgent",
             role: AgentRole.Coordinator,
             sessionId: _sessionObjectId,
             contextManager: contextManager);
-
-        var outputChannelManager = serviceProvider.GetService<JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager>();
-        if (outputChannelManager is not null)
-        {
-            mainAgent.OutputChannelManager = outputChannelManager;
-        }
 
         var spawnPipeline = serviceProvider.GetService<MiddlewarePipeline<UnifiedSpawnContext>>();
         if (spawnPipeline is not null)

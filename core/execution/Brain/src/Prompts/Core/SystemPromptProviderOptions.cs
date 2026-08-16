@@ -32,6 +32,28 @@ public partial class SystemPromptProviderOptions
         return Environment.GetEnvironmentVariable("JCC_SUBAGENT_MODEL");
     }
 
+    /// <summary>
+    /// 判断 agent 指定的 model alias 是否匹配父模型 tier
+    /// <para>对齐 claude code aliasMatchesParentTier — 避免 Vertex 用户从 Opus 4.6 降级到默认 Opus</para>
+    /// <para>alias = "opus" 且 parentModel 含 "opus" → true(用父模型,避免降级)</para>
+    /// </summary>
+    public static bool ModelAliasMatchesParentTier(string? alias, string parentModel)
+    {
+        if (string.IsNullOrWhiteSpace(alias) || string.IsNullOrWhiteSpace(parentModel))
+            return false;
+
+        var aliasLower = alias.ToLowerInvariant();
+        var parentLower = parentModel.ToLowerInvariant();
+
+        return aliasLower switch
+        {
+            "opus" => parentLower.Contains("opus"),
+            "sonnet" => parentLower.Contains("sonnet"),
+            "haiku" => parentLower.Contains("haiku"),
+            _ => false,
+        };
+    }
+
     #endregion
 
     #region 环境信息

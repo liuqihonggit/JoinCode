@@ -85,4 +85,16 @@ public sealed class SystemPromptProviderOptionsCoordinatorModeTests
         Environment.SetEnvironmentVariable("JCC_SUBAGENT_MODEL", null);
         SystemPromptProviderOptions.GetSubagentModelFromEnv().Should().BeNull();
     }
+
+    [Theory]
+    [InlineData("opus", "claude-opus-4-6", true)]
+    [InlineData("opus", "gpt-4o", false)]
+    [InlineData("sonnet", "claude-sonnet-4", true)]
+    [InlineData("haiku", "claude-haiku-3", true)]
+    [InlineData(null, "claude-opus-4", false)]
+    [InlineData("opus", "", false)]
+    public void ModelAliasMatchesParentTier(string? alias, string parentModel, bool expected)
+    {
+        SystemPromptProviderOptions.ModelAliasMatchesParentTier(alias, parentModel).Should().Be(expected);
+    }
 }

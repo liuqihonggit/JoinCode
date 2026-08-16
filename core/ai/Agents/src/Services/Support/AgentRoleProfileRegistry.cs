@@ -192,6 +192,12 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
         return index;
     }
 
+    private static bool IsCoordinatorModeEnabledFromEnv()
+    {
+        var value = Environment.GetEnvironmentVariable("JCC_COORDINATOR_MODE");
+        return value is "1" or "true" or "True" or "TRUE";
+    }
+
     internal static List<AgentRoleProfile> BuildBuiltInProfiles()
     {
         var readOnlyDisallowedTools = new List<string>
@@ -211,7 +217,9 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
                 Role = AgentRole.Coordinator,
                 WhenToUse = "General tasks with full toolset",
                 Description = "Coordinator agent — manages Goal lifecycle, full toolset",
-                AllowedTools = null,
+                AllowedTools = IsCoordinatorModeEnabledFromEnv()
+                    ? [AgentToolNameConstants.Agent, AgentToolNameConstants.AgentSendMessage, TaskToolNameConstants.TaskStop]
+                    : null,
                 DisallowedTools = subAgentDisallowedTools,
             },
             new()

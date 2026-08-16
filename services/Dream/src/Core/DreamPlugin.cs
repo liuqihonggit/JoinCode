@@ -6,22 +6,23 @@ namespace JoinCode.Dream;
 /// </summary>
 [Register(typeof(IWorkflowPlugin))]
 [Register(typeof(ICommandRegistrationHook))]
-public sealed partial class DreamPlugin : ServiceEntity, IWorkflowPlugin, ICommandRegistrationHook, IDisposable
+public sealed partial class DreamPlugin : WorkflowPluginBase, ICommandRegistrationHook
 {
     private readonly List<string> _registeredCommandNames = new();
-    private bool _disposed;
 
-    public string Name => "Dream";
-    public string Version => "1.0.0";
-    public string Description => "JoinCode 记忆整合插件";
+    public DreamPlugin() : base("Dream") { }
 
-    public OperationResult Load(IServiceCollection services)
+    public override string Name => "Dream";
+    public override string Version => "1.0.0";
+    public override string Description => "JoinCode 记忆整合插件";
+
+    public override OperationResult Load(IServiceCollection services)
     {
         services.AddDreamPluginServices();
         return OperationResult.Ok();
     }
 
-    public async Task<OperationResult> InitializeAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken = default)
+    public override async Task<OperationResult> InitializeAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken = default)
     {
         var registry = serviceProvider.GetService<IDreamTaskRegistry>();
         if (registry is Persistence.PersistentDreamTaskRegistry persistentRegistry)
@@ -30,12 +31,6 @@ public sealed partial class DreamPlugin : ServiceEntity, IWorkflowPlugin, IComma
         }
 
         return OperationResult.Ok();
-    }
-
-    public PluginUnloadResult Unload()
-    {
-        Dispose();
-        return PluginUnloadResult.Success("Dream", TimeSpan.Zero);
     }
 
     public void RegisterCommands(ICommandRegistry registry, IServiceProvider serviceProvider)
@@ -60,9 +55,13 @@ public sealed partial class DreamPlugin : ServiceEntity, IWorkflowPlugin, IComma
         _registeredCommandNames.Clear();
     }
 
-    protected override void OnDispose()
+    protected override void OnUnload()
     {
-        if (_disposed) return;
-        _disposed = true;
+        UnregisterCommandsIfRegistered();
+    }
+
+    private void UnregisterCommandsIfRegistered()
+    {
+        _registeredCommandNames.Clear();
     }
 }

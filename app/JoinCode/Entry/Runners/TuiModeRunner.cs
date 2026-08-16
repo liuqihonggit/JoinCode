@@ -13,12 +13,6 @@ internal static class TuiModeRunner
 
         var queue = new CommandQueue();
 
-        var window = new Window
-        {
-            Width = Dim.Fill(),
-            Height = Dim.Fill(),
-        };
-
         var titleLabel = new Label
         {
             Text = "JoinCode - AI 智能体命令行工具 (TUI 模式)",
@@ -46,20 +40,29 @@ internal static class TuiModeRunner
             Height = 1,
         };
 
+        var separatorLabel = new Label
+        {
+            Text = new string('-', 60),
+            X = 0,
+            Y = 3,
+            Width = Dim.Fill(),
+            Height = 1,
+        };
+
         var outputLabel = new Label
         {
             Text = "",
             X = 0,
             Y = 4,
             Width = Dim.Fill(),
-            Height = Dim.Fill(),
+            Height = 10,
         };
 
         var promptLabel = new Label
         {
             Text = "> ",
             X = 0,
-            Y = Pos.Bottom(window) - 1,
+            Y = 15,
             Width = 2,
             Height = 1,
         };
@@ -67,7 +70,7 @@ internal static class TuiModeRunner
         var textField = new TextField
         {
             X = 2,
-            Y = Pos.Bottom(window) - 1,
+            Y = 15,
             Width = Dim.Fill(),
             Height = 1,
         };
@@ -79,6 +82,11 @@ internal static class TuiModeRunner
                 var text = textField.Text.ToString();
                 if (!string.IsNullOrWhiteSpace(text))
                 {
+                    if (string.Equals(text, "/exit", StringComparison.OrdinalIgnoreCase))
+                    {
+                        app.RequestStop();
+                        return;
+                    }
                     outputLabel.Text += $"{Environment.NewLine}> {text}";
                     queue.Enqueue(new QueuedCommand(text, CommandOrigin.User, QueuePriority.Next));
                     textField.Text = "";
@@ -86,8 +94,14 @@ internal static class TuiModeRunner
             }
         };
 
-        window.Add(titleLabel, modelLabel, hintLabel, outputLabel, promptLabel, textField);
-        textField.SetFocus();
+        var window = new Window
+        {
+            Width = Dim.Fill(),
+            Height = Dim.Fill(),
+        };
+        window.Add(titleLabel, modelLabel, hintLabel, separatorLabel, outputLabel, promptLabel, textField);
+
+        app.Invoke(() => textField.SetFocus());
 
         await Task.Run(() => app.Run(window), cancellationToken).ConfigureAwait(false);
     }

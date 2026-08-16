@@ -113,7 +113,7 @@ internal sealed class FakeMessageBroker : IMailbox
 
     public void UnregisterAgent(string agentId) { }
 
-    public Task<bool> SendMessageAsync(string agentId, CoordinatorMessage message, CancellationToken cancellationToken = default)
+    public Task<bool> SendAsync(string agentId, CoordinatorMessage message, CancellationToken cancellationToken = default)
     {
         SentMessages.Add(message);
         return Task.FromResult(true);
@@ -125,7 +125,7 @@ internal sealed class FakeMessageBroker : IMailbox
         return Task.CompletedTask;
     }
 
-    public IAsyncEnumerable<CoordinatorMessage> ReadMessagesAsync(string agentId, CancellationToken cancellationToken = default)
+    public IAsyncEnumerable<CoordinatorMessage> ReceiveAsync(string agentId, CancellationToken cancellationToken = default)
     {
         return AsyncEnumerable.Empty<CoordinatorMessage>();
     }

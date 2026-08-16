@@ -1,4 +1,4 @@
-namespace Core.Utils;
+namespace JoinCode.Abstractions.Interfaces;
 
 /// <summary>
 /// 工具过滤策略接口 — 3 层收敛后的统一工具过滤入口。

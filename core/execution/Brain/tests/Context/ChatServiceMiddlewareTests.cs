@@ -47,7 +47,7 @@ public sealed class ChatServiceMiddlewareTests
     {
         // 空中间件列表 → 只有 TerminalHandler → 无事件 → 返回回退文本
         var service = CreateService([]);
-        var result = await service.SendAsync("hello").ConfigureAwait(true);
+        var result = await service.SendMessageAsync("hello").ConfigureAwait(true);
         result.Should().Be("抱歉，我无法生成回复。");
     }
 
@@ -59,7 +59,7 @@ public sealed class ChatServiceMiddlewareTests
             new MockQueryLoopMiddleware("Hello from mock")
         ]);
 
-        var result = await service.SendAsync("hello").ConfigureAwait(true);
+        var result = await service.SendMessageAsync("hello").ConfigureAwait(true);
         result.Should().Be("Hello from mock");
     }
 
@@ -77,7 +77,7 @@ public sealed class ChatServiceMiddlewareTests
             new OrderTrackingMiddleware("C", executionLog),
         ]);
 
-        await service.SendAsync("test").ConfigureAwait(true);
+        await service.SendMessageAsync("test").ConfigureAwait(true);
 
         executionLog.Should().Equal("A", "B", "C");
     }
@@ -134,7 +134,7 @@ public sealed class ChatServiceMiddlewareTests
             new OrderTrackingMiddleware("should-not-run", executionLog),
         ]);
 
-        var result = await service.SendAsync("test").ConfigureAwait(true);
+        var result = await service.SendMessageAsync("test").ConfigureAwait(true);
 
         result.Should().Be("blocked");
         executionLog.Should().NotContain("should-not-run");
@@ -151,7 +151,7 @@ public sealed class ChatServiceMiddlewareTests
         ]);
 
         // 第一次调用 — ConversationTurn=0
-        await service.SendAsync("first").ConfigureAwait(true);
+        await service.SendMessageAsync("first").ConfigureAwait(true);
 
         // 第二次调用 — ConversationTurn=1
         // 用 TurnRecordingMiddleware 验证
@@ -161,10 +161,10 @@ public sealed class ChatServiceMiddlewareTests
             new MockQueryLoopMiddleware()
         ]);
 
-        await service2.SendAsync("msg1").ConfigureAwait(true);
+        await service2.SendMessageAsync("msg1").ConfigureAwait(true);
         turnRecorder.LastTurn.Should().Be(0);
 
-        await service2.SendAsync("msg2").ConfigureAwait(true);
+        await service2.SendMessageAsync("msg2").ConfigureAwait(true);
         turnRecorder.LastTurn.Should().Be(1);
     }
 
@@ -180,7 +180,7 @@ public sealed class ChatServiceMiddlewareTests
             new MockQueryLoopMiddleware()
         ]);
 
-        await service.SendAsync("test").ConfigureAwait(true);
+        await service.SendMessageAsync("test").ConfigureAwait(true);
 
         // 中间件捕获的 ToolUseContext 不应为 null
         contextCapture.CapturedContext.Should().NotBeNull();
@@ -212,7 +212,7 @@ public sealed class ChatServiceMiddlewareTests
             saveContext
         ]);
 
-        await service.SendAsync("test").ConfigureAwait(true);
+        await service.SendMessageAsync("test").ConfigureAwait(true);
 
         // MockQueryLoopMiddleware 设置了 FinalUsage，ProcessUsageMiddleware 应调用 ProcessUsageAsync
         usageMock.Verify(
@@ -248,7 +248,7 @@ public sealed class ChatServiceMiddlewareTests
         ], usageMock);
 
         // 不应抛出异常（框架 OnError=Continue 捕获了异常）
-        var act = async () => await service.SendAsync("test").ConfigureAwait(true);
+        var act = async () => await service.SendMessageAsync("test").ConfigureAwait(true);
         await act.Should().NotThrowAsync().ConfigureAwait(true);
     }
 

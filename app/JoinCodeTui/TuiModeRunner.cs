@@ -14,8 +14,10 @@ internal static class TuiModeRunner
         app.Init();
         WriteDiag($"[TUI] app.Init done, Initialized={app.Initialized}");
 
+        var container = new View { X = 0, Y = 0, Width = Dim.Fill(), Height = 1, CanFocus = true };
         var lbl = new Label { Text = "> ", X = 0, Y = 0 };
         var tf = new TextField { X = Pos.Right(lbl), Y = 0, Width = Dim.Fill(), Height = 1 };
+        container.Add(lbl, tf);
 
         var top = new Window
         {
@@ -23,7 +25,7 @@ internal static class TuiModeRunner
             Height = Dim.Fill(),
             BorderStyle = LineStyle.None,
         };
-        top.Add(lbl, tf);
+        top.Add(container);
 
         var focusSet = false;
         app.Iteration += (_, _) =>

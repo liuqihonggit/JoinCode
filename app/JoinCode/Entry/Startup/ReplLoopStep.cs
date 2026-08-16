@@ -17,6 +17,9 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
     {
         if (context.Options.Tui)
         {
+            if (context.OriginalConsoleIn is not null) Console.SetIn(context.OriginalConsoleIn);
+            if (context.OriginalConsoleOut is not null) Console.SetOut(context.OriginalConsoleOut);
+            if (context.OriginalConsoleError is not null) Console.SetError(context.OriginalConsoleError);
             await TuiModeRunner.RunAsync(context.Config, context.Options, context.Host, ct).ConfigureAwait(false);
             await next(context, ct).ConfigureAwait(false);
             return;

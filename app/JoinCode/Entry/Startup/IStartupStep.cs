@@ -43,4 +43,14 @@ public sealed class StartupContext
     /// 决策: 询问放在 WorkspaceTrustStep 之后（用户要求），dump 放在 SystemPromptApplyStep 之后（确保 system prompt 已应用）
     /// </summary>
     public DebugDumpSection DebugDumpChoice { get; set; } = DebugDumpSection.None;
+
+    /// <summary>
+    /// TUI 模式下保存的原始 Console IO — 由 InteractiveModeRunner 在重定向前保存，由 ReplLoopStep 在启动 Terminal.Gui 前恢复。
+    /// 决策: 管道步骤(ProviderSetupStep/DebugDumpPromptStep)用 TerminalHelper.ReadLine 阻塞等待 Console 输入，与 Terminal.Gui 接管 Console 冲突。
+    ///       TUI 模式下重定向 Console.In 为空 StringReader 让 ReadLine 立即返回空串跳过交互，Console.Out/Error 重定向为 Null 吞掉管道步骤的 Console 输出。
+    ///       ReplLoopStep 的 TUI 分支恢复原始 IO 后再启动 Terminal.Gui，让 Application.Init 接管真实 Console。
+    /// </summary>
+    public TextReader? OriginalConsoleIn { get; set; }
+    public TextWriter? OriginalConsoleOut { get; set; }
+    public TextWriter? OriginalConsoleError { get; set; }
 }

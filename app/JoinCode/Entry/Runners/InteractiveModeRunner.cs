@@ -21,6 +21,16 @@ internal static class InteractiveModeRunner
             FileSystem = IO.FileSystem.FileSystemFactory.Create()
         };
 
+        if (options.Tui)
+        {
+            context.OriginalConsoleIn = Console.In;
+            context.OriginalConsoleOut = Console.Out;
+            context.OriginalConsoleError = Console.Error;
+            Console.SetIn(new StringReader(""));
+            Console.SetOut(TextWriter.Null);
+            Console.SetError(TextWriter.Null);
+        }
+
         var sp = host.Services;
         var pipeline = new PipelineBuilder<StartupContext>()
             .Use(sp.GetRequiredService<StartupLoggingMiddleware>())
@@ -35,8 +45,18 @@ internal static class InteractiveModeRunner
             .Use(sp.GetRequiredService<ExitCleanupStep>())
             .OnError((ctx, ex) =>
             {
-                if (!options.Tui)
+                if (options.Tui)
+                {
+                    if (ctx.OriginalConsoleError is not null)
+                    {
+                        Console.SetError(ctx.OriginalConsoleError);
+                        Console.Error.WriteLine($"启动失败: {ex.Message}");
+                    }
+                }
+                else
+                {
                     Cli.TerminalHelper.WriteLine($"启动失败: {ex.Message}");
+                }
             })
             .Build();
 

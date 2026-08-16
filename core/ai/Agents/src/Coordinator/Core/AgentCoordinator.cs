@@ -1,10 +1,10 @@
-﻿using JoinCode.Abstractions.Attributes;
+using JoinCode.Abstractions.Attributes;
 
 namespace Core.Agents.Coordinator;
 
 /// <summary>
 /// Agent协调器 - 提供高级协调功能，包括重试策略、断路器模式、资源清理等
-/// 职责：协调 IAgentLifecycleManager、IAgentWorktreeManager、IAgentMessageBroker、IAgentExecutionEngine
+/// 职责：协调 IAgentLifecycleManager、IAgentWorktreeManager、IMailbox、IAgentExecutionEngine
 /// </summary>
 [Register(typeof(ISubAgentCoordinator))]
 [Register(typeof(ITeammateObserver))]
@@ -12,7 +12,7 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
 {
     private readonly IAgentLifecycleManager _lifecycleManager;
     private readonly IAgentWorktreeManager _worktreeManager;
-    private readonly IAgentMessageBroker _messageBroker;
+    private readonly IMailbox _messageBroker;
     private readonly IAgentExecutionEngine _executionEngine;
     private readonly IClockService _clock;
     [Inject] private readonly ILogger<AgentCoordinator>? _logger;
@@ -408,7 +408,7 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
             return false;
         }
 
-        return await _messageBroker.SendMessageAsync(agentId, message, cancellationToken).ConfigureAwait(false);
+        return await _messageBroker.SendAsync(agentId, message, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task BroadcastAsync(CoordinatorAgentMessage message, CancellationToken cancellationToken = default)
@@ -423,7 +423,7 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
 
     public IAsyncEnumerable<CoordinatorAgentMessage> ReadMessagesAsync(string agentId, CancellationToken cancellationToken = default)
     {
-        return _messageBroker.ReadMessagesAsync(agentId, cancellationToken);
+        return _messageBroker.ReceiveAsync(agentId, cancellationToken);
     }
 
     #endregion

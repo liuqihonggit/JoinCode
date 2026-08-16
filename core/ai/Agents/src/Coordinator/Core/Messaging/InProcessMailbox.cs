@@ -1,14 +1,14 @@
 namespace Core.Agents.Coordinator;
 
-[Register]
-public sealed partial class AgentMessageBroker : ServiceEntity, IAgentMessageBroker
+[Register(typeof(IMailbox))]
+public sealed partial class InProcessMailbox : ServiceEntity, IMailbox
 {
     private readonly ILogger? _logger;
     private readonly ITeammateMailboxService? _mailboxService;
-    private readonly ConcurrentDictionary<string, Channel<CoordinatorAgentMessage>> _messageChannels;
+    private readonly ConcurrentDictionary<string, Channel<CoordinatorMessage>> _messageChannels;
     private readonly ConcurrentDictionary<string, string> _agentSessions;
 
-    public AgentMessageBroker(ILogger? logger = null, ITeammateMailboxService? mailboxService = null)
+    public InProcessMailbox(ILogger? logger = null, ITeammateMailboxService? mailboxService = null)
     {
         _logger = logger;
         _mailboxService = mailboxService;
@@ -36,7 +36,7 @@ public sealed partial class AgentMessageBroker : ServiceEntity, IAgentMessageBro
         _agentSessions.TryRemove(agentId, out _);
     }
 
-    public async Task<bool> SendMessageAsync(string agentId, CoordinatorAgentMessage message, CancellationToken cancellationToken = default)
+    public async Task<bool> SendAsync(string agentId, CoordinatorAgentMessage message, CancellationToken cancellationToken = default)
     {
         var channelDelivered = false;
 
@@ -55,12 +55,12 @@ public sealed partial class AgentMessageBroker : ServiceEntity, IAgentMessageBro
     {
         var tasks = _messageChannels
             .Where(kvp => kvp.Key != message.FromAgentId)
-            .Select(kvp => SendMessageAsync(kvp.Key, message, cancellationToken));
+            .Select(kvp => SendAsync(kvp.Key, message, cancellationToken));
 
         await Task.WhenAll(tasks).ConfigureAwait(false);
     }
 
-    public IAsyncEnumerable<CoordinatorAgentMessage> ReadMessagesAsync(string agentId, CancellationToken cancellationToken = default)
+    public IAsyncEnumerable<CoordinatorAgentMessage> ReceiveAsync(string agentId, CancellationToken cancellationToken = default)
     {
         if (_messageChannels.TryGetValue(agentId, out var channel))
         {

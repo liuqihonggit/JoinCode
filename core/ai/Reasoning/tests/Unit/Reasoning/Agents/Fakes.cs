@@ -104,7 +104,7 @@ internal sealed class FakeToolCollection : IToolCollection
     public bool Remove(string name) => false;
 }
 
-internal sealed class FakeMessageBroker : IAgentMessageBroker
+internal sealed class FakeMessageBroker : IMailbox
 {
     public List<CoordinatorMessage> SentMessages { get; } = [];
     public List<CoordinatorMessage> BroadcastMessages { get; } = [];

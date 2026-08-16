@@ -201,7 +201,7 @@ public class McpJsonSerializerTests
     [Fact]
     public void SerializeObject_JsonRpcMessage_AsRequest_ReturnsValidJson()
     {
-        // Arrange — 模拟 HttpTransport.SendMessageAsync 的调用路径:
+        // Arrange — 模拟 HttpTransport.SendAsync 的调用路径:
         // SendMessageAsync(JsonRpcMessage) -> message.ToJson() -> SerializeObject(message)
         JsonRpcMessage message = new JsonRpcRequest
         {

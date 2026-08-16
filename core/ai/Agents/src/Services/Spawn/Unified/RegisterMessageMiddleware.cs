@@ -8,7 +8,7 @@ namespace Core.Agents;
 public sealed partial class RegisterMessageMiddleware : ServiceEntity, IUnifiedSpawnMiddleware
 {
 
-    public RegisterMessageMiddleware(IAgentMessageBroker messageBroker, ISubAgentContextAccessor subAgentContextAccessor, ILogger<RegisterMessageMiddleware> logger, ITeammateInitService? teammateInitService = null, IServiceProvider? serviceProvider = null)
+    public RegisterMessageMiddleware(IMailbox messageBroker, ISubAgentContextAccessor subAgentContextAccessor, ILogger<RegisterMessageMiddleware> logger, ITeammateInitService? teammateInitService = null, IServiceProvider? serviceProvider = null)
     {
         _messageBroker = messageBroker;
         _subAgentContextAccessor = subAgentContextAccessor;
@@ -16,7 +16,7 @@ public sealed partial class RegisterMessageMiddleware : ServiceEntity, IUnifiedS
         _teammateInitService = teammateInitService;
         _serviceProvider = serviceProvider;
     }
-    [Inject] private readonly IAgentMessageBroker _messageBroker;
+    [Inject] private readonly IMailbox _messageBroker;
     [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
     [Inject] private readonly ILogger<RegisterMessageMiddleware> _logger;
     [Inject] private readonly ITeammateInitService? _teammateInitService;

@@ -5,7 +5,7 @@ namespace Core.Agents.Coordinator;
 public sealed partial class MailboxPoller : IMailboxPoller, IAsyncDisposable
 {
     private readonly ITeammateMailboxService _mailboxService;
-    private readonly IAgentMessageBroker _messageBroker;
+    private readonly IMailbox _messageBroker;
     [Inject] private readonly ILogger<MailboxPoller>? _logger;
     private readonly ConcurrentDictionary<string, CancellationTokenSource> _pollingAgents;
     private readonly TimeSpan _pollInterval;
@@ -13,7 +13,7 @@ public sealed partial class MailboxPoller : IMailboxPoller, IAsyncDisposable
 
     public MailboxPoller(
         ITeammateMailboxService mailboxService,
-        IAgentMessageBroker messageBroker,
+        IMailbox messageBroker,
         ILogger<MailboxPoller>? logger = null,
         TimeSpan? pollInterval = null)
     {
@@ -88,7 +88,7 @@ public sealed partial class MailboxPoller : IMailboxPoller, IAsyncDisposable
                             Content = mailboxMsg.Content
                         };
 
-                        await _messageBroker.SendMessageAsync(agentId, brokerMessage, cancellationToken).ConfigureAwait(false);
+                        await _messageBroker.SendAsync(agentId, brokerMessage, cancellationToken).ConfigureAwait(false);
                     }
 
                     await _mailboxService.MarkAsReadAsync(agentId, sessionId, messageIds, cancellationToken).ConfigureAwait(false);

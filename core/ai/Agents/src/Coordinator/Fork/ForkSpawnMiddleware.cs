@@ -1,4 +1,4 @@
-﻿namespace Core.Agents.Coordinator;
+namespace Core.Agents.Coordinator;
 
 /// <summary>
 /// Fork Spawn 中间件 — 构建子智能体选项、Spawn、注册消息代理、Worktree、邮箱轮询
@@ -7,7 +7,7 @@
 public sealed partial class ForkSpawnMiddleware : ServiceEntity, IForkMiddleware
 {
     private readonly IAgentLifecycleManager _lifecycleManager;
-    private readonly IAgentMessageBroker _messageBroker;
+    private readonly IMailbox _messageBroker;
     private readonly IAgentWorktreeManager? _worktreeManager;
     private readonly IMailboxPoller? _mailboxPoller;
     private readonly JoinCode.Abstractions.Interfaces.IFileStateCache? _fileStateCache;
@@ -17,7 +17,7 @@ public sealed partial class ForkSpawnMiddleware : ServiceEntity, IForkMiddleware
 
     public ForkSpawnMiddleware(
         IAgentLifecycleManager lifecycleManager,
-        IAgentMessageBroker messageBroker,
+        IMailbox messageBroker,
         IAgentWorktreeManager? worktreeManager = null,
         IMailboxPoller? mailboxPoller = null,
         JoinCode.Abstractions.Interfaces.IFileStateCache? fileStateCache = null,

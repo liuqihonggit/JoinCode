@@ -12,7 +12,7 @@ public sealed class JudgeAgent : ReasoningAgent
 
     private readonly WeightedDecisionSystem _decisionSystem = new();
 
-    public JudgeAgent(IQueryEngine queryEngine, ILogger<JudgeAgent> logger, IChatClient? chatClient = null, IAgentMessageBroker? messageBroker = null)
+    public JudgeAgent(IQueryEngine queryEngine, ILogger<JudgeAgent> logger, IChatClient? chatClient = null, IMailbox? messageBroker = null)
         : base(queryEngine, logger, AgentRole.Judge, "法官Agent", chatClient, messageBroker) { }
 
     public override async Task<AgentAction> ReasonAsync(ReasoningContext context, CancellationToken ct)

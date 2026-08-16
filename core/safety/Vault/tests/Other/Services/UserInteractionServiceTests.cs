@@ -65,7 +65,7 @@ public partial class UserInteractionServiceTests
         var message = "Test info message";
 
         // Act
-        await _userInteractionService.SendMessageAsync(message, MessageType.Info).ConfigureAwait(true);
+        await _userInteractionService.SendAsync(message, MessageType.Info).ConfigureAwait(true);
 
         // Assert
         _loggerMock.Verify(
@@ -85,7 +85,7 @@ public partial class UserInteractionServiceTests
         var message = "Test warning message";
 
         // Act
-        await _userInteractionService.SendMessageAsync(message, MessageType.Warning).ConfigureAwait(true);
+        await _userInteractionService.SendAsync(message, MessageType.Warning).ConfigureAwait(true);
 
         // Assert
         _loggerMock.Verify(
@@ -105,7 +105,7 @@ public partial class UserInteractionServiceTests
         var message = "Test error message";
 
         // Act
-        await _userInteractionService.SendMessageAsync(message, MessageType.Error).ConfigureAwait(true);
+        await _userInteractionService.SendAsync(message, MessageType.Error).ConfigureAwait(true);
 
         // Assert
         _loggerMock.Verify(
@@ -125,7 +125,7 @@ public partial class UserInteractionServiceTests
         var message = "Test success message";
 
         // Act
-        await _userInteractionService.SendMessageAsync(message, MessageType.Success).ConfigureAwait(true);
+        await _userInteractionService.SendAsync(message, MessageType.Success).ConfigureAwait(true);
 
         // Assert
         // L.T() 本地化模板在测试环境中不含格式占位符，无法通过 It.IsAnyType 匹配消息内容，
@@ -177,14 +177,14 @@ public partial class UserInteractionServiceTests
     [Fact]
     public async Task SendMessageAsync_NullMessage_ShouldThrowArgumentException()
     {
-        var act = async () => await _userInteractionService.SendMessageAsync(null!).ConfigureAwait(true);
+        var act = async () => await _userInteractionService.SendAsync(null!).ConfigureAwait(true);
         await act.Should().ThrowAsync<ArgumentException>().WithParameterName("message").ConfigureAwait(true);
     }
 
     [Fact]
     public async Task SendMessageAsync_EmptyMessage_ShouldThrowArgumentException()
     {
-        var act = async () => await _userInteractionService.SendMessageAsync("").ConfigureAwait(true);
+        var act = async () => await _userInteractionService.SendAsync("").ConfigureAwait(true);
         await act.Should().ThrowAsync<ArgumentException>().WithParameterName("message").ConfigureAwait(true);
     }
 

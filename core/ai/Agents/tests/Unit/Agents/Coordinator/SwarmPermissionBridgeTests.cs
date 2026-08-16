@@ -3,13 +3,13 @@ namespace Sync.Tests.Agents.Coordinator;
 
 public class SwarmPermissionBridgeTests
 {
-    private readonly Mock<IAgentMessageBroker> _messageBrokerMock;
+    private readonly Mock<IMailbox> _messageBrokerMock;
     private readonly Mock<IAgentPermissionManager> _permissionManagerMock;
     private readonly SwarmPermissionBridge _bridge;
 
     public SwarmPermissionBridgeTests()
     {
-        _messageBrokerMock = new Mock<IAgentMessageBroker>();
+        _messageBrokerMock = new Mock<IMailbox>();
         _permissionManagerMock = new Mock<IAgentPermissionManager>();
         _bridge = new SwarmPermissionBridge(
             _messageBrokerMock.Object,
@@ -24,7 +24,7 @@ public class SwarmPermissionBridgeTests
             .Setup(x => x.AddRuleAsync(It.IsAny<AgentPermissionRule>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
         _messageBrokerMock
-            .Setup(x => x.SendMessageAsync(It.IsAny<string>(), It.IsAny<AgentMsg>(), It.IsAny<CancellationToken>()))
+            .Setup(x => x.SendAsync(It.IsAny<string>(), It.IsAny<AgentMsg>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
         PermissionSyncEventArgs? capturedArgs = null;
@@ -45,7 +45,7 @@ public class SwarmPermissionBridgeTests
             x => x.AddRuleAsync(It.IsAny<AgentPermissionRule>(), It.IsAny<CancellationToken>()),
             Times.Once);
         _messageBrokerMock.Verify(
-            x => x.SendMessageAsync("agent-1", It.IsAny<AgentMsg>(), It.IsAny<CancellationToken>()),
+            x => x.SendAsync("agent-1", It.IsAny<AgentMsg>(), It.IsAny<CancellationToken>()),
             Times.Once);
 
         capturedArgs.Should().NotBeNull();
@@ -60,7 +60,7 @@ public class SwarmPermissionBridgeTests
             .Setup(x => x.AddRuleAsync(It.IsAny<AgentPermissionRule>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
         _messageBrokerMock
-            .Setup(x => x.SendMessageAsync(It.IsAny<string>(), It.IsAny<AgentMsg>(), It.IsAny<CancellationToken>()))
+            .Setup(x => x.SendAsync(It.IsAny<string>(), It.IsAny<AgentMsg>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
         var request = new PermissionSyncRequest
@@ -145,7 +145,7 @@ public class SwarmPermissionBridgeTests
             .Setup(x => x.RemoveRuleAsync("agent-5", It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
         _messageBrokerMock
-            .Setup(x => x.SendMessageAsync(It.IsAny<string>(), It.IsAny<AgentMsg>(), It.IsAny<CancellationToken>()))
+            .Setup(x => x.SendAsync(It.IsAny<string>(), It.IsAny<AgentMsg>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
         var request = new PermissionSyncRequest

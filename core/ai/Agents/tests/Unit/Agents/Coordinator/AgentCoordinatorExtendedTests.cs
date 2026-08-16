@@ -1,4 +1,4 @@
-﻿
+
 namespace Core.Tests.Agents.Coordinator;
 
 public class AgentCoordinatorExtendedTests
@@ -6,7 +6,7 @@ public class AgentCoordinatorExtendedTests
     private readonly Mock<IQueryEngine> _queryEngineMock;
     private readonly Mock<IAgentLifecycleManager> _lifecycleManagerMock;
     private readonly Mock<IAgentWorktreeManager> _worktreeManagerMock;
-    private readonly Mock<IAgentMessageBroker> _messageBrokerMock;
+    private readonly Mock<IMailbox> _messageBrokerMock;
     private readonly Mock<IAgentExecutionEngine> _executionEngineMock;
     private readonly AgentCoordinator _coordinator;
 
@@ -15,7 +15,7 @@ public class AgentCoordinatorExtendedTests
         _queryEngineMock = new Mock<IQueryEngine>();
         _lifecycleManagerMock = new Mock<IAgentLifecycleManager>();
         _worktreeManagerMock = new Mock<IAgentWorktreeManager>();
-        _messageBrokerMock = new Mock<IAgentMessageBroker>();
+        _messageBrokerMock = new Mock<IMailbox>();
         _executionEngineMock = new Mock<IAgentExecutionEngine>();
 
         var spawnPipeline = new MiddlewarePipeline<UnifiedSpawnContext>(
@@ -342,10 +342,10 @@ public class AgentCoordinatorExtendedTests
         agent.State = TaskExecutionStatus.Running;
 
         _lifecycleManagerMock.Setup(x => x.GetAgentAsync(agentId, default)).ReturnsAsync(agent);
-        _messageBrokerMock.Setup(x => x.SendMessageAsync(agentId, message, default)).ReturnsAsync(true);
+        _messageBrokerMock.Setup(x => x.SendAsync(agentId, message, default)).ReturnsAsync(true);
 
         // Act
-        var result = await _coordinator.SendMessageAsync(agentId, message).ConfigureAwait(true);
+        var result = await _coordinator.SendAsync(agentId, message).ConfigureAwait(true);
 
         // Assert
         result.Should().BeTrue();

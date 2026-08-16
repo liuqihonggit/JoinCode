@@ -9,7 +9,7 @@ namespace Core.Agents;
 public sealed partial class PermissionRoutingMiddleware : ServiceEntity, IUnifiedSpawnMiddleware
 {
 
-    public PermissionRoutingMiddleware(IAgentMessageBroker messageBroker, ISubAgentContextAccessor subAgentContextAccessor, ILogger<PermissionRoutingMiddleware> logger, SwarmPermissionMessageRouter? permissionRouter = null, PlanApprovalMessageRouter? planApprovalRouter = null)
+    public PermissionRoutingMiddleware(IMailbox messageBroker, ISubAgentContextAccessor subAgentContextAccessor, ILogger<PermissionRoutingMiddleware> logger, SwarmPermissionMessageRouter? permissionRouter = null, PlanApprovalMessageRouter? planApprovalRouter = null)
     {
         _messageBroker = messageBroker;
         _subAgentContextAccessor = subAgentContextAccessor;
@@ -17,7 +17,7 @@ public sealed partial class PermissionRoutingMiddleware : ServiceEntity, IUnifie
         _permissionRouter = permissionRouter;
         _planApprovalRouter = planApprovalRouter;
     }
-    [Inject] private readonly IAgentMessageBroker _messageBroker;
+    [Inject] private readonly IMailbox _messageBroker;
     [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
     [Inject] private readonly ILogger<PermissionRoutingMiddleware> _logger;
     [Inject] private readonly SwarmPermissionMessageRouter? _permissionRouter;

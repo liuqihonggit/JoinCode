@@ -6,14 +6,14 @@ using JoinCode.Abstractions.Pipeline;
 public sealed partial class TeammateRegistrationMiddleware : ServiceEntity, ITeammateExecutionMiddleware
 {
 
-    public TeammateRegistrationMiddleware(IAgentMessageBroker messageBroker, ISubAgentContextAccessor subAgentContextAccessor, ILogger<TeammateRegistrationMiddleware>? logger = null, IMailboxPoller? mailboxPoller = null)
+    public TeammateRegistrationMiddleware(IMailbox messageBroker, ISubAgentContextAccessor subAgentContextAccessor, ILogger<TeammateRegistrationMiddleware>? logger = null, IMailboxPoller? mailboxPoller = null)
     {
         _messageBroker = messageBroker;
         _subAgentContextAccessor = subAgentContextAccessor;
         _logger = logger;
         _mailboxPoller = mailboxPoller;
     }
-    [Inject] private readonly IAgentMessageBroker _messageBroker;
+    [Inject] private readonly IMailbox _messageBroker;
     [Inject] private readonly ILogger<TeammateRegistrationMiddleware>? _logger;
     [Inject] private readonly IMailboxPoller? _mailboxPoller;
     [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;

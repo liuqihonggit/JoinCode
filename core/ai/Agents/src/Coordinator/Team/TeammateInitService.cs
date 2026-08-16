@@ -6,14 +6,14 @@ public sealed partial class TeammateInitService : ServiceEntity, ITeammateInitSe
 {
     private readonly ITeamManager _teamManager;
     private readonly ISessionHookManager? _sessionHookManager;
-    private readonly IAgentMessageBroker? _messageBroker;
+    private readonly IMailbox? _messageBroker;
     private readonly ILogger? _logger;
     [Inject] private readonly IClockService _clock;
 
     public TeammateInitService(
         ITeamManager teamManager,
         ISessionHookManager? sessionHookManager = null,
-        IAgentMessageBroker? messageBroker = null,
+        IMailbox? messageBroker = null,
         ILogger? logger = null,
         IClockService? clock = null)
     {
@@ -115,7 +115,7 @@ public sealed partial class TeammateInitService : ServiceEntity, ITeammateInitSe
                 Content = serialized
             };
 
-            await _messageBroker.SendMessageAsync(agentId, message, ct).ConfigureAwait(false);
+            await _messageBroker.SendAsync(agentId, message, ct).ConfigureAwait(false);
 
             _logger?.LogDebug("[TeammateInitService] Teammate {AgentId} Stop Hook 触发空闲通知", agentId);
         }

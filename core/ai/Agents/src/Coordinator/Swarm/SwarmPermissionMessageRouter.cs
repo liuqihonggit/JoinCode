@@ -4,7 +4,7 @@ namespace Core.Agents.Coordinator;
 [Register]
 public sealed partial class SwarmPermissionMessageRouter : ServiceEntity
 {
-    private readonly IAgentMessageBroker _messageBroker;
+    private readonly IMailbox _messageBroker;
     private readonly SwarmPermissionCallbackService _callbackService;
     private readonly ISwarmPermissionRequestProcessor _requestProcessor;
     [Inject] private readonly ILogger<SwarmPermissionMessageRouter>? _logger;
@@ -12,7 +12,7 @@ public sealed partial class SwarmPermissionMessageRouter : ServiceEntity
     private Task? _routingTask;
 
     public SwarmPermissionMessageRouter(
-        IAgentMessageBroker messageBroker,
+        IMailbox messageBroker,
         SwarmPermissionCallbackService callbackService,
         ISwarmPermissionRequestProcessor requestProcessor,
         ILogger<SwarmPermissionMessageRouter>? logger = null)
@@ -65,7 +65,7 @@ public sealed partial class SwarmPermissionMessageRouter : ServiceEntity
     {
         try
         {
-            await foreach (var message in _messageBroker.ReadMessagesAsync(coordinatorAgentId, ct).ConfigureAwait(false))
+            await foreach (var message in _messageBroker.ReceiveAsync(coordinatorAgentId, ct).ConfigureAwait(false))
             {
                 if (ct.IsCancellationRequested) break;
 
@@ -88,7 +88,7 @@ public sealed partial class SwarmPermissionMessageRouter : ServiceEntity
     {
         try
         {
-            await foreach (var message in _messageBroker.ReadMessagesAsync(workerAgentId).ConfigureAwait(false))
+            await foreach (var message in _messageBroker.ReceiveAsync(workerAgentId).ConfigureAwait(false))
             {
                 if (message.MessageType == SwarmPermissionMessageType.PermissionResponse.ToValue())
                 {

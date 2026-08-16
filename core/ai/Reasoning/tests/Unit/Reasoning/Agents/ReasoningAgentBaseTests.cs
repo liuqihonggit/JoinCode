@@ -104,7 +104,7 @@ public sealed class ReasoningAgentBaseTests
     {
         var agent = new TestAgent(NullLogger<TestAgent>.Instance);
 
-        await agent.SendMessageAsync("to", "type", "content", CancellationToken.None);
+        await agent.SendAsync("to", "type", "content", CancellationToken.None);
 
         Assert.True(true);
     }
@@ -115,7 +115,7 @@ public sealed class ReasoningAgentBaseTests
         var broker = new FakeMessageBroker();
         var agent = new TestAgent(NullLogger<TestAgent>.Instance, messageBroker: broker);
 
-        await agent.SendMessageAsync("defender", "evidence", "hello", CancellationToken.None);
+        await agent.SendAsync("defender", "evidence", "hello", CancellationToken.None);
 
         Assert.Single(broker.SentMessages);
         Assert.Equal("prosecutor", broker.SentMessages[0].FromAgentId);
@@ -149,7 +149,7 @@ public sealed class ReasoningAgentBaseTests
     {
         public override string SystemPrompt => "你是测试Agent";
 
-        public TestAgent(ILogger logger, IChatClient? chatClient = null, IAgentMessageBroker? messageBroker = null)
+        public TestAgent(ILogger logger, IChatClient? chatClient = null, IMailbox? messageBroker = null)
             : base(new FakeQueryEngine(), logger, AgentRole.Prosecutor, "测试Agent", chatClient, messageBroker) { }
 
         public override Task<AgentAction> ReasonAsync(ReasoningContext context, CancellationToken ct)
@@ -168,7 +168,7 @@ public sealed class ReasoningAgentBaseTests
             => base.CallLlmAsync(userPrompt, temperature, maxTokens, ct);
 
         public new Task SendMessageAsync(string toAgentId, string messageType, string content, CancellationToken ct = default)
-            => base.SendMessageAsync(toAgentId, messageType, content, ct);
+            => base.SendAsync(toAgentId, messageType, content, ct);
 
         public new Task BroadcastAsync(string messageType, string content, CancellationToken ct = default)
             => base.BroadcastAsync(messageType, content, ct);

@@ -1,16 +1,16 @@
-﻿
+
 namespace Sync.Tests.Scheduling.Tasks;
 
 public class InProcessTeammateTaskExecutorTests
 {
     private readonly Mock<IAgentLifecycleManager> _lifecycleManagerMock;
-    private readonly Mock<IAgentMessageBroker> _messageBrokerMock;
+    private readonly Mock<IMailbox> _messageBrokerMock;
     private readonly InProcessTeammateTaskExecutor _executor;
 
     public InProcessTeammateTaskExecutorTests()
     {
         _lifecycleManagerMock = new Mock<IAgentLifecycleManager>();
-        _messageBrokerMock = new Mock<IAgentMessageBroker>();
+        _messageBrokerMock = new Mock<IMailbox>();
         _executor = new InProcessTeammateTaskExecutor(
             _lifecycleManagerMock.Object,
             _messageBrokerMock.Object,
@@ -156,13 +156,13 @@ public class InProcessTeammateTaskExecutorTests
         };
 
         _messageBrokerMock
-            .Setup(x => x.SendMessageAsync("teammate-1", message, It.IsAny<CancellationToken>()))
+            .Setup(x => x.SendAsync("teammate-1", message, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
         var result = await _executor.SendMessageToTeammateAsync("teammate-1", message).ConfigureAwait(true);
 
         result.Should().BeTrue();
-        _messageBrokerMock.Verify(x => x.SendMessageAsync("teammate-1", message, It.IsAny<CancellationToken>()), Times.Once);
+        _messageBrokerMock.Verify(x => x.SendAsync("teammate-1", message, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]

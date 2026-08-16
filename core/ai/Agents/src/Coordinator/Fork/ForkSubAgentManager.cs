@@ -8,7 +8,7 @@ namespace Core.Agents.Coordinator;
 [Register]
 public sealed record ForkManagerDependencies(
     IAgentLifecycleManager LifecycleManager,
-    IAgentMessageBroker MessageBroker,
+    IMailbox MessageBroker,
     IAgentWorktreeManager? WorktreeManager = null,
     IMailboxPoller? MailboxPoller = null,
     ITelemetryService? TelemetryService = null);

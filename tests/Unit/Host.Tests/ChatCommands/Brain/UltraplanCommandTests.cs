@@ -1,4 +1,4 @@
-﻿namespace Core.Tests.ChatCommands;
+namespace Core.Tests.ChatCommands;
 
 using JoinCode.Abstractions.Models;
 

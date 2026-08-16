@@ -9,14 +9,14 @@ public interface ISwarmPermissionRequestProcessor
 [Register]
 public sealed partial class SwarmPermissionRequestProcessor : ServiceEntity, ISwarmPermissionRequestProcessor
 {
-    private readonly IAgentMessageBroker _messageBroker;
+    private readonly IMailbox _messageBroker;
     private readonly IAgentPermissionManager _permissionManager;
     private readonly SwarmPermissionCallbackService _callbackService;
     [Inject] private readonly ILogger<SwarmPermissionRequestProcessor>? _logger;
     [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
 
     public SwarmPermissionRequestProcessor(
-        IAgentMessageBroker messageBroker,
+        IMailbox messageBroker,
         IAgentPermissionManager permissionManager,
         SwarmPermissionCallbackService callbackService,
         ILogger<SwarmPermissionRequestProcessor>? logger = null,
@@ -58,7 +58,7 @@ public sealed partial class SwarmPermissionRequestProcessor : ServiceEntity, ISw
             Content = content
         };
 
-        await _messageBroker.SendMessageAsync(requestData.WorkerAgentId, message, ct).ConfigureAwait(false);
+        await _messageBroker.SendAsync(requestData.WorkerAgentId, message, ct).ConfigureAwait(false);
 
         _logger?.LogInformation(
             "权限响应已发送: RequestId={RequestId}, Decision={Decision}, Worker={WorkerId}",

@@ -41,7 +41,6 @@ public sealed class PromptView : ITuiComponent
             Height = 1,
         };
 
-        _textField.KeyDown += OnKeyDown;
         _container.Add(_promptLabel, _textField);
     }
 

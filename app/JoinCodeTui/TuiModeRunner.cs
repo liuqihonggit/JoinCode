@@ -140,15 +140,6 @@ internal static class TuiModeRunner
         };
         top.Add(root);
 
-        root.KeyDown += (_, key) =>
-        {
-            if (key == TuiKey.F1) toolBar.TriggerAction(ToolBarAction.New);
-            else if (key == TuiKey.F2) toolBar.TriggerAction(ToolBarAction.Pause);
-            else if (key == TuiKey.F3) toolBar.TriggerAction(ToolBarAction.Stop);
-            else if (key == TuiKey.F4) toolBar.TriggerAction(ToolBarAction.Chat);
-            else if (key == TuiKey.F5) { toolBar.TriggerAction(ToolBarAction.Stats); polling.PollOnce(); }
-        };
-
         var processingCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var processingTask = ProcessQueueAsync(queue, mainPipe, outputView, queryEngine, chatHistory, app.RequestStop, painter, processingCts.Token);
 

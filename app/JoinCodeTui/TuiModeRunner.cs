@@ -14,6 +14,50 @@ internal static class TuiModeRunner
         app.Init();
         WriteDiag($"[TUI] app.Init done, Initialized={app.Initialized}");
 
+        var tf = new TextField
+        {
+            X = 0,
+            Y = 0,
+            Width = Dim.Fill(),
+            Height = 1,
+        };
+
+        var label = new Label
+        {
+            Text = "输入测试:",
+            X = 0,
+            Y = 1,
+            Width = Dim.Fill(),
+            Height = 1,
+        };
+
+        var top = new Window
+        {
+            Width = Dim.Fill(),
+            Height = Dim.Fill(),
+            BorderStyle = LineStyle.None,
+        };
+        top.Add(tf, label);
+
+        var focusSet = false;
+        app.Iteration += (_, _) =>
+        {
+            if (!focusSet) { focusSet = true; tf.SetFocus(); }
+        };
+
+        using var ctReg = cancellationToken.Register(() => app.RequestStop());
+        WriteDiag("[TUI] app.Run start (minimal)");
+        app.Run(top);
+        WriteDiag("[TUI] app.Run returned");
+        await Task.CompletedTask;
+    }
+
+    internal static async Task RunAsyncFull(WorkflowConfig config, IServiceProvider services, CancellationToken cancellationToken = default)
+    {
+        using var app = Application.Create();
+        app.Init();
+        WriteDiag($"[TUI] app.Init done, Initialized={app.Initialized}");
+
         var queue = new CommandQueue();
         var painter = new TerminalPainter(app.Invoke);
         var root = new RootView(painter, queue);

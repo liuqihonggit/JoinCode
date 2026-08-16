@@ -11,6 +11,17 @@ public partial class SystemPromptProviderOptions
     public bool IsCoordinatorMode { get; init; }
     public bool IsReplMode { get; init; }
 
+    /// <summary>
+    /// 从环境变量 JCC_COORDINATOR_MODE 检测是否启用 Coordinator 模式
+    /// <para>对齐 claude code CLAUDE_CODE_COORDINATOR_MODE 环境变量</para>
+    /// <para>支持值: 1, true, TRUE(不区分大小写)</para>
+    /// </summary>
+    public static bool IsCoordinatorModeEnabledFromEnv()
+    {
+        var value = Environment.GetEnvironmentVariable("JCC_COORDINATOR_MODE");
+        return value is "1" or "true" or "TRUE";
+    }
+
     #endregion
 
     #region 环境信息

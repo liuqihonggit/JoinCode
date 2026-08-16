@@ -1,7 +1,7 @@
 namespace JoinCode.Cli;
 
 /// <summary>
-/// 纯 CLI 会话 — 替代 TuiSession，使用纯控制台 I/O
+/// 纯 CLI 会话 — 使用纯控制台 I/O。
 /// </summary>
 public sealed class CliSession
 {

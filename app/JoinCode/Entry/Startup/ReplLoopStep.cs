@@ -29,6 +29,7 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
         var session = context.Session ?? throw new InvalidOperationException("Session not initialized");
 
         var agentService = context.Host.Services.GetService<JoinCode.Abstractions.Interfaces.IAgentService>();
+        var confirmationGate = context.Host.Services.GetService<IConfirmationGate>();
 
         var isProcessing = 0;
 
@@ -67,10 +68,10 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
                         break;
                     }
 
-                    if (ConfirmationGate.Pending && ConfirmationGate.Source is not null)
+                    if (confirmationGate is not null && confirmationGate.Pending && confirmationGate.Source is not null)
                     {
                         Diag.WriteLine($"[DIAG-REPL] routing input to confirmation: '{input}'");
-                        ConfirmationGate.Source.TrySetResult(input);
+                        confirmationGate.Source.TrySetResult(input);
                         continue;
                     }
 
@@ -129,7 +130,9 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
                             {
                                 var list = string.Join(", ", runningList.Select(a => a.DisplayName ?? a.Id));
                                 using (Cli.TerminalHelper.SetColor(ConsoleColor.Yellow))
-                                    Cli.TerminalHelper.WriteLine($"多个子代理运行中，请用 @agentName 指定目标。运行中: [{list}]");
+                                    Cli.TerminalHelper.WriteLine($"多个子代理运行中，输入已缓存，请用 @agentName 指定目标。运行中: [{list}]");
+                                // 输入入队缓存，等主代理空闲后处理（不丢弃）
+                                inputChannel.Writer.TryWrite(input);
                                 continue;
                             }
                         }

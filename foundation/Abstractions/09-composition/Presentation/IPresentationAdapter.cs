@@ -1,9 +1,10 @@
 namespace JoinCode.Abstractions.Interfaces;
 
 /// <summary>
-/// 表示层适配器接口 — 解耦 CLI 和 TUI 的统一抽象
-/// CLI 模式: ConsolePresentationAdapter (纯文本输出，适合自动化测试)
-/// TUI 模式: TuiPresentationAdapter (桥接到 AgentTuiApp 渲染层)
+/// 表示层适配器接口 — 解耦 CLI、TUI、GUI 的统一抽象。
+/// CLI 模式: ConsolePresentationAdapter (纯文本输出，适合自动化测试)。
+/// TUI 模式: 待引入 Terminal.Gui 渲染层（见 docs/plans/TUI架构与消息管道重构设计.md）。
+/// GUI 模式: Avalonia 适配器（JoinCodeGui）。
 /// </summary>
 public interface IPresentationAdapter : IDisposable
 {

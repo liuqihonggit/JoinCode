@@ -122,10 +122,15 @@ Output format (plain text labels, not markdown headers):
                     toolCalls.Add((id, name));
             }
         }
-        else if (assistantMessage.Metadata.TryGetValue("ToolCall", out var singleCall) && singleCall.TryGetString(out var toolName))
+        else if (assistantMessage.Metadata.TryGetValue("AllToolCalls", out var allToolCallsObj) && allToolCallsObj.ValueKind == JsonValueKind.Array)
         {
-            var toolCallId = assistantMessage.Metadata.TryGetValue("ToolCallId", out var idObj) ? idObj.GetString() ?? Guid.NewGuid().ToString("N") : Guid.NewGuid().ToString("N");
-            toolCalls.Add((toolCallId, toolName ?? Guid.NewGuid().ToString("N")));
+            foreach (var item in allToolCallsObj.EnumerateArray())
+            {
+                var id = item.TryGetProperty("Id", out var idProp) ? idProp.GetString() : null;
+                var name = item.TryGetProperty("Name", out var nameProp) ? nameProp.GetString() : null;
+                if (id is not null && name is not null)
+                    toolCalls.Add((id, name));
+            }
         }
 
         return toolCalls;

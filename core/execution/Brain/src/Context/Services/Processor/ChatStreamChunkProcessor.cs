@@ -98,37 +98,18 @@ public sealed partial class ChatStreamChunkProcessor : ServiceEntity, IChatStrea
     /// <param name="streamingToolExecution">是否启用流式工具执行模式 — true 时检测到工具调用不 Break，继续流式</param>
     public StreamChunkResult ProcessChunk(StreamEvent chunk, IterationState state, bool streamingToolExecution = false)
     {
-        // 1. 工具调用检测
-        if (chunk.Metadata?.TryGetValue("ToolCall", out var tcEl) == true && tcEl.ValueKind == JsonValueKind.String)
+        // 1. 工具调用检测 — 统一读 AllToolCalls 数组（含0~N个工具调用）
+        if (chunk.Metadata?.TryGetValue("AllToolCalls", out var allEl) == true &&
+            allEl.ValueKind == JsonValueKind.Array &&
+            allEl.GetArrayLength() > 0)
         {
-            state.ToolCallName = LlmJsonHelper.RepairToolName(tcEl.GetString(), _logger);
-            state.ToolCallId = chunk.Metadata?.TryGetValue("ToolCallId", out var idEl) == true && idEl.ValueKind == JsonValueKind.String
-                ? idEl.GetString() : null;
-            if (chunk.Metadata?.TryGetValue("ToolCallArguments", out var argsEl) == true && argsEl.ValueKind == JsonValueKind.String)
-            {
-                var rawArgs = argsEl.GetString();
-                var jsonRepair = LlmJsonHelper.RepairJson(rawArgs, _logger);
-                state.ToolCallArguments = JsonArgumentParser.Parse(jsonRepair.Success ? jsonRepair.RepairedJson : rawArgs);
-            }
+            ParseAllToolCalls(allEl, state, _logger);
 
-            // 解析全部工具调用列表（支持单响应多工具调用）
-            // AllToolCalls 格式: [{"Id":"...","Name":"...","Arguments":"..."},...]
-            if (chunk.Metadata is not null && chunk.Metadata.TryGetValue("AllToolCalls", out var allEl) && allEl.ValueKind == JsonValueKind.Array)
-            {
-                ParseAllToolCalls(allEl, state, _logger);
-            }
-            else
-            {
-                // 单工具调用场景，用已解析的单个工具调用填充列表
-                state.ToolCalls.Add(new ToolCallEntry
-                {
-                    Id = state.ToolCallId,
-                    Name = state.ToolCallName ?? string.Empty,
-                    Arguments = state.ToolCallArguments is not null
-                        ? JsonSerializer.Serialize(state.ToolCallArguments, ChatServiceJsonContext.Default.DictionaryStringJsonElement)
-                        : "{}"
-                });
-            }
+            // 设置 state 的单工具调用字段（兼容现有逻辑）— 取第一个
+            var first = state.ToolCalls[0];
+            state.ToolCallName = first.Name;
+            state.ToolCallId = first.Id;
+            state.ToolCallArguments = JsonArgumentParser.Parse(first.Arguments);
 
             return new StreamChunkResult { Action = streamingToolExecution ? ChunkAction.ToolUseDetected : ChunkAction.Break, Events = [] };
         }

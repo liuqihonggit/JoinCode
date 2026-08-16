@@ -166,9 +166,9 @@ public sealed class AnthropicQueryServiceTests
         var result = AnthropicQueryService.ConvertAnthropicResponseToApiMessages(response);
 
         var metadata = result[0].Metadata;
-        metadata.Should().ContainKeys("ToolCall", "ToolCallId", "ToolCallArguments", "ToolCalls");
-        metadata!["ToolCall"].GetString().Should().Be("ToolA");
-        metadata["ToolCallId"].GetString().Should().Be("call-1");
+        metadata.Should().ContainKeys("AllToolCalls", "ToolCalls");
+        metadata!["AllToolCalls"].ValueKind.Should().Be(JsonValueKind.Array);
+        metadata!["AllToolCalls"].GetArrayLength().Should().Be(1);
     }
 
     [Fact]

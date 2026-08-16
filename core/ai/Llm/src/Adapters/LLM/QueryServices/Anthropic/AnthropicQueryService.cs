@@ -558,11 +558,6 @@ public sealed class AnthropicQueryService : QueryServiceBase
 
         if (toolUseBlocks.Count > 0)
         {
-            var first = toolUseBlocks[0];
-            metadata["ToolCall"] = JsonElementHelper.FromString(first.Name);
-            metadata["ToolCallId"] = JsonElementHelper.FromString(first.Id);
-            metadata["ToolCallArguments"] = JsonElementHelper.FromString(first.Input);
-
             var openaiToolCalls = toolUseBlocks.Select((tc, i) => new OpenAIToolCall
             {
                 Index = i,
@@ -575,6 +570,14 @@ public sealed class AnthropicQueryService : QueryServiceBase
                 }
             }).ToList();
             metadata["ToolCalls"] = JsonElementHelper.FromObject(openaiToolCalls, NativeJsonContext.Default.ListOpenAIToolCall);
+
+            var entries = toolUseBlocks.Select(tc => new ToolCallEntry
+            {
+                Id = tc.Id,
+                Name = tc.Name,
+                Arguments = tc.Input
+            }).ToList();
+            metadata["AllToolCalls"] = ToolCallEntry.ToToolCallsJson(entries);
         }
 
         var chatContent = textParts.Length > 0 ? textParts.ToString() : null;
@@ -802,24 +805,15 @@ public sealed class AnthropicQueryService : QueryServiceBase
 
                         if (evt.Delta?.StopReason == AnthropicStopReason.ToolUse && toolCallAccumulator.Count > 0)
                         {
-                            var first = toolCallAccumulator.Values.First();
-                            metadata["ToolCall"] = JsonElementHelper.FromString(first.Name);
-                            metadata["ToolCallId"] = JsonElementHelper.FromString(first.Id);
-                            metadata["ToolCallArguments"] = JsonElementHelper.FromString(first.Arguments.ToString());
-
-                            if (toolCallAccumulator.Count > 1)
-                            {
-                                var sb = new StringBuilder("[");
-                                var firstCall = true;
-                                foreach (var tc in toolCallAccumulator.Values)
+                            var entries = toolCallAccumulator.Values
+                                .Select(tc => new ToolCallEntry
                                 {
-                                    if (!firstCall) sb.Append(',');
-                                    firstCall = false;
-                                    sb.Append("{\"Name\":\"").Append(tc.Name).Append("\",\"Id\":\"").Append(tc.Id).Append("\"}");
-                                }
-                                sb.Append(']');
-                                metadata["AllToolCalls"] = JsonElementHelper.FromJson(sb.ToString());
-                            }
+                                    Id = tc.Id,
+                                    Name = tc.Name,
+                                    Arguments = tc.Arguments.ToString()
+                                })
+                                .ToList();
+                            metadata["AllToolCalls"] = ToolCallEntry.ToToolCallsJson(entries);
                         }
 
                         yield return new StreamEvent(MessageRole.Assistant, string.Empty, modelName, metadata);

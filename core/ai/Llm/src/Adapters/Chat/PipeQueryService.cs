@@ -70,9 +70,9 @@ public sealed partial class PipeQueryService : IQueryService
                         ["Id"] = JsonElementHelper.FromString(chunk.Id),
                         ["FinishReason"] = JsonElementHelper.FromString(choice.FinishReason),
                         ["Created"] = JsonElementHelper.FromInt64(chunk.Created),
-                        ["ToolCall"] = JsonElementHelper.FromString(toolCallName),
-                        ["ToolCallId"] = JsonElementHelper.FromString(toolCallId ?? ""),
-                        ["ToolCallArguments"] = JsonElementHelper.FromString(toolCallArguments.ToString())
+                        ["AllToolCalls"] = ToolCallEntry.ToToolCallsJson([
+                            new() { Id = toolCallId, Name = toolCallName, Arguments = toolCallArguments.ToString() }
+                        ])
                     });
 
                 // 重置累积状态
@@ -208,14 +208,17 @@ public sealed partial class PipeQueryService : IQueryService
         // 处理 tool_calls 响应
         if (message.ToolCalls?.Count > 0)
         {
-            var tc = message.ToolCalls[0];
+            var entries = message.ToolCalls.Select(tc => new ToolCallEntry
+            {
+                Id = tc.Id,
+                Name = tc.Function?.Name ?? "",
+                Arguments = tc.Function?.Arguments ?? "{}"
+            }).ToList();
             return new ApiMessage(role, message.Content,
                 new Dictionary<string, JsonElement>
                 {
                     ["FinishReason"] = JsonElementHelper.FromString(choice.FinishReason),
-                    ["ToolCall"] = JsonElementHelper.FromString(tc.Function?.Name ?? ""),
-                    ["ToolCallId"] = JsonElementHelper.FromString(tc.Id ?? ""),
-                    ["ToolCallArguments"] = JsonElementHelper.FromString(tc.Function?.Arguments ?? "{}")
+                    ["AllToolCalls"] = ToolCallEntry.ToToolCallsJson(entries)
                 });
         }
 

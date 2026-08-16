@@ -100,6 +100,7 @@ global using Microsoft.Extensions.Logging;
 global using Microsoft.Extensions.Options;
 global using Services.OAuth;
 global using System.Collections.Frozen;
+global using System.Collections.Concurrent;
 global using System.CommandLine;
 global using System.IO.Pipes;
 global using System.Net.Http.Json;

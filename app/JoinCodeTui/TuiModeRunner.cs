@@ -14,9 +14,8 @@ internal static class TuiModeRunner
         app.Init();
         WriteDiag($"[TUI] app.Init done, Initialized={app.Initialized}");
 
-        var queue = new CommandQueue();
-        var painter = new TerminalPainter(app.Invoke);
-        var promptView = new PromptView(queue);
+        var lbl = new Label { Text = "> ", X = 0, Y = 0 };
+        var tf = new TextField { X = Pos.Right(lbl), Y = 0, Width = Dim.Fill(), Height = 1 };
 
         var top = new Window
         {
@@ -24,12 +23,12 @@ internal static class TuiModeRunner
             Height = Dim.Fill(),
             BorderStyle = LineStyle.None,
         };
-        top.Add(promptView.TerminalView);
+        top.Add(lbl, tf);
 
         var focusSet = false;
         app.Iteration += (_, _) =>
         {
-            if (!focusSet) { focusSet = true; promptView.SetFocus(); }
+            if (!focusSet) { focusSet = true; tf.SetFocus(); }
         };
 
         using var ctReg = cancellationToken.Register(() => app.RequestStop());

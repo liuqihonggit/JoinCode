@@ -117,6 +117,50 @@ public sealed partial class AgentPromptBuilder : ServiceEntity, JoinCode.Abstrac
         return sb.ToString();
     }
 
+    /// <summary>
+    /// 带运行时上下文的系统提示词构建 — 注入当前 MCP/skills/settings
+    /// <para>对齐 claude code getSystemPrompt({ toolUseContext }) 闭包模式</para>
+    /// </summary>
+    public async Task<string> BuildSystemPromptAsync(
+        string? agentType,
+        string task,
+        IReadOnlyList<string>? context,
+        AgentPromptContext? promptContext,
+        CancellationToken cancellationToken = default)
+    {
+        var basePrompt = await BuildSystemPromptAsync(agentType, task, context, cancellationToken).ConfigureAwait(false);
+
+        if (promptContext is null)
+            return basePrompt;
+
+        var sb = new StringBuilder(basePrompt);
+
+        if (promptContext.McpServers is { Count: > 0 } mcpServers)
+        {
+            sb.AppendLine();
+            sb.AppendLine("=== 当前 MCP 服务器 ===");
+            foreach (var server in mcpServers)
+                sb.AppendLine($"- {server}");
+        }
+
+        if (promptContext.AvailableSkills is { Count: > 0 } availableSkills)
+        {
+            sb.AppendLine();
+            sb.AppendLine("=== 可用技能 ===");
+            foreach (var skill in availableSkills)
+                sb.AppendLine($"- /{skill}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(promptContext.SettingsSummary))
+        {
+            sb.AppendLine();
+            sb.AppendLine("=== 当前配置 ===");
+            sb.AppendLine(promptContext.SettingsSummary);
+        }
+
+        return sb.ToString();
+    }
+
     private static string? GetToolsDescription(JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition? definition)
     {
         if (definition is null) return null;

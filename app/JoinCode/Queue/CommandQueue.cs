@@ -44,6 +44,7 @@ public sealed class CommandQueue
     private readonly ConcurrentQueue<QueuedCommand> _now = new();
     private readonly ConcurrentQueue<QueuedCommand> _next = new();
     private readonly ConcurrentQueue<QueuedCommand> _later = new();
+    private readonly SemaphoreSlim _signal = new(0, int.MaxValue);
     private int _count;
 
     /// <summary>当前队列总长度（线程安全读取）。</summary>
@@ -62,6 +63,7 @@ public sealed class CommandQueue
         };
         queue.Enqueue(cmd);
         Interlocked.Increment(ref _count);
+        _signal.Release();
     }
 
     /// <summary>按优先级出队（Now &gt; Next &gt; Later），同优先级 FIFO。</summary>
@@ -82,6 +84,21 @@ public sealed class CommandQueue
         var dequeued = Dequeue();
         cmd = dequeued!;
         return dequeued is not null;
+    }
+
+    /// <summary>
+    /// 异步出队 — 空队列时异步等待（不阻塞线程），有项时按优先级出队。
+    /// 对齐 claude code 的队列驱动消费模式，供 REPL 主循环 await 使用。
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌，触发时抛 <see cref="OperationCanceledException"/>。</param>
+    /// <returns>出队的命令。</returns>
+    public async Task<QueuedCommand> DequeueAsync(CancellationToken cancellationToken = default)
+    {
+        while (true)
+        {
+            if (TryDequeue(out var cmd)) return cmd;
+            await _signal.WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
     }
 
     /// <summary>获取当前队列快照（用于驱动 UI 渲染）。</summary>

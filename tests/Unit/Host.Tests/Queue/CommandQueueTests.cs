@@ -143,4 +143,77 @@ public class CommandQueueTests
         var queue = new CommandQueue();
         Assert.False(queue.TryDequeue(out _));
     }
+
+    [Fact]
+    public async Task DequeueAsync_AfterEnqueue_ReturnsItemImmediately()
+    {
+        var queue = new CommandQueue();
+        queue.Enqueue(new QueuedCommand("hello", CommandOrigin.User, QueuePriority.Next));
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        var dequeued = await queue.DequeueAsync(cts.Token);
+
+        Assert.Equal("hello", dequeued.Content);
+        Assert.Equal(CommandOrigin.User, dequeued.Origin);
+        Assert.Equal(QueuePriority.Next, dequeued.Priority);
+    }
+
+    [Fact]
+    public async Task DequeueAsync_EmptyQueue_WaitsUntilEnqueueThenReturns()
+    {
+        var queue = new CommandQueue();
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+        var dequeueTask = queue.DequeueAsync(cts.Token);
+        Assert.False(dequeueTask.IsCompleted);
+
+        await Task.Delay(50, cts.Token);
+        queue.Enqueue(new QueuedCommand("late", CommandOrigin.User, QueuePriority.Next));
+
+        var dequeued = await dequeueTask;
+        Assert.Equal("late", dequeued.Content);
+    }
+
+    [Fact]
+    public async Task DequeueAsync_PriorityOrder_NowBeforeNextBeforeLater()
+    {
+        var queue = new CommandQueue();
+        queue.Enqueue(new QueuedCommand("later", CommandOrigin.TaskNotification, QueuePriority.Later));
+        queue.Enqueue(new QueuedCommand("next", CommandOrigin.User, QueuePriority.Next));
+        queue.Enqueue(new QueuedCommand("now", CommandOrigin.PermissionResponse, QueuePriority.Now));
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        Assert.Equal("now", (await queue.DequeueAsync(cts.Token)).Content);
+        Assert.Equal("next", (await queue.DequeueAsync(cts.Token)).Content);
+        Assert.Equal("later", (await queue.DequeueAsync(cts.Token)).Content);
+    }
+
+    [Fact]
+    public async Task DequeueAsync_Cancellation_ThrowsOperationCanceledException()
+    {
+        var queue = new CommandQueue();
+        using var cts = new CancellationTokenSource();
+        cts.CancelAfter(TimeSpan.FromMilliseconds(100));
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() => queue.DequeueAsync(cts.Token));
+    }
+
+    [Fact]
+    public async Task DequeueAsync_MultipleWaiters_EachReceivesOneItem()
+    {
+        var queue = new CommandQueue();
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+        var waiter1 = queue.DequeueAsync(cts.Token);
+        var waiter2 = queue.DequeueAsync(cts.Token);
+
+        queue.Enqueue(new QueuedCommand("a", CommandOrigin.User, QueuePriority.Next));
+        queue.Enqueue(new QueuedCommand("b", CommandOrigin.User, QueuePriority.Next));
+
+        var results = await Task.WhenAll(waiter1, waiter2);
+        var contents = results.Select(r => r.Content).ToHashSet();
+        Assert.Equal(2, contents.Count);
+        Assert.Contains("a", contents);
+        Assert.Contains("b", contents);
+    }
 }

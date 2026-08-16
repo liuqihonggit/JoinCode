@@ -34,7 +34,9 @@ public sealed partial class ContextSetupMiddleware : ServiceEntity, IUnifiedSpaw
             Role = context.SpawnOptions.Role,
             Variant = context.SpawnOptions.Variant,
             AdditionalInstructions = context.SpawnOptions.Prompt,
-            ModelName = context.SpawnOptions.Model ?? context.Definition?.ModelName,
+            ModelName = Environment.GetEnvironmentVariable("JCC_SUBAGENT_MODEL")
+                ?? context.SpawnOptions.Model
+                ?? context.Definition?.ModelName,
             Temperature = context.Definition?.Temperature ?? 0.7f,
             DisplayName = context.SpawnOptions.Name ?? context.SpawnOptions.Description,
             SystemPrompt = context.SystemPrompt,

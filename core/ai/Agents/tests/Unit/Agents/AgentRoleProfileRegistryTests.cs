@@ -79,6 +79,30 @@ public sealed class AgentRoleProfileRegistryTests
     }
 
     [Fact]
+    public void GetProfile_CustomDefinitionWithSourcePath_OverridesBuiltIn()
+    {
+        var customDef = new JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition
+        {
+            Role = AgentRole.Executor,
+            Variant = ExecutorVariant.Code,
+            WhenToUse = "custom code agent",
+            Description = "Custom override",
+            SourcePath = "/custom/agents/code.md",
+        };
+        var providerMock = new Mock<IAgentDefinitionProvider>();
+        providerMock
+            .Setup(x => x.GetAgentDefinitionsAsync(It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([customDef]);
+
+        var registry = new AgentRoleProfileRegistry(providerMock.Object);
+
+        var profile = registry.GetProfile(AgentRole.Executor, ExecutorVariant.Code);
+
+        profile.Should().NotBeNull();
+        profile!.Description.Should().Be("Custom override");
+    }
+
+    [Fact]
     public void GetAvailableVariants_ReturnsEightVariants()
     {
         var registry = new AgentRoleProfileRegistry();

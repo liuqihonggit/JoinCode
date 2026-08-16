@@ -316,7 +316,9 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
             Hooks = ParseHooksFromData(result.Data),
             McpServers = ParseMcpServersFromData(result.Data),
             RequiredMcpServers = GetStringListFromData(result.Data, "required_mcp_servers", "requiredMcpServers"),
-            Memory = ParseMemoryScopeFromData(result.Data)
+            Memory = ParseMemoryScopeFromData(result.Data),
+            CriticalSystemReminder = GetStringFromData(result.Data, "criticalSystemReminder_EXPERIMENTAL", "critical_system_reminder"),
+            InitialPrompt = GetStringFromData(result.Data, "initialPrompt", "initial_prompt"),
         };
 
         return definition;

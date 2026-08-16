@@ -34,7 +34,7 @@ public sealed partial class SyncSystemPromptProviderOptions : Core.Prompts.Syste
             }).ToArray()
             : null;
         FileContext = fileContext;
-        IsCoordinatorMode = false;
+        IsCoordinatorMode = IsCoordinatorModeEnabledFromEnv();
         AgentDefinitions = null;
         HasTeamTools = true;
         HasSendMessage = true;

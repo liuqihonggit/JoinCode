@@ -11,6 +11,49 @@ public partial class SystemPromptProviderOptions
     public bool IsCoordinatorMode { get; init; }
     public bool IsReplMode { get; init; }
 
+    /// <summary>
+    /// 从环境变量 JCC_COORDINATOR_MODE 检测是否启用 Coordinator 模式
+    /// <para>对齐 claude code CLAUDE_CODE_COORDINATOR_MODE 环境变量</para>
+    /// <para>支持值: 1, true, TRUE(不区分大小写)</para>
+    /// </summary>
+    public static bool IsCoordinatorModeEnabledFromEnv()
+    {
+        var value = Environment.GetEnvironmentVariable("JCC_COORDINATOR_MODE");
+        return value is "1" or "true" or "TRUE";
+    }
+
+    /// <summary>
+    /// 从环境变量 JCC_SUBAGENT_MODEL 获取 subagent 模型覆盖
+    /// <para>对齐 claude code CLAUDE_CODE_SUBAGENT_MODEL 环境变量</para>
+    /// <para>设置后全局覆盖所有 subagent 模型,用于测试/调试</para>
+    /// </summary>
+    public static string? GetSubagentModelFromEnv()
+    {
+        return Environment.GetEnvironmentVariable("JCC_SUBAGENT_MODEL");
+    }
+
+    /// <summary>
+    /// 判断 agent 指定的 model alias 是否匹配父模型 tier
+    /// <para>对齐 claude code aliasMatchesParentTier — 避免 Vertex 用户从 Opus 4.6 降级到默认 Opus</para>
+    /// <para>alias = "opus" 且 parentModel 含 "opus" → true(用父模型,避免降级)</para>
+    /// </summary>
+    public static bool ModelAliasMatchesParentTier(string? alias, string parentModel)
+    {
+        if (string.IsNullOrWhiteSpace(alias) || string.IsNullOrWhiteSpace(parentModel))
+            return false;
+
+        var aliasLower = alias.ToLowerInvariant();
+        var parentLower = parentModel.ToLowerInvariant();
+
+        return aliasLower switch
+        {
+            "opus" => parentLower.Contains("opus"),
+            "sonnet" => parentLower.Contains("sonnet"),
+            "haiku" => parentLower.Contains("haiku"),
+            _ => false,
+        };
+    }
+
     #endregion
 
     #region 环境信息

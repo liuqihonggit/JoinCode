@@ -13,7 +13,8 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
         SubAgentOutputTruncator? outputTruncator = null,
         SubAgentSummaryGenerator? summaryGenerator = null,
         SubAgentConfig? subAgentConfig = null,
-        IChatContextManager? contextManager = null)
+        IChatContextManager? contextManager = null,
+        JoinCode.Abstractions.Interfaces.IAgentPromptBuilder? promptBuilder = null)
     {
         _agentService = agentService;
         _roleRegistry = roleRegistry;
@@ -23,6 +24,7 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
         _summaryGenerator = summaryGenerator;
         _subAgentConfig = subAgentConfig;
         _contextManager = contextManager;
+        _promptBuilder = promptBuilder;
     }
     [Inject] private readonly IAgentService _agentService;
     [Inject] private readonly IAgentRoleRegistry _roleRegistry;
@@ -32,6 +34,7 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
     [Inject] private readonly SubAgentSummaryGenerator? _summaryGenerator;
     [Inject] private readonly SubAgentConfig? _subAgentConfig;
     [Inject] private readonly IChatContextManager? _contextManager;
+    [Inject] private readonly JoinCode.Abstractions.Interfaces.IAgentPromptBuilder? _promptBuilder;
 
     private const int DefaultOutputTokenBudget = 50_000;
 
@@ -221,12 +224,21 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
             _logger?.LogInformation(L.T(StringKey.GuideAgentCalledLog, question));
 
             var prompt = BuildGuidePrompt(question, feature);
+            var systemPrompt = _promptBuilder is not null
+                ? await _promptBuilder.BuildSystemPromptAsync(
+                    ExecutorVariant.ClaudeCodeGuide.ToValue(),
+                    question,
+                    null,
+                    BuildGuidePromptContext(cancellationToken),
+                    cancellationToken).ConfigureAwait(false)
+                : null;
             var options = new AgentSpawnOptions
             {
                 Description = $"Guide: {question}",
                 Prompt = prompt,
                 Role = AgentRole.Executor,
                 Variant = ExecutorVariant.ClaudeCodeGuide,
+                SystemPrompt = systemPrompt,
             };
 
             var agentInfo = await _agentService.SpawnAgentAsync(options, cancellationToken).ConfigureAwait(false);
@@ -280,6 +292,25 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
 
     private void RecordAgentToolMetrics(string agentType, bool isSuccess)
         => _telemetryService?.RecordCount("agent.tool.invoked.count", new Dictionary<string, string> { ["agent"] = agentType, ["success"] = isSuccess.ToString() }, "count", "Agent tool invoked count");
+
+    /// <summary>
+    /// 构建 GuideAgent 运行时上下文 — 注入当前可用 agent 列表
+    /// <para>对齐 claude code claude-code-guide agent 的 getSystemPrompt({ toolUseContext }) 闭包模式</para>
+    /// </summary>
+    private AgentPromptContext BuildGuidePromptContext(CancellationToken cancellationToken)
+    {
+        var agentTypes = _roleRegistry.GetAllProfiles()
+            .Select(p => p.Variant.HasValue
+                ? $"{p.Role.ToValue()}:{p.Variant.Value.ToValue()}"
+                : p.Role.ToValue())
+            .ToList();
+
+        return new AgentPromptContext
+        {
+            AvailableSkills = agentTypes,
+            SettingsSummary = "Guide 模式 — 已注入可用 agent 列表",
+        };
+    }
 
     /// <summary>
     /// 构建子智能体输出文本 — L0 XML 包装 + L1 直接放 + L2 自摘要 + L3 落盘指针

@@ -11,6 +11,7 @@ public sealed class StatusBarView : ITuiComponent
     private string _mode = "auto";
     private int _queueCount;
     private string _agentStatus = "";
+    private int _sessionId = 1;
 
     /// <summary>
     /// 创建 StatusBarView。
@@ -55,6 +56,14 @@ public sealed class StatusBarView : ITuiComponent
         RefreshDisplay();
     }
 
+    /// <summary>设置当前会话ID。</summary>
+    /// <param name="id">会话序号。</param>
+    public void SetSessionId(int id)
+    {
+        _sessionId = id;
+        RefreshDisplay();
+    }
+
     /// <inheritdoc />
     public void OnQueueChanged(QueueSnapshot snapshot)
     {
@@ -70,8 +79,8 @@ public sealed class StatusBarView : ITuiComponent
 
     private void RefreshDisplay()
     {
-        var queuePart = _queueCount > 0 ? $" | 队列:{_queueCount}" : "";
-        var agentPart = string.IsNullOrEmpty(_agentStatus) ? "" : $" | {_agentStatus}";
-        _statusLabel.Text = $"[{_mode}]{queuePart}{agentPart}";
+        var queuePart = _queueCount > 0 ? $" │ 队列:{_queueCount}" : "";
+        var agentPart = string.IsNullOrEmpty(_agentStatus) ? "" : $" │ {_agentStatus}";
+        _statusLabel.Text = $"⚡ AgentOS v1.0 │ {_mode}{queuePart}{agentPart} │ Session: #{_sessionId:D3}";
     }
 }

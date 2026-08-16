@@ -111,33 +111,43 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
             try
             {
                 var definitions = _definitionProvider.GetAgentDefinitionsAsync().GetAwaiter().GetResult();
+                var indexMap = _profiles
+                    .Select((p, i) => (key: (p.Role, p.Variant), i))
+                    .ToDictionary(x => x.key, x => x.i);
                 foreach (var def in definitions)
                 {
                     var key = (def.Role, def.Variant);
-                    if (!_profileMap.ContainsKey(key))
+                    var profile = new AgentRoleProfile
                     {
-                        var profile = new AgentRoleProfile
-                        {
-                            Role = def.Role,
-                            Variant = def.Variant,
-                            WhenToUse = def.WhenToUse,
-                            Description = def.Description,
-                            SystemPrompt = def.SystemPrompt,
-                            AllowedTools = def.Tools,
-                            DisallowedTools = def.DisallowedTools,
-                            PermissionMode = def.PermissionMode,
-                            IsBackground = def.IsBackground,
-                            OmitClaudeMd = def.OmitClaudeMd,
-                            OmitGitStatus = def.OmitGitStatus,
-                            IsOneShot = def.Variant.HasValue && OneShotExecutorVariants.IsOneShot(def.Variant.Value),
-                            ModelName = def.ModelName,
-                            Temperature = def.Temperature,
-                            MaxTokens = def.MaxTokens,
-                            Memory = def.Memory,
-                            Skills = def.Skills,
-                            SourcePath = def.SourcePath,
-                        };
+                        Role = def.Role,
+                        Variant = def.Variant,
+                        WhenToUse = def.WhenToUse,
+                        Description = def.Description,
+                        SystemPrompt = def.SystemPrompt,
+                        AllowedTools = def.Tools,
+                        DisallowedTools = def.DisallowedTools,
+                        PermissionMode = def.PermissionMode,
+                        IsBackground = def.IsBackground,
+                        OmitClaudeMd = def.OmitClaudeMd,
+                        OmitGitStatus = def.OmitGitStatus,
+                        IsOneShot = def.Variant.HasValue && OneShotExecutorVariants.IsOneShot(def.Variant.Value),
+                        ModelName = def.ModelName,
+                        Temperature = def.Temperature,
+                        MaxTokens = def.MaxTokens,
+                        Memory = def.Memory,
+                        Skills = def.Skills,
+                        SourcePath = def.SourcePath,
+                        CriticalSystemReminder = def.CriticalSystemReminder,
+                    };
+
+                    if (indexMap.TryGetValue(key, out var existingIdx) && def.SourcePath is not null)
+                    {
+                        _profiles[existingIdx] = profile;
+                    }
+                    else if (!indexMap.ContainsKey(key))
+                    {
                         _profiles.Add(profile);
+                        indexMap[key] = _profiles.Count - 1;
                     }
                 }
                 _profileMap = BuildProfileMap(_profiles);

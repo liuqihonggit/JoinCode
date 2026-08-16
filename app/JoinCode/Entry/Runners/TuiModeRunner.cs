@@ -1,8 +1,9 @@
 namespace JoinCode.Entry;
 
 /// <summary>
-/// TUI 模式启动器 — 使用 Terminal.Gui 渲染层替代纯 CLI。
-/// --tui 参数触发，创建 RootView + 所有 TUI 组件，运行 MainLoop。
+/// TUI 模式启动器 — 多 Agent 管道架构 + 轮询拉取 + Terminal.Gui v2 渲染。
+/// --tui 参数触发，创建 PipeRegistry + PollingService + 5 区域布局。
+/// 布局：状态栏(行1) + 工具栏(行2) + 输出区(中间) + 输入区(底部) + 底部状态(最后1行)。
 /// </summary>
 internal static class TuiModeRunner
 {
@@ -12,74 +13,38 @@ internal static class TuiModeRunner
         app.Init();
 
         var queue = new CommandQueue();
+        var registry = new PipeRegistry();
+        var mainPipe = new MessagePipe("main", "AI Assistant", isMain: true);
+        registry.Register(mainPipe);
 
-        var titleLabel = new Label
+        var cardManager = new SubAgentCardManager();
+        var polling = new PollingService(registry, 200);
+
+        var startTime = DateTime.UtcNow;
+
+        var statusBar = CreateStatusBar(config, startTime);
+        var toolbar = CreateToolbar(queue);
+        var (outputView, outputContent) = CreateOutputView();
+        var (inputField, inputHint) = CreateInputArea(queue);
+        var bottomBar = CreateBottomBar();
+
+        polling.OnMessagesReceived += (agentId, messages) =>
         {
-            Text = "JoinCode - AI 智能体命令行工具 (TUI 模式)",
-            X = 0,
-            Y = 0,
-            Width = Dim.Fill(),
-            Height = 1,
+            app.Invoke(() =>
+            {
+                foreach (var msg in messages)
+                {
+                    var rendered = MessageRenderer.Render(msg);
+                    outputContent.Add(rendered);
+                }
+            });
         };
 
-        var modelLabel = new Label
-        {
-            Text = $"模型: {config.CurrentModelId}",
-            X = 0,
-            Y = 1,
-            Width = Dim.Fill(),
-            Height = 1,
-        };
-
-        var hintLabel = new Label
-        {
-            Text = "输入命令并按 Enter 发送。输入 /exit 退出。",
-            X = 0,
-            Y = 2,
-            Width = Dim.Fill(),
-            Height = 1,
-        };
-
-        var separatorLabel = new Label
-        {
-            Text = new string('-', 60),
-            X = 0,
-            Y = 3,
-            Width = Dim.Fill(),
-            Height = 1,
-        };
-
-        var outputLabel = new Label
-        {
-            Text = "",
-            X = 0,
-            Y = 4,
-            Width = Dim.Fill(),
-            Height = 10,
-        };
-
-        var promptLabel = new Label
-        {
-            Text = "> ",
-            X = 0,
-            Y = 15,
-            Width = 2,
-            Height = 1,
-        };
-
-        var textField = new TextField
-        {
-            X = 2,
-            Y = 15,
-            Width = Dim.Fill(),
-            Height = 1,
-        };
-
-        textField.KeyDown += (sender, key) =>
+        inputField.KeyDown += (sender, key) =>
         {
             if (key == TuiKey.Enter)
             {
-                var text = textField.Text.ToString();
+                var text = inputField.Text.ToString();
                 if (!string.IsNullOrWhiteSpace(text))
                 {
                     if (string.Equals(text, "/exit", StringComparison.OrdinalIgnoreCase))
@@ -87,9 +52,21 @@ internal static class TuiModeRunner
                         app.RequestStop();
                         return;
                     }
-                    outputLabel.Text += $"{Environment.NewLine}> {text}";
+
                     queue.Enqueue(new QueuedCommand(text, CommandOrigin.User, QueuePriority.Next));
-                    textField.Text = "";
+
+                    mainPipe.AddMessage(new TuiMessage
+                    {
+                        Id = Guid.NewGuid().ToString("N"),
+                        AgentId = "main",
+                        Type = TuiMessageType.User,
+                        Content = text,
+                        Style = MessageStyle.User,
+                    });
+
+                    inputField.Text = "";
+                    UpdateToolbarQueueCount(toolbar, queue);
+                    UpdateInputHint(inputHint, queue);
                 }
             }
         };
@@ -99,10 +76,109 @@ internal static class TuiModeRunner
             Width = Dim.Fill(),
             Height = Dim.Fill(),
         };
-        window.Add(titleLabel, modelLabel, hintLabel, separatorLabel, outputLabel, promptLabel, textField);
+        window.Add(statusBar, toolbar, outputView, inputField, inputHint, bottomBar);
 
-        app.Invoke(() => textField.SetFocus());
+        app.Invoke(() => inputField.SetFocus());
 
-        await Task.Run(() => app.Run(window), cancellationToken).ConfigureAwait(false);
+        polling.Start();
+        try
+        {
+            await Task.Run(() => app.Run(window), cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            await polling.StopAsync().ConfigureAwait(false);
+        }
+    }
+
+    private static Label CreateStatusBar(WorkflowConfig config, DateTime startTime)
+    {
+        var model = config.CurrentModelId;
+        var label = new Label
+        {
+            Text = $" ⚡ Agent TUI  │  Model: {model}  │  Agents: 1  │  ⏱ 00:00:00",
+            X = 0,
+            Y = 0,
+            Width = Dim.Fill(),
+            Height = 1,
+        };
+        label.SetAttribute(ColorMapper.ToAttribute(MessageStyle.Content));
+        return label;
+    }
+
+    private static Label CreateToolbar(CommandQueue queue)
+    {
+        var label = new Label
+        {
+            Text = $" [📤 Send Queue: {queue.Count}]  [🔄 Refresh F5]  [📋 Clear Ctrl+L]  [⚙️ Settings F10]",
+            X = 0,
+            Y = 1,
+            Width = Dim.Fill(),
+            Height = 1,
+        };
+        label.SetAttribute(ColorMapper.ToAttribute(MessageStyle.ToolCall));
+        return label;
+    }
+
+    private static (View container, View content) CreateOutputView()
+    {
+        var container = new View
+        {
+            X = 0,
+            Y = 2,
+            Width = Dim.Fill(),
+            Height = Dim.Fill() - 5,
+        };
+        return (container, container);
+    }
+
+    private static (TextField field, Label hint) CreateInputArea(CommandQueue queue)
+    {
+        var field = new TextField
+        {
+            X = 2,
+            Y = Pos.AnchorEnd() - 2,
+            Width = Dim.Fill(),
+            Height = 1,
+            CanFocus = true,
+        };
+
+        var hint = new Label
+        {
+            Text = " Enter发送 · Ctrl+Enter换行 · /exit退出 · 队列: 0条",
+            X = 0,
+            Y = Pos.AnchorEnd() - 1,
+            Width = Dim.Fill(),
+            Height = 1,
+        };
+        hint.SetAttribute(ColorMapper.ToAttribute(MessageStyle.Separator));
+        return (field, hint);
+    }
+
+    private static Label CreateBottomBar()
+    {
+        var label = new Label
+        {
+            Text = " [📋 Log]  [📁 Files]  [🧠 Memory]  [📊 Stats]",
+            X = 0,
+            Y = Pos.AnchorEnd(),
+            Width = Dim.Fill(),
+            Height = 1,
+        };
+        label.SetAttribute(ColorMapper.ToAttribute(MessageStyle.Separator));
+        return label;
+    }
+
+    private static void UpdateToolbarQueueCount(Label toolbar, CommandQueue queue)
+    {
+        var text = toolbar.Text.ToString() ?? "";
+        var newCount = queue.Count;
+        var newText = text.Replace($"Send Queue: {newCount - 1}", $"Send Queue: {newCount}");
+        toolbar.Text = newText;
+    }
+
+    private static void UpdateInputHint(Label hint, CommandQueue queue)
+    {
+        hint.Text = $" Enter发送 · Ctrl+Enter换行 · /exit退出 · 队列: {queue.Count}条";
     }
 }

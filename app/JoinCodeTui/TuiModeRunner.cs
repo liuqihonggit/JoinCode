@@ -140,7 +140,7 @@ internal static class TuiModeRunner
         };
         top.Add(root);
 
-        top.KeyDown += (_, key) =>
+        root.KeyDown += (_, key) =>
         {
             if (key == TuiKey.F1) toolBar.TriggerAction(ToolBarAction.New);
             else if (key == TuiKey.F2) toolBar.TriggerAction(ToolBarAction.Pause);

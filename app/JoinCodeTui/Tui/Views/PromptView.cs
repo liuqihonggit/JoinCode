@@ -23,7 +23,7 @@ public sealed class PromptView : ITuiComponent
         {
             Width = Dim.Fill(),
             Height = 1,
-            CanFocus = true,
+            CanFocus = false,
         };
 
         _promptLabel = new Label

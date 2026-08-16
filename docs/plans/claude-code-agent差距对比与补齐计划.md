@@ -404,9 +404,52 @@
 <!-- 验证: TDD 红测试 3失败1通过 → 实现注入 → 绿测试 4通过 ✅ -->
 
 <!-- 🤖 Auto Decision: 2026-08-16 -->
-<!-- 决策: #3 getSystemPrompt 闭包延迟生成 — 已完全实现(核心+调用方接入) -->
-<!-- 实现: AgentPromptContext 记录类型 + IAgentPromptBuilder 新重载 + AgentPromptBuilder 注入 MCP/skills/settings -->
-<!-- 调用方: BuiltInAgentToolHandlers.GuideAgentAsync 接入,BuildGuidePromptContext 从 IAgentRoleRegistry 获取 agent 列表注入 -->
-<!-- 文件: AgentPromptContext.cs(新增), IAgentPromptBuilder.cs(扩展), AgentPromptBuilder.cs(实现), AgentPromptBuilderTests.cs(4测试), BuiltInAgentToolHandlers.cs(接入) -->
-<!-- 验证: 编译 0警告0错误, 单元测试 12/12通过 ✅ -->
-<!-- 后续: 可增强 BuildGuidePromptContext 从 IMcpServerManager/ISkillRegistry 获取真实 MCP/skills 列表(当前注入 agent 列表作为 AvailableSkills) -->
+<!-- 决策: #1 Coordinator 模式 — 启用路径完成,工具集限制标记后续 -->
+<!-- 实现: IsCoordinatorModeEnabledFromEnv 静态方法 + SyncSystemPromptProviderOptions 接入环境变量 -->
+<!-- 遗留: 工具集限制为 [Agent,SendMessage,TaskStop] 需主代理初始化链路接入,风险较高后续做 -->
+<!-- 验证: TDD 5/5通过, commit 04b242269 -->
+
+<!-- 🤖 Auto Decision: 2026-08-16 -->
+<!-- 决策: #5 异步 agent 白名单 — 完全实现 -->
+<!-- 实现: AsyncAgentAllowedTools FrozenSet 常量 + AgentBackgroundSpawnMiddleware 后台模式 with 表达式覆盖 AllowedTools -->
+<!-- 验证: TDD 5/5通过, commit 23c7e9ac0 -->
+
+<!-- 🤖 Auto Decision: 2026-08-16 -->
+<!-- 决策: #8 initialPrompt — 字段已加,spawn 注入后续 -->
+<!-- 实现: SubAgentOptions.InitialPrompt 字段 -->
+<!-- 遗留: ContextSetupMiddleware 注入到 InitialMessageList 后续做 -->
+<!-- 验证: 测试 2/2通过, commit c058f0669 -->
+
+<!-- 🤖 Auto Decision: 2026-08-16 -->
+<!-- 决策: #20 SUBAGENT_MODEL 环境变量 — 静态方法已加,spawn 路径接入后续 -->
+<!-- 实现: GetSubagentModelFromEnv 静态方法 -->
+<!-- 遗留: spawn 路径模型解析接入后续做 -->
+<!-- 验证: 测试 7/7通过, commit 4867cd63a -->
+
+## 六、本次会话实现总结(2026-08-16)
+
+### 已 commit 的实现
+
+| commit | 缺失项 | 状态 | 说明 |
+|--------|--------|------|------|
+| `927b297` | #3 getSystemPrompt 闭包 | ✅ 完全实现 | AgentPromptContext + IAgentPromptBuilder 新重载 + GuideAgent 接入,12/12测试 |
+| `04b242269` | #1 Coordinator 模式 | 🟡 启用路径完成 | JCC_COORDINATOR_MODE 环境变量,工具集限制后续,5/5测试 |
+| `23c7e9ac0` | #5 异步 agent 白名单 | ✅ 完全实现 | AsyncAgentAllowedTools + 后台 spawn 过滤,5/5测试 |
+| `c058f0669` | #8 initialPrompt | 🟡 字段已加 | SubAgentOptions.InitialPrompt,spawn 注入后续,2/2测试 |
+| `4867cd63a` | #20 SUBAGENT_MODEL | 🟡 静态方法已加 | GetSubagentModelFromEnv,spawn 路径接入后续,7/7测试 |
+
+### 剩余未实现(需更深链路或全量重建)
+
+| 缺失项 | 原因 |
+|--------|------|
+| #1 工具集限制 | 需主代理初始化链路接入,风险较高 |
+| #4 多层优先级 | 需修复 AgentRoleProfileRegistry 覆盖逻辑 |
+| #7 Skills 预加载 | 需 SkillPreloadMiddleware + ISkillRegistry |
+| #9 maxTurns 生效 | 需执行循环接入 MaxIterations 检查 |
+| #14 Agent(worker,researcher) 语法 | 需扩展 SubagentType 解析 |
+| #17 插件 agent 安全限制 | 需先建立插件 agent 体系 |
+| #18 criticalSystemReminder | 需字段 + 每轮注入逻辑 |
+| #19 model alias 匹配父 tier | 需模型解析逻辑 |
+| #23 isolation: remote | 需枚举值 + 全量重建 |
+| #8 spawn 注入 | 需 ContextSetupMiddleware 接入 |
+| #20 spawn 路径接入 | 需模型解析接入 |

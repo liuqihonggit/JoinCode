@@ -6,15 +6,12 @@ internal static class InteractiveModeRunner
 {
     internal static async Task RunAsync(WorkflowConfig config, CommandLineOptions options, IHost host, CancellationToken cancellationToken = default)
     {
-        if (options.Tui)
+        if (!options.Tui)
         {
-            await TuiModeRunner.RunAsync(config, options, host, cancellationToken).ConfigureAwait(false);
-            return;
+            Cli.TerminalHelper.Init();
+            Cli.TerminalHelper.WriteLine("JoinCode - AI 智能体命令行工具");
+            Cli.TerminalHelper.NewLine();
         }
-
-        Cli.TerminalHelper.Init();
-        Cli.TerminalHelper.WriteLine("JoinCode - AI 智能体命令行工具");
-        Cli.TerminalHelper.NewLine();
 
         var context = new StartupContext
         {
@@ -38,7 +35,8 @@ internal static class InteractiveModeRunner
             .Use(sp.GetRequiredService<ExitCleanupStep>())
             .OnError((ctx, ex) =>
             {
-                Cli.TerminalHelper.WriteLine($"启动失败: {ex.Message}");
+                if (!options.Tui)
+                    Cli.TerminalHelper.WriteLine($"启动失败: {ex.Message}");
             })
             .Build();
 

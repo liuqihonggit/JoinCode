@@ -10,6 +10,25 @@ internal static class TuiModeRunner
 {
     internal static async Task RunAsync(WorkflowConfig config, CommandLineOptions options, IHost host, CancellationToken cancellationToken = default)
     {
+        try
+        {
+            await RunTuiInternalAsync(config, options, host, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            try
+            {
+                var crashLog = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "jcc_tui_crash.log");
+                await System.IO.File.WriteAllTextAsync(crashLog,
+                    $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] TUI Crash\n{ex}\n").ConfigureAwait(false);
+            }
+            catch (Exception logEx) { Console.Error.WriteLine($"[TUI] 写崩溃日志失败: {logEx.Message}"); }
+            throw;
+        }
+    }
+
+    private static async Task RunTuiInternalAsync(WorkflowConfig config, CommandLineOptions options, IHost host, CancellationToken cancellationToken)
+    {
         using var app = Application.Create();
         app.Init();
 

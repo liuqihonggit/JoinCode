@@ -215,7 +215,7 @@ public class TeamManagerTests
         var teamId = createResult.Data!.TeamId;
 
         // Act
-        var result = await _teamManager.SendAsync(teamId, "sender1", "Hello Team!").ConfigureAwait(true);
+        var result = await _teamManager.SendMessageAsync(teamId, "sender1", "Hello Team!").ConfigureAwait(true);
 
         // Assert
         result.Success.Should().BeTrue();
@@ -234,7 +234,7 @@ public class TeamManagerTests
         var teamId = createResult.Data!.TeamId;
 
         // Act
-        var result = await _teamManager.SendAsync(teamId, "non-member", "Hello!").ConfigureAwait(true);
+        var result = await _teamManager.SendMessageAsync(teamId, "non-member", "Hello!").ConfigureAwait(true);
 
         // Assert
         result.Success.Should().BeFalse();
@@ -285,11 +285,11 @@ public class TeamManagerTests
         var createResult = await _teamManager.CreateTeamAsync("Test Team", initialMembers: new List<string> { "agent1" }).ConfigureAwait(true);
         var teamId = createResult.Data!.TeamId;
 
-        await _teamManager.SendAsync(teamId, "agent1", "Message 1").ConfigureAwait(true);
+        await _teamManager.SendMessageAsync(teamId, "agent1", "Message 1").ConfigureAwait(true);
         SpinWait.SpinUntil(() => true, TimeSpan.FromMilliseconds(15)); // 确保时间戳不同
-        await _teamManager.SendAsync(teamId, "agent1", "Message 2").ConfigureAwait(true);
+        await _teamManager.SendMessageAsync(teamId, "agent1", "Message 2").ConfigureAwait(true);
         SpinWait.SpinUntil(() => true, TimeSpan.FromMilliseconds(15));
-        await _teamManager.SendAsync(teamId, "agent1", "Message 3").ConfigureAwait(true);
+        await _teamManager.SendMessageAsync(teamId, "agent1", "Message 3").ConfigureAwait(true);
 
         // Act
         var messages = await _teamManager.GetTeamMessagesAsync(teamId, limit: 2).ConfigureAwait(true);
@@ -326,7 +326,7 @@ public class TeamManagerTests
         SpinWait.SpinUntil(() => true, TimeSpan.FromMilliseconds(60)); // 等待一段时间确保时间戳不同
 
         // Act
-        await _teamManager.SendAsync(teamId, "agent1", "Test message").ConfigureAwait(true);
+        await _teamManager.SendMessageAsync(teamId, "agent1", "Test message").ConfigureAwait(true);
 
         // Assert
         var team = await _teamManager.GetTeamAsync(teamId).ConfigureAwait(true);
@@ -342,7 +342,7 @@ public class TeamManagerTests
         var teamId = createResult.Data!.TeamId;
 
         // Act
-        await _teamManager.SendAsync(teamId, "agent1", "Test content", "custom-type").ConfigureAwait(true);
+        await _teamManager.SendMessageAsync(teamId, "agent1", "Test content", "custom-type").ConfigureAwait(true);
         var messages = await _teamManager.GetTeamMessagesAsync(teamId).ConfigureAwait(true);
 
         // Assert
@@ -369,8 +369,8 @@ public class TeamManagerTests
         await _teamManager.AddTeamMemberAsync(teamId, "dev2").ConfigureAwait(true);
 
         // 发送消息
-        await _teamManager.SendAsync(teamId, "lead", "Welcome to the team!").ConfigureAwait(true);
-        await _teamManager.SendAsync(teamId, "dev1", "Thanks!").ConfigureAwait(true);
+        await _teamManager.SendMessageAsync(teamId, "lead", "Welcome to the team!").ConfigureAwait(true);
+        await _teamManager.SendMessageAsync(teamId, "dev1", "Thanks!").ConfigureAwait(true);
         await _teamManager.BroadcastMessageAsync(teamId, "lead", "Meeting at 3pm").ConfigureAwait(true);
 
         // 获取团队信息

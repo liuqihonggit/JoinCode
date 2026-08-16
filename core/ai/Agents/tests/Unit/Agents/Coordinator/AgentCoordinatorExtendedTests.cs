@@ -345,7 +345,7 @@ public class AgentCoordinatorExtendedTests
         _messageBrokerMock.Setup(x => x.SendAsync(agentId, message, default)).ReturnsAsync(true);
 
         // Act
-        var result = await _coordinator.SendAsync(agentId, message).ConfigureAwait(true);
+        var result = await _coordinator.SendMessageAsync(agentId, message).ConfigureAwait(true);
 
         // Assert
         result.Should().BeTrue();

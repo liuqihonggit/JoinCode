@@ -148,15 +148,4 @@ global using SkillContext = Core.Skills.SkillContext;
 global using JoinCode.Pipelines;
 global using JoinCode.Pipelines.Middlewares;
 
-// TUI 渲染层 — Terminal.Gui v2
-global using Terminal.Gui.App;
-global using Terminal.Gui.ViewBase;
-global using Terminal.Gui.Views;
-global using GuiColor = Terminal.Gui.Drawing.Color;
-global using GuiAttribute = Terminal.Gui.Drawing.Attribute;
-global using GuiTextStyle = Terminal.Gui.Drawing.TextStyle;
-global using JoinCode.Tui.Rendering;
-global using JoinCode.Tui.Views;
-global using JoinCode.Tui.Pipes;
 global using System.Collections.ObjectModel;
-global using TuiKey = Terminal.Gui.Input.Key;

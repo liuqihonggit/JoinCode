@@ -277,7 +277,6 @@ public sealed class ApplicationBuilder
             TrustWorkspace = result.Trust,
             Brief = result.Brief,
             ForceInteractive = result.ForceInteractive,
-            Tui = result.Tui,
             DebugLog = result.DebugLog,
             ContinueSession = result.Continue,
             ResumeSessionId = result.Resume,

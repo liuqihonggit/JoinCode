@@ -6,12 +6,9 @@ internal static class InteractiveModeRunner
 {
     internal static async Task RunAsync(WorkflowConfig config, CommandLineOptions options, IHost host, CancellationToken cancellationToken = default)
     {
-        if (!options.Tui)
-        {
-            Cli.TerminalHelper.Init();
-            Cli.TerminalHelper.WriteLine("JoinCode - AI 智能体命令行工具");
-            Cli.TerminalHelper.NewLine();
-        }
+        Cli.TerminalHelper.Init();
+        Cli.TerminalHelper.WriteLine("JoinCode - AI 智能体命令行工具");
+        Cli.TerminalHelper.NewLine();
 
         var context = new StartupContext
         {
@@ -20,16 +17,6 @@ internal static class InteractiveModeRunner
             Host = host,
             FileSystem = IO.FileSystem.FileSystemFactory.Create()
         };
-
-        if (options.Tui)
-        {
-            context.OriginalConsoleIn = Console.In;
-            context.OriginalConsoleOut = Console.Out;
-            context.OriginalConsoleError = Console.Error;
-            Console.SetIn(new StringReader(""));
-            Console.SetOut(TextWriter.Null);
-            Console.SetError(TextWriter.Null);
-        }
 
         var sp = host.Services;
         var pipeline = new PipelineBuilder<StartupContext>()
@@ -43,21 +30,7 @@ internal static class InteractiveModeRunner
             .Use(sp.GetRequiredService<InitDebugDumpStep>())
             .Use(sp.GetRequiredService<ReplLoopStep>())
             .Use(sp.GetRequiredService<ExitCleanupStep>())
-            .OnError((ctx, ex) =>
-            {
-                if (options.Tui)
-                {
-                    if (ctx.OriginalConsoleError is not null)
-                    {
-                        Console.SetError(ctx.OriginalConsoleError);
-                        Console.Error.WriteLine($"启动失败: {ex.Message}");
-                    }
-                }
-                else
-                {
-                    Cli.TerminalHelper.WriteLine($"启动失败: {ex.Message}");
-                }
-            })
+            .OnError((ctx, ex) => Cli.TerminalHelper.WriteLine($"启动失败: {ex.Message}"))
             .Build();
 
         await pipeline.ExecuteAsync(context, cancellationToken);

@@ -34,7 +34,6 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="$(MicrosoftExtensionsVersion)" />
     <PackageReference Include="System.CommandLine" Version="$(SystemCommandLineVersion)" />
-    <PackageReference Include="Terminal.Gui" Version="2.4.17" />
   </ItemGroup>
 
 

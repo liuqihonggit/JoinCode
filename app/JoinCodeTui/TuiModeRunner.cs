@@ -1,36 +1,18 @@
-namespace JoinCode.Entry;
+namespace JoinCode.Tui;
 
 /// <summary>
 /// TUI 模式启动器 — 用 RootView 5层组件架构 + TerminalPainter 统一渲染入口。
-/// --tui 参数触发，组装 StatusBar/ToolBar/Output/Prompt/FooterTab 五层布局。
+/// jcctui.exe 入口，组装 StatusBar/ToolBar/Output/Prompt/FooterTab 五层布局。
 /// 接入真实 LLM（IQueryEngine.QueryAsync 流式响应）+ 底部Tab面板（Log/Files/Memory/Settings）。
 /// 布局由 RootView 用 Pos.Bottom 链式垂直排列，组件内部用 Pos.Right 链式水平排列。
 /// </summary>
 internal static class TuiModeRunner
 {
-    internal static async Task RunAsync(WorkflowConfig config, CommandLineOptions options, IHost host, CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            await RunTuiInternalAsync(config, options, host, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            try
-            {
-                var crashLog = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "jcc_tui_crash.log");
-                await System.IO.File.WriteAllTextAsync(crashLog,
-                    $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] TUI Crash\n{ex}\n").ConfigureAwait(false);
-            }
-            catch (Exception logEx) { Console.Error.WriteLine($"[TUI] 写崩溃日志失败: {logEx.Message}"); }
-            throw;
-        }
-    }
-
-    private static async Task RunTuiInternalAsync(WorkflowConfig config, CommandLineOptions options, IHost host, CancellationToken cancellationToken)
+    internal static async Task RunAsync(WorkflowConfig config, IServiceProvider services, CancellationToken cancellationToken = default)
     {
         using var app = Application.Create();
         app.Init();
+        WriteDiag($"[TUI] app.Init done, Initialized={app.Initialized}");
 
         var queue = new CommandQueue();
         var painter = new TerminalPainter(app.Invoke);
@@ -57,7 +39,7 @@ internal static class TuiModeRunner
         outputView.AppendLine("输入消息后按 Enter 发送，/exit 退出，F1-F5 快捷键");
         outputView.AppendLine("");
 
-        var queryEngine = host.Services.GetService<IQueryEngine>();
+        var queryEngine = services.GetService<IQueryEngine>();
         var chatHistory = new MessageList();
 
         var registry = new PipeRegistry();
@@ -139,7 +121,7 @@ internal static class TuiModeRunner
                         break;
                     case FooterTab.Settings:
                         outputView.AppendLine($"⚙️ [Settings] 模型: {config.CurrentModelId}");
-                        outputView.AppendLine($"  TUI模式: {options.Tui}");
+                        outputView.AppendLine("  TUI模式: True");
                         break;
                 }
             });
@@ -174,7 +156,10 @@ internal static class TuiModeRunner
         polling.Start();
         try
         {
-            await Task.Run(() => app.Run(window), cancellationToken).ConfigureAwait(false);
+            using var ctReg = cancellationToken.Register(() => app.RequestStop());
+            WriteDiag("[TUI] app.Run start");
+            app.Run(window);
+            WriteDiag("[TUI] app.Run returned");
         }
         finally
         {
@@ -251,5 +236,18 @@ internal static class TuiModeRunner
                 painter.Invoke(() => outputView.AppendLine($"  [错误] {ex.Message}"));
             }
         }
+    }
+
+    private static void WriteDiag(string message)
+    {
+        try
+        {
+            var dir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "jcctui_diag");
+            System.IO.Directory.CreateDirectory(dir);
+            System.IO.File.AppendAllText(
+                System.IO.Path.Combine(dir, "run.log"),
+                $"[{DateTime.Now:HH:mm:ss.fff}] {message}\n");
+        }
+        catch (Exception logEx) { Console.Error.WriteLine($"[diag] WriteDiag failed: {logEx.Message}"); }
     }
 }

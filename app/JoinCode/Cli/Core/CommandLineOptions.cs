@@ -68,6 +68,13 @@ public class CommandLineOptions {
     public bool ForceInteractive { get; set; }
 
     /// <summary>
+    /// 启用 TUI 模式（--tui 参数）— 使用 Terminal.Gui 渲染层替代纯 CLI。
+    /// 默认 false（纯 CLI），设为 true 时启动 Terminal.Gui MainLoop。
+    /// 见 docs/plans/TUI架构与消息管道重构设计.md
+    /// </summary>
+    public bool Tui { get; set; }
+
+    /// <summary>
     /// 超时自动关闭秒数（--await N 参数）— 超时后进程强制退出并返回 ExitCode.AwaitTimeout (=1234)
     /// 用于测试诊断卡死问题，正常完成不受影响
     /// </summary>

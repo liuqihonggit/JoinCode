@@ -83,6 +83,7 @@ global using JoinCode.Cli;
 global using JoinCode.Cli.Interaction;
 global using JoinCode.Cli.Output;
 global using JoinCode.CliCommands;
+global using JoinCode.Queue;
 global using JoinCode.Services;
 global using JoinCode.Adapters;
 
@@ -146,3 +147,9 @@ global using Tools.Shell;
 global using SkillContext = Core.Skills.SkillContext;
 global using JoinCode.Pipelines;
 global using JoinCode.Pipelines.Middlewares;
+
+// TUI 渲染层 — Terminal.Gui v2
+global using Terminal.Gui.App;
+global using Terminal.Gui.ViewBase;
+global using Terminal.Gui.Views;
+global using JoinCode.Tui.Rendering;

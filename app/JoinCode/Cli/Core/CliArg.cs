@@ -39,6 +39,9 @@ public enum CliArg
     [CliOption(JccCliArgConstants.ForceInteractive, "", "强制交互模式（即使stdin重定向也启用REPL，用于E2E测试）", Category = "诊断")]
     ForceInteractive,
 
+    [CliOption(JccCliArgConstants.Tui, "", "启用TUI模式（Terminal.Gui渲染层，见docs/plans/TUI架构与消息管道重构设计.md）", Category = "输出")]
+    Tui,
+
     [CliOption(JccCliArgConstants.Await, "", "超时自动关闭秒数（超时返回 AwaitTimeout=1234，用于测试诊断卡死）", AcceptsValue = true, Category = "诊断", Example = "jcc --await 20 -p \"hello\"")]
     Await,
 

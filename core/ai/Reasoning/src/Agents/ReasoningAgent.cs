@@ -10,7 +10,7 @@ public abstract class ReasoningAgent : AgentBase
 {
     protected new readonly ILogger _logger;
     protected readonly IChatClient? _chatClient;
-    protected readonly IAgentMessageBroker? _messageBroker;
+    protected readonly IMailbox? _messageBroker;
 
     /// <summary>
     /// 人格提示词 — 定义 Agent 的行为准则和推理策略
@@ -28,7 +28,7 @@ public abstract class ReasoningAgent : AgentBase
         AgentRole role,
         string name,
         IChatClient? chatClient = null,
-        IAgentMessageBroker? messageBroker = null)
+        IMailbox? messageBroker = null)
         : base(string.Empty, null, queryEngine, logger, name: name, role: role)
     {
         _logger = logger;
@@ -82,7 +82,7 @@ public abstract class ReasoningAgent : AgentBase
             Content = content,
         };
 
-        await _messageBroker.SendMessageAsync(toAgentId, message, ct).ConfigureAwait(false);
+        await _messageBroker.SendAsync(toAgentId, message, ct).ConfigureAwait(false);
         _logger?.LogDebug("[{AgentName}] 发送消息 → {ToAgent}: {Type}", Name, toAgentId, messageType);
     }
 

@@ -29,14 +29,14 @@ public sealed partial class SwarmPermissionUpdateData
 [Register]
 public sealed partial class SwarmPermissionCallbackService : ServiceEntity, ISwarmPermissionCallbacks
 {
-    private readonly IAgentMessageBroker _messageBroker;
+    private readonly IMailbox _messageBroker;
     [Inject] private readonly ILogger<SwarmPermissionCallbackService>? _logger;
     [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
     private readonly ConcurrentDictionary<string, SwarmPermissionCallback> _pendingCallbacks;
     private readonly ConcurrentDictionary<string, SwarmPermissionRequest> _pendingRequests;
 
     public SwarmPermissionCallbackService(
-        IAgentMessageBroker messageBroker,
+        IMailbox messageBroker,
         ILogger<SwarmPermissionCallbackService>? logger = null,
         ISubAgentContextAccessor? subAgentContextAccessor = null)
     {
@@ -97,7 +97,7 @@ public sealed partial class SwarmPermissionCallbackService : ServiceEntity, ISwa
             Content = content
         };
 
-        await _messageBroker.SendMessageAsync(leaderAgentId, message, cancellationToken).ConfigureAwait(false);
+        await _messageBroker.SendAsync(leaderAgentId, message, cancellationToken).ConfigureAwait(false);
 
         _logger?.LogInformation(
             "权限请求已发送到 Leader: RequestId={RequestId}, Tool={ToolName}, Leader={LeaderId}",

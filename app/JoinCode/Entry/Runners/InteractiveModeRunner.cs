@@ -30,10 +30,7 @@ internal static class InteractiveModeRunner
             .Use(sp.GetRequiredService<InitDebugDumpStep>())
             .Use(sp.GetRequiredService<ReplLoopStep>())
             .Use(sp.GetRequiredService<ExitCleanupStep>())
-            .OnError((ctx, ex) =>
-            {
-                Cli.TerminalHelper.WriteLine($"启动失败: {ex.Message}");
-            })
+            .OnError((ctx, ex) => Cli.TerminalHelper.WriteLine($"启动失败: {ex.Message}"))
             .Build();
 
         await pipeline.ExecuteAsync(context, cancellationToken);

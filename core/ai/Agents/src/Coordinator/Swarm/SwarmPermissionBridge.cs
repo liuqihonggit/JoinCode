@@ -43,7 +43,7 @@ public sealed partial class PermissionSyncEventArgs : EventArgs
 [Register(typeof(ISwarmPermissionBridge))]
 public sealed partial class SwarmPermissionBridge : ServiceEntity, ISwarmPermissionBridge, IDisposable
 {
-    private readonly IAgentMessageBroker _messageBroker;
+    private readonly IMailbox _messageBroker;
     private readonly IAgentPermissionManager _permissionManager;
     [Inject] private readonly ILogger<SwarmPermissionBridge>? _logger;
     [Inject] private readonly IClockService _clock;
@@ -54,7 +54,7 @@ public sealed partial class SwarmPermissionBridge : ServiceEntity, ISwarmPermiss
     public event EventHandler<PermissionSyncEventArgs>? PermissionChanged;
 
     public SwarmPermissionBridge(
-        IAgentMessageBroker messageBroker,
+        IMailbox messageBroker,
         IAgentPermissionManager permissionManager,
         ILogger<SwarmPermissionBridge>? logger = null,
         ITelemetryService? telemetryService = null,
@@ -108,7 +108,7 @@ public sealed partial class SwarmPermissionBridge : ServiceEntity, ISwarmPermiss
                 Content = $"Permission sync: mode={request.Mode}"
             };
 
-            await _messageBroker.SendMessageAsync(agentId, message, ct).ConfigureAwait(false);
+            await _messageBroker.SendAsync(agentId, message, ct).ConfigureAwait(false);
 
             PermissionChanged?.Invoke(this, new PermissionSyncEventArgs
             {

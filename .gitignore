@@ -477,3 +477,5 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+# Deleted/moved file backups
+.xxx/

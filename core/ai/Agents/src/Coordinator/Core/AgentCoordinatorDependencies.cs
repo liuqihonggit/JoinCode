@@ -9,7 +9,7 @@ namespace Core.Agents.Coordinator;
 public sealed record AgentCoreDependencies(
     IAgentLifecycleManager LifecycleManager,
     IAgentWorktreeManager WorktreeManager,
-    IAgentMessageBroker MessageBroker,
+    IMailbox MessageBroker,
     IAgentExecutionEngine ExecutionEngine,
     AgentStateMachine StateMachine);
 

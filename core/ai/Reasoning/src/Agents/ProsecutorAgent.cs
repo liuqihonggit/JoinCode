@@ -11,7 +11,7 @@ public sealed class ProsecutorAgent : ReasoningAgent
         "证据必须包含：内容描述、来源、信任度(DirectEvidence|StrongCorroboration|Moderate|Weak|Hearsay|Unreliable)、权重(0.1-10.0)。" +
         "输出JSON格式：{\"evidence\":[{\"content\":\"...\",\"source\":\"...\",\"trustLevel\":\"Moderate\",\"weight\":1.0}]}";
 
-    public ProsecutorAgent(IQueryEngine queryEngine, ILogger<ProsecutorAgent> logger, IChatClient? chatClient = null, IAgentMessageBroker? messageBroker = null)
+    public ProsecutorAgent(IQueryEngine queryEngine, ILogger<ProsecutorAgent> logger, IChatClient? chatClient = null, IMailbox? messageBroker = null)
         : base(queryEngine, logger, AgentRole.Prosecutor, "控方Agent", chatClient, messageBroker) { }
 
     public override async Task<AgentAction> ReasonAsync(ReasoningContext context, CancellationToken ct)

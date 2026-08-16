@@ -1,16 +1,16 @@
-﻿
+
 namespace Sync.Tests.Agents.Coordinator;
 
 public class ForkSubAgentManagerTests
 {
     private readonly Mock<IAgentLifecycleManager> _lifecycleManagerMock;
-    private readonly Mock<IAgentMessageBroker> _messageBrokerMock;
+    private readonly Mock<IMailbox> _messageBrokerMock;
     private readonly ForkSubAgentManager _manager;
 
     public ForkSubAgentManagerTests()
     {
         _lifecycleManagerMock = new Mock<IAgentLifecycleManager>();
-        _messageBrokerMock = new Mock<IAgentMessageBroker>();
+        _messageBrokerMock = new Mock<IMailbox>();
 
         var pipeline = CreatePipeline();
         var deps = new ForkManagerDependencies(

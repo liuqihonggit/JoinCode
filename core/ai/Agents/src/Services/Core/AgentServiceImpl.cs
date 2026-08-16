@@ -1,4 +1,4 @@
-﻿using JoinCode.Abstractions.Attributes;
+using JoinCode.Abstractions.Attributes;
 
 namespace Core.Agents;
 
@@ -8,7 +8,7 @@ namespace Core.Agents;
 [Register]
 public sealed record AgentServiceDependencies(
     JoinCode.Abstractions.Interfaces.IAgentTranscriptService? TranscriptService = null,
-    IAgentMessageBroker? MessageBroker = null,
+    IMailbox? MessageBroker = null,
     SwarmPermissionCallbackService? PermissionCallbackService = null,
     JoinCode.Abstractions.Interfaces.IAgentMcpServerManager? McpServerManager = null,
     JoinCode.Abstractions.Interfaces.IAgentInputForwardQueue? InputForwardQueue = null,
@@ -22,7 +22,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     private readonly JoinCode.Abstractions.Interfaces.IAgentDefinitionProvider _definitionProvider;
     private readonly JoinCode.Abstractions.Interfaces.IAgentRoleRegistry _roleRegistry;
     private readonly JoinCode.Abstractions.Interfaces.IAgentTranscriptService? _transcriptService;
-    private readonly IAgentMessageBroker? _messageBroker;
+    private readonly IMailbox? _messageBroker;
     private readonly JoinCode.Abstractions.Interfaces.IAgentInputForwardQueue? _inputForwardQueue;
     private readonly JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager? _outputChannelManager;
     private readonly SwarmPermissionCallbackService? _permissionCallbackService;
@@ -406,7 +406,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
 
         if (_messageBroker is null)
         {
-            _logger?.LogWarning("[AgentServiceImpl] IAgentMessageBroker 未注册，无法发送消息");
+            _logger?.LogWarning("[AgentServiceImpl] IMailbox 未注册，无法发送消息");
             return false;
         }
 
@@ -418,7 +418,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
             Content = message
         };
 
-        var sent = await _messageBroker.SendMessageAsync(agentId, agentMessage, cancellationToken).ConfigureAwait(false);
+        var sent = await _messageBroker.SendAsync(agentId, agentMessage, cancellationToken).ConfigureAwait(false);
 
         if (sent)
         {
@@ -462,7 +462,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
 
         if (_messageBroker is null)
         {
-            _logger?.LogWarning("[AgentServiceImpl] IAgentMessageBroker 未注册，无法发送结构化消息");
+            _logger?.LogWarning("[AgentServiceImpl] IMailbox 未注册，无法发送结构化消息");
             return false;
         }
 
@@ -478,7 +478,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
             Payload = structuredData.Payload
         };
 
-        var sent = await _messageBroker.SendMessageAsync(agentId, agentMessage, cancellationToken).ConfigureAwait(false);
+        var sent = await _messageBroker.SendAsync(agentId, agentMessage, cancellationToken).ConfigureAwait(false);
 
         if (sent)
         {
@@ -495,13 +495,13 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
 
         if (_messageBroker is null)
         {
-            _logger?.LogWarning("[AgentServiceImpl] IAgentMessageBroker 未注册，无法获取消息");
+            _logger?.LogWarning("[AgentServiceImpl] IMailbox 未注册，无法获取消息");
             return [];
         }
 
         var messages = new List<JoinCode.Abstractions.Interfaces.AgentMessageInfo>();
 
-        await foreach (var msg in _messageBroker.ReadMessagesAsync(agentId, cancellationToken).ConfigureAwait(false))
+        await foreach (var msg in _messageBroker.ReceiveAsync(agentId, cancellationToken).ConfigureAwait(false))
         {
             messages.Add(new JoinCode.Abstractions.Interfaces.AgentMessageInfo
             {
@@ -523,7 +523,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         {
             _ = Task.Run(async () =>
             {
-                await foreach (var message in _messageBroker.ReadMessagesAsync(agentId).ConfigureAwait(false))
+                await foreach (var message in _messageBroker.ReceiveAsync(agentId).ConfigureAwait(false))
                 {
                     if (message.MessageType == SwarmPermissionMessageType.PermissionResponse.ToValue())
                     {

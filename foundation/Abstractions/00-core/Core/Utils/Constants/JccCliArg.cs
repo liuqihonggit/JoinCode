@@ -44,6 +44,9 @@ public enum JccCliArg
     [EnumValue("--force-interactive")]
     ForceInteractive,
 
+    [EnumValue("--tui")]
+    Tui,
+
     [EnumValue("--await")]
     Await,
 

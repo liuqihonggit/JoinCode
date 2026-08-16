@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>JoinCode.Tui</RootNamespace>
+    <AssemblyName>jcctui</AssemblyName>
+    <Description>JoinCode TUI 终端界面（独立 exe，不走 CLI 管道）</Description>
+    <NoWarn>$(NoWarn);JCC9001;CS8604;CS1573;CS1587</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 引用 JoinCode 复用 EngineSessionFactory + Abstractions 门面；TUI 不走 CLI 管道，用 CreateGuiSessionAsync 组装 DI -->
+    <ProjectReference Include="$(RepoRoot)app\JoinCode\JoinCode.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- [EnumValue] 源码生成器 — TUI 枚举(ToolBarAction/FooterTab等)生成 XxxConstants -->
+    <ProjectReference Include="$(RepoRoot)generators\EnumMetadata.Generator\src\EnumMetadata.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Terminal.Gui" Version="2.4.17" />
+  </ItemGroup>
+
+</Project>

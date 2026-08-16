@@ -14,8 +14,6 @@ public sealed class MessageHealingTests
     private static ApiMessage AssistantToolCallMsg(string toolCallId, string toolName) =>
         new(MessageRole.Assistant, null, new Dictionary<string, JsonElement>
         {
-            ["ToolCallId"] = JsonElementHelper.FromString(toolCallId),
-            ["ToolCall"] = JsonElementHelper.FromString(toolName),
             ["ToolCalls"] = JsonElementHelper.FromJson($"[{{\"Id\":\"{toolCallId}\",\"Name\":\"{toolName}\"}}]")
         });
 
@@ -52,8 +50,7 @@ public sealed class MessageHealingTests
             UserMsg("hello"),
             new ApiMessage(MessageRole.Assistant, "Let me check that.", new Dictionary<string, JsonElement>
             {
-                ["ToolCallId"] = JsonElementHelper.FromString("tc_1"),
-                ["ToolCall"] = JsonElementHelper.FromString("read_file")
+                ["AllToolCalls"] = JsonElementHelper.FromJson($"[{{\"Id\":\"tc_1\",\"Name\":\"read_file\"}}]")
             }),
         };
 

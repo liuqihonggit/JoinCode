@@ -260,9 +260,9 @@ public class OpenAIQueryServiceTests
 
         var result = OpenAIQueryService.ConvertToApiMessage(choice, null);
 
-        result.Metadata.Should().ContainKeys("ToolCall", "ToolCallId", "ToolCallArguments", "ToolCalls");
-        result.Metadata!["ToolCall"].GetString().Should().Be("ToolA");
-        result.Metadata["ToolCallId"].GetString().Should().Be("call-1");
+        result.Metadata.Should().ContainKeys("AllToolCalls", "ToolCalls");
+        result.Metadata!["AllToolCalls"].ValueKind.Should().Be(JsonValueKind.Array);
+        result.Metadata!["AllToolCalls"].GetArrayLength().Should().Be(1);
     }
 
     [Fact]

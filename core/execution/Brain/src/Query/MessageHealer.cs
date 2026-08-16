@@ -97,7 +97,7 @@ public static class MessageHealer
     private static bool HasToolCalls(ApiMessage msg)
     {
         return msg.Metadata != null &&
-            (msg.Metadata.ContainsKey("ToolCall") || msg.Metadata.ContainsKey("ToolCalls"));
+            (msg.Metadata.ContainsKey("AllToolCalls") || msg.Metadata.ContainsKey("ToolCalls"));
     }
 
     private static List<string> ExtractToolCallIds(ApiMessage msg)
@@ -105,10 +105,19 @@ public static class MessageHealer
         var ids = new List<string>();
         var seen = new HashSet<string>();
 
-        if (msg.Metadata != null && msg.Metadata.TryGetValue("ToolCallId", out var idObj) && idObj.TryGetString(out var id) && id is not null)
+        if (msg.Metadata != null && msg.Metadata.TryGetValue("AllToolCalls", out var allToolCallsObj) && allToolCallsObj.ValueKind == JsonValueKind.Array)
         {
-            if (seen.Add(id))
-                ids.Add(id);
+            foreach (var item in allToolCallsObj.EnumerateArray())
+            {
+                if (item.ValueKind == JsonValueKind.Object &&
+                    item.TryGetProperty("Id", out var tcIdProp) &&
+                    tcIdProp.ValueKind == JsonValueKind.String)
+                {
+                    var tcIdStr = tcIdProp.GetString();
+                    if (tcIdStr != null && seen.Add(tcIdStr))
+                        ids.Add(tcIdStr);
+                }
+            }
         }
 
         if (msg.Metadata != null && msg.Metadata.TryGetValue("ToolCalls", out var toolCallsObj))

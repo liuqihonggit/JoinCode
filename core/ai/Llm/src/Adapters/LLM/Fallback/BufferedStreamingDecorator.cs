@@ -75,15 +75,6 @@ public sealed class BufferedStreamingDecorator : IQueryService
                         case "Created":
                             metadata[kvp.Key] = kvp.Value;
                             break;
-                        case "ToolCall":
-                            metadata["ToolCall"] = kvp.Value;
-                            break;
-                        case "ToolCallId":
-                            metadata["ToolCallId"] = kvp.Value;
-                            break;
-                        case "ToolCallArguments":
-                            metadata["ToolCallArguments"] = kvp.Value;
-                            break;
                         case "AllToolCalls":
                             metadata["AllToolCalls"] = kvp.Value;
                             break;

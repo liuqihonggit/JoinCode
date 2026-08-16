@@ -121,11 +121,6 @@ public class OpenAIQueryService : QueryServiceBase
                     })
                     .ToList();
                 metadata["AllToolCalls"] = ToolCallEntry.ToToolCallsJson(entries);
-
-                var first = entries[0];
-                metadata["ToolCall"] = JsonElementHelper.FromString(first.Name);
-                metadata["ToolCallId"] = JsonElementHelper.FromString(first.Id ?? "");
-                metadata["ToolCallArguments"] = JsonElementHelper.FromString(first.Arguments);
             }
 
             var streamContent = choice.Delta?.ReasoningContent ?? content;
@@ -391,11 +386,14 @@ public class OpenAIQueryService : QueryServiceBase
 
         if (choice.Message.ToolCalls is { Count: > 0 })
         {
-            var firstToolCall = choice.Message.ToolCalls[0];
-            metadata["ToolCall"] = JsonElementHelper.FromString(firstToolCall.Function?.Name);
-            metadata["ToolCallId"] = JsonElementHelper.FromString(firstToolCall.Id);
-            metadata["ToolCallArguments"] = JsonElementHelper.FromString(firstToolCall.Function?.Arguments);
             metadata["ToolCalls"] = JsonElementHelper.FromObject(choice.Message.ToolCalls, NativeJsonContext.Default.ListOpenAIToolCall);
+            var entries = choice.Message.ToolCalls.Select(tc => new ToolCallEntry
+            {
+                Id = tc.Id,
+                Name = tc.Function?.Name ?? "",
+                Arguments = tc.Function?.Arguments ?? "{}"
+            }).ToList();
+            metadata["AllToolCalls"] = ToolCallEntry.ToToolCallsJson(entries);
         }
 
         return new ApiMessage(

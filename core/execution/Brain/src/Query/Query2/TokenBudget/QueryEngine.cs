@@ -364,9 +364,10 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
             cancellationToken.ThrowIfCancellationRequested();
             var content = streamChunk.Content ?? string.Empty;
 
-            // 检查工具调用 — 优先读 AllToolCalls（包含全部工具调用），回退到单个 ToolCall
+            // 检查工具调用 — 统一读 AllToolCalls 数组（含0~N个工具调用）
             if (streamChunk.Metadata?.TryGetValue("AllToolCalls", out var allEl) == true &&
-                allEl.ValueKind == JsonValueKind.Array)
+                allEl.ValueKind == JsonValueKind.Array &&
+                allEl.GetArrayLength() > 0)
             {
                 foreach (var item in allEl.EnumerateArray())
                 {
@@ -391,25 +392,6 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
                         Arguments = ExtractArguments(streamChunk.Metadata, arguments)
                     });
                 }
-            }
-            else if (streamChunk.Metadata?.TryGetValue("ToolCall", out var toolCallEl) == true &&
-                toolCallEl.ValueKind == JsonValueKind.String)
-            {
-                var toolCallName = toolCallEl.GetString();
-                var toolCallId = streamChunk.Metadata?.TryGetValue("ToolCallId", out var idEl) == true && idEl.ValueKind == JsonValueKind.String
-                    ? idEl.GetString()
-                    : null;
-                var toolCallArguments = streamChunk.Metadata?.TryGetValue("ToolCallArguments", out var argsEl) == true && argsEl.ValueKind == JsonValueKind.String
-                    ? argsEl.GetString()
-                    : null;
-
-                pendingToolCalls.Add(new ToolCallRequest
-                {
-                    ToolName = toolCallName ?? string.Empty,
-                    ToolCallId = toolCallId,
-                    RawArguments = toolCallArguments,
-                    Arguments = ExtractArguments(streamChunk.Metadata, toolCallArguments)
-                });
             }
 
             // 累积内容

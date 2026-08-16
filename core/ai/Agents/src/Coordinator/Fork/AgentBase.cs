@@ -171,6 +171,20 @@ public class AgentBase : Entity, IAgent
         Status = TaskExecutionStatus.Running;
         _executionCount++;
 
+        if (_executionCount > Options.MaxIterations)
+        {
+            _logger?.LogWarning("[Agent {AgentId}] 已达最大迭代次数 {MaxIterations},停止执行", UniqueId, Options.MaxIterations);
+            CompletedAt = _clock.GetUtcNow();
+            Status = TaskExecutionStatus.Completed;
+            return new SubAgentResult
+            {
+                AgentId = UniqueId,
+                IsSuccess = true,
+                Output = $"已达最大迭代次数 {Options.MaxIterations}",
+                ExecutionTimeMs = 0,
+            };
+        }
+
         if (Context is not null)
         {
             Context.StartedAt = StartedAt;
@@ -320,6 +334,15 @@ public class AgentBase : Entity, IAgent
         StartedAt = _clock.GetUtcNow();
         Status = TaskExecutionStatus.Running;
         _executionCount++;
+
+        if (_executionCount > Options.MaxIterations)
+        {
+            _logger?.LogWarning("[Agent {AgentId}] 已达最大迭代次数 {MaxIterations},停止执行", UniqueId, Options.MaxIterations);
+            CompletedAt = _clock.GetUtcNow();
+            Status = TaskExecutionStatus.Completed;
+            yield return new AgentStreamChunk { Type = AgentStreamChunkType.Complete, Content = $"已达最大迭代次数 {Options.MaxIterations}", AgentId = UniqueId };
+            yield break;
+        }
 
         if (Context is not null)
         {

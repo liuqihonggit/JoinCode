@@ -22,6 +22,16 @@ public partial class SystemPromptProviderOptions
         return value is "1" or "true" or "TRUE";
     }
 
+    /// <summary>
+    /// 从环境变量 JCC_SUBAGENT_MODEL 获取 subagent 模型覆盖
+    /// <para>对齐 claude code CLAUDE_CODE_SUBAGENT_MODEL 环境变量</para>
+    /// <para>设置后全局覆盖所有 subagent 模型,用于测试/调试</para>
+    /// </summary>
+    public static string? GetSubagentModelFromEnv()
+    {
+        return Environment.GetEnvironmentVariable("JCC_SUBAGENT_MODEL");
+    }
+
     #endregion
 
     #region 环境信息

@@ -64,4 +64,25 @@ public sealed class SystemPromptProviderOptionsCoordinatorModeTests
             Environment.SetEnvironmentVariable("JCC_COORDINATOR_MODE", null);
         }
     }
+
+    [Fact]
+    public void GetSubagentModelFromEnv_WhenEnvVarSet_ReturnsValue()
+    {
+        Environment.SetEnvironmentVariable("JCC_SUBAGENT_MODEL", "gpt-4o-mini");
+        try
+        {
+            SystemPromptProviderOptions.GetSubagentModelFromEnv().Should().Be("gpt-4o-mini");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("JCC_SUBAGENT_MODEL", null);
+        }
+    }
+
+    [Fact]
+    public void GetSubagentModelFromEnv_WhenEnvVarNotSet_ReturnsNull()
+    {
+        Environment.SetEnvironmentVariable("JCC_SUBAGENT_MODEL", null);
+        SystemPromptProviderOptions.GetSubagentModelFromEnv().Should().BeNull();
+    }
 }

@@ -16,9 +16,7 @@ internal static class TuiModeRunner
 
         var queue = new CommandQueue();
         var painter = new TerminalPainter(app.Invoke);
-        var root = new RootView(painter, queue);
         var promptView = new PromptView(queue);
-        root.SetPrompt(promptView);
 
         var top = new Window
         {
@@ -26,7 +24,7 @@ internal static class TuiModeRunner
             Height = Dim.Fill(),
             BorderStyle = LineStyle.None,
         };
-        top.Add(root);
+        top.Add(promptView.TerminalView);
 
         var focusSet = false;
         app.Iteration += (_, _) =>

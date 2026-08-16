@@ -1,8 +1,8 @@
 namespace JoinCode.Adapters;
 
 /// <summary>
-/// 传输无关的会话驱动器 — 统一事件消费逻辑
-/// 从 CliSession/TuiSession 的 StreamResponseAsync 中提取共享逻辑
+/// 传输无关的会话驱动器 — 统一事件消费逻辑。
+/// 从 CliSession 的 StreamResponseAsync 中提取共享逻辑。
 /// </summary>
 public sealed class SessionController
 {

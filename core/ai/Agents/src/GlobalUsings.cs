@@ -92,4 +92,3 @@ global using JoinCode.Abstractions.Pipeline;
 global using Infrastructure.Pipeline;
 global using Infrastructure.Subprocess;
 global using Infrastructure.Utils.Resilience;
-global using TuiSymbols = JoinCode.Abstractions.Utils.TuiSymbols;

@@ -69,7 +69,45 @@ public sealed class AgentPromptBuilderTests
         resultWithContext.Should().Be(resultWithoutContext);
     }
 
-    private static AgentPromptBuilder CreateBuilder()
+    [Fact]
+    public async Task BuildSystemPromptAsync_WithCriticalSystemReminder_InjectsReminder()
+    {
+        var definition = new JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition
+        {
+            Role = AgentRole.Executor,
+            Variant = ExecutorVariant.Code,
+            WhenToUse = "code agent",
+            SystemPrompt = "You are a code agent.",
+            CriticalSystemReminder = "<critical>STAY FOCUSED</critical>",
+        };
+        var builder = CreateBuilder(definition);
+
+        var result = await builder.BuildSystemPromptAsync(
+            ExecutorVariant.Code.ToValue(), "test task", null);
+
+        result.Should().Contain("<critical>STAY FOCUSED</critical>");
+    }
+
+    [Fact]
+    public async Task BuildSystemPromptAsync_WithoutCriticalSystemReminder_OmitsReminder()
+    {
+        var definition = new JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition
+        {
+            Role = AgentRole.Executor,
+            Variant = ExecutorVariant.Code,
+            WhenToUse = "code agent",
+            SystemPrompt = "You are a code agent.",
+        };
+        var builder = CreateBuilder(definition);
+
+        var result = await builder.BuildSystemPromptAsync(
+            ExecutorVariant.Code.ToValue(), "test task", null);
+
+        result.Should().NotContain("critical");
+    }
+
+    private static AgentPromptBuilder CreateBuilder(
+        JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition? definition = null)
     {
         var definitionProviderMock = new Mock<IAgentDefinitionProvider>();
         definitionProviderMock
@@ -77,7 +115,7 @@ public sealed class AgentPromptBuilderTests
             .ReturnsAsync([]);
         definitionProviderMock
             .Setup(x => x.GetAgentDefinitionAsync(It.IsAny<AgentRole>(), It.IsAny<ExecutorVariant?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition?)null);
+            .ReturnsAsync(definition);
 
         var contextAccessorMock = new Mock<ISubAgentContextAccessor>();
 

@@ -266,6 +266,9 @@ public class AgentDefinition
     /// </summary>
     public bool OmitGitStatus { get; init; }
 
+    /// <summary>每轮重注入的关键系统提醒 — 对齐 claude code criticalSystemReminder_EXPERIMENTAL</summary>
+    public string? CriticalSystemReminder { get; init; }
+
     /// <summary>
     /// 获取显示标识 — "coordinator" 或 "executor:code"
     /// </summary>

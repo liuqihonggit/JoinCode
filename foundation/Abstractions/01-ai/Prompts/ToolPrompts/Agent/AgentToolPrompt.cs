@@ -269,6 +269,9 @@ public class AgentDefinition
     /// <summary>每轮重注入的关键系统提醒 — 对齐 claude code criticalSystemReminder_EXPERIMENTAL</summary>
     public string? CriticalSystemReminder { get; init; }
 
+    /// <summary>首轮前置 prompt — spawn 时作为第一条 user message 注入,支持斜杠命令 — 对齐 claude code initialPrompt</summary>
+    public string? InitialPrompt { get; init; }
+
     /// <summary>
     /// 获取显示标识 — "coordinator" 或 "executor:code"
     /// </summary>

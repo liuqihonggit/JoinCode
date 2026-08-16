@@ -201,6 +201,11 @@ public class AgentBase : Entity, IAgent
 
             DrainPendingUserInputs(chatHistory);
 
+            if (!string.IsNullOrWhiteSpace(Options.InitialPrompt))
+            {
+                chatHistory.AddUserMessage(Options.InitialPrompt);
+            }
+
             var responseBuilder = new StringBuilder();
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
@@ -349,6 +354,11 @@ public class AgentBase : Entity, IAgent
         }
 
         DrainPendingUserInputs(chatHistory);
+
+        if (!string.IsNullOrWhiteSpace(Options.InitialPrompt))
+        {
+            chatHistory.AddUserMessage(Options.InitialPrompt);
+        }
 
         var responseBuilder = new StringBuilder();
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();

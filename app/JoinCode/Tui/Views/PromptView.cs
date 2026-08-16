@@ -31,13 +31,11 @@ public sealed class PromptView : ITuiComponent
             Text = "> ",
             X = 0,
             Y = 0,
-            Width = 2,
-            Height = 1,
         };
 
         _textField = new TextField
         {
-            X = 2,
+            X = Pos.Right(_promptLabel),
             Y = 0,
             Width = Dim.Fill(),
             Height = 1,

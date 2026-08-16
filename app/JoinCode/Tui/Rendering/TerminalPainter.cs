@@ -7,22 +7,22 @@ namespace JoinCode.Tui.Rendering;
 /// </summary>
 public sealed class TerminalPainter
 {
-    private readonly IApplication _app;
+    private readonly Action<Action> _invoke;
     private readonly List<ITuiComponent> _components = new();
     private readonly object _lock = new();
 
     /// <summary>
     /// 创建 TerminalPainter。
     /// </summary>
-    /// <param name="app">Terminal.Gui Application 实例（MainLoop 控制器）。</param>
-    public TerminalPainter(IApplication app)
+    /// <param name="invoke">MainLoop 投递函数（将绘制操作投递到 Terminal.Gui 主循环）。</param>
+    public TerminalPainter(Action<Action> invoke)
     {
-        _app = app ?? throw new ArgumentNullException(nameof(app));
+        _invoke = invoke ?? throw new ArgumentNullException(nameof(invoke));
     }
 
     /// <summary>投递同步渲染请求到 MainLoop（线程安全）。</summary>
     /// <param name="drawAction">绘制操作。</param>
-    public void Invoke(Action drawAction) => _app.Invoke(drawAction);
+    public void Invoke(Action drawAction) => _invoke(drawAction);
 
     /// <summary>注册 TUI 组件到渲染树。</summary>
     /// <param name="component">TUI 组件。</param>
@@ -64,7 +64,7 @@ public sealed class TerminalPainter
         {
             components = _components.ToArray();
         }
-        _app.Invoke(() =>
+        _invoke(() =>
         {
             foreach (var c in components)
                 c.OnQueueChanged(snapshot);
@@ -81,7 +81,7 @@ public sealed class TerminalPainter
         {
             components = _components.ToArray();
         }
-        _app.Invoke(() =>
+        _invoke(() =>
         {
             foreach (var c in components)
                 c.OnResize(cols, rows);

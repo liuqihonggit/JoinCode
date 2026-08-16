@@ -37,7 +37,7 @@ public sealed class AgentPanesView : ITuiComponent
         _contentArea = new View
         {
             X = 0,
-            Y = 1,
+            Y = Pos.Bottom(_agentNameLabel),
             Width = Dim.Fill(),
             Height = Dim.Fill(),
         };

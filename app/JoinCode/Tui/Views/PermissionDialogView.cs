@@ -22,7 +22,7 @@ public sealed class PermissionDialogView : ITuiComponent
         _container = new View
         {
             Width = Dim.Fill(),
-            Height = 5,
+            Height = Dim.Auto(),
             Visible = false,
         };
 
@@ -32,40 +32,37 @@ public sealed class PermissionDialogView : ITuiComponent
             X = 0,
             Y = 0,
             Width = Dim.Fill(),
-            Height = 1,
         };
 
         _toolLabel = new Label
         {
             Text = "",
             X = 0,
-            Y = 1,
+            Y = Pos.Bottom(_titleLabel),
             Width = Dim.Fill(),
-            Height = 1,
         };
 
         _descriptionLabel = new Label
         {
             Text = "",
             X = 0,
-            Y = 2,
+            Y = Pos.Bottom(_toolLabel),
             Width = Dim.Fill(),
-            Height = 1,
         };
 
         _allowButton = new Button
         {
             Text = "允许 (y)",
             X = 0,
-            Y = 4,
+            Y = Pos.Bottom(_descriptionLabel) + 1,
         };
         _allowButton.Accepting += OnAllow;
 
         _denyButton = new Button
         {
             Text = "拒绝 (n)",
-            X = 12,
-            Y = 4,
+            X = Pos.Right(_allowButton),
+            Y = Pos.Bottom(_descriptionLabel) + 1,
         };
         _denyButton.Accepting += OnDeny;
 

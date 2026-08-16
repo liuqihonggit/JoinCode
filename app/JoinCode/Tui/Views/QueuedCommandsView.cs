@@ -42,7 +42,7 @@ public sealed class QueuedCommandsView : ITuiComponent
         _listView = new ListView
         {
             X = 0,
-            Y = 1,
+            Y = Pos.Bottom(_headerLabel),
             Width = Dim.Fill(),
             Height = Dim.Auto(),
         };

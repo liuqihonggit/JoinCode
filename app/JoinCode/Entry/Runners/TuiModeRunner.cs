@@ -11,36 +11,83 @@ internal static class TuiModeRunner
         using var app = Application.Create();
         app.Init();
 
-        var painter = new TerminalPainter(app);
         var queue = new CommandQueue();
-        var root = new RootView(painter, queue);
-
-        var promptView = new PromptView(queue);
-        var outputView = new OutputView();
-        var queuedCommandsView = new QueuedCommandsView(queue);
-        var statusBarView = new StatusBarView();
-        var agentPanesView = new AgentPanesView();
-        var permissionDialogView = new PermissionDialogView();
-
-        root.AddComponent(promptView);
-        root.AddComponent(outputView);
-        root.AddComponent(queuedCommandsView);
-        root.AddComponent(statusBarView);
-        root.AddComponent(agentPanesView);
-        root.AddComponent(permissionDialogView);
-
-        outputView.AppendLine("JoinCode - AI 智能体命令行工具 (TUI 模式)");
-        outputView.AppendLine($"模型: {config.CurrentModelId}");
-        outputView.AppendLine("输入命令并按 Enter 发送。输入 /exit 退出。");
 
         var window = new Window
         {
             Width = Dim.Fill(),
             Height = Dim.Fill(),
         };
-        window.Add(root);
 
-        app.Invoke(() => promptView.SetFocus());
+        var titleLabel = new Label
+        {
+            Text = "JoinCode - AI 智能体命令行工具 (TUI 模式)",
+            X = 0,
+            Y = 0,
+            Width = Dim.Fill(),
+            Height = 1,
+        };
+
+        var modelLabel = new Label
+        {
+            Text = $"模型: {config.CurrentModelId}",
+            X = 0,
+            Y = 1,
+            Width = Dim.Fill(),
+            Height = 1,
+        };
+
+        var hintLabel = new Label
+        {
+            Text = "输入命令并按 Enter 发送。输入 /exit 退出。",
+            X = 0,
+            Y = 2,
+            Width = Dim.Fill(),
+            Height = 1,
+        };
+
+        var outputLabel = new Label
+        {
+            Text = "",
+            X = 0,
+            Y = 4,
+            Width = Dim.Fill(),
+            Height = Dim.Fill(),
+        };
+
+        var promptLabel = new Label
+        {
+            Text = "> ",
+            X = 0,
+            Y = Pos.Bottom(window) - 1,
+            Width = 2,
+            Height = 1,
+        };
+
+        var textField = new TextField
+        {
+            X = 2,
+            Y = Pos.Bottom(window) - 1,
+            Width = Dim.Fill(),
+            Height = 1,
+        };
+
+        textField.KeyDown += (sender, key) =>
+        {
+            if (key == TuiKey.Enter)
+            {
+                var text = textField.Text.ToString();
+                if (!string.IsNullOrWhiteSpace(text))
+                {
+                    outputLabel.Text += $"{Environment.NewLine}> {text}";
+                    queue.Enqueue(new QueuedCommand(text, CommandOrigin.User, QueuePriority.Next));
+                    textField.Text = "";
+                }
+            }
+        };
+
+        window.Add(titleLabel, modelLabel, hintLabel, outputLabel, promptLabel, textField);
+        textField.SetFocus();
 
         await Task.Run(() => app.Run(window), cancellationToken).ConfigureAwait(false);
     }

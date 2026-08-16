@@ -270,6 +270,8 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
                     Type = AgentStreamChunkType.ToolCallEnd,
                     ToolName = toolCall.ToolName,
                     ToolResult = toolResult,
+                    ToolResultText = ExtractToolResultText(toolResult),
+                    IsToolError = toolResult.IsError,
                     ToolCallNumber = context.TotalToolCalls
                 });
 
@@ -506,6 +508,27 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
         }
     }
 
+    /// <summary>
+    /// 从 ToolResult 提取纯文本结果 — 错误结果加 "Error: " 前缀，跳过图片等多模态内容
+    /// </summary>
+    private static string ExtractToolResultText(ToolResult result)
+    {
+        var textContents = new List<string>();
+        foreach (var c in result.Content)
+        {
+            if (result.IsError)
+            {
+                if (!string.IsNullOrEmpty(c.Text))
+                    textContents.Add($"Error: {c.Text}");
+            }
+            else if (!string.IsNullOrEmpty(c.Text))
+            {
+                textContents.Add(c.Text);
+            }
+        }
+        return string.Join("\n", textContents);
+    }
+
     private void AddToolResultToHistory(QueryMiddlewareContext context, ToolCallRequest toolCall, ToolResult result)
     {
         // 对齐 TS convertResultContentToContentBlocks — 分离文本和非文本内容
@@ -582,6 +605,9 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
 
     private static bool IsRetryable(Exception ex)
     {
+        if (Environment.GetEnvironmentVariable("JCC_DISABLE_RETRY") is { } val &&
+            (val.Equals("true", StringComparison.OrdinalIgnoreCase) || val == "1"))
+            return false;
         return ex is HttpRequestException or TimeoutException or TaskCanceledException;
     }
 

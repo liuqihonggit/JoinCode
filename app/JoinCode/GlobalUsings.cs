@@ -153,5 +153,6 @@ global using Terminal.Gui.App;
 global using Terminal.Gui.ViewBase;
 global using Terminal.Gui.Views;
 global using JoinCode.Tui.Rendering;
+global using JoinCode.Tui.Views;
 global using System.Collections.ObjectModel;
 global using TuiKey = Terminal.Gui.Input.Key;

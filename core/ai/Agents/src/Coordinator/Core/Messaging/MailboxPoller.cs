@@ -6,6 +6,7 @@ public sealed partial class MailboxPoller : IMailboxPoller, IAsyncDisposable
 {
     private readonly ITeammateMailboxService _mailboxService;
     private readonly IMailbox _messageBroker;
+    private readonly IMailboxMessageSink? _messageSink;
     [Inject] private readonly ILogger<MailboxPoller>? _logger;
     private readonly ConcurrentDictionary<string, CancellationTokenSource> _pollingAgents;
     private readonly TimeSpan _pollInterval;
@@ -15,13 +16,15 @@ public sealed partial class MailboxPoller : IMailboxPoller, IAsyncDisposable
         ITeammateMailboxService mailboxService,
         IMailbox messageBroker,
         ILogger<MailboxPoller>? logger = null,
-        TimeSpan? pollInterval = null)
+        TimeSpan? pollInterval = null,
+        IMailboxMessageSink? messageSink = null)
     {
         _mailboxService = mailboxService ?? throw new ArgumentNullException(nameof(mailboxService));
         _messageBroker = messageBroker ?? throw new ArgumentNullException(nameof(messageBroker));
         _logger = logger;
         _pollingAgents = new ConcurrentDictionary<string, CancellationTokenSource>();
         _pollInterval = pollInterval ?? TimeSpan.FromMilliseconds(500);
+        _messageSink = messageSink;
     }
 
     public void StartPolling(string agentId, string sessionId)
@@ -88,7 +91,14 @@ public sealed partial class MailboxPoller : IMailboxPoller, IAsyncDisposable
                             Content = mailboxMsg.Content
                         };
 
-                        await _messageBroker.SendAsync(agentId, brokerMessage, cancellationToken).ConfigureAwait(false);
+                        if (_messageSink is not null)
+                        {
+                            await _messageSink.DeliverAsync(agentId, brokerMessage, cancellationToken).ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            await _messageBroker.SendAsync(agentId, brokerMessage, cancellationToken).ConfigureAwait(false);
+                        }
                     }
 
                     await _mailboxService.MarkAsReadAsync(agentId, sessionId, messageIds, cancellationToken).ConfigureAwait(false);

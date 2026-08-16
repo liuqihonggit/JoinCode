@@ -3,6 +3,7 @@ namespace JoinCode.Tui.Views;
 /// <summary>
 /// TUI 根视图 — 管理所有子组件，监听终端 resize 事件并分发。
 /// 由 TerminalPainter 唯一入口驱动渲染，禁止子组件直接操作 Application。
+/// Terminal.Gui v2 通过 Dim.Fill()/Pos.Center() 声明式布局自动适应终端 resize。
 /// </summary>
 public sealed class RootView : View
 {
@@ -29,9 +30,6 @@ public sealed class RootView : View
             Height = Dim.Fill()
         };
         Add(_contentArea);
-
-        // TODO: Terminal.Gui v2 resize 事件 API 待确认（Application.SizeChanged 不存在）
-        // 可能用 Application.Driver 或其他机制，阶段4 接入时修复
     }
 
     /// <summary>内容区域（子组件挂载点）。</summary>
@@ -54,7 +52,4 @@ public sealed class RootView : View
         _contentArea.Remove(component.TerminalView);
         _painter.Unregister(component);
     }
-
-    // TODO: Terminal.Gui v2 resize 事件 API 待确认（Application.SizeChanged 不存在）
-    // 可能用 Application.Driver 或其他机制，阶段4 接入时修复
 }

@@ -29,6 +29,7 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
         var session = context.Session ?? throw new InvalidOperationException("Session not initialized");
 
         var agentService = context.Host.Services.GetService<JoinCode.Abstractions.Interfaces.IAgentService>();
+        var confirmationGate = context.Host.Services.GetService<IConfirmationGate>();
 
         var isProcessing = 0;
 
@@ -67,10 +68,10 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
                         break;
                     }
 
-                    if (ConfirmationGate.Pending && ConfirmationGate.Source is not null)
+                    if (confirmationGate is not null && confirmationGate.Pending && confirmationGate.Source is not null)
                     {
                         Diag.WriteLine($"[DIAG-REPL] routing input to confirmation: '{input}'");
-                        ConfirmationGate.Source.TrySetResult(input);
+                        confirmationGate.Source.TrySetResult(input);
                         continue;
                     }
 

@@ -8,10 +8,12 @@ namespace JoinCode.Adapters;
 public sealed class CliPermissionConfirmationHandler : IPermissionConfirmationHandler
 {
     private readonly IToolPermissionManager? _permissionManager;
+    private readonly IConfirmationGate? _confirmationGate;
 
-    public CliPermissionConfirmationHandler(IToolPermissionManager? permissionManager = null)
+    public CliPermissionConfirmationHandler(IToolPermissionManager? permissionManager = null, IConfirmationGate? confirmationGate = null)
     {
         _permissionManager = permissionManager;
+        _confirmationGate = confirmationGate;
     }
 
     public PermissionConfirmAction Confirm(string toolName, string confirmationPrompt)
@@ -36,13 +38,11 @@ public sealed class CliPermissionConfirmationHandler : IPermissionConfirmationHa
         try
         {
             var tcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
-            ConfirmationGate.Source = tcs;
-            ConfirmationGate.Pending = true;
+            _confirmationGate?.SetPending(tcs);
 
             var input = tcs.Task.GetAwaiter().GetResult();
 
-            ConfirmationGate.Pending = false;
-            ConfirmationGate.Source = null;
+            _confirmationGate?.Clear();
 
             Cli.TerminalHelper.NewLine();
 
@@ -65,8 +65,7 @@ public sealed class CliPermissionConfirmationHandler : IPermissionConfirmationHa
         }
         catch
         {
-            ConfirmationGate.Pending = false;
-            ConfirmationGate.Source = null;
+            _confirmationGate?.Clear();
             return PermissionConfirmAction.Deny;
         }
     }

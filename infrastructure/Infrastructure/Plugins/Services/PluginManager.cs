@@ -18,6 +18,8 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
     private IPluginHotReloader? _hotReloader;
     private IPluginHookInjector? _hookInjector;
     private IPluginCommandRegistry? _pluginCommandRegistry;
+    private IPluginAgentLoader? _pluginAgentLoader;
+    private readonly ConcurrentDictionary<string, Action> _pluginAgentUndoFunctions = new();
 
     public event EventHandler<string>? PluginLoaded;
     public event EventHandler<string>? PluginUnloading;
@@ -51,6 +53,7 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
     private IPluginHotReloader? HotReloader => _hotReloader ??= _serviceProvider?.GetService<IPluginHotReloader>();
     private IPluginHookInjector? HookInjector => _hookInjector ??= _serviceProvider?.GetService<IPluginHookInjector>();
     private IPluginCommandRegistry? CommandRegistry => _pluginCommandRegistry ??= _serviceProvider?.GetService<IPluginCommandRegistry>();
+    private IPluginAgentLoader? PluginAgentLoader => _pluginAgentLoader ??= _serviceProvider?.GetService<IPluginAgentLoader>();
 
     #region Internal Workflow Plugin (AOT Compatible)
 
@@ -101,6 +104,12 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
             }
 
             PluginLoaded?.Invoke(this, pluginName);
+
+            if (plugin is IPluginAgentProvider agentProvider && PluginAgentLoader is not null)
+            {
+                var undo = PluginAgentLoader.LoadFromPlugin(pluginName, agentProvider);
+                _pluginAgentUndoFunctions.TryAdd(pluginName, undo);
+            }
 
             _logger?.LogInformation("内置工作流插件加载成功: {PluginName}", pluginName);
             RecordPluginMetrics("workflow", "load", true);
@@ -243,6 +252,7 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
 
         if (_workflowPlugins.TryRemove(pluginName, out var workflowHost))
         {
+            ExecutePluginAgentUndo(pluginName);
             await CleanupPluginServicesAsync(pluginName, cancellationToken).ConfigureAwait(false);
             var result = UnloadWorkflowPlugin(workflowHost);
             RecordPluginMetrics("workflow", "unload", result.IsSuccess);
@@ -278,6 +288,16 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
         }
 
         return results;
+    }
+
+    /// <summary>执行插件 agent 撤销函数 — 可逆效应: 插件卸载时自动移除其贡献的 agent 定义</summary>
+    private void ExecutePluginAgentUndo(string pluginName)
+    {
+        if (_pluginAgentUndoFunctions.TryRemove(pluginName, out var undo))
+        {
+            try { undo(); }
+            catch (Exception ex) { _logger?.LogWarning(ex, "插件 agent 撤销失败: {PluginName}", pluginName); }
+        }
     }
 
     private PluginUnloadResult UnloadWorkflowPlugin(WorkflowPluginHost host)

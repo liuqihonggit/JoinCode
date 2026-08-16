@@ -132,14 +132,15 @@ internal static class TuiModeRunner
             painter.Invoke(() => footerTab.SetElapsedTime(DateTime.UtcNow - startTime));
         }, null, 1000, 1000);
 
-        var window = new Window
+        var top = new Window
         {
             Width = Dim.Fill(),
             Height = Dim.Fill(),
+            BorderStyle = LineStyle.None,
         };
-        window.Add(root);
+        top.Add(root);
 
-        window.KeyDown += (_, key) =>
+        top.KeyDown += (_, key) =>
         {
             if (key == TuiKey.F1) toolBar.TriggerAction(ToolBarAction.New);
             else if (key == TuiKey.F2) toolBar.TriggerAction(ToolBarAction.Pause);
@@ -151,14 +152,22 @@ internal static class TuiModeRunner
         var processingCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var processingTask = ProcessQueueAsync(queue, mainPipe, outputView, queryEngine, chatHistory, app.RequestStop, painter, processingCts.Token);
 
-        painter.Invoke(promptView.SetFocus);
+        var focusSet = false;
+        app.Iteration += (_, _) =>
+        {
+            if (!focusSet)
+            {
+                focusSet = true;
+                promptView.SetFocus();
+            }
+        };
 
         polling.Start();
         try
         {
             using var ctReg = cancellationToken.Register(() => app.RequestStop());
             WriteDiag("[TUI] app.Run start");
-            app.Run(window);
+            app.Run(top);
             WriteDiag("[TUI] app.Run returned");
         }
         finally

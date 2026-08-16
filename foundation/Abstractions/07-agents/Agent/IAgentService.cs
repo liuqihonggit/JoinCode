@@ -313,7 +313,8 @@ public sealed record RunningAgentInfo
 public enum AgentIsolationMode
 {
     [EnumValue("none")] None,
-    [EnumValue("worktree")] Worktree
+    [EnumValue("worktree")] Worktree,
+    [EnumValue("remote")] Remote
 }
 
 /// <summary>

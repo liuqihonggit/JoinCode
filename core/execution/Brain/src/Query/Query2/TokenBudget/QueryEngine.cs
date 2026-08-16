@@ -362,8 +362,35 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
             cancellationToken.ThrowIfCancellationRequested();
             var content = streamChunk.Content ?? string.Empty;
 
-            // 检查工具调用
-            if (streamChunk.Metadata?.TryGetValue("ToolCall", out var toolCallEl) == true &&
+            // 检查工具调用 — 优先读 AllToolCalls（包含全部工具调用），回退到单个 ToolCall
+            if (streamChunk.Metadata?.TryGetValue("AllToolCalls", out var allEl) == true &&
+                allEl.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var item in allEl.EnumerateArray())
+                {
+                    string? id = null;
+                    string? name = null;
+                    var arguments = "{}";
+
+                    if (item.TryGetProperty("Id", out var idProp) && idProp.ValueKind == JsonValueKind.String)
+                        id = idProp.GetString();
+                    if (item.TryGetProperty("Name", out var nameProp) && nameProp.ValueKind == JsonValueKind.String)
+                        name = nameProp.GetString();
+                    if (item.TryGetProperty("Arguments", out var argsProp) && argsProp.ValueKind == JsonValueKind.String)
+                        arguments = argsProp.GetString() ?? "{}";
+
+                    if (name is null) continue;
+
+                    pendingToolCalls.Add(new ToolCallRequest
+                    {
+                        ToolName = name,
+                        ToolCallId = id,
+                        RawArguments = arguments,
+                        Arguments = ExtractArguments(streamChunk.Metadata, arguments)
+                    });
+                }
+            }
+            else if (streamChunk.Metadata?.TryGetValue("ToolCall", out var toolCallEl) == true &&
                 toolCallEl.ValueKind == JsonValueKind.String)
             {
                 var toolCallName = toolCallEl.GetString();

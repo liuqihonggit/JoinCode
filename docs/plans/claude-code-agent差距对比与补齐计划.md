@@ -428,14 +428,9 @@
 | `594cd4d73` | #9 maxTurns 生效 | ✅ 完全实现 | AgentBase MaxIterations 检查,2/2测试 |
 | `8f4b6bd1f` | #7 Skills 预加载 | ✅ 完全实现 | ContextSetupMiddleware ISkillService 加载到 InitialMessageList,3/3测试 |
 | `7d8c0c2e7` | #1 工具集限制 | ✅ 完全实现 | Coordinator Profile AllowedTools 限制,2/2测试 |
-
-### 暂缓项
-
-| 缺失项 | 原因 |
-|--------|------|
-| #17 插件 agent 安全限制 | 需先建立插件 agent 体系(无 PluginAgent 概念),恢复条件:建立插件加载器时一并实现 |
+| `ec9151d11` | #17 插件 agent 安全限制 | ✅ 完全实现 | Cordis 可逆效应+连带卸载+传递依赖,11/11测试 |
 
 ### 最终统计
 
-- **23 项缺失清单**: ✅ 22 项已实现 / ⏸️ 1 项暂缓(#17)
+- **23 项缺失清单**: ✅ 23 项全部实现
 - **核心机制对齐度**: ~98%(从 65% 提升)

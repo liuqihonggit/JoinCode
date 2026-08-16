@@ -4,13 +4,19 @@ namespace Core.Agents;
 public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Abstractions.Interfaces.IAgentDefinitionProvider
 {
 
-    public AgentDefinitionProvider(IFileSystem fs, ILogger<AgentDefinitionProvider>? logger = null)
+    public AgentDefinitionProvider(IFileSystem fs, ILogger<AgentDefinitionProvider>? logger = null, IPluginAgentLoader? pluginAgentLoader = null)
     {
         _fs = fs;
         _logger = logger;
+        _pluginAgentLoader = pluginAgentLoader;
+        if (pluginAgentLoader is not null)
+        {
+            pluginAgentLoader.Changed += (_, _) => ClearCache();
+        }
     }
     [Inject] private readonly IFileSystem _fs;
     [Inject] private readonly ILogger<AgentDefinitionProvider>? _logger;
+    [Inject] private readonly IPluginAgentLoader? _pluginAgentLoader;
     private volatile List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition>? _cachedDefinitions;
     private readonly SemaphoreSlim _cacheLock = new(1, 1);
 
@@ -36,6 +42,11 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
 
             var definitions = new List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition>();
             definitions.AddRange(GetBuiltInDefinitions());
+
+            if (_pluginAgentLoader is not null)
+            {
+                definitions.AddRange(_pluginAgentLoader.GetAll());
+            }
 
             // 并行加载用户定义和项目定义
             var loadTasks = new List<Task<List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition>>>();

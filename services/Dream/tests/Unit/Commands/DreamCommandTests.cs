@@ -10,7 +10,7 @@ public sealed class DreamCommandTests
     [Fact]
     public void DreamCommand_Constructor_NullFeature_ThrowsArgumentNullException()
     {
-        Assert.Throws<ArgumentNullException>(() => new DreamCommand(null!));
+        Assert.Throws<ArgumentNullException>(() => new DreamCommand("Dream", null!));
     }
 
     [Fact]
@@ -20,7 +20,7 @@ public sealed class DreamCommandTests
         feature.Setup(f => f.ExecuteAsync(It.Is<DreamRequest>(r => r.Force), It.IsAny<CancellationToken>()))
             .ReturnsAsync(DreamResult.Success("ok", "t1", 1, 0));
         var ctx = new FakeCommandContext { Arguments = ["force"] };
-        var command = new DreamCommand(feature.Object);
+        var command = new DreamCommand("Dream", feature.Object);
 
         await command.ExecuteAsync(ctx).ConfigureAwait(true);
 
@@ -34,7 +34,7 @@ public sealed class DreamCommandTests
         feature.Setup(f => f.ExecuteAsync(It.Is<DreamRequest>(r => !r.Force), It.IsAny<CancellationToken>()))
             .ReturnsAsync(DreamResult.Success("ok", "t1", 1, 0));
         var ctx = new FakeCommandContext();
-        var command = new DreamCommand(feature.Object);
+        var command = new DreamCommand("Dream", feature.Object);
 
         await command.ExecuteAsync(ctx).ConfigureAwait(true);
 
@@ -48,7 +48,7 @@ public sealed class DreamCommandTests
         feature.Setup(f => f.ExecuteAsync(It.IsAny<DreamRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(DreamResult.Skipped("skipped"));
         var ctx = new FakeCommandContext();
-        var command = new DreamCommand(feature.Object);
+        var command = new DreamCommand("Dream", feature.Object);
 
         await command.ExecuteAsync(ctx).ConfigureAwait(true);
 
@@ -62,7 +62,7 @@ public sealed class DreamCommandTests
         feature.Setup(f => f.ExecuteAsync(It.IsAny<DreamRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(DreamResult.Failure("boom"));
         var ctx = new FakeCommandContext();
-        var command = new DreamCommand(feature.Object);
+        var command = new DreamCommand("Dream", feature.Object);
 
         await command.ExecuteAsync(ctx).ConfigureAwait(true);
 
@@ -76,7 +76,7 @@ public sealed class DreamCommandTests
         feature.Setup(f => f.ExecuteAsync(It.IsAny<DreamRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(DreamResult.Success("memory", "t1", 3, 42));
         var ctx = new FakeCommandContext { Arguments = ["force"] };
-        var command = new DreamCommand(feature.Object);
+        var command = new DreamCommand("Dream", feature.Object);
 
         await command.ExecuteAsync(ctx).ConfigureAwait(true);
 
@@ -94,7 +94,7 @@ public sealed class DreamCommandTests
         feature.Setup(f => f.ExecuteAsync(It.IsAny<DreamRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(DreamResult.Success(string.Empty, "t1", 1, 0));
         var ctx = new FakeCommandContext();
-        var command = new DreamCommand(feature.Object);
+        var command = new DreamCommand("Dream", feature.Object);
 
         await command.ExecuteAsync(ctx).ConfigureAwait(true);
 
@@ -108,7 +108,7 @@ public sealed class DreamCommandTests
         feature.Setup(f => f.ExecuteAsync(It.IsAny<DreamRequest>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new OperationCanceledException());
         var ctx = new FakeCommandContext();
-        var command = new DreamCommand(feature.Object);
+        var command = new DreamCommand("Dream", feature.Object);
 
         await command.ExecuteAsync(ctx).ConfigureAwait(true);
 
@@ -123,7 +123,7 @@ public sealed class DreamCommandTests
             .ThrowsAsync(new InvalidOperationException("bad"));
         var logger = new Mock<ILogger<DreamCommand>>();
         var ctx = new FakeCommandContext();
-        var command = new DreamCommand(feature.Object, logger.Object);
+        var command = new DreamCommand("Dream", feature.Object, logger.Object);
 
         await command.ExecuteAsync(ctx).ConfigureAwait(true);
 
@@ -143,7 +143,7 @@ public sealed class DreamCommandTests
     [Fact]
     public void DreamTasksCommand_Constructor_NullFeature_ThrowsArgumentNullException()
     {
-        Assert.Throws<ArgumentNullException>(() => new DreamTasksCommand(null!));
+        Assert.Throws<ArgumentNullException>(() => new DreamTasksCommand("Dream", null!));
     }
 
     [Fact]
@@ -153,7 +153,7 @@ public sealed class DreamCommandTests
         feature.Setup(f => f.ListTasksAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Dictionary<string, DreamTaskState>());
         var ctx = new FakeCommandContext();
-        var command = new DreamTasksCommand(feature.Object);
+        var command = new DreamTasksCommand("Dream", feature.Object);
 
         await command.ExecuteAsync(ctx).ConfigureAwait(true);
 
@@ -183,7 +183,7 @@ public sealed class DreamCommandTests
         feature.Setup(f => f.ListTasksAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(tasks);
         var ctx = new FakeCommandContext();
-        var command = new DreamTasksCommand(feature.Object);
+        var command = new DreamTasksCommand("Dream", feature.Object);
 
         await command.ExecuteAsync(ctx).ConfigureAwait(true);
 
@@ -214,7 +214,7 @@ public sealed class DreamCommandTests
         feature.Setup(f => f.ListTasksAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(tasks);
         var ctx = new FakeCommandContext();
-        var command = new DreamTasksCommand(feature.Object);
+        var command = new DreamTasksCommand("Dream", feature.Object);
 
         await command.ExecuteAsync(ctx).ConfigureAwait(true);
 
@@ -226,7 +226,7 @@ public sealed class DreamCommandTests
     {
         var feature = new Mock<IDreamFeature>();
         var ctx = new FakeCommandContext { Arguments = ["kill"] };
-        var command = new DreamTasksCommand(feature.Object);
+        var command = new DreamTasksCommand("Dream", feature.Object);
 
         await command.ExecuteAsync(ctx).ConfigureAwait(true);
 
@@ -240,7 +240,7 @@ public sealed class DreamCommandTests
         feature.Setup(f => f.GetTaskStatusAsync("missing", It.IsAny<CancellationToken>()))
             .ReturnsAsync((DreamTaskState?)null);
         var ctx = new FakeCommandContext { Arguments = ["kill", "missing"] };
-        var command = new DreamTasksCommand(feature.Object);
+        var command = new DreamTasksCommand("Dream", feature.Object);
 
         await command.ExecuteAsync(ctx).ConfigureAwait(true);
 
@@ -262,7 +262,7 @@ public sealed class DreamCommandTests
                 PriorMtime = 0
             });
         var ctx = new FakeCommandContext { Arguments = ["kill", "d12345678"] };
-        var command = new DreamTasksCommand(feature.Object);
+        var command = new DreamTasksCommand("Dream", feature.Object);
 
         await command.ExecuteAsync(ctx).ConfigureAwait(true);
 
@@ -284,7 +284,7 @@ public sealed class DreamCommandTests
                 PriorMtime = 0
             });
         var ctx = new FakeCommandContext { Arguments = ["kill", "d12345678"] };
-        var command = new DreamTasksCommand(feature.Object);
+        var command = new DreamTasksCommand("Dream", feature.Object);
 
         await command.ExecuteAsync(ctx).ConfigureAwait(true);
 
@@ -297,7 +297,7 @@ public sealed class DreamCommandTests
     {
         var feature = new Mock<IDreamFeature>();
         var ctx = new FakeCommandContext { Arguments = ["unknown"] };
-        var command = new DreamTasksCommand(feature.Object);
+        var command = new DreamTasksCommand("Dream", feature.Object);
 
         await command.ExecuteAsync(ctx).ConfigureAwait(true);
 

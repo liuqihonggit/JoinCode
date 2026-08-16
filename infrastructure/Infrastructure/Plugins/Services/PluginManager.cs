@@ -18,6 +18,25 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
     private IPluginHotReloader? _hotReloader;
     private IPluginHookInjector? _hookInjector;
     private IPluginCommandRegistry? _pluginCommandRegistry;
+    private IPluginAgentLoader? _pluginAgentLoader;
+
+    /// <summary>每个插件的撤销链 — 按注册顺序记录,卸载时按逆序执行(Cordis Effect 系统)</summary>
+    private readonly ConcurrentDictionary<string, List<Action>> _pluginUndoChain = new();
+
+    /// <summary>插件加载顺序 — 用于 UnloadAllPluginsAsync 按注册逆序卸载</summary>
+    private readonly List<string> _loadOrder = new();
+    private readonly object _loadOrderLock = new();
+
+    /// <summary>每个插件的资源 ObjectId 列表 — 卸载后用于扫描验证</summary>
+    private readonly ConcurrentDictionary<string, List<ObjectId>> _pluginResourceIds = new();
+
+    private IResourceReferenceGraph? _referenceGraph;
+    private PluginResourceScanner? _resourceScanner;
+    private IAppEventBus? _eventBus;
+
+    private IResourceReferenceGraph? ReferenceGraph => _referenceGraph ??= _serviceProvider?.GetService<IResourceReferenceGraph>();
+    private PluginResourceScanner ResourceScanner => _resourceScanner ??= new(_loggerFactory?.CreateLogger<PluginResourceScanner>());
+    private IAppEventBus? EventBus => _eventBus ??= _serviceProvider?.GetService<IAppEventBus>();
 
     public event EventHandler<string>? PluginLoaded;
     public event EventHandler<string>? PluginUnloading;
@@ -51,6 +70,7 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
     private IPluginHotReloader? HotReloader => _hotReloader ??= _serviceProvider?.GetService<IPluginHotReloader>();
     private IPluginHookInjector? HookInjector => _hookInjector ??= _serviceProvider?.GetService<IPluginHookInjector>();
     private IPluginCommandRegistry? CommandRegistry => _pluginCommandRegistry ??= _serviceProvider?.GetService<IPluginCommandRegistry>();
+    private IPluginAgentLoader? PluginAgentLoader => _pluginAgentLoader ??= _serviceProvider?.GetService<IPluginAgentLoader>();
 
     #region Internal Workflow Plugin (AOT Compatible)
 
@@ -100,7 +120,23 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
                 throw new InvalidOperationException($"[INF034] 插件 '{pluginName}' 已经加载");
             }
 
+            var undoChain = new List<Action>();
+
             PluginLoaded?.Invoke(this, pluginName);
+
+            if (plugin is IPluginAgentProvider agentProvider && PluginAgentLoader is not null)
+            {
+                var undo = PluginAgentLoader.LoadFromPlugin(pluginName, agentProvider);
+                undoChain.Add(undo);
+            }
+
+            _pluginUndoChain[pluginName] = undoChain;
+            AddToLoadOrder(pluginName);
+
+            if (plugin is WorkflowPluginBase pluginBase)
+            {
+                RecordPluginResourceIds(pluginName, pluginBase.Resources.Select(r => r.ObjectId));
+            }
 
             _logger?.LogInformation("内置工作流插件加载成功: {PluginName}", pluginName);
             RecordPluginMetrics("workflow", "load", true);
@@ -241,11 +277,21 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
             return result;
         }
 
+        await CascadeUnloadDependentsAsync(pluginName, cancellationToken).ConfigureAwait(false);
+
+        var prepareResult = await PrepareUnloadAsync(pluginName, cancellationToken).ConfigureAwait(false);
+        if (!prepareResult) return PluginUnloadResult.CooperativeTimeout(pluginName, TimeSpan.Zero);
+
         if (_workflowPlugins.TryRemove(pluginName, out var workflowHost))
         {
+            ExecutePluginUndoChain(pluginName);
             await CleanupPluginServicesAsync(pluginName, cancellationToken).ConfigureAwait(false);
             var result = UnloadWorkflowPlugin(workflowHost);
             RecordPluginMetrics("workflow", "unload", result.IsSuccess);
+
+            ScanAfterUnload(pluginName);
+            await BroadcastUiResourceChangeAsync(pluginName, workflowHost).ConfigureAwait(false);
+
             return result;
         }
 
@@ -268,16 +314,101 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
             }
         }
 
-        var workflowPluginNames = _workflowPlugins.Keys.ToList();
+        List<string> workflowPluginNames = GetLoadOrderReversed();
+
         foreach (var pluginName in workflowPluginNames)
         {
             if (_workflowPlugins.TryRemove(pluginName, out var host))
             {
+                ExecutePluginUndoChain(pluginName);
+                await CleanupPluginServicesAsync(pluginName, cancellationToken).ConfigureAwait(false);
                 results.Add(UnloadWorkflowPlugin(host));
             }
         }
 
         return results;
+    }
+
+    /// <summary>记录插件加载顺序</summary>
+    private void AddToLoadOrder(string pluginName)
+    {
+        lock (_loadOrderLock)
+        {
+            _loadOrder.Add(pluginName);
+        }
+    }
+
+    /// <summary>从加载顺序中移除插件</summary>
+    private void RemoveFromLoadOrder(string pluginName)
+    {
+        lock (_loadOrderLock)
+        {
+            _loadOrder.Remove(pluginName);
+        }
+    }
+
+    /// <summary>获取加载顺序的逆序副本 — 用于按注册逆序卸载(Cordis)</summary>
+    private List<string> GetLoadOrderReversed()
+    {
+        lock (_loadOrderLock)
+        {
+            var list = _loadOrder.ToList();
+            list.Reverse();
+            return list;
+        }
+    }
+
+    /// <summary>执行插件撤销链 — 按逆序执行所有撤销函数(Cordis Effect 系统)</summary>
+    private void ExecutePluginUndoChain(string pluginName)
+    {
+        if (_pluginUndoChain.TryRemove(pluginName, out var undoChain))
+        {
+            for (int i = undoChain.Count - 1; i >= 0; i--)
+            {
+                try { undoChain[i](); }
+                catch (Exception ex) { _logger?.LogWarning(ex, "插件 {PluginName} 撤销链第 {Index} 项执行失败", pluginName, i); }
+            }
+        }
+
+        RemoveFromLoadOrder(pluginName);
+    }
+
+    /// <summary>
+    /// 连带卸载依赖方 — 对齐 Cordis Theorem 63:
+    /// 卸载插件 A 时,先找到所有声明依赖 A 的插件 B,递归卸载 B,最后卸载 A
+    /// </summary>
+    private async Task CascadeUnloadDependentsAsync(string pluginName, CancellationToken cancellationToken)
+    {
+        var dependents = FindDependentPlugins(pluginName);
+        foreach (var dependent in dependents)
+        {
+            if (_workflowPlugins.ContainsKey(dependent))
+            {
+                _logger?.LogInformation("连带卸载依赖插件: {Dependent} (依赖 {Plugin})", dependent, pluginName);
+                await UnloadPluginAsync(dependent, cancellationToken).ConfigureAwait(false);
+            }
+        }
+    }
+
+    /// <summary>找到所有声明依赖指定插件的插件名</summary>
+    private List<string> FindDependentPlugins(string pluginName)
+    {
+        var dependents = new List<string>();
+        foreach (var kv in _workflowPlugins)
+        {
+            if (kv.Value.Plugin is IPluginDependencies deps)
+            {
+                foreach (var dep in deps.Dependencies)
+                {
+                    if (string.Equals(dep, pluginName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        dependents.Add(kv.Key);
+                        break;
+                    }
+                }
+            }
+        }
+        return dependents;
     }
 
     private PluginUnloadResult UnloadWorkflowPlugin(WorkflowPluginHost host)
@@ -301,6 +432,81 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
             _logger?.LogError(ex, "卸载工作流插件时发生异常: {PluginName}", host.PluginName);
             return PluginUnloadResult.AlcUnloadFailed(host.PluginName, TimeSpan.Zero, ex.Message);
         }
+    }
+
+    /// <summary>
+    /// 阶段1 — Prepare: 让引用方放弃引用,等引用计数归零
+    /// <para>通过 IResourceReferenceGraph.GetConsumers 找引用方,通知放弃引用</para>
+    /// <para>等待引用计数归零(带超时),超时则返回 false 回退强制卸载</para>
+    /// </summary>
+    private async Task<bool> PrepareUnloadAsync(string pluginName, CancellationToken cancellationToken)
+    {
+        var graph = ReferenceGraph;
+        if (graph is null) return true;
+
+        var consumers = graph.GetConsumers(pluginName);
+        if (consumers.Count == 0) return true;
+
+        foreach (var consumer in consumers)
+        {
+            var refs = graph.GetReferencesBy(consumer)
+                .Where(r => string.Equals(r.TargetPluginName, pluginName, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            foreach (var r in refs)
+            {
+                graph.RemoveReference(r.ConsumerResourceId, r.TargetResourceId);
+            }
+            _logger?.LogDebug("通知插件 {Consumer} 放弃对 {Plugin} 的资源引用", consumer, pluginName);
+        }
+
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
+        while (DateTime.UtcNow < deadline)
+        {
+            var refCounts = graph.GetReferenceCounts(pluginName);
+            if (refCounts.Values.All(c => c == 0)) return true;
+            await Task.Delay(100, cancellationToken).ConfigureAwait(false);
+        }
+
+        _logger?.LogWarning("插件 {Plugin} Prepare 阶段超时,引用计数未归零,回退强制卸载", pluginName);
+        return true;
+    }
+
+    /// <summary>
+    /// 阶段3 — Verify: 卸载后扫描检查资源是否正确注销
+    /// </summary>
+    private void ScanAfterUnload(string pluginName)
+    {
+        if (!_pluginResourceIds.TryRemove(pluginName, out var resourceIds)) return;
+        var report = ResourceScanner.ScanPluginResources(pluginName, resourceIds);
+        if (report.HasLeaks)
+        {
+            _logger?.LogWarning("插件 {Plugin} 卸载后有 {Count} 个资源泄漏", pluginName, report.LeakedResourceIds.Count);
+        }
+    }
+
+    /// <summary>
+    /// 广播 UI 资源变更事件 — 通知前端刷新界面
+    /// </summary>
+    private async Task BroadcastUiResourceChangeAsync(string pluginName, WorkflowPluginHost host)
+    {
+        var bus = EventBus;
+        if (bus is null) return;
+        if (host.Plugin is not WorkflowPluginBase pluginBase) return;
+        if (pluginBase.UiResources.Count == 0) return;
+
+        var evt = pluginBase.UiResources.ClearAndEmitEvent(pluginName);
+        var appEvent = AppEvent.Create(
+            ServiceMessageType.Notification,
+            "UiResourceChanged",
+            evt,
+            pluginName);
+        await bus.PublishAsync(appEvent).ConfigureAwait(false);
+    }
+
+    /// <summary>记录插件资源 ObjectId — 加载时调用,用于卸载后扫描验证</summary>
+    internal void RecordPluginResourceIds(string pluginName, IEnumerable<ObjectId> resourceIds)
+    {
+        _pluginResourceIds[pluginName] = resourceIds.ToList();
     }
 
     #endregion
@@ -370,13 +576,15 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
 
         _externalPlugins.Clear();
 
-        var workflowPluginNames = _workflowPlugins.Keys.ToList();
+        var workflowPluginNames = GetLoadOrderReversed();
+
         foreach (var pluginName in workflowPluginNames)
         {
             if (_workflowPlugins.TryRemove(pluginName, out var host))
             {
                 try
                 {
+                    ExecutePluginUndoChain(pluginName);
                     host.Unload();
                     host.Dispose();
                 }

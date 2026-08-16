@@ -2,7 +2,8 @@
 
 public interface IPluginCommandRegistry
 {
-    Task RegisterCommandAsync(PluginCommandDefinition command, CancellationToken ct = default);
+    /// <summary>注册命令 — 返回撤销函数(可逆效应)</summary>
+    Task<Action> RegisterCommandAsync(PluginCommandDefinition command, CancellationToken ct = default);
     Task UnregisterCommandAsync(string commandName, CancellationToken ct = default);
     IEnumerable<PluginCommandDefinition> GetRegisteredCommands();
     PluginCommandDefinition? GetCommand(string commandName);
@@ -31,7 +32,7 @@ public sealed partial class PluginCommandRegistry : MapRegistry<string, PluginCo
         _telemetryService = telemetryService;
     }
 
-    public async Task RegisterCommandAsync(PluginCommandDefinition command, CancellationToken ct = default)
+    public async Task<Action> RegisterCommandAsync(PluginCommandDefinition command, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(command);
 
@@ -67,6 +68,20 @@ public sealed partial class PluginCommandRegistry : MapRegistry<string, PluginCo
         }
 
         await Task.CompletedTask.ConfigureAwait(false);
+
+        var registeredName = command.CommandName;
+        var registeredAliases = command.Aliases;
+        return () =>
+        {
+            if (RemoveCore(registeredName, out var cmd))
+            {
+                if (registeredAliases is { Count: > 0 })
+                {
+                    foreach (var alias in registeredAliases)
+                        RemoveCore(alias);
+                }
+            }
+        };
     }
 
     public async Task UnregisterCommandAsync(string commandName, CancellationToken ct = default)

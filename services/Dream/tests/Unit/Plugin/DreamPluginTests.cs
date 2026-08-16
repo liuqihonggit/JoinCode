@@ -75,6 +75,33 @@ public sealed class DreamPluginTests
     }
 
     [Fact]
+    public void UnregisterCommands_AfterRegister_UnregistersAll()
+    {
+        var plugin = new DreamPlugin();
+        var registry = new Mock<ICommandRegistry>();
+        var services = new ServiceCollection();
+        services.AddSingleton<IDreamFeature>(Mock.Of<IDreamFeature>());
+        var provider = services.BuildServiceProvider();
+
+        plugin.RegisterCommands(registry.Object, provider);
+        plugin.UnregisterCommands(registry.Object);
+
+        registry.Verify(r => r.UnregisterCommand("dream"), Times.Once);
+        registry.Verify(r => r.UnregisterCommand("dream-tasks"), Times.Once);
+    }
+
+    [Fact]
+    public void UnregisterCommands_WithoutRegister_DoesNotThrow()
+    {
+        var plugin = new DreamPlugin();
+        var registry = new Mock<ICommandRegistry>();
+
+        var exception = Record.Exception(() => plugin.UnregisterCommands(registry.Object));
+
+        Assert.Null(exception);
+    }
+
+    [Fact]
     public void Unload_ReturnsSuccess()
     {
         var plugin = new DreamPlugin();

@@ -6,22 +6,23 @@ namespace JoinCode.Dream;
 /// </summary>
 [Register(typeof(IWorkflowPlugin))]
 [Register(typeof(ICommandRegistrationHook))]
-public sealed partial class DreamPlugin : ServiceEntity, IWorkflowPlugin, ICommandRegistrationHook, IDisposable
+public sealed partial class DreamPlugin : WorkflowPluginBase, ICommandRegistrationHook
 {
     private readonly List<string> _registeredCommandNames = new();
-    private bool _disposed;
 
-    public string Name => "Dream";
-    public string Version => "1.0.0";
-    public string Description => "JoinCode 记忆整合插件";
+    public DreamPlugin() : base("Dream") { }
 
-    public OperationResult Load(IServiceCollection services)
+    public override string Name => "Dream";
+    public override string Version => "1.0.0";
+    public override string Description => "JoinCode 记忆整合插件";
+
+    public override OperationResult Load(IServiceCollection services)
     {
         services.AddDreamPluginServices();
         return OperationResult.Ok();
     }
 
-    public async Task<OperationResult> InitializeAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken = default)
+    public override async Task<OperationResult> InitializeAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken = default)
     {
         var registry = serviceProvider.GetService<IDreamTaskRegistry>();
         if (registry is Persistence.PersistentDreamTaskRegistry persistentRegistry)
@@ -32,25 +33,40 @@ public sealed partial class DreamPlugin : ServiceEntity, IWorkflowPlugin, IComma
         return OperationResult.Ok();
     }
 
-    public PluginUnloadResult Unload()
-    {
-        Dispose();
-        return PluginUnloadResult.Success("Dream", TimeSpan.Zero);
-    }
-
     public void RegisterCommands(ICommandRegistry registry, IServiceProvider serviceProvider)
     {
         var dreamFeature = serviceProvider.GetRequiredService<IDreamFeature>();
-        registry.Register(new DreamCommand(dreamFeature));
-        _registeredCommandNames.Add(nameof(DreamCommand));
 
-        registry.Register(new DreamTasksCommand(dreamFeature));
-        _registeredCommandNames.Add(nameof(DreamTasksCommand));
+        var dreamCmd = new DreamCommand(Name, dreamFeature);
+        registry.Register(dreamCmd);
+        _registeredCommandNames.Add(dreamCmd.Name);
+        RegisterResource(dreamCmd);
+        UiResources.Register($"menu.{dreamCmd.Name}", new UiResourceEntry($"menu.{dreamCmd.Name}", UiResourceKind.MenuItem, dreamCmd.Name, dreamCmd.Name));
+
+        var dreamTasksCmd = new DreamTasksCommand(Name, dreamFeature);
+        registry.Register(dreamTasksCmd);
+        _registeredCommandNames.Add(dreamTasksCmd.Name);
+        RegisterResource(dreamTasksCmd);
+        UiResources.Register($"menu.{dreamTasksCmd.Name}", new UiResourceEntry($"menu.{dreamTasksCmd.Name}", UiResourceKind.MenuItem, dreamTasksCmd.Name, dreamTasksCmd.Name));
     }
 
-    protected override void OnDispose()
+    /// <summary>撤销命令注册 — 可逆效应,使用 _registeredCommandNames 精确撤销</summary>
+    public void UnregisterCommands(ICommandRegistry registry)
     {
-        if (_disposed) return;
-        _disposed = true;
+        foreach (var commandName in _registeredCommandNames)
+        {
+            registry.UnregisterCommand(commandName);
+        }
+        _registeredCommandNames.Clear();
+    }
+
+    protected override void OnUnload()
+    {
+        UnregisterCommandsIfRegistered();
+    }
+
+    private void UnregisterCommandsIfRegistered()
+    {
+        _registeredCommandNames.Clear();
     }
 }

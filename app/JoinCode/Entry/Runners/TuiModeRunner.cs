@@ -1,9 +1,9 @@
 namespace JoinCode.Entry;
 
 /// <summary>
-/// TUI 模式启动器 — 多 Agent 管道架构 + 轮询拉取 + Terminal.Gui v2 渲染。
-/// --tui 参数触发，创建 PipeRegistry + PollingService + 5 区域布局。
-/// 布局：状态栏(行1) + 工具栏(行2) + 输出区(中间) + 输入区(底部) + 底部状态(最后1行)。
+/// TUI 模式启动器 — 用 RootView 5层组件架构 + TerminalPainter 统一渲染入口。
+/// --tui 参数触发，组装 StatusBar/ToolBar/Output/Prompt/FooterTab 五层布局。
+/// 布局由 RootView 用 Pos.Bottom 链式垂直排列，组件内部用 Pos.Right 链式水平排列。
 /// </summary>
 internal static class TuiModeRunner
 {
@@ -13,80 +13,88 @@ internal static class TuiModeRunner
         app.Init();
 
         var queue = new CommandQueue();
+        var painter = new TerminalPainter(app.Invoke);
+        var root = new RootView(painter, queue);
+
+        var statusBar = new StatusBarView();
+        var toolBar = new ToolBarView();
+        var outputView = new OutputView();
+        var promptView = new PromptView(queue);
+        var footerTab = new FooterTabView();
+
+        statusBar.SetMode("auto");
+        statusBar.SetAgentStatus("● Running");
+
+        root.SetStatusBar(statusBar);
+        root.SetToolBar(toolBar);
+        root.AddComponent(outputView);
+        root.SetPrompt(promptView);
+        root.SetFooter(footerTab);
+
+        outputView.AppendLine($"⚡ Agent TUI  │  Model: {config.CurrentModelId}");
+        outputView.AppendLine(new string('─', 60));
+        outputView.AppendLine("输入消息后按 Enter 发送，/exit 退出");
+        outputView.AppendLine("");
+
         var registry = new PipeRegistry();
         var mainPipe = new MessagePipe("main", "AI Assistant", isMain: true);
         registry.Register(mainPipe);
 
-        var cardManager = new SubAgentCardManager();
         var polling = new PollingService(registry, 200);
-
-        var startTime = DateTime.UtcNow;
-
-        var statusBar = CreateStatusBar(config, startTime);
-        var toolbar = CreateToolbar(queue);
-        var (outputView, outputContent) = CreateOutputView();
-        var (inputField, inputHint) = CreateInputArea(queue);
-        var bottomBar = CreateBottomBar();
-
-        polling.OnMessagesReceived += (agentId, messages) =>
+        polling.OnMessagesReceived += (_, messages) =>
         {
-            app.Invoke(() =>
+            painter.Invoke(() =>
             {
                 foreach (var msg in messages)
                 {
-                    var rendered = MessageRenderer.Render(msg);
-                    outputContent.Add(rendered);
+                    outputView.AppendLine(msg.Content);
                 }
             });
         };
 
-        inputField.KeyDown += (sender, key) =>
+        toolBar.ActionRequested += action =>
         {
-            if (key == TuiKey.Enter)
+            painter.Invoke(() =>
             {
-                var text = inputField.Text.ToString();
-                if (!string.IsNullOrWhiteSpace(text))
+                switch (action)
                 {
-                    if (string.Equals(text, "/exit", StringComparison.OrdinalIgnoreCase))
-                    {
+                    case ToolBarAction.New:
+                        outputView.Clear();
+                        outputView.AppendLine("⚡ 新会话已创建");
+                        break;
+                    case ToolBarAction.Stop:
                         app.RequestStop();
-                        return;
-                    }
-
-                    queue.Enqueue(new QueuedCommand(text, CommandOrigin.User, QueuePriority.Next));
-
-                    mainPipe.AddMessage(new TuiMessage
-                    {
-                        Id = Guid.NewGuid().ToString("N"),
-                        AgentId = "main",
-                        Type = TuiMessageType.User,
-                        Content = text,
-                        Style = MessageStyle.User,
-                    });
-
-                    inputField.Text = "";
-                    UpdateToolbarQueueCount(toolbar, queue);
-                    UpdateInputHint(inputHint, queue);
+                        break;
                 }
-            }
+            });
         };
+
+        var startTime = DateTime.UtcNow;
+        using var timer = new System.Threading.Timer(_ =>
+        {
+            painter.Invoke(() => footerTab.SetElapsedTime(DateTime.UtcNow - startTime));
+        }, null, 1000, 1000);
 
         var window = new Window
         {
             Width = Dim.Fill(),
             Height = Dim.Fill(),
         };
-        window.Add(statusBar, toolbar, outputView, inputField, inputHint, bottomBar);
+        window.Add(root);
 
-        window.KeyDown += (sender, key) =>
+        window.KeyDown += (_, key) =>
         {
-            if (key == TuiKey.F5)
-            {
-                polling.PollOnce();
-            }
+            if (key == TuiKey.F1) toolBar.TriggerAction(ToolBarAction.New);
+            else if (key == TuiKey.F2) toolBar.TriggerAction(ToolBarAction.Pause);
+            else if (key == TuiKey.F3) toolBar.TriggerAction(ToolBarAction.Stop);
+            else if (key == TuiKey.F4) toolBar.TriggerAction(ToolBarAction.Chat);
+            else if (key == TuiKey.F5) { toolBar.TriggerAction(ToolBarAction.Stats); polling.PollOnce(); }
         };
 
-        app.Invoke(() => inputField.SetFocus());
+        var processingCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var processingTask = ProcessQueueAsync(queue, mainPipe, outputView, app.RequestStop, painter, processingCts.Token);
+
+        painter.Invoke(promptView.SetFocus);
 
         polling.Start();
         try
@@ -95,98 +103,49 @@ internal static class TuiModeRunner
         }
         finally
         {
+            processingCts.Cancel();
             await polling.StopAsync().ConfigureAwait(false);
+            try { await processingTask.ConfigureAwait(false); } catch (OperationCanceledException) { }
         }
     }
 
-    private static Label CreateStatusBar(WorkflowConfig config, DateTime startTime)
+    private static async Task ProcessQueueAsync(
+        CommandQueue queue,
+        MessagePipe mainPipe,
+        OutputView outputView,
+        Action requestStop,
+        TerminalPainter painter,
+        CancellationToken cancellationToken)
     {
-        var model = config.CurrentModelId;
-        var label = new Label
+        while (!cancellationToken.IsCancellationRequested)
         {
-            Text = $" ⚡ Agent TUI  │  Model: {model}  │  Agents: 1  │  ⏱ 00:00:00",
-            X = 0,
-            Y = 0,
-            Width = Dim.Fill(),
-            Height = 1,
-        };
-        label.SetAttribute(ColorMapper.ToAttribute(MessageStyle.Content));
-        return label;
-    }
+            var cmd = queue.Dequeue();
+            if (cmd is null)
+            {
+                await Task.Delay(50, cancellationToken).ConfigureAwait(false);
+                continue;
+            }
 
-    private static Label CreateToolbar(CommandQueue queue)
-    {
-        var label = new Label
-        {
-            Text = $" [📤 Send Queue: {queue.Count}]  [🔄 Refresh F5]  [📋 Clear Ctrl+L]  [⚙️ Settings F10]",
-            X = 0,
-            Y = 1,
-            Width = Dim.Fill(),
-            Height = 1,
-        };
-        label.SetAttribute(ColorMapper.ToAttribute(MessageStyle.ToolCall));
-        return label;
-    }
+            if (string.Equals(cmd.Content, "/exit", StringComparison.OrdinalIgnoreCase))
+            {
+                requestStop();
+                return;
+            }
 
-    private static (View container, View content) CreateOutputView()
-    {
-        var container = new View
-        {
-            X = 0,
-            Y = 2,
-            Width = Dim.Fill(),
-            Height = Dim.Fill() - 5,
-        };
-        return (container, container);
-    }
+            mainPipe.AddMessage(new TuiMessage
+            {
+                Id = Guid.NewGuid().ToString("N"),
+                AgentId = "main",
+                Type = TuiMessageType.User,
+                Content = cmd.Content,
+                Style = MessageStyle.User,
+            });
 
-    private static (TextField field, Label hint) CreateInputArea(CommandQueue queue)
-    {
-        var field = new TextField
-        {
-            X = 2,
-            Y = Pos.AnchorEnd() - 2,
-            Width = Dim.Fill(),
-            Height = 1,
-            CanFocus = true,
-        };
-
-        var hint = new Label
-        {
-            Text = " Enter发送 · Ctrl+Enter换行 · /exit退出 · 队列: 0条",
-            X = 0,
-            Y = Pos.AnchorEnd() - 1,
-            Width = Dim.Fill(),
-            Height = 1,
-        };
-        hint.SetAttribute(ColorMapper.ToAttribute(MessageStyle.Separator));
-        return (field, hint);
-    }
-
-    private static Label CreateBottomBar()
-    {
-        var label = new Label
-        {
-            Text = " [📋 Log]  [📁 Files]  [🧠 Memory]  [📊 Stats]",
-            X = 0,
-            Y = Pos.AnchorEnd(),
-            Width = Dim.Fill(),
-            Height = 1,
-        };
-        label.SetAttribute(ColorMapper.ToAttribute(MessageStyle.Separator));
-        return label;
-    }
-
-    private static void UpdateToolbarQueueCount(Label toolbar, CommandQueue queue)
-    {
-        var text = toolbar.Text.ToString() ?? "";
-        var newCount = queue.Count;
-        var newText = text.Replace($"Send Queue: {newCount - 1}", $"Send Queue: {newCount}");
-        toolbar.Text = newText;
-    }
-
-    private static void UpdateInputHint(Label hint, CommandQueue queue)
-    {
-        hint.Text = $" Enter发送 · Ctrl+Enter换行 · /exit退出 · 队列: {queue.Count}条";
+            painter.Invoke(() =>
+            {
+                outputView.AppendLine($"👤 {cmd.Content}");
+                outputView.AppendLine("🤖 正在思考...");
+            });
+        }
     }
 }

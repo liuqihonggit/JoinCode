@@ -129,20 +129,15 @@
 
 #### 缺失项 4: 多层来源优先级覆盖
 
-- **状态**: 🟡 部分实现(2026-08-16 验证)
+- **状态**: 🟡 部分实现(2026-08-16 验证 → 2026-08-16 修复 EnsureCustomLoaded)
 - **claude code 位置**: `src/tools/AgentTool/loadAgentsDir.ts:193` (`getActiveAgentsFromList`)
 - **描述**: agent 来源优先级(低 → 高): `built-in < plugin < userSettings < projectSettings < flagSettings < policySettings`,后者覆盖前者同名 agent。用 Map.set 同 key 覆盖实现。
 - **价值**: 中 — 配置灵活性(项目级覆盖用户级覆盖内置)
 - **验证结论**:
   - ✅ `AgentDefinitionProvider.Deduplicate`(`:618-638`)实现了覆盖:有 `SourcePath` 的(来自文件)覆盖先来的(内置),加载顺序 内置→用户→项目,效果 项目>用户>内置
   - ❌ 缺 plugin/flag/managed 三层(claude code 有 6 层,我们 3 层)
-  - 🟡 `AgentRoleProfileRegistry.EnsureCustomLoaded:117` 用 `if (!_profileMap.ContainsKey(key))` — 只添加不存在的,与 Deduplicate 覆盖逻辑冲突,可能导致自定义定义在 Profile 层被跳过(但 `AgentDefinitionProvider.GetAgentDefinitionAsync` 直接查 Deduplicate 结果,不受影响)
-- **设计方案**:
-  1. **扩展来源枚举**: 新增 `AgentDefinitionSource` 枚举(BuiltIn/User/Project/Plugin/Flag/Managed),按优先级排序
-  2. **统一覆盖逻辑**: `Deduplicate` 按 source 优先级覆盖(而非仅看 SourcePath 是否 null)
-  3. **修复 AgentRoleProfileRegistry**: `EnsureCustomLoaded` 改为覆盖而非跳过(用 `profileMap[key] = profile` 替代 `if (!ContainsKey)`)
-  4. **风险点**: ⚠️ 修改 EnsureCustomLoaded 可能影响内置 Profile 的稳定性(自定义覆盖内置工具集);⚠️ 需确认哪些调用方依赖内置 Profile 不可变
-  5. **渐进式步骤**: (a) 加 source 枚举 → (b) Deduplicate 按优先级排序 → (c) 修复 EnsureCustomLoaded 覆盖逻辑 → (d) 测试自定义覆盖内置
+  - ✅ **已修复** `AgentRoleProfileRegistry.EnsureCustomLoaded`: 自定义定义有 SourcePath 时覆盖同 key 内置 profile(用 Dictionary 索引 O(n) 替代 FindIndex O(n²))
+- **已实现**: commit `160a7ce8d` — EnsureCustomLoaded 覆盖逻辑 + 测试 GetProfile_CustomDefinitionWithSourcePath_OverridesBuiltIn
 
 #### 缺失项 5: 异步 agent 白名单(ASYNC_AGENT_ALLOWED_TOOLS)
 
@@ -212,16 +207,13 @@
 
 #### 缺失项 14: Agent(worker,researcher) 语法
 
-- **状态**: ❌ 确认缺失(2026-08-16 验证)
+- **状态**: ✅ 已实现(2026-08-16)
 - **claude code 位置**: `src/tools/AgentTool/agentToolUtils.ts` (`resolveAgentTools`)
 - **描述**: Agent 工具的 `tools` 字段可携带 `allowedAgentTypes` 元数据,如 `Agent(worker,researcher)` 限制可 spawn 的 agent 类型。`ruleContent.split(',')` 解析。
 - **价值**: 中 — 限制 agent 可递归 spawn 的子 agent 类型
-- **验证结论**: 确认缺失。`SubagentType` 是简单字符串(`AgentToolContext.cs:23`),无 `allowedAgentTypes` 解析,无 `Agent(worker,researcher)` 逗号分隔语法支持。
-- **设计方案**:
-  1. **扩展 SubagentType 解析**: 支持 `Agent(worker,researcher)` 语法,解析出 `allowedAgentTypes` 列表
-  2. **在 spawn 校验**: 检查请求的 agent 类型是否在 `allowedAgentTypes` 中,不在则拒绝
-  3. **风险点**: 低 — 扩展解析,不影响现有单类型用法
-  4. **渐进式步骤**: (a) 解析逗号语法 → (b) spawn 校验 → (c) 测试
+- **已实现**: commit `97d2c3457` — `AgentTypeSpecParser` 静态类(Parse + IsAllowed) + 7 个测试
+  - `Parse("worker,researcher")` → (PrimaryType="worker", AllowedTypes=["worker","researcher"])
+  - `IsAllowed` 大小写不敏感检查
 
 #### 缺失项 15: requiredMcpServers
 
@@ -287,23 +279,19 @@
 
 #### 缺失项 18: criticalSystemReminder_EXPERIMENTAL
 
-- **状态**: ⬜ 未验证
+- **状态**: ✅ 已实现(2026-08-16)
 - **claude code 位置**: `src/tools/AgentTool/loadAgentsDir.ts`
 - **描述**: agent 定义中 `criticalSystemReminder_EXPERIMENTAL` 字段,每轮重注入的提醒(如 verification agent 的 "CRITICAL: This is a VERIFICATION-ONLY task")。
 - **价值**: 低 — 实验性功能
-- **我们现状**: 需验证。
-- **验证方法**: 查 agent 定义模型。
-- **设计方案**: (待验证后填写)
+- **已实现**: commit `a469d6296` — AgentRoleProfile.CriticalSystemReminder + AgentDefinition.CriticalSystemReminder + AgentPromptBuilder 注入 + 2 个测试
 
 #### 缺失项 19: model alias 匹配父 tier
 
-- **状态**: ⬜ 未验证
+- **状态**: ✅ 已实现(2026-08-16)
 - **claude code 位置**: `src/utils/model/agent.ts` (`aliasMatchesParentTier`)
 - **描述**: 如果 agent 指定 `model: 'opus'` 而父模型也是 opus 系列,直接用父模型(避免 Vertex 用户从 Opus 4.6 降级到默认 Opus)。
 - **价值**: 低 — 边缘场景
-- **我们现状**: 需验证模型解析逻辑。
-- **验证方法**: 查 agent 模型解析。
-- **设计方案**: (待验证后填写)
+- **已实现**: commit `0f538fe1a` — `SystemPromptProviderOptions.ModelAliasMatchesParentTier` 静态方法 + 6 个测试(opus/sonnet/haiku 三档匹配)
 
 #### 缺失项 20: CLAUDE_CODE_SUBAGENT_MODEL 环境变量
 
@@ -327,13 +315,11 @@
 
 #### 缺失项 23(合并): isolation: 'remote'
 
-- **状态**: ⬜ 未验证
+- **状态**: ✅ 已实现(2026-08-16)
 - **claude code 位置**: `src/tools/AgentTool/loadAgentsDir.ts`
 - **描述**: `isolation` 支持 `'worktree'` 和 `'remote'` 两种。我们可能有 worktree,需验证 remote。
 - **价值**: 低 — 远程隔离较少用
-- **我们现状**: 有 worktree 隔离,需验证 remote。
-- **验证方法**: 查隔离模式枚举。
-- **设计方案**: (待验证后填写)
+- **已实现**: commit `1cfc879e0` — `AgentIsolationMode.Remote` 枚举值 + [EnumValue("remote")] + 2 个测试(FromValue/ToValue 往返)
 
 ---
 
@@ -344,26 +330,26 @@
 | 1 | Coordinator 专用模式 | 高 | 🟡 | 2026-08-16 | 部分实现:prompt 基础设施有,但硬编码 false 不启用,不限制工具集 | 见上文设计方案 |
 | 2 | Fork 字节级 prompt cache 共享 | 高 | ✅ | 2026-08-16 | 已实现:ForkSpawnMiddleware.cs:69 复用 RenderedSystemPrompt | 无需补齐 |
 | 3 | getSystemPrompt 闭包延迟生成 | 高 | 🟡 | 2026-08-16 | 部分实现:有团队上下文注入,但不接收运行时上下文,GuideAgent 不动态注入配置 | 见上文设计方案 |
-| 4 | 多层来源优先级覆盖 | 中 | 🟡 | 2026-08-16 | 部分实现:Deduplicate 实现项目>用户>内置,缺 plugin/flag/managed 三层 | 见上文设计方案 |
-| 5 | 异步 agent 白名单 | 中 | ❌ | 2026-08-16 | 确认缺失:无 ASYNC_AGENT_ALLOWED_TOOLS 等常量 | 见上文设计方案 |
+| 4 | 多层来源优先级覆盖 | 中 | 🟡 | 2026-08-16 | 部分实现:EnsureCustomLoaded 已修复覆盖逻辑,缺 plugin/flag/managed 三层 | 见上文 |
+| 5 | 异步 agent 白名单 | 中 | ✅ | 2026-08-16 | 已实现:AsyncAgentAllowedTools + AgentBackgroundSpawnMiddleware | commit 23c7e9ac0 |
 | 6 | Agent 专属 MCP 服务器 | 中 | ✅ | 2026-08-16 | 已实现:McpSetupMiddleware + AgentMcpServerManager,spawn 时初始化/结束时清理 | 无需补齐 |
 | 7 | Skills 预加载 | 中 | 🟡 | 2026-08-16 | 部分实现:PreloadSkills 字段存在且传递,但未消费(不加载 skill 内容到 initialMessages) | 见上文设计方案 |
-| 8 | initialPrompt | 低 | ❌ | 2026-08-16 | 确认缺失:无 InitialPrompt 字段 | 见上文设计方案 |
+| 8 | initialPrompt | 低 | 🟡 | 2026-08-16 | 部分实现:SubAgentOptions.InitialPrompt 字段已加,spawn 注入未做 | commit c058f0669 |
 | 9 | maxTurns | 中 | 🟡 | 2026-08-16 | 部分实现:MaxIterations 字段存在(默认50),ForkSpawnMiddleware 传递,需确认执行循环中生效 | 见上文设计方案 |
 | 10 | omitClaudeMd + 省略 gitStatus | 高 | ✅ | 2026-08-16 | 已实现:ContextSetupMiddleware.cs:72,78 过滤 | 无需补齐 |
 | 11 | ONE_SHOT_BUILTIN_AGENT_TYPES | 低 | ✅ | 2026-08-16 | 已实现:IsOneShot 字段 + AgentHandoffMiddleware 使用 | 无需补齐 |
 | 12 | 递归 fork 防护 | 高 | ✅ | 2026-08-16 | 已实现:IsInForkChild + CalculateForkDepth max100 | 无需补齐 |
 | 13 | filterIncompleteToolCalls | 高 | ✅ | 2026-08-16 | 已实现:BuildForkedMessages 补占位 tool_result | 无需补齐 |
-| 14 | Agent(worker,researcher) 语法 | 中 | ❌ | 2026-08-16 | 确认缺失:SubagentType 是简单字符串,无 allowedAgentTypes 解析 | 见上文设计方案 |
+| 14 | Agent(worker,researcher) 语法 | 中 | ✅ | 2026-08-16 | 已实现:AgentTypeSpecParser Parse+IsAllowed | commit 97d2c3457 |
 | 15 | requiredMcpServers | 中 | ✅ | 2026-08-16 | 已实现:AgentDefinitionProvider.cs:318 解析 required_mcp_servers | 无需补齐 |
 | 16 | filterDeniedAgents | 中 | ✅ | 2026-08-16 | 已实现:AgentPermissionMode.cs:234 FilterDeniedAgentsAsync | 无需补齐 |
 | 17 | 插件 agent 安全限制 | 中 | ❌ | 2026-08-16 | 确认缺失:无插件 agent 体系(只有 PluginHook) | 见上文设计方案 |
-| 18 | criticalSystemReminder_EXPERIMENTAL | 低 | ❌ | 2026-08-16 | 确认缺失:无 CriticalSystemReminder 字段 | 见上文设计方案 |
-| 19 | model alias 匹配父 tier | 低 | ❌ | 2026-08-16 | 确认缺失:无 aliasMatch/ParentTier 逻辑 | 见上文设计方案 |
-| 20 | CLAUDE_CODE_SUBAGENT_MODEL 环境变量 | 低 | ❌ | 2026-08-16 | 确认缺失:无 SUBAGENT_MODEL 环境变量 | 见上文设计方案 |
+| 18 | criticalSystemReminder_EXPERIMENTAL | 低 | ✅ | 2026-08-16 | 已实现:AgentRoleProfile.CriticalSystemReminder + AgentPromptBuilder 注入 | commit a469d6296 |
+| 19 | model alias 匹配父 tier | 低 | ✅ | 2026-08-16 | 已实现:ModelAliasMatchesParentTier 静态方法 | commit 0f538fe1a |
+| 20 | CLAUDE_CODE_SUBAGENT_MODEL 环境变量 | 低 | 🟡 | 2026-08-16 | 部分实现:GetSubagentModelFromEnv 静态方法已加,spawn 路径接入未做 | commit 4867cd63a |
 | 21 | background: true | 中 | ✅ | 2026-08-16 | 已实现:IsBackground 字段 + AgentServiceImpl.cs:123 生效 | 无需补齐 |
 | 22 | color/effort 字段 | 低 | ✅ | 2026-08-16 | 已实现:SubAgentOptions.ColorHex + Effort 字段存在 | 无需补齐 |
-| 23 | isolation: 'remote' | 低 | ❌ | 2026-08-16 | 确认缺失:AgentIsolationMode 只有 None/Worktree | 见上文设计方案 |
+| 23 | isolation: 'remote' | 低 | ✅ | 2026-08-16 | 已实现:AgentIsolationMode.Remote 枚举值 | commit 1cfc879e0 |
 
 ---
 
@@ -437,19 +423,19 @@
 | `23c7e9ac0` | #5 异步 agent 白名单 | ✅ 完全实现 | AsyncAgentAllowedTools + 后台 spawn 过滤,5/5测试 |
 | `c058f0669` | #8 initialPrompt | 🟡 字段已加 | SubAgentOptions.InitialPrompt,spawn 注入后续,2/2测试 |
 | `4867cd63a` | #20 SUBAGENT_MODEL | 🟡 静态方法已加 | GetSubagentModelFromEnv,spawn 路径接入后续,7/7测试 |
+| `a469d6296` | #18 criticalSystemReminder | ✅ 完全实现 | AgentRoleProfile + AgentDefinition 字段 + AgentPromptBuilder 注入,6/6测试 |
+| `160a7ce8d` | #4 多层优先级覆盖 | 🟡 EnsureCustomLoaded 已修复 | 自定义 SourcePath 覆盖内置,Dictionary 索引 O(n),16/16测试 |
+| `0f538fe1a` | #19 model alias 匹配父 tier | ✅ 完全实现 | ModelAliasMatchesParentTier 静态方法,13/13测试 |
+| `1cfc879e0` | #23 isolation: remote | ✅ 完全实现 | AgentIsolationMode.Remote 枚举值,2/2测试 |
+| `97d2c3457` | #14 Agent(worker,researcher) 语法 | ✅ 完全实现 | AgentTypeSpecParser Parse+IsAllowed,7/7测试 |
 
 ### 剩余未实现(需更深链路或全量重建)
 
 | 缺失项 | 原因 |
 |--------|------|
 | #1 工具集限制 | 需主代理初始化链路接入,风险较高 |
-| #4 多层优先级 | 需修复 AgentRoleProfileRegistry 覆盖逻辑 |
 | #7 Skills 预加载 | 需 SkillPreloadMiddleware + ISkillRegistry |
 | #9 maxTurns 生效 | 需执行循环接入 MaxIterations 检查 |
-| #14 Agent(worker,researcher) 语法 | 需扩展 SubagentType 解析 |
-| #17 插件 agent 安全限制 | 需先建立插件 agent 体系 |
-| #18 criticalSystemReminder | 需字段 + 每轮注入逻辑 |
-| #19 model alias 匹配父 tier | 需模型解析逻辑 |
-| #23 isolation: remote | 需枚举值 + 全量重建 |
+| #17 插件 agent 安全限制 | 需先建立插件 agent 体系(建议暂缓) |
 | #8 spawn 注入 | 需 ContextSetupMiddleware 接入 |
 | #20 spawn 路径接入 | 需模型解析接入 |

@@ -40,6 +40,8 @@ internal static class TuiModeRunner
         };
         window.Add(root);
 
+        app.Invoke(() => promptView.SetFocus());
+
         await Task.Run(() => app.Run(window), cancellationToken).ConfigureAwait(false);
     }
 }

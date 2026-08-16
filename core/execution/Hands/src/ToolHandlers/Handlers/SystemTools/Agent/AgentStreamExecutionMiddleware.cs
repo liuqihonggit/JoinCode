@@ -8,15 +8,17 @@ namespace Tools.Handlers;
 public sealed partial class AgentStreamExecutionMiddleware : ServiceEntity, IAgentToolMiddleware
 {
 
-    public AgentStreamExecutionMiddleware(IAgentService agentService, ILogger<AgentStreamExecutionMiddleware>? logger = null, ITelemetryService? telemetryService = null)
+    public AgentStreamExecutionMiddleware(IAgentService agentService, ILogger<AgentStreamExecutionMiddleware>? logger = null, ITelemetryService? telemetryService = null, JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager? outputChannelManager = null)
     {
         _agentService = agentService;
         _logger = logger;
         _telemetryService = telemetryService;
+        _outputChannelManager = outputChannelManager;
     }
     [Inject] private readonly IAgentService _agentService;
     [Inject] private readonly ILogger<AgentStreamExecutionMiddleware>? _logger;
     [Inject] private readonly ITelemetryService? _telemetryService;
+    [Inject] private readonly JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager? _outputChannelManager;
 
     /// <inheritdoc />
     public int Order => 400;

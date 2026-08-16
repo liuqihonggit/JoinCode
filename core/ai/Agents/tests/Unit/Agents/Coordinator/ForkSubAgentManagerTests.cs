@@ -35,7 +35,7 @@ public class ForkSubAgentManagerTests
     public async Task ForkAsync_ShouldCreateForkedAgentWithSharedCache()
     {
         var queryEngineMock = new Mock<JoinCode.Abstractions.Interfaces.IQueryEngine>();
-        var agent = new CodeAgent("Fork task", null, queryEngineMock.Object, null);
+        var agent = new AgentBase("Fork task", null, queryEngineMock.Object, null);
 
         var agentResult = new SubAgentResult
         {
@@ -71,7 +71,7 @@ public class ForkSubAgentManagerTests
     public async Task ForkAsync_ShareCacheFalse_ShouldCreateIndependentCache()
     {
         var queryEngineMock = new Mock<JoinCode.Abstractions.Interfaces.IQueryEngine>();
-        var agent = new CodeAgent("Independent fork", null, queryEngineMock.Object, null);
+        var agent = new AgentBase("Independent fork", null, queryEngineMock.Object, null);
 
         var agentResult = new SubAgentResult
         {
@@ -105,7 +105,7 @@ public class ForkSubAgentManagerTests
     public async Task ForkAsync_FailedAgentExecution_ShouldReturnFailedForkResult()
     {
         var queryEngineMock = new Mock<JoinCode.Abstractions.Interfaces.IQueryEngine>();
-        var agent = new CodeAgent("Failing fork", null, queryEngineMock.Object, null);
+        var agent = new AgentBase("Failing fork", null, queryEngineMock.Object, null);
 
         var agentResult = new SubAgentResult
         {
@@ -167,7 +167,7 @@ public class ForkSubAgentManagerTests
     public async Task GetActiveForksAsync_AfterFork_ShouldReturnFork()
     {
         var queryEngineMock = new Mock<JoinCode.Abstractions.Interfaces.IQueryEngine>();
-        var agent = new CodeAgent("Task", null, queryEngineMock.Object, null);
+        var agent = new AgentBase("Task", null, queryEngineMock.Object, null);
 
         var agentResult = new SubAgentResult
         {
@@ -223,7 +223,7 @@ public class ForkSubAgentManagerTests
     public async Task ForkAsync_BackgroundMode_ExecuteAsyncThrows_ShouldNotThrowObjectDisposedException()
     {
         var queryEngineMock = new Mock<JoinCode.Abstractions.Interfaces.IQueryEngine>();
-        var agent = new CodeAgent("Background task that throws", null, queryEngineMock.Object, null);
+        var agent = new AgentBase("Background task that throws", null, queryEngineMock.Object, null);
 
         _lifecycleManagerMock
             .Setup(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>()))

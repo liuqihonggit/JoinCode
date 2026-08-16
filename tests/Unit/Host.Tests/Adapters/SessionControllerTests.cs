@@ -217,6 +217,97 @@ public sealed class SessionControllerTests
         Assert.False(controller.IsRunning);
     }
 
+    [Fact]
+    public async Task StreamResponseAsync_MainAgentPath_CallsSaveContext()
+    {
+        var queryEngine = CreateMockQueryEngine();
+        var agent = new AgentBase(
+            task: string.Empty,
+            options: null,
+            queryEngine: queryEngine,
+            logger: null,
+            name: "main",
+            role: AgentRole.Coordinator);
+
+        var contextManager = new Mock<IChatContextManager>();
+        contextManager.Setup(c => c.SaveContextAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+
+        var services = new ServiceCollection();
+        services.AddSingleton(contextManager.Object);
+        var sp = services.BuildServiceProvider();
+
+        var chatService = CreateMockChatService(Array.Empty<ChatStreamEvent>());
+        var consumer = new RecordingEventConsumer();
+        var turnDiffService = new TurnDiffService();
+        var controller = new SessionController(chatService, consumer, turnDiffService, "test-session", sp, mainAgent: agent);
+
+        var result = await controller.StreamResponseAsync("test", CancellationToken.None).ConfigureAwait(true);
+
+        Assert.True(result.Succeeded);
+        contextManager.Verify(c => c.SaveContextAsync(It.IsAny<CancellationToken>()), Times.AtLeastOnce,
+            "主代理路径应在完成后调用 SaveContextAsync 持久化上下文");
+    }
+
+    [Fact]
+    public async Task StreamResponseAsync_MainAgentPath_CallsPreprocessor()
+    {
+        var queryEngine = CreateMockQueryEngine();
+        var agent = new AgentBase(
+            task: string.Empty,
+            options: null,
+            queryEngine: queryEngine,
+            logger: null,
+            name: "main",
+            role: AgentRole.Coordinator);
+
+        var preprocessor = new Mock<IChatPreprocessor>();
+        var fileContextService = new Mock<IChatFileContextService>();
+
+        var services = new ServiceCollection();
+        services.AddSingleton(preprocessor.Object);
+        services.AddSingleton(fileContextService.Object);
+        var sp = services.BuildServiceProvider();
+
+        var chatService = CreateMockChatService(Array.Empty<ChatStreamEvent>());
+        var consumer = new RecordingEventConsumer();
+        var turnDiffService = new TurnDiffService();
+        var controller = new SessionController(chatService, consumer, turnDiffService, "test-session", sp, mainAgent: agent);
+
+        var result = await controller.StreamResponseAsync("test", CancellationToken.None).ConfigureAwait(true);
+
+        Assert.True(result.Succeeded);
+        preprocessor.Verify(p => p.AnalyzeAndInjectAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce,
+            "主代理路径应在执行前调用 AnalyzeAndInjectAsync 做预处理");
+        fileContextService.Verify(f => f.UpdateFileContext(It.IsAny<string>()), Times.AtLeastOnce,
+            "主代理路径应在执行前调用 UpdateFileContext 更新文件上下文");
+    }
+
+    private static IQueryEngine CreateMockQueryEngine()
+    {
+        var mock = new Mock<IQueryEngine>();
+        var chunks = new QueryStreamChunk[]
+        {
+            new() { Type = AgentStreamChunkType.Content, Content = "Hello" },
+            new() { Type = AgentStreamChunkType.Complete, ModelId = "test-model" }
+        };
+        mock.Setup(e => e.QueryAsync(It.IsAny<string>(), It.IsAny<MessageList>(), It.IsAny<CancellationToken>()))
+            .Returns((string input, MessageList history, CancellationToken ct) => EmitChunksAsync(chunks, ct));
+        mock.Setup(e => e.QueryAsync(It.IsAny<string>(), It.IsAny<MessageList>(), It.IsAny<QueryOptions?>(), It.IsAny<CancellationToken>()))
+            .Returns((string input, MessageList history, QueryOptions? opts, CancellationToken ct) => EmitChunksAsync(chunks, ct));
+        return mock.Object;
+    }
+
+    private static async IAsyncEnumerable<QueryStreamChunk> EmitChunksAsync(
+        IReadOnlyList<QueryStreamChunk> chunks,
+        [EnumeratorCancellation] CancellationToken ct)
+    {
+        foreach (var chunk in chunks)
+        {
+            ct.ThrowIfCancellationRequested();
+            yield return chunk;
+        }
+    }
+
     private static IChatService CreateMockChatService(IReadOnlyList<ChatStreamEvent> events)
     {
         var mock = new Mock<IChatService>();

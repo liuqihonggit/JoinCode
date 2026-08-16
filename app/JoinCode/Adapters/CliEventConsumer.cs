@@ -10,6 +10,7 @@ public sealed class CliEventConsumer : IResettableEventConsumer
     private bool _isFirstToken = true;
     private readonly bool _agentMode;
     private readonly Cli.Output.CliOutputJsonContext _jsonContext;
+    private readonly JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager? _outputChannelManager;
 
     public CliEventConsumer()
     {
@@ -21,6 +22,13 @@ public sealed class CliEventConsumer : IResettableEventConsumer
     {
         _agentMode = agentMode;
         _jsonContext = Cli.Output.CliOutputJsonContext.Default;
+    }
+
+    public CliEventConsumer(JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager? outputChannelManager)
+    {
+        _agentMode = false;
+        _jsonContext = Cli.Output.CliOutputJsonContext.Default;
+        _outputChannelManager = outputChannelManager;
     }
 
     /// <summary>累积的完整响应文本</summary>
@@ -46,7 +54,7 @@ public sealed class CliEventConsumer : IResettableEventConsumer
         if (_isFirstToken)
         {
             _isFirstToken = false;
-            if (!_agentMode)
+            if (!_agentMode && _outputChannelManager is null)
             {
                 using var _label = TerminalHelper.SetColor(ConsoleColor.Cyan);
                 TerminalHelper.WriteLine("[AI助手]");
@@ -58,6 +66,10 @@ public sealed class CliEventConsumer : IResettableEventConsumer
             if (_agentMode)
             {
                 WriteNdJsonEvent("text", new Cli.Output.CliStreamEventData { Content = content });
+            }
+            else if (_outputChannelManager is not null)
+            {
+                _outputChannelManager.Write("main", "AI助手", content, JoinCode.Abstractions.Interfaces.AgentOutputChunkType.Text);
             }
             else
             {

@@ -6,7 +6,7 @@ namespace Core.Agents.Coordinator;
 /// 子类（CoordinatorAgent、ExecutorAgent、ReasoningAgent）继承此类，自动获得对话能力
 /// 压缩管线在阶段2 通过 IChatContextManager 内聚到此
 /// </summary>
-public abstract class AgentBase : Entity, IAgent
+public class AgentBase : Entity, IAgent
 {
     protected readonly IQueryEngine _queryEngine;
     protected readonly ILogger? _logger;
@@ -26,6 +26,11 @@ public abstract class AgentBase : Entity, IAgent
 
     // === 任务 ===
     public string Task { get; }
+    /// <summary>
+    /// 当前用户输入 — 主代理每轮对话前设置，优先于 Task 作为 prompt
+    /// 子代理不设置（用 Task）
+    /// </summary>
+    public string? CurrentInput { get; set; }
     public SubAgentOptions Options { get; }
     public SubAgentContext? Context { get; }
     public TaskExecutionStatus Status { get; set; }
@@ -65,9 +70,22 @@ public abstract class AgentBase : Entity, IAgent
     protected IChatContextManager? ContextManager;
 
     /// <summary>
+    /// 用户输入转发队列 — 子代理运行期间用户追加的输入，每轮 LLM 调用前主动 TryDrain 消费
+    /// null 表示不支持用户转发（默认）；由 ForkSpawnMiddleware 在创建子代理后注入
+    /// </summary>
+    public JoinCode.Abstractions.Interfaces.IAgentInputForwardQueue? InputForwardQueue { get; set; }
+
+    /// <summary>
+    /// 输出 channel 管理器 — AgentBase.ExecuteStreamAsync 中统一写入，前台拉取显示
+    /// null 表示不支持输出 channel（默认）；由 AgentServiceImpl 在创建子代理后注入
+    /// 主代理和子代理都通过此属性统一输出，在父类 AgentBase 上一处实现
+    /// </summary>
+    public JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager? OutputChannelManager { get; set; }
+
+    /// <summary>
     /// AgentBase 构造函数 — 子类通过 base(...) 委托
     /// </summary>
-    protected AgentBase(
+    public AgentBase(
         string task,
         SubAgentOptions? options,
         IQueryEngine queryEngine,
@@ -180,6 +198,8 @@ public abstract class AgentBase : Entity, IAgent
                     : string.Format(AgentCoordinatorConstants.SystemPrompts.SubAgentSystemMessage, Task);
                 chatHistory.AddSystemMessage(systemMessage);
             }
+
+            DrainPendingUserInputs(chatHistory);
 
             var responseBuilder = new StringBuilder();
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
@@ -307,7 +327,15 @@ public abstract class AgentBase : Entity, IAgent
         var prompt = BuildPrompt();
 
         MessageList chatHistory;
-        if (Options.InitialMessageList is not null && Options.InitialMessageList.Count > 0)
+        if (ContextManager is not null)
+        {
+            chatHistory = await ContextManager.GetMessageListAsync(linkedToken).ConfigureAwait(false);
+            if (chatHistory.Count > 0 && chatHistory[chatHistory.Count - 1].Role == MessageRole.User)
+            {
+                chatHistory.RemoveAt(chatHistory.Count - 1);
+            }
+        }
+        else if (Options.InitialMessageList is not null && Options.InitialMessageList.Count > 0)
         {
             chatHistory = Options.InitialMessageList;
         }
@@ -319,6 +347,8 @@ public abstract class AgentBase : Entity, IAgent
                 : string.Format(AgentCoordinatorConstants.SystemPrompts.SubAgentSystemMessage, Task);
             chatHistory.AddSystemMessage(systemMessage);
         }
+
+        DrainPendingUserInputs(chatHistory);
 
         var responseBuilder = new StringBuilder();
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
@@ -364,13 +394,31 @@ public abstract class AgentBase : Entity, IAgent
                 errorMessage = chunk.Content;
             }
 
+            if (OutputChannelManager is not null && chunk.Type == AgentStreamChunkType.Content && !string.IsNullOrEmpty(chunk.Content))
+            {
+                OutputChannelManager.Write(UniqueId, Options.DisplayName ?? Name, chunk.Content, JoinCode.Abstractions.Interfaces.AgentOutputChunkType.Text);
+            }
+
             yield return new AgentStreamChunk
             {
                 Type = chunk.Type,
                 Content = chunk.Content,
+                ThinkingContent = chunk.ThinkingContent,
                 ToolName = chunk.ToolName,
+                ToolCallId = chunk.ToolCallId,
+                ToolArguments = chunk.ToolArguments,
                 ToolCallNumber = chunk.ToolCallNumber,
                 ToolResult = chunk.ToolResult,
+                ToolResultText = chunk.ToolResultText,
+                IsToolError = chunk.IsToolError,
+                StructuredPatch = chunk.StructuredPatch,
+                ProgressMessage = chunk.ProgressMessage,
+                ProgressType = chunk.ProgressType,
+                LoopTriggerCount = chunk.LoopTriggerCount,
+                LoopStartIndex = chunk.LoopStartIndex,
+                ExecutionTimeMs = chunk.ExecutionTimeMs,
+                Usage = chunk.Usage,
+                ModelId = chunk.ModelId,
                 AgentId = UniqueId
             };
         }
@@ -447,10 +495,29 @@ public abstract class AgentBase : Entity, IAgent
     }
 
     /// <summary>
-    /// 构建提示词 — 子类可重写以定制提示词
+    /// 消费用户转发输入队列 — 每轮 LLM 调用前调用，将待处理用户输入追加到 ChatHistory
+    /// 用户在子代理运行期间发送的消息，由主代理转发到 IAgentInputForwardQueue，子代理主动消费
+    /// </summary>
+    protected void DrainPendingUserInputs(MessageList chatHistory)
+    {
+        if (InputForwardQueue is null) return;
+        var pendingInputs = InputForwardQueue.TryDrain(UniqueId);
+        if (pendingInputs.Count == 0) return;
+        foreach (var input in pendingInputs)
+        {
+            chatHistory.AddUserMessage($"[用户追加输入] {input}");
+        }
+        _logger?.LogInformation("[Agent {AgentId}] 消费 {Count} 条用户转发输入", UniqueId, pendingInputs.Count);
+    }
+
+    /// <summary>
+    /// 构建提示词 — 主代理优先用 CurrentInput，子代理用 Task
     /// </summary>
     protected virtual string BuildPrompt()
     {
+        if (!string.IsNullOrEmpty(CurrentInput))
+            return CurrentInput;
+
         var sb = new StringBuilder();
         sb.AppendLine($"任务: {Task}");
 

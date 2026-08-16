@@ -17,6 +17,7 @@ global using JoinCode.Abstractions.Tools;
 global using JoinCode.Abstractions.Utils;
 global using JoinCode.Abstractions.Clock;
 global using JoinCode.Abstractions.Localization;
+global using Core.Agents;
 global using Core.Agents.Coordinator;
 global using Core.Agents.Interfaces;
 global using Infrastructure.Pipeline;

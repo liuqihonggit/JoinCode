@@ -10,7 +10,9 @@ public sealed record AgentServiceDependencies(
     JoinCode.Abstractions.Interfaces.IAgentTranscriptService? TranscriptService = null,
     IAgentMessageBroker? MessageBroker = null,
     SwarmPermissionCallbackService? PermissionCallbackService = null,
-    JoinCode.Abstractions.Interfaces.IAgentMcpServerManager? McpServerManager = null);
+    JoinCode.Abstractions.Interfaces.IAgentMcpServerManager? McpServerManager = null,
+    JoinCode.Abstractions.Interfaces.IAgentInputForwardQueue? InputForwardQueue = null,
+    JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager? OutputChannelManager = null);
 
 [Register(typeof(JoinCode.Abstractions.Interfaces.IAgentService))]
 public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstractions.Interfaces.IAgentService, IDisposable
@@ -21,17 +23,20 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     private readonly JoinCode.Abstractions.Interfaces.IAgentRoleRegistry _roleRegistry;
     private readonly JoinCode.Abstractions.Interfaces.IAgentTranscriptService? _transcriptService;
     private readonly IAgentMessageBroker? _messageBroker;
+    private readonly JoinCode.Abstractions.Interfaces.IAgentInputForwardQueue? _inputForwardQueue;
+    private readonly JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager? _outputChannelManager;
     private readonly SwarmPermissionCallbackService? _permissionCallbackService;
     private readonly JoinCode.Abstractions.Interfaces.IAgentMcpServerManager? _mcpServerManager;
     private readonly JoinCode.Abstractions.Interfaces.IAgentNotificationQueue? _notificationQueue;
     [Inject] private readonly ILogger<AgentServiceImpl>? _logger;
     [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
     [Inject] private readonly IClockService _clock;
-    private readonly Infrastructure.Pipeline.MiddlewarePipeline<AgentSpawnContext> _spawnPipeline;
+    private readonly Infrastructure.Pipeline.MiddlewarePipeline<UnifiedSpawnContext> _spawnPipeline;
     private readonly ConcurrentDictionary<string, TaskCompletionSource<JoinCode.Abstractions.Interfaces.AgentResult>> _completionSources;
     private readonly ConcurrentDictionary<string, CancellationTokenSource> _backgroundCts;
     private readonly ConcurrentDictionary<string, DateTime> _agentStartTimes;
     private readonly ConcurrentDictionary<string, ProgressTracker> _progressTrackers;
+    private readonly Coordinator.Core.Messaging.AgentNameIndex _agentNameIndex = new();
     private readonly CancellationTokenSource _disposeCts = new();
     private int _disposed;
 
@@ -41,7 +46,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         IAgentLifecycleManager lifecycleManager,
         JoinCode.Abstractions.Interfaces.IAgentDefinitionProvider definitionProvider,
         JoinCode.Abstractions.Interfaces.IAgentRoleRegistry roleRegistry,
-        Infrastructure.Pipeline.MiddlewarePipeline<AgentSpawnContext> spawnPipeline,
+        Infrastructure.Pipeline.MiddlewarePipeline<UnifiedSpawnContext> spawnPipeline,
         AgentServiceDependencies? deps = null,
         JoinCode.Abstractions.Interfaces.IAgentNotificationQueue? notificationQueue = null,
         ILogger<AgentServiceImpl>? logger = null,
@@ -54,6 +59,8 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         _spawnPipeline = spawnPipeline ?? throw new ArgumentNullException(nameof(spawnPipeline));
         _transcriptService = deps?.TranscriptService;
         _messageBroker = deps?.MessageBroker;
+        _inputForwardQueue = deps?.InputForwardQueue;
+        _outputChannelManager = deps?.OutputChannelManager;
         _permissionCallbackService = deps?.PermissionCallbackService;
         _mcpServerManager = deps?.McpServerManager;
         _notificationQueue = notificationQueue;
@@ -76,21 +83,22 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     /// </summary>
     private async Task<SubAgentInitResult> InitializeSubAgentAsync(JoinCode.Abstractions.Interfaces.AgentSpawnOptions options, CancellationToken cancellationToken)
     {
-        var context = new AgentSpawnContext
+        var context = new UnifiedSpawnContext
         {
-            Options = options,
-            CancellationToken = cancellationToken
+            Task = options.Description,
+            SpawnOptions = options,
+            CancellationToken = cancellationToken,
         };
 
         await _spawnPipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false);
 
-        if (context.SubAgent is null)
-            throw new InvalidOperationException("[AGT008] 中间件管道未创建 SubAgent");
+        if (context.Agent is null)
+            throw new InvalidOperationException("[AGT008] 中间件管道未创建 Agent");
 
-        StartWorkerPermissionResponseRouting(context.SubAgent.ObjectId.UniqueId);
-        _progressTrackers[context.SubAgent.ObjectId.UniqueId] = context.ProgressTracker;
+        StartWorkerPermissionResponseRouting(context.Agent.ObjectId.UniqueId);
+        _progressTrackers[context.Agent.ObjectId.UniqueId] = context.ProgressTracker;
 
-        return new SubAgentInitResult(context.SubAgent, context.SystemPrompt, context.Definition);
+        return new SubAgentInitResult(context.Agent, context.SystemPrompt, context.Definition);
     }
 
     public async Task<JoinCode.Abstractions.Interfaces.AgentInfo> SpawnAgentAsync(JoinCode.Abstractions.Interfaces.AgentSpawnOptions options, CancellationToken cancellationToken = default)
@@ -102,6 +110,15 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         var tcs = new TaskCompletionSource<JoinCode.Abstractions.Interfaces.AgentResult>();
         _completionSources[init.SubAgent.ObjectId.UniqueId] = tcs;
         _agentStartTimes[init.SubAgent.ObjectId.UniqueId] = _clock.GetUtcNow();
+        _inputForwardQueue?.Register(init.SubAgent.ObjectId.UniqueId);
+        if (init.SubAgent is AgentBase baseAgent)
+        {
+            if (_inputForwardQueue is not null)
+                baseAgent.InputForwardQueue = _inputForwardQueue;
+            if (_outputChannelManager is not null)
+                baseAgent.OutputChannelManager = _outputChannelManager;
+        }
+        RegisterAgentNameIndex(init.SubAgent);
 
         var runInBackground = options.RunInBackground || (init.Definition?.IsBackground ?? false);
 
@@ -135,6 +152,15 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         var init = await InitializeSubAgentAsync(options, cancellationToken).ConfigureAwait(false);
 
         _agentStartTimes[init.SubAgent.ObjectId.UniqueId] = _clock.GetUtcNow();
+        _inputForwardQueue?.Register(init.SubAgent.ObjectId.UniqueId);
+        if (init.SubAgent is AgentBase streamBaseAgent)
+        {
+            if (_inputForwardQueue is not null)
+                streamBaseAgent.InputForwardQueue = _inputForwardQueue;
+            if (_outputChannelManager is not null)
+                streamBaseAgent.OutputChannelManager = _outputChannelManager;
+        }
+        RegisterAgentNameIndex(init.SubAgent);
 
         // 流式消费 SubAgent 的输出 — 对齐 TS for await (const message of runAgent(...))
         var responseBuilder = new StringBuilder();
@@ -240,6 +266,36 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     /// </summary>
     public Task<IEnumerable<RunningAgentInfo>> GetRunningAgentsAsync(CancellationToken cancellationToken = default)
         => _lifecycleManager.GetRunningAgentsAsync(cancellationToken);
+
+    /// <summary>
+    /// 按名称查找运行中子代理的 ID — O(1) 字典查找
+    /// 匹配键: DisplayName → Name → Description → Id（均精确匹配，大小写不敏感）
+    /// </summary>
+    public Task<string?> FindAgentIdByNameAsync(string name, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        return Task.FromResult(_agentNameIndex.Find(name));
+    }
+
+    /// <summary>
+    /// 注册子代理名称索引 — Spawn 时调用，建立 name→agentId 的多键映射
+    /// </summary>
+    private void RegisterAgentNameIndex(IAgent subAgent)
+    {
+        if (subAgent is not AgentBase baseAgent) return;
+        _agentNameIndex.Register(subAgent.ObjectId.UniqueId, baseAgent.Name, baseAgent.Task, baseAgent.Options.DisplayName);
+        _outputChannelManager?.Register(subAgent.ObjectId.UniqueId, baseAgent.Options.DisplayName ?? baseAgent.Name);
+    }
+
+    /// <summary>
+    /// 注销子代理名称索引 — 完成时调用，仅移除属于该 agentId 的键（同名子代理不误删）
+    /// </summary>
+    private void UnregisterAgentNameIndex(IAgent subAgent)
+    {
+        if (subAgent is not AgentBase baseAgent) return;
+        _agentNameIndex.Unregister(subAgent.ObjectId.UniqueId, baseAgent.Name, baseAgent.Task, baseAgent.Options.DisplayName);
+        _outputChannelManager?.Unregister(subAgent.ObjectId.UniqueId);
+    }
 
     public Task<JoinCode.Abstractions.Interfaces.AgentProgress?> GetAgentProgressAsync(string agentId, CancellationToken cancellationToken = default)
     {
@@ -371,6 +427,29 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         }
 
         return sent;
+    }
+
+    /// <summary>
+    /// 将用户输入转发给运行中的子代理 — 用户在子代理运行期间追加的输入
+    /// 消息入 IAgentInputForwardQueue，由子代理每轮 LLM 调用前主动 TryDrain 消费
+    /// </summary>
+    public async Task<bool> ForwardUserInputToAgentAsync(string agentId, string userInput, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(userInput);
+
+        if (_inputForwardQueue is null)
+        {
+            _logger?.LogWarning("[AgentServiceImpl] IAgentInputForwardQueue 未注册，无法转发用户输入");
+            return false;
+        }
+
+        await _inputForwardQueue.EnqueueAsync(agentId, userInput, cancellationToken).ConfigureAwait(false);
+
+        _logger?.LogInformation("[AgentServiceImpl] 用户输入已转发给子代理 {AgentId}", agentId);
+        await AppendTranscriptEntryAsync(agentId, "user", $"[USER_FORWARD] {userInput}", cancellationToken).ConfigureAwait(false);
+
+        return true;
     }
 
     /// <summary>
@@ -512,6 +591,8 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         try
         {
             var concreteAgent = (AgentBase)subAgent;
+            _inputForwardQueue?.Unregister(subAgent.ObjectId.UniqueId);
+            UnregisterAgentNameIndex(subAgent);
             var status = result.Success ? AgentStatus.Completed : AgentStatus.Failed;
 
             if (_progressTrackers.TryGetValue(subAgent.ObjectId.UniqueId, out var tracker))

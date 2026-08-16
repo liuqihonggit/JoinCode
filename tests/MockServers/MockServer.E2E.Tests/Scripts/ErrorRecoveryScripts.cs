@@ -127,7 +127,8 @@ public static class ApiErrorRecoveryScripts
         Name = "错误后工具调用恢复",
         ExtraEnvVars = new Dictionary<string, string>
         {
-            ["JCC_DISABLE_STREAMING_FALLBACK"] = "true"
+            ["JCC_DISABLE_STREAMING_FALLBACK"] = "true",
+            ["JCC_DISABLE_RETRY"] = "true"
         },
         Turns =
         [

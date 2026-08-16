@@ -66,6 +66,9 @@ public class QueryEngineTests
     [InlineData(AgentStreamChunkType.ThinkingEnd)]
     [InlineData(AgentStreamChunkType.ToolCallStart)]
     [InlineData(AgentStreamChunkType.ToolCallEnd)]
+    [InlineData(AgentStreamChunkType.ToolProgress)]
+    [InlineData(AgentStreamChunkType.LoopDetected)]
+    [InlineData(AgentStreamChunkType.TimingSummary)]
     [InlineData(AgentStreamChunkType.Complete)]
     [InlineData(AgentStreamChunkType.Error)]
     public void AgentStreamChunkType_AllTypes_ShouldBeDefined(AgentStreamChunkType type)
@@ -133,12 +136,60 @@ public class QueryEngineTests
 
         chunk.Type.Should().Be(default(AgentStreamChunkType));
         chunk.Content.Should().BeNull();
+        chunk.ThinkingContent.Should().BeNull();
         chunk.ToolName.Should().BeNull();
+        chunk.ToolCallId.Should().BeNull();
+        chunk.ToolArguments.Should().BeNull();
         chunk.ToolCallNumber.Should().BeNull();
         chunk.ToolResult.Should().BeNull();
+        chunk.ToolResultText.Should().BeNull();
+        chunk.IsToolError.Should().BeFalse();
+        chunk.StructuredPatch.Should().BeNull();
+        chunk.ProgressMessage.Should().BeNull();
+        chunk.ProgressType.Should().BeNull();
+        chunk.LoopTriggerCount.Should().Be(0);
+        chunk.LoopStartIndex.Should().Be(0);
         chunk.ExecutionTimeMs.Should().BeNull();
+        chunk.Usage.Should().BeNull();
+        chunk.ModelId.Should().BeNull();
         chunk.TotalToolCalls.Should().Be(0);
         chunk.CostUsd.Should().Be(0);
+    }
+
+    [Fact]
+    public void QueryStreamChunk_NewFields_ShouldBeSettable()
+    {
+        var chunk = new QueryStreamChunk
+        {
+            Type = AgentStreamChunkType.ToolProgress,
+            ToolName = "WebSearch",
+            ToolCallId = "call_123",
+            ProgressMessage = "Searching...",
+            ProgressType = "query_update"
+        };
+
+        chunk.Type.Should().Be(AgentStreamChunkType.ToolProgress);
+        chunk.ToolName.Should().Be("WebSearch");
+        chunk.ToolCallId.Should().Be("call_123");
+        chunk.ProgressMessage.Should().Be("Searching...");
+        chunk.ProgressType.Should().Be("query_update");
+    }
+
+    [Fact]
+    public void QueryStreamChunk_LoopDetectedFields_ShouldBeSettable()
+    {
+        var chunk = new QueryStreamChunk
+        {
+            Type = AgentStreamChunkType.LoopDetected,
+            LoopTriggerCount = 3,
+            LoopStartIndex = 5,
+            Content = "repeated pattern"
+        };
+
+        chunk.Type.Should().Be(AgentStreamChunkType.LoopDetected);
+        chunk.LoopTriggerCount.Should().Be(3);
+        chunk.LoopStartIndex.Should().Be(5);
+        chunk.Content.Should().Be("repeated pattern");
     }
 
     [Theory]

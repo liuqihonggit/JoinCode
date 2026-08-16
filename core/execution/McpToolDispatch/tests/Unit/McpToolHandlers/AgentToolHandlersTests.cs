@@ -112,4 +112,46 @@ public class AgentToolHandlersTests
         Assert.False(result.IsError);
         Assert.Contains("没有正在运行", result.GetTextContent());
     }
+
+    [Fact]
+    public async Task ForwardUserInputAsync_ValidInput_ReturnsSuccess()
+    {
+        _agentService.Setup(x => x.ForwardUserInputToAgentAsync("agent-1", "hello", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        var result = await _handler.ForwardUserInputAsync("agent-1", "hello", CancellationToken.None).ConfigureAwait(true);
+
+        Assert.False(result.IsError);
+        Assert.Contains("agent-1", result.GetTextContent());
+    }
+
+    [Fact]
+    public async Task ForwardUserInputAsync_EmptyAgentId_ReturnsError()
+    {
+        var result = await _handler.ForwardUserInputAsync("", "hello", CancellationToken.None).ConfigureAwait(true);
+
+        Assert.True(result.IsError);
+        Assert.Contains("agentId", result.GetTextContent());
+    }
+
+    [Fact]
+    public async Task ForwardUserInputAsync_EmptyUserInput_ReturnsError()
+    {
+        var result = await _handler.ForwardUserInputAsync("agent-1", "", CancellationToken.None).ConfigureAwait(true);
+
+        Assert.True(result.IsError);
+        Assert.Contains("userInput", result.GetTextContent());
+    }
+
+    [Fact]
+    public async Task ForwardUserInputAsync_ForwardFails_ReturnsError()
+    {
+        _agentService.Setup(x => x.ForwardUserInputToAgentAsync("nonexistent", "hello", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        var result = await _handler.ForwardUserInputAsync("nonexistent", "hello", CancellationToken.None).ConfigureAwait(true);
+
+        Assert.True(result.IsError);
+        Assert.Contains("nonexistent", result.GetTextContent());
+    }
 }

@@ -36,8 +36,7 @@ public static class PipelineComposition
         services.AddSingleton(sp => new CrashSnapshotMiddleware<QueryMiddlewareContext>(sp.GetRequiredService<ICrashSnapshotStore>(), "Query"));
         services.AddSingleton(sp => new CrashSnapshotMiddleware<PermissionCheckContext>(sp.GetRequiredService<ICrashSnapshotStore>(), "Permission"));
         services.AddSingleton(sp => new CrashSnapshotMiddleware<SettingsContext>(sp.GetRequiredService<ICrashSnapshotStore>(), "Settings"));
-        services.AddSingleton(sp => new CrashSnapshotMiddleware<AgentSpawnContext>(sp.GetRequiredService<ICrashSnapshotStore>(), "AgentSpawn"));
-        services.AddSingleton(sp => new CrashSnapshotMiddleware<AgentSpawnCoordContext>(sp.GetRequiredService<ICrashSnapshotStore>(), "AgentSpawnCoord"));
+        services.AddSingleton(sp => new CrashSnapshotMiddleware<UnifiedSpawnContext>(sp.GetRequiredService<ICrashSnapshotStore>(), "UnifiedSpawn"));
         services.AddSingleton(sp => new CrashSnapshotMiddleware<AgentDisposeContext>(sp.GetRequiredService<ICrashSnapshotStore>(), "AgentDispose"));
         services.AddSingleton(sp => new CrashSnapshotMiddleware<ForkContext>(sp.GetRequiredService<ICrashSnapshotStore>(), "Fork"));
         services.AddSingleton(sp => new CrashSnapshotMiddleware<WebContext>(sp.GetRequiredService<ICrashSnapshotStore>(), "Web"));
@@ -175,33 +174,24 @@ public static class PipelineComposition
                 .WithHooks(sp)
                 .Build());
 
-        // AgentSpawn 智能体生成管道
-        services.AddSingleton<MiddlewarePipeline<AgentSpawnContext>>(sp =>
-            new PipelineBuilder<AgentSpawnContext>()
-                .WithLoggingScope(ctx => ctx.SubAgent?.ObjectId ?? ObjectId.Empty, sp.GetRequiredService<ILoggerFactory>())
-                .Use(sp.GetRequiredService<CrashSnapshotMiddleware<AgentSpawnContext>>())
+        // UnifiedSpawn 统一管道 — 合并 AgentSpawn + AgentSpawnCoord，主代理/子代理/协调层共用
+        services.AddSingleton<MiddlewarePipeline<UnifiedSpawnContext>>(sp =>
+            new PipelineBuilder<UnifiedSpawnContext>()
+                .WithLoggingScope(ctx => ctx.Agent?.ObjectId ?? ObjectId.Empty, sp.GetRequiredService<ILoggerFactory>())
+                .Use(sp.GetRequiredService<CrashSnapshotMiddleware<UnifiedSpawnContext>>())
                 .Use(sp.GetRequiredService<DefinitionResolutionMiddleware>())
                 .Use(sp.GetRequiredService<PromptBuildingMiddleware>())
                 .Use(sp.GetRequiredService<ContextSetupMiddleware>())
-                .Use(sp.GetRequiredService<AgentWorktreeSpawnMiddleware>())
+                .Use(sp.GetRequiredService<LifecycleSpawnMiddleware>())
+                .Use(sp.GetRequiredService<WorktreeSpawnMiddleware>())
+                .Use(sp.GetRequiredService<RecordContextMiddleware>())
+                .Use(sp.GetRequiredService<RegisterMessageMiddleware>())
                 .Use(sp.GetRequiredService<HookSetupMiddleware>())
                 .Use(sp.GetRequiredService<McpSetupMiddleware>())
+                .Use(sp.GetRequiredService<PermissionRoutingMiddleware>())
+                .Use(sp.GetRequiredService<TeammatePaneMiddleware>())
                 .Use(sp.GetRequiredService<MetadataMiddleware>())
                 .Use(sp.GetRequiredService<TranscriptMiddleware>())
-                .WithHooks(sp)
-                .Build());
-
-        // AgentSpawnCoord 协调层生成管道 — SpawnSubAgentAsync 的7步协调流程
-        services.AddSingleton<MiddlewarePipeline<AgentSpawnCoordContext>>(sp =>
-            new PipelineBuilder<AgentSpawnCoordContext>()
-                .WithLoggingScope(ctx => ctx.Agent?.ObjectId ?? ObjectId.Empty, sp.GetRequiredService<ILoggerFactory>())
-                .Use(sp.GetRequiredService<CrashSnapshotMiddleware<AgentSpawnCoordContext>>())
-                .Use(sp.GetRequiredService<SpawnCoordLifecycleMiddleware>())
-                .Use(sp.GetRequiredService<SpawnCoordWorktreeMiddleware>())
-                .Use(sp.GetRequiredService<SpawnCoordRegisterMessageMiddleware>())
-                .Use(sp.GetRequiredService<SpawnCoordRecordContextMiddleware>())
-                .Use(sp.GetRequiredService<SpawnCoordPermissionRoutingMiddleware>())
-                .Use(sp.GetRequiredService<SpawnCoordTeammatePaneMiddleware>())
                 .WithHooks(sp)
                 .Build());
 

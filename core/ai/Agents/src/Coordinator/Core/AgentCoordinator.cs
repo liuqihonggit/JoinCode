@@ -25,7 +25,7 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
     private readonly ConcurrentDictionary<string, AgentExecutionContext> _executionContexts;
     private readonly ConcurrentDictionary<string, DateTime> _agentStartTimes;
     private readonly MiddlewarePipeline<AgentDisposeContext> _disposePipeline;
-    private readonly MiddlewarePipeline<AgentSpawnCoordContext> _spawnPipeline;
+    private readonly MiddlewarePipeline<UnifiedSpawnContext> _spawnPipeline;
 
     public event EventHandler<AgentTaskStatusChangedEventArgs>? TaskStatusChanged;
     public event EventHandler<TeammateChangedEventArgs>? TeammateChanged;
@@ -34,7 +34,7 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
         AgentCoreDependencies core,
         IClockService clock,
         MiddlewarePipeline<AgentDisposeContext> disposePipeline,
-        MiddlewarePipeline<AgentSpawnCoordContext> spawnPipeline,
+        MiddlewarePipeline<UnifiedSpawnContext> spawnPipeline,
         AgentPermissionDependencies? permission = null,
         AgentTeamDependencies? team = null,
         IForkSubAgentManager? forkManager = null,
@@ -74,10 +74,10 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
 
     public async Task<IAgent> SpawnSubAgentAsync(string task, SubAgentOptions? options = null, CancellationToken cancellationToken = default)
     {
-        var ctx = new AgentSpawnCoordContext
+        var ctx = new UnifiedSpawnContext
         {
             Task = task,
-            Options = options,
+            SubOptions = options,
             CancellationToken = cancellationToken,
         };
         await _spawnPipeline.ExecuteAsync(ctx, cancellationToken).ConfigureAwait(false);

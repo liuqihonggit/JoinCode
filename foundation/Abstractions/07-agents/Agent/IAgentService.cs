@@ -41,6 +41,12 @@ public interface IAgentService
     Task<bool> SendMessageToAgentAsync(string agentId, string message, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// 将用户输入转发给运行中的子代理 — 用户在子代理运行期间追加的输入
+    /// 与 SendMessageToAgentAsync 区别：消息入 IAgentInputForwardQueue，由子代理每轮 LLM 调用前主动消费
+    /// </summary>
+    Task<bool> ForwardUserInputToAgentAsync(string agentId, string userInput, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// 向运行中的代理发送结构化消息 — 对齐 TS SendMessageTool 结构化消息路由
     /// </summary>
     Task<bool> SendStructuredMessageAsync(string agentId, StructuredMessageData structuredData, string rawMessage, CancellationToken cancellationToken = default);
@@ -71,6 +77,14 @@ public interface IAgentService
     /// 获取所有正在运行的代理
     /// </summary>
     Task<IEnumerable<RunningAgentInfo>> GetRunningAgentsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 按名称查找运行中子代理的 ID — O(1) 字典查找
+    /// 匹配键: DisplayName → Name → Description → Id（均精确匹配，大小写不敏感）
+    /// 几百个子代理场景下用 map 替代遍历，路由性能 O(1)
+    /// </summary>
+    /// <returns>匹配的 agentId，未找到返回 null</returns>
+    Task<string?> FindAgentIdByNameAsync(string name, CancellationToken cancellationToken = default);
 }
 
 /// <summary>

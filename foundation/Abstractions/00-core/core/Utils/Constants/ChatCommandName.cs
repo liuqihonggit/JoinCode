@@ -102,6 +102,7 @@ public enum ChatCommandName
     [EnumValue("buddy")] Buddy,
     [EnumValue("generate")] Generate,
     [EnumValue("assistant")] Assistant,
+    [EnumValue("switch")] Switch,
 
     // 任务
     [EnumValue("tasks")] Tasks,

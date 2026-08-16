@@ -25,6 +25,12 @@ public sealed partial class StateTransitionMiddleware : ServiceEntity, IQueryMid
     {
         if (_stateTransitions is not null)
         {
+            var current = _stateTransitions.CurrentState;
+            if (current is QueryState.Completed or QueryState.Failed or QueryState.Cancelled or QueryState.Running)
+            {
+                _stateTransitions.Reset();
+            }
+
             _stateTransitions.TransitionTo(QueryState.Initializing);
             _stateTransitions.TransitionTo(QueryState.Running);
         }

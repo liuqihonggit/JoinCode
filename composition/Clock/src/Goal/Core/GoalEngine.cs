@@ -1092,15 +1092,35 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
             return;
         }
 
-        var mainAgent = new Core.Agents.Coordinator.CoordinatorAgent(
+        var mainAgent = Core.Agents.Coordinator.AgentFactory.Create(
             task: objective,
             options: new SubAgentOptions { DisplayName = "mainAgent", Role = AgentRole.Coordinator },
             queryEngine: queryEngine,
             logger: _logger,
             clock: _clock,
             name: "mainAgent",
+            role: AgentRole.Coordinator,
             goalId: goalId,
             tokenBudget: tokenBudget);
+
+        var spawnPipeline = _serviceProvider.GetService<Infrastructure.Pipeline.MiddlewarePipeline<Core.Agents.UnifiedSpawnContext>>();
+        if (spawnPipeline is not null)
+        {
+            try
+            {
+                var context = new Core.Agents.UnifiedSpawnContext
+                {
+                    Task = objective,
+                    IsMainAgent = true,
+                    Agent = mainAgent,
+                };
+                spawnPipeline.ExecuteAsync(context, default).GetAwaiter().GetResult();
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "[GoalEngine] 主代理走统一管道失败，回退到直接创建");
+            }
+        }
 
         _logger?.LogInformation("[GoalEngine] mainAgent 创建并注册到 SessionScope: {AgentId}, Goal={GoalId}", mainAgent.Id, goalId);
     }

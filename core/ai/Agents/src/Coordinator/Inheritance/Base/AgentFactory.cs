@@ -2,14 +2,15 @@
 namespace Core.Agents.Coordinator;
 
 /// <summary>
-/// Agent 工厂 — 根据 ExecutorVariant 创建合适的子类实例
-/// variant 为 null 时返回通用 Agent（兼容旧代码）
+/// Agent 工厂 — 对齐 Claude Code createSubagentContext: fork AgentBase + 过滤工具
+/// 所有子代理都是 AgentBase 实例，通过 SubAgentOptions.AllowedTools/DeniedTools 过滤工具集
+/// variant 只影响系统提示词，不影响管道
 /// </summary>
 public static class AgentFactory
 {
     /// <summary>
-    /// 根据 variant 创建 ExecutorAgent 子类实例
-    /// variant 为 null 时返回通用 Agent
+    /// 创建 AgentBase 实例 — 主代理和子代理走同一个类、同一条管道
+    /// 工具集通过 SubAgentOptions.AllowedTools/DeniedTools 过滤
     /// </summary>
     public static AgentBase Create(
         string task,
@@ -30,45 +31,9 @@ public static class AgentFactory
         ObjectId sessionId = default,
         IChatContextManager? contextManager = null)
     {
-        if (role == AgentRole.Coordinator)
-        {
-            return new CoordinatorAgent(task, options, queryEngine, logger, clock, name,
-                parentObjectId, systemPrompt, instruction, freshContext, tokenBudget,
-                goalId, graphNodeId, sessionId, contextManager);
-        }
-
-        return variant switch
-        {
-            ExecutorVariant.Code => new CodeAgent(task, options, queryEngine, logger, clock, name,
-                parentObjectId, systemPrompt, instruction, freshContext, tokenBudget,
-                goalId, graphNodeId, sessionId, contextManager),
-            ExecutorVariant.Search => new SearchAgent(task, options, queryEngine, logger, clock, name,
-                parentObjectId, systemPrompt, instruction, freshContext, tokenBudget,
-                goalId, graphNodeId, sessionId, contextManager),
-            ExecutorVariant.Explore => new ExploreAgent(task, options, queryEngine, logger, clock, name,
-                parentObjectId, systemPrompt, instruction, freshContext, tokenBudget,
-                goalId, graphNodeId, sessionId, contextManager),
-            ExecutorVariant.Plan => new PlanAgent(task, options, queryEngine, logger, clock, name,
-                parentObjectId, systemPrompt, instruction, freshContext, tokenBudget,
-                goalId, graphNodeId, sessionId, contextManager),
-            ExecutorVariant.Doctor => new DoctorAgent(task, options, queryEngine, logger, clock, name,
-                parentObjectId, systemPrompt, instruction, freshContext, tokenBudget,
-                goalId, graphNodeId, sessionId, contextManager),
-            ExecutorVariant.Verification => new VerificationAgent(task, options, queryEngine, logger, clock, name,
-                parentObjectId, systemPrompt, instruction, freshContext, tokenBudget,
-                goalId, graphNodeId, sessionId, contextManager),
-            ExecutorVariant.ClaudeCodeGuide => new GuideAgent(task, options, queryEngine, logger, clock, name,
-                parentObjectId, systemPrompt, instruction, freshContext, tokenBudget,
-                goalId, graphNodeId, sessionId, contextManager),
-            ExecutorVariant.ContextCompression => new ContextCompressionAgent(task, options, queryEngine, logger, clock, name,
-                parentObjectId, systemPrompt, instruction, freshContext, tokenBudget,
-                goalId, graphNodeId, sessionId, contextManager),
-            ExecutorVariant.Teammate => new TeammateAgent(task, options, queryEngine, logger, clock, name,
-                parentObjectId, systemPrompt, instruction, freshContext, tokenBudget,
-                goalId, graphNodeId, sessionId, contextManager),
-            _ => new CodeAgent(task, options, queryEngine, logger, clock, name,
-                parentObjectId, systemPrompt, instruction, freshContext, tokenBudget,
-                goalId, graphNodeId, sessionId, contextManager),
-        };
+        return new AgentBase(
+            task, options, queryEngine, logger, clock, name, role, variant,
+            parentObjectId, systemPrompt, instruction, freshContext, tokenBudget,
+            goalId, graphNodeId, sessionId, contextManager);
     }
 }

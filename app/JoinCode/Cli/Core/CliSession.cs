@@ -80,12 +80,17 @@ public sealed class CliSession
         _optionalServices?.CronTaskStore?.SetSessionId(_sessionId);
         _optionalServices?.DreamTaskRegistry?.SetSessionId(_sessionId);
 
+        var mainAgent = CreateMainAgent(chatService, optionalServices?.ServiceProvider);
+        var outputChannelManager = optionalServices?.ServiceProvider?.GetService<JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager>();
+        var consumerOutputChannel = mainAgent is null ? outputChannelManager : null;
+
         _controller = new SessionController(
             chatService,
-            new CliEventConsumer(),
+            new CliEventConsumer(consumerOutputChannel),
             _turnDiffService,
             _sessionId,
-            optionalServices?.ServiceProvider);
+            optionalServices?.ServiceProvider,
+            mainAgent: mainAgent);
 
         _commandServices = new CommandServices
         {
@@ -127,6 +132,51 @@ public sealed class CliSession
         };
 
         _cmdMap = new CmdMap(_commandRegistry, _toolRegistry);
+    }
+
+    /// <summary>
+    /// 创建主代理 — 通过统一 Spawn 管道创建，IsMainAgent=true
+    /// 管道各中间件对主代理 no-op（Definition/Prompt/ContextSetup/LifecycleSpawn 等），仅 RecordContext/PermissionRouting/Metadata 生效
+    /// 返回 null 表示 DI 中无 IQueryEngine，SessionController 回退到直接调用 ChatService
+    /// </summary>
+    private AgentBase? CreateMainAgent(IChatService chatService, IServiceProvider? serviceProvider)
+    {
+        if (serviceProvider is null) return null;
+        var queryEngine = serviceProvider.GetService<IQueryEngine>();
+        if (queryEngine is null) return null;
+
+        var contextManager = serviceProvider.GetService<IChatContextManager>();
+
+        var mainAgent = new AgentBase(
+            task: string.Empty,
+            options: null,
+            queryEngine: queryEngine,
+            logger: null,
+            name: "mainAgent",
+            role: AgentRole.Coordinator,
+            sessionId: _sessionObjectId,
+            contextManager: contextManager);
+
+        var spawnPipeline = serviceProvider.GetService<MiddlewarePipeline<UnifiedSpawnContext>>();
+        if (spawnPipeline is not null)
+        {
+            try
+            {
+                var context = new UnifiedSpawnContext
+                {
+                    Task = string.Empty,
+                    IsMainAgent = true,
+                    Agent = mainAgent,
+                };
+                spawnPipeline.ExecuteAsync(context, default).GetAwaiter().GetResult();
+            }
+            catch (Exception ex)
+            {
+                serviceProvider.GetService<ILogger<CliSession>>()?.LogWarning(ex, "[CliSession] 主代理走统一管道失败，回退到直接创建");
+            }
+        }
+
+        return mainAgent;
     }
 
     /// <summary>

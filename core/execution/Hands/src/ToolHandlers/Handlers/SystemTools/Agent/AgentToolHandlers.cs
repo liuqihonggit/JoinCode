@@ -479,6 +479,56 @@ public partial class AgentToolHandlers
     /// <summary>
     /// 获取代理的待处理消息
     /// </summary>
+    /// <summary>
+    /// 将用户输入转发给运行中的子代理 — 主代理 LLM 协同决策时调用
+    /// 用户在子代理运行期间追加的输入，通过 IAgentInputForwardQueue 入队，子代理每轮 LLM 调用前主动消费
+    /// </summary>
+    [McpTool(AgentToolNameConstants.ForwardUserInput, "Forward user input to a running sub-agent", AgentToolNameConstants.Agent)]
+    public async Task<ToolResult> ForwardUserInputAsync(
+        [McpToolParameter("Target sub-agent ID")] string agentId,
+        [McpToolParameter("User input to forward")] string userInput,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(agentId))
+        {
+            return ToolResultBuilder.Error()
+                .WithText("agentId 不能为空")
+                .Build();
+        }
+
+        if (string.IsNullOrWhiteSpace(userInput))
+        {
+            return ToolResultBuilder.Error()
+                .WithText("userInput 不能为空")
+                .Build();
+        }
+
+        try
+        {
+            var sent = await _agentService.ForwardUserInputToAgentAsync(agentId, userInput, cancellationToken).ConfigureAwait(false);
+
+            if (!sent)
+            {
+                ToolTelemetryHelper.RecordToolCount(_telemetryService, "agent.handler.count", "forward_user_input", false);
+                return ToolResultBuilder.Error()
+                    .WithText($"转发失败：子代理 {agentId} 不存在或转发队列未注册")
+                    .Build();
+            }
+
+            ToolTelemetryHelper.RecordToolCount(_telemetryService, "agent.handler.count", "forward_user_input", true);
+            return ToolResultBuilder.Success()
+                .WithText($"用户输入已转发给子代理 {agentId}")
+                .Build();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "ForwardUserInput failed for agent {AgentId}", agentId);
+            return ToolResultBuilder.Error()
+                .WithText($"转发异常: {ex.Message}")
+                .Build();
+        }
+    }
+
     [McpTool(AgentToolNameConstants.AgentGetMessages, "Get pending messages for an agent", AgentToolNameConstants.Agent, ConcurrencySafe = true)]
     public async Task<ToolResult> GetMessagesAsync(
         [McpToolParameter("Agent ID")] string agent_id,

@@ -6,6 +6,7 @@ global using System.Text;
 global using System.Text.RegularExpressions;
 
 global using JoinCode.Abstractions.Interfaces;
+global using JoinCode.Abstractions.Models.Agent;
 global using JoinCode.Abstractions.Models.Diff;
 global using JoinCode.Abstractions.Security;
 global using JoinCode.Abstractions.Security.Shell;
@@ -26,7 +27,10 @@ global using JoinCode.Abstractions.Localization;
 global using JoinCode.Abstractions.Hooks;
 
 global using Core.Configuration;
+global using Core.Context;
 global using Core.Context.Modality;
+global using Core.Agents.Coordinator;
+global using JoinCode.Abstractions.LLM.Execution;
 global using Core.Hooks.Configuration;
 global using Core.Hooks.Events;
 global using Core.Memdir;

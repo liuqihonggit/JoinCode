@@ -6,7 +6,7 @@ namespace JoinCode.Tui;
 /// </summary>
 internal static class Program
 {
-    private static async Task<int> Main(string[] args)
+    private static int Main(string[] args)
     {
         var awaitSeconds = ParseAwaitSeconds(args);
         using var awaitCts = new CancellationTokenSource();
@@ -16,18 +16,18 @@ internal static class Program
         try
         {
             WriteDiag("[Main] CreateGuiSessionAsync start");
-            var result = await EngineSessionFactory.CreateGuiSessionAsync(cancellationToken: awaitCts.Token).ConfigureAwait(false);
+            var result = EngineSessionFactory.CreateGuiSessionAsync(cancellationToken: awaitCts.Token).GetAwaiter().GetResult();
             WriteDiag("[Main] session created, starting TuiModeRunner");
             try
             {
-                await TuiModeRunner.RunAsync(result.Config, result.Services, awaitCts.Token).ConfigureAwait(false);
+                TuiModeRunner.RunAsync(result.Config, result.Services, awaitCts.Token).GetAwaiter().GetResult();
                 WriteDiag("[Main] TuiModeRunner returned normally");
             }
             finally
             {
                 try
                 {
-                    if (result.Host is IAsyncDisposable ad) await ad.DisposeAsync().ConfigureAwait(false);
+                    if (result.Host is IAsyncDisposable ad) ad.DisposeAsync().GetAwaiter().GetResult();
                     else result.Host.Dispose();
                 }
                 catch (Exception disposeEx) { WriteDiag($"[Main] Host dispose failed (ignored): {disposeEx.Message}"); }

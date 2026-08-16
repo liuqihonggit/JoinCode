@@ -34,6 +34,7 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
         var isProcessing = 0;
 
         var inputChannel = System.Threading.Channels.Channel.CreateUnbounded<string>();
+        var commandQueue = new CommandQueue();
 
         var readTask = Task.Run(async () =>
         {
@@ -132,7 +133,8 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
                                 using (Cli.TerminalHelper.SetColor(ConsoleColor.Yellow))
                                     Cli.TerminalHelper.WriteLine($"多个子代理运行中，输入已缓存，请用 @agentName 指定目标。运行中: [{list}]");
                                 // 输入入队缓存，等主代理空闲后处理（不丢弃）
-                                inputChannel.Writer.TryWrite(input);
+                                commandQueue.Enqueue(new QueuedCommand(input, CommandOrigin.User, QueuePriority.Next));
+                                inputChannel.Writer.TryWrite(string.Empty);
                                 continue;
                             }
                         }
@@ -149,7 +151,8 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
                     }
 
                     Diag.WriteLine("[DIAG-REPL] TryWrite to channel");
-                    if (!inputChannel.Writer.TryWrite(input)) return;
+                    commandQueue.Enqueue(new QueuedCommand(input, CommandOrigin.User, QueuePriority.Next));
+                    if (!inputChannel.Writer.TryWrite(string.Empty)) return;
                     Diag.WriteLine("[DIAG-REPL] TryWrite succeeded");
                 }
             }
@@ -265,7 +268,10 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
             try
             {
                 Diag.WriteLine("[DIAG-REPL] waiting for input...");
-                combined = await inputChannel.Reader.ReadAsync(ct).ConfigureAwait(false);
+                await inputChannel.Reader.ReadAsync(ct).ConfigureAwait(false);
+                var cmd = commandQueue.Dequeue();
+                if (cmd is null) continue;
+                combined = cmd.Content;
                 Diag.WriteLine($"[DIAG-REPL] received input: '{(combined.Length > 80 ? combined[..80] + "..." : combined)}'");
             }
             catch (System.Threading.Channels.ChannelClosedException) { break; }
@@ -273,8 +279,8 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
             if (string.IsNullOrWhiteSpace(combined))
                 continue;
 
-            while (inputChannel.Reader.TryRead(out var more))
-                combined = string.Concat(combined, "\n", more);
+            while (commandQueue.TryDequeue(out var more))
+                combined = string.Concat(combined, "\n", more.Content);
 
             Diag.WriteLine("[DIAG-REPL] dispatching to mainProcessingChannel");
             if (!mainProcessingChannel.Writer.TryWrite(combined)) break;

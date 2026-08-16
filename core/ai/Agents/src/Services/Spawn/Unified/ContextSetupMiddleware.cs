@@ -8,13 +8,17 @@ namespace Core.Agents;
 public sealed partial class ContextSetupMiddleware : ServiceEntity, IUnifiedSpawnMiddleware
 {
 
-    public ContextSetupMiddleware(ISubAgentContextAccessor subAgentContextAccessor, IFileStateCache? fileStateCache = null)
+    public ContextSetupMiddleware(ISubAgentContextAccessor subAgentContextAccessor, IFileStateCache? fileStateCache = null, ISkillService? skillService = null, ILogger<ContextSetupMiddleware>? logger = null)
     {
         _subAgentContextAccessor = subAgentContextAccessor;
         _fileStateCache = fileStateCache;
+        _skillService = skillService;
+        _logger = logger;
     }
     [Inject] private readonly IFileStateCache? _fileStateCache;
     [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
+    [Inject] private readonly ISkillService? _skillService;
+    [Inject] private readonly ILogger<ContextSetupMiddleware>? _logger;
 
     public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
@@ -28,6 +32,13 @@ public sealed partial class ContextSetupMiddleware : ServiceEntity, IUnifiedSpaw
 
         var cacheSafeParams = BuildFilteredCacheSafeParams(context.Definition);
         context.CacheSafeParams = cacheSafeParams;
+
+        var skills = context.Definition?.Skills;
+        MessageList? initialMessageList = null;
+        if (skills is not null && skills.Count > 0 && _skillService is not null)
+        {
+            initialMessageList = await BuildSkillPreloadMessageListAsync(skills, ct).ConfigureAwait(false);
+        }
 
         var subOptions = new SubAgentOptions
         {
@@ -45,6 +56,7 @@ public sealed partial class ContextSetupMiddleware : ServiceEntity, IUnifiedSpaw
             PreloadSkills = context.Definition?.Skills,
             PermissionMode = context.Definition?.PermissionMode,
             InitialPrompt = context.Definition?.InitialPrompt,
+            InitialMessageList = initialMessageList,
             WorktreePath = context.SpawnOptions.Cwd ?? _subAgentContextAccessor.Current?.WorktreePath,
             SubagentName = context.SpawnOptions.Name ?? context.Definition?.DisplayId,
             IsBuiltIn = !string.IsNullOrEmpty(context.Definition?.SourcePath),
@@ -61,6 +73,39 @@ public sealed partial class ContextSetupMiddleware : ServiceEntity, IUnifiedSpaw
         context.ResolvedSubOptions = subOptions;
 
         await next(context, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 构建 skill 预加载消息列表 — 对齐 claude code skills 字段: spawn 时预加载 skill 内容到 initialMessages
+    /// </summary>
+    private async Task<MessageList> BuildSkillPreloadMessageListAsync(List<string> skills, CancellationToken ct)
+    {
+        var messageList = new MessageList();
+        foreach (var skillName in skills)
+        {
+            if (string.IsNullOrWhiteSpace(skillName) || _skillService is null)
+                continue;
+
+            try
+            {
+                var skill = await _skillService.GetSkillAsync(skillName, ct).ConfigureAwait(false);
+                if (skill is null)
+                    continue;
+
+                var content = skill.Steps is not null && skill.Steps.Count > 0
+                    ? skill.Steps[0].Prompt
+                    : skill.ContentTemplate;
+                if (!string.IsNullOrWhiteSpace(content))
+                {
+                    messageList.AddUserMessage($"[Skill: {skillName}]\n{content}");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "[ContextSetupMiddleware] 预加载 skill {SkillName} 失败", skillName);
+            }
+        }
+        return messageList;
     }
 
     private CacheSafeParams? BuildFilteredCacheSafeParams(

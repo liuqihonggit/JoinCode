@@ -146,3 +146,4 @@ global using Tools.Shell;
 global using SkillContext = Core.Skills.SkillContext;
 global using JoinCode.Pipelines;
 global using JoinCode.Pipelines.Middlewares;
+global using JoinCode.Queue;

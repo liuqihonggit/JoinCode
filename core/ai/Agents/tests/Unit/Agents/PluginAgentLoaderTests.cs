@@ -6,13 +6,29 @@ using JoinCode.Abstractions.Prompts.ToolPrompts;
 
 public sealed class PluginAgentLoaderTests
 {
-    private static AgentDefinition CreateDef(string role = "executor:code") => new()
+    private static AgentDefinition CreateDef(string displayId = "executor:code")
     {
-        Role = AgentRole.Executor,
-        Variant = ExecutorVariant.Code,
-        WhenToUse = "test",
-        SystemPrompt = "test prompt",
-    };
+        var parts = displayId.Split(':');
+        var role = parts[0] switch
+        {
+            "coordinator" => AgentRole.Coordinator,
+            "executor" => AgentRole.Executor,
+            _ => AgentRole.Executor,
+        };
+        var variant = parts.Length > 1 ? parts[1] switch
+        {
+            "code" => (ExecutorVariant?)ExecutorVariant.Code,
+            "doctor" => (ExecutorVariant?)ExecutorVariant.Doctor,
+            _ => (ExecutorVariant?)null,
+        } : null;
+        return new AgentDefinition
+        {
+            Role = role,
+            Variant = variant,
+            WhenToUse = "test",
+            SystemPrompt = "test prompt",
+        };
+    }
 
     private sealed class SimpleProvider : IPluginAgentProvider
     {
@@ -104,5 +120,109 @@ public sealed class PluginAgentLoaderTests
         undoA();
         loader.GetAll().Should().HaveCount(1);
         loader.Find("executor:code")!.SystemPrompt.Should().Be("B");
+    }
+
+    [Fact]
+    public void UnloadWithCascade_ConsumerDependingOnProvider_IsUnloadedFirst()
+    {
+        var loader = new PluginAgentLoader();
+
+        var providerDef = CreateDef("executor:code");
+        var consumerDef = CreateDef("executor:doctor");
+        consumerDef.Skills = ["executor:code"];
+
+        var undoProvider = loader.LoadFromPlugin("pluginA", new SimpleProvider([providerDef]));
+        loader.LoadFromPlugin("pluginB", new SimpleProvider([consumerDef]));
+
+        loader.GetAll().Should().HaveCount(2);
+
+        undoProvider();
+
+        loader.GetAll().Should().BeEmpty();
+        loader.Find("executor:code").Should().BeNull();
+        loader.Find("executor:doctor").Should().BeNull();
+    }
+
+    [Fact]
+    public void UnloadWithCascade_IndependentPlugin_NotAffected()
+    {
+        var loader = new PluginAgentLoader();
+
+        var providerDef = CreateDef("executor:code");
+        var independentDef = CreateDef("executor:doctor");
+
+        var undoProvider = loader.LoadFromPlugin("pluginA", new SimpleProvider([providerDef]));
+        loader.LoadFromPlugin("pluginB", new SimpleProvider([independentDef]));
+
+        loader.GetAll().Should().HaveCount(2);
+
+        undoProvider();
+
+        loader.GetAll().Should().HaveCount(1);
+        loader.Find("executor:code").Should().BeNull();
+        loader.Find("executor:doctor").Should().NotBeNull();
+    }
+
+    [Fact]
+    public void UnloadWithCascade_ToolsDependency_ConsumerUnloadedFirst()
+    {
+        var loader = new PluginAgentLoader();
+
+        var providerDef = CreateDef("executor:code");
+        var consumerDef = CreateDef("executor:doctor");
+        consumerDef.Tools = ["executor:code"];
+
+        var undoProvider = loader.LoadFromPlugin("pluginA", new SimpleProvider([providerDef]));
+        loader.LoadFromPlugin("pluginB", new SimpleProvider([consumerDef]));
+
+        loader.GetAll().Should().HaveCount(2);
+
+        undoProvider();
+
+        loader.GetAll().Should().BeEmpty();
+    }
+
+    [Fact]
+    public void UnloadWithCascade_ChainDependency_AllUnloadedInReverseOrder()
+    {
+        var loader = new PluginAgentLoader();
+
+        var defA = CreateDef("executor:code");
+        var defB = CreateDef("executor:doctor");
+        defB.Skills = ["executor:code"];
+        var defC = CreateDef("coordinator");
+        defC.Skills = ["executor:doctor"];
+
+        var undoA = loader.LoadFromPlugin("pluginA", new SimpleProvider([defA]));
+        loader.LoadFromPlugin("pluginB", new SimpleProvider([defB]));
+        loader.LoadFromPlugin("pluginC", new SimpleProvider([defC]));
+
+        loader.GetAll().Should().HaveCount(3);
+
+        undoA();
+
+        loader.GetAll().Should().BeEmpty();
+        loader.Find("executor:code").Should().BeNull();
+        loader.Find("executor:doctor").Should().BeNull();
+        loader.Find("coordinator").Should().BeNull();
+    }
+
+    [Fact]
+    public void UnloadWithCascade_ChangedEventFiresOnce()
+    {
+        var loader = new PluginAgentLoader();
+        var eventCount = 0;
+        loader.Changed += (_, _) => eventCount++;
+
+        var providerDef = CreateDef("executor:code");
+        var consumerDef = CreateDef("executor:doctor");
+        consumerDef.Skills = ["executor:code"];
+
+        var undoProvider = loader.LoadFromPlugin("pluginA", new SimpleProvider([providerDef]));
+        loader.LoadFromPlugin("pluginB", new SimpleProvider([consumerDef]));
+        eventCount.Should().Be(2);
+
+        undoProvider();
+        eventCount.Should().Be(3);
     }
 }

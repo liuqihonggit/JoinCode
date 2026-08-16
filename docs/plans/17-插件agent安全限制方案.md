@@ -247,55 +247,120 @@ public sealed class DreamPlugin : IWorkflowPlugin, IPluginAgentProvider
 > **参考**: Cordis 框架 — 支持"时空可组合性"的插件系统
 > **核心**: 可逆效应（Revertible Effects）+ 响应式协效应（Reactive Coeffects）
 
-### 7.1 可逆效应 — 插件卸载时自动移除 agent 定义
+### 7.1 可逆效应 — 撤销链 + 逆序执行
 
-Cordis 的核心思想：**每个修改上下文的操作必须附带逆操作**，插件卸载时自动执行逆操作恢复状态。
+Cordis 的核心思想：**每个修改上下文的操作必须附带逆操作**，框架自动收集形成**撤销链**，卸载时按**注册逆序**执行。
 
-融入我们的方案：`PluginAgentLoader` 不只负责加载，还要负责**卸载** — 插件卸载时自动从 `Map<name, AgentDefinition>` 中移除该插件贡献的 agent。
+**我之前的设计缺陷**：`PluginManager` 手动存储单个撤销函数，没有全局撤销链，没有逆序执行。
+
+**修正设计**：`PluginAgentLoader` 自身维护撤销链，框架自动管理逆序执行：
 
 ```csharp
 public sealed class PluginAgentLoader : IPluginAgentLoader
 {
-    // Map<agentName, (AgentDefinition, pluginName)> — 追踪每个 agent 来自哪个插件
-    private FrozenDictionary<string, (AgentDefinition Def, string PluginName)> _pluginAgents = ...;
+    // Map<agentName, (AgentDefinition, pluginName)>
+    private FrozenDictionary<string, (AgentDefinition, string)> _pluginAgents = ...;
+
+    // 撤销链 — 按注册顺序记录，卸载时按逆序执行（Cordis Effect 系统）
+    private readonly List<(string PluginName, List<string> AgentKeys)> _loadOrder = new();
 
     /// <summary>加载插件 agent — 返回撤销函数（可逆效应）</summary>
     public Action LoadFromPlugin(string pluginName, IPluginAgentProvider provider)
     {
         var addedKeys = new List<string>();
-        var map = new Dictionary<string, (AgentDefinition, string)>(_pluginAgents);
-        foreach (var def in provider.GetAgentDefinitions())
-        {
-            PluginAgentValidator.Validate(def);
-            map[def.DisplayId] = (def, pluginName);
-            addedKeys.Add(def.DisplayId);
-        }
-        _pluginAgents = map.ToFrozenDictionary();
-        NotifyChanged();  // 响应式协效应：通知 AgentDefinitionProvider 缓存失效
+        // ... 校验 + 添加到 Map ...
+        _loadOrder.Add((pluginName, addedKeys));
+        NotifyChanged();
 
-        // 返回逆操作 — 插件卸载时调用
-        return () =>
+        // 返回逆操作 — 执行时触发连带卸载
+        return () => UnloadWithCascade(pluginName);
+    }
+
+    /// <summary>
+    /// 连带卸载 — 对齐 Cordis Theorem 63 (Ordering):
+    /// 先卸载所有依赖此插件 agent 的消费者，最后卸载提供者本身
+    /// </summary>
+    private void UnloadWithCascade(string pluginName)
+    {
+        // 1. 找到此插件贡献的 agent 名集合
+        var providerAgents = _loadOrder
+            .Where(x => x.PluginName == pluginName)
+            .SelectMany(x => x.AgentKeys)
+            .ToHashSet();
+
+        // 2. 连带检查：找到所有引用了这些 agent 的其他插件（消费者）
+        //    按注册逆序遍历（后加载的先卸载 — Cordis 逆序执行）
+        for (int i = _loadOrder.Count - 1; i >= 0; i--)
         {
-            var unloadMap = new Dictionary<string, (AgentDefinition, string)>(_pluginAgents);
-            foreach (var key in addedKeys)
-                unloadMap.Remove(key);
-            _pluginAgents = unloadMap.ToFrozenDictionary();
-            NotifyChanged();
-        };
+            var entry = _loadOrder[i];
+            if (entry.PluginName == pluginName) continue;
+
+            // 检查此插件的 agent 是否依赖被卸载的 agent
+            if (PluginDependsOnAgents(entry.PluginName, providerAgents))
+            {
+                RemovePluginAgents(entry);
+                _loadOrder.RemoveAt(i);
+            }
+        }
+
+        // 3. 最后卸载提供者本身（Theorem 63: 提供者最后卸载）
+        var selfEntries = _loadOrder.Where(x => x.PluginName == pluginName).ToList();
+        foreach (var entry in selfEntries)
+            RemovePluginAgents(entry);
+        _loadOrder.RemoveAll(x => x.PluginName == pluginName);
+
+        NotifyChanged();
     }
 }
 ```
 
-**关键点**：
-- `LoadFromPlugin` 返回 `Action`（撤销函数），而非 void — 这是 Cordis 的"可逆效应"模式
-- 撤销函数由 `PluginManager` 在卸载插件时调用，自动移除该插件贡献的 agent
-- 不需要"清空所有再重新加载" — 精确移除受影响的条目
+**关键改进**：
+- **撤销链**：`_.LoadOrder` 按注册顺序记录，卸载时按**逆序**遍历（Cordis Effect 系统）
+- **连带卸载**：卸载插件A时，先检查哪些其他插件的agent引用了A的agent，先连带卸载消费者
+- **Theorem 63**：提供者最后卸载，确保依赖方先清理
+- **框架自动管理**：撤销链由 `PluginAgentLoader` 维护，`PluginManager` 只调 `LoadFromPlugin` 和执行返回的撤销函数
 
-### 7.2 响应式协效应 — 依赖变化时主动通知
+### 7.2 连带依赖检查 — Reactive Coeffects
 
-Cordis 的"响应式协效应"：当依赖的服务出现/消失/变化时，框架主动通知消费方。
+Cordis 的"响应式协效应"：卸载服务提供者时，框架主动查找所有依赖此服务的消费者，先连带卸载。
 
-融入我们的方案：`PluginAgentLoader` 维护一个 `event EventHandler Changed`，当插件 agent 加载/卸载时触发。`AgentDefinitionProvider` 订阅此事件，自动失效缓存。
+**agent 之间的依赖关系**（隐式依赖分析）：
+
+```csharp
+/// <summary>
+/// 检查插件B的 agent 是否依赖被卸载的 agent 集合
+/// 依赖关系分析:
+/// 1. B的agent的Tools列表包含"Agent"工具 + AllowedAgentTypes引用了被卸载的agent名
+/// 2. B的agent的Skills列表引用了被卸载的agent名（skill可能包装agent）
+/// </summary>
+private bool PluginDependsOnAgents(string consumerPlugin, HashSet<string> providerAgentNames)
+{
+    var consumerAgents = _pluginAgents
+        .Where(kv => kv.Value.Item2 == consumerPlugin)
+        .Select(kv => kv.Value.Item1)
+        .ToList();
+
+    foreach (var agent in consumerAgents)
+    {
+        // 检查1: Tools 包含 Agent 工具 + 引用了被卸载的 agent
+        if (agent.Tools is not null && agent.Tools.Contains(AgentToolNameConstants.Agent))
+        {
+            // 如果agent没有限制 AllowedAgentTypes，则依赖所有agent（包括被卸载的）
+            // 如果有限制，检查是否包含被卸载的agent名
+            var allowedTypes = AgentTypeSpecParser.Parse(agent.SubagentType).AllowedTypes;
+            if (allowedTypes is null || allowedTypes.Any(providerAgentNames.Contains))
+                return true;
+        }
+
+        // 检查2: Skills 引用了被卸载的agent名
+        if (agent.Skills is not null && agent.Skills.Any(providerAgentNames.Contains))
+            return true;
+    }
+    return false;
+}
+```
+
+### 7.3 响应式协效应 — Changed 事件通知
 
 ```csharp
 public sealed class PluginAgentLoader : IPluginAgentLoader
@@ -314,7 +379,7 @@ _pluginAgentLoader.Changed += (_, _) => ClearCache();
 - `AgentDefinitionProvider` 不需要主动轮询插件状态 — 被动接收通知
 - 缓存失效是自动的，不会出现"插件已卸载但缓存还引用旧 agent"的陈旧数据
 
-### 7.3 效应分类 — 安全限制的本质
+### 7.4 效应分类 — 安全限制的本质
 
 Cordis 将操作分类为不同"效应"。我们可以把安全限制理解为**效应分类**：
 
@@ -325,7 +390,7 @@ Cordis 将操作分类为不同"效应"。我们可以把安全限制理解为**
 
 `PluginAgentValidator` 本质上是一个**效应分类器** — 检查插件 agent 是否只产生安全效应，不产生特权效应。
 
-### 7.4 作用域隔离 — 插件 agent 的可见性
+### 7.5 作用域隔离 — 插件 agent 的可见性
 
 Cordis 的"作用域隔离"：子 Fiber 能看父 Fiber 注册的服务，反之不行。
 
@@ -340,7 +405,7 @@ Cordis 的"作用域隔离"：子 Fiber 能看父 Fiber 注册的服务，反之
 
 插件卸载时，其贡献的 agent 变为不可见 — 这就是 Cordis 的"时间可组合性"：卸载不需要重启，agent 定义自动消失。
 
-### 7.5 声明式依赖 — 插件不猜测环境
+### 7.6 声明式依赖 — 插件不猜测环境
 
 Cordis 要求插件声明 `inject` 依赖，不猜测环境。我们的 `IPluginAgentProvider` 已经遵循这个原则：
 

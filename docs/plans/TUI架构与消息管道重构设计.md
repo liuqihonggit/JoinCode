@@ -498,12 +498,25 @@ dotnet publish tools/TerminalGuiAotProbe -c Release
 ## 7. 前置任务清单
 
 - [ ] **阶段 0**：Terminal.Gui AOT 卫星项目验证（阻塞后续所有 TUI 工作）
-- [ ] 阶段 1：TUI 渲染层骨架
-- [ ] 阶段 2：优先级队列 + 投递中组件
-- [ ] 阶段 3：邮箱收敛
-- [ ] 阶段 4：TUI 模式接入主流程
-- [ ] 阶段 5：工具过滤简化 + 清理
-- [ ] 阶段 6：TUI 设为默认（可选）
+- [x] **阶段 2 部分**：Bug1 修复（多子代理输入丢弃）+ Bug2 修复（ConfirmationGate 静态串扰）+ CommandQueue 实现（10 单元测试通过）
+- [ ] 阶段 1：TUI 渲染层骨架（依赖阶段 0 AOT 验证，用户暂跳过）
+- [ ] 阶段 2 剩余：QueuedCommandsView（依赖 TUI 层）+ CommandQueue 接入 ReplLoopStep（留到阶段 4）
+- [ ] 阶段 3：邮箱收敛（调研完成，"循环"是跨进程桥接有意设计，需谨慎重构）
+- [x] **阶段 5 部分**：死注释清理（IPresentationAdapter/SessionController/CliSession）+ TuiSymbols 死代码移除
+- [ ] 阶段 4：TUI 模式接入主流程（依赖阶段 1）
+- [ ] 阶段 6：TUI 设为默认（可选，依赖阶段 4）
+
+### 阶段 3 调研结论（2026-08-16）
+
+当前 `AgentMessageBroker`→`TeammateMailboxService`→`MailboxPoller`→`AgentMessageBroker` "循环"是**跨进程桥接的有意设计**：
+- 同进程 subagent：Broker.Channel 直传（mailboxService 为 null 时不写文件）
+- 跨进程 teammate：Broker 写文件邮箱 → Poller 轮询读回 → 注入 Broker.Channel（桥接）
+
+**问题不是循环本身**，而是：
+1. `Broker.SendMessageAsync` 对所有消息都调 `PersistToMailboxAsync`（同进程消息也写文件，多余）
+2. 3 套机制并存认知负担重（Broker + MailboxService + Poller + InputForwardQueue + OutputChannelManager）
+
+**重构方向**：分离职责而非消除桥接。`InProcessMailbox`（纯 Channel）+ `FileMailbox`（纯文件）+ `MailboxHub`（统一入口按 MailboxKind 路由）。改动涉及 core/ai/Agents 核心，需渐进式。
 
 ---
 

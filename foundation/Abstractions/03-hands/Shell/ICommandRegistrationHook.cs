@@ -4,6 +4,7 @@ namespace JoinCode.Abstractions.Interfaces;
 
 /// <summary>
 /// 命令注册钩子接口 - 允许插件通过钩子系统注册命令
+/// <para>对齐 Cordis 可逆效应: RegisterCommands + UnregisterCommands 成对出现</para>
 /// </summary>
 public interface ICommandRegistrationHook
 {
@@ -11,6 +12,11 @@ public interface ICommandRegistrationHook
     /// 注册命令到命令注册中心
     /// </summary>
     void RegisterCommands(ICommandRegistry registry, IServiceProvider serviceProvider);
+
+    /// <summary>
+    /// 撤销命令注册 — 可逆效应,卸载时由 WorkflowPluginHost 自动调用
+    /// </summary>
+    void UnregisterCommands(ICommandRegistry registry);
 }
 
 /// <summary>

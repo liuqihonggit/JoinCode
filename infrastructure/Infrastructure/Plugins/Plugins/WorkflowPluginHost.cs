@@ -10,6 +10,7 @@ public sealed class WorkflowPluginHost : IDisposable
     private ServiceProvider? _pluginServiceProvider;
     private readonly IWorkflowPlugin _plugin;
     private readonly ILogger? _logger;
+    private readonly ICommandRegistry? _sharedCommandRegistry;
     private bool _isDisposed;
 
     public string PluginName => _plugin.Name;
@@ -26,6 +27,7 @@ public sealed class WorkflowPluginHost : IDisposable
     {
         _plugin = plugin;
         _logger = logger;
+        _sharedCommandRegistry = commandRegistry;
 
         _pluginServices = new ServiceCollection();
 
@@ -117,7 +119,7 @@ public sealed class WorkflowPluginHost : IDisposable
     }
 
     /// <summary>
-    /// 卸载插件
+    /// 卸载插件 — 撤销命令注册(可逆效应) + 释放插件容器
     /// </summary>
     public PluginUnloadResult Unload()
     {
@@ -126,6 +128,12 @@ public sealed class WorkflowPluginHost : IDisposable
         try
         {
             _logger?.LogInformation("正在卸载工作流插件: {PluginName}", _plugin.Name);
+
+            if (_plugin is ICommandRegistrationHook hook && _sharedCommandRegistry is not null)
+            {
+                try { hook.UnregisterCommands(_sharedCommandRegistry); }
+                catch (Exception ex) { _logger?.LogWarning(ex, "插件 {PluginName} 命令撤销失败", _plugin.Name); }
+            }
 
             var result = _plugin.Unload();
 

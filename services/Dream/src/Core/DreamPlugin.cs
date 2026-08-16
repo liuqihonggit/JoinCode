@@ -41,11 +41,23 @@ public sealed partial class DreamPlugin : ServiceEntity, IWorkflowPlugin, IComma
     public void RegisterCommands(ICommandRegistry registry, IServiceProvider serviceProvider)
     {
         var dreamFeature = serviceProvider.GetRequiredService<IDreamFeature>();
-        registry.Register(new DreamCommand(dreamFeature));
-        _registeredCommandNames.Add(nameof(DreamCommand));
+        var dreamCmd = new DreamCommand(dreamFeature);
+        registry.Register(dreamCmd);
+        _registeredCommandNames.Add(dreamCmd.Name);
 
-        registry.Register(new DreamTasksCommand(dreamFeature));
-        _registeredCommandNames.Add(nameof(DreamTasksCommand));
+        var dreamTasksCmd = new DreamTasksCommand(dreamFeature);
+        registry.Register(dreamTasksCmd);
+        _registeredCommandNames.Add(dreamTasksCmd.Name);
+    }
+
+    /// <summary>撤销命令注册 — 可逆效应,使用 _registeredCommandNames 精确撤销</summary>
+    public void UnregisterCommands(ICommandRegistry registry)
+    {
+        foreach (var commandName in _registeredCommandNames)
+        {
+            registry.UnregisterCommand(commandName);
+        }
+        _registeredCommandNames.Clear();
     }
 
     protected override void OnDispose()

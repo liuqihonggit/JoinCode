@@ -261,6 +261,8 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
             return result;
         }
 
+        await CascadeUnloadDependentsAsync(pluginName, cancellationToken).ConfigureAwait(false);
+
         if (_workflowPlugins.TryRemove(pluginName, out var workflowHost))
         {
             ExecutePluginUndoChain(pluginName);
@@ -346,6 +348,44 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
         }
 
         RemoveFromLoadOrder(pluginName);
+    }
+
+    /// <summary>
+    /// 连带卸载依赖方 — 对齐 Cordis Theorem 63:
+    /// 卸载插件 A 时,先找到所有声明依赖 A 的插件 B,递归卸载 B,最后卸载 A
+    /// </summary>
+    private async Task CascadeUnloadDependentsAsync(string pluginName, CancellationToken cancellationToken)
+    {
+        var dependents = FindDependentPlugins(pluginName);
+        foreach (var dependent in dependents)
+        {
+            if (_workflowPlugins.ContainsKey(dependent))
+            {
+                _logger?.LogInformation("连带卸载依赖插件: {Dependent} (依赖 {Plugin})", dependent, pluginName);
+                await UnloadPluginAsync(dependent, cancellationToken).ConfigureAwait(false);
+            }
+        }
+    }
+
+    /// <summary>找到所有声明依赖指定插件的插件名</summary>
+    private List<string> FindDependentPlugins(string pluginName)
+    {
+        var dependents = new List<string>();
+        foreach (var kv in _workflowPlugins)
+        {
+            if (kv.Value.Plugin is IPluginDependencies deps)
+            {
+                foreach (var dep in deps.Dependencies)
+                {
+                    if (string.Equals(dep, pluginName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        dependents.Add(kv.Key);
+                        break;
+                    }
+                }
+            }
+        }
+        return dependents;
     }
 
     private PluginUnloadResult UnloadWorkflowPlugin(WorkflowPluginHost host)

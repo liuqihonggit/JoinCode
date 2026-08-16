@@ -19,7 +19,13 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
     private IPluginHookInjector? _hookInjector;
     private IPluginCommandRegistry? _pluginCommandRegistry;
     private IPluginAgentLoader? _pluginAgentLoader;
-    private readonly ConcurrentDictionary<string, Action> _pluginAgentUndoFunctions = new();
+
+    /// <summary>每个插件的撤销链 — 按注册顺序记录,卸载时按逆序执行(Cordis Effect 系统)</summary>
+    private readonly ConcurrentDictionary<string, List<Action>> _pluginUndoChain = new();
+
+    /// <summary>插件加载顺序 — 用于 UnloadAllPluginsAsync 按注册逆序卸载</summary>
+    private readonly List<string> _loadOrder = new();
+    private readonly object _loadOrderLock = new();
 
     public event EventHandler<string>? PluginLoaded;
     public event EventHandler<string>? PluginUnloading;
@@ -103,13 +109,18 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
                 throw new InvalidOperationException($"[INF034] 插件 '{pluginName}' 已经加载");
             }
 
+            var undoChain = new List<Action>();
+
             PluginLoaded?.Invoke(this, pluginName);
 
             if (plugin is IPluginAgentProvider agentProvider && PluginAgentLoader is not null)
             {
                 var undo = PluginAgentLoader.LoadFromPlugin(pluginName, agentProvider);
-                _pluginAgentUndoFunctions.TryAdd(pluginName, undo);
+                undoChain.Add(undo);
             }
+
+            _pluginUndoChain[pluginName] = undoChain;
+            AddToLoadOrder(pluginName);
 
             _logger?.LogInformation("内置工作流插件加载成功: {PluginName}", pluginName);
             RecordPluginMetrics("workflow", "load", true);
@@ -252,7 +263,7 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
 
         if (_workflowPlugins.TryRemove(pluginName, out var workflowHost))
         {
-            ExecutePluginAgentUndo(pluginName);
+            ExecutePluginUndoChain(pluginName);
             await CleanupPluginServicesAsync(pluginName, cancellationToken).ConfigureAwait(false);
             var result = UnloadWorkflowPlugin(workflowHost);
             RecordPluginMetrics("workflow", "unload", result.IsSuccess);
@@ -278,11 +289,14 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
             }
         }
 
-        var workflowPluginNames = _workflowPlugins.Keys.ToList();
+        List<string> workflowPluginNames = GetLoadOrderReversed();
+
         foreach (var pluginName in workflowPluginNames)
         {
             if (_workflowPlugins.TryRemove(pluginName, out var host))
             {
+                ExecutePluginUndoChain(pluginName);
+                await CleanupPluginServicesAsync(pluginName, cancellationToken).ConfigureAwait(false);
                 results.Add(UnloadWorkflowPlugin(host));
             }
         }
@@ -290,14 +304,48 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
         return results;
     }
 
-    /// <summary>执行插件 agent 撤销函数 — 可逆效应: 插件卸载时自动移除其贡献的 agent 定义</summary>
-    private void ExecutePluginAgentUndo(string pluginName)
+    /// <summary>记录插件加载顺序</summary>
+    private void AddToLoadOrder(string pluginName)
     {
-        if (_pluginAgentUndoFunctions.TryRemove(pluginName, out var undo))
+        lock (_loadOrderLock)
         {
-            try { undo(); }
-            catch (Exception ex) { _logger?.LogWarning(ex, "插件 agent 撤销失败: {PluginName}", pluginName); }
+            _loadOrder.Add(pluginName);
         }
+    }
+
+    /// <summary>从加载顺序中移除插件</summary>
+    private void RemoveFromLoadOrder(string pluginName)
+    {
+        lock (_loadOrderLock)
+        {
+            _loadOrder.Remove(pluginName);
+        }
+    }
+
+    /// <summary>获取加载顺序的逆序副本 — 用于按注册逆序卸载(Cordis)</summary>
+    private List<string> GetLoadOrderReversed()
+    {
+        lock (_loadOrderLock)
+        {
+            var list = _loadOrder.ToList();
+            list.Reverse();
+            return list;
+        }
+    }
+
+    /// <summary>执行插件撤销链 — 按逆序执行所有撤销函数(Cordis Effect 系统)</summary>
+    private void ExecutePluginUndoChain(string pluginName)
+    {
+        if (_pluginUndoChain.TryRemove(pluginName, out var undoChain))
+        {
+            for (int i = undoChain.Count - 1; i >= 0; i--)
+            {
+                try { undoChain[i](); }
+                catch (Exception ex) { _logger?.LogWarning(ex, "插件 {PluginName} 撤销链第 {Index} 项执行失败", pluginName, i); }
+            }
+        }
+
+        RemoveFromLoadOrder(pluginName);
     }
 
     private PluginUnloadResult UnloadWorkflowPlugin(WorkflowPluginHost host)
@@ -390,13 +438,15 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
 
         _externalPlugins.Clear();
 
-        var workflowPluginNames = _workflowPlugins.Keys.ToList();
+        var workflowPluginNames = GetLoadOrderReversed();
+
         foreach (var pluginName in workflowPluginNames)
         {
             if (_workflowPlugins.TryRemove(pluginName, out var host))
             {
                 try
                 {
+                    ExecutePluginUndoChain(pluginName);
                     host.Unload();
                     host.Dispose();
                 }

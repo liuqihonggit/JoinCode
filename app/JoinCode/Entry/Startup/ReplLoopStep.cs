@@ -129,7 +129,9 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
                             {
                                 var list = string.Join(", ", runningList.Select(a => a.DisplayName ?? a.Id));
                                 using (Cli.TerminalHelper.SetColor(ConsoleColor.Yellow))
-                                    Cli.TerminalHelper.WriteLine($"多个子代理运行中，请用 @agentName 指定目标。运行中: [{list}]");
+                                    Cli.TerminalHelper.WriteLine($"多个子代理运行中，输入已缓存，请用 @agentName 指定目标。运行中: [{list}]");
+                                // 输入入队缓存，等主代理空闲后处理（不丢弃）
+                                inputChannel.Writer.TryWrite(input);
                                 continue;
                             }
                         }

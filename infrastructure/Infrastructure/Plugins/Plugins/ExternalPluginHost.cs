@@ -11,11 +11,15 @@ public sealed class ExternalPluginHost : IDisposable
     private readonly ILogger? _logger;
     private bool _isDisposed;
     private bool _isUnloaded;
+    private bool _wasForceKilled;
 
     public string PluginName => _pluginName;
     public int ProcessId => _process.Id;
     public bool IsRunning => !_process.HasExited;
     public string ExePath { get; }
+
+    /// <summary>是否被强制终止 — 卸载泄漏信号,用于黑名单判定</summary>
+    public bool WasForceKilled => _wasForceKilled;
 
     public ExternalPluginHost(string pluginName, Process process, string exePath, ILogger? logger = null)
     {
@@ -100,6 +104,7 @@ public sealed class ExternalPluginHost : IDisposable
                 if (!_process.WaitForExit(5000))
                 {
                     _process.Kill();
+                    _wasForceKilled = true;
                     _logger?.LogWarning("外部插件 {PluginName} 未在超时内退出，已强制终止", _pluginName);
                 }
             }

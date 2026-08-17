@@ -229,6 +229,12 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
                 throw new InvalidOperationException($"[INF035] 插件 '{pluginName}' 已经加载");
             }
 
+            if (_blacklistedPlugins.ContainsKey(pluginName))
+            {
+                RecordPluginMetrics("external", "load", false);
+                throw new InvalidOperationException($"[INF-PLUGIN-BL] 插件 '{pluginName}' 已被加入黑名单(此前卸载泄漏),拒绝加载");
+            }
+
             if (!_fs.FileExists(exePath))
             {
                 RecordPluginMetrics("external", "load", false);
@@ -316,6 +322,11 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
             await CleanupPluginServicesAsync(pluginName, cancellationToken).ConfigureAwait(false);
             var result = externalHost.Unload();
             externalHost.Dispose();
+            if (externalHost.WasForceKilled)
+            {
+                _blacklistedPlugins.TryAdd(pluginName, 0);
+                _logger?.LogError("外部插件 {PluginName} 卸载时被强制终止,已加入黑名单,拒绝再次加载", pluginName);
+            }
             RecordPluginMetrics("external", "unload", result.IsSuccess);
             return result;
         }
@@ -568,6 +579,12 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
     {
         _pluginResourceIds[pluginName] = resourceIds.ToList();
     }
+
+    /// <summary>测试用: 手动将插件加入黑名单</summary>
+    internal void AddToBlacklistForTest(string pluginName) => _blacklistedPlugins.TryAdd(pluginName, 0);
+
+    /// <summary>测试用: 检查插件是否在黑名单中</summary>
+    internal bool IsBlacklistedForTest(string pluginName) => _blacklistedPlugins.ContainsKey(pluginName);
 
     #endregion
 

@@ -908,7 +908,7 @@ public sealed partial class MainViewModel : ViewModelBase
         {
             var dir = System.IO.Path.Combine(AppContext.BaseDirectory, "dumps");
             System.IO.Directory.CreateDirectory(dir);
-            System.IO.File.AppendAllText(
+            SafeFileIO.AppendAllText(
                 System.IO.Path.Combine(dir, "persist_debug.log"),
                 $"[{DateTime.Now:HH:mm:ss.fff}] {message}{Environment.NewLine}");
         }
@@ -1347,7 +1347,7 @@ public sealed partial class MainViewModel : ViewModelBase
         {
             var dir = System.IO.Path.Combine(AppContext.BaseDirectory, "dumps");
             System.IO.Directory.CreateDirectory(dir);
-            System.IO.File.AppendAllText(
+            SafeFileIO.AppendAllText(
                 System.IO.Path.Combine(dir, "send_error.log"),
                 $"[{DateTime.Now:HH:mm:ss}] {ex}{Environment.NewLine}");
         }

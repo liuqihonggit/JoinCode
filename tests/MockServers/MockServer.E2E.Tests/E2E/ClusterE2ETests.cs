@@ -275,7 +275,7 @@ public sealed partial class ClusterE2ETests : IAsyncLifetime
             """;
 
         var configPath = Path.Combine(configDir, "cluster_test.json");
-        File.WriteAllText(configPath, configContent);
+        IO.FileSystem.SafeFileIO.WriteAllText(configPath, configContent);
         return configPath;
     }
 

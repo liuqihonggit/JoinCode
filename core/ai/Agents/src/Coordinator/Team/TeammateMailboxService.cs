@@ -225,7 +225,7 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
         await _writeLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            await using var stream = _fs.CreateStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None);
+            await using var stream = _fs.CreateStream(filePath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
             await using var writer = new StreamWriter(stream);
 
             for (var i = 0; i < messages.Count; i++)

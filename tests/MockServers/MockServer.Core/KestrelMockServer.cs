@@ -363,7 +363,7 @@ public sealed class KestrelMockServer : IHttpMockServer
             sb.AppendLine("## Raw Request Body");
             sb.AppendLine(body);
 
-            File.WriteAllText(filePath, sb.ToString());
+            IO.FileSystem.SafeFileIO.WriteAllText(filePath, sb.ToString());
             Console.WriteLine($"[{_serverName}]   Dumped: {filePath}");
         }
         catch (Exception ex)

@@ -211,7 +211,7 @@ class Program
         var errorContent = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {prefix}{ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}";
         try
         {
-            System.IO.File.WriteAllText(errorLog, errorContent);
+            SafeFileIO.WriteAllText(errorLog, errorContent);
         }
         catch (Exception logEx)
         {
@@ -258,7 +258,7 @@ class Program
                 try
                 {
                     var timeoutLog = Cli.Output.XdgPathResolver.GetAwaitTimeoutLogPath();
-                    System.IO.File.AppendAllText(timeoutLog,
+                    SafeFileIO.AppendAllText(timeoutLog,
                         $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] --await {seconds}s 超时, 进程强制退出({(int)ExitCode.AwaitTimeout})\n");
                 }
                 catch (Exception logEx)
@@ -350,7 +350,7 @@ class Program
             sb.AppendLine("  }");
             sb.AppendLine("}");
 
-            System.IO.File.WriteAllText(jsonPath, sb.ToString());
+            SafeFileIO.WriteAllText(jsonPath, sb.ToString());
         }
         catch (Exception jsonEx) { Diag.WriteError("[CrashDump] 写入 JSON 快照失败", jsonEx); }
 
@@ -381,7 +381,7 @@ class Program
                 txt.AppendLine();
             }
 
-            System.IO.File.WriteAllText(txtPath, txt.ToString());
+            SafeFileIO.WriteAllText(txtPath, txt.ToString());
         }
         catch (Exception txtEx) { Diag.WriteError("[CrashDump] 写入文本快照失败", txtEx); }
 

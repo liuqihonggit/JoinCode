@@ -1,6 +1,7 @@
 namespace Infrastructure.Windows.JobObject;
 
-// cgroup 是 Linux 内核虚拟文件系统，必须直接调用 System.IO 而非 IFileSystem 抽象
+// cgroup 是 Linux 内核虚拟文件系统，用 SafeFileIO 统一 FileShare.ReadWrite 避免并发冲突
+// Directory.*/File.Exists 保留直接调用（cgroup 是内核接口，不适合 IFileSystem 抽象）
 #pragma warning disable JCC9001, JCC9002
 
 public sealed class LinuxCgroupSandbox : IAsyncDisposable
@@ -38,12 +39,12 @@ public sealed class LinuxCgroupSandbox : IAsyncDisposable
 
             if (memoryLimitBytes.HasValue && memoryLimitBytes.Value > 0)
             {
-                File.WriteAllText(Path.Combine(_cgroupPath, "memory.max"), memoryLimitBytes.Value.ToString());
+                SafeFileIO.WriteAllText(Path.Combine(_cgroupPath, "memory.max"), memoryLimitBytes.Value.ToString());
             }
 
             if (pidsMax.HasValue && pidsMax.Value > 0)
             {
-                File.WriteAllText(Path.Combine(_cgroupPath, "pids.max"), pidsMax.Value.ToString());
+                SafeFileIO.WriteAllText(Path.Combine(_cgroupPath, "pids.max"), pidsMax.Value.ToString());
             }
 
             _logger?.LogInformation("[LinuxCgroup] cgroup 已创建: {Path}", _cgroupPath);
@@ -67,7 +68,7 @@ public sealed class LinuxCgroupSandbox : IAsyncDisposable
 
         try
         {
-            File.WriteAllText(Path.Combine(_cgroupPath, "cgroup.procs"), processId.ToString());
+            SafeFileIO.WriteAllText(Path.Combine(_cgroupPath, "cgroup.procs"), processId.ToString());
             _logger?.LogInformation("[LinuxCgroup] 进程 {Pid} 已加入 cgroup", processId);
             return true;
         }
@@ -90,7 +91,7 @@ public sealed class LinuxCgroupSandbox : IAsyncDisposable
             var killPath = Path.Combine(_cgroupPath, "cgroup.kill");
             if (File.Exists(killPath))
             {
-                File.WriteAllText(killPath, "1");
+                SafeFileIO.WriteAllText(killPath, "1");
                 _logger?.LogInformation("[LinuxCgroup] 已通过 cgroup.kill 终止所有进程");
                 return true;
             }
@@ -98,7 +99,7 @@ public sealed class LinuxCgroupSandbox : IAsyncDisposable
             var procsPath = Path.Combine(_cgroupPath, "cgroup.procs");
             if (File.Exists(procsPath))
             {
-                var pidsText = File.ReadAllText(procsPath).Trim();
+                var pidsText = SafeFileIO.ReadAllText(procsPath).Trim();
                 if (pidsText.Length > 0)
                 {
                     foreach (var pidStr in pidsText.Split('\n', StringSplitOptions.RemoveEmptyEntries))

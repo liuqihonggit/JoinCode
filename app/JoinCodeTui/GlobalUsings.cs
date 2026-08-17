@@ -8,6 +8,7 @@ global using JoinCode.Abstractions.LLM.Execution;
 global using JoinCode.Abstractions.Models.Agent;
 global using JoinCode.Abstractions.Security;
 global using JoinCode.Abstractions.Security.Permission;
+global using IO.FileSystem;
 
 // App Builder (EngineSessionFactory)
 global using JoinCode.App.Builder;

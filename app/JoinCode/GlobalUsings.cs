@@ -54,6 +54,9 @@ global using ChatStreamEventType = JoinCode.Abstractions.LLM.Chat.ChatStreamEven
 global using Core.Bridge;
 global using Core.Configuration;
 global using Core.Configuration.Providers;
+global using Core.Configuration.ModelFetch;
+global using Infrastructure.Http;
+global using JoinCode.Abstractions.Http;
 global using Core.Context;
 global using Core.Context.Modality;
 global using Core.CostTracking;

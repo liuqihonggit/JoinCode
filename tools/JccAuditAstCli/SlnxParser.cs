@@ -12,7 +12,7 @@ public static class SlnxParser
     public static List<string> ParseProjectPaths(string slnxPath)
     {
         var slnxDir = Path.GetDirectoryName(Path.GetFullPath(slnxPath))!;
-        var content = File.ReadAllText(slnxPath);
+        var content = SafeFileIO.ReadAllText(slnxPath);
         var paths = new List<string>();
 
         // 简单 XML 解析：提取所有 <Project Path="..." /> 节点

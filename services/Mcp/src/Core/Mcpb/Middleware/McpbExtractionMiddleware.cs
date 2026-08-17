@@ -40,7 +40,8 @@ public sealed partial class McpbExtractionMiddleware : ServiceEntity, IMcpbMiddl
 
         _fs.CreateDirectory(extractPath);
 
-        using var archive = System.IO.Compression.ZipFile.OpenRead(mcpbPath);
+        using var archiveStream = _fs.CreateStream(mcpbPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        using var archive = new System.IO.Compression.ZipArchive(archiveStream, System.IO.Compression.ZipArchiveMode.Read, leaveOpen: false);
         long totalExtractedSize = 0;
 
         foreach (var entry in archive.Entries)

@@ -29,7 +29,7 @@ public sealed partial class ToolResultFileService : ServiceEntity, JoinCode.Abst
         // C#: 使用 FileMode.CreateNew 替代 File.Exists + File.WriteAllText（消除 TOCTOU 竞态）
         try
         {
-            using var stream = _fs.CreateStream(filepath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+            using var stream = _fs.CreateStream(filepath, FileMode.CreateNew, FileAccess.Write, FileShare.ReadWrite);
             using var writer = new StreamWriter(stream);
             writer.Write(content);
         }
@@ -68,7 +68,7 @@ public sealed partial class ToolResultFileService : ServiceEntity, JoinCode.Abst
 
         try
         {
-            using var stream = _fs.CreateStream(filepath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+            using var stream = _fs.CreateStream(filepath, FileMode.CreateNew, FileAccess.Write, FileShare.ReadWrite);
             using var writer = new StreamWriter(stream);
             await writer.WriteAsync(content.AsMemory(), cancellationToken).ConfigureAwait(false);
         }

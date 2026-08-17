@@ -54,7 +54,7 @@ foreach (var file in csFiles)
 {
     try
     {
-        var source = File.ReadAllText(file);
+        var source = IO.FileSystem.SafeFileIO.ReadAllText(file);
         var tree = CSharpSyntaxTree.ParseText(source);
         var root = tree.GetRoot();
 
@@ -74,7 +74,7 @@ foreach (var file in csFiles)
             else
             {
                 var newSource = newRoot.ToFullString();
-                File.WriteAllText(file, newSource);
+                IO.FileSystem.SafeFileIO.WriteAllText(file, newSource);
                 Console.WriteLine($"Updated: {Path.GetRelativePath(rootDir, file)}");
             }
             totalUpdated++;

@@ -86,3 +86,4 @@ global using System.Threading;
 global using Timer = System.Threading.Timer;
 global using ValidationResult = Structura.Primitives.ValidationResult;
 global using JoinCode.Abstractions.Entity;
+global using JoinCode.Abstractions.Http;

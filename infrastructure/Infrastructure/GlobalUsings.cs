@@ -45,6 +45,7 @@ global using Infrastructure.IO.Services.Diff;
 global using JoinCode.Abstractions.Models.Diff;
 global using JoinCode.Abstractions.Models.FileIO;
 global using IO.Configuration;
+global using IO.FileSystem;
 global using IO.Services;
 global using Microsoft.Extensions.DependencyInjection.Extensions;
 global using Microsoft.Extensions.DependencyInjection;

@@ -50,4 +50,18 @@ public enum TuiCommandAction
     ExecuteApply,
     /// <summary>撤销最后修改</summary>
     ExecuteUndo,
+    /// <summary>加载会话</summary>
+    ExecuteLoad,
+    /// <summary>显示配置</summary>
+    ShowConfig,
+    /// <summary>显示当前模型</summary>
+    ShowModel,
+    /// <summary>设置模型</summary>
+    SetModel,
+    /// <summary>列出已保存会话</summary>
+    ListSessions,
+    /// <summary>显示 token 用量</summary>
+    ShowTokens,
+    /// <summary>清空聊天历史</summary>
+    ClearHistory,
 }

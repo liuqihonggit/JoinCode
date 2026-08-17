@@ -277,6 +277,28 @@ internal static class TuiModeRunner
                     case TuiCommandAction.ExecuteUndo:
                         await ExecuteShellAsync("git checkout .", outputView, painter, cancellationToken).ConfigureAwait(false);
                         break;
+                    case TuiCommandAction.ExecuteLoad:
+                        OpenFile(slashResult.ShellCommand!, outputView, painter);
+                        break;
+                    case TuiCommandAction.ShowConfig:
+                        ShowConfig(outputView, painter);
+                        break;
+                    case TuiCommandAction.ShowModel:
+                        ShowModel(outputView, painter);
+                        break;
+                    case TuiCommandAction.SetModel:
+                        painter.Invoke(() => outputView.AppendLine($"  ⚠️ 运行时切换模型需重启 jcctui，请设置环境变量 JCC_MODEL_ID={slashResult.ShellCommand} 后重新启动"));
+                        break;
+                    case TuiCommandAction.ListSessions:
+                        ListSessions(outputView, painter);
+                        break;
+                    case TuiCommandAction.ShowTokens:
+                        ShowTokens(chatHistory, outputView, painter);
+                        break;
+                    case TuiCommandAction.ClearHistory:
+                        chatHistory.Clear();
+                        painter.Invoke(() => outputView.AppendLine("  🗑️ 聊天历史已清空"));
+                        break;
                 }
                 continue;
             }
@@ -450,6 +472,96 @@ internal static class TuiModeRunner
         {
             painter.Invoke(() => outputView.AppendLine($"  [打开失败] {ex.Message}"));
         }
+    }
+
+    /// <summary>
+    /// 显示当前配置信息。
+    /// </summary>
+    private static void ShowConfig(OutputView outputView, TerminalPainter painter)
+    {
+        var endpoint = Environment.GetEnvironmentVariable("JCC_ENDPOINT") ?? "(未设置)";
+        var vendor = Environment.GetEnvironmentVariable("JCC_VENDOR") ?? "(未设置)";
+        var model = Environment.GetEnvironmentVariable("JCC_MODEL_ID") ?? "(未设置)";
+        var apiKey = Environment.GetEnvironmentVariable("JCC_API_KEY");
+        var keyDisplay = string.IsNullOrEmpty(apiKey) ? "(未设置)" : $"{apiKey[..Math.Min(4, apiKey.Length)]}****";
+        painter.Invoke(() =>
+        {
+            outputView.AppendLine("  ⚙️ 当前配置:");
+            outputView.AppendLine($"    Endpoint: {endpoint}");
+            outputView.AppendLine($"    Vendor:   {vendor}");
+            outputView.AppendLine($"    Model:    {model}");
+            outputView.AppendLine($"    API Key:  {keyDisplay}");
+        });
+    }
+
+    /// <summary>
+    /// 显示当前模型信息。
+    /// </summary>
+    private static void ShowModel(OutputView outputView, TerminalPainter painter)
+    {
+        var model = Environment.GetEnvironmentVariable("JCC_MODEL_ID") ?? "(未设置)";
+        var vendor = Environment.GetEnvironmentVariable("JCC_VENDOR") ?? "(未设置)";
+        painter.Invoke(() =>
+        {
+            outputView.AppendLine($"  🤖 模型: {model}");
+            outputView.AppendLine($"  🏷️ 供应商: {vendor}");
+        });
+    }
+
+    /// <summary>
+    /// 列出 .jcctui/ 目录下的已保存会话。
+    /// </summary>
+    private static void ListSessions(OutputView outputView, TerminalPainter painter)
+    {
+        try
+        {
+            var dir = System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), ".jcctui");
+            if (!System.IO.Directory.Exists(dir))
+            {
+                painter.Invoke(() => outputView.AppendLine("  📋 无已保存会话（.jcctui/ 目录不存在）"));
+                return;
+            }
+            var files = System.IO.Directory.GetFiles(dir, "session_*.txt");
+            if (files.Length == 0)
+            {
+                painter.Invoke(() => outputView.AppendLine("  📋 无已保存会话"));
+                return;
+            }
+            painter.Invoke(() => outputView.AppendLine("  📋 已保存会话:"));
+            foreach (var file in files)
+            {
+                var name = System.IO.Path.GetFileName(file);
+                var time = System.IO.File.GetLastWriteTime(file).ToString("yyyy-MM-dd HH:mm");
+                var capturedName = name;
+                var capturedTime = time;
+                painter.Invoke(() => outputView.AppendLine($"    {capturedName} ({capturedTime})"));
+            }
+        }
+        catch (Exception ex)
+        {
+            painter.Invoke(() => outputView.AppendLine($"  [列出失败] {ex.Message}"));
+        }
+    }
+
+    /// <summary>
+    /// 显示聊天历史中的 Token 用量统计。
+    /// </summary>
+    private static void ShowTokens(MessageList history, OutputView outputView, TerminalPainter painter)
+    {
+        long totalTokens = 0;
+        var msgCount = 0;
+        foreach (var msg in history)
+        {
+            msgCount++;
+            if (msg.TokenUsage is not null)
+                totalTokens += msg.TokenUsage.TotalTokens;
+        }
+        painter.Invoke(() =>
+        {
+            outputView.AppendLine("  🔢 Token 用量:");
+            outputView.AppendLine($"    消息数: {msgCount}");
+            outputView.AppendLine($"    总 Token: {totalTokens}");
+        });
     }
 
     private static void WriteDiag(string message)

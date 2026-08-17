@@ -223,4 +223,70 @@ public class TuiCommandProcessorTests
         Assert.True(result.IsHandled);
         Assert.Equal(TuiCommandAction.ExecuteUndo, result.Action);
     }
+
+    [Fact]
+    public void Load_WithFile_ReturnsLoadAction()
+    {
+        var result = TuiCommandProcessor.Process("/load session.txt");
+        Assert.True(result.IsHandled);
+        Assert.Equal(TuiCommandAction.ExecuteLoad, result.Action);
+        Assert.Equal("session.txt", result.ShellCommand);
+    }
+
+    [Fact]
+    public void Load_WithoutFile_ReturnsUsageHint()
+    {
+        var result = TuiCommandProcessor.Process("/load");
+        Assert.True(result.IsHandled);
+        Assert.Contains("用法", result.Output);
+    }
+
+    [Fact]
+    public void Config_ReturnsConfigAction()
+    {
+        var result = TuiCommandProcessor.Process("/config");
+        Assert.True(result.IsHandled);
+        Assert.Equal(TuiCommandAction.ShowConfig, result.Action);
+    }
+
+    [Fact]
+    public void Model_WithoutArg_ReturnsShowModelAction()
+    {
+        var result = TuiCommandProcessor.Process("/model");
+        Assert.True(result.IsHandled);
+        Assert.Equal(TuiCommandAction.ShowModel, result.Action);
+    }
+
+    [Fact]
+    public void Model_WithArg_ReturnsSetModelAction()
+    {
+        var result = TuiCommandProcessor.Process("/model gpt-4o");
+        Assert.True(result.IsHandled);
+        Assert.Equal(TuiCommandAction.SetModel, result.Action);
+        Assert.Equal("gpt-4o", result.ShellCommand);
+    }
+
+    [Fact]
+    public void Sessions_ReturnsSessionsAction()
+    {
+        var result = TuiCommandProcessor.Process("/sessions");
+        Assert.True(result.IsHandled);
+        Assert.Equal(TuiCommandAction.ListSessions, result.Action);
+    }
+
+    [Fact]
+    public void Tokens_ReturnsTokensAction()
+    {
+        var result = TuiCommandProcessor.Process("/tokens");
+        Assert.True(result.IsHandled);
+        Assert.Equal(TuiCommandAction.ShowTokens, result.Action);
+    }
+
+    [Fact]
+    public void ClearHistory_ReturnsClearHistoryAction()
+    {
+        var result = TuiCommandProcessor.Process("/clear-history");
+        Assert.True(result.IsHandled);
+        Assert.Equal(TuiCommandAction.ClearHistory, result.Action);
+    }
 }

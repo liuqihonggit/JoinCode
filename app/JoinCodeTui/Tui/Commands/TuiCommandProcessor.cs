@@ -10,7 +10,8 @@ public static class TuiCommandProcessor
     private static readonly FrozenSet<string> KnownCommands = FrozenSet.Create(
         StringComparer.OrdinalIgnoreCase,
         "/help", "/exit", "/clear", "/history", "/shell", "/build", "/test", "/save",
-        "/grep", "/diff", "/files", "/open", "/patch", "/apply", "/undo");
+        "/grep", "/diff", "/files", "/open", "/patch", "/apply", "/undo",
+        "/load", "/config", "/model", "/sessions", "/tokens", "/clear-history");
 
     /// <summary>
     /// 解析并处理斜杠命令。
@@ -47,6 +48,12 @@ public static class TuiCommandProcessor
             "/patch" => HandlePatch(args),
             "/apply" => HandleApply(args),
             "/undo" => new TuiCommandResult(true, "  ↩️ 撤销最后修改...", TuiCommandAction.ExecuteUndo, null),
+            "/load" => HandleLoad(args),
+            "/config" => new TuiCommandResult(true, "  ⚙️ 当前配置", TuiCommandAction.ShowConfig, null),
+            "/model" => HandleModel(args),
+            "/sessions" => new TuiCommandResult(true, "  📋 已保存会话", TuiCommandAction.ListSessions, null),
+            "/tokens" => new TuiCommandResult(true, "  🔢 Token 用量", TuiCommandAction.ShowTokens, null),
+            "/clear-history" => new TuiCommandResult(true, "  🗑️ 清空聊天历史", TuiCommandAction.ClearHistory, null),
             _ => new TuiCommandResult(true, $"  ❌ 未知命令: {command}", TuiCommandAction.None, null),
         };
     }
@@ -70,6 +77,12 @@ public static class TuiCommandProcessor
               /patch    — 预览 patch 文件（如 /patch fix.patch）
               /apply    — 应用 patch（如 /apply fix.patch）
               /undo     — 撤销最后修改（git checkout .）
+              /load     — 加载会话（如 /load .jcctui/session_xxx.txt）
+              /config   — 显示当前配置
+              /model    — 显示/切换模型（如 /model gpt-4o）
+              /sessions — 列出已保存会话
+              /tokens   — 显示 Token 用量
+              /clear-history — 清空聊天历史
             """;
     }
 
@@ -143,5 +156,19 @@ public static class TuiCommandProcessor
         if (string.IsNullOrWhiteSpace(args))
             return new TuiCommandResult(true, "  用法: /apply <patch文件>（如 /apply fix.patch）", TuiCommandAction.None, null);
         return new TuiCommandResult(true, $"  ✅ apply: {args}", TuiCommandAction.ExecuteApply, args);
+    }
+
+    private static TuiCommandResult HandleLoad(string args)
+    {
+        if (string.IsNullOrWhiteSpace(args))
+            return new TuiCommandResult(true, "  用法: /load <文件路径>（如 /load .jcctui/session_xxx.txt）", TuiCommandAction.None, null);
+        return new TuiCommandResult(true, $"  📂 load: {args}", TuiCommandAction.ExecuteLoad, args);
+    }
+
+    private static TuiCommandResult HandleModel(string args)
+    {
+        if (string.IsNullOrWhiteSpace(args))
+            return new TuiCommandResult(true, "  🤖 当前模型信息", TuiCommandAction.ShowModel, null);
+        return new TuiCommandResult(true, $"  🤖 切换模型: {args}", TuiCommandAction.SetModel, args);
     }
 }

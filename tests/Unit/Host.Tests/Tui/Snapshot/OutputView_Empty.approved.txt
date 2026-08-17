@@ -1,2 +1,2 @@
 View [Visible=True, CanFocus=False]
-  Label [Visible=True, CanFocus=False]
+  ListView [Visible=True, CanFocus=True]

@@ -2,13 +2,14 @@ namespace JoinCode.Tui.Views;
 
 /// <summary>
 /// 输出流组件 — 显示 Agent 输出和系统消息。
-/// 对齐 claude code 的 Output 组件，自动滚动到底部。
+/// 对齐 claude code 的 Output 组件，用G ListView + ObservableCollection 实现滚动，
+/// 替代 Label 全量重绘，支持大量输出流畅滚动。
 /// </summary>
 public sealed class OutputView : ITuiComponent
 {
     private readonly View _container;
-    private readonly Label _textLabel;
-    private readonly List<string> _lines = new();
+    private readonly ListView _listView;
+    private readonly ObservableCollection<string> _items = new();
     private const int MaxLines = 10000;
 
     /// <summary>
@@ -23,16 +24,16 @@ public sealed class OutputView : ITuiComponent
             Height = height > 0 ? height : Dim.Fill(),
         };
 
-        _textLabel = new Label
+        _listView = new ListView
         {
             X = 0,
             Y = 0,
             Width = Dim.Fill(),
             Height = Dim.Fill(),
-            Text = "",
         };
+        _listView.SetSource(_items);
 
-        _container.Add(_textLabel);
+        _container.Add(_listView);
     }
 
     /// <inheritdoc />
@@ -42,12 +43,11 @@ public sealed class OutputView : ITuiComponent
     /// <param name="line">输出文本行。</param>
     public void AppendLine(string line)
     {
-        _lines.Add(line);
-        if (_lines.Count > MaxLines)
+        _items.Add(line);
+        if (_items.Count > MaxLines)
         {
-            _lines.RemoveRange(0, _lines.Count - MaxLines);
+            _items.RemoveAt(0);
         }
-        RefreshDisplay();
     }
 
     /// <summary>追加多行输出。</summary>
@@ -58,21 +58,23 @@ public sealed class OutputView : ITuiComponent
         foreach (var part in parts)
         {
             var trimmed = part.TrimEnd('\r');
-            _lines.Add(trimmed);
+            _items.Add(trimmed);
         }
-        if (_lines.Count > MaxLines)
+        while (_items.Count > MaxLines)
         {
-            _lines.RemoveRange(0, _lines.Count - MaxLines);
+            _items.RemoveAt(0);
         }
-        RefreshDisplay();
     }
 
     /// <summary>清空输出。</summary>
     public void Clear()
     {
-        _lines.Clear();
-        RefreshDisplay();
+        _items.Clear();
     }
+
+    /// <summary>获取当前所有输出行的只读快照。</summary>
+    /// <returns>输出行列表。</returns>
+    public IReadOnlyList<string> GetLines() => _items.ToArray();
 
     /// <inheritdoc />
     public void OnQueueChanged(QueueSnapshot snapshot)
@@ -84,10 +86,5 @@ public sealed class OutputView : ITuiComponent
     {
         _container.Width = Dim.Fill();
         _container.Height = Dim.Fill();
-    }
-
-    private void RefreshDisplay()
-    {
-        _textLabel.Text = string.Join(Environment.NewLine, _lines);
     }
 }

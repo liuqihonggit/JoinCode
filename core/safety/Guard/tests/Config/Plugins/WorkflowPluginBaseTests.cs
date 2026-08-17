@@ -12,7 +12,8 @@ public sealed class WorkflowPluginBaseTests
 
         public TestPlugin() : base("test-plugin") { }
 
-        public override OperationResult Load(IServiceCollection services) => LoadResult;
+        public override Task<OperationResult> LoadAsync(PluginContext ctx, CancellationToken cancellationToken = default)
+            => Task.FromResult(LoadResult);
         public override Task<OperationResult> InitializeAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken = default)
             => Task.FromResult(LoadResult);
 

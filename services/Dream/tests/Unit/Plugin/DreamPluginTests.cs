@@ -16,12 +16,13 @@ public sealed class DreamPluginTests
     }
 
     [Fact]
-    public void Load_RegistersServices()
+    public async Task LoadAsync_RegistersServices()
     {
         var plugin = new DreamPlugin();
         var services = new ServiceCollection();
+        var ctx = new PluginContext("Dream", services);
 
-        var result = plugin.Load(services);
+        var result = await plugin.LoadAsync(ctx).ConfigureAwait(true);
 
         Assert.True(result.Success);
         var provider = services.BuildServiceProvider();

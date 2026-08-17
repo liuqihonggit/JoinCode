@@ -22,9 +22,10 @@ public interface IWorkflowPlugin
     string Description { get; }
 
     /// <summary>
-    /// 加载插件 - 注册服务
+    /// 加载插件 — 副作用唯一入口 PluginContext,对齐 Cordis ctx
+    /// <para>通过 ctx.RegisterService/ConfigureServices/Effect 注册副作用,撤销链自动收集</para>
     /// </summary>
-    OperationResult Load(IServiceCollection services);
+    Task<OperationResult> LoadAsync(PluginContext ctx, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 初始化插件 - 获取服务依赖

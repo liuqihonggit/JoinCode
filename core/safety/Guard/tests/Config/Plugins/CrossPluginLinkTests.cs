@@ -10,7 +10,7 @@ public sealed class CrossPluginLinkTests
         public override string Name => "pluginA";
         public override string Version => "1.0.0";
         public override string Description => "Test Plugin A";
-        public override OperationResult Load(IServiceCollection services) => OperationResult.Ok();
+        public override Task<OperationResult> LoadAsync(PluginContext ctx, CancellationToken cancellationToken = default) => Task.FromResult(OperationResult.Ok());
         public override Task<OperationResult> InitializeAsync(IServiceProvider sp, CancellationToken ct = default) => Task.FromResult(OperationResult.Ok());
 
         public PluginA() : base("pluginA") { }
@@ -28,7 +28,7 @@ public sealed class CrossPluginLinkTests
         public override string Name => "pluginB";
         public override string Version => "1.0.0";
         public override string Description => "Test Plugin B";
-        public override OperationResult Load(IServiceCollection services) => OperationResult.Ok();
+        public override Task<OperationResult> LoadAsync(PluginContext ctx, CancellationToken cancellationToken = default) => Task.FromResult(OperationResult.Ok());
         public override Task<OperationResult> InitializeAsync(IServiceProvider sp, CancellationToken ct = default) => Task.FromResult(OperationResult.Ok());
 
         public PluginB() : base("pluginB") { }

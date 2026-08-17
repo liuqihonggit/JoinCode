@@ -23,12 +23,18 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
     /// <summary>每个插件的撤销链 — 按注册顺序记录,卸载时按逆序执行(Cordis Effect 系统)</summary>
     private readonly ConcurrentDictionary<string, List<Action>> _pluginUndoChain = new();
 
+    /// <summary>每个插件的异步撤销链 — IAsyncDisposable,卸载时先于同步撤销链逆序 await 执行</summary>
+    private readonly ConcurrentDictionary<string, List<IAsyncDisposable>> _pluginAsyncUndoChain = new();
+
     /// <summary>插件加载顺序 — 用于 UnloadAllPluginsAsync 按注册逆序卸载</summary>
     private readonly List<string> _loadOrder = new();
     private readonly object _loadOrderLock = new();
 
     /// <summary>每个插件的资源 ObjectId 列表 — 卸载后用于扫描验证</summary>
     private readonly ConcurrentDictionary<string, List<ObjectId>> _pluginResourceIds = new();
+
+    /// <summary>插件黑名单 — 卸载泄漏的插件加入,拒绝再次加载(方案B C4)</summary>
+    private readonly ConcurrentDictionary<string, byte> _blacklistedPlugins = new();
 
     private IResourceReferenceGraph? _referenceGraph;
     private PluginResourceScanner? _resourceScanner;
@@ -91,13 +97,25 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
                 throw new InvalidOperationException($"[INF031] 插件 '{pluginName}' 已经加载");
             }
 
+            if (_blacklistedPlugins.ContainsKey(pluginName))
+            {
+                RecordPluginMetrics("workflow", "load", false);
+                throw new InvalidOperationException($"[INF-PLUGIN-BL] 插件 '{pluginName}' 已被加入黑名单(此前卸载泄漏),拒绝加载");
+            }
+
             _logger?.LogInformation("正在加载内置工作流插件: {PluginName}", pluginName);
+
+            if (plugin is WorkflowPluginBase wpbLoad)
+            {
+                wpbLoad.Fiber.TransitionTo(PluginFiberState.Loading);
+            }
 
             var host = new WorkflowPluginHost(plugin, _kernel, _loggerFactory, _fileOperationService, _commandRegistry, _logger);
 
-            var loadResult = host.Load();
+            var loadResult = await host.LoadAsync(cancellationToken).ConfigureAwait(false);
             if (!loadResult.Success)
             {
+                if (plugin is WorkflowPluginBase wpbFail) wpbFail.Fiber.TransitionTo(PluginFiberState.Failed);
                 host.Dispose();
                 RecordPluginMetrics("workflow", "load", false);
                 throw new InvalidOperationException($"[INF032] 插件 '{pluginName}' Load 失败: {loadResult.ErrorMessage}");
@@ -106,14 +124,30 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
             var initResult = await host.InitializeAsync(cancellationToken).ConfigureAwait(false);
             if (!initResult.Success)
             {
+                if (plugin is WorkflowPluginBase wpbFail) wpbFail.Fiber.TransitionTo(PluginFiberState.Failed);
                 host.Unload();
                 host.Dispose();
                 RecordPluginMetrics("workflow", "load", false);
                 throw new InvalidOperationException($"[INF033] 插件 '{pluginName}' Initialize 失败: {initResult.ErrorMessage}");
             }
 
+            if (plugin is WorkflowPluginBase contractPlugin)
+            {
+                var contract = contractPlugin.ValidateUnloadContract();
+                if (!contract.IsValid)
+                {
+                    contractPlugin.Fiber.TransitionTo(PluginFiberState.Failed);
+                    host.Unload();
+                    host.Dispose();
+                    RecordPluginMetrics("workflow", "load", false);
+                    throw new InvalidOperationException(
+                        $"[INF-PLUGIN-CONTRACT] 插件 '{pluginName}' 拒绝加载: {contract.Reason}");
+                }
+            }
+
             if (!_workflowPlugins.TryAdd(pluginName, host))
             {
+                if (plugin is WorkflowPluginBase wpbFail) wpbFail.Fiber.TransitionTo(PluginFiberState.Failed);
                 host.Unload();
                 host.Dispose();
                 RecordPluginMetrics("workflow", "load", false);
@@ -131,11 +165,16 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
             }
 
             _pluginUndoChain[pluginName] = undoChain;
+            if (host.Context is not null)
+            {
+                _pluginAsyncUndoChain[pluginName] = host.Context.GetAsyncUndoChain().ToList();
+            }
             AddToLoadOrder(pluginName);
 
             if (plugin is WorkflowPluginBase pluginBase)
             {
                 RecordPluginResourceIds(pluginName, pluginBase.Resources.Select(r => r.ObjectId));
+                pluginBase.Fiber.TransitionTo(PluginFiberState.Active);
             }
 
             _logger?.LogInformation("内置工作流插件加载成功: {PluginName}", pluginName);
@@ -144,6 +183,10 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
         }
         catch (Exception ex) when (ex is not InvalidOperationException)
         {
+            if (plugin is WorkflowPluginBase wpbEx)
+            {
+                wpbEx.Fiber.TryTransitionTo(PluginFiberState.Failed);
+            }
             RecordPluginMetrics("workflow", "load", false);
             throw;
         }
@@ -184,6 +227,12 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
             {
                 RecordPluginMetrics("external", "load", false);
                 throw new InvalidOperationException($"[INF035] 插件 '{pluginName}' 已经加载");
+            }
+
+            if (_blacklistedPlugins.ContainsKey(pluginName))
+            {
+                RecordPluginMetrics("external", "load", false);
+                throw new InvalidOperationException($"[INF-PLUGIN-BL] 插件 '{pluginName}' 已被加入黑名单(此前卸载泄漏),拒绝加载");
             }
 
             if (!_fs.FileExists(exePath))
@@ -273,6 +322,11 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
             await CleanupPluginServicesAsync(pluginName, cancellationToken).ConfigureAwait(false);
             var result = externalHost.Unload();
             externalHost.Dispose();
+            if (externalHost.WasForceKilled)
+            {
+                _blacklistedPlugins.TryAdd(pluginName, 0);
+                _logger?.LogError("外部插件 {PluginName} 卸载时被强制终止,已加入黑名单,拒绝再次加载", pluginName);
+            }
             RecordPluginMetrics("external", "unload", result.IsSuccess);
             return result;
         }
@@ -284,6 +338,7 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
 
         if (_workflowPlugins.TryRemove(pluginName, out var workflowHost))
         {
+            await ExecutePluginAsyncUndoChainAsync(pluginName, cancellationToken).ConfigureAwait(false);
             ExecutePluginUndoChain(pluginName);
             await CleanupPluginServicesAsync(pluginName, cancellationToken).ConfigureAwait(false);
             var result = UnloadWorkflowPlugin(workflowHost);
@@ -320,6 +375,7 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
         {
             if (_workflowPlugins.TryRemove(pluginName, out var host))
             {
+                await ExecutePluginAsyncUndoChainAsync(pluginName, cancellationToken).ConfigureAwait(false);
                 ExecutePluginUndoChain(pluginName);
                 await CleanupPluginServicesAsync(pluginName, cancellationToken).ConfigureAwait(false);
                 results.Add(UnloadWorkflowPlugin(host));
@@ -371,6 +427,19 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
         }
 
         RemoveFromLoadOrder(pluginName);
+    }
+
+    /// <summary>执行插件异步撤销链 — 按逆序 await DisposeAsync(在同步撤销链之前执行)</summary>
+    private async Task ExecutePluginAsyncUndoChainAsync(string pluginName, CancellationToken ct)
+    {
+        if (_pluginAsyncUndoChain.TryRemove(pluginName, out var chain))
+        {
+            for (int i = chain.Count - 1; i >= 0; i--)
+            {
+                try { await chain[i].DisposeAsync().ConfigureAwait(false); }
+                catch (Exception ex) { _logger?.LogWarning(ex, "插件 {PluginName} async 撤销链第 {Index} 项失败", pluginName, i); }
+            }
+        }
     }
 
     /// <summary>
@@ -480,7 +549,9 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
         var report = ResourceScanner.ScanPluginResources(pluginName, resourceIds);
         if (report.HasLeaks)
         {
-            _logger?.LogWarning("插件 {Plugin} 卸载后有 {Count} 个资源泄漏", pluginName, report.LeakedResourceIds.Count);
+            _blacklistedPlugins.TryAdd(pluginName, 0);
+            _logger?.LogError("插件 {Plugin} 卸载后有 {Count} 个资源泄漏,已加入黑名单,拒绝再次加载",
+                pluginName, report.LeakedResourceIds.Count);
         }
     }
 
@@ -508,6 +579,12 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
     {
         _pluginResourceIds[pluginName] = resourceIds.ToList();
     }
+
+    /// <summary>测试用: 手动将插件加入黑名单</summary>
+    internal void AddToBlacklistForTest(string pluginName) => _blacklistedPlugins.TryAdd(pluginName, 0);
+
+    /// <summary>测试用: 检查插件是否在黑名单中</summary>
+    internal bool IsBlacklistedForTest(string pluginName) => _blacklistedPlugins.ContainsKey(pluginName);
 
     #endregion
 

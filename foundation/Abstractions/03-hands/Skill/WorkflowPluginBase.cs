@@ -31,8 +31,9 @@ public abstract class WorkflowPluginBase : Entity, IWorkflowPlugin, IPluginHeart
     /// <summary>插件描述 — 子类实现</summary>
     public abstract string Description { get; }
 
-    /// <summary>加载插件 - 注册服务 — 子类实现</summary>
-    public abstract OperationResult Load(IServiceCollection services);
+    /// <summary>加载插件 — 副作用唯一入口 PluginContext,对齐 Cordis ctx</summary>
+    /// <para>子类覆写,通过 ctx.RegisterService/ConfigureServices/Effect 注册副作用</para>
+    public abstract Task<OperationResult> LoadAsync(PluginContext ctx, CancellationToken cancellationToken = default);
 
     /// <summary>初始化插件 - 获取服务依赖 — 子类实现</summary>
     public abstract Task<OperationResult> InitializeAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken = default);
@@ -54,6 +55,9 @@ public abstract class WorkflowPluginBase : Entity, IWorkflowPlugin, IPluginHeart
 
     /// <summary>非托管资源表 — SafeHandle 包装的非托管内存</summary>
     public UnmanagedResourceTable UnmanagedResources { get; } = new();
+
+    /// <summary>Fiber 状态机 — 对齐 Cordis,约束生命周期状态转换</summary>
+    public PluginFiber Fiber { get; } = new();
 
     /// <summary>是否存活 — volatile bool,纳秒级读取</summary>
     public bool IsAlive => _isAlive;
@@ -88,6 +92,11 @@ public abstract class WorkflowPluginBase : Entity, IWorkflowPlugin, IPluginHeart
     /// </summary>
     public PluginUnloadResult Unload()
     {
+        if (!Fiber.TryTransitionTo(PluginFiberState.Unloading))
+        {
+            return PluginUnloadResult.AlreadyUnloaded(Name);
+        }
+
         var sw = System.Diagnostics.Stopwatch.StartNew();
         try
         {
@@ -107,6 +116,7 @@ public abstract class WorkflowPluginBase : Entity, IWorkflowPlugin, IPluginHeart
             UnmanagedResources.ReleaseAll();
 
             OnUnload();
+            Fiber.TransitionTo(PluginFiberState.Disposed);
             return PluginUnloadResult.Success(Name, sw.Elapsed);
         }
         catch (Exception ex)
@@ -117,6 +127,14 @@ public abstract class WorkflowPluginBase : Entity, IWorkflowPlugin, IPluginHeart
 
     /// <summary>子类覆写:插件特定清理逻辑 — 在资源释放后调用</summary>
     protected virtual void OnUnload() { }
+
+    /// <summary>
+    /// 校验卸载契约 — 加载后由 PluginManager 调用,失败则拒绝加载
+    /// <para>对齐方案B:不写对应卸载就不允许加载</para>
+    /// <para>默认实现返回 Valid(信任子类已通过 RegisterResource 登记所有副作用)</para>
+    /// <para>子类可覆写做更严校验(如校验资源数量与声明副作用一致、disposer 非空等)</para>
+    /// </summary>
+    public virtual PluginUnloadContract ValidateUnloadContract() => PluginUnloadContract.Valid;
 
     /// <summary>刷新心跳 — 插件每次活动时调用</summary>
     public new void Touch()

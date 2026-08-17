@@ -24,6 +24,9 @@ internal static class TuiModeRunner
         var promptView = new PromptView(queue);
         var footerTab = new FooterTabView();
         var permissionDialog = new PermissionDialogView();
+        var queuedCommands = new QueuedCommandsView(queue);
+        var agentPanes = new AgentPanesView();
+        var resizeMonitor = new TerminalResizeMonitor();
 
         statusBar.SetMode("auto");
         statusBar.SetAgentStatus("● Running");
@@ -35,6 +38,12 @@ internal static class TuiModeRunner
         root.SetPrompt(promptView);
         root.SetFooter(footerTab);
         root.AddComponent(permissionDialog);
+        root.AddComponent(queuedCommands);
+        root.AddComponent(agentPanes);
+
+        resizeMonitor.SizeChanged += (cols, rows) => painter.NotifyResize(cols, rows);
+        resizeMonitor.SizeTooSmall += (w, h, minW, minH) =>
+            painter.Invoke(() => outputView.AppendLine($"⚠️ 终端太小 {w}x{h}，建议至少 {minW}x{minH}"));
 
         outputView.AppendLine($"⚡ AgentOS v1.0  │  Model: {config.CurrentModelId}");
         outputView.AppendLine(new string('─', 60));
@@ -156,12 +165,24 @@ internal static class TuiModeRunner
         var processingTask = ProcessQueueAsync(queue, mainPipe, outputView, queryEngine, chatHistory, app.RequestStop, painter, permissionDialog, permissionManager, processingCts.Token);
 
         var focusSet = false;
+        var lastQueueCount = -1;
         app.Iteration += (_, _) =>
         {
             if (!focusSet)
             {
                 focusSet = true;
                 promptView.SetFocus();
+            }
+            try
+            {
+                resizeMonitor.CheckAndNotify(Console.WindowWidth, Console.WindowHeight);
+            }
+            catch (Exception ex) { WriteDiag($"[TUI] resize check failed: {ex.Message}"); }
+            var snapshot = queue.GetSnapshot();
+            if (snapshot.All.Count != lastQueueCount)
+            {
+                lastQueueCount = snapshot.All.Count;
+                queuedCommands.OnQueueChanged(snapshot);
             }
         };
 

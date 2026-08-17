@@ -1,0 +1,3 @@
+View [Visible=True, CanFocus=False]
+  Label [Visible=True, CanFocus=False] Text="投递中 (2)"
+  ListView [Visible=True, CanFocus=True]

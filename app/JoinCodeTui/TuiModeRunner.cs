@@ -268,6 +268,15 @@ internal static class TuiModeRunner
                     case TuiCommandAction.ExecuteOpen:
                         OpenFile(slashResult.ShellCommand!, outputView, painter);
                         break;
+                    case TuiCommandAction.ExecutePatch:
+                        OpenFile(slashResult.ShellCommand!, outputView, painter);
+                        break;
+                    case TuiCommandAction.ExecuteApply:
+                        await ExecuteShellAsync($"git apply {slashResult.ShellCommand}", outputView, painter, cancellationToken).ConfigureAwait(false);
+                        break;
+                    case TuiCommandAction.ExecuteUndo:
+                        await ExecuteShellAsync("git checkout .", outputView, painter, cancellationToken).ConfigureAwait(false);
+                        break;
                 }
                 continue;
             }

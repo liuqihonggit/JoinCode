@@ -44,4 +44,10 @@ public enum TuiCommandAction
     ExecuteFiles,
     /// <summary>打开/显示文件内容</summary>
     ExecuteOpen,
+    /// <summary>预览 patch 文件</summary>
+    ExecutePatch,
+    /// <summary>应用 patch</summary>
+    ExecuteApply,
+    /// <summary>撤销最后修改</summary>
+    ExecuteUndo,
 }

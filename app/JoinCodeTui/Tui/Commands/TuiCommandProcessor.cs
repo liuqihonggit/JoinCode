@@ -10,7 +10,7 @@ public static class TuiCommandProcessor
     private static readonly FrozenSet<string> KnownCommands = FrozenSet.Create(
         StringComparer.OrdinalIgnoreCase,
         "/help", "/exit", "/clear", "/history", "/shell", "/build", "/test", "/save",
-        "/grep", "/diff", "/files", "/open");
+        "/grep", "/diff", "/files", "/open", "/patch", "/apply", "/undo");
 
     /// <summary>
     /// 解析并处理斜杠命令。
@@ -44,6 +44,9 @@ public static class TuiCommandProcessor
             "/diff" => new TuiCommandResult(true, "  📝 git diff...", TuiCommandAction.ExecuteDiff, null),
             "/files" => HandleFiles(args),
             "/open" => HandleOpen(args),
+            "/patch" => HandlePatch(args),
+            "/apply" => HandleApply(args),
+            "/undo" => new TuiCommandResult(true, "  ↩️ 撤销最后修改...", TuiCommandAction.ExecuteUndo, null),
             _ => new TuiCommandResult(true, $"  ❌ 未知命令: {command}", TuiCommandAction.None, null),
         };
     }
@@ -64,6 +67,9 @@ public static class TuiCommandProcessor
               /diff     — 显示 git diff
               /files    — 列出文件（如 /files *.cs）
               /open     — 显示文件内容（如 /open README.md）
+              /patch    — 预览 patch 文件（如 /patch fix.patch）
+              /apply    — 应用 patch（如 /apply fix.patch）
+              /undo     — 撤销最后修改（git checkout .）
             """;
     }
 
@@ -123,5 +129,19 @@ public static class TuiCommandProcessor
         if (string.IsNullOrWhiteSpace(args))
             return new TuiCommandResult(true, "  用法: /open <文件路径>（如 /open README.md）", TuiCommandAction.None, null);
         return new TuiCommandResult(true, $"  📄 open: {args}", TuiCommandAction.ExecuteOpen, args);
+    }
+
+    private static TuiCommandResult HandlePatch(string args)
+    {
+        if (string.IsNullOrWhiteSpace(args))
+            return new TuiCommandResult(true, "  用法: /patch <patch文件>（如 /patch fix.patch）", TuiCommandAction.None, null);
+        return new TuiCommandResult(true, $"  📋 patch 预览: {args}", TuiCommandAction.ExecutePatch, args);
+    }
+
+    private static TuiCommandResult HandleApply(string args)
+    {
+        if (string.IsNullOrWhiteSpace(args))
+            return new TuiCommandResult(true, "  用法: /apply <patch文件>（如 /apply fix.patch）", TuiCommandAction.None, null);
+        return new TuiCommandResult(true, $"  ✅ apply: {args}", TuiCommandAction.ExecuteApply, args);
     }
 }

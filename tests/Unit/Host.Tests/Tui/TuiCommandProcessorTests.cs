@@ -181,4 +181,46 @@ public class TuiCommandProcessorTests
         Assert.True(result.IsHandled);
         Assert.Contains("用法", result.Output);
     }
+
+    [Fact]
+    public void Patch_WithFile_ReturnsPatchAction()
+    {
+        var result = TuiCommandProcessor.Process("/patch fix.patch");
+        Assert.True(result.IsHandled);
+        Assert.Equal(TuiCommandAction.ExecutePatch, result.Action);
+        Assert.Equal("fix.patch", result.ShellCommand);
+    }
+
+    [Fact]
+    public void Patch_WithoutFile_ReturnsUsageHint()
+    {
+        var result = TuiCommandProcessor.Process("/patch");
+        Assert.True(result.IsHandled);
+        Assert.Contains("用法", result.Output);
+    }
+
+    [Fact]
+    public void Apply_WithFile_ReturnsApplyAction()
+    {
+        var result = TuiCommandProcessor.Process("/apply fix.patch");
+        Assert.True(result.IsHandled);
+        Assert.Equal(TuiCommandAction.ExecuteApply, result.Action);
+        Assert.Equal("fix.patch", result.ShellCommand);
+    }
+
+    [Fact]
+    public void Apply_WithoutFile_ReturnsUsageHint()
+    {
+        var result = TuiCommandProcessor.Process("/apply");
+        Assert.True(result.IsHandled);
+        Assert.Contains("用法", result.Output);
+    }
+
+    [Fact]
+    public void Undo_ReturnsUndoAction()
+    {
+        var result = TuiCommandProcessor.Process("/undo");
+        Assert.True(result.IsHandled);
+        Assert.Equal(TuiCommandAction.ExecuteUndo, result.Action);
+    }
 }

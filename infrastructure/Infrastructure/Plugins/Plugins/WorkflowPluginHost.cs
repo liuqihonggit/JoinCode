@@ -17,6 +17,9 @@ public sealed class WorkflowPluginHost : IDisposable
     public string Version => _plugin.Version;
     public IWorkflowPlugin Plugin => _plugin;
 
+    /// <summary>LoadAsync 构造的 PluginContext — PluginManager 用于收集异步撤销链</summary>
+    internal PluginContext? Context { get; private set; }
+
     public WorkflowPluginHost(
         IWorkflowPlugin plugin,
         IChatClient? kernel = null,
@@ -54,6 +57,7 @@ public sealed class WorkflowPluginHost : IDisposable
             _logger?.LogInformation("正在加载工作流插件: {PluginName} v{Version}", _plugin.Name, _plugin.Version);
 
             var ctx = new PluginContext(_plugin.Name, _pluginServices);
+            Context = ctx;
             var result = await _plugin.LoadAsync(ctx, cancellationToken).ConfigureAwait(false);
 
             if (!result.Success)

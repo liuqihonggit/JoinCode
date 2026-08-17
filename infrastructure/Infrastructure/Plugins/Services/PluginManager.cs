@@ -23,6 +23,9 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
     /// <summary>每个插件的撤销链 — 按注册顺序记录,卸载时按逆序执行(Cordis Effect 系统)</summary>
     private readonly ConcurrentDictionary<string, List<Action>> _pluginUndoChain = new();
 
+    /// <summary>每个插件的异步撤销链 — IAsyncDisposable,卸载时先于同步撤销链逆序 await 执行</summary>
+    private readonly ConcurrentDictionary<string, List<IAsyncDisposable>> _pluginAsyncUndoChain = new();
+
     /// <summary>插件加载顺序 — 用于 UnloadAllPluginsAsync 按注册逆序卸载</summary>
     private readonly List<string> _loadOrder = new();
     private readonly object _loadOrderLock = new();
@@ -153,6 +156,10 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
             }
 
             _pluginUndoChain[pluginName] = undoChain;
+            if (host.Context is not null)
+            {
+                _pluginAsyncUndoChain[pluginName] = host.Context.GetAsyncUndoChain().ToList();
+            }
             AddToLoadOrder(pluginName);
 
             if (plugin is WorkflowPluginBase pluginBase)
@@ -306,6 +313,7 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
 
         if (_workflowPlugins.TryRemove(pluginName, out var workflowHost))
         {
+            await ExecutePluginAsyncUndoChainAsync(pluginName, cancellationToken).ConfigureAwait(false);
             ExecutePluginUndoChain(pluginName);
             await CleanupPluginServicesAsync(pluginName, cancellationToken).ConfigureAwait(false);
             var result = UnloadWorkflowPlugin(workflowHost);
@@ -342,6 +350,7 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
         {
             if (_workflowPlugins.TryRemove(pluginName, out var host))
             {
+                await ExecutePluginAsyncUndoChainAsync(pluginName, cancellationToken).ConfigureAwait(false);
                 ExecutePluginUndoChain(pluginName);
                 await CleanupPluginServicesAsync(pluginName, cancellationToken).ConfigureAwait(false);
                 results.Add(UnloadWorkflowPlugin(host));
@@ -393,6 +402,19 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
         }
 
         RemoveFromLoadOrder(pluginName);
+    }
+
+    /// <summary>执行插件异步撤销链 — 按逆序 await DisposeAsync(在同步撤销链之前执行)</summary>
+    private async Task ExecutePluginAsyncUndoChainAsync(string pluginName, CancellationToken ct)
+    {
+        if (_pluginAsyncUndoChain.TryRemove(pluginName, out var chain))
+        {
+            for (int i = chain.Count - 1; i >= 0; i--)
+            {
+                try { await chain[i].DisposeAsync().ConfigureAwait(false); }
+                catch (Exception ex) { _logger?.LogWarning(ex, "插件 {PluginName} async 撤销链第 {Index} 项失败", pluginName, i); }
+            }
+        }
     }
 
     /// <summary>

@@ -11,6 +11,7 @@ public sealed class PluginContext
     private readonly string _pluginName;
     private readonly IServiceCollection _services;
     private readonly List<NonEmptyUndo> _undoChain = new();
+    private readonly List<IAsyncDisposable> _asyncUndoChain = new();
 
     /// <summary>创建插件上下文 — 由 WorkflowPluginHost 构造,插件不应直接调用</summary>
     public PluginContext(string pluginName, IServiceCollection services)
@@ -44,6 +45,18 @@ public sealed class PluginContext
         _undoChain.Add(new NonEmptyUndo(disposable.Dispose));
     }
 
+    /// <summary>
+    /// 自定义异步副作用 — 对齐 Cordis ctx.effect(async disposer)
+    /// <para>factory 返回 IAsyncDisposable,DisposeAsync 时异步撤销副作用</para>
+    /// <para>异步撤销链在卸载时逆序 await 执行,在同步撤销链之前</para>
+    /// </summary>
+    public void Effect(Func<IAsyncDisposable> factory)
+    {
+        ArgumentNullException.ThrowIfNull(factory);
+        var disposable = factory();
+        _asyncUndoChain.Add(disposable);
+    }
+
     /// <summary>批量配置 DI 服务 — 收敛入口,插件不直接持有 IServiceCollection</summary>
     public void ConfigureServices(Action<IServiceCollection> configure)
     {
@@ -53,4 +66,7 @@ public sealed class PluginContext
 
     /// <summary>获取撤销链(逆序) — PluginManager 卸载时调用</summary>
     internal IReadOnlyList<NonEmptyUndo> GetUndoChain() => _undoChain;
+
+    /// <summary>获取异步撤销链(逆序) — PluginManager 卸载时先于同步撤销链执行</summary>
+    public IReadOnlyList<IAsyncDisposable> GetAsyncUndoChain() => _asyncUndoChain;
 }

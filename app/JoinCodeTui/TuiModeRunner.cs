@@ -45,7 +45,7 @@ internal static class TuiModeRunner
 
         resizeMonitor.SizeChanged += (cols, rows) => painter.NotifyResize(cols, rows);
         resizeMonitor.SizeTooSmall += (w, h, minW, minH) =>
-            painter.Invoke(() => outputView.AppendLine($"⚠️ 终端太小 {w}x{h}，建议至少 {minW}x{minH}"));
+            outputView.AppendLine($"⚠️ 终端太小 {w}x{h}，建议至少 {minW}x{minH}");
 
         outputView.AppendLine($"⚡ AgentOS v1.0  │  Model: {config.CurrentModelId}");
         outputView.AppendLine(new string('─', 60));
@@ -58,8 +58,6 @@ internal static class TuiModeRunner
 
         statusBar.SetConnected(queryEngine is not null);
 
-        var outputBatcher = new OutputBatcher(outputView);
-
         var registry = new PipeRegistry();
         var mainPipe = new MessagePipe("main", "AI Assistant", isMain: true);
         registry.Register(mainPipe);
@@ -67,11 +65,8 @@ internal static class TuiModeRunner
         var polling = new PollingService(registry, 200);
         polling.OnMessagesReceived += (_, messages) =>
         {
-            painter.Invoke(() =>
-            {
-                foreach (var msg in messages)
-                    outputView.AppendLine(msg.Content);
-            });
+            foreach (var msg in messages)
+                outputView.AppendLine(msg.Content);
         };
 
         var startTime = DateTime.UtcNow;
@@ -111,38 +106,35 @@ internal static class TuiModeRunner
 
         footerTab.TabSwitched += tab =>
         {
-            painter.Invoke(() =>
+            switch (tab)
             {
-                switch (tab)
-                {
-                    case FooterTab.Log:
-                        outputView.AppendLine("📋 [Log] 日志模式 — 输出实时显示在此区域");
-                        break;
-                    case FooterTab.Files:
-                        outputView.AppendLine($"📁 [Files] 当前目录: {Environment.CurrentDirectory}");
-                        try
-                        {
-                            var files = Directory.GetFiles(Environment.CurrentDirectory);
-                            var dirs = Directory.GetDirectories(Environment.CurrentDirectory);
-                            foreach (var d in dirs.Take(5))
-                                outputView.AppendLine($"  📂 {Path.GetFileName(d)}/");
-                            foreach (var f in files.Take(10))
-                                outputView.AppendLine($"  📄 {Path.GetFileName(f)}");
-                            var total = files.Length + dirs.Length;
-                            if (total > 15)
-                                outputView.AppendLine($"  ... 共 {total} 项");
-                        }
-                        catch (Exception ex) { outputView.AppendLine($"  [错误] {ex.Message}"); }
-                        break;
-                    case FooterTab.Memory:
-                        outputView.AppendLine($"🧠 [Memory] 对话消息数: {chatHistory.Count}");
-                        break;
-                    case FooterTab.Settings:
-                        outputView.AppendLine($"⚙️ [Settings] 模型: {config.CurrentModelId}");
-                        outputView.AppendLine("  TUI模式: True");
-                        break;
-                }
-            });
+                case FooterTab.Log:
+                    outputView.AppendLine("📋 [Log] 日志模式 — 输出实时显示在此区域");
+                    break;
+                case FooterTab.Files:
+                    outputView.AppendLine($"📁 [Files] 当前目录: {Environment.CurrentDirectory}");
+                    try
+                    {
+                        var files = Directory.GetFiles(Environment.CurrentDirectory);
+                        var dirs = Directory.GetDirectories(Environment.CurrentDirectory);
+                        foreach (var d in dirs.Take(5))
+                            outputView.AppendLine($"  📂 {Path.GetFileName(d)}/");
+                        foreach (var f in files.Take(10))
+                            outputView.AppendLine($"  📄 {Path.GetFileName(f)}");
+                        var total = files.Length + dirs.Length;
+                        if (total > 15)
+                            outputView.AppendLine($"  ... 共 {total} 项");
+                    }
+                    catch (Exception ex) { outputView.AppendLine($"  [错误] {ex.Message}"); }
+                    break;
+                case FooterTab.Memory:
+                    outputView.AppendLine($"🧠 [Memory] 对话消息数: {chatHistory.Count}");
+                    break;
+                case FooterTab.Settings:
+                    outputView.AppendLine($"⚙️ [Settings] 模型: {config.CurrentModelId}");
+                    outputView.AppendLine("  TUI模式: True");
+                    break;
+            }
         };
 
         using var timer = new System.Threading.Timer(_ =>
@@ -168,7 +160,7 @@ internal static class TuiModeRunner
         };
 
         var processingCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        var processingTask = ProcessQueueAsync(queue, mainPipe, outputView, outputBatcher, queryEngine, chatHistory, app.RequestStop, painter, permissionDialog, permissionManager, processingCts.Token);
+        var processingTask = ProcessQueueAsync(queue, mainPipe, outputView, queryEngine, chatHistory, app.RequestStop, painter, permissionDialog, permissionManager, processingCts.Token);
 
         var focusSet = false;
         var lastQueueCount = -1;
@@ -186,7 +178,7 @@ internal static class TuiModeRunner
                 PerfTap.Log("Iteration.slow", gap, $"#{iterCount}");
             if (iterCount % 100 == 0)
                 PerfTap.Log("Iteration.stats", gap, $"#{iterCount} avg={nowMs / iterCount}ms");
-            outputBatcher.DrainOnIteration();
+            outputView.Flush();
             if (!focusSet)
             {
                 focusSet = true;
@@ -228,7 +220,6 @@ internal static class TuiModeRunner
         CommandQueue queue,
         MessagePipe mainPipe,
         OutputView outputView,
-        OutputBatcher outputBatcher,
         IQueryEngine? queryEngine,
         MessageList chatHistory,
         Action requestStop,
@@ -257,7 +248,7 @@ internal static class TuiModeRunner
             {
                 if (!string.IsNullOrEmpty(slashResult.Output))
                 {
-                    painter.Invoke(() => outputView.AppendLine(slashResult.Output));
+                    outputView.AppendLine(slashResult.Output);
                 }
                 switch (slashResult.Action)
                 {
@@ -268,25 +259,25 @@ internal static class TuiModeRunner
                         painter.Invoke(() => outputView.Clear());
                         break;
                     case TuiCommandAction.ExecuteShell:
-                        await ExecuteShellAsync(slashResult.ShellCommand!, outputBatcher, cancellationToken).ConfigureAwait(false);
+                        await ExecuteShellAsync(slashResult.ShellCommand!, outputView, cancellationToken).ConfigureAwait(false);
                         break;
                     case TuiCommandAction.ExecuteBuild:
-                        await ExecuteShellAsync("dotnet build", outputBatcher, cancellationToken).ConfigureAwait(false);
+                        await ExecuteShellAsync("dotnet build", outputView, cancellationToken).ConfigureAwait(false);
                         break;
                     case TuiCommandAction.ExecuteTest:
-                        await ExecuteShellAsync("dotnet test", outputBatcher, cancellationToken).ConfigureAwait(false);
+                        await ExecuteShellAsync("dotnet test", outputView, cancellationToken).ConfigureAwait(false);
                         break;
                     case TuiCommandAction.SaveSession:
                         SaveSession(chatHistory, outputView, painter);
                         break;
                     case TuiCommandAction.ExecuteGrep:
-                        await ExecuteShellAsync($"findstr /s /i /n \"{slashResult.ShellCommand}\" *.cs *.md *.json", outputBatcher, cancellationToken).ConfigureAwait(false);
+                        await ExecuteShellAsync($"findstr /s /i /n \"{slashResult.ShellCommand}\" *.cs *.md *.json", outputView, cancellationToken).ConfigureAwait(false);
                         break;
                     case TuiCommandAction.ExecuteDiff:
-                        await ExecuteShellAsync("git diff", outputBatcher, cancellationToken).ConfigureAwait(false);
+                        await ExecuteShellAsync("git diff", outputView, cancellationToken).ConfigureAwait(false);
                         break;
                     case TuiCommandAction.ExecuteFiles:
-                        await ExecuteShellAsync($"dir /s /b {slashResult.ShellCommand}", outputBatcher, cancellationToken).ConfigureAwait(false);
+                        await ExecuteShellAsync($"dir /s /b {slashResult.ShellCommand}", outputView, cancellationToken).ConfigureAwait(false);
                         break;
                     case TuiCommandAction.ExecuteOpen:
                         OpenFile(slashResult.ShellCommand!, outputView, painter);
@@ -295,10 +286,10 @@ internal static class TuiModeRunner
                         OpenFile(slashResult.ShellCommand!, outputView, painter);
                         break;
                     case TuiCommandAction.ExecuteApply:
-                        await ExecuteShellAsync($"git apply {slashResult.ShellCommand}", outputBatcher, cancellationToken).ConfigureAwait(false);
+                        await ExecuteShellAsync($"git apply {slashResult.ShellCommand}", outputView, cancellationToken).ConfigureAwait(false);
                         break;
                     case TuiCommandAction.ExecuteUndo:
-                        await ExecuteShellAsync("git checkout .", outputBatcher, cancellationToken).ConfigureAwait(false);
+                        await ExecuteShellAsync("git checkout .", outputView, cancellationToken).ConfigureAwait(false);
                         break;
                     case TuiCommandAction.ExecuteLoad:
                         OpenFile(slashResult.ShellCommand!, outputView, painter);
@@ -310,7 +301,7 @@ internal static class TuiModeRunner
                         ShowModel(outputView, painter);
                         break;
                     case TuiCommandAction.SetModel:
-                        painter.Invoke(() => outputView.AppendLine($"  ⚠️ 运行时切换模型需重启 jcctui，请设置环境变量 JCC_MODEL_ID={slashResult.ShellCommand} 后重新启动"));
+                        outputView.AppendLine($"  ⚠️ 运行时切换模型需重启 jcctui，请设置环境变量 JCC_MODEL_ID={slashResult.ShellCommand} 后重新启动");
                         break;
                     case TuiCommandAction.ListSessions:
                         ListSessions(outputView, painter);
@@ -320,7 +311,7 @@ internal static class TuiModeRunner
                         break;
                     case TuiCommandAction.ClearHistory:
                         chatHistory.Clear();
-                        painter.Invoke(() => outputView.AppendLine("  🗑️ 聊天历史已清空"));
+                        outputView.AppendLine("  🗑️ 聊天历史已清空");
                         break;
                 }
                 continue;
@@ -335,11 +326,11 @@ internal static class TuiModeRunner
                 Style = MessageStyle.User,
             });
 
-            painter.Invoke(() => outputView.AppendLine($"👤 {cmd.Content}"));
+            outputView.AppendLine($"👤 {cmd.Content}");
 
             if (queryEngine is null)
             {
-                painter.Invoke(() => outputView.AppendLine("🤖 (未配置LLM) 请设置 API Key 后使用"));
+                outputView.AppendLine("🤖 (未配置LLM) 请设置 API Key 后使用");
                 continue;
             }
 
@@ -353,13 +344,11 @@ internal static class TuiModeRunner
                     var text = ChunkFormatter.ChunkToText(chunk);
                     if (!string.IsNullOrEmpty(text))
                     {
-                        outputBatcher.Enqueue(text);
+                        outputView.AppendLine(text);
                     }
                 }
-                outputBatcher.FlushNow(painter);
                 chunkSw.Stop();
                 PerfTap.Log("chunk-loop-total", chunkSw.ElapsedMilliseconds, $"chunks={chunkCount} cmd={cmd.Content[..Math.Min(50, cmd.Content.Length)]}");
-                painter.Invoke(() => outputView.Flush());
             }
             catch (OperationCanceledException) { break; }
             catch (PermissionPendingConfirmationException ex)
@@ -375,17 +364,17 @@ internal static class TuiModeRunner
                 if (allowed)
                 {
                     permissionManager?.ApproveToolTemporarily(ex.ToolName, TimeSpan.FromMinutes(5));
-                    painter.Invoke(() => outputView.AppendLine($"  [允许] {ex.ToolName}"));
+                    outputView.AppendLine($"  [允许] {ex.ToolName}");
                     queue.Enqueue(new QueuedCommand(cmd.Content, CommandOrigin.User, QueuePriority.Now));
                 }
                 else
                 {
-                    painter.Invoke(() => outputView.AppendLine($"  [拒绝] {ex.ToolName}"));
+                    outputView.AppendLine($"  [拒绝] {ex.ToolName}");
                 }
             }
             catch (Exception ex)
             {
-                painter.Invoke(() => outputView.AppendLine($"  [错误] {ex.Message}"));
+                outputView.AppendLine($"  [错误] {ex.Message}");
             }
         }
     }
@@ -395,7 +384,7 @@ internal static class TuiModeRunner
     /// </summary>
     private static async Task ExecuteShellAsync(
         string command,
-        OutputBatcher batcher,
+        OutputView outputView,
         CancellationToken cancellationToken)
     {
         var psi = new System.Diagnostics.ProcessStartInfo
@@ -412,22 +401,22 @@ internal static class TuiModeRunner
         {
             using var proc = new System.Diagnostics.Process { StartInfo = psi };
             proc.Start();
-            var outputTask = ReadStreamAsync(proc.StandardOutput, batcher, cancellationToken);
-            var errorTask = ReadStreamAsync(proc.StandardError, batcher, cancellationToken);
+            var outputTask = ReadStreamAsync(proc.StandardOutput, outputView, cancellationToken);
+            var errorTask = ReadStreamAsync(proc.StandardError, outputView, cancellationToken);
             await proc.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
             await Task.WhenAll(outputTask, errorTask).ConfigureAwait(false);
             var exitCode = proc.ExitCode;
-            batcher.Enqueue($"  [退出码 {exitCode}]");
+            outputView.AppendLine($"  [退出码 {exitCode}]");
         }
         catch (Exception ex)
         {
-            batcher.Enqueue($"  [执行失败] {ex.Message}");
+            outputView.AppendLine($"  [执行失败] {ex.Message}");
         }
     }
 
     private static async Task ReadStreamAsync(
         System.IO.StreamReader reader,
-        OutputBatcher batcher,
+        OutputView outputView,
         CancellationToken cancellationToken)
     {
         var lineCount = 0;
@@ -436,7 +425,7 @@ internal static class TuiModeRunner
         while ((line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) is not null)
         {
             lineCount++;
-            batcher.Enqueue($"  {line}");
+            outputView.AppendLine($"  {line}");
         }
         totalSw.Stop();
         PerfTap.Log("shell-read-total", totalSw.ElapsedMilliseconds, $"lines={lineCount}");
@@ -466,11 +455,11 @@ internal static class TuiModeRunner
                 sb.Append($"[{role}] {msg.Content}\n");
             }
             System.IO.File.WriteAllText(path, sb.ToString());
-            painter.Invoke(() => outputView.AppendLine($"  💾 已保存到 {path}"));
+            outputView.AppendLine($"  💾 已保存到 {path}");
         }
         catch (Exception ex)
         {
-            painter.Invoke(() => outputView.AppendLine($"  [保存失败] {ex.Message}"));
+            outputView.AppendLine($"  [保存失败] {ex.Message}");
         }
     }
 
@@ -483,7 +472,7 @@ internal static class TuiModeRunner
         {
             if (!System.IO.File.Exists(filePath))
             {
-                painter.Invoke(() => outputView.AppendLine($"  [文件不存在] {filePath}"));
+                outputView.AppendLine($"  [文件不存在] {filePath}");
                 return;
             }
             var content = System.IO.File.ReadAllText(filePath);
@@ -494,14 +483,14 @@ internal static class TuiModeRunner
             {
                 var line = lines[i].TrimEnd('\r');
                 var captured = line;
-                painter.Invoke(() => outputView.AppendLine($"  {captured}"));
+                outputView.AppendLine($"  {captured}");
             }
             if (lines.Length > maxLines)
-                painter.Invoke(() => outputView.AppendLine($"  ... ({lines.Length} 行，仅显示前 {maxLines} 行)"));
+                outputView.AppendLine($"  ... ({lines.Length} 行，仅显示前 {maxLines} 行)");
         }
         catch (Exception ex)
         {
-            painter.Invoke(() => outputView.AppendLine($"  [打开失败] {ex.Message}"));
+            outputView.AppendLine($"  [打开失败] {ex.Message}");
         }
     }
 
@@ -515,14 +504,11 @@ internal static class TuiModeRunner
         var model = Environment.GetEnvironmentVariable("JCC_MODEL_ID") ?? "(未设置)";
         var apiKey = Environment.GetEnvironmentVariable("JCC_API_KEY");
         var keyDisplay = string.IsNullOrEmpty(apiKey) ? "(未设置)" : $"{apiKey[..Math.Min(4, apiKey.Length)]}****";
-        painter.Invoke(() =>
-        {
-            outputView.AppendLine("  ⚙️ 当前配置:");
-            outputView.AppendLine($"    Endpoint: {endpoint}");
-            outputView.AppendLine($"    Vendor:   {vendor}");
-            outputView.AppendLine($"    Model:    {model}");
-            outputView.AppendLine($"    API Key:  {keyDisplay}");
-        });
+        outputView.AppendLine("  ⚙️ 当前配置:");
+        outputView.AppendLine($"    Endpoint: {endpoint}");
+        outputView.AppendLine($"    Vendor:   {vendor}");
+        outputView.AppendLine($"    Model:    {model}");
+        outputView.AppendLine($"    API Key:  {keyDisplay}");
     }
 
     /// <summary>
@@ -532,11 +518,8 @@ internal static class TuiModeRunner
     {
         var model = Environment.GetEnvironmentVariable("JCC_MODEL_ID") ?? "(未设置)";
         var vendor = Environment.GetEnvironmentVariable("JCC_VENDOR") ?? "(未设置)";
-        painter.Invoke(() =>
-        {
-            outputView.AppendLine($"  🤖 模型: {model}");
-            outputView.AppendLine($"  🏷️ 供应商: {vendor}");
-        });
+        outputView.AppendLine($"  🤖 模型: {model}");
+        outputView.AppendLine($"  🏷️ 供应商: {vendor}");
     }
 
     /// <summary>
@@ -549,28 +532,28 @@ internal static class TuiModeRunner
             var dir = System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), ".jcctui");
             if (!System.IO.Directory.Exists(dir))
             {
-                painter.Invoke(() => outputView.AppendLine("  📋 无已保存会话（.jcctui/ 目录不存在）"));
+                outputView.AppendLine("  📋 无已保存会话（.jcctui/ 目录不存在）");
                 return;
             }
             var files = System.IO.Directory.GetFiles(dir, "session_*.txt");
             if (files.Length == 0)
             {
-                painter.Invoke(() => outputView.AppendLine("  📋 无已保存会话"));
+                outputView.AppendLine("  📋 无已保存会话");
                 return;
             }
-            painter.Invoke(() => outputView.AppendLine("  📋 已保存会话:"));
+            outputView.AppendLine("  📋 已保存会话:");
             foreach (var file in files)
             {
                 var name = System.IO.Path.GetFileName(file);
                 var time = System.IO.File.GetLastWriteTime(file).ToString("yyyy-MM-dd HH:mm");
                 var capturedName = name;
                 var capturedTime = time;
-                painter.Invoke(() => outputView.AppendLine($"    {capturedName} ({capturedTime})"));
+                outputView.AppendLine($"    {capturedName} ({capturedTime})");
             }
         }
         catch (Exception ex)
         {
-            painter.Invoke(() => outputView.AppendLine($"  [列出失败] {ex.Message}"));
+            outputView.AppendLine($"  [列出失败] {ex.Message}");
         }
     }
 
@@ -587,12 +570,9 @@ internal static class TuiModeRunner
             if (msg.TokenUsage is not null)
                 totalTokens += msg.TokenUsage.TotalTokens;
         }
-        painter.Invoke(() =>
-        {
-            outputView.AppendLine("  🔢 Token 用量:");
-            outputView.AppendLine($"    消息数: {msgCount}");
-            outputView.AppendLine($"    总 Token: {totalTokens}");
-        });
+        outputView.AppendLine("  🔢 Token 用量:");
+        outputView.AppendLine($"    消息数: {msgCount}");
+        outputView.AppendLine($"    总 Token: {totalTokens}");
     }
 
     private static void WriteDiag(string message)

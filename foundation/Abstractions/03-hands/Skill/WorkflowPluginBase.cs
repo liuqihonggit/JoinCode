@@ -118,6 +118,14 @@ public abstract class WorkflowPluginBase : Entity, IWorkflowPlugin, IPluginHeart
     /// <summary>子类覆写:插件特定清理逻辑 — 在资源释放后调用</summary>
     protected virtual void OnUnload() { }
 
+    /// <summary>
+    /// 校验卸载契约 — 加载后由 PluginManager 调用,失败则拒绝加载
+    /// <para>对齐方案B:不写对应卸载就不允许加载</para>
+    /// <para>默认实现返回 Valid(信任子类已通过 RegisterResource 登记所有副作用)</para>
+    /// <para>子类可覆写做更严校验(如校验资源数量与声明副作用一致、disposer 非空等)</para>
+    /// </summary>
+    public virtual PluginUnloadContract ValidateUnloadContract() => PluginUnloadContract.Valid;
+
     /// <summary>刷新心跳 — 插件每次活动时调用</summary>
     public new void Touch()
     {

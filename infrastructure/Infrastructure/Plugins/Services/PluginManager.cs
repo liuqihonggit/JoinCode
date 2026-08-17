@@ -30,6 +30,9 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
     /// <summary>每个插件的资源 ObjectId 列表 — 卸载后用于扫描验证</summary>
     private readonly ConcurrentDictionary<string, List<ObjectId>> _pluginResourceIds = new();
 
+    /// <summary>插件黑名单 — 卸载泄漏的插件加入,拒绝再次加载(方案B C4)</summary>
+    private readonly ConcurrentDictionary<string, byte> _blacklistedPlugins = new();
+
     private IResourceReferenceGraph? _referenceGraph;
     private PluginResourceScanner? _resourceScanner;
     private IAppEventBus? _eventBus;
@@ -91,6 +94,12 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
                 throw new InvalidOperationException($"[INF031] 插件 '{pluginName}' 已经加载");
             }
 
+            if (_blacklistedPlugins.ContainsKey(pluginName))
+            {
+                RecordPluginMetrics("workflow", "load", false);
+                throw new InvalidOperationException($"[INF-PLUGIN-BL] 插件 '{pluginName}' 已被加入黑名单(此前卸载泄漏),拒绝加载");
+            }
+
             _logger?.LogInformation("正在加载内置工作流插件: {PluginName}", pluginName);
 
             var host = new WorkflowPluginHost(plugin, _kernel, _loggerFactory, _fileOperationService, _commandRegistry, _logger);
@@ -110,6 +119,19 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
                 host.Dispose();
                 RecordPluginMetrics("workflow", "load", false);
                 throw new InvalidOperationException($"[INF033] 插件 '{pluginName}' Initialize 失败: {initResult.ErrorMessage}");
+            }
+
+            if (plugin is WorkflowPluginBase contractPlugin)
+            {
+                var contract = contractPlugin.ValidateUnloadContract();
+                if (!contract.IsValid)
+                {
+                    host.Unload();
+                    host.Dispose();
+                    RecordPluginMetrics("workflow", "load", false);
+                    throw new InvalidOperationException(
+                        $"[INF-PLUGIN-CONTRACT] 插件 '{pluginName}' 拒绝加载: {contract.Reason}");
+                }
             }
 
             if (!_workflowPlugins.TryAdd(pluginName, host))
@@ -480,7 +502,9 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
         var report = ResourceScanner.ScanPluginResources(pluginName, resourceIds);
         if (report.HasLeaks)
         {
-            _logger?.LogWarning("插件 {Plugin} 卸载后有 {Count} 个资源泄漏", pluginName, report.LeakedResourceIds.Count);
+            _blacklistedPlugins.TryAdd(pluginName, 0);
+            _logger?.LogError("插件 {Plugin} 卸载后有 {Count} 个资源泄漏,已加入黑名单,拒绝再次加载",
+                pluginName, report.LeakedResourceIds.Count);
         }
     }
 

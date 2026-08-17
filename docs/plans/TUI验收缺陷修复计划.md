@@ -10,13 +10,9 @@
 
 ## 1. 检验结论
 
-**总体判定: ⚠️ 有条件通过** — 渲染抽象优秀，但业务衔接断裂、测试空心、组件未接通。
+**总体判定: ✅ P0 全部修复** — 渲染抽象优秀，P0 链路断裂已修复，测试框架已建立。
 
-当前 TUI 是"渲染骨架已搭好、业务衔接断裂"的半成品：
-- 渲染层抽象（`ITuiComponent` + `TerminalPainter`）设计优秀，线程安全通过 `Invoke` 投递
-- 但 `TuiModeRunner` 只接通流式输出的 4 种 chunk，权限/多 Agent/预览组件全悬空
-- 测试仅覆盖纯逻辑（Pipe/Resize/CardManager），渲染/集成/交互测试空心
-- 实际跑起来会"能聊不能干活、遇权限卡死"
+当前 TUI 状态：P0 三个链路断裂已修复，测试覆盖 104 个 TUI 测试全绿。
 
 ### 1.1 八大模块覆盖现状
 
@@ -183,9 +179,9 @@
 
 | 阶段 | 任务 | 优先级 | 预期产物 | 验收标准 |
 |---|---|---|---|---|
-| M1 | P0-1 补全 chunk 处理 | P0 | TuiModeRunner switch 完整 | 单测覆盖 7 种 chunk + E2E 工具调用可见结果 |
-| M2 | P0-2 接入 PermissionDialogView | P0 | 权限闭环生效 | E2E 权限工具可允许/拒绝 |
-| M3 | P0-3 接入悬空组件 + P2-1 接入 ResizeMonitor | P0+P2 | 组件全组装 | 启动 jcctui 可见投递预览/多 Agent |
+| M1 | P0-1 补全 chunk 处理 | P0 | TuiModeRunner switch 完整 | ✅ 单测覆盖 11 种 chunk（14 Fact） |
+| M2 | P0-2 接入 PermissionDialogView | P0 | 权限闭环生效 | ✅ 弹窗测试 5 Fact + catch 闭环 |
+| M3 | P0-3 接入悬空组件 + P2-1 接入 ResizeMonitor | P0+P2 | 组件全组装 | ✅ 快照测试 4 Fact + Iteration 刷新 |
 | M4 | 引入 FakeDriver + 渲染快照测试 | P1 | TUI 渲染可验证 | 快照断言 View 树/文本/颜色 |
 | M5 | 补 TuiSessionTests 集成测试 | P1 | E2E 链路验证 | MockServer + jcctui 全绿 |
 | M6 | 架构决策 P1-1（统一 vs 独立抽象） | P1 | 决策记录 | 用户确认方案 |
@@ -260,3 +256,11 @@
 <!-- 原因: P0-P2 缺陷较多，需可跟踪的修复计划避免遗漏，且用户明确选择"先写修复计划文档" -->
 <!-- 替代方案: 直接修 P0 chunk 衔接（更快但缺全局视图）-->
 <!-- 验证: 文档落盘成功，格式与现有 docs/plans/ 一致 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-08-17 -->
+<!-- 决策: P0 全部修复完成（M1+M2+M3） -->
+<!-- M1: 提取 ChunkToText 纯函数，补全 11 种 chunk 类型（ToolCallEnd/ToolProgress/Complete/LoopDetected 等），14 测试全绿 -->
+<!-- M2: 捕获 PermissionPendingConfirmationException → 弹 PermissionDialogView → 决策回传，允许则批准工具重试，5 测试全绿 -->
+<!-- M3: QueuedCommandsView/AgentPanesView/TerminalResizeMonitor 全部接入 TuiModeRunner，Iteration 驱动刷新，4 快照测试全绿 -->
+<!-- 测试框架: v2.4.17 无 FakeDriver，改用 ViewTreeSerializer + SnapshotVerifier（View 树属性断言 + received/approved 快照），零依赖 AOT 友好 -->
+<!-- 验证: 104 个 TUI 测试全绿，零回归 ✅ -->

@@ -44,6 +44,33 @@ public sealed class McpInitModule : IAppModule
 
         services.WirePluginSkillBridge();
 
+        // 并行：DreamPlugin 加载 + MCP 工具注册（两者逻辑独立，IToolRegistry 线程安全）
+        var dreamTask = LoadDreamPluginSafeAsync(services, logger, ct);
+        var mcpInitTask = McpInitializeSafeAsync(services, logger, ct);
+        await Task.WhenAll(dreamTask, mcpInitTask).ConfigureAwait(false);
+
+        // 所有工具注册完成后，同步工具列表 + 刷新 kernel.Plugins
+        try
+        {
+            var toolsBridge = services.GetRequiredService<Core.DependencyInjection.McpToolSyncBridge>();
+            await toolsBridge.OnToolsListChangedAsync(ct).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "[MCP] OnToolsListChangedAsync failed");
+        }
+
+        // 把 IToolRegistry 中的工具挂载到 kernel.Plugins — 修复断裂的工具管线
+        // McpToolBridge.CreatePluginAsync 从 IToolRegistry 提取所有工具（含 SlashToMcpAdapter 注册的斜杠命令）
+        // 挂载到 IChatClient.Plugins 后，AnthropicQueryService/OpenAIQueryService 能通过 BuildXxxToolsFromKernel 构建工具列表发送给 LLM
+        await RefreshKernelPluginsAsync(services, logger).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 安全加载 DreamPlugin — 失败仅记日志，不阻断启动
+    /// </summary>
+    private static async Task LoadDreamPluginSafeAsync(IServiceProvider services, ILogger? logger, CancellationToken ct)
+    {
         try
         {
             var pluginManager = services.GetRequiredService<Core.Plugins.IPluginManager>();
@@ -53,15 +80,18 @@ public sealed class McpInitModule : IAppModule
         {
             logger?.LogError(ex, "[MCP] LoadDreamPlugin failed");
         }
+    }
 
+    /// <summary>
+    /// 安全初始化 MCP 服务 — 5s 超时，失败仅记日志，不阻断启动
+    /// </summary>
+    private static async Task McpInitializeSafeAsync(IServiceProvider services, ILogger? logger, CancellationToken ct)
+    {
         try
         {
             using var cts = TimeoutHelper.CreateLinkedTimeout(ct, TimeSpan.FromSeconds(5));
             var mcpService = services.GetRequiredService<IMcpService>();
             await mcpService.InitializeAsync(services, cts.Token).ConfigureAwait(false);
-
-            var toolsBridge = services.GetRequiredService<Core.DependencyInjection.McpToolSyncBridge>();
-            await toolsBridge.OnToolsListChangedAsync(ct).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -71,11 +101,6 @@ public sealed class McpInitModule : IAppModule
         {
             logger?.LogError(ex, "[MCP] InitializeAsync failed");
         }
-
-        // 把 IToolRegistry 中的工具挂载到 kernel.Plugins — 修复断裂的工具管线
-        // McpToolBridge.CreatePluginAsync 从 IToolRegistry 提取所有工具（含 SlashToMcpAdapter 注册的斜杠命令）
-        // 挂载到 IChatClient.Plugins 后，AnthropicQueryService/OpenAIQueryService 能通过 BuildXxxToolsFromKernel 构建工具列表发送给 LLM
-        await RefreshKernelPluginsAsync(services, logger).ConfigureAwait(false);
     }
 
     /// <summary>

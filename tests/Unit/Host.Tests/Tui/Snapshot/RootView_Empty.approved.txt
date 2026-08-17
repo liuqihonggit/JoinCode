@@ -1,0 +1,6 @@
+RootView [Visible=True, CanFocus=True]
+  View [Visible=True, CanFocus=False]
+  View [Visible=True, CanFocus=False]
+  View [Visible=True, CanFocus=False]
+  View [Visible=True, CanFocus=True]
+  View [Visible=True, CanFocus=False]

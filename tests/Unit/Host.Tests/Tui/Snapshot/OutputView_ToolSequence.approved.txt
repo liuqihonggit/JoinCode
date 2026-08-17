@@ -1,0 +1,2 @@
+View [Visible=True, CanFocus=False]
+  Label [Visible=True, CanFocus=False] Text="👤 分析项目结构\r\n  [工具] Read\r\n  [工具] Read 完成\r\n💭 根据读取的内容..."

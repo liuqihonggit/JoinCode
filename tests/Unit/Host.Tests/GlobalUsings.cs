@@ -60,6 +60,7 @@ global using JoinCode.Queue;
 global using JoinCode.Tui.Pipes;
 global using JoinCode.Tui.Rendering;
 global using JoinCode.Tui.Views;
+global using Host.Tests.Tui.Rendering;
 global using Terminal.Gui.App;
 global using Terminal.Gui.ViewBase;
 global using JoinCode.Cli.Interaction;

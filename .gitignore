@@ -17,6 +17,9 @@ tests/MockServers/MockServer.Core/dumps/
 tests/MockServers/*/tests/
 boxc/
 
+# 快照测试临时文件（approved 入库，received 仅本地调试）
+*.received.txt
+
 # Stryker 变异测试输出
 **/StrykerOutput/
 

@@ -299,7 +299,7 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
         var errorContent = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}";
         try
         {
-            System.IO.File.WriteAllText(errorLog, errorContent);
+            SafeFileIO.WriteAllText(errorLog, errorContent);
         }
         catch (Exception logEx)
         {

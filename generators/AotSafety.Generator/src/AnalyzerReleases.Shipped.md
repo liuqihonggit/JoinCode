@@ -44,3 +44,4 @@ New Diagnostics:
 - DPSK10005: Code style: string switch expression with 3+ arms should use enum with [EnumValue].
 - DPSK10006: Code style: Dictionary<string, string> with Key==Value is redundant; use enum + [EnumValue].
 - DPSK10007: Code style: string literals matching [EnumValue] values should use XxxExtensions.ToValue().
+- JCC9006: 文件IO: FileStream 必须使用 FileShare.ReadWrite 避免并发读写冲突.

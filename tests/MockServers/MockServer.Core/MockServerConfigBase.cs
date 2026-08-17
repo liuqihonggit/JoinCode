@@ -25,7 +25,7 @@ public abstract class MockServerConfigBase<TSelf> where TSelf : MockServerConfig
         if (!File.Exists(path))
             throw new FileNotFoundException(string.Format(configNotFoundMessage, path), path);
 
-        var json = File.ReadAllText(path);
+        var json = IO.FileSystem.SafeFileIO.ReadAllText(path);
         var config = JsonSerializer.Deserialize(json, jsonTypeInfo)
             ?? throw new InvalidOperationException($"[GEN018] 配置文件反序列化失败: {path}");
         return config;

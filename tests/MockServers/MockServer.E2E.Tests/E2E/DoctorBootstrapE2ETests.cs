@@ -234,7 +234,7 @@ public sealed partial class DoctorBootstrapE2ETests : IAsyncLifetime
             """;
 
         var configPath = Path.Combine(configDir, "openai.json");
-        File.WriteAllText(configPath, configContent);
+        IO.FileSystem.SafeFileIO.WriteAllText(configPath, configContent);
         return configPath;
     }
 

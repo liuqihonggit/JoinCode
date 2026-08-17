@@ -106,6 +106,8 @@ public sealed class EngineSessionFactory
         Core.DependencyInjection.ShellCapabilityInitializer.Initialize(
             fs, host.Services.GetService<ILogger<EngineSessionFactory>>());
 
+        StartModelFetchBackground(fs, host.Services, cancellationToken);
+
         var chatService = host.Services.GetRequiredService<IChatService>();
 
         return new Result
@@ -115,5 +117,36 @@ public sealed class EngineSessionFactory
             Config = config,
             Host = host,
         };
+    }
+
+    /// <summary>
+    /// 启动非阻塞并行模型列表拉取 — 后台执行，失败不影响启动
+    /// 拉取完成后写回 settings.json，由现有文件监控链路自动刷新内存和GUI
+    /// </summary>
+    private static void StartModelFetchBackground(
+        IFileSystem fs,
+        IServiceProvider services,
+        CancellationToken cancellationToken)
+    {
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var settings = await SettingsLoader.LoadUserSettingsAsync(fs, cancellationToken).ConfigureAwait(false);
+                if (settings is null || !settings.AutoFetchModels) return;
+
+                var httpProvider = HttpClientProviderFactory.Create();
+                var changeNotifier = services.GetService<IConfigChangeNotifier>();
+                var fetcher = new ModelListFetcher(httpProvider, fs, services.GetService<ILogger<ModelListFetcher>>());
+                var writer = new SettingsJsonModelWriter(fs, changeNotifier, services.GetService<ILogger<SettingsJsonModelWriter>>());
+                var startupService = new ModelFetchStartupService(fetcher, writer, services.GetService<ILogger<ModelFetchStartupService>>());
+
+                await startupService.ExecuteAsync(settings, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                services.GetService<ILogger<EngineSessionFactory>>()?.LogWarning(ex, "[EngineSessionFactory] 模型列表后台拉取失败，不影响启动");
+            }
+        }, cancellationToken);
     }
 }

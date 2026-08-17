@@ -66,7 +66,7 @@ public sealed class MockServerConfigTests : IDisposable
             }
             """;
         var path = Path.Combine(_tempDir, "config.json");
-        File.WriteAllText(path, json);
+        IO.FileSystem.SafeFileIO.WriteAllText(path, json);
 
         var config = MockServerConfig.LoadFromFile(path);
 
@@ -86,7 +86,7 @@ public sealed class MockServerConfigTests : IDisposable
     public void LoadFromFile_InvalidJson_ThrowsJsonException()
     {
         var path = Path.Combine(_tempDir, "bad.json");
-        File.WriteAllText(path, "not valid json{{{");
+        IO.FileSystem.SafeFileIO.WriteAllText(path, "not valid json{{{");
 
         var act = () => MockServerConfig.LoadFromFile(path);
         act.Should().Throw<System.Text.Json.JsonException>();
@@ -96,7 +96,7 @@ public sealed class MockServerConfigTests : IDisposable
     public void LoadFromFile_DeserializesToNull_ThrowsInvalidOperationException()
     {
         var path = Path.Combine(_tempDir, "null.json");
-        File.WriteAllText(path, "null");
+        IO.FileSystem.SafeFileIO.WriteAllText(path, "null");
 
         var act = () => MockServerConfig.LoadFromFile(path);
         act.Should().Throw<InvalidOperationException>();
@@ -124,7 +124,7 @@ public sealed class MockServerConfigTests : IDisposable
     {
         var json = """{ "port": 8080 }""";
         var path = Path.Combine(_tempDir, "cfg.json");
-        File.WriteAllText(path, json);
+        IO.FileSystem.SafeFileIO.WriteAllText(path, json);
 
         var config = MockServerConfig.LoadFromFileOrDefault(path);
 
@@ -135,7 +135,7 @@ public sealed class MockServerConfigTests : IDisposable
     public void LoadFromFileOrDefault_InvalidJson_ReturnsDefaultConfig()
     {
         var path = Path.Combine(_tempDir, "broken.json");
-        File.WriteAllText(path, "{bad json");
+        IO.FileSystem.SafeFileIO.WriteAllText(path, "{bad json");
 
         var config = MockServerConfig.LoadFromFileOrDefault(path);
 
@@ -151,7 +151,7 @@ public sealed class MockServerConfigTests : IDisposable
         var baseDirFile = Path.Combine(AppContext.BaseDirectory, fileName);
         try
         {
-            File.WriteAllText(baseDirFile, """{ "port": 7777, "default_response": "from basedir" }""");
+            IO.FileSystem.SafeFileIO.WriteAllText(baseDirFile, """{ "port": 7777, "default_response": "from basedir" }""");
 
             var config = MockServerConfig.LoadFromFileOrDefault(fileName);
 
@@ -173,8 +173,8 @@ public sealed class MockServerConfigTests : IDisposable
         var baseDirFile = Path.Combine(AppContext.BaseDirectory, fileName);
         try
         {
-            File.WriteAllText(specificFile, """{ "port": 1111, "default_response": "from specific" }""");
-            File.WriteAllText(baseDirFile, """{ "port": 2222, "default_response": "from basedir" }""");
+            IO.FileSystem.SafeFileIO.WriteAllText(specificFile, """{ "port": 1111, "default_response": "from specific" }""");
+            IO.FileSystem.SafeFileIO.WriteAllText(baseDirFile, """{ "port": 2222, "default_response": "from basedir" }""");
 
             var config = MockServerConfig.LoadFromFileOrDefault(specificFile);
 

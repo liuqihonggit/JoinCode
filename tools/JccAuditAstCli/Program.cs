@@ -147,7 +147,7 @@ public static class Program
 
         if (!string.IsNullOrEmpty(outputPath))
         {
-            await File.WriteAllTextAsync(outputPath, json);
+            await SafeFileIO.WriteAllTextAsync(outputPath, json);
             Console.WriteLine($"报告已写入: {outputPath}");
         }
 
@@ -404,7 +404,7 @@ public static class Program
 
             if (!string.IsNullOrEmpty(outputPath))
             {
-                await File.WriteAllTextAsync(outputPath, json);
+                await SafeFileIO.WriteAllTextAsync(outputPath, json);
                 Console.WriteLine($"报告已写入: {outputPath}");
             }
 
@@ -481,7 +481,7 @@ public static class Program
 
             if (!string.IsNullOrEmpty(outputPath))
             {
-                await File.WriteAllTextAsync(outputPath, json, cts.Token);
+                await SafeFileIO.WriteAllTextAsync(outputPath, json, cts.Token);
                 Console.WriteLine($"报告已写入: {outputPath}");
             }
 
@@ -546,7 +546,7 @@ public static class Program
 
             if (!string.IsNullOrEmpty(outputPath))
             {
-                await File.WriteAllTextAsync(outputPath, json);
+                await SafeFileIO.WriteAllTextAsync(outputPath, json);
                 Console.WriteLine($"报告已写入: {outputPath}");
             }
 

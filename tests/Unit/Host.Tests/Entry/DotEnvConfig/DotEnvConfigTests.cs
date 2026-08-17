@@ -178,7 +178,7 @@ public sealed class DotEnvConfigTests
     {
         Directory.CreateDirectory(TempDir);
         var path = Path.Combine(TempDir, $"test_{Guid.NewGuid():N}.json");
-        File.WriteAllText(path, content);
+        IO.FileSystem.SafeFileIO.WriteAllText(path, content);
         return path;
     }
 

@@ -27,24 +27,38 @@ public sealed partial class PermissionCheckMiddleware : ServiceEntity, IToolExec
         if (_permissionInterceptor is null)
         {
             _logger.LogDebug(L.T(StringKey.PermissionCheckSkippedLog));
-        }
-        else
-        {
-            var invokeContext = new ToolInvokeContext(context.ToolName, context.Arguments);
-            _logger.LogDebug(L.T(StringKey.PermissionCheckStartLog, context.ToolName, invokeContext.RequestId));
-            try
-            {
-                await _permissionInterceptor.CheckPermissionOrThrowAsync(invokeContext, ct).ConfigureAwait(false);
-            }
-            catch (PermissionPendingConfirmationException ex) when (string.Equals(context.ToolName, WebToolNameConstants.WebFetch, StringComparison.OrdinalIgnoreCase))
-            {
-                var ruleContent = ExtractWebFetchRuleContent(context.Arguments);
-                throw new PermissionPendingConfirmationException(ex.ToolName, ex.ConfirmationPrompt, ex.RequestId, ruleContent);
-            }
-            _logger.LogInformation(L.T(StringKey.PermissionCheckPassedLog, context.ToolName, invokeContext.RequestId));
+            await next(context, ct).ConfigureAwait(false);
+            return;
         }
 
-        await next(context, ct).ConfigureAwait(false);
+        var invokeContext = new ToolInvokeContext(context.ToolName, context.Arguments);
+        _logger.LogDebug(L.T(StringKey.PermissionCheckStartLog, context.ToolName, invokeContext.RequestId));
+
+        var outcome = await _permissionInterceptor.CheckPermissionAsync(invokeContext, ct).ConfigureAwait(false);
+
+        switch (outcome.Decision)
+        {
+            case PermissionDecision.Allowed:
+                _logger.LogInformation(L.T(StringKey.PermissionCheckPassedLog, context.ToolName, invokeContext.RequestId));
+                await next(context, ct).ConfigureAwait(false);
+                break;
+
+            case PermissionDecision.Denied:
+                _logger.LogWarning("工具权限被拒绝: Tool={ToolName}, Reason={Reason}", context.ToolName, outcome.DenyReason);
+                context.Deny(outcome.DenyReason ?? "权限被拒绝");
+                break;
+
+            case PermissionDecision.PendingConfirmation:
+                var ruleContent = outcome.RuleContent;
+                if (string.IsNullOrEmpty(ruleContent) && string.Equals(context.ToolName, WebToolNameConstants.WebFetch, StringComparison.OrdinalIgnoreCase))
+                {
+                    ruleContent = ExtractWebFetchRuleContent(context.Arguments);
+                }
+                _logger.LogInformation("工具需要确认: Tool={ToolName}, Prompt={Prompt}", context.ToolName, outcome.ConfirmationPrompt);
+                context.RequireConfirmation(outcome.ConfirmationPrompt ?? "需要确认", ruleContent);
+                await next(context, ct).ConfigureAwait(false);
+                break;
+        }
     }
 
     /// <summary>

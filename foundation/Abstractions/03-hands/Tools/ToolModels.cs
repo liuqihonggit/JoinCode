@@ -195,6 +195,25 @@ public sealed record ToolResult
     public ToolDiagnostic? Diagnostic { get; set; }
 
     /// <summary>
+    /// 权限决策结果 — PendingConfirmation 时由上层 ToolExecutionHandler 触发 IPermissionConfirmationHandler.Confirm。
+    /// 默认 Allowed,表示工具已正常执行。不序列化到 LLM。
+    /// </summary>
+    [JsonIgnore]
+    public PermissionDecision PermissionDecision { get; set; } = PermissionDecision.Allowed;
+
+    /// <summary>
+    /// 权限确认提示 — PermissionDecision 为 PendingConfirmation 时填充,传给 IPermissionConfirmationHandler.Confirm
+    /// </summary>
+    [JsonIgnore]
+    public string? ConfirmationPrompt { get; set; }
+
+    /// <summary>
+    /// 权限确认规则内容 — WebFetch 等 domain:hostname 格式,用于域名级白名单持久化
+    /// </summary>
+    [JsonIgnore]
+    public string? PermissionRuleContent { get; set; }
+
+    /// <summary>
     /// 获取文本内容
     /// </summary>
     public string GetTextContent()

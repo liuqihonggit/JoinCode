@@ -49,10 +49,8 @@ public sealed partial class AgentRestrictionMiddleware : ServiceEntity, IToolExe
                 if (!filterResult.IsAllowed)
                 {
                     _logger.LogWarning(L.T(StringKey.AgentToolLimitDeniedLog, context.ToolName, context.AgentMode));
-                    throw new PermissionDeniedException(
-                        PermissionResourceType.Tool,
-                        context.ToolName,
-                        filterResult.Reason ?? L.T(StringKey.ToolNotAllowedInMode, context.ToolName, context.AgentMode));
+                    context.Deny(filterResult.Reason ?? L.T(StringKey.ToolNotAllowedInMode, context.ToolName, context.AgentMode));
+                    return;
                 }
 
                 _logger.LogDebug(L.T(StringKey.AgentToolLimitPassedLog, context.ToolName, context.AgentMode));
@@ -60,10 +58,8 @@ public sealed partial class AgentRestrictionMiddleware : ServiceEntity, IToolExe
             else if (!_agentToolRestrictions.IsToolAllowedForMode(context.ToolName, context.AgentMode))
             {
                 _logger.LogWarning(L.T(StringKey.AgentToolLimitDeniedLog, context.ToolName, context.AgentMode));
-                throw new PermissionDeniedException(
-                    PermissionResourceType.Tool,
-                    context.ToolName,
-                    L.T(StringKey.ToolNotAllowedInMode, context.ToolName, context.AgentMode));
+                context.Deny(L.T(StringKey.ToolNotAllowedInMode, context.ToolName, context.AgentMode));
+                return;
             }
             else
             {

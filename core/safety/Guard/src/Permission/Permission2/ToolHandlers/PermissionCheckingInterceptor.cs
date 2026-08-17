@@ -127,28 +127,25 @@ public sealed partial class PermissionCheckingInterceptor : ServiceEntity, IPerm
     }
 
     /// <summary>
-    /// 检查权限并在被拒绝时抛出异常
+    /// 检查权限并返回决策结果 — 替代异常传播
     /// </summary>
-    public async Task CheckPermissionOrThrowAsync(
+    public async Task<PermissionCheckOutcome> CheckPermissionAsync(
         ToolInvokeContext context,
         CancellationToken cancellationToken = default)
     {
         var result = await OnBeforeToolInvokeAsync(context, cancellationToken).ConfigureAwait(false);
 
-        if (result.IsDenied)
+        if (result.IsAllowed)
         {
-            throw PermissionDeniedException.ToolDenied(
-                context.ToolName,
-                result.DenyReason ?? "权限被拒绝");
+            return PermissionCheckOutcome.Allowed;
         }
 
         if (result.RequiresConfirmation)
         {
-            throw new PermissionPendingConfirmationException(
-                context.ToolName,
-                result.ConfirmationPrompt ?? "需要确认",
-                context.RequestId);
+            return PermissionCheckOutcome.Pending(result.ConfirmationPrompt ?? "需要确认");
         }
+
+        return PermissionCheckOutcome.Denied(result.DenyReason ?? "权限被拒绝");
     }
 
     /// <inheritdoc />

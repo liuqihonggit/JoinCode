@@ -25,9 +25,18 @@ public sealed record ToolCallResult
 
     /// <summary>
     /// 注入消息 — 对齐 TS SkillTool newMessages
-    /// 由 ChatService 在处理结果时追加到对话历史
+    /// 由 ChatService 在处理工具结果后，将这些消息追加到对话历史
     /// </summary>
     public IReadOnlyList<JoinCode.Abstractions.LLM.Chat.ApiMessage>? InjectedMessages { get; init; }
+
+    /// <summary>权限决策结果 — PendingConfirmation 时由 ToolExecutionHandler 触发确认流程</summary>
+    public PermissionDecision PermissionDecision { get; init; } = PermissionDecision.Allowed;
+
+    /// <summary>权限确认提示 — PermissionDecision 为 PendingConfirmation 时填充</summary>
+    public string? ConfirmationPrompt { get; init; }
+
+    /// <summary>权限确认规则内容 — WebFetch 等 domain:hostname 格式</summary>
+    public string? PermissionRuleContent { get; init; }
 }
 
 /// <summary>
@@ -199,23 +208,11 @@ public sealed partial class ChatToolOrchestrator : ServiceEntity, IChatToolOrche
                 StructuredPatch = toolResult.StructuredPatch,
                 ContentBlocks = toolResult.IsImage ? toolResult.Content : null,
                 ContextModifier = toolResult.ContextModifier,
-                InjectedMessages = toolResult.InjectedMessages
+                InjectedMessages = toolResult.InjectedMessages,
+                PermissionDecision = toolResult.PermissionDecision,
+                ConfirmationPrompt = toolResult.ConfirmationPrompt,
+                PermissionRuleContent = toolResult.PermissionRuleContent
             };
-        }
-        catch (PermissionPendingConfirmationException ex)
-        {
-            if (Core.Utils.TestEnvironmentDetector.IsNonInteractive)
-            {
-                _logger?.LogWarning("[ChatToolOrchestrator] 非交互模式下权限确认自动拒绝: {ToolName}", toolCallName);
-                return new ToolCallResult { ResultText = FormatToolError(ex.Message), IsError = true };
-            }
-
-            throw;
-        }
-        catch (PermissionDeniedException ex)
-        {
-            _logger?.LogWarning("[ChatToolOrchestrator] 工具权限被拒绝: {ToolName}, Reason={Reason}", toolCallName, ex.Message);
-            return new ToolCallResult { ResultText = FormatToolError(ex.Message), IsError = true };
         }
         catch (Exception ex)
         {

@@ -56,6 +56,9 @@ public abstract class WorkflowPluginBase : Entity, IWorkflowPlugin, IPluginHeart
     /// <summary>非托管资源表 — SafeHandle 包装的非托管内存</summary>
     public UnmanagedResourceTable UnmanagedResources { get; } = new();
 
+    /// <summary>Fiber 状态机 — 对齐 Cordis,约束生命周期状态转换</summary>
+    public PluginFiber Fiber { get; } = new();
+
     /// <summary>是否存活 — volatile bool,纳秒级读取</summary>
     public bool IsAlive => _isAlive;
 
@@ -89,6 +92,11 @@ public abstract class WorkflowPluginBase : Entity, IWorkflowPlugin, IPluginHeart
     /// </summary>
     public PluginUnloadResult Unload()
     {
+        if (!Fiber.TryTransitionTo(PluginFiberState.Unloading))
+        {
+            return PluginUnloadResult.AlreadyUnloaded(Name);
+        }
+
         var sw = System.Diagnostics.Stopwatch.StartNew();
         try
         {
@@ -108,6 +116,7 @@ public abstract class WorkflowPluginBase : Entity, IWorkflowPlugin, IPluginHeart
             UnmanagedResources.ReleaseAll();
 
             OnUnload();
+            Fiber.TransitionTo(PluginFiberState.Disposed);
             return PluginUnloadResult.Success(Name, sw.Elapsed);
         }
         catch (Exception ex)

@@ -27,6 +27,14 @@ public interface IWorkflowPlugin
     OperationResult Load(IServiceCollection services);
 
     /// <summary>
+    /// 加载插件(新签名) — 副作用唯一入口 PluginContext,对齐 Cordis ctx
+    /// <para>默认转调旧 Load(IServiceCollection) 做兼容,新插件覆写此方法</para>
+    /// <para>通过 ctx.RegisterService/Effect 注册副作用,撤销链自动收集</para>
+    /// </summary>
+    Task<OperationResult> LoadAsync(PluginContext ctx, CancellationToken cancellationToken = default)
+        => Task.FromResult(Load(ctx.GetLegacyServices()));
+
+    /// <summary>
     /// 初始化插件 - 获取服务依赖
     /// </summary>
     Task<OperationResult> InitializeAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken = default);

@@ -42,9 +42,10 @@ public sealed class WorkflowPluginHost : IDisposable
     }
 
     /// <summary>
-    /// 加载插件 - 调用插件的 Load 方法注册服务
+    /// 加载插件 - 构造 PluginContext 调用 LoadAsync(新签名,对齐 Cordis ctx)
+    /// <para>旧插件通过 IWorkflowPlugin.LoadAsync 默认方法转调 Load(IServiceCollection) 兼容</para>
     /// </summary>
-    public OperationResult Load()
+    public async Task<OperationResult> LoadAsync(CancellationToken cancellationToken = default)
     {
         DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
 
@@ -52,7 +53,8 @@ public sealed class WorkflowPluginHost : IDisposable
         {
             _logger?.LogInformation("正在加载工作流插件: {PluginName} v{Version}", _plugin.Name, _plugin.Version);
 
-            var result = _plugin.Load(_pluginServices);
+            var ctx = new PluginContext(_plugin.Name, _pluginServices);
+            var result = await _plugin.LoadAsync(ctx, cancellationToken).ConfigureAwait(false);
 
             if (!result.Success)
             {

@@ -104,7 +104,7 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
 
             var host = new WorkflowPluginHost(plugin, _kernel, _loggerFactory, _fileOperationService, _commandRegistry, _logger);
 
-            var loadResult = host.Load();
+            var loadResult = await host.LoadAsync(cancellationToken).ConfigureAwait(false);
             if (!loadResult.Success)
             {
                 host.Dispose();

@@ -36,4 +36,12 @@ public enum TuiCommandAction
     ExecuteTest,
     /// <summary>保存会话</summary>
     SaveSession,
+    /// <summary>执行 grep 搜索</summary>
+    ExecuteGrep,
+    /// <summary>执行 git diff</summary>
+    ExecuteDiff,
+    /// <summary>列出文件</summary>
+    ExecuteFiles,
+    /// <summary>打开/显示文件内容</summary>
+    ExecuteOpen,
 }

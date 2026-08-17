@@ -9,7 +9,8 @@ public static class TuiCommandProcessor
 {
     private static readonly FrozenSet<string> KnownCommands = FrozenSet.Create(
         StringComparer.OrdinalIgnoreCase,
-        "/help", "/exit", "/clear", "/history", "/shell", "/build", "/test", "/save");
+        "/help", "/exit", "/clear", "/history", "/shell", "/build", "/test", "/save",
+        "/grep", "/diff", "/files", "/open");
 
     /// <summary>
     /// 解析并处理斜杠命令。
@@ -39,6 +40,10 @@ public static class TuiCommandProcessor
             "/build" => new TuiCommandResult(true, "  🔨 执行 build...", TuiCommandAction.ExecuteBuild, null),
             "/test" => new TuiCommandResult(true, "  🧪 执行 test...", TuiCommandAction.ExecuteTest, null),
             "/save" => HandleSave(history),
+            "/grep" => HandleGrep(args),
+            "/diff" => new TuiCommandResult(true, "  📝 git diff...", TuiCommandAction.ExecuteDiff, null),
+            "/files" => HandleFiles(args),
+            "/open" => HandleOpen(args),
             _ => new TuiCommandResult(true, $"  ❌ 未知命令: {command}", TuiCommandAction.None, null),
         };
     }
@@ -55,6 +60,10 @@ public static class TuiCommandProcessor
               /build    — 执行 dotnet build
               /test     — 执行 dotnet test
               /save     — 保存当前会话到文件
+              /grep     — 搜索代码（如 /grep TODO）
+              /diff     — 显示 git diff
+              /files    — 列出文件（如 /files *.cs）
+              /open     — 显示文件内容（如 /open README.md）
             """;
     }
 
@@ -94,5 +103,25 @@ public static class TuiCommandProcessor
         if (history is null || history.Count == 0)
             return new TuiCommandResult(true, "  ⚠️ 无历史记录可保存", TuiCommandAction.None, null);
         return new TuiCommandResult(true, "  💾 保存会话...", TuiCommandAction.SaveSession, null);
+    }
+
+    private static TuiCommandResult HandleGrep(string args)
+    {
+        if (string.IsNullOrWhiteSpace(args))
+            return new TuiCommandResult(true, "  用法: /grep <模式> [路径]（如 /grep TODO）", TuiCommandAction.None, null);
+        return new TuiCommandResult(true, $"  🔍 grep: {args}", TuiCommandAction.ExecuteGrep, args);
+    }
+
+    private static TuiCommandResult HandleFiles(string args)
+    {
+        var pattern = string.IsNullOrWhiteSpace(args) ? "*" : args;
+        return new TuiCommandResult(true, $"  📂 files: {pattern}", TuiCommandAction.ExecuteFiles, pattern);
+    }
+
+    private static TuiCommandResult HandleOpen(string args)
+    {
+        if (string.IsNullOrWhiteSpace(args))
+            return new TuiCommandResult(true, "  用法: /open <文件路径>（如 /open README.md）", TuiCommandAction.None, null);
+        return new TuiCommandResult(true, $"  📄 open: {args}", TuiCommandAction.ExecuteOpen, args);
     }
 }

@@ -256,6 +256,18 @@ internal static class TuiModeRunner
                     case TuiCommandAction.SaveSession:
                         SaveSession(chatHistory, outputView, painter);
                         break;
+                    case TuiCommandAction.ExecuteGrep:
+                        await ExecuteShellAsync($"findstr /s /i /n \"{slashResult.ShellCommand}\" *.cs *.md *.json", outputView, painter, cancellationToken).ConfigureAwait(false);
+                        break;
+                    case TuiCommandAction.ExecuteDiff:
+                        await ExecuteShellAsync("git diff", outputView, painter, cancellationToken).ConfigureAwait(false);
+                        break;
+                    case TuiCommandAction.ExecuteFiles:
+                        await ExecuteShellAsync($"dir /s /b {slashResult.ShellCommand}", outputView, painter, cancellationToken).ConfigureAwait(false);
+                        break;
+                    case TuiCommandAction.ExecuteOpen:
+                        OpenFile(slashResult.ShellCommand!, outputView, painter);
+                        break;
                 }
                 continue;
             }
@@ -397,6 +409,37 @@ internal static class TuiModeRunner
         catch (Exception ex)
         {
             painter.Invoke(() => outputView.AppendLine($"  [保存失败] {ex.Message}"));
+        }
+    }
+
+    /// <summary>
+    /// 显示文件内容到 OutputView。
+    /// </summary>
+    private static void OpenFile(string filePath, OutputView outputView, TerminalPainter painter)
+    {
+        try
+        {
+            if (!System.IO.File.Exists(filePath))
+            {
+                painter.Invoke(() => outputView.AppendLine($"  [文件不存在] {filePath}"));
+                return;
+            }
+            var content = System.IO.File.ReadAllText(filePath);
+            var lines = content.Split('\n');
+            var maxLines = 200;
+            var displayCount = Math.Min(lines.Length, maxLines);
+            for (var i = 0; i < displayCount; i++)
+            {
+                var line = lines[i].TrimEnd('\r');
+                var captured = line;
+                painter.Invoke(() => outputView.AppendLine($"  {captured}"));
+            }
+            if (lines.Length > maxLines)
+                painter.Invoke(() => outputView.AppendLine($"  ... ({lines.Length} 行，仅显示前 {maxLines} 行)"));
+        }
+        catch (Exception ex)
+        {
+            painter.Invoke(() => outputView.AppendLine($"  [打开失败] {ex.Message}"));
         }
     }
 

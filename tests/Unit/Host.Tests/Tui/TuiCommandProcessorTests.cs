@@ -121,4 +121,64 @@ public class TuiCommandProcessorTests
         Assert.True(result.IsHandled);
         Assert.Equal(TuiCommandAction.Exit, result.Action);
     }
+
+    [Fact]
+    public void Grep_WithPattern_ReturnsGrepAction()
+    {
+        var result = TuiCommandProcessor.Process("/grep TODO");
+        Assert.True(result.IsHandled);
+        Assert.Equal(TuiCommandAction.ExecuteGrep, result.Action);
+        Assert.Equal("TODO", result.ShellCommand);
+    }
+
+    [Fact]
+    public void Grep_WithoutPattern_ReturnsUsageHint()
+    {
+        var result = TuiCommandProcessor.Process("/grep");
+        Assert.True(result.IsHandled);
+        Assert.Contains("用法", result.Output);
+    }
+
+    [Fact]
+    public void Diff_ReturnsDiffAction()
+    {
+        var result = TuiCommandProcessor.Process("/diff");
+        Assert.True(result.IsHandled);
+        Assert.Equal(TuiCommandAction.ExecuteDiff, result.Action);
+    }
+
+    [Fact]
+    public void Files_WithPattern_ReturnsFilesAction()
+    {
+        var result = TuiCommandProcessor.Process("/files *.cs");
+        Assert.True(result.IsHandled);
+        Assert.Equal(TuiCommandAction.ExecuteFiles, result.Action);
+        Assert.Equal("*.cs", result.ShellCommand);
+    }
+
+    [Fact]
+    public void Files_WithoutPattern_ReturnsDefaultFilesAction()
+    {
+        var result = TuiCommandProcessor.Process("/files");
+        Assert.True(result.IsHandled);
+        Assert.Equal(TuiCommandAction.ExecuteFiles, result.Action);
+        Assert.Equal("*", result.ShellCommand);
+    }
+
+    [Fact]
+    public void Open_WithFile_ReturnsOpenAction()
+    {
+        var result = TuiCommandProcessor.Process("/open README.md");
+        Assert.True(result.IsHandled);
+        Assert.Equal(TuiCommandAction.ExecuteOpen, result.Action);
+        Assert.Equal("README.md", result.ShellCommand);
+    }
+
+    [Fact]
+    public void Open_WithoutFile_ReturnsUsageHint()
+    {
+        var result = TuiCommandProcessor.Process("/open");
+        Assert.True(result.IsHandled);
+        Assert.Contains("用法", result.Output);
+    }
 }

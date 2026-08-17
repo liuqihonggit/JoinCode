@@ -22,4 +22,8 @@
     <PackageReference Include="Terminal.Gui" Version="2.4.17" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="JoinCode.Host.Tests" />
+  </ItemGroup>
+
 </Project>

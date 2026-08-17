@@ -11,6 +11,7 @@ internal static class TuiModeRunner
     internal static async Task RunAsync(WorkflowConfig config, IServiceProvider services, CancellationToken cancellationToken = default)
     {
         using var app = Application.Create();
+        Application.MaximumIterationsPerSecond = 200;
         app.Init();
         WriteDiag($"[TUI] app.Init done, Initialized={app.Initialized}");
 
@@ -56,6 +57,8 @@ internal static class TuiModeRunner
         var chatHistory = new MessageList();
 
         statusBar.SetConnected(queryEngine is not null);
+
+        var outputBatcher = new OutputBatcher(outputView);
 
         var registry = new PipeRegistry();
         var mainPipe = new MessagePipe("main", "AI Assistant", isMain: true);
@@ -165,12 +168,25 @@ internal static class TuiModeRunner
         };
 
         var processingCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        var processingTask = ProcessQueueAsync(queue, mainPipe, outputView, queryEngine, chatHistory, app.RequestStop, painter, permissionDialog, permissionManager, processingCts.Token);
+        var processingTask = ProcessQueueAsync(queue, mainPipe, outputView, outputBatcher, queryEngine, chatHistory, app.RequestStop, painter, permissionDialog, permissionManager, processingCts.Token);
 
         var focusSet = false;
         var lastQueueCount = -1;
+        var iterCount = 0;
+        var iterSw = System.Diagnostics.Stopwatch.StartNew();
+        var lastIterMs = 0L;
         app.Iteration += (_, _) =>
         {
+            var iterSw2 = System.Diagnostics.Stopwatch.StartNew();
+            iterCount++;
+            var nowMs = iterSw.ElapsedMilliseconds;
+            var gap = nowMs - lastIterMs;
+            lastIterMs = nowMs;
+            if (gap > 50)
+                PerfTap.Log("Iteration.slow", gap, $"#{iterCount}");
+            if (iterCount % 100 == 0)
+                PerfTap.Log("Iteration.stats", gap, $"#{iterCount} avg={nowMs / iterCount}ms");
+            outputBatcher.DrainOnIteration();
             if (!focusSet)
             {
                 focusSet = true;
@@ -187,6 +203,9 @@ internal static class TuiModeRunner
                 lastQueueCount = snapshot.All.Count;
                 queuedCommands.OnQueueChanged(snapshot);
             }
+            iterSw2.Stop();
+            if (iterSw2.ElapsedMilliseconds > 5)
+                PerfTap.Log("Iteration.body", iterSw2.ElapsedMilliseconds, $"#{iterCount}");
         };
 
         polling.Start();
@@ -209,6 +228,7 @@ internal static class TuiModeRunner
         CommandQueue queue,
         MessagePipe mainPipe,
         OutputView outputView,
+        OutputBatcher outputBatcher,
         IQueryEngine? queryEngine,
         MessageList chatHistory,
         Action requestStop,
@@ -248,25 +268,25 @@ internal static class TuiModeRunner
                         painter.Invoke(() => outputView.Clear());
                         break;
                     case TuiCommandAction.ExecuteShell:
-                        await ExecuteShellAsync(slashResult.ShellCommand!, outputView, painter, cancellationToken).ConfigureAwait(false);
+                        await ExecuteShellAsync(slashResult.ShellCommand!, outputBatcher, cancellationToken).ConfigureAwait(false);
                         break;
                     case TuiCommandAction.ExecuteBuild:
-                        await ExecuteShellAsync("dotnet build", outputView, painter, cancellationToken).ConfigureAwait(false);
+                        await ExecuteShellAsync("dotnet build", outputBatcher, cancellationToken).ConfigureAwait(false);
                         break;
                     case TuiCommandAction.ExecuteTest:
-                        await ExecuteShellAsync("dotnet test", outputView, painter, cancellationToken).ConfigureAwait(false);
+                        await ExecuteShellAsync("dotnet test", outputBatcher, cancellationToken).ConfigureAwait(false);
                         break;
                     case TuiCommandAction.SaveSession:
                         SaveSession(chatHistory, outputView, painter);
                         break;
                     case TuiCommandAction.ExecuteGrep:
-                        await ExecuteShellAsync($"findstr /s /i /n \"{slashResult.ShellCommand}\" *.cs *.md *.json", outputView, painter, cancellationToken).ConfigureAwait(false);
+                        await ExecuteShellAsync($"findstr /s /i /n \"{slashResult.ShellCommand}\" *.cs *.md *.json", outputBatcher, cancellationToken).ConfigureAwait(false);
                         break;
                     case TuiCommandAction.ExecuteDiff:
-                        await ExecuteShellAsync("git diff", outputView, painter, cancellationToken).ConfigureAwait(false);
+                        await ExecuteShellAsync("git diff", outputBatcher, cancellationToken).ConfigureAwait(false);
                         break;
                     case TuiCommandAction.ExecuteFiles:
-                        await ExecuteShellAsync($"dir /s /b {slashResult.ShellCommand}", outputView, painter, cancellationToken).ConfigureAwait(false);
+                        await ExecuteShellAsync($"dir /s /b {slashResult.ShellCommand}", outputBatcher, cancellationToken).ConfigureAwait(false);
                         break;
                     case TuiCommandAction.ExecuteOpen:
                         OpenFile(slashResult.ShellCommand!, outputView, painter);
@@ -275,10 +295,10 @@ internal static class TuiModeRunner
                         OpenFile(slashResult.ShellCommand!, outputView, painter);
                         break;
                     case TuiCommandAction.ExecuteApply:
-                        await ExecuteShellAsync($"git apply {slashResult.ShellCommand}", outputView, painter, cancellationToken).ConfigureAwait(false);
+                        await ExecuteShellAsync($"git apply {slashResult.ShellCommand}", outputBatcher, cancellationToken).ConfigureAwait(false);
                         break;
                     case TuiCommandAction.ExecuteUndo:
-                        await ExecuteShellAsync("git checkout .", outputView, painter, cancellationToken).ConfigureAwait(false);
+                        await ExecuteShellAsync("git checkout .", outputBatcher, cancellationToken).ConfigureAwait(false);
                         break;
                     case TuiCommandAction.ExecuteLoad:
                         OpenFile(slashResult.ShellCommand!, outputView, painter);
@@ -325,15 +345,21 @@ internal static class TuiModeRunner
 
             try
             {
+                var chunkCount = 0;
+                var chunkSw = System.Diagnostics.Stopwatch.StartNew();
                 await foreach (var chunk in queryEngine.QueryAsync(cmd.Content, chatHistory, cancellationToken).ConfigureAwait(false))
                 {
+                    chunkCount++;
                     var text = ChunkFormatter.ChunkToText(chunk);
                     if (!string.IsNullOrEmpty(text))
                     {
-                        var capturedText = text;
-                        painter.Invoke(() => outputView.AppendLine(capturedText));
+                        outputBatcher.Enqueue(text);
                     }
                 }
+                outputBatcher.FlushNow(painter);
+                chunkSw.Stop();
+                PerfTap.Log("chunk-loop-total", chunkSw.ElapsedMilliseconds, $"chunks={chunkCount} cmd={cmd.Content[..Math.Min(50, cmd.Content.Length)]}");
+                painter.Invoke(() => outputView.Flush());
             }
             catch (OperationCanceledException) { break; }
             catch (PermissionPendingConfirmationException ex)
@@ -369,8 +395,7 @@ internal static class TuiModeRunner
     /// </summary>
     private static async Task ExecuteShellAsync(
         string command,
-        OutputView outputView,
-        TerminalPainter painter,
+        OutputBatcher batcher,
         CancellationToken cancellationToken)
     {
         var psi = new System.Diagnostics.ProcessStartInfo
@@ -387,31 +412,34 @@ internal static class TuiModeRunner
         {
             using var proc = new System.Diagnostics.Process { StartInfo = psi };
             proc.Start();
-            var outputTask = ReadStreamAsync(proc.StandardOutput, outputView, painter, cancellationToken);
-            var errorTask = ReadStreamAsync(proc.StandardError, outputView, painter, cancellationToken);
+            var outputTask = ReadStreamAsync(proc.StandardOutput, batcher, cancellationToken);
+            var errorTask = ReadStreamAsync(proc.StandardError, batcher, cancellationToken);
             await proc.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
             await Task.WhenAll(outputTask, errorTask).ConfigureAwait(false);
             var exitCode = proc.ExitCode;
-            painter.Invoke(() => outputView.AppendLine($"  [退出码 {exitCode}]"));
+            batcher.Enqueue($"  [退出码 {exitCode}]");
         }
         catch (Exception ex)
         {
-            painter.Invoke(() => outputView.AppendLine($"  [执行失败] {ex.Message}"));
+            batcher.Enqueue($"  [执行失败] {ex.Message}");
         }
     }
 
     private static async Task ReadStreamAsync(
         System.IO.StreamReader reader,
-        OutputView outputView,
-        TerminalPainter painter,
+        OutputBatcher batcher,
         CancellationToken cancellationToken)
     {
+        var lineCount = 0;
+        var totalSw = System.Diagnostics.Stopwatch.StartNew();
         string? line;
         while ((line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) is not null)
         {
-            var captured = line;
-            painter.Invoke(() => outputView.AppendLine($"  {captured}"));
+            lineCount++;
+            batcher.Enqueue($"  {line}");
         }
+        totalSw.Stop();
+        PerfTap.Log("shell-read-total", totalSw.ElapsedMilliseconds, $"lines={lineCount}");
     }
 
     /// <summary>

@@ -21,6 +21,7 @@
     <Project Path="infrastructure/Infrastructure/Infrastructure.csproj" />
     <Project Path="infrastructure/Transport.Impl/Transport.Impl.csproj" />
   </Folder>
+  <Folder Name="/core/" />
   <Folder Name="/core/ai/">
     <Project Path="core/ai/Llm/src/Llm.csproj" />
     <Project Path="core/ai/Llm/tests/Unit/Llm.Tests.csproj" />
@@ -81,6 +82,7 @@
   </Folder>
   <Folder Name="/app/">
     <Project Path="app/JoinCode/JoinCode.csproj" />
+    <Project Path="app/JoinCodeTui/JoinCodeTui.csproj" />
     <Project Path="app/Sdk/Sdk.csproj" />
     <Project Path="app/JoinCodeGui/JoinCodeGui.csproj" />
   </Folder>
@@ -110,6 +112,7 @@
   <Folder Name="/tests/Benchmarks/">
     <Project Path="tests/Benchmarks/Eyes.Benchmarks/Eyes.Benchmarks.csproj" />
   </Folder>
+  <Folder Name="/tests/" />
   <Folder Name="/tests/AotCompatibility/">
     <Project Path="tests/AotCompatibility/aot-browser-test/aot-browser-test.csproj" />
     <Project Path="tests/AotCompatibility/aot-httpclientfactory-test/aot-httpclientfactory-test.csproj" />

@@ -22,7 +22,13 @@ public sealed class TerminalPainter
 
     /// <summary>投递同步渲染请求到 MainLoop（线程安全）。</summary>
     /// <param name="drawAction">绘制操作。</param>
-    public void Invoke(Action drawAction) => _invoke(drawAction);
+    public void Invoke(Action drawAction)
+    {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        _invoke(drawAction);
+        sw.Stop();
+        PerfTap.LogIfSlow("TerminalPainter.Invoke", sw.ElapsedMilliseconds);
+    }
 
     /// <summary>注册 TUI 组件到渲染树。</summary>
     /// <param name="component">TUI 组件。</param>

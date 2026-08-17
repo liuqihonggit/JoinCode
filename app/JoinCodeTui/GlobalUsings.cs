@@ -33,4 +33,5 @@ global using JoinCode.Tui.Rendering;
 global using JoinCode.Tui.Views;
 global using JoinCode.Tui.Commands;
 global using JoinCode.Tui.Pipes;
+global using JoinCode.Tui.Diagnostics;
 global using TuiKey = Terminal.Gui.Input.Key;

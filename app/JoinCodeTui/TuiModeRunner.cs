@@ -23,6 +23,7 @@ internal static class TuiModeRunner
         var outputView = new OutputView();
         var promptView = new PromptView(queue);
         var footerTab = new FooterTabView();
+        var permissionDialog = new PermissionDialogView();
 
         statusBar.SetMode("auto");
         statusBar.SetAgentStatus("● Running");
@@ -33,6 +34,7 @@ internal static class TuiModeRunner
         root.AddComponent(outputView);
         root.SetPrompt(promptView);
         root.SetFooter(footerTab);
+        root.AddComponent(permissionDialog);
 
         outputView.AppendLine($"⚡ AgentOS v1.0  │  Model: {config.CurrentModelId}");
         outputView.AppendLine(new string('─', 60));
@@ -40,6 +42,7 @@ internal static class TuiModeRunner
         outputView.AppendLine("");
 
         var queryEngine = services.GetService<IQueryEngine>();
+        var permissionManager = services.GetService<IToolPermissionManager>();
         var chatHistory = new MessageList();
 
         var registry = new PipeRegistry();
@@ -150,7 +153,7 @@ internal static class TuiModeRunner
         };
 
         var processingCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        var processingTask = ProcessQueueAsync(queue, mainPipe, outputView, queryEngine, chatHistory, app.RequestStop, painter, processingCts.Token);
+        var processingTask = ProcessQueueAsync(queue, mainPipe, outputView, queryEngine, chatHistory, app.RequestStop, painter, permissionDialog, permissionManager, processingCts.Token);
 
         var focusSet = false;
         app.Iteration += (_, _) =>
@@ -186,6 +189,8 @@ internal static class TuiModeRunner
         MessageList chatHistory,
         Action requestStop,
         TerminalPainter painter,
+        PermissionDialogView permissionDialog,
+        IToolPermissionManager? permissionManager,
         CancellationToken cancellationToken)
     {
         while (!cancellationToken.IsCancellationRequested)
@@ -233,6 +238,27 @@ internal static class TuiModeRunner
                 }
             }
             catch (OperationCanceledException) { break; }
+            catch (PermissionPendingConfirmationException ex)
+            {
+                Task<bool>? dialogTask = null;
+                painter.Invoke(() =>
+                {
+                    dialogTask = permissionDialog.ShowAsync(ex.ToolName, ex.ConfirmationPrompt, cancellationToken);
+                });
+                var allowed = dialogTask!.GetAwaiter().GetResult();
+                painter.Invoke(() => permissionDialog.Hide());
+
+                if (allowed)
+                {
+                    permissionManager?.ApproveToolTemporarily(ex.ToolName, TimeSpan.FromMinutes(5));
+                    painter.Invoke(() => outputView.AppendLine($"  [允许] {ex.ToolName}"));
+                    queue.Enqueue(new QueuedCommand(cmd.Content, CommandOrigin.User, QueuePriority.Now));
+                }
+                else
+                {
+                    painter.Invoke(() => outputView.AppendLine($"  [拒绝] {ex.ToolName}"));
+                }
+            }
             catch (Exception ex)
             {
                 painter.Invoke(() => outputView.AppendLine($"  [错误] {ex.Message}"));

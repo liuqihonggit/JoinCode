@@ -229,6 +229,37 @@ internal static class TuiModeRunner
                 return;
             }
 
+            var slashResult = TuiCommandProcessor.Process(cmd.Content, chatHistory);
+            if (slashResult.IsHandled)
+            {
+                if (!string.IsNullOrEmpty(slashResult.Output))
+                {
+                    painter.Invoke(() => outputView.AppendLine(slashResult.Output));
+                }
+                switch (slashResult.Action)
+                {
+                    case TuiCommandAction.Exit:
+                        requestStop();
+                        return;
+                    case TuiCommandAction.ClearOutput:
+                        painter.Invoke(() => outputView.Clear());
+                        break;
+                    case TuiCommandAction.ExecuteShell:
+                        await ExecuteShellAsync(slashResult.ShellCommand!, outputView, painter, cancellationToken).ConfigureAwait(false);
+                        break;
+                    case TuiCommandAction.ExecuteBuild:
+                        await ExecuteShellAsync("dotnet build", outputView, painter, cancellationToken).ConfigureAwait(false);
+                        break;
+                    case TuiCommandAction.ExecuteTest:
+                        await ExecuteShellAsync("dotnet test", outputView, painter, cancellationToken).ConfigureAwait(false);
+                        break;
+                    case TuiCommandAction.SaveSession:
+                        SaveSession(chatHistory, outputView, painter);
+                        break;
+                }
+                continue;
+            }
+
             mainPipe.AddMessage(new TuiMessage
             {
                 Id = Guid.NewGuid().ToString("N"),
@@ -284,6 +315,88 @@ internal static class TuiModeRunner
             {
                 painter.Invoke(() => outputView.AppendLine($"  [错误] {ex.Message}"));
             }
+        }
+    }
+
+    /// <summary>
+    /// 执行 shell 命令并将输出显示到 OutputView。
+    /// </summary>
+    private static async Task ExecuteShellAsync(
+        string command,
+        OutputView outputView,
+        TerminalPainter painter,
+        CancellationToken cancellationToken)
+    {
+        var psi = new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = "cmd.exe",
+            Arguments = $"/c {command}",
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true,
+        };
+
+        try
+        {
+            using var proc = new System.Diagnostics.Process { StartInfo = psi };
+            proc.Start();
+            var outputTask = ReadStreamAsync(proc.StandardOutput, outputView, painter, cancellationToken);
+            var errorTask = ReadStreamAsync(proc.StandardError, outputView, painter, cancellationToken);
+            await proc.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+            await Task.WhenAll(outputTask, errorTask).ConfigureAwait(false);
+            var exitCode = proc.ExitCode;
+            painter.Invoke(() => outputView.AppendLine($"  [退出码 {exitCode}]"));
+        }
+        catch (Exception ex)
+        {
+            painter.Invoke(() => outputView.AppendLine($"  [执行失败] {ex.Message}"));
+        }
+    }
+
+    private static async Task ReadStreamAsync(
+        System.IO.StreamReader reader,
+        OutputView outputView,
+        TerminalPainter painter,
+        CancellationToken cancellationToken)
+    {
+        string? line;
+        while ((line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) is not null)
+        {
+            var captured = line;
+            painter.Invoke(() => outputView.AppendLine($"  {captured}"));
+        }
+    }
+
+    /// <summary>
+    /// 保存聊天历史到文件。
+    /// </summary>
+    private static void SaveSession(MessageList history, OutputView outputView, TerminalPainter painter)
+    {
+        try
+        {
+            var dir = System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), ".jcctui");
+            System.IO.Directory.CreateDirectory(dir);
+            var path = System.IO.Path.Combine(dir, $"session_{DateTime.Now:yyyyMMdd_HHmmss}.txt");
+            var sb = new StringBuilder();
+            for (var i = 0; i < history.Count; i++)
+            {
+                var msg = history[i];
+                var role = msg.Role switch
+                {
+                    MessageRole.User => "User",
+                    MessageRole.Assistant => "Assistant",
+                    MessageRole.System => "System",
+                    _ => "Tool",
+                };
+                sb.Append($"[{role}] {msg.Content}\n");
+            }
+            System.IO.File.WriteAllText(path, sb.ToString());
+            painter.Invoke(() => outputView.AppendLine($"  💾 已保存到 {path}"));
+        }
+        catch (Exception ex)
+        {
+            painter.Invoke(() => outputView.AppendLine($"  [保存失败] {ex.Message}"));
         }
     }
 

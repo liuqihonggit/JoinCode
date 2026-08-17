@@ -31,6 +31,7 @@ internal static class TuiModeRunner
         statusBar.SetMode("auto");
         statusBar.SetAgentStatus("● Running");
         statusBar.SetSessionId(1);
+        statusBar.SetModel(Environment.GetEnvironmentVariable("JCC_MODEL_ID") ?? "(未配置)");
 
         root.SetStatusBar(statusBar);
         root.SetToolBar(toolBar);
@@ -53,6 +54,8 @@ internal static class TuiModeRunner
         var queryEngine = services.GetService<IQueryEngine>();
         var permissionManager = services.GetService<IToolPermissionManager>();
         var chatHistory = new MessageList();
+
+        statusBar.SetConnected(queryEngine is not null);
 
         var registry = new PipeRegistry();
         var mainPipe = new MessagePipe("main", "AI Assistant", isMain: true);

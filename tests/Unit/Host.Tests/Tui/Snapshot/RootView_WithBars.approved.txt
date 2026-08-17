@@ -1,7 +1,7 @@
 RootView [Visible=True, CanFocus=True]
   View [Visible=True, CanFocus=False]
     View [Visible=True, CanFocus=False]
-      Label [Visible=True, CanFocus=False] Text="⚡ AgentOS v1.0 │ auto │ Session: #001"
+      Label [Visible=True, CanFocus=False] Text="○ AgentOS v1.0 │ (未配置) │ auto │ Session: #001"
   View [Visible=True, CanFocus=False]
     View [Visible=True, CanFocus=False]
       Button [Visible=True, CanFocus=True] Text="▶ New (F1)"

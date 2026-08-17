@@ -9,10 +9,15 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem
     // === File 写操作 ===
     // 统一原则：所有写操作用 FileShare.ReadWrite，允许并发读取者，避免跨进程/同进程读-写冲突。写-写互斥由调用方的 Named Mutex 保护。
 
+    // 对齐 File.WriteAllText 默认行为：无 BOM 的 UTF-8。
+    // Encoding.UTF8 带 BOM（preamble=EF BB BF），StreamWriter 会在 Flush 时写入 BOM，
+    // 导致写空字符串实际写入 3 字节，破坏依赖文件大小判断的逻辑（如 PdfPageRenderer 的 empty 检查）。
+    private static readonly Encoding s_utf8NoBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
+
     /// <inheritdoc />
     public async Task WriteAllTextAsync(string path, string contents, CancellationToken cancellationToken = default)
     {
-        await WriteAllTextWithShareAsync(path, contents, Encoding.UTF8, cancellationToken).ConfigureAwait(false);
+        await WriteAllTextWithShareAsync(path, contents, s_utf8NoBom, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -23,7 +28,7 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem
 
     /// <inheritdoc />
     public void WriteAllText(string path, string contents)
-        => WriteAllTextWithShare(path, contents, Encoding.UTF8);
+        => WriteAllTextWithShare(path, contents, s_utf8NoBom);
 
     /// <inheritdoc />
     public void WriteAllText(string path, string contents, Encoding encoding)

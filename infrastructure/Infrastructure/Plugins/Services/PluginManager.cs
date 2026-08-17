@@ -105,11 +105,17 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
 
             _logger?.LogInformation("正在加载内置工作流插件: {PluginName}", pluginName);
 
+            if (plugin is WorkflowPluginBase wpbLoad)
+            {
+                wpbLoad.Fiber.TransitionTo(PluginFiberState.Loading);
+            }
+
             var host = new WorkflowPluginHost(plugin, _kernel, _loggerFactory, _fileOperationService, _commandRegistry, _logger);
 
             var loadResult = await host.LoadAsync(cancellationToken).ConfigureAwait(false);
             if (!loadResult.Success)
             {
+                if (plugin is WorkflowPluginBase wpbFail) wpbFail.Fiber.TransitionTo(PluginFiberState.Failed);
                 host.Dispose();
                 RecordPluginMetrics("workflow", "load", false);
                 throw new InvalidOperationException($"[INF032] 插件 '{pluginName}' Load 失败: {loadResult.ErrorMessage}");
@@ -118,6 +124,7 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
             var initResult = await host.InitializeAsync(cancellationToken).ConfigureAwait(false);
             if (!initResult.Success)
             {
+                if (plugin is WorkflowPluginBase wpbFail) wpbFail.Fiber.TransitionTo(PluginFiberState.Failed);
                 host.Unload();
                 host.Dispose();
                 RecordPluginMetrics("workflow", "load", false);
@@ -129,6 +136,7 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
                 var contract = contractPlugin.ValidateUnloadContract();
                 if (!contract.IsValid)
                 {
+                    contractPlugin.Fiber.TransitionTo(PluginFiberState.Failed);
                     host.Unload();
                     host.Dispose();
                     RecordPluginMetrics("workflow", "load", false);
@@ -139,6 +147,7 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
 
             if (!_workflowPlugins.TryAdd(pluginName, host))
             {
+                if (plugin is WorkflowPluginBase wpbFail) wpbFail.Fiber.TransitionTo(PluginFiberState.Failed);
                 host.Unload();
                 host.Dispose();
                 RecordPluginMetrics("workflow", "load", false);
@@ -165,6 +174,7 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
             if (plugin is WorkflowPluginBase pluginBase)
             {
                 RecordPluginResourceIds(pluginName, pluginBase.Resources.Select(r => r.ObjectId));
+                pluginBase.Fiber.TransitionTo(PluginFiberState.Active);
             }
 
             _logger?.LogInformation("内置工作流插件加载成功: {PluginName}", pluginName);
@@ -173,6 +183,10 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
         }
         catch (Exception ex) when (ex is not InvalidOperationException)
         {
+            if (plugin is WorkflowPluginBase wpbEx)
+            {
+                wpbEx.Fiber.TryTransitionTo(PluginFiberState.Failed);
+            }
             RecordPluginMetrics("workflow", "load", false);
             throw;
         }

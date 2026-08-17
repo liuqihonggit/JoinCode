@@ -643,7 +643,7 @@ $psi.WorkingDirectory = "D:\project\{当前分支名}"
 |----------|--------|------|
 | `JCC_ENDPOINT` | `http://localhost:9901` | API 端点（⚠️ 不要带 `/v1`，jcc 内部会自动拼接 `chat/completions`） |
 | `JCC_API_KEY` | `sk-test-1234567890` | API 密钥（MockServer 不校验，任意值即可） |
-| `JCC_VENDOR` | `openai` | LLM 供应商（openai/anthropic/deepseek/sensenova） |
+| `JCC_VENDOR` | `openai` | LLM 供应商（openai/anthropic/deepseek/sensenova/agnes） |
 | `JCC_MODEL_ID` | `gpt-4o` | 模型 ID（MockServer 不校验，任意值即可） |
 
 **3. 诊断：查看 MockServer 请求记录**
